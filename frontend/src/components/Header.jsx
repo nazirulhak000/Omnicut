@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Film, Sparkles, FolderDown, Lightbulb, Settings, Zap, 
+  Film, Sparkles, FolderDown, Lightbulb, Settings, Zap, Rocket,
   CheckCircle2, AlertTriangle, FileText, Maximize, Minimize, 
   Smartphone, QrCode, X, Copy, Check, ExternalLink, Wifi
 } from 'lucide-react';
@@ -40,11 +40,12 @@ export default function Header({ status, activeTab, setActiveTab }) {
   };
 
   const tabs = [
-    { id: 'studio', label: '1. 1-Click Studio', icon: Sparkles, badge: 'ตัดต่อด่วน' },
-    { id: 'capcut_studio', label: '2. CapCut Studio', icon: Film, badge: 'ไทม์ไลน์ Pro 🎬' },
-    { id: 'gallery', label: '3. Export Gallery', icon: FolderDown, badge: `${status?.total_exports || 0} คลิป` },
-    { id: 'script_lab', label: '4. AI Script Lab', icon: Lightbulb, badge: 'สูตรบทยอดฮิต' },
-    { id: 'assets', label: '5. System & Assets', icon: Settings, badge: 'ระบบ & SFX' },
+    { id: 'flow', label: '1. สินค้า → คลิป', icon: Rocket, badge: 'ไล่ 4 ขั้นจบ' },
+    { id: 'studio', label: '2. 1-Click Studio', icon: Sparkles, badge: 'ตัดต่อด่วน' },
+    { id: 'capcut_studio', label: '3. CapCut Studio', icon: Film, badge: 'ไทม์ไลน์ Pro 🎬' },
+    { id: 'gallery', label: '4. Export Gallery', icon: FolderDown, badge: `${status?.total_exports || 0} คลิป` },
+    { id: 'script_lab', label: '5. AI Script Lab', icon: Lightbulb, badge: 'สูตรบทยอดฮิต' },
+    { id: 'assets', label: '6. System & Assets', icon: Settings, badge: 'ระบบ & SFX' },
   ];
 
   return (

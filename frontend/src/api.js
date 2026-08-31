@@ -37,6 +37,33 @@ export const uploadMultipleFiles = (formData, onProgress) => api.post('/upload-m
 }).then(r => r.data);
 
 export const deleteFile = (filePath) => api.post('/delete-file', { file_path: filePath }).then(r => r.data);
+
+// --- Phase 1: product -> clip flow ---
+
+// Returns { mode: 'auto', data } when a key is configured, or
+// { mode: 'manual', prompt } for the user to run in their own chat.
+export const aiRun = (task, context) => api.post('/ai/prompt', { task, context }).then(r => r.data);
+export const aiParse = (task, rawText) => api.post('/ai/parse', { task, raw_text: rawText }).then(r => r.data);
+export const getAiStatus = () => api.get('/ai/status').then(r => r.data);
+
+export const getAngles = (params) => api.get('/angles', { params }).then(r => r.data);
+
+export const fetchProductInfo = (url) => api.post('/product/fetch', { url }).then(r => r.data);
+export const getProducts = (status) => api.get('/products', { params: status ? { status } : {} }).then(r => r.data);
+export const createProduct = (data) => api.post('/products', data).then(r => r.data);
+export const updateProduct = (id, data) => api.patch(`/products/${id}`, data).then(r => r.data);
+export const deleteProduct = (id) => api.delete(`/products/${id}`).then(r => r.data);
+
+export const getProjects = () => api.get('/projects').then(r => r.data);
+export const getProject = (name) => api.get(`/projects/${encodeURIComponent(name)}`).then(r => r.data);
+
+// Same job shape as startRender, so getRenderStatus polls it too.
+export const startReroll = (data) => api.post('/reroll', data).then(r => r.data);
+
+export const getPosts = () => api.get('/posts').then(r => r.data);
+export const createPost = (data) => api.post('/posts', data).then(r => r.data);
+export const setPostMetrics = (id, metrics) => api.post(`/posts/${id}/metrics`, metrics).then(r => r.data);
+export const getPerformance = () => api.get('/posts/performance').then(r => r.data);
 export const getAllAssets = () => api.get('/assets/all').then(r => r.data);
 export const uploadAsset = (formData) => api.post('/assets/upload', formData, {
   headers: { 'Content-Type': 'multipart/form-data' }

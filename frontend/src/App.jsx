@@ -9,10 +9,13 @@ import ExportGallery from './components/ExportGallery';
 import ScriptLab from './components/ScriptLab';
 import SystemAssets from './components/SystemAssets';
 import CapCutTimelineStudio from './components/CapCutTimelineStudio';
+import ProductToClip from './components/ProductToClip';
 import { getSystemStatus, getRawVideos, getExports } from './api';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('studio');
+  // The 4-step product -> clip flow is the main path: it is the only tab that
+  // goes from a product link all the way to a posted clip.
+  const [activeTab, setActiveTab] = useState('flow');
   const [status, setStatus] = useState(null);
   const [videos, setVideos] = useState([]);
   const [exportsList, setExportsList] = useState([]);
@@ -100,7 +103,16 @@ export default function App() {
           setActiveTab={setActiveTab}
         />
 
-        {/* TAB 1: STUDIO CREATOR (1-CLICK) */}
+        {/* TAB 1: PRODUCT -> CLIP (product link, angle, script, render, publish) */}
+        {activeTab === 'flow' && (
+          <ProductToClip
+            status={status}
+            videos={videos}
+            onRefresh={refreshData}
+          />
+        )}
+
+        {/* TAB 2: STUDIO CREATOR (1-CLICK) */}
         {activeTab === 'studio' && (
           <main className="space-y-6">
             {/* Quick Presets */}
