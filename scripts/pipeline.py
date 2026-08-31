@@ -24,6 +24,7 @@ from scripts.subtitle_engine import SubtitleEngine
 from scripts.sfx_manager import SFXManager
 from scripts.video_editor import VideoEditor
 from scripts.capcut_generator import CapCutDraftGenerator
+from scripts.project_manifest import ProjectManifest
 
 class TikTokAutoCutterPipeline:
     """Main pipeline to run full automated TikTok video creation."""
@@ -52,10 +53,17 @@ class TikTokAutoCutterPipeline:
         sticker_path: Optional[str] = None,
         export_mp4: bool = True,
         export_capcut: bool = True,
+        resume_from: Optional[str] = None,
+        product_meta: Optional[Dict[str, any]] = None,
+        angle_meta: Optional[Dict[str, any]] = None,
         progress_callback: Optional[callable] = None
     ) -> Dict[str, any]:
         """
         Executes all pipeline steps and returns paths to artifacts.
+
+        Pass `resume_from` ("voice" / "subtitles" / "video") to rebuild only that
+        stage and everything after it, reusing earlier artifacts recorded in the
+        project manifest. A full run leaves `resume_from` as None.
         """
         def _notify(msg: str, progress: float):
             if progress_callback:
@@ -76,40 +84,69 @@ class TikTokAutoCutterPipeline:
         project_dir = PROJECTS_DIR / project_name
         project_dir.mkdir(parents=True, exist_ok=True)
 
+        is_reroll = bool(resume_from)
+        manifest = ProjectManifest.require(project_name) if is_reroll else None
+
+        def _out_path(stem: str, suffix: str) -> Path:
+            """Fresh numbered file when re-rolling, so an earlier take survives."""
+            if is_reroll:
+                return ProjectManifest.versioned_path(project_name, stem, suffix)
+            return project_dir / f"{stem}{suffix}"
+
+        def _reuse(key: str, label: str) -> Path:
+            existing = ProjectManifest.artifact_path(manifest, key)
+            if not existing:
+                raise FileNotFoundError(
+                    f"สุ่มใหม่ไม่ได้ — ไม่พบไฟล์ {label} ของรอบก่อน ต้อง render เต็มรอบใหม่"
+                )
+            return existing
+
         print(f"\n=======================================================")
         print(f"🎬 Starting TikTok Auto-Cutter for: {product_name}")
         print(f"📁 Project Folder: {project_dir}")
+        if is_reroll:
+            print(f"♻️  Re-roll from stage: {resume_from}")
         print(f"=======================================================\n")
 
         # 1. Script & Lines Setup
-        _notify("🧠 [1/5] วิเคราะห์สินค้าและจัดเตรียมสคริปต์ TikTok...", 0.10)
-        print("🧠 [1/5] Setting up TikTok Script & Cues...")
-        if custom_script:
-            lines = [
-                {"text": l.strip(), "sfx": "pop" if i > 0 else "whoosh"}
-                for i, l in enumerate(custom_script.strip().split("\n"))
-                if l.strip()
-            ]
-            if lines:
-                lines[-1]["sfx"] = "cash"
-            script_data = {
-                "hook": lines[0]["text"] if lines else product_name,
-                "lines": lines,
-                "full_text": "\n".join([l["text"] for l in lines])
-            }
+        if ProjectManifest.should_run("script", resume_from):
+            _notify("🧠 [1/5] วิเคราะห์สินค้าและจัดเตรียมสคริปต์ TikTok...", 0.10)
+            print("🧠 [1/5] Setting up TikTok Script & Cues...")
+            if custom_script:
+                lines = [
+                    {"text": l.strip(), "sfx": "pop" if i > 0 else "whoosh"}
+                    for i, l in enumerate(custom_script.strip().split("\n"))
+                    if l.strip()
+                ]
+                if lines:
+                    lines[-1]["sfx"] = "cash"
+                script_data = {
+                    "hook": lines[0]["text"] if lines else product_name,
+                    "lines": lines,
+                    "full_text": "\n".join([l["text"] for l in lines])
+                }
+            else:
+                script_data = ScriptGenerator.generate(
+                    product_name=product_name,
+                    key_features=key_features,
+                    pain_point=pain_point,
+                    price_deal=price_deal
+                )
         else:
-            script_data = ScriptGenerator.generate(
-                product_name=product_name,
-                key_features=key_features,
-                pain_point=pain_point,
-                price_deal=price_deal
-            )
+            script_data = manifest["script_data"]
+            print(f"♻️  [1/5] Reusing script ({len(script_data.get('lines', []))} lines)")
 
-        # 2. Voice Handling (Human Voice vs F5-TTS Thai vs Edge-TTS)
-        voice_audio_path = project_dir / "voiceover.wav"
+        # 2. Voice Handling (Human Voice vs Gemini Flash TTS vs Edge-TTS)
         cues = []
 
-        if human_voice_audio_path and Path(human_voice_audio_path).exists():
+        if not ProjectManifest.should_run("voice", resume_from):
+            voice_audio_path = _reuse("voice_audio", "เสียงพากย์")
+            cues = manifest["cues"]
+            total_duration = manifest["total_duration"]
+            print(f"♻️  [2/5] Reusing voiceover: {voice_audio_path.name} ({total_duration:.2f}s)")
+
+        elif human_voice_audio_path and Path(human_voice_audio_path).exists():
+            voice_audio_path = _out_path("voiceover", ".wav")
             _notify("🎙️ [2/5] โหลดและประมวลผลไฟล์เสียงคนพูดจริง...", 0.25)
             print(f"\n🎙️ [2/5] Using REAL HUMAN VOICE: {human_voice_audio_path}")
             human_src = Path(human_voice_audio_path).resolve()
@@ -140,42 +177,14 @@ class TikTokAutoCutterPipeline:
                     "sfx": item.get("sfx")
                 })
             print(f"   Human voice loaded! Duration: {total_duration:.2f}s, Cues synced: {len(cues)}")
-        elif voice_engine_type == "f5_tts":
-            _notify("🎙️ [2/5] กำลังสังเคราะห์เสียงโคลน F5-TTS Thai (Local AI ~45 วิ)...", 0.25)
-            print("\n🎙️ [2/5] Synthesizing Voice via Local F5-TTS Thai (VIZINTZOR/F5-TTS-TH-V2)...")
-            from scripts.f5_tts_engine import PRESETS_DIR, ensure_default_presets
-            ensure_default_presets()
-            
-            ref_audio = f5_custom_ref_path
-            ref_text = f5_custom_ref_text
-            if not ref_audio or not Path(ref_audio).exists():
-                preset_file = PRESETS_DIR / f"{f5_ref_preset or 'tiktok_male_pro'}.wav"
-                if preset_file.exists():
-                    ref_audio = str(preset_file)
-                    txt_file = preset_file.with_suffix(".txt")
-                    ref_text = txt_file.read_text(encoding="utf-8").strip() if txt_file.exists() else ""
-
-            voice_res = VoiceEngine.generate_f5_voice(
-                text_or_lines=script_data["lines"],
-                output_audio_path=str(voice_audio_path),
-                ref_audio_path=ref_audio,
-                ref_text=ref_text,
-                step=8,
-                speed=1.05
-            )
-            cues = voice_res["cues"]
-            total_duration = voice_res["duration"]
-            print(f"   F5-TTS Thai voice generated! Duration: {total_duration:.2f}s, Cues: {len(cues)}")
         elif voice_engine_type == "gemini_tts":
-            _notify("⚡ [2/5] กำลังสังเคราะห์เสียงพากย์ด้วย Google Gemini 2.5 Flash TTS...", 0.25)
-            print("\n⚡ [2/5] Synthesizing Voice via Google Gemini 2.5 Flash TTS...")
+            _notify("⚡ [2/5] กำลังสังเคราะห์เสียงพากย์ด้วย Google Gemini Flash TTS...", 0.25)
+            print("\n⚡ [2/5] Synthesizing Voice via Google Gemini Flash TTS...")
             from scripts.gemini_tts_engine import GeminiFlashTTSEngine
             import subprocess
 
-            gemini_voice = "Kore" if voice == "female" else "Puck"
-            if f5_ref_preset and "gemini" in f5_ref_preset:
-                parts = f5_ref_preset.replace("gemini_", "").split("_")
-                gemini_voice = parts[0].capitalize()
+            voice_audio_path = _out_path("voiceover", ".wav")
+            gemini_voice = GeminiFlashTTSEngine.resolve_voice(preset=f5_ref_preset, gender=voice)
 
             speed_val = 1.15
             if voice_rate:
@@ -214,6 +223,7 @@ class TikTokAutoCutterPipeline:
                 })
             print(f"   Gemini Flash TTS voice generated! Duration: {total_duration:.2f}s, Cues: {len(cues)}")
         else:
+            voice_audio_path = _out_path("voiceover", ".wav")
             _notify("🗣️ [2/5] กำลังสังเคราะห์เสียง AI พากย์เร็ว TikTok และจับเวลา...", 0.25)
             print("\n🗣️ [2/5] Synthesizing AI Thai Voiceover & Timestamps...")
             voice_res = VoiceEngine.generate_voiceover(
@@ -227,31 +237,45 @@ class TikTokAutoCutterPipeline:
             print(f"   Voice generated! Duration: {total_duration:.2f}s, Cues: {len(cues)}")
 
         # 3. Subtitles Generation (Rapid-fire 2-4 word bursts)
-        _notify("💬 [3/5] กำลังสร้างซับไตเติล TikTok เคลื่อนไหว (Kanit-Black 86pt)...", 0.50)
-        print(f"\n💬 [3/5] Generating TikTok Animated Subtitles (.ass with {font_name} font & 3-word bursts)...")
-        ass_path = project_dir / "subtitles.ass"
-        banner_title = hook_title or f"{product_name}"
-        _, micro_cues = SubtitleEngine.generate_ass(
-            cues=cues,
-            output_ass_path=str(ass_path),
-            font_name=font_name,
-            hook_title=banner_title,
-            hook_duration=min(3.5, total_duration),
-            bilingual=bilingual_subtitles
-        )
-        print(f"   Subtitles created: {ass_path} ({len(micro_cues)} micro-bursts)")
+        if ProjectManifest.should_run("subtitles", resume_from):
+            _notify("💬 [3/5] กำลังสร้างซับไตเติล TikTok เคลื่อนไหว (Kanit-Black 86pt)...", 0.50)
+            print(f"\n💬 [3/5] Generating TikTok Animated Subtitles (.ass with {font_name} font & 3-word bursts)...")
+            ass_path = _out_path("subtitles", ".ass")
+            banner_title = hook_title or f"{product_name}"
+            _, micro_cues = SubtitleEngine.generate_ass(
+                cues=cues,
+                output_ass_path=str(ass_path),
+                font_name=font_name,
+                hook_title=banner_title,
+                hook_duration=min(3.5, total_duration),
+                bilingual=bilingual_subtitles
+            )
+            print(f"   Subtitles created: {ass_path} ({len(micro_cues)} micro-bursts)")
+        else:
+            ass_path = _reuse("subtitles_ass", "ไฟล์ซับไตเติล")
+            micro_cues = manifest["micro_cues"]
+            print(f"♻️  [3/5] Reusing subtitles: {ass_path.name} ({len(micro_cues)} micro-bursts)")
 
         # 4. SFX & BGM Audio Mixing
-        _notify("🎵 [4/5] กำลังมิกซ์เสียง Voice + เอฟเฟกต์ SFX (Boom/Pop/Cash) + BGM...", 0.65)
-        print("\n🎵 [4/5] Mixing Audio (Voice + Boom/Whoosh/Pop/Ding/Cash SFX + Upbeat BGM)...")
-        mixed_audio_path = project_dir / "mixed_audio.wav"
-        SFXManager.mix_audio_track(
-            voice_audio_path=str(voice_audio_path),
-            cues=micro_cues,
-            total_duration=total_duration,
-            output_audio_path=str(mixed_audio_path)
-        )
-        print(f"   Audio mixed: {mixed_audio_path}")
+        #
+        # micro_cues are derived from `cues` alone — font, bilingual and
+        # hook_title never move a timing — so the mix only has to be rebuilt
+        # when the voice itself was regenerated. That is what makes a hook or
+        # subtitle re-roll cheap.
+        if ProjectManifest.should_run("voice", resume_from):
+            _notify("🎵 [4/5] กำลังมิกซ์เสียง Voice + เอฟเฟกต์ SFX (Boom/Pop/Cash) + BGM...", 0.65)
+            print("\n🎵 [4/5] Mixing Audio (Voice + Boom/Whoosh/Pop/Ding/Cash SFX + Upbeat BGM)...")
+            mixed_audio_path = _out_path("mixed_audio", ".wav")
+            SFXManager.mix_audio_track(
+                voice_audio_path=str(voice_audio_path),
+                cues=micro_cues,
+                total_duration=total_duration,
+                output_audio_path=str(mixed_audio_path)
+            )
+            print(f"   Audio mixed: {mixed_audio_path}")
+        else:
+            mixed_audio_path = _reuse("mixed_audio", "เสียงที่มิกซ์แล้ว")
+            print(f"♻️  [4/5] Reusing mixed audio: {mixed_audio_path.name}")
 
         result_paths = {
             "project_name": project_name,
@@ -302,11 +326,52 @@ class TikTokAutoCutterPipeline:
             result_paths["capcut_draft"] = str(capcut_dir)
             print(f"   🎉 CapCut Draft Ready: {capcut_dir}")
 
+        # 7. Persist everything a re-roll will need to reuse
+        artifacts = {
+            "voice_audio": {"path": str(voice_audio_path)},
+            "mixed_audio": {"path": str(mixed_audio_path)},
+            "subtitles_ass": {"path": str(ass_path)},
+        }
+        if result_paths["mp4_video"]:
+            artifacts["mp4_video"] = {"path": result_paths["mp4_video"]}
+
+        manifest_fields = {
+            "script_data": script_data,
+            "cues": cues,
+            "micro_cues": micro_cues,
+            "total_duration": total_duration,
+            "render_params": {
+                "product_name": product_name,
+                "raw_video_path": str(raw_video),
+                "key_features": key_features,
+                "pain_point": pain_point,
+                "price_deal": price_deal,
+                "hook_title": hook_title,
+                "custom_script": custom_script,
+                "voice": voice,
+                "voice_rate": voice_rate,
+                "voice_engine_type": voice_engine_type,
+                "f5_ref_preset": f5_ref_preset,
+                "ad_tone": ad_tone,
+                "human_voice_audio_path": human_voice_audio_path,
+                "font_name": font_name,
+                "bilingual_subtitles": bilingual_subtitles,
+                "sticker_path": sticker_path,
+            },
+            "artifacts": artifacts,
+        }
+        if product_meta:
+            manifest_fields["product"] = product_meta
+        if angle_meta:
+            manifest_fields["angle"] = angle_meta
+
+        ProjectManifest.save(project_name, **manifest_fields)
+        result_paths["manifest"] = str(ProjectManifest.path_for(project_name))
+
         _notify("🎉 ตัดต่อเสร็จสมบูรณ์ 100%!", 1.0)
         print(f"\n=======================================================")
         print("✅ PIPELINE COMPLETED SUCCESSFULLY!")
         print(f"=======================================================\n")
-        return result_paths
         return result_paths
 
 def main():

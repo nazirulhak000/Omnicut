@@ -49,8 +49,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Global in-memory job status for live rendering updates
-ACTIVE_JOBS: Dict[str, Dict[str, Any]] = {}
+# Shared with the phase-1 router so full renders and partial re-rolls are
+# tracked in one place and answered by the same status endpoint.
+from scripts.render_jobs import ACTIVE_JOBS
+from scripts.api_phase1 import router as phase1_router
+
+app.include_router(phase1_router)
 
 # ----------------------------------------------------------------------
 # Data Models
@@ -107,6 +111,16 @@ class TranscribeRequest(BaseModel):
 # ----------------------------------------------------------------------
 # Helper Utilities
 # ----------------------------------------------------------------------
+def measure_wav_duration(wav_path: Path) -> float:
+    """Seconds of audio in a WAV file, 0.0 if it cannot be read."""
+    try:
+        import wave
+        with wave.open(str(wav_path), "rb") as wf:
+            return round(wf.getnframes() / float(wf.getframerate()), 2)
+    except Exception:
+        return 0.0
+
+
 def get_file_info(file_path: Path) -> Dict[str, Any]:
     stat = file_path.stat()
     return {
@@ -311,13 +325,9 @@ def preview_voice(req: VoicePreviewRequest):
     
     if req.voice_gender and "gemini" in req.voice_gender:
         from scripts.gemini_tts_engine import GeminiFlashTTSEngine
-        gemini_voice = "Kore" if "female" in req.voice_gender or "kore" in req.voice_gender or "aoede" in req.voice_gender else "Puck"
-        if "charon" in req.voice_gender:
-            gemini_voice = "Charon"
-        elif "aoede" in req.voice_gender:
-            gemini_voice = "Aoede"
-        elif "fenrir" in req.voice_gender:
-            gemini_voice = "Fenrir"
+
+        # Same resolver the pipeline uses, so the audition matches the render.
+        gemini_voice = GeminiFlashTTSEngine.resolve_voice(preset=req.voice_gender)
 
         GeminiFlashTTSEngine.generate_speech(
             text=req.text or "สวัสดีครับ สายชาร์จแม่เหล็กตัวนี้คือที่สุด ดูดแน่น ชาร์จเร็ว 66 วัตต์ รีบกดในตะกร้าซ้ายล่างได้เลยครับ",
@@ -328,7 +338,8 @@ def preview_voice(req: VoicePreviewRequest):
         )
         return {
             "audio_url": f"/api/media/{sample_file.name}",
-            "duration": 3.0
+            "duration": measure_wav_duration(sample_file),
+            "voice_name": gemini_voice
         }
 
     res = VoiceEngine.generate_crystal_voice(
@@ -628,11 +639,9 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
             if not h_path.is_absolute():
                 human_voice_path = str(BASE_DIR / human_voice_path)
 
-        voice_engine_type = "edge_tts"
-        if req_data.voice_mode == "f5_tts":
-            voice_engine_type = "f5_tts"
-        elif req_data.voice_mode == "gemini_tts":
-            voice_engine_type = "gemini_tts"
+        # F5-TTS was dropped: this machine has no CUDA, so it was minutes per
+        # clip on CPU. Anything asking for it falls back to Edge-TTS.
+        voice_engine_type = "gemini_tts" if req_data.voice_mode == "gemini_tts" else "edge_tts"
 
         # Resolve sticker badge path
         sticker_file_path = None

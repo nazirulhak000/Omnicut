@@ -56,12 +56,37 @@ AD_TONE_PRESETS = {
     }
 }
 
+VALID_VOICES = ("Puck", "Charon", "Kore", "Aoede", "Fenrir")
+
+
 class GeminiFlashTTSEngine:
     """Google Gemini 3.1 Flash Speech Generation Engine."""
 
     @classmethod
     def is_available(cls) -> bool:
         return bool(os.environ.get("GEMINI_API_KEY") or GEMINI_API_KEY)
+
+    @classmethod
+    def resolve_voice(cls, preset: Optional[str] = None, gender: Optional[str] = None) -> str:
+        """
+        Single source of truth for preset/gender -> Gemini voice name.
+
+        Preview and render both call this, so what the user auditions is what
+        they get in the finished clip.
+        """
+        if preset:
+            if preset in GEMINI_VOICE_PRESETS:
+                return GEMINI_VOICE_PRESETS[preset]["voice"]
+            if preset in VALID_VOICES:
+                return preset
+            # Tolerate raw voice names in any casing, e.g. "puck"
+            for voice in VALID_VOICES:
+                if preset.strip().lower() == voice.lower():
+                    return voice
+
+        if gender and "female" in gender.lower():
+            return "Kore"
+        return "Puck" if gender else "Kore"
 
     @classmethod
     def generate_speech(

@@ -20,6 +20,7 @@ IT_ANGLE_CATALOG: List[Dict[str, Any]] = [
             "ตัวละ {ราคาถูก} กับ {ราคาแพง} ต่างกันตรงไหน เดี๋ยวเทียบให้ดู",
             "จ่ายเพิ่ม {ส่วนต่าง} บาท ได้อะไรเพิ่มบ้าง",
         ],
+        "fallback_hook": "{สินค้า} ถูกกับแพง ต่างกันตรงไหน เดี๋ยวเทียบให้ดูชัดๆ",
     },
     {
         "key": "fake_vs_real",
@@ -31,6 +32,7 @@ IT_ANGLE_CATALOG: List[Dict[str, Any]] = [
             "เช็ค 3 จุดนี้ก่อน ไม่งั้นได้ของปลอมแน่",
             "{สินค้า} ปลอมระบาดหนัก ดูตรงนี้ก่อนกด",
         ],
+        "fallback_hook": "{สินค้า} ปลอมระบาดหนัก เช็ค 3 จุดนี้ก่อนกดซื้อ",
     },
     {
         "key": "real_test",
@@ -42,6 +44,7 @@ IT_ANGLE_CATALOG: List[Dict[str, Any]] = [
             "เคลมว่า {สเปค} จริงไหม จับเวลาให้ดูเลย",
             "ลองใช้จริง {ระยะเวลา} แล้ว บอกตรงๆ",
         ],
+        "fallback_hook": "{สินค้า} ที่เขาเคลมกัน จริงไหม จับเวลาให้ดูเลย",
     },
     {
         "key": "spec_explained",
@@ -53,6 +56,7 @@ IT_ANGLE_CATALOG: List[Dict[str, Any]] = [
             "{ศัพท์เทคนิค} คืออะไร ทำไมต้องสน",
             "เห็นคำว่า {ศัพท์เทคนิค} แล้วงงใช่ไหม 30 วิเข้าใจเลย",
         ],
+        "fallback_hook": "สเปค {สินค้า} อ่านไม่เป็นใช่ไหม 30 วิเข้าใจเลย",
     },
     {
         "key": "pain_point",
@@ -64,6 +68,7 @@ IT_ANGLE_CATALOG: List[Dict[str, Any]] = [
             "ใครสายชาร์จพังเดือนละเส้น ดูคลิปนี้",
             "{ปัญหา} มาตลอด จนเจอตัวนี้",
         ],
+        "fallback_hook": "ใครมีปัญหากับของเดิมมาตลอด จนเจอ {สินค้า} ตัวนี้",
     },
     {
         "key": "dont_cheap_out",
@@ -75,6 +80,7 @@ IT_ANGLE_CATALOG: List[Dict[str, Any]] = [
             "ประหยัด {จำนวนเงิน} แต่เสีย {ค่าเสียหาย} คุ้มไหม",
             "ของ {ราคาถูก} บาท พังยังไงบ้าง",
         ],
+        "fallback_hook": "ประหยัดค่า {สินค้า} ไม่กี่บาท แต่เสี่ยงพังทั้งเครื่อง คุ้มไหม",
     },
     {
         "key": "how_to_setup",
@@ -86,6 +92,7 @@ IT_ANGLE_CATALOG: List[Dict[str, Any]] = [
             "ซื้อ {สินค้า} มาแล้วใช้ผิดกันเยอะมาก",
             "3 สเต็ปให้ {สินค้า} แรงเต็มสเปค",
         ],
+        "fallback_hook": "ซื้อ {สินค้า} มาแล้วใช้ผิดกันเยอะมาก ทำ 3 สเต็ปนี้",
     },
     {
         "key": "worth_upgrade",
@@ -97,6 +104,7 @@ IT_ANGLE_CATALOG: List[Dict[str, Any]] = [
             "ใช้ {ของเดิม} อยู่ ควรเปลี่ยนไหม",
             "อัปเป็น {สินค้า} คุ้มกับ {ราคา} หรือเปล่า",
         ],
+        "fallback_hook": "ใช้ของเดิมอยู่ อัปเป็น {สินค้า} คุ้มหรือเปล่า",
     },
 ]
 
@@ -126,7 +134,13 @@ def catalog_for_prompt(seller_assets_only: bool = False) -> List[Dict[str, Any]]
 
 
 def fallback_angles(product_name: str, seller_assets_only: bool = False) -> List[Dict[str, Any]]:
-    """Angles with hooks filled in by string substitution, for running with no LLM."""
+    """
+    Ready-to-use angles for running with no LLM at all.
+
+    These come from `fallback_hook`, not `hook_patterns`: the patterns carry
+    placeholders like {ราคาถูก} that only a model can fill, and a half-filled
+    hook with literal braces in it would go straight onto the screen.
+    """
     source = IT_ANGLE_CATALOG
     if seller_assets_only:
         source = [a for a in source if not a["needs_own_footage"]]
@@ -135,7 +149,7 @@ def fallback_angles(product_name: str, seller_assets_only: bool = False) -> List
         {
             "angle_key": a["key"],
             "title": a["name"],
-            "hook": a["hook_patterns"][0].replace("{สินค้า}", product_name),
+            "hook": a["fallback_hook"].replace("{สินค้า}", product_name),
             "why_it_works": a["description"],
             "needs_own_footage": a["needs_own_footage"],
             "priority": 5,
