@@ -34,7 +34,7 @@
 | 13 | Feedback | กรอกผลมือ 30 วิ/คลิป หลังโพสต์ 48 ชม. |
 | 14 | เส้นชัย | 10 คลิปโพสต์จริงใน 14 วัน |
 | 15 | ตัดจากเฟส 1 | F5-TTS, Shopee Video, shot list/teleprompter, AI product scoring |
-| 16 | สมอง AI | โหมด copy-paste → Antigravity (เสียบ API key ทีหลังได้) |
+| 16 | สมอง AI | ~~copy-paste~~ → **อัตโนมัติ** — พบ `GEMINI_API_KEY` ใช้งานได้อยู่ใน `.env` แล้ว (ทดสอบผ่าน 2026-09-01) โหมด copy-paste เก็บไว้เป็น fallback ตอน key หมดโควต้า |
 
 ---
 

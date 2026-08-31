@@ -10,9 +10,30 @@ without changing prompts, schemas, or any caller.
 import os
 import re
 import json
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 DEFAULT_MODEL = "gemini-2.5-flash"
+ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
+
+
+def _load_env_file() -> None:
+    """Read .env into the environment without overriding anything already set."""
+    if not ENV_FILE.exists():
+        return
+    try:
+        lines = ENV_FILE.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip())
+
+
+_load_env_file()
 
 
 class ManualModeRequired(Exception):
