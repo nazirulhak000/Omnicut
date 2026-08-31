@@ -11,6 +11,8 @@ export default function StudioStep3Audio({
   setVoiceSpeed,
   f5Preset,
   setF5Preset,
+  adTone = 'commercial_premium',
+  setAdTone,
   humanVoiceAudio,
   setHumanVoiceAudio,
   productName,
@@ -24,6 +26,33 @@ export default function StudioStep3Audio({
   const [testingVoice, setTestingVoice] = useState(false);
   const [testAudioUrl, setTestAudioUrl] = useState(null);
   const [uploadingVoice, setUploadingVoice] = useState(false);
+
+  const adToneOptions = [
+    {
+      id: 'commercial_premium',
+      label: '📢 โฆษณาพรีเมียม (Premium Commercial)',
+      desc: 'เริ่มน่าค้นหา บิวต์ฟีเจอร์ จบชวนซื้อกระแทกใจ (แนะนำสำหรับสินค้าแบรนด์)',
+      context: 'The Sound Stage Booth • Polished, persuasive & inviting'
+    },
+    {
+      id: 'commercial_hype',
+      label: '🔥 ป้ายยาตัวแม่ TikTok ไวรัล (Viral Hype)',
+      desc: 'กระตือรือร้น ตื่นเต้น ไวรัล สปีดกระชับ กระตุ้นยอดขายทันที',
+      context: 'Viral TikTok Stage • High-energy, fast-paced & excited'
+    },
+    {
+      id: 'commercial_aesthetic',
+      label: '✨ มินิมอล นุ่มนวล ดูแพง (Aesthetic Beauty)',
+      desc: 'นุ่มลึก เป็นกันเอง สบายหู เหมาะกับสกินแคร์ เครื่องสำอาง ของแต่งบ้าน',
+      context: 'Cozy Modern Studio • Warm, soothing & intimate tone'
+    },
+    {
+      id: 'commercial_expert',
+      label: '🎙️ ผู้เชี่ยวชาญ คมชัด น่าเชื่อถือ (Tech & Pro)',
+      desc: 'มั่นใจ ชัดเจน เป็นมืออาชีพ เหมาะกับแกดเจ็ต ไอที เครื่องใช้ไฟฟ้า',
+      context: 'Tech Broadcast Studio • Authoritative & confident tone'
+    }
+  ];
 
   const saleBadges = [
     { id: 'badge_flash_sale_3d.png', label: '⚡ Flash Sale 3D', color: 'border-red-500/50 text-red-300' },
@@ -76,8 +105,9 @@ export default function StudioStep3Audio({
     try {
       const speedVal = parseFloat(voiceSpeed.replace('+', '').replace('%', '')) / 100 + 1.0;
       const res = await previewVoice({
-        text: `สวัสดีครับทุกคน นี่คือเสียงตัวอย่างของโมเดล Google Gemini 3.1 Flash สำหรับคลิป ${productName || 'สินค้า'} ครับ`,
+        text: `ทุกคน! สายชาร์จแม่เหล็กตัวนี้คือที่สุด ดูดแน่น ชาร์จเร็ว 66 วัตต์ รีบกดในตะกร้าซ้ายล่างได้เลยครับ`,
         voice_gender: voiceMode === 'gemini_tts' ? f5Preset || 'gemini_puck_male_hype' : voiceGender,
+        ad_tone: adTone,
         speed: speedVal || 1.15
       });
       if (res.audio_url) {
@@ -170,7 +200,7 @@ export default function StudioStep3Audio({
 
       {/* Mode Specific Settings: GEMINI 3.1 FLASH TTS */}
       {voiceMode === 'gemini_tts' && (
-        <div className="p-4 rounded-xl bg-gradient-to-br from-[#121622] to-[#1A2234] border border-cyan-500/30 space-y-3.5 shadow-lg">
+        <div className="p-4 rounded-xl bg-gradient-to-br from-[#121622] to-[#1A2234] border border-cyan-500/30 space-y-4 shadow-lg">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
               <Sparkles className="w-4 h-4 text-cyan-400" />
@@ -181,6 +211,7 @@ export default function StudioStep3Audio({
             </span>
           </div>
 
+          {/* Voice Character & Speed */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">
@@ -189,7 +220,7 @@ export default function StudioStep3Audio({
               <select
                 value={f5Preset || 'gemini_puck_male_hype'}
                 onChange={(e) => setF5Preset && setF5Preset(e.target.value)}
-                className="w-full py-2.5 px-3 rounded-xl bg-[#0F121A] border border-white/10 text-slate-100 text-sm focus:outline-none focus:border-cyan-400"
+                className="w-full py-2 px-3 rounded-xl bg-[#0F121A] border border-white/10 text-slate-100 text-xs sm:text-sm focus:outline-none focus:border-cyan-400"
               >
                 <option value="gemini_puck_male_hype">⚡ Puck (ชายพลังสูง สไตล์ TikTok ไวรัล)</option>
                 <option value="gemini_kore_female_bright">✨ Kore (หญิงสดใส น่ารัก ป้ายยาเก่ง)</option>
@@ -206,12 +237,53 @@ export default function StudioStep3Audio({
               <select
                 value={voiceSpeed}
                 onChange={(e) => setVoiceSpeed(e.target.value)}
-                className="w-full py-2.5 px-3 rounded-xl bg-[#0F121A] border border-white/10 text-slate-100 text-sm focus:outline-none focus:border-cyan-400"
+                className="w-full py-2 px-3 rounded-xl bg-[#0F121A] border border-white/10 text-slate-100 text-xs sm:text-sm focus:outline-none focus:border-cyan-400"
               >
                 <option value="+10%">1.1x (+10%) ชัดเจน นุ่มนวล</option>
                 <option value="+15%">1.15x (+15%) มาตรฐานรีวิว (แนะนำ)</option>
                 <option value="+20%">1.2x (+20%) สไตล์ TikTok ไวรัล</option>
               </select>
+            </div>
+          </div>
+
+          {/* Commercial Ad Tone Presets (Scene / Sample Context) */}
+          <div className="pt-1">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                <span>🎭 โทนเสียงสไตล์โฆษณา (Commercial Acting Tone):</span>
+              </label>
+              <span className="text-[10px] text-cyan-300 font-mono">
+                [Scene Context Directives]
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {adToneOptions.map((tone) => {
+                const isSelected = (adTone || 'commercial_premium') === tone.id;
+                return (
+                  <button
+                    key={tone.id}
+                    type="button"
+                    onClick={() => setAdTone && setAdTone(tone.id)}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-cyan-950/60 border-cyan-400 ring-1 ring-cyan-400 shadow-md shadow-cyan-500/20'
+                        : 'bg-[#0F121A]/80 border-white/10 hover:border-white/20'
+                    }`}
+                  >
+                    <div className="text-xs font-bold text-white flex items-center justify-between">
+                      <span>{tone.label}</span>
+                      {isSelected && <span className="text-[10px] text-cyan-400">✓ เลือกอยู่</span>}
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+                      {tone.desc}
+                    </p>
+                    <div className="mt-1.5 pt-1.5 border-t border-white/5 text-[10px] font-mono text-cyan-300/80">
+                      🎬 {tone.context}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -223,7 +295,7 @@ export default function StudioStep3Audio({
               className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-md shadow-cyan-500/20"
             >
               <Volume2 className="w-4 h-4 text-white" />
-              {testingVoice ? 'กำลังสังเคราะห์เสียงด้วย Gemini 3.1 Flash...' : '🔊 ทดลองฟังเสียง Gemini 3.1 Flash สดๆ'}
+              {testingVoice ? 'กำลังสังเคราะห์เสียงด้วย Gemini 3.1 Flash...' : '🔊 ทดลองฟังเสียงโฆษณา Commercial สดๆ'}
             </button>
             {testAudioUrl && (
               <audio controls src={testAudioUrl} autoPlay className="h-8 flex-1 w-full max-w-[280px]" />

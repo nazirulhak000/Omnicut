@@ -66,6 +66,7 @@ class VoicePreviewRequest(BaseModel):
     text: str
     voice_gender: str = "female"
     speed: float = 1.20
+    ad_tone: Optional[str] = "commercial_premium"
 
 class RenderRequest(BaseModel):
     product_name: str
@@ -76,10 +77,11 @@ class RenderRequest(BaseModel):
     price_deal: str
     hook_title: Optional[str] = None
     custom_script: Optional[str] = None
-    voice_mode: str = "edge_tts" # edge_tts, human, video, f5_tts
+    voice_mode: str = "gemini_tts" # gemini_tts, edge_tts, human, video, f5_tts
     voice_gender: str = "female"
-    voice_rate: str = "+20%"
-    f5_preset: Optional[str] = "tiktok_male_pro"
+    voice_rate: str = "+15%"
+    f5_preset: Optional[str] = "gemini_puck_male_hype"
+    ad_tone: Optional[str] = "commercial_premium"
     f5_custom_audio: Optional[str] = None
     f5_custom_text: Optional[str] = None
     human_voice_audio: Optional[str] = None
@@ -304,7 +306,7 @@ def generate_script(req: ScriptGenerateRequest):
 
 @app.post("/api/voice/preview")
 def preview_voice(req: VoicePreviewRequest):
-    """Generates a quick voice sample for auditioning (Edge-TTS or Gemini 2.5 Flash)."""
+    """Generates a quick voice sample for auditioning (Edge-TTS or Gemini 3.1 Flash Commercial)."""
     sample_file = BASE_DIR / "test_voice.wav"
     
     if req.voice_gender and "gemini" in req.voice_gender:
@@ -318,9 +320,10 @@ def preview_voice(req: VoicePreviewRequest):
             gemini_voice = "Fenrir"
 
         GeminiFlashTTSEngine.generate_speech(
-            text=req.text or "สวัสดีครับ นี่คือเสียงพากย์ด้วยโมเดล Google Gemini 2.5 Flash คมชัดเป็นธรรมชาติสุดๆ ครับ",
+            text=req.text or "สวัสดีครับ สายชาร์จแม่เหล็กตัวนี้คือที่สุด ดูดแน่น ชาร์จเร็ว 66 วัตต์ รีบกดในตะกร้าซ้ายล่างได้เลยครับ",
             output_path=str(sample_file),
             voice_name=gemini_voice,
+            ad_tone=req.ad_tone or "commercial_premium",
             speed=req.speed or 1.15
         )
         return {
@@ -652,6 +655,7 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
             voice_rate=req_data.voice_rate,
             voice_engine_type=voice_engine_type,
             f5_ref_preset=req_data.f5_preset,
+            ad_tone=req_data.ad_tone or "commercial_premium",
             f5_custom_ref_path=req_data.f5_custom_audio,
             f5_custom_ref_text=req_data.f5_custom_text,
             human_voice_audio_path=human_voice_path,

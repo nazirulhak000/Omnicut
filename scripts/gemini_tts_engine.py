@@ -37,8 +37,27 @@ GEMINI_VOICE_PRESETS = {
     "gemini_fenrir_male_strong": {"voice": "Fenrir", "gender": "male", "name": "🔥 Fenrir (ชายสตรอง คมเข้ม)"},
 }
 
+AD_TONE_PRESETS = {
+    "commercial_premium": {
+        "name": "📢 โฆษณาพรีเมียม (Premium Commercial - เริ่มน่าค้นหา จบชวนซื้อ)",
+        "prompt": "Scene: The Sound Stage Booth.\nSample Context: Premium commercial. Dynamic pacing—starts intrigued, ends punchy. Tone is polished, persuasive, and inviting."
+    },
+    "commercial_hype": {
+        "name": "🔥 ป้ายยาตัวแม่ TikTok ไวรัล (Viral Hype - ตื่นเต้น เร่งด่วน)",
+        "prompt": "Scene: Viral TikTok Live Stage.\nSample Context: High-energy viral TikTok product review. Dynamic, enthusiastic, fast-paced, excited, and highly persuasive."
+    },
+    "commercial_aesthetic": {
+        "name": "✨ มินิมอล นุ่มนวล ดูแพง (Aesthetic Beauty & Lifestyle)",
+        "prompt": "Scene: Cozy Modern Studio.\nSample Context: Warm, soothing, aesthetic lifestyle commercial. Relaxed, intimate, friendly, and authentic tone."
+    },
+    "commercial_expert": {
+        "name": "🎙️ ผู้เชี่ยวชาญ คมชัด น่าเชื่อถือ (Tech & Pro Authority)",
+        "prompt": "Scene: Tech Broadcast Studio.\nSample Context: Confident, crisp, authoritative reviewer. Clear articulation, professional, and convincing."
+    }
+}
+
 class GeminiFlashTTSEngine:
-    """Google Gemini 2.5 Flash Speech Generation Engine."""
+    """Google Gemini 3.1 Flash Speech Generation Engine."""
 
     @classmethod
     def is_available(cls) -> bool:
@@ -51,10 +70,11 @@ class GeminiFlashTTSEngine:
         output_path: str,
         voice_preset: str = "gemini_kore_female_bright",
         voice_name: Optional[str] = None,
+        ad_tone: str = "commercial_premium",
         speed: float = 1.15
     ) -> str:
         """
-        Generates crystal-clear Thai speech using Gemini 2.5 Flash TTS.
+        Generates crystal-clear Thai speech using Gemini 3.1 Flash TTS with Commercial Ad Direction.
         """
         api_key = os.environ.get("GEMINI_API_KEY") or GEMINI_API_KEY
         if not api_key:
@@ -73,7 +93,10 @@ class GeminiFlashTTSEngine:
         out_wav.parent.mkdir(parents=True, exist_ok=True)
 
         clean_text = text.strip()
-        formatted_prompt = f"Read the following text transcript naturally and clearly as written:\n{clean_text}"
+
+        # Build Acting Direction Prompt
+        tone_cfg = AD_TONE_PRESETS.get(ad_tone, AD_TONE_PRESETS["commercial_premium"])
+        formatted_prompt = f"[{tone_cfg['prompt']}]\n\nRead the following Thai transcript using the commercial acting direction above:\n{clean_text}"
 
         payload = {
             "contents": [{

@@ -41,7 +41,8 @@ class TikTokAutoCutterPipeline:
         voice: str = DEFAULT_VOICE,
         voice_rate: str = DEFAULT_VOICE_RATE,
         voice_engine_type: str = "edge_tts",
-        f5_ref_preset: Optional[str] = "tiktok_male_pro",
+        f5_ref_preset: Optional[str] = "gemini_puck_male_hype",
+        ad_tone: str = "commercial_premium",
         f5_custom_ref_path: Optional[str] = None,
         f5_custom_ref_text: Optional[str] = None,
         human_voice_audio_path: Optional[str] = None,
@@ -189,6 +190,7 @@ class TikTokAutoCutterPipeline:
                 text=full_script_text,
                 output_path=str(voice_audio_path),
                 voice_name=gemini_voice,
+                ad_tone=ad_tone or "commercial_premium",
                 speed=speed_val
             )
 
