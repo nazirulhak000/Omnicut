@@ -51,7 +51,24 @@ import {
 } from 'lucide-react';
 import { getRawVideos, getAllAssets, startRender, getRenderStatus, openFolder } from '../api';
 
-export default function CapCutTimelineStudio({ onSwitchToSimpleStudio }) {
+export default function CapCutTimelineStudio({
+  onSwitchToSimpleStudio,
+  selectedVideo,
+  productName = 'Esseger สายชาร์จแม่เหล็ก',
+  keyFeatures = 'แม่เหล็กแรงดูดสูง เสียบปึ้ง ติดทันที ชาร์จเร็ว ไม่ทำร้ายแบต ทนทานมาก',
+  painPoint = 'สายชาร์จพังง่าย เสียบยากในที่มืด',
+  priceDeal = 'ลดพิเศษวันนี้ จิ้มตะกร้าซ้ายล่าง',
+  hookTitle = '🔥 อย่าเพิ่งเลื่อนผ่าน! สายชาร์จแม่เหล็ก',
+  voiceMode = 'gemini_tts',
+  voiceGender = 'male',
+  voiceSpeed = '+15%',
+  f5Preset = 'gemini_puck_male_hype',
+  adTone = 'commercial_premium',
+  fontName = 'IBMPlex',
+  bilingualSubtitles = true,
+  stickerBadge = 'badge_flash_sale_3d.png',
+  onRenderSuccess
+}) {
   // -------------------------------------------------------------
   // 1. Core Timeline & Playback States
   // -------------------------------------------------------------
@@ -485,21 +502,68 @@ export default function CapCutTimelineStudio({ onSwitchToSimpleStudio }) {
           )}
 
           <button
-            onClick={() => {
+            disabled={isRendering}
+            onClick={async () => {
+              let videoTarget = selectedVideo;
+              if (!videoTarget) {
+                const vids = rawVideos.length > 0 ? rawVideos : await getRawVideos().then(r => r.videos || []);
+                if (vids.length > 0) videoTarget = vids[0].path;
+              }
+              if (!videoTarget) {
+                alert('ไม่พบไฟล์วิดีโอต้นฉบับ กรุณาเลือกหรืออัปโหลดวิดีโอก่อนครับ');
+                return;
+              }
               setIsRendering(true);
-              setTimeout(() => {
+              try {
+                const payload = {
+                  product_name: productName,
+                  raw_video_path: videoTarget,
+                  key_features: keyFeatures,
+                  pain_point: painPoint,
+                  price_deal: priceDeal,
+                  hook_title: hookTitle,
+                  voice_mode: voiceMode,
+                  voice_gender: voiceGender,
+                  voice_rate: voiceSpeed,
+                  f5_preset: f5Preset,
+                  ad_tone: adTone,
+                  font_name: fontName,
+                  bilingual_subtitles: bilingualSubtitles,
+                  sticker_badge: stickerBadge,
+                  export_mp4: true,
+                  export_capcut: false
+                };
+                const res = await startRender(payload);
+                const timer = setInterval(async () => {
+                  try {
+                    const st = await getRenderStatus(res.job_id);
+                    if (st.status === 'completed') {
+                      clearInterval(timer);
+                      setIsRendering(false);
+                      alert('🎉 เรนเดอร์วิดีโอ MP4 สำเร็จ 100%! กำลังพาท่านไปดูที่ Export Gallery');
+                      if (onRenderSuccess) onRenderSuccess();
+                    } else if (st.status === 'failed') {
+                      clearInterval(timer);
+                      setIsRendering(false);
+                      alert('การเรนเดอร์ล้มเหลว: ' + (st.error || 'เกิดข้อผิดพลาด'));
+                    }
+                  } catch (e) {
+                    console.error(e);
+                  }
+                }, 1000);
+              } catch (err) {
                 setIsRendering(false);
-                alert('🎉 เรนเดอร์วิดีโอ MP4 9:16 ด้วย FFmpeg Standalone Engine สำเร็จ 100%!');
-              }, 2500);
+                alert('เกิดข้อผิดพลาด: ' + err.message);
+              }
             }}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-black text-white bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:brightness-110 shadow-lg shadow-emerald-500/25 border border-emerald-400/40 transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-black text-white bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:brightness-110 shadow-lg shadow-emerald-500/25 border border-emerald-400/40 transition-all cursor-pointer disabled:opacity-50"
           >
             {isRendering ? (
               <Activity className="w-3.5 h-3.5 animate-spin" />
             ) : (
               <Download className="w-3.5 h-3.5" />
             )}
-            <span>{isRendering ? 'กำลังเรนเดอร์...' : 'ส่งออก MP4 (Export)'}</span>
+            <span>{isRendering ? 'กำลังตัดต่อและเรนเดอร์...' : 'ส่งออก MP4 (Export)'}</span>
           </button>
         </div>
       </header>

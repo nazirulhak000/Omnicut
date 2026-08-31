@@ -12,7 +12,7 @@ import CapCutTimelineStudio from './components/CapCutTimelineStudio';
 import { getSystemStatus, getRawVideos, getExports } from './api';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('capcut_studio'); // default to CapCut Timeline Studio to let user see it immediately!
+  const [activeTab, setActiveTab] = useState('studio');
   const [status, setStatus] = useState(null);
   const [videos, setVideos] = useState([]);
   const [exportsList, setExportsList] = useState([]);
@@ -189,6 +189,24 @@ export default function App() {
         {activeTab === 'capcut_studio' && (
           <CapCutTimelineStudio
             onSwitchToSimpleStudio={() => setActiveTab('studio')}
+            selectedVideo={selectedVideo}
+            productName={productName}
+            keyFeatures={keyFeatures}
+            painPoint={painPoint}
+            priceDeal={priceDeal}
+            hookTitle={hookTitle}
+            voiceMode={voiceMode}
+            voiceGender={voiceGender}
+            voiceSpeed={voiceSpeed}
+            f5Preset={f5Preset}
+            adTone={adTone}
+            fontName={fontName}
+            bilingualSubtitles={bilingualSubtitles}
+            stickerBadge={stickerBadge}
+            onRenderSuccess={() => {
+              refreshData();
+              setActiveTab('gallery');
+            }}
           />
         )}
 
