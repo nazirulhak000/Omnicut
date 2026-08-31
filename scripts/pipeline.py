@@ -165,6 +165,52 @@ class TikTokAutoCutterPipeline:
             cues = voice_res["cues"]
             total_duration = voice_res["duration"]
             print(f"   F5-TTS Thai voice generated! Duration: {total_duration:.2f}s, Cues: {len(cues)}")
+        elif voice_engine_type == "gemini_tts":
+            _notify("⚡ [2/5] กำลังสังเคราะห์เสียงพากย์ด้วย Google Gemini 2.5 Flash TTS...", 0.25)
+            print("\n⚡ [2/5] Synthesizing Voice via Google Gemini 2.5 Flash TTS...")
+            from scripts.gemini_tts_engine import GeminiFlashTTSEngine
+            import subprocess
+
+            gemini_voice = "Kore" if voice == "female" else "Puck"
+            if f5_ref_preset and "gemini" in f5_ref_preset:
+                parts = f5_ref_preset.replace("gemini_", "").split("_")
+                gemini_voice = parts[0].capitalize()
+
+            speed_val = 1.15
+            if voice_rate:
+                try:
+                    num = int(voice_rate.replace("%", "").replace("+", ""))
+                    speed_val = 1.0 + (num / 100.0)
+                except Exception:
+                    pass
+
+            full_script_text = script_data.get("full_text") or "\n".join([l["text"] for l in script_data["lines"]])
+            GeminiFlashTTSEngine.generate_speech(
+                text=full_script_text,
+                output_path=str(voice_audio_path),
+                voice_name=gemini_voice,
+                speed=speed_val
+            )
+
+            probe_cmd = [
+                "ffprobe", "-v", "error", "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1", str(voice_audio_path)
+            ]
+            probe_res = subprocess.run(probe_cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore")
+            total_duration = float(probe_res.stdout.strip()) if probe_res.stdout.strip() else 15.0
+
+            lines_list = script_data["lines"]
+            num_lines = max(1, len(lines_list))
+            dur_per_line = total_duration / num_lines
+            for idx, item in enumerate(lines_list):
+                cues.append({
+                    "id": idx + 1,
+                    "start": idx * dur_per_line,
+                    "end": (idx + 1) * dur_per_line,
+                    "text": item["text"],
+                    "sfx": item.get("sfx")
+                })
+            print(f"   Gemini Flash TTS voice generated! Duration: {total_duration:.2f}s, Cues: {len(cues)}")
         else:
             _notify("🗣️ [2/5] กำลังสังเคราะห์เสียง AI พากย์เร็ว TikTok และจับเวลา...", 0.25)
             print("\n🗣️ [2/5] Synthesizing AI Thai Voiceover & Timestamps...")

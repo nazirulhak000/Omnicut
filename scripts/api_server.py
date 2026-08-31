@@ -27,7 +27,7 @@ from pydantic import BaseModel
 
 from scripts.config import (
     BASE_DIR, INBOX_DIR, RAW_DIR, EXPORTS_DIR, ASSETS_DIR,
-    FONTS_DIR, SFX_DIR, MUSIC_DIR, PROJECTS_DIR,
+    FONTS_DIR, SFX_DIR, MUSIC_DIR, STICKERS_DIR, PROJECTS_DIR,
     CAPCUT_DRAFT_DIR, VOICES, DEFAULT_VOICE, DEFAULT_VOICE_RATE
 )
 from scripts.script_generator import ScriptGenerator
@@ -304,8 +304,30 @@ def generate_script(req: ScriptGenerateRequest):
 
 @app.post("/api/voice/preview")
 def preview_voice(req: VoicePreviewRequest):
-    """Generates a quick 2-second voice sample for auditioning."""
-    sample_file = BASE_DIR / "test_voice.mp3"
+    """Generates a quick voice sample for auditioning (Edge-TTS or Gemini 2.5 Flash)."""
+    sample_file = BASE_DIR / "test_voice.wav"
+    
+    if req.voice_gender and "gemini" in req.voice_gender:
+        from scripts.gemini_tts_engine import GeminiFlashTTSEngine
+        gemini_voice = "Kore" if "female" in req.voice_gender or "kore" in req.voice_gender or "aoede" in req.voice_gender else "Puck"
+        if "charon" in req.voice_gender:
+            gemini_voice = "Charon"
+        elif "aoede" in req.voice_gender:
+            gemini_voice = "Aoede"
+        elif "fenrir" in req.voice_gender:
+            gemini_voice = "Fenrir"
+
+        GeminiFlashTTSEngine.generate_speech(
+            text=req.text or "สวัสดีครับ นี่คือเสียงพากย์ด้วยโมเดล Google Gemini 2.5 Flash คมชัดเป็นธรรมชาติสุดๆ ครับ",
+            output_path=str(sample_file),
+            voice_name=gemini_voice,
+            speed=req.speed or 1.15
+        )
+        return {
+            "audio_url": f"/api/media/{sample_file.name}",
+            "duration": 3.0
+        }
+
     res = VoiceEngine.generate_crystal_voice(
         text_or_lines=req.text or "สวัสดีค่ะ นี่คือเสียงตัวอย่างสำหรับคลิปรีวิวสินค้า",
         output_audio_path=str(sample_file),
@@ -606,6 +628,8 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
         voice_engine_type = "edge_tts"
         if req_data.voice_mode == "f5_tts":
             voice_engine_type = "f5_tts"
+        elif req_data.voice_mode == "gemini_tts":
+            voice_engine_type = "gemini_tts"
 
         # Resolve sticker badge path
         sticker_file_path = None

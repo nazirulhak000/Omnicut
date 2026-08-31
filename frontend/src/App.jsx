@@ -28,10 +28,10 @@ export default function App() {
   const [useCustomScript, setUseCustomScript] = useState(false);
 
   // Audio & Typography State
-  const [voiceMode, setVoiceMode] = useState('edge_tts');
+  const [voiceMode, setVoiceMode] = useState('gemini_tts');
   const [voiceGender, setVoiceGender] = useState('male');
-  const [voiceSpeed, setVoiceSpeed] = useState('+20%');
-  const [f5Preset, setF5Preset] = useState('tiktok_male_pro');
+  const [voiceSpeed, setVoiceSpeed] = useState('+15%');
+  const [f5Preset, setF5Preset] = useState('gemini_puck_male_hype');
   const [humanVoiceAudio, setHumanVoiceAudio] = useState(null);
   const [fontName, setFontName] = useState('IBMPlex');
   const [bilingualSubtitles, setBilingualSubtitles] = useState(true);

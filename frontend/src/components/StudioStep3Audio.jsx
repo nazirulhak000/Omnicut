@@ -39,11 +39,17 @@ export default function StudioStep3Audio({
 
   const voiceModes = [
     {
+      id: 'gemini_tts',
+      title: '⚡ Google Gemini 2.5 Flash AI Voice (Cloud HD)',
+      desc: 'โมเดลเสียงพากย์ล่าสุดจาก Google เสียงสมจริงเป็นธรรมชาติสูงสุด มีจังหวะหายใจและอารมณ์ป้ายยา',
+      icon: Sparkles,
+      badge: 'แนะนำอันดับ 1'
+    },
+    {
       id: 'edge_tts',
       title: '⚡ เสียงพากย์ TikTok HD พลังสูง',
-      desc: 'ออกเสียงชัด 100% + สปีด 1.2x กระชับ ตรงสไตล์ TikTok Creator (แนะนำที่สุด)',
+      desc: 'ออกเสียงชัด 100% + สปีด 1.2x กระชับ ตรงสไตล์ TikTok Creator',
       icon: Zap,
-      badge: 'แนะนำ'
     },
     {
       id: 'human',
@@ -70,9 +76,9 @@ export default function StudioStep3Audio({
     try {
       const speedVal = parseFloat(voiceSpeed.replace('+', '').replace('%', '')) / 100 + 1.0;
       const res = await previewVoice({
-        text: `สวัสดีค่ะ นี่คือเสียงตัวอย่างสำหรับคลิป ${productName || 'สินค้า'}`,
-        voice_gender: voiceGender,
-        speed: speedVal || 1.20
+        text: `สวัสดีครับทุกคน นี่คือเสียงตัวอย่างของโมเดล Google Gemini 2.5 Flash สำหรับคลิป ${productName || 'สินค้า'} ครับ`,
+        voice_gender: voiceMode === 'gemini_tts' ? f5Preset || 'gemini_puck_male_hype' : voiceGender,
+        speed: speedVal || 1.15
       });
       if (res.audio_url) {
         setTestAudioUrl(`${res.audio_url}?t=${Date.now()}`);
@@ -113,15 +119,17 @@ export default function StudioStep3Audio({
           <span className="px-3 py-1 text-xs font-black tracking-wider text-white uppercase rounded-full bg-gradient-to-r from-[#FE2C55] to-[#FF0050] shadow-md shadow-[#FE2C55]/30">
             STEP 3
           </span>
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <Mic className="w-5 h-5 text-[#25F4EE]" />
-            เสียงพากย์ & สไตล์เสียง (Audio Studio)
-          </h2>
+          <div className="flex items-center gap-2">
+            <Mic className="w-5 h-5 text-[#FE2C55]" />
+            <h2 className="text-base sm:text-lg font-bold text-white font-kanit">
+              เสียงพากย์, เพลง BGM & สติกเกอร์ 3D
+            </h2>
+          </div>
         </div>
       </div>
 
       {/* Voice Mode Selector Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
         {voiceModes.map((mode) => {
           const Icon = mode.icon;
           const isSelected = voiceMode === mode.id;
@@ -129,7 +137,7 @@ export default function StudioStep3Audio({
             <button
               key={mode.id}
               onClick={() => setVoiceMode(mode.id)}
-              className={`p-3 rounded-xl border text-left transition-all relative ${
+              className={`p-3 rounded-xl border text-left transition-all relative cursor-pointer ${
                 isSelected
                   ? 'bg-[#212838] border-[#FE2C55] shadow-lg shadow-[#FE2C55]/15 ring-1 ring-[#FE2C55]'
                   : 'bg-black/30 border-white/5 hover:border-white/15 hover:bg-black/50'
@@ -147,7 +155,7 @@ export default function StudioStep3Audio({
                   </div>
                 </div>
                 {mode.badge && (
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#FE2C55] text-white">
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gradient-to-r from-cyan-500 to-blue-500 text-white">
                     {mode.badge}
                   </span>
                 )}

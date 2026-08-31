@@ -1,0 +1,159 @@
+import os
+import sys
+import json
+import wave
+import base64
+import subprocess
+import urllib.request
+from pathlib import Path
+from typing import Dict, Any, Optional
+
+if sys.platform == 'win32':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+# Load .env if present
+env_file = PROJECT_ROOT / ".env"
+if env_file.exists():
+    for line in env_file.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            k, v = line.split("=", 1)
+            os.environ[k.strip()] = v.strip()
+
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+
+GEMINI_VOICE_PRESETS = {
+    "gemini_puck_male_hype": {"voice": "Puck", "gender": "male", "name": "⚡ Puck (ชายพลังสูง สไตล์ TikTok)"},
+    "gemini_charon_male_pro": {"voice": "Charon", "gender": "male", "name": "🎙️ Charon (ชายทุ้มลึก น่าเชื่อถือ)"},
+    "gemini_kore_female_bright": {"voice": "Kore", "gender": "female", "name": "✨ Kore (หญิงสดใส ป้ายยาเก่ง)"},
+    "gemini_aoede_female_pro": {"voice": "Aoede", "gender": "female", "name": "👑 Aoede (หญิงพรีเมียม นุ่มนวล)"},
+    "gemini_fenrir_male_strong": {"voice": "Fenrir", "gender": "male", "name": "🔥 Fenrir (ชายสตรอง คมเข้ม)"},
+}
+
+class GeminiFlashTTSEngine:
+    """Google Gemini 2.5 Flash Speech Generation Engine."""
+
+    @classmethod
+    def is_available(cls) -> bool:
+        return bool(os.environ.get("GEMINI_API_KEY") or GEMINI_API_KEY)
+
+    @classmethod
+    def generate_speech(
+        cls,
+        text: str,
+        output_path: str,
+        voice_preset: str = "gemini_kore_female_bright",
+        voice_name: Optional[str] = None,
+        speed: float = 1.15
+    ) -> str:
+        """
+        Generates crystal-clear Thai speech using Gemini 2.5 Flash TTS.
+        """
+        api_key = os.environ.get("GEMINI_API_KEY") or GEMINI_API_KEY
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY is missing. Please set it in .env or environment.")
+
+        # Determine Gemini Voice Name
+        target_voice = "Kore"
+        if voice_name:
+            target_voice = voice_name
+        elif voice_preset in GEMINI_VOICE_PRESETS:
+            target_voice = GEMINI_VOICE_PRESETS[voice_preset]["voice"]
+        elif voice_preset in ["Puck", "Charon", "Kore", "Aoede", "Fenrir"]:
+            target_voice = voice_preset
+
+        out_wav = Path(output_path).resolve()
+        out_wav.parent.mkdir(parents=True, exist_ok=True)
+
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key={api_key}"
+
+        clean_text = text.strip()
+        formatted_prompt = f"Read the following text transcript naturally and clearly as written:\n{clean_text}"
+
+        payload = {
+            "contents": [{
+                "parts": [{"text": formatted_prompt}]
+            }],
+            "generationConfig": {
+                "responseModalities": ["AUDIO"],
+                "speechConfig": {
+                    "voiceConfig": {
+                        "prebuiltVoiceConfig": {
+                            "voiceName": target_voice
+                        }
+                    }
+                }
+            }
+        }
+
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"}
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                
+                parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+                if not parts or "inlineData" not in parts[0]:
+                    raise RuntimeError("Gemini Flash TTS returned no audio inline data.")
+
+                raw_b64 = parts[0]["inlineData"]["data"]
+                pcm_bytes = base64.b64decode(raw_b64)
+
+                # Write standard WAV header (16-bit 24kHz mono PCM)
+                temp_raw_wav = out_wav.with_suffix(".raw.wav")
+                with wave.open(str(temp_raw_wav), "wb") as wf:
+                    wf.setnchannels(1)
+                    wf.setsampwidth(2) # 16-bit
+                    wf.setframerate(24000)
+                    wf.writeframes(pcm_bytes)
+
+                # If speed adjustment requested, run ffmpeg atempo
+                if abs(speed - 1.0) > 0.02:
+                    cmd = [
+                        "ffmpeg", "-y",
+                        "-i", str(temp_raw_wav),
+                        "-filter:a", f"atempo={speed}",
+                        "-ar", "24000",
+                        str(out_wav)
+                    ]
+                    subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore")
+                    if temp_raw_wav.exists():
+                        try:
+                            temp_raw_wav.unlink()
+                        except Exception:
+                            pass
+                else:
+                    if out_wav.exists():
+                        out_wav.unlink()
+                    temp_raw_wav.rename(out_wav)
+
+                print(f"✨ [Gemini Flash TTS] Generated successfully with voice '{target_voice}' -> {out_wav}")
+                return str(out_wav)
+
+        except Exception as e:
+            print(f"❌ [Gemini Flash TTS] Generation failed: {e}")
+            raise
+
+if __name__ == "__main__":
+    if GeminiFlashTTSEngine.is_available():
+        test_out = PROJECT_ROOT / "02_Assets" / "Voiceover" / "test_gemini_cli.wav"
+        res = GeminiFlashTTSEngine.generate_speech(
+            text="สวัสดีครับ สายชาร์จแม่เหล็กตัวนี้แรงดูดดีมาก ชาร์จไวสุดๆ ลองใช้แล้วจะติดใจครับ",
+            output_path=str(test_out),
+            voice_preset="gemini_puck_male_hype",
+            speed=1.15
+        )
+        print("Self-test completed:", res)
+    else:
+        print("No GEMINI_API_KEY found.")
