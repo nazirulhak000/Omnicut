@@ -72,8 +72,6 @@ class GeminiFlashTTSEngine:
         out_wav = Path(output_path).resolve()
         out_wav.parent.mkdir(parents=True, exist_ok=True)
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key={api_key}"
-
         clean_text = text.strip()
         formatted_prompt = f"Read the following text transcript naturally and clearly as written:\n{clean_text}"
 
@@ -93,15 +91,35 @@ class GeminiFlashTTSEngine:
             }
         }
 
-        req = urllib.request.Request(
-            url,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"}
-        )
+        # Try gemini-3.1-flash-tts-preview first, fallback to 2.5 if needed
+        model_candidates = [
+            "gemini-3.1-flash-tts-preview",
+            "gemini-2.5-flash-preview-tts"
+        ]
+        
+        last_error = None
+        data = None
+
+        for model_name in model_candidates:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"}
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    print(f"✨ [Gemini Flash TTS] Used model '{model_name}' with voice '{target_voice}'")
+                    break
+            except Exception as e:
+                last_error = e
+                print(f"⚠️ [Gemini Flash TTS] Model '{model_name}' error: {e}, trying fallback...")
+
+        if not data:
+            raise RuntimeError(f"All Gemini Flash TTS models failed. Last error: {last_error}")
 
         try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
                 
                 parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
                 if not parts or "inlineData" not in parts[0]:

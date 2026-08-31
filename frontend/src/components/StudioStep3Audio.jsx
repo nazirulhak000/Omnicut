@@ -40,10 +40,10 @@ export default function StudioStep3Audio({
   const voiceModes = [
     {
       id: 'gemini_tts',
-      title: '⚡ Google Gemini 2.5 Flash AI Voice (Cloud HD)',
-      desc: 'โมเดลเสียงพากย์ล่าสุดจาก Google เสียงสมจริงเป็นธรรมชาติสูงสุด มีจังหวะหายใจและอารมณ์ป้ายยา',
+      title: '⚡ Google Gemini 3.1 Flash AI Voice (Cloud HD)',
+      desc: 'โมเดลเสียงพากย์ 3.1 Flash ล่าสุดจาก Google เสียงสมจริงเป็นธรรมชาติสูงสุด มีจังหวะหายใจและอารมณ์ป้ายยา',
       icon: Sparkles,
-      badge: 'แนะนำอันดับ 1'
+      badge: 'แนะนำอันดับ 1 (3.1)'
     },
     {
       id: 'edge_tts',
@@ -76,7 +76,7 @@ export default function StudioStep3Audio({
     try {
       const speedVal = parseFloat(voiceSpeed.replace('+', '').replace('%', '')) / 100 + 1.0;
       const res = await previewVoice({
-        text: `สวัสดีครับทุกคน นี่คือเสียงตัวอย่างของโมเดล Google Gemini 2.5 Flash สำหรับคลิป ${productName || 'สินค้า'} ครับ`,
+        text: `สวัสดีครับทุกคน นี่คือเสียงตัวอย่างของโมเดล Google Gemini 3.1 Flash สำหรับคลิป ${productName || 'สินค้า'} ครับ`,
         voice_gender: voiceMode === 'gemini_tts' ? f5Preset || 'gemini_puck_male_hype' : voiceGender,
         speed: speedVal || 1.15
       });
@@ -168,7 +168,70 @@ export default function StudioStep3Audio({
         })}
       </div>
 
-      {/* Mode Specific Settings */}
+      {/* Mode Specific Settings: GEMINI 3.1 FLASH TTS */}
+      {voiceMode === 'gemini_tts' && (
+        <div className="p-4 rounded-xl bg-gradient-to-br from-[#121622] to-[#1A2234] border border-cyan-500/30 space-y-3.5 shadow-lg">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-cyan-400" />
+              <span>Google Gemini 3.1 Flash TTS Active (API Key เชื่อมต่อแล้ว)</span>
+            </span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-400/20 text-cyan-300 font-bold">
+              โมเดล 3.1 ล่าสุด ~1.5 วิ
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">
+                เลือกคาแรกเตอร์เสียง Gemini 3.1 Flash:
+              </label>
+              <select
+                value={f5Preset || 'gemini_puck_male_hype'}
+                onChange={(e) => setF5Preset && setF5Preset(e.target.value)}
+                className="w-full py-2.5 px-3 rounded-xl bg-[#0F121A] border border-white/10 text-slate-100 text-sm focus:outline-none focus:border-cyan-400"
+              >
+                <option value="gemini_puck_male_hype">⚡ Puck (ชายพลังสูง สไตล์ TikTok ไวรัล)</option>
+                <option value="gemini_kore_female_bright">✨ Kore (หญิงสดใส น่ารัก ป้ายยาเก่ง)</option>
+                <option value="gemini_aoede_female_pro">👑 Aoede (หญิงพรีเมียม นุ่มนวล ดูแพง)</option>
+                <option value="gemini_charon_male_pro">🎙️ Charon (ชายทุ้มลึก น่าเชื่อถือ)</option>
+                <option value="gemini_fenrir_male_strong">🔥 Fenrir (ชายสตรอง คมเข้ม)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">
+                ความเร็วการพูด (Speed):
+              </label>
+              <select
+                value={voiceSpeed}
+                onChange={(e) => setVoiceSpeed(e.target.value)}
+                className="w-full py-2.5 px-3 rounded-xl bg-[#0F121A] border border-white/10 text-slate-100 text-sm focus:outline-none focus:border-cyan-400"
+              >
+                <option value="+10%">1.1x (+10%) ชัดเจน นุ่มนวล</option>
+                <option value="+15%">1.15x (+15%) มาตรฐานรีวิว (แนะนำ)</option>
+                <option value="+20%">1.2x (+20%) สไตล์ TikTok ไวรัล</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Test Audition Button */}
+          <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
+            <button
+              onClick={handleTestVoice}
+              disabled={testingVoice}
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-md shadow-cyan-500/20"
+            >
+              <Volume2 className="w-4 h-4 text-white" />
+              {testingVoice ? 'กำลังสังเคราะห์เสียงด้วย Gemini 3.1 Flash...' : '🔊 ทดลองฟังเสียง Gemini 3.1 Flash สดๆ'}
+            </button>
+            {testAudioUrl && (
+              <audio controls src={testAudioUrl} autoPlay className="h-8 flex-1 w-full max-w-[280px]" />
+            )}
+          </div>
+        </div>
+      )}
+
       {voiceMode === 'edge_tts' && (
         <div className="p-4 rounded-xl bg-black/40 border border-white/5 space-y-3.5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
