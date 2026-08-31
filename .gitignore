@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+*.log
+
+# Node & Frontend
+frontend/node_modules/
+frontend/dist/
+.vite/
+
+# System & OS
+.DS_Store
+Thumbs.db
+
+# Large render cache / temporary artifacts
+00_Inbox/*
+01_Raw/*
+03_Projects/
+04_Exports/*
+06_Archive/
+test_output/
+*.ass
+test_*.png
+test_*.mp3
+test_*.vtt
+bilingual_sample_*.png
+verified_tone_*.png
+tiktok_preview.png
+tiktok_info.json
+synced_clause_*.png

@@ -1,0 +1,10 @@
+#!/bin/bash
+# sub-srt launcher — runs the engine inside its own venv.
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PY="$DIR/.venv/bin/python"
+[ -x "$PY" ] || PY="$DIR/.venv/Scripts/python.exe"   # windows layout
+if [ ! -x "$PY" ]; then
+  echo "sub-srt: venv not found. Run:  bash \"$DIR/setup.sh\"" >&2
+  exit 3
+fi
+exec "$PY" "$DIR/generate_srt.py" "$@"

@@ -1,0 +1,34 @@
+import subprocess
+from pathlib import Path
+
+ass_content = """[Script Info]
+Title: Test Noto Sans Thai
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Noto,Noto Sans Thai,75,&H0000E6FF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0.5,0,1,5.5,2.5,2,60,60,600,1
+Style: IBMPlex,IBM Plex Sans Thai,75,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0.5,0,1,5.5,2.5,2,60,60,900,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.00,0:00:05.00,Noto,,0,0,0,,Noto Sans Thai: ลดพิเศษวันนี้ อย่าเพิ่งซื้อ สายชาร์จนี้
+Dialogue: 0,0:00:00.00,0:00:05.00,IBMPlex,,0,0,0,,IBM Plex Thai: ลดพิเศษวันนี้ อย่าเพิ่งซื้อ สายชาร์จนี้
+"""
+
+Path("test_noto.ass").write_text(ass_content, encoding="utf-8")
+
+ass_p = str(Path("test_noto.ass").resolve()).replace("\\", "/").replace(":", "\\:")
+fonts_p = str(Path("02_Assets/Fonts").resolve()).replace("\\", "/").replace(":", "\\:")
+
+cmd = [
+    "ffmpeg", "-y",
+    "-f", "lavfi", "-i", "color=c=#0D1117:s=1080x1920:d=1",
+    "-vf", f"subtitles='{ass_p}':fontsdir='{fonts_p}'",
+    "-frames:v", "1",
+    "test_noto_result.png"
+]
+subprocess.run(cmd)
+print("Rendered test_noto_result.png")

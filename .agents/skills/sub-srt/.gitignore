@@ -1,0 +1,5 @@
+.venv/
+__pycache__/
+*.pyc
+# whisper model cache (downloaded per-machine on first run)
+models/
