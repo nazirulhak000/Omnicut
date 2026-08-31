@@ -40,10 +40,11 @@ export default function Header({ status, activeTab, setActiveTab }) {
   };
 
   const tabs = [
-    { id: 'studio', label: '1. Studio Creator', icon: Sparkles, badge: 'ตัดต่อคลิปใหม่' },
-    { id: 'gallery', label: '2. Export Gallery', icon: FolderDown, badge: `${status?.total_exports || 0} คลิป` },
-    { id: 'script_lab', label: '3. AI Script Lab', icon: Lightbulb, badge: 'สูตรบทยอดฮิต' },
-    { id: 'assets', label: '4. System & Assets', icon: Settings, badge: 'ระบบ & SFX' },
+    { id: 'studio', label: '1. 1-Click Studio', icon: Sparkles, badge: 'ตัดต่อด่วน' },
+    { id: 'capcut_studio', label: '2. CapCut Studio', icon: Film, badge: 'ไทม์ไลน์ Pro 🎬' },
+    { id: 'gallery', label: '3. Export Gallery', icon: FolderDown, badge: `${status?.total_exports || 0} คลิป` },
+    { id: 'script_lab', label: '4. AI Script Lab', icon: Lightbulb, badge: 'สูตรบทยอดฮิต' },
+    { id: 'assets', label: '5. System & Assets', icon: Settings, badge: 'ระบบ & SFX' },
   ];
 
   return (

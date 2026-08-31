@@ -8,10 +8,11 @@ import StudioStep4Render from './components/StudioStep4Render';
 import ExportGallery from './components/ExportGallery';
 import ScriptLab from './components/ScriptLab';
 import SystemAssets from './components/SystemAssets';
+import CapCutTimelineStudio from './components/CapCutTimelineStudio';
 import { getSystemStatus, getRawVideos, getExports } from './api';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('studio'); // 'studio' | 'gallery' | 'script_lab' | 'assets'
+  const [activeTab, setActiveTab] = useState('capcut_studio'); // default to CapCut Timeline Studio to let user see it immediately!
   const [status, setStatus] = useState(null);
   const [videos, setVideos] = useState([]);
   const [exportsList, setExportsList] = useState([]);
@@ -98,7 +99,7 @@ export default function App() {
           setActiveTab={setActiveTab}
         />
 
-        {/* TAB 1: STUDIO CREATOR */}
+        {/* TAB 1: STUDIO CREATOR (1-CLICK) */}
         {activeTab === 'studio' && (
           <main className="space-y-6">
             {/* Quick Presets */}
@@ -178,6 +179,13 @@ export default function App() {
               </div>
             </div>
           </main>
+        )}
+
+        {/* TAB 2: CAPCUT TIMELINE PRO STUDIO */}
+        {activeTab === 'capcut_studio' && (
+          <CapCutTimelineStudio
+            onSwitchToSimpleStudio={() => setActiveTab('studio')}
+          />
         )}
 
         {/* TAB 2: EXPORT GALLERY */}
