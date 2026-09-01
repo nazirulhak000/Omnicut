@@ -871,3 +871,59 @@ def test_filmstrip_404s_for_a_missing_clip(client, filmstrip_dir, tmp_path, monk
     from scripts import api_editor
     monkeypatch.setattr(api_editor, "BASE_DIR", tmp_path)
     assert client.get("/api/editor/filmstrip", params={"path": "nope.mp4"}).status_code == 404
+
+
+def test_clip_speed_shrinks_its_slot_and_emits_setpts(monkeypatch, tmp_path):
+    clip_list = [
+        {"source_path": str(tmp_path / "a.mp4"), "trim_start": 0.0, "trim_end": 4.0},
+        {"source_path": str(tmp_path / "b.mp4"), "trim_start": 0.0, "trim_end": 4.0, "speed": 2.0},
+    ]
+    cmd = _capture_ffmpeg_cmd(
+        monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list, transitions=["fade"]
+    )
+    filter_arg = cmd[cmd.index("-filter_complex") + 1]
+
+    assert "setpts=PTS/2.0" in filter_arg, "2x clip must scale presentation timestamps"
+    # trim still pulls the full 4s span from the source; speed is what halves it
+    assert "duration=4.0" in filter_arg
+    # xfade offset proves clip_durations used the post-speed 2.0s, not 4.0s:
+    # clip A (4.0s) minus the 0.4s overlap => 3.6
+    assert "offset=3.5999999999999996" in filter_arg or "offset=3.6" in filter_arg
+
+
+def test_clip_mirror_flips_only_the_marked_clip(monkeypatch, tmp_path):
+    clip_list = [
+        {"source_path": str(tmp_path / "a.mp4"), "trim_start": 0.0, "trim_end": 3.0, "mirror": True},
+        {"source_path": str(tmp_path / "b.mp4"), "trim_start": 0.0, "trim_end": 3.0},
+    ]
+    cmd = _capture_ffmpeg_cmd(monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list)
+    filter_arg = cmd[cmd.index("-filter_complex") + 1]
+
+    # Check the per-clip segments, not the whole graph: the subtitle path in
+    # the final segment carries pytest's tmp dir name, which would otherwise
+    # match whatever this test is called.
+    segments = {
+        f"clip_{i}": part
+        for part in filter_arg.split(";")
+        for i in (0, 1)
+        if part.endswith(f"[clip_{i}]")
+    }
+    assert "hflip" in segments["clip_0"], "the mirrored clip must be flipped"
+    assert "hflip" not in segments["clip_1"], "its neighbour must not be"
+
+
+def test_clip_speed_is_clamped_to_a_sane_range(monkeypatch, tmp_path):
+    clip_list = [{"source_path": str(tmp_path / "a.mp4"), "trim_start": 0.0, "trim_end": 4.0, "speed": 99}]
+    cmd = _capture_ffmpeg_cmd(monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list)
+    filter_arg = cmd[cmd.index("-filter_complex") + 1]
+    assert "setpts=PTS/4.0" in filter_arg, "absurd speeds clamp to 4x instead of producing a 0-frame clip"
+
+
+def test_clip_without_speed_or_mirror_is_byte_identical_to_before(monkeypatch, tmp_path):
+    """The plain path must not gain a stray setpts/hflip -- 1-Click Studio uses it."""
+    clip_list = [{"source_path": str(tmp_path / "a.mp4"), "trim_start": 0.0, "trim_end": 3.0}]
+    cmd = _capture_ffmpeg_cmd(monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list)
+    filter_arg = cmd[cmd.index("-filter_complex") + 1]
+    assert "hflip" not in filter_arg
+    assert "setpts=PTS/" not in filter_arg
+    assert "setpts=PTS-STARTPTS" in filter_arg

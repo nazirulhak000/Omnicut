@@ -79,9 +79,12 @@ class VideoEditor:
         `clip_list` (Manual Editor path) switches from "one source video, virtual
         cut points re-cropped from it" (the 1-Click Studio default below) to "N
         real source files concatenated in the given order". Each entry is
-        `{"source_path": str, "trim_start": float = 0.0, "trim_end": float | None}`
-        (`trim_end` omitted/None trims to that source's own end). Omitting
-        `clip_list` entirely keeps every existing caller's behavior unchanged.
+        `{"source_path": str, "trim_start": float = 0.0, "trim_end": float | None,
+        "speed": float = 1.0, "mirror": bool = False}` (`trim_end` omitted/None
+        trims to that source's own end; `speed` is clamped to 0.25-4x and
+        shortens/lengthens the clip's slot on the timeline accordingly;
+        `mirror` flips it horizontally). Omitting `clip_list` entirely keeps
+        every existing caller's behavior unchanged.
 
         `transitions` (clip_list only) is a list of `len(clip_list) - 1` values,
         one per boundary between consecutive clips: `"cut"` (default, a plain
@@ -119,7 +122,20 @@ class VideoEditor:
                 trim_end = clip.get("trim_end")
                 if trim_end is None:
                     trim_end = cls.get_media_info(source_path)["duration"]
-                duration = max(0.2, float(trim_end) - trim_start)
+                source_span = max(0.2, float(trim_end) - trim_start)
+
+                # Per-clip speed: setpts stretches/squashes presentation time,
+                # so the clip's contribution to the sequence is span/speed.
+                # clip_durations MUST carry the post-speed value or every
+                # xfade offset after this clip lands in the wrong place.
+                speed = float(clip.get("speed") or 1.0)
+                speed = min(4.0, max(0.25, speed))
+                duration = max(0.2, source_span / speed)
+                speed_filter = "" if abs(speed - 1.0) < 1e-3 else f"setpts=PTS/{speed},"
+
+                # Mirror is a plain horizontal flip, applied before the
+                # scale/crop chain so the punch-zoom framing is unaffected.
+                mirror_filter = "hflip," if clip.get("mirror") else ""
 
                 scale = shot_scales[idx % len(shot_scales)]
                 scaled_w = int(VIDEO_WIDTH * scale)
@@ -131,7 +147,8 @@ class VideoEditor:
 
                 node_name = f"clip_{idx}"
                 filter_complex.append(
-                    f"[{idx}:v]trim=start={trim_start}:duration={duration},setpts=PTS-STARTPTS,"
+                    f"[{idx}:v]trim=start={trim_start}:duration={source_span},setpts=PTS-STARTPTS,"
+                    f"{speed_filter}{mirror_filter}"
                     f"scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,"
                     f"crop={VIDEO_WIDTH}:{VIDEO_HEIGHT},setsar=1,fps={FPS},"
                     f"scale={scaled_w}:{scaled_h}:flags=lanczos,crop={VIDEO_WIDTH}:{VIDEO_HEIGHT}:{crop_x}:{crop_y}[{node_name}];"
