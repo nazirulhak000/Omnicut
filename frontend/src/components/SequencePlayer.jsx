@@ -59,18 +59,25 @@ function drawVideoFrame(ctx, video, clip) {
   ctx.drawImage(video, sx, sy, sw, sh, 0, 0, CANVAS_W, CANVAS_H);
 }
 
-function drawCaption(ctx, cues, t) {
+// Mirrors the .ass style the renderer burns: CAPTION_POSITIONS in
+// subtitle_engine.py puts the block at the bottom (margin 420 of 1920),
+// centre, or top (margin 260). Same fractions here so the preview does not
+// promise a placement the file will not have.
+const CAPTION_Y = { bottom: 1 - 420 / 1920, middle: 0.5, top: 260 / 1920 };
+
+function drawCaption(ctx, cues, t, style = {}) {
   const cue = cues.find(c => t >= c.start && t < c.end);
   if (!cue || !cue.text) return;
-  const fontSize = Math.round(CANVAS_W * 0.075);
+  const scale = Math.min(2, Math.max(0.5, style.captionScale ?? 1));
+  const fontSize = Math.round(CANVAS_W * 0.075 * scale);
   ctx.font = `900 ${fontSize}px Kanit, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.lineWidth = fontSize * 0.18;
   ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-  ctx.fillStyle = '#fff';
+  ctx.fillStyle = style.captionColor || '#fff';
   const x = CANVAS_W / 2;
-  const y = CANVAS_H * 0.8;
+  const y = CANVAS_H * (CAPTION_Y[style.captionPosition] ?? CAPTION_Y.bottom);
   ctx.strokeText(cue.text, x, y, CANVAS_W * 0.92);
   ctx.fillText(cue.text, x, y, CANVAS_W * 0.92);
 }
@@ -87,7 +94,7 @@ function drawCaption(ctx, cues, t) {
  * not by trusting a <video> element's own playback rate -- see
  * RESYNC_THRESHOLD's comment for why.
  */
-function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurations }, ref) {
+function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurations, captionStyle = {} }, ref) {
   const canvasRef = useRef(null);
   const videoElsRef = useRef({});
   const rafRef = useRef(null);
@@ -99,6 +106,7 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
   const [playhead, setPlayhead] = useState(0);
   const playheadRef = useRef(0);
 
+  const captionKey = `${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}`;
   const clipKey = clips.map(c => `${c.id}:${c.source_path}:${c.trim_start}:${c.trim_end}:${c.transition_in}:${c.transition_duration}:${c.brightness}:${c.contrast}:${c.saturation}:${c.zoom}:${c.pan_x}:${c.pan_y}`).join('|');
 
   // Load real duration for every clip up front -- segment timing needs it
@@ -156,13 +164,13 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
     });
     ctx.globalAlpha = 1;
     ctx.filter = 'none';
-    drawCaption(ctx, cues, t);
+    drawCaption(ctx, cues, t, captionStyle);
   };
 
   useEffect(() => {
     renderAt(playhead);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [segments]);
+  }, [segments, captionKey]);
 
   useEffect(() => {
     if (!isPlaying || segments.length === 0) return;
@@ -210,7 +218,7 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
         });
         ctx.globalAlpha = 1;
         ctx.filter = 'none';
-        drawCaption(ctx, cues, t);
+        drawCaption(ctx, cues, t, captionStyle);
       }
 
       setPlayhead(t);

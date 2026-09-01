@@ -24,7 +24,7 @@ const TIMELINE_MIN_H = 196;
 const TIMELINE_MAX_H = 460;
 const TIMELINE_DEFAULT_H = 212;
 
-const EMPTY = { clipList: [], cuesList: [], style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false } };
+const EMPTY = { clipList: [], cuesList: [], style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false, captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1, stickerPosition: 'top_right', stickerScale: 1 } };
 
 let idCounter = 0;
 const newId = () => `clip-${Date.now().toString(36)}-${++idCounter}`;
@@ -85,6 +85,9 @@ export default function EditorShell({ videos = [] }) {
   // "bgm" re-roll when any of it changed, or the render happily reuses the
   // old mixed_audio.wav and the new track is silently ignored.
   const loadedAudioStyle = useRef({ bgmName: null, bgmVolume: 0.12, bgmDucking: false });
+  // Caption look is baked into the .ass, which the "video" part reuses -- so a
+  // caption style change has to ask for the subtitles part instead.
+  const loadedCaptionStyle = useRef({ captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1 });
 
   const seekPlayer = useCallback((t) => {
     setPlayhead(t);
@@ -171,6 +174,12 @@ export default function EditorShell({ videos = [] }) {
       const lutIntensity = data.render_params?.lut_intensity ?? 1;
       const bgmVolume = data.render_params?.bgm_volume ?? 0.12;
       const bgmDucking = !!data.render_params?.bgm_ducking;
+      const captionPosition = data.render_params?.caption_position || 'bottom';
+      const captionColor = data.render_params?.caption_color || '#FFFFFF';
+      const captionScale = data.render_params?.caption_scale ?? 1;
+      const stickerPosition = data.render_params?.sticker_position || 'top_right';
+      const stickerScale = data.render_params?.sticker_scale ?? 1;
+      loadedCaptionStyle.current = { captionPosition, captionColor, captionScale };
       // Baseline for "did the music change?" -- without this the first Apply
       // after loading would always take the slower re-mix path.
       loadedAudioStyle.current = { bgmName, bgmVolume, bgmDucking };
@@ -186,6 +195,11 @@ export default function EditorShell({ videos = [] }) {
           stickerBadge,
           bgmVolume,
           bgmDucking,
+          captionPosition,
+          captionColor,
+          captionScale,
+          stickerPosition,
+          stickerScale,
         },
       });
 
@@ -599,6 +613,11 @@ export default function EditorShell({ videos = [] }) {
       || (style.bgmVolume ?? 0.12) !== (base.bgmVolume ?? 0.12)
       || !!style.bgmDucking !== !!base.bgmDucking;
 
+    const capBase = loadedCaptionStyle.current;
+    const captionDirty = (style.captionPosition || 'bottom') !== capBase.captionPosition
+      || (style.captionColor || '#FFFFFF') !== capBase.captionColor
+      || (style.captionScale ?? 1) !== capBase.captionScale;
+
     // The old two-click confirm here guarded a tail that came out with sound
     // and no picture. The renderer holds the last frame across that gap now,
     // so there is nothing left to confirm.
@@ -615,7 +634,7 @@ export default function EditorShell({ videos = [] }) {
       }
       const res = await startReroll({
         project_name: projectName,
-        part: audioDirty ? 'bgm' : (cuesDirty.current ? 'subtitles' : 'video'),
+        part: audioDirty ? 'bgm' : ((cuesDirty.current || captionDirty) ? 'subtitles' : 'video'),
         clip_list: clipList.map(({ id, transition_in, transition_duration, ...c }) => c),
         transitions: clipList.slice(1).map((c) => ({
           type: c.transition_in || 'cut',
@@ -630,6 +649,11 @@ export default function EditorShell({ videos = [] }) {
         bgm_volume: style.bgmVolume ?? 0.12,
         bgm_ducking: !!style.bgmDucking,
         export_preset: exportPreset,
+        caption_position: style.captionPosition || 'bottom',
+        caption_color: style.captionColor || '#FFFFFF',
+        caption_scale: style.captionScale ?? 1,
+        sticker_position: style.stickerPosition || 'top_right',
+        sticker_scale: style.stickerScale ?? 1,
       });
       setJobId(res.job_id);
       cuesDirty.current = false;
@@ -637,6 +661,11 @@ export default function EditorShell({ videos = [] }) {
         bgmName: style.bgmName ?? null,
         bgmVolume: style.bgmVolume ?? 0.12,
         bgmDucking: !!style.bgmDucking,
+      };
+      loadedCaptionStyle.current = {
+        captionPosition: style.captionPosition || 'bottom',
+        captionColor: style.captionColor || '#FFFFFF',
+        captionScale: style.captionScale ?? 1,
       };
     } catch (err) {
       setApplying(false);
@@ -755,6 +784,11 @@ export default function EditorShell({ videos = [] }) {
                 ref={mobilePlayerRef}
                 clips={clipList}
                 cues={cuesList}
+                captionStyle={{
+                  captionPosition: style.captionPosition,
+                  captionColor: style.captionColor,
+                  captionScale: style.captionScale,
+                }}
                 compact
                 onPlayhead={setPlayhead}
                 onDurations={setDurations}
@@ -930,6 +964,11 @@ export default function EditorShell({ videos = [] }) {
                   ref={desktopPlayerRef}
                   clips={clipList}
                   cues={cuesList}
+                captionStyle={{
+                  captionPosition: style.captionPosition,
+                  captionColor: style.captionColor,
+                  captionScale: style.captionScale,
+                }}
                   compact
                   onPlayhead={setPlayhead}
                   onDurations={setDurations}

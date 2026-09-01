@@ -479,6 +479,60 @@ export default function AssetPanel({
             {filtered.fonts.length === 0 && (
               <p className="px-1 py-2 text-[10px] text-[#6B6660]">ไม่พบฟอนต์ที่ค้นหา</p>
             )}
+            <div className="mt-2 space-y-2 rounded-lg border border-white/[0.08] bg-black/40 px-2 py-2">
+              <span className="block text-[10px] font-semibold text-slate-300">หน้าตาคำบรรยาย</span>
+
+              <div>
+                <span className="mb-1 block text-[10px] text-slate-400">ตำแหน่ง</span>
+                <div className="grid grid-cols-3 gap-1">
+                  {[['top', 'บน'], ['middle', 'กลาง'], ['bottom', 'ล่าง']].map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => onStyleChange({ captionPosition: id })}
+                      className={`rounded-lg border py-1 text-[10px] font-bold transition-colors duration-150 cursor-pointer ${
+                        (style.captionPosition || 'bottom') === id
+                          ? 'border-[#D97757] bg-[#D97757]/20 text-[#E89274]'
+                          : 'border-white/[0.08] bg-black/40 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <label className="block">
+                <span className="mb-1 flex justify-between text-[10px] text-slate-400">
+                  <span>ขนาดตัวอักษร</span>
+                  <span className="font-mono text-slate-300">{Math.round((style.captionScale ?? 1) * 100)}%</span>
+                </span>
+                <input
+                  type="range" min={0.5} max={2} step={0.05}
+                  value={style.captionScale ?? 1}
+                  onChange={(e) => onStyleChange({ captionScale: parseFloat(e.target.value) })}
+                  className="w-full accent-[#D97757]"
+                />
+              </label>
+
+              <label className="flex items-center justify-between">
+                <span className="text-[10px] text-slate-400">สีตัวอักษร</span>
+                <span className="flex items-center gap-2">
+                  <span className="font-mono text-[10px] text-slate-300">{style.captionColor || '#FFFFFF'}</span>
+                  <input
+                    type="color"
+                    value={style.captionColor || '#FFFFFF'}
+                    onChange={(e) => onStyleChange({ captionColor: e.target.value })}
+                    className="h-6 w-8 cursor-pointer rounded border border-white/[0.15] bg-transparent"
+                  />
+                </span>
+              </label>
+
+              <p className="text-[9px] leading-relaxed text-slate-500">
+                เปลี่ยนหน้าตาซับต้องสร้างไฟล์ซับใหม่ — Apply จะใช้เวลาเพิ่มเล็กน้อย
+              </p>
+            </div>
+
             <p className="px-1 pt-3 text-[10px] leading-relaxed text-[#6B6660]">
               แก้ข้อความแต่ละท่อนได้ที่แผงขวา — คลิกท่อนคำบรรยายบนไทม์ไลน์
             </p>
@@ -488,6 +542,45 @@ export default function AssetPanel({
         {/* TAB 5: STICKERS */}
         {tab === 'sticker' && (
           <>
+            {style.stickerBadge ? (
+              <div className="mb-1 space-y-2 rounded-lg border border-white/[0.08] bg-black/40 px-2 py-2">
+                <div>
+                  <span className="mb-1 block text-[10px] text-slate-400">มุมที่วางป้าย</span>
+                  <div className="grid grid-cols-2 gap-1">
+                    {[
+                      ['top_left', 'บนซ้าย'], ['top_right', 'บนขวา'],
+                      ['bottom_left', 'ล่างซ้าย'], ['bottom_right', 'ล่างขวา'],
+                    ].map(([id, label]) => (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => onStyleChange({ stickerPosition: id })}
+                        className={`rounded-lg border py-1 text-[10px] font-bold transition-colors duration-150 cursor-pointer ${
+                          (style.stickerPosition || 'top_right') === id
+                            ? 'border-[#D97757] bg-[#D97757]/20 text-[#E89274]'
+                            : 'border-white/[0.08] bg-black/40 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <label className="block">
+                  <span className="mb-1 flex justify-between text-[10px] text-slate-400">
+                    <span>ขนาดป้าย</span>
+                    <span className="font-mono text-slate-300">{Math.round((style.stickerScale ?? 1) * 100)}%</span>
+                  </span>
+                  <input
+                    type="range" min={0.4} max={2} step={0.05}
+                    value={style.stickerScale ?? 1}
+                    onChange={(e) => onStyleChange({ stickerScale: parseFloat(e.target.value) })}
+                    className="w-full accent-[#D97757]"
+                  />
+                </label>
+              </div>
+            ) : null}
+
             <Row active={!style.stickerBadge} onClick={() => onStyleChange({ stickerBadge: '' })}>
               <Sticker className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
               <span className="min-w-0 flex-1 truncate text-[11px] text-slate-200">ไม่ใส่ป้าย</span>

@@ -956,6 +956,51 @@ def test_unknown_export_preset_falls_back_to_post(monkeypatch, tmp_path):
     assert "scale=720:1280" not in cmd[cmd.index("-filter_complex") + 1]
 
 
+def test_caption_style_lands_in_the_ass_header(tmp_path):
+    from scripts.subtitle_engine import SubtitleEngine, ass_colour
+
+    assert ass_colour("#FFE600") == "&H0000E6FF", "ASS is &HAABBGGRR, not RGB"
+    assert ass_colour("nope") == "", "unparseable colour falls back, never crashes the render"
+
+    cues = [{"id": 1, "start": 0.0, "end": 2.0, "text": "ทดสอบ"}]
+    out = tmp_path / "subs.ass"
+    SubtitleEngine.generate_ass(
+        cues=cues, output_ass_path=str(out), font_name="IBMPlex", bilingual=False,
+        caption_position="top", caption_color="#FFE600", caption_scale=1.5,
+    )
+    header = out.read_text(encoding="utf-8")
+    white = next(l for l in header.splitlines() if l.startswith("Style: TikTokWhite"))
+    fields = white.split(",")
+    assert fields[3] == "&H0000E6FF", "primary colour"
+    assert fields[18] == "8", "alignment 8 = top centre"
+    assert fields[21] == "260", "top margin"
+    assert int(fields[2]) == 117, "78 * 1.5"
+
+
+def test_sticker_geometry_corners_and_clamped_size():
+    from scripts.video_editor import sticker_geometry
+
+    w, x, y = sticker_geometry("top_right", 1.0)
+    assert (w, x, y) == (380, "(W-w-40)", "140")
+    assert sticker_geometry("bottom_left", 1.0)[1:] == ("40", "(H-h-420)")
+    assert sticker_geometry("junk", 1.0)[1:] == ("(W-w-40)", "140"), "unknown corner falls back"
+    assert sticker_geometry("top_left", 99)[0] == 760, "scale clamped to 2x"
+    assert sticker_geometry("top_left", 1.0)[0] % 2 == 0, "even width or libx264 complains"
+
+
+def test_sticker_position_reaches_the_overlay(monkeypatch, tmp_path):
+    badge = tmp_path / "badge.png"
+    badge.write_bytes(bytes([0x89, 0x50, 0x4E, 0x47]))   # only has to exist
+    clip_list = [{"source_path": str(tmp_path / "a.mp4"), "trim_start": 0.0, "trim_end": 3.0}]
+    cmd = _capture_ffmpeg_cmd(
+        monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list,
+        sticker_path=str(badge), sticker_position="bottom_left", sticker_scale=1.5,
+    )
+    filter_arg = cmd[cmd.index("-filter_complex") + 1]
+    assert "scale=570:-1" in filter_arg
+    assert "overlay=x=40:y=(H-h-420)" in filter_arg
+
+
 def test_normalize_transitions_shapes():
     from scripts.video_editor import normalize_transitions, DEFAULT_TRANSITION_DURATION
 
