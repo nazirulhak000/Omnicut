@@ -3,114 +3,114 @@
     "source": "freesound",
     "source_url": "https://freesound.org/people/BerlinGameScene/sounds/267246/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "misc"
+    "category": "celebratory"
   },
   "sfx_applause_in_church": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/eZZin/sounds/716568/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "misc"
+    "category": "celebratory"
   },
   "sfx_wrong_answer": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/-Andreas/sounds/648462/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "misc"
+    "category": "error"
   },
   "sfx_buzzer_sounds_wrong_answer_error": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/Breviceps/sounds/493163/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "misc"
+    "category": "error"
   },
   "sfx_creation_magic_blast": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/qubodup/sounds/814044/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "misc"
+    "category": "celebratory"
   },
   "sfx_level_up_mp3": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/crunchymaniac/sounds/646114/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "misc"
+    "category": "celebratory"
   },
   "sfx_beepc_mp3": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/Hydranos/sounds/237707/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "misc"
+    "category": "countdown"
   },
   "sfx_beep_adr_countdown": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/Azrael1905/sounds/829273/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "misc"
+    "category": "countdown"
   },
   "sfx_key_swipe_card_wav": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/ryanharding95/sounds/272434/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "misc"
+    "category": "ui"
   },
   "sfx_door_key_card_wav": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/soundmary/sounds/117613/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "misc"
+    "category": "ui"
   },
   "sfx_ui_interaction_error_beep_ghost_metro_ti": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/TommasoMotteran/sounds/859155/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "misc"
+    "category": "error"
   },
   "sfx_reward_notification_3_1": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/Joao_Janz/sounds/504784/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "misc"
+    "category": "notification"
   },
   "sfx_gasp_chimes_success_2_wav": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/Rob_Marion/sounds/541981/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "misc"
+    "category": "celebratory"
   },
   "sfx_triple_ping_notification_sound_mobile_op": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/PiesHelpfulOven/sounds/842513/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "misc"
+    "category": "notification"
   },
   "sfx_static_voice": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/colorsCrimsonTears/sounds/585798/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "misc"
+    "category": "electric"
   },
   "sfx_electricity_01": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/mrspivey/sounds/805189/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "misc"
+    "category": "electric"
   },
   "sfx_alien_tapping_loop": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/mista%20bojjob/sounds/162348/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "misc"
+    "category": "electric"
   },
   "sfx_90s_computer_startup_sound_boot_01": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/Johnmode/sounds/818847/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "misc"
+    "category": "startup"
   },
   "sfx_glitch019_computer_startup_wav": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/Zeraora/sounds/572773/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "misc"
+    "category": "startup"
   }
 }

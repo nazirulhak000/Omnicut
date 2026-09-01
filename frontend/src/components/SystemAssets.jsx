@@ -267,8 +267,13 @@ export default function SystemAssets({ status }) {
                       <div className="text-xs font-bold text-white truncate group-hover:text-[#25F4EE] transition-colors">
                         {sf.name.replace(/\.(wav|mp3)$/i, '')}
                       </div>
-                      <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                        {sf.size_mb} MB
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="text-[10px] text-slate-400 font-mono">{sf.size_mb} MB</span>
+                        {sf.category && sf.category !== 'misc' && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#25F4EE]/10 text-[#25F4EE] font-bold">
+                            {sf.category}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </button>
@@ -529,7 +534,12 @@ export default function SystemAssets({ status }) {
                   <div className="text-[11px] text-slate-400 font-mono mt-0.5">3D Color LUT Cube ({lut.size_mb} MB)</div>
                 </div>
                 <div className="pt-2 border-t border-white/5 flex items-center justify-between">
-                  <span className="text-[10px] text-emerald-400 font-bold">Ready in Pipeline</span>
+                  <span
+                    className="text-[10px] text-amber-400 font-bold"
+                    title="เลือกได้ในขั้นตอนที่ 3 ของหน้า 'สินค้า → คลิป' — ไม่ auto-apply เพราะวัดแล้วทำให้เรนเดอร์ช้าลง ~90% บนเครื่องนี้ (ไม่มีการ์ดจอช่วย)"
+                  >
+                    ⚠️ เลือกเองที่หน้าตัดคลิป (ช้าลง ~90%)
+                  </span>
                   <button
                     onClick={() => setDeleteTarget(lut)}
                     className="p-1 text-slate-500 hover:text-red-400 cursor-pointer"
@@ -595,13 +605,16 @@ export default function SystemAssets({ status }) {
               </h3>
 
               <div className="space-y-3 mt-3 text-xs">
-                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 flex items-center justify-between">
+                <div
+                  className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 flex items-center justify-between"
+                  title="เครื่องนี้ไม่มีการ์ดจอ CUDA (AMD Radeon integrated) — render ทั้งหมดใช้ libx264 บน CPU ล้วน"
+                >
                   <span className="font-bold flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4" />
                     FFmpeg Video Engine
                   </span>
-                  <span className="text-[11px] font-mono font-bold bg-emerald-500/20 px-2 py-0.5 rounded">
-                    Hardware Accel Active
+                  <span className="text-[11px] font-mono font-bold bg-amber-500/20 px-2 py-0.5 rounded">
+                    CPU Encode (libx264, ไม่มีการ์ดจอช่วย)
                   </span>
                 </div>
 
