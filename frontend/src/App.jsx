@@ -33,7 +33,7 @@ export default function App() {
   const [voiceMode, setVoiceMode] = useState('gemini_tts');
   const [voiceGender, setVoiceGender] = useState('male');
   const [voiceSpeed, setVoiceSpeed] = useState('+15%');
-  const [f5Preset, setF5Preset] = useState('gemini_puck_male_hype');
+  const [voicePreset, setVoicePreset] = useState('gemini_puck_male_hype');
   const [adTone, setAdTone] = useState('commercial_premium');
   const [humanVoiceAudio, setHumanVoiceAudio] = useState(null);
   const [fontName, setFontName] = useState('IBMPlex');
@@ -156,8 +156,8 @@ export default function App() {
                   setVoiceGender={setVoiceGender}
                   voiceSpeed={voiceSpeed}
                   setVoiceSpeed={setVoiceSpeed}
-                  f5Preset={f5Preset}
-                  setF5Preset={setF5Preset}
+                  voicePreset={voicePreset}
+                  setVoicePreset={setVoicePreset}
                   adTone={adTone}
                   setAdTone={setAdTone}
                   humanVoiceAudio={humanVoiceAudio}
@@ -183,7 +183,7 @@ export default function App() {
                   voiceMode={voiceMode}
                   voiceGender={voiceGender}
                   voiceSpeed={voiceSpeed}
-                  f5Preset={f5Preset}
+                  voicePreset={voicePreset}
                   adTone={adTone}
                   humanVoiceAudio={humanVoiceAudio}
                   fontName={fontName}

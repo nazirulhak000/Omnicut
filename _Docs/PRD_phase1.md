@@ -33,7 +33,8 @@
 | 12 | Review loop | Preview ในเว็บ + สุ่มใหม่ทีละส่วน (hook / เสียง / จังหวะ) |
 | 13 | Feedback | กรอกผลมือ 30 วิ/คลิป หลังโพสต์ 48 ชม. |
 | 14 | เส้นชัย | 10 คลิปโพสต์จริงใน 14 วัน |
-| 15 | ตัดจากเฟส 1 | F5-TTS, Shopee Video, shot list/teleprompter, AI product scoring |
+| 15 | เลื่อนไปเฟส 2 (รอผล 10 คลิปแรกก่อน) | Shopee Video, shot list/teleprompter, AI product scoring |
+| 15b | **F5-TTS voice clone** | **ตัดถาวร ไม่ใช่แค่เฟส 1** — แก้ไข 2026-09-01: ไม่ใช่ "รอเครื่องมี GPU" แต่เป็นมติเปลี่ยนกลยุทธ์เสียงไปใช้ Gemini Flash TTS ผ่าน Google AI Studio ตลอดไป ลบโค้ด (`f5_tts_engine.py`, UI option, pipeline branch) + ไฟล์เสียงอ้างอิงเก่า + เปลี่ยนชื่อพารามิเตอร์ `f5_preset`→`voice_preset` ทั้งสายแล้ว (ระหว่างเปลี่ยนชื่อเจอบั๊กจริง: re-roll เสียงส่ง key ไม่ตรงกับ manifest ทำให้เลือกเสียงใหม่แล้วไม่มีผล — แก้แล้ว) |
 | 16 | สมอง AI | ~~copy-paste~~ → **อัตโนมัติ** — พบ `GEMINI_API_KEY` ใช้งานได้อยู่ใน `.env` แล้ว (ทดสอบผ่าน 2026-09-01) โหมด copy-paste เก็บไว้เป็น fallback ตอน key หมดโควต้า |
 
 ---
@@ -42,7 +43,7 @@
 
 | ส่วน | ค่าจริง | ผลต่อการออกแบบ |
 |---|---|---|
-| GPU | AMD Radeon integrated — **ไม่มี CUDA** | F5-TTS ตัดออกเฟส 1, ไม่มี local LLM |
+| GPU | AMD Radeon integrated — **ไม่มี CUDA** | ไม่มี local LLM/voice-clone ได้อยู่แล้ว — แต่เหตุผลตัด F5-TTS จริงๆ คือมติใช้ Gemini/AI Studio ถาวร ไม่ใช่แค่รอ GPU (ดูข้อ 15b) |
 | torch | `2.13.0+cpu` | ยืนยัน CPU-only |
 | CPU | Ryzen 7 7735HS (8C/16T) | render 9:16 ได้ แต่ต้องเป็นคิว ไม่ใช่กดแล้วรอ |
 | RAM | 13.7 GB | ห้ามรัน render ซ้อนกันหลายงาน |
@@ -63,9 +64,8 @@
 6. **Publish Kit** — caption + hashtag + ลิงก์สินค้า พร้อม copy ปุ่มเดียว + QR ส่งไฟล์เข้ามือถือ
 7. **Post Log** — บันทึกว่าโพสต์อะไรไปเมื่อไหร่ + ฟอร์มกรอกผล 48 ชม. (วิว/ไลค์/คลิกตะกร้า/ยอดขาย)
 
-### ไม่ทำ (เฟส 2+)
+### ไม่ทำ (เฟส 2+ — รอผล 10 คลิปแรกก่อนพิจารณา)
 
-- F5-TTS voice clone (รอ GPU)
 - Shopee Video export variant
 - Shot list / teleprompter สำหรับถ่ายเอง
 - AI product scoring / trend feed
@@ -84,6 +84,10 @@
 **บั๊กที่เจอระหว่างทำ** (แก้แล้วทั้งหมด): `.gitignore`'s `.env.*` กิน `.env.example` ไปด้วย, `StudioStep3Audio.jsx` ยังเสนอ F5-TTS ทั้งที่ backend ไม่รองรับ + ใช้ไอคอน `Sparkles` ที่ไม่เคย import (จะ crash ทันทีที่เปิด tab เพราะ `gemini_tts` เป็น default), re-roll เรียก `export_capcut=False` เข้าพารามิเตอร์ที่ถูกลบไปแล้ว (ทุก re-roll จะ TypeError)
 
 **spec-bar overlay (PRD section 8) — ✅ เสร็จแล้ว** — `on_screen` จาก AI script ไหลผ่าน pipeline → cues → `subtitle_engine.py` style `SpecBar` (มุมขวาบน กันชนกับ hook banner/แคปชั่น) → เบิร์นเข้า mp4 จริง ยืนยันด้วยคลิป Esseger จริงแล้ว
+
+**F5-TTS ตัดถาวร (ไม่ใช่รอ GPU) — ✅ เสร็จ 2026-09-01** — เปลี่ยนชื่อพารามิเตอร์ `f5_preset`/`f5_ref_preset`/`f5Preset` → `voice_preset` ทั้งสาย (pipeline.py, api_server.py, api_phase1.py, App.jsx, StudioStep3Audio.jsx, StudioStep4Render.jsx, ProductToClip.jsx) + ลบ `f5_custom_ref_path`/`f5_custom_ref_text` ที่เป็น dead param มาตั้งแต่ตัด F5 (ประกาศไว้แต่ไม่เคยถูกอ่าน) + ลบไฟล์เสียงอ้างอิง `02_Assets/Voiceover/Presets/` ที่ไม่มีใครใช้แล้ว
+
+**บั๊กที่เจอจากการ rename**: re-roll เสียง (`part=voice`) ส่ง key `f5_preset` แต่ manifest เก็บ `render_params` ด้วย key `f5_ref_preset` — merge override เข้า `params` ไม่ตรง key เลยไม่มีผลอะไรกับ pipeline จริง (เลือกเสียงใหม่ตอน re-roll แล้วได้เสียงเดิม) แก้โดยรวมชื่อ key เป็น `voice_preset` เดียวกันทั้งสาย ยืนยันด้วยการจำลอง override จริง: ก่อนแก้ค่าไม่เปลี่ยน หลังแก้ค่าเปลี่ยนตามที่เลือก
 
 ---
 

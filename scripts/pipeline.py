@@ -42,10 +42,8 @@ class TikTokAutoCutterPipeline:
         voice: str = DEFAULT_VOICE,
         voice_rate: str = DEFAULT_VOICE_RATE,
         voice_engine_type: str = "edge_tts",
-        f5_ref_preset: Optional[str] = "gemini_puck_male_hype",
+        voice_preset: Optional[str] = "gemini_puck_male_hype",
         ad_tone: str = "commercial_premium",
-        f5_custom_ref_path: Optional[str] = None,
-        f5_custom_ref_text: Optional[str] = None,
         human_voice_audio_path: Optional[str] = None,
         hook_title: Optional[str] = None,
         font_name: str = "IBMPlex",
@@ -193,7 +191,7 @@ class TikTokAutoCutterPipeline:
             import subprocess
 
             voice_audio_path = _out_path("voiceover", ".wav")
-            gemini_voice = GeminiFlashTTSEngine.resolve_voice(preset=f5_ref_preset, gender=voice)
+            gemini_voice = GeminiFlashTTSEngine.resolve_voice(preset=voice_preset, gender=voice)
 
             speed_val = 1.15
             if voice_rate:
@@ -344,7 +342,7 @@ class TikTokAutoCutterPipeline:
                 "voice": voice,
                 "voice_rate": voice_rate,
                 "voice_engine_type": voice_engine_type,
-                "f5_ref_preset": f5_ref_preset,
+                "voice_preset": voice_preset,
                 "ad_tone": ad_tone,
                 "human_voice_audio_path": human_voice_audio_path,
                 "font_name": font_name,

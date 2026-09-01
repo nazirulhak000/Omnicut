@@ -83,13 +83,11 @@ class RenderRequest(BaseModel):
     hook_title: Optional[str] = None
     custom_script: Optional[str] = None
     script_overlays: Optional[List[str]] = None  # per-line spec-bar text, index-aligned with custom_script
-    voice_mode: str = "gemini_tts" # gemini_tts, edge_tts, human, video, f5_tts
+    voice_mode: str = "gemini_tts" # gemini_tts, edge_tts, human, video
     voice_gender: str = "female"
     voice_rate: str = "+15%"
-    f5_preset: Optional[str] = "gemini_puck_male_hype"
+    voice_preset: Optional[str] = "gemini_puck_male_hype"  # Gemini prebuilt voice, e.g. gemini_puck_male_hype
     ad_tone: Optional[str] = "commercial_premium"
-    f5_custom_audio: Optional[str] = None
-    f5_custom_text: Optional[str] = None
     human_voice_audio: Optional[str] = None
     font_name: str = "IBMPlex"
     bilingual_subtitles: bool = True
@@ -659,10 +657,8 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                 voice=req_data.voice_gender,
                 voice_rate=req_data.voice_rate,
                 voice_engine_type=voice_engine_type,
-                f5_ref_preset=req_data.f5_preset,
+                voice_preset=req_data.voice_preset,
                 ad_tone=req_data.ad_tone or "commercial_premium",
-                f5_custom_ref_path=req_data.f5_custom_audio,
-                f5_custom_ref_text=req_data.f5_custom_text,
                 human_voice_audio_path=human_voice_path,
                 hook_title=req_data.hook_title,
                 font_name=req_data.font_name,

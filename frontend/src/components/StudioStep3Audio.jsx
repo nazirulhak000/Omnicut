@@ -9,8 +9,8 @@ export default function StudioStep3Audio({
   setVoiceGender,
   voiceSpeed,
   setVoiceSpeed,
-  f5Preset,
-  setF5Preset,
+  voicePreset,
+  setVoicePreset,
   adTone = 'commercial_premium',
   setAdTone,
   humanVoiceAudio,
@@ -92,10 +92,11 @@ export default function StudioStep3Audio({
       desc: 'ใช้เสียงพูดดั้งเดิมที่บันทึกอยู่ในไฟล์วิดีโอสินค้า',
       icon: Video,
     },
-    // F5-TTS was dropped in phase 1 -- this machine has no CUDA, so it ran
-    // minutes per clip on CPU. The backend no longer has a code path for it
-    // (scripts/f5_tts_engine.py is removed), so no option for it is offered
-    // here anymore -- picking it used to silently fall back to Edge-TTS.
+    // F5-TTS (local voice-clone) is dropped permanently, not just deferred
+    // until a GPU shows up -- the voice strategy is Google AI Studio's Gemini
+    // Flash TTS (scripts/gemini_tts_engine.py) from here on. Backend has no
+    // code path for F5 at all anymore, so no option for it is offered here --
+    // picking it used to silently fall back to Edge-TTS instead.
   ];
 
   const handleTestVoice = async () => {
@@ -104,7 +105,7 @@ export default function StudioStep3Audio({
       const speedVal = parseFloat(voiceSpeed.replace('+', '').replace('%', '')) / 100 + 1.0;
       const res = await previewVoice({
         text: `ทุกคน! สายชาร์จแม่เหล็กตัวนี้คือที่สุด ดูดแน่น ชาร์จเร็ว 66 วัตต์ รีบกดในตะกร้าซ้ายล่างได้เลยครับ`,
-        voice_gender: voiceMode === 'gemini_tts' ? f5Preset || 'gemini_puck_male_hype' : voiceGender,
+        voice_gender: voiceMode === 'gemini_tts' ? voicePreset || 'gemini_puck_male_hype' : voiceGender,
         ad_tone: adTone,
         speed: speedVal || 1.15
       });
@@ -216,8 +217,8 @@ export default function StudioStep3Audio({
                 เลือกคาแรกเตอร์เสียง Gemini 3.1 Flash:
               </label>
               <select
-                value={f5Preset || 'gemini_puck_male_hype'}
-                onChange={(e) => setF5Preset && setF5Preset(e.target.value)}
+                value={voicePreset || 'gemini_puck_male_hype'}
+                onChange={(e) => setVoicePreset && setVoicePreset(e.target.value)}
                 className="w-full py-2 px-3 rounded-xl bg-[#0F121A] border border-white/10 text-slate-100 text-xs sm:text-sm focus:outline-none focus:border-cyan-400"
               >
                 <option value="gemini_puck_male_hype">⚡ Puck (ชายพลังสูง สไตล์ TikTok ไวรัล)</option>

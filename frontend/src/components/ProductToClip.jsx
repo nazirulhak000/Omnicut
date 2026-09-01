@@ -299,7 +299,7 @@ export default function ProductToClip({ status, videos, onRefresh }) {
         script_overlays: (script?.lines || []).map((l) => l.on_screen || ''),
         voice_mode: 'gemini_tts',
         voice_gender: voicePreset.includes('female') ? 'female' : 'male',
-        f5_preset: voicePreset,
+        voice_preset: voicePreset,
         export_mp4: true,
       });
       setJobId(res.job_id);
@@ -318,7 +318,7 @@ export default function ProductToClip({ status, videos, onRefresh }) {
       const res = await startReroll({
         project_name: projectNameRef.current,
         part,
-        ...(part === 'voice' ? { f5_preset: voicePreset } : {}),
+        ...(part === 'voice' ? { voice_preset: voicePreset } : {}),
         ...(part === 'hook' ? { hook_title: script?.hook_title || angle?.hook } : {}),
       });
       setJobId(res.job_id);

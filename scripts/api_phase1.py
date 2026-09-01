@@ -338,7 +338,7 @@ class RerollRequest(BaseModel):
     bilingual_subtitles: Optional[bool] = None
     voice_gender: Optional[str] = None
     voice_rate: Optional[str] = None
-    f5_preset: Optional[str] = None
+    voice_preset: Optional[str] = None
     ad_tone: Optional[str] = None
     sticker_path: Optional[str] = None
 
@@ -387,7 +387,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 voice=params.get("voice", "male"),
                 voice_rate=params.get("voice_rate", "+15%"),
                 voice_engine_type=params.get("voice_engine_type", "edge_tts"),
-                f5_ref_preset=params.get("f5_ref_preset"),
+                voice_preset=params.get("voice_preset"),
                 ad_tone=params.get("ad_tone", "commercial_premium"),
                 human_voice_audio_path=params.get("human_voice_audio_path"),
                 hook_title=params.get("hook_title"),
