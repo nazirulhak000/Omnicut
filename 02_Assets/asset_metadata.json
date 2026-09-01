@@ -3,114 +3,217 @@
     "source": "freesound",
     "source_url": "https://freesound.org/people/BerlinGameScene/sounds/267246/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "celebratory"
+    "category": "celebratory",
+    "label_th": "เสียงคนเชียร์"
   },
   "sfx_applause_in_church": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/eZZin/sounds/716568/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "celebratory"
+    "category": "celebratory",
+    "label_th": "เสียงปรบมือ"
   },
   "sfx_wrong_answer": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/-Andreas/sounds/648462/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "error"
+    "category": "error",
+    "label_th": "ตอบผิด (Buzzer)"
   },
   "sfx_buzzer_sounds_wrong_answer_error": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/Breviceps/sounds/493163/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "error"
+    "category": "error",
+    "label_th": "บัซเซอร์ผิด/error"
   },
   "sfx_creation_magic_blast": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/qubodup/sounds/814044/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "celebratory"
+    "category": "celebratory",
+    "label_th": "ระเบิดเวทมนตร์"
   },
   "sfx_level_up_mp3": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/crunchymaniac/sounds/646114/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "celebratory"
+    "category": "celebratory",
+    "label_th": "เลเวลอัพ"
   },
   "sfx_beepc_mp3": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/Hydranos/sounds/237707/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "countdown"
+    "category": "countdown",
+    "label_th": "บี๊บสั้น (นับถอยหลัง)"
   },
   "sfx_beep_adr_countdown": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/Azrael1905/sounds/829273/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "countdown"
+    "category": "countdown",
+    "label_th": "บี๊บนับถอยหลัง"
   },
   "sfx_key_swipe_card_wav": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/ryanharding95/sounds/272434/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "ui"
+    "category": "ui",
+    "label_th": "รูดบัตร"
   },
   "sfx_door_key_card_wav": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/soundmary/sounds/117613/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "ui"
+    "category": "ui",
+    "label_th": "รูดคีย์การ์ดประตู"
   },
   "sfx_ui_interaction_error_beep_ghost_metro_ti": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/TommasoMotteran/sounds/859155/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "error"
+    "category": "error",
+    "label_th": "บี๊บ error หน้าจอ"
   },
   "sfx_reward_notification_3_1": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/Joao_Janz/sounds/504784/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "notification"
+    "category": "notification",
+    "label_th": "แจ้งเตือนรางวัล"
   },
   "sfx_gasp_chimes_success_2_wav": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/Rob_Marion/sounds/541981/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "celebratory"
+    "category": "celebratory",
+    "label_th": "ระฆังสำเร็จ"
   },
   "sfx_triple_ping_notification_sound_mobile_op": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/PiesHelpfulOven/sounds/842513/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "notification"
+    "category": "notification",
+    "label_th": "ปิ๊งสามครั้ง (แจ้งเตือนมือถือ)"
   },
   "sfx_static_voice": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/colorsCrimsonTears/sounds/585798/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "electric"
+    "category": "electric",
+    "label_th": "ไฟฟ้าสถิต/รบกวน"
   },
   "sfx_electricity_01": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/mrspivey/sounds/805189/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "electric"
+    "category": "electric",
+    "label_th": "ไฟฟ้าช็อต/ประกายไฟ"
   },
   "sfx_alien_tapping_loop": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/mista%20bojjob/sounds/162348/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "electric"
+    "category": "electric",
+    "label_th": "บัซแบตเต็ม/เสียบชาร์จ"
   },
   "sfx_90s_computer_startup_sound_boot_01": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/Johnmode/sounds/818847/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "startup"
+    "category": "startup",
+    "label_th": "คอมบูตยุค 90s"
   },
   "sfx_glitch019_computer_startup_wav": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/Zeraora/sounds/572773/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
-    "category": "startup"
+    "category": "startup",
+    "label_th": "คอมสตาร์ทอัพ (กลิตช์)"
+  },
+  "boom": {
+    "label_th": "บูม (เปิดคลิป)"
+  },
+  "cash": {
+    "label_th": "เก็บเงิน"
+  },
+  "ding": {
+    "label_th": "ติ๊ง (แจ้งเตือน)"
+  },
+  "pop": {
+    "label_th": "ป็อป (เด้ง)"
+  },
+  "whoosh": {
+    "label_th": "วืด (เปลี่ยนฉาก)"
+  },
+  "sfx_bell_ding": {
+    "label_th": "กระดิ่งติ๊ง"
+  },
+  "sfx_bell_notification": {
+    "label_th": "กระดิ่งแจ้งเตือน"
+  },
+  "sfx_camera_shutter": {
+    "label_th": "ชัตเตอร์กล้อง"
+  },
+  "sfx_cash_register": {
+    "label_th": "เครื่องคิดเงิน"
+  },
+  "sfx_coin_drop": {
+    "label_th": "เหรียญตก"
+  },
+  "sfx_gasp_shock": {
+    "label_th": "เสียงอึ้ง/ช็อก"
+  },
+  "sfx_iphone_lock": {
+    "label_th": "ล็อกหน้าจอ iPhone"
+  },
+  "sfx_keyboard_tap": {
+    "label_th": "พิมพ์คีย์บอร์ด"
+  },
+  "sfx_magic_sparkle": {
+    "label_th": "ประกายเวทมนตร์"
+  },
+  "sfx_magnet_clack": {
+    "label_th": "แม่เหล็กติดกัน"
+  },
+  "sfx_mouse_click": {
+    "label_th": "คลิกเมาส์"
+  },
+  "sfx_pop_bubble": {
+    "label_th": "ป็อปฟองสบู่"
+  },
+  "sfx_pop_cork": {
+    "label_th": "เปิดจุกขวด"
+  },
+  "sfx_record_scratch": {
+    "label_th": "สแครชแผ่นเสียง (หยุดกึก)"
+  },
+  "sfx_sub_drop": {
+    "label_th": "เบสหนักดรอป"
+  },
+  "sfx_swoosh_air": {
+    "label_th": "วืดลม"
+  },
+  "sfx_tada_fanfare": {
+    "label_th": "ทาด้า! (สำเร็จ)"
+  },
+  "sfx_unboxing_tear": {
+    "label_th": "ฉีกกล่อง/เทป"
+  },
+  "sfx_vine_boom": {
+    "label_th": "บูมไวรัล"
+  },
+  "sfx_water_splash": {
+    "label_th": "น้ำกระเซ็น"
+  },
+  "sfx_whip_pan": {
+    "label_th": "หมุนกล้องเร็ว"
+  },
+  "sfx_whoosh_fast": {
+    "label_th": "วืดเร็ว"
+  },
+  "sfx_whoosh_heavy": {
+    "label_th": "วืดหนัก"
   }
 }

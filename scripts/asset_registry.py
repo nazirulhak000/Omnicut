@@ -108,6 +108,7 @@ class AssetRegistry:
             entry = cls._file_info(path)
             entry["id"] = asset_id
             entry["category"] = meta.get("category", _FALLBACK_SFX_CATEGORY)
+            entry["label_th"] = meta.get("label_th", "")
             entry["audio_url"] = f"/api/media/{entry['rel_path']}"
             entries.append(entry)
         return entries

@@ -265,6 +265,9 @@ export default function SystemAssets({ status }) {
                     </div>
                     <div className="min-w-0">
                       <div className="text-xs font-bold text-white truncate group-hover:text-[#25F4EE] transition-colors">
+                        {sf.label_th || sf.name.replace(/\.(wav|mp3)$/i, '')}
+                      </div>
+                      <div className="text-[9px] text-slate-500 font-mono truncate" title={sf.name}>
                         {sf.name.replace(/\.(wav|mp3)$/i, '')}
                       </div>
                       <div className="flex items-center gap-1.5 mt-0.5">
