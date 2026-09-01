@@ -18,7 +18,7 @@ from fastapi.testclient import TestClient
 
 from scripts import post_log, product_store, project_manifest, render_jobs
 from scripts.ai_bridge import AIBridge, ManualModeRequired
-from scripts.it_angles import catalog_for_prompt, fallback_angles
+from scripts.it_angles import ANGLE_LUT_HINTS, IT_ANGLE_CATALOG, catalog_for_prompt, fallback_angles
 from scripts.post_log import PostLog
 from scripts.product_store import ProductStore
 from scripts.project_manifest import REROLL_STAGE, ProjectManifest
@@ -414,6 +414,35 @@ def test_script_generator_fallback_uses_more_than_three_sfx_names():
     assert len(sfx_used) >= 4, f"expected real variety across 5 lines, got only: {sfx_used}"
     for name in sfx_used:
         assert AssetRegistry.resolve_sfx_path(name) is not None, f"'{name}' must resolve to a real file"
+
+
+# ----------------------------------------------------------------------
+# LUT color grading -- opt-in only
+#
+# Measured on this CPU-only machine (no CUDA) against the real Esseger
+# clip: lut3d added ~90% to the ffmpeg render step (11.6s -> 22.0s on an
+# 8s clip). That ruled out auto-applying one by IT angle, which the
+# original plan called for -- a render must never get slower without the
+# user explicitly asking for it.
+# ----------------------------------------------------------------------
+def test_lut_is_never_auto_applied_by_pipeline():
+    """pipeline.py must not import the angle->LUT hint table -- it would only be used to auto-pick."""
+    import ast
+    tree = ast.parse(Path("scripts/pipeline.py").read_text(encoding="utf-8"))
+    imported_names = {
+        alias.asname or alias.name
+        for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)
+        for alias in node.names
+    }
+    assert "ANGLE_LUT_HINTS" not in imported_names, (
+        "pipeline.py importing this again likely means auto-pick crept back in"
+    )
+
+
+def test_angle_lut_hints_still_cover_every_angle():
+    """Kept as a suggestion the frontend can surface -- must not silently drop an angle."""
+    catalog_keys = {a["key"] for a in IT_ANGLE_CATALOG}
+    assert set(ANGLE_LUT_HINTS.keys()) == catalog_keys
 
 
 # ----------------------------------------------------------------------

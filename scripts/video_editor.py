@@ -65,10 +65,12 @@ class VideoEditor:
         ass_subtitle_path: str,
         output_mp4_path: str,
         cues: List[Dict] = None,
-        sticker_path: str = None
+        ai_matched_shots: List[Dict] = None,
+        sticker_path: str = None,
+        lut_path: str = None
     ) -> str:
         """
-        Takes raw footage, creates fast-paced punch-in cuts synced to audio duration,
+        Takes raw footage, creates fast-paced punch-in cuts synced to audio duration and Gemini Vision scenes,
         burns ASS subtitles, overlays promotional stickers/badges, muxes mixed audio, and renders final MP4.
         """
         out_file = Path(output_mp4_path).resolve()
@@ -82,7 +84,7 @@ class VideoEditor:
         info = cls.get_media_info(raw_path)
         raw_duration = info["duration"]
 
-        # Calculate shot segments based on cues or rhythmic chunks (1.8s - 2.5s)
+        # Calculate shot segments based on cues and AI-matched Vision shots
         shots = []
         curr_t = 0.0
         shot_scales = [1.25, 1.0, 1.35, 1.05, 1.3, 1.0] # Alternating punch-zoom levels
@@ -92,20 +94,37 @@ class VideoEditor:
                 c_start = c["start"]
                 c_end = c["end"]
                 c_dur = c_end - c_start
-                scale = shot_scales[idx % len(shot_scales)]
-                if c_dur > 3.5:
-                    mid = c_start + (c_dur / 2.0)
-                    shots.append({"start": c_start, "end": mid, "scale": scale})
-                    shots.append({"start": mid, "end": c_end, "scale": shot_scales[(idx + 1) % len(shot_scales)]})
+
+                # Check if Gemini Vision matched a specific scene
+                ai_shot = ai_matched_shots[idx] if ai_matched_shots and idx < len(ai_matched_shots) else None
+                if ai_shot:
+                    ai_start = float(ai_shot.get("start_time", 0.0))
+                    ai_zoom = float(ai_shot.get("punch_zoom", shot_scales[idx % len(shot_scales)]))
+                    scale = min(1.4, max(1.0, ai_zoom))
+                    raw_offset = max(0.0, min(ai_start, max(0.0, raw_duration - c_dur - 0.2)))
                 else:
-                    shots.append({"start": c_start, "end": c_end, "scale": scale})
+                    scale = shot_scales[idx % len(shot_scales)]
+                    raw_offset = (idx * 3.5) % max(1.0, raw_duration - c_dur - 1.0)
+
+                shots.append({
+                    "start": c_start,
+                    "end": c_end,
+                    "scale": scale,
+                    "raw_offset": raw_offset
+                })
         else:
             shot_idx = 0
             while curr_t < total_duration:
                 dur = 2.0
                 end_t = min(curr_t + dur, total_duration)
                 scale = shot_scales[shot_idx % len(shot_scales)]
-                shots.append({"start": curr_t, "end": end_t, "scale": scale})
+                raw_offset = (shot_idx * 3.5) % max(1.0, raw_duration - dur - 1.0)
+                shots.append({
+                    "start": curr_t,
+                    "end": end_t,
+                    "scale": scale,
+                    "raw_offset": raw_offset
+                })
                 curr_t = end_t
                 shot_idx += 1
 
@@ -119,8 +138,7 @@ class VideoEditor:
         for idx, shot in enumerate(shots):
             s_dur = max(0.2, shot["end"] - shot["start"])
             scale = shot["scale"]
-            
-            raw_start_offset = (idx * 3.5) % max(1.0, raw_duration - s_dur - 1.0)
+            raw_start_offset = shot.get("raw_offset", 0.0)
             
             scaled_w = int(VIDEO_WIDTH * scale)
             scaled_h = int(VIDEO_HEIGHT * scale)
@@ -146,6 +164,14 @@ class VideoEditor:
             "-i", str(raw_path),
             "-i", str(Path(mixed_audio_path).resolve())
         ]
+
+        # Optional 3D LUT color grade -- applied before the sticker overlay and
+        # subtitle burn so a brand-colored badge and caption colors are never
+        # re-graded along with the footage.
+        if lut_path and Path(lut_path).exists():
+            lut_path_str = str(Path(lut_path).resolve()).replace('\\', '/').replace(':', '\\:')
+            filter_complex.append(f"{current_v}lut3d='{lut_path_str}'[v_graded];")
+            current_v = "[v_graded]"
 
         # Optional Promotional Sticker Overlay (Top-Right Badge with entry animation)
         if sticker_path and Path(sticker_path).exists():

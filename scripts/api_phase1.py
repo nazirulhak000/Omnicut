@@ -342,6 +342,7 @@ class RerollRequest(BaseModel):
     ad_tone: Optional[str] = None
     sticker_path: Optional[str] = None
     bgm_name: Optional[str] = None
+    lut_name: Optional[str] = None
 
 
 # What each button costs, so the UI can warn before a slow one.
@@ -397,6 +398,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 bilingual_subtitles=params.get("bilingual_subtitles", True),
                 sticker_path=params.get("sticker_path"),
                 bgm_name=params.get("bgm_name"),
+                lut_name=params.get("lut_name"),
                 export_mp4=True,
                 resume_from=stage,
                 progress_callback=render_jobs.progress_reporter(job_id),

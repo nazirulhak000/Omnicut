@@ -7,7 +7,7 @@ shot from seller photos alone are marked, because phase 1 posts before the
 product physically arrives.
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 IT_ANGLE_CATALOG: List[Dict[str, Any]] = [
     {
@@ -109,6 +109,21 @@ IT_ANGLE_CATALOG: List[Dict[str, Any]] = [
 ]
 
 ANGLES_BY_KEY: Dict[str, Dict[str, Any]] = {a["key"]: a for a in IT_ANGLE_CATALOG}
+
+# Which of the 4 existing LUTs (02_Assets/LUTs_ColorPresets) suits each angle,
+# used as the auto-pick when a render doesn't specify lut_name explicitly.
+# None means no grade -- pain_point and dont_cheap_out lean on unfiltered
+# realism (showing a real problem/damage reads as more honest ungraded).
+ANGLE_LUT_HINTS: Dict[str, Optional[str]] = {
+    "spec_compare": "lut_tech_cool_contrast.cube",
+    "spec_explained": "lut_tech_cool_contrast.cube",
+    "worth_upgrade": "lut_tech_cool_contrast.cube",
+    "real_test": "lut_bright_clean_product.cube",
+    "how_to_setup": "lut_bright_clean_product.cube",
+    "fake_vs_real": "lut_bright_clean_product.cube",
+    "pain_point": None,
+    "dont_cheap_out": None,
+}
 
 
 def catalog_for_prompt(seller_assets_only: bool = False) -> List[Dict[str, Any]]:

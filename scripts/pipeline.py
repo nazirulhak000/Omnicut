@@ -15,7 +15,7 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
         pass
 
 from scripts.config import (
-    BASE_DIR, RAW_DIR, PROJECTS_DIR, EXPORTS_DIR,
+    BASE_DIR, RAW_DIR, PROJECTS_DIR, EXPORTS_DIR, LUTS_DIR,
     DEFAULT_VOICE, DEFAULT_VOICE_RATE, DEFAULT_VOICE_PITCH
 )
 from scripts.script_generator import ScriptGenerator
@@ -52,6 +52,7 @@ class TikTokAutoCutterPipeline:
         use_ai_vision: bool = True,
         sticker_path: Optional[str] = None,
         bgm_name: Optional[str] = None,
+        lut_name: Optional[str] = None,
         export_mp4: bool = True,
         resume_from: Optional[str] = None,
         product_meta: Optional[Dict[str, any]] = None,
@@ -319,6 +320,14 @@ class TikTokAutoCutterPipeline:
             except Exception as e:
                 print(f"   ⚠️ AI Vision Matching skipped ({e}) — using rhythmic cuts.")
 
+        # Opt-in only -- measured on this CPU-only machine (no CUDA) against
+        # the real Esseger clip: lut3d added ~90% to the ffmpeg render step
+        # (11.6s -> 22.0s on an 8s clip), nowhere near "cheap relative to
+        # libx264's own cost". ANGLE_LUT_HINTS stays as a suggestion the
+        # frontend can surface, but the pipeline never applies one silently --
+        # a user has to pick a LUT explicitly and accept the slower render.
+        lut_path = str(LUTS_DIR / lut_name) if lut_name else None
+
         if export_mp4:
             _notify("✂️ [5/5] กำลังตัดต่อวิดีโอ 9:16 + Punch-Zoom & เรนเดอร์ไฟล์ MP4...", 0.85)
             print("\n✂️ [5/5] Cutting Video, Dynamic Punch-Zooming & Rendering Final MP4...")
@@ -331,7 +340,8 @@ class TikTokAutoCutterPipeline:
                 output_mp4_path=str(out_mp4),
                 cues=micro_cues,
                 ai_matched_shots=ai_matched_shots,
-                sticker_path=sticker_path
+                sticker_path=sticker_path,
+                lut_path=lut_path
             )
             result_paths["mp4_video"] = str(out_mp4)
             result_paths["ai_matched_shots"] = ai_matched_shots
@@ -370,6 +380,7 @@ class TikTokAutoCutterPipeline:
                 "bilingual_subtitles": bilingual_subtitles,
                 "sticker_path": sticker_path,
                 "bgm_name": bgm_name,
+                "lut_name": lut_name,
             },
             "artifacts": artifacts,
         }

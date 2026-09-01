@@ -110,9 +110,14 @@ export default function ProductToClip({ status, videos, onRefresh }) {
   // but nothing anywhere ever sent it anything but the hardcoded default --
   // there was no request field, no UI, no override path at all.
   const [bgmName, setBgmName] = useState('');
+  // Opt-in only, deliberately -- measured on this CPU-only machine (no CUDA):
+  // a LUT color grade added ~90% to render time (11.6s -> 22.0s on an 8s
+  // clip), so it must never apply itself silently.
+  const [lutName, setLutName] = useState('');
   const [availableFonts, setAvailableFonts] = useState([]);
   const [availableStickers, setAvailableStickers] = useState([]);
   const [availableBgm, setAvailableBgm] = useState([]);
+  const [availableLuts, setAvailableLuts] = useState([]);
   const [jobId, setJobId] = useState(null);
   const [job, setJob] = useState(null);
   const [rendering, setRendering] = useState(false);
@@ -151,6 +156,7 @@ export default function ProductToClip({ status, videos, onRefresh }) {
         setAvailableFonts(data.fonts || []);
         setAvailableStickers(data.stickers || []);
         setAvailableBgm(data.music || []);
+        setAvailableLuts(data.luts || []);
       })
       .catch(() => { /* pickers just stay empty; render still works with the current defaults */ });
   }, []);
@@ -336,6 +342,7 @@ export default function ProductToClip({ status, videos, onRefresh }) {
         font_name: fontName,
         sticker_badge: stickerBadge || null,
         bgm_name: bgmName || null,
+        lut_name: lutName || null,
         export_mp4: true,
       });
       setJobId(res.job_id);
@@ -604,6 +611,26 @@ export default function ProductToClip({ status, videos, onRefresh }) {
             ))}
           </select>
         </div>
+
+        {availableLuts.length > 0 && (
+          <div className="mt-2">
+            <select
+              value={lutName}
+              onChange={(e) => setLutName(e.target.value)}
+              className="w-full py-2.5 px-3 rounded-xl bg-[#121622] border border-white/10 outline-none text-xs text-slate-200 cursor-pointer"
+            >
+              <option value="">โทนสี: ไม่ปรับ (เร็วสุด)</option>
+              {availableLuts.map((l) => (
+                <option key={l.id} value={l.name}>โทนสี: {l.id.replace(/^lut_/, '').replace(/_/g, ' ')}</option>
+              ))}
+            </select>
+            {lutName && (
+              <p className="text-[11px] text-amber-300 mt-1">
+                ⚠️ ปรับโทนสีทำให้ตัดคลิปช้าลงเกือบเท่าตัว (เครื่องนี้ไม่มีการ์ดจอช่วย)
+              </p>
+            )}
+          </div>
+        )}
 
         <button
           onClick={handleRender}

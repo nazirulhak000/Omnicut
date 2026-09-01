@@ -95,6 +95,7 @@ class RenderRequest(BaseModel):
     use_ai_vision: bool = True
     sticker_badge: Optional[str] = "badge_flash_sale_3d.png"
     bgm_name: Optional[str] = None  # BGM filename from AssetRegistry.bgm(); None keeps SFXManager's own default
+    lut_name: Optional[str] = None  # LUT filename from AssetRegistry.luts(); None auto-picks by IT angle, or no grade
     export_mp4: bool = True
 
 class DeleteFileRequest(BaseModel):
@@ -747,6 +748,7 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                 use_ai_vision=req_data.use_ai_vision,
                 sticker_path=sticker_file_path,
                 bgm_name=req_data.bgm_name,
+                lut_name=req_data.lut_name,
                 export_mp4=req_data.export_mp4,
                 progress_callback=on_progress
             )
