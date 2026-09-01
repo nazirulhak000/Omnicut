@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mic, Zap, User, Video, Bot, Volume2, Play, CheckCircle2, Upload } from 'lucide-react';
+import { Mic, Zap, User, Video, Volume2, Play, CheckCircle2, Upload, Sparkles } from 'lucide-react';
 import { previewVoice, uploadFile } from '../api';
 
 export default function StudioStep3Audio({
@@ -92,12 +92,10 @@ export default function StudioStep3Audio({
       desc: 'ใช้เสียงพูดดั้งเดิมที่บันทึกอยู่ในไฟล์วิดีโอสินค้า',
       icon: Video,
     },
-    {
-      id: 'f5_tts',
-      title: '🤖 F5-TTS Thai (Local AI Diffusion)',
-      desc: 'โมเดลโคลนเสียงภาษาไทย รันบนเครื่องของคุณเอง (~45 วิ)',
-      icon: Bot,
-    }
+    // F5-TTS was dropped in phase 1 -- this machine has no CUDA, so it ran
+    // minutes per clip on CPU. The backend no longer has a code path for it
+    // (scripts/f5_tts_engine.py is removed), so no option for it is offered
+    // here anymore -- picking it used to silently fall back to Edge-TTS.
   ];
 
   const handleTestVoice = async () => {
@@ -377,28 +375,6 @@ export default function StudioStep3Audio({
               </span>
             )}
           </div>
-        </div>
-      )}
-
-      {voiceMode === 'f5_tts' && (
-        <div className="p-4 rounded-xl bg-black/40 border border-white/5 space-y-3">
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
-              เลือกโทนเสียงโคลนสำเร็จรูป (Presets):
-            </label>
-            <select
-              value={f5Preset}
-              onChange={(e) => setF5Preset(e.target.value)}
-              className="w-full py-2.5 px-3 rounded-xl bg-[#121622] border border-white/10 text-slate-100 text-sm focus:outline-none focus:border-[#FE2C55]"
-            >
-              <option value="tiktok_male_pro">🔥 TikTok Pro Male (เสียงผู้ชายสายขายของ)</option>
-              <option value="tiktok_female_pro">✨ TikTok Pro Female (เสียงผู้หญิงสดใส)</option>
-              <option value="tiktok_hype_seller">⚡ TikTok Hype Seller (เร่งปิดการขาย)</option>
-            </select>
-          </div>
-          <p className="text-[11px] text-slate-400">
-            🤖 โมเดล F5-TTS Thai จะประมวลผลบนเครื่องของคุณแบบ Local AI (ใช้เวลาประมาณ 45-60 วินาที)
-          </p>
         </div>
       )}
 

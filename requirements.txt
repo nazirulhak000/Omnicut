@@ -1,0 +1,35 @@
+# TikTok Auto-Cutter Pro Studio -- backend dependencies
+#
+# Generated from the actual imports in scripts/*.py, not a full `pip freeze`:
+# this machine has other projects' packages installed globally (torch,
+# appium, ...) that this app does not use. F5-TTS's torch/torchaudio stack
+# was dropped in phase 1 -- no CUDA on this machine, so it ran minutes per
+# clip on CPU -- see scripts/gemini_tts_engine.py for the replacement.
+#
+# Also required, but not a pip package: ffmpeg + ffprobe on PATH
+# (used via subprocess by voice_engine.py, sfx_manager.py, video_editor.py,
+# gemini_tts_engine.py). Install separately and confirm with `ffmpeg -version`.
+
+# --- Web server ---
+fastapi==0.135.3
+uvicorn==0.42.0
+pydantic==2.12.5
+python-multipart==0.0.32   # required by FastAPI's UploadFile/Form
+
+# --- Voice synthesis ---
+edge-tts==7.2.8            # default TTS engine
+gTTS==2.5.4                # fallback when edge-tts is unreachable
+google-genai==2.20.0       # Gemini Flash TTS (scripts/gemini_tts_engine.py) + AI bridge
+
+# --- Thai text / subtitles ---
+pythainlp==5.3.7           # word segmentation for subtitle bursts
+deep-translator==1.11.4    # bilingual subtitle translation
+
+# --- Audio / image processing ---
+soundfile==0.14.0
+numpy==2.4.6
+Pillow==12.3.0
+rembg==2.0.76              # background removal for asset/sticker generation
+
+# --- Testing ---
+pytest==9.1.0
