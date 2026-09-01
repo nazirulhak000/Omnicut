@@ -385,6 +385,10 @@ export default function App() {
             uiFont={uiFont}
             setUiFont={handleUiFontChange}
             onOpenShortcuts={() => setShowShortcutsModal(true)}
+            onRefresh={refreshData}
+            activeProductContext={activeProductContext}
+            exportsCount={exportsList.length}
+            videosCount={videos.length}
           />
         )}
 

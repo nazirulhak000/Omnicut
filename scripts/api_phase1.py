@@ -21,6 +21,7 @@ from scripts.ai_bridge import AIBridge, ManualModeRequired
 from scripts.it_angles import ANGLES_BY_KEY, catalog_for_prompt, fallback_angles
 from scripts.post_log import METRIC_FIELDS, PostLog
 from scripts.product_store import STATUSES, ProductStore
+from scripts.config import BASE_DIR, STICKERS_DIR
 from scripts.project_manifest import REROLL_STAGE, ProjectManifest
 from scripts import render_jobs
 
@@ -341,6 +342,9 @@ class RerollRequest(BaseModel):
     voice_preset: Optional[str] = None
     ad_tone: Optional[str] = None
     sticker_path: Optional[str] = None
+    # The editor picks a badge by file name (same shape as RenderRequest);
+    # "" means "no badge" and must clear whatever the manifest already has.
+    sticker_badge: Optional[str] = None
     bgm_name: Optional[str] = None
     lut_name: Optional[str] = None
     clip_list: Optional[List[Dict[str, Any]]] = None
@@ -467,6 +471,22 @@ def trigger_reroll(req: RerollRequest, background_tasks: BackgroundTasks):
     overrides = req.model_dump(exclude={"project_name", "part"}, exclude_none=True)
     if "voice_gender" in overrides:
         overrides["voice"] = overrides.pop("voice_gender")
+
+    # A badge name resolves to a path the same way /api/render does. "Clear the
+    # badge" is written as "" rather than None on purpose: _execute_reroll
+    # merges with `if v is not None`, so a None would be dropped and the badge
+    # already in the manifest would survive. "" survives the merge and reads as
+    # falsy where the renderer checks it.
+    if "sticker_badge" in overrides:
+        badge = overrides.pop("sticker_badge")
+        resolved = ""
+        if badge:
+            candidate = STICKERS_DIR / badge
+            if candidate.exists():
+                resolved = str(candidate)
+            elif (BASE_DIR / badge).exists():
+                resolved = str(BASE_DIR / badge)
+        overrides["sticker_path"] = resolved
 
     job_id = str(uuid.uuid4())
     render_jobs.create_job(job_id, message=f"กำลังสุ่มใหม่: {req.part}...")

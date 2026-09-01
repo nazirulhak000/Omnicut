@@ -1,67 +1,131 @@
-import React, { useState, useEffect } from 'react';
-import { Film, Wifi, WifiOff, Sparkles, Type, Keyboard } from 'lucide-react';
+import React, { memo } from 'react';
+import {
+  Rocket, Layers, Sparkles, Scissors, FolderDown, Settings,
+  Type, Keyboard, Wifi, WifiOff, RefreshCw, Package, ChevronRight
+} from 'lucide-react';
 
-export default function Topbar({ activeTab, setActiveTab, status, uiFont = 'font-prompt', setUiFont, onOpenShortcuts }) {
+const TAB_CONFIG = {
+  flow: {
+    icon: Rocket,
+    title: 'สินค้า → คลิป',
+    badge: '1. AI Script Lab',
+    badgeColor: 'bg-rose-500/10 text-rose-300 border-rose-500/30',
+    description: 'ดึงสินค้า สร้างมุมขาย & Hook ไวรัล'
+  },
+  tracker: {
+    icon: Layers,
+    title: 'Content Tracker',
+    badge: '2. Pipeline 5 Phases',
+    badgeColor: 'bg-[#25F4EE]/10 text-[#25F4EE] border-[#25F4EE]/30',
+    description: 'ติดตามสถานะคลิปตั้งแต่สคริปต์จนโพสต์เสร็จ'
+  },
+  studio: {
+    icon: Sparkles,
+    title: '1-Click Studio',
+    badge: '3. Video Generator',
+    badgeColor: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
+    description: 'สร้างคลิป AI พากย์เสียง & เบิร์นซับ 1 คลิก'
+  },
+  editor: {
+    icon: Scissors,
+    title: 'Video Editor',
+    badge: '4. NLE Timeline',
+    badgeColor: 'bg-purple-500/10 text-purple-300 border-purple-500/30',
+    description: 'ตัดต่อคำบรรยาย ไทม์ไลน์ และเสียงประกอบ'
+  },
+  gallery: {
+    icon: FolderDown,
+    title: 'Export Gallery',
+    badge: '5. Ready to Post',
+    badgeColor: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
+    description: 'คลังวิดีโอที่เรนเดอร์เสร็จ พร้อมแชร์เข้ามือถือ'
+  },
+  assets: {
+    icon: Settings,
+    title: 'Assets & System',
+    badge: '6. Studio Engine',
+    badgeColor: 'bg-slate-500/10 text-slate-300 border-slate-500/30',
+    description: 'ระบบหลังบ้าน ฟอนต์ เสียง AI และสติกเกอร์'
+  }
+};
+
+export default memo(function Topbar({
+  activeTab = 'flow',
+  setActiveTab,
+  status,
+  uiFont = 'font-prompt',
+  setUiFont,
+  onOpenShortcuts,
+  onRefresh,
+  activeProductContext,
+  exportsCount = 0,
+  videosCount = 0
+}) {
   const isOnline = status?.status === 'online';
-  const [scale, setScale] = useState(1.05);
-
-  useEffect(() => {
-    document.documentElement.style.setProperty('--ui-scale', scale.toString());
-  }, [scale]);
-
-  const changeScale = (delta) => {
-    const next = Math.min(1.4, Math.max(0.9, Number((scale + delta).toFixed(2))));
-    setScale(next);
-  };
-
-  const resetScale = () => {
-    setScale(1.0);
-  };
+  const currentTab = TAB_CONFIG[activeTab] || TAB_CONFIG.flow;
+  const Icon = currentTab.icon;
 
   return (
-    <header className="h-[56px] sm:h-[60px] flex-shrink-0 bg-[#080B11]/90 backdrop-blur-xl border-b border-white/[0.08] flex items-center justify-between px-3 sm:px-6 z-20 sticky top-0 w-full min-w-0">
-      {/* Left: brand + version + mobile status indicator */}
+    <header className="h-[52px] sm:h-[56px] flex-shrink-0 bg-[#080B11]/95 backdrop-blur-xl border-b border-white/[0.08] flex items-center justify-between px-3 sm:px-6 z-20 sticky top-0 w-full min-w-0 transition-colors">
+      {/* ── Left: Context-Aware Section Title & Badges (No Duplicate Logo) ── */}
       <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#FE2C55] to-[#25F4EE] flex items-center justify-center text-white shadow-md shadow-[#FE2C55]/20 flex-shrink-0 relative">
-            <Sparkles className="w-4 h-4" />
-            {/* Mobile-only status pulse badge */}
-            <span
-              className={`sm:hidden absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#080B11] ${
-                isOnline ? 'bg-emerald-400' : 'bg-rose-500'
-              }`}
-              title={isOnline ? 'Online' : 'Offline'}
-            />
-          </div>
-          <span className="text-sm sm:text-base font-bold tracking-tight text-white hidden xs:inline sm:inline truncate max-w-[120px] sm:max-w-none">
-            CapCut Studio Pro
+        {/* Menu Icon with Glow Pill */}
+        <div className="w-8 h-8 rounded-xl bg-white/[0.04] border border-white/[0.1] text-[#25F4EE] flex items-center justify-center shadow-sm flex-shrink-0">
+          <Icon className="w-4 h-4" />
+        </div>
+
+        {/* Menu Title & Dynamic Sub-Badge */}
+        <div className="flex items-center gap-2 min-w-0">
+          <h1 className="text-sm sm:text-base font-bold tracking-tight text-white font-kanit truncate">
+            {currentTab.title}
+          </h1>
+
+          {/* Tab Number Badge */}
+          <span className={`hidden sm:inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border font-mono flex-shrink-0 ${currentTab.badgeColor}`}>
+            {currentTab.badge}
           </span>
-          <span className="text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full bg-white/[0.05] text-[#25F4EE] border border-[#25F4EE]/30 font-mono flex-shrink-0">
-            v2.5 AI
-          </span>
+
+          {/* Active Product Indicator in Studio / Flow */}
+          {activeProductContext?.productName && (activeTab === 'studio' || activeTab === 'flow') && (
+            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-bold truncate max-w-[200px]">
+              <Package className="w-3 h-3 flex-shrink-0" />
+              <span className="truncate">{activeProductContext.productName}</span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Right: UI Font Switcher, Scale zoomer & telemetry */}
+      {/* ── Right: Quick Actions, Global Font Selector & System Status ── */}
       <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 flex-shrink-0">
-        {/* Keyboard Shortcuts Trigger Button (Hidden on small mobile) */}
+        {/* Global Refresh Button */}
+        {onRefresh && (
+          <button
+            onClick={onRefresh}
+            className="p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-black/40 hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/[0.08] text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+            title="รีเฟรชข้อมูลทั้งระบบ"
+          >
+            <RefreshCw className="w-3.5 h-3.5 text-[#25F4EE]" />
+            <span className="hidden sm:inline">รีเฟรช</span>
+          </button>
+        )}
+
+        {/* Keyboard Shortcuts Trigger (Desktop only) */}
         <button
           onClick={onOpenShortcuts}
-          className="hidden sm:flex items-center gap-1.5 bg-black/40 hover:bg-white/[0.08] px-2.5 py-1 rounded-xl border border-white/[0.08] text-xs text-slate-300 hover:text-white cursor-pointer transition-colors"
+          className="hidden md:flex items-center gap-1.5 bg-black/40 hover:bg-white/[0.08] px-2.5 py-1 rounded-xl border border-white/[0.08] text-xs text-slate-300 hover:text-white cursor-pointer transition-colors"
           title="คีย์ลัดด่วน (กด ? เพื่อเปิดดู)"
         >
           <Keyboard className="w-3.5 h-3.5 text-[#25F4EE]" />
-          <span className="hidden md:inline font-mono">คีย์ลัด</span>
-          <kbd className="hidden lg:inline px-1.5 py-0.5 rounded bg-white/[0.08] border border-white/[0.1] text-[10px] text-slate-400 font-mono">?</kbd>
+          <kbd className="hidden lg:inline px-1.5 py-0.2 rounded bg-white/[0.08] border border-white/[0.1] text-[10px] text-slate-400 font-mono">?</kbd>
         </button>
 
-        {/* Global UI Font Switcher */}
+        {/* Global UI Font Selector */}
         <div className="flex items-center gap-1 sm:gap-1.5 bg-black/40 px-2 sm:px-2.5 py-1 rounded-xl border border-white/[0.08] text-xs min-w-0">
           <Type className="w-3.5 h-3.5 text-[#25F4EE] flex-shrink-0" />
           <select
             value={uiFont}
             onChange={(e) => setUiFont && setUiFont(e.target.value)}
-            className="bg-transparent text-slate-200 text-xs font-medium focus:outline-none cursor-pointer max-w-[90px] sm:max-w-[130px] md:max-w-none truncate"
+            className="bg-transparent text-slate-200 text-xs font-medium focus:outline-none cursor-pointer max-w-[85px] sm:max-w-[120px] truncate"
             title="เปลี่ยนฟอนต์ของหน้าจอโปรแกรมทั้งระบบ (Global UI Font)"
           >
             <optgroup label="Modern Sans (โมเดิร์น ไร้หัว)">
@@ -81,50 +145,25 @@ export default function Topbar({ activeTab, setActiveTab, status, uiFont = 'font
           </select>
         </div>
 
-        {/* UI Scale Controller (Visible on Tablets & Desktops) */}
-        <div className="hidden md:flex items-center gap-1 bg-black/40 px-2 py-1 rounded-xl border border-white/[0.08] text-xs">
-          <button
-            onClick={() => changeScale(-0.1)}
-            className="w-5 h-5 flex items-center justify-center rounded-lg hover:bg-white/[0.1] text-slate-400 hover:text-white font-bold cursor-pointer transition-colors"
-            title="ลดขนาดตัวอักษรหน้าจอ"
-          >
-            -
-          </button>
-          <span
-            onClick={resetScale}
-            className="px-1.5 text-xs text-[#25F4EE] font-bold cursor-pointer hover:underline select-none font-mono"
-            title="คลิกเพื่อรีเซ็ตขนาด UI เป็น 100%"
-          >
-            {Math.round(scale * 100)}%
-          </span>
-          <button
-            onClick={() => changeScale(0.1)}
-            className="w-5 h-5 flex items-center justify-center rounded-lg hover:bg-white/[0.1] text-slate-400 hover:text-white font-bold cursor-pointer transition-colors"
-            title="เพิ่มขนาดตัวอักษรหน้าจอ"
-          >
-            +
-          </button>
-        </div>
-
-        {/* Desktop Connection status badge */}
-        <div className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium border ${
+        {/* Server Connection Status Badge */}
+        <div className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-xl text-xs font-medium border ${
           isOnline
             ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
             : 'bg-rose-500/15 text-rose-300 border-rose-500/30'
         }`}>
           {isOnline ? (
             <>
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Online</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
+              <span className="hidden sm:inline">Online</span>
             </>
           ) : (
             <>
-              <WifiOff className="w-3.5 h-3.5 text-rose-400" />
-              <span>Offline</span>
+              <WifiOff className="w-3.5 h-3.5 text-rose-400 flex-shrink-0" />
+              <span className="hidden sm:inline">Offline</span>
             </>
           )}
         </div>
       </div>
     </header>
   );
-}
+});

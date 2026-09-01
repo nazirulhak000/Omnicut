@@ -599,6 +599,8 @@ export default function EditorShell({ videos = [] }) {
         font_name: style.fontName,
         bgm_name: style.bgmName,
         lut_name: style.lutName,
+        // "" is meaningful here: it clears the badge stored on the project.
+        sticker_badge: style.stickerBadge ?? '',
       });
       setJobId(res.job_id);
       cuesDirty.current = false;
