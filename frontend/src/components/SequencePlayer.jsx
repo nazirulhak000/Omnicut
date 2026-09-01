@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Play, Pause, Eye } from 'lucide-react';
 import { toMediaUrl } from '../lib/mediaUrl';
 import {
@@ -56,7 +56,7 @@ function drawCaption(ctx, cues, t) {
  * not by trusting a <video> element's own playback rate -- see
  * RESYNC_THRESHOLD's comment for why.
  */
-export default function SequencePlayer({ clips, cues = [] }) {
+function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurations }, ref) {
   const canvasRef = useRef(null);
   const videoElsRef = useRef({});
   const rafRef = useRef(null);
@@ -66,6 +66,7 @@ export default function SequencePlayer({ clips, cues = [] }) {
   const [metadataReady, setMetadataReady] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playhead, setPlayhead] = useState(0);
+  const playheadRef = useRef(0);
 
   const clipKey = clips.map(c => `${c.id}:${c.source_path}:${c.trim_start}:${c.trim_end}:${c.transition_in}`).join('|');
 
@@ -91,6 +92,7 @@ export default function SequencePlayer({ clips, cues = [] }) {
       clips.forEach(c => { d[c.id] = videoElsRef.current[c.id]?.duration || 0; });
       setDurations(d);
       setMetadataReady(true);
+      onDurations?.(d);
     });
 
     return () => { cancelled = true; };
@@ -104,6 +106,7 @@ export default function SequencePlayer({ clips, cues = [] }) {
   );
 
   const totalDuration = totalDurationOf(segments);
+  playheadRef.current = playhead;
 
   const getDrawPlan = (t) => planAt(segments, t);
 
@@ -137,6 +140,7 @@ export default function SequencePlayer({ clips, cues = [] }) {
       if (t >= totalDuration) {
         Object.values(videoElsRef.current).forEach(v => v?.pause());
         setPlayhead(totalDuration);
+      onPlayhead?.(totalDuration);
         renderAt(totalDuration);
         setIsPlaying(false);
         return;
@@ -175,6 +179,7 @@ export default function SequencePlayer({ clips, cues = [] }) {
       }
 
       setPlayhead(t);
+      onPlayhead?.(t);
       rafRef.current = requestAnimationFrame(tick);
     };
 
@@ -192,6 +197,7 @@ export default function SequencePlayer({ clips, cues = [] }) {
       const startT = playhead >= totalDuration ? 0 : playhead;
       clockRef.current = { startWall: performance.now(), startT };
       setPlayhead(startT);
+      onPlayhead?.(startT);
       setIsPlaying(true);
     }
   };
@@ -200,9 +206,19 @@ export default function SequencePlayer({ clips, cues = [] }) {
     const clamped = Math.max(0, Math.min(totalDuration, t));
     Object.values(videoElsRef.current).forEach(v => v?.pause());
     setPlayhead(clamped);
+    playheadRef.current = clamped;
+    onPlayhead?.(clamped);
     clockRef.current = { startWall: performance.now(), startT: clamped };
-    renderAt(clamped);
+    renderAt(clamped);   // immediate (may be stale); onSeeked repaints when decoded
   };
+
+  useImperativeHandle(ref, () => ({
+    seekTo,
+    play: () => { if (!isPlaying) togglePlay(); },
+    pause: () => { if (isPlaying) togglePlay(); },
+    toggle: togglePlay,
+    isPlaying: () => isPlaying,
+  }));
 
   const handleScrubInput = (e) => {
     if (isPlaying) setIsPlaying(false);
@@ -227,6 +243,8 @@ export default function SequencePlayer({ clips, cues = [] }) {
             preload="auto"
             muted
             playsInline
+            onLoadedData={() => { if (!isPlaying) renderAt(playheadRef.current); }}
+            onSeeked={() => { if (!isPlaying) renderAt(playheadRef.current); }}
           />
         ))}
       </div>
@@ -264,21 +282,27 @@ export default function SequencePlayer({ clips, cues = [] }) {
             >
               {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
             </button>
-            <input
-              type="range" min={0} max={totalDuration || 0} step={0.01}
-              value={playhead}
-              onChange={handleScrubInput}
-              className="flex-1 accent-[#25F4EE]"
-            />
+            {!compact && (
+              <input
+                type="range" min={0} max={totalDuration || 0} step={0.01}
+                value={playhead}
+                onChange={handleScrubInput}
+                className="flex-1 accent-[#D97757]"
+              />
+            )}
             <span className="text-xs font-mono text-slate-400 w-20 text-right flex-shrink-0 font-bold">
               {playhead.toFixed(1)}s / {totalDuration.toFixed(1)}s
             </span>
           </div>
-          <p className="text-[11px] text-slate-400 flex items-center gap-1">
-            <Eye className="w-3.5 h-3.5 text-[#25F4EE]" /> พรีวิวรวมทั้ง sequence แบบประมาณ (ฟอนต์/สีจริงยึดผลจาก Apply เท่านั้น)
-          </p>
+          {!compact && (
+            <p className="text-[11px] text-slate-400 flex items-center gap-1">
+              <Eye className="w-3.5 h-3.5 text-[#25F4EE]" /> พรีวิวรวมทั้ง sequence แบบประมาณ (ฟอนต์/สีจริงยึดผลจาก Apply เท่านั้น)
+            </p>
+          )}
         </>
       )}
     </div>
   );
 }
+
+export default forwardRef(SequencePlayer);

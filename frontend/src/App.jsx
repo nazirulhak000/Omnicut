@@ -6,12 +6,14 @@ import StudioStep1Media from './components/StudioStep1Media';
 import StudioStep2Script from './components/StudioStep2Script';
 import StudioStep3Audio from './components/StudioStep3Audio';
 import StudioStep4Render from './components/StudioStep4Render';
-import ManualEditor from './components/ManualEditor';
+import EditorShell from './components/editor/EditorShell';
 import ExportGallery from './components/ExportGallery';
 import ScriptLab from './components/ScriptLab';
 import SystemAssets from './components/SystemAssets';
 import ProductToClip from './components/ProductToClip';
 import ContentTrackerHub from './components/ContentTrackerHub';
+import SubSrtTool from './components/SubSrtTool';
+import ErrorBoundary from './components/ErrorBoundary';
 import { getSystemStatus, getRawVideos, getExports, updateAngleStatus } from './api';
 
 export default function App() {
@@ -19,6 +21,14 @@ export default function App() {
   const [status, setStatus] = useState(null);
   const [videos, setVideos] = useState([]);
   const [exportsList, setExportsList] = useState([]);
+
+  // Global UI Font of the Application (Saved in localStorage)
+  const [uiFont, setUiFont] = useState(() => localStorage.getItem('capcut_ui_font') || 'font-prompt');
+
+  const handleUiFontChange = (fontClass) => {
+    setUiFont(fontClass);
+    localStorage.setItem('capcut_ui_font', fontClass);
+  };
 
   // Active Product Context (from Menu 1 & Menu 2)
   const [activeProductContext, setActiveProductContext] = useState(null);
@@ -28,7 +38,7 @@ export default function App() {
   // Studio Form State
   const [selectedVideo, setSelectedVideo] = useState('');
   const [productName, setProductName] = useState('Esseger สายชาร์จแม่เหล็ก');
-  const [hookTitle, setHookTitle] = useState('🔥 อย่าเพิ่งเลื่อนผ่าน! สายชาร์จแม่เหล็ก');
+  const [hookTitle, setHookTitle] = useState('อย่าเพิ่งเลื่อนผ่าน! สายชาร์จแม่เหล็ก');
   const [painPoint, setPainPoint] = useState('สายชาร์จพังง่าย เสียบยากในที่มืด');
   const [priceDeal, setPriceDeal] = useState('ลดพิเศษวันนี้ จิ้มตะกร้าซ้ายล่าง');
   const [keyFeatures, setKeyFeatures] = useState('แม่เหล็กแรงดูดสูง เสียบปึ้ง ติดทันที ชาร์จเร็ว ไม่ทำร้ายแบต ทนทานมาก');
@@ -179,7 +189,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden font-prompt bg-[#07090E]">
+    <div className={`flex h-screen overflow-hidden ${uiFont} bg-[#07090E] text-slate-100`}>
       {/* ── Sidebar (desktop: left, mobile: bottom) ── */}
       <Sidebar
         activeTab={activeTab}
@@ -188,149 +198,180 @@ export default function App() {
       />
 
       {/* ── Main Area ── */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#07090E]">
         {/* ── Topbar ── */}
-        <Topbar activeTab={activeTab} setActiveTab={setActiveTab} status={status} />
+        <Topbar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          status={status}
+          uiFont={uiFont}
+          setUiFont={handleUiFontChange}
+        />
 
-        {/* ── Content ── */}
-        <main className="flex-1 overflow-y-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-5 pb-20 md:pb-6">
-          <div className="max-w-[1600px] mx-auto animate-fadeIn space-y-4">
+        {/* ── Content (Enforce overflow-x-hidden so page never shifts horizontally under sidebar) ── */}
+        <ErrorBoundary>
+          {activeTab === 'editor' ? (
+            /* The editor is a full-viewport surface: it must not sit inside the
+               padded, vertically-scrolling card stack the other tabs use, or the
+               timeline gets pushed off screen. */
+            <main className="min-h-0 flex-1 overflow-hidden p-2 pb-16 md:pb-2">
+              <EditorShell videos={videos} />
+            </main>
+          ) : (
+          <main className="flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-6 lg:px-8 py-5 pb-20 md:pb-8 w-full min-w-0">
+            <div className="max-w-[1600px] mx-auto animate-fadeIn space-y-5 w-full min-w-0">
 
-            {/* SECTION: สินค้า → คลิป (Menu 1) */}
-            {activeTab === 'flow' && (
-              <ProductToClip
-                status={status}
-                videos={videos}
-                onRefresh={refreshData}
-                onApplyToStudio={handleApplyScriptFromLab}
-              />
-            )}
-
-            {/* SECTION: คลังสินค้า & Tracker (Menu 2) */}
-            {activeTab === 'tracker' && (
-              <ContentTrackerHub
-                onApplyToStudio={handleApplyScriptFromLab}
-                onRefresh={refreshData}
-              />
-            )}
-
-            {/* SECTION: 1-Click Studio (Menu 3) */}
-            {activeTab === 'studio' && (
-              <div className="space-y-4">
-                {/* Active Product Angle Switcher / Presets Bar */}
-                <PresetsBar
-                  activeProductContext={activeProductContext}
-                  selectedAngleIndex={selectedAngleIndex}
-                  onSelectAngle={handleSelectAngle}
-                  onSelectPreset={handleSelectPreset}
-                  onGoToProductFlow={() => setActiveTab('flow')}
-                  onClearProductContext={() => setActiveProductContext(null)}
+              {/* SECTION: สินค้า → คลิป (Menu 1) */}
+              {activeTab === 'flow' && (
+                <ProductToClip
+                  status={status}
+                  videos={videos}
+                  onRefresh={refreshData}
+                  onApplyToStudio={handleApplyScriptFromLab}
                 />
+              )}
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 items-start">
-                  {/* Left Column: Stage 1 (Media) + Stage 2 (Script) */}
-                  <div className="space-y-4 sm:space-y-5">
-                    <StudioStep1Media
-                      videos={videos}
-                      selectedVideo={selectedVideo}
-                      setSelectedVideo={setSelectedVideo}
-                      productName={productName}
-                      activeProductContext={activeProductContext}
-                      onVideoUploaded={handleVideoUploaded}
-                      onVideoDeleted={handleVideoDeleted}
-                    />
-                    <StudioStep2Script
-                      productName={productName}
-                      setProductName={setProductName}
-                      hookTitle={hookTitle}
-                      setHookTitle={setHookTitle}
-                      painPoint={painPoint}
-                      setPainPoint={setPainPoint}
-                      priceDeal={priceDeal}
-                      setPriceDeal={setPriceDeal}
-                      keyFeatures={keyFeatures}
-                      setKeyFeatures={setKeyFeatures}
-                      customScript={customScript}
-                      setCustomScript={setCustomScript}
-                      useCustomScript={useCustomScript}
-                      setUseCustomScript={setUseCustomScript}
-                    />
-                  </div>
+              {/* SECTION: คลังสินค้า & Tracker (Menu 2) */}
+              {activeTab === 'tracker' && (
+                <ContentTrackerHub
+                  onApplyToStudio={handleApplyScriptFromLab}
+                  onRefresh={refreshData}
+                />
+              )}
 
-                  {/* Right Column: Stage 3 (Audio/Style) + Stage 4 (Render) */}
-                  <div className="space-y-4 sm:space-y-5">
-                    <StudioStep3Audio
-                      voiceMode={voiceMode}
-                      setVoiceMode={setVoiceMode}
-                      voiceGender={voiceGender}
-                      setVoiceGender={setVoiceGender}
-                      voiceSpeed={voiceSpeed}
-                      setVoiceSpeed={setVoiceSpeed}
-                      voicePreset={voicePreset}
-                      setVoicePreset={setVoicePreset}
-                      adTone={adTone}
-                      setAdTone={setAdTone}
-                      humanVoiceAudio={humanVoiceAudio}
-                      setHumanVoiceAudio={setHumanVoiceAudio}
-                      productName={productName}
-                      fontName={fontName}
-                      setFontName={setFontName}
-                      bilingualSubtitles={bilingualSubtitles}
-                      setBilingualSubtitles={setBilingualSubtitles}
-                      stickerBadge={stickerBadge}
-                      setStickerBadge={setStickerBadge}
-                      bgmName={bgmName}
-                      setBgmName={setBgmName}
-                      lutName={lutName}
-                      setLutName={setLutName}
-                    />
-                    <StudioStep4Render
-                      productName={productName}
-                      selectedVideo={selectedVideo}
-                      keyFeatures={keyFeatures}
-                      painPoint={painPoint}
-                      priceDeal={priceDeal}
-                      hookTitle={hookTitle}
-                      customScript={customScript}
-                      useCustomScript={useCustomScript}
-                      voiceMode={voiceMode}
-                      voiceGender={voiceGender}
-                      voiceSpeed={voiceSpeed}
-                      voicePreset={voicePreset}
-                      adTone={adTone}
-                      humanVoiceAudio={humanVoiceAudio}
-                      fontName={fontName}
-                      bilingualSubtitles={bilingualSubtitles}
-                      stickerBadge={stickerBadge}
-                      bgmName={bgmName}
-                      lutName={lutName}
-                      onRenderSuccess={handleRenderSuccess}
-                      onGoToGallery={() => setActiveTab('gallery')}
-                    />
+              {/* SECTION: 1-Click Studio (Menu 3) */}
+              {activeTab === 'studio' && (
+                <div className="space-y-4">
+                  {/* Active Product Angle Switcher / Presets Bar */}
+                  <PresetsBar
+                    activeProductContext={activeProductContext}
+                    selectedAngleIndex={selectedAngleIndex}
+                    onSelectAngle={handleSelectAngle}
+                    onSelectPreset={handleSelectPreset}
+                    onGoToProductFlow={() => setActiveTab('flow')}
+                    onClearProductContext={() => setActiveProductContext(null)}
+                  />
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 items-start">
+                    {/* Left Column: Stage 1 (Media) + Stage 2 (Script) */}
+                    <div className="space-y-4 sm:space-y-5">
+                      <StudioStep1Media
+                        videos={videos}
+                        selectedVideo={selectedVideo}
+                        setSelectedVideo={setSelectedVideo}
+                        productName={productName}
+                        activeProductContext={activeProductContext}
+                        onVideoUploaded={handleVideoUploaded}
+                        onVideoDeleted={handleVideoDeleted}
+                      />
+                      <StudioStep2Script
+                        productName={productName}
+                        setProductName={setProductName}
+                        hookTitle={hookTitle}
+                        setHookTitle={setHookTitle}
+                        painPoint={painPoint}
+                        setPainPoint={setPainPoint}
+                        priceDeal={priceDeal}
+                        setPriceDeal={setPriceDeal}
+                        keyFeatures={keyFeatures}
+                        setKeyFeatures={setKeyFeatures}
+                        customScript={customScript}
+                        setCustomScript={setCustomScript}
+                        useCustomScript={useCustomScript}
+                        setUseCustomScript={setUseCustomScript}
+                      />
+                    </div>
+
+                    {/* Right Column: Stage 3 (Audio/Style) + Stage 4 (Render) */}
+                    <div className="space-y-4 sm:space-y-5">
+                      <StudioStep3Audio
+                        voiceMode={voiceMode}
+                        setVoiceMode={setVoiceMode}
+                        voiceGender={voiceGender}
+                        setVoiceGender={setVoiceGender}
+                        voiceSpeed={voiceSpeed}
+                        setVoiceSpeed={setVoiceSpeed}
+                        voicePreset={voicePreset}
+                        setVoicePreset={setVoicePreset}
+                        adTone={adTone}
+                        setAdTone={setAdTone}
+                        humanVoiceAudio={humanVoiceAudio}
+                        setHumanVoiceAudio={setHumanVoiceAudio}
+                        productName={productName}
+                        fontName={fontName}
+                        setFontName={setFontName}
+                        bilingualSubtitles={bilingualSubtitles}
+                        setBilingualSubtitles={setBilingualSubtitles}
+                        stickerBadge={stickerBadge}
+                        setStickerBadge={setStickerBadge}
+                        bgmName={bgmName}
+                        setBgmName={setBgmName}
+                        lutName={lutName}
+                        setLutName={setLutName}
+                      />
+                      <StudioStep4Render
+                        productName={productName}
+                        selectedVideo={selectedVideo}
+                        keyFeatures={keyFeatures}
+                        painPoint={painPoint}
+                        priceDeal={priceDeal}
+                        hookTitle={hookTitle}
+                        customScript={customScript}
+                        useCustomScript={useCustomScript}
+                        voiceMode={voiceMode}
+                        voiceGender={voiceGender}
+                        voiceSpeed={voiceSpeed}
+                        voicePreset={voicePreset}
+                        adTone={adTone}
+                        humanVoiceAudio={humanVoiceAudio}
+                        fontName={fontName}
+                        bilingualSubtitles={bilingualSubtitles}
+                        stickerBadge={stickerBadge}
+                        bgmName={bgmName}
+                        lutName={lutName}
+                        onRenderSuccess={handleRenderSuccess}
+                        onGoToGallery={() => setActiveTab('gallery')}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* SECTION: ตัดต่อมือ (Manual Editor) */}
-            {activeTab === 'editor' && (
-              <ManualEditor videos={videos} />
-            )}
+              {/* SECTION: Export Gallery */}
+              {activeTab === 'gallery' && (
+                <ExportGallery
+                  exportsList={exportsList}
+                  onRefresh={refreshData}
+                />
+              )}
 
-            {/* SECTION: Export Gallery (Menu 4) */}
-            {activeTab === 'gallery' && (
-              <ExportGallery
-                exportsList={exportsList}
-                onRefresh={refreshData}
-              />
-            )}
+              {/* SECTION: AI ถอดซับ (Auto-SRT) */}
+              {activeTab === 'sub_srt' && (
+                <SubSrtTool
+                  videos={videos}
+                  selectedVideo={selectedVideo}
+                />
+              )}
 
-            {/* SECTION: System & Assets (Menu 5) */}
-            {activeTab === 'assets' && (
-              <SystemAssets status={status} />
-            )}
-          </div>
-        </main>
+              {/* SECTION: AI Script Lab */}
+              {activeTab === 'script_lab' && (
+                <ScriptLab
+                  initialProductName={productName}
+                  initialKeyFeatures={keyFeatures}
+                  initialPainPoint={painPoint}
+                  initialPriceDeal={priceDeal}
+                  onApplyScript={handleApplyScriptFromLab}
+                />
+              )}
+
+              {/* SECTION: System & Assets */}
+              {activeTab === 'assets' && (
+                <SystemAssets status={status} />
+              )}
+            </div>
+          </main>
+          )}
+        </ErrorBoundary>
       </div>
     </div>
   );
