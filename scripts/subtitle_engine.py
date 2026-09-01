@@ -6,6 +6,7 @@ Produces rapid-fire 2-3 word micro-burst subtitles with Kanit-Black font, emojis
 import os
 import sys
 import re
+import json
 from pathlib import Path
 from typing import List, Dict, Tuple
 
@@ -14,6 +15,51 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from scripts.config import FONTS_DIR, VIDEO_WIDTH, VIDEO_HEIGHT
+from scripts.asset_registry import AssetRegistry
+
+TYPOGRAPHY_PRESETS_PATH = FONTS_DIR.parent / "Templates" / "typography_presets.json"
+DEFAULT_FONT_FAMILY = "IBM Plex Sans Thai"
+
+# Backward-compat aliases for UI ids that don't match a typography_presets.json
+# entry's own font_name/id (old space-free spellings, and capsule_pill's
+# display name). Anything not found here or in the presets file falls back
+# to DEFAULT_FONT_FAMILY, so an unrecognized font_name never errors.
+_LEGACY_FONT_ALIASES = {
+    "IBMPlex": "IBM Plex Sans Thai",
+    "ibm_tech": "IBM Plex Sans Thai",
+    "ChakraPetch": "Chakra Petch",
+    "Minimal Dark Capsule Pill": "capsule_pill",
+}
+
+
+def _load_font_family_map() -> Dict[str, str]:
+    """
+    UI font_name -> real embedded font family, built from
+    typography_presets.json (each preset's `id` and `font_name`) resolved
+    against AssetRegistry's fontTools-verified family names, not guessed
+    from a filename.
+
+    Every ASS style here already sets Bold=1, so libass/fontconfig picks the
+    bold weight of whichever family this resolves to -- naming the family is
+    enough, the style doesn't need a specific weight-suffixed name.
+    """
+    family_by_filename = {f["name"]: f["family"] for f in AssetRegistry.fonts()}
+    font_map: Dict[str, str] = {}
+
+    try:
+        presets = json.loads(TYPOGRAPHY_PRESETS_PATH.read_text(encoding="utf-8"))["presets"]
+    except (OSError, json.JSONDecodeError, KeyError):
+        presets = []
+
+    for preset in presets:
+        family = family_by_filename.get(preset.get("font_file", ""), DEFAULT_FONT_FAMILY)
+        font_map[preset["id"]] = family
+        font_map[preset["font_name"]] = family
+
+    for alias, target in _LEGACY_FONT_ALIASES.items():
+        font_map[alias] = font_map.get(target, DEFAULT_FONT_FAMILY)
+
+    return font_map
 
 class SubtitleEngine:
     """Creates rapid-fire TikTok subtitles with pop animations, Kanit font, and highlights."""
@@ -174,24 +220,11 @@ class SubtitleEngine:
 
         micro_cues = cls.generate_micro_cues(cues)
 
-        # Map font family names to fonts with verified 100% Thai GPOS Tone Mark support
-        font_map = {
-            "Mitr": "IBM Plex Sans Thai SemiBold",
-            "mitr_minimal": "IBM Plex Sans Thai SemiBold",
-            "IBMPlex": "IBM Plex Sans Thai SemiBold",
-            "ibm_tech": "IBM Plex Sans Thai SemiBold",
-            "IBM Plex Sans Thai": "IBM Plex Sans Thai SemiBold",
-            "ChakraPetch": "IBM Plex Sans Thai SemiBold",
-            "chakra_cyber": "IBM Plex Sans Thai SemiBold",
-            "Chakra Petch": "IBM Plex Sans Thai SemiBold",
-            "Prompt": "IBM Plex Sans Thai SemiBold",
-            "prompt_modern": "IBM Plex Sans Thai SemiBold",
-            "Kanit": "IBM Plex Sans Thai Bold",
-            "kanit_viral": "IBM Plex Sans Thai Bold",
-            "capsule_pill": "IBM Plex Sans Thai Medium",
-            "Minimal Dark Capsule Pill": "IBM Plex Sans Thai Medium"
-        }
-        resolved_font = font_map.get(font_name, "IBM Plex Sans Thai SemiBold")
+        # Real embedded family name for whichever font the UI selected --
+        # every style below sets Bold=1, so libass/fontconfig picks that
+        # family's bold weight itself. See _load_font_family_map().
+        font_map = _load_font_family_map()
+        resolved_font = font_map.get(font_name, DEFAULT_FONT_FAMILY)
         is_pill_mode = font_name in ["capsule_pill", "Minimal Dark Capsule Pill"]
 
         header = f"""[Script Info]

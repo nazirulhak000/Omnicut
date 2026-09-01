@@ -22,7 +22,7 @@ from scripts.it_angles import catalog_for_prompt, fallback_angles
 from scripts.post_log import PostLog
 from scripts.product_store import ProductStore
 from scripts.project_manifest import REROLL_STAGE, ProjectManifest
-from scripts.subtitle_engine import SubtitleEngine
+from scripts.subtitle_engine import SubtitleEngine, _load_font_family_map
 
 
 # ----------------------------------------------------------------------
@@ -285,6 +285,54 @@ def test_attaching_a_project_marks_it_rendered(product_file):
     stored = ProductStore.get(product["id"])
     assert stored["projects"] == ["TikTok_headphones"], "linking twice must not duplicate"
     assert stored["status"] == "rendered"
+
+
+# ----------------------------------------------------------------------
+# Font selection actually changes the rendered font
+#
+# Every UI font_name used to collapse to "IBM Plex Sans Thai" regardless of
+# which one was picked -- the picker was cosmetic. Guard against that
+# regressing silently again.
+# ----------------------------------------------------------------------
+def test_every_legacy_font_key_still_resolves():
+    """The 14 font_name values the UI has sent historically must all still map to something."""
+    font_map = _load_font_family_map()
+    legacy_keys = [
+        "Mitr", "mitr_minimal", "IBMPlex", "ibm_tech", "IBM Plex Sans Thai",
+        "ChakraPetch", "chakra_cyber", "Chakra Petch", "Prompt", "prompt_modern",
+        "Kanit", "kanit_viral", "capsule_pill", "Minimal Dark Capsule Pill",
+    ]
+    for key in legacy_keys:
+        assert key in font_map, f"'{key}' used to be selectable and must not start erroring"
+
+
+def test_distinct_font_choices_are_actually_distinct():
+    """The whole point of the fix: different UI choices must yield different families."""
+    font_map = _load_font_family_map()
+    assert font_map["Kanit"] != font_map["Mitr"] != font_map["Prompt"] != font_map["ChakraPetch"]
+    assert len({font_map["Kanit"], font_map["Mitr"], font_map["Prompt"], font_map["ChakraPetch"]}) == 4
+
+
+def test_font_choice_reaches_the_rendered_ass_file(tmp_path):
+    cues = [{"id": 1, "start": 0.0, "end": 2.0, "text": "ทดสอบฟอนต์", "sfx": None}]
+    fontnames = {}
+    for font_name in ["Kanit", "Mitr"]:
+        path, _ = SubtitleEngine.generate_ass(
+            cues=cues, output_ass_path=str(tmp_path / f"{font_name}.ass"),
+            font_name=font_name, bilingual=False,
+        )
+        content = Path(path).read_text(encoding="utf-8")
+        style_line = next(l for l in content.splitlines() if l.startswith("Style: TikTokWhite"))
+        fontnames[font_name] = style_line.split(",")[1]
+
+    assert fontnames["Kanit"] == "Kanit"
+    assert fontnames["Mitr"] == "Mitr"
+    assert fontnames["Kanit"] != fontnames["Mitr"]
+
+
+def test_unknown_font_name_falls_back_instead_of_erroring():
+    font_map = _load_font_family_map()
+    assert font_map.get("some_font_id_from_the_future", "IBM Plex Sans Thai") == "IBM Plex Sans Thai"
 
 
 # ----------------------------------------------------------------------
