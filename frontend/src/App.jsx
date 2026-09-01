@@ -418,6 +418,9 @@ export default function App() {
                   <ContentTrackerHub
                     onApplyToStudio={handleApplyScriptFromLab}
                     onRefresh={refreshData}
+                    onGoToEditor={() => setActiveTab('editor')}
+                    onGoToFlow={() => setActiveTab('flow')}
+                    onGoToGallery={() => setActiveTab('gallery')}
                   />
                 </Suspense>
               )}
