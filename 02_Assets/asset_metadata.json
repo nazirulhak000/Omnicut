@@ -215,5 +215,77 @@
   },
   "sfx_whoosh_heavy": {
     "label_th": "วืดหนัก"
+  },
+  "bgm_hypetrance_wav": {
+    "source": "freesound",
+    "source_url": "https://freesound.org/people/BaDoink/sounds/539959/",
+    "license": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "avg_rating": 5.0,
+    "num_ratings": 3,
+    "num_downloads": 105,
+    "duration": 223.766,
+    "label_th": "บีทกลอง/เบส ผสม Hip-Hop/House/Trap (ยาว 224s)",
+    "mood": "trap-house"
+  },
+  "bgm_over_loaded_hiphop_instrumental": {
+    "source": "freesound",
+    "source_url": "https://freesound.org/people/kontraamusic/sounds/790942/",
+    "license": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "avg_rating": 4.95,
+    "num_ratings": 20,
+    "num_downloads": 349,
+    "duration": 60.0435,
+    "label_th": "ฮิปฮอปจังหวะหนัก พลังสูง ⭐ แนะนำ — เสียงหลักของช่อง",
+    "mood": "hype"
+  },
+  "bgm_arp_generative_sound_by_glorb": {
+    "source": "freesound",
+    "source_url": "https://freesound.org/people/bassimat/sounds/855566/",
+    "license": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "avg_rating": 3.8333333333333335,
+    "num_ratings": 6,
+    "num_downloads": 32,
+    "duration": 120.0,
+    "label_th": "อาร์เปโจซินธ์ วนคอร์ด (มู้ดนิ่ง ไม่เหมาะคลิปขายของ)",
+    "mood": "ambient"
+  },
+  "bgm_elec_trick_piano_blues_142_bm": {
+    "source": "freesound",
+    "source_url": "https://freesound.org/people/ovvcuxs/sounds/558419/",
+    "license": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "avg_rating": 5.0,
+    "num_ratings": 1,
+    "num_downloads": 66,
+    "duration": 15.2113,
+    "label_th": "เปียโนบลูส์อิเล็กทรอนิกส์ มืด (สั้น 15s)",
+    "mood": "dark-blues"
+  },
+  "bgm_aesthetic_pop": {
+    "label_th": "ป็อปมินิมอล นุ่มนวล",
+    "mood": "aesthetic"
+  },
+  "bgm_brass_funk": {
+    "label_th": "ฟังก์เป่าทองเหลือง",
+    "mood": "funk"
+  },
+  "bgm_cyber_phonk": {
+    "label_th": "ไซเบอร์พังก์ หนักแน่น",
+    "mood": "phonk"
+  },
+  "bgm_flash_sale_urgent": {
+    "label_th": "เร่งด่วน โปรโมชั่น",
+    "mood": "urgent"
+  },
+  "bgm_lofi_daily": {
+    "label_th": "โลไฟ ชิลๆ",
+    "mood": "lofi"
+  },
+  "bgm_whistle_cozy": {
+    "label_th": "นกหวีด อบอุ่น",
+    "mood": "cozy"
+  },
+  "tiktok_upbeat_bgm": {
+    "label_th": "อัพบีท TikTok (ดีฟอลต์เดิม)",
+    "mood": "upbeat"
   }
 }

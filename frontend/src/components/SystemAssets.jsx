@@ -398,6 +398,14 @@ export default function SystemAssets({ status }) {
       {/* TAB CONTENT: 3. FONTS & TYPOGRAPHY LAB */}
       {activeAssetTab === 'fonts' && (
         <div className="space-y-4">
+          {/* Each font gets its own @font-face keyed by file id (not the
+              embedded family name -- weights like Bold/Black often share
+              one family name, which would make previews look identical) so
+              every card renders the real file, not the page's default font. */}
+          <style>{(assetData.fonts || []).map(f => (
+            `@font-face{font-family:'af-${f.id}';src:url('/api/media/${f.rel_path}') format('${f.name.toLowerCase().endsWith('.otf') ? 'opentype' : 'truetype'}');font-display:swap;}`
+          )).join('\n')}</style>
+
           {/* Live Text Customizer */}
           <div className="p-4 rounded-2xl glass-panel border border-[#25F4EE]/30 space-y-2">
             <div className="flex items-center justify-between text-xs text-slate-300 font-bold">
@@ -441,7 +449,10 @@ export default function SystemAssets({ status }) {
                   </div>
 
                   <div className="p-3 bg-black/60 rounded-xl border border-white/5 min-h-[60px] flex items-center justify-center text-center">
-                    <p className="text-base font-bold text-white leading-relaxed break-words">
+                    <p
+                      className="text-base font-bold text-white leading-relaxed break-words"
+                      style={{ fontFamily: `'af-${f.id}', sans-serif` }}
+                    >
                       {customFontText || fontStem}
                     </p>
                   </div>

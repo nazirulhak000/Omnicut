@@ -34,7 +34,14 @@ class SFXManager:
         cues: List[Dict],
         total_duration: float,
         output_audio_path: str,
-        bgm_name: str = "tiktok_upbeat_bgm.wav",
+        # Channel's signature sound: highest-confidence CC0 pick from a
+        # Freesound genre sweep for the IT/tech-review vertical (4.95/5 over
+        # 20 ratings, 349 downloads, description literally says "designed
+        # for hype flow" -- picked on that objective signal since nothing
+        # here can actually play the audio to judge it by ear). Overridable
+        # per-render via RenderRequest.bgm_name; this is only what a render
+        # falls back to when nothing is specified.
+        bgm_name: str = "bgm_over_loaded_hiphop_instrumental.mp3",
         bgm_vol: float = 0.12,
         voice_vol: float = 1.0,
         sfx_vol: float = 0.28
