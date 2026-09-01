@@ -9,11 +9,13 @@ _Docs/post_log.json, _Docs/products.json, or a real project folder.
 """
 
 import json
+import threading
+import time
 
 import pytest
 from fastapi.testclient import TestClient
 
-from scripts import post_log, product_store, project_manifest
+from scripts import post_log, product_store, project_manifest, render_jobs
 from scripts.ai_bridge import AIBridge, ManualModeRequired
 from scripts.it_angles import catalog_for_prompt, fallback_angles
 from scripts.post_log import PostLog
@@ -281,6 +283,53 @@ def test_attaching_a_project_marks_it_rendered(product_file):
     stored = ProductStore.get(product["id"])
     assert stored["projects"] == ["TikTok_headphones"], "linking twice must not duplicate"
     assert stored["status"] == "rendered"
+
+
+# ----------------------------------------------------------------------
+# Render concurrency guard
+#
+# This machine has no CUDA and 13.7GB RAM (see _Docs/PRD_phase1.md section 3)
+# -- two ffmpeg encodes or two TTS calls at once is a real OOM/thrash risk.
+# ----------------------------------------------------------------------
+def test_render_slot_serializes_two_jobs():
+    job_a, job_b = render_jobs.create_job("job-a"), render_jobs.create_job("job-b")
+    order = []
+    b_saw_queued_while_waiting = threading.Event()
+
+    def run_a():
+        with render_jobs.render_slot("job-a"):
+            order.append("a-start")
+            time.sleep(0.2)
+            order.append("a-end")
+
+    def run_b():
+        time.sleep(0.05)  # let job A grab the slot first
+        # Poll briefly for the "queued" status the lock sets while job A holds it.
+        for _ in range(20):
+            if render_jobs.ACTIVE_JOBS["job-b"]["status"] == "queued" and "a-start" in order:
+                b_saw_queued_while_waiting.set()
+                break
+            time.sleep(0.01)
+        with render_jobs.render_slot("job-b"):
+            order.append("b-start")
+
+    t_a, t_b = threading.Thread(target=run_a), threading.Thread(target=run_b)
+    t_a.start(); t_b.start()
+    t_a.join(timeout=5); t_b.join(timeout=5)
+
+    assert order == ["a-start", "a-end", "b-start"], "job B must not start until job A releases the slot"
+    assert b_saw_queued_while_waiting.is_set(), "the waiting job must be visibly 'queued', not silently stuck"
+
+
+def test_render_slot_releases_on_exception():
+    render_jobs.create_job("job-fails")
+    with pytest.raises(ValueError):
+        with render_jobs.render_slot("job-fails"):
+            raise ValueError("render blew up")
+
+    # A lock left held after a crash would freeze every render after it.
+    with render_jobs.render_slot("job-after-crash"):
+        pass  # acquiring at all proves the previous slot was released
 
 
 # ----------------------------------------------------------------------

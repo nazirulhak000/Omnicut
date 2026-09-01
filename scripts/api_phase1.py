@@ -373,29 +373,29 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
         params = dict(manifest.get("render_params") or {})
         params.update({k: v for k, v in overrides.items() if v is not None})
 
-        result = TikTokAutoCutterPipeline.run(
-            product_name=params.get("product_name", project_name),
-            raw_video_path=params["raw_video_path"],
-            project_name=project_name,
-            key_features=params.get("key_features", ""),
-            pain_point=params.get("pain_point", ""),
-            price_deal=params.get("price_deal", ""),
-            custom_script=params.get("custom_script"),
-            voice=params.get("voice", "male"),
-            voice_rate=params.get("voice_rate", "+15%"),
-            voice_engine_type=params.get("voice_engine_type", "edge_tts"),
-            f5_ref_preset=params.get("f5_ref_preset"),
-            ad_tone=params.get("ad_tone", "commercial_premium"),
-            human_voice_audio_path=params.get("human_voice_audio_path"),
-            hook_title=params.get("hook_title"),
-            font_name=params.get("font_name", "IBMPlex"),
-            bilingual_subtitles=params.get("bilingual_subtitles", True),
-            sticker_path=params.get("sticker_path"),
-            export_mp4=True,
-            export_capcut=False,
-            resume_from=stage,
-            progress_callback=render_jobs.progress_reporter(job_id),
-        )
+        with render_jobs.render_slot(job_id):
+            result = TikTokAutoCutterPipeline.run(
+                product_name=params.get("product_name", project_name),
+                raw_video_path=params["raw_video_path"],
+                project_name=project_name,
+                key_features=params.get("key_features", ""),
+                pain_point=params.get("pain_point", ""),
+                price_deal=params.get("price_deal", ""),
+                custom_script=params.get("custom_script"),
+                voice=params.get("voice", "male"),
+                voice_rate=params.get("voice_rate", "+15%"),
+                voice_engine_type=params.get("voice_engine_type", "edge_tts"),
+                f5_ref_preset=params.get("f5_ref_preset"),
+                ad_tone=params.get("ad_tone", "commercial_premium"),
+                human_voice_audio_path=params.get("human_voice_audio_path"),
+                hook_title=params.get("hook_title"),
+                font_name=params.get("font_name", "IBMPlex"),
+                bilingual_subtitles=params.get("bilingual_subtitles", True),
+                sticker_path=params.get("sticker_path"),
+                export_mp4=True,
+                resume_from=stage,
+                progress_callback=render_jobs.progress_reporter(job_id),
+            )
         render_jobs.complete_job(job_id, result, message="🎉 สุ่มใหม่เสร็จแล้ว!")
 
     except Exception as err:

@@ -51,6 +51,7 @@ app.add_middleware(
 
 # Shared with the phase-1 router so full renders and partial re-rolls are
 # tracked in one place and answered by the same status endpoint.
+from scripts import render_jobs
 from scripts.render_jobs import ACTIVE_JOBS
 from scripts.api_phase1 import router as phase1_router
 
@@ -612,17 +613,7 @@ def run_sub_srt_transcription(req: TranscribeRequest):
 
 def execute_render_job(job_id: str, req_data: RenderRequest):
     """Background worker function executing the full video pipeline."""
-    job = ACTIVE_JOBS[job_id]
-    
-    def on_progress(msg: str, progress: float):
-        job["status"] = "processing"
-        job["progress"] = min(1.0, max(0.0, progress))
-        job["message"] = msg
-        job["logs"].append({
-            "time": datetime.datetime.now().strftime("%H:%M:%S"),
-            "msg": msg,
-            "progress": int(progress * 100)
-        })
+    on_progress = render_jobs.progress_reporter(job_id)
 
     try:
         raw_video = Path(req_data.raw_video_path)
@@ -651,74 +642,44 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
             elif (BASE_DIR / req_data.sticker_badge).exists():
                 sticker_file_path = str(BASE_DIR / req_data.sticker_badge)
 
-        result = TikTokAutoCutterPipeline.run(
-            product_name=req_data.product_name,
-            raw_video_path=str(raw_video),
-            project_name=req_data.project_name,
-            key_features=req_data.key_features,
-            pain_point=req_data.pain_point,
-            price_deal=req_data.price_deal,
-            custom_script=req_data.custom_script,
-            voice=req_data.voice_gender,
-            voice_rate=req_data.voice_rate,
-            voice_engine_type=voice_engine_type,
-            f5_ref_preset=req_data.f5_preset,
-            ad_tone=req_data.ad_tone or "commercial_premium",
-            f5_custom_ref_path=req_data.f5_custom_audio,
-            f5_custom_ref_text=req_data.f5_custom_text,
-            human_voice_audio_path=human_voice_path,
-            hook_title=req_data.hook_title,
-            font_name=req_data.font_name,
-            bilingual_subtitles=req_data.bilingual_subtitles,
-            sticker_path=sticker_file_path,
-            export_mp4=req_data.export_mp4,
-            progress_callback=on_progress
-        )
+        # See render_jobs._RENDER_SLOT: this machine has no CUDA and 13.7GB RAM,
+        # so renders are serialized -- a second request waits as "queued"
+        # rather than fighting the first one for CPU/RAM.
+        with render_jobs.render_slot(job_id):
+            result = TikTokAutoCutterPipeline.run(
+                product_name=req_data.product_name,
+                raw_video_path=str(raw_video),
+                project_name=req_data.project_name,
+                key_features=req_data.key_features,
+                pain_point=req_data.pain_point,
+                price_deal=req_data.price_deal,
+                custom_script=req_data.custom_script,
+                voice=req_data.voice_gender,
+                voice_rate=req_data.voice_rate,
+                voice_engine_type=voice_engine_type,
+                f5_ref_preset=req_data.f5_preset,
+                ad_tone=req_data.ad_tone or "commercial_premium",
+                f5_custom_ref_path=req_data.f5_custom_audio,
+                f5_custom_ref_text=req_data.f5_custom_text,
+                human_voice_audio_path=human_voice_path,
+                hook_title=req_data.hook_title,
+                font_name=req_data.font_name,
+                bilingual_subtitles=req_data.bilingual_subtitles,
+                sticker_path=sticker_file_path,
+                export_mp4=req_data.export_mp4,
+                progress_callback=on_progress
+            )
 
-        job["status"] = "completed"
-        job["progress"] = 1.0
-        job["message"] = "🎉 การตัดต่อเสร็จสมบูรณ์ 100%!"
-        
-        # Prepare URL for generated MP4
-        mp4_url = None
-        if result.get("mp4_video") and os.path.exists(result["mp4_video"]):
-            mp4_path = Path(result["mp4_video"])
-            mp4_url = f"/api/media/{mp4_path.relative_to(BASE_DIR)}".replace("\\", "/")
-
-        job["result"] = {
-            "project_name": result["project_name"],
-            "mp4_video": result.get("mp4_video"),
-            "mp4_url": mp4_url,
-            "capcut_draft": result.get("capcut_draft"),
-            "duration": result.get("duration", 0),
-            "script": result.get("script")
-        }
+        render_jobs.complete_job(job_id, result)
 
     except Exception as e:
-        job["status"] = "failed"
-        job["error"] = str(e)
-        job["message"] = f"❌ เกิดข้อผิดพลาด: {str(e)}"
-        job["logs"].append({
-            "time": datetime.datetime.now().strftime("%H:%M:%S"),
-            "msg": f"Error: {str(e)}",
-            "progress": 0
-        })
+        render_jobs.fail_job(job_id, e)
 
 @app.post("/api/render")
 def trigger_render(req: RenderRequest, background_tasks: BackgroundTasks):
     """Triggers the video creation pipeline in the background."""
     job_id = str(uuid.uuid4())
-    ACTIVE_JOBS[job_id] = {
-        "id": job_id,
-        "status": "queued",
-        "progress": 0.0,
-        "message": "กำลังเริ่มต้นกระบวนการ...",
-        "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "logs": [],
-        "result": None,
-        "error": None
-    }
-
+    render_jobs.create_job(job_id)
     background_tasks.add_task(execute_render_job, job_id, req)
     return {"job_id": job_id, "status": "queued"}
 
