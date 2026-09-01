@@ -3,7 +3,39 @@
 // scripts/video_editor.py's clip_list branch -- if the two drift, what the
 // user scrubs stops matching what Apply renders.
 
-export const FADE_DURATION = 0.4;   // == video_editor.py FADE_DURATION
+export const FADE_DURATION = 0.4;   // == video_editor.py DEFAULT_TRANSITION_DURATION
+export const MAX_TRANSITION_DURATION = 2.0;
+
+// == video_editor.py XFADE_TRANSITIONS. A boundary is "cut" or one of these.
+export const TRANSITIONS = [
+  { id: 'fade', label: 'จางเข้าหากัน' },
+  { id: 'fadeblack', label: 'จางผ่านดำ' },
+  { id: 'fadewhite', label: 'จางผ่านขาว' },
+  { id: 'dissolve', label: 'ละลาย' },
+  { id: 'wipeleft', label: 'ปาดไปซ้าย' },
+  { id: 'wiperight', label: 'ปาดไปขวา' },
+  { id: 'wipeup', label: 'ปาดขึ้น' },
+  { id: 'wipedown', label: 'ปาดลง' },
+  { id: 'slideleft', label: 'เลื่อนซ้าย' },
+  { id: 'slideright', label: 'เลื่อนขวา' },
+  { id: 'slideup', label: 'เลื่อนขึ้น' },
+  { id: 'slidedown', label: 'เลื่อนลง' },
+  { id: 'circleopen', label: 'วงกลมเปิด' },
+  { id: 'circleclose', label: 'วงกลมปิด' },
+];
+
+/**
+ * Seconds this boundary overlaps the previous clip. "cut" overlaps nothing;
+ * every other type eats its own duration, clamped exactly like
+ * video_editor.py's normalize_transitions so the preview and the render
+ * agree on where every later clip starts.
+ */
+export function transitionOverlap(clip) {
+  const kind = clip?.transition_in || 'cut';
+  if (kind === 'cut') return 0;
+  const raw = clip.transition_duration ?? FADE_DURATION;
+  return Math.min(MAX_TRANSITION_DURATION, Math.max(0.1, raw));
+}
 export const FPS = 30;              // == config.py FPS
 export const MIN_CLIP_DURATION = 0.2;
 
@@ -20,9 +52,9 @@ export function clipDuration(clip, srcDuration) {
 }
 
 /**
- * Lay clips out on one timeline. A "fade" boundary overlaps the previous
- * clip by FADE_DURATION, so it eats that much from the running total --
- * same bookkeeping as video_editor.py's has_fade reduction.
+ * Lay clips out on one timeline. A transition boundary overlaps the previous
+ * clip by its own duration, so it eats that much from the running total --
+ * same bookkeeping as video_editor.py's per-boundary xfade reduction.
  *
  * durations: { [clip.id]: sourceDurationSeconds }
  */
@@ -31,11 +63,12 @@ export function buildSegments(clips, durations = {}) {
   return clips.map((clip, i) => {
     const srcDur = durations[clip.id] || 0;
     const dur = clipDuration(clip, srcDur);
-    const isFade = i > 0 && clip.transition_in === 'fade';
-    const segStart = i === 0 ? 0 : (isFade ? acc - FADE_DURATION : acc);
+    const overlap = i > 0 ? transitionOverlap(clip) : 0;
+    const isFade = overlap > 0;
+    const segStart = i === 0 ? 0 : acc - overlap;
     const segEnd = segStart + dur;
     acc = segEnd;
-    return { clip, index: i, srcDur, dur, isFade, segStart, segEnd };
+    return { clip, index: i, srcDur, dur, isFade, overlap, segStart, segEnd };
   });
 }
 
@@ -68,9 +101,12 @@ export function getDrawPlan(segments, t) {
   const seg = segments[idx];
   const plan = [{ seg, localTime: localTimeAt(seg, t), alpha: 1 }];
 
-  if (seg.isFade && idx > 0 && t < seg.segStart + FADE_DURATION) {
+  // Every transition type previews as a crossfade -- the canvas cannot wipe or
+  // slide, and pretending otherwise would be a preview that lies. The rendered
+  // file uses the real xfade type.
+  if (seg.isFade && idx > 0 && t < seg.segStart + seg.overlap) {
     const prevSeg = segments[idx - 1];
-    const alpha = Math.max(0, Math.min(1, (t - seg.segStart) / FADE_DURATION));
+    const alpha = Math.max(0, Math.min(1, (t - seg.segStart) / seg.overlap));
     plan[0] = { seg: prevSeg, localTime: localTimeAt(prevSeg, t), alpha: 1 - alpha };
     plan.push({ seg, localTime: localTimeAt(seg, t), alpha });
   }

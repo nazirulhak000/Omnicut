@@ -613,48 +613,10 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
       </Modal>
 
       {/* ══════════════════════════════════════════════════════════
-          1. COMPACT TOP HERO & METRICS STRIP (ZERO WASTED HEIGHT)
+          1. RESPONSIVE METRIC CHIPS RIBBON (TAP TO SWITCH/FILTER)
          ══════════════════════════════════════════════════════════ */}
-      <div className="glass-panel p-3.5 sm:p-4 rounded-2xl border border-white/[0.08] space-y-3 bg-[#0B0E17]">
-        {/* Top Title Row + Refresh */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#FE2C55] to-[#25F4EE] flex items-center justify-center text-white shadow-md flex-shrink-0">
-              <Layers className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-sm sm:text-base font-bold font-kanit text-white truncate flex items-center gap-2">
-                <span>Content Tracker</span>
-                <span className="text-[11px] px-2 py-0.2 rounded-full bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/30 font-mono font-bold">
-                  {allAnglesList.length} คลิป
-                </span>
-              </h2>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Progress Pill */}
-            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-black/40 border border-white/[0.08] text-xs">
-              <TrendingUp className="w-3.5 h-3.5 text-[#25F4EE]" />
-              <span className="text-slate-400">โพสต์แล้ว:</span>
-              <span className="font-mono font-bold text-[#25F4EE]">{completionRate}%</span>
-            </div>
-
-            <Button
-              onClick={fetchProductsData}
-              loading={loading}
-              variant="secondary"
-              size="sm"
-              icon={RefreshCw}
-              className="py-1 px-2.5 text-xs"
-            >
-              รีเฟรช
-            </Button>
-          </div>
-        </div>
-
-        {/* Single Responsive Metric Chips Ribbon (Tap to filter / switch phase) */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar pt-0.5 pr-6">
+      <div className="glass-panel p-2.5 sm:p-3 rounded-2xl border border-white/[0.08] bg-[#0B0E17]">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar pr-6">
           {/* Card 0: All */}
           <button
             type="button"

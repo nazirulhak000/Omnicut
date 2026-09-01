@@ -14,8 +14,46 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
         sys.stdout.reconfigure(encoding='utf-8', errors='ignore')
     except Exception:
         pass
-from typing import List, Dict, Tuple
+from typing import Any, List, Dict, Tuple
 from scripts.config import VIDEO_WIDTH, VIDEO_HEIGHT, FPS, MIN_SHOT_DURATION, MAX_SHOT_DURATION, FONTS_DIR
+
+# ffmpeg's xfade transitions we expose. Anything outside this set falls back to
+# "fade" rather than reaching the filter graph -- an unknown name there kills
+# the whole render, and the name comes from the UI.
+XFADE_TRANSITIONS = (
+    "fade", "fadeblack", "fadewhite", "dissolve",
+    "wipeleft", "wiperight", "wipeup", "wipedown",
+    "slideleft", "slideright", "slideup", "slidedown",
+    "circleopen", "circleclose",
+)
+DEFAULT_TRANSITION_DURATION = 0.4
+MAX_TRANSITION_DURATION = 2.0
+
+
+def normalize_transitions(transitions: List[Any]) -> List[Dict[str, Any]]:
+    """
+    Accept both shapes a caller may send for one boundary:
+    `"fade"` / `"cut"` (the original), or `{"type": ..., "duration": ...}`.
+    Returns one dict per boundary with a whitelisted type and a sane duration.
+    """
+    out: List[Dict[str, Any]] = []
+    for entry in transitions or []:
+        if isinstance(entry, dict):
+            kind = str(entry.get("type") or "cut")
+            try:
+                dur = float(entry.get("duration") or DEFAULT_TRANSITION_DURATION)
+            except (TypeError, ValueError):
+                dur = DEFAULT_TRANSITION_DURATION
+        else:
+            kind = str(entry or "cut")
+            dur = DEFAULT_TRANSITION_DURATION
+
+        if kind != "cut" and kind not in XFADE_TRANSITIONS:
+            kind = "fade"
+        dur = min(MAX_TRANSITION_DURATION, max(0.1, dur))
+        out.append({"type": kind, "duration": dur})
+    return out
+
 
 class VideoEditor:
     """Automates rhythmic cutting, dynamic zoom motion, subtitle burning, and rendering."""
@@ -86,12 +124,14 @@ class VideoEditor:
         `mirror` flips it horizontally). Omitting `clip_list` entirely keeps
         every existing caller's behavior unchanged.
 
-        `transitions` (clip_list only) is a list of `len(clip_list) - 1` values,
-        one per boundary between consecutive clips: `"cut"` (default, a plain
-        hard cut) or `"fade"` (a short crossfade via ffmpeg's `xfade`). Omitted
-        entirely, or every value `"cut"`, keeps the original single `concat`
-        filter -- the sequential per-boundary reduction only kicks in once a
-        `"fade"` is actually requested.
+        `transitions` (clip_list only) is a list of `len(clip_list) - 1` entries,
+        one per boundary between consecutive clips. Each entry is either the
+        plain string `"cut"` / `"fade"` (the original shape) or a dict
+        `{"type": "wipeleft", "duration": 0.6}`; see XFADE_TRANSITIONS for the
+        accepted types, anything else becomes `"fade"`. Omitted entirely, or
+        every boundary `"cut"`, keeps the original single `concat` filter --
+        the sequential per-boundary reduction only kicks in once a real
+        transition is requested.
         """
         out_file = Path(output_mp4_path).resolve()
         out_file.parent.mkdir(parents=True, exist_ok=True)
@@ -234,33 +274,35 @@ class VideoEditor:
                 )
                 concat_inputs.append(f"[{node_name}]")
 
-        transitions = transitions or []
-        has_fade = used_clip_list and any(t == "fade" for t in transitions)
+        boundaries = normalize_transitions(transitions)
+        has_transition = used_clip_list and any(b["type"] != "cut" for b in boundaries)
 
-        if has_fade:
+        if has_transition:
             # Sequential reduction: fold clips left-to-right, using xfade at a
             # "fade" boundary and a plain 2-way concat at a "cut" boundary.
             # Only taken once a fade is actually requested -- every existing
             # clip_list caller (no transitions, or all "cut") keeps using the
             # single concat=n=N filter below, unchanged from before this
             # param existed.
-            FADE_DURATION = 0.4
             node_names = [inp.strip("[]") for inp in concat_inputs]
             acc_node = node_names[0]
             acc_dur = clip_durations[0]
             last_idx = len(node_names) - 1
 
             for i in range(1, len(node_names)):
-                boundary = transitions[i - 1] if i - 1 < len(transitions) else "cut"
+                boundary = boundaries[i - 1] if i - 1 < len(boundaries) else {"type": "cut", "duration": DEFAULT_TRANSITION_DURATION}
                 next_node = node_names[i]
                 next_dur = clip_durations[i]
                 out_node = "v_concat" if i == last_idx else f"reduce_{i}"
 
-                if boundary == "fade":
-                    fade_dur = min(FADE_DURATION, max(0.05, min(acc_dur, next_dur) - 0.05))
+                if boundary["type"] != "cut":
+                    # A transition can never eat more than the shorter clip has
+                    # to give, or xfade produces a negative offset and ffmpeg
+                    # errors out.
+                    fade_dur = min(boundary["duration"], max(0.05, min(acc_dur, next_dur) - 0.05))
                     offset = max(0.0, acc_dur - fade_dur)
                     filter_complex.append(
-                        f"[{acc_node}][{next_node}]xfade=transition=fade:duration={fade_dur}:offset={offset}[{out_node}];"
+                        f"[{acc_node}][{next_node}]xfade=transition={boundary['type']}:duration={fade_dur}:offset={offset}[{out_node}];"
                     )
                     acc_dur = acc_dur + next_dur - fade_dur
                 else:

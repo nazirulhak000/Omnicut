@@ -67,7 +67,8 @@ export default function Timeline({
   const toggleTransition = (id) => {
     if (onToggleTransition) { onToggleTransition(id); return; }
     const seg = segments.find((sg) => sg.clip.id === id);
-    onClipChange?.(id, { transition_in: seg?.clip.transition_in === 'fade' ? 'cut' : 'fade' });
+    const current = seg?.clip.transition_in || 'cut';
+    onClipChange?.(id, { transition_in: current !== 'cut' ? 'cut' : 'fade' });
   };
   const reorder = (id, dir, silent) => {
     if (silent && onReorderSilent) { onReorderSilent(id, dir); return true; }
@@ -190,12 +191,14 @@ export default function Timeline({
                 ))}
 
                 {segments.slice(1).map((seg) => {
-                  const isFade = seg.clip.transition_in === 'fade';
+                  const isFade = (seg.clip.transition_in || 'cut') !== 'cut';
                   return (
                     <button
                       key={`tr-${seg.clip.id}`}
                       onClick={(e) => { e.stopPropagation(); toggleTransition(seg.clip.id); }}
-                      title={isFade ? 'fade 0.4 วิ — คลิกเปลี่ยนเป็นตัดตรง' : 'ตัดตรง — คลิกเปลี่ยนเป็น fade'}
+                      title={isFade
+                        ? `${seg.clip.transition_in} ${seg.overlap.toFixed(1)} วิ — คลิกเปลี่ยนเป็นตัดตรง (เลือกแบบอื่นที่แผงขวา)`
+                        : 'ตัดตรง — คลิกเปลี่ยนเป็นรอยต่อแบบจาง'}
                       className={`absolute top-1/2 z-20 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded border transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
                         isFade
                           ? 'border-[#D97757] bg-[#33251F] text-[#E89274]'

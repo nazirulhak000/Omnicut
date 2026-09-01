@@ -7,7 +7,7 @@ import {
   getAllAssets, getProject, getProjects, getRenderStatus, startReroll, updateProjectCues,
 } from '../../api';
 import {
-  ZOOM_LEVELS, buildSegments, formatTimecode, splitClipAt, snapCandidates, snapTime,
+  FADE_DURATION, ZOOM_LEVELS, buildSegments, formatTimecode, splitClipAt, snapCandidates, snapTime,
   totalDuration as totalDurationOf,
 } from '../../lib/timelineMath';
 import { useEditorHistory } from '../../hooks/useEditorHistory';
@@ -338,7 +338,7 @@ export default function EditorShell({ videos = [] }) {
           if (selectedSeg && selectedSeg.index > 0) {
             e.preventDefault();
             patchClip(selectedSeg.clip.id, {
-              transition_in: selectedSeg.clip.transition_in === 'fade' ? 'cut' : 'fade',
+              transition_in: selectedSeg.clip.transition_in && selectedSeg.clip.transition_in !== 'cut' ? 'cut' : 'fade',
             });
           }
           break;
@@ -594,8 +594,11 @@ export default function EditorShell({ videos = [] }) {
       const res = await startReroll({
         project_name: projectName,
         part: cuesDirty.current ? 'subtitles' : 'video',
-        clip_list: clipList.map(({ id, transition_in, ...c }) => c),
-        transitions: clipList.slice(1).map((c) => c.transition_in || 'cut'),
+        clip_list: clipList.map(({ id, transition_in, transition_duration, ...c }) => c),
+        transitions: clipList.slice(1).map((c) => ({
+          type: c.transition_in || 'cut',
+          duration: c.transition_duration ?? FADE_DURATION,
+        })),
         font_name: style.fontName,
         bgm_name: style.bgmName,
         lut_name: style.lutName,
