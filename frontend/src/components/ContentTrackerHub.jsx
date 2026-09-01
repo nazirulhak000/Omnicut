@@ -372,11 +372,34 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
   const debouncedSearch = useDebounce(searchQuery, 250);
   const [selectedProductFilter, setSelectedProductFilter] = useState('all');
   const [activePhase, setActivePhase] = useState('all'); // 'all' | 'scripted' | 'in_production' | ...
-  const [viewMode, setViewMode] = useState('kanban'); // 'kanban' | 'table'
+  const [viewMode, setViewMode] = useState(() => {
+    try {
+      return localStorage.getItem('capcut_tracker_view_mode') || 'table';
+    } catch {
+      return 'table';
+    }
+  });
   const [copiedAngleId, setCopiedAngleId] = useState(null);
   const [previewVideoUrl, setPreviewVideoUrl] = useState(null);
   const [qrModalItem, setQrModalItem] = useState(null);
+  const colRefs = useRef({});
   const { toastMessage, showToast, hideToast } = useToast();
+
+  const handleSwitchViewMode = (mode) => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem('capcut_tracker_view_mode', mode);
+    } catch {
+      // ignore
+    }
+  };
+
+  const scrollToPhaseColumn = (phaseId) => {
+    setActivePhase(phaseId);
+    if (viewMode === 'kanban' && phaseId !== 'all' && colRefs.current[phaseId]) {
+      colRefs.current[phaseId].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+  };
 
   const fetchProductsData = useCallback(async () => {
     setLoading(true);
@@ -635,7 +658,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
           {/* Card 0: All */}
           <button
             type="button"
-            onClick={() => setActivePhase('all')}
+            onClick={() => scrollToPhaseColumn('all')}
             className={`py-1.5 px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer flex-shrink-0 border ${
               activePhase === 'all'
                 ? 'bg-[#25F4EE]/20 text-[#25F4EE] border-[#25F4EE]/50 shadow-sm ring-1 ring-[#25F4EE]/30'
@@ -656,7 +679,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
               <button
                 key={p.id}
                 type="button"
-                onClick={() => setActivePhase(isActive && activePhase !== 'all' ? 'all' : p.id)}
+                onClick={() => scrollToPhaseColumn(isActive && activePhase !== 'all' ? 'all' : p.id)}
                 className={`py-1.5 px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer flex-shrink-0 border ${
                   isActive
                     ? `${p.color} ring-1 ring-[#25F4EE]/40 shadow-sm font-bold`
@@ -711,25 +734,11 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
             ))}
           </select>
 
-          {/* Multi-View Switcher (Kanban vs Table) */}
+          {/* Multi-View Switcher (Table vs Kanban) */}
           <div className="flex items-center p-0.5 rounded-xl bg-black/60 border border-white/[0.1] flex-shrink-0">
             <button
               type="button"
-              onClick={() => setViewMode('kanban')}
-              className={`py-1 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
-                viewMode === 'kanban'
-                  ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-              title="มุมมองบอร์ด"
-            >
-              <Kanban className="w-3.5 h-3.5" />
-              <span>บอร์ด</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setViewMode('table')}
+              onClick={() => handleSwitchViewMode('table')}
               className={`py-1 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
                 viewMode === 'table'
                   ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-sm'
@@ -740,157 +749,90 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
               <Table className="w-3.5 h-3.5" />
               <span>ตาราง</span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => handleSwitchViewMode('kanban')}
+              className={`py-1 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                viewMode === 'kanban'
+                  ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+              title="มุมมองบอร์ด"
+            >
+              <Kanban className="w-3.5 h-3.5" />
+              <span>บอร์ด</span>
+            </button>
           </div>
         </div>
       </div>
 
       {/* ══════════════════════════════════════════════════════════
-          3. KANBAN BOARD VIEW (DESKTOP FULL & MOBILE ADAPTIVE)
+          3. REAL HORIZONTAL KANBAN BOARD (SWIPEABLE COLUMNS)
          ══════════════════════════════════════════════════════════ */}
       {viewMode === 'kanban' && (
-        <>
-          {/* Desktop Full 5-Column Grid (When All is selected) */}
-          {activePhase === 'all' ? (
-            <div className="hidden xl:grid xl:grid-cols-5 gap-3.5 items-start">
-              {PIPELINE_PHASES.map((phase) => {
-                const phaseAngles = filteredAngles.filter(a => a.status === phase.id);
-
-                return (
-                  <div
-                    key={phase.id}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => handleDropOnColumn(phase.id, e)}
-                    className="p-3.5 border border-white/[0.08] space-y-3 rounded-3xl glass-card transition-colors hover:border-white/[0.15] bg-[#070A12]"
-                  >
-                    {/* Column Header */}
-                    <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-white font-kanit">
-                        <phase.icon className="w-3.5 h-3.5 text-[#25F4EE]" />
-                        <span>{phase.label}</span>
-                      </div>
-                      <span className="text-xs font-mono font-bold px-2 py-0.2 rounded-full bg-black/60 border border-white/[0.08] text-slate-300">
-                        {phaseAngles.length}
-                      </span>
-                    </div>
-
-                    <div className="space-y-3 min-h-[140px]">
-                      {phaseAngles.length === 0 ? (
-                        <div className="py-10 text-center text-xs text-slate-500 border border-dashed border-white/[0.06] rounded-2xl">
-                          ไม่มีคลิปในขั้นตอนนี้
-                        </div>
-                      ) : (
-                        phaseAngles.map((ang, idx) => (
-                          <KanbanCard
-                            key={`${ang.parentProduct?.id}_${ang.angle_id || idx}`}
-                            ang={ang}
-                            phaseId={phase.id}
-                            onSendToStudio={handleSendToStudio}
-                            onStatusChange={handleAngleStatusChange}
-                            onPreviewVideo={setPreviewVideoUrl}
-                            onOpenQrModal={setQrModalItem}
-                            onCopyCaption={handleCopyCaption}
-                            copiedAngleId={copiedAngleId}
-                          />
-                        ))
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : null}
-
-          {/* Filtered Single/Filtered Phase View (Mobile or when specific phase chip clicked) */}
-          <div className={activePhase === 'all' ? 'xl:hidden' : 'block'}>
-            {activePhase === 'all' ? (
-              // Mobile Default: Show all filtered cards grouped or card list
-              <div className="space-y-4">
-                {PIPELINE_PHASES.map((phase) => {
-                  const phaseAngles = filteredAngles.filter(a => a.status === phase.id);
-                  if (phaseAngles.length === 0) return null;
-
-                  return (
-                    <div key={phase.id} className="p-3.5 border border-white/[0.08] rounded-3xl glass-card space-y-3 bg-[#070A12]">
-                      <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
-                        <div className="flex items-center gap-2 text-xs font-bold text-white font-kanit">
-                          <phase.icon className="w-3.5 h-3.5 text-[#25F4EE]" />
-                          <span>{phase.label}</span>
-                        </div>
-                        <span className="text-xs font-mono font-bold px-2 py-0.2 rounded-full bg-black/60 border border-white/[0.1] text-slate-300">
-                          {phaseAngles.length} รายการ
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {phaseAngles.map((ang, idx) => (
-                          <KanbanCard
-                            key={`${ang.parentProduct?.id}_${ang.angle_id || idx}`}
-                            ang={ang}
-                            phaseId={phase.id}
-                            onSendToStudio={handleSendToStudio}
-                            onStatusChange={handleAngleStatusChange}
-                            onPreviewVideo={setPreviewVideoUrl}
-                            onOpenQrModal={setQrModalItem}
-                            onCopyCaption={handleCopyCaption}
-                            copiedAngleId={copiedAngleId}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {filteredAngles.length === 0 && (
-                  <div className="p-12 text-center text-xs text-slate-500 rounded-3xl glass-card border border-white/[0.08]">
-                    ไม่พบคลิปตามเงื่อนไขที่ค้นหา
-                  </div>
-                )}
-              </div>
-            ) : (
-              // Specific Phase Active View
-              (() => {
-                const curPhase = PIPELINE_PHASES.find(p => p.id === activePhase) || PIPELINE_PHASES[0];
-                const phaseAngles = filteredAngles.filter(a => a.status === curPhase.id);
-
-                return (
-                  <div className="p-4 border border-white/[0.08] space-y-3.5 rounded-3xl glass-card bg-[#070A12]">
-                    <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
-                      <div className="flex items-center gap-2 text-sm font-bold text-white font-kanit">
-                        <curPhase.icon className="w-4 h-4 text-[#25F4EE]" />
-                        <span>{curPhase.label}</span>
-                      </div>
-                      <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-black/60 border border-white/[0.1] text-slate-300">
-                        {phaseAngles.length} รายการ
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                      {phaseAngles.length === 0 ? (
-                        <div className="py-16 text-center text-xs text-slate-500 col-span-full">
-                          ไม่มีคลิปในขั้นตอนนี้
-                        </div>
-                      ) : (
-                        phaseAngles.map((ang, idx) => (
-                          <KanbanCard
-                            key={`${ang.parentProduct?.id}_${ang.angle_id || idx}`}
-                            ang={ang}
-                            phaseId={curPhase.id}
-                            onSendToStudio={handleSendToStudio}
-                            onStatusChange={handleAngleStatusChange}
-                            onPreviewVideo={setPreviewVideoUrl}
-                            onOpenQrModal={setQrModalItem}
-                            onCopyCaption={handleCopyCaption}
-                            copiedAngleId={copiedAngleId}
-                          />
-                        ))
-                      )}
-                    </div>
-                  </div>
-                );
-              })()
-            )}
+        <div className="space-y-2">
+          {/* Mobile Swipe Hint */}
+          <div className="flex xl:hidden items-center justify-between text-[11px] text-slate-400 px-1">
+            <span className="flex items-center gap-1 text-slate-400">
+              <ChevronLeft className="w-3.5 h-3.5 text-[#25F4EE]" />
+              <span>เลื่อนซ้าย-ขวาเพื่อดูหัวข้อถัดไป</span>
+              <ChevronRight className="w-3.5 h-3.5 text-[#25F4EE]" />
+            </span>
+            <span className="text-[#25F4EE] font-bold font-mono">5 คอลัมน์</span>
           </div>
-        </>
+
+          {/* Real Horizontal Kanban Board with Snap-Scroll */}
+          <div className="flex overflow-x-auto snap-x snap-mandatory gap-3.5 pb-4 no-scrollbar scroll-smooth items-start xl:grid xl:grid-cols-5 xl:overflow-x-visible xl:snap-none">
+            {PIPELINE_PHASES.map((phase) => {
+              const phaseAngles = filteredAngles.filter(a => a.status === phase.id);
+
+              return (
+                <div
+                  key={phase.id}
+                  ref={(el) => (colRefs.current[phase.id] = el)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => handleDropOnColumn(phase.id, e)}
+                  className="w-[84vw] max-w-[340px] xl:w-auto xl:max-w-none flex-shrink-0 snap-center p-3.5 border border-white/[0.08] space-y-3 rounded-3xl glass-card transition-colors hover:border-white/[0.15] bg-[#070A12] flex flex-col"
+                >
+                  {/* Column Header */}
+                  <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
+                    <div className="flex items-center gap-2 text-xs font-bold text-white font-kanit">
+                      <phase.icon className="w-3.5 h-3.5 text-[#25F4EE]" />
+                      <span>{phase.label}</span>
+                    </div>
+                    <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-black/60 border border-white/[0.08] text-slate-300">
+                      {phaseAngles.length}
+                    </span>
+                  </div>
+
+                  {/* Cards inside column (Vertical Scrollable within column) */}
+                  <div className="space-y-2.5 max-h-[64vh] overflow-y-auto pr-0.5 min-h-[140px]">
+                    {phaseAngles.length === 0 ? (
+                      <div className="py-12 text-center text-xs text-slate-500 border border-dashed border-white/[0.06] rounded-2xl">
+                        ไม่มีคลิปในขั้นตอนนี้
+                      </div>
+                    ) : (
+                      phaseAngles.map((ang, idx) => (
+                        <KanbanCard
+                          key={`${ang.parentProduct?.id}_${ang.angle_id || idx}`}
+                          ang={ang}
+                          phaseId={phase.id}
+                          onSendToStudio={handleSendToStudio}
+                          onStatusChange={handleAngleStatusChange}
+                          onPreviewVideo={setPreviewVideoUrl}
+                          onOpenQrModal={setQrModalItem}
+                          onCopyCaption={handleCopyCaption}
+                          copiedAngleId={copiedAngleId}
+                        />
+                      ))
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       )}
 
       {/* ══════════════════════════════════════════════════════════
