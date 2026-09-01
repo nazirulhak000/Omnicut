@@ -1,6 +1,7 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Film, MessageSquare, Music, Scissors, Waves } from 'lucide-react';
 import TimelineClip from './TimelineClip';
+import { CLIP_DRAG_TYPE } from './AssetPanel';
 import { formatTimecode } from '../../lib/timelineMath';
 
 const RULER_H = 22;
@@ -50,6 +51,7 @@ export default function Timeline({
   onCaptionShift,
   onReorder,
   onReorderSilent,
+  onDropClip,
   // Newer shell prop names. Both sets are accepted so the timeline keeps
   // working whichever shape the shell passes.
   onSelect,
@@ -79,6 +81,33 @@ export default function Timeline({
   const scrubbing = useRef(false);
   const captionDrag = useRef(null);
   const bodyDrag = useRef(null);
+  const [dropIndex, setDropIndex] = useState(null);
+
+  // Dropping a clip from the media bin. The insert position is whichever
+  // boundary the pointer is nearest, so a drop reads like where it landed.
+  const indexFromX = (clientX) => {
+    if (!laneRef.current) return segments.length;
+    const t = (clientX - laneRef.current.getBoundingClientRect().left) / pxPerSec;
+    let i = 0;
+    while (i < segments.length && t > (segments[i].segStart + segments[i].segEnd) / 2) i += 1;
+    return i;
+  };
+  const dragHasClip = (e) => Array.from(e.dataTransfer?.types || []).includes(CLIP_DRAG_TYPE);
+  const onDragOverTrack = (e) => {
+    if (!dragHasClip(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    setDropIndex(indexFromX(e.clientX));
+  };
+  const onDropTrack = (e) => {
+    if (!dragHasClip(e)) return;
+    e.preventDefault();
+    const at = indexFromX(e.clientX);
+    setDropIndex(null);
+    try {
+      onDropClip?.(JSON.parse(e.dataTransfer.getData(CLIP_DRAG_TYPE)), at);
+    } catch (err) { /* malformed payload -- nothing to insert */ }
+  };
 
   // Dragging a clip body reorders it. The clip reports pointer positions; the
   // decision lives here because only the timeline knows where the other clips
@@ -171,7 +200,23 @@ export default function Timeline({
 
             <div ref={laneRef} className="relative flex-1">
               {/* video track */}
-              <div className="relative rounded bg-[#181716]" style={{ height: VIDEO_H }}>
+              <div
+                className="relative rounded bg-[#181716]"
+                style={{ height: VIDEO_H }}
+                onDragOver={onDragOverTrack}
+                onDragLeave={() => setDropIndex(null)}
+                onDrop={onDropTrack}
+              >
+                {dropIndex !== null && (
+                  <div
+                    className="pointer-events-none absolute top-0 z-40 h-full w-0.5 -translate-x-1/2 bg-[#D97757]"
+                    style={{
+                      left: (dropIndex >= segments.length
+                        ? (segments.length ? segments[segments.length - 1].segEnd : 0)
+                        : segments[dropIndex].segStart) * pxPerSec,
+                    }}
+                  />
+                )}
                 {segments.map((seg) => (
                   <TimelineClip
                     key={seg.clip.id}
