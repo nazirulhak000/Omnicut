@@ -208,8 +208,24 @@ export default function EditorShell({ videos = [] }) {
     }
   };
 
-  const reorderClip = (id, direction) => {
-    set((prev) => {
+  const handleImportCues = useCallback((cues) => {
+    if (!cues || !Array.isArray(cues)) return;
+    cuesDirty.current = true;
+    set((prev) => ({
+      ...prev,
+      cuesList: cues.map((c, i) => ({
+        start: c.start,
+        end: c.end,
+        text: c.text,
+        translation: c.translation || '',
+        sfx: c.sfx || null,
+        _uid: `cue-${i}-${Date.now().toString(36)}`
+      }))
+    }));
+  }, [set]);
+
+  const reorderClip = (id, direction, silent = false) => {
+    (silent ? setSilent : set)((prev) => {
       const idx = prev.clipList.findIndex((c) => c.id === id);
       const target = idx + direction;
       if (idx === -1 || target < 0 || target >= prev.clipList.length) return prev;
@@ -412,15 +428,17 @@ export default function EditorShell({ videos = [] }) {
           {/* middle row */}
           <div className="flex min-h-0 flex-1">
             {!zen && (
-            <div className="w-[220px] flex-shrink-0">
+            <div className="w-[240px] flex-shrink-0">
               <AssetPanel
                 videos={videos}
+                clipList={clipList}
                 assets={assets}
                 style={style}
                 selectedCaption={selectedCaption}
                 onAddClip={addClip}
                 onStyleChange={(patch) => set((prev) => ({ ...prev, style: { ...prev.style, ...patch } }))}
                 onAssignSfx={(sfxId) => selectedCaption && patchCaption(selectedCaption._uid, { sfx: sfxId })}
+                onImportCues={handleImportCues}
               />
             </div>
             )}
@@ -548,6 +566,7 @@ export default function EditorShell({ videos = [] }) {
                 }}
                 onCaptionShift={(uid, patch) => patchCaption(uid, patch, true)}
                 onReorder={reorderClip}
+                onReorderSilent={(id, dir) => reorderClip(id, dir, true)}
               />
             </div>
           </div>

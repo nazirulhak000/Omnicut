@@ -49,10 +49,31 @@ export default function Timeline({
   onToggleTransition,
   onCaptionShift,
   onReorder,
+  onReorderSilent,
 }) {
   const laneRef = useRef(null);
   const scrubbing = useRef(false);
   const captionDrag = useRef(null);
+  const bodyDrag = useRef(null);
+
+  // Dragging a clip body reorders it. The clip reports pointer positions; the
+  // decision lives here because only the timeline knows where the other clips
+  // are. Each crossing is one swap, and the whole gesture is one undo step.
+  const onBodyDragStart = () => { bodyDrag.current = true; onTrimBegin?.(); };
+  const onBodyDragMove = (clipId, clientX) => {
+    if (!bodyDrag.current || !laneRef.current) return false;
+    const t = (clientX - laneRef.current.getBoundingClientRect().left) / pxPerSec;
+    const myIdx = segments.findIndex((s) => s.clip.id === clipId);
+    const overIdx = segments.findIndex((s) => t >= s.segStart && t < s.segEnd);
+    if (myIdx === -1 || overIdx === -1 || overIdx === myIdx) return false;
+    onReorderSilent?.(clipId, overIdx > myIdx ? 1 : -1);
+    return true;
+  };
+  const onBodyDragEnd = () => {
+    if (!bodyDrag.current) return;
+    bodyDrag.current = false;
+    onTrimEnd?.();
+  };
 
   const contentWidth = Math.max(audioDuration || 0, totalDuration, 1) * pxPerSec + 240;
   const step = tickStep(pxPerSec);
@@ -140,6 +161,9 @@ export default function Timeline({
                     onTrimBegin={onTrimBegin}
                     onTrimEnd={onTrimEnd}
                     onReorder={onReorder}
+                    onBodyDragStart={onBodyDragStart}
+                    onBodyDragMove={onBodyDragMove}
+                    onBodyDragEnd={onBodyDragEnd}
                   />
                 ))}
 

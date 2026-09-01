@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { FlipHorizontal2, Gauge } from 'lucide-react';
 import { MIN_CLIP_DURATION } from '../../lib/timelineMath';
 
@@ -18,9 +18,15 @@ export default function TimelineClip({
   onTrim,             // (clipId, patch) during drag -- no undo step
   onTrimBegin,
   onTrimEnd,
-  onReorder,          // (clipId, direction) -- keyboard/click reorder fallback
+  onReorder,          // (clipId, direction) -- keyboard reorder ([ and ])
+  onBodyDragStart,    // dragging the clip body reorders it
+  onBodyDragMove,
+  onBodyDragEnd,
 }) {
   const dragRef = useRef(null);
+  const bodyRef = useRef(null);
+  const [dragging, setDragging] = useState(false);
+  const [dragDx, setDragDx] = useState(0);
   const { clip } = seg;
   const speed = clip.speed || 1;
 
@@ -40,6 +46,43 @@ export default function TimelineClip({
       backgroundRepeat: 'no-repeat, no-repeat',
     };
   })();
+
+  const startBodyDrag = (e) => {
+    // the trim handles have their own drag; their event bubbles up here
+    if (e.target.closest('[data-trim-handle]')) return;
+    bodyRef.current = { startX: e.clientX, moved: false };
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* drag still works */ }
+  };
+
+  const moveBodyDrag = (e) => {
+    const d = bodyRef.current;
+    if (!d) return;
+    if (!d.moved) {
+      if (Math.abs(e.clientX - d.startX) < 6) return;
+      d.moved = true;
+      setDragging(true);
+      onBodyDragStart?.(clip.id);
+    }
+    // A swap moves the clip's own `left`, so the ghost offset has to rebase
+    // or the clip would jump by its neighbour's width twice.
+    const swapped = onBodyDragMove?.(clip.id, e.clientX);
+    if (swapped) {
+      d.startX = e.clientX;
+      setDragDx(0);
+    } else {
+      setDragDx(e.clientX - d.startX);
+    }
+  };
+
+  const endBodyDrag = (e) => {
+    const d = bodyRef.current;
+    bodyRef.current = null;
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
+    if (!d?.moved) return;
+    setDragging(false);
+    setDragDx(0);
+    onBodyDragEnd?.();
+  };
 
   const startEdgeDrag = (edge) => (e) => {
     e.stopPropagation();
@@ -89,19 +132,35 @@ export default function TimelineClip({
       tabIndex={0}
       aria-label={`คลิป ${fileName}`}
       aria-pressed={isSelected}
-      onClick={() => onSelect(clip.id)}
+      onClick={() => { if (!dragging) onSelect(clip.id); }}
+      onPointerDown={startBodyDrag}
+      onPointerMove={moveBodyDrag}
+      onPointerUp={endBodyDrag}
+      onPointerCancel={endBodyDrag}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(clip.id); }
-        if (e.key === '[') { e.preventDefault(); onReorder?.(clip.id, -1); }
-        if (e.key === ']') { e.preventDefault(); onReorder?.(clip.id, 1); }
+        if (e.key === '[' || e.key === 'ArrowUp') { e.preventDefault(); onReorder?.(clip.id, -1); }
+        if (e.key === ']' || e.key === 'ArrowDown') { e.preventDefault(); onReorder?.(clip.id, 1); }
       }}
-      className={`absolute top-0 h-full overflow-hidden cursor-pointer transition-shadow duration-150
+      title="ลากตัวคลิปเพื่อสลับลำดับ · ลากขอบเพื่อตัด"
+      className={`absolute top-0 h-full touch-none overflow-hidden transition-shadow duration-150
         focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
+        dragging ? 'cursor-grabbing' : 'cursor-grab'
+      } ${
         isSelected
           ? 'ring-2 ring-[#D97757] shadow-[0_0_0_1px_rgba(217,119,87,0.6)] z-10'
           : 'ring-1 ring-[#4A4742] hover:ring-[#6B6660]'
       }`}
-      style={{ left, width, borderRadius: CLIP_RADIUS, backgroundColor: '#282724', ...filmstripStyle }}
+      style={{
+        left,
+        width,
+        borderRadius: CLIP_RADIUS,
+        backgroundColor: '#282724',
+        ...filmstripStyle,
+        ...(dragging
+          ? { transform: `translateX(${dragDx}px)`, opacity: 0.85, zIndex: 30 }
+          : null),
+      }}
     >
       <div className="absolute inset-x-0 top-0 flex items-center gap-1 px-1.5 py-0.5 pointer-events-none">
         <span className="text-[9px] font-medium text-[#EDE9E3] truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
@@ -129,6 +188,7 @@ export default function TimelineClip({
       {isSelected && ['start', 'end'].map((edge) => (
         <div
           key={edge}
+          data-trim-handle=""
           onPointerDown={startEdgeDrag(edge)}
           onPointerMove={moveEdgeDrag}
           onPointerUp={endEdgeDrag}

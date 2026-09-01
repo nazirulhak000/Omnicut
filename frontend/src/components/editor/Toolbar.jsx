@@ -5,13 +5,14 @@ import {
 
 const SPEEDS = [0.5, 1, 1.5, 2];
 
-function ToolButton({ icon: Icon, label, shortcut, onClick, disabled, active }) {
+function ToolButton({ icon: Icon, label, hint, shortcut, onClick, disabled, active }) {
+  const tip = [hint || label, shortcut && `(${shortcut})`].filter(Boolean).join(' ');
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      title={shortcut ? `${label} (${shortcut})` : label}
+      title={tip}
       aria-label={label}
       className={`flex h-7 items-center gap-1.5 rounded-lg px-2 text-[11px] font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
         disabled
@@ -51,13 +52,13 @@ export default function Toolbar({
 
   return (
     <div className="flex items-center gap-1 border-b border-[#363430] bg-[#232220] px-2 py-1">
-      <ToolButton icon={Undo2} label="ย้อน" shortcut="Ctrl+Z" onClick={onUndo} disabled={!canUndo} />
-      <ToolButton icon={Redo2} label="ทำซ้ำ" shortcut="Ctrl+Shift+Z" onClick={onRedo} disabled={!canRedo} />
+      <ToolButton icon={Undo2} label="ย้อน" hint="ย้อนการแก้ล่าสุด" shortcut="Ctrl+Z" onClick={onUndo} disabled={!canUndo} />
+      <ToolButton icon={Redo2} label="ไปหน้า" hint="ทำสิ่งที่เพิ่งย้อนไปอีกครั้ง" shortcut="Ctrl+Shift+Z" onClick={onRedo} disabled={!canRedo} />
 
       <span className="mx-1 h-4 w-px bg-[#363430]" />
 
-      <ToolButton icon={Scissors} label="แยก" shortcut="S" onClick={onSplit} disabled={!hasClipSelected} />
-      <ToolButton icon={Copy} label="ก๊อบ" onClick={onDuplicate} disabled={!hasClipSelected} />
+      <ToolButton icon={Scissors} label="แยก" hint="ผ่าคลิปที่เลือกตรงหัวอ่าน" shortcut="S" onClick={onSplit} disabled={!hasClipSelected} />
+      <ToolButton icon={Copy} label="ทำสำเนา" hint="ก๊อบคลิปที่เลือกต่อท้ายตัวเอง" onClick={onDuplicate} disabled={!hasClipSelected} />
       <ToolButton icon={Trash2} label="ลบ" shortcut="Del" onClick={onDelete} disabled={!hasSelection} />
 
       <span className="mx-1 h-4 w-px bg-[#363430]" />
