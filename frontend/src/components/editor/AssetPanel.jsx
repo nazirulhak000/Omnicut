@@ -183,10 +183,10 @@ export default function AssetPanel({
             onClick={() => setTab(id)}
             title={label}
             aria-pressed={tab === id}
-            className={`flex flex-1 min-w-[50px] flex-col items-center gap-0.5 py-2 text-[10px] font-bold transition-all focus:outline-none ${
+            className={`flex flex-1 min-w-[50px] flex-col items-center gap-0.5 py-2 text-[10px] font-bold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#D97757] ${
               tab === id
-                ? 'bg-[#25F4EE]/10 text-[#25F4EE] border-b-2 border-[#25F4EE]'
-                : 'cursor-pointer text-slate-400 hover:bg-white/[0.04] hover:text-white'
+                ? 'border-b-2 border-[#D97757] bg-[#D97757]/10 text-[#E89274]'
+                : 'cursor-pointer text-[#9C968F] hover:bg-white/[0.04] hover:text-[#EDE9E3]'
             }`}
           >
             <Icon className="h-3.5 w-3.5" />

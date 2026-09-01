@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  AlertCircle, CheckCircle2, Loader2, Maximize2, Minimize2, RefreshCw, Rocket, Scissors,
+  AlertCircle, AlertTriangle, CheckCircle2, Loader2, Maximize2, Minimize2, RefreshCw, Rocket, Scissors,
 } from 'lucide-react';
 import {
   getAllAssets, getProject, getProjects, getRenderStatus, startReroll, updateProjectCues,
@@ -60,6 +60,11 @@ export default function EditorShell({ videos = [] }) {
   // 800px-tall screen. Zen hides the side panels and the timeline so the
   // frame can actually be looked at; Esc or the button brings them back.
   const [zen, setZen] = useState(false);
+
+  // A render is minutes of CPU. If the clips are shorter than the voiceover
+  // the tail comes out with sound and no picture (measured: 13.6s of video in
+  // a 28.3s file), so Apply asks once instead of spending the time silently.
+  const [confirmGap, setConfirmGap] = useState(0);
 
   const applyTimelineH = (px) => {
     const clamped = Math.min(TIMELINE_MAX_H, Math.max(TIMELINE_MIN_H, Math.round(px)));
@@ -326,6 +331,15 @@ export default function EditorShell({ videos = [] }) {
     if (!projectName) { setApplyError('เลือกโปรเจกต์ก่อน'); return; }
     if (!clipList.length) { setApplyError('เพิ่มคลิปในไทม์ไลน์ก่อน'); return; }
 
+    const gap = (audioDuration || 0) - totalDuration;
+    if (gap > 0.5 && !confirmGap) {
+      setConfirmGap(gap);
+      setApplyError(null);
+      setTimeout(() => setConfirmGap(0), 8000);
+      return;
+    }
+    setConfirmGap(0);
+
     setApplying(true);
     setApplyError(null);
     setApplyResult(null);
@@ -409,7 +423,9 @@ export default function EditorShell({ videos = [] }) {
         >
           {applying
             ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />เรนเดอร์ {progress}%</>
-            : <><Rocket className="h-3.5 w-3.5" />Apply</>}
+            : confirmGap
+              ? <><AlertTriangle className="h-3.5 w-3.5" />ท้ายคลิปไม่มีภาพ {confirmGap.toFixed(1)} วิ — กดอีกครั้งเพื่อเรนเดอร์</>
+              : <><Rocket className="h-3.5 w-3.5" />Apply</>}
         </button>
       </div>
 
