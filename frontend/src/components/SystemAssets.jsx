@@ -118,8 +118,12 @@ export default function SystemAssets({ status }) {
     f.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredStickers = (assetData.stickers || []).filter(s => 
+  const filteredStickers = (assetData.stickers || []).filter(s =>
     s.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredLuts = (assetData.luts || []).filter(l =>
+    l.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const assetCategories = [
@@ -309,9 +313,9 @@ export default function SystemAssets({ status }) {
       {activeAssetTab === 'music' && (
         <div className="space-y-4">
           <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-900/30 to-indigo-900/20 border border-purple-500/30 flex items-center justify-between text-xs text-purple-200">
-            <span className="flex items-center gap-2">
+            <span className="flex items-center gap-2" title="เป็นการลดระดับเสียง BGM ให้เบากว่าเสียงพูดคงที่ตลอดคลิป ไม่ใช่ real-time ducking ที่ลดเฉพาะช่วงมีเสียงพูด">
               <Sparkles className="w-4 h-4 text-purple-400" />
-              เพลง BGM ทั้งหมดถูกปรับระดับเสียงและ Auto-Ducking (-16dB) ให้พอดีกับเสียงพูดอัตโนมัติ
+              เพลง BGM ทุกเพลงถูกลดระดับเสียงลงอัตโนมัติให้เบากว่าเสียงพูดเสมอ (ระดับคงที่ ไม่ใช่ real-time ducking)
             </span>
             <button
               onClick={() => handleOpen('music')}
@@ -324,33 +328,49 @@ export default function SystemAssets({ status }) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredMusic.map((m, idx) => {
               const isPlaying = currentlyPlayingAudio === m.name;
+              const isDefault = m.id === 'bgm_over_loaded_hiphop_instrumental';
               return (
                 <div
                   key={idx}
                   className={`p-4 rounded-2xl border transition-all flex flex-col justify-between space-y-3 ${
                     isPlaying
                       ? 'bg-gradient-to-b from-[#212838] to-[#181F2C] border-purple-500 shadow-xl ring-1 ring-purple-500'
+                      : isDefault
+                      ? 'bg-gradient-to-b from-purple-950/40 to-black/35 border-amber-500/50'
                       : 'bg-black/35 border-white/5 hover:border-white/15'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
                         isPlaying ? 'bg-purple-500 text-white' : 'bg-slate-800 text-purple-400'
                       }`}>
                         <Music className="w-5 h-5" />
                       </div>
-                      <div>
+                      <div className="min-w-0">
+                        {isDefault && (
+                          <div className="text-[9px] font-bold text-amber-400 mb-0.5">⭐ เสียงหลักของช่อง (ค่าเริ่มต้นทุกคลิป)</div>
+                        )}
                         <div className="text-sm font-bold text-white truncate max-w-[190px]" title={m.name}>
+                          {m.label_th || m.name.replace(/\.(wav|mp3)$/i, '')}
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-mono truncate max-w-[190px]" title={m.name}>
                           {m.name.replace(/\.(wav|mp3)$/i, '')}
                         </div>
-                        <span className="text-[11px] text-slate-400 font-mono">{m.size_mb} MB • High Quality</span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-[11px] text-slate-400 font-mono">{m.size_mb} MB</span>
+                          {m.mood && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-300 font-bold">
+                              {m.mood}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
                     <button
                       onClick={() => setDeleteTarget(m)}
-                      className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 cursor-pointer"
+                      className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 cursor-pointer flex-shrink-0"
                       title="ลบเพลงนี้"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -533,7 +553,7 @@ export default function SystemAssets({ status }) {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {(assetData.luts || []).map((lut, idx) => (
+            {filteredLuts.map((lut, idx) => (
               <div
                 key={idx}
                 className="p-4 rounded-2xl glass-card border border-white/5 hover:border-cyan-500/40 space-y-3"
