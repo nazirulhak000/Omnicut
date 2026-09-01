@@ -9,7 +9,7 @@ import { CSS } from '@dnd-kit/utilities';
 import {
   Scissors, Film, Plus, Trash2, GripVertical, Loader2, Rocket,
   CheckCircle2, AlertCircle, Type, Music, Palette, MessageSquare,
-  FolderOpen, RefreshCw, Clapperboard
+  FolderOpen, RefreshCw, Clapperboard, Waves
 } from 'lucide-react';
 import {
   getProjects, getProject, updateProjectCues, startReroll, getRenderStatus, getAllAssets
@@ -70,6 +70,25 @@ function SortableClipRow({ clip, index, onChange, onRemove }) {
         title="เอาออกจากไทม์ไลน์"
       >
         <Trash2 className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
+
+function TransitionToggle({ value, onToggle }) {
+  const isFade = value === 'fade';
+  return (
+    <div className="flex items-center justify-center py-0.5">
+      <button
+        onClick={onToggle}
+        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-bold border transition-all cursor-pointer ${
+          isFade
+            ? 'bg-purple-500/15 text-purple-300 border-purple-500/40'
+            : 'bg-white/[0.03] text-slate-500 border-white/[0.08] hover:text-slate-300'
+        }`}
+        title="สลับ cut / fade ระหว่าง 2 คลิปนี้"
+      >
+        {isFade ? <><Waves className="w-3 h-3" /> Fade 0.4s</> : <><Scissors className="w-3 h-3" /> Cut</>}
       </button>
     </div>
   );
@@ -147,8 +166,13 @@ export default function ManualEditor({ videos = [] }) {
       const rp = data.render_params || {};
 
       const existingClips = rp.clip_list;
+      const existingTransitions = rp.transitions || [];
       if (existingClips && existingClips.length > 0) {
-        setClipList(existingClips.map((c, i) => ({ id: `clip-${i}-${Date.now()}`, ...c })));
+        setClipList(existingClips.map((c, i) => ({
+          id: `clip-${i}-${Date.now()}`,
+          transition_in: i === 0 ? 'cut' : (existingTransitions[i - 1] || 'cut'),
+          ...c,
+        })));
       } else if (rp.raw_video_path) {
         setClipList([{ id: `clip-0-${Date.now()}`, source_path: rp.raw_video_path, trim_start: 0, trim_end: null }]);
       } else {
@@ -173,11 +197,18 @@ export default function ManualEditor({ videos = [] }) {
       source_path: video.path,
       trim_start: 0,
       trim_end: null,
+      transition_in: 'cut',
     }]);
   };
 
   const updateClip = (id, field, value) => {
     setClipList(prev => prev.map(c => (c.id === id ? { ...c, [field]: value } : c)));
+  };
+
+  const toggleTransition = (id) => {
+    setClipList(prev => prev.map(c => (
+      c.id === id ? { ...c, transition_in: c.transition_in === 'fade' ? 'cut' : 'fade' } : c
+    )));
   };
 
   const removeClip = (id) => {
@@ -226,7 +257,10 @@ export default function ManualEditor({ videos = [] }) {
         });
       }
 
-      const cleanClipList = clipList.map(({ id, ...c }) => c);
+      const cleanClipList = clipList.map(({ id, transition_in, ...c }) => c);
+      // One transition per boundary, i.e. clipList[1..].transition_in --
+      // the first clip has no "before" boundary.
+      const transitionsList = clipList.slice(1).map(c => c.transition_in || 'cut');
       // Editing captions requires the "subtitles" stage (it cascades to
       // "video" too, per REROLL_STAGE) so the burned .ass actually
       // reflects the edit; timeline-only changes are cheaper via "video".
@@ -236,6 +270,7 @@ export default function ManualEditor({ videos = [] }) {
         project_name: selectedProject,
         part,
         clip_list: cleanClipList,
+        transitions: transitionsList,
         font_name: fontName,
         bgm_name: bgmName,
         lut_name: lutName,
@@ -345,15 +380,22 @@ export default function ManualEditor({ videos = [] }) {
               ) : (
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                   <SortableContext items={clipList.map(c => c.id)} strategy={verticalListSortingStrategy}>
-                    <div className="space-y-2">
+                    <div className="space-y-0.5">
                       {clipList.map((clip, idx) => (
-                        <SortableClipRow
-                          key={clip.id}
-                          clip={clip}
-                          index={idx}
-                          onChange={updateClip}
-                          onRemove={removeClip}
-                        />
+                        <React.Fragment key={clip.id}>
+                          {idx > 0 && (
+                            <TransitionToggle
+                              value={clip.transition_in || 'cut'}
+                              onToggle={() => toggleTransition(clip.id)}
+                            />
+                          )}
+                          <SortableClipRow
+                            clip={clip}
+                            index={idx}
+                            onChange={updateClip}
+                            onRemove={removeClip}
+                          />
+                        </React.Fragment>
                       ))}
                     </div>
                   </SortableContext>

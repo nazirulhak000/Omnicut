@@ -99,6 +99,7 @@ class RenderRequest(BaseModel):
     bgm_name: Optional[str] = None  # BGM filename from AssetRegistry.bgm(); None keeps SFXManager's own default
     lut_name: Optional[str] = None  # LUT filename from AssetRegistry.luts(); None auto-picks by IT angle, or no grade
     clip_list: Optional[List[Dict[str, Any]]] = None  # Manual Editor: [{source_path, trim_start, trim_end}]; None keeps single-source auto-cut
+    transitions: Optional[List[str]] = None  # Manual Editor: "cut" | "fade" per boundary between clip_list entries
     export_mp4: bool = True
 
 class DeleteFileRequest(BaseModel):
@@ -835,6 +836,7 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                 bgm_name=req_data.bgm_name,
                 lut_name=req_data.lut_name,
                 clip_list=req_data.clip_list,
+                transitions=req_data.transitions,
                 export_mp4=req_data.export_mp4,
                 progress_callback=on_progress
             )

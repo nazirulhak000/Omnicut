@@ -344,6 +344,7 @@ class RerollRequest(BaseModel):
     bgm_name: Optional[str] = None
     lut_name: Optional[str] = None
     clip_list: Optional[List[Dict[str, Any]]] = None
+    transitions: Optional[List[str]] = None
 
 
 # What each button costs, so the UI can warn before a slow one.
@@ -431,6 +432,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 bgm_name=params.get("bgm_name"),
                 lut_name=params.get("lut_name"),
                 clip_list=params.get("clip_list"),
+                transitions=params.get("transitions"),
                 export_mp4=True,
                 resume_from=stage,
                 progress_callback=render_jobs.progress_reporter(job_id),

@@ -312,6 +312,11 @@ export default function App() {
               </div>
             )}
 
+            {/* SECTION: ตัดต่อมือ (Manual Editor) */}
+            {activeTab === 'editor' && (
+              <ManualEditor videos={videos} />
+            )}
+
             {/* SECTION: Export Gallery (Menu 4) */}
             {activeTab === 'gallery' && (
               <ExportGallery

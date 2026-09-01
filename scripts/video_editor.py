@@ -69,7 +69,8 @@ class VideoEditor:
         sticker_path: str = None,
         lut_path: str = None,
         shot_scales: List[float] = None,
-        clip_list: List[Dict] = None
+        clip_list: List[Dict] = None,
+        transitions: List[str] = None
     ) -> str:
         """
         Takes raw footage, creates fast-paced punch-in cuts synced to audio duration and Gemini Vision scenes,
@@ -81,6 +82,13 @@ class VideoEditor:
         `{"source_path": str, "trim_start": float = 0.0, "trim_end": float | None}`
         (`trim_end` omitted/None trims to that source's own end). Omitting
         `clip_list` entirely keeps every existing caller's behavior unchanged.
+
+        `transitions` (clip_list only) is a list of `len(clip_list) - 1` values,
+        one per boundary between consecutive clips: `"cut"` (default, a plain
+        hard cut) or `"fade"` (a short crossfade via ffmpeg's `xfade`). Omitted
+        entirely, or every value `"cut"`, keeps the original single `concat`
+        filter -- the sequential per-boundary reduction only kicks in once a
+        `"fade"` is actually requested.
         """
         out_file = Path(output_mp4_path).resolve()
         out_file.parent.mkdir(parents=True, exist_ok=True)
@@ -94,6 +102,8 @@ class VideoEditor:
         filter_complex = []
         concat_inputs = []
         video_input_paths: List[str] = []
+        clip_durations: List[float] = []
+        used_clip_list = bool(clip_list)
 
         if clip_list:
             # Manual Editor: one real ffmpeg input per clip, each independently
@@ -127,6 +137,7 @@ class VideoEditor:
                     f"scale={scaled_w}:{scaled_h}:flags=lanczos,crop={VIDEO_WIDTH}:{VIDEO_HEIGHT}:{crop_x}:{crop_y}[{node_name}];"
                 )
                 concat_inputs.append(f"[{node_name}]")
+                clip_durations.append(duration)
         else:
             # 1-Click Studio path (unchanged): single source video, virtual cut
             # points computed from cues/AI-matched shots (or a fixed rhythm if
@@ -206,9 +217,46 @@ class VideoEditor:
                 )
                 concat_inputs.append(f"[{node_name}]")
 
-        filter_complex.append(
-            f"{''.join(concat_inputs)}concat=n={len(concat_inputs)}:v=1:a=0[v_concat];"
-        )
+        transitions = transitions or []
+        has_fade = used_clip_list and any(t == "fade" for t in transitions)
+
+        if has_fade:
+            # Sequential reduction: fold clips left-to-right, using xfade at a
+            # "fade" boundary and a plain 2-way concat at a "cut" boundary.
+            # Only taken once a fade is actually requested -- every existing
+            # clip_list caller (no transitions, or all "cut") keeps using the
+            # single concat=n=N filter below, unchanged from before this
+            # param existed.
+            FADE_DURATION = 0.4
+            node_names = [inp.strip("[]") for inp in concat_inputs]
+            acc_node = node_names[0]
+            acc_dur = clip_durations[0]
+            last_idx = len(node_names) - 1
+
+            for i in range(1, len(node_names)):
+                boundary = transitions[i - 1] if i - 1 < len(transitions) else "cut"
+                next_node = node_names[i]
+                next_dur = clip_durations[i]
+                out_node = "v_concat" if i == last_idx else f"reduce_{i}"
+
+                if boundary == "fade":
+                    fade_dur = min(FADE_DURATION, max(0.05, min(acc_dur, next_dur) - 0.05))
+                    offset = max(0.0, acc_dur - fade_dur)
+                    filter_complex.append(
+                        f"[{acc_node}][{next_node}]xfade=transition=fade:duration={fade_dur}:offset={offset}[{out_node}];"
+                    )
+                    acc_dur = acc_dur + next_dur - fade_dur
+                else:
+                    filter_complex.append(
+                        f"[{acc_node}][{next_node}]concat=n=2:v=1:a=0[{out_node}];"
+                    )
+                    acc_dur = acc_dur + next_dur
+
+                acc_node = out_node
+        else:
+            filter_complex.append(
+                f"{''.join(concat_inputs)}concat=n={len(concat_inputs)}:v=1:a=0[v_concat];"
+            )
 
         current_v = "[v_concat]"
         # Index of the mixed-audio input once every video input is counted --

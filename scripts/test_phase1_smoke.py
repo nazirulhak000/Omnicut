@@ -740,6 +740,36 @@ def test_assemble_video_with_clip_list_opens_one_input_per_clip(monkeypatch, tmp
     assert "concat=n=3" in filter_arg
 
 
+def test_assemble_video_clip_list_with_all_cuts_keeps_single_concat(monkeypatch, tmp_path):
+    clip_list = [
+        {"source_path": str(tmp_path / "a.mp4"), "trim_start": 0.0, "trim_end": 2.0},
+        {"source_path": str(tmp_path / "b.mp4"), "trim_start": 0.0, "trim_end": 2.0},
+    ]
+    cmd = _capture_ffmpeg_cmd(
+        monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list, transitions=["cut"]
+    )
+    filter_arg = cmd[cmd.index("-filter_complex") + 1]
+    assert "concat=n=2" in filter_arg
+    assert "xfade" not in filter_arg
+
+
+def test_assemble_video_clip_list_with_fade_uses_xfade(monkeypatch, tmp_path):
+    clip_list = [
+        {"source_path": str(tmp_path / "a.mp4"), "trim_start": 0.0, "trim_end": 3.0},
+        {"source_path": str(tmp_path / "b.mp4"), "trim_start": 0.0, "trim_end": 3.0},
+        {"source_path": str(tmp_path / "c.mp4"), "trim_start": 0.0, "trim_end": 3.0},
+    ]
+    cmd = _capture_ffmpeg_cmd(
+        monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list, transitions=["fade", "cut"]
+    )
+    filter_arg = cmd[cmd.index("-filter_complex") + 1]
+    assert "xfade=transition=fade" in filter_arg, "boundary 1 (clip 0->1) should crossfade"
+    assert "concat=n=2" in filter_arg, "boundary 2 (clip 1->2) stays a plain cut"
+    assert "[v_concat]" in filter_arg, "final reduced node must still be named v_concat"
+    # only one top-level concat=n=N (the old whole-sequence shape) must NOT appear
+    assert "concat=n=3" not in filter_arg
+
+
 def test_assemble_video_empty_clip_list_falls_back_to_legacy_path(monkeypatch, tmp_path):
     # `[]` is falsy like `None` -- it must fall through to the single-source
     # path (using raw_video_paths), not be treated as "0 clips to concat".
