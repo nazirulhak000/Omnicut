@@ -4,7 +4,7 @@ import {
   Smartphone, RefreshCw, Search, QrCode, ArrowLeft, Copy,
   Kanban, Table, Sparkles, CheckCircle2, Clock,
   ExternalLink, ChevronRight, ChevronLeft, Filter, AlertCircle,
-  Video, Eye, Flame, TrendingUp, Plus, X
+  Video, Eye, Flame, TrendingUp, Plus, X, FileText
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
