@@ -55,6 +55,7 @@ class TikTokAutoCutterPipeline:
         sticker_path: Optional[str] = None,
         bgm_name: Optional[str] = None,
         lut_name: Optional[str] = None,
+        lut_intensity: float = 1.0,
         clip_list: Optional[List[Dict[str, any]]] = None,
         transitions: Optional[List[str]] = None,
         export_mp4: bool = True,
@@ -386,6 +387,7 @@ class TikTokAutoCutterPipeline:
                 ai_matched_shots=ai_matched_shots,
                 sticker_path=sticker_path,
                 lut_path=lut_path,
+                lut_intensity=lut_intensity,
                 shot_scales=shot_scales,
                 clip_list=clip_list,
                 transitions=transitions
@@ -428,6 +430,7 @@ class TikTokAutoCutterPipeline:
                 "sticker_path": sticker_path,
                 "bgm_name": bgm_name,
                 "lut_name": lut_name,
+                "lut_intensity": lut_intensity,
                 "clip_list": clip_list,
                 "transitions": transitions,
             },

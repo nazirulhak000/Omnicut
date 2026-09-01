@@ -15,6 +15,24 @@ const CANVAS_H = 960;
 // regardless of how fast the browser is willing to decode.
 const RESYNC_THRESHOLD = 0.15;
 
+/**
+ * CSS filter that approximates video_editor.py's per-clip `eq`. ffmpeg's
+ * brightness is an additive offset (-0.3..0.3) while canvas brightness is a
+ * multiplier, so it is mapped to 1 + b -- close enough to judge a grade by,
+ * and the rendered file is still the source of truth.
+ */
+function clipFilter(clip) {
+  if (!clip) return 'none';
+  const parts = [];
+  const b = clip.brightness ?? 0;
+  const c = clip.contrast ?? 1;
+  const sat = clip.saturation ?? 1;
+  if (Math.abs(b) > 1e-3) parts.push(`brightness(${(1 + b).toFixed(3)})`);
+  if (Math.abs(c - 1) > 1e-3) parts.push(`contrast(${c.toFixed(3)})`);
+  if (Math.abs(sat - 1) > 1e-3) parts.push(`saturate(${sat.toFixed(3)})`);
+  return parts.length ? parts.join(' ') : 'none';
+}
+
 function drawVideoFrame(ctx, video) {
   if (!video || !video.videoWidth) return;
   const vw = video.videoWidth, vh = video.videoHeight;
@@ -68,7 +86,7 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
   const [playhead, setPlayhead] = useState(0);
   const playheadRef = useRef(0);
 
-  const clipKey = clips.map(c => `${c.id}:${c.source_path}:${c.trim_start}:${c.trim_end}:${c.transition_in}`).join('|');
+  const clipKey = clips.map(c => `${c.id}:${c.source_path}:${c.trim_start}:${c.trim_end}:${c.transition_in}:${c.transition_duration}:${c.brightness}:${c.contrast}:${c.saturation}`).join('|');
 
   // Load real duration for every clip up front -- segment timing needs it
   // (a clip with trim_end === null trims to "the source's own end").
@@ -120,9 +138,11 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
       const video = videoElsRef.current[seg.clip.id];
       if (!video) return;
       ctx.globalAlpha = alpha;
+      ctx.filter = clipFilter(seg.clip);
       drawVideoFrame(ctx, video);
     });
     ctx.globalAlpha = 1;
+    ctx.filter = 'none';
     drawCaption(ctx, cues, t);
   };
 
@@ -172,9 +192,11 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
           const video = videoElsRef.current[seg.clip.id];
           if (!video) return;
           ctx.globalAlpha = alpha;
+          ctx.filter = clipFilter(seg.clip);
           drawVideoFrame(ctx, video);
         });
         ctx.globalAlpha = 1;
+        ctx.filter = 'none';
         drawCaption(ctx, cues, t);
       }
 

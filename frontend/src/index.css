@@ -6,13 +6,13 @@
 
 @layer base {
   html {
-    font-size: calc(15px * var(--ui-scale, 1));
+    font-size: calc(15.5px * var(--ui-scale, 1));
   }
 
   body {
-    background-color: #0B0D13;
-    color: #F1F3F9;
-    font-family: 'Prompt', 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    background-color: #07090E;
+    color: #F1F5F9;
+    font-family: 'Prompt', 'Inter', system-ui, sans-serif;
     min-height: 100vh;
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
@@ -24,7 +24,7 @@
   html, body, #root {
     height: 100%;
     overflow: hidden;
-    background-color: #0B0D13;
+    background-color: #07090E;
   }
 }
 
@@ -43,59 +43,62 @@
 .font-baijamjuree { font-family: 'Bai Jamjuree', sans-serif; }
 .font-pridi { font-family: 'Pridi', serif; }
 
-/* ── Frame.io Studio Matte Minimal Surfaces ── */
+/* ── Modern Dark Surfaces ── */
 .glass-card, .claude-card {
-  background: #12151E;
+  background: rgba(13, 17, 26, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .glass-card:hover, .claude-card:hover {
-  border-color: rgba(255, 255, 255, 0.14);
-  background: #151924;
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .glass-panel, .claude-panel {
-  background: #0E1119;
+  background: rgba(10, 14, 22, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
 }
 
 /* ── Form Controls & Inputs ── */
 .claude-input {
-  background-color: #0E1118;
+  background-color: #080B11;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #F1F3F9;
-  border-radius: 10px;
+  color: #F8FAFC;
+  border-radius: 12px;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
 }
 
 .claude-input:focus {
   outline: none;
-  border-color: #8B5CF6;
-  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
-  background-color: #12151F;
+  border-color: rgba(37, 244, 238, 0.6);
+  box-shadow: 0 0 0 3px rgba(37, 244, 238, 0.15);
+  background-color: #0B0F17;
 }
 
-/* Primary Button (Frame.io Signature Violet) */
 .claude-btn-primary {
-  background: #7C3AED;
+  background: #FE2C55;
   color: #FFFFFF;
-  border-radius: 10px;
+  border-radius: 12px;
   font-weight: 700;
-  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
+  box-shadow: 0 4px 14px rgba(254, 44, 85, 0.25);
   transition: all 0.15s ease;
 }
 
 .claude-btn-primary:hover {
-  background: #6D28D9;
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+  background: #E0264B;
+  box-shadow: 0 6px 20px rgba(254, 44, 85, 0.4);
 }
 
 .claude-btn-primary:focus-visible {
-  outline: 2px solid #8B5CF6;
+  outline: 2px solid #FE2C55;
   outline-offset: 2px;
 }
 
@@ -111,32 +114,32 @@
 
 .claude-btn-secondary {
   background-color: rgba(255, 255, 255, 0.05);
-  color: #F1F3F9;
+  color: #F8FAFC;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
+  border-radius: 12px;
   font-weight: 600;
   transition: all 0.15s ease;
 }
 
 .claude-btn-secondary:hover {
-  background-color: rgba(255, 255, 255, 0.09);
-  border-color: rgba(255, 255, 255, 0.15);
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
-/* ── Minimal Studio Scrollbars ── */
+/* ── Minimal Dark Scrollbars ── */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -149,12 +152,12 @@
 
 /* ── Subtle Transitions & Animations ── */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(3px); }
+  from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
 .animate-fadeIn {
-  animation: fadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* ── Safe area for mobile bottom bar ── */

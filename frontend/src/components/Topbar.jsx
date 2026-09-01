@@ -9,35 +9,35 @@ const TAB_CONFIG = {
     icon: Rocket,
     title: 'สินค้า → คลิป',
     badge: '1. AI Script Lab',
-    badgeColor: 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30',
+    badgeColor: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
     description: 'ดึงสินค้า สร้างมุมขาย & Hook ไวรัล'
   },
   tracker: {
     icon: Layers,
     title: 'Content Tracker',
     badge: '2. Pipeline 5 Phases',
-    badgeColor: 'bg-[#7C3AED]/15 text-[#A78BFA] border-[#7C3AED]/30',
+    badgeColor: 'bg-[#25F4EE]/10 text-[#25F4EE] border-[#25F4EE]/30',
     description: 'ติดตามสถานะคลิปตั้งแต่สคริปต์จนโพสต์เสร็จ'
   },
   studio: {
     icon: Sparkles,
     title: '1-Click Studio',
     badge: '3. Video Generator',
-    badgeColor: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
+    badgeColor: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
     description: 'สร้างคลิป AI พากย์เสียง & เบิร์นซับ 1 คลิก'
   },
   editor: {
     icon: Scissors,
     title: 'Video Editor',
     badge: '4. NLE Timeline',
-    badgeColor: 'bg-purple-500/10 text-purple-300 border-purple-500/30',
+    badgeColor: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
     description: 'ตัดต่อคำบรรยาย ไทม์ไลน์ และเสียงประกอบ'
   },
   gallery: {
     icon: FolderDown,
     title: 'Export Gallery',
     badge: '5. Ready to Post',
-    badgeColor: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
+    badgeColor: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
     description: 'คลังวิดีโอที่เรนเดอร์เสร็จ พร้อมแชร์เข้ามือถือ'
   },
   assets: {
@@ -66,28 +66,28 @@ export default memo(function Topbar({
   const Icon = currentTab.icon;
 
   return (
-    <header className="h-[50px] sm:h-[54px] flex-shrink-0 bg-[#0B0D13] border-b border-white/[0.07] flex items-center justify-between px-3 sm:px-6 z-20 sticky top-0 w-full min-w-0 transition-colors">
+    <header className="h-[52px] sm:h-[56px] flex-shrink-0 bg-[#080B11]/95 backdrop-blur-xl border-b border-white/[0.08] flex items-center justify-between px-3 sm:px-6 z-20 sticky top-0 w-full min-w-0 transition-colors">
       {/* ── Left: Context-Aware Section Title & Badges ── */}
       <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-shrink-0">
-        {/* Menu Icon with Frame.io Violet Accent */}
-        <div className="w-8 h-8 rounded-lg bg-[#181C28] border border-white/[0.08] text-[#A78BFA] flex items-center justify-center shadow-sm flex-shrink-0">
+        {/* Menu Icon with Cyan Glow Pill */}
+        <div className="w-8 h-8 rounded-xl bg-white/[0.04] border border-white/[0.1] text-[#25F4EE] flex items-center justify-center shadow-sm flex-shrink-0">
           <Icon className="w-4 h-4" />
         </div>
 
         {/* Menu Title & Dynamic Sub-Badge */}
         <div className="flex items-center gap-2 min-w-0">
-          <h1 className="text-sm sm:text-base font-bold tracking-tight text-[#F1F3F9] font-kanit truncate">
+          <h1 className="text-sm sm:text-base font-bold tracking-tight text-white font-kanit truncate">
             {currentTab.title}
           </h1>
 
           {/* Tab Number Badge */}
-          <span className={`hidden sm:inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md border font-mono flex-shrink-0 ${currentTab.badgeColor}`}>
+          <span className={`hidden sm:inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border font-mono flex-shrink-0 ${currentTab.badgeColor}`}>
             {currentTab.badge}
           </span>
 
           {/* Active Product Indicator in Studio / Flow */}
           {activeProductContext?.productName && (activeTab === 'studio' || activeTab === 'flow') && (
-            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#7C3AED]/10 border border-[#7C3AED]/30 text-[#C4B5FD] text-xs font-bold truncate max-w-[200px]">
+            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-bold truncate max-w-[200px]">
               <Package className="w-3 h-3 flex-shrink-0" />
               <span className="truncate">{activeProductContext.productName}</span>
             </div>
@@ -101,10 +101,10 @@ export default memo(function Topbar({
         {onRefresh && (
           <button
             onClick={onRefresh}
-            className="p-1.5 sm:px-2.5 sm:py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/[0.08] text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
+            className="p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-black/40 hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/[0.08] text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
             title="รีเฟรชข้อมูลทั้งระบบ"
           >
-            <RefreshCw className="w-3.5 h-3.5 text-[#A78BFA]" />
+            <RefreshCw className="w-3.5 h-3.5 text-[#25F4EE]" />
             <span className="hidden sm:inline">รีเฟรช</span>
           </button>
         )}
@@ -112,16 +112,16 @@ export default memo(function Topbar({
         {/* Keyboard Shortcuts Trigger (Desktop only) */}
         <button
           onClick={onOpenShortcuts}
-          className="hidden md:flex items-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.08] px-2.5 py-1 rounded-lg border border-white/[0.08] text-xs text-slate-300 hover:text-white cursor-pointer transition-colors"
+          className="hidden md:flex items-center gap-1.5 bg-black/40 hover:bg-white/[0.08] px-2.5 py-1 rounded-xl border border-white/[0.08] text-xs text-slate-300 hover:text-white cursor-pointer transition-colors"
           title="คีย์ลัดด่วน (กด ? เพื่อเปิดดู)"
         >
-          <Keyboard className="w-3.5 h-3.5 text-[#A78BFA]" />
-          <kbd className="hidden lg:inline px-1.5 py-0.2 rounded bg-black/40 border border-white/[0.1] text-[10px] text-slate-400 font-mono">?</kbd>
+          <Keyboard className="w-3.5 h-3.5 text-[#25F4EE]" />
+          <kbd className="hidden lg:inline px-1.5 py-0.2 rounded bg-white/[0.08] border border-white/[0.1] text-[10px] text-slate-400 font-mono">?</kbd>
         </button>
 
         {/* Global UI Font Selector */}
-        <div className="flex items-center gap-1 sm:gap-1.5 bg-white/[0.04] px-2 sm:px-2.5 py-1 rounded-lg border border-white/[0.08] text-xs min-w-0">
-          <Type className="w-3.5 h-3.5 text-[#A78BFA] flex-shrink-0" />
+        <div className="flex items-center gap-1 sm:gap-1.5 bg-black/40 px-2 sm:px-2.5 py-1 rounded-xl border border-white/[0.08] text-xs min-w-0">
+          <Type className="w-3.5 h-3.5 text-[#25F4EE] flex-shrink-0" />
           <select
             value={uiFont}
             onChange={(e) => setUiFont && setUiFont(e.target.value)}
@@ -129,37 +129,37 @@ export default memo(function Topbar({
             title="เปลี่ยนฟอนต์ของหน้าจอโปรแกรมทั้งระบบ (Global UI Font)"
           >
             <optgroup label="Modern Sans (โมเดิร์น ไร้หัว)">
-              <option value="font-prompt" className="bg-[#12151E] text-white">Prompt</option>
-              <option value="font-anuphan" className="bg-[#12151E] text-white">Anuphan</option>
-              <option value="font-ibm" className="bg-[#12151E] text-white">IBM Plex</option>
-              <option value="font-kanit" className="bg-[#12151E] text-white">Kanit</option>
-              <option value="font-krub" className="bg-[#12151E] text-white">Krub</option>
-              <option value="font-mitr" className="bg-[#12151E] text-white">Mitr</option>
-              <option value="font-baijamjuree" className="bg-[#12151E] text-white">Bai Jamjuree</option>
+              <option value="font-prompt" className="bg-[#080B11] text-white">Prompt</option>
+              <option value="font-anuphan" className="bg-[#080B11] text-white">Anuphan</option>
+              <option value="font-ibm" className="bg-[#080B11] text-white">IBM Plex</option>
+              <option value="font-kanit" className="bg-[#080B11] text-white">Kanit</option>
+              <option value="font-krub" className="bg-[#080B11] text-white">Krub</option>
+              <option value="font-mitr" className="bg-[#080B11] text-white">Mitr</option>
+              <option value="font-baijamjuree" className="bg-[#080B11] text-white">Bai Jamjuree</option>
             </optgroup>
             <optgroup label="Official & Editorial (ทางการ / ลายมือ / แฟชั่น)">
-              <option value="font-sarabun" className="bg-[#12151E] text-white">Sarabun</option>
-              <option value="font-mali" className="bg-[#12151E] text-white">Mali</option>
-              <option value="font-chonburi" className="bg-[#12151E] text-white">Chonburi</option>
+              <option value="font-sarabun" className="bg-[#080B11] text-white">Sarabun</option>
+              <option value="font-mali" className="bg-[#080B11] text-white">Mali</option>
+              <option value="font-chonburi" className="bg-[#080B11] text-white">Chonburi</option>
             </optgroup>
           </select>
         </div>
 
         {/* Server Connection Status Badge */}
-        <div className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg text-xs font-medium border ${
+        <div className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-xl text-xs font-medium border ${
           isOnline
-            ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25'
-            : 'bg-rose-500/10 text-rose-300 border-rose-500/25'
+            ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+            : 'bg-rose-500/15 text-rose-300 border-rose-500/30'
         }`}>
           {isOnline ? (
             <>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
-              <span className="hidden sm:inline text-[11px]">Online</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
+              <span className="hidden sm:inline">Online</span>
             </>
           ) : (
             <>
-              <WifiOff className="w-3 h-3 text-rose-400 flex-shrink-0" />
-              <span className="hidden sm:inline text-[11px]">Offline</span>
+              <WifiOff className="w-3.5 h-3.5 text-rose-400 flex-shrink-0" />
+              <span className="hidden sm:inline">Offline</span>
             </>
           )}
         </div>

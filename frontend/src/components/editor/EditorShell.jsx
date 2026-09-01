@@ -23,7 +23,7 @@ const TIMELINE_MIN_H = 196;
 const TIMELINE_MAX_H = 460;
 const TIMELINE_DEFAULT_H = 212;
 
-const EMPTY = { clipList: [], cuesList: [], style: { fontName: 'IBMPlex', bgmName: null, lutName: null, stickerBadge: null } };
+const EMPTY = { clipList: [], cuesList: [], style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null } };
 
 let idCounter = 0;
 const newId = () => `clip-${Date.now().toString(36)}-${++idCounter}`;
@@ -604,6 +604,7 @@ export default function EditorShell({ videos = [] }) {
         lut_name: style.lutName,
         // "" is meaningful here: it clears the badge stored on the project.
         sticker_badge: style.stickerBadge ?? '',
+        lut_intensity: style.lutIntensity ?? 1,
       });
       setJobId(res.job_id);
       cuesDirty.current = false;

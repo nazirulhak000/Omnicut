@@ -485,6 +485,26 @@ export default function AssetPanel({
                 {style.lutName === l.id && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#25F4EE]" />}
               </Row>
             ))}
+            {style.lutName && (
+              <label className="block px-1 pt-2">
+                <span className="mb-1 flex justify-between text-[10px] text-slate-400">
+                  <span>ความเข้มฟิลเตอร์</span>
+                  <span className="font-mono text-slate-300">{Math.round((style.lutIntensity ?? 1) * 100)}%</span>
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={style.lutIntensity ?? 1}
+                  onChange={(e) => onStyleChange({ lutIntensity: parseFloat(e.target.value) })}
+                  className="w-full accent-[#D97757]"
+                />
+                <span className="block pt-1 text-[9px] leading-relaxed text-slate-500">
+                  พรีวิวไม่แสดงฟิลเตอร์ — เห็นผลจริงหลังกด Apply
+                </span>
+              </label>
+            )}
           </>
         )}
       </div>

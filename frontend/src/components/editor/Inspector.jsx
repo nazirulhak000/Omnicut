@@ -572,6 +572,53 @@ export default function Inspector({
                 {selectedSeg.clip.mirror ? '✓ กลับด้านซ้าย-ขวาอยู่' : 'กลับด้านซ้าย-ขวา (Mirror)'}
               </button>
 
+              {/* Per-clip colour. Ranges mirror EQ_LIMITS in video_editor.py. */}
+              {(() => {
+                const COLOR_FIELDS = [
+                  { key: 'brightness', label: 'ความสว่าง', min: -0.3, max: 0.3, step: 0.02, def: 0 },
+                  { key: 'contrast', label: 'คอนทราสต์', min: 0.5, max: 2, step: 0.05, def: 1 },
+                  { key: 'saturation', label: 'ความสด', min: 0, max: 3, step: 0.05, def: 1 },
+                ];
+                const touched = COLOR_FIELDS.some(
+                  (f) => (selectedSeg.clip[f.key] ?? f.def) !== f.def,
+                );
+                return (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-slate-400">สีของคลิปนี้</span>
+                      <button
+                        type="button"
+                        disabled={!touched}
+                        onClick={() => onClipChange?.({ brightness: undefined, contrast: undefined, saturation: undefined })}
+                        className="text-[10px] text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        รีเซ็ต
+                      </button>
+                    </div>
+                    {COLOR_FIELDS.map((f) => {
+                      const value = selectedSeg.clip[f.key] ?? f.def;
+                      return (
+                        <label key={f.key} className="block">
+                          <span className="mb-0.5 flex justify-between text-[10px] text-slate-400">
+                            <span>{f.label}</span>
+                            <span className="font-mono text-slate-300">{value.toFixed(2)}</span>
+                          </span>
+                          <input
+                            type="range"
+                            min={f.min}
+                            max={f.max}
+                            step={f.step}
+                            value={value}
+                            onChange={(e) => onClipChange?.({ [f.key]: parseFloat(e.target.value) })}
+                            className="w-full accent-[#D97757]"
+                          />
+                        </label>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
               {/* Transitions: the first clip has no boundary before it. */}
               {selectedSeg.index > 0 && (() => {
                 const kind = selectedSeg.clip.transition_in || 'cut';

@@ -13,13 +13,13 @@ import {
 import { Modal, Toast, Button, Badge, Input } from './ui';
 import { useDebounce, useToast } from '../hooks';
 
-// 5 Granular Pipeline Phases (Linear / Notion Inspired Tokens)
+// 5 Granular Pipeline Phases (Original Vibrant & Readable Palette)
 const PIPELINE_PHASES = [
-  { id: 'scripted', label: 'สคริปต์พร้อม', short: 'สคริปต์', icon: FileText, color: 'text-indigo-300 border-indigo-500/25 bg-indigo-500/10 active:bg-indigo-500/20', dot: 'bg-indigo-400' },
-  { id: 'in_production', label: 'กำลังตัดต่อ', short: 'ตัดต่อ', icon: Clapperboard, color: 'text-amber-300 border-amber-500/25 bg-amber-500/10 active:bg-amber-500/20', dot: 'bg-amber-400' },
-  { id: 'rendered', label: 'ตัดต่อเสร็จ', short: 'ตรวจ QC', icon: Video, color: 'text-sky-300 border-sky-500/25 bg-sky-500/10 active:bg-sky-500/20', dot: 'bg-sky-400' },
-  { id: 'mobile_ready', label: 'ส่งเข้ามือถือ', short: 'ส่งมือถือ', icon: Smartphone, color: 'text-purple-300 border-purple-500/25 bg-purple-500/10 active:bg-purple-500/20', dot: 'bg-purple-400' },
-  { id: 'posted', label: 'โพสต์แล้ว', short: 'โพสต์แล้ว', icon: CheckCircle2, color: 'text-emerald-300 border-emerald-500/25 bg-emerald-500/10 active:bg-emerald-500/20', dot: 'bg-emerald-400' },
+  { id: 'scripted', label: 'สคริปต์พร้อม', short: 'สคริปต์', icon: FileText, color: 'text-cyan-400 border-cyan-500/30 bg-cyan-500/10 active:bg-cyan-500/20', dot: 'bg-cyan-400' },
+  { id: 'in_production', label: 'กำลังตัดต่อ', short: 'ตัดต่อ', icon: Clapperboard, color: 'text-amber-400 border-amber-500/30 bg-amber-500/10 active:bg-amber-500/20', dot: 'bg-amber-400' },
+  { id: 'rendered', label: 'ตัดต่อเสร็จ', short: 'ตรวจ QC', icon: Video, color: 'text-blue-400 border-blue-500/30 bg-blue-500/10 active:bg-blue-500/20', dot: 'bg-blue-400' },
+  { id: 'mobile_ready', label: 'ส่งเข้ามือถือ', short: 'ส่งมือถือ', icon: Smartphone, color: 'text-purple-400 border-purple-500/30 bg-purple-500/10 active:bg-purple-500/20', dot: 'bg-purple-400' },
+  { id: 'posted', label: 'โพสต์แล้ว', short: 'โพสต์แล้ว', icon: CheckCircle2, color: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10 active:bg-emerald-500/20', dot: 'bg-emerald-400' },
 ];
 
 const PHASE_ORDER = ['scripted', 'in_production', 'rendered', 'mobile_ready', 'posted'];
@@ -53,7 +53,7 @@ const HoverVideoThumb = memo(function HoverVideoThumb({ videoUrl, onClick }) {
       onClick={onClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className="relative w-full aspect-[9/16] rounded-xl overflow-hidden bg-black border border-white/[0.08] hover:border-[#8B5CF6]/50 transition-all cursor-pointer group shadow-sm"
+      className="relative w-full aspect-[9/16] rounded-xl overflow-hidden bg-black/70 border border-white/[0.1] hover:border-[#25F4EE] transition-all cursor-pointer group shadow-md"
     >
       <video
         ref={videoRef}
@@ -64,9 +64,9 @@ const HoverVideoThumb = memo(function HoverVideoThumb({ videoUrl, onClick }) {
         className="w-full h-full object-cover"
       />
       {!isHovered && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/35 group-hover:bg-black/10 transition-colors">
-          <div className="w-8 h-8 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center text-white border border-white/[0.15] shadow-md group-hover:scale-110 transition-transform">
-            <Play className="w-3.5 h-3.5 fill-white text-white ml-0.5" />
+        <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/10 transition-colors">
+          <div className="w-8 h-8 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center text-white border border-white/[0.2] shadow-md group-hover:scale-110 transition-transform">
+            <Play className="w-3.5 h-3.5 fill-current text-[#25F4EE] ml-0.5" />
           </div>
         </div>
       )}
@@ -105,22 +105,22 @@ const KanbanCard = memo(function KanbanCard({
           fromPhase: phaseId
         }));
       }}
-      className="p-3 rounded-xl bg-[#12151E] border border-white/[0.07] hover:border-white/[0.14] transition-all space-y-2.5 relative group shadow-sm"
+      className="p-3.5 rounded-2xl bg-[#0B0F19] border border-white/[0.08] hover:border-[#25F4EE]/40 transition-all space-y-3 relative group shadow-sm"
     >
       {/* Product Title & Badge */}
       <div className="flex items-center justify-between gap-2 text-xs">
-        <span className="font-semibold text-[#F1F3F9] truncate flex-1 min-w-0 font-kanit" title={ang.parentProduct?.name}>
+        <span className="font-bold text-white truncate flex-1 min-w-0 font-kanit" title={ang.parentProduct?.name}>
           {ang.parentProduct?.name}
         </span>
         {ang.badge && (
-          <Badge variant="purple" size="sm">
+          <Badge variant="cyan" size="sm">
             {ang.badge}
           </Badge>
         )}
       </div>
 
       {/* Hook Title */}
-      <div className="p-2.5 rounded-lg bg-[#0E1118] border-l-2 border-[#8B5CF6] text-xs font-semibold text-slate-200 leading-snug">
+      <div className="p-2.5 rounded-xl bg-black/50 border-l-4 border-[#25F4EE] text-xs font-bold text-cyan-200 leading-snug">
         {ang.hook_title}
       </div>
 
@@ -136,27 +136,31 @@ const KanbanCard = memo(function KanbanCard({
 
       {/* Primary Action Button (Touch friendly: min height 40px) */}
       {phaseId === 'scripted' && (
-        <button
+        <Button
           onClick={() => onSendToStudio(ang.parentProduct, ang)}
-          className="w-full min-h-[38px] px-3 rounded-lg bg-[#7C3AED] hover:bg-[#6D28D9] active:bg-[#5B21B6] text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm transition-all"
+          variant="tiktok"
+          size="sm"
+          icon={Clapperboard}
+          className="w-full min-h-[40px]"
         >
-          <Clapperboard className="w-3.5 h-3.5" />
-          <span>ส่งตัดต่อใน Studio</span>
-        </button>
+          ส่งตัดต่อใน Studio
+        </Button>
       )}
 
       {phaseId === 'in_production' && (
-        <div className="space-y-1.5">
-          <button
+        <div className="space-y-2">
+          <Button
             onClick={() => onSendToStudio(ang.parentProduct, ang)}
-            className="w-full min-h-[38px] px-3 rounded-lg bg-[#7C3AED] hover:bg-[#6D28D9] active:bg-[#5B21B6] text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm transition-all"
+            variant="tiktok"
+            size="sm"
+            iconRight={ArrowRight}
+            className="w-full min-h-[38px]"
           >
-            <span>เปิดทำต่อใน Studio</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
+            เปิดทำต่อใน Studio
+          </Button>
           <button
             onClick={() => onStatusChange(ang.parentProduct.id, ang.angle_id, 'rendered')}
-            className="w-full min-h-[34px] px-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/[0.07] text-slate-300 text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+            className="w-full min-h-[36px] px-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/[0.08] text-slate-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
           >
             <Check className="w-3.5 h-3.5 text-emerald-400" />
             <span>ทำเครื่องหมายว่าตัดเสร็จแล้ว</span>
@@ -165,20 +169,20 @@ const KanbanCard = memo(function KanbanCard({
       )}
 
       {phaseId === 'rendered' && (
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-1.5">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
             {ang.video_url && (
               <button
                 onClick={() => onPreviewVideo(ang.video_url)}
-                className="flex-1 min-h-[36px] px-2 rounded-lg bg-white/[0.04] border border-white/[0.07] text-slate-200 hover:bg-white/[0.08] active:bg-white/[0.12] text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+                className="flex-1 min-h-[40px] px-2 rounded-xl bg-white/[0.05] border border-white/[0.08] text-slate-200 hover:bg-white/[0.1] active:bg-white/[0.15] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <Play className="w-3 h-3 fill-white text-white" />
+                <Play className="w-3.5 h-3.5 fill-current text-[#25F4EE]" />
                 <span>พรีวิว QC</span>
               </button>
             )}
             <button
               onClick={() => onOpenQrModal(ang)}
-              className="flex-1 min-h-[36px] px-2 rounded-lg bg-[#7C3AED]/15 border border-[#7C3AED]/30 text-[#C4B5FD] hover:bg-[#7C3AED]/25 active:bg-[#7C3AED]/35 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+              className="flex-1 min-h-[40px] px-2 rounded-xl bg-[#25F4EE]/10 border border-[#25F4EE]/30 text-[#25F4EE] hover:bg-[#25F4EE]/20 active:bg-[#25F4EE]/30 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <QrCode className="w-3.5 h-3.5" />
               <span>ส่งมือถือ</span>
@@ -188,18 +192,18 @@ const KanbanCard = memo(function KanbanCard({
       )}
 
       {phaseId === 'mobile_ready' && (
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-1.5">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => onOpenQrModal(ang)}
-              className="flex-1 min-h-[36px] px-2 rounded-lg bg-purple-500/10 border border-purple-500/25 text-purple-300 hover:bg-purple-500/20 active:bg-purple-500/30 text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer"
+              className="flex-1 min-h-[40px] px-2 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300 hover:bg-purple-500/20 active:bg-purple-500/30 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer"
             >
               <QrCode className="w-3.5 h-3.5" />
               <span>QR Code</span>
             </button>
             <button
               onClick={() => onStatusChange(ang.parentProduct.id, ang.angle_id, 'posted')}
-              className="flex-1 min-h-[36px] px-2 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 active:bg-emerald-500/35 text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer"
+              className="flex-1 min-h-[40px] px-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30 active:bg-emerald-500/40 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer"
             >
               <Check className="w-3.5 h-3.5" />
               <span>โพสต์แล้ว</span>
@@ -209,7 +213,7 @@ const KanbanCard = memo(function KanbanCard({
       )}
 
       {phaseId === 'posted' && (
-        <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-center text-xs text-emerald-300 font-semibold flex items-center justify-center gap-1.5">
+        <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-center text-xs text-emerald-300 font-bold flex items-center justify-center gap-1.5">
           <CheckCircle2 className="w-4 h-4 text-emerald-400" />
           <span>คลิปออนไลน์สำเร็จ</span>
         </div>
@@ -219,10 +223,10 @@ const KanbanCard = memo(function KanbanCard({
       {captionText && (
         <button
           onClick={() => onCopyCaption(captionText, ang.angle_id)}
-          className="w-full min-h-[30px] py-1 px-2.5 rounded-lg bg-[#0E1118] hover:bg-[#151922] border border-white/[0.06] text-slate-300 hover:text-white flex items-center justify-between cursor-pointer transition-colors"
+          className="w-full min-h-[32px] py-1 px-2.5 rounded-xl bg-black/40 hover:bg-black/60 border border-white/[0.06] text-slate-300 hover:text-white flex items-center justify-between cursor-pointer transition-colors"
         >
           <span className="truncate max-w-[170px] font-mono text-[10px] text-slate-400">{ang.tiktok_caption || 'คัดลอกแคปชัน'}</span>
-          <span className="text-[#A78BFA] font-semibold flex items-center gap-1 flex-shrink-0 text-[10px]">
+          <span className="text-[#25F4EE] font-bold flex items-center gap-1 flex-shrink-0 text-[10px]">
             {copiedAngleId === ang.angle_id ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
             {copiedAngleId === ang.angle_id ? 'คัดลอกแล้ว' : 'แคปชัน'}
           </span>
@@ -234,7 +238,7 @@ const KanbanCard = memo(function KanbanCard({
         {prevPhase ? (
           <button
             onClick={() => onStatusChange(ang.parentProduct.id, ang.angle_id, prevPhase)}
-            className="flex items-center gap-1 text-slate-400 hover:text-white active:text-[#A78BFA] py-1 px-1 cursor-pointer"
+            className="flex items-center gap-1 text-slate-400 hover:text-white active:text-[#25F4EE] py-1 px-1 cursor-pointer"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
             <span>ถอยเฟส</span>
@@ -244,7 +248,7 @@ const KanbanCard = memo(function KanbanCard({
         {nextPhase && (
           <button
             onClick={() => onStatusChange(ang.parentProduct.id, ang.angle_id, nextPhase)}
-            className="flex items-center gap-1 text-[#A78BFA] hover:underline font-semibold py-1 px-1 cursor-pointer ml-auto"
+            className="flex items-center gap-1 text-[#25F4EE] hover:underline font-bold py-1 px-1 cursor-pointer ml-auto"
           >
             <span>เลื่อนไป {PIPELINE_PHASES.find(p => p.id === nextPhase)?.short}</span>
             <ChevronRight className="w-3.5 h-3.5" />
@@ -256,7 +260,7 @@ const KanbanCard = memo(function KanbanCard({
 });
 
 // ═══════════════════════════════════════════════════════════════════════
-// 📋 TABLE VIEW COMPONENT (Frame.io High-Density Table Style)
+// 📋 TABLE VIEW COMPONENT (High-Density True Table Style)
 // ═══════════════════════════════════════════════════════════════════════
 const TableRow = memo(function TableRow({
   ang,
@@ -276,11 +280,11 @@ const TableRow = memo(function TableRow({
         {ang.video_url ? (
           <button
             onClick={() => onPreviewVideo(ang.video_url)}
-            className="w-10 h-14 rounded-lg overflow-hidden bg-black relative border border-white/[0.08] hover:border-[#8B5CF6]/50 flex-shrink-0 group cursor-pointer"
+            className="w-10 h-14 rounded-lg overflow-hidden bg-black relative border border-white/[0.1] hover:border-[#25F4EE] flex-shrink-0 group cursor-pointer"
           >
             <video src={`/api/media/${ang.video_url}`} className="w-full h-full object-cover" muted />
             <div className="absolute inset-0 flex items-center justify-center bg-black/40 group-hover:bg-black/10">
-              <Play className="w-3 h-3 fill-white text-white" />
+              <Play className="w-3 h-3 fill-current text-[#25F4EE]" />
             </div>
           </button>
         ) : (
@@ -294,14 +298,14 @@ const TableRow = memo(function TableRow({
       <td className="py-2.5 px-3">
         <div className="space-y-0.5 max-w-xs sm:max-w-md">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-semibold text-white text-xs font-kanit">{ang.parentProduct?.name}</span>
+            <span className="font-bold text-white text-xs font-kanit">{ang.parentProduct?.name}</span>
             {ang.badge && (
               <span className="flex-shrink-0 whitespace-nowrap">
-                <Badge variant="purple" size="sm">{ang.badge}</Badge>
+                <Badge variant="cyan" size="sm">{ang.badge}</Badge>
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-300 font-medium line-clamp-1">{ang.hook_title}</p>
+          <p className="text-xs text-cyan-200 font-bold line-clamp-1">{ang.hook_title}</p>
         </div>
       </td>
 
@@ -310,10 +314,10 @@ const TableRow = memo(function TableRow({
         <select
           value={ang.status}
           onChange={(e) => onStatusChange(ang.parentProduct.id, ang.angle_id, e.target.value)}
-          className={`py-1.5 px-2.5 rounded-lg text-xs font-semibold border focus:outline-none cursor-pointer ${currentPhase.color}`}
+          className={`py-1.5 px-2.5 rounded-xl text-xs font-bold border focus:outline-none cursor-pointer ${currentPhase.color}`}
         >
           {PIPELINE_PHASES.map((p) => (
-            <option key={p.id} value={p.id} className="bg-[#12151E] text-white">
+            <option key={p.id} value={p.id} className="bg-[#080B11] text-white">
               {p.label}
             </option>
           ))}
@@ -324,10 +328,10 @@ const TableRow = memo(function TableRow({
       <td className="py-2.5 px-3">
         <button
           onClick={() => onCopyCaption(`${ang.tiktok_caption || ''}\n\n${ang.tiktok_hashtags || ''}`, ang.angle_id)}
-          className="text-left py-1 px-2 rounded-lg bg-[#0E1118] hover:bg-[#151922] border border-white/[0.06] text-slate-300 text-xs flex items-center justify-between gap-2 max-w-[200px] cursor-pointer"
+          className="text-left py-1 px-2 rounded-lg bg-black/40 hover:bg-black/60 border border-white/[0.06] text-slate-300 text-xs flex items-center justify-between gap-2 max-w-[200px] cursor-pointer"
         >
           <span className="truncate text-[11px] font-mono">{ang.tiktok_caption || 'คัดลอกแคปชัน'}</span>
-          <span className="text-[#A78BFA] flex-shrink-0">
+          <span className="text-[#25F4EE] flex-shrink-0">
             {copiedAngleId === ang.angle_id ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
           </span>
         </button>
@@ -338,7 +342,7 @@ const TableRow = memo(function TableRow({
         <div className="flex items-center justify-end gap-1.5">
           <button
             onClick={() => onSendToStudio(ang.parentProduct, ang)}
-            className="py-1.5 px-3 rounded-lg bg-[#7C3AED]/15 hover:bg-[#7C3AED]/25 border border-[#7C3AED]/35 text-[#C4B5FD] text-xs font-semibold flex items-center gap-1 cursor-pointer"
+            className="py-1.5 px-3 rounded-xl bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center gap-1 cursor-pointer"
             title="ส่งเข้า 1-Click Studio"
           >
             <Clapperboard className="w-3 h-3" />
@@ -347,7 +351,7 @@ const TableRow = memo(function TableRow({
 
           <button
             onClick={() => onOpenQrModal(ang)}
-            className="p-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.07] text-slate-300 cursor-pointer"
+            className="p-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-300 cursor-pointer"
             title="สแกน QR Code เข้ามือถือ"
           >
             <QrCode className="w-3.5 h-3.5" />
@@ -611,20 +615,20 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
       {/* ══════════════════════════════════════════════════════════
           1. RESPONSIVE METRIC CHIPS RIBBON (TAP TO SWITCH/FILTER)
          ══════════════════════════════════════════════════════════ */}
-      <div className="p-2 sm:p-2.5 rounded-xl border border-white/[0.07] bg-[#12151E]">
+      <div className="glass-panel p-2.5 sm:p-3 rounded-2xl border border-white/[0.08] bg-[#0B0E17]">
         <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar pr-6">
           {/* Card 0: All */}
           <button
             type="button"
             onClick={() => scrollToPhaseColumn('all')}
-            className={`py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer flex-shrink-0 border ${
+            className={`py-1.5 px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer flex-shrink-0 border ${
               activePhase === 'all'
-                ? 'bg-[#7C3AED]/20 text-[#A78BFA] border-[#7C3AED]/40 shadow-sm'
-                : 'bg-[#0E1118] text-slate-400 border-white/[0.07] hover:text-white hover:border-white/[0.14]'
+                ? 'bg-[#25F4EE]/20 text-[#25F4EE] border-[#25F4EE]/50 shadow-sm ring-1 ring-[#25F4EE]/30'
+                : 'bg-black/40 text-slate-400 border-white/[0.08] hover:text-white hover:border-white/[0.15]'
             }`}
           >
             <span>ทั้งหมด</span>
-            <span className="font-mono text-[11px] px-1.5 py-0.2 rounded-md bg-black/50">{allAnglesList.length}</span>
+            <span className="font-mono text-[11px] px-1.5 py-0.2 rounded-full bg-black/60">{allAnglesList.length}</span>
           </button>
 
           {/* Cards 1..5 */}
@@ -638,15 +642,15 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                 key={p.id}
                 type="button"
                 onClick={() => scrollToPhaseColumn(isActive && activePhase !== 'all' ? 'all' : p.id)}
-                className={`py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer flex-shrink-0 border ${
+                className={`py-1.5 px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer flex-shrink-0 border ${
                   isActive
-                    ? `${p.color} ring-1 ring-[#8B5CF6]/30 shadow-sm font-semibold`
-                    : 'bg-[#0E1118] text-slate-400 border-white/[0.07] hover:text-white hover:border-white/[0.14]'
+                    ? `${p.color} ring-1 ring-[#25F4EE]/40 shadow-sm font-bold`
+                    : 'bg-black/40 text-slate-400 border-white/[0.08] hover:text-white hover:border-white/[0.15]'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
                 <span>{p.short}</span>
-                <span className="font-mono text-[11px] px-1.5 py-0.2 rounded-md bg-black/50 font-semibold">{count}</span>
+                <span className="font-mono text-[11px] px-1.5 py-0.2 rounded-full bg-black/60 font-bold">{count}</span>
               </button>
             );
           })}
@@ -656,16 +660,16 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
       {/* ══════════════════════════════════════════════════════════
           2. COMPACT SEARCH & VIEW CONTROLS
          ══════════════════════════════════════════════════════════ */}
-      <div className="p-2 sm:p-2.5 rounded-xl border border-white/[0.07] bg-[#12151E] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+      <div className="glass-card p-2.5 sm:p-3 rounded-2xl border border-white/[0.08] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
         {/* Search Box */}
         <div className="relative flex-1 min-w-0">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="ค้นหาชื่อสินค้า, สคริปต์, หรือ Hook..."
-            className="w-full pl-8 pr-8 py-1.5 rounded-lg bg-[#0E1118] border border-white/[0.08] text-xs text-[#F1F3F9] placeholder-slate-500 focus:outline-none focus:border-[#8B5CF6]/50"
+            className="w-full pl-8.5 pr-8 py-1.5 rounded-xl bg-[#080B11] border border-white/[0.1] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#25F4EE]/50"
           />
           {searchQuery && (
             <button
@@ -682,7 +686,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
           <select
             value={selectedProductFilter}
             onChange={(e) => setSelectedProductFilter(e.target.value)}
-            className="py-1.5 px-2.5 rounded-lg bg-[#0E1118] border border-white/[0.08] text-xs font-semibold text-slate-200 focus:outline-none focus:border-[#8B5CF6]/50 cursor-pointer max-w-[170px] sm:max-w-[220px] truncate"
+            className="py-1.5 px-2.5 rounded-xl bg-[#080B11] border border-white/[0.1] text-xs font-bold text-slate-200 focus:outline-none focus:border-[#25F4EE]/50 cursor-pointer max-w-[170px] sm:max-w-[220px] truncate"
           >
             <option value="all">สินค้าทั้งหมด ({products.length})</option>
             {products.map(p => (
@@ -693,13 +697,13 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
           </select>
 
           {/* Multi-View Switcher (Board first, Table second) */}
-          <div className="flex items-center p-0.5 rounded-lg bg-[#0E1118] border border-white/[0.07] flex-shrink-0">
+          <div className="flex items-center p-0.5 rounded-xl bg-black/60 border border-white/[0.1] flex-shrink-0">
             <button
               type="button"
               onClick={() => handleSwitchViewMode('kanban')}
-              className={`py-1 px-2.5 rounded-md text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer ${
+              className={`py-1 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
                 viewMode === 'kanban'
-                  ? 'bg-[#7C3AED]/20 text-[#A78BFA] border border-[#7C3AED]/40 shadow-sm'
+                  ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-sm'
                   : 'text-slate-400 hover:text-white'
               }`}
               title="มุมมองบอร์ด (Kanban)"
@@ -711,9 +715,9 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
             <button
               type="button"
               onClick={() => handleSwitchViewMode('table')}
-              className={`py-1 px-2.5 rounded-md text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer ${
+              className={`py-1 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
                 viewMode === 'table'
-                  ? 'bg-[#7C3AED]/20 text-[#A78BFA] border border-[#7C3AED]/40 shadow-sm'
+                  ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-sm'
                   : 'text-slate-400 hover:text-white'
               }`}
               title="มุมมองตาราง (Table)"
@@ -733,15 +737,15 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
           {/* Mobile Swipe Hint */}
           <div className="flex xl:hidden items-center justify-between text-[11px] text-slate-400 px-1">
             <span className="flex items-center gap-1 text-slate-400">
-              <ChevronLeft className="w-3.5 h-3.5 text-[#A78BFA]" />
+              <ChevronLeft className="w-3.5 h-3.5 text-[#25F4EE]" />
               <span>เลื่อนซ้าย-ขวาเพื่อดูหัวข้อถัดไป</span>
-              <ChevronRight className="w-3.5 h-3.5 text-[#A78BFA]" />
+              <ChevronRight className="w-3.5 h-3.5 text-[#25F4EE]" />
             </span>
-            <span className="text-[#A78BFA] font-semibold font-mono">5 คอลัมน์</span>
+            <span className="text-[#25F4EE] font-bold font-mono">5 คอลัมน์</span>
           </div>
 
           {/* Real Horizontal Kanban Board with Snap-Scroll */}
-          <div className="flex overflow-x-auto snap-x snap-mandatory gap-3 pb-3 no-scrollbar scroll-smooth items-start xl:grid xl:grid-cols-5 xl:overflow-x-visible xl:snap-none">
+          <div className="flex overflow-x-auto snap-x snap-mandatory gap-3.5 pb-4 no-scrollbar scroll-smooth items-start xl:grid xl:grid-cols-5 xl:overflow-x-visible xl:snap-none">
             {PIPELINE_PHASES.map((phase) => {
               const phaseAngles = filteredAngles.filter(a => a.status === phase.id);
 
@@ -751,15 +755,15 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                   ref={(el) => (colRefs.current[phase.id] = el)}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => handleDropOnColumn(phase.id, e)}
-                  className="w-[84vw] max-w-[340px] xl:w-auto xl:max-w-none flex-shrink-0 snap-center p-3 border border-white/[0.07] space-y-2.5 rounded-2xl bg-[#12151E] transition-colors hover:border-white/[0.12] flex flex-col"
+                  className="w-[84vw] max-w-[340px] xl:w-auto xl:max-w-none flex-shrink-0 snap-center p-3.5 border border-white/[0.08] space-y-3 rounded-3xl glass-card transition-colors hover:border-white/[0.15] bg-[#070A12] flex flex-col"
                 >
                   {/* Column Header */}
-                  <div className="flex items-center justify-between pb-2 border-b border-white/[0.07]">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-[#F1F3F9] font-kanit">
-                      <phase.icon className="w-3.5 h-3.5 text-[#A78BFA]" />
+                  <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
+                    <div className="flex items-center gap-2 text-xs font-bold text-white font-kanit">
+                      <phase.icon className="w-3.5 h-3.5 text-[#25F4EE]" />
                       <span>{phase.label}</span>
                     </div>
-                    <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-md bg-[#0E1118] border border-white/[0.07] text-slate-300">
+                    <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-black/60 border border-white/[0.08] text-slate-300">
                       {phaseAngles.length}
                     </span>
                   </div>
@@ -767,7 +771,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                   {/* Cards inside column (Vertical Scrollable within column) */}
                   <div className="space-y-2.5 max-h-[64vh] overflow-y-auto pr-0.5 min-h-[140px]">
                     {phaseAngles.length === 0 ? (
-                      <div className="py-12 text-center text-xs text-slate-500 border border-dashed border-white/[0.06] rounded-xl">
+                      <div className="py-12 text-center text-xs text-slate-500 border border-dashed border-white/[0.06] rounded-2xl">
                         ไม่มีคลิปในขั้นตอนนี้
                       </div>
                     ) : (
@@ -797,16 +801,16 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
           4. CLEAN HIGH-DENSITY REAL TABLE VIEW
          ══════════════════════════════════════════════════════════ */}
       {viewMode === 'table' && (
-        <div className="rounded-2xl border border-white/[0.07] overflow-hidden bg-[#12151E] shadow-lg">
+        <div className="glass-card rounded-3xl border border-white/[0.08] overflow-hidden bg-[#070A12] shadow-xl">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse min-w-[660px]">
               <thead>
-                <tr className="border-b border-white/[0.07] bg-[#0E1118] text-slate-400 font-semibold text-[11px]">
-                  <th className="py-2.5 px-3 w-16 text-center">วิดีโอ</th>
-                  <th className="py-2.5 px-3 min-w-[200px]">สินค้า & มุมขาย (Hook Title)</th>
-                  <th className="py-2.5 px-3 w-36">สถานะขั้นตอน</th>
-                  <th className="py-2.5 px-3 w-48">แคปชัน TikTok</th>
-                  <th className="py-2.5 px-3 text-right w-28">ปุ่มลัด</th>
+                <tr className="border-b border-white/[0.08] bg-black/70 text-slate-400 font-bold text-[11px]">
+                  <th className="py-3 px-3 w-16 text-center">วิดีโอ</th>
+                  <th className="py-3 px-3 min-w-[200px]">สินค้า & มุมขาย (Hook Title)</th>
+                  <th className="py-3 px-3 w-36">สถานะขั้นตอน</th>
+                  <th className="py-3 px-3 w-48">แคปชัน TikTok</th>
+                  <th className="py-3 px-3 text-right w-28">ปุ่มลัด</th>
                 </tr>
               </thead>
               <tbody>

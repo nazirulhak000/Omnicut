@@ -30,6 +30,31 @@ DEFAULT_TRANSITION_DURATION = 0.4
 MAX_TRANSITION_DURATION = 2.0
 
 
+# Per-clip colour ranges. Wider than this and a review clip stops looking like
+# the product; ffmpeg's eq would happily accept anything.
+EQ_LIMITS = {
+    "brightness": (-0.3, 0.3, 0.0),
+    "contrast": (0.5, 2.0, 1.0),
+    "saturation": (0.0, 3.0, 1.0),
+}
+
+
+def build_eq_filter(clip: Dict[str, Any]) -> str:
+    """`eq=...,` for one clip, or "" when every value is still the default."""
+    parts = []
+    for key, (low, high, default) in EQ_LIMITS.items():
+        raw = clip.get(key)
+        if raw is None:
+            continue
+        try:
+            value = min(high, max(low, float(raw)))
+        except (TypeError, ValueError):
+            continue
+        if abs(value - default) > 1e-3:
+            parts.append(f"{key}={value}")
+    return f"eq={':'.join(parts)}," if parts else ""
+
+
 def normalize_transitions(transitions: List[Any]) -> List[Dict[str, Any]]:
     """
     Accept both shapes a caller may send for one boundary:
@@ -111,7 +136,8 @@ class VideoEditor:
         lut_path: str = None,
         shot_scales: List[float] = None,
         clip_list: List[Dict] = None,
-        transitions: List[str] = None
+        transitions: List[Any] = None,
+        lut_intensity: float = 1.0
     ) -> str:
         """
         Takes raw footage, creates fast-paced punch-in cuts synced to audio duration and Gemini Vision scenes,
@@ -180,6 +206,11 @@ class VideoEditor:
                 # scale/crop chain so the punch-zoom framing is unaffected.
                 mirror_filter = "hflip," if clip.get("mirror") else ""
 
+                # Per-clip colour correction. Only emitted when a value is
+                # actually off-default, so an untouched clip's filter chain
+                # (and its render time) stays exactly as it was.
+                eq_filter = build_eq_filter(clip)
+
                 scale = shot_scales[idx % len(shot_scales)]
                 scaled_w = int(VIDEO_WIDTH * scale)
                 scaled_h = int(VIDEO_HEIGHT * scale)
@@ -191,7 +222,7 @@ class VideoEditor:
                 node_name = f"clip_{idx}"
                 filter_complex.append(
                     f"[{idx}:v]trim=start={trim_start}:duration={source_span},setpts=PTS-STARTPTS,"
-                    f"{speed_filter}{mirror_filter}"
+                    f"{speed_filter}{mirror_filter}{eq_filter}"
                     f"scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,"
                     f"crop={VIDEO_WIDTH}:{VIDEO_HEIGHT},setsar=1,fps={FPS},"
                     f"scale={scaled_w}:{scaled_h}:flags=lanczos,crop={VIDEO_WIDTH}:{VIDEO_HEIGHT}:{crop_x}:{crop_y}[{node_name}];"
@@ -335,7 +366,18 @@ class VideoEditor:
         # re-graded along with the footage.
         if lut_path and Path(lut_path).exists():
             lut_path_str = str(Path(lut_path).resolve()).replace('\\', '/').replace(':', '\\:')
-            filter_complex.append(f"{current_v}lut3d='{lut_path_str}'[v_graded];")
+            strength = min(1.0, max(0.0, float(lut_intensity if lut_intensity is not None else 1.0)))
+            if strength >= 0.999:
+                filter_complex.append(f"{current_v}lut3d='{lut_path_str}'[v_graded];")
+            else:
+                # Partial strength = blend the graded frame back over the
+                # original. Costs one extra pass, so full strength (the
+                # default) still takes the single-filter path above.
+                filter_complex.append(
+                    f"{current_v}split=2[lut_src][lut_in];"
+                    f"[lut_in]lut3d='{lut_path_str}'[lut_out];"
+                    f"[lut_src][lut_out]blend=all_mode=normal:all_opacity={strength}[v_graded];"
+                )
             current_v = "[v_graded]"
 
         # Optional Promotional Sticker Overlay (Top-Right Badge with entry animation)

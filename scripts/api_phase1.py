@@ -347,6 +347,7 @@ class RerollRequest(BaseModel):
     sticker_badge: Optional[str] = None
     bgm_name: Optional[str] = None
     lut_name: Optional[str] = None
+    lut_intensity: Optional[float] = None
     clip_list: Optional[List[Dict[str, Any]]] = None
     transitions: Optional[List[str]] = None
 
@@ -435,6 +436,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 sticker_path=params.get("sticker_path"),
                 bgm_name=params.get("bgm_name"),
                 lut_name=params.get("lut_name"),
+                lut_intensity=params.get("lut_intensity", 1.0),
                 clip_list=params.get("clip_list"),
                 transitions=params.get("transitions"),
                 export_mp4=True,
