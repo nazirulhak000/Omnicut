@@ -1,11 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Play, Pause, Eye } from 'lucide-react';
 import { toMediaUrl } from '../lib/mediaUrl';
+import {
+  buildSegments, totalDuration as totalDurationOf, getDrawPlan as planAt
+} from '../lib/timelineMath';
 
-// Must match SFXManager/video_editor.py's crossfade overlap exactly, or the
-// preview's segment timing (and therefore captions) drifts from what Apply
-// actually renders.
-const FADE_DURATION = 0.4;
 const CANVAS_W = 540;
 const CANVAS_H = 960;
 // How far a clip's decoded currentTime may drift from the wall-clock-derived
@@ -98,40 +97,15 @@ export default function SequencePlayer({ clips, cues = [] }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clipKey]);
 
-  const segments = useMemo(() => {
-    if (!metadataReady) return [];
-    let acc = 0;
-    return clips.map((c, i) => {
-      const srcDur = durations[c.id] || 0;
-      const dur = Math.max(0.1, (c.trim_end ?? srcDur) - c.trim_start);
-      const isFade = i > 0 && c.transition_in === 'fade';
-      const segStart = i === 0 ? 0 : (isFade ? acc - FADE_DURATION : acc);
-      const segEnd = segStart + dur;
-      acc = segEnd;
-      return { clip: c, srcDur, isFade, segStart, segEnd };
-    });
+  const segments = useMemo(
+    () => (metadataReady ? buildSegments(clips, durations) : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clipKey, metadataReady]);
+    [clipKey, metadataReady, durations]
+  );
 
-  const totalDuration = segments.length ? segments[segments.length - 1].segEnd : 0;
+  const totalDuration = totalDurationOf(segments);
 
-  // Given a global sequence time, which clip(s) to draw and at what alpha
-  // -- two entries during a fade's overlap window, one otherwise.
-  const getDrawPlan = (t) => {
-    let idx = segments.findIndex(s => t >= s.segStart && t < s.segEnd);
-    if (idx === -1) idx = t < 0 ? 0 : segments.length - 1;
-    const seg = segments[idx];
-    const localTime = seg.clip.trim_start + (t - seg.segStart);
-    const plan = [{ seg, localTime, alpha: 1 }];
-    if (seg.isFade && idx > 0 && t < seg.segStart + FADE_DURATION) {
-      const prevSeg = segments[idx - 1];
-      const prevLocalTime = prevSeg.clip.trim_start + (t - prevSeg.segStart);
-      const alpha = Math.max(0, Math.min(1, (t - seg.segStart) / FADE_DURATION));
-      plan[0] = { seg: prevSeg, localTime: prevLocalTime, alpha: 1 - alpha };
-      plan.push({ seg, localTime, alpha });
-    }
-    return plan;
-  };
+  const getDrawPlan = (t) => planAt(segments, t);
 
   const renderAt = (t) => {
     const canvas = canvasRef.current;
@@ -257,15 +231,15 @@ export default function SequencePlayer({ clips, cues = [] }) {
         ))}
       </div>
 
-      <div className="relative mx-auto rounded-xl overflow-hidden bg-black border border-white/10" style={{ width: '100%', maxWidth: 260, aspectRatio: '9/16' }}>
+      <div className="relative mx-auto rounded-2xl overflow-hidden bg-black border border-white/[0.1] shadow-2xl" style={{ width: '100%', maxWidth: 260, aspectRatio: '9/16' }}>
         <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H} className="w-full h-full" />
         {!metadataReady && clips.length > 0 && (
-          <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-400 bg-black/60">
+          <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-slate-400 bg-black/70 backdrop-blur-sm">
             กำลังโหลดวิดีโอ...
           </div>
         )}
         {clips.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-500">
+          <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-slate-500">
             เพิ่มคลิปเข้าไทม์ไลน์เพื่อดูพรีวิว
           </div>
         )}
@@ -274,8 +248,8 @@ export default function SequencePlayer({ clips, cues = [] }) {
             onClick={togglePlay}
             className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/20 transition-colors cursor-pointer group"
           >
-            <div className="w-11 h-11 rounded-full bg-black/50 group-hover:bg-[#25F4EE]/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
-              {isPlaying ? <Pause className="w-5 h-5 text-white" /> : <Play className="w-5 h-5 text-white ml-0.5" />}
+            <div className="w-12 h-12 rounded-full bg-black/60 group-hover:bg-[#25F4EE] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all text-white group-hover:text-slate-950 shadow-lg">
+              {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
             </div>
           </button>
         )}
@@ -283,12 +257,12 @@ export default function SequencePlayer({ clips, cues = [] }) {
 
       {metadataReady && clips.length > 0 && (
         <>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 pt-1">
             <button
               onClick={togglePlay}
-              className="w-7 h-7 rounded-lg bg-[#25F4EE] text-slate-950 flex items-center justify-center flex-shrink-0 cursor-pointer"
+              className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#FE2C55] to-[#25F4EE] text-white flex items-center justify-center flex-shrink-0 cursor-pointer shadow-md shadow-[#FE2C55]/20 hover:brightness-110 transition-all"
             >
-              {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 ml-0.5" />}
+              {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
             </button>
             <input
               type="range" min={0} max={totalDuration || 0} step={0.01}
@@ -296,12 +270,12 @@ export default function SequencePlayer({ clips, cues = [] }) {
               onChange={handleScrubInput}
               className="flex-1 accent-[#25F4EE]"
             />
-            <span className="text-[10px] font-mono text-slate-400 w-16 text-right flex-shrink-0">
+            <span className="text-xs font-mono text-slate-400 w-20 text-right flex-shrink-0 font-bold">
               {playhead.toFixed(1)}s / {totalDuration.toFixed(1)}s
             </span>
           </div>
-          <p className="text-[9px] text-slate-500 flex items-center gap-1">
-            <Eye className="w-3 h-3" /> พรีวิวรวมทั้ง sequence แบบประมาณ (ฟอนต์/สีจริงยึดผลจาก Apply เท่านั้น)
+          <p className="text-[11px] text-slate-400 flex items-center gap-1">
+            <Eye className="w-3.5 h-3.5 text-[#25F4EE]" /> พรีวิวรวมทั้ง sequence แบบประมาณ (ฟอนต์/สีจริงยึดผลจาก Apply เท่านั้น)
           </p>
         </>
       )}
