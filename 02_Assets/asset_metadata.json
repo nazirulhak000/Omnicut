@@ -82,5 +82,35 @@
     "source_url": "https://freesound.org/people/PiesHelpfulOven/sounds/842513/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
     "category": "misc"
+  },
+  "sfx_static_voice": {
+    "source": "freesound",
+    "source_url": "https://freesound.org/people/colorsCrimsonTears/sounds/585798/",
+    "license": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "category": "misc"
+  },
+  "sfx_electricity_01": {
+    "source": "freesound",
+    "source_url": "https://freesound.org/people/mrspivey/sounds/805189/",
+    "license": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "category": "misc"
+  },
+  "sfx_alien_tapping_loop": {
+    "source": "freesound",
+    "source_url": "https://freesound.org/people/mista%20bojjob/sounds/162348/",
+    "license": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "category": "misc"
+  },
+  "sfx_90s_computer_startup_sound_boot_01": {
+    "source": "freesound",
+    "source_url": "https://freesound.org/people/Johnmode/sounds/818847/",
+    "license": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "category": "misc"
+  },
+  "sfx_glitch019_computer_startup_wav": {
+    "source": "freesound",
+    "source_url": "https://freesound.org/people/Zeraora/sounds/572773/",
+    "license": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "category": "misc"
   }
 }
