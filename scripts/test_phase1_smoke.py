@@ -597,6 +597,40 @@ def test_render_slot_releases_on_exception():
 
 
 # ----------------------------------------------------------------------
+# PATCH /api/projects/{name}/cues -- Manual Editor caption edits
+# ----------------------------------------------------------------------
+def test_update_cues_404s_for_a_project_that_was_never_rendered(client, projects_dir):
+    response = client.patch("/api/projects/never-rendered/cues", json={"cues": []})
+    assert response.status_code == 404
+
+
+def test_update_cues_requires_at_least_one_field(client, projects_dir):
+    ProjectManifest.save("demo", cues=[{"start": 0, "end": 1, "text": "เดิม"}])
+    response = client.patch("/api/projects/demo/cues", json={})
+    assert response.status_code == 400
+
+
+def test_update_cues_persists_edited_text_and_timing(client, projects_dir):
+    ProjectManifest.save(
+        "demo",
+        cues=[{"start": 0.0, "end": 2.0, "text": "เดิม", "sfx": None}],
+        micro_cues=[{"start": 0.0, "end": 1.0, "text": "เดิม"}],
+    )
+
+    new_cues = [{"start": 0.0, "end": 2.5, "text": "แก้ใหม่แล้ว", "sfx": "sfx_pop_bubble"}]
+    response = client.patch("/api/projects/demo/cues", json={"cues": new_cues})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["cues"] == new_cues
+    # micro_cues untouched since the request didn't include it
+    assert body["micro_cues"][0]["text"] == "เดิม"
+
+    reloaded = ProjectManifest.load("demo")
+    assert reloaded["cues"] == new_cues
+
+
+# ----------------------------------------------------------------------
 # Re-roll guard rails (HTTP level)
 # ----------------------------------------------------------------------
 def test_reroll_rejects_an_unknown_part(client):

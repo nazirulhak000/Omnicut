@@ -343,6 +343,7 @@ class RerollRequest(BaseModel):
     sticker_path: Optional[str] = None
     bgm_name: Optional[str] = None
     lut_name: Optional[str] = None
+    clip_list: Optional[List[Dict[str, Any]]] = None
 
 
 # What each button costs, so the UI can warn before a slow one.
@@ -367,6 +368,36 @@ def get_project(project_name: str):
     if not manifest:
         raise HTTPException(status_code=404, detail=f"ไม่พบโปรเจกต์ '{project_name}'")
     return manifest
+
+
+class UpdateCuesRequest(BaseModel):
+    cues: Optional[List[Dict[str, Any]]] = None
+    micro_cues: Optional[List[Dict[str, Any]]] = None
+
+
+@router.patch("/projects/{project_name}/cues")
+def update_project_cues(project_name: str, req: UpdateCuesRequest):
+    """
+    Manual Editor caption edits: persist edited cue text/timing into the
+    manifest only -- no re-render here. `SubtitleEngine.generate_ass()`
+    already reads whatever cues are in the manifest, so the caller follows
+    this up with `POST /api/reroll` (`part: "subtitles"` or `"video"`) to
+    actually regenerate the .ass / final MP4 from the edited cues.
+    """
+    manifest = ProjectManifest.load(project_name)
+    if not manifest:
+        raise HTTPException(status_code=404, detail=f"ไม่พบโปรเจกต์ '{project_name}'")
+
+    fields: Dict[str, Any] = {}
+    if req.cues is not None:
+        fields["cues"] = req.cues
+    if req.micro_cues is not None:
+        fields["micro_cues"] = req.micro_cues
+    if not fields:
+        raise HTTPException(status_code=400, detail="ต้องส่ง cues หรือ micro_cues มาอย่างน้อยหนึ่งอย่าง")
+
+    updated = ProjectManifest.save(project_name, **fields)
+    return {"success": True, "cues": updated.get("cues"), "micro_cues": updated.get("micro_cues")}
 
 
 def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[str, Any]) -> None:
@@ -399,6 +430,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 sticker_path=params.get("sticker_path"),
                 bgm_name=params.get("bgm_name"),
                 lut_name=params.get("lut_name"),
+                clip_list=params.get("clip_list"),
                 export_mp4=True,
                 resume_from=stage,
                 progress_callback=render_jobs.progress_reporter(job_id),
