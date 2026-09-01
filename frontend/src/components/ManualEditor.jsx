@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors
 } from '@dnd-kit/core';
@@ -15,7 +15,16 @@ import {
   getProjects, getProject, updateProjectCues, startReroll, getRenderStatus, getAllAssets
 } from '../api';
 
-function SortableClipRow({ clip, index, onChange, onRemove }) {
+// Backend accepts absolute or BASE_DIR-relative paths at /api/media/{path}
+// (scripts/api_server.py's stream_media()) -- encode each segment so Thai
+// filenames/spaces survive, but keep the "/" separators the route needs.
+const toMediaUrl = (rawPath) => {
+  if (!rawPath) return '';
+  const normalized = rawPath.replace(/\\/g, '/');
+  return '/api/media/' + normalized.split('/').map(encodeURIComponent).join('/');
+};
+
+function SortableClipRow({ clip, index, isActive, onSelect, onRemove }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: clip.id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -23,54 +32,151 @@ function SortableClipRow({ clip, index, onChange, onRemove }) {
     opacity: isDragging ? 0.5 : 1,
   };
   const fileName = (clip.source_path || '').split('\\').pop()?.split('/').pop() || clip.source_path;
+  const trimLabel = `${clip.trim_start.toFixed(1)}s – ${clip.trim_end != null ? `${clip.trim_end.toFixed(1)}s` : 'สุดคลิป'}`;
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-2.5 p-2.5 rounded-xl bg-black/40 border border-white/[0.08]"
+      onClick={() => onSelect(clip.id)}
+      className={`flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-colors ${
+        isActive ? 'bg-[#25F4EE]/10 border-[#25F4EE]/50' : 'bg-black/40 border-white/[0.08] hover:border-white/20'
+      }`}
     >
       <button
         {...attributes}
         {...listeners}
+        onClick={(e) => e.stopPropagation()}
         className="text-slate-500 hover:text-slate-300 cursor-grab active:cursor-grabbing flex-shrink-0 touch-none"
         title="ลากเพื่อสลับลำดับ"
       >
         <GripVertical className="w-4 h-4" />
       </button>
 
-      <span className="w-6 h-6 rounded-lg bg-[#25F4EE]/10 text-[#25F4EE] flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+      <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${
+        isActive ? 'bg-[#25F4EE] text-slate-950' : 'bg-[#25F4EE]/10 text-[#25F4EE]'
+      }`}>
         {index + 1}
       </span>
 
       <div className="flex-1 min-w-0">
         <div className="text-xs font-bold text-white truncate" title={clip.source_path}>{fileName}</div>
-        <div className="flex items-center gap-2 mt-1">
-          <label className="text-[9px] text-slate-500">เข้า(วิ)</label>
-          <input
-            type="number" step="0.1" min="0"
-            value={clip.trim_start}
-            onChange={(e) => onChange(clip.id, 'trim_start', parseFloat(e.target.value) || 0)}
-            className="w-16 py-1 px-1.5 rounded-md bg-[#080B11] border border-white/[0.1] text-[10px] text-slate-100 font-mono focus:outline-none focus:border-[#25F4EE]/50"
-          />
-          <label className="text-[9px] text-slate-500">ออก(วิ)</label>
-          <input
-            type="number" step="0.1" min="0"
-            value={clip.trim_end ?? ''}
-            placeholder="สุดคลิป"
-            onChange={(e) => onChange(clip.id, 'trim_end', e.target.value === '' ? null : parseFloat(e.target.value))}
-            className="w-20 py-1 px-1.5 rounded-md bg-[#080B11] border border-white/[0.1] text-[10px] text-slate-100 font-mono placeholder:text-slate-600 focus:outline-none focus:border-[#25F4EE]/50"
-          />
-        </div>
+        <div className="text-[9px] text-slate-500 font-mono mt-0.5">{trimLabel}</div>
       </div>
 
       <button
-        onClick={() => onRemove(clip.id)}
+        onClick={(e) => { e.stopPropagation(); onRemove(clip.id); }}
         className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 flex-shrink-0 cursor-pointer"
         title="เอาออกจากไทม์ไลน์"
       >
         <Trash2 className="w-3.5 h-3.5" />
       </button>
+    </div>
+  );
+}
+
+// Visual, frame-accurate trim -- click a clip in the timeline to load it
+// here: real video preview + draggable in/out handles on a scrub bar,
+// closer to how CapCut's trim actually feels than bare number boxes.
+function ClipPreviewTrimmer({ clip, onChange }) {
+  const videoRef = useRef(null);
+  const trackRef = useRef(null);
+  const draggingRef = useRef(null);
+  const [duration, setDuration] = useState(0);
+
+  useEffect(() => {
+    setDuration(0);
+  }, [clip.id]);
+
+  const mediaUrl = toMediaUrl(clip.source_path);
+  const trimEnd = clip.trim_end ?? duration;
+
+  const timeFromClientX = (clientX) => {
+    if (!trackRef.current || !duration) return 0;
+    const rect = trackRef.current.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    return Math.round(ratio * duration * 10) / 10;
+  };
+
+  const onHandleDown = (which) => (e) => {
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    draggingRef.current = which;
+  };
+
+  const onHandleUp = (e) => {
+    draggingRef.current = null;
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
+  };
+
+  const onHandleMove = (which) => (e) => {
+    if (draggingRef.current !== which || !duration) return;
+    const t = timeFromClientX(e.clientX);
+    if (which === 'start') {
+      const val = Math.max(0, Math.min(t, trimEnd - 0.2));
+      onChange('trim_start', val);
+      if (videoRef.current) videoRef.current.currentTime = val;
+    } else {
+      const clamped = Math.max(t, clip.trim_start + 0.2);
+      const val = clamped >= duration - 0.1 ? null : clamped;
+      onChange('trim_end', val);
+      if (videoRef.current) videoRef.current.currentTime = val ?? Math.max(0, duration - 0.05);
+    }
+  };
+
+  const pct = (t) => (duration ? `${Math.min(100, Math.max(0, (t / duration) * 100))}%` : '0%');
+
+  return (
+    <div className="space-y-2.5">
+      <video
+        key={clip.id}
+        ref={videoRef}
+        src={mediaUrl}
+        controls
+        playsInline
+        onLoadedMetadata={(e) => setDuration(e.target.duration || 0)}
+        className="w-full max-h-[320px] rounded-xl bg-black border border-white/10"
+      />
+      {duration > 0 ? (
+        <div
+          ref={trackRef}
+          className="relative h-9 rounded-lg bg-black/60 border border-white/10 select-none"
+        >
+          <div
+            className="absolute top-0 bottom-0 bg-[#25F4EE]/20 border-x-2 border-[#25F4EE] pointer-events-none"
+            style={{ left: pct(clip.trim_start), right: `calc(100% - ${pct(trimEnd)})` }}
+          />
+          <div
+            onPointerDown={onHandleDown('start')}
+            onPointerMove={onHandleMove('start')}
+            onPointerUp={onHandleUp}
+            className="absolute top-0 bottom-0 w-4 -ml-2 bg-[#25F4EE] rounded cursor-ew-resize touch-none flex items-center justify-center"
+            style={{ left: pct(clip.trim_start) }}
+            title="ลากปรับจุดเริ่ม"
+          >
+            <div className="w-0.5 h-4 bg-slate-950/60" />
+          </div>
+          <div
+            onPointerDown={onHandleDown('end')}
+            onPointerMove={onHandleMove('end')}
+            onPointerUp={onHandleUp}
+            className="absolute top-0 bottom-0 w-4 -ml-2 bg-[#25F4EE] rounded cursor-ew-resize touch-none flex items-center justify-center"
+            style={{ left: pct(trimEnd) }}
+            title="ลากปรับจุดจบ"
+          >
+            <div className="w-0.5 h-4 bg-slate-950/60" />
+          </div>
+        </div>
+      ) : (
+        <div className="h-9 rounded-lg bg-black/40 border border-white/10 flex items-center justify-center text-[10px] text-slate-500">
+          กำลังโหลดวิดีโอ...
+        </div>
+      )}
+      <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+        <span>เข้า {clip.trim_start.toFixed(1)}s</span>
+        <span className="text-[#25F4EE] font-bold">ยาว {duration ? (trimEnd - clip.trim_start).toFixed(1) : '…'}s</span>
+        <span>ออก {duration ? trimEnd.toFixed(1) : '…'}s / {duration.toFixed(1)}s</span>
+      </div>
     </div>
   );
 }
@@ -101,6 +207,7 @@ export default function ManualEditor({ videos = [] }) {
   const [loadError, setLoadError] = useState(null);
 
   const [clipList, setClipList] = useState([]);
+  const [activeClipId, setActiveClipId] = useState(null);
   const [cuesList, setCuesList] = useState([]);
   const [cuesDirty, setCuesDirty] = useState(false);
 
@@ -167,17 +274,18 @@ export default function ManualEditor({ videos = [] }) {
 
       const existingClips = rp.clip_list;
       const existingTransitions = rp.transitions || [];
+      let seededClips = [];
       if (existingClips && existingClips.length > 0) {
-        setClipList(existingClips.map((c, i) => ({
+        seededClips = existingClips.map((c, i) => ({
           id: `clip-${i}-${Date.now()}`,
           transition_in: i === 0 ? 'cut' : (existingTransitions[i - 1] || 'cut'),
           ...c,
-        })));
+        }));
       } else if (rp.raw_video_path) {
-        setClipList([{ id: `clip-0-${Date.now()}`, source_path: rp.raw_video_path, trim_start: 0, trim_end: null }]);
-      } else {
-        setClipList([]);
+        seededClips = [{ id: `clip-0-${Date.now()}`, source_path: rp.raw_video_path, trim_start: 0, trim_end: null, transition_in: 'cut' }];
       }
+      setClipList(seededClips);
+      setActiveClipId(seededClips[0]?.id || null);
 
       setCuesList((data.cues || []).map((c, i) => ({ ...c, _uid: `cue-${i}-${Date.now()}` })));
       setCuesDirty(false);
@@ -192,13 +300,15 @@ export default function ManualEditor({ videos = [] }) {
   };
 
   const addClipFromBin = (video) => {
+    const newId = `clip-${clipList.length}-${Date.now()}`;
     setClipList(prev => [...prev, {
-      id: `clip-${prev.length}-${Date.now()}`,
+      id: newId,
       source_path: video.path,
       trim_start: 0,
       trim_end: null,
       transition_in: 'cut',
     }]);
+    setActiveClipId(newId);
   };
 
   const updateClip = (id, field, value) => {
@@ -212,7 +322,11 @@ export default function ManualEditor({ videos = [] }) {
   };
 
   const removeClip = (id) => {
-    setClipList(prev => prev.filter(c => c.id !== id));
+    setClipList(prev => {
+      const next = prev.filter(c => c.id !== id);
+      if (activeClipId === id) setActiveClipId(next[0]?.id || null);
+      return next;
+    });
   };
 
   const handleDragEnd = (event) => {
@@ -285,6 +399,7 @@ export default function ManualEditor({ videos = [] }) {
 
   const progressPercent = Math.round((jobStatus?.progress || 0) * 100);
   const selectClass = "w-full py-2 px-3 rounded-xl bg-[#080B11] border border-white/[0.1] text-slate-100 text-xs focus:outline-none focus:border-[#25F4EE]/50 transition-colors shadow-inner";
+  const activeClip = clipList.find(c => c.id === activeClipId) || null;
 
   return (
     <div className="space-y-6 animate-fadeIn pb-16">
@@ -299,7 +414,7 @@ export default function ManualEditor({ videos = [] }) {
               ตัดต่อมือ (Manual Editor)
             </h2>
             <p className="text-xs sm:text-sm text-slate-400 font-prompt mt-0.5">
-              ปรับลำดับคลิป/ตัดต่อ + แก้คำบรรยาย สำหรับโปรเจกต์ที่ 1-Click Studio สร้างไว้แล้ว — MVP: ยังไม่มี transition/keyframe/color curve แบบ CapCut เต็มรูปแบบ
+พรีวิววิดีโอ ลากตัดต้น-จบ สลับลำดับ ใส่ fade + แก้คำบรรยาย สำหรับโปรเจกต์ที่ 1-Click Studio สร้างไว้แล้ว — MVP: ยังไม่มี keyframe/color curve แบบ CapCut เต็มรูปแบบ
             </p>
           </div>
         </div>
@@ -367,12 +482,25 @@ export default function ManualEditor({ videos = [] }) {
             </div>
           </div>
 
-          {/* ── Middle: Timeline + Apply ── */}
+          {/* ── Middle: Preview/Trim + Timeline + Apply ── */}
           <div className="space-y-4">
+            {activeClip && (
+              <div className="glass-card p-4 space-y-3">
+                <h3 className="text-xs font-bold text-white flex items-center gap-2 pb-2 border-b border-white/10">
+                  <Film className="w-3.5 h-3.5 text-[#25F4EE]" />
+                  พรีวิว & ตัดคลิป (คลิปที่ {clipList.findIndex(c => c.id === activeClipId) + 1})
+                </h3>
+                <ClipPreviewTrimmer
+                  clip={activeClip}
+                  onChange={(field, value) => updateClip(activeClip.id, field, value)}
+                />
+              </div>
+            )}
+
             <div className="glass-card p-4 space-y-3">
               <h3 className="text-xs font-bold text-white flex items-center gap-2 pb-2 border-b border-white/10">
                 <Scissors className="w-3.5 h-3.5 text-[#FE2C55]" />
-                ไทม์ไลน์ ({clipList.length} คลิป) — ลากเพื่อสลับลำดับ
+                ไทม์ไลน์ ({clipList.length} คลิป) — คลิกเพื่อเลือก/ลากเพื่อสลับลำดับ
               </h3>
 
               {clipList.length === 0 ? (
@@ -392,7 +520,8 @@ export default function ManualEditor({ videos = [] }) {
                           <SortableClipRow
                             clip={clip}
                             index={idx}
-                            onChange={updateClip}
+                            isActive={clip.id === activeClipId}
+                            onSelect={setActiveClipId}
                             onRemove={removeClip}
                           />
                         </React.Fragment>
