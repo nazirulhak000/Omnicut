@@ -322,6 +322,13 @@ def generate_music_library():
 
 # -----------------------------------------------------------------------------
 # 2. GRAPHIC OVERLAYS & STICKERS GENERATOR (RGBA PNG)
+#
+# SUPERSEDED for the sticker/badge output -- 02_Assets/Stickers_Memes/ on
+# disk today holds the 8 badge_*_3d.png files from build_3d_pro_badges.py
+# (the canonical generator), not this function's filenames. Re-running the
+# full build_assets.py pipeline would drop a second, mismatched sticker set
+# that the render pipeline does not reference. The banner/frame template
+# outputs into Templates/ are still current and fine to regenerate.
 # -----------------------------------------------------------------------------
 def generate_stickers_and_templates():
     print("🏷️ [3/5] Generating Stickers & Banners (PNG Overlays)...")

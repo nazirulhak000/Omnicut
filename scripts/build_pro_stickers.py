@@ -1,3 +1,14 @@
+"""
+SUPERSEDED -- output does not match what is actually on disk anymore.
+
+02_Assets/Stickers_Memes/ currently holds the 8 badge_*_3d.png files
+produced by build_3d_pro_badges.py (the canonical sticker generator).
+Re-running this script would regenerate a different, mismatched set of
+filenames that nothing in the render pipeline references. Kept for
+reference only -- do not run without first checking what StudioStep3Audio.jsx
+and scripts/sfx_manager.py-style consumers actually expect.
+"""
+
 import os
 import sys
 import math
