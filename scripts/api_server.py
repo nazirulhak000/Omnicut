@@ -33,6 +33,8 @@ from scripts.config import (
 from scripts.script_generator import ScriptGenerator
 from scripts.pipeline import TikTokAutoCutterPipeline
 from scripts.voice_engine import VoiceEngine
+from scripts.product_scraper import ProductScraper
+from scripts.product_store import ProductStore
 
 app = FastAPI(
     title="TikTok Auto-Cutter Pro API",
@@ -96,6 +98,7 @@ class RenderRequest(BaseModel):
     sticker_badge: Optional[str] = "badge_flash_sale_3d.png"
     bgm_name: Optional[str] = None  # BGM filename from AssetRegistry.bgm(); None keeps SFXManager's own default
     lut_name: Optional[str] = None  # LUT filename from AssetRegistry.luts(); None auto-picks by IT angle, or no grade
+    clip_list: Optional[List[Dict[str, Any]]] = None  # Manual Editor: [{source_path, trim_start, trim_end}]; None keeps single-source auto-cut
     export_mp4: bool = True
 
 class DeleteFileRequest(BaseModel):
@@ -145,12 +148,23 @@ def stream_media_file(file_path: Path, request: Request):
     range_header = request.headers.get("range")
 
     content_type = "video/mp4"
-    if file_path.suffix.lower() in [".mov"]:
+    ext = file_path.suffix.lower()
+    if ext in [".mov"]:
         content_type = "video/quicktime"
-    elif file_path.suffix.lower() in [".mp3"]:
+    elif ext in [".mp3"]:
         content_type = "audio/mpeg"
-    elif file_path.suffix.lower() in [".wav"]:
+    elif ext in [".wav"]:
         content_type = "audio/wav"
+    elif ext in [".jpg", ".jpeg"]:
+        content_type = "image/jpeg"
+    elif ext in [".png"]:
+        content_type = "image/png"
+    elif ext in [".webp"]:
+        content_type = "image/webp"
+    elif ext in [".ttf"]:
+        content_type = "font/ttf"
+    elif ext in [".otf"]:
+        content_type = "font/otf"
 
     if range_header:
         # Example: "bytes=100-200" or "bytes=100-"
@@ -319,7 +333,78 @@ def generate_script(req: ScriptGenerateRequest):
         price_deal=req.price_deal,
         template_key=req.template_key
     )
-    return {"script": data}
+@app.post("/api/products/scrape-and-plan")
+def scrape_and_plan(payload: Dict[str, Any]):
+    """Scrapes product info or accepts raw text/keywords and generates 4-Angle Content Matrix, saved to ProductStore."""
+    url = payload.get("url", "").strip()
+    raw_text = payload.get("raw_text", "").strip()
+    custom_keyword = payload.get("custom_keyword", "").strip()
+
+    if not url and not raw_text and not custom_keyword:
+        raise HTTPException(status_code=400, detail="กรุณาระบุลิงก์ ข้อความรายละเอียด หรือชื่อสินค้า")
+
+    try:
+        if url:
+            product_info = ProductScraper.scrape_url(url)
+        else:
+            product_info = {
+                "platform": "manual",
+                "url": "",
+                "title": custom_keyword or "สินค้า",
+                "description": raw_text or custom_keyword,
+                "price_note": "ราคาพิเศษในตะกร้า",
+                "raw_text": raw_text or custom_keyword,
+                "images": [],
+                "image_count": 0
+            }
+
+        if custom_keyword:
+            product_info["title"] = custom_keyword
+        if raw_text and len(raw_text) > 10:
+            product_info["description"] = raw_text
+            product_info["raw_text"] = f"{product_info.get('title', '')}\n{raw_text}"
+
+        angles = ProductScraper.generate_content_matrix(product_info)
+
+        # Save to permanent ProductStore History
+        thumbnail_img = ""
+        if product_info.get("images") and len(product_info["images"]) > 0:
+            thumbnail_img = product_info["images"][0].get("rel_path", "")
+
+        saved_prod = ProductStore.add(
+            name=product_info.get("title", "สินค้า"),
+            url=product_info.get("url", ""),
+            platform=product_info.get("platform", ""),
+            category="IT / Gadget",
+            price_note=product_info.get("price_note", ""),
+            thumbnail=thumbnail_img,
+            angles=angles,
+            images=product_info.get("images", [])
+        )
+        product_info["id"] = saved_prod["id"]
+
+        return {
+            "success": True,
+            "product": product_info,
+            "saved_product": saved_prod,
+            "angles": angles
+        }
+    except Exception as e:
+        print(f"[API] Scrape and plan error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.patch("/api/products/{product_id}/angles/{angle_id}")
+def update_product_angle_status(product_id: str, angle_id: str, payload: Dict[str, Any]):
+    """Updates status (draft, scripted, rendered, posted) of a specific angle script."""
+    status = payload.get("status")
+    video_url = payload.get("video_url")
+    if not status:
+        raise HTTPException(status_code=400, detail="Missing status")
+    try:
+        updated = ProductStore.update_angle_status(product_id, angle_id, status, video_url)
+        return {"success": True, "product": updated}
+    except ValueError as err:
+        raise HTTPException(status_code=404, detail=str(err))
 
 @app.post("/api/script/ai-generate")
 def generate_ai_scripts(req: ScriptGenerateRequest):
@@ -749,6 +834,7 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                 sticker_path=sticker_file_path,
                 bgm_name=req_data.bgm_name,
                 lut_name=req_data.lut_name,
+                clip_list=req_data.clip_list,
                 export_mp4=req_data.export_mp4,
                 progress_callback=on_progress
             )

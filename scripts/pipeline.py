@@ -23,6 +23,7 @@ from scripts.voice_engine import VoiceEngine
 from scripts.subtitle_engine import SubtitleEngine
 from scripts.sfx_manager import SFXManager
 from scripts.video_editor import VideoEditor
+from scripts.image_motion_engine import ImageMotionEngine
 from scripts.gemini_vision_matcher import GeminiVisionMatcher
 from scripts.project_manifest import ProjectManifest
 from scripts.it_angles import LOOK_PRESETS
@@ -54,6 +55,7 @@ class TikTokAutoCutterPipeline:
         sticker_path: Optional[str] = None,
         bgm_name: Optional[str] = None,
         lut_name: Optional[str] = None,
+        clip_list: Optional[List[Dict[str, any]]] = None,
         export_mp4: bool = True,
         resume_from: Optional[str] = None,
         product_meta: Optional[Dict[str, any]] = None,
@@ -74,9 +76,29 @@ class TikTokAutoCutterPipeline:
                 except Exception:
                     pass
 
-        raw_video = Path(raw_video_path).resolve()
-        if not raw_video.exists():
-            raise FileNotFoundError(f"Raw video not found: {raw_video}")
+        raw_video = Path(raw_video_path).resolve() if raw_video_path else None
+        
+        # Check if raw_video_path is an image or directory of images
+        image_extensions = ('.jpg', '.jpeg', '.png', '.webp')
+        is_image_source = False
+        image_files = []
+
+        if raw_video and raw_video.is_dir():
+            image_files = [str(f) for f in raw_video.iterdir() if f.suffix.lower() in image_extensions]
+            if image_files:
+                is_image_source = True
+        elif raw_video and raw_video.is_file() and raw_video.suffix.lower() in image_extensions:
+            is_image_source = True
+            image_files = [str(raw_video)]
+        elif not raw_video or not raw_video.exists():
+            # Check if there are product images in INBOX_DIR/product_images or INBOX_DIR
+            candidate_imgs = list((INBOX_DIR / "product_images").glob("**/*.*")) + list(INBOX_DIR.glob("*.*"))
+            valid_imgs = [str(f) for f in candidate_imgs if f.suffix.lower() in image_extensions]
+            if valid_imgs:
+                is_image_source = True
+                image_files = valid_imgs[:6]
+            else:
+                raise FileNotFoundError(f"Raw video or product image not found: {raw_video_path}")
 
         # Determine Project Name
         if not project_name:
@@ -303,6 +325,21 @@ class TikTokAutoCutterPipeline:
             "mp4_video": None,
         }
 
+        # If source is still images, generate 9:16 Ken-Burns motion video footage first
+        if is_image_source and image_files:
+            _notify("🖼️ [Image Motion] สร้างวิดีโอ 9:16 Motion Slideshow จากรูปภาพสินค้า...", 0.70)
+            print(f"\n🖼️ [Image Motion] Generating 9:16 Motion Slideshow from {len(image_files)} product images...")
+            motion_raw_path = project_dir / "image_motion_footage.mp4"
+            ImageMotionEngine.generate_motion_video_from_images(
+                image_paths=image_files,
+                cues=cues,
+                total_duration=total_duration,
+                output_video_path=str(motion_raw_path),
+                project_dir=project_dir
+            )
+            raw_video = motion_raw_path
+            use_ai_vision = False # Image motion is already timed to cues
+
         # 5. Direct Video Render (MP4) with Optional Gemini Vision Scene Matching
         import datetime
         timestamp_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -348,7 +385,8 @@ class TikTokAutoCutterPipeline:
                 ai_matched_shots=ai_matched_shots,
                 sticker_path=sticker_path,
                 lut_path=lut_path,
-                shot_scales=shot_scales
+                shot_scales=shot_scales,
+                clip_list=clip_list
             )
             result_paths["mp4_video"] = str(out_mp4)
             result_paths["ai_matched_shots"] = ai_matched_shots
@@ -388,6 +426,7 @@ class TikTokAutoCutterPipeline:
                 "sticker_path": sticker_path,
                 "bgm_name": bgm_name,
                 "lut_name": lut_name,
+                "clip_list": clip_list,
             },
             "artifacts": artifacts,
         }
