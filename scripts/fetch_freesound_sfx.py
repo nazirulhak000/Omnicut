@@ -83,10 +83,12 @@ def _api_key() -> str:
 
 
 def _get_json(path: str, params: Dict[str, Any]) -> Dict[str, Any]:
+    # A custom User-Agent header here gets a 500 from Freesound's server --
+    # confirmed by testing the identical request with and without one.
+    # Python's default urllib UA goes through fine, so no headers at all.
     params = {**params, "token": _api_key()}
     url = f"{API_BASE}{path}?{urllib.parse.urlencode(params)}"
-    request = urllib.request.Request(url, headers={"User-Agent": "capcut-asset-fetch/1.0"})
-    with urllib.request.urlopen(request, timeout=20) as response:
+    with urllib.request.urlopen(url, timeout=20) as response:
         return json.loads(response.read().decode("utf-8"))
 
 
@@ -122,8 +124,8 @@ def download_sound(sound: Dict[str, Any], existing_hashes: Dict[str, Path]) -> O
         print(f"   skip '{sound.get('name')}': no preview URL in response")
         return None
 
-    request = urllib.request.Request(preview_url, headers={"User-Agent": "capcut-asset-fetch/1.0"})
-    with urllib.request.urlopen(request, timeout=30) as response:
+    # Same reason as _get_json: no custom User-Agent, it gets a 500.
+    with urllib.request.urlopen(preview_url, timeout=30) as response:
         content = response.read()
 
     content_hash = hashlib.md5(content).hexdigest()

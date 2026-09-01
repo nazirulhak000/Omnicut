@@ -1,1 +1,86 @@
-{}
+{
+  "sfx_berlingamescene_com_crowd_cheer_4": {
+    "source": "freesound",
+    "source_url": "https://freesound.org/people/BerlinGameScene/sounds/267246/",
+    "license": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "category": "misc"
+  },
+  "sfx_applause_in_church": {
+    "source": "freesound",
+    "source_url": "https://freesound.org/people/eZZin/sounds/716568/",
+    "license": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "category": "misc"
+  },
+  "sfx_wrong_answer": {
+    "source": "freesound",
+    "source_url": "https://freesound.org/people/-Andreas/sounds/648462/",
+    "license": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "category": "misc"
+  },
+  "sfx_buzzer_sounds_wrong_answer_error": {
+    "source": "freesound",
+    "source_url": "https://freesound.org/people/Breviceps/sounds/493163/",
+    "license": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "category": "misc"
+  },
+  "sfx_creation_magic_blast": {
+    "source": "freesound",
+    "source_url": "https://freesound.org/people/qubodup/sounds/814044/",
+    "license": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "category": "misc"
+  },
+  "sfx_level_up_mp3": {
+    "source": "freesound",
+    "source_url": "https://freesound.org/people/crunchymaniac/sounds/646114/",
+    "license": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "category": "misc"
+  },
+  "sfx_beepc_mp3": {
+    "source": "freesound",
+    "source_url": "https://freesound.org/people/Hydranos/sounds/237707/",
+    "license": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "category": "misc"
+  },
+  "sfx_beep_adr_countdown": {
+    "source": "freesound",
+    "source_url": "https://freesound.org/people/Azrael1905/sounds/829273/",
+    "license": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "category": "misc"
+  },
+  "sfx_key_swipe_card_wav": {
+    "source": "freesound",
+    "source_url": "https://freesound.org/people/ryanharding95/sounds/272434/",
+    "license": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "category": "misc"
+  },
+  "sfx_door_key_card_wav": {
+    "source": "freesound",
+    "source_url": "https://freesound.org/people/soundmary/sounds/117613/",
+    "license": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "category": "misc"
+  },
+  "sfx_ui_interaction_error_beep_ghost_metro_ti": {
+    "source": "freesound",
+    "source_url": "https://freesound.org/people/TommasoMotteran/sounds/859155/",
+    "license": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "category": "misc"
+  },
+  "sfx_reward_notification_3_1": {
+    "source": "freesound",
+    "source_url": "https://freesound.org/people/Joao_Janz/sounds/504784/",
+    "license": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "category": "misc"
+  },
+  "sfx_gasp_chimes_success_2_wav": {
+    "source": "freesound",
+    "source_url": "https://freesound.org/people/Rob_Marion/sounds/541981/",
+    "license": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "category": "misc"
+  },
+  "sfx_triple_ping_notification_sound_mobile_op": {
+    "source": "freesound",
+    "source_url": "https://freesound.org/people/PiesHelpfulOven/sounds/842513/",
+    "license": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "category": "misc"
+  }
+}
