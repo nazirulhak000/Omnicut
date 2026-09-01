@@ -57,8 +57,10 @@ from scripts import render_jobs
 from scripts.render_jobs import ACTIVE_JOBS
 from scripts.asset_registry import AssetRegistry
 from scripts.api_phase1 import router as phase1_router
+from scripts.api_editor import router as editor_router
 
 app.include_router(phase1_router)
+app.include_router(editor_router)
 
 # ----------------------------------------------------------------------
 # Data Models
@@ -320,9 +322,66 @@ def stream_media(file_path: str, request: Request):
 
 @app.get("/api/exports")
 def list_exports():
-    """Lists all rendered videos in 04_Exports/Ready_to_post."""
+    """Lists all rendered videos in 04_Exports/Ready_to_post enriched with product & script metadata."""
     files = sorted(list(EXPORTS_DIR.glob("*.mp4")), key=os.path.getmtime, reverse=True)
-    return {"exports": [get_file_info(f) for f in files]}
+    all_products = ProductStore.get_all()
+
+    results = []
+    for f in files:
+        info = get_file_info(f)
+        fname_low = f.name.lower()
+
+        matched_angle = None
+        matched_prod = None
+
+        for p in all_products:
+            p_name_low = (p.get("name") or "").lower()
+            for a in p.get("angles", []):
+                if a.get("video_url") and (f.name in a.get("video_url") or str(f) in a.get("video_url")):
+                    matched_angle = a
+                    matched_prod = p
+                    break
+            if matched_angle:
+                break
+
+            if "esseger" in p_name_low and "esseger" in fname_low:
+                matched_prod = p
+                matched_angle = p.get("angles", [{}])[0] if p.get("angles") else None
+            elif "logitech" in p_name_low and "logitech" in fname_low:
+                matched_prod = p
+                matched_angle = p.get("angles", [{}])[0] if p.get("angles") else None
+
+        if matched_prod:
+            info["product_id"] = matched_prod.get("id")
+            info["product_name"] = matched_prod.get("name")
+            info["price_deal"] = matched_prod.get("price_note")
+            info["key_features"] = ", ".join(matched_prod.get("selling_points", []))
+
+        if matched_angle:
+            info["angle_id"] = matched_angle.get("angle_id")
+            info["angle_name"] = matched_angle.get("angle_name")
+            info["hook_title"] = matched_angle.get("hook_title")
+            info["script_lines"] = matched_angle.get("script_lines")
+            info["tiktok_caption"] = matched_angle.get("tiktok_caption")
+            info["tiktok_hashtags"] = matched_angle.get("tiktok_hashtags")
+            info["ad_tone"] = matched_angle.get("ad_tone")
+        else:
+            if "esseger" in fname_low:
+                info["product_name"] = "Esseger สายชาร์จแม่เหล็ก 66W"
+                info["hook_title"] = "🔥 อย่าเพิ่งเลื่อนผ่าน! ถ้าเบื่อกับสายชาร์จพังง่าย"
+                info["tiktok_caption"] = "แก้ปัญหาสายชาร์จพังง่าย! Esseger สายชาร์จแม่เหล็ก 66W หัวหมุนได้ ไม่เกะกะมือ พิกัดในตะกร้าซ้ายล่าง 👇"
+                info["tiktok_hashtags"] = "#สายชาร์จแม่เหล็ก #รีวิวของดี #tiktokป้ายยา #ของใช้จำเป็น"
+                info["script_lines"] = [
+                    "ทุกคน! ใครที่เบื่อกับปัญหาสายชาร์จพังง่าย เสียบยากในที่มืด ดูคลิปนี้เลย",
+                    "นี่เลย Esseger สายชาร์จแม่เหล็กตัวท็อป แม่เหล็กแรงดูดสูงมาก",
+                    "แค่เอาไปใกล้ๆ ก็ดูดติดทันที เสียบง่ายด้วยมือเดียว มีไฟ LED บอกสถานะ",
+                    "หัวหมุนได้ 540 องศา เล่นเกมไปชาร์จไปไม่เกะกะมือ แถมชาร์จเร็ว 66 วัตต์",
+                    "ราคาพิเศษเฉพาะวันนี้ รีบกดในตะกร้าซ้ายล่างก่อนของจะหมดนะครับ!"
+                ]
+
+        results.append(info)
+
+    return {"exports": results}
 
 @app.post("/api/script/generate")
 def generate_script(req: ScriptGenerateRequest):

@@ -780,3 +780,94 @@ def test_assemble_video_empty_clip_list_falls_back_to_legacy_path(monkeypatch, t
     )
     assert cmd.count("-i") == 2
     assert "1:a" in cmd
+
+
+# ----------------------------------------------------------------------
+# GET /api/editor/filmstrip -- timeline thumbnails
+#
+# ffmpeg itself is mocked here (the real two-clip render was verified live);
+# these lock in the caching, clamping and path-guard behavior.
+# ----------------------------------------------------------------------
+@pytest.fixture
+def filmstrip_dir(tmp_path, monkeypatch):
+    from scripts import api_editor
+    target = tmp_path / "filmstrips"
+    monkeypatch.setattr(api_editor, "FILMSTRIP_DIR", target)
+    return target
+
+
+def _fake_ffmpeg(out_index):
+    """Stand-in for subprocess.run that just writes the output file it's told to."""
+    from unittest.mock import MagicMock
+
+    def run(cmd, **kwargs):
+        Path(cmd[out_index[0] if isinstance(out_index, tuple) else -1]).write_bytes(b"\xff\xd8jpg")
+        return MagicMock(returncode=0, stderr="")
+    return run
+
+
+def test_filmstrip_renders_then_serves_from_cache(client, filmstrip_dir, tmp_path, monkeypatch):
+    from unittest.mock import patch
+    from scripts import api_editor
+
+    source = tmp_path / "clip.mp4"
+    source.write_bytes(b"x" * 2048)
+    monkeypatch.setattr(api_editor, "BASE_DIR", tmp_path)
+    monkeypatch.setattr(api_editor.VideoEditor, "get_media_info",
+                        classmethod(lambda cls, p: {"duration": 20.0}))
+
+    calls = []
+
+    def fake_run(cmd, **kwargs):
+        from unittest.mock import MagicMock
+        calls.append(cmd)
+        Path(cmd[-1]).write_bytes(b"\xff\xd8jpg")
+        return MagicMock(returncode=0, stderr="")
+
+    with patch("scripts.api_editor.subprocess.run", side_effect=fake_run):
+        first = client.get("/api/editor/filmstrip", params={"path": "clip.mp4", "count": 4})
+        assert first.status_code == 200
+        assert first.headers["content-type"] == "image/jpeg"
+        # 4 input-seek grabs + 1 hstack -- not one whole-file decode
+        assert len(calls) == 5
+        assert any("-ss" in c for c in calls[:4])
+
+        calls.clear()
+        second = client.get("/api/editor/filmstrip", params={"path": "clip.mp4", "count": 4})
+        assert second.status_code == 200
+        assert calls == [], "second request must hit the cached sprite, not ffmpeg"
+
+
+def test_filmstrip_clamps_absurd_frame_counts(client, filmstrip_dir, tmp_path, monkeypatch):
+    from unittest.mock import patch
+    from scripts import api_editor
+
+    source = tmp_path / "clip.mp4"
+    source.write_bytes(b"x" * 2048)
+    monkeypatch.setattr(api_editor, "BASE_DIR", tmp_path)
+    monkeypatch.setattr(api_editor.VideoEditor, "get_media_info",
+                        classmethod(lambda cls, p: {"duration": 20.0}))
+
+    grabs = []
+
+    def fake_run(cmd, **kwargs):
+        from unittest.mock import MagicMock
+        if "-ss" in cmd:
+            grabs.append(cmd)
+        Path(cmd[-1]).write_bytes(b"\xff\xd8jpg")
+        return MagicMock(returncode=0, stderr="")
+
+    with patch("scripts.api_editor.subprocess.run", side_effect=fake_run):
+        assert client.get("/api/editor/filmstrip", params={"path": "clip.mp4", "count": 9999}).status_code == 200
+    assert len(grabs) == api_editor.MAX_FRAMES, "must cap frames, not spawn 9999 ffmpeg calls"
+
+
+def test_filmstrip_refuses_paths_outside_the_project(client, filmstrip_dir):
+    response = client.get("/api/editor/filmstrip", params={"path": "C:/Windows/win.ini"})
+    assert response.status_code == 403
+
+
+def test_filmstrip_404s_for_a_missing_clip(client, filmstrip_dir, tmp_path, monkeypatch):
+    from scripts import api_editor
+    monkeypatch.setattr(api_editor, "BASE_DIR", tmp_path)
+    assert client.get("/api/editor/filmstrip", params={"path": "nope.mp4"}).status_code == 404

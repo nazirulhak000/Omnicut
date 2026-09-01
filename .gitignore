@@ -39,3 +39,6 @@ synced_clause_*.png
 # Generated asset cache (rebuilt automatically from 02_Assets/* on any change)
 02_Assets/asset_registry.json
 02_Assets/.vision_cache.json
+
+# Generated timeline filmstrips (rebuilt on demand from source clips)
+05_Covers_Thumbnails/.filmstrips/
