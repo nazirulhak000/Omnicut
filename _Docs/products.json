@@ -38,7 +38,7 @@
         "angle_id": "pain_point",
         "angle_name": "😫 1. ปัญหาก่อนใช้ (ปวดข้อมือ)",
         "badge": "ขายดีสายทำงาน",
-        "status": "in_production",
+        "status": "scripted",
         "video_url": "",
         "product_name": "Logitech Wave Keys",
         "hook_title": "🛑 พิมพ์งานทั้งวันจนปวดข้อมือ? ตัวนี้ช่วยชีวิตคุณได้!",
@@ -55,7 +55,7 @@
         ],
         "tiktok_caption": "ปวดข้อมือจากการพิมพ์งานต้องตัวนี้! Logitech Wave Keys คีย์บอร์ดไร้สาย Ergonomic พิมพ์สบายทั้งวัน 💻✨ #Logitech #WaveKeys #คีย์บอร์ดเพื่อสุขภาพ #จัดโต๊ะคอม #ของดีบอกต่อ",
         "tiktok_hashtags": "#Logitech #WaveKeys #คีย์บอร์ดเพื่อสุขภาพ #จัดโต๊ะคอม #tiktokป้ายยา",
-        "updated_at": "2026-09-01T16:31:55"
+        "updated_at": "2026-09-01T23:00:42"
       },
       {
         "angle_id": "viral_hype",
@@ -129,7 +129,7 @@
     "images": [],
     "projects": [],
     "created_at": "2026-09-01 12:45:00",
-    "updated_at": "2026-09-01T16:31:55"
+    "updated_at": "2026-09-01T23:00:42"
   },
   {
     "id": "prod_esseger_cable",
@@ -169,7 +169,7 @@
         "angle_id": "pain_point",
         "angle_name": "😫 1. ปัญหาก่อนใช้ (สายชาร์จพังง่าย)",
         "badge": "ขายดีอันดับ 1",
-        "status": "scripted",
+        "status": "in_production",
         "video_url": "",
         "product_name": "Esseger สายชาร์จแม่เหล็ก",
         "hook_title": "🔥 อย่าเพิ่งเลื่อนผ่าน! ถ้าเบื่อกับสายชาร์จพังง่าย",
@@ -186,13 +186,13 @@
         ],
         "tiktok_caption": "แก้ปัญหาสายชาร์จพังง่าย! Esseger สายชาร์จแม่เหล็ก 66W หัวหมุนได้ ไม่เกะกะมือ พิกัดในตะกร้าซ้ายล่าง 👇 #สายชาร์จแม่เหล็ก #รีวิวของดี #tiktokป้ายยา",
         "tiktok_hashtags": "#สายชาร์จแม่เหล็ก #รีวิวของดี #tiktokป้ายยา #ของใช้จำเป็น #พิกัดในตะกร้า",
-        "updated_at": "2026-09-01T14:19:17"
+        "updated_at": "2026-09-01T23:00:40"
       }
     ],
     "images": [],
     "projects": [],
     "created_at": "2026-09-01 11:30:00",
-    "updated_at": "2026-09-01T14:19:17"
+    "updated_at": "2026-09-01T23:00:40"
   },
   {
     "id": "20260901155937_3",
