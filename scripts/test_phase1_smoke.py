@@ -9,6 +9,7 @@ _Docs/post_log.json, _Docs/products.json, or a real project folder.
 """
 
 import json
+import hashlib
 import threading
 import time
 from pathlib import Path
@@ -26,6 +27,7 @@ from scripts.subtitle_engine import SubtitleEngine, _load_font_family_map
 from scripts.asset_registry import AssetRegistry
 from scripts.sfx_manager import SFXManager
 from scripts.script_generator import ScriptGenerator
+from scripts import fetch_freesound_sfx
 
 
 # ----------------------------------------------------------------------
@@ -488,6 +490,63 @@ def test_angle_key_resolves_to_the_right_shot_scales_via_pipeline():
         assert captured["shot_scales"] == LOOK_PRESETS["fake_vs_real"]
     finally:
         shutil.rmtree(PROJECTS_DIR / project_name, ignore_errors=True)
+
+
+# ----------------------------------------------------------------------
+# Freesound SFX acquisition (all network calls mocked -- never hits the
+# real API in a test run)
+# ----------------------------------------------------------------------
+def test_slugify_produces_safe_filenames():
+    assert fetch_freesound_sfx._slugify("Wrong Answer Buzzer #2!") == "wrong_answer_buzzer_2"
+    assert fetch_freesound_sfx._slugify("") == "sound"
+    assert len(fetch_freesound_sfx._slugify("x" * 200)) <= 40
+
+
+def test_missing_api_key_raises_with_setup_instructions(monkeypatch):
+    monkeypatch.delenv("FREESOUND_API_KEY", raising=False)
+    with pytest.raises(fetch_freesound_sfx.FreesoundFetchError, match="freesound.org/apiv2/apply"):
+        fetch_freesound_sfx._api_key()
+
+
+def test_search_filters_to_cc0_and_short_clips_only(monkeypatch):
+    """The whole point of this tool: never pull CC-BY or CC-BY-NC without the user asking for it."""
+    monkeypatch.setenv("FREESOUND_API_KEY", "fake-key-for-test")
+    captured = {}
+
+    def fake_get_json(path, params):
+        captured["path"] = path
+        captured["params"] = params
+        return {"results": []}
+
+    monkeypatch.setattr(fetch_freesound_sfx, "_get_json", fake_get_json)
+    fetch_freesound_sfx.search_cc0_sounds("cash register", limit=2)
+
+    assert captured["path"] == "/search/text/"
+    assert '"Creative Commons 0"' in captured["params"]["filter"]
+    assert "duration:[0.1 TO 8.0]" in captured["params"]["filter"]
+    assert captured["params"]["query"] == "cash register"
+
+
+def test_download_skips_a_byte_identical_duplicate(monkeypatch, tmp_path):
+    existing_file = tmp_path / "sfx_existing.mp3"
+    existing_file.write_bytes(b"identical-audio-bytes")
+    existing_hashes = {hashlib.md5(b"identical-audio-bytes").hexdigest(): existing_file}
+
+    class FakeResponse:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self): return b"identical-audio-bytes"
+
+    monkeypatch.setattr(fetch_freesound_sfx.urllib.request, "urlopen", lambda *a, **k: FakeResponse())
+
+    sound = {"name": "duplicate sound", "previews": {"preview-hq-mp3": "https://example.com/x.mp3"}}
+    result = fetch_freesound_sfx.download_sound(sound, existing_hashes)
+    assert result is None, "a byte-identical file must be skipped, not saved as a second copy"
+
+
+def test_download_handles_a_result_with_no_preview_url():
+    sound = {"name": "no preview available", "previews": {}}
+    assert fetch_freesound_sfx.download_sound(sound, {}) is None
 
 
 # ----------------------------------------------------------------------
