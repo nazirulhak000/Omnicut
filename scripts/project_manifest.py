@@ -23,7 +23,9 @@ MANIFEST_VERSION = 1
 
 # Ordered stages of the pipeline. Re-rolling from a stage reruns it and
 # everything after it; everything before is reused from disk.
-STAGES = ("script", "voice", "subtitles", "video")
+# "mix" sits between voice and subtitles: swapping the music bed, its level or
+# ducking only needs the audio re-mixed, never the voiceover re-synthesized.
+STAGES = ("script", "voice", "mix", "subtitles", "video")
 
 # Which stage each re-roll button starts from.
 #
@@ -35,11 +37,9 @@ REROLL_STAGE = {
     "hook": "subtitles",
     "subtitles": "subtitles",
     "voice": "voice",
-    # BGM has no stage of its own yet -- SFXManager only mixes it alongside
-    # the voice, so swapping just the music bed re-synthesizes the
-    # voiceover too. Wasteful but not wrong; split into its own stage only
-    # if BGM-only re-rolls turn out to be a frequent, annoyingly-slow action.
-    "bgm": "voice",
+    # Music changes re-mix the audio and rebuild everything after it, but
+    # reuse the voiceover that is already on disk.
+    "bgm": "mix",
     "script": "script",
     "video": "video",
 }

@@ -54,6 +54,8 @@ class TikTokAutoCutterPipeline:
         use_ai_vision: bool = True,
         sticker_path: Optional[str] = None,
         bgm_name: Optional[str] = None,
+        bgm_volume: Optional[float] = None,
+        bgm_ducking: bool = False,
         lut_name: Optional[str] = None,
         lut_intensity: float = 1.0,
         clip_list: Optional[List[Dict[str, any]]] = None,
@@ -299,11 +301,15 @@ class TikTokAutoCutterPipeline:
         # hook_title never move a timing — so the mix only has to be rebuilt
         # when the voice itself was regenerated. That is what makes a hook or
         # subtitle re-roll cheap.
-        if ProjectManifest.should_run("voice", resume_from):
+        if ProjectManifest.should_run("mix", resume_from):
             _notify("🎵 [4/5] กำลังมิกซ์เสียง Voice + เอฟเฟกต์ SFX (Boom/Pop/Cash) + BGM...", 0.65)
             print("\n🎵 [4/5] Mixing Audio (Voice + Boom/Whoosh/Pop/Ding/Cash SFX + Upbeat BGM)...")
             mixed_audio_path = _out_path("mixed_audio", ".wav")
             mix_kwargs = {"bgm_name": bgm_name} if bgm_name else {}
+            if bgm_volume is not None:
+                mix_kwargs["bgm_vol"] = min(1.0, max(0.0, float(bgm_volume)))
+            if bgm_ducking:
+                mix_kwargs["bgm_ducking"] = True
             SFXManager.mix_audio_track(
                 voice_audio_path=str(voice_audio_path),
                 cues=micro_cues,
@@ -429,6 +435,8 @@ class TikTokAutoCutterPipeline:
                 "bilingual_subtitles": bilingual_subtitles,
                 "sticker_path": sticker_path,
                 "bgm_name": bgm_name,
+                "bgm_volume": bgm_volume,
+                "bgm_ducking": bgm_ducking,
                 "lut_name": lut_name,
                 "lut_intensity": lut_intensity,
                 "clip_list": clip_list,

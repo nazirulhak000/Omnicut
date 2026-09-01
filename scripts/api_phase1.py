@@ -348,6 +348,8 @@ class RerollRequest(BaseModel):
     bgm_name: Optional[str] = None
     lut_name: Optional[str] = None
     lut_intensity: Optional[float] = None
+    bgm_volume: Optional[float] = None
+    bgm_ducking: Optional[bool] = None
     clip_list: Optional[List[Dict[str, Any]]] = None
     transitions: Optional[List[str]] = None
 
@@ -358,7 +360,7 @@ REROLL_COST = {
     "subtitles": "เร็ว (~40 วิ) — ใช้เสียงเดิม",
     "video": "ปานกลาง — ตัดวิดีโอใหม่ ใช้เสียงและซับเดิม",
     "voice": "ช้า (2-4 นาที) — พากย์ใหม่ทั้งคลิป",
-    "bgm": "ช้า (2-4 นาที) — พากย์เสียงใหม่ด้วย เพราะเปลี่ยนเพลงต้องมิกซ์เสียงใหม่ทั้งชุด",
+    "bgm": "ปานกลาง — มิกซ์เสียงใหม่แล้วตัดวิดีโอใหม่ ใช้เสียงพากย์เดิม",
     "script": "ช้าที่สุด (2-4 นาที) — เขียนบทใหม่แล้วพากย์ใหม่",
 }
 
@@ -435,6 +437,8 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 bilingual_subtitles=params.get("bilingual_subtitles", True),
                 sticker_path=params.get("sticker_path"),
                 bgm_name=params.get("bgm_name"),
+                bgm_volume=params.get("bgm_volume"),
+                bgm_ducking=bool(params.get("bgm_ducking")),
                 lut_name=params.get("lut_name"),
                 lut_intensity=params.get("lut_intensity", 1.0),
                 clip_list=params.get("clip_list"),

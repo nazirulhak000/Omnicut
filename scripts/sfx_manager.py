@@ -118,7 +118,11 @@ class SFXManager:
                     "[bgm_bed]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[bgm_fmt];"
                     "[voice_key]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[key_fmt];"
                     "[bgm_fmt][key_fmt]sidechaincompress="
-                    "threshold=0.05:ratio=8:attack=20:release=300:makeup=1[bgm];"
+                    # threshold/ratio picked by measurement, not by feel: on a test
+                    # mix these pull the music down 13.7 dB while the voice is
+                    # speaking (0.05/8 gave only 6.6 dB, 0.01/20 overdid it at
+                    # 18.6 dB and left the bed inaudible).
+                    "threshold=0.02:ratio=12:attack=20:release=300:makeup=1[bgm];"
                 )
             else:
                 filter_complex.append("[bgm_bed]anull[bgm];")

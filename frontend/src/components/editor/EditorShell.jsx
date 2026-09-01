@@ -23,7 +23,7 @@ const TIMELINE_MIN_H = 196;
 const TIMELINE_MAX_H = 460;
 const TIMELINE_DEFAULT_H = 212;
 
-const EMPTY = { clipList: [], cuesList: [], style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null } };
+const EMPTY = { clipList: [], cuesList: [], style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false } };
 
 let idCounter = 0;
 const newId = () => `clip-${Date.now().toString(36)}-${++idCounter}`;
@@ -76,6 +76,10 @@ export default function EditorShell({ videos = [] }) {
   const mobilePlayerRef = useRef(null);
   const desktopPlayerRef = useRef(null);
   const cuesDirty = useRef(false);
+  // Music lives in the mix, not the video pass. Apply has to ask for the
+  // "bgm" re-roll when any of it changed, or the render happily reuses the
+  // old mixed_audio.wav and the new track is silently ignored.
+  const loadedAudioStyle = useRef({ bgmName: null, bgmVolume: 0.12, bgmDucking: false });
 
   const seekPlayer = useCallback((t) => {
     setPlayhead(t);
@@ -157,6 +161,12 @@ export default function EditorShell({ videos = [] }) {
       const bgmName = data.bgm_name || data.render_params?.bgm_name || null;
       const lutName = data.lut_name || data.render_params?.lut_name || null;
       const stickerBadge = data.sticker_badge || data.render_params?.sticker_badge || null;
+      const lutIntensity = data.render_params?.lut_intensity ?? 1;
+      const bgmVolume = data.render_params?.bgm_volume ?? 0.12;
+      const bgmDucking = !!data.render_params?.bgm_ducking;
+      // Baseline for "did the music change?" -- without this the first Apply
+      // after loading would always take the slower re-mix path.
+      loadedAudioStyle.current = { bgmName, bgmVolume, bgmDucking };
 
       reset({
         clipList: clips,
@@ -165,7 +175,10 @@ export default function EditorShell({ videos = [] }) {
           fontName,
           bgmName,
           lutName,
+          lutIntensity,
           stickerBadge,
+          bgmVolume,
+          bgmDucking,
         },
       });
 
@@ -574,6 +587,11 @@ export default function EditorShell({ videos = [] }) {
     if (!projectName) { setApplyError('เลือกโปรเจกต์ก่อน'); return; }
     if (!clipList.length) { setApplyError('เพิ่มคลิปในไทม์ไลน์ก่อน'); return; }
 
+    const base = loadedAudioStyle.current;
+    const audioDirty = (style.bgmName ?? null) !== (base.bgmName ?? null)
+      || (style.bgmVolume ?? 0.12) !== (base.bgmVolume ?? 0.12)
+      || !!style.bgmDucking !== !!base.bgmDucking;
+
     const gap = (audioDuration || 0) - totalDuration;
     if (gap > 0.5 && !confirmGap) {
       setConfirmGap(gap);
@@ -594,7 +612,7 @@ export default function EditorShell({ videos = [] }) {
       }
       const res = await startReroll({
         project_name: projectName,
-        part: cuesDirty.current ? 'subtitles' : 'video',
+        part: audioDirty ? 'bgm' : (cuesDirty.current ? 'subtitles' : 'video'),
         clip_list: clipList.map(({ id, transition_in, transition_duration, ...c }) => c),
         transitions: clipList.slice(1).map((c) => ({
           type: c.transition_in || 'cut',
@@ -606,9 +624,16 @@ export default function EditorShell({ videos = [] }) {
         // "" is meaningful here: it clears the badge stored on the project.
         sticker_badge: style.stickerBadge ?? '',
         lut_intensity: style.lutIntensity ?? 1,
+        bgm_volume: style.bgmVolume ?? 0.12,
+        bgm_ducking: !!style.bgmDucking,
       });
       setJobId(res.job_id);
       cuesDirty.current = false;
+      loadedAudioStyle.current = {
+        bgmName: style.bgmName ?? null,
+        bgmVolume: style.bgmVolume ?? 0.12,
+        bgmDucking: !!style.bgmDucking,
+      };
     } catch (err) {
       setApplying(false);
       setApplyError(err.response?.data?.detail || err.message || 'เริ่มเรนเดอร์ไม่สำเร็จ');

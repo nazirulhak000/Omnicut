@@ -382,6 +382,39 @@ export default function AssetPanel({
             <p className="px-1 pt-1 text-[9px] font-semibold uppercase tracking-wide text-slate-400">
               เพลงประกอบ (ทั้งคลิป)
             </p>
+
+            <div className="mb-1 space-y-1.5 rounded-lg border border-white/[0.08] bg-black/40 px-2 py-2">
+              <label className="block">
+                <span className="mb-1 flex justify-between text-[10px] text-slate-400">
+                  <span>ระดับเสียงเพลง</span>
+                  <span className="font-mono text-slate-300">{Math.round((style.bgmVolume ?? 0.12) * 100)}%</span>
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={style.bgmVolume ?? 0.12}
+                  onChange={(e) => onStyleChange({ bgmVolume: parseFloat(e.target.value) })}
+                  className="w-full accent-[#D97757]"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => onStyleChange({ bgmDucking: !style.bgmDucking })}
+                aria-pressed={!!style.bgmDucking}
+                className={`w-full rounded-lg border py-1.5 text-[11px] font-bold transition-colors duration-150 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
+                  style.bgmDucking
+                    ? 'border-[#D97757] bg-[#D97757]/20 text-[#E89274]'
+                    : 'border-white/[0.08] bg-black/40 text-slate-300 hover:text-white'
+                }`}
+              >
+                {style.bgmDucking ? '✓ ลดเพลงตอนพูดอยู่' : 'ลดเพลงตอนพูด (auto-duck)'}
+              </button>
+              <p className="text-[9px] leading-relaxed text-slate-500">
+                เปิดแล้วเพลงจะเบาลง ~9 dB ระหว่างมีเสียงพูด แล้วดังกลับตอนเว้นวรรค · เปลี่ยนค่าพวกนี้ต้องมิกซ์เสียงใหม่ Apply จะช้ากว่าปกติเล็กน้อย
+              </p>
+            </div>
             <Row active={!style.bgmName} onClick={() => onStyleChange({ bgmName: null })}>
               <Music className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
               <span className="min-w-0 flex-1 truncate text-[11px] text-slate-200">เสียงหลักของช่อง</span>

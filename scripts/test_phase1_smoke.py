@@ -125,9 +125,35 @@ def test_resume_reruns_only_the_tail(resume_from, expected):
         assert ProjectManifest.should_run(stage, resume_from) is should
 
 
-def test_bgm_reroll_shares_the_voice_stage():
-    """BGM has no re-roll stage of its own -- swapping it re-mixes alongside the voice."""
-    assert REROLL_STAGE["bgm"] == "voice"
+def test_bgm_reroll_remixes_without_resynthesizing_the_voice():
+    """
+    Music (track, level, ducking) lives in the mix. Swapping it must rebuild
+    the mix and everything after it, and must NOT re-run the voice -- that was
+    minutes of TTS for a change the voiceover never hears.
+    """
+    stage = REROLL_STAGE["bgm"]
+    assert stage == "mix"
+    assert ProjectManifest.should_run("voice", stage) is False
+    assert ProjectManifest.should_run("mix", stage) is True
+    assert ProjectManifest.should_run("subtitles", stage) is True
+    assert ProjectManifest.should_run("video", stage) is True
+
+
+def test_video_reroll_reuses_the_mix():
+    """A clip-only change must not re-mix -- which is exactly why the editor
+    has to ask for the "bgm" part when the music settings changed."""
+    assert ProjectManifest.should_run("mix", REROLL_STAGE["video"]) is False
+
+
+def test_ducking_is_off_by_default_and_wires_a_sidechain_when_on():
+    import inspect
+    from scripts.sfx_manager import SFXManager
+
+    sig = inspect.signature(SFXManager.mix_audio_track)
+    assert sig.parameters["bgm_ducking"].default is False, "ducking must be opt-in"
+    src = inspect.getsource(SFXManager.mix_audio_track)
+    assert "sidechaincompress" in src
+    assert "anullsink" in src, "the split key must be terminated when there is no music"
 
 
 def test_cheap_rerolls_keep_the_voice():
