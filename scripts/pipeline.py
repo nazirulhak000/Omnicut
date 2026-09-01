@@ -38,6 +38,7 @@ class TikTokAutoCutterPipeline:
         pain_point: str = "สายชาร์จพังง่าย เสียบยากในที่มืด",
         price_deal: str = "ลดพิเศษวันนี้",
         custom_script: Optional[str] = None,
+        script_overlays: Optional[List[str]] = None,
         voice: str = DEFAULT_VOICE,
         voice_rate: str = DEFAULT_VOICE_RATE,
         voice_engine_type: str = "edge_tts",
@@ -111,8 +112,17 @@ class TikTokAutoCutterPipeline:
             _notify("🧠 [1/5] วิเคราะห์สินค้าและจัดเตรียมสคริปต์ TikTok...", 0.10)
             print("🧠 [1/5] Setting up TikTok Script & Cues...")
             if custom_script:
+                overlays = script_overlays or []
                 lines = [
-                    {"text": l.strip(), "sfx": "pop" if i > 0 else "whoosh"}
+                    {
+                        "text": l.strip(),
+                        "sfx": "pop" if i > 0 else "whoosh",
+                        # Spec-bar text for this line, e.g. "20W PD" -- see
+                        # subtitle_engine.py's SpecBar style. Index-aligned with
+                        # the AI script's `lines`, which is the same array the
+                        # frontend split into custom_script.
+                        "on_screen": (overlays[i].strip() if i < len(overlays) else "")
+                    }
                     for i, l in enumerate(custom_script.strip().split("\n"))
                     if l.strip()
                 ]
@@ -172,7 +182,8 @@ class TikTokAutoCutterPipeline:
                     "start": idx * dur_per_line,
                     "end": (idx + 1) * dur_per_line,
                     "text": item["text"],
-                    "sfx": item.get("sfx")
+                    "sfx": item.get("sfx"),
+                    "on_screen": item.get("on_screen", "")
                 })
             print(f"   Human voice loaded! Duration: {total_duration:.2f}s, Cues synced: {len(cues)}")
         elif voice_engine_type == "gemini_tts":
@@ -217,7 +228,8 @@ class TikTokAutoCutterPipeline:
                     "start": idx * dur_per_line,
                     "end": (idx + 1) * dur_per_line,
                     "text": item["text"],
-                    "sfx": item.get("sfx")
+                    "sfx": item.get("sfx"),
+                    "on_screen": item.get("on_screen", "")
                 })
             print(f"   Gemini Flash TTS voice generated! Duration: {total_duration:.2f}s, Cues: {len(cues)}")
         else:
@@ -328,6 +340,7 @@ class TikTokAutoCutterPipeline:
                 "price_deal": price_deal,
                 "hook_title": hook_title,
                 "custom_script": custom_script,
+                "script_overlays": script_overlays,
                 "voice": voice,
                 "voice_rate": voice_rate,
                 "voice_engine_type": voice_engine_type,

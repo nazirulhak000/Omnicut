@@ -293,11 +293,14 @@ export default function ProductToClip({ status, videos, onRefresh }) {
         // Send the AI script as custom_script, otherwise the pipeline falls
         // back to its own template and the chosen angle is lost.
         custom_script: (script?.lines || []).map((l) => l.text).join('\n'),
+        // Index-aligned with the lines above -- the spec numbers that burn
+        // onto the video via subtitle_engine.py's SpecBar style, not just
+        // spoken. Empty string for a line with nothing to show on screen.
+        script_overlays: (script?.lines || []).map((l) => l.on_screen || ''),
         voice_mode: 'gemini_tts',
         voice_gender: voicePreset.includes('female') ? 'female' : 'male',
         f5_preset: voicePreset,
         export_mp4: true,
-        export_capcut: false,
       });
       setJobId(res.job_id);
     } catch (err) {

@@ -82,6 +82,7 @@ class RenderRequest(BaseModel):
     price_deal: str
     hook_title: Optional[str] = None
     custom_script: Optional[str] = None
+    script_overlays: Optional[List[str]] = None  # per-line spec-bar text, index-aligned with custom_script
     voice_mode: str = "gemini_tts" # gemini_tts, edge_tts, human, video, f5_tts
     voice_gender: str = "female"
     voice_rate: str = "+15%"
@@ -654,6 +655,7 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                 pain_point=req_data.pain_point,
                 price_deal=req_data.price_deal,
                 custom_script=req_data.custom_script,
+                script_overlays=req_data.script_overlays,
                 voice=req_data.voice_gender,
                 voice_rate=req_data.voice_rate,
                 voice_engine_type=voice_engine_type,

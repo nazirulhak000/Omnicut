@@ -209,6 +209,7 @@ Style: TikTokYellow,{resolved_font},{font_size},&H0000E6FF,&H000000FF,&H00000000
 Style: TikTokCyan,{resolved_font},{font_size},&H00FFE600,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0.5,0,1,5.0,2.0,2,60,60,420,1
 Style: TikTokMinimalPill,{resolved_font},{font_size - 6},&H00FFFFFF,&H000000FF,&H00000000,&HCC000000,1,0,0,0,100,100,0.5,0,3,6,0,2,60,60,420,1
 Style: HookHeader,{resolved_font},{font_size + 6},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0.5,0,1,7.0,3.0,8,60,60,260,1
+Style: SpecBar,{resolved_font},{font_size - 12},&H00000000,&H000000FF,&H00000000,&H0000E6FF,1,0,0,0,100,100,0.5,0,3,10,0,9,50,50,380,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -268,6 +269,24 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
             line_entry = f"Dialogue: 0,{start_t},{end_t},{style},,0,0,0,,{anim}{text}{en_sub}"
             events.append(line_entry)
+
+        # 3. Spec-Bar Overlays (IT vertical: the number goes on screen, not
+        # just in the voiceover). These read from the original sentence-level
+        # `cues`, not micro_cues -- a spec stays up for the whole line it
+        # belongs to, not just one 2-3 word burst. `on_screen` is filled in by
+        # pipeline.py from the AI script's per-line overlay text (see
+        # ai_bridge.py's `script` task); a line with nothing to show just has
+        # an empty/missing value and gets no bar.
+        for cue in cues:
+            on_screen = (cue.get("on_screen") or "").strip()
+            if not on_screen:
+                continue
+            spec_start = cls._format_ass_time(cue["start"])
+            spec_end = cls._format_ass_time(cue["end"])
+            spec_anim = "{\\fscx110\\fscy110\\t(0,100,\\fscx100\\fscy100)}"
+            # Layer 2, above the hook banner (1) and captions (0), in case a
+            # long spec bar's footprint ever crosses either at the same time.
+            events.append(f"Dialogue: 2,{spec_start},{spec_end},SpecBar,,0,0,0,,{spec_anim}📊 {on_screen}")
 
         content = header + "\n".join(events) + "\n"
         out_path.write_text(content, encoding="utf-8")

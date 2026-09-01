@@ -11,6 +11,7 @@ _Docs/post_log.json, _Docs/products.json, or a real project folder.
 import json
 import threading
 import time
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -21,6 +22,7 @@ from scripts.it_angles import catalog_for_prompt, fallback_angles
 from scripts.post_log import PostLog
 from scripts.product_store import ProductStore
 from scripts.project_manifest import REROLL_STAGE, ProjectManifest
+from scripts.subtitle_engine import SubtitleEngine
 
 
 # ----------------------------------------------------------------------
@@ -283,6 +285,45 @@ def test_attaching_a_project_marks_it_rendered(product_file):
     stored = ProductStore.get(product["id"])
     assert stored["projects"] == ["TikTok_headphones"], "linking twice must not duplicate"
     assert stored["status"] == "rendered"
+
+
+# ----------------------------------------------------------------------
+# Spec-bar overlay (IT vertical: numbers on screen, not just spoken)
+# ----------------------------------------------------------------------
+def _cue(start, end, text, on_screen=""):
+    return {"id": 1, "start": start, "end": end, "text": text, "sfx": None, "on_screen": on_screen}
+
+
+def test_spec_bar_only_appears_for_cues_with_something_to_show(tmp_path):
+    cues = [
+        _cue(0.0, 2.0, "สายชาร์จแม่เหล็กตัวนี้ชาร์จไวมาก", on_screen="20W PD"),
+        _cue(2.0, 4.0, "ไม่ทำร้ายแบตเลย"),  # nothing to show -- no bar expected
+        _cue(4.0, 6.0, "กดตะกร้าซ้ายล่างเลย", on_screen="ลด 50%"),
+    ]
+
+    ass_path, _ = SubtitleEngine.generate_ass(
+        cues=cues,
+        output_ass_path=str(tmp_path / "out.ass"),
+        font_name="IBMPlex",
+        hook_title="ทดสอบ",
+        hook_duration=2.0,
+        bilingual=False,
+    )
+    content = Path(ass_path).read_text(encoding="utf-8")
+
+    assert "Style: SpecBar" in content, "the SpecBar style must be declared even if unused elsewhere"
+    spec_events = [l for l in content.splitlines() if l.startswith("Dialogue:") and ",SpecBar," in l]
+    assert len(spec_events) == 2, f"expected one bar per non-empty on_screen cue, got: {spec_events}"
+    assert "20W PD" in spec_events[0] and "0:00:00.00,0:00:02.00" in spec_events[0]
+    assert "ลด 50%" in spec_events[1] and "0:00:04.00,0:00:06.00" in spec_events[1]
+
+
+def test_spec_bar_survives_a_cue_with_no_on_screen_key_at_all(tmp_path):
+    """Cues from voice engines that predate this feature won't have the key."""
+    cues = [{"id": 1, "start": 0.0, "end": 2.0, "text": "ทดสอบ", "sfx": None}]  # no "on_screen" key
+    ass_path, _ = SubtitleEngine.generate_ass(cues=cues, output_ass_path=str(tmp_path / "out.ass"))
+    content = Path(ass_path).read_text(encoding="utf-8")
+    assert not any(l.startswith("Dialogue:") and ",SpecBar," in l for l in content.splitlines())
 
 
 # ----------------------------------------------------------------------

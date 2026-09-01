@@ -333,6 +333,7 @@ class RerollRequest(BaseModel):
     part: str  # hook | subtitles | voice | script | video
     hook_title: Optional[str] = None
     custom_script: Optional[str] = None
+    script_overlays: Optional[List[str]] = None
     font_name: Optional[str] = None
     bilingual_subtitles: Optional[bool] = None
     voice_gender: Optional[str] = None
@@ -382,6 +383,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 pain_point=params.get("pain_point", ""),
                 price_deal=params.get("price_deal", ""),
                 custom_script=params.get("custom_script"),
+                script_overlays=params.get("script_overlays"),
                 voice=params.get("voice", "male"),
                 voice_rate=params.get("voice_rate", "+15%"),
                 voice_engine_type=params.get("voice_engine_type", "edge_tts"),
