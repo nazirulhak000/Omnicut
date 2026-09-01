@@ -25,6 +25,7 @@ from scripts.sfx_manager import SFXManager
 from scripts.video_editor import VideoEditor
 from scripts.gemini_vision_matcher import GeminiVisionMatcher
 from scripts.project_manifest import ProjectManifest
+from scripts.it_angles import LOOK_PRESETS
 
 class TikTokAutoCutterPipeline:
     """Main pipeline to run full automated TikTok video creation."""
@@ -328,6 +329,11 @@ class TikTokAutoCutterPipeline:
         # a user has to pick a LUT explicitly and accept the slower render.
         lut_path = str(LUTS_DIR / lut_name) if lut_name else None
 
+        # Punch-zoom pattern per angle (LOOK_PRESETS) -- safe to auto-apply
+        # unlike the LUT above: same ffmpeg scale/crop work either way, just
+        # different numbers, not an extra filter pass.
+        shot_scales = LOOK_PRESETS.get(angle_meta.get("angle_key", "")) if angle_meta else None
+
         if export_mp4:
             _notify("✂️ [5/5] กำลังตัดต่อวิดีโอ 9:16 + Punch-Zoom & เรนเดอร์ไฟล์ MP4...", 0.85)
             print("\n✂️ [5/5] Cutting Video, Dynamic Punch-Zooming & Rendering Final MP4...")
@@ -341,7 +347,8 @@ class TikTokAutoCutterPipeline:
                 cues=micro_cues,
                 ai_matched_shots=ai_matched_shots,
                 sticker_path=sticker_path,
-                lut_path=lut_path
+                lut_path=lut_path,
+                shot_scales=shot_scales
             )
             result_paths["mp4_video"] = str(out_mp4)
             result_paths["ai_matched_shots"] = ai_matched_shots

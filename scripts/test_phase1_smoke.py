@@ -18,7 +18,7 @@ from fastapi.testclient import TestClient
 
 from scripts import post_log, product_store, project_manifest, render_jobs
 from scripts.ai_bridge import AIBridge, ManualModeRequired
-from scripts.it_angles import ANGLE_LUT_HINTS, IT_ANGLE_CATALOG, catalog_for_prompt, fallback_angles
+from scripts.it_angles import ANGLE_LUT_HINTS, IT_ANGLE_CATALOG, LOOK_PRESETS, catalog_for_prompt, fallback_angles
 from scripts.post_log import PostLog
 from scripts.product_store import ProductStore
 from scripts.project_manifest import REROLL_STAGE, ProjectManifest
@@ -443,6 +443,51 @@ def test_angle_lut_hints_still_cover_every_angle():
     """Kept as a suggestion the frontend can surface -- must not silently drop an angle."""
     catalog_keys = {a["key"] for a in IT_ANGLE_CATALOG}
     assert set(ANGLE_LUT_HINTS.keys()) == catalog_keys
+
+
+# ----------------------------------------------------------------------
+# Per-angle punch-zoom pattern -- safe to auto-apply, unlike the LUT above
+# ----------------------------------------------------------------------
+def test_look_presets_cover_every_angle():
+    catalog_keys = {a["key"] for a in IT_ANGLE_CATALOG}
+    assert set(LOOK_PRESETS.keys()) == catalog_keys
+
+
+def test_look_presets_are_actually_distinct_across_angles():
+    """The whole point: different angles must not silently share one pattern."""
+    patterns = {tuple(v) for v in LOOK_PRESETS.values()}
+    assert len(patterns) >= 6, f"expected real per-angle variety, got only {len(patterns)} distinct patterns"
+
+
+def test_angle_key_resolves_to_the_right_shot_scales_via_pipeline():
+    """End-to-end through pipeline.run(), not just a dict lookup in isolation."""
+    import shutil
+    from unittest.mock import patch
+    from scripts.pipeline import TikTokAutoCutterPipeline
+    from scripts.config import PROJECTS_DIR
+
+    raw_video = next(Path("01_Raw").rglob("*.mov"), None) or next(Path("01_Raw").rglob("*.mp4"), None)
+    if raw_video is None:
+        pytest.skip("no raw video available in 01_Raw to render against")
+
+    project_name = "TEST_look_preset_resolution"
+    captured = {}
+
+    def fake_assemble(**kwargs):
+        captured["shot_scales"] = kwargs.get("shot_scales")
+        return "/fake/out.mp4"
+
+    try:
+        with patch("scripts.pipeline.VideoEditor.assemble_tiktok_video", side_effect=fake_assemble):
+            TikTokAutoCutterPipeline.run(
+                product_name="test", project_name=project_name,
+                raw_video_path=str(raw_video), custom_script="ทดสอบ",
+                voice_engine_type="edge_tts", export_mp4=True, use_ai_vision=False,
+                angle_meta={"angle_key": "fake_vs_real"},
+            )
+        assert captured["shot_scales"] == LOOK_PRESETS["fake_vs_real"]
+    finally:
+        shutil.rmtree(PROJECTS_DIR / project_name, ignore_errors=True)
 
 
 # ----------------------------------------------------------------------

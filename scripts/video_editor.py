@@ -67,7 +67,8 @@ class VideoEditor:
         cues: List[Dict] = None,
         ai_matched_shots: List[Dict] = None,
         sticker_path: str = None,
-        lut_path: str = None
+        lut_path: str = None,
+        shot_scales: List[float] = None
     ) -> str:
         """
         Takes raw footage, creates fast-paced punch-in cuts synced to audio duration and Gemini Vision scenes,
@@ -87,7 +88,11 @@ class VideoEditor:
         # Calculate shot segments based on cues and AI-matched Vision shots
         shots = []
         curr_t = 0.0
-        shot_scales = [1.25, 1.0, 1.35, 1.05, 1.3, 1.0] # Alternating punch-zoom levels
+        # Per-angle override (see it_angles.py's LOOK_PRESETS) when the
+        # caller supplies one; the original alternating pattern is the
+        # default for everything else -- this is a strict superset of the
+        # old behavior, zero risk to a caller that passes nothing.
+        shot_scales = shot_scales or [1.25, 1.0, 1.35, 1.05, 1.3, 1.0]
         
         if cues:
             for idx, c in enumerate(cues):

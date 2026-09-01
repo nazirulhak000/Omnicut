@@ -125,6 +125,24 @@ ANGLE_LUT_HINTS: Dict[str, Optional[str]] = {
     "dont_cheap_out": None,
 }
 
+# Punch-zoom scale sequence per angle, replacing one fixed 6-value pattern
+# for every clip regardless of content. Unlike ANGLE_LUT_HINTS this is safe
+# to auto-apply -- it's the same ffmpeg scale/crop work either way, just
+# different numbers, not an extra filter pass like lut3d.
+#
+# A comparison/explainer angle stays calmer so on-screen numbers stay
+# readable; a warning/fake-vs-real angle punches harder for urgency.
+LOOK_PRESETS: Dict[str, List[float]] = {
+    "spec_compare": [1.0, 1.05, 1.0, 1.1],
+    "spec_explained": [1.0, 1.05, 1.0],
+    "worth_upgrade": [1.1, 1.0, 1.2, 1.0],
+    "real_test": [1.1, 1.0, 1.15, 1.0],
+    "how_to_setup": [1.0, 1.05, 1.0, 1.05],
+    "fake_vs_real": [1.3, 1.0, 1.35, 1.0],
+    "pain_point": [1.25, 1.0, 1.35, 1.05, 1.3, 1.0],
+    "dont_cheap_out": [1.3, 1.0, 1.4, 1.0],
+}
+
 
 def catalog_for_prompt(seller_assets_only: bool = False) -> List[Dict[str, Any]]:
     """
