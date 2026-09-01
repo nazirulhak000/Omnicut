@@ -9,20 +9,13 @@ import { CSS } from '@dnd-kit/utilities';
 import {
   Scissors, Film, Plus, Trash2, GripVertical, Loader2, Rocket,
   CheckCircle2, AlertCircle, Type, Music, Palette, MessageSquare,
-  FolderOpen, RefreshCw, Clapperboard, Waves
+  FolderOpen, RefreshCw, Clapperboard, Waves, Eye
 } from 'lucide-react';
 import {
   getProjects, getProject, updateProjectCues, startReroll, getRenderStatus, getAllAssets
 } from '../api';
-
-// Backend accepts absolute or BASE_DIR-relative paths at /api/media/{path}
-// (scripts/api_server.py's stream_media()) -- encode each segment so Thai
-// filenames/spaces survive, but keep the "/" separators the route needs.
-const toMediaUrl = (rawPath) => {
-  if (!rawPath) return '';
-  const normalized = rawPath.replace(/\\/g, '/');
-  return '/api/media/' + normalized.split('/').map(encodeURIComponent).join('/');
-};
+import { toMediaUrl } from '../lib/mediaUrl';
+import SequencePlayer from './SequencePlayer';
 
 function SortableClipRow({ clip, index, isActive, onSelect, onRemove }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: clip.id });
@@ -482,13 +475,23 @@ export default function ManualEditor({ videos = [] }) {
             </div>
           </div>
 
-          {/* ── Middle: Preview/Trim + Timeline + Apply ── */}
+          {/* ── Middle: Sequence Preview + Trim + Timeline + Apply ── */}
           <div className="space-y-4">
+            {clipList.length > 0 && (
+              <div className="glass-card p-4 space-y-3">
+                <h3 className="text-xs font-bold text-white flex items-center gap-2 pb-2 border-b border-white/10">
+                  <Eye className="w-3.5 h-3.5 text-[#25F4EE]" />
+                  ดูรวมทั้งไทม์ไลน์ ({clipList.length} คลิปต่อกัน)
+                </h3>
+                <SequencePlayer clips={clipList} cues={cuesList} />
+              </div>
+            )}
+
             {activeClip && (
               <div className="glass-card p-4 space-y-3">
                 <h3 className="text-xs font-bold text-white flex items-center gap-2 pb-2 border-b border-white/10">
                   <Film className="w-3.5 h-3.5 text-[#25F4EE]" />
-                  พรีวิว & ตัดคลิป (คลิปที่ {clipList.findIndex(c => c.id === activeClipId) + 1})
+                  ตัดคลิป (คลิปที่ {clipList.findIndex(c => c.id === activeClipId) + 1})
                 </h3>
                 <ClipPreviewTrimmer
                   clip={activeClip}
