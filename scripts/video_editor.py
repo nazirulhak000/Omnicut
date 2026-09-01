@@ -40,8 +40,11 @@ def normalize_transitions(transitions: List[Any]) -> List[Dict[str, Any]]:
     for entry in transitions or []:
         if isinstance(entry, dict):
             kind = str(entry.get("type") or "cut")
+            raw = entry.get("duration")
+            # `or` would swallow a deliberate 0 here; only a missing/unusable
+            # value falls back to the default, an explicit 0 gets clamped.
             try:
-                dur = float(entry.get("duration") or DEFAULT_TRANSITION_DURATION)
+                dur = DEFAULT_TRANSITION_DURATION if raw is None else float(raw)
             except (TypeError, ValueError):
                 dur = DEFAULT_TRANSITION_DURATION
         else:

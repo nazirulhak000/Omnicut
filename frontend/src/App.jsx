@@ -375,7 +375,7 @@ export default function App() {
       />
 
       {/* ── Main Area ── */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#07090E]">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#0B0D13]">
         {/* ── Topbar (Hidden on Manual Editor to maximize editing workspace) ── */}
         {activeTab !== 'editor' && (
           <Topbar

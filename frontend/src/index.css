@@ -6,13 +6,13 @@
 
 @layer base {
   html {
-    font-size: calc(15.5px * var(--ui-scale, 1));
+    font-size: calc(15px * var(--ui-scale, 1));
   }
 
   body {
-    background-color: #07090E;
-    color: #F1F5F9;
-    font-family: 'Prompt', 'Inter', system-ui, sans-serif;
+    background-color: #0B0D13;
+    color: #F1F3F9;
+    font-family: 'Prompt', 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     min-height: 100vh;
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
@@ -24,7 +24,7 @@
   html, body, #root {
     height: 100%;
     overflow: hidden;
-    background-color: #07090E;
+    background-color: #0B0D13;
   }
 }
 
@@ -43,67 +43,65 @@
 .font-baijamjuree { font-family: 'Bai Jamjuree', sans-serif; }
 .font-pridi { font-family: 'Pridi', serif; }
 
-/* ── Modern Dark Glassmorphism Surfaces ── */
+/* ── Frame.io Studio Matte Minimal Surfaces ── */
 .glass-card, .claude-card {
-  background: rgba(13, 17, 26, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: #12151E;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
 }
 
 .glass-card:hover, .claude-card:hover {
-  border-color: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+  background: #151924;
 }
 
 .glass-panel, .claude-panel {
-  background: rgba(10, 14, 22, 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: #0E1119;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
 }
 
 /* ── Form Controls & Inputs ── */
 .claude-input {
-  background-color: #080B11;
+  background-color: #0E1118;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #F8FAFC;
-  border-radius: 12px;
+  color: #F1F3F9;
+  border-radius: 10px;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
 }
 
 .claude-input:focus {
   outline: none;
-  border-color: rgba(37, 244, 238, 0.6);
-  box-shadow: 0 0 0 3px rgba(37, 244, 238, 0.15);
-  background-color: #0B0F17;
+  border-color: #8B5CF6;
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+  background-color: #12151F;
 }
 
+/* Primary Button (Frame.io Signature Violet) */
 .claude-btn-primary {
-  background: #D97757;
+  background: #7C3AED;
   color: #FFFFFF;
-  border-radius: 12px;
+  border-radius: 10px;
   font-weight: 700;
-  box-shadow: 0 4px 14px rgba(217, 119, 87, 0.25);
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
   transition: all 0.15s ease;
 }
 
 .claude-btn-primary:hover {
-  background: #C2683D;
-  box-shadow: 0 6px 20px rgba(217, 119, 87, 0.4);
+  background: #6D28D9;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
 }
 
 .claude-btn-primary:focus-visible {
-  outline: 2px solid #E89274;
+  outline: 2px solid #8B5CF6;
   outline-offset: 2px;
 }
 
 .claude-btn-primary:disabled {
   cursor: not-allowed;
+  opacity: 0.5;
   box-shadow: none;
 }
 
@@ -113,32 +111,32 @@
 
 .claude-btn-secondary {
   background-color: rgba(255, 255, 255, 0.05);
-  color: #F8FAFC;
+  color: #F1F3F9;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  border-radius: 10px;
   font-weight: 600;
   transition: all 0.15s ease;
 }
 
 .claude-btn-secondary:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
+  background-color: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
-/* ── Minimal Dark Scrollbars ── */
+/* ── Minimal Studio Scrollbars ── */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -151,21 +149,12 @@
 
 /* ── Subtle Transitions & Animations ── */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
+  from { opacity: 0; transform: translateY(3px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
 .animate-fadeIn {
-  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@keyframes pulse-subtle {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.85; transform: scale(1.01); }
-}
-
-.animate-pulse-subtle {
-  animation: pulse-subtle 2s infinite ease-in-out;
+  animation: fadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* ── Safe area for mobile bottom bar ── */
