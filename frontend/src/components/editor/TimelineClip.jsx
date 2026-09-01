@@ -81,7 +81,7 @@ export default function TimelineClip({
     onTrimEnd?.();
   };
 
-  const fileName = (clip.source_path || '').split(/[\/]/).pop();
+  const fileName = (clip.source_path || '').split(/[\\/]/).pop();
 
   return (
     <div

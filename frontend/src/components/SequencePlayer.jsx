@@ -249,15 +249,24 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
         ))}
       </div>
 
-      <div className="relative mx-auto rounded-2xl overflow-hidden bg-black border border-white/[0.1] shadow-2xl" style={{ maxWidth: 260, maxHeight: '100%', aspectRatio: '9/16', width: 'auto', height: '100%' }}>
-        <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H} className="w-full h-full" />
+      <div
+        className="relative mx-auto flex overflow-hidden rounded-2xl border border-[#363430] bg-black shadow-2xl"
+        style={{ height: '100%', width: 'auto', aspectRatio: '9/16', maxWidth: '100%', maxHeight: '100%' }}
+      >
+        <canvas
+          ref={canvasRef}
+          width={CANVAS_W}
+          height={CANVAS_H}
+          className="m-auto block max-h-full max-w-full"
+          style={{ width: 'auto', height: 'auto' }}
+        />
         {!metadataReady && clips.length > 0 && (
-          <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-slate-400 bg-black/70 backdrop-blur-sm">
+          <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-[#9C968F] bg-black/70 backdrop-blur-sm">
             กำลังโหลดวิดีโอ...
           </div>
         )}
         {clips.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-slate-500">
+          <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-[#6B6660]">
             เพิ่มคลิปเข้าไทม์ไลน์เพื่อดูพรีวิว
           </div>
         )}
@@ -266,7 +275,7 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
             onClick={togglePlay}
             className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/20 transition-colors cursor-pointer group"
           >
-            <div className="w-12 h-12 rounded-full bg-black/60 group-hover:bg-[#25F4EE] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all text-white group-hover:text-slate-950 shadow-lg">
+            <div className="w-12 h-12 rounded-full bg-black/60 group-hover:bg-[#D97757] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all text-white shadow-lg">
               {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
             </div>
           </button>
@@ -278,7 +287,7 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
           <div className="flex items-center gap-2 pt-1">
             <button
               onClick={togglePlay}
-              className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#FE2C55] to-[#25F4EE] text-white flex items-center justify-center flex-shrink-0 cursor-pointer shadow-md shadow-[#FE2C55]/20 hover:brightness-110 transition-all"
+              className="w-8 h-8 rounded-xl bg-[#D97757] text-white flex items-center justify-center flex-shrink-0 cursor-pointer hover:bg-[#C2683D] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757]"
             >
               {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
             </button>
@@ -290,13 +299,13 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
                 className="flex-1 accent-[#D97757]"
               />
             )}
-            <span className="text-xs font-mono text-slate-400 w-20 text-right flex-shrink-0 font-bold">
+            <span className="text-xs font-mono text-[#9C968F] w-20 text-right flex-shrink-0 font-bold">
               {playhead.toFixed(1)}s / {totalDuration.toFixed(1)}s
             </span>
           </div>
           {!compact && (
-            <p className="text-[11px] text-slate-400 flex items-center gap-1">
-              <Eye className="w-3.5 h-3.5 text-[#25F4EE]" /> พรีวิวรวมทั้ง sequence แบบประมาณ (ฟอนต์/สีจริงยึดผลจาก Apply เท่านั้น)
+            <p className="text-[11px] text-[#9C968F] flex items-center gap-1">
+              <Eye className="w-3.5 h-3.5 text-[#9C968F]" /> พรีวิวรวมทั้ง sequence แบบประมาณ (ฟอนต์/สีจริงยึดผลจาก Apply เท่านั้น)
             </p>
           )}
         </>
