@@ -53,7 +53,7 @@ const HoverVideoThumb = memo(function HoverVideoThumb({ videoUrl, onClick }) {
       onClick={onClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className="relative w-full aspect-[9/16] rounded-xl overflow-hidden bg-black/70 border border-white/[0.1] hover:border-[#25F4EE] transition-all cursor-pointer group shadow-md"
+      className="relative w-full aspect-[9/16] rounded-lg overflow-hidden bg-black/70 border border-white/[0.1] hover:border-[#25F4EE] transition-all cursor-pointer group shadow-sm"
     >
       <video
         ref={videoRef}
@@ -65,12 +65,12 @@ const HoverVideoThumb = memo(function HoverVideoThumb({ videoUrl, onClick }) {
       />
       {!isHovered && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/10 transition-colors">
-          <div className="w-8 h-8 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center text-white border border-white/[0.2] shadow-md group-hover:scale-110 transition-transform">
-            <Play className="w-3.5 h-3.5 fill-current text-[#25F4EE] ml-0.5" />
+          <div className="w-7 h-7 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center text-white border border-white/[0.2] shadow-md group-hover:scale-110 transition-transform">
+            <Play className="w-3 h-3 fill-current text-[#25F4EE] ml-0.5" />
           </div>
         </div>
       )}
-      <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/80 backdrop-blur-sm text-[9px] font-mono text-slate-300 border border-white/[0.08]">
+      <div className="absolute bottom-1 right-1 px-1.5 py-0.2 rounded bg-black/80 backdrop-blur-sm text-[8px] font-mono text-slate-300 border border-white/[0.08]">
         พรีวิว
       </div>
     </div>
@@ -78,7 +78,7 @@ const HoverVideoThumb = memo(function HoverVideoThumb({ videoUrl, onClick }) {
 });
 
 // ═══════════════════════════════════════════════════════════════════════
-// 📌 MEMOIZED KANBAN CARD (Touch-Friendly & Drag-Ready)
+// 📌 MEMOIZED KANBAN CARD (Ultra High-Density & Compact Merged Actions)
 // ═══════════════════════════════════════════════════════════════════════
 const KanbanCard = memo(function KanbanCard({
   ang,
@@ -105,28 +105,28 @@ const KanbanCard = memo(function KanbanCard({
           fromPhase: phaseId
         }));
       }}
-      className="p-3.5 rounded-2xl bg-[#0B0F19] border border-white/[0.08] hover:border-[#25F4EE]/40 transition-all space-y-3 relative group shadow-sm"
+      className="p-2.5 rounded-xl bg-[#0B0F19] border border-white/[0.08] hover:border-[#25F4EE]/40 transition-all space-y-2 relative group shadow-sm"
     >
-      {/* Product Title & Badge */}
-      <div className="flex items-center justify-between gap-2 text-xs">
-        <span className="font-bold text-white truncate flex-1 min-w-0 font-kanit" title={ang.parentProduct?.name}>
+      {/* 1. Header: Product Name + Badge */}
+      <div className="flex items-center justify-between gap-1.5 text-xs">
+        <span className="font-bold text-white truncate flex-1 min-w-0 font-kanit text-[11px]" title={ang.parentProduct?.name}>
           {ang.parentProduct?.name}
         </span>
         {ang.badge && (
-          <Badge variant="cyan" size="sm">
+          <span className="text-[9px] px-1.5 py-0.2 font-mono font-bold rounded bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/30 whitespace-nowrap flex-shrink-0">
             {ang.badge}
-          </Badge>
+          </span>
         )}
       </div>
 
-      {/* Hook Title */}
-      <div className="p-2.5 rounded-xl bg-black/50 border-l-4 border-[#25F4EE] text-xs font-bold text-cyan-200 leading-snug">
+      {/* 2. Hook Title: Crisp 2-line with thin accent bar */}
+      <div className="pl-2 border-l-2 border-[#25F4EE] text-xs font-bold text-cyan-200 line-clamp-2 leading-snug">
         {ang.hook_title}
       </div>
 
       {/* Video Hover Thumbnail (if rendered) */}
       {ang.video_url && (
-        <div className="w-full max-w-[130px] mx-auto pt-0.5">
+        <div className="w-full max-w-[100px] mx-auto pt-0.5">
           <HoverVideoThumb
             videoUrl={ang.video_url}
             onClick={() => onPreviewVideo(ang.video_url)}
@@ -134,126 +134,126 @@ const KanbanCard = memo(function KanbanCard({
         </div>
       )}
 
-      {/* Primary Action Button (Touch friendly: min height 40px) */}
-      {phaseId === 'scripted' && (
-        <Button
-          onClick={() => onSendToStudio(ang.parentProduct, ang)}
-          variant="tiktok"
-          size="sm"
-          icon={Clapperboard}
-          className="w-full min-h-[40px]"
-        >
-          ส่งตัดต่อใน Studio
-        </Button>
-      )}
+      {/* 3. Merged Bottom Action & Stepper Row (ยุบบรรทัดเดียวกัน - Ultra High Density!) */}
+      <div className="flex items-center justify-between gap-1.5 pt-1.5 border-t border-white/[0.06]">
+        {/* Left: Direct Primary Action */}
+        <div className="flex items-center gap-1 min-w-0 flex-1">
+          {phaseId === 'scripted' && (
+            <button
+              onClick={() => onSendToStudio(ang.parentProduct, ang)}
+              className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 active:scale-95 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-sm flex-shrink-0"
+              title="ส่งตัดต่อใน Studio"
+            >
+              <Clapperboard className="w-3.5 h-3.5" />
+              <span>ส่ง Studio</span>
+            </button>
+          )}
 
-      {phaseId === 'in_production' && (
-        <div className="space-y-2">
-          <Button
-            onClick={() => onSendToStudio(ang.parentProduct, ang)}
-            variant="tiktok"
-            size="sm"
-            iconRight={ArrowRight}
-            className="w-full min-h-[38px]"
-          >
-            เปิดทำต่อใน Studio
-          </Button>
-          <button
-            onClick={() => onStatusChange(ang.parentProduct.id, ang.angle_id, 'rendered')}
-            className="w-full min-h-[36px] px-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/[0.08] text-slate-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
-          >
-            <Check className="w-3.5 h-3.5 text-emerald-400" />
-            <span>ทำเครื่องหมายว่าตัดเสร็จแล้ว</span>
-          </button>
-        </div>
-      )}
-
-      {phaseId === 'rendered' && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            {ang.video_url && (
+          {phaseId === 'in_production' && (
+            <>
               <button
-                onClick={() => onPreviewVideo(ang.video_url)}
-                className="flex-1 min-h-[40px] px-2 rounded-xl bg-white/[0.05] border border-white/[0.08] text-slate-200 hover:bg-white/[0.1] active:bg-white/[0.15] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                onClick={() => onSendToStudio(ang.parentProduct, ang)}
+                className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 active:scale-95 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-sm flex-shrink-0"
+                title="เปิดทำต่อใน Studio"
               >
-                <Play className="w-3.5 h-3.5 fill-current text-[#25F4EE]" />
-                <span>พรีวิว QC</span>
+                <span>Studio</span>
+                <ArrowRight className="w-3 h-3" />
               </button>
-            )}
-            <button
-              onClick={() => onOpenQrModal(ang)}
-              className="flex-1 min-h-[40px] px-2 rounded-xl bg-[#25F4EE]/10 border border-[#25F4EE]/30 text-[#25F4EE] hover:bg-[#25F4EE]/20 active:bg-[#25F4EE]/30 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <QrCode className="w-3.5 h-3.5" />
-              <span>ส่งมือถือ</span>
-            </button>
-          </div>
+              <button
+                onClick={() => onStatusChange(ang.parentProduct.id, ang.angle_id, 'rendered')}
+                className="p-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-emerald-400 cursor-pointer"
+                title="ทำเครื่องหมายว่าตัดเสร็จแล้ว"
+              >
+                <Check className="w-3.5 h-3.5" />
+              </button>
+            </>
+          )}
+
+          {phaseId === 'rendered' && (
+            <>
+              {ang.video_url && (
+                <button
+                  onClick={() => onPreviewVideo(ang.video_url)}
+                  className="px-2 py-1.5 rounded-lg bg-white/[0.06] border border-white/[0.08] text-slate-200 hover:bg-white/[0.12] text-xs font-bold flex items-center gap-1 cursor-pointer"
+                  title="พรีวิวตรวจ QC"
+                >
+                  <Play className="w-3 h-3 fill-current text-[#25F4EE]" />
+                  <span>QC</span>
+                </button>
+              )}
+              <button
+                onClick={() => onOpenQrModal(ang)}
+                className="px-2 py-1.5 rounded-lg bg-[#25F4EE]/15 border border-[#25F4EE]/30 text-[#25F4EE] hover:bg-[#25F4EE]/25 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                title="ส่งเข้ามือถือ"
+              >
+                <QrCode className="w-3 h-3" />
+                <span>มือถือ</span>
+              </button>
+            </>
+          )}
+
+          {phaseId === 'mobile_ready' && (
+            <>
+              <button
+                onClick={() => onOpenQrModal(ang)}
+                className="px-2 py-1.5 rounded-lg bg-purple-500/15 border border-purple-500/30 text-purple-300 hover:bg-purple-500/25 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                title="เปิด QR Code"
+              >
+                <QrCode className="w-3 h-3" />
+                <span>QR</span>
+              </button>
+              <button
+                onClick={() => onStatusChange(ang.parentProduct.id, ang.angle_id, 'posted')}
+                className="px-2 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                title="มาร์กว่าโพสต์แล้ว"
+              >
+                <Check className="w-3 h-3" />
+                <span>โพสต์แล้ว</span>
+              </button>
+            </>
+          )}
+
+          {phaseId === 'posted' && (
+            <div className="px-2 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-[11px] text-emerald-300 font-bold flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span>ออนไลน์แล้ว</span>
+            </div>
+          )}
         </div>
-      )}
 
-      {phaseId === 'mobile_ready' && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
+        {/* Right: Caption Quick Copy & Steppers */}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {captionText && (
             <button
-              onClick={() => onOpenQrModal(ang)}
-              className="flex-1 min-h-[40px] px-2 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300 hover:bg-purple-500/20 active:bg-purple-500/30 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer"
+              onClick={() => onCopyCaption(captionText, ang.angle_id)}
+              className="p-1.5 rounded-lg bg-black/40 hover:bg-white/[0.08] border border-white/[0.08] text-slate-400 hover:text-white cursor-pointer transition-colors"
+              title="คัดลอกแคปชัน & แฮชแท็ก"
             >
-              <QrCode className="w-3.5 h-3.5" />
-              <span>QR Code</span>
+              {copiedAngleId === ang.angle_id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-[#25F4EE]" />}
             </button>
+          )}
+
+          {prevPhase && (
             <button
-              onClick={() => onStatusChange(ang.parentProduct.id, ang.angle_id, 'posted')}
-              className="flex-1 min-h-[40px] px-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30 active:bg-emerald-500/40 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer"
+              onClick={() => onStatusChange(ang.parentProduct.id, ang.angle_id, prevPhase)}
+              className="p-1 rounded text-slate-500 hover:text-white cursor-pointer"
+              title={`ย้อนกลับไป: ${PIPELINE_PHASES.find(p => p.id === prevPhase)?.short}`}
             >
-              <Check className="w-3.5 h-3.5" />
-              <span>โพสต์แล้ว</span>
+              <ChevronLeft className="w-3.5 h-3.5" />
             </button>
-          </div>
+          )}
+
+          {nextPhase && (
+            <button
+              onClick={() => onStatusChange(ang.parentProduct.id, ang.angle_id, nextPhase)}
+              className="px-1.5 py-1 rounded bg-white/[0.04] hover:bg-[#25F4EE]/20 text-[#25F4EE] text-[10px] font-bold flex items-center gap-0.5 cursor-pointer border border-white/[0.06] hover:border-[#25F4EE]/30"
+              title={`เลื่อนไป: ${PIPELINE_PHASES.find(p => p.id === nextPhase)?.label}`}
+            >
+              <span>{PIPELINE_PHASES.find(p => p.id === nextPhase)?.short}</span>
+              <ChevronRight className="w-3 h-3" />
+            </button>
+          )}
         </div>
-      )}
-
-      {phaseId === 'posted' && (
-        <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-center text-xs text-emerald-300 font-bold flex items-center justify-center gap-1.5">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-          <span>คลิปออนไลน์สำเร็จ</span>
-        </div>
-      )}
-
-      {/* Caption Copy Helper */}
-      {captionText && (
-        <button
-          onClick={() => onCopyCaption(captionText, ang.angle_id)}
-          className="w-full min-h-[32px] py-1 px-2.5 rounded-xl bg-black/40 hover:bg-black/60 border border-white/[0.06] text-slate-300 hover:text-white flex items-center justify-between cursor-pointer transition-colors"
-        >
-          <span className="truncate max-w-[170px] font-mono text-[10px] text-slate-400">{ang.tiktok_caption || 'คัดลอกแคปชัน'}</span>
-          <span className="text-[#25F4EE] font-bold flex items-center gap-1 flex-shrink-0 text-[10px]">
-            {copiedAngleId === ang.angle_id ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-            {copiedAngleId === ang.angle_id ? 'คัดลอกแล้ว' : 'แคปชัน'}
-          </span>
-        </button>
-      )}
-
-      {/* Quick Phase Steppers (For fast non-drag transitions) */}
-      <div className="flex items-center justify-between pt-1.5 border-t border-white/[0.06] text-[11px]">
-        {prevPhase ? (
-          <button
-            onClick={() => onStatusChange(ang.parentProduct.id, ang.angle_id, prevPhase)}
-            className="flex items-center gap-1 text-slate-400 hover:text-white active:text-[#25F4EE] py-1 px-1 cursor-pointer"
-          >
-            <ChevronLeft className="w-3.5 h-3.5" />
-            <span>ถอยเฟส</span>
-          </button>
-        ) : <div />}
-
-        {nextPhase && (
-          <button
-            onClick={() => onStatusChange(ang.parentProduct.id, ang.angle_id, nextPhase)}
-            className="flex items-center gap-1 text-[#25F4EE] hover:underline font-bold py-1 px-1 cursor-pointer ml-auto"
-          >
-            <span>เลื่อนไป {PIPELINE_PHASES.find(p => p.id === nextPhase)?.short}</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
-        )}
       </div>
     </div>
   );
@@ -276,11 +276,11 @@ const TableRow = memo(function TableRow({
   return (
     <tr className="border-b border-white/[0.06] hover:bg-white/[0.02] transition-colors">
       {/* 1. Media Preview */}
-      <td className="py-2.5 px-3 w-16">
+      <td className="py-2 px-3 w-14">
         {ang.video_url ? (
           <button
             onClick={() => onPreviewVideo(ang.video_url)}
-            className="w-10 h-14 rounded-lg overflow-hidden bg-black relative border border-white/[0.1] hover:border-[#25F4EE] flex-shrink-0 group cursor-pointer"
+            className="w-9 h-12 rounded-lg overflow-hidden bg-black relative border border-white/[0.1] hover:border-[#25F4EE] flex-shrink-0 group cursor-pointer"
           >
             <video src={`/api/media/${ang.video_url}`} className="w-full h-full object-cover" muted />
             <div className="absolute inset-0 flex items-center justify-center bg-black/40 group-hover:bg-black/10">
@@ -288,14 +288,14 @@ const TableRow = memo(function TableRow({
             </div>
           </button>
         ) : (
-          <div className="w-10 h-14 rounded-lg bg-black/40 border border-white/[0.06] flex items-center justify-center text-[10px] text-slate-600 font-mono">
+          <div className="w-9 h-12 rounded-lg bg-black/40 border border-white/[0.06] flex items-center justify-center text-[10px] text-slate-600 font-mono">
             -
           </div>
         )}
       </td>
 
       {/* 2. Product & Hook Title */}
-      <td className="py-2.5 px-3">
+      <td className="py-2 px-3">
         <div className="space-y-0.5 max-w-xs sm:max-w-md">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="font-bold text-white text-xs font-kanit">{ang.parentProduct?.name}</span>
@@ -310,11 +310,11 @@ const TableRow = memo(function TableRow({
       </td>
 
       {/* 3. Status Phase Selector */}
-      <td className="py-2.5 px-3">
+      <td className="py-2 px-3">
         <select
           value={ang.status}
           onChange={(e) => onStatusChange(ang.parentProduct.id, ang.angle_id, e.target.value)}
-          className={`py-1.5 px-2.5 rounded-xl text-xs font-bold border focus:outline-none cursor-pointer ${currentPhase.color}`}
+          className={`py-1 px-2 rounded-lg text-xs font-bold border focus:outline-none cursor-pointer ${currentPhase.color}`}
         >
           {PIPELINE_PHASES.map((p) => (
             <option key={p.id} value={p.id} className="bg-[#080B11] text-white">
@@ -325,10 +325,10 @@ const TableRow = memo(function TableRow({
       </td>
 
       {/* 4. Caption Preview & Copy */}
-      <td className="py-2.5 px-3">
+      <td className="py-2 px-3">
         <button
           onClick={() => onCopyCaption(`${ang.tiktok_caption || ''}\n\n${ang.tiktok_hashtags || ''}`, ang.angle_id)}
-          className="text-left py-1 px-2 rounded-lg bg-black/40 hover:bg-black/60 border border-white/[0.06] text-slate-300 text-xs flex items-center justify-between gap-2 max-w-[200px] cursor-pointer"
+          className="text-left py-1 px-2 rounded-lg bg-black/40 hover:bg-black/60 border border-white/[0.06] text-slate-300 text-xs flex items-center justify-between gap-2 max-w-[180px] cursor-pointer"
         >
           <span className="truncate text-[11px] font-mono">{ang.tiktok_caption || 'คัดลอกแคปชัน'}</span>
           <span className="text-[#25F4EE] flex-shrink-0">
@@ -338,11 +338,11 @@ const TableRow = memo(function TableRow({
       </td>
 
       {/* 5. Direct Action Buttons */}
-      <td className="py-2.5 px-3 text-right">
+      <td className="py-2 px-3 text-right">
         <div className="flex items-center justify-end gap-1.5">
           <button
             onClick={() => onSendToStudio(ang.parentProduct, ang)}
-            className="py-1.5 px-3 rounded-xl bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center gap-1 cursor-pointer"
+            className="py-1 px-2.5 rounded-lg bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center gap-1 cursor-pointer"
             title="ส่งเข้า 1-Click Studio"
           >
             <Clapperboard className="w-3 h-3" />
@@ -351,7 +351,7 @@ const TableRow = memo(function TableRow({
 
           <button
             onClick={() => onOpenQrModal(ang)}
-            className="p-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-300 cursor-pointer"
+            className="p-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-300 cursor-pointer"
             title="สแกน QR Code เข้ามือถือ"
           >
             <QrCode className="w-3.5 h-3.5" />
@@ -500,12 +500,6 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
     posted: allAnglesList.filter(a => a.status === 'posted').length,
   }), [allAnglesList]);
 
-  // Completion Percentage
-  const completionRate = useMemo(() => {
-    if (allAnglesList.length === 0) return 0;
-    return Math.round((phaseCounts.posted / allAnglesList.length) * 100);
-  }, [allAnglesList.length, phaseCounts.posted]);
-
   // Filtered angles with useMemo and Debounced Search
   const filteredAngles = useMemo(() => {
     const q = (debouncedSearch || '').toLowerCase().trim();
@@ -538,7 +532,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
   };
 
   return (
-    <div className="space-y-4 animate-fadeIn pb-16">
+    <div className="space-y-3 animate-fadeIn pb-16">
       {/* Central Toast */}
       <Toast message={toastMessage} onClose={hideToast} />
 
@@ -613,22 +607,22 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
       </Modal>
 
       {/* ══════════════════════════════════════════════════════════
-          1. RESPONSIVE METRIC CHIPS RIBBON (TAP TO SWITCH/FILTER)
+          1. COMPACT METRIC CHIPS RIBBON (TAP TO SWITCH/FILTER)
          ══════════════════════════════════════════════════════════ */}
-      <div className="glass-panel p-2.5 sm:p-3 rounded-2xl border border-white/[0.08] bg-[#0B0E17]">
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar pr-6">
+      <div className="glass-panel p-2 rounded-xl border border-white/[0.08] bg-[#0B0E17]">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar pr-4">
           {/* Card 0: All */}
           <button
             type="button"
             onClick={() => scrollToPhaseColumn('all')}
-            className={`py-1.5 px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer flex-shrink-0 border ${
+            className={`py-1 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer flex-shrink-0 border ${
               activePhase === 'all'
-                ? 'bg-[#25F4EE]/20 text-[#25F4EE] border-[#25F4EE]/50 shadow-sm ring-1 ring-[#25F4EE]/30'
+                ? 'bg-[#25F4EE]/20 text-[#25F4EE] border-[#25F4EE]/50 shadow-sm'
                 : 'bg-black/40 text-slate-400 border-white/[0.08] hover:text-white hover:border-white/[0.15]'
             }`}
           >
             <span>ทั้งหมด</span>
-            <span className="font-mono text-[11px] px-1.5 py-0.2 rounded-full bg-black/60">{allAnglesList.length}</span>
+            <span className="font-mono text-[10px] px-1.5 py-0.2 rounded-full bg-black/60">{allAnglesList.length}</span>
           </button>
 
           {/* Cards 1..5 */}
@@ -642,7 +636,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                 key={p.id}
                 type="button"
                 onClick={() => scrollToPhaseColumn(isActive && activePhase !== 'all' ? 'all' : p.id)}
-                className={`py-1.5 px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer flex-shrink-0 border ${
+                className={`py-1 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer flex-shrink-0 border ${
                   isActive
                     ? `${p.color} ring-1 ring-[#25F4EE]/40 shadow-sm font-bold`
                     : 'bg-black/40 text-slate-400 border-white/[0.08] hover:text-white hover:border-white/[0.15]'
@@ -650,7 +644,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
               >
                 <Icon className="w-3.5 h-3.5" />
                 <span>{p.short}</span>
-                <span className="font-mono text-[11px] px-1.5 py-0.2 rounded-full bg-black/60 font-bold">{count}</span>
+                <span className="font-mono text-[10px] px-1.5 py-0.2 rounded-full bg-black/60 font-bold">{count}</span>
               </button>
             );
           })}
@@ -658,35 +652,35 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
       </div>
 
       {/* ══════════════════════════════════════════════════════════
-          2. COMPACT SEARCH & VIEW CONTROLS
+          2. STREAMLINED SEARCH & VIEW CONTROLS (MERGED ROW)
          ══════════════════════════════════════════════════════════ */}
-      <div className="glass-card p-2.5 sm:p-3 rounded-2xl border border-white/[0.08] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+      <div className="glass-card p-2 rounded-xl border border-white/[0.08] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2">
         {/* Search Box */}
         <div className="relative flex-1 min-w-0">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="ค้นหาชื่อสินค้า, สคริปต์, หรือ Hook..."
-            className="w-full pl-8.5 pr-8 py-1.5 rounded-xl bg-[#080B11] border border-white/[0.1] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#25F4EE]/50"
+            className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-[#080B11] border border-white/[0.1] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#25F4EE]/50"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-3 h-3" />
             </button>
           )}
         </div>
 
-        {/* Product Filter Dropdown & View Mode Switcher */}
-        <div className="flex items-center gap-2 justify-between sm:justify-end">
+        {/* Product Filter Dropdown & View Mode Switcher (Merged Row) */}
+        <div className="flex items-center gap-1.5 justify-between md:justify-end flex-shrink-0">
           <select
             value={selectedProductFilter}
             onChange={(e) => setSelectedProductFilter(e.target.value)}
-            className="py-1.5 px-2.5 rounded-xl bg-[#080B11] border border-white/[0.1] text-xs font-bold text-slate-200 focus:outline-none focus:border-[#25F4EE]/50 cursor-pointer max-w-[170px] sm:max-w-[220px] truncate"
+            className="py-1.5 px-2 rounded-lg bg-[#080B11] border border-white/[0.1] text-xs font-bold text-slate-200 focus:outline-none focus:border-[#25F4EE]/50 cursor-pointer max-w-[150px] sm:max-w-[200px] truncate"
           >
             <option value="all">สินค้าทั้งหมด ({products.length})</option>
             {products.map(p => (
@@ -696,33 +690,33 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
             ))}
           </select>
 
-          {/* Multi-View Switcher (Board first, Table second) */}
-          <div className="flex items-center p-0.5 rounded-xl bg-black/60 border border-white/[0.1] flex-shrink-0">
+          {/* Multi-View Switcher */}
+          <div className="flex items-center p-0.5 rounded-lg bg-black/60 border border-white/[0.1] flex-shrink-0">
             <button
               type="button"
               onClick={() => handleSwitchViewMode('kanban')}
-              className={`py-1 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
+              className={`py-1 px-2 rounded-md text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
                 viewMode === 'kanban'
                   ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-sm'
                   : 'text-slate-400 hover:text-white'
               }`}
               title="มุมมองบอร์ด (Kanban)"
             >
-              <Kanban className="w-3.5 h-3.5" />
+              <Kanban className="w-3 h-3" />
               <span>บอร์ด</span>
             </button>
 
             <button
               type="button"
               onClick={() => handleSwitchViewMode('table')}
-              className={`py-1 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
+              className={`py-1 px-2 rounded-md text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
                 viewMode === 'table'
                   ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-sm'
                   : 'text-slate-400 hover:text-white'
               }`}
               title="มุมมองตาราง (Table)"
             >
-              <Table className="w-3.5 h-3.5" />
+              <Table className="w-3 h-3" />
               <span>ตาราง</span>
             </button>
           </div>
@@ -733,19 +727,19 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
           3. REAL HORIZONTAL KANBAN BOARD (SWIPEABLE COLUMNS)
          ══════════════════════════════════════════════════════════ */}
       {viewMode === 'kanban' && (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {/* Mobile Swipe Hint */}
-          <div className="flex xl:hidden items-center justify-between text-[11px] text-slate-400 px-1">
+          <div className="flex xl:hidden items-center justify-between text-[10px] text-slate-400 px-1">
             <span className="flex items-center gap-1 text-slate-400">
-              <ChevronLeft className="w-3.5 h-3.5 text-[#25F4EE]" />
+              <ChevronLeft className="w-3 h-3 text-[#25F4EE]" />
               <span>เลื่อนซ้าย-ขวาเพื่อดูหัวข้อถัดไป</span>
-              <ChevronRight className="w-3.5 h-3.5 text-[#25F4EE]" />
+              <ChevronRight className="w-3 h-3 text-[#25F4EE]" />
             </span>
             <span className="text-[#25F4EE] font-bold font-mono">5 คอลัมน์</span>
           </div>
 
           {/* Real Horizontal Kanban Board with Snap-Scroll */}
-          <div className="flex overflow-x-auto snap-x snap-mandatory gap-3.5 pb-4 no-scrollbar scroll-smooth items-start xl:grid xl:grid-cols-5 xl:overflow-x-visible xl:snap-none">
+          <div className="flex overflow-x-auto snap-x snap-mandatory gap-2.5 pb-3 no-scrollbar scroll-smooth items-start xl:grid xl:grid-cols-5 xl:overflow-x-visible xl:snap-none">
             {PIPELINE_PHASES.map((phase) => {
               const phaseAngles = filteredAngles.filter(a => a.status === phase.id);
 
@@ -755,23 +749,23 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                   ref={(el) => (colRefs.current[phase.id] = el)}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => handleDropOnColumn(phase.id, e)}
-                  className="w-[84vw] max-w-[340px] xl:w-auto xl:max-w-none flex-shrink-0 snap-center p-3.5 border border-white/[0.08] space-y-3 rounded-3xl glass-card transition-colors hover:border-white/[0.15] bg-[#070A12] flex flex-col"
+                  className="w-[82vw] max-w-[320px] xl:w-auto xl:max-w-none flex-shrink-0 snap-center p-2.5 border border-white/[0.08] space-y-2 rounded-2xl glass-card transition-colors hover:border-white/[0.15] bg-[#070A12] flex flex-col"
                 >
                   {/* Column Header */}
-                  <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
-                    <div className="flex items-center gap-2 text-xs font-bold text-white font-kanit">
+                  <div className="flex items-center justify-between pb-1.5 border-b border-white/[0.08]">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-white font-kanit">
                       <phase.icon className="w-3.5 h-3.5 text-[#25F4EE]" />
                       <span>{phase.label}</span>
                     </div>
-                    <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-black/60 border border-white/[0.08] text-slate-300">
+                    <span className="text-[11px] font-mono font-bold px-1.5 py-0.2 rounded-full bg-black/60 border border-white/[0.08] text-slate-300">
                       {phaseAngles.length}
                     </span>
                   </div>
 
                   {/* Cards inside column (Vertical Scrollable within column) */}
-                  <div className="space-y-2.5 max-h-[64vh] overflow-y-auto pr-0.5 min-h-[140px]">
+                  <div className="space-y-2 max-h-[68vh] overflow-y-auto pr-0.5 min-h-[120px]">
                     {phaseAngles.length === 0 ? (
-                      <div className="py-12 text-center text-xs text-slate-500 border border-dashed border-white/[0.06] rounded-2xl">
+                      <div className="py-8 text-center text-[11px] text-slate-500 border border-dashed border-white/[0.06] rounded-xl">
                         ไม่มีคลิปในขั้นตอนนี้
                       </div>
                     ) : (
@@ -801,22 +795,22 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
           4. CLEAN HIGH-DENSITY REAL TABLE VIEW
          ══════════════════════════════════════════════════════════ */}
       {viewMode === 'table' && (
-        <div className="glass-card rounded-3xl border border-white/[0.08] overflow-hidden bg-[#070A12] shadow-xl">
+        <div className="glass-card rounded-2xl border border-white/[0.08] overflow-hidden bg-[#070A12] shadow-xl">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse min-w-[660px]">
+            <table className="w-full text-left text-xs border-collapse min-w-[620px]">
               <thead>
                 <tr className="border-b border-white/[0.08] bg-black/70 text-slate-400 font-bold text-[11px]">
-                  <th className="py-3 px-3 w-16 text-center">วิดีโอ</th>
-                  <th className="py-3 px-3 min-w-[200px]">สินค้า & มุมขาย (Hook Title)</th>
-                  <th className="py-3 px-3 w-36">สถานะขั้นตอน</th>
-                  <th className="py-3 px-3 w-48">แคปชัน TikTok</th>
-                  <th className="py-3 px-3 text-right w-28">ปุ่มลัด</th>
+                  <th className="py-2.5 px-3 w-14 text-center">วิดีโอ</th>
+                  <th className="py-2.5 px-3 min-w-[180px]">สินค้า & มุมขาย (Hook Title)</th>
+                  <th className="py-2.5 px-3 w-32">สถานะขั้นตอน</th>
+                  <th className="py-2.5 px-3 w-44">แคปชัน TikTok</th>
+                  <th className="py-2.5 px-3 text-right w-24">ปุ่มลัด</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredAngles.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-16 text-center text-xs text-slate-500">
+                    <td colSpan={5} className="py-12 text-center text-xs text-slate-500">
                       ไม่พบข้อมูลคลิปตามเงื่อนไขที่ค้นหา
                     </td>
                   </tr>

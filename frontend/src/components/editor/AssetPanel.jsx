@@ -14,6 +14,9 @@ const TABS = [
   { id: 'filter', label: 'ฟิลเตอร์', icon: Palette },
 ];
 
+// Drag payload type shared with Timeline's drop target.
+export const CLIP_DRAG_TYPE = 'application/x-capcut-clip';
+
 const FONTS = [
   { id: 'IBMPlex', name: 'IBM Plex Sans Thai' },
   { id: 'Kanit', name: 'Kanit' },
@@ -60,12 +63,15 @@ function parseSrtToCues(srtText) {
   return cues;
 }
 
-function Row({ active, onClick, children, title }) {
+function Row({ active, onClick, children, title, draggable, onDragStart, onDragEnd }) {
   return (
     <button
       type="button"
       onClick={onClick}
       title={title}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
       className={`group flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE] ${
         active
           ? 'border-[#25F4EE] bg-[#25F4EE]/10 text-white'
@@ -215,7 +221,16 @@ export default function AssetPanel({
         {tab === 'clips' && (
           <>
             {filtered.videos.map((v) => (
-              <Row key={v.path} onClick={() => onAddClip(v)} title={`เพิ่ม ${v.name} เข้าไทม์ไลน์`}>
+              <Row
+                key={v.path}
+                onClick={() => onAddClip(v)}
+                title={`คลิกเพื่อต่อท้าย หรือลากไปวางตรงจุดที่ต้องการบนไทม์ไลน์ — ${v.name}`}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.effectAllowed = 'copy';
+                  e.dataTransfer.setData(CLIP_DRAG_TYPE, JSON.stringify({ path: v.path, name: v.name, duration: v.duration }));
+                }}
+              >
                 <Film className="h-3.5 w-3.5 flex-shrink-0 text-slate-400 group-hover:text-[#25F4EE]" />
                 <span className="min-w-0 flex-1 truncate text-[11px] text-slate-200">{v.name}</span>
                 <Plus className="h-3.5 w-3.5 flex-shrink-0 text-slate-500 group-hover:text-[#25F4EE]" />

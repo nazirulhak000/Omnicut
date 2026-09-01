@@ -224,25 +224,26 @@ export default function EditorShell({ videos = [] }) {
     }));
   }, [set]);
 
-  const addClip = useCallback((video) => {
+  /** insertAt = null appends (the click path); a number drops it in place. */
+  const addClip = useCallback((video, insertAt = null) => {
     const rawDur = video.duration || durations[video.path] || 10;
     const dur = Math.min(rawDur, 12);
-    set((prev) => ({
-      ...prev,
-      clipList: [
-        ...prev.clipList,
-        {
-          id: newId(),
-          source_path: video.path,
-          trim_start: 0,
-          trim_end: dur,
-          duration: dur,
-          speed: 1,
-          transition_in: prev.clipList.length === 0 ? 'cut' : 'cut',
-          mirror: false,
-        },
-      ],
-    }));
+    set((prev) => {
+      const clip = {
+        id: newId(),
+        source_path: video.path,
+        trim_start: 0,
+        trim_end: dur,
+        duration: dur,
+        speed: 1,
+        transition_in: 'cut',
+        mirror: false,
+      };
+      const next = [...prev.clipList];
+      const at = insertAt === null ? next.length : Math.max(0, Math.min(next.length, insertAt));
+      next.splice(at, 0, clip);
+      return { ...prev, clipList: next };
+    });
   }, [durations, set]);
 
   const selectedSeg = useMemo(
@@ -803,6 +804,7 @@ export default function EditorShell({ videos = [] }) {
                     onCaptionChange={patchCaption}
                     onReorder={reorderClip}
                     onReorderSilent={(id, dir) => reorderClip(id, dir, true)}
+                    onDropClip={addClip}
                     onBeginDrag={beginDrag}
                     onEndDrag={endDrag}
                     snapCandidates={snapEnabled ? snapCandidates(segments, cuesList, audioDuration) : []}
@@ -1014,6 +1016,7 @@ export default function EditorShell({ videos = [] }) {
                     onCaptionChange={patchCaption}
                     onReorder={reorderClip}
                     onReorderSilent={(id, dir) => reorderClip(id, dir, true)}
+                    onDropClip={addClip}
                     onBeginDrag={beginDrag}
                     onEndDrag={endDrag}
                     snapCandidates={snapEnabled ? snapCandidates(segments, cuesList, audioDuration) : []}
