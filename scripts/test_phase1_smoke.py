@@ -815,6 +815,44 @@ def test_transition_duration_is_clamped_to_what_the_clips_can_give(monkeypatch, 
     assert "offset=-" not in filter_arg
 
 
+def test_clip_colour_only_reaches_ffmpeg_when_changed(monkeypatch, tmp_path):
+    from scripts.video_editor import build_eq_filter
+
+    assert build_eq_filter({}) == ""
+    assert build_eq_filter({"brightness": 0.0, "contrast": 1.0, "saturation": 1.0}) == "",         "default values must not add a filter (and its render cost) to the chain"
+    assert build_eq_filter({"contrast": 99}) == "eq=contrast=2.0,", "clamped to EQ_LIMITS"
+    assert build_eq_filter({"saturation": "junk"}) == "", "garbage is ignored, not raised"
+
+    clip_list = [{
+        "source_path": str(tmp_path / "a.mp4"), "trim_start": 0.0, "trim_end": 3.0,
+        "saturation": 0.0, "brightness": 0.12,
+    }]
+    cmd = _capture_ffmpeg_cmd(monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list)
+    filter_arg = cmd[cmd.index("-filter_complex") + 1]
+    assert "eq=" in filter_arg and "saturation=0.0" in filter_arg and "brightness=0.12" in filter_arg
+
+
+def test_lut_intensity_below_full_blends_instead_of_grading_outright(monkeypatch, tmp_path):
+    lut = tmp_path / "grade.cube"
+    lut.write_text("LUT_3D_SIZE 2\n" + "0 0 0\n" * 8, encoding="utf-8")
+    clip_list = [{"source_path": str(tmp_path / "a.mp4"), "trim_start": 0.0, "trim_end": 3.0}]
+
+    full = _capture_ffmpeg_cmd(
+        monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list, lut_path=str(lut),
+    )
+    full_filter = full[full.index("-filter_complex") + 1]
+    assert "lut3d=" in full_filter
+    assert "blend=" not in full_filter, "full strength must stay on the cheap single-pass path"
+
+    half = _capture_ffmpeg_cmd(
+        monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list,
+        lut_path=str(lut), lut_intensity=0.4,
+    )
+    half_filter = half[half.index("-filter_complex") + 1]
+    assert "blend=all_mode=normal:all_opacity=0.4" in half_filter
+    assert "split=2[lut_src][lut_in]" in half_filter
+
+
 def test_normalize_transitions_shapes():
     from scripts.video_editor import normalize_transitions, DEFAULT_TRANSITION_DURATION
 
