@@ -7,7 +7,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import AIBridgePanel from './AIBridgePanel';
 import {
   aiRun, fetchProductInfo, createProduct, updateProduct, getAngles,
-  startRender, startReroll, getRenderStatus,
+  startRender, startReroll, getRenderStatus, getAllAssets,
   createPost, getPosts, setPostMetrics, getPerformance
 } from '../api';
 
@@ -36,6 +36,15 @@ const METRIC_LABELS = {
   orders: 'ออเดอร์',
   commission_thb: 'คอมมิชชั่น (บาท)',
 };
+
+// Fonts/*.ttf has multiple weight files per family (Kanit-Black/Bold/ExtraBold
+// are all "Kanit") -- the picker offers one entry per real family, not one
+// per file, since font_name only ever needs to name the family (see
+// subtitle_engine.py's _load_font_family_map: every style already sets
+// Bold=1, so libass/fontconfig picks the bold weight itself).
+function uniqueFontFamilies(fonts) {
+  return [...new Set(fonts.map((f) => f.font_family || f.family).filter(Boolean))].sort();
+}
 
 function StepCard({ number, title, subtitle, locked, children }) {
   return (
@@ -90,6 +99,15 @@ export default function ProductToClip({ status, videos, onRefresh }) {
   // Step 3 — render
   const [selectedVideo, setSelectedVideo] = useState('');
   const [voicePreset, setVoicePreset] = useState('gemini_puck_male_hype');
+  // These two used to have no UI at all on this tab -- every render silently
+  // used RenderRequest's Pydantic defaults (IBMPlex / badge_flash_sale_3d.png)
+  // no matter what a user might have wanted, because nothing here ever sent
+  // font_name or sticker_badge. See StudioStep4Render.jsx for the pattern the
+  // other ("studio") tab already had right.
+  const [fontName, setFontName] = useState('Kanit');
+  const [stickerBadge, setStickerBadge] = useState('badge_flash_sale_3d.png');
+  const [availableFonts, setAvailableFonts] = useState([]);
+  const [availableStickers, setAvailableStickers] = useState([]);
   const [jobId, setJobId] = useState(null);
   const [job, setJob] = useState(null);
   const [rendering, setRendering] = useState(false);
@@ -121,6 +139,15 @@ export default function ProductToClip({ status, videos, onRefresh }) {
   };
 
   useEffect(() => { refreshResults(); }, []);
+
+  useEffect(() => {
+    getAllAssets()
+      .then((data) => {
+        setAvailableFonts(data.fonts || []);
+        setAvailableStickers(data.stickers || []);
+      })
+      .catch(() => { /* pickers just stay empty; render still works with the current defaults */ });
+  }, []);
 
   // Poll a render or re-roll job. Both return the same job shape.
   useEffect(() => {
@@ -300,6 +327,8 @@ export default function ProductToClip({ status, videos, onRefresh }) {
         voice_mode: 'gemini_tts',
         voice_gender: voicePreset.includes('female') ? 'female' : 'male',
         voice_preset: voicePreset,
+        font_name: fontName,
+        sticker_badge: stickerBadge || null,
         export_mp4: true,
       });
       setJobId(res.job_id);
@@ -531,6 +560,28 @@ export default function ProductToClip({ status, videos, onRefresh }) {
             className="py-2.5 px-3 rounded-xl bg-[#121622] border border-white/10 outline-none text-xs text-slate-200 cursor-pointer"
           >
             {VOICE_PRESETS.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
+          </select>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+          <select
+            value={fontName}
+            onChange={(e) => setFontName(e.target.value)}
+            className="py-2.5 px-3 rounded-xl bg-[#121622] border border-white/10 outline-none text-xs text-slate-200 cursor-pointer"
+          >
+            {uniqueFontFamilies(availableFonts).map((family) => (
+              <option key={family} value={family}>ตัวอักษร: {family}</option>
+            ))}
+          </select>
+          <select
+            value={stickerBadge}
+            onChange={(e) => setStickerBadge(e.target.value)}
+            className="py-2.5 px-3 rounded-xl bg-[#121622] border border-white/10 outline-none text-xs text-slate-200 cursor-pointer"
+          >
+            <option value="">ไม่ใส่ป้าย</option>
+            {availableStickers.map((s) => (
+              <option key={s.id} value={s.name}>{s.id.replace(/_/g, ' ')}</option>
+            ))}
           </select>
         </div>
 

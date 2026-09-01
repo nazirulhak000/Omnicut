@@ -56,6 +56,13 @@ def _load_font_family_map() -> Dict[str, str]:
         font_map[preset["id"]] = family
         font_map[preset["font_name"]] = family
 
+    # Every real family on disk maps to itself, not just the 5 that have a
+    # typography_presets.json entry -- so a font_name picker built straight
+    # off AssetRegistry.fonts() (e.g. "Tahoma", "Noto Sans Thai") works too,
+    # not only the curated preset ids.
+    for family in family_by_filename.values():
+        font_map.setdefault(family, family)
+
     for alias, target in _LEGACY_FONT_ALIASES.items():
         font_map[alias] = font_map.get(target, DEFAULT_FONT_FAMILY)
 
