@@ -203,13 +203,23 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
   };
 
   const seekTo = (t) => {
-    const clamped = Math.max(0, Math.min(totalDuration, t));
+    const maxDur = totalDuration || 999999;
+    const clamped = Math.max(0, Math.min(maxDur, t));
     Object.values(videoElsRef.current).forEach(v => v?.pause());
     setPlayhead(clamped);
     playheadRef.current = clamped;
     onPlayhead?.(clamped);
     clockRef.current = { startWall: performance.now(), startT: clamped };
-    renderAt(clamped);   // immediate (may be stale); onSeeked repaints when decoded
+
+    const plan = getDrawPlan(clamped);
+    plan.forEach(({ seg, localTime }) => {
+      const v = videoElsRef.current[seg.clip.id];
+      if (v) {
+        v.currentTime = localTime;
+      }
+    });
+
+    renderAt(clamped); // immediate draw; onSeeked will repaint crisp frame when decoded
   };
 
   useImperativeHandle(ref, () => ({

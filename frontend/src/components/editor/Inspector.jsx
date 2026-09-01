@@ -1,212 +1,612 @@
-import React from 'react';
-import { AlertTriangle, Film, MessageSquare, Settings2 } from 'lucide-react';
-import { formatTimecode } from '../../lib/timelineMath';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import {
+  AlertTriangle, Film, MessageSquare, Settings2, Scissors,
+  Trash2, Plus, Volume2, Play, Check, Search,
+  Link2, Clock, Split, Sparkles, ArrowUp, ArrowDown,
+  Replace, CheckCheck, RefreshCw, X, ChevronUp, ChevronDown
+} from 'lucide-react';
 
 const SPEEDS = [0.5, 1, 1.5, 2];
 
-function Section({ icon: Icon, title, children }) {
-  return (
-    <div className="space-y-2">
-      <h3 className="flex items-center gap-1.5 border-b border-[#363430] pb-1.5 text-[11px] font-semibold text-[#EDE9E3]">
-        <Icon className="h-3.5 w-3.5 text-[#E89274]" />
-        {title}
-      </h3>
-      {children}
-    </div>
-  );
-}
+const POPULAR_SFX = [
+  { id: 'boom', label: '💥 Boom' },
+  { id: 'whoosh', label: '⚡ Whoosh' },
+  { id: 'ding', label: '🔔 Ding' },
+  { id: 'cash', label: '💰 Cash' },
+  { id: 'pop', label: '🎈 Pop' },
+];
 
-function Field({ label, children }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-[10px] font-medium text-[#9C968F]">{label}</span>
-      {children}
-    </label>
-  );
+function formatShortTime(sec) {
+  if (sec == null || isNaN(sec)) return '00:00.0';
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  const ms = Math.floor((sec % 1) * 10);
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${ms}`;
 }
 
 function NumberInput(props) {
-  return <input type="number" {...props} className="claude-input w-full px-2 py-1 font-mono text-[11px]" />;
+  return (
+    <input
+      type="number"
+      {...props}
+      className="w-full px-2.5 py-1.5 rounded-xl bg-black/60 border border-white/[0.1] text-white text-xs font-mono focus:outline-none focus:border-[#25F4EE] shadow-inner"
+    />
+  );
 }
 
 export default function Inspector({
   selection,
   selectedSeg,
   selectedCaption,
+  cuesList = [],
+  playhead = 0,
   style,
-  totalDuration,
-  audioDuration,
+  totalDuration = 0,
+  audioDuration = 0,
+  assets = {},
   onClipChange,
   onCaptionChange,
+  onSplitCue,
+  onSplitCueAtPlayhead,
+  onMergeCue,
+  onMergeWithPrevious,
+  onDeleteCue,
+  onInsertCueAfter,
+  onReorderCues,
+  onBatchFindAndReplace,
+  onBatchFormatClean,
+  onSeek,
+  onSelectCue,
 }) {
+  const [activeTab, setActiveTab] = useState('cues'); // 'cues' | 'clip' | 'style'
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showFindReplace, setShowFindReplace] = useState(false);
+  const [findWord, setFindWord] = useState('');
+  const [replaceWord, setReplaceWord] = useState('');
+  const [replaceMessage, setReplaceMessage] = useState(null);
+
+  const inputRefs = useRef({});
+  const rowRefs = useRef({});
+  const isTypingRef = useRef(false);
   const gap = (audioDuration || 0) - totalDuration;
 
+  const sfxList = assets?.sfx || [];
+
+  // Filter cues by search query
+  const filteredCues = cuesList.filter((cue) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (cue.text || '').toLowerCase().includes(q) || (cue.translation || '').toLowerCase().includes(q);
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // 🎬 PILLAR 3: LIVE KARAOKE PLAYHEAD AUTO-SCROLL SYNC
+  // ═══════════════════════════════════════════════════════════════════════
+  useEffect(() => {
+    if (isTypingRef.current || activeTab !== 'cues') return;
+    const activeCue = cuesList.find((c) => playhead >= c.start && playhead < c.end);
+    if (activeCue && rowRefs.current[activeCue._uid]) {
+      rowRefs.current[activeCue._uid].scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      });
+    }
+  }, [playhead, cuesList, activeTab]);
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // 🎯 PILLAR 1: WORD PROCESSOR ERGONOMICS (Enter, Backspace, Arrow keys)
+  // ═══════════════════════════════════════════════════════════════════════
+  const handleCursorSplit = (cue, forcedCursorIdx) => {
+    const el = inputRefs.current[cue._uid];
+    const cursorIdx = forcedCursorIdx ?? el?.selectionStart ?? Math.floor((cue.text || '').length / 2);
+    onSplitCue?.(cue._uid, cursorIdx);
+  };
+
+  const handleKeyDown = (e, cue, index) => {
+    const el = e.target;
+    const cursorStart = el.selectionStart;
+    const cursorEnd = el.selectionEnd;
+    const textLen = (cue.text || '').length;
+
+    // 1. Enter key -> Split line at cursor
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleCursorSplit(cue, cursorStart);
+      return;
+    }
+
+    // 2. Backspace at index 0 -> Merge with previous line
+    if (e.key === 'Backspace' && cursorStart === 0 && cursorEnd === 0 && index > 0) {
+      e.preventDefault();
+      const prevCue = cuesList[index - 1];
+      if (prevCue) {
+        const prevTextLen = (prevCue.text || '').length;
+        onMergeWithPrevious?.(cue._uid);
+        // Focus previous input at join point
+        setTimeout(() => {
+          const prevEl = inputRefs.current[prevCue._uid];
+          if (prevEl) {
+            prevEl.focus();
+            prevEl.setSelectionRange(prevTextLen, prevTextLen);
+          }
+        }, 30);
+      }
+      return;
+    }
+
+    // 3. Arrow Up (↑) -> Navigate to previous cue line
+    if (e.key === 'ArrowUp' && cursorStart === 0 && index > 0) {
+      e.preventDefault();
+      const prevCue = cuesList[index - 1];
+      if (prevCue) {
+        onSelectCue?.(prevCue._uid);
+        onSeek?.(prevCue.start);
+        if (inputRefs.current[prevCue._uid]) {
+          inputRefs.current[prevCue._uid].focus();
+        }
+      }
+      return;
+    }
+
+    // 4. Arrow Down (↓) -> Navigate to next cue line
+    if (e.key === 'ArrowDown' && cursorStart === textLen && index < cuesList.length - 1) {
+      e.preventDefault();
+      const nextCue = cuesList[index + 1];
+      if (nextCue) {
+        onSelectCue?.(nextCue._uid);
+        onSeek?.(nextCue.start);
+        if (inputRefs.current[nextCue._uid]) {
+          inputRefs.current[nextCue._uid].focus();
+        }
+      }
+      return;
+    }
+  };
+
+  // Find and Replace Handler
+  const handleExecuteReplace = () => {
+    if (!findWord.trim()) return;
+    const count = onBatchFindAndReplace?.(findWord.trim(), replaceWord.trim());
+    setReplaceMessage(`แทนที่คำสำเร็จ ${count || 0} จุด`);
+    setTimeout(() => setReplaceMessage(null), 3000);
+  };
+
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto border-l border-[#363430] bg-[#232220] p-3">
-      {selection?.type === 'clip' && selectedSeg && (
-        <Section icon={Film} title={`คลิปที่ ${selectedSeg.index + 1}`}>
-          <p className="truncate text-[10px] text-[#9C968F]" title={selectedSeg.clip.source_path}>
-            {(selectedSeg.clip.source_path || '').split(/[\\/]/).pop()}
-          </p>
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-[#0C1019] text-slate-200">
+      {/* ── Top View Switcher ── */}
+      <div className="flex flex-shrink-0 border-b border-white/[0.08] bg-[#080B11] p-1.5 gap-1">
+        <button
+          type="button"
+          onClick={() => setActiveTab('cues')}
+          className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+            activeTab === 'cues'
+              ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <MessageSquare className="w-3.5 h-3.5" />
+          <span>คำบรรยาย ({cuesList.length})</span>
+        </button>
 
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="เข้า (วิ)">
-              <NumberInput
-                step="0.1"
-                min="0"
-                value={selectedSeg.clip.trim_start}
-                onChange={(e) => onClipChange({ trim_start: Math.max(0, parseFloat(e.target.value) || 0) })}
-              />
-            </Field>
-            <Field label="ออก (วิ)">
-              <NumberInput
-                step="0.1"
-                min="0"
-                placeholder="สุดคลิป"
-                value={selectedSeg.clip.trim_end ?? ''}
-                onChange={(e) => onClipChange({
-                  trim_end: e.target.value === '' ? null : parseFloat(e.target.value),
-                })}
-              />
-            </Field>
-          </div>
+        <button
+          type="button"
+          onClick={() => setActiveTab('clip')}
+          disabled={!selectedSeg}
+          className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+            activeTab === 'clip'
+              ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Film className="w-3.5 h-3.5" />
+          <span>คลิปที่เลือก</span>
+        </button>
 
-          <div className="rounded-lg bg-[#1C1B19] px-2 py-1.5 text-[10px] text-[#9C968F]">
-            ยาวบนไทม์ไลน์ <span className="font-mono text-[#EDE9E3]">{selectedSeg.dur.toFixed(2)}s</span>
-            {' · '}ต้นฉบับ <span className="font-mono">{selectedSeg.srcDur.toFixed(1)}s</span>
-          </div>
+        <button
+          type="button"
+          onClick={() => setActiveTab('style')}
+          className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+            activeTab === 'style'
+              ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Settings2 className="w-3.5 h-3.5" />
+          <span>ภาพรวม</span>
+        </button>
+      </div>
 
-          <Field label="ความเร็ว">
-            <div className="flex gap-1">
-              {SPEEDS.map((s) => {
-                const active = (selectedSeg.clip.speed || 1) === s;
-                return (
+      <div className="p-2 sm:p-3 space-y-2.5 flex-1 overflow-y-auto">
+        {/* ══════════════════════════════════════════════════════════
+            MODE 1: SINGLE-ROW HIGH-VELOCITY SUBTITLE STRIP
+           ══════════════════════════════════════════════════════════ */}
+        {activeTab === 'cues' && (
+          <div className="space-y-2">
+            {/* Header: Quick Search, Find & Replace Toggle, Format Clean, Add Cue */}
+            <div className="flex items-center gap-1.5 pb-1">
+              <div className="relative flex-1">
+                <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="ค้นหาข้อความ..."
+                  className="w-full py-1 pl-8 pr-2.5 rounded-lg bg-black/50 border border-white/[0.08] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#25F4EE]"
+                />
+              </div>
+
+              {/* Find & Replace Toggle */}
+              <button
+                type="button"
+                onClick={() => setShowFindReplace((v) => !v)}
+                className={`p-1.5 rounded-lg border text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors ${
+                  showFindReplace
+                    ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
+                    : 'bg-white/[0.04] hover:bg-white/[0.08] border-white/[0.08] text-slate-400 hover:text-white'
+                }`}
+                title="ค้นหาและแทนที่คำผิดทั้งเรื่อง (Find & Replace All)"
+              >
+                <Replace className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Format Clean (จัดวรรคตอนอัตโนมัติ) */}
+              <button
+                type="button"
+                onClick={() => onBatchFormatClean?.()}
+                className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-slate-400 hover:text-amber-300 cursor-pointer transition-colors"
+                title="จัดระเบียบวรรคตอนภาษาไทยและลบช่องว่างส่วนเกิน"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              </button>
+
+              {/* Add New Cue */}
+              <button
+                type="button"
+                onClick={() => onInsertCueAfter?.(cuesList[cuesList.length - 1]?._uid)}
+                className="py-1 px-2 rounded-lg bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors flex-shrink-0"
+                title="เพิ่มท่อนคำบรรยายใหม่ต่อท้าย"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ ท่อน</span>
+              </button>
+            </div>
+
+            {/* Expandable Find & Replace Bar */}
+            {showFindReplace && (
+              <div className="p-2.5 rounded-xl bg-[#080B11] border border-[#25F4EE]/30 space-y-2 shadow-lg animate-in fade-in slide-in-from-top-1 duration-150">
+                <div className="flex items-center justify-between text-[11px] font-bold text-[#25F4EE]">
+                  <span className="flex items-center gap-1">
+                    <Replace className="w-3.5 h-3.5" />
+                    <span>ค้นหาและแทนที่คำผิดทั้งเรื่อง</span>
+                  </span>
                   <button
-                    key={s}
                     type="button"
-                    onClick={() => onClipChange({ speed: s === 1 ? undefined : s })}
-                    className={`flex-1 rounded-lg py-1 text-[11px] font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
-                      active
-                        ? 'bg-[#D97757] text-white'
-                        : 'cursor-pointer bg-[#1C1B19] text-[#C9C3BB] hover:bg-[#2C2B27]'
+                    onClick={() => setShowFindReplace(false)}
+                    className="text-slate-500 hover:text-white cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <input
+                    type="text"
+                    value={findWord}
+                    onChange={(e) => setFindWord(e.target.value)}
+                    placeholder="คำที่ต้องการหา..."
+                    className="py-1 px-2 rounded-lg bg-black/60 border border-white/[0.1] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#25F4EE]"
+                  />
+                  <input
+                    type="text"
+                    value={replaceWord}
+                    onChange={(e) => setReplaceWord(e.target.value)}
+                    placeholder="แทนที่ด้วยคำนี้..."
+                    className="py-1 px-2 rounded-lg bg-black/60 border border-white/[0.1] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#25F4EE]"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  {replaceMessage ? (
+                    <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                      <CheckCheck className="w-3 h-3" />{replaceMessage}
+                    </span>
+                  ) : <span className="text-[10px] text-slate-500">กด Enter หรือกดปุ่มแทนที่</span>}
+                  <button
+                    type="button"
+                    onClick={handleExecuteReplace}
+                    disabled={!findWord.trim()}
+                    className="py-1 px-3 rounded-lg bg-[#25F4EE] hover:bg-[#25F4EE]/90 text-black font-bold text-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
+                  >
+                    แทนที่ทั้งหมด
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ══════════════════════════════════════════════════════════
+                SUBTITLE STRIP ROWS (1 Row per Caption)
+               ══════════════════════════════════════════════════════════ */}
+            <div className="space-y-1">
+              {filteredCues.map((cue, idx) => {
+                const isSelected = selectedCaption?._uid === cue._uid;
+                const isPlaying = playhead >= cue.start && playhead < cue.end;
+                const isLast = idx === cuesList.length - 1;
+                const isFirst = idx === 0;
+
+                return (
+                  <div
+                    key={cue._uid}
+                    ref={(el) => (rowRefs.current[cue._uid] = el)}
+                    onClick={() => {
+                      onSelectCue?.(cue._uid);
+                      onSeek?.(cue.start);
+                    }}
+                    className={`flex items-center gap-1.5 p-1 sm:p-1.5 rounded-xl border transition-all group cursor-pointer ${
+                      isSelected
+                        ? 'border-[#25F4EE] bg-[#25F4EE]/15 shadow-md ring-1 ring-[#25F4EE]/40'
+                        : isPlaying
+                        ? 'border-emerald-500/60 bg-emerald-500/15 shadow-sm ring-1 ring-emerald-500/30'
+                        : 'border-white/[0.06] bg-black/40 hover:border-white/[0.15] hover:bg-black/60'
                     }`}
                   >
-                    {s}x
-                  </button>
+                    {/* 1. Time Badge (Click to seek video) */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectCue?.(cue._uid);
+                        onSeek?.(cue.start);
+                      }}
+                      className={`flex items-center gap-1 px-1.5 py-1 rounded-lg text-[10px] font-mono font-bold cursor-pointer transition-colors flex-shrink-0 border ${
+                        isPlaying
+                          ? 'bg-emerald-500/30 text-emerald-300 border-emerald-500/50'
+                          : 'bg-black/60 text-slate-400 border-white/[0.08] hover:text-[#25F4EE] hover:border-[#25F4EE]/40'
+                      }`}
+                      title={`คลิกกระโดดไป ${formatShortTime(cue.start)}`}
+                    >
+                      <span className={`w-3.5 text-center font-bold ${isPlaying ? 'text-emerald-400' : 'text-slate-500'}`}>
+                        {idx + 1}
+                      </span>
+                      <span>{formatShortTime(cue.start)}</span>
+                    </button>
+
+                    {/* 2. Main Thai Text Input (Word processor shortcuts: Enter to split, Backspace to merge) */}
+                    <div className="flex-1 min-w-0">
+                      <input
+                        ref={(el) => (inputRefs.current[cue._uid] = el)}
+                        type="text"
+                        value={cue.text || ''}
+                        onFocus={() => {
+                          isTypingRef.current = true;
+                          onSelectCue?.(cue._uid);
+                          onSeek?.(cue.start);
+                        }}
+                        onBlur={() => { isTypingRef.current = false; }}
+                        onChange={(e) => onCaptionChange?.(cue._uid, { text: e.target.value })}
+                        onClick={() => {
+                          onSelectCue?.(cue._uid);
+                          onSeek?.(cue.start);
+                        }}
+                        onKeyDown={(e) => handleKeyDown(e, cue, idx)}
+                        placeholder="พิมพ์ข้อความ (Enter เพื่อแยกท่อน, Backspace เพื่อรวมท่อน)..."
+                        className="w-full py-1 px-2 rounded-lg bg-black/40 border border-transparent focus:border-[#25F4EE] focus:bg-black/80 text-white text-xs placeholder-slate-600 focus:outline-none transition-colors cursor-text"
+                      />
+                    </div>
+
+                    {/* 3. Quick SFX Selector */}
+                    <select
+                      value={cue.sfx || ''}
+                      onChange={(e) => onCaptionChange?.(cue._uid, { sfx: e.target.value || null })}
+                      onClick={(e) => e.stopPropagation()}
+                      className="py-1 px-1.5 rounded-lg bg-black/60 border border-white/[0.08] text-[10px] text-slate-400 focus:text-[#25F4EE] focus:outline-none cursor-pointer max-w-[62px] truncate hidden xs:inline flex-shrink-0"
+                      title="เสียงเอฟเฟกต์ (SFX)"
+                    >
+                      <option value="">SFX</option>
+                      {sfxList.map((s) => (
+                        <option key={s.id} value={s.id} className="bg-[#080B11]">
+                          {s.label_th || s.name}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* 4. Move Up / Down (Reorder Cues) */}
+                    <div className="flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                      {!isFirst && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onReorderCues?.(idx, idx - 1);
+                          }}
+                          className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-white/[0.1] text-slate-400 hover:text-white cursor-pointer"
+                          title="เลื่อนท่อนนี้ขึ้น"
+                        >
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      {!isLast && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onReorderCues?.(idx, idx + 1);
+                          }}
+                          className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-white/[0.1] text-slate-400 hover:text-white cursor-pointer"
+                          title="เลื่อนท่อนนี้ลง"
+                        >
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* 5. Split Button (✂️) */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCursorSplit(cue);
+                      }}
+                      className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/[0.04] hover:bg-[#25F4EE]/20 text-slate-400 hover:text-[#25F4EE] border border-white/[0.06] transition-colors cursor-pointer flex-shrink-0"
+                      title="✂️ ตัดแบ่งท่อนคำบรรยาย (หรือกด Enter ในช่องพิมพ์)"
+                    >
+                      <Scissors className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* 6. Merge with Next Button (🔗) */}
+                    {!isLast && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onMergeCue?.(cue._uid);
+                        }}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/[0.04] hover:bg-blue-500/20 text-slate-400 hover:text-blue-400 border border-white/[0.06] transition-colors cursor-pointer flex-shrink-0"
+                        title="🔗 รวมกับท่อนถัดไป"
+                      >
+                        <Link2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+
+                    {/* 7. Delete Button (🗑️) */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteCue?.(cue._uid);
+                      }}
+                      className="w-7 h-7 flex items-center justify-center rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/20 transition-colors cursor-pointer flex-shrink-0"
+                      title="🗑️ ลบท่อนนี้ออก"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 );
               })}
+
+              {filteredCues.length === 0 && (
+                <div className="py-8 text-center text-xs text-slate-500 space-y-2">
+                  <p>ไม่พบรายการคำบรรยาย</p>
+                  <button
+                    type="button"
+                    onClick={() => onInsertCueAfter?.(null)}
+                    className="px-3 py-1.5 rounded-xl bg-[#25F4EE]/10 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold inline-flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>สร้างท่อนแรก</span>
+                  </button>
+                </div>
+              )}
             </div>
-          </Field>
+          </div>
+        )}
 
-          <button
-            type="button"
-            onClick={() => onClipChange({ mirror: !selectedSeg.clip.mirror })}
-            className={`w-full rounded-lg py-1.5 text-[11px] font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
-              selectedSeg.clip.mirror
-                ? 'bg-[#33251F] text-[#E89274] ring-1 ring-[#D97757]'
-                : 'cursor-pointer bg-[#1C1B19] text-[#C9C3BB] hover:bg-[#2C2B27]'
-            }`}
-          >
-            {selectedSeg.clip.mirror ? 'กลับซ้ายขวาอยู่ · คลิกเพื่อยกเลิก' : 'กลับซ้ายขวา'}
-          </button>
-
-          {selectedSeg.index > 0 && (
-            <Field label="รอยต่อกับคลิปก่อนหน้า">
-              <div className="flex gap-1">
-                {['cut', 'fade'].map((mode) => {
-                  const active = (selectedSeg.clip.transition_in || 'cut') === mode;
-                  return (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => onClipChange({ transition_in: mode })}
-                      className={`flex-1 rounded-lg py-1 text-[11px] font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
-                        active
-                          ? 'bg-[#D97757] text-white'
-                          : 'cursor-pointer bg-[#1C1B19] text-[#C9C3BB] hover:bg-[#2C2B27]'
-                      }`}
-                    >
-                      {mode === 'cut' ? 'ตัดตรง' : 'fade 0.4s'}
-                    </button>
-                  );
-                })}
+        {/* ══════════════════════════════════════════════════════════
+            MODE 2: SELECTED CLIP PROPERTIES
+           ══════════════════════════════════════════════════════════ */}
+        {activeTab === 'clip' && selectedSeg && (
+          <div className="space-y-3">
+            <div className="p-3 rounded-2xl bg-black/40 border border-white/[0.08] space-y-2.5">
+              <div className="flex items-center justify-between text-xs font-bold text-white">
+                <span>คลิปที่ {selectedSeg.index + 1}</span>
+                <span className="font-mono text-[#25F4EE]">{selectedSeg.dur.toFixed(2)}s</span>
               </div>
-            </Field>
-          )}
-        </Section>
-      )}
+              <p className="truncate text-xs text-slate-400 font-mono" title={selectedSeg.clip.source_path}>
+                {(selectedSeg.clip.source_path || '').split(/[\\/]/).pop()}
+              </p>
 
-      {selection?.type === 'caption' && selectedCaption && (
-        <Section icon={MessageSquare} title="ท่อนคำบรรยาย">
-          <Field label="ข้อความ">
-            <textarea
-              rows={3}
-              value={selectedCaption.text}
-              onChange={(e) => onCaptionChange({ text: e.target.value })}
-              className="claude-input w-full resize-none px-2 py-1.5 text-[11px]"
-            />
-          </Field>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="เริ่ม (วิ)">
-              <NumberInput
-                step="0.1"
-                value={selectedCaption.start}
-                onChange={(e) => onCaptionChange({ start: parseFloat(e.target.value) || 0 })}
-              />
-            </Field>
-            <Field label="จบ (วิ)">
-              <NumberInput
-                step="0.1"
-                value={selectedCaption.end}
-                onChange={(e) => onCaptionChange({ end: parseFloat(e.target.value) || 0 })}
-              />
-            </Field>
-          </div>
-          <div className="rounded-lg bg-[#1C1B19] px-2 py-1.5 text-[10px] text-[#9C968F]">
-            SFX: <span className="font-mono text-[#EDE9E3]">{selectedCaption.sfx || 'ไม่มี'}</span>
-            <span className="block pt-0.5 text-[9px]">เลือกเสียงใหม่ได้ที่แท็บ “เสียง” ด้านซ้าย</span>
-          </div>
-        </Section>
-      )}
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <div>
+                  <span className="block text-[10px] text-slate-400 mb-1">Trim เข้า (วิ)</span>
+                  <NumberInput
+                    step="0.1"
+                    min="0"
+                    value={selectedSeg.clip.trim_start}
+                    onChange={(e) => onClipChange?.({ trim_start: Math.max(0, parseFloat(e.target.value) || 0) })}
+                  />
+                </div>
+                <div>
+                  <span className="block text-[10px] text-slate-400 mb-1">Trim ออก (วิ)</span>
+                  <NumberInput
+                    step="0.1"
+                    min="0"
+                    placeholder="สุดคลิป"
+                    value={selectedSeg.clip.trim_end ?? ''}
+                    onChange={(e) => onClipChange?.({
+                      trim_end: e.target.value === '' ? null : parseFloat(e.target.value),
+                    })}
+                  />
+                </div>
+              </div>
 
-      {!selection?.type && (
-        <Section icon={Settings2} title="ทั้งคลิป">
-          <div className="space-y-1.5 rounded-lg bg-[#1C1B19] px-2 py-2 text-[10px] text-[#9C968F]">
-            <div className="flex justify-between">
-              <span>ฟอนต์</span><span className="font-mono text-[#EDE9E3]">{style.fontName}</span>
-            </div>
-            <div className="flex justify-between gap-2">
-              <span className="flex-shrink-0">เพลง</span>
-              <span className="truncate font-mono text-[#EDE9E3]">{style.bgmName || 'ค่าเริ่มต้น'}</span>
-            </div>
-            <div className="flex justify-between gap-2">
-              <span className="flex-shrink-0">ฟิลเตอร์</span>
-              <span className="truncate font-mono text-[#EDE9E3]">{style.lutName || 'ไม่ใช้'}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>ความยาววิดีโอ</span>
-              <span className="font-mono text-[#EDE9E3]">{formatTimecode(totalDuration)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>ความยาวเสียง</span>
-              <span className="font-mono text-[#EDE9E3]">{formatTimecode(audioDuration || 0)}</span>
+              <div>
+                <span className="block text-[10px] text-slate-400 mb-1">ความเร็ว (Speed)</span>
+                <div className="grid grid-cols-4 gap-1">
+                  {SPEEDS.map((s) => {
+                    const active = (selectedSeg.clip.speed || 1) === s;
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => onClipChange?.({ speed: s === 1 ? undefined : s })}
+                        className={`py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
+                          active
+                            ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
+                            : 'bg-black/40 border-white/[0.08] text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {s}x
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => onClipChange?.({ mirror: !selectedSeg.clip.mirror })}
+                className={`w-full py-1.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                  selectedSeg.clip.mirror
+                    ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
+                    : 'bg-black/40 border-white/[0.08] text-slate-300 hover:text-white'
+                }`}
+              >
+                {selectedSeg.clip.mirror ? '✓ กลับด้านซ้าย-ขวาอยู่' : 'กลับด้านซ้าย-ขวา (Mirror)'}
+              </button>
             </div>
           </div>
-          <p className="text-[10px] leading-relaxed text-[#6B6660]">
-            เลือกคลิปหรือท่อนคำบรรยายบนไทม์ไลน์เพื่อแก้รายตัว · เปลี่ยนฟอนต์/เพลง/ฟิลเตอร์ที่แผงซ้าย
-          </p>
-        </Section>
-      )}
+        )}
 
-      {audioDuration > 0 && gap > 0.3 && (
-        <div className="flex gap-2 rounded-lg border border-[#5C4326] bg-[#2E2418] p-2">
-          <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 text-[#C08A5E]" />
-          <p className="text-[10px] leading-relaxed text-[#D9BFA0]">
-            วิดีโอสั้นกว่าเสียงพากย์ {gap.toFixed(1)} วิ — ช่วงท้ายจะไม่มีภาพ
-            เพิ่มคลิปหรือลดความเร็วให้ยาวขึ้น
-          </p>
-        </div>
-      )}
+        {/* ══════════════════════════════════════════════════════════
+            MODE 3: PROJECT STYLE OVERVIEW
+           ══════════════════════════════════════════════════════════ */}
+        {activeTab === 'style' && (
+          <div className="space-y-3">
+            <div className="space-y-2 rounded-2xl bg-black/40 border border-white/[0.08] p-3 text-xs">
+              <div className="flex justify-between text-slate-300">
+                <span>ฟอนต์ซับไตเติล:</span>
+                <span className="font-bold text-[#25F4EE]">{style.fontName || 'IBMPlex'}</span>
+              </div>
+              <div className="flex justify-between text-slate-300">
+                <span>เพลงประกอบ:</span>
+                <span className="font-mono text-slate-200">{style.bgmName || 'เสียงหลักของช่อง'}</span>
+              </div>
+              <div className="flex justify-between text-slate-300 border-t border-white/[0.06] pt-2">
+                <span>ความยาววิดีโอรวม:</span>
+                <span className="font-mono font-bold text-white">{totalDuration.toFixed(2)}s</span>
+              </div>
+              <div className="flex justify-between text-slate-300">
+                <span>ความยาวเสียงพากย์:</span>
+                <span className="font-mono font-bold text-white">{audioDuration.toFixed(2)}s</span>
+              </div>
+            </div>
+
+            {gap > 0.5 && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-400" />
+                <p>วิดีโอสั้นกว่าเสียงพากย์ {gap.toFixed(1)} วิ — แนะนำเพิ่มคลิปหรือลดความเร็วคลิป</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

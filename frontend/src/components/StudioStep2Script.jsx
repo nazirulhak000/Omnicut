@@ -1,172 +1,174 @@
-import React, { useState, useEffect } from 'react';
-import { PenTool, Sparkles, Volume2, Sliders, Check } from 'lucide-react';
-import { generateScript } from '../api';
+import React, { useState } from 'react';
+import { Clock, Edit3, Copy, Check } from 'lucide-react';
+import { Input, Textarea, Badge } from './ui';
 
 export default function StudioStep2Script({
-  productName,
-  setProductName,
-  hookTitle,
-  setHookTitle,
-  painPoint,
-  setPainPoint,
-  priceDeal,
-  setPriceDeal,
-  keyFeatures,
-  setKeyFeatures,
-  customScript,
-  setCustomScript,
-  useCustomScript,
-  setUseCustomScript
+  productName, setProductName,
+  hookTitle, setHookTitle,
+  painPoint, setPainPoint,
+  priceDeal, setPriceDeal,
+  keyFeatures, setKeyFeatures,
+  customScript, setCustomScript,
+  useCustomScript, setUseCustomScript
 }) {
-  const [previewLines, setPreviewLines] = useState([]);
+  const [copiedAll, setCopiedAll] = useState(false);
 
-  // Auto-generate preview lines when inputs change
-  useEffect(() => {
-    if (!useCustomScript && productName) {
-      generateScript({
-        product_name: productName,
-        key_features: keyFeatures,
-        pain_point: painPoint,
-        price_deal: priceDeal,
-      }).then(res => {
-        if (res.script?.lines) {
-          setPreviewLines(res.script.lines);
-        }
-      }).catch(() => {});
-    }
-  }, [productName, keyFeatures, painPoint, priceDeal, useCustomScript]);
+  // Approximate duration calculation (Thai reading speed ~4-5 syllables per sec)
+  const fullText = useCustomScript && customScript
+    ? customScript
+    : `${hookTitle || ''} ${productName || ''} ${painPoint || ''} ${keyFeatures || ''} ${priceDeal || ''}`;
+  
+  const charCount = fullText.replace(/\s+/g, '').length;
+  const estimatedSeconds = Math.max(12, Math.round(charCount / 12));
+
+  const previewLines = useCustomScript && customScript
+    ? customScript.split('\n').filter(line => line.trim().length > 0)
+    : [
+        hookTitle || 'อย่าเพิ่งเลื่อนผ่าน!',
+        `ใครเจอปัญหา ${painPoint || 'แบบนี้อยู่'} ต้องดูตัวนี้`,
+        `${productName || 'สินค้าตัวนี้'} ${keyFeatures || 'คุณภาพดีมาก'}`,
+        `${priceDeal || 'รีบกดในตะกร้าซ้ายล่างได้เลยครับ'}`
+      ];
+
+  const handleCopyAll = () => {
+    const textToCopy = previewLines.join('\n');
+    navigator.clipboard.writeText(textToCopy);
+    setCopiedAll(true);
+    setTimeout(() => setCopiedAll(false), 2000);
+  };
 
   return (
-    <div className="glass-card p-5 mb-6">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-white/10">
-        <div className="flex items-center gap-3">
-          <span className="px-3 py-1 text-xs font-black tracking-wider text-white uppercase rounded-full bg-gradient-to-r from-[#FE2C55] to-[#FF0050] shadow-md shadow-[#FE2C55]/30">
-            STEP 2
+    <section className="space-y-2.5">
+      {/* Section Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <span className="w-6 h-6 rounded-lg bg-gradient-to-tr from-[#25F4EE] to-blue-500 flex items-center justify-center text-[12px] font-bold text-slate-950 shadow-md shadow-[#25F4EE]/20">
+            2
           </span>
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <PenTool className="w-5 h-5 text-[#25F4EE]" />
-            สคริปต์รีวิว & การป้ายยา (Copywriting)
-          </h2>
+          <h3 className="text-sm font-bold text-white font-kanit">
+            สคริปต์ & คำบรรยาย
+          </h3>
         </div>
+
+        {/* Estimated Duration Badge */}
+        <Badge variant="cyan" size="sm" icon={Clock}>
+          ~{estimatedSeconds}s (ความยาวแนะนำ)
+        </Badge>
       </div>
 
-      <div className="space-y-4">
+      <div className="glass-card p-4 sm:p-5 space-y-4">
         {/* Row 1: Product Name & Hook Title */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
-              📦 ชื่อสินค้า:
-            </label>
-            <input
-              type="text"
-              value={productName}
-              onChange={(e) => setProductName(e.target.value)}
-              placeholder="เช่น Esseger สายชาร์จแม่เหล็ก"
-              className="w-full py-2.5 px-3 rounded-xl bg-[#121622] border border-white/10 text-slate-100 text-sm focus:outline-none focus:border-[#FE2C55] transition-colors"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
-              🔥 พาดหัว Hook ด้านบนจอ:
-            </label>
-            <input
-              type="text"
-              value={hookTitle}
-              onChange={(e) => setHookTitle(e.target.value)}
-              placeholder="เช่น 🔥 อย่าเพิ่งเลื่อนผ่าน! สายชาร์จแม่เหล็ก"
-              className="w-full py-2.5 px-3 rounded-xl bg-[#121622] border border-white/10 text-slate-100 text-sm focus:outline-none focus:border-[#FE2C55] transition-colors"
-            />
-          </div>
-        </div>
+          <Input
+            label="ชื่อสินค้า (Product Name)"
+            type="text"
+            value={productName}
+            onChange={(e) => setProductName(e.target.value)}
+            placeholder="เช่น Esseger สายชาร์จแม่เหล็ก 3-in-1"
+          />
 
-        {/* Row 2: Pain Point & Deal */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
-              😫 ปัญหาของคนดู (Pain Point):
-            </label>
-            <input
-              type="text"
-              value={painPoint}
-              onChange={(e) => setPainPoint(e.target.value)}
-              placeholder="เช่น สายชาร์จพังง่าย เสียบยากในที่มืด"
-              className="w-full py-2.5 px-3 rounded-xl bg-[#121622] border border-white/10 text-slate-100 text-sm focus:outline-none focus:border-[#FE2C55] transition-colors"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
-              🏷️ โปรโมชั่น / CTA (Deal):
-            </label>
-            <input
-              type="text"
-              value={priceDeal}
-              onChange={(e) => setPriceDeal(e.target.value)}
-              placeholder="เช่น ลดพิเศษวันนี้ จิ้มตะกร้าซ้ายล่าง"
-              className="w-full py-2.5 px-3 rounded-xl bg-[#121622] border border-white/10 text-slate-100 text-sm focus:outline-none focus:border-[#FE2C55] transition-colors"
-            />
-          </div>
-        </div>
-
-        {/* Row 3: Key Features */}
-        <div>
-          <label className="block text-xs font-semibold text-slate-300 mb-1">
-            ✨ จุดเด่นสินค้า (Key Features):
-          </label>
-          <textarea
-            value={keyFeatures}
-            onChange={(e) => setKeyFeatures(e.target.value)}
-            rows={2}
-            placeholder="เช่น แม่เหล็กแรงดูดสูง เสียบปึ้ง ติดทันที ชาร์จเร็ว ไม่ทำร้ายแบต ทนทานมาก"
-            className="w-full py-2.5 px-3 rounded-xl bg-[#121622] border border-white/10 text-slate-100 text-sm focus:outline-none focus:border-[#FE2C55] transition-colors"
+          <Input
+            label="พาดหัว Hook ดึงดูด (3 วินาทีแรก)"
+            type="text"
+            value={hookTitle}
+            onChange={(e) => setHookTitle(e.target.value)}
+            placeholder="เช่น อย่าเพิ่งเลื่อนผ่าน! สายชาร์จตัวจบ"
           />
         </div>
 
-        {/* Pro Editor Toggle */}
-        <div className="pt-2 border-t border-white/5">
-          <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-300 select-none">
-            <input
-              type="checkbox"
-              checked={useCustomScript}
-              onChange={(e) => setUseCustomScript(e.target.checked)}
-              className="w-4 h-4 rounded text-[#FE2C55] bg-slate-900 border-white/20 focus:ring-0"
-            />
-            <span className="flex items-center gap-1.5 text-slate-200">
-              <Sliders className="w-3.5 h-3.5 text-[#25F4EE]" />
-              เปิดโหมดปรับแต่งสคริปต์ละเอียดรายบรรทัด (Pro Script Editor)
+        {/* Row 2: Pain Point & Promo CTA */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+          <Input
+            label="ปัญหาที่ลูกค้าเจอ (Pain Point)"
+            type="text"
+            value={painPoint}
+            onChange={(e) => setPainPoint(e.target.value)}
+            placeholder="เช่น สายชาร์จพังง่าย เสียบยากในที่มืด"
+          />
+
+          <Input
+            label="โปรโมชั่น & Call-To-Action (CTA)"
+            type="text"
+            value={priceDeal}
+            onChange={(e) => setPriceDeal(e.target.value)}
+            placeholder="เช่น ลดพิเศษวันนี้ จิ้มตะกร้าซ้ายล่าง"
+          />
+        </div>
+
+        {/* Key Features */}
+        <Textarea
+          label="จุดเด่นและฟีเจอร์สำคัญ (Key Selling Points)"
+          value={keyFeatures}
+          onChange={(e) => setKeyFeatures(e.target.value)}
+          rows={2}
+          placeholder="เช่น แม่เหล็กแรงดูดสูง เสียบปึ้ง ติดทันที ชาร์จเร็ว ไม่ทำร้ายแบต ทนทานมาก"
+          className="resize-none"
+        />
+
+        {/* Pro Script Editor Toggle & View */}
+        <div className="pt-3 border-t border-white/[0.08]">
+          <div className="flex items-center justify-between">
+            <label
+              onClick={() => setUseCustomScript(!useCustomScript)}
+              className="flex items-center gap-2.5 cursor-pointer select-none group"
+            >
+              <div className={`w-8 h-[18px] rounded-full transition-colors relative p-0.5 ${
+                useCustomScript ? 'bg-[#25F4EE]' : 'bg-slate-700'
+              }`}>
+                <div className={`w-3.5 h-3.5 rounded-full bg-slate-950 transition-transform shadow-sm ${
+                  useCustomScript ? 'translate-x-3.5' : 'translate-x-0'
+                }`} />
+              </div>
+              <span className="text-xs font-bold text-slate-200 group-hover:text-white transition-colors flex items-center gap-1.5">
+                <Edit3 className="w-3.5 h-3.5 text-[#25F4EE]" />
+                <span>โหมดแก้ไขสคริปต์รายบรรทัด (1 บรรทัด = 1 ซับ)</span>
+              </span>
+            </label>
+
+            <span className="text-[11px] font-mono text-slate-400 hidden sm:inline">
+              {useCustomScript ? 'กำลังใช้สคริปต์กำหนดเอง' : 'โหมดอัตโนมัติ'}
             </span>
-          </label>
+          </div>
 
           {useCustomScript ? (
-            <div className="mt-3">
-              <textarea
+            <div className="mt-3 space-y-2 animate-fadeIn">
+              <Textarea
                 value={customScript}
                 onChange={(e) => setCustomScript(e.target.value)}
-                rows={5}
-                placeholder={`1 บรรทัด = 1 ท่อนซับ + ซอยคัตภาพ 1 ช็อต\n${hookTitle}\n${productName} ตัวเดียวจบ\n${keyFeatures}\n${priceDeal}`}
-                className="w-full py-2.5 px-3 rounded-xl bg-[#121622] border border-[#25F4EE]/30 text-slate-100 text-sm font-mono focus:outline-none focus:border-[#25F4EE] transition-colors"
+                rows={6}
+                placeholder={`1 บรรทัด = 1 ประโยคซับไตเติลบนจอ เช่น:\n${hookTitle || 'อย่าเพิ่งเลื่อนผ่าน!'}\n${productName || 'สายชาร์จแม่เหล็กตัวนี้คือที่สุด'}\n${keyFeatures || 'แม่เหล็กแรงดูดสูง เสียบปึ้งติดทันที'}\n${priceDeal || 'รีบกดในตะกร้าซ้ายล่างได้เลยครับ'}`}
+                className="font-mono leading-relaxed"
               />
-              <p className="text-[11px] text-slate-400 mt-1">
-                💡 คำแนะนำ: แต่ละบรรทัดควรมีความยาวสั้นๆ 1-2 วินาทีเพื่อให้จังหวะคลิปเร็วและน่าติดตาม
-              </p>
+              <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                <span className="text-[#25F4EE]">แต่ละบรรทัดจะถูกแปลงเป็นเสียงพากย์และซับไตเติลพอดีคำ</span>
+                <Badge variant="slate" size="sm">
+                  {customScript ? customScript.split('\n').filter(Boolean).length : 0} ท่อนประโยค
+                </Badge>
+              </div>
             </div>
           ) : (
-            /* Live Script Breakdown Preview */
             previewLines.length > 0 && (
-              <div className="mt-3 space-y-2">
-                <div className="text-xs font-semibold text-slate-400">
-                  👀 ตัวอย่างสคริปต์อัตโนมัติ & ไทม์ไลน์ SFX ({previewLines.length} ท่อน):
+              <div className="mt-3 space-y-1.5 animate-fadeIn">
+                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center justify-between">
+                  <span>ตัวอย่างท่อนเสียงและซับไตเติล ({previewLines.length} ท่อน):</span>
+                  <button
+                    onClick={handleCopyAll}
+                    className="text-[11px] font-bold text-[#25F4EE] hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    {copiedAll ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedAll ? 'คัดลอกแล้ว' : 'คัดลอกบททั้งหมด'}</span>
+                  </button>
                 </div>
-                <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
+                <div className="max-h-[140px] overflow-y-auto space-y-1.5 pr-1">
                   {previewLines.map((line, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center gap-2.5 p-2 rounded-lg bg-black/40 border border-white/5 text-xs"
+                      className="p-2 rounded-xl bg-black/40 border border-white/[0.05] text-xs text-slate-300 flex items-center gap-2 font-mono"
                     >
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#232A3B] text-[#25F4EE] border border-[#25F4EE]/30">
-                        🔊 {(line.sfx || 'pop').toUpperCase()}
+                      <span className="w-4 h-4 rounded-full bg-[#25F4EE]/10 text-[#25F4EE] text-[10px] flex items-center justify-center flex-shrink-0 font-bold">
+                        {idx + 1}
                       </span>
-                      <span className="text-slate-200 truncate">{line.text}</span>
+                      <span className="truncate">{line}</span>
                     </div>
                   ))}
                 </div>
@@ -175,6 +177,6 @@ export default function StudioStep2Script({
           )}
         </div>
       </div>
-    </div>
+    </section>
   );
 }

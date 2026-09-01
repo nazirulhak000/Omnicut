@@ -1,849 +1,667 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Link2, Sparkles, Clapperboard, Send, Loader2, Check, Copy, Download,
-  AlertTriangle, RefreshCw, Camera, Package, QrCode, TrendingUp, Coins
+  Link2, Sparkles, Clapperboard, Loader2, Check, Copy,
+  AlertCircle, ArrowRight, Upload, Trash2, RefreshCw, Plus, Film, Video
 } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
-import AIBridgePanel from './AIBridgePanel';
 import {
-  aiRun, fetchProductInfo, createProduct, updateProduct, getAngles,
-  startRender, startReroll, getRenderStatus, getAllAssets,
-  createPost, getPosts, setPostMetrics, getPerformance
+  scrapeAndPlanProduct, getProducts, updateProduct, updateAngleStatus, deleteProduct, uploadFile
 } from '../api';
+import { Modal, Toast, Button, Badge, Input, Textarea } from './ui';
+import { useToast } from '../hooks';
 
-const VOICE_PRESETS = [
-  { id: 'gemini_puck_male_hype', label: '⚡ Puck — ชายพลังสูง สไตล์ TikTok' },
-  { id: 'gemini_charon_male_pro', label: '🎙️ Charon — ชายทุ้มลึก น่าเชื่อถือ' },
-  { id: 'gemini_kore_female_bright', label: '✨ Kore — หญิงสดใส ป้ายยาเก่ง' },
-  { id: 'gemini_aoede_female_pro', label: '👑 Aoede — หญิงพรีเมียม นุ่มนวล' },
-  { id: 'gemini_fenrir_male_strong', label: '🔥 Fenrir — ชายสตรอง คมเข้ม' },
-];
-
-// Ordered cheapest first: the user should reach for a fast fix before a slow one.
-const REROLL_BUTTONS = [
-  { part: 'hook', label: 'ข้อความเปิด', cost: '~30 วิ' },
-  { part: 'subtitles', label: 'ซับไตเติล', cost: '~40 วิ' },
-  { part: 'video', label: 'จังหวะตัด', cost: '~1 นาที' },
-  { part: 'voice', label: 'เสียงพากย์', cost: '2-4 นาที' },
-];
-
-const METRIC_LABELS = {
-  views: 'ยอดวิว',
-  likes: 'ไลค์',
-  comments: 'คอมเมนต์',
-  shares: 'แชร์',
-  cart_clicks: 'คลิกตะกร้า',
-  orders: 'ออเดอร์',
-  commission_thb: 'คอมมิชชั่น (บาท)',
-};
-
-// Fonts/*.ttf has multiple weight files per family (Kanit-Black/Bold/ExtraBold
-// are all "Kanit") -- the picker offers one entry per real family, not one
-// per file, since font_name only ever needs to name the family (see
-// subtitle_engine.py's _load_font_family_map: every style already sets
-// Bold=1, so libass/fontconfig picks the bold weight itself).
-function uniqueFontFamilies(fonts) {
-  return [...new Set(fonts.map((f) => f.font_family || f.family).filter(Boolean))].sort();
-}
-
-function StepCard({ number, title, subtitle, locked, children }) {
-  return (
-    <div className={`glass-card p-4 sm:p-5 transition-opacity ${locked ? 'opacity-40 pointer-events-none' : ''}`}>
-      <div className="flex items-center gap-2.5 mb-4">
-        <div className="w-7 h-7 rounded-lg bg-gradient-to-r from-[#FE2C55] to-[#FF0050] flex items-center justify-center text-white text-xs font-black flex-shrink-0">
-          {number}
-        </div>
-        <div className="min-w-0">
-          <h3 className="text-sm sm:text-base font-bold text-white truncate">{title}</h3>
-          {subtitle && <p className="text-[11px] text-slate-400 truncate">{subtitle}</p>}
-        </div>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function CopyButton({ text, label }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(text);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2000);
-        } catch { /* clipboard blocked — the text is selectable anyway */ }
-      }}
-      className="px-2.5 py-1.5 rounded-lg bg-[#232A3B] hover:bg-[#323B52] text-white text-[11px] font-bold flex items-center gap-1.5 transition-colors cursor-pointer flex-shrink-0"
-    >
-      {copied ? <><Check className="w-3 h-3 text-emerald-400" />คัดลอกแล้ว</> : <><Copy className="w-3 h-3 text-[#25F4EE]" />{label}</>}
-    </button>
-  );
-}
-
-export default function ProductToClip({ status, videos, onRefresh }) {
-  // Step 1 — product
+export default function ProductToClip({ status, videos = [], onRefresh, onApplyToStudio }) {
+  // Input Mode & Active View
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [inputMode, setInputMode] = useState('link'); // 'link' | 'text' | 'image'
   const [url, setUrl] = useState('');
+  const [customKeyword, setCustomKeyword] = useState('');
+  const [rawText, setRawText] = useState('');
   const [fetching, setFetching] = useState(false);
-  const [product, setProduct] = useState({
-    name: '', category: '', price_note: '', thumbnail: '',
-    specs: [], pain_points: [], selling_points: [], raw_text: '',
-  });
-  const [productId, setProductId] = useState(null);
+  const [fetchError, setFetchError] = useState(null);
 
-  // Step 2 — angles and script
+  // Active Product & Angles State
+  const [productData, setProductData] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
   const [angles, setAngles] = useState([]);
-  const [angle, setAngle] = useState(null);
-  const [script, setScript] = useState(null);
+  const [copiedIndex, setCopiedIndex] = useState(null);
+  const { toastMessage, showToast, hideToast } = useToast();
 
-  // Step 3 — render
-  const [selectedVideo, setSelectedVideo] = useState('');
-  const [voicePreset, setVoicePreset] = useState('gemini_puck_male_hype');
-  // These two used to have no UI at all on this tab -- every render silently
-  // used RenderRequest's Pydantic defaults (IBMPlex / badge_flash_sale_3d.png)
-  // no matter what a user might have wanted, because nothing here ever sent
-  // font_name or sticker_badge. See StudioStep4Render.jsx for the pattern the
-  // other ("studio") tab already had right.
-  const [fontName, setFontName] = useState('Kanit');
-  const [stickerBadge, setStickerBadge] = useState('badge_flash_sale_3d.png');
-  // BGM had a bgm_name param on SFXManager.mix_audio_track() from the start,
-  // but nothing anywhere ever sent it anything but the hardcoded default --
-  // there was no request field, no UI, no override path at all.
-  const [bgmName, setBgmName] = useState('');
-  // Opt-in only, deliberately -- measured on this CPU-only machine (no CUDA):
-  // a LUT color grade added ~90% to render time (11.6s -> 22.0s on an 8s
-  // clip), so it must never apply itself silently.
-  const [lutName, setLutName] = useState('');
-  const [availableFonts, setAvailableFonts] = useState([]);
-  const [availableStickers, setAvailableStickers] = useState([]);
-  const [availableBgm, setAvailableBgm] = useState([]);
-  const [availableLuts, setAvailableLuts] = useState([]);
-  const [jobId, setJobId] = useState(null);
-  const [job, setJob] = useState(null);
-  const [rendering, setRendering] = useState(false);
-  const [result, setResult] = useState(null);
-  const projectNameRef = useRef(null);
+  // History / All Products
+  const [historyList, setHistoryList] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [selectedHistoryId, setSelectedHistoryId] = useState(null);
 
-  // Step 4 — publish
-  const [caption, setCaption] = useState(null);
-  const [posted, setPosted] = useState(false);
+  // Uploading Screenshot/Image
+  const [uploadingImg, setUploadingImg] = useState(false);
+  const fileInputRef = useRef(null);
 
-  // Results panel
-  const [pending, setPending] = useState([]);
-  const [performance, setPerformance] = useState([]);
-
-  const [busy, setBusy] = useState(null);
-  const [error, setError] = useState(null);
-  const [manual, setManual] = useState(null);
-
-  useEffect(() => {
-    if (!selectedVideo && videos?.length > 0) setSelectedVideo(videos[0].path);
-  }, [videos, selectedVideo]);
-
-  const refreshResults = async () => {
+  // Load History on Mount
+  const loadHistory = async () => {
+    setLoadingHistory(true);
     try {
-      const [postsRes, perfRes] = await Promise.all([getPosts(), getPerformance()]);
-      setPending(postsRes.pending_metrics || []);
-      setPerformance(perfRes.by_angle || []);
-    } catch { /* the panel is informational; a failure here must not block the flow */ }
-  };
-
-  useEffect(() => { refreshResults(); }, []);
-
-  useEffect(() => {
-    getAllAssets()
-      .then((data) => {
-        setAvailableFonts(data.fonts || []);
-        setAvailableStickers(data.stickers || []);
-        setAvailableBgm(data.music || []);
-        setAvailableLuts(data.luts || []);
-      })
-      .catch(() => { /* pickers just stay empty; render still works with the current defaults */ });
-  }, []);
-
-  // Poll a render or re-roll job. Both return the same job shape.
-  useEffect(() => {
-    if (!jobId || !rendering) return;
-    const timer = setInterval(async () => {
-      try {
-        const s = await getRenderStatus(jobId);
-        setJob(s);
-        if (s.status === 'completed') {
-          setRendering(false);
-          setResult(s.result);
-          setPosted(false);
-          clearInterval(timer);
-          if (onRefresh) onRefresh();
-          // Move the product along the queue so it is no longer just a candidate.
-          if (productId) {
-            updateProduct(productId, { status: 'rendered' }).catch(() => {});
-          }
-        } else if (s.status === 'failed') {
-          setRendering(false);
-          setError(s.error || 'การตัดต่อล้มเหลว');
-          clearInterval(timer);
+      const res = await getProducts();
+      if (res.products) {
+        setHistoryList(res.products);
+        if (res.products.length > 0) {
+          const current = res.products.find(p => p.id === selectedHistoryId) || res.products[0];
+          selectProduct(current);
         }
-      } catch (err) {
-        console.error('poll failed', err);
       }
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [jobId, rendering, onRefresh, productId]);
-
-  /** Run an AI task, falling back to the copy-paste panel when there is no key. */
-  const runAI = async (task, context, onData) => {
-    setBusy(task);
-    setError(null);
-    try {
-      const res = await aiRun(task, context);
-      if (res.mode === 'manual') {
-        setManual({
-          task,
-          prompt: res.prompt,
-          warning: res.warning,
-          onParsed: (data) => { setManual(null); onData(data); },
-        });
-      } else {
-        onData(res.data);
-      }
-    } catch (err) {
-      setError(err.response?.data?.detail || err.message);
+    } catch (e) {
+      console.error(e);
     } finally {
-      setBusy(null);
+      setLoadingHistory(false);
     }
   };
 
-  // --- Step 1 ---------------------------------------------------------
-  const handleFetch = async () => {
-    setFetching(true);
-    setError(null);
+  useEffect(() => {
+    loadHistory();
+  }, []);
+
+  const selectProduct = (item) => {
+    if (!item) return;
+    setSelectedHistoryId(item.id);
+    setProductData({
+      id: item.id,
+      title: item.name,
+      url: item.url,
+      description: item.selling_points?.join(', ') || item.price_note || '',
+      price_note: item.price_note || '',
+      status: item.status || 'scripted',
+      images: item.images || (item.thumbnail ? [{ rel_path: item.thumbnail, name: 'thumb' }] : []),
+    });
+    setAngles(item.angles || []);
+    if (item.images && item.images.length > 0) {
+      setSelectedImage(item.images[0].local_path || item.images[0].rel_path);
+    }
+  };
+
+  const handleAngleStatusChange = async (angleId, nextStatus) => {
+    if (!productData?.id) return;
     try {
-      const info = await fetchProductInfo(url);
-      setProduct((p) => ({
-        ...p,
-        name: info.title || p.name,
-        price_note: info.price_note || p.price_note,
-        thumbnail: info.thumbnail || '',
-        raw_text: info.raw_text || '',
-      }));
-      if (info.blocked) setError(info.warning || 'หน้านี้ไม่เปิดข้อมูลให้ดึง — กรอกเองได้เลย');
+      await updateAngleStatus(productData.id, angleId, nextStatus);
+      setAngles(prev => prev.map(a => a.angle_id === angleId ? { ...a, status: nextStatus } : a));
+      const res = await getProducts();
+      if (res.products) setHistoryList(res.products);
+      showToast(`อัปเดตสถานะสคริปต์เรียบร้อยแล้ว`);
     } catch (err) {
-      setError(err.response?.data?.detail || err.message);
+      alert('ไม่สามารถอัปเดตสถานะได้: ' + err.message);
+    }
+  };
+
+  const handleDeleteHistory = async (id) => {
+    if (!confirm('คุณต้องการลบสินค้านี้และสคริปต์ทั้งหมดออกจากระบบใช่หรือไม่?')) return;
+    try {
+      await deleteProduct(id);
+      showToast('ลบสินค้าเรียบร้อยแล้ว');
+      const res = await getProducts();
+      const updated = res.products || [];
+      setHistoryList(updated);
+      if (updated.length > 0) selectProduct(updated[0]);
+      else {
+        setProductData(null);
+        setAngles([]);
+      }
+    } catch (err) {
+      alert('ลบไม่สำเร็จ: ' + err.message);
+    }
+  };
+
+  const handleScrapeAndPlan = async () => {
+    if (inputMode === 'link' && !url.trim()) {
+      alert('กรุณากรอกลิงก์สินค้าก่อนครับ');
+      return;
+    }
+    if (inputMode === 'text' && !customKeyword.trim() && !rawText.trim()) {
+      alert('กรุณาระบุชื่อสินค้าหรือสเปกก่อนครับ');
+      return;
+    }
+    if (inputMode === 'image' && !selectedImage && !customKeyword.trim()) {
+      alert('กรุณาอัปโหลดรูปภาพหรือระบุชื่อสินค้าก่อนครับ');
+      return;
+    }
+
+    setFetching(true);
+    setFetchError(null);
+
+    try {
+      const payload = {
+        url: inputMode === 'link' ? url : undefined,
+        raw_text: inputMode === 'text' ? `${customKeyword}\n${rawText}` : undefined,
+        custom_keyword: customKeyword || undefined,
+        image_path: inputMode === 'image' ? selectedImage : undefined
+      };
+
+      const res = await scrapeAndPlanProduct(payload);
+      if (res.success && res.product) {
+        selectProduct(res.product);
+        setShowAddModal(false);
+        setUrl('');
+        setCustomKeyword('');
+        setRawText('');
+        await loadHistory();
+        showToast('AI วิเคราะห์และสร้าง 4 สคริปต์สำเร็จแล้ว');
+      } else {
+        throw new Error('ไม่ได้รับข้อมูลสินค้ากลับมาจากระบบ');
+      }
+    } catch (err) {
+      console.error('Scrape and plan error:', err);
+      setFetchError(err.friendlyMessage || err.response?.data?.detail || err.message || 'เกิดข้อผิดพลาดในการวิเคราะห์สินค้า');
     } finally {
       setFetching(false);
     }
   };
 
-  const handleEnrich = () => runAI(
-    'product_enrich',
-    { product_title: product.name, raw_text: product.raw_text || product.name },
-    async (data) => {
-      setProduct((p) => ({
-        ...p,
-        name: data.product_name || p.name,
-        category: data.category || '',
-        specs: data.specs || [],
-        pain_points: data.pain_points || [],
-        selling_points: data.selling_points || [],
-        price_note: data.price_note || p.price_note,
-      }));
-      try {
-        const saved = await createProduct({
-          name: data.product_name || product.name,
-          url,
-          category: data.category || '',
-          specs: data.specs || [],
-          pain_points: data.pain_points || [],
-          selling_points: data.selling_points || [],
-          price_note: data.price_note || product.price_note,
-          thumbnail: product.thumbnail,
-        });
-        setProductId(saved.product.id);
-      } catch { /* the queue is a convenience; losing it must not stop the clip */ }
-    }
-  );
-
-  // --- Step 2 ---------------------------------------------------------
-  const handleAngles = async () => {
-    setBusy('angles');
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImg(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('target_dir', 'inbox');
     try {
-      const cat = await getAngles({ seller_assets_only: true, product_name: product.name });
-      await runAI(
-        'angles',
-        {
-          product_name: product.name,
-          specs: product.specs,
-          pain_points: product.pain_points,
-          angle_catalog: cat.catalog,
-        },
-        (data) => setAngles(
-          (data.angles || []).sort((a, b) => (Number(b.priority) || 0) - (Number(a.priority) || 0))
-        )
-      );
-      // With no AI available at all, the catalog still offers usable angles.
-      setAngles((current) => (current.length ? current : cat.fallback));
+      const res = await uploadFile(formData);
+      if (res.file) {
+        setSelectedImage(res.file.path);
+        showToast('อัปโหลดไฟล์เรียบร้อยแล้ว');
+      }
     } catch (err) {
-      setError(err.response?.data?.detail || err.message);
+      alert('อัปโหลดไม่สำเร็จ: ' + (err.friendlyMessage || err.message));
     } finally {
-      setBusy(null);
+      setUploadingImg(false);
     }
   };
 
-  const handleScript = (chosen) => {
-    setAngle(chosen);
-    return runAI(
-      'script',
-      {
-        product_name: product.name,
-        angle_title: chosen.title,
-        hook: chosen.hook,
-        specs: product.specs,
-        price_deal: product.price_note || 'ราคาพิเศษวันนี้',
+  const copyScriptText = (text, idx) => {
+    navigator.clipboard.writeText(text);
+    setCopiedIndex(idx);
+    showToast('คัดลอกสคริปต์เรียบร้อยแล้ว');
+    setTimeout(() => setCopiedIndex(null), 2000);
+  };
+
+  const handleSendToStudio = (angle, angleIdx = 0) => {
+    if (!onApplyToStudio) return;
+
+    const scriptLines = Array.isArray(angle.script_lines)
+      ? angle.script_lines
+      : (angle.script_text ? angle.script_text.split('\n') : []);
+    const scriptText = scriptLines.join('\n');
+
+    onApplyToStudio({
+      productName: angle.product_name || productData?.title || customKeyword || 'สินค้า',
+      hookTitle: angle.hook_title || '',
+      customScript: scriptText,
+      keyFeatures: angle.key_features || productData?.description || '',
+      painPoint: angle.pain_point || '',
+      priceDeal: angle.price_deal || productData?.price_note || '',
+      adTone: angle.ad_tone || 'commercial_premium',
+      selectedVideo: selectedImage || (videos.length > 0 ? videos[0].path : ''),
+      fullProduct: {
+        id: productData?.id,
+        title: productData?.title || customKeyword || 'สินค้า',
+        description: productData?.description,
+        price_note: productData?.price_note,
+        images: productData?.images || [],
+        angles: angles && angles.length > 0 ? angles : [angle]
       },
-      (data) => setScript(data)
-    );
+      angleIndex: angleIdx
+    });
   };
 
-  // --- Step 3 ---------------------------------------------------------
-  const buildProjectName = () => {
-    const clean = (product.name || 'product').replace(/[^\p{L}\p{N}]+/gu, '_').slice(0, 40);
-    return `TikTok_${clean}_${angle?.angle_key || 'clip'}`;
-  };
-
-  const handleRender = async () => {
-    if (!selectedVideo) { setError('เลือกวิดีโอดิบก่อน'); return; }
-    setError(null);
-    setResult(null);
-    setRendering(true);
-    setJob({ status: 'queued', progress: 0.03, message: 'กำลังเริ่มต้น...', logs: [] });
-
-    const projectName = buildProjectName();
-    projectNameRef.current = projectName;
-
-    try {
-      const res = await startRender({
-        product_name: product.name,
-        project_name: projectName,
-        raw_video_path: selectedVideo,
-        key_features: (product.selling_points || []).join(' '),
-        pain_point: (product.pain_points || []).join(' '),
-        price_deal: product.price_note || 'ราคาพิเศษวันนี้',
-        hook_title: script?.hook_title || angle?.hook || product.name,
-        // Send the AI script as custom_script, otherwise the pipeline falls
-        // back to its own template and the chosen angle is lost.
-        custom_script: (script?.lines || []).map((l) => l.text).join('\n'),
-        // Index-aligned with the lines above -- the spec numbers that burn
-        // onto the video via subtitle_engine.py's SpecBar style, not just
-        // spoken. Empty string for a line with nothing to show on screen.
-        script_overlays: (script?.lines || []).map((l) => l.on_screen || ''),
-        voice_mode: 'gemini_tts',
-        voice_gender: voicePreset.includes('female') ? 'female' : 'male',
-        voice_preset: voicePreset,
-        font_name: fontName,
-        sticker_badge: stickerBadge || null,
-        bgm_name: bgmName || null,
-        lut_name: lutName || null,
-        export_mp4: true,
-      });
-      setJobId(res.job_id);
-    } catch (err) {
-      setRendering(false);
-      setError(err.response?.data?.detail || err.message);
-    }
-  };
-
-  const handleReroll = async (part) => {
-    if (!projectNameRef.current) return;
-    setError(null);
-    setRendering(true);
-    setJob({ status: 'queued', progress: 0.03, message: `กำลังสุ่ม${part}ใหม่...`, logs: [] });
-    try {
-      const res = await startReroll({
-        project_name: projectNameRef.current,
-        part,
-        // BGM has no re-roll button of its own -- swapping the music bed
-        // re-mixes alongside the voice regardless (see REROLL_STAGE's "bgm"
-        // entry), so the voice button carries whatever BGM is picked too.
-        ...(part === 'voice' ? { voice_preset: voicePreset, bgm_name: bgmName || null } : {}),
-        ...(part === 'hook' ? { hook_title: script?.hook_title || angle?.hook } : {}),
-      });
-      setJobId(res.job_id);
-    } catch (err) {
-      setRendering(false);
-      setError(err.response?.data?.detail || err.message);
-    }
-  };
-
-  // --- Step 4 ---------------------------------------------------------
-  const handleCaption = () => runAI(
-    'caption',
-    {
-      product_name: product.name,
-      angle_title: angle?.title || '',
-      hook: angle?.hook || '',
-      price_deal: product.price_note || 'ราคาพิเศษวันนี้',
-    },
-    (data) => setCaption(data)
-  );
-
-  const handleMarkPosted = async () => {
-    try {
-      await createPost({
-        product_name: product.name,
-        clip_file: result?.mp4_video || '',
-        product_url: url,
-        angle_key: angle?.angle_key || '',
-        angle_title: angle?.title || '',
-        hook: angle?.hook || '',
-        caption: caption?.caption || '',
-        hashtags: caption?.hashtags || [],
-      });
-      setPosted(true);
-      refreshResults();
-    } catch (err) {
-      setError(err.response?.data?.detail || err.message);
-    }
-  };
-
-  const mobileUrl = status?.mobile_url || `http://${window.location.hostname}:5173`;
-  const progressPct = Math.round((job?.progress || 0) * 100);
+  const totalAngles = angles.length;
+  const postedAngles = angles.filter(a => a.status === 'posted' || a.status === 'rendered').length;
+  const progressPercent = totalAngles > 0 ? Math.round((postedAngles / totalAngles) * 100) : 0;
 
   return (
-    <main className="space-y-5">
-      {error && (
-        <div className="flex items-start gap-2 p-3 rounded-2xl bg-red-500/10 border border-red-500/25 text-xs text-red-300">
-          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-          <span className="flex-1">{error}</span>
-          <button onClick={() => setError(null)} className="text-red-400 hover:text-white cursor-pointer">✕</button>
-        </div>
-      )}
+    <div className="space-y-5 relative animate-fadeIn pb-16">
+      {/* Central Toast Notification */}
+      <Toast message={toastMessage} onClose={hideToast} />
 
-      {manual && (
-        <AIBridgePanel
-          task={manual.task}
-          prompt={manual.prompt}
-          warning={manual.warning}
-          onParsed={manual.onParsed}
-          onCancel={() => setManual(null)}
-        />
-      )}
-
-      {/* STEP 1 — product */}
-      <StepCard number="1" title="สินค้า" subtitle="วางลิงก์ Shopee / TikTok Shop แล้วให้ AI สรุปจุดขาย">
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="flex-1 flex items-center gap-2 px-3 rounded-xl bg-[#121622] border border-white/10 focus-within:border-[#25F4EE]/50">
-            <Link2 className="w-4 h-4 text-slate-500 flex-shrink-0" />
-            <input
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://shopee.co.th/..."
-              className="w-full py-2.5 bg-transparent outline-none text-xs text-slate-200"
-            />
-          </div>
-          <button
-            onClick={handleFetch}
-            disabled={fetching || !url.trim()}
-            className="py-2.5 px-4 rounded-xl bg-[#232A3B] hover:bg-[#323B52] text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-40"
-          >
-            {fetching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4 text-[#25F4EE]" />}
-            ดึงข้อมูล
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
-          <input
-            value={product.name}
-            onChange={(e) => setProduct({ ...product, name: e.target.value })}
-            placeholder="ชื่อสินค้า"
-            className="py-2.5 px-3 rounded-xl bg-[#121622] border border-white/10 focus:border-[#25F4EE]/50 outline-none text-xs text-slate-200"
-          />
-          <input
-            value={product.price_note}
-            onChange={(e) => setProduct({ ...product, price_note: e.target.value })}
-            placeholder="ราคา / โปรโมชั่น"
-            className="py-2.5 px-3 rounded-xl bg-[#121622] border border-white/10 focus:border-[#25F4EE]/50 outline-none text-xs text-slate-200"
-          />
-        </div>
-
-        {product.specs?.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-3">
-            {product.specs.map((s, i) => (
-              <span key={i} className="px-2 py-1 rounded-lg bg-[#25F4EE]/10 border border-[#25F4EE]/25 text-[11px] text-[#25F4EE] font-mono">
-                {s.label}: {s.value}
-              </span>
-            ))}
-          </div>
-        )}
-        {product.pain_points?.length > 0 && (
-          <p className="text-[11px] text-slate-400 mt-2">
-            <b className="text-slate-300">ปัญหาที่คนเจอ:</b> {product.pain_points.join(' · ')}
-          </p>
-        )}
-
-        <button
-          onClick={handleEnrich}
-          disabled={!product.name.trim() || busy === 'product_enrich'}
-          className="w-full mt-3 py-2.5 rounded-xl bg-gradient-to-r from-[#FE2C55] via-[#FF0050] to-[#E02449] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#FE2C55]/30 transition-all active:scale-95 cursor-pointer disabled:opacity-40"
-        >
-          {busy === 'product_enrich' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Package className="w-4 h-4" />}
-          ให้ AI สรุปจุดขาย
-        </button>
-      </StepCard>
-
-      {/* STEP 2 — angles */}
-      <StepCard
-        number="2"
-        title="มุมเล่า"
-        subtitle="สินค้าชิ้นเดียว ยิงได้หลายคลิป — เลือกมุมที่จะทำก่อน"
-        locked={!product.name.trim()}
-      >
-        <button
-          onClick={handleAngles}
-          disabled={busy === 'angles'}
-          className="w-full py-2.5 rounded-xl bg-[#232A3B] hover:bg-[#323B52] text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-40"
-        >
-          {busy === 'angles' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-[#25F4EE]" />}
-          คิดมุมให้หน่อย
-        </button>
-
-        {angles.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 mt-3">
-            {angles.map((a) => {
-              const active = angle?.angle_key === a.angle_key;
-              return (
-                <button
-                  key={a.angle_key}
-                  onClick={() => handleScript(a)}
-                  className={`text-left p-3 rounded-xl border transition-all cursor-pointer ${
-                    active
-                      ? 'bg-[#FE2C55]/10 border-[#FE2C55]/50'
-                      : 'bg-[#161B26] border-white/10 hover:border-[#25F4EE]/40'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2 mb-1">
-                    <span className="text-xs font-bold text-white truncate">{a.title}</span>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold flex-shrink-0 ${
-                      a.needs_own_footage
-                        ? 'bg-amber-500/15 text-amber-300'
-                        : 'bg-emerald-500/15 text-emerald-300'
-                    }`}>
-                      {a.needs_own_footage ? 'ต้องมีของ' : 'ใช้รูปร้านได้'}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-300 line-clamp-2">“{a.hook}”</p>
-                  {a.why_it_works && <p className="text-[10px] text-slate-500 mt-1 line-clamp-1">{a.why_it_works}</p>}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {busy === 'script' && (
-          <p className="text-[11px] text-slate-400 mt-3 flex items-center gap-2">
-            <Loader2 className="w-3.5 h-3.5 animate-spin" /> กำลังเขียนสคริปต์...
-          </p>
-        )}
-
-        {script && (
-          <div className="mt-3 p-3 rounded-xl bg-[#0A0D14] border border-white/10 space-y-1.5">
-            <div className="text-[11px] font-bold text-[#25F4EE]">📌 {script.hook_title}</div>
-            {(script.lines || []).map((l, i) => (
-              <div key={i} className="text-[11px] text-slate-300 flex gap-2">
-                <span className="text-slate-600 font-mono flex-shrink-0">{i + 1}.</span>
-                <span className="flex-1">{l.text}</span>
-                {l.on_screen && <span className="text-[10px] text-amber-300 font-mono flex-shrink-0">{l.on_screen}</span>}
-              </div>
-            ))}
-          </div>
-        )}
-      </StepCard>
-
-      {/* STEP 3 — render */}
-      <StepCard number="3" title="ตัดคลิป" subtitle="เลือกวิดีโอดิบและเสียง แล้วปล่อยให้ระบบตัด" locked={!script}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <select
-            value={selectedVideo}
-            onChange={(e) => setSelectedVideo(e.target.value)}
-            className="py-2.5 px-3 rounded-xl bg-[#121622] border border-white/10 outline-none text-xs text-slate-200 cursor-pointer"
-          >
-            <option value="">— เลือกวิดีโอดิบ —</option>
-            {(videos || []).map((v) => (
-              <option key={v.path} value={v.path}>{v.name}</option>
-            ))}
-          </select>
-          <select
-            value={voicePreset}
-            onChange={(e) => setVoicePreset(e.target.value)}
-            className="py-2.5 px-3 rounded-xl bg-[#121622] border border-white/10 outline-none text-xs text-slate-200 cursor-pointer"
-          >
-            {VOICE_PRESETS.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
-          </select>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
-          <select
-            value={fontName}
-            onChange={(e) => setFontName(e.target.value)}
-            className="py-2.5 px-3 rounded-xl bg-[#121622] border border-white/10 outline-none text-xs text-slate-200 cursor-pointer"
-          >
-            {uniqueFontFamilies(availableFonts).map((family) => (
-              <option key={family} value={family}>ตัวอักษร: {family}</option>
-            ))}
-          </select>
-          <select
-            value={stickerBadge}
-            onChange={(e) => setStickerBadge(e.target.value)}
-            className="py-2.5 px-3 rounded-xl bg-[#121622] border border-white/10 outline-none text-xs text-slate-200 cursor-pointer"
-          >
-            <option value="">ไม่ใส่ป้าย</option>
-            {availableStickers.map((s) => (
-              <option key={s.id} value={s.name}>{s.id.replace(/_/g, ' ')}</option>
-            ))}
-          </select>
-          <select
-            value={bgmName}
-            onChange={(e) => setBgmName(e.target.value)}
-            className="py-2.5 px-3 rounded-xl bg-[#121622] border border-white/10 outline-none text-xs text-slate-200 cursor-pointer"
-          >
-            <option value="">เพลง: ค่าเริ่มต้น</option>
-            {availableBgm.map((b) => (
-              <option key={b.id} value={b.name}>เพลง: {b.id.replace(/^bgm_/, '').replace(/_/g, ' ')}</option>
-            ))}
-          </select>
-        </div>
-
-        {availableLuts.length > 0 && (
-          <div className="mt-2">
+      {/* ══════════════════════════════════════════════════════════
+          1. CLEAN UNIFIED HEADER & PRODUCT SWITCHER
+         ══════════════════════════════════════════════════════════ */}
+      <div className="glass-panel p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        {/* Left: Standard Clean Select Dropdown */}
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="flex-1 min-w-0">
+            <div className="text-[11px] font-semibold text-slate-400">
+              เลือกสินค้าในระบบ ({historyList.length} รายการ):
+            </div>
             <select
-              value={lutName}
-              onChange={(e) => setLutName(e.target.value)}
-              className="w-full py-2.5 px-3 rounded-xl bg-[#121622] border border-white/10 outline-none text-xs text-slate-200 cursor-pointer"
+              value={selectedHistoryId || ''}
+              onChange={(e) => {
+                const found = historyList.find(p => p.id === e.target.value);
+                if (found) selectProduct(found);
+              }}
+              className="w-full mt-0.5 py-1.5 px-3 rounded-xl bg-[#080B11] border border-white/[0.1] text-xs sm:text-sm font-bold text-white focus:outline-none focus:border-[#25F4EE]/50 cursor-pointer shadow-inner"
             >
-              <option value="">โทนสี: ไม่ปรับ (เร็วสุด)</option>
-              {availableLuts.map((l) => (
-                <option key={l.id} value={l.name}>โทนสี: {l.id.replace(/^lut_/, '').replace(/_/g, ' ')}</option>
-              ))}
+              {historyList.map(p => {
+                const pAngles = p.angles || [];
+                const pDone = pAngles.filter(a => a.status === 'posted' || a.status === 'rendered').length;
+                return (
+                  <option key={p.id} value={p.id}>
+                    {p.name} — ({pDone}/{pAngles.length || 4} สคริปต์เสร็จ)
+                  </option>
+                );
+              })}
+              {historyList.length === 0 && <option value="">ยังไม่มีสินค้า</option>}
             </select>
-            {lutName && (
-              <p className="text-[11px] text-amber-300 mt-1">
-                ⚠️ ปรับโทนสีทำให้ตัดคลิปช้าลงเกือบเท่าตัว (เครื่องนี้ไม่มีการ์ดจอช่วย)
-              </p>
-            )}
           </div>
-        )}
+        </div>
 
-        <button
-          onClick={handleRender}
-          disabled={rendering || !selectedVideo}
-          className="w-full mt-3 py-3 rounded-xl bg-gradient-to-r from-[#FE2C55] via-[#FF0050] to-[#E02449] text-white text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#FE2C55]/40 transition-all active:scale-95 cursor-pointer disabled:opacity-40"
-        >
-          {rendering ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clapperboard className="w-4 h-4" />}
-          {rendering ? `กำลังตัด... ${progressPct}%` : 'ตัดคลิปเลย'}
-        </button>
+        {/* Right: Actions */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs sm:text-sm font-bold flex items-center gap-2 shadow-lg shadow-[#FE2C55]/25 cursor-pointer active:scale-95 transition-all"
+          >
+            <Plus className="w-4 h-4 text-white" />
+            <span>วิเคราะห์สินค้าใหม่</span>
+          </button>
 
-        {rendering && (
-          <div className="mt-3 space-y-1.5">
-            <p className="text-[11px] text-slate-300">{job?.message}</p>
-            <div className="h-1.5 rounded-full bg-[#121622] overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] transition-all duration-500"
-                style={{ width: `${progressPct}%` }}
+          <button
+            onClick={loadHistory}
+            className="p-2.5 min-w-[36px] min-h-[36px] rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-400 hover:text-white border border-white/[0.08] text-xs font-bold cursor-pointer transition-colors flex items-center justify-center"
+            title="รีเฟรช"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+
+          {productData && (
+            <button
+              onClick={() => handleDeleteHistory(productData.id)}
+              className="p-2.5 min-w-[36px] min-h-[36px] rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs font-bold cursor-pointer transition-colors flex items-center justify-center"
+              title="ลบสินค้านี้"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════
+          2. ADD PRODUCT MODAL (Central Modal)
+         ══════════════════════════════════════════════════════════ */}
+      <Modal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        title="เพิ่มสินค้าใหม่ ➔ ให้ AI สร้าง 4 สคริปต์"
+        subtitle="รองรับทุกลิงก์ Shopee / TikTok Shop หรือพิมพ์สเปกตรงๆ"
+        maxWidth="max-w-xl"
+      >
+        <div className="space-y-4">
+          {/* Input Mode Selector */}
+          <div className="flex items-center gap-1 p-1 bg-black/40 rounded-xl border border-white/[0.08]">
+            <button
+              onClick={() => setInputMode('link')}
+              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                inputMode === 'link' ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-sm' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              ลิงก์สินค้า
+            </button>
+            <button
+              onClick={() => setInputMode('text')}
+              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                inputMode === 'text' ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-sm' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              ข้อความสเปก
+            </button>
+            <button
+              onClick={() => setInputMode('image')}
+              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                inputMode === 'image' ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-sm' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              รูปภาพสินค้า
+            </button>
+          </div>
+
+          {/* Mode 1: URL */}
+          {inputMode === 'link' && (
+            <div className="space-y-3 pt-1">
+              <Input
+                label="ลิงก์สินค้า (Shopee / TikTok Shop):"
+                type="url"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://shopee.co.th/product/... หรือ https://vt.tiktok.com/..."
+              />
+              <p className="text-[11px] text-slate-500">
+                หากแพลตฟอร์มป้องกันการดึงข้อมูล ระบบจะแนะนำให้วางข้อความสเปกแทน
+              </p>
+            </div>
+          )}
+
+          {/* Mode 2: Raw Text */}
+          {inputMode === 'text' && (
+            <div className="space-y-3 pt-1">
+              <Input
+                label="ชื่อสินค้า หรือหมวดหมู่:"
+                type="text"
+                value={customKeyword}
+                onChange={(e) => setCustomKeyword(e.target.value)}
+                placeholder="เช่น สายชาร์จแม่เหล็ก 3-in-1 หรือ เซรั่มหน้าใส"
+              />
+              <Textarea
+                label="รายละเอียดสินค้า / สเปก / จุดขาย / ราคา:"
+                value={rawText}
+                onChange={(e) => setRawText(e.target.value)}
+                rows={5}
+                placeholder="ก๊อปปี้รายละเอียดสินค้าจาก Shopee / TikTok Shop มาวางที่นี่ได้เลย..."
               />
             </div>
-          </div>
-        )}
+          )}
 
-        {result?.mp4_url && (
-          <div className="mt-4 space-y-3">
-            <video
-              key={result.mp4_url}
-              src={result.mp4_url}
-              controls
-              playsInline
-              className="w-full max-w-[260px] mx-auto rounded-xl border border-white/10 bg-black aspect-[9/16] object-contain"
-            />
-            <div>
-              <p className="text-[11px] text-slate-400 mb-1.5">ไม่ชอบตรงไหน สุ่มใหม่เฉพาะส่วนนั้น — เรียงจากถูกไปแพง</p>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-                {REROLL_BUTTONS.map((b) => (
-                  <button
-                    key={b.part}
-                    onClick={() => handleReroll(b.part)}
-                    disabled={rendering}
-                    className="py-2 px-2 rounded-xl bg-[#161B26] hover:bg-[#232A3B] border border-white/10 hover:border-[#25F4EE]/40 text-white text-[11px] font-bold flex flex-col items-center gap-0.5 transition-all cursor-pointer disabled:opacity-40"
+          {/* Mode 3: Image / Screenshot */}
+          {inputMode === 'image' && (
+            <div className="space-y-3 pt-1">
+              <Input
+                label="ชื่อสินค้า (สำหรับระบุในสคริปต์):"
+                type="text"
+                value={customKeyword}
+                onChange={(e) => setCustomKeyword(e.target.value)}
+                placeholder="เช่น Esseger สายชาร์จแม่เหล็ก"
+              />
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+                    แคปหน้าจอหน้าร้าน / รูปสินค้า:
+                  </label>
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="border-2 border-dashed border-white/[0.15] hover:border-[#25F4EE]/50 rounded-2xl p-6 text-center cursor-pointer transition-colors bg-black/30"
                   >
-                    <span className="flex items-center gap-1"><RefreshCw className="w-3 h-3 text-[#25F4EE]" />{b.label}</span>
-                    <span className="text-[10px] text-slate-500 font-normal">{b.cost}</span>
+                    {uploadingImg ? (
+                      <div className="flex flex-col items-center gap-2 text-[#25F4EE]">
+                        <Loader2 className="w-6 h-6 animate-spin" />
+                        <span className="text-xs font-bold">กำลังอัปโหลดรูปภาพ...</span>
+                      </div>
+                    ) : selectedImage ? (
+                      <div className="space-y-2">
+                        <div className="text-xs font-bold text-emerald-400">เลือกรูปแล้ว:</div>
+                        <div className="text-[11px] text-slate-400 font-mono">{selectedImage.split('\\').pop()?.split('/').pop()}</div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedImage(null);
+                          }}
+                          className="text-xs text-rose-400 hover:underline"
+                        >
+                          ลบรูปออก
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5 text-slate-400">
+                        <Upload className="w-7 h-7 mx-auto text-slate-500" />
+                        <div className="text-xs font-bold text-slate-200">คลิกเพื่อเลือกไฟล์รูปภาพ</div>
+                        <div className="text-[10px] text-slate-500">รองรับ JPG, PNG, WebP</div>
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                </div>
+              </div>
+            )}
+
+            {fetchError && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs space-y-2">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{fetchError}</span>
+                </div>
+                {inputMode === 'link' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInputMode('text');
+                      setFetchError(null);
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-white/[0.1] hover:bg-white/[0.15] text-white text-[11px] font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <span>สลับไปใช้วิธีวางข้อความสเปกแทน</span>
                   </button>
-                ))}
+                )}
               </div>
-            </div>
-          </div>
-        )}
-      </StepCard>
-
-      {/* STEP 4 — publish */}
-      <StepCard number="4" title="โพสต์" subtitle="แคปชั่น แฮชแท็ก และส่งไฟล์เข้ามือถือ" locked={!result?.mp4_url}>
-        <button
-          onClick={handleCaption}
-          disabled={busy === 'caption'}
-          className="w-full py-2.5 rounded-xl bg-[#232A3B] hover:bg-[#323B52] text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-40"
-        >
-          {busy === 'caption' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-[#25F4EE]" />}
-          เขียนแคปชั่น + แฮชแท็ก
-        </button>
-
-        {caption && (
-          <div className="mt-3 space-y-2">
-            <div className="p-3 rounded-xl bg-[#0A0D14] border border-white/10">
-              <div className="flex items-start justify-between gap-2 mb-1.5">
-                <span className="text-[11px] font-bold text-slate-300">แคปชั่น</span>
-                <CopyButton text={caption.caption} label="คัดลอก" />
-              </div>
-              <p className="text-xs text-slate-200 whitespace-pre-wrap">{caption.caption}</p>
-            </div>
-            <div className="p-3 rounded-xl bg-[#0A0D14] border border-white/10">
-              <div className="flex items-start justify-between gap-2 mb-1.5">
-                <span className="text-[11px] font-bold text-slate-300">แฮชแท็ก</span>
-                <CopyButton text={(caption.hashtags || []).join(' ')} label="คัดลอก" />
-              </div>
-              <p className="text-xs text-[#25F4EE] break-words">{(caption.hashtags || []).join(' ')}</p>
-            </div>
-            {caption.cover_text && (
-              <p className="text-[11px] text-slate-400">
-                <b className="text-slate-300">ข้อความบนปก:</b> {caption.cover_text}
-              </p>
             )}
-          </div>
-        )}
 
-        <div className="mt-4 flex flex-col sm:flex-row items-center gap-4 p-3 rounded-xl bg-[#0A0D14] border border-white/10">
-          <div className="p-2.5 bg-white rounded-xl flex-shrink-0">
-            <QRCodeSVG value={mobileUrl} size={92} level="M" />
-          </div>
-          <div className="flex-1 text-center sm:text-left space-y-1.5">
-            <p className="text-xs font-bold text-white flex items-center justify-center sm:justify-start gap-1.5">
-              <QrCode className="w-3.5 h-3.5 text-emerald-400" /> ส่งไฟล์เข้ามือถือ
-            </p>
-            <p className="text-[11px] text-slate-400">
-              สแกนด้วยมือถือที่ต่อ Wi-Fi เดียวกัน แล้วโหลดคลิปจากแท็บคลังวิดีโอ
-            </p>
-            {result?.mp4_url && (
-              <a
-                href={result.mp4_url}
-                download
-                className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#25F4EE] hover:underline"
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/[0.08]">
+              <Button
+                variant="secondary"
+                onClick={() => setShowAddModal(false)}
               >
-                <Download className="w-3 h-3" /> โหลดลงเครื่องนี้
-              </a>
-            )}
+                ยกเลิก
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleScrapeAndPlan}
+                loading={fetching}
+                icon={Sparkles}
+              >
+                วิเคราะห์ & สร้าง 4 สคริปต์
+              </Button>
+            </div>
+          </div>
+        </Modal>
+
+      {/* ══════════════════════════════════════════════════════════
+          3. ACTIVE PRODUCT MASTER HERO CARD
+         ══════════════════════════════════════════════════════════ */}
+      {productData ? (
+        <div className="glass-card p-5 sm:p-6 space-y-5">
+          {/* Header row */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/[0.08] pb-4">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2.5">
+                <span className="px-2.5 py-0.5 rounded-full bg-[#25F4EE]/15 text-[#25F4EE] text-xs font-bold border border-[#25F4EE]/30">
+                  สินค้าปัจจุบัน
+                </span>
+                {productData.price_note && (
+                  <span className="text-xs font-bold font-mono text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+                    {productData.price_note}
+                  </span>
+                )}
+              </div>
+              <h1 className="text-lg sm:text-xl font-bold text-white font-kanit mt-1 truncate max-w-2xl">
+                {productData.title}
+              </h1>
+              {productData.description && (
+                <p className="text-xs sm:text-sm text-slate-400 truncate mt-0.5 max-w-2xl">
+                  {productData.description}
+                </p>
+              )}
+            </div>
+
+            {/* Progress Badge */}
+            <div className="flex items-center gap-3 bg-black/40 p-2.5 px-4 rounded-xl border border-white/[0.08] flex-shrink-0">
+              <div className="text-xs">
+                <span className="text-slate-400">ความคืบหน้า: </span>
+                <span className="text-white font-bold font-mono">{postedAngles}/{totalAngles} คลิป ({progressPercent}%)</span>
+              </div>
+              <div className="w-20 h-2 bg-slate-800 rounded-full overflow-hidden ml-1">
+                <div className="h-full bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] rounded-full" style={{ width: `${progressPercent}%` }} />
+              </div>
+            </div>
+          </div>
+
+          {/* Attached Media Strip */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-1">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
+              <Video className="w-3.5 h-3.5 text-[#25F4EE]" />
+              <span>คลิปดิบ & รูปภาพที่แนบ ({videos.length + (productData.images?.length || 0)} ไฟล์):</span>
+            </div>
+            <label className="px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-xs font-bold text-[#25F4EE] cursor-pointer flex items-center gap-1.5 transition-all w-fit">
+              <Upload className="w-3.5 h-3.5" />
+              <span>{uploadingImg ? 'กำลังอัปโหลด...' : 'แนบคลิปดิบเพิ่ม'}</span>
+              <input type="file" accept="video/*,image/*" onChange={handleImageUpload} disabled={uploadingImg} className="hidden" />
+            </label>
+          </div>
+
+          {/* Media Items Scroll */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1">
+            {videos.map(v => (
+              <div key={v.path} className="flex-shrink-0 flex items-center gap-2 p-2 rounded-xl bg-black/40 border border-white/[0.08] text-xs">
+                <Film className="w-3.5 h-3.5 text-[#25F4EE]" />
+                <span className="font-bold text-slate-200 truncate max-w-[130px]">{v.name}</span>
+                <span className="text-[10px] text-slate-400 font-mono">{v.size_mb} MB</span>
+              </div>
+            ))}
+            {(productData.images || []).map((img, idx) => (
+              <div key={idx} className="flex-shrink-0 flex items-center gap-1.5 p-1.5 rounded-xl bg-black/40 border border-white/[0.08]">
+                <img src={`/api/media/${img.rel_path || img.local_path}`} alt="" className="w-7 h-7 rounded-lg object-cover" />
+                <span className="text-xs text-slate-300 max-w-[100px] truncate">{img.name}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* ══════════════════════════════════════════════════════════
+              4. THE 4 SCRIPT ANGLE CARDS (CLEAN 2x2 PRO GRID)
+             ══════════════════════════════════════════════════════════ */}
+          <div className="pt-3 border-t border-white/[0.08] space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-bold text-white font-kanit">
+                4 สคริปต์ป้ายยา & สถานะการผลิต (4-Angle Hub)
+              </h2>
+              <span className="text-xs text-slate-400 font-mono">
+                เลือกมุมมองที่ชอบ แล้วกด "ส่งตัดต่อใน Studio"
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {angles.map((ang, idx) => {
+                const lines = Array.isArray(ang.script_lines) ? ang.script_lines : (ang.script_text ? ang.script_text.split('\n') : []);
+                const curStatus = ang.status || 'scripted';
+
+                const isScripted = curStatus === 'scripted';
+                const isInProduction = curStatus === 'in_production';
+                const isRendered = curStatus === 'rendered';
+                const isPosted = curStatus === 'posted';
+
+                return (
+                  <div
+                    key={ang.angle_id || idx}
+                    className="p-5 rounded-2xl glass-card border border-white/[0.08] hover:border-[#25F4EE]/40 transition-all flex flex-col justify-between space-y-3.5 shadow-md"
+                  >
+                    <div className="space-y-3">
+                      {/* Header */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-lg bg-gradient-to-tr from-[#25F4EE] to-blue-500 flex items-center justify-center text-xs font-bold text-slate-950 shadow-sm">
+                            {idx + 1}
+                          </span>
+                          <span className="text-xs sm:text-sm font-bold text-white font-kanit">
+                            {ang.angle_name}
+                          </span>
+                        </div>
+
+                        <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
+                          isPosted
+                            ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                            : isRendered
+                            ? 'bg-blue-500/15 text-blue-300 border-blue-500/30'
+                            : isInProduction
+                            ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                            : 'bg-white/[0.05] text-slate-400 border-white/[0.08]'
+                        }`}>
+                          {isPosted ? 'โพสต์แล้ว' : isRendered ? 'เรนเดอร์เสร็จ' : isInProduction ? 'กำลังตัดต่อ' : 'สคริปต์พร้อม'}
+                        </span>
+                      </div>
+
+                      {/* Hook 3s Highlight Banner */}
+                      {ang.hook_title && (
+                        <div className="p-3 rounded-xl bg-black/50 border-l-4 border-[#25F4EE] text-xs sm:text-sm font-bold text-cyan-200 leading-snug">
+                          {ang.hook_title}
+                        </div>
+                      )}
+
+                      {/* Script Lines */}
+                      <div className="p-3 rounded-xl bg-black/40 border border-white/[0.06] space-y-1.5">
+                        <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold">
+                          <span>บทพูดพากย์ ({lines.length} ท่อน):</span>
+                          <button
+                            onClick={() => copyScriptText(lines.join('\n'), idx)}
+                            className="text-[#25F4EE] hover:underline flex items-center gap-1 cursor-pointer font-bold"
+                          >
+                            {copiedIndex === idx ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                            <span>{copiedIndex === idx ? 'คัดลอกแล้ว' : 'คัดลอก'}</span>
+                          </button>
+                        </div>
+                        <div className="space-y-1 text-xs text-slate-200 font-mono leading-relaxed max-h-32 overflow-y-auto no-scrollbar">
+                          {lines.map((line, lIdx) => (
+                            <div key={lIdx} className="flex items-start gap-1.5">
+                              <span className="text-[#25F4EE] font-bold flex-shrink-0">{lIdx + 1}.</span>
+                              <span>{line}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Footer */}
+                    <div className="pt-2.5 border-t border-white/[0.08] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+                      {/* Step Switcher Buttons */}
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleAngleStatusChange(ang.angle_id, 'scripted')}
+                          className={`flex-1 sm:flex-none px-2.5 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer transition-all ${
+                            isScripted ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40' : 'bg-white/[0.03] text-slate-400 border border-white/[0.06] hover:text-white'
+                          }`}
+                        >
+                          1. สคริปต์
+                        </button>
+                        <button
+                          onClick={() => handleAngleStatusChange(ang.angle_id, 'in_production')}
+                          className={`flex-1 sm:flex-none px-2.5 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer transition-all ${
+                            isInProduction ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-white/[0.03] text-slate-400 border border-white/[0.06] hover:text-white'
+                          }`}
+                        >
+                          2. ตัดต่อ
+                        </button>
+                        <button
+                          onClick={() => handleAngleStatusChange(ang.angle_id, 'rendered')}
+                          className={`flex-1 sm:flex-none px-2.5 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer transition-all ${
+                            isRendered ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-white/[0.03] text-slate-400 border border-white/[0.06] hover:text-white'
+                          }`}
+                        >
+                          3. เรนเดอร์
+                        </button>
+                      </div>
+
+                      {/* Send to Studio Button */}
+                      <button
+                        onClick={() => handleSendToStudio(ang, idx)}
+                        className="w-full sm:w-auto py-2 px-3.5 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-lg shadow-[#FE2C55]/25 cursor-pointer active:scale-95 transition-all"
+                      >
+                        <Clapperboard className="w-3.5 h-3.5 text-white" />
+                        <span>ส่งตัดต่อใน Studio</span>
+                        <ArrowRight className="w-3 h-3 text-white/80" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
-
-        <button
-          onClick={handleMarkPosted}
-          disabled={posted}
-          className="w-full mt-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-40"
-        >
-          {posted ? <><Check className="w-4 h-4" />บันทึกแล้ว — กลับมากรอกผลใน 48 ชม.</> : <><Send className="w-4 h-4" />โพสต์แล้ว บันทึกลงสมุด</>}
-        </button>
-      </StepCard>
-
-      {/* Results loop */}
-      {(pending.length > 0 || performance.length > 0) && (
-        <div className="glass-panel p-4 sm:p-5 space-y-4 border border-white/10">
-          <h3 className="text-sm font-bold text-white flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-[#25F4EE]" /> ผลงานที่ผ่านมา
-          </h3>
-
-          {pending.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-[11px] text-amber-300">
-                มี {pending.length} คลิปที่โพสต์เกิน 48 ชม. แล้วยังไม่ได้กรอกผล — ไม่กรอกก็ไม่รู้ว่ามุมไหนขายได้
-              </p>
-              {pending.map((p) => <MetricsForm key={p.id} post={p} onSaved={refreshResults} />)}
-            </div>
-          )}
-
-          {performance.length > 0 && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-[11px]">
-                <thead>
-                  <tr className="text-slate-400 border-b border-white/10">
-                    <th className="text-left py-1.5 px-2">มุมเล่า</th>
-                    <th className="text-right py-1.5 px-2">คลิป</th>
-                    <th className="text-right py-1.5 px-2">วิวเฉลี่ย</th>
-                    <th className="text-right py-1.5 px-2">คลิกตะกร้า</th>
-                    <th className="text-right py-1.5 px-2">คอมมิชชั่น</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {performance.map((row) => (
-                    <tr key={row.angle_key} className="border-b border-white/5">
-                      <td className="py-1.5 px-2 text-white font-bold">{row.angle_title || row.angle_key}</td>
-                      <td className="py-1.5 px-2 text-right text-slate-300">{row.clips}</td>
-                      <td className="py-1.5 px-2 text-right text-slate-300">{row.avg_views?.toLocaleString()}</td>
-                      <td className="py-1.5 px-2 text-right text-slate-300">{row.cart_click_rate}%</td>
-                      <td className="py-1.5 px-2 text-right text-emerald-400 font-bold">
-                        <span className="inline-flex items-center gap-1"><Coins className="w-3 h-3" />{row.commission_thb}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+      ) : (
+        /* Empty State */
+        <div className="p-16 text-center space-y-4 rounded-2xl glass-card shadow-2xl">
+          <div>
+            <h3 className="text-lg font-bold text-white font-kanit">ยังไม่มีสินค้าในระบบ</h3>
+            <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-md mx-auto">
+              กดปุ่ม "วิเคราะห์สินค้าใหม่" ด้านบนเพื่อวางลิงก์ Shopee หรือพิมพ์รายละเอียด AI จะสร้าง 4 สคริปต์ให้ทันที
+            </p>
+          </div>
         </div>
       )}
-    </main>
-  );
-}
-
-function MetricsForm({ post, onSaved }) {
-  const [values, setValues] = useState({});
-  const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState(null);
-
-  const save = async () => {
-    setSaving(true);
-    setErr(null);
-    try {
-      await setPostMetrics(post.id, values);
-      onSaved();
-    } catch (e) {
-      setErr(e.response?.data?.detail || e.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="p-3 rounded-xl bg-[#0A0D14] border border-white/10 space-y-2">
-      <div className="flex items-center gap-2 text-[11px]">
-        <Camera className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
-        <span className="text-white font-bold truncate">{post.product_name}</span>
-        <span className="text-slate-500 truncate">· {post.angle_title || post.angle_key}</span>
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-        {Object.entries(METRIC_LABELS).map(([field, label]) => (
-          <input
-            key={field}
-            type="number"
-            placeholder={label}
-            value={values[field] ?? ''}
-            onChange={(e) => setValues({ ...values, [field]: e.target.value })}
-            className="py-1.5 px-2 rounded-lg bg-[#121622] border border-white/10 focus:border-[#25F4EE]/50 outline-none text-[11px] text-slate-200"
-          />
-        ))}
-      </div>
-      {err && <p className="text-[11px] text-red-300">{err}</p>}
-      <button
-        onClick={save}
-        disabled={saving}
-        className="w-full py-1.5 rounded-lg bg-[#232A3B] hover:bg-[#323B52] text-white text-[11px] font-bold cursor-pointer disabled:opacity-40"
-      >
-        {saving ? 'กำลังบันทึก...' : 'บันทึกผล'}
-      </button>
     </div>
   );
 }

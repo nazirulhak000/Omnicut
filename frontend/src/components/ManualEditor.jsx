@@ -9,7 +9,7 @@ import { CSS } from '@dnd-kit/utilities';
 import {
   Scissors, Film, Plus, Trash2, GripVertical, Loader2, Rocket,
   CheckCircle2, AlertCircle, Type, Music, Palette, MessageSquare,
-  FolderOpen, RefreshCw, Clapperboard, Waves, Eye
+  FolderOpen, RefreshCw, Clapperboard, Waves, Eye, Volume2, Sparkles, Sliders
 } from 'lucide-react';
 import {
   getProjects, getProject, updateProjectCues, startReroll, getRenderStatus, getAllAssets
@@ -32,45 +32,45 @@ function SortableClipRow({ clip, index, isActive, onSelect, onRemove }) {
       ref={setNodeRef}
       style={style}
       onClick={() => onSelect(clip.id)}
-      className={`flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-colors ${
-        isActive ? 'bg-[#25F4EE]/10 border-[#25F4EE]/50' : 'bg-black/40 border-white/[0.08] hover:border-white/20'
+      className={`flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
+        isActive
+          ? 'bg-[#25F4EE]/15 border-[#25F4EE]/40 shadow-md ring-1 ring-[#25F4EE]/30'
+          : 'bg-black/40 border-white/[0.08] hover:border-white/[0.2]'
       }`}
     >
       <button
         {...attributes}
         {...listeners}
         onClick={(e) => e.stopPropagation()}
-        className="text-slate-500 hover:text-slate-300 cursor-grab active:cursor-grabbing flex-shrink-0 touch-none"
+        className="text-slate-400 hover:text-white cursor-grab active:cursor-grabbing flex-shrink-0 touch-none p-1"
         title="ลากเพื่อสลับลำดับ"
       >
         <GripVertical className="w-4 h-4" />
       </button>
 
-      <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${
-        isActive ? 'bg-[#25F4EE] text-slate-950' : 'bg-[#25F4EE]/10 text-[#25F4EE]'
+      <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+        isActive ? 'bg-[#25F4EE] text-slate-950 shadow-sm' : 'bg-white/[0.05] border border-white/[0.08] text-slate-400'
       }`}>
         {index + 1}
       </span>
 
       <div className="flex-1 min-w-0">
         <div className="text-xs font-bold text-white truncate" title={clip.source_path}>{fileName}</div>
-        <div className="text-[9px] text-slate-500 font-mono mt-0.5">{trimLabel}</div>
+        <div className="text-[10px] text-slate-400 font-mono mt-0.5">{trimLabel}</div>
       </div>
 
       <button
         onClick={(e) => { e.stopPropagation(); onRemove(clip.id); }}
-        className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 flex-shrink-0 cursor-pointer"
+        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 flex-shrink-0 cursor-pointer transition-colors"
         title="เอาออกจากไทม์ไลน์"
       >
-        <Trash2 className="w-3.5 h-3.5" />
+        <Trash2 className="w-4 h-4" />
       </button>
     </div>
   );
 }
 
-// Visual, frame-accurate trim -- click a clip in the timeline to load it
-// here: real video preview + draggable in/out handles on a scrub bar,
-// closer to how CapCut's trim actually feels than bare number boxes.
+// Visual, frame-accurate trim
 function ClipPreviewTrimmer({ clip, onChange }) {
   const videoRef = useRef(null);
   const trackRef = useRef(null);
@@ -120,7 +120,7 @@ function ClipPreviewTrimmer({ clip, onChange }) {
   const pct = (t) => (duration ? `${Math.min(100, Math.max(0, (t / duration) * 100))}%` : '0%');
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-3">
       <video
         key={clip.id}
         ref={videoRef}
@@ -128,12 +128,12 @@ function ClipPreviewTrimmer({ clip, onChange }) {
         controls
         playsInline
         onLoadedMetadata={(e) => setDuration(e.target.duration || 0)}
-        className="w-full max-h-[320px] rounded-xl bg-black border border-white/10"
+        className="w-full max-h-[320px] rounded-xl bg-black border border-white/[0.08] shadow-inner"
       />
       {duration > 0 ? (
         <div
           ref={trackRef}
-          className="relative h-9 rounded-lg bg-black/60 border border-white/10 select-none"
+          className="relative h-10 rounded-xl bg-black/50 border border-white/[0.1] select-none"
         >
           <div
             className="absolute top-0 bottom-0 bg-[#25F4EE]/20 border-x-2 border-[#25F4EE] pointer-events-none"
@@ -143,31 +143,31 @@ function ClipPreviewTrimmer({ clip, onChange }) {
             onPointerDown={onHandleDown('start')}
             onPointerMove={onHandleMove('start')}
             onPointerUp={onHandleUp}
-            className="absolute top-0 bottom-0 w-4 -ml-2 bg-[#25F4EE] rounded cursor-ew-resize touch-none flex items-center justify-center"
+            className="absolute top-0 bottom-0 w-6 -ml-3 bg-[#25F4EE] rounded-lg cursor-ew-resize touch-none flex items-center justify-center shadow-lg shadow-[#25F4EE]/40"
             style={{ left: pct(clip.trim_start) }}
             title="ลากปรับจุดเริ่ม"
           >
-            <div className="w-0.5 h-4 bg-slate-950/60" />
+            <div className="w-0.5 h-4 bg-slate-950" />
           </div>
           <div
             onPointerDown={onHandleDown('end')}
             onPointerMove={onHandleMove('end')}
             onPointerUp={onHandleUp}
-            className="absolute top-0 bottom-0 w-4 -ml-2 bg-[#25F4EE] rounded cursor-ew-resize touch-none flex items-center justify-center"
+            className="absolute top-0 bottom-0 w-6 -ml-3 bg-[#FE2C55] rounded-lg cursor-ew-resize touch-none flex items-center justify-center shadow-lg shadow-[#FE2C55]/40"
             style={{ left: pct(trimEnd) }}
             title="ลากปรับจุดจบ"
           >
-            <div className="w-0.5 h-4 bg-slate-950/60" />
+            <div className="w-0.5 h-4 bg-white" />
           </div>
         </div>
       ) : (
-        <div className="h-9 rounded-lg bg-black/40 border border-white/10 flex items-center justify-center text-[10px] text-slate-500">
+        <div className="h-10 rounded-xl bg-black/40 border border-white/[0.08] flex items-center justify-center text-xs text-slate-400">
           กำลังโหลดวิดีโอ...
         </div>
       )}
-      <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+      <div className="flex items-center justify-between text-xs font-mono text-slate-400">
         <span>เข้า {clip.trim_start.toFixed(1)}s</span>
-        <span className="text-[#25F4EE] font-bold">ยาว {duration ? (trimEnd - clip.trim_start).toFixed(1) : '…'}s</span>
+        <span className="text-[#25F4EE] font-bold">ความยาว {duration ? (trimEnd - clip.trim_start).toFixed(1) : '…'}s</span>
         <span>ออก {duration ? trimEnd.toFixed(1) : '…'}s / {duration.toFixed(1)}s</span>
       </div>
     </div>
@@ -177,17 +177,17 @@ function ClipPreviewTrimmer({ clip, onChange }) {
 function TransitionToggle({ value, onToggle }) {
   const isFade = value === 'fade';
   return (
-    <div className="flex items-center justify-center py-0.5">
+    <div className="flex items-center justify-center py-1">
       <button
         onClick={onToggle}
-        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-bold border transition-all cursor-pointer ${
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all cursor-pointer ${
           isFade
-            ? 'bg-purple-500/15 text-purple-300 border-purple-500/40'
-            : 'bg-white/[0.03] text-slate-500 border-white/[0.08] hover:text-slate-300'
+            ? 'bg-[#25F4EE]/20 text-[#25F4EE] border-[#25F4EE]/40 shadow-sm'
+            : 'bg-white/[0.04] text-slate-400 border-white/[0.08] hover:text-white'
         }`}
         title="สลับ cut / fade ระหว่าง 2 คลิปนี้"
       >
-        {isFade ? <><Waves className="w-3 h-3" /> Fade 0.4s</> : <><Scissors className="w-3 h-3" /> Cut</>}
+        {isFade ? <><Waves className="w-3.5 h-3.5" /> Fade 0.4s</> : <><Scissors className="w-3.5 h-3.5" /> Cut</>}
       </button>
     </div>
   );
@@ -204,7 +204,7 @@ export default function ManualEditor({ videos = [] }) {
   const [cuesList, setCuesList] = useState([]);
   const [cuesDirty, setCuesDirty] = useState(false);
 
-  const [fontName, setFontName] = useState('IBMPlex');
+  const [fontName, setFontName] = useState('Prompt');
   const [bgmName, setBgmName] = useState(null);
   const [lutName, setLutName] = useState(null);
 
@@ -229,13 +229,25 @@ export default function ManualEditor({ videos = [] }) {
     }).catch(() => {});
   }, []);
 
-  // Poll the reroll job the same way StudioStep4Render does.
   useEffect(() => {
     let interval = null;
+    let pollCount = 0;
+    let consecutiveErrors = 0;
+
     if (jobId && applying) {
       interval = setInterval(async () => {
+        pollCount += 1;
+
+        if (pollCount > 600) {
+          setApplying(false);
+          setApplyError('กระบวนการเรนเดอร์ใช้เวลานานเกิน 10 นาที ระบบได้ยกเลิกการรออัตโนมัติ');
+          clearInterval(interval);
+          return;
+        }
+
         try {
           const st = await getRenderStatus(jobId);
+          consecutiveErrors = 0;
           setJobStatus(st);
           if (st.status === 'completed') {
             setApplying(false);
@@ -247,7 +259,13 @@ export default function ManualEditor({ videos = [] }) {
             clearInterval(interval);
           }
         } catch (err) {
-          console.error(err);
+          console.error('Reroll polling error:', err);
+          consecutiveErrors += 1;
+          if (consecutiveErrors >= 5) {
+            setApplying(false);
+            setApplyError('สูญเสียการเชื่อมต่อกับเซิร์ฟเวอร์ระหว่างติดตามสถานะการเรนเดอร์');
+            clearInterval(interval);
+          }
         }
       }, 1000);
     }
@@ -282,7 +300,7 @@ export default function ManualEditor({ videos = [] }) {
 
       setCuesList((data.cues || []).map((c, i) => ({ ...c, _uid: `cue-${i}-${Date.now()}` })));
       setCuesDirty(false);
-      setFontName(rp.font_name || 'IBMPlex');
+      setFontName(rp.font_name || 'Prompt');
       setBgmName(rp.bgm_name || null);
       setLutName(rp.lut_name || null);
     } catch (err) {
@@ -365,12 +383,7 @@ export default function ManualEditor({ videos = [] }) {
       }
 
       const cleanClipList = clipList.map(({ id, transition_in, ...c }) => c);
-      // One transition per boundary, i.e. clipList[1..].transition_in --
-      // the first clip has no "before" boundary.
       const transitionsList = clipList.slice(1).map(c => c.transition_in || 'cut');
-      // Editing captions requires the "subtitles" stage (it cascades to
-      // "video" too, per REROLL_STAGE) so the burned .ass actually
-      // reflects the edit; timeline-only changes are cheaper via "video".
       const part = cuesDirty ? 'subtitles' : 'video';
 
       const res = await startReroll({
@@ -386,28 +399,28 @@ export default function ManualEditor({ videos = [] }) {
       setCuesDirty(false);
     } catch (err) {
       setApplying(false);
-      setApplyError(err.response?.data?.detail || err.message || 'เริ่มเรนเดอร์ไม่สำเร็จ');
+      setApplyError(err.friendlyMessage || err.response?.data?.detail || err.message || 'เริ่มเรนเดอร์ไม่สำเร็จ');
     }
   };
 
   const progressPercent = Math.round((jobStatus?.progress || 0) * 100);
-  const selectClass = "w-full py-2 px-3 rounded-xl bg-[#080B11] border border-white/[0.1] text-slate-100 text-xs focus:outline-none focus:border-[#25F4EE]/50 transition-colors shadow-inner";
+  const selectClass = "w-full py-2.5 px-3.5 rounded-xl bg-[#080B11] border border-white/[0.1] text-slate-100 text-xs sm:text-sm font-bold focus:outline-none focus:border-[#25F4EE]/50 transition-colors shadow-inner";
   const activeClip = clipList.find(c => c.id === activeClipId) || null;
 
   return (
     <div className="space-y-6 animate-fadeIn pb-16">
       {/* Header */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-5 sm:p-6 glass-panel border border-white/10 shadow-2xl">
+      <div className="glass-panel p-5 sm:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#FE2C55] via-[#FF0050] to-[#25F4EE] flex items-center justify-center shadow-lg shadow-[#FE2C55]/30 flex-shrink-0">
-            <Scissors className="w-6 h-6 text-white" />
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#FE2C55] to-[#25F4EE] flex items-center justify-center text-white shadow-lg shadow-[#FE2C55]/20 flex-shrink-0">
+            <Scissors className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-xl sm:text-2xl font-black font-kanit text-white">
+            <h2 className="text-xl sm:text-2xl font-bold font-kanit text-white">
               ตัดต่อมือ (Manual Editor)
             </h2>
-            <p className="text-xs sm:text-sm text-slate-400 font-prompt mt-0.5">
-พรีวิววิดีโอ ลากตัดต้น-จบ สลับลำดับ ใส่ fade + แก้คำบรรยาย สำหรับโปรเจกต์ที่ 1-Click Studio สร้างไว้แล้ว — MVP: ยังไม่มี keyframe/color curve แบบ CapCut เต็มรูปแบบ
+            <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
+              พรีวิววิดีโอ ลากตัดต้น-จบ สลับลำดับ ใส่ fade + แก้คำบรรยาย สำหรับโปรเจกต์ที่ 1-Click Studio สร้างไว้แล้ว
             </p>
           </div>
         </div>
@@ -417,7 +430,7 @@ export default function ManualEditor({ videos = [] }) {
           <select
             value={selectedProject}
             onChange={(e) => loadProject(e.target.value)}
-            className="flex-1 md:w-64 py-2.5 px-3.5 rounded-xl bg-[#121622] border border-white/10 text-slate-100 text-xs focus:outline-none focus:border-[#25F4EE]"
+            className="flex-1 md:w-64 py-2.5 px-3.5 rounded-xl bg-[#080B11] border border-white/[0.1] text-slate-100 text-xs font-bold focus:outline-none focus:border-[#25F4EE]/50 shadow-inner cursor-pointer"
           >
             <option value="">— เลือกโปรเจกต์ —</option>
             {projectList.map((p) => (
@@ -429,48 +442,55 @@ export default function ManualEditor({ videos = [] }) {
           <button
             onClick={() => loadProject(selectedProject)}
             disabled={!selectedProject || loadingProject}
-            className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer disabled:opacity-40"
+            className="p-2.5 min-w-[36px] min-h-[36px] rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-400 hover:text-white transition-colors cursor-pointer disabled:opacity-40 flex items-center justify-center"
             title="โหลด/รีเฟรชโปรเจกต์"
           >
-            {loadingProject ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            {loadingProject ? <Loader2 className="w-4 h-4 animate-spin text-[#25F4EE]" /> : <RefreshCw className="w-4 h-4" />}
           </button>
         </div>
       </div>
 
       {loadError && (
-        <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs flex items-center gap-2">
+        <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
           <span>{loadError}</span>
         </div>
       )}
 
       {!selectedProject ? (
-        <div className="glass-card p-10 text-center text-slate-400 text-sm">
-          <Clapperboard className="w-10 h-10 mx-auto mb-3 text-slate-600" />
-          เลือกโปรเจกต์ที่ render ผ่าน 1-Click Studio มาแล้วอย่างน้อย 1 ครั้ง เพื่อเริ่มปรับลำดับคลิป/แก้คำบรรยาย
+        <div className="p-16 text-center space-y-4 rounded-2xl glass-card shadow-xl">
+          <div className="w-16 h-16 rounded-2xl bg-black/40 border border-white/[0.08] flex items-center justify-center text-[#25F4EE] mx-auto shadow-inner">
+            <Scissors className="w-8 h-8" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-white font-kanit">เลือกโปรเจกต์เพื่อเริ่มตัดต่อมือ</h3>
+            <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-md mx-auto">
+              เลือกโปรเจกต์ที่ render ผ่าน 1-Click Studio มาแล้วอย่างน้อย 1 ครั้ง เพื่อเริ่มปรับลำดับคลิป หรือแก้คำบรรยาย
+            </p>
+          </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr_300px] gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_320px] gap-4">
           {/* ── Left: Media Bin ── */}
-          <div className="glass-card p-4 space-y-3">
-            <h3 className="text-xs font-bold text-white flex items-center gap-2 pb-2 border-b border-white/10">
+          <div className="p-4 space-y-3 glass-card">
+            <h3 className="text-xs font-bold text-white flex items-center gap-2 pb-2 border-b border-white/[0.08] font-kanit">
               <FolderOpen className="w-3.5 h-3.5 text-[#25F4EE]" />
               คลังวิดีโอ (Media Bin)
             </h3>
-            <div className="space-y-1.5 max-h-[500px] overflow-y-auto pr-1">
+            <div className="space-y-1.5 max-h-[520px] overflow-y-auto pr-1 no-scrollbar">
               {videos.map((v) => (
                 <button
                   key={v.path}
                   onClick={() => addClipFromBin(v)}
-                  className="w-full flex items-center gap-2 p-2 rounded-xl bg-white/[0.02] hover:bg-[#25F4EE]/10 border border-white/[0.06] hover:border-[#25F4EE]/40 text-left transition-all cursor-pointer group"
+                  className="w-full flex items-center gap-2 p-2.5 rounded-xl bg-black/40 hover:bg-[#25F4EE]/10 border border-white/[0.06] hover:border-[#25F4EE]/30 text-left transition-all cursor-pointer group"
                 >
-                  <Film className="w-3.5 h-3.5 text-slate-500 group-hover:text-[#25F4EE] flex-shrink-0" />
-                  <span className="text-[11px] text-slate-300 group-hover:text-white truncate flex-1">{v.name}</span>
-                  <Plus className="w-3.5 h-3.5 text-slate-600 group-hover:text-[#25F4EE] flex-shrink-0" />
+                  <Film className="w-3.5 h-3.5 text-slate-400 group-hover:text-[#25F4EE] flex-shrink-0" />
+                  <span className="text-xs font-semibold text-slate-200 group-hover:text-white truncate flex-1">{v.name}</span>
+                  <Plus className="w-3.5 h-3.5 text-slate-400 group-hover:text-[#25F4EE] flex-shrink-0" />
                 </button>
               ))}
               {videos.length === 0 && (
-                <div className="text-[11px] text-slate-500 text-center py-4">ยังไม่มีวิดีโอในระบบ — อัปโหลดที่ tab 1-Click Studio ก่อน</div>
+                <div className="text-xs text-slate-400 text-center py-4">ยังไม่มีวิดีโอในระบบ — อัปโหลดที่ tab 1-Click Studio ก่อน</div>
               )}
             </div>
           </div>
@@ -478,8 +498,8 @@ export default function ManualEditor({ videos = [] }) {
           {/* ── Middle: Sequence Preview + Trim + Timeline + Apply ── */}
           <div className="space-y-4">
             {clipList.length > 0 && (
-              <div className="glass-card p-4 space-y-3">
-                <h3 className="text-xs font-bold text-white flex items-center gap-2 pb-2 border-b border-white/10">
+              <div className="p-4 space-y-3 glass-card">
+                <h3 className="text-xs font-bold text-white flex items-center gap-2 pb-2 border-b border-white/[0.08] font-kanit">
                   <Eye className="w-3.5 h-3.5 text-[#25F4EE]" />
                   ดูรวมทั้งไทม์ไลน์ ({clipList.length} คลิปต่อกัน)
                 </h3>
@@ -488,8 +508,8 @@ export default function ManualEditor({ videos = [] }) {
             )}
 
             {activeClip && (
-              <div className="glass-card p-4 space-y-3">
-                <h3 className="text-xs font-bold text-white flex items-center gap-2 pb-2 border-b border-white/10">
+              <div className="p-4 space-y-3 glass-card">
+                <h3 className="text-xs font-bold text-white flex items-center gap-2 pb-2 border-b border-white/[0.08] font-kanit">
                   <Film className="w-3.5 h-3.5 text-[#25F4EE]" />
                   ตัดคลิป (คลิปที่ {clipList.findIndex(c => c.id === activeClipId) + 1})
                 </h3>
@@ -500,18 +520,18 @@ export default function ManualEditor({ videos = [] }) {
               </div>
             )}
 
-            <div className="glass-card p-4 space-y-3">
-              <h3 className="text-xs font-bold text-white flex items-center gap-2 pb-2 border-b border-white/10">
-                <Scissors className="w-3.5 h-3.5 text-[#FE2C55]" />
-                ไทม์ไลน์ ({clipList.length} คลิป) — คลิกเพื่อเลือก/ลากเพื่อสลับลำดับ
+            <div className="p-4 space-y-3 glass-card">
+              <h3 className="text-xs font-bold text-white flex items-center gap-2 pb-2 border-b border-white/[0.08] font-kanit">
+                <Scissors className="w-3.5 h-3.5 text-[#25F4EE]" />
+                ไทม์ไลน์ ({clipList.length} คลิป) — คลิกเพื่อเลือก / ลากเพื่อสลับลำดับ
               </h3>
 
               {clipList.length === 0 ? (
-                <div className="text-[11px] text-slate-500 text-center py-6">คลิกวิดีโอจากคลังด้านซ้ายเพื่อเพิ่มเข้าไทม์ไลน์</div>
+                <div className="text-xs text-slate-400 text-center py-6">คลิกวิดีโอจากคลังด้านซ้ายเพื่อเพิ่มเข้าไทม์ไลน์</div>
               ) : (
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                   <SortableContext items={clipList.map(c => c.id)} strategy={verticalListSortingStrategy}>
-                    <div className="space-y-0.5">
+                    <div className="space-y-1">
                       {clipList.map((clip, idx) => (
                         <React.Fragment key={clip.id}>
                           {idx > 0 && (
@@ -536,51 +556,51 @@ export default function ManualEditor({ videos = [] }) {
             </div>
 
             {/* Apply button */}
-            <div className="glass-card p-4 space-y-3">
+            <div className="p-4 space-y-3 glass-card">
               <button
                 onClick={handleApply}
                 disabled={applying}
-                className={`w-full py-3.5 px-5 rounded-2xl font-extrabold text-sm flex items-center justify-center gap-2.5 transition-all shadow-xl cursor-pointer ${
+                className={`w-full py-3.5 px-5 rounded-xl font-bold text-sm flex items-center justify-center gap-2.5 transition-all shadow-lg cursor-pointer ${
                   applying
-                    ? 'bg-slate-800 text-slate-400 cursor-not-allowed border border-white/5'
-                    : 'bg-gradient-to-r from-[#FE2C55] via-[#FF0050] to-[#25F4EE] text-white hover:opacity-95 active:scale-[0.99]'
+                    ? 'bg-black/40 text-slate-400 cursor-not-allowed border border-white/[0.08]'
+                    : 'bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:opacity-90 text-white active:scale-[0.99] shadow-[#FE2C55]/20'
                 }`}
               >
                 {applying ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <Loader2 className="w-5 h-5 animate-spin text-white" />
                     <span>กำลังเรนเดอร์... ({progressPercent}%)</span>
                   </>
                 ) : (
                   <>
-                    <Rocket className="w-5 h-5" />
+                    <Rocket className="w-5 h-5 text-white" />
                     <span>Apply — เรนเดอร์จริงตามไทม์ไลน์นี้</span>
                   </>
                 )}
               </button>
-              <p className="text-[10px] text-slate-500 text-center">
-                พรีวิวแบบ ffmpeg จริง (ไม่ใช่ real-time) — เครื่องนี้ไม่มีการ์ดจอ ต้องรอเรนเดอร์จริงทุกครั้งที่กด Apply
+              <p className="text-[11px] text-slate-400 text-center">
+                พรีวิวแบบ ffmpeg แม่นยำระดับเฟรม — ต้องรอเรนเดอร์จริงทุกครั้งที่กด Apply
               </p>
 
               {applying && (
-                <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
+                <div className="w-full h-2.5 rounded-full bg-black/50 overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] transition-all duration-300"
+                    className="h-full bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] transition-all duration-300 rounded-full"
                     style={{ width: `${Math.max(5, progressPercent)}%` }}
                   />
                 </div>
               )}
 
               {applyError && (
-                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs flex items-center gap-2">
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />
                   <span>{applyError}</span>
                 </div>
               )}
 
               {applyResult && (
-                <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-2.5">
-                  <div className="flex items-center gap-2 text-emerald-300 font-bold text-xs">
+                <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-2.5">
+                  <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
                     <CheckCircle2 className="w-4 h-4" />
                     <span>เรนเดอร์เสร็จแล้ว!</span>
                   </div>
@@ -589,7 +609,7 @@ export default function ManualEditor({ videos = [] }) {
                       src={`${applyResult.video_url}?t=${Date.now()}`}
                       controls
                       playsInline
-                      className="w-full max-w-[180px] mx-auto rounded-xl bg-black border border-white/10"
+                      className="w-full max-w-[200px] mx-auto rounded-xl bg-black border border-white/[0.08] shadow-xl"
                     />
                   )}
                 </div>
@@ -599,27 +619,30 @@ export default function ManualEditor({ videos = [] }) {
 
           {/* ── Right: Inspector + Captions ── */}
           <div className="space-y-4">
-            <div className="glass-card p-4 space-y-3">
-              <h3 className="text-xs font-bold text-white flex items-center gap-2 pb-2 border-b border-white/10">
-                <Palette className="w-3.5 h-3.5 text-cyan-400" />
-                สไตล์
+            <div className="p-4 space-y-3.5 glass-card">
+              <h3 className="text-xs font-bold text-white flex items-center gap-2 pb-2 border-b border-white/[0.08] font-kanit">
+                <Palette className="w-3.5 h-3.5 text-[#25F4EE]" />
+                สไตล์ & ปรับแต่ง
               </h3>
 
               <div>
-                <label className="block text-[10px] font-semibold text-slate-300 mb-1 flex items-center gap-1">
-                  <Type className="w-3 h-3 text-[#25F4EE]" /> ฟอนต์ซับไตเติล
+                <label className="block text-xs font-bold text-slate-300 mb-1 flex items-center gap-1.5">
+                  <Type className="w-3.5 h-3.5 text-[#25F4EE]" /> ฟอนต์ซับไตเติล
                 </label>
                 <select value={fontName} onChange={(e) => setFontName(e.target.value)} className={selectClass}>
-                  <option value="IBMPlex">IBM Plex Sans Thai</option>
-                  <option value="Kanit">Kanit</option>
-                  <option value="Prompt">Prompt</option>
-                  <option value="NotoSansThai">Noto Sans Thai</option>
+                  <option value="Mitr">Mitr (มิตร - มินิมอลเกาหลี)</option>
+                  <option value="Kanit">Kanit (คณิต - ตัวหนา TikTok ไวรัล)</option>
+                  <option value="IBMPlex">IBM Plex Sans Thai (เทค ไอที พรีเมียม)</option>
+                  <option value="Prompt">Prompt (พร้อมท์ - โมเดิร์น อ่านง่าย)</option>
+                  <option value="ChakraPetch">Chakra Petch (จักรเพชร - ไซเบอร์)</option>
+                  <option value="capsule_pill">Capsule Pill (กล่องมน อ่านออก 100%)</option>
+                  <option value="NotoSansThai">Noto Sans Thai (สากล คลาสสิก)</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-[10px] font-semibold text-slate-300 mb-1 flex items-center gap-1">
-                  <Music className="w-3 h-3 text-purple-400" /> BGM
+                <label className="block text-xs font-bold text-slate-300 mb-1 flex items-center gap-1.5">
+                  <Music className="w-3.5 h-3.5 text-[#25F4EE]" /> BGM เพลงประกอบ
                 </label>
                 <select value={bgmName || ''} onChange={(e) => setBgmName(e.target.value || null)} className={selectClass}>
                   <option value="">🎵 เสียงหลักของช่อง (ค่าเริ่มต้น)</option>
@@ -630,8 +653,8 @@ export default function ManualEditor({ videos = [] }) {
               </div>
 
               <div>
-                <label className="block text-[10px] font-semibold text-slate-300 mb-1 flex items-center gap-1">
-                  <Palette className="w-3 h-3 text-cyan-400" /> LUT (ไม่บังคับ)
+                <label className="block text-xs font-bold text-slate-300 mb-1 flex items-center gap-1.5">
+                  <Sliders className="w-3.5 h-3.5 text-[#25F4EE]" /> โทนสี LUTs
                 </label>
                 <select
                   value={lutName || ''}
@@ -639,50 +662,46 @@ export default function ManualEditor({ videos = [] }) {
                   className={selectClass}
                   title="เครื่องนี้ไม่มีการ์ดจอ — ใส่ LUT ช้าลง ~90%"
                 >
-                  <option value="">⚪ ไม่ใช้ (เร็วกว่า)</option>
+                  <option value="">ไม่ใช้ (เร็วกว่า)</option>
                   {lutOptions.map((l) => (
                     <option key={l.id} value={l.id}>{l.name.replace(/\.cube$/i, '')}</option>
                   ))}
                 </select>
-                {lutName && <div className="text-[9px] text-amber-400 mt-1">⚠️ เรนเดอร์ช้าลง ~90% บนเครื่องนี้</div>}
+                {lutName && <div className="text-[11px] text-amber-300 mt-1">เรนเดอร์ช้าลง ~90% บนเครื่อง CPU</div>}
               </div>
-
-              <p className="text-[9px] text-slate-500 pt-1 border-t border-white/5">
-                หมายเหตุ: ป้ายสติกเกอร์ยังปรับจากที่นี่ไม่ได้ในเวอร์ชันนี้ — ใช้ตามที่ตั้งไว้ตอน render ครั้งแรก
-              </p>
             </div>
 
-            <div className="glass-card p-4 space-y-3">
-              <h3 className="text-xs font-bold text-white flex items-center justify-between pb-2 border-b border-white/10">
+            <div className="p-4 space-y-3.5 glass-card">
+              <h3 className="text-xs font-bold text-white flex items-center justify-between pb-2 border-b border-white/[0.08] font-kanit">
                 <span className="flex items-center gap-2">
-                  <MessageSquare className="w-3.5 h-3.5 text-amber-400" />
+                  <MessageSquare className="w-3.5 h-3.5 text-[#25F4EE]" />
                   คำบรรยาย ({cuesList.length})
                 </span>
                 {cuesDirty && (
-                  <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold">แก้ไขแล้ว</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold">แก้ไขแล้ว</span>
                 )}
               </h3>
-              <div className="space-y-2 max-h-[340px] overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1 no-scrollbar">
                 {cuesList.map((cue) => (
-                  <div key={cue._uid} className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06] space-y-1.5">
+                  <div key={cue._uid} className="p-3 rounded-xl bg-black/40 border border-white/[0.06] space-y-2">
                     <div className="flex items-center gap-1.5">
                       <input
                         type="number" step="0.1"
                         value={cue.start}
                         onChange={(e) => updateCue(cue._uid, 'start', parseFloat(e.target.value) || 0)}
-                        className="w-14 py-1 px-1.5 rounded-md bg-[#080B11] border border-white/[0.1] text-[9px] text-slate-300 font-mono focus:outline-none"
+                        className="w-14 py-1 px-2 rounded-lg bg-[#080B11] border border-white/[0.1] text-xs text-white font-mono focus:outline-none focus:border-[#25F4EE]/50"
                       />
-                      <span className="text-[9px] text-slate-600">-</span>
+                      <span className="text-xs text-slate-400">-</span>
                       <input
                         type="number" step="0.1"
                         value={cue.end}
                         onChange={(e) => updateCue(cue._uid, 'end', parseFloat(e.target.value) || 0)}
-                        className="w-14 py-1 px-1.5 rounded-md bg-[#080B11] border border-white/[0.1] text-[9px] text-slate-300 font-mono focus:outline-none"
+                        className="w-14 py-1 px-2 rounded-lg bg-[#080B11] border border-white/[0.1] text-xs text-white font-mono focus:outline-none focus:border-[#25F4EE]/50"
                       />
                       <select
                         value={cue.sfx || ''}
                         onChange={(e) => updateCue(cue._uid, 'sfx', e.target.value || null)}
-                        className="flex-1 py-1 px-1.5 rounded-md bg-[#080B11] border border-white/[0.1] text-[9px] text-slate-300 focus:outline-none"
+                        className="flex-1 py-1 px-2 rounded-lg bg-[#080B11] border border-white/[0.1] text-xs text-slate-200 focus:outline-none focus:border-[#25F4EE]/50"
                       >
                         <option value="">🔇 ไม่มี SFX</option>
                         {sfxOptions.map((s) => (
@@ -691,21 +710,21 @@ export default function ManualEditor({ videos = [] }) {
                       </select>
                       <button
                         onClick={() => removeCue(cue._uid)}
-                        className="p-1 text-slate-500 hover:text-red-400 cursor-pointer flex-shrink-0"
+                        className="p-1 text-slate-400 hover:text-rose-400 cursor-pointer flex-shrink-0"
                       >
-                        <Trash2 className="w-3 h-3" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                     <textarea
                       value={cue.text}
                       onChange={(e) => updateCue(cue._uid, 'text', e.target.value)}
                       rows={2}
-                      className="w-full py-1.5 px-2 rounded-md bg-[#080B11] border border-white/[0.1] text-[11px] text-slate-100 resize-none focus:outline-none focus:border-[#25F4EE]/50"
+                      className="w-full py-1.5 px-2.5 rounded-lg bg-[#080B11] border border-white/[0.1] text-xs text-slate-100 resize-none focus:outline-none focus:border-[#25F4EE]/50"
                     />
                   </div>
                 ))}
                 {cuesList.length === 0 && (
-                  <div className="text-[11px] text-slate-500 text-center py-4">โปรเจกต์นี้ยังไม่มี cue คำบรรยาย</div>
+                  <div className="text-xs text-slate-400 text-center py-4">โปรเจกต์นี้ยังไม่มี cue คำบรรยาย</div>
                 )}
               </div>
             </div>

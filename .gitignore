@@ -42,3 +42,5 @@ synced_clause_*.png
 
 # Generated timeline filmstrips (rebuilt on demand from source clips)
 05_Covers_Thumbnails/.filmstrips/
+.playwright-mcp/
+vision_frame_*.png

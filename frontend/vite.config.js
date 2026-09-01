@@ -17,5 +17,29 @@ export default defineConfig({
         changeOrigin: true,
       }
     }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom')) {
+              return 'vendor-react';
+            }
+            if (id.includes('lucide-react')) {
+              return 'vendor-icons';
+            }
+            if (id.includes('@dnd-kit')) {
+              return 'vendor-dnd';
+            }
+            if (id.includes('axios') || id.includes('clsx') || id.includes('tailwind-merge') || id.includes('qrcode.react')) {
+              return 'vendor-utils';
+            }
+            return 'vendor-misc';
+          }
+        }
+      }
+    },
+    chunkSizeWarningLimit: 600
   }
 })

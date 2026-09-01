@@ -16,11 +16,13 @@ from scripts.config import BASE_DIR
 
 STORE_PATH = BASE_DIR / "_Docs" / "products.json"
 
-# candidate → the URL is saved, nothing else done yet
-# scripted  → angles picked and a script exists
-# rendered  → at least one clip has been produced
-# posted    → at least one clip is live
-STATUSES = ("candidate", "scripted", "rendered", "posted")
+# candidate      → the URL is saved, nothing else done yet
+# scripted       → angles picked and a script exists
+# in_production  → currently editing in Studio
+# rendered       → clip rendered & QC checked
+# mobile_ready   → clip transferred to mobile phone
+# posted         → clip is live on TikTok
+STATUSES = ("candidate", "scripted", "in_production", "rendered", "mobile_ready", "posted")
 
 
 class ProductStore:
@@ -62,6 +64,8 @@ class ProductStore:
         price_note: str = "",
         target_buyer: str = "",
         thumbnail: str = "",
+        angles: Optional[List[Dict[str, Any]]] = None,
+        images: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """Add a product, or return the existing one when the URL is already queued."""
         if not name.strip():
@@ -72,6 +76,13 @@ class ProductStore:
         if url.strip():
             for existing in products:
                 if existing.get("url", "").strip() == url.strip():
+                    if angles:
+                        existing["angles"] = angles
+                        existing["status"] = "scripted"
+                    if images:
+                        existing["images"] = images
+                    existing["updated_at"] = cls._now()
+                    cls._save(products)
                     return existing
 
         now = cls._now()
@@ -87,8 +98,9 @@ class ProductStore:
             "price_note": price_note,
             "target_buyer": target_buyer,
             "thumbnail": thumbnail,
-            "status": "candidate",
-            "angles": [],
+            "status": "scripted" if angles else "candidate",
+            "angles": angles or [],
+            "images": images or [],
             "projects": [],
             "created_at": now,
             "updated_at": now,
@@ -115,7 +127,23 @@ class ProductStore:
                 cls._save(products)
                 return product
 
-        raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
+    @classmethod
+    def update_angle_status(cls, product_id: str, angle_id: str, status: str, video_url: Optional[str] = None) -> Dict[str, Any]:
+        """Updates the lifecycle status of a specific script angle in a product."""
+        products = cls._load()
+        for product in products:
+            if product["id"] == product_id:
+                angles = product.get("angles", [])
+                for angle in angles:
+                    if angle.get("angle_id") == angle_id:
+                        angle["status"] = status
+                        if video_url:
+                            angle["video_url"] = video_url
+                        angle["updated_at"] = cls._now()
+                        product["updated_at"] = cls._now()
+                        cls._save(products)
+                        return product
+        raise ValueError(f"ไม่พบสินค้า id '{product_id}' หรือ angle '{angle_id}'")
 
     @classmethod
     def attach_project(cls, product_id: str, project_name: str) -> Dict[str, Any]:
@@ -141,6 +169,10 @@ class ProductStore:
     # ------------------------------------------------------------------
     # Reading
     # ------------------------------------------------------------------
+    @classmethod
+    def get_all(cls) -> List[Dict[str, Any]]:
+        return cls._load()
+
     @classmethod
     def list(cls, status: Optional[str] = None) -> List[Dict[str, Any]]:
         products = cls._load()

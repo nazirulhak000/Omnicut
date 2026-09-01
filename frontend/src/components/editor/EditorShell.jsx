@@ -73,8 +73,20 @@ export default function EditorShell({ videos = [] }) {
   const [jobStatus, setJobStatus] = useState(null);
   const [confirmGap, setConfirmGap] = useState(0);
 
-  const playerRef = useRef(null);
+  const mobilePlayerRef = useRef(null);
+  const desktopPlayerRef = useRef(null);
   const cuesDirty = useRef(false);
+
+  const seekPlayer = useCallback((t) => {
+    setPlayhead(t);
+    mobilePlayerRef.current?.seek(t);
+    desktopPlayerRef.current?.seek(t);
+  }, []);
+
+  const togglePlayer = useCallback(() => {
+    mobilePlayerRef.current?.toggle();
+    desktopPlayerRef.current?.toggle();
+  }, []);
 
   // Load project list + assets on mount
   useEffect(() => {
@@ -304,13 +316,12 @@ export default function EditorShell({ videos = [] }) {
 
       const jump = (delta) => {
         const next = Math.max(0, Math.min(Math.max(totalDuration, audioDuration || 0), playhead + delta));
-        setPlayhead(next);
-        playerRef.current?.seek(next);
+        seekPlayer(next);
       };
 
       switch (e.key) {
         case ' ':
-          e.preventDefault(); playerRef.current?.toggle(); break;
+          e.preventDefault(); togglePlayer(); break;
         case 's': case 'S':
           e.preventDefault(); splitAtPlayhead(); break;
         case 'Delete': case 'Backspace':
@@ -404,6 +415,75 @@ export default function EditorShell({ videos = [] }) {
 
       const list = [...prev.cuesList];
       list.splice(idx, 2, merged);
+      cuesDirty.current = true;
+      return { ...prev, cuesList: list };
+    });
+  }, [set]);
+
+  const handleMergeWithPrevious = useCallback((cueUid) => {
+    set((prev) => {
+      const idx = prev.cuesList.findIndex((c) => c._uid === cueUid);
+      if (idx <= 0) return prev;
+      const prevCue = prev.cuesList[idx - 1];
+      const curCue = prev.cuesList[idx];
+
+      const merged = {
+        ...prevCue,
+        end: curCue.end,
+        text: `${prevCue.text || ''} ${curCue.text || ''}`.trim(),
+        translation: `${prevCue.translation || ''} ${curCue.translation || ''}`.trim(),
+      };
+
+      const list = [...prev.cuesList];
+      list.splice(idx - 1, 2, merged);
+      cuesDirty.current = true;
+      return { ...prev, cuesList: list };
+    });
+  }, [set]);
+
+  const handleReorderCues = useCallback((fromIdx, toIdx) => {
+    set((prev) => {
+      if (fromIdx < 0 || fromIdx >= prev.cuesList.length || toIdx < 0 || toIdx >= prev.cuesList.length) return prev;
+      const list = [...prev.cuesList];
+      const [moved] = list.splice(fromIdx, 1);
+      list.splice(toIdx, 0, moved);
+      cuesDirty.current = true;
+      return { ...prev, cuesList: list };
+    });
+  }, [set]);
+
+  const handleBatchFindAndReplace = useCallback((findText, replaceText) => {
+    if (!findText) return 0;
+    let count = 0;
+    set((prev) => {
+      const regex = new RegExp(findText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      const list = prev.cuesList.map((c) => {
+        const hasMatch = regex.test(c.text || '') || regex.test(c.translation || '');
+        if (hasMatch) {
+          count++;
+          return {
+            ...c,
+            text: (c.text || '').replace(regex, replaceText),
+            translation: c.translation ? c.translation.replace(regex, replaceText) : c.translation,
+          };
+        }
+        return c;
+      });
+      if (count > 0) cuesDirty.current = true;
+      return { ...prev, cuesList: list };
+    });
+    return count;
+  }, [set]);
+
+  const handleBatchFormatClean = useCallback(() => {
+    set((prev) => {
+      const list = prev.cuesList.map((c) => {
+        let txt = (c.text || '')
+          .replace(/\s+/g, ' ')
+          .replace(/^[,\.\-_\s]+|[,\.\-_\s]+$/g, '')
+          .trim();
+        return { ...c, text: txt };
+      });
       cuesDirty.current = true;
       return { ...prev, cuesList: list };
     });
@@ -627,7 +707,7 @@ export default function EditorShell({ videos = [] }) {
                 : 'h-[28vh] min-h-[160px] flex-shrink-0'
             }`}>
               <SequencePlayer
-                ref={playerRef}
+                ref={mobilePlayerRef}
                 clips={clipList}
                 cues={cuesList}
                 compact
@@ -712,10 +792,7 @@ export default function EditorShell({ videos = [] }) {
                     playhead={playhead}
                     selection={selection}
                     onSelect={setSelection}
-                    onSeek={(t) => {
-                      setPlayhead(t);
-                      playerRef.current?.seek(t);
-                    }}
+                    onSeek={seekPlayer}
                     onClipChange={patchClip}
                     onCaptionChange={patchCaption}
                     onReorder={reorderClip}
@@ -763,12 +840,13 @@ export default function EditorShell({ videos = [] }) {
                       onSplitCue={handleSplitCue}
                       onSplitCueAtPlayhead={handleSplitCueAtPlayhead}
                       onMergeCue={handleMergeCue}
+                      onMergeWithPrevious={handleMergeWithPrevious}
                       onDeleteCue={handleDeleteCue}
                       onInsertCueAfter={handleInsertCueAfter}
-                      onSeek={(t) => {
-                        setPlayhead(t);
-                        playerRef.current?.seek(t);
-                      }}
+                      onReorderCues={handleReorderCues}
+                      onBatchFindAndReplace={handleBatchFindAndReplace}
+                      onBatchFormatClean={handleBatchFormatClean}
+                      onSeek={seekPlayer}
                       onSelectCue={(uid) => setSelection({ type: 'caption', id: uid })}
                     />
                   </div>
@@ -802,7 +880,7 @@ export default function EditorShell({ videos = [] }) {
               {/* Center: SequencePlayer */}
               <div className="flex min-h-0 flex-1 flex-col items-center gap-2 overflow-hidden p-3 bg-black/40">
                 <SequencePlayer
-                  ref={playerRef}
+                  ref={desktopPlayerRef}
                   clips={clipList}
                   cues={cuesList}
                   compact
@@ -830,7 +908,7 @@ export default function EditorShell({ videos = [] }) {
               </div>
 
               {!zen && (
-                <div className="w-[320px] lg:w-[340px] flex-shrink-0 border-l border-white/[0.08]">
+                <div className="w-[320px] lg:w-[350px] flex-shrink-0 border-l border-white/[0.08]">
                   <Inspector
                     selection={selection}
                     selectedSeg={selectedSeg}
@@ -846,12 +924,13 @@ export default function EditorShell({ videos = [] }) {
                     onSplitCue={handleSplitCue}
                     onSplitCueAtPlayhead={handleSplitCueAtPlayhead}
                     onMergeCue={handleMergeCue}
+                    onMergeWithPrevious={handleMergeWithPrevious}
                     onDeleteCue={handleDeleteCue}
                     onInsertCueAfter={handleInsertCueAfter}
-                    onSeek={(t) => {
-                      setPlayhead(t);
-                      playerRef.current?.seek(t);
-                    }}
+                    onReorderCues={handleReorderCues}
+                    onBatchFindAndReplace={handleBatchFindAndReplace}
+                    onBatchFormatClean={handleBatchFormatClean}
+                    onSeek={seekPlayer}
                     onSelectCue={(uid) => setSelection({ type: 'caption', id: uid })}
                   />
                 </div>
@@ -924,10 +1003,7 @@ export default function EditorShell({ videos = [] }) {
                     playhead={playhead}
                     selection={selection}
                     onSelect={setSelection}
-                    onSeek={(t) => {
-                      setPlayhead(t);
-                      playerRef.current?.seek(t);
-                    }}
+                    onSeek={seekPlayer}
                     onClipChange={patchClip}
                     onCaptionChange={patchCaption}
                     onReorder={reorderClip}

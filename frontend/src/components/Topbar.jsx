@@ -1,14 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Film, Wifi, WifiOff, Sparkles, Rocket, FolderDown, ChevronRight, Layers, ZoomIn, ZoomOut } from 'lucide-react';
+import { Film, Wifi, WifiOff, Sparkles, Type, Keyboard } from 'lucide-react';
 
-const PIPELINE_STEPS = [
-  { id: 'flow', label: '1. สินค้า → คลิป', icon: Rocket },
-  { id: 'tracker', label: '2. คลังสินค้า & Tracker', icon: Layers },
-  { id: 'studio', label: '3. 1-Click Studio', icon: Sparkles },
-  { id: 'gallery', label: '4. Export Gallery', icon: FolderDown },
-];
-
-export default function Topbar({ activeTab, setActiveTab, status }) {
+export default function Topbar({ activeTab, setActiveTab, status, uiFont = 'font-prompt', setUiFont, onOpenShortcuts }) {
   const isOnline = status?.status === 'online';
   const [scale, setScale] = useState(1.05);
 
@@ -26,79 +19,111 @@ export default function Topbar({ activeTab, setActiveTab, status }) {
   };
 
   return (
-    <header className="h-[58px] flex-shrink-0 bg-[#080B11]/95 backdrop-blur-2xl border-b border-white/[0.08] flex items-center justify-between px-4 sm:px-6 z-20 sticky top-0">
-      {/* Left: brand + version */}
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#FE2C55] to-[#25F4EE] flex items-center justify-center shadow-md shadow-[#FE2C55]/20">
-            <Sparkles className="w-4 h-4 text-white" />
+    <header className="h-[56px] sm:h-[60px] flex-shrink-0 bg-[#080B11]/90 backdrop-blur-xl border-b border-white/[0.08] flex items-center justify-between px-3 sm:px-6 z-20 sticky top-0 w-full min-w-0">
+      {/* Left: brand + version + mobile status indicator */}
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#FE2C55] to-[#25F4EE] flex items-center justify-center text-white shadow-md shadow-[#FE2C55]/20 flex-shrink-0 relative">
+            <Sparkles className="w-4 h-4" />
+            {/* Mobile-only status pulse badge */}
+            <span
+              className={`sm:hidden absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#080B11] ${
+                isOnline ? 'bg-emerald-400' : 'bg-rose-500'
+              }`}
+              title={isOnline ? 'Online' : 'Offline'}
+            />
           </div>
-          <span className="text-base font-black tracking-tight bg-gradient-to-r from-[#FE2C55] via-pink-400 to-[#25F4EE] bg-clip-text text-transparent font-kanit hidden sm:inline">
-            TikTok Auto-Cutter Pro
+          <span className="text-sm sm:text-base font-bold tracking-tight text-white hidden xs:inline sm:inline truncate max-w-[120px] sm:max-w-none">
+            CapCut Studio Pro
           </span>
-          <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/25 font-mono">
-            v2.5
+          <span className="text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full bg-white/[0.05] text-[#25F4EE] border border-[#25F4EE]/30 font-mono flex-shrink-0">
+            v2.5 AI
           </span>
         </div>
       </div>
 
+      {/* Right: UI Font Switcher, Scale zoomer & telemetry */}
+      <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 flex-shrink-0">
+        {/* Keyboard Shortcuts Trigger Button (Hidden on small mobile) */}
+        <button
+          onClick={onOpenShortcuts}
+          className="hidden sm:flex items-center gap-1.5 bg-black/40 hover:bg-white/[0.08] px-2.5 py-1 rounded-xl border border-white/[0.08] text-xs text-slate-300 hover:text-white cursor-pointer transition-colors"
+          title="คีย์ลัดด่วน (กด ? เพื่อเปิดดู)"
+        >
+          <Keyboard className="w-3.5 h-3.5 text-[#25F4EE]" />
+          <span className="hidden md:inline font-mono">คีย์ลัด</span>
+          <kbd className="hidden lg:inline px-1.5 py-0.5 rounded bg-white/[0.08] border border-white/[0.1] text-[10px] text-slate-400 font-mono">?</kbd>
+        </button>
 
+        {/* Global UI Font Switcher */}
+        <div className="flex items-center gap-1 sm:gap-1.5 bg-black/40 px-2 sm:px-2.5 py-1 rounded-xl border border-white/[0.08] text-xs min-w-0">
+          <Type className="w-3.5 h-3.5 text-[#25F4EE] flex-shrink-0" />
+          <select
+            value={uiFont}
+            onChange={(e) => setUiFont && setUiFont(e.target.value)}
+            className="bg-transparent text-slate-200 text-xs font-medium focus:outline-none cursor-pointer max-w-[90px] sm:max-w-[130px] md:max-w-none truncate"
+            title="เปลี่ยนฟอนต์ของหน้าจอโปรแกรมทั้งระบบ (Global UI Font)"
+          >
+            <optgroup label="Modern Sans (โมเดิร์น ไร้หัว)">
+              <option value="font-prompt" className="bg-[#080B11] text-white">Prompt</option>
+              <option value="font-anuphan" className="bg-[#080B11] text-white">Anuphan</option>
+              <option value="font-ibm" className="bg-[#080B11] text-white">IBM Plex</option>
+              <option value="font-kanit" className="bg-[#080B11] text-white">Kanit</option>
+              <option value="font-krub" className="bg-[#080B11] text-white">Krub</option>
+              <option value="font-mitr" className="bg-[#080B11] text-white">Mitr</option>
+              <option value="font-baijamjuree" className="bg-[#080B11] text-white">Bai Jamjuree</option>
+            </optgroup>
+            <optgroup label="Official & Editorial (ทางการ / ลายมือ / แฟชั่น)">
+              <option value="font-sarabun" className="bg-[#080B11] text-white">Sarabun</option>
+              <option value="font-mali" className="bg-[#080B11] text-white">Mali</option>
+              <option value="font-chonburi" className="bg-[#080B11] text-white">Chonburi</option>
+            </optgroup>
+          </select>
+        </div>
 
-      {/* Right: Scale zoomer & telemetry */}
-      <div className="flex items-center gap-3">
-        {/* UI Scale / Font Size Controller */}
-        <div className="flex items-center gap-1 bg-black/60 px-2 py-1 rounded-xl border border-white/[0.08] text-xs font-mono">
+        {/* UI Scale Controller (Visible on Tablets & Desktops) */}
+        <div className="hidden md:flex items-center gap-1 bg-black/40 px-2 py-1 rounded-xl border border-white/[0.08] text-xs">
           <button
             onClick={() => changeScale(-0.1)}
-            className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 text-slate-400 hover:text-white font-bold cursor-pointer"
-            title="ลดขนาดตัวอักษร"
+            className="w-5 h-5 flex items-center justify-center rounded-lg hover:bg-white/[0.1] text-slate-400 hover:text-white font-bold cursor-pointer transition-colors"
+            title="ลดขนาดตัวอักษรหน้าจอ"
           >
             -
           </button>
           <span
             onClick={resetScale}
-            className="px-1.5 text-xs text-[#25F4EE] font-bold cursor-pointer hover:underline select-none"
-            title="คลิกเพื่อรีเซ็ตเป็น 100%"
+            className="px-1.5 text-xs text-[#25F4EE] font-bold cursor-pointer hover:underline select-none font-mono"
+            title="คลิกเพื่อรีเซ็ตขนาด UI เป็น 100%"
           >
             {Math.round(scale * 100)}%
           </span>
           <button
             onClick={() => changeScale(0.1)}
-            className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 text-slate-400 hover:text-white font-bold cursor-pointer"
-            title="เพิ่มขนาดตัวอักษร"
+            className="w-5 h-5 flex items-center justify-center rounded-lg hover:bg-white/[0.1] text-slate-400 hover:text-white font-bold cursor-pointer transition-colors"
+            title="เพิ่มขนาดตัวอักษรหน้าจอ"
           >
             +
           </button>
         </div>
 
-        {/* Connection status */}
-        <div className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold border ${
+        {/* Desktop Connection status badge */}
+        <div className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium border ${
           isOnline
-            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-            : 'bg-red-500/10 text-red-400 border-red-500/20'
+            ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+            : 'bg-rose-500/15 text-rose-300 border-rose-500/30'
         }`}>
           {isOnline ? (
             <>
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              <span className="hidden sm:inline">Online</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Online</span>
             </>
           ) : (
             <>
-              <WifiOff className="w-3.5 h-3.5 text-red-400" />
-              <span className="hidden sm:inline">Offline</span>
+              <WifiOff className="w-3.5 h-3.5 text-rose-400" />
+              <span>Offline</span>
             </>
           )}
         </div>
-
-        {/* Export count pill */}
-        <button
-          onClick={() => setActiveTab && setActiveTab('gallery')}
-          className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-semibold text-slate-300 hover:text-white transition-all cursor-pointer"
-          title="ดูคลังวิดีโอทั้งหมด"
-        >
-          <Film className="w-3.5 h-3.5 text-[#FE2C55]" />
-          <span>{status?.total_exports || 0} คลิป</span>
-        </button>
       </div>
     </header>
   );
