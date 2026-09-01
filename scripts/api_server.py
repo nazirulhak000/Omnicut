@@ -93,7 +93,6 @@ class RenderRequest(BaseModel):
     bilingual_subtitles: bool = True
     sticker_badge: Optional[str] = "badge_flash_sale_3d.png"
     export_mp4: bool = True
-    export_capcut: bool = False
 
 class DeleteFileRequest(BaseModel):
     file_path: str
@@ -673,7 +672,6 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
             bilingual_subtitles=req_data.bilingual_subtitles,
             sticker_path=sticker_file_path,
             export_mp4=req_data.export_mp4,
-            export_capcut=req_data.export_capcut,
             progress_callback=on_progress
         )
 
@@ -734,19 +732,6 @@ def get_render_status(job_id: str):
 # ----------------------------------------------------------------------
 # Run Server directly if executed
 # ----------------------------------------------------------------------
-@app.post("/api/capcut/open")
-def open_capcut_app():
-    """Launches CapCut desktop app."""
-    try:
-        from scripts.capcut_generator import CapCutDraftGenerator
-        success = CapCutDraftGenerator.open_capcut()
-        if success:
-            return {"status": "success", "message": "เปิดโปรแกรม CapCut Desktop เรียบร้อยแล้ว"}
-        else:
-            return {"status": "error", "message": "ไม่พบไฟล์ CapCut.exe ในเครื่อง"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
 if __name__ == "__main__":
     import uvicorn
     print("🚀 Starting TikTok Auto-Cutter FastAPI on http://localhost:8000 ...")

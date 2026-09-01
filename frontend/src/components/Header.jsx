@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Film, Sparkles, FolderDown, Lightbulb, Settings, Zap, Rocket,
-  CheckCircle2, AlertTriangle, FileText, Maximize, Minimize, 
-  Smartphone, QrCode, X, Copy, Check, ExternalLink, Wifi
+  Maximize, Minimize,
+  Smartphone, QrCode, X, Copy, Check, Wifi
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -42,10 +42,9 @@ export default function Header({ status, activeTab, setActiveTab }) {
   const tabs = [
     { id: 'flow', label: '1. สินค้า → คลิป', icon: Rocket, badge: 'ไล่ 4 ขั้นจบ' },
     { id: 'studio', label: '2. 1-Click Studio', icon: Sparkles, badge: 'ตัดต่อด่วน' },
-    { id: 'capcut_studio', label: '3. CapCut Studio', icon: Film, badge: 'ไทม์ไลน์ Pro 🎬' },
-    { id: 'gallery', label: '4. Export Gallery', icon: FolderDown, badge: `${status?.total_exports || 0} คลิป` },
-    { id: 'script_lab', label: '5. AI Script Lab', icon: Lightbulb, badge: 'สูตรบทยอดฮิต' },
-    { id: 'assets', label: '6. System & Assets', icon: Settings, badge: 'ระบบ & SFX' },
+    { id: 'gallery', label: '3. Export Gallery', icon: FolderDown, badge: `${status?.total_exports || 0} คลิป` },
+    { id: 'script_lab', label: '4. AI Script Lab', icon: Lightbulb, badge: 'สูตรบทยอดฮิต' },
+    { id: 'assets', label: '5. System & Assets', icon: Settings, badge: 'ระบบ & SFX' },
   ];
 
   return (
@@ -103,25 +102,6 @@ export default function Header({ status, activeTab, setActiveTab }) {
               </>
             )}
           </button>
-
-          {/* CapCut Synced Badge */}
-          <div className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-semibold border shadow-sm ${
-            status?.capcut_synced
-              ? 'bg-[#25F4EE]/10 text-[#25F4EE] border-[#25F4EE]/30'
-              : 'bg-[#FE2C55]/10 text-[#FE2C55] border-[#FE2C55]/30'
-          }`}>
-            {status?.capcut_synced ? (
-              <>
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                CapCut Synced
-              </>
-            ) : (
-              <>
-                <AlertTriangle className="w-3.5 h-3.5" />
-                CapCut Local
-              </>
-            )}
-          </div>
 
           {/* Export Count Badge */}
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">

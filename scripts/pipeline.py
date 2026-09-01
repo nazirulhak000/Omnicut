@@ -16,14 +16,13 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
 
 from scripts.config import (
     BASE_DIR, RAW_DIR, PROJECTS_DIR, EXPORTS_DIR,
-    DEFAULT_VOICE, DEFAULT_VOICE_RATE, DEFAULT_VOICE_PITCH, MUSIC_DIR
+    DEFAULT_VOICE, DEFAULT_VOICE_RATE, DEFAULT_VOICE_PITCH
 )
 from scripts.script_generator import ScriptGenerator
 from scripts.voice_engine import VoiceEngine
 from scripts.subtitle_engine import SubtitleEngine
 from scripts.sfx_manager import SFXManager
 from scripts.video_editor import VideoEditor
-from scripts.capcut_generator import CapCutDraftGenerator
 from scripts.project_manifest import ProjectManifest
 
 class TikTokAutoCutterPipeline:
@@ -52,7 +51,6 @@ class TikTokAutoCutterPipeline:
         bilingual_subtitles: bool = True,
         sticker_path: Optional[str] = None,
         export_mp4: bool = True,
-        export_capcut: bool = True,
         resume_from: Optional[str] = None,
         product_meta: Optional[Dict[str, any]] = None,
         angle_meta: Optional[Dict[str, any]] = None,
@@ -286,7 +284,6 @@ class TikTokAutoCutterPipeline:
             "subtitles_ass": str(ass_path),
             "duration": total_duration,
             "mp4_video": None,
-            "capcut_draft": None
         }
 
         # 5. Direct Video Render (MP4)
@@ -309,24 +306,7 @@ class TikTokAutoCutterPipeline:
             result_paths["mp4_video"] = str(out_mp4)
             print(f"   🎉 FINAL MP4 READY: {out_mp4}")
 
-        # 6. CapCut Draft Project
-        if export_capcut:
-            _notify("💻 กำลังสร้างโปรเจกต์ CapCut PC Draft...", 0.95)
-            print("\n💻 Generating CapCut PC Draft Project...")
-            bgm_path = MUSIC_DIR / "tiktok_upbeat_bgm.wav"
-            capcut_draft_name = f"{project_name}_{timestamp_str}"
-            capcut_dir = CapCutDraftGenerator.create_project(
-                project_name=capcut_draft_name,
-                raw_video_path=str(raw_video),
-                voice_audio_path=str(voice_audio_path),
-                cues=micro_cues,
-                total_duration=total_duration,
-                bgm_path=str(bgm_path) if bgm_path.exists() else None
-            )
-            result_paths["capcut_draft"] = str(capcut_dir)
-            print(f"   🎉 CapCut Draft Ready: {capcut_dir}")
-
-        # 7. Persist everything a re-roll will need to reuse
+        # 6. Persist everything a re-roll will need to reuse
         artifacts = {
             "voice_audio": {"path": str(voice_audio_path)},
             "mixed_audio": {"path": str(mixed_audio_path)},

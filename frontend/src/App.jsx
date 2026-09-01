@@ -8,7 +8,6 @@ import StudioStep4Render from './components/StudioStep4Render';
 import ExportGallery from './components/ExportGallery';
 import ScriptLab from './components/ScriptLab';
 import SystemAssets from './components/SystemAssets';
-import CapCutTimelineStudio from './components/CapCutTimelineStudio';
 import ProductToClip from './components/ProductToClip';
 import { getSystemStatus, getRawVideos, getExports } from './api';
 
@@ -195,31 +194,6 @@ export default function App() {
               </div>
             </div>
           </main>
-        )}
-
-        {/* TAB 2: CAPCUT TIMELINE PRO STUDIO */}
-        {activeTab === 'capcut_studio' && (
-          <CapCutTimelineStudio
-            onSwitchToSimpleStudio={() => setActiveTab('studio')}
-            selectedVideo={selectedVideo}
-            productName={productName}
-            keyFeatures={keyFeatures}
-            painPoint={painPoint}
-            priceDeal={priceDeal}
-            hookTitle={hookTitle}
-            voiceMode={voiceMode}
-            voiceGender={voiceGender}
-            voiceSpeed={voiceSpeed}
-            f5Preset={f5Preset}
-            adTone={adTone}
-            fontName={fontName}
-            bilingualSubtitles={bilingualSubtitles}
-            stickerBadge={stickerBadge}
-            onRenderSuccess={() => {
-              refreshData();
-              setActiveTab('gallery');
-            }}
-          />
         )}
 
         {/* TAB 2: EXPORT GALLERY */}

@@ -15,7 +15,6 @@ export const startRender = (data) => api.post('/render', data).then(r => r.data)
 export const getRenderStatus = (jobId) => api.get(`/render/status/${jobId}`).then(r => r.data);
 export const openFolder = (target) => api.post('/open-folder', { target }).then(r => r.data);
 export const transcribeMedia = (data) => api.post('/sub-srt/transcribe', data).then(r => r.data);
-export const openCapCut = () => api.post('/capcut/open').then(r => r.data);
 export const uploadFile = (formData, onProgress) => api.post('/upload', formData, {
   headers: { 'Content-Type': 'multipart/form-data' },
   onUploadProgress: (progressEvent) => {
