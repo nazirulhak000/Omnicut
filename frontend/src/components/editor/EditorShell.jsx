@@ -72,6 +72,9 @@ export default function EditorShell({ videos = [] }) {
   const [jobId, setJobId] = useState(null);
   const [jobStatus, setJobStatus] = useState(null);
   const [confirmGap, setConfirmGap] = useState(0);
+  // Draft = 720p/crf26/veryfast. Measured on this machine: a 12s clip took
+  // 25.5s at post quality vs 12.5s as a draft (12.18 MB vs 1.82 MB).
+  const [exportPreset, setExportPreset] = useState('post');
 
   const mobilePlayerRef = useRef(null);
   const desktopPlayerRef = useRef(null);
@@ -622,6 +625,7 @@ export default function EditorShell({ videos = [] }) {
         lut_intensity: style.lutIntensity ?? 1,
         bgm_volume: style.bgmVolume ?? 0.12,
         bgm_ducking: !!style.bgmDucking,
+        export_preset: exportPreset,
       });
       setJobId(res.job_id);
       cuesDirty.current = false;
@@ -694,6 +698,17 @@ export default function EditorShell({ videos = [] }) {
           >
             {zen ? <><Minimize2 className="h-3.5 w-3.5" /> ย่อ</> : <><Maximize2 className="h-3.5 w-3.5" /> ขยาย</>}
           </button>
+
+          <select
+            value={exportPreset}
+            onChange={(e) => setExportPreset(e.target.value)}
+            disabled={applying}
+            title="ทดลอง = 720p เข้ารหัสเร็ว ใช้ดูว่าตัดถูกไหม ไม่ใช่ไฟล์สำหรับโพสต์ (ชื่อไฟล์จะมี _draft)"
+            className="h-8 rounded-xl border border-white/[0.08] bg-black/40 px-2 text-[11px] text-slate-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] disabled:opacity-50"
+          >
+            <option value="post">โพสต์จริง 1080p</option>
+            <option value="draft">ทดลอง 720p (เร็ว 2 เท่า)</option>
+          </select>
 
           <button
             type="button"

@@ -599,46 +599,105 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
             : (inspectAngle.script_text ? inspectAngle.script_text.split('\n') : []);
           const captionText = `${inspectAngle.tiktok_caption || ''}\n\n${inspectAngle.tiktok_hashtags || ''}`.trim();
 
+          const effectiveVideoUrl = inspectAngle.video_url ||
+            inspectAngle.parentProduct?.images?.find(img => {
+              const p = img.local_path || img.rel_path || '';
+              return p.endsWith('.mp4') || p.endsWith('.mov') || p.endsWith('.webm');
+            })?.rel_path ||
+            inspectAngle.parentProduct?.images?.find(img => {
+              const p = img.local_path || img.rel_path || '';
+              return p.endsWith('.mp4') || p.endsWith('.mov') || p.endsWith('.webm');
+            })?.local_path || null;
+
+          const isRenderedOrBeyond = inspectAngle.status === 'rendered' || inspectAngle.status === 'mobile_ready' || inspectAngle.status === 'posted';
+
           return (
-            <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
-              {/* 1. Status Stepper Ribbon inside Modal */}
-              <div className="p-3 rounded-xl bg-black/50 border border-white/[0.08] flex items-center justify-between gap-2 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border flex items-center gap-1.5 ${currentPhaseInfo.color}`}>
+            <div className="space-y-3 max-h-[78vh] overflow-y-auto pr-1">
+              {/* 1. Compact Single-Row Status Ribbon (ยุบบรรทัดเดียว ไม่ขึ้น 2 บรรทัด) */}
+              <div className="p-2 sm:p-2.5 rounded-xl bg-black/50 border border-white/[0.08] flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className={`px-2 py-0.5 rounded-lg text-xs font-bold border flex items-center gap-1.5 flex-shrink-0 ${currentPhaseInfo.color}`}>
                     <currentPhaseInfo.icon className="w-3.5 h-3.5" />
-                    <span>สถานะปัจจุบัน: {currentPhaseInfo.label}</span>
+                    <span>{currentPhaseInfo.label}</span>
                   </span>
                   {inspectAngle.badge && (
-                    <Badge variant="cyan" size="sm">{inspectAngle.badge}</Badge>
+                    <span className="text-[10px] px-1.5 py-0.5 font-mono font-bold rounded bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/30 truncate hidden sm:inline">
+                      {inspectAngle.badge}
+                    </span>
                   )}
                 </div>
 
-                {/* Quick Switcher dropdown in Modal */}
-                <select
-                  value={inspectAngle.status}
-                  onChange={(e) => handleAngleStatusChange(inspectAngle.parentProduct.id, inspectAngle.angle_id, e.target.value)}
-                  className="py-1 px-2.5 rounded-lg bg-black/70 border border-white/[0.1] text-xs font-bold text-slate-200 focus:outline-none cursor-pointer"
-                >
-                  {PIPELINE_PHASES.map(p => (
-                    <option key={p.id} value={p.id} className="bg-[#080B11] text-white">
-                      เปลี่ยนเป็น: {p.label}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <span className="text-[10px] text-slate-400 font-semibold hidden sm:inline">เปลี่ยนสถานะ:</span>
+                  <select
+                    value={inspectAngle.status}
+                    onChange={(e) => handleAngleStatusChange(inspectAngle.parentProduct.id, inspectAngle.angle_id, e.target.value)}
+                    className="py-1 px-2 rounded-lg bg-[#080B11] border border-white/[0.1] text-xs font-bold text-slate-200 focus:outline-none cursor-pointer"
+                  >
+                    {PIPELINE_PHASES.map(p => (
+                      <option key={p.id} value={p.id} className="bg-[#080B11] text-white">
+                        {p.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              {/* 2. Hook Title 3s */}
+              {/* 2. Hook Title 3s (Compact) */}
               <div className="space-y-1">
                 <div className="text-[11px] font-semibold text-slate-400">Hook 3 วินาทีแรก (จุดหยุดคนดู):</div>
-                <div className="p-3 rounded-xl bg-[#080B11] border-l-4 border-[#25F4EE] text-xs sm:text-sm font-bold text-cyan-200 leading-snug">
+                <div className="p-2.5 rounded-xl bg-[#080B11] border-l-4 border-[#25F4EE] text-xs sm:text-sm font-bold text-cyan-200 leading-snug">
                   {inspectAngle.hook_title || 'ไม่มี Hook'}
                 </div>
               </div>
 
-              {/* 3. Script Breakdown Section */}
-              <div className="space-y-1.5">
+              {/* 3. Video QC Player Section (แสดงผลเสมอเมื่อสถานะคือ ตัดต่อเสร็จ / ส่งมือถือ / โพสต์แล้ว หรือมีวิดีโอ) */}
+              {(isRenderedOrBeyond || effectiveVideoUrl) && (
+                <div className="space-y-1.5 p-2.5 rounded-xl bg-black/60 border border-white/[0.08]">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-300">
+                    <span className="flex items-center gap-1.5 text-cyan-300">
+                      <Video className="w-4 h-4 text-[#25F4EE]" />
+                      <span>พรีวิววิดีโอที่ตัดต่อเสร็จ (QC Player)</span>
+                    </span>
+                    {effectiveVideoUrl && (
+                      <span className="text-[10px] text-emerald-400 font-mono font-bold">● พร้อมเล่น</span>
+                    )}
+                  </div>
+
+                  {effectiveVideoUrl ? (
+                    <div className="relative rounded-xl overflow-hidden bg-black border border-white/[0.1] max-w-[220px] mx-auto shadow-xl">
+                      <video
+                        src={`/api/media/${effectiveVideoUrl}`}
+                        controls
+                        playsInline
+                        className="w-full aspect-[9/16] max-h-56 object-contain mx-auto bg-black"
+                      />
+                    </div>
+                  ) : (
+                    <div className="py-4 px-3 text-center text-xs text-slate-400 space-y-2 border border-dashed border-white/[0.08] rounded-xl bg-black/30">
+                      <div className="w-8 h-8 rounded-full bg-white/[0.05] border border-white/[0.1] flex items-center justify-center mx-auto text-slate-400">
+                        <Video className="w-4 h-4" />
+                      </div>
+                      <p className="text-xs text-slate-300 font-bold">ยังไม่พบไฟล์วิดีโอที่เรนเดอร์สำหรับมุมนี้</p>
+                      <button
+                        onClick={() => {
+                          setInspectAngle(null);
+                          handleSendToStudio(inspectAngle.parentProduct, inspectAngle);
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-[#FE2C55] hover:bg-[#E0264B] text-white text-xs font-bold inline-flex items-center gap-1.5 shadow-sm cursor-pointer active:scale-95 transition-all"
+                      >
+                        <Clapperboard className="w-3.5 h-3.5" />
+                        <span>สร้าง & เรนเดอร์คลิปนี้ใน Studio</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 4. Script Breakdown Section (Compact) */}
+              <div className="space-y-1">
                 <div className="flex items-center justify-between text-xs font-bold text-slate-300">
-                  <span>บทพูดพากย์ทั้งหมด ({scriptLines.length} ท่อน):</span>
+                  <span>บทพูดพากย์ ({scriptLines.length} ท่อน):</span>
                   {scriptLines.length > 0 && (
                     <button
                       onClick={() => handleCopyCaption(scriptLines.join('\n'), 'script_modal')}
@@ -648,12 +707,12 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                     </button>
                   )}
                 </div>
-                <div className="p-3 rounded-xl bg-black/40 border border-white/[0.06] space-y-1.5 max-h-48 overflow-y-auto font-mono text-xs text-slate-200">
+                <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06] space-y-1 max-h-36 overflow-y-auto font-mono text-xs text-slate-200">
                   {scriptLines.length === 0 ? (
-                    <div className="text-slate-500 text-center py-4">ไม่มีบทพูด</div>
+                    <div className="text-slate-500 text-center py-2">ไม่มีบทพูด</div>
                   ) : (
                     scriptLines.map((line, idx) => (
-                      <div key={idx} className="flex items-start gap-2">
+                      <div key={idx} className="flex items-start gap-1.5">
                         <span className="text-[#25F4EE] font-bold flex-shrink-0">{idx + 1}.</span>
                         <span>{line}</span>
                       </div>
@@ -662,21 +721,9 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                 </div>
               </div>
 
-              {/* 4. Video QC Player (If Rendered) */}
-              {inspectAngle.video_url && (
-                <div className="space-y-1.5">
-                  <div className="text-xs font-bold text-slate-300">วิดีโอที่ตัดต่อเสร็จแล้ว (QC Player):</div>
-                  <video
-                    src={`/api/media/${inspectAngle.video_url}`}
-                    controls
-                    className="w-full max-h-64 rounded-xl bg-black object-contain border border-white/[0.08]"
-                  />
-                </div>
-              )}
-
               {/* 5. TikTok Caption & Hashtags */}
               {captionText && (
-                <div className="p-3 rounded-xl bg-black/40 border border-white/[0.06] space-y-1.5">
+                <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06] space-y-1">
                   <div className="flex items-center justify-between text-xs font-bold text-slate-300">
                     <span>แคปชัน & แฮชแท็ก TikTok:</span>
                     <button
@@ -686,24 +733,25 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                       {copiedAngleId === 'cap_modal' ? <><Check className="w-3 h-3 text-emerald-400" /> คัดลอกแล้ว</> : <><Copy className="w-3 h-3" /> คัดลอกแคปชัน</>}
                     </button>
                   </div>
-                  <p className="text-xs text-slate-300 font-mono line-clamp-3 select-all">
+                  <p className="text-xs text-slate-300 font-mono line-clamp-2 select-all">
                     {inspectAngle.tiktok_caption} {inspectAngle.tiktok_hashtags}
                   </p>
                 </div>
               )}
 
-              {/* 6. True Deep-Dive Navigation Action Grid */}
-              <div className="pt-2 border-t border-white/[0.08] grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {/* 6. True Deep-Dive Navigation Action Grid (2x2 Compact Grid) */}
+              <div className="pt-2 border-t border-white/[0.08] grid grid-cols-2 gap-2">
                 {/* Button 1: Go to Script Lab (Menu 1) */}
                 <button
                   onClick={() => {
                     setInspectAngle(null);
                     onGoToFlow?.(inspectAngle.parentProduct?.id);
                   }}
-                  className="py-2.5 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-200 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all"
+                  className="py-2 px-2.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                  title="ดูและปรับแต่งสคริปต์ใน Lab"
                 >
-                  <FileText className="w-4 h-4 text-indigo-400" />
-                  <span>ดูสคริปต์ใน Lab สินค้า</span>
+                  <FileText className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Lab สคริปต์</span>
                 </button>
 
                 {/* Button 2: Go to 1-Click Studio (Menu 3) */}
@@ -712,10 +760,11 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                     setInspectAngle(null);
                     handleSendToStudio(inspectAngle.parentProduct, inspectAngle);
                   }}
-                  className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-[#FE2C55]/20 active:scale-95 transition-all"
+                  className="py-2 px-2.5 rounded-lg bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-[#FE2C55]/20 active:scale-95 transition-all"
+                  title="เปิดตัดต่อใน 1-Click Studio"
                 >
-                  <Clapperboard className="w-4 h-4 text-white" />
-                  <span>เปิดทำใน 1-Click Studio</span>
+                  <Clapperboard className="w-3.5 h-3.5 text-white" />
+                  <span>1-Click Studio</span>
                 </button>
 
                 {/* Button 3: Go to Video Editor (Menu 4) */}
@@ -724,22 +773,24 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                     setInspectAngle(null);
                     onGoToEditor?.();
                   }}
-                  className="py-2.5 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-200 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all"
+                  className="py-2 px-2.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                  title="เปิดไทม์ไลน์ NLE ใน Video Editor"
                 >
-                  <Scissors className="w-4 h-4 text-purple-400" />
-                  <span>เปิดไทม์ไลน์ใน Video Editor</span>
+                  <Scissors className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Video Editor</span>
                 </button>
 
-                {/* Button 4: Mobile QR / Gallery */}
+                {/* Button 4: Mobile QR */}
                 <button
                   onClick={() => {
                     setInspectAngle(null);
                     setQrModalItem(inspectAngle);
                   }}
-                  className="py-2.5 px-3 rounded-xl bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all"
+                  className="py-2 px-2.5 rounded-lg bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                  title="สแกน QR โหลดเข้ามือถือ"
                 >
-                  <QrCode className="w-4 h-4 text-[#25F4EE]" />
-                  <span>สแกน QR ส่งเข้ามือถือ</span>
+                  <QrCode className="w-3.5 h-3.5 text-[#25F4EE]" />
+                  <span>ส่งมือถือ (QR)</span>
                 </button>
               </div>
             </div>

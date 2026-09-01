@@ -57,6 +57,13 @@ def build_eq_filter(clip: Dict[str, Any]) -> str:
 
 ZOOM_LIMITS = (1.0, 3.0)
 
+# What "export quality" means, end to end. Draft trades resolution and encode
+# effort for wall clock on a machine with no GPU to fall back on.
+EXPORT_PRESETS = {
+    "post": {"width": VIDEO_WIDTH, "height": VIDEO_HEIGHT, "crf": 18, "x264_preset": "medium"},
+    "draft": {"width": 720, "height": 1280, "crf": 26, "x264_preset": "veryfast"},
+}
+
 
 def frame_geometry(clip: Dict[str, Any], default_scale: float):
     """
@@ -171,7 +178,8 @@ class VideoEditor:
         shot_scales: List[float] = None,
         clip_list: List[Dict] = None,
         transitions: List[Any] = None,
-        lut_intensity: float = 1.0
+        lut_intensity: float = 1.0,
+        export_preset: str = "post"
     ) -> str:
         """
         Takes raw footage, creates fast-paced punch-in cuts synced to audio duration and Gemini Vision scenes,
@@ -456,9 +464,20 @@ class VideoEditor:
         ass_path_str = str(Path(ass_subtitle_path).resolve()).replace('\\', '/').replace(':', '\\:')
         fonts_dir_str = str(FONTS_DIR.resolve()).replace('\\', '/').replace(':', '\\:')
         
+        # Draft renders answer "did my cut work" in less wall clock; they are
+        # not for posting. Subtitles still burn at full resolution -- the .ass
+        # coordinates assume it -- and the frame is scaled down afterwards, so
+        # the only difference is the encode.
+        profile = EXPORT_PRESETS.get(export_preset, EXPORT_PRESETS["post"])
+        scaling_down = profile["width"] != VIDEO_WIDTH
+        subs_out = "[v_subbed]" if scaling_down else "[v_final]"
         filter_complex.append(
-            f"{current_v}subtitles='{ass_path_str}':fontsdir='{fonts_dir_str}'[v_final]"
+            f"{current_v}subtitles='{ass_path_str}':fontsdir='{fonts_dir_str}'{subs_out}"
         )
+        if scaling_down:
+            filter_complex.append(
+                f";[v_subbed]scale={profile['width']}:{profile['height']}:flags=bilinear[v_final]"
+            )
 
         full_filter = "".join(filter_complex)
 
@@ -469,8 +488,8 @@ class VideoEditor:
             "-map", "[v_final]",
             "-map", f"{audio_input_idx}:a",
             "-c:v", "libx264",
-            "-preset", "medium",
-            "-crf", "18",
+            "-preset", profile["x264_preset"],
+            "-crf", str(profile["crf"]),
             "-c:a", "aac",
             "-b:a", "192k",
             "-pix_fmt", "yuv420p",

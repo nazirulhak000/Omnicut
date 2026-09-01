@@ -61,6 +61,7 @@ class TikTokAutoCutterPipeline:
         clip_list: Optional[List[Dict[str, any]]] = None,
         transitions: Optional[List[str]] = None,
         export_mp4: bool = True,
+        export_preset: str = "post",
         resume_from: Optional[str] = None,
         product_meta: Optional[Dict[str, any]] = None,
         angle_meta: Optional[Dict[str, any]] = None,
@@ -382,7 +383,10 @@ class TikTokAutoCutterPipeline:
         if export_mp4:
             _notify("✂️ [5/5] กำลังตัดต่อวิดีโอ 9:16 + Punch-Zoom & เรนเดอร์ไฟล์ MP4...", 0.85)
             print("\n✂️ [5/5] Cutting Video, Dynamic Punch-Zooming & Rendering Final MP4...")
-            out_mp4 = EXPORTS_DIR / f"{project_name}_{timestamp_str}.mp4"
+            # A draft is 720p at crf 26 -- it must never be mistaken for the
+            # file to post, so it says so in its name.
+            suffix = "_draft" if export_preset == "draft" else ""
+            out_mp4 = EXPORTS_DIR / f"{project_name}_{timestamp_str}{suffix}.mp4"
             VideoEditor.assemble_tiktok_video(
                 raw_video_paths=[str(raw_video)],
                 total_duration=total_duration,
@@ -396,7 +400,8 @@ class TikTokAutoCutterPipeline:
                 lut_intensity=lut_intensity,
                 shot_scales=shot_scales,
                 clip_list=clip_list,
-                transitions=transitions
+                transitions=transitions,
+                export_preset=export_preset
             )
             result_paths["mp4_video"] = str(out_mp4)
             result_paths["ai_matched_shots"] = ai_matched_shots

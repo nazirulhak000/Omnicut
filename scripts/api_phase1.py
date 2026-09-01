@@ -350,6 +350,7 @@ class RerollRequest(BaseModel):
     lut_intensity: Optional[float] = None
     bgm_volume: Optional[float] = None
     bgm_ducking: Optional[bool] = None
+    export_preset: Optional[str] = None
     clip_list: Optional[List[Dict[str, Any]]] = None
     transitions: Optional[List[str]] = None
 
@@ -441,6 +442,9 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 bgm_ducking=bool(params.get("bgm_ducking")),
                 lut_name=params.get("lut_name"),
                 lut_intensity=params.get("lut_intensity", 1.0),
+                # never sticky: a draft is a one-off, the project keeps its
+                # post-quality setting for the next render
+                export_preset=overrides.get("export_preset", "post"),
                 clip_list=params.get("clip_list"),
                 transitions=params.get("transitions"),
                 export_mp4=True,
