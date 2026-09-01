@@ -23,6 +23,7 @@ from scripts.voice_engine import VoiceEngine
 from scripts.subtitle_engine import SubtitleEngine
 from scripts.sfx_manager import SFXManager
 from scripts.video_editor import VideoEditor
+from scripts.gemini_vision_matcher import GeminiVisionMatcher
 from scripts.project_manifest import ProjectManifest
 
 class TikTokAutoCutterPipeline:
@@ -48,7 +49,9 @@ class TikTokAutoCutterPipeline:
         hook_title: Optional[str] = None,
         font_name: str = "IBMPlex",
         bilingual_subtitles: bool = True,
+        use_ai_vision: bool = True,
         sticker_path: Optional[str] = None,
+        bgm_name: Optional[str] = None,
         export_mp4: bool = True,
         resume_from: Optional[str] = None,
         product_meta: Optional[Dict[str, any]] = None,
@@ -274,11 +277,13 @@ class TikTokAutoCutterPipeline:
             _notify("🎵 [4/5] กำลังมิกซ์เสียง Voice + เอฟเฟกต์ SFX (Boom/Pop/Cash) + BGM...", 0.65)
             print("\n🎵 [4/5] Mixing Audio (Voice + Boom/Whoosh/Pop/Ding/Cash SFX + Upbeat BGM)...")
             mixed_audio_path = _out_path("mixed_audio", ".wav")
+            mix_kwargs = {"bgm_name": bgm_name} if bgm_name else {}
             SFXManager.mix_audio_track(
                 voice_audio_path=str(voice_audio_path),
                 cues=micro_cues,
                 total_duration=total_duration,
-                output_audio_path=str(mixed_audio_path)
+                output_audio_path=str(mixed_audio_path),
+                **mix_kwargs
             )
             print(f"   Audio mixed: {mixed_audio_path}")
         else:
@@ -296,12 +301,26 @@ class TikTokAutoCutterPipeline:
             "mp4_video": None,
         }
 
-        # 5. Direct Video Render (MP4)
+        # 5. Direct Video Render (MP4) with Optional Gemini Vision Scene Matching
         import datetime
         timestamp_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
+        ai_matched_shots = None
+        if export_mp4 and use_ai_vision and os.environ.get("GEMINI_API_KEY"):
+            _notify("👁️ [AI Vision] ให้ Gemini 2.5 Flash ดูคลิปและเลือกฉากที่ตรงกับสคริปต์...", 0.75)
+            print("\n👁️ [AI Vision] Gemini 2.5 Flash is analyzing raw footage scenes...")
+            try:
+                raw_info = VideoEditor.get_media_info(str(raw_video))
+                ai_matched_shots = GeminiVisionMatcher.match_script_to_video(
+                    raw_video_path=str(raw_video),
+                    cues=micro_cues,
+                    raw_duration=raw_info.get("duration", 60.0)
+                )
+            except Exception as e:
+                print(f"   ⚠️ AI Vision Matching skipped ({e}) — using rhythmic cuts.")
+
         if export_mp4:
-            _notify("✂️ [5/5] กำลังตัดต่อวิดีโอ 9:16 + Punch-Zoom & เรนเดอร์ไฟล์ MP4...", 0.80)
+            _notify("✂️ [5/5] กำลังตัดต่อวิดีโอ 9:16 + Punch-Zoom & เรนเดอร์ไฟล์ MP4...", 0.85)
             print("\n✂️ [5/5] Cutting Video, Dynamic Punch-Zooming & Rendering Final MP4...")
             out_mp4 = EXPORTS_DIR / f"{project_name}_{timestamp_str}.mp4"
             VideoEditor.assemble_tiktok_video(
@@ -311,9 +330,11 @@ class TikTokAutoCutterPipeline:
                 ass_subtitle_path=str(ass_path),
                 output_mp4_path=str(out_mp4),
                 cues=micro_cues,
+                ai_matched_shots=ai_matched_shots,
                 sticker_path=sticker_path
             )
             result_paths["mp4_video"] = str(out_mp4)
+            result_paths["ai_matched_shots"] = ai_matched_shots
             print(f"   🎉 FINAL MP4 READY: {out_mp4}")
 
         # 6. Persist everything a re-roll will need to reuse
@@ -348,6 +369,7 @@ class TikTokAutoCutterPipeline:
                 "font_name": font_name,
                 "bilingual_subtitles": bilingual_subtitles,
                 "sticker_path": sticker_path,
+                "bgm_name": bgm_name,
             },
             "artifacts": artifacts,
         }

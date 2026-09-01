@@ -341,6 +341,7 @@ class RerollRequest(BaseModel):
     voice_preset: Optional[str] = None
     ad_tone: Optional[str] = None
     sticker_path: Optional[str] = None
+    bgm_name: Optional[str] = None
 
 
 # What each button costs, so the UI can warn before a slow one.
@@ -349,6 +350,7 @@ REROLL_COST = {
     "subtitles": "เร็ว (~40 วิ) — ใช้เสียงเดิม",
     "video": "ปานกลาง — ตัดวิดีโอใหม่ ใช้เสียงและซับเดิม",
     "voice": "ช้า (2-4 นาที) — พากย์ใหม่ทั้งคลิป",
+    "bgm": "ช้า (2-4 นาที) — พากย์เสียงใหม่ด้วย เพราะเปลี่ยนเพลงต้องมิกซ์เสียงใหม่ทั้งชุด",
     "script": "ช้าที่สุด (2-4 นาที) — เขียนบทใหม่แล้วพากย์ใหม่",
 }
 
@@ -394,6 +396,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 font_name=params.get("font_name", "IBMPlex"),
                 bilingual_subtitles=params.get("bilingual_subtitles", True),
                 sticker_path=params.get("sticker_path"),
+                bgm_name=params.get("bgm_name"),
                 export_mp4=True,
                 resume_from=stage,
                 progress_callback=render_jobs.progress_reporter(job_id),

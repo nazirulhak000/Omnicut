@@ -106,8 +106,13 @@ export default function ProductToClip({ status, videos, onRefresh }) {
   // other ("studio") tab already had right.
   const [fontName, setFontName] = useState('Kanit');
   const [stickerBadge, setStickerBadge] = useState('badge_flash_sale_3d.png');
+  // BGM had a bgm_name param on SFXManager.mix_audio_track() from the start,
+  // but nothing anywhere ever sent it anything but the hardcoded default --
+  // there was no request field, no UI, no override path at all.
+  const [bgmName, setBgmName] = useState('');
   const [availableFonts, setAvailableFonts] = useState([]);
   const [availableStickers, setAvailableStickers] = useState([]);
+  const [availableBgm, setAvailableBgm] = useState([]);
   const [jobId, setJobId] = useState(null);
   const [job, setJob] = useState(null);
   const [rendering, setRendering] = useState(false);
@@ -145,6 +150,7 @@ export default function ProductToClip({ status, videos, onRefresh }) {
       .then((data) => {
         setAvailableFonts(data.fonts || []);
         setAvailableStickers(data.stickers || []);
+        setAvailableBgm(data.music || []);
       })
       .catch(() => { /* pickers just stay empty; render still works with the current defaults */ });
   }, []);
@@ -329,6 +335,7 @@ export default function ProductToClip({ status, videos, onRefresh }) {
         voice_preset: voicePreset,
         font_name: fontName,
         sticker_badge: stickerBadge || null,
+        bgm_name: bgmName || null,
         export_mp4: true,
       });
       setJobId(res.job_id);
@@ -347,7 +354,10 @@ export default function ProductToClip({ status, videos, onRefresh }) {
       const res = await startReroll({
         project_name: projectNameRef.current,
         part,
-        ...(part === 'voice' ? { voice_preset: voicePreset } : {}),
+        // BGM has no re-roll button of its own -- swapping the music bed
+        // re-mixes alongside the voice regardless (see REROLL_STAGE's "bgm"
+        // entry), so the voice button carries whatever BGM is picked too.
+        ...(part === 'voice' ? { voice_preset: voicePreset, bgm_name: bgmName || null } : {}),
         ...(part === 'hook' ? { hook_title: script?.hook_title || angle?.hook } : {}),
       });
       setJobId(res.job_id);
@@ -563,7 +573,7 @@ export default function ProductToClip({ status, videos, onRefresh }) {
           </select>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
           <select
             value={fontName}
             onChange={(e) => setFontName(e.target.value)}
@@ -581,6 +591,16 @@ export default function ProductToClip({ status, videos, onRefresh }) {
             <option value="">ไม่ใส่ป้าย</option>
             {availableStickers.map((s) => (
               <option key={s.id} value={s.name}>{s.id.replace(/_/g, ' ')}</option>
+            ))}
+          </select>
+          <select
+            value={bgmName}
+            onChange={(e) => setBgmName(e.target.value)}
+            className="py-2.5 px-3 rounded-xl bg-[#121622] border border-white/10 outline-none text-xs text-slate-200 cursor-pointer"
+          >
+            <option value="">เพลง: ค่าเริ่มต้น</option>
+            {availableBgm.map((b) => (
+              <option key={b.id} value={b.name}>เพลง: {b.id.replace(/^bgm_/, '').replace(/_/g, ' ')}</option>
             ))}
           </select>
         </div>

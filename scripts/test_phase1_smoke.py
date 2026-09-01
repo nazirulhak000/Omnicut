@@ -123,6 +123,11 @@ def test_resume_reruns_only_the_tail(resume_from, expected):
         assert ProjectManifest.should_run(stage, resume_from) is should
 
 
+def test_bgm_reroll_shares_the_voice_stage():
+    """BGM has no re-roll stage of its own -- swapping it re-mixes alongside the voice."""
+    assert REROLL_STAGE["bgm"] == "voice"
+
+
 def test_cheap_rerolls_keep_the_voice():
     """A hook or subtitle re-roll must not touch the voice — that is the whole point."""
     for part in ("hook", "subtitles"):

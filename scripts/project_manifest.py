@@ -35,6 +35,11 @@ REROLL_STAGE = {
     "hook": "subtitles",
     "subtitles": "subtitles",
     "voice": "voice",
+    # BGM has no stage of its own yet -- SFXManager only mixes it alongside
+    # the voice, so swapping just the music bed re-synthesizes the
+    # voiceover too. Wasteful but not wrong; split into its own stage only
+    # if BGM-only re-rolls turn out to be a frequent, annoyingly-slow action.
+    "bgm": "voice",
     "script": "script",
     "video": "video",
 }

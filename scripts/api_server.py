@@ -94,6 +94,7 @@ class RenderRequest(BaseModel):
     bilingual_subtitles: bool = True
     use_ai_vision: bool = True
     sticker_badge: Optional[str] = "badge_flash_sale_3d.png"
+    bgm_name: Optional[str] = None  # BGM filename from AssetRegistry.bgm(); None keeps SFXManager's own default
     export_mp4: bool = True
 
 class DeleteFileRequest(BaseModel):
@@ -318,6 +319,101 @@ def generate_script(req: ScriptGenerateRequest):
         template_key=req.template_key
     )
     return {"script": data}
+
+@app.post("/api/script/ai-generate")
+def generate_ai_scripts(req: ScriptGenerateRequest):
+    """Generates 4 viral multi-angle TikTok review scripts using Google Gemini 2.5 Flash."""
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        # Fallback to local templates if no key
+        base = ScriptGenerator.generate(req.product_name, req.key_features, req.pain_point, req.price_deal)
+        return {
+            "angles": [
+                {
+                    "angle_id": "problem_solution",
+                    "angle_name": "🚫 เปิดด้วยปัญหา / จี้จุดเจ็บ",
+                    "badge_color": "red",
+                    "hook_title": f"อย่าเพิ่งซื้อ {req.product_name} ถ้ายังไม่เห็นสิ่งนี้!",
+                    "estimated_sec": 26,
+                    "script_text": base["full_text"],
+                    "caption": f"ใครเจอปัญหา {req.pain_point} ดูด่วน! {req.product_name}",
+                    "hashtags": ["#ของดีบอกต่อ", "#รีวิวของใช้", "#tiktokshop", f"#{req.product_name.replace(' ', '')}"]
+                }
+            ]
+        }
+
+    try:
+        from google import genai
+        client = genai.Client(api_key=api_key)
+
+        prompt = f"""คุณเป็นสุดยอด Copywriter และผู้เชี่ยวชาญการทำคลิป TikTok Shop / Affiliate มือโปร
+กรุณาแต่งสคริปต์วิดีโอรีวิวป้ายยา 4 มุมมอง (4 Angles) สำหรับสินค้า:
+- ชื่อสินค้า: {req.product_name}
+- จุดเด่น: {req.key_features}
+- ปัญหาที่แก้: {req.pain_point}
+- ราคา/โปร: {req.price_deal}
+
+กรุณาแต่งสคริปต์ภาษาพูดคนรีวิวจริง (ไม่เอาภาษาโฆษณาแข็งๆ) 4 รูปแบบ:
+1. เตือนภัย / จี้จุดเจ็บ (Stop Scroll / Pain Point)
+2. โชว์ฟังก์ชันสุดล้ำ / ว้าว (Tech Feature Hype)
+3. โปรเดือด / ความคุ้มค่า (FOMO / Price Value)
+4. ชีวิตดีขึ้น / เปรียบเทียบ (Transformation / Social Proof)
+
+ตอบกลับเป็น JSON Format เท่านั้น:
+```json
+{{
+  "angles": [
+    {{
+      "angle_id": "pain_point",
+      "angle_name": "🚫 เตือนห้ามซื้อ / จี้จุดเจ็บ",
+      "badge_color": "red",
+      "hook_title": "พาดหัวแบนเนอร์บนจอ 3 วิแรก สั้นมาก",
+      "estimated_sec": 26,
+      "script_text": "ประโยคที่ 1\\nประโยคที่ 2\\nประโยคที่ 3\\nประโยคที่ 4\\nประโยคที่ 5 ปิดการขายจิ้มตะกร้า",
+      "caption": "แคปชั่นสั้นๆ สำหรับโพสต์",
+      "hashtags": ["#แฮชแท็ก1", "#แฮชแท็ก2", "#แฮชแท็ก3"]
+    }}
+  ]
+}}
+```
+"""
+        models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+        response = None
+        for m_name in models:
+            try:
+                response = client.models.generate_content(model=m_name, contents=prompt)
+                if response and response.text:
+                    break
+            except Exception:
+                time.sleep(1)
+
+        if not response or not response.text:
+            raise RuntimeError("No response from Gemini API.")
+
+        import re
+        m = re.search(r"```json\s*([\s\S]*?)\s*```", response.text)
+        clean_json = m.group(1).strip() if m else response.text.strip()
+        data = json.loads(clean_json)
+        return data
+
+    except Exception as e:
+        print(f"Error in generate_ai_scripts: {e}")
+        # Graceful fallback
+        base = ScriptGenerator.generate(req.product_name, req.key_features, req.pain_point, req.price_deal)
+        return {
+            "angles": [
+                {
+                    "angle_id": "problem_solution",
+                    "angle_name": "🚫 เปิดด้วยปัญหา / จี้จุดเจ็บ (Offline Template)",
+                    "badge_color": "red",
+                    "hook_title": f"อย่าเพิ่งซื้อ {req.product_name} ถ้ายังไม่เห็นสิ่งนี้!",
+                    "estimated_sec": 26,
+                    "script_text": base["full_text"],
+                    "caption": f"ใครเจอปัญหา {req.pain_point} ดูด่วน! {req.product_name}",
+                    "hashtags": ["#ของดีบอกต่อ", "#รีวิวของใช้", "#tiktokshop"]
+                }
+            ]
+        }
 
 @app.post("/api/voice/preview")
 def preview_voice(req: VoicePreviewRequest):
@@ -650,6 +746,7 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                 bilingual_subtitles=req_data.bilingual_subtitles,
                 use_ai_vision=req_data.use_ai_vision,
                 sticker_path=sticker_file_path,
+                bgm_name=req_data.bgm_name,
                 export_mp4=req_data.export_mp4,
                 progress_callback=on_progress
             )
