@@ -374,9 +374,9 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
   const [activePhase, setActivePhase] = useState('all'); // 'all' | 'scripted' | 'in_production' | ...
   const [viewMode, setViewMode] = useState(() => {
     try {
-      return localStorage.getItem('capcut_tracker_view_mode') || 'table';
+      return localStorage.getItem('capcut_tracker_view_mode') || 'kanban';
     } catch {
-      return 'table';
+      return 'kanban';
     }
   });
   const [copiedAngleId, setCopiedAngleId] = useState(null);
@@ -696,22 +696,8 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
             ))}
           </select>
 
-          {/* Multi-View Switcher (Table vs Kanban) */}
+          {/* Multi-View Switcher (Board first, Table second) */}
           <div className="flex items-center p-0.5 rounded-xl bg-black/60 border border-white/[0.1] flex-shrink-0">
-            <button
-              type="button"
-              onClick={() => handleSwitchViewMode('table')}
-              className={`py-1 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
-                viewMode === 'table'
-                  ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-              title="มุมมองตาราง"
-            >
-              <Table className="w-3.5 h-3.5" />
-              <span>ตาราง</span>
-            </button>
-
             <button
               type="button"
               onClick={() => handleSwitchViewMode('kanban')}
@@ -720,10 +706,24 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                   ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-sm'
                   : 'text-slate-400 hover:text-white'
               }`}
-              title="มุมมองบอร์ด"
+              title="มุมมองบอร์ด (Kanban)"
             >
               <Kanban className="w-3.5 h-3.5" />
               <span>บอร์ด</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleSwitchViewMode('table')}
+              className={`py-1 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                viewMode === 'table'
+                  ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+              title="มุมมองตาราง (Table)"
+            >
+              <Table className="w-3.5 h-3.5" />
+              <span>ตาราง</span>
             </button>
           </div>
         </div>

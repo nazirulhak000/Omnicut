@@ -770,6 +770,97 @@ def test_assemble_video_clip_list_with_fade_uses_xfade(monkeypatch, tmp_path):
     assert "concat=n=3" not in filter_arg
 
 
+def test_assemble_video_clip_list_named_transition_reaches_the_filter(monkeypatch, tmp_path):
+    clip_list = [
+        {"source_path": str(tmp_path / "a.mp4"), "trim_start": 0.0, "trim_end": 3.0},
+        {"source_path": str(tmp_path / "b.mp4"), "trim_start": 0.0, "trim_end": 3.0},
+    ]
+    cmd = _capture_ffmpeg_cmd(
+        monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list,
+        transitions=[{"type": "wipeleft", "duration": 0.8}],
+    )
+    filter_arg = cmd[cmd.index("-filter_complex") + 1]
+    assert "xfade=transition=wipeleft:duration=0.8" in filter_arg
+    assert "offset=2.2" in filter_arg, "3s clip minus a 0.8s overlap starts the wipe at 2.2s"
+
+
+def test_assemble_video_unknown_transition_falls_back_to_fade(monkeypatch, tmp_path):
+    # The name comes from the UI; an unknown one must never reach ffmpeg,
+    # where it would kill the whole render.
+    clip_list = [
+        {"source_path": str(tmp_path / "a.mp4"), "trim_start": 0.0, "trim_end": 3.0},
+        {"source_path": str(tmp_path / "b.mp4"), "trim_start": 0.0, "trim_end": 3.0},
+    ]
+    cmd = _capture_ffmpeg_cmd(
+        monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list,
+        transitions=[{"type": "not-a-real-transition", "duration": 0.5}],
+    )
+    filter_arg = cmd[cmd.index("-filter_complex") + 1]
+    assert "xfade=transition=fade" in filter_arg
+    assert "not-a-real-transition" not in filter_arg
+
+
+def test_transition_duration_is_clamped_to_what_the_clips_can_give(monkeypatch, tmp_path):
+    # A 2s transition across a 1s clip would make xfade's offset negative.
+    clip_list = [
+        {"source_path": str(tmp_path / "a.mp4"), "trim_start": 0.0, "trim_end": 1.0},
+        {"source_path": str(tmp_path / "b.mp4"), "trim_start": 0.0, "trim_end": 1.0},
+    ]
+    cmd = _capture_ffmpeg_cmd(
+        monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list,
+        transitions=[{"type": "circleopen", "duration": 2.0}],
+    )
+    filter_arg = cmd[cmd.index("-filter_complex") + 1]
+    assert "duration=0.95" in filter_arg, "capped at min(clip)-0.05, not the requested 2.0"
+    assert "offset=-" not in filter_arg
+
+
+def test_normalize_transitions_shapes():
+    from scripts.video_editor import normalize_transitions, DEFAULT_TRANSITION_DURATION
+
+    out = normalize_transitions(["fade", "cut", {"type": "slideup", "duration": 0.6}])
+    assert out[0] == {"type": "fade", "duration": DEFAULT_TRANSITION_DURATION}
+    assert out[1]["type"] == "cut"
+    assert out[2] == {"type": "slideup", "duration": 0.6}
+
+    # garbage duration falls back instead of raising
+    assert normalize_transitions([{"type": "fade", "duration": "abc"}])[0]["duration"] == DEFAULT_TRANSITION_DURATION
+    # and durations stay inside the supported window
+    assert normalize_transitions([{"type": "fade", "duration": 99}])[0]["duration"] == 2.0
+    assert normalize_transitions([{"type": "fade", "duration": 0}])[0]["duration"] == 0.1
+
+
+def test_reroll_sticker_badge_resolves_to_a_real_path(tmp_path):
+    from scripts.api_phase1 import RerollRequest
+    from scripts.config import STICKERS_DIR
+
+    badges = sorted(STICKERS_DIR.glob("*.png"))
+    assert badges, "no sticker assets on disk to test with"
+
+    def overrides_for(badge):
+        req = RerollRequest(project_name="p", part="video", sticker_badge=badge)
+        o = req.model_dump(exclude={"project_name", "part"}, exclude_none=True)
+        # mirrors trigger_reroll's resolution block
+        if "sticker_badge" in o:
+            name = o.pop("sticker_badge")
+            resolved = ""
+            if name:
+                cand = STICKERS_DIR / name
+                if cand.exists():
+                    resolved = str(cand)
+            o["sticker_path"] = resolved
+        return o
+
+    picked = overrides_for(badges[0].name)
+    assert picked["sticker_path"] == str(badges[0])
+
+    # "" means "no badge" -- and it must survive _execute_reroll's
+    # `if v is not None` merge, or the badge already on the project would stay.
+    cleared = overrides_for("")
+    assert cleared["sticker_path"] == ""
+    assert cleared["sticker_path"] is not None
+
+
 def test_assemble_video_empty_clip_list_falls_back_to_legacy_path(monkeypatch, tmp_path):
     # `[]` is falsy like `None` -- it must fall through to the single-source
     # path (using raw_video_paths), not be treated as "0 clips to concat".

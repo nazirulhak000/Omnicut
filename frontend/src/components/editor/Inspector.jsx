@@ -5,6 +5,7 @@ import {
   Link2, Clock, Split, Sparkles, ArrowUp, ArrowDown,
   Replace, CheckCheck, RefreshCw, X, ChevronUp, ChevronDown
 } from 'lucide-react';
+import { TRANSITIONS, FADE_DURATION, MAX_TRANSITION_DURATION } from '../../lib/timelineMath';
 
 const SPEEDS = [0.5, 1, 1.5, 2];
 
@@ -570,6 +571,68 @@ export default function Inspector({
               >
                 {selectedSeg.clip.mirror ? '✓ กลับด้านซ้าย-ขวาอยู่' : 'กลับด้านซ้าย-ขวา (Mirror)'}
               </button>
+
+              {/* Transitions: the first clip has no boundary before it. */}
+              {selectedSeg.index > 0 && (() => {
+                const kind = selectedSeg.clip.transition_in || 'cut';
+                const dur = selectedSeg.clip.transition_duration ?? FADE_DURATION;
+                const isCut = kind === 'cut';
+                return (
+                  <div className="space-y-1.5">
+                    <span className="block text-[10px] text-slate-400">รอยต่อกับคลิปก่อนหน้า</span>
+                    <button
+                      type="button"
+                      onClick={() => onClipChange?.({ transition_in: 'cut' })}
+                      className={`w-full py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                        isCut
+                          ? 'bg-[#D97757]/20 border-[#D97757] text-[#E89274]'
+                          : 'bg-black/40 border-white/[0.08] text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      ตัดตรง (ไม่มีรอยต่อ)
+                    </button>
+                    <div className="grid grid-cols-2 gap-1">
+                      {TRANSITIONS.map((t) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => onClipChange?.({
+                            transition_in: t.id,
+                            transition_duration: dur,
+                          })}
+                          title={t.id}
+                          className={`py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer border ${
+                            kind === t.id
+                              ? 'bg-[#D97757]/20 border-[#D97757] text-[#E89274]'
+                              : 'bg-black/40 border-white/[0.08] text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                    <label className={`block pt-1 ${isCut ? 'opacity-40' : ''}`}>
+                      <span className="mb-1 flex justify-between text-[10px] text-slate-400">
+                        <span>ความยาวรอยต่อ</span>
+                        <span className="font-mono text-slate-300">{dur.toFixed(1)}s</span>
+                      </span>
+                      <input
+                        type="range"
+                        min={0.1}
+                        max={MAX_TRANSITION_DURATION}
+                        step={0.1}
+                        value={dur}
+                        disabled={isCut}
+                        onChange={(e) => onClipChange?.({ transition_duration: parseFloat(e.target.value) })}
+                        className="w-full accent-[#D97757] disabled:cursor-not-allowed"
+                      />
+                    </label>
+                    <p className="text-[9px] leading-relaxed text-slate-500">
+                      พรีวิวแสดงรอยต่อทุกแบบเป็นการจางเข้าหากัน — ลายจริง (ปาด/เลื่อน/วงกลม) เห็นได้หลังกด Apply
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
