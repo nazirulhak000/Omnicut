@@ -385,7 +385,7 @@ export default function EditorShell({ videos = [] }) {
               />
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 overflow-hidden p-3">
+            <div className="flex min-h-0 flex-1 flex-col items-center gap-2 overflow-hidden p-3">
               <SequencePlayer
                 ref={playerRef}
                 clips={clipList}

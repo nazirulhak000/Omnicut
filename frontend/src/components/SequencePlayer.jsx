@@ -226,7 +226,7 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
   };
 
   return (
-    <div className="space-y-2.5">
+    <div className="flex min-h-0 w-full flex-col items-center gap-2">
       {/* Hidden decode elements -- one per clip, always mounted so metadata
           loads and pre-seek/pre-play can happen ahead of a cut/fade.
           Kept technically visible (1px, off-screen, opacity near 0) rather
@@ -249,7 +249,7 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
         ))}
       </div>
 
-      <div className="relative mx-auto rounded-2xl overflow-hidden bg-black border border-white/[0.1] shadow-2xl" style={{ width: '100%', maxWidth: 260, aspectRatio: '9/16' }}>
+      <div className="relative mx-auto rounded-2xl overflow-hidden bg-black border border-white/[0.1] shadow-2xl" style={{ maxWidth: 260, maxHeight: '100%', aspectRatio: '9/16', width: 'auto', height: '100%' }}>
         <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H} className="w-full h-full" />
         {!metadataReady && clips.length > 0 && (
           <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-slate-400 bg-black/70 backdrop-blur-sm">
