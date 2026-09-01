@@ -13,17 +13,19 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from scripts.config import SFX_DIR, MUSIC_DIR, BGM_VOLUME, VOICE_VOLUME, SFX_VOLUME
+from scripts.asset_registry import AssetRegistry
 
 class SFXManager:
     """Handles sound effects placement and background music mixing with auto-ducking."""
 
-    SFX_FILES = {
-        "whoosh": SFX_DIR / "whoosh.wav",
-        "pop": SFX_DIR / "pop.wav",
-        "ding": SFX_DIR / "ding.wav",
-        "cash": SFX_DIR / "cash.wav",
-        "boom": SFX_DIR / "boom.wav"
-    }
+    # Resolution went through AssetRegistry.resolve_sfx_path() instead of a
+    # fixed 5-entry dict -- that dict only ever reached whoosh/pop/ding/cash/
+    # boom even though 02_Assets/SFX/ has 28 files. resolve_sfx_path() accepts
+    # both those legacy short names and the full sfx_* registry ids, so an
+    # old project.json manifest that still says "sfx": "boom" keeps working.
+    @classmethod
+    def resolve(cls, name: str):
+        return AssetRegistry.resolve_sfx_path(name)
 
     @classmethod
     def mix_audio_track(
@@ -57,8 +59,9 @@ class SFXManager:
         filter_complex.append(f"[0:a]volume={voice_vol},apad=pad_dur=1.0[voice_padded];")
 
         # 2. Add Boom on 0.0s Hook
-        if cls.SFX_FILES["boom"].exists():
-            inputs.extend(["-i", str(cls.SFX_FILES["boom"])])
+        boom_file = cls.resolve("boom")
+        if boom_file and boom_file.exists():
+            inputs.extend(["-i", str(boom_file)])
             filter_complex.append(f"[{input_count}:a]volume={sfx_vol}[sfx_boom];")
             sfx_nodes = ["[sfx_boom]"]
             input_count += 1
@@ -68,8 +71,8 @@ class SFXManager:
         # 3. Add SFX inputs per cue
         for idx, cue in enumerate(cues):
             sfx_type = cue.get("sfx")
-            if sfx_type and sfx_type in cls.SFX_FILES and cls.SFX_FILES[sfx_type].exists():
-                sfx_file = cls.SFX_FILES[sfx_type]
+            sfx_file = cls.resolve(sfx_type) if sfx_type else None
+            if sfx_file and sfx_file.exists():
                 inputs.extend(["-i", str(sfx_file)])
                 delay_ms = int(max(0.05, cue["start"]) * 1000)
                 node_name = f"sfx_{idx}"

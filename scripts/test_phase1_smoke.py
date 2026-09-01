@@ -23,6 +23,9 @@ from scripts.post_log import PostLog
 from scripts.product_store import ProductStore
 from scripts.project_manifest import REROLL_STAGE, ProjectManifest
 from scripts.subtitle_engine import SubtitleEngine, _load_font_family_map
+from scripts.asset_registry import AssetRegistry
+from scripts.sfx_manager import SFXManager
+from scripts.script_generator import ScriptGenerator
 
 
 # ----------------------------------------------------------------------
@@ -372,6 +375,40 @@ def test_spec_bar_survives_a_cue_with_no_on_screen_key_at_all(tmp_path):
     ass_path, _ = SubtitleEngine.generate_ass(cues=cues, output_ass_path=str(tmp_path / "out.ass"))
     content = Path(ass_path).read_text(encoding="utf-8")
     assert not any(l.startswith("Dialogue:") and ",SpecBar," in l for l in content.splitlines())
+
+
+# ----------------------------------------------------------------------
+# SFX variety (from 5 hardcoded names to the real 28-file library)
+# ----------------------------------------------------------------------
+def test_sfxmanager_resolves_legacy_names_and_new_ones():
+    """The 5 names that used to be the entire usable set must still resolve..."""
+    for legacy in ("boom", "whoosh", "pop", "ding", "cash"):
+        assert SFXManager.resolve(legacy) is not None, f"legacy name '{legacy}' must not stop resolving"
+    # ...and so must names that were previously unreachable from any cue.
+    assert SFXManager.resolve("sfx_camera_shutter") is not None
+    assert SFXManager.resolve("sfx_magic_sparkle") is not None
+    assert SFXManager.resolve("not_a_real_sfx_name") is None
+
+
+def test_ai_bridge_sfx_prompt_lists_the_real_library_not_5_names():
+    prompt = AIBridge.build_prompt("script", {
+        "product_name": "หูฟัง", "angle_title": "x", "hook": "y", "specs": [], "price_deal": "z",
+    })
+    assert "__SFX_NAME_LIST__" not in prompt, "the sentinel must never leak into a real prompt"
+    # A handful of sounds only reachable through the wider library, not the
+    # old 5-name hardcoded set -- if these are missing, the schema silently
+    # went back to being a hand-typed list.
+    for name in ("sfx_camera_shutter", "sfx_magic_sparkle", "sfx_vine_boom"):
+        assert name in prompt
+
+
+def test_script_generator_fallback_uses_more_than_three_sfx_names():
+    """The no-AI path used to hardcode boom/ding/cash for every script, regardless of length."""
+    result = ScriptGenerator.generate("ทดสอบสินค้า")
+    sfx_used = {line["sfx"] for line in result["lines"]}
+    assert len(sfx_used) >= 4, f"expected real variety across 5 lines, got only: {sfx_used}"
+    for name in sfx_used:
+        assert AssetRegistry.resolve_sfx_path(name) is not None, f"'{name}' must resolve to a real file"
 
 
 # ----------------------------------------------------------------------

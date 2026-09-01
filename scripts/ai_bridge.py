@@ -90,7 +90,7 @@ class AIBridge:
                     {
                         "text": "ประโยคพูด 1 บรรทัด ภาษาพูดจริง ไม่เกิน 15 คำ",
                         "on_screen": "ตัวเลข/สเปคที่ต้องขึ้นจอตอนพูดบรรทัดนี้ ถ้าไม่มีใส่ว่าง",
-                        "sfx": "whoosh | pop | ding | boom | cash",
+                        "sfx": "__SFX_NAME_LIST__",
                     }
                 ],
             },
@@ -128,7 +128,16 @@ class AIBridge:
             raise ValueError(f"Task '{task}' missing context: {', '.join(missing)}")
 
         context_block = json.dumps(context, ensure_ascii=False, indent=2)
+
+        # The "script" task's schema_hint carries a sentinel for the sfx
+        # field instead of a hand-typed list, so it can never drift from
+        # what SFXManager can actually play (28 sounds via AssetRegistry,
+        # not the 5 legacy names this used to be hardcoded to).
         schema_block = json.dumps(spec["schema_hint"], ensure_ascii=False, indent=2)
+        if "__SFX_NAME_LIST__" in schema_block:
+            from scripts.asset_registry import AssetRegistry
+            sfx_names = " | ".join(AssetRegistry.sfx_name_list())
+            schema_block = schema_block.replace("__SFX_NAME_LIST__", sfx_names)
 
         return f"""คุณคือครีเอเตอร์ TikTok Shop สายสินค้า IT ที่ขายเก่งที่สุดในไทย
 งาน: {spec['label']}

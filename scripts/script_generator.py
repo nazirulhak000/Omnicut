@@ -5,6 +5,16 @@ Structured with 4-5 punchy beats, conversational spoken Thai, and micro-burst pa
 
 from typing import List, Dict
 
+# A curated rotation instead of one fixed sound per slot, so the no-AI
+# fallback path also gets SFX variety -- these three pools are the
+# beat-position categories build_assets.py's own comments already group its
+# generated library into (opener/impact, mid-line accent, commerce closer).
+# All names resolve through AssetRegistry.resolve_sfx_path().
+_OPENER_SFX = ["sfx_vine_boom", "sfx_whoosh_heavy", "sfx_sub_drop"]
+_ACCENT_SFX = ["sfx_bell_ding", "sfx_pop_bubble", "sfx_magic_sparkle", "sfx_pop_cork", "sfx_camera_shutter"]
+_CLOSER_SFX = ["sfx_cash_register", "sfx_coin_drop", "sfx_tada_fanfare"]
+
+
 class ScriptGenerator:
     """Generates structured high-converting TikTok product review scripts in natural spoken Thai."""
 
@@ -54,7 +64,12 @@ class ScriptGenerator:
                 key_features=key_features,
                 price_deal=price_deal
             )
-            sfx = "boom" if idx == 0 else ("cash" if idx == len(raw_beats) - 1 else "ding")
+            if idx == 0:
+                sfx = _OPENER_SFX[idx % len(_OPENER_SFX)]
+            elif idx == len(raw_beats) - 1:
+                sfx = _CLOSER_SFX[idx % len(_CLOSER_SFX)]
+            else:
+                sfx = _ACCENT_SFX[idx % len(_ACCENT_SFX)]
             lines.append({"index": idx + 1, "text": text, "sfx": sfx})
 
         full_text = "\n".join(l["text"] for l in lines)
