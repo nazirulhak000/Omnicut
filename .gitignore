@@ -35,3 +35,7 @@ verified_tone_*.png
 tiktok_preview.png
 tiktok_info.json
 synced_clause_*.png
+
+# Generated asset cache (rebuilt automatically from 02_Assets/* on any change)
+02_Assets/asset_registry.json
+02_Assets/.vision_cache.json

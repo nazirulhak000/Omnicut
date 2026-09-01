@@ -14,9 +14,10 @@ FONTS_DIR = ASSETS_DIR / "Fonts"
 SFX_DIR = ASSETS_DIR / "SFX"
 MUSIC_DIR = ASSETS_DIR / "Music"
 STICKERS_DIR = ASSETS_DIR / "Stickers_Memes"
+LUTS_DIR = ASSETS_DIR / "LUTs_ColorPresets"
 
 # Ensure directories exist
-for p in [INBOX_DIR, RAW_DIR, ASSETS_DIR, PROJECTS_DIR, EXPORTS_DIR, ARCHIVE_DIR, FONTS_DIR, SFX_DIR, MUSIC_DIR, STICKERS_DIR]:
+for p in [INBOX_DIR, RAW_DIR, ASSETS_DIR, PROJECTS_DIR, EXPORTS_DIR, ARCHIVE_DIR, FONTS_DIR, SFX_DIR, MUSIC_DIR, STICKERS_DIR, LUTS_DIR]:
     p.mkdir(parents=True, exist_ok=True)
 
 # CapCut Draft Directory on Windows

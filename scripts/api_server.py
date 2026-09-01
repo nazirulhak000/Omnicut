@@ -53,6 +53,7 @@ app.add_middleware(
 # tracked in one place and answered by the same status endpoint.
 from scripts import render_jobs
 from scripts.render_jobs import ACTIVE_JOBS
+from scripts.asset_registry import AssetRegistry
 from scripts.api_phase1 import router as phase1_router
 
 app.include_router(phase1_router)
@@ -91,6 +92,7 @@ class RenderRequest(BaseModel):
     human_voice_audio: Optional[str] = None
     font_name: str = "IBMPlex"
     bilingual_subtitles: bool = True
+    use_ai_vision: bool = True
     sticker_badge: Optional[str] = "badge_flash_sale_3d.png"
     export_mp4: bool = True
 
@@ -443,60 +445,40 @@ def list_sfx():
 
 @app.get("/api/assets/all")
 def list_all_assets():
-    """Lists all categorized assets (SFX, Music, Fonts, Stickers, LUTs)."""
-    # 1. SFX
-    sfx_files = sorted(list(SFX_DIR.glob("*.wav")) + list(SFX_DIR.glob("*.mp3")), key=os.path.getmtime, reverse=True)
-    sfx_list = []
-    for sf in sfx_files:
-        info = get_file_info(sf)
-        info["audio_url"] = f"/api/media/{info['rel_path']}"
-        sfx_list.append(info)
+    """
+    Lists all categorized assets (SFX, Music, Fonts, Stickers, LUTs).
 
-    # 2. Music (BGM)
-    music_files = sorted(list(MUSIC_DIR.glob("*.wav")) + list(MUSIC_DIR.glob("*.mp3")), key=os.path.getmtime, reverse=True)
-    music_list = []
-    for m in music_files:
-        info = get_file_info(m)
-        info["audio_url"] = f"/api/media/{info['rel_path']}"
-        music_list.append(info)
+    Backed by AssetRegistry (scripts/asset_registry.py) instead of a second,
+    separate glob -- this used to re-scan 02_Assets/* independently of the
+    registry, so the two could disagree (e.g. this endpoint guessed a font's
+    family from its filename while nothing else did). Response shape/keys
+    (`music`, `font_family`, per-file fields) kept exactly as before so
+    SystemAssets.jsx needs no change.
+    """
+    registry = AssetRegistry.load()
 
-    # 3. Fonts
-    fonts_dir = ASSETS_DIR / "Fonts"
-    font_files = sorted(list(fonts_dir.glob("*.ttf")) + list(fonts_dir.glob("*.otf")), key=os.path.getmtime, reverse=True)
-    font_list = []
-    for f in font_files:
-        info = get_file_info(f)
-        info["font_family"] = f.stem.split("-")[0]
-        font_list.append(info)
-
-    # 4. Stickers & Badges
-    stickers_dir = ASSETS_DIR / "Stickers_Memes"
-    sticker_files = sorted(list(stickers_dir.glob("*.png")) + list(stickers_dir.glob("*.webp")) + list(stickers_dir.glob("*.jpg")), key=os.path.getmtime, reverse=True)
-    sticker_list = []
-    for st in sticker_files:
-        info = get_file_info(st)
-        info["img_url"] = f"/api/media/{info['rel_path']}"
-        sticker_list.append(info)
-
-    # 5. LUTs Color Presets
-    luts_dir = ASSETS_DIR / "LUTs_ColorPresets"
-    lut_files = sorted(list(luts_dir.glob("*.cube")), key=os.path.getmtime, reverse=True)
-    lut_list = [get_file_info(lut) for lut in lut_files]
+    font_list = [{**f, "font_family": f["family"]} for f in registry["fonts"]]
 
     return {
-        "sfx": sfx_list,
-        "music": music_list,
+        "sfx": registry["sfx"],
+        "music": registry["bgm"],
         "fonts": font_list,
-        "stickers": sticker_list,
-        "luts": lut_list,
+        "stickers": registry["stickers"],
+        "luts": registry["luts"],
         "counts": {
-            "sfx": len(sfx_list),
-            "music": len(music_list),
+            "sfx": len(registry["sfx"]),
+            "music": len(registry["bgm"]),
             "fonts": len(font_list),
-            "stickers": len(sticker_list),
-            "luts": len(lut_list)
+            "stickers": len(registry["stickers"]),
+            "luts": len(registry["luts"])
         }
     }
+
+@app.post("/api/assets/rescan")
+def rescan_assets():
+    """Force a fresh scan of 02_Assets/* -- for a file dropped in by hand, outside the upload UI."""
+    registry = AssetRegistry.rebuild()
+    return {"success": True, "counts": registry["counts"]}
 
 @app.post("/api/assets/upload")
 async def upload_asset(file: UploadFile = File(...), asset_type: str = Form("sfx")):
@@ -507,15 +489,18 @@ async def upload_asset(file: UploadFile = File(...), asset_type: str = Form("sfx
         "fonts": ASSETS_DIR / "Fonts",
         "stickers": ASSETS_DIR / "Stickers_Memes",
         "luts": ASSETS_DIR / "LUTs_ColorPresets",
-        "branding": ASSETS_DIR / "Branding"
+        "branding": ASSETS_DIR / "Branding"  # reserved for a future logo/watermark feature; no consuming UI yet
     }
     dest_dir = type_map.get(asset_type.lower(), SFX_DIR)
     dest_dir.mkdir(parents=True, exist_ok=True)
-    
+
     save_path = dest_dir / file.filename
     with open(save_path, "wb") as buffer:
         content = await file.read()
         buffer.write(content)
+
+    # So the new file is immediately selectable without a separate rescan step.
+    AssetRegistry.rebuild()
 
     return {
         "message": f"เพิ่มทรัพยากร {file.filename} เข้าสู่ {asset_type.upper()} เรียบร้อยแล้ว",
@@ -663,6 +648,7 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                 hook_title=req_data.hook_title,
                 font_name=req_data.font_name,
                 bilingual_subtitles=req_data.bilingual_subtitles,
+                use_ai_vision=req_data.use_ai_vision,
                 sticker_path=sticker_file_path,
                 export_mp4=req_data.export_mp4,
                 progress_callback=on_progress
