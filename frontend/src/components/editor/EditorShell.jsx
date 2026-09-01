@@ -17,6 +17,7 @@ import AssetPanel from './AssetPanel';
 import Inspector from './Inspector';
 import Timeline from './Timeline';
 import Toolbar from './Toolbar';
+import NewClipPanel from './NewClipPanel';
 
 const framesFor = (seconds) => Math.max(6, Math.min(40, Math.round((seconds || 12) / 3)));
 const SNAP_PX = 6;
@@ -29,7 +30,14 @@ const EMPTY = { clipList: [], cuesList: [], style: { fontName: 'IBMPlex', bgmNam
 let idCounter = 0;
 const newId = () => `clip-${Date.now().toString(36)}-${++idCounter}`;
 
-export default function EditorShell({ videos = [] }) {
+export default function EditorShell({
+  videos = [],
+  productContext = null,
+  angleIndex = 0,
+  onAngleChange,
+  onGoToProductFlow,
+  onVideoUploaded,
+}) {
   const { state, set, setSilent, beginDrag, endDrag, undo, redo, reset, canUndo, canRedo } = useEditorHistory(EMPTY);
   const { clipList, cuesList, style } = state;
 
@@ -100,16 +108,23 @@ export default function EditorShell({ videos = [] }) {
     desktopPlayerRef.current?.toggle();
   }, []);
 
+  /**
+   * A render started from the create panel lands straight in the timeline.
+   * loadProject only reads the name it is handed (everything else it touches
+   * is a setter), so capturing the first instance here is safe.
+   */
+  const handleClipCreated = useCallback((newProjectName) => {
+    getProjects()
+      .then((data) => setProjectList(data?.projects || []))
+      .catch(() => {})
+      .finally(() => loadProject(newProjectName));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Load project list + assets on mount
   useEffect(() => {
     getProjects()
-      .then((data) => {
-        const list = data?.projects || [];
-        setProjectList(list);
-        if (list.length > 0 && !projectName) {
-          loadProject(list[0].project_name);
-        }
-      })
+      .then((data) => setProjectList(data?.projects || []))
       .catch((err) => setLoadError(err.message || 'โหลดรายการโปรเจกต์ไม่สำเร็จ'));
 
     getAllAssets()
@@ -732,6 +747,17 @@ export default function EditorShell({ videos = [] }) {
             {zen ? <><Minimize2 className="h-3.5 w-3.5" /> ย่อ</> : <><Maximize2 className="h-3.5 w-3.5" /> ขยาย</>}
           </button>
 
+          <button
+            type="button"
+            onClick={() => { setProjectName(''); setSelection(null); }}
+            disabled={applying}
+            title="กลับไปหน้าสร้างคลิปใหม่"
+            className="flex h-8 items-center gap-1 rounded-xl border border-white/[0.08] bg-black/40 px-2 text-[11px] font-bold text-slate-200 hover:text-white disabled:opacity-50 cursor-pointer"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">คลิปใหม่</span>
+          </button>
+
           <select
             value={exportPreset}
             onChange={(e) => setExportPreset(e.target.value)}
@@ -765,8 +791,17 @@ export default function EditorShell({ videos = [] }) {
       )}
 
       {!projectName ? (
-        <div className="flex flex-1 items-center justify-center p-8 text-center text-xs text-slate-500">
-          เลือกโปรเจกต์ที่ 1-Click Studio เรนเดอร์ไว้แล้ว เพื่อเริ่มตัดต่อ
+        <div className="min-h-0 flex-1">
+          <NewClipPanel
+            videos={videos}
+            productContext={productContext}
+            angleIndex={angleIndex}
+            onAngleChange={onAngleChange}
+            existingProjects={projectList.map((p) => p.project_name || p)}
+            onGoToProductFlow={onGoToProductFlow}
+            onVideoUploaded={onVideoUploaded}
+            onCreated={handleClipCreated}
+          />
         </div>
       ) : (
         <>

@@ -20,39 +20,8 @@ const EditorShell = lazy(() => import('./components/editor/EditorShell'));
 const ExportGallery = lazy(() => import('./components/ExportGallery'));
 const SystemAssets = lazy(() => import('./components/SystemAssets'));
 
-const DEFAULT_STUDIO_FORM = {
-  selectedVideo: '',
-  productName: 'Esseger สายชาร์จแม่เหล็ก',
-  hookTitle: 'อย่าเพิ่งเลื่อนผ่าน! สายชาร์จแม่เหล็ก',
-  painPoint: 'สายชาร์จพังง่าย เสียบยากในที่มืด',
-  priceDeal: 'ลดพิเศษวันนี้ จิ้มตะกร้าซ้ายล่าง',
-  keyFeatures: 'แม่เหล็กแรงดูดสูง เสียบปึ้ง ติดทันที ชาร์จเร็ว ไม่ทำร้ายแบต ทนทานมาก',
-  customScript: '',
-  useCustomScript: false,
-  voiceMode: 'gemini_tts',
-  voiceGender: 'male',
-  voiceSpeed: '+15%',
-  voicePreset: 'gemini_puck_male_hype',
-  adTone: 'commercial_premium',
-  fontName: 'IBMPlex',
-  bilingualSubtitles: true,
-  stickerBadge: 'badge_flash_sale_3d.png',
-  bgmName: null,
-  lutName: null
-};
-
-function getSavedStudioForm() {
-  try {
-    const raw = localStorage.getItem('capcut_studio_form');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return { ...DEFAULT_STUDIO_FORM, ...parsed };
-    }
-  } catch (e) {
-    console.error('Failed to parse saved studio form:', e);
-  }
-  return DEFAULT_STUDIO_FORM;
-}
+import { DEFAULT_STUDIO_FORM, getSavedStudioForm } from './lib/studioDefaults';
+import { angleToForm } from './lib/angleToForm';
 
 export default function App() {
   const savedForm = getSavedStudioForm();
@@ -259,19 +228,17 @@ export default function App() {
   const handleSelectAngle = (index) => {
     if (!activeProductContext || !activeProductContext.angles || !activeProductContext.angles[index]) return;
     setSelectedAngleIndex(index);
-    const angle = activeProductContext.angles[index];
-    const scriptText = Array.isArray(angle.script_lines)
-      ? angle.script_lines.join('\n')
-      : (angle.script_text || '');
+    const patch = angleToForm(activeProductContext.angles[index], activeProductContext);
+    if (!patch) return;
 
-    setProductName(angle.product_name || activeProductContext.title || 'สินค้า');
-    setHookTitle(angle.hook_title || '');
-    setCustomScript(scriptText);
-    setUseCustomScript(true);
-    setKeyFeatures(angle.key_features || activeProductContext.description || '');
-    setPainPoint(angle.pain_point || '');
-    setPriceDeal(angle.price_deal || activeProductContext.price_note || '');
-    if (angle.ad_tone) setAdTone(angle.ad_tone);
+    setProductName(patch.productName);
+    setHookTitle(patch.hookTitle);
+    setCustomScript(patch.customScript);
+    setUseCustomScript(patch.useCustomScript);
+    setKeyFeatures(patch.keyFeatures);
+    setPainPoint(patch.painPoint);
+    setPriceDeal(patch.priceDeal);
+    if (patch.adTone) setAdTone(patch.adTone);
   };
 
   const handleVideoUploaded = (newFile) => {
@@ -399,7 +366,14 @@ export default function App() {
           {activeTab === 'editor' ? (
             <main className="min-h-0 flex-1 overflow-hidden p-0 md:p-1.5 pb-16 md:pb-1.5">
               <Suspense fallback={<LoadingSpinner message="กำลังโหลด Video Editor..." />}>
-                <EditorShell videos={videos} />
+                <EditorShell
+                  videos={videos}
+                  productContext={activeProductContext}
+                  angleIndex={selectedAngleIndex}
+                  onAngleChange={handleSelectAngle}
+                  onGoToProductFlow={() => setActiveTab('flow')}
+                  onVideoUploaded={handleVideoUploaded}
+                />
               </Suspense>
             </main>
           ) : (
