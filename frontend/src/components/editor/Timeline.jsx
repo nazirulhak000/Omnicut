@@ -50,7 +50,30 @@ export default function Timeline({
   onCaptionShift,
   onReorder,
   onReorderSilent,
+  // Newer shell prop names. Both sets are accepted so the timeline keeps
+  // working whichever shape the shell passes.
+  onSelect,
+  onClipChange,
+  onCaptionChange,
+  onBeginDrag,
+  onEndDrag,
 }) {
+  const selectClip = (id) => (onSelectClip ? onSelectClip(id) : onSelect?.({ type: 'clip', id }));
+  const selectCaption = (uid) => (onSelectCaption ? onSelectCaption(uid) : onSelect?.({ type: 'caption', id: uid }));
+  const trimClip = (id, patch) => (onTrim ? onTrim(id, patch) : onClipChange?.(id, patch, true));
+  const shiftCaption = (uid, patch) => (onCaptionShift ? onCaptionShift(uid, patch) : onCaptionChange?.(uid, patch, true));
+  const dragBegin = () => (onTrimBegin || onBeginDrag)?.();
+  const dragEnd = () => (onTrimEnd || onEndDrag)?.();
+  const toggleTransition = (id) => {
+    if (onToggleTransition) { onToggleTransition(id); return; }
+    const seg = segments.find((sg) => sg.clip.id === id);
+    onClipChange?.(id, { transition_in: seg?.clip.transition_in === 'fade' ? 'cut' : 'fade' });
+  };
+  const reorder = (id, dir, silent) => {
+    if (silent && onReorderSilent) { onReorderSilent(id, dir); return true; }
+    if (onReorder) { onReorder(id, dir); return true; }
+    return false;
+  };
   const laneRef = useRef(null);
   const scrubbing = useRef(false);
   const captionDrag = useRef(null);
@@ -59,20 +82,19 @@ export default function Timeline({
   // Dragging a clip body reorders it. The clip reports pointer positions; the
   // decision lives here because only the timeline knows where the other clips
   // are. Each crossing is one swap, and the whole gesture is one undo step.
-  const onBodyDragStart = () => { bodyDrag.current = true; onTrimBegin?.(); };
+  const onBodyDragStart = () => { bodyDrag.current = true; dragBegin(); };
   const onBodyDragMove = (clipId, clientX) => {
     if (!bodyDrag.current || !laneRef.current) return false;
     const t = (clientX - laneRef.current.getBoundingClientRect().left) / pxPerSec;
     const myIdx = segments.findIndex((s) => s.clip.id === clipId);
     const overIdx = segments.findIndex((s) => t >= s.segStart && t < s.segEnd);
     if (myIdx === -1 || overIdx === -1 || overIdx === myIdx) return false;
-    onReorderSilent?.(clipId, overIdx > myIdx ? 1 : -1);
-    return true;
+    return reorder(clipId, overIdx > myIdx ? 1 : -1, true);
   };
   const onBodyDragEnd = () => {
     if (!bodyDrag.current) return;
     bodyDrag.current = false;
-    onTrimEnd?.();
+    dragEnd();
   };
 
   const contentWidth = Math.max(audioDuration || 0, totalDuration, 1) * pxPerSec + 240;
@@ -156,11 +178,11 @@ export default function Timeline({
                     pxPerSec={pxPerSec}
                     isSelected={selection?.type === 'clip' && selection.id === seg.clip.id}
                     filmstrip={filmstrips?.[seg.clip.id]}
-                    onSelect={onSelectClip}
-                    onTrim={onTrim}
-                    onTrimBegin={onTrimBegin}
-                    onTrimEnd={onTrimEnd}
-                    onReorder={onReorder}
+                    onSelect={selectClip}
+                    onTrim={trimClip}
+                    onTrimBegin={dragBegin}
+                    onTrimEnd={dragEnd}
+                    onReorder={(id, dir) => reorder(id, dir, false)}
                     onBodyDragStart={onBodyDragStart}
                     onBodyDragMove={onBodyDragMove}
                     onBodyDragEnd={onBodyDragEnd}
@@ -172,7 +194,7 @@ export default function Timeline({
                   return (
                     <button
                       key={`tr-${seg.clip.id}`}
-                      onClick={(e) => { e.stopPropagation(); onToggleTransition(seg.clip.id); }}
+                      onClick={(e) => { e.stopPropagation(); toggleTransition(seg.clip.id); }}
                       title={isFade ? 'fade 0.4 วิ — คลิกเปลี่ยนเป็นตัดตรง' : 'ตัดตรง — คลิกเปลี่ยนเป็น fade'}
                       className={`absolute top-1/2 z-20 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded border transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
                         isFade
@@ -195,7 +217,7 @@ export default function Timeline({
                   return (
                     <button
                       key={cue._uid}
-                      onClick={() => onSelectCaption(cue._uid)}
+                      onClick={() => selectCaption(cue._uid)}
                       onPointerDown={(e) => {
                         try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* drag still works */ }
                         captionDrag.current = {
@@ -207,9 +229,9 @@ export default function Timeline({
                         if (!d || d.uid !== cue._uid) return;
                         const delta = (e.clientX - d.startX) / pxPerSec;
                         if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return;
-                        if (!d.moved) { d.moved = true; onTrimBegin?.(); }
+                        if (!d.moved) { d.moved = true; dragBegin(); }
                         const shift = Math.max(-d.start, delta);
-                        onCaptionShift(cue._uid, {
+                        shiftCaption(cue._uid, {
                           start: Math.round((d.start + shift) * 100) / 100,
                           end: Math.round((d.end + shift) * 100) / 100,
                         });
@@ -218,7 +240,7 @@ export default function Timeline({
                         const d = captionDrag.current;
                         captionDrag.current = null;
                         try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) { /* fine */ }
-                        if (d?.moved) onTrimEnd?.();
+                        if (d?.moved) dragEnd();
                       }}
                       title={cue.text}
                       className={`absolute top-1 h-[calc(100%-8px)] touch-none overflow-hidden rounded px-1.5 text-left text-[9px] leading-[18px] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${

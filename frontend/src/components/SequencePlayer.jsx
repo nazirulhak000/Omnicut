@@ -214,6 +214,8 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
 
   useImperativeHandle(ref, () => ({
     seekTo,
+    seek: seekTo,        // callers use both names
+
     play: () => { if (!isPlaying) togglePlay(); },
     pause: () => { if (isPlaying) togglePlay(); },
     toggle: togglePlay,
