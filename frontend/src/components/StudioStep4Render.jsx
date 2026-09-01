@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Rocket, Download, Folder, CheckCircle2, AlertCircle, Loader2, Sparkles } from 'lucide-react';
+import { Rocket, Download, Folder, CheckCircle2, AlertCircle, Loader2, Sparkles, Eye, Play, Film, ArrowRight, Check } from 'lucide-react';
 import { startRender, getRenderStatus, openFolder } from '../api';
 
 export default function StudioStep4Render({
@@ -20,8 +20,12 @@ export default function StudioStep4Render({
   fontName,
   bilingualSubtitles,
   stickerBadge,
-  onRenderSuccess
+  bgmName,
+  lutName,
+  onRenderSuccess,
+  onGoToGallery
 }) {
+  const [useAiVision, setUseAiVision] = useState(true);
   const [rendering, setRendering] = useState(false);
   const [jobId, setJobId] = useState(null);
   const [jobStatus, setJobStatus] = useState(null);
@@ -82,7 +86,10 @@ export default function StudioStep4Render({
         human_voice_audio: humanVoiceAudio,
         font_name: fontName || 'IBMPlex',
         bilingual_subtitles: bilingualSubtitles !== false,
+        use_ai_vision: useAiVision,
         sticker_badge: stickerBadge || null,
+        bgm_name: bgmName || null,
+        lut_name: lutName || null,
         export_mp4: true,
         export_capcut: false
       };
@@ -99,145 +106,175 @@ export default function StudioStep4Render({
     openFolder('exports');
   };
 
+  const progressPercent = Math.round((jobStatus?.progress || 0) * 100);
+
   return (
-    <div className="glass-card p-5 mb-6">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-white/10">
-        <div className="flex items-center gap-3">
-          <span className="px-3 py-1 text-xs font-black tracking-wider text-white uppercase rounded-full bg-gradient-to-r from-[#FE2C55] to-[#FF0050] shadow-md shadow-[#FE2C55]/30">
-            STEP 4
+    <section className="space-y-2.5">
+      {/* Section Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <span className="w-6 h-6 rounded-lg bg-gradient-to-tr from-[#FE2C55] to-[#25F4EE] flex items-center justify-center text-[11px] font-black text-slate-950 shadow-md shadow-[#FE2C55]/20">
+            4
           </span>
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <Rocket className="w-5 h-5 text-[#25F4EE]" />
-            เรนเดอร์จบในตัว (All-in-One Auto Render)
-          </h2>
+          <h3 className="text-sm font-bold text-white flex items-center gap-2 font-kanit">
+            <span>เรนเดอร์ & ออโต้คัต (Auto-Render)</span>
+          </h3>
         </div>
-        <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
-          ✓ Full Standalone Pipeline
+
+        <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 font-mono">
+          ⚡ 1-Click Pipeline
         </span>
       </div>
 
-      {/* Standalone Pipeline Feature Banner */}
-      <div className="p-3.5 rounded-2xl bg-black/40 border border-white/5 mb-5 flex items-center justify-between text-xs text-slate-300">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#FE2C55]/20 to-[#25F4EE]/20 flex items-center justify-center text-[#25F4EE] flex-shrink-0">
-            <Sparkles className="w-4 h-4" />
+      <div className="glass-card p-4 space-y-4">
+        {/* Gemini Vision Matcher Toggle Box */}
+        <div 
+          onClick={() => setUseAiVision(!useAiVision)}
+          className={`p-3.5 rounded-xl border cursor-pointer transition-all duration-200 flex items-center justify-between ${
+            useAiVision 
+              ? 'bg-[#25F4EE]/10 border-[#25F4EE]/40 shadow-md shadow-[#25F4EE]/5' 
+              : 'bg-white/[0.02] border-white/[0.06] opacity-70 hover:opacity-100'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
+              useAiVision ? 'bg-[#25F4EE] text-slate-950 shadow-md shadow-[#25F4EE]/30' : 'bg-white/[0.05] text-slate-400'
+            }`}>
+              <Eye className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="font-bold text-white flex items-center gap-2 text-xs">
+                <span>Gemini 2.5 Vision Matcher</span>
+                <span className="px-1.5 py-0.2 text-[9px] font-bold rounded-full bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/30">
+                  AI Smart Cut
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-300 mt-0.5">
+                AI สแกนช็อตสินค้าในคลิปจริง และตัดเลือกฉากให้ตรงกับเนื้อหาสคริปต์อัตโนมัติ
+              </div>
+            </div>
           </div>
-          <div>
-            <div className="font-bold text-white">ตัดต่อเสร็จสมบูรณ์ 100% พร้อมโพสต์ (9:16 Vertical MP4)</div>
-            <div className="text-[11px] text-slate-400">ตัดจังหวะไวรัล + บากซับไตเติล + ใส่เสียงพากย์ AI + SFX + BGM Ducking จบในรอบเดียว</div>
+          <div className="pl-2">
+            <div className={`w-8 h-[18px] rounded-full transition-colors relative p-0.5 ${useAiVision ? 'bg-[#25F4EE]' : 'bg-white/[0.12]'}`}>
+              <div className={`w-3.5 h-3.5 rounded-full bg-slate-950 transition-transform ${useAiVision ? 'translate-x-3.5' : 'translate-x-0'}`} />
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* BIG HERO CTA BUTTON */}
-      <button
-        onClick={handleStartRender}
-        disabled={rendering}
-        className={`w-full py-4 px-6 rounded-2xl font-black text-base md:text-lg flex items-center justify-center gap-3 transition-all duration-300 shadow-2xl ${
-          rendering
-            ? 'bg-slate-800 text-slate-400 cursor-not-allowed border border-white/10'
-            : 'bg-gradient-to-r from-[#FE2C55] via-[#FF0050] to-[#E02449] hover:from-[#FF0050] hover:to-[#FE2C55] text-white shadow-[#FE2C55]/40 hover:shadow-[#FE2C55]/60 hover:scale-[1.01] active:scale-[0.99] border-none cursor-pointer'
-        }`}
-      >
-        {rendering ? (
-          <>
-            <Loader2 className="w-6 h-6 animate-spin text-[#25F4EE]" />
-            <span>กำลังตัดต่อและใส่เอฟเฟกต์... ({Math.round((jobStatus?.progress || 0) * 100)}%)</span>
-          </>
-        ) : (
-          <>
-            <Sparkles className="w-6 h-6" />
-            <span>เริ่มต้นตัดต่อวิดีโออัตโนมัติ (Start Auto-Cut Studio)</span>
-          </>
-        )}
-      </button>
-
-      {/* Live Processing Progress Display */}
-      {rendering && (
-        <div className="mt-5 p-4 rounded-2xl bg-black/60 border border-white/10 space-y-3 animate-fadeIn">
-          <div className="flex items-center justify-between text-xs font-semibold">
-            <span className="text-slate-300 flex items-center gap-2">
-              <Loader2 className="w-4 h-4 text-[#25F4EE] animate-spin" />
-              {jobStatus?.message || 'กำลังประมวลผล...'}
-            </span>
-            <span className="text-[#25F4EE] font-mono font-bold text-sm">
-              {Math.round((jobStatus?.progress || 0) * 100)}%
-            </span>
-          </div>
-
-          <div className="w-full h-3 rounded-full bg-slate-800 overflow-hidden p-0.5 border border-white/5">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-[#FE2C55] via-[#FF0050] to-[#25F4EE] transition-all duration-300"
-              style={{ width: `${Math.max(5, (jobStatus?.progress || 0) * 100)}%` }}
-            />
-          </div>
-
-          {/* Activity Log Feed */}
-          {jobStatus?.logs && jobStatus.logs.length > 0 && (
-            <div className="max-h-24 overflow-y-auto space-y-1 pt-2 border-t border-white/5 text-[11px] font-mono text-slate-400">
-              {jobStatus.logs.slice(-3).map((log, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <span className="text-slate-500">[{log.time}]</span>
-                  <span className="text-slate-300">{log.msg}</span>
-                </div>
-              ))}
-            </div>
+        {/* Big Action Render Button */}
+        <button
+          onClick={handleStartRender}
+          disabled={rendering}
+          className={`w-full py-4 px-5 rounded-2xl font-extrabold text-sm sm:text-base flex items-center justify-center gap-3 transition-all duration-200 shadow-2xl cursor-pointer ${
+            rendering
+              ? 'bg-slate-800 text-slate-400 cursor-not-allowed border border-white/5'
+              : 'bg-gradient-to-r from-[#FE2C55] via-[#FF0050] to-[#25F4EE] text-white hover:opacity-95 active:scale-[0.99] animate-pulse-glow'
+          }`}
+        >
+          {rendering ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin text-[#25F4EE]" />
+              <span>กำลังตัดต่อวิดีโออัตโนมัติ... ({progressPercent}%)</span>
+            </>
+          ) : (
+            <>
+              <Rocket className="w-5 h-5 text-white" />
+              <span>🎬 เริ่มตัดต่อวิดีโอ 1-Click (Start Auto-Cut)</span>
+            </>
           )}
-        </div>
-      )}
+        </button>
 
-      {/* Error Notice */}
-      {renderError && (
-        <div className="mt-4 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-center gap-2.5 animate-fadeIn">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          <span>{renderError}</span>
-        </div>
-      )}
-
-      {/* Render Result Victory Box */}
-      {renderResult && (
-        <div className="mt-6 p-5 rounded-2xl bg-gradient-to-b from-[#212838] to-[#161B26] border border-[#25F4EE]/40 shadow-2xl space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5 text-sm font-bold text-[#25F4EE]">
-              <CheckCircle2 className="w-5 h-5" />
-              🎉 ผลงานวิดีโอตัดต่อเสร็จสมบูรณ์ 100%!
+        {/* Live Rendering Progress Box */}
+        {rendering && (
+          <div className="p-4 rounded-xl bg-black/60 border border-[#25F4EE]/30 space-y-3 animate-fadeIn">
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2 text-white font-bold">
+                <Loader2 className="w-4 h-4 text-[#25F4EE] animate-spin" />
+                <span>{jobStatus?.message || 'กำลังประมวลผล...'}</span>
+              </div>
+              <span className="font-mono text-[#25F4EE] font-extrabold">{progressPercent}%</span>
             </div>
-            <button
-              onClick={handleOpenExportsFolder}
-              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer border border-white/10"
-            >
-              <Folder className="w-3.5 h-3.5 text-[#25F4EE]" />
-              เปิดโฟลเดอร์ Exports
-            </button>
-          </div>
 
-          {renderResult.mp4_url && (
-            <div className="space-y-3">
-              <div className="rounded-xl overflow-hidden bg-black border border-white/10 max-h-[380px] flex items-center justify-center">
+            <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] transition-all duration-300"
+                style={{ width: `${Math.max(5, progressPercent)}%` }}
+              />
+            </div>
+
+            {/* 4-Stage Progress Tracker Chips */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-1 text-[10px] font-mono">
+              <div className={`p-1.5 rounded-lg border text-center ${progressPercent >= 15 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-white/[0.02] border-white/[0.04] text-slate-500'}`}>
+                1. สคริปต์
+              </div>
+              <div className={`p-1.5 rounded-lg border text-center ${progressPercent >= 40 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-white/[0.02] border-white/[0.04] text-slate-500'}`}>
+                2. เสียง AI
+              </div>
+              <div className={`p-1.5 rounded-lg border text-center ${progressPercent >= 70 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-white/[0.02] border-white/[0.04] text-slate-500'}`}>
+                3. Vision Match
+              </div>
+              <div className={`p-1.5 rounded-lg border text-center ${progressPercent >= 95 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-white/[0.02] border-white/[0.04] text-slate-500'}`}>
+                4. เรนเดอร์ซับ
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Render Error */}
+        {renderError && (
+          <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs flex items-center gap-2 animate-fadeIn">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>{renderError}</span>
+          </div>
+        )}
+
+        {/* Finished Video Player & Actions */}
+        {renderResult && (
+          <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-3.5 animate-fadeIn">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-emerald-300 font-bold text-xs">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>ตัดต่อสำเร็จเรียบร้อยแล้ว! (Video Ready)</span>
+              </div>
+              <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-full">
+                1080x1920 9:16
+              </span>
+            </div>
+
+            {/* Video Player Preview */}
+            {renderResult.video_url && (
+              <div className="aspect-[9/16] max-h-[300px] w-full max-w-[200px] mx-auto rounded-xl overflow-hidden bg-black border border-white/10 shadow-2xl">
                 <video
+                  src={`${renderResult.video_url}?t=${Date.now()}`}
                   controls
                   autoPlay
                   playsInline
-                  src={renderResult.mp4_url}
-                  className="w-full max-h-[380px] object-contain"
+                  className="w-full h-full object-cover"
                 />
               </div>
+            )}
 
-              <div className="flex flex-wrap gap-2.5">
-                <a
-                  href={renderResult.mp4_url}
-                  download
-                  className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:opacity-90 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#FE2C55]/30 transition-all cursor-pointer"
-                >
-                  <Download className="w-4 h-4" />
-                  ดาวน์โหลดไฟล์ .MP4 พร้อมโพสต์
-                </a>
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+              <button
+                onClick={handleOpenExportsFolder}
+                className="py-2.5 px-3 rounded-xl bg-[#1E293B] hover:bg-[#334155] text-white text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md"
+              >
+                <Folder className="w-3.5 h-3.5 text-[#25F4EE]" />
+                <span>เปิดโฟลเดอร์ไฟล์ Export</span>
+              </button>
+
+              <button
+                onClick={onGoToGallery}
+                className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:opacity-90 text-slate-950 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md"
+              >
+                <Film className="w-3.5 h-3.5" />
+                <span>ดูใน Export Gallery</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
             </div>
-          )}
-        </div>
-      )}
-    </div>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }

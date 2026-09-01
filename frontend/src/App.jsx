@@ -1,23 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import Header from './components/Header';
+import Sidebar from './components/Sidebar';
+import Topbar from './components/Topbar';
 import PresetsBar from './components/PresetsBar';
 import StudioStep1Media from './components/StudioStep1Media';
 import StudioStep2Script from './components/StudioStep2Script';
 import StudioStep3Audio from './components/StudioStep3Audio';
 import StudioStep4Render from './components/StudioStep4Render';
+import ManualEditor from './components/ManualEditor';
 import ExportGallery from './components/ExportGallery';
 import ScriptLab from './components/ScriptLab';
 import SystemAssets from './components/SystemAssets';
 import ProductToClip from './components/ProductToClip';
-import { getSystemStatus, getRawVideos, getExports } from './api';
+import ContentTrackerHub from './components/ContentTrackerHub';
+import { getSystemStatus, getRawVideos, getExports, updateAngleStatus } from './api';
 
 export default function App() {
-  // The 4-step product -> clip flow is the main path: it is the only tab that
-  // goes from a product link all the way to a posted clip.
   const [activeTab, setActiveTab] = useState('flow');
   const [status, setStatus] = useState(null);
   const [videos, setVideos] = useState([]);
   const [exportsList, setExportsList] = useState([]);
+
+  // Active Product Context (from Menu 1 & Menu 2)
+  const [activeProductContext, setActiveProductContext] = useState(null);
+  const [selectedAngleIndex, setSelectedAngleIndex] = useState(0);
+  const [activeAngleContext, setActiveAngleContext] = useState(null);
 
   // Studio Form State
   const [selectedVideo, setSelectedVideo] = useState('');
@@ -39,6 +45,9 @@ export default function App() {
   const [fontName, setFontName] = useState('IBMPlex');
   const [bilingualSubtitles, setBilingualSubtitles] = useState(true);
   const [stickerBadge, setStickerBadge] = useState('badge_flash_sale_3d.png');
+  // null = backend default (SFXManager's channel-wide signature BGM / no LUT grade)
+  const [bgmName, setBgmName] = useState(null);
+  const [lutName, setLutName] = useState(null);
 
   const refreshData = async () => {
     try {
@@ -69,6 +78,25 @@ export default function App() {
     setPainPoint(data.painPoint);
     setPriceDeal(data.priceDeal);
     setKeyFeatures(data.keyFeatures);
+    setUseCustomScript(false);
+  };
+
+  const handleSelectAngle = (index) => {
+    if (!activeProductContext || !activeProductContext.angles || !activeProductContext.angles[index]) return;
+    setSelectedAngleIndex(index);
+    const angle = activeProductContext.angles[index];
+    const scriptText = Array.isArray(angle.script_lines)
+      ? angle.script_lines.join('\n')
+      : (angle.script_text || '');
+
+    setProductName(angle.product_name || activeProductContext.title || 'สินค้า');
+    setHookTitle(angle.hook_title || '');
+    setCustomScript(scriptText);
+    setUseCustomScript(true);
+    setKeyFeatures(angle.key_features || activeProductContext.description || '');
+    setPainPoint(angle.pain_point || '');
+    setPriceDeal(angle.price_deal || activeProductContext.price_note || '');
+    if (angle.ad_tone) setAdTone(angle.ad_tone);
   };
 
   const handleVideoUploaded = (newFile) => {
@@ -88,140 +116,217 @@ export default function App() {
     });
   };
 
-  const handleRenderSuccess = (result) => {
+  const handleApplyScriptFromLab = (data) => {
+    if (data.productId && data.angleId) {
+      setActiveAngleContext({ productId: data.productId, angleId: data.angleId });
+    }
+    if (data.fullProduct) {
+      setActiveProductContext(data.fullProduct);
+      setSelectedAngleIndex(data.angleIndex || 0);
+    } else {
+      setActiveProductContext({
+        id: data.productId || 'custom',
+        title: data.productName || 'สินค้า',
+        name: data.productName || 'สินค้า',
+        description: data.keyFeatures || '',
+        price_note: data.priceDeal || '',
+        images: data.selectedVideo ? [{ rel_path: data.selectedVideo, name: 'media' }] : []
+      });
+    }
+    if (data.productName) setProductName(data.productName);
+    if (data.hookTitle) setHookTitle(data.hookTitle);
+    if (data.customScript) {
+      setCustomScript(data.customScript);
+      setUseCustomScript(true);
+    }
+    if (data.keyFeatures) setKeyFeatures(data.keyFeatures);
+    if (data.painPoint) setPainPoint(data.painPoint);
+    if (data.priceDeal) setPriceDeal(data.priceDeal);
+    if (data.adTone) setAdTone(data.adTone);
+
+    if (data.selectedVideo) {
+      setSelectedVideo(data.selectedVideo);
+    } else {
+      // Intelligently select video matching product name if available, else don't force unrelated video
+      const pNameLow = (data.productName || '').toLowerCase();
+      const match = videos.find(v => {
+        const vName = v.name.toLowerCase();
+        return (pNameLow.includes('logitech') && vName.includes('logitech')) ||
+               (pNameLow.includes('esseger') && vName.includes('esseger')) ||
+               (pNameLow.includes('cable') && vName.includes('cable')) ||
+               (pNameLow.includes('keyboard') && vName.includes('keyboard'));
+      });
+      if (match) {
+        setSelectedVideo(match.path);
+      } else {
+        // If no matching video, keep empty or select none so user is prompted to upload or use product images
+        setSelectedVideo('');
+      }
+    }
+    setActiveTab('studio');
+  };
+
+  const handleRenderSuccess = async (result) => {
+    if (activeAngleContext && activeAngleContext.productId && activeAngleContext.angleId) {
+      try {
+        const videoRelPath = result.final_video_path || result.video_path || result.output_path || result.project_name || '';
+        await updateAngleStatus(activeAngleContext.productId, activeAngleContext.angleId, 'rendered', videoRelPath);
+      } catch (err) {
+        console.error('Failed to auto-update angle status on render:', err);
+      }
+    }
     refreshData();
   };
 
   return (
-    <div className="w-full max-w-[1920px] 2xl:max-w-none mx-auto px-3 sm:px-6 lg:px-8 xl:px-10 py-4 sm:py-6 font-prompt min-h-screen flex flex-col justify-between">
-      <div>
-        {/* Top Header & Navigation */}
-        <Header
-          status={status}
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-        />
+    <div className="flex h-screen overflow-hidden font-prompt bg-[#07090E]">
+      {/* ── Sidebar (desktop: left, mobile: bottom) ── */}
+      <Sidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        status={status}
+      />
 
-        {/* TAB 1: PRODUCT -> CLIP (product link, angle, script, render, publish) */}
-        {activeTab === 'flow' && (
-          <ProductToClip
-            status={status}
-            videos={videos}
-            onRefresh={refreshData}
-          />
-        )}
+      {/* ── Main Area ── */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* ── Topbar ── */}
+        <Topbar activeTab={activeTab} setActiveTab={setActiveTab} status={status} />
 
-        {/* TAB 2: STUDIO CREATOR (1-CLICK) */}
-        {activeTab === 'studio' && (
-          <main className="space-y-6">
-            {/* Quick Presets */}
-            <PresetsBar onSelectPreset={handleSelectPreset} />
+        {/* ── Content ── */}
+        <main className="flex-1 overflow-y-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-5 pb-20 md:pb-6">
+          <div className="max-w-[1600px] mx-auto animate-fadeIn space-y-4">
 
-            {/* 2-Column Responsive Layout (Stacks on mobile/tablet, side-by-side on desktop) */}
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
-              {/* Left Column: STEP 1 (Media) & STEP 2 (Script) */}
-              <div className="space-y-6">
-                <StudioStep1Media
-                  videos={videos}
-                  selectedVideo={selectedVideo}
-                  setSelectedVideo={setSelectedVideo}
-                  onVideoUploaded={handleVideoUploaded}
-                  onVideoDeleted={handleVideoDeleted}
+            {/* SECTION: สินค้า → คลิป (Menu 1) */}
+            {activeTab === 'flow' && (
+              <ProductToClip
+                status={status}
+                videos={videos}
+                onRefresh={refreshData}
+                onApplyToStudio={handleApplyScriptFromLab}
+              />
+            )}
+
+            {/* SECTION: คลังสินค้า & Tracker (Menu 2) */}
+            {activeTab === 'tracker' && (
+              <ContentTrackerHub
+                onApplyToStudio={handleApplyScriptFromLab}
+                onRefresh={refreshData}
+              />
+            )}
+
+            {/* SECTION: 1-Click Studio (Menu 3) */}
+            {activeTab === 'studio' && (
+              <div className="space-y-4">
+                {/* Active Product Angle Switcher / Presets Bar */}
+                <PresetsBar
+                  activeProductContext={activeProductContext}
+                  selectedAngleIndex={selectedAngleIndex}
+                  onSelectAngle={handleSelectAngle}
+                  onSelectPreset={handleSelectPreset}
+                  onGoToProductFlow={() => setActiveTab('flow')}
+                  onClearProductContext={() => setActiveProductContext(null)}
                 />
 
-                <StudioStep2Script
-                  productName={productName}
-                  setProductName={setProductName}
-                  hookTitle={hookTitle}
-                  setHookTitle={setHookTitle}
-                  painPoint={painPoint}
-                  setPainPoint={setPainPoint}
-                  priceDeal={priceDeal}
-                  setPriceDeal={setPriceDeal}
-                  keyFeatures={keyFeatures}
-                  setKeyFeatures={setKeyFeatures}
-                  customScript={customScript}
-                  setCustomScript={setCustomScript}
-                  useCustomScript={useCustomScript}
-                  setUseCustomScript={setUseCustomScript}
-                />
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 items-start">
+                  {/* Left Column: Stage 1 (Media) + Stage 2 (Script) */}
+                  <div className="space-y-4 sm:space-y-5">
+                    <StudioStep1Media
+                      videos={videos}
+                      selectedVideo={selectedVideo}
+                      setSelectedVideo={setSelectedVideo}
+                      productName={productName}
+                      activeProductContext={activeProductContext}
+                      onVideoUploaded={handleVideoUploaded}
+                      onVideoDeleted={handleVideoDeleted}
+                    />
+                    <StudioStep2Script
+                      productName={productName}
+                      setProductName={setProductName}
+                      hookTitle={hookTitle}
+                      setHookTitle={setHookTitle}
+                      painPoint={painPoint}
+                      setPainPoint={setPainPoint}
+                      priceDeal={priceDeal}
+                      setPriceDeal={setPriceDeal}
+                      keyFeatures={keyFeatures}
+                      setKeyFeatures={setKeyFeatures}
+                      customScript={customScript}
+                      setCustomScript={setCustomScript}
+                      useCustomScript={useCustomScript}
+                      setUseCustomScript={setUseCustomScript}
+                    />
+                  </div>
+
+                  {/* Right Column: Stage 3 (Audio/Style) + Stage 4 (Render) */}
+                  <div className="space-y-4 sm:space-y-5">
+                    <StudioStep3Audio
+                      voiceMode={voiceMode}
+                      setVoiceMode={setVoiceMode}
+                      voiceGender={voiceGender}
+                      setVoiceGender={setVoiceGender}
+                      voiceSpeed={voiceSpeed}
+                      setVoiceSpeed={setVoiceSpeed}
+                      voicePreset={voicePreset}
+                      setVoicePreset={setVoicePreset}
+                      adTone={adTone}
+                      setAdTone={setAdTone}
+                      humanVoiceAudio={humanVoiceAudio}
+                      setHumanVoiceAudio={setHumanVoiceAudio}
+                      productName={productName}
+                      fontName={fontName}
+                      setFontName={setFontName}
+                      bilingualSubtitles={bilingualSubtitles}
+                      setBilingualSubtitles={setBilingualSubtitles}
+                      stickerBadge={stickerBadge}
+                      setStickerBadge={setStickerBadge}
+                      bgmName={bgmName}
+                      setBgmName={setBgmName}
+                      lutName={lutName}
+                      setLutName={setLutName}
+                    />
+                    <StudioStep4Render
+                      productName={productName}
+                      selectedVideo={selectedVideo}
+                      keyFeatures={keyFeatures}
+                      painPoint={painPoint}
+                      priceDeal={priceDeal}
+                      hookTitle={hookTitle}
+                      customScript={customScript}
+                      useCustomScript={useCustomScript}
+                      voiceMode={voiceMode}
+                      voiceGender={voiceGender}
+                      voiceSpeed={voiceSpeed}
+                      voicePreset={voicePreset}
+                      adTone={adTone}
+                      humanVoiceAudio={humanVoiceAudio}
+                      fontName={fontName}
+                      bilingualSubtitles={bilingualSubtitles}
+                      stickerBadge={stickerBadge}
+                      bgmName={bgmName}
+                      lutName={lutName}
+                      onRenderSuccess={handleRenderSuccess}
+                      onGoToGallery={() => setActiveTab('gallery')}
+                    />
+                  </div>
+                </div>
               </div>
+            )}
 
-              {/* Right Column: STEP 3 (Audio) & STEP 4 (Render) */}
-              <div className="space-y-6">
-                <StudioStep3Audio
-                  voiceMode={voiceMode}
-                  setVoiceMode={setVoiceMode}
-                  voiceGender={voiceGender}
-                  setVoiceGender={setVoiceGender}
-                  voiceSpeed={voiceSpeed}
-                  setVoiceSpeed={setVoiceSpeed}
-                  voicePreset={voicePreset}
-                  setVoicePreset={setVoicePreset}
-                  adTone={adTone}
-                  setAdTone={setAdTone}
-                  humanVoiceAudio={humanVoiceAudio}
-                  setHumanVoiceAudio={setHumanVoiceAudio}
-                  productName={productName}
-                  fontName={fontName}
-                  setFontName={setFontName}
-                  bilingualSubtitles={bilingualSubtitles}
-                  setBilingualSubtitles={setBilingualSubtitles}
-                  stickerBadge={stickerBadge}
-                  setStickerBadge={setStickerBadge}
-                />
+            {/* SECTION: Export Gallery (Menu 4) */}
+            {activeTab === 'gallery' && (
+              <ExportGallery
+                exportsList={exportsList}
+                onRefresh={refreshData}
+              />
+            )}
 
-                <StudioStep4Render
-                  productName={productName}
-                  selectedVideo={selectedVideo}
-                  keyFeatures={keyFeatures}
-                  painPoint={painPoint}
-                  priceDeal={priceDeal}
-                  hookTitle={hookTitle}
-                  customScript={customScript}
-                  useCustomScript={useCustomScript}
-                  voiceMode={voiceMode}
-                  voiceGender={voiceGender}
-                  voiceSpeed={voiceSpeed}
-                  voicePreset={voicePreset}
-                  adTone={adTone}
-                  humanVoiceAudio={humanVoiceAudio}
-                  fontName={fontName}
-                  bilingualSubtitles={bilingualSubtitles}
-                  stickerBadge={stickerBadge}
-                  onRenderSuccess={handleRenderSuccess}
-                />
-              </div>
-            </div>
-          </main>
-        )}
-
-        {/* TAB 2: EXPORT GALLERY */}
-        {activeTab === 'gallery' && (
-          <ExportGallery
-            exportsList={exportsList}
-            onRefresh={refreshData}
-          />
-        )}
-
-        {/* TAB 3: AI SCRIPT LAB */}
-        {activeTab === 'script_lab' && (
-          <ScriptLab />
-        )}
-
-        {/* TAB 4: SYSTEM & ASSETS */}
-        {activeTab === 'assets' && (
-          <SystemAssets status={status} />
-        )}
+            {/* SECTION: System & Assets (Menu 5) */}
+            {activeTab === 'assets' && (
+              <SystemAssets status={status} />
+            )}
+          </div>
+        </main>
       </div>
-
-      {/* Footer */}
-      <footer className="mt-12 text-center text-xs text-slate-500 pb-6 border-t border-white/5 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2">
-        <span>⚡ TikTok Auto-Cutter Pro Studio • CapCut Engine Sync</span>
-        <span className="font-mono text-[11px] text-slate-600">
-          Full-Screen & Wireless Mobile Sync Active • LAN IP: {status?.local_ip || '127.0.0.1'}
-        </span>
-      </footer>
     </div>
   );
 }
