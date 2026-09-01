@@ -634,3 +634,85 @@ def test_angles_endpoint_serves_the_catalog(client):
 
 def test_product_fetch_rejects_a_non_url(client):
     assert client.post("/api/product/fetch", json={"url": "หูฟังบลูทูธ"}).status_code == 400
+
+
+# ----------------------------------------------------------------------
+# VideoEditor.assemble_tiktok_video -- clip_list (Manual Editor) path
+#
+# get_media_info() hits ffprobe via subprocess.run; mocking subprocess.run
+# generically makes its json.loads(res.stdout) fail on the MagicMock, which
+# get_media_info already catches and turns into its documented fallback
+# dict -- no separate mock needed for it.
+# ----------------------------------------------------------------------
+def _capture_ffmpeg_cmd(monkeypatch, tmp_path, **assemble_kwargs):
+    from unittest.mock import patch, MagicMock
+    from scripts.video_editor import VideoEditor
+
+    captured = {}
+
+    def fake_run(cmd, **kwargs):
+        captured["cmd"] = cmd
+        return MagicMock(returncode=0, stderr="")
+
+    with patch("scripts.video_editor.subprocess.run", side_effect=fake_run):
+        VideoEditor.assemble_tiktok_video(
+            total_duration=5.0,
+            mixed_audio_path=str(tmp_path / "mix.wav"),
+            ass_subtitle_path=str(tmp_path / "subs.ass"),
+            output_mp4_path=str(tmp_path / "out.mp4"),
+            **assemble_kwargs,
+        )
+    return captured["cmd"]
+
+
+def test_assemble_video_without_clip_list_keeps_legacy_single_source_shape(monkeypatch, tmp_path):
+    cmd = _capture_ffmpeg_cmd(monkeypatch, tmp_path, raw_video_paths=[str(tmp_path / "raw.mp4")])
+
+    assert cmd.count("-i") == 2, "legacy path: exactly 1 video input + 1 audio input"
+    assert "1:a" in cmd, "audio is still input index 1 for a single-source render"
+    filter_arg = cmd[cmd.index("-filter_complex") + 1]
+    assert "[base_v]" in filter_arg, "legacy path re-crops shots from one shared base stream"
+    assert "shot_0" in filter_arg
+
+
+def test_assemble_video_rejects_empty_raw_paths_without_clip_list(tmp_path):
+    from scripts.video_editor import VideoEditor
+
+    with pytest.raises(ValueError):
+        VideoEditor.assemble_tiktok_video(
+            raw_video_paths=[],
+            total_duration=5.0,
+            mixed_audio_path=str(tmp_path / "mix.wav"),
+            ass_subtitle_path=str(tmp_path / "subs.ass"),
+            output_mp4_path=str(tmp_path / "out.mp4"),
+        )
+
+
+def test_assemble_video_with_clip_list_opens_one_input_per_clip(monkeypatch, tmp_path):
+    clip_list = [
+        {"source_path": str(tmp_path / "a.mp4"), "trim_start": 0.0, "trim_end": 3.0},
+        {"source_path": str(tmp_path / "b.mp4"), "trim_start": 1.5, "trim_end": 4.0},
+        {"source_path": str(tmp_path / "c.mp4")},  # trim_end omitted -> falls back to full duration
+    ]
+    cmd = _capture_ffmpeg_cmd(monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list)
+
+    assert cmd.count("-i") == 4, "3 clip inputs + 1 audio input"
+    assert "3:a" in cmd, "audio input index must shift to N (3 video inputs), not stay hardcoded at 1"
+    filter_arg = cmd[cmd.index("-filter_complex") + 1]
+    assert "[0:v]" in filter_arg and "[1:v]" in filter_arg and "[2:v]" in filter_arg, \
+        "each clip must read from its own ffmpeg input, not all from input 0"
+    assert "clip_0" in filter_arg and "clip_1" in filter_arg and "clip_2" in filter_arg
+    assert "[base_v]" not in filter_arg, "clip_list path must not use the single-source base stream"
+    assert "concat=n=3" in filter_arg
+
+
+def test_assemble_video_empty_clip_list_falls_back_to_legacy_path(monkeypatch, tmp_path):
+    # `[]` is falsy like `None` -- it must fall through to the single-source
+    # path (using raw_video_paths), not be treated as "0 clips to concat".
+    cmd = _capture_ffmpeg_cmd(
+        monkeypatch, tmp_path,
+        raw_video_paths=[str(tmp_path / "raw.mp4")],
+        clip_list=[],
+    )
+    assert cmd.count("-i") == 2
+    assert "1:a" in cmd
