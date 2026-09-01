@@ -836,26 +836,25 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
       )}
 
       {/* ══════════════════════════════════════════════════════════
-          4. CLEAN HIGH-DENSITY TABLE / LIST VIEW
+          4. CLEAN HIGH-DENSITY REAL TABLE VIEW
          ══════════════════════════════════════════════════════════ */}
       {viewMode === 'table' && (
-        <div className="glass-card rounded-3xl border border-white/[0.08] overflow-hidden bg-[#070A12]">
-          {/* Desktop Table View (>= md) */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse min-w-[720px]">
+        <div className="glass-card rounded-3xl border border-white/[0.08] overflow-hidden bg-[#070A12] shadow-xl">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse min-w-[660px]">
               <thead>
-                <tr className="border-b border-white/[0.08] bg-black/60 text-slate-400 font-bold text-[11px]">
-                  <th className="py-2.5 px-3">วิดีโอ</th>
-                  <th className="py-2.5 px-3">สินค้า & มุมขาย (Hook Title)</th>
-                  <th className="py-2.5 px-3">สถานะขั้นตอน</th>
-                  <th className="py-2.5 px-3">แคปชัน TikTok</th>
-                  <th className="py-2.5 px-3 text-right">ปุ่มลัด</th>
+                <tr className="border-b border-white/[0.08] bg-black/70 text-slate-400 font-bold text-[11px]">
+                  <th className="py-3 px-3 w-16 text-center">วิดีโอ</th>
+                  <th className="py-3 px-3 min-w-[200px]">สินค้า & มุมขาย (Hook Title)</th>
+                  <th className="py-3 px-3 w-36">สถานะขั้นตอน</th>
+                  <th className="py-3 px-3 w-48">แคปชัน TikTok</th>
+                  <th className="py-3 px-3 text-right w-28">ปุ่มลัด</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredAngles.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-12 text-center text-slate-500">
+                    <td colSpan={5} className="py-16 text-center text-xs text-slate-500">
                       ไม่พบข้อมูลคลิปตามเงื่อนไขที่ค้นหา
                     </td>
                   </tr>
@@ -875,101 +874,6 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                 )}
               </tbody>
             </table>
-          </div>
-
-          {/* Mobile List View (< md) - High Density Stack Cards */}
-          <div className="md:hidden p-3 space-y-2.5">
-            {filteredAngles.length === 0 ? (
-              <div className="py-12 text-center text-xs text-slate-500">
-                ไม่พบข้อมูลคลิปตามเงื่อนไขที่ค้นหา
-              </div>
-            ) : (
-              filteredAngles.map((ang, idx) => {
-                const currentPhase = PIPELINE_PHASES.find(p => p.id === ang.status) || PIPELINE_PHASES[0];
-                const captionText = `${ang.tiktok_caption || ''}\n\n${ang.tiktok_hashtags || ''}`.trim();
-
-                return (
-                  <div
-                    key={`${ang.parentProduct?.id}_${ang.angle_id || idx}`}
-                    className="p-3 rounded-2xl bg-[#0B0F19] border border-white/[0.08] space-y-2.5 shadow-sm"
-                  >
-                    {/* Media Thumbnail + Title + Badge */}
-                    <div className="flex items-start gap-2.5">
-                      {ang.video_url ? (
-                        <button
-                          onClick={() => setPreviewVideoUrl(ang.video_url)}
-                          className="w-12 h-16 rounded-xl overflow-hidden bg-black relative border border-white/[0.1] hover:border-[#25F4EE] flex-shrink-0 group cursor-pointer"
-                        >
-                          <video src={`/api/media/${ang.video_url}`} className="w-full h-full object-cover" muted />
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                            <Play className="w-3.5 h-3.5 fill-current text-[#25F4EE]" />
-                          </div>
-                        </button>
-                      ) : (
-                        <div className="w-12 h-16 rounded-xl bg-black/40 border border-white/[0.06] flex items-center justify-center text-[10px] text-slate-600 font-mono flex-shrink-0">
-                          No Vid
-                        </div>
-                      )}
-
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <div className="flex items-center justify-between gap-1.5">
-                          <span className="font-bold text-white text-xs font-kanit truncate" title={ang.parentProduct?.name}>
-                            {ang.parentProduct?.name}
-                          </span>
-                          {ang.badge && (
-                            <span className="flex-shrink-0 whitespace-nowrap">
-                              <Badge variant="cyan" size="sm">{ang.badge}</Badge>
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-cyan-200 font-bold line-clamp-2 leading-snug">{ang.hook_title}</p>
-                      </div>
-                    </div>
-
-                    {/* Status Select + Direct Action Buttons */}
-                    <div className="flex items-center gap-2 pt-1 border-t border-white/[0.06]">
-                      <select
-                        value={ang.status}
-                        onChange={(e) => handleAngleStatusChange(ang.parentProduct.id, ang.angle_id, e.target.value)}
-                        className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold border focus:outline-none cursor-pointer ${currentPhase.color}`}
-                      >
-                        {PIPELINE_PHASES.map((p) => (
-                          <option key={p.id} value={p.id} className="bg-[#080B11] text-white">
-                            {p.label}
-                          </option>
-                        ))}
-                      </select>
-
-                      <button
-                        onClick={() => handleSendToStudio(ang.parentProduct, ang)}
-                        className="py-1.5 px-3 rounded-xl bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 active:bg-[#25F4EE]/30 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center gap-1 cursor-pointer flex-shrink-0"
-                      >
-                        <Clapperboard className="w-3.5 h-3.5" />
-                        <span>Studio</span>
-                      </button>
-
-                      <button
-                        onClick={() => setQrModalItem(ang)}
-                        className="p-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] active:bg-white/[0.15] border border-white/[0.08] text-slate-300 cursor-pointer flex-shrink-0"
-                        title="สแกน QR Code เข้ามือถือ"
-                      >
-                        <QrCode className="w-4 h-4" />
-                      </button>
-
-                      {captionText && (
-                        <button
-                          onClick={() => handleCopyCaption(captionText, ang.angle_id)}
-                          className="p-1.5 rounded-xl bg-black/40 hover:bg-black/60 border border-white/[0.06] text-slate-300 hover:text-white cursor-pointer flex-shrink-0"
-                          title="คัดลอกแคปชัน"
-                        >
-                          {copiedAngleId === ang.angle_id ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            )}
           </div>
         </div>
       )}
