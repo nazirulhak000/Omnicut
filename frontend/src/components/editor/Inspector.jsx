@@ -572,6 +572,61 @@ export default function Inspector({
                 {selectedSeg.clip.mirror ? '✓ กลับด้านซ้าย-ขวาอยู่' : 'กลับด้านซ้าย-ขวา (Mirror)'}
               </button>
 
+              {/* Framing. Mirrors frame_geometry() in video_editor.py: zoom
+                  1-3x, pan -1..1 across whatever room the zoom leaves. */}
+              {(() => {
+                const zoom = selectedSeg.clip.zoom ?? 1;
+                const panning = zoom > 1.001;
+                const FIELDS = [
+                  { key: 'pan_x', label: 'เลื่อนซ้าย-ขวา' },
+                  { key: 'pan_y', label: 'เลื่อนขึ้น-ลง' },
+                ];
+                return (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-slate-400">กรอบภาพ</span>
+                      <button
+                        type="button"
+                        disabled={zoom === 1 && !selectedSeg.clip.pan_x && !selectedSeg.clip.pan_y}
+                        onClick={() => onClipChange?.({ zoom: undefined, pan_x: undefined, pan_y: undefined })}
+                        className="text-[10px] text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        รีเซ็ต
+                      </button>
+                    </div>
+                    <label className="block">
+                      <span className="mb-0.5 flex justify-between text-[10px] text-slate-400">
+                        <span>ซูม</span>
+                        <span className="font-mono text-slate-300">{zoom.toFixed(2)}x</span>
+                      </span>
+                      <input
+                        type="range" min={1} max={3} step={0.05} value={zoom}
+                        onChange={(e) => onClipChange?.({ zoom: parseFloat(e.target.value) })}
+                        className="w-full accent-[#D97757]"
+                      />
+                    </label>
+                    {FIELDS.map((f) => (
+                      <label key={f.key} className={`block ${panning ? '' : 'opacity-40'}`}>
+                        <span className="mb-0.5 flex justify-between text-[10px] text-slate-400">
+                          <span>{f.label}</span>
+                          <span className="font-mono text-slate-300">{(selectedSeg.clip[f.key] ?? 0).toFixed(2)}</span>
+                        </span>
+                        <input
+                          type="range" min={-1} max={1} step={0.05}
+                          value={selectedSeg.clip[f.key] ?? 0}
+                          disabled={!panning}
+                          onChange={(e) => onClipChange?.({ [f.key]: parseFloat(e.target.value) })}
+                          className="w-full accent-[#D97757] disabled:cursor-not-allowed"
+                        />
+                      </label>
+                    ))}
+                    {!panning && (
+                      <p className="text-[9px] text-slate-500">ซูมเกิน 1x ก่อนถึงจะเลื่อนกรอบได้</p>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* Per-clip colour. Ranges mirror EQ_LIMITS in video_editor.py. */}
               {(() => {
                 const COLOR_FIELDS = [
@@ -711,7 +766,10 @@ export default function Inspector({
             {gap > 0.5 && (
               <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-400" />
-                <p>วิดีโอสั้นกว่าเสียงพากย์ {gap.toFixed(1)} วิ — แนะนำเพิ่มคลิปหรือลดความเร็วคลิป</p>
+                <p>
+                  วิดีโอสั้นกว่าเสียงพากย์ {gap.toFixed(1)} วิ — ช่วงท้ายจะค้างภาพเฟรมสุดท้ายไว้จนเสียงจบ
+                  เพิ่มคลิปหรือลดความเร็วถ้าไม่อยากให้ภาพนิ่ง
+                </p>
               </div>
             )}
           </div>

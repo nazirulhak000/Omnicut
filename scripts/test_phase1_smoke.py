@@ -716,7 +716,7 @@ def _capture_ffmpeg_cmd(monkeypatch, tmp_path, **assemble_kwargs):
 
     with patch("scripts.video_editor.subprocess.run", side_effect=fake_run):
         VideoEditor.assemble_tiktok_video(
-            total_duration=5.0,
+            total_duration=assemble_kwargs.pop("total_duration", 5.0),
             mixed_audio_path=str(tmp_path / "mix.wav"),
             ass_subtitle_path=str(tmp_path / "subs.ass"),
             output_mp4_path=str(tmp_path / "out.mp4"),
@@ -877,6 +877,56 @@ def test_lut_intensity_below_full_blends_instead_of_grading_outright(monkeypatch
     half_filter = half[half.index("-filter_complex") + 1]
     assert "blend=all_mode=normal:all_opacity=0.4" in half_filter
     assert "split=2[lut_src][lut_in]" in half_filter
+
+
+def test_frame_geometry_clamps_zoom_and_keeps_the_crop_inside_the_frame():
+    from scripts.video_editor import frame_geometry
+    from scripts.config import VIDEO_WIDTH, VIDEO_HEIGHT
+
+    scale, cx, cy, w, h = frame_geometry({}, 1.08)
+    assert scale == 1.08, "no per-clip zoom keeps the alternating punch-zoom"
+
+    # pan hard to both extremes: ffmpeg errors on a crop starting outside the
+    # scaled image, so both ends must stay in range
+    for pan in (-1, 1, -5, 5):
+        scale, cx, cy, w, h = frame_geometry({"zoom": 2.0, "pan_x": pan, "pan_y": pan}, 1.08)
+        assert 0 <= cx <= w - VIDEO_WIDTH
+        assert 0 <= cy <= h - VIDEO_HEIGHT
+
+    assert frame_geometry({"zoom": 99}, 1.08)[0] == 3.0, "zoom clamped to ZOOM_LIMITS"
+    assert frame_geometry({"zoom": "junk"}, 1.08)[0] == 1.08, "garbage falls back"
+
+
+def test_freeze_tail_extends_the_clip_and_its_timeline_slot(monkeypatch, tmp_path):
+    clip_list = [
+        {"source_path": str(tmp_path / "a.mp4"), "trim_start": 0.0, "trim_end": 3.0, "freeze_tail": 1.5},
+        {"source_path": str(tmp_path / "b.mp4"), "trim_start": 0.0, "trim_end": 3.0},
+    ]
+    cmd = _capture_ffmpeg_cmd(
+        monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list,
+        transitions=[{"type": "fade", "duration": 0.4}], total_duration=99.0,
+    )
+    filter_arg = cmd[cmd.index("-filter_complex") + 1]
+    assert "tpad=stop_mode=clone:stop_duration=1.5" in filter_arg
+    # the frozen 1.5s has to count towards the clip's slot, or the xfade after
+    # it starts in the wrong place -- 3.0 + 1.5 - 0.4 = 4.1
+    assert "offset=4.1" in filter_arg
+
+
+def test_short_video_holds_its_last_frame_instead_of_ending_early(monkeypatch, tmp_path):
+    clip_list = [{"source_path": str(tmp_path / "a.mp4"), "trim_start": 0.0, "trim_end": 4.0}]
+
+    short = _capture_ffmpeg_cmd(
+        monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list, total_duration=12.0,
+    )
+    short_filter = short[short.index("-filter_complex") + 1]
+    assert "[v_filled]" in short_filter, "4s of clips under 12s of audio must be padded"
+
+    plenty = _capture_ffmpeg_cmd(
+        monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list, total_duration=3.0,
+    )
+    plenty_filter = plenty[plenty.index("-filter_complex") + 1]
+    assert "[v_filled]" not in plenty_filter, "video longer than the audio needs no padding"
 
 
 def test_normalize_transitions_shapes():

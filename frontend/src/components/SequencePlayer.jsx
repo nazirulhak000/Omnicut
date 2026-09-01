@@ -33,7 +33,7 @@ function clipFilter(clip) {
   return parts.length ? parts.join(' ') : 'none';
 }
 
-function drawVideoFrame(ctx, video) {
+function drawVideoFrame(ctx, video, clip) {
   if (!video || !video.videoWidth) return;
   const vw = video.videoWidth, vh = video.videoHeight;
   const vRatio = vw / vh, cRatio = CANVAS_W / CANVAS_H;
@@ -42,6 +42,19 @@ function drawVideoFrame(ctx, video) {
     sh = vh; sw = vh * cRatio; sy = 0; sx = (vw - sw) / 2;
   } else {
     sw = vw; sh = vw / cRatio; sx = 0; sy = (vh - sh) / 2;
+  }
+
+  // Zoom crops into that cover-fit rect; pan slides it across the room the
+  // zoom left, the same -1..1 mapping frame_geometry() uses in video_editor.py.
+  const zoom = Math.min(3, Math.max(1, clip?.zoom || 1));
+  if (zoom > 1.001) {
+    const zw = sw / zoom, zh = sh / zoom;
+    const roomX = sw - zw, roomY = sh - zh;
+    const panX = Math.min(1, Math.max(-1, clip?.pan_x || 0));
+    const panY = Math.min(1, Math.max(-1, clip?.pan_y || 0));
+    sx += (roomX / 2) * (1 + panX);
+    sy += (roomY / 2) * (1 + panY);
+    sw = zw; sh = zh;
   }
   ctx.drawImage(video, sx, sy, sw, sh, 0, 0, CANVAS_W, CANVAS_H);
 }
@@ -86,7 +99,7 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
   const [playhead, setPlayhead] = useState(0);
   const playheadRef = useRef(0);
 
-  const clipKey = clips.map(c => `${c.id}:${c.source_path}:${c.trim_start}:${c.trim_end}:${c.transition_in}:${c.transition_duration}:${c.brightness}:${c.contrast}:${c.saturation}`).join('|');
+  const clipKey = clips.map(c => `${c.id}:${c.source_path}:${c.trim_start}:${c.trim_end}:${c.transition_in}:${c.transition_duration}:${c.brightness}:${c.contrast}:${c.saturation}:${c.zoom}:${c.pan_x}:${c.pan_y}`).join('|');
 
   // Load real duration for every clip up front -- segment timing needs it
   // (a clip with trim_end === null trims to "the source's own end").
@@ -139,7 +152,7 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
       if (!video) return;
       ctx.globalAlpha = alpha;
       ctx.filter = clipFilter(seg.clip);
-      drawVideoFrame(ctx, video);
+      drawVideoFrame(ctx, video, seg.clip);
     });
     ctx.globalAlpha = 1;
     ctx.filter = 'none';
@@ -193,7 +206,7 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
           if (!video) return;
           ctx.globalAlpha = alpha;
           ctx.filter = clipFilter(seg.clip);
-          drawVideoFrame(ctx, video);
+          drawVideoFrame(ctx, video, seg.clip);
         });
         ctx.globalAlpha = 1;
         ctx.filter = 'none';

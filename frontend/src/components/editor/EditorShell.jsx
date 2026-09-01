@@ -592,13 +592,9 @@ export default function EditorShell({ videos = [] }) {
       || (style.bgmVolume ?? 0.12) !== (base.bgmVolume ?? 0.12)
       || !!style.bgmDucking !== !!base.bgmDucking;
 
-    const gap = (audioDuration || 0) - totalDuration;
-    if (gap > 0.5 && !confirmGap) {
-      setConfirmGap(gap);
-      setApplyError(null);
-      setTimeout(() => setConfirmGap(0), 8000);
-      return;
-    }
+    // The old two-click confirm here guarded a tail that came out with sound
+    // and no picture. The renderer holds the last frame across that gap now,
+    // so there is nothing left to confirm.
     setConfirmGap(0);
 
     setApplying(true);
@@ -707,8 +703,6 @@ export default function EditorShell({ videos = [] }) {
           >
             {applying ? (
               <><Loader2 className="h-3.5 w-3.5 animate-spin" /> <span>{progress}%</span></>
-            ) : confirmGap ? (
-              <><AlertTriangle className="h-3.5 w-3.5 text-amber-300" /> <span className="hidden sm:inline">กดอีกครั้งเรนเดอร์</span><span className="sm:hidden">ยืนยัน</span></>
             ) : (
               <><Rocket className="h-3.5 w-3.5" /> <span>เรนเดอร์</span></>
             )}

@@ -55,6 +55,40 @@ def build_eq_filter(clip: Dict[str, Any]) -> str:
     return f"eq={':'.join(parts)}," if parts else ""
 
 
+ZOOM_LIMITS = (1.0, 3.0)
+
+
+def frame_geometry(clip: Dict[str, Any], default_scale: float):
+    """
+    Scale + crop offsets for one clip. pan_x/pan_y run -1..1 across whatever
+    room the zoom leaves; the offsets are clamped to the frame because ffmpeg
+    errors out on a crop that starts outside the scaled image.
+    """
+    raw_zoom = clip.get("zoom")
+    try:
+        scale = default_scale if raw_zoom is None else float(raw_zoom)
+    except (TypeError, ValueError):
+        scale = default_scale
+    scale = min(ZOOM_LIMITS[1], max(ZOOM_LIMITS[0], scale))
+
+    scaled_w = int(VIDEO_WIDTH * scale)
+    scaled_h = int(VIDEO_HEIGHT * scale)
+    scaled_w = scaled_w if scaled_w % 2 == 0 else scaled_w + 1
+    scaled_h = scaled_h if scaled_h % 2 == 0 else scaled_h + 1
+
+    room_x = scaled_w - VIDEO_WIDTH
+    room_y = scaled_h - VIDEO_HEIGHT
+
+    def offset(room, key):
+        try:
+            pan = min(1.0, max(-1.0, float(clip.get(key) or 0.0)))
+        except (TypeError, ValueError):
+            pan = 0.0
+        return int(min(room, max(0, round(room / 2 * (1 + pan)))))
+
+    return scale, offset(room_x, "pan_x"), offset(room_y, "pan_y"), scaled_w, scaled_h
+
+
 def normalize_transitions(transitions: List[Any]) -> List[Dict[str, Any]]:
     """
     Accept both shapes a caller may send for one boundary:
@@ -200,6 +234,20 @@ class VideoEditor:
                 speed = float(clip.get("speed") or 1.0)
                 speed = min(4.0, max(0.25, speed))
                 duration = max(0.2, source_span / speed)
+
+                # Freeze tail: hold the clip's last frame for N more seconds.
+                # It has to be added to `duration` as well, or every xfade
+                # offset after this clip lands in the wrong place -- the same
+                # trap speed had.
+                try:
+                    freeze_tail = min(10.0, max(0.0, float(clip.get("freeze_tail") or 0.0)))
+                except (TypeError, ValueError):
+                    freeze_tail = 0.0
+                freeze_filter = (
+                    f"tpad=stop_mode=clone:stop_duration={freeze_tail},"
+                    if freeze_tail > 0.01 else ""
+                )
+                duration += freeze_tail
                 speed_filter = "" if abs(speed - 1.0) < 1e-3 else f"setpts=PTS/{speed},"
 
                 # Mirror is a plain horizontal flip, applied before the
@@ -211,18 +259,17 @@ class VideoEditor:
                 # (and its render time) stays exactly as it was.
                 eq_filter = build_eq_filter(clip)
 
-                scale = shot_scales[idx % len(shot_scales)]
-                scaled_w = int(VIDEO_WIDTH * scale)
-                scaled_h = int(VIDEO_HEIGHT * scale)
-                scaled_w = scaled_w if scaled_w % 2 == 0 else scaled_w + 1
-                scaled_h = scaled_h if scaled_h % 2 == 0 else scaled_h + 1
-                crop_x = int((scaled_w - VIDEO_WIDTH) / 2)
-                crop_y = int((scaled_h - VIDEO_HEIGHT) / 2)
+                # Framing: `zoom`/`pan_x`/`pan_y` on the clip win over the
+                # alternating punch-zoom pattern, which is what the 1-Click
+                # path relies on and the editor's user cannot see coming.
+                scale, crop_x, crop_y, scaled_w, scaled_h = frame_geometry(
+                    clip, shot_scales[idx % len(shot_scales)]
+                )
 
                 node_name = f"clip_{idx}"
                 filter_complex.append(
                     f"[{idx}:v]trim=start={trim_start}:duration={source_span},setpts=PTS-STARTPTS,"
-                    f"{speed_filter}{mirror_filter}{eq_filter}"
+                    f"{speed_filter}{mirror_filter}{eq_filter}{freeze_filter}"
                     f"scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,"
                     f"crop={VIDEO_WIDTH}:{VIDEO_HEIGHT},setsar=1,fps={FPS},"
                     f"scale={scaled_w}:{scaled_h}:flags=lanczos,crop={VIDEO_WIDTH}:{VIDEO_HEIGHT}:{crop_x}:{crop_y}[{node_name}];"
@@ -352,6 +399,20 @@ class VideoEditor:
             )
 
         current_v = "[v_concat]"
+
+        # The render is cut to the voiceover (-t total_duration). When the
+        # clips are shorter than that, the file used to end up with audio over
+        # no picture at all -- measured once as a 13.6s video stream inside a
+        # 28.3s file. Hold the last frame instead, before the grade/sticker/
+        # subtitle passes so those still draw over the held tail.
+        video_span = sum(clip_durations) if clip_durations else 0.0
+        tail_gap = float(total_duration) - video_span
+        if used_clip_list and video_span > 0 and tail_gap > 0.05:
+            filter_complex.append(
+                f"{current_v}tpad=stop_mode=clone:stop_duration={round(tail_gap + 0.2, 3)}[v_filled];"
+            )
+            current_v = "[v_filled]"
+
         # Index of the mixed-audio input once every video input is counted --
         # 1 for the legacy single-source path (unchanged from before), N for
         # a clip_list of N real source files.
