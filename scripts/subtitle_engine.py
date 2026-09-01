@@ -68,6 +68,29 @@ def _load_font_family_map() -> Dict[str, str]:
 
     return font_map
 
+# Where the caption block sits: (ASS alignment, vertical margin).
+# 2 = bottom centre, 5 = middle centre, 8 = top centre.
+CAPTION_POSITIONS = {
+    "bottom": (2, 420),
+    "middle": (5, 0),
+    "top": (8, 260),
+}
+
+
+def ass_colour(hex_colour: str) -> str:
+    """#RRGGBB -> &H00BBGGRR. Returns "" for anything unparseable."""
+    if not hex_colour:
+        return ""
+    value = str(hex_colour).strip().lstrip("#")
+    if len(value) != 6:
+        return ""
+    try:
+        r, g, b = (int(value[i:i + 2], 16) for i in (0, 2, 4))
+    except ValueError:
+        return ""
+    return f"&H00{b:02X}{g:02X}{r:02X}"
+
+
 class SubtitleEngine:
     """Creates rapid-fire TikTok subtitles with pop animations, Kanit font, and highlights."""
 
@@ -216,7 +239,10 @@ class SubtitleEngine:
         hook_duration: float = 3.5,
         bilingual: bool = True,
         video_width: int = VIDEO_WIDTH,
-        video_height: int = VIDEO_HEIGHT
+        video_height: int = VIDEO_HEIGHT,
+        caption_position: str = "bottom",
+        caption_color: str = None,
+        caption_scale: float = 1.0
     ) -> Tuple[str, List[Dict]]:
         """
         Generate TikTok style ASS subtitle file with rapid-fire micro-bursts, 
@@ -234,6 +260,19 @@ class SubtitleEngine:
         resolved_font = font_map.get(font_name, DEFAULT_FONT_FAMILY)
         is_pill_mode = font_name in ["capsule_pill", "Minimal Dark Capsule Pill"]
 
+        # Caption placement and colour. ASS wants &HAABBGGRR, i.e. the reverse
+        # byte order of an HTML hex, which is why the picker's #RRGGBB cannot
+        # be pasted in directly.
+        alignment, margin_v = CAPTION_POSITIONS.get(
+            caption_position, CAPTION_POSITIONS["bottom"]
+        )
+        primary = ass_colour(caption_color) or "&H00FFFFFF"
+        try:
+            scale = min(2.0, max(0.5, float(caption_scale or 1.0)))
+        except (TypeError, ValueError):
+            scale = 1.0
+        font_size = max(24, int(round(font_size * scale)))
+
         header = f"""[Script Info]
 Title: TikTok Aesthetic Subtitles
 ScriptType: v4.00+
@@ -244,10 +283,10 @@ PlayResY: {video_height}
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: TikTokWhite,{resolved_font},{font_size},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0.5,0,1,5.5,2.5,2,60,60,420,1
+Style: TikTokWhite,{resolved_font},{font_size},{primary},&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0.5,0,1,5.5,2.5,{alignment},60,60,{margin_v},1
 Style: TikTokYellow,{resolved_font},{font_size},&H0000E6FF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0.5,0,1,5.5,2.5,2,60,60,420,1
 Style: TikTokCyan,{resolved_font},{font_size},&H00FFE600,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0.5,0,1,5.0,2.0,2,60,60,420,1
-Style: TikTokMinimalPill,{resolved_font},{font_size - 6},&H00FFFFFF,&H000000FF,&H00000000,&HCC000000,1,0,0,0,100,100,0.5,0,3,6,0,2,60,60,420,1
+Style: TikTokMinimalPill,{resolved_font},{font_size - 6},{primary},&H000000FF,&H00000000,&HCC000000,1,0,0,0,100,100,0.5,0,3,6,0,{alignment},60,60,{margin_v},1
 Style: HookHeader,{resolved_font},{font_size + 6},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0.5,0,1,7.0,3.0,8,60,60,260,1
 Style: SpecBar,{resolved_font},{font_size - 12},&H00000000,&H000000FF,&H00000000,&H0000E6FF,1,0,0,0,100,100,0.5,0,3,10,0,9,50,50,380,1
 

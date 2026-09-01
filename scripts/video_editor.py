@@ -57,6 +57,28 @@ def build_eq_filter(clip: Dict[str, Any]) -> str:
 
 ZOOM_LIMITS = (1.0, 3.0)
 
+# Badge corners as ffmpeg overlay expressions. 40px from the sides; the top
+# offset clears the caption-free zone the hook header uses.
+STICKER_POSITIONS = {
+    "top_right": ("(W-w-40)", "140"),
+    "top_left": ("40", "140"),
+    "bottom_right": ("(W-w-40)", "(H-h-420)"),
+    "bottom_left": ("40", "(H-h-420)"),
+}
+STICKER_BASE_WIDTH = 380
+
+
+def sticker_geometry(position: str, scale: float):
+    """(width, x expression, y expression) for the badge overlay."""
+    try:
+        factor = min(2.0, max(0.4, float(scale or 1.0)))
+    except (TypeError, ValueError):
+        factor = 1.0
+    width = int(round(STICKER_BASE_WIDTH * factor))
+    width = width if width % 2 == 0 else width + 1
+    x, y = STICKER_POSITIONS.get(position, STICKER_POSITIONS["top_right"])
+    return width, x, y
+
 # What "export quality" means, end to end. Draft trades resolution and encode
 # effort for wall clock on a machine with no GPU to fall back on.
 EXPORT_PRESETS = {
@@ -179,7 +201,9 @@ class VideoEditor:
         clip_list: List[Dict] = None,
         transitions: List[Any] = None,
         lut_intensity: float = 1.0,
-        export_preset: str = "post"
+        export_preset: str = "post",
+        sticker_position: str = "top_right",
+        sticker_scale: float = 1.0
     ) -> str:
         """
         Takes raw footage, creates fast-paced punch-in cuts synced to audio duration and Gemini Vision scenes,
@@ -451,12 +475,13 @@ class VideoEditor:
 
         # Optional Promotional Sticker Overlay (Top-Right Badge with entry animation)
         if sticker_path and Path(sticker_path).exists():
+            badge_w, badge_x, badge_y = sticker_geometry(sticker_position, sticker_scale)
             st_idx = len(cmd_inputs) // 2
             cmd_inputs.extend(["-i", str(Path(sticker_path).resolve())])
             # Scale badge nicely (width ~ 380px) and place in top right or center top
             filter_complex.append(
-                f"[{st_idx}:v]scale=380:-1[sticker_scaled];"
-                f"{current_v}[sticker_scaled]overlay=x=(W-w-40):y=140:enable='gte(t,0.5)':format=auto[v_stickered];"
+                f"[{st_idx}:v]scale={badge_w}:-1[sticker_scaled];"
+                f"{current_v}[sticker_scaled]overlay=x={badge_x}:y={badge_y}:enable='gte(t,0.5)':format=auto[v_stickered];"
             )
             current_v = "[v_stickered]"
 

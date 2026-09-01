@@ -62,6 +62,11 @@ class TikTokAutoCutterPipeline:
         transitions: Optional[List[str]] = None,
         export_mp4: bool = True,
         export_preset: str = "post",
+        caption_position: str = "bottom",
+        caption_color: Optional[str] = None,
+        caption_scale: float = 1.0,
+        sticker_position: str = "top_right",
+        sticker_scale: float = 1.0,
         resume_from: Optional[str] = None,
         product_meta: Optional[Dict[str, any]] = None,
         angle_meta: Optional[Dict[str, any]] = None,
@@ -288,7 +293,10 @@ class TikTokAutoCutterPipeline:
                 font_name=font_name,
                 hook_title=banner_title,
                 hook_duration=min(3.5, total_duration),
-                bilingual=bilingual_subtitles
+                bilingual=bilingual_subtitles,
+                caption_position=caption_position,
+                caption_color=caption_color,
+                caption_scale=caption_scale
             )
             print(f"   Subtitles created: {ass_path} ({len(micro_cues)} micro-bursts)")
         else:
@@ -401,7 +409,9 @@ class TikTokAutoCutterPipeline:
                 shot_scales=shot_scales,
                 clip_list=clip_list,
                 transitions=transitions,
-                export_preset=export_preset
+                export_preset=export_preset,
+                sticker_position=sticker_position,
+                sticker_scale=sticker_scale
             )
             result_paths["mp4_video"] = str(out_mp4)
             result_paths["ai_matched_shots"] = ai_matched_shots
@@ -442,6 +452,11 @@ class TikTokAutoCutterPipeline:
                 "bgm_name": bgm_name,
                 "bgm_volume": bgm_volume,
                 "bgm_ducking": bgm_ducking,
+                "caption_position": caption_position,
+                "caption_color": caption_color,
+                "caption_scale": caption_scale,
+                "sticker_position": sticker_position,
+                "sticker_scale": sticker_scale,
                 "lut_name": lut_name,
                 "lut_intensity": lut_intensity,
                 "clip_list": clip_list,

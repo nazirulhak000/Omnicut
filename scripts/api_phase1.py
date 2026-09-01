@@ -351,6 +351,11 @@ class RerollRequest(BaseModel):
     bgm_volume: Optional[float] = None
     bgm_ducking: Optional[bool] = None
     export_preset: Optional[str] = None
+    caption_position: Optional[str] = None
+    caption_color: Optional[str] = None
+    caption_scale: Optional[float] = None
+    sticker_position: Optional[str] = None
+    sticker_scale: Optional[float] = None
     clip_list: Optional[List[Dict[str, Any]]] = None
     transitions: Optional[List[str]] = None
 
@@ -445,6 +450,11 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 # never sticky: a draft is a one-off, the project keeps its
                 # post-quality setting for the next render
                 export_preset=overrides.get("export_preset", "post"),
+                caption_position=params.get("caption_position", "bottom"),
+                caption_color=params.get("caption_color"),
+                caption_scale=params.get("caption_scale", 1.0),
+                sticker_position=params.get("sticker_position", "top_right"),
+                sticker_scale=params.get("sticker_scale", 1.0),
                 clip_list=params.get("clip_list"),
                 transitions=params.get("transitions"),
                 export_mp4=True,
