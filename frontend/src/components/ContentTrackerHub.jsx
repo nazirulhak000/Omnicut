@@ -4,7 +4,8 @@ import {
   Smartphone, RefreshCw, Search, QrCode, ArrowLeft, Copy,
   Kanban, Table, Sparkles, CheckCircle2, Clock,
   ExternalLink, ChevronRight, ChevronLeft, Filter, AlertCircle,
-  Video, Eye, Flame, TrendingUp, Plus, X, FileText
+  Video, Eye, Flame, TrendingUp, Plus, X, FileText, Scissors,
+  FolderDown, Info
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
@@ -78,7 +79,7 @@ const HoverVideoThumb = memo(function HoverVideoThumb({ videoUrl, onClick }) {
 });
 
 // ═══════════════════════════════════════════════════════════════════════
-// 📌 MEMOIZED KANBAN CARD (Ultra High-Density & Compact Merged Actions)
+// 📌 MEMOIZED KANBAN CARD (Ultra High-Density & Deep-Dive Trigger)
 // ═══════════════════════════════════════════════════════════════════════
 const KanbanCard = memo(function KanbanCard({
   ang,
@@ -87,6 +88,7 @@ const KanbanCard = memo(function KanbanCard({
   onStatusChange,
   onPreviewVideo,
   onOpenQrModal,
+  onInspectAngle,
   onCopyCaption,
   copiedAngleId
 }) {
@@ -107,20 +109,37 @@ const KanbanCard = memo(function KanbanCard({
       }}
       className="p-2.5 rounded-xl bg-[#0B0F19] border border-white/[0.08] hover:border-[#25F4EE]/40 transition-all space-y-2 relative group shadow-sm"
     >
-      {/* 1. Header: Product Name + Badge */}
+      {/* 1. Header: Product Name + Badge + Detail Inspect Icon */}
       <div className="flex items-center justify-between gap-1.5 text-xs">
-        <span className="font-bold text-white truncate flex-1 min-w-0 font-kanit text-[11px]" title={ang.parentProduct?.name}>
+        <span
+          onClick={() => onInspectAngle(ang)}
+          className="font-bold text-white truncate flex-1 min-w-0 font-kanit text-[11px] hover:text-[#25F4EE] cursor-pointer"
+          title={`คลิกเพื่อดูรายละเอียดเชิงลึกของ: ${ang.parentProduct?.name}`}
+        >
           {ang.parentProduct?.name}
         </span>
-        {ang.badge && (
-          <span className="text-[9px] px-1.5 py-0.2 font-mono font-bold rounded bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/30 whitespace-nowrap flex-shrink-0">
-            {ang.badge}
-          </span>
-        )}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {ang.badge && (
+            <span className="text-[9px] px-1.5 py-0.2 font-mono font-bold rounded bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/30 whitespace-nowrap">
+              {ang.badge}
+            </span>
+          )}
+          <button
+            onClick={() => onInspectAngle(ang)}
+            className="p-0.5 rounded text-slate-500 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+            title="ดูรายละเอียดจริงเชิงลึก (Deep Dive)"
+          >
+            <Info className="w-3 h-3" />
+          </button>
+        </div>
       </div>
 
-      {/* 2. Hook Title: Crisp 2-line with thin accent bar */}
-      <div className="pl-2 border-l-2 border-[#25F4EE] text-xs font-bold text-cyan-200 line-clamp-2 leading-snug">
+      {/* 2. Hook Title: Crisp 2-line with thin accent bar (Clickable to inspect) */}
+      <div
+        onClick={() => onInspectAngle(ang)}
+        className="pl-2 border-l-2 border-[#25F4EE] text-xs font-bold text-cyan-200 line-clamp-2 leading-snug cursor-pointer hover:underline"
+        title="คลิกเพื่อดูบทพูดและรายละเอียดเต็ม"
+      >
         {ang.hook_title}
       </div>
 
@@ -142,7 +161,7 @@ const KanbanCard = memo(function KanbanCard({
             <button
               onClick={() => onSendToStudio(ang.parentProduct, ang)}
               className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 active:scale-95 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-sm flex-shrink-0"
-              title="ส่งตัดต่อใน Studio"
+              title="ส่งตัดต่อใน 1-Click Studio"
             >
               <Clapperboard className="w-3.5 h-3.5" />
               <span>ส่ง Studio</span>
@@ -154,7 +173,7 @@ const KanbanCard = memo(function KanbanCard({
               <button
                 onClick={() => onSendToStudio(ang.parentProduct, ang)}
                 className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 active:scale-95 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-sm flex-shrink-0"
-                title="เปิดทำต่อใน Studio"
+                title="เปิดทำต่อใน 1-Click Studio"
               >
                 <span>Studio</span>
                 <ArrowRight className="w-3 h-3" />
@@ -214,7 +233,10 @@ const KanbanCard = memo(function KanbanCard({
           )}
 
           {phaseId === 'posted' && (
-            <div className="px-2 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-[11px] text-emerald-300 font-bold flex items-center gap-1">
+            <div
+              onClick={() => onInspectAngle(ang)}
+              className="px-2 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-[11px] text-emerald-300 font-bold flex items-center gap-1 cursor-pointer hover:bg-emerald-500/20"
+            >
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
               <span>ออนไลน์แล้ว</span>
             </div>
@@ -268,6 +290,7 @@ const TableRow = memo(function TableRow({
   onStatusChange,
   onPreviewVideo,
   onOpenQrModal,
+  onInspectAngle,
   onCopyCaption,
   copiedAngleId
 }) {
@@ -298,14 +321,24 @@ const TableRow = memo(function TableRow({
       <td className="py-2 px-3">
         <div className="space-y-0.5 max-w-xs sm:max-w-md">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-bold text-white text-xs font-kanit">{ang.parentProduct?.name}</span>
+            <span
+              onClick={() => onInspectAngle(ang)}
+              className="font-bold text-white text-xs font-kanit hover:text-[#25F4EE] cursor-pointer"
+            >
+              {ang.parentProduct?.name}
+            </span>
             {ang.badge && (
               <span className="flex-shrink-0 whitespace-nowrap">
                 <Badge variant="cyan" size="sm">{ang.badge}</Badge>
               </span>
             )}
           </div>
-          <p className="text-xs text-cyan-200 font-bold line-clamp-1">{ang.hook_title}</p>
+          <p
+            onClick={() => onInspectAngle(ang)}
+            className="text-xs text-cyan-200 font-bold line-clamp-1 cursor-pointer hover:underline"
+          >
+            {ang.hook_title}
+          </p>
         </div>
       </td>
 
@@ -341,6 +374,14 @@ const TableRow = memo(function TableRow({
       <td className="py-2 px-3 text-right">
         <div className="flex items-center justify-end gap-1.5">
           <button
+            onClick={() => onInspectAngle(ang)}
+            className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.07] text-slate-400 hover:text-white cursor-pointer"
+            title="ดูรายละเอียดจริงเชิงลึก"
+          >
+            <Info className="w-3.5 h-3.5" />
+          </button>
+
+          <button
             onClick={() => onSendToStudio(ang.parentProduct, ang)}
             className="py-1 px-2.5 rounded-lg bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center gap-1 cursor-pointer"
             title="ส่งเข้า 1-Click Studio"
@@ -363,7 +404,7 @@ const TableRow = memo(function TableRow({
 });
 
 // ═══════════════════════════════════════════════════════════════════════
-// 🌟 MAIN CONTENT TRACKER HUB COMPONENT
+// 🌟 MAIN CONTENT TRACKER HUB COMPONENT (True Deep-Dive Tracking)
 // ═══════════════════════════════════════════════════════════════════════
 export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGallery, onGoToEditor, onGoToFlow }) {
   const [products, setProducts] = useState([]);
@@ -382,6 +423,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
   const [copiedAngleId, setCopiedAngleId] = useState(null);
   const [previewVideoUrl, setPreviewVideoUrl] = useState(null);
   const [qrModalItem, setQrModalItem] = useState(null);
+  const [inspectAngle, setInspectAngle] = useState(null); // Deep-Dive Inspection state
   const colRefs = useRef({});
   const { toastMessage, showToast, hideToast } = useToast();
 
@@ -429,11 +471,15 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
         }
         return p;
       }));
+      // Also update inspectAngle state if it's currently open
+      if (inspectAngle && inspectAngle.angle_id === angleId) {
+        setInspectAngle(prev => prev ? { ...prev, status: nextStatus, ...(videoUrl ? { video_url: videoUrl } : {}) } : null);
+      }
       showToast('อัปเดตสถานะสำเร็จ');
     } catch (err) {
       alert('ไม่สามารถอัปเดตสถานะได้: ' + err.message);
     }
-  }, [showToast]);
+  }, [inspectAngle, showToast]);
 
   const handleSendToStudio = useCallback((product, angle, angleIdx = 0) => {
     if (!onApplyToStudio) return;
@@ -535,6 +581,171 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
     <div className="space-y-3 animate-fadeIn pb-16">
       {/* Central Toast */}
       <Toast message={toastMessage} onClose={hideToast} />
+
+      {/* ══════════════════════════════════════════════════════════
+          🎯 DEEP-DIVE JOB INSPECTOR MODAL (ติดตามงานจริงเชิงลึก)
+         ══════════════════════════════════════════════════════════ */}
+      <Modal
+        isOpen={!!inspectAngle}
+        onClose={() => setInspectAngle(null)}
+        title="รายละเอียดงานจริงเชิงลึก (Deep-Dive Pipeline Inspector)"
+        subtitle={inspectAngle?.parentProduct?.name}
+        maxWidth="max-w-2xl"
+      >
+        {inspectAngle && (() => {
+          const currentPhaseInfo = PIPELINE_PHASES.find(p => p.id === inspectAngle.status) || PIPELINE_PHASES[0];
+          const scriptLines = Array.isArray(inspectAngle.script_lines)
+            ? inspectAngle.script_lines
+            : (inspectAngle.script_text ? inspectAngle.script_text.split('\n') : []);
+          const captionText = `${inspectAngle.tiktok_caption || ''}\n\n${inspectAngle.tiktok_hashtags || ''}`.trim();
+
+          return (
+            <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+              {/* 1. Status Stepper Ribbon inside Modal */}
+              <div className="p-3 rounded-xl bg-black/50 border border-white/[0.08] flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border flex items-center gap-1.5 ${currentPhaseInfo.color}`}>
+                    <currentPhaseInfo.icon className="w-3.5 h-3.5" />
+                    <span>สถานะปัจจุบัน: {currentPhaseInfo.label}</span>
+                  </span>
+                  {inspectAngle.badge && (
+                    <Badge variant="cyan" size="sm">{inspectAngle.badge}</Badge>
+                  )}
+                </div>
+
+                {/* Quick Switcher dropdown in Modal */}
+                <select
+                  value={inspectAngle.status}
+                  onChange={(e) => handleAngleStatusChange(inspectAngle.parentProduct.id, inspectAngle.angle_id, e.target.value)}
+                  className="py-1 px-2.5 rounded-lg bg-black/70 border border-white/[0.1] text-xs font-bold text-slate-200 focus:outline-none cursor-pointer"
+                >
+                  {PIPELINE_PHASES.map(p => (
+                    <option key={p.id} value={p.id} className="bg-[#080B11] text-white">
+                      เปลี่ยนเป็น: {p.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 2. Hook Title 3s */}
+              <div className="space-y-1">
+                <div className="text-[11px] font-semibold text-slate-400">Hook 3 วินาทีแรก (จุดหยุดคนดู):</div>
+                <div className="p-3 rounded-xl bg-[#080B11] border-l-4 border-[#25F4EE] text-xs sm:text-sm font-bold text-cyan-200 leading-snug">
+                  {inspectAngle.hook_title || 'ไม่มี Hook'}
+                </div>
+              </div>
+
+              {/* 3. Script Breakdown Section */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-300">
+                  <span>บทพูดพากย์ทั้งหมด ({scriptLines.length} ท่อน):</span>
+                  {scriptLines.length > 0 && (
+                    <button
+                      onClick={() => handleCopyCaption(scriptLines.join('\n'), 'script_modal')}
+                      className="text-[#25F4EE] hover:underline flex items-center gap-1 text-[11px] font-bold cursor-pointer"
+                    >
+                      {copiedAngleId === 'script_modal' ? <><Check className="w-3 h-3 text-emerald-400" /> คัดลอกแล้ว</> : <><Copy className="w-3 h-3" /> คัดลอกสคริปต์</>}
+                    </button>
+                  )}
+                </div>
+                <div className="p-3 rounded-xl bg-black/40 border border-white/[0.06] space-y-1.5 max-h-48 overflow-y-auto font-mono text-xs text-slate-200">
+                  {scriptLines.length === 0 ? (
+                    <div className="text-slate-500 text-center py-4">ไม่มีบทพูด</div>
+                  ) : (
+                    scriptLines.map((line, idx) => (
+                      <div key={idx} className="flex items-start gap-2">
+                        <span className="text-[#25F4EE] font-bold flex-shrink-0">{idx + 1}.</span>
+                        <span>{line}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* 4. Video QC Player (If Rendered) */}
+              {inspectAngle.video_url && (
+                <div className="space-y-1.5">
+                  <div className="text-xs font-bold text-slate-300">วิดีโอที่ตัดต่อเสร็จแล้ว (QC Player):</div>
+                  <video
+                    src={`/api/media/${inspectAngle.video_url}`}
+                    controls
+                    className="w-full max-h-64 rounded-xl bg-black object-contain border border-white/[0.08]"
+                  />
+                </div>
+              )}
+
+              {/* 5. TikTok Caption & Hashtags */}
+              {captionText && (
+                <div className="p-3 rounded-xl bg-black/40 border border-white/[0.06] space-y-1.5">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-300">
+                    <span>แคปชัน & แฮชแท็ก TikTok:</span>
+                    <button
+                      onClick={() => handleCopyCaption(captionText, 'cap_modal')}
+                      className="text-[#25F4EE] hover:underline flex items-center gap-1 text-[11px] font-bold cursor-pointer"
+                    >
+                      {copiedAngleId === 'cap_modal' ? <><Check className="w-3 h-3 text-emerald-400" /> คัดลอกแล้ว</> : <><Copy className="w-3 h-3" /> คัดลอกแคปชัน</>}
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-300 font-mono line-clamp-3 select-all">
+                    {inspectAngle.tiktok_caption} {inspectAngle.tiktok_hashtags}
+                  </p>
+                </div>
+              )}
+
+              {/* 6. True Deep-Dive Navigation Action Grid */}
+              <div className="pt-2 border-t border-white/[0.08] grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {/* Button 1: Go to Script Lab (Menu 1) */}
+                <button
+                  onClick={() => {
+                    setInspectAngle(null);
+                    onGoToFlow?.(inspectAngle.parentProduct?.id);
+                  }}
+                  className="py-2.5 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-200 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all"
+                >
+                  <FileText className="w-4 h-4 text-indigo-400" />
+                  <span>ดูสคริปต์ใน Lab สินค้า</span>
+                </button>
+
+                {/* Button 2: Go to 1-Click Studio (Menu 3) */}
+                <button
+                  onClick={() => {
+                    setInspectAngle(null);
+                    handleSendToStudio(inspectAngle.parentProduct, inspectAngle);
+                  }}
+                  className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-[#FE2C55]/20 active:scale-95 transition-all"
+                >
+                  <Clapperboard className="w-4 h-4 text-white" />
+                  <span>เปิดทำใน 1-Click Studio</span>
+                </button>
+
+                {/* Button 3: Go to Video Editor (Menu 4) */}
+                <button
+                  onClick={() => {
+                    setInspectAngle(null);
+                    onGoToEditor?.();
+                  }}
+                  className="py-2.5 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-200 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all"
+                >
+                  <Scissors className="w-4 h-4 text-purple-400" />
+                  <span>เปิดไทม์ไลน์ใน Video Editor</span>
+                </button>
+
+                {/* Button 4: Mobile QR / Gallery */}
+                <button
+                  onClick={() => {
+                    setInspectAngle(null);
+                    setQrModalItem(inspectAngle);
+                  }}
+                  className="py-2.5 px-3 rounded-xl bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all"
+                >
+                  <QrCode className="w-4 h-4 text-[#25F4EE]" />
+                  <span>สแกน QR ส่งเข้ามือถือ</span>
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
 
       {/* Video Modal Preview */}
       <Modal
@@ -778,6 +989,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                           onStatusChange={handleAngleStatusChange}
                           onPreviewVideo={setPreviewVideoUrl}
                           onOpenQrModal={setQrModalItem}
+                          onInspectAngle={setInspectAngle}
                           onCopyCaption={handleCopyCaption}
                           copiedAngleId={copiedAngleId}
                         />
@@ -823,6 +1035,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                       onStatusChange={handleAngleStatusChange}
                       onPreviewVideo={setPreviewVideoUrl}
                       onOpenQrModal={setQrModalItem}
+                      onInspectAngle={setInspectAngle}
                       onCopyCaption={handleCopyCaption}
                       copiedAngleId={copiedAngleId}
                     />

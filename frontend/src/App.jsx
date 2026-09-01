@@ -105,6 +105,8 @@ export default function App() {
     }
   });
 
+  const [selectedProductIdForFlow, setSelectedProductIdForFlow] = useState(null);
+
   // 4. Studio Form State with Persistence
   const [selectedVideo, setSelectedVideo] = useState(savedForm.selectedVideo || '');
   const [productName, setProductName] = useState(savedForm.productName);
@@ -412,6 +414,7 @@ export default function App() {
                     videos={videos}
                     onRefresh={refreshData}
                     onApplyToStudio={handleApplyScriptFromLab}
+                    selectedProductId={selectedProductIdForFlow}
                   />
                 </Suspense>
               )}
@@ -423,7 +426,10 @@ export default function App() {
                     onApplyToStudio={handleApplyScriptFromLab}
                     onRefresh={refreshData}
                     onGoToEditor={() => setActiveTab('editor')}
-                    onGoToFlow={() => setActiveTab('flow')}
+                    onGoToFlow={(productId) => {
+                      if (productId) setSelectedProductIdForFlow(productId);
+                      setActiveTab('flow');
+                    }}
                     onGoToGallery={() => setActiveTab('gallery')}
                   />
                 </Suspense>

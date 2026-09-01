@@ -9,7 +9,7 @@ import {
 import { Modal, Toast, Button, Badge, Input, Textarea } from './ui';
 import { useToast } from '../hooks';
 
-export default function ProductToClip({ status, videos = [], onRefresh, onApplyToStudio }) {
+export default function ProductToClip({ status, videos = [], onRefresh, onApplyToStudio, selectedProductId }) {
   // Input Mode & Active View
   const [showAddModal, setShowAddModal] = useState(false);
   const [inputMode, setInputMode] = useState('link'); // 'link' | 'text' | 'image'
@@ -29,21 +29,22 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   // History / All Products
   const [historyList, setHistoryList] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
-  const [selectedHistoryId, setSelectedHistoryId] = useState(null);
+  const [selectedHistoryId, setSelectedHistoryId] = useState(selectedProductId || null);
 
   // Uploading Screenshot/Image
   const [uploadingImg, setUploadingImg] = useState(false);
   const fileInputRef = useRef(null);
 
   // Load History on Mount
-  const loadHistory = async () => {
+  const loadHistory = async (targetId = null) => {
     setLoadingHistory(true);
     try {
       const res = await getProducts();
       if (res.products) {
         setHistoryList(res.products);
         if (res.products.length > 0) {
-          const current = res.products.find(p => p.id === selectedHistoryId) || res.products[0];
+          const effectiveId = targetId || selectedProductId || selectedHistoryId;
+          const current = res.products.find(p => p.id === effectiveId) || res.products[0];
           selectProduct(current);
         }
       }
@@ -55,8 +56,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   };
 
   useEffect(() => {
-    loadHistory();
-  }, []);
+    loadHistory(selectedProductId);
+  }, [selectedProductId]);
 
   const selectProduct = (item) => {
     if (!item) return;

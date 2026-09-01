@@ -44,7 +44,8 @@ class SFXManager:
         bgm_name: str = "bgm_over_loaded_hiphop_instrumental.mp3",
         bgm_vol: float = 0.12,
         voice_vol: float = 1.0,
-        sfx_vol: float = 0.28
+        sfx_vol: float = 0.28,
+        bgm_ducking: bool = False
     ) -> str:
         """
         Mixes voiceover, SFX triggers at cue start times, and looped background music.
@@ -62,8 +63,16 @@ class SFXManager:
         filter_complex = []
         input_count = 1
 
-        # 1. Voice filter (clear voice)
-        filter_complex.append(f"[0:a]volume={voice_vol},apad=pad_dur=1.0[voice_padded];")
+        # 1. Voice filter (clear voice). With ducking on, the voice is split:
+        # one copy goes into the mix, the other is only a sidechain key for the
+        # music -- it is never heard twice.
+        bgm_vol = min(1.0, max(0.0, float(bgm_vol)))
+        if bgm_ducking:
+            filter_complex.append(
+                f"[0:a]volume={voice_vol},apad=pad_dur=1.0,asplit=2[voice_padded][voice_key];"
+            )
+        else:
+            filter_complex.append(f"[0:a]volume={voice_vol},apad=pad_dur=1.0[voice_padded];")
 
         # 2. Add Boom on 0.0s Hook
         boom_file = cls.resolve("boom")
@@ -95,13 +104,31 @@ class SFXManager:
             inputs.extend(["-stream_loop", "-1", "-i", str(bgm_path)])
             bgm_idx = input_count
             input_count += 1
-            # Auto-ducking: low volume during voice, trim to total_duration
+            # Without ducking this is simply a constant, quiet music bed --
+            # which is all it ever was, despite the old comment here claiming
+            # auto-ducking. With ducking on, sidechaincompress pulls the music
+            # down while the voice is actually speaking and lets it back up in
+            # the gaps. Both legs need a matching format or the filter errors.
             filter_complex.append(
-                f"[{bgm_idx}:a]volume={bgm_vol},atrim=0:{total_duration + 0.5},afade=t=out:st={total_duration}:d=0.5[bgm];"
+                f"[{bgm_idx}:a]volume={bgm_vol},atrim=0:{total_duration + 0.5},"
+                f"afade=t=out:st={total_duration}:d=0.5[bgm_bed];"
             )
+            if bgm_ducking:
+                filter_complex.append(
+                    "[bgm_bed]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[bgm_fmt];"
+                    "[voice_key]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[key_fmt];"
+                    "[bgm_fmt][key_fmt]sidechaincompress="
+                    "threshold=0.05:ratio=8:attack=20:release=300:makeup=1[bgm];"
+                )
+            else:
+                filter_complex.append("[bgm_bed]anull[bgm];")
             bgm_node = "[bgm]"
 
         # 5. Combine all tracks with amix (normalize=0 to prevent volume reduction) + Loudness Normalization
+        if bgm_ducking and not bgm_node:
+            # No music to duck: the split key would dangle and ffmpeg refuses a
+            # filter graph with an unused output.
+            filter_complex.append("[voice_key]anullsink;")
         mix_inputs = ["[voice_padded]"] + sfx_nodes
         if bgm_node:
             mix_inputs.append(bgm_node)
