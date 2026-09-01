@@ -75,12 +75,15 @@
 
 ---
 
-## 5. งานรื้อ (technical debt)
+## 5. งานรื้อ (technical debt) — ✅ เสร็จ 2026-09-01
 
-**ลบ** — 7 ไฟล์ CapCut: `capcut_generator.py`, `make_perfect_capcut.py`, `clone_working_draft.py`, `sanitize_capcut.py`, `update_capcut_timeline.py`, `inspect_capcut.py`, `debug_capcut.py`
-**ลบ** — `app.py` (Streamlit เก่า ถูกแทนด้วย React แล้ว), `test_*.py` ที่ root, ไฟล์ showcase ที่ hardcode path `.gemini/antigravity-ide/brain/...`
+**ลบแล้ว** — 7 ไฟล์ CapCut generation (`capcut_generator.py` และลูก 6 ไฟล์) + `CapCutTimelineStudio.jsx` (ยืนยันแล้วว่าเป็น mock — import API 5 ตัวแต่ไม่เรียกสักตัว ปุ่ม Export คือ `setTimeout`+`alert`) + `app.py` (Streamlit เก่า) + 3 ไฟล์ showcase ที่ hardcode path เครื่องเก่า + `f5_tts_engine.py` (dead code หลังตัด F5-TTS — ไม่มีไฟล์ไหนเรียกใช้แล้ว)
 
-**เพิ่ม** — `requirements.txt`, `.env.example`, `.gitignore` ที่ root, error handling ใน `/api/render` (ตอนนี้ยิงแล้วพังเงียบได้)
+**เพิ่มแล้ว** — `requirements.txt` (คัดจาก import จริง ไม่ใช่ freeze ทั้งเครื่อง — ทดสอบติดตั้งใน venv สะอาดผ่านแล้ว), `.env.example`, render concurrency guard (`render_jobs.render_slot` — กันเรนเดอร์ซ้อนกันบนเครื่อง CPU-only 13.7GB RAM)
+
+**บั๊กที่เจอระหว่างทำ** (แก้แล้วทั้งหมด): `.gitignore`'s `.env.*` กิน `.env.example` ไปด้วย, `StudioStep3Audio.jsx` ยังเสนอ F5-TTS ทั้งที่ backend ไม่รองรับ + ใช้ไอคอน `Sparkles` ที่ไม่เคย import (จะ crash ทันทีที่เปิด tab เพราะ `gemini_tts` เป็น default), re-roll เรียก `export_capcut=False` เข้าพารามิเตอร์ที่ถูกลบไปแล้ว (ทุก re-roll จะ TypeError)
+
+**spec-bar overlay (PRD section 8) — ✅ เสร็จแล้ว** — `on_screen` จาก AI script ไหลผ่าน pipeline → cues → `subtitle_engine.py` style `SpecBar` (มุมขวาบน กันชนกับ hook banner/แคปชั่น) → เบิร์นเข้า mp4 จริง ยืนยันด้วยคลิป Esseger จริงแล้ว
 
 ---
 
