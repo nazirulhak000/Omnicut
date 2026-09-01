@@ -1,10 +1,12 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Film, MessageSquare, Music, Scissors, Waves } from 'lucide-react';
 import TimelineClip from './TimelineClip';
 import { CLIP_DRAG_TYPE } from './AssetPanel';
+import { getAudioPeaks, MAX_DECODE_SECONDS } from '../../lib/audioPeaks';
 import { formatTimecode } from '../../lib/timelineMath';
 
 const RULER_H = 22;
+const WAVE_COLUMNS = 1200;
 const VIDEO_H = 60;
 const CAPTION_H = 30;
 const AUDIO_H = 30;
@@ -59,6 +61,7 @@ export default function Timeline({
   onCaptionChange,
   onBeginDrag,
   onEndDrag,
+  audioUrl,
 }) {
   const selectClip = (id) => (onSelectClip ? onSelectClip(id) : onSelect?.({ type: 'clip', id }));
   const selectCaption = (uid) => (onSelectCaption ? onSelectCaption(uid) : onSelect?.({ type: 'caption', id: uid }));
@@ -82,6 +85,37 @@ export default function Timeline({
   const captionDrag = useRef(null);
   const bodyDrag = useRef(null);
   const [dropIndex, setDropIndex] = useState(null);
+  const waveRef = useRef(null);
+  const [waveInfo, setWaveInfo] = useState(null);
+
+  // Real peaks for the audio track, decoded once per file (see audioPeaks.js)
+  // and drawn into a fixed-column canvas that CSS stretches to the track
+  // width -- zooming never re-decodes, and never allocates a 17000px canvas.
+  useEffect(() => {
+    let alive = true;
+    if (!audioUrl) { setWaveInfo(null); return undefined; }
+    getAudioPeaks(audioUrl, WAVE_COLUMNS).then((info) => { if (alive) setWaveInfo(info); });
+    return () => { alive = false; };
+  }, [audioUrl]);
+
+  useEffect(() => {
+    const canvas = waveRef.current;
+    if (!canvas || !waveInfo?.peaks) return;
+    const ctx = canvas.getContext('2d');
+    const { width, height } = canvas;
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = '#8FBF9F';
+    ctx.globalAlpha = 0.55;
+    const mid = height / 2;
+    for (let i = 0; i < WAVE_COLUMNS; i++) {
+      const min = waveInfo.peaks[i * 2];
+      const max = waveInfo.peaks[i * 2 + 1];
+      const top = mid - max * mid;
+      const bottom = mid - min * mid;
+      ctx.fillRect(i, top, 1, Math.max(1, bottom - top));
+    }
+    ctx.globalAlpha = 1;
+  }, [waveInfo]);
 
   // Dropping a clip from the media bin. The insert position is whichever
   // boundary the pointer is nearest, so a drop reads like where it landed.
@@ -312,8 +346,17 @@ export default function Timeline({
                     style={{ left: 0, width: audioDuration * pxPerSec }}
                     title="เสียงพากย์ + BGM ของทั้งคลิป (เปลี่ยนเพลงได้ที่แผงขวา)"
                   >
-                    <span className="truncate text-[9px] text-[#8FBF9F]">
+                    {waveInfo?.peaks && (
+                      <canvas
+                        ref={waveRef}
+                        width={WAVE_COLUMNS}
+                        height={AUDIO_H}
+                        className="pointer-events-none absolute inset-0 h-full w-full"
+                      />
+                    )}
+                    <span className="relative truncate text-[9px] text-[#8FBF9F] drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
                       เสียงพากย์ + BGM{bgmLabel ? ` · ${bgmLabel}` : ' · ค่าเริ่มต้นของช่อง'}
+                      {waveInfo?.truncated ? ` · รูปคลื่นแสดง ${MAX_DECODE_SECONDS} วิแรก` : ''}
                     </span>
                   </div>
                 )}

@@ -11,6 +11,7 @@ import {
   totalDuration as totalDurationOf,
 } from '../../lib/timelineMath';
 import { useEditorHistory } from '../../hooks/useEditorHistory';
+import { toMediaUrl } from '../../lib/mediaUrl';
 import SequencePlayer from '../SequencePlayer';
 import AssetPanel from './AssetPanel';
 import Inspector from './Inspector';
@@ -75,6 +76,7 @@ export default function EditorShell({ videos = [] }) {
   // Draft = 720p/crf26/veryfast. Measured on this machine: a 12s clip took
   // 25.5s at post quality vs 12.5s as a draft (12.18 MB vs 1.82 MB).
   const [exportPreset, setExportPreset] = useState('post');
+  const [audioUrl, setAudioUrl] = useState(null);
 
   const mobilePlayerRef = useRef(null);
   const desktopPlayerRef = useRef(null);
@@ -164,6 +166,8 @@ export default function EditorShell({ videos = [] }) {
       const bgmName = data.bgm_name || data.render_params?.bgm_name || null;
       const lutName = data.lut_name || data.render_params?.lut_name || null;
       const stickerBadge = data.sticker_badge || data.render_params?.sticker_badge || null;
+      const mixedAudio = data.artifacts?.mixed_audio?.path || null;
+      setAudioUrl(mixedAudio ? toMediaUrl(mixedAudio) : null);
       const lutIntensity = data.render_params?.lut_intensity ?? 1;
       const bgmVolume = data.render_params?.bgm_volume ?? 0.12;
       const bgmDucking = !!data.render_params?.bgm_ducking;
@@ -839,6 +843,7 @@ export default function EditorShell({ videos = [] }) {
                     onReorder={reorderClip}
                     onReorderSilent={(id, dir) => reorderClip(id, dir, true)}
                     onDropClip={addClip}
+                    audioUrl={audioUrl}
                     onBeginDrag={beginDrag}
                     onEndDrag={endDrag}
                     snapCandidates={snapEnabled ? snapCandidates(segments, cuesList, audioDuration) : []}
@@ -1051,6 +1056,7 @@ export default function EditorShell({ videos = [] }) {
                     onReorder={reorderClip}
                     onReorderSilent={(id, dir) => reorderClip(id, dir, true)}
                     onDropClip={addClip}
+                    audioUrl={audioUrl}
                     onBeginDrag={beginDrag}
                     onEndDrag={endDrag}
                     snapCandidates={snapEnabled ? snapCandidates(segments, cuesList, audioDuration) : []}
