@@ -226,7 +226,7 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
   };
 
   return (
-    <div className="flex min-h-0 w-full flex-col items-center gap-2">
+    <div className="flex min-h-0 w-full flex-1 flex-col items-center gap-2">
       {/* Hidden decode elements -- one per clip, always mounted so metadata
           loads and pre-seek/pre-play can happen ahead of a cut/fade.
           Kept technically visible (1px, off-screen, opacity near 0) rather
@@ -249,42 +249,49 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
         ))}
       </div>
 
-      <div
-        className="relative mx-auto flex overflow-hidden rounded-2xl border border-[#363430] bg-black shadow-2xl"
-        style={{ height: '100%', width: 'auto', aspectRatio: '9/16', maxWidth: '100%', maxHeight: '100%' }}
-      >
-        <canvas
-          ref={canvasRef}
-          width={CANVAS_W}
-          height={CANVAS_H}
-          className="m-auto block max-h-full max-w-full"
-          style={{ width: 'auto', height: 'auto' }}
-        />
-        {!metadataReady && clips.length > 0 && (
-          <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-[#9C968F] bg-black/70 backdrop-blur-sm">
-            กำลังโหลดวิดีโอ...
-          </div>
-        )}
-        {clips.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-[#6B6660]">
-            เพิ่มคลิปเข้าไทม์ไลน์เพื่อดูพรีวิว
-          </div>
-        )}
-        {metadataReady && clips.length > 0 && (
-          <button
-            onClick={togglePlay}
-            className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/20 transition-colors cursor-pointer group"
-          >
-            <div className="w-12 h-12 rounded-full bg-black/60 group-hover:bg-[#D97757] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all text-white shadow-lg">
-              {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
+      {/* Stage. This wrapper is the one that flexes: it takes whatever height
+          the transport row leaves over, and the 9:16 box inside sizes itself
+          against that. Sizing the 9:16 box directly off the column made it
+          claim the full height and push the transport row off the pane. */}
+      <div className="flex min-h-0 w-full flex-1 items-center justify-center">
+        <div
+          className="relative overflow-hidden rounded-2xl border border-[#363430] bg-black shadow-2xl"
+          style={{ height: '100%', width: 'auto', aspectRatio: '9/16', maxWidth: '100%' }}
+        >
+          <canvas
+            ref={canvasRef}
+            width={CANVAS_W}
+            height={CANVAS_H}
+            className="absolute inset-0 h-full w-full"
+          />
+          {!metadataReady && clips.length > 0 && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/70 text-xs font-bold text-[#9C968F] backdrop-blur-sm">
+              กำลังโหลดวิดีโอ...
             </div>
-          </button>
-        )}
+          )}
+          {clips.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-[#6B6660]">
+              เพิ่มคลิปเข้าไทม์ไลน์เพื่อดูพรีวิว
+            </div>
+          )}
+          {metadataReady && clips.length > 0 && (
+            <button
+              onClick={togglePlay}
+              className="group absolute inset-0 flex cursor-pointer items-center justify-center bg-black/0 transition-colors hover:bg-black/20"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/60 text-white opacity-0 shadow-lg transition-all group-hover:bg-[#D97757] group-hover:opacity-100">
+                {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
+              </div>
+            </button>
+          )}
+        </div>
       </div>
 
       {metadataReady && clips.length > 0 && (
         <>
-          <div className="flex items-center gap-2 pt-1">
+          {/* Compact mode has no scrub bar, so the button + timecode would
+              otherwise sit far left of a centred preview. */}
+          <div className={`flex w-full flex-shrink-0 items-center gap-2 pt-1 ${compact ? 'justify-center' : ''}`}>
             <button
               onClick={togglePlay}
               className="w-8 h-8 rounded-xl bg-[#D97757] text-white flex items-center justify-center flex-shrink-0 cursor-pointer hover:bg-[#C2683D] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757]"
@@ -304,7 +311,7 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
             </span>
           </div>
           {!compact && (
-            <p className="text-[11px] text-[#9C968F] flex items-center gap-1">
+            <p className="flex flex-shrink-0 items-center gap-1 text-[11px] text-[#9C968F]">
               <Eye className="w-3.5 h-3.5 text-[#9C968F]" /> พรีวิวรวมทั้ง sequence แบบประมาณ (ฟอนต์/สีจริงยึดผลจาก Apply เท่านั้น)
             </p>
           )}

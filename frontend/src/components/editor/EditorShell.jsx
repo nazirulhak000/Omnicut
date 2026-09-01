@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  AlertCircle, CheckCircle2, Loader2, RefreshCw, Rocket, Scissors,
+  AlertCircle, CheckCircle2, Loader2, Maximize2, Minimize2, RefreshCw, Rocket, Scissors,
 } from 'lucide-react';
 import {
   getAllAssets, getProject, getProjects, getRenderStatus, startReroll, updateProjectCues,
@@ -21,6 +21,10 @@ import Toolbar from './Toolbar';
 // this trades a few seconds of one-time cold render for legibility.
 const framesFor = (seconds) => Math.max(6, Math.min(40, Math.round((seconds || 12) / 3)));
 const SNAP_PX = 6;
+const TIMELINE_MIN_H = 196;
+const TIMELINE_MAX_H = 460;
+const TIMELINE_DEFAULT_H = 212;
+
 const EMPTY = { clipList: [], cuesList: [], style: { fontName: 'IBMPlex', bgmName: null, lutName: null, stickerBadge: null } };
 
 let idCounter = 0;
@@ -42,6 +46,26 @@ export default function EditorShell({ videos = [] }) {
   const [playhead, setPlayhead] = useState(0);
   const [zoomIndex, setZoomIndex] = useState(2);
   const [snapEnabled, setSnapEnabled] = useState(true);
+
+  // How much of the pane the timeline gets. Fixed at 212px it starved the
+  // preview on a 800px-tall window (canvas came out ~220px wide), so the
+  // divider is draggable and the choice is remembered.
+  const [timelineH, setTimelineH] = useState(() => {
+    const saved = parseInt(localStorage.getItem('editor.timelineH') || '', 10);
+    return Number.isFinite(saved) ? Math.min(TIMELINE_MAX_H, Math.max(TIMELINE_MIN_H, saved)) : TIMELINE_DEFAULT_H;
+  });
+  const resizeRef = useRef(null);
+
+  // Even at the smallest timeline a 9:16 preview is only ~270px wide on a
+  // 800px-tall screen. Zen hides the side panels and the timeline so the
+  // frame can actually be looked at; Esc or the button brings them back.
+  const [zen, setZen] = useState(false);
+
+  const applyTimelineH = (px) => {
+    const clamped = Math.min(TIMELINE_MAX_H, Math.max(TIMELINE_MIN_H, Math.round(px)));
+    setTimelineH(clamped);
+    try { localStorage.setItem('editor.timelineH', String(clamped)); } catch (err) { /* private mode */ }
+  };
 
   const [applying, setApplying] = useState(false);
   const [jobId, setJobId] = useState(null);
@@ -226,6 +250,7 @@ export default function EditorShell({ videos = [] }) {
         return;
       }
       if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
+      if (e.key === 'Escape' && zen) { e.preventDefault(); setZen(false); return; }
 
       switch (e.key) {
         case ' ':
@@ -349,6 +374,19 @@ export default function EditorShell({ videos = [] }) {
 
         <button
           type="button"
+          onClick={() => setZen((v) => !v)}
+          disabled={!projectName}
+          title={zen ? 'กลับไปหน้าตัดต่อ (Esc)' : 'ขยายพรีวิวเต็มพื้นที่'}
+          aria-pressed={zen}
+          className="claude-btn-secondary flex h-7 items-center gap-1.5 px-2 text-[11px] disabled:opacity-40"
+        >
+          {zen
+            ? <><Minimize2 className="h-3.5 w-3.5" />ย่อ</>
+            : <><Maximize2 className="h-3.5 w-3.5" />ขยายพรีวิว</>}
+        </button>
+
+        <button
+          type="button"
           onClick={handleApply}
           disabled={applying || !projectName}
           className="claude-btn-primary flex h-7 items-center gap-1.5 px-3 text-[11px] disabled:opacity-50"
@@ -373,6 +411,7 @@ export default function EditorShell({ videos = [] }) {
         <>
           {/* middle row */}
           <div className="flex min-h-0 flex-1">
+            {!zen && (
             <div className="w-[220px] flex-shrink-0">
               <AssetPanel
                 videos={videos}
@@ -384,6 +423,7 @@ export default function EditorShell({ videos = [] }) {
                 onAssignSfx={(sfxId) => selectedCaption && patchCaption(selectedCaption._uid, { sfx: sfxId })}
               />
             </div>
+            )}
 
             <div className="flex min-h-0 flex-1 flex-col items-center gap-2 overflow-hidden p-3">
               <SequencePlayer
@@ -395,7 +435,7 @@ export default function EditorShell({ videos = [] }) {
                 onDurations={setDurations}
               />
               {applying && (
-                <div className="w-full max-w-[260px]">
+                <div className="w-full max-w-[260px] flex-shrink-0">
                   <div className="h-1.5 overflow-hidden rounded-full bg-[#363430]">
                     <div className="h-full bg-[#D97757] transition-all duration-300" style={{ width: `${Math.max(5, progress)}%` }} />
                   </div>
@@ -403,17 +443,18 @@ export default function EditorShell({ videos = [] }) {
                 </div>
               )}
               {applyError && (
-                <p className="flex items-center gap-1 text-[10px] text-[#E0A9A2]">
+                <p className="flex flex-shrink-0 items-center gap-1 text-[10px] text-[#E0A9A2]">
                   <AlertCircle className="h-3 w-3" />{applyError}
                 </p>
               )}
               {applyResult && (
-                <p className="flex items-center gap-1 text-[10px] text-[#8FBF9F]">
+                <p className="flex flex-shrink-0 items-center gap-1 text-[10px] text-[#8FBF9F]">
                   <CheckCircle2 className="h-3 w-3" />เรนเดอร์เสร็จ — ดูไฟล์ได้ที่ Export Gallery
                 </p>
               )}
             </div>
 
+            {!zen && (
             <div className="w-[280px] flex-shrink-0">
               <Inspector
                 selection={selection}
@@ -426,10 +467,39 @@ export default function EditorShell({ videos = [] }) {
                 onCaptionChange={(patch) => selectedCaption && patchCaption(selectedCaption._uid, patch)}
               />
             </div>
+            )}
           </div>
 
-          {/* timeline */}
-          <div className="flex h-[212px] flex-shrink-0 flex-col border-t border-[#363430]">
+          {/* timeline -- drag the grip to trade height with the preview,
+              double-click it to go back to the default */}
+          {!zen && (
+          <div
+            className="flex flex-shrink-0 flex-col border-t border-[#363430]"
+            style={{ height: timelineH }}
+          >
+            <div
+              role="separator"
+              aria-orientation="horizontal"
+              aria-label="ปรับความสูงไทม์ไลน์"
+              title="ลากขึ้น-ลงเพื่อปรับความสูงไทม์ไลน์ · ดับเบิลคลิกเพื่อรีเซ็ต"
+              onPointerDown={(e) => {
+                resizeRef.current = { startY: e.clientY, startH: timelineH };
+                try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* drag still works */ }
+              }}
+              onPointerMove={(e) => {
+                const d = resizeRef.current;
+                if (!d) return;
+                applyTimelineH(d.startH - (e.clientY - d.startY));
+              }}
+              onPointerUp={(e) => {
+                resizeRef.current = null;
+                try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
+              }}
+              onDoubleClick={() => applyTimelineH(TIMELINE_DEFAULT_H)}
+              className="group flex h-2 flex-shrink-0 cursor-ns-resize touch-none items-center justify-center bg-[#1C1B19]"
+            >
+              <span className="h-0.5 w-10 rounded-full bg-[#4A4742] transition-colors duration-150 group-hover:bg-[#D97757]" />
+            </div>
             <Toolbar
               hasClipSelected={!!selectedSeg}
               hasSelection={!!selection}
@@ -481,6 +551,7 @@ export default function EditorShell({ videos = [] }) {
               />
             </div>
           </div>
+          )}
         </>
       )}
     </div>
