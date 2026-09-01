@@ -86,7 +86,7 @@ export default memo(function Topbar({
           </span>
 
           {/* Active Product Indicator in Studio / Flow */}
-          {activeProductContext?.productName && (activeTab === 'studio' || activeTab === 'flow') && (
+          {activeProductContext?.productName && (activeTab === 'editor' || activeTab === 'flow') && (
             <div className="hidden md:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-bold truncate max-w-[200px]">
               <Package className="w-3 h-3 flex-shrink-0" />
               <span className="truncate">{activeProductContext.productName}</span>

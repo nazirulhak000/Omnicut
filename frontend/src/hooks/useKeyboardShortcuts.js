@@ -75,10 +75,9 @@ export function useKeyboardShortcuts({
       const tabMap = {
         '1': 'flow',     // 1. สินค้า ➔ คลิป
         '2': 'tracker',  // 2. แทร็กเกอร์ 5 เฟส
-        '3': 'studio',   // 3. 1-Click Studio
-        '4': 'editor',   // 4. ตัดต่อมือ & ซับไตเติล
-        '5': 'gallery',  // 5. Export Gallery
-        '6': 'assets'    // 6. Assets & System
+        '3': 'editor',   // 3. ตัดต่อ & สร้างคลิป (เดิม Studio ถูกยุบเข้ามาที่นี่)
+        '4': 'gallery',  // 4. Export Gallery
+        '5': 'assets'    // 5. Assets & System
       };
 
       if (tabMap[e.key]) {

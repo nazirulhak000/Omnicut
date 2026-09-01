@@ -2,10 +2,6 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import PresetsBar from './components/PresetsBar';
-import StudioStep1Media from './components/StudioStep1Media';
-import StudioStep2Script from './components/StudioStep2Script';
-import StudioStep3Audio from './components/StudioStep3Audio';
-import StudioStep4Render from './components/StudioStep4Render';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
 import ShortcutsModal from './components/ShortcutsModal';
@@ -31,6 +27,9 @@ export default function App() {
     const saved = localStorage.getItem('capcut_active_tab') || 'flow';
     if (saved === 'sub_srt') return 'editor';
     if (saved === 'script_lab') return 'flow';
+    // Studio was folded into the editor -- anyone whose last tab was studio
+    // would otherwise land on a screen that no longer renders anything.
+    if (saved === 'studio') return 'editor';
     return saved;
   });
 
@@ -286,7 +285,7 @@ export default function App() {
     if (data.priceDeal) setPriceDeal(data.priceDeal);
     if (data.adTone) setAdTone(data.adTone);
 
-    setActiveTab('studio');
+    setActiveTab('editor');
   };
 
   const handleResetStudioForm = () => {
@@ -409,104 +408,6 @@ export default function App() {
                 </Suspense>
               )}
 
-              {/* SECTION: 1-Click Studio (Menu 3) */}
-              {activeTab === 'studio' && (
-                <div className="space-y-4">
-                  {/* Active Product Angle Switcher / Presets Bar */}
-                  <PresetsBar
-                    activeProductContext={activeProductContext}
-                    selectedAngleIndex={selectedAngleIndex}
-                    onSelectAngle={handleSelectAngle}
-                    onSelectPreset={handleSelectPreset}
-                    onGoToProductFlow={() => setActiveTab('flow')}
-                    onClearProductContext={() => setActiveProductContext(null)}
-                    onResetForm={handleResetStudioForm}
-                  />
-
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 items-start">
-                    {/* Left Column: Stage 1 (Media) + Stage 2 (Script) */}
-                    <div className="space-y-4 sm:space-y-5">
-                      <StudioStep1Media
-                        videos={videos}
-                        selectedVideo={selectedVideo}
-                        setSelectedVideo={setSelectedVideo}
-                        productName={productName}
-                        activeProductContext={activeProductContext}
-                        onVideoUploaded={handleVideoUploaded}
-                        onVideoDeleted={handleVideoDeleted}
-                      />
-                      <StudioStep2Script
-                        productName={productName}
-                        setProductName={setProductName}
-                        hookTitle={hookTitle}
-                        setHookTitle={setHookTitle}
-                        painPoint={painPoint}
-                        setPainPoint={setPainPoint}
-                        priceDeal={priceDeal}
-                        setPriceDeal={setPriceDeal}
-                        keyFeatures={keyFeatures}
-                        setKeyFeatures={setKeyFeatures}
-                        customScript={customScript}
-                        setCustomScript={setCustomScript}
-                        useCustomScript={useCustomScript}
-                        setUseCustomScript={setUseCustomScript}
-                      />
-                    </div>
-
-                    {/* Right Column: Stage 3 (Audio/Style) + Stage 4 (Render) */}
-                    <div className="space-y-4 sm:space-y-5">
-                      <StudioStep3Audio
-                        voiceMode={voiceMode}
-                        setVoiceMode={setVoiceMode}
-                        voiceGender={voiceGender}
-                        setVoiceGender={setVoiceGender}
-                        voiceSpeed={voiceSpeed}
-                        setVoiceSpeed={setVoiceSpeed}
-                        voicePreset={voicePreset}
-                        setVoicePreset={setVoicePreset}
-                        adTone={adTone}
-                        setAdTone={setAdTone}
-                        humanVoiceAudio={humanVoiceAudio}
-                        setHumanVoiceAudio={setHumanVoiceAudio}
-                        productName={productName}
-                        fontName={fontName}
-                        setFontName={setFontName}
-                        bilingualSubtitles={bilingualSubtitles}
-                        setBilingualSubtitles={setBilingualSubtitles}
-                        stickerBadge={stickerBadge}
-                        setStickerBadge={setStickerBadge}
-                        bgmName={bgmName}
-                        setBgmName={setBgmName}
-                        lutName={lutName}
-                        setLutName={setLutName}
-                      />
-                      <StudioStep4Render
-                        productName={productName}
-                        selectedVideo={selectedVideo}
-                        keyFeatures={keyFeatures}
-                        painPoint={painPoint}
-                        priceDeal={priceDeal}
-                        hookTitle={hookTitle}
-                        customScript={customScript}
-                        useCustomScript={useCustomScript}
-                        voiceMode={voiceMode}
-                        voiceGender={voiceGender}
-                        voiceSpeed={voiceSpeed}
-                        voicePreset={voicePreset}
-                        adTone={adTone}
-                        humanVoiceAudio={humanVoiceAudio}
-                        fontName={fontName}
-                        bilingualSubtitles={bilingualSubtitles}
-                        stickerBadge={stickerBadge}
-                        bgmName={bgmName}
-                        lutName={lutName}
-                        onRenderSuccess={handleRenderSuccess}
-                        onGoToGallery={() => setActiveTab('gallery')}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* SECTION: Export Gallery */}
               {activeTab === 'gallery' && (

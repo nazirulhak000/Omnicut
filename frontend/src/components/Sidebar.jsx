@@ -8,10 +8,9 @@ import { QRCodeSVG } from 'qrcode.react';
 const NAV_ITEMS = [
   { id: 'flow',    icon: Rocket,     label: '1. สินค้า → คลิป',     shortLabel: 'สินค้า' },
   { id: 'tracker', icon: Layers,     label: '2. แทร็กเกอร์ 5 เฟส',    shortLabel: 'Tracker' },
-  { id: 'studio',  icon: Sparkles,   label: '3. 1-Click Studio',    shortLabel: 'Studio' },
-  { id: 'editor',  icon: Scissors,   label: '4. ตัดต่อมือ & ซับไตเติล', shortLabel: 'Editor' },
-  { id: 'gallery', icon: FolderDown, label: '5. Export Gallery',    shortLabel: 'Gallery' },
-  { id: 'assets',  icon: Settings,   label: '6. Assets & System',   shortLabel: 'System' },
+  { id: 'editor',  icon: Scissors,   label: '3. ตัดต่อ & สร้างคลิป', shortLabel: 'Editor' },
+  { id: 'gallery', icon: FolderDown, label: '4. Export Gallery',    shortLabel: 'Gallery' },
+  { id: 'assets',  icon: Settings,   label: '5. Assets & System',   shortLabel: 'System' },
 ];
 
 export default function Sidebar({ activeTab, setActiveTab, status }) {

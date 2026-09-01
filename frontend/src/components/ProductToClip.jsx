@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Link2, Sparkles, Clapperboard, Loader2, Check, Copy,
-  AlertCircle, ArrowRight, Upload, Trash2, RefreshCw, Plus, Film, Video
+  AlertCircle, ArrowRight, Upload, Trash2, RefreshCw, Plus, Film, Video,
+  ChevronDown, ChevronRight, Package, Rocket
 } from 'lucide-react';
 import {
   scrapeAndPlanProduct, getProducts, updateProduct, updateAngleStatus, deleteProduct, uploadFile
@@ -9,10 +10,180 @@ import {
 import { Modal, Toast, Button, Badge, Input, Textarea } from './ui';
 import { useToast } from '../hooks';
 
+// ═══════════════════════════════════════════════════════════════════════
+// 📦 PRODUCT CARD (Horizontal Gallery Item)
+// ═══════════════════════════════════════════════════════════════════════
+function ProductCard({ product, isSelected, onSelect }) {
+  const pAngles = product.angles || [];
+  const pDone = pAngles.filter(a => a.status === 'posted' || a.status === 'rendered').length;
+  const total = pAngles.length || 4;
+  const pct = Math.round((pDone / total) * 100);
+  const thumb = product.images?.[0];
+  const thumbSrc = thumb ? `/api/media/${thumb.rel_path || thumb.local_path}` : null;
+
+  return (
+    <button
+      onClick={() => onSelect(product)}
+      className={`flex-shrink-0 w-[130px] sm:w-[150px] rounded-xl border transition-all cursor-pointer group snap-center p-2.5 space-y-2 text-left ${
+        isSelected
+          ? 'bg-[#25F4EE]/[0.08] border-[#25F4EE]/60 shadow-lg shadow-[#25F4EE]/10 ring-1 ring-[#25F4EE]/40'
+          : 'bg-[#0B0F19] border-white/[0.08] hover:border-white/[0.2] hover:bg-white/[0.03]'
+      }`}
+    >
+      {/* Thumbnail or Placeholder */}
+      <div className="w-full aspect-square rounded-lg overflow-hidden bg-black/60 border border-white/[0.06] flex items-center justify-center">
+        {thumbSrc ? (
+          <img src={thumbSrc} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <Package className={`w-7 h-7 ${isSelected ? 'text-[#25F4EE]' : 'text-slate-600'}`} />
+        )}
+      </div>
+
+      {/* Name */}
+      <div className={`text-xs font-bold truncate leading-tight ${isSelected ? 'text-white' : 'text-slate-300'}`}>
+        {product.name}
+      </div>
+
+      {/* Progress Mini Bar */}
+      <div className="flex items-center gap-1.5">
+        <div className="flex-1 h-1 bg-slate-800 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] rounded-full transition-all"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <span className={`text-[10px] font-mono font-bold flex-shrink-0 ${isSelected ? 'text-[#25F4EE]' : 'text-slate-500'}`}>
+          {pDone}/{total}
+        </span>
+      </div>
+    </button>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// 📝 ACCORDION SCRIPT ITEM
+// ═══════════════════════════════════════════════════════════════════════
+function ScriptAccordionItem({
+  angle, index, isOpen, onToggle, onCopy, onSendToStudio, copiedIndex
+}) {
+  const lines = Array.isArray(angle.script_lines)
+    ? angle.script_lines
+    : (angle.script_text ? angle.script_text.split('\n') : []);
+
+  const curStatus = angle.status || 'scripted';
+  const statusLabel = curStatus === 'posted' ? 'โพสต์แล้ว'
+    : curStatus === 'rendered' ? 'ตัดเสร็จ'
+    : curStatus === 'in_production' ? 'กำลังตัดต่อ'
+    : 'สคริปต์พร้อม';
+
+  const statusColor = curStatus === 'posted' ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+    : curStatus === 'rendered' ? 'bg-blue-500/15 text-blue-300 border-blue-500/30'
+    : curStatus === 'in_production' ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+    : 'bg-white/[0.05] text-slate-400 border-white/[0.08]';
+
+  return (
+    <div className={`rounded-xl border transition-all ${
+      isOpen
+        ? 'bg-[#0B0F19] border-[#25F4EE]/30 shadow-md'
+        : 'bg-[#080B11] border-white/[0.06] hover:border-white/[0.15]'
+    }`}>
+      {/* Collapsed Header Row */}
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left cursor-pointer group"
+      >
+        {/* Number Badge */}
+        <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+          isOpen
+            ? 'bg-gradient-to-tr from-[#25F4EE] to-blue-500 text-slate-950 shadow-sm'
+            : 'bg-white/[0.06] text-slate-400 border border-white/[0.08]'
+        }`}>
+          {index + 1}
+        </span>
+
+        {/* Name + Hook Preview */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
+            <span className={`text-xs font-bold truncate ${isOpen ? 'text-white' : 'text-slate-200'}`}>
+              {angle.angle_name}
+            </span>
+          </div>
+          {!isOpen && angle.hook_title && (
+            <p className="text-[11px] text-slate-500 truncate mt-0.5 font-kanit">
+              "{angle.hook_title}"
+            </p>
+          )}
+        </div>
+
+        {/* Status Badge */}
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0 ${statusColor}`}>
+          {statusLabel}
+        </span>
+
+        {/* Chevron */}
+        {isOpen
+          ? <ChevronDown className="w-4 h-4 text-[#25F4EE] flex-shrink-0" />
+          : <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-white flex-shrink-0" />
+        }
+      </button>
+
+      {/* Expanded Content */}
+      {isOpen && (
+        <div className="px-3 pb-3 space-y-3 border-t border-white/[0.06] pt-3 animate-fadeIn">
+          {/* Hook Highlight */}
+          {angle.hook_title && (
+            <div className="p-2.5 rounded-lg bg-black/50 border-l-[3px] border-[#25F4EE] text-xs sm:text-sm font-bold text-cyan-200 leading-snug">
+              {angle.hook_title}
+            </div>
+          )}
+
+          {/* Script Lines */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold">
+              <span>บทพูดพากย์ ({lines.length} ท่อน):</span>
+              <button
+                onClick={(e) => { e.stopPropagation(); onCopy(lines.join('\n'), index); }}
+                className="text-[#25F4EE] hover:underline flex items-center gap-1 cursor-pointer font-bold"
+              >
+                {copiedIndex === index
+                  ? <><Check className="w-3 h-3 text-emerald-400" /> คัดลอกแล้ว</>
+                  : <><Copy className="w-3 h-3" /> คัดลอก</>}
+              </button>
+            </div>
+            <div className="p-2.5 rounded-lg bg-black/40 border border-white/[0.06] space-y-1 max-h-40 overflow-y-auto font-mono text-xs text-slate-200 leading-relaxed">
+              {lines.map((line, lIdx) => (
+                <div key={lIdx} className="flex items-start gap-1.5">
+                  <span className="text-[#25F4EE] font-bold flex-shrink-0">{lIdx + 1}.</span>
+                  <span>{line}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Action Row */}
+          <div className="flex items-center justify-end gap-2 pt-1">
+            <button
+              onClick={(e) => { e.stopPropagation(); onSendToStudio(angle, index); }}
+              className="py-2 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-[#FE2C55]/25 cursor-pointer active:scale-95 transition-all"
+            >
+              <Clapperboard className="w-3.5 h-3.5 text-white" />
+              <span>เลือกมุมนี้ & ส่งตัดต่อ</span>
+              <ArrowRight className="w-3 h-3 text-white/80" />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// 🌟 MAIN: ProductToClip Component (Redesigned Guided Workflow)
+// ═══════════════════════════════════════════════════════════════════════
 export default function ProductToClip({ status, videos = [], onRefresh, onApplyToStudio, selectedProductId }) {
   // Input Mode & Active View
   const [showAddModal, setShowAddModal] = useState(false);
-  const [inputMode, setInputMode] = useState('link'); // 'link' | 'text' | 'image'
+  const [inputMode, setInputMode] = useState('link');
   const [url, setUrl] = useState('');
   const [customKeyword, setCustomKeyword] = useState('');
   const [rawText, setRawText] = useState('');
@@ -24,6 +195,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const [selectedImage, setSelectedImage] = useState(null);
   const [angles, setAngles] = useState([]);
   const [copiedIndex, setCopiedIndex] = useState(null);
+  const [openAngleIdx, setOpenAngleIdx] = useState(0); // Accordion: which angle is expanded
   const { toastMessage, showToast, hideToast } = useToast();
 
   // History / All Products
@@ -72,6 +244,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       images: item.images || (item.thumbnail ? [{ rel_path: item.thumbnail, name: 'thumb' }] : []),
     });
     setAngles(item.angles || []);
+    setOpenAngleIdx(0); // Reset accordion to first angle
     if (item.images && item.images.length > 0) {
       setSelectedImage(item.images[0].local_path || item.images[0].rel_path);
     }
@@ -213,75 +386,74 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const postedAngles = angles.filter(a => a.status === 'posted' || a.status === 'rendered').length;
   const progressPercent = totalAngles > 0 ? Math.round((postedAngles / totalAngles) * 100) : 0;
 
+  // ═══════════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════════
   return (
-    <div className="space-y-5 relative animate-fadeIn pb-16">
+    <div className="space-y-4 relative animate-fadeIn pb-16">
       {/* Central Toast Notification */}
       <Toast message={toastMessage} onClose={hideToast} />
 
       {/* ══════════════════════════════════════════════════════════
-          1. CLEAN UNIFIED HEADER & PRODUCT SWITCHER
+          STEP 1: PRODUCT CARD GALLERY (Horizontal Scroll Strip)
          ══════════════════════════════════════════════════════════ */}
-      <div className="glass-panel p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        {/* Left: Standard Clean Select Dropdown */}
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className="flex-1 min-w-0">
-            <div className="text-[11px] font-semibold text-slate-400">
-              เลือกสินค้าในระบบ ({historyList.length} รายการ):
-            </div>
-            <select
-              value={selectedHistoryId || ''}
-              onChange={(e) => {
-                const found = historyList.find(p => p.id === e.target.value);
-                if (found) selectProduct(found);
-              }}
-              className="w-full mt-0.5 py-1.5 px-3 rounded-xl bg-[#080B11] border border-white/[0.1] text-xs sm:text-sm font-bold text-white focus:outline-none focus:border-[#25F4EE]/50 cursor-pointer shadow-inner"
+      <div className="space-y-2">
+        <div className="flex items-center justify-between px-1">
+          <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <Package className="w-3.5 h-3.5 text-[#25F4EE]" />
+            <span>Step 1 — เลือกสินค้า</span>
+            {historyList.length > 0 && (
+              <span className="text-[10px] font-mono text-slate-500 ml-1">({historyList.length} รายการ)</span>
+            )}
+          </h2>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={loadHistory}
+              className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-400 hover:text-white border border-white/[0.06] cursor-pointer transition-colors"
+              title="รีเฟรช"
             >
-              {historyList.map(p => {
-                const pAngles = p.angles || [];
-                const pDone = pAngles.filter(a => a.status === 'posted' || a.status === 'rendered').length;
-                return (
-                  <option key={p.id} value={p.id}>
-                    {p.name} — ({pDone}/{pAngles.length || 4} สคริปต์เสร็จ)
-                  </option>
-                );
-              })}
-              {historyList.length === 0 && <option value="">ยังไม่มีสินค้า</option>}
-            </select>
+              <RefreshCw className={`w-3.5 h-3.5 ${loadingHistory ? 'animate-spin' : ''}`} />
+            </button>
+            {productData && (
+              <button
+                onClick={() => handleDeleteHistory(productData.id)}
+                className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 cursor-pointer transition-colors"
+                title="ลบสินค้านี้"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Right: Actions */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        {/* Horizontal Scrollable Product Cards */}
+        <div className="flex items-stretch gap-2.5 overflow-x-auto pb-1 no-scrollbar snap-x snap-mandatory scroll-smooth pr-4">
+          {historyList.map(p => (
+            <ProductCard
+              key={p.id}
+              product={p}
+              isSelected={selectedHistoryId === p.id}
+              onSelect={selectProduct}
+            />
+          ))}
+
+          {/* + Add New Product Card */}
           <button
             onClick={() => setShowAddModal(true)}
-            className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs sm:text-sm font-bold flex items-center gap-2 shadow-lg shadow-[#FE2C55]/25 cursor-pointer active:scale-95 transition-all"
+            className="flex-shrink-0 w-[130px] sm:w-[150px] rounded-xl border-2 border-dashed border-white/[0.12] hover:border-[#25F4EE]/50 bg-black/20 hover:bg-[#25F4EE]/[0.05] transition-all cursor-pointer snap-center p-2.5 flex flex-col items-center justify-center gap-2 group"
           >
-            <Plus className="w-4 h-4 text-white" />
-            <span>วิเคราะห์สินค้าใหม่</span>
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#FE2C55]/20 to-[#25F4EE]/20 border border-white/[0.1] flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Plus className="w-5 h-5 text-[#25F4EE]" />
+            </div>
+            <span className="text-xs font-bold text-slate-400 group-hover:text-white transition-colors text-center">
+              วิเคราะห์สินค้าใหม่
+            </span>
           </button>
-
-          <button
-            onClick={loadHistory}
-            className="p-2.5 min-w-[36px] min-h-[36px] rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-400 hover:text-white border border-white/[0.08] text-xs font-bold cursor-pointer transition-colors flex items-center justify-center"
-            title="รีเฟรช"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-
-          {productData && (
-            <button
-              onClick={() => handleDeleteHistory(productData.id)}
-              className="p-2.5 min-w-[36px] min-h-[36px] rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs font-bold cursor-pointer transition-colors flex items-center justify-center"
-              title="ลบสินค้านี้"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          )}
         </div>
       </div>
 
       {/* ══════════════════════════════════════════════════════════
-          2. ADD PRODUCT MODAL (Central Modal)
+          ADD PRODUCT MODAL
          ══════════════════════════════════════════════════════════ */}
       <Modal
         isOpen={showAddModal}
@@ -293,30 +465,21 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         <div className="space-y-4">
           {/* Input Mode Selector */}
           <div className="flex items-center gap-1 p-1 bg-black/40 rounded-xl border border-white/[0.08]">
-            <button
-              onClick={() => setInputMode('link')}
-              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                inputMode === 'link' ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-sm' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              ลิงก์สินค้า
-            </button>
-            <button
-              onClick={() => setInputMode('text')}
-              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                inputMode === 'text' ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-sm' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              ข้อความสเปก
-            </button>
-            <button
-              onClick={() => setInputMode('image')}
-              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                inputMode === 'image' ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-sm' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              รูปภาพสินค้า
-            </button>
+            {[
+              { id: 'link', label: 'ลิงก์สินค้า' },
+              { id: 'text', label: 'ข้อความสเปก' },
+              { id: 'image', label: 'รูปภาพสินค้า' },
+            ].map(m => (
+              <button
+                key={m.id}
+                onClick={() => setInputMode(m.id)}
+                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  inputMode === m.id ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-sm' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
           </div>
 
           {/* Mode 1: URL */}
@@ -365,302 +528,218 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                 onChange={(e) => setCustomKeyword(e.target.value)}
                 placeholder="เช่น Esseger สายชาร์จแม่เหล็ก"
               />
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">
-                    แคปหน้าจอหน้าร้าน / รูปสินค้า:
-                  </label>
-                  <div
-                    onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-white/[0.15] hover:border-[#25F4EE]/50 rounded-2xl p-6 text-center cursor-pointer transition-colors bg-black/30"
-                  >
-                    {uploadingImg ? (
-                      <div className="flex flex-col items-center gap-2 text-[#25F4EE]">
-                        <Loader2 className="w-6 h-6 animate-spin" />
-                        <span className="text-xs font-bold">กำลังอัปโหลดรูปภาพ...</span>
-                      </div>
-                    ) : selectedImage ? (
-                      <div className="space-y-2">
-                        <div className="text-xs font-bold text-emerald-400">เลือกรูปแล้ว:</div>
-                        <div className="text-[11px] text-slate-400 font-mono">{selectedImage.split('\\').pop()?.split('/').pop()}</div>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedImage(null);
-                          }}
-                          className="text-xs text-rose-400 hover:underline"
-                        >
-                          ลบรูปออก
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="space-y-1.5 text-slate-400">
-                        <Upload className="w-7 h-7 mx-auto text-slate-500" />
-                        <div className="text-xs font-bold text-slate-200">คลิกเพื่อเลือกไฟล์รูปภาพ</div>
-                        <div className="text-[10px] text-slate-500">รองรับ JPG, PNG, WebP</div>
-                      </div>
-                    )}
-                  </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                  />
+              <div>
+                <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+                  แคปหน้าจอหน้าร้าน / รูปสินค้า:
+                </label>
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-white/[0.15] hover:border-[#25F4EE]/50 rounded-2xl p-6 text-center cursor-pointer transition-colors bg-black/30"
+                >
+                  {uploadingImg ? (
+                    <div className="flex flex-col items-center gap-2 text-[#25F4EE]">
+                      <Loader2 className="w-6 h-6 animate-spin" />
+                      <span className="text-xs font-bold">กำลังอัปโหลดรูปภาพ...</span>
+                    </div>
+                  ) : selectedImage ? (
+                    <div className="space-y-2">
+                      <div className="text-xs font-bold text-emerald-400">เลือกรูปแล้ว:</div>
+                      <div className="text-[11px] text-slate-400 font-mono">{selectedImage.split('\\').pop()?.split('/').pop()}</div>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setSelectedImage(null); }}
+                        className="text-xs text-rose-400 hover:underline"
+                      >
+                        ลบรูปออก
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5 text-slate-400">
+                      <Upload className="w-7 h-7 mx-auto text-slate-500" />
+                      <div className="text-xs font-bold text-slate-200">คลิกเพื่อเลือกไฟล์รูปภาพ</div>
+                      <div className="text-[10px] text-slate-500">รองรับ JPG, PNG, WebP</div>
+                    </div>
+                  )}
                 </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
               </div>
-            )}
-
-            {fetchError && (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs space-y-2">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  <span>{fetchError}</span>
-                </div>
-                {inputMode === 'link' && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setInputMode('text');
-                      setFetchError(null);
-                    }}
-                    className="px-3 py-1.5 rounded-lg bg-white/[0.1] hover:bg-white/[0.15] text-white text-[11px] font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <span>สลับไปใช้วิธีวางข้อความสเปกแทน</span>
-                  </button>
-                )}
-              </div>
-            )}
-
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/[0.08]">
-              <Button
-                variant="secondary"
-                onClick={() => setShowAddModal(false)}
-              >
-                ยกเลิก
-              </Button>
-              <Button
-                variant="primary"
-                onClick={handleScrapeAndPlan}
-                loading={fetching}
-                icon={Sparkles}
-              >
-                วิเคราะห์ & สร้าง 4 สคริปต์
-              </Button>
             </div>
+          )}
+
+          {fetchError && (
+            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs space-y-2">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{fetchError}</span>
+              </div>
+              {inputMode === 'link' && (
+                <button
+                  type="button"
+                  onClick={() => { setInputMode('text'); setFetchError(null); }}
+                  className="px-3 py-1.5 rounded-lg bg-white/[0.1] hover:bg-white/[0.15] text-white text-[11px] font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <span>สลับไปใช้วิธีวางข้อความสเปกแทน</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/[0.08]">
+            <Button variant="secondary" onClick={() => setShowAddModal(false)}>
+              ยกเลิก
+            </Button>
+            <Button variant="primary" onClick={handleScrapeAndPlan} loading={fetching} icon={Sparkles}>
+              วิเคราะห์ & สร้าง 4 สคริปต์
+            </Button>
           </div>
-        </Modal>
+        </div>
+      </Modal>
 
       {/* ══════════════════════════════════════════════════════════
-          3. ACTIVE PRODUCT MASTER HERO CARD
+          STEP 2 + 3: PRODUCT DETAIL + SCRIPT ACCORDION + MEDIA
          ══════════════════════════════════════════════════════════ */}
       {productData ? (
-        <div className="glass-card p-5 sm:p-6 space-y-5">
-          {/* Header row */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/[0.08] pb-4">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2.5">
-                <span className="px-2.5 py-0.5 rounded-full bg-[#25F4EE]/15 text-[#25F4EE] text-xs font-bold border border-[#25F4EE]/30">
-                  สินค้าปัจจุบัน
-                </span>
+        <div className="space-y-4">
+
+          {/* ──── Product Info Compact Header ──── */}
+          <div className="glass-card p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-sm sm:text-base font-bold text-white font-kanit truncate max-w-md">
+                  {productData.title}
+                </h1>
                 {productData.price_note && (
-                  <span className="text-xs font-bold font-mono text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+                  <span className="text-[11px] font-bold font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 flex-shrink-0">
                     {productData.price_note}
                   </span>
                 )}
               </div>
-              <h1 className="text-lg sm:text-xl font-bold text-white font-kanit mt-1 truncate max-w-2xl">
-                {productData.title}
-              </h1>
               {productData.description && (
-                <p className="text-xs sm:text-sm text-slate-400 truncate mt-0.5 max-w-2xl">
+                <p className="text-[11px] sm:text-xs text-slate-400 truncate mt-0.5 max-w-lg">
                   {productData.description}
                 </p>
               )}
             </div>
 
-            {/* Progress Badge */}
-            <div className="flex items-center gap-3 bg-black/40 p-2.5 px-4 rounded-xl border border-white/[0.08] flex-shrink-0">
-              <div className="text-xs">
-                <span className="text-slate-400">ความคืบหน้า: </span>
-                <span className="text-white font-bold font-mono">{postedAngles}/{totalAngles} คลิป ({progressPercent}%)</span>
-              </div>
-              <div className="w-20 h-2 bg-slate-800 rounded-full overflow-hidden ml-1">
+            {/* Progress */}
+            <div className="flex items-center gap-2.5 bg-black/40 p-2 px-3 rounded-lg border border-white/[0.08] flex-shrink-0">
+              <span className="text-[11px] text-slate-400">ความคืบหน้า:</span>
+              <span className="text-xs text-white font-bold font-mono">{postedAngles}/{totalAngles}</span>
+              <div className="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden">
                 <div className="h-full bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] rounded-full" style={{ width: `${progressPercent}%` }} />
               </div>
             </div>
           </div>
 
-          {/* Attached Media Strip */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-1">
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
-              <Video className="w-3.5 h-3.5 text-[#25F4EE]" />
-              <span>คลิปดิบ & รูปภาพที่แนบ ({videos.length + (productData.images?.length || 0)} ไฟล์):</span>
+          {/* ──── STEP 2: Script Accordion ──── */}
+          <div className="space-y-2">
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 px-1">
+              <Sparkles className="w-3.5 h-3.5 text-[#FE2C55]" />
+              <span>Step 2 — เลือกมุมขาย ({totalAngles} สคริปต์)</span>
+            </h2>
+
+            <div className="space-y-1.5">
+              {angles.map((ang, idx) => (
+                <ScriptAccordionItem
+                  key={ang.angle_id || idx}
+                  angle={ang}
+                  index={idx}
+                  isOpen={openAngleIdx === idx}
+                  onToggle={() => setOpenAngleIdx(openAngleIdx === idx ? -1 : idx)}
+                  onCopy={copyScriptText}
+                  onSendToStudio={handleSendToStudio}
+                  copiedIndex={copiedIndex}
+                />
+              ))}
             </div>
-            <label className="px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-xs font-bold text-[#25F4EE] cursor-pointer flex items-center gap-1.5 transition-all w-fit">
-              <Upload className="w-3.5 h-3.5" />
-              <span>{uploadingImg ? 'กำลังอัปโหลด...' : 'แนบคลิปดิบเพิ่ม'}</span>
-              <input type="file" accept="video/*,image/*" onChange={handleImageUpload} disabled={uploadingImg} className="hidden" />
-            </label>
           </div>
 
-          {/* Media Items Scroll */}
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1">
-            {videos.map(v => (
-              <div key={v.path} className="flex-shrink-0 flex items-center gap-2 p-2 rounded-xl bg-black/40 border border-white/[0.08] text-xs">
-                <Film className="w-3.5 h-3.5 text-[#25F4EE]" />
-                <span className="font-bold text-slate-200 truncate max-w-[130px]">{v.name}</span>
-                <span className="text-[10px] text-slate-400 font-mono">{v.size_mb} MB</span>
-              </div>
-            ))}
-            {(productData.images || []).map((img, idx) => (
-              <div key={idx} className="flex-shrink-0 flex items-center gap-1.5 p-1.5 rounded-xl bg-black/40 border border-white/[0.08]">
-                <img src={`/api/media/${img.rel_path || img.local_path}`} alt="" className="w-7 h-7 rounded-lg object-cover" />
-                <span className="text-xs text-slate-300 max-w-[100px] truncate">{img.name}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* ══════════════════════════════════════════════════════════
-              4. THE 4 SCRIPT ANGLE CARDS (CLEAN 2x2 PRO GRID)
-             ══════════════════════════════════════════════════════════ */}
-          <div className="pt-3 border-t border-white/[0.08] space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-bold text-white font-kanit">
-                4 สคริปต์ป้ายยา & สถานะการผลิต (4-Angle Hub)
+          {/* ──── STEP 3: Media Dock ──── */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between px-1">
+              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Video className="w-3.5 h-3.5 text-[#25F4EE]" />
+                <span>Step 3 — คลิปดิบ & สื่อที่แนบ ({videos.length + (productData.images?.length || 0)} ไฟล์)</span>
               </h2>
-              <span className="text-xs text-slate-400 font-mono">
-                เลือกมุมมองที่ชอบ แล้วกด "ส่งตัดต่อใน Studio"
-              </span>
+              <label className="px-2.5 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-[11px] font-bold text-[#25F4EE] cursor-pointer flex items-center gap-1 transition-all">
+                <Upload className="w-3 h-3" />
+                <span>{uploadingImg ? 'อัปโหลด...' : 'แนบคลิปเพิ่ม'}</span>
+                <input type="file" accept="video/*,image/*" onChange={handleImageUpload} disabled={uploadingImg} className="hidden" />
+              </label>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {angles.map((ang, idx) => {
-                const lines = Array.isArray(ang.script_lines) ? ang.script_lines : (ang.script_text ? ang.script_text.split('\n') : []);
-                const curStatus = ang.status || 'scripted';
-
-                const isScripted = curStatus === 'scripted';
-                const isInProduction = curStatus === 'in_production';
-                const isRendered = curStatus === 'rendered';
-                const isPosted = curStatus === 'posted';
-
-                return (
-                  <div
-                    key={ang.angle_id || idx}
-                    className="p-5 rounded-2xl glass-card border border-white/[0.08] hover:border-[#25F4EE]/40 transition-all flex flex-col justify-between space-y-3.5 shadow-md"
-                  >
-                    <div className="space-y-3">
-                      {/* Header */}
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="w-6 h-6 rounded-lg bg-gradient-to-tr from-[#25F4EE] to-blue-500 flex items-center justify-center text-xs font-bold text-slate-950 shadow-sm">
-                            {idx + 1}
-                          </span>
-                          <span className="text-xs sm:text-sm font-bold text-white font-kanit">
-                            {ang.angle_name}
-                          </span>
-                        </div>
-
-                        <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
-                          isPosted
-                            ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-                            : isRendered
-                            ? 'bg-blue-500/15 text-blue-300 border-blue-500/30'
-                            : isInProduction
-                            ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-                            : 'bg-white/[0.05] text-slate-400 border-white/[0.08]'
-                        }`}>
-                          {isPosted ? 'โพสต์แล้ว' : isRendered ? 'เรนเดอร์เสร็จ' : isInProduction ? 'กำลังตัดต่อ' : 'สคริปต์พร้อม'}
-                        </span>
-                      </div>
-
-                      {/* Hook 3s Highlight Banner */}
-                      {ang.hook_title && (
-                        <div className="p-3 rounded-xl bg-black/50 border-l-4 border-[#25F4EE] text-xs sm:text-sm font-bold text-cyan-200 leading-snug">
-                          {ang.hook_title}
-                        </div>
-                      )}
-
-                      {/* Script Lines */}
-                      <div className="p-3 rounded-xl bg-black/40 border border-white/[0.06] space-y-1.5">
-                        <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold">
-                          <span>บทพูดพากย์ ({lines.length} ท่อน):</span>
-                          <button
-                            onClick={() => copyScriptText(lines.join('\n'), idx)}
-                            className="text-[#25F4EE] hover:underline flex items-center gap-1 cursor-pointer font-bold"
-                          >
-                            {copiedIndex === idx ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                            <span>{copiedIndex === idx ? 'คัดลอกแล้ว' : 'คัดลอก'}</span>
-                          </button>
-                        </div>
-                        <div className="space-y-1 text-xs text-slate-200 font-mono leading-relaxed max-h-32 overflow-y-auto no-scrollbar">
-                          {lines.map((line, lIdx) => (
-                            <div key={lIdx} className="flex items-start gap-1.5">
-                              <span className="text-[#25F4EE] font-bold flex-shrink-0">{lIdx + 1}.</span>
-                              <span>{line}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Action Footer */}
-                    <div className="pt-2.5 border-t border-white/[0.08] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-                      {/* Step Switcher Buttons */}
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleAngleStatusChange(ang.angle_id, 'scripted')}
-                          className={`flex-1 sm:flex-none px-2.5 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer transition-all ${
-                            isScripted ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40' : 'bg-white/[0.03] text-slate-400 border border-white/[0.06] hover:text-white'
-                          }`}
-                        >
-                          1. สคริปต์
-                        </button>
-                        <button
-                          onClick={() => handleAngleStatusChange(ang.angle_id, 'in_production')}
-                          className={`flex-1 sm:flex-none px-2.5 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer transition-all ${
-                            isInProduction ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-white/[0.03] text-slate-400 border border-white/[0.06] hover:text-white'
-                          }`}
-                        >
-                          2. ตัดต่อ
-                        </button>
-                        <button
-                          onClick={() => handleAngleStatusChange(ang.angle_id, 'rendered')}
-                          className={`flex-1 sm:flex-none px-2.5 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer transition-all ${
-                            isRendered ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-white/[0.03] text-slate-400 border border-white/[0.06] hover:text-white'
-                          }`}
-                        >
-                          3. เรนเดอร์
-                        </button>
-                      </div>
-
-                      {/* Send to Studio Button */}
-                      <button
-                        onClick={() => handleSendToStudio(ang, idx)}
-                        className="w-full sm:w-auto py-2 px-3.5 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-lg shadow-[#FE2C55]/25 cursor-pointer active:scale-95 transition-all"
-                      >
-                        <Clapperboard className="w-3.5 h-3.5 text-white" />
-                        <span>ส่งตัดต่อใน Studio</span>
-                        <ArrowRight className="w-3 h-3 text-white/80" />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+            {/* Media Chips Strip */}
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar p-2 rounded-xl bg-[#080B11] border border-white/[0.06]">
+              {videos.length === 0 && (productData.images?.length || 0) === 0 && (
+                <div className="text-[11px] text-slate-500 py-2 px-3 w-full text-center">
+                  ยังไม่มีคลิปดิบ — กดปุ่ม "แนบคลิปเพิ่ม" ด้านบนเพื่ออัปโหลด
+                </div>
+              )}
+              {videos.map(v => (
+                <div key={v.path} className="flex-shrink-0 flex items-center gap-1.5 py-1.5 px-2.5 rounded-lg bg-black/40 border border-white/[0.08] text-xs">
+                  <Film className="w-3 h-3 text-[#25F4EE]" />
+                  <span className="font-bold text-slate-200 truncate max-w-[100px]">{v.name}</span>
+                  <span className="text-[10px] text-slate-500 font-mono">{v.size_mb}MB</span>
+                </div>
+              ))}
+              {(productData.images || []).map((img, idx) => (
+                <div key={idx} className="flex-shrink-0 flex items-center gap-1.5 py-1 px-1.5 rounded-lg bg-black/40 border border-white/[0.08]">
+                  <img src={`/api/media/${img.rel_path || img.local_path}`} alt="" className="w-7 h-7 rounded object-cover" />
+                  <span className="text-[11px] text-slate-300 max-w-[80px] truncate">{img.name}</span>
+                </div>
+              ))}
             </div>
           </div>
+
         </div>
       ) : (
-        /* Empty State */
-        <div className="p-16 text-center space-y-4 rounded-2xl glass-card shadow-2xl">
+        /* ══════════════════════════════════════════════════════════
+           🌟 EMPTY STATE / ONBOARDING (First-Run Experience)
+          ══════════════════════════════════════════════════════════ */
+        <div className="p-8 sm:p-12 text-center space-y-5 rounded-2xl glass-card shadow-2xl border border-white/[0.08]">
+          {/* Hero Icon */}
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#FE2C55]/20 to-[#25F4EE]/20 border border-white/[0.1] flex items-center justify-center mx-auto shadow-lg">
+            <Rocket className="w-8 h-8 text-[#25F4EE]" />
+          </div>
+
           <div>
-            <h3 className="text-lg font-bold text-white font-kanit">ยังไม่มีสินค้าในระบบ</h3>
-            <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-md mx-auto">
-              กดปุ่ม "วิเคราะห์สินค้าใหม่" ด้านบนเพื่อวางลิงก์ Shopee หรือพิมพ์รายละเอียด AI จะสร้าง 4 สคริปต์ให้ทันที
+            <h3 className="text-lg font-bold text-white font-kanit">เริ่มต้นสร้างคลิปขายจากสินค้าได้เลย!</h3>
+            <p className="text-xs sm:text-sm text-slate-400 mt-2 max-w-md mx-auto leading-relaxed">
+              วางลิงก์สินค้าจาก Shopee หรือ TikTok Shop → AI จะวิเคราะห์สเปกและสร้าง <strong className="text-white">4 สคริปต์ป้ายยา</strong> จาก 4 มุมขายให้ทันที → เลือกมุมที่ชอบแล้วกด "ส่งตัดต่อ"
             </p>
           </div>
+
+          {/* 3-Step Visual Guide */}
+          <div className="flex items-center justify-center gap-3 text-xs text-slate-400 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <span className="w-5 h-5 rounded-full bg-[#25F4EE]/20 text-[#25F4EE] font-bold text-[10px] flex items-center justify-center">1</span>
+              <span>วางลิงก์/สเปก</span>
+            </div>
+            <ArrowRight className="w-3 h-3 text-slate-600" />
+            <div className="flex items-center gap-1.5">
+              <span className="w-5 h-5 rounded-full bg-[#FE2C55]/20 text-[#FE2C55] font-bold text-[10px] flex items-center justify-center">2</span>
+              <span>AI สร้าง 4 สคริปต์</span>
+            </div>
+            <ArrowRight className="w-3 h-3 text-slate-600" />
+            <div className="flex items-center gap-1.5">
+              <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-[10px] flex items-center justify-center">3</span>
+              <span>ส่งตัดต่อใน Studio</span>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="mx-auto py-3 px-6 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-sm font-bold flex items-center gap-2 shadow-lg shadow-[#FE2C55]/25 cursor-pointer active:scale-95 transition-all"
+          >
+            <Plus className="w-4 h-4 text-white" />
+            <span>วิเคราะห์สินค้าแรกของคุณ</span>
+          </button>
         </div>
       )}
     </div>
