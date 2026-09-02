@@ -1,82 +1,42 @@
-"""
-Product Scraper and AI Content Matrix Engine for Shopee & TikTok Shop.
-Extracts product metadata, follows redirects (short URLs), decodes URL slugs, and generates 4-5 viral script angles with captions & hashtags.
-"""
-
-import os
 import re
-import sys
 import json
-import html
-import time
+import os
 import urllib.request
 import urllib.parse
-import urllib.error
-from pathlib import Path
 from typing import Dict, Any, List, Optional
+from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
-from scripts.config import INBOX_DIR, RAW_DIR
-
+BASE_DIR = Path(__file__).resolve().parent.parent
 BROWSER_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/124.0.0.0 Safari/537.36"
 )
 
-def _clean_text(s: str) -> str:
-    if not s:
-        return ""
-    s = html.unescape(s)
-    s = re.sub(r'<[^>]+>', ' ', s)
-    s = re.sub(r'\s+', ' ', s)
-    return s.strip()
-
-def _extract_meta(html_text: str, name_or_prop: str) -> str:
-    patterns = [
-        rf'<meta\s+property=[\'"]{name_or_prop}[\'"]\s+content=[\'"](.*?)[\'"]',
-        rf'<meta\s+content=[\'"](.*?)[\'"]\s+property=[\'"]{name_or_prop}[\'"]',
-        rf'<meta\s+name=[\'"]{name_or_prop}[\'"]\s+content=[\'"](.*?)[\'"]',
-        rf'<meta\s+content=[\'"](.*?)[\'"]\s+name=[\'"]{name_or_prop}[\'"]',
-    ]
-    for p in patterns:
-        m = re.search(p, html_text, re.IGNORECASE | re.DOTALL)
-        if m:
-            return _clean_text(m.group(1))
-    return ""
-
-def _download_image(img_url: str, dest_path: Path) -> bool:
-    try:
-        req = urllib.request.Request(img_url, headers={"User-Agent": BROWSER_UA})
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = resp.read()
-            if len(data) > 2000:
-                dest_path.parent.mkdir(parents=True, exist_ok=True)
-                dest_path.write_bytes(data)
-                return True
-    except Exception as e:
-        print(f"[ProductScraper] Failed to download {img_url}: {e}")
-    return False
+def _extract_meta(html: str, property_name: str) -> Optional[str]:
+    """Extract content from meta tags by property or name."""
+    pattern = rf'<meta[^>]+(?:property|name)=[\'"]{re.escape(property_name)}[\'"][^>]+content=[\'"]([^\'"]+)[\'"]'
+    match = re.search(pattern, html, re.I)
+    if match:
+        return match.group(1).strip()
+    pattern_alt = rf'<meta[^>]+content=[\'"]([^\'"]+)[\'"][^>]+(?:property|name)=[\'"]{re.escape(property_name)}[\'"]'
+    match_alt = re.search(pattern_alt, html, re.I)
+    if match_alt:
+        return match_alt.group(1).strip()
+    return None
 
 def _extract_slug_title(url: str) -> str:
-    """Extracts human-readable product title directly from decoded URL path slug."""
+    """Extract human-readable product title from URL slug."""
     try:
         parsed = urllib.parse.urlparse(url)
         path = urllib.parse.unquote(parsed.path).strip('/')
-        # E.g. Logitech-Wave-Keys-wireless-ergonomic-keyboard-(แป้นพิมพ์-TH-EN...)-i.158113227.22258251039
         parts = path.split('/')
         if not parts:
             return ""
         slug = parts[-1] or (parts[-2] if len(parts) > 1 else "")
-        # Remove trailing shopee item ids like -i.123.456 or ?extraParams
         slug = re.sub(r'-i\.\d+\.\d+.*$', '', slug, flags=re.I)
         slug = re.sub(r'[\?#].*$', '', slug)
-        # Replace hyphens with spaces
         title = slug.replace('-', ' ').strip()
-        # If slug is too generic or empty, ignore
         if len(title) > 3 and not title.startswith("product"):
             return title
     except Exception:
@@ -92,7 +52,6 @@ class ProductScraper:
         if not url.startswith(("http://", "https://")):
             raise ValueError("URL must start with http:// or https://")
 
-        # 1. Resolve Short URL redirects (e.g. s.shopee.co.th, vt.tiktok.com)
         resolved_url = url
         try:
             req = urllib.request.Request(url, headers={"User-Agent": BROWSER_UA})
@@ -108,7 +67,6 @@ class ProductScraper:
         images = []
         raw_text = title
 
-        # 2. Try Direct Page Request
         try:
             req = urllib.request.Request(
                 resolved_url,
@@ -136,77 +94,32 @@ class ProductScraper:
                 if description:
                     raw_text = f"{title}\n{description}"
         except Exception as e:
-            print(f"[ProductScraper] Direct fetch blocked/failed ({e}), using proxy/slug extraction...")
+            print(f"[ProductScraper] Direct fetch note ({e}), using proxy/slug extraction...")
 
-        # 3. Fallback to Jina Reader Proxy if description is missing
-        if not description or len(description) < 10:
-            try:
-                jina_url = f"https://r.jina.ai/{resolved_url}"
-                jina_req = urllib.request.Request(
-                    jina_url,
-                    headers={"User-Agent": BROWSER_UA, "Accept": "text/plain", "X-No-Cache": "true"}
-                )
-                with urllib.request.urlopen(jina_req, timeout=10) as resp:
-                    markdown_data = resp.read(200_000).decode("utf-8", errors="ignore")
-                    
-                    if markdown_data and len(markdown_data) > 50:
-                        raw_text = markdown_data
-                        h1_match = re.search(r'^#\s+(.+)$', markdown_data, re.M)
-                        if h1_match and not title:
-                            title = h1_match.group(1).strip()
-                        
-                        md_imgs = re.findall(r'!\[.*?\]\((https?://[^\s\)]+)\)', markdown_data)
-                        for m_img in md_imgs:
-                            if m_img not in images and "logo" not in m_img.lower() and "icon" not in m_img.lower():
-                                images.append(m_img)
-            except Exception as j_err:
-                print(f"[ProductScraper] Jina Reader fallback note: {j_err}")
-
-        # 4. Download images locally to INBOX_DIR / product_images
-        downloaded_images = []
-        clean_slug = re.sub(r'[^a-zA-Z0-9]', '_', title[:30]) or f"product_{int(time.time())}"
-        img_dir = INBOX_DIR / "product_images" / clean_slug
-        img_dir.mkdir(parents=True, exist_ok=True)
-
-        for idx, img_url in enumerate(images[:6]):
-            ext = ".jpg"
-            if ".png" in img_url.lower(): ext = ".png"
-            elif ".webp" in img_url.lower(): ext = ".webp"
-            
-            dest = img_dir / f"img_{idx+1}{ext}"
-            if _download_image(img_url, dest):
-                rel_path = str(dest.relative_to(PROJECT_ROOT)).replace("\\", "/")
-                downloaded_images.append({
-                    "url": img_url,
-                    "local_path": str(dest),
-                    "rel_path": rel_path,
-                    "name": dest.name
-                })
-
-        # Ensure title fallback is clean
-        display_title = title if title and len(title) > 3 else "สินค้า Shopee / TikTok Shop"
+        clean_title = title.split("|")[0].split("- Shopee")[0].strip() or "สินค้าแนะนำ"
 
         return {
-            "platform": platform,
+            "title": clean_title,
             "url": resolved_url,
-            "title": display_title,
-            "description": description or f"สินค้าคุณภาพ {display_title} ตอบโจทย์การใช้งานจริง สเปกครบครัน",
+            "platform": platform,
             "price_note": price or "ราคาพิเศษในตะกร้า",
-            "raw_text": raw_text or display_title,
-            "images": downloaded_images,
-            "image_count": len(downloaded_images)
+            "description": description[:300] if description else "สินค้าคุณภาพยอดนิยม การันตีของแท้",
+            "images": images,
+            "raw_text": raw_text
         }
 
     @classmethod
-    def generate_content_matrix(cls, product_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def generate_content_matrix(cls, product_data: Dict[str, Any], count: int = 10) -> List[Dict[str, Any]]:
+        """Generates full 10-Angle Master Content Matrix in natural Thai spoken language."""
         title = product_data.get("title", "")
         desc = product_data.get("description", "")
         price = product_data.get("price_note", "")
         raw = product_data.get("raw_text", "")
 
         prompt = f"""
-คุณเป็น Top TikTok Affiliate Creator มืออาชีพที่ทำยอดขายหลักล้าน
-ช่วยวิเคราะห์ข้อมูลสินค้าด้านล่างนี้ แล้วแตกเป็น "4 มุมมองการป้ายยา (Content Angles)" ที่ดึงดูดใจและปิดการขายได้จริง
+# Role & Objective
+คุณคือ "ยอดนักขาย TikTok และครีเอเตอร์วิดีโอสั้นระดับท็อปของไทย" ที่เชี่ยวชาญด้านจิตวิทยาการโน้มน้าวใจ (Persuasive Copywriting & Neuromarketing)
+ช่วยวิเคราะห์ข้อมูลสินค้าด้านล่างนี้ แล้วแตกเป็น "10 มุมมองการป้ายยา (Content Angles Master Matrix)" ที่ดึงดูดใจ ใช้ภาษาพูดธรรมชาติเหมือนเพื่อนสนิทมาป้ายยา และปิดการขายได้จริง
 
 ข้อมูลสินค้า:
 - ชื่อ/หัวข้อ: {title}
@@ -214,11 +127,33 @@ class ProductScraper:
 - ราคา/โปรโมชั่น: {price}
 - ข้อมูลเพิ่มเติม: {raw[:1500]}
 
-จงสร้างผลลัพธ์เป็น JSON Array ที่มี 4 Object ตาม 4 มุมมองนี้เป๊ะๆ:
-1. "pain_point": ปัญหาก่อนใช้ (Problem / Agitation / Solution)
-2. "viral_hype": ป้ายยาตัวแม่ TikTok ไวรัล (High Energy / TikTok Trend)
-3. "deal_promo": คุ้มค่า / Flash Sale โปรลดกระแทกใจ (Urgency & Bargain)
-4. "tech_pro": รีวิวฟังก์ชันเจาะลึก / สายไอที-ผู้เชี่ยวชาญ (Feature & Quality)
+# กฎเหล็กในการเขียนบทพูด (Writing Guidelines):
+1. **ห้ามใช้ภาษาเขียนทางการหรือภาษาโฆษณาทีวีโบราณ**: ห้ามใช้คำว่า "ท่านผู้มีเกียรติ", "นวัตกรรมล้ำสมัย", "ผลิตภัณฑ์นี้", "ตอบโจทย์ทุกไลฟ์สไตล์"
+2. **ใช้ภาษาพูดธรรมชาติ (Spoken Thai)**: ใส่คำสร้อย จังหวะหายใจ และอารมณ์เหมือนเพื่อนสนิทมาป้ายยา เช่น "ทุกคน!", "คือมันดีมาก", "เนี่ยดูดิ", "รู้งี้ซื้อตั้งนานละ", "บอกเลยว่าโคตรคุ้ม"
+3. **โครงสร้างสคริปต์ 5 ท่อนทรงพลัง (High-Converting Formula)**:
+   - บรรทัดที่ 1 (Hook 3 วินาทีแรก): คำเปิดคลิปที่สะกดนิ้วให้หยุดดูทันที (Stop-Scroll) ชี้เป้าปัญหาหรือสร้างความอยากรู้อยากเห็น
+   - บรรทัดที่ 2 (Pain Point / Agitation): ขยี้ความหงุดหงิดเดิมๆ ที่คนดูเคยเจอ ให้รู้สึกอินและพยักหน้าตาม
+   - บรรทัดที่ 3 (The Solution / Product Intro): เปิดตัวสินค้าในฐานะ "ฮีโร่ผู้มาแก้ปัญหา"
+   - บรรทัดที่ 4 (Core Benefit & Demonstration): บอกประโยชน์จริงที่คนดูจะได้รับ (ใช้งานจริงชีวิตสะดวกขึ้นยังไง)
+   - บรรทัดที่ 5 (Call To Action & Urgency): กระตุ้นให้รีบกดตะกร้าซ้ายล่างทันทีก่อนหมดโปร
+4. **กฎสำหรับ AI Voice Generation (TTS-Ready Script)**:
+   - ห้ามใส่ Emoji ในบทพูดพากย์ (script_lines) — ใส่ได้เฉพาะ hook_title และ angle_name เท่านั้น
+   - ตัวเลขสเปก ต้องเขียนเป็นคำไทยควบคู่ เช่น "ชาร์จเร็ว 66 วัตต์" ไม่ใช่ "ชาร์จเร็ว 66W"
+   - ห้ามใช้คำย่อภาษาอังกฤษโดดๆ ในบทพูด เช่น ให้ใช้ "ยูเอสบีซี" แทน "USB-C", ใช้ "เวิร์คฟรอมโฮม" แทน "WFH"
+   - ห้ามใส่ hashtag ในบทพูด (ใส่แยกใน tiktok_hashtags เท่านั้น)
+   - จังหวะเว้นหายใจ ใช้จุดจุดจุด "..." แทน "เว้นวรรค"
+
+จงสร้างผลลัพธ์เป็น JSON Array ที่มี {count} Object ตาม 10 มุมมองนี้:
+1. "pain_point": 😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน (Problem / Agitation / Solution)
+2. "unboxing": 🛍️ แกะกล่องว้าว / ของมันต้องมี (Unboxing & First Impression)
+3. "stress_test": 🔬 โชว์ฟังก์ชันเจาะลึก / ทดสอบโหด (Feature Demo & Quality)
+4. "fomo_deal": 🔥 FOMO โปรไฟลุก / คุ้มจนต้องแย่ง (Flash Deal & Urgency)
+5. "comparison": 🆚 เทียบของเดิม vs ของใหม่ (Comparison Matrix)
+6. "life_hack": 🤫 ทริกลึก / รู้งี้ซื้อนานแล้ว (Secret Trick & Life Hack)
+7. "stop_scroll": ⚠️ เตือนภัยเชิงลบ / อย่าเพิ่งซื้อ! (Stop-Scroll Shock Hook)
+8. "niche_target": 🧑‍💼 เจาะกลุ่มเฉพาะ สายออฟฟิศ/เกมเมอร์ (Target Audience Specific)
+9. "longterm_review": ⭐ รีวิวเพื่อนเตือนเพื่อน ใช้จริง 3 เดือน (Real Experience)
+10. "math_value": 💡 คำนวณความคุ้มค่าต่อวัน (Math & Value Breakdown)
 
 แต่ละ Object ใน JSON ต้องมีโครงสร้างดังนี้:
 {{
@@ -226,17 +161,17 @@ class ProductScraper:
   "angle_name": "😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน",
   "badge": "ขายดีอันดับ 1",
   "product_name": "ชื่อสินค้าที่กระชับ ไม่เกิน 30 ตัวอักษร",
-  "hook_title": "พาดหัวเปิดคลิป 3 วินาทีแรก (มีอีโมจิ)",
+  "hook_title": "พาดหัวเปิดคลิป 3 วินาทีแรก (มีอีโมจิและคำกระแทกใจ)",
   "pain_point": "ปัญหาหลักที่คนดูเจอ",
   "key_features": "จุดเด่น 3-4 ข้อที่ตอบโจทย์",
   "price_deal": "ข้อเสนอราคา/โปรโมชั่นและการเร่งรีบ",
   "ad_tone": "commercial_premium",
   "script_lines": [
-    "บรรทัดที่ 1: Hook เปิดหัวกระแทกใจ",
-    "บรรทัดที่ 2: ชี้ปัญหาที่ทุกคนเจอ",
-    "บรรทัดที่ 3: เปิดตัวสินค้าและทางออก",
-    "บรรทัดที่ 4: จุดเด่นและฟังก์ชันเทพ",
-    "บรรทัดที่ 5: Call to Action ปิดการขายจิ้มตะกร้า"
+    "บรรทัดที่ 1: Hook เปิดหัวสะกดนิ้ว (มีคำสร้อย เช่น ทุกคน! / ดูนี่ด่วน!)",
+    "บรรทัดที่ 2: ขยี้ปัญหาเดิมที่ทุกคนเจอ",
+    "บรรทัดที่ 3: เปิดตัวสินค้าทางออก",
+    "บรรทัดที่ 4: โชว์จุดเด่นและประโยชน์จริง",
+    "บรรทัดที่ 5: ปิดการขายให้จิ้มตะกร้าซ้ายล่าง"
   ],
   "tiktok_caption": "แคปชันพร้อมโพสต์ TikTok ความยาว 2-3 บรรทัด น่ากดซื้อ",
   "tiktok_hashtags": "#นายหน้าtiktok #รีวิวของดี #ของมันต้องมี #tiktokป้ายยา #พิกัดในตะกร้า"
@@ -260,57 +195,81 @@ class ProductScraper:
                 
                 angles = json.loads(cleaned)
                 if isinstance(angles, list) and len(angles) > 0:
+                    # Add TTS-ready lines via sanitizer
+                    from scripts.tts_sanitizer import TTSSanitizer
+                    angles = TTSSanitizer.process_angles(angles[:count])
                     return angles
             except Exception as e:
-                print(f"[ProductScraper] Gemini call failed ({e}), using fallback matrix...")
+                print(f"[ProductScraper] Gemini call failed ({e}), using fallback 10 matrix...")
 
-        # Robust Fallback Matrix
+        # Robust Fallback 10-Angle Matrix
+        base_name = title[:30] or "สินค้าตัวนี้"
         return [
             {
                 "angle_id": "pain_point",
                 "angle_name": "😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน",
                 "badge": "ยอดนิยม",
-                "product_name": title[:30] or "สินค้าตัวนี้",
-                "hook_title": f"🔥 ใครเจอปัญหานี้อยู่ หยุดดูด่วน! {title[:20]}",
+                "product_name": base_name,
+                "hook_title": f"🔥 ใครเจอปัญหานี้อยู่ หยุดดูด่วน! {base_name}",
                 "pain_point": "ของเดิมพังง่าย ใช้ยาก ไม่ตอบโจทย์",
                 "key_features": "ดีไซน์สวย ทนทาน ใช้งานง่าย เห็นผลจริง",
                 "price_deal": "โปรพิเศษวันนี้ จิ้มตะกร้าซ้ายล่างเลย",
                 "ad_tone": "commercial_premium",
                 "script_lines": [
-                    f"ทุกคน! ใครที่เบื่อกับปัญหาเดิมๆ ลองดูตัวนี้เลย",
-                    f"นี่เลย {title[:25]} ตัวช่วยใหม่ล่าสุด",
+                    "ทุกคน! ใครที่เบื่อกับปัญหาเดิมๆ ลองดูคลิปนี้ด่วน",
+                    f"นี่เลย {base_name} ตัวช่วยใหม่ล่าสุด",
                     "วัสดุพรีเมียม ใช้งานง่าย สะดวกสบายขึ้นเยอะ",
                     "ใครยังไม่มี ต้องรีบจัดแล้วนะ",
                     "พิกัดลดราคาพิเศษ จิ้มตะกร้าสีเหลืองซ้ายล่างได้เลยครับ"
                 ],
-                "tiktok_caption": f"แก้ปัญหาเดิมๆ ได้จริง! {title[:30]} คุ้มค่ามาก พิกัดในตะกร้าซ้ายล่างน้า 👇",
-                "tiktok_hashtags": "#รีวิวของดี #tiktokป้ายยา #ของใช้จำเป็น #พิกัดในตะกร้า #tiktokช้อปกันวันเงินออก"
+                "tiktok_caption": f"แก้ปัญหาเดิมๆ ได้จริง! {base_name} คุ้มค่ามาก พิกัดในตะกร้าซ้ายล่างน้า 👇",
+                "tiktok_hashtags": "#รีวิวของดี #tiktokป้ายยา #ของใช้จำเป็น #พิกัดในตะกร้า"
             },
             {
-                "angle_id": "viral_hype",
-                "angle_name": "🔥 ป้ายยาตัวแม่ TikTok ไวรัล",
-                "badge": "ไวรัลสุดๆ",
-                "product_name": title[:30] or "ไอเทมตัวดัง",
-                "hook_title": f"✨ เพิ่งได้ลองแล้วเข้าใจเลย ทำไมถึงแมสขนาดนี้!",
-                "pain_point": "หาของดีที่คุ้มเงินยาก",
-                "key_features": "กระแสแรงมากใน TikTok คุณภาพเกินราคา",
-                "price_deal": "ของมีจำนวนจำกัด รีบกดก่อนหมด",
+                "angle_id": "unboxing",
+                "angle_name": "🛍️ แกะกล่องว้าว / ของมันต้องมี",
+                "badge": "แกะกล่อง",
+                "product_name": base_name,
+                "hook_title": f"📦 แกะกล่องของที่รอมา 3 วัน... ตรงปกไหม?!",
+                "pain_point": "กลัวซื้อมาแล้วไม่ตรงปก",
+                "key_features": "งานเนียน สวยตรงปก แพ็กเกจพรีเมียม",
+                "price_deal": "ราคาหลักร้อย คุ้มเกินราคา",
                 "ad_tone": "commercial_hype",
                 "script_lines": [
-                    "แกรรร! ในที่สุดก็ได้ลองไอเทมตัวดังใน TikTok แล้ว",
-                    f"ตัวนี้คือ {title[:25]} ที่เค้ารีวิวกันเพียบ",
-                    "ของจริงคือสวยมาก ใช้งานดีแบบสิบเต็มสิบ",
-                    "สมคำร่ำลือจริงๆ คุ้มเกินราคาไปมาก",
+                    "แกรรร! ในที่สุดของที่สั่งไว้ก็มาส่งแล้ว",
+                    f"ตัวนี้คือ {base_name} ที่คนรีวิวกันเพียบ",
+                    "แกะกล่องออกมาคือว้าวมาก วัสดุดีเกินราคาไปเยอะ",
+                    "สวยตรงปกไม่จกตา คุ้มค่าทุกบาทแน่นอน",
                     "รีบจิ้มตะกร้าด่วนๆ ก่อนของจะหมดน้า!"
                 ],
-                "tiktok_caption": f"ไม่แปลกใจทำไมคนใช้เยอะขนาดนี้! {title[:30]} ดีจริงไม่จกตา กดสั่งในตะกร้าได้เลย 🛒✨",
-                "tiktok_hashtags": "#ของดีบอกต่อ #tiktokป้ายยา #fyp #รีวิวแน่น #พิกัดตะกร้าเหลือง"
+                "tiktok_caption": f"แกะกล่องของจริง สวยตรงปกมาก! {base_name} พิกัดในตะกร้าซ้ายล่างเลย 🛒✨",
+                "tiktok_hashtags": "#แกะกล่อง #ของดีบอกต่อ #tiktokป้ายยา #fyp"
             },
             {
-                "angle_id": "deal_promo",
-                "angle_name": "⚡ คุ้มค่า / Flash Sale ลดแหลก",
+                "angle_id": "stress_test",
+                "angle_name": "🔬 โชว์ฟังก์ชันเจาะลึก / ทดสอบโหด",
+                "badge": "สายสเปก",
+                "product_name": base_name,
+                "hook_title": f"⚡ ทดสอบให้ดูจะๆ ทนจริงไหม? {base_name}",
+                "pain_point": "ของราคาถูกมักพังง่าย ไม่ทนทาน",
+                "key_features": "โครงสร้างแข็งแรง ฟังก์ชันจัดเต็ม ใช้งานหนักได้",
+                "price_deal": "รับประกันคุณภาพ มีของพร้อมส่ง",
+                "ad_tone": "tech_minimal",
+                "script_lines": [
+                    "วันนี้จะมาเทสให้ดูแบบไม่ออมมือเลยว่าทนจริงไหม",
+                    f"{base_name} ตัวนี้ใช้วัสดุเกรดพรีเมียมอย่างดี",
+                    "ฟังก์ชันครบ ตอบโจทย์คนที่ชอบงานคุณภาพ",
+                    "ใช้งานหนักแค่ไหนก็เอาอยู่ มั่นใจได้เลย",
+                    "สนใจกดดูรายละเอียดในตะกร้าซ้ายล่างได้เลยครับ"
+                ],
+                "tiktok_caption": f"ทดสอบความทนทานให้ดูแบบชัดๆ {base_name} คุณภาพเกินราคาแน่นอน 👇",
+                "tiktok_hashtags": "#รีวิวเจาะลึก #ของแท้ #สายไอที #tiktokพาช้อป"
+            },
+            {
+                "angle_id": "fomo_deal",
+                "angle_name": "🔥 FOMO โปรไฟลุก / คุ้มจนต้องแย่ง",
                 "badge": "ดีลเด็ด",
-                "product_name": title[:30] or "โปรแรงวันนี้",
+                "product_name": base_name,
                 "hook_title": "⚡ Flash Sale วันนี้วันเดียว! ลดแรงกระแทกใจ",
                 "pain_point": "กลัวซื้อราคาแพง ไม่ได้โปร",
                 "key_features": "ลดพิเศษ แจกโค้ดส่งฟรี การันตีของแท้",
@@ -318,32 +277,132 @@ class ProductScraper:
                 "ad_tone": "commercial_hype",
                 "script_lines": [
                     "หยุดก่อน! วันนี้มีดีลลับ Flash Sale มาบอกต่อ",
-                    f"{title[:25]} จัดโปรลดแรงที่สุดในรอบเดือน",
+                    f"{base_name} จัดโปรลดแรงที่สุดในรอบเดือน",
                     "ได้ของแท้ 100% แถมส่งฟรีถึงหน้าบ้าน",
-                    "ราคานี้เฉพาะในไลฟ์และตะกร้านี้เท่านั้น",
+                    "ราคานี้เฉพาะในตะกร้านี้เท่านั้น",
                     "รีบกดสั่งในตะกร้าซ้ายล่างก่อนโปรจะหมดนะครับ"
                 ],
-                "tiktok_caption": f"⚡ ดีลลับลดแรงวันนี้วันเดียว! {title[:30]} ส่งฟรี กดเก็บคูปองในตะกร้าด่วน 🛍️",
-                "tiktok_hashtags": "#flashsale #ลดราคาพิเศษ #ส่งฟรี #ช้อปปี้ถูกชัวร์ #tiktokช้อปปิ้ง"
+                "tiktok_caption": f"⚡ ดีลลับลดแรงวันนี้วันเดียว! {base_name} ส่งฟรี กดเก็บคูปองในตะกร้าด่วน 🛍️",
+                "tiktok_hashtags": "#flashsale #ลดราคาพิเศษ #ส่งฟรี #ช้อปปี้ถูกชัวร์"
             },
             {
-                "angle_id": "tech_pro",
-                "angle_name": "🎙️ รีวิวฟังก์ชันเจาะลึก (Tech & Pro)",
-                "badge": "รีวิวละเอียด",
-                "product_name": title[:30] or "สเปกจัดเต็ม",
-                "hook_title": "🔍 รีวิวเจาะลึก ใช้งานจริง 7 วัน ดีจริงไหม?",
-                "pain_point": "ต้องการข้อมูลความคุ้มค่าก่อนซื้อ",
-                "key_features": "สเปกแท้ ทดสอบจริง วัสดุมาตรฐานสูง",
-                "price_deal": "คุ้มค่ากับการลงทุนในระยะยาว",
-                "ad_tone": "commercial_expert",
+                "angle_id": "comparison",
+                "angle_name": "🆚 เทียบของเดิม vs ของใหม่",
+                "badge": "เปรียบเทียบ",
+                "product_name": base_name,
+                "hook_title": f"🆚 เทียบให้ดูชัดๆ แบบเดิม VS แบบใหม่ ต่างกันยังไง?",
+                "pain_point": "ไม่แน่ใจว่าเปลี่ยนแล้วจะดีขึ้นจริงไหม",
+                "key_features": "เร็วกว่า ใช้งานง่ายกว่า ไม่เกะกะ",
+                "price_deal": "คุ้มกว่าซื้อของเดิมซ้ำๆ",
+                "ad_tone": "commercial_premium",
                 "script_lines": [
-                    "หลังจากที่ผมได้ทดลองใช้งานมา 1 สัปดาห์เต็มๆ",
-                    f"นี่คือข้อดีของ {title[:25]} ที่น่าประทับใจ",
-                    "ทั้งงานประกอบ สเปก และความเสถียร ทำได้ยอดเยี่ยม",
-                    "ตอบโจทย์ทั้งสายใช้งานจริงและคนที่เน้นความคุ้มค่า",
-                    "พิกัดของแท้พร้อมประกัน จิ้มตะกร้าซ้ายล่างได้เลยครับ"
+                    "ใครที่กำลังลังเลว่าจะเปลี่ยนดีไหม ดูคลิปนี้เลย",
+                    "ฝั่งซ้ายคือแบบเดิมที่เคยใช้ ปัญหาเยอะ พังง่าย",
+                    f"แต่ฝั่งขวาคือ {base_name} ชีวิตเปลี่ยนทันที",
+                    "ใช้ง่ายกว่า ทนทานกว่า ไม่ต้องเสียเงินซื้อบ่อยๆ",
+                    "อยากเปลี่ยนชีวิตให้ง่ายขึ้น จิ้มตะกร้าซ้ายล่างเลย!"
                 ],
-                "tiktok_caption": f"รีวิวจากการใช้งานจริง {title[:30]} สเปกครบ คุ้มค่ามาก เช็กราคาและสั่งซื้อในตะกร้าได้เลยครับ 📱",
-                "tiktok_hashtags": "#รีวิวไอที #แกดเจ็ตน่าใช้ #เทคโนโลยี #ของแท้มีประกัน #พิกัดสินค้า"
+                "tiktok_caption": f"เทียบกันชัดๆ ทำไมต้องเปลี่ยนมาใช้ {base_name} ดูแล้วจะเข้าใจ! 👇",
+                "tiktok_hashtags": "#เปรียบเทียบ #ของดีบอกต่อ #ชีวิตง่ายขึ้น #ป้ายยา"
+            },
+            {
+                "angle_id": "life_hack",
+                "angle_name": "🤫 ทริกลึก / รู้งี้ซื้อนานแล้ว",
+                "badge": "Life Hack",
+                "product_name": base_name,
+                "hook_title": f"💡 เพิ่งรู้ว่ามีของแบบนี้ด้วย! รู้งี้ซื้อตั้งนานแล้ว",
+                "pain_point": "เสียเวลาทำอะไรยากๆ มาตั้งนาน",
+                "key_features": "ประหยัดเวลา ช่วยให้ชีวิตสะดวกขึ้น 10 เท่า",
+                "price_deal": "ไอเทมลับราคาเบาๆ",
+                "ad_tone": "commercial_hype",
+                "script_lines": [
+                    "ทุกคน! ใครชอบทริกช่วยให้ชีวิตง่ายขึ้น ดูนี่ด่วน",
+                    f"นี่คือ {base_name} ไอเทมลับที่ช่วยประหยัดเวลาสุดๆ",
+                    "แค่มีตัวนี้ติดไว้ อะไรๆ ก็สะดวกขึ้นเยอะมาก",
+                    "ใช้แล้วจะพูดคำเดียวเลยว่า รู้งี้ซื้อตั้งนานแล้ว!",
+                    "พิกัดไอเทมลับ จิ้มในตะกร้าซ้ายล่างได้เลยน้า"
+                ],
+                "tiktok_caption": f"ไอเทมลับที่ช่วยให้ชีวิตง่ายขึ้น 10 เท่า! {base_name} พิกัดตะกร้าซ้ายล่างเลย 💡",
+                "tiktok_hashtags": "#lifehack #ไอเทมลับ #รู้งี้ซื้อนานแล้ว #ของมันต้องมี"
+            },
+            {
+                "angle_id": "stop_scroll",
+                "angle_name": "⚠️ เตือนภัยเชิงลบ / อย่าเพิ่งซื้อ!",
+                "badge": "เตือนภัย",
+                "product_name": base_name,
+                "hook_title": f"⚠️ หยุดก่อน! อย่าเพิ่งซื้อ ถ้ายังไม่รู้ข้อนี้...",
+                "pain_point": "กลัวโดนหลอก ซื้อของไม่มีคุณภาพ",
+                "key_features": "เตือนให้เช็กของแท้ และข้อดีที่ไม่มีใครบอก",
+                "price_deal": "ระวังของปลอม สั่งจากตะกร้าแท้ตรงนี้",
+                "ad_tone": "commercial_premium",
+                "script_lines": [
+                    "หยุดเลื่อนก่อน! ใครกำลังจะซื้อของประเภทนี้ ฟังด่วน",
+                    "ในตลาดมีของเลียนแบบเยอะมาก ใช้แป๊บเดียวพัง",
+                    f"ถ้าจะเอาให้ชัวร์ ต้องเลือก {base_name} ตัวแท้เท่านั้น",
+                    "คุณภาพการันตี วัสดุดี ใช้งานยาวๆ ไม่มีผิดหวัง",
+                    "เพื่อความชัวร์ กดสั่งจากตะกร้าทางการซ้ายล่างตรงนี้ได้เลย!"
+                ],
+                "tiktok_caption": f"⚠️ เตือนแล้วนะ! เช็กให้ดีก่อนซื้อ {base_name} ของแท้กดในตะกร้าทางการเลย 👇",
+                "tiktok_hashtags": "#เตือนภัย #ของแท้100 #tiktokป้ายยา #ระวังของปลอม"
+            },
+            {
+                "angle_id": "niche_target",
+                "angle_name": "🧑‍💼 เจาะกลุ่มเฉพาะ สายออฟฟิศ/เกมเมอร์",
+                "badge": "ตรงกลุ่ม",
+                "product_name": base_name,
+                "hook_title": f"🧑‍💻 ไอเทมลับชาว WFH / เกมเมอร์ ที่ต้องมีติดโต๊ะ!",
+                "pain_point": "โต๊ะรก นั่งทำงานนานๆ แล้วล้า",
+                "key_features": "จัดโต๊ะคอมสวย สรีรศาสตร์ ใช้งานคล่องตัว",
+                "price_deal": "เพิ่มประสิทธิภาพการทำงาน",
+                "ad_tone": "tech_minimal",
+                "script_lines": [
+                    "ชาวออฟฟิศและสายจัดโต๊ะคอม ต้องดูคลิปนี้!",
+                    f"นี่คือ {base_name} ไอเทมที่ช่วยให้โต๊ะทำงานดูโปรขึ้น",
+                    "ใช้งานสะดวก คล่องตัว ช่วยให้ทำงานและเล่นเกมได้ฟินขึ้น",
+                    "มีติดโต๊ะไว้ ได้ใช้งานทุกวันแน่นอน",
+                    "พิกัดไอเทมจัดโต๊ะ จิ้มตะกร้าซ้ายล่างได้เลยครับ"
+                ],
+                "tiktok_caption": f"ไอเทมที่ชาวจัดโต๊ะคอมและ WFH ต้องมี! {base_name} พิกัดในตะกร้าเลย 🖥️✨",
+                "tiktok_hashtags": "#จัดโต๊ะคอม #wfh #เกมเมอร์ #สายออฟฟิศ #desksetup"
+            },
+            {
+                "angle_id": "longterm_review",
+                "angle_name": "⭐ รีวิวเพื่อนเตือนเพื่อน ใช้จริง 3 เดือน",
+                "badge": "รีวิวพลีชีพ",
+                "product_name": base_name,
+                "hook_title": f"⭐ ใช้จริงมา 3 เดือนเต็ม... สรุปพังยัง? เล่าหมดเปลือก",
+                "pain_point": "กลัวใช้ได้แค่ไม่กี่วันก็พัง",
+                "key_features": "ผ่านการใช้งานจริงทุกวัน ทนทาน ไม่เสื่อม",
+                "price_deal": "คุ้มค่าเงินในระยะยาว",
+                "ad_tone": "commercial_premium",
+                "script_lines": [
+                    "มารีวิวแบบไม่อวย ใช้จริงมาครบ 3 เดือนเต็มแล้ว",
+                    f"{base_name} ตัวนี้บอกตรงๆ ว่าตอนแรกไม่คิดว่าจะทนขนาดนี้",
+                    "ใช้ทุกวันแบบสมบุกสมบัน ไม่มีงอแง ไม่มีพัง",
+                    "เป็นหนึ่งในของที่ซื้อมาแล้วรู้สึกคุ้มเงินที่สุดในปีนี้",
+                    "ใครกำลังเล็งอยู่ ไม่ต้องคิดเยอะ จิ้มตะกร้าซ้ายล่างได้เลย!"
+                ],
+                "tiktok_caption": f"รีวิวหลังใช้จริง 3 เดือน {base_name} ทนจริงไม่จกตา กดสั่งในตะกร้าได้เลย ⭐",
+                "tiktok_hashtags": "#รีวิวใช้จริง #ไม่อวย #ของดีบอกต่อ #ใช้แล้วชอบ"
+            },
+            {
+                "angle_id": "math_value",
+                "angle_name": "💡 คำนวณความคุ้มค่าต่อวัน",
+                "badge": "สุดคุ้ม",
+                "product_name": base_name,
+                "hook_title": f"💰 ราคาหลักร้อย แต่ใช้ได้ 3 ปี ตกวันละไม่ถึงบาท!",
+                "pain_point": "คิดว่าสินค้าราคาสูง ไม่กล้าลงทุน",
+                "key_features": "อายุการใช้งานยาวนาน ประหยัดค่าใช้จ่ายแฝง",
+                "price_deal": "ประหยัดกว่าซื้อของถูกซ้ำๆ",
+                "ad_tone": "commercial_hype",
+                "script_lines": [
+                    "มาคำนวณความคุ้มค่าให้ดู ว่าทำไมตัวนี้ถึงน่าลงทุน",
+                    f"{base_name} ราคาแค่หลักร้อย แต่ใช้งานได้หลายปี",
+                    "หารเฉลี่ยออกมาตกวันละไม่ถึงบาทเดียว",
+                    "เทียบกับความสะดวกและสุขภาพที่ได้ คือโคตรคุ้ม!",
+                    "อย่ารอช้า รีบกดสั่งในราคาโปรโมชันที่ตะกร้าซ้ายล่างเลยครับ"
+                ],
+                "tiktok_caption": f"คิดแบบนักคำนวณ {base_name} ตกวันละไม่กี่สตางค์แต่คุ้มสุดๆ พิกัดในตะกร้า 👇",
+                "tiktok_hashtags": "#คุ้มค่า #ประหยัดเงิน #ของดีราคาถูก #tiktokป้ายยา"
             }
-        ]
+        ][:count]

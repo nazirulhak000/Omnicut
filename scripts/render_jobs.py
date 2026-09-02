@@ -27,6 +27,12 @@ ACTIVE_JOBS: Dict[str, Dict[str, Any]] = {}
 _RENDER_SLOT = threading.Lock()
 
 
+def is_busy() -> bool:
+    """True while a render holds the slot -- callers use it to refuse work
+    that would pull files out from under the running job."""
+    return _RENDER_SLOT.locked()
+
+
 def create_job(job_id: str, message: str = "กำลังเริ่มต้นกระบวนการ...") -> Dict[str, Any]:
     """Register a queued job and return it."""
     ACTIVE_JOBS[job_id] = {

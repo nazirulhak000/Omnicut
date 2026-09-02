@@ -203,6 +203,9 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [selectedHistoryId, setSelectedHistoryId] = useState(selectedProductId || null);
 
+  // Angle Count Selection
+  const [angleCount, setAngleCount] = useState(7); // Default: 7 (Sweet Spot)
+
   // Uploading Screenshot/Image
   const [uploadingImg, setUploadingImg] = useState(false);
   const fileInputRef = useRef(null);
@@ -303,7 +306,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         url: inputMode === 'link' ? url : undefined,
         raw_text: inputMode === 'text' ? `${customKeyword}\n${rawText}` : undefined,
         custom_keyword: customKeyword || undefined,
-        image_path: inputMode === 'image' ? selectedImage : undefined
+        image_path: inputMode === 'image' ? selectedImage : undefined,
+        angle_count: angleCount
       };
 
       const res = await scrapeAndPlanProduct(payload);
@@ -314,7 +318,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         setCustomKeyword('');
         setRawText('');
         await loadHistory();
-        showToast('AI วิเคราะห์และสร้าง 4 สคริปต์สำเร็จแล้ว');
+        showToast(`AI วิเคราะห์และสร้าง ${angleCount} สคริปต์สำเร็จแล้ว`);
       } else {
         throw new Error('ไม่ได้รับข้อมูลสินค้ากลับมาจากระบบ');
       }
@@ -590,12 +594,38 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
             </div>
           )}
 
+          {/* ── Angle Count Selector ── */}
+          <div className="flex items-center gap-3 py-2.5">
+            <span className="text-xs text-slate-400 font-semibold">จำนวนมุมขาย:</span>
+            <div className="flex items-center gap-1.5">
+              {[
+                { val: 4, label: '4', desc: 'Quick' },
+                { val: 7, label: '7', desc: 'แนะนำ' },
+                { val: 10, label: '10', desc: 'ครบ' },
+              ].map(opt => (
+                <button
+                  key={opt.val}
+                  type="button"
+                  onClick={() => setAngleCount(opt.val)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${
+                    angleCount === opt.val
+                      ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 ring-1 ring-[#25F4EE]/20'
+                      : 'bg-white/[0.05] text-slate-400 border border-white/[0.08] hover:border-white/[0.2] hover:text-white'
+                  }`}
+                >
+                  {opt.label}
+                  {opt.desc && <span className="ml-1 text-[10px] opacity-60">({opt.desc})</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/[0.08]">
             <Button variant="secondary" onClick={() => setShowAddModal(false)}>
               ยกเลิก
             </Button>
             <Button variant="primary" onClick={handleScrapeAndPlan} loading={fetching} icon={Sparkles}>
-              วิเคราะห์ & สร้าง 4 สคริปต์
+              วิเคราะห์ & สร้าง {angleCount} สคริปต์
             </Button>
           </div>
         </div>

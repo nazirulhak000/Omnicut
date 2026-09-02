@@ -376,6 +376,32 @@ def list_projects():
     return {"projects": ProjectManifest.list_projects()}
 
 
+@router.delete("/projects/{project_name}")
+def delete_project(project_name: str):
+    """
+    Delete a project folder for good.
+
+    Refuses while a render is running: the pipeline writes into this folder and
+    pulling it out from under a job leaves half-written files and a job that
+    fails with a confusing error. Exported mp4s live in 04_Exports and are
+    untouched -- deleting the project you edited must not remove the video you
+    already posted.
+    """
+    if render_jobs.is_busy():
+        raise HTTPException(
+            status_code=409,
+            detail="กำลังเรนเดอร์อยู่ — รอให้เสร็จก่อนแล้วค่อยลบโปรเจกต์",
+        )
+    try:
+        return {"success": True, **ProjectManifest.delete(project_name)}
+    except FileNotFoundError as err:
+        raise HTTPException(status_code=404, detail=str(err))
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail=str(err))
+    except OSError as err:
+        raise HTTPException(status_code=500, detail=f"ลบไม่สำเร็จ: {err}")
+
+
 @router.get("/projects/{project_name}")
 def get_project(project_name: str):
     manifest = ProjectManifest.load(project_name)

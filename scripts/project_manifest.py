@@ -12,6 +12,7 @@ earlier take is never destroyed.
 """
 
 import json
+import shutil
 import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -180,9 +181,48 @@ class ProjectManifest:
                 "duration": manifest.get("total_duration"),
                 "updated_at": manifest.get("updated_at", ""),
                 "mp4_video": (manifest.get("artifacts") or {}).get("mp4_video", {}).get("path"),
+                # so the UI can say how much deleting one frees
+                "size_mb": cls.folder_size_mb(child),
             })
 
         return sorted(projects, key=lambda p: p.get("updated_at", ""), reverse=True)
+
+    @staticmethod
+    def folder_size_mb(folder: Path) -> float:
+        total = 0
+        try:
+            for f in folder.rglob("*"):
+                if f.is_file():
+                    total += f.stat().st_size
+        except OSError:
+            return 0.0
+        return round(total / (1024 * 1024), 2)
+
+    @classmethod
+    def delete(cls, project_name: str) -> Dict[str, Any]:
+        """
+        Remove a project folder and everything in it.
+
+        Only the working files live here -- script, voiceover, subtitles, the
+        mixed audio. A rendered mp4 sits in 04_Exports and is deliberately left
+        alone: deleting the project you edited should never take away the video
+        you already posted.
+        """
+        target = (PROJECTS_DIR / project_name).resolve()
+        root = PROJECTS_DIR.resolve()
+
+        # a name like "../02_Assets" would otherwise resolve outside the folder
+        if root not in target.parents:
+            raise ValueError(f"'{project_name}' อยู่นอกโฟลเดอร์โปรเจกต์")
+        if not target.exists() or not target.is_dir():
+            raise FileNotFoundError(f"ไม่พบโปรเจกต์ '{project_name}'")
+        if target.name.startswith("_"):
+            raise ValueError(f"'{target.name}' เป็นโฟลเดอร์ระบบ ลบไม่ได้")
+
+        size = cls.folder_size_mb(target)
+        files = sum(1 for f in target.rglob("*") if f.is_file())
+        shutil.rmtree(target)
+        return {"project_name": target.name, "size_mb": size, "files_removed": files}
 
     # ------------------------------------------------------------------
     @staticmethod

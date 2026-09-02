@@ -393,9 +393,11 @@ def generate_script(req: ScriptGenerateRequest):
         price_deal=req.price_deal,
         template_key=req.template_key
     )
+    return data
+
 @app.post("/api/products/scrape-and-plan")
 def scrape_and_plan(payload: Dict[str, Any]):
-    """Scrapes product info or accepts raw text/keywords and generates 4-Angle Content Matrix, saved to ProductStore."""
+    """Scrapes product info or accepts raw text/keywords and generates Content Matrix."""
     url = payload.get("url", "").strip()
     raw_text = payload.get("raw_text", "").strip()
     custom_keyword = payload.get("custom_keyword", "").strip()
@@ -424,7 +426,8 @@ def scrape_and_plan(payload: Dict[str, Any]):
             product_info["description"] = raw_text
             product_info["raw_text"] = f"{product_info.get('title', '')}\n{raw_text}"
 
-        angles = ProductScraper.generate_content_matrix(product_info)
+        angle_count = int(payload.get("angle_count", 10))
+        angles = ProductScraper.generate_content_matrix(product_info, count=angle_count)
 
         # Save to permanent ProductStore History
         thumbnail_img = ""

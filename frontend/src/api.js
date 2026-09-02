@@ -129,6 +129,7 @@ export const deleteProduct = (id) => api.delete(`/products/${id}`).then(r => r.d
 
 export const getProjects = () => api.get('/projects').then(r => r.data);
 export const getProject = (name) => api.get(`/projects/${encodeURIComponent(name)}`).then(r => r.data);
+export const deleteProject = (name) => api.delete(`/projects/${encodeURIComponent(name)}`).then(r => r.data);
 export const updateProjectCues = (name, data) => api.patch(`/projects/${encodeURIComponent(name)}/cues`, data).then(r => r.data);
 
 export const startReroll = (data) => api.post('/reroll', data, { timeout: 120000 }).then(r => r.data);

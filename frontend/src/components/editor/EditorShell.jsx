@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle, AlertTriangle, CheckCircle2, Loader2, Maximize2, Minimize2,
-  RefreshCw, Rocket, Scissors, Film, Layers, Sliders, Sparkles
+  RefreshCw, Rocket, Scissors, Film, Layers, Sliders, Sparkles, Trash2
 } from 'lucide-react';
 import {
-  getAllAssets, getProject, getProjects, getRenderStatus, startReroll, updateProjectCues,
+  deleteProject, getAllAssets, getProject, getProjects, getRenderStatus, startReroll, updateProjectCues,
 } from '../../api';
 import {
   FADE_DURATION, ZOOM_LEVELS, buildSegments, formatTimecode, splitClipAt, snapCandidates, snapTime,
@@ -86,6 +86,9 @@ export default function EditorShell({
   // 25.5s at post quality vs 12.5s as a draft (12.18 MB vs 1.82 MB).
   const [exportPreset, setExportPreset] = useState('post');
   const [audioUrl, setAudioUrl] = useState(null);
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
 
   const mobilePlayerRef = useRef(null);
   const desktopPlayerRef = useRef(null);
@@ -108,6 +111,30 @@ export default function EditorShell({
     mobilePlayerRef.current?.toggle();
     desktopPlayerRef.current?.toggle();
   }, []);
+
+  /**
+   * Deleting is permanent and there is no undo, so it goes through a dialog
+   * that names the project and says what survives (the exported mp4).
+   */
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteProject(pendingDelete);
+      const data = await getProjects().catch(() => null);
+      setProjectList(data?.projects || []);
+      if (projectName === pendingDelete) {
+        setProjectName('');
+        setSelection(null);
+      }
+      setPendingDelete(null);
+    } catch (err) {
+      setDeleteError(err.response?.data?.detail || err.friendlyMessage || 'ลบไม่สำเร็จ');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   /**
    * A render started from the create panel lands straight in the timeline.
@@ -729,6 +756,16 @@ export default function EditorShell({
           >
             {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin text-[#25F4EE]" /> : <RefreshCw className="h-3.5 w-3.5" />}
           </button>
+
+          <button
+            type="button"
+            onClick={() => { setDeleteError(null); setPendingDelete(projectName); }}
+            disabled={!projectName || loading || applying}
+            title={projectName ? `ลบโปรเจกต์ ${projectName} ถาวร` : 'เลือกโปรเจกต์ก่อน'}
+            className="flex h-9 w-9 flex-shrink-0 cursor-pointer items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.05] text-slate-300 transition-colors hover:bg-rose-500/15 hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
         </div>
 
         {/* Center: Timecode */}
@@ -792,6 +829,66 @@ export default function EditorShell({
           <AlertCircle className="h-3.5 w-3.5" />{loadError}
         </div>
       )}
+
+      {pendingDelete && (() => {
+        const meta = projectList.find((p) => p.project_name === pendingDelete);
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+            onClick={() => !deleting && setPendingDelete(null)}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="ยืนยันการลบโปรเจกต์"
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md space-y-4 rounded-2xl border border-white/[0.1] bg-[#0F1420] p-5 shadow-2xl"
+            >
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-rose-500/15 text-rose-300">
+                  <Trash2 className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <h2 className="text-lg font-bold text-white">ลบโปรเจกต์นี้ถาวร?</h2>
+                  <p className="truncate pt-0.5 font-mono text-sm text-slate-400">{pendingDelete}</p>
+                </div>
+              </div>
+
+              <ul className="space-y-1.5 rounded-xl bg-black/40 p-3 text-sm leading-relaxed text-slate-300">
+                <li>• จะลบ <span className="font-bold text-rose-300">บท เสียงพากย์ ซับ และไฟล์เสียงที่มิกซ์แล้ว</span>{meta?.size_mb ? ` (${meta.size_mb} MB)` : ''}</li>
+                <li>• <span className="font-bold text-emerald-300">วิดีโอ mp4 ที่เรนเดอร์ไปแล้วไม่หาย</span> — อยู่คนละที่ใน Export Gallery</li>
+                <li>• ลบแล้วกู้คืนไม่ได้ ต้องสร้างคลิปใหม่ตั้งแต่ต้น</li>
+              </ul>
+
+              {deleteError && (
+                <p className="flex items-start gap-1.5 text-sm text-[#E0A9A2]">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />{deleteError}
+                </p>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPendingDelete(null)}
+                  disabled={deleting}
+                  className="h-11 flex-1 cursor-pointer rounded-xl border border-white/[0.1] bg-white/[0.05] text-base font-bold text-slate-200 hover:bg-white/[0.1] disabled:opacity-40"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDelete}
+                  disabled={deleting}
+                  className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-rose-600 text-base font-bold text-white hover:bg-rose-500 disabled:opacity-50"
+                >
+                  {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                  {deleting ? 'กำลังลบ...' : 'ลบถาวร'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {!projectName ? (
         <div className="min-h-0 flex-1">

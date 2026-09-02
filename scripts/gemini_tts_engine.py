@@ -119,6 +119,13 @@ class GeminiFlashTTSEngine:
 
         clean_text = text.strip()
 
+        # Sanitize for TTS — strip emoji, expand abbreviations, remove hashtags
+        try:
+            from scripts.tts_sanitizer import TTSSanitizer
+            clean_text = TTSSanitizer.clean(clean_text)
+        except ImportError:
+            pass  # Graceful fallback if sanitizer not available
+
         # Build Acting Direction Prompt
         tone_cfg = AD_TONE_PRESETS.get(ad_tone, AD_TONE_PRESETS["commercial_premium"])
         formatted_prompt = f"[{tone_cfg['prompt']}]\n\nRead the following Thai transcript using the commercial acting direction above:\n{clean_text}"

@@ -125,6 +125,60 @@ def test_resume_reruns_only_the_tail(resume_from, expected):
         assert ProjectManifest.should_run(stage, resume_from) is should
 
 
+def test_delete_removes_the_project_folder(projects_dir):
+    ProjectManifest.save("doomed", total_duration=3.0)
+    (projects_dir / "doomed" / "voiceover.wav").write_bytes(b"x" * 2048)
+    ProjectManifest.save("keeper", total_duration=3.0)
+
+    result = ProjectManifest.delete("doomed")
+
+    assert not (projects_dir / "doomed").exists()
+    assert (projects_dir / "keeper").exists(), "deleting one project must not touch another"
+    assert result["project_name"] == "doomed"
+    assert result["files_removed"] >= 2, "manifest + the wav"
+
+
+def test_delete_refuses_to_escape_the_projects_folder(projects_dir, tmp_path):
+    outsider = tmp_path / "03_Projects" / ".." / "precious"
+    (tmp_path / "precious").mkdir()
+
+    # a name is a folder name, never a path: "../precious" resolves outside
+    with pytest.raises(ValueError):
+        ProjectManifest.delete("../precious")
+    assert (tmp_path / "precious").exists()
+
+
+def test_delete_refuses_system_folders(projects_dir):
+    (projects_dir / "_template").mkdir()
+    with pytest.raises(ValueError):
+        ProjectManifest.delete("_template")
+    assert (projects_dir / "_template").exists(), "the template every project starts from"
+
+
+def test_delete_missing_project_says_so(projects_dir):
+    with pytest.raises(FileNotFoundError):
+        ProjectManifest.delete("never-existed")
+
+
+def test_project_list_carries_size_so_the_ui_can_warn(projects_dir):
+    ProjectManifest.save("sized", total_duration=1.0)
+    (projects_dir / "sized" / "big.wav").write_bytes(b"x" * (1024 * 1024))
+
+    entry = next(p for p in ProjectManifest.list_projects() if p["project_name"] == "sized")
+    assert entry["size_mb"] >= 1.0
+
+
+def test_delete_endpoint_refuses_while_a_render_holds_the_slot(client, projects_dir, monkeypatch):
+    from scripts import render_jobs
+
+    ProjectManifest.save("busy-project", total_duration=1.0)
+    monkeypatch.setattr(render_jobs, "is_busy", lambda: True)
+
+    res = client.delete("/api/projects/busy-project")
+    assert res.status_code == 409, "deleting under a running render leaves half-written files"
+    assert (projects_dir / "busy-project").exists()
+
+
 def test_bgm_reroll_remixes_without_resynthesizing_the_voice():
     """
     Music (track, level, ducking) lives in the mix. Swapping it must rebuild

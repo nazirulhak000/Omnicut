@@ -149,6 +149,15 @@ class VoiceEngine:
 
         line_items = cls.segment_into_clauses(text_or_lines)
 
+        # Sanitize each line for TTS — strip emoji, expand abbreviations
+        try:
+            from scripts.tts_sanitizer import TTSSanitizer
+            for item in line_items:
+                if item.get("text"):
+                    item["text"] = TTSSanitizer.clean(item["text"])
+        except ImportError:
+            pass  # Graceful fallback
+
         if not line_items:
             raise ValueError("No text lines provided for voice synthesis.")
 
