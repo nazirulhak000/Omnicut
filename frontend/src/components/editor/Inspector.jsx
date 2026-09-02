@@ -340,7 +340,7 @@ export default function Inspector({
                       onSelectCue?.(cue._uid);
                       onSeek?.(cue.start);
                     }}
-                    className={`flex items-center gap-1.5 p-1 sm:p-1.5 rounded-xl border transition-all group cursor-pointer ${
+                    className={`flex flex-col gap-1 p-1.5 rounded-xl border transition-all group cursor-pointer ${
                       isSelected
                         ? 'border-[#25F4EE] bg-[#25F4EE]/15 shadow-md ring-1 ring-[#25F4EE]/40'
                         : isPlaying
@@ -348,6 +348,9 @@ export default function Inspector({
                         : 'border-white/[0.06] bg-black/40 hover:border-white/[0.15] hover:bg-black/60'
                     }`}
                   >
+                    {/* Meta row: which cue, and what can be done to it. Kept
+                        above the text so the text itself can have the width. */}
+                    <div className="flex items-center gap-1">
                     {/* 1. Time Badge (Click to seek video) */}
                     <button
                       type="button"
@@ -369,35 +372,12 @@ export default function Inspector({
                       <span>{formatShortTime(cue.start)}</span>
                     </button>
 
-                    {/* 2. Main Thai Text Input (Word processor shortcuts: Enter to split, Backspace to merge) */}
-                    <div className="flex-1 min-w-0">
-                      <input
-                        ref={(el) => (inputRefs.current[cue._uid] = el)}
-                        type="text"
-                        value={cue.text || ''}
-                        onFocus={() => {
-                          isTypingRef.current = true;
-                          onSelectCue?.(cue._uid);
-                          onSeek?.(cue.start);
-                        }}
-                        onBlur={() => { isTypingRef.current = false; }}
-                        onChange={(e) => onCaptionChange?.(cue._uid, { text: e.target.value })}
-                        onClick={() => {
-                          onSelectCue?.(cue._uid);
-                          onSeek?.(cue.start);
-                        }}
-                        onKeyDown={(e) => handleKeyDown(e, cue, idx)}
-                        placeholder="พิมพ์ข้อความ (Enter เพื่อแยกท่อน, Backspace เพื่อรวมท่อน)..."
-                        className="w-full py-1 px-2 rounded-lg bg-black/40 border border-transparent focus:border-[#25F4EE] focus:bg-black/80 text-white text-xs placeholder-slate-600 focus:outline-none transition-colors cursor-text"
-                      />
-                    </div>
-
                     {/* 3. Quick SFX Selector */}
                     <select
                       value={cue.sfx || ''}
                       onChange={(e) => onCaptionChange?.(cue._uid, { sfx: e.target.value || null })}
                       onClick={(e) => e.stopPropagation()}
-                      className="py-1 px-1.5 rounded-lg bg-black/60 border border-white/[0.08] text-sm text-slate-400 focus:text-[#25F4EE] focus:outline-none cursor-pointer max-w-[62px] truncate hidden xs:inline flex-shrink-0"
+                      className="py-1 px-1.5 rounded-lg bg-black/60 border border-white/[0.08] text-sm text-slate-400 focus:text-[#25F4EE] focus:outline-none cursor-pointer max-w-[70px] truncate flex-shrink-0"
                       title="เสียงเอฟเฟกต์ (SFX)"
                     >
                       <option value="">SFX</option>
@@ -478,6 +458,31 @@ export default function Inspector({
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
+                    </div>
+
+                    {/* 2. The line itself -- the whole point of this panel, so
+                        it gets the full row width instead of the ~60px it had
+                        left over between the buttons. */}
+                    <input
+                      ref={(el) => (inputRefs.current[cue._uid] = el)}
+                      type="text"
+                      value={cue.text || ''}
+                      onFocus={() => {
+                        isTypingRef.current = true;
+                        onSelectCue?.(cue._uid);
+                        onSeek?.(cue.start);
+                      }}
+                      onBlur={() => { isTypingRef.current = false; }}
+                      onChange={(e) => onCaptionChange?.(cue._uid, { text: e.target.value })}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectCue?.(cue._uid);
+                        onSeek?.(cue.start);
+                      }}
+                      onKeyDown={(e) => handleKeyDown(e, cue, idx)}
+                      placeholder="พิมพ์ข้อความ (Enter เพื่อแยกท่อน, Backspace เพื่อรวมท่อน)..."
+                      className="w-full py-1.5 px-2 rounded-lg bg-black/40 border border-transparent focus:border-[#25F4EE] focus:bg-black/80 text-white text-sm leading-relaxed placeholder-slate-600 focus:outline-none transition-colors cursor-text"
+                    />
                   </div>
                 );
               })}
