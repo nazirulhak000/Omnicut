@@ -35,6 +35,9 @@ const MOBILE_PREVIEW_MIN_H = 160;
 const MOBILE_PREVIEW_DEFAULT = 0.45;   // share of the window height
 const TIMELINE_MAX_H = 460;
 const TIMELINE_DEFAULT_H = 212;
+const INSPECTOR_MIN_W = 320;
+const INSPECTOR_MAX_W = 640;
+const INSPECTOR_DEFAULT_W = 350;
 
 const EMPTY = { clipList: [], cuesList: [], style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false, captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1, stickerPosition: 'top_right', stickerScale: 1 } };
 
@@ -78,6 +81,25 @@ export default function EditorShell({
     }
   });
   const resizeRef = useRef(null);
+
+  // Desktop inspector-panel width resizer -- the caption/script text lives in
+  // here, and a fixed 350px column is what made it unreadable at 8 chars.
+  // Letting someone drag it wider is the general fix; the row layout can only
+  // be so generous on its own.
+  const [inspectorW, setInspectorW] = useState(() => {
+    try {
+      const saved = Number(localStorage.getItem('editor.inspectorW'));
+      return saved >= INSPECTOR_MIN_W && saved <= INSPECTOR_MAX_W ? saved : INSPECTOR_DEFAULT_W;
+    } catch (err) {
+      return INSPECTOR_DEFAULT_W;
+    }
+  });
+  const inspectorResizeRef = useRef(null);
+  const applyInspectorW = (nextW) => {
+    const clamped = Math.max(INSPECTOR_MIN_W, Math.min(INSPECTOR_MAX_W, nextW));
+    setInspectorW(clamped);
+    try { localStorage.setItem('editor.inspectorW', String(clamped)); } catch (err) { /* private mode */ }
+  };
 
   // Mobile split. The preview used to be locked to 28vh on every tab except
   // the timeline, which is why editing captions left the clip as a thumbnail.
@@ -1251,7 +1273,31 @@ export default function EditorShell({
               </div>
 
               {!zen && (
-                <div className="w-[320px] lg:w-[350px] flex-shrink-0 border-l border-white/[0.08]">
+                <div className="relative flex flex-shrink-0">
+                  <div
+                    role="separator"
+                    aria-orientation="vertical"
+                    aria-label="ปรับความกว้างแผงขวา"
+                    title="ลากซ้าย-ขวาเพื่อปรับความกว้าง · ดับเบิลคลิกเพื่อรีเซ็ต"
+                    onPointerDown={(e) => {
+                      inspectorResizeRef.current = { startX: e.clientX, startW: inspectorW };
+                      try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* drag still works */ }
+                    }}
+                    onPointerMove={(e) => {
+                      const d = inspectorResizeRef.current;
+                      if (!d) return;
+                      // Dragging left (negative dx) widens the panel -- it sits on the right edge of the screen.
+                      applyInspectorW(d.startW - (e.clientX - d.startX));
+                    }}
+                    onPointerUp={(e) => {
+                      inspectorResizeRef.current = null;
+                      try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
+                    }}
+                    onPointerCancel={() => { inspectorResizeRef.current = null; }}
+                    onDoubleClick={() => applyInspectorW(INSPECTOR_DEFAULT_W)}
+                    className="w-1.5 flex-shrink-0 cursor-col-resize touch-none bg-white/[0.08] transition-colors hover:bg-[#D97757]/60"
+                  />
+                  <div style={{ width: inspectorW }} className="flex-shrink-0 border-l border-white/[0.08]">
                   <Inspector
                     selection={selection}
                     selectedSeg={selectedSeg}
@@ -1276,6 +1322,7 @@ export default function EditorShell({
                     onSeek={seekPlayer}
                     onSelectCue={(uid) => setSelection({ type: 'caption', id: uid })}
                   />
+                  </div>
                 </div>
               )}
             </div>

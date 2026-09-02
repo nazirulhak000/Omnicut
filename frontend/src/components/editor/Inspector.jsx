@@ -340,7 +340,7 @@ export default function Inspector({
                       onSelectCue?.(cue._uid);
                       onSeek?.(cue.start);
                     }}
-                    className={`flex flex-col gap-1 p-1.5 rounded-xl border transition-all group cursor-pointer ${
+                    className={`flex items-center gap-1 p-1 rounded-xl border transition-all group cursor-pointer ${
                       isSelected
                         ? 'border-[#25F4EE] bg-[#25F4EE]/15 shadow-md ring-1 ring-[#25F4EE]/40'
                         : isPlaying
@@ -348,10 +348,9 @@ export default function Inspector({
                         : 'border-white/[0.06] bg-black/40 hover:border-white/[0.15] hover:bg-black/60'
                     }`}
                   >
-                    {/* Meta row: which cue, and what can be done to it. Kept
-                        above the text so the text itself can have the width. */}
-                    <div className="flex items-center gap-1">
-                    {/* 1. Time Badge (Click to seek video) */}
+                    {/* 1. Time Badge (Click to seek video) -- just the time;
+                        the row order is already visible, an index number was
+                        chrome the line didn't need. */}
                     <button
                       type="button"
                       onClick={(e) => {
@@ -359,25 +358,49 @@ export default function Inspector({
                         onSelectCue?.(cue._uid);
                         onSeek?.(cue.start);
                       }}
-                      className={`flex items-center gap-1 px-1.5 py-1 rounded-lg text-sm font-mono font-bold cursor-pointer transition-colors flex-shrink-0 border ${
+                      className={`px-1 py-1 rounded-lg text-xs font-mono font-bold cursor-pointer transition-colors flex-shrink-0 border ${
                         isPlaying
                           ? 'bg-emerald-500/30 text-emerald-300 border-emerald-500/50'
                           : 'bg-black/60 text-slate-400 border-white/[0.08] hover:text-[#25F4EE] hover:border-[#25F4EE]/40'
                       }`}
-                      title={`คลิกกระโดดไป ${formatShortTime(cue.start)}`}
+                      title={`ท่อนที่ ${idx + 1} · คลิกกระโดดไป ${formatShortTime(cue.start)}`}
                     >
-                      <span className={`w-3.5 text-center font-bold ${isPlaying ? 'text-emerald-400' : 'text-slate-500'}`}>
-                        {idx + 1}
-                      </span>
-                      <span>{formatShortTime(cue.start)}</span>
+                      {formatShortTime(cue.start)}
                     </button>
+
+                    {/* 2. Main Thai Text Input -- the whole point of this
+                        panel, so it gets whatever the row has left. It never
+                        wraps; drag the panel's left edge wider (or Enter to
+                        split into a shorter line) to see more at once. */}
+                    <div className="flex-1 min-w-0">
+                      <input
+                        ref={(el) => (inputRefs.current[cue._uid] = el)}
+                        type="text"
+                        value={cue.text || ''}
+                        onFocus={() => {
+                          isTypingRef.current = true;
+                          onSelectCue?.(cue._uid);
+                          onSeek?.(cue.start);
+                        }}
+                        onBlur={() => { isTypingRef.current = false; }}
+                        onChange={(e) => onCaptionChange?.(cue._uid, { text: e.target.value })}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectCue?.(cue._uid);
+                          onSeek?.(cue.start);
+                        }}
+                        onKeyDown={(e) => handleKeyDown(e, cue, idx)}
+                        placeholder="พิมพ์ข้อความ (Enter เพื่อแยกท่อน, Backspace เพื่อรวมท่อน)..."
+                        className="w-full py-1 px-2 rounded-lg bg-black/40 border border-transparent focus:border-[#25F4EE] focus:bg-black/80 text-white text-xs placeholder-slate-600 focus:outline-none transition-colors cursor-text"
+                      />
+                    </div>
 
                     {/* 3. Quick SFX Selector */}
                     <select
                       value={cue.sfx || ''}
                       onChange={(e) => onCaptionChange?.(cue._uid, { sfx: e.target.value || null })}
                       onClick={(e) => e.stopPropagation()}
-                      className="py-1 px-1.5 rounded-lg bg-black/60 border border-white/[0.08] text-sm text-slate-400 focus:text-[#25F4EE] focus:outline-none cursor-pointer max-w-[70px] truncate flex-shrink-0"
+                      className="py-1 px-1 rounded-lg bg-black/60 border border-white/[0.08] text-xs text-slate-400 focus:text-[#25F4EE] focus:outline-none cursor-pointer w-[46px] truncate flex-shrink-0"
                       title="เสียงเอฟเฟกต์ (SFX)"
                     >
                       <option value="">SFX</option>
@@ -389,7 +412,7 @@ export default function Inspector({
                     </select>
 
                     {/* 4. Move Up / Down (Reorder Cues) */}
-                    <div className="flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center opacity-60 group-hover:opacity-100 transition-opacity flex-shrink-0">
                       {!isFirst && (
                         <button
                           type="button"
@@ -397,10 +420,10 @@ export default function Inspector({
                             e.stopPropagation();
                             onReorderCues?.(idx, idx - 1);
                           }}
-                          className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-white/[0.1] text-slate-400 hover:text-white cursor-pointer"
+                          className="w-5 h-5 flex items-center justify-center rounded-md hover:bg-white/[0.1] text-slate-400 hover:text-white cursor-pointer"
                           title="เลื่อนท่อนนี้ขึ้น"
                         >
-                          <ChevronUp className="w-3.5 h-3.5" />
+                          <ChevronUp className="w-3 h-3" />
                         </button>
                       )}
                       {!isLast && (
@@ -410,10 +433,10 @@ export default function Inspector({
                             e.stopPropagation();
                             onReorderCues?.(idx, idx + 1);
                           }}
-                          className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-white/[0.1] text-slate-400 hover:text-white cursor-pointer"
+                          className="w-5 h-5 flex items-center justify-center rounded-md hover:bg-white/[0.1] text-slate-400 hover:text-white cursor-pointer"
                           title="เลื่อนท่อนนี้ลง"
                         >
-                          <ChevronDown className="w-3.5 h-3.5" />
+                          <ChevronDown className="w-3 h-3" />
                         </button>
                       )}
                     </div>
@@ -425,10 +448,10 @@ export default function Inspector({
                         e.stopPropagation();
                         handleCursorSplit(cue);
                       }}
-                      className="w-9 h-9 flex items-center justify-center rounded-lg bg-white/[0.04] hover:bg-[#25F4EE]/20 text-slate-400 hover:text-[#25F4EE] border border-white/[0.06] transition-colors cursor-pointer flex-shrink-0"
+                      className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/[0.04] hover:bg-[#25F4EE]/20 text-slate-400 hover:text-[#25F4EE] border border-white/[0.06] transition-colors cursor-pointer flex-shrink-0"
                       title="✂️ ตัดแบ่งท่อนคำบรรยาย (หรือกด Enter ในช่องพิมพ์)"
                     >
-                      <Scissors className="w-3.5 h-3.5" />
+                      <Scissors className="w-3 h-3" />
                     </button>
 
                     {/* 6. Merge with Next Button (🔗) */}
@@ -439,10 +462,10 @@ export default function Inspector({
                           e.stopPropagation();
                           onMergeCue?.(cue._uid);
                         }}
-                        className="w-9 h-9 flex items-center justify-center rounded-lg bg-white/[0.04] hover:bg-blue-500/20 text-slate-400 hover:text-blue-400 border border-white/[0.06] transition-colors cursor-pointer flex-shrink-0"
+                        className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/[0.04] hover:bg-blue-500/20 text-slate-400 hover:text-blue-400 border border-white/[0.06] transition-colors cursor-pointer flex-shrink-0"
                         title="🔗 รวมกับท่อนถัดไป"
                       >
-                        <Link2 className="w-3.5 h-3.5" />
+                        <Link2 className="w-3 h-3" />
                       </button>
                     )}
 
@@ -453,36 +476,11 @@ export default function Inspector({
                         e.stopPropagation();
                         onDeleteCue?.(cue._uid);
                       }}
-                      className="w-9 h-9 flex items-center justify-center rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/20 transition-colors cursor-pointer flex-shrink-0"
+                      className="w-7 h-7 flex items-center justify-center rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/20 transition-colors cursor-pointer flex-shrink-0"
                       title="🗑️ ลบท่อนนี้ออก"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-3 h-3" />
                     </button>
-                    </div>
-
-                    {/* 2. The line itself -- the whole point of this panel, so
-                        it gets the full row width instead of the ~60px it had
-                        left over between the buttons. */}
-                    <input
-                      ref={(el) => (inputRefs.current[cue._uid] = el)}
-                      type="text"
-                      value={cue.text || ''}
-                      onFocus={() => {
-                        isTypingRef.current = true;
-                        onSelectCue?.(cue._uid);
-                        onSeek?.(cue.start);
-                      }}
-                      onBlur={() => { isTypingRef.current = false; }}
-                      onChange={(e) => onCaptionChange?.(cue._uid, { text: e.target.value })}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelectCue?.(cue._uid);
-                        onSeek?.(cue.start);
-                      }}
-                      onKeyDown={(e) => handleKeyDown(e, cue, idx)}
-                      placeholder="พิมพ์ข้อความ (Enter เพื่อแยกท่อน, Backspace เพื่อรวมท่อน)..."
-                      className="w-full py-1.5 px-2 rounded-lg bg-black/40 border border-transparent focus:border-[#25F4EE] focus:bg-black/80 text-white text-sm leading-relaxed placeholder-slate-600 focus:outline-none transition-colors cursor-text"
-                    />
                   </div>
                 );
               })}
