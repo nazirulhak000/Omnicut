@@ -249,8 +249,8 @@ export default function App() {
               </Suspense>
             </main>
           ) : (
-          <main className="flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-6 lg:px-8 py-5 pb-20 md:pb-8 w-full min-w-0">
-            <div className="max-w-[1600px] mx-auto animate-fadeIn space-y-5 w-full min-w-0">
+          <main className="flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-5 lg:px-6 py-5 pb-20 md:pb-8 w-full min-w-0">
+            <div className="mx-auto w-full min-w-0 max-w-[2200px] animate-fadeIn space-y-5">
 
               {/* SECTION: สินค้า → คลิป (Menu 1) */}
               {activeTab === 'flow' && (
