@@ -14,6 +14,9 @@ earlier take is never destroyed.
 import json
 import shutil
 import datetime
+import threading
+import uuid
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -83,30 +86,50 @@ class ProjectManifest:
             )
         return manifest
 
+    _SAVE_LOCK = threading.Lock()
+
     @classmethod
     def save(cls, project_name: str, **fields: Any) -> Dict[str, Any]:
-        """Merge `fields` into the manifest and write it out."""
-        project_dir = cls.dir_for(project_name)
-        project_dir.mkdir(parents=True, exist_ok=True)
+        """Merge `fields` into the manifest and write it out safely with lock and retry."""
+        with cls._SAVE_LOCK:
+            project_dir = cls.dir_for(project_name)
+            project_dir.mkdir(parents=True, exist_ok=True)
 
-        manifest = cls.load(project_name) or {
-            "manifest_version": MANIFEST_VERSION,
-            "project_name": project_name,
-            "created_at": cls._now(),
-            "artifacts": {},
-        }
+            manifest = cls.load(project_name) or {
+                "manifest_version": MANIFEST_VERSION,
+                "project_name": project_name,
+                "created_at": cls._now(),
+                "artifacts": {},
+            }
 
-        artifacts = fields.pop("artifacts", None)
-        manifest.update(fields)
-        if artifacts:
-            manifest.setdefault("artifacts", {}).update(artifacts)
-        manifest["updated_at"] = cls._now()
+            artifacts = fields.pop("artifacts", None)
+            manifest.update(fields)
+            if artifacts:
+                manifest.setdefault("artifacts", {}).update(artifacts)
+            manifest["updated_at"] = cls._now()
 
-        path = cls.path_for(project_name)
-        tmp = path.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
-        tmp.replace(path)
-        return manifest
+            path = cls.path_for(project_name)
+            tmp = path.with_suffix(f".{uuid.uuid4().hex[:8]}.tmp")
+            tmp.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+
+            last_err = None
+            for attempt in range(5):
+                try:
+                    tmp.replace(path)
+                    last_err = None
+                    break
+                except PermissionError as e:
+                    last_err = e
+                    time.sleep(0.04 * (attempt + 1))
+
+            if last_err is not None:
+                try:
+                    tmp.unlink(missing_ok=True)
+                except Exception:
+                    pass
+                raise last_err
+
+            return manifest
 
     @classmethod
     def record_artifact(cls, project_name: str, key: str, path: Any) -> None:

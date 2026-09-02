@@ -149,10 +149,13 @@ class GeminiFlashTTSEngine:
         # Try gemini-3.1-flash-tts-preview first, fallback to 2.5 if needed
         model_candidates = [
             "gemini-3.1-flash-tts-preview",
-            "gemini-2.5-flash-preview-tts"
+            "gemini-2.5-flash-preview-tts",
+            "gemini-2.0-flash",
         ]
         
         import time
+        data = None
+        last_error = None
         for model_name in model_candidates:
             for attempt in range(1, 4):
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
@@ -218,6 +221,24 @@ class GeminiFlashTTSEngine:
                     temp_raw_wav.rename(out_wav)
 
                 print(f"✨ [Gemini Flash TTS] Generated successfully with voice '{target_voice}' -> {out_wav}")
+
+                # Record token analytics
+                try:
+                    from scripts.token_tracker import TokenTracker
+                    in_tok = max(50, len(formatted_prompt) // 2)
+                    out_tok = max(100, len(clean_text) * 2)
+                    TokenTracker.record_event(
+                        task="tts",
+                        model="gemini-3.1-flash-tts",
+                        provider="gemini_free_tier",
+                        input_tokens=in_tok,
+                        output_tokens=out_tok,
+                        project_name=out_wav.stem,
+                        metadata={"voice": target_voice, "ad_tone": ad_tone}
+                    )
+                except Exception:
+                    pass
+
                 return str(out_wav)
 
         except Exception as e:

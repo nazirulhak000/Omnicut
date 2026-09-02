@@ -24,7 +24,9 @@ Thumbs.db
 01_Raw/*
 03_Projects/
 04_Exports/*
-06_Archive/
+# Test and tool generated outputs
+tests/output/
+tools/output/
 test_output/
 *.ass
 test_*.png
@@ -45,3 +47,5 @@ synced_clause_*.png
 .playwright-mcp/
 vision_frame_*.png
 test_*.wav
+06_Archive/*
+!06_Archive/.gitkeep

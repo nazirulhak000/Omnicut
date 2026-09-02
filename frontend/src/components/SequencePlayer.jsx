@@ -98,19 +98,54 @@ const CAPTION_COLORS = { white: '#fff', yellow: '#FFE600' };
 function drawCaption(ctx, cues, t, style = {}) {
   const cue = cues.find(c => t >= c.start && t < c.end);
   if (!cue || !cue.text) return;
-  const scale = Math.min(2, Math.max(0.5, style.captionScale ?? 1));
-  const fontSize = Math.round(CANVAS_W * 0.075 * scale);
-  ctx.font = `900 ${fontSize}px Kanit, sans-serif`;
+  const cueScale = Number(cue.scale) || 1.0;
+  const globalScale = Math.min(2.5, Math.max(0.5, style.captionScale ?? 1));
+  const effectiveScale = Math.min(3.0, Math.max(0.4, globalScale * cueScale));
+  const fontSize = Math.round(CANVAS_W * 0.075 * effectiveScale);
+  
+  let fontFam = "'Kanit', sans-serif";
+  if (style.fontName === 'IBMPlex' || style.fontName === 'IBM Plex Sans Thai') {
+    fontFam = "'IBM Plex Sans Thai', sans-serif";
+  } else if (style.fontName === 'Prompt') {
+    fontFam = "'Prompt', sans-serif";
+  }
+
+  ctx.save();
+  ctx.font = `900 ${fontSize}px ${fontFam}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = CAPTION_COLORS[style.captionColor] || '#FFE600';
+  
+  // High-contrast stroke + shadow for crispness
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+  ctx.shadowBlur = 8;
+  ctx.shadowOffsetX = 3;
+  ctx.shadowOffsetY = 4;
+  
   ctx.strokeStyle = '#000000';
-  ctx.lineWidth = Math.round(fontSize * 0.18);
+  ctx.lineWidth = Math.round(fontSize * 0.22);
   ctx.lineJoin = 'round';
+  ctx.miterLimit = 2;
+  
   const x = CANVAS_W / 2;
   const y = CANVAS_H * (CAPTION_Y[style.captionPosition] ?? CAPTION_Y.bottom);
+  
   ctx.strokeText(cue.text, x, y, CANVAS_W * 0.92);
+  
+  ctx.fillStyle = CAPTION_COLORS[style.captionColor] || (cue.text.length < 15 ? '#FFE600' : '#FFFFFF');
   ctx.fillText(cue.text, x, y, CANVAS_W * 0.92);
+
+  // Stacked bilingual English subtitle
+  if (cue.translation && !cue.translation.includes('Error 500')) {
+    const enFontSize = Math.round(fontSize * 0.55);
+    ctx.font = `700 ${enFontSize}px ${fontFam}`;
+    ctx.lineWidth = Math.round(enFontSize * 0.18);
+    ctx.strokeStyle = '#000000';
+    const enY = y + fontSize * 0.88;
+    ctx.strokeText(cue.translation, x, enY, CANVAS_W * 0.92);
+    ctx.fillStyle = '#E2E8F0';
+    ctx.fillText(cue.translation, x, enY, CANVAS_W * 0.92);
+  }
+  ctx.restore();
 }
 
 function drawSticker(ctx, img, t, style = {}) {
@@ -146,6 +181,50 @@ function drawSticker(ctx, img, t, style = {}) {
   ctx.restore();
 }
 
+function drawHookHeader(ctx, hookTitle, t, hookDuration = 3.5, fontName = 'Kanit', firstCueText = '') {
+  if (!hookTitle || t > hookDuration) return;
+  const cleanHook = hookTitle.trim();
+  const cleanFirst = (firstCueText || '').trim();
+  // If hookTitle is just the exact transcript of the spoken subtitle, don't duplicate it
+  if (cleanFirst && (cleanHook === cleanFirst || cleanHook.startsWith(cleanFirst.slice(0, 12)) || cleanFirst.startsWith(cleanHook.slice(0, 12)))) {
+    return;
+  }
+
+  const fontSize = Math.round(CANVAS_W * 0.052);
+  let fontFam = "'Kanit', sans-serif";
+  if (fontName === 'IBMPlex' || fontName === 'IBM Plex Sans Thai') {
+    fontFam = "'IBM Plex Sans Thai', sans-serif";
+  } else if (fontName === 'Prompt') {
+    fontFam = "'Prompt', sans-serif";
+  }
+  ctx.save();
+  ctx.font = `900 ${fontSize}px ${fontFam}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+  ctx.shadowBlur = 10;
+  ctx.shadowOffsetX = 3;
+  ctx.shadowOffsetY = 4;
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = Math.round(fontSize * 0.24);
+  ctx.lineJoin = 'round';
+  ctx.miterLimit = 2;
+  
+  const x = CANVAS_W / 2;
+  const y = 200;
+  
+  let alpha = 1;
+  if (t < 0.2) alpha = t / 0.2;
+  if (t > hookDuration - 0.3) alpha = Math.max(0, (hookDuration - t) / 0.3);
+  ctx.globalAlpha = alpha;
+  
+  const maxW = CANVAS_W * 0.85;
+  ctx.strokeText(cleanHook, x, y, maxW);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillText(cleanHook, x, y, maxW);
+  ctx.restore();
+}
+
 /**
  * Plays `clips` back-to-back as one continuous sequence in a single canvas
  * (approximate preview -- real output only comes from Apply's ffmpeg
@@ -158,9 +237,10 @@ function drawSticker(ctx, img, t, style = {}) {
  * not by trusting a <video> element's own playback rate -- see
  * RESYNC_THRESHOLD's comment for why.
  */
-function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurations, captionStyle = {}, stickerStyle = {} }, ref) {
+function SequencePlayer({ clips, cues = [], hookTitle = '', hookDuration = 3.0, audioUrl = null, compact = false, onPlayhead, onDurations, captionStyle = {}, stickerStyle = {} }, ref) {
   const canvasRef = useRef(null);
   const videoElsRef = useRef({});
+  const audioElRef = useRef(null);
   const rafRef = useRef(null);
   const clockRef = useRef({ startWall: 0, startT: 0 });
   const stickerImgRef = useRef(null);
@@ -171,7 +251,7 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
   const [playhead, setPlayhead] = useState(0);
   const playheadRef = useRef(0);
 
-  const captionKey = `${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}`;
+  const captionKey = `${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}:${captionStyle.fontName}:${hookTitle}:${hookDuration}`;
   const stickerKey = `${stickerStyle.badge}:${stickerStyle.position}:${stickerStyle.scale}:${stickerStyle.startTime}`;
   const clipKey = clips.map(c => `${c.id}:${c.source_path}:${c.trim_start}:${c.trim_end}:${c.transition_in}:${c.transition_duration}:${c.brightness}:${c.contrast}:${c.saturation}:${c.zoom}:${c.pan_x}:${c.pan_y}:${c.mirror}:${c.rotation}`).join('|');
 
@@ -181,7 +261,12 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
       renderAt(playheadRef.current);
       return;
     }
-    const found = stickerStyle.stickers.find((s) => s.name === stickerStyle.badge || s.id === stickerStyle.badge);
+    const found = stickerStyle.stickers.find((s) => 
+      s.name === stickerStyle.badge || 
+      s.id === stickerStyle.badge || 
+      s.path === stickerStyle.badge ||
+      (s.name && stickerStyle.badge && s.name.toLowerCase() === String(stickerStyle.badge).toLowerCase())
+    );
     if (found?.img_url) {
       const img = new Image();
       img.crossOrigin = 'anonymous';
@@ -251,6 +336,7 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
     });
     ctx.globalAlpha = 1;
     ctx.filter = 'none';
+    drawHookHeader(ctx, hookTitle, t, hookDuration, captionStyle.fontName, cues[0]?.text);
     drawCaption(ctx, cues, t, captionStyle);
     drawSticker(ctx, stickerImgRef.current, t, stickerStyle);
   };
@@ -266,15 +352,28 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
     if (!isPlaying || segments.length === 0) return;
 
     const tick = () => {
-      const t = clockRef.current.startT + (performance.now() - clockRef.current.startWall) / 1000;
+      // Audio Master Clock: Lock subtitle and video frames directly to the audio element's playback
+      const audio = audioElRef.current;
+      let t;
+      if (audio && audio.src && !audio.paused && !audio.ended && audio.currentTime > 0) {
+        t = audio.currentTime;
+      } else {
+        t = clockRef.current.startT + (performance.now() - clockRef.current.startWall) / 1000;
+      }
 
       if (t >= totalDuration) {
         Object.values(videoElsRef.current).forEach(v => v?.pause());
+        audioElRef.current?.pause();
         setPlayhead(totalDuration);
         onPlayhead?.(totalDuration);
         renderAt(totalDuration);
         setIsPlaying(false);
         return;
+      }
+
+      // Keep Audio Element in check if it fell behind/drifted
+      if (audio && audio.src && !audio.paused && Math.abs(audio.currentTime - t) > 0.3) {
+        audio.currentTime = t;
       }
 
       const plan = getDrawPlan(t);
@@ -308,6 +407,7 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
         });
         ctx.globalAlpha = 1;
         ctx.filter = 'none';
+        drawHookHeader(ctx, hookTitle, t, hookDuration, captionStyle.fontName, cues[0]?.text);
         drawCaption(ctx, cues, t, captionStyle);
         drawSticker(ctx, stickerImgRef.current, t, stickerStyle);
       }
@@ -332,10 +432,15 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
     if (!segments.length) return;
     if (isPlaying) {
       Object.values(videoElsRef.current).forEach(v => v?.pause());
+      audioElRef.current?.pause();
       setIsPlaying(false);
     } else {
       const startT = playhead >= totalDuration ? 0 : playhead;
       clockRef.current = { startWall: performance.now(), startT };
+      if (audioElRef.current) {
+        audioElRef.current.currentTime = startT;
+        audioElRef.current.play().catch(() => {});
+      }
       setPlayhead(startT);
       onPlayhead?.(startT);
       setIsPlaying(true);
@@ -346,6 +451,9 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
     const maxDur = totalDuration || 999999;
     const clamped = Math.max(0, Math.min(maxDur, t));
     Object.values(videoElsRef.current).forEach(v => v?.pause());
+    if (audioElRef.current) {
+      audioElRef.current.currentTime = clamped;
+    }
     setPlayhead(clamped);
     playheadRef.current = clamped;
     onPlayhead?.(clamped);
@@ -373,12 +481,25 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
   }));
 
   const handleScrubInput = (e) => {
-    if (isPlaying) setIsPlaying(false);
+    if (isPlaying) {
+      audioElRef.current?.pause();
+      setIsPlaying(false);
+    }
     seekTo(parseFloat(e.target.value));
   };
 
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col items-center gap-2">
+      {/* Hidden audio element for voiceover + BGM playback */}
+      {audioUrl && (
+        <audio
+          ref={audioElRef}
+          src={toMediaUrl(audioUrl)}
+          preload="auto"
+          playsInline
+        />
+      )}
+
       {/* Hidden decode elements -- one per clip, always mounted so metadata
           loads and pre-seek/pre-play can happen ahead of a cut/fade.
           Kept technically visible (1px, off-screen, opacity near 0) rather

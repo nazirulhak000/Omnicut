@@ -109,7 +109,17 @@ def ai_parse(req: AIParseRequest):
 @router.get("/ai/status")
 def ai_status():
     return {
-        "mode": "auto" if AIBridge.has_api_key() else "manual",
+        "mode": "auto" if AIBridge.is_available() else "manual",
+        "provider": (
+            "antigravity_pro"
+            if AIBridge.has_antigravity_cli()
+            else ("gemini_api" if AIBridge.has_api_key() else "manual")
+        ),
+        "model": (
+            "gemini-3.8-flash-high (Antigravity Pro)"
+            if AIBridge.has_antigravity_cli()
+            else ("gemini-2.5-flash" if AIBridge.has_api_key() else None)
+        ),
         "tasks": {key: spec["label"] for key, spec in AIBridge.TASKS.items()},
     }
 
@@ -333,6 +343,7 @@ class RerollRequest(BaseModel):
     project_name: str
     part: str  # hook | subtitles | voice | script | video
     hook_title: Optional[str] = None
+    hook_duration: Optional[float] = None
     custom_script: Optional[str] = None
     script_overlays: Optional[List[str]] = None
     font_name: Optional[str] = None
@@ -357,7 +368,7 @@ class RerollRequest(BaseModel):
     sticker_position: Optional[str] = None
     sticker_scale: Optional[float] = None
     clip_list: Optional[List[Dict[str, Any]]] = None
-    transitions: Optional[List[str]] = None
+    transitions: Optional[List[Any]] = None
 
 
 # What each button costs, so the UI can warn before a slow one.
@@ -501,6 +512,81 @@ def update_project_cues(project_name: str, req: UpdateCuesRequest):
     return {"success": True, "cues": updated.get("cues"), "micro_cues": updated.get("micro_cues")}
 
 
+class UpdateClipsRequest(BaseModel):
+    clip_list: List[Dict[str, Any]]
+    transitions: Optional[List[Any]] = None
+
+
+@router.patch("/projects/{project_name}/clips")
+def update_project_clips(project_name: str, req: UpdateClipsRequest):
+    """
+    Manual Editor clip/trim edits: persist edited clip_list into manifest.
+    """
+    manifest = ProjectManifest.load(project_name)
+    if not manifest:
+        raise HTTPException(status_code=404, detail=f"ไม่พบโปรเจกต์ '{project_name}'")
+
+    fields: Dict[str, Any] = {
+        "clip_list": req.clip_list,
+    }
+    render_params = dict(manifest.get("render_params") or {})
+    render_params["clip_list"] = req.clip_list
+    if req.transitions is not None:
+        fields["transitions"] = req.transitions
+        render_params["transitions"] = req.transitions
+    fields["render_params"] = render_params
+
+    updated = ProjectManifest.save(project_name, **fields)
+    return {"success": True, "clip_list": updated.get("clip_list")}
+
+
+class UpdateProjectStateRequest(BaseModel):
+    cues: Optional[List[Dict[str, Any]]] = None
+    micro_cues: Optional[List[Dict[str, Any]]] = None
+    clip_list: Optional[List[Dict[str, Any]]] = None
+    transitions: Optional[List[Any]] = None
+    style: Optional[Dict[str, Any]] = None
+
+
+@router.patch("/projects/{project_name}/state")
+def update_project_state(project_name: str, req: UpdateProjectStateRequest):
+    """
+    Unified atomic save for manual Editor state (captions, clips, transitions, style).
+    Saves everything in a single atomic manifest transaction.
+    """
+    manifest = ProjectManifest.load(project_name)
+    if not manifest:
+        raise HTTPException(status_code=404, detail=f"ไม่พบโปรเจกต์ '{project_name}'")
+
+    fields: Dict[str, Any] = {}
+    render_params = dict(manifest.get("render_params") or {})
+
+    if req.cues is not None:
+        fields["cues"] = req.cues
+    if req.micro_cues is not None:
+        fields["micro_cues"] = req.micro_cues
+    if req.clip_list is not None:
+        fields["clip_list"] = req.clip_list
+        render_params["clip_list"] = req.clip_list
+    if req.transitions is not None:
+        fields["transitions"] = req.transitions
+        render_params["transitions"] = req.transitions
+    if req.style is not None:
+        for k, v in req.style.items():
+            fields[k] = v
+            render_params[k] = v
+
+    fields["render_params"] = render_params
+    updated = ProjectManifest.save(project_name, **fields)
+    return {
+        "success": True,
+        "cues": updated.get("cues"),
+        "micro_cues": updated.get("micro_cues"),
+        "clip_list": updated.get("clip_list"),
+        "updated_at": updated.get("updated_at"),
+    }
+
+
 def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[str, Any]) -> None:
     from scripts.pipeline import TikTokAutoCutterPipeline
 
@@ -526,6 +612,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 ad_tone=params.get("ad_tone", "commercial_premium"),
                 human_voice_audio_path=params.get("human_voice_audio_path"),
                 hook_title=params.get("hook_title"),
+                hook_duration=float(params.get("hook_duration", 3.0) or 3.0),
                 font_name=params.get("font_name", "IBMPlex"),
                 bilingual_subtitles=params.get("bilingual_subtitles", True),
                 sticker_path=params.get("sticker_path"),

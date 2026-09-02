@@ -89,6 +89,7 @@ export default function Timeline({
   const laneRef = useRef(null);
   const scrubbing = useRef(false);
   const captionDrag = useRef(null);
+  const captionTrim = useRef(null);
   const bodyDrag = useRef(null);
   const [dropIndex, setDropIndex] = useState(null);
   const waveRef = useRef(null);
@@ -202,6 +203,44 @@ export default function Timeline({
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
   };
 
+  const startTrim = (e, cue, edge) => {
+    e.stopPropagation();
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+    captionTrim.current = {
+      uid: cue._uid,
+      edge,
+      startX: e.clientX,
+      start: cue.start,
+      end: cue.end,
+      moved: false,
+    };
+  };
+
+  const moveTrim = (e) => {
+    const d = captionTrim.current;
+    if (!d) return;
+    const delta = (e.clientX - d.startX) / pxPerSec;
+    if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return;
+    if (!d.moved) { d.moved = true; dragBegin(); }
+
+    if (d.edge === 'left') {
+      const rawStart = Math.max(0, Math.min(d.end - 0.2, d.start + delta));
+      const snapped = snapFunction(rawStart, snapPoints);
+      shiftCaption(d.uid, { start: Math.round(snapped * 100) / 100 });
+    } else {
+      const rawEnd = Math.max(d.start + 0.2, d.end + delta);
+      const snapped = snapFunction(rawEnd, snapPoints);
+      shiftCaption(d.uid, { end: Math.round(snapped * 100) / 100 });
+    }
+  };
+
+  const endTrim = (e) => {
+    const d = captionTrim.current;
+    captionTrim.current = null;
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
+    if (d?.moved) dragEnd();
+  };
+
   const sfxMarkers = (cues || []).filter((c) => c.sfx);
 
   return (
@@ -311,51 +350,83 @@ export default function Timeline({
               <div className="relative mt-1 rounded bg-[#181716]" style={{ height: CAPTION_H }}>
                 {(cues || []).map((cue) => {
                   const selected = selection?.type === 'caption' && selection.id === cue._uid;
-                  const w = Math.max(10, (cue.end - cue.start) * pxPerSec);
+                  const w = Math.max(14, (cue.end - cue.start) * pxPerSec);
                   return (
-                    <button
+                    <div
                       key={cue._uid}
                       onClick={() => selectCaption(cue._uid)}
-                      onPointerDown={(e) => {
-                        try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* drag still works */ }
-                        captionDrag.current = {
-                          uid: cue._uid, startX: e.clientX, start: cue.start, end: cue.end, moved: false,
-                        };
-                      }}
-                      onPointerMove={(e) => {
-                        const d = captionDrag.current;
-                        if (!d || d.uid !== cue._uid) return;
-                        const delta = (e.clientX - d.startX) / pxPerSec;
-                        if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return;
-                        if (!d.moved) { d.moved = true; dragBegin(); }
-                        const shift = Math.max(-d.start, delta);
-                        // Snap the caption's own start against clip edges / the
-                        // playhead, then carry that same correction to its end
-                        // so the cue's duration doesn't change from snapping.
-                        const rawStart = d.start + shift;
-                        const snappedStart = snapFunction(rawStart, snapPoints);
-                        const correction = snappedStart - rawStart;
-                        shiftCaption(cue._uid, {
-                          start: Math.round((d.start + shift + correction) * 100) / 100,
-                          end: Math.round((d.end + shift + correction) * 100) / 100,
-                        });
-                      }}
-                      onPointerUp={(e) => {
-                        const d = captionDrag.current;
-                        captionDrag.current = null;
-                        try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) { /* fine */ }
-                        if (d?.moved) dragEnd();
-                      }}
-                      title={cue.text}
-                      className={`absolute top-1 h-[calc(100%-8px)] touch-none overflow-hidden rounded px-1.5 text-left text-xs leading-[18px] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
+                      title={`${cue.text} (${cue.start.toFixed(2)}s - ${cue.end.toFixed(2)}s)`}
+                      className={`group absolute top-1 h-[calc(100%-8px)] touch-none select-none rounded text-left text-xs leading-[18px] transition-colors duration-150 flex items-center ${
                         selected
                           ? 'bg-[#33251F] text-[#EDE9E3] ring-2 ring-[#D97757]'
                           : 'bg-[#282724] text-[#C9C3BB] ring-1 ring-[#4A4742] hover:ring-[#6B6660]'
                       }`}
                       style={{ left: cue.start * pxPerSec, width: w }}
                     >
-                      <span className="block truncate">{cue.text}</span>
-                    </button>
+                      {/* Left Trim Handle */}
+                      <div
+                        onPointerDown={(e) => startTrim(e, cue, 'left')}
+                        onPointerMove={moveTrim}
+                        onPointerUp={endTrim}
+                        onPointerCancel={endTrim}
+                        title="ลากเพื่อยืด/หดเวลาเริ่มต้น"
+                        className="h-full w-2.5 flex-shrink-0 cursor-ew-resize rounded-l hover:bg-[#D97757] bg-white/[0.04] transition-colors flex items-center justify-center z-10 opacity-60 group-hover:opacity-100"
+                      >
+                        <div className="h-2.5 w-0.5 rounded-full bg-white/40" />
+                      </div>
+
+                      {/* Middle Body (Drag to shift entire cue) */}
+                      <div
+                        onPointerDown={(e) => {
+                          try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+                          captionDrag.current = {
+                            uid: cue._uid, startX: e.clientX, start: cue.start, end: cue.end, moved: false,
+                          };
+                        }}
+                        onPointerMove={(e) => {
+                          const d = captionDrag.current;
+                          if (!d || d.uid !== cue._uid) return;
+                          const delta = (e.clientX - d.startX) / pxPerSec;
+                          if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return;
+                          if (!d.moved) { d.moved = true; dragBegin(); }
+                          const shift = Math.max(-d.start, delta);
+                          const rawStart = d.start + shift;
+                          const snappedStart = snapFunction(rawStart, snapPoints);
+                          const correction = snappedStart - rawStart;
+                          shiftCaption(cue._uid, {
+                            start: Math.round((d.start + shift + correction) * 100) / 100,
+                            end: Math.round((d.end + shift + correction) * 100) / 100,
+                          });
+                        }}
+                        onPointerUp={(e) => {
+                          const d = captionDrag.current;
+                          captionDrag.current = null;
+                          try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
+                          if (d?.moved) dragEnd();
+                        }}
+                        onPointerCancel={(e) => {
+                          const d = captionDrag.current;
+                          captionDrag.current = null;
+                          try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
+                          if (d?.moved) dragEnd();
+                        }}
+                        className="flex-1 min-w-0 h-full flex items-center px-1 overflow-hidden cursor-grab active:cursor-grabbing"
+                      >
+                        <span className="truncate">{cue.text}</span>
+                      </div>
+
+                      {/* Right Trim Handle */}
+                      <div
+                        onPointerDown={(e) => startTrim(e, cue, 'right')}
+                        onPointerMove={moveTrim}
+                        onPointerUp={endTrim}
+                        onPointerCancel={endTrim}
+                        title="ลากเพื่อยืด/หดเวลาสิ้นสุด"
+                        className="h-full w-2.5 flex-shrink-0 cursor-ew-resize rounded-r hover:bg-[#D97757] bg-white/[0.04] transition-colors flex items-center justify-center z-10 opacity-60 group-hover:opacity-100"
+                      >
+                        <div className="h-2.5 w-0.5 rounded-full bg-white/40" />
+                      </div>
+                    </div>
                   );
                 })}
               </div>

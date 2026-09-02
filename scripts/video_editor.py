@@ -14,7 +14,7 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
         sys.stdout.reconfigure(encoding='utf-8', errors='ignore')
     except Exception:
         pass
-from typing import Any, List, Dict, Tuple
+from typing import Any, List, Dict, Tuple, Callable, Optional
 from scripts.config import VIDEO_WIDTH, VIDEO_HEIGHT, FPS, MIN_SHOT_DURATION, MAX_SHOT_DURATION, FONTS_DIR
 
 # ffmpeg's xfade transitions we expose. Anything outside this set falls back to
@@ -216,7 +216,8 @@ class VideoEditor:
         lut_intensity: float = 1.0,
         export_preset: str = "post",
         sticker_position: str = "top_right",
-        sticker_scale: float = 1.0
+        sticker_scale: float = 1.0,
+        progress_callback: Optional[Callable[[float, float], None]] = None
     ) -> str:
         """
         Takes raw footage, creates fast-paced punch-in cuts synced to audio duration and Gemini Vision scenes,
@@ -594,14 +595,78 @@ class VideoEditor:
             str(out_file)
         ]
 
-        print(f"Executing video render to: {out_file}...")
-        try:
-            res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=300)
-            if res.returncode != 0:
-                print("FFmpeg Error details:", res.stderr[-500:])
-                raise RuntimeError(f"FFmpeg render failed:\n{res.stderr[-500:]}")
-        except subprocess.TimeoutExpired:
-            raise TimeoutError(f"FFmpeg render timed out after 300 seconds for: {out_file.name}")
+        if progress_callback:
+            cmd.insert(1, "pipe:1")
+            cmd.insert(1, "-progress")
+            cmd.insert(1, "-nostats")
+            print(f"Executing video render with real-time progress to: {out_file}...")
+            import time
+            import threading
+            proc = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                errors="ignore"
+            )
+
+            stderr_chunks = []
+            def _drain_stderr():
+                try:
+                    for s_line in iter(proc.stderr.readline, ''):
+                        if not s_line:
+                            break
+                        stderr_chunks.append(s_line)
+                        if len(stderr_chunks) > 100:
+                            stderr_chunks.pop(0)
+                except Exception:
+                    pass
+
+            stderr_thread = threading.Thread(target=_drain_stderr, daemon=True)
+            stderr_thread.start()
+
+            last_reported = 0
+            while True:
+                line = proc.stdout.readline()
+                if not line:
+                    break
+                line = line.strip()
+                if line.startswith("out_time_us="):
+                    try:
+                        us = float(line.split("=")[1])
+                        curr_sec = us / 1_000_000.0
+                        now = time.time()
+                        if now - last_reported >= 0.4:
+                            progress_callback(curr_sec, float(total_duration))
+                            last_reported = now
+                    except Exception:
+                        pass
+                elif line.startswith("out_time_ms="):
+                    try:
+                        ms = float(line.split("=")[1])
+                        curr_sec = ms / 1_000_000.0
+                        now = time.time()
+                        if now - last_reported >= 0.4:
+                            progress_callback(curr_sec, float(total_duration))
+                            last_reported = now
+                    except Exception:
+                        pass
+            proc.wait(timeout=300)
+            stderr_thread.join(timeout=1.0)
+            if proc.returncode != 0:
+                err = "".join(stderr_chunks)
+                print("FFmpeg Error details:", err[-500:])
+                raise RuntimeError(f"FFmpeg render failed:\n{err[-500:]}")
+        else:
+            print(f"Executing video render to: {out_file}...")
+            try:
+                res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=300)
+                if res.returncode != 0:
+                    print("FFmpeg Error details:", res.stderr[-500:])
+                    raise RuntimeError(f"FFmpeg render failed:\n{res.stderr[-500:]}")
+            except subprocess.TimeoutExpired:
+                raise TimeoutError(f"FFmpeg render timed out after 300 seconds for: {out_file.name}")
 
         # Automatically generate ultra-lightweight WebP poster thumbnail for instant 0.05s gallery display
         cls.generate_poster_thumbnail(out_file)

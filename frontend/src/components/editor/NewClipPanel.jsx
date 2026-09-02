@@ -1,13 +1,28 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle, Check, ChevronDown, ChevronRight, Film, Loader2, Package,
-  Rocket, Sparkles, Upload, Volume2, Wand2, FolderOpen
+  Rocket, Sparkles, Upload, Volume2, FolderOpen, ArrowRight, Clock, Hourglass, CheckCircle2
 } from 'lucide-react';
-import { generateAiScripts, previewVoice, startRender, uploadFile, updateAngleVideos } from '../../api';
+import { previewVoice, startRender, uploadFile, updateAngleVideos } from '../../api';
 import { DEFAULT_STUDIO_FORM, STUDIO_FORM_KEY, getSavedStudioForm } from '../../lib/studioDefaults';
 import { angleToForm, angleLabel } from '../../lib/angleToForm';
 import { useRenderJob } from '../../hooks/useRenderJob';
 import MediaPickerModal from '../MediaPickerModal';
+
+function formatTime(seconds) {
+  if (seconds == null || isNaN(seconds)) return '00:00';
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function formatRemaining(seconds) {
+  if (!seconds || seconds <= 5) return 'ใกล้เสร็จแล้ว...';
+  if (seconds < 60) return `~${seconds} วินาที`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return s > 15 ? `~${m} นาที ${s} วิ` : `~${m} นาที`;
+}
 
 // == GEMINI_VOICE_PRESETS in scripts/gemini_tts_engine.py. An id that is not
 // in that map falls through to a default voice without complaining, so the
@@ -90,8 +105,6 @@ export default function NewClipPanel({
   const [form, setForm] = useState(() => getSavedStudioForm());
   const [showFields, setShowFields] = useState(!productContext);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [aiScripts, setAiScripts] = useState(null);
-  const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState(null);
   const [voiceBusy, setVoiceBusy] = useState(false);
   const [uploadPct, setUploadPct] = useState(null);
@@ -108,7 +121,7 @@ export default function NewClipPanel({
   }, [form]);
 
   const {
-    rendering, jobProjectName, jobStatus, progressPercent, renderError, executeRender,
+    rendering, jobProjectName, jobStatus, progressPercent, displayPercent, elapsedSeconds, estimatedRemainingSeconds, renderError, executeRender,
   } = useRenderJob({
     onComplete: (result) => {
       const name = result?.project_name || result?.projectName;
@@ -127,8 +140,8 @@ export default function NewClipPanel({
       setForm((prev) => ({
         ...prev,
         ...next,
-        selectedVideo: next.selectedVideo || (next.selectedVideos && next.selectedVideos[0]) || prev.selectedVideo,
-        selectedVideos: next.selectedVideos || (next.selectedVideo ? [next.selectedVideo] : prev.selectedVideos)
+        selectedVideo: next.selectedVideo || (next.selectedVideos && next.selectedVideos[0]) || '',
+        selectedVideos: next.selectedVideos || (next.selectedVideo ? [next.selectedVideo] : [])
       }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -144,11 +157,8 @@ export default function NewClipPanel({
     if (form.selectedVideos && form.selectedVideos.length > 0) {
       return form.selectedVideos;
     }
-    if (form.selectedVideo) {
-      return [form.selectedVideo];
-    }
     return [];
-  }, [currentAngle, form.selectedVideos, form.selectedVideo]);
+  }, [currentAngle, form.selectedVideos]);
 
   const displayVideos = useMemo(() => {
     if (angleAttachedVideos.length > 0) {
@@ -199,38 +209,6 @@ export default function NewClipPanel({
     } finally {
       setUploadPct(null);
     }
-  };
-
-  const handleAiScript = async () => {
-    setAiBusy(true);
-    setAiError(null);
-    try {
-      const res = await generateAiScripts({
-        product_name: form.productName,
-      // so deleting this project later can offer to take its script with it
-      product_id: productContext?.id || null,
-      angle_id: angles[angleIndex]?.angle_id || null,
-        key_features: form.keyFeatures,
-        pain_point: form.painPoint,
-        price_deal: form.priceDeal,
-      });
-      setAiScripts(res?.angles || []);
-    } catch (err) {
-      setAiError(err.friendlyMessage || 'ขอบทจาก AI ไม่สำเร็จ');
-    } finally {
-      setAiBusy(false);
-    }
-  };
-
-  const useAiAngle = (angle) => {
-    const lines = Array.isArray(angle.script_lines) ? angle.script_lines.join('\n') : (angle.script_text || '');
-    patch({
-      customScript: lines,
-      useCustomScript: true,
-      hookTitle: angle.hook_title || form.hookTitle,
-      ...(angle.ad_tone ? { adTone: angle.ad_tone } : null),
-    });
-    setAiScripts(null);
   };
 
   const handlePreviewVoice = async () => {
@@ -286,27 +264,93 @@ export default function NewClipPanel({
     });
   };
 
-  // ── rendering takes minutes; the form is replaced by where it is up to ──
+  // ── rendering takes minutes; display live dynamic progress dashboard ──
   if (rendering) {
-    const stepIndex = Math.min(RENDER_STEPS.length - 1, Math.floor((progressPercent / 100) * RENDER_STEPS.length));
+    const effectivePercent = Math.max(displayPercent || 0, progressPercent || 0);
+    const stepIndex = Math.min(
+      RENDER_STEPS.length - 1,
+      Math.max(0, Math.floor((effectivePercent / 100) * RENDER_STEPS.length))
+    );
+
     return (
-      <div className="flex h-full items-center justify-center p-6">
-        <div className="w-full max-w-md space-y-4 text-center">
-          <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#D97757]" />
-          <div>
-            <p className="text-sm font-bold text-white">กำลังสร้าง {jobProjectName || projectName}</p>
-            <p className="pt-1 text-sm text-slate-400">{jobStatus?.message || jobStatus?.step_label || 'กำลังเตรียมข้อมูล...'}</p>
+      <div className="flex h-full items-center justify-center p-4 sm:p-6 overflow-y-auto">
+        <div className="w-full max-w-lg space-y-5 rounded-3xl border border-white/[0.08] bg-[#0E1118]/90 p-6 sm:p-8 shadow-2xl backdrop-blur-xl text-center animate-fadeIn">
+          {/* Circular Glowing Pulse with Big Number */}
+          <div className="relative mx-auto w-28 h-28 flex items-center justify-center">
+            <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-[#D97757]/30 to-[#25F4EE]/30 blur-xl animate-pulse" />
+            <div className="absolute inset-0 rounded-full border-2 border-dashed border-[#D97757]/40 animate-[spin_4s_linear_infinite]" />
+            <div className="relative z-10 w-22 h-22 rounded-full bg-[#141824] border border-white/[0.1] shadow-2xl flex flex-col items-center justify-center">
+              <span className="text-3xl font-black font-mono text-white tracking-tight">
+                {effectivePercent}%
+              </span>
+              <span className="text-[10px] font-bold text-[#25F4EE] uppercase tracking-wider">กำลังรัน</span>
+            </div>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.08]">
-            <div className="h-full bg-[#D97757] transition-all duration-500" style={{ width: `${Math.max(4, progressPercent)}%` }} />
+
+          {/* Project Title & Live Sub-Step Message */}
+          <div className="space-y-2">
+            <h3 className="text-base sm:text-lg font-extrabold text-white tracking-wide truncate">
+              กำลังสร้าง {jobProjectName || projectName}
+            </h3>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] shadow-inner text-xs font-semibold text-[#E89274] max-w-full">
+              <span className="w-2 h-2 rounded-full bg-[#D97757] animate-ping flex-shrink-0" />
+              <span className="truncate">{jobStatus?.message || jobStatus?.step_label || 'กำลังเตรียมข้อมูลและจัดโครงสร้างสคริปต์...'}</span>
+            </div>
           </div>
-          <ol className="flex justify-between text-xs">
-            {RENDER_STEPS.map((label, i) => (
-              <li key={label} className={i <= stepIndex ? 'text-[#E89274]' : 'text-slate-600'}>{label}</li>
-            ))}
-          </ol>
-          <p className="text-sm leading-relaxed text-[#9C968F]">
-            พากย์เสียงกับเรนเดอร์ใช้เวลา 2-4 นาทีบนเครื่องนี้ · ยกเลิกกลางคันไม่ได้ ปิดหน้านี้แล้วงานยังวิ่งต่อ
+
+          {/* Thick Glowing Progress Bar with Shimmer */}
+          <div className="space-y-2 pt-1">
+            <div className="relative h-3 w-full overflow-hidden rounded-full bg-black/60 border border-white/[0.08] shadow-inner">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[#D97757] via-[#FF8A65] to-[#25F4EE] transition-all duration-300 relative overflow-hidden"
+                style={{ width: `${Math.max(4, effectivePercent)}%` }}
+              >
+                {/* Moving Sheen Light Wave */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent -translate-x-full animate-shimmer" />
+              </div>
+            </div>
+
+            {/* Live Elapsed & Remaining Timers */}
+            <div className="flex items-center justify-between text-xs font-mono text-slate-400 px-1 pt-0.5">
+              <span className="flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-slate-500" />
+                <span>เวลาที่ใช้: <strong className="text-white">{formatTime(elapsedSeconds)}</strong></span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Hourglass className="w-3.5 h-3.5 text-[#25F4EE]" />
+                <span>คาดว่าเสร็จใน: <strong className="text-[#25F4EE]">{formatRemaining(estimatedRemainingSeconds)}</strong></span>
+              </span>
+            </div>
+          </div>
+
+          {/* Milestone Stepper with Badges */}
+          <div className="grid grid-cols-5 gap-1.5 pt-2">
+            {RENDER_STEPS.map((label, i) => {
+              const isDone = i < stepIndex;
+              const isCurrent = i === stepIndex;
+              return (
+                <div
+                  key={label}
+                  className={`flex flex-col items-center gap-0.5 p-2 rounded-xl border text-center transition-all ${
+                    isDone
+                      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+                      : isCurrent
+                      ? 'border-[#D97757]/80 bg-[#D97757]/20 text-[#E89274] ring-1 ring-[#D97757]/50 shadow-md scale-[1.02]'
+                      : 'border-white/[0.04] bg-white/[0.02] text-slate-500'
+                  }`}
+                >
+                  <div className="text-[10px] font-bold">
+                    {isDone ? '✓ เสร็จ' : isCurrent ? '⚡ รันอยู่' : `${i + 1}`}
+                  </div>
+                  <span className="text-[11px] font-bold leading-tight truncate w-full">{label}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Safety & Background Note */}
+          <p className="text-xs leading-relaxed text-slate-400 border-t border-white/[0.06] pt-3">
+            💡 <span className="text-slate-300">ตัดต่อและเรนเดอร์ 1080x1920 (30 FPS) อัตโนมัติ</span> · ปิดหน้านี้หรือสลับแท็บได้ ระบบยังคงทำงานต่อเบื้องหลังจนเสร็จสมบูรณ์
           </p>
         </div>
       </div>
@@ -327,30 +371,40 @@ export default function NewClipPanel({
         <Section step="1" title="สินค้า & มุมที่จะเล่า" done={!!form.productName} hint={productContext ? productContext.title : 'ยังไม่ได้เลือกสินค้า'}>
           {angles.length > 0 ? (
             <div className="space-y-2">
-              <label className="block">
-                <span className="mb-1 block text-sm text-slate-400">มุมที่จะเล่า ({angles.length} มุมจากเมนูสินค้า)</span>
-                <select
-                  value={angleIndex}
-                  onChange={(e) => onAngleChange?.(parseInt(e.target.value, 10))}
-                  className="h-9 w-full rounded-lg border border-white/[0.08] bg-black/40 px-3 text-base text-white focus:border-[#D97757] focus:outline-none"
-                >
-                  {angles.map((a, i) => (
-                    <option key={i} value={i}>{angleLabel(a, i)}</option>
-                  ))}
-                </select>
-              </label>
-              <div className="rounded-lg bg-white/[0.03] px-3 py-2.5 text-sm leading-relaxed text-slate-400">
-                <div className="truncate"><span className="text-[#9C968F]">สินค้า:</span> {form.productName}</div>
-                <div className="truncate"><span className="text-[#9C968F]">Hook:</span> {form.hookTitle || '—'}</div>
-                <div className="truncate"><span className="text-[#9C968F]">ปัญหา:</span> {form.painPoint || '—'}</div>
+              {/* Locked/Assigned Angle from Product flow (No arbitrary dropdown) */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-semibold text-slate-400">มุมที่ส่งมาตัดต่อ:</span>
+                  <button
+                    type="button"
+                    onClick={onGoToProductFlow}
+                    className="text-xs text-[#25F4EE] hover:underline flex items-center gap-1 cursor-pointer font-bold transition-colors"
+                    title="กลับไปเลือกมุมและคลิปที่หน้าสินค้า"
+                  >
+                    <span>เปลี่ยนมุมที่หน้าสินค้า</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </button>
+                </div>
+                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-black/50 border border-[#25F4EE]/30 shadow-inner">
+                  <div className="w-2 h-2 rounded-full bg-[#25F4EE] animate-pulse flex-shrink-0" />
+                  <span className="text-sm font-bold text-cyan-200 truncate">
+                    {angleLabel(currentAngle || angles[angleIndex], angleIndex)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="rounded-lg bg-white/[0.03] px-3 py-2.5 text-sm leading-relaxed text-slate-400 border border-white/[0.04]">
+                <div className="truncate"><span className="text-[#9C968F] font-semibold">สินค้า:</span> {form.productName}</div>
+                <div className="truncate"><span className="text-[#9C968F] font-semibold">Hook:</span> {form.hookTitle || '—'}</div>
+                <div className="truncate"><span className="text-[#9C968F] font-semibold">ปัญหา:</span> {form.painPoint || '—'}</div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowFields((v) => !v)}
-                className="flex items-center gap-1 text-sm text-slate-400 hover:text-white cursor-pointer"
+                className="flex items-center gap-1 text-xs text-slate-400 hover:text-white cursor-pointer"
               >
                 {showFields ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                แก้ข้อความเอง
+                แก้ข้อความสคริปต์/Hook เอง
               </button>
             </div>
           ) : (
@@ -358,15 +412,16 @@ export default function NewClipPanel({
               <div className="flex items-start gap-2 rounded-lg border border-[#5C4326] bg-[#2E2418] p-2">
                 <Package className="h-3.5 w-3.5 flex-shrink-0 text-[#C08A5E]" />
                 <p className="text-sm leading-relaxed text-[#D9BFA0]">
-                  ยังไม่ได้เลือกสินค้าจากเมนู “สินค้า → คลิป” — เลือกจากที่นั่นแล้วค่าทุกช่องจะเติมให้เอง หรือกรอกเองด้านล่างก็ได้
+                  ยังไม่ได้เลือกมุมจากเมนู “สินค้า → คลิป” — กรุณาไปเลือกมุมและผูกคลิปที่หน้าสินค้าก่อนเพื่อความถูกต้อง
                 </p>
               </div>
               <button
                 type="button"
                 onClick={onGoToProductFlow}
-                className="h-9 w-full rounded-lg border border-white/[0.08] bg-black/40 text-sm font-bold text-slate-200 hover:text-white cursor-pointer"
+                className="h-9 w-full rounded-lg border border-[#25F4EE]/40 bg-[#25F4EE]/10 text-sm font-bold text-[#25F4EE] hover:bg-[#25F4EE]/20 cursor-pointer flex items-center justify-center gap-1.5 transition-all"
               >
-                ไปเลือกสินค้า
+                <Package className="w-3.5 h-3.5" />
+                <span>ไปเลือกสินค้า & มุมที่หน้าสินค้า</span>
               </button>
             </div>
           )}
@@ -386,8 +441,14 @@ export default function NewClipPanel({
         <Section
           step="2"
           title="คลิปดิบ"
-          done={!!form.selectedVideo}
-          hint={angleAttachedVideos.length > 0 ? `${displayVideos.length} ไฟล์ที่เลือกไว้` : `${displayVideos.length} ไฟล์`}
+          done={!!form.selectedVideo || angleAttachedVideos.length > 0 || (videos.length > 0)}
+          hint={
+            form.selectedVideo
+              ? `เลือก 1 คลิป (${(form.selectedVideo.split(/[/\\]/).pop())})`
+              : (angleAttachedVideos.length > 0
+                  ? `${displayVideos.length} ไฟล์ที่ผูกกับมุมนี้`
+                  : (videos.length > 0 ? `ใช้คลิปทั้งหมดในคลัง (${videos.length} คลิป)` : 'ยังไม่มีคลิป'))
+          }
         >
           <div className="max-h-40 space-y-1 overflow-y-auto">
             {displayVideos.map((v) => (
@@ -444,53 +505,31 @@ export default function NewClipPanel({
         </div>
 
         {/* ── 3. script ── */}
-        <Section step="3" title="บทพูด" done={!!form.customScript} hint={form.useCustomScript ? 'ใช้บทนี้' : 'ให้ระบบเขียนเอง'}>
+        <Section
+          step="3"
+          title="บทพูดพากย์"
+          done={!!form.customScript}
+          hint={
+            form.customScript
+              ? `${(form.customScript.split('\n').filter(Boolean).length)} ท่อน (${form.customScript.length} ตัวอักษร)`
+              : 'ส่งบทมาจากหน้าสินค้า'
+          }
+        >
           <div className="space-y-2">
-            <button
-              type="button"
-              onClick={handleAiScript}
-              disabled={aiBusy || !form.productName}
-              className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-[#D97757]/40 bg-[#D97757]/10 text-sm font-bold text-[#E89274] hover:bg-[#D97757]/20 disabled:opacity-40 cursor-pointer"
-            >
-              {aiBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
-              {aiBusy ? 'กำลังเขียน...' : 'ให้ AI เขียนบทให้'}
-            </button>
-
-            {aiScripts && (
-              <div className="space-y-1">
-                <p className="text-sm text-slate-400">เลือก 1 มุม:</p>
-                {aiScripts.map((a, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => useAiAngle(a)}
-                    className="w-full rounded-lg border border-white/[0.08] bg-black/40 p-2 text-left hover:border-[#D97757] cursor-pointer"
-                  >
-                    <div className="text-sm font-bold text-white">{a.angle_name || `มุมที่ ${i + 1}`}</div>
-                    <div className="truncate pt-0.5 text-sm text-slate-400">
-                      {(Array.isArray(a.script_lines) ? a.script_lines[0] : a.script_text) || ''}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-
             <textarea
               rows={10}
               value={form.customScript || ''}
               onChange={(e) => patch({ customScript: e.target.value, useCustomScript: true })}
-              placeholder="บทจะเติมให้เองเมื่อเลือกมุมจากเมนูสินค้า หรือกดปุ่ม AI ด้านบน"
-              className="w-full resize-none rounded-lg border border-white/[0.08] bg-black/40 px-3 py-2.5 text-base leading-relaxed text-white placeholder-slate-600 focus:border-[#D97757] focus:outline-none"
+              placeholder="บทพูดจะถูกส่งมาจากมุมที่คุณเลือกในหน้าสินค้า..."
+              className="w-full resize-none rounded-lg border border-white/[0.08] bg-black/40 px-3 py-2.5 text-base leading-relaxed text-white placeholder-slate-600 focus:border-[#25F4EE] focus:outline-none font-mono text-xs sm:text-sm"
             />
-            <label className="flex items-center gap-2 text-sm text-slate-400 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={!!form.useCustomScript}
-                onChange={(e) => patch({ useCustomScript: e.target.checked })}
-                className="h-[18px] w-[18px] flex-shrink-0 accent-[#D97757]"
-              />
-              พูดตามบทนี้ (ปิด = ให้ระบบเขียนบทจากจุดเด่นเอง)
-            </label>
+            <div className="flex items-center justify-between text-xs text-slate-400">
+              <span className="text-[#25F4EE] font-medium flex items-center gap-1">
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                <span>ใช้บทพูดจากมุมที่ส่งมา (สามารถปรับแก้ข้อความในกล่องได้)</span>
+              </span>
+              <span>{form.customScript ? `${form.customScript.length} ตัวอักษร` : ''}</span>
+            </div>
           </div>
         </Section>
 

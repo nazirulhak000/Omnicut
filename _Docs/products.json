@@ -41,11 +41,11 @@
         ],
         "tts_hook_title": "ปวดข้อมือ ปวดหลัง... ปัญหาโลกแตกชาวออฟฟิศ!",
         "status": "in_production",
-        "updated_at": "2026-09-02T19:37:48",
+        "updated_at": "2026-09-03T00:17:02",
         "selected_videos": [
-          "01_Raw/Logitech wav.mov"
+          "D:\\Winona\\Programmer\\Capcut\\01_Raw\\20260902153241_1\\Logitech wav.mov"
         ],
-        "selected_video": "01_Raw/Logitech wav.mov"
+        "selected_video": "D:\\Winona\\Programmer\\Capcut\\01_Raw\\20260902153241_1\\Logitech wav.mov"
       },
       {
         "angle_id": "unboxing",
@@ -73,7 +73,11 @@
           "ดูดิ... ดีไซน์แบบคลื่นๆ เนี่ยแหละที่ทำให้เราพิมพ์สบายทั้งวัน... ที่รองข้อมือคือนุ่มมาก... วัสดุก็พรีเมียมสุดๆ... แถมมีทั้งสีดำคีย์ไทย/อังกฤษ และสีขาวคีย์อังกฤษ (แถมสติกเกอร์ไทยด้วยนะ)... คือมันดูดีมากจริงๆ!",
           "ใครกำลังเล็งคีย์บอร์ดใหม่... แนะนำตัวนี้เลย... ไม่ผิดหวังแน่นอน... กดใส่ตะกร้าราคาพิเศษก่อนของจะหมดนะ!"
         ],
-        "tts_hook_title": "แกะกล่องคีย์บอร์ดที่สบายที่สุดในโลก!"
+        "tts_hook_title": "แกะกล่องคีย์บอร์ดที่สบายที่สุดในโลก!",
+        "status": "scripted",
+        "updated_at": "2026-09-02T22:09:26",
+        "selected_videos": [],
+        "selected_video": null
       },
       {
         "angle_id": "stress_test",
@@ -219,7 +223,7 @@
     "images": [],
     "projects": [],
     "created_at": "2026-09-02T15:32:41",
-    "updated_at": "2026-09-02T19:37:48",
+    "updated_at": "2026-09-03T00:17:02",
     "videos": [
       {
         "name": "1027.mp4",

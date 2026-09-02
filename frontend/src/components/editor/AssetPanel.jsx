@@ -90,6 +90,7 @@ export default function AssetPanel({
   style,              // { fontName, bgmName, lutName, stickerBadge }
   selectedCaption,    // cue object or null
   onAddClip,
+  onAddTextAtPlayhead,
   onStyleChange,
   onAssignSfx,
   onImportCues,       // (cues: Array<{ start, end, text, translation, sfx }>) => void
@@ -531,6 +532,16 @@ export default function AssetPanel({
               .filter((f) => f.file)
               .map((f) => `@font-face{font-family:'ed-${f.id}';src:url('/api/media/${f.file.rel_path}') format('${(f.file.name || '').toLowerCase().endsWith('.otf') ? 'opentype' : 'truetype'}');font-display:swap;}`)
               .join(' ')}</style>
+
+            {/* Quick Add Text at Playhead */}
+            <button
+              type="button"
+              onClick={onAddTextAtPlayhead}
+              className="w-full py-2 px-3 mb-2.5 rounded-xl bg-gradient-to-r from-[#D97757] to-[#E89274] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              <span>+ เพิ่มข้อความที่หัวอ่าน</span>
+            </button>
 
             <p className="px-1 pt-1 text-xs font-semibold uppercase tracking-wide text-[#9C968F]">
               ฟอนต์คำบรรยาย

@@ -105,72 +105,70 @@ class SubtitleEngine:
         return f"{h}:{m:02d}:{int(s):02d}.{cs:02d}"
 
     @classmethod
-    def split_into_short_bursts(cls, text: str, max_chars: int = 16, max_words: int = 2) -> List[str]:
+    def split_into_smart_clauses(cls, text: str, short_clause_max: int = 18, max_line_len: int = 34) -> List[str]:
         """
-        Splits Thai text into natural 2-3 word micro-bursts using PyThaiNLP,
-        ensuring compound nouns remain intact and 'ๆ' is NEVER an isolated subtitle frame.
+        Splits Thai text into natural grammatical clauses delimited by spaces and punctuation:
+        - Short clauses (< 18 chars): Combines up to 2 short clauses per line (<= 34 chars).
+        - Long clauses (>= 18 chars): Stays as 1 single sentence/clause per line.
+        - Orphan words / punctuation (like 'บ้าง...', 'ๆ', 'นะ', 'ครับ', '<= 4 chars'): Merged into preceding clause.
+        - Never cuts mid-word or creates isolated single-word meaningless frames.
         """
         clean_text = text.strip()
         if not clean_text:
             return []
 
-        from pythainlp.tokenize import word_tokenize
+        # 1. Split into space-delimited clauses / phrases
+        raw_parts = [p.strip() for p in clean_text.replace("\n", " ").split(" ") if p.strip()]
+        if not raw_parts:
+            return [clean_text]
 
-        # Split by punctuation / spaces first
-        raw_parts = [p.strip() for p in clean_text.replace("!", "! ").replace("?", "? ").split() if p.strip()]
-        bursts = []
-
-        for part in raw_parts:
-            if len(part) <= max_chars:
-                bursts.append(part)
+        # 2. First pass: merge tiny orphan fragments into preceding clause
+        merged_parts = []
+        for p in raw_parts:
+            if not merged_parts:
+                merged_parts.append(p)
+            elif (
+                len(p) <= 4
+                or p.startswith("ๆ")
+                or p.startswith("...")
+                or p in ["บ้าง", "บ้าง...", "นะ", "ครับ", "ค่ะ", "เลย", "ด้วย", "อ่ะ", "น้า", "จ้า", "ล่ะ"]
+            ):
+                merged_parts[-1] += " " + p
             else:
-                tokens = word_tokenize(part, engine="newmm", keep_whitespace=False)
-                curr = []
-                for tok in tokens:
-                    # Never let 'ๆ' or tone marks start a new token
-                    if tok == "ๆ" or tok.startswith("ๆ"):
-                        if curr:
-                            curr[-1] += tok
-                        elif bursts:
-                            bursts[-1] += tok
-                        else:
-                            curr.append(tok)
-                        continue
+                merged_parts.append(p)
 
-                    curr.append(tok)
-                    curr_len = sum(len(x) for x in curr)
-                    if len(curr) >= 3 or curr_len >= 12:
-                        bursts.append("".join(curr))
-                        curr = []
-                if curr:
-                    curr_str = "".join(curr)
-                    if (len(curr_str) <= 3 or curr_str.startswith("ๆ")) and bursts:
-                        bursts[-1] += curr_str
-                    else:
-                        bursts.append(curr_str)
+        # 3. Second pass: Pair short clauses (2 per line) or keep long clause alone
+        final_lines = []
+        i = 0
+        while i < len(merged_parts):
+            curr = merged_parts[i]
 
-        # Post-process cleanup: merge orphan 'ๆ' and tiny fragments (< 3 chars) into preceding burst
-        cleaned_bursts = []
-        for b in bursts:
-            b_str = b.strip()
-            if not b_str:
-                continue
-            if b_str == "ๆ" or b_str.startswith("ๆ"):
-                if cleaned_bursts:
-                    cleaned_bursts[-1] += b_str
-                else:
-                    cleaned_bursts.append(b_str)
-            elif len(b_str) <= 2 and cleaned_bursts:
-                cleaned_bursts[-1] += " " + b_str
-            else:
-                cleaned_bursts.append(b_str)
+            # Check if we can pair with the next clause (2 short clauses per line)
+            if i + 1 < len(merged_parts):
+                next_part = merged_parts[i + 1]
+                combined_len = len(curr) + 1 + len(next_part)
+                # Combine 2 short clauses if both are <= short_clause_max (or first is very short) and total fits
+                if ((len(curr) <= short_clause_max and len(next_part) <= short_clause_max) or len(curr) <= 12) and combined_len <= max_line_len:
+                    final_lines.append(f"{curr} {next_part}".strip())
+                    i += 2
+                    continue
 
-        return cleaned_bursts if cleaned_bursts else [clean_text]
+            # Long clause or single remaining clause: 1 complete sentence per line
+            final_lines.append(curr)
+            i += 1
+
+        return final_lines if final_lines else [clean_text]
+
+    @classmethod
+    def split_into_short_bursts(cls, text: str, max_chars: int = 34, max_words: int = 2) -> List[str]:
+        """Backward-compatible alias for split_into_smart_clauses."""
+        return cls.split_into_smart_clauses(text, max_line_len=max_chars)
 
     @classmethod
     def generate_micro_cues(cls, cues: List[Dict]) -> List[Dict]:
         """
-        Converts sentence-level cues into rapid-fire 2-3 word micro-cues with SFX tags and emojis.
+        Converts sentence-level cues into smart clause cues, translating each into English
+        and maintaining exact proportional audio timestamps.
         """
         micro_cues = []
         cue_id = 1
@@ -183,48 +181,63 @@ class SubtitleEngine:
             if not text:
                 continue
 
-            # If text is already a neat 1-line clause (<= 38 chars), keep exact 100% audio duration!
-            if len(text) <= 38:
-                bursts = [text]
-            else:
-                bursts = cls.split_into_short_bursts(text, max_chars=34)
-
-            total_chars = max(1, sum(len(b) for b in bursts))
+            clauses = cls.split_into_smart_clauses(text)
+            total_chars = max(1, sum(len(cl) for cl in clauses))
             current_t = start
 
-            for idx, burst in enumerate(bursts):
-                b_dur = (len(burst) / total_chars) * (end - start)
-                b_end = min(end, current_t + b_dur)
-                if idx == len(bursts) - 1:
-                    b_end = end
+            for idx, cl in enumerate(clauses):
+                cl_dur = (len(cl) / total_chars) * total_dur
+                cl_end = min(end, current_t + cl_dur)
+                if idx == len(clauses) - 1:
+                    cl_end = end
 
-                # Only assign SFX on the very first beat of a major phrase (No spam)
+                # Only assign SFX on the very first beat of a major phrase
                 sfx = None
                 if idx == 0 and c.get("sfx"):
                     sfx = c["sfx"]
 
-                # Assign Emojis selectively
+                # Assign Emojis selectively (only if not already present)
                 emoji = ""
-                if any(k in burst for k in ["อย่าเพิ่ง", "หยุด", "เตือน"]):
-                    emoji = "⚠️ "
-                elif any(k in burst for k in ["แม่เหล็ก", "ดูดแน่น"]):
-                    emoji = "🔌 "
-                elif any(k in burst for k in ["66W", "ชาร์จไว", "เร็ว"]):
-                    emoji = "⚡ "
-                elif any(k in burst for k in ["ปัญหา", "พัง"]):
-                    emoji = "❌ "
-                elif any(k in burst for k in ["พิกัด", "ตะกร้า", "149"]):
-                    emoji = "🛒 "
+                has_emoji = any(cl.startswith(em) for em in ["⚠️", "🔌", "⚡", "❌", "🛒"])
+                if not has_emoji:
+                    if any(k in cl for k in ["อย่าเพิ่ง", "หยุด", "เตือน"]):
+                        emoji = "⚠️ "
+                    elif any(k in cl for k in ["แม่เหล็ก", "ดูดแน่น"]):
+                        emoji = "🔌 "
+                    elif any(k in cl for k in ["66W", "ชาร์จไว", "เร็ว"]):
+                        emoji = "⚡ "
+                    elif any(k in cl for k in ["ปัญหา", "พัง"]):
+                        emoji = "❌ "
+                    elif any(k in cl for k in ["พิกัด", "ตะกร้า", "149"]):
+                        emoji = "🛒 "
+
+                cue_text = f"{emoji}{cl}".strip() if emoji else cl.strip()
+                cue_trans = c.get("translation", "") if len(clauses) == 1 else ""
 
                 micro_cues.append({
                     "id": cue_id,
-                    "start": current_t,
-                    "end": b_end,
-                    "text": f"{emoji}{burst}".strip(),
+                    "start": round(current_t, 3),
+                    "end": round(cl_end, 3),
+                    "text": cue_text,
+                    "translation": cue_trans,
                     "sfx": sfx
                 })
                 cue_id += 1
-                current_t = b_end
+                current_t = cl_end
+
+        # Batch translate all smart clauses into English automatically
+        try:
+            from scripts.translator import SubtitleTranslator
+            texts_to_trans = [mc["text"] for mc in micro_cues if not mc.get("translation")]
+            if texts_to_trans:
+                en_translations = SubtitleTranslator.translate_batch(texts_to_trans)
+                trans_idx = 0
+                for mc in micro_cues:
+                    if not mc.get("translation") and trans_idx < len(en_translations):
+                        mc["translation"] = en_translations[trans_idx] or ""
+                        trans_idx += 1
+        except Exception as e:
+            print(f"Subtitle translation warning: {e}")
 
         return micro_cues
 
@@ -306,15 +319,20 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         # 1-shot Batch Translation for all micro-cues
         en_translations = []
         if bilingual:
-            try:
-                from scripts.translator import SubtitleTranslator
-                en_translations = SubtitleTranslator.translate_batch([c["text"] for c in micro_cues])
-            except Exception:
+            # Check if cues already have translations
+            has_existing = any(bool(c.get("translation")) for c in micro_cues)
+            if has_existing:
+                en_translations = [c.get("translation", "") for c in micro_cues]
+            else:
                 try:
-                    from translator import SubtitleTranslator
+                    from scripts.translator import SubtitleTranslator
                     en_translations = SubtitleTranslator.translate_batch([c["text"] for c in micro_cues])
                 except Exception:
-                    en_translations = [""] * len(micro_cues)
+                    try:
+                        from translator import SubtitleTranslator
+                        en_translations = SubtitleTranslator.translate_batch([c["text"] for c in micro_cues])
+                    except Exception:
+                        en_translations = [""] * len(micro_cues)
         else:
             en_translations = [""] * len(micro_cues)
 
@@ -326,8 +344,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             if not text:
                 continue
 
-            # Kinetic Pop Animation: Snap in 125% -> Settle 100% in 70ms
-            anim = "{\\fscx125\\fscy125\\t(0,70,\\fscx100\\fscy100)}"
+            # Kinetic Pop Animation: Snap in 125% -> Settle 100% (or cue.scale) in 70ms
+            cue_scale = float(cue.get("scale", 1.0) or 1.0)
+            settle_pct = max(50, min(200, int(round(100 * cue_scale))))
+            snap_pct = int(round(settle_pct * 1.25))
+            anim = f"{{\\fscx{snap_pct}\\fscy{snap_pct}\\t(0,70,\\fscx{settle_pct}\\fscy{settle_pct})}}"
             
             if is_pill_mode:
                 style = "TikTokMinimalPill"
@@ -340,11 +361,14 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             # Check for English Translation
             en_sub = ""
             if bilingual and idx < len(en_translations):
-                en_text = en_translations[idx].strip()
-                if en_text:
-                    en_clean = en_text.replace("\n", " ").replace("\\", "")
+                candidate_en = (en_translations[idx] or cue.get("translation", "")).strip()
+                if candidate_en and not any(sig in candidate_en for sig in ["Error 500", "500.", "That's an error", "<html"]) and len(candidate_en) < 80:
+                    cue["translation"] = candidate_en
+                    en_clean = candidate_en.replace("\n", " ").replace("\\", "")
                     en_color = "\\c&H00D8D8D8&" if style == "TikTokWhite" else "\\c&H0080E6FF&"
                     en_sub = f"\\N{{\\fscx60\\fscy60{en_color}}}{en_clean}"
+                else:
+                    cue["translation"] = ""
 
             line_entry = f"Dialogue: 0,{start_t},{end_t},{style},,0,0,0,,{anim}{text}{en_sub}"
             events.append(line_entry)

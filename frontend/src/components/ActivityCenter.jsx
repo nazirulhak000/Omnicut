@@ -248,17 +248,21 @@ export function ActivityDrawer() {
                       </span>
                     </div>
 
-                    <div className="h-1.5 w-full bg-black/60 rounded-full overflow-hidden border border-white/[0.06]">
+                    <div className="h-2 w-full bg-black/60 rounded-full overflow-hidden border border-white/[0.06]">
                       <div
-                        className={`h-full rounded-full transition-all duration-300 ${
+                        className={`h-full rounded-full transition-all duration-300 relative overflow-hidden ${
                           isRunning
-                            ? 'bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] animate-pulse'
+                            ? 'bg-gradient-to-r from-[#D97757] via-[#FF8A65] to-[#25F4EE]'
                             : isDone
                             ? 'bg-emerald-400'
                             : 'bg-rose-500'
                         }`}
-                        style={{ width: `${pct}%` }}
-                      />
+                        style={{ width: `${Math.max(4, pct)}%` }}
+                      >
+                        {isRunning && (
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full animate-shimmer" />
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -391,11 +395,13 @@ export function GlobalLiveRenderWidget({ currentTab, onNavigateToEditor }) {
               <span className="truncate">{title}</span>
               <span className="font-mono text-[#E89274] ml-2 flex-shrink-0">{pct}%</span>
             </div>
-            <div className="h-1.5 w-full rounded-full bg-white/[0.08] overflow-hidden">
+            <div className="h-2 w-full rounded-full bg-white/[0.08] overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-[#D97757] to-[#FE2C55] transition-all duration-300 rounded-full"
+                className="h-full bg-gradient-to-r from-[#D97757] via-[#FF8A65] to-[#25F4EE] transition-all duration-300 rounded-full relative overflow-hidden"
                 style={{ width: `${Math.max(5, pct)}%` }}
-              />
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent -translate-x-full animate-shimmer" />
+              </div>
             </div>
             <p className="text-[11px] text-slate-400 truncate mt-0.5">
               {renderTask.step_label || 'กำลังประมวลผลขั้นตอนต่างๆ...'}

@@ -13,7 +13,8 @@ const ProductToClip = lazy(() => import('./components/ProductToClip'));
 const ContentTrackerHub = lazy(() => import('./components/ContentTrackerHub'));
 const EditorShell = lazy(() => import('./components/editor/EditorShell'));
 const ExportGallery = lazy(() => import('./components/ExportGallery'));
-const SystemAssets = lazy(() => import('./components/SystemAssets'));
+const MediaAssetsHub = lazy(() => import('./components/MediaAssetsHub'));
+const SystemSettings = lazy(() => import('./components/SystemSettings'));
 
 import { angleToForm } from './lib/angleToForm';
 import { applyUiScale, initUiScale } from './lib/uiScale';
@@ -303,15 +304,23 @@ export default function App() {
 
 
 
-                {/* SECTION: System & Assets */}
+                {/* SECTION: Media Assets Hub */}
                 {activeTab === 'assets' && (
-                  <Suspense fallback={<LoadingSpinner message="กำลังโหลด System & Assets Hub..." />}>
-                    <SystemAssets
+                  <Suspense fallback={<LoadingSpinner message="กำลังโหลด Media Assets Hub..." />}>
+                    <MediaAssetsHub />
+                  </Suspense>
+                )}
+
+                {/* SECTION: System Settings & Token Analytics */}
+                {(activeTab === 'settings' || activeTab === 'dashboard') && (
+                  <Suspense fallback={<LoadingSpinner message="กำลังโหลด System Settings & Analytics..." />}>
+                    <SystemSettings
                       status={status}
                       uiFont={uiFont}
                       setUiFont={handleUiFontChange}
                       uiScale={uiScale}
                       setUiScale={handleUiScaleChange}
+                      initialSubTab="tokens"
                     />
                   </Suspense>
                 )}

@@ -140,6 +140,8 @@ export const getProjectOrigin = (name) => api.get(`/projects/${encodeURIComponen
 export const deleteProject = (name, scope = 'project') =>
   api.delete(`/projects/${encodeURIComponent(name)}`, { params: { scope } }).then(r => r.data);
 export const updateProjectCues = (name, data) => api.patch(`/projects/${encodeURIComponent(name)}/cues`, data).then(r => r.data);
+export const updateProjectClips = (name, data) => api.patch(`/projects/${encodeURIComponent(name)}/clips`, data).then(r => r.data);
+export const updateProjectState = (name, data) => api.patch(`/projects/${encodeURIComponent(name)}/state`, data).then(r => r.data);
 
 export const startReroll = (data) => api.post('/reroll', data, { timeout: 120000 }).then(r => r.data);
 
@@ -172,4 +174,12 @@ export const cancelTaskApi = (taskId) => api.post(`/tasks/${taskId}/cancel`).the
 export const deleteTaskApi = (taskId) => api.delete(`/tasks/${taskId}`).then(r => r.data);
 export const clearCompletedTasksApi = () => api.post('/tasks/clear-completed').then(r => r.data);
 
+// ═══════════════════════════════════════════════════════════════════════
+// 📊 AI TOKEN ANALYTICS APIS
+// ═══════════════════════════════════════════════════════════════════════
+export const getTokenSummary = () => api.get('/tokens/summary').then(r => r.data);
+export const getTokenHistory = (limit = 50) => api.get('/tokens/history', { params: { limit } }).then(r => r.data);
+export const resetTokenAnalytics = () => api.post('/tokens/reset').then(r => r.data);
+
 export default api;
+

@@ -24,11 +24,28 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
 
 from scripts.config import ASSETS_DIR
 
+# Load .env if present
+env_file = PROJECT_ROOT / ".env"
+if env_file.exists():
+    try:
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                os.environ.setdefault(k.strip(), v.strip())
+    except Exception:
+        pass
+
 # Vision cache file to avoid re-uploading the same large video files
 VISION_CACHE_FILE = ASSETS_DIR / ".vision_cache.json"
 
 class GeminiVisionMatcher:
     """Matches script cues to raw video scene timestamps using Gemini 2.5 Flash Multimodal Vision."""
+
+    @classmethod
+    def is_available(cls) -> bool:
+        """Check if Gemini Vision is ready to use (requires GEMINI_API_KEY)."""
+        return bool(os.environ.get("GEMINI_API_KEY", "").strip())
 
     @staticmethod
     def _compute_file_hash(filepath: Path) -> str:
@@ -167,6 +184,8 @@ class GeminiVisionMatcher:
             models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
             response = None
             last_err = None
+            chosen_model = "gemini-2.5-flash"
+            t_vision_start = time.time()
 
             for model_name in models_to_try:
                 print(f"   👁️ Calling {model_name} Vision to analyze raw footage...")
@@ -180,6 +199,7 @@ class GeminiVisionMatcher:
                             ]
                         )
                         if response and response.text:
+                            chosen_model = model_name
                             break
                     except Exception as err:
                         last_err = err
@@ -204,6 +224,25 @@ class GeminiVisionMatcher:
             print(f"   ✓ Gemini Vision successfully matched {len(matched)} visual scenes to the script!")
             for idx, m_shot in enumerate(matched[:3]):
                 print(f"     • Shot {idx+1}: [{m_shot.get('start_time')}s-{m_shot.get('end_time')}s] ({m_shot.get('punch_zoom', 1.15)}x) -> {m_shot.get('visual_reason', '')[:50]}")
+
+            # Record token analytics
+            try:
+                from scripts.token_tracker import TokenTracker
+                vid_tokens = int(raw_duration * 300)
+                prompt_tokens = len(prompt) // 2
+                out_tokens = max(50, len(resp_text) // 2)
+                TokenTracker.record_event(
+                    task="vision_match",
+                    model=chosen_model,
+                    provider="gemini_free_tier",
+                    input_tokens=vid_tokens + prompt_tokens,
+                    output_tokens=out_tokens,
+                    latency_seconds=time.time() - t_vision_start,
+                    project_name=Path(raw_video_path).stem,
+                    metadata={"raw_duration_s": raw_duration, "matched_shots": len(matched)}
+                )
+            except Exception:
+                pass
 
             return matched
 

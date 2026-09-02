@@ -41,10 +41,18 @@ export default function Inspector({
   selectedCaption,
   cuesList = [],
   playhead = 0,
-  style,
+  style = {},
   totalDuration = 0,
   audioDuration = 0,
   assets = {},
+  hookTitle = '',
+  onHookTitleChange,
+  hookDuration = 3.0,
+  onHookDurationChange,
+  showHookHeader = true,
+  onToggleHookHeader,
+  onAddTextAtPlayhead,
+  onStyleChange,
   onClipChange,
   onCaptionChange,
   onSplitCue,
@@ -222,7 +230,132 @@ export default function Inspector({
             MODE 1: SINGLE-ROW HIGH-VELOCITY SUBTITLE STRIP
            ══════════════════════════════════════════════════════════ */}
         {activeTab === 'cues' && (
-          <div className="space-y-2">
+          <div className="space-y-2.5">
+            {/* 1. Header / Hook Banner (3 วิแรก) Control Card */}
+            <div className="rounded-2xl border border-white/[0.08] bg-black/40 p-2.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[#E89274] flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-[#D97757]" />
+                  <span>Header พาดหัวบนจอ (3 วิแรก)</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={onToggleHookHeader}
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
+                    showHookHeader
+                      ? 'bg-[#D97757]/20 border-[#D97757] text-[#E89274]'
+                      : 'bg-white/[0.04] border-white/[0.1] text-slate-500 hover:text-white'
+                  }`}
+                >
+                  {showHookHeader ? '✓ เปิดใช้งาน' : '✕ ซ่อนไว้'}
+                </button>
+              </div>
+
+              {showHookHeader && (
+                <div className="space-y-1.5 pt-0.5">
+                  <input
+                    type="text"
+                    value={hookTitle || ''}
+                    onChange={(e) => onHookTitleChange?.(e.target.value)}
+                    placeholder="พิมพ์พาดหัว 3 วิแรก เช่น เตือนภัยคนปวดหลัง!..."
+                    className="w-full py-1.5 px-2.5 rounded-xl bg-black/60 border border-white/[0.1] text-xs font-bold text-white focus:outline-none focus:border-[#D97757] placeholder-slate-500 shadow-inner"
+                  />
+                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-0.5">
+                    <span>ระยะเวลาแสดงผล:</span>
+                    <div className="flex items-center gap-1">
+                      {[2.0, 3.0, 4.0].map((sec) => (
+                        <button
+                          key={sec}
+                          type="button"
+                          onClick={() => onHookDurationChange?.(sec)}
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-mono border transition-all cursor-pointer ${
+                            Math.abs((hookDuration || 3.0) - sec) < 0.2
+                              ? 'bg-[#D97757]/30 border-[#D97757] text-[#E89274]'
+                              : 'bg-black/40 border-white/[0.08] text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          {sec}s
+                        </button>
+                      ))}
+                      <input
+                        type="number"
+                        min="1.0"
+                        max="8.0"
+                        step="0.5"
+                        value={hookDuration || 3.0}
+                        onChange={(e) => onHookDurationChange?.(parseFloat(e.target.value) || 3.0)}
+                        className="w-12 py-0.5 px-1 rounded bg-black/50 border border-white/[0.1] text-right text-[11px] font-mono text-white focus:outline-none focus:border-[#D97757]"
+                      />
+                      <span>วิ</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 2. Caption Sizing & Position Quick Bar */}
+            <div className="rounded-2xl border border-white/[0.08] bg-black/40 p-2.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-300">ขนาดและตำแหน่งคำบรรยาย</span>
+                <span className="font-mono text-xs font-bold text-[#25F4EE]">
+                  {Math.round((style?.captionScale ?? 1) * 100)}%
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                {[
+                  { s: 0.85, label: '85% เล็ก' },
+                  { s: 1.0, label: '100% ปกติ' },
+                  { s: 1.2, label: '120% ใหญ่' },
+                  { s: 1.4, label: '140% เน้น' },
+                ].map(({ s, label }) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => onStyleChange?.({ captionScale: s })}
+                    className={`flex-1 py-1 rounded-lg text-[10px] sm:text-[11px] font-bold border transition-all cursor-pointer ${
+                      Math.abs((style?.captionScale ?? 1) - s) < 0.05
+                        ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
+                        : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="range"
+                min="0.5"
+                max="2.0"
+                step="0.05"
+                value={style?.captionScale ?? 1}
+                onChange={(e) => onStyleChange?.({ captionScale: parseFloat(e.target.value) })}
+                className="w-full accent-[#25F4EE]"
+              />
+              <div className="flex items-center justify-between pt-1 border-t border-white/[0.06]">
+                <span className="text-[11px] text-slate-400">ตำแหน่งบนจอ:</span>
+                <div className="flex items-center gap-1">
+                  {[
+                    ['bottom', 'ล่าง'],
+                    ['middle', 'กลาง'],
+                    ['top', 'บน'],
+                  ].map(([pos, lbl]) => (
+                    <button
+                      key={pos}
+                      type="button"
+                      onClick={() => onStyleChange?.({ captionPosition: pos })}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer ${
+                        (style?.captionPosition || 'bottom') === pos
+                          ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
+                          : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {lbl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             {/* Header: Quick Search, Find & Replace Toggle, Format Clean, Add Cue */}
             <div className="flex items-center gap-1.5 pb-1">
               <div className="relative flex-1">
@@ -260,7 +393,18 @@ export default function Inspector({
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
               </button>
 
-              {/* Add New Cue */}
+              {/* Add New Text at Playhead */}
+              <button
+                type="button"
+                onClick={onAddTextAtPlayhead}
+                className="py-1 px-2 rounded-lg bg-[#D97757]/20 hover:bg-[#D97757]/30 border border-[#D97757]/40 text-[#E89274] text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors flex-shrink-0"
+                title="แทรกข้อความใหม่ ณ จุดที่หัวอ่าน (Playhead) กำลังวางอยู่"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ ที่หัวอ่าน</span>
+              </button>
+
+              {/* Add New Cue at Tail */}
               <button
                 type="button"
                 onClick={() => onInsertCueAfter?.(cuesList[cuesList.length - 1]?._uid)}
@@ -268,7 +412,7 @@ export default function Inspector({
                 title="เพิ่มท่อนคำบรรยายใหม่ต่อท้าย"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>+ ท่อน</span>
+                <span>ต่อท้าย</span>
               </button>
             </div>
 
@@ -393,7 +537,44 @@ export default function Inspector({
                         placeholder="พิมพ์ข้อความ (Enter เพื่อแยกท่อน, Backspace เพื่อรวมท่อน)..."
                         className="w-full py-1 px-2 rounded-lg bg-black/40 border border-transparent focus:border-[#25F4EE] focus:bg-black/80 text-white text-xs placeholder-slate-600 focus:outline-none transition-colors cursor-text"
                       />
+                      {(cue.translation !== undefined && cue.translation !== null) && (
+                        <input
+                          type="text"
+                          value={cue.translation || ''}
+                          onChange={(e) => onCaptionChange?.(cue._uid, { translation: e.target.value })}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectCue?.(cue._uid);
+                            onSeek?.(cue.start);
+                          }}
+                          placeholder="คำแปลภาษาอังกฤษ (English Translation)..."
+                          className="w-full py-0.5 px-2 mt-0.5 rounded bg-black/20 border border-transparent focus:border-cyan-500/50 text-slate-300 text-[11px] focus:text-white placeholder-slate-600 focus:outline-none transition-colors"
+                        />
+                      )}
                     </div>
+
+                    {/* Per-cue Scale Override */}
+                    {isSelected && (
+                      <div className="flex items-center gap-0.5 flex-shrink-0" title="ปรับขนาดเน้นเฉพาะท่อนนี้">
+                        {[1.0, 1.25, 1.5].map((sc) => (
+                          <button
+                            key={sc}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onCaptionChange?.(cue._uid, { scale: sc === 1.0 ? undefined : sc });
+                            }}
+                            className={`px-1 py-0.5 text-[10px] font-mono font-bold rounded border cursor-pointer transition-all ${
+                              (Number(cue.scale) || 1.0) === sc
+                                ? 'bg-[#D97757] text-white border-[#E89274] shadow-sm'
+                                : 'bg-black/40 text-slate-400 border-white/[0.08] hover:text-white'
+                            }`}
+                          >
+                            {sc}x
+                          </button>
+                        ))}
+                      </div>
+                    )}
 
                     {/* 3. Quick SFX Selector */}
                     <select

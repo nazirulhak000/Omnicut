@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Copy, FlipHorizontal2, Gauge, Magnet, Redo2, Scissors, Trash2, Undo2, ZoomIn, ZoomOut,
+  Copy, FlipHorizontal2, Gauge, Magnet, Redo2, Scissors, Trash2, Undo2, ZoomIn, ZoomOut, Plus, Type,
 } from 'lucide-react';
 
 const SPEEDS = [0.5, 1, 1.5, 2];
@@ -38,6 +38,7 @@ export default function Toolbar({
   onUndo,
   onRedo,
   onSplit,
+  onAddText,
   onDuplicate,
   onDelete,
   onToggleMirror,
@@ -59,6 +60,7 @@ export default function Toolbar({
       <span className="mx-1 h-4 w-px bg-[#363430]" />
 
       <ToolButton icon={Scissors} label="แยก" hint="ผ่าคลิปตรงหัวอ่าน" shortcut="S / Ctrl+B" onClick={onSplit} disabled={!canSplit} />
+      <ToolButton icon={Plus} label="ข้อความ" hint="แทรกข้อความใหม่ตรงหัวอ่าน" onClick={onAddText} />
       <ToolButton icon={Copy} label="ทำสำเนา" hint="ก๊อบคลิปที่เลือกต่อท้ายตัวเอง" onClick={onDuplicate} disabled={!hasClipSelected} />
       <ToolButton icon={Trash2} label="ลบ" shortcut="Del" onClick={onDelete} disabled={!hasSelection} />
 

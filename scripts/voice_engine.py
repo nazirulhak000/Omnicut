@@ -53,16 +53,36 @@ class VoiceEngine:
         "benefit": {
             "rate_offset": 2,
             "pitch": "+2Hz",
-            "pause_after_s": 0.24,
+            "pause_after_s": 0.24, # 240ms
             "sfx": "pop"
         },
         "cta": {
-            "rate_offset": 4,    # Urgency & closing
-            "pitch": "+3Hz",      # Friendly high energy
-            "pause_after_s": 0.38, # 380ms
+            "rate_offset": 4,    # Urgency & excitement
+            "pitch": "+2Hz",      # High conversion appeal
+            "pause_after_s": 0.00,
             "sfx": "cash"
         }
     }
+
+    @staticmethod
+    def _trim_silence(data: np.ndarray, sample_rate: int = 44100, threshold_db: float = -42.0) -> np.ndarray:
+        """
+        Strips leading and trailing digital dead silence from TTS takes so speech starts
+        immediately within 15ms and ends cleanly with zero trailing gap.
+        Eliminates audio drift and prevents voice leading subtitles.
+        """
+        if len(data) == 0:
+            return data
+        threshold = 10.0 ** (threshold_db / 20.0)
+        abs_data = np.abs(data)
+        non_silent = np.where(abs_data > threshold)[0]
+        if len(non_silent) == 0:
+            return data
+        pad_head = int(0.015 * sample_rate)
+        pad_tail = int(0.025 * sample_rate)
+        start_idx = max(0, non_silent[0] - pad_head)
+        end_idx = min(len(data), non_silent[-1] + pad_tail)
+        return data[start_idx:end_idx]
 
     @classmethod
     def detect_beat_type(cls, line_idx: int, total_lines: int, text: str) -> str:
@@ -98,36 +118,22 @@ class VoiceEngine:
                     raw_lines.append(item.get("text", "").strip())
 
         final_clauses = []
-        SPLIT_REGEX = re.compile(
-            r"(?<=[!?])\s+|"
-            r"(?=ถ้ายัง|บอกเลยว่า|คือดูด|ดูดแน่น|ชาร์จไว|แถม|จะนอน|หรือดู|หมดปัญหา|เสียบใน|พิกัด|กดใน|จิ้มใน|รีบกด)"
-        )
+        try:
+            from scripts.subtitle_engine import SubtitleEngine
+        except ImportError:
+            from subtitle_engine import SubtitleEngine
 
         for line in raw_lines:
             clean_line = re.sub(r"\s+", " ", line).strip()
             if not clean_line:
                 continue
 
-            if len(clean_line) <= max_chars:
-                final_clauses.append({"text": clean_line, "sfx": None})
-                continue
-
-            parts = [p.strip() for p in SPLIT_REGEX.split(clean_line) if p.strip()]
-            curr = []
-            for p in parts:
-                cand = " ".join(curr + [p]) if curr else p
-                if len(cand) <= max_chars:
-                    curr.append(p)
-                else:
-                    if curr:
-                        final_clauses.append({"text": " ".join(curr).strip(), "sfx": None})
-                    curr = [p]
-            if curr:
-                rem = " ".join(curr).strip()
-                if len(rem) <= 6 and final_clauses:
-                    final_clauses[-1]["text"] = (final_clauses[-1]["text"] + " " + rem).strip()
-                else:
-                    final_clauses.append({"text": rem, "sfx": None})
+            clauses = SubtitleEngine.split_into_smart_clauses(clean_line, max_line_len=max_chars)
+            for idx, cl in enumerate(clauses):
+                final_clauses.append({
+                    "text": cl.strip(),
+                    "sfx": "whoosh" if len(final_clauses) == 0 else ("cash" if "บาท" in cl or "พิกัด" in cl else None)
+                })
 
         return final_clauses
 
@@ -222,12 +228,14 @@ class VoiceEngine:
                     ]
                     subprocess.run(cmd_ffmpeg, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-                # 4. Read waveform & register cues
+                # 4. Read waveform & register cues with exact sample accuracy
                 if proc_wav.exists():
                     data, sr = sf.read(str(proc_wav), dtype='float32')
                     if data.ndim > 1:
                         data = data[:, 0] # mono for concatenation
                     
+                    # Trim silence padding from TTS to ensure speech starts immediately within 15ms
+                    data = cls._trim_silence(data, sample_rate=sample_rate)
                     seg_duration = len(data) / sample_rate
 
                     cues.append({
@@ -241,12 +249,13 @@ class VoiceEngine:
 
                     audio_segments.append(data)
 
-                    # Insert Natural Breathing Pause (except after the final line)
+                    # Insert Natural Breathing Pause (tight 50-70ms gap to eliminate audio drift)
                     if idx < total_lines - 1:
-                        silence_samples = int(pause_s * sample_rate)
+                        clean_pause = min(0.08, max(0.04, pause_s * 0.4))
+                        silence_samples = int(clean_pause * sample_rate)
                         silence_gap = np.zeros(silence_samples, dtype=np.float32)
                         audio_segments.append(silence_gap)
-                        current_time += seg_duration + pause_s
+                        current_time += seg_duration + clean_pause
                     else:
                         current_time += seg_duration
 

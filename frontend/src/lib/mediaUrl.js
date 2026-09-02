@@ -3,6 +3,7 @@
 // filenames/spaces survive, but keep the "/" separators the route needs.
 export function toMediaUrl(rawPath) {
   if (!rawPath) return '';
+  if (rawPath.startsWith('/api/media/')) return rawPath;
   const normalized = rawPath.replace(/\\/g, '/');
   return '/api/media/' + normalized.split('/').map(encodeURIComponent).join('/');
 }

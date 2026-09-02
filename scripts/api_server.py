@@ -62,9 +62,11 @@ from scripts.asset_registry import AssetRegistry
 from scripts.task_manager import TaskManager
 from scripts.api_phase1 import router as phase1_router
 from scripts.api_editor import router as editor_router
+from scripts.api_tokens import router as tokens_router
 
 app.include_router(phase1_router)
 app.include_router(editor_router)
+app.include_router(tokens_router)
 
 # ----------------------------------------------------------------------
 # Data Models

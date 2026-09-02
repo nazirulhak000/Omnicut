@@ -8,13 +8,41 @@ without changing prompts, schemas, or any caller.
 """
 
 import os
+import sys
+import time
 import re
 import json
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="ignore")
+    except Exception:
+        pass
+if sys.stderr and hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="ignore")
+    except Exception:
+        pass
+
 DEFAULT_MODEL = "gemini-2.5-flash"
+PRO_MODEL = "gemini-3.8-flash-high"
 ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
+
+
+def get_agy_path() -> Optional[Path]:
+    """Find the Antigravity CLI executable on this system."""
+    default_path = Path.home() / ".gemini" / "bin" / "agy.exe"
+    if default_path.exists():
+        return default_path
+    which_agy = shutil.which("agy") or shutil.which("agy.exe")
+    if which_agy:
+        return Path(which_agy)
+    return None
+
 
 
 def _load_env_file() -> None:
@@ -82,13 +110,14 @@ class AIBridge:
             },
         },
         "script": {
-            "label": "เขียนสคริปต์พากย์",
+            "label": "เขียนสคริปต์พากย์และซับไตเติลสองภาษา",
             "required_context": ["product_name", "angle_title", "hook", "specs", "price_deal"],
             "schema_hint": {
-                "hook_title": "ข้อความแบนเนอร์บนจอ 3 วิแรก สั้นมาก",
+                "hook_title": "ข้อความแบนเนอร์บนจอ 3 วิแรก สั้นมาก (ไม่เกิน 5-7 คำ)",
                 "lines": [
                     {
-                        "text": "ประโยคพูด 1 บรรทัด ภาษาพูดจริง ไม่เกิน 15 คำ",
+                        "text": "ประโยคพูดสั้นเป็นธรรมชาติ (เว้นวรรคระหว่างประโยคย่อย ประโยคสั้น <18 ตัวอักษรรวมกันได้ 2 ประโยค, ประโยคยาวแยก 1 บรรทัด)",
+                        "translation": "คำแปลภาษาอังกฤษกระชับตรงตามประโยคนี้ (English translation matching this clause)",
                         "on_screen": "ตัวเลข/สเปคที่ต้องขึ้นจอตอนพูดบรรทัดนี้ ถ้าไม่มีใส่ว่าง",
                         "sfx": "__SFX_NAME_LIST__",
                     }
@@ -111,7 +140,12 @@ class AIBridge:
 - สินค้า IT ต้องมีตัวเลขสเปคจริงเสมอ (W, mAh, ms, Hz, dB) ห้ามมั่วตัวเลข ถ้าไม่รู้ให้เว้น
 - ห้ามเคลมเกินจริง ห้ามใช้คำว่า "ดีที่สุดในโลก" "รักษาโรค" หรือคำที่พิสูจน์ไม่ได้
 - hook ต้องหยุดนิ้วใน 3 วินาที และห้ามขึ้นต้นด้วย "สวัสดีครับ/ค่ะ"
-- ห้ามใส่อีโมจิเกิน 2 ตัวต่อประโยค"""
+- กฎการตัดประโยคคำบรรยาย:
+  * แบ่งตามประโยคธรรมชาติที่ได้ใจความก่อนเว้นวรรค ห้ามตัดขาดกลางคำเดี่ยวๆ
+  * ประโยคสั้น (<18 ตัวอักษร) รวมกันได้สูงสุด 2 ประโยคต่อ 1 บรรทัด (ไม่เกิน 34 ตัวอักษร)
+  * ประโยคยาว (>=18 ตัวอักษร) ตัดเป็น 1 ประโยคเดี่ยวต่อ 1 บรรทัด
+  * คำลงท้าย เช่น "ครับ", "ค่ะ", "บ้าง...", "ๆ" ให้ต่อท้ายประโยคเดิมเสมอ
+- ทุกบรรทัดต้องมี field "translation" เป็นคำแปลภาษาอังกฤษที่ตรงกับประโยคนั้นๆ 100%"""
 
     # ------------------------------------------------------------------
     # Prompt building
@@ -218,11 +252,63 @@ class AIBridge:
                 raise ValueError("ต้องมี key 'product_name'")
 
     # ------------------------------------------------------------------
-    # Optional automatic mode
+    # Execution modes: Antigravity Pro CLI & Google AI Studio API
     # ------------------------------------------------------------------
     @classmethod
+    def has_antigravity_cli(cls) -> bool:
+        """Check if the local Antigravity CLI (agy.exe) is installed and available."""
+        if os.environ.get("DISABLE_ANTIGRAVITY", "").lower() in ("1", "true", "yes"):
+            return False
+        return get_agy_path() is not None
+
+    @classmethod
     def has_api_key(cls) -> bool:
+        """Check if GEMINI_API_KEY is configured."""
         return bool(os.environ.get("GEMINI_API_KEY", "").strip())
+
+    @classmethod
+    def is_available(cls) -> bool:
+        """Available if either Antigravity CLI or GEMINI_API_KEY exists."""
+        return cls.has_antigravity_cli() or cls.has_api_key()
+
+    @classmethod
+    def call_antigravity_cli(
+        cls,
+        prompt: str,
+        model: str = PRO_MODEL,
+        timeout: int = 120,
+    ) -> str:
+        """
+        Execute prompt via Antigravity CLI using the user's Pro account.
+        Zero extra API fees, highly capable Gemini 3.8 Flash High reasoning.
+        """
+        agy_path = get_agy_path()
+        if not agy_path:
+            raise RuntimeError("Antigravity CLI (agy.exe) not found.")
+
+        cmd = [
+            str(agy_path),
+            "-p",
+            prompt,
+            "--model",
+            model,
+            "--output-format",
+            "text",
+        ]
+
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=timeout,
+        )
+
+        if result.returncode != 0:
+            err_msg = result.stderr.strip() or f"CLI exited with code {result.returncode}"
+            raise RuntimeError(f"Antigravity CLI error: {err_msg}")
+
+        return result.stdout.strip()
 
     @classmethod
     def generate(
@@ -230,23 +316,79 @@ class AIBridge:
         task: str,
         context: Dict[str, Any],
         model: str = DEFAULT_MODEL,
+        prefer_antigravity: bool = True,
     ) -> Dict[str, Any]:
         """
-        Run `task` automatically when GEMINI_API_KEY is set.
-
-        Raises ManualModeRequired (carrying the prompt) when it is not, so the
-        caller can show the copy-paste panel instead.
+        Run `task` automatically:
+        1. Try Antigravity Pro CLI (gemini-3.8-flash-high) first if available (uses Pro quota, zero extra cost).
+        2. Fallback to Google AI Studio GEMINI_API_KEY if available.
+        3. Fallback to ManualModeRequired (prompt for user to copy-paste).
         """
         prompt = cls.build_prompt(task, context)
 
-        if not cls.has_api_key():
-            raise ManualModeRequired(prompt, task)
+        # 1. Preferred: Antigravity Pro (free with subscription, high reasoning)
+        if prefer_antigravity and cls.has_antigravity_cli():
+            t0 = time.time()
+            try:
+                print(f"✨ [AIBridge] Generating '{task}' via Antigravity Pro ({PRO_MODEL})...")
+                raw_text = cls.call_antigravity_cli(prompt, model=PRO_MODEL)
+                latency = time.time() - t0
+                parsed = cls.parse_response(task, raw_text)
+                try:
+                    from scripts.token_tracker import TokenTracker
+                    in_tok = max(100, len(prompt) // 2)
+                    out_tok = max(50, len(raw_text) // 2)
+                    think_tok = 1500  # High reasoning effort baseline
+                    p_name = context.get("product_name", "") or context.get("product_title", "")
+                    TokenTracker.record_event(
+                        task=task,
+                        model=PRO_MODEL,
+                        provider="antigravity_pro",
+                        input_tokens=in_tok,
+                        output_tokens=out_tok,
+                        latency_seconds=latency,
+                        thinking_tokens=think_tok,
+                        project_name=p_name
+                    )
+                except Exception:
+                    pass
+                return parsed
+            except Exception as err:
+                print(f"⚠️ [AIBridge] Antigravity Pro error ({err}) — attempting fallback to API Key...")
 
-        from google import genai  # imported lazily so manual mode needs no SDK
+        # 2. Direct AI Studio API Key fallback
+        if cls.has_api_key():
+            from google import genai  # imported lazily so manual mode needs no SDK
+            t0 = time.time()
+            try:
+                print(f"⚡ [AIBridge] Generating '{task}' via Google AI Studio API ({model})...")
+                client = genai.Client(api_key=os.environ["GEMINI_API_KEY"].strip())
+                response = client.models.generate_content(model=model, contents=prompt)
+                latency = time.time() - t0
+                raw_text = response.text or ""
+                parsed = cls.parse_response(task, raw_text)
+                try:
+                    from scripts.token_tracker import TokenTracker
+                    in_tok = max(100, len(prompt) // 2)
+                    out_tok = max(50, len(raw_text) // 2)
+                    p_name = context.get("product_name", "") or context.get("product_title", "")
+                    TokenTracker.record_event(
+                        task=task,
+                        model=model,
+                        provider="gemini_api",
+                        input_tokens=in_tok,
+                        output_tokens=out_tok,
+                        latency_seconds=latency,
+                        project_name=p_name
+                    )
+                except Exception:
+                    pass
+                return parsed
+            except Exception as api_err:
+                print(f"⚠️ [AIBridge] AI Studio API error ({api_err})")
 
-        client = genai.Client(api_key=os.environ["GEMINI_API_KEY"].strip())
-        response = client.models.generate_content(model=model, contents=prompt)
-        return cls.parse_response(task, response.text or "")
+        # 3. Manual copy-paste fallback
+        raise ManualModeRequired(prompt, task)
 
 
 if __name__ == "__main__":

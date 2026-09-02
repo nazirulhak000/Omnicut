@@ -77,10 +77,13 @@ class SubtitleTranslator:
                 # Join with newline separator
                 joined_text = " ||| ".join(to_translate_texts)
                 translated_blob = t.translate(joined_text)
-                if translated_blob:
+                if translated_blob and not any(err_sig in translated_blob for err_sig in ["Error 500", "500.", "That's an error", "<html", "<body"]):
                     translated_parts = [p.strip() for p in translated_blob.split("|||")]
                     for idx, part in zip(to_translate_indices, translated_parts):
-                        results[idx] = part
+                        if part and not any(err_sig in part for err_sig in ["Error 500", "500.", "That's an error", "<html"]):
+                            results[idx] = part
+                        else:
+                            results[idx] = ""
             except Exception as e:
                 # Fallback on failure
                 for idx in to_translate_indices:
@@ -88,7 +91,7 @@ class SubtitleTranslator:
                         results[idx] = ""
 
         # Fill any remaining None
-        return [r if r is not None else "" for r in results]
+        return [r if (r is not None and not any(err_sig in str(r) for err_sig in ["Error 500", "500.", "That's an error", "<html"])) else "" for r in results]
 
 if __name__ == "__main__":
     test_phrases = [

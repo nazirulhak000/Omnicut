@@ -27,7 +27,7 @@ from scripts.subtitle_engine import SubtitleEngine, _load_font_family_map
 from scripts.asset_registry import AssetRegistry
 from scripts.sfx_manager import SFXManager
 from scripts.script_generator import ScriptGenerator
-from scripts import fetch_freesound_sfx
+from tools import fetch_freesound_sfx
 
 
 # ----------------------------------------------------------------------
@@ -308,6 +308,7 @@ def test_rejects_answers_downstream_code_cannot_use(task, raw):
 
 def test_manual_mode_hands_back_the_prompt(monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.setenv("DISABLE_ANTIGRAVITY", "1")
 
     with pytest.raises(ManualModeRequired) as excinfo:
         AIBridge.generate("caption", {

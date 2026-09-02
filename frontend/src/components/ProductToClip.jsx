@@ -183,10 +183,10 @@ function ScriptAccordionItem({
                 <Film className="w-3.5 h-3.5 text-[#25F4EE]" />
                 <span>คลิปดิบที่แนบกับมุมนี้:</span>
               </span>
-              <span className="text-[11px] font-mono text-slate-500">
+              <span className="text-[11px] font-mono">
                 {selectedVideos.length > 0
-                  ? `เลือกแล้ว ${selectedVideos.length} คลิป`
-                  : 'ใช้คลิปทั้งหมดในระบบ'}
+                  ? <span className="text-emerald-400 font-bold">เลือกแล้ว {selectedVideos.length} คลิป</span>
+                  : <span className="text-amber-400/90 font-bold flex items-center gap-1">⚠️ ยังไม่ได้เลือกคลิป</span>}
               </span>
             </div>
 
@@ -198,11 +198,15 @@ function ScriptAccordionItem({
                   e.stopPropagation();
                   onOpenMediaPicker && onOpenMediaPicker(index);
                 }}
-                className="flex-shrink-0 flex items-center gap-1.5 py-1.5 px-3 rounded-lg bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/40 text-xs font-bold text-[#25F4EE] transition-all cursor-pointer shadow-sm active:scale-95"
+                className={`flex-shrink-0 flex items-center gap-1.5 py-1.5 px-3 rounded-lg border text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95 ${
+                  selectedVideos.length > 0
+                    ? 'bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border-[#25F4EE]/40 text-[#25F4EE]'
+                    : 'bg-amber-500/15 hover:bg-amber-500/25 border-amber-500/50 text-amber-300 animate-pulse'
+                }`}
                 title="เปิดคลังเลือกคลิปแบบ Grid พร้อมดูภาพพรีวิวและค้นหา"
               >
-                <FolderOpen className="w-3.5 h-3.5 text-[#25F4EE]" />
-                <span>เปิดคลังคลิป ({videos.length})</span>
+                <FolderOpen className="w-3.5 h-3.5" />
+                <span>{selectedVideos.length > 0 ? `เปลี่ยน/เลือกคลิป (${videos.length})` : `+ กดเลือกคลิป (${videos.length})`}</span>
               </button>
 
               {/* Show ONLY Selected Footage Tags (with X to remove) */}
@@ -232,8 +236,8 @@ function ScriptAccordionItem({
 
               {/* If no video explicitly chosen */}
               {selectedVideos.length === 0 && (
-                <span className="text-[11px] text-slate-500 italic py-1">
-                  (ใช้คลิปทั้งหมดในคลังอัตโนมัติ)
+                <span className="text-[11px] text-amber-400/80 italic py-1">
+                  (ต้องเลือกคลิปก่อนส่งตัดต่อ)
                 </span>
               )}
             </div>
@@ -241,14 +245,31 @@ function ScriptAccordionItem({
 
           {/* Action Row */}
           <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/[0.06]">
-            <button
-              onClick={(e) => { e.stopPropagation(); onSendToStudio(angle, index); }}
-              className="py-2 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-[#FE2C55]/25 cursor-pointer active:scale-95 transition-all"
-            >
-              <Clapperboard className="w-3.5 h-3.5 text-white" />
-              <span>เลือกมุมนี้ & ส่งตัดต่อ</span>
-              <ArrowRight className="w-3 h-3 text-white/80" />
-            </button>
+            {selectedVideos.length === 0 ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenMediaPicker && onOpenMediaPicker(index);
+                }}
+                className="py-2 px-4 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer active:scale-95 transition-all"
+                title="คลิกเพื่อเลือกคลิปสำหรับมุมนี้ก่อน"
+              >
+                <FolderOpen className="w-3.5 h-3.5 text-amber-400" />
+                <span>เลือกคลิปก่อนส่งตัดต่อ</span>
+                <ArrowRight className="w-3 h-3 text-amber-400/80" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onSendToStudio(angle, index); }}
+                className="py-2 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-[#FE2C55]/25 cursor-pointer active:scale-95 transition-all"
+              >
+                <Clapperboard className="w-3.5 h-3.5 text-white" />
+                <span>เลือกมุมนี้ & ส่งตัดต่อ</span>
+                <ArrowRight className="w-3 h-3 text-white/80" />
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -570,6 +591,20 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const handleSendToStudio = async (angle, angleIdx = 0) => {
     if (!onApplyToStudio) return;
 
+    const chosenVideos = angle.selected_videos && angle.selected_videos.length > 0
+      ? angle.selected_videos
+      : (angle.selected_video ? [angle.selected_video] : []);
+
+    const resolvedIndex = typeof angleIdx === 'number' && angleIdx >= 0
+      ? angleIdx
+      : angles.findIndex(a => (a.angle_id && a.angle_id === angle.angle_id) || a.hook_title === angle.hook_title);
+
+    if (chosenVideos.length === 0) {
+      showToast('⚠️ กรุณาเลือกคลิปวิดีโอสำหรับมุมนี้ก่อนส่งตัดต่อ', 'warning');
+      handleOpenMediaPicker(resolvedIndex >= 0 ? resolvedIndex : 0);
+      return;
+    }
+
     if (productData?.id && angle.angle_id) {
       try {
         await handleAngleStatusChange(angle.angle_id, 'in_production');
@@ -583,10 +618,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       : (angle.script_text ? angle.script_text.split('\n') : []);
     const scriptText = scriptLines.join('\n');
 
-    const chosenVideos = angle.selected_videos && angle.selected_videos.length > 0
-      ? angle.selected_videos
-      : (angle.selected_video ? [angle.selected_video] : []);
-    const primaryVideo = chosenVideos[0] || selectedImage || '';
+    const primaryVideo = chosenVideos[0] || '';
 
     onApplyToStudio({
       productId: productData?.id,
@@ -610,7 +642,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         images: productData?.images || [],
         angles: angles && angles.length > 0 ? angles : [angle]
       },
-      angleIndex: angleIdx
+      angleIndex: resolvedIndex >= 0 ? resolvedIndex : 0
     });
   };
 

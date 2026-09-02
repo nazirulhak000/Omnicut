@@ -2,10 +2,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertCircle, AlertTriangle, CheckCircle2, Loader2, Maximize2, Minimize2,
   RefreshCw, Rocket, Scissors, Film, Layers, Sliders, Sparkles, Trash2,
-  FolderOpen, Play, Copy, Check, X
+  FolderOpen, Play, Copy, Check, X, Save,
+  ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen
 } from 'lucide-react';
 import {
-  deleteProject, getAllAssets, getProject, getProjectOrigin, getProjects, getRenderStatus, startReroll, updateProjectCues, openFolder,
+  deleteProject, getAllAssets, getProject, getProjectOrigin, getProjects, getRenderStatus, startReroll, updateProjectCues, updateProjectClips, updateProjectState, openFolder,
 } from '../../api';
 import {
   FADE_DURATION, ZOOM_LEVELS, buildSegments, formatTimecode, splitClipAt, snapCandidates, snapTime,
@@ -23,6 +24,20 @@ import { ActivityIndicatorButton } from '../ActivityCenter';
 import HeaderMenu from './HeaderMenu';
 import RenderButton from './RenderButton';
 
+function formatErrorText(err) {
+  if (!err) return '';
+  if (typeof err === 'string') return err;
+  const detail = err.response?.data?.detail ?? err.detail ?? err.message;
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    return detail.map(d => (typeof d === 'object' ? (d.msg || JSON.stringify(d)) : String(d))).join(', ');
+  }
+  if (detail && typeof detail === 'object') {
+    return detail.msg || detail.message || JSON.stringify(detail);
+  }
+  return String(err.message || 'เกิดข้อผิดพลาดในการประมวลผล');
+}
+
 const framesFor = (seconds) => Math.max(6, Math.min(40, Math.round((seconds || 12) / 3)));
 const SNAP_PX = 6;
 const EXPORT_PRESETS = [
@@ -35,9 +50,12 @@ const MOBILE_PREVIEW_MIN_H = 160;
 const MOBILE_PREVIEW_DEFAULT = 0.45;   // share of the window height
 const TIMELINE_MAX_H = 460;
 const TIMELINE_DEFAULT_H = 212;
-const INSPECTOR_MIN_W = 320;
-const INSPECTOR_MAX_W = 640;
-const INSPECTOR_DEFAULT_W = 350;
+const ASSET_MIN_W = 180;
+const ASSET_MAX_W = 480;
+const ASSET_DEFAULT_W = 250;
+const INSPECTOR_MIN_W = 280;
+const INSPECTOR_MAX_W = 680;
+const INSPECTOR_DEFAULT_W = 380;
 
 const EMPTY = { clipList: [], cuesList: [], style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false, captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1, stickerPosition: 'top_right', stickerScale: 1 } };
 
@@ -82,10 +100,37 @@ export default function EditorShell({
   });
   const resizeRef = useRef(null);
 
-  // Desktop inspector-panel width resizer -- the caption/script text lives in
-  // here, and a fixed 350px column is what made it unreadable at 8 chars.
-  // Letting someone drag it wider is the general fix; the row layout can only
-  // be so generous on its own.
+  // Desktop left asset-panel width resizer & collapse
+  const [assetW, setAssetW] = useState(() => {
+    try {
+      const saved = Number(localStorage.getItem('editor.assetW'));
+      return saved >= ASSET_MIN_W && saved <= ASSET_MAX_W ? saved : ASSET_DEFAULT_W;
+    } catch (err) {
+      return ASSET_DEFAULT_W;
+    }
+  });
+  const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('editor.leftSidebarCollapsed') === 'true';
+    } catch (err) {
+      return false;
+    }
+  });
+  const assetResizeRef = useRef(null);
+  const applyAssetW = (nextW) => {
+    const clamped = Math.max(ASSET_MIN_W, Math.min(ASSET_MAX_W, nextW));
+    setAssetW(clamped);
+    try { localStorage.setItem('editor.assetW', String(clamped)); } catch (err) {}
+  };
+  const toggleLeftSidebar = () => {
+    setLeftSidebarCollapsed((prev) => {
+      const next = !prev;
+      try { localStorage.setItem('editor.leftSidebarCollapsed', String(next)); } catch (err) {}
+      return next;
+    });
+  };
+
+  // Desktop inspector-panel width resizer & collapse
   const [inspectorW, setInspectorW] = useState(() => {
     try {
       const saved = Number(localStorage.getItem('editor.inspectorW'));
@@ -94,11 +139,25 @@ export default function EditorShell({
       return INSPECTOR_DEFAULT_W;
     }
   });
+  const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('editor.rightSidebarCollapsed') === 'true';
+    } catch (err) {
+      return false;
+    }
+  });
   const inspectorResizeRef = useRef(null);
   const applyInspectorW = (nextW) => {
     const clamped = Math.max(INSPECTOR_MIN_W, Math.min(INSPECTOR_MAX_W, nextW));
     setInspectorW(clamped);
     try { localStorage.setItem('editor.inspectorW', String(clamped)); } catch (err) { /* private mode */ }
+  };
+  const toggleRightSidebar = () => {
+    setRightSidebarCollapsed((prev) => {
+      const next = !prev;
+      try { localStorage.setItem('editor.rightSidebarCollapsed', String(next)); } catch (err) {}
+      return next;
+    });
   };
 
   // Mobile split. The preview used to be locked to 28vh on every tab except
@@ -138,6 +197,10 @@ export default function EditorShell({
   const [previewModalVideo, setPreviewModalVideo] = useState(null);
   const [copiedPath, setCopiedPath] = useState(false);
   const [audioUrl, setAudioUrl] = useState(null);
+  const [hookTitle, setHookTitle] = useState('');
+  const [hookDuration, setHookDuration] = useState(3.0);
+  const [showHookHeader, setShowHookHeader] = useState(true);
+  const [microCuesList, setMicroCuesList] = useState([]);
   const [pendingDelete, setPendingDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
@@ -146,7 +209,18 @@ export default function EditorShell({
 
   const mobilePlayerRef = useRef(null);
   const desktopPlayerRef = useRef(null);
+  const [isMobileView, setIsMobileView] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 768 : false));
+
+  useEffect(() => {
+    const handleResize = () => setIsMobileView(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const cuesDirty = useRef(false);
+  const [saveStatus, setSaveStatus] = useState('saved'); // 'saved' | 'saving' | 'dirty'
+  const isLoadedRef = useRef(false);
+
   // Music lives in the mix, not the video pass. Apply has to ask for the
   // "bgm" re-roll when any of it changed, or the render happily reuses the
   // old mixed_audio.wav and the new track is silently ignored.
@@ -157,14 +231,20 @@ export default function EditorShell({
 
   const seekPlayer = useCallback((t) => {
     setPlayhead(t);
-    mobilePlayerRef.current?.seek(t);
-    desktopPlayerRef.current?.seek(t);
-  }, []);
+    if (isMobileView) {
+      mobilePlayerRef.current?.seek(t);
+    } else {
+      desktopPlayerRef.current?.seek(t);
+    }
+  }, [isMobileView]);
 
   const togglePlayer = useCallback(() => {
-    mobilePlayerRef.current?.toggle();
-    desktopPlayerRef.current?.toggle();
-  }, []);
+    if (isMobileView) {
+      mobilePlayerRef.current?.toggle();
+    } else {
+      desktopPlayerRef.current?.toggle();
+    }
+  }, [isMobileView]);
 
   /**
    * Deleting is permanent and there is no undo, so it goes through a dialog
@@ -246,7 +326,7 @@ export default function EditorShell({
         mirror: !!c.mirror,
       }));
 
-      // Support cues from data.cues or data.micro_cues
+      // Support cues: prefer sentence-level scenes for clean editing, fallback to micro_cues
       const rawCues = (data.cues && data.cues.length > 0)
         ? data.cues
         : (data.micro_cues && data.micro_cues.length > 0)
@@ -261,6 +341,14 @@ export default function EditorShell({
         sfx: c.sfx || null,
         _uid: `cue-${i}-${Date.now().toString(36)}`,
       }));
+
+      const rawMicroCues = (data.micro_cues && data.micro_cues.length > 0) ? data.micro_cues : [];
+      setMicroCuesList(rawMicroCues);
+      const title = data.script_data?.hook || data.hook_title || data.render_params?.hook_title || '';
+      setHookTitle(title);
+      const hookDur = Number(data.hook_duration || data.render_params?.hook_duration || 3.0);
+      setHookDuration(hookDur > 0 ? hookDur : 3.0);
+      setShowHookHeader(!!title);
 
       const fontName = data.font_name || data.render_params?.font_name || 'IBMPlex';
       const bgmName = data.bgm_name || data.render_params?.bgm_name || null;
@@ -281,6 +369,7 @@ export default function EditorShell({
       // after loading would always take the slower re-mix path.
       loadedAudioStyle.current = { bgmName, bgmVolume, bgmDucking };
 
+      isLoadedRef.current = false;
       reset({
         clipList: clips,
         cuesList: cues,
@@ -299,6 +388,10 @@ export default function EditorShell({
           stickerScale,
         },
       });
+      setTimeout(() => {
+        isLoadedRef.current = true;
+        setSaveStatus('saved');
+      }, 150);
 
       setAudioDuration(Number(data.audio_duration || data.total_duration) || 0);
       cuesDirty.current = false;
@@ -349,10 +442,84 @@ export default function EditorShell({
 
   const patchCaption = useCallback((uid, patch, silent = false) => {
     cuesDirty.current = true;
-    (silent ? setSilent : set)((prev) => ({
-      ...prev,
-      cuesList: prev.cuesList.map((c) => (c._uid === uid ? { ...c, ...patch } : c)),
-    }));
+    (silent ? setSilent : set)((prev) => {
+      const nextList = prev.cuesList.map((c) => (c._uid === uid ? { ...c, ...patch } : c));
+      const sorted = (!silent && ('start' in patch || 'end' in patch))
+        ? [...nextList].sort((a, b) => a.start - b.start)
+        : nextList;
+      return { ...prev, cuesList: sorted };
+    });
+  }, [set, setSilent]);
+
+  // Real-time auto-saving whenever clips or captions are edited
+  useEffect(() => {
+    if (!projectName || !isLoadedRef.current) return;
+    setSaveStatus('dirty');
+    const timer = setTimeout(async () => {
+      setSaveStatus('saving');
+      try {
+        const serializedClips = clipList.map(({ id, transition_in, transition_duration, ...c }) => c);
+        const serializedTransitions = clipList.slice(1).map((c) => ({
+          type: c.transition_in || 'cut',
+          duration: c.transition_duration ?? FADE_DURATION,
+        }));
+        const serializedCues = cuesList.map(({ _uid, ...c }) => c);
+        await updateProjectState(projectName, {
+          cues: serializedCues,
+          micro_cues: serializedCues,
+          clip_list: serializedClips,
+          transitions: serializedTransitions,
+          hook_title: showHookHeader ? (hookTitle || '') : '',
+          hook_duration: hookDuration || 3.0,
+        });
+        setSaveStatus('saved');
+      } catch (err) {
+        console.warn('Auto-save failed:', err);
+        setSaveStatus('dirty');
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [clipList, cuesList, projectName, hookTitle, hookDuration, showHookHeader]);
+
+  // Manual save handler (button click or Ctrl+S)
+  const handleManualSave = useCallback(async () => {
+    if (!projectName) return;
+    setSaveStatus('saving');
+    try {
+      const serializedClips = clipList.map(({ id, transition_in, transition_duration, ...c }) => c);
+      const serializedTransitions = clipList.slice(1).map((c) => ({
+        type: c.transition_in || 'cut',
+        duration: c.transition_duration ?? FADE_DURATION,
+      }));
+      const serializedCues = cuesList.map(({ _uid, ...c }) => c);
+      await updateProjectState(projectName, {
+        cues: serializedCues,
+        micro_cues: serializedCues,
+        clip_list: serializedClips,
+        transitions: serializedTransitions,
+        hook_title: showHookHeader ? (hookTitle || '') : '',
+        hook_duration: hookDuration || 3.0,
+      });
+      setSaveStatus('saved');
+    } catch (err) {
+      console.warn('Manual save failed:', err);
+      setSaveStatus('dirty');
+    }
+  }, [clipList, cuesList, projectName, hookTitle, hookDuration, showHookHeader]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        handleManualSave();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleManualSave]);
+
+  const patchStyle = useCallback((patch) => {
+    set((prev) => ({ ...prev, style: { ...prev.style, ...patch } }));
   }, [set]);
 
   /** insertAt = null appends (the click path); a number drops it in place. */
@@ -376,6 +543,25 @@ export default function EditorShell({
       return { ...prev, clipList: next };
     });
   }, [durations, set]);
+
+  const addTextAtPlayhead = useCallback(() => {
+    const curTime = Number(playhead.toFixed(2));
+    const dur = 2.5;
+    const newCue = {
+      start: curTime,
+      end: Number((curTime + dur).toFixed(2)),
+      text: 'ข้อความใหม่',
+      translation: 'New text',
+      scale: 1.0,
+      _uid: `cue-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+    };
+    set((prev) => {
+      const next = [...prev.cuesList, newCue].sort((a, b) => a.start - b.start);
+      return { ...prev, cuesList: next };
+    });
+    setSelection({ type: 'caption', id: newCue._uid });
+    cuesDirty.current = true;
+  }, [playhead, set]);
 
   const selectedSeg = useMemo(
     () => (selection?.type === 'clip' ? segments.find((s) => s.clip.id === selection.id) || null : null),
@@ -508,8 +694,21 @@ export default function EditorShell({
       const dur = target.end - target.start;
       const splitTime = Number((target.start + dur * ratio).toFixed(2));
 
-      const cue1 = { ...target, end: splitTime, text: text1 };
-      const cue2 = { ...target, start: splitTime, text: text2, _uid: `cue-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}` };
+      // Proportionally split English translation words across the two split cues
+      const fullTrans = (target.translation || '').trim();
+      let trans1 = fullTrans;
+      let trans2 = '';
+      if (fullTrans) {
+        const words = fullTrans.split(/\s+/);
+        if (words.length > 1) {
+          const splitWordIdx = Math.max(1, Math.min(words.length - 1, Math.round(words.length * ratio)));
+          trans1 = words.slice(0, splitWordIdx).join(' ');
+          trans2 = words.slice(splitWordIdx).join(' ');
+        }
+      }
+
+      const cue1 = { ...target, end: splitTime, text: text1, translation: trans1 };
+      const cue2 = { ...target, start: splitTime, text: text2, translation: trans2, _uid: `cue-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}` };
 
       const next = [...prev.cuesList];
       next.splice(idx, 1, cue1, cue2);
@@ -532,8 +731,20 @@ export default function EditorShell({
       const text1 = fullText.slice(0, splitCharIdx).trim() || fullText.slice(0, Math.floor(fullText.length / 2)).trim();
       const text2 = fullText.slice(splitCharIdx).trim() || fullText.slice(Math.floor(fullText.length / 2)).trim();
 
-      const cue1 = { ...target, end: Number(playheadTime.toFixed(2)), text: text1 };
-      const cue2 = { ...target, start: Number(playheadTime.toFixed(2)), text: text2, _uid: `cue-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}` };
+      const fullTrans = (target.translation || '').trim();
+      let trans1 = fullTrans;
+      let trans2 = '';
+      if (fullTrans) {
+        const words = fullTrans.split(/\s+/);
+        if (words.length > 1) {
+          const splitWordIdx = Math.max(1, Math.min(words.length - 1, Math.round(words.length * timeRatio)));
+          trans1 = words.slice(0, splitWordIdx).join(' ');
+          trans2 = words.slice(splitWordIdx).join(' ');
+        }
+      }
+
+      const cue1 = { ...target, end: Number(playheadTime.toFixed(2)), text: text1, translation: trans1 };
+      const cue2 = { ...target, start: Number(playheadTime.toFixed(2)), text: text2, translation: trans2, _uid: `cue-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}` };
 
       const next = [...prev.cuesList];
       next.splice(idx, 1, cue1, cue2);
@@ -740,14 +951,24 @@ export default function EditorShell({
       if (cuesDirty.current) {
         await updateProjectCues(projectName, { cues: cuesList.map(({ _uid, ...c }) => c) });
       }
+
+      const serializedClips = clipList.map(({ id, transition_in, transition_duration, ...c }) => c);
+      const serializedTransitions = clipList.slice(1).map((c) => ({
+        type: c.transition_in || 'cut',
+        duration: c.transition_duration ?? FADE_DURATION,
+      }));
+
+      // Persist clip edits to project.json
+      updateProjectClips(projectName, { clip_list: serializedClips, transitions: serializedTransitions }).catch(() => {});
+
       const res = await startReroll({
         project_name: projectName,
         part: audioDirty ? 'bgm' : ((cuesDirty.current || captionDirty) ? 'subtitles' : 'video'),
-        clip_list: clipList.map(({ id, transition_in, transition_duration, ...c }) => c),
-        transitions: clipList.slice(1).map((c) => ({
-          type: c.transition_in || 'cut',
-          duration: c.transition_duration ?? FADE_DURATION,
-        })),
+        clip_list: serializedClips,
+        transitions: serializedTransitions,
+        bilingual_subtitles: true,
+        hook_title: showHookHeader ? (hookTitle || '') : '',
+        hook_duration: hookDuration || 3.0,
         font_name: style.fontName,
         bgm_name: style.bgmName,
         lut_name: style.lutName,
@@ -777,7 +998,7 @@ export default function EditorShell({
       };
     } catch (err) {
       setApplying(false);
-      setApplyError(err.response?.data?.detail || err.message || 'เริ่มเรนเดอร์ไม่สำเร็จ');
+      setApplyError(formatErrorText(err));
     }
   };
 
@@ -814,15 +1035,62 @@ export default function EditorShell({
           </div>
 
           {projectName && (
-            <span className="flex-shrink-0 font-mono text-sm font-bold text-slate-400">
-              <span className="text-[#E89274]">{formatTimecode(playhead)}</span>
-              <span className="hidden sm:inline"> / {formatTimecode(Math.max(totalDuration, audioDuration))}</span>
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="flex-shrink-0 font-mono text-sm font-bold text-slate-400">
+                <span className="text-[#E89274]">{formatTimecode(playhead)}</span>
+                <span className="hidden sm:inline"> / {formatTimecode(Math.max(totalDuration, audioDuration))}</span>
+              </span>
+              <span className="hidden md:inline-flex items-center gap-1 text-[11px] font-mono text-slate-400 px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06]">
+                {saveStatus === 'saving' ? (
+                  <span className="text-amber-400 flex items-center gap-1">
+                    <Loader2 className="w-3 h-3 animate-spin" /> กำลังบันทึก...
+                  </span>
+                ) : saveStatus === 'dirty' ? (
+                  <span className="text-slate-400">มีการแก้ไข...</span>
+                ) : (
+                  <span className="text-emerald-400 flex items-center gap-1">
+                    <Check className="w-3 h-3 text-emerald-400" /> บันทึกแล้ว
+                  </span>
+                )}
+              </span>
+            </div>
           )}
         </div>
 
-        {/* Right: Fullscreen & Apply / Render Buttons */}
+        {/* Right: Sidebar Toggles, Fullscreen & Apply / Render Buttons */}
         <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+          {/* Quick Sidebar Toggles (Desktop) */}
+          <div className="hidden md:flex items-center gap-1 bg-black/40 border border-white/[0.08] p-0.5 rounded-xl">
+            <button
+              type="button"
+              onClick={toggleLeftSidebar}
+              disabled={!projectName}
+              title={leftSidebarCollapsed ? 'เปิดแถบซ้าย (คลังสื่อ)' : 'ซ่อนแถบซ้าย'}
+              className={`h-7 px-2 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer disabled:opacity-40 ${
+                leftSidebarCollapsed
+                  ? 'text-slate-400 hover:text-white'
+                  : 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30'
+              }`}
+            >
+              {leftSidebarCollapsed ? <PanelLeftOpen className="h-3.5 w-3.5" /> : <PanelLeftClose className="h-3.5 w-3.5" />}
+              <span className="text-[11px]">ซ้าย</span>
+            </button>
+            <button
+              type="button"
+              onClick={toggleRightSidebar}
+              disabled={!projectName}
+              title={rightSidebarCollapsed ? 'เปิดแถบขวา (คำบรรยาย)' : 'ซ่อนแถบขวา'}
+              className={`h-7 px-2 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer disabled:opacity-40 ${
+                rightSidebarCollapsed
+                  ? 'text-slate-400 hover:text-white'
+                  : 'bg-[#D97757]/15 text-[#D97757] border border-[#D97757]/30'
+              }`}
+            >
+              <span className="text-[11px]">ขวา</span>
+              {rightSidebarCollapsed ? <PanelRightOpen className="h-3.5 w-3.5" /> : <PanelRightClose className="h-3.5 w-3.5" />}
+            </button>
+          </div>
+
           <button
             type="button"
             onClick={() => setZen((v) => !v)}
@@ -880,6 +1148,23 @@ export default function EditorShell({
               },
             ]}
           />
+
+          {projectName && (
+            <button
+              type="button"
+              onClick={handleManualSave}
+              disabled={saveStatus === 'saving' || applying}
+              title="บันทึกการแก้ไขลงโปรเจกต์ (Ctrl+S)"
+              className="flex h-9 items-center gap-1.5 rounded-xl border border-white/[0.12] bg-white/[0.06] hover:bg-white/[0.12] px-2.5 text-xs font-bold text-slate-200 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {saveStatus === 'saving' ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+              ) : (
+                <Save className="w-3.5 h-3.5 text-emerald-400" />
+              )}
+              <span className="hidden sm:inline">บันทึก</span>
+            </button>
+          )}
 
           <RenderButton
             presets={EXPORT_PRESETS}
@@ -1041,26 +1326,32 @@ export default function EditorShell({
               className="relative flex w-full flex-shrink-0 flex-col items-center justify-center bg-black/60 p-2"
               style={{ height: mobilePreviewH }}
             >
-              <SequencePlayer
-                ref={mobilePlayerRef}
-                clips={clipList}
-                cues={cuesList}
-                captionStyle={{
-                  captionPosition: style.captionPosition,
-                  captionColor: style.captionColor,
-                  captionScale: style.captionScale,
-                }}
-                stickerStyle={{
-                  badge: style.stickerBadge,
-                  position: style.stickerPosition || 'top_right',
-                  scale: style.stickerScale || 1.0,
-                  startTime: 0.5,
-                  stickers: assets.stickers,
-                }}
-                compact
-                onPlayhead={setPlayhead}
-                onDurations={setDurations}
-              />
+              {isMobileView && (
+                <SequencePlayer
+                  ref={mobilePlayerRef}
+                  clips={clipList}
+                  cues={microCuesList.length > 0 ? microCuesList : cuesList}
+                  hookTitle={showHookHeader ? hookTitle : ''}
+                  hookDuration={hookDuration}
+                  audioUrl={audioUrl}
+                  captionStyle={{
+                    captionPosition: style.captionPosition,
+                    captionColor: style.captionColor,
+                    captionScale: style.captionScale,
+                    fontName: style.fontName,
+                  }}
+                  stickerStyle={{
+                    badge: style.stickerBadge,
+                    position: style.stickerPosition || 'top_right',
+                    scale: style.stickerScale || 1.0,
+                    startTime: 0.5,
+                    stickers: assets.stickers,
+                  }}
+                  compact
+                  onPlayhead={setPlayhead}
+                  onDurations={setDurations}
+                />
+              )}
               {applying && (
                 <div className="absolute bottom-2 left-4 right-4 bg-black/80 backdrop-blur-md p-2 rounded-xl border border-white/[0.1] space-y-1 z-10">
                   <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">
@@ -1175,6 +1466,7 @@ export default function EditorShell({
                   onUndo={undo}
                   onRedo={redo}
                   onSplit={splitAtPlayhead}
+                  onAddText={addTextAtPlayhead}
                   onDuplicate={duplicateSelected}
                   onDelete={deleteSelected}
                   onToggleMirror={() => selectedSeg && patchClip(selectedSeg.clip.id, { mirror: !selectedSeg.clip.mirror })}
@@ -1230,7 +1522,8 @@ export default function EditorShell({
                       style={style}
                       selectedCaption={selectedCaption}
                       onAddClip={addClip}
-                      onStyleChange={(patch) => set((prev) => ({ ...prev, style: { ...prev.style, ...patch } }))}
+                      onAddTextAtPlayhead={addTextAtPlayhead}
+                      onStyleChange={patchStyle}
                       onAssignSfx={(sfxId) => selectedCaption && patchCaption(selectedCaption._uid, { sfx: sfxId })}
                       onImportCues={handleImportCues}
                     />
@@ -1249,6 +1542,14 @@ export default function EditorShell({
                       totalDuration={totalDuration}
                       audioDuration={audioDuration}
                       assets={assets}
+                      hookTitle={hookTitle}
+                      onHookTitleChange={setHookTitle}
+                      hookDuration={hookDuration}
+                      onHookDurationChange={setHookDuration}
+                      showHookHeader={showHookHeader}
+                      onToggleHookHeader={() => setShowHookHeader((v) => !v)}
+                      onAddTextAtPlayhead={addTextAtPlayhead}
+                      onStyleChange={patchStyle}
                       onClipChange={(patch) => selectedSeg && patchClip(selectedSeg.clip.id, patch)}
                       onCaptionChange={(cueUid, patch) => patchCaption(cueUid, patch)}
                       onSplitCue={handleSplitCue}
@@ -1276,43 +1577,100 @@ export default function EditorShell({
             {/* Middle Row (AssetPanel + Video + Inspector) */}
             <div className="flex min-h-0 flex-1">
               {!zen && (
-                <div className="w-[240px] flex-shrink-0 border-r border-white/[0.08]">
-                  <AssetPanel
-                    videos={videos}
-                    clipList={clipList}
-                    assets={assets}
-                    style={style}
-                    selectedCaption={selectedCaption}
-                    onAddClip={addClip}
-                    onStyleChange={(patch) => set((prev) => ({ ...prev, style: { ...prev.style, ...patch } }))}
-                    onAssignSfx={(sfxId) => selectedCaption && patchCaption(selectedCaption._uid, { sfx: sfxId })}
-                    onImportCues={handleImportCues}
-                  />
-                </div>
+                leftSidebarCollapsed ? (
+                  <div className="flex-shrink-0 flex items-start border-r border-white/[0.08] bg-[#0A0D14] z-20">
+                    <button
+                      type="button"
+                      onClick={toggleLeftSidebar}
+                      title="เปิดแถบซ้าย (คลังสื่อ)"
+                      className="m-2 flex h-8 w-7 items-center justify-center rounded-lg bg-white/[0.06] text-slate-400 hover:bg-[#25F4EE]/20 hover:text-[#25F4EE] border border-white/[0.08] transition-all cursor-pointer shadow-sm"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="relative flex flex-shrink-0">
+                    <div style={{ width: assetW }} className="relative flex-shrink-0 flex flex-col border-r border-white/[0.08] min-w-0">
+                      <div className="absolute top-2 right-2 z-20">
+                        <button
+                          type="button"
+                          onClick={toggleLeftSidebar}
+                          title="ซ่อนแถบซ้าย"
+                          className="flex h-6 w-6 items-center justify-center rounded-lg bg-black/40 text-slate-400 hover:bg-white/[0.1] hover:text-white border border-white/[0.08] transition-all cursor-pointer"
+                        >
+                          <ChevronLeft className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      <AssetPanel
+                        videos={videos}
+                        clipList={clipList}
+                        assets={assets}
+                        style={style}
+                        selectedCaption={selectedCaption}
+                        onAddClip={addClip}
+                        onAddTextAtPlayhead={addTextAtPlayhead}
+                        onStyleChange={patchStyle}
+                        onAssignSfx={(sfxId) => selectedCaption && patchCaption(selectedCaption._uid, { sfx: sfxId })}
+                        onImportCues={handleImportCues}
+                      />
+                    </div>
+                    {/* Left Resizer */}
+                    <div
+                      role="separator"
+                      aria-orientation="vertical"
+                      aria-label="ปรับความกว้างแผงซ้าย"
+                      title="ลากซ้าย-ขวาเพื่อปรับความกว้าง · ดับเบิลคลิกเพื่อรีเซ็ต"
+                      onPointerDown={(e) => {
+                        assetResizeRef.current = { startX: e.clientX, startW: assetW };
+                        try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+                      }}
+                      onPointerMove={(e) => {
+                        const d = assetResizeRef.current;
+                        if (!d) return;
+                        applyAssetW(d.startW + (e.clientX - d.startX));
+                      }}
+                      onPointerUp={(e) => {
+                        assetResizeRef.current = null;
+                        try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
+                      }}
+                      onPointerCancel={() => { assetResizeRef.current = null; }}
+                      onDoubleClick={() => applyAssetW(ASSET_DEFAULT_W)}
+                      className="group relative w-1.5 flex-shrink-0 cursor-col-resize touch-none bg-white/[0.04] transition-colors hover:bg-[#25F4EE]/60 flex items-center justify-center"
+                    >
+                      <span className="h-6 w-0.5 rounded-full bg-white/20 group-hover:bg-[#25F4EE] transition-colors" />
+                    </div>
+                  </div>
+                )
               )}
 
               {/* Center: SequencePlayer */}
               <div className="flex min-h-0 flex-1 flex-col items-center gap-2 overflow-hidden p-3 bg-black/40">
-                <SequencePlayer
-                  ref={desktopPlayerRef}
-                  clips={clipList}
-                  cues={cuesList}
-                  captionStyle={{
-                    captionPosition: style.captionPosition,
-                    captionColor: style.captionColor,
-                    captionScale: style.captionScale,
-                  }}
-                  stickerStyle={{
-                    badge: style.stickerBadge,
-                    position: style.stickerPosition || 'top_right',
-                    scale: style.stickerScale || 1.0,
-                    startTime: 0.5,
-                    stickers: assets.stickers,
-                  }}
-                  compact
-                  onPlayhead={setPlayhead}
-                  onDurations={setDurations}
-                />
+                {!isMobileView && (
+                  <SequencePlayer
+                    ref={desktopPlayerRef}
+                    clips={clipList}
+                    cues={microCuesList.length > 0 ? microCuesList : cuesList}
+                    hookTitle={showHookHeader ? hookTitle : ''}
+                    hookDuration={hookDuration}
+                    audioUrl={audioUrl}
+                    captionStyle={{
+                      captionPosition: style.captionPosition,
+                      captionColor: style.captionColor,
+                      captionScale: style.captionScale,
+                      fontName: style.fontName,
+                    }}
+                    stickerStyle={{
+                      badge: style.stickerBadge,
+                      position: style.stickerPosition || 'top_right',
+                      scale: style.stickerScale || 1.0,
+                      startTime: 0.5,
+                      stickers: assets.stickers,
+                    }}
+                    compact
+                    onPlayhead={setPlayhead}
+                    onDurations={setDurations}
+                  />
+                )}
                 {applying && (
                   <div className="w-full max-w-[260px] flex-shrink-0">
                     <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">
@@ -1367,57 +1725,92 @@ export default function EditorShell({
               </div>
 
               {!zen && (
-                <div className="relative flex flex-shrink-0">
-                  <div
-                    role="separator"
-                    aria-orientation="vertical"
-                    aria-label="ปรับความกว้างแผงขวา"
-                    title="ลากซ้าย-ขวาเพื่อปรับความกว้าง · ดับเบิลคลิกเพื่อรีเซ็ต"
-                    onPointerDown={(e) => {
-                      inspectorResizeRef.current = { startX: e.clientX, startW: inspectorW };
-                      try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* drag still works */ }
-                    }}
-                    onPointerMove={(e) => {
-                      const d = inspectorResizeRef.current;
-                      if (!d) return;
-                      // Dragging left (negative dx) widens the panel -- it sits on the right edge of the screen.
-                      applyInspectorW(d.startW - (e.clientX - d.startX));
-                    }}
-                    onPointerUp={(e) => {
-                      inspectorResizeRef.current = null;
-                      try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
-                    }}
-                    onPointerCancel={() => { inspectorResizeRef.current = null; }}
-                    onDoubleClick={() => applyInspectorW(INSPECTOR_DEFAULT_W)}
-                    className="w-1.5 flex-shrink-0 cursor-col-resize touch-none bg-white/[0.08] transition-colors hover:bg-[#D97757]/60"
-                  />
-                  <div style={{ width: inspectorW }} className="flex-shrink-0 border-l border-white/[0.08]">
-                  <Inspector
-                    selection={selection}
-                    selectedSeg={selectedSeg}
-                    selectedCaption={selectedCaption}
-                    cuesList={cuesList}
-                    playhead={playhead}
-                    style={style}
-                    totalDuration={totalDuration}
-                    audioDuration={audioDuration}
-                    assets={assets}
-                    onClipChange={(patch) => selectedSeg && patchClip(selectedSeg.clip.id, patch)}
-                    onCaptionChange={(cueUid, patch) => patchCaption(cueUid, patch)}
-                    onSplitCue={handleSplitCue}
-                    onSplitCueAtPlayhead={handleSplitCueAtPlayhead}
-                    onMergeCue={handleMergeCue}
-                    onMergeWithPrevious={handleMergeWithPrevious}
-                    onDeleteCue={handleDeleteCue}
-                    onInsertCueAfter={handleInsertCueAfter}
-                    onReorderCues={handleReorderCues}
-                    onBatchFindAndReplace={handleBatchFindAndReplace}
-                    onBatchFormatClean={handleBatchFormatClean}
-                    onSeek={seekPlayer}
-                    onSelectCue={(uid) => setSelection({ type: 'caption', id: uid })}
-                  />
+                rightSidebarCollapsed ? (
+                  <div className="flex-shrink-0 flex items-start border-l border-white/[0.08] bg-[#0A0D14] z-20">
+                    <button
+                      type="button"
+                      onClick={toggleRightSidebar}
+                      title="เปิดแถบขวา (แก้ไขคำบรรยาย)"
+                      className="m-2 flex h-8 w-7 items-center justify-center rounded-lg bg-white/[0.06] text-slate-400 hover:bg-[#D97757]/20 hover:text-[#D97757] border border-white/[0.08] transition-all cursor-pointer shadow-sm"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
                   </div>
-                </div>
+                ) : (
+                  <div className="relative flex flex-shrink-0">
+                    {/* Right Resizer */}
+                    <div
+                      role="separator"
+                      aria-orientation="vertical"
+                      aria-label="ปรับความกว้างแผงขวา"
+                      title="ลากซ้าย-ขวาเพื่อปรับความกว้าง · ดับเบิลคลิกเพื่อรีเซ็ต"
+                      onPointerDown={(e) => {
+                        inspectorResizeRef.current = { startX: e.clientX, startW: inspectorW };
+                        try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* drag still works */ }
+                      }}
+                      onPointerMove={(e) => {
+                        const d = inspectorResizeRef.current;
+                        if (!d) return;
+                        // Dragging left (negative dx) widens the panel -- it sits on the right edge of the screen.
+                        applyInspectorW(d.startW - (e.clientX - d.startX));
+                      }}
+                      onPointerUp={(e) => {
+                        inspectorResizeRef.current = null;
+                        try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
+                      }}
+                      onPointerCancel={() => { inspectorResizeRef.current = null; }}
+                      onDoubleClick={() => applyInspectorW(INSPECTOR_DEFAULT_W)}
+                      className="group relative w-1.5 flex-shrink-0 cursor-col-resize touch-none bg-white/[0.04] transition-colors hover:bg-[#D97757]/60 flex items-center justify-center"
+                    >
+                      <span className="h-6 w-0.5 rounded-full bg-white/20 group-hover:bg-[#D97757] transition-colors" />
+                    </div>
+                    <div style={{ width: inspectorW }} className="relative flex-shrink-0 border-l border-white/[0.08] flex flex-col min-w-0">
+                      {/* Collapse button for right panel */}
+                      <div className="absolute top-2 left-2 z-20">
+                        <button
+                          type="button"
+                          onClick={toggleRightSidebar}
+                          title="ซ่อนแถบขวา"
+                          className="flex h-6 w-6 items-center justify-center rounded-lg bg-black/40 text-slate-400 hover:bg-white/[0.1] hover:text-white border border-white/[0.08] transition-all cursor-pointer"
+                        >
+                          <ChevronRight className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      <Inspector
+                        selection={selection}
+                        selectedSeg={selectedSeg}
+                        selectedCaption={selectedCaption}
+                        cuesList={cuesList}
+                        playhead={playhead}
+                        style={style}
+                        totalDuration={totalDuration}
+                        audioDuration={audioDuration}
+                        assets={assets}
+                        hookTitle={hookTitle}
+                        onHookTitleChange={setHookTitle}
+                        hookDuration={hookDuration}
+                        onHookDurationChange={setHookDuration}
+                        showHookHeader={showHookHeader}
+                        onToggleHookHeader={() => setShowHookHeader((v) => !v)}
+                        onAddTextAtPlayhead={addTextAtPlayhead}
+                        onStyleChange={patchStyle}
+                        onClipChange={(patch) => selectedSeg && patchClip(selectedSeg.clip.id, patch)}
+                        onCaptionChange={(cueUid, patch) => patchCaption(cueUid, patch)}
+                        onSplitCue={handleSplitCue}
+                        onSplitCueAtPlayhead={handleSplitCueAtPlayhead}
+                        onMergeCue={handleMergeCue}
+                        onMergeWithPrevious={handleMergeWithPrevious}
+                        onDeleteCue={handleDeleteCue}
+                        onInsertCueAfter={handleInsertCueAfter}
+                        onReorderCues={handleReorderCues}
+                        onBatchFindAndReplace={handleBatchFindAndReplace}
+                        onBatchFormatClean={handleBatchFormatClean}
+                        onSeek={seekPlayer}
+                        onSelectCue={(uid) => setSelection({ type: 'caption', id: uid })}
+                      />
+                    </div>
+                  </div>
+                )
               )}
             </div>
 
@@ -1460,6 +1853,7 @@ export default function EditorShell({
                   onUndo={undo}
                   onRedo={redo}
                   onSplit={splitAtPlayhead}
+                  onAddText={addTextAtPlayhead}
                   onDuplicate={duplicateSelected}
                   onDelete={deleteSelected}
                   onToggleMirror={() => selectedSeg && patchClip(selectedSeg.clip.id, { mirror: !selectedSeg.clip.mirror })}

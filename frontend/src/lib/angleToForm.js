@@ -35,16 +35,12 @@ export function angleToForm(angle, context = {}) {
   if (angleVideos.length > 0) {
     patch.selectedVideos = angleVideos;
     patch.selectedVideo = angleVideos[0];
-  } else if (context.selectedVideos && context.selectedVideos.length > 0) {
-    patch.selectedVideos = context.selectedVideos;
-    patch.selectedVideo = context.selectedVideos[0];
-  } else if (context.selectedVideo) {
-    patch.selectedVideos = [context.selectedVideo];
-    patch.selectedVideo = context.selectedVideo;
-  } else if (context.images && context.images.length > 0) {
-    const imgPath = context.images[0].local_path || context.images[0].rel_path || context.images[0].path;
-    patch.selectedVideos = [imgPath];
-    patch.selectedVideo = imgPath;
+  } else {
+    // When no specific video is chosen for this angle, do not inject unrelated videos.
+    // Keep it empty so the editor can accurately show that no specific clip is pinned,
+    // or allow auto-assembly from the entire library.
+    patch.selectedVideos = [];
+    patch.selectedVideo = '';
   }
   return patch;
 }

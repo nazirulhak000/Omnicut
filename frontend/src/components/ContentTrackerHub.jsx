@@ -481,7 +481,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
     }
   }, [inspectAngle, showToast]);
 
-  const handleSendToStudio = useCallback((product, angle, angleIdx = 0) => {
+  const handleSendToStudio = useCallback((product, angle, angleIdx = -1) => {
     if (!onApplyToStudio) return;
 
     const scriptLines = Array.isArray(angle.script_lines)
@@ -491,6 +491,18 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
 
     // Move to Phase 2: in_production
     handleAngleStatusChange(product.id, angle.angle_id, 'in_production');
+
+    let resolvedIdx = angleIdx;
+    if (resolvedIdx < 0 && product?.angles) {
+      resolvedIdx = product.angles.findIndex(a => (a.angle_id && a.angle_id === angle?.angle_id) || a.hook_title === angle?.hook_title);
+      if (resolvedIdx < 0) resolvedIdx = 0;
+    } else if (resolvedIdx < 0) {
+      resolvedIdx = 0;
+    }
+
+    const chosenVideos = angle.selected_videos && angle.selected_videos.length > 0
+      ? angle.selected_videos
+      : (angle.selected_video ? [angle.selected_video] : []);
 
     onApplyToStudio({
       productId: product.id,
@@ -502,8 +514,8 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
       painPoint: angle.pain_point || '',
       priceDeal: angle.price_deal || product.price_note || '',
       adTone: angle.ad_tone || 'commercial_premium',
-      selectedVideo: angle.selected_videos?.[0] || angle.selected_video || product.images?.[0]?.local_path || product.images?.[0]?.rel_path || '',
-      selectedVideos: angle.selected_videos || (angle.selected_video ? [angle.selected_video] : []),
+      selectedVideo: chosenVideos[0] || '',
+      selectedVideos: chosenVideos,
       fullProduct: {
         id: product.id,
         title: product.name,
@@ -512,7 +524,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
         images: product.images || [],
         angles: product.angles || [angle]
       },
-      angleIndex: angleIdx
+      angleIndex: resolvedIdx
     });
   }, [onApplyToStudio, handleAngleStatusChange]);
 

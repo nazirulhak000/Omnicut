@@ -49,6 +49,7 @@ class TikTokAutoCutterPipeline:
         ad_tone: str = "commercial_premium",
         human_voice_audio_path: Optional[str] = None,
         hook_title: Optional[str] = None,
+        hook_duration: float = 3.0,
         font_name: str = "IBMPlex",
         bilingual_subtitles: bool = True,
         use_ai_vision: bool = True,
@@ -191,12 +192,41 @@ class TikTokAutoCutterPipeline:
                     "full_text": "\n".join([l["text"] for l in lines])
                 }
             else:
-                script_data = ScriptGenerator.generate(
-                    product_name=product_name,
-                    key_features=key_features,
-                    pain_point=pain_point,
-                    price_deal=price_deal
-                )
+                # 1.1 Try AIBridge (Antigravity Pro / Gemini) for dynamic human-like script
+                ai_script = None
+                from scripts.ai_bridge import AIBridge
+                if AIBridge.is_available():
+                    try:
+                        _notify("🧠 [1/5] ให้ AI Pro วิเคราะห์จุดขายและเขียนบทพากย์พร้อมแปล...", 0.12)
+                        print("✨ [1/5] Generating dynamic script via AIBridge...")
+                        ai_ctx = {
+                            "product_name": product_name,
+                            "angle_title": angle_meta.get("title", "รีวิวสินค้า") if angle_meta else "รีวิวสินค้าสุดปัง",
+                            "hook": angle_meta.get("hook", "") if angle_meta else f"ใครหา {product_name} อยู่ดูคลิปนี้เลย",
+                            "specs": [{"label": "จุดเด่น", "value": key_features[:60]}],
+                            "price_deal": price_deal
+                        }
+                        ai_resp = AIBridge.generate("script", ai_ctx)
+                        ai_lines = ai_resp.get("lines", [])
+                        if ai_lines:
+                            ai_script = {
+                                "hook": ai_resp.get("hook_title") or ai_lines[0].get("text", product_name),
+                                "lines": ai_lines,
+                                "full_text": "\n".join([l.get("text", "") for l in ai_lines])
+                            }
+                            print(f"✨ [Pipeline] Dynamic script ready! ({len(ai_lines)} lines)")
+                    except Exception as ai_err:
+                        print(f"⚠️ [Pipeline] AI script gen failed ({ai_err}) — falling back to ScriptGenerator...")
+
+                if ai_script:
+                    script_data = ai_script
+                else:
+                    script_data = ScriptGenerator.generate(
+                        product_name=product_name,
+                        key_features=key_features,
+                        pain_point=pain_point,
+                        price_deal=price_deal
+                    )
         else:
             script_data = manifest["script_data"]
             print(f"♻️  [1/5] Reusing script ({len(script_data.get('lines', []))} lines)")
@@ -261,34 +291,62 @@ class TikTokAutoCutterPipeline:
                     pass
 
             full_script_text = script_data.get("full_text") or "\n".join([l["text"] for l in script_data["lines"]])
-            GeminiFlashTTSEngine.generate_speech(
-                text=full_script_text,
-                output_path=str(voice_audio_path),
-                voice_name=gemini_voice,
-                ad_tone=ad_tone or "commercial_premium",
-                speed=speed_val
-            )
+            try:
+                GeminiFlashTTSEngine.generate_speech(
+                    text=full_script_text,
+                    output_path=str(voice_audio_path),
+                    voice_name=gemini_voice,
+                    ad_tone=ad_tone or "commercial_premium",
+                    speed=speed_val
+                )
 
-            probe_cmd = [
-                "ffprobe", "-v", "error", "-show_entries", "format=duration",
-                "-of", "default=noprint_wrappers=1:nokey=1", str(voice_audio_path)
-            ]
-            probe_res = subprocess.run(probe_cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore")
-            total_duration = float(probe_res.stdout.strip()) if probe_res.stdout.strip() else 15.0
+                probe_cmd = [
+                    "ffprobe", "-v", "error", "-show_entries", "format=duration",
+                    "-of", "default=noprint_wrappers=1:nokey=1", str(voice_audio_path)
+                ]
+                probe_res = subprocess.run(probe_cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore")
+                total_duration = float(probe_res.stdout.strip()) if probe_res.stdout.strip() else 15.0
 
-            lines_list = script_data["lines"]
-            num_lines = max(1, len(lines_list))
-            dur_per_line = total_duration / num_lines
-            for idx, item in enumerate(lines_list):
-                cues.append({
-                    "id": idx + 1,
-                    "start": idx * dur_per_line,
-                    "end": (idx + 1) * dur_per_line,
-                    "text": item["text"],
-                    "sfx": item.get("sfx"),
-                    "on_screen": item.get("on_screen", "")
-                })
-            print(f"   Gemini Flash TTS voice generated! Duration: {total_duration:.2f}s, Cues: {len(cues)}")
+                lines_list = script_data["lines"]
+                # Split raw lines into smart clauses for frame-accurate timing
+                split_items = []
+                for item in lines_list:
+                    cl_texts = SubtitleEngine.split_into_smart_clauses(item.get("text", ""))
+                    for ci, cl in enumerate(cl_texts):
+                        split_items.append({
+                            "text": cl,
+                            "sfx": item.get("sfx") if ci == 0 else None,
+                            "on_screen": item.get("on_screen", "") if ci == 0 else ""
+                        })
+                
+                total_chars = max(1, sum(len(x["text"]) for x in split_items))
+                curr_t = 0.0
+                for idx, item in enumerate(split_items):
+                    line_dur = (len(item["text"]) / total_chars) * total_duration
+                    line_end = min(total_duration, curr_t + line_dur)
+                    if idx == len(split_items) - 1:
+                        line_end = total_duration
+                    cues.append({
+                        "id": idx + 1,
+                        "start": round(curr_t, 3),
+                        "end": round(line_end, 3),
+                        "text": item["text"],
+                        "sfx": item.get("sfx"),
+                        "on_screen": item.get("on_screen", "")
+                    })
+                    curr_t = line_end
+                print(f"   Gemini Flash TTS voice generated! Duration: {total_duration:.2f}s, Cues: {len(cues)}")
+            except Exception as gemini_err:
+                print(f"⚠️ [Gemini Flash TTS] Failed ({gemini_err}) — falling back to Edge-TTS...")
+                _notify("⚠️ Gemini TTS ขัดข้อง สลับไปใช้ Edge-TTS สำรอง...", 0.30)
+                voice_res = VoiceEngine.generate_voiceover(
+                    text_or_lines=script_data["lines"],
+                    output_audio_path=str(voice_audio_path),
+                    voice=voice,
+                    rate=voice_rate
+                )
+                cues = voice_res["cues"]
+                total_duration = voice_res["duration"]
         else:
             voice_audio_path = _out_path("voiceover", ".wav")
             _notify("🗣️ [2/5] กำลังสังเคราะห์เสียง AI พากย์เร็ว TikTok และจับเวลา...", 0.25)
@@ -314,12 +372,14 @@ class TikTokAutoCutterPipeline:
                 output_ass_path=str(ass_path),
                 font_name=font_name,
                 hook_title=banner_title,
-                hook_duration=min(3.5, total_duration),
+                hook_duration=min(float(hook_duration or 3.0), total_duration),
                 bilingual=bilingual_subtitles,
                 caption_position=caption_position,
                 caption_color=caption_color,
                 caption_scale=caption_scale
             )
+            # Sync translations back to main cues
+            cues = micro_cues
             print(f"   Subtitles created: {ass_path} ({len(micro_cues)} micro-bursts)")
         else:
             ass_path = _reuse("subtitles_ass", "ไฟล์ซับไตเติล")
@@ -385,15 +445,17 @@ class TikTokAutoCutterPipeline:
 
         ai_matched_shots = None
         if export_mp4 and use_ai_vision and os.environ.get("GEMINI_API_KEY"):
-            _notify("👁️ [AI Vision] ให้ Gemini 2.5 Flash ดูคลิปและเลือกฉากที่ตรงกับสคริปต์...", 0.75)
+            _notify("👁️ [AI Vision] เตรียมวิดีโอส่งให้ Gemini 2.5 Flash...", 0.72)
             print("\n👁️ [AI Vision] Gemini 2.5 Flash is analyzing raw footage scenes...")
             try:
                 raw_info = VideoEditor.get_media_info(str(raw_video))
+                _notify("👁️ [AI Vision] ให้ Gemini 2.5 Flash ดูคลิปและเลือกฉากที่ตรงกับสคริปต์...", 0.76)
                 ai_matched_shots = GeminiVisionMatcher.match_script_to_video(
                     raw_video_path=str(raw_video),
                     cues=micro_cues,
                     raw_duration=raw_info.get("duration", 60.0)
                 )
+                _notify("👁️ [AI Vision] จับคู่ฉากสมบูรณ์ กำลังส่งต่อให้ขั้นตอนตัดต่อ...", 0.82)
             except Exception as e:
                 print(f"   ⚠️ AI Vision Matching skipped ({e}) — using rhythmic cuts.")
 
@@ -411,12 +473,22 @@ class TikTokAutoCutterPipeline:
         shot_scales = LOOK_PRESETS.get(angle_meta.get("angle_key", "")) if angle_meta else None
 
         if export_mp4:
-            _notify("✂️ [5/5] กำลังตัดต่อวิดีโอ 9:16 + Punch-Zoom & เรนเดอร์ไฟล์ MP4...", 0.85)
+            _notify("✂️ [5/5] เริ่มต้นตัดต่อวิดีโอ 9:16 + Punch-Zoom...", 0.85)
             print("\n✂️ [5/5] Cutting Video, Dynamic Punch-Zooming & Rendering Final MP4...")
             # A draft is 720p at crf 26 -- it must never be mistaken for the
             # file to post, so it says so in its name.
             suffix = "_draft" if export_preset == "draft" else ""
             out_mp4 = EXPORTS_DIR / f"{project_name}_{timestamp_str}{suffix}.mp4"
+
+            def on_ffmpeg_progress(curr_sec: float, tot_sec: float):
+                ratio = min(1.0, max(0.0, curr_sec / max(0.1, tot_sec)))
+                overall = round(0.85 + (ratio * 0.13), 3)
+                pct_num = int(ratio * 100)
+                _notify(
+                    f"✂️ [5/5] กำลังเรนเดอร์วิดีโอ 1080x1920... {curr_sec:.1f}s / {tot_sec:.1f}s ({pct_num}%)",
+                    overall
+                )
+
             VideoEditor.assemble_tiktok_video(
                 raw_video_paths=[str(raw_video)],
                 total_duration=total_duration,
@@ -433,11 +505,87 @@ class TikTokAutoCutterPipeline:
                 transitions=transitions,
                 export_preset=export_preset,
                 sticker_position=sticker_position,
-                sticker_scale=sticker_scale
+                sticker_scale=sticker_scale,
+                progress_callback=on_ffmpeg_progress
             )
             result_paths["mp4_video"] = str(out_mp4)
             result_paths["ai_matched_shots"] = ai_matched_shots
+            _notify("🎉 การตัดต่อและเรนเดอร์เสร็จสมบูรณ์ 100%!", 1.0)
             print(f"   🎉 FINAL MP4 READY: {out_mp4}")
+
+        # Compute and persist individual AI-cut shot clips for the Editor's multi-track timeline
+        actual_clip_list = clip_list
+        if not actual_clip_list and raw_video:
+            try:
+                # Use smart clause cues so video shots match the 1-Click rhythm & thought scenes
+                active_cues = micro_cues if (micro_cues and len(micro_cues) > 0) else cues
+                effective_shot_scales = shot_scales or [1.25, 1.0, 1.35, 1.05, 1.3, 1.0]
+                shots = []
+                if active_cues:
+                    for idx, c in enumerate(active_cues):
+                        c_start = float(c.get("start", 0.0))
+                        c_end = float(c.get("end", 0.0))
+                        c_dur = max(0.2, c_end - c_start)
+                        ai_shot = ai_matched_shots[idx] if ai_matched_shots and idx < len(ai_matched_shots) else None
+                        if ai_shot:
+                            ai_start = float(ai_shot.get("start_time", 0.0))
+                            ai_zoom = float(ai_shot.get("punch_zoom", effective_shot_scales[idx % len(effective_shot_scales)]))
+                            scale = min(1.4, max(1.0, ai_zoom))
+                            raw_offset = max(0.0, min(ai_start, max(0.0, raw_duration - c_dur - 0.2)))
+                        else:
+                            scale = effective_shot_scales[idx % len(effective_shot_scales)]
+                            raw_offset = (idx * 3.5) % max(1.0, raw_duration - c_dur - 1.0)
+                        shots.append({
+                            "start": c_start,
+                            "end": c_end,
+                            "scale": scale,
+                            "raw_offset": raw_offset
+                        })
+                else:
+                    curr_t = 0.0
+                    shot_idx = 0
+                    while curr_t < total_duration:
+                        dur = 2.0
+                        end_t = min(curr_t + dur, total_duration)
+                        scale = effective_shot_scales[shot_idx % len(effective_shot_scales)]
+                        raw_offset = (shot_idx * 3.5) % max(1.0, raw_duration - dur - 1.0)
+                        shots.append({
+                            "start": curr_t,
+                            "end": end_t,
+                            "scale": scale,
+                            "raw_offset": raw_offset
+                        })
+                        curr_t = end_t
+                        shot_idx += 1
+
+                generated_clips = []
+                for idx, shot in enumerate(shots):
+                    s_dur = max(0.2, shot["end"] - shot["start"])
+                    raw_start_offset = float(shot.get("raw_offset", 0.0))
+                    trim_end = round(raw_start_offset + s_dur, 3)
+                    generated_clips.append({
+                        "id": f"clip_{idx}",
+                        "source_path": str(raw_video),
+                        "trim_start": round(raw_start_offset, 3),
+                        "trim_end": trim_end,
+                        "duration": round(s_dur, 3),
+                        "speed": 1.0,
+                        "zoom": round(float(shot.get("scale", 1.0)), 2),
+                        "shot_index": idx,
+                        "transition_in": "cut"
+                    })
+                actual_clip_list = generated_clips
+            except Exception as shot_err:
+                print(f"Warning: Failed to generate shot clip_list: {shot_err}")
+                actual_clip_list = [{
+                    "id": "clip_0",
+                    "source_path": str(raw_video),
+                    "trim_start": 0.0,
+                    "trim_end": round(total_duration, 3),
+                    "duration": round(total_duration, 3),
+                    "speed": 1.0,
+                    "transition_in": "cut"
+                }]
 
         # 6. Persist everything a re-roll will need to reuse
         artifacts = {
@@ -453,6 +601,7 @@ class TikTokAutoCutterPipeline:
             "cues": cues,
             "micro_cues": micro_cues,
             "total_duration": total_duration,
+            "clip_list": actual_clip_list,
             "render_params": {
                 "product_name": product_name,
                 "raw_video_path": str(raw_video),
@@ -483,7 +632,7 @@ class TikTokAutoCutterPipeline:
                 "sticker_scale": sticker_scale,
                 "lut_name": lut_name,
                 "lut_intensity": lut_intensity,
-                "clip_list": clip_list,
+                "clip_list": actual_clip_list,
                 "transitions": transitions,
             },
             "artifacts": artifacts,
@@ -495,6 +644,8 @@ class TikTokAutoCutterPipeline:
 
         ProjectManifest.save(project_name, **manifest_fields)
         result_paths["manifest"] = str(ProjectManifest.path_for(project_name))
+        result_paths["clip_list"] = actual_clip_list
+        result_paths["project_name"] = project_name
 
         _notify("🎉 ตัดต่อเสร็จสมบูรณ์ 100%!", 1.0)
         print(f"\n=======================================================")

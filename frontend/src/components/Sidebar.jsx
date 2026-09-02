@@ -1,20 +1,32 @@
 import React, { useState } from 'react';
 import {
   Rocket, Sparkles, FolderDown, Settings, Layers,
-  Smartphone, Maximize, Minimize, X, Copy, Check, Wifi, Scissors
+  Smartphone, Maximize, Minimize, X, Copy, Check, Wifi, Scissors,
+  Palette, MoreHorizontal, BarChart3, ChevronRight
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
-const NAV_ITEMS = [
-  { id: 'flow',    icon: Rocket,     label: '1. สินค้า → คลิป',     shortLabel: 'สินค้า' },
-  { id: 'tracker', icon: Layers,     label: '2. แทร็กเกอร์ 5 เฟส',    shortLabel: 'Tracker' },
-  { id: 'editor',  icon: Scissors,   label: '3. ตัดต่อ & สร้างคลิป', shortLabel: 'Editor' },
-  { id: 'gallery', icon: FolderDown, label: '4. Export Gallery',    shortLabel: 'Gallery' },
-  { id: 'assets',  icon: Settings,   label: '5. Assets & System',   shortLabel: 'System' },
+// ── Desktop Navigation Items (6 items) ──
+const DESKTOP_NAV_ITEMS = [
+  { id: 'flow',     icon: Rocket,     label: '1. สินค้า → คลิป',     shortLabel: 'สินค้า' },
+  { id: 'tracker',  icon: Layers,     label: '2. แทร็กเกอร์ 5 เฟส',    shortLabel: 'Tracker' },
+  { id: 'editor',   icon: Scissors,   label: '3. ตัดต่อ & สร้างคลิป', shortLabel: 'Editor' },
+  { id: 'gallery',  icon: FolderDown, label: '4. Export Gallery',    shortLabel: 'Gallery' },
+  { id: 'assets',   icon: Palette,    label: '5. Media Assets Hub',   shortLabel: 'Assets' },
+  { id: 'settings', icon: Settings,   label: '6. ตั้งค่า & โทเคน AI',  shortLabel: 'Settings' },
+];
+
+// ── Mobile Primary Tabs (4 items + 1 'More' button) ──
+const MOBILE_PRIMARY_TABS = [
+  { id: 'flow',    icon: Rocket,     label: 'สินค้า' },
+  { id: 'tracker', icon: Layers,     label: 'Tracker' },
+  { id: 'editor',  icon: Scissors,   label: 'Editor' },
+  { id: 'gallery', icon: FolderDown, label: 'Gallery' },
 ];
 
 export default function Sidebar({ activeTab, setActiveTab, status }) {
   const [showMobileModal, setShowMobileModal] = useState(false);
+  const [showMoreDrawer, setShowMoreDrawer] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -35,6 +47,8 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const isMoreActive = activeTab === 'assets' || activeTab === 'settings' || activeTab === 'dashboard';
+
   return (
     <>
       {/* ── Desktop Sidebar ── */}
@@ -48,9 +62,9 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
 
         {/* Navigation icons */}
         <nav className="flex-1 flex flex-col items-center pt-3.5 gap-2">
-          {NAV_ITEMS.map((item) => {
+          {DESKTOP_NAV_ITEMS.map((item) => {
             const Icon = item.icon;
-            const isActive = activeTab === item.id;
+            const isActive = activeTab === item.id || (item.id === 'settings' && activeTab === 'dashboard');
             return (
               <button
                 key={item.id}
@@ -99,27 +113,147 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
         </div>
       </aside>
 
-      {/* ── Mobile Bottom Tab Bar ── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#080B11]/95 backdrop-blur-xl border-t border-white/[0.08] flex items-center justify-around px-1 py-2 safe-bottom shadow-2xl">
-        {NAV_ITEMS.map((item) => {
+      {/* ── Mobile Bottom Tab Bar (Strict 5 items limit) ── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#080B11]/95 backdrop-blur-2xl border-t border-white/[0.08] flex items-center justify-around px-2 py-1.5 safe-bottom shadow-2xl">
+        {MOBILE_PRIMARY_TABS.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
           return (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`flex flex-col items-center gap-0.5 py-1.5 px-2 rounded-xl transition-all cursor-pointer min-w-[48px]
+              className={`flex flex-col items-center gap-0.5 py-1 px-3 rounded-xl transition-all cursor-pointer flex-1
                 ${isActive
                   ? 'text-[#25F4EE] font-bold'
-                  : 'text-slate-400'
+                  : 'text-slate-400 hover:text-slate-200'
                 }`}
             >
-              <Icon className="w-5 h-5" strokeWidth={isActive ? 2.3 : 1.6} />
-              <span className="text-sm font-kanit">{item.shortLabel}</span>
+              <Icon className="w-5 h-5" strokeWidth={isActive ? 2.3 : 1.7} />
+              <span className="text-[11px] font-kanit tracking-tight">{item.label}</span>
             </button>
           );
         })}
+
+        {/* 5th Tab: 'อื่นๆ' (More Drawer Button) */}
+        <button
+          onClick={() => setShowMoreDrawer(true)}
+          className={`flex flex-col items-center gap-0.5 py-1 px-3 rounded-xl transition-all cursor-pointer flex-1
+            ${isMoreActive || showMoreDrawer
+              ? 'text-[#25F4EE] font-bold'
+              : 'text-slate-400 hover:text-slate-200'
+            }`}
+        >
+          <MoreHorizontal className="w-5 h-5" strokeWidth={isMoreActive ? 2.5 : 1.8} />
+          <span className="text-[11px] font-kanit tracking-tight">อื่นๆ</span>
+        </button>
       </nav>
+
+      {/* ── Mobile 'More' Action Drawer (Bottom Sheet) ── */}
+      {showMoreDrawer && (
+        <div className="md:hidden fixed inset-0 z-[90] flex flex-col justify-end bg-black/80 backdrop-blur-md animate-fadeIn">
+          {/* Backdrop click to dismiss */}
+          <div className="flex-1" onClick={() => setShowMoreDrawer(false)} />
+
+          {/* Drawer Card */}
+          <div className="w-full bg-[#0D111A] border-t border-white/[0.12] rounded-t-3xl p-5 pb-8 space-y-4 shadow-2xl animate-slideUp safe-bottom">
+            {/* Drawer Handle */}
+            <div className="w-12 h-1.5 rounded-full bg-white/[0.2] mx-auto mb-2" />
+
+            <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
+              <h3 className="text-sm font-bold text-white font-kanit flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[#25F4EE]" />
+                เมนูเพิ่มเติม (More Options)
+              </h3>
+              <button
+                onClick={() => setShowMoreDrawer(false)}
+                className="p-1.5 rounded-xl bg-white/[0.05] text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2.5">
+              {/* Option 1: Media Assets Hub */}
+              <button
+                onClick={() => {
+                  setActiveTab('assets');
+                  setShowMoreDrawer(false);
+                }}
+                className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                  activeTab === 'assets'
+                    ? 'bg-[#25F4EE]/10 border-[#25F4EE]/40 text-[#25F4EE]'
+                    : 'bg-white/[0.03] border-white/[0.06] text-slate-200 hover:bg-white/[0.06]'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                    <Palette className="w-4 h-4" />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-xs font-bold text-white font-kanit">Media Assets Hub</div>
+                    <div className="text-[10px] text-slate-400">คลังเสียง SFX, เพลง BGM, ฟอนต์ และสติกเกอร์ 3D</div>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-500" />
+              </button>
+
+              {/* Option 2: Settings & Token Analytics */}
+              <button
+                onClick={() => {
+                  setActiveTab('settings');
+                  setShowMoreDrawer(false);
+                }}
+                className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                  activeTab === 'settings' || activeTab === 'dashboard'
+                    ? 'bg-[#25F4EE]/10 border-[#25F4EE]/40 text-[#25F4EE]'
+                    : 'bg-white/[0.03] border-white/[0.06] text-slate-200 hover:bg-white/[0.06]'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-[#25F4EE]/10 border border-[#25F4EE]/20 flex items-center justify-center text-[#25F4EE]">
+                    <Settings className="w-4 h-4" />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-xs font-bold text-white font-kanit flex items-center gap-1.5">
+                      ตั้งค่าระบบ & สถิติโทเคน AI
+                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-[#25F4EE] border border-cyan-500/30">
+                        Tokens
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-slate-400">สถิติโทเคน AI, ปรับขนาดจอ, ฟอนต์ระบบ, โฟลเดอร์</div>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-500" />
+              </button>
+
+              {/* Utilities Row: QR & Fullscreen */}
+              <div className="grid grid-cols-2 gap-2.5 pt-1">
+                <button
+                  onClick={() => {
+                    setShowMoreDrawer(false);
+                    setShowMobileModal(true);
+                  }}
+                  className="flex items-center justify-center gap-2 p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-slate-200 text-xs font-bold cursor-pointer"
+                >
+                  <Smartphone className="w-4 h-4 text-[#25F4EE]" />
+                  <span>สแกน QR มือถือ</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    toggleFullscreen();
+                    setShowMoreDrawer(false);
+                  }}
+                  className="flex items-center justify-center gap-2 p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-slate-200 text-xs font-bold cursor-pointer"
+                >
+                  {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                  <span>{isFullscreen ? 'ย่อหน้าจอ' : 'เต็มหน้าจอ'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Mobile Upload QR Modal ── */}
       {showMobileModal && (
