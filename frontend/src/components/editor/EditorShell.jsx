@@ -18,6 +18,7 @@ import Inspector from './Inspector';
 import Timeline from './Timeline';
 import Toolbar from './Toolbar';
 import NewClipPanel from './NewClipPanel';
+import HeaderMenu from './HeaderMenu';
 import UiScaleControl from '../UiScaleControl';
 
 const framesFor = (seconds) => Math.max(6, Math.min(40, Math.round((seconds || 12) / 3)));
@@ -749,31 +750,6 @@ export default function EditorShell({
             ))}
           </select>
 
-          <button
-            type="button"
-            onClick={() => loadProject(projectName)}
-            disabled={!projectName || loading}
-            title="โหลดใหม่"
-            className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/[0.08] transition-colors cursor-pointer disabled:opacity-40 flex-shrink-0"
-          >
-            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin text-[#25F4EE]" /> : <RefreshCw className="h-3.5 w-3.5" />}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setDeleteError(null);
-              setDeleteScope('project');
-              setDeleteOrigin(null);
-              setPendingDelete(projectName);
-              getProjectOrigin(projectName).then(setDeleteOrigin).catch(() => setDeleteOrigin({}));
-            }}
-            disabled={!projectName || loading || applying}
-            title={projectName ? `ลบโปรเจกต์ ${projectName} ถาวร` : 'เลือกโปรเจกต์ก่อน'}
-            className="flex h-9 w-9 flex-shrink-0 cursor-pointer items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.05] text-slate-300 transition-colors hover:bg-rose-500/15 hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
         </div>
 
         {/* Center: Timecode */}
@@ -804,7 +780,36 @@ export default function EditorShell({
             <span className="hidden sm:inline">คลิปใหม่</span>
           </button>
 
-          <UiScaleControl className="hidden lg:flex" />
+          <HeaderMenu
+            items={[
+              {
+                id: 'reload',
+                label: loading ? 'กำลังโหลด...' : 'โหลดโปรเจกต์ใหม่',
+                icon: loading ? Loader2 : RefreshCw,
+                disabled: !projectName || loading,
+                onSelect: () => loadProject(projectName),
+              },
+              {
+                id: 'scale',
+                hint: 'ขนาดตัวอักษรทั้งระบบ',
+                render: () => <UiScaleControl variant="menu" />,
+              },
+              {
+                id: 'delete',
+                label: 'ลบโปรเจกต์นี้...',
+                icon: Trash2,
+                danger: true,
+                disabled: !projectName || loading || applying,
+                onSelect: () => {
+                  setDeleteError(null);
+                  setDeleteScope('project');
+                  setDeleteOrigin(null);
+                  setPendingDelete(projectName);
+                  getProjectOrigin(projectName).then(setDeleteOrigin).catch(() => setDeleteOrigin({}));
+                },
+              },
+            ]}
+          />
 
           <select
             value={exportPreset}
