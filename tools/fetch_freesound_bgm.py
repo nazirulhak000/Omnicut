@@ -38,7 +38,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.fetch_freesound_sfx import _api_key, _get_json, _slugify, CC0_LICENSE
+from tools.fetch_freesound_sfx import _api_key, _get_json, _slugify, CC0_LICENSE
 from scripts.config import MUSIC_DIR
 from scripts.asset_registry import AssetRegistry, METADATA_PATH
 
