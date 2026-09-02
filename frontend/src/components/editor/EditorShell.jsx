@@ -405,7 +405,11 @@ export default function EditorShell({
   const duplicateSelected = () => {
     if (!selectedSeg) return;
     const orig = selectedSeg.clip;
-    const dup = { ...orig, id: newId() };
+    // transition_in describes the boundary with whatever clip used to precede
+    // this one, not a property of the clip itself. Copying it verbatim onto a
+    // duplicate placed right after the original would crossfade orig into its
+    // own copy -- splitClipAt already resets this for the same reason.
+    const dup = { ...orig, id: newId(), transition_in: 'cut' };
     set((prev) => {
       const idx = prev.clipList.findIndex((c) => c.id === orig.id);
       if (idx === -1) return prev;
