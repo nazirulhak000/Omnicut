@@ -1,7 +1,6 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
-import PresetsBar from './components/PresetsBar';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/ErrorBoundary';
 import ShortcutsModal from './components/ShortcutsModal';
@@ -16,11 +15,9 @@ const EditorShell = lazy(() => import('./components/editor/EditorShell'));
 const ExportGallery = lazy(() => import('./components/ExportGallery'));
 const SystemAssets = lazy(() => import('./components/SystemAssets'));
 
-import { DEFAULT_STUDIO_FORM, getSavedStudioForm } from './lib/studioDefaults';
 import { angleToForm } from './lib/angleToForm';
 
 export default function App() {
-  const savedForm = getSavedStudioForm();
 
   // 1. Active Tab Persistence with Fallback Migration
   const [activeTab, setActiveTab] = useState(() => {
@@ -75,62 +72,6 @@ export default function App() {
 
   const [selectedProductIdForFlow, setSelectedProductIdForFlow] = useState(null);
 
-  // 4. Studio Form State with Persistence
-  const [selectedVideo, setSelectedVideo] = useState(savedForm.selectedVideo || '');
-  const [productName, setProductName] = useState(savedForm.productName);
-  const [hookTitle, setHookTitle] = useState(savedForm.hookTitle);
-  const [painPoint, setPainPoint] = useState(savedForm.painPoint);
-  const [priceDeal, setPriceDeal] = useState(savedForm.priceDeal);
-  const [keyFeatures, setKeyFeatures] = useState(savedForm.keyFeatures);
-  const [customScript, setCustomScript] = useState(savedForm.customScript);
-  const [useCustomScript, setUseCustomScript] = useState(savedForm.useCustomScript);
-
-  // Audio & Typography State
-  const [voiceMode, setVoiceMode] = useState(savedForm.voiceMode);
-  const [voiceGender, setVoiceGender] = useState(savedForm.voiceGender);
-  const [voiceSpeed, setVoiceSpeed] = useState(savedForm.voiceSpeed);
-  const [voicePreset, setVoicePreset] = useState(savedForm.voicePreset);
-  const [adTone, setAdTone] = useState(savedForm.adTone);
-  const [humanVoiceAudio, setHumanVoiceAudio] = useState(null);
-  const [fontName, setFontName] = useState(savedForm.fontName);
-  const [bilingualSubtitles, setBilingualSubtitles] = useState(savedForm.bilingualSubtitles);
-  const [stickerBadge, setStickerBadge] = useState(savedForm.stickerBadge);
-  const [bgmName, setBgmName] = useState(savedForm.bgmName);
-  const [lutName, setLutName] = useState(savedForm.lutName);
-
-  // Auto-save Studio Form to localStorage on any state change
-  useEffect(() => {
-    const formData = {
-      selectedVideo,
-      productName,
-      hookTitle,
-      painPoint,
-      priceDeal,
-      keyFeatures,
-      customScript,
-      useCustomScript,
-      voiceMode,
-      voiceGender,
-      voiceSpeed,
-      voicePreset,
-      adTone,
-      fontName,
-      bilingualSubtitles,
-      stickerBadge,
-      bgmName,
-      lutName
-    };
-    try {
-      localStorage.setItem('capcut_studio_form', JSON.stringify(formData));
-    } catch (e) {
-      console.error('Failed to auto-save studio form:', e);
-    }
-  }, [
-    selectedVideo, productName, hookTitle, painPoint, priceDeal,
-    keyFeatures, customScript, useCustomScript, voiceMode, voiceGender,
-    voiceSpeed, voicePreset, adTone, fontName, bilingualSubtitles,
-    stickerBadge, bgmName, lutName
-  ]);
 
   // Auto-save Context Objects to localStorage
   useEffect(() => {
@@ -160,28 +101,9 @@ export default function App() {
       setActiveTab(tab);
     },
     onSave: () => {
-      const formData = {
-        selectedVideo,
-        productName,
-        hookTitle,
-        painPoint,
-        priceDeal,
-        keyFeatures,
-        customScript,
-        useCustomScript,
-        voiceMode,
-        voiceGender,
-        voiceSpeed,
-        voicePreset,
-        adTone,
-        fontName,
-        bilingualSubtitles,
-        stickerBadge,
-        bgmName,
-        lutName
-      };
-      localStorage.setItem('capcut_studio_form', JSON.stringify(formData));
-      setGlobalToast('บันทึกข้อมูลฟอร์มและสถานะระบบเรียบร้อยแล้ว (Auto-Saved)');
+      // The create panel persists its form on every change, so there is
+      // nothing to flush here -- just say so.
+      setGlobalToast('บันทึกข้อมูลฟอร์มเรียบร้อยแล้ว (บันทึกอัตโนมัติอยู่แล้ว)');
       setTimeout(() => setGlobalToast(null), 2500);
     },
     onToggleShortcutsModal: () => {
@@ -203,9 +125,6 @@ export default function App() {
       setVideos(vRes.videos || []);
       setExportsList(eRes.exports || []);
 
-      if (!selectedVideo && vRes.videos?.length > 0) {
-        setSelectedVideo(vRes.videos[0].path);
-      }
     } catch (err) {
       console.error('Failed to load initial data:', err);
     }
@@ -215,111 +134,57 @@ export default function App() {
     refreshData();
   }, []);
 
-  const handleSelectPreset = (data) => {
-    setProductName(data.productName);
-    setHookTitle(data.hookTitle);
-    setPainPoint(data.painPoint);
-    setPriceDeal(data.priceDeal);
-    setKeyFeatures(data.keyFeatures);
-    setUseCustomScript(false);
-  };
 
   const handleSelectAngle = (index) => {
-    if (!activeProductContext || !activeProductContext.angles || !activeProductContext.angles[index]) return;
+    // The create panel maps the angle to form fields itself (lib/angleToForm),
+    // so switching angle is only a matter of which one is current.
+    if (!activeProductContext?.angles?.[index]) return;
     setSelectedAngleIndex(index);
-    const patch = angleToForm(activeProductContext.angles[index], activeProductContext);
-    if (!patch) return;
-
-    setProductName(patch.productName);
-    setHookTitle(patch.hookTitle);
-    setCustomScript(patch.customScript);
-    setUseCustomScript(patch.useCustomScript);
-    setKeyFeatures(patch.keyFeatures);
-    setPainPoint(patch.painPoint);
-    setPriceDeal(patch.priceDeal);
-    if (patch.adTone) setAdTone(patch.adTone);
   };
 
   const handleVideoUploaded = (newFile) => {
-    setVideos(prev => [newFile, ...prev]);
-    setSelectedVideo(newFile.path);
+    setVideos((prev) => [newFile, ...prev]);
   };
 
   const handleVideoDeleted = (deletedPath) => {
-    setVideos(prev => {
-      const remaining = prev.filter(v => v.path !== deletedPath && v.rel_path !== deletedPath);
-      if (selectedVideo === deletedPath && remaining.length > 0) {
-        setSelectedVideo(remaining[0].path);
-      } else if (remaining.length === 0) {
-        setSelectedVideo('');
-      }
-      return remaining;
-    });
+    setVideos((prev) => prev.filter((v) => v.path !== deletedPath && v.rel_path !== deletedPath));
   };
 
   const handleApplyScriptFromLab = (data) => {
     if (data.productId && data.angleId) {
       setActiveAngleContext({ productId: data.productId, angleId: data.angleId });
     }
+
     if (data.fullProduct) {
       setActiveProductContext(data.fullProduct);
       setSelectedAngleIndex(data.angleIndex || 0);
     } else {
+      // No saved product behind this script: wrap what was handed over as a
+      // single angle so the editor's panel fills itself the same way.
       setActiveProductContext({
         id: data.productId || 'custom',
         title: data.productName || 'สินค้า',
         name: data.productName || 'สินค้า',
         description: data.keyFeatures || '',
         price_note: data.priceDeal || '',
-        images: data.selectedVideo ? [{ rel_path: data.selectedVideo, name: 'media' }] : []
+        images: data.selectedVideo ? [{ rel_path: data.selectedVideo, name: 'media' }] : [],
+        angles: [{
+          angle_name: 'บทที่เพิ่งเลือก',
+          product_name: data.productName || 'สินค้า',
+          hook_title: data.hookTitle || '',
+          script_text: data.customScript || '',
+          key_features: data.keyFeatures || '',
+          pain_point: data.painPoint || '',
+          price_deal: data.priceDeal || '',
+          ad_tone: data.adTone,
+        }],
       });
+      setSelectedAngleIndex(0);
     }
-    if (data.productName) setProductName(data.productName);
-    if (data.hookTitle) setHookTitle(data.hookTitle);
-    if (data.customScript) {
-      setCustomScript(data.customScript);
-      setUseCustomScript(true);
-    }
-    if (data.keyFeatures) setKeyFeatures(data.keyFeatures);
-    if (data.painPoint) setPainPoint(data.painPoint);
-    if (data.priceDeal) setPriceDeal(data.priceDeal);
-    if (data.adTone) setAdTone(data.adTone);
 
     setActiveTab('editor');
   };
 
-  const handleResetStudioForm = () => {
-    if (!window.confirm('คุณต้องการรีเซ็ตข้อมูลทั้งหมดใน Studio กลับเป็นค่าเริ่มต้นใช่หรือไม่?')) {
-      return;
-    }
-    setSelectedVideo('');
-    setProductName(DEFAULT_STUDIO_FORM.productName);
-    setHookTitle(DEFAULT_STUDIO_FORM.hookTitle);
-    setPainPoint(DEFAULT_STUDIO_FORM.painPoint);
-    setPriceDeal(DEFAULT_STUDIO_FORM.priceDeal);
-    setKeyFeatures(DEFAULT_STUDIO_FORM.keyFeatures);
-    setCustomScript(DEFAULT_STUDIO_FORM.customScript);
-    setUseCustomScript(DEFAULT_STUDIO_FORM.useCustomScript);
-    setVoiceMode(DEFAULT_STUDIO_FORM.voiceMode);
-    setVoiceGender(DEFAULT_STUDIO_FORM.voiceGender);
-    setVoiceSpeed(DEFAULT_STUDIO_FORM.voiceSpeed);
-    setVoicePreset(DEFAULT_STUDIO_FORM.voicePreset);
-    setAdTone(DEFAULT_STUDIO_FORM.adTone);
-    setHumanVoiceAudio(null);
-    setFontName(DEFAULT_STUDIO_FORM.fontName);
-    setBilingualSubtitles(DEFAULT_STUDIO_FORM.bilingualSubtitles);
-    setStickerBadge(DEFAULT_STUDIO_FORM.stickerBadge);
-    setBgmName(DEFAULT_STUDIO_FORM.bgmName);
-    setLutName(DEFAULT_STUDIO_FORM.lutName);
-    setActiveProductContext(null);
-    setSelectedAngleIndex(0);
-    setActiveAngleContext(null);
-
-    localStorage.removeItem('capcut_studio_form');
-    localStorage.removeItem('capcut_active_product_context');
-    localStorage.removeItem('capcut_selected_angle_index');
-    localStorage.removeItem('capcut_active_angle_context');
-  };
 
   const handleRenderSuccess = async (result) => {
     if (activeAngleContext?.productId && activeAngleContext?.angleId) {

@@ -23,6 +23,7 @@ export const DEFAULT_STUDIO_FORM = {
   stickerBadge: 'badge_flash_sale_3d.png',
   bgmName: null,
   lutName: null,
+  useAiVision: true,   // matches RenderRequest's own default
 };
 
 export const STUDIO_FORM_KEY = 'capcut_studio_form';

@@ -4,16 +4,34 @@ import {
   Rocket, Sparkles, Upload, Volume2, Wand2,
 } from 'lucide-react';
 import { generateAiScripts, previewVoice, startRender, uploadFile } from '../../api';
-import { DEFAULT_STUDIO_FORM } from '../../lib/studioDefaults';
+import { DEFAULT_STUDIO_FORM, STUDIO_FORM_KEY, getSavedStudioForm } from '../../lib/studioDefaults';
 import { angleToForm, angleLabel } from '../../lib/angleToForm';
 import { useRenderJob } from '../../hooks/useRenderJob';
 
+// == GEMINI_VOICE_PRESETS in scripts/gemini_tts_engine.py. An id that is not
+// in that map falls through to a default voice without complaining, so the
+// picker would quietly play something else than it names.
 const VOICE_PRESETS = [
-  { id: 'gemini_puck_male_hype', label: 'ผู้ชาย ไฮป์ (Puck)' },
-  { id: 'gemini_kore_female_warm', label: 'ผู้หญิง อบอุ่น (Kore)' },
-  { id: 'gemini_charon_male_calm', label: 'ผู้ชาย นิ่ง (Charon)' },
-  { id: 'gemini_aoede_female_bright', label: 'ผู้หญิง สดใส (Aoede)' },
+  { id: 'gemini_puck_male_hype', label: '⚡ Puck — ชายพลังสูง สไตล์ TikTok' },
+  { id: 'gemini_charon_male_pro', label: '🎙️ Charon — ชายทุ้มลึก น่าเชื่อถือ' },
+  { id: 'gemini_kore_female_bright', label: '✨ Kore — หญิงสดใส ป้ายยาเก่ง' },
+  { id: 'gemini_aoede_female_pro', label: '👑 Aoede — หญิงพรีเมียม นุ่มนวล' },
+  { id: 'gemini_fenrir_male_strong', label: '🔥 Fenrir — ชายสตรอง คมเข้ม' },
 ];
+
+// == AD_TONE_PRESETS in the same file.
+const AD_TONES = [
+  { id: 'commercial_premium', label: '📢 โฆษณาพรีเมียม' },
+  { id: 'commercial_hype', label: '🔥 ป้ายยาไวรัล' },
+  { id: 'commercial_aesthetic', label: '✨ มินิมอล ดูแพง' },
+  { id: 'commercial_expert', label: '🎙️ ผู้เชี่ยวชาญ' },
+];
+
+/** "+15%" -> 1.15 for the preview endpoint, which wants a float. */
+function rateToSpeed(rate) {
+  const m = String(rate || '').match(/(-?\d+)/);
+  return m ? 1 + Number(m[1]) / 100 : 1.15;
+}
 
 const FONTS = [
   { id: 'IBMPlex', label: 'IBM Plex Sans Thai' },
@@ -68,7 +86,10 @@ export default function NewClipPanel({
   onVideoUploaded,
   onCreated,
 }) {
-  const [form, setForm] = useState(() => ({ ...DEFAULT_STUDIO_FORM }));
+  // Start from whatever was used last -- voice, font, tone and badge are
+  // channel-level choices, and retyping them every clip was the old form's
+  // job to avoid.
+  const [form, setForm] = useState(() => getSavedStudioForm());
   const [showFields, setShowFields] = useState(!productContext);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [aiScripts, setAiScripts] = useState(null);
@@ -80,6 +101,12 @@ export default function NewClipPanel({
   const fileRef = useRef(null);
 
   const patch = (next) => setForm((prev) => ({ ...prev, ...next }));
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STUDIO_FORM_KEY, JSON.stringify(form));
+    } catch (err) { /* private mode: the form just will not be remembered */ }
+  }, [form]);
 
   const {
     rendering, jobStatus, progressPercent, renderError, executeRender,
@@ -172,10 +199,12 @@ export default function NewClipPanel({
     try {
       const res = await previewVoice({
         text: form.hookTitle || form.productName,
-        voice_mode: form.voiceMode,
-        voice_gender: form.voiceGender,
-        voice_preset: form.voicePreset,
-        voice_speed: form.voiceSpeed,
+        // /api/voice/preview resolves the Gemini preset out of voice_gender;
+        // sending "male" here auditions an Edge-TTS voice instead of the one
+        // that is actually selected.
+        voice_gender: form.voicePreset,
+        speed: rateToSpeed(form.voiceSpeed),
+        ad_tone: form.adTone,
       });
       const url = res?.audio_url || res?.url;
       if (url) new Audio(url).play().catch(() => {});
@@ -204,12 +233,12 @@ export default function NewClipPanel({
       voice_mode: form.voiceMode,
       voice_gender: form.voiceGender,
       voice_preset: form.voicePreset,
-      voice_speed: form.voiceSpeed,
+      voice_rate: form.voiceSpeed,
       ad_tone: form.adTone || 'commercial_premium',
       human_voice_audio: null,
       font_name: form.fontName || 'IBMPlex',
       bilingual_subtitles: form.bilingualSubtitles !== false,
-      use_ai_vision: false,
+      use_ai_vision: form.useAiVision !== false,
       sticker_badge: form.stickerBadge || null,
       bgm_name: form.bgmName || null,
       lut_name: form.lutName || null,
@@ -450,6 +479,27 @@ export default function NewClipPanel({
                 >
                   {FONTS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
                 </select>
+              </label>
+
+              <label className="block">
+                <span className="mb-1 block text-[10px] text-slate-400">โทนโฆษณา</span>
+                <select
+                  value={form.adTone || 'commercial_premium'}
+                  onChange={(e) => patch({ adTone: e.target.value })}
+                  className="w-full rounded-lg border border-white/[0.08] bg-black/40 px-2 py-1.5 text-[11px] text-white focus:outline-none"
+                >
+                  {AD_TONES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+                </select>
+              </label>
+
+              <label className="flex items-center gap-2 text-[10px] text-slate-400 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.useAiVision !== false}
+                  onChange={(e) => patch({ useAiVision: e.target.checked })}
+                  className="accent-[#D97757]"
+                />
+                ให้ AI ดูภาพเลือกช็อตให้ (ช้าลงเล็กน้อย แต่ตรงเนื้อหากว่า)
               </label>
 
               <label className="flex items-center gap-2 text-[10px] text-slate-400 cursor-pointer">
