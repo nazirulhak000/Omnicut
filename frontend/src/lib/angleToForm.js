@@ -30,6 +30,10 @@ export function angleToForm(angle, context = {}) {
     priceDeal: angle.price_deal || context.price_note || '',
   };
   if (angle.ad_tone) patch.adTone = angle.ad_tone;
+  if (angle.selected_video) patch.selectedVideo = angle.selected_video;
+  else if (angle.selected_videos && angle.selected_videos.length > 0) patch.selectedVideo = angle.selected_videos[0];
+  else if (context.selectedVideo) patch.selectedVideo = context.selectedVideo;
+  else if (context.images && context.images.length > 0) patch.selectedVideo = context.images[0].local_path || context.images[0].rel_path || context.images[0].path;
   return patch;
 }
 

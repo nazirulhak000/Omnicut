@@ -62,10 +62,12 @@ function ProductCard({ product, isSelected, onSelect }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// 📝 ACCORDION SCRIPT ITEM
+// ═══════════════════════════════════════════════════════════════════════
+// 📝 ACCORDION SCRIPT ITEM (with Angle-Specific Footage Selector)
 // ═══════════════════════════════════════════════════════════════════════
 function ScriptAccordionItem({
-  angle, index, isOpen, onToggle, onCopy, onSendToStudio, copiedIndex
+  angle, index, isOpen, onToggle, onCopy, onSendToStudio, copiedIndex,
+  videos = [], onToggleVideoForAngle, onUploadVideo, uploadingImg = false
 }) {
   const lines = Array.isArray(angle.script_lines)
     ? angle.script_lines
@@ -81,6 +83,8 @@ function ScriptAccordionItem({
     : curStatus === 'rendered' ? 'bg-blue-500/15 text-blue-300 border-blue-500/30'
     : curStatus === 'in_production' ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
     : 'bg-white/[0.05] text-slate-400 border-white/[0.08]';
+
+  const selectedVideos = angle.selected_videos || (angle.selected_video ? [angle.selected_video] : []);
 
   return (
     <div className={`rounded-xl border transition-all ${
@@ -115,6 +119,14 @@ function ScriptAccordionItem({
             </p>
           )}
         </div>
+
+        {/* Attached Video Count Badge (if any) */}
+        {selectedVideos.length > 0 && !isOpen && (
+          <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/20 flex-shrink-0">
+            <Film className="w-3 h-3" />
+            <span>{selectedVideos.length} คลิป</span>
+          </span>
+        )}
 
         {/* Status Badge */}
         <span className={`text-sm font-bold px-2 py-0.5 rounded-full border flex-shrink-0 ${statusColor}`}>
@@ -161,8 +173,67 @@ function ScriptAccordionItem({
             </div>
           </div>
 
+          {/* 🎬 Angle-Specific Footage Selector */}
+          <div className="space-y-1.5 pt-1 border-t border-white/[0.06]">
+            <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
+              <span className="flex items-center gap-1.5 text-slate-300">
+                <Film className="w-3.5 h-3.5 text-[#25F4EE]" />
+                <span>คลิปดิบที่แนบกับมุมนี้:</span>
+              </span>
+              <span className="text-[11px] font-mono text-slate-500">
+                {selectedVideos.length > 0
+                  ? `เลือกแล้ว ${selectedVideos.length} คลิป`
+                  : 'ใช้คลิปทั้งหมดในระบบ'}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+              {videos.map(v => {
+                const isChosen = selectedVideos.includes(v.path) || selectedVideos.includes(v.rel_path);
+                return (
+                  <button
+                    key={v.path}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleVideoForAngle && onToggleVideoForAngle(index, v.path || v.rel_path);
+                    }}
+                    className={`flex-shrink-0 flex items-center gap-1.5 py-1.5 px-2.5 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                      isChosen
+                        ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE] shadow-sm shadow-[#25F4EE]/20'
+                        : 'bg-black/40 border-white/[0.08] text-slate-400 hover:border-white/[0.2] hover:text-slate-200'
+                    }`}
+                    title={isChosen ? 'คลิกเพื่อยกเลิกคลิปนี้' : 'คลิกเพื่อเลือกใช้คลิปนี้กับมุมนี้'}
+                  >
+                    <Film className={`w-3.5 h-3.5 ${isChosen ? 'text-[#25F4EE]' : 'text-slate-500'}`} />
+                    <span className="truncate max-w-[130px]">{v.name}</span>
+                    {v.size_mb && <span className="text-[10px] font-mono opacity-60">({v.size_mb}MB)</span>}
+                    {isChosen && <Check className="w-3 h-3 text-[#25F4EE] ml-0.5" />}
+                  </button>
+                );
+              })}
+
+              {/* Inline Upload Footage Button */}
+              <label
+                onClick={(e) => e.stopPropagation()}
+                className="flex-shrink-0 flex items-center gap-1.5 py-1.5 px-2.5 rounded-lg border border-dashed border-white/[0.15] hover:border-[#25F4EE]/50 hover:bg-[#25F4EE]/5 text-xs font-bold text-slate-400 hover:text-[#25F4EE] transition-all cursor-pointer"
+                title="อัปโหลดไฟล์วิดีโอดิบใหม่เข้าสู่ระบบ"
+              >
+                <Plus className="w-3.5 h-3.5 text-[#25F4EE]" />
+                <span>{uploadingImg ? 'กำลังอัปโหลด...' : '+ แนบคลิปเพิ่ม'}</span>
+                <input
+                  type="file"
+                  accept="video/*,image/*"
+                  onChange={onUploadVideo}
+                  disabled={uploadingImg}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          </div>
+
           {/* Action Row */}
-          <div className="flex items-center justify-end gap-2 pt-1">
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/[0.06]">
             <button
               onClick={(e) => { e.stopPropagation(); onSendToStudio(angle, index); }}
               className="py-2 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-[#FE2C55]/25 cursor-pointer active:scale-95 transition-all"
@@ -361,6 +432,23 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     }
   };
 
+  const handleToggleVideoForAngle = (angleIdx, videoPath) => {
+    setAngles(prev => {
+      const next = [...prev];
+      const ang = { ...next[angleIdx] };
+      const currentVideos = ang.selected_videos || (ang.selected_video ? [ang.selected_video] : []);
+      if (currentVideos.includes(videoPath)) {
+        ang.selected_videos = currentVideos.filter(p => p !== videoPath);
+      } else {
+        ang.selected_videos = [...currentVideos, videoPath];
+      }
+      ang.selected_video = ang.selected_videos[0] || null;
+      next[angleIdx] = ang;
+      return next;
+    });
+    showToast('อัปเดตการเลือกคลิปสำหรับมุมนี้เรียบร้อยแล้ว');
+  };
+
   const copyScriptText = (text, idx) => {
     navigator.clipboard.writeText(text);
     setCopiedIndex(idx);
@@ -376,6 +464,11 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       : (angle.script_text ? angle.script_text.split('\n') : []);
     const scriptText = scriptLines.join('\n');
 
+    const chosenVideos = angle.selected_videos && angle.selected_videos.length > 0
+      ? angle.selected_videos
+      : (angle.selected_video ? [angle.selected_video] : (videos.length > 0 ? [videos[0].path] : []));
+    const primaryVideo = chosenVideos[0] || selectedImage || (videos.length > 0 ? videos[0].path : '');
+
     onApplyToStudio({
       productName: angle.product_name || productData?.title || customKeyword || 'สินค้า',
       hookTitle: angle.hook_title || '',
@@ -384,12 +477,15 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       painPoint: angle.pain_point || '',
       priceDeal: angle.price_deal || productData?.price_note || '',
       adTone: angle.ad_tone || 'commercial_premium',
-      selectedVideo: selectedImage || (videos.length > 0 ? videos[0].path : ''),
+      selectedVideo: primaryVideo,
+      selectedVideos: chosenVideos,
       fullProduct: {
         id: productData?.id,
         title: productData?.title || customKeyword || 'สินค้า',
         description: productData?.description,
         price_note: productData?.price_note,
+        selectedVideo: primaryVideo,
+        selectedVideos: chosenVideos,
         images: productData?.images || [],
         angles: angles && angles.length > 0 ? angles : [angle]
       },
@@ -678,12 +774,19 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
             </div>
           </div>
 
-          {/* ──── STEP 2: Script Accordion ──── */}
+          {/* ──── STEP 2: Script Accordion & Footage Selection ──── */}
           <div className="space-y-2">
-            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 px-1">
-              <Sparkles className="w-3.5 h-3.5 text-[#FE2C55]" />
-              <span>Step 2 — เลือกมุมขาย ({totalAngles} สคริปต์)</span>
-            </h2>
+            <div className="flex items-center justify-between px-1">
+              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-[#FE2C55]" />
+                <span>Step 2 — เลือกมุมขาย & คลิปประกอบ ({totalAngles} สคริปต์)</span>
+              </h2>
+              <label className="px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-xs font-bold text-[#25F4EE] cursor-pointer flex items-center gap-1 transition-all">
+                <Upload className="w-3 h-3" />
+                <span>{uploadingImg ? 'อัปโหลด...' : '+ แนบคลิปเข้าคลัง'}</span>
+                <input type="file" accept="video/*,image/*" onChange={handleImageUpload} disabled={uploadingImg} className="hidden" />
+              </label>
+            </div>
 
             <div className="space-y-1.5">
               {angles.map((ang, idx) => (
@@ -696,44 +799,11 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   onCopy={copyScriptText}
                   onSendToStudio={handleSendToStudio}
                   copiedIndex={copiedIndex}
+                  videos={videos}
+                  onToggleVideoForAngle={handleToggleVideoForAngle}
+                  onUploadVideo={handleImageUpload}
+                  uploadingImg={uploadingImg}
                 />
-              ))}
-            </div>
-          </div>
-
-          {/* ──── STEP 3: Media Dock ──── */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between px-1">
-              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Video className="w-3.5 h-3.5 text-[#25F4EE]" />
-                <span>Step 3 — คลิปดิบ & สื่อที่แนบ ({videos.length + (productData.images?.length || 0)} ไฟล์)</span>
-              </h2>
-              <label className="px-2.5 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-sm font-bold text-[#25F4EE] cursor-pointer flex items-center gap-1 transition-all">
-                <Upload className="w-3 h-3" />
-                <span>{uploadingImg ? 'อัปโหลด...' : 'แนบคลิปเพิ่ม'}</span>
-                <input type="file" accept="video/*,image/*" onChange={handleImageUpload} disabled={uploadingImg} className="hidden" />
-              </label>
-            </div>
-
-            {/* Media Chips Strip */}
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar p-2 rounded-xl bg-[#080B11] border border-white/[0.06]">
-              {videos.length === 0 && (productData.images?.length || 0) === 0 && (
-                <div className="text-sm text-slate-500 py-2 px-3 w-full text-center">
-                  ยังไม่มีคลิปดิบ — กดปุ่ม "แนบคลิปเพิ่ม" ด้านบนเพื่ออัปโหลด
-                </div>
-              )}
-              {videos.map(v => (
-                <div key={v.path} className="flex-shrink-0 flex items-center gap-1.5 py-1.5 px-2.5 rounded-lg bg-black/40 border border-white/[0.08] text-xs">
-                  <Film className="w-3 h-3 text-[#25F4EE]" />
-                  <span className="font-bold text-slate-200 truncate max-w-[100px]">{v.name}</span>
-                  <span className="text-sm text-slate-500 font-mono">{v.size_mb}MB</span>
-                </div>
-              ))}
-              {(productData.images || []).map((img, idx) => (
-                <div key={idx} className="flex-shrink-0 flex items-center gap-1.5 py-1 px-1.5 rounded-lg bg-black/40 border border-white/[0.08]">
-                  <img src={`/api/media/${img.rel_path || img.local_path}`} alt="" className="w-7 h-7 rounded object-cover" />
-                  <span className="text-sm text-slate-300 max-w-[80px] truncate">{img.name}</span>
-                </div>
               ))}
             </div>
           </div>

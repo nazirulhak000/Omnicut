@@ -18,11 +18,18 @@ import Inspector from './Inspector';
 import Timeline from './Timeline';
 import Toolbar from './Toolbar';
 import NewClipPanel from './NewClipPanel';
+import { ActivityIndicatorButton } from '../ActivityCenter';
 import HeaderMenu from './HeaderMenu';
+import RenderButton from './RenderButton';
 import UiScaleControl from '../UiScaleControl';
 
 const framesFor = (seconds) => Math.max(6, Math.min(40, Math.round((seconds || 12) / 3)));
 const SNAP_PX = 6;
+const EXPORT_PRESETS = [
+  { id: 'post', label: 'โพสต์จริง 1080p', hint: 'คุณภาพเต็ม สำหรับอัปขึ้น TikTok' },
+  { id: 'draft', label: 'ทดลอง 720p', hint: 'เร็วกว่าประมาณ 2 เท่า ไฟล์มี _draft ต่อท้าย ไม่ใช่ไฟล์สำหรับโพสต์' },
+];
+
 const TIMELINE_MIN_H = 196;
 const TIMELINE_MAX_H = 460;
 const TIMELINE_DEFAULT_H = 212;
@@ -730,32 +737,34 @@ export default function EditorShell({
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-[#0A0D14]">
       {/* ── HEADER / TOPBAR ── */}
       <div className="flex flex-shrink-0 items-center justify-between gap-2 border-b border-white/[0.08] bg-[#0F1420] px-2.5 sm:px-4 py-2">
-        {/* Left: Icon & Project Dropdown */}
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <Scissors className="h-4 w-4 text-[#25F4EE]" />
-            <span className="hidden sm:inline text-xs font-bold text-white font-kanit">ตัดต่อมือ</span>
+        {/* ── Identity: which clip is open, and where the playhead is. The
+              project name is the title of this screen, so it gets the room. ── */}
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <Scissors className="hidden h-4 w-4 flex-shrink-0 text-[#D97757] sm:block" />
+
+          <div className="relative min-w-0 flex-1 sm:max-w-[420px]">
+            <select
+              value={projectName}
+              onChange={(e) => loadProject(e.target.value)}
+              aria-label="โปรเจกต์ที่กำลังแก้"
+              className="h-9 w-full min-w-0 cursor-pointer truncate rounded-xl border border-transparent bg-transparent pl-1 pr-6 text-base font-bold text-white hover:border-white/[0.12] hover:bg-black/40 focus:border-[#D97757] focus:outline-none"
+            >
+              <option value="">— เลือกโปรเจกต์ —</option>
+              {projectList.map((p) => (
+                <option key={p.project_name} value={p.project_name} className="bg-[#0D111A] text-slate-200">
+                  {p.project_name}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <select
-            value={projectName}
-            onChange={(e) => loadProject(e.target.value)}
-            className="w-full max-w-[130px] sm:max-w-[200px] md:max-w-[260px] py-1 px-2 rounded-xl bg-black/60 border border-white/[0.1] text-xs font-bold text-white focus:outline-none focus:border-[#25F4EE] cursor-pointer truncate shadow-inner"
-          >
-            <option value="">— เลือกโปรเจกต์ —</option>
-            {projectList.map((p) => (
-              <option key={p.project_name} value={p.project_name} className="bg-[#0D111A] text-slate-200">
-                {p.project_name}
-              </option>
-            ))}
-          </select>
-
+          {projectName && (
+            <span className="flex-shrink-0 font-mono text-sm font-bold text-slate-400">
+              <span className="text-[#E89274]">{formatTimecode(playhead)}</span>
+              <span className="hidden sm:inline"> / {formatTimecode(Math.max(totalDuration, audioDuration))}</span>
+            </span>
+          )}
         </div>
-
-        {/* Center: Timecode */}
-        <span className="font-mono text-sm text-slate-400 font-bold hidden xs:inline flex-shrink-0">
-          <span className="text-[#25F4EE]">{formatTimecode(playhead)}</span> / {formatTimecode(Math.max(totalDuration, audioDuration))}
-        </span>
 
         {/* Right: Fullscreen & Apply / Render Buttons */}
         <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
@@ -780,8 +789,19 @@ export default function EditorShell({
             <span className="hidden sm:inline">คลิปใหม่</span>
           </button>
 
+          <ActivityIndicatorButton className="hidden h-9 md:flex" />
+
           <HeaderMenu
             items={[
+              {
+                // the bar's own zen button is hidden below sm, so the menu is
+                // the only way to reach it on a narrow window
+                id: 'zen',
+                label: zen ? 'ย่อพรีวิวกลับ' : 'ขยายพรีวิวเต็มพื้นที่',
+                icon: zen ? Minimize2 : Maximize2,
+                disabled: !projectName,
+                onSelect: () => setZen((v) => !v),
+              },
               {
                 id: 'reload',
                 label: loading ? 'กำลังโหลด...' : 'โหลดโปรเจกต์ใหม่',
@@ -811,29 +831,15 @@ export default function EditorShell({
             ]}
           />
 
-          <select
+          <RenderButton
+            presets={EXPORT_PRESETS}
             value={exportPreset}
-            onChange={(e) => setExportPreset(e.target.value)}
-            disabled={applying}
-            title="ทดลอง = 720p เข้ารหัสเร็ว ใช้ดูว่าตัดถูกไหม ไม่ใช่ไฟล์สำหรับโพสต์ (ชื่อไฟล์จะมี _draft)"
-            className="h-9 rounded-xl border border-white/[0.08] bg-black/40 px-2 text-sm text-slate-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] disabled:opacity-50"
-          >
-            <option value="post">โพสต์จริง 1080p</option>
-            <option value="draft">ทดลอง 720p (เร็ว 2 เท่า)</option>
-          </select>
-
-          <button
-            type="button"
-            onClick={handleApply}
-            disabled={applying || !projectName}
-            className="h-9 py-1 px-3 sm:px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-[#FE2C55]/20 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
-          >
-            {applying ? (
-              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> <span>{progress}%</span></>
-            ) : (
-              <><Rocket className="h-3.5 w-3.5" /> <span>เรนเดอร์</span></>
-            )}
-          </button>
+            onChange={setExportPreset}
+            onRender={handleApply}
+            busy={applying}
+            progress={progress}
+            disabled={!projectName}
+          />
         </div>
       </div>
 

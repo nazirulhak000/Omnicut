@@ -221,12 +221,8 @@ export default function App() {
 
         {/* ── Main Area ── */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#07090E] relative">
-          {/* Floating Activity Center Trigger on Editor tab */}
-          {activeTab === 'editor' && (
-            <div className="absolute top-2 right-2 z-30 pointer-events-auto">
-              <ActivityIndicatorButton className="shadow-2xl backdrop-blur-md" />
-            </div>
-          )}
+          {/* The editor renders its own activity indicator inside the header
+              (EditorShell) -- floating it here covered the render button. */}
 
           {/* ── Topbar (Hidden on Manual Editor to maximize editing workspace) ── */}
           {activeTab !== 'editor' && (
