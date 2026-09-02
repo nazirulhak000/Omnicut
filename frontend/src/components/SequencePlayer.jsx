@@ -366,7 +366,7 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
             </span>
           </div>
           {!compact && (
-            <p className="flex flex-shrink-0 items-center gap-1 text-[11px] text-[#9C968F]">
+            <p className="flex flex-shrink-0 items-center gap-1 text-sm text-[#9C968F]">
               <Eye className="w-3.5 h-3.5 text-[#9C968F]" /> พรีวิวรวมทั้ง sequence แบบประมาณ (ฟอนต์/สีจริงยึดผลจาก Apply เท่านั้น)
             </p>
           )}

@@ -81,7 +81,7 @@ export default memo(function Topbar({
           </h1>
 
           {/* Tab Number Badge */}
-          <span className={`hidden sm:inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border font-mono flex-shrink-0 ${currentTab.badgeColor}`}>
+          <span className={`hidden sm:inline-flex items-center text-sm font-bold px-2 py-0.5 rounded-full border font-mono flex-shrink-0 ${currentTab.badgeColor}`}>
             {currentTab.badge}
           </span>
 
@@ -116,7 +116,7 @@ export default memo(function Topbar({
           title="คีย์ลัดด่วน (กด ? เพื่อเปิดดู)"
         >
           <Keyboard className="w-3.5 h-3.5 text-[#25F4EE]" />
-          <kbd className="hidden lg:inline px-1.5 py-0.2 rounded bg-white/[0.08] border border-white/[0.1] text-[10px] text-slate-400 font-mono">?</kbd>
+          <kbd className="hidden lg:inline px-1.5 py-0.2 rounded bg-white/[0.08] border border-white/[0.1] text-sm text-slate-400 font-mono">?</kbd>
         </button>
 
         {/* Global UI Font Selector */}

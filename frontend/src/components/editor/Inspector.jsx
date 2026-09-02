@@ -275,7 +275,7 @@ export default function Inspector({
             {/* Expandable Find & Replace Bar */}
             {showFindReplace && (
               <div className="p-2.5 rounded-xl bg-[#080B11] border border-[#25F4EE]/30 space-y-2 shadow-lg animate-in fade-in slide-in-from-top-1 duration-150">
-                <div className="flex items-center justify-between text-[11px] font-bold text-[#25F4EE]">
+                <div className="flex items-center justify-between text-sm font-bold text-[#25F4EE]">
                   <span className="flex items-center gap-1">
                     <Replace className="w-3.5 h-3.5" />
                     <span>ค้นหาและแทนที่คำผิดทั้งเรื่อง</span>
@@ -306,10 +306,10 @@ export default function Inspector({
                 </div>
                 <div className="flex items-center justify-between">
                   {replaceMessage ? (
-                    <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                    <span className="text-sm text-emerald-400 font-bold flex items-center gap-1">
                       <CheckCheck className="w-3 h-3" />{replaceMessage}
                     </span>
-                  ) : <span className="text-[10px] text-slate-500">กด Enter หรือกดปุ่มแทนที่</span>}
+                  ) : <span className="text-sm text-slate-500">กด Enter หรือกดปุ่มแทนที่</span>}
                   <button
                     type="button"
                     onClick={handleExecuteReplace}
@@ -356,7 +356,7 @@ export default function Inspector({
                         onSelectCue?.(cue._uid);
                         onSeek?.(cue.start);
                       }}
-                      className={`flex items-center gap-1 px-1.5 py-1 rounded-lg text-[10px] font-mono font-bold cursor-pointer transition-colors flex-shrink-0 border ${
+                      className={`flex items-center gap-1 px-1.5 py-1 rounded-lg text-sm font-mono font-bold cursor-pointer transition-colors flex-shrink-0 border ${
                         isPlaying
                           ? 'bg-emerald-500/30 text-emerald-300 border-emerald-500/50'
                           : 'bg-black/60 text-slate-400 border-white/[0.08] hover:text-[#25F4EE] hover:border-[#25F4EE]/40'
@@ -397,7 +397,7 @@ export default function Inspector({
                       value={cue.sfx || ''}
                       onChange={(e) => onCaptionChange?.(cue._uid, { sfx: e.target.value || null })}
                       onClick={(e) => e.stopPropagation()}
-                      className="py-1 px-1.5 rounded-lg bg-black/60 border border-white/[0.08] text-[10px] text-slate-400 focus:text-[#25F4EE] focus:outline-none cursor-pointer max-w-[62px] truncate hidden xs:inline flex-shrink-0"
+                      className="py-1 px-1.5 rounded-lg bg-black/60 border border-white/[0.08] text-sm text-slate-400 focus:text-[#25F4EE] focus:outline-none cursor-pointer max-w-[62px] truncate hidden xs:inline flex-shrink-0"
                       title="เสียงเอฟเฟกต์ (SFX)"
                     >
                       <option value="">SFX</option>
@@ -515,7 +515,7 @@ export default function Inspector({
 
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <div>
-                  <span className="block text-[10px] text-slate-400 mb-1">Trim เข้า (วิ)</span>
+                  <span className="block text-sm text-slate-400 mb-1">Trim เข้า (วิ)</span>
                   <NumberInput
                     step="0.1"
                     min="0"
@@ -524,7 +524,7 @@ export default function Inspector({
                   />
                 </div>
                 <div>
-                  <span className="block text-[10px] text-slate-400 mb-1">Trim ออก (วิ)</span>
+                  <span className="block text-sm text-slate-400 mb-1">Trim ออก (วิ)</span>
                   <NumberInput
                     step="0.1"
                     min="0"
@@ -538,7 +538,7 @@ export default function Inspector({
               </div>
 
               <div>
-                <span className="block text-[10px] text-slate-400 mb-1">ความเร็ว (Speed)</span>
+                <span className="block text-sm text-slate-400 mb-1">ความเร็ว (Speed)</span>
                 <div className="grid grid-cols-4 gap-1">
                   {SPEEDS.map((s) => {
                     const active = (selectedSeg.clip.speed || 1) === s;
@@ -584,18 +584,18 @@ export default function Inspector({
                 return (
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-slate-400">กรอบภาพ</span>
+                      <span className="text-sm text-slate-400">กรอบภาพ</span>
                       <button
                         type="button"
                         disabled={zoom === 1 && !selectedSeg.clip.pan_x && !selectedSeg.clip.pan_y}
                         onClick={() => onClipChange?.({ zoom: undefined, pan_x: undefined, pan_y: undefined })}
-                        className="text-[10px] text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                        className="text-sm text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                       >
                         รีเซ็ต
                       </button>
                     </div>
                     <label className="block">
-                      <span className="mb-0.5 flex justify-between text-[10px] text-slate-400">
+                      <span className="mb-0.5 flex justify-between text-sm text-slate-400">
                         <span>ซูม</span>
                         <span className="font-mono text-slate-300">{zoom.toFixed(2)}x</span>
                       </span>
@@ -607,7 +607,7 @@ export default function Inspector({
                     </label>
                     {FIELDS.map((f) => (
                       <label key={f.key} className={`block ${panning ? '' : 'opacity-40'}`}>
-                        <span className="mb-0.5 flex justify-between text-[10px] text-slate-400">
+                        <span className="mb-0.5 flex justify-between text-sm text-slate-400">
                           <span>{f.label}</span>
                           <span className="font-mono text-slate-300">{(selectedSeg.clip[f.key] ?? 0).toFixed(2)}</span>
                         </span>
@@ -621,7 +621,7 @@ export default function Inspector({
                       </label>
                     ))}
                     {!panning && (
-                      <p className="text-[9px] text-slate-500">ซูมเกิน 1x ก่อนถึงจะเลื่อนกรอบได้</p>
+                      <p className="text-xs text-slate-500">ซูมเกิน 1x ก่อนถึงจะเลื่อนกรอบได้</p>
                     )}
                   </div>
                 );
@@ -640,12 +640,12 @@ export default function Inspector({
                 return (
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-slate-400">สีของคลิปนี้</span>
+                      <span className="text-sm text-slate-400">สีของคลิปนี้</span>
                       <button
                         type="button"
                         disabled={!touched}
                         onClick={() => onClipChange?.({ brightness: undefined, contrast: undefined, saturation: undefined })}
-                        className="text-[10px] text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                        className="text-sm text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                       >
                         รีเซ็ต
                       </button>
@@ -654,7 +654,7 @@ export default function Inspector({
                       const value = selectedSeg.clip[f.key] ?? f.def;
                       return (
                         <label key={f.key} className="block">
-                          <span className="mb-0.5 flex justify-between text-[10px] text-slate-400">
+                          <span className="mb-0.5 flex justify-between text-sm text-slate-400">
                             <span>{f.label}</span>
                             <span className="font-mono text-slate-300">{value.toFixed(2)}</span>
                           </span>
@@ -681,7 +681,7 @@ export default function Inspector({
                 const isCut = kind === 'cut';
                 return (
                   <div className="space-y-1.5">
-                    <span className="block text-[10px] text-slate-400">รอยต่อกับคลิปก่อนหน้า</span>
+                    <span className="block text-sm text-slate-400">รอยต่อกับคลิปก่อนหน้า</span>
                     <button
                       type="button"
                       onClick={() => onClipChange?.({ transition_in: 'cut' })}
@@ -703,7 +703,7 @@ export default function Inspector({
                             transition_duration: dur,
                           })}
                           title={t.id}
-                          className={`py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer border ${
+                          className={`py-1 rounded-lg text-sm font-bold transition-all cursor-pointer border ${
                             kind === t.id
                               ? 'bg-[#D97757]/20 border-[#D97757] text-[#E89274]'
                               : 'bg-black/40 border-white/[0.08] text-slate-400 hover:text-white'
@@ -714,7 +714,7 @@ export default function Inspector({
                       ))}
                     </div>
                     <label className={`block pt-1 ${isCut ? 'opacity-40' : ''}`}>
-                      <span className="mb-1 flex justify-between text-[10px] text-slate-400">
+                      <span className="mb-1 flex justify-between text-sm text-slate-400">
                         <span>ความยาวรอยต่อ</span>
                         <span className="font-mono text-slate-300">{dur.toFixed(1)}s</span>
                       </span>
@@ -729,7 +729,7 @@ export default function Inspector({
                         className="w-full accent-[#D97757] disabled:cursor-not-allowed"
                       />
                     </label>
-                    <p className="text-[9px] leading-relaxed text-slate-500">
+                    <p className="text-xs leading-relaxed text-slate-500">
                       พรีวิวแสดงรอยต่อทุกแบบเป็นการจางเข้าหากัน — ลายจริง (ปาด/เลื่อน/วงกลม) เห็นได้หลังกด Apply
                     </p>
                   </div>

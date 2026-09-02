@@ -149,7 +149,7 @@ export default function SubSrtTool({ videos = [], selectedVideo }) {
                     }`}
                   >
                     <div className="text-xs font-bold">{p.label}</div>
-                    <div className="text-[10px] text-slate-400 mt-0.5 truncate">{p.desc}</div>
+                    <div className="text-sm text-slate-400 mt-0.5 truncate">{p.desc}</div>
                   </button>
                 );
               })}
@@ -245,7 +245,7 @@ export default function SubSrtTool({ videos = [], selectedVideo }) {
             <div className="py-20 text-center space-y-2">
               <FileText className="w-10 h-10 mx-auto text-slate-500" />
               <p className="text-xs text-slate-400 font-medium">กดปุ่ม "เริ่มถอดเสียง" เพื่อสร้างไฟล์ซับไตเติล</p>
-              <p className="text-[11px] text-slate-500 font-mono">ลากไฟล์เข้า CapCut ได้ทันที</p>
+              <p className="text-sm text-slate-500 font-mono">ลากไฟล์เข้า CapCut ได้ทันที</p>
             </div>
           )}
         </div>

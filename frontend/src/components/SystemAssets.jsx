@@ -204,7 +204,7 @@ export default function SystemAssets({ status }) {
             >
               <div className="flex items-center justify-between">
                 <span className={`text-xs font-bold truncate ${isActive ? 'text-white' : 'text-slate-400'}`}>{tab.label}</span>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold font-mono ${
+                <span className={`text-sm px-2 py-0.5 rounded-full font-bold font-mono ${
                   isActive ? 'bg-[#25F4EE] text-slate-950 shadow-sm' : 'bg-white/[0.05] border border-white/[0.08] text-slate-400'
                 }`}>
                   {tab.count}
@@ -235,7 +235,7 @@ export default function SystemAssets({ status }) {
         <div className="space-y-4">
           <div className="flex items-center justify-between text-xs text-slate-400 px-1 font-semibold">
             <span>แตะที่ปุ่มเพื่อทดลองฟังเสียงสดทันที ({filteredSFX.length} ไฟล์)</span>
-            <span className="text-[11px] text-[#25F4EE] font-bold">Auto-sync กับไทม์ไลน์วิดีโอ</span>
+            <span className="text-sm text-[#25F4EE] font-bold">Auto-sync กับไทม์ไลน์วิดีโอ</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -265,13 +265,13 @@ export default function SystemAssets({ status }) {
                       <div className="text-xs font-bold text-white truncate group-hover:text-[#25F4EE] transition-colors">
                         {sf.label_th || sf.name.replace(/\.(wav|mp3)$/i, '')}
                       </div>
-                      <div className="text-[10px] text-slate-400 font-mono truncate" title={sf.name}>
+                      <div className="text-sm text-slate-400 font-mono truncate" title={sf.name}>
                         {sf.name.replace(/\.(wav|mp3)$/i, '')}
                       </div>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="text-[10px] text-slate-400 font-mono">{sf.size_mb} MB</span>
+                        <span className="text-sm text-slate-400 font-mono">{sf.size_mb} MB</span>
                         {sf.category && sf.category !== 'misc' && (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/[0.05] border border-white/[0.08] text-slate-400 font-bold">
+                          <span className="text-xs px-1.5 py-0.5 rounded-full bg-white/[0.05] border border-white/[0.08] text-slate-400 font-bold">
                             {sf.category}
                           </span>
                         )}
@@ -343,18 +343,18 @@ export default function SystemAssets({ status }) {
                       </div>
                       <div className="min-w-0">
                         {isDefault && (
-                          <div className="text-[10px] font-bold text-[#25F4EE] mb-0.5">เสียงหลักของช่อง (ค่าเริ่มต้น)</div>
+                          <div className="text-sm font-bold text-[#25F4EE] mb-0.5">เสียงหลักของช่อง (ค่าเริ่มต้น)</div>
                         )}
                         <div className="text-sm font-bold text-white truncate max-w-[190px]" title={m.name}>
                           {m.label_th || m.name.replace(/\.(wav|mp3)$/i, '')}
                         </div>
-                        <div className="text-[10px] text-slate-400 font-mono truncate max-w-[190px]" title={m.name}>
+                        <div className="text-sm text-slate-400 font-mono truncate max-w-[190px]" title={m.name}>
                           {m.name.replace(/\.(wav|mp3)$/i, '')}
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="text-[11px] text-slate-400 font-mono">{m.size_mb} MB</span>
+                          <span className="text-sm text-slate-400 font-mono">{m.size_mb} MB</span>
                           {m.mood && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/[0.05] border border-white/[0.08] text-slate-400 font-bold">
+                            <span className="text-xs px-1.5 py-0.5 rounded-full bg-white/[0.05] border border-white/[0.08] text-slate-400 font-bold">
                               {m.mood}
                             </span>
                           )}
@@ -423,7 +423,7 @@ export default function SystemAssets({ status }) {
                 <Type className="w-4 h-4" />
                 ทดสอบพิมพ์ข้อความตัวอย่างเพื่อดูการแสดงผลฟอนต์จริงสดๆ:
               </span>
-              <span className="text-[11px] text-slate-400 font-normal">
+              <span className="text-sm text-slate-400 font-normal">
                 ฟอนต์ทั้งหมดถูกแพ็กรวมใน CapCut และ FFmpeg อัตโนมัติ
               </span>
             </div>
@@ -447,7 +447,7 @@ export default function SystemAssets({ status }) {
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="text-xs font-bold text-white">{fontStem}</div>
-                      <div className="text-[10px] text-slate-400 font-mono mt-0.5">{f.size_mb} MB • TrueType Font</div>
+                      <div className="text-sm text-slate-400 font-mono mt-0.5">{f.size_mb} MB • TrueType Font</div>
                     </div>
                     <button
                       onClick={() => setDeleteTarget(f)}
@@ -500,14 +500,14 @@ export default function SystemAssets({ status }) {
                   />
                 </div>
                 <div className="w-full">
-                  <div className="text-[11px] font-bold text-slate-200 truncate" title={st.name}>
+                  <div className="text-sm font-bold text-slate-200 truncate" title={st.name}>
                     {st.name}
                   </div>
                   <div className="flex items-center justify-between mt-2 pt-1 border-t border-white/[0.06]">
                     <a
                       href={st.img_url}
                       download={st.name}
-                      className="text-[10px] text-[#25F4EE] hover:underline flex items-center gap-1 font-bold"
+                      className="text-sm text-[#25F4EE] hover:underline flex items-center gap-1 font-bold"
                     >
                       <Download className="w-3 h-3" />
                       ดาวน์โหลด
@@ -555,11 +555,11 @@ export default function SystemAssets({ status }) {
                   <div className="text-sm font-bold text-white truncate" title={lut.name}>
                     {lut.name.replace('.cube', '')}
                   </div>
-                  <div className="text-[11px] text-slate-400 font-mono mt-0.5">3D Color LUT Cube ({lut.size_mb} MB)</div>
+                  <div className="text-sm text-slate-400 font-mono mt-0.5">3D Color LUT Cube ({lut.size_mb} MB)</div>
                 </div>
                 <div className="pt-2 border-t border-white/[0.06] flex items-center justify-between">
                   <span
-                    className="text-[10px] text-amber-300 font-bold"
+                    className="text-sm text-amber-300 font-bold"
                     title="เลือกได้ในขั้นตอนที่ 3 ของหน้า '1-Click Studio' — ไม่ auto-apply เพราะวัดแล้วทำให้เรนเดอร์ช้าลง ~90% บนเครื่อง CPU"
                   >
                     เลือกเองที่หน้าตัดคลิป
@@ -598,8 +598,8 @@ export default function SystemAssets({ status }) {
                 <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-black/40 border border-white/[0.06] gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="font-bold text-white truncate">{dir.title}</div>
-                    <div className="text-[11px] text-slate-400 truncate">{dir.desc}</div>
-                    <div className="text-[10px] text-slate-400 font-mono truncate mt-0.5">{dir.path}</div>
+                    <div className="text-sm text-slate-400 truncate">{dir.desc}</div>
+                    <div className="text-sm text-slate-400 font-mono truncate mt-0.5">{dir.path}</div>
                   </div>
                   <button
                     onClick={() => handleOpen(dir.key)}
@@ -637,7 +637,7 @@ export default function SystemAssets({ status }) {
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                     FFmpeg Video Engine
                   </span>
-                  <span className="text-[11px] font-mono font-bold bg-white/[0.05] border border-white/[0.08] px-2 py-0.5 rounded text-white">
+                  <span className="text-sm font-mono font-bold bg-white/[0.05] border border-white/[0.08] px-2 py-0.5 rounded text-white">
                     CPU Encode (libx264)
                   </span>
                 </div>
@@ -647,7 +647,7 @@ export default function SystemAssets({ status }) {
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                     CapCut PC Draft Sync
                   </span>
-                  <span className="text-[11px] font-mono font-bold bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 rounded text-emerald-300">
+                  <span className="text-sm font-mono font-bold bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 rounded text-emerald-300">
                     {status?.capcut_synced ? 'Synced' : 'Configured'}
                   </span>
                 </div>
@@ -657,7 +657,7 @@ export default function SystemAssets({ status }) {
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                     Local Wi-Fi Mobile Sync
                   </span>
-                  <span className="text-[11px] font-mono font-bold bg-white/[0.05] border border-white/[0.08] px-2 py-0.5 rounded text-white">
+                  <span className="text-sm font-mono font-bold bg-white/[0.05] border border-white/[0.08] px-2 py-0.5 rounded text-white">
                     {status?.local_ip || '127.0.0.1'}:5173
                   </span>
                 </div>
@@ -669,7 +669,7 @@ export default function SystemAssets({ status }) {
                 <Sparkles className="w-4 h-4 text-[#25F4EE]" />
                 สเปกวิดีโอมาตรฐาน TikTok Auto-Cutter:
               </div>
-              <ul className="space-y-1 text-slate-400 text-[11px] list-disc list-inside">
+              <ul className="space-y-1 text-slate-400 text-sm list-disc list-inside">
                 <li>ขนาดหน้าจอ: <b>1080 x 1920 (9:16 Vertical Video)</b></li>
                 <li>เฟรมเรต: <b>30 FPS H.264 High Profile</b></li>
                 <li>จังหวะการตัดต่อ: <b>1.5 - 2.5 วินาทีต่อ 1 ช็อต</b></li>
@@ -696,7 +696,7 @@ export default function SystemAssets({ status }) {
             <p className="text-xs text-slate-300 font-mono break-all bg-black/40 p-2.5 rounded-xl border border-white/[0.08]">
               {deleteTarget?.name}
             </p>
-            <p className="text-[11px] text-slate-400 pt-1">
+            <p className="text-sm text-slate-400 pt-1">
               ไฟล์จะถูกลบออกจากโฟลเดอร์ Assets ในเครื่อง
             </p>
           </div>

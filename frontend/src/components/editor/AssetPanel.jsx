@@ -189,7 +189,7 @@ export default function AssetPanel({
             onClick={() => setTab(id)}
             title={label}
             aria-pressed={tab === id}
-            className={`flex flex-1 min-w-[50px] flex-col items-center gap-0.5 py-2 text-[10px] font-bold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#D97757] ${
+            className={`flex flex-1 min-w-[50px] flex-col items-center gap-0.5 py-2 text-sm font-bold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#D97757] ${
               tab === id
                 ? 'border-b-2 border-[#D97757] bg-[#D97757]/10 text-[#E89274]'
                 : 'cursor-pointer text-[#9C968F] hover:bg-white/[0.04] hover:text-[#EDE9E3]'
@@ -210,7 +210,7 @@ export default function AssetPanel({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="ค้นหา..."
-              className="w-full py-1.5 pl-8 pr-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-[11px] focus:outline-none focus:border-[#25F4EE]"
+              className="w-full py-1.5 pl-8 pr-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#25F4EE]"
             />
           </div>
         </div>
@@ -232,12 +232,12 @@ export default function AssetPanel({
                 }}
               >
                 <Film className="h-3.5 w-3.5 flex-shrink-0 text-slate-400 group-hover:text-[#25F4EE]" />
-                <span className="min-w-0 flex-1 truncate text-[11px] text-slate-200">{v.name}</span>
+                <span className="min-w-0 flex-1 truncate text-sm text-slate-200">{v.name}</span>
                 <Plus className="h-3.5 w-3.5 flex-shrink-0 text-slate-500 group-hover:text-[#25F4EE]" />
               </Row>
             ))}
             {filtered.videos.length === 0 && (
-              <p className="px-1 py-3 text-[10px] text-slate-500">
+              <p className="px-1 py-3 text-sm text-slate-500">
                 ไม่มีคลิปที่ตรงกับคำค้น — อัปโหลดคลิปได้ที่แท็บ 1-Click Studio
               </p>
             )}
@@ -252,18 +252,18 @@ export default function AssetPanel({
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>AI Auto-SRT (ถอดซับแม่นยำ)</span>
               </div>
-              <p className="text-[10px] text-slate-300 leading-tight">
+              <p className="text-sm text-slate-300 leading-tight">
                 ถอดเสียงอัตโนมัติด้วย Whisper + PyThaiNLP แล้วนำเข้าเป็นท่อนคำบรรยายบนไทม์ไลน์ทันที
               </p>
             </div>
 
             {/* Select Media */}
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-300">เลือกคลิปหรือเสียง:</label>
+              <label className="text-sm font-bold text-slate-300">เลือกคลิปหรือเสียง:</label>
               <select
                 value={selectedMediaForSrt}
                 onChange={(e) => setSelectedMediaForSrt(e.target.value)}
-                className="w-full py-1.5 px-2 rounded-xl bg-black/60 border border-white/[0.1] text-white text-[11px] focus:outline-none focus:border-[#25F4EE]"
+                className="w-full py-1.5 px-2 rounded-xl bg-black/60 border border-white/[0.1] text-white text-sm focus:outline-none focus:border-[#25F4EE]"
               >
                 {videos.map((v) => (
                   <option key={v.path} value={v.path} className="bg-[#080B11]">
@@ -275,11 +275,11 @@ export default function AssetPanel({
 
             {/* Subtitle Mode */}
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-300">รูปแบบภาษา:</label>
+              <label className="text-sm font-bold text-slate-300">รูปแบบภาษา:</label>
               <select
                 value={srtMode}
                 onChange={(e) => setSrtMode(e.target.value)}
-                className="w-full py-1.5 px-2 rounded-xl bg-black/60 border border-white/[0.1] text-white text-[11px] focus:outline-none focus:border-[#25F4EE]"
+                className="w-full py-1.5 px-2 rounded-xl bg-black/60 border border-white/[0.1] text-white text-sm focus:outline-none focus:border-[#25F4EE]"
               >
                 <option value="bilingual" className="bg-[#080B11]">2 ภาษา (ไทย + แปลอังกฤษ)</option>
                 <option value="mono" className="bg-[#080B11]">ภาษาไทยล้วน</option>
@@ -289,7 +289,7 @@ export default function AssetPanel({
 
             {/* Subtitle Density */}
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-300">ความยาวประโยค:</label>
+              <label className="text-sm font-bold text-slate-300">ความยาวประโยค:</label>
               <div className="grid grid-cols-3 gap-1">
                 {[
                   { count: 4, label: '4 คำ' },
@@ -300,7 +300,7 @@ export default function AssetPanel({
                     key={d.count}
                     type="button"
                     onClick={() => setSrtDensity(d.count)}
-                    className={`py-1 rounded-lg text-[10px] font-bold border transition-colors ${
+                    className={`py-1 rounded-lg text-sm font-bold border transition-colors ${
                       srtDensity === d.count
                         ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
                         : 'bg-black/40 border-white/[0.08] text-slate-400 hover:text-white'
@@ -333,7 +333,7 @@ export default function AssetPanel({
             </button>
 
             {transcribeError && (
-              <p className="text-[10px] text-rose-400 bg-rose-500/10 p-2 rounded-xl border border-rose-500/20">
+              <p className="text-sm text-rose-400 bg-rose-500/10 p-2 rounded-xl border border-rose-500/20">
                 {transcribeError}
               </p>
             )}
@@ -341,18 +341,18 @@ export default function AssetPanel({
             {/* Transcribe Results & Import Button */}
             {transcribeResult && (
               <div className="p-2.5 rounded-xl bg-black/60 border border-[#25F4EE]/30 space-y-2 animate-fadeIn">
-                <div className="flex items-center justify-between text-[11px] font-bold text-[#25F4EE]">
+                <div className="flex items-center justify-between text-sm font-bold text-[#25F4EE]">
                   <span>ถอดเสียงสำเร็จ</span>
                   <button
                     type="button"
                     onClick={handleCopySrt}
-                    className="text-[10px] text-slate-300 hover:text-white flex items-center gap-1 cursor-pointer"
+                    className="text-sm text-slate-300 hover:text-white flex items-center gap-1 cursor-pointer"
                   >
                     {copiedSrt ? <><Check className="w-3 h-3 text-emerald-400" /> คัดลอกแล้ว</> : <><Copy className="w-3 h-3" /> คัดลอก .SRT</>}
                   </button>
                 </div>
 
-                <div className="max-h-28 overflow-y-auto p-1.5 rounded-lg bg-black/40 border border-white/[0.04] text-[10px] font-mono text-slate-300 space-y-1 select-all">
+                <div className="max-h-28 overflow-y-auto p-1.5 rounded-lg bg-black/40 border border-white/[0.04] text-sm font-mono text-slate-300 space-y-1 select-all">
                   {transcribeResult.content || 'ไม่มีข้อความ'}
                 </div>
 
@@ -360,14 +360,14 @@ export default function AssetPanel({
                 <button
                   type="button"
                   onClick={handleImportToTimeline}
-                  className="w-full py-1.5 px-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[11px] font-bold flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-all"
+                  className="w-full py-1.5 px-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-sm font-bold flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-all"
                 >
                   <Layers className="w-3.5 h-3.5" />
                   <span>นำเข้าสู่ไทม์ไลน์ (Import to Timeline)</span>
                 </button>
 
                 {importedSuccess && (
-                  <p className="text-[10px] text-emerald-400 text-center font-bold">
+                  <p className="text-sm text-emerald-400 text-center font-bold">
                     ✓ นำเข้าคำบรรยายลงไทม์ไลน์เรียบร้อยแล้ว
                   </p>
                 )}
@@ -379,13 +379,13 @@ export default function AssetPanel({
         {/* TAB 3: AUDIO */}
         {tab === 'audio' && (
           <>
-            <p className="px-1 pt-1 text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+            <p className="px-1 pt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
               เพลงประกอบ (ทั้งคลิป)
             </p>
 
             <div className="mb-1 space-y-1.5 rounded-lg border border-white/[0.08] bg-black/40 px-2 py-2">
               <label className="block">
-                <span className="mb-1 flex justify-between text-[10px] text-slate-400">
+                <span className="mb-1 flex justify-between text-sm text-slate-400">
                   <span>ระดับเสียงเพลง</span>
                   <span className="font-mono text-slate-300">{Math.round((style.bgmVolume ?? 0.12) * 100)}%</span>
                 </span>
@@ -403,7 +403,7 @@ export default function AssetPanel({
                 type="button"
                 onClick={() => onStyleChange({ bgmDucking: !style.bgmDucking })}
                 aria-pressed={!!style.bgmDucking}
-                className={`w-full rounded-lg border py-1.5 text-[11px] font-bold transition-colors duration-150 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
+                className={`w-full rounded-lg border py-1.5 text-sm font-bold transition-colors duration-150 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
                   style.bgmDucking
                     ? 'border-[#D97757] bg-[#D97757]/20 text-[#E89274]'
                     : 'border-white/[0.08] bg-black/40 text-slate-300 hover:text-white'
@@ -411,13 +411,13 @@ export default function AssetPanel({
               >
                 {style.bgmDucking ? '✓ ลดเพลงตอนพูดอยู่' : 'ลดเพลงตอนพูด (auto-duck)'}
               </button>
-              <p className="text-[9px] leading-relaxed text-slate-500">
+              <p className="text-xs leading-relaxed text-slate-500">
                 เปิดแล้วเพลงจะเบาลง ~9 dB ระหว่างมีเสียงพูด แล้วดังกลับตอนเว้นวรรค · เปลี่ยนค่าพวกนี้ต้องมิกซ์เสียงใหม่ Apply จะช้ากว่าปกติเล็กน้อย
               </p>
             </div>
             <Row active={!style.bgmName} onClick={() => onStyleChange({ bgmName: null })}>
               <Music className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
-              <span className="min-w-0 flex-1 truncate text-[11px] text-slate-200">เสียงหลักของช่อง</span>
+              <span className="min-w-0 flex-1 truncate text-sm text-slate-200">เสียงหลักของช่อง</span>
               {!style.bgmName && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#25F4EE]" />}
             </Row>
             {filtered.music.map((m) => (
@@ -428,12 +428,12 @@ export default function AssetPanel({
                 title={m.name}
               >
                 <Music className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
-                <span className="min-w-0 flex-1 truncate text-[11px] text-slate-200">{m.label_th || m.name}</span>
+                <span className="min-w-0 flex-1 truncate text-sm text-slate-200">{m.label_th || m.name}</span>
                 {style.bgmName === m.id && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#25F4EE]" />}
               </Row>
             ))}
 
-            <p className="px-1 pt-3 text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+            <p className="px-1 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
               เสียงเอฟเฟกต์ {selectedCaption ? '(ใส่ให้ท่อนที่เลือก)' : '(เลือกท่อนคำบรรยายก่อน)'}
             </p>
             {filtered.sfx.map((s) => (
@@ -444,7 +444,7 @@ export default function AssetPanel({
                 title={selectedCaption ? `ใส่ ${s.name}` : 'เลือกท่อนคำบรรยายบนไทม์ไลน์ก่อน'}
               >
                 <Volume2 className={`h-3.5 w-3.5 flex-shrink-0 ${selectedCaption ? 'text-slate-400' : 'text-slate-600'}`} />
-                <span className={`min-w-0 flex-1 truncate text-[11px] ${selectedCaption ? 'text-slate-200' : 'text-slate-500'}`}>
+                <span className={`min-w-0 flex-1 truncate text-sm ${selectedCaption ? 'text-slate-200' : 'text-slate-500'}`}>
                   {s.label_th || s.name}
                 </span>
                 {selectedCaption?.sfx === s.id && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#25F4EE]" />}
@@ -461,14 +461,14 @@ export default function AssetPanel({
               .map((f) => `@font-face{font-family:'ed-${f.id}';src:url('/api/media/${f.file.rel_path}') format('${(f.file.name || '').toLowerCase().endsWith('.otf') ? 'opentype' : 'truetype'}');font-display:swap;}`)
               .join(' ')}</style>
 
-            <p className="px-1 pt-1 text-[9px] font-semibold uppercase tracking-wide text-[#9C968F]">
+            <p className="px-1 pt-1 text-xs font-semibold uppercase tracking-wide text-[#9C968F]">
               ฟอนต์คำบรรยาย
             </p>
             {filtered.fonts.map((f) => (
               <Row key={f.id} active={style.fontName === f.id} onClick={() => onStyleChange({ fontName: f.id })}>
                 <Type className="h-3.5 w-3.5 flex-shrink-0 text-[#9C968F]" />
                 <span
-                  className="min-w-0 flex-1 truncate text-[12px] text-[#EDE9E3]"
+                  className="min-w-0 flex-1 truncate text-base text-[#EDE9E3]"
                   style={f.file ? { fontFamily: `'ed-${f.id}', sans-serif` } : undefined}
                 >
                   {f.name} · ก ข ค
@@ -477,20 +477,20 @@ export default function AssetPanel({
               </Row>
             ))}
             {filtered.fonts.length === 0 && (
-              <p className="px-1 py-2 text-[10px] text-[#6B6660]">ไม่พบฟอนต์ที่ค้นหา</p>
+              <p className="px-1 py-2 text-sm text-[#6B6660]">ไม่พบฟอนต์ที่ค้นหา</p>
             )}
             <div className="mt-2 space-y-2 rounded-lg border border-white/[0.08] bg-black/40 px-2 py-2">
-              <span className="block text-[10px] font-semibold text-slate-300">หน้าตาคำบรรยาย</span>
+              <span className="block text-sm font-semibold text-slate-300">หน้าตาคำบรรยาย</span>
 
               <div>
-                <span className="mb-1 block text-[10px] text-slate-400">ตำแหน่ง</span>
+                <span className="mb-1 block text-sm text-slate-400">ตำแหน่ง</span>
                 <div className="grid grid-cols-3 gap-1">
                   {[['top', 'บน'], ['middle', 'กลาง'], ['bottom', 'ล่าง']].map(([id, label]) => (
                     <button
                       key={id}
                       type="button"
                       onClick={() => onStyleChange({ captionPosition: id })}
-                      className={`rounded-lg border py-1 text-[10px] font-bold transition-colors duration-150 cursor-pointer ${
+                      className={`rounded-lg border py-1 text-sm font-bold transition-colors duration-150 cursor-pointer ${
                         (style.captionPosition || 'bottom') === id
                           ? 'border-[#D97757] bg-[#D97757]/20 text-[#E89274]'
                           : 'border-white/[0.08] bg-black/40 text-slate-400 hover:text-white'
@@ -503,7 +503,7 @@ export default function AssetPanel({
               </div>
 
               <label className="block">
-                <span className="mb-1 flex justify-between text-[10px] text-slate-400">
+                <span className="mb-1 flex justify-between text-sm text-slate-400">
                   <span>ขนาดตัวอักษร</span>
                   <span className="font-mono text-slate-300">{Math.round((style.captionScale ?? 1) * 100)}%</span>
                 </span>
@@ -516,9 +516,9 @@ export default function AssetPanel({
               </label>
 
               <label className="flex items-center justify-between">
-                <span className="text-[10px] text-slate-400">สีตัวอักษร</span>
+                <span className="text-sm text-slate-400">สีตัวอักษร</span>
                 <span className="flex items-center gap-2">
-                  <span className="font-mono text-[10px] text-slate-300">{style.captionColor || '#FFFFFF'}</span>
+                  <span className="font-mono text-sm text-slate-300">{style.captionColor || '#FFFFFF'}</span>
                   <input
                     type="color"
                     value={style.captionColor || '#FFFFFF'}
@@ -528,12 +528,12 @@ export default function AssetPanel({
                 </span>
               </label>
 
-              <p className="text-[9px] leading-relaxed text-slate-500">
+              <p className="text-xs leading-relaxed text-slate-500">
                 เปลี่ยนหน้าตาซับต้องสร้างไฟล์ซับใหม่ — Apply จะใช้เวลาเพิ่มเล็กน้อย
               </p>
             </div>
 
-            <p className="px-1 pt-3 text-[10px] leading-relaxed text-[#6B6660]">
+            <p className="px-1 pt-3 text-sm leading-relaxed text-[#6B6660]">
               แก้ข้อความแต่ละท่อนได้ที่แผงขวา — คลิกท่อนคำบรรยายบนไทม์ไลน์
             </p>
           </>
@@ -545,7 +545,7 @@ export default function AssetPanel({
             {style.stickerBadge ? (
               <div className="mb-1 space-y-2 rounded-lg border border-white/[0.08] bg-black/40 px-2 py-2">
                 <div>
-                  <span className="mb-1 block text-[10px] text-slate-400">มุมที่วางป้าย</span>
+                  <span className="mb-1 block text-sm text-slate-400">มุมที่วางป้าย</span>
                   <div className="grid grid-cols-2 gap-1">
                     {[
                       ['top_left', 'บนซ้าย'], ['top_right', 'บนขวา'],
@@ -555,7 +555,7 @@ export default function AssetPanel({
                         key={id}
                         type="button"
                         onClick={() => onStyleChange({ stickerPosition: id })}
-                        className={`rounded-lg border py-1 text-[10px] font-bold transition-colors duration-150 cursor-pointer ${
+                        className={`rounded-lg border py-1 text-sm font-bold transition-colors duration-150 cursor-pointer ${
                           (style.stickerPosition || 'top_right') === id
                             ? 'border-[#D97757] bg-[#D97757]/20 text-[#E89274]'
                             : 'border-white/[0.08] bg-black/40 text-slate-400 hover:text-white'
@@ -567,7 +567,7 @@ export default function AssetPanel({
                   </div>
                 </div>
                 <label className="block">
-                  <span className="mb-1 flex justify-between text-[10px] text-slate-400">
+                  <span className="mb-1 flex justify-between text-sm text-slate-400">
                     <span>ขนาดป้าย</span>
                     <span className="font-mono text-slate-300">{Math.round((style.stickerScale ?? 1) * 100)}%</span>
                   </span>
@@ -583,7 +583,7 @@ export default function AssetPanel({
 
             <Row active={!style.stickerBadge} onClick={() => onStyleChange({ stickerBadge: '' })}>
               <Sticker className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
-              <span className="min-w-0 flex-1 truncate text-[11px] text-slate-200">ไม่ใส่ป้าย</span>
+              <span className="min-w-0 flex-1 truncate text-sm text-slate-200">ไม่ใส่ป้าย</span>
               {!style.stickerBadge && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#25F4EE]" />}
             </Row>
             {filtered.stickers.map((s) => (
@@ -594,11 +594,11 @@ export default function AssetPanel({
                 title={s.name}
               >
                 <img src={s.img_url} alt="" className="h-6 w-6 flex-shrink-0 rounded object-contain" />
-                <span className="min-w-0 flex-1 truncate text-[11px] text-slate-200">{s.name.replace(/\.(png|webp|jpg)$/i, '')}</span>
+                <span className="min-w-0 flex-1 truncate text-sm text-slate-200">{s.name.replace(/\.(png|webp|jpg)$/i, '')}</span>
                 {style.stickerBadge === s.name && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#25F4EE]" />}
               </Row>
             ))}
-            <p className="px-1 pt-2 text-[10px] leading-relaxed text-slate-500">
+            <p className="px-1 pt-2 text-sm leading-relaxed text-slate-500">
               ป้ายวางมุมขวาบนตลอดคลิป — สามารถเปลี่ยนแบบป้ายได้ตามธีม
             </p>
           </>
@@ -609,7 +609,7 @@ export default function AssetPanel({
           <>
             <Row active={!style.lutName} onClick={() => onStyleChange({ lutName: null })}>
               <Palette className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
-              <span className="min-w-0 flex-1 truncate text-[11px] text-slate-200">ไม่ใช้ (เร็วกว่า)</span>
+              <span className="min-w-0 flex-1 truncate text-sm text-slate-200">ไม่ใช้ (เร็วกว่า)</span>
               {!style.lutName && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#25F4EE]" />}
             </Row>
             {filtered.luts.map((l) => (
@@ -620,7 +620,7 @@ export default function AssetPanel({
                 title={l.name}
               >
                 <Palette className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
-                <span className="min-w-0 flex-1 truncate text-[11px] text-slate-200">
+                <span className="min-w-0 flex-1 truncate text-sm text-slate-200">
                   {l.name.replace(/\.cube$/i, '')}
                 </span>
                 {style.lutName === l.id && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#25F4EE]" />}
@@ -628,7 +628,7 @@ export default function AssetPanel({
             ))}
             {style.lutName && (
               <label className="block px-1 pt-2">
-                <span className="mb-1 flex justify-between text-[10px] text-slate-400">
+                <span className="mb-1 flex justify-between text-sm text-slate-400">
                   <span>ความเข้มฟิลเตอร์</span>
                   <span className="font-mono text-slate-300">{Math.round((style.lutIntensity ?? 1) * 100)}%</span>
                 </span>
@@ -641,7 +641,7 @@ export default function AssetPanel({
                   onChange={(e) => onStyleChange({ lutIntensity: parseFloat(e.target.value) })}
                   className="w-full accent-[#D97757]"
                 />
-                <span className="block pt-1 text-[9px] leading-relaxed text-slate-500">
+                <span className="block pt-1 text-xs leading-relaxed text-slate-500">
                   พรีวิวไม่แสดงฟิลเตอร์ — เห็นผลจริงหลังกด Apply
                 </span>
               </label>

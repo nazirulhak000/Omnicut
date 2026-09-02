@@ -71,7 +71,7 @@ const HoverVideoThumb = memo(function HoverVideoThumb({ videoUrl, onClick }) {
           </div>
         </div>
       )}
-      <div className="absolute bottom-1 right-1 px-1.5 py-0.2 rounded bg-black/80 backdrop-blur-sm text-[8px] font-mono text-slate-300 border border-white/[0.08]">
+      <div className="absolute bottom-1 right-1 px-1.5 py-0.2 rounded bg-black/80 backdrop-blur-sm text-xs font-mono text-slate-300 border border-white/[0.08]">
         พรีวิว
       </div>
     </div>
@@ -113,14 +113,14 @@ const KanbanCard = memo(function KanbanCard({
       <div className="flex items-center justify-between gap-1.5 text-xs">
         <span
           onClick={() => onInspectAngle(ang)}
-          className="font-bold text-white truncate flex-1 min-w-0 font-kanit text-[11px] hover:text-[#25F4EE] cursor-pointer"
+          className="font-bold text-white truncate flex-1 min-w-0 font-kanit text-sm hover:text-[#25F4EE] cursor-pointer"
           title={`คลิกเพื่อดูรายละเอียดเชิงลึกของ: ${ang.parentProduct?.name}`}
         >
           {ang.parentProduct?.name}
         </span>
         <div className="flex items-center gap-1 flex-shrink-0">
           {ang.badge && (
-            <span className="text-[9px] px-1.5 py-0.2 font-mono font-bold rounded bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/30 whitespace-nowrap">
+            <span className="text-xs px-1.5 py-0.2 font-mono font-bold rounded bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/30 whitespace-nowrap">
               {ang.badge}
             </span>
           )}
@@ -235,7 +235,7 @@ const KanbanCard = memo(function KanbanCard({
           {phaseId === 'posted' && (
             <div
               onClick={() => onInspectAngle(ang)}
-              className="px-2 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-[11px] text-emerald-300 font-bold flex items-center gap-1 cursor-pointer hover:bg-emerald-500/20"
+              className="px-2 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-sm text-emerald-300 font-bold flex items-center gap-1 cursor-pointer hover:bg-emerald-500/20"
             >
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
               <span>ออนไลน์แล้ว</span>
@@ -268,7 +268,7 @@ const KanbanCard = memo(function KanbanCard({
           {nextPhase && (
             <button
               onClick={() => onStatusChange(ang.parentProduct.id, ang.angle_id, nextPhase)}
-              className="px-1.5 py-1 rounded bg-white/[0.04] hover:bg-[#25F4EE]/20 text-[#25F4EE] text-[10px] font-bold flex items-center gap-0.5 cursor-pointer border border-white/[0.06] hover:border-[#25F4EE]/30"
+              className="px-1.5 py-1 rounded bg-white/[0.04] hover:bg-[#25F4EE]/20 text-[#25F4EE] text-sm font-bold flex items-center gap-0.5 cursor-pointer border border-white/[0.06] hover:border-[#25F4EE]/30"
               title={`เลื่อนไป: ${PIPELINE_PHASES.find(p => p.id === nextPhase)?.label}`}
             >
               <span>{PIPELINE_PHASES.find(p => p.id === nextPhase)?.short}</span>
@@ -311,7 +311,7 @@ const TableRow = memo(function TableRow({
             </div>
           </button>
         ) : (
-          <div className="w-9 h-12 rounded-lg bg-black/40 border border-white/[0.06] flex items-center justify-center text-[10px] text-slate-600 font-mono">
+          <div className="w-9 h-12 rounded-lg bg-black/40 border border-white/[0.06] flex items-center justify-center text-sm text-slate-600 font-mono">
             -
           </div>
         )}
@@ -363,7 +363,7 @@ const TableRow = memo(function TableRow({
           onClick={() => onCopyCaption(`${ang.tiktok_caption || ''}\n\n${ang.tiktok_hashtags || ''}`, ang.angle_id)}
           className="text-left py-1 px-2 rounded-lg bg-black/40 hover:bg-black/60 border border-white/[0.06] text-slate-300 text-xs flex items-center justify-between gap-2 max-w-[180px] cursor-pointer"
         >
-          <span className="truncate text-[11px] font-mono">{ang.tiktok_caption || 'คัดลอกแคปชัน'}</span>
+          <span className="truncate text-sm font-mono">{ang.tiktok_caption || 'คัดลอกแคปชัน'}</span>
           <span className="text-[#25F4EE] flex-shrink-0">
             {copiedAngleId === ang.angle_id ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
           </span>
@@ -621,14 +621,14 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                     <span>{currentPhaseInfo.label}</span>
                   </span>
                   {inspectAngle.badge && (
-                    <span className="text-[10px] px-1.5 py-0.5 font-mono font-bold rounded bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/30 truncate hidden sm:inline">
+                    <span className="text-sm px-1.5 py-0.5 font-mono font-bold rounded bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/30 truncate hidden sm:inline">
                       {inspectAngle.badge}
                     </span>
                   )}
                 </div>
 
                 <div className="flex items-center gap-1 flex-shrink-0">
-                  <span className="text-[10px] text-slate-400 font-semibold hidden sm:inline">เปลี่ยนสถานะ:</span>
+                  <span className="text-sm text-slate-400 font-semibold hidden sm:inline">เปลี่ยนสถานะ:</span>
                   <select
                     value={inspectAngle.status}
                     onChange={(e) => handleAngleStatusChange(inspectAngle.parentProduct.id, inspectAngle.angle_id, e.target.value)}
@@ -645,7 +645,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
 
               {/* 2. Hook Title 3s (Compact) */}
               <div className="space-y-1">
-                <div className="text-[11px] font-semibold text-slate-400">Hook 3 วินาทีแรก (จุดหยุดคนดู):</div>
+                <div className="text-sm font-semibold text-slate-400">Hook 3 วินาทีแรก (จุดหยุดคนดู):</div>
                 <div className="p-2.5 rounded-xl bg-[#080B11] border-l-4 border-[#25F4EE] text-xs sm:text-sm font-bold text-cyan-200 leading-snug">
                   {inspectAngle.hook_title || 'ไม่มี Hook'}
                 </div>
@@ -660,7 +660,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                       <span>พรีวิววิดีโอที่ตัดต่อเสร็จ (QC Player)</span>
                     </span>
                     {effectiveVideoUrl && (
-                      <span className="text-[10px] text-emerald-400 font-mono font-bold">● พร้อมเล่น</span>
+                      <span className="text-sm text-emerald-400 font-mono font-bold">● พร้อมเล่น</span>
                     )}
                   </div>
 
@@ -701,7 +701,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                   {scriptLines.length > 0 && (
                     <button
                       onClick={() => handleCopyCaption(scriptLines.join('\n'), 'script_modal')}
-                      className="text-[#25F4EE] hover:underline flex items-center gap-1 text-[11px] font-bold cursor-pointer"
+                      className="text-[#25F4EE] hover:underline flex items-center gap-1 text-sm font-bold cursor-pointer"
                     >
                       {copiedAngleId === 'script_modal' ? <><Check className="w-3 h-3 text-emerald-400" /> คัดลอกแล้ว</> : <><Copy className="w-3 h-3" /> คัดลอกสคริปต์</>}
                     </button>
@@ -728,7 +728,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                     <span>แคปชัน & แฮชแท็ก TikTok:</span>
                     <button
                       onClick={() => handleCopyCaption(captionText, 'cap_modal')}
-                      className="text-[#25F4EE] hover:underline flex items-center gap-1 text-[11px] font-bold cursor-pointer"
+                      className="text-[#25F4EE] hover:underline flex items-center gap-1 text-sm font-bold cursor-pointer"
                     >
                       {copiedAngleId === 'cap_modal' ? <><Check className="w-3 h-3 text-emerald-400" /> คัดลอกแล้ว</> : <><Copy className="w-3 h-3" /> คัดลอกแคปชัน</>}
                     </button>
@@ -884,7 +884,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
             }`}
           >
             <span>ทั้งหมด</span>
-            <span className="font-mono text-[10px] px-1.5 py-0.2 rounded-full bg-black/60">{allAnglesList.length}</span>
+            <span className="font-mono text-sm px-1.5 py-0.2 rounded-full bg-black/60">{allAnglesList.length}</span>
           </button>
 
           {/* Cards 1..5 */}
@@ -906,7 +906,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
               >
                 <Icon className="w-3.5 h-3.5" />
                 <span>{p.short}</span>
-                <span className="font-mono text-[10px] px-1.5 py-0.2 rounded-full bg-black/60 font-bold">{count}</span>
+                <span className="font-mono text-sm px-1.5 py-0.2 rounded-full bg-black/60 font-bold">{count}</span>
               </button>
             );
           })}
@@ -991,7 +991,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
       {viewMode === 'kanban' && (
         <div className="space-y-1.5">
           {/* Mobile Swipe Hint */}
-          <div className="flex xl:hidden items-center justify-between text-[10px] text-slate-400 px-1">
+          <div className="flex xl:hidden items-center justify-between text-sm text-slate-400 px-1">
             <span className="flex items-center gap-1 text-slate-400">
               <ChevronLeft className="w-3 h-3 text-[#25F4EE]" />
               <span>เลื่อนซ้าย-ขวาเพื่อดูหัวข้อถัดไป</span>
@@ -1019,7 +1019,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                       <phase.icon className="w-3.5 h-3.5 text-[#25F4EE]" />
                       <span>{phase.label}</span>
                     </div>
-                    <span className="text-[11px] font-mono font-bold px-1.5 py-0.2 rounded-full bg-black/60 border border-white/[0.08] text-slate-300">
+                    <span className="text-sm font-mono font-bold px-1.5 py-0.2 rounded-full bg-black/60 border border-white/[0.08] text-slate-300">
                       {phaseAngles.length}
                     </span>
                   </div>
@@ -1027,7 +1027,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                   {/* Cards inside column (Vertical Scrollable within column) */}
                   <div className="space-y-2 max-h-[68vh] overflow-y-auto pr-0.5 min-h-[120px]">
                     {phaseAngles.length === 0 ? (
-                      <div className="py-8 text-center text-[11px] text-slate-500 border border-dashed border-white/[0.06] rounded-xl">
+                      <div className="py-8 text-center text-sm text-slate-500 border border-dashed border-white/[0.06] rounded-xl">
                         ไม่มีคลิปในขั้นตอนนี้
                       </div>
                     ) : (
@@ -1062,7 +1062,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse min-w-[620px]">
               <thead>
-                <tr className="border-b border-white/[0.08] bg-black/70 text-slate-400 font-bold text-[11px]">
+                <tr className="border-b border-white/[0.08] bg-black/70 text-slate-400 font-bold text-sm">
                   <th className="py-2.5 px-3 w-14 text-center">วิดีโอ</th>
                   <th className="py-2.5 px-3 min-w-[180px]">สินค้า & มุมขาย (Hook Title)</th>
                   <th className="py-2.5 px-3 w-32">สถานะขั้นตอน</th>

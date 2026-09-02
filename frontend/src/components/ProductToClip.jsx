@@ -52,7 +52,7 @@ function ProductCard({ product, isSelected, onSelect }) {
             style={{ width: `${pct}%` }}
           />
         </div>
-        <span className={`text-[10px] font-mono font-bold flex-shrink-0 ${isSelected ? 'text-[#25F4EE]' : 'text-slate-500'}`}>
+        <span className={`text-sm font-mono font-bold flex-shrink-0 ${isSelected ? 'text-[#25F4EE]' : 'text-slate-500'}`}>
           {pDone}/{total}
         </span>
       </div>
@@ -109,14 +109,14 @@ function ScriptAccordionItem({
             </span>
           </div>
           {!isOpen && angle.hook_title && (
-            <p className="text-[11px] text-slate-500 truncate mt-0.5 font-kanit">
+            <p className="text-sm text-slate-500 truncate mt-0.5 font-kanit">
               "{angle.hook_title}"
             </p>
           )}
         </div>
 
         {/* Status Badge */}
-        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0 ${statusColor}`}>
+        <span className={`text-sm font-bold px-2 py-0.5 rounded-full border flex-shrink-0 ${statusColor}`}>
           {statusLabel}
         </span>
 
@@ -139,7 +139,7 @@ function ScriptAccordionItem({
 
           {/* Script Lines */}
           <div className="space-y-1">
-            <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold">
+            <div className="flex items-center justify-between text-sm text-slate-400 font-semibold">
               <span>บทพูดพากย์ ({lines.length} ท่อน):</span>
               <button
                 onClick={(e) => { e.stopPropagation(); onCopy(lines.join('\n'), index); }}
@@ -403,7 +403,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
             <Package className="w-3.5 h-3.5 text-[#25F4EE]" />
             <span>Step 1 — เลือกสินค้า</span>
             {historyList.length > 0 && (
-              <span className="text-[10px] font-mono text-slate-500 ml-1">({historyList.length} รายการ)</span>
+              <span className="text-sm font-mono text-slate-500 ml-1">({historyList.length} รายการ)</span>
             )}
           </h2>
           <div className="flex items-center gap-1.5">
@@ -492,7 +492,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://shopee.co.th/product/... หรือ https://vt.tiktok.com/..."
               />
-              <p className="text-[11px] text-slate-500">
+              <p className="text-sm text-slate-500">
                 หากแพลตฟอร์มป้องกันการดึงข้อมูล ระบบจะแนะนำให้วางข้อความสเปกแทน
               </p>
             </div>
@@ -544,7 +544,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   ) : selectedImage ? (
                     <div className="space-y-2">
                       <div className="text-xs font-bold text-emerald-400">เลือกรูปแล้ว:</div>
-                      <div className="text-[11px] text-slate-400 font-mono">{selectedImage.split('\\').pop()?.split('/').pop()}</div>
+                      <div className="text-sm text-slate-400 font-mono">{selectedImage.split('\\').pop()?.split('/').pop()}</div>
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); setSelectedImage(null); }}
@@ -557,7 +557,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                     <div className="space-y-1.5 text-slate-400">
                       <Upload className="w-7 h-7 mx-auto text-slate-500" />
                       <div className="text-xs font-bold text-slate-200">คลิกเพื่อเลือกไฟล์รูปภาพ</div>
-                      <div className="text-[10px] text-slate-500">รองรับ JPG, PNG, WebP</div>
+                      <div className="text-sm text-slate-500">รองรับ JPG, PNG, WebP</div>
                     </div>
                   )}
                 </div>
@@ -582,7 +582,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                 <button
                   type="button"
                   onClick={() => { setInputMode('text'); setFetchError(null); }}
-                  className="px-3 py-1.5 rounded-lg bg-white/[0.1] hover:bg-white/[0.15] text-white text-[11px] font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg bg-white/[0.1] hover:bg-white/[0.15] text-white text-sm font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <span>สลับไปใช้วิธีวางข้อความสเปกแทน</span>
                 </button>
@@ -615,13 +615,13 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   {productData.title}
                 </h1>
                 {productData.price_note && (
-                  <span className="text-[11px] font-bold font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 flex-shrink-0">
+                  <span className="text-sm font-bold font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 flex-shrink-0">
                     {productData.price_note}
                   </span>
                 )}
               </div>
               {productData.description && (
-                <p className="text-[11px] sm:text-xs text-slate-400 truncate mt-0.5 max-w-lg">
+                <p className="text-sm sm:text-xs text-slate-400 truncate mt-0.5 max-w-lg">
                   {productData.description}
                 </p>
               )}
@@ -629,7 +629,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
             {/* Progress */}
             <div className="flex items-center gap-2.5 bg-black/40 p-2 px-3 rounded-lg border border-white/[0.08] flex-shrink-0">
-              <span className="text-[11px] text-slate-400">ความคืบหน้า:</span>
+              <span className="text-sm text-slate-400">ความคืบหน้า:</span>
               <span className="text-xs text-white font-bold font-mono">{postedAngles}/{totalAngles}</span>
               <div className="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden">
                 <div className="h-full bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] rounded-full" style={{ width: `${progressPercent}%` }} />
@@ -667,7 +667,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                 <Video className="w-3.5 h-3.5 text-[#25F4EE]" />
                 <span>Step 3 — คลิปดิบ & สื่อที่แนบ ({videos.length + (productData.images?.length || 0)} ไฟล์)</span>
               </h2>
-              <label className="px-2.5 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-[11px] font-bold text-[#25F4EE] cursor-pointer flex items-center gap-1 transition-all">
+              <label className="px-2.5 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-sm font-bold text-[#25F4EE] cursor-pointer flex items-center gap-1 transition-all">
                 <Upload className="w-3 h-3" />
                 <span>{uploadingImg ? 'อัปโหลด...' : 'แนบคลิปเพิ่ม'}</span>
                 <input type="file" accept="video/*,image/*" onChange={handleImageUpload} disabled={uploadingImg} className="hidden" />
@@ -677,7 +677,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
             {/* Media Chips Strip */}
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar p-2 rounded-xl bg-[#080B11] border border-white/[0.06]">
               {videos.length === 0 && (productData.images?.length || 0) === 0 && (
-                <div className="text-[11px] text-slate-500 py-2 px-3 w-full text-center">
+                <div className="text-sm text-slate-500 py-2 px-3 w-full text-center">
                   ยังไม่มีคลิปดิบ — กดปุ่ม "แนบคลิปเพิ่ม" ด้านบนเพื่ออัปโหลด
                 </div>
               )}
@@ -685,13 +685,13 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                 <div key={v.path} className="flex-shrink-0 flex items-center gap-1.5 py-1.5 px-2.5 rounded-lg bg-black/40 border border-white/[0.08] text-xs">
                   <Film className="w-3 h-3 text-[#25F4EE]" />
                   <span className="font-bold text-slate-200 truncate max-w-[100px]">{v.name}</span>
-                  <span className="text-[10px] text-slate-500 font-mono">{v.size_mb}MB</span>
+                  <span className="text-sm text-slate-500 font-mono">{v.size_mb}MB</span>
                 </div>
               ))}
               {(productData.images || []).map((img, idx) => (
                 <div key={idx} className="flex-shrink-0 flex items-center gap-1.5 py-1 px-1.5 rounded-lg bg-black/40 border border-white/[0.08]">
                   <img src={`/api/media/${img.rel_path || img.local_path}`} alt="" className="w-7 h-7 rounded object-cover" />
-                  <span className="text-[11px] text-slate-300 max-w-[80px] truncate">{img.name}</span>
+                  <span className="text-sm text-slate-300 max-w-[80px] truncate">{img.name}</span>
                 </div>
               ))}
             </div>
@@ -718,17 +718,17 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
           {/* 3-Step Visual Guide */}
           <div className="flex items-center justify-center gap-3 text-xs text-slate-400 flex-wrap">
             <div className="flex items-center gap-1.5">
-              <span className="w-5 h-5 rounded-full bg-[#25F4EE]/20 text-[#25F4EE] font-bold text-[10px] flex items-center justify-center">1</span>
+              <span className="w-5 h-5 rounded-full bg-[#25F4EE]/20 text-[#25F4EE] font-bold text-sm flex items-center justify-center">1</span>
               <span>วางลิงก์/สเปก</span>
             </div>
             <ArrowRight className="w-3 h-3 text-slate-600" />
             <div className="flex items-center gap-1.5">
-              <span className="w-5 h-5 rounded-full bg-[#FE2C55]/20 text-[#FE2C55] font-bold text-[10px] flex items-center justify-center">2</span>
+              <span className="w-5 h-5 rounded-full bg-[#FE2C55]/20 text-[#FE2C55] font-bold text-sm flex items-center justify-center">2</span>
               <span>AI สร้าง 4 สคริปต์</span>
             </div>
             <ArrowRight className="w-3 h-3 text-slate-600" />
             <div className="flex items-center gap-1.5">
-              <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-[10px] flex items-center justify-center">3</span>
+              <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-sm flex items-center justify-center">3</span>
               <span>ส่งตัดต่อใน Studio</span>
             </div>
           </div>

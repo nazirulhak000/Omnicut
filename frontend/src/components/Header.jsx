@@ -60,7 +60,7 @@ export default function Header({ status, activeTab, setActiveTab }) {
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold font-kanit text-white tracking-tight truncate">
                 CapCut Studio Pro
               </h1>
-              <span className="text-[10px] sm:text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/30">
+              <span className="text-sm sm:text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/30">
                 v2.5 AI Video Production
               </span>
             </div>
@@ -129,7 +129,7 @@ export default function Header({ status, activeTab, setActiveTab }) {
               <Icon className="w-4 h-4 flex-shrink-0" />
               <span>{tab.label}</span>
               {tab.badge && (
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold transition-colors ${
+                <span className={`text-sm px-2 py-0.5 rounded-full font-mono font-bold transition-colors ${
                   isActive ? 'bg-black/30 text-white' : 'bg-white/[0.05] text-slate-400 border border-white/[0.08]'
                 }`}>
                   {tab.badge}
@@ -175,7 +175,7 @@ export default function Header({ status, activeTab, setActiveTab }) {
             <div className="p-3 bg-black/40 rounded-2xl border border-white/[0.08] space-y-2">
               <div className="flex items-center justify-between gap-2 text-xs text-slate-300">
                 <span className="font-bold">🌐 ลิงก์สำหรับเข้าผ่าน Wi-Fi:</span>
-                <span className="text-[10px] text-[#25F4EE] flex items-center gap-1 font-mono">
+                <span className="text-sm text-[#25F4EE] flex items-center gap-1 font-mono">
                   <Wifi className="w-3 h-3" /> เชื่อมต่อ Wi-Fi เดียวกัน
                 </span>
               </div>

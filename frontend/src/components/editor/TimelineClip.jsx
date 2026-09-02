@@ -163,7 +163,7 @@ export default function TimelineClip({
       }}
     >
       <div className="absolute inset-x-0 top-0 flex items-center gap-1 px-1.5 py-0.5 pointer-events-none">
-        <span className="text-[9px] font-medium text-[#EDE9E3] truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+        <span className="text-xs font-medium text-[#EDE9E3] truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
           {fileName}
         </span>
       </div>
@@ -171,7 +171,7 @@ export default function TimelineClip({
       {(speed !== 1 || clip.mirror) && (
         <div className="absolute bottom-0.5 left-1.5 flex items-center gap-1 pointer-events-none">
           {speed !== 1 && (
-            <span className="flex items-center gap-0.5 rounded bg-[#181716]/80 px-1 text-[8px] font-semibold text-[#E89274]">
+            <span className="flex items-center gap-0.5 rounded bg-[#181716]/80 px-1 text-xs font-semibold text-[#E89274]">
               <Gauge className="h-2.5 w-2.5" />{speed}x
             </span>
           )}

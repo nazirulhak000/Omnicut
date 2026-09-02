@@ -74,7 +74,7 @@ export default function PresetsBar({
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                <span className="text-sm font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
                   ✓ โหลดจากเมนูที่ 1 แล้ว
                 </span>
                 <span className="text-xs text-slate-400 hidden sm:inline">
@@ -137,7 +137,7 @@ export default function PresetsBar({
                 {isSelected ? <Check className="w-3.5 h-3.5 text-white" /> : <span className="opacity-60">{idx + 1}.</span>}
                 <span>{ang.angle_name || `มุมที่ ${idx + 1}`}</span>
                 {ang.badge && (
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  <span className={`text-sm px-1.5 py-0.2 rounded-full font-bold ${
                     isSelected ? 'bg-black/30 text-white' : 'bg-[#25F4EE]/10 text-[#25F4EE]'
                   }`}>
                     {ang.badge}

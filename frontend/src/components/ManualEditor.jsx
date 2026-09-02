@@ -56,7 +56,7 @@ function SortableClipRow({ clip, index, isActive, onSelect, onRemove }) {
 
       <div className="flex-1 min-w-0">
         <div className="text-xs font-bold text-white truncate" title={clip.source_path}>{fileName}</div>
-        <div className="text-[10px] text-slate-400 font-mono mt-0.5">{trimLabel}</div>
+        <div className="text-sm text-slate-400 font-mono mt-0.5">{trimLabel}</div>
       </div>
 
       <button
@@ -180,7 +180,7 @@ function TransitionToggle({ value, onToggle }) {
     <div className="flex items-center justify-center py-1">
       <button
         onClick={onToggle}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all cursor-pointer ${
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold border transition-all cursor-pointer ${
           isFade
             ? 'bg-[#25F4EE]/20 text-[#25F4EE] border-[#25F4EE]/40 shadow-sm'
             : 'bg-white/[0.04] text-slate-400 border-white/[0.08] hover:text-white'
@@ -578,7 +578,7 @@ export default function ManualEditor({ videos = [] }) {
                   </>
                 )}
               </button>
-              <p className="text-[11px] text-slate-400 text-center">
+              <p className="text-sm text-slate-400 text-center">
                 พรีวิวแบบ ffmpeg แม่นยำระดับเฟรม — ต้องรอเรนเดอร์จริงทุกครั้งที่กด Apply
               </p>
 
@@ -667,7 +667,7 @@ export default function ManualEditor({ videos = [] }) {
                     <option key={l.id} value={l.id}>{l.name.replace(/\.cube$/i, '')}</option>
                   ))}
                 </select>
-                {lutName && <div className="text-[11px] text-amber-300 mt-1">เรนเดอร์ช้าลง ~90% บนเครื่อง CPU</div>}
+                {lutName && <div className="text-sm text-amber-300 mt-1">เรนเดอร์ช้าลง ~90% บนเครื่อง CPU</div>}
               </div>
             </div>
 
@@ -678,7 +678,7 @@ export default function ManualEditor({ videos = [] }) {
                   คำบรรยาย ({cuesList.length})
                 </span>
                 {cuesDirty && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold">แก้ไขแล้ว</span>
+                  <span className="text-sm px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold">แก้ไขแล้ว</span>
                 )}
               </h3>
               <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1 no-scrollbar">

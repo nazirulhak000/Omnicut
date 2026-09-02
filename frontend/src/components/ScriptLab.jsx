@@ -186,7 +186,7 @@ Esseger สายชาร์จแม่เหล็ก 3-in-1 จัดโป�
             <Sparkles className="w-4 h-4 text-[#25F4EE]" />
             <span>1. ระบุข้อมูลสินค้าเพื่อแต่งบทรีวิว</span>
           </div>
-          <span className="text-[11px] text-slate-400 font-mono">ปรับแก้ข้อมูลได้ตลอดเวลา</span>
+          <span className="text-sm text-slate-400 font-mono">ปรับแก้ข้อมูลได้ตลอดเวลา</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

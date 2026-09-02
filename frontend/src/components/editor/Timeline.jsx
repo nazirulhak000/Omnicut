@@ -24,7 +24,7 @@ function tickStep(pxPerSec) {
 function TrackLabel({ icon: Icon, children }) {
   return (
     <div
-      className="flex items-center gap-1.5 px-2 text-[10px] font-medium text-[#9C968F]"
+      className="flex items-center gap-1.5 px-2 text-sm font-medium text-[#9C968F]"
       style={{ width: GUTTER }}
     >
       <Icon className="h-3 w-3 flex-shrink-0" />
@@ -210,7 +210,7 @@ export default function Timeline({
               {ticks.map((t) => (
                 <div key={t} className="absolute top-0 h-full" style={{ left: t * pxPerSec }}>
                   <span className="absolute top-0 h-2 w-px bg-[#4A4742]" />
-                  <span className="absolute top-2 -translate-x-1/2 font-mono text-[9px] text-[#6B6660]">
+                  <span className="absolute top-2 -translate-x-1/2 font-mono text-xs text-[#6B6660]">
                     {formatTimecode(t)}
                   </span>
                 </div>
@@ -325,7 +325,7 @@ export default function Timeline({
                         if (d?.moved) dragEnd();
                       }}
                       title={cue.text}
-                      className={`absolute top-1 h-[calc(100%-8px)] touch-none overflow-hidden rounded px-1.5 text-left text-[9px] leading-[18px] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
+                      className={`absolute top-1 h-[calc(100%-8px)] touch-none overflow-hidden rounded px-1.5 text-left text-xs leading-[18px] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
                         selected
                           ? 'bg-[#33251F] text-[#EDE9E3] ring-2 ring-[#D97757]'
                           : 'bg-[#282724] text-[#C9C3BB] ring-1 ring-[#4A4742] hover:ring-[#6B6660]'
@@ -354,7 +354,7 @@ export default function Timeline({
                         className="pointer-events-none absolute inset-0 h-full w-full"
                       />
                     )}
-                    <span className="relative truncate text-[9px] text-[#8FBF9F] drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                    <span className="relative truncate text-xs text-[#8FBF9F] drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
                       เสียงพากย์ + BGM{bgmLabel ? ` · ${bgmLabel}` : ' · ค่าเริ่มต้นของช่อง'}
                       {waveInfo?.truncated ? ` · รูปคลื่นแสดง ${MAX_DECODE_SECONDS} วิแรก` : ''}
                     </span>

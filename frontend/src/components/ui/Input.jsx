@@ -28,10 +28,10 @@ export const Input = forwardRef(function Input(
         {...props}
       />
       {error && (
-        <p className="text-[11px] text-rose-400 font-medium">{error}</p>
+        <p className="text-sm text-rose-400 font-medium">{error}</p>
       )}
       {helperText && !error && (
-        <p className="text-[11px] text-slate-500">{helperText}</p>
+        <p className="text-sm text-slate-500">{helperText}</p>
       )}
     </div>
   );
@@ -67,10 +67,10 @@ export const Textarea = forwardRef(function Textarea(
         {...props}
       />
       {error && (
-        <p className="text-[11px] text-rose-400 font-medium">{error}</p>
+        <p className="text-sm text-rose-400 font-medium">{error}</p>
       )}
       {helperText && !error && (
-        <p className="text-[11px] text-slate-500">{helperText}</p>
+        <p className="text-sm text-slate-500">{helperText}</p>
       )}
     </div>
   );

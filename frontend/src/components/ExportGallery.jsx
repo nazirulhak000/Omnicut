@@ -70,7 +70,7 @@ const ExportCard = memo(function ExportCard({
             <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-[#FE2C55] to-[#25F4EE] text-white flex items-center justify-center shadow-xl transform group-hover:scale-105 transition-all">
               <Play className="w-4 h-4 fill-current ml-0.5 text-white" />
             </div>
-            <span className="text-[11px] font-bold text-white bg-black/80 px-2.5 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+            <span className="text-sm font-bold text-white bg-black/80 px-2.5 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
               คลิกดูรายละเอียด
             </span>
           </div>
@@ -90,7 +90,7 @@ const ExportCard = memo(function ExportCard({
             <span className="flex items-center gap-1 text-[#25F4EE] font-bold">
               {item.size_mb} MB
             </span>
-            <span className="text-[11px] text-slate-400">
+            <span className="text-sm text-slate-400">
               {item.modified?.split(' ')?.[0] || item.modified}
             </span>
           </div>

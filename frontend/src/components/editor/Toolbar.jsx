@@ -14,7 +14,7 @@ function ToolButton({ icon: Icon, label, hint, shortcut, onClick, disabled, acti
       disabled={disabled}
       title={tip}
       aria-label={label}
-      className={`flex h-7 items-center gap-1.5 rounded-lg px-2 text-[11px] font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
+      className={`flex h-7 items-center gap-1.5 rounded-lg px-2 text-sm font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
         disabled
           ? 'cursor-not-allowed text-[#5A554F]'
           : active
@@ -88,7 +88,7 @@ export default function Toolbar({
         />
         <span className="mx-1 h-4 w-px bg-[#363430]" />
         <ToolButton icon={ZoomOut} label="" onClick={() => onZoom(-1)} disabled={zoomIndex <= 0} />
-        <span className="w-10 text-center font-mono text-[10px] text-[#9C968F]">
+        <span className="w-10 text-center font-mono text-sm text-[#9C968F]">
           {zoomIndex + 1}/{zoomCount}
         </span>
         <ToolButton icon={ZoomIn} label="" onClick={() => onZoom(1)} disabled={zoomIndex >= zoomCount - 1} />

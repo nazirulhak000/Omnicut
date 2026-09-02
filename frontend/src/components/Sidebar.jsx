@@ -115,7 +115,7 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
                 }`}
             >
               <Icon className="w-5 h-5" strokeWidth={isActive ? 2.3 : 1.6} />
-              <span className="text-[10px] font-kanit">{item.shortLabel}</span>
+              <span className="text-sm font-kanit">{item.shortLabel}</span>
             </button>
           );
         })}
@@ -145,7 +145,7 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
             </div>
 
             <div className="p-3 bg-black/40 rounded-xl border border-white/[0.08] space-y-2">
-              <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-mono font-bold">
+              <div className="flex items-center gap-1.5 text-sm text-emerald-400 font-mono font-bold">
                 <Wifi className="w-3.5 h-3.5" />
                 <span>Local Network URL:</span>
               </div>

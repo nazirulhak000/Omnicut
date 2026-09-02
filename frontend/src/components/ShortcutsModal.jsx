@@ -49,7 +49,7 @@ export default function ShortcutsModal({ isOpen, onClose }) {
                   className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06] flex items-center justify-between gap-3 text-xs"
                 >
                   <span className="text-slate-300 truncate font-medium">{sc.desc}</span>
-                  <kbd className="px-2 py-1 rounded-lg bg-white/[0.08] border border-white/[0.15] text-[#25F4EE] font-mono font-bold text-[11px] shadow-inner flex-shrink-0 min-w-[28px] text-center">
+                  <kbd className="px-2 py-1 rounded-lg bg-white/[0.08] border border-white/[0.15] text-[#25F4EE] font-mono font-bold text-sm shadow-inner flex-shrink-0 min-w-[28px] text-center">
                     {sc.key}
                   </kbd>
                 </div>

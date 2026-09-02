@@ -18,7 +18,7 @@ export default function LoadingSpinner({ message = 'กำลังโหลด�
         <p className="text-xs sm:text-sm font-bold text-white font-kanit tracking-wide">
           {message}
         </p>
-        <p className="text-[10px] text-slate-500 font-mono">
+        <p className="text-sm text-slate-500 font-mono">
           Dynamic Module Code-Splitting Active
         </p>
       </div>

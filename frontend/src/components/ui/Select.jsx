@@ -44,7 +44,7 @@ export const Select = forwardRef(function Select(
         <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
       </div>
       {error && (
-        <p className="text-[11px] text-rose-400 font-medium">{error}</p>
+        <p className="text-sm text-rose-400 font-medium">{error}</p>
       )}
     </div>
   );

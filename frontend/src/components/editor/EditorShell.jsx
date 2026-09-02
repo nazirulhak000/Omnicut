@@ -731,7 +731,7 @@ export default function EditorShell({
         </div>
 
         {/* Center: Timecode */}
-        <span className="font-mono text-[11px] text-slate-400 font-bold hidden xs:inline flex-shrink-0">
+        <span className="font-mono text-sm text-slate-400 font-bold hidden xs:inline flex-shrink-0">
           <span className="text-[#25F4EE]">{formatTimecode(playhead)}</span> / {formatTimecode(Math.max(totalDuration, audioDuration))}
         </span>
 
@@ -752,7 +752,7 @@ export default function EditorShell({
             onClick={() => { setProjectName(''); setSelection(null); }}
             disabled={applying}
             title="กลับไปหน้าสร้างคลิปใหม่"
-            className="flex h-8 items-center gap-1 rounded-xl border border-white/[0.08] bg-black/40 px-2 text-[11px] font-bold text-slate-200 hover:text-white disabled:opacity-50 cursor-pointer"
+            className="flex h-8 items-center gap-1 rounded-xl border border-white/[0.08] bg-black/40 px-2 text-sm font-bold text-slate-200 hover:text-white disabled:opacity-50 cursor-pointer"
           >
             <Sparkles className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">คลิปใหม่</span>
@@ -763,7 +763,7 @@ export default function EditorShell({
             onChange={(e) => setExportPreset(e.target.value)}
             disabled={applying}
             title="ทดลอง = 720p เข้ารหัสเร็ว ใช้ดูว่าตัดถูกไหม ไม่ใช่ไฟล์สำหรับโพสต์ (ชื่อไฟล์จะมี _draft)"
-            className="h-8 rounded-xl border border-white/[0.08] bg-black/40 px-2 text-[11px] text-slate-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] disabled:opacity-50"
+            className="h-8 rounded-xl border border-white/[0.08] bg-black/40 px-2 text-sm text-slate-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] disabled:opacity-50"
           >
             <option value="post">โพสต์จริง 1080p</option>
             <option value="draft">ทดลอง 720p (เร็ว 2 เท่า)</option>
@@ -833,7 +833,7 @@ export default function EditorShell({
                   <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">
                     <div className="h-full bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] transition-all duration-300" style={{ width: `${Math.max(5, progress)}%` }} />
                   </div>
-                  <p className="text-center text-[10px] text-[#25F4EE] font-bold">{jobStatus?.message || `กำลังเรนเดอร์ ${progress}%`}</p>
+                  <p className="text-center text-sm text-[#25F4EE] font-bold">{jobStatus?.message || `กำลังเรนเดอร์ ${progress}%`}</p>
                 </div>
               )}
             </div>
@@ -1013,16 +1013,16 @@ export default function EditorShell({
                     <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">
                       <div className="h-full bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] transition-all duration-300" style={{ width: `${Math.max(5, progress)}%` }} />
                     </div>
-                    <p className="pt-1 text-center text-[10px] text-slate-400">{jobStatus?.message}</p>
+                    <p className="pt-1 text-center text-sm text-slate-400">{jobStatus?.message}</p>
                   </div>
                 )}
                 {applyError && (
-                  <p className="flex flex-shrink-0 items-center gap-1 text-[10px] text-rose-300">
+                  <p className="flex flex-shrink-0 items-center gap-1 text-sm text-rose-300">
                     <AlertCircle className="h-3 w-3" />{applyError}
                   </p>
                 )}
                 {applyResult && (
-                  <p className="flex flex-shrink-0 items-center gap-1 text-[10px] text-emerald-300 font-bold">
+                  <p className="flex flex-shrink-0 items-center gap-1 text-sm text-emerald-300 font-bold">
                     <CheckCircle2 className="h-3 w-3" />เรนเดอร์เสร็จ — ดูไฟล์ได้ที่ Export Gallery
                   </p>
                 )}
