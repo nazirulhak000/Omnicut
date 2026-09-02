@@ -31,6 +31,8 @@ const EXPORT_PRESETS = [
 ];
 
 const TIMELINE_MIN_H = 196;
+const MOBILE_PREVIEW_MIN_H = 160;
+const MOBILE_PREVIEW_DEFAULT = 0.45;   // share of the window height
 const TIMELINE_MAX_H = 460;
 const TIMELINE_DEFAULT_H = 212;
 
@@ -76,6 +78,24 @@ export default function EditorShell({
     }
   });
   const resizeRef = useRef(null);
+
+  // Mobile split. The preview used to be locked to 28vh on every tab except
+  // the timeline, which is why editing captions left the clip as a thumbnail.
+  const mobileWrapRef = useRef(null);
+  const mobileResizeRef = useRef(null);
+  const [mobilePreviewH, setMobilePreviewH] = useState(() => {
+    const saved = parseInt(localStorage.getItem('editor.mobilePreviewH') || '', 10);
+    return Number.isFinite(saved) ? saved : Math.round(window.innerHeight * MOBILE_PREVIEW_DEFAULT);
+  });
+
+  const applyMobilePreviewH = (px) => {
+    const box = mobileWrapRef.current?.getBoundingClientRect();
+    // leave the panel enough for its tab row plus a couple of rows
+    const max = box ? Math.max(MOBILE_PREVIEW_MIN_H, box.height - 220) : 640;
+    const clamped = Math.min(max, Math.max(MOBILE_PREVIEW_MIN_H, Math.round(px)));
+    setMobilePreviewH(clamped);
+    try { localStorage.setItem('editor.mobilePreviewH', String(clamped)); } catch (err) { /* private mode */ }
+  };
 
   const applyTimelineH = (nextH) => {
     const clamped = Math.max(TIMELINE_MIN_H, Math.min(TIMELINE_MAX_H, nextH));
@@ -985,13 +1005,12 @@ export default function EditorShell({
           {/* ══════════════════════════════════════════════════════════
               📱 MOBILE LAYOUT (< md breakpoint) - CapCut Mobile UX
              ══════════════════════════════════════════════════════════ */}
-          <div className="md:hidden flex flex-col flex-1 min-h-0 overflow-hidden bg-[#07090E]">
+          <div ref={mobileWrapRef} className="md:hidden flex flex-col flex-1 min-h-0 overflow-hidden bg-[#07090E]">
             {/* Top: 9:16 Video Player Preview (Expands to fill top area, zero wasted space) */}
-            <div className={`w-full p-2 bg-black/60 flex flex-col items-center justify-center relative border-b border-white/[0.08] ${
-              mobileTab === 'timeline'
-                ? 'flex-1 min-h-0'
-                : 'h-[28vh] min-h-[160px] flex-shrink-0'
-            }`}>
+            <div
+              className="relative flex w-full flex-shrink-0 flex-col items-center justify-center bg-black/60 p-2"
+              style={{ height: mobilePreviewH }}
+            >
               <SequencePlayer
                 ref={mobilePlayerRef}
                 clips={clipList}
@@ -1013,6 +1032,32 @@ export default function EditorShell({
                   <p className="text-center text-sm text-[#25F4EE] font-bold">{jobStatus?.message || `กำลังเรนเดอร์ ${progress}%`}</p>
                 </div>
               )}
+            </div>
+
+            {/* Drag to trade preview height against the panel below;
+                double-tap to go back to the default third. */}
+            <div
+              role="separator"
+              aria-orientation="horizontal"
+              aria-label="ปรับขนาดพรีวิว"
+              title="ลากขึ้น-ลงเพื่อปรับขนาดพรีวิว · แตะสองครั้งเพื่อรีเซ็ต"
+              onPointerDown={(e) => {
+                mobileResizeRef.current = { startY: e.clientY, startH: mobilePreviewH };
+                try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* drag still works */ }
+              }}
+              onPointerMove={(e) => {
+                const d = mobileResizeRef.current;
+                if (!d) return;
+                applyMobilePreviewH(d.startH + (e.clientY - d.startY));
+              }}
+              onPointerUp={(e) => {
+                mobileResizeRef.current = null;
+                try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
+              }}
+              onDoubleClick={() => applyMobilePreviewH(Math.round(window.innerHeight * MOBILE_PREVIEW_DEFAULT))}
+              className="group flex h-5 flex-shrink-0 cursor-ns-resize touch-none items-center justify-center border-b border-white/[0.08] bg-[#0B0E17]"
+            >
+              <span className="h-1 w-12 rounded-full bg-[#4A4742] transition-colors duration-150 group-hover:bg-[#D97757]" />
             </div>
 
             {/* Mobile Mode Switcher Tabs */}
