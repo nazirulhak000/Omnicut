@@ -4,7 +4,7 @@ import {
   RefreshCw, Rocket, Scissors, Film, Layers, Sliders, Sparkles, Trash2
 } from 'lucide-react';
 import {
-  deleteProject, getAllAssets, getProject, getProjects, getRenderStatus, startReroll, updateProjectCues,
+  deleteProject, getAllAssets, getProject, getProjectOrigin, getProjects, getRenderStatus, startReroll, updateProjectCues,
 } from '../../api';
 import {
   FADE_DURATION, ZOOM_LEVELS, buildSegments, formatTimecode, splitClipAt, snapCandidates, snapTime,
@@ -89,6 +89,8 @@ export default function EditorShell({
   const [pendingDelete, setPendingDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
+  const [deleteScope, setDeleteScope] = useState('project');
+  const [deleteOrigin, setDeleteOrigin] = useState(null);
 
   const mobilePlayerRef = useRef(null);
   const desktopPlayerRef = useRef(null);
@@ -121,7 +123,7 @@ export default function EditorShell({
     setDeleting(true);
     setDeleteError(null);
     try {
-      await deleteProject(pendingDelete);
+      await deleteProject(pendingDelete, deleteScope);
       const data = await getProjects().catch(() => null);
       setProjectList(data?.projects || []);
       if (projectName === pendingDelete) {
@@ -759,7 +761,13 @@ export default function EditorShell({
 
           <button
             type="button"
-            onClick={() => { setDeleteError(null); setPendingDelete(projectName); }}
+            onClick={() => {
+              setDeleteError(null);
+              setDeleteScope('project');
+              setDeleteOrigin(null);
+              setPendingDelete(projectName);
+              getProjectOrigin(projectName).then(setDeleteOrigin).catch(() => setDeleteOrigin({}));
+            }}
             disabled={!projectName || loading || applying}
             title={projectName ? `ลบโปรเจกต์ ${projectName} ถาวร` : 'เลือกโปรเจกต์ก่อน'}
             className="flex h-9 w-9 flex-shrink-0 cursor-pointer items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.05] text-slate-300 transition-colors hover:bg-rose-500/15 hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-40"
@@ -854,11 +862,69 @@ export default function EditorShell({
                 </div>
               </div>
 
-              <ul className="space-y-1.5 rounded-xl bg-black/40 p-3 text-sm leading-relaxed text-slate-300">
-                <li>• จะลบ <span className="font-bold text-rose-300">บท เสียงพากย์ ซับ และไฟล์เสียงที่มิกซ์แล้ว</span>{meta?.size_mb ? ` (${meta.size_mb} MB)` : ''}</li>
-                <li>• <span className="font-bold text-emerald-300">วิดีโอ mp4 ที่เรนเดอร์ไปแล้วไม่หาย</span> — อยู่คนละที่ใน Export Gallery</li>
-                <li>• ลบแล้วกู้คืนไม่ได้ ต้องสร้างคลิปใหม่ตั้งแต่ต้น</li>
-              </ul>
+              {(() => {
+                const origin = deleteOrigin;
+                const product = origin?.product;
+                const angle = origin?.angle;
+                const OPTIONS = [
+                  {
+                    id: 'project',
+                    label: 'ลบเฉพาะโปรเจกต์ตัดต่อ',
+                    detail: `บท เสียงพากย์ ซับ ไฟล์เสียงที่มิกซ์แล้ว${meta?.size_mb ? ` · ${meta.size_mb} MB` : ''}`,
+                    enabled: true,
+                  },
+                  {
+                    id: 'angle',
+                    label: 'ลบมุม/สคริปต์ในเมนูสินค้าด้วย',
+                    detail: angle
+                      ? `มุม “${angle.angle_name || angle.hook_title}” จะหายจากเมนูสินค้าและแทร็กเกอร์`
+                      : 'หามุมที่ตรงกับโปรเจกต์นี้ไม่เจอ (คลิปเก่าที่ยังไม่ได้บันทึกที่มา)',
+                    enabled: !!angle,
+                  },
+                  {
+                    id: 'product',
+                    label: 'ลบสินค้านี้ทั้งหมด',
+                    detail: product
+                      ? `“${product.name}” พร้อมสคริปต์ทั้ง ${product.angle_count} มุม จะหายทั้งหมด`
+                      : 'หาสินค้าที่ผูกกับโปรเจกต์นี้ไม่เจอ',
+                    enabled: !!product,
+                  },
+                ];
+                return (
+                  <div className="space-y-2">
+                    {!origin && <p className="text-sm text-slate-400">กำลังตรวจว่าผูกกับอะไรอยู่...</p>}
+                    {OPTIONS.map((o) => (
+                      <label
+                        key={o.id}
+                        className={`flex gap-2.5 rounded-xl border p-3 ${
+                          o.enabled ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
+                        } ${
+                          deleteScope === o.id
+                            ? 'border-rose-500/60 bg-rose-500/10'
+                            : 'border-white/[0.08] bg-black/40 hover:border-white/[0.2]'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="delete-scope"
+                          checked={deleteScope === o.id}
+                          disabled={!o.enabled}
+                          onChange={() => setDeleteScope(o.id)}
+                          className="mt-0.5 h-[18px] w-[18px] flex-shrink-0 accent-rose-500"
+                        />
+                        <span className="min-w-0">
+                          <span className="block text-sm font-bold text-white">{o.label}</span>
+                          <span className="block pt-0.5 text-sm leading-relaxed text-slate-400">{o.detail}</span>
+                        </span>
+                      </label>
+                    ))}
+                    <p className="pt-1 text-sm leading-relaxed text-slate-400">
+                      <span className="font-bold text-emerald-300">วิดีโอ mp4 ที่เรนเดอร์ไปแล้วไม่หายทุกกรณี</span> — อยู่คนละที่ใน Export Gallery ·
+                      ที่ลบแล้วกู้คืนไม่ได้
+                    </p>
+                  </div>
+                );
+              })()}
 
               {deleteError && (
                 <p className="flex items-start gap-1.5 text-sm text-[#E0A9A2]">

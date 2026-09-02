@@ -17,6 +17,8 @@ const SystemAssets = lazy(() => import('./components/SystemAssets'));
 
 import { angleToForm } from './lib/angleToForm';
 import { applyUiScale, initUiScale } from './lib/uiScale';
+import { TaskProvider } from './context/TaskContext';
+import { ActivityDrawer, GlobalTaskNotification, ActivityIndicatorButton } from './components/ActivityCenter';
 
 export default function App() {
 
@@ -205,118 +207,134 @@ export default function App() {
   };
 
   return (
-    <div className={`flex h-screen overflow-hidden ${uiFont} bg-[#07090E] text-slate-100`}>
-      {/* ── Sidebar (desktop: left, mobile: bottom) ── */}
-      <Sidebar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        status={status}
-      />
+    <TaskProvider
+      onNavigateTab={setActiveTab}
+      onSelectProductForFlow={setSelectedProductIdForFlow}
+    >
+      <div className={`flex h-screen overflow-hidden ${uiFont} bg-[#07090E] text-slate-100`}>
+        {/* ── Sidebar (desktop: left, mobile: bottom) ── */}
+        <Sidebar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          status={status}
+        />
 
-      {/* ── Main Area ── */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#07090E]">
-        {/* ── Topbar (Hidden on Manual Editor to maximize editing workspace) ── */}
-        {activeTab !== 'editor' && (
-          <Topbar
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            status={status}
-            uiFont={uiFont}
-            setUiFont={handleUiFontChange}
-            uiScale={uiScale}
-            setUiScale={handleUiScaleChange}
-            onOpenShortcuts={() => setShowShortcutsModal(true)}
-            onRefresh={refreshData}
-            activeProductContext={activeProductContext}
-            exportsCount={exportsList.length}
-            videosCount={videos.length}
-          />
-        )}
-
-        {/* ── Content (Enforce overflow-x-hidden so page never shifts horizontally under sidebar) ── */}
-        <ErrorBoundary>
-          {activeTab === 'editor' ? (
-            <main className="min-h-0 flex-1 overflow-hidden p-0 md:p-1.5 pb-16 md:pb-1.5">
-              <Suspense fallback={<LoadingSpinner message="กำลังโหลด Video Editor..." />}>
-                <EditorShell
-                  videos={videos}
-                  productContext={activeProductContext}
-                  angleIndex={selectedAngleIndex}
-                  onAngleChange={handleSelectAngle}
-                  onGoToProductFlow={() => setActiveTab('flow')}
-                  onVideoUploaded={handleVideoUploaded}
-                />
-              </Suspense>
-            </main>
-          ) : (
-          <main className="flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-5 lg:px-6 py-5 pb-20 md:pb-8 w-full min-w-0">
-            <div className="mx-auto w-full min-w-0 max-w-[2200px] animate-fadeIn space-y-5">
-
-              {/* SECTION: สินค้า → คลิป (Menu 1) */}
-              {activeTab === 'flow' && (
-                <Suspense fallback={<LoadingSpinner message="กำลังโหลดโมดูลสินค้า → คลิป..." />}>
-                  <ProductToClip
-                    status={status}
-                    videos={videos}
-                    onRefresh={refreshData}
-                    onApplyToStudio={handleApplyScriptFromLab}
-                    selectedProductId={selectedProductIdForFlow}
-                  />
-                </Suspense>
-              )}
-
-              {/* SECTION: คลังสินค้า & Tracker (Menu 2) */}
-              {activeTab === 'tracker' && (
-                <Suspense fallback={<LoadingSpinner message="กำลังโหลด Content Tracker..." />}>
-                  <ContentTrackerHub
-                    onApplyToStudio={handleApplyScriptFromLab}
-                    onRefresh={refreshData}
-                    onGoToEditor={() => setActiveTab('editor')}
-                    onGoToFlow={(productId) => {
-                      if (productId) setSelectedProductIdForFlow(productId);
-                      setActiveTab('flow');
-                    }}
-                    onGoToGallery={() => setActiveTab('gallery')}
-                  />
-                </Suspense>
-              )}
-
-
-              {/* SECTION: Export Gallery */}
-              {activeTab === 'gallery' && (
-                <Suspense fallback={<LoadingSpinner message="กำลังโหลด Export Gallery..." />}>
-                  <ExportGallery
-                    exportsList={exportsList}
-                    onRefresh={refreshData}
-                  />
-                </Suspense>
-              )}
-
-
-
-              {/* SECTION: System & Assets */}
-              {activeTab === 'assets' && (
-                <Suspense fallback={<LoadingSpinner message="กำลังโหลด System & Assets Hub..." />}>
-                  <SystemAssets status={status} />
-                </Suspense>
-              )}
+        {/* ── Main Area ── */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#07090E] relative">
+          {/* Floating Activity Center Trigger on Editor tab */}
+          {activeTab === 'editor' && (
+            <div className="absolute top-2 right-2 z-30 pointer-events-auto">
+              <ActivityIndicatorButton className="shadow-2xl backdrop-blur-md" />
             </div>
-          </main>
           )}
-        </ErrorBoundary>
+
+          {/* ── Topbar (Hidden on Manual Editor to maximize editing workspace) ── */}
+          {activeTab !== 'editor' && (
+            <Topbar
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              status={status}
+              uiFont={uiFont}
+              setUiFont={handleUiFontChange}
+              uiScale={uiScale}
+              setUiScale={handleUiScaleChange}
+              onOpenShortcuts={() => setShowShortcutsModal(true)}
+              onRefresh={refreshData}
+              activeProductContext={activeProductContext}
+              exportsCount={exportsList.length}
+              videosCount={videos.length}
+            />
+          )}
+
+          {/* ── Content (Enforce overflow-x-hidden so page never shifts horizontally under sidebar) ── */}
+          <ErrorBoundary>
+            {activeTab === 'editor' ? (
+              <main className="min-h-0 flex-1 overflow-hidden p-0 md:p-1.5 pb-16 md:pb-1.5">
+                <Suspense fallback={<LoadingSpinner message="กำลังโหลด Video Editor..." />}>
+                  <EditorShell
+                    videos={videos}
+                    productContext={activeProductContext}
+                    angleIndex={selectedAngleIndex}
+                    onAngleChange={handleSelectAngle}
+                    onGoToProductFlow={() => setActiveTab('flow')}
+                    onVideoUploaded={handleVideoUploaded}
+                  />
+                </Suspense>
+              </main>
+            ) : (
+            <main className="flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-5 lg:px-6 py-5 pb-20 md:pb-8 w-full min-w-0">
+              <div className="mx-auto w-full min-w-0 max-w-[2200px] animate-fadeIn space-y-5">
+
+                {/* SECTION: สินค้า → คลิป (Menu 1) */}
+                {activeTab === 'flow' && (
+                  <Suspense fallback={<LoadingSpinner message="กำลังโหลดโมดูลสินค้า → คลิป..." />}>
+                    <ProductToClip
+                      status={status}
+                      videos={videos}
+                      onRefresh={refreshData}
+                      onApplyToStudio={handleApplyScriptFromLab}
+                      selectedProductId={selectedProductIdForFlow}
+                    />
+                  </Suspense>
+                )}
+
+                {/* SECTION: คลังสินค้า & Tracker (Menu 2) */}
+                {activeTab === 'tracker' && (
+                  <Suspense fallback={<LoadingSpinner message="กำลังโหลด Content Tracker..." />}>
+                    <ContentTrackerHub
+                      onApplyToStudio={handleApplyScriptFromLab}
+                      onRefresh={refreshData}
+                      onGoToEditor={() => setActiveTab('editor')}
+                      onGoToFlow={(productId) => {
+                        if (productId) setSelectedProductIdForFlow(productId);
+                        setActiveTab('flow');
+                      }}
+                      onGoToGallery={() => setActiveTab('gallery')}
+                    />
+                  </Suspense>
+                )}
+
+
+                {/* SECTION: Export Gallery */}
+                {activeTab === 'gallery' && (
+                  <Suspense fallback={<LoadingSpinner message="กำลังโหลด Export Gallery..." />}>
+                    <ExportGallery
+                      exportsList={exportsList}
+                      onRefresh={refreshData}
+                    />
+                  </Suspense>
+                )}
+
+
+
+                {/* SECTION: System & Assets */}
+                {activeTab === 'assets' && (
+                  <Suspense fallback={<LoadingSpinner message="กำลังโหลด System & Assets Hub..." />}>
+                    <SystemAssets status={status} />
+                  </Suspense>
+                )}
+              </div>
+            </main>
+            )}
+          </ErrorBoundary>
+        </div>
+
+        {/* ── Global Keyboard Shortcuts Cheat Sheet Modal ── */}
+        <ShortcutsModal
+          isOpen={showShortcutsModal}
+          onClose={() => setShowShortcutsModal(false)}
+        />
+
+        {/* ── Global Toast for Quick Save / Actions ── */}
+        <Toast
+          message={globalToast}
+          onClose={() => setGlobalToast(null)}
+        />
+
+        {/* ── Global Persistent Activity Drawer & Task Notifications ── */}
+        <ActivityDrawer />
+        <GlobalTaskNotification />
       </div>
-
-      {/* ── Global Keyboard Shortcuts Cheat Sheet Modal ── */}
-      <ShortcutsModal
-        isOpen={showShortcutsModal}
-        onClose={() => setShowShortcutsModal(false)}
-      />
-
-      {/* ── Global Toast for Quick Save / Actions ── */}
-      <Toast
-        message={globalToast}
-        onClose={() => setGlobalToast(null)}
-      />
-    </div>
+    </TaskProvider>
   );
 }

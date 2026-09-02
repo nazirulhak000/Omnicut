@@ -56,6 +56,7 @@ app.add_middleware(
 from scripts import render_jobs
 from scripts.render_jobs import ACTIVE_JOBS
 from scripts.asset_registry import AssetRegistry
+from scripts.task_manager import TaskManager
 from scripts.api_phase1 import router as phase1_router
 from scripts.api_editor import router as editor_router
 
@@ -94,6 +95,10 @@ class RenderRequest(BaseModel):
     voice_preset: Optional[str] = "gemini_puck_male_hype"  # Gemini prebuilt voice, e.g. gemini_puck_male_hype
     ad_tone: Optional[str] = "commercial_premium"
     human_voice_audio: Optional[str] = None
+    # Where this clip came from in the product flow. Recorded so deleting the
+    # project can offer to take its script with it without guessing.
+    product_id: Optional[str] = None
+    angle_id: Optional[str] = None
     font_name: str = "IBMPlex"
     bilingual_subtitles: bool = True
     use_ai_vision: bool = True
@@ -455,6 +460,152 @@ def scrape_and_plan(payload: Dict[str, Any]):
     except Exception as e:
         print(f"[API] Scrape and plan error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+def _execute_scrape_and_plan_worker(task_id: str, payload: Dict[str, Any]):
+    """Background worker that executes product scrape & 10-angle script generation with step-by-step progress."""
+    try:
+        TaskManager.update_progress(task_id, 0.15, "กำลังดึงข้อมูลและสเปกสินค้า...")
+        url = payload.get("url", "").strip()
+        raw_text = payload.get("raw_text", "").strip()
+        custom_keyword = payload.get("custom_keyword", "").strip()
+        angle_count = int(payload.get("angle_count", 7))
+
+        if url:
+            TaskManager.update_progress(task_id, 0.30, f"กำลังดึงข้อมูลจากร้านค้า: {url[:35]}...")
+            product_info = ProductScraper.scrape_url(url)
+        else:
+            product_info = {
+                "platform": "manual",
+                "url": "",
+                "title": custom_keyword or "สินค้า",
+                "description": raw_text or custom_keyword,
+                "price_note": "ราคาพิเศษในตะกร้า",
+                "raw_text": raw_text or custom_keyword,
+                "images": [],
+                "image_count": 0
+            }
+
+        if custom_keyword:
+            product_info["title"] = custom_keyword
+        if raw_text and len(raw_text) > 10:
+            product_info["description"] = raw_text
+            product_info["raw_text"] = f"{product_info.get('title', '')}\n{raw_text}"
+
+        title_display = product_info.get("title", custom_keyword or "สินค้า")
+        if len(title_display) > 35:
+            title_display = title_display[:35] + "..."
+
+        TaskManager.update_progress(task_id, 0.55, f"AI กำลังแต่ง {angle_count} สคริปต์ ({title_display})...")
+
+        angles = ProductScraper.generate_content_matrix(product_info, count=angle_count)
+
+        TaskManager.update_progress(task_id, 0.85, "กำลังปรับแต่งบทพูดสำหรับเสียงพากย์ AI (TTS Sanitizer)...")
+        from scripts.tts_sanitizer import TTSSanitizer
+        angles = TTSSanitizer.process_angles(angles)
+
+        TaskManager.update_progress(task_id, 0.95, "กำลังบันทึกลงแคตตาล็อกสินค้า...")
+
+        thumbnail_img = ""
+        if product_info.get("images") and len(product_info["images"]) > 0:
+            thumbnail_img = product_info["images"][0].get("rel_path", "")
+
+        saved_prod = ProductStore.add(
+            name=product_info.get("title", "สินค้า"),
+            url=product_info.get("url", ""),
+            platform=product_info.get("platform", ""),
+            category="IT / Gadget",
+            price_note=product_info.get("price_note", ""),
+            thumbnail=thumbnail_img,
+            angles=angles,
+            images=product_info.get("images", [])
+        )
+        product_info["id"] = saved_prod["id"]
+
+        result_data = {
+            "product": product_info,
+            "saved_product": saved_prod,
+            "angles": angles
+        }
+
+        TaskManager.complete_task(
+            task_id,
+            result=result_data,
+            step_label=f"🎉 สำเร็จ! สร้าง {len(angles)} สคริปต์เรียบร้อย",
+            target_id=saved_prod["id"]
+        )
+        print(f"✅ [TaskManager] Scrape task completed: {task_id} ({saved_prod['id']})")
+
+    except Exception as e:
+        print(f"❌ [TaskManager] Scrape task failed ({task_id}): {e}")
+        TaskManager.fail_task(task_id, str(e), step_label="วิเคราะห์สินค้าไม่สำเร็จ")
+
+@app.post("/api/products/scrape-and-plan-async")
+def scrape_and_plan_async(payload: Dict[str, Any], background_tasks: BackgroundTasks):
+    """Launches Scrape & Plan as a persistent background task, returning job ID immediately."""
+    url = payload.get("url", "").strip()
+    raw_text = payload.get("raw_text", "").strip()
+    custom_keyword = payload.get("custom_keyword", "").strip()
+    angle_count = int(payload.get("angle_count", 7))
+
+    if not url and not raw_text and not custom_keyword:
+        raise HTTPException(status_code=400, detail="กรุณาระบุลิงก์ ข้อความรายละเอียด หรือชื่อสินค้า")
+
+    name_label = custom_keyword or (f"ลิงก์: {url[:30]}..." if url else "สินค้าใหม่")
+    task_title = f"วิเคราะห์สินค้า: {name_label} ({angle_count} สคริปต์)"
+
+    task = TaskManager.create_task(
+        task_type="scrape_and_plan",
+        title=task_title,
+        payload=payload,
+        target_tab="flow"
+    )
+
+    background_tasks.add_task(_execute_scrape_and_plan_worker, task["id"], payload)
+
+    return {
+        "success": True,
+        "task_id": task["id"],
+        "task": task
+    }
+
+# ═══════════════════════════════════════════════════════════════════════
+# 📋 GLOBAL TASK & ACTIVITY MANAGEMENT ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════════
+@app.get("/api/tasks/active")
+def get_active_tasks():
+    """Returns all running/queued tasks and recent history for global tracking."""
+    tasks = TaskManager.get_active_tasks()
+    return {"tasks": tasks, "count": len(tasks)}
+
+@app.get("/api/tasks/{task_id}")
+def get_task_by_id(task_id: str):
+    """Returns a specific task status."""
+    task = TaskManager.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task
+
+@app.post("/api/tasks/{task_id}/cancel")
+def cancel_task(task_id: str):
+    """Cancels a pending/running task."""
+    task = TaskManager.cancel_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {"success": True, "task": task}
+
+@app.delete("/api/tasks/{task_id}")
+def delete_task(task_id: str):
+    """Removes a task from registry."""
+    ok = TaskManager.delete_task(task_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {"success": True}
+
+@app.post("/api/tasks/clear-completed")
+def clear_completed_tasks():
+    """Clears all completed, failed, or cancelled tasks."""
+    cleared = TaskManager.clear_completed()
+    return {"success": True, "cleared_count": cleared}
 
 @app.patch("/api/products/{product_id}/angles/{angle_id}")
 def update_product_angle_status(product_id: str, angle_id: str, payload: Dict[str, Any]):
@@ -842,7 +993,11 @@ def run_sub_srt_transcription(req: TranscribeRequest):
 
 def execute_render_job(job_id: str, req_data: RenderRequest):
     """Background worker function executing the full video pipeline."""
-    on_progress = render_jobs.progress_reporter(job_id)
+    base_progress = render_jobs.progress_reporter(job_id)
+
+    def on_progress(msg: str, progress: float):
+        base_progress(msg, progress)
+        TaskManager.update_progress(job_id, progress, step_label=msg)
 
     try:
         raw_video = Path(req_data.raw_video_path)
@@ -900,19 +1055,49 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                 clip_list=req_data.clip_list,
                 transitions=req_data.transitions,
                 export_mp4=req_data.export_mp4,
+                product_id=req_data.product_id,
+                angle_id=req_data.angle_id,
                 progress_callback=on_progress
             )
 
+        # Record the link the other way too: the product now knows which
+        # projects came out of it, which is what makes a later delete exact
+        # rather than a name match.
+        if req_data.product_id and result.get("project_name"):
+            try:
+                ProductStore.attach_project(req_data.product_id, result["project_name"])
+            except Exception as link_err:
+                print(f"Warning: could not link project to product: {link_err}")
+
         render_jobs.complete_job(job_id, result)
+        TaskManager.complete_task(
+            job_id,
+            result=result,
+            step_label="🎉 การตัดต่อเสร็จสมบูรณ์ 100%!",
+            target_id=result.get("project_name")
+        )
 
     except Exception as e:
         render_jobs.fail_job(job_id, e)
+        TaskManager.fail_task(job_id, str(e), step_label="การตัดต่อวิดีโอล้มเหลว")
 
 @app.post("/api/render")
 def trigger_render(req: RenderRequest, background_tasks: BackgroundTasks):
     """Triggers the video creation pipeline in the background."""
     job_id = str(uuid.uuid4())
     render_jobs.create_job(job_id)
+
+    # Register in global TaskManager
+    p_name = req.product_name or req.project_name or "วิดีโอใหม่"
+    TaskManager.create_task(
+        task_type="render_video",
+        title=f"ตัดต่อวิดีโอ: {p_name}",
+        payload={"project_name": req.project_name, "product_name": req.product_name},
+        target_tab="gallery",
+        target_id=req.project_name,
+        task_id=job_id
+    )
+
     background_tasks.add_task(execute_render_job, job_id, req)
     return {"job_id": job_id, "status": "queued"}
 

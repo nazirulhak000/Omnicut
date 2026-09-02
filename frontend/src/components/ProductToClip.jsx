@@ -5,10 +5,11 @@ import {
   ChevronDown, ChevronRight, Package, Rocket
 } from 'lucide-react';
 import {
-  scrapeAndPlanProduct, getProducts, updateProduct, updateAngleStatus, deleteProduct, uploadFile
+  scrapeAndPlanProduct, scrapeAndPlanProductAsync, getProducts, updateProduct, updateAngleStatus, deleteProduct, uploadFile
 } from '../api';
 import { Modal, Toast, Button, Badge, Input, Textarea } from './ui';
 import { useToast } from '../hooks';
+import { useTaskManager } from '../context/TaskContext';
 
 // ═══════════════════════════════════════════════════════════════════════
 // 📦 PRODUCT CARD (Horizontal Gallery Item)
@@ -197,6 +198,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [openAngleIdx, setOpenAngleIdx] = useState(0); // Accordion: which angle is expanded
   const { toastMessage, showToast, hideToast } = useToast();
+  const { refreshTrigger, toggleActivityDrawer } = useTaskManager();
 
   // History / All Products
   const [historyList, setHistoryList] = useState([]);
@@ -210,7 +212,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const [uploadingImg, setUploadingImg] = useState(false);
   const fileInputRef = useRef(null);
 
-  // Load History on Mount
+  // Load History on Mount or when background task finishes
   const loadHistory = async (targetId = null) => {
     setLoadingHistory(true);
     try {
@@ -232,7 +234,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
   useEffect(() => {
     loadHistory(selectedProductId);
-  }, [selectedProductId]);
+  }, [selectedProductId, refreshTrigger]);
 
   const selectProduct = (item) => {
     if (!item) return;
@@ -310,17 +312,26 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         angle_count: angleCount
       };
 
-      const res = await scrapeAndPlanProduct(payload);
-      if (res.success && res.product) {
-        selectProduct(res.product);
+      // Non-blocking async background task execution
+      const res = await scrapeAndPlanProductAsync(payload);
+      if (res.success && res.task_id) {
         setShowAddModal(false);
         setUrl('');
         setCustomKeyword('');
         setRawText('');
-        await loadHistory();
-        showToast(`AI วิเคราะห์และสร้าง ${angleCount} สคริปต์สำเร็จแล้ว`);
+        showToast(`🚀 เริ่มวิเคราะห์สินค้า & สร้าง ${angleCount} สคริปต์ในเบื้องหลังแล้ว — สามารถเปลี่ยนหน้าหรือทำงานต่อได้ทันที`);
       } else {
-        throw new Error('ไม่ได้รับข้อมูลสินค้ากลับมาจากระบบ');
+        // Fallback to sync if async did not return task_id
+        const syncRes = await scrapeAndPlanProduct(payload);
+        if (syncRes.success && syncRes.product) {
+          selectProduct(syncRes.product);
+          setShowAddModal(false);
+          setUrl('');
+          setCustomKeyword('');
+          setRawText('');
+          await loadHistory();
+          showToast(`AI วิเคราะห์และสร้าง ${angleCount} สคริปต์สำเร็จแล้ว`);
+        }
       }
     } catch (err) {
       console.error('Scrape and plan error:', err);

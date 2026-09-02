@@ -3,6 +3,7 @@ import React, { memo } from 'react';
 import {
   Rocket, Layers, Sparkles, Scissors, FolderDown, Settings,
   Type, Keyboard, Wifi, WifiOff, RefreshCw, Package } from 'lucide-react';
+import { ActivityIndicatorButton } from './ActivityCenter';
 
 const TAB_CONFIG = {
   flow: {
@@ -99,6 +100,9 @@ export default memo(function Topbar({
 
       {/* ── Right: Quick Actions, Global Font Selector & System Status ── */}
       <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 flex-shrink-0">
+        {/* Global Activity Center Button (Pulsing badge when active) */}
+        <ActivityIndicatorButton />
+
         {/* Global Refresh Button */}
         {onRefresh && (
           <button

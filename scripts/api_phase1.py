@@ -376,8 +376,46 @@ def list_projects():
     return {"projects": ProjectManifest.list_projects()}
 
 
+def _project_origin(project_name: str):
+    """The product and angle a project was rendered from, if they still exist."""
+    manifest = ProjectManifest.load(project_name)
+    params = (manifest or {}).get("render_params") or {}
+    product, angle = ProductStore.find_by_project(
+        project_name,
+        product_name=params.get("product_name") or "",
+        hook_title=params.get("hook_title") or "",
+    )
+    return manifest, product, angle
+
+
+@router.get("/projects/{project_name}/origin")
+def project_origin(project_name: str):
+    """
+    What else deleting this project could take with it, so the UI can name it
+    instead of guessing. A project rendered before the product link was
+    recorded can usually still be traced by product name, but its exact angle
+    often cannot -- say so rather than removing the wrong script.
+    """
+    manifest, product, angle = _project_origin(project_name)
+    if not manifest:
+        raise HTTPException(status_code=404, detail=f"ไม่พบโปรเจกต์ '{project_name}'")
+    return {
+        "project_name": project_name,
+        "product": None if not product else {
+            "id": product["id"],
+            "name": product.get("name") or product.get("title") or "",
+            "angle_count": len(product.get("angles") or []),
+        },
+        "angle": None if not angle else {
+            "angle_id": angle.get("angle_id"),
+            "angle_name": angle.get("angle_name") or "",
+            "hook_title": angle.get("hook_title") or "",
+        },
+    }
+
+
 @router.delete("/projects/{project_name}")
-def delete_project(project_name: str):
+def delete_project(project_name: str, scope: str = "project"):
     """
     Delete a project folder for good.
 
@@ -392,8 +430,31 @@ def delete_project(project_name: str):
             status_code=409,
             detail="กำลังเรนเดอร์อยู่ — รอให้เสร็จก่อนแล้วค่อยลบโปรเจกต์",
         )
+    if scope not in ("project", "angle", "product"):
+        raise HTTPException(status_code=400, detail=f"scope '{scope}' ไม่ถูกต้อง")
+
+    # Read the origin before the folder goes: the manifest is what points at it.
+    extra: Dict[str, Any] = {}
+    if scope in ("angle", "product"):
+        _, product, angle = _project_origin(project_name)
+        if not product:
+            raise HTTPException(
+                status_code=409,
+                detail="หาสินค้าที่ผูกกับโปรเจกต์นี้ไม่เจอ — ลบเฉพาะโปรเจกต์ได้อย่างเดียว",
+            )
+        if scope == "angle":
+            if not angle:
+                raise HTTPException(
+                    status_code=409,
+                    detail="หามุม/สคริปต์ที่ตรงกับโปรเจกต์นี้ไม่เจอ — เลือกลบทั้งสินค้าหรือลบเฉพาะโปรเจกต์แทน",
+                )
+            extra = ProductStore.remove_angle(product["id"], angle["angle_id"])
+        else:
+            ProductStore.delete(product["id"])
+            extra = {"product_removed": product["id"], "angles_removed": len(product.get("angles") or [])}
+
     try:
-        return {"success": True, **ProjectManifest.delete(project_name)}
+        return {"success": True, "scope": scope, **ProjectManifest.delete(project_name), **extra}
     except FileNotFoundError as err:
         raise HTTPException(status_code=404, detail=str(err))
     except ValueError as err:

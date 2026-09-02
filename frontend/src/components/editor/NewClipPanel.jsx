@@ -171,6 +171,9 @@ export default function NewClipPanel({
     try {
       const res = await generateAiScripts({
         product_name: form.productName,
+      // so deleting this project later can offer to take its script with it
+      product_id: productContext?.id || null,
+      angle_id: angles[angleIndex]?.angle_id || null,
         key_features: form.keyFeatures,
         pain_point: form.painPoint,
         price_deal: form.priceDeal,

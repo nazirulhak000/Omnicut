@@ -129,7 +129,9 @@ export const deleteProduct = (id) => api.delete(`/products/${id}`).then(r => r.d
 
 export const getProjects = () => api.get('/projects').then(r => r.data);
 export const getProject = (name) => api.get(`/projects/${encodeURIComponent(name)}`).then(r => r.data);
-export const deleteProject = (name) => api.delete(`/projects/${encodeURIComponent(name)}`).then(r => r.data);
+export const getProjectOrigin = (name) => api.get(`/projects/${encodeURIComponent(name)}/origin`).then(r => r.data);
+export const deleteProject = (name, scope = 'project') =>
+  api.delete(`/projects/${encodeURIComponent(name)}`, { params: { scope } }).then(r => r.data);
 export const updateProjectCues = (name, data) => api.patch(`/projects/${encodeURIComponent(name)}/cues`, data).then(r => r.data);
 
 export const startReroll = (data) => api.post('/reroll', data, { timeout: 120000 }).then(r => r.data);
@@ -144,5 +146,23 @@ export const uploadAsset = (formData) => api.post('/assets/upload', formData, {
   headers: { 'Content-Type': 'multipart/form-data' },
   timeout: 300000
 }).then(r => r.data);
+
+// ═══════════════════════════════════════════════════════════════════════
+// 📋 GLOBAL TASK & ACTIVITY MANAGEMENT APIS
+// ═══════════════════════════════════════════════════════════════════════
+export const scrapeAndPlanProductAsync = (payload) => {
+  const data = typeof payload === 'string' ? { url: payload } : payload;
+  return api.post('/products/scrape-and-plan-async', {
+    ...data,
+    custom_keyword: data.custom_keyword ? sanitizeText(data.custom_keyword) : undefined,
+    raw_text: data.raw_text ? sanitizeScript(data.raw_text) : undefined
+  }).then(r => r.data);
+};
+
+export const getActiveTasks = () => api.get('/tasks/active').then(r => r.data);
+export const getTaskStatus = (taskId) => api.get(`/tasks/${taskId}`).then(r => r.data);
+export const cancelTaskApi = (taskId) => api.post(`/tasks/${taskId}/cancel`).then(r => r.data);
+export const deleteTaskApi = (taskId) => api.delete(`/tasks/${taskId}`).then(r => r.data);
+export const clearCompletedTasksApi = () => api.post('/tasks/clear-completed').then(r => r.data);
 
 export default api;

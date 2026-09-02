@@ -159,6 +159,63 @@ class ProductStore:
         return cls.update(product_id, projects=projects, status="rendered")
 
     @classmethod
+    def remove_angle(cls, product_id: str, angle_id: str) -> Dict[str, Any]:
+        """
+        Drop one angle (its hook, script and caption) from a product.
+
+        Returns what happened, including whether the product itself was removed
+        because that was its last angle -- a product with no angles left is an
+        empty card in the tracker, not something to keep.
+        """
+        product = cls.get(product_id)
+        if not product:
+            raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
+
+        angles = product.get("angles") or []
+        remaining = [a for a in angles if a.get("angle_id") != angle_id]
+        if len(remaining) == len(angles):
+            raise ValueError(f"ไม่พบมุม '{angle_id}' ในสินค้านี้")
+
+        if not remaining:
+            cls.delete(product_id)
+            return {"angle_removed": angle_id, "product_removed": product_id, "angles_left": 0}
+
+        cls.update(product_id, angles=remaining)
+        return {"angle_removed": angle_id, "product_removed": None, "angles_left": len(remaining)}
+
+    @classmethod
+    def find_by_project(cls, project_name: str, product_name: str = "", hook_title: str = ""):
+        """
+        Which product/angle a rendered project came from.
+
+        Prefers the explicit link (products carry the project names rendered
+        from them). Falls back to matching the product name and hook for
+        projects rendered before that link was recorded -- those are the only
+        two things a manifest kept about its origin.
+        """
+        products = cls._load()
+        for product in products:
+            if project_name in (product.get("projects") or []):
+                angle = cls._match_angle(product, hook_title)
+                return product, angle
+
+        if not product_name:
+            return None, None
+        for product in products:
+            names = {(product.get("name") or ""), (product.get("title") or "")}
+            names |= {(a.get("product_name") or "") for a in (product.get("angles") or [])}
+            if product_name in names:
+                return product, cls._match_angle(product, hook_title)
+        return None, None
+
+    @staticmethod
+    def _match_angle(product: Dict[str, Any], hook_title: str):
+        for angle in product.get("angles") or []:
+            if hook_title and angle.get("hook_title") == hook_title:
+                return angle
+        return None
+
+    @classmethod
     def delete(cls, product_id: str) -> None:
         products = cls._load()
         remaining = [p for p in products if p["id"] != product_id]

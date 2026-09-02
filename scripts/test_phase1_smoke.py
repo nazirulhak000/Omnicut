@@ -168,6 +168,56 @@ def test_project_list_carries_size_so_the_ui_can_warn(projects_dir):
     assert entry["size_mb"] >= 1.0
 
 
+def test_remove_angle_keeps_the_other_angles(product_file):
+    product = ProductStore.add(url="https://x.test/1", name="หูฟัง", platform="tiktok")
+    ProductStore.update(product["id"], angles=[
+        {"angle_id": "pain_point", "hook_title": "A"},
+        {"angle_id": "viral_hype", "hook_title": "B"},
+    ])
+
+    result = ProductStore.remove_angle(product["id"], "pain_point")
+
+    assert result["angles_left"] == 1
+    assert result["product_removed"] is None
+    left = ProductStore.get(product["id"])["angles"]
+    assert [a["angle_id"] for a in left] == ["viral_hype"]
+
+
+def test_removing_the_last_angle_removes_the_product(product_file):
+    product = ProductStore.add(url="https://x.test/2", name="ลำโพง", platform="tiktok")
+    ProductStore.update(product["id"], angles=[{"angle_id": "only", "hook_title": "A"}])
+
+    result = ProductStore.remove_angle(product["id"], "only")
+
+    assert result["product_removed"] == product["id"]
+    assert ProductStore.get(product["id"]) is None, "a product with no angles is an empty tracker card"
+
+
+def test_find_by_project_prefers_the_recorded_link(product_file):
+    linked = ProductStore.add(url="https://x.test/3", name="ชื่อซ้ำ", platform="tiktok")
+    ProductStore.update(linked["id"], angles=[{"angle_id": "a1", "hook_title": "hook"}])
+    ProductStore.attach_project(linked["id"], "TikTok_clip")
+
+    other = ProductStore.add(url="https://x.test/4", name="ชื่อซ้ำ", platform="tiktok")
+
+    product, angle = ProductStore.find_by_project("TikTok_clip", product_name="ชื่อซ้ำ", hook_title="hook")
+    assert product["id"] == linked["id"], "the explicit link wins over a same-named product"
+    assert angle["angle_id"] == "a1"
+
+    # and a project with no link at all still resolves by name
+    product2, _ = ProductStore.find_by_project("TikTok_unlinked", product_name="ชื่อซ้ำ")
+    assert product2 is not None
+
+
+def test_delete_with_angle_scope_refuses_when_nothing_matches(client, projects_dir, product_file):
+    ProjectManifest.save("orphan", total_duration=1.0, render_params={"product_name": "ไม่มีในระบบ"})
+
+    res = client.delete("/api/projects/orphan?scope=angle")
+
+    assert res.status_code == 409, "never guess which script to delete"
+    assert (projects_dir / "orphan").exists(), "and do not delete the project either"
+
+
 def test_delete_endpoint_refuses_while_a_render_holds_the_slot(client, projects_dir, monkeypatch):
     from scripts import render_jobs
 
