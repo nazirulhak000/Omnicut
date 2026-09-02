@@ -22,6 +22,8 @@ export default function TimelineClip({
   onBodyDragStart,    // dragging the clip body reorders it
   onBodyDragMove,
   onBodyDragEnd,
+  snapCandidates = [],
+  snapFunction = (t) => t,
 }) {
   const dragRef = useRef(null);
   const bodyRef = useRef(null);
@@ -95,6 +97,26 @@ export default function TimelineClip({
     onTrimBegin?.();
   };
 
+  // Trimming either edge changes this clip's duration, and because the
+  // timeline packs clips with no gaps, that duration change always shows up
+  // at the SAME on-screen edge -- this clip's own end (segStart + dur). The
+  // start handle's own left position never moves (segStart comes only from
+  // clips before it); only how far the box's right edge retreats does. So
+  // snapping is applied to that shared edge for both handles, converted back
+  // into the trim value that produces it.
+  const snapToEdge = (rawNext, sourceOtherBound) => {
+    if (!snapCandidates.length) return rawNext;
+    // rawNext/sourceOtherBound are source-domain trim values; the edge that
+    // actually moves on screen is measured in sequence seconds, `speed` times
+    // slower, so convert to that domain to snap and back to trim to apply it.
+    const dur = Math.abs(rawNext - sourceOtherBound) / speed;
+    const virtualEnd = seg.segStart + dur;
+    const snappedEnd = snapFunction(virtualEnd, snapCandidates);
+    const snappedDur = snappedEnd - seg.segStart;
+    if (snappedDur < MIN_CLIP_DURATION) return rawNext; // snap would collapse the clip -- ignore it
+    return sourceOtherBound + (rawNext > sourceOtherBound ? 1 : -1) * snappedDur * speed;
+  };
+
   const moveEdgeDrag = (e) => {
     const d = dragRef.current;
     if (!d) return;
@@ -102,16 +124,21 @@ export default function TimelineClip({
     const deltaSource = ((e.clientX - d.startX) / pxPerSec) * speed;
 
     if (d.edge === 'start') {
-      const next = Math.min(
+      let next = Math.min(
         Math.max(0, d.startTrimStart + deltaSource),
         d.startTrimEnd - MIN_CLIP_DURATION * speed,
       );
+      const snapped = snapToEdge(next, d.startTrimEnd);
+      if (snapped >= 0 && snapped <= d.startTrimEnd - MIN_CLIP_DURATION * speed) next = snapped;
       onTrim(clip.id, { trim_start: Math.round(next * 100) / 100 });
     } else {
-      const next = Math.max(
+      let next = Math.max(
         Math.min(seg.srcDur || d.startTrimEnd, d.startTrimEnd + deltaSource),
         d.startTrimStart + MIN_CLIP_DURATION * speed,
       );
+      const maxNext = seg.srcDur || d.startTrimEnd;
+      const snapped = snapToEdge(next, d.startTrimStart);
+      if (snapped >= d.startTrimStart + MIN_CLIP_DURATION * speed && snapped <= maxNext) next = snapped;
       const atSourceEnd = seg.srcDur && next >= seg.srcDur - 0.05;
       onTrim(clip.id, { trim_end: atSourceEnd ? null : Math.round(next * 100) / 100 });
     }

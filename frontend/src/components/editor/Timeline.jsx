@@ -62,6 +62,11 @@ export default function Timeline({
   onBeginDrag,
   onEndDrag,
   audioUrl,
+  // Edge/body drags snap to these (clip boundaries, playhead, audio end).
+  // Both default to "no snapping" so the timeline still works if a caller
+  // doesn't wire them up.
+  snapCandidates: snapPoints = [],
+  snapFunction = (t) => t,
 }) {
   const selectClip = (id) => (onSelectClip ? onSelectClip(id) : onSelect?.({ type: 'clip', id }));
   const selectCaption = (uid) => (onSelectCaption ? onSelectCaption(uid) : onSelect?.({ type: 'caption', id: uid }));
@@ -266,6 +271,8 @@ export default function Timeline({
                     onBodyDragStart={onBodyDragStart}
                     onBodyDragMove={onBodyDragMove}
                     onBodyDragEnd={onBodyDragEnd}
+                    snapCandidates={snapPoints}
+                    snapFunction={snapFunction}
                   />
                 ))}
 
@@ -313,9 +320,15 @@ export default function Timeline({
                         if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return;
                         if (!d.moved) { d.moved = true; dragBegin(); }
                         const shift = Math.max(-d.start, delta);
+                        // Snap the caption's own start against clip edges / the
+                        // playhead, then carry that same correction to its end
+                        // so the cue's duration doesn't change from snapping.
+                        const rawStart = d.start + shift;
+                        const snappedStart = snapFunction(rawStart, snapPoints);
+                        const correction = snappedStart - rawStart;
                         shiftCaption(cue._uid, {
-                          start: Math.round((d.start + shift) * 100) / 100,
-                          end: Math.round((d.end + shift) * 100) / 100,
+                          start: Math.round((d.start + shift + correction) * 100) / 100,
+                          end: Math.round((d.end + shift + correction) * 100) / 100,
                         });
                       }}
                       onPointerUp={(e) => {

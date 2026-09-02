@@ -124,9 +124,10 @@ export function snapTime(t, candidates, tolerance) {
   return best;
 }
 
-/** Every time a drag should snap to: clip edges plus the playhead. */
-export function snapCandidates(segments, playhead) {
-  const out = [0, playhead];
+/** Every time a drag should snap to: clip edges, the playhead, plus any extra
+ * marks the caller wants included (e.g. where the voiceover audio ends). */
+export function snapCandidates(segments, playhead, extra = []) {
+  const out = [0, playhead, ...extra];
   segments.forEach(s => { out.push(s.segStart, s.segEnd); });
   return out;
 }

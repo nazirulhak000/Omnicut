@@ -1159,7 +1159,7 @@ export default function EditorShell({
                     audioUrl={audioUrl}
                     onBeginDrag={beginDrag}
                     onEndDrag={endDrag}
-                    snapCandidates={snapEnabled ? snapCandidates(segments, cuesList, audioDuration) : []}
+                    snapCandidates={snapEnabled ? snapCandidates(segments, playhead, audioDuration > 0 ? [audioDuration] : []) : []}
                     snapFunction={snapEnabled ? (t, c) => snapTime(t, c, SNAP_PX / pxPerSec) : (t) => t}
                   />
                 </div>
@@ -1402,7 +1402,7 @@ export default function EditorShell({
                     audioUrl={audioUrl}
                     onBeginDrag={beginDrag}
                     onEndDrag={endDrag}
-                    snapCandidates={snapEnabled ? snapCandidates(segments, cuesList, audioDuration) : []}
+                    snapCandidates={snapEnabled ? snapCandidates(segments, playhead, audioDuration > 0 ? [audioDuration] : []) : []}
                     snapFunction={snapEnabled ? (t, c) => snapTime(t, c, SNAP_PX / pxPerSec) : (t) => t}
                   />
                 </div>
