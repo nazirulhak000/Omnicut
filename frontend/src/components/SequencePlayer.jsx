@@ -35,7 +35,10 @@ function clipFilter(clip) {
 
 function drawVideoFrame(ctx, video, clip) {
   if (!video || !video.videoWidth) return;
-  const vw = video.videoWidth, vh = video.videoHeight;
+  const rotation = Number(clip?.rotation || 0) % 360;
+  const isRotated90or270 = rotation === 90 || rotation === 270;
+  const vw = isRotated90or270 ? video.videoHeight : video.videoWidth;
+  const vh = isRotated90or270 ? video.videoWidth : video.videoHeight;
   const vRatio = vw / vh, cRatio = CANVAS_W / CANVAS_H;
   let sx, sy, sw, sh;
   if (vRatio > cRatio) {
@@ -56,7 +59,33 @@ function drawVideoFrame(ctx, video, clip) {
     sy += (roomY / 2) * (1 + panY);
     sw = zw; sh = zh;
   }
-  ctx.drawImage(video, sx, sy, sw, sh, 0, 0, CANVAS_W, CANVAS_H);
+
+  const mirror = !!clip?.mirror;
+  if (mirror || rotation !== 0) {
+    ctx.save();
+    ctx.translate(CANVAS_W / 2, CANVAS_H / 2);
+    if (mirror) ctx.scale(-1, 1);
+    if (rotation !== 0) ctx.rotate((rotation * Math.PI) / 180);
+
+    if (rotation === 90) {
+      const rawSx = sy;
+      const rawSy = video.videoHeight - (sx + sw);
+      ctx.drawImage(video, Math.max(0, rawSx), Math.max(0, rawSy), Math.min(video.videoWidth, sh), Math.min(video.videoHeight, sw), -CANVAS_H / 2, -CANVAS_W / 2, CANVAS_H, CANVAS_W);
+    } else if (rotation === 270) {
+      const rawSx = video.videoWidth - (sy + sh);
+      const rawSy = sx;
+      ctx.drawImage(video, Math.max(0, rawSx), Math.max(0, rawSy), Math.min(video.videoWidth, sh), Math.min(video.videoHeight, sw), -CANVAS_H / 2, -CANVAS_W / 2, CANVAS_H, CANVAS_W);
+    } else if (rotation === 180) {
+      const rawSx = video.videoWidth - (sx + sw);
+      const rawSy = video.videoHeight - (sy + sh);
+      ctx.drawImage(video, Math.max(0, rawSx), Math.max(0, rawSy), sw, sh, -CANVAS_W / 2, -CANVAS_H / 2, CANVAS_W, CANVAS_H);
+    } else {
+      ctx.drawImage(video, sx, sy, sw, sh, -CANVAS_W / 2, -CANVAS_H / 2, CANVAS_W, CANVAS_H);
+    }
+    ctx.restore();
+  } else {
+    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, CANVAS_W, CANVAS_H);
+  }
 }
 
 // Mirrors the .ass style the renderer burns: CAPTION_POSITIONS in
@@ -64,6 +93,7 @@ function drawVideoFrame(ctx, video, clip) {
 // centre, or top (margin 260). Same fractions here so the preview does not
 // promise a placement the file will not have.
 const CAPTION_Y = { bottom: 1 - 420 / 1920, middle: 0.5, top: 260 / 1920 };
+const CAPTION_COLORS = { white: '#fff', yellow: '#FFE600' };
 
 function drawCaption(ctx, cues, t, style = {}) {
   const cue = cues.find(c => t >= c.start && t < c.end);
@@ -73,13 +103,47 @@ function drawCaption(ctx, cues, t, style = {}) {
   ctx.font = `900 ${fontSize}px Kanit, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.lineWidth = fontSize * 0.18;
-  ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-  ctx.fillStyle = style.captionColor || '#fff';
+  ctx.fillStyle = CAPTION_COLORS[style.captionColor] || '#FFE600';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = Math.round(fontSize * 0.18);
+  ctx.lineJoin = 'round';
   const x = CANVAS_W / 2;
   const y = CANVAS_H * (CAPTION_Y[style.captionPosition] ?? CAPTION_Y.bottom);
   ctx.strokeText(cue.text, x, y, CANVAS_W * 0.92);
   ctx.fillText(cue.text, x, y, CANVAS_W * 0.92);
+}
+
+function drawSticker(ctx, img, t, style = {}) {
+  if (!img || !img.complete || !img.naturalWidth) return;
+  const startTime = style.startTime ?? 0.5;
+  if (t < startTime) return;
+
+  const scale = Math.min(2, Math.max(0.4, style.scale ?? 1));
+  const baseW = 380;
+  const w = Math.round(baseW * scale);
+  const h = Math.round(w * (img.naturalHeight / img.naturalWidth));
+
+  let x = CANVAS_W - w - 40;
+  let y = 140;
+  const pos = style.position || 'top_right';
+  if (pos === 'top_left') {
+    x = 40; y = 140;
+  } else if (pos === 'bottom_right') {
+    x = CANVAS_W - w - 40; y = CANVAS_H - h - 420;
+  } else if (pos === 'bottom_left') {
+    x = 40; y = CANVAS_H - h - 420;
+  } else if (pos === 'top_center') {
+    x = Math.round((CANVAS_W - w) / 2); y = 140;
+  } else if (pos === 'bottom_center') {
+    x = Math.round((CANVAS_W - w) / 2); y = CANVAS_H - h - 420;
+  }
+
+  const elapsed = t - startTime;
+  const alpha = Math.min(1, Math.max(0, elapsed / 0.3));
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(img, x, y, w, h);
+  ctx.restore();
 }
 
 /**
@@ -94,11 +158,12 @@ function drawCaption(ctx, cues, t, style = {}) {
  * not by trusting a <video> element's own playback rate -- see
  * RESYNC_THRESHOLD's comment for why.
  */
-function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurations, captionStyle = {} }, ref) {
+function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurations, captionStyle = {}, stickerStyle = {} }, ref) {
   const canvasRef = useRef(null);
   const videoElsRef = useRef({});
   const rafRef = useRef(null);
   const clockRef = useRef({ startWall: 0, startT: 0 });
+  const stickerImgRef = useRef(null);
 
   const [durations, setDurations] = useState({});
   const [metadataReady, setMetadataReady] = useState(false);
@@ -107,7 +172,29 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
   const playheadRef = useRef(0);
 
   const captionKey = `${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}`;
-  const clipKey = clips.map(c => `${c.id}:${c.source_path}:${c.trim_start}:${c.trim_end}:${c.transition_in}:${c.transition_duration}:${c.brightness}:${c.contrast}:${c.saturation}:${c.zoom}:${c.pan_x}:${c.pan_y}`).join('|');
+  const stickerKey = `${stickerStyle.badge}:${stickerStyle.position}:${stickerStyle.scale}:${stickerStyle.startTime}`;
+  const clipKey = clips.map(c => `${c.id}:${c.source_path}:${c.trim_start}:${c.trim_end}:${c.transition_in}:${c.transition_duration}:${c.brightness}:${c.contrast}:${c.saturation}:${c.zoom}:${c.pan_x}:${c.pan_y}:${c.mirror}:${c.rotation}`).join('|');
+
+  useEffect(() => {
+    if (!stickerStyle?.badge || !stickerStyle?.stickers?.length) {
+      stickerImgRef.current = null;
+      renderAt(playheadRef.current);
+      return;
+    }
+    const found = stickerStyle.stickers.find((s) => s.name === stickerStyle.badge || s.id === stickerStyle.badge);
+    if (found?.img_url) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = found.img_url;
+      img.onload = () => {
+        stickerImgRef.current = img;
+        renderAt(playheadRef.current);
+      };
+    } else {
+      stickerImgRef.current = null;
+      renderAt(playheadRef.current);
+    }
+  }, [stickerStyle.badge, stickerStyle.stickers]);
 
   // Load real duration for every clip up front -- segment timing needs it
   // (a clip with trim_end === null trims to "the source's own end").
@@ -165,12 +252,15 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
     ctx.globalAlpha = 1;
     ctx.filter = 'none';
     drawCaption(ctx, cues, t, captionStyle);
+    drawSticker(ctx, stickerImgRef.current, t, stickerStyle);
   };
 
   useEffect(() => {
     renderAt(playhead);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [segments, captionKey]);
+  }, [segments, captionKey, stickerKey]);
+
+  const lastNotifyRef = useRef(0);
 
   useEffect(() => {
     if (!isPlaying || segments.length === 0) return;
@@ -181,7 +271,7 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
       if (t >= totalDuration) {
         Object.values(videoElsRef.current).forEach(v => v?.pause());
         setPlayhead(totalDuration);
-      onPlayhead?.(totalDuration);
+        onPlayhead?.(totalDuration);
         renderAt(totalDuration);
         setIsPlaying(false);
         return;
@@ -219,15 +309,22 @@ function SequencePlayer({ clips, cues = [], compact = false, onPlayhead, onDurat
         ctx.globalAlpha = 1;
         ctx.filter = 'none';
         drawCaption(ctx, cues, t, captionStyle);
+        drawSticker(ctx, stickerImgRef.current, t, stickerStyle);
       }
 
       setPlayhead(t);
-      onPlayhead?.(t);
+      const now = performance.now();
+      if (!lastNotifyRef.current || now - lastNotifyRef.current > 50) {
+        lastNotifyRef.current = now;
+        onPlayhead?.(t);
+      }
       rafRef.current = requestAnimationFrame(tick);
     };
 
     rafRef.current = requestAnimationFrame(tick);
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPlaying, segments, cues, totalDuration]);
 

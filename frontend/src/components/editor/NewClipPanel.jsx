@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle, Check, ChevronDown, ChevronRight, Film, Loader2, Package,
-  Rocket, Sparkles, Upload, Volume2, Wand2,
+  Rocket, Sparkles, Upload, Volume2, Wand2, FolderOpen
 } from 'lucide-react';
-import { generateAiScripts, previewVoice, startRender, uploadFile } from '../../api';
+import { generateAiScripts, previewVoice, startRender, uploadFile, updateAngleVideos } from '../../api';
 import { DEFAULT_STUDIO_FORM, STUDIO_FORM_KEY, getSavedStudioForm } from '../../lib/studioDefaults';
 import { angleToForm, angleLabel } from '../../lib/angleToForm';
 import { useRenderJob } from '../../hooks/useRenderJob';
+import MediaPickerModal from '../MediaPickerModal';
 
 // == GEMINI_VOICE_PRESETS in scripts/gemini_tts_engine.py. An id that is not
 // in that map falls through to a default voice without complaining, so the
@@ -86,9 +87,6 @@ export default function NewClipPanel({
   onVideoUploaded,
   onCreated,
 }) {
-  // Start from whatever was used last -- voice, font, tone and badge are
-  // channel-level choices, and retyping them every clip was the old form's
-  // job to avoid.
   const [form, setForm] = useState(() => getSavedStudioForm());
   const [showFields, setShowFields] = useState(!productContext);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -97,6 +95,7 @@ export default function NewClipPanel({
   const [aiError, setAiError] = useState(null);
   const [voiceBusy, setVoiceBusy] = useState(false);
   const [uploadPct, setUploadPct] = useState(null);
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
   const [nameConflict, setNameConflict] = useState(null);
   const fileRef = useRef(null);
 
@@ -120,11 +119,48 @@ export default function NewClipPanel({
   // Fill the form from the angle the product flow produced. Re-runs when the
   // user switches angle, so the panel always reflects the current pick.
   const angles = productContext?.angles || [];
+  const currentAngle = angles[angleIndex];
+
   useEffect(() => {
     const next = angleToForm(angles[angleIndex], productContext || {});
-    if (next) setForm((prev) => ({ ...prev, ...next }));
+    if (next) {
+      setForm((prev) => ({
+        ...prev,
+        ...next,
+        selectedVideo: next.selectedVideo || (next.selectedVideos && next.selectedVideos[0]) || prev.selectedVideo,
+        selectedVideos: next.selectedVideos || (next.selectedVideo ? [next.selectedVideo] : prev.selectedVideos)
+      }));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productContext?.id, productContext?.title, angleIndex, angles.length]);
+  }, [productContext?.id, productContext?.title, angleIndex, angles.length, angles[angleIndex]?.selected_videos]);
+
+  const angleAttachedVideos = useMemo(() => {
+    if (currentAngle?.selected_videos && currentAngle.selected_videos.length > 0) {
+      return currentAngle.selected_videos;
+    }
+    if (currentAngle?.selected_video) {
+      return [currentAngle.selected_video];
+    }
+    if (form.selectedVideos && form.selectedVideos.length > 0) {
+      return form.selectedVideos;
+    }
+    if (form.selectedVideo) {
+      return [form.selectedVideo];
+    }
+    return [];
+  }, [currentAngle, form.selectedVideos, form.selectedVideo]);
+
+  const displayVideos = useMemo(() => {
+    if (angleAttachedVideos.length > 0) {
+      return angleAttachedVideos.map(path => {
+        const found = videos.find(v => v.path === path || v.rel_path === path);
+        if (found) return found;
+        const name = path.split(/[/\\]/).pop();
+        return { path, name };
+      });
+    }
+    return videos;
+  }, [angleAttachedVideos, videos]);
 
   // Project names come from the product name (pipeline.py), so two angles of
   // the same product would land in the same folder and overwrite each other.
@@ -347,9 +383,14 @@ export default function NewClipPanel({
         </Section>
 
         {/* ── 2. footage ── */}
-        <Section step="2" title="คลิปดิบ" done={!!form.selectedVideo} hint={`${videos.length} ไฟล์`}>
+        <Section
+          step="2"
+          title="คลิปดิบ"
+          done={!!form.selectedVideo}
+          hint={angleAttachedVideos.length > 0 ? `${displayVideos.length} ไฟล์ที่เลือกไว้` : `${displayVideos.length} ไฟล์`}
+        >
           <div className="max-h-40 space-y-1 overflow-y-auto">
-            {videos.map((v) => (
+            {displayVideos.map((v) => (
               <button
                 key={v.path}
                 type="button"
@@ -365,28 +406,41 @@ export default function NewClipPanel({
                 {form.selectedVideo === v.path && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#E89274]" />}
               </button>
             ))}
-            {videos.length === 0 && (
-              <p className="px-1 py-2 text-sm text-[#9C968F]">ยังไม่มีคลิปดิบ — อัปโหลดด้านล่าง</p>
+            {displayVideos.length === 0 && (
+              <p className="px-1 py-2 text-sm text-[#9C968F]">ยังไม่มีคลิปดิบ — เลือกจากคลังหรืออัปโหลดด้านล่าง</p>
             )}
           </div>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="video/*,image/*"
-            className="hidden"
-            onChange={(e) => handleUpload(e.target.files?.[0])}
-          />
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            disabled={uploadPct !== null}
-            className="mt-2 flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-white/[0.08] bg-black/40 text-sm font-bold text-slate-200 hover:text-white disabled:opacity-50 cursor-pointer"
-          >
-            <Upload className="h-3.5 w-3.5" />
-            {uploadPct !== null ? `กำลังอัปโหลด ${uploadPct}%` : 'อัปโหลดคลิปใหม่'}
-          </button>
+          <div className="flex items-center gap-2 mt-2">
+            <button
+              type="button"
+              onClick={() => setMediaPickerOpen(true)}
+              className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#25F4EE]/30 bg-[#25F4EE]/10 text-sm font-bold text-[#25F4EE] hover:bg-[#25F4EE]/20 transition-all cursor-pointer"
+            >
+              <FolderOpen className="h-3.5 w-3.5" />
+              <span>เปิดคลังคลิป (Grid)</span>
+            </button>
+            <label
+              className={`flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-white/[0.08] bg-black/40 text-sm font-bold text-slate-200 hover:text-white transition-all cursor-pointer ${
+                uploadPct !== null ? 'opacity-50 pointer-events-none' : ''
+              }`}
+            >
+              <Upload className="h-3.5 w-3.5 text-[#25F4EE]" />
+              <span>{uploadPct !== null ? `อัปโหลด ${uploadPct}%` : 'อัปโหลดคลิปใหม่'}</span>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="video/*,video/mp4,video/quicktime,video/webm,.mov,.mp4"
+                className="sr-only"
+                disabled={uploadPct !== null}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleUpload(file);
+                  e.target.value = '';
+                }}
+              />
+            </label>
+          </div>
         </Section>
-
         </div>
 
         {/* ── 3. script ── */}
@@ -550,6 +604,25 @@ export default function NewClipPanel({
         </button>
         {missing && <p className="text-center text-sm text-[#9C968F]">{missing}</p>}
       </div>
+
+      {/* ── Universal Media Picker Modal ── */}
+      <MediaPickerModal
+        isOpen={mediaPickerOpen}
+        onClose={() => setMediaPickerOpen(false)}
+        title={`เลือกคลิปสำหรับโปรเจกต์: ${form.productName || 'วิดีโอ'}`}
+        productId={productContext?.id}
+        productName={productContext?.title || form.productName}
+        selectedVideos={form.selectedVideos && form.selectedVideos.length > 0 ? form.selectedVideos : (form.selectedVideo ? [form.selectedVideo] : [])}
+        onConfirm={(paths) => {
+          if (paths && paths.length > 0) {
+            patch({ selectedVideo: paths[0], selectedVideos: paths });
+            if (productContext?.id && angles[angleIndex]?.angle_id) {
+              updateAngleVideos(productContext.id, angles[angleIndex].angle_id, paths).catch(() => {});
+            }
+          }
+        }}
+        isMultiSelect={true}
+      />
     </div>
   );
 }

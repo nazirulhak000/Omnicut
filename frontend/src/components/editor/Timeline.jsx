@@ -61,6 +61,7 @@ export default function Timeline({
   onCaptionChange,
   onBeginDrag,
   onEndDrag,
+  onZoom,
   audioUrl,
   // Edge/body drags snap to these (clip boundaries, playhead, audio end).
   // Both default to "no snapping" so the timeline still works if a caller
@@ -92,6 +93,14 @@ export default function Timeline({
   const [dropIndex, setDropIndex] = useState(null);
   const waveRef = useRef(null);
   const [waveInfo, setWaveInfo] = useState(null);
+
+  const handleWheel = (e) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const dir = e.deltaY < 0 ? 1 : -1;
+      onZoom?.(dir);
+    }
+  };
 
   // Real peaks for the audio track, decoded once per file (see audioPeaks.js)
   // and drawn into a fixed-column canvas that CSS stretches to the track
@@ -197,7 +206,7 @@ export default function Timeline({
 
   return (
     <div className="flex h-full flex-col bg-[#1C1B19]">
-      <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
+      <div onWheel={handleWheel} className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
         <div style={{ width: contentWidth, minWidth: '100%' }} className="relative">
 
           {/* Ruler: click or drag to scrub */}
@@ -374,14 +383,20 @@ export default function Timeline({
                   </div>
                 )}
                 {sfxMarkers.map((cue) => (
-                  <span
+                  <button
                     key={`sfx-${cue._uid}`}
-                    title={`SFX: ${cue.sfx}`}
-                    className="absolute top-0 h-full w-px bg-[#D97757]/70"
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSeek?.(cue.start);
+                      selectCaption(cue._uid);
+                    }}
+                    title={`⚡ SFX: ${cue.sfx} (คลิกเพื่อกระโดดไปที่จังหวะนี้)`}
+                    className="group/sfx absolute top-0.5 z-20 flex -translate-x-1/2 cursor-pointer items-center gap-0.5 rounded-full border border-black/40 bg-[#D97757] px-1.5 py-0.5 shadow-lg transition-all hover:scale-110 hover:bg-[#25F4EE] hover:z-30"
                     style={{ left: cue.start * pxPerSec }}
                   >
-                    <span className="absolute -left-[3px] top-0 h-1.5 w-1.5 rounded-full bg-[#D97757]" />
-                  </span>
+                    <span className="text-[9px] font-mono font-extrabold uppercase text-black leading-none">{cue.sfx}</span>
+                  </button>
                 ))}
               </div>
 

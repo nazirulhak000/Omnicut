@@ -140,12 +140,20 @@ class AssetRegistry:
     @classmethod
     def _scan_stickers(cls) -> List[Dict[str, Any]]:
         entries = []
-        globs = list(STICKERS_DIR.glob("*.png")) + list(STICKERS_DIR.glob("*.webp")) + list(STICKERS_DIR.glob("*.jpg"))
-        for path in sorted(globs):
-            entry = cls._file_info(path)
-            entry["id"] = path.stem
-            entry["img_url"] = f"/api/media/{entry['rel_path']}"
-            entries.append(entry)
+        seen_stems = set()
+        candidate_dirs = [STICKERS_DIR, ASSETS_DIR / "Stickers"]
+        for s_dir in candidate_dirs:
+            if not s_dir.exists():
+                continue
+            globs = list(s_dir.glob("*.png")) + list(s_dir.glob("*.webp")) + list(s_dir.glob("*.jpg"))
+            for path in sorted(globs):
+                if path.stem in seen_stems:
+                    continue
+                seen_stems.add(path.stem)
+                entry = cls._file_info(path)
+                entry["id"] = path.stem
+                entry["img_url"] = f"/api/media/{entry['rel_path']}"
+                entries.append(entry)
         return entries
 
     @classmethod
@@ -184,7 +192,7 @@ class AssetRegistry:
         if not REGISTRY_PATH.exists():
             return False
         cache_mtime = REGISTRY_PATH.stat().st_mtime
-        watched_dirs = [SFX_DIR, MUSIC_DIR, FONTS_DIR, STICKERS_DIR, LUTS_DIR]
+        watched_dirs = [SFX_DIR, MUSIC_DIR, FONTS_DIR, STICKERS_DIR, ASSETS_DIR / "Stickers", LUTS_DIR]
         if METADATA_PATH.exists() and METADATA_PATH.stat().st_mtime > cache_mtime:
             return False
         for directory in watched_dirs:

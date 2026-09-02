@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle, AlertTriangle, CheckCircle2, Loader2, Maximize2, Minimize2,
-  RefreshCw, Rocket, Scissors, Film, Layers, Sliders, Sparkles, Trash2
+  RefreshCw, Rocket, Scissors, Film, Layers, Sliders, Sparkles, Trash2,
+  FolderOpen, Play, Copy, Check, X
 } from 'lucide-react';
 import {
-  deleteProject, getAllAssets, getProject, getProjectOrigin, getProjects, getRenderStatus, startReroll, updateProjectCues,
+  deleteProject, getAllAssets, getProject, getProjectOrigin, getProjects, getRenderStatus, startReroll, updateProjectCues, openFolder,
 } from '../../api';
 import {
   FADE_DURATION, ZOOM_LEVELS, buildSegments, formatTimecode, splitClipAt, snapCandidates, snapTime,
@@ -21,7 +22,6 @@ import NewClipPanel from './NewClipPanel';
 import { ActivityIndicatorButton } from '../ActivityCenter';
 import HeaderMenu from './HeaderMenu';
 import RenderButton from './RenderButton';
-import UiScaleControl from '../UiScaleControl';
 
 const framesFor = (seconds) => Math.max(6, Math.min(40, Math.round((seconds || 12) / 3)));
 const SNAP_PX = 6;
@@ -135,6 +135,8 @@ export default function EditorShell({
   // Draft = 720p/crf26/veryfast. Measured on this machine: a 12s clip took
   // 25.5s at post quality vs 12.5s as a draft (12.18 MB vs 1.82 MB).
   const [exportPreset, setExportPreset] = useState('post');
+  const [previewModalVideo, setPreviewModalVideo] = useState(null);
+  const [copiedPath, setCopiedPath] = useState(false);
   const [audioUrl, setAudioUrl] = useState(null);
   const [pendingDelete, setPendingDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -385,8 +387,8 @@ export default function EditorShell({
   );
 
   const splitAtPlayhead = () => {
-    if (!selectedSeg) return;
-    const seg = selectedSeg;
+    const seg = selectedSeg || segments.find((s) => playhead >= s.segStart && playhead < s.segEnd);
+    if (!seg) return;
     // splitClipAt takes the segment and a global sequence time, and returns
     // null when either half would be shorter than MIN_CLIP_DURATION.
     const pieces = splitClipAt(seg, playhead, newId);
@@ -446,6 +448,7 @@ export default function EditorShell({
         return;
       }
       if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
+      if (mod && e.key.toLowerCase() === 'b') { e.preventDefault(); splitAtPlayhead(); return; }
       if (e.key === 'Escape' && zen) { e.preventDefault(); setZen(false); return; }
 
       const jump = (delta) => {
@@ -458,6 +461,12 @@ export default function EditorShell({
           e.preventDefault(); togglePlayer(); break;
         case 's': case 'S':
           e.preventDefault(); splitAtPlayhead(); break;
+        case 'j': case 'J':
+          e.preventDefault(); jump(-1.0); break;
+        case 'k': case 'K':
+          e.preventDefault(); togglePlayer(); break;
+        case 'l': case 'L':
+          e.preventDefault(); jump(1.0); break;
         case 'Delete': case 'Backspace':
           e.preventDefault(); deleteSelected(); break;
         case 'ArrowLeft':
@@ -856,11 +865,6 @@ export default function EditorShell({
                 onSelect: () => loadProject(projectName),
               },
               {
-                id: 'scale',
-                hint: 'ขนาดตัวอักษรทั้งระบบ',
-                render: () => <UiScaleControl variant="menu" />,
-              },
-              {
                 id: 'delete',
                 label: 'ลบโปรเจกต์นี้...',
                 icon: Trash2,
@@ -899,7 +903,7 @@ export default function EditorShell({
         const meta = projectList.find((p) => p.project_name === pendingDelete);
         return (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 w-screen h-[100dvh] max-h-[100dvh] overflow-hidden overscroll-none bg-black/80 backdrop-blur-md animate-fadeIn"
             onClick={() => !deleting && setPendingDelete(null)}
           >
             <div
@@ -907,7 +911,7 @@ export default function EditorShell({
               aria-modal="true"
               aria-label="ยืนยันการลบโปรเจกต์"
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md space-y-4 rounded-2xl border border-white/[0.1] bg-[#0F1420] p-5 shadow-2xl"
+              className="relative w-full max-w-md space-y-4 rounded-2xl sm:rounded-3xl border border-white/[0.14] bg-[#0F1420]/95 backdrop-blur-2xl p-5 sm:p-6 shadow-2xl max-h-[85dvh] overflow-y-auto no-scrollbar my-auto"
             >
               <div className="flex items-start gap-3">
                 <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-rose-500/15 text-rose-300">
@@ -1046,6 +1050,13 @@ export default function EditorShell({
                   captionColor: style.captionColor,
                   captionScale: style.captionScale,
                 }}
+                stickerStyle={{
+                  badge: style.stickerBadge,
+                  position: style.stickerPosition || 'top_right',
+                  scale: style.stickerScale || 1.0,
+                  startTime: 0.5,
+                  stickers: assets.stickers,
+                }}
                 compact
                 onPlayhead={setPlayhead}
                 onDurations={setDurations}
@@ -1056,6 +1067,43 @@ export default function EditorShell({
                     <div className="h-full bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] transition-all duration-300" style={{ width: `${Math.max(5, progress)}%` }} />
                   </div>
                   <p className="text-center text-sm text-[#25F4EE] font-bold">{jobStatus?.message || `กำลังเรนเดอร์ ${progress}%`}</p>
+                </div>
+              )}
+              {applyResult && !applying && (
+                <div className="absolute bottom-2 left-3 right-3 z-20 flex flex-col gap-1.5 rounded-2xl border border-emerald-500/30 bg-[#0F1420]/95 p-2.5 shadow-2xl backdrop-blur-md animate-fadeIn">
+                  <div className="flex items-center justify-between">
+                    <p className="flex items-center gap-1.5 text-xs font-bold text-emerald-400">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-400 flex-shrink-0" />
+                      <span>เรนเดอร์เสร็จสมบูรณ์!</span>
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setApplyResult(null)}
+                      className="text-slate-400 hover:text-white p-1 text-xs"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <div className="flex gap-1.5 pt-0.5">
+                    {(applyResult.video_url || applyResult.mp4_video) && (
+                      <button
+                        type="button"
+                        onClick={() => setPreviewModalVideo(applyResult.video_url || toMediaUrl(applyResult.mp4_video))}
+                        className="flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold transition-all cursor-pointer"
+                      >
+                        <Play className="h-3 w-3 fill-current" />
+                        <span>ดูคลิป</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => openFolder('exports').catch(() => {})}
+                      className="flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] border border-white/[0.1] text-slate-200 text-xs font-bold transition-all cursor-pointer"
+                    >
+                      <FolderOpen className="h-3 w-3 text-amber-400" />
+                      <span>โฟลเดอร์</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -1121,6 +1169,7 @@ export default function EditorShell({
                   hasClipSelected={!!selectedSeg}
                   hasSelection={!!selection}
                   selectedClip={selectedSeg?.clip}
+                  canSplit={!!selectedSeg || segments.some((s) => playhead >= s.segStart + 0.2 && playhead <= s.segEnd - 0.2)}
                   canUndo={canUndo}
                   canRedo={canRedo}
                   onUndo={undo}
@@ -1163,6 +1212,7 @@ export default function EditorShell({
                     audioUrl={audioUrl}
                     onBeginDrag={beginDrag}
                     onEndDrag={endDrag}
+                    onZoom={(dir) => setZoomIndex((i) => Math.max(0, Math.min(ZOOM_LEVELS.length - 1, i + dir)))}
                     snapCandidates={snapEnabled ? snapCandidates(segments, playhead, audioDuration > 0 ? [audioDuration] : []) : []}
                     snapFunction={snapEnabled ? (t, c) => snapTime(t, c, SNAP_PX / pxPerSec) : (t) => t}
                   />
@@ -1247,11 +1297,18 @@ export default function EditorShell({
                   ref={desktopPlayerRef}
                   clips={clipList}
                   cues={cuesList}
-                captionStyle={{
-                  captionPosition: style.captionPosition,
-                  captionColor: style.captionColor,
-                  captionScale: style.captionScale,
-                }}
+                  captionStyle={{
+                    captionPosition: style.captionPosition,
+                    captionColor: style.captionColor,
+                    captionScale: style.captionScale,
+                  }}
+                  stickerStyle={{
+                    badge: style.stickerBadge,
+                    position: style.stickerPosition || 'top_right',
+                    scale: style.stickerScale || 1.0,
+                    startTime: 0.5,
+                    stickers: assets.stickers,
+                  }}
                   compact
                   onPlayhead={setPlayhead}
                   onDurations={setDurations}
@@ -1269,10 +1326,43 @@ export default function EditorShell({
                     <AlertCircle className="h-3 w-3" />{applyError}
                   </p>
                 )}
-                {applyResult && (
-                  <p className="flex flex-shrink-0 items-center gap-1 text-sm text-emerald-300 font-bold">
-                    <CheckCircle2 className="h-3 w-3" />เรนเดอร์เสร็จ — ดูไฟล์ได้ที่ Export Gallery
-                  </p>
+                {applyResult && !applying && (
+                  <div className="w-full max-w-[340px] flex-shrink-0 space-y-2 rounded-2xl border border-emerald-500/30 bg-[#0F1420]/95 p-3 shadow-2xl backdrop-blur-md animate-fadeIn">
+                    <div className="flex items-center justify-between">
+                      <p className="flex items-center gap-1.5 text-xs font-bold text-emerald-300">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-400 flex-shrink-0" />
+                        <span>เรนเดอร์เสร็จสมบูรณ์!</span>
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setApplyResult(null)}
+                        className="text-slate-400 hover:text-white p-1 cursor-pointer"
+                        title="ปิดการแจ้งเตือน"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      {(applyResult.video_url || applyResult.mp4_video) && (
+                        <button
+                          type="button"
+                          onClick={() => setPreviewModalVideo(applyResult.video_url || toMediaUrl(applyResult.mp4_video))}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold transition-all cursor-pointer"
+                        >
+                          <Play className="h-3.5 w-3.5 fill-current" />
+                          <span>ดูคลิปตัวเต็ม</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => openFolder('exports').catch(() => {})}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] border border-white/[0.1] text-slate-200 text-xs font-bold transition-all cursor-pointer"
+                      >
+                        <FolderOpen className="h-3.5 w-3.5 text-amber-400" />
+                        <span>04_Exports</span>
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
 
@@ -1364,6 +1454,7 @@ export default function EditorShell({
                   hasClipSelected={!!selectedSeg}
                   hasSelection={!!selection}
                   selectedClip={selectedSeg?.clip}
+                  canSplit={!!selectedSeg || segments.some((s) => playhead >= s.segStart + 0.2 && playhead <= s.segEnd - 0.2)}
                   canUndo={canUndo}
                   canRedo={canRedo}
                   onUndo={undo}
@@ -1406,6 +1497,7 @@ export default function EditorShell({
                     audioUrl={audioUrl}
                     onBeginDrag={beginDrag}
                     onEndDrag={endDrag}
+                    onZoom={(dir) => setZoomIndex((i) => Math.max(0, Math.min(ZOOM_LEVELS.length - 1, i + dir)))}
                     snapCandidates={snapEnabled ? snapCandidates(segments, playhead, audioDuration > 0 ? [audioDuration] : []) : []}
                     snapFunction={snapEnabled ? (t, c) => snapTime(t, c, SNAP_PX / pxPerSec) : (t) => t}
                   />
@@ -1414,6 +1506,61 @@ export default function EditorShell({
             )}
           </div>
         </>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════
+          🎬 FULL RENDERED VIDEO PREVIEW MODAL
+         ══════════════════════════════════════════════════════════ */}
+      {previewModalVideo && (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-fadeIn"
+          onClick={() => setPreviewModalVideo(null)}
+        >
+          <div
+            className="relative max-w-sm w-full bg-[#0F1420] border border-white/[0.14] rounded-3xl p-4 shadow-2xl flex flex-col items-center gap-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between w-full">
+              <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
+                <Film className="w-4 h-4 text-[#25F4EE]" />
+                <span>พรีวิววิดีโอผลงานจริง (9:16)</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setPreviewModalVideo(null)}
+                className="p-1.5 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="w-full aspect-[9/16] bg-black rounded-2xl overflow-hidden border border-white/[0.08] relative">
+              <video
+                src={previewModalVideo}
+                controls
+                autoPlay
+                playsInline
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div className="flex w-full gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => openFolder('exports').catch(() => {})}
+                className="flex-1 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-xs font-bold text-slate-200 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <FolderOpen className="w-3.5 h-3.5 text-amber-400" />
+                <span>เปิดโฟลเดอร์ 04_Exports</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreviewModalVideo(null)}
+                className="flex-1 py-2 rounded-xl bg-[#D97757] hover:bg-[#C2683D] text-xs font-bold text-white transition-colors cursor-pointer"
+              >
+                ปิดหน้าต่าง
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

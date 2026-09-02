@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { FlipHorizontal2, Gauge } from 'lucide-react';
+import { FlipHorizontal2, Gauge, RotateCw, Volume2 } from 'lucide-react';
 import { MIN_CLIP_DURATION } from '../../lib/timelineMath';
 
 const CLIP_RADIUS = 6;
@@ -29,6 +29,7 @@ export default function TimelineClip({
   const bodyRef = useRef(null);
   const [dragging, setDragging] = useState(false);
   const [dragDx, setDragDx] = useState(0);
+  const [trimHud, setTrimHud] = useState(null);
   const { clip } = seg;
   const speed = clip.speed || 1;
 
@@ -93,7 +94,16 @@ export default function TimelineClip({
     // for a pointer id the browser no longer tracks (cancelled pointer,
     // synthetic event) -- that must not abort the drag setup below.
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* drag still works */ }
-    dragRef.current = { edge, startX: e.clientX, startTrimStart: clip.trim_start, startTrimEnd: clip.trim_end ?? seg.srcDur };
+    const startTrimEnd = clip.trim_end ?? seg.srcDur;
+    const initialSpan = startTrimEnd - clip.trim_start;
+    dragRef.current = {
+      edge,
+      startX: e.clientX,
+      startTrimStart: clip.trim_start,
+      startTrimEnd,
+      initialDur: Math.max(MIN_CLIP_DURATION, initialSpan / speed),
+    };
+    setTrimHud({ edge, dur: seg.dur, delta: 0 });
     onTrimBegin?.();
   };
 
@@ -130,7 +140,10 @@ export default function TimelineClip({
       );
       const snapped = snapToEdge(next, d.startTrimEnd);
       if (snapped >= 0 && snapped <= d.startTrimEnd - MIN_CLIP_DURATION * speed) next = snapped;
-      onTrim(clip.id, { trim_start: Math.round(next * 100) / 100 });
+      const finalVal = Math.round(next * 100) / 100;
+      onTrim(clip.id, { trim_start: finalVal });
+      const curDur = Math.max(MIN_CLIP_DURATION, (d.startTrimEnd - finalVal) / speed);
+      setTrimHud({ edge: 'start', dur: curDur, delta: curDur - d.initialDur });
     } else {
       let next = Math.max(
         Math.min(seg.srcDur || d.startTrimEnd, d.startTrimEnd + deltaSource),
@@ -140,13 +153,17 @@ export default function TimelineClip({
       const snapped = snapToEdge(next, d.startTrimStart);
       if (snapped >= d.startTrimStart + MIN_CLIP_DURATION * speed && snapped <= maxNext) next = snapped;
       const atSourceEnd = seg.srcDur && next >= seg.srcDur - 0.05;
-      onTrim(clip.id, { trim_end: atSourceEnd ? null : Math.round(next * 100) / 100 });
+      const finalVal = atSourceEnd ? null : Math.round(next * 100) / 100;
+      onTrim(clip.id, { trim_end: finalVal });
+      const curDur = Math.max(MIN_CLIP_DURATION, ((atSourceEnd ? seg.srcDur : finalVal) - d.startTrimStart) / speed);
+      setTrimHud({ edge: 'end', dur: curDur, delta: curDur - d.initialDur });
     }
   };
 
   const endEdgeDrag = (e) => {
     if (!dragRef.current) return;
     dragRef.current = null;
+    setTrimHud(null);
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* already released */ }
     onTrimEnd?.();
   };
@@ -195,7 +212,7 @@ export default function TimelineClip({
         </span>
       </div>
 
-      {(speed !== 1 || clip.mirror) && (
+      {(speed !== 1 || clip.mirror || clip.rotation || (clip.volume || 0) > 0) && (
         <div className="absolute bottom-0.5 left-1.5 flex items-center gap-1 pointer-events-none">
           {speed !== 1 && (
             <span className="flex items-center gap-0.5 rounded bg-[#181716]/80 px-1 text-xs font-semibold text-[#E89274]">
@@ -205,6 +222,16 @@ export default function TimelineClip({
           {clip.mirror && (
             <span className="rounded bg-[#181716]/80 p-0.5 text-[#E89274]">
               <FlipHorizontal2 className="h-2.5 w-2.5" />
+            </span>
+          )}
+          {!!clip.rotation && (
+            <span className="flex items-center gap-0.5 rounded bg-[#181716]/80 px-1 text-xs font-semibold text-[#25F4EE]">
+              <RotateCw className="h-2.5 w-2.5" />{clip.rotation}°
+            </span>
+          )}
+          {(clip.volume || 0) > 0 && (
+            <span className="flex items-center gap-0.5 rounded bg-[#181716]/80 px-1 text-xs font-semibold text-emerald-400">
+              <Volume2 className="h-2.5 w-2.5" />{Math.round(clip.volume * 100)}%
             </span>
           )}
         </div>
@@ -233,6 +260,20 @@ export default function TimelineClip({
           <span className="h-3.5 w-0.5 rounded-full bg-[#181716]/70" />
         </div>
       ))}
+
+      {/* Live Trim HUD Tooltip */}
+      {trimHud && (
+        <div
+          className={`pointer-events-none absolute -top-8 z-50 flex items-center gap-1.5 rounded-lg border border-[#D97757]/80 bg-[#0F1420]/95 px-2 py-0.5 shadow-2xl backdrop-blur-md text-[11px] font-mono font-bold text-white whitespace-nowrap animate-in fade-in zoom-in-95 duration-100 ${
+            trimHud.edge === 'start' ? 'left-0' : 'right-0'
+          }`}
+        >
+          <span className="text-[#25F4EE]">{trimHud.dur.toFixed(2)}s</span>
+          <span className={trimHud.delta > 0.001 ? 'text-emerald-400' : trimHud.delta < -0.001 ? 'text-rose-400' : 'text-slate-400'}>
+            ({trimHud.delta >= 0 ? `+${trimHud.delta.toFixed(2)}s` : `${trimHud.delta.toFixed(2)}s`})
+          </span>
+        </div>
+      )}
     </div>
   );
 }

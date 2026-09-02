@@ -306,7 +306,13 @@ export default function App() {
                 {/* SECTION: System & Assets */}
                 {activeTab === 'assets' && (
                   <Suspense fallback={<LoadingSpinner message="กำลังโหลด System & Assets Hub..." />}>
-                    <SystemAssets status={status} />
+                    <SystemAssets
+                      status={status}
+                      uiFont={uiFont}
+                      setUiFont={handleUiFontChange}
+                      uiScale={uiScale}
+                      setUiScale={handleUiScaleChange}
+                    />
                   </Suspense>
                 )}
               </div>

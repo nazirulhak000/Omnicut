@@ -5,11 +5,17 @@ import {
   Film, Palette, AlertTriangle, X, Check, RefreshCw, Layers, Sliders
 } from 'lucide-react';
 import { openFolder, getAllAssets, uploadAsset, deleteFile } from '../api';
-import { Modal, Toast, Button, Badge, Input } from './ui';
+import { Modal, Toast, Button, Badge, Input, ConfirmModal } from './ui';
 import { useDebounce, useToast } from '../hooks';
 
-export default function SystemAssets({ status }) {
-  const [activeAssetTab, setActiveAssetTab] = useState('sfx'); // 'sfx' | 'music' | 'fonts' | 'stickers' | 'luts' | 'system'
+export default function SystemAssets({
+  status,
+  uiFont = 'font-prompt',
+  setUiFont,
+  uiScale = 'normal',
+  setUiScale
+}) {
+  const [activeAssetTab, setActiveAssetTab] = useState('sfx'); // 'sfx' | 'music' | 'fonts' | 'stickers' | 'luts' | 'appearance' | 'system'
   const [assetData, setAssetData] = useState({ sfx: [], music: [], fonts: [], stickers: [], luts: [], counts: {} });
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -81,7 +87,7 @@ export default function SystemAssets({ status }) {
       showToast(res.message || 'เพิ่มทรัพยากรสำเร็จ');
       fetchAssets();
     } catch (err) {
-      alert('อัปโหลดล้มเหลว: ' + (err.response?.data?.detail || err.message));
+      showToast('อัปโหลดล้มเหลว: ' + (err.response?.data?.detail || err.message), 'error');
     } finally {
       setUploadingAsset(false);
       e.target.value = '';
@@ -97,7 +103,7 @@ export default function SystemAssets({ status }) {
       setDeleteTarget(null);
       fetchAssets();
     } catch (err) {
-      alert('ไม่สามารถลบไฟล์ได้: ' + (err.response?.data?.detail || err.message));
+      showToast('ไม่สามารถลบไฟล์ได้: ' + (err.response?.data?.detail || err.message), 'error');
     } finally {
       setDeleting(false);
     }
@@ -131,6 +137,7 @@ export default function SystemAssets({ status }) {
     { id: 'fonts', label: 'ฟอนต์ตัวหนังสือ', count: assetData.counts?.fonts || assetData.fonts?.length || 0, color: 'from-[#25F4EE] to-teal-600' },
     { id: 'stickers', label: 'สติกเกอร์ & ป้ายเซลล์', count: assetData.counts?.stickers || assetData.stickers?.length || 0, color: 'from-amber-500 to-orange-600' },
     { id: 'luts', label: 'โทนสี LUTs', count: assetData.counts?.luts || assetData.luts?.length || 0, color: 'from-blue-500 to-cyan-600' },
+    { id: 'appearance', label: '🎨 ปรับแต่งหน้าจอ & ฟอนต์', count: 'ตั้งค่า', color: 'from-[#25F4EE] to-blue-600' },
     { id: 'system', label: 'ระบบ & ไดเรกทอรี', count: 5, color: 'from-slate-700 to-slate-900' },
   ], [assetData]);
 
@@ -157,14 +164,22 @@ export default function SystemAssets({ status }) {
 
         {/* Global Action Buttons */}
         <div className="flex items-center gap-2 w-full md:w-auto justify-end">
-          <button
-            onClick={() => fileUploadRef.current?.click()}
-            disabled={uploadingAsset}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold shadow-lg shadow-[#FE2C55]/20 transition-all cursor-pointer"
+          <label
+            className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold shadow-lg shadow-[#FE2C55]/20 transition-all cursor-pointer ${
+              uploadingAsset ? 'opacity-50 pointer-events-none' : ''
+            }`}
           >
-            <Upload className="w-4 h-4 text-white" />
-            <span>{uploadingAsset ? 'กำลังเพิ่มไฟล์...' : 'เพิ่มทรัพยากรใหม่'}</span>
-          </button>
+            <input
+              ref={fileUploadRef}
+              type="file"
+              accept="video/*,audio/*,image/*,image/heic,image/heif,.heic,.HEIC,.heif,.HEIF,.mov,.MOV,.mp4,.MP4,.ttf,.otf,.cube"
+              onChange={handleAssetUpload}
+              disabled={uploadingAsset}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+            />
+            <Upload className="w-4 h-4 text-white pointer-events-none" />
+            <span className="pointer-events-none">{uploadingAsset ? 'กำลังเพิ่มไฟล์...' : 'เพิ่มทรัพยากรใหม่'}</span>
+          </label>
           <button
             onClick={() => handleOpen('assets')}
             className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-200 text-xs font-bold border border-white/[0.08] transition-colors cursor-pointer"
@@ -179,12 +194,6 @@ export default function SystemAssets({ status }) {
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-[#25F4EE]' : ''}`} />
           </button>
-          <input
-            ref={fileUploadRef}
-            type="file"
-            onChange={handleAssetUpload}
-            className="hidden"
-          />
         </div>
       </div>
 
@@ -343,7 +352,7 @@ export default function SystemAssets({ status }) {
                       </div>
                       <div className="min-w-0">
                         {isDefault && (
-                          <div className="text-sm font-bold text-[#25F4EE] mb-0.5">เสียงหลักของช่อง (ค่าเริ่มต้น)</div>
+                          <div className="text-sm font-bold text-[#25F4EE] mb-0.5">เสียงหลักของช่อง</div>
                         )}
                         <div className="text-sm font-bold text-white truncate max-w-[190px]" title={m.name}>
                           {m.label_th || m.name.replace(/\.(wav|mp3)$/i, '')}
@@ -388,7 +397,7 @@ export default function SystemAssets({ status }) {
                       ) : (
                         <>
                           <Play className="w-3.5 h-3.5 fill-current" />
-                          <span>ทดลองฟังเพลง (Play)</span>
+                          <span>ทดลองฟังเพลง</span>
                         </>
                       )}
                     </button>
@@ -616,7 +625,7 @@ export default function SystemAssets({ status }) {
               className="w-full py-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-white text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center justify-center gap-2"
             >
               <Folder className="w-4 h-4 text-[#25F4EE]" />
-              เปิดโฟลเดอร์หลักโปรเจกต์ (Project Root Folder)
+              เปิดโฟลเดอร์โปรเจกต์
             </button>
           </div>
 
@@ -673,54 +682,154 @@ export default function SystemAssets({ status }) {
                 <li>ขนาดหน้าจอ: <b>1080 x 1920 (9:16 Vertical Video)</b></li>
                 <li>เฟรมเรต: <b>30 FPS H.264 High Profile</b></li>
                 <li>จังหวะการตัดต่อ: <b>1.5 - 2.5 วินาทีต่อ 1 ช็อต</b></li>
-                <li>ฟอนต์คำบรรยาย: <b>Prompt / IBM Plex Sans Thai / Kanit</b></li>
+                <li>ฟอนต์คำบรรยาย: <b>Prompt, IBM Plex Sans Thai, Kanit</b></li>
               </ul>
             </div>
           </div>
         </div>
       )}
 
-      {/* DELETE ASSET CONFIRMATION MODAL */}
-      <Modal
-        isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        title="ยืนยันการลบทรัพยากรนี้?"
-        maxWidth="max-w-sm"
-      >
-        <div className="text-center space-y-4">
-          <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto border border-rose-500/20">
-            <AlertTriangle className="w-6 h-6" />
+      {/* ── 7. APPEARANCE & TYPOGRAPHY SETTINGS TAB ── */}
+      {activeAssetTab === 'appearance' && (
+        <div className="space-y-6 animate-fadeIn">
+          {/* Section 1: UI Scale Control */}
+          <div className="glass-card p-5 sm:p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-[#25F4EE]">
+                <Sliders className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base sm:text-lg font-bold font-kanit text-white">
+                  ขนาดการแสดงผล
+                </h3>
+                <p className="text-xs text-slate-400">
+                  ปรับอัตราส่วนและขนาดตัวหนังสือของโปรแกรมให้สบายตา เหมาะกับขนาดหน้าจอของคุณ
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+              {[
+                { id: 'compact', label: 'กะทัดรัด (90%)', desc: 'เหมาะกับจอโน้ตบุ๊กขนาดเล็ก มองเห็นข้อมูลได้เยอะขึ้น' },
+                { id: 'normal', label: 'ปกติ (100%)', desc: 'สัดส่วนมาตรฐาน สมดุลและคมชัด' },
+                { id: 'large', label: 'ใหญ่ (110%)', desc: 'ตัวหนังสือและปุ่มขนาดใหญ่ ชัดเจน สบายตา' },
+              ].map((scale) => {
+                const isActive = uiScale === scale.id;
+                return (
+                  <button
+                    key={scale.id}
+                    onClick={() => setUiScale && setUiScale(scale.id)}
+                    className={`p-4 rounded-xl text-left border transition-all cursor-pointer relative ${
+                      isActive
+                        ? 'bg-cyan-500/10 border-[#25F4EE] shadow-lg shadow-cyan-500/10'
+                        : 'bg-black/40 border-white/[0.08] hover:border-white/[0.2] hover:bg-white/[0.03]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className={`font-bold text-sm ${isActive ? 'text-[#25F4EE]' : 'text-white'}`}>
+                        {scale.label}
+                      </span>
+                      {isActive && <CheckCircle2 className="w-4 h-4 text-[#25F4EE]" />}
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+                      {scale.desc}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="space-y-1">
-            <p className="text-xs text-slate-300 font-mono break-all bg-black/40 p-2.5 rounded-xl border border-white/[0.08]">
-              {deleteTarget?.name}
-            </p>
-            <p className="text-sm text-slate-400 pt-1">
-              ไฟล์จะถูกลบออกจากโฟลเดอร์ Assets ในเครื่อง
-            </p>
-          </div>
+          {/* Section 2: Global UI Font Selector */}
+          <div className="glass-card p-5 sm:p-6 space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                  <Type className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold font-kanit text-white">
+                    ฟอนต์ระบบ
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    เลือกฟอนต์ภาษาไทยสำหรับเมนู หัวข้อ และปุ่มต่างๆ ทั้งโปรแกรม
+                  </p>
+                </div>
+              </div>
+            </div>
 
-          <div className="flex items-center gap-2 pt-2">
-            <Button
-              variant="secondary"
-              onClick={() => setDeleteTarget(null)}
-              disabled={deleting}
-              className="flex-1"
-            >
-              ยกเลิก
-            </Button>
-            <Button
-              variant="danger"
-              onClick={confirmDelete}
-              loading={deleting}
-              className="flex-1"
-            >
-              {deleting ? 'กำลังลบ...' : 'ยืนยันลบไฟล์'}
-            </Button>
+            {/* Font Grid Cards with Live Preview */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+              {[
+                { id: 'font-prompt', name: 'Prompt', style: 'Modern Sans', preview: 'ฟอนต์ยอดนิยม ทันสมัย คมชัด อ่านง่ายมาก', tag: 'ค่าเริ่มต้น', bgClass: 'font-prompt' },
+                { id: 'font-anuphan', name: 'Anuphan', style: 'Modern Sans', preview: 'โค้งมน นุ่มนวล ดูมีระดับ ทันสมัยสไตล์แอปสมัยใหม่', tag: 'ยอดเยี่ยม', bgClass: 'font-anuphan' },
+                { id: 'font-ibm', name: 'IBM Plex Sans Thai', style: 'Modern Sans', preview: 'คม ชัด ลึก สไตล์เทคโนโลยี เป็นทางการและน่าเชื่อถือ', tag: 'ทางการ', bgClass: 'font-ibm' },
+                { id: 'font-kanit', name: 'Kanit', style: 'Modern Sans', preview: 'หนักแน่น มีพลัง สไตล์วัยรุ่น TikTok คอนเทนต์ไวรัล', tag: 'วัยรุ่น', bgClass: 'font-kanit' },
+                { id: 'font-baijamjuree', name: 'Bai Jamjuree', style: 'Tech Geometric', preview: 'เหลี่ยมโมเดิร์น กึ่งแคบ ทรงพลัง ทรงเหลี่ยมแบบล้ำสมัย', tag: 'โมเดิร์น', bgClass: 'font-baijamjuree' },
+                { id: 'font-mitr', name: 'Mitr', style: 'Friendly Sans', preview: 'เป็นมิตร เข้าถึงง่าย นุ่มนวลและน่ารักกำลังดี', tag: 'เป็นมิตร', bgClass: 'font-mitr' },
+                { id: 'font-krub', name: 'Krub', style: 'Rounded Sans', preview: 'กลมมน อบอุ่น ฟีลไลฟ์สไตล์ สบายๆ', tag: 'ไลฟ์สไตล์', bgClass: 'font-krub' },
+                { id: 'font-sarabun', name: 'Sarabun', style: 'Official Loop', preview: 'มีหัว เรียบร้อย ชัดเจน ถูกต้องตามหลักราชการและสิ่งพิมพ์', tag: 'ทางการ', bgClass: 'font-sarabun' },
+                { id: 'font-mali', name: 'Mali', style: 'Handwritten', preview: 'ลายมือน่ารัก มีเสน่ห์ เป็นกันเอง สไตล์วล็อกและรีวิวของกิน', tag: 'ลายมือ', bgClass: 'font-mali' },
+                { id: 'font-chonburi', name: 'Chonburi', style: 'High Contrast', preview: 'หรูหรา แฟชั่น หัวข้อตัวโตโดดเด่น สไตล์แม็กกาซีนพรีเมียม', tag: 'หรูหรา', bgClass: 'font-chonburi' },
+              ].map((f) => {
+                const isSelected = uiFont === f.id;
+                return (
+                  <div
+                    key={f.id}
+                    onClick={() => setUiFont && setUiFont(f.id)}
+                    className={`p-4 rounded-xl border transition-all cursor-pointer relative group ${
+                      isSelected
+                        ? 'bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border-[#25F4EE] shadow-lg shadow-cyan-500/10'
+                        : 'bg-black/40 border-white/[0.08] hover:border-white/[0.2] hover:bg-white/[0.03]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-white text-sm">
+                          {f.name}
+                        </span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-400 border border-white/[0.08]">
+                          {f.style}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs px-2 py-0.5 rounded font-bold ${
+                          isSelected
+                            ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40'
+                            : 'bg-white/[0.05] text-slate-400'
+                        }`}>
+                          {f.tag}
+                        </span>
+                        {isSelected && (
+                          <CheckCircle2 className="w-4 h-4 text-[#25F4EE]" />
+                        )}
+                      </div>
+                    </div>
+
+                    <div className={`mt-3 p-3 rounded-lg bg-black/60 border border-white/[0.06] text-slate-200 text-sm ${f.bgClass}`}>
+                      {f.preview}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
-      </Modal>
+      )}
+
+      {/* ── Asset Delete Confirmation Modal ── */}
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="ยืนยันการลบทรัพยากรนี้ถาวร?"
+        description="ไฟล์จะถูกลบออกจากโฟลเดอร์ Assets ในเครื่อง"
+        itemName={deleteTarget?.name}
+        dangerNote="การกระทำนี้ไม่สามารถย้อนกลับได้"
+        confirmText="ยืนยันลบไฟล์"
+        loading={deleting}
+        variant="danger"
+      />
     </div>
   );
 }

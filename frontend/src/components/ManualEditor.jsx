@@ -417,10 +417,10 @@ export default function ManualEditor({ videos = [] }) {
           </div>
           <div>
             <h2 className="text-xl sm:text-2xl font-bold font-kanit text-white">
-              ตัดต่อมือ (Manual Editor)
+              ตัดต่อปรับแต่ง
             </h2>
             <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-              พรีวิววิดีโอ ลากตัดต้น-จบ สลับลำดับ ใส่ fade + แก้คำบรรยาย สำหรับโปรเจกต์ที่ 1-Click Studio สร้างไว้แล้ว
+              พรีวิววิดีโอ ลากตัดต้น-จบ สลับลำดับ ใส่ fade + แก้คำบรรยาย สำหรับโปรเจกต์ที่สร้างไว้แล้ว
             </p>
           </div>
         </div>
@@ -475,7 +475,7 @@ export default function ManualEditor({ videos = [] }) {
           <div className="p-4 space-y-3 glass-card">
             <h3 className="text-xs font-bold text-white flex items-center gap-2 pb-2 border-b border-white/[0.08] font-kanit">
               <FolderOpen className="w-3.5 h-3.5 text-[#25F4EE]" />
-              คลังวิดีโอ (Media Bin)
+              คลังคลิปวิดีโอ
             </h3>
             <div className="space-y-1.5 max-h-[520px] overflow-y-auto pr-1 no-scrollbar">
               {videos.map((v) => (

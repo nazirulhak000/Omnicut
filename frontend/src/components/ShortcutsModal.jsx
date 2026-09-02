@@ -5,23 +5,36 @@ import { Modal, Badge } from './ui';
 export default function ShortcutsModal({ isOpen, onClose }) {
   const shortcutGroups = [
     {
-      category: 'การสลับแท็บเมนูหลัก (Navigation)',
+      category: 'การสลับแท็บเมนูหลัก',
       shortcuts: [
-        { key: '1', desc: '1. สินค้า ➔ คลิป (AI Product-to-Clip)' },
-        { key: '2', desc: '2. คลังสินค้า & แทร็กเกอร์ (Content Tracker)' },
-        { key: '3', desc: '3. 1-Click Studio (สตูดิโอตัดต่อด่วน)' },
-        { key: '4', desc: '4. ตัดต่อมือ & ซับไตเติล (Manual Editor + SRT)' },
-        { key: '5', desc: '5. คลังคลิปตัดเสร็จ (Export Gallery)' },
-        { key: '6', desc: '6. คลังทรัพยากร (System & Assets)' },
+        { key: '1', desc: '1. สร้างคลิปสินค้า' },
+        { key: '2', desc: '2. สินค้า & แทร็กเกอร์' },
+        { key: '3', desc: '3. สตูดิโอตัดต่อด่วน' },
+        { key: '4', desc: '4. ตัดต่อมือ & ซับไตเติล' },
+        { key: '5', desc: '5. คลังคลิปตัดเสร็จ' },
+        { key: '6', desc: '6. จัดการระบบ' },
       ]
     },
     {
-      category: 'การควบคุมมีเดีย & ระบบ (Player & Actions)',
+      category: 'ไทม์ไลน์และการตัดต่อ',
       shortcuts: [
-        { key: 'Space', desc: 'สลับ เล่น / หยุด วิดีโอพรีวิว (Play / Pause)' },
-        { key: 'Esc', desc: 'ปิดหน้าต่างป๊อปอัป / Modal ทั้งหมด' },
-        { key: 'Ctrl + S', desc: 'บันทึกสถานะโปรเจกต์ / ฟอร์ม (Auto-Save)' },
-        { key: '?', desc: 'เปิด / ปิด หน้าต่างคีย์ลัดนี้' },
+        { key: 'S / Ctrl+B', desc: 'ตัดแบ่งคลิปตรงหัวอ่าน' },
+        { key: 'Ctrl + Scroll', desc: 'ซูมไทม์ไลน์เข้า / ออก' },
+        { key: '+ / -', desc: 'ปรับระดับการซูมไทม์ไลน์' },
+        { key: 'J / K / L', desc: 'ถอยหลัง 1s / เล่น-หยุด / เดินหน้า 1s' },
+        { key: 'Ctrl + Z / Y', desc: 'ย้อนกลับ / ทำซ้ำ' },
+        { key: 'Del / Backspace', desc: 'ลบคลิปหรือคำบรรยาย' },
+        { key: '← / →', desc: 'ขยับหัวอ่านทีละ 1 เฟรม (กด Shift + 1s)' },
+        { key: 'Enter', desc: 'ตัดแบ่งท่อนคำบรรยายตรงเคอร์เซอร์' },
+      ]
+    },
+    {
+      category: 'การควบคุมมีเดีย & ระบบ',
+      shortcuts: [
+        { key: 'Space', desc: 'เล่น / หยุด วิดีโอ' },
+        { key: 'Esc', desc: 'ปิดหน้าต่างป๊อปอัป' },
+        { key: 'Ctrl + S', desc: 'บันทึกโปรเจกต์' },
+        { key: '?', desc: 'เปิดหน้าต่างคีย์ลัด' },
       ]
     }
   ];
@@ -30,7 +43,7 @@ export default function ShortcutsModal({ isOpen, onClose }) {
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="คีย์ลัดด่วน (Keyboard Shortcuts)"
+      title="คีย์ลัดด่วน"
       subtitle="เพิ่มความเร็วในการตัดต่อคอนเทนต์ระดับ Power-User"
       maxWidth="max-w-xl"
     >

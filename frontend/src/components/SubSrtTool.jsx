@@ -14,7 +14,7 @@ export default function SubSrtTool({ videos = [], selectedVideo }) {
 
   const handleTranscribe = async () => {
     if (!targetVideo) {
-      alert('กรุณาเลือกไฟล์วิดีโอหรือเสียงก่อนครับ');
+      setErrorMsg('กรุณาเลือกไฟล์วิดีโอหรือเสียงก่อนครับ');
       return;
     }
 
@@ -106,9 +106,9 @@ export default function SubSrtTool({ videos = [], selectedVideo }) {
                 onChange={(e) => setSubMode(e.target.value)}
                 className="w-full py-2.5 px-3 rounded-xl bg-[#080B11] border border-white/[0.1] text-slate-100 text-xs font-bold focus:outline-none focus:border-[#25F4EE]/50 shadow-inner cursor-pointer"
               >
-                <option value="bilingual">ซับ 2 ภาษา (ไทย + แปลอังกฤษ)</option>
-                <option value="mono">ซับภาษาไทยอย่างเดียว (Mono)</option>
-                <option value="dual">แยก 2 ไฟล์ (.srt ไทย + .srt อังกฤษ)</option>
+                <option value="bilingual">ซับ 2 ภาษา (ไทย + อังกฤษ)</option>
+                <option value="mono">ซับภาษาไทยอย่างเดียว</option>
+                <option value="dual">แยกไฟล์ไทยและอังกฤษ</option>
               </select>
             </div>
 
@@ -121,10 +121,10 @@ export default function SubSrtTool({ videos = [], selectedVideo }) {
                 onChange={(e) => setSubLang(e.target.value)}
                 className="w-full py-2.5 px-3 rounded-xl bg-[#080B11] border border-white/[0.1] text-slate-100 text-xs font-bold focus:outline-none focus:border-[#25F4EE]/50 shadow-inner cursor-pointer"
               >
-                <option value="th">ภาษาไทย (Thai)</option>
-                <option value="en">ภาษาอังกฤษ (English)</option>
-                <option value="zh">ภาษาจีน (Chinese)</option>
-                <option value="">ตรวจจับภาษาอัตโนมัติ (Auto)</option>
+                <option value="th">ภาษาไทย</option>
+                <option value="en">ภาษาอังกฤษ</option>
+                <option value="zh">ภาษาจีน</option>
+                <option value="">ตรวจจับอัตโนมัติ</option>
               </select>
             </div>
           </div>
@@ -132,7 +132,7 @@ export default function SubSrtTool({ videos = [], selectedVideo }) {
           {/* Density Preset Chips */}
           <div>
             <label className="block text-xs font-bold text-slate-300 mb-2">
-              ความยาวประโยคต่อ 1 กล่องซับ (Subtitle Density):
+              ความยาวประโยคต่อกล่องซับ:
             </label>
             <div className="grid grid-cols-3 gap-2">
               {DENSITY_PRESETS.map((p) => {

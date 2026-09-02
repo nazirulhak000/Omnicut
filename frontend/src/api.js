@@ -40,7 +40,13 @@ api.interceptors.response.use(
 );
 
 export const getSystemStatus = () => api.get('/status').then(r => r.data);
-export const getRawVideos = () => api.get('/videos').then(r => r.data);
+export const getRawVideos = (productId = null) => api.get('/videos', { params: productId ? { product_id: productId } : {} }).then(r => r.data);
+export const attachVideoToProduct = (productId, videoPath) => api.post(`/products/${productId}/videos`, { video_path: videoPath }).then(r => r.data);
+export const removeVideoFromProduct = (productId, videoPath) => api.delete(`/products/${productId}/videos`, { params: { video_path: videoPath } }).then(r => r.data);
+export const renameVideo = (videoPath, newName, productId = null) => api.post('/videos/rename', { video_path: videoPath, new_name: newName, product_id: productId }).then(r => r.data);
+export const getRawVault = () => api.get('/raw-vault').then(r => r.data);
+export const reassignRawVideo = (payload) => api.post('/raw-vault/reassign', payload).then(r => r.data);
+export const batchDeleteRawVideos = (videoPaths) => api.post('/raw-vault/batch-delete', { video_paths: videoPaths }).then(r => r.data);
 export const getExports = () => api.get('/exports').then(r => r.data);
 export const getSfxList = () => api.get('/sfx').then(r => r.data);
 
@@ -125,6 +131,7 @@ export const getProducts = (status) => api.get('/products', { params: status ? {
 export const createProduct = (data) => api.post('/products', data).then(r => r.data);
 export const updateProduct = (id, data) => api.patch(`/products/${id}`, data).then(r => r.data);
 export const updateAngleStatus = (productId, angleId, status, videoUrl = null) => api.patch(`/products/${productId}/angles/${angleId}`, { status, video_url: videoUrl }).then(r => r.data);
+export const updateAngleVideos = (productId, angleId, selectedVideos) => api.post(`/products/${productId}/angles/${angleId}/videos`, { selected_videos: selectedVideos }).then(r => r.data);
 export const deleteProduct = (id) => api.delete(`/products/${id}`).then(r => r.data);
 
 export const getProjects = () => api.get('/projects').then(r => r.data);

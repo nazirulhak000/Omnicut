@@ -161,10 +161,10 @@ const KanbanCard = memo(function KanbanCard({
             <button
               onClick={() => onSendToStudio(ang.parentProduct, ang)}
               className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 active:scale-95 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-sm flex-shrink-0"
-              title="ส่งตัดต่อใน 1-Click Studio"
+              title="ส่งไปตัดต่อ"
             >
               <Clapperboard className="w-3.5 h-3.5" />
-              <span>ส่ง Studio</span>
+              <span>ส่งตัดต่อ</span>
             </button>
           )}
 
@@ -173,9 +173,9 @@ const KanbanCard = memo(function KanbanCard({
               <button
                 onClick={() => onSendToStudio(ang.parentProduct, ang)}
                 className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 active:scale-95 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-sm flex-shrink-0"
-                title="เปิดทำต่อใน 1-Click Studio"
+                title="เปิดทำต่อในหน้าตัดต่อ"
               >
-                <span>Studio</span>
+                <span>ไปหน้าตัดต่อ</span>
                 <ArrowRight className="w-3 h-3" />
               </button>
               <button
@@ -477,7 +477,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
       }
       showToast('อัปเดตสถานะสำเร็จ');
     } catch (err) {
-      alert('ไม่สามารถอัปเดตสถานะได้: ' + err.message);
+      showToast('ไม่สามารถอัปเดตสถานะได้: ' + err.message, 'error');
     }
   }, [inspectAngle, showToast]);
 
@@ -502,7 +502,8 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
       painPoint: angle.pain_point || '',
       priceDeal: angle.price_deal || product.price_note || '',
       adTone: angle.ad_tone || 'commercial_premium',
-      selectedVideo: product.images?.[0]?.local_path || product.images?.[0]?.rel_path || '',
+      selectedVideo: angle.selected_videos?.[0] || angle.selected_video || product.images?.[0]?.local_path || product.images?.[0]?.rel_path || '',
+      selectedVideos: angle.selected_videos || (angle.selected_video ? [angle.selected_video] : []),
       fullProduct: {
         id: product.id,
         title: product.name,
@@ -739,54 +740,41 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                 </div>
               )}
 
-              {/* 6. True Deep-Dive Navigation Action Grid (2x2 Compact Grid) */}
-              <div className="pt-2 border-t border-white/[0.08] grid grid-cols-2 gap-2">
-                {/* Button 1: Go to Script Lab (Menu 1) */}
+              {/* 6. True Deep-Dive Navigation Action Bar */}
+              <div className="pt-2 border-t border-white/[0.08] flex items-center gap-2">
+                {/* Button 1: Go to Script Lab */}
                 <button
                   onClick={() => {
                     setInspectAngle(null);
                     onGoToFlow?.(inspectAngle.parentProduct?.id);
                   }}
-                  className="py-2 px-2.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
-                  title="ดูและปรับแต่งสคริปต์ใน Lab"
+                  className="flex-1 py-2.5 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                  title="ดูและปรับแต่งสคริปต์ในหน้าสินค้า"
                 >
                   <FileText className="w-3.5 h-3.5 text-indigo-400" />
                   <span>Lab สคริปต์</span>
                 </button>
 
-                {/* Button 2: Go to 1-Click Studio (Menu 3) */}
+                {/* Button 2: Go to Video Editor (Unified Primary Action) */}
                 <button
                   onClick={() => {
                     setInspectAngle(null);
                     handleSendToStudio(inspectAngle.parentProduct, inspectAngle);
                   }}
-                  className="py-2 px-2.5 rounded-lg bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-[#FE2C55]/20 active:scale-95 transition-all"
-                  title="เปิดตัดต่อใน 1-Click Studio"
+                  className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-[#FE2C55]/20 active:scale-95 transition-all"
+                  title="ส่งมุมนี้เข้าสู่หน้าตัดต่อทันที"
                 >
                   <Clapperboard className="w-3.5 h-3.5 text-white" />
-                  <span>1-Click Studio</span>
+                  <span>ส่งไปตัดต่อ</span>
                 </button>
 
-                {/* Button 3: Go to Video Editor (Menu 4) */}
-                <button
-                  onClick={() => {
-                    setInspectAngle(null);
-                    onGoToEditor?.();
-                  }}
-                  className="py-2 px-2.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
-                  title="เปิดไทม์ไลน์ NLE ใน Video Editor"
-                >
-                  <Scissors className="w-3.5 h-3.5 text-purple-400" />
-                  <span>Video Editor</span>
-                </button>
-
-                {/* Button 4: Mobile QR */}
+                {/* Button 3: Mobile QR */}
                 <button
                   onClick={() => {
                     setInspectAngle(null);
                     setQrModalItem(inspectAngle);
                   }}
-                  className="py-2 px-2.5 rounded-lg bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                  className="py-2.5 px-3.5 rounded-xl bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all flex-shrink-0"
                   title="สแกน QR โหลดเข้ามือถือ"
                 >
                   <QrCode className="w-3.5 h-3.5 text-[#25F4EE]" />

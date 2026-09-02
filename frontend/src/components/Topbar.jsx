@@ -1,8 +1,8 @@
-import UiScaleControl from './UiScaleControl';
 import React, { memo } from 'react';
 import {
   Rocket, Layers, Sparkles, Scissors, FolderDown, Settings,
-  Type, Keyboard, Wifi, WifiOff, RefreshCw, Package } from 'lucide-react';
+  Keyboard, Wifi, WifiOff, RefreshCw, Package
+} from 'lucide-react';
 import { ActivityIndicatorButton } from './ActivityCenter';
 
 const TAB_CONFIG = {
@@ -124,34 +124,6 @@ export default memo(function Topbar({
           <Keyboard className="w-3.5 h-3.5 text-[#25F4EE]" />
           <kbd className="hidden lg:inline px-1.5 py-0.2 rounded bg-white/[0.08] border border-white/[0.1] text-sm text-slate-400 font-mono">?</kbd>
         </button>
-
-        <UiScaleControl value={uiScale} onChange={setUiScale} />
-
-        {/* Global UI Font Selector */}
-        <div className="flex items-center gap-1 sm:gap-1.5 bg-black/40 px-2 sm:px-2.5 py-1 rounded-xl border border-white/[0.08] text-xs min-w-0">
-          <Type className="w-3.5 h-3.5 text-[#25F4EE] flex-shrink-0" />
-          <select
-            value={uiFont}
-            onChange={(e) => setUiFont && setUiFont(e.target.value)}
-            className="bg-transparent text-slate-200 text-xs font-medium focus:outline-none cursor-pointer max-w-[85px] sm:max-w-[120px] truncate"
-            title="เปลี่ยนฟอนต์ของหน้าจอโปรแกรมทั้งระบบ (Global UI Font)"
-          >
-            <optgroup label="Modern Sans (โมเดิร์น ไร้หัว)">
-              <option value="font-prompt" className="bg-[#080B11] text-white">Prompt</option>
-              <option value="font-anuphan" className="bg-[#080B11] text-white">Anuphan</option>
-              <option value="font-ibm" className="bg-[#080B11] text-white">IBM Plex</option>
-              <option value="font-kanit" className="bg-[#080B11] text-white">Kanit</option>
-              <option value="font-krub" className="bg-[#080B11] text-white">Krub</option>
-              <option value="font-mitr" className="bg-[#080B11] text-white">Mitr</option>
-              <option value="font-baijamjuree" className="bg-[#080B11] text-white">Bai Jamjuree</option>
-            </optgroup>
-            <optgroup label="Official & Editorial (ทางการ / ลายมือ / แฟชั่น)">
-              <option value="font-sarabun" className="bg-[#080B11] text-white">Sarabun</option>
-              <option value="font-mali" className="bg-[#080B11] text-white">Mali</option>
-              <option value="font-chonburi" className="bg-[#080B11] text-white">Chonburi</option>
-            </optgroup>
-          </select>
-        </div>
 
         {/* Server Connection Status Badge */}
         <div className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-xl text-xs font-medium border ${

@@ -62,8 +62,10 @@ ZOOM_LIMITS = (1.0, 3.0)
 STICKER_POSITIONS = {
     "top_right": ("(W-w-40)", "140"),
     "top_left": ("40", "140"),
+    "top_center": ("(W-w)/2", "140"),
     "bottom_right": ("(W-w-40)", "(H-h-420)"),
     "bottom_left": ("40", "(H-h-420)"),
+    "bottom_center": ("(W-w)/2", "(H-h-420)"),
 }
 STICKER_BASE_WIDTH = 380
 
@@ -162,6 +164,7 @@ class VideoEditor:
         try:
             data = json.loads(res.stdout)
             video_stream = next((s for s in data.get("streams", []) if s.get("codec_type") == "video"), {})
+            has_audio = any(s.get("codec_type") == "audio" for s in data.get("streams", []))
             duration = float(data.get("format", {}).get("duration", 0.0))
             width = int(video_stream.get("width", 1080))
             height = int(video_stream.get("height", 1920))
@@ -180,10 +183,11 @@ class VideoEditor:
                 "duration": duration,
                 "width": width,
                 "height": height,
-                "rotation": rotation
+                "rotation": rotation,
+                "has_audio": has_audio
             }
         except Exception as e:
-            return {"duration": 60.0, "width": 1080, "height": 1920, "rotation": 0}
+            return {"duration": 60.0, "width": 1080, "height": 1920, "rotation": 0, "has_audio": False}
 
     @classmethod
     def assemble_tiktok_video(
@@ -241,6 +245,7 @@ class VideoEditor:
         concat_inputs = []
         video_input_paths: List[str] = []
         clip_durations: List[float] = []
+        raw_audio_nodes: List[Tuple[str, float]] = []
         used_clip_list = bool(clip_list)
 
         if clip_list:
@@ -253,10 +258,11 @@ class VideoEditor:
                 source_path = Path(clip["source_path"]).resolve()
                 video_input_paths.append(str(source_path))
 
+                media_info = cls.get_media_info(str(source_path))
                 trim_start = float(clip.get("trim_start", 0.0))
                 trim_end = clip.get("trim_end")
                 if trim_end is None:
-                    trim_end = cls.get_media_info(source_path)["duration"]
+                    trim_end = media_info["duration"]
                 source_span = max(0.2, float(trim_end) - trim_start)
 
                 # Per-clip speed: setpts stretches/squashes presentation time,
@@ -282,6 +288,16 @@ class VideoEditor:
                 duration += freeze_tail
                 speed_filter = "" if abs(speed - 1.0) < 1e-3 else f"setpts=PTS/{speed},"
 
+                # Rotation: 90, 180, 270 degrees
+                rotation = int(clip.get("rotation") or 0) % 360
+                rot_filter = ""
+                if rotation == 90:
+                    rot_filter = "transpose=1,"
+                elif rotation == 180:
+                    rot_filter = "hflip,vflip,"
+                elif rotation == 270:
+                    rot_filter = "transpose=2,"
+
                 # Mirror is a plain horizontal flip, applied before the
                 # scale/crop chain so the punch-zoom framing is unaffected.
                 mirror_filter = "hflip," if clip.get("mirror") else ""
@@ -301,13 +317,30 @@ class VideoEditor:
                 node_name = f"clip_{idx}"
                 filter_complex.append(
                     f"[{idx}:v]trim=start={trim_start}:duration={source_span},setpts=PTS-STARTPTS,"
-                    f"{speed_filter}{mirror_filter}{eq_filter}{freeze_filter}"
+                    f"{speed_filter}{rot_filter}{mirror_filter}{eq_filter}{freeze_filter}"
                     f"scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,"
                     f"crop={VIDEO_WIDTH}:{VIDEO_HEIGHT},setsar=1,fps={FPS},"
                     f"scale={scaled_w}:{scaled_h}:flags=lanczos,crop={VIDEO_WIDTH}:{VIDEO_HEIGHT}:{crop_x}:{crop_y}[{node_name}];"
                 )
                 concat_inputs.append(f"[{node_name}]")
                 clip_durations.append(duration)
+
+                # Raw video audio blend (Optional)
+                vol = min(1.0, max(0.0, float(clip.get("volume") or 0.0)))
+                if vol > 0.01 and media_info.get("has_audio"):
+                    tempo_filter = ""
+                    if abs(speed - 1.0) >= 0.05:
+                        if 0.5 <= speed <= 2.0:
+                            tempo_filter = f",atempo={speed:.3f}"
+                        elif speed > 2.0:
+                            tempo_filter = f",atempo=2.0,atempo={speed/2.0:.3f}"
+                        else:
+                            tempo_filter = f",atempo=0.5,atempo={speed/0.5:.3f}"
+                    a_node = f"a_clip_{idx}"
+                    filter_complex.append(
+                        f"[{idx}:a]atrim=start={trim_start}:duration={source_span},asetpts=PTS-STARTPTS{tempo_filter},volume={vol}[{a_node}];"
+                    )
+                    raw_audio_nodes.append((a_node, duration))
         else:
             # 1-Click Studio path (unchanged): single source video, virtual cut
             # points computed from cues/AI-matched shots (or a fixed rhythm if
@@ -504,6 +537,21 @@ class VideoEditor:
                 f";[v_subbed]scale={profile['width']}:{profile['height']}:flags=bilinear[v_final]"
             )
 
+        # Mix raw audio with the main voice/BGM audio if any raw clip volume is active
+        if raw_audio_nodes:
+            raw_a_in = "".join(f"[{node}]" for node, _ in raw_audio_nodes)
+            if len(raw_audio_nodes) > 1:
+                filter_complex.append(f";{raw_a_in}concat=n={len(raw_audio_nodes)}:v=0:a=1[raw_a_concat]")
+                raw_a_target = "[raw_a_concat]"
+            else:
+                raw_a_target = f"[{raw_audio_nodes[0][0]}]"
+            filter_complex.append(
+                f";{raw_a_target}[{audio_input_idx}:a]amix=inputs=2:duration=first:normalize=0[a_final]"
+            )
+            final_audio_map = "[a_final]"
+        else:
+            final_audio_map = f"{audio_input_idx}:a"
+
         full_filter = "".join(filter_complex)
 
         cmd = [
@@ -511,7 +559,7 @@ class VideoEditor:
             *cmd_inputs,
             "-filter_complex", full_filter,
             "-map", "[v_final]",
-            "-map", f"{audio_input_idx}:a",
+            "-map", final_audio_map,
             "-c:v", "libx264",
             "-preset", profile["x264_preset"],
             "-crf", str(profile["crf"]),

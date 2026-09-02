@@ -30,10 +30,22 @@ export function angleToForm(angle, context = {}) {
     priceDeal: angle.price_deal || context.price_note || '',
   };
   if (angle.ad_tone) patch.adTone = angle.ad_tone;
-  if (angle.selected_video) patch.selectedVideo = angle.selected_video;
-  else if (angle.selected_videos && angle.selected_videos.length > 0) patch.selectedVideo = angle.selected_videos[0];
-  else if (context.selectedVideo) patch.selectedVideo = context.selectedVideo;
-  else if (context.images && context.images.length > 0) patch.selectedVideo = context.images[0].local_path || context.images[0].rel_path || context.images[0].path;
+
+  const angleVideos = angle.selected_videos || (angle.selected_video ? [angle.selected_video] : []);
+  if (angleVideos.length > 0) {
+    patch.selectedVideos = angleVideos;
+    patch.selectedVideo = angleVideos[0];
+  } else if (context.selectedVideos && context.selectedVideos.length > 0) {
+    patch.selectedVideos = context.selectedVideos;
+    patch.selectedVideo = context.selectedVideos[0];
+  } else if (context.selectedVideo) {
+    patch.selectedVideos = [context.selectedVideo];
+    patch.selectedVideo = context.selectedVideo;
+  } else if (context.images && context.images.length > 0) {
+    const imgPath = context.images[0].local_path || context.images[0].rel_path || context.images[0].path;
+    patch.selectedVideos = [imgPath];
+    patch.selectedVideo = imgPath;
+  }
   return patch;
 }
 

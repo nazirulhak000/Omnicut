@@ -125,15 +125,15 @@ export function ActivityDrawer() {
   });
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden flex justify-end animate-fadeIn">
+    <div className="fixed inset-0 z-[100] w-screen h-[100dvh] max-h-[100dvh] overflow-hidden flex justify-end animate-fadeIn overscroll-none">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-black/75 backdrop-blur-md transition-opacity"
         onClick={() => setIsActivityDrawerOpen(false)}
       />
 
       {/* Slide-over Panel */}
-      <aside className="relative w-full max-w-md bg-[#080B11]/95 backdrop-blur-2xl border-l border-white/[0.08] shadow-2xl flex flex-col h-full z-10 animate-slideLeft">
+      <aside className="relative w-full max-w-md bg-[#080B11]/95 backdrop-blur-2xl border-l border-white/[0.12] shadow-2xl flex flex-col h-[100dvh] max-h-[100dvh] z-10 animate-slideLeft overflow-hidden">
         {/* Header */}
         <div className="p-4 border-b border-white/[0.08] flex items-center justify-between">
           <div className="flex items-center gap-2.5">

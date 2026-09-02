@@ -32,6 +32,7 @@ export default function Toolbar({
   hasClipSelected,
   hasSelection,
   selectedClip,
+  canSplit = hasClipSelected,
   canUndo,
   canRedo,
   onUndo,
@@ -57,7 +58,7 @@ export default function Toolbar({
 
       <span className="mx-1 h-4 w-px bg-[#363430]" />
 
-      <ToolButton icon={Scissors} label="แยก" hint="ผ่าคลิปที่เลือกตรงหัวอ่าน" shortcut="S" onClick={onSplit} disabled={!hasClipSelected} />
+      <ToolButton icon={Scissors} label="แยก" hint="ผ่าคลิปตรงหัวอ่าน" shortcut="S / Ctrl+B" onClick={onSplit} disabled={!canSplit} />
       <ToolButton icon={Copy} label="ทำสำเนา" hint="ก๊อบคลิปที่เลือกต่อท้ายตัวเอง" onClick={onDuplicate} disabled={!hasClipSelected} />
       <ToolButton icon={Trash2} label="ลบ" shortcut="Del" onClick={onDelete} disabled={!hasSelection} />
 

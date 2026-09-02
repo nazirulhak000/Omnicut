@@ -113,6 +113,33 @@ WORD_MAP = {
     "OTG":      "โอทีจี",
     "SD":       "เอสดี",
     "TF":       "ทีเอฟ",
+    # E-Commerce & Promo terms
+    "Flash Sale": "แฟลชเซล",
+    "Flash sale": "แฟลชเซล",
+    "flash sale": "แฟลชเซล",
+    "COD":        "เก็บเงินปลายทาง",
+    "Voucher":    "เวาเชอร์",
+    "voucher":    "เวาเชอร์",
+    "Coupon":     "คูปอง",
+    "coupon":     "คูปอง",
+    "Live":       "ไลฟ์",
+    "live":       "ไลฟ์",
+    "Unbox":      "อันบ็อกซ์",
+    "Unboxing":   "อันบ็อกซิ่ง",
+    "unbox":      "อันบ็อกซ์",
+    "unboxing":   "อันบ็อกซิ่ง",
+    "Affiliate":  "แอฟฟิลิเอต",
+    "Pro":        "โปร",
+    "Max":        "แม็กซ์",
+    "Mini":       "มินิ",
+    "Plus":       "พลัส",
+    "Ultra":      "อัลตรา",
+    "Lite":       "ไลต์",
+    "1 แถม 1":    "หนึ่งแถมหนึ่ง",
+    "1แถม1":      "หนึ่งแถมหนึ่ง",
+    "1+1":        "หนึ่งแถมหนึ่ง",
+    "2 แถม 1":    "สองแถมหนึ่ง",
+    "2แถม1":      "สองแถมหนึ่ง",
 }
 
 
@@ -157,7 +184,24 @@ class TTSSanitizer:
         """Replace tech abbreviations with Thai pronunciation equivalents."""
         result = text
 
-        # First: expand number+unit combos (e.g., "66W" → "66 วัตต์")
+        # Currency & Price notation expansions (e.g., "199.-", "฿199", "199฿")
+        result = re.sub(r'(\d+)\s*\.-', r'\1 บาท', result)
+        result = re.sub(r'฿\s*(\d+)', r'\1 บาท', result)
+        result = re.sub(r'(\d+)\s*฿', r'\1 บาท', result)
+
+        # Percentage expansion (e.g., "50%" → "50 เปอร์เซ็นต์")
+        result = re.sub(r'(\d+(?:\.\d+)?)\s*%', r'\1 เปอร์เซ็นต์', result)
+
+        # Multiplier expansion (e.g., "2x", "3x" → "สองเท่า", "สามเท่า")
+        result = re.sub(r'\b2x\b|\b2X\b', 'สองเท่า', result)
+        result = re.sub(r'\b3x\b|\b3X\b', 'สามเท่า', result)
+
+        # Day range expansion (e.g., "1-2 วัน" → "หนึ่งถึงสองวัน", "2-3 วัน" → "สองถึงสามวัน")
+        result = re.sub(r'1-2\s*วัน', 'หนึ่งถึงสองวัน', result)
+        result = re.sub(r'2-3\s*วัน', 'สองถึงสามวัน', result)
+        result = re.sub(r'3-5\s*วัน', 'สามถึงห้าวัน', result)
+
+        # Expand number+unit combos (e.g., "66W" → "66 วัตต์")
         def _replace_num_unit(m):
             num = m.group(1)
             unit_raw = m.group(2)
@@ -169,9 +213,8 @@ class TTSSanitizer:
 
         result = cls._NUM_UNIT_PATTERN.sub(_replace_num_unit, result)
 
-        # Second: expand standalone word abbreviations (longer first to avoid partial matches)
+        # Expand standalone word abbreviations (longer first to avoid partial matches)
         for abbr, thai in sorted(WORD_MAP.items(), key=lambda x: len(x[0]), reverse=True):
-            # Use word boundary-aware replacement
             pattern = re.compile(re.escape(abbr), re.IGNORECASE)
             result = pattern.sub(thai, result)
 
@@ -185,6 +228,9 @@ class TTSSanitizer:
 
         # Remove stray markdown/formatting
         text = re.sub(r'[*_~`]', '', text)
+
+        # Clean stray slashes or bullet chars
+        text = re.sub(r'[•|/]', ' ', text)
 
         # Normalize multiple spaces
         text = re.sub(r'\s{2,}', ' ', text)

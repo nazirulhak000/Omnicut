@@ -2,12 +2,13 @@ import React, { useState, useMemo, useEffect, useCallback, memo } from 'react';
 import {
   Film, Download, Folder, RefreshCw, Trash2,
   AlertTriangle, Check, Play, Search, Filter, ArrowUpDown,
-  Smartphone, CheckSquare, Square, Share2, Copy, FileText, QrCode
+  Smartphone, CheckSquare, Square, Share2, Copy, FileText, QrCode, Sparkles, HardDrive
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { openFolder, deleteFile } from '../api';
-import { Modal, Toast, Button, Badge } from './ui';
+import { Modal, Toast, Button, Badge, ConfirmModal } from './ui';
 import { useDebounce, useToast } from '../hooks';
+import RawVaultPanel from './RawVaultPanel';
 
 // Memoized Export Video Item Card
 const ExportCard = memo(function ExportCard({
@@ -128,12 +129,14 @@ const ExportCard = memo(function ExportCard({
 });
 
 export default function ExportGallery({ exportsList, onRefresh }) {
+  const [activeMediaTab, setActiveMediaTab] = useState('exports');
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 250);
   const [selectedProductFilter, setSelectedProductFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'oldest' | 'size_desc' | 'name'
   const [selectedDetailVideo, setSelectedDetailVideo] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [showBatchDeleteModal, setShowBatchDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const { toastMessage, toastType, showToast, hideToast } = useToast();
   const [selectedVideos, setSelectedVideos] = useState([]);
@@ -146,7 +149,7 @@ export default function ExportGallery({ exportsList, onRefresh }) {
   const handleCopyCaption = useCallback((text) => {
     navigator.clipboard.writeText(text);
     setCopiedCaption(true);
-    showToast('คัดลอกแคปชัน & แฮชแท็กเรียบร้อยแล้ว');
+    showToast('คัดลอกแคปชันเรียบร้อยแล้ว');
     setTimeout(() => setCopiedCaption(false), 2000);
   }, [showToast]);
 
@@ -161,15 +164,14 @@ export default function ExportGallery({ exportsList, onRefresh }) {
       setSelectedVideos(prev => prev.filter(p => p !== deleteTarget.path));
       if (onRefresh) onRefresh();
     } catch (err) {
-      alert('ไม่สามารถลบไฟล์ได้: ' + (err.response?.data?.detail || err.message));
+      showToast('ไม่สามารถลบไฟล์ได้: ' + (err.response?.data?.detail || err.message), 'error');
     } finally {
       setDeleting(false);
     }
   }, [deleteTarget, selectedDetailVideo, onRefresh, showToast]);
 
-  const handleBatchDelete = useCallback(async () => {
+  const confirmBatchDelete = useCallback(async () => {
     if (selectedVideos.length === 0) return;
-    if (!confirm(`คุณต้องการลบวิดีโอที่เลือกทั้ง ${selectedVideos.length} คลิปใช่หรือไม่?`)) return;
 
     setDeleting(true);
     try {
@@ -182,11 +184,19 @@ export default function ExportGallery({ exportsList, onRefresh }) {
       }
       showToast(`ลบวิดีโอ ${selectedVideos.length} คลิปเรียบร้อยแล้ว`);
       setSelectedVideos([]);
+      setShowBatchDeleteModal(false);
       if (onRefresh) onRefresh();
+    } catch (err) {
+      showToast('เกิดข้อผิดพลาดในการลบไฟล์: ' + err.message, 'error');
     } finally {
       setDeleting(false);
     }
   }, [selectedVideos, onRefresh, showToast]);
+
+  const handleBatchDelete = useCallback(() => {
+    if (selectedVideos.length === 0) return;
+    setShowBatchDeleteModal(true);
+  }, [selectedVideos]);
 
   const toggleSelectVideo = useCallback((path) => {
     setSelectedVideos(prev =>
@@ -265,6 +275,41 @@ export default function ExportGallery({ exportsList, onRefresh }) {
       {/* Central Toast Notification */}
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
 
+      {/* ── High-Level Media Center Switcher (Exports vs Raw Vault) ── */}
+      <div className="flex items-center justify-between gap-3 p-1.5 rounded-3xl bg-[#0B0F19]/90 border border-white/[0.08] backdrop-blur-xl shadow-xl">
+        <div className="flex items-center gap-2 flex-1">
+          <button
+            type="button"
+            onClick={() => setActiveMediaTab('exports')}
+            className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+              activeMediaTab === 'exports'
+                ? 'bg-gradient-to-r from-[#FE2C55]/20 to-[#FE2C55]/10 text-[#FE2C55] border border-[#FE2C55]/40 shadow-lg shadow-[#FE2C55]/10'
+                : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
+            }`}
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>คลิปตัดเสร็จ ({exportsList?.length || 0})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveMediaTab('raw_vault')}
+            className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+              activeMediaTab === 'raw_vault'
+                ? 'bg-gradient-to-r from-[#25F4EE]/20 to-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/40 shadow-lg shadow-[#25F4EE]/10'
+                : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
+            }`}
+          >
+            <Film className="w-4 h-4" />
+            <span>คลิปดิบ</span>
+          </button>
+        </div>
+      </div>
+
+      {activeMediaTab === 'raw_vault' ? (
+        <RawVaultPanel />
+      ) : (
+        <>
       {/* DETAILED VIDEO QC & METADATA POPUP MODAL */}
       <Modal
         isOpen={!!selectedDetailVideo}
@@ -381,95 +426,121 @@ export default function ExportGallery({ exportsList, onRefresh }) {
         </div>
       </Modal>
 
-      {/* ── Top Header Bar & Stats Overview ── */}
-      <div className="p-6 border border-white/[0.08] glass-panel rounded-3xl shadow-xl space-y-5">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#FE2C55] to-[#25F4EE] flex items-center justify-center shadow-lg shadow-[#FE2C55]/20 flex-shrink-0 text-white">
-              <Film className="w-6 h-6" />
+      {/* ── Top Header Bar & Stats Overview (Cyber-Dark Glassmorphic) ── */}
+      <div className="rounded-3xl border border-white/[0.08] bg-[#0B0F19]/80 backdrop-blur-xl p-5 sm:p-7 shadow-2xl relative overflow-hidden space-y-6">
+        {/* Ambient Glow Aura */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-[#FE2C55]/10 via-[#25F4EE]/5 to-transparent rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
+
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 relative z-10">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FE2C55]/10 border border-[#FE2C55]/30 text-[#FE2C55] text-xs font-bold tracking-wide uppercase">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Exported Master Gallery</span>
             </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight font-kanit">
-                คลังวิดีโอที่ตัดเสร็จแล้ว (Export Gallery)
-              </h1>
-              <p className="text-sm text-slate-400 mt-1">
-                คลิกที่คลิปเพื่อดูรายละเอียด: สคริปต์, แคปชัน, แฮชแท็ก, และสแกน QR โหลดเข้ามือถือ
-              </p>
-            </div>
+            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight font-kanit">
+              คลังคลิปตัดเสร็จ
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-400 max-w-2xl leading-relaxed">
+              คลิปวิดีโอ 9:16 คุณภาพสูง พร้อมสคริปต์ แคปชัน แฮชแท็ก และ QR สแกนโหลดลงมือถือ
+            </p>
           </div>
 
-          <div className="flex items-center gap-2.5">
-            <Button
-              onClick={onRefresh}
-              variant="secondary"
-              size="sm"
-              icon={RefreshCw}
-            >
-              รีเฟรช
-            </Button>
-            <Button
-              onClick={handleOpenExportsFolder}
-              variant="secondary"
-              size="sm"
-              icon={Folder}
-            >
-              เปิดโฟลเดอร์ในเครื่อง
-            </Button>
-          </div>
-        </div>
-
-        {/* ── 3 Metric Summary Cards ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-          <div className="p-4 rounded-2xl bg-black/40 border border-white/[0.08] flex items-center justify-between">
-            <div>
-              <div className="text-xs font-bold text-slate-400">คลิปที่ตัดสำเร็จทั้งหมด</div>
-              <div className="text-2xl sm:text-3xl font-bold text-white font-mono mt-1">
-                {exportsList?.length || 0} <span className="text-xs font-normal text-slate-400">คลิป</span>
+          {/* Metrics & Quick Action Shelf */}
+          <div className="flex items-center flex-wrap gap-2.5 sm:gap-3">
+            {/* Metric 1: Total Exported Clips */}
+            <div className="flex-1 sm:flex-initial px-4 py-2.5 rounded-2xl bg-white/[0.03] border border-white/[0.08] flex items-center gap-3 shadow-inner min-w-[130px]">
+              <div className="w-9 h-9 rounded-xl bg-[#FE2C55]/10 border border-[#FE2C55]/20 flex items-center justify-center text-[#FE2C55] flex-shrink-0">
+                <Film className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="text-[11px] text-slate-400 font-medium">คลิปตัดเสร็จ</div>
+                <div className="text-base font-black text-white font-mono">
+                  {exportsList?.length || 0} <span className="text-xs font-normal text-slate-400">ไฟล์</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="p-4 rounded-2xl bg-black/40 border border-white/[0.08] flex items-center justify-between">
-            <div>
-              <div className="text-xs font-bold text-slate-400">พื้นที่จัดเก็บรวม</div>
-              <div className="text-2xl sm:text-3xl font-bold text-[#25F4EE] font-mono mt-1">
-                {totalMB} <span className="text-xs font-normal text-slate-400">MB</span>
+            {/* Metric 2: Total Storage */}
+            <div className="flex-1 sm:flex-initial px-4 py-2.5 rounded-2xl bg-white/[0.03] border border-white/[0.08] flex items-center gap-3 shadow-inner min-w-[130px]">
+              <div className="w-9 h-9 rounded-xl bg-[#25F4EE]/10 border border-[#25F4EE]/20 flex items-center justify-center text-[#25F4EE] flex-shrink-0">
+                <HardDrive className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="text-[11px] text-slate-400 font-medium">ความจุรวม</div>
+                <div className="text-base font-black text-white font-mono">
+                  {totalMB} <span className="text-xs font-normal text-slate-400">MB</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
-            <div>
-              <div className="text-xs font-bold text-emerald-400">ความพร้อมสำหรับ TikTok</div>
-              <div className="text-2xl sm:text-3xl font-bold text-emerald-300 font-mono mt-1">
-                100% <span className="text-xs font-normal text-emerald-400/70">อัตราส่วน 9:16</span>
+            {/* Metric 3: Quality / Aspect Ratio */}
+            <div className="hidden sm:flex px-4 py-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 items-center gap-3 shadow-inner">
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-300 flex-shrink-0">
+                <Smartphone className="w-4 h-4" />
               </div>
+              <div>
+                <div className="text-[11px] text-emerald-400/90 font-medium">พร้อมลง TikTok</div>
+                <div className="text-base font-black text-emerald-300 font-mono">
+                  9:16 <span className="text-xs font-normal text-emerald-400/80">Full HD</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Button
+                onClick={onRefresh}
+                variant="secondary"
+                size="sm"
+                icon={RefreshCw}
+                className="flex-1 sm:flex-initial justify-center"
+              >
+                รีเฟรช
+              </Button>
+              <Button
+                onClick={handleOpenExportsFolder}
+                variant="secondary"
+                size="sm"
+                icon={Folder}
+                className="flex-1 sm:flex-initial justify-center"
+              >
+                เปิดโฟลเดอร์
+              </Button>
             </div>
           </div>
         </div>
 
         {/* ── Search, Product Filter, Sort & Batch Actions ── */}
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 pt-4 border-t border-white/[0.08]">
+        <div className="pt-5 border-t border-white/[0.06] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3.5 relative z-10">
           <div className="flex flex-wrap items-center gap-2.5 flex-1">
-            {/* Search Input */}
+            {/* Search Input with Clear Button */}
             <div className="relative flex-1 sm:w-64 min-w-[200px]">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="ค้นหาชื่อคลิป หรือสินค้า..."
-                className="w-full py-2 pl-10 pr-3 rounded-xl bg-black/40 border border-white/[0.1] text-white text-xs sm:text-sm focus:outline-none focus:border-[#25F4EE] transition-colors"
+                placeholder="ค้นหาชื่อคลิป, แคปชัน, หรือสินค้า..."
+                className="w-full bg-black/50 border border-white/[0.1] focus:border-[#FE2C55] focus:ring-1 focus:ring-[#FE2C55] rounded-xl pl-10 pr-9 py-2.5 text-[16px] sm:text-xs text-white placeholder-slate-500 focus:outline-none transition-all"
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center text-xs transition-colors cursor-pointer"
+                  title="ล้างคำค้นหา"
+                >
+                  ✕
+                </button>
+              )}
             </div>
 
             {/* Product Filter Dropdown */}
-            <div className="flex items-center gap-1.5">
-              <Filter className="w-4 h-4 text-slate-400" />
+            <div className="flex items-center gap-1.5 flex-1 sm:flex-initial">
               <select
                 value={selectedProductFilter}
                 onChange={(e) => setSelectedProductFilter(e.target.value)}
-                className="py-2 px-3 rounded-xl bg-black/40 border border-white/[0.1] text-white text-xs sm:text-sm font-bold focus:outline-none focus:border-[#25F4EE] transition-colors"
+                className="w-full sm:w-auto py-2.5 px-3 rounded-xl bg-black/50 border border-white/[0.1] text-white text-[16px] sm:text-xs font-bold focus:outline-none focus:border-[#FE2C55] transition-colors cursor-pointer"
               >
                 <option value="all" className="bg-[#080B11]">สินค้าทั้งหมด ({exportsList?.length || 0})</option>
                 {productTags.map(t => (
@@ -479,12 +550,11 @@ export default function ExportGallery({ exportsList, onRefresh }) {
             </div>
 
             {/* Sort Dropdown */}
-            <div className="flex items-center gap-1.5">
-              <ArrowUpDown className="w-4 h-4 text-slate-400" />
+            <div className="flex items-center gap-1.5 flex-1 sm:flex-initial">
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="py-2 px-3 rounded-xl bg-black/40 border border-white/[0.1] text-white text-xs sm:text-sm font-bold focus:outline-none focus:border-[#25F4EE] transition-colors"
+                className="w-full sm:w-auto py-2.5 px-3 rounded-xl bg-black/50 border border-white/[0.1] text-white text-[16px] sm:text-xs font-bold focus:outline-none focus:border-[#FE2C55] transition-colors cursor-pointer"
               >
                 <option value="newest" className="bg-[#080B11]">ใหม่ล่าสุด</option>
                 <option value="oldest" className="bg-[#080B11]">เก่าที่สุด</option>
@@ -495,15 +565,16 @@ export default function ExportGallery({ exportsList, onRefresh }) {
           </div>
 
           {/* Batch Actions & Select All */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 justify-between sm:justify-end pt-2 sm:pt-0">
             <button
+              type="button"
               onClick={toggleSelectAll}
-              className="py-2 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-xs font-bold text-slate-300 flex items-center gap-1.5 cursor-pointer transition-colors"
+              className="py-2.5 px-3.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-bold text-slate-300 flex items-center gap-2 cursor-pointer transition-colors active:scale-95"
             >
               {selectedVideos.length === filteredExports.length && filteredExports.length > 0 ? (
-                <CheckSquare className="w-3.5 h-3.5 text-[#25F4EE]" />
+                <CheckSquare className="w-4 h-4 text-[#FE2C55]" />
               ) : (
-                <Square className="w-3.5 h-3.5 text-slate-400" />
+                <Square className="w-4 h-4 text-slate-400" />
               )}
               <span>เลือกทั้งหมด ({filteredExports.length})</span>
             </button>
@@ -515,6 +586,7 @@ export default function ExportGallery({ exportsList, onRefresh }) {
                 variant="danger"
                 size="sm"
                 icon={Trash2}
+                className="active:scale-95"
               >
                 ลบที่เลือก ({selectedVideos.length})
               </Button>
@@ -551,6 +623,118 @@ export default function ExportGallery({ exportsList, onRefresh }) {
             </p>
           </div>
         </div>
+      )}
+
+      {/* ── Single Video Delete Confirm Modal ── */}
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="ลบคลิปวิดีโอนี้ถาวร?"
+        description="ไฟล์วิดีโอ MP4 ในโฟลเดอร์ Exports จะถูกลบออกจากเครื่อง"
+        itemName={deleteTarget?.name}
+        dangerNote="การกระทำนี้ไม่สามารถย้อนกลับได้"
+        confirmText="ลบไฟล์ถาวร"
+        loading={deleting}
+        variant="danger"
+      />
+
+      {/* ── Batch Delete Confirm Modal ── */}
+      <ConfirmModal
+        isOpen={showBatchDeleteModal}
+        onClose={() => setShowBatchDeleteModal(false)}
+        onConfirm={confirmBatchDelete}
+        title={`ลบคลิปวิดีโอที่เลือกทั้งหมด (${selectedVideos.length} รายการ)?`}
+        description={`ไฟล์วิดีโอทั้งหมด ${selectedVideos.length} ไฟล์จะถูกลบออกจากเครื่องอย่างถาวร`}
+        dangerNote="การกระทำนี้ไม่สามารถย้อนกลับได้"
+        confirmText={`ลบทั้งหมด ${selectedVideos.length} ไฟล์`}
+        loading={deleting}
+        variant="danger"
+      />
+
+      {/* ── Video Detail & Mobile Download Modal ── */}
+      {selectedDetailVideo && (
+        <Modal
+          isOpen={!!selectedDetailVideo}
+          onClose={() => setSelectedDetailVideo(null)}
+          title={`รายละเอียดวิดีโอ: ${selectedDetailVideo.name}`}
+          subtitle="พรีวิวคลิป, แคปชันสำหรับโพสต์ TikTok/Reels และสแกน QR โหลดเข้ามือถือ"
+          maxWidth="max-w-3xl"
+        >
+          <div className="space-y-4">
+            {/* Video Player & QR Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+              {/* Video Player */}
+              <div className="relative aspect-[9/16] max-h-[380px] mx-auto rounded-2xl overflow-hidden bg-black/80 border border-white/[0.1] shadow-2xl flex items-center justify-center">
+                <video
+                  src={`http://localhost:8000/api/stream_video?path=${encodeURIComponent(selectedDetailVideo.path)}`}
+                  controls
+                  autoPlay
+                  className="w-full h-full object-contain"
+                />
+              </div>
+
+              {/* QR Code & Mobile Sync */}
+              <div className="space-y-3 p-4 rounded-2xl bg-black/40 border border-white/[0.08] text-center flex flex-col items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-[#25F4EE]/10 border border-[#25F4EE]/30 flex items-center justify-center text-[#25F4EE]">
+                  <Smartphone className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-white">สแกน QR โหลดคลิปเข้ามือถือ</h4>
+                  <p className="text-xs text-slate-400 mt-0.5">เปิดกล้องมือถือสแกนเพื่อดาวน์โหลดไฟล์ MP4</p>
+                </div>
+
+                <div className="p-3 bg-white rounded-2xl shadow-xl inline-block">
+                  <QRCodeSVG
+                    value={`http://${window.location.hostname}:8000/api/file_content?path=${encodeURIComponent(selectedDetailVideo.path)}`}
+                    size={140}
+                    level="M"
+                  />
+                </div>
+
+                <div className="w-full space-y-1 text-left text-xs font-mono text-slate-400 bg-black/50 p-2.5 rounded-xl border border-white/[0.06]">
+                  <div className="flex justify-between">
+                    <span>ขนาดไฟล์:</span>
+                    <span className="text-white font-bold">{selectedDetailVideo.size_mb ? `${selectedDetailVideo.size_mb} MB` : 'MP4'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>ความละเอียด:</span>
+                    <span className="text-emerald-400 font-bold">1080x1920 (9:16)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Caption & Hashtag Box */}
+            <div className="p-3.5 rounded-2xl bg-black/50 border border-white/[0.08] space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-[#25F4EE]" />
+                  <span>แคปชัน & แฮชแท็กสำหรับโพสต์</span>
+                </span>
+                <button
+                  onClick={() => handleCopyCaption(`รีวิวตัวเด็ด! สินค้าคุณภาพดีบอกต่อ #รีวิวช้อปปี้ #ของดีบอกต่อ #tiktokshopครีเอเตอร์ #capcut`)}
+                  className="px-2.5 py-1 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-[#25F4EE] hover:text-white text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                >
+                  <Copy className="w-3 h-3" />
+                  <span>{copiedCaption ? 'คัดลอกแล้ว!' : 'คัดลอก'}</span>
+                </button>
+              </div>
+              <p className="text-xs text-slate-300 bg-black/40 p-2.5 rounded-xl border border-white/[0.04] select-all leading-relaxed">
+                รีวิวตัวเด็ด! สินค้าคุณภาพดีบอกต่อ #รีวิวช้อปปี้ #ของดีบอกต่อ #tiktokshopครีเอเตอร์ #capcut
+              </p>
+            </div>
+
+            {/* Footer Close */}
+            <div className="flex justify-end pt-2 border-t border-white/[0.08]">
+              <Button variant="secondary" onClick={() => setSelectedDetailVideo(null)}>
+                ปิดหน้าต่าง
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+      </>
       )}
     </div>
   );

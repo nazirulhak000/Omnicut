@@ -3,7 +3,8 @@ import {
   Lightbulb, Copy, Check, Sparkles, Send, RefreshCw, Wand2, Edit3, Clock, Hash, MessageSquareText, Clapperboard, ArrowRight
 } from 'lucide-react';
 import { generateAiScripts } from '../api';
-import { Input, Textarea, Button, Badge } from './ui';
+import { Input, Textarea, Button, Badge, Toast } from './ui';
+import { useToast } from '../hooks';
 
 export default function ScriptLab({
   initialProductName = 'Esseger สายชาร์จแม่เหล็ก 3-in-1',
@@ -12,6 +13,7 @@ export default function ScriptLab({
   initialPriceDeal = 'ลดพิเศษวันนี้เหลือ 149 บาท',
   onApplyScript
 }) {
+  const { toastMessage, toastType, showToast, hideToast } = useToast();
   const defaultScripts = [
     {
       angle_id: 'pain_point',
@@ -110,7 +112,7 @@ Esseger สายชาร์จแม่เหล็ก 3-in-1 จัดโป�
 
   const handleGenerate = async () => {
     if (!productName.trim()) {
-      alert('กรุณากรอกชื่อสินค้าก่อนครับ!');
+      showToast('กรุณากรอกชื่อสินค้าก่อนครับ!', 'warning');
       return;
     }
     setLoading(true);
@@ -124,10 +126,11 @@ Esseger สายชาร์จแม่เหล็ก 3-in-1 จัดโป�
       if (res && res.angles && res.angles.length > 0) {
         setScripts(res.angles);
         setActiveAngleTab(0);
+        showToast('สร้างสคริปต์ AI เรียบร้อยแล้ว');
       }
     } catch (err) {
       console.error('Error generating AI scripts:', err);
-      alert('เกิดข้อผิดพลาดในการสร้างสคริปต์ AI: ' + (err.friendlyMessage || err.response?.data?.detail || err.message));
+      showToast('เกิดข้อผิดพลาดในการสร้างสคริปต์ AI: ' + (err.friendlyMessage || err.response?.data?.detail || err.message), 'error');
     } finally {
       setLoading(false);
     }
@@ -319,7 +322,7 @@ Esseger สายชาร์จแม่เหล็ก 3-in-1 จัดโป�
                     onClick={() => {
                       const text = `${scripts[activeAngleTab].caption || ''}\n\n${(scripts[activeAngleTab].hashtags || []).join(' ')}`;
                       navigator.clipboard.writeText(text);
-                      alert('คัดลอกแคปชันและแฮชแท็กแล้ว');
+                      showToast('คัดลอกแคปชันและแฮชแท็กแล้ว');
                     }}
                     className="text-[#25F4EE] hover:underline text-xs cursor-pointer font-semibold"
                   >
@@ -351,6 +354,8 @@ Esseger สายชาร์จแม่เหล็ก 3-in-1 จัดโป�
           </div>
         )}
       </div>
+
+      <Toast message={toastMessage} type={toastType} onClose={hideToast} />
     </div>
   );
 }

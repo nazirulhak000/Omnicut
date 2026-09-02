@@ -9,6 +9,7 @@ import glob
 import time
 import uuid
 import json
+import shutil
 import asyncio
 import datetime
 import subprocess
@@ -33,6 +34,8 @@ from scripts.config import (
 from scripts.script_generator import ScriptGenerator
 from scripts.pipeline import TikTokAutoCutterPipeline
 from scripts.voice_engine import VoiceEngine
+from scripts.gemini_tts_engine import GeminiFlashTTSEngine
+from scripts.tts_sanitizer import TTSSanitizer
 from scripts.product_scraper import ProductScraper
 from scripts.product_store import ProductStore
 
@@ -104,6 +107,8 @@ class RenderRequest(BaseModel):
     use_ai_vision: bool = True
     sticker_badge: Optional[str] = "badge_flash_sale_3d.png"
     bgm_name: Optional[str] = None  # BGM filename from AssetRegistry.bgm(); None keeps SFXManager's own default
+    bgm_volume: Optional[float] = None
+    bgm_ducking: bool = False
     lut_name: Optional[str] = None  # LUT filename from AssetRegistry.luts(); None auto-picks by IT angle, or no grade
     clip_list: Optional[List[Dict[str, Any]]] = None  # Manual Editor: [{source_path, trim_start, trim_end}]; None keeps single-source auto-cut
     transitions: Optional[List[str]] = None  # Manual Editor: "cut" | "fade" per boundary between clip_list entries
@@ -266,48 +271,515 @@ def get_system_status():
     }
 
 @app.get("/api/videos")
-def list_raw_videos():
-    """Lists all available raw video candidates from Inbox and Raw directories."""
+def list_raw_videos(product_id: Optional[str] = None):
+    """Lists all available raw video candidates, with product-scoped filtering if product_id is provided."""
     candidates = []
-    for ext in ("*.mov", "*.mp4", "*.m4v", "*.MOV", "*.MP4"):
+    video_exts = ("*.mov", "*.mp4", "*.m4v", "*.MOV", "*.MP4", "*.webm", "*.WEBM", "*.hevc", "*.HEVC", "*.mkv", "*.MKV")
+    for ext in video_exts:
         candidates.extend(glob.glob(str(RAW_DIR / "**" / ext), recursive=True))
         candidates.extend(glob.glob(str(INBOX_DIR / "**" / ext), recursive=True))
 
     unique_paths = sorted(list(set(candidates)), key=os.path.getmtime, reverse=True)
-    results = [get_file_info(Path(p)) for p in unique_paths]
-    return {"videos": results}
+    all_videos = [get_file_info(Path(p)) for p in unique_paths]
+
+    product_videos = []
+    if product_id:
+        try:
+            prod_assigned = ProductStore.get_product_videos(product_id)
+            assigned_paths = {v.get("path") or v.get("rel_path") for v in prod_assigned}
+
+            # Product scoped directory
+            prod_dir = RAW_DIR / product_id
+            prod_dir_paths = set()
+            if prod_dir.exists():
+                for ext in video_exts:
+                    prod_dir_paths.update(glob.glob(str(prod_dir / "**" / ext), recursive=True))
+
+            # Combine assigned + directory
+            for v in all_videos:
+                if v["path"] in assigned_paths or v["rel_path"] in assigned_paths or v["path"] in prod_dir_paths:
+                    product_videos.append(v)
+
+        except Exception as e:
+            print(f"Error fetching product videos: {e}")
+            product_videos = []
+
+    return {
+        "videos": all_videos,
+        "product_videos": product_videos if product_id else all_videos,
+        "product_id": product_id,
+        "total_count": len(all_videos),
+        "product_count": len(product_videos) if product_id else len(all_videos)
+    }
+
+@app.post("/api/delete-file")
+def delete_file_endpoint(payload: Dict[str, Any]):
+    """Deletes a raw/inbox/asset file safely."""
+    file_path = payload.get("file_path")
+    if not file_path:
+        raise HTTPException(status_code=400, detail="Missing file_path")
+
+    p = Path(file_path)
+    if not p.is_absolute():
+        p = BASE_DIR / file_path
+
+    try:
+        p.resolve().relative_to(BASE_DIR.resolve())
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Cannot delete files outside project root")
+
+    if p.exists() and p.is_file():
+        try:
+            # On Windows, video players or browsers might hold a temporary lock
+            for attempt in range(3):
+                try:
+                    p.unlink()
+                    break
+                except PermissionError:
+                    if attempt < 2:
+                        import gc
+                        gc.collect()
+                        time.sleep(0.2)
+                    else:
+                        raise
+            return {"success": True, "message": f"Deleted {p.name}"}
+        except PermissionError:
+            raise HTTPException(
+                status_code=409,
+                detail=f"ไม่สามารถลบไฟล์ '{p.name}' ได้ เนื่องจากไฟล์กำลังถูกเปิดเล่นอยู่ในเบราว์เซอร์หรือโปรแกรมอื่น กรุณาหยุดเล่นวิดีโอแล้วลองใหม่"
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"เกิดข้อผิดพลาดในการลบไฟล์: {str(e)}")
+    return {"success": False, "message": "File not found"}
+
+class RenameVideoPayload(BaseModel):
+    video_path: str
+    new_name: str
+    product_id: Optional[str] = None
 
 @app.post("/api/upload")
-async def upload_file(file: UploadFile = File(...), target_dir: str = Form("inbox")):
-    """Uploads a video or audio file to 00_Inbox."""
+async def upload_file(
+    file: UploadFile = File(...),
+    target_dir: str = Form("inbox"),
+    product_id: Optional[str] = Form(None),
+    custom_name: Optional[str] = Form(None)
+):
+    """Uploads a video or audio file to 00_Inbox or 01_Raw, and links to product if product_id is provided."""
     dest_dir = INBOX_DIR if target_dir == "inbox" else RAW_DIR
-    save_path = dest_dir / file.filename
+    if product_id:
+        dest_dir = RAW_DIR / product_id
+        dest_dir.mkdir(parents=True, exist_ok=True)
+
+    orig_filename = Path(file.filename or f"iphone_video_{int(time.time())}.mp4").name
+    orig_suffix = Path(orig_filename).suffix or ".mp4"
+
+    if custom_name and custom_name.strip():
+        # Clean custom name (allow Thai, English, digits, dashes, underscores, spaces)
+        clean_custom = "".join(c for c in custom_name.strip() if c.isalnum() or c in "._- \u0E00-\u0E7F").strip()
+        if clean_custom:
+            safe_filename = f"{clean_custom}{orig_suffix}"
+        else:
+            safe_filename = f"video_{int(time.time())}{orig_suffix}"
+    else:
+        # Keep Thai letters, English letters, digits, dots, dashes, underscores
+        safe_filename = "".join(c for c in orig_filename if c.isalnum() or c in "._- \u0E00-\u0E7F")
+        if not safe_filename:
+            safe_filename = f"video_{int(time.time())}{orig_suffix}"
+
+    save_path = dest_dir / safe_filename
+    if save_path.exists():
+        stem = Path(safe_filename).stem
+        save_path = dest_dir / f"{stem}_{int(time.time())}{orig_suffix}"
 
     with open(save_path, "wb") as buffer:
-        content = await file.read()
-        buffer.write(content)
+        while chunk := await file.read(1024 * 1024):
+            buffer.write(chunk)
+
+    file_info = get_file_info(save_path)
+
+    # Automatically attach to product if product_id given
+    if product_id:
+        try:
+            ProductStore.add_video_to_product(product_id, file_info)
+        except Exception as e:
+            print(f"Warning: Failed to attach video to product {product_id}: {e}")
 
     return {
         "message": "Upload successful",
-        "file": get_file_info(save_path)
+        "file": file_info
     }
 
-@app.post("/api/upload-multiple")
-async def upload_multiple_files(files: List[UploadFile] = File(...), target_dir: str = Form("inbox")):
-    """Uploads multiple video or audio files to 00_Inbox."""
-    dest_dir = INBOX_DIR if target_dir == "inbox" else RAW_DIR
-    uploaded_files = []
-    for f in files:
-        save_path = dest_dir / f.filename
-        with open(save_path, "wb") as buffer:
-            content = await f.read()
-            buffer.write(content)
-        uploaded_files.append(get_file_info(save_path))
+@app.post("/api/videos/rename")
+def rename_video_file(payload: RenameVideoPayload):
+    """Safely renames a video file on disk and updates any ProductStore references."""
+    video_path = payload.video_path
+    new_name = payload.new_name.strip()
+    if not new_name:
+        raise HTTPException(status_code=400, detail="กรุณาระบุชื่อคลิปใหม่")
+
+    cleaned_path = video_path.replace("\\", "/").lstrip("/")
+    v_path = Path(cleaned_path)
+    if not v_path.is_absolute():
+        v_path = (BASE_DIR / cleaned_path).resolve()
+
+    if not v_path.exists() or not v_path.is_file():
+        # Try in RAW_DIR directly
+        raw_check = (RAW_DIR / cleaned_path).resolve()
+        if raw_check.exists() and raw_check.is_file():
+            v_path = raw_check
+        else:
+            raise HTTPException(status_code=404, detail=f"ไม่พบไฟล์คลิปต้นฉบับ: {Path(video_path).name}")
+
+    # Security check: must be inside BASE_DIR
+    try:
+        v_path.relative_to(BASE_DIR.resolve())
+    except ValueError:
+        raise HTTPException(status_code=403, detail="ไม่อนุญาตให้เปลี่ยนชื่อไฟล์ภายนอกโปรเจกต์")
+
+    orig_suffix = v_path.suffix
+    clean_new_name = "".join(c for c in new_name if c.isalnum() or c in "._- \u0E00-\u0E7F").strip()
+    if not clean_new_name:
+        raise HTTPException(status_code=400, detail="ชื่อใหม่มีตัวอักษรที่ไม่ถูกต้อง")
+
+    # Ensure extension is preserved
+    if not clean_new_name.lower().endswith(orig_suffix.lower()):
+        clean_new_name = f"{clean_new_name}{orig_suffix}"
+
+    target_path = v_path.parent / clean_new_name
+    if target_path.exists() and target_path.resolve() != v_path.resolve():
+        target_path = v_path.parent / f"{target_path.stem}_{int(time.time())}{orig_suffix}"
+
+    try:
+        v_path.rename(target_path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"เปลี่ยนชื่อไฟล์บนดิสก์ไม่สำเร็จ: {e}")
+
+    new_file_info = get_file_info(target_path)
+
+    # Update ProductStore if referenced
+    try:
+        products = ProductStore._load()
+        updated_any = False
+        old_rel = str(v_path.relative_to(BASE_DIR)).replace("\\", "/")
+        old_abs = str(v_path)
+        for p in products:
+            if payload.product_id and p.get("id") != payload.product_id:
+                continue
+            v_list = p.get("videos", [])
+            for v in v_list:
+                if v.get("path") == old_abs or v.get("rel_path") == old_rel or v.get("name") == v_path.name:
+                    v["path"] = new_file_info["path"]
+                    v["rel_path"] = new_file_info["rel_path"]
+                    v["name"] = new_file_info["name"]
+                    updated_any = True
+        if updated_any:
+            ProductStore._save(products)
+    except Exception as e:
+        print(f"Notice: Failed to update ProductStore on rename: {e}")
 
     return {
-        "message": f"Successfully uploaded {len(uploaded_files)} files",
-        "files": uploaded_files
+        "success": True,
+        "message": f"เปลี่ยนชื่อเป็น {target_path.name} เรียบร้อยแล้ว",
+        "file": new_file_info
     }
+
+@app.post("/api/products/{product_id}/videos")
+def attach_video_to_product(product_id: str, payload: Dict[str, Any]):
+    """Links an existing video file to a product."""
+    video_path = payload.get("video_path")
+    if not video_path:
+        raise HTTPException(status_code=400, detail="Missing video_path")
+
+    v_path = Path(video_path)
+    if not v_path.is_absolute():
+        v_path = BASE_DIR / video_path
+
+    if not v_path.exists():
+        raise HTTPException(status_code=404, detail="Video file not found")
+
+    file_info = get_file_info(v_path)
+    updated = ProductStore.add_video_to_product(product_id, file_info)
+    return {"success": True, "product": updated}
+
+@app.delete("/api/products/{product_id}/videos")
+def remove_video_from_product(product_id: str, video_path: str):
+    """Unlinks a video file from a product. If the file was inside RAW_DIR/product_id, moves it to RAW_DIR root so it becomes general."""
+    v_path = Path(video_path)
+    if not v_path.is_absolute():
+        v_path = BASE_DIR / video_path
+
+    prod_dir = (RAW_DIR / product_id).resolve()
+    if v_path.exists():
+        try:
+            if v_path.resolve().is_relative_to(prod_dir):
+                target_path = RAW_DIR / v_path.name
+                if target_path.exists():
+                    target_path = RAW_DIR / f"{v_path.stem}_{int(time.time())}{v_path.suffix}"
+                shutil.move(str(v_path), str(target_path))
+        except Exception as e:
+            print(f"Notice: Failed to move unlinked video: {e}")
+
+    updated = ProductStore.remove_video_from_product(product_id, video_path)
+    return {"success": True, "product": updated}
+
+# ----------------------------------------------------------------------
+# Raw Footage Vault API (Comprehensive Raw Video Hub)
+# ----------------------------------------------------------------------
+
+class ReassignVideoPayload(BaseModel):
+    video_path: str
+    target_product_id: Optional[str] = None
+    source_product_id: Optional[str] = None
+
+class BatchDeleteVideosPayload(BaseModel):
+    video_paths: List[str]
+
+@app.get("/api/raw-vault")
+def get_raw_vault():
+    """Returns rich metadata of all raw footage grouped by products and unassigned clips."""
+    products = ProductStore._load()
+
+    # 1. Collect all video files in RAW_DIR and INBOX_DIR
+    all_raw_files = []
+    seen_paths = set()
+
+    for p in RAW_DIR.rglob("*"):
+        if p.is_file() and p.suffix.lower() in {".mp4", ".mov", ".m4v", ".webm", ".mkv"}:
+            if p.resolve() not in seen_paths:
+                seen_paths.add(p.resolve())
+                all_raw_files.append(get_file_info(p))
+
+    for p in INBOX_DIR.glob("*"):
+        if p.is_file() and p.suffix.lower() in {".mp4", ".mov", ".m4v", ".webm", ".mkv"}:
+            if p.resolve() not in seen_paths:
+                seen_paths.add(p.resolve())
+                all_raw_files.append(get_file_info(p))
+
+    # 2. Build product groups
+    product_groups = []
+    assigned_file_paths = set()
+
+    for p in products:
+        pid = p["id"]
+        p_title = p.get("title", pid)
+        p_cover = p.get("image_url") or p.get("cover_image") or None
+        prod_dir = (RAW_DIR / pid).resolve()
+
+        prod_videos = []
+        assigned_in_store = {v.get("path") for v in p.get("videos", []) if v.get("path")}
+        assigned_rel_in_store = {v.get("rel_path") for v in p.get("videos", []) if v.get("rel_path")}
+
+        for v in all_raw_files:
+            v_abs = Path(v["path"]).resolve()
+            is_in_dir = False
+            try:
+                is_in_dir = v_abs.is_relative_to(prod_dir)
+            except Exception:
+                pass
+
+            if is_in_dir or v["path"] in assigned_in_store or v["rel_path"] in assigned_rel_in_store or v["rel_path"] in assigned_in_store:
+                v_copy = dict(v)
+                v_copy["product_id"] = pid
+                v_copy["product_title"] = p_title
+                prod_videos.append(v_copy)
+                assigned_file_paths.add(v_abs)
+
+        total_mb = sum(v.get("size_mb", 0) for v in prod_videos)
+        product_groups.append({
+            "product_id": pid,
+            "product_title": p_title,
+            "product_cover": p_cover,
+            "category": p.get("category", "ทั่วไป"),
+            "video_count": len(prod_videos),
+            "total_size_mb": round(total_mb, 2),
+            "videos": prod_videos
+        })
+
+    # 3. Collect unassigned / B-roll videos
+    unassigned_videos = []
+    for v in all_raw_files:
+        v_abs = Path(v["path"]).resolve()
+        if v_abs not in assigned_file_paths:
+            v_copy = dict(v)
+            v_copy["product_id"] = None
+            v_copy["product_title"] = None
+            unassigned_videos.append(v_copy)
+
+    total_all_clips = len(all_raw_files)
+    total_all_size_mb = round(sum(v.get("size_mb", 0) for v in all_raw_files), 2)
+
+    return {
+        "products": product_groups,
+        "unassigned": unassigned_videos,
+        "total_clips": total_all_clips,
+        "total_size_mb": total_all_size_mb
+    }
+
+@app.post("/api/raw-vault/reassign")
+def reassign_raw_video(payload: ReassignVideoPayload):
+    """Reassigns or moves a raw video file to a new product, or unbinds it to general pool."""
+    video_path = payload.video_path
+    target_pid = payload.target_product_id
+    source_pid = payload.source_product_id
+
+    cleaned_path = video_path.replace("\\", "/").lstrip("/")
+    v_path = Path(cleaned_path)
+    if not v_path.is_absolute():
+        v_path = (BASE_DIR / cleaned_path).resolve()
+
+    if not v_path.exists():
+        raw_check = (RAW_DIR / cleaned_path).resolve()
+        if raw_check.exists():
+            v_path = raw_check
+        else:
+            raise HTTPException(status_code=404, detail="ไม่พบไฟล์วิดีโอนี้")
+
+    # Security check
+    try:
+        v_path.relative_to(BASE_DIR.resolve())
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    # 1. If source_pid given, remove from source product
+    if source_pid:
+        try:
+            ProductStore.remove_video_from_product(source_pid, str(v_path))
+        except Exception as e:
+            print(f"Notice on remove from source product: {e}")
+
+    # 2. If target_pid given, move file into target product directory and attach
+    if target_pid:
+        target_dir = RAW_DIR / target_pid
+        target_dir.mkdir(parents=True, exist_ok=True)
+        dest_path = target_dir / v_path.name
+        if dest_path.resolve() != v_path.resolve():
+            if dest_path.exists():
+                dest_path = target_dir / f"{v_path.stem}_{int(time.time())}{v_path.suffix}"
+            shutil.move(str(v_path), str(dest_path))
+            v_path = dest_path
+
+        file_info = get_file_info(v_path)
+        ProductStore.add_video_to_product(target_pid, file_info)
+        return {
+            "success": True,
+            "message": "ผูกคลิปเข้ากับสินค้าเรียบร้อยแล้ว",
+            "file": file_info
+        }
+    else:
+        # Move to general RAW_DIR root if it was inside a product folder
+        if v_path.parent != RAW_DIR.resolve():
+            dest_path = RAW_DIR / v_path.name
+            if dest_path.exists():
+                dest_path = RAW_DIR / f"{v_path.stem}_{int(time.time())}{v_path.suffix}"
+            shutil.move(str(v_path), str(dest_path))
+            v_path = dest_path
+
+        file_info = get_file_info(v_path)
+        return {
+            "success": True,
+            "message": "ปลดคลิปออกเป็นคลิปอิสระ (Unassigned) เรียบร้อยแล้ว",
+            "file": file_info
+        }
+
+@app.post("/api/raw-vault/batch-delete")
+def batch_delete_raw_videos(payload: BatchDeleteVideosPayload):
+    """Deletes multiple video files safely from disk and removes references."""
+    deleted_count = 0
+    errors = []
+
+    for v_str in payload.video_paths:
+        try:
+            cleaned_path = v_str.replace("\\", "/").lstrip("/")
+            v_path = Path(cleaned_path)
+            if not v_path.is_absolute():
+                v_path = (BASE_DIR / cleaned_path).resolve()
+
+            if not v_path.exists():
+                raw_check = (RAW_DIR / cleaned_path).resolve()
+                if raw_check.exists():
+                    v_path = raw_check
+
+            if v_path.exists() and v_path.is_file():
+                v_path.resolve().relative_to(BASE_DIR.resolve()) # security check
+                for attempt in range(3):
+                    try:
+                        v_path.unlink()
+                        deleted_count += 1
+                        break
+                    except PermissionError:
+                        if attempt < 2:
+                            import gc
+                            gc.collect()
+                            time.sleep(0.2)
+                        else:
+                            raise
+
+                # Clean from ProductStore
+                products = ProductStore._load()
+                updated_any = False
+                for p in products:
+                    v_list = p.get("videos", [])
+                    new_v_list = [v for v in v_list if v.get("path") != str(v_path) and v.get("name") != v_path.name]
+                    if len(new_v_list) != len(v_list):
+                        p["videos"] = new_v_list
+                        updated_any = True
+                if updated_any:
+                    ProductStore._save(products)
+        except PermissionError:
+            errors.append(f"{v_str}: ไฟล์กำลังถูกเปิดใช้งานหรือเล่นอยู่ กรุณาปิดโปรแกรมที่เปิดไฟล์ก่อน")
+        except Exception as e:
+            errors.append(f"{v_str}: {str(e)}")
+
+    return {
+        "success": True,
+        "deleted_count": deleted_count,
+        "errors": errors
+    }
+
+@app.post("/api/voice/preview")
+def preview_voice(payload: Dict[str, Any]):
+    """Generates a short voice preview for testing voice tone, speed, and TTS quality."""
+    text = payload.get("text", "สวัสดีครับ นี่คือเสียงตัวอย่างสำหรับคลิปรีวิวสินค้าของคุณ")
+    voice_gender = payload.get("voice_gender", "gemini_puck_male_hype")
+    speed = float(payload.get("speed", 1.15))
+    ad_tone = payload.get("ad_tone", "commercial_premium")
+
+    clean_text = TTSSanitizer.clean(text)
+    if not clean_text.strip():
+        clean_text = "สวัสดีครับ ทดสอบเสียงพากย์รีวิวสินค้าครับ"
+
+    voiceover_dir = ASSETS_DIR / "Voiceover" / "previews"
+    voiceover_dir.mkdir(parents=True, exist_ok=True)
+    out_file = voiceover_dir / f"preview_{int(time.time() * 1000)}.wav"
+
+    try:
+        if GeminiFlashTTSEngine.is_available():
+            audio_path = GeminiFlashTTSEngine.generate_speech(
+                text=clean_text,
+                output_path=str(out_file),
+                voice_preset=voice_gender if "gemini_" in voice_gender else "gemini_puck_male_hype",
+                ad_tone=ad_tone,
+                speed=speed
+            )
+        else:
+            gender = "female" if "female" in str(voice_gender).lower() or "Premwadee" in str(voice_gender) or "kore" in str(voice_gender).lower() or "aoede" in str(voice_gender).lower() else "male"
+            res = VoiceEngine.generate_crystal_voice(
+                text_or_lines=clean_text,
+                output_audio_path=str(out_file),
+                speed=speed,
+                voice_gender=gender
+            )
+            audio_path = res["audio_path"]
+
+        rel_path = str(Path(audio_path).relative_to(BASE_DIR)).replace("\\", "/")
+        return {
+            "success": True,
+            "audio_url": f"/api/media/{rel_path}",
+            "text": clean_text
+        }
+    except Exception as e:
+        print(f"Error in preview_voice: {e}")
+        raise HTTPException(status_code=500, detail=f"Voice preview failed: {str(e)}")
 
 @app.get("/api/media/{file_path:path}")
 def stream_media(file_path: str, request: Request):
@@ -402,13 +874,14 @@ def generate_script(req: ScriptGenerateRequest):
 
 @app.post("/api/products/scrape-and-plan")
 def scrape_and_plan(payload: Dict[str, Any]):
-    """Scrapes product info or accepts raw text/keywords and generates Content Matrix."""
+    """Scrapes product info or accepts raw text/keywords/images and generates Content Matrix."""
     url = payload.get("url", "").strip()
     raw_text = payload.get("raw_text", "").strip()
     custom_keyword = payload.get("custom_keyword", "").strip()
+    image_path = payload.get("image_path", "").strip()
 
-    if not url and not raw_text and not custom_keyword:
-        raise HTTPException(status_code=400, detail="กรุณาระบุลิงก์ ข้อความรายละเอียด หรือชื่อสินค้า")
+    if not url and not raw_text and not custom_keyword and not image_path:
+        raise HTTPException(status_code=400, detail="กรุณาระบุลิงก์ ข้อความรายละเอียด หรือรูปภาพสินค้า")
 
     try:
         if url:
@@ -424,6 +897,18 @@ def scrape_and_plan(payload: Dict[str, Any]):
                 "images": [],
                 "image_count": 0
             }
+
+        if image_path:
+            img_p = Path(image_path)
+            img_name = img_p.name
+            img_rel = str(img_p.relative_to(BASE_DIR)).replace("\\", "/") if BASE_DIR in img_p.parents else img_name
+            product_info["images"] = [{"name": img_name, "rel_path": img_rel, "local_path": str(img_p)}]
+            product_info["image_count"] = 1
+            product_info["thumbnail"] = img_rel
+            if not custom_keyword and not raw_text:
+                clean_title = img_p.stem.replace("_", " ").replace("-", " ")
+                product_info["title"] = clean_title or "สินค้า"
+                product_info["description"] = f"สินค้าจากภาพ {img_name}"
 
         if custom_keyword:
             product_info["title"] = custom_keyword
@@ -468,6 +953,7 @@ def _execute_scrape_and_plan_worker(task_id: str, payload: Dict[str, Any]):
         url = payload.get("url", "").strip()
         raw_text = payload.get("raw_text", "").strip()
         custom_keyword = payload.get("custom_keyword", "").strip()
+        image_path = payload.get("image_path", "").strip()
         angle_count = int(payload.get("angle_count", 7))
 
         if url:
@@ -484,6 +970,18 @@ def _execute_scrape_and_plan_worker(task_id: str, payload: Dict[str, Any]):
                 "images": [],
                 "image_count": 0
             }
+
+        if image_path:
+            img_p = Path(image_path)
+            img_name = img_p.name
+            img_rel = str(img_p.relative_to(BASE_DIR)).replace("\\", "/") if BASE_DIR in img_p.parents else img_name
+            product_info["images"] = [{"name": img_name, "rel_path": img_rel, "local_path": str(img_p)}]
+            product_info["image_count"] = 1
+            product_info["thumbnail"] = img_rel
+            if not custom_keyword and not raw_text:
+                clean_title = img_p.stem.replace("_", " ").replace("-", " ")
+                product_info["title"] = clean_title or "สินค้า"
+                product_info["description"] = f"สินค้าจากภาพ {img_name}"
 
         if custom_keyword:
             product_info["title"] = custom_keyword
@@ -619,6 +1117,18 @@ def update_product_angle_status(product_id: str, angle_id: str, payload: Dict[st
         return {"success": True, "product": updated}
     except ValueError as err:
         raise HTTPException(status_code=404, detail=str(err))
+
+@app.post("/api/products/{product_id}/angles/{angle_id}/videos")
+def update_angle_videos_endpoint(product_id: str, angle_id: str, payload: Dict[str, Any]):
+    """Persists selected raw footage attachments for a specific script angle."""
+    try:
+        selected_videos = payload.get("selected_videos", [])
+        updated = ProductStore.update_angle_videos(product_id, angle_id, selected_videos)
+        return {"success": True, "product": updated}
+    except ValueError as err:
+        raise HTTPException(status_code=404, detail=str(err))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/api/script/ai-generate")
 def generate_ai_scripts(req: ScriptGenerateRequest):
@@ -1051,6 +1561,8 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                 use_ai_vision=req_data.use_ai_vision,
                 sticker_path=sticker_file_path,
                 bgm_name=req_data.bgm_name,
+                bgm_volume=req_data.bgm_volume,
+                bgm_ducking=req_data.bgm_ducking,
                 lut_name=req_data.lut_name,
                 clip_list=req_data.clip_list,
                 transitions=req_data.transitions,
@@ -1114,4 +1626,4 @@ def get_render_status(job_id: str):
 if __name__ == "__main__":
     import uvicorn
     print("🚀 Starting TikTok Auto-Cutter FastAPI on http://localhost:8000 ...")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run("scripts.api_server:app", host="0.0.0.0", port=8000, reload=True)

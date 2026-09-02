@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   AlertTriangle, Film, MessageSquare, Settings2, Scissors,
-  Trash2, Plus, Volume2, Play, Check, Search,
+  Trash2, Plus, Volume2, VolumeX, RotateCw, Play, Check, Search,
   Link2, Clock, Split, Sparkles, ArrowUp, ArrowDown,
   Replace, CheckCheck, RefreshCw, X, ChevronUp, ChevronDown
 } from 'lucide-react';
@@ -563,6 +563,44 @@ export default function Inspector({
                 </div>
               </div>
 
+              {/* Rotate 0 / 90 / 180 / 270 */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-400 flex items-center gap-1.5">
+                    <RotateCw className="h-3.5 w-3.5 text-[#25F4EE]" />
+                    หมุนภาพ (Rotate)
+                  </span>
+                  {selectedSeg.clip.rotation ? (
+                    <button
+                      type="button"
+                      onClick={() => onClipChange?.({ rotation: undefined })}
+                      className="text-xs text-[#E89274] hover:underline cursor-pointer"
+                    >
+                      รีเซ็ต 0°
+                    </button>
+                  ) : null}
+                </div>
+                <div className="grid grid-cols-4 gap-1">
+                  {[0, 90, 180, 270].map((deg) => {
+                    const active = (selectedSeg.clip.rotation || 0) === deg;
+                    return (
+                      <button
+                        key={deg}
+                        type="button"
+                        onClick={() => onClipChange?.({ rotation: deg === 0 ? undefined : deg })}
+                        className={`py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
+                          active
+                            ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
+                            : 'bg-black/40 border-white/[0.08] text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {deg}°
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <button
                 type="button"
                 onClick={() => onClipChange?.({ mirror: !selectedSeg.clip.mirror })}
@@ -574,6 +612,41 @@ export default function Inspector({
               >
                 {selectedSeg.clip.mirror ? '✓ กลับด้านซ้าย-ขวาอยู่' : 'กลับด้านซ้าย-ขวา (Mirror)'}
               </button>
+
+              {/* Original Audio Volume (0 - 100%) */}
+              <div className="space-y-1.5 pt-2 border-t border-white/[0.06]">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-400 flex items-center gap-1.5">
+                    {(selectedSeg.clip.volume || 0) > 0 ? (
+                      <Volume2 className="h-3.5 w-3.5 text-emerald-400" />
+                    ) : (
+                      <VolumeX className="h-3.5 w-3.5 text-slate-500" />
+                    )}
+                    เสียงคลิปต้นฉบับ (Original Audio)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onClipChange?.({ volume: (selectedSeg.clip.volume || 0) > 0 ? 0 : 1.0 })}
+                    className="text-xs font-mono font-bold text-[#25F4EE] hover:underline cursor-pointer"
+                  >
+                    {Math.round((selectedSeg.clip.volume || 0) * 100)}%
+                  </button>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={selectedSeg.clip.volume || 0}
+                  onChange={(e) => onClipChange?.({ volume: parseFloat(e.target.value) })}
+                  className="w-full accent-[#25F4EE]"
+                />
+                <p className="text-[11px] text-slate-500">
+                  {(selectedSeg.clip.volume || 0) === 0
+                    ? 'ปิดเสียงอยู่ (Muted) — แนะนำสำหรับคลิปที่มีเสียง AI พากย์'
+                    : 'เปิดเสียงบรรยากาศคลอ — เหมาะกับคลิปแกะกล่อง Unboxing / ASMR'}
+                </p>
+              </div>
 
               {/* Framing. Mirrors frame_geometry() in video_editor.py: zoom
                   1-3x, pan -1..1 across whatever room the zoom leaves. */}

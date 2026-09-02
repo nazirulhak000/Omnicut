@@ -101,6 +101,7 @@ class ProductStore:
             "status": "scripted" if angles else "candidate",
             "angles": angles or [],
             "images": images or [],
+            "videos": [],
             "projects": [],
             "created_at": now,
             "updated_at": now,
@@ -144,6 +145,63 @@ class ProductStore:
                         cls._save(products)
                         return product
         raise ValueError(f"ไม่พบสินค้า id '{product_id}' หรือ angle '{angle_id}'")
+
+    @classmethod
+    def update_angle_videos(cls, product_id: str, angle_id: str, selected_videos: List[str]) -> Dict[str, Any]:
+        """Persists selected raw footage attachments for a specific script angle in a product."""
+        products = cls._load()
+        for product in products:
+            if product["id"] == product_id:
+                angles = product.get("angles", [])
+                for angle in angles:
+                    if angle.get("angle_id") == angle_id:
+                        angle["selected_videos"] = selected_videos
+                        angle["selected_video"] = selected_videos[0] if selected_videos else None
+                        angle["updated_at"] = cls._now()
+                        product["updated_at"] = cls._now()
+                        cls._save(products)
+                        return product
+        raise ValueError(f"ไม่พบสินค้า id '{product_id}' หรือ angle '{angle_id}'")
+
+    @classmethod
+    def add_video_to_product(cls, product_id: str, video_info: Dict[str, Any]) -> Dict[str, Any]:
+        """Attaches a raw footage item specifically to a product."""
+        products = cls._load()
+        for product in products:
+            if product["id"] == product_id:
+                v_list = product.setdefault("videos", [])
+                # Avoid duplicates
+                v_path = video_info.get("path") or video_info.get("rel_path")
+                if not any(v.get("path") == v_path or v.get("rel_path") == v_path for v in v_list):
+                    v_list.append(video_info)
+                product["updated_at"] = cls._now()
+                cls._save(products)
+                return product
+        raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
+
+    @classmethod
+    def remove_video_from_product(cls, product_id: str, video_path: str) -> Dict[str, Any]:
+        """Removes a footage link from a product."""
+        products = cls._load()
+        for product in products:
+            if product["id"] == product_id:
+                v_list = product.get("videos", [])
+                product["videos"] = [
+                    v for v in v_list
+                    if v.get("path") != video_path and v.get("rel_path") != video_path
+                ]
+                product["updated_at"] = cls._now()
+                cls._save(products)
+                return product
+        raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
+
+    @classmethod
+    def get_product_videos(cls, product_id: str) -> List[Dict[str, Any]]:
+        """Retrieves all footage assigned to a product."""
+        product = cls.get(product_id)
+        if not product:
+            return []
+        return product.get("videos", [])
 
     @classmethod
     def attach_project(cls, product_id: str, project_name: str) -> Dict[str, Any]:

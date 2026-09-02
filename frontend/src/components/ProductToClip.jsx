@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Link2, Sparkles, Clapperboard, Loader2, Check, Copy,
   AlertCircle, ArrowRight, Upload, Trash2, RefreshCw, Plus, Film, Video,
-  ChevronDown, ChevronRight, Package, Rocket
+  ChevronDown, ChevronUp, ChevronRight, Package, Rocket, FolderOpen, X,
+  Search, LayoutGrid, Filter
 } from 'lucide-react';
 import {
-  scrapeAndPlanProduct, scrapeAndPlanProductAsync, getProducts, updateProduct, updateAngleStatus, deleteProduct, uploadFile
+  scrapeAndPlanProduct, scrapeAndPlanProductAsync, getProducts, updateProduct, updateAngleStatus, updateAngleVideos, deleteProduct, uploadFile
 } from '../api';
-import { Modal, Toast, Button, Badge, Input, Textarea } from './ui';
+import { Modal, Toast, Button, Badge, Input, Textarea, ConfirmModal } from './ui';
+import MediaPickerModal from './MediaPickerModal';
 import { useToast } from '../hooks';
 import { useTaskManager } from '../context/TaskContext';
 
@@ -67,7 +69,8 @@ function ProductCard({ product, isSelected, onSelect }) {
 // ═══════════════════════════════════════════════════════════════════════
 function ScriptAccordionItem({
   angle, index, isOpen, onToggle, onCopy, onSendToStudio, copiedIndex,
-  videos = [], onToggleVideoForAngle, onUploadVideo, uploadingImg = false
+  videos = [], onToggleVideoForAngle, onUploadVideo, uploadingImg = false,
+  onOpenMediaPicker
 }) {
   const lines = Array.isArray(angle.script_lines)
     ? angle.script_lines
@@ -188,47 +191,51 @@ function ScriptAccordionItem({
             </div>
 
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-              {videos.map(v => {
-                const isChosen = selectedVideos.includes(v.path) || selectedVideos.includes(v.rel_path);
+              {/* Media Picker Modal Trigger Button */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenMediaPicker && onOpenMediaPicker(index);
+                }}
+                className="flex-shrink-0 flex items-center gap-1.5 py-1.5 px-3 rounded-lg bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/40 text-xs font-bold text-[#25F4EE] transition-all cursor-pointer shadow-sm active:scale-95"
+                title="เปิดคลังเลือกคลิปแบบ Grid พร้อมดูภาพพรีวิวและค้นหา"
+              >
+                <FolderOpen className="w-3.5 h-3.5 text-[#25F4EE]" />
+                <span>เปิดคลังคลิป ({videos.length})</span>
+              </button>
+
+              {/* Show ONLY Selected Footage Tags (with X to remove) */}
+              {selectedVideos.map(path => {
+                const fileName = path.split(/[/\\]/).pop();
                 return (
-                  <button
-                    key={v.path}
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onToggleVideoForAngle && onToggleVideoForAngle(index, v.path || v.rel_path);
-                    }}
-                    className={`flex-shrink-0 flex items-center gap-1.5 py-1.5 px-2.5 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
-                      isChosen
-                        ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE] shadow-sm shadow-[#25F4EE]/20'
-                        : 'bg-black/40 border-white/[0.08] text-slate-400 hover:border-white/[0.2] hover:text-slate-200'
-                    }`}
-                    title={isChosen ? 'คลิกเพื่อยกเลิกคลิปนี้' : 'คลิกเพื่อเลือกใช้คลิปนี้กับมุมนี้'}
+                  <div
+                    key={path}
+                    className="flex-shrink-0 flex items-center gap-1.5 py-1 px-2.5 rounded-lg bg-[#25F4EE]/15 border border-[#25F4EE]/40 text-xs font-bold text-[#25F4EE] shadow-sm animate-fadeIn"
                   >
-                    <Film className={`w-3.5 h-3.5 ${isChosen ? 'text-[#25F4EE]' : 'text-slate-500'}`} />
-                    <span className="truncate max-w-[130px]">{v.name}</span>
-                    {v.size_mb && <span className="text-[10px] font-mono opacity-60">({v.size_mb}MB)</span>}
-                    {isChosen && <Check className="w-3 h-3 text-[#25F4EE] ml-0.5" />}
-                  </button>
+                    <Film className="w-3.5 h-3.5 text-[#25F4EE]" />
+                    <span className="truncate max-w-[130px]">{fileName}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleVideoForAngle && onToggleVideoForAngle(index, path);
+                      }}
+                      className="p-0.5 hover:bg-[#25F4EE]/30 rounded text-[#25F4EE] hover:text-white cursor-pointer ml-0.5 transition-colors"
+                      title="ยกเลิกการผูกคลิปนี้"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
                 );
               })}
 
-              {/* Inline Upload Footage Button */}
-              <label
-                onClick={(e) => e.stopPropagation()}
-                className="flex-shrink-0 flex items-center gap-1.5 py-1.5 px-2.5 rounded-lg border border-dashed border-white/[0.15] hover:border-[#25F4EE]/50 hover:bg-[#25F4EE]/5 text-xs font-bold text-slate-400 hover:text-[#25F4EE] transition-all cursor-pointer"
-                title="อัปโหลดไฟล์วิดีโอดิบใหม่เข้าสู่ระบบ"
-              >
-                <Plus className="w-3.5 h-3.5 text-[#25F4EE]" />
-                <span>{uploadingImg ? 'กำลังอัปโหลด...' : '+ แนบคลิปเพิ่ม'}</span>
-                <input
-                  type="file"
-                  accept="video/*,image/*"
-                  onChange={onUploadVideo}
-                  disabled={uploadingImg}
-                  className="hidden"
-                />
-              </label>
+              {/* If no video explicitly chosen */}
+              {selectedVideos.length === 0 && (
+                <span className="text-[11px] text-slate-500 italic py-1">
+                  (ใช้คลิปทั้งหมดในคลังอัตโนมัติ)
+                </span>
+              )}
             </div>
           </div>
 
@@ -271,13 +278,48 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const { toastMessage, showToast, hideToast } = useToast();
   const { refreshTrigger, toggleActivityDrawer } = useTaskManager();
 
-  // History / All Products
+  // History / All Products & Scalable Catalog
   const [historyList, setHistoryList] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [selectedHistoryId, setSelectedHistoryId] = useState(selectedProductId || null);
+  const [productSearch, setProductSearch] = useState('');
+  const [productFilter, setProductFilter] = useState('all'); // 'all' | 'in_progress' | 'completed'
+  const [showCatalogModal, setShowCatalogModal] = useState(false);
+  const [isStep1Collapsed, setIsStep1Collapsed] = useState(false);
+  const [deleteTargetProduct, setDeleteTargetProduct] = useState(null);
+  const [isDeletingProduct, setIsDeletingProduct] = useState(false);
+
+  // Filtered Products for 100+ items
+  const filteredHistory = useMemo(() => {
+    let list = historyList || [];
+    const q = (productSearch || '').trim().toLowerCase();
+    if (q) {
+      list = list.filter(p =>
+        (p.name || '').toLowerCase().includes(q) ||
+        (p.category || '').toLowerCase().includes(q) ||
+        (p.price || '').toLowerCase().includes(q)
+      );
+    }
+    if (productFilter === 'in_progress') {
+      list = list.filter(p => {
+        const done = (p.angles || []).filter(a => a.status === 'posted' || a.status === 'rendered').length;
+        return done < (p.angles?.length || 4);
+      });
+    } else if (productFilter === 'completed') {
+      list = list.filter(p => {
+        const done = (p.angles || []).filter(a => a.status === 'posted' || a.status === 'rendered').length;
+        return done >= (p.angles?.length || 4) && ((p.angles?.length || 0) > 0);
+      });
+    }
+    return list;
+  }, [historyList, productSearch, productFilter]);
 
   // Angle Count Selection
   const [angleCount, setAngleCount] = useState(7); // Default: 7 (Sweet Spot)
+
+  // Media Picker Modal State
+  const [pickerModalOpen, setPickerModalOpen] = useState(false);
+  const [pickerAngleIndex, setPickerAngleIndex] = useState(0);
 
   // Uploading Screenshot/Image
   const [uploadingImg, setUploadingImg] = useState(false);
@@ -314,7 +356,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       id: item.id,
       title: item.name,
       url: item.url,
-      description: item.selling_points?.join(', ') || item.price_note || '',
+      description: item.selling_points?.length ? item.selling_points.join(', ') : '',
       price_note: item.price_note || '',
       status: item.status || 'scripted',
       images: item.images || (item.thumbnail ? [{ rel_path: item.thumbnail, name: 'thumb' }] : []),
@@ -335,39 +377,49 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       if (res.products) setHistoryList(res.products);
       showToast(`อัปเดตสถานะสคริปต์เรียบร้อยแล้ว`);
     } catch (err) {
-      alert('ไม่สามารถอัปเดตสถานะได้: ' + err.message);
+      showToast('ไม่สามารถอัปเดตสถานะได้: ' + err.message, 'error');
     }
   };
 
-  const handleDeleteHistory = async (id) => {
-    if (!confirm('คุณต้องการลบสินค้านี้และสคริปต์ทั้งหมดออกจากระบบใช่หรือไม่?')) return;
+  const handleDeleteHistory = (target) => {
+    if (!target) return;
+    setDeleteTargetProduct(target);
+  };
+
+  const confirmDeleteProduct = async () => {
+    if (!deleteTargetProduct?.id) return;
+    setIsDeletingProduct(true);
     try {
-      await deleteProduct(id);
-      showToast('ลบสินค้าเรียบร้อยแล้ว');
+      await deleteProduct(deleteTargetProduct.id);
+      showToast('ลบสินค้าและสคริปต์ทั้งหมดเรียบร้อยแล้ว');
       const res = await getProducts();
       const updated = res.products || [];
       setHistoryList(updated);
-      if (updated.length > 0) selectProduct(updated[0]);
-      else {
+      if (updated.length > 0) {
+        selectProduct(updated[0]);
+      } else {
         setProductData(null);
         setAngles([]);
       }
+      setDeleteTargetProduct(null);
     } catch (err) {
-      alert('ลบไม่สำเร็จ: ' + err.message);
+      showToast('ลบไม่สำเร็จ: ' + err.message, 'error');
+    } finally {
+      setIsDeletingProduct(false);
     }
   };
 
   const handleScrapeAndPlan = async () => {
     if (inputMode === 'link' && !url.trim()) {
-      alert('กรุณากรอกลิงก์สินค้าก่อนครับ');
+      showToast('กรุณากรอกลิงก์สินค้าก่อนครับ', 'warning');
       return;
     }
     if (inputMode === 'text' && !customKeyword.trim() && !rawText.trim()) {
-      alert('กรุณาระบุชื่อสินค้าหรือสเปกก่อนครับ');
+      showToast('กรุณาระบุชื่อสินค้าหรือสเปกก่อนครับ', 'warning');
       return;
     }
     if (inputMode === 'image' && !selectedImage && !customKeyword.trim()) {
-      alert('กรุณาอัปโหลดรูปภาพหรือระบุชื่อสินค้าก่อนครับ');
+      showToast('กรุณาอัปโหลดรูปภาพหรือระบุชื่อสินค้าก่อนครับ', 'warning');
       return;
     }
 
@@ -412,10 +464,17 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     }
   };
 
+  const [previewImage, setPreviewImage] = useState(null);
+
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadingImg(true);
+    try {
+      setPreviewImage(URL.createObjectURL(file));
+    } catch {
+      // ignore
+    }
     const formData = new FormData();
     formData.append('file', file);
     formData.append('target_dir', 'inbox');
@@ -423,30 +482,82 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       const res = await uploadFile(formData);
       if (res.file) {
         setSelectedImage(res.file.path);
-        showToast('อัปโหลดไฟล์เรียบร้อยแล้ว');
+        showToast('อัปโหลดไฟล์รูปภาพเรียบร้อยแล้ว');
       }
     } catch (err) {
-      alert('อัปโหลดไม่สำเร็จ: ' + (err.friendlyMessage || err.message));
+      showToast('อัปโหลดไม่สำเร็จ: ' + (err.friendlyMessage || err.message), 'error');
     } finally {
       setUploadingImg(false);
+      if (e.target) e.target.value = '';
     }
   };
 
-  const handleToggleVideoForAngle = (angleIdx, videoPath) => {
+  const handleOpenMediaPicker = (idx) => {
+    setPickerAngleIndex(idx);
+    setPickerModalOpen(true);
+  };
+
+  const handleConfirmMediaPicker = async (selectedPaths) => {
+    const targetAngle = angles[pickerAngleIndex];
+    if (!targetAngle) return;
+
+    // Immediate UI update
+    setAngles(prev => {
+      const next = [...prev];
+      if (next[pickerAngleIndex]) {
+        const ang = { ...next[pickerAngleIndex] };
+        ang.selected_videos = selectedPaths;
+        ang.selected_video = selectedPaths[0] || null;
+        next[pickerAngleIndex] = ang;
+      }
+      return next;
+    });
+    showToast(`เลือกคลิปดิบ ${selectedPaths.length} คลิปสำหรับมุมมองนี้เรียบร้อยแล้ว`);
+
+    // Backend Persistence
+    if (productData?.id && targetAngle.angle_id) {
+      try {
+        const res = await updateAngleVideos(productData.id, targetAngle.angle_id, selectedPaths);
+        if (res.product) {
+          setHistoryList(prev => prev.map(p => p.id === res.product.id ? res.product : p));
+        }
+      } catch (err) {
+        console.error('Failed to persist angle videos:', err);
+      }
+    }
+  };
+
+  const handleToggleVideoForAngle = async (angleIdx, videoPath) => {
+    const targetAngle = angles[angleIdx];
+    if (!targetAngle) return;
+
+    const currentVideos = targetAngle.selected_videos || (targetAngle.selected_video ? [targetAngle.selected_video] : []);
+    const newVideos = currentVideos.includes(videoPath)
+      ? currentVideos.filter(p => p !== videoPath)
+      : [...currentVideos, videoPath];
+
+    // Immediate UI update
     setAngles(prev => {
       const next = [...prev];
       const ang = { ...next[angleIdx] };
-      const currentVideos = ang.selected_videos || (ang.selected_video ? [ang.selected_video] : []);
-      if (currentVideos.includes(videoPath)) {
-        ang.selected_videos = currentVideos.filter(p => p !== videoPath);
-      } else {
-        ang.selected_videos = [...currentVideos, videoPath];
-      }
-      ang.selected_video = ang.selected_videos[0] || null;
+      ang.selected_videos = newVideos;
+      ang.selected_video = newVideos[0] || null;
       next[angleIdx] = ang;
       return next;
     });
     showToast('อัปเดตการเลือกคลิปสำหรับมุมนี้เรียบร้อยแล้ว');
+
+    // Backend Persistence
+    if (productData?.id && targetAngle.angle_id) {
+      try {
+        const res = await updateAngleVideos(productData.id, targetAngle.angle_id, newVideos);
+        if (res.product) {
+          setHistoryList(prev => prev.map(p => p.id === res.product.id ? res.product : p));
+        }
+      } catch (err) {
+        console.error('Failed to persist angle videos:', err);
+      }
+    }
   };
 
   const copyScriptText = (text, idx) => {
@@ -456,8 +567,16 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
-  const handleSendToStudio = (angle, angleIdx = 0) => {
+  const handleSendToStudio = async (angle, angleIdx = 0) => {
     if (!onApplyToStudio) return;
+
+    if (productData?.id && angle.angle_id) {
+      try {
+        await handleAngleStatusChange(angle.angle_id, 'in_production');
+      } catch (e) {
+        console.error('Failed to update angle status:', e);
+      }
+    }
 
     const scriptLines = Array.isArray(angle.script_lines)
       ? angle.script_lines
@@ -466,10 +585,12 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
     const chosenVideos = angle.selected_videos && angle.selected_videos.length > 0
       ? angle.selected_videos
-      : (angle.selected_video ? [angle.selected_video] : (videos.length > 0 ? [videos[0].path] : []));
-    const primaryVideo = chosenVideos[0] || selectedImage || (videos.length > 0 ? videos[0].path : '');
+      : (angle.selected_video ? [angle.selected_video] : []);
+    const primaryVideo = chosenVideos[0] || selectedImage || '';
 
     onApplyToStudio({
+      productId: productData?.id,
+      angleId: angle.angle_id,
       productName: angle.product_name || productData?.title || customKeyword || 'สินค้า',
       hookTitle: angle.hook_title || '',
       customScript: scriptText,
@@ -506,18 +627,93 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       <Toast message={toastMessage} onClose={hideToast} />
 
       {/* ══════════════════════════════════════════════════════════
-          STEP 1: PRODUCT CARD GALLERY (Horizontal Scroll Strip)
+          STEP 1: PRODUCT CARD GALLERY & SEARCH (Handles 100+ items)
          ══════════════════════════════════════════════════════════ */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between px-1">
-          <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-            <Package className="w-3.5 h-3.5 text-[#25F4EE]" />
-            <span>Step 1 — เลือกสินค้า</span>
+      <div className="space-y-2.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
+          <div className="flex items-center gap-2 min-w-0">
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 flex-shrink-0">
+              <Package className="w-3.5 h-3.5 text-[#25F4EE]" />
+              <span>Step 1 — เลือกสินค้า</span>
+              {historyList.length > 0 && (
+                <span className="text-sm font-mono text-slate-500 ml-1">({historyList.length} รายการ)</span>
+              )}
+            </h2>
+
+            {/* Quick Product Switcher Dropdown (for 100+ items) */}
             {historyList.length > 0 && (
-              <span className="text-sm font-mono text-slate-500 ml-1">({historyList.length} รายการ)</span>
+              <div className="relative min-w-0 max-w-[190px] sm:max-w-[240px]">
+                <select
+                  value={selectedHistoryId || ''}
+                  onChange={(e) => {
+                    const found = historyList.find(p => p.id === e.target.value);
+                    if (found) selectProduct(found);
+                  }}
+                  className="w-full bg-[#080B11] border border-white/[0.1] hover:border-[#25F4EE]/40 text-slate-200 text-xs font-bold py-1 px-2.5 rounded-lg focus:outline-none focus:border-[#25F4EE] cursor-pointer truncate"
+                  title="สลับสินค้าด่วนจากรายการทั้งหมด"
+                >
+                  <option value="" disabled>-- เลือกสินค้าด่วน ({historyList.length}) --</option>
+                  {historyList.map(p => (
+                    <option key={p.id} value={p.id} className="bg-[#080B11] text-white">
+                      {p.name} ({p.angles?.length || 0} สคริปต์)
+                    </option>
+                  ))}
+                </select>
+              </div>
             )}
-          </h2>
-          <div className="flex items-center gap-1.5">
+          </div>
+
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Instant Search Bar */}
+            <div className="relative flex items-center">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" />
+              <input
+                type="text"
+                value={productSearch}
+                onChange={(e) => setProductSearch(e.target.value)}
+                placeholder="ค้นหาสินค้า..."
+                className="bg-[#080B11] border border-white/[0.1] focus:border-[#25F4EE] text-slate-200 text-xs pl-8 pr-7 py-1 rounded-lg w-[120px] sm:w-[150px] focus:w-[180px] transition-all focus:outline-none placeholder-slate-500"
+              />
+              {productSearch && (
+                <button
+                  onClick={() => setProductSearch('')}
+                  className="absolute right-2 text-slate-400 hover:text-white cursor-pointer"
+                  title="ล้างคำค้นหา"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+
+            {/* View All Grid Catalog Button */}
+            <button
+              onClick={() => setShowCatalogModal(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/[0.08] text-xs font-bold cursor-pointer transition-colors"
+              title="เปิดดูคลังสินค้าทั้งหมดแบบตาราง Grid"
+            >
+              <LayoutGrid className="w-3.5 h-3.5 text-[#25F4EE]" />
+              <span className="hidden sm:inline">คลังสินค้า</span>
+            </button>
+
+            {/* Toggle Collapse/Expand Strip Button */}
+            <button
+              onClick={() => setIsStep1Collapsed(!isStep1Collapsed)}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/[0.08] text-xs font-bold cursor-pointer transition-colors"
+              title={isStep1Collapsed ? "ขยายแถบสินค้า" : "ย่อแถบสินค้าเพื่อดูสคริปต์เต็มตา"}
+            >
+              {isStep1Collapsed ? (
+                <>
+                  <ChevronDown className="w-3.5 h-3.5 text-[#25F4EE]" />
+                  <span>เปิดแถบ</span>
+                </>
+              ) : (
+                <>
+                  <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
+                  <span>ย่อเก็บ</span>
+                </>
+              )}
+            </button>
+
             <button
               onClick={loadHistory}
               className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-400 hover:text-white border border-white/[0.06] cursor-pointer transition-colors"
@@ -525,9 +721,10 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loadingHistory ? 'animate-spin' : ''}`} />
             </button>
+
             {productData && (
               <button
-                onClick={() => handleDeleteHistory(productData.id)}
+                onClick={() => handleDeleteHistory(productData)}
                 className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 cursor-pointer transition-colors"
                 title="ลบสินค้านี้"
               >
@@ -537,30 +734,45 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
           </div>
         </div>
 
-        {/* Horizontal Scrollable Product Cards */}
-        <div className="flex items-stretch gap-2.5 overflow-x-auto pb-1 no-scrollbar snap-x snap-mandatory scroll-smooth pr-4">
-          {historyList.map(p => (
-            <ProductCard
-              key={p.id}
-              product={p}
-              isSelected={selectedHistoryId === p.id}
-              onSelect={selectProduct}
-            />
-          ))}
+        {/* Horizontal Scrollable Product Cards (Filtered & Collapsible) */}
+        {!isStep1Collapsed && (
+          <div className="flex items-stretch gap-2.5 overflow-x-auto pb-1 no-scrollbar snap-x snap-mandatory scroll-smooth pr-4 animate-fadeIn">
+            {filteredHistory.map(p => (
+              <ProductCard
+                key={p.id}
+                product={p}
+                isSelected={selectedHistoryId === p.id}
+                onSelect={selectProduct}
+              />
+            ))}
 
-          {/* + Add New Product Card */}
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex-shrink-0 w-[130px] sm:w-[150px] rounded-xl border-2 border-dashed border-white/[0.12] hover:border-[#25F4EE]/50 bg-black/20 hover:bg-[#25F4EE]/[0.05] transition-all cursor-pointer snap-center p-2.5 flex flex-col items-center justify-center gap-2 group"
-          >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#FE2C55]/20 to-[#25F4EE]/20 border border-white/[0.1] flex items-center justify-center group-hover:scale-110 transition-transform">
-              <Plus className="w-5 h-5 text-[#25F4EE]" />
-            </div>
-            <span className="text-xs font-bold text-slate-400 group-hover:text-white transition-colors text-center">
-              วิเคราะห์สินค้าใหม่
-            </span>
-          </button>
-        </div>
+            {filteredHistory.length === 0 && productSearch && (
+              <div className="flex items-center justify-center p-4 rounded-xl bg-black/40 border border-white/[0.06] text-xs text-slate-400 gap-2 flex-shrink-0">
+                <Search className="w-4 h-4 text-slate-500" />
+                <span>ไม่พบสินค้าที่ตรงกับ "{productSearch}"</span>
+                <button
+                  onClick={() => setProductSearch('')}
+                  className="text-[#25F4EE] hover:underline font-bold ml-1 cursor-pointer"
+                >
+                  ล้างการค้นหา
+                </button>
+              </div>
+            )}
+
+            {/* + Add New Product Card */}
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex-shrink-0 w-[130px] sm:w-[150px] rounded-xl border-2 border-dashed border-white/[0.12] hover:border-[#25F4EE]/50 bg-black/20 hover:bg-[#25F4EE]/[0.05] transition-all cursor-pointer snap-center p-2.5 flex flex-col items-center justify-center gap-2 group"
+            >
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#FE2C55]/20 to-[#25F4EE]/20 border border-white/[0.1] flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Plus className="w-5 h-5 text-[#25F4EE]" />
+              </div>
+              <span className="text-xs font-bold text-slate-400 group-hover:text-white transition-colors text-center">
+                วิเคราะห์สินค้าใหม่
+              </span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ══════════════════════════════════════════════════════════
@@ -597,7 +809,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
           {inputMode === 'link' && (
             <div className="space-y-3 pt-1">
               <Input
-                label="ลิงก์สินค้า (Shopee / TikTok Shop):"
+                label="ลิงก์สินค้า:"
                 type="url"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
@@ -613,18 +825,18 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
           {inputMode === 'text' && (
             <div className="space-y-3 pt-1">
               <Input
-                label="ชื่อสินค้า หรือหมวดหมู่:"
+                label="ชื่อสินค้า:"
                 type="text"
                 value={customKeyword}
                 onChange={(e) => setCustomKeyword(e.target.value)}
                 placeholder="เช่น สายชาร์จแม่เหล็ก 3-in-1 หรือ เซรั่มหน้าใส"
               />
               <Textarea
-                label="รายละเอียดสินค้า / สเปก / จุดขาย / ราคา:"
+                label="รายละเอียดสินค้าและสเปก:"
                 value={rawText}
                 onChange={(e) => setRawText(e.target.value)}
                 rows={5}
-                placeholder="ก๊อปปี้รายละเอียดสินค้าจาก Shopee / TikTok Shop มาวางที่นี่ได้เลย..."
+                placeholder="ก๊อปปี้รายละเอียดสินค้ามาวางที่นี่ได้เลย..."
               />
             </div>
           )}
@@ -633,7 +845,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
           {inputMode === 'image' && (
             <div className="space-y-3 pt-1">
               <Input
-                label="ชื่อสินค้า (สำหรับระบุในสคริปต์):"
+                label="ชื่อสินค้า:"
                 type="text"
                 value={customKeyword}
                 onChange={(e) => setCustomKeyword(e.target.value)}
@@ -641,44 +853,62 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
               />
               <div>
                 <label className="text-xs font-semibold text-slate-300 block mb-1.5">
-                  แคปหน้าจอหน้าร้าน / รูปสินค้า:
+                  รูปสินค้าหรือภาพหน้าจอ:
                 </label>
                 <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-white/[0.15] hover:border-[#25F4EE]/50 rounded-2xl p-6 text-center cursor-pointer transition-colors bg-black/30"
+                  className="relative block border-2 border-dashed border-white/[0.15] hover:border-[#25F4EE]/50 rounded-2xl p-6 text-center cursor-pointer transition-colors bg-black/30"
                 >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,image/heic,image/heif,image/jpeg,image/png,image/webp,.heic,.HEIC,.heif,.HEIF,.jpg,.jpeg,.png,.webp"
+                    onChange={handleImageUpload}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                  />
                   {uploadingImg ? (
-                    <div className="flex flex-col items-center gap-2 text-[#25F4EE]">
+                    <div className="flex flex-col items-center gap-2 text-[#25F4EE] pointer-events-none">
                       <Loader2 className="w-6 h-6 animate-spin" />
                       <span className="text-xs font-bold">กำลังอัปโหลดรูปภาพ...</span>
                     </div>
-                  ) : selectedImage ? (
-                    <div className="space-y-2">
+                  ) : (selectedImage || previewImage) ? (
+                    <div className="space-y-2 relative z-30">
+                      {previewImage && (
+                        <img
+                          src={previewImage}
+                          alt="Uploaded Preview"
+                          className="h-32 mx-auto rounded-xl object-contain border border-white/[0.1] shadow-md mb-2"
+                        />
+                      )}
                       <div className="text-xs font-bold text-emerald-400">เลือกรูปแล้ว:</div>
-                      <div className="text-sm text-slate-400 font-mono">{selectedImage.split('\\').pop()?.split('/').pop()}</div>
+                      <div className="text-sm text-slate-400 font-mono">{(selectedImage || 'image').split('\\').pop()?.split('/').pop()}</div>
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); setSelectedImage(null); }}
-                        className="text-xs text-rose-400 hover:underline"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedImage(null); setPreviewImage(null); }}
+                        className="text-xs text-rose-400 hover:underline cursor-pointer"
                       >
                         ลบรูปออก
                       </button>
                     </div>
                   ) : (
-                    <div className="space-y-1.5 text-slate-400">
+                    <div className="space-y-1.5 text-slate-400 pointer-events-none">
                       <Upload className="w-7 h-7 mx-auto text-slate-500" />
-                      <div className="text-xs font-bold text-slate-200">คลิกเพื่อเลือกไฟล์รูปภาพ</div>
-                      <div className="text-sm text-slate-500">รองรับ JPG, PNG, WebP</div>
+                      <div className="text-xs font-bold text-slate-200">แตะเพื่อเลือกรูปสินค้า</div>
+                      <div className="text-sm text-slate-500">รองรับ HEIC, JPG, PNG, WebP</div>
                     </div>
                   )}
                 </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
+
+                {/* Native Fallback for 100% iOS Safari support */}
+                <div className="mt-2 p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08] space-y-1 text-left">
+                  <span className="text-[11px] font-bold text-slate-400 block">หรือเลือกไฟล์รูปภาพ:</span>
+                  <input
+                    type="file"
+                    accept="image/*,image/heic,image/heif,image/jpeg,image/png,image/webp,.heic,.HEIC,.heif,.HEIF,.jpg,.jpeg,.png,.webp"
+                    onChange={handleImageUpload}
+                    disabled={uploadingImg}
+                    className="block w-full text-xs text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#25F4EE]/20 file:text-[#25F4EE] hover:file:bg-[#25F4EE]/30 file:cursor-pointer cursor-pointer"
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -757,7 +987,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   </span>
                 )}
               </div>
-              {productData.description && (
+              {productData.description && productData.description.trim() !== (productData.price_note || '').trim() && (
                 <p className="text-sm sm:text-xs text-slate-400 truncate mt-0.5 max-w-lg">
                   {productData.description}
                 </p>
@@ -781,10 +1011,16 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                 <Sparkles className="w-3.5 h-3.5 text-[#FE2C55]" />
                 <span>Step 2 — เลือกมุมขาย & คลิปประกอบ ({totalAngles} สคริปต์)</span>
               </h2>
-              <label className="px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-xs font-bold text-[#25F4EE] cursor-pointer flex items-center gap-1 transition-all">
-                <Upload className="w-3 h-3" />
-                <span>{uploadingImg ? 'อัปโหลด...' : '+ แนบคลิปเข้าคลัง'}</span>
-                <input type="file" accept="video/*,image/*" onChange={handleImageUpload} disabled={uploadingImg} className="hidden" />
+              <label className="relative px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-xs font-bold text-[#25F4EE] cursor-pointer flex items-center gap-1 transition-all">
+                <input
+                  type="file"
+                  accept="video/*,image/*,image/heic,image/heif,.heic,.HEIC,.heif,.HEIF,.mov,.MOV,.mp4,.MP4"
+                  onChange={handleImageUpload}
+                  disabled={uploadingImg}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                />
+                <Upload className="w-3 h-3 pointer-events-none" />
+                <span className="pointer-events-none">{uploadingImg ? 'อัปโหลด...' : '+ แนบคลิป/รูปเข้าคลัง'}</span>
               </label>
             </div>
 
@@ -803,6 +1039,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   onToggleVideoForAngle={handleToggleVideoForAngle}
                   onUploadVideo={handleImageUpload}
                   uploadingImg={uploadingImg}
+                  onOpenMediaPicker={handleOpenMediaPicker}
                 />
               ))}
             </div>
@@ -853,6 +1090,200 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
           </button>
         </div>
       )}
+
+      {/* ── Universal Media Picker Modal ── */}
+      <MediaPickerModal
+        isOpen={pickerModalOpen}
+        onClose={() => setPickerModalOpen(false)}
+        title={`เลือกคลิปสำหรับมุม: ${angles[pickerAngleIndex]?.angle_name || 'มุมมองขาย'}`}
+        productId={productData?.id}
+        productName={productData?.title}
+        selectedVideos={angles[pickerAngleIndex]?.selected_videos || (angles[pickerAngleIndex]?.selected_video ? [angles[pickerAngleIndex]?.selected_video] : [])}
+        onConfirm={handleConfirmMediaPicker}
+        isMultiSelect={true}
+      />
+
+      {/* ── Product Catalog Modal (Searchable Grid for 100+ items) ── */}
+      <Modal
+        isOpen={showCatalogModal}
+        onClose={() => setShowCatalogModal(false)}
+        title={`คลังสินค้าทั้งหมด (${historyList.length} รายการ)`}
+        subtitle="ค้นหา กรอง และเลือกสินค้าเพื่อเข้าสู่หน้ามุมมองขายและสคริปต์"
+        maxWidth="max-w-4xl"
+      >
+        <div className="space-y-4">
+          {/* Search & Filter Toolbar */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pb-2 border-b border-white/[0.08]">
+            {/* Search Input */}
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={productSearch}
+                onChange={(e) => setProductSearch(e.target.value)}
+                placeholder="ค้นหาชื่อสินค้า, ราคา, หรือคีย์เวิร์ด..."
+                className="w-full bg-[#080B11] border border-white/[0.1] focus:border-[#25F4EE] text-white text-xs pl-9 pr-8 py-2 rounded-xl focus:outline-none placeholder-slate-500"
+                autoFocus
+              />
+              {productSearch && (
+                <button
+                  onClick={() => setProductSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
+                  title="ล้างคำค้นหา"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Filter Tabs */}
+            <div className="flex items-center gap-1 p-1 bg-black/40 rounded-xl border border-white/[0.08] flex-shrink-0">
+              {[
+                { id: 'all', label: `ทั้งหมด (${historyList.length})` },
+                { id: 'in_progress', label: `กำลังทำ` },
+                { id: 'completed', label: `เสร็จแล้ว` },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setProductFilter(tab.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    productFilter === tab.id
+                      ? 'bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Grid Cards Container */}
+          <div className="max-h-[60vh] overflow-y-auto pr-1 no-scrollbar">
+            {filteredHistory.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {filteredHistory.map(p => {
+                  const pAngles = p.angles || [];
+                  const pDone = pAngles.filter(a => a.status === 'posted' || a.status === 'rendered').length;
+                  const total = pAngles.length || 4;
+                  const pct = Math.round((pDone / total) * 100);
+                  const thumb = p.images?.[0];
+                  const thumbSrc = thumb ? `/api/media/${thumb.rel_path || thumb.local_path}` : null;
+                  const isSelected = selectedHistoryId === p.id;
+
+                  return (
+                    <div
+                      key={p.id}
+                      onClick={() => {
+                        selectProduct(p);
+                        setShowCatalogModal(false);
+                      }}
+                      className={`p-3 rounded-xl border transition-all cursor-pointer group relative flex flex-col justify-between space-y-2.5 ${
+                        isSelected
+                          ? 'bg-[#25F4EE]/[0.08] border-[#25F4EE] shadow-lg shadow-[#25F4EE]/10 ring-1 ring-[#25F4EE]/40'
+                          : 'bg-[#0B0F19] border-white/[0.08] hover:border-white/[0.2] hover:bg-white/[0.03]'
+                      }`}
+                    >
+                      {/* Image Preview */}
+                      <div className="w-full aspect-square rounded-lg overflow-hidden bg-black/60 border border-white/[0.06] flex items-center justify-center relative">
+                        {thumbSrc ? (
+                          <img src={thumbSrc} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                        ) : (
+                          <Package className={`w-10 h-10 ${isSelected ? 'text-[#25F4EE]' : 'text-slate-600'}`} />
+                        )}
+                        {isSelected && (
+                          <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-[#25F4EE] text-black flex items-center justify-center shadow-md">
+                            <Check className="w-3 h-3 stroke-[3]" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Info */}
+                      <div className="space-y-1">
+                        <div className={`text-xs font-bold truncate leading-tight ${isSelected ? 'text-white' : 'text-slate-200'}`}>
+                          {p.name}
+                        </div>
+                        {p.price && (
+                          <div className="text-xs font-mono font-bold text-amber-400">
+                            {p.price}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Progress Bar & Angle Count */}
+                      <div className="space-y-1 pt-1 border-t border-white/[0.06]">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-400">สคริปต์</span>
+                          <span className="font-mono font-bold text-[#25F4EE]">
+                            {pDone}/{total} มุม
+                          </span>
+                        </div>
+                        <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] rounded-full"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="py-12 text-center space-y-3">
+                <Package className="w-12 h-12 text-slate-600 mx-auto" />
+                <p className="text-sm text-slate-400">
+                  {productSearch ? `ไม่พบสินค้าที่ตรงกับคำค้นหา "${productSearch}"` : 'ยังไม่มีสินค้าในระบบ'}
+                </p>
+                {productSearch && (
+                  <button
+                    onClick={() => setProductSearch('')}
+                    className="text-xs text-[#25F4EE] hover:underline font-bold cursor-pointer"
+                  >
+                    ล้างการค้นหา
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Footer Actions */}
+          <div className="flex items-center justify-between pt-3 border-t border-white/[0.08]">
+            <Button
+              variant="primary"
+              onClick={() => {
+                setShowCatalogModal(false);
+                setShowAddModal(true);
+              }}
+              className="flex items-center gap-1.5 text-xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ วิเคราะห์สินค้าใหม่</span>
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => setShowCatalogModal(false)}
+              className="text-xs"
+            >
+              ปิดหน้าต่าง
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Delete Confirmation Modal ── */}
+      <ConfirmModal
+        isOpen={!!deleteTargetProduct}
+        onClose={() => setDeleteTargetProduct(null)}
+        onConfirm={confirmDeleteProduct}
+        title="ลบสินค้าและสคริปต์ทั้งหมดถาวร?"
+        description="ข้อมูลสินค้า สเปก และสคริปต์มุมมองขายทั้งหมดจะถูกลบออกจากระบบ"
+        itemName={deleteTargetProduct?.title || deleteTargetProduct?.name}
+        dangerNote="การกระทำนี้ไม่สามารถย้อนกลับได้"
+        confirmText="ลบข้อมูลถาวร"
+        loading={isDeletingProduct}
+        variant="danger"
+      />
     </div>
   );
 }

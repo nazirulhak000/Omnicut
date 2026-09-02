@@ -1308,3 +1308,31 @@ def test_clip_without_speed_or_mirror_is_byte_identical_to_before(monkeypatch, t
     assert "hflip" not in filter_arg
     assert "setpts=PTS/" not in filter_arg
     assert "setpts=PTS-STARTPTS" in filter_arg
+
+
+def test_clip_rotation_emits_transpose_and_flips(monkeypatch, tmp_path):
+    clip_list = [
+        {"source_path": str(tmp_path / "a.mp4"), "trim_start": 0.0, "trim_end": 3.0, "rotation": 90},
+        {"source_path": str(tmp_path / "b.mp4"), "trim_start": 0.0, "trim_end": 3.0, "rotation": 180},
+        {"source_path": str(tmp_path / "c.mp4"), "trim_start": 0.0, "trim_end": 3.0, "rotation": 270},
+    ]
+    cmd = _capture_ffmpeg_cmd(monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list)
+    filter_arg = cmd[cmd.index("-filter_complex") + 1]
+    assert "transpose=1" in filter_arg, "90 deg CW uses transpose=1"
+    assert "hflip,vflip" in filter_arg, "180 deg uses hflip,vflip"
+    assert "transpose=2" in filter_arg, "270 deg uses transpose=2"
+
+
+def test_clip_audio_volume_blends_into_master(monkeypatch, tmp_path):
+    from scripts.video_editor import VideoEditor
+    monkeypatch.setattr(VideoEditor, "get_media_info", lambda p: {"duration": 5.0, "width": 1080, "height": 1920, "rotation": 0, "has_audio": True})
+    clip_list = [
+        {"source_path": str(tmp_path / "a.mp4"), "trim_start": 0.0, "trim_end": 3.0, "volume": 0.6},
+        {"source_path": str(tmp_path / "b.mp4"), "trim_start": 0.0, "trim_end": 3.0, "volume": 0.0},
+    ]
+    cmd = _capture_ffmpeg_cmd(monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list)
+    filter_arg = cmd[cmd.index("-filter_complex") + 1]
+    assert "volume=0.6" in filter_arg
+    assert "amix=inputs=2" in filter_arg
+    assert "-map" in cmd and "[a_final]" in cmd
+

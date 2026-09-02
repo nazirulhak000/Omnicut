@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import {
-  Check, Film, Music, Palette, Plus, Search, Sticker, Type, Volume2,
+  Check, Film, Music, Palette, Plus, Search, Sticker, Type, Volume2, Play, Square,
   FileText, Sparkles, Loader2, Download, Copy, RefreshCw, Layers
 } from 'lucide-react';
 import { transcribeMedia } from '../../api';
@@ -110,7 +110,7 @@ export default function AssetPanel({
 
   const handleTranscribe = async () => {
     if (!selectedMediaForSrt) {
-      alert('กรุณาเลือกคลิปวิดีโอหรือเสียงที่ต้องการถอดซับก่อนครับ');
+      setTranscribeError('กรุณาเลือกคลิปวิดีโอหรือเสียงที่ต้องการถอดซับก่อนครับ');
       return;
     }
 
@@ -139,7 +139,7 @@ export default function AssetPanel({
     if (!transcribeResult?.content) return;
     const parsedCues = parseSrtToCues(transcribeResult.content);
     if (parsedCues.length === 0) {
-      alert('ไม่พบข้อความซับไตเติลที่แยกเวลาได้');
+      setTranscribeError('ไม่พบข้อความซับไตเติลที่แยกเวลาได้');
       return;
     }
     onImportCues?.(parsedCues);
@@ -152,6 +152,26 @@ export default function AssetPanel({
     navigator.clipboard.writeText(transcribeResult.content);
     setCopiedSrt(true);
     setTimeout(() => setCopiedSrt(false), 2000);
+  };
+
+  const [previewingAudio, setPreviewingAudio] = useState(null);
+  const audioPlayerRef = useRef(null);
+
+  const toggleAudioPreview = (e, relPath) => {
+    e.stopPropagation();
+    const url = `/api/media/${relPath}`;
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.pause();
+      if (previewingAudio === url) {
+        setPreviewingAudio(null);
+        return;
+      }
+    }
+    const a = new Audio(url);
+    audioPlayerRef.current = a;
+    setPreviewingAudio(url);
+    a.play().catch(() => {});
+    a.onended = () => setPreviewingAudio(null);
   };
 
   const filtered = useMemo(() => {
@@ -383,11 +403,11 @@ export default function AssetPanel({
               เพลงประกอบ (ทั้งคลิป)
             </p>
 
-            <div className="mb-1 space-y-1.5 rounded-lg border border-white/[0.08] bg-black/40 px-2 py-2">
+            <div className="mb-2 space-y-2 rounded-xl border border-white/[0.08] bg-black/40 p-2.5">
               <label className="block">
-                <span className="mb-1 flex justify-between text-sm text-slate-400">
-                  <span>ระดับเสียงเพลง</span>
-                  <span className="font-mono text-slate-300">{Math.round((style.bgmVolume ?? 0.12) * 100)}%</span>
+                <span className="mb-1 flex justify-between text-xs text-slate-300">
+                  <span>ระดับเสียงเพลง (BGM)</span>
+                  <span className="font-mono text-[#25F4EE] font-bold">{Math.round((style.bgmVolume ?? 0.12) * 100)}%</span>
                 </span>
                 <input
                   type="range"
@@ -396,60 +416,111 @@ export default function AssetPanel({
                   step={0.01}
                   value={style.bgmVolume ?? 0.12}
                   onChange={(e) => onStyleChange({ bgmVolume: parseFloat(e.target.value) })}
-                  className="w-full accent-[#D97757]"
+                  className="w-full accent-[#25F4EE]"
                 />
               </label>
+
+              <div className="grid grid-cols-4 gap-1">
+                {[0.08, 0.15, 0.25, 0.40].map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => onStyleChange({ bgmVolume: v })}
+                    className={`py-1 rounded-lg text-[10px] font-mono font-bold border transition-all cursor-pointer ${
+                      Math.abs((style.bgmVolume ?? 0.12) - v) < 0.03
+                        ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
+                        : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {Math.round(v * 100)}%
+                  </button>
+                ))}
+              </div>
+
               <button
                 type="button"
                 onClick={() => onStyleChange({ bgmDucking: !style.bgmDucking })}
                 aria-pressed={!!style.bgmDucking}
-                className={`w-full rounded-lg border py-1.5 text-sm font-bold transition-colors duration-150 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
+                className={`w-full rounded-lg border py-1.5 text-xs font-bold transition-all cursor-pointer ${
                   style.bgmDucking
-                    ? 'border-[#D97757] bg-[#D97757]/20 text-[#E89274]'
+                    ? 'border-[#25F4EE] bg-[#25F4EE]/20 text-[#25F4EE]'
                     : 'border-white/[0.08] bg-black/40 text-slate-300 hover:text-white'
                 }`}
               >
-                {style.bgmDucking ? '✓ ลดเพลงตอนพูดอยู่' : 'ลดเพลงตอนพูด (auto-duck)'}
+                {style.bgmDucking ? '✓ ลดเสียงเพลงอัตโนมัติขณะพูด (Auto-Duck)' : 'ลดเสียงเพลงอัตโนมัติขณะพูด (Auto-Duck)'}
               </button>
-              <p className="text-xs leading-relaxed text-slate-500">
-                เปิดแล้วเพลงจะเบาลง ~9 dB ระหว่างมีเสียงพูด แล้วดังกลับตอนเว้นวรรค · เปลี่ยนค่าพวกนี้ต้องมิกซ์เสียงใหม่ Apply จะช้ากว่าปกติเล็กน้อย
+              <p className="text-[11px] leading-relaxed text-slate-500">
+                เปิดแล้วเพลงจะเบาลง ~12 dB ระหว่างมีเสียงพูด และค่อยๆ ดังกลับตอนเว้นวรรค
               </p>
             </div>
+
             <Row active={!style.bgmName} onClick={() => onStyleChange({ bgmName: null })}>
               <Music className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
               <span className="min-w-0 flex-1 truncate text-sm text-slate-200">เสียงหลักของช่อง</span>
               {!style.bgmName && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#25F4EE]" />}
             </Row>
-            {filtered.music.map((m) => (
-              <Row
-                key={m.id}
-                active={style.bgmName === m.id}
-                onClick={() => onStyleChange({ bgmName: m.id })}
-                title={m.name}
-              >
-                <Music className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
-                <span className="min-w-0 flex-1 truncate text-sm text-slate-200">{m.label_th || m.name}</span>
-                {style.bgmName === m.id && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#25F4EE]" />}
-              </Row>
-            ))}
+            {filtered.music.map((m) => {
+              const isPlayingThis = previewingAudio === `/api/media/${m.file?.rel_path}`;
+              return (
+                <Row
+                  key={m.id}
+                  active={style.bgmName === m.id}
+                  onClick={() => onStyleChange({ bgmName: m.id })}
+                  title={m.name}
+                >
+                  {m.file ? (
+                    <button
+                      type="button"
+                      onClick={(e) => toggleAudioPreview(e, m.file.rel_path)}
+                      className={`p-1 rounded-md transition-colors cursor-pointer mr-1 ${
+                        isPlayingThis ? 'bg-[#25F4EE] text-black animate-pulse' : 'bg-white/[0.08] text-slate-300 hover:text-white hover:bg-white/[0.15]'
+                      }`}
+                      title={isPlayingThis ? 'หยุดฟัง' : 'ลองฟังเสียง'}
+                    >
+                      {isPlayingThis ? <Square className="h-3 w-3 fill-current" /> : <Play className="h-3 w-3 fill-current" />}
+                    </button>
+                  ) : (
+                    <Music className="h-3.5 w-3.5 flex-shrink-0 text-slate-400 mr-1" />
+                  )}
+                  <span className="min-w-0 flex-1 truncate text-sm text-slate-200">{m.label_th || m.name}</span>
+                  {style.bgmName === m.id && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#25F4EE]" />}
+                </Row>
+              );
+            })}
 
             <p className="px-1 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
               เสียงเอฟเฟกต์ {selectedCaption ? '(ใส่ให้ท่อนที่เลือก)' : '(เลือกท่อนคำบรรยายก่อน)'}
             </p>
-            {filtered.sfx.map((s) => (
-              <Row
-                key={s.id}
-                active={selectedCaption?.sfx === s.id}
-                onClick={() => selectedCaption && onAssignSfx(s.id)}
-                title={selectedCaption ? `ใส่ ${s.name}` : 'เลือกท่อนคำบรรยายบนไทม์ไลน์ก่อน'}
-              >
-                <Volume2 className={`h-3.5 w-3.5 flex-shrink-0 ${selectedCaption ? 'text-slate-400' : 'text-slate-600'}`} />
-                <span className={`min-w-0 flex-1 truncate text-sm ${selectedCaption ? 'text-slate-200' : 'text-slate-500'}`}>
-                  {s.label_th || s.name}
-                </span>
-                {selectedCaption?.sfx === s.id && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#25F4EE]" />}
-              </Row>
-            ))}
+            {filtered.sfx.map((s) => {
+              const isPlayingThis = previewingAudio === `/api/media/${s.file?.rel_path}`;
+              return (
+                <Row
+                  key={s.id}
+                  active={selectedCaption?.sfx === s.id}
+                  onClick={() => selectedCaption && onAssignSfx(s.id)}
+                  title={selectedCaption ? `ใส่ ${s.name}` : 'เลือกท่อนคำบรรยายบนไทม์ไลน์ก่อน'}
+                >
+                  {s.file ? (
+                    <button
+                      type="button"
+                      onClick={(e) => toggleAudioPreview(e, s.file.rel_path)}
+                      className={`p-1 rounded-md transition-colors cursor-pointer mr-1 ${
+                        isPlayingThis ? 'bg-[#25F4EE] text-black animate-pulse' : 'bg-white/[0.08] text-slate-300 hover:text-white hover:bg-white/[0.15]'
+                      }`}
+                      title={isPlayingThis ? 'หยุดฟัง' : 'ลองฟังเสียง'}
+                    >
+                      {isPlayingThis ? <Square className="h-3 w-3 fill-current" /> : <Play className="h-3 w-3 fill-current" />}
+                    </button>
+                  ) : (
+                    <Volume2 className={`h-3.5 w-3.5 flex-shrink-0 mr-1 ${selectedCaption ? 'text-slate-400' : 'text-slate-600'}`} />
+                  )}
+                  <span className={`min-w-0 flex-1 truncate text-sm ${selectedCaption ? 'text-slate-200' : 'text-slate-500'}`}>
+                    {s.label_th || s.name}
+                  </span>
+                  {selectedCaption?.sfx === s.id && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#25F4EE]" />}
+                </Row>
+              );
+            })}
           </>
         )}
 
@@ -543,21 +614,21 @@ export default function AssetPanel({
         {tab === 'sticker' && (
           <>
             {style.stickerBadge ? (
-              <div className="mb-1 space-y-2 rounded-lg border border-white/[0.08] bg-black/40 px-2 py-2">
+              <div className="mb-2 space-y-2.5 rounded-xl border border-white/[0.08] bg-black/40 p-2.5">
                 <div>
-                  <span className="mb-1 block text-sm text-slate-400">มุมที่วางป้าย</span>
-                  <div className="grid grid-cols-2 gap-1">
+                  <span className="mb-1.5 block text-xs font-semibold text-slate-300">ตำแหน่งการวางป้าย</span>
+                  <div className="grid grid-cols-3 gap-1">
                     {[
-                      ['top_left', 'บนซ้าย'], ['top_right', 'บนขวา'],
-                      ['bottom_left', 'ล่างซ้าย'], ['bottom_right', 'ล่างขวา'],
+                      ['top_left', 'บนซ้าย'], ['top_center', 'กึ่งกลางบน'], ['top_right', 'บนขวา'],
+                      ['bottom_left', 'ล่างซ้าย'], ['bottom_center', 'กึ่งกลางล่าง'], ['bottom_right', 'ล่างขวา'],
                     ].map(([id, label]) => (
                       <button
                         key={id}
                         type="button"
                         onClick={() => onStyleChange({ stickerPosition: id })}
-                        className={`rounded-lg border py-1 text-sm font-bold transition-colors duration-150 cursor-pointer ${
+                        className={`rounded-lg border py-1.5 text-xs font-bold transition-all cursor-pointer ${
                           (style.stickerPosition || 'top_right') === id
-                            ? 'border-[#D97757] bg-[#D97757]/20 text-[#E89274]'
+                            ? 'border-[#25F4EE] bg-[#25F4EE]/20 text-[#25F4EE]'
                             : 'border-white/[0.08] bg-black/40 text-slate-400 hover:text-white'
                         }`}
                       >
@@ -567,15 +638,15 @@ export default function AssetPanel({
                   </div>
                 </div>
                 <label className="block">
-                  <span className="mb-1 flex justify-between text-sm text-slate-400">
-                    <span>ขนาดป้าย</span>
-                    <span className="font-mono text-slate-300">{Math.round((style.stickerScale ?? 1) * 100)}%</span>
+                  <span className="mb-1 flex justify-between text-xs text-slate-300">
+                    <span>ขนาดป้าย / สติกเกอร์</span>
+                    <span className="font-mono text-[#25F4EE] font-bold">{Math.round((style.stickerScale ?? 1) * 100)}%</span>
                   </span>
                   <input
                     type="range" min={0.4} max={2} step={0.05}
                     value={style.stickerScale ?? 1}
                     onChange={(e) => onStyleChange({ stickerScale: parseFloat(e.target.value) })}
-                    className="w-full accent-[#D97757]"
+                    className="w-full accent-[#25F4EE]"
                   />
                 </label>
               </div>
@@ -583,23 +654,23 @@ export default function AssetPanel({
 
             <Row active={!style.stickerBadge} onClick={() => onStyleChange({ stickerBadge: '' })}>
               <Sticker className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
-              <span className="min-w-0 flex-1 truncate text-sm text-slate-200">ไม่ใส่ป้าย</span>
+              <span className="min-w-0 flex-1 truncate text-sm text-slate-200">ไม่ใส่ป้าย / สติกเกอร์</span>
               {!style.stickerBadge && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#25F4EE]" />}
             </Row>
             {filtered.stickers.map((s) => (
               <Row
                 key={s.id}
-                active={style.stickerBadge === s.name}
+                active={style.stickerBadge === s.name || style.stickerBadge === s.id}
                 onClick={() => onStyleChange({ stickerBadge: s.name })}
                 title={s.name}
               >
-                <img src={s.img_url} alt="" className="h-6 w-6 flex-shrink-0 rounded object-contain" />
+                <img src={s.img_url} alt="" className="h-7 w-7 flex-shrink-0 rounded-md object-contain bg-black/40 p-0.5 border border-white/[0.06]" />
                 <span className="min-w-0 flex-1 truncate text-sm text-slate-200">{s.name.replace(/\.(png|webp|jpg)$/i, '')}</span>
-                {style.stickerBadge === s.name && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#25F4EE]" />}
+                {(style.stickerBadge === s.name || style.stickerBadge === s.id) && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#25F4EE]" />}
               </Row>
             ))}
-            <p className="px-1 pt-2 text-sm leading-relaxed text-slate-500">
-              ป้ายวางมุมขวาบนตลอดคลิป — สามารถเปลี่ยนแบบป้ายได้ตามธีม
+            <p className="px-1 pt-2 text-xs leading-relaxed text-slate-500">
+              พรีวิวสดจะแสดงป้ายบนจอวิดีโอทันที และเรนเดอร์เข้าไฟล์จริงด้วย FFmpeg Overlay
             </p>
           </>
         )}

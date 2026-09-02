@@ -15,7 +15,7 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
         pass
 
 from scripts.config import (
-    BASE_DIR, RAW_DIR, PROJECTS_DIR, EXPORTS_DIR, LUTS_DIR,
+    BASE_DIR, INBOX_DIR, RAW_DIR, PROJECTS_DIR, EXPORTS_DIR, LUTS_DIR,
     DEFAULT_VOICE, DEFAULT_VOICE_RATE, DEFAULT_VOICE_PITCH
 )
 from scripts.script_generator import ScriptGenerator
@@ -88,7 +88,27 @@ class TikTokAutoCutterPipeline:
                 except Exception:
                     pass
 
-        raw_video = Path(raw_video_path).resolve() if raw_video_path else None
+        raw_video = None
+        if raw_video_path:
+            p = Path(raw_video_path)
+            if p.exists():
+                raw_video = p.resolve()
+            elif (BASE_DIR / raw_video_path).exists():
+                raw_video = (BASE_DIR / raw_video_path).resolve()
+            elif (RAW_DIR / p.name).exists():
+                raw_video = (RAW_DIR / p.name).resolve()
+            elif (INBOX_DIR / p.name).exists():
+                raw_video = (INBOX_DIR / p.name).resolve()
+            else:
+                # Search recursively in product folders under RAW_DIR and INBOX_DIR
+                matched_raw = list(RAW_DIR.glob(f"**/{p.name}"))
+                matched_inbox = list(INBOX_DIR.glob(f"**/{p.name}"))
+                if matched_raw:
+                    raw_video = matched_raw[0].resolve()
+                elif matched_inbox:
+                    raw_video = matched_inbox[0].resolve()
+                else:
+                    raw_video = p.resolve()
         
         # Check if raw_video_path is an image or directory of images
         image_extensions = ('.jpg', '.jpeg', '.png', '.webp')
