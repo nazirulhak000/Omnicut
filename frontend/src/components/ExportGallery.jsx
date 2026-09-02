@@ -51,20 +51,30 @@ const ExportCard = memo(function ExportCard({
           )}
         </div>
 
-        {/* Video Player Preview (9:16 Vertical) */}
+        {/* Video / Poster Preview (9:16 Vertical) */}
         <div
           onClick={() => onOpenDetail(item)}
           className="bg-black aspect-[9/16] w-full flex items-center justify-center relative overflow-hidden cursor-pointer"
         >
-          <video
-            src={`/api/media/${item.path}`}
-            className="w-full h-full object-cover"
-            playsInline
-            muted
-            loop
-            onMouseOver={e => e.target.play().catch(() => {})}
-            onMouseOut={e => { e.target.pause(); e.target.currentTime = 0; }}
-          />
+          {item.thumbnail_url ? (
+            <img
+              src={item.thumbnail_url}
+              alt={item.name}
+              loading="lazy"
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            />
+          ) : (
+            <video
+              src={`/api/media/${item.rel_path || item.path}#t=0.1`}
+              preload="metadata"
+              className="w-full h-full object-cover"
+              playsInline
+              muted
+              loop
+              onMouseOver={e => e.target.play().catch(() => {})}
+              onMouseOut={e => { e.target.pause(); e.target.currentTime = 0; }}
+            />
+          )}
 
           {/* Play Button Overlay on Hover */}
           <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-all flex flex-col items-center justify-center gap-2">
@@ -310,82 +320,104 @@ export default function ExportGallery({ exportsList, onRefresh }) {
         <RawVaultPanel />
       ) : (
         <>
-      {/* DETAILED VIDEO QC & METADATA POPUP MODAL */}
+      {/* ── DETAILED VIDEO QC, FULL PREVIEW & METADATA MODAL ── */}
       <Modal
         isOpen={!!selectedDetailVideo}
         onClose={() => setSelectedDetailVideo(null)}
-        title="รายละเอียดวิดีโอ & QC TikTok"
-        subtitle={selectedDetailVideo?.hook_title || selectedDetailVideo?.name}
-        maxWidth="max-w-4xl"
+        title={selectedDetailVideo?.hook_title || selectedDetailVideo?.name || 'พรีวิววิดีโอ'}
+        subtitle={selectedDetailVideo?.hook_title ? selectedDetailVideo.name : 'พรีวิวคลิปขนาดเต็ม สแกน QR โหลดเข้ามือถือ'}
+        maxWidth="max-w-xl"
       >
         {selectedDetailVideo && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-            {/* Left: 9:16 Video Player */}
-            <div className="space-y-3">
-              <div className="bg-black rounded-2xl overflow-hidden aspect-[9/16] w-full max-h-[520px] mx-auto border border-white/[0.08] shadow-2xl relative flex items-center justify-center">
-                <video
-                  src={`/api/media/${selectedDetailVideo.path}`}
-                  controls
-                  autoPlay
-                  className="w-full h-full object-contain"
+          <div className="space-y-4 max-h-[80vh] overflow-y-auto pr-1 no-scrollbar">
+            {/* 1. Large 9:16 Video Player Preview (เต็มขนาดหน้าจอ) */}
+            <div className="w-full max-w-[340px] sm:max-w-[380px] aspect-[9/16] max-h-[68vh] mx-auto rounded-2xl overflow-hidden bg-black border border-white/[0.12] shadow-2xl relative flex items-center justify-center ring-1 ring-white/[0.05]">
+              <video
+                src={`/api/media/${selectedDetailVideo.rel_path || selectedDetailVideo.path}`}
+                controls
+                autoPlay
+                playsInline
+                preload="auto"
+                className="w-full h-full object-contain"
+              />
+            </div>
+
+            {/* 2. Caption & Hashtag Box */}
+            <div className="p-3.5 rounded-2xl bg-black/50 border border-white/[0.08] space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-[#25F4EE]" />
+                  <span>แคปชัน & แฮชแท็กสำหรับโพสต์</span>
+                </span>
+                <button
+                  onClick={() => handleCopyCaption(`${selectedDetailVideo.tiktok_caption || 'รีวิวตัวเด็ด! สินค้าคุณภาพดีบอกต่อ'}\n\n${selectedDetailVideo.tiktok_hashtags || '#รีวิวของใช้ #ของดีบอกต่อ #tiktokshop'}`)}
+                  className="px-2.5 py-1 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-[#25F4EE] hover:text-white text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                >
+                  <Copy className="w-3 h-3" />
+                  <span>{copiedCaption ? 'คัดลอกแล้ว!' : 'คัดลอก'}</span>
+                </button>
+              </div>
+              <p className="text-xs text-slate-300 bg-black/40 p-2.5 rounded-xl border border-white/[0.04] select-all leading-relaxed font-mono">
+                {selectedDetailVideo.tiktok_caption || 'รีวิวตัวเด็ด! สินค้าคุณภาพดีบอกต่อ'}&nbsp;
+                {selectedDetailVideo.tiktok_hashtags || '#รีวิวของใช้ #ของดีบอกต่อ #tiktokshop'}
+              </p>
+            </div>
+
+            {/* 3. Size & Format info chips */}
+            <div className="grid grid-cols-3 gap-2 text-center text-xs font-mono">
+              <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.08]">
+                <div className="text-[10px] text-slate-400">ขนาดไฟล์</div>
+                <div className="font-bold text-[#25F4EE] mt-0.5">{selectedDetailVideo.size_mb} MB</div>
+              </div>
+              <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.08]">
+                <div className="text-[10px] text-slate-400">ความละเอียด</div>
+                <div className="font-bold text-emerald-400 mt-0.5">1080x1920 (9:16)</div>
+              </div>
+              <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.08]">
+                <div className="text-[10px] text-slate-400">วันที่สร้าง</div>
+                <div className="text-slate-300 truncate mt-0.5">{selectedDetailVideo.modified?.split(' ')?.[0] || 'ล่าสุด'}</div>
+              </div>
+            </div>
+
+            {/* 4. QR Mobile Download Section */}
+            <div className="p-4 rounded-2xl bg-black/40 border border-white/[0.08] text-center space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-[#25F4EE]/10 border border-[#25F4EE]/30 flex items-center justify-center text-[#25F4EE] mx-auto">
+                <Smartphone className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white">สแกน QR โหลดคลิปเข้ามือถือ</h4>
+                <p className="text-xs text-slate-400 mt-0.5">เปิดกล้องมือถือสแกนเพื่อดาวน์โหลดไฟล์ MP4 เข้าเครื่อง</p>
+              </div>
+              <div className="p-3 bg-white rounded-2xl inline-block shadow-xl">
+                <QRCodeSVG
+                  value={`${mobileBaseUrl}/api/media/${encodeURIComponent(selectedDetailVideo.rel_path || selectedDetailVideo.path)}`}
+                  size={150}
+                  level="M"
                 />
               </div>
             </div>
 
-            {/* Right: Meta & QR Mobile Transfer */}
-            <div className="space-y-4 text-left">
-              {/* Size & Format info */}
-              <div className="p-3.5 rounded-2xl bg-black/40 border border-white/[0.08] space-y-1.5 text-xs font-mono">
-                <div className="flex justify-between text-slate-300">
-                  <span>ขนาดไฟล์:</span>
-                  <span className="font-bold text-[#25F4EE]">{selectedDetailVideo.size_mb} MB</span>
-                </div>
-                <div className="flex justify-between text-slate-300">
-                  <span>วันที่สร้าง:</span>
-                  <span>{selectedDetailVideo.modified}</span>
-                </div>
-                <div className="flex justify-between text-slate-300">
-                  <span>ฟอร์แมต:</span>
-                  <span className="text-emerald-400 font-bold">1080x1920 (9:16 H.264)</span>
-                </div>
-              </div>
-
-              {/* QR Mobile Download Section */}
-              <div className="p-4 rounded-2xl bg-black/40 border border-white/[0.08] text-center space-y-3">
-                <div className="flex items-center justify-center gap-2 text-xs font-bold text-white">
-                  <Smartphone className="w-4 h-4 text-[#25F4EE]" />
-                  <span>สแกน QR เพื่อดาวน์โหลดลงมือถือ</span>
-                </div>
-                <div className="bg-white p-2.5 rounded-xl inline-block shadow-md">
-                  <QRCodeSVG
-                    value={`${mobileBaseUrl}/api/media/${selectedDetailVideo.path}`}
-                    size={130}
-                  />
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2 pt-2">
-                <a
-                  href={`/api/media/${selectedDetailVideo.path}`}
-                  download={selectedDetailVideo.name}
-                  className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg cursor-pointer"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>ดาวน์โหลดไฟล์</span>
-                </a>
-                <Button
-                  onClick={() => {
-                    setDeleteTarget(selectedDetailVideo);
-                    setSelectedDetailVideo(null);
-                  }}
-                  variant="danger"
-                  size="md"
-                  icon={Trash2}
-                >
-                  ลบไฟล์
-                </Button>
-              </div>
+            {/* 5. Modal Footer Action Buttons */}
+            <div className="flex items-center gap-2 pt-2 border-t border-white/[0.08]">
+              <a
+                href={`/api/media/${selectedDetailVideo.rel_path || selectedDetailVideo.path}`}
+                download={selectedDetailVideo.name}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg cursor-pointer active:scale-95 transition-all"
+              >
+                <Download className="w-4 h-4" />
+                <span>ดาวน์โหลด MP4</span>
+              </a>
+              <Button
+                onClick={() => {
+                  setDeleteTarget(selectedDetailVideo);
+                  setSelectedDetailVideo(null);
+                }}
+                variant="danger"
+                size="md"
+                icon={Trash2}
+              >
+                ลบไฟล์
+              </Button>
             </div>
           </div>
         )}
@@ -652,88 +684,6 @@ export default function ExportGallery({ exportsList, onRefresh }) {
         variant="danger"
       />
 
-      {/* ── Video Detail & Mobile Download Modal ── */}
-      {selectedDetailVideo && (
-        <Modal
-          isOpen={!!selectedDetailVideo}
-          onClose={() => setSelectedDetailVideo(null)}
-          title={`รายละเอียดวิดีโอ: ${selectedDetailVideo.name}`}
-          subtitle="พรีวิวคลิป, แคปชันสำหรับโพสต์ TikTok/Reels และสแกน QR โหลดเข้ามือถือ"
-          maxWidth="max-w-3xl"
-        >
-          <div className="space-y-4">
-            {/* Video Player & QR Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-              {/* Video Player */}
-              <div className="relative aspect-[9/16] max-h-[380px] mx-auto rounded-2xl overflow-hidden bg-black/80 border border-white/[0.1] shadow-2xl flex items-center justify-center">
-                <video
-                  src={`http://localhost:8000/api/stream_video?path=${encodeURIComponent(selectedDetailVideo.path)}`}
-                  controls
-                  autoPlay
-                  className="w-full h-full object-contain"
-                />
-              </div>
-
-              {/* QR Code & Mobile Sync */}
-              <div className="space-y-3 p-4 rounded-2xl bg-black/40 border border-white/[0.08] text-center flex flex-col items-center justify-center">
-                <div className="w-10 h-10 rounded-xl bg-[#25F4EE]/10 border border-[#25F4EE]/30 flex items-center justify-center text-[#25F4EE]">
-                  <Smartphone className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-white">สแกน QR โหลดคลิปเข้ามือถือ</h4>
-                  <p className="text-xs text-slate-400 mt-0.5">เปิดกล้องมือถือสแกนเพื่อดาวน์โหลดไฟล์ MP4</p>
-                </div>
-
-                <div className="p-3 bg-white rounded-2xl shadow-xl inline-block">
-                  <QRCodeSVG
-                    value={`http://${window.location.hostname}:8000/api/file_content?path=${encodeURIComponent(selectedDetailVideo.path)}`}
-                    size={140}
-                    level="M"
-                  />
-                </div>
-
-                <div className="w-full space-y-1 text-left text-xs font-mono text-slate-400 bg-black/50 p-2.5 rounded-xl border border-white/[0.06]">
-                  <div className="flex justify-between">
-                    <span>ขนาดไฟล์:</span>
-                    <span className="text-white font-bold">{selectedDetailVideo.size_mb ? `${selectedDetailVideo.size_mb} MB` : 'MP4'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>ความละเอียด:</span>
-                    <span className="text-emerald-400 font-bold">1080x1920 (9:16)</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Caption & Hashtag Box */}
-            <div className="p-3.5 rounded-2xl bg-black/50 border border-white/[0.08] space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                  <FileText className="w-3.5 h-3.5 text-[#25F4EE]" />
-                  <span>แคปชัน & แฮชแท็กสำหรับโพสต์</span>
-                </span>
-                <button
-                  onClick={() => handleCopyCaption(`รีวิวตัวเด็ด! สินค้าคุณภาพดีบอกต่อ #รีวิวช้อปปี้ #ของดีบอกต่อ #tiktokshopครีเอเตอร์ #capcut`)}
-                  className="px-2.5 py-1 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-[#25F4EE] hover:text-white text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
-                >
-                  <Copy className="w-3 h-3" />
-                  <span>{copiedCaption ? 'คัดลอกแล้ว!' : 'คัดลอก'}</span>
-                </button>
-              </div>
-              <p className="text-xs text-slate-300 bg-black/40 p-2.5 rounded-xl border border-white/[0.04] select-all leading-relaxed">
-                รีวิวตัวเด็ด! สินค้าคุณภาพดีบอกต่อ #รีวิวช้อปปี้ #ของดีบอกต่อ #tiktokshopครีเอเตอร์ #capcut
-              </p>
-            </div>
-
-            {/* Footer Close */}
-            <div className="flex justify-end pt-2 border-t border-white/[0.08]">
-              <Button variant="secondary" onClick={() => setSelectedDetailVideo(null)}>
-                ปิดหน้าต่าง
-              </Button>
-            </div>
-          </div>
-        </Modal>
-      )}
       </>
       )}
     </div>

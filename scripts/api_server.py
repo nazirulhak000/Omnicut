@@ -142,15 +142,45 @@ def measure_wav_duration(wav_path: Path) -> float:
 
 def get_file_info(file_path: Path) -> Dict[str, Any]:
     stat = file_path.stat()
+    rel_path = str(file_path.relative_to(BASE_DIR)).replace("\\", "/")
+    webp_path = file_path.with_suffix(".webp")
+    thumbnail_url = None
+    if webp_path.exists():
+        try:
+            thumbnail_url = f"/api/media/{str(webp_path.relative_to(BASE_DIR)).replace('\\', '/')}"
+        except Exception:
+            thumbnail_url = None
+
     return {
         "name": file_path.name,
         "path": str(file_path),
-        "rel_path": str(file_path.relative_to(BASE_DIR)).replace("\\", "/"),
+        "rel_path": rel_path,
+        "thumbnail_url": thumbnail_url,
         "size_bytes": stat.st_size,
         "size_mb": round(stat.st_size / (1024 * 1024), 2),
         "modified_time": datetime.datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
         "timestamp": stat.st_mtime
     }
+
+class DeleteFileRequest(BaseModel):
+    file_path: str
+
+VIDEO_EXTENSIONS = {".mp4", ".mov", ".m4v", ".webm", ".hevc", ".mkv"}
+
+def scan_video_files(*dirs: Path) -> List[Path]:
+    """Fast single-pass filesystem scanner for video files across given directories."""
+    found = []
+    seen = set()
+    for d in dirs:
+        if not d.exists():
+            continue
+        for p in d.rglob("*"):
+            if p.is_file() and p.suffix.lower() in VIDEO_EXTENSIONS:
+                resolved = p.resolve()
+                if resolved not in seen:
+                    seen.add(resolved)
+                    found.append(p)
+    return found
 
 # Range-supporting file streamer for smooth HTML5 video/audio playback
 def stream_media_file(file_path: Path, request: Request):
@@ -179,8 +209,9 @@ def stream_media_file(file_path: Path, request: Request):
     elif ext in [".otf"]:
         content_type = "font/otf"
 
+    STREAM_CHUNK_SIZE = 256 * 1024  # 256KB high-throughput buffer
+
     if range_header:
-        # Example: "bytes=100-200" or "bytes=100-"
         byte_range = range_header.replace("bytes=", "").split("-")
         start = int(byte_range[0])
         end = int(byte_range[1]) if byte_range[1] else file_size - 1
@@ -192,7 +223,7 @@ def stream_media_file(file_path: Path, request: Request):
                 f.seek(start)
                 bytes_left = chunk_size
                 while bytes_left > 0:
-                    read_len = min(64 * 1024, bytes_left)
+                    read_len = min(STREAM_CHUNK_SIZE, bytes_left)
                     data = f.read(read_len)
                     if not data:
                         break
@@ -209,7 +240,7 @@ def stream_media_file(file_path: Path, request: Request):
     else:
         def iterfile():
             with open(file_path, "rb") as f:
-                while chunk := f.read(64 * 1024):
+                while chunk := f.read(STREAM_CHUNK_SIZE):
                     yield chunk
 
         headers = {
@@ -219,12 +250,15 @@ def stream_media_file(file_path: Path, request: Request):
         }
         return StreamingResponse(iterfile(), headers=headers)
 
+import functools
+
+@functools.lru_cache(maxsize=1)
 def get_local_ip() -> str:
-    """Returns the primary local IPv4 address of this machine on the LAN/Wi-Fi."""
+    """Returns the primary local IPv4 address of this machine on the LAN/Wi-Fi (cached for instant sub-millisecond response)."""
     try:
         import socket
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.settimeout(0.5)
+        s.settimeout(0.3)
         s.connect(("8.8.8.8", 80))
         ip = s.getsockname()[0]
         s.close()
@@ -242,12 +276,8 @@ def get_local_ip() -> str:
 
 @app.get("/api/status")
 def get_system_status():
-    """Returns general health and system stats."""
-    raw_files = []
-    for ext in ("*.mov", "*.mp4", "*.m4v", "*.MOV", "*.MP4"):
-        raw_files.extend(glob.glob(str(RAW_DIR / "**" / ext), recursive=True))
-        raw_files.extend(glob.glob(str(INBOX_DIR / "**" / ext), recursive=True))
-    
+    """Returns general health and system stats with fast single-pass scanning."""
+    raw_files = scan_video_files(RAW_DIR, INBOX_DIR)
     export_files = list(EXPORTS_DIR.glob("*.mp4"))
     local_ip = get_local_ip()
 
@@ -256,7 +286,7 @@ def get_system_status():
         "ffmpeg_ready": True,
         "capcut_draft_path": str(CAPCUT_DRAFT_DIR),
         "capcut_synced": CAPCUT_DRAFT_DIR.exists(),
-        "total_raw_videos": len(set(raw_files)),
+        "total_raw_videos": len(raw_files),
         "total_exports": len(export_files),
         "local_ip": local_ip,
         "mobile_url": f"http://{local_ip}:5173",
@@ -272,15 +302,10 @@ def get_system_status():
 
 @app.get("/api/videos")
 def list_raw_videos(product_id: Optional[str] = None):
-    """Lists all available raw video candidates, with product-scoped filtering if product_id is provided."""
-    candidates = []
-    video_exts = ("*.mov", "*.mp4", "*.m4v", "*.MOV", "*.MP4", "*.webm", "*.WEBM", "*.hevc", "*.HEVC", "*.mkv", "*.MKV")
-    for ext in video_exts:
-        candidates.extend(glob.glob(str(RAW_DIR / "**" / ext), recursive=True))
-        candidates.extend(glob.glob(str(INBOX_DIR / "**" / ext), recursive=True))
-
-    unique_paths = sorted(list(set(candidates)), key=os.path.getmtime, reverse=True)
-    all_videos = [get_file_info(Path(p)) for p in unique_paths]
+    """Lists all available raw video candidates with fast single-pass scanning."""
+    candidates = scan_video_files(RAW_DIR, INBOX_DIR)
+    unique_paths = sorted(candidates, key=lambda p: p.stat().st_mtime, reverse=True)
+    all_videos = [get_file_info(p) for p in unique_paths]
 
     product_videos = []
     if product_id:
@@ -288,18 +313,13 @@ def list_raw_videos(product_id: Optional[str] = None):
             prod_assigned = ProductStore.get_product_videos(product_id)
             assigned_paths = {v.get("path") or v.get("rel_path") for v in prod_assigned}
 
-            # Product scoped directory
             prod_dir = RAW_DIR / product_id
-            prod_dir_paths = set()
-            if prod_dir.exists():
-                for ext in video_exts:
-                    prod_dir_paths.update(glob.glob(str(prod_dir / "**" / ext), recursive=True))
+            prod_dir_paths = {p.resolve() for p in scan_video_files(prod_dir)} if prod_dir.exists() else set()
 
-            # Combine assigned + directory
             for v in all_videos:
-                if v["path"] in assigned_paths or v["rel_path"] in assigned_paths or v["path"] in prod_dir_paths:
+                v_path = Path(v["path"]).resolve()
+                if v["path"] in assigned_paths or v["rel_path"] in assigned_paths or v_path in prod_dir_paths:
                     product_videos.append(v)
-
         except Exception as e:
             print(f"Error fetching product videos: {e}")
             product_videos = []
@@ -313,9 +333,9 @@ def list_raw_videos(product_id: Optional[str] = None):
     }
 
 @app.post("/api/delete-file")
-def delete_file_endpoint(payload: Dict[str, Any]):
-    """Deletes a raw/inbox/asset file safely."""
-    file_path = payload.get("file_path")
+def delete_file_endpoint(payload: DeleteFileRequest):
+    """Deletes a raw/inbox/asset file safely along with any companion webp poster."""
+    file_path = payload.file_path
     if not file_path:
         raise HTTPException(status_code=400, detail="Missing file_path")
 
@@ -342,6 +362,15 @@ def delete_file_endpoint(payload: Dict[str, Any]):
                         time.sleep(0.2)
                     else:
                         raise
+
+            # Also delete companion .webp thumbnail if present
+            webp_p = p.with_suffix(".webp")
+            if webp_p.exists():
+                try:
+                    webp_p.unlink()
+                except Exception:
+                    pass
+
             return {"success": True, "message": f"Deleted {p.name}"}
         except PermissionError:
             raise HTTPException(
@@ -394,6 +423,21 @@ async def upload_file(
     with open(save_path, "wb") as buffer:
         while chunk := await file.read(1024 * 1024):
             buffer.write(chunk)
+
+    # Auto-convert iPhone HEIC/HEIF images to standard JPEG for universal browser compatibility
+    if orig_suffix.lower() in [".heic", ".heif"]:
+        jpg_save_path = save_path.with_suffix(".jpg")
+        try:
+            conv_cmd = ["ffmpeg", "-y", "-i", str(save_path), "-q:v", "2", str(jpg_save_path)]
+            subprocess.run(conv_cmd, check=True, capture_output=True)
+            if jpg_save_path.exists():
+                try:
+                    save_path.unlink()
+                except Exception:
+                    pass
+                save_path = jpg_save_path
+        except Exception as conv_err:
+            print(f"Warning: HEIC conversion failed: {conv_err}")
 
     file_info = get_file_info(save_path)
 
@@ -539,21 +583,9 @@ def get_raw_vault():
     """Returns rich metadata of all raw footage grouped by products and unassigned clips."""
     products = ProductStore._load()
 
-    # 1. Collect all video files in RAW_DIR and INBOX_DIR
-    all_raw_files = []
-    seen_paths = set()
-
-    for p in RAW_DIR.rglob("*"):
-        if p.is_file() and p.suffix.lower() in {".mp4", ".mov", ".m4v", ".webm", ".mkv"}:
-            if p.resolve() not in seen_paths:
-                seen_paths.add(p.resolve())
-                all_raw_files.append(get_file_info(p))
-
-    for p in INBOX_DIR.glob("*"):
-        if p.is_file() and p.suffix.lower() in {".mp4", ".mov", ".m4v", ".webm", ".mkv"}:
-            if p.resolve() not in seen_paths:
-                seen_paths.add(p.resolve())
-                all_raw_files.append(get_file_info(p))
+    # 1. Collect all video files in RAW_DIR and INBOX_DIR (Fast single-pass)
+    raw_file_paths = scan_video_files(RAW_DIR, INBOX_DIR)
+    all_raw_files = [get_file_info(p) for p in raw_file_paths]
 
     # 2. Build product groups
     product_groups = []

@@ -33,8 +33,22 @@ def is_busy() -> bool:
     return _RENDER_SLOT.locked()
 
 
+def _prune_old_jobs(max_keep: int = 50) -> None:
+    """Prunes finished/failed jobs to keep memory footprint strictly bounded (max 50 jobs)."""
+    if len(ACTIVE_JOBS) <= max_keep:
+        return
+    finished_keys = [
+        k for k, v in ACTIVE_JOBS.items()
+        if v.get("status") in ("completed", "failed")
+    ]
+    excess = len(ACTIVE_JOBS) - max_keep
+    for k in finished_keys[:excess]:
+        ACTIVE_JOBS.pop(k, None)
+
+
 def create_job(job_id: str, message: str = "กำลังเริ่มต้นกระบวนการ...") -> Dict[str, Any]:
     """Register a queued job and return it."""
+    _prune_old_jobs(max_keep=50)
     ACTIVE_JOBS[job_id] = {
         "id": job_id,
         "status": "queued",

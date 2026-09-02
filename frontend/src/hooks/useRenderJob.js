@@ -1,15 +1,37 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { startRender, getRenderStatus } from '../api';
 
+export const ACTIVE_RENDER_STORAGE_KEY = 'capcut_active_render_job';
+
+const getInitialRenderJob = () => {
+  try {
+    const saved = localStorage.getItem(ACTIVE_RENDER_STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Valid for up to 15 minutes (900,000 ms)
+      if (parsed?.jobId && Date.now() - (parsed.startedAt || 0) < 900000) {
+        return parsed;
+      }
+    }
+  } catch (e) {}
+  return null;
+};
+
 /**
  * useRenderJob Hook
  * Robust background polling engine for video render tasks
- * Includes Anti-Hang fail-safe (600s max), consecutive error tolerance, and clean unmounting.
+ * - Persists active job to localStorage to survive page refreshes and tab changes
+ * - Includes Anti-Hang fail-safe (600s max), consecutive error tolerance, and clean unmounting
  */
 export function useRenderJob({ onComplete, onError } = {}) {
-  const [rendering, setRendering] = useState(false);
-  const [jobId, setJobId] = useState(null);
-  const [jobStatus, setJobStatus] = useState(null);
+  const initialJob = getInitialRenderJob();
+
+  const [rendering, setRendering] = useState(!!initialJob?.jobId);
+  const [jobId, setJobId] = useState(initialJob?.jobId || null);
+  const [jobProjectName, setJobProjectName] = useState(initialJob?.projectName || '');
+  const [jobStatus, setJobStatus] = useState(
+    initialJob ? { progress: 0.1, message: 'กำลังเชื่อมต่อกับงานเรนเดอร์...' } : null
+  );
   const [renderResult, setRenderResult] = useState(null);
   const [renderError, setRenderError] = useState(null);
 
@@ -26,14 +48,54 @@ export function useRenderJob({ onComplete, onError } = {}) {
 
   const resetJob = useCallback(() => {
     clearPolling();
+    try {
+      localStorage.removeItem(ACTIVE_RENDER_STORAGE_KEY);
+    } catch (e) {}
     setRendering(false);
     setJobId(null);
+    setJobProjectName('');
     setJobStatus(null);
     setRenderResult(null);
     setRenderError(null);
     pollCountRef.current = 0;
     consecutiveErrorsRef.current = 0;
   }, [clearPolling]);
+
+  // Initial immediate status check on mount if restored from localStorage
+  useEffect(() => {
+    if (initialJob?.jobId && !renderResult && !renderError) {
+      getRenderStatus(initialJob.jobId)
+        .then((status) => {
+          setJobStatus(status);
+          if (status.status === 'completed') {
+            try {
+              localStorage.removeItem(ACTIVE_RENDER_STORAGE_KEY);
+            } catch (e) {}
+            setRendering(false);
+            setRenderResult(status.result);
+            onComplete?.(status.result);
+          } else if (status.status === 'failed') {
+            try {
+              localStorage.removeItem(ACTIVE_RENDER_STORAGE_KEY);
+            } catch (e) {}
+            setRendering(false);
+            setRenderError(status.error || 'การตัดต่อล้มเหลว');
+            onError?.(status.error);
+          }
+        })
+        .catch((err) => {
+          if (err.response?.status === 404) {
+            // Job already cleaned up on server
+            try {
+              localStorage.removeItem(ACTIVE_RENDER_STORAGE_KEY);
+            } catch (e) {}
+            setRendering(false);
+            setJobId(null);
+          }
+        });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Polling loop effect
   useEffect(() => {
@@ -51,6 +113,9 @@ export function useRenderJob({ onComplete, onError } = {}) {
       // Fail-safe: 10 minutes maximum (600 seconds)
       if (pollCountRef.current > 600) {
         clearPolling();
+        try {
+          localStorage.removeItem(ACTIVE_RENDER_STORAGE_KEY);
+        } catch (e) {}
         setRendering(false);
         const errMsg = 'กระบวนการตัดต่อใช้เวลานานเกิน 10 นาที ระบบได้ยกเลิกการรออัตโนมัติ กรุณาตรวจสอบคลิปต้นฉบับ';
         setRenderError(errMsg);
@@ -65,20 +130,36 @@ export function useRenderJob({ onComplete, onError } = {}) {
 
         if (status.status === 'completed') {
           clearPolling();
+          try {
+            localStorage.removeItem(ACTIVE_RENDER_STORAGE_KEY);
+          } catch (e) {}
           setRendering(false);
           setRenderResult(status.result);
           onComplete?.(status.result);
         } else if (status.status === 'failed') {
           clearPolling();
+          try {
+            localStorage.removeItem(ACTIVE_RENDER_STORAGE_KEY);
+          } catch (e) {}
           setRendering(false);
           const errMsg = status.error || 'การตัดต่อล้มเหลว กรุณาตรวจสอบไฟล์วิดีโอหรือลองใหม่อีกครั้ง';
           setRenderError(errMsg);
           onError?.(errMsg);
         }
       } catch (err) {
+        if (err.response?.status === 404) {
+          clearPolling();
+          try {
+            localStorage.removeItem(ACTIVE_RENDER_STORAGE_KEY);
+          } catch (e) {}
+          setRendering(false);
+          setJobId(null);
+          return;
+        }
+
         console.error('Render polling error:', err);
         consecutiveErrorsRef.current += 1;
-        if (consecutiveErrorsRef.current >= 5) {
+        if (consecutiveErrorsRef.current >= 8) {
           clearPolling();
           setRendering(false);
           const errMsg = 'สูญเสียการเชื่อมต่อกับเซิร์ฟเวอร์ระหว่างติดตามสถานะการตัดต่อ กรุณาตรวจสอบสถานะเซิร์ฟเวอร์';
@@ -94,17 +175,32 @@ export function useRenderJob({ onComplete, onError } = {}) {
   const executeRender = useCallback(async (payload) => {
     resetJob();
     setRendering(true);
+    const projName = payload.project_name || payload.product_name || 'วิดีโอ';
+    setJobProjectName(projName);
     setJobStatus({ progress: 0.05, message: 'กำลังเตรียมข้อมูลและจัดโครงสร้างสคริปต์...' });
 
     try {
       const res = await startRender(payload);
       if (res.job_id) {
+        try {
+          localStorage.setItem(
+            ACTIVE_RENDER_STORAGE_KEY,
+            JSON.stringify({
+              jobId: res.job_id,
+              projectName: projName,
+              startedAt: Date.now()
+            })
+          );
+        } catch (e) {}
         setJobId(res.job_id);
         return res.job_id;
       } else {
         throw new Error('ไม่พบ Job ID จากเซิร์ฟเวอร์');
       }
     } catch (err) {
+      try {
+        localStorage.removeItem(ACTIVE_RENDER_STORAGE_KEY);
+      } catch (e) {}
       setRendering(false);
       const errMsg = err.friendlyMessage || err.response?.data?.detail || err.message || 'เกิดข้อผิดพลาดในการสั่งเรนเดอร์';
       setRenderError(errMsg);
@@ -118,6 +214,7 @@ export function useRenderJob({ onComplete, onError } = {}) {
   return {
     rendering,
     jobId,
+    jobProjectName,
     jobStatus,
     progressPercent,
     renderResult,

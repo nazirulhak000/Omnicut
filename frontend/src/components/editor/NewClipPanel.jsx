@@ -108,7 +108,7 @@ export default function NewClipPanel({
   }, [form]);
 
   const {
-    rendering, jobStatus, progressPercent, renderError, executeRender,
+    rendering, jobProjectName, jobStatus, progressPercent, renderError, executeRender,
   } = useRenderJob({
     onComplete: (result) => {
       const name = result?.project_name || result?.projectName;
@@ -294,8 +294,8 @@ export default function NewClipPanel({
         <div className="w-full max-w-md space-y-4 text-center">
           <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#D97757]" />
           <div>
-            <p className="text-sm font-bold text-white">กำลังสร้าง {projectName}</p>
-            <p className="pt-1 text-sm text-slate-400">{jobStatus?.message || 'กำลังเตรียมข้อมูล...'}</p>
+            <p className="text-sm font-bold text-white">กำลังสร้าง {jobProjectName || projectName}</p>
+            <p className="pt-1 text-sm text-slate-400">{jobStatus?.message || jobStatus?.step_label || 'กำลังเตรียมข้อมูล...'}</p>
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.08]">
             <div className="h-full bg-[#D97757] transition-all duration-500" style={{ width: `${Math.max(4, progressPercent)}%` }} />

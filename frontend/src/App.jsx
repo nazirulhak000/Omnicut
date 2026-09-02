@@ -18,7 +18,7 @@ const SystemAssets = lazy(() => import('./components/SystemAssets'));
 import { angleToForm } from './lib/angleToForm';
 import { applyUiScale, initUiScale } from './lib/uiScale';
 import { TaskProvider } from './context/TaskContext';
-import { ActivityDrawer, GlobalTaskNotification, ActivityIndicatorButton } from './components/ActivityCenter';
+import { ActivityDrawer, GlobalTaskNotification, ActivityIndicatorButton, GlobalLiveRenderWidget } from './components/ActivityCenter';
 
 export default function App() {
 
@@ -336,6 +336,10 @@ export default function App() {
         {/* ── Global Persistent Activity Drawer & Task Notifications ── */}
         <ActivityDrawer />
         <GlobalTaskNotification />
+        <GlobalLiveRenderWidget
+          currentTab={activeTab}
+          onNavigateToEditor={() => setActiveTab('editor')}
+        />
       </div>
     </TaskProvider>
   );

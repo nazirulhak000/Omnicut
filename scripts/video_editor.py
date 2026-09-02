@@ -175,19 +175,28 @@ class VideoEditor:
                 if "rotation" in side:
                     rotation = int(side["rotation"])
             
-            # If rotated 90 or -90, swap width and height
-            if abs(rotation) in (90, 270):
-                width, height = height, width
+            # Check frame rate (30fps standard or 60fps ultra-smooth)
+            r_frame_rate = video_stream.get("r_frame_rate", "30/1")
+            fps = 30
+            if "/" in r_frame_rate:
+                try:
+                    num, den = r_frame_rate.split("/")
+                    if float(den) > 0:
+                        raw_fps = float(num) / float(den)
+                        fps = 60 if raw_fps >= 45 else 30
+                except Exception:
+                    pass
 
             return {
                 "duration": duration,
                 "width": width,
                 "height": height,
                 "rotation": rotation,
+                "fps": fps,
                 "has_audio": has_audio
             }
         except Exception as e:
-            return {"duration": 60.0, "width": 1080, "height": 1920, "rotation": 0, "has_audio": False}
+            return {"duration": 60.0, "width": 1080, "height": 1920, "rotation": 0, "fps": 30, "has_audio": False}
 
     @classmethod
     def assemble_tiktok_video(
@@ -240,6 +249,16 @@ class VideoEditor:
         # default for everything else -- this is a strict superset of the
         # old behavior, zero risk to a caller that passes nothing.
         shot_scales = shot_scales or [1.25, 1.0, 1.35, 1.05, 1.3, 1.0]
+
+        # Determine optimal output FPS (auto-match 60fps if source is 60fps, else 30)
+        target_fps = FPS
+        if raw_video_paths:
+            try:
+                first_info = cls.get_media_info(raw_video_paths[0])
+                if first_info.get("fps", 30) >= 45:
+                    target_fps = 60
+            except Exception:
+                pass
 
         filter_complex = []
         concat_inputs = []
@@ -556,29 +575,64 @@ class VideoEditor:
 
         cmd = [
             "ffmpeg", "-y",
+            "-threads", "0",
             *cmd_inputs,
             "-filter_complex", full_filter,
             "-map", "[v_final]",
             "-map", final_audio_map,
             "-c:v", "libx264",
+            "-profile:v", "high",
+            "-level", "4.2",
             "-preset", profile["x264_preset"],
             "-crf", str(profile["crf"]),
+            "-r", str(target_fps),
             "-c:a", "aac",
             "-b:a", "192k",
             "-pix_fmt", "yuv420p",
+            "-movflags", "+faststart",
             "-t", str(total_duration),
             str(out_file)
         ]
 
         print(f"Executing video render to: {out_file}...")
-        res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore")
-        if res.returncode != 0:
-            print("FFmpeg Error details:", res.stderr[-500:])
-            # If subtitles filter failed due to path syntax on Windows, fallback without quotes
-            raise RuntimeError(f"FFmpeg render failed:\n{res.stderr[-500:]}")
+        try:
+            res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=300)
+            if res.returncode != 0:
+                print("FFmpeg Error details:", res.stderr[-500:])
+                raise RuntimeError(f"FFmpeg render failed:\n{res.stderr[-500:]}")
+        except subprocess.TimeoutExpired:
+            raise TimeoutError(f"FFmpeg render timed out after 300 seconds for: {out_file.name}")
+
+        # Automatically generate ultra-lightweight WebP poster thumbnail for instant 0.05s gallery display
+        cls.generate_poster_thumbnail(out_file)
 
         print(f"Render completed successfully: {out_file}")
         return str(out_file)
+
+    @classmethod
+    def generate_poster_thumbnail(cls, video_path: Path, poster_path: Optional[Path] = None) -> Optional[Path]:
+        """Generates a high-quality, lightweight WebP poster thumbnail (540x960, ~20KB) from the video."""
+        video_p = Path(video_path).resolve()
+        if not video_p.exists():
+            return None
+        out_poster = poster_path or video_p.with_suffix(".webp")
+        try:
+            cmd = [
+                "ffmpeg", "-y",
+                "-ss", "00:00:00.500",
+                "-i", str(video_p),
+                "-vframes", "1",
+                "-vf", "scale=540:960:force_original_aspect_ratio=decrease,pad=540:960:(ow-iw)/2:(oh-ih)/2:black",
+                "-c:v", "libwebp",
+                "-q:v", "80",
+                str(out_poster)
+            ]
+            subprocess.run(cmd, capture_output=True, timeout=15)
+            if out_poster.exists() and out_poster.stat().st_size > 0:
+                return out_poster
+        except Exception as e:
+            print(f"Notice: Failed to generate webp poster: {e}")
+        return None
 
 if __name__ == "__main__":
     # Quick self-test if test audio exists

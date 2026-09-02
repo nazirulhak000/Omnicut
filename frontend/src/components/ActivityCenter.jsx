@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Zap, CheckCircle2, AlertCircle, Clock, X, Trash2, ArrowRight,
-  Loader2, Sparkles, Film, Rocket, Mic, RefreshCw, Layers
+  Loader2, Sparkles, Film, Rocket, Mic, RefreshCw, Layers, ExternalLink
 } from 'lucide-react';
 import { useTaskManager } from '../context/TaskContext';
 
@@ -361,6 +361,55 @@ export function GlobalTaskNotification() {
             </button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+export function GlobalLiveRenderWidget({ currentTab, onNavigateToEditor }) {
+  const { activeTasks } = useTaskManager();
+
+  const renderTask = activeTasks.find(
+    (t) => (t.task_type === 'render_video' || t.task_type === 'render') &&
+           (t.status === 'processing' || t.status === 'queued')
+  );
+
+  if (!renderTask || currentTab === 'editor') return null;
+
+  const pct = Math.round((renderTask.progress || 0) * 100);
+  const title = renderTask.payload?.project_name || renderTask.title || 'กำลังตัดต่อวิดีโอ';
+
+  return (
+    <div className="fixed bottom-20 md:bottom-5 left-1/2 -translate-x-1/2 z-40 w-[92%] max-w-md animate-slideUp">
+      <div className="p-3 rounded-2xl bg-[#080B11]/95 border border-[#D97757]/40 shadow-2xl backdrop-blur-2xl flex items-center justify-between gap-3 ring-1 ring-[#D97757]/30 shadow-[#D97757]/10">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          <div className="w-8 h-8 rounded-xl bg-[#D97757]/15 border border-[#D97757]/30 flex items-center justify-center flex-shrink-0 text-[#D97757]">
+            <Loader2 className="w-4 h-4 animate-spin text-[#D97757]" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between text-xs font-bold text-white mb-1">
+              <span className="truncate">{title}</span>
+              <span className="font-mono text-[#E89274] ml-2 flex-shrink-0">{pct}%</span>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-white/[0.08] overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-[#D97757] to-[#FE2C55] transition-all duration-300 rounded-full"
+                style={{ width: `${Math.max(5, pct)}%` }}
+              />
+            </div>
+            <p className="text-[11px] text-slate-400 truncate mt-0.5">
+              {renderTask.step_label || 'กำลังประมวลผลขั้นตอนต่างๆ...'}
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onNavigateToEditor}
+          className="px-3 py-1.5 rounded-xl bg-[#D97757] hover:bg-[#C2683D] text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition-all shadow-md flex-shrink-0 active:scale-95"
+        >
+          <span>ดูหน้าตัดต่อ</span>
+          <ExternalLink className="w-3 h-3" />
+        </button>
       </div>
     </div>
   );
