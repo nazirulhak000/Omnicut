@@ -47,13 +47,13 @@ function Section({ step, title, hint, children, done }) {
   return (
     <section className="rounded-2xl border border-white/[0.08] bg-black/40 p-3">
       <header className="mb-2 flex items-center gap-2">
-        <span className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg text-sm font-bold ${
+        <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-base font-bold ${
           done ? 'bg-[#D97757] text-white' : 'bg-white/[0.06] text-slate-400'
         }`}>
-          {done ? <Check className="h-3.5 w-3.5" /> : step}
+          {done ? <Check className="h-4 w-4" /> : step}
         </span>
-        <h3 className="text-xs font-bold text-white">{title}</h3>
-        {hint && <span className="ml-auto text-sm text-slate-500">{hint}</span>}
+        <h3 className="text-lg font-bold text-white">{title}</h3>
+        {hint && <span className="ml-auto text-sm text-[#9C968F]">{hint}</span>}
       </header>
       {children}
     </section>
@@ -67,10 +67,10 @@ function Field({ label, value, onChange, placeholder, multiline }) {
       <span className="mb-1 block text-sm text-slate-400">{label}</span>
       <Tag
         value={value || ''}
-        rows={multiline ? 3 : undefined}
+        rows={multiline ? 4 : undefined}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full resize-none rounded-lg border border-white/[0.08] bg-black/40 px-2 py-1.5 text-sm text-white placeholder-slate-600 focus:border-[#D97757] focus:outline-none"
+        className="min-h-9 w-full resize-none rounded-lg border border-white/[0.08] bg-black/40 px-3 py-2 text-base text-white placeholder-slate-600 focus:border-[#D97757] focus:outline-none"
       />
     </label>
   );
@@ -266,7 +266,7 @@ export default function NewClipPanel({
               <li key={label} className={i <= stepIndex ? 'text-[#E89274]' : 'text-slate-600'}>{label}</li>
             ))}
           </ol>
-          <p className="text-sm leading-relaxed text-slate-500">
+          <p className="text-sm leading-relaxed text-[#9C968F]">
             พากย์เสียงกับเรนเดอร์ใช้เวลา 2-4 นาทีบนเครื่องนี้ · ยกเลิกกลางคันไม่ได้ ปิดหน้านี้แล้วงานยังวิ่งต่อ
           </p>
         </div>
@@ -275,14 +275,15 @@ export default function NewClipPanel({
   }
 
   return (
-    <div className="h-full overflow-y-auto p-4">
-      <div className="mx-auto max-w-2xl space-y-3">
+    <div className="h-full overflow-y-auto p-4 xl:p-6">
+      <div className="mx-auto max-w-3xl space-y-3 xl:max-w-5xl xl:space-y-4">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-[#D97757]" />
-          <h2 className="text-sm font-bold text-white">สร้างคลิปใหม่</h2>
-          <span className="ml-auto font-mono text-sm text-slate-500">{projectName}</span>
+          <Sparkles className="h-6 w-6 text-[#D97757]" />
+          <h2 className="text-2xl font-bold text-white">สร้างคลิปใหม่</h2>
+          <span className="ml-auto font-mono text-sm text-[#9C968F]">{projectName}</span>
         </div>
 
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 xl:gap-4 xl:items-start">
         {/* ── 1. product + angle ── */}
         <Section step="1" title="สินค้า & มุมที่จะเล่า" done={!!form.productName} hint={productContext ? productContext.title : 'ยังไม่ได้เลือกสินค้า'}>
           {angles.length > 0 ? (
@@ -292,17 +293,17 @@ export default function NewClipPanel({
                 <select
                   value={angleIndex}
                   onChange={(e) => onAngleChange?.(parseInt(e.target.value, 10))}
-                  className="w-full rounded-lg border border-white/[0.08] bg-black/40 px-2 py-1.5 text-sm text-white focus:border-[#D97757] focus:outline-none"
+                  className="h-9 w-full rounded-lg border border-white/[0.08] bg-black/40 px-3 text-base text-white focus:border-[#D97757] focus:outline-none"
                 >
                   {angles.map((a, i) => (
                     <option key={i} value={i}>{angleLabel(a, i)}</option>
                   ))}
                 </select>
               </label>
-              <div className="rounded-lg bg-white/[0.03] px-2 py-1.5 text-sm leading-relaxed text-slate-400">
-                <div className="truncate"><span className="text-slate-500">สินค้า:</span> {form.productName}</div>
-                <div className="truncate"><span className="text-slate-500">Hook:</span> {form.hookTitle || '—'}</div>
-                <div className="truncate"><span className="text-slate-500">ปัญหา:</span> {form.painPoint || '—'}</div>
+              <div className="rounded-lg bg-white/[0.03] px-3 py-2.5 text-sm leading-relaxed text-slate-400">
+                <div className="truncate"><span className="text-[#9C968F]">สินค้า:</span> {form.productName}</div>
+                <div className="truncate"><span className="text-[#9C968F]">Hook:</span> {form.hookTitle || '—'}</div>
+                <div className="truncate"><span className="text-[#9C968F]">ปัญหา:</span> {form.painPoint || '—'}</div>
               </div>
               <button
                 type="button"
@@ -324,7 +325,7 @@ export default function NewClipPanel({
               <button
                 type="button"
                 onClick={onGoToProductFlow}
-                className="w-full rounded-lg border border-white/[0.08] bg-black/40 py-1.5 text-sm font-bold text-slate-200 hover:text-white cursor-pointer"
+                className="h-9 w-full rounded-lg border border-white/[0.08] bg-black/40 text-sm font-bold text-slate-200 hover:text-white cursor-pointer"
               >
                 ไปเลือกสินค้า
               </button>
@@ -350,7 +351,7 @@ export default function NewClipPanel({
                 key={v.path}
                 type="button"
                 onClick={() => patch({ selectedVideo: v.path })}
-                className={`flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition-colors duration-150 cursor-pointer ${
+                className={`flex min-h-9 w-full items-center gap-2 rounded-lg border px-3 py-2 text-left transition-colors duration-150 cursor-pointer ${
                   form.selectedVideo === v.path
                     ? 'border-[#D97757] bg-[#D97757]/10 text-white'
                     : 'border-white/[0.08] bg-black/40 text-slate-300 hover:border-white/[0.2]'
@@ -362,7 +363,7 @@ export default function NewClipPanel({
               </button>
             ))}
             {videos.length === 0 && (
-              <p className="px-1 py-2 text-sm text-slate-500">ยังไม่มีคลิปดิบ — อัปโหลดด้านล่าง</p>
+              <p className="px-1 py-2 text-sm text-[#9C968F]">ยังไม่มีคลิปดิบ — อัปโหลดด้านล่าง</p>
             )}
           </div>
           <input
@@ -376,12 +377,14 @@ export default function NewClipPanel({
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={uploadPct !== null}
-            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/[0.08] bg-black/40 py-1.5 text-sm font-bold text-slate-200 hover:text-white disabled:opacity-50 cursor-pointer"
+            className="mt-2 flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-white/[0.08] bg-black/40 text-sm font-bold text-slate-200 hover:text-white disabled:opacity-50 cursor-pointer"
           >
             <Upload className="h-3.5 w-3.5" />
             {uploadPct !== null ? `กำลังอัปโหลด ${uploadPct}%` : 'อัปโหลดคลิปใหม่'}
           </button>
         </Section>
+
+        </div>
 
         {/* ── 3. script ── */}
         <Section step="3" title="บทพูด" done={!!form.customScript} hint={form.useCustomScript ? 'ใช้บทนี้' : 'ให้ระบบเขียนเอง'}>
@@ -390,7 +393,7 @@ export default function NewClipPanel({
               type="button"
               onClick={handleAiScript}
               disabled={aiBusy || !form.productName}
-              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#D97757]/40 bg-[#D97757]/10 py-1.5 text-sm font-bold text-[#E89274] hover:bg-[#D97757]/20 disabled:opacity-40 cursor-pointer"
+              className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-[#D97757]/40 bg-[#D97757]/10 text-sm font-bold text-[#E89274] hover:bg-[#D97757]/20 disabled:opacity-40 cursor-pointer"
             >
               {aiBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
               {aiBusy ? 'กำลังเขียน...' : 'ให้ AI เขียนบทให้'}
@@ -416,18 +419,18 @@ export default function NewClipPanel({
             )}
 
             <textarea
-              rows={6}
+              rows={10}
               value={form.customScript || ''}
               onChange={(e) => patch({ customScript: e.target.value, useCustomScript: true })}
               placeholder="บทจะเติมให้เองเมื่อเลือกมุมจากเมนูสินค้า หรือกดปุ่ม AI ด้านบน"
-              className="w-full resize-none rounded-lg border border-white/[0.08] bg-black/40 px-2 py-1.5 text-sm leading-relaxed text-white placeholder-slate-600 focus:border-[#D97757] focus:outline-none"
+              className="w-full resize-none rounded-lg border border-white/[0.08] bg-black/40 px-3 py-2.5 text-base leading-relaxed text-white placeholder-slate-600 focus:border-[#D97757] focus:outline-none"
             />
             <label className="flex items-center gap-2 text-sm text-slate-400 cursor-pointer">
               <input
                 type="checkbox"
                 checked={!!form.useCustomScript}
                 onChange={(e) => patch({ useCustomScript: e.target.checked })}
-                className="accent-[#D97757]"
+                className="h-[18px] w-[18px] flex-shrink-0 accent-[#D97757]"
               />
               พูดตามบทนี้ (ปิด = ให้ระบบเขียนบทจากจุดเด่นเอง)
             </label>
@@ -442,8 +445,8 @@ export default function NewClipPanel({
             className="flex w-full items-center gap-2 p-3 text-left cursor-pointer"
           >
             {showAdvanced ? <ChevronDown className="h-3.5 w-3.5 text-slate-400" /> : <ChevronRight className="h-3.5 w-3.5 text-slate-400" />}
-            <span className="text-xs font-bold text-white">ตั้งค่าเสียง & สไตล์</span>
-            <span className="ml-auto text-sm text-slate-500">ค่าเริ่มต้นใช้ได้เลย</span>
+            <span className="text-lg font-bold text-white">ตั้งค่าเสียง & สไตล์</span>
+            <span className="ml-auto text-sm text-[#9C968F]">ค่าเริ่มต้นใช้ได้เลย</span>
           </button>
 
           {showAdvanced && (
@@ -454,7 +457,7 @@ export default function NewClipPanel({
                   <select
                     value={form.voicePreset}
                     onChange={(e) => patch({ voicePreset: e.target.value })}
-                    className="min-w-0 flex-1 rounded-lg border border-white/[0.08] bg-black/40 px-2 py-1.5 text-sm text-white focus:outline-none"
+                    className="h-9 min-w-0 flex-1 rounded-lg border border-white/[0.08] bg-black/40 px-3 text-base text-white focus:outline-none"
                   >
                     {VOICE_PRESETS.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
                   </select>
@@ -463,7 +466,7 @@ export default function NewClipPanel({
                     onClick={handlePreviewVoice}
                     disabled={voiceBusy}
                     title="ลองฟังเสียง"
-                    className="flex h-[30px] w-9 flex-shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-black/40 text-slate-300 hover:text-white disabled:opacity-40 cursor-pointer"
+                    className="flex h-9 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-black/40 text-slate-300 hover:text-white disabled:opacity-40 cursor-pointer"
                   >
                     {voiceBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Volume2 className="h-3.5 w-3.5" />}
                   </button>
@@ -475,7 +478,7 @@ export default function NewClipPanel({
                 <select
                   value={form.fontName}
                   onChange={(e) => patch({ fontName: e.target.value })}
-                  className="w-full rounded-lg border border-white/[0.08] bg-black/40 px-2 py-1.5 text-sm text-white focus:outline-none"
+                  className="h-9 w-full rounded-lg border border-white/[0.08] bg-black/40 px-3 text-base text-white focus:outline-none"
                 >
                   {FONTS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
                 </select>
@@ -486,7 +489,7 @@ export default function NewClipPanel({
                 <select
                   value={form.adTone || 'commercial_premium'}
                   onChange={(e) => patch({ adTone: e.target.value })}
-                  className="w-full rounded-lg border border-white/[0.08] bg-black/40 px-2 py-1.5 text-sm text-white focus:outline-none"
+                  className="h-9 w-full rounded-lg border border-white/[0.08] bg-black/40 px-3 text-base text-white focus:outline-none"
                 >
                   {AD_TONES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
                 </select>
@@ -497,7 +500,7 @@ export default function NewClipPanel({
                   type="checkbox"
                   checked={form.useAiVision !== false}
                   onChange={(e) => patch({ useAiVision: e.target.checked })}
-                  className="accent-[#D97757]"
+                  className="h-[18px] w-[18px] flex-shrink-0 accent-[#D97757]"
                 />
                 ให้ AI ดูภาพเลือกช็อตให้ (ช้าลงเล็กน้อย แต่ตรงเนื้อหากว่า)
               </label>
@@ -507,12 +510,12 @@ export default function NewClipPanel({
                   type="checkbox"
                   checked={form.bilingualSubtitles !== false}
                   onChange={(e) => patch({ bilingualSubtitles: e.target.checked })}
-                  className="accent-[#D97757]"
+                  className="h-[18px] w-[18px] flex-shrink-0 accent-[#D97757]"
                 />
                 ซับสองภาษา (ไทย + อังกฤษ)
               </label>
 
-              <p className="text-xs leading-relaxed text-slate-500">
+              <p className="text-xs leading-relaxed text-[#9C968F]">
                 เพลง ฟิลเตอร์ ป้าย และหน้าตาซับ ปรับได้ละเอียดกว่านี้ในไทม์ไลน์หลังคลิปเสร็จ
               </p>
             </div>
@@ -537,12 +540,12 @@ export default function NewClipPanel({
           onClick={handleCreate}
           disabled={!!missing}
           title={missing || 'เริ่มสร้างคลิป'}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#D97757] py-2.5 text-sm font-bold text-white transition-colors duration-150 hover:bg-[#C2683D] disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#D97757] text-base font-bold text-white transition-colors duration-150 hover:bg-[#C2683D] disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
         >
           <Rocket className="h-4 w-4" />
           สร้างคลิป
         </button>
-        {missing && <p className="text-center text-sm text-slate-500">{missing}</p>}
+        {missing && <p className="text-center text-sm text-[#9C968F]">{missing}</p>}
       </div>
     </div>
   );

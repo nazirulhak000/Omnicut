@@ -18,6 +18,7 @@ import Inspector from './Inspector';
 import Timeline from './Timeline';
 import Toolbar from './Toolbar';
 import NewClipPanel from './NewClipPanel';
+import UiScaleControl from '../UiScaleControl';
 
 const framesFor = (seconds) => Math.max(6, Math.min(40, Math.round((seconds || 12) / 3)));
 const SNAP_PX = 6;
@@ -724,7 +725,7 @@ export default function EditorShell({
             onClick={() => loadProject(projectName)}
             disabled={!projectName || loading}
             title="โหลดใหม่"
-            className="w-7 h-7 flex items-center justify-center rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/[0.08] transition-colors cursor-pointer disabled:opacity-40 flex-shrink-0"
+            className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/[0.08] transition-colors cursor-pointer disabled:opacity-40 flex-shrink-0"
           >
             {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin text-[#25F4EE]" /> : <RefreshCw className="h-3.5 w-3.5" />}
           </button>
@@ -742,7 +743,7 @@ export default function EditorShell({
             onClick={() => setZen((v) => !v)}
             disabled={!projectName}
             title={zen ? 'กลับไปหน้าตัดต่อ (Esc)' : 'ขยายพรีวิวเต็มพื้นที่'}
-            className="hidden sm:flex h-7 items-center gap-1 px-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/[0.08] text-xs font-bold cursor-pointer transition-colors disabled:opacity-40"
+            className="hidden sm:flex h-9 items-center gap-1 px-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/[0.08] text-xs font-bold cursor-pointer transition-colors disabled:opacity-40"
           >
             {zen ? <><Minimize2 className="h-3.5 w-3.5" /> ย่อ</> : <><Maximize2 className="h-3.5 w-3.5" /> ขยาย</>}
           </button>
@@ -752,18 +753,20 @@ export default function EditorShell({
             onClick={() => { setProjectName(''); setSelection(null); }}
             disabled={applying}
             title="กลับไปหน้าสร้างคลิปใหม่"
-            className="flex h-8 items-center gap-1 rounded-xl border border-white/[0.08] bg-black/40 px-2 text-sm font-bold text-slate-200 hover:text-white disabled:opacity-50 cursor-pointer"
+            className="flex h-9 items-center gap-1 rounded-xl border border-white/[0.08] bg-black/40 px-2 text-sm font-bold text-slate-200 hover:text-white disabled:opacity-50 cursor-pointer"
           >
             <Sparkles className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">คลิปใหม่</span>
           </button>
+
+          <UiScaleControl className="hidden lg:flex" />
 
           <select
             value={exportPreset}
             onChange={(e) => setExportPreset(e.target.value)}
             disabled={applying}
             title="ทดลอง = 720p เข้ารหัสเร็ว ใช้ดูว่าตัดถูกไหม ไม่ใช่ไฟล์สำหรับโพสต์ (ชื่อไฟล์จะมี _draft)"
-            className="h-8 rounded-xl border border-white/[0.08] bg-black/40 px-2 text-sm text-slate-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] disabled:opacity-50"
+            className="h-9 rounded-xl border border-white/[0.08] bg-black/40 px-2 text-sm text-slate-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] disabled:opacity-50"
           >
             <option value="post">โพสต์จริง 1080p</option>
             <option value="draft">ทดลอง 720p (เร็ว 2 เท่า)</option>
@@ -773,7 +776,7 @@ export default function EditorShell({
             type="button"
             onClick={handleApply}
             disabled={applying || !projectName}
-            className="h-8 py-1 px-3 sm:px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-[#FE2C55]/20 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
+            className="h-9 py-1 px-3 sm:px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-[#FE2C55]/20 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
           >
             {applying ? (
               <><Loader2 className="h-3.5 w-3.5 animate-spin" /> <span>{progress}%</span></>

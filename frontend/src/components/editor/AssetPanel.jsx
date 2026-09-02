@@ -181,7 +181,7 @@ export default function AssetPanel({
   return (
     <div className="flex h-full min-h-0 flex-col border-r border-white/[0.08] bg-[#0C1019]">
       {/* tab rail */}
-      <div className="flex flex-shrink-0 border-b border-white/[0.08] overflow-x-auto">
+      <div className="no-scrollbar flex flex-shrink-0 overflow-x-auto border-b border-white/[0.08]">
         {TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -189,14 +189,14 @@ export default function AssetPanel({
             onClick={() => setTab(id)}
             title={label}
             aria-pressed={tab === id}
-            className={`flex flex-1 min-w-[50px] flex-col items-center gap-0.5 py-2 text-sm font-bold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#D97757] ${
+            className={`flex h-14 w-[68px] flex-shrink-0 flex-col items-center justify-center gap-1 whitespace-nowrap px-1 text-xs font-bold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#D97757] ${
               tab === id
                 ? 'border-b-2 border-[#D97757] bg-[#D97757]/10 text-[#E89274]'
                 : 'cursor-pointer text-[#9C968F] hover:bg-white/[0.04] hover:text-[#EDE9E3]'
             }`}
           >
-            <Icon className="h-3.5 w-3.5" />
-            <span>{label}</span>
+            <Icon className="h-4 w-4 flex-shrink-0" />
+            <span className="truncate">{label}</span>
           </button>
         ))}
       </div>

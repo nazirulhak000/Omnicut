@@ -445,7 +445,7 @@ export default function Inspector({
                         e.stopPropagation();
                         handleCursorSplit(cue);
                       }}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/[0.04] hover:bg-[#25F4EE]/20 text-slate-400 hover:text-[#25F4EE] border border-white/[0.06] transition-colors cursor-pointer flex-shrink-0"
+                      className="w-9 h-9 flex items-center justify-center rounded-lg bg-white/[0.04] hover:bg-[#25F4EE]/20 text-slate-400 hover:text-[#25F4EE] border border-white/[0.06] transition-colors cursor-pointer flex-shrink-0"
                       title="✂️ ตัดแบ่งท่อนคำบรรยาย (หรือกด Enter ในช่องพิมพ์)"
                     >
                       <Scissors className="w-3.5 h-3.5" />
@@ -459,7 +459,7 @@ export default function Inspector({
                           e.stopPropagation();
                           onMergeCue?.(cue._uid);
                         }}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/[0.04] hover:bg-blue-500/20 text-slate-400 hover:text-blue-400 border border-white/[0.06] transition-colors cursor-pointer flex-shrink-0"
+                        className="w-9 h-9 flex items-center justify-center rounded-lg bg-white/[0.04] hover:bg-blue-500/20 text-slate-400 hover:text-blue-400 border border-white/[0.06] transition-colors cursor-pointer flex-shrink-0"
                         title="🔗 รวมกับท่อนถัดไป"
                       >
                         <Link2 className="w-3.5 h-3.5" />
@@ -473,7 +473,7 @@ export default function Inspector({
                         e.stopPropagation();
                         onDeleteCue?.(cue._uid);
                       }}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/20 transition-colors cursor-pointer flex-shrink-0"
+                      className="w-9 h-9 flex items-center justify-center rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/20 transition-colors cursor-pointer flex-shrink-0"
                       title="🗑️ ลบท่อนนี้ออก"
                     >
                       <Trash2 className="w-3.5 h-3.5" />

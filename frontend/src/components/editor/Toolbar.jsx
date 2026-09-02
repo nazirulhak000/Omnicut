@@ -14,7 +14,7 @@ function ToolButton({ icon: Icon, label, hint, shortcut, onClick, disabled, acti
       disabled={disabled}
       title={tip}
       aria-label={label}
-      className={`flex h-7 items-center gap-1.5 rounded-lg px-2 text-sm font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
+      className={`flex h-9 items-center gap-1.5 rounded-lg px-2 text-sm font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
         disabled
           ? 'cursor-not-allowed text-[#5A554F]'
           : active

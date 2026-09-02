@@ -210,7 +210,7 @@ export default function Timeline({
               {ticks.map((t) => (
                 <div key={t} className="absolute top-0 h-full" style={{ left: t * pxPerSec }}>
                   <span className="absolute top-0 h-2 w-px bg-[#4A4742]" />
-                  <span className="absolute top-2 -translate-x-1/2 font-mono text-xs text-[#6B6660]">
+                  <span className="absolute top-2 -translate-x-1/2 font-mono text-xs text-[#9C968F]">
                     {formatTimecode(t)}
                   </span>
                 </div>

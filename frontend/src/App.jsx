@@ -16,6 +16,7 @@ const ExportGallery = lazy(() => import('./components/ExportGallery'));
 const SystemAssets = lazy(() => import('./components/SystemAssets'));
 
 import { angleToForm } from './lib/angleToForm';
+import { applyUiScale, initUiScale } from './lib/uiScale';
 
 export default function App() {
 
@@ -40,6 +41,11 @@ export default function App() {
 
   // 2. Global UI Font of the Application (Saved in localStorage)
   const [uiFont, setUiFont] = useState(() => localStorage.getItem('capcut_ui_font') || 'font-prompt');
+  // Interface size. initUiScale writes --ui-scale before the first paint so a
+  // saved choice does not flash at the default size first.
+  const [uiScale, setUiScaleState] = useState(() => initUiScale());
+
+  const handleUiScaleChange = (id) => setUiScaleState(applyUiScale(id));
 
   const handleUiFontChange = (fontClass) => {
     setUiFont(fontClass);
@@ -217,6 +223,8 @@ export default function App() {
             status={status}
             uiFont={uiFont}
             setUiFont={handleUiFontChange}
+            uiScale={uiScale}
+            setUiScale={handleUiScaleChange}
             onOpenShortcuts={() => setShowShortcutsModal(true)}
             onRefresh={refreshData}
             activeProductContext={activeProductContext}

@@ -1,8 +1,8 @@
+import UiScaleControl from './UiScaleControl';
 import React, { memo } from 'react';
 import {
   Rocket, Layers, Sparkles, Scissors, FolderDown, Settings,
-  Type, Keyboard, Wifi, WifiOff, RefreshCw, Package
-} from 'lucide-react';
+  Type, Keyboard, Wifi, WifiOff, RefreshCw, Package } from 'lucide-react';
 
 const TAB_CONFIG = {
   flow: {
@@ -54,6 +54,8 @@ export default memo(function Topbar({
   setActiveTab,
   status,
   uiFont = 'font-prompt',
+  uiScale = 'normal',
+  setUiScale,
   setUiFont,
   onOpenShortcuts,
   onRefresh,
@@ -118,6 +120,8 @@ export default memo(function Topbar({
           <Keyboard className="w-3.5 h-3.5 text-[#25F4EE]" />
           <kbd className="hidden lg:inline px-1.5 py-0.2 rounded bg-white/[0.08] border border-white/[0.1] text-sm text-slate-400 font-mono">?</kbd>
         </button>
+
+        <UiScaleControl value={uiScale} onChange={setUiScale} />
 
         {/* Global UI Font Selector */}
         <div className="flex items-center gap-1 sm:gap-1.5 bg-black/40 px-2 sm:px-2.5 py-1 rounded-xl border border-white/[0.08] text-xs min-w-0">
