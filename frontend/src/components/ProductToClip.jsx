@@ -10,6 +10,7 @@ import {
 } from '../api';
 import { Modal, Toast, Button, Badge, Input, Textarea, ConfirmModal } from './ui';
 import MediaPickerModal from './MediaPickerModal';
+import { toMediaUrl } from '../lib/mediaUrl';
 import { useToast } from '../hooks';
 import { useTaskManager } from '../context/TaskContext';
 
@@ -68,7 +69,7 @@ function ProductCard({ product, isSelected, onSelect }) {
 // 📝 ACCORDION SCRIPT ITEM (with Angle-Specific Footage Selector)
 // ═══════════════════════════════════════════════════════════════════════
 function ScriptAccordionItem({
-  angle, index, isOpen, onToggle, onCopy, onSendToStudio, onOpenInTimeline, copiedIndex,
+  angle, index, isOpen, onToggle, onCopy, onSendToStudio, onOpenInTimeline, onPreviewExportVideo, copiedIndex,
   videos = [], onToggleVideoForAngle, onUploadVideo, uploadingImg = false,
   onOpenMediaPicker
 }) {
@@ -139,6 +140,21 @@ function ScriptAccordionItem({
         <span className={`text-sm font-bold px-2 py-0.5 rounded-full border flex-shrink-0 ${statusColor}`}>
           {statusLabel}
         </span>
+
+        {/* Quick Preview Button on Header when Exported */}
+        {isRendered && angle.video_url && !isOpen && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onPreviewExportVideo && onPreviewExportVideo(angle);
+            }}
+            className="p-1 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/30 flex items-center justify-center flex-shrink-0 cursor-pointer transition-all"
+            title="กดเพื่อดูคลิปวิดีโอที่ Export แล้ว"
+          >
+            <Play className="w-3 h-3 fill-cyan-300 text-cyan-300" />
+          </button>
+        )}
 
         {/* Chevron */}
         {isOpen
@@ -251,6 +267,20 @@ function ScriptAccordionItem({
           <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/[0.06]">
             {isRendered ? (
               <>
+                {angle.video_url && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onPreviewExportVideo && onPreviewExportVideo(angle);
+                    }}
+                    className="py-2 px-3.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-400/40 text-cyan-300 hover:text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-cyan-500/10 cursor-pointer active:scale-95 transition-all"
+                    title="เปิดดูวิดีโอที่ตัดต่อและ Export เสร็จแล้ว (ตรวจ QC)"
+                  >
+                    <Film className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>👁️ ดูคลิปที่ Export แล้ว</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={(e) => {
@@ -342,7 +372,7 @@ function ScriptAccordionItem({
 // ═══════════════════════════════════════════════════════════════════════
 // 🌟 MAIN: ProductToClip Component (Redesigned Guided Workflow)
 // ═══════════════════════════════════════════════════════════════════════
-export default function ProductToClip({ status, videos = [], onRefresh, onApplyToStudio, selectedProductId }) {
+export default function ProductToClip({ status, videos = [], onRefresh, onApplyToStudio, onGoToGallery, selectedProductId }) {
   // Input Mode & Active View
   const [showAddModal, setShowAddModal] = useState(false);
   const [inputMode, setInputMode] = useState('link');
@@ -358,6 +388,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const [angles, setAngles] = useState([]);
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [openAngleIdx, setOpenAngleIdx] = useState(0); // Accordion: which angle is expanded
+  const [previewExportAngle, setPreviewExportAngle] = useState(null); // Dialog: preview exported MP4 video
   const { toastMessage, showToast, hideToast } = useToast();
   const { refreshTrigger, toggleActivityDrawer } = useTaskManager();
 
@@ -1172,6 +1203,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   onCopy={copyScriptText}
                   onSendToStudio={handleSendToStudio}
                   onOpenInTimeline={handleOpenInTimeline}
+                  onPreviewExportVideo={(ang) => setPreviewExportAngle(ang)}
                   copiedIndex={copiedIndex}
                   videos={videos}
                   onToggleVideoForAngle={handleToggleVideoForAngle}
@@ -1407,6 +1439,78 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* ── Video Export Preview Modal (Dialog ดูคลิป ณ จุดนั้นทันที) ── */}
+      <Modal
+        isOpen={!!previewExportAngle}
+        onClose={() => setPreviewExportAngle(null)}
+        title="🎬 พรีวิววิดีโอที่ตัดต่อเสร็จแล้ว (QC & Export Preview)"
+        subtitle={previewExportAngle?.hook_title || productData?.name}
+        maxWidth="max-w-md"
+      >
+        {previewExportAngle && (
+          <div className="space-y-3.5">
+            <div className="relative rounded-2xl overflow-hidden bg-black aspect-[9/16] max-h-[66vh] mx-auto border border-white/[0.1] shadow-2xl flex items-center justify-center">
+              <video
+                src={toMediaUrl(previewExportAngle.video_url)}
+                controls
+                autoPlay
+                playsInline
+                className="w-full h-full object-contain"
+              />
+            </div>
+
+            {/* Meta & Quick Details */}
+            <div className="p-3 rounded-xl bg-black/40 border border-white/[0.08] space-y-2">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-300">
+                <span className="flex items-center gap-1.5 text-emerald-400">
+                  <Check className="w-3.5 h-3.5" />
+                  <span>เรนเดอร์เสร็จสมบูรณ์พร้อมโพสต์ (9:16)</span>
+                </span>
+                {previewExportAngle.badge && (
+                  <Badge variant="cyan" size="sm">{previewExportAngle.badge}</Badge>
+                )}
+              </div>
+              {previewExportAngle.tiktok_caption && (
+                <p className="text-xs text-slate-300 line-clamp-2 font-mono leading-relaxed select-all">
+                  {previewExportAngle.tiktok_caption} {previewExportAngle.tiktok_hashtags}
+                </p>
+              )}
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center gap-2 pt-1">
+              {onGoToGallery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPreviewExportAngle(null);
+                    onGoToGallery();
+                  }}
+                  className="flex-1 py-2.5 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-slate-200 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                  title="ไปที่หน้าคลัง Export ทั้งหมด"
+                >
+                  <FolderOpen className="w-3.5 h-3.5 text-slate-400" />
+                  <span>เปิดใน Gallery</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  const ang = previewExportAngle;
+                  setPreviewExportAngle(null);
+                  handleOpenInTimeline(ang, openAngleIdx >= 0 ? openAngleIdx : 0);
+                }}
+                className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-emerald-500/20 active:scale-95 transition-all"
+                title="เปิดดูในไทม์ไลน์"
+              >
+                <Play className="w-3.5 h-3.5 fill-white text-white" />
+                <span>เปิดดูในไทม์ไลน์</span>
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* ── Delete Confirmation Modal ── */}

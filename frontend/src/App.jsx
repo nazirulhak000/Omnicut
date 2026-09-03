@@ -279,6 +279,7 @@ export default function App() {
                       videos={videos}
                       onRefresh={refreshData}
                       onApplyToStudio={handleApplyScriptFromLab}
+                      onGoToGallery={() => setActiveTab('gallery')}
                       selectedProductId={selectedProductIdForFlow}
                     />
                   </Suspense>
