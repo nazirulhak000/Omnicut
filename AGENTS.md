@@ -54,9 +54,11 @@ AI ทุกตัว**ต้องเคารพโครงสร้างโ
    - โฟลเดอร์ Raw: `YYYYMMDD_ชื่อสินค้า-ประเด็น` (เช่น `20260812_ลิปสติกABC-รีวิว`)
    - ไฟล์ Export: `YYYYMMDD_ชื่อสินค้า_hookสั้นๆ_vN.mp4`
    - ชื่อ CapCut Draft ต้องตรงกับชื่อโฟลเดอร์โปรเจกต์
-3. ✔️ **การจัดการภาษาไทยและซับไตเติล:**
-   - ใช้ `pythainlp` ในการตัดคำสำหรับ Subtitle Bursts
-   - ตรวจสอบปัญหาสระลอย/วรรณยุกต์ซ้อน และระยะห่างการแสดงผล
+3. ✔️ **การจัดการภาษาไทยและซับไตเติล (Micro-Burst & Kinetic Subtitles):**
+   - ต้องปฏิบัติตาม [.agents/rules/subtitle_kinetic_rules.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/subtitle_kinetic_rules.md)
+   - ใช้ `pythainlp` ในการตัดคำสำหรับ Subtitle Bursts สั้นกระชับ (2–4 คำ / 16–24 ตัวอักษร)
+   - ไฮไลต์สีคำสำคัญแบบไดนามิก (Dynamic Kinetic Highlighting เช่น เหลืองนีออน `#FFE600` บน Pain Point และราคา)
+   - ตรวจสอบปัญหาสระลอย/วรรณยุกต์ซ้อน และระยะห่างการแสดงผล Safe Zone ล่าง 420px เสมอ
 4. ✔️ **การเจนสติกเกอร์และป้าย (Sticker Rules):**
    - ต้องปฏิบัติตาม [.agents/rules/sticker_generation.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/sticker_generation.md)
    - เจน 1 รูปได้ 6 ป้าย (Grid 2x3: PROS, CONS, WARNING, PRO TIP, SCORE, VERDICT)
@@ -67,6 +69,9 @@ AI ทุกตัว**ต้องเคารพโครงสร้างโ
    - ระดับเสียง: Voice = 1.0, SFX = 0.6, BGM = 0.15 (-16dB)
 6. ✔️ **Code Reliability & Subprocess:**
    - การเรียกใช้ FFmpeg / ImageMagick / Rembg ต้องรันผ่าน subprocess พร้อม error handling และ log ข้อความภาษาไทยที่เข้าใจง่าย
+7. ✔️ **มาตรฐานการตัดต่อแบบ J-Cut (Audio Lead-in Standard):**
+   - ต้องปฏิบัติตาม [.agents/rules/j_cut_rules.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/j_cut_rules.md)
+   - ใช้เทคนิค **J-Cut** ในการตัดต่อสลับช็อต B-roll: เสียงประโยคถัดไป (หรือ SFX Whoosh ข้ามฉาก) ต้องดังขึ้นก่อนภาพตัดเปลี่ยน 150 – 250ms เพื่อลดความแข็งกระด้างของการตัดแบบกระตุก (Avoid Jarring Jump Cuts) และสร้างความอยากรู้ล่วงหน้า (Anticipation) ให้คนดูติดตามต่อจนจบ
 
 ---
 

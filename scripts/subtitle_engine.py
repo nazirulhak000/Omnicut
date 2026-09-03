@@ -122,6 +122,28 @@ class SubtitleEngine:
         if not raw_parts:
             return [clean_text]
 
+        # 1.1 If input has no spaces (or very few) and is longer than max_line_len:
+        # Segment into natural clauses at conjunctions and word boundaries using PyThaiNLP
+        if len(raw_parts) <= 1 and len(clean_text) > max_line_len:
+            try:
+                from pythainlp.tokenize import word_tokenize
+                words = word_tokenize(clean_text, engine="newmm")
+                clause_chunks = []
+                curr = ""
+                conjunctions = {"ว่า", "เพราะ", "ถ้า", "และ", "หรือ", "แต่", "เมื่อ", "มัน", "ที่", "ซึ่ง", "จน", "แล้ว", "คือ"}
+                for w in words:
+                    if (w in conjunctions and len(curr) >= 16) or (len(curr) + len(w) > max_line_len and len(curr) >= 14):
+                        clause_chunks.append(curr)
+                        curr = w
+                    else:
+                        curr += w
+                if curr:
+                    clause_chunks.append(curr)
+                if len(clause_chunks) > 1:
+                    raw_parts = clause_chunks
+            except Exception:
+                pass
+
         # 2. First pass: merge tiny orphan fragments into preceding clause
         merged_parts = []
         for p in raw_parts:
@@ -242,6 +264,126 @@ class SubtitleEngine:
         return micro_cues
 
     @classmethod
+    def wrap_text_for_ass(cls, text: str, max_chars_per_line: int = 34) -> str:
+        """
+        Wraps long Thai text into multiple balanced lines using ASS \\N,
+        preventing single-line horizontal font compression or overflow.
+        """
+        clean = text.strip().replace("\r", "")
+        if not clean or "\\N" in clean or "\n" in clean or len(clean) <= max_chars_per_line:
+            return clean.replace("\n", "\\N")
+
+        try:
+            from pythainlp.tokenize import word_tokenize
+            raw_words = word_tokenize(clean, engine="newmm")
+        except Exception:
+            raw_words = clean.split(" ")
+
+        # Glue Thai grammatical prefixes so they never hang alone at line ends
+        prefixes = {"ผู้", "การ", "ความ", "นัก", "ชาว", "จาก"}
+        words = []
+        i = 0
+        while i < len(raw_words):
+            w = raw_words[i]
+            if w in prefixes and i + 1 < len(raw_words):
+                words.append(w + raw_words[i + 1])
+                i += 2
+            else:
+                words.append(w)
+                i += 1
+
+        # If length fits in 2 balanced lines:
+        if len(clean) <= max_chars_per_line * 2 and len(words) > 2:
+            target_mid = len(clean) / 2.0
+            best_idx = 1
+            best_diff = 99999
+            accum = 0
+            for idx, w in enumerate(words[:-1]):
+                accum += len(w)
+                diff = abs(accum - target_mid)
+                if diff < best_diff:
+                    best_diff = diff
+                    best_idx = idx + 1
+            l1 = "".join(words[:best_idx]).strip()
+            l2 = "".join(words[best_idx:]).strip()
+            return f"{l1}\\N{l2}"
+
+        # Otherwise chunk greedily
+        lines = []
+        curr = ""
+        for w in words:
+            if len(curr) + len(w) > max_chars_per_line and len(curr) >= 12:
+                lines.append(curr)
+                curr = w
+            else:
+                curr += w
+        if curr:
+            lines.append(curr)
+
+        return "\\N".join(lines) if len(lines) > 1 else clean
+
+    @classmethod
+    def wrap_en_for_ass(cls, text: str, max_chars_per_line: int = 40) -> str:
+        """Wraps long English subtitles neatly at word boundaries."""
+        clean = text.strip().replace("\r", "").replace("\n", " ")
+        if len(clean) <= max_chars_per_line:
+            return clean
+        words = clean.split(" ")
+        lines = []
+        curr = ""
+        for w in words:
+            if len(curr) + len(w) + 1 > max_chars_per_line and len(curr) >= 14:
+                lines.append(curr)
+                curr = w
+            else:
+                curr = f"{curr} {w}".strip()
+        if curr:
+            lines.append(curr)
+        return "\\N".join(lines) if len(lines) > 1 else clean
+
+    # Dynamic Kinetic Highlighting keywords (ASS color mapped)
+    # 🟡 &H0000E6FF& = Neon Yellow (Pain points, prices, deals, primary punch)
+    # 🔵 &H00FFE600& = Electric Cyan (Features, tech, ergonomics, certifications)
+    # 🔴 &H00303BFF& = Alert Red (Urgency, warnings)
+    KINETIC_KEYWORDS: Dict[str, List[str]] = {
+        "&H0000E6FF&": [
+            "ปวดข้อมือ", "ปวดหลัง", "ปวดคอ", "ปวด", "เมื่อย", "พัง", "ทรมาน", "เหนื่อย",
+            "ปัญหา", "ช้า", "หัก", "ราคาพิเศษ", "ตะกร้า", "จิ้มเลย", "อย่ารอ", "ลด",
+            "บาท", "ของแถม", "ฟรี", "โปร", "คุ้ม", "พิกัด", "ด่วนเลย", "ด่วน", "ต้องมี",
+            "ป้ายยา", "เปลี่ยนชีวิต", "ของดี", "ดีมาก"
+        ],
+        "&H00FFE600&": [
+            "Wave Keys", "Logitech", "คีย์บอร์ด", "ไร้สาย", "เมมโมรี่โฟม", "สรีรศาสตร์",
+            "ฮีโร่", "รูปคลื่น", "นุ่มๆ", "สบายมาก", "รับรอง", "ผู้เชี่ยวชาญ", "สุขภาพดี",
+            "ของแท้", "66W", "แม่เหล็ก", "ดูดแน่น", "540 องศา", "ชาร์จไว"
+        ],
+        "&H00303BFF&": [
+            "อย่าเพิ่ง", "เตือน", "หยุด", "ระวัง", "อันตราย", "อย่าเพิ่งซื้อ"
+        ]
+    }
+
+    @classmethod
+    def apply_kinetic_highlighting(cls, text: str, primary_color_ass: str = "&H00FFFFFF&") -> str:
+        """
+        Scans text for high-impact affiliate power keywords and applies inline ASS color tags
+        so keywords pop out dynamically in contrasting neon hues while the rest stays white.
+        """
+        if not text or "{\\c" in text:
+            return text
+
+        clean_primary = primary_color_ass if primary_color_ass.endswith("&") else f"{primary_color_ass}&"
+        result = text
+
+        for color_tag, kw_list in cls.KINETIC_KEYWORDS.items():
+            for kw in sorted(kw_list, key=len, reverse=True):
+                if kw in result and f"{{\\c{color_tag}}}" not in result:
+                    replacement = f"{{\\c{color_tag}}}{kw}{{\\c{clean_primary}}}"
+                    result = result.replace(kw, replacement, 1)
+                    break
+
+        return result
+
+    @classmethod
     def generate_ass(
         cls,
         cues: List[Dict],
@@ -281,10 +423,14 @@ class SubtitleEngine:
         )
         primary = ass_colour(caption_color) or "&H00FFFFFF"
         try:
-            scale = min(2.0, max(0.5, float(caption_scale or 1.0)))
+            scale = min(2.5, max(0.4, float(caption_scale or 1.0)))
         except (TypeError, ValueError):
             scale = 1.0
-        font_size = max(24, int(round(font_size * scale)))
+        # Exact 1-to-1 pixel calibration with SequencePlayer Canvas:
+        # Canvas: Math.round(540 * 0.075 * scale) -> 40.5px on 540w (7.5% of width)
+        # Video:  Math.round(1080 * 0.075 * scale) -> 81px on 1080w (7.5% of width)
+        base_fs = int(round(video_width * 0.075))
+        font_size = max(24, int(round(base_fs * scale)))
 
         header = f"""[Script Info]
 Title: TikTok Aesthetic Subtitles
@@ -340,7 +486,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         for idx, cue in enumerate(micro_cues):
             start_t = cls._format_ass_time(cue["start"])
             end_t = cls._format_ass_time(cue["end"])
-            text = cue["text"].strip()
+            dyn_max_chars = max(22, int(round(34 / max(0.5, scale))))
+            text = cls.wrap_text_for_ass(cue["text"].strip(), max_chars_per_line=dyn_max_chars)
             if not text:
                 continue
 
@@ -350,27 +497,23 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             snap_pct = int(round(settle_pct * 1.25))
             anim = f"{{\\fscx{snap_pct}\\fscy{snap_pct}\\t(0,70,\\fscx{settle_pct}\\fscy{settle_pct})}}"
             
-            if is_pill_mode:
-                style = "TikTokMinimalPill"
-            else:
-                # Clean Minimal: Pure White by default, Yellow ONLY on crucial high-value words
-                style = "TikTokWhite"
-                if any(k in text for k in ["66W", "149", "แม่เหล็ก", "ดูดแน่น", "พิเศษ", "โปร", "ลด", "คุ้ม", "พิกัด"]):
-                    style = "TikTokYellow"
+            # Apply Dynamic Kinetic Highlighting to keywords
+            highlighted_text = cls.apply_kinetic_highlighting(text, primary_color_ass=primary)
+            style = "TikTokMinimalPill" if is_pill_mode else "TikTokWhite"
 
             # Check for English Translation
             en_sub = ""
             if bilingual and idx < len(en_translations):
                 candidate_en = (en_translations[idx] or cue.get("translation", "")).strip()
-                if candidate_en and not any(sig in candidate_en for sig in ["Error 500", "500.", "That's an error", "<html"]) and len(candidate_en) < 80:
+                if candidate_en and not any(sig in candidate_en for sig in ["Error 500", "500.", "That's an error", "<html"]):
                     cue["translation"] = candidate_en
-                    en_clean = candidate_en.replace("\n", " ").replace("\\", "")
-                    en_color = "\\c&H00D8D8D8&" if style == "TikTokWhite" else "\\c&H0080E6FF&"
-                    en_sub = f"\\N{{\\fscx60\\fscy60{en_color}}}{en_clean}"
+                    en_wrapped = cls.wrap_en_for_ass(candidate_en)
+                    en_color = "\\c&H00D8D8D8&"
+                    en_sub = f"\\N{{\\fscx55\\fscy55{en_color}}}{en_wrapped}"
                 else:
                     cue["translation"] = ""
 
-            line_entry = f"Dialogue: 0,{start_t},{end_t},{style},,0,0,0,,{anim}{text}{en_sub}"
+            line_entry = f"Dialogue: 0,{start_t},{end_t},{style},,0,0,0,,{anim}{highlighted_text}{en_sub}"
             events.append(line_entry)
 
         # 3. Spec-Bar Overlays (IT vertical: the number goes on screen, not

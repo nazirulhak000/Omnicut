@@ -78,15 +78,28 @@ class TaskManager:
             if changed:
                 cls._save_to_disk_locked()
 
+    _last_disk_save = 0.0
+
     @classmethod
-    def _save_to_disk_locked(cls) -> None:
-        """Writes current tasks to disk atomically."""
+    def _save_to_disk_locked(cls, force: bool = True) -> None:
+        """Writes current tasks to disk atomically with throttling and Windows retry."""
+        now = time.time()
+        if not force and (now - cls._last_disk_save < 2.0):
+            return
+        cls._last_disk_save = now
         try:
-            temp_file = TASKS_FILE.with_suffix(".tmp")
+            temp_file = TASKS_FILE.with_suffix(f".tmp_{os.getpid()}")
             temp_file.write_text(json.dumps(cls._tasks, ensure_ascii=False, indent=2), encoding="utf-8")
-            temp_file.replace(TASKS_FILE)
-        except Exception as e:
-            print(f"⚠️ [TaskManager] Disk save error: {e}")
+            for _ in range(3):
+                try:
+                    temp_file.replace(TASKS_FILE)
+                    return
+                except Exception:
+                    time.sleep(0.05)
+            # Fallback direct write if atomic rename is blocked by momentary file locks
+            TASKS_FILE.write_text(json.dumps(cls._tasks, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception:
+            pass # Non-critical: tasks are safely held in memory in cls._tasks
 
     @classmethod
     def create_task(
@@ -163,7 +176,7 @@ class TaskManager:
                 if len(task["logs"]) > 50:
                     task["logs"] = task["logs"][-50:]
 
-            cls._save_to_disk_locked()
+            cls._save_to_disk_locked(force=False)
             return task
 
     @classmethod

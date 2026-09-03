@@ -90,7 +90,11 @@ class SFXManager:
             sfx_file = cls.resolve(sfx_type) if sfx_type else None
             if sfx_file and sfx_file.exists():
                 inputs.extend(["-i", str(sfx_file)])
-                delay_ms = int(max(0.05, cue["start"]) * 1000)
+                # J-Cut Transition SFX: เสียง Whoosh เริ่มก่อนรอยต่อภาพ 120ms เพื่อให้จุดพีคตรงกับรอยต่อพอดี
+                sfx_name_low = str(sfx_file.name).lower()
+                is_transition_sfx = any(w in sfx_name_low for w in ["whoosh", "swish", "swoosh", "transition"])
+                pre_roll = 0.12 if is_transition_sfx else 0.0
+                delay_ms = int(max(0.02, float(cue["start"]) - pre_roll) * 1000)
                 node_name = f"sfx_{idx}"
                 filter_complex.append(
                     f"[{input_count}:a]volume={sfx_vol},adelay={delay_ms}|{delay_ms}[{node_name}];"

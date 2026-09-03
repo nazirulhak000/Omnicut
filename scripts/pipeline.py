@@ -443,78 +443,43 @@ class TikTokAutoCutterPipeline:
         import datetime
         timestamp_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
-        ai_matched_shots = None
-        if export_mp4 and use_ai_vision and os.environ.get("GEMINI_API_KEY"):
-            _notify("👁️ [AI Vision] เตรียมวิดีโอส่งให้ Gemini 2.5 Flash...", 0.72)
-            print("\n👁️ [AI Vision] Gemini 2.5 Flash is analyzing raw footage scenes...")
+        raw_duration = 60.0
+        if raw_video:
             try:
                 raw_info = VideoEditor.get_media_info(str(raw_video))
-                _notify("👁️ [AI Vision] ให้ Gemini 2.5 Flash ดูคลิปและเลือกฉากที่ตรงกับสคริปต์...", 0.76)
-                ai_matched_shots = GeminiVisionMatcher.match_script_to_video(
-                    raw_video_path=str(raw_video),
-                    cues=micro_cues,
-                    raw_duration=raw_info.get("duration", 60.0)
-                )
-                _notify("👁️ [AI Vision] จับคู่ฉากสมบูรณ์ กำลังส่งต่อให้ขั้นตอนตัดต่อ...", 0.82)
-            except Exception as e:
-                print(f"   ⚠️ AI Vision Matching skipped ({e}) — using rhythmic cuts.")
+                raw_duration = float(raw_info.get("duration", 60.0))
+            except Exception:
+                raw_duration = 60.0
 
-        # Opt-in only -- measured on this CPU-only machine (no CUDA) against
-        # the real Esseger clip: lut3d added ~90% to the ffmpeg render step
-        # (11.6s -> 22.0s on an 8s clip), nowhere near "cheap relative to
-        # libx264's own cost". ANGLE_LUT_HINTS stays as a suggestion the
-        # frontend can surface, but the pipeline never applies one silently --
-        # a user has to pick a LUT explicitly and accept the slower render.
-        lut_path = str(LUTS_DIR / lut_name) if lut_name else None
+        # Check if caller already provided multi-shot clips (e.g. from Web Editor timeline)
+        has_manual_multi_clips = bool(clip_list and len(clip_list) > 1)
+        actual_clip_list = clip_list if has_manual_multi_clips else None
 
-        # Punch-zoom pattern per angle (LOOK_PRESETS) -- safe to auto-apply
-        # unlike the LUT above: same ffmpeg scale/crop work either way, just
-        # different numbers, not an extra filter pass.
+        ai_matched_shots = None
+        # ONLY invoke AI Vision if we need to auto-generate the clip list from scratch!
+        # If the user already has clips on the timeline (e.g. editing in Editor), skip AI Vision completely.
+        if not actual_clip_list and raw_video and use_ai_vision and os.environ.get("GEMINI_API_KEY"):
+            # Check local cache first: if already analyzed, reuse instantly without showing "AI กำลังดู"
+            cached_shots = GeminiVisionMatcher.get_cached_matches(str(raw_video), micro_cues)
+            if cached_shots:
+                print(f"   ⚡ [AI Vision] Reusing {len(cached_shots)} cached scene matches (Instant 0s)")
+                ai_matched_shots = cached_shots
+            else:
+                _notify("👁️ [AI Vision] ให้ Gemini 2.5 Flash ดูคลิปและเลือกฉากที่ตรงกับสคริปต์ (ครั้งแรก)...", 0.76)
+                print("\n👁️ [AI Vision] Gemini 2.5 Flash is analyzing raw footage scenes (first time)...")
+                try:
+                    ai_matched_shots = GeminiVisionMatcher.match_script_to_video(
+                        raw_video_path=str(raw_video),
+                        cues=micro_cues,
+                        raw_duration=raw_duration
+                    )
+                    _notify("👁️ [AI Vision] จับคู่ฉากสมบูรณ์ กำลังส่งต่อให้ขั้นตอนตัดต่อ...", 0.82)
+                except Exception as e:
+                    print(f"   ⚠️ AI Vision Matching skipped ({e}) — using rhythmic cuts.")
+        
+        # Punch-zoom pattern per angle (LOOK_PRESETS)
         shot_scales = LOOK_PRESETS.get(angle_meta.get("angle_key", "")) if angle_meta else None
 
-        if export_mp4:
-            _notify("✂️ [5/5] เริ่มต้นตัดต่อวิดีโอ 9:16 + Punch-Zoom...", 0.85)
-            print("\n✂️ [5/5] Cutting Video, Dynamic Punch-Zooming & Rendering Final MP4...")
-            # A draft is 720p at crf 26 -- it must never be mistaken for the
-            # file to post, so it says so in its name.
-            suffix = "_draft" if export_preset == "draft" else ""
-            out_mp4 = EXPORTS_DIR / f"{project_name}_{timestamp_str}{suffix}.mp4"
-
-            def on_ffmpeg_progress(curr_sec: float, tot_sec: float):
-                ratio = min(1.0, max(0.0, curr_sec / max(0.1, tot_sec)))
-                overall = round(0.85 + (ratio * 0.13), 3)
-                pct_num = int(ratio * 100)
-                _notify(
-                    f"✂️ [5/5] กำลังเรนเดอร์วิดีโอ 1080x1920... {curr_sec:.1f}s / {tot_sec:.1f}s ({pct_num}%)",
-                    overall
-                )
-
-            VideoEditor.assemble_tiktok_video(
-                raw_video_paths=[str(raw_video)],
-                total_duration=total_duration,
-                mixed_audio_path=str(mixed_audio_path),
-                ass_subtitle_path=str(ass_path),
-                output_mp4_path=str(out_mp4),
-                cues=micro_cues,
-                ai_matched_shots=ai_matched_shots,
-                sticker_path=sticker_path,
-                lut_path=lut_path,
-                lut_intensity=lut_intensity,
-                shot_scales=shot_scales,
-                clip_list=clip_list,
-                transitions=transitions,
-                export_preset=export_preset,
-                sticker_position=sticker_position,
-                sticker_scale=sticker_scale,
-                progress_callback=on_ffmpeg_progress
-            )
-            result_paths["mp4_video"] = str(out_mp4)
-            result_paths["ai_matched_shots"] = ai_matched_shots
-            _notify("🎉 การตัดต่อและเรนเดอร์เสร็จสมบูรณ์ 100%!", 1.0)
-            print(f"   🎉 FINAL MP4 READY: {out_mp4}")
-
-        # Compute and persist individual AI-cut shot clips for the Editor's multi-track timeline
-        actual_clip_list = clip_list
         if not actual_clip_list and raw_video:
             try:
                 # Use smart clause cues so video shots match the 1-Click rhythm & thought scenes
@@ -522,10 +487,22 @@ class TikTokAutoCutterPipeline:
                 effective_shot_scales = shot_scales or [1.25, 1.0, 1.35, 1.05, 1.3, 1.0]
                 shots = []
                 if active_cues:
+                    # J-Cut (Audio Lead-in): เสียงประโยคถัดไปดังขึ้นก่อนภาพตัดเปลี่ยน 150-180ms เพื่อความลื่นไหล
+                    from scripts.config import J_CUT_OFFSET_SECONDS
+                    n_cues = len(active_cues)
+                    cut_points = [0.0]
+                    for i in range(1, n_cues):
+                        c_curr_start = float(active_cues[i].get("start", 0.0))
+                        prev_dur = float(active_cues[i - 1].get("end", 0.0)) - float(active_cues[i - 1].get("start", 0.0))
+                        curr_dur = float(active_cues[i].get("end", 0.0)) - float(active_cues[i].get("start", 0.0))
+                        lead = min(J_CUT_OFFSET_SECONDS, prev_dur * 0.25, curr_dur * 0.25, 0.25)
+                        cut_points.append(round(c_curr_start + lead, 3))
+                    cut_points.append(round(total_duration, 3))
+
                     for idx, c in enumerate(active_cues):
-                        c_start = float(c.get("start", 0.0))
-                        c_end = float(c.get("end", 0.0))
-                        c_dur = max(0.2, c_end - c_start)
+                        v_start = cut_points[idx]
+                        v_end = cut_points[idx + 1]
+                        c_dur = max(0.2, v_end - v_start)
                         ai_shot = ai_matched_shots[idx] if ai_matched_shots and idx < len(ai_matched_shots) else None
                         if ai_shot:
                             ai_start = float(ai_shot.get("start_time", 0.0))
@@ -536,8 +513,8 @@ class TikTokAutoCutterPipeline:
                             scale = effective_shot_scales[idx % len(effective_shot_scales)]
                             raw_offset = (idx * 3.5) % max(1.0, raw_duration - c_dur - 1.0)
                         shots.append({
-                            "start": c_start,
-                            "end": c_end,
+                            "start": v_start,
+                            "end": v_end,
                             "scale": scale,
                             "raw_offset": raw_offset
                         })
@@ -586,6 +563,48 @@ class TikTokAutoCutterPipeline:
                     "speed": 1.0,
                     "transition_in": "cut"
                 }]
+
+        # Opt-in LUT styling
+        lut_path = str(LUTS_DIR / lut_name) if lut_name else None
+
+        if export_mp4:
+            _notify("✂️ [5/5] เริ่มต้นตัดต่อวิดีโอ 9:16 + Punch-Zoom...", 0.85)
+            print("\n✂️ [5/5] Cutting Video, Dynamic Punch-Zooming & Rendering Final MP4...")
+            suffix = "_draft" if export_preset == "draft" else ""
+            out_mp4 = EXPORTS_DIR / f"{project_name}_{timestamp_str}{suffix}.mp4"
+
+            def on_ffmpeg_progress(curr_sec: float, tot_sec: float):
+                ratio = min(1.0, max(0.0, curr_sec / max(0.1, tot_sec)))
+                overall = round(0.85 + (ratio * 0.13), 3)
+                pct_num = int(ratio * 100)
+                _notify(
+                    f"✂️ [5/5] กำลังเรนเดอร์วิดีโอ 1080x1920... {curr_sec:.1f}s / {tot_sec:.1f}s ({pct_num}%)",
+                    overall
+                )
+
+            VideoEditor.assemble_tiktok_video(
+                raw_video_paths=[str(raw_video)] if raw_video else [],
+                total_duration=total_duration,
+                mixed_audio_path=str(mixed_audio_path),
+                ass_subtitle_path=str(ass_path),
+                output_mp4_path=str(out_mp4),
+                cues=micro_cues,
+                ai_matched_shots=ai_matched_shots,
+                sticker_path=sticker_path,
+                lut_path=lut_path,
+                lut_intensity=lut_intensity,
+                shot_scales=shot_scales,
+                clip_list=actual_clip_list,
+                transitions=transitions,
+                export_preset=export_preset,
+                sticker_position=sticker_position,
+                sticker_scale=sticker_scale,
+                progress_callback=on_ffmpeg_progress
+            )
+            result_paths["mp4_video"] = str(out_mp4)
+            result_paths["ai_matched_shots"] = ai_matched_shots
+            _notify("🎉 การตัดต่อและเรนเดอร์เสร็จสมบูรณ์ 100%!", 1.0)
+            print(f"   🎉 FINAL MP4 READY: {out_mp4}")
 
         # 6. Persist everything a re-roll will need to reuse
         artifacts = {

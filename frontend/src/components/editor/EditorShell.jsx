@@ -350,20 +350,20 @@ export default function EditorShell({
       setHookDuration(hookDur > 0 ? hookDur : 3.0);
       setShowHookHeader(!!title);
 
-      const fontName = data.font_name || data.render_params?.font_name || 'IBMPlex';
-      const bgmName = data.bgm_name || data.render_params?.bgm_name || null;
-      const lutName = data.lut_name || data.render_params?.lut_name || null;
-      const stickerBadge = data.sticker_badge || data.render_params?.sticker_badge || null;
+      const fontName = data.font_name || data.render_params?.font_name || data.style?.font_name || data.style?.fontName || 'IBMPlex';
+      const bgmName = data.bgm_name || data.render_params?.bgm_name || data.style?.bgm_name || data.style?.bgmName || null;
+      const lutName = data.lut_name || data.render_params?.lut_name || data.style?.lut_name || data.style?.lutName || null;
+      const stickerBadge = data.sticker_badge || data.render_params?.sticker_badge || data.style?.sticker_badge || data.style?.stickerBadge || null;
       const mixedAudio = data.artifacts?.mixed_audio?.path || null;
       setAudioUrl(mixedAudio ? toMediaUrl(mixedAudio) : null);
-      const lutIntensity = data.render_params?.lut_intensity ?? 1;
-      const bgmVolume = data.render_params?.bgm_volume ?? 0.12;
-      const bgmDucking = !!data.render_params?.bgm_ducking;
-      const captionPosition = data.render_params?.caption_position || 'bottom';
-      const captionColor = data.render_params?.caption_color || '#FFFFFF';
-      const captionScale = data.render_params?.caption_scale ?? 1;
-      const stickerPosition = data.render_params?.sticker_position || 'top_right';
-      const stickerScale = data.render_params?.sticker_scale ?? 1;
+      const lutIntensity = Number(data.lut_intensity ?? data.render_params?.lut_intensity ?? data.style?.lut_intensity ?? data.style?.lutIntensity ?? 1);
+      const bgmVolume = Number(data.bgm_volume ?? data.render_params?.bgm_volume ?? data.style?.bgm_volume ?? data.style?.bgmVolume ?? 0.12);
+      const bgmDucking = !!(data.bgm_ducking ?? data.render_params?.bgm_ducking ?? data.style?.bgm_ducking ?? data.style?.bgmDucking);
+      const captionPosition = data.caption_position || data.render_params?.caption_position || data.style?.caption_position || data.style?.captionPosition || 'bottom';
+      const captionColor = data.caption_color || data.render_params?.caption_color || data.style?.caption_color || data.style?.captionColor || '#FFFFFF';
+      const captionScale = Number(data.caption_scale ?? data.render_params?.caption_scale ?? data.style?.caption_scale ?? data.style?.captionScale ?? 1);
+      const stickerPosition = data.sticker_position || data.render_params?.sticker_position || data.style?.sticker_position || data.style?.stickerPosition || 'top_right';
+      const stickerScale = Number(data.sticker_scale ?? data.render_params?.sticker_scale ?? data.style?.sticker_scale ?? data.style?.stickerScale ?? 1);
       loadedCaptionStyle.current = { captionPosition, captionColor, captionScale };
       // Baseline for "did the music change?" -- without this the first Apply
       // after loading would always take the slower re-mix path.
@@ -451,7 +451,7 @@ export default function EditorShell({
     });
   }, [set, setSilent]);
 
-  // Real-time auto-saving whenever clips or captions are edited
+  // Real-time auto-saving whenever clips, captions, or style are edited
   useEffect(() => {
     if (!projectName || !isLoadedRef.current) return;
     setSaveStatus('dirty');
@@ -464,11 +464,30 @@ export default function EditorShell({
           duration: c.transition_duration ?? FADE_DURATION,
         }));
         const serializedCues = cuesList.map(({ _uid, ...c }) => c);
+        const serializedStyle = {
+          caption_scale: style.captionScale ?? 1,
+          caption_position: style.captionPosition || 'bottom',
+          caption_color: style.captionColor || '#FFFFFF',
+          font_name: style.fontName || 'IBMPlex',
+          bgm_name: style.bgmName || null,
+          bgm_volume: style.bgmVolume ?? 0.12,
+          bgm_ducking: !!style.bgmDucking,
+          lut_name: style.lutName || null,
+          lut_intensity: style.lutIntensity ?? 1,
+          sticker_badge: style.stickerBadge || null,
+          sticker_position: style.stickerPosition || 'top_right',
+          sticker_scale: style.stickerScale ?? 1,
+          captionScale: style.captionScale ?? 1,
+          captionPosition: style.captionPosition || 'bottom',
+          captionColor: style.captionColor || '#FFFFFF',
+          fontName: style.fontName || 'IBMPlex',
+        };
         await updateProjectState(projectName, {
           cues: serializedCues,
           micro_cues: serializedCues,
           clip_list: serializedClips,
           transitions: serializedTransitions,
+          style: serializedStyle,
           hook_title: showHookHeader ? (hookTitle || '') : '',
           hook_duration: hookDuration || 3.0,
         });
@@ -479,7 +498,7 @@ export default function EditorShell({
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [clipList, cuesList, projectName, hookTitle, hookDuration, showHookHeader]);
+  }, [clipList, cuesList, style, projectName, hookTitle, hookDuration, showHookHeader]);
 
   // Manual save handler (button click or Ctrl+S)
   const handleManualSave = useCallback(async () => {
@@ -492,11 +511,30 @@ export default function EditorShell({
         duration: c.transition_duration ?? FADE_DURATION,
       }));
       const serializedCues = cuesList.map(({ _uid, ...c }) => c);
+      const serializedStyle = {
+        caption_scale: style.captionScale ?? 1,
+        caption_position: style.captionPosition || 'bottom',
+        caption_color: style.captionColor || '#FFFFFF',
+        font_name: style.fontName || 'IBMPlex',
+        bgm_name: style.bgmName || null,
+        bgm_volume: style.bgmVolume ?? 0.12,
+        bgm_ducking: !!style.bgmDucking,
+        lut_name: style.lutName || null,
+        lut_intensity: style.lutIntensity ?? 1,
+        sticker_badge: style.stickerBadge || null,
+        sticker_position: style.stickerPosition || 'top_right',
+        sticker_scale: style.stickerScale ?? 1,
+        captionScale: style.captionScale ?? 1,
+        captionPosition: style.captionPosition || 'bottom',
+        captionColor: style.captionColor || '#FFFFFF',
+        fontName: style.fontName || 'IBMPlex',
+      };
       await updateProjectState(projectName, {
         cues: serializedCues,
         micro_cues: serializedCues,
         clip_list: serializedClips,
         transitions: serializedTransitions,
+        style: serializedStyle,
         hook_title: showHookHeader ? (hookTitle || '') : '',
         hook_duration: hookDuration || 3.0,
       });
@@ -505,7 +543,7 @@ export default function EditorShell({
       console.warn('Manual save failed:', err);
       setSaveStatus('dirty');
     }
-  }, [clipList, cuesList, projectName, hookTitle, hookDuration, showHookHeader]);
+  }, [clipList, cuesList, style, projectName, hookTitle, hookDuration, showHookHeader]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -948,9 +986,9 @@ export default function EditorShell({
     setJobStatus({ progress: 0.05, message: 'กำลังเตรียมข้อมูล...' });
 
     try {
-      if (cuesDirty.current) {
-        await updateProjectCues(projectName, { cues: cuesList.map(({ _uid, ...c }) => c) });
-      }
+      // Always guarantee cues are 100% saved before starting render
+      const serializedCues = cuesList.map(({ _uid, ...c }) => c);
+      await updateProjectCues(projectName, { cues: serializedCues }).catch(() => {});
 
       const serializedClips = clipList.map(({ id, transition_in, transition_duration, ...c }) => c);
       const serializedTransitions = clipList.slice(1).map((c) => ({
@@ -963,7 +1001,7 @@ export default function EditorShell({
 
       const res = await startReroll({
         project_name: projectName,
-        part: audioDirty ? 'bgm' : ((cuesDirty.current || captionDirty) ? 'subtitles' : 'video'),
+        part: audioDirty ? 'bgm' : 'subtitles',
         clip_list: serializedClips,
         transitions: serializedTransitions,
         bilingual_subtitles: true,
@@ -1330,7 +1368,7 @@ export default function EditorShell({
                 <SequencePlayer
                   ref={mobilePlayerRef}
                   clips={clipList}
-                  cues={microCuesList.length > 0 ? microCuesList : cuesList}
+                  cues={cuesList}
                   hookTitle={showHookHeader ? hookTitle : ''}
                   hookDuration={hookDuration}
                   audioUrl={audioUrl}
@@ -1649,7 +1687,7 @@ export default function EditorShell({
                   <SequencePlayer
                     ref={desktopPlayerRef}
                     clips={clipList}
-                    cues={microCuesList.length > 0 ? microCuesList : cuesList}
+                    cues={cuesList}
                     hookTitle={showHookHeader ? hookTitle : ''}
                     hookDuration={hookDuration}
                     audioUrl={audioUrl}

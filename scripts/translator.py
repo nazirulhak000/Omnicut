@@ -6,6 +6,7 @@ Uses 1-shot batch translation & dictionary mapping to achieve < 0.5s translation
 import sys
 import re
 from typing import Dict, List, Optional
+from concurrent.futures import ThreadPoolExecutor
 from deep_translator import GoogleTranslator
 
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
@@ -48,50 +49,43 @@ class SubtitleTranslator:
             cls._translator_instance = GoogleTranslator(source="auto", target="en")
         return cls._translator_instance
 
+
+    _CACHE: Dict[str, str] = {}
+
+    @classmethod
+    def _translate_single(cls, text: str) -> str:
+        if not text:
+            return ""
+        if text.lower() in cls.DICT:
+            return cls.DICT[text.lower()]
+        if text in cls._CACHE:
+            return cls._CACHE[text]
+        try:
+            t = GoogleTranslator(source="auto", target="en")
+            res = t.translate(text)
+            if res and not any(sig in res for sig in ["Error 500", "500.", "That's an error", "<html", "<body"]):
+                cleaned = res.strip().replace("\n", " ").replace("\\", "")
+                cls._CACHE[text] = cleaned
+                return cleaned
+        except Exception:
+            pass
+        return ""
+
     @classmethod
     def translate_batch(cls, phrases: List[str]) -> List[str]:
-        """Translates a list of Thai phrases into English in 1 single shot."""
+        """Translates a list of Thai phrases into English with guaranteed 1-to-1 exact alignment."""
         if not phrases:
             return []
 
-        results = []
-        to_translate_indices = []
-        to_translate_texts = []
+        cleaned_phrases = []
+        for text in phrases:
+            clean = re.sub(r"[^\u0E00-\u0E7Fa-zA-Z0-9\s.,!?-]", "", text).strip()
+            cleaned_phrases.append(clean)
 
-        # 1. Check dictionary cache first
-        for i, text in enumerate(phrases):
-            clean = re.sub(r"[^\u0E00-\u0E7Fa-zA-Z0-9\s]", "", text).strip()
-            if not clean:
-                results.append("")
-            elif clean.lower() in cls.DICT:
-                results.append(cls.DICT[clean.lower()])
-            else:
-                results.append(None) # Marker for batch API
-                to_translate_indices.append(i)
-                to_translate_texts.append(clean)
+        with ThreadPoolExecutor(max_workers=6) as executor:
+            results = list(executor.map(cls._translate_single, cleaned_phrases))
 
-        # 2. Batch Translate remaining items
-        if to_translate_texts:
-            try:
-                t = cls.get_translator()
-                # Join with newline separator
-                joined_text = " ||| ".join(to_translate_texts)
-                translated_blob = t.translate(joined_text)
-                if translated_blob and not any(err_sig in translated_blob for err_sig in ["Error 500", "500.", "That's an error", "<html", "<body"]):
-                    translated_parts = [p.strip() for p in translated_blob.split("|||")]
-                    for idx, part in zip(to_translate_indices, translated_parts):
-                        if part and not any(err_sig in part for err_sig in ["Error 500", "500.", "That's an error", "<html"]):
-                            results[idx] = part
-                        else:
-                            results[idx] = ""
-            except Exception as e:
-                # Fallback on failure
-                for idx in to_translate_indices:
-                    if results[idx] is None:
-                        results[idx] = ""
-
-        # Fill any remaining None
-        return [r if (r is not None and not any(err_sig in str(r) for err_sig in ["Error 500", "500.", "That's an error", "<html"])) else "" for r in results]
+        return results
 
 if __name__ == "__main__":
     test_phrases = [

@@ -30,6 +30,7 @@ VIDEO_HEIGHT = 1920
 FPS = 30
 MIN_SHOT_DURATION = 1.5  # seconds per cut
 MAX_SHOT_DURATION = 2.5  # seconds per cut
+J_CUT_OFFSET_SECONDS = 0.18  # J-Cut timing: เสียงประโยคใหม่มาก่อนภาพ 180ms เพื่อความลื่นไหลและเร่ง Retention
 
 # Subtitle & Font Settings (TikTok Standard)
 DEFAULT_FONT_PATH = FONTS_DIR / "Kanit-Black.ttf"

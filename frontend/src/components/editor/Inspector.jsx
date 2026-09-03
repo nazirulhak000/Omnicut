@@ -553,28 +553,6 @@ export default function Inspector({
                       )}
                     </div>
 
-                    {/* Per-cue Scale Override */}
-                    {isSelected && (
-                      <div className="flex items-center gap-0.5 flex-shrink-0" title="ปรับขนาดเน้นเฉพาะท่อนนี้">
-                        {[1.0, 1.25, 1.5].map((sc) => (
-                          <button
-                            key={sc}
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onCaptionChange?.(cue._uid, { scale: sc === 1.0 ? undefined : sc });
-                            }}
-                            className={`px-1 py-0.5 text-[10px] font-mono font-bold rounded border cursor-pointer transition-all ${
-                              (Number(cue.scale) || 1.0) === sc
-                                ? 'bg-[#D97757] text-white border-[#E89274] shadow-sm'
-                                : 'bg-black/40 text-slate-400 border-white/[0.08] hover:text-white'
-                            }`}
-                          >
-                            {sc}x
-                          </button>
-                        ))}
-                      </div>
-                    )}
 
                     {/* 3. Quick SFX Selector */}
                     <select

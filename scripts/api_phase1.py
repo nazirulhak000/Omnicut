@@ -572,6 +572,7 @@ def update_project_state(project_name: str, req: UpdateProjectStateRequest):
         fields["transitions"] = req.transitions
         render_params["transitions"] = req.transitions
     if req.style is not None:
+        fields["style"] = dict(req.style)
         for k, v in req.style.items():
             fields[k] = v
             render_params[k] = v
@@ -593,12 +594,30 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
     try:
         manifest = ProjectManifest.require(project_name)
         params = dict(manifest.get("render_params") or {})
+        # Fallback to root manifest keys if render_params wasn't populated
+        for k in [
+            "raw_video_path", "product_name", "key_features", "pain_point", "price_deal",
+            "custom_script", "script_overlays", "voice", "voice_rate", "voice_engine_type",
+            "voice_preset", "ad_tone", "human_voice_audio_path", "hook_title", "hook_duration",
+            "font_name", "bilingual_subtitles", "sticker_path", "bgm_name", "bgm_volume",
+            "bgm_ducking", "lut_name", "lut_intensity", "caption_position", "caption_color",
+            "caption_scale", "sticker_position", "sticker_scale", "clip_list", "transitions"
+        ]:
+            if k not in params and k in manifest and manifest[k] is not None:
+                params[k] = manifest[k]
         params.update({k: v for k, v in overrides.items() if v is not None})
+
+        # Ensure raw_video_path is resolved
+        raw_video = params.get("raw_video_path")
+        if not raw_video and manifest.get("clip_list"):
+            raw_video = manifest["clip_list"][0].get("source_path")
+        if not raw_video:
+            raw_video = str(BASE_DIR / "01_Raw")
 
         with render_jobs.render_slot(job_id):
             result = TikTokAutoCutterPipeline.run(
                 product_name=params.get("product_name", project_name),
-                raw_video_path=params["raw_video_path"],
+                raw_video_path=raw_video,
                 project_name=project_name,
                 key_features=params.get("key_features", ""),
                 pain_point=params.get("pain_point", ""),

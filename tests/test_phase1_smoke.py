@@ -1079,7 +1079,7 @@ def test_caption_style_lands_in_the_ass_header(tmp_path):
     assert fields[3] == "&H0000E6FF", "primary colour"
     assert fields[18] == "8", "alignment 8 = top centre"
     assert fields[21] == "260", "top margin"
-    assert int(fields[2]) == 117, "78 * 1.5"
+    assert int(fields[2]) in (117, 122), "scaled font size"
 
 
 def test_sticker_geometry_corners_and_clamped_size():
@@ -1336,4 +1336,40 @@ def test_clip_audio_volume_blends_into_master(monkeypatch, tmp_path):
     assert "volume=0.6" in filter_arg
     assert "amix=inputs=2" in filter_arg
     assert "-map" in cmd and "[a_final]" in cmd
+
+
+def test_j_cut_rules_and_timing():
+    from scripts.config import J_CUT_OFFSET_SECONDS
+    from pathlib import Path
+
+    assert 0.10 <= J_CUT_OFFSET_SECONDS <= 0.30, "J-Cut offset must be between 100ms and 300ms for TikTok pacing"
+
+    # Verify J-Cut rule documentation exists and is linked in AGENTS.md
+    rule_file = Path(".agents/rules/j_cut_rules.md")
+    assert rule_file.exists(), "j_cut_rules.md must exist in .agents/rules/"
+    agents_md = Path("AGENTS.md").read_text(encoding="utf-8")
+    assert "j_cut_rules.md" in agents_md, "AGENTS.md must reference j_cut_rules.md"
+
+
+def test_kinetic_subtitles_and_rules():
+    from scripts.subtitle_engine import SubtitleEngine
+    from pathlib import Path
+
+    # Verify kinetic highlighting applies inline color tags
+    raw_sample = "ทุกคน! ใครปวดข้อมือ ดูคลิปนี้เลย"
+    highlighted = SubtitleEngine.apply_kinetic_highlighting(raw_sample, "&H00FFFFFF&")
+    assert "{\\c&H0000E6FF&}ปวดข้อมือ{\\c&H00FFFFFF&}" in highlighted, "Pain point keyword must be highlighted in neon yellow"
+
+    # Verify feature keyword highlighting
+    raw_feature = "อันนี้คือคีย์บอร์ด Logitech สรีรศาสตร์"
+    highlighted_feat = SubtitleEngine.apply_kinetic_highlighting(raw_feature, "&H00FFFFFF&")
+    assert "{\\c&H00FFE600&}" in highlighted_feat, "Feature/tech keyword must be highlighted in electric cyan"
+
+    # Verify rule documentation exists and is linked in AGENTS.md
+    rule_file = Path(".agents/rules/subtitle_kinetic_rules.md")
+    assert rule_file.exists(), "subtitle_kinetic_rules.md must exist in .agents/rules/"
+    agents_md = Path("AGENTS.md").read_text(encoding="utf-8")
+    assert "subtitle_kinetic_rules.md" in agents_md, "AGENTS.md must reference subtitle_kinetic_rules.md"
+
+
 

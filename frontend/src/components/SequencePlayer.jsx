@@ -34,7 +34,7 @@ function clipFilter(clip) {
 }
 
 function drawVideoFrame(ctx, video, clip) {
-  if (!video || !video.videoWidth) return;
+  if (!video || !video.videoWidth || video.readyState < 2) return false;
   const rotation = Number(clip?.rotation || 0) % 360;
   const isRotated90or270 = rotation === 90 || rotation === 270;
   const vw = isRotated90or270 ? video.videoHeight : video.videoWidth;
@@ -86,6 +86,7 @@ function drawVideoFrame(ctx, video, clip) {
   } else {
     ctx.drawImage(video, sx, sy, sw, sh, 0, 0, CANVAS_W, CANVAS_H);
   }
+  return true;
 }
 
 // Mirrors the .ass style the renderer burns: CAPTION_POSITIONS in
@@ -94,6 +95,93 @@ function drawVideoFrame(ctx, video, clip) {
 // promise a placement the file will not have.
 const CAPTION_Y = { bottom: 1 - 420 / 1920, middle: 0.5, top: 260 / 1920 };
 const CAPTION_COLORS = { white: '#fff', yellow: '#FFE600' };
+
+/**
+ * Wraps Thai and English text into natural lines based on canvas width,
+ * preventing horizontal font squeezing/compression.
+ */
+function wrapCanvasText(text, ctx, maxW) {
+  if (!text) return [];
+  const rawParas = String(text).replace(/\\N/g, '\n').split('\n');
+  const resultLines = [];
+
+  for (const para of rawParas) {
+    const trimmed = para.trim();
+    if (!trimmed) continue;
+
+    if (ctx.measureText(trimmed).width <= maxW) {
+      resultLines.push(trimmed);
+      continue;
+    }
+
+    // Tokenize using Intl.Segmenter if available, fallback to whitespace
+    let tokens = [];
+    if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+      try {
+        const segmenter = new Intl.Segmenter(['th', 'en'], { granularity: 'word' });
+        tokens = Array.from(segmenter.segment(trimmed)).map(s => s.segment);
+      } catch (e) {
+        tokens = trimmed.split(/(\s+)/);
+      }
+    } else {
+      tokens = trimmed.split(/(\s+)/);
+    }
+
+    // Glue Thai grammatical prefixes so they never hang alone at the end of a line
+    const THAI_PREFIXES = new Set(['ผู้', 'การ', 'ความ', 'นัก', 'ชาว', 'จาก']);
+    const gluedTokens = [];
+    for (let i = 0; i < tokens.length; i++) {
+      const tok = tokens[i];
+      if (THAI_PREFIXES.has(tok) && i + 1 < tokens.length) {
+        gluedTokens.push(tok + tokens[i + 1]);
+        i++;
+      } else {
+        gluedTokens.push(tok);
+      }
+    }
+    tokens = gluedTokens;
+
+    // Check if 2 balanced lines fit nicely
+    const totalW = ctx.measureText(trimmed).width;
+    if (totalW <= maxW * 1.95 && tokens.length > 2) {
+      const targetMid = totalW / 2;
+      let accumW = 0;
+      let bestIdx = 1;
+      let bestDiff = 999999;
+      for (let i = 0; i < tokens.length - 1; i++) {
+        accumW += ctx.measureText(tokens[i]).width;
+        const diff = Math.abs(accumW - targetMid);
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          bestIdx = i + 1;
+        }
+      }
+      const l1 = tokens.slice(0, bestIdx).join('').trim();
+      const l2 = tokens.slice(bestIdx).join('').trim();
+      if (ctx.measureText(l1).width <= maxW * 1.05 && ctx.measureText(l2).width <= maxW * 1.05) {
+        resultLines.push(l1, l2);
+        continue;
+      }
+    }
+
+    // Multi-line wrap
+    let currentLine = '';
+    for (const w of tokens) {
+      const test = currentLine + w;
+      if (ctx.measureText(test).width > maxW && currentLine.trim().length > 0) {
+        resultLines.push(currentLine.trim());
+        currentLine = w.trimStart();
+      } else {
+        currentLine = test;
+      }
+    }
+    if (currentLine.trim()) {
+      resultLines.push(currentLine.trim());
+    }
+  }
+
+  return resultLines.length > 0 ? resultLines : [text];
+}
 
 function drawCaption(ctx, cues, t, style = {}) {
   const cue = cues.find(c => t >= c.start && t < c.end);
@@ -126,25 +214,53 @@ function drawCaption(ctx, cues, t, style = {}) {
   ctx.lineJoin = 'round';
   ctx.miterLimit = 2;
   
-  const x = CANVAS_W / 2;
-  const y = CANVAS_H * (CAPTION_Y[style.captionPosition] ?? CAPTION_Y.bottom);
-  
-  ctx.strokeText(cue.text, x, y, CANVAS_W * 0.92);
-  
-  ctx.fillStyle = CAPTION_COLORS[style.captionColor] || (cue.text.length < 15 ? '#FFE600' : '#FFFFFF');
-  ctx.fillText(cue.text, x, y, CANVAS_W * 0.92);
+  const maxLineW = CANVAS_W * 0.86;
+  const thaiLines = wrapCanvasText(cue.text, ctx, maxLineW);
+  const thaiLineH = Math.round(fontSize * 1.15);
 
   // Stacked bilingual English subtitle
+  let enLines = [];
+  const enFontSize = Math.round(fontSize * 0.52);
+  const enLineH = Math.round(enFontSize * 1.25);
   if (cue.translation && !cue.translation.includes('Error 500')) {
-    const enFontSize = Math.round(fontSize * 0.55);
+    ctx.font = `700 ${enFontSize}px ${fontFam}`;
+    enLines = wrapCanvasText(cue.translation, ctx, CANVAS_W * 0.86);
+  }
+
+  // Vertical layout calculations to keep entire block centered at caption Y
+  const thaiBlockH = thaiLines.length * thaiLineH;
+  const enGap = enLines.length > 0 ? Math.round(fontSize * 0.22) : 0;
+  const enBlockH = enLines.length * enLineH;
+  const totalBlockH = thaiBlockH + enGap + enBlockH;
+
+  const targetCenterY = CANVAS_H * (CAPTION_Y[style.captionPosition] ?? CAPTION_Y.bottom);
+  const thaiStartY = targetCenterY - (totalBlockH / 2) + (thaiLineH / 2);
+
+  // Draw Thai lines (no maxWidth passed, so font is never squeezed horizontally)
+  ctx.font = `900 ${fontSize}px ${fontFam}`;
+  ctx.lineWidth = Math.round(fontSize * 0.22);
+  ctx.fillStyle = CAPTION_COLORS[style.captionColor] || (cue.text.length < 15 ? '#FFE600' : '#FFFFFF');
+
+  const x = CANVAS_W / 2;
+  thaiLines.forEach((line, idx) => {
+    const lineY = thaiStartY + (idx * thaiLineH);
+    ctx.strokeText(line, x, lineY);
+    ctx.fillText(line, x, lineY);
+  });
+
+  // Draw English lines (stacked underneath)
+  if (enLines.length > 0) {
     ctx.font = `700 ${enFontSize}px ${fontFam}`;
     ctx.lineWidth = Math.round(enFontSize * 0.18);
-    ctx.strokeStyle = '#000000';
-    const enY = y + fontSize * 0.88;
-    ctx.strokeText(cue.translation, x, enY, CANVAS_W * 0.92);
-    ctx.fillStyle = '#E2E8F0';
-    ctx.fillText(cue.translation, x, enY, CANVAS_W * 0.92);
+    const enStartY = thaiStartY + (thaiLines.length - 1) * thaiLineH + (thaiLineH / 2) + enGap + (enLineH / 2);
+    enLines.forEach((line, idx) => {
+      const lineY = enStartY + (idx * enLineH);
+      ctx.strokeText(line, x, lineY);
+      ctx.fillStyle = '#E2E8F0';
+      ctx.fillText(line, x, lineY);
+    });
   }
+
   ctx.restore();
 }
 
@@ -250,8 +366,10 @@ function SequencePlayer({ clips, cues = [], hookTitle = '', hookDuration = 3.0, 
   const [isPlaying, setIsPlaying] = useState(false);
   const [playhead, setPlayhead] = useState(0);
   const playheadRef = useRef(0);
+  const prevActiveClipIdRef = useRef(null);
 
   const captionKey = `${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}:${captionStyle.fontName}:${hookTitle}:${hookDuration}`;
+  const cuesKey = (cues || []).map(c => `${c._uid || c.id}:${c.start}:${c.end}:${c.text}:${c.translation}:${c.scale || 1}`).join(';;');
   const stickerKey = `${stickerStyle.badge}:${stickerStyle.position}:${stickerStyle.scale}:${stickerStyle.startTime}`;
   const clipKey = clips.map(c => `${c.id}:${c.source_path}:${c.trim_start}:${c.trim_end}:${c.transition_in}:${c.transition_duration}:${c.brightness}:${c.contrast}:${c.saturation}:${c.zoom}:${c.pan_x}:${c.pan_y}:${c.mirror}:${c.rotation}`).join('|');
 
@@ -342,9 +460,9 @@ function SequencePlayer({ clips, cues = [], hookTitle = '', hookDuration = 3.0, 
   };
 
   useEffect(() => {
-    renderAt(playhead);
+    renderAt(playheadRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [segments, captionKey, stickerKey]);
+  }, [segments, captionKey, stickerKey, cuesKey]);
 
   const lastNotifyRef = useRef(0);
 
@@ -379,32 +497,91 @@ function SequencePlayer({ clips, cues = [], hookTitle = '', hookDuration = 3.0, 
       const plan = getDrawPlan(t);
       const neededIds = new Set(plan.map(p => p.seg.clip.id));
 
+      // 1. Lookahead Pre-Roll: Pre-seek upcoming clips 0.8s - 1.2s in advance so they
+      // have their first frame decoded and cached in memory before the cut boundary.
+      const upcomingSeg = segments.find(s => s.segStart > t && s.segStart <= t + 1.2);
+      if (upcomingSeg) {
+        const nextV = videoElsRef.current[upcomingSeg.clip.id];
+        const nextStart = upcomingSeg.clip.trim_start || 0;
+        if (nextV && nextV.paused && !nextV.seeking) {
+          if (Math.abs(nextV.currentTime - nextStart) > 0.08) {
+            nextV.currentTime = nextStart;
+          }
+        }
+      }
+
+      // 2. Play active clips & compensate drift smoothly via playbackRate (slew rate)
+      // rather than aggressive currentTime seeking which stalls the decoder pipeline.
       plan.forEach(({ seg, localTime }) => {
         const v = videoElsRef.current[seg.clip.id];
         if (!v) return;
         if (v.paused) {
-          v.currentTime = localTime;
+          // If already near localTime from pre-roll, start immediately without seek!
+          if (Math.abs(v.currentTime - localTime) > 0.12) {
+            v.currentTime = localTime;
+          }
+          v.playbackRate = 1.0;
           v.play().catch(() => {});
-        } else if (Math.abs(v.currentTime - localTime) > RESYNC_THRESHOLD) {
-          v.currentTime = localTime;
+        } else {
+          const drift = v.currentTime - localTime;
+          if (Math.abs(drift) > 0.4) {
+            // Large drift (after scrub or tab resume) -> hard seek
+            v.currentTime = localTime;
+            v.playbackRate = 1.0;
+          } else if (drift < -0.04) {
+            // Video is slightly trailing behind -> accelerate 6% to catch up smoothly
+            v.playbackRate = 1.06;
+          } else if (drift > 0.04) {
+            // Video is slightly ahead -> slow down 6% to let master clock catch up
+            v.playbackRate = 0.94;
+          } else {
+            if (v.playbackRate !== 1.0) v.playbackRate = 1.0;
+          }
         }
       });
 
+      // 3. Pause video elements no longer in the plan
       Object.entries(videoElsRef.current).forEach(([id, v]) => {
-        if (v && !v.paused && !neededIds.has(id)) v.pause();
+        if (v && !v.paused && !neededIds.has(id)) {
+          v.playbackRate = 1.0;
+          v.pause();
+        }
       });
 
+      // 4. Glitch-Protected Double-Buffered Rendering
       const canvas = canvasRef.current;
       const ctx = canvas?.getContext('2d');
       if (ctx) {
-        ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+        let framePainted = false;
         plan.forEach(({ seg, alpha }) => {
           const video = videoElsRef.current[seg.clip.id];
           if (!video) return;
-          ctx.globalAlpha = alpha;
-          ctx.filter = clipFilter(seg.clip);
-          drawVideoFrame(ctx, video, seg.clip);
+
+          // If incoming video is still actively seeking to its cut point,
+          // hold the outgoing clip's frame to eliminate any flash or random frame stutter
+          if (video.seeking && prevActiveClipIdRef.current && prevActiveClipIdRef.current !== seg.clip.id) {
+            const prevV = videoElsRef.current[prevActiveClipIdRef.current];
+            const prevSeg = segments.find(s => s.clip.id === prevActiveClipIdRef.current);
+            if (prevV && prevSeg && prevV.readyState >= 2 && !prevV.seeking) {
+              if (!framePainted) ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+              ctx.globalAlpha = 1;
+              ctx.filter = clipFilter(prevSeg.clip);
+              drawVideoFrame(ctx, prevV, prevSeg.clip);
+              framePainted = true;
+              return;
+            }
+          }
+
+          if (video.readyState >= 2 && !video.seeking) {
+            if (!framePainted) ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+            ctx.globalAlpha = alpha;
+            ctx.filter = clipFilter(seg.clip);
+            drawVideoFrame(ctx, video, seg.clip);
+            framePainted = true;
+            prevActiveClipIdRef.current = seg.clip.id;
+          }
         });
+
         ctx.globalAlpha = 1;
         ctx.filter = 'none';
         drawHookHeader(ctx, hookTitle, t, hookDuration, captionStyle.fontName, cues[0]?.text);
