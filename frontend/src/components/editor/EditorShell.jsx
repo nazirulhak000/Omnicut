@@ -6,7 +6,7 @@ import {
   ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen
 } from 'lucide-react';
 import {
-  deleteProject, getAllAssets, getProject, getProjectOrigin, getProjects, getRenderStatus, startReroll, updateProjectCues, updateProjectClips, updateProjectState, openFolder, updateAngleStatus,
+  deleteProject, getAllAssets, getHookMotionPresets, getProject, getProjectOrigin, getProjects, getRenderStatus, startReroll, updateProjectCues, updateProjectClips, updateProjectState, openFolder, updateAngleStatus,
 } from '../../api';
 import {
   FADE_DURATION, ZOOM_LEVELS, buildSegments, formatTimecode, splitClipAt, snapCandidates, snapTime,
@@ -204,10 +204,13 @@ export default function EditorShell({
   const [hookModel, setHookModel] = useState('');
   const [hookLabel, setHookLabel] = useState('');
   const [hookDuration, setHookDuration] = useState(3.0);
-  // Partial dict, only the keys the user turned OFF -- an absent key means
-  // "on", mirroring subtitle_engine's _resolve_hook_motion default so a
-  // fresh {} here renders identically to the backend's own default preset.
+  // Partial dict of motion choices ({in, loop, out, accent} preset ids plus
+  // the stagger flag). Only what the user actually changed is stored -- an
+  // absent key falls back to the backend's own default preset in
+  // _resolve_hook_motion, so a fresh {} renders exactly like the default.
   const [hookMotion, setHookMotion] = useState({});
+  const [hookMotionCatalog, setHookMotionCatalog] = useState(null);
+  const [hookMotionDefault, setHookMotionDefault] = useState(null);
   const handleHookMotionToggle = useCallback((key, value) => {
     setHookMotion((prev) => ({ ...prev, [key]: value }));
   }, []);
@@ -304,6 +307,16 @@ export default function EditorShell({
     getAllAssets()
       .then(setAssets)
       .catch((err) => console.warn('Asset fetch failed:', err));
+
+    // Motion pickers render from the backend's own catalog rather than a
+    // duplicated list here, so a preset added server-side appears without a
+    // frontend change (and one that isn't there can't be picked).
+    getHookMotionPresets()
+      .then((data) => {
+        setHookMotionCatalog(data?.catalog || null);
+        setHookMotionDefault(data?.default || null);
+      })
+      .catch((err) => console.warn('Hook motion preset fetch failed:', err));
   }, []);
 
   // Load project handed down from script lab or flow
@@ -1655,6 +1668,8 @@ export default function EditorShell({
                       onHookDurationChange={setHookDuration}
                       hookMotion={hookMotion}
                       onHookMotionChange={handleHookMotionToggle}
+                      hookMotionCatalog={hookMotionCatalog}
+                      hookMotionDefault={hookMotionDefault}
                       showHookHeader={showHookHeader}
                       onToggleHookHeader={() => setShowHookHeader((v) => !v)}
                       onAddTextAtPlayhead={addTextAtPlayhead}
@@ -1908,6 +1923,8 @@ export default function EditorShell({
                         onHookDurationChange={setHookDuration}
                         hookMotion={hookMotion}
                         onHookMotionChange={handleHookMotionToggle}
+                        hookMotionCatalog={hookMotionCatalog}
+                        hookMotionDefault={hookMotionDefault}
                         showHookHeader={showHookHeader}
                         onToggleHookHeader={() => setShowHookHeader((v) => !v)}
                         onAddTextAtPlayhead={addTextAtPlayhead}

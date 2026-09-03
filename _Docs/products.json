@@ -40,15 +40,15 @@
           "ลองเปลี่ยนชีวิตดูมั้ยล่ะ สุขภาพดีขึ้นเยอะแน่นอน! ราคาพิเศษอยู่ในตะกร้าแล้วจิ้มเลย อย่ารอให้ปวดไปมากกว่านี้!"
         ],
         "tts_hook_title": "ปวดข้อมือ ปวดหลัง ปัญหาโลกแตกชาวออฟฟิศ!",
-        "status": "rendered",
-        "updated_at": "2026-09-04T00:48:32",
+        "status": "in_production",
+        "updated_at": "2026-09-04T01:03:25",
         "selected_videos": [
           "01_Raw/20260902153241_1/Logitech wav.mov"
         ],
         "selected_video": "01_Raw/20260902153241_1/Logitech wav.mov",
         "video_url": "D:\\Winona\\Programmer\\Capcut\\04_Exports\\Ready_to_post\\TikTok_Logitech_Wave_Keys_20260904_004832.mp4",
         "project_name": "TikTok_Logitech_Wave_Keys",
-        "qc_note": "Hook not Pass"
+        "qc_note": "เส้นใต้ไม่ผ่าน"
       },
       {
         "angle_id": "unboxing",
@@ -268,7 +268,7 @@
       "TikTok_Test_Rollback_99"
     ],
     "created_at": "2026-09-02T15:32:41",
-    "updated_at": "2026-09-04T00:56:18",
+    "updated_at": "2026-09-04T01:03:25",
     "videos": [
       {
         "name": "1027.mp4",

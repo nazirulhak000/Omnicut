@@ -582,54 +582,135 @@ function drawSticker(ctx, img, t, style = {}) {
  * approximation on animation easing (this canvas fades alpha, the .ass pops
  * scale in), not on layout or which text shows where.
  */
-// Default hook-banner motion preset -- mirrors DEFAULT_HOOK_MOTION in
-// subtitle_engine.py exactly (all 4 effects on; a partial dict from the UI
-// only carries the keys the user turned off).
-const HOOK_MOTION_DEFAULTS = { bounce: true, stagger: true, pulse: true, underline: true };
+// Canvas mirror of subtitle_engine.py's hook motion presets. Every preset
+// here reproduces the keyframes its Python builder emits, so what plays in
+// this preview is what libass will draw -- the two are meant to be read side
+// by side; changing one without the other is a bug.
+const HOOK_MOTION_DEFAULTS = { in: 'bounce', stagger: true, loop: 'pulse', out: 'fade', accent: 'underline' };
 const HOOK_STAGGER_STEP = 0.15; // seconds; mirrors STAGGER_STEP_MS
 const HOOK_DIM_OPACITY = 1 - 0x25 / 255; // mirrors ASS \alpha&H25&
 
-// Scale multiplier (1.0 = settled/target size) for `elapsedSec` since this
-// tier's own stagger start. Mirrors _hook_entry_anim's keyframes exactly so
-// the preview's bounce timing matches the real render.
-function hookEntryScale(elapsedSec, bounce) {
-  const ms = elapsedSec * 1000;
-  if (!bounce) {
-    if (ms <= 0) return 1.15;
-    if (ms >= 120) return 1.0;
-    return 1.15 + (1.0 - 1.15) * (ms / 120);
-  }
-  if (ms <= 0) return 0.6;
-  if (ms >= 450) return 1.0;
-  const kf = [[0, 0.6], [150, 1.25], [280, 0.92], [380, 1.05], [450, 1.0]];
+/** Piecewise-linear interpolation over [[ms, value], ...] keyframes. */
+function hookKeyframeAt(ms, kf) {
+  if (ms <= kf[0][0]) return kf[0][1];
+  const last = kf[kf.length - 1];
+  if (ms >= last[0]) return last[1];
   for (let i = 0; i < kf.length - 1; i++) {
     const [t1, v1] = kf[i];
     const [t2, v2] = kf[i + 1];
     if (ms >= t1 && ms <= t2) return v1 + (v2 - v1) * ((ms - t1) / (t2 - t1));
   }
-  return 1.0;
+  return last[1];
 }
 
-// Breathing alpha oscillation for the hold period. Mirrors
-// _hook_pulse_keyframes: alternating opaque/dim every 350ms, dropping a
-// trailing fragment that wouldn't complete before the exit fade takes over.
-function hookPulseOpacity(tSec, pulseStartSec, exitStartSec) {
-  if (tSec < pulseStartSec) return 1.0;
-  const HALF = 0.35;
-  let segStart = pulseStartSec;
-  let dimNext = true;
-  while (segStart + HALF <= exitStartSec) {
-    const segEnd = segStart + HALF;
+// Each In preset returns {scale, alpha, dy, reveal} for `elapsedSec` since
+// this line's own stagger start, plus how long it runs (durSec) so the loop
+// phase knows when every line has settled. reveal (0..1) drives the
+// typewriter's left-to-right clip.
+const HOOK_IN_TRANSFORMS = {
+  bounce: {
+    durSec: 0.45,
+    at: (ms) => ({ scale: hookKeyframeAt(ms, [[0, 0.6], [150, 1.25], [280, 0.92], [380, 1.05], [450, 1.0]]) }),
+  },
+  pop: {
+    durSec: 0.2,
+    at: (ms) => ({ scale: hookKeyframeAt(ms, [[0, 0.55], [120, 1.18], [200, 1.0]]) }),
+  },
+  fade: {
+    durSec: 0.25,
+    at: (ms) => ({ alpha: hookKeyframeAt(ms, [[0, 0], [250, 1]]) }),
+  },
+  zoom: {
+    durSec: 0.3,
+    at: (ms) => ({
+      scale: hookKeyframeAt(ms, [[0, 1.8], [300, 1.0]]),
+      alpha: hookKeyframeAt(ms, [[0, 0], [150, 1]]),
+    }),
+  },
+  slide_up: {
+    durSec: 0.3,
+    at: (ms) => ({
+      dy: hookKeyframeAt(ms, [[0, 60], [300, 0]]),
+      alpha: hookKeyframeAt(ms, [[0, 0], [300, 1]]),
+    }),
+  },
+  typewriter: {
+    durSec: 0.4,
+    at: (ms) => ({ reveal: hookKeyframeAt(ms, [[0, 0], [400, 1]]) }),
+  },
+  blur: {
+    durSec: 0.35,
+    at: (ms) => ({
+      alpha: hookKeyframeAt(ms, [[0, 0], [350, 1]]),
+      blur: hookKeyframeAt(ms, [[0, 12], [350, 0]]),
+    }),
+  },
+  none: { durSec: 0, at: () => ({}) },
+};
+
+// Loop presets run from when the last line settles until the exit starts.
+// Mirrors _chained_keyframes: fixed-length steps cycling through values,
+// emitting nothing at all if not even one step fits.
+function hookCycleAt(tSec, startSec, endSec, stepSec, values) {
+  if (tSec < startSec) return values[values.length - 1];
+  let segStart = startSec;
+  let i = 0;
+  let prev = values[values.length - 1];
+  while (segStart + stepSec <= endSec) {
+    const segEnd = segStart + stepSec;
+    const target = values[i % values.length];
     if (tSec >= segStart && tSec < segEnd) {
-      const from = dimNext ? 1.0 : HOOK_DIM_OPACITY;
-      const to = dimNext ? HOOK_DIM_OPACITY : 1.0;
-      return from + (to - from) * ((tSec - segStart) / HALF);
+      return prev + (target - prev) * ((tSec - segStart) / stepSec);
     }
+    prev = target;
     segStart = segEnd;
-    dimNext = !dimNext;
+    i += 1;
   }
-  return 1.0;
+  return i === 0 ? values[values.length - 1] : prev;
 }
+
+const HOOK_LOOP_TRANSFORMS = {
+  pulse: (t, s, e) => ({ alpha: hookCycleAt(t, s, e, 0.35, [HOOK_DIM_OPACITY, 1.0]) }),
+  wave: (t, s, e) => ({ rot: hookCycleAt(t, s, e, 0.4, [-3, 3, 0]) }),
+  shake: (t, s, e) => ({ rot: hookCycleAt(t, s, e, 0.09, [-3, 3, -2, 2, 0]) }),
+  flicker: (t, s, e) => {
+    // irregular step lengths, matching _loop_flicker's hardcoded pattern
+    const pattern = [[0.08, 1 - 0x30 / 255], [0.15, 1.0], [0.06, 1 - 0x45 / 255], [0.2, 1.0], [0.09, 1 - 0x20 / 255], [0.18, 1.0]];
+    if (t < s) return { alpha: 1.0 };
+    let segStart = s;
+    let i = 0;
+    let prev = 1.0;
+    while (true) {
+      const [dur, target] = pattern[i % pattern.length];
+      if (segStart + dur > e) return { alpha: prev };
+      if (t >= segStart && t < segStart + dur) {
+        return { alpha: prev + (target - prev) * ((t - segStart) / dur) };
+      }
+      prev = target;
+      segStart += dur;
+      i += 1;
+    }
+  },
+  lightsweep: () => ({}), // drawn as a separate highlight pass, not a transform
+  none: () => ({}),
+};
+
+const HOOK_OUT_TRANSFORMS = {
+  fade: (t, s, e) => ({ alpha: 1 - hookKeyframeAt((t - s) * 1000, [[0, 0], [(e - s) * 1000, 1]]) }),
+  slide: (t, s, e) => ({
+    alpha: 1 - hookKeyframeAt((t - s) * 1000, [[0, 0], [(e - s) * 1000, 1]]),
+    dy: hookKeyframeAt((t - s) * 1000, [[0, 0], [(e - s) * 1000, 60]]),
+  }),
+  zoom: (t, s, e) => ({
+    alpha: 1 - hookKeyframeAt((t - s) * 1000, [[0, 0], [(e - s) * 1000, 1]]),
+    scale: hookKeyframeAt((t - s) * 1000, [[0, 1], [(e - s) * 1000, 1.4]]),
+  }),
+  glitch: (t, s, e) => ({
+    rot: hookCycleAt(t, s, Math.max(s + 0.001, e - 0.04), 0.04, [-3, 3, 0]),
+    alpha: t >= e - 0.04 ? 1 - (t - (e - 0.04)) / 0.04 : 1,
+  }),
+  none: (t, s, e) => ({ alpha: t >= e - 0.001 ? 0 : 1 }),
+};
 
 function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 3.5, fontName = 'Kanit', accentColor = '#FFE600', hookMotion = null) {
   if ((!hookBrand && !hookModel && !hookLabel) || t > hookDuration) return;
@@ -678,14 +759,19 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
   // y=140) instead of just overflowing unbounded.
   const shrink = Math.max(0.7, Math.min(1, 4 / wrapped.length));
 
-  // Pulse can't start until every tier's own entry has settled.
+  const inPreset = HOOK_IN_TRANSFORMS[motion.in] || HOOK_IN_TRANSFORMS.bounce;
+  const loopFn = HOOK_LOOP_TRANSFORMS[motion.loop] || HOOK_LOOP_TRANSFORMS.pulse;
+  const outFn = HOOK_OUT_TRANSFORMS[motion.out] || HOOK_OUT_TRANSFORMS.fade;
+
+  // The loop phase can't start until every tier's own entry has settled.
   let maxEntryEndSec = 0;
   for (const { tierIdx } of wrapped) {
     const t0 = motion.stagger ? tierIdx * HOOK_STAGGER_STEP : 0;
-    maxEntryEndSec = Math.max(maxEntryEndSec, t0 + (motion.bounce ? 0.45 : 0.12));
+    maxEntryEndSec = Math.max(maxEntryEndSec, t0 + inPreset.durSec);
   }
   const exitStartSec = Math.max(0.12, hookDuration - 0.15);
-  const pulseOpacity = motion.pulse ? hookPulseOpacity(t, maxEntryEndSec, exitStartSec) : 1.0;
+  const loopFx = loopFn(t, maxEntryEndSec, exitStartSec) || {};
+  const outFx = t >= exitStartSec ? (outFn(t, exitStartSec, hookDuration) || {}) : {};
 
   // Gradient backdrop -- mirrors video_editor.py's geq overlay (dark at the
   // top of the frame, fading to transparent by ~25% down), same alpha
@@ -712,46 +798,113 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
   // to ask libass where a wrapped line landed), the canvas already computes
   // each line's real y and width here, so no LINE_HEIGHT_FACTOR guess is
   // needed on this side.
-  let modelBottomY = null, modelLineWidth = 0, modelFontSize = 0, modelColor = accentColor;
-  for (const { line, fontSize, color, tierIdx } of wrapped) {
+  let modelTopY = null, modelLineWidth = 0, modelFontSize = 0, modelColor = accentColor;
+  const sweeps = [];
+  wrapped.forEach(({ line, fontSize, color, tierIdx }, idx) => {
     // The cumulative y-cursor advances using the SETTLED size, not the
-    // currently-animating bounce scale -- an ASS \t transform (and this
-    // mirror of it) animates glyph rendering, not layout reflow, so other
-    // lines must not jitter as this one bounces.
+    // currently-animating scale -- an ASS \t transform (and this mirror of
+    // it) animates glyph rendering, not layout reflow, so other lines must
+    // not jitter as this one animates.
     const settledFs = Math.max(10, Math.round(fontSize * shrink));
     const t0 = motion.stagger ? tierIdx * HOOK_STAGGER_STEP : 0;
-    const renderFs = Math.max(6, Math.round(settledFs * hookEntryScale(t - t0, motion.bounce)));
+    const inFx = inPreset.at((t - t0) * 1000) || {};
 
-    ctx.globalAlpha = alpha * pulseOpacity;
+    const scale = (inFx.scale ?? 1) * (outFx.scale ?? 1);
+    const dy = (inFx.dy ?? 0) + (outFx.dy ?? 0);
+    const rot = (loopFx.rot ?? 0) + (outFx.rot ?? 0);
+    const renderFs = Math.max(6, Math.round(settledFs * scale));
+
+    ctx.save();
+    ctx.globalAlpha = alpha * (inFx.alpha ?? 1) * (loopFx.alpha ?? 1) * (outFx.alpha ?? 1);
+    if (inFx.blur) ctx.filter = `blur(${inFx.blur.toFixed(1)}px)`;
+    if (rot) {
+      // rotate about the line's own centre, matching \frz around \pos
+      ctx.translate(x, y + settledFs / 2 + dy);
+      ctx.rotate((rot * Math.PI) / 180);
+      ctx.translate(-x, -(y + settledFs / 2 + dy));
+    }
+    if (inFx.reveal != null) {
+      // typewriter: same left-to-right clip the ASS \clip animation performs
+      ctx.font = `900 ${settledFs}px ${fontFam}`;
+      const halfW = ctx.measureText(line).width / 2;
+      ctx.beginPath();
+      ctx.rect(x - halfW, y + dy - 5, halfW * 2 * inFx.reveal, settledFs + 10);
+      ctx.clip();
+    }
     ctx.font = `900 ${renderFs}px ${fontFam}`;
     ctx.lineWidth = Math.round(renderFs * 0.22);
-    ctx.strokeText(line, x, y, maxW);
+    ctx.strokeText(line, x, y + dy, maxW);
     ctx.fillStyle = color;
-    ctx.fillText(line, x, y, maxW);
+    ctx.fillText(line, x, y + dy, maxW);
+    ctx.restore();
+
+    if (motion.loop === 'lightsweep') {
+      ctx.font = `900 ${settledFs}px ${fontFam}`;
+      sweeps.push({ line, y: y + dy, fs: settledFs, halfW: ctx.measureText(line).width / 2 });
+    }
 
     if (tierIdx === 1) {
-      ctx.font = `900 ${settledFs}px ${fontFam}`; // measure at settled size, not the bounced one
+      ctx.font = `900 ${settledFs}px ${fontFam}`; // measure at settled size, not the animating one
       modelLineWidth = ctx.measureText(line).width;
       modelFontSize = settledFs;
       modelColor = color;
-      modelBottomY = y + settledFs * lineGap;
+      modelTopY = y;
     }
     y += settledFs * lineGap;
+
+    // Accent shapes take layout space after the model tier's last line, so
+    // the label below is never drawn through -- mirrors the same reserve in
+    // subtitle_engine.py's y-cursor walk.
+    const isLastModelLine = tierIdx === 1 && (idx + 1 >= wrapped.length || wrapped[idx + 1].tierIdx !== 1);
+    if (isLastModelLine && motion.accent !== 'none') {
+      y += settledFs * (motion.accent === 'badge' ? 0.3 : 0.55);
+    }
+  });
+
+  // Shimmer band travelling across each line, repeatedly, for the hold --
+  // mirrors _hook_lightsweep_event's 500ms cycle plus its instant reset.
+  if (sweeps.length && t >= maxEntryEndSec && t < exitStartSec) {
+    const CYCLE = 0.501;
+    const phase = ((t - maxEntryEndSec) % CYCLE) / 0.5;
+    if (phase <= 1) {
+      ctx.save();
+      ctx.globalAlpha = alpha * 0.62;
+      ctx.fillStyle = '#FFFFFF';
+      for (const s of sweeps) {
+        const bandW = Math.max(10, s.halfW * 0.7);
+        const bandX = s.y != null ? (x - s.halfW - bandW) + phase * (s.halfW * 2 + bandW) : 0;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(bandX, s.y - 5, bandW, s.fs + 10);
+        ctx.clip();
+        ctx.font = `900 ${s.fs}px ${fontFam}`;
+        ctx.fillText(s.line, x, s.y, maxW);
+        ctx.restore();
+      }
+      ctx.restore();
+    }
   }
 
-  // Accent underline: reveals under the model tier's LAST wrapped line.
-  // Follows the entry/exit fade envelope only, not the pulse -- matches the
-  // backend, which never threads pulse keyframes into the underline event.
-  if (motion.underline && modelBottomY != null) {
+  // Accent shape under / behind the model tier. Follows the entry and exit
+  // envelope but not the loop -- matching the backend, which never threads
+  // loop keyframes into the accent events.
+  if (motion.accent !== 'none' && modelTopY != null) {
     const revealStart = motion.stagger ? HOOK_STAGGER_STEP * 2 : 0;
-    const revealEnd = revealStart + 0.3;
-    const revealFrac = t <= revealStart ? 0 : Math.min(1, (t - revealStart) / (revealEnd - revealStart));
-    const thickness = Math.max(3, Math.round(modelFontSize * 0.06));
-    const gap = Math.round(modelFontSize * 0.12);
-    const w = modelLineWidth * revealFrac;
-    ctx.globalAlpha = alpha;
+    const revealFrac = t <= revealStart ? 0 : Math.min(1, (t - revealStart) / 0.3);
+    ctx.globalAlpha = alpha * (outFx.alpha ?? 1);
     ctx.fillStyle = modelColor;
-    ctx.fillRect(x - w / 2, modelBottomY + gap, w, thickness);
+    if (motion.accent === 'badge') {
+      const padX = Math.round(modelFontSize * 0.38);
+      const padY = Math.round(modelFontSize * 0.2);
+      const bw = (modelLineWidth / 2 + padX) * 2 * revealFrac;
+      ctx.globalAlpha *= 0.69; // matches the badge's \alpha&HB0&
+      ctx.fillRect(x - bw / 2, modelTopY - padY, bw, modelFontSize + padY * 2);
+    } else {
+      const thickness = Math.max(4, Math.round(modelFontSize * 0.1));
+      const gap = Math.round(modelFontSize * 0.26);
+      const w = modelLineWidth * revealFrac;
+      ctx.fillRect(x - w / 2, modelTopY + modelFontSize + gap, w, thickness);
+    }
   }
 
   ctx.restore();

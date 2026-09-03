@@ -16,8 +16,8 @@ for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8501" ^| findstr "LISTENING
     taskkill /F /PID %%a >nul 2>&1
 )
 
-echo [2/3] Launching FastAPI Backend on http://localhost:8000 ...
-start "TikTok Auto-Cutter Backend (FastAPI)" cmd /k "python scripts/api_server.py"
+echo [2/3] Launching FastAPI Backend on http://localhost:8000 (WatchFiles reload=OFF for stable renders) ...
+start "TikTok Auto-Cutter Backend (FastAPI)" cmd /k "set FASTAPI_RELOAD=false && python scripts/api_server.py"
 
 echo [3/3] Launching React Vite Frontend on http://localhost:5173 ...
 cd /d "%~dp0frontend"

@@ -55,6 +55,8 @@ export default function Inspector({
   onHookDurationChange,
   hookMotion = {},
   onHookMotionChange,
+  hookMotionCatalog = null,
+  hookMotionDefault = null,
   showHookHeader = true,
   onToggleHookHeader,
   onAddTextAtPlayhead,

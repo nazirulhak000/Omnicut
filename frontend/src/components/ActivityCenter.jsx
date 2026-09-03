@@ -370,42 +370,111 @@ export function GlobalTaskNotification() {
   );
 }
 
+const ACTIVE_RENDER_STORAGE_KEY = 'capcut_active_render_job';
+
 export function GlobalLiveRenderWidget({ currentTab, onNavigateToEditor }) {
   const { activeTasks } = useTaskManager();
+  const [liveStatus, setLiveStatus] = useState(null);
+  const timerRef = React.useRef(null);
 
+  // Poll /api/render/status/{jobId} directly — this gives the SAME data as terminal output
+  React.useEffect(() => {
+    function startPolling(jobId) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/render/status/${jobId}`);
+          if (!res.ok) { clearInterval(timerRef.current); setLiveStatus(null); return; }
+          const data = await res.json();
+          setLiveStatus(data);
+          if (data.status === 'completed' || data.status === 'failed') {
+            clearInterval(timerRef.current);
+            setTimeout(() => setLiveStatus(null), 3000); // linger 3s after done
+          }
+        } catch {
+          clearInterval(timerRef.current);
+          setLiveStatus(null);
+        }
+      }, 1000);
+    }
+
+    // Watch localStorage for active render job
+    function checkStorage() {
+      try {
+        const raw = localStorage.getItem(ACTIVE_RENDER_STORAGE_KEY);
+        if (!raw) { clearInterval(timerRef.current); setLiveStatus(null); return; }
+        const { jobId } = JSON.parse(raw);
+        if (jobId) startPolling(jobId);
+      } catch { setLiveStatus(null); }
+    }
+
+    checkStorage();
+    // Also re-check when storage changes (another tab)
+    window.addEventListener('storage', checkStorage);
+    return () => {
+      window.removeEventListener('storage', checkStorage);
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
+  // Decide what to show: prefer live render status, fall back to TaskManager
   const renderTask = activeTasks.find(
     (t) => (t.task_type === 'render_video' || t.task_type === 'render') &&
            (t.status === 'processing' || t.status === 'queued')
   );
 
-  if (!renderTask || currentTab === 'editor') return null;
+  const isLive   = liveStatus && (liveStatus.status === 'processing' || liveStatus.status === 'queued' || liveStatus.status === 'completed');
+  const isDone   = liveStatus?.status === 'completed';
+  const isFailed = liveStatus?.status === 'failed';
 
-  const pct = Math.round((renderTask.progress || 0) * 100);
-  const title = renderTask.payload?.project_name || renderTask.title || 'กำลังตัดต่อวิดีโอ';
+  if (!isLive && !renderTask) return null;
+  if (currentTab === 'editor' && !isDone && !isFailed) return null;
+
+  const pct = isLive
+    ? Math.round((liveStatus.progress || 0) * 100)
+    : Math.round((renderTask?.progress || 0) * 100);
+
+  const label = isLive
+    ? (liveStatus.step_label || liveStatus.message || 'กำลังตัดต่อ...')
+    : (renderTask?.step_label || 'กำลังประมวลผล...');
+
+  const title = liveStatus?.title
+    || renderTask?.payload?.project_name
+    || renderTask?.title
+    || 'กำลังตัดต่อวิดีโอ';
+
+  const barColor = isDone
+    ? 'from-emerald-500 to-emerald-400'
+    : isFailed
+    ? 'from-red-500 to-red-400'
+    : 'from-[#D97757] via-[#FF8A65] to-[#25F4EE]';
+
+  const borderColor = isDone ? 'border-emerald-500/40 ring-emerald-500/20' : isFailed ? 'border-red-500/40 ring-red-500/20' : 'border-[#D97757]/40 ring-[#D97757]/20';
 
   return (
-    <div className="fixed bottom-20 md:bottom-5 left-1/2 -translate-x-1/2 z-40 w-[92%] max-w-md animate-slideUp">
-      <div className="p-3 rounded-2xl bg-[#080B11]/95 border border-[#D97757]/40 shadow-2xl backdrop-blur-2xl flex items-center justify-between gap-3 ring-1 ring-[#D97757]/30 shadow-[#D97757]/10">
+    <div className="fixed bottom-20 md:bottom-5 right-4 z-40 w-[92%] max-w-sm animate-slideUp">
+      <div className={`p-3 rounded-2xl bg-[#080B11]/95 border ${borderColor} shadow-2xl backdrop-blur-2xl flex items-center justify-between gap-3 ring-1`}>
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
-          <div className="w-8 h-8 rounded-xl bg-[#D97757]/15 border border-[#D97757]/30 flex items-center justify-center flex-shrink-0 text-[#D97757]">
-            <Loader2 className="w-4 h-4 animate-spin text-[#D97757]" />
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${isDone ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400' : 'bg-[#D97757]/15 border border-[#D97757]/30 text-[#D97757]'}`}>
+            {isDone
+              ? <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              : <Loader2 className="w-4 h-4 animate-spin" />
+            }
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between text-xs font-bold text-white mb-1">
-              <span className="truncate">{title}</span>
-              <span className="font-mono text-[#E89274] ml-2 flex-shrink-0">{pct}%</span>
+              <span className="truncate">{isDone ? 'ตัดต่อเสร็จแล้ว!' : title}</span>
+              <span className={`font-mono ml-2 flex-shrink-0 ${isDone ? 'text-emerald-400' : 'text-[#E89274]'}`}>{pct}%</span>
             </div>
             <div className="h-2 w-full rounded-full bg-white/[0.08] overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-[#D97757] via-[#FF8A65] to-[#25F4EE] transition-all duration-300 rounded-full relative overflow-hidden"
+                className={`h-full bg-gradient-to-r ${barColor} transition-all duration-500 rounded-full relative overflow-hidden`}
                 style={{ width: `${Math.max(5, pct)}%` }}
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent -translate-x-full animate-shimmer" />
+                {!isDone && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full animate-shimmer" />}
               </div>
             </div>
-            <p className="text-[11px] text-slate-400 truncate mt-0.5">
-              {renderTask.step_label || 'กำลังประมวลผลขั้นตอนต่างๆ...'}
-            </p>
+            <p className="text-[11px] text-slate-400 truncate mt-0.5">{label}</p>
           </div>
         </div>
         <button
