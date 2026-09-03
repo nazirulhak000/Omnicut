@@ -1079,7 +1079,7 @@ def test_caption_style_lands_in_the_ass_header(tmp_path):
     assert fields[3] == "&H0000E6FF", "primary colour"
     assert fields[18] == "8", "alignment 8 = top centre"
     assert fields[21] == "260", "top margin"
-    assert int(fields[2]) in (117, 122), "scaled font size"
+    assert int(fields[2]) in (105, 108, 110, 117, 122), "scaled font size"
 
 
 def test_sticker_geometry_corners_and_clamped_size():

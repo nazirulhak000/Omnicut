@@ -1226,7 +1226,7 @@ def generate_ai_scripts(req: ScriptGenerateRequest):
 }}
 ```
 """
-        models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+        models = ["gemini-2.5-flash", "gemini-2.5-flash-lite"]
         response = None
         for m_name in models:
             try:

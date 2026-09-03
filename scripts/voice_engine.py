@@ -65,24 +65,28 @@ class VoiceEngine:
     }
 
     @staticmethod
-    def _trim_silence(data: np.ndarray, sample_rate: int = 44100, threshold_db: float = -42.0) -> np.ndarray:
+    def _trim_silence(data: np.ndarray, sample_rate: int = 44100, threshold_db: float = -42.0) -> Tuple[np.ndarray, float]:
         """
         Strips leading and trailing digital dead silence from TTS takes so speech starts
         immediately within 15ms and ends cleanly with zero trailing gap.
         Eliminates audio drift and prevents voice leading subtitles.
+
+        Returns `(trimmed_data, head_trim_seconds)` -- the trim amount lets a
+        caller holding word-level timestamps (measured against the
+        untrimmed take) shift them onto the trimmed waveform's own clock.
         """
         if len(data) == 0:
-            return data
+            return data, 0.0
         threshold = 10.0 ** (threshold_db / 20.0)
         abs_data = np.abs(data)
         non_silent = np.where(abs_data > threshold)[0]
         if len(non_silent) == 0:
-            return data
+            return data, 0.0
         pad_head = int(0.015 * sample_rate)
         pad_tail = int(0.025 * sample_rate)
         start_idx = max(0, non_silent[0] - pad_head)
         end_idx = min(len(data), non_silent[-1] + pad_tail)
-        return data[start_idx:end_idx]
+        return data[start_idx:end_idx], start_idx / sample_rate
 
     @classmethod
     def detect_beat_type(cls, line_idx: int, total_lines: int, text: str) -> str:
@@ -136,6 +140,48 @@ class VoiceEngine:
                 })
 
         return final_clauses
+
+    @staticmethod
+    def _synthesize_line_with_word_timing(
+        text: str, voice_name: str, rate_str: str, pitch_str: str, out_mp3: Path
+    ) -> Optional[List[Dict]]:
+        """
+        Synthesizes one line via edge-tts's streaming API (instead of the
+        CLI) so per-word timestamps can be captured alongside the audio --
+        writes the same MP3 the CLI would have produced either way. Returns
+        the word list (`{"text", "start", "end"}`, seconds relative to this
+        line's own *untrimmed* audio) on success, or `None` on any failure
+        (network hiccup, a library-version mismatch, an unsupported voice).
+        Caller must fall back to the plain CLI call when this returns `None`
+        -- word-level timing is a bonus, never a render-blocking dependency.
+        """
+        try:
+            import asyncio
+            import edge_tts
+
+            async def _run() -> List[Dict]:
+                # edge-tts defaults to boundary="SentenceBoundary" -- without
+                # this explicit override it never emits WordBoundary chunks
+                # at all, silently giving one timestamp for the whole line.
+                communicate = edge_tts.Communicate(
+                    text, voice_name, rate=rate_str, pitch=pitch_str, boundary="WordBoundary"
+                )
+                words: List[Dict] = []
+                with open(out_mp3, "wb") as f:
+                    async for chunk in communicate.stream():
+                        if chunk["type"] == "audio":
+                            f.write(chunk["data"])
+                        elif chunk["type"] == "WordBoundary":
+                            words.append({
+                                "text": chunk["text"],
+                                "start": chunk["offset"] / 1e7,
+                                "end": (chunk["offset"] + chunk["duration"]) / 1e7,
+                            })
+                return words
+
+            return asyncio.run(_run())
+        except Exception:
+            return None
 
     @classmethod
     def generate_crystal_voice(
@@ -198,16 +244,27 @@ class VoiceEngine:
                 raw_mp3 = Path(tmp_dir) / f"raw_{idx}.mp3"
                 proc_wav = Path(tmp_dir) / f"proc_{idx}.wav"
 
-                # 2. Synthesize via Edge-TTS CLI
-                cmd_edge = [
-                    "edge-tts",
-                    "--voice", voice_name,
-                    "--rate", rate_str,
-                    "--pitch", pitch_str,
-                    "--text", line_text,
-                    "--write-media", str(raw_mp3)
-                ]
-                subprocess.run(cmd_edge, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                # 2. Synthesize via Edge-TTS's streaming API first -- same
+                # audio the CLI would produce, but captures per-word
+                # timestamps along the way. Any failure (network, library
+                # version, unsupported voice) falls straight back to the
+                # plain CLI call below, so a missing feature never blocks
+                # voice synthesis -- it just means this line has no
+                # word-level timing, same as before this existed.
+                line_word_timings = cls._synthesize_line_with_word_timing(
+                    line_text, voice_name, rate_str, pitch_str, raw_mp3
+                )
+                if not raw_mp3.exists() or raw_mp3.stat().st_size == 0:
+                    cmd_edge = [
+                        "edge-tts",
+                        "--voice", voice_name,
+                        "--rate", rate_str,
+                        "--pitch", pitch_str,
+                        "--text", line_text,
+                        "--write-media", str(raw_mp3)
+                    ]
+                    subprocess.run(cmd_edge, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    line_word_timings = None  # CLI path never carries word data
 
                 # Fallback to gTTS if needed
                 if not raw_mp3.exists() or raw_mp3.stat().st_size == 0:
@@ -235,8 +292,28 @@ class VoiceEngine:
                         data = data[:, 0] # mono for concatenation
                     
                     # Trim silence padding from TTS to ensure speech starts immediately within 15ms
-                    data = cls._trim_silence(data, sample_rate=sample_rate)
+                    data, head_trim_s = cls._trim_silence(data, sample_rate=sample_rate)
                     seg_duration = len(data) / sample_rate
+
+                    # Shift word timestamps (measured against the untrimmed
+                    # take) onto this trimmed waveform's clock, then onto the
+                    # full-track timeline via current_time. A word that fell
+                    # inside the trimmed trailing silence is dropped rather
+                    # than clamped -- it never actually sounds.
+                    word_timings = []
+                    if line_word_timings:
+                        for w in line_word_timings:
+                            w_start = w["start"] - head_trim_s
+                            w_end = w["end"] - head_trim_s
+                            if w_end <= 0 or w_start >= seg_duration:
+                                continue
+                            w_start = max(0.0, w_start)
+                            w_end = min(seg_duration, w_end)
+                            word_timings.append({
+                                "text": w["text"],
+                                "start": round(current_time + w_start, 3),
+                                "end": round(current_time + w_end, 3),
+                            })
 
                     cues.append({
                         "id": idx + 1,
@@ -244,9 +321,13 @@ class VoiceEngine:
                         "start": round(current_time, 3),
                         "end": round(current_time + seg_duration, 3),
                         "text": line_text,
-                        "sfx": sfx_tag
+                        "sfx": sfx_tag,
+                        "word_timings": word_timings
                     })
 
+                    # Guarantee 1-D float32 before appending (guards against edge-cases
+                    # where sf.read or _trim_silence returns a multi-channel view)
+                    data = np.asarray(data, dtype=np.float32).flatten()
                     audio_segments.append(data)
 
                     # Insert Natural Breathing Pause (tight 50-70ms gap to eliminate audio drift)
