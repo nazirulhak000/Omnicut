@@ -215,9 +215,22 @@ export default function App() {
     refreshData();
   };
 
+  const [highlightExportVideo, setHighlightExportVideo] = useState(null);
+
+  const handleNavigateTab = (tab, extra = null) => {
+    if (tab === 'gallery') {
+      const target = extra?.targetId || extra?.taskResult?.project_name || extra?.taskResult?.final_video_path || extra?.taskResult?.mp4 || extra?.task?.payload?.project_name;
+      if (target) {
+        setHighlightExportVideo(target);
+      }
+      refreshData();
+    }
+    setActiveTab(tab);
+  };
+
   return (
     <TaskProvider
-      onNavigateTab={setActiveTab}
+      onNavigateTab={handleNavigateTab}
       onSelectProductForFlow={setSelectedProductIdForFlow}
     >
       <div className={`flex h-screen overflow-hidden ${uiFont} bg-[#07090E] text-slate-100`}>
@@ -308,6 +321,8 @@ export default function App() {
                     <ExportGallery
                       exportsList={exportsList}
                       onRefresh={refreshData}
+                      initialHighlightVideo={highlightExportVideo}
+                      onClearHighlightVideo={() => setHighlightExportVideo(null)}
                     />
                   </Suspense>
                 )}
@@ -358,6 +373,7 @@ export default function App() {
         <GlobalLiveRenderWidget
           currentTab={activeTab}
           onNavigateToEditor={() => setActiveTab('editor')}
+          onNavigateToGallery={() => handleNavigateTab('gallery')}
         />
       </div>
     </TaskProvider>

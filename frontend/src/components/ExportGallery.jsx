@@ -155,7 +155,7 @@ const ExportCard = memo(function ExportCard({
   );
 });
 
-export default function ExportGallery({ exportsList, onRefresh }) {
+export default function ExportGallery({ exportsList, onRefresh, initialHighlightVideo, onClearHighlightVideo }) {
   const [activeMediaTab, setActiveMediaTab] = useState('exports');
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 250);
@@ -169,6 +169,30 @@ export default function ExportGallery({ exportsList, onRefresh }) {
   const { toastMessage, toastType, showToast, hideToast } = useToast();
   const [selectedVideos, setSelectedVideos] = useState([]);
   const [copiedCaption, setCopiedCaption] = useState(false);
+
+  // Auto-open video detail modal if user navigated from a completed render task
+  useEffect(() => {
+    if (!initialHighlightVideo || !exportsList || exportsList.length === 0) return;
+    const targetStr = String(initialHighlightVideo).toLowerCase().trim();
+    const matched = exportsList.find((item) => {
+      const name = (item.name || '').toLowerCase();
+      const path = (item.path || '').toLowerCase();
+      const relPath = (item.rel_path || '').toLowerCase();
+      const prodId = (item.product_id || '').toLowerCase();
+      return name.includes(targetStr) || targetStr.includes(name) ||
+             path.includes(targetStr) || relPath.includes(targetStr) ||
+             (prodId && targetStr.includes(prodId));
+    });
+
+    if (matched) {
+      setSelectedDetailVideo(matched);
+      onClearHighlightVideo?.();
+    } else if (exportsList.length > 0) {
+      // Fallback: pick the latest rendered video if name slightly varied
+      setSelectedDetailVideo(exportsList[0]);
+      onClearHighlightVideo?.();
+    }
+  }, [initialHighlightVideo, exportsList, onClearHighlightVideo]);
 
   const handleOpenExportsFolder = useCallback(() => {
     openFolder('exports');

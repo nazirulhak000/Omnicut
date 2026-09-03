@@ -372,7 +372,7 @@ export function GlobalTaskNotification() {
 
 const ACTIVE_RENDER_STORAGE_KEY = 'capcut_active_render_job';
 
-export function GlobalLiveRenderWidget({ currentTab, onNavigateToEditor }) {
+export function GlobalLiveRenderWidget({ currentTab, onNavigateToEditor, onNavigateToGallery }) {
   const { activeTasks } = useTaskManager();
   const [liveStatus, setLiveStatus] = useState(null);
   const timerRef = React.useRef(null);
@@ -389,7 +389,7 @@ export function GlobalLiveRenderWidget({ currentTab, onNavigateToEditor }) {
           setLiveStatus(data);
           if (data.status === 'completed' || data.status === 'failed') {
             clearInterval(timerRef.current);
-            setTimeout(() => setLiveStatus(null), 3000); // linger 3s after done
+            setTimeout(() => setLiveStatus(null), 4000); // linger 4s after done
           }
         } catch {
           clearInterval(timerRef.current);
@@ -479,10 +479,20 @@ export function GlobalLiveRenderWidget({ currentTab, onNavigateToEditor }) {
         </div>
         <button
           type="button"
-          onClick={onNavigateToEditor}
-          className="px-3 py-1.5 rounded-xl bg-[#D97757] hover:bg-[#C2683D] text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition-all shadow-md flex-shrink-0 active:scale-95"
+          onClick={() => {
+            if (isDone && onNavigateToGallery) {
+              onNavigateToGallery();
+            } else if (onNavigateToEditor) {
+              onNavigateToEditor();
+            }
+          }}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-all shadow-md flex-shrink-0 active:scale-95 ${
+            isDone
+              ? 'bg-gradient-to-r from-[#25F4EE] to-blue-500 text-slate-950 hover:brightness-110 shadow-[#25F4EE]/20'
+              : 'bg-[#D97757] hover:bg-[#C2683D] text-white'
+          }`}
         >
-          <span>ดูหน้าตัดต่อ</span>
+          <span>{isDone ? 'ดูผลงาน' : 'ดูหน้าตัดต่อ'}</span>
           <ExternalLink className="w-3 h-3" />
         </button>
       </div>

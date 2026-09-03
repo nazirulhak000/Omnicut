@@ -157,15 +157,23 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
     setIsActivityDrawerOpen(false);
     setNotificationToast(null);
 
-    const targetTab = task.target_tab || 'flow';
-    const targetId = task.target_id || (task.result?.saved_product?.id || task.result?.product?.id);
+    // If it's a video render/export task, always navigate to the Export Gallery ('gallery')
+    // so the user sees the real rendered .MP4 video result rather than reopening the timeline editor.
+    const isRenderTask =
+      task.type === 'render_video' ||
+      task.type === 'render' ||
+      task.target_tab === 'gallery' ||
+      (typeof task.title === 'string' && (task.title.includes('เรนเดอร์') || task.title.includes('ตัดต่อ')));
+
+    const targetTab = isRenderTask ? 'gallery' : (task.target_tab || 'flow');
+    const targetId = task.target_id || (task.result?.saved_product?.id || task.result?.product?.id || task.result?.project_name || task.payload?.project_name);
 
     if (targetTab === 'flow' && targetId && onSelectProductForFlow) {
       onSelectProductForFlow(targetId);
     }
 
     if (onNavigateTab) {
-      onNavigateTab(targetTab);
+      onNavigateTab(targetTab, { targetId, taskResult: task.result, task });
     }
   };
 
