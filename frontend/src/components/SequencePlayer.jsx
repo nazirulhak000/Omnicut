@@ -184,36 +184,50 @@ function wrapCanvasText(text, ctx, maxW) {
 }
 
 const KINETIC_COLOR_MAP = {
-  '#FFE600': [ // 🟡 Neon Yellow (Pain points, prices, deals, primary punch)
-    'ปวดข้อมือ', 'ปวดหลัง', 'ปวดคอ', 'ปวด', 'เมื่อย', 'พัง', 'ทรมาน', 'เหนื่อย',
-    'ปัญหา', 'ช้า', 'หัก', 'ราคาพิเศษ', 'ตะกร้า', 'จิ้มเลย', 'อย่ารอ', 'ลด',
-    'บาท', 'ของแถม', 'ฟรี', 'โปร', 'คุ้ม', 'พิกัด', 'ด่วนเลย', 'ด่วน', 'ต้องมี',
-    'ป้ายยา', 'เปลี่ยนชีวิต', 'ของดี', 'ดีมาก',
-    'wrist pain', 'back pain', 'neck pain', 'painful', 'pain', 'hurt', 'tight',
-    'tired', 'tiring', 'problems', 'problem', 'broken', 'suffering',
+  '#FFE600': [ // 🟡 Neon Yellow (Pain points, prices, deals, primary punch, positive reactions)
+    'ปวดข้อมือ', 'ปวดหลัง', 'ปวดคอ', 'ปวดมือ', 'ปวด', 'เมื่อย', 'ทรมาน', 'เหนื่อย',
+    'ปัญหา', 'ช้า', 'หัก', 'เสีย', 'เชยๆ', 'เชย', 'ไม่มั่นใจ',
+    'ราคาพิเศษ', 'ตะกร้า', 'จิ้มเลย', 'อย่ารอ', 'ลด', 'บาท', 'ของแถม', 'ฟรี', 'โปร', 'คุ้ม', 'พิกัด', 'ด่วนเลย', 'ด่วน', 'ต้องมี',
+    'ป้ายยา', 'เปลี่ยนชีวิต', 'ของดี', 'ดีมาก', 'ดูดีมาก', 'น่ารักกว่าในรูป', 'ว้าวมาก', 'ว้าว',
+    'ไม่ผิดหวัง', 'แนะนำตัวนี้เลย', 'แนะนำ', 'ของที่รอคอย',
+    'wrist pain', 'back pain', 'neck pain', 'hand hurts', 'hurts', 'painful', 'pain', 'hurt', 'tight',
+    'tired', 'tiring', 'problems', 'problem', 'broken', 'suffering', 'outdated', 'not sure',
     'special price', 'cart', 'click now', 'click here', "don't wait", 'discount', 'deal',
-    'free', 'worth it', 'must have', 'life-changing', 'great', 'best', 'buy now'
+    'free', 'worth it', 'must have', 'life-changing', 'buy now',
+    'looks really good', 'really good', 'looks good', 'so good', 'very good', 'good', 'great', 'best',
+    'much cuter', 'very wow', 'wow', "won't be disappointed", 'recommend', 'long-awaited'
   ],
-  '#00E5FF': [ // 🔵 Electric Cyan (Features, tech, ergonomics, certifications)
-    'Wave Keys', 'Logitech', 'คีย์บอร์ด', 'ไร้สาย', 'เมมโมรี่โฟม', 'สรีรศาสตร์',
-    'ฮีโร่', 'รูปคลื่น', 'นุ่มๆ', 'สบายมาก', 'รับรอง', 'ผู้เชี่ยวชาญ', 'สุขภาพดี',
-    'ของแท้', '66W', 'แม่เหล็ก', 'ดูดแน่น', '540 องศา', 'ชาร์จไว',
-    'wave keys', 'logitech wave keys', 'wireless', 'keyboard', 'memory foam',
-    'ergonomic', 'ergonomics', 'hero', 'comfortable', 'comfy', 'certified',
-    'experts', 'expert', 'healthy', 'health', 'genuine', 'fast charging', 'magnetic'
+  '#00E5FF': [ // 🔵 Electric Cyan (Features, tech, ergonomics, certifications, comfort)
+    'Logitech Wave Keys', 'Wave Keys', 'Logitech', 'คีย์บอร์ดในฝัน', 'คีย์บอร์ด', 'ไร้สาย', 'เมมโมรี่โฟม', 'สรีรศาสตร์',
+    'ฮีโร่', 'พิมพ์สบาย', 'สบายมาก', 'สบาย', 'นุ่มมาก', 'นุ่มๆ', 'นุ่ม', 'ที่รองข้อมือ',
+    'พรีเมียมสุดๆ', 'พรีเมียม', 'มินิมอล', 'แบบคลื่นๆ', 'คลื่น',
+    'รับรอง', 'ผู้เชี่ยวชาญ', 'สุขภาพดี', 'ของแท้', '66W', 'แม่เหล็ก', 'ดูดแน่น', '540 องศา', 'ชาร์จไว',
+    'logitech wave keys', 'wave keys', 'logitech', 'dream keyboard', 'keyboard', 'wireless', 'memory foam',
+    'ergonomic', 'ergonomics', 'hero',
+    'typing comfortable', 'comfortable', 'comfy', 'wrist rest', 'very soft', 'soft',
+    'very premium', 'premium', 'minimalist', 'minimal', 'wavy design', 'wavy',
+    'certified', 'experts', 'expert', 'healthy', 'health', 'genuine', 'fast charging', 'magnetic'
   ],
   '#FF3B30': [ // 🔴 Alert Red (Urgency, warnings)
-    'อย่าเพิ่ง', 'เตือน', 'หยุด', 'ระวัง', 'อันตราย', 'อย่าเพิ่งซื้อ',
-    'look at this', 'watch this', 'wait', 'warning', 'warn', 'stop', 'danger', "don't buy"
+    'อย่าเพิ่ง', 'เตือน', 'หยุด', 'ระวัง', 'อันตราย', 'อย่าเพิ่งซื้อ', 'ห้ามพลาด',
+    'look at this', 'watch this', 'wait', 'warning', 'warn', 'stop', 'danger', "don't buy", "don't miss"
   ]
 };
 
-function parseKineticSegments(text, defaultColor = '#FFFFFF') {
+function parseKineticSegments(text, defaultColor = '#FFFFFF', colorHint = null) {
   if (!text) return [];
 
   const lowerText = text.toLowerCase();
   const matches = [];
-  for (const [color, keywords] of Object.entries(KINETIC_COLOR_MAP)) {
+
+  // Prioritize colorHint group first to ensure 1:1 cross-language color synchronization
+  const colors = Object.keys(KINETIC_COLOR_MAP);
+  const colorOrder = colorHint && colors.includes(colorHint)
+    ? [colorHint, ...colors.filter(c => c !== colorHint)]
+    : colors;
+
+  for (const color of colorOrder) {
+    const keywords = KINETIC_COLOR_MAP[color] || [];
     const sorted = [...keywords].sort((a, b) => b.length - a.length);
     for (const kw of sorted) {
       const lowerKw = kw.toLowerCase();
@@ -326,12 +340,38 @@ function drawCaption(ctx, cues, t, style = {}) {
   const targetCenterY = CANVAS_H * (CAPTION_Y[style.captionPosition] ?? CAPTION_Y.bottom);
   const thaiStartY = targetCenterY - (totalBlockH / 2) + (thaiLineH / 2);
 
-  // Draw Thai lines with real-time Kinetic Color Highlighting
+  // Synchronized Bilingual Kinetic Highlighting
   const primaryColor = CAPTION_COLORS[style.captionColor] || '#FFFFFF';
+  const enDefaultColor = '#EAEAEA';
 
+  let activeKineticColor = null;
+  let parsedThaiLines = thaiLines.map((line) => {
+    const segs = parseKineticSegments(line, primaryColor);
+    const matched = segs.find(s => s.color !== primaryColor);
+    if (matched) activeKineticColor = matched.color;
+    return segs;
+  });
+
+  let parsedEnLines = [];
+  if (enLines.length > 0) {
+    let enMatchedColor = null;
+    parsedEnLines = enLines.map((line) => {
+      const segs = parseKineticSegments(line, enDefaultColor, activeKineticColor);
+      const matched = segs.find(s => s.color !== enDefaultColor);
+      if (matched) enMatchedColor = matched.color;
+      return segs;
+    });
+
+    // If Thai had no match initially, but English matched a color, re-parse Thai with English's color
+    if (!activeKineticColor && enMatchedColor) {
+      parsedThaiLines = thaiLines.map(line => parseKineticSegments(line, primaryColor, enMatchedColor));
+    }
+  }
+
+  // Draw Thai lines
   thaiLines.forEach((line, idx) => {
     const lineY = thaiStartY + (idx * thaiLineH);
-    const segments = parseKineticSegments(line, primaryColor);
+    const segments = parsedThaiLines[idx] || [{ text: line, color: primaryColor }];
 
     ctx.font = `${fontWeight} ${fontSize}px ${fontFam}`;
     const segmentWidths = segments.map(seg => ctx.measureText(seg.text).width);
@@ -365,12 +405,11 @@ function drawCaption(ctx, cues, t, style = {}) {
   // Draw English lines (stacked underneath) with matching kinetic color highlighting
   if (enLines.length > 0) {
     ctx.font = `700 ${enFontSize}px ${fontFam}`;
-    const enDefaultColor = '#EAEAEA';
     const enStartY = thaiStartY + (thaiLines.length - 1) * thaiLineH + (thaiLineH / 2) + enGap + (enLineH / 2);
 
     enLines.forEach((line, idx) => {
       const lineY = enStartY + (idx * enLineH);
-      const segments = parseKineticSegments(line, enDefaultColor);
+      const segments = parsedEnLines[idx] || [{ text: line, color: enDefaultColor }];
       const segmentWidths = segments.map(seg => ctx.measureText(seg.text).width);
       const totalLineW = segmentWidths.reduce((sum, w) => sum + w, 0);
 

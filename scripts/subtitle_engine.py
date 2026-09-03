@@ -234,7 +234,17 @@ class SubtitleEngine:
                         emoji = "🛒 "
 
                 cue_text = f"{emoji}{cl}".strip() if emoji else cl.strip()
-                cue_trans = c.get("translation", "") if len(clauses) == 1 else ""
+                trans = (c.get("translation") or "").strip()
+                if len(clauses) == 1:
+                    cue_trans = trans
+                else:
+                    trans_parts = [t.strip() for t in re.split(r'[,.]\s+', trans) if t.strip()]
+                    if len(trans_parts) == len(clauses):
+                        cue_trans = trans_parts[idx]
+                    elif idx == 0:
+                        cue_trans = trans
+                    else:
+                        cue_trans = ""
 
                 micro_cues.append({
                     "id": cue_id,
@@ -346,75 +356,84 @@ class SubtitleEngine:
     # 🔵 &H00FFE600& = Electric Cyan (Features, tech, ergonomics, certifications)
     # 🔴 &H00303BFF& = Alert Red (Urgency, warnings)
     KINETIC_KEYWORDS: Dict[str, List[str]] = {
-        "&H0000E6FF&": [
-            "ปวดข้อมือ", "ปวดหลัง", "ปวดคอ", "ปวด", "เมื่อย", "พัง", "ทรมาน", "เหนื่อย",
-            "ปัญหา", "ช้า", "หัก", "ราคาพิเศษ", "ตะกร้า", "จิ้มเลย", "อย่ารอ", "ลด",
-            "บาท", "ของแถม", "ฟรี", "โปร", "คุ้ม", "พิกัด", "ด่วนเลย", "ด่วน", "ต้องมี",
-            "ป้ายยา", "เปลี่ยนชีวิต", "ของดี", "ดีมาก"
+        "&H0000E6FF&": [  # 🟡 Neon Yellow (Pain points, prices, deals, primary punch, positive reactions)
+            "ปวดข้อมือ", "ปวดหลัง", "ปวดคอ", "ปวดมือ", "ปวด", "เมื่อย", "ทรมาน", "เหนื่อย",
+            "ปัญหา", "ช้า", "หัก", "เสีย", "เชยๆ", "เชย", "ไม่มั่นใจ",
+            "ราคาพิเศษ", "ตะกร้า", "จิ้มเลย", "อย่ารอ", "ลด", "บาท", "ของแถม", "ฟรี", "โปร", "คุ้ม", "พิกัด", "ด่วนเลย", "ด่วน", "ต้องมี",
+            "ป้ายยา", "เปลี่ยนชีวิต", "ของดี", "ดีมาก", "ดูดีมาก", "น่ารักกว่าในรูป", "ว้าวมาก", "ว้าว",
+            "ไม่ผิดหวัง", "แนะนำตัวนี้เลย", "แนะนำ", "ของที่รอคอย"
         ],
-        "&H00FFE600&": [
-            "Wave Keys", "Logitech", "คีย์บอร์ด", "ไร้สาย", "เมมโมรี่โฟม", "สรีรศาสตร์",
-            "ฮีโร่", "รูปคลื่น", "นุ่มๆ", "สบายมาก", "รับรอง", "ผู้เชี่ยวชาญ", "สุขภาพดี",
-            "ของแท้", "66W", "แม่เหล็ก", "ดูดแน่น", "540 องศา", "ชาร์จไว"
+        "&H00FFE600&": [  # 🔵 Electric Cyan (Features, tech, ergonomics, certifications, comfort)
+            "Logitech Wave Keys", "Wave Keys", "Logitech", "คีย์บอร์ดในฝัน", "คีย์บอร์ด", "ไร้สาย", "เมมโมรี่โฟม", "สรีรศาสตร์",
+            "ฮีโร่", "พิมพ์สบาย", "สบายมาก", "สบาย", "นุ่มมาก", "นุ่มๆ", "นุ่ม", "ที่รองข้อมือ",
+            "พรีเมียมสุดๆ", "พรีเมียม", "มินิมอล", "แบบคลื่นๆ", "คลื่น",
+            "รับรอง", "ผู้เชี่ยวชาญ", "สุขภาพดี", "ของแท้", "66W", "แม่เหล็ก", "ดูดแน่น", "540 องศา", "ชาร์จไว"
         ],
-        "&H00303BFF&": [
-            "อย่าเพิ่ง", "เตือน", "หยุด", "ระวัง", "อันตราย", "อย่าเพิ่งซื้อ"
+        "&H00303BFF&": [  # 🔴 Alert Red (Urgency, warnings)
+            "อย่าเพิ่ง", "เตือน", "หยุด", "ระวัง", "อันตราย", "อย่าเพิ่งซื้อ", "ห้ามพลาด"
         ]
     }
 
     # Dynamic Kinetic Highlighting keywords for English (ASS color mapped)
     KINETIC_KEYWORDS_EN: Dict[str, List[str]] = {
-        "&H0000E6FF&": [  # 🟡 Neon Yellow (Pain points, prices, deals, primary punch)
-            "wrist pain", "back pain", "neck pain", "painful", "pain", "hurt", "tight",
-            "tired", "tiring", "problems", "problem", "broken", "suffering",
+        "&H0000E6FF&": [  # 🟡 Neon Yellow (Pain points, prices, deals, primary punch, positive reactions)
+            "wrist pain", "back pain", "neck pain", "hand hurts", "hurts", "painful", "pain", "hurt", "tight",
+            "tired", "tiring", "problems", "problem", "broken", "suffering", "outdated", "not sure",
             "special price", "cart", "click now", "click here", "don't wait", "discount", "deal",
-            "free", "worth it", "must have", "life-changing", "great", "best", "buy now"
+            "free", "worth it", "must have", "life-changing", "buy now",
+            "looks really good", "really good", "looks good", "so good", "very good", "good", "great", "best",
+            "much cuter", "very wow", "wow", "won't be disappointed", "recommend", "long-awaited"
         ],
-        "&H00FFE600&": [  # 🔵 Electric Cyan (Features, tech, ergonomics, certifications)
-            "wave keys", "logitech wave keys", "logitech", "wireless", "keyboard", "memory foam",
-            "ergonomic", "ergonomics", "hero", "comfortable", "comfy", "certified", "experts", "expert",
-            "healthy", "health", "genuine", "fast charging", "magnetic"
+        "&H00FFE600&": [  # 🔵 Electric Cyan (Features, tech, ergonomics, certifications, comfort)
+            "logitech wave keys", "wave keys", "logitech", "dream keyboard", "keyboard", "wireless", "memory foam",
+            "ergonomic", "ergonomics", "hero",
+            "typing comfortable", "comfortable", "comfy", "wrist rest", "very soft", "soft",
+            "very premium", "premium", "minimalist", "minimal", "wavy design", "wavy",
+            "certified", "experts", "expert", "healthy", "health", "genuine", "fast charging", "magnetic"
         ],
         "&H00303BFF&": [  # 🔴 Alert Red (Urgency, warnings)
-            "look at this", "watch this", "wait", "warning", "warn", "stop", "danger", "don't buy"
+            "look at this", "watch this", "wait", "warning", "warn", "stop", "danger", "don't buy", "don't miss"
         ]
     }
 
     @classmethod
-    def apply_kinetic_highlighting(cls, text: str, primary_color_ass: str = "&H00FFFFFF&") -> str:
+    def apply_kinetic_highlighting(cls, text: str, primary_color_ass: str = "&H00FFFFFF&", color_hint: Optional[str] = None) -> str:
         """
-        Scans text for high-impact affiliate power keywords and applies inline ASS color tags
-        so keywords pop out dynamically in contrasting neon hues while the rest stays white.
+        Scans text for high-impact affiliate power keywords and applies inline ASS color tags.
+        If color_hint is provided, prioritizes scanning that color group first for 1:1 cross-language parity.
         """
         if not text or "{\\c" in text:
             return text
 
         clean_primary = primary_color_ass if primary_color_ass.endswith("&") else f"{primary_color_ass}&"
         result = text
+        color_order = [color_hint] + [c for c in cls.KINETIC_KEYWORDS if c != color_hint] if color_hint else list(cls.KINETIC_KEYWORDS.keys())
 
-        for color_tag, kw_list in cls.KINETIC_KEYWORDS.items():
+        for color_tag in color_order:
+            kw_list = cls.KINETIC_KEYWORDS.get(color_tag, [])
             for kw in sorted(kw_list, key=len, reverse=True):
                 if kw in result and f"{{\\c{color_tag}}}" not in result:
                     replacement = f"{{\\c{color_tag}}}{kw}{{\\c{clean_primary}}}"
                     result = result.replace(kw, replacement, 1)
-                    break
+                    return result
 
         return result
 
     @classmethod
-    def apply_kinetic_highlighting_en(cls, text: str, primary_color_ass: str = "&H00EAEAEA&") -> str:
+    def apply_kinetic_highlighting_en(cls, text: str, primary_color_ass: str = "&H00EAEAEA&", color_hint: Optional[str] = None) -> str:
         """
-        Scans English text for matching power keywords and applies inline ASS color tags
-        case-insensitively, preserving original casing.
+        Scans English text for matching power keywords and applies inline ASS color tags.
+        If color_hint is provided, prioritizes scanning that color group first for 1:1 cross-language parity.
         """
         if not text or "{\\c" in text:
             return text
 
         clean_primary = primary_color_ass if primary_color_ass.endswith("&") else f"{primary_color_ass}&"
         result = text
+        color_order = [color_hint] + [c for c in cls.KINETIC_KEYWORDS_EN if c != color_hint] if color_hint else list(cls.KINETIC_KEYWORDS_EN.keys())
 
-        for color_tag, kw_list in cls.KINETIC_KEYWORDS_EN.items():
-            matched = False
+        for color_tag in color_order:
+            kw_list = cls.KINETIC_KEYWORDS_EN.get(color_tag, [])
             for kw in sorted(kw_list, key=len, reverse=True):
                 pattern = re.compile(rf"(?i)\b{re.escape(kw)}\b")
                 match = pattern.search(result)
@@ -422,12 +441,41 @@ class SubtitleEngine:
                     matched_str = match.group(0)
                     start, end = match.span()
                     result = result[:start] + f"{{\\c{color_tag}}}{matched_str}{{\\c{clean_primary}}}" + result[end:]
-                    matched = True
-                    break
-            if matched:
-                break
+                    return result
 
         return result
+
+    @classmethod
+    def apply_bilingual_kinetic_highlighting(
+        cls,
+        th_text: str,
+        en_text: str,
+        primary_th: str = "&H00FFFFFF&",
+        primary_en: str = "&H00EAEAEA&"
+    ) -> Tuple[str, str]:
+        """
+        Guarantees 100% color synchronization between stacked Thai and English subtitles:
+        - If Thai triggers a color, English prioritizes matching the same color category.
+        - If English triggers a color, Thai is re-checked against that color category.
+        """
+        th_res = cls.apply_kinetic_highlighting(th_text, primary_color_ass=primary_th)
+        th_color = None
+        if "{\\c" in th_res:
+            m = re.search(r"\{\\c(&H[0-9A-Fa-f]+&)\}", th_res)
+            if m:
+                th_color = m.group(1)
+
+        en_res = cls.apply_kinetic_highlighting_en(en_text, primary_color_ass=primary_en, color_hint=th_color)
+        en_color = None
+        if "{\\c" in en_res:
+            m = re.search(r"\{\\c(&H[0-9A-Fa-f]+&)\}", en_res)
+            if m:
+                en_color = m.group(1)
+
+        if not th_color and en_color:
+            th_res = cls.apply_kinetic_highlighting(th_text, primary_color_ass=primary_th, color_hint=en_color)
+
+        return th_res, en_res
 
     @classmethod
     def generate_ass(
@@ -561,12 +609,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             snap_pct = int(round(settle_pct * 1.25))
             anim = f"{{\\fscx{snap_pct}\\fscy{snap_pct}\\t(0,70,\\fscx{settle_pct}\\fscy{settle_pct})}}"
             
-            # Apply Dynamic Kinetic Highlighting to keywords
-            highlighted_text = cls.apply_kinetic_highlighting(text, primary_color_ass=primary)
-            style = "TikTokMinimalPill" if is_pill_mode else "TikTokWhite"
-
             # Check for English Translation
-            en_sub = ""
             en_wrapped = ""
             if bilingual and idx < len(en_translations):
                 candidate_en = (en_translations[idx] or cue.get("translation", "")).strip()
@@ -574,11 +617,23 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     cue["translation"] = candidate_en
                     dyn_en_chars = max(26, int(round(4000 / max(20, font_size))))
                     en_wrapped = cls.wrap_en_for_ass(candidate_en, max_chars_per_line=dyn_en_chars)
-                    en_color = "&H00EAEAEA&"
-                    en_highlighted = cls.apply_kinetic_highlighting_en(en_wrapped, primary_color_ass=en_color)
-                    en_sub = f"\\N{{\\fscx68\\fscy68\\c{en_color}}}{en_highlighted}"
                 else:
                     cue["translation"] = ""
+
+            # Apply Synchronized Bilingual Kinetic Highlighting (guaranteeing exact color parity)
+            if en_wrapped:
+                highlighted_text, en_highlighted = cls.apply_bilingual_kinetic_highlighting(
+                    th_text=text,
+                    en_text=en_wrapped,
+                    primary_th=primary,
+                    primary_en="&H00EAEAEA&"
+                )
+                en_sub = f"\\N{{\\fscx68\\fscy68\\c&H00EAEAEA&}}{en_highlighted}"
+            else:
+                highlighted_text = cls.apply_kinetic_highlighting(text, primary_color_ass=primary)
+                en_sub = ""
+
+            style = "TikTokMinimalPill" if is_pill_mode else "TikTokWhite"
 
             # Layer 0: Natural Soft Feathered Shadow (Gaussian Blur matching Canvas preview)
             if not is_pill_mode:
