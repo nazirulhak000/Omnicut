@@ -57,7 +57,7 @@ AI ทุกตัว**ต้องเคารพโครงสร้างโ
 3. ✔️ **การจัดการภาษาไทยและซับไตเติล (Micro-Burst & Kinetic Subtitles):**
    - ต้องปฏิบัติตาม [.agents/rules/subtitle_kinetic_rules.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/subtitle_kinetic_rules.md)
    - ใช้ `pythainlp` ในการตัดคำสำหรับ Subtitle Bursts สั้นกระชับ (2–4 คำ / 16–24 ตัวอักษร)
-   - ไฮไลต์สีคำสำคัญแบบไดนามิก (Dynamic Kinetic Highlighting เช่น เหลืองนีออน `#FFE600` บน Pain Point และราคา)
+   - ไฮไลต์สีคำสำคัญแบบไดนามิกคู่ขนานทั้งไทยและอังกฤษ (Bilingual Dynamic Kinetic Highlighting เช่น เหลืองนีออน `#FFE600` บน Pain Point และราคา)
    - ตรวจสอบปัญหาสระลอย/วรรณยุกต์ซ้อน และระยะห่างการแสดงผล Safe Zone ล่าง 420px เสมอ
 4. ✔️ **การเจนสติกเกอร์และป้าย (Sticker Rules):**
    - ต้องปฏิบัติตาม [.agents/rules/sticker_generation.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/sticker_generation.md)

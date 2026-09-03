@@ -362,6 +362,24 @@ class SubtitleEngine:
         ]
     }
 
+    # Dynamic Kinetic Highlighting keywords for English (ASS color mapped)
+    KINETIC_KEYWORDS_EN: Dict[str, List[str]] = {
+        "&H0000E6FF&": [  # 🟡 Neon Yellow (Pain points, prices, deals, primary punch)
+            "wrist pain", "back pain", "neck pain", "painful", "pain", "hurt", "tight",
+            "tired", "tiring", "problems", "problem", "broken", "suffering",
+            "special price", "cart", "click now", "click here", "don't wait", "discount", "deal",
+            "free", "worth it", "must have", "life-changing", "great", "best", "buy now"
+        ],
+        "&H00FFE600&": [  # 🔵 Electric Cyan (Features, tech, ergonomics, certifications)
+            "wave keys", "logitech wave keys", "logitech", "wireless", "keyboard", "memory foam",
+            "ergonomic", "ergonomics", "hero", "comfortable", "comfy", "certified", "experts", "expert",
+            "healthy", "health", "genuine", "fast charging", "magnetic"
+        ],
+        "&H00303BFF&": [  # 🔴 Alert Red (Urgency, warnings)
+            "look at this", "watch this", "wait", "warning", "warn", "stop", "danger", "don't buy"
+        ]
+    }
+
     @classmethod
     def apply_kinetic_highlighting(cls, text: str, primary_color_ass: str = "&H00FFFFFF&") -> str:
         """
@@ -380,6 +398,34 @@ class SubtitleEngine:
                     replacement = f"{{\\c{color_tag}}}{kw}{{\\c{clean_primary}}}"
                     result = result.replace(kw, replacement, 1)
                     break
+
+        return result
+
+    @classmethod
+    def apply_kinetic_highlighting_en(cls, text: str, primary_color_ass: str = "&H00EAEAEA&") -> str:
+        """
+        Scans English text for matching power keywords and applies inline ASS color tags
+        case-insensitively, preserving original casing.
+        """
+        if not text or "{\\c" in text:
+            return text
+
+        clean_primary = primary_color_ass if primary_color_ass.endswith("&") else f"{primary_color_ass}&"
+        result = text
+
+        for color_tag, kw_list in cls.KINETIC_KEYWORDS_EN.items():
+            matched = False
+            for kw in sorted(kw_list, key=len, reverse=True):
+                pattern = re.compile(rf"(?i)\b{re.escape(kw)}\b")
+                match = pattern.search(result)
+                if match and f"{{\\c{color_tag}}}" not in result:
+                    matched_str = match.group(0)
+                    start, end = match.span()
+                    result = result[:start] + f"{{\\c{color_tag}}}{matched_str}{{\\c{clean_primary}}}" + result[end:]
+                    matched = True
+                    break
+            if matched:
+                break
 
         return result
 
@@ -528,8 +574,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     cue["translation"] = candidate_en
                     dyn_en_chars = max(26, int(round(4000 / max(20, font_size))))
                     en_wrapped = cls.wrap_en_for_ass(candidate_en, max_chars_per_line=dyn_en_chars)
-                    en_color = "\\c&H00EAEAEA&"
-                    en_sub = f"\\N{{\\fscx68\\fscy68{en_color}}}{en_wrapped}"
+                    en_color = "&H00EAEAEA&"
+                    en_highlighted = cls.apply_kinetic_highlighting_en(en_wrapped, primary_color_ass=en_color)
+                    en_sub = f"\\N{{\\fscx68\\fscy68\\c{en_color}}}{en_highlighted}"
                 else:
                     cue["translation"] = ""
 

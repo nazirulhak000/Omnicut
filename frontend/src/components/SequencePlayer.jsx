@@ -188,32 +188,59 @@ const KINETIC_COLOR_MAP = {
     'ปวดข้อมือ', 'ปวดหลัง', 'ปวดคอ', 'ปวด', 'เมื่อย', 'พัง', 'ทรมาน', 'เหนื่อย',
     'ปัญหา', 'ช้า', 'หัก', 'ราคาพิเศษ', 'ตะกร้า', 'จิ้มเลย', 'อย่ารอ', 'ลด',
     'บาท', 'ของแถม', 'ฟรี', 'โปร', 'คุ้ม', 'พิกัด', 'ด่วนเลย', 'ด่วน', 'ต้องมี',
-    'ป้ายยา', 'เปลี่ยนชีวิต', 'ของดี', 'ดีมาก'
+    'ป้ายยา', 'เปลี่ยนชีวิต', 'ของดี', 'ดีมาก',
+    'wrist pain', 'back pain', 'neck pain', 'painful', 'pain', 'hurt', 'tight',
+    'tired', 'tiring', 'problems', 'problem', 'broken', 'suffering',
+    'special price', 'cart', 'click now', 'click here', "don't wait", 'discount', 'deal',
+    'free', 'worth it', 'must have', 'life-changing', 'great', 'best', 'buy now'
   ],
   '#00E5FF': [ // 🔵 Electric Cyan (Features, tech, ergonomics, certifications)
     'Wave Keys', 'Logitech', 'คีย์บอร์ด', 'ไร้สาย', 'เมมโมรี่โฟม', 'สรีรศาสตร์',
     'ฮีโร่', 'รูปคลื่น', 'นุ่มๆ', 'สบายมาก', 'รับรอง', 'ผู้เชี่ยวชาญ', 'สุขภาพดี',
-    'ของแท้', '66W', 'แม่เหล็ก', 'ดูดแน่น', '540 องศา', 'ชาร์จไว'
+    'ของแท้', '66W', 'แม่เหล็ก', 'ดูดแน่น', '540 องศา', 'ชาร์จไว',
+    'wave keys', 'logitech wave keys', 'wireless', 'keyboard', 'memory foam',
+    'ergonomic', 'ergonomics', 'hero', 'comfortable', 'comfy', 'certified',
+    'experts', 'expert', 'healthy', 'health', 'genuine', 'fast charging', 'magnetic'
   ],
   '#FF3B30': [ // 🔴 Alert Red (Urgency, warnings)
-    'อย่าเพิ่ง', 'เตือน', 'หยุด', 'ระวัง', 'อันตราย', 'อย่าเพิ่งซื้อ'
+    'อย่าเพิ่ง', 'เตือน', 'หยุด', 'ระวัง', 'อันตราย', 'อย่าเพิ่งซื้อ',
+    'look at this', 'watch this', 'wait', 'warning', 'warn', 'stop', 'danger', "don't buy"
   ]
 };
 
 function parseKineticSegments(text, defaultColor = '#FFFFFF') {
   if (!text) return [];
 
-  // Find match per color group, exactly matching SubtitleEngine.apply_kinetic_highlighting
+  const lowerText = text.toLowerCase();
   const matches = [];
   for (const [color, keywords] of Object.entries(KINETIC_COLOR_MAP)) {
     const sorted = [...keywords].sort((a, b) => b.length - a.length);
     for (const kw of sorted) {
-      const idx = text.indexOf(kw);
-      if (idx !== -1) {
-        const end = idx + kw.length;
-        const overlaps = matches.some(m => Math.max(idx, m.start) < Math.min(end, m.end));
+      const lowerKw = kw.toLowerCase();
+      let matchIdx = -1;
+      let matchLen = kw.length;
+
+      if (/[^\u0000-\u007F]/.test(kw)) {
+        // Thai text matching
+        matchIdx = text.indexOf(kw);
+      } else {
+        // English case-insensitive word matching
+        const escaped = lowerKw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(?:^|[^a-zA-Z0-9])${escaped}(?:$|[^a-zA-Z0-9])`, 'i');
+        const match = lowerText.match(regex);
+        if (match) {
+          const matchedSub = match[0];
+          const offset = matchedSub.toLowerCase().indexOf(lowerKw);
+          matchIdx = match.index + offset;
+          matchLen = lowerKw.length;
+        }
+      }
+
+      if (matchIdx !== -1) {
+        const end = matchIdx + matchLen;
+        const overlaps = matches.some(m => Math.max(matchIdx, m.start) < Math.min(end, m.end));
         if (!overlaps) {
-          matches.push({ start: idx, end, color });
+          matches.push({ start: matchIdx, end, color });
           break; // exactly 1 match per color category
         }
       }
@@ -238,7 +265,6 @@ function parseKineticSegments(text, defaultColor = '#FFFFFF') {
   if (cursor < text.length) {
     segments.push({ text: text.slice(cursor), color: defaultColor });
   }
-
   return segments;
 }
 
@@ -336,24 +362,41 @@ function drawCaption(ctx, cues, t, style = {}) {
     });
   });
 
-  // Draw English lines (stacked underneath)
+  // Draw English lines (stacked underneath) with matching kinetic color highlighting
   if (enLines.length > 0) {
-    const x = CANVAS_W / 2;
-    ctx.textAlign = 'center';
     ctx.font = `700 ${enFontSize}px ${fontFam}`;
-    ctx.lineWidth = Math.round(enFontSize * 0.18);
-    ctx.strokeStyle = '#000000';
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
-    ctx.shadowBlur = 3;
-    ctx.shadowOffsetX = 1.5;
-    ctx.shadowOffsetY = 2;
-
+    const enDefaultColor = '#EAEAEA';
     const enStartY = thaiStartY + (thaiLines.length - 1) * thaiLineH + (thaiLineH / 2) + enGap + (enLineH / 2);
+
     enLines.forEach((line, idx) => {
       const lineY = enStartY + (idx * enLineH);
-      ctx.strokeText(line, x, lineY);
-      ctx.fillStyle = '#EAEAEA';
-      ctx.fillText(line, x, lineY);
+      const segments = parseKineticSegments(line, enDefaultColor);
+      const segmentWidths = segments.map(seg => ctx.measureText(seg.text).width);
+      const totalLineW = segmentWidths.reduce((sum, w) => sum + w, 0);
+
+      // Pass 1: Outline / Stroke with soft shadow
+      ctx.textAlign = 'left';
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = Math.round(enFontSize * 0.18);
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+      ctx.shadowBlur = 3;
+      ctx.shadowOffsetX = 1.5;
+      ctx.shadowOffsetY = 2;
+
+      let curX = (CANVAS_W - totalLineW) / 2;
+      segments.forEach((seg, sIdx) => {
+        ctx.strokeText(seg.text, curX, lineY);
+        curX += segmentWidths[sIdx];
+      });
+
+      // Pass 2: Color fills (sharp contrast without doubled shadow)
+      ctx.shadowColor = 'transparent';
+      curX = (CANVAS_W - totalLineW) / 2;
+      segments.forEach((seg, sIdx) => {
+        ctx.fillStyle = seg.color;
+        ctx.fillText(seg.text, curX, lineY);
+        curX += segmentWidths[sIdx];
+      });
     });
   }
 
