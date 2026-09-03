@@ -433,8 +433,8 @@ class SubtitleEngine:
         # libass at scale 0.55: 1080 * 0.089 * 1.64 * 0.55 = 87pt (62.31% screen width)
         base_fs = int(round(video_width * 0.089 * 1.64))
         font_size = max(32, int(round(base_fs * scale)))
-        outline_val = round(max(3.0, font_size * 0.065), 1)
-        shadow_val = round(max(1.5, font_size * 0.032), 1)
+        outline_val = round(max(4.0, font_size * 0.105), 1)
+        shadow_val = round(max(2.5, font_size * 0.055), 1)
         hook_fs = int(round(video_width * 0.052 * 1.64))
 
         header = f"""[Script Info]
@@ -447,11 +447,11 @@ PlayResY: {video_height}
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: TikTokWhite,{resolved_font},{font_size},{primary},&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0.5,0,1,{outline_val},{shadow_val},{alignment},60,60,{margin_v},1
-Style: TikTokYellow,{resolved_font},{font_size},&H0000E6FF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0.5,0,1,{outline_val},{shadow_val},2,60,60,420,1
-Style: TikTokCyan,{resolved_font},{font_size},&H00FFE600,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0.5,0,1,{outline_val},{shadow_val},2,60,60,420,1
+Style: TikTokWhite,{resolved_font},{font_size},{primary},&H000000FF,&H00000000,&H30000000,1,0,0,0,100,100,0.5,0,1,{outline_val},{shadow_val},{alignment},60,60,{margin_v},1
+Style: TikTokYellow,{resolved_font},{font_size},&H0000E6FF,&H000000FF,&H00000000,&H30000000,1,0,0,0,100,100,0.5,0,1,{outline_val},{shadow_val},2,60,60,420,1
+Style: TikTokCyan,{resolved_font},{font_size},&H00FFE600,&H000000FF,&H00000000,&H30000000,1,0,0,0,100,100,0.5,0,1,{outline_val},{shadow_val},2,60,60,420,1
 Style: TikTokMinimalPill,{resolved_font},{font_size - 6},{primary},&H000000FF,&H00000000,&HCC000000,1,0,0,0,100,100,0.5,0,3,6,0,{alignment},60,60,{margin_v},1
-Style: HookHeader,{resolved_font},{hook_fs},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0.5,0,1,7.0,3.0,8,60,60,260,1
+Style: HookHeader,{resolved_font},{hook_fs},&H00FFFFFF,&H000000FF,&H00000000,&H30000000,1,0,0,0,100,100,0.5,0,1,9.0,5.0,8,60,60,260,1
 Style: SpecBar,{resolved_font},{font_size - 12},&H00000000,&H000000FF,&H00000000,&H0000E6FF,1,0,0,0,100,100,0.5,0,3,10,0,9,50,50,380,1
 
 [Events]
@@ -464,7 +464,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         if hook_title:
             start_t = cls._format_ass_time(0.0)
             end_t = cls._format_ass_time(hook_duration)
-            hook_text = f"{{\\an8\\fscx115\\fscy115\\t(0,120,\\fscx100\\fscy100)\\bord7\\3c&H00000000&\\shad3\\c&H00FFFFFF&}}{hook_title}"
+            hook_text = f"{{\\an8\\fscx115\\fscy115\\t(0,120,\\fscx100\\fscy100)\\bord9\\3c&H00000000&\\shad5\\c&H00FFFFFF&}}{hook_title}"
             events.append(f"Dialogue: 1,{start_t},{end_t},HookHeader,,0,0,0,,{hook_text}")
 
         # 1-shot Batch Translation for all micro-cues
@@ -496,6 +496,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             text = cls.wrap_text_for_ass(cue["text"].strip(), max_chars_per_line=dyn_max_chars)
             if not text:
                 continue
+            # Sync wrapped text with \\N back into cue object for 100% editor preview parity
+            cue["text"] = text
 
             # Kinetic Pop Animation: Snap in 125% -> Settle 100% (or cue.scale) in 70ms
             cue_scale = float(cue.get("scale", 1.0) or 1.0)

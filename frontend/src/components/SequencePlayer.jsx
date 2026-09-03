@@ -248,7 +248,8 @@ function drawCaption(ctx, cues, t, style = {}) {
   const cueScale = Number(cue.scale) || 1.0;
   const globalScale = Math.min(2.5, Math.max(0.5, style.captionScale ?? 1));
   const effectiveScale = Math.min(3.0, Math.max(0.4, globalScale * cueScale));
-  const fontSize = Math.round(CANVAS_W * 0.089 * effectiveScale);
+  // 1:1 scalar calibration with 1080w ASS font_size (540 * 0.089 * 1.64 = ~79px at 1.0, 43.5px at 0.55)
+  const fontSize = Math.round(CANVAS_W * 0.089 * 1.64 * effectiveScale);
   
   let fontFam = "'Kanit', sans-serif";
   let fontWeight = '900';
@@ -265,14 +266,14 @@ function drawCaption(ctx, cues, t, style = {}) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   
-  // High-contrast stroke + shadow for crispness
+  // Crisp outline + punchy shadow matching libass outline_val and shadow_val
   ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
-  ctx.shadowBlur = 8;
-  ctx.shadowOffsetX = 3;
-  ctx.shadowOffsetY = 4;
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetX = Math.round(fontSize * 0.04);
+  ctx.shadowOffsetY = Math.round(fontSize * 0.055);
   
   ctx.strokeStyle = '#000000';
-  ctx.lineWidth = Math.round(fontSize * 0.22);
+  ctx.lineWidth = Math.round(fontSize * 0.21);
   ctx.lineJoin = 'round';
   ctx.miterLimit = 2;
   
@@ -309,14 +310,14 @@ function drawCaption(ctx, cues, t, style = {}) {
     const segmentWidths = segments.map(seg => ctx.measureText(seg.text).width);
     const totalLineW = segmentWidths.reduce((sum, w) => sum + w, 0);
 
-    // Pass 1: Outline / Stroke with shadow
+    // Pass 1: Outline / Stroke with crisp shadow
     ctx.textAlign = 'left';
     ctx.strokeStyle = '#000000';
-    ctx.lineWidth = Math.round(fontSize * 0.22);
+    ctx.lineWidth = Math.round(fontSize * 0.21);
     ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
-    ctx.shadowBlur = 8;
-    ctx.shadowOffsetX = 3;
-    ctx.shadowOffsetY = 4;
+    ctx.shadowBlur = 4;
+    ctx.shadowOffsetX = Math.round(fontSize * 0.04);
+    ctx.shadowOffsetY = Math.round(fontSize * 0.055);
 
     let curX = (CANVAS_W - totalLineW) / 2;
     segments.forEach((seg, sIdx) => {
@@ -396,7 +397,7 @@ function drawHookHeader(ctx, hookTitle, t, hookDuration = 3.5, fontName = 'Kanit
   const cleanHook = hookTitle.trim();
   if (!cleanHook) return;
 
-  const fontSize = Math.round(CANVAS_W * 0.052);
+  const fontSize = Math.round(CANVAS_W * 0.052 * 1.64);
   let fontFam = "'Kanit', sans-serif";
   if (fontName === 'IBMPlex' || fontName === 'IBM Plex Sans Thai') {
     fontFam = "'IBM Plex Sans Thai', sans-serif";
