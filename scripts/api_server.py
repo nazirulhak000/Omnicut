@@ -115,6 +115,11 @@ class RenderRequest(BaseModel):
     clip_list: Optional[List[Dict[str, Any]]] = None  # Manual Editor: [{source_path, trim_start, trim_end}]; None keeps single-source auto-cut
     transitions: Optional[List[str]] = None  # Manual Editor: "cut" | "fade" per boundary between clip_list entries
     export_mp4: bool = True
+    caption_position: Optional[str] = "bottom"
+    caption_color: Optional[str] = None
+    caption_scale: Optional[float] = 1.0
+    sticker_position: Optional[str] = "top_right"
+    sticker_scale: Optional[float] = 1.0
 
 class DeleteFileRequest(BaseModel):
     file_path: str
@@ -1601,6 +1606,11 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                 clip_list=req_data.clip_list,
                 transitions=req_data.transitions,
                 export_mp4=req_data.export_mp4,
+                caption_position=req_data.caption_position or "bottom",
+                caption_color=req_data.caption_color,
+                caption_scale=req_data.caption_scale or 1.0,
+                sticker_position=req_data.sticker_position or "top_right",
+                sticker_scale=req_data.sticker_scale or 1.0,
                 product_id=req_data.product_id,
                 angle_id=req_data.angle_id,
                 progress_callback=on_progress

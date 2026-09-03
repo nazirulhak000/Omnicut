@@ -24,6 +24,7 @@ Thumbs.db
 01_Raw/*
 03_Projects/
 04_Exports/*
+scratch/
 # Test and tool generated outputs
 tests/output/
 tools/output/

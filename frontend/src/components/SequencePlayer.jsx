@@ -183,6 +183,65 @@ function wrapCanvasText(text, ctx, maxW) {
   return resultLines.length > 0 ? resultLines : [text];
 }
 
+const KINETIC_COLOR_MAP = {
+  '#FFE600': [ // 🟡 Neon Yellow (Pain points, prices, deals, primary punch)
+    'ปวดข้อมือ', 'ปวดหลัง', 'ปวดคอ', 'ปวด', 'เมื่อย', 'พัง', 'ทรมาน', 'เหนื่อย',
+    'ปัญหา', 'ช้า', 'หัก', 'ราคาพิเศษ', 'ตะกร้า', 'จิ้มเลย', 'อย่ารอ', 'ลด',
+    'บาท', 'ของแถม', 'ฟรี', 'โปร', 'คุ้ม', 'พิกัด', 'ด่วนเลย', 'ด่วน', 'ต้องมี',
+    'ป้ายยา', 'เปลี่ยนชีวิต', 'ของดี', 'ดีมาก'
+  ],
+  '#00E5FF': [ // 🔵 Electric Cyan (Features, tech, ergonomics, certifications)
+    'Wave Keys', 'Logitech', 'คีย์บอร์ด', 'ไร้สาย', 'เมมโมรี่โฟม', 'สรีรศาสตร์',
+    'ฮีโร่', 'รูปคลื่น', 'นุ่มๆ', 'สบายมาก', 'รับรอง', 'ผู้เชี่ยวชาญ', 'สุขภาพดี',
+    'ของแท้', '66W', 'แม่เหล็ก', 'ดูดแน่น', '540 องศา', 'ชาร์จไว'
+  ],
+  '#FF3B30': [ // 🔴 Alert Red (Urgency, warnings)
+    'อย่าเพิ่ง', 'เตือน', 'หยุด', 'ระวัง', 'อันตราย', 'อย่าเพิ่งซื้อ'
+  ]
+};
+
+function parseKineticSegments(text, defaultColor = '#FFFFFF') {
+  if (!text) return [];
+
+  // Find match per color group, exactly matching SubtitleEngine.apply_kinetic_highlighting
+  const matches = [];
+  for (const [color, keywords] of Object.entries(KINETIC_COLOR_MAP)) {
+    const sorted = [...keywords].sort((a, b) => b.length - a.length);
+    for (const kw of sorted) {
+      const idx = text.indexOf(kw);
+      if (idx !== -1) {
+        const end = idx + kw.length;
+        const overlaps = matches.some(m => Math.max(idx, m.start) < Math.min(end, m.end));
+        if (!overlaps) {
+          matches.push({ start: idx, end, color });
+          break; // exactly 1 match per color category
+        }
+      }
+    }
+  }
+
+  if (matches.length === 0) {
+    return [{ text, color: defaultColor }];
+  }
+
+  matches.sort((a, b) => a.start - b.start);
+
+  const segments = [];
+  let cursor = 0;
+  for (const m of matches) {
+    if (m.start > cursor) {
+      segments.push({ text: text.slice(cursor, m.start), color: defaultColor });
+    }
+    segments.push({ text: text.slice(m.start, m.end), color: m.color });
+    cursor = m.end;
+  }
+  if (cursor < text.length) {
+    segments.push({ text: text.slice(cursor), color: defaultColor });
+  }
+
+  return segments;
+}
+
 function drawCaption(ctx, cues, t, style = {}) {
   const cue = cues.find(c => t >= c.start && t < c.end);
   if (!cue || !cue.text) return;
@@ -192,14 +251,17 @@ function drawCaption(ctx, cues, t, style = {}) {
   const fontSize = Math.round(CANVAS_W * 0.089 * effectiveScale);
   
   let fontFam = "'Kanit', sans-serif";
+  let fontWeight = '900';
   if (style.fontName === 'IBMPlex' || style.fontName === 'IBM Plex Sans Thai') {
     fontFam = "'IBM Plex Sans Thai', sans-serif";
+    fontWeight = '700';
   } else if (style.fontName === 'Prompt') {
     fontFam = "'Prompt', sans-serif";
+    fontWeight = '800';
   }
 
   ctx.save();
-  ctx.font = `900 ${fontSize}px ${fontFam}`;
+  ctx.font = `${fontWeight} ${fontSize}px ${fontFam}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   
@@ -236,22 +298,54 @@ function drawCaption(ctx, cues, t, style = {}) {
   const targetCenterY = CANVAS_H * (CAPTION_Y[style.captionPosition] ?? CAPTION_Y.bottom);
   const thaiStartY = targetCenterY - (totalBlockH / 2) + (thaiLineH / 2);
 
-  // Draw Thai lines (no maxWidth passed, so font is never squeezed horizontally)
-  ctx.font = `900 ${fontSize}px ${fontFam}`;
-  ctx.lineWidth = Math.round(fontSize * 0.22);
-  ctx.fillStyle = CAPTION_COLORS[style.captionColor] || (cue.text.length < 15 ? '#FFE600' : '#FFFFFF');
+  // Draw Thai lines with real-time Kinetic Color Highlighting
+  const primaryColor = CAPTION_COLORS[style.captionColor] || '#FFFFFF';
 
-  const x = CANVAS_W / 2;
   thaiLines.forEach((line, idx) => {
     const lineY = thaiStartY + (idx * thaiLineH);
-    ctx.strokeText(line, x, lineY);
-    ctx.fillText(line, x, lineY);
+    const segments = parseKineticSegments(line, primaryColor);
+
+    ctx.font = `${fontWeight} ${fontSize}px ${fontFam}`;
+    const segmentWidths = segments.map(seg => ctx.measureText(seg.text).width);
+    const totalLineW = segmentWidths.reduce((sum, w) => sum + w, 0);
+
+    // Pass 1: Outline / Stroke with shadow
+    ctx.textAlign = 'left';
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = Math.round(fontSize * 0.22);
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetX = 3;
+    ctx.shadowOffsetY = 4;
+
+    let curX = (CANVAS_W - totalLineW) / 2;
+    segments.forEach((seg, sIdx) => {
+      ctx.strokeText(seg.text, curX, lineY);
+      curX += segmentWidths[sIdx];
+    });
+
+    // Pass 2: Color fills (sharp contrast without doubled shadow)
+    ctx.shadowColor = 'transparent';
+    curX = (CANVAS_W - totalLineW) / 2;
+    segments.forEach((seg, sIdx) => {
+      ctx.fillStyle = seg.color;
+      ctx.fillText(seg.text, curX, lineY);
+      curX += segmentWidths[sIdx];
+    });
   });
 
   // Draw English lines (stacked underneath)
   if (enLines.length > 0) {
+    const x = CANVAS_W / 2;
+    ctx.textAlign = 'center';
     ctx.font = `700 ${enFontSize}px ${fontFam}`;
     ctx.lineWidth = Math.round(enFontSize * 0.18);
+    ctx.strokeStyle = '#000000';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+    ctx.shadowBlur = 6;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 3;
+
     const enStartY = thaiStartY + (thaiLines.length - 1) * thaiLineH + (thaiLineH / 2) + enGap + (enLineH / 2);
     enLines.forEach((line, idx) => {
       const lineY = enStartY + (idx * enLineH);
