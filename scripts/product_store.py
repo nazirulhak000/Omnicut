@@ -402,9 +402,13 @@ class ProductStore:
                                 angle["status"] = "rendered"
                                 angle["video_url"] = mp4_path
                                 changed = True
-                        elif angle.get("status") == "scripted":
-                            angle["status"] = "rendered"
-                            changed = True
+                        else:
+                            # Project timeline exists in 03_Projects, but NO exported MP4 video yet!
+                            # It MUST be 'in_production', NOT 'rendered'!
+                            if angle.get("status") != "in_production" or angle.get("video_url") is not None:
+                                angle["status"] = "in_production"
+                                angle["video_url"] = None
+                                changed = True
 
                         p_list = product.setdefault("projects", [])
                         if p_folder.name not in p_list:

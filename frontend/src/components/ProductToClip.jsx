@@ -77,17 +77,18 @@ function ScriptAccordionItem({
     : (angle.script_text ? angle.script_text.split('\n') : []);
 
   const curStatus = angle.status || 'scripted';
-  const isRendered = curStatus === 'rendered' || curStatus === 'posted' || !!angle.video_url || !!angle.project_name;
+  // ONLY rendered if an actual video export URL exists or status is posted!
+  const isRendered = (curStatus === 'rendered' || curStatus === 'posted') && (!!angle.video_url);
+  const isInProduction = curStatus === 'in_production' || (!!angle.project_name && !isRendered);
 
   const statusLabel = curStatus === 'posted' ? 'โพสต์แล้ว'
     : isRendered ? 'ตัดเสร็จแล้ว'
-    : curStatus === 'in_production' ? 'กำลังตัดต่อ'
+    : isInProduction ? 'กำลังตัดต่อ'
     : 'สคริปต์พร้อม';
 
   const statusColor = curStatus === 'posted' ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
     : isRendered ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-    : curStatus === 'rendered' ? 'bg-blue-500/15 text-blue-300 border-blue-500/30'
-    : curStatus === 'in_production' ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+    : isInProduction ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
     : 'bg-white/[0.05] text-slate-400 border-white/[0.08]';
 
   const selectedVideos = angle.selected_videos || (angle.selected_video ? [angle.selected_video] : []);
@@ -265,6 +266,35 @@ function ScriptAccordionItem({
                 >
                   <Play className="w-3.5 h-3.5 fill-white text-white" />
                   <span>▶️ เปิดดูในไทม์ไลน์</span>
+                  <ArrowRight className="w-3 h-3 text-white/80" />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onSendToStudio(angle, index); }}
+                  className="py-2 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 text-xs font-medium flex items-center gap-1 border border-white/[0.1] cursor-pointer"
+                  title="ส่งไปปรับแต่งสคริปต์หรือตัดมุมนี้ใหม่"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  <span>ตัดใหม่</span>
+                </button>
+              </>
+            ) : isInProduction ? (
+              <>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onOpenInTimeline) {
+                      onOpenInTimeline(angle, index);
+                    } else {
+                      onSendToStudio(angle, index);
+                    }
+                  }}
+                  className="py-2 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-amber-500/25 cursor-pointer active:scale-95 transition-all"
+                  title="เปิดตัดต่อในไทม์ไลน์"
+                >
+                  <Play className="w-3.5 h-3.5 fill-white text-white" />
+                  <span>🎬 เปิดทำต่อในไทม์ไลน์</span>
                   <ArrowRight className="w-3 h-3 text-white/80" />
                 </button>
                 <button

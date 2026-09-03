@@ -76,7 +76,7 @@ function Section({ step, title, hint, children, done }) {
   );
 }
 
-function Field({ label, value, onChange, placeholder, multiline }) {
+function Field({ label, value, onChange, onBlur, placeholder, multiline }) {
   const Tag = multiline ? 'textarea' : 'input';
   return (
     <label className="block">
@@ -85,11 +85,28 @@ function Field({ label, value, onChange, placeholder, multiline }) {
         value={value || ''}
         rows={multiline ? 4 : undefined}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
         placeholder={placeholder}
         className="min-h-9 w-full resize-none rounded-lg border border-white/[0.08] bg-black/40 px-3 py-2 text-base text-white placeholder-slate-600 focus:border-[#D97757] focus:outline-none"
       />
     </label>
   );
+}
+
+/**
+ * Best-effort brand/model split from a free-text product name -- assumes
+ * the common "Brand Model" word order (Logitech Wave Keys, Apple iPhone
+ * 15). Wrong for names that don't lead with a brand (e.g. "เครื่องดูดฝุ่น
+ * ไร้สายมินิมอล" splits to brand="เครื่องดูดฝุ่นไร้สายมินิมอล", model="")
+ * -- only ever used to pre-fill the hook fields while they're still empty,
+ * so a wrong guess costs one edit, never a silent wrong render.
+ */
+function guessBrandModel(productName) {
+  const trimmed = String(productName || '').trim();
+  if (!trimmed) return { brand: '', model: '' };
+  const parts = trimmed.split(/\s+/);
+  if (parts.length <= 1) return { brand: trimmed, model: '' };
+  return { brand: parts[0], model: parts.slice(1).join(' ') };
 }
 
 export default function NewClipPanel({
@@ -431,7 +448,21 @@ export default function NewClipPanel({
 
           {(showFields || angles.length === 0) && (
             <div className="mt-2 space-y-2">
-              <Field label="ชื่อสินค้า" value={form.productName} onChange={(v) => patch({ productName: v })} placeholder="เช่น Esseger สายชาร์จแม่เหล็ก" />
+              <Field
+                label="ชื่อสินค้า"
+                value={form.productName}
+                onChange={(v) => patch({ productName: v })}
+                onBlur={() => {
+                  // Only pre-fill while BOTH hook fields are still empty --
+                  // never overwrite a guess the user already corrected, or
+                  // one they typed themselves.
+                  if (!form.hookBrand && !form.hookModel) {
+                    const { brand, model } = guessBrandModel(form.productName);
+                    if (brand || model) patch({ hookBrand: brand, hookModel: model });
+                  }
+                }}
+                placeholder="เช่น Esseger สายชาร์จแม่เหล็ก"
+              />
               <Field label="Header: แบรนด์" value={form.hookBrand} onChange={(v) => patch({ hookBrand: v })} placeholder="เช่น Logitech" />
               <Field label="Header: รุ่น/โมเดล" value={form.hookModel} onChange={(v) => patch({ hookModel: v })} placeholder="เช่น Wave Keys" />
               <Field label="Header: หมวดสินค้า" value={form.hookLabel} onChange={(v) => patch({ hookLabel: v })} placeholder="เช่น คีย์บอร์ดไร้สาย" />
