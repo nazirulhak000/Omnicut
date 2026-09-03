@@ -17,7 +17,9 @@ export default function PresetsBar({
       icon: Smartphone,
       data: {
         productName: 'Esseger สายชาร์จแม่เหล็ก',
-        hookTitle: 'อย่าเพิ่งเลื่อนผ่าน! สายชาร์จแม่เหล็ก',
+        hookBrand: 'Esseger',
+        hookModel: 'สายชาร์จแม่เหล็ก',
+        hookLabel: 'ชาร์จไว ไม่ทำร้ายแบต',
         painPoint: 'สายชาร์จพังง่าย เสียบยากในที่มืด',
         priceDeal: 'ลดพิเศษวันนี้ จิ้มตะกร้าซ้ายล่าง',
         keyFeatures: 'แม่เหล็กแรงดูดสูง เสียบปึ้ง ติดทันที ชาร์จเร็ว ไม่ทำร้ายแบต ทนทานมาก'
@@ -29,7 +31,9 @@ export default function PresetsBar({
       icon: Home,
       data: {
         productName: 'เครื่องดูดฝุ่นไร้สายมินิมอล',
-        hookTitle: 'ของใช้ในบ้านที่ต้องมี! เครื่องดูดฝุ่นไร้สาย',
+        hookBrand: '',
+        hookModel: 'เครื่องดูดฝุ่นไร้สาย',
+        hookLabel: 'มินิมอล พลังดูดแรง',
         painPoint: 'ฝุ่นตามซอกทำความสะอาดยาก เครื่องใหญ่หนักมือ',
         priceDeal: 'ลด 50% วันนี้ ส่งฟรีถึงบ้าน',
         keyFeatures: 'พลังดูดแรงสูง ไร้สาย น้ำหนักเบา แบตอึด ดีไซน์สวยเข้ากับบ้าน'
@@ -41,7 +45,9 @@ export default function PresetsBar({
       icon: Sparkles,
       data: {
         productName: 'เซรั่มไฮยาหน้าฉ่ำโกลว์',
-        hookTitle: 'กู้ผิวโทรมด่วน! เซรั่มหน้าฉ่ำโกลว์',
+        hookBrand: '',
+        hookModel: 'เซรั่มไฮยาลูรอน',
+        hookLabel: 'หน้าฉ่ำโกลว์ ชุ่มชื้น 72 ชม.',
         painPoint: 'หน้าแห้ง แต่งหน้าไม่ติด ผิวโทรมดูหมองคล้ำ',
         priceDeal: 'โปร 1 แถม 1 จัดในตะกร้าด่วน',
         keyFeatures: 'ซึมไวไม่เหนียวเหนอะ ล็อคความชุ่มชื้น 72 ชม. หน้าฉ่ำใส รูขุมขนกระชับ'
@@ -53,7 +59,9 @@ export default function PresetsBar({
       icon: Flame,
       data: {
         productName: 'พาวเวอร์แบงค์ชาร์จไว 20000mAh',
-        hookTitle: 'Flash Sale วันเดียว! พาวเวอร์แบงค์ชาร์จไว',
+        hookBrand: '',
+        hookModel: 'พาวเวอร์แบงค์ 20000mAh',
+        hookLabel: 'ชาร์จเร็ว 22.5W',
         painPoint: 'แบตมือถือหมดระหว่างวัน พกพาวเวอร์แบงค์หนักๆ',
         priceDeal: 'Flash Sale 199.- วันนี้วันเดียวเท่านั้น',
         keyFeatures: 'บางเบาพกง่าย ชาร์จเร็ว 22.5W มีสายในตัวไม่ต้องพกสายเพิ่ม'

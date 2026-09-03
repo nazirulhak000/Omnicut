@@ -32,8 +32,8 @@ ABBREVIATION_MAP = {
     "V":    "โวลต์",
     "A":    "แอมป์",
     "mA":   "มิลลิแอมป์",
-    "mAh":  "มิลลิแอมป์อาวเออร์",
-    "Wh":   "วัตต์อาวเออร์",
+    "mAh":  "มิลลิแอมป์",
+    "Wh":   "วัตต์",
 
     # Frequency / Audio
     "Hz":   "เฮิรตซ์",
@@ -166,9 +166,9 @@ class TTSSanitizer:
         flags=re.UNICODE
     )
 
-    # Pattern to match numbers followed by unit abbreviations (e.g., "66W", "100mAh")
+    # Pattern to match numbers followed by unit abbreviations (e.g., "66W", "20,000mAh")
     _NUM_UNIT_PATTERN = re.compile(
-        r'(\d+(?:\.\d+)?)\s*(' + '|'.join(
+        r'(\d+(?:,\d+)*(?:\.\d+)?)\s*(' + '|'.join(
             re.escape(k) for k in sorted(ABBREVIATION_MAP.keys(), key=len, reverse=True)
         ) + r')(?=\s|$|[,.\)!?])',
         flags=re.IGNORECASE
@@ -190,7 +190,7 @@ class TTSSanitizer:
         result = re.sub(r'(\d+)\s*฿', r'\1 บาท', result)
 
         # Percentage expansion (e.g., "50%" → "50 เปอร์เซ็นต์")
-        result = re.sub(r'(\d+(?:\.\d+)?)\s*%', r'\1 เปอร์เซ็นต์', result)
+        result = re.sub(r'(\d+(?:,\d+)*(?:\.\d+)?)\s*%', r'\1 เปอร์เซ็นต์', result)
 
         # Multiplier expansion (e.g., "2x", "3x" → "สองเท่า", "สามเท่า")
         result = re.sub(r'\b2x\b|\b2X\b', 'สองเท่า', result)
@@ -201,9 +201,9 @@ class TTSSanitizer:
         result = re.sub(r'2-3\s*วัน', 'สองถึงสามวัน', result)
         result = re.sub(r'3-5\s*วัน', 'สามถึงห้าวัน', result)
 
-        # Expand number+unit combos (e.g., "66W" → "66 วัตต์")
+        # Expand number+unit combos (e.g., "66W" → "66 วัตต์", "20,000mAh" → "20000 มิลลิแอมป์")
         def _replace_num_unit(m):
-            num = m.group(1)
+            num = m.group(1).replace(",", "")
             unit_raw = m.group(2)
             # Find the correct case-insensitive match
             for key, val in ABBREVIATION_MAP.items():
@@ -214,8 +214,13 @@ class TTSSanitizer:
         result = cls._NUM_UNIT_PATTERN.sub(_replace_num_unit, result)
 
         # Expand standalone word abbreviations (longer first to avoid partial matches)
+        # Uses alphanumeric lookaround boundaries for ASCII tokens to prevent corrupting words like:
+        # "detail" -> "detเอไอl", "Product" -> "โปรduct", "Problem" -> "โปรblem", "From" -> "Fรอม"
         for abbr, thai in sorted(WORD_MAP.items(), key=lambda x: len(x[0]), reverse=True):
-            pattern = re.compile(re.escape(abbr), re.IGNORECASE)
+            if re.match(r'^[a-zA-Z0-9_\-]+$', abbr):
+                pattern = re.compile(r'(?<![a-zA-Z0-9])' + re.escape(abbr) + r'(?![a-zA-Z0-9])', re.IGNORECASE)
+            else:
+                pattern = re.compile(re.escape(abbr), re.IGNORECASE)
             result = pattern.sub(thai, result)
 
         return result

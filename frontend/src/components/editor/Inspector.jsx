@@ -45,8 +45,12 @@ export default function Inspector({
   totalDuration = 0,
   audioDuration = 0,
   assets = {},
-  hookTitle = '',
-  onHookTitleChange,
+  hookBrand = '',
+  onHookBrandChange,
+  hookModel = '',
+  onHookModelChange,
+  hookLabel = '',
+  onHookLabelChange,
   hookDuration = 3.0,
   onHookDurationChange,
   showHookHeader = true,
@@ -255,10 +259,24 @@ export default function Inspector({
                 <div className="space-y-1.5 pt-0.5">
                   <input
                     type="text"
-                    value={hookTitle || ''}
-                    onChange={(e) => onHookTitleChange?.(e.target.value)}
-                    placeholder="พิมพ์พาดหัว 3 วิแรก เช่น เตือนภัยคนปวดหลัง!..."
-                    className="w-full py-1.5 px-2.5 rounded-xl bg-black/60 border border-white/[0.1] text-xs font-bold text-white focus:outline-none focus:border-[#D97757] placeholder-slate-500 shadow-inner"
+                    value={hookBrand || ''}
+                    onChange={(e) => onHookBrandChange?.(e.target.value)}
+                    placeholder="แบรนด์ เช่น Logitech"
+                    className="w-full py-1.5 px-2.5 rounded-xl bg-black/60 border border-white/[0.1] text-sm font-extrabold uppercase tracking-wide text-white focus:outline-none focus:border-[#D97757] placeholder-slate-500 shadow-inner"
+                  />
+                  <input
+                    type="text"
+                    value={hookModel || ''}
+                    onChange={(e) => onHookModelChange?.(e.target.value)}
+                    placeholder="รุ่น/โมเดล เช่น Wave Keys"
+                    className="w-full py-1.5 px-2.5 rounded-xl bg-black/60 border border-white/[0.1] text-xs font-bold text-[#E6C24A] focus:outline-none focus:border-[#D97757] placeholder-slate-500 shadow-inner"
+                  />
+                  <input
+                    type="text"
+                    value={hookLabel || ''}
+                    onChange={(e) => onHookLabelChange?.(e.target.value)}
+                    placeholder="หมวดสินค้าสั้นๆ เช่น คีย์บอร์ดไร้สาย"
+                    className="w-full py-1 px-2.5 rounded-xl bg-black/60 border border-white/[0.1] text-[11px] font-semibold text-slate-300 focus:outline-none focus:border-[#D97757] placeholder-slate-500 shadow-inner"
                   />
                   <div className="flex items-center justify-between text-[11px] text-slate-400 pt-0.5">
                     <span>ระยะเวลาแสดงผล:</span>

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle, Check, ChevronDown, ChevronRight, Film, Loader2, Package,
-  Rocket, Sparkles, Upload, Volume2, FolderOpen, ArrowRight, Clock, Hourglass, CheckCircle2
+  Rocket, Sparkles, Upload, Volume2, FolderOpen, ArrowRight, Clock, Hourglass, CheckCircle2, Play
 } from 'lucide-react';
 import { previewVoice, startRender, uploadFile, updateAngleVideos } from '../../api';
 import { DEFAULT_STUDIO_FORM, STUDIO_FORM_KEY, getSavedStudioForm } from '../../lib/studioDefaults';
@@ -189,7 +189,8 @@ export default function NewClipPanel({
   }, [form.productName, existingProjects]);
 
   const baseName = `TikTok_${(form.productName || '').trim().replace(/\s+/g, '_')}`;
-  const willCreateVariant = projectName !== baseName && existingProjects.length > 0;
+  const angleSpecificProject = currentAngle?.project_name || null;
+  const willCreateVariant = (angleSpecificProject || (projectName !== baseName)) && existingProjects.length > 0;
 
   const handleUpload = async (file) => {
     if (!file) return;
@@ -215,7 +216,7 @@ export default function NewClipPanel({
     setVoiceBusy(true);
     try {
       const res = await previewVoice({
-        text: form.hookTitle || form.productName,
+        text: [form.hookBrand, form.hookModel, form.hookLabel].filter(Boolean).join(' ') || form.productName,
         // /api/voice/preview resolves the Gemini preset out of voice_gender;
         // sending "male" here auditions an Edge-TTS voice instead of the one
         // that is actually selected.
@@ -245,7 +246,9 @@ export default function NewClipPanel({
       key_features: form.keyFeatures,
       pain_point: form.painPoint,
       price_deal: form.priceDeal,
-      hook_title: form.hookTitle,
+      hook_brand: form.hookBrand,
+      hook_model: form.hookModel,
+      hook_label: form.hookLabel,
       custom_script: form.useCustomScript ? form.customScript : null,
       voice_mode: form.voiceMode,
       voice_gender: form.voiceGender,
@@ -395,7 +398,7 @@ export default function NewClipPanel({
 
               <div className="rounded-lg bg-white/[0.03] px-3 py-2.5 text-sm leading-relaxed text-slate-400 border border-white/[0.04]">
                 <div className="truncate"><span className="text-[#9C968F] font-semibold">สินค้า:</span> {form.productName}</div>
-                <div className="truncate"><span className="text-[#9C968F] font-semibold">Hook:</span> {form.hookTitle || '—'}</div>
+                <div className="truncate"><span className="text-[#9C968F] font-semibold">Hook:</span> {[form.hookBrand, form.hookModel, form.hookLabel].filter(Boolean).join(' · ') || '—'}</div>
                 <div className="truncate"><span className="text-[#9C968F] font-semibold">ปัญหา:</span> {form.painPoint || '—'}</div>
               </div>
               <button
@@ -429,7 +432,9 @@ export default function NewClipPanel({
           {(showFields || angles.length === 0) && (
             <div className="mt-2 space-y-2">
               <Field label="ชื่อสินค้า" value={form.productName} onChange={(v) => patch({ productName: v })} placeholder="เช่น Esseger สายชาร์จแม่เหล็ก" />
-              <Field label="Hook 3 วินาทีแรก" value={form.hookTitle} onChange={(v) => patch({ hookTitle: v })} placeholder="เช่น อย่าเพิ่งเลื่อนผ่าน!" />
+              <Field label="Header: แบรนด์" value={form.hookBrand} onChange={(v) => patch({ hookBrand: v })} placeholder="เช่น Logitech" />
+              <Field label="Header: รุ่น/โมเดล" value={form.hookModel} onChange={(v) => patch({ hookModel: v })} placeholder="เช่น Wave Keys" />
+              <Field label="Header: หมวดสินค้า" value={form.hookLabel} onChange={(v) => patch({ hookLabel: v })} placeholder="เช่น คีย์บอร์ดไร้สาย" />
               <Field label="ปัญหาที่ลูกค้าเจอ" value={form.painPoint} onChange={(v) => patch({ painPoint: v })} />
               <Field label="จุดเด่น" value={form.keyFeatures} onChange={(v) => patch({ keyFeatures: v })} multiline />
               <Field label="โปรโมชั่น / CTA" value={form.priceDeal} onChange={(v) => patch({ priceDeal: v })} />
@@ -619,12 +624,28 @@ export default function NewClipPanel({
         </section>
 
         {/* ── 5. create ── */}
-        {willCreateVariant && (
+        {angleSpecificProject ? (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 shadow-md">
+            <div className="flex items-center gap-2 text-sm text-[#C08A5E]">
+              <AlertCircle className="h-4 w-4 flex-shrink-0 text-amber-400" />
+              <span>มุมนี้มีโปรเจกต์ <strong>{angleSpecificProject}</strong> ในไทม์ไลน์อยู่แล้ว</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => onCreated && onCreated(angleSpecificProject)}
+              className="py-1.5 px-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-emerald-500/25 cursor-pointer self-start sm:self-auto transition-all"
+              title={`เปิดดูไทม์ไลน์ของมุมนี้ (${angleSpecificProject}) ทันที`}
+            >
+              <Play className="w-3.5 h-3.5 fill-white" />
+              <span>เปิดดูไทม์ไลน์ของมุมนี้</span>
+            </button>
+          </div>
+        ) : willCreateVariant ? (
           <p className="flex items-center gap-1.5 text-sm text-[#C08A5E]">
             <AlertCircle className="h-3 w-3 flex-shrink-0" />
-            มีโปรเจกต์ชื่อ {baseName} อยู่แล้ว — อันนี้จะถูกสร้างเป็น {projectName} ไม่ทับของเดิม
+            อันนี้จะถูกสร้างเป็นโปรเจกต์ใหม่: <strong>{projectName}</strong>
           </p>
-        )}
+        ) : null}
         {(renderError || aiError) && (
           <p className="flex items-start gap-1.5 text-sm text-[#E0A9A2]">
             <AlertCircle className="h-3 w-3 flex-shrink-0" />{renderError || aiError}

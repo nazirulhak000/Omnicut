@@ -172,10 +172,10 @@ const KanbanCard = memo(function KanbanCard({
             <>
               <button
                 onClick={() => onSendToStudio(ang.parentProduct, ang)}
-                className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 active:scale-95 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-sm flex-shrink-0"
-                title="เปิดทำต่อในหน้าตัดต่อ"
+                className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-95 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-sm flex-shrink-0"
+                title={ang.project_name ? `เปิดไทม์ไลน์ของมุมนี้ (${ang.project_name})` : "เปิดทำต่อในหน้าตัดต่อ"}
               >
-                <span>ไปหน้าตัดต่อ</span>
+                <span>{ang.project_name ? '🎬 เปิดไทม์ไลน์' : 'ไปหน้าตัดต่อ'}</span>
                 <ArrowRight className="w-3 h-3" />
               </button>
               <button
@@ -508,7 +508,8 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
       productId: product.id,
       angleId: angle.angle_id,
       productName: angle.product_name || product.name || 'สินค้า',
-      hookTitle: angle.hook_title || '',
+      // Not auto-filling hookBrand/hookModel/hookLabel -- the 3-tier hook
+      // banner is manual-only (see EditorShell.jsx).
       customScript: scriptText,
       keyFeatures: angle.key_features || product.description || '',
       painPoint: angle.pain_point || '',
@@ -516,6 +517,9 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
       adTone: angle.ad_tone || 'commercial_premium',
       selectedVideo: chosenVideos[0] || '',
       selectedVideos: chosenVideos,
+      openProjectName: angle.project_name || '',
+      openVideoUrl: angle.video_url || '',
+      isRendered: angle.status === 'rendered' || !!angle.video_url,
       fullProduct: {
         id: product.id,
         title: product.name,

@@ -6,7 +6,7 @@ import os
 import sys
 import subprocess
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -26,6 +26,22 @@ class SFXManager:
     @classmethod
     def resolve(cls, name: str):
         return AssetRegistry.resolve_sfx_path(name)
+
+    @classmethod
+    def resolve_bgm_path(cls, bgm_name: Optional[str] = None) -> Optional[Path]:
+        """
+        Same fallback `mix_audio_track` uses internally (named file in
+        MUSIC_DIR, else the first track found there) -- exposed so a caller
+        that needs to know which BGM file will actually play (e.g. beat-sync
+        in pipeline.py) doesn't have to duplicate the lookup or run a full
+        mix just to find out.
+        """
+        name = bgm_name or "bgm_over_loaded_hiphop_instrumental.mp3"
+        path = MUSIC_DIR / name
+        if path.exists():
+            return path
+        bgm_files = list(MUSIC_DIR.glob("*.wav")) + list(MUSIC_DIR.glob("*.mp3"))
+        return bgm_files[0] if bgm_files else None
 
     @classmethod
     def mix_audio_track(
@@ -54,10 +70,7 @@ class SFXManager:
         out_path.parent.mkdir(parents=True, exist_ok=True)
 
         voice_path = Path(voice_audio_path).resolve()
-        bgm_path = MUSIC_DIR / bgm_name
-        if not bgm_path.exists():
-            bgm_files = list(MUSIC_DIR.glob("*.wav")) + list(MUSIC_DIR.glob("*.mp3"))
-            bgm_path = bgm_files[0] if bgm_files else None
+        bgm_path = cls.resolve_bgm_path(bgm_name)
 
         inputs = ["-i", str(voice_path)]
         filter_complex = []
@@ -108,14 +121,29 @@ class SFXManager:
             inputs.extend(["-stream_loop", "-1", "-i", str(bgm_path)])
             bgm_idx = input_count
             input_count += 1
+
+            # Light tempo-match: nudge the BGM's speed toward how fast this
+            # script is actually being read (chars/sec of the cues vs. a
+            # normal-pace baseline), clamped to +-8% so it never audibly
+            # pitches/warps -- a script read faster than usual gets a
+            # slightly quicker bed instead of the two visibly drifting apart.
+            BASELINE_CHARS_PER_SEC = 10.0
+            total_chars = sum(len(str(c.get("text", ""))) for c in cues)
+            cue_span = sum(
+                max(0.01, float(c.get("end", 0.0)) - float(c.get("start", 0.0))) for c in cues
+            )
+            chars_per_sec = (total_chars / cue_span) if cue_span > 0 else BASELINE_CHARS_PER_SEC
+            tempo_ratio = min(1.08, max(0.92, chars_per_sec / BASELINE_CHARS_PER_SEC))
+
             # Without ducking this is simply a constant, quiet music bed --
             # which is all it ever was, despite the old comment here claiming
             # auto-ducking. With ducking on, sidechaincompress pulls the music
             # down while the voice is actually speaking and lets it back up in
             # the gaps. Both legs need a matching format or the filter errors.
+            fade_start = max(0.0, total_duration - 0.35)
             filter_complex.append(
-                f"[{bgm_idx}:a]volume={bgm_vol},atrim=0:{total_duration + 0.5},"
-                f"afade=t=out:st={total_duration}:d=0.5[bgm_bed];"
+                f"[{bgm_idx}:a]atempo={tempo_ratio:.3f},volume={bgm_vol},atrim=0:{total_duration + 0.5},"
+                f"afade=t=out:st={fade_start:.3f}:d=0.35[bgm_bed];"
             )
             if bgm_ducking:
                 filter_complex.append(

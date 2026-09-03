@@ -26,14 +26,12 @@ export function angleToForm(angle, context = {}) {
     .map(line => line.trim())
     .join('\n');
 
-  const cleanHook = (angle.hook_title || '')
-    .replace(/\.{2,}|…/g, ' ')
-    .replace(/[ \t]+/g, ' ')
-    .trim();
-
   const patch = {
     productName: angle.product_name || context.title || 'สินค้า',
-    hookTitle: cleanHook,
+    // Deliberately NOT auto-filling hookBrand/hookModel/hookLabel here --
+    // the 3-tier hook banner is manual-only input (see EditorShell.jsx),
+    // angle.hook_title is a full-sentence script hook meant to be spoken,
+    // not a short banner headline.
     customScript: scriptText,
     // A script that came from the flow is meant to be spoken as written --
     // anything else would throw away the angle the user just picked.

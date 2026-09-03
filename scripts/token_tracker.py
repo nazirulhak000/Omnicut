@@ -40,6 +40,7 @@ class TokenTracker:
     """Thread-safe singleton engine for recording and aggregating AI token analytics."""
 
     _cache: Optional[Dict[str, Any]] = None
+    _cache_mtime: float = 0.0
     _lock: threading.Lock = threading.Lock()
 
     @classmethod
@@ -61,17 +62,30 @@ class TokenTracker:
 
     @classmethod
     def _load(cls) -> Dict[str, Any]:
-        if cls._cache is not None:
+        # Check if disk file was updated by another process/worker
+        disk_mtime = 0.0
+        if ANALYTICS_FILE.exists():
+            try:
+                disk_mtime = ANALYTICS_FILE.stat().st_mtime
+            except OSError:
+                pass
+
+        if cls._cache is not None and disk_mtime <= cls._cache_mtime:
             return cls._cache
+
         if ANALYTICS_FILE.exists():
             try:
                 data = json.loads(ANALYTICS_FILE.read_text(encoding="utf-8"))
-                cls._cache = data
-                return data
+                if isinstance(data, dict):
+                    cls._cache = data
+                    cls._cache_mtime = disk_mtime
+                    return data
             except Exception:
                 pass
+
         data = cls._get_default_structure()
         cls._cache = data
+        cls._cache_mtime = disk_mtime
         return data
 
     @classmethod
@@ -79,11 +93,17 @@ class TokenTracker:
         try:
             ANALYTICS_FILE.parent.mkdir(parents=True, exist_ok=True)
             data["updated_at"] = datetime.datetime.now().isoformat()
-            ANALYTICS_FILE.write_text(
+            tmp_file = ANALYTICS_FILE.with_suffix(".json.tmp")
+            tmp_file.write_text(
                 json.dumps(data, ensure_ascii=False, indent=2),
                 encoding="utf-8"
             )
+            tmp_file.replace(ANALYTICS_FILE)
             cls._cache = data
+            try:
+                cls._cache_mtime = ANALYTICS_FILE.stat().st_mtime
+            except OSError:
+                cls._cache_mtime = time.time()
         except Exception as e:
             print(f"⚠️ [TokenTracker] Failed to persist analytics: {e}")
 
@@ -163,83 +183,86 @@ class TokenTracker:
     @classmethod
     def get_summary(cls) -> Dict[str, Any]:
         """Generate high-level metrics, distribution breakdowns, and recent ledger."""
-        data = cls._load()
-        events = data.get("events", [])
-        totals = data.get("totals", {})
+        with cls._lock:
+            data = cls._load()
+            events = data.get("events", [])
+            totals = data.get("totals", {})
 
-        # Model breakdown
-        tokens_by_model = {}
-        calls_by_model = {}
-        tokens_by_task = {}
-        calls_by_task = {}
-        calls_by_provider = {}
-        daily_stats = {}
+            # Model breakdown
+            tokens_by_model = {}
+            calls_by_model = {}
+            tokens_by_task = {}
+            calls_by_task = {}
+            calls_by_provider = {}
+            daily_stats = {}
 
-        total_latency = 0.0
+            total_latency = 0.0
 
-        for ev in events:
-            model = ev.get("model", "unknown")
-            task = ev.get("task", "unknown")
-            provider = ev.get("provider", "unknown")
-            tok = ev.get("total_tokens", 0)
-            date = ev.get("date", ev.get("timestamp", "")[:10])
-            lat = ev.get("latency_seconds", 0.0)
-            thb = ev.get("cost_saved_thb", 0.0)
+            for ev in events:
+                model = ev.get("model", "unknown")
+                task = ev.get("task", "unknown")
+                provider = ev.get("provider", "unknown")
+                tok = ev.get("total_tokens", 0)
+                date = ev.get("date", ev.get("timestamp", "")[:10])
+                lat = ev.get("latency_seconds", 0.0)
+                thb = ev.get("cost_saved_thb", 0.0)
 
-            total_latency += lat
+                total_latency += lat
 
-            tokens_by_model[model] = tokens_by_model.get(model, 0) + tok
-            calls_by_model[model] = calls_by_model.get(model, 0) + 1
+                tokens_by_model[model] = tokens_by_model.get(model, 0) + tok
+                calls_by_model[model] = calls_by_model.get(model, 0) + 1
 
-            tokens_by_task[task] = tokens_by_task.get(task, 0) + tok
-            calls_by_task[task] = calls_by_task.get(task, 0) + 1
+                tokens_by_task[task] = tokens_by_task.get(task, 0) + tok
+                calls_by_task[task] = calls_by_task.get(task, 0) + 1
 
-            calls_by_provider[provider] = calls_by_provider.get(provider, 0) + 1
+                calls_by_provider[provider] = calls_by_provider.get(provider, 0) + 1
 
-            if date:
-                d = daily_stats.setdefault(date, {"tokens": 0, "calls": 0, "cost_saved_thb": 0.0})
-                d["tokens"] += tok
-                d["calls"] += 1
-                d["cost_saved_thb"] = round(d["cost_saved_thb"] + thb, 2)
+                if date:
+                    d = daily_stats.setdefault(date, {"tokens": 0, "calls": 0, "cost_saved_thb": 0.0})
+                    d["tokens"] += tok
+                    d["calls"] += 1
+                    d["cost_saved_thb"] = round(d["cost_saved_thb"] + thb, 2)
 
-        avg_latency = round(total_latency / len(events), 2) if events else 0.0
+            avg_latency = round(total_latency / len(events), 2) if events else 0.0
 
-        # Sort daily stats by date ascending
-        sorted_daily = [
-            {"date": k, "tokens": v["tokens"], "calls": v["calls"], "cost_saved_thb": v["cost_saved_thb"]}
-            for k, v in sorted(daily_stats.items())
-        ]
-        # Keep last 14 days for clean chart
-        sorted_daily = sorted_daily[-14:]
+            # Sort daily stats by date ascending
+            sorted_daily = [
+                {"date": k, "tokens": v["tokens"], "calls": v["calls"], "cost_saved_thb": v["cost_saved_thb"]}
+                for k, v in sorted(daily_stats.items())
+            ]
+            # Keep last 14 days for clean chart
+            sorted_daily = sorted_daily[-14:]
 
-        return {
-            "totals": {
-                "total_tokens": totals.get("total_tokens", 0),
-                "input_tokens": totals.get("input_tokens", 0),
-                "output_tokens": totals.get("output_tokens", 0),
-                "thinking_tokens": totals.get("thinking_tokens", 0),
-                "total_calls": totals.get("total_calls", 0),
-                "total_cost_saved_thb": round(totals.get("total_cost_saved_thb", 0.0), 2),
-                "avg_latency_seconds": avg_latency,
-            },
-            "tokens_by_model": tokens_by_model,
-            "calls_by_model": calls_by_model,
-            "tokens_by_task": tokens_by_task,
-            "calls_by_task": calls_by_task,
-            "calls_by_provider": calls_by_provider,
-            "daily_stats": sorted_daily,
-            "recent_events": list(reversed(events[-50:]))  # Latest 50 events
-        }
+            return {
+                "totals": {
+                    "total_tokens": totals.get("total_tokens", 0),
+                    "input_tokens": totals.get("input_tokens", 0),
+                    "output_tokens": totals.get("output_tokens", 0),
+                    "thinking_tokens": totals.get("thinking_tokens", 0),
+                    "total_calls": totals.get("total_calls", 0),
+                    "total_cost_saved_thb": round(totals.get("total_cost_saved_thb", 0.0), 2),
+                    "avg_latency_seconds": avg_latency,
+                },
+                "tokens_by_model": tokens_by_model,
+                "calls_by_model": calls_by_model,
+                "tokens_by_task": tokens_by_task,
+                "calls_by_task": calls_by_task,
+                "calls_by_provider": calls_by_provider,
+                "daily_stats": sorted_daily,
+                "recent_events": list(reversed(events[-50:]))  # Latest 50 events
+            }
 
     @classmethod
     def get_history(cls, limit: int = 50) -> List[Dict[str, Any]]:
         """Return chronological history (newest first)."""
-        data = cls._load()
-        events = data.get("events", [])
-        return list(reversed(events[-limit:]))
+        with cls._lock:
+            data = cls._load()
+            events = data.get("events", [])
+            return list(reversed(events[-limit:]))
 
     @classmethod
     def reset(cls) -> None:
         """Reset all analytics."""
-        new_data = cls._get_default_structure()
-        cls._save(new_data)
+        with cls._lock:
+            new_data = cls._get_default_structure()
+            cls._save(new_data)

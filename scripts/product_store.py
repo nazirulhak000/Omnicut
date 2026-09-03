@@ -25,8 +25,12 @@ STORE_PATH = BASE_DIR / "_Docs" / "products.json"
 STATUSES = ("candidate", "scripted", "in_production", "rendered", "mobile_ready", "posted")
 
 
+import threading
+
 class ProductStore:
     """The list of products in play, with what the AI worked out about each."""
+
+    _lock: threading.Lock = threading.Lock()
 
     # ------------------------------------------------------------------
     # Storage
@@ -43,10 +47,11 @@ class ProductStore:
 
     @classmethod
     def _save(cls, products: List[Dict[str, Any]]) -> None:
-        STORE_PATH.parent.mkdir(parents=True, exist_ok=True)
-        tmp = STORE_PATH.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(products, ensure_ascii=False, indent=2), encoding="utf-8")
-        tmp.replace(STORE_PATH)
+        with cls._lock:
+            STORE_PATH.parent.mkdir(parents=True, exist_ok=True)
+            tmp = STORE_PATH.with_suffix(".json.tmp")
+            tmp.write_text(json.dumps(products, ensure_ascii=False, indent=2), encoding="utf-8")
+            tmp.replace(STORE_PATH)
 
     # ------------------------------------------------------------------
     # Writing
@@ -129,7 +134,14 @@ class ProductStore:
                 return product
 
     @classmethod
-    def update_angle_status(cls, product_id: str, angle_id: str, status: str, video_url: Optional[str] = None) -> Dict[str, Any]:
+    def update_angle_status(
+        cls,
+        product_id: str,
+        angle_id: str,
+        status: str,
+        video_url: Optional[str] = None,
+        project_name: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Updates the lifecycle status of a specific script angle in a product."""
         products = cls._load()
         for product in products:
@@ -138,13 +150,50 @@ class ProductStore:
                 for angle in angles:
                     if angle.get("angle_id") == angle_id:
                         angle["status"] = status
-                        if video_url:
-                            angle["video_url"] = video_url
+                        if video_url is not None:
+                            angle["video_url"] = video_url if video_url else None
+                        if project_name is not None:
+                            angle["project_name"] = project_name if project_name else None
                         angle["updated_at"] = cls._now()
                         product["updated_at"] = cls._now()
                         cls._save(products)
                         return product
         raise ValueError(f"ไม่พบสินค้า id '{product_id}' หรือ angle '{angle_id}'")
+
+    @classmethod
+    def rollback_by_video_or_project(cls, identifier: str) -> List[str]:
+        """
+        Finds any angle matching the given video filename or project_name,
+        and rolls its status back to 'scripted' (clearing video_url and project_name).
+        """
+        if not identifier:
+            return []
+        products = cls._load()
+        target_token = Path(identifier).stem.lower().strip()
+        raw_id_low = identifier.lower().strip()
+        rolled_back = []
+        changed = False
+
+        for product in products:
+            for angle in product.get("angles", []):
+                v_url = (angle.get("video_url") or "").lower()
+                p_name = (angle.get("project_name") or "").lower()
+                is_match = (
+                    (target_token and (target_token in v_url or target_token in p_name)) or
+                    (raw_id_low and (raw_id_low in v_url or raw_id_low in p_name))
+                )
+                if is_match and angle.get("status") in ("rendered", "in_production"):
+                    angle["status"] = "scripted"
+                    angle["video_url"] = None
+                    angle["project_name"] = None
+                    angle["updated_at"] = cls._now()
+                    product["updated_at"] = cls._now()
+                    rolled_back.append(angle.get("angle_id", ""))
+                    changed = True
+
+        if changed:
+            cls._save(products)
+        return rolled_back
 
     @classmethod
     def update_angle_videos(cls, product_id: str, angle_id: str, selected_videos: List[str]) -> Dict[str, Any]:
@@ -282,14 +331,98 @@ class ProductStore:
         cls._save(remaining)
 
     # ------------------------------------------------------------------
-    # Reading
+    # Reading & Automatic Reconciliation
     # ------------------------------------------------------------------
     @classmethod
+    def reconcile_existing_projects(cls) -> bool:
+        """
+        Scans 03_Projects and 04_Exports to match existing rendered projects
+        with their corresponding angles in products.json.
+        """
+        import re
+        products = cls._load()
+        if not products:
+            return False
+
+        changed = False
+        projects_dir = BASE_DIR / "03_Projects"
+        exports_dir = BASE_DIR / "04_Exports" / "Ready_to_post"
+        
+        if not projects_dir.exists():
+            return False
+
+        for p_folder in projects_dir.iterdir():
+            if not p_folder.is_dir():
+                continue
+            manifest_file = p_folder / "project.json"
+            if not manifest_file.exists():
+                continue
+
+            try:
+                p_data = json.loads(manifest_file.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+
+            p_hook = p_data.get("script_data", {}).get("hook", "") or ""
+            p_lines = [line.get("text", "") for line in p_data.get("script_data", {}).get("lines", [])]
+            p_clean_hook = re.sub(r"[\s\.\…\u2026]+", "", p_hook)
+            p_clean_lines = [re.sub(r"[\s\.\…\u2026]+", "", l) for l in p_lines if l]
+
+            # Check if an exported MP4 exists
+            mp4_path = None
+            art_mp4 = p_data.get("artifacts", {}).get("mp4_video", {}).get("path")
+            if art_mp4 and Path(art_mp4).exists():
+                mp4_path = art_mp4
+            elif exports_dir.exists():
+                candidates = list(exports_dir.glob(f"{p_folder.name}*.mp4"))
+                if candidates:
+                    mp4_path = str(candidates[0])
+
+            # Match against products
+            for product in products:
+                for angle in product.get("angles", []):
+                    ang_hook_clean = re.sub(r"[\s\.\…\u2026]+", "", angle.get("hook_title") or "")
+                    ang_lines_clean = [re.sub(r"[\s\.\…\u2026]+", "", l) for l in angle.get("script_lines", []) if l]
+                    
+                    # Match condition: hook match or first script line match
+                    is_match = False
+                    if p_clean_hook and ang_hook_clean and (p_clean_hook in ang_hook_clean or ang_hook_clean in p_clean_hook):
+                        is_match = True
+                    elif p_clean_lines and ang_lines_clean and (p_clean_lines[0] in ang_lines_clean[0] or ang_lines_clean[0] in p_clean_lines[0]):
+                        is_match = True
+
+                    if is_match:
+                        # Ensure project is linked
+                        if angle.get("project_name") != p_folder.name:
+                            angle["project_name"] = p_folder.name
+                            changed = True
+
+                        if mp4_path:
+                            if angle.get("status") != "rendered" or angle.get("video_url") != mp4_path:
+                                angle["status"] = "rendered"
+                                angle["video_url"] = mp4_path
+                                changed = True
+                        elif angle.get("status") == "scripted":
+                            angle["status"] = "rendered"
+                            changed = True
+
+                        p_list = product.setdefault("projects", [])
+                        if p_folder.name not in p_list:
+                            p_list.append(p_folder.name)
+                            changed = True
+
+        if changed:
+            cls._save(products)
+        return changed
+
+    @classmethod
     def get_all(cls) -> List[Dict[str, Any]]:
+        cls.reconcile_existing_projects()
         return cls._load()
 
     @classmethod
     def list(cls, status: Optional[str] = None) -> List[Dict[str, Any]]:
+        cls.reconcile_existing_projects()
         products = cls._load()
         if status:
             products = [p for p in products if p.get("status") == status]
@@ -297,6 +430,7 @@ class ProductStore:
 
     @classmethod
     def get(cls, product_id: str) -> Optional[Dict[str, Any]]:
+        cls.reconcile_existing_projects()
         for product in cls._load():
             if product["id"] == product_id:
                 return product

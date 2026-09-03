@@ -130,7 +130,8 @@ export const scrapeAndPlanProduct = (payload) => {
 export const getProducts = (status) => api.get('/products', { params: status ? { status } : {} }).then(r => r.data);
 export const createProduct = (data) => api.post('/products', data).then(r => r.data);
 export const updateProduct = (id, data) => api.patch(`/products/${id}`, data).then(r => r.data);
-export const updateAngleStatus = (productId, angleId, status, videoUrl = null) => api.patch(`/products/${productId}/angles/${angleId}`, { status, video_url: videoUrl }).then(r => r.data);
+export const updateAngleStatus = (productId, angleId, status, videoUrl = null, projectName = null) =>
+  api.patch(`/products/${productId}/angles/${angleId}`, { status, video_url: videoUrl, project_name: projectName }).then(r => r.data);
 export const updateAngleVideos = (productId, angleId, selectedVideos) => api.post(`/products/${productId}/angles/${angleId}/videos`, { selected_videos: selectedVideos }).then(r => r.data);
 export const deleteProduct = (id) => api.delete(`/products/${id}`).then(r => r.data);
 

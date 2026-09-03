@@ -146,7 +146,8 @@ Esseger สายชาร์จแม่เหล็ก 3-in-1 จัดโป�
     if (onApplyScript) {
       onApplyScript({
         productName,
-        hookTitle: item.hook_title,
+        // Not auto-filling hookBrand/hookModel/hookLabel -- the 3-tier hook
+        // banner is manual-only (see EditorShell.jsx).
         customScript: item.script_text,
         keyFeatures,
         painPoint,

@@ -143,6 +143,23 @@ LOOK_PRESETS: Dict[str, List[float]] = {
     "dont_cheap_out": [1.3, 1.0, 1.4, 1.0],
 }
 
+# BGM auto-pick per angle, from the mood a filename already hints at (none of
+# these tracks were tagged with real metadata -- this mapping is a first
+# pass from names alone, not a verified listen; swap values here if a track
+# doesn't actually fit once heard). Used as the auto-pick when a render
+# doesn't specify bgm_name explicitly -- same fallback tier as ANGLE_LUT_HINTS.
+BGM_MOOD_MAP: Dict[str, str] = {
+    "pain_point": "bgm_flash_sale_urgent.wav",       # urgency matches "this problem, fix it now"
+    "dont_cheap_out": "bgm_cyber_phonk.wav",          # dark/warning tone
+    "fake_vs_real": "bgm_hypetrance_wav.mp3",         # tense, dramatic reveal
+    "real_test": "bgm_over_loaded_hiphop_instrumental.mp3",  # original hardcoded default, confident/hype
+    "how_to_setup": "bgm_lofi_daily.wav",             # calm tutorial pace, rewatchable
+    "worth_upgrade": "bgm_aesthetic_pop.wav",         # bright, comparison/decision mood
+    "spec_compare": "bgm_brass_funk.wav",             # upbeat but not overpowering, numbers stay legible
+    "spec_explained": "bgm_whistle_cozy.wav",         # warm, approachable explainer tone
+}
+DEFAULT_BGM = "tiktok_upbeat_bgm.wav"  # no angle_key given / no match
+
 
 def catalog_for_prompt(seller_assets_only: bool = False) -> List[Dict[str, Any]]:
     """

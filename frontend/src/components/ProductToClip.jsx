@@ -3,7 +3,7 @@ import {
   Link2, Sparkles, Clapperboard, Loader2, Check, Copy,
   AlertCircle, ArrowRight, Upload, Trash2, RefreshCw, Plus, Film, Video,
   ChevronDown, ChevronUp, ChevronRight, Package, Rocket, FolderOpen, X,
-  Search, LayoutGrid, Filter
+  Search, LayoutGrid, Filter, Play
 } from 'lucide-react';
 import {
   scrapeAndPlanProduct, scrapeAndPlanProductAsync, getProducts, updateProduct, updateAngleStatus, updateAngleVideos, deleteProduct, uploadFile
@@ -68,7 +68,7 @@ function ProductCard({ product, isSelected, onSelect }) {
 // 📝 ACCORDION SCRIPT ITEM (with Angle-Specific Footage Selector)
 // ═══════════════════════════════════════════════════════════════════════
 function ScriptAccordionItem({
-  angle, index, isOpen, onToggle, onCopy, onSendToStudio, copiedIndex,
+  angle, index, isOpen, onToggle, onCopy, onSendToStudio, onOpenInTimeline, copiedIndex,
   videos = [], onToggleVideoForAngle, onUploadVideo, uploadingImg = false,
   onOpenMediaPicker
 }) {
@@ -77,12 +77,15 @@ function ScriptAccordionItem({
     : (angle.script_text ? angle.script_text.split('\n') : []);
 
   const curStatus = angle.status || 'scripted';
+  const isRendered = curStatus === 'rendered' || curStatus === 'posted' || !!angle.video_url || !!angle.project_name;
+
   const statusLabel = curStatus === 'posted' ? 'โพสต์แล้ว'
-    : curStatus === 'rendered' ? 'ตัดเสร็จ'
+    : isRendered ? 'ตัดเสร็จแล้ว'
     : curStatus === 'in_production' ? 'กำลังตัดต่อ'
     : 'สคริปต์พร้อม';
 
   const statusColor = curStatus === 'posted' ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+    : isRendered ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
     : curStatus === 'rendered' ? 'bg-blue-500/15 text-blue-300 border-blue-500/30'
     : curStatus === 'in_production' ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
     : 'bg-white/[0.05] text-slate-400 border-white/[0.08]';
@@ -245,7 +248,36 @@ function ScriptAccordionItem({
 
           {/* Action Row */}
           <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/[0.06]">
-            {selectedVideos.length === 0 ? (
+            {isRendered ? (
+              <>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onOpenInTimeline) {
+                      onOpenInTimeline(angle, index);
+                    } else {
+                      onSendToStudio(angle, index);
+                    }
+                  }}
+                  className="py-2 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-500/25 cursor-pointer active:scale-95 transition-all"
+                  title="เปิดดูวิดีโอที่ตัดเสร็จแล้วในไทม์ไลน์ทันที"
+                >
+                  <Play className="w-3.5 h-3.5 fill-white text-white" />
+                  <span>▶️ เปิดดูในไทม์ไลน์</span>
+                  <ArrowRight className="w-3 h-3 text-white/80" />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onSendToStudio(angle, index); }}
+                  className="py-2 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 text-xs font-medium flex items-center gap-1 border border-white/[0.1] cursor-pointer"
+                  title="ส่งไปปรับแต่งสคริปต์หรือตัดมุมนี้ใหม่"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  <span>ตัดใหม่</span>
+                </button>
+              </>
+            ) : selectedVideos.length === 0 ? (
               <button
                 type="button"
                 onClick={(e) => {
@@ -605,13 +637,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       return;
     }
 
-    if (productData?.id && angle.angle_id) {
-      try {
-        await handleAngleStatusChange(angle.angle_id, 'in_production');
-      } catch (e) {
-        console.error('Failed to update angle status:', e);
-      }
-    }
+    // Do NOT set in_production prematurely when merely sending to studio!
+    // Status stays 'scripted' until user actually presses render in timeline.
 
     const scriptLines = Array.isArray(angle.script_lines)
       ? angle.script_lines
@@ -624,7 +651,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       productId: productData?.id,
       angleId: angle.angle_id,
       productName: angle.product_name || productData?.title || customKeyword || 'สินค้า',
-      hookTitle: angle.hook_title || '',
+      // Not auto-filling hookBrand/hookModel/hookLabel -- the 3-tier hook
+      // banner is manual-only (see EditorShell.jsx).
       customScript: scriptText,
       keyFeatures: angle.key_features || productData?.description || '',
       painPoint: angle.pain_point || '',
@@ -632,6 +660,53 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       adTone: angle.ad_tone || 'commercial_premium',
       selectedVideo: primaryVideo,
       selectedVideos: chosenVideos,
+      openProjectName: angle.project_name || '',
+      openVideoUrl: angle.video_url || '',
+      fullProduct: {
+        id: productData?.id,
+        title: productData?.title || customKeyword || 'สินค้า',
+        description: productData?.description,
+        price_note: productData?.price_note,
+        selectedVideo: primaryVideo,
+        selectedVideos: chosenVideos,
+        images: productData?.images || [],
+        angles: angles && angles.length > 0 ? angles : [angle]
+      },
+      angleIndex: resolvedIndex >= 0 ? resolvedIndex : 0
+    });
+  };
+
+  const handleOpenInTimeline = (angle, index) => {
+    const resolvedIndex = typeof index === 'number'
+      ? index
+      : angles.findIndex(a => (a.angle_id && a.angle_id === angle.angle_id) || a.hook_title === angle.hook_title);
+
+    const chosenVideos = (angle.selected_videos && angle.selected_videos.length > 0)
+      ? angle.selected_videos
+      : (angle.selected_video ? [angle.selected_video] : (productData?.videos ? productData.videos.map(v => v.path || v.rel_path) : []));
+
+    const scriptLines = Array.isArray(angle.script_lines)
+      ? angle.script_lines
+      : (angle.script_text ? angle.script_text.split('\n') : []);
+    const scriptText = scriptLines.join('\n');
+    const primaryVideo = chosenVideos[0] || '';
+
+    onApplyToStudio({
+      productId: productData?.id,
+      angleId: angle.angle_id,
+      productName: angle.product_name || productData?.title || customKeyword || 'สินค้า',
+      // Not auto-filling hookBrand/hookModel/hookLabel -- the 3-tier hook
+      // banner is manual-only (see EditorShell.jsx).
+      customScript: scriptText,
+      keyFeatures: angle.key_features || productData?.description || '',
+      painPoint: angle.pain_point || '',
+      priceDeal: angle.price_deal || productData?.price_note || '',
+      adTone: angle.ad_tone || 'commercial_premium',
+      selectedVideo: primaryVideo,
+      selectedVideos: chosenVideos,
+      openProjectName: angle.project_name || '',
+      openVideoUrl: angle.video_url || '',
+      isRendered: true,
       fullProduct: {
         id: productData?.id,
         title: productData?.title || customKeyword || 'สินค้า',
@@ -1066,6 +1141,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   onToggle={() => setOpenAngleIdx(openAngleIdx === idx ? -1 : idx)}
                   onCopy={copyScriptText}
                   onSendToStudio={handleSendToStudio}
+                  onOpenInTimeline={handleOpenInTimeline}
                   copiedIndex={copiedIndex}
                   videos={videos}
                   onToggleVideoForAngle={handleToggleVideoForAngle}

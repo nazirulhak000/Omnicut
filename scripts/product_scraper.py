@@ -54,8 +54,18 @@ class ProductScraper:
 
         resolved_url = url
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": BROWSER_UA})
-            with urllib.request.urlopen(req, timeout=20) as resp:
+            import http.cookiejar
+            cookie_jar = http.cookiejar.CookieJar()
+            opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookie_jar))
+            req = urllib.request.Request(
+                url,
+                headers={
+                    "User-Agent": BROWSER_UA,
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    "Accept-Language": "th-TH,th;q=0.9,en;q=0.8",
+                }
+            )
+            with opener.open(req, timeout=20) as resp:
                 resolved_url = resp.geturl() or url
         except Exception as r_err:
             print(f"[ProductScraper] Redirect resolution note: {r_err}")
@@ -70,7 +80,11 @@ class ProductScraper:
         try:
             req = urllib.request.Request(
                 resolved_url,
-                headers={"User-Agent": BROWSER_UA, "Accept-Language": "th-TH,th;q=0.9,en;q=0.8"}
+                headers={
+                    "User-Agent": BROWSER_UA,
+                    "Accept-Language": "th-TH,th;q=0.9,en;q=0.8",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+                }
             )
             with urllib.request.urlopen(req, timeout=20) as resp:
                 raw_html = resp.read(600_000).decode("utf-8", errors="ignore")

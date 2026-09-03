@@ -6,7 +6,7 @@ import {
   ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen
 } from 'lucide-react';
 import {
-  deleteProject, getAllAssets, getProject, getProjectOrigin, getProjects, getRenderStatus, startReroll, updateProjectCues, updateProjectClips, updateProjectState, openFolder,
+  deleteProject, getAllAssets, getProject, getProjectOrigin, getProjects, getRenderStatus, startReroll, updateProjectCues, updateProjectClips, updateProjectState, openFolder, updateAngleStatus,
 } from '../../api';
 import {
   FADE_DURATION, ZOOM_LEVELS, buildSegments, formatTimecode, splitClipAt, snapCandidates, snapTime,
@@ -67,6 +67,7 @@ export default function EditorShell({
   videos = [],
   productContext = null,
   angleIndex = 0,
+  initialProjectName = null,
   onAngleChange,
   onGoToProductFlow,
   onVideoUploaded,
@@ -199,7 +200,9 @@ export default function EditorShell({
   const [previewModalVideo, setPreviewModalVideo] = useState(null);
   const [copiedPath, setCopiedPath] = useState(false);
   const [audioUrl, setAudioUrl] = useState(null);
-  const [hookTitle, setHookTitle] = useState('');
+  const [hookBrand, setHookBrand] = useState('');
+  const [hookModel, setHookModel] = useState('');
+  const [hookLabel, setHookLabel] = useState('');
   const [hookDuration, setHookDuration] = useState(3.0);
   const [showHookHeader, setShowHookHeader] = useState(true);
   const [microCuesList, setMicroCuesList] = useState([]);
@@ -296,6 +299,18 @@ export default function EditorShell({
       .catch((err) => console.warn('Asset fetch failed:', err));
   }, []);
 
+  // Load project handed down from script lab or flow
+  useEffect(() => {
+    if (initialProjectName) {
+      loadProject(initialProjectName);
+    } else if (!projectName) {
+      const angleProj = productContext?.angles?.[angleIndex]?.project_name;
+      if (angleProj) {
+        loadProject(angleProj);
+      }
+    }
+  }, [initialProjectName, productContext, angleIndex]);
+
   const loadProject = async (name) => {
     if (!name) return;
     setLoading(true);
@@ -346,11 +361,22 @@ export default function EditorShell({
 
       const rawMicroCues = (data.micro_cues && data.micro_cues.length > 0) ? data.micro_cues : [];
       setMicroCuesList(rawMicroCues);
-      const title = data.script_data?.hook || data.hook_title || data.render_params?.hook_title || '';
-      setHookTitle(title);
+      // Deliberately does NOT fall back to data.script_data?.hook -- that's
+      // the voiceover's opening line (a full sentence, meant to be spoken),
+      // not a banner headline. Falling back to it here was the root cause
+      // of the old single-field hook banner showing up as a whole sentence.
+      // A legacy project saved before this 3-tier banner existed has none
+      // of these three fields -- all stay empty, banner hidden, user fills
+      // it in fresh (no auto-parsing an old hook_title into tiers).
+      const brand = data.hook_brand || data.render_params?.hook_brand || '';
+      const model = data.hook_model || data.render_params?.hook_model || '';
+      const label = data.hook_label || data.render_params?.hook_label || '';
+      setHookBrand(brand);
+      setHookModel(model);
+      setHookLabel(label);
       const hookDur = Number(data.hook_duration || data.render_params?.hook_duration || 3.0);
       setHookDuration(hookDur > 0 ? hookDur : 3.0);
-      setShowHookHeader(!!title);
+      setShowHookHeader(!!brand);
 
       const fontName = data.font_name || data.render_params?.font_name || data.style?.font_name || data.style?.fontName || 'IBMPlex';
       const bgmName = data.bgm_name || data.render_params?.bgm_name || data.style?.bgm_name || data.style?.bgmName || null;
@@ -490,7 +516,9 @@ export default function EditorShell({
           clip_list: serializedClips,
           transitions: serializedTransitions,
           style: serializedStyle,
-          hook_title: showHookHeader ? (hookTitle || '') : '',
+          hook_brand: showHookHeader ? (hookBrand || '') : '',
+          hook_model: showHookHeader ? (hookModel || '') : '',
+          hook_label: showHookHeader ? (hookLabel || '') : '',
           hook_duration: hookDuration || 3.0,
         });
         setSaveStatus('saved');
@@ -500,7 +528,7 @@ export default function EditorShell({
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [clipList, cuesList, style, projectName, hookTitle, hookDuration, showHookHeader]);
+  }, [clipList, cuesList, style, projectName, hookBrand, hookModel, hookLabel, hookDuration, showHookHeader]);
 
   // Manual save handler (button click or Ctrl+S)
   const handleManualSave = useCallback(async () => {
@@ -537,7 +565,9 @@ export default function EditorShell({
         clip_list: serializedClips,
         transitions: serializedTransitions,
         style: serializedStyle,
-        hook_title: showHookHeader ? (hookTitle || '') : '',
+        hook_brand: showHookHeader ? (hookBrand || '') : '',
+        hook_model: showHookHeader ? (hookModel || '') : '',
+        hook_label: showHookHeader ? (hookLabel || '') : '',
         hook_duration: hookDuration || 3.0,
       });
       setSaveStatus('saved');
@@ -545,7 +575,7 @@ export default function EditorShell({
       console.warn('Manual save failed:', err);
       setSaveStatus('dirty');
     }
-  }, [clipList, cuesList, style, projectName, hookTitle, hookDuration, showHookHeader]);
+  }, [clipList, cuesList, style, projectName, hookBrand, hookModel, hookLabel, hookDuration, showHookHeader]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -953,10 +983,21 @@ export default function EditorShell({
           setApplying(false);
           setApplyResult(st.result || {});
           clearInterval(timer);
+          if (productContext?.id && productContext?.angles?.[angleIndex]?.angle_id) {
+            try {
+              const vPath = st.result?.mp4 || st.result?.final_video_path || st.result?.video_path || '';
+              updateAngleStatus(productContext.id, productContext.angles[angleIndex].angle_id, 'rendered', vPath, projectName).catch(() => {});
+            } catch (e) {}
+          }
         } else if (st.status === 'failed') {
           setApplying(false);
           setApplyError(st.error || 'เรนเดอร์ล้มเหลว');
           clearInterval(timer);
+          if (productContext?.id && productContext?.angles?.[angleIndex]?.angle_id) {
+            try {
+              updateAngleStatus(productContext.id, productContext.angles[angleIndex].angle_id, 'scripted').catch(() => {});
+            } catch (e) {}
+          }
         }
       } catch (err) { /* keep polling */ }
     }, 1000);
@@ -987,6 +1028,13 @@ export default function EditorShell({
     setApplyResult(null);
     setJobStatus({ progress: 0.05, message: 'กำลังเตรียมข้อมูล...' });
 
+    // Mark angle as in_production only when user actually triggers the render
+    if (productContext?.id && productContext?.angles?.[angleIndex]?.angle_id) {
+      try {
+        updateAngleStatus(productContext.id, productContext.angles[angleIndex].angle_id, 'in_production').catch(() => {});
+      } catch (e) {}
+    }
+
     try {
       // Guarantee cues, clips, and transitions are 100% saved in a single atomic transaction before render
       const serializedCues = cuesList.map(({ _uid, ...c }) => c);
@@ -1008,7 +1056,9 @@ export default function EditorShell({
         clip_list: serializedClips,
         transitions: serializedTransitions,
         bilingual_subtitles: true,
-        hook_title: showHookHeader ? (hookTitle || '') : '',
+        hook_brand: showHookHeader ? (hookBrand || '') : '',
+        hook_model: showHookHeader ? (hookModel || '') : '',
+        hook_label: showHookHeader ? (hookLabel || '') : '',
         hook_duration: hookDuration || 3.0,
         font_name: style.fontName,
         bgm_name: style.bgmName,
@@ -1334,7 +1384,14 @@ export default function EditorShell({
         );
       })()}
 
-      {!projectName ? (
+      {loading ? (
+        <div className="flex-1 flex items-center justify-center p-8 bg-[#07090E]">
+          <div className="flex flex-col items-center gap-3 text-slate-300">
+            <Loader2 className="w-8 h-8 animate-spin text-[#25F4EE]" />
+            <span className="text-sm font-bold font-kanit">กำลังโหลดข้อมูลไทม์ไลน์...</span>
+          </div>
+        </div>
+      ) : !projectName ? (
         <div className="min-h-0 flex-1">
           <NewClipPanel
             videos={videos}
@@ -1363,7 +1420,9 @@ export default function EditorShell({
                   ref={mobilePlayerRef}
                   clips={clipList}
                   cues={cuesList}
-                  hookTitle={showHookHeader ? hookTitle : ''}
+                  hookBrand={showHookHeader ? hookBrand : ''}
+                  hookModel={showHookHeader ? hookModel : ''}
+                  hookLabel={showHookHeader ? hookLabel : ''}
                   hookDuration={hookDuration}
                   audioUrl={audioUrl}
                   captionStyle={{
@@ -1574,8 +1633,12 @@ export default function EditorShell({
                       totalDuration={totalDuration}
                       audioDuration={audioDuration}
                       assets={assets}
-                      hookTitle={hookTitle}
-                      onHookTitleChange={setHookTitle}
+                      hookBrand={hookBrand}
+                      onHookBrandChange={setHookBrand}
+                      hookModel={hookModel}
+                      onHookModelChange={setHookModel}
+                      hookLabel={hookLabel}
+                      onHookLabelChange={setHookLabel}
                       hookDuration={hookDuration}
                       onHookDurationChange={setHookDuration}
                       showHookHeader={showHookHeader}
@@ -1682,7 +1745,9 @@ export default function EditorShell({
                     ref={desktopPlayerRef}
                     clips={clipList}
                     cues={cuesList}
-                    hookTitle={showHookHeader ? hookTitle : ''}
+                    hookBrand={showHookHeader ? hookBrand : ''}
+                  hookModel={showHookHeader ? hookModel : ''}
+                  hookLabel={showHookHeader ? hookLabel : ''}
                     hookDuration={hookDuration}
                     audioUrl={audioUrl}
                     captionStyle={{
@@ -1818,8 +1883,12 @@ export default function EditorShell({
                         totalDuration={totalDuration}
                         audioDuration={audioDuration}
                         assets={assets}
-                        hookTitle={hookTitle}
-                        onHookTitleChange={setHookTitle}
+                        hookBrand={hookBrand}
+                        onHookBrandChange={setHookBrand}
+                        hookModel={hookModel}
+                        onHookModelChange={setHookModel}
+                        hookLabel={hookLabel}
+                        onHookLabelChange={setHookLabel}
                         hookDuration={hookDuration}
                         onHookDurationChange={setHookDuration}
                         showHookHeader={showHookHeader}

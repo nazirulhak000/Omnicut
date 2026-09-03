@@ -7,7 +7,9 @@
 export const DEFAULT_STUDIO_FORM = {
   selectedVideo: '',
   productName: 'Esseger สายชาร์จแม่เหล็ก',
-  hookTitle: 'อย่าเพิ่งเลื่อนผ่าน! สายชาร์จแม่เหล็ก',
+  hookBrand: 'Esseger',
+  hookModel: 'สายชาร์จแม่เหล็ก',
+  hookLabel: 'ชาร์จไว ไม่ทำร้ายแบต',
   painPoint: 'สายชาร์จพังง่าย เสียบยากในที่มืด',
   priceDeal: 'ลดพิเศษวันนี้ จิ้มตะกร้าซ้ายล่าง',
   keyFeatures: 'แม่เหล็กแรงดูดสูง เสียบปึ้ง ติดทันที ชาร์จเร็ว ไม่ทำร้ายแบต ทนทานมาก',

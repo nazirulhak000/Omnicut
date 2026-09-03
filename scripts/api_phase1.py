@@ -466,6 +466,7 @@ def delete_project(project_name: str, scope: str = "project"):
             extra = {"product_removed": product["id"], "angles_removed": len(product.get("angles") or [])}
 
     try:
+        ProductStore.rollback_by_video_or_project(project_name)
         return {"success": True, "scope": scope, **ProjectManifest.delete(project_name), **extra}
     except FileNotFoundError as err:
         raise HTTPException(status_code=404, detail=str(err))

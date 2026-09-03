@@ -494,7 +494,7 @@ def test_spec_bar_only_appears_for_cues_with_something_to_show(tmp_path):
         cues=cues,
         output_ass_path=str(tmp_path / "out.ass"),
         font_name="IBMPlex",
-        hook_title="ทดสอบ",
+        hook_brand="ทดสอบ",
         hook_duration=2.0,
         bilingual=False,
     )

@@ -38,6 +38,7 @@ from scripts.gemini_tts_engine import GeminiFlashTTSEngine
 from scripts.tts_sanitizer import TTSSanitizer
 from scripts.product_scraper import ProductScraper
 from scripts.product_store import ProductStore
+from scripts.post_log import PostLog
 
 app = FastAPI(
     title="TikTok Auto-Cutter Pro API",
@@ -92,7 +93,13 @@ class RenderRequest(BaseModel):
     key_features: str
     pain_point: str
     price_deal: str
-    hook_title: Optional[str] = None
+    # 3-tier hook banner: brand (largest) / model (mid) / label (smallest,
+    # e.g. "หูฟังไร้สาย") -- replaces the old single hook_title free-text
+    # sentence, which was really the voiceover's opening line getting
+    # mis-used as a banner caption.
+    hook_brand: Optional[str] = None
+    hook_model: Optional[str] = None
+    hook_label: Optional[str] = None
     custom_script: Optional[str] = None
     script_overlays: Optional[List[str]] = None  # per-line spec-bar text, index-aligned with custom_script
     voice_mode: str = "gemini_tts" # gemini_tts, edge_tts, human, video
@@ -124,6 +131,27 @@ class RenderRequest(BaseModel):
 
 class DeleteFileRequest(BaseModel):
     file_path: str
+
+class AddPostRequest(BaseModel):
+    product_name: str
+    clip_file: str
+    platform: str = "tiktok"
+    product_url: Optional[str] = ""
+    angle_key: Optional[str] = ""
+    angle_title: Optional[str] = ""
+    hook: Optional[str] = ""
+    caption: Optional[str] = ""
+    hashtags: Optional[List[str]] = None
+    posted_at: Optional[str] = None
+
+class UpdatePostMetricsRequest(BaseModel):
+    views: Optional[int] = None
+    likes: Optional[int] = None
+    comments: Optional[int] = None
+    shares: Optional[int] = None
+    cart_clicks: Optional[int] = None
+    orders: Optional[int] = None
+    commission_thb: Optional[float] = None
 
 class OpenFolderRequest(BaseModel):
     target: str # "exports", "inbox", "raw", "assets", "capcut", "root", or custom path
@@ -260,13 +288,13 @@ def stream_media_file(file_path: Path, request: Request):
 import socket as _socket
 
 _ip_cache: Dict[str, Any] = {"ip": None, "ts": 0.0}
-_IP_TTL = 60.0  # re-check every 60 s so Wi-Fi switches are reflected quickly
+_IP_TTL = 5.0  # re-check every 5 s so Wi-Fi switches are reflected almost immediately
 
-def get_local_ip() -> str:
-    """Returns the primary local IPv4 address. Re-checked every 60 s so
-    switching Wi-Fi networks is reflected without restarting the server."""
+def get_local_ip(force: bool = False) -> str:
+    """Returns the primary local IPv4 address. Re-checked every 5 s (or forced) so
+    switching Wi-Fi networks is reflected dynamically without restarting the server."""
     now = time.monotonic()
-    if _ip_cache["ip"] is None or (now - _ip_cache["ts"]) > _IP_TTL:
+    if force or _ip_cache["ip"] is None or (now - _ip_cache["ts"]) > _IP_TTL:
         ip = "127.0.0.1"
         try:
             s = _socket.socket(_socket.AF_INET, _socket.SOCK_DGRAM)
@@ -288,11 +316,11 @@ def get_local_ip() -> str:
 # ----------------------------------------------------------------------
 
 @app.get("/api/status")
-def get_system_status():
+def get_system_status(refresh_ip: bool = False):
     """Returns general health and system stats with fast single-pass scanning."""
     raw_files = scan_video_files(RAW_DIR, INBOX_DIR)
     export_files = list(EXPORTS_DIR.glob("*.mp4"))
-    local_ip = get_local_ip()
+    local_ip = get_local_ip(force=refresh_ip)
 
     return {
         "status": "online",
@@ -345,54 +373,6 @@ def list_raw_videos(product_id: Optional[str] = None):
         "product_count": len(product_videos) if product_id else len(all_videos)
     }
 
-@app.post("/api/delete-file")
-def delete_file_endpoint(payload: DeleteFileRequest):
-    """Deletes a raw/inbox/asset file safely along with any companion webp poster."""
-    file_path = payload.file_path
-    if not file_path:
-        raise HTTPException(status_code=400, detail="Missing file_path")
-
-    p = Path(file_path)
-    if not p.is_absolute():
-        p = BASE_DIR / file_path
-
-    try:
-        p.resolve().relative_to(BASE_DIR.resolve())
-    except ValueError:
-        raise HTTPException(status_code=403, detail="Cannot delete files outside project root")
-
-    if p.exists() and p.is_file():
-        try:
-            # On Windows, video players or browsers might hold a temporary lock
-            for attempt in range(3):
-                try:
-                    p.unlink()
-                    break
-                except PermissionError:
-                    if attempt < 2:
-                        import gc
-                        gc.collect()
-                        time.sleep(0.2)
-                    else:
-                        raise
-
-            # Also delete companion .webp thumbnail if present
-            webp_p = p.with_suffix(".webp")
-            if webp_p.exists():
-                try:
-                    webp_p.unlink()
-                except Exception:
-                    pass
-
-            return {"success": True, "message": f"Deleted {p.name}"}
-        except PermissionError:
-            raise HTTPException(
-                status_code=409,
-                detail=f"ไม่สามารถลบไฟล์ '{p.name}' ได้ เนื่องจากไฟล์กำลังถูกเปิดเล่นอยู่ในเบราว์เซอร์หรือโปรแกรมอื่น กรุณาหยุดเล่นวิดีโอแล้วลองใหม่"
-            )
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"เกิดข้อผิดพลาดในการลบไฟล์: {str(e)}")
-    return {"success": False, "message": "File not found"}
 
 class RenameVideoPayload(BaseModel):
     video_path: str
@@ -887,6 +867,44 @@ def list_exports():
                     matched_prod, matched_angle = p, a
                     break
 
+        # 3. Product ID match (if ID is embedded in filename)
+        if not matched_prod:
+            for p in all_products:
+                pid = p.get("id", "").lower()
+                if pid and pid in fstem_low:
+                    matched_prod = p
+                    break
+
+        # 4. Token-based matching against product name
+        if not matched_prod:
+            import re
+            best_prod = None
+            best_score = 0
+            for p in all_products:
+                pname = p.get("name", "").lower()
+                tokens = [t for t in re.findall(r"[\w\u0E00-\u0E7F]+", pname) if len(t) >= 3]
+                if not tokens:
+                    continue
+                score = sum(1 for t in tokens if t in fstem_low)
+                if score > best_score:
+                    best_score = score
+                    best_prod = p
+            if best_prod and best_score >= 1:
+                matched_prod = best_prod
+
+        # If product is matched but angle isn't, search within product angles
+        if matched_prod and not matched_angle:
+            import re
+            for a in matched_prod.get("angles", []):
+                aid = a.get("angle_id", "").lower()
+                aname = a.get("angle_name", "").lower()
+                if aid and aid in fstem_low:
+                    matched_angle = a
+                    break
+                if aname and any(word in fstem_low for word in re.findall(r"[\w\u0E00-\u0E7F]{4,}", aname)):
+                    matched_angle = a
+                    break
+
         if matched_prod:
             info["product_id"] = matched_prod.get("id")
             info["product_name"] = matched_prod.get("name")
@@ -995,7 +1013,7 @@ def scrape_and_plan(payload: Dict[str, Any]):
 def _execute_scrape_and_plan_worker(task_id: str, payload: Dict[str, Any]):
     """Background worker that executes product scrape & 10-angle script generation with step-by-step progress."""
     try:
-        TaskManager.update_progress(task_id, 0.15, "กำลังดึงข้อมูลและสเปกสินค้า...")
+        TaskManager.update_progress(task_id, 0.15, "กำลังดึงข้อมูลและสเปกสินค้า")
         url = payload.get("url", "").strip()
         raw_text = payload.get("raw_text", "").strip()
         custom_keyword = payload.get("custom_keyword", "").strip()
@@ -1003,7 +1021,7 @@ def _execute_scrape_and_plan_worker(task_id: str, payload: Dict[str, Any]):
         angle_count = int(payload.get("angle_count", 7))
 
         if url:
-            TaskManager.update_progress(task_id, 0.30, f"กำลังดึงข้อมูลจากร้านค้า: {url[:35]}...")
+            TaskManager.update_progress(task_id, 0.30, f"กำลังดึงข้อมูลจากร้านค้า: {url[:35]}")
             product_info = ProductScraper.scrape_url(url)
         else:
             product_info = {
@@ -1043,11 +1061,11 @@ def _execute_scrape_and_plan_worker(task_id: str, payload: Dict[str, Any]):
 
         angles = ProductScraper.generate_content_matrix(product_info, count=angle_count)
 
-        TaskManager.update_progress(task_id, 0.85, "กำลังปรับแต่งบทพูดสำหรับเสียงพากย์ AI (TTS Sanitizer)...")
+        TaskManager.update_progress(task_id, 0.85, "กำลังปรับแต่งบทพูดสำหรับเสียงพากย์ AI (TTS Sanitizer)")
         from scripts.tts_sanitizer import TTSSanitizer
         angles = TTSSanitizer.process_angles(angles)
 
-        TaskManager.update_progress(task_id, 0.95, "กำลังบันทึกลงแคตตาล็อกสินค้า...")
+        TaskManager.update_progress(task_id, 0.95, "กำลังบันทึกลงแคตตาล็อกสินค้า")
 
         thumbnail_img = ""
         if product_info.get("images") and len(product_info["images"]) > 0:
@@ -1094,7 +1112,7 @@ def scrape_and_plan_async(payload: Dict[str, Any], background_tasks: BackgroundT
     if not url and not raw_text and not custom_keyword:
         raise HTTPException(status_code=400, detail="กรุณาระบุลิงก์ ข้อความรายละเอียด หรือชื่อสินค้า")
 
-    name_label = custom_keyword or (f"ลิงก์: {url[:30]}..." if url else "สินค้าใหม่")
+    name_label = custom_keyword or (f"ลิงก์: {url[:30]}" if url else "สินค้าใหม่")
     task_title = f"วิเคราะห์สินค้า: {name_label} ({angle_count} สคริปต์)"
 
     task = TaskManager.create_task(
@@ -1159,7 +1177,7 @@ def clear_completed_tasks():
 def get_post_log(newest_first: bool = True):
     """Returns all posted clips with their recorded metrics."""
     posts = PostLog.list_posts(newest_first=newest_first)
-    return {"posts": posts, "count": len(posts)}
+    return {"posts": posts, "count": len(posts), "summary": PostLog.summary()}
 
 @app.post("/api/post-log")
 def add_post_log(payload: Dict[str, Any]):
@@ -1177,17 +1195,18 @@ def add_post_log(payload: Dict[str, Any]):
             hashtags=payload.get("hashtags"),
             posted_at=payload.get("posted_at"),
         )
-        return {"success": True, "post": post}
+        return {"success": True, "post": post, "summary": PostLog.summary()}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.patch("/api/post-log/{post_id}/metrics")
+@app.post("/api/post-log/{post_id}/metrics")
+@app.patch("/api/posts/{post_id}/metrics")
 def update_post_log_metrics(post_id: str, payload: Dict[str, Any]):
-    """Fills in the 48-hour performance numbers for a post.
-    Accepted keys: views, likes, comments, shares, cart_clicks, orders, commission_thb."""
+    """Fills in the 48-hour performance numbers for a post."""
     try:
         post = PostLog.update_metrics(post_id, payload)
-        return {"success": True, "post": post}
+        return {"success": True, "post": post, "summary": PostLog.summary()}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -1199,26 +1218,31 @@ def get_pending_metrics():
 
 @app.get("/api/post-log/performance")
 def get_angle_performance():
-    """Returns average views, cart-click-rate, and commission grouped by angle key.
-    Use this to decide which angle to shoot next for maximum sales."""
-    performance = PostLog.angle_performance()
-    return {"performance": performance}
+    """Returns average views, cart-click-rate, and commission grouped by angle key."""
+    return {"by_angle": PostLog.angle_performance(), "summary": PostLog.summary()}
 
+@app.get("/api/posts/summary")
 @app.get("/api/post-log/summary")
 def get_post_log_summary():
     """Returns overall totals: clips posted, measured, total views, orders, commission."""
-    summary = PostLog.summary()
-    return summary
+    return PostLog.summary()
 
 @app.patch("/api/products/{product_id}/angles/{angle_id}")
 def update_product_angle_status(product_id: str, angle_id: str, payload: Dict[str, Any]):
-    """Updates status (draft, scripted, rendered, posted) of a specific angle script."""
+    """Updates status (draft, scripted, in_production, rendered, posted) of a specific angle script."""
     status = payload.get("status")
     video_url = payload.get("video_url")
+    project_name = payload.get("project_name")
     if not status:
         raise HTTPException(status_code=400, detail="Missing status")
     try:
-        updated = ProductStore.update_angle_status(product_id, angle_id, status, video_url)
+        updated = ProductStore.update_angle_status(
+            product_id,
+            angle_id,
+            status,
+            video_url=video_url,
+            project_name=project_name
+        )
         return {"success": True, "product": updated}
     except ValueError as err:
         raise HTTPException(status_code=404, detail=str(err))
@@ -1269,7 +1293,7 @@ def generate_ai_scripts(req: ScriptGenerateRequest):
 - ราคา/โปร: {req.price_deal}
 
 กฎเหล็กการเขียนบทพูด:
-- ห้ามใช้จุดไข่ปลา "..." หรือ "…" ในบทพูดโดยเด็ดขาด ให้เว้นวรรคธรรมดาแทน
+- ห้ามใช้จุดไข่ปลา "..." หรือ "…" ในทุกฟิลด์โดยเด็ดขาด (ทั้งใน script_text, hook_title, caption) ให้เว้นวรรคธรรมดาแทน
 - ห้ามใช้ภาษาโฆษณาทีวีทางการ ให้ใช้ภาษาพูดเพื่อนสนิทป้ายยา
 - ห้ามใส่ emoji ในบทพูด (script_text) ใส่ได้เฉพาะ angle_name และ hook_title
 
@@ -1314,12 +1338,13 @@ def generate_ai_scripts(req: ScriptGenerateRequest):
         m = re.search(r"```json\s*([\s\S]*?)\s*```", response.text)
         clean_json = m.group(1).strip() if m else response.text.strip()
         data = json.loads(clean_json)
-        # Sanitize any stray ellipses that slipped past the prompt rule
+        # Sanitize any stray ellipses across all fields
         import re as _re
         for angle in data.get("angles", []):
-            st = angle.get("script_text", "")
-            if st:
-                angle["script_text"] = _re.sub(r'[.]{2,}|\u2026', ' ', st).strip()
+            for k in ["script_text", "hook_title", "caption", "angle_name"]:
+                v = angle.get(k)
+                if isinstance(v, str):
+                    angle[k] = _re.sub(r'[.]{2,}|\u2026', ' ', v).strip()
         return data
 
     except Exception as e:
@@ -1404,10 +1429,17 @@ def delete_file(req: DeleteFileRequest):
     if not target.exists():
         return {"success": True, "message": "ไฟล์ถูกลบไปแล้ว", "filename": target.name}
 
-    # Clean up associated subtitle files
+    # Clean up associated subtitle files and companion .webp thumbnail
     stem = target.stem
     parent = target.parent
-    for sub_file in [parent / f"{stem}-sub.srt", parent / f"{stem}-sub.vtt", parent / f"{stem}.srt", parent / f"{stem}.vtt"]:
+    companions = [
+        parent / f"{stem}-sub.srt",
+        parent / f"{stem}-sub.vtt",
+        parent / f"{stem}.srt",
+        parent / f"{stem}.vtt",
+        target.with_suffix(".webp")
+    ]
+    for sub_file in companions:
         if sub_file.exists():
             try:
                 sub_file.unlink()
@@ -1416,11 +1448,18 @@ def delete_file(req: DeleteFileRequest):
 
     gc.collect()
 
+    def _on_deleted_success():
+        try:
+            ProductStore.rollback_by_video_or_project(target.name)
+        except Exception:
+            pass
+        return {"success": True, "message": f"ลบไฟล์ {target.name} เรียบร้อยแล้ว", "filename": target.name}
+
     # Attempt 1: Direct deletion with retry loop
     for attempt in range(3):
         try:
             target.unlink()
-            return {"success": True, "message": f"ลบไฟล์ {target.name} เรียบร้อยแล้ว", "filename": target.name}
+            return _on_deleted_success()
         except PermissionError:
             gc.collect()
             time.sleep(0.2)
@@ -1440,7 +1479,7 @@ def delete_file(req: DeleteFileRequest):
             trash_target.unlink()
         except Exception:
             pass
-        return {"success": True, "message": f"ลบไฟล์ {target.name} เรียบร้อยแล้ว", "filename": target.name}
+        return _on_deleted_success()
     except Exception:
         pass
 
@@ -1448,7 +1487,7 @@ def delete_file(req: DeleteFileRequest):
     try:
         subprocess.run(["cmd", "/c", "del", "/f", "/q", str(target)], capture_output=True)
         if not target.exists():
-            return {"success": True, "message": f"ลบไฟล์ {target.name} เรียบร้อยแล้ว", "filename": target.name}
+            return _on_deleted_success()
     except Exception:
         pass
 
@@ -1652,6 +1691,13 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
             elif (BASE_DIR / req_data.sticker_badge).exists():
                 sticker_file_path = str(BASE_DIR / req_data.sticker_badge)
 
+        # Update angle to in_production only when render actually starts
+        if req_data.product_id and req_data.angle_id:
+            try:
+                ProductStore.update_angle_status(req_data.product_id, req_data.angle_id, "in_production")
+            except Exception:
+                pass
+
         # See render_jobs._RENDER_SLOT: this machine has no CUDA and 13.7GB RAM,
         # so renders are serialized -- a second request waits as "queued"
         # rather than fighting the first one for CPU/RAM.
@@ -1671,7 +1717,9 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                 voice_preset=req_data.voice_preset,
                 ad_tone=req_data.ad_tone or "commercial_premium",
                 human_voice_audio_path=human_voice_path,
-                hook_title=req_data.hook_title,
+                hook_brand=req_data.hook_brand,
+                hook_model=req_data.hook_model,
+                hook_label=req_data.hook_label,
                 font_name=req_data.font_name,
                 bilingual_subtitles=req_data.bilingual_subtitles,
                 use_ai_vision=req_data.use_ai_vision,
@@ -1702,6 +1750,20 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
             except Exception as link_err:
                 print(f"Warning: could not link project to product: {link_err}")
 
+        # Update angle status to 'rendered' and attach video_url and project_name for 100% accurate export matching
+        if req_data.product_id and req_data.angle_id:
+            try:
+                mp4_val = result.get("mp4") or result.get("output_video") or result.get("video_path") or ""
+                ProductStore.update_angle_status(
+                    req_data.product_id,
+                    req_data.angle_id,
+                    "rendered",
+                    video_url=str(mp4_val) if mp4_val else None,
+                    project_name=result.get("project_name")
+                )
+            except Exception as angle_err:
+                print(f"Warning: could not update angle status: {angle_err}")
+
         render_jobs.complete_job(job_id, result)
         TaskManager.complete_task(
             job_id,
@@ -1711,6 +1773,11 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
         )
 
     except Exception as e:
+        if req_data.product_id and req_data.angle_id:
+            try:
+                ProductStore.update_angle_status(req_data.product_id, req_data.angle_id, "scripted")
+            except Exception:
+                pass
         render_jobs.fail_job(job_id, e)
         TaskManager.fail_task(job_id, str(e), step_label="การตัดต่อวิดีโอล้มเหลว")
 

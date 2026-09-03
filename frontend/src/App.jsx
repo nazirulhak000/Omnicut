@@ -80,6 +80,7 @@ export default function App() {
   });
 
   const [selectedProductIdForFlow, setSelectedProductIdForFlow] = useState(null);
+  const [initialProjectNameToLoad, setInitialProjectNameToLoad] = useState(null);
 
 
   // Auto-save Context Objects to localStorage
@@ -164,6 +165,12 @@ export default function App() {
       setActiveAngleContext({ productId: data.productId, angleId: data.angleId });
     }
 
+    if (data.openProjectName) {
+      setInitialProjectNameToLoad(data.openProjectName);
+    } else {
+      setInitialProjectNameToLoad(null);
+    }
+
     if (data.fullProduct) {
       setActiveProductContext(data.fullProduct);
       setSelectedAngleIndex(data.angleIndex || 0);
@@ -180,7 +187,7 @@ export default function App() {
         angles: [{
           angle_name: 'บทที่เพิ่งเลือก',
           product_name: data.productName || 'สินค้า',
-          hook_title: data.hookTitle || '',
+          hook_title: [data.hookBrand, data.hookModel, data.hookLabel].filter(Boolean).join(' ') || '',
           script_text: data.customScript || '',
           key_features: data.keyFeatures || '',
           pain_point: data.painPoint || '',
@@ -198,8 +205,9 @@ export default function App() {
   const handleRenderSuccess = async (result) => {
     if (activeAngleContext?.productId && activeAngleContext?.angleId) {
       try {
-        const videoRelPath = result.final_video_path || result.video_path || result.output_path || result.project_name || '';
-        await updateAngleStatus(activeAngleContext.productId, activeAngleContext.angleId, 'rendered', videoRelPath);
+        const videoRelPath = result.final_video_path || result.video_path || result.output_path || '';
+        const projectName = result.project_name || '';
+        await updateAngleStatus(activeAngleContext.productId, activeAngleContext.angleId, 'rendered', videoRelPath, projectName);
       } catch (err) {
         console.error('Failed to auto-update angle status on render:', err);
       }
@@ -252,6 +260,7 @@ export default function App() {
                     videos={videos}
                     productContext={activeProductContext}
                     angleIndex={selectedAngleIndex}
+                    initialProjectName={initialProjectNameToLoad}
                     onAngleChange={handleSelectAngle}
                     onGoToProductFlow={() => setActiveTab('flow')}
                     onVideoUploaded={handleVideoUploaded}

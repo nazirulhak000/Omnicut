@@ -25,7 +25,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 ASSETS_DIR = BASE_DIR / "02_Assets"
 STICKERS_DIR = ASSETS_DIR / "Stickers_Memes"
 FONTS_DIR = ASSETS_DIR / "Fonts"
-BRAIN_DIR = Path(r"C:\Users\Winon\.gemini\antigravity-ide\brain\8a6b9482-44d8-49ad-b0ed-6a210b223cf2")
 
 STICKERS_DIR.mkdir(parents=True, exist_ok=True)
 

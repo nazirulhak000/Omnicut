@@ -116,6 +116,10 @@ class PostLog:
         return sorted(posts, key=lambda p: p.get("posted_at", ""), reverse=newest_first)
 
     @classmethod
+    def get_all(cls, newest_first: bool = True) -> List[Dict[str, Any]]:
+        return cls.list_posts(newest_first=newest_first)
+
+    @classmethod
     def pending_metrics(cls) -> List[Dict[str, Any]]:
         """Posts that are past the 48-hour mark and still have no numbers."""
         cutoff = datetime.datetime.now() - datetime.timedelta(hours=METRICS_DUE_HOURS)

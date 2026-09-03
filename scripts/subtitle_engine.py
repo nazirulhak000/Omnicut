@@ -8,7 +8,7 @@ import sys
 import re
 import json
 from pathlib import Path
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -152,8 +152,7 @@ class SubtitleEngine:
             elif (
                 len(p) <= 4
                 or p.startswith("ๆ")
-                or p.startswith("...")
-                or p in ["บ้าง", "บ้าง...", "นะ", "ครับ", "ค่ะ", "เลย", "ด้วย", "อ่ะ", "น้า", "จ้า", "ล่ะ"]
+                or p in ["บ้าง", "นะ", "ครับ", "ค่ะ", "เลย", "ด้วย", "อ่ะ", "น้า", "จ้า", "ล่ะ"]
             ):
                 merged_parts[-1] += " " + p
             else:
@@ -186,11 +185,56 @@ class SubtitleEngine:
         """Backward-compatible alias for split_into_smart_clauses."""
         return cls.split_into_smart_clauses(text, max_line_len=max_chars)
 
+    @staticmethod
+    def _clause_boundaries_from_word_timings(
+        clauses: List[str], word_timings: List[Dict]
+    ) -> Optional[List[Tuple[float, float]]]:
+        """
+        Best-effort real (start, end) per entry in `clauses`, derived from
+        `word_timings` (edge-tts's own word tokenization of the same text --
+        it doesn't necessarily split the same way `split_into_smart_clauses`
+        does, e.g. it may split "วันนี้" into "วัน"+"นี้") by walking both
+        streams' cumulative character position together. `clauses` must be
+        in-order substrings of the same text `word_timings` was measured
+        against.
+
+        Returns `None` when there's no word data, or when the two
+        tokenizations cover too different a character count to trust a
+        shared cursor -- a divergence guard, not the common case since both
+        read the same underlying string.
+        """
+        if not word_timings:
+            return None
+        total_clause_chars = sum(len(cl) for cl in clauses)
+        total_word_chars = sum(len(w.get("text", "")) for w in word_timings)
+        if total_clause_chars == 0 or total_word_chars == 0:
+            return None
+        if not (0.6 <= total_word_chars / total_clause_chars <= 1.6):
+            return None
+
+        boundary_times = [word_timings[0]["start"]]
+        clause_char_cursor = 0
+        for cl in clauses:
+            clause_char_cursor += len(cl)
+            target = (clause_char_cursor / total_clause_chars) * total_word_chars
+            running = 0
+            end_time = word_timings[-1]["end"]
+            for w in word_timings:
+                running += len(w.get("text", ""))
+                if running >= target:
+                    end_time = w["end"]
+                    break
+            boundary_times.append(end_time)
+
+        return list(zip(boundary_times[:-1], boundary_times[1:]))
+
     @classmethod
     def generate_micro_cues(cls, cues: List[Dict]) -> List[Dict]:
         """
-        Converts sentence-level cues into smart clause cues, translating each into English
-        and maintaining exact proportional audio timestamps.
+        Converts sentence-level cues into smart clause cues, translating each into English.
+        Uses real per-word timestamps (`cue["word_timings"]`, from edge-tts's streaming API
+        in voice_engine.py) when available; falls back to proportional character-count
+        splitting of the parent cue's duration otherwise -- same as before this existed.
         """
         micro_cues = []
         cue_id = 1
@@ -204,12 +248,23 @@ class SubtitleEngine:
                 continue
 
             clauses = cls.split_into_smart_clauses(text)
+            real_boundaries = cls._clause_boundaries_from_word_timings(
+                clauses, c.get("word_timings") or []
+            )
             total_chars = max(1, sum(len(cl) for cl in clauses))
             current_t = start
 
             for idx, cl in enumerate(clauses):
-                cl_dur = (len(cl) / total_chars) * total_dur
-                cl_end = min(end, current_t + cl_dur)
+                if real_boundaries:
+                    cl_start, cl_end = real_boundaries[idx]
+                    cl_start = max(start, min(end, cl_start))
+                    cl_end = max(cl_start, min(end, cl_end))
+                else:
+                    cl_dur = (len(cl) / total_chars) * total_dur
+                    cl_start = current_t
+                    cl_end = min(end, current_t + cl_dur)
+                if idx == 0:
+                    cl_start = start
                 if idx == len(clauses) - 1:
                     cl_end = end
 
@@ -220,17 +275,23 @@ class SubtitleEngine:
 
                 # Assign Emojis selectively (only if not already present)
                 emoji = ""
-                has_emoji = any(cl.startswith(em) for em in ["⚠️", "🔌", "⚡", "❌", "🛒"])
+                has_emoji = any(cl.startswith(em) for em in ["⚠️", "🔌", "⚡", "❌", "🛒", "🌿", "💧", "🧪", "✨"])
                 if not has_emoji:
-                    if any(k in cl for k in ["อย่าเพิ่ง", "หยุด", "เตือน"]):
+                    if any(k in cl for k in ["อย่าเพิ่ง", "หยุด", "เตือน", "ห้าม", "ระวัง"]):
                         emoji = "⚠️ "
-                    elif any(k in cl for k in ["แม่เหล็ก", "ดูดแน่น"]):
-                        emoji = "🔌 "
-                    elif any(k in cl for k in ["66W", "ชาร์จไว", "เร็ว"]):
+                    elif any(k in cl for k in ["สารสกัด", "สมุนไพร", "ธรรมชาติ", "ออร์แกนิก"]):
+                        emoji = "🌿 "
+                    elif any(k in cl for k in ["สรรพคุณ", "ผิวใส", "หน้าเด็ก", "ชุ่มชื้น", "กู้ผิว", "เซรั่ม", "คอลลาเจน", "เนียนนุ่ม"]):
+                        emoji = "💧 "
+                    elif any(k in cl for k in ["ส่วนผสม", "วิจัย", "ทดสอบ", "อย.", "รับรอง", "หมอ"]):
+                        emoji = "🧪 "
+                    elif any(k in cl for k in ["จุดเด่น", "ฟังก์ชัน", "ไฮไลต์", "พรีเมียม", "แม่เหล็ก"]):
+                        emoji = "✨ "
+                    elif any(k in cl for k in ["ชาร์จไว", "เร็ว", "แรง", "สปีด", "fast"]):
                         emoji = "⚡ "
-                    elif any(k in cl for k in ["ปัญหา", "พัง"]):
+                    elif any(k in cl for k in ["ปัญหา", "พัง", "เบื่อ", "แย่", "ยาก", "สิว", "ฝ้า", "ปวด"]):
                         emoji = "❌ "
-                    elif any(k in cl for k in ["พิกัด", "ตะกร้า", "149"]):
+                    elif any(k in cl for k in ["พิกัด", "ตะกร้า", "ราคา", "โปร", "สั่งซื้อ", "กดเลย", "ช้อป", "คุ้ม"]):
                         emoji = "🛒 "
 
                 raw_c = f"{emoji}{cl}".strip() if emoji else cl.strip()
@@ -249,7 +310,7 @@ class SubtitleEngine:
 
                 micro_cues.append({
                     "id": cue_id,
-                    "start": round(current_t, 3),
+                    "start": round(cl_start, 3),
                     "end": round(cl_end, 3),
                     "text": cue_text,
                     "translation": cue_trans,
@@ -623,7 +684,9 @@ class SubtitleEngine:
         output_ass_path: str,
         font_name: str = "Kanit",
         font_size: int = 78,
-        hook_title: str = None,
+        hook_brand: str = None,
+        hook_model: str = None,
+        hook_label: str = None,
         hook_duration: float = 3.5,
         bilingual: bool = True,
         video_width: int = VIDEO_WIDTH,
@@ -702,13 +765,75 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
         events = []
 
-        # 1. Top Hook Banner (Frameless Large Minimal Font with Crisp Outline & Soft Shadow)
-        if hook_title:
+        # 1. Top Hook Banner -- 3-tier product-poster composition (brand
+        # largest / model mid / label smallest), replacing the old single
+        # free-text hook_title line. All three tiers live in ONE dialogue
+        # event per layer (Shadow, Main), \N-joined, each line carrying its
+        # own override block -- same stacking pattern the bilingual caption
+        # block below already uses, so every property (\fscx/\fscy/\c) that
+        # matters is re-declared per line and nothing leaks across a \N.
+        if hook_brand or hook_model or hook_label:
             start_t = cls._format_ass_time(0.0)
             end_t = cls._format_ass_time(hook_duration)
-            hook_anim = "{\\an8\\fscx115\\fscy115\\t(0,120,\\fscx100\\fscy100)}"
-            events.append(f"Dialogue: 0,{start_t},{end_t},HookHeaderShadow,,0,0,0,,{hook_anim}{{\\blur5\\alpha&H40&}}{hook_title}")
-            events.append(f"Dialogue: 1,{start_t},{end_t},HookHeader,,0,0,0,,{hook_anim}{hook_title}")
+            # Exit fade in the last 150ms instead of a hard cut to nothing --
+            # `\t` offsets are relative to this event's own Start (0 here),
+            # so they double as absolute ms, and every tier shares the same
+            # Start -- all pop in / fade out in lockstep. Guarded against a
+            # hook shorter than the entry animation (120ms) ever producing
+            # exit_start >= exit_end, which a renderer could choke on.
+            exit_end_ms = int(hook_duration * 1000)
+            exit_start_ms = max(120, exit_end_ms - 150)
+            if exit_start_ms >= exit_end_ms:
+                exit_start_ms = max(0, exit_end_ms - 50)
+            exit_tag = f"\\t({exit_start_ms},{exit_end_ms},\\alpha&HFF&)"
+
+            # (raw text, target scale % of hook_fs, Main-layer colour)
+            hook_tier_specs = [
+                (hook_brand, 130, "&H00FFFFFF"),
+                (hook_model, 100, ass_colour(caption_color) or "&H0000E6FF"),
+                (hook_label, 58, "&H00E0E0E0"),
+            ]
+
+            # Pass 1: wrap each tier at its OWN char width -- a 130%-scale
+            # line needs a narrower wrap than a 58%-scale one, or the brand
+            # line runs wider than the frame while the label line wraps too
+            # early. wrap_text_for_ass is the same balanced-wrap caption
+            # already uses below; the hook banner never called it before.
+            tier_lines = []  # (line_text, scale_pct, colour)
+            for raw_text, scale_pct, colour in hook_tier_specs:
+                text = str(raw_text or "").strip()
+                if not text:
+                    continue
+                if scale_pct == 130:
+                    text = text.upper()  # brand reads as a wordmark; .upper() is a no-op on Thai
+                tier_fs = max(20, int(round(hook_fs * scale_pct / 100)))
+                dyn_max_chars = max(8, int(round(2600 / tier_fs)))
+                wrapped = cls.wrap_text_for_ass(text, max_chars_per_line=dyn_max_chars)
+                for line in wrapped.split("\\N"):
+                    tier_lines.append((line, scale_pct, colour))
+
+            if tier_lines:
+                # Pass 2: more than ~4 lines total (e.g. a long brand name
+                # wrapping twice) starts crowding the sticker badge
+                # (top-right, y=140) and reads as clutter for a 3-second
+                # banner -- shrink every tier proportionally instead of
+                # letting the block grow unbounded. Floor at 0.7 so it never
+                # shrinks past reading as a headline.
+                HOOK_COMFORTABLE_LINES = 4
+                shrink = max(0.7, min(1.0, HOOK_COMFORTABLE_LINES / len(tier_lines)))
+
+                shadow_parts, main_parts = [], []
+                for line, scale_pct, colour in tier_lines:
+                    target = round(scale_pct * shrink)
+                    entry_from = round(target * 1.15)
+                    anim = f"\\fscx{entry_from}\\fscy{entry_from}\\t(0,120,\\fscx{target}\\fscy{target})"
+                    shadow_parts.append(f"{{\\an8{anim}\\blur5\\alpha&H40&{exit_tag}}}{line}")
+                    main_parts.append(f"{{\\an8{anim}{exit_tag}\\c{colour}&}}{line}")
+
+                hook_shadow_text = "\\N".join(shadow_parts)
+                hook_main_text = "\\N".join(main_parts)
+                events.append(f"Dialogue: 0,{start_t},{end_t},HookHeaderShadow,,0,0,0,,{hook_shadow_text}")
+                events.append(f"Dialogue: 1,{start_t},{end_t},HookHeader,,0,0,0,,{hook_main_text}")
 
         # 1-shot Batch Translation for all micro-cues
         en_translations = []
@@ -730,11 +855,16 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         else:
             en_translations = [""] * len(micro_cues)
 
-        # Collect dynamic project keywords from hook_title or product hints
+        # Collect dynamic project keywords from the hook banner or product
+        # hints -- feeds the kinetic-highlighting pass below so brand/model
+        # words get the same colour treatment wherever they show up in the
+        # captions, not just in the banner. Joins all three tiers; must stay
+        # in sync with whatever the banner actually displays above.
+        hook_combined = " ".join(filter(None, [hook_brand, hook_model, hook_label])).strip()
         proj_keywords = []
-        if hook_title:
-            proj_keywords.append(hook_title.strip())
-            for t in hook_title.split():
+        if hook_combined:
+            proj_keywords.append(hook_combined)
+            for t in hook_combined.split():
                 if len(t.strip()) >= 3 and t.strip() not in proj_keywords:
                     proj_keywords.append(t.strip())
 

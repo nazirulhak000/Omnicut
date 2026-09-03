@@ -574,43 +574,89 @@ function drawSticker(ctx, img, t, style = {}) {
   ctx.restore();
 }
 
-function drawHookHeader(ctx, hookTitle, t, hookDuration = 3.5, fontName = 'Kanit') {
-  if (!hookTitle || t > hookDuration) return;
-  const cleanHook = hookTitle.trim();
-  if (!cleanHook) return;
+/**
+ * 3-tier hook banner preview: brand (largest) / model (mid) / label
+ * (smallest), mirroring subtitle_engine.py's generate_ass hook composition
+ * (tier scale %s, HOOK_COMFORTABLE_LINES shrink, gradient backdrop) so what
+ * plays here matches what Apply's ffmpeg render actually burns -- an
+ * approximation on animation easing (this canvas fades alpha, the .ass pops
+ * scale in), not on layout or which text shows where.
+ */
+function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 3.5, fontName = 'Kanit', accentColor = '#FFE600') {
+  if ((!hookBrand && !hookModel && !hookLabel) || t > hookDuration) return;
 
-  const fontSize = Math.round(CANVAS_W * 0.052 * 1.64);
   let fontFam = "'Kanit', sans-serif";
   if (fontName === 'IBMPlex' || fontName === 'IBM Plex Sans Thai') {
     fontFam = "'IBM Plex Sans Thai', sans-serif";
   } else if (fontName === 'Prompt') {
     fontFam = "'Prompt', sans-serif";
   }
+
+  let alpha = 1;
+  if (t < 0.2) alpha = t / 0.2;
+  if (t > hookDuration - 0.3) alpha = Math.max(0, (hookDuration - t) / 0.3);
+
+  const baseFontSize = Math.round(CANVAS_W * 0.052 * 1.64);
+  // Same tier percentages as hook_tier_specs in subtitle_engine.py.
+  const tierSpecs = [
+    { text: (hookBrand || '').trim().toUpperCase(), sizePct: 130, color: '#FFFFFF' },
+    { text: (hookModel || '').trim(), sizePct: 100, color: accentColor },
+    { text: (hookLabel || '').trim(), sizePct: 58, color: '#E0E0E0' },
+  ].filter((tier) => tier.text);
+  if (!tierSpecs.length) return;
+
+  const maxW = CANVAS_W * 0.85;
+  const x = CANVAS_W / 2;
+
   ctx.save();
-  ctx.font = `900 ${fontSize}px ${fontFam}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
+
+  // Pass 1: wrap each tier at its OWN font size before measuring line count.
+  const wrapped = [];
+  for (const tier of tierSpecs) {
+    const tierFs = Math.max(10, Math.round((baseFontSize * tier.sizePct) / 100));
+    ctx.font = `900 ${tierFs}px ${fontFam}`;
+    for (const line of wrapCanvasText(tier.text, ctx, maxW)) {
+      wrapped.push({ line, fontSize: tierFs, color: tier.color });
+    }
+  }
+
+  // Pass 2: same HOOK_COMFORTABLE_LINES=4 shrink as the backend, so a long
+  // brand/model that wraps twice doesn't crowd the sticker badge (top-right,
+  // y=140) instead of just overflowing unbounded.
+  const shrink = Math.max(0.7, Math.min(1, 4 / wrapped.length));
+
+  // Gradient backdrop -- mirrors video_editor.py's geq overlay (dark at the
+  // top of the frame, fading to transparent by ~25% down), same alpha
+  // envelope as the text so it fades out alongside the banner, not after.
+  const gradH = Math.round(CANVAS_H * 0.25);
+  const grad = ctx.createLinearGradient(0, 0, 0, gradH);
+  grad.addColorStop(0, `rgba(0,0,0,${0.75 * alpha})`);
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, CANVAS_W, gradH);
+
   ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
   ctx.shadowBlur = 10;
   ctx.shadowOffsetX = 3;
   ctx.shadowOffsetY = 4;
   ctx.strokeStyle = '#000000';
-  ctx.lineWidth = Math.round(fontSize * 0.24);
   ctx.lineJoin = 'round';
   ctx.miterLimit = 2;
-  
-  const x = CANVAS_W / 2;
-  const y = 200;
-  
-  let alpha = 1;
-  if (t < 0.2) alpha = t / 0.2;
-  if (t > hookDuration - 0.3) alpha = Math.max(0, (hookDuration - t) / 0.3);
   ctx.globalAlpha = alpha;
-  
-  const maxW = CANVAS_W * 0.85;
-  ctx.strokeText(cleanHook, x, y, maxW);
-  ctx.fillStyle = '#FFFFFF';
-  ctx.fillText(cleanHook, x, y, maxW);
+
+  let y = 130; // ~HookHeader's ASS MarginV=260 of 1920, scaled to this 960-tall canvas
+  const lineGap = 1.15;
+  for (const { line, fontSize, color } of wrapped) {
+    const scaledFs = Math.max(10, Math.round(fontSize * shrink));
+    ctx.font = `900 ${scaledFs}px ${fontFam}`;
+    ctx.lineWidth = Math.round(scaledFs * 0.22);
+    ctx.strokeText(line, x, y, maxW);
+    ctx.fillStyle = color;
+    ctx.fillText(line, x, y, maxW);
+    y += scaledFs * lineGap;
+  }
   ctx.restore();
 }
 
@@ -626,7 +672,7 @@ function drawHookHeader(ctx, hookTitle, t, hookDuration = 3.5, fontName = 'Kanit
  * not by trusting a <video> element's own playback rate -- see
  * RESYNC_THRESHOLD's comment for why.
  */
-function SequencePlayer({ clips, cues = [], hookTitle = '', hookDuration = 3.0, audioUrl = null, compact = false, onPlayhead, onDurations, captionStyle = {}, stickerStyle = {} }, ref) {
+function SequencePlayer({ clips, cues = [], hookBrand = '', hookModel = '', hookLabel = '', hookDuration = 3.0, audioUrl = null, compact = false, onPlayhead, onDurations, captionStyle = {}, stickerStyle = {} }, ref) {
   const canvasRef = useRef(null);
   const videoElsRef = useRef({});
   const audioElRef = useRef(null);
@@ -641,7 +687,7 @@ function SequencePlayer({ clips, cues = [], hookTitle = '', hookDuration = 3.0, 
   const playheadRef = useRef(0);
   const prevActiveClipIdRef = useRef(null);
 
-  const captionKey = `${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}:${captionStyle.fontName}:${hookTitle}:${hookDuration}`;
+  const captionKey = `${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}:${captionStyle.fontName}:${hookBrand}:${hookModel}:${hookLabel}:${hookDuration}`;
   const cuesKey = (cues || []).map(c => `${c._uid || c.id}:${c.start}:${c.end}:${c.text}:${c.translation}:${c.scale || 1}`).join(';;');
   const stickerKey = `${stickerStyle.badge}:${stickerStyle.position}:${stickerStyle.scale}:${stickerStyle.startTime}`;
   const clipKey = clips.map(c => `${c.id}:${c.source_path}:${c.trim_start}:${c.trim_end}:${c.transition_in}:${c.transition_duration}:${c.brightness}:${c.contrast}:${c.saturation}:${c.zoom}:${c.pan_x}:${c.pan_y}:${c.mirror}:${c.rotation}`).join('|');
@@ -727,7 +773,7 @@ function SequencePlayer({ clips, cues = [], hookTitle = '', hookDuration = 3.0, 
     });
     ctx.globalAlpha = 1;
     ctx.filter = 'none';
-    drawHookHeader(ctx, hookTitle, t, hookDuration, captionStyle.fontName);
+    drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration, captionStyle.fontName, captionStyle.captionColor || '#FFE600');
     drawCaption(ctx, cues, t, captionStyle);
     drawSticker(ctx, stickerImgRef.current, t, stickerStyle);
   };
@@ -857,7 +903,7 @@ function SequencePlayer({ clips, cues = [], hookTitle = '', hookDuration = 3.0, 
 
         ctx.globalAlpha = 1;
         ctx.filter = 'none';
-        drawHookHeader(ctx, hookTitle, t, hookDuration, captionStyle.fontName);
+        drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration, captionStyle.fontName, captionStyle.captionColor || '#FFE600');
         drawCaption(ctx, cues, t, captionStyle);
         drawSticker(ctx, stickerImgRef.current, t, stickerStyle);
       }

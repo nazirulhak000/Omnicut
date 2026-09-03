@@ -217,6 +217,7 @@ class VideoEditor:
         export_preset: str = "post",
         sticker_position: str = "top_right",
         sticker_scale: float = 1.0,
+        hook_duration: Optional[float] = None,
         progress_callback: Optional[Callable[[float, float], None]] = None
     ) -> str:
         """
@@ -340,7 +341,18 @@ class VideoEditor:
                     f"{speed_filter}{rot_filter}{mirror_filter}{eq_filter}{freeze_filter}"
                     f"scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,"
                     f"crop={VIDEO_WIDTH}:{VIDEO_HEIGHT},setsar=1,fps={FPS},"
-                    f"scale={scaled_w}:{scaled_h}:flags=lanczos,crop={VIDEO_WIDTH}:{VIDEO_HEIGHT}:{crop_x}:{crop_y}[{node_name}];"
+                    # The punch-zoom scale below computes its own SAR from
+                    # scaled_w/scaled_h (both rounded to even integers), which
+                    # drifts a hair off 1:1 even though the setsar=1 above
+                    # already ran -- a second scale always recomputes it. Only
+                    # visible once this feeds an xfade/concat chain
+                    # downstream (assemble_tiktok_video's has_transition
+                    # branch), which rejects mismatched SAR outright; a plain
+                    # single concat=n=N tolerates the drift, so this never
+                    # showed up before per-boundary transitions existed.
+                    # Re-pinning here, after the punch-zoom, is what actually
+                    # sticks.
+                    f"scale={scaled_w}:{scaled_h}:flags=lanczos,crop={VIDEO_WIDTH}:{VIDEO_HEIGHT}:{crop_x}:{crop_y},setsar=1[{node_name}];"
                 )
                 concat_inputs.append(f"[{node_name}]")
                 clip_durations.append(duration)
@@ -467,13 +479,26 @@ class VideoEditor:
                     # errors out.
                     fade_dur = min(boundary["duration"], max(0.05, min(acc_dur, next_dur) - 0.05))
                     offset = max(0.0, acc_dur - fade_dur)
+                    # Two things drift out from under a mixed xfade/concat
+                    # chain on a real clip_list, neither visible on a single
+                    # xfade in isolation:
+                    # 1. xfade's own SAR math on non-integer scale/crop
+                    #    chains can land a hair off 1:1 (e.g. 11061:11056) --
+                    #    harmless alone, but the next concat rejects two
+                    #    inputs whose SAR doesn't match exactly.
+                    # 2. concat's output timebase doesn't stay pinned to
+                    #    the 1/FPS every clip was normalized to upstream, so
+                    #    a *second* xfade fed by a concat node downstream
+                    #    sees a timebase mismatch against its other input.
+                    # `setsar=1,fps={FPS}` after every reduction re-pins
+                    # both so nothing downstream ever sees the drift.
                     filter_complex.append(
-                        f"[{acc_node}][{next_node}]xfade=transition={boundary['type']}:duration={fade_dur}:offset={offset}[{out_node}];"
+                        f"[{acc_node}][{next_node}]xfade=transition={boundary['type']}:duration={fade_dur}:offset={offset},setsar=1,fps={FPS}[{out_node}];"
                     )
                     acc_dur = acc_dur + next_dur - fade_dur
                 else:
                     filter_complex.append(
-                        f"[{acc_node}][{next_node}]concat=n=2:v=1:a=0[{out_node}];"
+                        f"[{acc_node}][{next_node}]concat=n=2:v=1:a=0,setsar=1,fps={FPS}[{out_node}];"
                     )
                     acc_dur = acc_dur + next_dur
 
@@ -538,6 +563,33 @@ class VideoEditor:
             )
             current_v = "[v_stickered]"
 
+        # Optional gradient backdrop behind the hook banner -- dark at the
+        # top of the frame, fading to transparent by ~25% down, so the
+        # banner's white/accent text stays readable over busy footage.
+        # Synthesized as its own lavfi `color` source right inside the
+        # filter graph (no extra -i input needed, unlike the sticker above).
+        # Gated by `hook_duration` (None when there's no banner at all --
+        # skips this entire block) so it's only visible while the banner
+        # text actually is, fading out over 0.3s alongside the banner's own
+        # exit fade instead of a hard cut.
+        if hook_duration and hook_duration > 0:
+            grad_h = int(round(VIDEO_HEIGHT * 0.25))
+            grad_h = grad_h if grad_h % 2 == 0 else grad_h + 1
+            fade_tail = 0.3
+            # geq needs cb/cr pinned to 128 (neutral chroma) alongside
+            # lum=0 -- leaving them undefined does NOT default to black, it
+            # decodes as an off colour (verified: came out visibly green).
+            alpha_expr = (
+                f"255*(1-Y/H)*(if(lt(T\\,{hook_duration})\\,1\\,"
+                f"max(0\\,1-(T-{hook_duration})/{fade_tail})))"
+            )
+            filter_complex.append(
+                f"color=c=black:s={VIDEO_WIDTH}x{grad_h}:d={total_duration + 0.5}[grad_src];"
+                f"[grad_src]format=yuva420p,geq=lum='0':cb='128':cr='128':a='{alpha_expr}'[grad_alpha];"
+                f"{current_v}[grad_alpha]overlay=x=0:y=0:format=auto[v_gradient];"
+            )
+            current_v = "[v_gradient]"
+
         # Escape path for subtitles filter in FFmpeg Windows
         ass_path_str = str(Path(ass_subtitle_path).resolve()).replace('\\', '/').replace(':', '\\:')
         fonts_dir_str = str(FONTS_DIR.resolve()).replace('\\', '/').replace(':', '\\:')
@@ -566,7 +618,7 @@ class VideoEditor:
             else:
                 raw_a_target = f"[{raw_audio_nodes[0][0]}]"
             filter_complex.append(
-                f";{raw_a_target}[{audio_input_idx}:a]amix=inputs=2:duration=first:normalize=0[a_final]"
+                f";{raw_a_target}[{audio_input_idx}:a]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95:attack=5:release=50:level=false[a_final]"
             )
             final_audio_map = "[a_final]"
         else:

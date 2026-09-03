@@ -26,8 +26,10 @@ from scripts.video_editor import VideoEditor
 from scripts.image_motion_engine import ImageMotionEngine
 from scripts.gemini_vision_matcher import GeminiVisionMatcher
 from scripts.beat_sync import BeatSync
+from scripts.script_tone_analyzer import ScriptToneAnalyzer
+from scripts.motion_analyzer import MotionAnalyzer
 from scripts.project_manifest import ProjectManifest
-from scripts.it_angles import LOOK_PRESETS
+from scripts.it_angles import LOOK_PRESETS, BGM_MOOD_MAP, DEFAULT_BGM
 
 class TikTokAutoCutterPipeline:
     """Main pipeline to run full automated TikTok video creation."""
@@ -49,7 +51,9 @@ class TikTokAutoCutterPipeline:
         voice_preset: Optional[str] = "gemini_puck_male_hype",
         ad_tone: str = "commercial_premium",
         human_voice_audio_path: Optional[str] = None,
-        hook_title: Optional[str] = None,
+        hook_brand: Optional[str] = None,
+        hook_model: Optional[str] = None,
+        hook_label: Optional[str] = None,
         hook_duration: float = 3.0,
         font_name: str = "IBMPlex",
         bilingual_subtitles: bool = True,
@@ -132,7 +136,22 @@ class TikTokAutoCutterPipeline:
                 is_image_source = True
                 image_files = valid_imgs[:6]
             else:
-                raise FileNotFoundError(f"Raw video or product image not found: {raw_video_path}")
+                raise FileNotFoundError(f"ไม่พบไฟล์วิดีโอดิบหรือรูปสินค้า: '{raw_video_path}' กรุณาตรวจสอบตำแหน่งไฟล์")
+
+        # Pre-flight validation: check video file integrity (reject 0-byte or truncated files)
+        if raw_video and raw_video.is_file() and not is_image_source:
+            if raw_video.stat().st_size < 1024:
+                raise ValueError(f"ไฟล์วิดีโอ '{raw_video.name}' มีขนาด 0 bytes หรือเสียหาย กรุณาตรวจสอบไฟล์ต้นฉบับ")
+
+        if clip_list:
+            for c_idx, c_item in enumerate(clip_list):
+                c_src = c_item.get("source_path")
+                if c_src:
+                    c_path = Path(c_src)
+                    if not c_path.is_absolute():
+                        c_path = BASE_DIR / c_src
+                    if c_path.exists() and c_path.is_file() and c_path.stat().st_size < 1024:
+                        raise ValueError(f"คลิปที่ {c_idx + 1} ('{c_path.name}') มีขนาด 0 bytes หรือเสียหาย")
 
         # Determine Project Name
         if not project_name:
@@ -363,27 +382,44 @@ class TikTokAutoCutterPipeline:
             print(f"   Voice generated! Duration: {total_duration:.2f}s, Cues: {len(cues)}")
 
         # 3. Subtitles Generation (Rapid-fire 2-4 word bursts)
+        #
+        # `gradient_hook_duration` (None when there's no hook banner at all)
+        # is threaded down to assemble_tiktok_video below so its gradient
+        # backdrop only shows while the banner text is actually on screen --
+        # it must survive both branches here, not just the regenerate path,
+        # or a video-only reroll loses the gradient even though the reused
+        # .ass still burns the banner.
+        gradient_hook_duration = None
         if ProjectManifest.should_run("subtitles", resume_from):
             _notify("💬 [3/5] กำลังสร้างซับไตเติล TikTok เคลื่อนไหว (Kanit-Black 86pt)...", 0.50)
             print(f"\n💬 [3/5] Generating TikTok Animated Subtitles (.ass with {font_name} font & 3-word bursts)...")
             ass_path = _out_path("subtitles", ".ass")
-            banner_title = hook_title or f"{product_name}"
+            # No caller supplies any of the three -- fall back to product_name
+            # as the brand line alone, same as the old single-field default,
+            # so the banner never silently disappears on a fresh 1-click run.
+            effective_hook_brand = hook_brand or (product_name if not (hook_model or hook_label) else "")
             # Hold time scales with how long the banner actually takes to
             # read (~11 chars/sec, the same fast cadence as the TikTok voice
             # rate) instead of one flat 3s for every title -- a 6-char hook
             # doesn't need the same hold as a 40-char one. A caller that
             # explicitly moved hook_duration away from the 3.0 default is
             # respected as-is.
+            banner_combined_len = len(" ".join(filter(None, [effective_hook_brand, hook_model, hook_label])))
             if hook_duration is not None and abs(float(hook_duration) - 3.0) > 0.01:
                 effective_hook_duration = float(hook_duration)
             else:
-                effective_hook_duration = max(1.6, min(len(banner_title) / 11.0 + 0.6, 5.0))
+                effective_hook_duration = max(1.6, min(banner_combined_len / 11.0 + 0.6, 5.0))
+            effective_hook_duration = min(effective_hook_duration, total_duration)
+            if effective_hook_brand or hook_model or hook_label:
+                gradient_hook_duration = effective_hook_duration
             _, micro_cues = SubtitleEngine.generate_ass(
                 cues=cues,
                 output_ass_path=str(ass_path),
                 font_name=font_name,
-                hook_title=banner_title,
-                hook_duration=min(effective_hook_duration, total_duration),
+                hook_brand=effective_hook_brand,
+                hook_model=hook_model,
+                hook_label=hook_label,
+                hook_duration=effective_hook_duration,
                 bilingual=bilingual_subtitles,
                 caption_position=caption_position,
                 caption_color=caption_color,
@@ -395,7 +431,22 @@ class TikTokAutoCutterPipeline:
         else:
             ass_path = _reuse("subtitles_ass", "ไฟล์ซับไตเติล")
             micro_cues = manifest["micro_cues"]
+            saved_params = (manifest.get("render_params") or {}) if manifest else {}
+            if saved_params.get("hook_brand") or saved_params.get("hook_model") or saved_params.get("hook_label"):
+                gradient_hook_duration = float(saved_params.get("hook_duration") or 3.0)
             print(f"♻️  [3/5] Reusing subtitles: {ass_path.name} ({len(micro_cues)} micro-bursts)")
+
+        # Auto-pick BGM by angle mood when the caller didn't name one --
+        # falls back to DEFAULT_BGM for an unmapped/missing angle_key, never
+        # to SFXManager's own hardcoded default silently. Computed once, up
+        # here, so the mix step below and the beat-detection step further
+        # down (which needs to know which exact file will play) always agree
+        # on the same track -- resolving it twice risked them disagreeing on
+        # a reroll where only one of the two runs.
+        effective_bgm_name = bgm_name
+        if not effective_bgm_name:
+            angle_key = angle_meta.get("angle_key", "") if angle_meta else ""
+            effective_bgm_name = BGM_MOOD_MAP.get(angle_key, DEFAULT_BGM)
 
         # 4. SFX & BGM Audio Mixing
         #
@@ -407,7 +458,7 @@ class TikTokAutoCutterPipeline:
             _notify("🎵 [4/5] กำลังมิกซ์เสียง Voice + เอฟเฟกต์ SFX (Boom/Pop/Cash) + BGM...", 0.65)
             print("\n🎵 [4/5] Mixing Audio (Voice + Boom/Whoosh/Pop/Ding/Cash SFX + Upbeat BGM)...")
             mixed_audio_path = _out_path("mixed_audio", ".wav")
-            mix_kwargs = {"bgm_name": bgm_name} if bgm_name else {}
+            mix_kwargs = {"bgm_name": effective_bgm_name} if effective_bgm_name else {}
             if bgm_volume is not None:
                 mix_kwargs["bgm_vol"] = min(1.0, max(0.0, float(bgm_volume)))
             if bgm_ducking:
@@ -497,11 +548,44 @@ class TikTokAutoCutterPipeline:
         # librosa install just means no snapping, never a failed render.
         beat_times: List[float] = []
         try:
-            resolved_bgm_path = SFXManager.resolve_bgm_path(bgm_name)
+            resolved_bgm_path = SFXManager.resolve_bgm_path(effective_bgm_name)
             if resolved_bgm_path:
                 beat_times = BeatSync.get_beat_times(resolved_bgm_path)
         except Exception:
             beat_times = []
+
+        # Loudness envelope of the already-mixed track (voice+SFX+BGM) --
+        # used below to punch the zoom in on whichever shot is actually loud
+        # in the final mix, instead of guessing from caption text alone.
+        # `energy_mean`/`energy_std` gate what counts as "loud": None means
+        # no usable data (librosa missing, or a silent/too-short clip), and
+        # every caller below must fall back to the text heuristic then.
+        energy_times: List[float] = []
+        energy_rms: List[float] = []
+        energy_mean: Optional[float] = None
+        energy_std: Optional[float] = None
+        try:
+            energy_times, energy_rms = BeatSync.get_rms_energy(mixed_audio_path)
+            if energy_rms:
+                energy_mean = sum(energy_rms) / len(energy_rms)
+                variance = sum((r - energy_mean) ** 2 for r in energy_rms) / len(energy_rms)
+                energy_std = variance ** 0.5
+        except Exception:
+            energy_times, energy_rms, energy_mean, energy_std = [], [], None, None
+        energy_peak = max(energy_rms) if energy_rms else None
+
+        # Frame-difference motion score of the raw footage -- used below to
+        # bias cut boundaries away from mid-action frames and blended into
+        # the zoom-emphasis signal alongside audio loudness. Best-effort:
+        # missing opencv or a failed analysis just means no motion bias,
+        # everything falls back to the audio/text-only signals already here.
+        motion_times: List[float] = []
+        motion_scores: List[float] = []
+        try:
+            if raw_video:
+                motion_times, motion_scores = MotionAnalyzer.get_motion_scores(raw_video)
+        except Exception:
+            motion_times, motion_scores = [], []
 
         if not actual_clip_list and raw_video:
             try:
@@ -546,12 +630,63 @@ class TikTokAutoCutterPipeline:
                     if current:
                         groups.append(current)
 
-                    # Snap the internal shot boundaries onto the nearest BGM
-                    # beat (within a small tolerance) so cuts land on the
-                    # music instead of purely on caption timing. Voice and
-                    # captions never move -- only which exact frame a video
-                    # cut happens on.
+                    # The greedy pass above closes a group the instant it
+                    # would exceed MAX_SHOT_DURATION, without regard for
+                    # whether MIN_SHOT_DURATION was ever reached -- a long
+                    # cue followed by a short one can leave that short one
+                    # stranded below MIN if the *next* cue is also long
+                    # enough to force another early close. Sweep once more
+                    # and fold every under-MIN group into whichever neighbor
+                    # absorbs it without blowing too far past MAX (prefer
+                    # the previous group, matching the forward-leaning bias
+                    # of the greedy pass itself). Every successful merge
+                    # shrinks `groups` by one, so this always terminates; a
+                    # group that fits neither neighbor (e.g. one cue already
+                    # longer than the tolerance on its own) is left short --
+                    # there's no other choice at that point.
+                    MERGE_TOLERANCE = 1.15
+                    changed = True
+                    while changed:
+                        changed = False
+                        for gi, g in enumerate(groups):
+                            dur = cut_points[g[-1] + 1] - cut_points[g[0]]
+                            if dur >= MIN_SHOT_DURATION:
+                                continue
+                            if gi > 0:
+                                prev = groups[gi - 1]
+                                merged_dur = cut_points[g[-1] + 1] - cut_points[prev[0]]
+                                if merged_dur <= MAX_SHOT_DURATION * MERGE_TOLERANCE:
+                                    groups[gi - 1] = prev + g
+                                    del groups[gi]
+                                    changed = True
+                                    break
+                            if gi < len(groups) - 1:
+                                nxt = groups[gi + 1]
+                                merged_dur = cut_points[nxt[-1] + 1] - cut_points[g[0]]
+                                if merged_dur <= MAX_SHOT_DURATION * MERGE_TOLERANCE:
+                                    groups[gi] = g + nxt
+                                    del groups[gi + 1]
+                                    changed = True
+                                    break
+
+                    # Snap the internal shot boundaries first onto the
+                    # nearest low-motion frame (a real editor doesn't cut
+                    # mid-action), then onto the nearest BGM beat, so cuts
+                    # land on a still moment AND the music instead of purely
+                    # on caption timing. Voice and captions never move --
+                    # only which exact frame a video cut happens on.
                     boundary_times = [cut_points[0]] + [cut_points[g[-1] + 1] for g in groups]
+                    if motion_times:
+                        MOTION_SNAP_TOLERANCE = 0.15
+                        for b_idx in range(1, len(boundary_times) - 1):
+                            trough = MotionAnalyzer.nearest_trough(
+                                motion_times, motion_scores, boundary_times[b_idx], MOTION_SNAP_TOLERANCE
+                            )
+                            if trough is not None:
+                                prev_b = boundary_times[b_idx - 1]
+                                next_b = boundary_times[b_idx + 1]
+                                if (trough - prev_b) >= MIN_SHOT_DURATION * 0.8 and (next_b - trough) >= MIN_SHOT_DURATION * 0.8:
+                                    boundary_times[b_idx] = round(trough, 3)
                     if beat_times:
                         BEAT_SNAP_TOLERANCE = 0.15
                         for b_idx in range(1, len(boundary_times) - 1):
@@ -564,6 +699,21 @@ class TikTokAutoCutterPipeline:
                                     boundary_times[b_idx] = round(nearest, 3)
 
                     emphasis_scale_idx = effective_shot_scales.index(max(effective_shot_scales))
+
+                    # Semantic tone-shift signal from Gemini (one call for
+                    # the whole render, not per boundary): "major" beats the
+                    # gap/sentence heuristic below and gets a stronger
+                    # transition -- a real topic change (pain -> solution,
+                    # body -> CTA) reads as more than a pause. No API key or
+                    # a failed call just returns [], and every boundary
+                    # falls through to the heuristic exactly as before this
+                    # existed.
+                    group_texts = [
+                        " ".join(str(active_cues[i].get("text", "")) for i in g).strip()
+                        for g in groups
+                    ]
+                    tone_shifts = ScriptToneAnalyzer.classify_tone_shifts(group_texts)
+
                     auto_transitions = []
                     for g_idx, group in enumerate(groups):
                         v_start = boundary_times[g_idx]
@@ -572,27 +722,69 @@ class TikTokAutoCutterPipeline:
                         anchor_idx = group[0]
                         ai_shot = ai_matched_shots[anchor_idx] if ai_matched_shots and anchor_idx < len(ai_matched_shots) else None
 
-                        # Content-aware zoom: a group carrying an SFX beat or
-                        # emphasis punctuation/emoji is the "hit" of its
-                        # sentence -- push the zoom harder there instead of
-                        # just cycling the pattern blindly by position.
-                        has_emphasis = any(
-                            active_cues[i].get("sfx") or "!" in str(active_cues[i].get("text", ""))
-                            or any(e in str(active_cues[i].get("text", "")) for e in ("⚠️", "❌", "⚡"))
-                            for i in group
+                        # Content-aware zoom: blend how much is actually
+                        # happening on screen (motion) with how loud this
+                        # moment is in the final mix (audio energy) into one
+                        # 0..1 "emphasis" score, then scale continuously
+                        # between this shot's normal pattern zoom and the
+                        # pattern's hardest push-in -- a real editor punches
+                        # in *proportionally* to the beat/impact, not as an
+                        # on/off switch. Falls back to the old text-keyword
+                        # heuristic (a binary switch) only when neither
+                        # motion nor audio-energy data is available at all.
+                        motion_score = (
+                            MotionAnalyzer.segment_mean_score(motion_times, motion_scores, v_start, v_end)
+                            if motion_times else None
                         )
+                        energy_score = None
+                        if energy_peak and energy_rms:
+                            seg_energy = BeatSync.segment_mean_energy(energy_times, energy_rms, v_start, v_end)
+                            if seg_energy is not None:
+                                energy_score = min(1.0, seg_energy / energy_peak)
+
+                        if motion_score is not None and energy_score is not None:
+                            emphasis_score = 0.6 * motion_score + 0.4 * energy_score
+                        elif motion_score is not None:
+                            emphasis_score = motion_score
+                        elif energy_score is not None:
+                            emphasis_score = energy_score
+                        else:
+                            emphasis_score = None
+
+                        base_scale = effective_shot_scales[g_idx % len(effective_shot_scales)]
+                        max_scale = effective_shot_scales[emphasis_scale_idx]
 
                         if ai_shot:
                             ai_start = float(ai_shot.get("start_time", 0.0))
-                            ai_zoom = float(ai_shot.get("punch_zoom", effective_shot_scales[g_idx % len(effective_shot_scales)]))
+                            ai_zoom = float(ai_shot.get("punch_zoom", base_scale))
                             scale = min(1.4, max(1.0, ai_zoom))
                             raw_offset = max(0.0, min(ai_start, max(0.0, raw_duration - c_dur - 0.2)))
                         else:
-                            scale = (
-                                effective_shot_scales[emphasis_scale_idx] if has_emphasis
-                                else effective_shot_scales[g_idx % len(effective_shot_scales)]
-                            )
-                            raw_offset = (g_idx * 3.5) % max(1.0, raw_duration - c_dur - 1.0)
+                            if emphasis_score is not None:
+                                scale = base_scale + (max_scale - base_scale) * emphasis_score
+                            else:
+                                has_emphasis = any(
+                                    active_cues[i].get("sfx") or "!" in str(active_cues[i].get("text", ""))
+                                    or any(e in str(active_cues[i].get("text", "")) for e in ("⚠️", "❌", "⚡"))
+                                    for i in group
+                                )
+                                scale = max_scale if has_emphasis else base_scale
+
+                            # No AI Vision: bias the rhythmic fallback offset
+                            # toward the highest-motion moment near its own
+                            # target instead of a pure modulo walk, so at
+                            # least the no-Vision path favors a real action
+                            # beat over an arbitrary point in the footage.
+                            target_offset = (g_idx * 3.5) % max(1.0, raw_duration - c_dur - 1.0)
+                            raw_offset = target_offset
+                            if motion_times:
+                                window = 2.0
+                                candidates = [
+                                    (t, s) for t, s in zip(motion_times, motion_scores)
+                                    if abs(t - target_offset) <= window and t + c_dur <= raw_duration
+                                ]
+                                if candidates:
+                                    raw_offset = max(candidates, key=lambda ts: ts[1])[0]
 
                         shots.append({
                             "start": v_start,
@@ -602,18 +794,28 @@ class TikTokAutoCutterPipeline:
                         })
 
                         if g_idx > 0:
-                            # Boundary between this shot and the previous one:
-                            # a real pause (breath) or a sentence-ending line
-                            # reads as a tone shift -- a quick dissolve there
-                            # instead of a hard cut. Cuts stay the default for
-                            # everything else, not every boundary gets one.
+                            # Boundary between this shot and the previous one.
+                            # Three tiers, cheapest signal first: a long pause
+                            # (real breath / topic change) gets a slower
+                            # dissolve; a short pause or a sentence ending
+                            # gets a quick fade; anything else -- including a
+                            # boundary that landed exactly on a music beat --
+                            # stays a hard cut, which is still the default
+                            # for most boundaries, not every one gets a
+                            # transition.
                             prev_last_cue = active_cues[groups[g_idx - 1][-1]]
                             next_first_cue = active_cues[group[0]]
                             gap = float(next_first_cue.get("start", 0.0)) - float(prev_last_cue.get("end", 0.0))
                             prev_text = str(prev_last_cue.get("text", "")).strip()
                             sentence_end = prev_text.endswith((".", "!", "?", "ครับ", "ค่ะ", "นะคะ", "นะครับ"))
-                            if gap > 0.35 or sentence_end:
-                                auto_transitions.append({"type": "fade", "duration": 0.22})
+                            tone = tone_shifts[g_idx - 1] if (g_idx - 1) < len(tone_shifts) else "none"
+                            if tone == "major":
+                                wipe_type = "wipeleft" if g_idx % 2 == 0 else "circleopen"
+                                auto_transitions.append({"type": wipe_type, "duration": 0.35})
+                            elif gap > 0.6:
+                                auto_transitions.append({"type": "dissolve", "duration": 0.3})
+                            elif gap > 0.35 or sentence_end:
+                                auto_transitions.append({"type": "fade", "duration": 0.2})
                             else:
                                 auto_transitions.append("cut")
 
@@ -700,6 +902,7 @@ class TikTokAutoCutterPipeline:
                 export_preset=export_preset,
                 sticker_position=sticker_position,
                 sticker_scale=sticker_scale,
+                hook_duration=gradient_hook_duration,
                 progress_callback=on_ffmpeg_progress
             )
             result_paths["mp4_video"] = str(out_mp4)
@@ -728,7 +931,9 @@ class TikTokAutoCutterPipeline:
                 "key_features": key_features,
                 "pain_point": pain_point,
                 "price_deal": price_deal,
-                "hook_title": hook_title,
+                "hook_brand": hook_brand,
+                "hook_model": hook_model,
+                "hook_label": hook_label,
                 "custom_script": custom_script,
                 "script_overlays": script_overlays,
                 "voice": voice,

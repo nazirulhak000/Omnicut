@@ -19,25 +19,38 @@ class SubtitleTranslator:
     """Batch translates Thai subtitle bursts into concise, punchy English captions."""
 
     # Generic Thai spoken-review phrases -> concise English equivalents
-    # Keep these PRODUCT-AGNOSTIC so they work for any category (gadgets, beauty, fashion, etc.)
+    # Universal & product-agnostic: works for any category (beauty, gadgets, home, fashion, food)
     DICT = {
-        "ทุกคน":          "Everyone!",
-        "อย่าเพิ่งซื้อ": "Don't buy yet!",
-        "หมดปัญหา":       "Problem solved",
-        "ราคาพิเศษ":      "Special price",
-        "วันนี้แค่":      "Only today",
-        "กดในตะกร้า":     "Tap the cart",
+        "ทุกคน":              "Everyone!",
+        "อย่าเพิ่งซื้อ":      "Don't buy yet!",
+        "หมดปัญหา":           "Problem solved",
+        "ราคาพิเศษ":          "Special price",
+        "วันนี้แค่":          "Only today",
+        "กดในตะกร้า":         "Tap the cart",
         "ซ้ายล่างได้เลยครับ": "Bottom-left cart!",
-        "คุ้มมาก":        "Super worth it!",
-        "รีบกด":          "Order now",
-        "ของมันต้องมี":   "Must-have",
-        "บอกเลยว่า":      "Honestly",
-        "คือมันดีมาก":    "It's really great",
-        "รู้งี้ซื้อตั้งนานแล้ว": "Wish I bought this sooner",
-        "สบายๆ เลยครับ":  "Super easy!",
-        "เนี่ยดูดิ":      "Check this out",
-        "โคตรคุ้ม":       "Insanely worth it",
-        "พิกัดในตะกร้า":  "Find it in the cart",
+        "คุ้มมาก":            "Super worth it!",
+        "รีบกด":              "Order now",
+        "ของมันต้องมี":       "Must-have item",
+        "บอกเลยว่า":          "Honestly",
+        "คือมันดีมาก":        "It's really great",
+        "รู้งี้ซื้อตั้งนานแล้ว": "Wish I bought it sooner",
+        "สบายๆ เลยครับ":      "Super easy!",
+        "เนี่ยดูดิ":          "Check this out",
+        "โคตรคุ้ม":           "Insanely good value",
+        "พิกัดในตะกร้า":      "Find it in the cart",
+        "ส่งฟรี":             "Free shipping",
+        "ของแท้":             "100% Authentic",
+        "ของแท้แน่นอน":       "Guaranteed authentic",
+        "ห้ามพลาด":           "Don't miss out",
+        "ใช้ง่ายมาก":         "Super easy to use",
+        "สวยมาก":             "Looks gorgeous",
+        "คุณภาพดีมาก":        "Top quality",
+        "ลดราคาพิเศษ":        "Huge discount",
+        "จิ้มที่ตะกร้า":      "Tap the cart",
+        "โปรโมชั่นวันนี้":    "Today's promo",
+        "พิกัดที่ลิงก์":      "Link in bio",
+        "มีเก็บเงินปลายทาง":  "Cash on delivery available",
+        "ลองแล้วจะติดใจ":     "You will love it",
     }
 
     _translator_instance = None
@@ -52,11 +65,14 @@ class SubtitleTranslator:
     _CACHE: Dict[str, str] = {}
 
     @classmethod
-    def _translate_single(cls, text: str) -> str:
+    def _translate_single(cls, text: str, custom_dict: Optional[Dict[str, str]] = None) -> str:
         if not text:
             return ""
-        if text.lower() in cls.DICT:
-            return cls.DICT[text.lower()]
+        norm_text = text.lower().strip()
+        if custom_dict and norm_text in custom_dict:
+            return custom_dict[norm_text]
+        if norm_text in cls.DICT:
+            return cls.DICT[norm_text]
         if text in cls._CACHE:
             return cls._CACHE[text]
         try:
@@ -71,7 +87,7 @@ class SubtitleTranslator:
         return ""
 
     @classmethod
-    def translate_batch(cls, phrases: List[str]) -> List[str]:
+    def translate_batch(cls, phrases: List[str], custom_dict: Optional[Dict[str, str]] = None) -> List[str]:
         """Translates a list of Thai phrases into English with guaranteed 1-to-1 exact alignment."""
         if not phrases:
             return []
@@ -81,34 +97,29 @@ class SubtitleTranslator:
             clean = re.sub(r"[^\u0E00-\u0E7Fa-zA-Z0-9\s.,!?-]", "", text).strip()
             cleaned_phrases.append(clean)
 
+        norm_custom = {k.lower().strip(): v for k, v in custom_dict.items()} if custom_dict else None
+
         with ThreadPoolExecutor(max_workers=6) as executor:
-            results = list(executor.map(cls._translate_single, cleaned_phrases))
+            results = list(executor.map(lambda p: cls._translate_single(p, norm_custom), cleaned_phrases))
 
         return results
 
 if __name__ == "__main__":
     test_phrases = [
         "ทุกคน!",
-        "อย่าเพิ่งซื้อสายชาร์จธรรมดา",
-        "ถ้ายังไม่เห็นตัวนี้",
-        "บอกเลยว่า Esseger",
-        "สายชาร์จแม่เหล็ก 3-in-1",
-        "คือดูดแน่นมากกก",
-        "ชาร์จไว 66W",
-        "แถมข้อต่อยังหมุนได้",
-        "540 องศา",
-        "จะนอนเล่นเกม",
-        "หรือดูซีรีส์ก็",
-        "ไม่เกะกะมือ",
-        "หมดปัญหาสายหักตรงคอ",
-        "เสียบในที่มืดได้",
+        "อย่าเพิ่งซื้อ",
+        "ถ้ายังไม่เห็นคลิปนี้",
+        "บอกเลยว่า",
+        "ของมันต้องมี",
+        "คือมันดีมาก",
+        "ใช้ง่ายมาก",
+        "หมดปัญหาเดิมๆ",
         "สบายๆ เลยครับ",
         "พิกัดราคาพิเศษ",
         "วันนี้แค่",
-        "149 บาท",
+        "199 บาท",
         "กดในตะกร้า",
-        "ซ้ายล่างได้",
-        "เลยครับ!"
+        "ซ้ายล่างได้เลยครับ!"
     ]
     import time
     t0 = time.time()
