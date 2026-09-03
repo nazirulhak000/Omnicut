@@ -303,10 +303,10 @@ export default function Inspector({
               </div>
               <div className="flex items-center gap-1">
                 {[
+                  { s: 0.7, label: '70% ย่อ' },
                   { s: 0.85, label: '85% เล็ก' },
                   { s: 1.0, label: '100% ปกติ' },
-                  { s: 1.2, label: '120% ใหญ่' },
-                  { s: 1.4, label: '140% เน้น' },
+                  { s: 1.25, label: '125% ใหญ่' },
                 ].map(({ s, label }) => (
                   <button
                     key={s}
@@ -325,7 +325,7 @@ export default function Inspector({
               <input
                 type="range"
                 min="0.5"
-                max="2.0"
+                max="1.6"
                 step="0.05"
                 value={style?.captionScale ?? 1}
                 onChange={(e) => onStyleChange?.({ captionScale: parseFloat(e.target.value) })}

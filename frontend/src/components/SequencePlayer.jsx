@@ -189,7 +189,7 @@ function drawCaption(ctx, cues, t, style = {}) {
   const cueScale = Number(cue.scale) || 1.0;
   const globalScale = Math.min(2.5, Math.max(0.5, style.captionScale ?? 1));
   const effectiveScale = Math.min(3.0, Math.max(0.4, globalScale * cueScale));
-  const fontSize = Math.round(CANVAS_W * 0.075 * effectiveScale);
+  const fontSize = Math.round(CANVAS_W * 0.089 * effectiveScale);
   
   let fontFam = "'Kanit', sans-serif";
   if (style.fontName === 'IBMPlex' || style.fontName === 'IBM Plex Sans Thai') {
@@ -297,14 +297,10 @@ function drawSticker(ctx, img, t, style = {}) {
   ctx.restore();
 }
 
-function drawHookHeader(ctx, hookTitle, t, hookDuration = 3.5, fontName = 'Kanit', firstCueText = '') {
+function drawHookHeader(ctx, hookTitle, t, hookDuration = 3.5, fontName = 'Kanit') {
   if (!hookTitle || t > hookDuration) return;
   const cleanHook = hookTitle.trim();
-  const cleanFirst = (firstCueText || '').trim();
-  // If hookTitle is just the exact transcript of the spoken subtitle, don't duplicate it
-  if (cleanFirst && (cleanHook === cleanFirst || cleanHook.startsWith(cleanFirst.slice(0, 12)) || cleanFirst.startsWith(cleanHook.slice(0, 12)))) {
-    return;
-  }
+  if (!cleanHook) return;
 
   const fontSize = Math.round(CANVAS_W * 0.052);
   let fontFam = "'Kanit', sans-serif";
@@ -454,7 +450,7 @@ function SequencePlayer({ clips, cues = [], hookTitle = '', hookDuration = 3.0, 
     });
     ctx.globalAlpha = 1;
     ctx.filter = 'none';
-    drawHookHeader(ctx, hookTitle, t, hookDuration, captionStyle.fontName, cues[0]?.text);
+    drawHookHeader(ctx, hookTitle, t, hookDuration, captionStyle.fontName);
     drawCaption(ctx, cues, t, captionStyle);
     drawSticker(ctx, stickerImgRef.current, t, stickerStyle);
   };
@@ -584,7 +580,7 @@ function SequencePlayer({ clips, cues = [], hookTitle = '', hookDuration = 3.0, 
 
         ctx.globalAlpha = 1;
         ctx.filter = 'none';
-        drawHookHeader(ctx, hookTitle, t, hookDuration, captionStyle.fontName, cues[0]?.text);
+        drawHookHeader(ctx, hookTitle, t, hookDuration, captionStyle.fontName);
         drawCaption(ctx, cues, t, captionStyle);
         drawSticker(ctx, stickerImgRef.current, t, stickerStyle);
       }

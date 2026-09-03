@@ -1659,6 +1659,6 @@ def get_render_status(job_id: str):
 # ----------------------------------------------------------------------
 if __name__ == "__main__":
     import uvicorn
-    should_reload = os.environ.get("FASTAPI_RELOAD", "").lower() in ("1", "true")
+    should_reload = os.environ.get("FASTAPI_RELOAD", "true").lower() in ("1", "true")
     print(f"🚀 Starting TikTok Auto-Cutter FastAPI on http://localhost:8000 (reload={should_reload}) ...")
     uvicorn.run("scripts.api_server:app", host="0.0.0.0", port=8000, reload=should_reload)

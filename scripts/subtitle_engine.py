@@ -426,11 +426,14 @@ class SubtitleEngine:
             scale = min(2.5, max(0.4, float(caption_scale or 1.0)))
         except (TypeError, ValueError):
             scale = 1.0
-        # Exact 1-to-1 pixel calibration with SequencePlayer Canvas:
-        # Canvas: Math.round(540 * 0.075 * scale) -> 40.5px on 540w (7.5% of width)
-        # Video:  Math.round(1080 * 0.075 * scale) -> 81px on 1080w (7.5% of width)
-        base_fs = int(round(video_width * 0.075))
-        font_size = max(24, int(round(base_fs * scale)))
+        # Exact 1-to-1 pixel calibration with CapCut & SequencePlayer Canvas:
+        # CapCut TikTok Standard: ~96px on 1080w (8.9% of screen width)
+        # Canvas (540w): Math.round(540 * 0.089 * scale) -> 48px at scale 1.0
+        # Video (1080w): Math.round(1080 * 0.089 * scale) -> 96px at scale 1.0
+        base_fs = int(round(video_width * 0.089))
+        font_size = max(32, int(round(base_fs * scale)))
+        outline_val = round(max(3.0, font_size * 0.065), 1)
+        shadow_val = round(max(1.5, font_size * 0.032), 1)
 
         header = f"""[Script Info]
 Title: TikTok Aesthetic Subtitles
@@ -442,9 +445,9 @@ PlayResY: {video_height}
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: TikTokWhite,{resolved_font},{font_size},{primary},&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0.5,0,1,5.5,2.5,{alignment},60,60,{margin_v},1
-Style: TikTokYellow,{resolved_font},{font_size},&H0000E6FF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0.5,0,1,5.5,2.5,2,60,60,420,1
-Style: TikTokCyan,{resolved_font},{font_size},&H00FFE600,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0.5,0,1,5.0,2.0,2,60,60,420,1
+Style: TikTokWhite,{resolved_font},{font_size},{primary},&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0.5,0,1,{outline_val},{shadow_val},{alignment},60,60,{margin_v},1
+Style: TikTokYellow,{resolved_font},{font_size},&H0000E6FF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0.5,0,1,{outline_val},{shadow_val},2,60,60,420,1
+Style: TikTokCyan,{resolved_font},{font_size},&H00FFE600,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0.5,0,1,{outline_val},{shadow_val},2,60,60,420,1
 Style: TikTokMinimalPill,{resolved_font},{font_size - 6},{primary},&H000000FF,&H00000000,&HCC000000,1,0,0,0,100,100,0.5,0,3,6,0,{alignment},60,60,{margin_v},1
 Style: HookHeader,{resolved_font},{font_size + 6},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0.5,0,1,7.0,3.0,8,60,60,260,1
 Style: SpecBar,{resolved_font},{font_size - 12},&H00000000,&H000000FF,&H00000000,&H0000E6FF,1,0,0,0,100,100,0.5,0,3,10,0,9,50,50,380,1
@@ -486,7 +489,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         for idx, cue in enumerate(micro_cues):
             start_t = cls._format_ass_time(cue["start"])
             end_t = cls._format_ass_time(cue["end"])
-            dyn_max_chars = max(22, int(round(34 / max(0.5, scale))))
+            # Exact line wrap calibration matching SequencePlayer.jsx maxLineW = 464px (928px on 1080w)
+            dyn_max_chars = max(16, int(round(1930 / max(24, font_size))))
             text = cls.wrap_text_for_ass(cue["text"].strip(), max_chars_per_line=dyn_max_chars)
             if not text:
                 continue
