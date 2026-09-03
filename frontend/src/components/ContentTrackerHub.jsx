@@ -965,7 +965,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                     handleSendToStudio(inspectAngle.parentProduct, inspectAngle);
                   }}
                   disabled={!hasAttachedVideos}
-                  className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                  className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${
                     hasAttachedVideos
                       ? 'bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white cursor-pointer shadow-md shadow-[#FE2C55]/20 active:scale-95'
                       : 'bg-white/[0.05] border border-white/[0.08] text-slate-500 cursor-not-allowed opacity-50'
@@ -980,7 +980,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                 {(inspectAngle.status === 'rendered' || inspectAngle.status === 'mobile_ready') && (
                   <button
                     onClick={() => handleQcFail(inspectAngle)}
-                    className="py-2.5 px-3 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all flex-shrink-0"
+                    className="py-2.5 px-3 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all flex-shrink-0 whitespace-nowrap"
                     title="QC ไม่ผ่าน — reset สถานะกลับไปตัดใหม่"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
@@ -992,7 +992,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                 {(inspectAngle.status === 'rendered' || inspectAngle.qc_note) && (
                   <button
                     onClick={() => handleQcPass(inspectAngle)}
-                    className="py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-[#25F4EE] to-cyan-400 hover:brightness-110 text-slate-950 text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-md shadow-[#25F4EE]/20 flex-shrink-0 active:scale-95"
+                    className="py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-[#25F4EE] to-cyan-400 hover:brightness-110 text-slate-950 text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-md shadow-[#25F4EE]/20 flex-shrink-0 active:scale-95 whitespace-nowrap"
                     title="กดเพื่อรับรอง QC ผ่านทันที (ล้างป้ายแดงออก)"
                   >
                     <Check className="w-3.5 h-3.5 text-slate-950 stroke-[3]" />
@@ -1006,7 +1006,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                     setInspectAngle(null);
                     setQrModalItem(inspectAngle);
                   }}
-                  className="py-2.5 px-3.5 rounded-xl bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all flex-shrink-0"
+                  className="py-2.5 px-3.5 rounded-xl bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all flex-shrink-0 whitespace-nowrap"
                   title="สแกน QR โหลดเข้ามือถือ"
                 >
                   <QrCode className="w-3.5 h-3.5 text-[#25F4EE]" />
@@ -1018,23 +1018,23 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
         })()}
       </Modal>
 
-      {/* ── QC Fail Confirmation Modal ─────────────────────────────────────── */}
+      {/* ── QC Fail Confirmation Modal (Responsive on Desktop & iPhone 15 Pro Max) ── */}
       <Modal
         isOpen={!!qcFailTarget}
         onClose={() => { setQcFailTarget(null); setQcFailNote(''); }}
         title="QC ไม่ผ่าน — ส่งตัดใหม่"
         subtitle={qcFailTarget?.hook_title}
-        maxWidth="max-w-sm"
+        maxWidth="max-w-md"
       >
         {qcFailTarget && (
           <div className="space-y-4">
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/30">
+            <div className="flex items-center gap-3 p-3 sm:p-3.5 rounded-2xl bg-red-500/10 border border-red-500/30">
               <div className="w-10 h-10 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center flex-shrink-0">
                 <RotateCcw className="w-5 h-5 text-red-400" />
               </div>
-              <div>
-                <div className="text-sm font-bold text-red-300">คลิปนี้จะถูกส่งกลับไปตัดใหม่</div>
-                <div className="text-xs text-slate-400 mt-0.5">สถานะจะเปลี่ยนกลับเป็น "กำลังตัดต่อ" — เปิด Studio ได้ทันที</div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm sm:text-base font-bold text-red-300">คลิปนี้จะถูกส่งกลับไปตัดใหม่</div>
+                <div className="text-xs text-slate-400 mt-0.5 leading-snug">สถานะจะเปลี่ยนกลับเป็น "กำลังตัดต่อ" เพื่อเปิด Studio แก้ไขได้ทันที</div>
               </div>
             </div>
 
@@ -1043,33 +1043,36 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
               <textarea
                 value={qcFailNote}
                 onChange={e => setQcFailNote(e.target.value)}
-                placeholder="เช่น: เสียงหนักเกิน, ตัดไม่เรียบร้อย, ร้องเรียนไม่ดี…"
+                placeholder="เช่น เสียงพากย์เร็วเกินไป, ตัดจังหวะไม่เรียบร้อย, ข้อความตกขอบจอ"
                 rows={3}
-                className="w-full rounded-xl bg-black/40 border border-white/[0.1] text-slate-200 text-xs p-2.5 placeholder-slate-600 focus:outline-none focus:border-[#25F4EE]/50 resize-none font-mono leading-relaxed"
+                className="w-full rounded-xl bg-black/40 border border-white/[0.1] text-slate-200 text-xs sm:text-sm p-3 placeholder-slate-600 focus:outline-none focus:border-[#25F4EE]/50 resize-none font-mono leading-relaxed"
               />
               <div className="text-xs text-slate-500">ถ้าไม่ระบุจะใช้ "QC ไม่ผ่าน" เป็นค่าเริ่มต้น</div>
             </div>
 
-            <div className="flex gap-2">
+            {/* Responsive Actions: Side-by-side on desktop, Stacked on narrow/mobile */}
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2.5 pt-1">
               <button
+                type="button"
                 onClick={() => { setQcFailTarget(null); setQcFailNote(''); }}
-                className="flex-1 py-2.5 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.08] border border-white/[0.08] text-slate-300 text-sm font-bold cursor-pointer transition-all"
+                className="w-full sm:w-1/3 py-2.5 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-300 text-xs sm:text-sm font-bold cursor-pointer transition-all flex items-center justify-center whitespace-nowrap active:scale-95"
               >
                 ยกเลิก
               </button>
               <button
+                type="button"
                 onClick={handleQcFailConfirm}
-                className="flex-1 py-2.5 px-3 rounded-xl bg-red-500/80 hover:bg-red-500 text-white text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg shadow-red-900/30 active:scale-95"
+                className="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:brightness-110 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg shadow-red-900/30 active:scale-95 whitespace-nowrap"
               >
-                <RotateCcw className="w-4 h-4" />
-                ยืนยัน — ส่งตัดใหม่
+                <RotateCcw className="w-4 h-4 flex-shrink-0" />
+                <span>ยืนยันส่งตัดใหม่</span>
               </button>
             </div>
           </div>
         )}
       </Modal>
 
-      {/* Video Modal Preview with Direct QC Control Panel */}
+      {/* Video Modal Preview with Direct Responsive QC Control Panel */}
       <Modal
         isOpen={!!previewVideoUrl}
         onClose={() => { setPreviewVideoUrl(null); setPreviewVideoAngle(null); }}
@@ -1083,7 +1086,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
               src={`/api/media/${previewVideoUrl}`}
               controls
               autoPlay
-              className="w-full rounded-2xl bg-black aspect-[9/16] object-contain max-h-[62vh] shadow-2xl border border-white/[0.08]"
+              className="w-full rounded-2xl bg-black aspect-[9/16] object-contain max-h-[60vh] shadow-2xl border border-white/[0.08]"
             />
 
             {/* Quick QC Decision Toolbar */}
@@ -1095,25 +1098,27 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                     <span className="truncate">สถานะเดิม: QC ไม่ผ่าน ({previewVideoAngle.qc_note})</span>
                   </div>
                 )}
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                   <button
+                    type="button"
                     onClick={() => handleQcPass(previewVideoAngle)}
-                    className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#25F4EE] to-blue-500 hover:brightness-110 text-slate-950 text-xs font-black flex items-center justify-center gap-1.5 shadow-md shadow-[#25F4EE]/25 cursor-pointer active:scale-95 transition-all"
+                    className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#25F4EE] to-cyan-400 hover:brightness-110 text-slate-950 text-xs sm:text-sm font-black flex items-center justify-center gap-1.5 shadow-md shadow-[#25F4EE]/25 cursor-pointer active:scale-95 transition-all whitespace-nowrap"
                   >
-                    <Check className="w-4 h-4 text-slate-950 stroke-[3]" />
-                    <span>ยืนยัน QC ผ่าน (เปลี่ยนเป็นการ์ดสีฟ้า)</span>
+                    <Check className="w-4 h-4 text-slate-950 stroke-[3] flex-shrink-0" />
+                    <span>QC ผ่าน (เป็นสีฟ้า)</span>
                   </button>
                   <button
+                    type="button"
                     onClick={() => {
                       const ang = previewVideoAngle;
                       setPreviewVideoUrl(null);
                       setPreviewVideoAngle(null);
                       handleQcFail(ang);
                     }}
-                    className="py-2.5 px-3 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-all flex-shrink-0"
+                    className="py-2.5 px-3.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all whitespace-nowrap active:scale-95"
                   >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    <span>ไม่ผ่าน</span>
+                    <RotateCcw className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span>ตัดใหม่</span>
                   </button>
                 </div>
               </div>
