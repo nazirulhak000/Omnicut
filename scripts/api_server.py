@@ -1660,9 +1660,21 @@ def trigger_render(req: RenderRequest, background_tasks: BackgroundTasks):
 @app.get("/api/render/status/{job_id}")
 def get_render_status(job_id: str):
     """Returns current status and progress of a render job."""
-    if job_id not in ACTIVE_JOBS:
-        raise HTTPException(status_code=404, detail="Job not found")
-    return ACTIVE_JOBS[job_id]
+    if job_id in ACTIVE_JOBS:
+        return ACTIVE_JOBS[job_id]
+
+    # Fallback to persistent TaskManager registry on disk so reloads don't lose job state
+    task = TaskManager.get_task(job_id)
+    if task:
+        return {
+            "id": job_id,
+            "status": task.get("status", "completed"),
+            "progress": task.get("progress", 1.0),
+            "message": task.get("step_label", "เสร็จสิ้น"),
+            "result": task.get("result") or {},
+            "error": task.get("error"),
+        }
+    raise HTTPException(status_code=404, detail="Job not found")
 
 # ----------------------------------------------------------------------
 # Run Server directly if executed
