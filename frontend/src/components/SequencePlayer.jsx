@@ -415,6 +415,7 @@ function drawCaption(ctx, cues, t, style = {}) {
   if (!cue || !cue.text) return;
   const cueScale = Number(cue.scale) || 1.0;
   const globalScale = Math.min(2.5, Math.max(0.5, style.captionScale ?? 1));
+  const effectiveScale = Math.min(3.0, Math.max(0.4, globalScale * cueScale));
   // Standard TikTok Subtitle Size: 100% (scale=1.0) is calibrated to 50pt on 1080w
   // (25px on 540w Canvas), exactly matching the user's preferred visual proportion.
   const baseFs = Math.round(CANVAS_W * 0.0463);
