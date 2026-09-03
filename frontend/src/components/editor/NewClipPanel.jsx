@@ -57,7 +57,7 @@ const FONTS = [
 ];
 
 /** Steps the backend reports, so the wait shows where it is rather than a bar. */
-const RENDER_STEPS = ['เขียนบท', 'พากย์เสียง', 'ทำซับ', 'มิกซ์เสียง', 'ตัดต่อ + เรนเดอร์'];
+const RENDER_STEPS = ['เขียนบท', 'พากย์เสียง', 'ทำซับ', 'มิกซ์เสียง', 'เปิด Editor'];
 
 function Section({ step, title, hint, children, done }) {
   return (
@@ -259,7 +259,7 @@ export default function NewClipPanel({
       sticker_badge: form.stickerBadge || null,
       bgm_name: form.bgmName || null,
       lut_name: form.lutName || null,
-      export_mp4: true,
+      export_mp4: false,
       export_capcut: false,
     });
   };
@@ -350,7 +350,7 @@ export default function NewClipPanel({
 
           {/* Safety & Background Note */}
           <p className="text-xs leading-relaxed text-slate-400 border-t border-white/[0.06] pt-3">
-            💡 <span className="text-slate-300">ตัดต่อและเรนเดอร์ 1080x1920 (30 FPS) อัตโนมัติ</span> · ปิดหน้านี้หรือสลับแท็บได้ ระบบยังคงทำงานต่อเบื้องหลังจนเสร็จสมบูรณ์
+            💡 <span className="text-slate-300">สร้างเสียง ซับไตเติล และจัดช็อตตัดต่ออัตโนมัติ</span> · เมื่อเสร็จจะเปิดเข้าหน้า Editor เพื่อพรีวิวและปรับแต่งก่อนกดเรนเดอร์จริง
           </p>
         </div>
       </div>
