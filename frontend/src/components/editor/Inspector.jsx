@@ -396,9 +396,9 @@ export default function Inspector({
               </div>
               <div className="flex items-center gap-1">
                 {[
-                  { s: 1.0, label: '100% มาตรฐาน' },
-                  { s: 0.85, label: '85% เล็ก' },
                   { s: 0.7, label: '70% ย่อ' },
+                  { s: 0.85, label: '85% เล็ก' },
+                  { s: 1.0, label: '100% มาตรฐาน' },
                   { s: 1.25, label: '125% ใหญ่' },
                 ].map(({ s, label }) => (
                   <button
