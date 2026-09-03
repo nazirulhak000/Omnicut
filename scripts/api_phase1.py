@@ -615,6 +615,12 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
         if not raw_video:
             raw_video = str(BASE_DIR / "01_Raw")
 
+        base_progress = render_jobs.progress_reporter(job_id)
+
+        def on_progress(msg: str, progress: float):
+            base_progress(msg, progress)
+            TaskManager.update_progress(job_id, progress, step_label=msg)
+
         with render_jobs.render_slot(job_id):
             result = TikTokAutoCutterPipeline.run(
                 product_name=params.get("product_name", project_name),
@@ -653,10 +659,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 transitions=params.get("transitions"),
                 export_mp4=True,
                 resume_from=stage,
-                progress_callback=lambda progress, msg: (
-                    render_jobs.update_progress(job_id, progress, msg),
-                    TaskManager.update_progress(job_id, progress, step_label=msg)
-                ),
+                progress_callback=on_progress,
             )
         render_jobs.complete_job(job_id, result, message="🎉 เรนเดอร์เสร็จสมบูรณ์!")
         TaskManager.complete_task(

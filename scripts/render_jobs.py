@@ -103,6 +103,22 @@ def progress_reporter(job_id: str) -> Callable[[str, float], None]:
     return on_progress
 
 
+def update_progress(job_id: str, progress: float, message: str = "") -> None:
+    """Direct helper to update a job's progress and message."""
+    job = ACTIVE_JOBS.get(job_id)
+    if not job:
+        return
+    job["status"] = "processing"
+    job["progress"] = min(1.0, max(0.0, float(progress)))
+    if message:
+        job["message"] = str(message)
+    job["logs"].append({
+        "time": datetime.datetime.now().strftime("%H:%M:%S"),
+        "msg": message or job.get("message", ""),
+        "progress": int(job["progress"] * 100),
+    })
+
+
 def media_url(file_path: Optional[str]) -> Optional[str]:
     """Turn an absolute artifact path into a /api/media URL the browser can load."""
     if not file_path:
