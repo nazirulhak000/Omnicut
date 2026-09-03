@@ -374,16 +374,23 @@ def _hook_accent_events(
     reveal_end = reveal_start + 300
     exit_tag = f"\\t({exit_start_ms},{exit_end_ms},\\alpha&HFF&)"
 
+    # Every shape below is drawn from an all-positive path anchored top-left
+    # (\an7) at its own left edge, NOT a centre-anchored path with negative
+    # coordinates: libass mis-anchors a negative-coordinate \p drawing (it
+    # lands with its right edge on \pos, off-centre by its own half-width,
+    # under every alignment tested) -- measured directly against a reference
+    # render. Scaling \fscx from 0 then reads as a left-to-right wipe, which
+    # is also what the reveal should look like.
     if accent_id == "badge":
         pad_x = round(model_line_fs * 0.38)
         pad_y = round(model_line_fs * 0.20)
-        bw = half_w + pad_x
+        bw = (half_w + pad_x) * 2
         bh = model_line_fs + pad_y * 2
-        draw = f"m {-bw:.0f} 0 l {bw:.0f} 0 l {bw:.0f} {bh:.0f} l {-bw:.0f} {bh:.0f}"
+        draw = f"m 0 0 l {bw:.0f} 0 l {bw:.0f} {bh:.0f} l 0 {bh:.0f}"
         tag = (
-            f"{{\\an8\\pos({x_center},{model_y - pad_y})\\p1\\bord0\\shad0"
-            f"\\c{model_colour}&\\alpha&HB0&\\fscx0\\fscy0"
-            f"\\t({reveal_start},{reveal_end},\\fscx100\\fscy100){exit_tag}}}"
+            f"{{\\an7\\pos({x_center - bw / 2:.0f},{model_y - pad_y})\\p1\\bord0\\shad0"
+            f"\\c{model_colour}&\\alpha&HB0&\\fscx0"
+            f"\\t({reveal_start},{reveal_end},\\fscx100){exit_tag}}}"
         )
         return [f"Dialogue: 0,{start_t},{end_t},HookHeader,,0,0,0,,{tag}{draw}"]
 
@@ -394,14 +401,16 @@ def _hook_accent_events(
     gap = round(model_line_fs * 0.26)
     underline_y = model_y + model_line_fs + gap
     thickness = max(4, round(model_line_fs * 0.10))
-    draw = f"m {-half_w:.0f} 0 l {half_w:.0f} 0 l {half_w:.0f} {thickness} l {-half_w:.0f} {thickness}"
+    bar_w = half_w * 2
+    left_x = x_center - half_w
+    draw = f"m 0 0 l {bar_w:.0f} 0 l {bar_w:.0f} {thickness} l 0 {thickness}"
     reveal = f"\\fscx0\\t({reveal_start},{reveal_end},\\fscx100)"
     glow_tag = (
-        f"{{\\an8\\pos({x_center},{underline_y})\\p1\\bord0\\shad0\\blur7"
+        f"{{\\an7\\pos({left_x:.0f},{underline_y})\\p1\\bord0\\shad0\\blur7"
         f"\\c{model_colour}&\\alpha&H60&{reveal}{exit_tag}}}"
     )
     bar_tag = (
-        f"{{\\an8\\pos({x_center},{underline_y})\\p1\\bord0\\shad0"
+        f"{{\\an7\\pos({left_x:.0f},{underline_y})\\p1\\bord0\\shad0"
         f"\\c{model_colour}&{reveal}{exit_tag}}}"
     )
     return [
@@ -1197,7 +1206,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 max_entry_end_ms = 0
                 model_line_fs = None
                 model_y = None
-                for line, scale_pct, colour, tier_idx in tier_lines:
+                for idx, (line, scale_pct, colour, tier_idx) in enumerate(tier_lines):
                     target = round(scale_pct * shrink)
                     line_fs = max(20, int(round(hook_fs * target / 100)))
                     t0_ms = tier_idx * STAGGER_STEP_MS if motion["stagger"] else 0
@@ -1217,6 +1226,18 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                         model_line_fs = line_fs
                         model_y = cursor_y
                     cursor_y += round(line_fs * LINE_HEIGHT_FACTOR)
+
+                    # An accent shape is a layout element, not an overlay:
+                    # reserve room for it after the model tier's last line so
+                    # the label below never has a bar drawn through it (at
+                    # LINE_HEIGHT_FACTOR 1.0 consecutive lines touch exactly,
+                    # leaving no natural gap to borrow).
+                    is_last_model_line = tier_idx == 1 and (
+                        idx + 1 >= len(tier_lines) or tier_lines[idx + 1][3] != 1
+                    )
+                    if is_last_model_line and motion["accent"] != "none":
+                        reserve = 0.55 if motion["accent"] != "badge" else 0.30
+                        cursor_y += round(line_fs * reserve)
 
                 # One loop chain shared by every line: it depends only on
                 # timing, and starts once the LAST tier has finished entering

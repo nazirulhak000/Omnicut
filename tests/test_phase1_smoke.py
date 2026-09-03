@@ -512,7 +512,7 @@ def test_unknown_font_name_falls_back_instead_of_erroring():
 
 
 # ----------------------------------------------------------------------
-# Hook banner motion (bounce / stagger / pulse / underline)
+# Hook banner motion presets (In / Loop / Out / Accent, CapCut-style)
 # ----------------------------------------------------------------------
 def _hook_events(content: str) -> str:
     return "\n".join(l for l in content.splitlines() if l.startswith("Dialogue:") and "HookHeader" in l)
@@ -532,44 +532,177 @@ def _gen_hook_ass(tmp_path, name, hook_motion=None, hook_duration=3.0):
     return Path(ass_path).read_text(encoding="utf-8")
 
 
-def test_hook_motion_default_enables_all_four_effects(tmp_path):
+def test_hook_motion_default_preset_is_bounce_stagger_pulse_bar(tmp_path):
     combined = _hook_events(_gen_hook_ass(tmp_path, "default"))
     assert "\\fscx162" in combined, "bounce overshoot keyframe (130% target * 1.25) missing"
     assert "&H25&" in combined, "pulse dim alpha missing"
-    assert "\\p1" in combined, "accent underline drawing missing"
+    assert "\\p1" in combined, "accent bar drawing missing"
     assert "\\t(150," in combined, "model-tier stagger offset (150ms) missing"
 
 
-def test_hook_motion_all_off_falls_back_to_a_plain_static_pop(tmp_path):
-    combined = _hook_events(
-        _gen_hook_ass(tmp_path, "all_off", hook_motion={"bounce": False, "stagger": False, "pulse": False, "underline": False})
+def test_hook_motion_legacy_boolean_dict_falls_back_to_the_default_preset(tmp_path):
+    """
+    The pre-preset schema was 4 booleans (bounce/stagger/pulse/underline).
+    None of those keys exist now, so an old saved manifest must land on the
+    default preset rather than erroring or rendering an empty banner --
+    that's what makes a migration step unnecessary.
+    """
+    legacy = _hook_events(_gen_hook_ass(
+        tmp_path, "legacy", hook_motion={"bounce": True, "stagger": True, "pulse": True, "underline": True},
+    ))
+    assert legacy == _hook_events(_gen_hook_ass(tmp_path, "legacy_ref", hook_motion=None))
+
+
+@pytest.mark.parametrize(
+    "preset, marker",
+    [
+        ("bounce", "\\fscx162"),          # 130 * 1.25 overshoot
+        ("pop", "\\fscx153"),             # 130 * 1.18 overshoot
+        ("fade", "\\alpha&HFF&\\t(0,250,\\alpha&H00&)"),
+        ("zoom", "\\fscx234"),            # 130 * 1.8 start
+        ("slide_up", "\\move(540,320,540,260,0,300)"),
+        ("blur", "\\blur12"),
+        ("typewriter", "\\clip("),
+        ("none", "\\pos(540,260)\\fscx130\\fscy130\\t(2850"),
+    ],
+)
+def test_each_in_preset_emits_its_own_technique(tmp_path, preset, marker):
+    combined = _hook_events(_gen_hook_ass(
+        tmp_path, f"in_{preset}", hook_motion={"in": preset, "loop": "none", "out": "fade", "accent": "none"},
+    ))
+    assert marker in combined, f"In preset '{preset}' did not emit {marker!r}"
+
+
+@pytest.mark.parametrize(
+    "preset, marker",
+    [
+        ("pulse", "\\alpha&H25&"),
+        ("wave", "\\frz357"),
+        ("shake", "\\frz358"),            # shake's 4-step cycle has an angle wave never uses
+        ("flicker", "\\alpha&H30&"),
+        ("none", None),
+    ],
+)
+def test_each_loop_preset_emits_its_own_technique(tmp_path, preset, marker):
+    combined = _hook_events(_gen_hook_ass(
+        tmp_path, f"loop_{preset}", hook_motion={"in": "none", "loop": preset, "out": "fade", "accent": "none"},
+    ))
+    if marker is None:
+        # "none" must leave only the entry/exit tags behind
+        assert "\\frz" not in combined and "\\alpha&H25&" not in combined
+    else:
+        assert marker in combined, f"Loop preset '{preset}' did not emit {marker!r}"
+
+
+def test_lightsweep_adds_an_overlay_event_per_line_not_a_tag(tmp_path):
+    """
+    The sweep can't ride on the base line: \\clip is single-state per event
+    and the typewriter In preset already animates it. It must arrive as its
+    own higher-layer duplicate of each line instead.
+    """
+    base = _hook_events(_gen_hook_ass(
+        tmp_path, "sweep_off", hook_motion={"in": "none", "loop": "none", "out": "fade", "accent": "none"},
+    )).splitlines()
+    swept = _hook_events(_gen_hook_ass(
+        tmp_path, "sweep_on", hook_motion={"in": "none", "loop": "lightsweep", "out": "fade", "accent": "none"},
+    )).splitlines()
+    overlays = [l for l in swept if l.startswith("Dialogue: 3,")]
+    assert len(swept) == len(base) + len(overlays)
+    assert overlays, "lightsweep emitted no overlay events"
+    assert all("\\clip(" in l for l in overlays)
+
+
+@pytest.mark.parametrize(
+    "preset, marker",
+    [
+        ("fade", "\\t(2850,3000,\\alpha&HFF&)"),
+        ("slide", "\\move(540,260,540,320,2850,3000)"),
+        ("zoom", "\\fscx182"),            # 130 * 1.4 grow-out
+        ("glitch", "\\t(2850,2890,\\frz357)"),
+        ("none", "\\t(2999,3000,\\alpha&HFF&)"),
+    ],
+)
+def test_each_out_preset_emits_its_own_technique(tmp_path, preset, marker):
+    combined = _hook_events(_gen_hook_ass(
+        tmp_path, f"out_{preset}", hook_motion={"in": "none", "loop": "none", "out": preset, "accent": "none"},
+    ))
+    assert marker in combined, f"Out preset '{preset}' did not emit {marker!r}"
+
+
+@pytest.mark.parametrize("preset, drawings", [("underline", 2), ("badge", 1), ("none", 0)])
+def test_each_accent_preset_draws_the_right_number_of_shapes(tmp_path, preset, drawings):
+    combined = _hook_events(_gen_hook_ass(
+        tmp_path, f"acc_{preset}", hook_motion={"in": "none", "loop": "none", "out": "fade", "accent": preset},
+    ))
+    assert len([l for l in combined.splitlines() if "\\p1" in l]) == drawings
+
+
+def test_accent_drawings_use_positive_path_coordinates(tmp_path):
+    """
+    libass mis-anchors a \\p drawing whose path uses negative coordinates --
+    it lands with its right edge on \\pos instead of centred, which is what
+    made the first accent bar sit visibly off to the left. Every shape must
+    therefore be drawn from an all-positive path placed at its own left edge.
+    """
+    for preset in ("underline", "badge"):
+        combined = _hook_events(_gen_hook_ass(
+            tmp_path, f"pos_{preset}", hook_motion={"accent": preset},
+        ))
+        for line in combined.splitlines():
+            if "\\p1" not in line:
+                continue
+            path = line.split("}")[-1]
+            assert "-" not in path, f"{preset} drew a negative-coordinate path: {path!r}"
+            assert "\\an7" in line, f"{preset} must anchor its drawing top-left"
+
+
+def test_accent_reserves_layout_space_so_it_never_overlaps_the_label(tmp_path):
+    """
+    Consecutive tiers touch exactly (line-height factor 1.0), so an accent
+    shape has no natural gap to sit in -- the label below has to be pushed
+    down or the bar renders straight through it.
+    """
+    def label_y(motion):
+        combined = _hook_events(_gen_hook_ass(tmp_path, f"space_{motion['accent']}", hook_motion=motion))
+        label_line = [l for l in combined.splitlines() if "Wireless Keyboard" in l and "Dialogue: 2," in l][0]
+        return int(label_line.split("\\pos(540,")[1].split(")")[0])
+
+    without = label_y({"in": "none", "loop": "none", "out": "fade", "accent": "none"})
+    with_bar = label_y({"in": "none", "loop": "none", "out": "fade", "accent": "underline"})
+    assert with_bar > without, "accent bar must push the label tier down, not draw over it"
+
+
+def test_preset_catalog_matches_the_builder_registries(client):
+    """
+    The catalog is only labels; the animations live in subtitle_engine's
+    registries. A preset listed in one but missing from the other would show
+    up as a picker option that silently renders as something else (or an
+    animation nobody can select), so the two must stay in lockstep.
+    """
+    from scripts.subtitle_engine import (
+        HOOK_IN_BUILDERS, HOOK_LOOP_BUILDERS, HOOK_OUT_BUILDERS, DEFAULT_HOOK_MOTION,
     )
-    assert "\\fscx162" not in combined
-    assert "&H25&" not in combined
-    assert "\\p1" not in combined
-    assert "\\t(150," not in combined
-    # the original single-lerp entry must still fire -- toggles off must not
-    # mean "no entry animation at all"
-    assert "\\t(0,120,\\fscx130\\fscy130)" in combined
+
+    catalog = client.get("/api/hook-motion-presets").json()["catalog"]
+    # typewriter is built inline (it needs resolved line geometry), so it is
+    # catalogued without a registry entry -- every other In preset pairs up.
+    assert set(catalog["in"]) == set(HOOK_IN_BUILDERS) | {"typewriter"}
+    assert set(catalog["loop"]) == set(HOOK_LOOP_BUILDERS)
+    assert set(catalog["out"]) == set(HOOK_OUT_BUILDERS)
+    assert set(catalog["accent"]) == {"underline", "badge", "none"}
+
+    for category, chosen in DEFAULT_HOOK_MOTION.items():
+        if category == "stagger":
+            continue
+        assert chosen in catalog[category], f"default {category}={chosen!r} isn't in its own catalog"
 
 
-def test_hook_motion_toggles_are_independent(tmp_path):
-    pulse_off = _hook_events(_gen_hook_ass(tmp_path, "pulse_off", hook_motion={"pulse": False}))
-    assert "\\fscx162" in pulse_off, "bounce must stay on when only pulse is toggled off"
-    assert "&H25&" not in pulse_off
-    assert "\\p1" in pulse_off, "underline must stay on when only pulse is toggled off"
-
-    underline_off = _hook_events(_gen_hook_ass(tmp_path, "underline_off", hook_motion={"underline": False}))
-    assert "\\p1" not in underline_off
-    assert "\\fscx162" in underline_off, "bounce must stay on when only underline is toggled off"
-
-
-def test_hook_motion_pulse_skips_cleanly_when_duration_too_short(tmp_path):
+def test_hook_motion_loop_skips_cleanly_when_duration_too_short(tmp_path):
     """A short hook_duration leaves no room for even one pulse half-cycle --
     it must degrade to no pulse, not emit a broken/negative-range \\t tag."""
     combined = _hook_events(_gen_hook_ass(tmp_path, "short", hook_duration=1.2))
     assert "&H25&" not in combined
-    assert "\\p1" in combined, "underline (independent of pulse) must still render"
+    assert "\\p1" in combined, "the accent (independent of loop) must still render"
 
 
 def test_measure_text_width_px_uses_real_font_metrics():

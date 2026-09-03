@@ -309,32 +309,51 @@ export default function Inspector({
                       <span>วิ</span>
                     </div>
                   </div>
-                  <div className="flex items-center flex-wrap gap-1 pt-0.5">
+                  {/* Motion presets -- one pick per category, exactly like
+                      CapCut's own In / Loop / Out text-animation tabs. The
+                      options come from /api/hook-motion-presets so this list
+                      can never drift from what the renderer can actually
+                      draw; until it loads, only the stagger toggle shows. */}
+                  <div className="space-y-1 pt-1">
                     {[
-                      { key: 'bounce', label: 'เด้งเข้า' },
-                      { key: 'stagger', label: 'ทยอยเข้าทีละบรรทัด' },
-                      { key: 'pulse', label: 'เรืองแสง' },
-                      { key: 'underline', label: 'เส้นขีดใต้รุ่น' },
-                    ].map(({ key, label }) => {
-                      // hookMotion is a partial dict from the API's default-True
-                      // semantics: an absent key means "on", not "off" -- so the
-                      // checked state must mirror that (!== false), not truthiness.
-                      const on = hookMotion?.[key] !== false;
+                      { cat: 'in', label: 'เข้า' },
+                      { cat: 'loop', label: 'ค้าง' },
+                      { cat: 'out', label: 'ออก' },
+                      { cat: 'accent', label: 'ตกแต่ง' },
+                    ].map(({ cat, label }) => {
+                      const options = hookMotionCatalog?.[cat];
+                      if (!options) return null;
+                      return (
+                        <div key={cat} className="flex items-center gap-1.5">
+                          <span className="w-9 flex-shrink-0 text-[10px] font-bold text-slate-400">{label}</span>
+                          <select
+                            value={hookMotion?.[cat] ?? hookMotionDefault?.[cat] ?? 'none'}
+                            onChange={(e) => onHookMotionChange?.(cat, e.target.value)}
+                            className="flex-1 min-w-0 rounded-lg border border-white/[0.1] bg-black/60 px-2 py-1 text-[11px] font-semibold text-white shadow-inner focus:border-[#D97757] focus:outline-none"
+                          >
+                            {Object.entries(options).map(([id, meta]) => (
+                              <option key={id} value={id}>{meta.label_th}</option>
+                            ))}
+                          </select>
+                        </div>
+                      );
+                    })}
+                    {(() => {
+                      const on = hookMotion?.stagger !== false;
                       return (
                         <button
-                          key={key}
                           type="button"
-                          onClick={() => onHookMotionChange?.(key, !on)}
+                          onClick={() => onHookMotionChange?.('stagger', !on)}
                           className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border transition-all cursor-pointer ${
                             on
                               ? 'bg-[#D97757]/20 border-[#D97757] text-[#E89274]'
                               : 'bg-white/[0.04] border-white/[0.1] text-slate-500 hover:text-white'
                           }`}
                         >
-                          {on ? '✓' : '✕'} {label}
+                          {on ? '✓' : '✕'} ทยอยเข้าทีละบรรทัด
                         </button>
                       );
-                    })}
+                    })()}
                   </div>
                 </div>
               )}

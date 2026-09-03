@@ -18,7 +18,9 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 
 from scripts.ai_bridge import AIBridge, ManualModeRequired
+from scripts.hook_motion_presets import hook_motion_catalog
 from scripts.it_angles import ANGLES_BY_KEY, catalog_for_prompt, fallback_angles
+from scripts.subtitle_engine import DEFAULT_HOOK_MOTION
 from scripts.post_log import METRIC_FIELDS, PostLog
 from scripts.product_store import STATUSES, ProductStore
 from scripts.config import BASE_DIR, STICKERS_DIR
@@ -136,6 +138,17 @@ def get_angles(seller_assets_only: bool = False, product_name: str = ""):
         "fallback": fallback_angles(product_name or "สินค้านี้", seller_assets_only=seller_assets_only),
         "total": len(ANGLES_BY_KEY),
     }
+
+
+@router.get("/hook-motion-presets")
+def get_hook_motion_presets():
+    """
+    The four hook-banner motion pickers (In / Loop / Out / Accent). The
+    editor renders whatever this returns rather than keeping its own copy of
+    the list, so a preset added in hook_motion_presets.py + a builder in
+    subtitle_engine.py shows up in the UI without a frontend change.
+    """
+    return {"catalog": hook_motion_catalog(), "default": DEFAULT_HOOK_MOTION}
 
 
 # ----------------------------------------------------------------------
@@ -347,7 +360,7 @@ class RerollRequest(BaseModel):
     hook_model: Optional[str] = None
     hook_label: Optional[str] = None
     hook_duration: Optional[float] = None
-    hook_motion: Optional[Dict[str, bool]] = None
+    hook_motion: Optional[Dict[str, Any]] = None
     custom_script: Optional[str] = None
     script_overlays: Optional[List[str]] = None
     font_name: Optional[str] = None
@@ -559,7 +572,7 @@ class UpdateProjectStateRequest(BaseModel):
     hook_model: Optional[str] = None
     hook_label: Optional[str] = None
     hook_duration: Optional[float] = None
-    hook_motion: Optional[Dict[str, bool]] = None
+    hook_motion: Optional[Dict[str, Any]] = None
 
 
 @router.patch("/projects/{project_name}/state")

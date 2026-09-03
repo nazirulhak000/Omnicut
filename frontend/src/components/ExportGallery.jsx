@@ -2,7 +2,8 @@ import React, { useState, useMemo, useEffect, useCallback, memo } from 'react';
 import {
   Film, Download, Folder, RefreshCw, Trash2,
   AlertTriangle, Check, Play, Search, Filter, ArrowUpDown,
-  Smartphone, CheckSquare, Square, Share2, Copy, FileText, QrCode, Sparkles, HardDrive
+  Smartphone, CheckSquare, Square, Share2, Copy, FileText, QrCode, Sparkles, HardDrive,
+  ShieldAlert, XCircle
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { openFolder, deleteFile } from '../api';
@@ -76,7 +77,23 @@ const ExportCard = memo(function ExportCard({
             />
           )}
 
-          {/* Play Button Overlay on Hover */}
+        {/* QC Rejected / Unlinked Overlay — shown centred on the video thumbnail */}
+        {item.is_qc_rejected && (
+          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 bg-black/70 backdrop-blur-[2px] rounded-t-3xl">
+            <div className="w-14 h-14 rounded-2xl bg-red-500/20 border border-red-500/40 flex items-center justify-center shadow-xl">
+              <XCircle className="w-7 h-7 text-red-400" />
+            </div>
+            <div className="text-xs font-black text-red-300 tracking-wide">QC ไม่ผ่าน</div>
+            {item.qc_note && (
+              <div className="max-w-[85%] text-center text-[10px] text-red-200/80 font-mono leading-snug px-2 py-1 rounded-lg bg-black/60 border border-red-500/20">
+                {item.qc_note}
+              </div>
+            )}
+            <div className="text-[10px] text-slate-400 mt-0.5">คลิปนี้ถูกแทนที่ด้วยเวอร์ชันใหม่</div>
+          </div>
+        )}
+
+        {/* Play Button Overlay on Hover */}
           <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-all flex flex-col items-center justify-center gap-2">
             <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-[#FE2C55] to-[#25F4EE] text-white flex items-center justify-center shadow-xl transform group-hover:scale-105 transition-all">
               <Play className="w-4 h-4 fill-current ml-0.5 text-white" />
@@ -143,6 +160,7 @@ export default function ExportGallery({ exportsList, onRefresh }) {
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 250);
   const [selectedProductFilter, setSelectedProductFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'linked' | 'qc_rejected'
   const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'oldest' | 'size_desc' | 'name'
   const [selectedDetailVideo, setSelectedDetailVideo] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -255,7 +273,12 @@ export default function ExportGallery({ exportsList, onRefresh }) {
           (selectedProductFilter.includes('Esseger') && item.name.toLowerCase().includes('esseger'));
       }
 
-      return matchesSearch && matchesProduct;
+      let matchesStatus = true;
+      if (statusFilter === 'linked')      matchesStatus = !!item.angle_id;
+      if (statusFilter === 'qc_rejected') matchesStatus = !!item.is_qc_rejected;
+      if (statusFilter === 'unlinked')    matchesStatus = !item.angle_id;
+
+      return matchesSearch && matchesProduct && matchesStatus;
     });
 
     // Sorting
@@ -268,7 +291,18 @@ export default function ExportGallery({ exportsList, onRefresh }) {
     });
 
     return list;
-  }, [exportsList, debouncedSearch, selectedProductFilter, sortBy]);
+  }, [exportsList, debouncedSearch, selectedProductFilter, statusFilter, sortBy]);
+
+  // Quick counts for filter chips
+  const counts = useMemo(() => {
+    if (!exportsList) return { all: 0, linked: 0, qc_rejected: 0, unlinked: 0 };
+    return {
+      all:         exportsList.length,
+      linked:      exportsList.filter(v => !!v.angle_id).length,
+      qc_rejected: exportsList.filter(v => !!v.is_qc_rejected).length,
+      unlinked:    exportsList.filter(v => !v.angle_id).length,
+    };
+  }, [exportsList]);
 
   const toggleSelectAll = useCallback(() => {
     if (selectedVideos.length === filteredExports.length) {
@@ -341,6 +375,22 @@ export default function ExportGallery({ exportsList, onRefresh }) {
                 className="w-full h-full object-contain"
               />
             </div>
+
+            {/* QC Rejected Banner — show if this file was superseded by a newer render */}
+            {selectedDetailVideo.is_qc_rejected && (
+              <div className="flex items-start gap-3 p-3 rounded-2xl bg-red-500/10 border border-red-500/30">
+                <div className="w-9 h-9 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center flex-shrink-0">
+                  <ShieldAlert className="w-4 h-4 text-red-400" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-red-300 mb-0.5">คลิปนี้ถูกปัดตก QC — ถูกแทนที่แล้ว</div>
+                  {selectedDetailVideo.qc_note && (
+                    <div className="text-xs text-red-200/80 font-mono">{selectedDetailVideo.qc_note}</div>
+                  )}
+                  <div className="text-[10px] text-slate-400 mt-1">สามารถลบไฟล์นี้ได้อย่างปลอดภัย เวอร์ชันใหม่ถูก render แล้ว</div>
+                </div>
+              </div>
+            )}
 
             {/* 2. Caption & Hashtag Box */}
             <div className="p-3.5 rounded-2xl bg-black/50 border border-white/[0.08] space-y-2">
@@ -594,6 +644,29 @@ export default function ExportGallery({ exportsList, onRefresh }) {
                 <option value="name" className="bg-[#080B11]">เรียงตามชื่อ</option>
               </select>
             </div>
+          </div>
+
+          {/* ── Status Filter Chips ────────────────────────────────────── */}
+          <div className="flex flex-wrap items-center gap-1.5 pt-2">
+            {[
+              { id: 'all',         label: 'ทั้งหมด',              count: counts.all,          color: 'text-slate-300 border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.08]',   active: 'bg-[#25F4EE]/10 text-[#25F4EE] border-[#25F4EE]/40' },
+              { id: 'linked',      label: 'มีสคริปต์แม็ป',           count: counts.linked,       color: 'text-emerald-300 border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10', active: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' },
+              { id: 'qc_rejected', label: 'QC ปัดตก',            count: counts.qc_rejected,  color: 'text-red-300 border-red-500/20 bg-red-500/5 hover:bg-red-500/10',         active: 'bg-red-500/20 text-red-300 border-red-500/40' },
+              { id: 'unlinked',    label: 'ไม่มีสคริปต์',            count: counts.unlinked,     color: 'text-slate-400 border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06]',  active: 'bg-slate-500/20 text-slate-200 border-slate-500/40' },
+            ].map(chip => (
+              <button
+                key={chip.id}
+                type="button"
+                onClick={() => setStatusFilter(chip.id)}
+                className={`py-1.5 px-3 rounded-xl text-xs font-bold border flex items-center gap-1.5 transition-all cursor-pointer ${
+                  statusFilter === chip.id ? chip.active : chip.color
+                }`}
+              >
+                {chip.id === 'qc_rejected' && <ShieldAlert className="w-3 h-3" />}
+                {chip.label}
+                <span className="font-mono text-[10px] opacity-70">{chip.count}</span>
+              </button>
+            ))}
           </div>
 
           {/* Batch Actions & Select All */}

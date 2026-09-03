@@ -2,7 +2,7 @@ import os
 import sys
 import argparse
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -55,7 +55,7 @@ class TikTokAutoCutterPipeline:
         hook_model: Optional[str] = None,
         hook_label: Optional[str] = None,
         hook_duration: float = 3.0,
-        hook_motion: Optional[Dict[str, bool]] = None,
+        hook_motion: Optional[Dict[str, Any]] = None,
         font_name: str = "IBMPlex",
         bilingual_subtitles: bool = True,
         use_ai_vision: bool = True,
