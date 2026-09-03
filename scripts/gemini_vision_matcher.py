@@ -105,9 +105,9 @@ class GeminiVisionMatcher:
                 )
             )
 
-        # Wait for file processing
+        # Wait for file processing (up to 3 minutes for 3-5 minute videos)
         retries = 0
-        while uploaded.state.name == "PROCESSING" and retries < 40:
+        while uploaded.state.name == "PROCESSING" and retries < 90:
             time.sleep(2)
             uploaded = client.files.get(name=uploaded.name)
             retries += 1
@@ -217,7 +217,7 @@ class GeminiVisionMatcher:
 }}
 ```
 """
-            models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash"]
+            models_to_try = ["gemini-2.5-flash", "gemini-2.5-flash-lite"]
             response = None
             last_err = None
             chosen_model = "gemini-2.5-flash"
