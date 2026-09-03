@@ -133,6 +133,7 @@ export const updateProduct = (id, data) => api.patch(`/products/${id}`, data).th
 export const updateAngleStatus = (productId, angleId, status, videoUrl = null, projectName = null) =>
   api.patch(`/products/${productId}/angles/${angleId}`, { status, video_url: videoUrl, project_name: projectName }).then(r => r.data);
 export const updateAngleVideos = (productId, angleId, selectedVideos) => api.post(`/products/${productId}/angles/${angleId}/videos`, { selected_videos: selectedVideos }).then(r => r.data);
+export const setDefaultVideosForProduct = (productId, selectedVideos) => api.post(`/products/${productId}/default-videos`, { selected_videos: selectedVideos }).then(r => r.data);
 export const deleteProduct = (id) => api.delete(`/products/${id}`).then(r => r.data);
 
 export const getProjects = () => api.get('/projects').then(r => r.data);

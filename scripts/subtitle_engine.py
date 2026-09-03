@@ -68,6 +68,98 @@ def _load_font_family_map() -> Dict[str, str]:
 
     return font_map
 
+
+# Default hook-banner motion: every effect on. Individual toggles arrive from
+# the UI as a partial dict (only the keys the user unchecked) -- missing keys
+# fall back to True here rather than to a bare `.get(k, True)` scattered
+# through the animation code below, so there is exactly one place that
+# defines "what happens when nothing was specified".
+DEFAULT_HOOK_MOTION = {"bounce": True, "stagger": True, "pulse": True, "underline": True}
+
+
+def _resolve_hook_motion(hook_motion: Optional[Dict[str, bool]]) -> Dict[str, bool]:
+    resolved = dict(DEFAULT_HOOK_MOTION)
+    if hook_motion:
+        for k in DEFAULT_HOOK_MOTION:
+            if k in hook_motion and hook_motion[k] is not None:
+                resolved[k] = bool(hook_motion[k])
+    return resolved
+
+
+def _hook_entry_anim(target_scale_pct: float, t0_ms: int, bounce: bool) -> Tuple[str, int]:
+    """
+    ASS \\t keyframe chain animating a hook-tier line's \\fscx/\\fscy from its
+    entry pose up to `target_scale_pct`, starting at `t0_ms` (the tier's
+    stagger offset). Returns (tag_string, entry_end_ms) so the caller knows
+    when this tier settles -- pulse must not start before every tier has.
+
+    bounce=True: overshoot/undershoot/settle (elastic feel), ~450ms.
+    bounce=False: the original single-lerp pop, ~120ms, just shifted by t0.
+    """
+    target = round(target_scale_pct)
+    if not bounce:
+        entry_from = round(target * 1.15)
+        end_ms = t0_ms + 120
+        tag = f"\\fscx{entry_from}\\fscy{entry_from}\\t({t0_ms},{end_ms},\\fscx{target}\\fscy{target})"
+        return tag, end_ms
+
+    over = round(target * 1.25)
+    under = round(target * 0.92)
+    settle_over = round(target * 1.05)
+    t1, t2, t3, t4 = t0_ms, t0_ms + 150, t0_ms + 280, t0_ms + 380
+    end_ms = t0_ms + 450
+    entry_from = round(target * 0.6)  # starts small, snaps up into the overshoot
+    tag = (
+        f"\\fscx{entry_from}\\fscy{entry_from}"
+        f"\\t({t1},{t2},\\fscx{over}\\fscy{over})"
+        f"\\t({t2},{t3},\\fscx{under}\\fscy{under})"
+        f"\\t({t3},{t4},\\fscx{settle_over}\\fscy{settle_over})"
+        f"\\t({t4},{end_ms},\\fscx{target}\\fscy{target})"
+    )
+    return tag, end_ms
+
+
+def _hook_pulse_keyframes(start_ms: int, exit_start_ms: int) -> str:
+    """
+    Breathing alpha oscillation (opaque <-> dim) filling the hold period, as
+    a chain of \\t alpha keyframes. Half-cycle = 350ms (full pulse ~700ms).
+    Emits nothing if less than one half-cycle actually fits -- a stub
+    fragment would read as a single flicker, not a pulse.
+    """
+    HALF = 350
+    segs = []
+    t = start_ms
+    dim_next = True
+    while t + HALF <= exit_start_ms:
+        alpha = "&H25&" if dim_next else "&H00&"
+        segs.append(f"\\t({t},{t + HALF},\\alpha{alpha})")
+        t += HALF
+        dim_next = not dim_next
+    return "".join(segs)
+
+
+def _measure_text_width_px(text: str, resolved_font: str, font_size_px: int) -> Optional[int]:
+    """
+    Real rendered width of `text` at `font_size_px` in the family ASS will
+    actually draw it in, via the same physical font files AssetRegistry
+    already indexes (family -> path), not a filename guess. Returns None if
+    that family has no resolvable file on disk -- callers fall back to a
+    char-count estimate rather than dropping the caller's feature.
+    """
+    try:
+        from PIL import ImageFont
+    except ImportError:
+        return None
+    try:
+        family_to_path = {f["family"]: f["path"] for f in AssetRegistry.fonts()}
+        font_path = family_to_path.get(resolved_font)
+        if not font_path:
+            return None
+        bbox = ImageFont.truetype(font_path, font_size_px).getbbox(text)
+        return int(bbox[2] - bbox[0])
+    except Exception:
+        return None
+
 # Where the caption block sits: (ASS alignment, vertical margin).
 # 2 = bottom centre, 5 = middle centre, 8 = top centre.
 CAPTION_POSITIONS = {
@@ -688,6 +780,7 @@ class SubtitleEngine:
         hook_model: str = None,
         hook_label: str = None,
         hook_duration: float = 3.5,
+        hook_motion: Optional[Dict[str, bool]] = None,
         bilingual: bool = True,
         video_width: int = VIDEO_WIDTH,
         video_height: int = VIDEO_HEIGHT,

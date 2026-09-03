@@ -213,6 +213,26 @@ class ProductStore:
         raise ValueError(f"ไม่พบสินค้า id '{product_id}' หรือ angle '{angle_id}'")
 
     @classmethod
+    def set_default_videos_for_all_angles(cls, product_id: str, selected_videos: List[str]) -> Dict[str, Any]:
+        """Sets default raw footage attachments for all script angles belonging to this product."""
+        products = cls._load()
+        for product in products:
+            if product["id"] == product_id:
+                for angle in product.get("angles", []):
+                    angle["selected_videos"] = selected_videos
+                    angle["selected_video"] = selected_videos[0] if selected_videos else None
+                    angle["updated_at"] = cls._now()
+                # Also ensure each video is in product['videos']
+                v_list = product.setdefault("videos", [])
+                for v_path in selected_videos:
+                    if not any(v.get("path") == v_path or v.get("rel_path") == v_path for v in v_list):
+                        v_list.append({"rel_path": v_path, "path": v_path})
+                product["updated_at"] = cls._now()
+                cls._save(products)
+                return product
+        raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
+
+    @classmethod
     def add_video_to_product(cls, product_id: str, video_info: Dict[str, Any]) -> Dict[str, Any]:
         """Attaches a raw footage item specifically to a product."""
         products = cls._load()

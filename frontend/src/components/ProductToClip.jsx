@@ -6,7 +6,7 @@ import {
   Search, LayoutGrid, Filter, Play
 } from 'lucide-react';
 import {
-  scrapeAndPlanProduct, scrapeAndPlanProductAsync, getProducts, updateProduct, updateAngleStatus, updateAngleVideos, deleteProduct, uploadFile
+  scrapeAndPlanProduct, scrapeAndPlanProductAsync, getProducts, updateProduct, updateAngleStatus, updateAngleVideos, setDefaultVideosForProduct, deleteProduct, uploadFile
 } from '../api';
 import { Modal, Toast, Button, Badge, Input, Textarea, ConfirmModal } from './ui';
 import MediaPickerModal from './MediaPickerModal';
@@ -584,19 +584,30 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadingImg(true);
-    try {
-      setPreviewImage(URL.createObjectURL(file));
-    } catch {
-      // ignore
-    }
+    const isVideo = file.type.startsWith('video/') || /\.(mp4|mov|webm|mkv|avi)$/i.test(file.name);
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('target_dir', 'inbox');
+    formData.append('target_dir', isVideo ? 'raw' : 'inbox');
     try {
       const res = await uploadFile(formData);
       if (res.file) {
-        setSelectedImage(res.file.path);
-        showToast('อัปโหลดไฟล์รูปภาพเรียบร้อยแล้ว');
+        const filePath = res.file.rel_path || res.file.path;
+        if (isVideo) {
+          // Set as DEFAULT video for ALL angles of this product!
+          if (productData?.id) {
+            const updateRes = await setDefaultVideosForProduct(productData.id, [filePath]);
+            if (updateRes.product) {
+              setProductData(updateRes.product);
+              setAngles(updateRes.product.angles || []);
+              setHistoryList(prev => prev.map(p => p.id === updateRes.product.id ? updateRes.product : p));
+            }
+            onRefresh && onRefresh();
+            showToast(`แนบคลิป "${file.name}" เป็นคลิปหลักเริ่มต้นให้ทุกสคริปต์เรียบร้อยแล้ว`);
+          }
+        } else {
+          setSelectedImage(filePath);
+          showToast('อัปโหลดรูปภาพเรียบร้อยแล้ว');
+        }
       }
     } catch (err) {
       showToast('อัปโหลดไม่สำเร็จ: ' + (err.friendlyMessage || err.message), 'error');
@@ -612,6 +623,30 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   };
 
   const handleConfirmMediaPicker = async (selectedPaths) => {
+    // Case 1: Product-level default for ALL angles (idx === -1)
+    if (pickerAngleIndex === -1) {
+      setAngles(prev => prev.map(ang => ({
+        ...ang,
+        selected_videos: selectedPaths,
+        selected_video: selectedPaths[0] || null
+      })));
+      if (productData?.id) {
+        try {
+          const res = await setDefaultVideosForProduct(productData.id, selectedPaths);
+          if (res.product) {
+            setProductData(res.product);
+            setHistoryList(prev => prev.map(p => p.id === res.product.id ? res.product : p));
+          }
+          onRefresh && onRefresh();
+        } catch (err) {
+          console.error('Failed to set default videos for all angles:', err);
+        }
+      }
+      showToast(`ตั้งคลิปเริ่มต้น ${selectedPaths.length} คลิปให้ทุกสคริปต์เรียบร้อยแล้ว`);
+      return;
+    }
+
+    // Case 2: Specific angle customization
     const targetAngle = angles[pickerAngleIndex];
     if (!targetAngle) return;
 
@@ -1179,17 +1214,31 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                 <Sparkles className="w-3.5 h-3.5 text-[#FE2C55]" />
                 <span>Step 2 — เลือกมุมขาย & คลิปประกอบ ({totalAngles} สคริปต์)</span>
               </h2>
-              <label className="relative px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-xs font-bold text-[#25F4EE] cursor-pointer flex items-center gap-1 transition-all">
-                <input
-                  type="file"
-                  accept="video/*,image/*,image/heic,image/heif,.heic,.HEIC,.heif,.HEIF,.mov,.MOV,.mp4,.MP4"
-                  onChange={handleImageUpload}
-                  disabled={uploadingImg}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                />
-                <Upload className="w-3.5 h-3.5 pointer-events-none" />
-                <span className="pointer-events-none">{uploadingImg ? 'กำลังอัปโหลด...' : 'แนบคลิป/รูปเข้าคลัง'}</span>
-              </label>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {/* 1. Pick from Existing Vault for ALL Scripts */}
+                <button
+                  type="button"
+                  onClick={() => handleOpenMediaPicker(-1)}
+                  className="px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-xs font-bold text-[#25F4EE] cursor-pointer flex items-center gap-1 transition-all"
+                  title="เลือกคลิปจากคลังที่มีอยู่แล้ว ให้เป็นคลิปเริ่มต้นของทุกสคริปต์"
+                >
+                  <FolderOpen className="w-3.5 h-3.5" />
+                  <span>เลือกคลิปให้ทุกสคริปต์</span>
+                </button>
+
+                {/* 2. Upload New File & Default to ALL Scripts */}
+                <label className="relative px-2.5 py-1 rounded-lg bg-gradient-to-r from-[#25F4EE]/15 to-blue-500/15 hover:from-[#25F4EE]/25 hover:to-blue-500/25 border border-[#25F4EE]/30 text-xs font-bold text-[#25F4EE] cursor-pointer flex items-center gap-1 transition-all shadow-sm">
+                  <input
+                    type="file"
+                    accept="video/*,image/*,image/heic,image/heif,.heic,.HEIC,.heif,.HEIF,.mov,.MOV,.mp4,.MP4"
+                    onChange={handleImageUpload}
+                    disabled={uploadingImg}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  />
+                  <Upload className="w-3.5 h-3.5 pointer-events-none" />
+                  <span className="pointer-events-none">{uploadingImg ? 'กำลังอัปโหลด...' : 'แนบคลิปให้ทุกสคริปต์'}</span>
+                </label>
+              </div>
             </div>
 
             <div className="space-y-1.5">

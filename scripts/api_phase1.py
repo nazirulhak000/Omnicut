@@ -548,6 +548,14 @@ class UpdateProjectStateRequest(BaseModel):
     clip_list: Optional[List[Dict[str, Any]]] = None
     transitions: Optional[List[Any]] = None
     style: Optional[Dict[str, Any]] = None
+    # EditorShell.jsx's autosave and manual-save both send these on every
+    # edit -- omitted here before, Pydantic silently drops unknown fields
+    # (no error, no warning), so the hook banner's edits in the Editor never
+    # actually reached the manifest.
+    hook_brand: Optional[str] = None
+    hook_model: Optional[str] = None
+    hook_label: Optional[str] = None
+    hook_duration: Optional[float] = None
 
 
 @router.patch("/projects/{project_name}/state")
@@ -578,6 +586,21 @@ def update_project_state(project_name: str, req: UpdateProjectStateRequest):
         for k, v in req.style.items():
             fields[k] = v
             render_params[k] = v
+    # Top-level AND render_params, matching EditorShell.jsx's load priority
+    # (data.hook_brand first, data.render_params?.hook_brand as fallback) --
+    # writing only one of the two would leave the other stale.
+    if req.hook_brand is not None:
+        fields["hook_brand"] = req.hook_brand
+        render_params["hook_brand"] = req.hook_brand
+    if req.hook_model is not None:
+        fields["hook_model"] = req.hook_model
+        render_params["hook_model"] = req.hook_model
+    if req.hook_label is not None:
+        fields["hook_label"] = req.hook_label
+        render_params["hook_label"] = req.hook_label
+    if req.hook_duration is not None:
+        fields["hook_duration"] = req.hook_duration
+        render_params["hook_duration"] = req.hook_duration
 
     fields["render_params"] = render_params
     updated = ProjectManifest.save(project_name, **fields)

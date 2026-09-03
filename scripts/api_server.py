@@ -1259,6 +1259,18 @@ def update_angle_videos_endpoint(product_id: str, angle_id: str, payload: Dict[s
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@app.post("/api/products/{product_id}/default-videos")
+def set_default_videos_endpoint(product_id: str, payload: Dict[str, Any]):
+    """Sets default raw footage attachments for all script angles in a product."""
+    try:
+        selected_videos = payload.get("selected_videos", [])
+        updated = ProductStore.set_default_videos_for_all_angles(product_id, selected_videos)
+        return {"success": True, "product": updated}
+    except ValueError as err:
+        raise HTTPException(status_code=404, detail=str(err))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 @app.post("/api/script/ai-generate")
 def generate_ai_scripts(req: ScriptGenerateRequest):
     """Generates 4 viral multi-angle TikTok review scripts using Google Gemini 2.5 Flash."""
