@@ -136,10 +136,6 @@ class GeminiVisionMatcher:
                     cached_matched = cache["matches"][match_cache_key]
                     if cached_matched and len(cached_matched) > 0:
                         return cached_matched
-                if file_hash in cache["matches"]:
-                    cached_matched = cache["matches"][file_hash]
-                    if cached_matched and len(cached_matched) > 0:
-                        return cached_matched
         except Exception:
             pass
         return None
