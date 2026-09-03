@@ -526,7 +526,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 candidate_en = (en_translations[idx] or cue.get("translation", "")).strip()
                 if candidate_en and not any(sig in candidate_en for sig in ["Error 500", "500.", "That's an error", "<html"]):
                     cue["translation"] = candidate_en
-                    en_wrapped = cls.wrap_en_for_ass(candidate_en, max_chars_per_line=58)
+                    dyn_en_chars = max(26, int(round(4000 / max(20, font_size))))
+                    en_wrapped = cls.wrap_en_for_ass(candidate_en, max_chars_per_line=dyn_en_chars)
                     en_color = "\\c&H00EAEAEA&"
                     en_sub = f"\\N{{\\fscx68\\fscy68{en_color}}}{en_wrapped}"
                 else:
