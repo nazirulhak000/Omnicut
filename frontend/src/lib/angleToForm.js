@@ -14,13 +14,26 @@
 export function angleToForm(angle, context = {}) {
   if (!angle) return null;
 
-  const scriptText = Array.isArray(angle.script_lines)
+  const rawScriptText = Array.isArray(angle.script_lines)
     ? angle.script_lines.join('\n')
     : (angle.script_text || '');
 
+  // Strip all stray ellipses ("...", "…") and collapse extra whitespace
+  const scriptText = rawScriptText
+    .replace(/\.{2,}|…/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .split('\n')
+    .map(line => line.trim())
+    .join('\n');
+
+  const cleanHook = (angle.hook_title || '')
+    .replace(/\.{2,}|…/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
+
   const patch = {
     productName: angle.product_name || context.title || 'สินค้า',
-    hookTitle: angle.hook_title || '',
+    hookTitle: cleanHook,
     customScript: scriptText,
     // A script that came from the flow is meant to be spoken as written --
     // anything else would throw away the angle the user just picked.

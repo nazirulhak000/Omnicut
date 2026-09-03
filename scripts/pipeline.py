@@ -25,6 +25,7 @@ from scripts.sfx_manager import SFXManager
 from scripts.video_editor import VideoEditor
 from scripts.image_motion_engine import ImageMotionEngine
 from scripts.gemini_vision_matcher import GeminiVisionMatcher
+from scripts.beat_sync import BeatSync
 from scripts.project_manifest import ProjectManifest
 from scripts.it_angles import LOOK_PRESETS
 
@@ -173,7 +174,7 @@ class TikTokAutoCutterPipeline:
                 overlays = script_overlays or []
                 lines = [
                     {
-                        "text": l.strip(),
+                        "text": re.sub(r'\s+', ' ', re.sub(r'[\.]{2,}|…', ' ', l.strip())).strip(),
                         "sfx": "pop" if i > 0 else "whoosh",
                         # Spec-bar text for this line, e.g. "20W PD" -- see
                         # subtitle_engine.py's SpecBar style. Index-aligned with
@@ -367,12 +368,22 @@ class TikTokAutoCutterPipeline:
             print(f"\n💬 [3/5] Generating TikTok Animated Subtitles (.ass with {font_name} font & 3-word bursts)...")
             ass_path = _out_path("subtitles", ".ass")
             banner_title = hook_title or f"{product_name}"
+            # Hold time scales with how long the banner actually takes to
+            # read (~11 chars/sec, the same fast cadence as the TikTok voice
+            # rate) instead of one flat 3s for every title -- a 6-char hook
+            # doesn't need the same hold as a 40-char one. A caller that
+            # explicitly moved hook_duration away from the 3.0 default is
+            # respected as-is.
+            if hook_duration is not None and abs(float(hook_duration) - 3.0) > 0.01:
+                effective_hook_duration = float(hook_duration)
+            else:
+                effective_hook_duration = max(1.6, min(len(banner_title) / 11.0 + 0.6, 5.0))
             _, micro_cues = SubtitleEngine.generate_ass(
                 cues=cues,
                 output_ass_path=str(ass_path),
                 font_name=font_name,
                 hook_title=banner_title,
-                hook_duration=min(float(hook_duration or 3.0), total_duration),
+                hook_duration=min(effective_hook_duration, total_duration),
                 bilingual=bilingual_subtitles,
                 caption_position=caption_position,
                 caption_color=caption_color,
@@ -480,6 +491,18 @@ class TikTokAutoCutterPipeline:
         # Punch-zoom pattern per angle (LOOK_PRESETS)
         shot_scales = LOOK_PRESETS.get(angle_meta.get("angle_key", "")) if angle_meta else None
 
+        # Beat times for the chosen BGM track, used below to snap auto-cut
+        # boundaries onto the music instead of leaving them purely
+        # caption-timed. Best-effort: an unresolved BGM file or a missing
+        # librosa install just means no snapping, never a failed render.
+        beat_times: List[float] = []
+        try:
+            resolved_bgm_path = SFXManager.resolve_bgm_path(bgm_name)
+            if resolved_bgm_path:
+                beat_times = BeatSync.get_beat_times(resolved_bgm_path)
+        except Exception:
+            beat_times = []
+
         if not actual_clip_list and raw_video:
             try:
                 # Use smart clause cues so video shots match the 1-Click rhythm & thought scenes
@@ -488,7 +511,7 @@ class TikTokAutoCutterPipeline:
                 shots = []
                 if active_cues:
                     # J-Cut (Audio Lead-in): เสียงประโยคถัดไปดังขึ้นก่อนภาพตัดเปลี่ยน 150-180ms เพื่อความลื่นไหล
-                    from scripts.config import J_CUT_OFFSET_SECONDS
+                    from scripts.config import J_CUT_OFFSET_SECONDS, MIN_SHOT_DURATION, MAX_SHOT_DURATION
                     n_cues = len(active_cues)
                     cut_points = [0.0]
                     for i in range(1, n_cues):
@@ -499,25 +522,103 @@ class TikTokAutoCutterPipeline:
                         cut_points.append(round(c_curr_start + lead, 3))
                     cut_points.append(round(total_duration, 3))
 
-                    for idx, c in enumerate(active_cues):
-                        v_start = cut_points[idx]
-                        v_end = cut_points[idx + 1]
+                    # Merge consecutive micro-cues into shots >= MIN_SHOT_DURATION:
+                    # a 2-3 word caption burst is not a natural video cut on its
+                    # own -- a human editor holds a shot for a beat even while
+                    # the captions keep changing under it. This only slows the
+                    # VIDEO crop cadence; subtitles still burn per-cue from
+                    # `cues` untouched below, so caption rhythm is unaffected.
+                    groups: List[List[int]] = []
+                    current: List[int] = []
+                    group_start = cut_points[0]
+                    for i in range(n_cues):
+                        tentative_dur = cut_points[i + 1] - group_start
+                        if current and tentative_dur > MAX_SHOT_DURATION:
+                            groups.append(current)
+                            current = []
+                            group_start = cut_points[i]
+                        current.append(i)
+                        held_dur = cut_points[i + 1] - group_start
+                        if held_dur >= MIN_SHOT_DURATION and i < n_cues - 1:
+                            groups.append(current)
+                            current = []
+                            group_start = cut_points[i + 1]
+                    if current:
+                        groups.append(current)
+
+                    # Snap the internal shot boundaries onto the nearest BGM
+                    # beat (within a small tolerance) so cuts land on the
+                    # music instead of purely on caption timing. Voice and
+                    # captions never move -- only which exact frame a video
+                    # cut happens on.
+                    boundary_times = [cut_points[0]] + [cut_points[g[-1] + 1] for g in groups]
+                    if beat_times:
+                        BEAT_SNAP_TOLERANCE = 0.15
+                        for b_idx in range(1, len(boundary_times) - 1):
+                            t = boundary_times[b_idx]
+                            nearest = min(beat_times, key=lambda bt: abs(bt - t))
+                            if abs(nearest - t) <= BEAT_SNAP_TOLERANCE:
+                                prev_b = boundary_times[b_idx - 1]
+                                next_b = boundary_times[b_idx + 1]
+                                if (nearest - prev_b) >= MIN_SHOT_DURATION * 0.8 and (next_b - nearest) >= MIN_SHOT_DURATION * 0.8:
+                                    boundary_times[b_idx] = round(nearest, 3)
+
+                    emphasis_scale_idx = effective_shot_scales.index(max(effective_shot_scales))
+                    auto_transitions = []
+                    for g_idx, group in enumerate(groups):
+                        v_start = boundary_times[g_idx]
+                        v_end = boundary_times[g_idx + 1]
                         c_dur = max(0.2, v_end - v_start)
-                        ai_shot = ai_matched_shots[idx] if ai_matched_shots and idx < len(ai_matched_shots) else None
+                        anchor_idx = group[0]
+                        ai_shot = ai_matched_shots[anchor_idx] if ai_matched_shots and anchor_idx < len(ai_matched_shots) else None
+
+                        # Content-aware zoom: a group carrying an SFX beat or
+                        # emphasis punctuation/emoji is the "hit" of its
+                        # sentence -- push the zoom harder there instead of
+                        # just cycling the pattern blindly by position.
+                        has_emphasis = any(
+                            active_cues[i].get("sfx") or "!" in str(active_cues[i].get("text", ""))
+                            or any(e in str(active_cues[i].get("text", "")) for e in ("⚠️", "❌", "⚡"))
+                            for i in group
+                        )
+
                         if ai_shot:
                             ai_start = float(ai_shot.get("start_time", 0.0))
-                            ai_zoom = float(ai_shot.get("punch_zoom", effective_shot_scales[idx % len(effective_shot_scales)]))
+                            ai_zoom = float(ai_shot.get("punch_zoom", effective_shot_scales[g_idx % len(effective_shot_scales)]))
                             scale = min(1.4, max(1.0, ai_zoom))
                             raw_offset = max(0.0, min(ai_start, max(0.0, raw_duration - c_dur - 0.2)))
                         else:
-                            scale = effective_shot_scales[idx % len(effective_shot_scales)]
-                            raw_offset = (idx * 3.5) % max(1.0, raw_duration - c_dur - 1.0)
+                            scale = (
+                                effective_shot_scales[emphasis_scale_idx] if has_emphasis
+                                else effective_shot_scales[g_idx % len(effective_shot_scales)]
+                            )
+                            raw_offset = (g_idx * 3.5) % max(1.0, raw_duration - c_dur - 1.0)
+
                         shots.append({
                             "start": v_start,
                             "end": v_end,
                             "scale": scale,
                             "raw_offset": raw_offset
                         })
+
+                        if g_idx > 0:
+                            # Boundary between this shot and the previous one:
+                            # a real pause (breath) or a sentence-ending line
+                            # reads as a tone shift -- a quick dissolve there
+                            # instead of a hard cut. Cuts stay the default for
+                            # everything else, not every boundary gets one.
+                            prev_last_cue = active_cues[groups[g_idx - 1][-1]]
+                            next_first_cue = active_cues[group[0]]
+                            gap = float(next_first_cue.get("start", 0.0)) - float(prev_last_cue.get("end", 0.0))
+                            prev_text = str(prev_last_cue.get("text", "")).strip()
+                            sentence_end = prev_text.endswith((".", "!", "?", "ครับ", "ค่ะ", "นะคะ", "นะครับ"))
+                            if gap > 0.35 or sentence_end:
+                                auto_transitions.append({"type": "fade", "duration": 0.22})
+                            else:
+                                auto_transitions.append("cut")
+
+                    if not transitions and auto_transitions:
+                        transitions = auto_transitions
                 else:
                     curr_t = 0.0
                     shot_idx = 0

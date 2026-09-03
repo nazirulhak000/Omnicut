@@ -141,9 +141,9 @@ class ProductScraper:
    - ตัวเลขสเปก ต้องเขียนเป็นคำไทยควบคู่ เช่น "ชาร์จเร็ว 66 วัตต์" ไม่ใช่ "ชาร์จเร็ว 66W"
    - ห้ามใช้คำย่อภาษาอังกฤษโดดๆ ในบทพูด เช่น ให้ใช้ "ยูเอสบีซี" แทน "USB-C", ใช้ "เวิร์คฟรอมโฮม" แทน "WFH"
    - ห้ามใส่ hashtag ในบทพูด (ใส่แยกใน tiktok_hashtags เท่านั้น)
-   - จังหวะเว้นหายใจ ใช้จุดจุดจุด "..." แทน "เว้นวรรค"
+   - ห้ามใส่จุดไข่ปลา หรือ "..." หรือ "…" ในบทพูดโดยเด็ดขาด ให้ใช้การเว้นวรรคภาษาไทยธรรมดา เพื่อให้ซับไตเติลอ่านง่าย สะอาดตา และไม่ติดจุดไข่ปลาไปบนหน้าจอ
 5. **เทคนิค Seamless Loop (คลิปจบแล้ววนกลับมาเริ่มใหม่ได้เนียนกริบ เพิ่มยอดวิว x2)**:
-   - บรรทัดที่ 5 (CTA ปิดการขาย): ปิดท้ายด้วยประโยคเชื่อมต่อแบบเปิด (Open Loop Connector) เช่น "...รีบกดในตะกร้าด่วน แล้วจะเข้าใจว่า..." หรือ "...พิกัดในตะกร้าซ้ายล่าง รีบจัดแล้วจะรู้ว่าทำไม..." เพื่อให้เมื่อคลิปวนลูปกลับมาเล่นบรรทัดที่ 1 จะฟังเชื่อมโยงกันเป็นเรื่องเดียวกันทันที!
+   - บรรทัดที่ 5 (CTA ปิดการขาย): ปิดท้ายด้วยประโยคเชื่อมต่อแบบเปิด (Open Loop Connector) เช่น "รีบกดในตะกร้าด่วน แล้วจะเข้าใจว่า" หรือ "พิกัดในตะกร้าซ้ายล่าง รีบจัดแล้วจะรู้ว่าทำไม" เพื่อให้เมื่อคลิปวนลูปกลับมาเล่นบรรทัดที่ 1 จะฟังเชื่อมโยงกันเป็นเรื่องเดียวกันทันที!
 
 จงสร้างผลลัพธ์เป็น JSON Array ที่มี {count} Object ตาม 10 มุมมองนี้:
 1. "pain_point": 😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน (Problem / Agitation / Solution)
@@ -197,6 +197,15 @@ class ProductScraper:
                 
                 angles = json.loads(cleaned)
                 if isinstance(angles, list) and len(angles) > 0:
+                    # Clean any stray ellipses from script_lines and hook_title
+                    for a in angles:
+                        if "script_lines" in a and isinstance(a["script_lines"], list):
+                            a["script_lines"] = [
+                                re.sub(r'\s+', ' ', re.sub(r'[\.]{2,}|…', ' ', line)).strip()
+                                for line in a["script_lines"]
+                            ]
+                        if "hook_title" in a and isinstance(a["hook_title"], str):
+                            a["hook_title"] = re.sub(r'\s+', ' ', re.sub(r'[\.]{2,}|…', ' ', a["hook_title"])).strip()
                     # Add TTS-ready lines via sanitizer
                     from scripts.tts_sanitizer import TTSSanitizer
                     angles = TTSSanitizer.process_angles(angles[:count])

@@ -226,6 +226,9 @@ class TTSSanitizer:
         # Remove hashtags entirely from spoken text
         text = re.sub(r'#\S+', '', text)
 
+        # Strip ellipsis (..., …) and replace with clean space
+        text = re.sub(r'[\.]{2,}|…', ' ', text)
+
         # Remove stray markdown/formatting
         text = re.sub(r'[*_~`]', '', text)
 

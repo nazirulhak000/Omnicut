@@ -233,7 +233,8 @@ class SubtitleEngine:
                     elif any(k in cl for k in ["พิกัด", "ตะกร้า", "149"]):
                         emoji = "🛒 "
 
-                cue_text = f"{emoji}{cl}".strip() if emoji else cl.strip()
+                raw_c = f"{emoji}{cl}".strip() if emoji else cl.strip()
+                cue_text = re.sub(r'\s+', ' ', re.sub(r'[\.]{2,}|…', ' ', raw_c)).strip()
                 trans = (c.get("translation") or "").strip()
                 if len(clauses) == 1:
                     cue_trans = trans
@@ -274,12 +275,12 @@ class SubtitleEngine:
         return micro_cues
 
     @classmethod
-    def wrap_text_for_ass(cls, text: str, max_chars_per_line: int = 34) -> str:
+    def wrap_text_for_ass(cls, text: str, max_chars_per_line: int = 40) -> str:
         """
         Wraps long Thai text into multiple balanced lines using ASS \\N,
         preventing single-line horizontal font compression or overflow.
         """
-        clean = text.strip().replace("\r", "")
+        clean = re.sub(r'\s+', ' ', re.sub(r'[\.]{2,}|…', ' ', text)).strip().replace("\r", "")
         if not clean or "\\N" in clean or "\n" in clean or len(clean) <= max_chars_per_line:
             return clean.replace("\n", "\\N")
 
@@ -335,7 +336,7 @@ class SubtitleEngine:
     @classmethod
     def wrap_en_for_ass(cls, text: str, max_chars_per_line: int = 58) -> str:
         """Wraps long English subtitles neatly at word boundaries."""
-        clean = text.strip().replace("\r", "").replace("\n", " ")
+        clean = re.sub(r'\s+', ' ', re.sub(r'[\.]{2,}|…', ' ', text)).strip().replace("\r", "").replace("\n", " ")
         if len(clean) <= max_chars_per_line:
             return clean
         words = clean.split(" ")
@@ -474,7 +475,6 @@ class SubtitleEngine:
         ]
     }
 
-    @classmethod
     @classmethod
     def apply_kinetic_highlighting(
         cls,
