@@ -431,9 +431,18 @@ class SubtitleEngine:
         # Matches SequencePlayer Canvas baseFs (26px on 540w)
         base_fs = int(round(video_width * 0.0667))
         font_size = max(24, int(round(base_fs * scale)))
-        outline_val = round(max(3.5, font_size * 0.10), 1)
-        shadow_val = round(max(2.0, font_size * 0.05), 1)
         hook_fs = int(round(video_width * 0.065))
+
+        # Dynamic Soft Shadow & Outline metrics (Zero hardcoding: scales with any font, scale, and resolution)
+        front_outline = round(max(1.8, font_size * 0.040), 1)
+        shadow_outline = round(max(2.2, font_size * 0.050), 1)
+        shadow_blur = round(max(2.5, font_size * 0.055), 1)
+        shadow_dx = int(round(max(1.0, font_size * 0.030)))
+        shadow_dy = int(round(max(1.5, font_size * 0.045)))
+        
+        shadow_margin_l = 60 + shadow_dx
+        shadow_margin_r = 60 - shadow_dx
+        shadow_margin_v = margin_v - shadow_dy if alignment in (1, 2, 3) else margin_v + shadow_dy
 
         header = f"""[Script Info]
 Title: TikTok Aesthetic Subtitles
@@ -445,11 +454,13 @@ PlayResY: {video_height}
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: TikTokWhite,{resolved_font},{font_size},{primary},&H000000FF,&H00000000,&H30000000,1,0,0,0,100,100,0.5,0,1,{outline_val},{shadow_val},{alignment},60,60,{margin_v},1
-Style: TikTokYellow,{resolved_font},{font_size},&H0000E6FF,&H000000FF,&H00000000,&H30000000,1,0,0,0,100,100,0.5,0,1,{outline_val},{shadow_val},2,60,60,420,1
-Style: TikTokCyan,{resolved_font},{font_size},&H00FFE600,&H000000FF,&H00000000,&H30000000,1,0,0,0,100,100,0.5,0,1,{outline_val},{shadow_val},2,60,60,420,1
+Style: TikTokSoftShadow,{resolved_font},{font_size},&H00000000,&H00000000,&H00000000,&H00000000,1,0,0,0,100,100,0.5,0,1,{shadow_outline},0,{alignment},{shadow_margin_l},{shadow_margin_r},{shadow_margin_v},1
+Style: TikTokWhite,{resolved_font},{font_size},{primary},&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0.5,0,1,{front_outline},0,{alignment},60,60,{margin_v},1
+Style: TikTokYellow,{resolved_font},{font_size},&H0000E6FF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0.5,0,1,{front_outline},0,2,60,60,420,1
+Style: TikTokCyan,{resolved_font},{font_size},&H00FFE600,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0.5,0,1,{front_outline},0,2,60,60,420,1
 Style: TikTokMinimalPill,{resolved_font},{font_size - 6},{primary},&H000000FF,&H00000000,&HCC000000,1,0,0,0,100,100,0.5,0,3,6,0,{alignment},60,60,{margin_v},1
-Style: HookHeader,{resolved_font},{hook_fs},&H00FFFFFF,&H000000FF,&H00000000,&H30000000,1,0,0,0,100,100,0.5,0,1,7.0,3.5,8,60,60,260,1
+Style: HookHeader,{resolved_font},{hook_fs},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0.5,0,1,6.0,0,8,60,60,260,1
+Style: HookHeaderShadow,{resolved_font},{hook_fs},&H00000000,&H00000000,&H00000000,&H00000000,1,0,0,0,100,100,0.5,0,1,7.0,0,8,62,58,257,1
 Style: SpecBar,{resolved_font},{font_size - 12},&H00000000,&H000000FF,&H00000000,&H0000E6FF,1,0,0,0,100,100,0.5,0,3,10,0,9,50,50,380,1
 
 [Events]
@@ -458,12 +469,13 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
         events = []
 
-        # 1. Top Hook Banner (Frameless Large Minimal Font with Crisp Outline)
+        # 1. Top Hook Banner (Frameless Large Minimal Font with Crisp Outline & Soft Shadow)
         if hook_title:
             start_t = cls._format_ass_time(0.0)
             end_t = cls._format_ass_time(hook_duration)
-            hook_text = f"{{\\an8\\fscx115\\fscy115\\t(0,120,\\fscx100\\fscy100)\\bord9\\3c&H00000000&\\shad5\\c&H00FFFFFF&}}{hook_title}"
-            events.append(f"Dialogue: 1,{start_t},{end_t},HookHeader,,0,0,0,,{hook_text}")
+            hook_anim = "{\\an8\\fscx115\\fscy115\\t(0,120,\\fscx100\\fscy100)}"
+            events.append(f"Dialogue: 0,{start_t},{end_t},HookHeaderShadow,,0,0,0,,{hook_anim}{{\\blur5\\alpha&H40&}}{hook_title}")
+            events.append(f"Dialogue: 1,{start_t},{end_t},HookHeader,,0,0,0,,{hook_anim}{hook_title}")
 
         # 1-shot Batch Translation for all micro-cues
         en_translations = []
@@ -485,7 +497,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         else:
             en_translations = [""] * len(micro_cues)
 
-        # 2. Add Rapid-Fire Micro-Cues with Stacked Bilingual Support
+        # 2. Add Rapid-Fire Micro-Cues with Stacked Bilingual Support & 2-Layer Soft Shadow
         for idx, cue in enumerate(micro_cues):
             start_t = cls._format_ass_time(cue["start"])
             end_t = cls._format_ass_time(cue["end"])
@@ -509,6 +521,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
             # Check for English Translation
             en_sub = ""
+            en_wrapped = ""
             if bilingual and idx < len(en_translations):
                 candidate_en = (en_translations[idx] or cue.get("translation", "")).strip()
                 if candidate_en and not any(sig in candidate_en for sig in ["Error 500", "500.", "That's an error", "<html"]):
@@ -519,7 +532,14 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 else:
                     cue["translation"] = ""
 
-            line_entry = f"Dialogue: 0,{start_t},{end_t},{style},,0,0,0,,{anim}{highlighted_text}{en_sub}"
+            # Layer 0: Natural Soft Feathered Shadow (Gaussian Blur matching Canvas preview)
+            if not is_pill_mode:
+                en_sub_shadow = f"\\N{{\\fscx55\\fscy55}}{en_wrapped}" if en_wrapped else ""
+                shadow_tag = f"{{\\blur{shadow_blur}\\alpha&H38&}}"
+                events.append(f"Dialogue: 0,{start_t},{end_t},TikTokSoftShadow,,0,0,0,,{anim}{shadow_tag}{text}{en_sub_shadow}")
+
+            # Layer 1: Crisp Foreground Text with dynamic kinetic highlights
+            line_entry = f"Dialogue: 1,{start_t},{end_t},{style},,0,0,0,,{anim}{highlighted_text}{en_sub}"
             events.append(line_entry)
 
         # 3. Spec-Bar Overlays (IT vertical: the number goes on screen, not
