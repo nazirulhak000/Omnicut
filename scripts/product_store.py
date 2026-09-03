@@ -435,10 +435,30 @@ class ProductStore:
                             changed = True
 
                         if mp4_path:
-                            if angle.get("status") != "rendered" or angle.get("video_url") != mp4_path:
-                                angle["status"] = "rendered"
-                                angle["video_url"] = mp4_path
-                                changed = True
+                            # If angle has a QC failure note or is explicitly set to in_production,
+                            # do NOT automatically overwrite it to 'rendered'!
+                            if angle.get("qc_note"):
+                                if angle.get("status") != "in_production":
+                                    angle["status"] = "in_production"
+                                    changed = True
+                                if angle.get("video_url") != mp4_path:
+                                    angle["video_url"] = mp4_path
+                                    changed = True
+                            elif angle.get("status") in ("mobile_ready", "posted"):
+                                # Preserve advanced lifecycle status
+                                if angle.get("video_url") != mp4_path:
+                                    angle["video_url"] = mp4_path
+                                    changed = True
+                            elif angle.get("status") == "in_production":
+                                # User is currently editing in Studio or sent for re-edit
+                                if angle.get("video_url") != mp4_path:
+                                    angle["video_url"] = mp4_path
+                                    changed = True
+                            else:
+                                if angle.get("status") != "rendered" or angle.get("video_url") != mp4_path:
+                                    angle["status"] = "rendered"
+                                    angle["video_url"] = mp4_path
+                                    changed = True
                         else:
                             # Project timeline exists in 03_Projects, but NO exported MP4 video yet!
                             # It MUST be 'in_production', NOT 'rendered'!
