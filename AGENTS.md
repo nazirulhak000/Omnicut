@@ -29,7 +29,7 @@ AI ทุกตัว**ต้องเคารพโครงสร้างโ
 - `scripts/`: Backend Engine & Pipeline หลัก (FastAPI, TTS, Subtitles, Scraper, Editor)
 - `tools/`: สคริปต์ Utility เสริม (ดาวน์โหลดฟอนต์, เจนป้าย 3D, จัดการ Asset)
 - `frontend/`: Web Application UI (React + Vite)
-- `.agents/rules/`: กฎเฉพาะทาง เช่น การเจนสติกเกอร์ ([sticker_generation.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/sticker_generation.md))
+- `.agents/rules/`: กฎเฉพาะทาง เช่น การเจนสติกเกอร์ ([sticker_generation.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/sticker_generation.md)) และมาตรฐาน UI คลีนไร้สัญลักษณ์ซ้ำซ้อน ([ui_clean_standard.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/ui_clean_standard.md))
 
 ---
 
@@ -42,6 +42,7 @@ AI ทุกตัว**ต้องเคารพโครงสร้างโ
 5. ❌ **ห้ามติดตั้ง Global Python Package นอกเหนือจาก `requirements.txt`** หรือติดตั้งโดยไม่ผ่าน Virtual Environment
 6. ❌ **ห้ามสร้างสติกเกอร์ที่ระบุข้อความเจาะจงเฉพาะสินค้า** (เช่น เขียนชื่อรุ่นสินค้าลงในรูป) ให้สร้างเฉพาะ **Universal Reusable Badges (6 รูปแบบมาตรฐาน)** เพื่อให้ใช้ซ้ำได้กับทุกคลิป
 7. ❌ **ห้ามใส่จุดไข่ปลา หรือ "..." หรือ "…" ในบทพูดสคริปต์เด็ดขาด** ให้ใช้การเว้นวรรคตามธรรมชาติ เพราะจุดไข่ปลาจะหลุดไปติดในซับไตเติลบนหน้าจอ ทำให้ดูรกและผู้ใช้ต้องมานั่งลบเอง
+8. ❌ **ห้ามใส่สัญลักษณ์หรือตัวอักษรซ้ำซ้อนในปุ่มหรือ UI เด็ดขาด (Strict No-Redundant Symbols in UI):** ห้ามใส่เครื่องหมายบวก `+` นำหน้าข้อความเมื่อมีไอคอน `<Upload />` หรือ `<Plus />` อยู่แล้ว และห้ามใส่อีโมจิซ้อนหน้าข้อความเมื่อมีไอคอน Lucide แสดงอยู่แล้ว (เช่น ห้ามทำ `<Upload /> + แนบคลิป` หรือ `<Play /> ▶️ เปิดดู`) ต้องปฏิบัติตาม [.agents/rules/ui_clean_standard.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/ui_clean_standard.md) เสมอ ทั้งระบบต้องเป็นมาตรฐานเดียวกัน 100% ห้ามมีซ้ำซ้อน
 
 ---
 
@@ -73,6 +74,10 @@ AI ทุกตัว**ต้องเคารพโครงสร้างโ
 7. ✔️ **มาตรฐานการตัดต่อแบบ J-Cut (Audio Lead-in Standard):**
    - ต้องปฏิบัติตาม [.agents/rules/j_cut_rules.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/j_cut_rules.md)
    - ใช้เทคนิค **J-Cut** ในการตัดต่อสลับช็อต B-roll: เสียงประโยคถัดไป (หรือ SFX Whoosh ข้ามฉาก) ต้องดังขึ้นก่อนภาพตัดเปลี่ยน 150 – 250ms เพื่อลดความแข็งกระด้างของการตัดแบบกระตุก (Avoid Jarring Jump Cuts) และสร้างความอยากรู้ล่วงหน้า (Anticipation) ให้คนดูติดตามต่อจนจบ
+8. ✔️ **มาตรฐาน UI คลีนและสถานะตามโฟลว์จริง (Clean & Unified UI Standard):**
+   - ต้องปฏิบัติตาม [.agents/rules/ui_clean_standard.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/ui_clean_standard.md)
+   - ข้อความปุ่มต้องกระชับ ตรงไปตรงมา ขึ้นต้นด้วยคำกริยาแอ็กชันทันทีโดยไม่มีสัญลักษณ์นำหน้า
+   - สถานะคลิปต้องสะท้อนความเป็นจริงเท่านั้น: มีโฟลเดอร์โปรเจกต์ในไทม์ไลน์แต่ยังไม่เรนเดอร์ = `กำลังตัดต่อ` (`in_production`), มีไฟล์ MP4 ที่ Export เสร็จสิ้นจริง = `ตัดต่อเสร็จ` (`rendered`) ห้ามมีปุ่มเลื่อนข้ามสถานะเองโดยไม่ผ่านการทำงานจริง
 
 ---
 
