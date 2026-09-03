@@ -323,7 +323,7 @@ class SubtitleEngine:
         return "\\N".join(lines) if len(lines) > 1 else clean
 
     @classmethod
-    def wrap_en_for_ass(cls, text: str, max_chars_per_line: int = 50) -> str:
+    def wrap_en_for_ass(cls, text: str, max_chars_per_line: int = 58) -> str:
         """Wraps long English subtitles neatly at word boundaries."""
         clean = text.strip().replace("\r", "").replace("\n", " ")
         if len(clean) <= max_chars_per_line:
@@ -526,7 +526,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 candidate_en = (en_translations[idx] or cue.get("translation", "")).strip()
                 if candidate_en and not any(sig in candidate_en for sig in ["Error 500", "500.", "That's an error", "<html"]):
                     cue["translation"] = candidate_en
-                    en_wrapped = cls.wrap_en_for_ass(candidate_en, max_chars_per_line=44)
+                    en_wrapped = cls.wrap_en_for_ass(candidate_en, max_chars_per_line=58)
                     en_color = "\\c&H00EAEAEA&"
                     en_sub = f"\\N{{\\fscx68\\fscy68{en_color}}}{en_wrapped}"
                 else:
