@@ -1,6 +1,5 @@
 import os
 import sys
-import re
 import argparse
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -175,7 +174,7 @@ class TikTokAutoCutterPipeline:
                 overlays = script_overlays or []
                 lines = [
                     {
-                        "text": re.sub(r'\s+', ' ', re.sub(r'[\.]{2,}|…', ' ', l.strip())).strip(),
+                        "text": l.strip(),
                         "sfx": "pop" if i > 0 else "whoosh",
                         # Spec-bar text for this line, e.g. "20W PD" -- see
                         # subtitle_engine.py's SpecBar style. Index-aligned with
