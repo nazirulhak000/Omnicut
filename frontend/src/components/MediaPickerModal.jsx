@@ -344,7 +344,7 @@ export default function MediaPickerModal({
               }`}
             >
               <Upload className="w-3.5 h-3.5" />
-              <span>+ อัปโหลดคลิปใหม่</span>
+              <span>อัปโหลดคลิปใหม่</span>
             </button>
           </div>
 
@@ -522,7 +522,7 @@ export default function MediaPickerModal({
                 icon={Upload}
                 onClick={() => setActiveTab('upload')}
               >
-                + อัปโหลดคลิปเข้าสู่ระบบ
+                อัปโหลดคลิปเข้าสู่ระบบ
               </Button>
             </div>
           ) : (

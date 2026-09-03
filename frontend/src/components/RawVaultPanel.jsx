@@ -377,7 +377,7 @@ export default function RawVaultPanel() {
               }}
               className="w-full sm:w-auto shadow-lg shadow-[#25F4EE]/20 justify-center"
             >
-              + อัปโหลดคลิปใหม่
+              อัปโหลดคลิปใหม่
             </Button>
           </div>
         </div>
@@ -512,7 +512,7 @@ export default function RawVaultPanel() {
             icon={Upload}
             onClick={() => setUploadModalOpen(true)}
           >
-            + อัปโหลดคลิปดิบเข้าคลัง
+            อัปโหลดคลิปดิบเข้าคลัง
           </Button>
         </div>
       ) : (
@@ -590,8 +590,8 @@ export default function RawVaultPanel() {
                       }}
                       className="px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs"
                     >
-                      <span className="hidden xs:inline sm:inline">+ เพิ่มคลิป</span>
-                      <span className="inline xs:hidden sm:hidden">+ เพิ่ม</span>
+                      <span className="hidden xs:inline sm:inline">เพิ่มคลิป</span>
+                      <span className="inline xs:hidden sm:hidden">เพิ่ม</span>
                     </Button>
                   </div>
                 </div>
@@ -601,7 +601,7 @@ export default function RawVaultPanel() {
                   <div className="p-4 sm:p-5 pt-0 border-t border-white/[0.04]">
                     {videos.length === 0 ? (
                       <div className="py-8 text-center text-slate-500 text-xs">
-                        ยังไม่มีคลิปดิบในสินค้านี้ — กดปุ่ม "+ เพิ่มคลิปเข้าสินค้านี้" เพื่ออัปโหลด
+                        ยังไม่มีคลิปดิบในสินค้านี้ — กดปุ่ม "เพิ่มคลิป" เพื่ออัปโหลด
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 mt-3">

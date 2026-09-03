@@ -166,7 +166,8 @@ const KanbanCard = memo(function KanbanCard({
               className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-95 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-sm flex-shrink-0"
               title={ang.project_name ? `เปิดไทม์ไลน์ของมุมนี้ (${ang.project_name})` : "เปิดทำต่อในหน้าตัดต่อ"}
             >
-              <span>{ang.project_name ? '🎬 เปิดไทม์ไลน์' : 'ไปหน้าตัดต่อ'}</span>
+              <Clapperboard className="w-3.5 h-3.5" />
+              <span>{ang.project_name ? 'เปิดไทม์ไลน์' : 'ไปหน้าตัดต่อ'}</span>
               <ArrowRight className="w-3 h-3" />
             </button>
           )}

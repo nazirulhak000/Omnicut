@@ -226,7 +226,7 @@ function ScriptAccordionItem({
                 title="เปิดคลังเลือกคลิปแบบ Grid พร้อมดูภาพพรีวิวและค้นหา"
               >
                 <FolderOpen className="w-3.5 h-3.5" />
-                <span>{selectedVideos.length > 0 ? `เปลี่ยน/เลือกคลิป (${videos.length})` : `+ กดเลือกคลิป (${videos.length})`}</span>
+                <span>{selectedVideos.length > 0 ? `เปลี่ยน/เลือกคลิป (${videos.length})` : `เลือกคลิป (${videos.length})`}</span>
               </button>
 
               {/* Show ONLY Selected Footage Tags (with X to remove) */}
@@ -278,7 +278,7 @@ function ScriptAccordionItem({
                     title="เปิดดูวิดีโอที่ตัดต่อและ Export เสร็จแล้ว (ตรวจ QC)"
                   >
                     <Film className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>👁️ ดูคลิปที่ Export แล้ว</span>
+                    <span>ดูคลิปที่ Export แล้ว</span>
                   </button>
                 )}
                 <button
@@ -295,7 +295,7 @@ function ScriptAccordionItem({
                   title="เปิดดูวิดีโอที่ตัดเสร็จแล้วในไทม์ไลน์ทันที"
                 >
                   <Play className="w-3.5 h-3.5 fill-white text-white" />
-                  <span>▶️ เปิดดูในไทม์ไลน์</span>
+                  <span>เปิดดูในไทม์ไลน์</span>
                   <ArrowRight className="w-3 h-3 text-white/80" />
                 </button>
                 <button
@@ -324,7 +324,7 @@ function ScriptAccordionItem({
                   title="เปิดตัดต่อในไทม์ไลน์"
                 >
                   <Play className="w-3.5 h-3.5 fill-white text-white" />
-                  <span>🎬 เปิดทำต่อในไทม์ไลน์</span>
+                  <span>เปิดทำต่อในไทม์ไลน์</span>
                   <ArrowRight className="w-3 h-3 text-white/80" />
                 </button>
                 <button
@@ -1187,8 +1187,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   disabled={uploadingImg}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 />
-                <Upload className="w-3 h-3 pointer-events-none" />
-                <span className="pointer-events-none">{uploadingImg ? 'อัปโหลด...' : '+ แนบคลิป/รูปเข้าคลัง'}</span>
+                <Upload className="w-3.5 h-3.5 pointer-events-none" />
+                <span className="pointer-events-none">{uploadingImg ? 'กำลังอัปโหลด...' : 'แนบคลิป/รูปเข้าคลัง'}</span>
               </label>
             </div>
 
@@ -1428,7 +1428,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
               className="flex items-center gap-1.5 text-xs"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>+ วิเคราะห์สินค้าใหม่</span>
+              <span>วิเคราะห์สินค้าใหม่</span>
             </Button>
             <Button
               variant="secondary"
