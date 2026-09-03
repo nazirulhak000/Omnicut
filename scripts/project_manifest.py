@@ -71,16 +71,33 @@ class ProjectManifest:
         path = cls.path_for(project_name)
         if not path.exists():
             return None
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            return None
-        return data if isinstance(data, dict) else None
+        last_err = None
+        for attempt in range(8):
+            try:
+                content = path.read_text(encoding="utf-8")
+                if not content.strip():
+                    time.sleep(0.04 * (attempt + 1))
+                    continue
+                data = json.loads(content)
+                if isinstance(data, dict):
+                    return data
+            except (json.JSONDecodeError, OSError) as err:
+                last_err = err
+                time.sleep(0.04 * (attempt + 1))
+        if last_err:
+            print(f"[ProjectManifest.load] Warning: Failed to read manifest at {path} after retries: {last_err}")
+        return None
 
     @classmethod
     def require(cls, project_name: str) -> Dict[str, Any]:
         manifest = cls.load(project_name)
         if not manifest:
+            path = cls.path_for(project_name)
+            if path.exists():
+                time.sleep(0.1)
+                manifest = cls.load(project_name)
+                if manifest:
+                    return manifest
             raise ValueError(
                 f"ไม่พบ manifest ของโปรเจกต์ '{project_name}' — ต้อง render เต็มรอบอย่างน้อย 1 ครั้งก่อนถึงจะสุ่มใหม่ได้"
             )

@@ -986,18 +986,19 @@ export default function EditorShell({
     setJobStatus({ progress: 0.05, message: 'กำลังเตรียมข้อมูล...' });
 
     try {
-      // Always guarantee cues are 100% saved before starting render
+      // Guarantee cues, clips, and transitions are 100% saved in a single atomic transaction before render
       const serializedCues = cuesList.map(({ _uid, ...c }) => c);
-      await updateProjectCues(projectName, { cues: serializedCues }).catch(() => {});
-
       const serializedClips = clipList.map(({ id, transition_in, transition_duration, ...c }) => c);
       const serializedTransitions = clipList.slice(1).map((c) => ({
         type: c.transition_in || 'cut',
         duration: c.transition_duration ?? FADE_DURATION,
       }));
 
-      // Persist clip edits to project.json
-      updateProjectClips(projectName, { clip_list: serializedClips, transitions: serializedTransitions }).catch(() => {});
+      await updateProjectState(projectName, {
+        cues: serializedCues,
+        clip_list: serializedClips,
+        transitions: serializedTransitions,
+      }).catch(() => {});
 
       const res = await startReroll({
         project_name: projectName,
