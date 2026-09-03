@@ -91,8 +91,12 @@ const KanbanCard = memo(function KanbanCard({
   onInspectAngle,
   onCopyCaption,
   onQcFail,
+  onQcPass,
   copiedAngleId
 }) {
+  const isSelected = false;
+  const currentPhase = PIPELINE_PHASES.find(p => p.id === phaseId) || PIPELINE_PHASES[0];
+
   const captionText = `${ang.tiktok_caption || ''}\n\n${ang.tiktok_hashtags || ''}`.trim();
   const curIdx = PHASE_ORDER.indexOf(phaseId);
   const prevPhase = curIdx > 0 ? PHASE_ORDER[curIdx - 1] : null;
@@ -107,17 +111,39 @@ const KanbanCard = memo(function KanbanCard({
     <div
       className={`p-2.5 rounded-xl border transition-all space-y-2 relative group shadow-sm ${
         ang.qc_note
-          ? 'bg-[#120A06] border-red-500/40 hover:border-red-400/60'
+          ? 'bg-[#120A06] border-red-500/40 hover:border-red-400/60 ring-1 ring-red-500/20'
+          : phaseId === 'rendered'
+          ? 'bg-[#09111C] border-[#25F4EE]/30 hover:border-[#25F4EE]/60 shadow-[#25F4EE]/5'
           : 'bg-[#0B0F19] border-white/[0.08] hover:border-[#25F4EE]/40'
       }`}
     >
-      {/* QC Fail banner — only visible when qc_note is set */}
-      {ang.qc_note && (
-        <div className="flex items-start gap-1.5 py-1 px-2 rounded-lg bg-red-500/15 border border-red-500/30 text-red-300 text-xs font-bold">
-          <ShieldAlert className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-red-400" />
-          <span className="leading-snug">QC ไม่ผ่าน: {ang.qc_note}</span>
+      {/* QC Status Banner: Red if failed (with one-click fix button), Cyan if passed/rendered */}
+      {ang.qc_note ? (
+        <div className="flex items-center justify-between gap-1.5 py-1 px-2 rounded-lg bg-red-500/15 border border-red-500/30 text-red-300 text-xs font-bold">
+          <div className="flex items-start gap-1.5 min-w-0 flex-1">
+            <ShieldAlert className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-red-400" />
+            <span className="leading-snug truncate" title={ang.qc_note}>QC ไม่ผ่าน: {ang.qc_note}</span>
+          </div>
+          {onQcPass && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onQcPass(ang); }}
+              className="px-2 py-0.5 rounded-md bg-gradient-to-r from-[#25F4EE] to-cyan-400 hover:brightness-110 text-slate-950 font-black text-[10px] cursor-pointer shadow-sm shadow-[#25F4EE]/20 whitespace-nowrap active:scale-95 transition-all"
+              title="กดตรงนี้เพื่อแก้ให้เป็น QC ผ่านสีฟ้าทันที"
+            >
+              แก้เป็นผ่าน
+            </button>
+          )}
         </div>
-      )}
+      ) : (phaseId === 'rendered' && (
+        <div className="flex items-center justify-between py-0.5 px-2 rounded-lg bg-[#25F4EE]/10 border border-[#25F4EE]/25 text-[#25F4EE] text-xs font-bold">
+          <span className="flex items-center gap-1.5">
+            <Check className="w-3.5 h-3.5 text-[#25F4EE]" />
+            <span>QC ผ่าน (พร้อมใช้งาน)</span>
+          </span>
+        </div>
+      ))}
+      
       {/* 1. Header: Product Name + Badge + Detail Inspect Icon */}
       <div className="flex items-center justify-between gap-1.5 text-xs">
         <span
@@ -157,7 +183,7 @@ const KanbanCard = memo(function KanbanCard({
         <div className="w-full max-w-[100px] mx-auto pt-0.5">
           <HoverVideoThumb
             videoUrl={ang.video_url}
-            onClick={() => onPreviewVideo(ang.video_url)}
+            onClick={() => onPreviewVideo(ang.video_url, ang)}
           />
         </div>
       )}
@@ -198,12 +224,22 @@ const KanbanCard = memo(function KanbanCard({
             <>
               {ang.video_url && (
                 <button
-                  onClick={() => onPreviewVideo(ang.video_url)}
+                  onClick={() => onPreviewVideo(ang.video_url, ang)}
                   className="px-2 py-1.5 rounded-lg bg-white/[0.06] border border-white/[0.08] text-slate-200 hover:bg-white/[0.12] text-xs font-bold flex items-center gap-1 cursor-pointer"
                   title="พรีวิวตรวจ QC"
                 >
                   <Play className="w-3 h-3 fill-current text-[#25F4EE]" />
                   <span>QC</span>
+                </button>
+              )}
+              {onQcPass && (
+                <button
+                  onClick={() => onQcPass(ang)}
+                  className="px-2.5 py-1.5 rounded-lg bg-[#25F4EE]/20 hover:bg-[#25F4EE]/35 border border-[#25F4EE]/50 text-[#25F4EE] hover:text-white text-xs font-bold flex items-center gap-1 shadow-sm shadow-[#25F4EE]/15 cursor-pointer transition-all active:scale-95"
+                  title={ang.qc_note ? "คลิกเพื่อแก้ให้ QC ผ่านทันที (ล้างป้ายแดงออก)" : "คลิกเพื่อยืนยัน QC ผ่าน (พร้อมส่งมือถือ)"}
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>QC ผ่าน</span>
                 </button>
               )}
               <button
@@ -285,6 +321,7 @@ const TableRow = memo(function TableRow({
   onOpenQrModal,
   onInspectAngle,
   onCopyCaption,
+  onQcPass,
   copiedAngleId
 }) {
   const currentPhase = PIPELINE_PHASES.find(p => p.id === ang.status) || PIPELINE_PHASES[0];
@@ -393,6 +430,17 @@ const TableRow = memo(function TableRow({
             <span>Studio</span>
           </button>
 
+          {(ang.status === 'rendered' || ang.qc_note) && onQcPass && (
+            <button
+              onClick={() => onQcPass(ang)}
+              className="py-1 px-2 rounded-lg bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/35 text-[#25F4EE] text-xs font-bold flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+              title="รับรอง QC ผ่าน (ล้างป้ายแดงออก)"
+            >
+              <Check className="w-3 h-3 text-[#25F4EE]" />
+              <span>QC ผ่าน</span>
+            </button>
+          )}
+
           <button
             onClick={() => onOpenQrModal(ang)}
             className="p-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-300 cursor-pointer"
@@ -425,10 +473,16 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
   });
   const [copiedAngleId, setCopiedAngleId] = useState(null);
   const [previewVideoUrl, setPreviewVideoUrl] = useState(null);
+  const [previewVideoAngle, setPreviewVideoAngle] = useState(null);
   const [qrModalItem, setQrModalItem] = useState(null);
   const [inspectAngle, setInspectAngle] = useState(null); // Deep-Dive Inspection state
   const colRefs = useRef({});
   const { toastMessage, showToast, hideToast } = useToast();
+
+  const handlePreviewVideo = useCallback((url, ang = null) => {
+    setPreviewVideoUrl(url);
+    setPreviewVideoAngle(ang);
+  }, []);
 
   const handleSwitchViewMode = (mode) => {
     setViewMode(mode);
@@ -524,6 +578,22 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
     setQcFailNote('');
     setInspectAngle(null); // close inspect modal if open
   }, [qcFailTarget, qcFailNote, handleAngleStatusChange, showToast]);
+
+  const handleQcPass = useCallback(async (ang, moveToNext = false) => {
+    if (!ang || !ang.parentProduct) return;
+    const nextStatus = moveToNext ? 'mobile_ready' : (ang.status || 'rendered');
+    await handleAngleStatusChange(
+      ang.parentProduct.id,
+      ang.angle_id,
+      nextStatus,
+      ang.video_url || null,
+      null,     // clear qc_note
+      true,     // clearQcNote
+    );
+    showToast('🎉 QC ผ่านเรียบร้อยแล้ว! ล้างข้อความไม่ผ่านออก และการ์ดเป็นสีฟ้าพร้อมใช้งาน');
+    setPreviewVideoUrl(null);
+    setPreviewVideoAngle(null);
+  }, [handleAngleStatusChange, showToast]);
 
   const handleSendToStudio = useCallback((product, angle, angleIdx = -1) => {
     if (!onApplyToStudio) return;
@@ -905,6 +975,18 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                   </button>
                 )}
 
+                {/* Button 3.5: QC Pass (one-click approve/clear QC fail) */}
+                {(inspectAngle.status === 'rendered' || inspectAngle.qc_note) && (
+                  <button
+                    onClick={() => handleQcPass(inspectAngle)}
+                    className="py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-[#25F4EE] to-cyan-400 hover:brightness-110 text-slate-950 text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-md shadow-[#25F4EE]/20 flex-shrink-0 active:scale-95"
+                    title="กดเพื่อรับรอง QC ผ่านทันที (ล้างป้ายแดงออก)"
+                  >
+                    <Check className="w-3.5 h-3.5 text-slate-950 stroke-[3]" />
+                    <span>QC ผ่าน</span>
+                  </button>
+                )}
+
                 {/* Button 4: Mobile QR */}
                 <button
                   onClick={() => {
@@ -974,21 +1056,55 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
         )}
       </Modal>
 
-      {/* Video Modal Preview */}
+      {/* Video Modal Preview with Direct QC Control Panel */}
       <Modal
         isOpen={!!previewVideoUrl}
-        onClose={() => setPreviewVideoUrl(null)}
+        onClose={() => { setPreviewVideoUrl(null); setPreviewVideoAngle(null); }}
         title="พรีวิววิดีโอ (ตรวจ QC ก่อนโพสต์)"
+        subtitle={previewVideoAngle?.hook_title}
         maxWidth="max-w-md"
       >
         {previewVideoUrl && (
-          <div className="space-y-3">
+          <div className="space-y-3.5">
             <video
               src={`/api/media/${previewVideoUrl}`}
               controls
               autoPlay
-              className="w-full rounded-2xl bg-black aspect-[9/16] object-contain max-h-[70vh] shadow-2xl border border-white/[0.08]"
+              className="w-full rounded-2xl bg-black aspect-[9/16] object-contain max-h-[62vh] shadow-2xl border border-white/[0.08]"
             />
+
+            {/* Quick QC Decision Toolbar */}
+            {previewVideoAngle && (
+              <div className="p-3 rounded-2xl bg-[#080B11] border border-white/[0.1] space-y-2.5 shadow-xl">
+                {previewVideoAngle.qc_note && (
+                  <div className="flex items-center gap-2 py-1.5 px-2.5 rounded-xl bg-red-500/15 border border-red-500/30 text-xs font-bold text-red-300">
+                    <ShieldAlert className="w-4 h-4 text-red-400 flex-shrink-0" />
+                    <span className="truncate">สถานะเดิม: QC ไม่ผ่าน ({previewVideoAngle.qc_note})</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleQcPass(previewVideoAngle)}
+                    className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#25F4EE] to-blue-500 hover:brightness-110 text-slate-950 text-xs font-black flex items-center justify-center gap-1.5 shadow-md shadow-[#25F4EE]/25 cursor-pointer active:scale-95 transition-all"
+                  >
+                    <Check className="w-4 h-4 text-slate-950 stroke-[3]" />
+                    <span>ยืนยัน QC ผ่าน (เปลี่ยนเป็นการ์ดสีฟ้า)</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      const ang = previewVideoAngle;
+                      setPreviewVideoUrl(null);
+                      setPreviewVideoAngle(null);
+                      handleQcFail(ang);
+                    }}
+                    className="py-2.5 px-3 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-all flex-shrink-0"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>ไม่ผ่าน</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </Modal>
@@ -1212,11 +1328,12 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                           phaseId={phase.id}
                           onSendToStudio={handleSendToStudio}
                           onStatusChange={handleAngleStatusChange}
-                          onPreviewVideo={setPreviewVideoUrl}
+                          onPreviewVideo={handlePreviewVideo}
                           onOpenQrModal={setQrModalItem}
                           onInspectAngle={setInspectAngle}
                           onCopyCaption={handleCopyCaption}
                           onQcFail={handleQcFail}
+                          onQcPass={handleQcPass}
                           copiedAngleId={copiedAngleId}
                         />
                       ))
@@ -1259,10 +1376,11 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                       ang={ang}
                       onSendToStudio={handleSendToStudio}
                       onStatusChange={handleAngleStatusChange}
-                      onPreviewVideo={setPreviewVideoUrl}
+                      onPreviewVideo={handlePreviewVideo}
                       onOpenQrModal={setQrModalItem}
                       onInspectAngle={setInspectAngle}
                       onCopyCaption={handleCopyCaption}
+                      onQcPass={handleQcPass}
                       copiedAngleId={copiedAngleId}
                     />
                   ))
