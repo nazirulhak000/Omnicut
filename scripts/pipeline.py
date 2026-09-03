@@ -55,6 +55,7 @@ class TikTokAutoCutterPipeline:
         hook_model: Optional[str] = None,
         hook_label: Optional[str] = None,
         hook_duration: float = 3.0,
+        hook_motion: Optional[Dict[str, bool]] = None,
         font_name: str = "IBMPlex",
         bilingual_subtitles: bool = True,
         use_ai_vision: bool = True,
@@ -408,7 +409,11 @@ class TikTokAutoCutterPipeline:
             if hook_duration is not None and abs(float(hook_duration) - 3.0) > 0.01:
                 effective_hook_duration = float(hook_duration)
             else:
-                effective_hook_duration = max(1.6, min(banner_combined_len / 11.0 + 0.6, 5.0))
+                # Floor raised from 1.6 -> 2.0: the staggered elastic-bounce
+                # entrance (brand/model/label settle by ~750ms) plus at least
+                # one pulse cycle plus the 150ms exit fade needs more room
+                # than the old flat 120ms pop-in ever did.
+                effective_hook_duration = max(2.0, min(banner_combined_len / 11.0 + 0.6, 5.0))
             effective_hook_duration = min(effective_hook_duration, total_duration)
             if effective_hook_brand or hook_model or hook_label:
                 gradient_hook_duration = effective_hook_duration
@@ -420,6 +425,7 @@ class TikTokAutoCutterPipeline:
                 hook_model=hook_model,
                 hook_label=hook_label,
                 hook_duration=effective_hook_duration,
+                hook_motion=hook_motion,
                 bilingual=bilingual_subtitles,
                 caption_position=caption_position,
                 caption_color=caption_color,
@@ -934,6 +940,7 @@ class TikTokAutoCutterPipeline:
                 "hook_brand": hook_brand,
                 "hook_model": hook_model,
                 "hook_label": hook_label,
+                "hook_motion": hook_motion,
                 "custom_script": custom_script,
                 "script_overlays": script_overlays,
                 "voice": voice,

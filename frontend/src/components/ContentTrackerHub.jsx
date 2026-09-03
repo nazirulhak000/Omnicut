@@ -445,8 +445,8 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
       : (angle.script_text ? angle.script_text.split('\n') : []);
     const scriptText = scriptLines.join('\n');
 
-    // Move to Phase 2: in_production
-    handleAngleStatusChange(product.id, angle.angle_id, 'in_production');
+    // Do NOT set in_production prematurely when merely opening studio!
+    // Status only becomes 'in_production' when a timeline project actually exists in 03_Projects.
 
     let resolvedIdx = angleIdx;
     if (resolvedIdx < 0 && product?.angles) {

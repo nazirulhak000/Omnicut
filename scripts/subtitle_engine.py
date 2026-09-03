@@ -866,13 +866,14 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         # block below already uses, so every property (\fscx/\fscy/\c) that
         # matters is re-declared per line and nothing leaks across a \N.
         if hook_brand or hook_model or hook_label:
+            motion = _resolve_hook_motion(hook_motion)
             start_t = cls._format_ass_time(0.0)
             end_t = cls._format_ass_time(hook_duration)
             # Exit fade in the last 150ms instead of a hard cut to nothing --
             # `\t` offsets are relative to this event's own Start (0 here),
             # so they double as absolute ms, and every tier shares the same
             # Start -- all pop in / fade out in lockstep. Guarded against a
-            # hook shorter than the entry animation (120ms) ever producing
+            # hook shorter than the entry animation ever producing
             # exit_start >= exit_end, which a renderer could choke on.
             exit_end_ms = int(hook_duration * 1000)
             exit_start_ms = max(120, exit_end_ms - 150)
@@ -880,20 +881,26 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 exit_start_ms = max(0, exit_end_ms - 50)
             exit_tag = f"\\t({exit_start_ms},{exit_end_ms},\\alpha&HFF&)"
 
-            # (raw text, target scale % of hook_fs, Main-layer colour)
+            # (raw text, target scale % of hook_fs, Main-layer colour, tier index)
+            # tier index also doubles as the stagger slot (0=brand, 1=model,
+            # 2=label) and marks which physical line(s) the accent underline
+            # attaches under (tier 1, model).
             hook_tier_specs = [
-                (hook_brand, 130, "&H00FFFFFF"),
-                (hook_model, 100, ass_colour(caption_color) or "&H0000E6FF"),
-                (hook_label, 58, "&H00E0E0E0"),
+                (hook_brand, 130, "&H00FFFFFF", 0),
+                (hook_model, 100, ass_colour(caption_color) or "&H0000E6FF", 1),
+                (hook_label, 58, "&H00E0E0E0", 2),
             ]
+            model_colour = ass_colour(caption_color) or "&H0000E6FF"
 
             # Pass 1: wrap each tier at its OWN char width -- a 130%-scale
             # line needs a narrower wrap than a 58%-scale one, or the brand
             # line runs wider than the frame while the label line wraps too
             # early. wrap_text_for_ass is the same balanced-wrap caption
             # already uses below; the hook banner never called it before.
-            tier_lines = []  # (line_text, scale_pct, colour)
-            for raw_text, scale_pct, colour in hook_tier_specs:
+            tier_lines = []  # (line_text, scale_pct, colour, tier_idx)
+            model_tier_fs_final = None
+            model_last_line = None
+            for raw_text, scale_pct, colour, tier_idx in hook_tier_specs:
                 text = str(raw_text or "").strip()
                 if not text:
                     continue
@@ -902,31 +909,99 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 tier_fs = max(20, int(round(hook_fs * scale_pct / 100)))
                 dyn_max_chars = max(8, int(round(2600 / tier_fs)))
                 wrapped = cls.wrap_text_for_ass(text, max_chars_per_line=dyn_max_chars)
-                for line in wrapped.split("\\N"):
-                    tier_lines.append((line, scale_pct, colour))
+                lines = wrapped.split("\\N")
+                for line in lines:
+                    tier_lines.append((line, scale_pct, colour, tier_idx))
+                if tier_idx == 1:
+                    model_last_line = lines[-1]
 
             if tier_lines:
                 # Pass 2: more than ~4 lines total (e.g. a long brand name
                 # wrapping twice) starts crowding the sticker badge
-                # (top-right, y=140) and reads as clutter for a 3-second
+                # (top-right, y=140) and reads as clutter for a short
                 # banner -- shrink every tier proportionally instead of
                 # letting the block grow unbounded. Floor at 0.7 so it never
                 # shrinks past reading as a headline.
                 HOOK_COMFORTABLE_LINES = 4
                 shrink = max(0.7, min(1.0, HOOK_COMFORTABLE_LINES / len(tier_lines)))
+                STAGGER_STEP_MS = 150
+
+                # Line-height factor for the manual vertical cursor the
+                # underline drawing needs (ASS has no API to ask libass
+                # where a wrapped line actually landed). Tuned against a
+                # real rendered frame, not derived analytically -- if the
+                # underline drifts from the model line after a font change,
+                # adjust this first.
+                LINE_HEIGHT_FACTOR = 1.28
 
                 shadow_parts, main_parts = [], []
-                for line, scale_pct, colour in tier_lines:
+                max_entry_end_ms = 0
+                for line, scale_pct, colour, tier_idx in tier_lines:
                     target = round(scale_pct * shrink)
-                    entry_from = round(target * 1.15)
-                    anim = f"\\fscx{entry_from}\\fscy{entry_from}\\t(0,120,\\fscx{target}\\fscy{target})"
+                    t0_ms = tier_idx * STAGGER_STEP_MS if motion["stagger"] else 0
+                    anim, entry_end_ms = _hook_entry_anim(target, t0_ms, motion["bounce"])
+                    max_entry_end_ms = max(max_entry_end_ms, entry_end_ms)
                     shadow_parts.append(f"{{\\an8{anim}\\blur5\\alpha&H40&{exit_tag}}}{line}")
                     main_parts.append(f"{{\\an8{anim}{exit_tag}\\c{colour}&}}{line}")
+
+                    if tier_idx == 1:
+                        model_tier_fs_final = max(20, int(round(hook_fs * target / 100)))
+
+                # Pulse/breathing: starts once every tier has settled, runs
+                # until the exit fade takes over. Appended after each line's
+                # existing tags so it animates alpha on top of the entry/exit
+                # keyframes rather than replacing them.
+                if motion["pulse"]:
+                    pulse_tag = _hook_pulse_keyframes(max_entry_end_ms, exit_start_ms)
+                    if pulse_tag:
+                        shadow_parts = [p.replace(exit_tag, pulse_tag + exit_tag, 1) for p in shadow_parts]
+                        main_parts = [p.replace(exit_tag, pulse_tag + exit_tag, 1) for p in main_parts]
 
                 hook_shadow_text = "\\N".join(shadow_parts)
                 hook_main_text = "\\N".join(main_parts)
                 events.append(f"Dialogue: 0,{start_t},{end_t},HookHeaderShadow,,0,0,0,,{hook_shadow_text}")
                 events.append(f"Dialogue: 1,{start_t},{end_t},HookHeader,,0,0,0,,{hook_main_text}")
+
+                # Accent underline: a separate drawing event, positioned
+                # under the model tier's LAST wrapped line by walking the
+                # same per-line heights again and stopping once the walk
+                # moves past every model-tier line (there can be more than
+                # one if it wrapped).
+                if motion["underline"] and model_last_line and model_tier_fs_final:
+                    underline_y = 260  # HookHeader style's MarginV: top edge of the block
+                    seen_model = False
+                    for line, scale_pct, colour, tier_idx in tier_lines:
+                        if seen_model and tier_idx != 1:
+                            break
+                        target = round(scale_pct * shrink)
+                        line_fs = max(20, int(round(hook_fs * target / 100)))
+                        underline_y += round(line_fs * LINE_HEIGHT_FACTOR)
+                        if tier_idx == 1:
+                            seen_model = True
+                    underline_y += round(model_tier_fs_final * 0.12)  # small gap below the text
+
+                    plain_model_line = model_last_line  # wrap_text_for_ass output; no override blocks to strip
+                    measured_w = _measure_text_width_px(plain_model_line.replace("\\N", " "), resolved_font, model_tier_fs_final)
+                    if measured_w is None:
+                        # PIL/font-file lookup unavailable -- fall back to the
+                        # same avg-char-width assumption dyn_max_chars above
+                        # is built on, so the bar is in the right ballpark
+                        # rather than disappearing.
+                        measured_w = int(len(plain_model_line) * model_tier_fs_final * 0.55)
+                    measured_w = max(20, measured_w)
+
+                    thickness = max(3, round(model_tier_fs_final * 0.06))
+                    half_w = measured_w / 2
+                    underline_reveal_start = STAGGER_STEP_MS * 2 if motion["stagger"] else 0
+                    underline_reveal_end = underline_reveal_start + 300
+                    draw_path = f"m {-half_w:.0f} 0 l {half_w:.0f} 0 l {half_w:.0f} {thickness} l {-half_w:.0f} {thickness}"
+                    underline_tag = (
+                        f"{{\\an8\\pos({video_width // 2},{underline_y})\\p1"
+                        f"\\bord0\\shad0\\c{model_colour}&\\fscx0"
+                        f"\\t({underline_reveal_start},{underline_reveal_end},\\fscx100)"
+                        f"{exit_tag}}}"
+                    )
+                    events.append(f"Dialogue: 1,{start_t},{end_t},HookHeader,,0,0,0,,{underline_tag}{draw_path}")
 
         # 1-shot Batch Translation for all micro-cues
         en_translations = []

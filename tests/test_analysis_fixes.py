@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import tempfile
 import threading
 from pathlib import Path
@@ -172,26 +173,46 @@ def test_angle_lifecycle_and_rollback():
             prod.setdefault("angles", []).append(dummy_angle)
     ProductStore._save(all_p)
 
+    dummy_project = "TikTok_Test_Rollback_99"
+    dummy_proj_dir = ROOT / "03_Projects" / dummy_project
+    dummy_proj_dir.mkdir(parents=True, exist_ok=True)
+    (dummy_proj_dir / "project.json").write_text(json.dumps({"script_data": {"hook": "Test Hook Lifecycle 999"}}), encoding="utf-8")
+
     try:
         # 1. Update to in_production
-        ProductStore.update_angle_status(p_id, "test_angle_lifecycle_xyz", "in_production")
+        ProductStore.update_angle_status(p_id, "test_angle_lifecycle_xyz", "in_production", project_name=dummy_project)
         p = ProductStore.get(p_id)
         assert any(a["angle_id"] == "test_angle_lifecycle_xyz" and a["status"] == "in_production" for a in p["angles"])
 
         # 2. Update to rendered with project_name
-        dummy_project = "TikTok_Test_Rollback_99"
         dummy_video = f"04_Exports/Ready_to_post/{dummy_project}.mp4"
+        dummy_video_path = ROOT / dummy_video
+        dummy_video_path.parent.mkdir(parents=True, exist_ok=True)
+        dummy_video_path.write_text("dummy", encoding="utf-8")
+
         ProductStore.update_angle_status(p_id, "test_angle_lifecycle_xyz", "rendered", video_url=dummy_video, project_name=dummy_project)
         p = ProductStore.get(p_id)
         assert any(a["angle_id"] == "test_angle_lifecycle_xyz" and a["status"] == "rendered" and a["project_name"] == dummy_project for a in p["angles"])
 
-        # 3. Rollback by project name
+        # 3. Rollback by project name (after project/video removal)
+        import shutil
+        shutil.rmtree(dummy_proj_dir, ignore_errors=True)
+        if dummy_video_path.exists():
+            dummy_video_path.unlink()
+
         rolled = ProductStore.rollback_by_video_or_project(dummy_project)
         assert "test_angle_lifecycle_xyz" in rolled
         p = ProductStore.get(p_id)
         assert any(a["angle_id"] == "test_angle_lifecycle_xyz" and a["status"] == "scripted" and a["video_url"] is None for a in p["angles"])
         print("✅ Angle Lifecycle: in_production -> rendered -> rollback to scripted verified")
     finally:
+        # Clean up dummy project and dummy video
+        import shutil
+        shutil.rmtree(dummy_proj_dir, ignore_errors=True)
+        dummy_video_path = ROOT / f"04_Exports/Ready_to_post/{dummy_project}.mp4"
+        if dummy_video_path.exists():
+            dummy_video_path.unlink()
+
         # Clean up dummy angle
         try:
             ProductStore.remove_angle(p_id, "test_angle_lifecycle_xyz")

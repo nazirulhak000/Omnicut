@@ -204,6 +204,13 @@ export default function EditorShell({
   const [hookModel, setHookModel] = useState('');
   const [hookLabel, setHookLabel] = useState('');
   const [hookDuration, setHookDuration] = useState(3.0);
+  // Partial dict, only the keys the user turned OFF -- an absent key means
+  // "on", mirroring subtitle_engine's _resolve_hook_motion default so a
+  // fresh {} here renders identically to the backend's own default preset.
+  const [hookMotion, setHookMotion] = useState({});
+  const handleHookMotionToggle = useCallback((key, value) => {
+    setHookMotion((prev) => ({ ...prev, [key]: value }));
+  }, []);
   const [showHookHeader, setShowHookHeader] = useState(true);
   const [microCuesList, setMicroCuesList] = useState([]);
   const [pendingDelete, setPendingDelete] = useState(null);
@@ -376,6 +383,7 @@ export default function EditorShell({
       setHookLabel(label);
       const hookDur = Number(data.hook_duration || data.render_params?.hook_duration || 3.0);
       setHookDuration(hookDur > 0 ? hookDur : 3.0);
+      setHookMotion(data.hook_motion || data.render_params?.hook_motion || {});
       setShowHookHeader(!!brand);
 
       const fontName = data.font_name || data.render_params?.font_name || data.style?.font_name || data.style?.fontName || 'IBMPlex';
@@ -520,6 +528,7 @@ export default function EditorShell({
           hook_model: showHookHeader ? (hookModel || '') : '',
           hook_label: showHookHeader ? (hookLabel || '') : '',
           hook_duration: hookDuration || 3.0,
+          hook_motion: hookMotion,
         });
         setSaveStatus('saved');
       } catch (err) {
@@ -528,7 +537,7 @@ export default function EditorShell({
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [clipList, cuesList, style, projectName, hookBrand, hookModel, hookLabel, hookDuration, showHookHeader]);
+  }, [clipList, cuesList, style, projectName, hookBrand, hookModel, hookLabel, hookDuration, hookMotion, showHookHeader]);
 
   // Manual save handler (button click or Ctrl+S)
   const handleManualSave = useCallback(async () => {
@@ -569,13 +578,14 @@ export default function EditorShell({
         hook_model: showHookHeader ? (hookModel || '') : '',
         hook_label: showHookHeader ? (hookLabel || '') : '',
         hook_duration: hookDuration || 3.0,
+        hook_motion: hookMotion,
       });
       setSaveStatus('saved');
     } catch (err) {
       console.warn('Manual save failed:', err);
       setSaveStatus('dirty');
     }
-  }, [clipList, cuesList, style, projectName, hookBrand, hookModel, hookLabel, hookDuration, showHookHeader]);
+  }, [clipList, cuesList, style, projectName, hookBrand, hookModel, hookLabel, hookDuration, hookMotion, showHookHeader]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -1060,6 +1070,7 @@ export default function EditorShell({
         hook_model: showHookHeader ? (hookModel || '') : '',
         hook_label: showHookHeader ? (hookLabel || '') : '',
         hook_duration: hookDuration || 3.0,
+        hook_motion: hookMotion,
         font_name: style.fontName,
         bgm_name: style.bgmName,
         lut_name: style.lutName,

@@ -435,6 +435,41 @@ class ProductStore:
                             p_list.append(p_folder.name)
                             changed = True
 
+        # Strict state validation: Clean up any angle whose project or video does not actually exist on disk
+        for product in products:
+            for angle in product.get("angles", []):
+                p_name = angle.get("project_name")
+                has_proj = False
+                if p_name:
+                    p_path = projects_dir / p_name
+                    if p_path.exists() and p_path.is_dir():
+                        has_proj = True
+                
+                has_video = False
+                v_url = angle.get("video_url")
+                if v_url:
+                    if Path(v_url).exists():
+                        has_video = True
+                    else:
+                        ready_file = exports_dir / Path(v_url).name
+                        if ready_file.exists():
+                            has_video = True
+
+                if angle.get("status") == "rendered" and not has_video:
+                    if has_proj:
+                        angle["status"] = "in_production"
+                    else:
+                        angle["status"] = "scripted"
+                        angle["project_name"] = None
+                    angle["video_url"] = None
+                    changed = True
+                elif angle.get("status") == "in_production" and not has_proj:
+                    # No project folder on disk! Revert strictly to scripted
+                    angle["status"] = "scripted"
+                    angle["project_name"] = None
+                    angle["video_url"] = None
+                    changed = True
+
         if changed:
             cls._save(products)
         return changed

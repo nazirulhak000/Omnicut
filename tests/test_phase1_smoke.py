@@ -148,6 +148,41 @@ def test_delete_refuses_to_escape_the_projects_folder(projects_dir, tmp_path):
     assert (tmp_path / "precious").exists()
 
 
+def test_update_project_state_persists_every_hook_field(client, projects_dir):
+    """
+    Regression test for a bug where PATCH /projects/{name}/state silently
+    dropped every hook-banner edit: UpdateProjectStateRequest didn't declare
+    hook_brand/model/label/duration/motion, and Pydantic drops unknown
+    fields with no error at all, so the Editor's save button looked like it
+    worked while nothing actually persisted. Covers hook_motion specifically
+    since it's the newest field, added alongside the same fields that were
+    already fixed once.
+    """
+    ProjectManifest.save("demo", total_duration=5.0)
+
+    resp = client.patch(
+        "/api/projects/demo/state",
+        json={
+            "hook_brand": "Logitech",
+            "hook_model": "Wave Keys",
+            "hook_label": "Wireless Keyboard",
+            "hook_duration": 2.4,
+            "hook_motion": {"bounce": True, "stagger": True, "pulse": False, "underline": True},
+        },
+    )
+    assert resp.status_code == 200, resp.text
+
+    reloaded = client.get("/api/projects/demo").json()
+    assert reloaded["hook_brand"] == "Logitech"
+    assert reloaded["hook_model"] == "Wave Keys"
+    assert reloaded["hook_label"] == "Wireless Keyboard"
+    assert reloaded["hook_duration"] == 2.4
+    assert reloaded["hook_motion"] == {"bounce": True, "stagger": True, "pulse": False, "underline": True}
+    # Written to render_params too -- _execute_reroll's fallback and a future
+    # reroll both read hook_* from there, not just the top-level manifest key.
+    assert reloaded["render_params"]["hook_motion"] == {"bounce": True, "stagger": True, "pulse": False, "underline": True}
+
+
 def test_delete_refuses_system_folders(projects_dir):
     (projects_dir / "_template").mkdir()
     with pytest.raises(ValueError):
@@ -474,6 +509,78 @@ def test_font_choice_reaches_the_rendered_ass_file(tmp_path):
 def test_unknown_font_name_falls_back_instead_of_erroring():
     font_map = _load_font_family_map()
     assert font_map.get("some_font_id_from_the_future", "IBM Plex Sans Thai") == "IBM Plex Sans Thai"
+
+
+# ----------------------------------------------------------------------
+# Hook banner motion (bounce / stagger / pulse / underline)
+# ----------------------------------------------------------------------
+def _hook_events(content: str) -> str:
+    return "\n".join(l for l in content.splitlines() if l.startswith("Dialogue:") and "HookHeader" in l)
+
+
+def _gen_hook_ass(tmp_path, name, hook_motion=None, hook_duration=3.0):
+    ass_path, _ = SubtitleEngine.generate_ass(
+        cues=[{"id": 1, "start": 0.0, "end": 1.0, "text": "ทดสอบ", "sfx": None}],
+        output_ass_path=str(tmp_path / f"{name}.ass"),
+        hook_brand="Logitech",
+        hook_model="Wave Keys",
+        hook_label="Wireless Keyboard",
+        hook_duration=hook_duration,
+        hook_motion=hook_motion,
+        bilingual=False,
+    )
+    return Path(ass_path).read_text(encoding="utf-8")
+
+
+def test_hook_motion_default_enables_all_four_effects(tmp_path):
+    combined = _hook_events(_gen_hook_ass(tmp_path, "default"))
+    assert "\\fscx162" in combined, "bounce overshoot keyframe (130% target * 1.25) missing"
+    assert "&H25&" in combined, "pulse dim alpha missing"
+    assert "\\p1" in combined, "accent underline drawing missing"
+    assert "\\t(150," in combined, "model-tier stagger offset (150ms) missing"
+
+
+def test_hook_motion_all_off_falls_back_to_a_plain_static_pop(tmp_path):
+    combined = _hook_events(
+        _gen_hook_ass(tmp_path, "all_off", hook_motion={"bounce": False, "stagger": False, "pulse": False, "underline": False})
+    )
+    assert "\\fscx162" not in combined
+    assert "&H25&" not in combined
+    assert "\\p1" not in combined
+    assert "\\t(150," not in combined
+    # the original single-lerp entry must still fire -- toggles off must not
+    # mean "no entry animation at all"
+    assert "\\t(0,120,\\fscx130\\fscy130)" in combined
+
+
+def test_hook_motion_toggles_are_independent(tmp_path):
+    pulse_off = _hook_events(_gen_hook_ass(tmp_path, "pulse_off", hook_motion={"pulse": False}))
+    assert "\\fscx162" in pulse_off, "bounce must stay on when only pulse is toggled off"
+    assert "&H25&" not in pulse_off
+    assert "\\p1" in pulse_off, "underline must stay on when only pulse is toggled off"
+
+    underline_off = _hook_events(_gen_hook_ass(tmp_path, "underline_off", hook_motion={"underline": False}))
+    assert "\\p1" not in underline_off
+    assert "\\fscx162" in underline_off, "bounce must stay on when only underline is toggled off"
+
+
+def test_hook_motion_pulse_skips_cleanly_when_duration_too_short(tmp_path):
+    """A short hook_duration leaves no room for even one pulse half-cycle --
+    it must degrade to no pulse, not emit a broken/negative-range \\t tag."""
+    combined = _hook_events(_gen_hook_ass(tmp_path, "short", hook_duration=1.2))
+    assert "&H25&" not in combined
+    assert "\\p1" in combined, "underline (independent of pulse) must still render"
+
+
+def test_measure_text_width_px_uses_real_font_metrics():
+    from scripts.subtitle_engine import _measure_text_width_px
+
+    font_map = _load_font_family_map()
+    resolved = font_map.get("IBMPlex", "IBM Plex Sans Thai")
+    w_short = _measure_text_width_px("AB", resolved, 60)
+    w_long = _measure_text_width_px("ABCDEFGH", resolved, 60)
+    assert w_short is not None and w_long is not None, "font file must resolve to a real path, not fall back silently"
+    assert w_long > w_short, "more characters must measure wider than a flat per-tier fallback would give"
 
 
 # ----------------------------------------------------------------------

@@ -53,6 +53,8 @@ export default function Inspector({
   onHookLabelChange,
   hookDuration = 3.0,
   onHookDurationChange,
+  hookMotion = {},
+  onHookMotionChange,
   showHookHeader = true,
   onToggleHookHeader,
   onAddTextAtPlayhead,
@@ -306,6 +308,33 @@ export default function Inspector({
                       />
                       <span>วิ</span>
                     </div>
+                  </div>
+                  <div className="flex items-center flex-wrap gap-1 pt-0.5">
+                    {[
+                      { key: 'bounce', label: 'เด้งเข้า' },
+                      { key: 'stagger', label: 'ทยอยเข้าทีละบรรทัด' },
+                      { key: 'pulse', label: 'เรืองแสง' },
+                      { key: 'underline', label: 'เส้นขีดใต้รุ่น' },
+                    ].map(({ key, label }) => {
+                      // hookMotion is a partial dict from the API's default-True
+                      // semantics: an absent key means "on", not "off" -- so the
+                      // checked state must mirror that (!== false), not truthiness.
+                      const on = hookMotion?.[key] !== false;
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => onHookMotionChange?.(key, !on)}
+                          className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border transition-all cursor-pointer ${
+                            on
+                              ? 'bg-[#D97757]/20 border-[#D97757] text-[#E89274]'
+                              : 'bg-white/[0.04] border-white/[0.1] text-slate-500 hover:text-white'
+                          }`}
+                        >
+                          {on ? '✓' : '✕'} {label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}

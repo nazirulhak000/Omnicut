@@ -100,6 +100,11 @@ class RenderRequest(BaseModel):
     hook_brand: Optional[str] = None
     hook_model: Optional[str] = None
     hook_label: Optional[str] = None
+    # 4 independently toggleable hook-banner motion effects (bounce, stagger,
+    # pulse, underline). Missing keys / None default to True inside
+    # subtitle_engine's _resolve_hook_motion -- omitting this field entirely
+    # keeps the full default preset, it does not turn motion off.
+    hook_motion: Optional[Dict[str, bool]] = None
     custom_script: Optional[str] = None
     script_overlays: Optional[List[str]] = None  # per-line spec-bar text, index-aligned with custom_script
     voice_mode: str = "gemini_tts" # gemini_tts, edge_tts, human, video
@@ -1732,6 +1737,7 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                 hook_brand=req_data.hook_brand,
                 hook_model=req_data.hook_model,
                 hook_label=req_data.hook_label,
+                hook_motion=req_data.hook_motion,
                 font_name=req_data.font_name,
                 bilingual_subtitles=req_data.bilingual_subtitles,
                 use_ai_vision=req_data.use_ai_vision,
