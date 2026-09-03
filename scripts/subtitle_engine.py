@@ -475,18 +475,48 @@ class SubtitleEngine:
     }
 
     @classmethod
-    def apply_kinetic_highlighting(cls, text: str, primary_color_ass: str = "&H00FFFFFF&", color_hint: Optional[str] = None) -> str:
+    @classmethod
+    def apply_kinetic_highlighting(
+        cls,
+        text: str,
+        primary_color_ass: str = "&H00FFFFFF&",
+        color_hint: Optional[str] = None,
+        custom_keywords: Optional[List[str]] = None
+    ) -> str:
         """
-        Scans text for high-impact affiliate power keywords and applies inline ASS color tags.
-        If color_hint is provided, prioritizes scanning that color group first for 1:1 cross-language parity.
+        Scans text for power keywords with 3-tier intelligence:
+        Tier 1: Explicit manual markers *keyword* or [keyword] (100% user & AI control)
+        Tier 2: Dynamic Project Keywords (Product names, brand, specific hook keywords)
+        Tier 3: Reviewer Mega-Dictionary (500+ affiliate phrases across all niches)
         """
-        if not text or "{\\c" in text:
+        if not text:
             return text
 
         clean_primary = primary_color_ass if primary_color_ass.endswith("&") else f"{primary_color_ass}&"
         result = text
-        color_order = [color_hint] + [c for c in cls.KINETIC_KEYWORDS if c != color_hint] if color_hint else list(cls.KINETIC_KEYWORDS.keys())
+        chosen_color = color_hint or "&H0000E6FF&"  # Default to Neon Yellow
 
+        # Tier 1: Manual Markers (*word* or [word])
+        marker_pattern = re.compile(r"(\*([^*]+)\*|\[([^\]]+)\])")
+        if marker_pattern.search(result):
+            def _replace_marker(m):
+                kw = m.group(2) or m.group(3)
+                return f"{{\\c{chosen_color}}}{kw}{{\\c{clean_primary}}}"
+            return marker_pattern.sub(_replace_marker, result)
+
+        if "{\\c" in text:
+            return text
+
+        # Tier 2: Dynamic Project Keywords (injected into Electric Cyan features)
+        if custom_keywords:
+            for ckw in sorted(custom_keywords, key=len, reverse=True):
+                if len(ckw) >= 2 and ckw in result:
+                    cyan_color = color_hint or "&H00FFE600&"
+                    replacement = f"{{\\c{cyan_color}}}{ckw}{{\\c{clean_primary}}}"
+                    return result.replace(ckw, replacement, 1)
+
+        # Tier 3: Reviewer Mega-Dictionary
+        color_order = [color_hint] + [c for c in cls.KINETIC_KEYWORDS if c != color_hint] if color_hint else list(cls.KINETIC_KEYWORDS.keys())
         for color_tag in color_order:
             kw_list = cls.KINETIC_KEYWORDS.get(color_tag, [])
             for kw in sorted(kw_list, key=len, reverse=True):
@@ -498,18 +528,48 @@ class SubtitleEngine:
         return result
 
     @classmethod
-    def apply_kinetic_highlighting_en(cls, text: str, primary_color_ass: str = "&H00EAEAEA&", color_hint: Optional[str] = None) -> str:
+    def apply_kinetic_highlighting_en(
+        cls,
+        text: str,
+        primary_color_ass: str = "&H00EAEAEA&",
+        color_hint: Optional[str] = None,
+        custom_keywords: Optional[List[str]] = None
+    ) -> str:
         """
-        Scans English text for matching power keywords and applies inline ASS color tags.
-        If color_hint is provided, prioritizes scanning that color group first for 1:1 cross-language parity.
+        Scans English text with 3-tier intelligence matching Thai.
         """
-        if not text or "{\\c" in text:
+        if not text:
             return text
 
         clean_primary = primary_color_ass if primary_color_ass.endswith("&") else f"{primary_color_ass}&"
         result = text
-        color_order = [color_hint] + [c for c in cls.KINETIC_KEYWORDS_EN if c != color_hint] if color_hint else list(cls.KINETIC_KEYWORDS_EN.keys())
+        chosen_color = color_hint or "&H0000E6FF&"
 
+        # Tier 1: Manual Markers (*word* or [word])
+        marker_pattern = re.compile(r"(\*([^*]+)\*|\[([^\]]+)\])")
+        if marker_pattern.search(result):
+            def _replace_marker(m):
+                kw = m.group(2) or m.group(3)
+                return f"{{\\c{chosen_color}}}{kw}{{\\c{clean_primary}}}"
+            return marker_pattern.sub(_replace_marker, result)
+
+        if "{\\c" in text:
+            return text
+
+        # Tier 2: Dynamic Project Keywords
+        if custom_keywords:
+            for ckw in sorted(custom_keywords, key=len, reverse=True):
+                if len(ckw) >= 2:
+                    pattern = re.compile(rf"(?i)\b{re.escape(ckw)}\b")
+                    match = pattern.search(result)
+                    if match:
+                        matched_str = match.group(0)
+                        start, end = match.span()
+                        cyan_color = color_hint or "&H00FFE600&"
+                        return result[:start] + f"{{\\c{cyan_color}}}{matched_str}{{\\c{clean_primary}}}" + result[end:]
+
+        # Tier 3: Reviewer Mega-Dictionary
+        color_order = [color_hint] + [c for c in cls.KINETIC_KEYWORDS_EN if c != color_hint] if color_hint else list(cls.KINETIC_KEYWORDS_EN.keys())
         for color_tag in color_order:
             kw_list = cls.KINETIC_KEYWORDS_EN.get(color_tag, [])
             for kw in sorted(kw_list, key=len, reverse=True):
@@ -529,21 +589,22 @@ class SubtitleEngine:
         th_text: str,
         en_text: str,
         primary_th: str = "&H00FFFFFF&",
-        primary_en: str = "&H00EAEAEA&"
+        primary_en: str = "&H00EAEAEA&",
+        custom_keywords: Optional[List[str]] = None
     ) -> Tuple[str, str]:
         """
         Guarantees 100% color synchronization between stacked Thai and English subtitles:
         - If Thai triggers a color, English prioritizes matching the same color category.
         - If English triggers a color, Thai is re-checked against that color category.
         """
-        th_res = cls.apply_kinetic_highlighting(th_text, primary_color_ass=primary_th)
+        th_res = cls.apply_kinetic_highlighting(th_text, primary_color_ass=primary_th, custom_keywords=custom_keywords)
         th_color = None
         if "{\\c" in th_res:
             m = re.search(r"\{\\c(&H[0-9A-Fa-f]+&)\}", th_res)
             if m:
                 th_color = m.group(1)
 
-        en_res = cls.apply_kinetic_highlighting_en(en_text, primary_color_ass=primary_en, color_hint=th_color)
+        en_res = cls.apply_kinetic_highlighting_en(en_text, primary_color_ass=primary_en, color_hint=th_color, custom_keywords=custom_keywords)
         en_color = None
         if "{\\c" in en_res:
             m = re.search(r"\{\\c(&H[0-9A-Fa-f]+&)\}", en_res)
@@ -551,7 +612,7 @@ class SubtitleEngine:
                 en_color = m.group(1)
 
         if not th_color and en_color:
-            th_res = cls.apply_kinetic_highlighting(th_text, primary_color_ass=primary_th, color_hint=en_color)
+            th_res = cls.apply_kinetic_highlighting(th_text, primary_color_ass=primary_th, color_hint=en_color, custom_keywords=custom_keywords)
 
         return th_res, en_res
 
@@ -669,6 +730,14 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         else:
             en_translations = [""] * len(micro_cues)
 
+        # Collect dynamic project keywords from hook_title or product hints
+        proj_keywords = []
+        if hook_title:
+            proj_keywords.append(hook_title.strip())
+            for t in hook_title.split():
+                if len(t.strip()) >= 3 and t.strip() not in proj_keywords:
+                    proj_keywords.append(t.strip())
+
         # 2. Add Rapid-Fire Micro-Cues with Stacked Bilingual Support & 2-Layer Soft Shadow
         for idx, cue in enumerate(micro_cues):
             start_t = cls._format_ass_time(cue["start"])
@@ -704,11 +773,12 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     th_text=text,
                     en_text=en_wrapped,
                     primary_th=primary,
-                    primary_en="&H00EAEAEA&"
+                    primary_en="&H00EAEAEA&",
+                    custom_keywords=proj_keywords
                 )
                 en_sub = f"\\N{{\\fscx68\\fscy68\\c&H00EAEAEA&}}{en_highlighted}"
             else:
-                highlighted_text = cls.apply_kinetic_highlighting(text, primary_color_ass=primary)
+                highlighted_text = cls.apply_kinetic_highlighting(text, primary_color_ass=primary, custom_keywords=proj_keywords)
                 en_sub = ""
 
             style = "TikTokMinimalPill" if is_pill_mode else "TikTokWhite"

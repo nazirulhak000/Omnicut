@@ -288,8 +288,30 @@ const KINETIC_COLOR_MAP = {
   ]
 };
 
-function parseKineticSegments(text, defaultColor = '#FFFFFF', colorHint = null) {
+function parseKineticSegments(text, defaultColor = '#FFFFFF', colorHint = null, customKeywords = []) {
   if (!text) return [];
+
+  // Tier 1: Check for explicit user / AI markers like *keyword* or [keyword]
+  const markerRegex = /(\*([^*]+)\*|\[([^\]]+)\])/;
+  if (markerRegex.test(text)) {
+    const chosenColor = colorHint || '#FFE600';
+    const segments = [];
+    let lastIdx = 0;
+    const re = /(\*([^*]+)\*|\[([^\]]+)\])/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      if (m.index > lastIdx) {
+        segments.push({ text: text.slice(lastIdx, m.index), color: defaultColor });
+      }
+      const kw = m[2] || m[3];
+      segments.push({ text: kw, color: chosenColor });
+      lastIdx = m.index + m[0].length;
+    }
+    if (lastIdx < text.length) {
+      segments.push({ text: text.slice(lastIdx), color: defaultColor });
+    }
+    return segments;
+  }
 
   const lowerText = text.toLowerCase();
   const matches = [];
@@ -301,7 +323,10 @@ function parseKineticSegments(text, defaultColor = '#FFFFFF', colorHint = null) 
     : colors;
 
   for (const color of colorOrder) {
-    const keywords = KINETIC_COLOR_MAP[color] || [];
+    let keywords = KINETIC_COLOR_MAP[color] || [];
+    if (color === '#00E5FF' && customKeywords && customKeywords.length > 0) {
+      keywords = [...customKeywords, ...keywords];
+    }
     const sorted = [...keywords].sort((a, b) => b.length - a.length);
     for (const kw of sorted) {
       const lowerKw = kw.toLowerCase();
