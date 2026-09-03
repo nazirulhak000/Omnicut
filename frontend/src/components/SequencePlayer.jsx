@@ -248,8 +248,9 @@ function drawCaption(ctx, cues, t, style = {}) {
   const cueScale = Number(cue.scale) || 1.0;
   const globalScale = Math.min(2.5, Math.max(0.5, style.captionScale ?? 1));
   const effectiveScale = Math.min(3.0, Math.max(0.4, globalScale * cueScale));
-  // 1:1 scalar calibration with 1080w ASS font_size (540 * 0.089 * 1.64 = ~79px at 1.0, 43.5px at 0.55)
-  const fontSize = Math.round(CANVAS_W * 0.089 * 1.64 * effectiveScale);
+  // 100% (effectiveScale=1.0) calibrated to exactly 26px on 540w (matches Image 2 perfectly)
+  const baseFs = Math.round(CANVAS_W * 0.048); // 26px on 540w
+  const fontSize = Math.max(14, Math.round(baseFs * effectiveScale));
   
   let fontFam = "'Kanit', sans-serif";
   let fontWeight = '900';
@@ -266,14 +267,14 @@ function drawCaption(ctx, cues, t, style = {}) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   
-  // Crisp outline + punchy shadow matching libass outline_val and shadow_val
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
-  ctx.shadowBlur = 4;
-  ctx.shadowOffsetX = Math.round(fontSize * 0.04);
-  ctx.shadowOffsetY = Math.round(fontSize * 0.055);
+  // Crisp outline + punchy shadow matching libass
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 3;
   
   ctx.strokeStyle = '#000000';
-  ctx.lineWidth = Math.round(fontSize * 0.21);
+  ctx.lineWidth = Math.round(fontSize * 0.20);
   ctx.lineJoin = 'round';
   ctx.miterLimit = 2;
   
@@ -313,11 +314,11 @@ function drawCaption(ctx, cues, t, style = {}) {
     // Pass 1: Outline / Stroke with crisp shadow
     ctx.textAlign = 'left';
     ctx.strokeStyle = '#000000';
-    ctx.lineWidth = Math.round(fontSize * 0.21);
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
-    ctx.shadowBlur = 4;
-    ctx.shadowOffsetX = Math.round(fontSize * 0.04);
-    ctx.shadowOffsetY = Math.round(fontSize * 0.055);
+    ctx.lineWidth = Math.round(fontSize * 0.20);
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+    ctx.shadowBlur = 3;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 3;
 
     let curX = (CANVAS_W - totalLineW) / 2;
     segments.forEach((seg, sIdx) => {

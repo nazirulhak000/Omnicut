@@ -323,7 +323,7 @@ class SubtitleEngine:
         return "\\N".join(lines) if len(lines) > 1 else clean
 
     @classmethod
-    def wrap_en_for_ass(cls, text: str, max_chars_per_line: int = 40) -> str:
+    def wrap_en_for_ass(cls, text: str, max_chars_per_line: int = 46) -> str:
         """Wraps long English subtitles neatly at word boundaries."""
         clean = text.strip().replace("\r", "").replace("\n", " ")
         if len(clean) <= max_chars_per_line:
@@ -427,15 +427,13 @@ class SubtitleEngine:
         except (TypeError, ValueError):
             scale = 1.0
         # Exact 1-to-1 pixel calibration with CapCut & SequencePlayer Canvas:
-        # CapCut TikTok Standard calibrated to Canvas (540w vs 1080w)
-        # libass on Windows DirectWrite requires 1.64x scalar to match HTML Canvas CSS px
-        # Canvas at scale 0.55: 540 * 0.089 * 0.55 = 26px (62.4% screen width)
-        # libass at scale 0.55: 1080 * 0.089 * 1.64 * 0.55 = 87pt (62.31% screen width)
-        base_fs = int(round(video_width * 0.089 * 1.64))
-        font_size = max(32, int(round(base_fs * scale)))
-        outline_val = round(max(4.0, font_size * 0.105), 1)
-        shadow_val = round(max(2.5, font_size * 0.055), 1)
-        hook_fs = int(round(video_width * 0.052 * 1.64))
+        # CapCut TikTok Standard: 100% (scale=1.0) calibrated to exactly 72pt on 1080w (matches Image 2 perfectly)
+        # Matches SequencePlayer Canvas baseFs (26px on 540w)
+        base_fs = int(round(video_width * 0.0667))
+        font_size = max(24, int(round(base_fs * scale)))
+        outline_val = round(max(3.5, font_size * 0.10), 1)
+        shadow_val = round(max(2.0, font_size * 0.05), 1)
+        hook_fs = int(round(video_width * 0.065))
 
         header = f"""[Script Info]
 Title: TikTok Aesthetic Subtitles
@@ -451,7 +449,7 @@ Style: TikTokWhite,{resolved_font},{font_size},{primary},&H000000FF,&H00000000,&
 Style: TikTokYellow,{resolved_font},{font_size},&H0000E6FF,&H000000FF,&H00000000,&H30000000,1,0,0,0,100,100,0.5,0,1,{outline_val},{shadow_val},2,60,60,420,1
 Style: TikTokCyan,{resolved_font},{font_size},&H00FFE600,&H000000FF,&H00000000,&H30000000,1,0,0,0,100,100,0.5,0,1,{outline_val},{shadow_val},2,60,60,420,1
 Style: TikTokMinimalPill,{resolved_font},{font_size - 6},{primary},&H000000FF,&H00000000,&HCC000000,1,0,0,0,100,100,0.5,0,3,6,0,{alignment},60,60,{margin_v},1
-Style: HookHeader,{resolved_font},{hook_fs},&H00FFFFFF,&H000000FF,&H00000000,&H30000000,1,0,0,0,100,100,0.5,0,1,9.0,5.0,8,60,60,260,1
+Style: HookHeader,{resolved_font},{hook_fs},&H00FFFFFF,&H000000FF,&H00000000,&H30000000,1,0,0,0,100,100,0.5,0,1,7.0,3.5,8,60,60,260,1
 Style: SpecBar,{resolved_font},{font_size - 12},&H00000000,&H000000FF,&H00000000,&H0000E6FF,1,0,0,0,100,100,0.5,0,3,10,0,9,50,50,380,1
 
 [Events]
