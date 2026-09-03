@@ -209,13 +209,20 @@ def _loop_pulse(start_ms: int, exit_start_ms: int) -> str:
 
 
 def _loop_wave(start_ms: int, exit_start_ms: int) -> str:
-    """Gentle sway via small \\frz rotation, 400ms/step."""
-    return _chained_keyframes("frz", start_ms, exit_start_ms, 400, ["357", "3", "0"])
+    """
+    Gentle sway via small \\frz rotation, 400ms/step.
+
+    Angles are written signed ("-3"), never as their 0-360 equivalent
+    ("357"): \\t interpolates linearly between the current value and the
+    target, so animating 0 -> 357 sweeps the long way round through 180
+    and spins the line upside down mid-step.
+    """
+    return _chained_keyframes("frz", start_ms, exit_start_ms, 400, ["-3", "3", "0"])
 
 
 def _loop_shake(start_ms: int, exit_start_ms: int) -> str:
     """Sharp jitter via \\frz, 90ms/step -- same technique as wave, faster/bigger."""
-    return _chained_keyframes("frz", start_ms, exit_start_ms, 90, ["357", "3", "358", "2", "0"])
+    return _chained_keyframes("frz", start_ms, exit_start_ms, 90, ["-3", "3", "-2", "2", "0"])
 
 
 def _loop_flicker(start_ms: int, exit_start_ms: int) -> str:
@@ -264,8 +271,8 @@ def _out_zoom(exit_start_ms: int, exit_end_ms: int, target_scale_pct: float) -> 
 
 def _out_glitch(exit_start_ms: int, exit_end_ms: int, target_scale_pct: float) -> Tuple[str, Optional[int]]:
     """Quick \\frz jitter steps packed into the short exit window, then a hard cut."""
-    jitter = _chained_keyframes("frz", exit_start_ms, max(exit_start_ms + 1, exit_end_ms - 40), 40, ["357", "3", "0"])
-    return f"{jitter}\\t({exit_end_ms - 40},{exit_end_ms},\\alpha&HFF&)", None
+    jitter = _chained_keyframes("frz", exit_start_ms, max(exit_start_ms + 1, exit_end_ms - 40), 40, ["-3", "3", "0"])
+    return f"{jitter}\\t({exit_end_ms - 40},{exit_end_ms},\\frz0\\alpha&HFF&)", None
 
 
 def _out_none(exit_start_ms: int, exit_end_ms: int, target_scale_pct: float) -> Tuple[str, Optional[int]]:
@@ -317,6 +324,7 @@ def _hook_line_width_px(line: str, resolved_font: str, line_fs: int) -> float:
 def _hook_lightsweep_event(
     line: str, line_fs: int, y: int, x_center: int, resolved_font: str,
     start_t: str, end_t: str, sweep_start_ms: int, exit_start_ms: int, exit_end_ms: int,
+    target_scale_pct: float,
 ) -> Optional[str]:
     """
     Shimmer sweep: a second, brighter copy of the line drawn on top and
@@ -349,8 +357,14 @@ def _hook_lightsweep_event(
     if not segs:
         return None
 
+    # The overlay MUST carry the same \fscx/\fscy the line it shadows uses.
+    # Without it the copy renders at the style's 100% while the brand tier
+    # sits at 130% and the label at 58%, and the mismatch reads on screen as
+    # a second, differently-sized ghost of the text rather than a shimmer.
+    target = round(target_scale_pct)
     tag = (
-        f"{{\\an8\\pos({x_center},{y})\\bord0\\shad0\\c&H00FFFFFF&\\alpha&H60&"
+        f"{{\\an8\\pos({x_center},{y})\\fscx{target}\\fscy{target}"
+        f"\\bord0\\shad0\\c&H00FFFFFF&\\alpha&H60&"
         f"\\clip({left:.0f},{top},{left + band_w:.0f},{bot})"
         f"{''.join(segs)}"
         f"\\t({exit_start_ms},{exit_end_ms},\\alpha&HFF&)}}"
@@ -1039,6 +1053,7 @@ class SubtitleEngine:
         hook_label: str = None,
         hook_duration: float = 3.5,
         hook_motion: Optional[Dict[str, object]] = None,
+        hook_colors: Optional[Dict[str, str]] = None,
         bilingual: bool = True,
         video_width: int = VIDEO_WIDTH,
         video_height: int = VIDEO_HEIGHT,
@@ -1074,10 +1089,10 @@ class SubtitleEngine:
         except (TypeError, ValueError):
             scale = 1.0
         # Exact 1-to-1 pixel calibration with CapCut & SequencePlayer Canvas:
-        # CapCut TikTok Standard: 100% (scale=1.0) calibrated to exactly 72pt on 1080w (matches Image 2 perfectly)
-        # Matches SequencePlayer Canvas baseFs (26px on 540w)
-        base_fs = int(round(video_width * 0.0667))
-        font_size = max(24, int(round(base_fs * scale)))
+        # Standard TikTok Subtitle: 100% (scale=1.0) calibrated to exactly 50pt on 1080w
+        # Matches SequencePlayer Canvas baseFs (25px on 540w) perfectly
+        base_fs = int(round(video_width * 0.0463))
+        font_size = max(20, int(round(base_fs * scale)))
         hook_fs = int(round(video_width * 0.065))
 
         # Dynamic Soft Shadow & Outline metrics (Zero hardcoding: scales with any font, scale, and resolution)
@@ -1141,12 +1156,20 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             # tier index also doubles as the stagger slot (0=brand, 1=model,
             # 2=label) and marks which physical line(s) the accent shape
             # attaches to (tier 1, model).
+            #
+            # Each tier's colour is independently overridable (a brand with
+            # green equity shouldn't be forced to white); an unset tier keeps
+            # the poster default it had before -- white wordmark, accent
+            # model, muted label.
+            colours = hook_colors or {}
+            brand_colour = ass_colour(colours.get("brand")) or "&H00FFFFFF"
+            model_colour = ass_colour(colours.get("model")) or ass_colour(caption_color) or "&H0000E6FF"
+            label_colour = ass_colour(colours.get("label")) or "&H00E0E0E0"
             hook_tier_specs = [
-                (hook_brand, 130, "&H00FFFFFF", 0),
-                (hook_model, 100, ass_colour(caption_color) or "&H0000E6FF", 1),
-                (hook_label, 58, "&H00E0E0E0", 2),
+                (hook_brand, 130, brand_colour, 0),
+                (hook_model, 100, model_colour, 1),
+                (hook_label, 58, label_colour, 2),
             ]
-            model_colour = ass_colour(caption_color) or "&H0000E6FF"
 
             # Pass 1: wrap each tier at its OWN char width -- a 130%-scale
             # line needs a narrower wrap than a 58%-scale one, or the brand
@@ -1291,6 +1314,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                         sweep = _hook_lightsweep_event(
                             rec["line"], rec["line_fs"], rec["y"], x_center, resolved_font,
                             start_t, end_t, max_entry_end_ms, exit_start_ms, exit_end_ms,
+                            rec["target"],
                         )
                         if sweep:
                             events.append(sweep)

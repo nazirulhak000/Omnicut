@@ -381,14 +381,43 @@ function parseKineticSegments(text, defaultColor = '#FFFFFF', colorHint = null, 
   return segments;
 }
 
+// The browser paints emoji as colour bitmap glyphs, which ignore fillStyle;
+// libass paints the same characters as ordinary monochrome glyphs in the
+// text colour. Drawing emoji runs through a desaturating filter is what
+// keeps the preview honest about what the render will actually look like.
+const EMOJI_RUN_RE = /(\p{Extended_Pictographic}(?:️|‍\p{Extended_Pictographic})*\s*)/gu;
+
+function drawTextWithMonoEmoji(ctx, text, x, y) {
+  if (!EMOJI_RUN_RE.test(text)) {
+    ctx.fillText(text, x, y);
+    return;
+  }
+  EMOJI_RUN_RE.lastIndex = 0;
+  let cursor = x;
+  for (const part of text.split(EMOJI_RUN_RE)) {
+    if (!part) continue;
+    EMOJI_RUN_RE.lastIndex = 0;
+    const isEmoji = EMOJI_RUN_RE.test(part);
+    if (isEmoji) {
+      ctx.save();
+      ctx.filter = 'grayscale(1) brightness(2.2)';
+      ctx.fillText(part, cursor, y);
+      ctx.restore();
+    } else {
+      ctx.fillText(part, cursor, y);
+    }
+    cursor += ctx.measureText(part).width;
+  }
+}
+
 function drawCaption(ctx, cues, t, style = {}) {
   const cue = cues.find(c => t >= c.start && t < c.end);
   if (!cue || !cue.text) return;
   const cueScale = Number(cue.scale) || 1.0;
   const globalScale = Math.min(2.5, Math.max(0.5, style.captionScale ?? 1));
-  const effectiveScale = Math.min(3.0, Math.max(0.4, globalScale * cueScale));
-  // 100% (effectiveScale=1.0) calibrated to exactly 26px on 540w (matches Image 2 perfectly)
-  const baseFs = Math.round(CANVAS_W * 0.048); // 26px on 540w
+  // Standard TikTok Subtitle Size: 100% (scale=1.0) is calibrated to 50pt on 1080w
+  // (25px on 540w Canvas), exactly matching the user's preferred visual proportion.
+  const baseFs = Math.round(CANVAS_W * 0.0463);
   const fontSize = Math.max(14, Math.round(baseFs * effectiveScale));
   
   let fontFam = "'Kanit', sans-serif";
@@ -413,31 +442,40 @@ function drawCaption(ctx, cues, t, style = {}) {
   ctx.shadowOffsetY = 3;
   
   ctx.strokeStyle = '#000000';
-  ctx.lineWidth = Math.round(fontSize * 0.20);
+  ctx.lineWidth = captionOutlineWidth(fontSize);
   ctx.lineJoin = 'round';
   ctx.miterLimit = 2;
   
   const maxLineW = CANVAS_W * 0.86;
   const thaiLines = wrapCanvasText(cue.text, ctx, maxLineW);
-  const thaiLineH = Math.round(fontSize * 1.15);
+  // libass advances every \N line by exactly one style font size -- measured
+  // off a real render: a 72px style stepped 72px to the next line even
+  // though that line carried \fscx68\fscy68. So the English line advances by
+  // the Thai size too, and there is no extra gap between the two blocks.
+  const thaiLineH = fontSize;
 
   // Stacked bilingual English subtitle
   let enLines = [];
   const enFontSize = Math.round(fontSize * 0.68);
-  const enLineH = Math.round(enFontSize * 1.25);
+  const enLineH = fontSize;
   if (cue.translation && !cue.translation.includes('Error 500')) {
     ctx.font = `700 ${enFontSize}px ${fontFam}`;
     enLines = wrapCanvasText(cue.translation, ctx, CANVAS_W * 0.86);
   }
 
-  // Vertical layout calculations to keep entire block centered at caption Y
-  const thaiBlockH = thaiLines.length * thaiLineH;
-  const enGap = enLines.length > 0 ? Math.round(fontSize * 0.22) : 0;
-  const enBlockH = enLines.length * enLineH;
-  const totalBlockH = thaiBlockH + enGap + enBlockH;
-
-  const targetCenterY = CANVAS_H * (CAPTION_Y[style.captionPosition] ?? CAPTION_Y.bottom);
-  const thaiStartY = targetCenterY - (totalBlockH / 2) + (thaiLineH / 2);
+  // Vertical anchoring must match the ASS alignment the renderer uses, which
+  // is not "centre the block" for every position: bottom (alignment 2) pins
+  // the block's BOTTOM edge MarginV above the frame bottom, top (alignment
+  // 8) pins its TOP, and only middle actually centres. Centring all three
+  // dropped the previewed caption about half a block lower than the render.
+  const totalBlockH = (thaiLines.length + enLines.length) * fontSize;
+  const anchorY = CANVAS_H * (CAPTION_Y[style.captionPosition] ?? CAPTION_Y.bottom);
+  const pos = style.captionPosition || 'bottom';
+  let blockTop;
+  if (pos === 'top') blockTop = anchorY;
+  else if (pos === 'middle') blockTop = anchorY - totalBlockH / 2;
+  else blockTop = anchorY - totalBlockH;
+  const thaiStartY = blockTop + thaiLineH / 2;
 
   // Synchronized Bilingual Kinetic Highlighting
   const primaryColor = CAPTION_COLORS[style.captionColor] || '#FFFFFF';
@@ -479,7 +517,7 @@ function drawCaption(ctx, cues, t, style = {}) {
     // Pass 1: Outline / Stroke with crisp shadow
     ctx.textAlign = 'left';
     ctx.strokeStyle = '#000000';
-    ctx.lineWidth = Math.round(fontSize * 0.20);
+    ctx.lineWidth = captionOutlineWidth(fontSize);
     ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
     ctx.shadowBlur = 3;
     ctx.shadowOffsetX = 2;
@@ -496,7 +534,7 @@ function drawCaption(ctx, cues, t, style = {}) {
     curX = (CANVAS_W - totalLineW) / 2;
     segments.forEach((seg, sIdx) => {
       ctx.fillStyle = seg.color;
-      ctx.fillText(seg.text, curX, lineY);
+      drawTextWithMonoEmoji(ctx, seg.text, curX, lineY);
       curX += segmentWidths[sIdx];
     });
   });
@@ -504,7 +542,8 @@ function drawCaption(ctx, cues, t, style = {}) {
   // Draw English lines (stacked underneath) with matching kinetic color highlighting
   if (enLines.length > 0) {
     ctx.font = `700 ${enFontSize}px ${fontFam}`;
-    const enStartY = thaiStartY + (thaiLines.length - 1) * thaiLineH + (thaiLineH / 2) + enGap + (enLineH / 2);
+    // Continues the same one-font-size-per-line cadence, no extra gap.
+    const enStartY = thaiStartY + thaiLines.length * thaiLineH;
 
     enLines.forEach((line, idx) => {
       const lineY = enStartY + (idx * enLineH);
@@ -589,6 +628,15 @@ function drawSticker(ctx, img, t, style = {}) {
 const HOOK_MOTION_DEFAULTS = { in: 'bounce', stagger: true, loop: 'pulse', out: 'fade', accent: 'underline' };
 const HOOK_STAGGER_STEP = 0.15; // seconds; mirrors STAGGER_STEP_MS
 const HOOK_DIM_OPACITY = 1 - 0x25 / 255; // mirrors ASS \alpha&H25&
+const HOOK_OUTLINE_PX = 6; // HookHeader style Outline=6.0, flat for every tier
+
+// Mirrors front_outline = max(1.8, font_size * 0.040) in subtitle_engine.py,
+// where font_size is the render-resolution size (twice this canvas one).
+// An ASS outline grows outward only while strokeText centres its stroke, so
+// the canvas width is twice the outward thickness it needs to imitate.
+function captionOutlineWidth(canvasFontSize) {
+  return Math.max(1.8, canvasFontSize * 2 * 0.04);
+}
 
 /** Piecewise-linear interpolation over [[ms, value], ...] keyframes. */
 function hookKeyframeAt(ms, kf) {
@@ -712,9 +760,10 @@ const HOOK_OUT_TRANSFORMS = {
   none: (t, s, e) => ({ alpha: t >= e - 0.001 ? 0 : 1 }),
 };
 
-function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 3.5, fontName = 'Kanit', accentColor = '#FFE600', hookMotion = null) {
+function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 3.5, fontName = 'Kanit', accentColor = '#FFE600', hookMotion = null, hookColors = null) {
   if ((!hookBrand && !hookModel && !hookLabel) || t > hookDuration) return;
   const motion = { ...HOOK_MOTION_DEFAULTS, ...(hookMotion || {}) };
+  const colors = hookColors || {};
 
   let fontFam = "'Kanit', sans-serif";
   if (fontName === 'IBMPlex' || fontName === 'IBM Plex Sans Thai') {
@@ -727,13 +776,19 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
   if (t < 0.2) alpha = t / 0.2;
   if (t > hookDuration - 0.3) alpha = Math.max(0, (hookDuration - t) / 0.3);
 
-  const baseFontSize = Math.round(CANVAS_W * 0.052 * 1.64);
-  // Same tier percentages as hook_tier_specs in subtitle_engine.py. tierIdx
-  // doubles as the stagger slot and marks the model tier for the underline.
+  // Must stay the same fraction of frame width the renderer uses (hook_fs =
+  // video_width * 0.065 in subtitle_engine.py). This canvas is exactly half
+  // of the 1080-wide output, so the same ratio lands on the same on-screen
+  // size -- an earlier 0.052 * 1.64 made the preview ~31% larger than what
+  // actually rendered, which is why header sizes never matched.
+  const baseFontSize = Math.round(CANVAS_W * 0.065);
+  // Same tier percentages and colour fallbacks as hook_tier_specs in
+  // subtitle_engine.py. tierIdx doubles as the stagger slot and marks the
+  // model tier for the accent shape.
   const tierSpecs = [
-    { text: (hookBrand || '').trim().toUpperCase(), sizePct: 130, color: '#FFFFFF', tierIdx: 0 },
-    { text: (hookModel || '').trim(), sizePct: 100, color: accentColor, tierIdx: 1 },
-    { text: (hookLabel || '').trim(), sizePct: 58, color: '#E0E0E0', tierIdx: 2 },
+    { text: (hookBrand || '').trim().toUpperCase(), sizePct: 130, color: colors.brand || '#FFFFFF', tierIdx: 0 },
+    { text: (hookModel || '').trim(), sizePct: 100, color: colors.model || accentColor, tierIdx: 1 },
+    { text: (hookLabel || '').trim(), sizePct: 58, color: colors.label || '#E0E0E0', tierIdx: 2 },
   ].filter((tier) => tier.text);
   if (!tierSpecs.length) return;
 
@@ -792,13 +847,76 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
   ctx.miterLimit = 2;
 
   let y = 130; // ~HookHeader's ASS MarginV=260 of 1920, scaled to this 960-tall canvas
-  const lineGap = 1.15;
-  // Bookkeeping for the accent underline, captured while walking the same
-  // lines the text itself draws -- unlike the ASS backend (which has no way
-  // to ask libass where a wrapped line landed), the canvas already computes
-  // each line's real y and width here, so no LINE_HEIGHT_FACTOR guess is
-  // needed on this side.
+  // Must equal LINE_HEIGHT_FACTOR in subtitle_engine.py (1.0, measured off a
+  // real libass render). At 1.15 the preview stacked the tiers further apart
+  // than the render did, so the block never matched even once the font size
+  // itself lined up.
+  const lineGap = 1.0;
+  // Accent bookkeeping. Unlike the ASS side (which can't ask libass where a
+  // wrapped line landed and has to walk a LINE_HEIGHT_FACTOR cursor), the
+  // canvas measures its own text, so these come straight from layout.
   let modelTopY = null, modelLineWidth = 0, modelFontSize = 0, modelColor = accentColor;
+
+  // Layout pre-pass: resolve every line's y (and the model tier's metrics)
+  // BEFORE anything is painted, so the accent shape can be drawn first and
+  // sit behind the text. The renderer puts accents on a lower ASS layer for
+  // the same reason -- painting them after the text, as this used to, made
+  // the preview show a badge covering the words it is supposed to sit under.
+  {
+    let layoutY = y;
+    wrapped.forEach(({ fontSize, color, tierIdx }, idx) => {
+      const settledFs = Math.max(10, Math.round(fontSize * shrink));
+      if (tierIdx === 1) {
+        ctx.font = `900 ${settledFs}px ${fontFam}`;
+        modelLineWidth = ctx.measureText(wrapped[idx].line).width;
+        modelFontSize = settledFs;
+        modelColor = color;
+        modelTopY = layoutY;
+      }
+      layoutY += settledFs * lineGap;
+      const isLastModelLine = tierIdx === 1 && (idx + 1 >= wrapped.length || wrapped[idx + 1].tierIdx !== 1);
+      if (isLastModelLine && motion.accent !== 'none') {
+        layoutY += settledFs * (motion.accent === 'badge' ? 0.3 : 0.55);
+      }
+    });
+  }
+
+  // Accent shape under / behind the model tier. Follows the entry and exit
+  // envelope but not the loop -- matching the backend, which never threads
+  // loop keyframes into the accent events.
+  if (motion.accent !== 'none' && modelTopY != null) {
+    const revealStart = motion.stagger ? HOOK_STAGGER_STEP * 2 : 0;
+    const revealFrac = t <= revealStart ? 0 : Math.min(1, (t - revealStart) / 0.3);
+    ctx.save();
+    ctx.shadowColor = 'transparent';
+    ctx.globalAlpha = alpha * (outFx.alpha ?? 1);
+    ctx.fillStyle = modelColor;
+    if (motion.accent === 'badge') {
+      const padX = Math.round(modelFontSize * 0.38);
+      const padY = Math.round(modelFontSize * 0.2);
+      const bw = (modelLineWidth / 2 + padX) * 2 * revealFrac;
+      // ASS \alpha is TRANSPARENCY, so &HB0& means 0.31 opacity, not 0.69.
+      ctx.globalAlpha *= 1 - 0xB0 / 255;
+      ctx.fillRect(x - bw / 2, modelTopY - padY, bw, modelFontSize + padY * 2);
+    } else {
+      const thickness = Math.max(4, Math.round(modelFontSize * 0.1));
+      const gap = Math.round(modelFontSize * 0.26);
+      const w = modelLineWidth * revealFrac;
+      const barY = modelTopY + modelFontSize + gap;
+      // The renderer lays a blurred copy under the crisp bar (\blur7 at
+      // \alpha&H60&) for glow; without it the preview's bar reads flatter
+      // than what actually renders.
+      ctx.save();
+      ctx.shadowColor = modelColor;
+      ctx.shadowBlur = 7;
+      ctx.globalAlpha *= 1 - 0x60 / 255;
+      ctx.fillRect(x - w / 2, barY, w, thickness);
+      ctx.restore();
+      ctx.fillRect(x - w / 2, barY, w, thickness);
+    }
+    ctx.restore();
+  }
+
   const sweeps = [];
   wrapped.forEach(({ line, fontSize, color, tierIdx }, idx) => {
     // The cumulative y-cursor advances using the SETTLED size, not the
@@ -832,7 +950,9 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
       ctx.clip();
     }
     ctx.font = `900 ${renderFs}px ${fontFam}`;
-    ctx.lineWidth = Math.round(renderFs * 0.22);
+    // HookHeader's ASS Outline is a flat 6.0 render px for every tier;
+    // strokeText centres its stroke so only half lands outside the glyph.
+    ctx.lineWidth = HOOK_OUTLINE_PX;
     ctx.strokeText(line, x, y + dy, maxW);
     ctx.fillStyle = color;
     ctx.fillText(line, x, y + dy, maxW);
@@ -843,13 +963,6 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
       sweeps.push({ line, y: y + dy, fs: settledFs, halfW: ctx.measureText(line).width / 2 });
     }
 
-    if (tierIdx === 1) {
-      ctx.font = `900 ${settledFs}px ${fontFam}`; // measure at settled size, not the animating one
-      modelLineWidth = ctx.measureText(line).width;
-      modelFontSize = settledFs;
-      modelColor = color;
-      modelTopY = y;
-    }
     y += settledFs * lineGap;
 
     // Accent shapes take layout space after the model tier's last line, so
@@ -872,7 +985,9 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
       ctx.fillStyle = '#FFFFFF';
       for (const s of sweeps) {
         const bandW = Math.max(10, s.halfW * 0.7);
-        const bandX = s.y != null ? (x - s.halfW - bandW) + phase * (s.halfW * 2 + bandW) : 0;
+        // Travels exactly 2 * halfW, the same distance the renderer's clip
+        // band covers (left edge from c-hw-bw to c+hw-bw).
+        const bandX = (x - s.halfW - bandW) + phase * (s.halfW * 2);
         ctx.save();
         ctx.beginPath();
         ctx.rect(bandX, s.y - 5, bandW, s.fs + 10);
@@ -882,28 +997,6 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
         ctx.restore();
       }
       ctx.restore();
-    }
-  }
-
-  // Accent shape under / behind the model tier. Follows the entry and exit
-  // envelope but not the loop -- matching the backend, which never threads
-  // loop keyframes into the accent events.
-  if (motion.accent !== 'none' && modelTopY != null) {
-    const revealStart = motion.stagger ? HOOK_STAGGER_STEP * 2 : 0;
-    const revealFrac = t <= revealStart ? 0 : Math.min(1, (t - revealStart) / 0.3);
-    ctx.globalAlpha = alpha * (outFx.alpha ?? 1);
-    ctx.fillStyle = modelColor;
-    if (motion.accent === 'badge') {
-      const padX = Math.round(modelFontSize * 0.38);
-      const padY = Math.round(modelFontSize * 0.2);
-      const bw = (modelLineWidth / 2 + padX) * 2 * revealFrac;
-      ctx.globalAlpha *= 0.69; // matches the badge's \alpha&HB0&
-      ctx.fillRect(x - bw / 2, modelTopY - padY, bw, modelFontSize + padY * 2);
-    } else {
-      const thickness = Math.max(4, Math.round(modelFontSize * 0.1));
-      const gap = Math.round(modelFontSize * 0.26);
-      const w = modelLineWidth * revealFrac;
-      ctx.fillRect(x - w / 2, modelTopY + modelFontSize + gap, w, thickness);
     }
   }
 
@@ -922,7 +1015,7 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
  * not by trusting a <video> element's own playback rate -- see
  * RESYNC_THRESHOLD's comment for why.
  */
-function SequencePlayer({ clips, cues = [], hookBrand = '', hookModel = '', hookLabel = '', hookDuration = 3.0, hookMotion = null, audioUrl = null, compact = false, onPlayhead, onDurations, captionStyle = {}, stickerStyle = {} }, ref) {
+function SequencePlayer({ clips, cues = [], hookBrand = '', hookModel = '', hookLabel = '', hookDuration = 3.0, hookMotion = null, hookColors = null, audioUrl = null, compact = false, onPlayhead, onDurations, captionStyle = {}, stickerStyle = {} }, ref) {
   const canvasRef = useRef(null);
   const videoElsRef = useRef({});
   const audioElRef = useRef(null);
@@ -937,7 +1030,7 @@ function SequencePlayer({ clips, cues = [], hookBrand = '', hookModel = '', hook
   const playheadRef = useRef(0);
   const prevActiveClipIdRef = useRef(null);
 
-  const captionKey = `${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}:${captionStyle.fontName}:${hookBrand}:${hookModel}:${hookLabel}:${hookDuration}:${JSON.stringify(hookMotion || {})}`;
+  const captionKey = `${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}:${captionStyle.fontName}:${hookBrand}:${hookModel}:${hookLabel}:${hookDuration}:${JSON.stringify(hookMotion || {})}:${JSON.stringify(hookColors || {})}`;
   const cuesKey = (cues || []).map(c => `${c._uid || c.id}:${c.start}:${c.end}:${c.text}:${c.translation}:${c.scale || 1}`).join(';;');
   const stickerKey = `${stickerStyle.badge}:${stickerStyle.position}:${stickerStyle.scale}:${stickerStyle.startTime}`;
   const clipKey = clips.map(c => `${c.id}:${c.source_path}:${c.trim_start}:${c.trim_end}:${c.transition_in}:${c.transition_duration}:${c.brightness}:${c.contrast}:${c.saturation}:${c.zoom}:${c.pan_x}:${c.pan_y}:${c.mirror}:${c.rotation}`).join('|');
@@ -1023,7 +1116,7 @@ function SequencePlayer({ clips, cues = [], hookBrand = '', hookModel = '', hook
     });
     ctx.globalAlpha = 1;
     ctx.filter = 'none';
-    drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration, captionStyle.fontName, captionStyle.captionColor || '#FFE600', hookMotion);
+    drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration, captionStyle.fontName, captionStyle.captionColor || '#FFE600', hookMotion, hookColors);
     drawCaption(ctx, cues, t, captionStyle);
     drawSticker(ctx, stickerImgRef.current, t, stickerStyle);
   };
@@ -1153,7 +1246,7 @@ function SequencePlayer({ clips, cues = [], hookBrand = '', hookModel = '', hook
 
         ctx.globalAlpha = 1;
         ctx.filter = 'none';
-        drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration, captionStyle.fontName, captionStyle.captionColor || '#FFE600', hookMotion);
+        drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration, captionStyle.fontName, captionStyle.captionColor || '#FFE600', hookMotion, hookColors);
         drawCaption(ctx, cues, t, captionStyle);
         drawSticker(ctx, stickerImgRef.current, t, stickerStyle);
       }
