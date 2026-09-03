@@ -44,6 +44,9 @@ const HoverVideoThumb = memo(function HoverVideoThumb({ videoUrl, onClick }) {
     setIsHovered(false);
     if (videoRef.current) {
       videoRef.current.pause();
+      try {
+        videoRef.current.currentTime = 1.0;
+      } catch {}
     }
   };
 
@@ -58,11 +61,16 @@ const HoverVideoThumb = memo(function HoverVideoThumb({ videoUrl, onClick }) {
     >
       <video
         ref={videoRef}
-        src={`/api/media/${videoUrl}`}
+        src={`/api/media/${videoUrl}#t=1.0`}
         muted
         playsInline
         loop
         className="w-full h-full object-cover"
+        onLoadedMetadata={e => {
+          try {
+            e.target.currentTime = 1.0;
+          } catch {}
+        }}
       />
       {!isHovered && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/10 transition-colors">

@@ -105,6 +105,8 @@ class RenderRequest(BaseModel):
     # subtitle_engine's _resolve_hook_motion -- omitting this field entirely
     # keeps the full default preset, it does not turn motion off.
     hook_motion: Optional[Dict[str, Any]] = None
+    # per-tier text colours: {brand, model, label} as #RRGGBB
+    hook_colors: Optional[Dict[str, str]] = None
     custom_script: Optional[str] = None
     script_overlays: Optional[List[str]] = None  # per-line spec-bar text, index-aligned with custom_script
     voice_mode: str = "gemini_tts" # gemini_tts, edge_tts, human, video
@@ -926,21 +928,12 @@ def list_exports():
             info["ad_tone"] = matched_angle.get("ad_tone")
             info["angle_status"] = matched_angle.get("status")
             info["qc_note"] = matched_angle.get("qc_note")
-            # A file is "QC rejected" when:
-            #   (a) the angle now points to a DIFFERENT video_url (i.e. this file was
-            #       superseded by a newer render), AND the angle has a qc_note set.
-            #   (b) or the angle status rolled back to in_production with a qc_note.
             cur_video_url = matched_angle.get("video_url", "")
             is_current = cur_video_url and (f.name in cur_video_url or str(f) in cur_video_url)
             is_unlinked_old = not is_current  # this file is no longer the active export
             info["is_unlinked"] = is_unlinked_old
-            info["is_qc_rejected"] = bool(
-                matched_angle.get("qc_note")
-                and (
-                    is_unlinked_old  # superseded by newer render
-                    or matched_angle.get("status") == "in_production"  # rolled back
-                )
-            )
+            # A file is QC rejected whenever its angle has an active qc_note
+            info["is_qc_rejected"] = bool(matched_angle.get("qc_note"))
         else:
             info["is_unlinked"] = True   # no angle match at all
             info["is_qc_rejected"] = False
@@ -1768,6 +1761,7 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                 hook_model=req_data.hook_model,
                 hook_label=req_data.hook_label,
                 hook_motion=req_data.hook_motion,
+                hook_colors=req_data.hook_colors,
                 font_name=req_data.font_name,
                 bilingual_subtitles=req_data.bilingual_subtitles,
                 use_ai_vision=req_data.use_ai_vision,

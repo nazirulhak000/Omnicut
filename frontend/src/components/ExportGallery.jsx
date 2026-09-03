@@ -28,6 +28,8 @@ const ExportCard = memo(function ExportCard({
       className={`overflow-hidden transition-all duration-200 flex flex-col justify-between group relative rounded-3xl border glass-card shadow-lg ${
         isSelected
           ? 'border-[#25F4EE] ring-1 ring-[#25F4EE] bg-[#25F4EE]/5'
+          : item.is_qc_rejected
+          ? 'border-red-500/50 hover:border-red-400 bg-red-950/10 hover:shadow-red-950/40 ring-1 ring-red-500/20'
           : 'border-white/[0.08] hover:border-white/[0.2] hover:shadow-2xl'
       }`}
     >
@@ -41,8 +43,14 @@ const ExportCard = memo(function ExportCard({
           {isSelected ? <Check className="w-4 h-4 text-[#25F4EE]" /> : <Square className="w-3.5 h-3.5 text-slate-400" />}
         </button>
 
-        {/* Product Tag Badge (Top Right) */}
-        <div className="absolute top-3 right-3 z-20">
+        {/* Product Tag Badge + QC Status (Top Right) */}
+        <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5">
+          {item.is_qc_rejected && (
+            <span className="px-2 py-0.5 rounded-md bg-red-600/90 text-white font-black text-[10px] shadow-sm tracking-wider flex items-center gap-1 border border-red-400/50">
+              <ShieldAlert className="w-3 h-3 text-white" />
+              <span>QC ไม่ผ่าน</span>
+            </span>
+          )}
           {isLogitech ? (
             <Badge variant="slate" size="sm">Logitech</Badge>
           ) : isEsseger ? (
@@ -66,41 +74,51 @@ const ExportCard = memo(function ExportCard({
             />
           ) : (
             <video
-              src={`/api/media/${item.rel_path || item.path}#t=0.1`}
+              src={`/api/media/${item.rel_path || item.path}#t=1.0`}
               preload="metadata"
               className="w-full h-full object-cover"
               playsInline
               muted
               loop
+              onLoadedMetadata={e => {
+                try { e.target.currentTime = 1.0; } catch {}
+              }}
               onMouseOver={e => e.target.play().catch(() => {})}
-              onMouseOut={e => { e.target.pause(); e.target.currentTime = 0; }}
+              onMouseOut={e => { e.target.pause(); try { e.target.currentTime = 1.0; } catch {} }}
             />
           )}
 
-        {/* QC Rejected / Unlinked Overlay — shown centred on the video thumbnail */}
-        {item.is_qc_rejected && (
-          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 bg-black/70 backdrop-blur-[2px] rounded-t-3xl">
-            <div className="w-14 h-14 rounded-2xl bg-red-500/20 border border-red-500/40 flex items-center justify-center shadow-xl">
-              <XCircle className="w-7 h-7 text-red-400" />
-            </div>
-            <div className="text-xs font-black text-red-300 tracking-wide">QC ไม่ผ่าน</div>
-            {item.qc_note && (
-              <div className="max-w-[85%] text-center text-[10px] text-red-200/80 font-mono leading-snug px-2 py-1 rounded-lg bg-black/60 border border-red-500/20">
-                {item.qc_note}
-              </div>
+          {/* Centered Play Button Overlay (Red circle for QC rejected, Cyan/Pink for normal - both fully playable!) */}
+          <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-all flex flex-col items-center justify-center gap-2 pointer-events-none">
+            {item.is_qc_rejected ? (
+              <>
+                {/* Distinct Red Glowing Play Circle */}
+                <div className="w-13 h-13 rounded-full bg-gradient-to-tr from-red-600 to-rose-600 text-white flex items-center justify-center shadow-xl shadow-red-600/50 ring-2 ring-red-400 ring-offset-2 ring-offset-black/50 transform group-hover:scale-110 transition-all">
+                  <Play className="w-5 h-5 fill-current ml-0.5 text-white" />
+                </div>
+                <div className="px-2.5 py-1 rounded-full bg-red-600/90 backdrop-blur-md text-white font-black text-[11px] shadow-lg border border-red-400/60 tracking-wide flex items-center gap-1">
+                  <AlertTriangle className="w-3.5 h-3.5 text-white" />
+                  <span>QC ไม่ผ่าน</span>
+                </div>
+                {item.qc_note && (
+                  <div className="max-w-[85%] text-center text-[10px] text-red-100 font-mono leading-snug px-2 py-0.5 rounded-md bg-black/70 border border-red-500/40 truncate">
+                    {item.qc_note}
+                  </div>
+                )}
+                <span className="text-xs font-bold text-white bg-black/80 px-2.5 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                  คลิกดูรายละเอียด (ตรวจ QC)
+                </span>
+              </>
+            ) : (
+              <>
+                <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-[#FE2C55] to-[#25F4EE] text-white flex items-center justify-center shadow-xl transform group-hover:scale-105 transition-all">
+                  <Play className="w-4 h-4 fill-current ml-0.5 text-white" />
+                </div>
+                <span className="text-sm font-bold text-white bg-black/80 px-2.5 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                  คลิกดูรายละเอียด
+                </span>
+              </>
             )}
-            <div className="text-[10px] text-slate-400 mt-0.5">คลิปนี้ถูกแทนที่ด้วยเวอร์ชันใหม่</div>
-          </div>
-        )}
-
-        {/* Play Button Overlay on Hover */}
-          <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-all flex flex-col items-center justify-center gap-2">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-[#FE2C55] to-[#25F4EE] text-white flex items-center justify-center shadow-xl transform group-hover:scale-105 transition-all">
-              <Play className="w-4 h-4 fill-current ml-0.5 text-white" />
-            </div>
-            <span className="text-sm font-bold text-white bg-black/80 px-2.5 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-              คลิกดูรายละเอียด
-            </span>
           </div>
         </div>
 

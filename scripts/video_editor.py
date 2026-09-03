@@ -736,7 +736,7 @@ class VideoEditor:
         try:
             cmd = [
                 "ffmpeg", "-y",
-                "-ss", "00:00:00.500",
+                "-ss", "00:00:01.000",
                 "-i", str(video_p),
                 "-vframes", "1",
                 "-vf", "scale=540:960:force_original_aspect_ratio=decrease,pad=540:960:(ow-iw)/2:(oh-ih)/2:black",
