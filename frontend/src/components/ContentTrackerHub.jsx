@@ -188,99 +188,110 @@ const KanbanCard = memo(function KanbanCard({
         </div>
       )}
 
-      {/* 3. Merged Bottom Action & Stepper Row (ยุบบรรทัดเดียวกัน - Ultra High Density!) */}
-      <div className="flex items-center justify-between gap-1.5 pt-1.5 border-t border-white/[0.06]">
-        {/* Left: Direct Primary Action */}
-        <div className="flex items-center gap-1 min-w-0 flex-1">
-          {phaseId === 'scripted' && (
-            <button
-              onClick={() => hasVideos && onSendToStudio(ang.parentProduct, ang)}
-              disabled={!hasVideos}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm flex-shrink-0 transition-all ${
-                hasVideos
-                  ? 'bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 active:scale-95 text-white cursor-pointer'
-                  : 'bg-white/[0.05] border border-white/[0.08] text-slate-500 cursor-not-allowed opacity-50'
-              }`}
-              title={hasVideos ? 'ส่งไปตัดต่อ' : 'ยังไม่มีคลิปดิบ (กรุณาแนบคลิปก่อนส่งตัดต่อ)'}
-            >
-              <Clapperboard className="w-3.5 h-3.5" />
-              <span>ส่งตัดต่อ</span>
-            </button>
-          )}
+      {/* 3. Merged Bottom Action & Stepper Row (จัดเลย์เอาต์โปร่งตา ไม่เบียดแม้จอเล็ก) */}
+      <div className="pt-1.5 border-t border-white/[0.06]">
+        {phaseId === 'rendered' ? (
+          <div className="space-y-1.5 w-full">
+            {/* Primary Action Button: Full-width Cyan QC Pass */}
+            {onQcPass && (
+              <button
+                type="button"
+                onClick={() => onQcPass(ang)}
+                className="w-full py-1.5 px-3 rounded-xl bg-gradient-to-r from-[#25F4EE] to-cyan-400 hover:brightness-110 text-slate-950 text-xs font-black flex items-center justify-center gap-1.5 shadow-md shadow-[#25F4EE]/20 cursor-pointer transition-all active:scale-95 whitespace-nowrap"
+                title={ang.qc_note ? "คลิกเพื่อแก้ให้ QC ผ่าน (ล้างป้ายแดงออก)" : "คลิกเพื่อยืนยัน QC ผ่าน (พร้อมส่งมือถือ)"}
+              >
+                <Check className="w-3.5 h-3.5 text-slate-950 stroke-[3]" />
+                <span>{ang.qc_note ? "แก้เป็น QC ผ่าน" : "ยืนยัน QC ผ่าน"}</span>
+              </button>
+            )}
 
-          {phaseId === 'in_production' && (
-            <button
-              onClick={() => onSendToStudio(ang.parentProduct, ang)}
-              className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-95 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-sm flex-shrink-0"
-              title={ang.project_name ? `เปิดไทม์ไลน์ของมุมนี้ (${ang.project_name})` : "เปิดทำต่อในหน้าตัดต่อ"}
-            >
-              <Clapperboard className="w-3.5 h-3.5" />
-              <span>{ang.project_name ? 'เปิดไทม์ไลน์' : 'ไปหน้าตัดต่อ'}</span>
-              <ArrowRight className="w-3 h-3" />
-            </button>
-          )}
-
-          {phaseId === 'rendered' && (
-            <>
-              {ang.video_url && (
+            {/* Secondary Actions Row: 3 Balanced Equal Columns */}
+            <div className="grid grid-cols-3 gap-1.5 w-full">
+              {ang.video_url ? (
                 <button
+                  type="button"
                   onClick={() => onPreviewVideo(ang.video_url, ang)}
-                  className="px-2 py-1.5 rounded-lg bg-white/[0.06] border border-white/[0.08] text-slate-200 hover:bg-white/[0.12] text-xs font-bold flex items-center gap-1 cursor-pointer"
+                  className="py-1.5 px-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] text-slate-200 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors whitespace-nowrap"
                   title="พรีวิวตรวจ QC"
                 >
                   <Play className="w-3 h-3 fill-current text-[#25F4EE]" />
                   <span>QC</span>
                 </button>
-              )}
-              {onQcPass && (
-                <button
-                  onClick={() => onQcPass(ang)}
-                  className="px-2.5 py-1.5 rounded-lg bg-[#25F4EE]/20 hover:bg-[#25F4EE]/35 border border-[#25F4EE]/50 text-[#25F4EE] hover:text-white text-xs font-bold flex items-center gap-1 shadow-sm shadow-[#25F4EE]/15 cursor-pointer transition-all active:scale-95"
-                  title={ang.qc_note ? "คลิกเพื่อแก้ให้ QC ผ่านทันที (ล้างป้ายแดงออก)" : "คลิกเพื่อยืนยัน QC ผ่าน (พร้อมส่งมือถือ)"}
-                >
-                  <Check className="w-3.5 h-3.5" />
-                  <span>QC ผ่าน</span>
-                </button>
-              )}
+              ) : <div />}
+
               <button
+                type="button"
                 onClick={() => onQcFail(ang)}
-                className="px-2 py-1.5 rounded-lg bg-red-500/15 border border-red-500/30 text-red-300 hover:bg-red-500/25 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                className="py-1.5 px-1 rounded-lg bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors whitespace-nowrap"
                 title="QC ไม่ผ่าน — ส่งตัดใหม่"
               >
                 <RotateCcw className="w-3 h-3" />
                 <span>ตัดใหม่</span>
               </button>
+
               <button
+                type="button"
                 onClick={() => onOpenQrModal(ang)}
-                className="px-2 py-1.5 rounded-lg bg-[#25F4EE]/15 border border-[#25F4EE]/30 text-[#25F4EE] hover:bg-[#25F4EE]/25 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                className="py-1.5 px-1 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-300 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors whitespace-nowrap"
                 title="ส่งเข้ามือถือ"
               >
                 <QrCode className="w-3 h-3" />
                 <span>มือถือ</span>
               </button>
-            </>
-          )}
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-1.5">
+            {/* Left: Direct Primary Action */}
+            <div className="flex items-center gap-1 min-w-0 flex-1">
+              {phaseId === 'scripted' && (
+                <button
+                  onClick={() => hasVideos && onSendToStudio(ang.parentProduct, ang)}
+                  disabled={!hasVideos}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm flex-shrink-0 transition-all ${
+                    hasVideos
+                      ? 'bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 active:scale-95 text-white cursor-pointer'
+                      : 'bg-white/[0.05] border border-white/[0.08] text-slate-500 cursor-not-allowed opacity-50'
+                  }`}
+                  title={hasVideos ? 'ส่งไปตัดต่อ' : 'ยังไม่มีคลิปดิบ (กรุณาแนบคลิปก่อนส่งตัดต่อ)'}
+                >
+                  <Clapperboard className="w-3.5 h-3.5" />
+                  <span>ส่งตัดต่อ</span>
+                </button>
+              )}
 
-          {phaseId === 'mobile_ready' && (
-            <>
-              <button
-                onClick={() => onOpenQrModal(ang)}
-                className="px-2 py-1.5 rounded-lg bg-purple-500/15 border border-purple-500/30 text-purple-300 hover:bg-purple-500/25 text-xs font-bold flex items-center gap-1 cursor-pointer"
-                title="เปิด QR Code"
-              >
-                <QrCode className="w-3 h-3" />
-                <span>QR</span>
-              </button>
-              <button
-                onClick={() => onStatusChange(ang.parentProduct.id, ang.angle_id, 'posted', null, null, true)}
-                className="px-2 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30 text-xs font-bold flex items-center gap-1 cursor-pointer"
-                title="มาร์กว่าโพสต์แล้ว"
-              >
-                <Check className="w-3 h-3" />
-                <span>โพสต์แล้ว</span>
-              </button>
-            </>
-          )}
+              {phaseId === 'in_production' && (
+                <button
+                  onClick={() => onSendToStudio(ang.parentProduct, ang)}
+                  className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-95 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-sm flex-shrink-0"
+                  title={ang.project_name ? `เปิดไทม์ไลน์ของมุมนี้ (${ang.project_name})` : "เปิดทำต่อในหน้าตัดต่อ"}
+                >
+                  <Clapperboard className="w-3.5 h-3.5" />
+                  <span>{ang.project_name ? 'เปิดไทม์ไลน์' : 'ไปหน้าตัดต่อ'}</span>
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              )}
+
+              {phaseId === 'mobile_ready' && (
+                <>
+                  <button
+                    onClick={() => onOpenQrModal(ang)}
+                    className="px-2 py-1.5 rounded-lg bg-purple-500/15 border border-purple-500/30 text-purple-300 hover:bg-purple-500/25 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                    title="เปิด QR Code"
+                  >
+                    <QrCode className="w-3 h-3" />
+                    <span>QR</span>
+                  </button>
+                  <button
+                    onClick={() => onStatusChange(ang.parentProduct.id, ang.angle_id, 'posted', null, null, true)}
+                    className="px-2 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                    title="มาร์กว่าโพสต์แล้ว"
+                  >
+                    <Check className="w-3 h-3" />
+                    <span>โพสต์แล้ว</span>
+                  </button>
+                </>
+              )}
 
           {phaseId === 'posted' && (
             <div
@@ -306,7 +317,9 @@ const KanbanCard = memo(function KanbanCard({
           )}
         </div>
       </div>
-    </div>
+    )}
+  </div>
+</div>
   );
 });
 
