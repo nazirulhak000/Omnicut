@@ -5,7 +5,7 @@ import {
   Kanban, Table, Sparkles, CheckCircle2, Clock,
   ExternalLink, ChevronRight, ChevronLeft, Filter, AlertCircle,
   Video, Eye, Flame, TrendingUp, Plus, X, FileText, Scissors,
-  FolderDown, Info, Film
+  FolderDown, Info, Film, RotateCcw, ShieldAlert
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
@@ -237,9 +237,9 @@ const KanbanCard = memo(function KanbanCard({
           )}
         </div>
 
-        {/* Right: Caption Quick Copy Only */}
+        {/* Right: Caption Quick Copy Only (เฉพาะเมื่อคลิปพร้อมส่งเข้ามือถือ หรือ โพสต์แล้ว) */}
         <div className="flex items-center gap-1 flex-shrink-0">
-          {captionText && (
+          {captionText && (phaseId === 'mobile_ready' || phaseId === 'posted') && (
             <button
               onClick={() => onCopyCaption(captionText, ang.angle_id)}
               className="p-1.5 rounded-lg bg-black/40 hover:bg-white/[0.08] border border-white/[0.08] text-slate-400 hover:text-white cursor-pointer transition-colors"
@@ -328,17 +328,24 @@ const TableRow = memo(function TableRow({
         </span>
       </td>
 
-      {/* 4. Caption Preview & Copy */}
+      {/* 4. Caption Preview & Copy (คัดลอกได้เมื่อส่งเข้ามือถือหรือโพสต์แล้ว) */}
       <td className="py-2 px-3">
-        <button
-          onClick={() => onCopyCaption(`${ang.tiktok_caption || ''}\n\n${ang.tiktok_hashtags || ''}`, ang.angle_id)}
-          className="text-left py-1 px-2 rounded-lg bg-black/40 hover:bg-black/60 border border-white/[0.06] text-slate-300 text-xs flex items-center justify-between gap-2 max-w-[180px] cursor-pointer"
-        >
-          <span className="truncate text-sm font-mono">{ang.tiktok_caption || 'คัดลอกแคปชัน'}</span>
-          <span className="text-[#25F4EE] flex-shrink-0">
-            {copiedAngleId === ang.angle_id ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+        {(ang.status === 'mobile_ready' || ang.status === 'posted') ? (
+          <button
+            onClick={() => onCopyCaption(`${ang.tiktok_caption || ''}\n\n${ang.tiktok_hashtags || ''}`, ang.angle_id)}
+            className="text-left py-1 px-2 rounded-lg bg-black/40 hover:bg-black/60 border border-white/[0.06] text-slate-300 text-xs flex items-center justify-between gap-2 max-w-[180px] cursor-pointer transition-colors"
+            title="คลิกเพื่อคัดลอกแคปชัน & แฮชแท็ก"
+          >
+            <span className="truncate text-sm font-mono">{ang.tiktok_caption || 'คัดลอกแคปชัน'}</span>
+            <span className="text-[#25F4EE] flex-shrink-0">
+              {copiedAngleId === ang.angle_id ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+            </span>
+          </button>
+        ) : (
+          <span className="truncate text-sm font-mono text-slate-500 max-w-[180px] block" title={ang.tiktok_caption || ''}>
+            {ang.tiktok_caption || '-'}
           </span>
-        </button>
+        )}
       </td>
 
       {/* 5. Direct Action Buttons */}

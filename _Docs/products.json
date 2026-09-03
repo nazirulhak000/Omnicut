@@ -219,11 +219,9 @@
           "ถ้าอยากทำงานสบายขึ้น ไม่ต้องทนปวดอีกต่อไป กดตะกร้าซ้ายล่างเลย ราคาดีมาก ห้ามพลาดนะ!"
         ],
         "tts_hook_title": "ทริค! เคล็ดลับคนทำงานสบาย ไม่ปวดข้อมือ!",
-        "selected_videos": [
-          "01_Raw/20260902153241_1/Logitech wav.mov"
-        ],
-        "selected_video": "01_Raw/20260902153241_1/Logitech wav.mov",
-        "updated_at": "2026-09-03T23:50:41",
+        "selected_videos": [],
+        "selected_video": null,
+        "updated_at": "2026-09-04T00:24:32",
         "status": "scripted",
         "project_name": null,
         "video_url": null
@@ -255,11 +253,9 @@
           "ถ้าไม่อยากเสียเงินฟรีแล้วต้องมานั่งเสียดายทีหลัง กดตะกร้าซ้ายล่างตอนนี้เลย! ราคาโปรโมชั่นรอคุณอยู่ รีบหน่อยนะ!"
         ],
         "tts_hook_title": "อย่าเพิ่งซื้อคีย์บอร์ด ถ้ายังไม่ดูคลิปนี้!",
-        "selected_videos": [
-          "01_Raw/20260902153241_1/Logitech wav.mov"
-        ],
-        "selected_video": "01_Raw/20260902153241_1/Logitech wav.mov",
-        "updated_at": "2026-09-03T23:54:55"
+        "selected_videos": [],
+        "selected_video": null,
+        "updated_at": "2026-09-04T00:24:35"
       }
     ],
     "images": [],
@@ -271,7 +267,7 @@
       "TikTok_Test_Rollback_99"
     ],
     "created_at": "2026-09-02T15:32:41",
-    "updated_at": "2026-09-04T00:12:06",
+    "updated_at": "2026-09-04T00:24:35",
     "videos": [
       {
         "name": "1027.mp4",

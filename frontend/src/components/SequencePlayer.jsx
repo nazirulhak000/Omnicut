@@ -582,8 +582,58 @@ function drawSticker(ctx, img, t, style = {}) {
  * approximation on animation easing (this canvas fades alpha, the .ass pops
  * scale in), not on layout or which text shows where.
  */
-function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 3.5, fontName = 'Kanit', accentColor = '#FFE600') {
+// Default hook-banner motion preset -- mirrors DEFAULT_HOOK_MOTION in
+// subtitle_engine.py exactly (all 4 effects on; a partial dict from the UI
+// only carries the keys the user turned off).
+const HOOK_MOTION_DEFAULTS = { bounce: true, stagger: true, pulse: true, underline: true };
+const HOOK_STAGGER_STEP = 0.15; // seconds; mirrors STAGGER_STEP_MS
+const HOOK_DIM_OPACITY = 1 - 0x25 / 255; // mirrors ASS \alpha&H25&
+
+// Scale multiplier (1.0 = settled/target size) for `elapsedSec` since this
+// tier's own stagger start. Mirrors _hook_entry_anim's keyframes exactly so
+// the preview's bounce timing matches the real render.
+function hookEntryScale(elapsedSec, bounce) {
+  const ms = elapsedSec * 1000;
+  if (!bounce) {
+    if (ms <= 0) return 1.15;
+    if (ms >= 120) return 1.0;
+    return 1.15 + (1.0 - 1.15) * (ms / 120);
+  }
+  if (ms <= 0) return 0.6;
+  if (ms >= 450) return 1.0;
+  const kf = [[0, 0.6], [150, 1.25], [280, 0.92], [380, 1.05], [450, 1.0]];
+  for (let i = 0; i < kf.length - 1; i++) {
+    const [t1, v1] = kf[i];
+    const [t2, v2] = kf[i + 1];
+    if (ms >= t1 && ms <= t2) return v1 + (v2 - v1) * ((ms - t1) / (t2 - t1));
+  }
+  return 1.0;
+}
+
+// Breathing alpha oscillation for the hold period. Mirrors
+// _hook_pulse_keyframes: alternating opaque/dim every 350ms, dropping a
+// trailing fragment that wouldn't complete before the exit fade takes over.
+function hookPulseOpacity(tSec, pulseStartSec, exitStartSec) {
+  if (tSec < pulseStartSec) return 1.0;
+  const HALF = 0.35;
+  let segStart = pulseStartSec;
+  let dimNext = true;
+  while (segStart + HALF <= exitStartSec) {
+    const segEnd = segStart + HALF;
+    if (tSec >= segStart && tSec < segEnd) {
+      const from = dimNext ? 1.0 : HOOK_DIM_OPACITY;
+      const to = dimNext ? HOOK_DIM_OPACITY : 1.0;
+      return from + (to - from) * ((tSec - segStart) / HALF);
+    }
+    segStart = segEnd;
+    dimNext = !dimNext;
+  }
+  return 1.0;
+}
+
+function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 3.5, fontName = 'Kanit', accentColor = '#FFE600', hookMotion = null) {
   if ((!hookBrand && !hookModel && !hookLabel) || t > hookDuration) return;
+  const motion = { ...HOOK_MOTION_DEFAULTS, ...(hookMotion || {}) };
 
   let fontFam = "'Kanit', sans-serif";
   if (fontName === 'IBMPlex' || fontName === 'IBM Plex Sans Thai') {
@@ -597,11 +647,12 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
   if (t > hookDuration - 0.3) alpha = Math.max(0, (hookDuration - t) / 0.3);
 
   const baseFontSize = Math.round(CANVAS_W * 0.052 * 1.64);
-  // Same tier percentages as hook_tier_specs in subtitle_engine.py.
+  // Same tier percentages as hook_tier_specs in subtitle_engine.py. tierIdx
+  // doubles as the stagger slot and marks the model tier for the underline.
   const tierSpecs = [
-    { text: (hookBrand || '').trim().toUpperCase(), sizePct: 130, color: '#FFFFFF' },
-    { text: (hookModel || '').trim(), sizePct: 100, color: accentColor },
-    { text: (hookLabel || '').trim(), sizePct: 58, color: '#E0E0E0' },
+    { text: (hookBrand || '').trim().toUpperCase(), sizePct: 130, color: '#FFFFFF', tierIdx: 0 },
+    { text: (hookModel || '').trim(), sizePct: 100, color: accentColor, tierIdx: 1 },
+    { text: (hookLabel || '').trim(), sizePct: 58, color: '#E0E0E0', tierIdx: 2 },
   ].filter((tier) => tier.text);
   if (!tierSpecs.length) return;
 
@@ -618,7 +669,7 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
     const tierFs = Math.max(10, Math.round((baseFontSize * tier.sizePct) / 100));
     ctx.font = `900 ${tierFs}px ${fontFam}`;
     for (const line of wrapCanvasText(tier.text, ctx, maxW)) {
-      wrapped.push({ line, fontSize: tierFs, color: tier.color });
+      wrapped.push({ line, fontSize: tierFs, color: tier.color, tierIdx: tier.tierIdx });
     }
   }
 
@@ -626,6 +677,15 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
   // brand/model that wraps twice doesn't crowd the sticker badge (top-right,
   // y=140) instead of just overflowing unbounded.
   const shrink = Math.max(0.7, Math.min(1, 4 / wrapped.length));
+
+  // Pulse can't start until every tier's own entry has settled.
+  let maxEntryEndSec = 0;
+  for (const { tierIdx } of wrapped) {
+    const t0 = motion.stagger ? tierIdx * HOOK_STAGGER_STEP : 0;
+    maxEntryEndSec = Math.max(maxEntryEndSec, t0 + (motion.bounce ? 0.45 : 0.12));
+  }
+  const exitStartSec = Math.max(0.12, hookDuration - 0.15);
+  const pulseOpacity = motion.pulse ? hookPulseOpacity(t, maxEntryEndSec, exitStartSec) : 1.0;
 
   // Gradient backdrop -- mirrors video_editor.py's geq overlay (dark at the
   // top of the frame, fading to transparent by ~25% down), same alpha
@@ -644,19 +704,56 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
   ctx.strokeStyle = '#000000';
   ctx.lineJoin = 'round';
   ctx.miterLimit = 2;
-  ctx.globalAlpha = alpha;
 
   let y = 130; // ~HookHeader's ASS MarginV=260 of 1920, scaled to this 960-tall canvas
   const lineGap = 1.15;
-  for (const { line, fontSize, color } of wrapped) {
-    const scaledFs = Math.max(10, Math.round(fontSize * shrink));
-    ctx.font = `900 ${scaledFs}px ${fontFam}`;
-    ctx.lineWidth = Math.round(scaledFs * 0.22);
+  // Bookkeeping for the accent underline, captured while walking the same
+  // lines the text itself draws -- unlike the ASS backend (which has no way
+  // to ask libass where a wrapped line landed), the canvas already computes
+  // each line's real y and width here, so no LINE_HEIGHT_FACTOR guess is
+  // needed on this side.
+  let modelBottomY = null, modelLineWidth = 0, modelFontSize = 0, modelColor = accentColor;
+  for (const { line, fontSize, color, tierIdx } of wrapped) {
+    // The cumulative y-cursor advances using the SETTLED size, not the
+    // currently-animating bounce scale -- an ASS \t transform (and this
+    // mirror of it) animates glyph rendering, not layout reflow, so other
+    // lines must not jitter as this one bounces.
+    const settledFs = Math.max(10, Math.round(fontSize * shrink));
+    const t0 = motion.stagger ? tierIdx * HOOK_STAGGER_STEP : 0;
+    const renderFs = Math.max(6, Math.round(settledFs * hookEntryScale(t - t0, motion.bounce)));
+
+    ctx.globalAlpha = alpha * pulseOpacity;
+    ctx.font = `900 ${renderFs}px ${fontFam}`;
+    ctx.lineWidth = Math.round(renderFs * 0.22);
     ctx.strokeText(line, x, y, maxW);
     ctx.fillStyle = color;
     ctx.fillText(line, x, y, maxW);
-    y += scaledFs * lineGap;
+
+    if (tierIdx === 1) {
+      ctx.font = `900 ${settledFs}px ${fontFam}`; // measure at settled size, not the bounced one
+      modelLineWidth = ctx.measureText(line).width;
+      modelFontSize = settledFs;
+      modelColor = color;
+      modelBottomY = y + settledFs * lineGap;
+    }
+    y += settledFs * lineGap;
   }
+
+  // Accent underline: reveals under the model tier's LAST wrapped line.
+  // Follows the entry/exit fade envelope only, not the pulse -- matches the
+  // backend, which never threads pulse keyframes into the underline event.
+  if (motion.underline && modelBottomY != null) {
+    const revealStart = motion.stagger ? HOOK_STAGGER_STEP * 2 : 0;
+    const revealEnd = revealStart + 0.3;
+    const revealFrac = t <= revealStart ? 0 : Math.min(1, (t - revealStart) / (revealEnd - revealStart));
+    const thickness = Math.max(3, Math.round(modelFontSize * 0.06));
+    const gap = Math.round(modelFontSize * 0.12);
+    const w = modelLineWidth * revealFrac;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = modelColor;
+    ctx.fillRect(x - w / 2, modelBottomY + gap, w, thickness);
+  }
+
   ctx.restore();
 }
 
@@ -672,7 +769,7 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
  * not by trusting a <video> element's own playback rate -- see
  * RESYNC_THRESHOLD's comment for why.
  */
-function SequencePlayer({ clips, cues = [], hookBrand = '', hookModel = '', hookLabel = '', hookDuration = 3.0, audioUrl = null, compact = false, onPlayhead, onDurations, captionStyle = {}, stickerStyle = {} }, ref) {
+function SequencePlayer({ clips, cues = [], hookBrand = '', hookModel = '', hookLabel = '', hookDuration = 3.0, hookMotion = null, audioUrl = null, compact = false, onPlayhead, onDurations, captionStyle = {}, stickerStyle = {} }, ref) {
   const canvasRef = useRef(null);
   const videoElsRef = useRef({});
   const audioElRef = useRef(null);
@@ -687,7 +784,7 @@ function SequencePlayer({ clips, cues = [], hookBrand = '', hookModel = '', hook
   const playheadRef = useRef(0);
   const prevActiveClipIdRef = useRef(null);
 
-  const captionKey = `${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}:${captionStyle.fontName}:${hookBrand}:${hookModel}:${hookLabel}:${hookDuration}`;
+  const captionKey = `${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}:${captionStyle.fontName}:${hookBrand}:${hookModel}:${hookLabel}:${hookDuration}:${JSON.stringify(hookMotion || {})}`;
   const cuesKey = (cues || []).map(c => `${c._uid || c.id}:${c.start}:${c.end}:${c.text}:${c.translation}:${c.scale || 1}`).join(';;');
   const stickerKey = `${stickerStyle.badge}:${stickerStyle.position}:${stickerStyle.scale}:${stickerStyle.startTime}`;
   const clipKey = clips.map(c => `${c.id}:${c.source_path}:${c.trim_start}:${c.trim_end}:${c.transition_in}:${c.transition_duration}:${c.brightness}:${c.contrast}:${c.saturation}:${c.zoom}:${c.pan_x}:${c.pan_y}:${c.mirror}:${c.rotation}`).join('|');
@@ -773,7 +870,7 @@ function SequencePlayer({ clips, cues = [], hookBrand = '', hookModel = '', hook
     });
     ctx.globalAlpha = 1;
     ctx.filter = 'none';
-    drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration, captionStyle.fontName, captionStyle.captionColor || '#FFE600');
+    drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration, captionStyle.fontName, captionStyle.captionColor || '#FFE600', hookMotion);
     drawCaption(ctx, cues, t, captionStyle);
     drawSticker(ctx, stickerImgRef.current, t, stickerStyle);
   };
@@ -903,7 +1000,7 @@ function SequencePlayer({ clips, cues = [], hookBrand = '', hookModel = '', hook
 
         ctx.globalAlpha = 1;
         ctx.filter = 'none';
-        drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration, captionStyle.fontName, captionStyle.captionColor || '#FFE600');
+        drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration, captionStyle.fontName, captionStyle.captionColor || '#FFE600', hookMotion);
         drawCaption(ctx, cues, t, captionStyle);
         drawSticker(ctx, stickerImgRef.current, t, stickerStyle);
       }
@@ -1044,46 +1141,41 @@ function SequencePlayer({ clips, cues = [], hookBrand = '', hookModel = '', hook
             </div>
           )}
           {metadataReady && clips.length > 0 && (
-            <button
-              onClick={togglePlay}
-              className="group absolute inset-0 flex cursor-pointer items-center justify-center bg-black/0 transition-colors hover:bg-black/20"
-            >
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/60 text-white opacity-0 shadow-lg transition-all group-hover:bg-[#D97757] group-hover:opacity-100">
-                {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
+            <>
+              <button
+                onClick={togglePlay}
+                className="group absolute inset-0 flex cursor-pointer items-center justify-center bg-black/0 transition-colors hover:bg-black/20"
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/60 text-white opacity-0 shadow-lg transition-all group-hover:bg-[#D97757] group-hover:opacity-100">
+                  {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
+                </div>
+              </button>
+              {/* Timecode lives here, over the stage, instead of in a
+                  transport row below it -- the row's own play button was
+                  redundant with the click-to-play overlay above, and
+                  removing the row entirely (compact mode) gives the stage
+                  the full column height instead of losing a strip to it. */}
+              <div className="pointer-events-none absolute bottom-2 right-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-mono font-bold text-white/90 backdrop-blur-sm">
+                {playhead.toFixed(1)}s / {totalDuration.toFixed(1)}s
               </div>
-            </button>
+            </>
           )}
         </div>
       </div>
 
-      {metadataReady && clips.length > 0 && (
+      {metadataReady && clips.length > 0 && !compact && (
         <>
-          {/* Compact mode has no scrub bar, so the button + timecode would
-              otherwise sit far left of a centred preview. */}
-          <div className={`flex w-full flex-shrink-0 items-center gap-2 pt-1 ${compact ? 'justify-center' : ''}`}>
-            <button
-              onClick={togglePlay}
-              className="w-8 h-8 rounded-xl bg-[#D97757] text-white flex items-center justify-center flex-shrink-0 cursor-pointer hover:bg-[#C2683D] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757]"
-            >
-              {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
-            </button>
-            {!compact && (
-              <input
-                type="range" min={0} max={totalDuration || 0} step={0.01}
-                value={playhead}
-                onChange={handleScrubInput}
-                className="flex-1 accent-[#D97757]"
-              />
-            )}
-            <span className="text-xs font-mono text-[#9C968F] w-20 text-right flex-shrink-0 font-bold">
-              {playhead.toFixed(1)}s / {totalDuration.toFixed(1)}s
-            </span>
+          <div className="flex w-full flex-shrink-0 items-center gap-2 pt-1">
+            <input
+              type="range" min={0} max={totalDuration || 0} step={0.01}
+              value={playhead}
+              onChange={handleScrubInput}
+              className="flex-1 accent-[#D97757]"
+            />
           </div>
-          {!compact && (
-            <p className="flex flex-shrink-0 items-center gap-1 text-sm text-[#9C968F]">
-              <Eye className="w-3.5 h-3.5 text-[#9C968F]" /> พรีวิวรวมทั้ง sequence แบบประมาณ (ฟอนต์/สีจริงยึดผลจาก Apply เท่านั้น)
-            </p>
-          )}
+          <p className="flex flex-shrink-0 items-center gap-1 text-sm text-[#9C968F]">
+            <Eye className="w-3.5 h-3.5 text-[#9C968F]" /> พรีวิวรวมทั้ง sequence แบบประมาณ (ฟอนต์/สีจริงยึดผลจาก Apply เท่านั้น)
+          </p>
         </>
       )}
     </div>

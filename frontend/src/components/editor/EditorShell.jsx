@@ -1435,6 +1435,7 @@ export default function EditorShell({
                   hookModel={showHookHeader ? hookModel : ''}
                   hookLabel={showHookHeader ? hookLabel : ''}
                   hookDuration={hookDuration}
+                  hookMotion={hookMotion}
                   audioUrl={audioUrl}
                   captionStyle={{
                     captionPosition: style.captionPosition,
@@ -1652,6 +1653,8 @@ export default function EditorShell({
                       onHookLabelChange={setHookLabel}
                       hookDuration={hookDuration}
                       onHookDurationChange={setHookDuration}
+                      hookMotion={hookMotion}
+                      onHookMotionChange={handleHookMotionToggle}
                       showHookHeader={showHookHeader}
                       onToggleHookHeader={() => setShowHookHeader((v) => !v)}
                       onAddTextAtPlayhead={addTextAtPlayhead}
@@ -1760,6 +1763,7 @@ export default function EditorShell({
                   hookModel={showHookHeader ? hookModel : ''}
                   hookLabel={showHookHeader ? hookLabel : ''}
                     hookDuration={hookDuration}
+                    hookMotion={hookMotion}
                     audioUrl={audioUrl}
                     captionStyle={{
                       captionPosition: style.captionPosition,
@@ -1902,6 +1906,8 @@ export default function EditorShell({
                         onHookLabelChange={setHookLabel}
                         hookDuration={hookDuration}
                         onHookDurationChange={setHookDuration}
+                        hookMotion={hookMotion}
+                        onHookMotionChange={handleHookMotionToggle}
                         showHookHeader={showHookHeader}
                         onToggleHookHeader={() => setShowHookHeader((v) => !v)}
                         onAddTextAtPlayhead={addTextAtPlayhead}

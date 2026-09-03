@@ -928,11 +928,13 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
                 # Line-height factor for the manual vertical cursor the
                 # underline drawing needs (ASS has no API to ask libass
-                # where a wrapped line actually landed). Tuned against a
-                # real rendered frame, not derived analytically -- if the
-                # underline drifts from the model line after a font change,
-                # adjust this first.
-                LINE_HEIGHT_FACTOR = 1.28
+                # where a wrapped line actually landed). Measured directly
+                # off a real ffmpeg+libass render (pixel-scanned ink bands
+                # per tier), not guessed -- an initial 1.28 guess put the
+                # underline a full line too low, under the label instead of
+                # the model. If it drifts after a font change, remeasure the
+                # same way rather than re-guessing.
+                LINE_HEIGHT_FACTOR = 1.0
 
                 shadow_parts, main_parts = [], []
                 max_entry_end_ms = 0
@@ -978,7 +980,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                         underline_y += round(line_fs * LINE_HEIGHT_FACTOR)
                         if tier_idx == 1:
                             seen_model = True
-                    underline_y += round(model_tier_fs_final * 0.12)  # small gap below the text
+                    underline_y += round(model_tier_fs_final * 0.06)  # small gap below the text
 
                     plain_model_line = model_last_line  # wrap_text_for_ass output; no override blocks to strip
                     measured_w = _measure_text_width_px(plain_model_line.replace("\\N", " "), resolved_font, model_tier_fs_final)
