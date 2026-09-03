@@ -540,7 +540,7 @@ export default function AssetPanel({
               className="w-full py-2 px-3 mb-2.5 rounded-xl bg-gradient-to-r from-[#D97757] to-[#E89274] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-all"
             >
               <Plus className="w-4 h-4" />
-              <span>+ เพิ่มข้อความที่หัวอ่าน</span>
+              <span>เพิ่มข้อความที่หัวอ่าน</span>
             </button>
 
             <p className="px-1 pt-1 text-xs font-semibold uppercase tracking-wide text-[#9C968F]">

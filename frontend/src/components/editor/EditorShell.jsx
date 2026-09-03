@@ -21,6 +21,7 @@ import Timeline from './Timeline';
 import Toolbar from './Toolbar';
 import NewClipPanel from './NewClipPanel';
 import { ActivityIndicatorButton } from '../ActivityCenter';
+import { useTaskManager } from '../../context/TaskContext';
 import HeaderMenu from './HeaderMenu';
 import RenderButton from './RenderButton';
 
@@ -78,6 +79,7 @@ export default function EditorShell({
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const [assets, setAssets] = useState({ sfx: [], music: [], fonts: [], stickers: [], luts: [] });
+  const { pollTasks } = useTaskManager();
 
   const [durations, setDurations] = useState({});
   const [audioDuration, setAudioDuration] = useState(0);
@@ -1024,6 +1026,7 @@ export default function EditorShell({
         sticker_scale: style.stickerScale ?? 1,
       });
       setJobId(res.job_id);
+      pollTasks?.();
       cuesDirty.current = false;
       loadedAudioStyle.current = {
         bgmName: style.bgmName ?? null,
@@ -1129,16 +1132,6 @@ export default function EditorShell({
               {rightSidebarCollapsed ? <PanelRightOpen className="h-3.5 w-3.5" /> : <PanelRightClose className="h-3.5 w-3.5" />}
             </button>
           </div>
-
-          <button
-            type="button"
-            onClick={() => setZen((v) => !v)}
-            disabled={!projectName}
-            title={zen ? 'กลับไปหน้าตัดต่อ (Esc)' : 'ขยายพรีวิวเต็มพื้นที่'}
-            className="hidden sm:flex h-9 items-center gap-1 px-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/[0.08] text-xs font-bold cursor-pointer transition-colors disabled:opacity-40"
-          >
-            {zen ? <><Minimize2 className="h-3.5 w-3.5" /> ย่อ</> : <><Maximize2 className="h-3.5 w-3.5" /> ขยาย</>}
-          </button>
 
           <button
             type="button"

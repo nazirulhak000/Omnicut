@@ -401,7 +401,7 @@ export default function Inspector({
                 title="แทรกข้อความใหม่ ณ จุดที่หัวอ่าน (Playhead) กำลังวางอยู่"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>+ ที่หัวอ่าน</span>
+                <span>ที่หัวอ่าน</span>
               </button>
 
               {/* Add New Cue at Tail */}

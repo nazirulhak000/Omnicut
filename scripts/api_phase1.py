@@ -24,6 +24,7 @@ from scripts.product_store import STATUSES, ProductStore
 from scripts.config import BASE_DIR, STICKERS_DIR
 from scripts.project_manifest import REROLL_STAGE, ProjectManifest
 from scripts import render_jobs
+from scripts.task_manager import TaskManager
 
 router = APIRouter(prefix="/api", tags=["phase1"])
 
@@ -652,12 +653,22 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 transitions=params.get("transitions"),
                 export_mp4=True,
                 resume_from=stage,
-                progress_callback=render_jobs.progress_reporter(job_id),
+                progress_callback=lambda progress, msg: (
+                    render_jobs.update_progress(job_id, progress, msg),
+                    TaskManager.update_progress(job_id, progress, step_label=msg)
+                ),
             )
-        render_jobs.complete_job(job_id, result, message="🎉 สุ่มใหม่เสร็จแล้ว!")
+        render_jobs.complete_job(job_id, result, message="🎉 เรนเดอร์เสร็จสมบูรณ์!")
+        TaskManager.complete_task(
+            job_id,
+            result=result,
+            step_label="🎉 เรนเดอร์วิดีโอเสร็จสมบูรณ์ 100%!",
+            target_id=project_name,
+        )
 
     except Exception as err:
         render_jobs.fail_job(job_id, err)
+        TaskManager.fail_task(job_id, str(err), step_label="เรนเดอร์วิดีโอล้มเหลว")
 
 
 @router.post("/reroll")
@@ -702,7 +713,19 @@ def trigger_reroll(req: RerollRequest, background_tasks: BackgroundTasks):
         overrides["sticker_path"] = resolved
 
     job_id = str(uuid.uuid4())
-    render_jobs.create_job(job_id, message=f"กำลังสุ่มใหม่: {req.part}...")
+    part_label = "เรนเดอร์วิดีโอ" if req.part in ("subtitles", "bgm", "video") else f"สุ่มใหม่: {req.part}"
+    render_jobs.create_job(job_id, message=f"กำลัง{part_label}...")
+
+    # Register in global TaskManager so Activity Center tracks it in real-time
+    TaskManager.create_task(
+        task_type="render_video",
+        title=f"{part_label}: {req.project_name}",
+        payload={"project_name": req.project_name, "part": req.part},
+        target_tab="editor",
+        target_id=req.project_name,
+        task_id=job_id,
+    )
+
     background_tasks.add_task(_execute_reroll, job_id, req.project_name, stage, overrides)
 
     return {"job_id": job_id, "status": "queued", "part": req.part, "cost": REROLL_COST.get(req.part, "")}
