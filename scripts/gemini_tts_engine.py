@@ -146,18 +146,17 @@ class GeminiFlashTTSEngine:
             }
         }
 
-        # Try gemini-3.1-flash-tts-preview first, fallback to 2.5 if needed
+        # Models supported for TTS audio in Google Gemini API
         model_candidates = [
             "gemini-3.1-flash-tts-preview",
             "gemini-2.5-flash-preview-tts",
-            "gemini-2.0-flash",
         ]
         
         import time
         data = None
         last_error = None
         for model_name in model_candidates:
-            for attempt in range(1, 4):
+            for attempt in range(1, 3):
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
                 req = urllib.request.Request(
                     url,
@@ -165,18 +164,23 @@ class GeminiFlashTTSEngine:
                     headers={"Content-Type": "application/json"}
                 )
                 try:
-                    with urllib.request.urlopen(req, timeout=30) as resp:
+                    # Give enough time for long Thai audio generation (75 seconds)
+                    with urllib.request.urlopen(req, timeout=75) as resp:
                         data = json.loads(resp.read().decode("utf-8"))
                         print(f"✨ [Gemini Flash TTS] Used model '{model_name}' with voice '{target_voice}'")
                         break
+                except urllib.error.HTTPError as he:
+                    last_error = he
+                    # If 403 (quota/forbidden) or 404 (not found), do NOT retry this model, move on immediately
+                    print(f"⚠️ [Gemini Flash TTS] Model '{model_name}' returned HTTP {he.code}, skipping to fallback...")
+                    break
                 except Exception as e:
                     last_error = e
-                    if attempt < 3:
-                        backoff = 2 ** attempt
-                        print(f"⚠️ [Gemini Flash TTS] Retry {attempt}/3 for '{model_name}' in {backoff}s (error: {e})")
-                        time.sleep(backoff)
+                    if attempt < 2:
+                        print(f"⚠️ [Gemini Flash TTS] Retry {attempt}/2 for '{model_name}' in 3s (error: {e})")
+                        time.sleep(3)
                     else:
-                        print(f"⚠️ [Gemini Flash TTS] Model '{model_name}' exhausted 3 retries ({e}), trying fallback...")
+                        print(f"⚠️ [Gemini Flash TTS] Model '{model_name}' exhausted retries ({e}), trying fallback...")
             if data:
                 break
 
