@@ -3,7 +3,7 @@ import {
   Link2, Sparkles, Clapperboard, Loader2, Check, Copy,
   AlertCircle, ArrowRight, Upload, Trash2, RefreshCw, Plus, Film, Video,
   ChevronDown, ChevronUp, ChevronRight, Package, Rocket, FolderOpen, X,
-  Search, LayoutGrid, Filter, Play
+  Search, LayoutGrid, Filter, Play, Lock
 } from 'lucide-react';
 import {
   scrapeAndPlanProduct, scrapeAndPlanProductAsync, getProducts, updateProduct, updateAngleStatus, updateAngleVideos, setDefaultVideosForProduct, deleteProduct, uploadFile
@@ -212,44 +212,67 @@ function ScriptAccordionItem({
 
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
               {/* Media Picker Modal Trigger Button */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenMediaPicker && onOpenMediaPicker(index);
-                }}
-                className={`flex-shrink-0 flex items-center gap-1.5 py-1.5 px-3 rounded-lg border text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95 ${
-                  selectedVideos.length > 0
-                    ? 'bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border-[#25F4EE]/40 text-[#25F4EE]'
-                    : 'bg-amber-500/15 hover:bg-amber-500/25 border-amber-500/50 text-amber-300 animate-pulse'
-                }`}
-                title="เปิดคลังเลือกคลิปแบบ Grid พร้อมดูภาพพรีวิวและค้นหา"
-              >
-                <FolderOpen className="w-3.5 h-3.5" />
-                <span>{selectedVideos.length > 0 ? `เปลี่ยน/เลือกคลิป (${videos.length})` : `เลือกคลิป (${videos.length})`}</span>
-              </button>
+              {isInProduction ? (
+                <div
+                  className="flex-shrink-0 flex items-center gap-1.5 py-1.5 px-3 rounded-lg border text-xs font-bold bg-amber-500/10 border-amber-500/30 text-amber-300 select-none cursor-not-allowed"
+                  title="สคริปต์นี้กำลังตัดต่อจริงในไทม์ไลน์ ล็อครายการคลิปตามไทม์ไลน์จริง"
+                >
+                  <Lock className="w-3.5 h-3.5 text-amber-400" />
+                  <span>คลิปในไทม์ไลน์ ({selectedVideos.length})</span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenMediaPicker && onOpenMediaPicker(index);
+                  }}
+                  className={`flex-shrink-0 flex items-center gap-1.5 py-1.5 px-3 rounded-lg border text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95 ${
+                    selectedVideos.length > 0
+                      ? 'bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border-[#25F4EE]/40 text-[#25F4EE]'
+                      : 'bg-amber-500/15 hover:bg-amber-500/25 border-amber-500/50 text-amber-300 animate-pulse'
+                  }`}
+                  title="เปิดคลังเลือกคลิปแบบ Grid พร้อมดูภาพพรีวิวและค้นหา"
+                >
+                  <FolderOpen className="w-3.5 h-3.5" />
+                  <span>{selectedVideos.length > 0 ? `เปลี่ยน/เลือกคลิป (${videos.length})` : `เลือกคลิป (${videos.length})`}</span>
+                </button>
+              )}
 
-              {/* Show ONLY Selected Footage Tags (with X to remove) */}
+              {/* Show Selected Footage Tags */}
               {selectedVideos.map(path => {
                 const fileName = path.split(/[/\\]/).pop();
                 return (
                   <div
                     key={path}
-                    className="flex-shrink-0 flex items-center gap-1.5 py-1 px-2.5 rounded-lg bg-[#25F4EE]/15 border border-[#25F4EE]/40 text-xs font-bold text-[#25F4EE] shadow-sm animate-fadeIn"
+                    className={`flex-shrink-0 flex items-center gap-1.5 py-1 px-2.5 rounded-lg border text-xs font-bold shadow-sm animate-fadeIn ${
+                      isInProduction
+                        ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                        : 'bg-[#25F4EE]/15 border-[#25F4EE]/40 text-[#25F4EE]'
+                    }`}
                   >
-                    <Film className="w-3.5 h-3.5 text-[#25F4EE]" />
+                    <Film className={`w-3.5 h-3.5 ${isInProduction ? 'text-amber-400' : 'text-[#25F4EE]'}`} />
                     <span className="truncate max-w-[130px]">{fileName}</span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onToggleVideoForAngle && onToggleVideoForAngle(index, path);
-                      }}
-                      className="p-0.5 hover:bg-[#25F4EE]/30 rounded text-[#25F4EE] hover:text-white cursor-pointer ml-0.5 transition-colors"
-                      title="ยกเลิกการผูกคลิปนี้"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
+                    {isInProduction ? (
+                      <span
+                        className="p-0.5 text-amber-400/70 ml-0.5"
+                        title="คลิปนี้กำลังใช้งานจริงในไทม์ไลน์ (ล็อคไม่ให้ลบ จนกว่าจะตัดออกในไทม์ไลน์)"
+                      >
+                        <Lock className="w-3 h-3" />
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleVideoForAngle && onToggleVideoForAngle(index, path);
+                        }}
+                        className="p-0.5 hover:bg-[#25F4EE]/30 rounded text-[#25F4EE] hover:text-white cursor-pointer ml-0.5 transition-colors"
+                        title="ยกเลิกการผูกคลิปนี้"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -625,11 +648,19 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const handleConfirmMediaPicker = async (selectedPaths) => {
     // Case 1: Product-level default for ALL angles (idx === -1)
     if (pickerAngleIndex === -1) {
-      setAngles(prev => prev.map(ang => ({
-        ...ang,
-        selected_videos: selectedPaths,
-        selected_video: selectedPaths[0] || null
-      })));
+      setAngles(prev => prev.map(ang => {
+        const curStatus = ang.status || 'scripted';
+        const isAngleInProd = curStatus === 'in_production' || (!!ang.project_name && curStatus !== 'rendered' && curStatus !== 'posted');
+        if (isAngleInProd) {
+          // Keep existing timeline clips locked for angles in production
+          return ang;
+        }
+        return {
+          ...ang,
+          selected_videos: selectedPaths,
+          selected_video: selectedPaths[0] || null
+        };
+      }));
       if (productData?.id) {
         try {
           const res = await setDefaultVideosForProduct(productData.id, selectedPaths);
@@ -679,6 +710,13 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const handleToggleVideoForAngle = async (angleIdx, videoPath) => {
     const targetAngle = angles[angleIdx];
     if (!targetAngle) return;
+
+    const curStatus = targetAngle.status || 'scripted';
+    const isInProduction = curStatus === 'in_production' || (!!targetAngle.project_name && curStatus !== 'rendered' && curStatus !== 'posted');
+    if (isInProduction) {
+      showToast('คลิปนี้กำลังถูกใช้งานจริงในไทม์ไลน์ ไม่สามารถตัดออกได้จนกว่าจะตัดออกจากไทม์ไลน์จริง', 'warning');
+      return;
+    }
 
     const currentVideos = targetAngle.selected_videos || (targetAngle.selected_video ? [targetAngle.selected_video] : []);
     const newVideos = currentVideos.includes(videoPath)

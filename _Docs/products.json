@@ -43,9 +43,9 @@
         "status": "rendered",
         "updated_at": "2026-09-03T23:47:50",
         "selected_videos": [
-          "D:\\Winona\\Programmer\\Capcut\\01_Raw\\20260902153241_1\\Logitech wav.mov"
+          "01_Raw/20260902153241_1/Logitech wav.mov"
         ],
-        "selected_video": "D:\\Winona\\Programmer\\Capcut\\01_Raw\\20260902153241_1\\Logitech wav.mov",
+        "selected_video": "01_Raw/20260902153241_1/Logitech wav.mov",
         "video_url": "D:\\Winona\\Programmer\\Capcut\\04_Exports\\Ready_to_post\\TikTok_Logitech_Wave_Keys_20260903_165225.mp4",
         "project_name": "TikTok_Logitech_Wave_Keys"
       },
@@ -79,9 +79,9 @@
         "status": "in_production",
         "updated_at": "2026-09-03T23:47:50",
         "selected_videos": [
-          "D:\\Winona\\Programmer\\Capcut\\01_Raw\\20260902153241_1\\Logitech wav.mov"
+          "01_Raw/20260902153241_1/Logitech wav.mov"
         ],
-        "selected_video": "D:\\Winona\\Programmer\\Capcut\\01_Raw\\20260902153241_1\\Logitech wav.mov",
+        "selected_video": "01_Raw/20260902153241_1/Logitech wav.mov",
         "project_name": "TikTok_Logitech_Wave_Keys_a4"
       },
       {
@@ -112,9 +112,9 @@
         ],
         "tts_hook_title": "ทดสอบโหด! คีย์บอร์ด Logitech Wave Keys ทนจริงมั้ย?",
         "selected_videos": [
-          "D:\\Winona\\Programmer\\Capcut\\01_Raw\\20260902153241_1\\Logitech wav.mov"
+          "01_Raw/20260902153241_1/Logitech wav.mov"
         ],
-        "selected_video": "D:\\Winona\\Programmer\\Capcut\\01_Raw\\20260902153241_1\\Logitech wav.mov",
+        "selected_video": "01_Raw/20260902153241_1/Logitech wav.mov",
         "updated_at": "2026-09-03T23:49:35",
         "status": "in_production",
         "project_name": "TikTok_Logitech_Wave_Keys_a2",
@@ -149,8 +149,10 @@
         "tts_hook_title": "ช้าหมด อดนะ! Logitech Wave Keys โปรไฟลุก",
         "status": "scripted",
         "updated_at": "2026-09-03T23:54:59",
-        "selected_videos": [],
-        "selected_video": null,
+        "selected_videos": [
+          "01_Raw/20260902153241_1/Logitech wav.mov"
+        ],
+        "selected_video": "01_Raw/20260902153241_1/Logitech wav.mov",
         "project_name": null,
         "video_url": null
       },
@@ -181,8 +183,10 @@
           "ใครอยากอัปเกรดชีวิตการทำงานให้ดีขึ้น ไม่ต้องคิดเยอะแล้ว กดสั่งในตะกร้าได้เลย! ราคาพิเศษรออยู่ คุ้มกว่านี้ไม่มีอีกแล้ว!"
         ],
         "tts_hook_title": "เทียบกับ! คีย์บอร์ดเก่า เทียบกับ Logitech Wave Keys ชีวิตเปลี่ยน!",
-        "selected_videos": [],
-        "selected_video": null,
+        "selected_videos": [
+          "01_Raw/20260902153241_1/Logitech wav.mov"
+        ],
+        "selected_video": "01_Raw/20260902153241_1/Logitech wav.mov",
         "updated_at": "2026-09-03T23:49:42",
         "status": "scripted",
         "project_name": null,
@@ -215,8 +219,10 @@
           "ถ้าอยากทำงานสบายขึ้น ไม่ต้องทนปวดอีกต่อไป กดตะกร้าซ้ายล่างเลย ราคาดีมาก ห้ามพลาดนะ!"
         ],
         "tts_hook_title": "ทริค! เคล็ดลับคนทำงานสบาย ไม่ปวดข้อมือ!",
-        "selected_videos": [],
-        "selected_video": null,
+        "selected_videos": [
+          "01_Raw/20260902153241_1/Logitech wav.mov"
+        ],
+        "selected_video": "01_Raw/20260902153241_1/Logitech wav.mov",
         "updated_at": "2026-09-03T23:50:41",
         "status": "scripted",
         "project_name": null,
@@ -249,8 +255,10 @@
           "ถ้าไม่อยากเสียเงินฟรีแล้วต้องมานั่งเสียดายทีหลัง กดตะกร้าซ้ายล่างตอนนี้เลย! ราคาโปรโมชั่นรอคุณอยู่ รีบหน่อยนะ!"
         ],
         "tts_hook_title": "อย่าเพิ่งซื้อคีย์บอร์ด ถ้ายังไม่ดูคลิปนี้!",
-        "selected_videos": [],
-        "selected_video": null,
+        "selected_videos": [
+          "01_Raw/20260902153241_1/Logitech wav.mov"
+        ],
+        "selected_video": "01_Raw/20260902153241_1/Logitech wav.mov",
         "updated_at": "2026-09-03T23:54:55"
       }
     ],
@@ -263,7 +271,7 @@
       "TikTok_Test_Rollback_99"
     ],
     "created_at": "2026-09-02T15:32:41",
-    "updated_at": "2026-09-03T23:55:29",
+    "updated_at": "2026-09-04T00:12:06",
     "videos": [
       {
         "name": "1027.mp4",

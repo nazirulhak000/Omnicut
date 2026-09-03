@@ -219,6 +219,9 @@ class ProductStore:
         for product in products:
             if product["id"] == product_id:
                 for angle in product.get("angles", []):
+                    # Do not overwrite angles that are actively in_production in timeline
+                    if angle.get("status") == "in_production" or (angle.get("project_name") and angle.get("status") not in ("rendered", "posted")):
+                        continue
                     angle["selected_videos"] = selected_videos
                     angle["selected_video"] = selected_videos[0] if selected_videos else None
                     angle["updated_at"] = cls._now()

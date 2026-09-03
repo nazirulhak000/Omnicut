@@ -5,7 +5,7 @@ import {
   Kanban, Table, Sparkles, CheckCircle2, Clock,
   ExternalLink, ChevronRight, ChevronLeft, Filter, AlertCircle,
   Video, Eye, Flame, TrendingUp, Plus, X, FileText, Scissors,
-  FolderDown, Info
+  FolderDown, Info, Film
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
@@ -97,6 +97,11 @@ const KanbanCard = memo(function KanbanCard({
   const prevPhase = curIdx > 0 ? PHASE_ORDER[curIdx - 1] : null;
   const nextPhase = curIdx < PHASE_ORDER.length - 1 ? PHASE_ORDER[curIdx + 1] : null;
 
+  const chosenVideos = (ang.selected_videos && ang.selected_videos.length > 0)
+    ? ang.selected_videos
+    : (ang.selected_video ? [ang.selected_video] : []);
+  const hasVideos = chosenVideos.length > 0;
+
   return (
     <div
       className="p-2.5 rounded-xl bg-[#0B0F19] border border-white/[0.08] hover:border-[#25F4EE]/40 transition-all space-y-2 relative group shadow-sm"
@@ -151,9 +156,14 @@ const KanbanCard = memo(function KanbanCard({
         <div className="flex items-center gap-1 min-w-0 flex-1">
           {phaseId === 'scripted' && (
             <button
-              onClick={() => onSendToStudio(ang.parentProduct, ang)}
-              className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 active:scale-95 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-sm flex-shrink-0"
-              title="ส่งไปตัดต่อ"
+              onClick={() => hasVideos && onSendToStudio(ang.parentProduct, ang)}
+              disabled={!hasVideos}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm flex-shrink-0 transition-all ${
+                hasVideos
+                  ? 'bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 active:scale-95 text-white cursor-pointer'
+                  : 'bg-white/[0.05] border border-white/[0.08] text-slate-500 cursor-not-allowed opacity-50'
+              }`}
+              title={hasVideos ? 'ส่งไปตัดต่อ' : 'ยังไม่มีคลิปดิบ (กรุณาแนบคลิปก่อนส่งตัดต่อ)'}
             >
               <Clapperboard className="w-3.5 h-3.5" />
               <span>ส่งตัดต่อ</span>
@@ -259,6 +269,11 @@ const TableRow = memo(function TableRow({
 }) {
   const currentPhase = PIPELINE_PHASES.find(p => p.id === ang.status) || PIPELINE_PHASES[0];
 
+  const chosenVideos = (ang.selected_videos && ang.selected_videos.length > 0)
+    ? ang.selected_videos
+    : (ang.selected_video ? [ang.selected_video] : []);
+  const hasVideos = chosenVideos.length > 0;
+
   return (
     <tr className="border-b border-white/[0.06] hover:bg-white/[0.02] transition-colors">
         {/* 1. Media Preview */}
@@ -338,9 +353,14 @@ const TableRow = memo(function TableRow({
           </button>
 
           <button
-            onClick={() => onSendToStudio(ang.parentProduct, ang)}
-            className="py-1 px-2.5 rounded-lg bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center gap-1 cursor-pointer"
-            title="ส่งเข้า 1-Click Studio"
+            onClick={() => hasVideos && onSendToStudio(ang.parentProduct, ang)}
+            disabled={!hasVideos}
+            className={`py-1 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all ${
+              hasVideos
+                ? 'bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] cursor-pointer'
+                : 'bg-white/[0.03] border border-white/[0.06] text-slate-600 cursor-not-allowed opacity-40'
+            }`}
+            title={hasVideos ? 'ส่งเข้า 1-Click Studio' : 'ยังไม่มีคลิปดิบ (กรุณาแนบคลิปก่อนส่งตัดต่อ)'}
           >
             <Clapperboard className="w-3 h-3" />
             <span>Studio</span>
@@ -459,6 +479,11 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
     const chosenVideos = angle.selected_videos && angle.selected_videos.length > 0
       ? angle.selected_videos
       : (angle.selected_video ? [angle.selected_video] : []);
+
+    if (chosenVideos.length === 0) {
+      showToast('ยังไม่มีคลิปดิบในสคริปต์นี้ กรุณาแนบคลิปก่อนส่งตัดต่อ', 'error');
+      return;
+    }
 
     onApplyToStudio({
       productId: product.id,
@@ -584,6 +609,11 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
 
           const isRenderedOrBeyond = inspectAngle.status === 'rendered' || inspectAngle.status === 'mobile_ready' || inspectAngle.status === 'posted';
 
+          const attachedVideos = (inspectAngle.selected_videos && inspectAngle.selected_videos.length > 0)
+            ? inspectAngle.selected_videos
+            : (inspectAngle.selected_video ? [inspectAngle.selected_video] : []);
+          const hasAttachedVideos = attachedVideos.length > 0;
+
           return (
             <div className="space-y-3 max-h-[78vh] overflow-y-auto pr-1">
               {/* 1. Compact Single-Row Status Ribbon (ยุบบรรทัดเดียว ไม่ขึ้น 2 บรรทัด) */}
@@ -617,6 +647,44 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                 </div>
               </div>
 
+              {/* 2.1 Attached Raw Footage Section (คลิปดิบที่ใช้จริงสำหรับสคริปต์นี้) */}
+              <div className="space-y-1.5 p-2.5 rounded-xl bg-black/40 border border-white/[0.08]">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-300">
+                  <span className="flex items-center gap-1.5 text-cyan-300">
+                    <Film className="w-4 h-4 text-[#25F4EE]" />
+                    <span>คลิปดิบที่ใช้สำหรับสคริปต์นี้ ({attachedVideos.length} คลิป)</span>
+                  </span>
+                  {hasAttachedVideos ? (
+                    <span className="text-xs text-emerald-400 font-mono font-bold">● พร้อมตัดต่อ</span>
+                  ) : (
+                    <span className="text-xs text-amber-400 font-mono font-bold">● ยังไม่ได้เลือกคลิป</span>
+                  )}
+                </div>
+
+                {hasAttachedVideos ? (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {attachedVideos.map((vPath, idx) => {
+                      const fname = vPath.split(/[\\/]/).pop();
+                      return (
+                        <div
+                          key={vPath + idx}
+                          className="flex items-center gap-1.5 py-1 px-2 rounded-lg bg-[#25F4EE]/10 border border-[#25F4EE]/30 text-xs font-bold text-[#25F4EE]"
+                          title={vPath}
+                        >
+                          <Film className="w-3 h-3 flex-shrink-0" />
+                          <span className="font-mono">{idx + 1}. {fname}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="py-2 px-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>ยังไม่มีคลิปดิบที่ผูกกับสคริปต์นี้ (ไม่สามารถส่งตัดต่อได้ กรุณาแนบคลิปก่อน)</span>
+                  </div>
+                )}
+              </div>
+
               {/* 3. Video QC Player Section (แสดงผลเสมอเมื่อสถานะคือ ตัดต่อเสร็จ / ส่งมือถือ / โพสต์แล้ว หรือมีวิดีโอ) */}
               {(isRenderedOrBeyond || effectiveVideoUrl) && (
                 <div className="space-y-1.5 p-2.5 rounded-xl bg-black/60 border border-white/[0.08]">
@@ -647,10 +715,17 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                       <p className="text-xs text-slate-300 font-bold">ยังไม่พบไฟล์วิดีโอที่เรนเดอร์สำหรับมุมนี้</p>
                       <button
                         onClick={() => {
+                          if (!hasAttachedVideos) return;
                           setInspectAngle(null);
                           handleSendToStudio(inspectAngle.parentProduct, inspectAngle);
                         }}
-                        className="px-3 py-1.5 rounded-lg bg-[#FE2C55] hover:bg-[#E0264B] text-white text-xs font-bold inline-flex items-center gap-1.5 shadow-sm cursor-pointer active:scale-95 transition-all"
+                        disabled={!hasAttachedVideos}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 shadow-sm transition-all ${
+                          hasAttachedVideos
+                            ? 'bg-[#FE2C55] hover:bg-[#E0264B] text-white cursor-pointer active:scale-95'
+                            : 'bg-white/[0.05] border border-white/[0.08] text-slate-500 cursor-not-allowed opacity-50'
+                        }`}
+                        title={hasAttachedVideos ? 'สร้าง & เรนเดอร์คลิปนี้ใน Studio' : 'ยังไม่มีคลิปดิบ (กรุณาแนบคลิปก่อนส่งตัดต่อ)'}
                       >
                         <Clapperboard className="w-3.5 h-3.5" />
                         <span>สร้าง & เรนเดอร์คลิปนี้ใน Studio</span>
@@ -723,13 +798,19 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                 {/* Button 2: Go to Video Editor (Unified Primary Action) */}
                 <button
                   onClick={() => {
+                    if (!hasAttachedVideos) return;
                     setInspectAngle(null);
                     handleSendToStudio(inspectAngle.parentProduct, inspectAngle);
                   }}
-                  className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-[#FE2C55]/20 active:scale-95 transition-all"
-                  title="ส่งมุมนี้เข้าสู่หน้าตัดต่อทันที"
+                  disabled={!hasAttachedVideos}
+                  className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                    hasAttachedVideos
+                      ? 'bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white cursor-pointer shadow-md shadow-[#FE2C55]/20 active:scale-95'
+                      : 'bg-white/[0.05] border border-white/[0.08] text-slate-500 cursor-not-allowed opacity-50'
+                  }`}
+                  title={hasAttachedVideos ? 'ส่งมุมนี้เข้าสู่หน้าตัดต่อทันที' : 'ยังไม่มีคลิปดิบ (กรุณาแนบคลิปก่อนส่งตัดต่อ)'}
                 >
-                  <Clapperboard className="w-3.5 h-3.5 text-white" />
+                  <Clapperboard className="w-3.5 h-3.5" />
                   <span>ส่งไปตัดต่อ</span>
                 </button>
 
