@@ -60,6 +60,7 @@ from scripts import render_jobs
 from scripts.render_jobs import ACTIVE_JOBS
 from scripts.asset_registry import AssetRegistry
 from scripts.task_manager import TaskManager
+from scripts.post_log import PostLog
 from scripts.api_phase1 import router as phase1_router
 from scripts.api_editor import router as editor_router
 from scripts.api_tokens import router as tokens_router
@@ -169,8 +170,7 @@ def get_file_info(file_path: Path) -> Dict[str, Any]:
         "timestamp": stat.st_mtime
     }
 
-class DeleteFileRequest(BaseModel):
-    file_path: str
+# (DeleteFileRequest defined above near line 124 — no duplicate needed)
 
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".m4v", ".webm", ".hevc", ".mkv"}
 
@@ -257,25 +257,31 @@ def stream_media_file(file_path: Path, request: Request):
         }
         return StreamingResponse(iterfile(), headers=headers)
 
-import functools
+import socket as _socket
 
-@functools.lru_cache(maxsize=1)
+_ip_cache: Dict[str, Any] = {"ip": None, "ts": 0.0}
+_IP_TTL = 60.0  # re-check every 60 s so Wi-Fi switches are reflected quickly
+
 def get_local_ip() -> str:
-    """Returns the primary local IPv4 address of this machine on the LAN/Wi-Fi (cached for instant sub-millisecond response)."""
-    try:
-        import socket
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.settimeout(0.3)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except Exception:
+    """Returns the primary local IPv4 address. Re-checked every 60 s so
+    switching Wi-Fi networks is reflected without restarting the server."""
+    now = time.monotonic()
+    if _ip_cache["ip"] is None or (now - _ip_cache["ts"]) > _IP_TTL:
+        ip = "127.0.0.1"
         try:
-            import socket
-            return socket.gethostbyname(socket.gethostname())
+            s = _socket.socket(_socket.AF_INET, _socket.SOCK_DGRAM)
+            s.settimeout(0.3)
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            s.close()
         except Exception:
-            return "127.0.0.1"
+            try:
+                ip = _socket.gethostbyname(_socket.gethostname())
+            except Exception:
+                pass
+        _ip_cache["ip"] = ip
+        _ip_cache["ts"] = now
+    return _ip_cache["ip"]
 
 # ----------------------------------------------------------------------
 # API Endpoints
@@ -838,34 +844,48 @@ def stream_media(file_path: str, request: Request):
 
 @app.get("/api/exports")
 def list_exports():
-    """Lists all rendered videos in 04_Exports/Ready_to_post enriched with product & script metadata."""
+    """Lists all rendered videos in 04_Exports/Ready_to_post enriched with product & script metadata.
+    Matching uses ProductStore data only — no hardcoded brand-name keywords.
+    """
     files = sorted(list(EXPORTS_DIR.glob("*.mp4")), key=os.path.getmtime, reverse=True)
     all_products = ProductStore.get_all()
+
+    # Build lookup: project_name prefix -> (product, angle)
+    project_angle_map: Dict[str, tuple] = {}
+    for p in all_products:
+        for proj_name in p.get("projects", []):
+            project_angle_map[proj_name.lower()] = (p, None)
+        for a in p.get("angles", []):
+            vid_url = a.get("video_url", "")
+            if vid_url:
+                project_angle_map[Path(vid_url).stem.lower()] = (p, a)
+                project_angle_map[Path(vid_url).name.lower()] = (p, a)
 
     results = []
     for f in files:
         info = get_file_info(f)
         fname_low = f.name.lower()
+        fstem_low = f.stem.lower()
 
-        matched_angle = None
         matched_prod = None
+        matched_angle = None
 
+        # 1. Exact angle video_url match (most reliable)
         for p in all_products:
-            p_name_low = (p.get("name") or "").lower()
             for a in p.get("angles", []):
-                if a.get("video_url") and (f.name in a.get("video_url") or str(f) in a.get("video_url")):
-                    matched_angle = a
-                    matched_prod = p
+                vid_url = a.get("video_url", "")
+                if vid_url and (f.name in vid_url or str(f) in vid_url):
+                    matched_prod, matched_angle = p, a
                     break
-            if matched_angle:
+            if matched_prod:
                 break
 
-            if "esseger" in p_name_low and "esseger" in fname_low:
-                matched_prod = p
-                matched_angle = p.get("angles", [{}])[0] if p.get("angles") else None
-            elif "logitech" in p_name_low and "logitech" in fname_low:
-                matched_prod = p
-                matched_angle = p.get("angles", [{}])[0] if p.get("angles") else None
+        # 2. Project name prefix match (e.g. filename starts with project folder name)
+        if not matched_prod:
+            for proj_key, (p, a) in project_angle_map.items():
+                if proj_key and (fstem_low.startswith(proj_key) or proj_key in fstem_low):
+                    matched_prod, matched_angle = p, a
+                    break
 
         if matched_prod:
             info["product_id"] = matched_prod.get("id")
@@ -881,19 +901,6 @@ def list_exports():
             info["tiktok_caption"] = matched_angle.get("tiktok_caption")
             info["tiktok_hashtags"] = matched_angle.get("tiktok_hashtags")
             info["ad_tone"] = matched_angle.get("ad_tone")
-        else:
-            if "esseger" in fname_low:
-                info["product_name"] = "Esseger สายชาร์จแม่เหล็ก 66W"
-                info["hook_title"] = "🔥 อย่าเพิ่งเลื่อนผ่าน! ถ้าเบื่อกับสายชาร์จพังง่าย"
-                info["tiktok_caption"] = "แก้ปัญหาสายชาร์จพังง่าย! Esseger สายชาร์จแม่เหล็ก 66W หัวหมุนได้ ไม่เกะกะมือ พิกัดในตะกร้าซ้ายล่าง 👇"
-                info["tiktok_hashtags"] = "#สายชาร์จแม่เหล็ก #รีวิวของดี #tiktokป้ายยา #ของใช้จำเป็น"
-                info["script_lines"] = [
-                    "ทุกคน! ใครที่เบื่อกับปัญหาสายชาร์จพังง่าย เสียบยากในที่มืด ดูคลิปนี้เลย",
-                    "นี่เลย Esseger สายชาร์จแม่เหล็กตัวท็อป แม่เหล็กแรงดูดสูงมาก",
-                    "แค่เอาไปใกล้ๆ ก็ดูดติดทันที เสียบง่ายด้วยมือเดียว มีไฟ LED บอกสถานะ",
-                    "หัวหมุนได้ 540 องศา เล่นเกมไปชาร์จไปไม่เกะกะมือ แถมชาร์จเร็ว 66 วัตต์",
-                    "ราคาพิเศษเฉพาะวันนี้ รีบกดในตะกร้าซ้ายล่างก่อนของจะหมดนะครับ!"
-                ]
 
         results.append(info)
 
@@ -1030,9 +1037,9 @@ def _execute_scrape_and_plan_worker(task_id: str, payload: Dict[str, Any]):
 
         title_display = product_info.get("title", custom_keyword or "สินค้า")
         if len(title_display) > 35:
-            title_display = title_display[:35] + "..."
+            title_display = title_display[:35]
 
-        TaskManager.update_progress(task_id, 0.55, f"AI กำลังแต่ง {angle_count} สคริปต์ ({title_display})...")
+        TaskManager.update_progress(task_id, 0.55, f"AI กำลังแต่ง {angle_count} สคริปต์ ({title_display})")
 
         angles = ProductScraper.generate_content_matrix(product_info, count=angle_count)
 
@@ -1144,6 +1151,65 @@ def clear_completed_tasks():
     cleared = TaskManager.clear_completed()
     return {"success": True, "cleared_count": cleared}
 
+# ═══════════════════════════════════════════════════════════════════════
+# 📋 POST LOG — Feedback Loop (track which angles sell best)
+# ═══════════════════════════════════════════════════════════════════════
+
+@app.get("/api/post-log")
+def get_post_log(newest_first: bool = True):
+    """Returns all posted clips with their recorded metrics."""
+    posts = PostLog.list_posts(newest_first=newest_first)
+    return {"posts": posts, "count": len(posts)}
+
+@app.post("/api/post-log")
+def add_post_log(payload: Dict[str, Any]):
+    """Records that a clip went live on TikTok (or other platform)."""
+    try:
+        post = PostLog.add_post(
+            product_name=payload.get("product_name", ""),
+            clip_file=payload.get("clip_file", ""),
+            platform=payload.get("platform", "tiktok"),
+            product_url=payload.get("product_url", ""),
+            angle_key=payload.get("angle_key", ""),
+            angle_title=payload.get("angle_title", ""),
+            hook=payload.get("hook", ""),
+            caption=payload.get("caption", ""),
+            hashtags=payload.get("hashtags"),
+            posted_at=payload.get("posted_at"),
+        )
+        return {"success": True, "post": post}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.patch("/api/post-log/{post_id}/metrics")
+def update_post_log_metrics(post_id: str, payload: Dict[str, Any]):
+    """Fills in the 48-hour performance numbers for a post.
+    Accepted keys: views, likes, comments, shares, cart_clicks, orders, commission_thb."""
+    try:
+        post = PostLog.update_metrics(post_id, payload)
+        return {"success": True, "post": post}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@app.get("/api/post-log/pending")
+def get_pending_metrics():
+    """Returns posts that are past 48 h but still have no performance numbers filled in."""
+    pending = PostLog.pending_metrics()
+    return {"pending": pending, "count": len(pending)}
+
+@app.get("/api/post-log/performance")
+def get_angle_performance():
+    """Returns average views, cart-click-rate, and commission grouped by angle key.
+    Use this to decide which angle to shoot next for maximum sales."""
+    performance = PostLog.angle_performance()
+    return {"performance": performance}
+
+@app.get("/api/post-log/summary")
+def get_post_log_summary():
+    """Returns overall totals: clips posted, measured, total views, orders, commission."""
+    summary = PostLog.summary()
+    return summary
+
 @app.patch("/api/products/{product_id}/angles/{angle_id}")
 def update_product_angle_status(product_id: str, angle_id: str, payload: Dict[str, Any]):
     """Updates status (draft, scripted, rendered, posted) of a specific angle script."""
@@ -1202,6 +1268,11 @@ def generate_ai_scripts(req: ScriptGenerateRequest):
 - ปัญหาที่แก้: {req.pain_point}
 - ราคา/โปร: {req.price_deal}
 
+กฎเหล็กการเขียนบทพูด:
+- ห้ามใช้จุดไข่ปลา "..." หรือ "…" ในบทพูดโดยเด็ดขาด ให้เว้นวรรคธรรมดาแทน
+- ห้ามใช้ภาษาโฆษณาทีวีทางการ ให้ใช้ภาษาพูดเพื่อนสนิทป้ายยา
+- ห้ามใส่ emoji ในบทพูด (script_text) ใส่ได้เฉพาะ angle_name และ hook_title
+
 กรุณาแต่งสคริปต์ภาษาพูดคนรีวิวจริง (ไม่เอาภาษาโฆษณาแข็งๆ) 4 รูปแบบ:
 1. เตือนภัย / จี้จุดเจ็บ (Stop Scroll / Pain Point)
 2. โชว์ฟังก์ชันสุดล้ำ / ว้าว (Tech Feature Hype)
@@ -1243,6 +1314,12 @@ def generate_ai_scripts(req: ScriptGenerateRequest):
         m = re.search(r"```json\s*([\s\S]*?)\s*```", response.text)
         clean_json = m.group(1).strip() if m else response.text.strip()
         data = json.loads(clean_json)
+        # Sanitize any stray ellipses that slipped past the prompt rule
+        import re as _re
+        for angle in data.get("angles", []):
+            st = angle.get("script_text", "")
+            if st:
+                angle["script_text"] = _re.sub(r'[.]{2,}|\u2026', ' ', st).strip()
         return data
 
     except Exception as e:

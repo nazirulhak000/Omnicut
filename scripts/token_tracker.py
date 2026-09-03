@@ -34,10 +34,13 @@ COMMERCIAL_RATES_USD_PER_1M = {
 USD_TO_THB = 35.0
 
 
+import threading
+
 class TokenTracker:
     """Thread-safe singleton engine for recording and aggregating AI token analytics."""
 
     _cache: Optional[Dict[str, Any]] = None
+    _lock: threading.Lock = threading.Lock()
 
     @classmethod
     def _get_default_structure(cls) -> Dict[str, Any]:
@@ -113,48 +116,49 @@ class TokenTracker:
         metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
-        Record a single AI execution turn.
+        Record a single AI execution turn. Thread-safe.
         """
-        data = cls._load()
-        now = datetime.datetime.now()
-        total_tokens = input_tokens + output_tokens + thinking_tokens
-        saved_thb = cls.estimate_cost_saved_thb(model, input_tokens, output_tokens, thinking_tokens)
+        with cls._lock:
+            data = cls._load()
+            now = datetime.datetime.now()
+            total_tokens = input_tokens + output_tokens + thinking_tokens
+            saved_thb = cls.estimate_cost_saved_thb(model, input_tokens, output_tokens, thinking_tokens)
 
-        event = {
-            "id": f"evt_{now.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}",
-            "timestamp": now.isoformat(),
-            "date": now.strftime("%Y-%m-%d"),
-            "task": task,
-            "model": model,
-            "provider": provider,
-            "input_tokens": int(input_tokens),
-            "output_tokens": int(output_tokens),
-            "thinking_tokens": int(thinking_tokens),
-            "total_tokens": int(total_tokens),
-            "latency_seconds": round(float(latency_seconds), 2),
-            "cost_saved_thb": saved_thb,
-            "project_name": project_name or "General Studio Task",
-            "metadata": metadata or {}
-        }
+            event = {
+                "id": f"evt_{now.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}",
+                "timestamp": now.isoformat(),
+                "date": now.strftime("%Y-%m-%d"),
+                "task": task,
+                "model": model,
+                "provider": provider,
+                "input_tokens": int(input_tokens),
+                "output_tokens": int(output_tokens),
+                "thinking_tokens": int(thinking_tokens),
+                "total_tokens": int(total_tokens),
+                "latency_seconds": round(float(latency_seconds), 2),
+                "cost_saved_thb": saved_thb,
+                "project_name": project_name or "General Studio Task",
+                "metadata": metadata or {}
+            }
 
-        # Keep max 1,000 historical events to preserve disk and memory
-        events = data.get("events", [])
-        events.append(event)
-        if len(events) > 1000:
-            events = events[-1000:]
-        data["events"] = events
+            # Keep max 1,000 historical events to preserve disk and memory
+            events = data.get("events", [])
+            events.append(event)
+            if len(events) > 1000:
+                events = events[-1000:]
+            data["events"] = events
 
-        # Accumulate totals
-        totals = data.setdefault("totals", {})
-        totals["total_tokens"] = totals.get("total_tokens", 0) + total_tokens
-        totals["input_tokens"] = totals.get("input_tokens", 0) + input_tokens
-        totals["output_tokens"] = totals.get("output_tokens", 0) + output_tokens
-        totals["thinking_tokens"] = totals.get("thinking_tokens", 0) + thinking_tokens
-        totals["total_calls"] = totals.get("total_calls", 0) + 1
-        totals["total_cost_saved_thb"] = round(totals.get("total_cost_saved_thb", 0.0) + saved_thb, 2)
+            # Accumulate totals
+            totals = data.setdefault("totals", {})
+            totals["total_tokens"] = totals.get("total_tokens", 0) + total_tokens
+            totals["input_tokens"] = totals.get("input_tokens", 0) + input_tokens
+            totals["output_tokens"] = totals.get("output_tokens", 0) + output_tokens
+            totals["thinking_tokens"] = totals.get("thinking_tokens", 0) + thinking_tokens
+            totals["total_calls"] = totals.get("total_calls", 0) + 1
+            totals["total_cost_saved_thb"] = round(totals.get("total_cost_saved_thb", 0.0) + saved_thb, 2)
 
-        cls._save(data)
-        return event
+            cls._save(data)
+            return event
 
     @classmethod
     def get_summary(cls) -> Dict[str, Any]:

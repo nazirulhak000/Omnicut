@@ -18,27 +18,26 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
 class SubtitleTranslator:
     """Batch translates Thai subtitle bursts into concise, punchy English captions."""
 
+    # Generic Thai spoken-review phrases -> concise English equivalents
+    # Keep these PRODUCT-AGNOSTIC so they work for any category (gadgets, beauty, fashion, etc.)
     DICT = {
-        "ทุกคน": "Everyone!",
+        "ทุกคน":          "Everyone!",
         "อย่าเพิ่งซื้อ": "Don't buy yet!",
-        "อย่าเพิ่งซื้อสายชาร์จ": "Don't buy normal cables",
-        "สายชาร์จแม่เหล็ก": "Magnetic charging cable",
-        "ดูดแน่นมาก": "Super strong suction",
-        "ดูดแน่นมากกก": "Super strong grip!",
-        "ชาร์จไว": "Fast charging",
-        "ชาร์จไว 66w": "Fast charging 66W",
-        "หมุนได้ 540 องศา": "540° full rotation",
-        "นอนเล่นเกม": "Gaming in bed",
-        "ไม่เกะกะมือ": "No tangled wires",
-        "หมดปัญหา": "No more broken cables",
-        "สายหักตรงคอ": "Broken cable tip",
-        "เสียบในที่มืดได้": "Easy plug in the dark",
-        "สบายๆ เลยครับ": "Super easy!",
-        "ราคาพิเศษ": "Special price",
-        "วันนี้แค่": "Only today",
-        "149 บาท": "149 THB",
-        "กดในตะกร้า": "Tap yellow cart",
-        "ซ้ายล่างได้เลยครับ": "Bottom left cart!"
+        "หมดปัญหา":       "Problem solved",
+        "ราคาพิเศษ":      "Special price",
+        "วันนี้แค่":      "Only today",
+        "กดในตะกร้า":     "Tap the cart",
+        "ซ้ายล่างได้เลยครับ": "Bottom-left cart!",
+        "คุ้มมาก":        "Super worth it!",
+        "รีบกด":          "Order now",
+        "ของมันต้องมี":   "Must-have",
+        "บอกเลยว่า":      "Honestly",
+        "คือมันดีมาก":    "It's really great",
+        "รู้งี้ซื้อตั้งนานแล้ว": "Wish I bought this sooner",
+        "สบายๆ เลยครับ":  "Super easy!",
+        "เนี่ยดูดิ":      "Check this out",
+        "โคตรคุ้ม":       "Insanely worth it",
+        "พิกัดในตะกร้า":  "Find it in the cart",
     }
 
     _translator_instance = None
