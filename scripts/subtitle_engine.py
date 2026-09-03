@@ -323,7 +323,7 @@ class SubtitleEngine:
         return "\\N".join(lines) if len(lines) > 1 else clean
 
     @classmethod
-    def wrap_en_for_ass(cls, text: str, max_chars_per_line: int = 46) -> str:
+    def wrap_en_for_ass(cls, text: str, max_chars_per_line: int = 50) -> str:
         """Wraps long English subtitles neatly at word boundaries."""
         clean = text.strip().replace("\r", "").replace("\n", " ")
         if len(clean) <= max_chars_per_line:
@@ -490,7 +490,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             start_t = cls._format_ass_time(cue["start"])
             end_t = cls._format_ass_time(cue["end"])
             # Exact line wrap calibration matching SequencePlayer.jsx maxLineW = 464px (86% of 1080w = 928px)
-            dyn_max_chars = max(18, int(round(2600 / max(24, font_size))))
+            dyn_max_chars = max(24, int(round(3100 / max(20, font_size))))
             text = cls.wrap_text_for_ass(cue["text"].strip(), max_chars_per_line=dyn_max_chars)
             if not text:
                 continue
