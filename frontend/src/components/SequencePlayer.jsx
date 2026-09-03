@@ -284,7 +284,7 @@ function drawCaption(ctx, cues, t, style = {}) {
 
   // Stacked bilingual English subtitle
   let enLines = [];
-  const enFontSize = Math.round(fontSize * 0.52);
+  const enFontSize = Math.round(fontSize * 0.68);
   const enLineH = Math.round(enFontSize * 1.25);
   if (cue.translation && !cue.translation.includes('Error 500')) {
     ctx.font = `700 ${enFontSize}px ${fontFam}`;
@@ -344,15 +344,15 @@ function drawCaption(ctx, cues, t, style = {}) {
     ctx.lineWidth = Math.round(enFontSize * 0.18);
     ctx.strokeStyle = '#000000';
     ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
-    ctx.shadowBlur = 6;
-    ctx.shadowOffsetX = 2;
-    ctx.shadowOffsetY = 3;
+    ctx.shadowBlur = 3;
+    ctx.shadowOffsetX = 1.5;
+    ctx.shadowOffsetY = 2;
 
     const enStartY = thaiStartY + (thaiLines.length - 1) * thaiLineH + (thaiLineH / 2) + enGap + (enLineH / 2);
     enLines.forEach((line, idx) => {
       const lineY = enStartY + (idx * enLineH);
       ctx.strokeText(line, x, lineY);
-      ctx.fillStyle = '#E2E8F0';
+      ctx.fillStyle = '#EAEAEA';
       ctx.fillText(line, x, lineY);
     });
   }

@@ -526,15 +526,15 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 candidate_en = (en_translations[idx] or cue.get("translation", "")).strip()
                 if candidate_en and not any(sig in candidate_en for sig in ["Error 500", "500.", "That's an error", "<html"]):
                     cue["translation"] = candidate_en
-                    en_wrapped = cls.wrap_en_for_ass(candidate_en)
-                    en_color = "\\c&H00D8D8D8&"
-                    en_sub = f"\\N{{\\fscx55\\fscy55{en_color}}}{en_wrapped}"
+                    en_wrapped = cls.wrap_en_for_ass(candidate_en, max_chars_per_line=44)
+                    en_color = "\\c&H00EAEAEA&"
+                    en_sub = f"\\N{{\\fscx68\\fscy68{en_color}}}{en_wrapped}"
                 else:
                     cue["translation"] = ""
 
             # Layer 0: Natural Soft Feathered Shadow (Gaussian Blur matching Canvas preview)
             if not is_pill_mode:
-                en_sub_shadow = f"\\N{{\\fscx55\\fscy55}}{en_wrapped}" if en_wrapped else ""
+                en_sub_shadow = f"\\N{{\\fscx68\\fscy68}}{en_wrapped}" if en_wrapped else ""
                 shadow_tag = f"{{\\blur{shadow_blur}\\alpha&H38&}}"
                 events.append(f"Dialogue: 0,{start_t},{end_t},TikTokSoftShadow,,0,0,0,,{anim}{shadow_tag}{text}{en_sub_shadow}")
 
