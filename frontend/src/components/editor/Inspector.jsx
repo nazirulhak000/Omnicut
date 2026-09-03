@@ -57,6 +57,8 @@ export default function Inspector({
   onHookMotionChange,
   hookMotionCatalog = null,
   hookMotionDefault = null,
+  hookColors = {},
+  onHookColorChange,
   showHookHeader = true,
   onToggleHookHeader,
   onAddTextAtPlayhead,
@@ -311,6 +313,29 @@ export default function Inspector({
                       <span>วิ</span>
                     </div>
                   </div>
+                  {/* Per-tier text colour. Empty means "renderer default"
+                      (white wordmark / accent model / muted label), so a
+                      brand with its own colour equity can set just the tier
+                      it cares about and leave the rest alone. */}
+                  <div className="flex items-center gap-2 pt-1">
+                    <span className="text-[10px] font-bold text-slate-400">สีตัวอักษร</span>
+                    {[
+                      { tier: 'brand', label: 'แบรนด์', fallback: '#FFFFFF' },
+                      { tier: 'model', label: 'รุ่น', fallback: style?.captionColor || '#FFE600' },
+                      { tier: 'label', label: 'หมวด', fallback: '#E0E0E0' },
+                    ].map(({ tier, label, fallback }) => (
+                      <label key={tier} className="flex items-center gap-1 cursor-pointer" title={label}>
+                        <input
+                          type="color"
+                          value={hookColors?.[tier] || fallback}
+                          onChange={(e) => onHookColorChange?.(tier, e.target.value)}
+                          className="h-5 w-5 cursor-pointer rounded border border-white/[0.15] bg-transparent p-0"
+                        />
+                        <span className="text-[10px] text-slate-400">{label}</span>
+                      </label>
+                    ))}
+                  </div>
+
                   {/* Motion presets -- one pick per category, exactly like
                       CapCut's own In / Loop / Out text-animation tabs. The
                       options come from /api/hook-motion-presets so this list
@@ -371,9 +396,9 @@ export default function Inspector({
               </div>
               <div className="flex items-center gap-1">
                 {[
-                  { s: 0.7, label: '70% ย่อ' },
+                  { s: 1.0, label: '100% มาตรฐาน' },
                   { s: 0.85, label: '85% เล็ก' },
-                  { s: 1.0, label: '100% ปกติ' },
+                  { s: 0.7, label: '70% ย่อ' },
                   { s: 1.25, label: '125% ใหญ่' },
                 ].map(({ s, label }) => (
                   <button
@@ -382,7 +407,7 @@ export default function Inspector({
                     onClick={() => onStyleChange?.({ captionScale: s })}
                     className={`flex-1 py-1 rounded-lg text-[10px] sm:text-[11px] font-bold border transition-all cursor-pointer ${
                       Math.abs((style?.captionScale ?? 1) - s) < 0.05
-                        ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
+                        ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE] shadow-sm shadow-[#25F4EE]/20'
                         : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
                     }`}
                   >

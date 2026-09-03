@@ -209,6 +209,12 @@ export default function EditorShell({
   // absent key falls back to the backend's own default preset in
   // _resolve_hook_motion, so a fresh {} renders exactly like the default.
   const [hookMotion, setHookMotion] = useState({});
+  // Per-tier text colours ({brand, model, label} as #RRGGBB). Unset tiers
+  // keep the renderer's poster defaults, so {} means "as before".
+  const [hookColors, setHookColors] = useState({});
+  const handleHookColorChange = useCallback((tier, value) => {
+    setHookColors((prev) => ({ ...prev, [tier]: value }));
+  }, []);
   const [hookMotionCatalog, setHookMotionCatalog] = useState(null);
   const [hookMotionDefault, setHookMotionDefault] = useState(null);
   const handleHookMotionToggle = useCallback((key, value) => {
@@ -397,6 +403,7 @@ export default function EditorShell({
       const hookDur = Number(data.hook_duration || data.render_params?.hook_duration || 3.0);
       setHookDuration(hookDur > 0 ? hookDur : 3.0);
       setHookMotion(data.hook_motion || data.render_params?.hook_motion || {});
+      setHookColors(data.hook_colors || data.render_params?.hook_colors || {});
       setShowHookHeader(!!brand);
 
       const fontName = data.font_name || data.render_params?.font_name || data.style?.font_name || data.style?.fontName || 'IBMPlex';
@@ -410,7 +417,9 @@ export default function EditorShell({
       const bgmDucking = !!(data.bgm_ducking ?? data.render_params?.bgm_ducking ?? data.style?.bgm_ducking ?? data.style?.bgmDucking);
       const captionPosition = data.caption_position || data.render_params?.caption_position || data.style?.caption_position || data.style?.captionPosition || 'bottom';
       const captionColor = data.caption_color || data.render_params?.caption_color || data.style?.caption_color || data.style?.captionColor || '#FFFFFF';
-      const captionScale = Number(data.caption_scale ?? data.render_params?.caption_scale ?? data.style?.caption_scale ?? data.style?.captionScale ?? 1);
+      const rawScale = Number(data.caption_scale ?? data.render_params?.caption_scale ?? data.style?.caption_scale ?? data.style?.captionScale ?? 1);
+      // มาตรฐานฟอนต์คำบรรยายคลิปสั้นต้องเป็น 100% (1.0) เสมอ หากพบค่าย่อ legacy (<0.95) ให้ใช้ 1.0
+      const captionScale = (rawScale >= 0.95) ? rawScale : 1.0;
       const stickerPosition = data.sticker_position || data.render_params?.sticker_position || data.style?.sticker_position || data.style?.stickerPosition || 'top_right';
       const stickerScale = Number(data.sticker_scale ?? data.render_params?.sticker_scale ?? data.style?.sticker_scale ?? data.style?.stickerScale ?? 1);
       loadedCaptionStyle.current = { captionPosition, captionColor, captionScale };
@@ -542,6 +551,8 @@ export default function EditorShell({
           hook_label: showHookHeader ? (hookLabel || '') : '',
           hook_duration: hookDuration || 3.0,
           hook_motion: hookMotion,
+        hook_colors: hookColors,
+          hook_colors: hookColors,
         });
         setSaveStatus('saved');
       } catch (err) {
@@ -550,7 +561,7 @@ export default function EditorShell({
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [clipList, cuesList, style, projectName, hookBrand, hookModel, hookLabel, hookDuration, hookMotion, showHookHeader]);
+  }, [clipList, cuesList, style, projectName, hookBrand, hookModel, hookLabel, hookDuration, hookMotion, hookColors, showHookHeader]);
 
   // Manual save handler (button click or Ctrl+S)
   const handleManualSave = useCallback(async () => {
@@ -592,13 +603,14 @@ export default function EditorShell({
         hook_label: showHookHeader ? (hookLabel || '') : '',
         hook_duration: hookDuration || 3.0,
         hook_motion: hookMotion,
+        hook_colors: hookColors,
       });
       setSaveStatus('saved');
     } catch (err) {
       console.warn('Manual save failed:', err);
       setSaveStatus('dirty');
     }
-  }, [clipList, cuesList, style, projectName, hookBrand, hookModel, hookLabel, hookDuration, hookMotion, showHookHeader]);
+  }, [clipList, cuesList, style, projectName, hookBrand, hookModel, hookLabel, hookDuration, hookMotion, hookColors, showHookHeader]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -1084,6 +1096,7 @@ export default function EditorShell({
         hook_label: showHookHeader ? (hookLabel || '') : '',
         hook_duration: hookDuration || 3.0,
         hook_motion: hookMotion,
+        hook_colors: hookColors,
         font_name: style.fontName,
         bgm_name: style.bgmName,
         lut_name: style.lutName,
@@ -1449,6 +1462,7 @@ export default function EditorShell({
                   hookLabel={showHookHeader ? hookLabel : ''}
                   hookDuration={hookDuration}
                   hookMotion={hookMotion}
+                  hookColors={hookColors}
                   audioUrl={audioUrl}
                   captionStyle={{
                     captionPosition: style.captionPosition,
@@ -1670,6 +1684,8 @@ export default function EditorShell({
                       onHookMotionChange={handleHookMotionToggle}
                       hookMotionCatalog={hookMotionCatalog}
                       hookMotionDefault={hookMotionDefault}
+                      hookColors={hookColors}
+                      onHookColorChange={handleHookColorChange}
                       showHookHeader={showHookHeader}
                       onToggleHookHeader={() => setShowHookHeader((v) => !v)}
                       onAddTextAtPlayhead={addTextAtPlayhead}
@@ -1779,6 +1795,7 @@ export default function EditorShell({
                   hookLabel={showHookHeader ? hookLabel : ''}
                     hookDuration={hookDuration}
                     hookMotion={hookMotion}
+                    hookColors={hookColors}
                     audioUrl={audioUrl}
                     captionStyle={{
                       captionPosition: style.captionPosition,
@@ -1925,6 +1942,10 @@ export default function EditorShell({
                         onHookMotionChange={handleHookMotionToggle}
                         hookMotionCatalog={hookMotionCatalog}
                         hookMotionDefault={hookMotionDefault}
+                        hookColors={hookColors}
+                        onHookColorChange={handleHookColorChange}
+                      hookColors={hookColors}
+                      onHookColorChange={handleHookColorChange}
                         showHookHeader={showHookHeader}
                         onToggleHookHeader={() => setShowHookHeader((v) => !v)}
                         onAddTextAtPlayhead={addTextAtPlayhead}
