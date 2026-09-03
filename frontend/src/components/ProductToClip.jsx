@@ -1214,30 +1214,16 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                 <Sparkles className="w-3.5 h-3.5 text-[#FE2C55]" />
                 <span>Step 2 — เลือกมุมขาย & คลิปประกอบ ({totalAngles} สคริปต์)</span>
               </h2>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {/* 1. Pick from Existing Vault for ALL Scripts */}
+              <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => handleOpenMediaPicker(-1)}
-                  className="px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-xs font-bold text-[#25F4EE] cursor-pointer flex items-center gap-1 transition-all"
-                  title="เลือกคลิปจากคลังที่มีอยู่แล้ว ให้เป็นคลิปเริ่มต้นของทุกสคริปต์"
+                  className="px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-xs font-bold text-[#25F4EE] cursor-pointer flex items-center gap-1.5 transition-all"
+                  title="เลือกคลิปจากคลังหรืออัปโหลดใหม่ ให้เป็นคลิปเริ่มต้นของทุกสคริปต์"
                 >
                   <FolderOpen className="w-3.5 h-3.5" />
                   <span>เลือกคลิปให้ทุกสคริปต์</span>
                 </button>
-
-                {/* 2. Upload New File & Default to ALL Scripts */}
-                <label className="relative px-2.5 py-1 rounded-lg bg-gradient-to-r from-[#25F4EE]/15 to-blue-500/15 hover:from-[#25F4EE]/25 hover:to-blue-500/25 border border-[#25F4EE]/30 text-xs font-bold text-[#25F4EE] cursor-pointer flex items-center gap-1 transition-all shadow-sm">
-                  <input
-                    type="file"
-                    accept="video/*,image/*,image/heic,image/heif,.heic,.HEIC,.heif,.HEIF,.mov,.MOV,.mp4,.MP4"
-                    onChange={handleImageUpload}
-                    disabled={uploadingImg}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                  />
-                  <Upload className="w-3.5 h-3.5 pointer-events-none" />
-                  <span className="pointer-events-none">{uploadingImg ? 'กำลังอัปโหลด...' : 'แนบคลิปให้ทุกสคริปต์'}</span>
-                </label>
               </div>
             </div>
 
