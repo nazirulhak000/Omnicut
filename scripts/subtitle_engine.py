@@ -69,46 +69,61 @@ def _load_font_family_map() -> Dict[str, str]:
     return font_map
 
 
-# Default hook-banner motion: every effect on. Individual toggles arrive from
-# the UI as a partial dict (only the keys the user unchecked) -- missing keys
-# fall back to True here rather than to a bare `.get(k, True)` scattered
-# through the animation code below, so there is exactly one place that
-# defines "what happens when nothing was specified".
-DEFAULT_HOOK_MOTION = {"bounce": True, "stagger": True, "pulse": True, "underline": True}
+# Full CapCut-style motion preset system: one choice per category (In /
+# Loop / Out), each independently swappable, plus a separate Accent shape --
+# not tied to In/Loop/Out at all. Replaces the earlier 4-boolean-toggle
+# version (bounce/stagger/pulse/underline); an old-shaped saved dict simply
+# won't match any of these keys and silently falls back to the default
+# preset below, so no migration code is needed.
+DEFAULT_HOOK_MOTION = {"in": "bounce", "stagger": True, "loop": "pulse", "out": "fade", "accent": "underline"}
 
 
-def _resolve_hook_motion(hook_motion: Optional[Dict[str, bool]]) -> Dict[str, bool]:
+def _resolve_hook_motion(hook_motion: Optional[Dict[str, object]]) -> Dict[str, object]:
     resolved = dict(DEFAULT_HOOK_MOTION)
     if hook_motion:
         for k in DEFAULT_HOOK_MOTION:
-            if k in hook_motion and hook_motion[k] is not None:
-                resolved[k] = bool(hook_motion[k])
+            v = hook_motion.get(k)
+            if v is not None:
+                resolved[k] = v
+    resolved["stagger"] = bool(resolved["stagger"])
     return resolved
 
 
-def _hook_entry_anim(target_scale_pct: float, t0_ms: int, bounce: bool) -> Tuple[str, int]:
+def _chained_keyframes(prop: str, start_ms: int, end_ms: int, seg_ms: int, values: List[str]) -> str:
     """
-    ASS \\t keyframe chain animating a hook-tier line's \\fscx/\\fscy from its
-    entry pose up to `target_scale_pct`, starting at `t0_ms` (the tier's
-    stagger offset). Returns (tag_string, entry_end_ms) so the caller knows
-    when this tier settles -- pulse must not start before every tier has.
+    Generic cycling \\t chain animating a single ASS property (e.g. "alpha"
+    or "frz") through `values` in order, `seg_ms` per step, from start_ms
+    until end_ms -- the shared engine behind pulse/wave/shake/flicker.
+    Emits nothing if not even one step fits, rather than a single
+    stub keyframe that would read as a glitch instead of a loop.
+    """
+    segs = []
+    t = start_ms
+    i = 0
+    while t + seg_ms <= end_ms:
+        segs.append(f"\\t({t},{t + seg_ms},\\{prop}{values[i % len(values)]})")
+        t += seg_ms
+        i += 1
+    return "".join(segs)
 
-    bounce=True: overshoot/undershoot/settle (elastic feel), ~450ms.
-    bounce=False: the original single-lerp pop, ~120ms, just shifted by t0.
-    """
+
+# ---- In (entrance) builders -------------------------------------------
+# Each takes (target_scale_pct, t0_ms) and returns (tag_fragment,
+# entry_end_ms, move_dy_px). move_dy_px is None for every preset except
+# slide_up, where it tells the per-line assembler to use \move instead of
+# a static \pos (see the "why not \move for wave/shake" note further down
+# -- ASS \move is a single linear segment, so only true one-shot slides can
+# use it; looping motion uses \frz rotation via _chained_keyframes instead).
+
+def _in_bounce(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
+    """Elastic overshoot/undershoot/settle via \\fscx/\\fscy, ~450ms."""
     target = round(target_scale_pct)
-    if not bounce:
-        entry_from = round(target * 1.15)
-        end_ms = t0_ms + 120
-        tag = f"\\fscx{entry_from}\\fscy{entry_from}\\t({t0_ms},{end_ms},\\fscx{target}\\fscy{target})"
-        return tag, end_ms
-
     over = round(target * 1.25)
     under = round(target * 0.92)
     settle_over = round(target * 1.05)
     t1, t2, t3, t4 = t0_ms, t0_ms + 150, t0_ms + 280, t0_ms + 380
     end_ms = t0_ms + 450
-    entry_from = round(target * 0.6)  # starts small, snaps up into the overshoot
+    entry_from = round(target * 0.6)
     tag = (
         f"\\fscx{entry_from}\\fscy{entry_from}"
         f"\\t({t1},{t2},\\fscx{over}\\fscy{over})"
@@ -116,26 +131,151 @@ def _hook_entry_anim(target_scale_pct: float, t0_ms: int, bounce: bool) -> Tuple
         f"\\t({t3},{t4},\\fscx{settle_over}\\fscy{settle_over})"
         f"\\t({t4},{end_ms},\\fscx{target}\\fscy{target})"
     )
-    return tag, end_ms
+    return tag, end_ms, None
 
 
-def _hook_pulse_keyframes(start_ms: int, exit_start_ms: int) -> str:
-    """
-    Breathing alpha oscillation (opaque <-> dim) filling the hold period, as
-    a chain of \\t alpha keyframes. Half-cycle = 350ms (full pulse ~700ms).
-    Emits nothing if less than one half-cycle actually fits -- a stub
-    fragment would read as a single flicker, not a pulse.
-    """
-    HALF = 350
+def _in_pop(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
+    """Snappier one-bounce version of bounce -- single overshoot, ~200ms."""
+    target = round(target_scale_pct)
+    over = round(target * 1.18)
+    entry_from = round(target * 0.55)
+    end_ms = t0_ms + 200
+    tag = (
+        f"\\fscx{entry_from}\\fscy{entry_from}"
+        f"\\t({t0_ms},{t0_ms + 120},\\fscx{over}\\fscy{over})"
+        f"\\t({t0_ms + 120},{end_ms},\\fscx{target}\\fscy{target})"
+    )
+    return tag, end_ms, None
+
+
+def _in_fade(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
+    target = round(target_scale_pct)
+    end_ms = t0_ms + 250
+    tag = f"\\fscx{target}\\fscy{target}\\alpha&HFF&\\t({t0_ms},{end_ms},\\alpha&H00&)"
+    return tag, end_ms, None
+
+
+def _in_zoom(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
+    target = round(target_scale_pct)
+    entry_from = round(target * 1.8)
+    end_ms = t0_ms + 300
+    tag = (
+        f"\\fscx{entry_from}\\fscy{entry_from}\\alpha&HFF&"
+        f"\\t({t0_ms},{t0_ms + 150},\\alpha&H00&)"
+        f"\\t({t0_ms},{end_ms},\\fscx{target}\\fscy{target})"
+    )
+    return tag, end_ms, None
+
+
+def _in_slide_up(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
+    target = round(target_scale_pct)
+    end_ms = t0_ms + 300
+    tag = f"\\fscx{target}\\fscy{target}\\alpha&HFF&\\t({t0_ms},{end_ms},\\alpha&H00&)"
+    return tag, end_ms, 60  # slides up from 60px below its final position
+
+
+def _in_blur(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
+    target = round(target_scale_pct)
+    end_ms = t0_ms + 350
+    tag = (
+        f"\\fscx{target}\\fscy{target}\\alpha&HFF&\\blur12"
+        f"\\t({t0_ms},{end_ms},\\alpha&H00&\\blur0)"
+    )
+    return tag, end_ms, None
+
+
+def _in_none(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
+    target = round(target_scale_pct)
+    return f"\\fscx{target}\\fscy{target}", t0_ms, None
+
+
+# typewriter is handled specially in the assembler (needs each line's real
+# rendered width + resolved (x,y), which aren't known until the y-cursor and
+# font-metrics pass has already run) -- not registered as a plain builder.
+HOOK_IN_BUILDERS = {
+    "bounce": _in_bounce, "pop": _in_pop, "fade": _in_fade, "zoom": _in_zoom,
+    "slide_up": _in_slide_up, "blur": _in_blur, "none": _in_none,
+}
+
+
+# ---- Loop (hold-period) builders ---------------------------------------
+# Each takes (start_ms, exit_start_ms) and returns a \\t chain fragment
+# (or "" if nothing fits/none selected). lightsweep is handled specially in
+# the assembler -- it's a separate overlay event, not a tag on the base line.
+
+def _loop_pulse(start_ms: int, exit_start_ms: int) -> str:
+    """Breathing alpha oscillation, opaque <-> dim (~85% opacity), 350ms/step."""
+    return _chained_keyframes("alpha", start_ms, exit_start_ms, 350, ["&H25&", "&H00&"])
+
+
+def _loop_wave(start_ms: int, exit_start_ms: int) -> str:
+    """Gentle sway via small \\frz rotation, 400ms/step."""
+    return _chained_keyframes("frz", start_ms, exit_start_ms, 400, ["357", "3", "0"])
+
+
+def _loop_shake(start_ms: int, exit_start_ms: int) -> str:
+    """Sharp jitter via \\frz, 90ms/step -- same technique as wave, faster/bigger."""
+    return _chained_keyframes("frz", start_ms, exit_start_ms, 90, ["357", "3", "358", "2", "0"])
+
+
+def _loop_flicker(start_ms: int, exit_start_ms: int) -> str:
+    """Uneven alpha flicker (irregular step lengths, unlike pulse's steady breathing)."""
+    pattern = [(80, "&H30&"), (150, "&H00&"), (60, "&H45&"), (200, "&H00&"), (90, "&H20&"), (180, "&H00&")]
     segs = []
     t = start_ms
-    dim_next = True
-    while t + HALF <= exit_start_ms:
-        alpha = "&H25&" if dim_next else "&H00&"
-        segs.append(f"\\t({t},{t + HALF},\\alpha{alpha})")
-        t += HALF
-        dim_next = not dim_next
+    i = 0
+    while True:
+        dur, alpha = pattern[i % len(pattern)]
+        if t + dur > exit_start_ms:
+            break
+        segs.append(f"\\t({t},{t + dur},\\alpha{alpha})")
+        t += dur
+        i += 1
     return "".join(segs)
+
+
+def _loop_none(start_ms: int, exit_start_ms: int) -> str:
+    return ""
+
+
+HOOK_LOOP_BUILDERS = {
+    "pulse": _loop_pulse, "wave": _loop_wave, "shake": _loop_shake,
+    "flicker": _loop_flicker, "lightsweep": _loop_none, "none": _loop_none,
+}
+
+
+# ---- Out (exit) builders -------------------------------------------------
+# Each takes (exit_start_ms, exit_end_ms, target_scale_pct) and returns
+# (tag_fragment, move_dy_px). move_dy_px is None except for slide.
+
+def _out_fade(exit_start_ms: int, exit_end_ms: int, target_scale_pct: float) -> Tuple[str, Optional[int]]:
+    return f"\\t({exit_start_ms},{exit_end_ms},\\alpha&HFF&)", None
+
+
+def _out_slide(exit_start_ms: int, exit_end_ms: int, target_scale_pct: float) -> Tuple[str, Optional[int]]:
+    return f"\\t({exit_start_ms},{exit_end_ms},\\alpha&HFF&)", 60  # slides down 60px while fading
+
+
+def _out_zoom(exit_start_ms: int, exit_end_ms: int, target_scale_pct: float) -> Tuple[str, Optional[int]]:
+    target = round(target_scale_pct)
+    grown = round(target * 1.4)
+    return f"\\t({exit_start_ms},{exit_end_ms},\\fscx{grown}\\fscy{grown}\\alpha&HFF&)", None
+
+
+def _out_glitch(exit_start_ms: int, exit_end_ms: int, target_scale_pct: float) -> Tuple[str, Optional[int]]:
+    """Quick \\frz jitter steps packed into the short exit window, then a hard cut."""
+    jitter = _chained_keyframes("frz", exit_start_ms, max(exit_start_ms + 1, exit_end_ms - 40), 40, ["357", "3", "0"])
+    return f"{jitter}\\t({exit_end_ms - 40},{exit_end_ms},\\alpha&HFF&)", None
+
+
+def _out_none(exit_start_ms: int, exit_end_ms: int, target_scale_pct: float) -> Tuple[str, Optional[int]]:
+    return f"\\t({max(exit_start_ms, exit_end_ms - 1)},{exit_end_ms},\\alpha&HFF&)", None
+
+
+HOOK_OUT_BUILDERS = {
+    "fade": _out_fade, "slide": _out_slide, "zoom": _out_zoom,
+    "glitch": _out_glitch, "none": _out_none,
+}
 
 
 def _measure_text_width_px(text: str, resolved_font: str, font_size_px: int) -> Optional[int]:
@@ -159,6 +299,115 @@ def _measure_text_width_px(text: str, resolved_font: str, font_size_px: int) -> 
         return int(bbox[2] - bbox[0])
     except Exception:
         return None
+
+
+def _hook_line_width_px(line: str, resolved_font: str, line_fs: int) -> float:
+    """
+    Half-width of a hook line in PlayRes pixels, real font metrics where
+    available and a char-count estimate (the same avg-char-width assumption
+    the wrap step is built on) where the font file can't be resolved -- so a
+    width-dependent effect degrades in size rather than disappearing.
+    """
+    measured = _measure_text_width_px(line.replace("\\N", " "), resolved_font, line_fs)
+    if measured is None:
+        measured = int(len(line) * line_fs * 0.55)
+    return max(20, measured) / 2
+
+
+def _hook_lightsweep_event(
+    line: str, line_fs: int, y: int, x_center: int, resolved_font: str,
+    start_t: str, end_t: str, sweep_start_ms: int, exit_start_ms: int, exit_end_ms: int,
+) -> Optional[str]:
+    """
+    Shimmer sweep: a second, brighter copy of the line drawn on top and
+    clipped to a narrow vertical band that travels across it, repeatedly,
+    for the whole hold period.
+
+    Why an extra event rather than a tag on the base line: \\clip is a
+    single state per line, and the typewriter In preset already animates it
+    for its reveal -- a sweep sharing that line would fight it. A separate
+    overlay owns its own \\clip outright.
+    """
+    half_w = _hook_line_width_px(line, resolved_font, line_fs)
+    band_w = max(20, int(half_w * 0.7))
+    left = x_center - half_w - band_w
+    right = x_center + half_w
+    top, bot = y - 5, y + line_fs + 5
+
+    SWEEP_MS = 500
+    segs = []
+    t = sweep_start_ms
+    while t + SWEEP_MS <= exit_start_ms:
+        segs.append(f"\\t({t},{t + SWEEP_MS},\\clip({right - band_w:.0f},{top},{right:.0f},{bot}))")
+        t += SWEEP_MS
+        # 1ms snap back to the left so the next cycle sweeps again instead of
+        # easing backwards -- \t always interpolates from wherever the last
+        # one ended, so a cycle needs an explicit near-instant reset.
+        if t + 1 <= exit_start_ms:
+            segs.append(f"\\t({t},{t + 1},\\clip({left:.0f},{top},{left + band_w:.0f},{bot}))")
+            t += 1
+    if not segs:
+        return None
+
+    tag = (
+        f"{{\\an8\\pos({x_center},{y})\\bord0\\shad0\\c&H00FFFFFF&\\alpha&H60&"
+        f"\\clip({left:.0f},{top},{left + band_w:.0f},{bot})"
+        f"{''.join(segs)}"
+        f"\\t({exit_start_ms},{exit_end_ms},\\alpha&HFF&)}}"
+    )
+    return f"Dialogue: 3,{start_t},{end_t},HookHeader,,0,0,0,,{tag}{line}"
+
+
+def _hook_accent_events(
+    accent_id: str, model_line: str, model_line_fs: int, model_y: int, model_colour: str,
+    x_center: int, resolved_font: str, start_t: str, end_t: str,
+    exit_start_ms: int, exit_end_ms: int, stagger: bool,
+) -> List[str]:
+    """
+    Decorative shape tied to the model tier: an accent bar under it, or a
+    filled badge behind it. Both reveal by scaling out from the centre and
+    both sit on layers below the text (drawn first), so neither ever covers
+    the words it's decorating.
+    """
+    half_w = _hook_line_width_px(model_line, resolved_font, model_line_fs)
+    reveal_start = 300 if stagger else 0
+    reveal_end = reveal_start + 300
+    exit_tag = f"\\t({exit_start_ms},{exit_end_ms},\\alpha&HFF&)"
+
+    if accent_id == "badge":
+        pad_x = round(model_line_fs * 0.38)
+        pad_y = round(model_line_fs * 0.20)
+        bw = half_w + pad_x
+        bh = model_line_fs + pad_y * 2
+        draw = f"m {-bw:.0f} 0 l {bw:.0f} 0 l {bw:.0f} {bh:.0f} l {-bw:.0f} {bh:.0f}"
+        tag = (
+            f"{{\\an8\\pos({x_center},{model_y - pad_y})\\p1\\bord0\\shad0"
+            f"\\c{model_colour}&\\alpha&HB0&\\fscx0\\fscy0"
+            f"\\t({reveal_start},{reveal_end},\\fscx100\\fscy100){exit_tag}}}"
+        )
+        return [f"Dialogue: 0,{start_t},{end_t},HookHeader,,0,0,0,,{tag}{draw}"]
+
+    # Accent bar (default). Thicker and further from the text than the first
+    # version, plus a blurred copy behind it for glow: at a 0.06 gap and a
+    # 0.06 thickness it read as a plain text-decoration underline squeezed
+    # between two lines rather than a deliberate poster element.
+    gap = round(model_line_fs * 0.26)
+    underline_y = model_y + model_line_fs + gap
+    thickness = max(4, round(model_line_fs * 0.10))
+    draw = f"m {-half_w:.0f} 0 l {half_w:.0f} 0 l {half_w:.0f} {thickness} l {-half_w:.0f} {thickness}"
+    reveal = f"\\fscx0\\t({reveal_start},{reveal_end},\\fscx100)"
+    glow_tag = (
+        f"{{\\an8\\pos({x_center},{underline_y})\\p1\\bord0\\shad0\\blur7"
+        f"\\c{model_colour}&\\alpha&H60&{reveal}{exit_tag}}}"
+    )
+    bar_tag = (
+        f"{{\\an8\\pos({x_center},{underline_y})\\p1\\bord0\\shad0"
+        f"\\c{model_colour}&{reveal}{exit_tag}}}"
+    )
+    return [
+        f"Dialogue: 0,{start_t},{end_t},HookHeader,,0,0,0,,{glow_tag}{draw}",
+        f"Dialogue: 0,{start_t},{end_t},HookHeader,,0,0,0,,{bar_tag}{draw}",
+    ]
 
 # Where the caption block sits: (ASS alignment, vertical margin).
 # 2 = bottom centre, 5 = middle centre, 8 = top centre.
@@ -780,7 +1029,7 @@ class SubtitleEngine:
         hook_model: str = None,
         hook_label: str = None,
         hook_duration: float = 3.5,
-        hook_motion: Optional[Dict[str, bool]] = None,
+        hook_motion: Optional[Dict[str, object]] = None,
         bilingual: bool = True,
         video_width: int = VIDEO_WIDTH,
         video_height: int = VIDEO_HEIGHT,
@@ -869,22 +1118,20 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             motion = _resolve_hook_motion(hook_motion)
             start_t = cls._format_ass_time(0.0)
             end_t = cls._format_ass_time(hook_duration)
-            # Exit fade in the last 150ms instead of a hard cut to nothing --
-            # `\t` offsets are relative to this event's own Start (0 here),
-            # so they double as absolute ms, and every tier shares the same
-            # Start -- all pop in / fade out in lockstep. Guarded against a
-            # hook shorter than the entry animation ever producing
-            # exit_start >= exit_end, which a renderer could choke on.
+            # The exit window every Out preset animates into. `\t` offsets are
+            # relative to an event's own Start (0 for every hook line), so
+            # they double as absolute ms. Guarded against a hook shorter than
+            # the entry animation ever producing exit_start >= exit_end,
+            # which a renderer could choke on.
             exit_end_ms = int(hook_duration * 1000)
             exit_start_ms = max(120, exit_end_ms - 150)
             if exit_start_ms >= exit_end_ms:
                 exit_start_ms = max(0, exit_end_ms - 50)
-            exit_tag = f"\\t({exit_start_ms},{exit_end_ms},\\alpha&HFF&)"
 
             # (raw text, target scale % of hook_fs, Main-layer colour, tier index)
             # tier index also doubles as the stagger slot (0=brand, 1=model,
-            # 2=label) and marks which physical line(s) the accent underline
-            # attaches under (tier 1, model).
+            # 2=label) and marks which physical line(s) the accent shape
+            # attaches to (tier 1, model).
             hook_tier_specs = [
                 (hook_brand, 130, "&H00FFFFFF", 0),
                 (hook_model, 100, ass_colour(caption_color) or "&H0000E6FF", 1),
@@ -898,7 +1145,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             # early. wrap_text_for_ass is the same balanced-wrap caption
             # already uses below; the hook banner never called it before.
             tier_lines = []  # (line_text, scale_pct, colour, tier_idx)
-            model_tier_fs_final = None
             model_last_line = None
             for raw_text, scale_pct, colour, tier_idx in hook_tier_specs:
                 text = str(raw_text or "").strip()
@@ -926,84 +1172,114 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 shrink = max(0.7, min(1.0, HOOK_COMFORTABLE_LINES / len(tier_lines)))
                 STAGGER_STEP_MS = 150
 
-                # Line-height factor for the manual vertical cursor the
-                # underline drawing needs (ASS has no API to ask libass
-                # where a wrapped line actually landed). Measured directly
-                # off a real ffmpeg+libass render (pixel-scanned ink bands
-                # per tier), not guessed -- an initial 1.28 guess put the
-                # underline a full line too low, under the label instead of
-                # the model. If it drifts after a font change, remeasure the
-                # same way rather than re-guessing.
+                # Line-height factor for the manual vertical cursor. Measured
+                # directly off a real ffmpeg+libass render (pixel-scanned ink
+                # bands per tier), not guessed -- an initial 1.28 guess put
+                # the accent bar a full line too low, under the label instead
+                # of the model. If it drifts after a font change, remeasure
+                # the same way rather than re-guessing.
                 LINE_HEIGHT_FACTOR = 1.0
+                x_center = video_width // 2
 
-                shadow_parts, main_parts = [], []
+                in_builder = HOOK_IN_BUILDERS.get(motion["in"], _in_bounce)
+                loop_builder = HOOK_LOOP_BUILDERS.get(motion["loop"], _loop_pulse)
+                out_builder = HOOK_OUT_BUILDERS.get(motion["out"], _out_fade)
+                is_typewriter = motion["in"] == "typewriter"
+
+                # Pass 3: walk the y-cursor once and resolve every line's
+                # size, position and entrance up front. Each line becomes its
+                # OWN dialogue event (rather than \N-joined into one shared
+                # block) because \move, \frz and \clip are per-event state --
+                # slide/wave/shake/glitch/typewriter all need to act on one
+                # line without dragging its neighbours along.
+                cursor_y = 260  # HookHeader style's MarginV: top edge of the block
+                line_records = []
                 max_entry_end_ms = 0
+                model_line_fs = None
+                model_y = None
                 for line, scale_pct, colour, tier_idx in tier_lines:
                     target = round(scale_pct * shrink)
+                    line_fs = max(20, int(round(hook_fs * target / 100)))
                     t0_ms = tier_idx * STAGGER_STEP_MS if motion["stagger"] else 0
-                    anim, entry_end_ms = _hook_entry_anim(target, t0_ms, motion["bounce"])
+                    if is_typewriter:
+                        # its \clip needs this line's resolved width and y,
+                        # which only exist once this walk has placed it
+                        in_tag, entry_end_ms, move_dy_in = None, t0_ms + 400, None
+                    else:
+                        in_tag, entry_end_ms, move_dy_in = in_builder(target, t0_ms)
                     max_entry_end_ms = max(max_entry_end_ms, entry_end_ms)
-                    shadow_parts.append(f"{{\\an8{anim}\\blur5\\alpha&H40&{exit_tag}}}{line}")
-                    main_parts.append(f"{{\\an8{anim}{exit_tag}\\c{colour}&}}{line}")
-
+                    line_records.append({
+                        "line": line, "target": target, "line_fs": line_fs, "colour": colour,
+                        "t0_ms": t0_ms, "in_tag": in_tag, "entry_end_ms": entry_end_ms,
+                        "move_dy_in": move_dy_in, "y": cursor_y,
+                    })
                     if tier_idx == 1:
-                        model_tier_fs_final = max(20, int(round(hook_fs * target / 100)))
+                        model_line_fs = line_fs
+                        model_y = cursor_y
+                    cursor_y += round(line_fs * LINE_HEIGHT_FACTOR)
 
-                # Pulse/breathing: starts once every tier has settled, runs
-                # until the exit fade takes over. Appended after each line's
-                # existing tags so it animates alpha on top of the entry/exit
-                # keyframes rather than replacing them.
-                if motion["pulse"]:
-                    pulse_tag = _hook_pulse_keyframes(max_entry_end_ms, exit_start_ms)
-                    if pulse_tag:
-                        shadow_parts = [p.replace(exit_tag, pulse_tag + exit_tag, 1) for p in shadow_parts]
-                        main_parts = [p.replace(exit_tag, pulse_tag + exit_tag, 1) for p in main_parts]
+                # One loop chain shared by every line: it depends only on
+                # timing, and starts once the LAST tier has finished entering
+                # so a stagger never leaves one line pulsing while another is
+                # still flying in.
+                loop_tag = loop_builder(max_entry_end_ms, exit_start_ms)
 
-                hook_shadow_text = "\\N".join(shadow_parts)
-                hook_main_text = "\\N".join(main_parts)
-                events.append(f"Dialogue: 0,{start_t},{end_t},HookHeaderShadow,,0,0,0,,{hook_shadow_text}")
-                events.append(f"Dialogue: 1,{start_t},{end_t},HookHeader,,0,0,0,,{hook_main_text}")
+                for rec in line_records:
+                    out_tag, move_dy_out = out_builder(exit_start_ms, exit_end_ms, rec["target"])
 
-                # Accent underline: a separate drawing event, positioned
-                # under the model tier's LAST wrapped line by walking the
-                # same per-line heights again and stopping once the walk
-                # moves past every model-tier line (there can be more than
-                # one if it wrapped).
-                if motion["underline"] and model_last_line and model_tier_fs_final:
-                    underline_y = 260  # HookHeader style's MarginV: top edge of the block
-                    seen_model = False
-                    for line, scale_pct, colour, tier_idx in tier_lines:
-                        if seen_model and tier_idx != 1:
-                            break
-                        target = round(scale_pct * shrink)
-                        line_fs = max(20, int(round(hook_fs * target / 100)))
-                        underline_y += round(line_fs * LINE_HEIGHT_FACTOR)
-                        if tier_idx == 1:
-                            seen_model = True
-                    underline_y += round(model_tier_fs_final * 0.06)  # small gap below the text
+                    if is_typewriter:
+                        half_w = _hook_line_width_px(rec["line"], resolved_font, rec["line_fs"])
+                        top, bot = rec["y"] - 5, rec["y"] + rec["line_fs"] + 5
+                        x_from, x_to = x_center - half_w, x_center + half_w
+                        in_tag = (
+                            f"\\clip({x_from:.0f},{top},{x_from:.0f},{bot})"
+                            f"\\t({rec['t0_ms']},{rec['entry_end_ms']},"
+                            f"\\clip({x_from:.0f},{top},{x_to:.0f},{bot}))"
+                        )
+                    else:
+                        in_tag = rec["in_tag"]
 
-                    plain_model_line = model_last_line  # wrap_text_for_ass output; no override blocks to strip
-                    measured_w = _measure_text_width_px(plain_model_line.replace("\\N", " "), resolved_font, model_tier_fs_final)
-                    if measured_w is None:
-                        # PIL/font-file lookup unavailable -- fall back to the
-                        # same avg-char-width assumption dyn_max_chars above
-                        # is built on, so the bar is in the right ballpark
-                        # rather than disappearing.
-                        measured_w = int(len(plain_model_line) * model_tier_fs_final * 0.55)
-                    measured_w = max(20, measured_w)
+                    # \move is a single linear segment, so a line can only
+                    # truly slide once: a sliding entrance wins the slot over
+                    # a sliding exit, which still fades out in place via
+                    # out_tag -- it loses the travel, not the exit.
+                    if rec["move_dy_in"] is not None:
+                        pos_tag = (
+                            f"\\move({x_center},{rec['y'] + rec['move_dy_in']},"
+                            f"{x_center},{rec['y']},{rec['t0_ms']},{rec['entry_end_ms']})"
+                        )
+                    elif move_dy_out is not None:
+                        pos_tag = (
+                            f"\\move({x_center},{rec['y']},{x_center},{rec['y'] + move_dy_out},"
+                            f"{exit_start_ms},{exit_end_ms})"
+                        )
+                    else:
+                        pos_tag = f"\\pos({x_center},{rec['y']})"
 
-                    thickness = max(3, round(model_tier_fs_final * 0.06))
-                    half_w = measured_w / 2
-                    underline_reveal_start = STAGGER_STEP_MS * 2 if motion["stagger"] else 0
-                    underline_reveal_end = underline_reveal_start + 300
-                    draw_path = f"m {-half_w:.0f} 0 l {half_w:.0f} 0 l {half_w:.0f} {thickness} l {-half_w:.0f} {thickness}"
-                    underline_tag = (
-                        f"{{\\an8\\pos({video_width // 2},{underline_y})\\p1"
-                        f"\\bord0\\shad0\\c{model_colour}&\\fscx0"
-                        f"\\t({underline_reveal_start},{underline_reveal_end},\\fscx100)"
-                        f"{exit_tag}}}"
+                    common = f"\\an8{pos_tag}{in_tag}{loop_tag}{out_tag}"
+                    events.append(
+                        f"Dialogue: 1,{start_t},{end_t},HookHeaderShadow,,0,0,0,,"
+                        f"{{{common}\\blur5\\alpha&H40&}}{rec['line']}"
                     )
-                    events.append(f"Dialogue: 1,{start_t},{end_t},HookHeader,,0,0,0,,{underline_tag}{draw_path}")
+                    events.append(
+                        f"Dialogue: 2,{start_t},{end_t},HookHeader,,0,0,0,,"
+                        f"{{{common}\\c{rec['colour']}&}}{rec['line']}"
+                    )
+
+                    if motion["loop"] == "lightsweep":
+                        sweep = _hook_lightsweep_event(
+                            rec["line"], rec["line_fs"], rec["y"], x_center, resolved_font,
+                            start_t, end_t, max_entry_end_ms, exit_start_ms, exit_end_ms,
+                        )
+                        if sweep:
+                            events.append(sweep)
+
+                if motion["accent"] != "none" and model_last_line and model_line_fs:
+                    events.extend(_hook_accent_events(
+                        motion["accent"], model_last_line, model_line_fs, model_y, model_colour,
+                        x_center, resolved_font, start_t, end_t,
+                        exit_start_ms, exit_end_ms, motion["stagger"],
+                    ))
 
         # 1-shot Batch Translation for all micro-cues
         en_translations = []

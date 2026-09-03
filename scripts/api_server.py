@@ -1234,10 +1234,17 @@ def get_post_log_summary():
 
 @app.patch("/api/products/{product_id}/angles/{angle_id}")
 def update_product_angle_status(product_id: str, angle_id: str, payload: Dict[str, Any]):
-    """Updates status (draft, scripted, in_production, rendered, posted) of a specific angle script."""
+    """Updates status (draft, scripted, in_production, rendered, posted) of a specific angle script.
+
+    Optional payload fields:
+      qc_note       – free-text QC failure reason (stored on the angle for Studio reference)
+      clear_qc_note – boolean; set True to wipe a previous qc_note when the clip passes QC
+    """
     status = payload.get("status")
     video_url = payload.get("video_url")
     project_name = payload.get("project_name")
+    qc_note = payload.get("qc_note")          # str | None
+    clear_qc_note = bool(payload.get("clear_qc_note", False))
     if not status:
         raise HTTPException(status_code=400, detail="Missing status")
     try:
@@ -1246,11 +1253,14 @@ def update_product_angle_status(product_id: str, angle_id: str, payload: Dict[st
             angle_id,
             status,
             video_url=video_url,
-            project_name=project_name
+            project_name=project_name,
+            qc_note=qc_note,
+            clear_qc_note=clear_qc_note,
         )
         return {"success": True, "product": updated}
     except ValueError as err:
         raise HTTPException(status_code=404, detail=str(err))
+
 
 @app.post("/api/products/{product_id}/angles/{angle_id}/videos")
 def update_angle_videos_endpoint(product_id: str, angle_id: str, payload: Dict[str, Any]):

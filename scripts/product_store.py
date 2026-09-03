@@ -140,9 +140,18 @@ class ProductStore:
         angle_id: str,
         status: str,
         video_url: Optional[str] = None,
-        project_name: Optional[str] = None
+        project_name: Optional[str] = None,
+        qc_note: Optional[str] = None,
+        clear_qc_note: bool = False,
     ) -> Dict[str, Any]:
-        """Updates the lifecycle status of a specific script angle in a product."""
+        """Updates the lifecycle status of a specific script angle in a product.
+
+        qc_note  – optional free-text reason for a QC failure; stored on the
+                   angle so Studio can surface it the next time the angle is
+                   opened for re-editing.
+        clear_qc_note – pass True to wipe any previous qc_note (e.g. when the
+                         angle passes QC and advances beyond 'rendered').
+        """
         products = cls._load()
         for product in products:
             if product["id"] == product_id:
@@ -154,6 +163,11 @@ class ProductStore:
                             angle["video_url"] = video_url if video_url else None
                         if project_name is not None:
                             angle["project_name"] = project_name if project_name else None
+                        # QC note handling
+                        if qc_note is not None:
+                            angle["qc_note"] = qc_note.strip() or None
+                        elif clear_qc_note:
+                            angle["qc_note"] = None
                         angle["updated_at"] = cls._now()
                         product["updated_at"] = cls._now()
                         cls._save(products)

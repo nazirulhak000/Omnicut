@@ -90,6 +90,7 @@ const KanbanCard = memo(function KanbanCard({
   onOpenQrModal,
   onInspectAngle,
   onCopyCaption,
+  onQcFail,
   copiedAngleId
 }) {
   const captionText = `${ang.tiktok_caption || ''}\n\n${ang.tiktok_hashtags || ''}`.trim();
@@ -104,8 +105,19 @@ const KanbanCard = memo(function KanbanCard({
 
   return (
     <div
-      className="p-2.5 rounded-xl bg-[#0B0F19] border border-white/[0.08] hover:border-[#25F4EE]/40 transition-all space-y-2 relative group shadow-sm"
+      className={`p-2.5 rounded-xl border transition-all space-y-2 relative group shadow-sm ${
+        ang.qc_note
+          ? 'bg-[#120A06] border-red-500/40 hover:border-red-400/60'
+          : 'bg-[#0B0F19] border-white/[0.08] hover:border-[#25F4EE]/40'
+      }`}
     >
+      {/* QC Fail banner — only visible when qc_note is set */}
+      {ang.qc_note && (
+        <div className="flex items-start gap-1.5 py-1 px-2 rounded-lg bg-red-500/15 border border-red-500/30 text-red-300 text-xs font-bold">
+          <ShieldAlert className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-red-400" />
+          <span className="leading-snug">QC ไม่ผ่าน: {ang.qc_note}</span>
+        </div>
+      )}
       {/* 1. Header: Product Name + Badge + Detail Inspect Icon */}
       <div className="flex items-center justify-between gap-1.5 text-xs">
         <span
@@ -195,6 +207,14 @@ const KanbanCard = memo(function KanbanCard({
                 </button>
               )}
               <button
+                onClick={() => onQcFail(ang)}
+                className="px-2 py-1.5 rounded-lg bg-red-500/15 border border-red-500/30 text-red-300 hover:bg-red-500/25 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                title="QC ไม่ผ่าน — ส่งตัดใหม่"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>ตัดใหม่</span>
+              </button>
+              <button
                 onClick={() => onOpenQrModal(ang)}
                 className="px-2 py-1.5 rounded-lg bg-[#25F4EE]/15 border border-[#25F4EE]/30 text-[#25F4EE] hover:bg-[#25F4EE]/25 text-xs font-bold flex items-center gap-1 cursor-pointer"
                 title="ส่งเข้ามือถือ"
@@ -216,7 +236,7 @@ const KanbanCard = memo(function KanbanCard({
                 <span>QR</span>
               </button>
               <button
-                onClick={() => onStatusChange(ang.parentProduct.id, ang.angle_id, 'posted')}
+                onClick={() => onStatusChange(ang.parentProduct.id, ang.angle_id, 'posted', null, null, true)}
                 className="px-2 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30 text-xs font-bold flex items-center gap-1 cursor-pointer"
                 title="มาร์กว่าโพสต์แล้ว"
               >
@@ -444,25 +464,66 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
     fetchProductsData();
   }, [fetchProductsData]);
 
-  const handleAngleStatusChange = useCallback(async (productId, angleId, nextStatus, videoUrl = null) => {
+  const handleAngleStatusChange = useCallback(async (productId, angleId, nextStatus, videoUrl = null, qcNote = null, clearQcNote = false) => {
     try {
-      await updateAngleStatus(productId, angleId, nextStatus, videoUrl);
+      await updateAngleStatus(productId, angleId, nextStatus, videoUrl, null, qcNote, clearQcNote);
       setProducts(prev => prev.map(p => {
         if (p.id === productId) {
-          const updatedAngles = p.angles?.map(a => a.angle_id === angleId ? { ...a, status: nextStatus, ...(videoUrl ? { video_url: videoUrl } : {}) } : a) || [];
+          const updatedAngles = p.angles?.map(a => {
+            if (a.angle_id !== angleId) return a;
+            return {
+              ...a,
+              status: nextStatus,
+              ...(videoUrl ? { video_url: videoUrl } : {}),
+              ...(qcNote !== null ? { qc_note: qcNote } : {}),
+              ...(clearQcNote ? { qc_note: null } : {}),
+            };
+          }) || [];
           return { ...p, angles: updatedAngles };
         }
         return p;
       }));
       // Also update inspectAngle state if it's currently open
       if (inspectAngle && inspectAngle.angle_id === angleId) {
-        setInspectAngle(prev => prev ? { ...prev, status: nextStatus, ...(videoUrl ? { video_url: videoUrl } : {}) } : null);
+        setInspectAngle(prev => prev ? {
+          ...prev,
+          status: nextStatus,
+          ...(videoUrl ? { video_url: videoUrl } : {}),
+          ...(qcNote !== null ? { qc_note: qcNote } : {}),
+          ...(clearQcNote ? { qc_note: null } : {}),
+        } : null);
       }
       showToast('อัปเดตสถานะสำเร็จ');
     } catch (err) {
       showToast('ไม่สามารถอัปเดตสถานะได้: ' + err.message, 'error');
     }
   }, [inspectAngle, showToast]);
+
+  // ── QC Fail Modal state ──────────────────────────────────────────────────
+  const [qcFailTarget, setQcFailTarget] = useState(null); // angle object
+  const [qcFailNote, setQcFailNote]     = useState('');
+
+  const handleQcFail = useCallback((ang) => {
+    setQcFailTarget(ang);
+    setQcFailNote('');
+  }, []);
+
+  const handleQcFailConfirm = useCallback(async () => {
+    if (!qcFailTarget) return;
+    const note = qcFailNote.trim() || 'QC ไม่ผ่าน';
+    await handleAngleStatusChange(
+      qcFailTarget.parentProduct.id,
+      qcFailTarget.angle_id,
+      'in_production',
+      null,     // videoUrl — keep existing
+      note,     // qc_note
+      false,
+    );
+    showToast('ส่งตัดใหม่แล้ว — สถานะกลับเป็น "กำลังตัดต่อ"');
+    setQcFailTarget(null);
+    setQcFailNote('');
+    setInspectAngle(null); // close inspect modal if open
+  }, [qcFailTarget, qcFailNote, handleAngleStatusChange, showToast]);
 
   const handleSendToStudio = useCallback((product, angle, angleIdx = -1) => {
     if (!onApplyToStudio) return;
@@ -646,6 +707,17 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                 </div>
               </div>
 
+              {/* QC Note Alert — shown when a previous QC fail note exists */}
+              {inspectAngle.qc_note && (
+                <div className="flex items-start gap-2 p-2.5 rounded-xl bg-red-500/10 border border-red-500/30">
+                  <ShieldAlert className="w-4 h-4 flex-shrink-0 mt-0.5 text-red-400" />
+                  <div>
+                    <div className="text-xs font-bold text-red-300 mb-0.5">QC ไม่ผ่าน — ต้องตัดต่อใหม่</div>
+                    <div className="text-xs text-red-200 font-mono leading-snug">{inspectAngle.qc_note}</div>
+                  </div>
+                </div>
+              )}
+
               {/* 2. Hook Title 3s (Compact) */}
               <div className="space-y-1">
                 <div className="text-sm font-semibold text-slate-400">Hook 3 วินาทีแรก (จุดหยุดคนดู):</div>
@@ -821,7 +893,19 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                   <span>ส่งไปตัดต่อ</span>
                 </button>
 
-                {/* Button 3: Mobile QR */}
+                {/* Button 3: QC Fail (only when rendered or mobile_ready) */}
+                {(inspectAngle.status === 'rendered' || inspectAngle.status === 'mobile_ready') && (
+                  <button
+                    onClick={() => handleQcFail(inspectAngle)}
+                    className="py-2.5 px-3 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all flex-shrink-0"
+                    title="QC ไม่ผ่าน — reset สถานะกลับไปตัดใหม่"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>QC ไม่ผ่าน</span>
+                  </button>
+                )}
+
+                {/* Button 4: Mobile QR */}
                 <button
                   onClick={() => {
                     setInspectAngle(null);
@@ -837,6 +921,57 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
             </div>
           );
         })()}
+      </Modal>
+
+      {/* ── QC Fail Confirmation Modal ─────────────────────────────────────── */}
+      <Modal
+        isOpen={!!qcFailTarget}
+        onClose={() => { setQcFailTarget(null); setQcFailNote(''); }}
+        title="QC ไม่ผ่าน — ส่งตัดใหม่"
+        subtitle={qcFailTarget?.hook_title}
+        maxWidth="max-w-sm"
+      >
+        {qcFailTarget && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/30">
+              <div className="w-10 h-10 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center flex-shrink-0">
+                <RotateCcw className="w-5 h-5 text-red-400" />
+              </div>
+              <div>
+                <div className="text-sm font-bold text-red-300">คลิปนี้จะถูกส่งกลับไปตัดใหม่</div>
+                <div className="text-xs text-slate-400 mt-0.5">สถานะจะเปลี่ยนกลับเป็น "กำลังตัดต่อ" — เปิด Studio ได้ทันที</div>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-300 block">หมายเหตุ QC (เพื่อให้ตัดต่อเห็นว่าต้องแก้อะไร)</label>
+              <textarea
+                value={qcFailNote}
+                onChange={e => setQcFailNote(e.target.value)}
+                placeholder="เช่น: เสียงหนักเกิน, ตัดไม่เรียบร้อย, ร้องเรียนไม่ดี…"
+                rows={3}
+                className="w-full rounded-xl bg-black/40 border border-white/[0.1] text-slate-200 text-xs p-2.5 placeholder-slate-600 focus:outline-none focus:border-[#25F4EE]/50 resize-none font-mono leading-relaxed"
+              />
+              <div className="text-xs text-slate-500">ถ้าไม่ระบุจะใช้ "QC ไม่ผ่าน" เป็นค่าเริ่มต้น</div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setQcFailTarget(null); setQcFailNote(''); }}
+                className="flex-1 py-2.5 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.08] border border-white/[0.08] text-slate-300 text-sm font-bold cursor-pointer transition-all"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={handleQcFailConfirm}
+                className="flex-1 py-2.5 px-3 rounded-xl bg-red-500/80 hover:bg-red-500 text-white text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg shadow-red-900/30 active:scale-95"
+              >
+                <RotateCcw className="w-4 h-4" />
+                ยืนยัน — ส่งตัดใหม่
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* Video Modal Preview */}
@@ -1081,6 +1216,7 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
                           onOpenQrModal={setQrModalItem}
                           onInspectAngle={setInspectAngle}
                           onCopyCaption={handleCopyCaption}
+                          onQcFail={handleQcFail}
                           copiedAngleId={copiedAngleId}
                         />
                       ))
