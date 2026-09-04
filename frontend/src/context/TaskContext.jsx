@@ -157,19 +157,34 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
     setIsActivityDrawerOpen(false);
     setNotificationToast(null);
 
-    const isRenderTask =
+    const isRenderTask = Boolean(
       task.type === 'render_video' ||
       task.type === 'render' ||
       task.task_type === 'render_video' ||
       task.task_type === 'render' ||
-      (typeof task.title === 'string' && (task.title.includes('เรนเดอร์') || task.title.includes('ตัดต่อ')));
+      (typeof task.title === 'string' && task.title.includes('เรนเดอร์'))
+    );
+
+    const isEditTask = Boolean(
+      task.type === 'one_click' ||
+      task.type === 'pipeline' ||
+      (typeof task.title === 'string' && task.title.includes('ตัดต่อ'))
+    );
 
     const projName = task.result?.project_name || task.payload?.project_name || task.target_id;
 
-    // For video creation/render tasks, navigate directly to Timeline Editor ('editor') by default
+    // Determine targetTab if not explicitly provided:
+    // Render task -> Gallery video preview
+    // 1-Click edit task -> Timeline Editor
     let targetTab = destinationTab;
     if (!targetTab) {
-      targetTab = isRenderTask ? 'editor' : (task.target_tab || 'flow');
+      if (isRenderTask) {
+        targetTab = 'gallery';
+      } else if (isEditTask) {
+        targetTab = 'editor';
+      } else {
+        targetTab = task.target_tab || 'flow';
+      }
     }
 
     const targetId = projName || task.target_id || (task.result?.saved_product?.id || task.result?.product?.id);

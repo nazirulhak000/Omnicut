@@ -657,7 +657,9 @@ function forceHighlightWord(text, word, color, defaultColor) {
   if (!word || !text.includes(word)) return [{ text, color: defaultColor }];
   const idx = text.indexOf(word);
   const segments = [];
-  if (idx > 0) segments.push({ text: text.slice(0, idx), color: defaultColor });
+  const needsSpace = idx > 0 && /[\u0E00-\u0E7F]/.test(text[idx - 1]) && text[idx - 1] !== ' ';
+  const beforeStr = text.slice(0, idx) + (needsSpace ? ' ' : '');
+  if (beforeStr) segments.push({ text: beforeStr, color: defaultColor });
   segments.push({ text: word, color });
   if (idx + word.length < text.length) segments.push({ text: text.slice(idx + word.length), color: defaultColor });
   return segments;

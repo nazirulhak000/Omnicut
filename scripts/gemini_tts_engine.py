@@ -63,8 +63,31 @@ class GeminiFlashTTSEngine:
     """Google Gemini 3.1 Flash Speech Generation Engine."""
 
     @classmethod
+    def get_api_keys(cls) -> list[str]:
+        """Returns all configured Gemini API keys from environment and .env in priority order."""
+        keys = []
+        # Reload latest .env
+        env_f = PROJECT_ROOT / ".env"
+        if env_f.exists():
+            for line in env_f.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    k_str, v_str = k.strip(), v.strip()
+                    if "GEMINI_API_KEY" in k_str and v_str and v_str not in keys:
+                        keys.append(v_str)
+
+        # Check current process environment
+        for k in ["GEMINI_API_KEY", "GEMINI_API_KEY_2", "GEMINI_API_KEY_OLD"]:
+            v = os.environ.get(k, "").strip()
+            if v and v not in keys:
+                keys.append(v)
+
+        return keys
+
+    @classmethod
     def is_available(cls) -> bool:
-        return bool(os.environ.get("GEMINI_API_KEY") or GEMINI_API_KEY)
+        return len(cls.get_api_keys()) > 0
 
     @classmethod
     def resolve_voice(cls, preset: Optional[str] = None, gender: Optional[str] = None) -> str:
@@ -99,10 +122,11 @@ class GeminiFlashTTSEngine:
         speed: float = 1.15
     ) -> str:
         """
-        Generates crystal-clear Thai speech using Gemini 3.1 Flash TTS with Commercial Ad Direction.
+        Generates crystal-clear Thai speech using Gemini Flash TTS with Commercial Ad Direction.
+        Supports multi-key fallback and model failover across all keys in .env.
         """
-        api_key = os.environ.get("GEMINI_API_KEY") or GEMINI_API_KEY
-        if not api_key:
+        api_keys = cls.get_api_keys()
+        if not api_keys:
             raise ValueError("GEMINI_API_KEY is missing. Please set it in .env or environment.")
 
         # Determine Gemini Voice Name
@@ -146,46 +170,45 @@ class GeminiFlashTTSEngine:
             }
         }
 
-        # Models supported for TTS audio in Google Gemini API
+        # Models supporting Thai audio generation in Google Gemini API
+        # Priority: gemini-3.1-flash-tts-preview (best & active), gemini-2.5-flash-preview-tts
         model_candidates = [
             "gemini-3.1-flash-tts-preview",
             "gemini-2.5-flash-preview-tts",
         ]
-        
+
         import time
         data = None
         last_error = None
-        for model_name in model_candidates:
-            for attempt in range(1, 3):
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+
+        # Multi-key & Multi-model fallback matrix
+        for key_idx, cur_key in enumerate(api_keys, 1):
+            key_tag = f"Key #{key_idx} (..{cur_key[-6:]})"
+            for model_name in model_candidates:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={cur_key}"
                 req = urllib.request.Request(
                     url,
                     data=json.dumps(payload).encode("utf-8"),
                     headers={"Content-Type": "application/json"}
                 )
                 try:
-                    # Give enough time for long Thai audio generation (75 seconds)
                     with urllib.request.urlopen(req, timeout=75) as resp:
                         data = json.loads(resp.read().decode("utf-8"))
-                        print(f"✨ [Gemini Flash TTS] Used model '{model_name}' with voice '{target_voice}'")
+                        print(f"✨ [Gemini Flash TTS] Used model '{model_name}' on {key_tag} with voice '{target_voice}'")
                         break
                 except urllib.error.HTTPError as he:
                     last_error = he
-                    # If 403 (quota/forbidden) or 404 (not found), do NOT retry this model, move on immediately
-                    print(f"⚠️ [Gemini Flash TTS] Model '{model_name}' returned HTTP {he.code}, skipping to fallback...")
-                    break
+                    print(f"⚠️ [Gemini Flash TTS] {key_tag} with '{model_name}' returned HTTP {he.code} — checking next fallback...")
+                    continue
                 except Exception as e:
                     last_error = e
-                    if attempt < 2:
-                        print(f"⚠️ [Gemini Flash TTS] Retry {attempt}/2 for '{model_name}' in 3s (error: {e})")
-                        time.sleep(3)
-                    else:
-                        print(f"⚠️ [Gemini Flash TTS] Model '{model_name}' exhausted retries ({e}), trying fallback...")
+                    print(f"⚠️ [Gemini Flash TTS] {key_tag} with '{model_name}' failed ({e}) — checking next fallback...")
+                    continue
             if data:
                 break
 
         if not data:
-            raise RuntimeError(f"All Gemini Flash TTS models failed. Last error: {last_error}")
+            raise RuntimeError(f"All Gemini Flash TTS keys and models failed. Last error: {last_error}")
 
         try:
                 

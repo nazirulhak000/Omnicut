@@ -274,13 +274,33 @@ class AIBridge:
         return get_agy_path() is not None
 
     @classmethod
+    def get_api_keys(cls) -> List[str]:
+        """Collect all Gemini API keys configured in environment and .env in order."""
+        keys = []
+        if ENV_FILE.exists():
+            try:
+                for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, v = line.split("=", 1)
+                        if "GEMINI_API_KEY" in k.strip() and v.strip() and v.strip() not in keys:
+                            keys.append(v.strip())
+            except Exception:
+                pass
+        for k in ["GEMINI_API_KEY", "GEMINI_API_KEY_2", "GEMINI_API_KEY_OLD"]:
+            v = os.environ.get(k, "").strip()
+            if v and v not in keys:
+                keys.append(v)
+        return keys
+
+    @classmethod
     def has_api_key(cls) -> bool:
-        """Check if GEMINI_API_KEY is configured."""
-        return bool(os.environ.get("GEMINI_API_KEY", "").strip())
+        """Check if any GEMINI_API_KEY is configured."""
+        return len(cls.get_api_keys()) > 0
 
     @classmethod
     def is_available(cls) -> bool:
-        """Available if either Antigravity CLI or GEMINI_API_KEY exists."""
+        """Available if either Antigravity CLI or any GEMINI_API_KEY exists."""
         return cls.has_antigravity_cli() or cls.has_api_key()
 
     @classmethod
@@ -368,36 +388,39 @@ class AIBridge:
             except Exception as err:
                 print(f"⚠️ [AIBridge] Antigravity Pro error ({err}) — attempting fallback to API Key...")
 
-        # 2. Direct AI Studio API Key fallback
-        if cls.has_api_key():
+        # 2. Direct AI Studio API Key fallback (cycles through all configured keys)
+        api_keys = cls.get_api_keys()
+        if api_keys:
             from google import genai  # imported lazily so manual mode needs no SDK
-            t0 = time.time()
-            try:
-                print(f"⚡ [AIBridge] Generating '{task}' via Google AI Studio API ({model})...")
-                client = genai.Client(api_key=os.environ["GEMINI_API_KEY"].strip())
-                response = client.models.generate_content(model=model, contents=prompt)
-                latency = time.time() - t0
-                raw_text = response.text or ""
-                parsed = cls.parse_response(task, raw_text)
+            for key_idx, cur_key in enumerate(api_keys, 1):
+                t0 = time.time()
                 try:
-                    from scripts.token_tracker import TokenTracker
-                    in_tok = max(100, len(prompt) // 2)
-                    out_tok = max(50, len(raw_text) // 2)
-                    p_name = context.get("product_name", "") or context.get("product_title", "")
-                    TokenTracker.record_event(
-                        task=task,
-                        model=model,
-                        provider="gemini_api",
-                        input_tokens=in_tok,
-                        output_tokens=out_tok,
-                        latency_seconds=latency,
-                        project_name=p_name
-                    )
-                except Exception:
-                    pass
-                return parsed
-            except Exception as api_err:
-                print(f"⚠️ [AIBridge] AI Studio API error ({api_err})")
+                    print(f"⚡ [AIBridge] Generating '{task}' via Google AI Studio API ({model}) [Key #{key_idx}]...")
+                    client = genai.Client(api_key=cur_key)
+                    response = client.models.generate_content(model=model, contents=prompt)
+                    latency = time.time() - t0
+                    raw_text = response.text or ""
+                    parsed = cls.parse_response(task, raw_text)
+                    try:
+                        from scripts.token_tracker import TokenTracker
+                        in_tok = max(100, len(prompt) // 2)
+                        out_tok = max(50, len(raw_text) // 2)
+                        p_name = context.get("product_name", "") or context.get("product_title", "")
+                        TokenTracker.record_event(
+                            task=task,
+                            model=model,
+                            provider="gemini_api",
+                            input_tokens=in_tok,
+                            output_tokens=out_tok,
+                            latency_seconds=latency,
+                            project_name=p_name
+                        )
+                    except Exception:
+                        pass
+                    return parsed
+                except Exception as api_err:
+                    print(f"⚠️ [AIBridge] Key #{key_idx} error ({api_err}) — attempting next key...")
+                    continue
 
         # 3. Manual copy-paste fallback
         raise ManualModeRequired(prompt, task)

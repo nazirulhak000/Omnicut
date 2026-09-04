@@ -286,31 +286,66 @@ export function ActivityDrawer() {
                         </button>
                       )}
 
-                      {isDone && (
-                        <div className="flex items-center gap-1.5">
-                          {Boolean(task.result?.mp4 || task.result?.output_video || task.result?.final_video_path) && (
+                      {isDone && (() => {
+                        const hasVideo = Boolean(task.result?.mp4 || task.result?.output_video || task.result?.final_video_path);
+                        const isRenderTask = Boolean(
+                          task.type === 'render_video' ||
+                          task.type === 'render' ||
+                          task.task_type === 'render_video' ||
+                          task.task_type === 'render' ||
+                          (typeof task.title === 'string' && task.title.includes('เรนเดอร์'))
+                        );
+                        const is1ClickEdit = Boolean(
+                          task.type === 'one_click' ||
+                          task.type === 'pipeline' ||
+                          (typeof task.title === 'string' && task.title.includes('ตัดต่อ'))
+                        );
+
+                        if (isRenderTask) {
+                          return (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => jumpToTaskResult(task, 'gallery')}
+                                className="px-3 py-1 rounded-lg bg-gradient-to-r from-[#25F4EE] to-blue-500 hover:brightness-110 text-slate-950 text-xs font-bold flex items-center gap-1 shadow-md shadow-[#25F4EE]/20 cursor-pointer active:scale-95 transition-all"
+                                title="พรีวิวดูคลิปที่ตัดเสร็จแล้วในคลังผลงาน"
+                              >
+                                <Play className="w-3.5 h-3.5 fill-current" />
+                                <span>พรีวิวคลิป</span>
+                              </button>
+                              <button
+                                onClick={() => jumpToTaskResult(task, 'editor')}
+                                className="px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1 cursor-pointer transition-all"
+                                title="เปิดแก้ไขต่อในไทม์ไลน์"
+                              >
+                                <span>เปิดไทม์ไลน์</span>
+                                <ArrowRight className="w-3 h-3" />
+                              </button>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="flex items-center gap-1.5">
+                            {hasVideo && (
+                              <button
+                                onClick={() => jumpToTaskResult(task, 'gallery')}
+                                className="px-2 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1 cursor-pointer transition-all"
+                                title="เปิดดูคลิปวิดีโอในคลังผลงาน"
+                              >
+                                <Play className="w-3 h-3 fill-current" />
+                                <span>ดูคลิป</span>
+                              </button>
+                            )}
                             <button
-                              onClick={() => jumpToTaskResult(task, 'gallery')}
-                              className="px-2 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1 cursor-pointer transition-all"
-                              title="เปิดดูคลิปวิดีโอที่ Export แล้วในคลังผลงาน"
+                              onClick={() => jumpToTaskResult(task, 'editor')}
+                              className="px-3 py-1 rounded-lg bg-gradient-to-r from-[#25F4EE] to-blue-500 hover:brightness-110 text-slate-950 text-xs font-bold flex items-center gap-1 shadow-md shadow-[#25F4EE]/20 cursor-pointer active:scale-95 transition-all"
                             >
-                              <Play className="w-3 h-3" />
-                              <span>ดูคลิป</span>
+                              <span>{is1ClickEdit ? 'เปิดไทม์ไลน์' : 'ดูผลลัพธ์'}</span>
+                              <ArrowRight className="w-3.5 h-3.5" />
                             </button>
-                          )}
-                          <button
-                            onClick={() => jumpToTaskResult(task, 'editor')}
-                            className="px-3 py-1 rounded-lg bg-gradient-to-r from-[#25F4EE] to-blue-500 hover:brightness-110 text-slate-950 text-xs font-bold flex items-center gap-1 shadow-md shadow-[#25F4EE]/20 cursor-pointer active:scale-95 transition-all"
-                          >
-                            <span>
-                              {task.type === 'render_video' || task.type === 'render' || (typeof task.title === 'string' && (task.title.includes('เรนเดอร์') || task.title.includes('ตัดต่อ')))
-                                ? 'เปิดไทม์ไลน์'
-                                : 'ดูผลลัพธ์'}
-                            </span>
-                            <ArrowRight className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      )}
+                          </div>
+                        );
+                      })()}
 
                       {!isRunning && (
                         <button
@@ -370,17 +405,42 @@ export function GlobalTaskNotification() {
           {notificationToast.message}
         </p>
 
-        {isSuccess && notificationToast.task && (
-          <div className="flex items-center justify-end gap-2 pt-1">
-            <button
-              onClick={() => jumpToTaskResult(notificationToast.task, 'editor')}
-              className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#25F4EE] to-blue-500 hover:brightness-110 text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-[#25F4EE]/20 cursor-pointer active:scale-95 transition-all"
-            >
-              <span>เปิดหน้าไทม์ไลน์ทันที</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
+        {isSuccess && notificationToast.task && (() => {
+          const task = notificationToast.task;
+          const isRenderTask = Boolean(
+            task.type === 'render_video' ||
+            task.type === 'render' ||
+            task.task_type === 'render_video' ||
+            task.task_type === 'render' ||
+            (typeof task.title === 'string' && task.title.includes('เรนเดอร์'))
+          );
+
+          if (isRenderTask) {
+            return (
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  onClick={() => jumpToTaskResult(task, 'gallery')}
+                  className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#25F4EE] to-blue-500 hover:brightness-110 text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-[#25F4EE]/20 cursor-pointer active:scale-95 transition-all"
+                >
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                  <span>พรีวิวคลิปที่เสร็จทันที</span>
+                </button>
+              </div>
+            );
+          }
+
+          return (
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button
+                onClick={() => jumpToTaskResult(task, 'editor')}
+                className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#25F4EE] to-blue-500 hover:brightness-110 text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-[#25F4EE]/20 cursor-pointer active:scale-95 transition-all"
+              >
+                <span>เปิดหน้าไทม์ไลน์ทันที</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
