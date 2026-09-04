@@ -53,3 +53,12 @@ vision_frame_*.png
 test_*.wav
 06_Archive/*
 !06_Archive/.gitkeep
+
+# Voice preview cache (rebuilt automatically by voice engine)
+02_Assets/Voiceover/previews/
+
+# Frontend voice cache (served statically, rebuilt on demand)
+frontend/public/voice_cache/
+
+# Runtime-generated product database (rebuilt from scraper)
+_Docs/products.json
