@@ -859,6 +859,7 @@ class SubtitleEngine:
             # 1. Physical Discomfort & Pain Points
             "ออฟฟิศซินโดรม", "ปวดข้อมือ", "ปวดหลัง", "ปวดคอ", "ปวดหัว", "ปวดไหล่", "ปวดขา", "ปวดเมื่อย",
             "ปวดมือ", "ปวดตัว", "ปวด", "เมื่อยล้า", "เมื่อย", "ทรมาน", "เหนื่อยล้า", "เหนื่อย",
+            "เจ็บมือ", "บาดมือ", "แสบตา", "รกโต๊ะ", "เสียงดังหนวกหู", "เสียงกวนใจ",
             # 2. Tech & Everyday Frustrations
             "สายพันกัน", "สายขาด", "แบตหมดไว", "แบตเสื่อม", "กระตุก", "เครื่องค้าง", "ค้าง", "ช้ามาก", "ช้า",
             "พังง่าย", "พัง", "หักง่าย", "หัก", "เสียเงินฟรี", "เสียดายเงิน", "เสีย", "หลุดบ่อย", "หลุด",
@@ -875,13 +876,18 @@ class SubtitleEngine:
             "ถูกสุดๆ", "ถูกมาก", "คุ้มสุดๆ", "คุ้มค่า", "คุ้มราคา", "เกินคุ้ม", "คุ้ม", "ประหยัด", "ตกใจราคา",
             "ตะกร้าส้ม", "ตะกร้าซ้ายล่าง", "ตะกร้า", "ใส่ตะกร้า", "จิ้มตะกร้า", "จิ้มเลย", "จิ้มตรงนี้", "กดตรงนี้",
             "พิกัดในคอมเมนต์", "พิกัดในโปรไฟล์", "พิกัด", "ปักหมุด", "อย่ารอ", "อย่าช้า", "ช้าหมด",
-            "รีบตำ", "รีบจัด", "ด่วนเลย", "ด่วน", "ต้องมี", "ของมันต้องมี", "ขาดไม่ได้",
+            "รีบตำ", "รีบจัด", "ด่วนเลย", "ด่วน", "ต้องมี", "ของมันต้องมี", "ขาดไม่ได้", "สอยด่วน", "รีบสอย",
+            "เคาะราคา", "สั่งซื้อเลย", "กดลงตะกร้า", "ลิงก์หน้าโปรไฟล์", "กดที่ลิงก์", "จัดโปร", "ลดเยอะมาก",
             # 6. Viral Praise & Reviewer Hype
             "ป้ายยา", "ตัวท็อป", "ตัวแม่", "ยืนหนึ่ง", "ตัวตึง", "ของดีบอกต่อ", "ใช้ดีบอกต่อ", "ของดี",
             "ดีจริง", "ดูดีมาก", "ดีมาก", "ดีเกินคาด", "ดีเกินราคา", "ว้าวมาก", "ว้าว", "ตาแตก", "ตะลึง",
             "สุดปัง", "ปังมาก", "จึ้งมาก", "จึ้ง", "เลิศมาก", "เลิศ", "เอาเรื่อง", "ของแทร่", "เปลี่ยนชีวิต",
             "ยกระดับ", "หลงรักเลย", "หลงรัก", "ชอบมาก", "ติดใจ", "ไม่ผิดหวัง", "ไม่จกตา", "รีวิวจริง",
-            "ใช้จริง", "หมดปัญหา", "ลืมแบบเก่าไปเลย", "โคตรดี", "โคตรคุ้ม", "ฟินมาก", "ช็อค", "น่ารักกว่าในรูป", "ของที่รอคอย"
+            "ใช้จริง", "หมดปัญหา", "ลืมแบบเก่าไปเลย", "โคตรดี", "โคตรคุ้ม", "ฟินมาก", "ช็อค", "น่ารักกว่าในรูป", "ของที่รอคอย",
+            "สมคำร่ำลือ", "ตอบโจทย์", "ตัวจริง", "ปังไม่ไหว", "สิบเต็มสิบ", "10/10", "คุ้มสุดในรุ่น", "ยืนยันอีกเสียง",
+            "ขาดตัวนี้ไม่ได้", "ต้องมีติดบ้าน", "ไอเทมลับ", "ไอเทมเด็ด", "รอดไม่รอด", "ของมันต้องลอง", "ประทับใจ",
+            "เกินต้าน", "ยอมใจ", "เด็ดจริง", "ไม่คิดว่าจะดี", "ดีกว่าที่คิด", "คุ้มเกินเบอร์", "ปังสุด", "สุดจัด",
+            "ลองแล้วรัก", "ถูกใจมาก", "ใช้เองรีวิวเอง", "โนสปอน", "ซื้อเองใช้เอง", "ใช้จนหมด", "ซื้อซ้ำ", "ตุนด่วน", "ต้องตุน", "ตำด่วน", "ใช้ทุกวัน"
         ],
         "&H00FFE600&": [  # 🔵 Electric Cyan (Features, tech, ergonomics, certifications, comfort)
             # 1. Tech, Gadgets & Hardware
@@ -891,6 +897,8 @@ class SubtitleEngine:
             "120Hz", "คมชัด", "กล้องชัด", "เสียงดี", "เบสแน่น", "ตัดเสียงรบกวน", "กันน้ำ", "ชิปเร็ว",
             "ลื่นไหล", "ไม่สะดุด", "เชื่อมต่อง่าย", "เสียบปุ๊บติดปั๊บ", "พกพาสะดวก", "น้ำหนักเบา", "กะทัดรัด",
             "ปรับระดับได้", "พับเก็บได้", "ประหยัดพื้นที่", "ประกอบง่าย", "ใช้งานง่าย",
+            "ปุ่มเงียบ", "สวิตช์เงียบ", "ไร้สาย 2.4G", "ต่อได้ 3 อุปกรณ์", "สลับเครื่องไว", "รองรับ Mac และ Windows",
+            "ปรับความสูงได้", "วัสดุพรีเมียม", "งานประกอบเนี๊ยบ", "แบตเตอรี่ใช้ได้นาน", "ชาร์จครั้งเดียวอยู่ได้ยาว", "จับถนัดมือ",
             # 2. Ergonomics, Comfort, Softness & Apparel
             "สรีรศาสตร์", "เมมโมรี่โฟม", "ที่รองข้อมือ", "พิมพ์สบาย", "นั่งสบาย", "นอนสบาย", "ใส่สบาย",
             "สบายมาก", "นุ่มสบาย", "สบายมือ", "สบายหลัง", "สบายตา", "สบายตัว", "สบาย", "นุ่มนิ่ม", "นุ่มฟู",
@@ -908,7 +916,8 @@ class SubtitleEngine:
         "&H00303BFF&": [  # 🔴 Alert Red (Urgency, warnings)
             "อย่าเพิ่งซื้อ", "อย่าเพิ่ง", "หยุดก่อน", "หยุดดูคลิปนี้", "ฟังทางนี้", "เตือนภัย", "เตือน",
             "ระวังของปลอม", "ระวัง", "อันตราย", "เสี่ยง", "ห้ามทำ", "อย่าหาทำ", "อย่าพลาด",
-            "ห้ามพลาด", "ห้ามเลื่อนผ่าน", "ของปลอมระบาด", "ซื้อผิดรุ่น", "ดูให้จบ", "ข้อเสีย", "สิ่งที่ควรรู้"
+            "ห้ามพลาด", "ห้ามเลื่อนผ่าน", "ของปลอมระบาด", "ซื้อผิดรุ่น", "ดูให้จบ", "ข้อเสีย", "สิ่งที่ควรรู้",
+            "เช็กด่วน", "ระวังโดนหลอก", "ข้อควรระวัง", "อย่าเพิ่งเลื่อน", "เตือนไว้ก่อน", "ก่อนจะสาย", "จุดสังเกต", "ระวังผิดหวัง", "ดูตรงนี้ก่อน"
         ]
     }
 
@@ -918,7 +927,7 @@ class SubtitleEngine:
             # 1. Pain Points & Discomfort
             "office syndrome", "wrist pain", "back pain", "neck pain", "shoulder pain", "headache", "leg pain",
             "body pain", "hand hurts", "hurts", "painful", "pain", "tight", "sore", "exhausted",
-            "tiring", "tired", "suffering",
+            "tiring", "tired", "suffering", "messy desk", "noisy",
             # 2. Product/Usage Frustrations
             "tangled", "broken cord", "dead battery", "low battery", "laggy", "lagging", "freezing", "too slow", "slow",
             "breaks easily", "broken", "waste of money", "waste of time", "wasted", "annoying",
@@ -933,23 +942,25 @@ class SubtitleEngine:
             "best value", "great value", "worth every penny", "worth it", "save money", "shocking price",
             "yellow basket", "orange basket", "cart", "add to cart", "click cart", "click now", "click here",
             "pinned link", "link in bio", "coordinates", "don't wait", "don't delay", "almost gone",
-            "buy now", "grab it now", "hurry up", "must have", "essential",
+            "buy now", "grab it now", "hurry up", "must have", "essential", "check profile link", "grab yours",
             # 4. Viral Praise & Sensational Reactions
             "holy grail", "game changer", "life-changing", "top tier", "the best", "highly recommend",
             "really good", "looks really good", "looks good", "so good", "very good", "good", "exceeded expectations",
             "unbelievable", "very wow", "wow", "mind blowing", "stunning", "gorgeous", "slay",
             "aesthetic", "next level", "fell in love", "obsessed", "love it", "no regret", "won't be disappointed",
             "real review", "tried and tested", "problem solved", "insanely good", "super worth it", "so satisfying",
-            "much cuter", "long-awaited", "recommend"
+            "much cuter", "long-awaited", "recommend", "10 out of 10", "10/10", "worth the hype", "honest review",
+            "holy grail item", "no sponsor", "bought it myself", "repurchase", "stock up", "daily staple"
         ],
         "&H00FFE600&": [  # 🔵 Electric Cyan (Features, tech, ergonomics, certifications, comfort)
             # 1. Tech, Hardware & Gadget Specs
             "logitech wave keys", "wave keys", "logitech", "dream keyboard", "keyboard", "wireless", "bluetooth",
             "magnetic", "strong magnet", "540 degrees", "360 degrees", "fast charging", "quick charge", "66w", "100w",
             "long battery", "battery life", "durable", "sturdy", "warranty", "genuine", "authentic", "smooth screen",
-            "120hz", "crystal clear", "sharp camera", "great sound", "deep bass", "noise cancelling", "waterproof",
+            "120hz", "crystal clear", "sharp camera", "great sound", "deep bass", "noise cancelling", "anc", "waterproof",
             "fast chip", "ultra smooth", "easy connect", "plug and play", "portable", "lightweight", "compact",
             "adjustable", "foldable", "space saving", "easy to assemble", "easy to use",
+            "silent keys", "quiet typing", "multi-device", "easy switch", "mac and windows compatible",
             # 2. Comfort, Ergonomics & Fabric/Design
             "ergonomic", "ergonomics", "memory foam", "wrist rest", "typing comfortable", "sit comfortably",
             "comfortable fit", "comfortable", "comfy", "super comfy", "soft and comfy", "extra soft", "pillow soft",
@@ -969,7 +980,7 @@ class SubtitleEngine:
             "don't buy yet", "don't buy", "stop scrolling", "wait a minute", "listen to this", "urgent warning", "warning",
             "beware of fake", "beware", "danger", "risky", "don't do this", "don't miss out",
             "don't miss", "watch till the end", "counterfeit", "fake products", "cons", "must know",
-            "look at this", "watch this", "warn", "stop"
+            "look at this", "watch this", "warn", "stop", "before you buy", "watch out", "critical warning", "check this before buying"
         ]
     }
 
@@ -1188,8 +1199,7 @@ class SubtitleEngine:
         # one. Re-running the other side with a colour hint only changes which
         # dictionary is tried first -- if that line contains no listed keyword
         # it still comes out plain, which is what left a highlighted Thai line
-        # sitting above an all-white English one (and the reverse). Measured on
-        # a real 28-cue project: 10 of them were lopsided this way.
+        # sitting above an all-white English one (and the reverse).
         #
         # So when exactly one side found something, colour the other side's
         # most salient word in the same colour rather than leaving the pair
@@ -1198,6 +1208,9 @@ class SubtitleEngine:
             en_res = cls._force_highlight(en_res, cls._salient_word_en(en_text), th_color, primary_en)
         elif en_color and not th_color:
             th_res = cls._force_highlight(th_res, cls._salient_word_th(th_text), en_color, primary_th)
+        elif th_color and en_color and th_color != en_color:
+            # If both matched different colors, enforce Thai's color onto English for 100% parity
+            en_res = re.sub(r"\{\\c&H[0-9A-Fa-f]+&\}", f"{{\\c{th_color}}}", en_res)
 
         return th_res, en_res
 
@@ -1595,6 +1608,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 en_sub = f"\\N{{\\fscx{en_pct}\\fscy{en_pct}\\c&H00EAEAEA&}}{en_highlighted}"
             else:
                 highlighted_text = cls.apply_kinetic_highlighting(text, primary_color_ass=primary, custom_keywords=proj_keywords)
+                if "{\\c" in highlighted_text:
+                    m = re.search(r"\{\\c(&H[0-9A-Fa-f]+&)\}", highlighted_text)
+                    if m:
+                        clean_th = re.sub(r"\{\\c&H[0-9A-Fa-f]+&\}", "", text)
+                        highlighted_text = f"{{\\c{m.group(1)}}}{clean_th}"
                 en_sub = ""
 
             style = "TikTokMinimalPill" if is_pill_mode else "TikTokWhite"

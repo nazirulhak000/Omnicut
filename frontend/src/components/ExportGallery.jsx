@@ -724,7 +724,19 @@ function ExportActiveWorkbench({
 
 export default function ExportGallery({ exportsList, onRefresh, initialHighlightVideo, onClearHighlightVideo }) {
   const [activeMediaTab, setActiveMediaTab] = useState('exports');
-  const [viewMode, setViewMode] = useState('split'); // 'split' | 'grid'
+  const [viewMode, setViewMode] = useState(() => {
+    try {
+      return localStorage.getItem('omnicut_export_gallery_view_mode') || 'grid';
+    } catch {
+      return 'grid';
+    }
+  }); // 'grid' (default) | 'split'
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('omnicut_export_gallery_view_mode', viewMode);
+    } catch {}
+  }, [viewMode]);
   const [activeVideoPath, setActiveVideoPath] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 250);

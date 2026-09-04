@@ -138,9 +138,134 @@ WORD_MAP = {
     "1 แถม 1":    "หนึ่งแถมหนึ่ง",
     "1แถม1":      "หนึ่งแถมหนึ่ง",
     "1+1":        "หนึ่งแถมหนึ่ง",
-    "2 แถม 1":    "สองแถมหนึ่ง",
-    "2แถม1":      "สองแถมหนึ่ง",
+    "AAA":        "ทริปเปิลเอ",
+    "AA":         "ดับเบิลเอ",
+    "Logi Bolt":  "โลจิ โบลต์",
+    "Logi Options+": "โลจิ ออปชัน พลัส",
+    "Wave Keys":  "เวฟ คีย์ส",
+    "Logitech":   "โลจิเทค",
+    "Windows":    "วินโดวส์",
+    "Mac":        "แมค",
 }
+
+# ─────────────────────────────────────────────────────────────────────
+# Rule 9: English Brand Names, Model Names & Tech Specs Mapping
+# Replaces Thai phonetic transliterations with official English terms.
+# Longer phrases placed first to avoid partial replacements.
+# ─────────────────────────────────────────────────────────────────────
+OFFICIAL_ENGLISH_MAP = [
+    # Full Product & Brand combos (longest first)
+    ("โลจิเทค เวฟ คีย์ส", "Logitech Wave Keys"),
+    ("โลจิเทค เวฟ คีย์", "Logitech Wave Keys"),
+    ("โลจิเทค เวฟคีย์ส", "Logitech Wave Keys"),
+    ("โลจิเทค เวฟคีย์", "Logitech Wave Keys"),
+    ("เวฟ คีย์ส", "Wave Keys"),
+    ("เวฟ คีย์", "Wave Keys"),
+    ("เวฟคีย์ส", "Wave Keys"),
+    ("เวฟคีย์", "Wave Keys"),
+    ("โลจิเทค เอ็มเอ็กซ์ มาสเตอร์", "Logitech MX Master"),
+    ("โลจิเทค ลิฟต์", "Logitech Lift"),
+    ("โลจิเทค ลิฟท์", "Logitech Lift"),
+    ("โลจิเทค เพบเบิล", "Logitech Pebble"),
+    ("โลจิ โบลต์", "Logi Bolt"),
+    ("โลจิ โบลท์", "Logi Bolt"),
+    ("โลจิโบลต์", "Logi Bolt"),
+    ("โลจิโบลท์", "Logi Bolt"),
+    ("โลจิ ออปชันส์ พลัส", "Logi Options+"),
+    ("โลจิ ออปชัน พลัส", "Logi Options+"),
+    ("โลจิ ออปชั่น พลัส", "Logi Options+"),
+    ("โลจิเทค", "Logitech"),
+    ("โลจิ", "Logi"),
+
+    # Operating Systems & Ecosystems
+    ("วินโดวส์", "Windows"),
+    ("วินโดว์", "Windows"),
+    ("แมคบุ๊ก", "MacBook"),
+    ("แมคบุค", "MacBook"),
+    ("แมคโอเอส", "macOS"),
+    ("ไอโอเอส", "iOS"),
+    ("แอนดรอยด์", "Android"),
+    ("ไอแพด", "iPad"),
+    ("ไอโฟน", "iPhone"),
+    ("แอปเปิ้ล", "Apple"),
+    ("แอปเปิล", "Apple"),
+
+    # Standalone 'แมค' in computing / OS context
+    (r'(?<=ระบบ\s)แมค', "Mac"),
+    (r'(?<=และ\s)แมค', "Mac"),
+    (r'(?<=กับ\s)แมค', "Mac"),
+    (r'(?<=หรือ\s)แมค', "Mac"),
+    (r'(?<=บน\s)แมค', "Mac"),
+    (r'(?<=เครื่อง\s)แมค', "Mac"),
+    (r'(?<=ฝั่ง\s)แมค', "Mac"),
+    (r'แมค(?=\sและ)', "Mac"),
+    (r'แมค(?=\sหรือ)', "Mac"),
+    (r'\bแมค\b', "Mac"),
+
+    # Connectivity, Wireless & Tech
+    ("บลูทูธ", "Bluetooth"),
+    ("บลูทูท", "Bluetooth"),
+    ("ไวไฟ", "Wi-Fi"),
+    ("วายฟาย", "Wi-Fi"),
+    ("ยูเอสบี ซี", "USB-C"),
+    ("ยูเอสบี-ซี", "USB-C"),
+    ("ยูเอสบีซี", "USB-C"),
+    ("ยูเอสบี เอ", "USB-A"),
+    ("ยูเอสบี-เอ", "USB-A"),
+    ("ยูเอสบีเอ", "USB-A"),
+    ("ยูเอสบี", "USB"),
+    ("ไทป์ ซี", "Type-C"),
+    ("ไทป์-ซี", "Type-C"),
+    ("ไทป์ซี", "Type-C"),
+    ("เอชดีเอ็มไอ", "HDMI"),
+    ("เอ็นเอฟซี", "NFC"),
+    ("อีซี่ สวิตช์", "Easy-Switch"),
+    ("อีซี่ สวิทช์", "Easy-Switch"),
+    ("อีซี่สวิตช์", "Easy-Switch"),
+    ("เอไอ", "AI"),
+    ("แอลอีดี", "LED"),
+    ("โอแอลอีดี", "OLED"),
+    ("แอลซีดี", "LCD"),
+    ("เอเอ็นซี", "ANC"),
+    ("อีเอ็นซี", "ENC"),
+    ("เอสเอสดี", "SSD"),
+
+    # Battery & Hardware
+    ("ทริปเปิลเอ", "AAA"),
+    ("ทริปเปิ้ลเอ", "AAA"),
+    ("สามเอ", "AAA"),
+    ("ดับเบิลเอ", "AA"),
+    ("ดับเบิ้ลเอ", "AA"),
+    ("สองเอ", "AA"),
+    ("เพาเวอร์แบงก์", "Power Bank"),
+    ("เพาเวอร์แบงค์", "Power Bank"),
+    ("พาวเวอร์แบงก์", "Power Bank"),
+    ("พาวเวอร์แบงค์", "Power Bank"),
+    ("ฟาสต์ชาร์จ", "Fast Charge"),
+    ("ฟาสชาร์จ", "Fast Charge"),
+    ("ควิกชาร์จ", "Quick Charge"),
+
+    # Ergonomic / Design
+    ("เออร์โกโนมิกส์", "Ergonomic"),
+    ("เออร์โกโนมิก", "Ergonomic"),
+    ("เออร์โกโนมิกข์", "Ergonomic"),
+    ("เมมโมรี่โฟม", "Memory Foam"),
+    ("เมมโมรีโฟม", "Memory Foam"),
+
+    # Other Top Brands
+    ("แองเคอร์", "Anker"),
+    ("แอนเคอร์", "Anker"),
+    ("ยูกรีน", "Ugreen"),
+    ("เบสซัส", "Baseus"),
+    ("เบซุส", "Baseus"),
+    ("เอสเซเกอร์", "Essager"),
+    ("เสียวหมี่", "Xiaomi"),
+    ("เสี่ยวหมี่", "Xiaomi"),
+    ("ซัมซุง", "Samsung"),
+    ("โซนี่", "Sony"),
+    ("เจบีแอล", "JBL"),
+    ("หัวเว่ย", "Huawei"),
+]
 
 
 class TTSSanitizer:
@@ -226,6 +351,72 @@ class TTSSanitizer:
         return result
 
     @classmethod
+    def enforce_male_tone(cls, text: str) -> str:
+        """
+        Enforce strict male speaker persona (ผม / ครับ / นะครับ).
+        Eliminates feminine sentence-final particles and slang:
+        - นะคะ -> นะครับ
+        - ค่ะ / คะ / บ้างคะ / ไหมคะ -> ครับ / บ้างครับ / ไหมครับ
+        - จ้า -> ครับ
+        - น้า -> นะ
+        - แกรรร / แกรร -> ทุกคน
+        - หนู -> ผม
+        """
+        if not text:
+            return ""
+        result = text
+        result = re.sub(r'บ้างคะ', 'บ้างครับ', result)
+        result = re.sub(r'ใช่ไหมคะ|ใช่มั้ยคะ', 'ใช่ไหมครับ', result)
+        result = re.sub(r'ไหมคะ|มั้ยคะ', 'ไหมครับ', result)
+        result = re.sub(r'นะคะ', 'นะครับ', result)
+        result = re.sub(r'ค่ะ', 'ครับ', result)
+        result = re.sub(r'คะ', 'ครับ', result)
+        result = re.sub(r'จ้า', 'ครับ', result)
+        result = re.sub(r'น้า', 'นะ', result)
+        result = re.sub(r'แกรรร+|แกรร+', 'ทุกคน', result)
+        result = re.sub(r'\bหนู\b', 'ผม', result)
+        return result
+
+    @classmethod
+    def enforce_official_english(cls, text: str) -> str:
+        """
+        Enforce Rule 9: English brand names, model names, and tech specs.
+        Replaces Thai phonetic transliterations with official English terms.
+        """
+        if not text:
+            return ""
+        result = text
+        for item in OFFICIAL_ENGLISH_MAP:
+            target, replacement = item
+            if target.startswith('(?') or r'\b' in target:
+                result = re.sub(target, replacement, result)
+            else:
+                result = result.replace(target, replacement)
+        return result
+
+    @classmethod
+    def clean_display_text(cls, text: str) -> str:
+        """
+        Clean text for display (UI / Subtitles / Caption):
+        - Enforces 100% strict male persona (ครับ / นะครับ, no ค่ะ / นะคะ)
+        - Enforces Rule 9: English brand names, model names, and tech specs
+        - Adds clean spacing between Thai and English tokens for legibility
+        - Strips ellipses (..., …)
+        - Cleans multi-spaces
+        """
+        if not text:
+            return ""
+        result = text
+        result = cls.enforce_male_tone(result)
+        result = cls.enforce_official_english(result)
+        # Clean typography: spacing between Thai characters and English words
+        result = re.sub(r'([ก-๙])([A-Za-z])', r'\1 \2', result)
+        result = re.sub(r'([A-Za-z])([ก-๙])', r'\1 \2', result)
+        result = re.sub(r'[\.]{2,}|…', ' ', result)
+        result = re.sub(r'\s{2,}', ' ', result)
+        return result.strip()
+
+    @classmethod
     def clean_symbols(cls, text: str) -> str:
         """Clean up symbols that TTS can't handle well."""
         # Remove hashtags entirely from spoken text
@@ -249,10 +440,11 @@ class TTSSanitizer:
     @classmethod
     def clean(cls, text: str) -> str:
         """
-        Full sanitization pipeline for TTS.
+        Full sanitization pipeline for TTS audio synthesis.
         
-        Returns text suitable for direct TTS input:
+        Returns text suitable for direct TTS voice generation:
         - No emoji
+        - Enforced 100% male tone
         - Abbreviations expanded to Thai pronunciation
         - No hashtags or markdown
         - Clean spacing
@@ -262,36 +454,60 @@ class TTSSanitizer:
 
         result = text
         result = cls.strip_emoji(result)
+        result = cls.enforce_male_tone(result)
         result = cls.expand_abbreviations(result)
         result = cls.clean_symbols(result)
         return result
 
     @classmethod
     def clean_script_lines(cls, lines: List[str]) -> List[str]:
-        """Clean a list of script lines for TTS."""
+        """Clean a list of script lines for TTS synthesis."""
         return [cls.clean(line) for line in lines if line.strip()]
 
     @classmethod
     def process_angle(cls, angle: Dict) -> Dict:
         """
-        Process a full angle dict, adding tts_lines alongside script_lines.
+        Process a full angle dict, separating display script lines from TTS spoken audio lines:
         
-        - script_lines: kept as-is for UI display (may contain emoji)
-        - tts_lines: cleaned for TTS synthesis
+        - script_lines: kept for UI & on-screen subtitles (Rule 9 official English, 100% male tone, no ellipses)
+        - tts_lines: prepared for Edge-TTS synthesis (clean Thai phonetic pronunciation, male tone, no emojis)
+        - hook_title, product_name, tiktok_caption: sanitized with official English and male tone
         """
         result = dict(angle)
 
-        # Clean script_lines → tts_lines
+        # Enforce on product_name
+        pname = angle.get("product_name", "")
+        if pname:
+            result["product_name"] = cls.clean_display_text(pname)
+
+        # Clean script_lines for on-screen display
         script_lines = angle.get("script_lines", [])
         if isinstance(script_lines, list):
-            result["tts_lines"] = cls.clean_script_lines(script_lines)
+            raw_lines = script_lines
         elif isinstance(script_lines, str):
-            result["tts_lines"] = cls.clean_script_lines(script_lines.split('\n'))
+            raw_lines = script_lines.split('\n')
+        else:
+            raw_lines = []
 
-        # Clean hook_title for TTS (but keep original for display)
+        cleaned_display_lines = [
+            cls.clean_display_text(line) for line in raw_lines if line.strip()
+        ]
+        result["script_lines"] = cleaned_display_lines
+        result["script_text"] = "\n".join(cleaned_display_lines)
+
+        # TTS lines: optimized for TTS synthesis engine
+        result["tts_lines"] = cls.clean_script_lines(cleaned_display_lines)
+
+        # Clean hook_title
         hook = angle.get("hook_title", "")
         if hook:
+            result["hook_title"] = cls.clean_display_text(hook)
             result["tts_hook_title"] = cls.clean(hook)
+
+        # Clean other fields
+        for field in ["pain_point", "key_features", "price_deal", "tiktok_caption"]:
+            if field in result and isinstance(result[field], str):
+                result[field] = cls.clean_display_text(result[field])
 
         return result
 

@@ -521,6 +521,7 @@ const KINETIC_COLOR_MAP = {
     // 1. Physical Discomfort & Pain Points
     'ออฟฟิศซินโดรม', 'ปวดข้อมือ', 'ปวดหลัง', 'ปวดคอ', 'ปวดหัว', 'ปวดไหล่', 'ปวดขา', 'ปวดเมื่อย',
     'ปวดมือ', 'ปวดตัว', 'ปวด', 'เมื่อยล้า', 'เมื่อย', 'ทรมาน', 'เหนื่อยล้า', 'เหนื่อย',
+    'เจ็บมือ', 'บาดมือ', 'แสบตา', 'รกโต๊ะ', 'เสียงดังหนวกหู', 'เสียงกวนใจ',
     // 2. Tech & Everyday Frustrations
     'สายพันกัน', 'สายขาด', 'แบตหมดไว', 'แบตเสื่อม', 'กระตุก', 'เครื่องค้าง', 'ค้าง', 'ช้ามาก', 'ช้า',
     'พังง่าย', 'พัง', 'หักง่าย', 'หัก', 'เสียเงินฟรี', 'เสียดายเงิน', 'เสีย', 'หลุดบ่อย', 'หลุด',
@@ -537,17 +538,22 @@ const KINETIC_COLOR_MAP = {
     'ถูกสุดๆ', 'ถูกมาก', 'คุ้มสุดๆ', 'คุ้มค่า', 'คุ้มราคา', 'เกินคุ้ม', 'คุ้ม', 'ประหยัด', 'ตกใจราคา',
     'ตะกร้าส้ม', 'ตะกร้าซ้ายล่าง', 'ตะกร้า', 'ใส่ตะกร้า', 'จิ้มตะกร้า', 'จิ้มเลย', 'จิ้มตรงนี้', 'กดตรงนี้',
     'พิกัดในคอมเมนต์', 'พิกัดในโปรไฟล์', 'พิกัด', 'ปักหมุด', 'อย่ารอ', 'อย่าช้า', 'ช้าหมด',
-    'รีบตำ', 'รีบจัด', 'ด่วนเลย', 'ด่วน', 'ต้องมี', 'ของมันต้องมี', 'ขาดไม่ได้',
+    'รีบตำ', 'รีบจัด', 'ด่วนเลย', 'ด่วน', 'ต้องมี', 'ของมันต้องมี', 'ขาดไม่ได้', 'สอยด่วน', 'รีบสอย',
+    'เคาะราคา', 'สั่งซื้อเลย', 'กดลงตะกร้า', 'ลิงก์หน้าโปรไฟล์', 'กดที่ลิงก์', 'จัดโปร', 'ลดเยอะมาก',
     // 6. Viral Praise & Reviewer Hype
     'ป้ายยา', 'ตัวท็อป', 'ตัวแม่', 'ยืนหนึ่ง', 'ตัวตึง', 'ของดีบอกต่อ', 'ใช้ดีบอกต่อ', 'ของดี',
     'ดีจริง', 'ดูดีมาก', 'ดีมาก', 'ดีเกินคาด', 'ดีเกินราคา', 'ว้าวมาก', 'ว้าว', 'ตาแตก', 'ตะลึง',
     'สุดปัง', 'ปังมาก', 'จึ้งมาก', 'จึ้ง', 'เลิศมาก', 'เลิศ', 'เอาเรื่อง', 'ของแทร่', 'เปลี่ยนชีวิต',
     'ยกระดับ', 'หลงรักเลย', 'หลงรัก', 'ชอบมาก', 'ติดใจ', 'ไม่ผิดหวัง', 'ไม่จกตา', 'รีวิวจริง',
     'ใช้จริง', 'หมดปัญหา', 'ลืมแบบเก่าไปเลย', 'โคตรดี', 'โคตรคุ้ม', 'ฟินมาก', 'ช็อค', 'น่ารักกว่าในรูป', 'ของที่รอคอย',
+    'สมคำร่ำลือ', 'ตอบโจทย์', 'ตัวจริง', 'ปังไม่ไหว', 'สิบเต็มสิบ', '10/10', 'คุ้มสุดในรุ่น', 'ยืนยันอีกเสียง',
+    'ขาดตัวนี้ไม่ได้', 'ต้องมีติดบ้าน', 'ไอเทมลับ', 'ไอเทมเด็ด', 'รอดไม่รอด', 'ของมันต้องลอง', 'ประทับใจ',
+    'เกินต้าน', 'ยอมใจ', 'เด็ดจริง', 'ไม่คิดว่าจะดี', 'ดีกว่าที่คิด', 'คุ้มเกินเบอร์', 'ปังสุด', 'สุดจัด',
+    'ลองแล้วรัก', 'ถูกใจมาก', 'ใช้เองรีวิวเอง', 'โนสปอน', 'ซื้อเองใช้เอง', 'ใช้จนหมด', 'ซื้อซ้ำ', 'ตุนด่วน', 'ต้องตุน', 'ตำด่วน', 'ใช้ทุกวัน',
     // English Counterparts
     'office syndrome', 'wrist pain', 'back pain', 'neck pain', 'shoulder pain', 'headache', 'leg pain',
     'body pain', 'hand hurts', 'hurts', 'painful', 'pain', 'tight', 'sore', 'exhausted',
-    'tiring', 'tired', 'suffering',
+    'tiring', 'tired', 'suffering', 'messy desk', 'noisy',
     'tangled', 'broken cord', 'dead battery', 'low battery', 'laggy', 'lagging', 'freezing', 'too slow', 'slow',
     'breaks easily', 'broken', 'waste of money', 'waste of time', 'wasted', 'annoying',
     'acne breakout', 'breakouts', 'pimples', 'dark spots', 'redness', 'oily skin', 'dull skin',
@@ -560,13 +566,14 @@ const KINETIC_COLOR_MAP = {
     'best value', 'great value', 'worth every penny', 'worth it', 'save money', 'shocking price',
     'yellow basket', 'orange basket', 'cart', 'add to cart', 'click cart', 'click now', 'click here',
     'pinned link', 'link in bio', 'coordinates', 'don\'t wait', 'don\'t delay', 'almost gone',
-    'buy now', 'grab it now', 'hurry up', 'must have', 'essential',
+    'buy now', 'grab it now', 'hurry up', 'must have', 'essential', 'check profile link', 'grab yours',
     'holy grail', 'game changer', 'life-changing', 'top tier', 'the best', 'highly recommend',
     'really good', 'looks really good', 'looks good', 'so good', 'very good', 'good', 'exceeded expectations',
     'unbelievable', 'very wow', 'wow', 'mind blowing', 'stunning', 'gorgeous', 'slay',
     'aesthetic', 'next level', 'fell in love', 'obsessed', 'love it', 'no regret', 'won\'t be disappointed',
     'real review', 'tried and tested', 'problem solved', 'insanely good', 'super worth it', 'so satisfying',
-    'much cuter', 'long-awaited', 'recommend'
+    'much cuter', 'long-awaited', 'recommend', '10 out of 10', '10/10', 'worth the hype', 'honest review',
+    'holy grail item', 'no sponsor', 'bought it myself', 'repurchase', 'stock up', 'daily staple'
   ],
   '#00E5FF': [ // 🔵 Electric Cyan (Features, tech, ergonomics, certifications, comfort)
     // 1. Tech, Gadgets & Hardware
@@ -576,6 +583,8 @@ const KINETIC_COLOR_MAP = {
     '120Hz', 'คมชัด', 'กล้องชัด', 'เสียงดี', 'เบสแน่น', 'ตัดเสียงรบกวน', 'กันน้ำ', 'ชิปเร็ว',
     'ลื่นไหล', 'ไม่สะดุด', 'เชื่อมต่อง่าย', 'เสียบปุ๊บติดปั๊บ', 'พกพาสะดวก', 'น้ำหนักเบา', 'กะทัดรัด',
     'ปรับระดับได้', 'พับเก็บได้', 'ประหยัดพื้นที่', 'ประกอบง่าย', 'ใช้งานง่าย',
+    'ปุ่มเงียบ', 'สวิตช์เงียบ', 'ไร้สาย 2.4G', 'ต่อได้ 3 อุปกรณ์', 'สลับเครื่องไว', 'รองรับ Mac และ Windows',
+    'ปรับความสูงได้', 'วัสดุพรีเมียม', 'งานประกอบเนี๊ยบ', 'แบตเตอรี่ใช้ได้นาน', 'ชาร์จครั้งเดียวอยู่ได้ยาว', 'จับถนัดมือ',
     // 2. Ergonomics, Comfort, Softness & Apparel
     'สรีรศาสตร์', 'เมมโมรี่โฟม', 'ที่รองข้อมือ', 'พิมพ์สบาย', 'นั่งสบาย', 'นอนสบาย', 'ใส่สบาย',
     'สบายมาก', 'นุ่มสบาย', 'สบายมือ', 'สบายหลัง', 'สบายตา', 'สบายตัว', 'สบาย', 'นุ่มนิ่ม', 'นุ่มฟู',
@@ -593,9 +602,10 @@ const KINETIC_COLOR_MAP = {
     'logitech wave keys', 'wave keys', 'logitech', 'dream keyboard', 'keyboard', 'wireless', 'bluetooth',
     'magnetic', 'strong magnet', '540 degrees', '360 degrees', 'fast charging', 'quick charge', '66w', '100w',
     'long battery', 'battery life', 'durable', 'sturdy', 'warranty', 'genuine', 'authentic', 'smooth screen',
-    '120hz', 'crystal clear', 'sharp camera', 'great sound', 'deep bass', 'noise cancelling', 'waterproof',
+    '120hz', 'crystal clear', 'sharp camera', 'great sound', 'deep bass', 'noise cancelling', 'anc', 'waterproof',
     'fast chip', 'ultra smooth', 'easy connect', 'plug and play', 'portable', 'lightweight', 'compact',
     'adjustable', 'foldable', 'space saving', 'easy to assemble', 'easy to use',
+    'silent keys', 'quiet typing', 'multi-device', 'easy switch', 'mac and windows compatible',
     'ergonomic', 'ergonomics', 'memory foam', 'wrist rest', 'typing comfortable', 'sit comfortably',
     'comfortable fit', 'comfortable', 'comfy', 'super comfy', 'soft and comfy', 'extra soft', 'pillow soft',
     'very soft', 'soft', 'flexible', 'gentle touch', 'non-irritating', 'flattering fit',
@@ -613,43 +623,65 @@ const KINETIC_COLOR_MAP = {
     'อย่าเพิ่งซื้อ', 'อย่าเพิ่ง', 'หยุดก่อน', 'หยุดดูคลิปนี้', 'ฟังทางนี้', 'เตือนภัย', 'เตือน',
     'ระวังของปลอม', 'ระวัง', 'อันตราย', 'เสี่ยง', 'ห้ามทำ', 'อย่าหาทำ', 'อย่าพลาด',
     'ห้ามพลาด', 'ห้ามเลื่อนผ่าน', 'ของปลอมระบาด', 'ซื้อผิดรุ่น', 'ดูให้จบ', 'ข้อเสีย', 'สิ่งที่ควรรู้',
+    'เช็กด่วน', 'ระวังโดนหลอก', 'ข้อควรระวัง', 'อย่าเพิ่งเลื่อน', 'เตือนไว้ก่อน', 'ก่อนจะสาย', 'จุดสังเกต', 'ระวังผิดหวัง', 'ดูตรงนี้ก่อน',
     // English Counterparts
     'don\'t buy yet', 'don\'t buy', 'stop scrolling', 'wait a minute', 'listen to this', 'urgent warning', 'warning',
     'beware of fake', 'beware', 'danger', 'risky', 'don\'t do this', 'don\'t miss out',
     'don\'t miss', 'watch till the end', 'counterfeit', 'fake products', 'cons', 'must know',
-    'look at this', 'watch this', 'warn', 'stop'
+    'look at this', 'watch this', 'warn', 'stop', 'before you buy', 'watch out', 'critical warning', 'check this before buying'
   ]
 };
+
+const EN_STOPWORDS = new Set([
+  'a', 'an', 'the', 'is', 'are', 'was', 'were', 'be', 'been', 'am', 'of', 'to', 'in',
+  'on', 'at', 'for', 'with', 'and', 'or', 'but', 'if', 'it', 'its', 'this', 'that',
+  'these', 'those', 'as', 'by', 'from', 'up', 'out', 'so', 'than', 'then', 'too',
+  'very', 'can', 'will', 'just', 'not', 'no', 'do', 'does', 'did', 'you', 'your',
+  'i', 'my', 'we', 'our', 'they', 'their', 'he', 'she', 'his', 'her', 'how', 'what',
+  'who', 'why', 'when', 'where', 'all', 'any', 'more', 'most', 'some', 'such', 'own',
+  'about', 'into', 'over', 'also', 'have', 'has', 'had', 'would', 'could', 'should',
+]);
+
+function salientWordEn(text) {
+  let best = null;
+  const words = text.match(/[A-Za-z][A-Za-z'-]*/g) || [];
+  for (const raw of words) {
+    if (EN_STOPWORDS.has(raw.toLowerCase()) || raw.length < 3) continue;
+    if (!best || raw.length > best.length) best = raw;
+  }
+  return best;
+}
+
+function forceHighlightWord(text, word, color, defaultColor) {
+  if (!word || !text.includes(word)) return [{ text, color: defaultColor }];
+  const idx = text.indexOf(word);
+  const segments = [];
+  if (idx > 0) segments.push({ text: text.slice(0, idx), color: defaultColor });
+  segments.push({ text: word, color });
+  if (idx + word.length < text.length) segments.push({ text: text.slice(idx + word.length), color: defaultColor });
+  return segments;
+}
 
 function parseKineticSegments(text, defaultColor = '#FFFFFF', colorHint = null, customKeywords = []) {
   if (!text) return [];
 
   // Tier 1: Check for explicit user / AI markers like *keyword* or [keyword]
   const markerRegex = /(\*([^*]+)\*|\[([^\]]+)\])/;
-  if (markerRegex.test(text)) {
+  const markerMatch = markerRegex.exec(text);
+  if (markerMatch) {
     const chosenColor = colorHint || '#FFE600';
+    const before = text.slice(0, markerMatch.index);
+    const kw = markerMatch[2] || markerMatch[3];
+    const after = text.slice(markerMatch.index + markerMatch[0].length);
     const segments = [];
-    let lastIdx = 0;
-    const re = /(\*([^*]+)\*|\[([^\]]+)\])/g;
-    let m;
-    while ((m = re.exec(text)) !== null) {
-      if (m.index > lastIdx) {
-        segments.push({ text: text.slice(lastIdx, m.index), color: defaultColor });
-      }
-      const kw = m[2] || m[3];
-      segments.push({ text: kw, color: chosenColor });
-      lastIdx = m.index + m[0].length;
-    }
-    if (lastIdx < text.length) {
-      segments.push({ text: text.slice(lastIdx), color: defaultColor });
-    }
+    if (before) segments.push({ text: before, color: defaultColor });
+    segments.push({ text: kw, color: chosenColor });
+    if (after) segments.push({ text: after, color: defaultColor });
     return segments;
   }
 
+  // Tier 2 & 3: Word-level kinetic highlighting (mirrors subtitle_engine.py)
   const lowerText = text.toLowerCase();
-  const matches = [];
-
-  // Prioritize colorHint group first to ensure 1:1 cross-language color synchronization
   const colors = Object.keys(KINETIC_COLOR_MAP);
   const colorOrder = colorHint && colors.includes(colorHint)
     ? [colorHint, ...colors.filter(c => c !== colorHint)]
@@ -663,55 +695,33 @@ function parseKineticSegments(text, defaultColor = '#FFFFFF', colorHint = null, 
     const sorted = [...keywords].sort((a, b) => b.length - a.length);
     for (const kw of sorted) {
       const lowerKw = kw.toLowerCase();
-      let matchIdx = -1;
-      let matchLen = kw.length;
-
       if (/[^\u0000-\u007F]/.test(kw)) {
-        // Thai text matching
-        matchIdx = text.indexOf(kw);
+        const idx = text.indexOf(kw);
+        if (idx !== -1) {
+          const segments = [];
+          if (idx > 0) segments.push({ text: text.slice(0, idx), color: defaultColor });
+          segments.push({ text: kw, color });
+          if (idx + kw.length < text.length) segments.push({ text: text.slice(idx + kw.length), color: defaultColor });
+          return segments;
+        }
       } else {
-        // English case-insensitive word matching
         const escaped = lowerKw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regex = new RegExp(`(?:^|[^a-zA-Z0-9])${escaped}(?:$|[^a-zA-Z0-9])`, 'i');
-        const match = lowerText.match(regex);
+        const regex = new RegExp(`(?:^|(?<=[^a-zA-Z0-9]))(${escaped})(?:(?=[^a-zA-Z0-9])|$)`, 'i');
+        const match = regex.exec(text);
         if (match) {
-          const matchedSub = match[0];
-          const offset = matchedSub.toLowerCase().indexOf(lowerKw);
-          matchIdx = match.index + offset;
-          matchLen = lowerKw.length;
-        }
-      }
-
-      if (matchIdx !== -1) {
-        const end = matchIdx + matchLen;
-        const overlaps = matches.some(m => Math.max(matchIdx, m.start) < Math.min(end, m.end));
-        if (!overlaps) {
-          matches.push({ start: matchIdx, end, color });
-          break; // exactly 1 match per color category
+          const idx = match.index;
+          const matchStr = match[1];
+          const segments = [];
+          if (idx > 0) segments.push({ text: text.slice(0, idx), color: defaultColor });
+          segments.push({ text: matchStr, color });
+          if (idx + matchStr.length < text.length) segments.push({ text: text.slice(idx + matchStr.length), color: defaultColor });
+          return segments;
         }
       }
     }
   }
 
-  if (matches.length === 0) {
-    return [{ text, color: defaultColor }];
-  }
-
-  matches.sort((a, b) => a.start - b.start);
-
-  const segments = [];
-  let cursor = 0;
-  for (const m of matches) {
-    if (m.start > cursor) {
-      segments.push({ text: text.slice(cursor, m.start), color: defaultColor });
-    }
-    segments.push({ text: text.slice(m.start, m.end), color: m.color });
-    cursor = m.end;
-  }
-  if (cursor < text.length) {
-    segments.push({ text: text.slice(cursor), color: defaultColor });
-  }
-  return segments;
+  return [{ text, color: defaultColor }];
 }
 
 // The browser paints emoji as colour bitmap glyphs, which ignore fillStyle;
@@ -831,7 +841,16 @@ function drawSingleCue(ctx, cue, t, style = {}) {
 
     // If Thai had no match initially, but English matched a color, re-parse Thai with English's color
     if (!activeKineticColor && enMatchedColor) {
+      activeKineticColor = enMatchedColor;
       parsedThaiLines = thaiLines.map(line => parseKineticSegments(line, primaryColor, enMatchedColor));
+    }
+
+    // Parity fallback: 100% color synchronization between Thai and English (no lopsided cues)
+    if (activeKineticColor && !enMatchedColor) {
+      parsedEnLines = enLines.map(line => {
+        const sw = salientWordEn(line);
+        return sw ? forceHighlightWord(line, sw, activeKineticColor, enDefaultColor) : [{ text: line, color: enDefaultColor }];
+      });
     }
   }
 

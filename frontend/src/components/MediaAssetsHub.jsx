@@ -13,7 +13,19 @@ import { useDebounce, useToast } from '../hooks';
 export default function MediaAssetsHub({ status }) {
   // ── Tab & View State ──
   const [activeAssetTab, setActiveAssetTab] = useState('sfx'); // 'sfx' | 'music' | 'fonts' | 'stickers' | 'luts' | 'system'
-  const [viewMode, setViewMode] = useState('split'); // 'split' | 'grid'
+  const [viewMode, setViewMode] = useState(() => {
+    try {
+      return localStorage.getItem('omnicut_assets_view_mode') || 'grid';
+    } catch {
+      return 'grid';
+    }
+  }); // 'grid' (default) | 'split'
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('omnicut_assets_view_mode', viewMode);
+    } catch {}
+  }, [viewMode]);
   const [assetData, setAssetData] = useState({ sfx: [], music: [], fonts: [], stickers: [], luts: [], counts: {} });
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
