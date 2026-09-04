@@ -15,6 +15,7 @@ export default function TimelineClip({
   isSelected,
   filmstrip,          // { url, frames } | null
   onSelect,
+  onContextMenu,
   onTrim,             // (clipId, patch) during drag -- no undo step
   onTrimBegin,
   onTrimEnd,
@@ -177,6 +178,12 @@ export default function TimelineClip({
       aria-label={`คลิป ${fileName}`}
       aria-pressed={isSelected}
       onClick={() => { if (!dragging) onSelect(clip.id); }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onSelect(clip.id);
+        onContextMenu?.(e, seg);
+      }}
       onPointerDown={startBodyDrag}
       onPointerMove={moveBodyDrag}
       onPointerUp={endBodyDrag}

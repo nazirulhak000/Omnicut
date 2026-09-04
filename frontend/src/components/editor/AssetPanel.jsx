@@ -1,9 +1,9 @@
 import React, { useMemo, useState, useRef } from 'react';
 import {
   Check, Film, Music, Palette, Plus, Search, Sticker, Type, Volume2, Play, Square,
-  FileText, Sparkles, Loader2, Download, Copy, RefreshCw, Layers
+  FileText, Sparkles, Loader2, Download, Copy, RefreshCw, Layers, Eye, X, Upload, Clock
 } from 'lucide-react';
-import { transcribeMedia } from '../../api';
+import { transcribeMedia, uploadFile } from '../../api';
 
 const TABS = [
   { id: 'clips', label: 'คลิป', icon: Film },
@@ -86,6 +86,7 @@ function Row({ active, onClick, children, title, draggable, onDragStart, onDragE
 export default function AssetPanel({
   videos = [],
   clipList = [],
+  durations = {},
   assets,             // { sfx, music, fonts, stickers, luts }
   style,              // { fontName, bgmName, lutName, stickerBadge }
   selectedCaption,    // cue object or null
@@ -94,9 +95,63 @@ export default function AssetPanel({
   onStyleChange,
   onAssignSfx,
   onImportCues,       // (cues: Array<{ start, end, text, translation, sfx }>) => void
+  onVideoUploaded,
+  projectName = '',
 }) {
   const [tab, setTab] = useState('clips');
   const [query, setQuery] = useState('');
+
+  // Quick video preview modal state
+  const [previewVideo, setPreviewVideo] = useState(null);
+
+  // Direct video upload state
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState(null);
+  const fileInputRef = useRef(null);
+
+  // Helper to calculate how many times a video is mapped / used on the timeline
+  const getClipUsage = (video) => {
+    if (!clipList || clipList.length === 0) return 0;
+    const vPath = (video.path || '').replace(/\\/g, '/').toLowerCase();
+    const vName = (video.name || '').toLowerCase();
+    return clipList.filter((c) => {
+      const cPath = (c.source_path || '').replace(/\\/g, '/').toLowerCase();
+      return cPath === vPath || (vName && cPath.endsWith('/' + vName)) || (vName && cPath.endsWith(vName));
+    }).length;
+  };
+
+  // Helper to format seconds into M:SS
+  const formatDuration = (sec) => {
+    if (!sec || isNaN(sec)) return null;
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const handleDirectUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setUploadProgress(0);
+    setUploadError(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('target_dir', 'raw');
+      if (projectName) fd.append('product_id', projectName);
+      const res = await uploadFile(fd, (pct) => setUploadProgress(pct));
+      if (res?.file && onVideoUploaded) {
+        onVideoUploaded(res.file);
+      }
+    } catch (err) {
+      console.error('Upload failed:', err);
+      setUploadError('อัปโหลดไฟล์ล้มเหลว กรุณาลองใหม่อีกครั้ง');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   // Auto-SRT Generator state inside Editor
   const [selectedMediaForSrt, setSelectedMediaForSrt] = useState(videos[0]?.path || '');
@@ -201,68 +256,173 @@ export default function AssetPanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col border-r border-white/[0.08] bg-[#0C1019]">
-      {/* tab rail */}
-      <div className="no-scrollbar flex flex-shrink-0 overflow-x-auto border-b border-white/[0.08]">
-        {TABS.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setTab(id)}
-            title={label}
-            aria-pressed={tab === id}
-            className={`flex h-14 w-[68px] flex-shrink-0 flex-col items-center justify-center gap-1 whitespace-nowrap px-1 text-xs font-bold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#D97757] ${
-              tab === id
-                ? 'border-b-2 border-[#D97757] bg-[#D97757]/10 text-[#E89274]'
-                : 'cursor-pointer text-[#9C968F] hover:bg-white/[0.04] hover:text-[#EDE9E3]'
-            }`}
-          >
-            <Icon className="h-4 w-4 flex-shrink-0" />
-            <span className="truncate">{label}</span>
-          </button>
-        ))}
+      {/* tab rail - responsive 6 tabs fitting all screen widths without overflow */}
+      <div className="grid grid-cols-6 border-b border-white/[0.08] bg-black/30 p-1 gap-1 flex-shrink-0">
+        {TABS.map(({ id, label, icon: Icon }) => {
+          const isActive = tab === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setTab(id)}
+              title={label}
+              aria-pressed={isActive}
+              className={`flex flex-col items-center justify-center py-2 px-0.5 rounded-lg transition-all focus:outline-none cursor-pointer ${
+                isActive
+                  ? 'bg-gradient-to-b from-[#25F4EE]/15 to-blue-500/10 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5 flex-shrink-0 mb-0.5" strokeWidth={isActive ? 2.2 : 1.7} />
+              <span className="text-[10px] font-medium tracking-tight truncate w-full text-center leading-tight">
+                {label}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Search box (hide in SRT tab) */}
+      {/* Search & Direct Upload bar (hide in SRT tab) */}
       {tab !== 'srt' && (
-        <div className="flex-shrink-0 p-2">
+        <div className="flex-shrink-0 p-2 space-y-1.5 border-b border-white/[0.04]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="ค้นหา..."
-              className="w-full py-1.5 pl-8 pr-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#25F4EE]"
+              className="w-full py-1.5 pl-8 pr-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-xs focus:outline-none focus:border-[#25F4EE]"
             />
           </div>
+
+          {tab === 'clips' && (
+            <div>
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept="video/*"
+                className="hidden"
+                onChange={handleDirectUpload}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="w-full py-1.5 px-2.5 rounded-xl border border-dashed border-white/[0.12] hover:border-[#25F4EE]/50 hover:bg-[#25F4EE]/5 text-slate-300 hover:text-white text-xs font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-[#25F4EE]" />
+                    <span>กำลังอัปโหลด ({uploadProgress}%)...</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-3.5 h-3.5 text-[#25F4EE]" />
+                    <span>แนบคลิปเพิ่มเข้าโปรเจกต์</span>
+                  </>
+                )}
+              </button>
+              {uploadError && (
+                <p className="text-[11px] text-rose-400 mt-1 text-center">{uploadError}</p>
+              )}
+            </div>
+          )}
         </div>
       )}
 
       <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
         {/* TAB 1: CLIPS */}
         {tab === 'clips' && (
-          <>
-            {filtered.videos.map((v) => (
-              <Row
-                key={v.path}
-                onClick={() => onAddClip(v)}
-                title={`คลิกเพื่อต่อท้าย หรือลากไปวางตรงจุดที่ต้องการบนไทม์ไลน์ — ${v.name}`}
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.effectAllowed = 'copy';
-                  e.dataTransfer.setData(CLIP_DRAG_TYPE, JSON.stringify({ path: v.path, name: v.name, duration: v.duration }));
-                }}
-              >
-                <Film className="h-3.5 w-3.5 flex-shrink-0 text-slate-400 group-hover:text-[#25F4EE]" />
-                <span className="min-w-0 flex-1 truncate text-sm text-slate-200">{v.name}</span>
-                <Plus className="h-3.5 w-3.5 flex-shrink-0 text-slate-500 group-hover:text-[#25F4EE]" />
-              </Row>
-            ))}
+          <div className="space-y-1.5">
+            {filtered.videos.map((v) => {
+              const usageCount = getClipUsage(v);
+              const isUsed = usageCount > 0;
+              const dur = v.duration || durations?.[v.path] || durations?.[v.rel_path];
+              const durStr = formatDuration(dur);
+
+              return (
+                <div
+                  key={v.path}
+                  className={`group flex items-center justify-between gap-1.5 rounded-xl border p-2 text-left transition-all ${
+                    isUsed
+                      ? 'border-[#25F4EE]/40 bg-[#25F4EE]/[0.05] hover:border-[#25F4EE]'
+                      : 'border-white/[0.08] bg-black/40 hover:border-white/[0.2] hover:bg-white/[0.05]'
+                  }`}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.effectAllowed = 'copy';
+                    e.dataTransfer.setData(
+                      CLIP_DRAG_TYPE,
+                      JSON.stringify({ path: v.path, name: v.name, duration: dur || v.duration })
+                    );
+                  }}
+                >
+                  {/* Left: Preview trigger & Metadata */}
+                  <div
+                    className="flex items-center gap-2 min-w-0 flex-1 cursor-pointer"
+                    onClick={() => onAddClip(v)}
+                    title="คลิกเพื่อต่อท้ายไทม์ไลน์ หรือลากไปวางตรงจุดที่ต้องการ"
+                  >
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPreviewVideo(v);
+                      }}
+                      title="เปิดดูพรีวิวคลิป"
+                      className="h-7 w-7 rounded-lg bg-white/[0.06] hover:bg-[#25F4EE]/20 hover:text-[#25F4EE] text-slate-400 flex items-center justify-center transition-colors cursor-pointer flex-shrink-0"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                    </button>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate text-xs font-semibold text-slate-200 group-hover:text-white" title={v.name}>
+                          {v.name}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {durStr && (
+                          <span className="text-[10px] font-mono text-slate-400 flex items-center gap-0.5">
+                            <Clock className="w-2.5 h-2.5 text-slate-500" />
+                            {durStr}
+                          </span>
+                        )}
+                        {v.size_mb ? (
+                          <span className="text-[10px] text-slate-500">{v.size_mb} MB</span>
+                        ) : null}
+                        {isUsed ? (
+                          <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[9.5px] font-bold">
+                            ในไทม์ไลน์ {usageCount > 1 ? `(${usageCount})` : ''}
+                          </span>
+                        ) : (
+                          <span className="text-[9.5px] text-slate-500">
+                            ยังไม่ใช้
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right: Quick Add Button */}
+                  <button
+                    type="button"
+                    onClick={() => onAddClip(v)}
+                    title="เพิ่มลงในไทม์ไลน์"
+                    className="h-7 w-7 rounded-lg bg-white/[0.06] hover:bg-[#25F4EE] hover:text-slate-950 text-slate-400 flex items-center justify-center transition-all cursor-pointer flex-shrink-0"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+              );
+            })}
             {filtered.videos.length === 0 && (
-              <p className="px-1 py-3 text-sm text-slate-500">
-                ไม่มีคลิปที่ตรงกับคำค้น — อัปโหลดคลิปได้ที่แท็บ 1-Click Studio
+              <p className="px-1 py-4 text-center text-xs text-slate-500">
+                ไม่มีคลิปที่ตรงกับคำค้น — สามารถกดปุ่มแนบคลิปเพิ่มด้านบนได้เลยครับ
               </p>
             )}
-          </>
+          </div>
         )}
 
         {/* TAB 2: AI AUTO-SRT SUBTITLES (Consolidated) */}
@@ -731,6 +891,54 @@ export default function AssetPanel({
           </>
         )}
       </div>
+
+      {/* Quick Video Preview Modal */}
+      {previewVideo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="relative w-full max-w-lg rounded-2xl border border-white/10 bg-[#0D111A] p-4 shadow-2xl space-y-3">
+            <div className="flex items-center justify-between border-b border-white/[0.08] pb-2.5">
+              <div className="flex items-center gap-2 min-w-0">
+                <Film className="w-4 h-4 text-[#25F4EE] flex-shrink-0" />
+                <span className="text-sm font-bold text-white truncate">{previewVideo.name}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewVideo(null)}
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.1] transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="rounded-xl overflow-hidden bg-black flex items-center justify-center max-h-[55vh]">
+              <video
+                src={`/api/media/${previewVideo.rel_path || previewVideo.path}`}
+                controls
+                autoPlay
+                className="max-h-[50vh] w-auto max-w-full rounded-lg"
+              />
+            </div>
+
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-xs text-slate-400">
+                ความยาว: {formatDuration(previewVideo.duration || durations?.[previewVideo.path] || durations?.[previewVideo.rel_path]) || 'ไม่ระบุ'}
+                {previewVideo.size_mb ? ` · ${previewVideo.size_mb} MB` : ''}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  onAddClip(previewVideo);
+                  setPreviewVideo(null);
+                }}
+                className="py-1.5 px-3 rounded-xl bg-gradient-to-r from-[#25F4EE] to-blue-500 text-slate-950 text-xs font-bold flex items-center gap-1.5 hover:brightness-110 transition-all cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>เพิ่มลงในไทม์ไลน์</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

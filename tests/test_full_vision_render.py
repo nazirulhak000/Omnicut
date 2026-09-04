@@ -22,24 +22,25 @@ script = """ทุกคน! อย่าเพิ่งซื้อสายช
 หมดปัญหาสายหักตรงคอ เสียบในที่มืดได้สบายๆ เลยครับ
 พิกัดราคาพิเศษวันนี้แค่ 149 บาท กดในตะกร้าซ้ายล่างได้เลยครับ!"""
 
-res = TikTokAutoCutterPipeline.run(
-    product_name="Esseger สายชาร์จแม่เหล็ก",
-    raw_video_path="01_Raw/20260812_Esseger-สายชาร์จแม่เหล็ก/Video/esseger_สายชาร์จ_raw.mov",
-    custom_script=script,
-    hook_brand="Esseger",
-    hook_model="สายชาร์จแม่เหล็ก 3-in-1",
-    hook_label="ตัวเดียวจบทุกปัญหา",
-    voice="th-TH-NiwatNeural",
-    voice_rate="+20%",
-    font_name="IBMPlex",
-    bilingual_subtitles=True,
-    use_ai_vision=True,
-    export_mp4=True
-)
+if __name__ == "__main__":
+    res = TikTokAutoCutterPipeline.run(
+        product_name="Esseger สายชาร์จแม่เหล็ก",
+        raw_video_path="01_Raw/20260812_Esseger-สายชาร์จแม่เหล็ก/Video/esseger_สายชาร์จ_raw.mov",
+        custom_script=script,
+        hook_brand="Esseger",
+        hook_model="สายชาร์จแม่เหล็ก 3-in-1",
+        hook_label="ตัวเดียวจบทุกปัญหา",
+        voice="th-TH-NiwatNeural",
+        voice_rate="+20%",
+        font_name="IBMPlex",
+        bilingual_subtitles=True,
+        use_ai_vision=True,
+        export_mp4=True
+    )
 
-print("\n🎉 AI VISION DIRECTED VIDEO COMPLETED!")
-print("Video File:", res.get("mp4_video"))
-if res.get("ai_matched_shots"):
-    print(f"Matched Shots: {len(res['ai_matched_shots'])}")
-    for i, s in enumerate(res["ai_matched_shots"]):
-        print(f"  [{i+1}] {s.get('start_time')}s - {s.get('end_time')}s ({s.get('punch_zoom')}x) : {s.get('visual_reason')}")
+    print("\n🎉 AI VISION DIRECTED VIDEO COMPLETED!")
+    print("Video File:", res.get("mp4_video"))
+    if res.get("ai_matched_shots"):
+        print(f"Matched Shots: {len(res['ai_matched_shots'])}")
+        for i, s in enumerate(res["ai_matched_shots"]):
+            print(f"  [{i+1}] {s.get('start_time')}s - {s.get('end_time')}s ({s.get('punch_zoom')}x) : {s.get('visual_reason')}")

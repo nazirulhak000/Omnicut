@@ -215,7 +215,32 @@ def test_alpha_values_are_converted_not_copied():
     assert _ass_alpha_opacity(py_dim) == _ass_alpha_opacity(js_dim)
 
     py_sweep = _grab(PY_SRC, r"_hook_lightsweep_event.*?\\\\alpha&H([0-9A-F]+)&", str)
-    assert abs(_ass_alpha_opacity(py_sweep) - _grab(JS_SRC, r"ctx\.globalAlpha = alpha \* ([\d.]+);")) < 0.01
+    js_sweep = _grab(JS_SRC, r"HOOK_SWEEP_OPACITY = 1 - 0x([0-9A-Fa-f]+) / 255", str)
+    assert _ass_alpha_opacity(py_sweep) == _ass_alpha_opacity(js_sweep)
+
+
+def test_hook_motion_envelope_has_no_double_fading():
+    """
+    Hook text lines must derive alpha purely from (inFx.alpha * loopFx.alpha * outFx.alpha)
+    without an unmodeled artificial 300ms exit ramp or 200ms entry ramp that
+    distorts parity with the ASS render.
+    """
+    assert "ctx.globalAlpha = (inFx.alpha ?? 1) * (loopFx.alpha ?? 1) * (outFx.alpha ?? 1);" in JS_SRC
+    assert "ctx.globalAlpha = (outFx.alpha ?? 1) * HOOK_SWEEP_OPACITY;" in JS_SRC
+    assert "if (t < 0.2) alpha =" not in JS_SRC
+    assert "if (t > hookDuration - 0.3) alpha =" not in JS_SRC
+
+
+def test_accent_reveal_anchors_wipe_from_left_edge():
+    """
+    In ASS, \an7 anchors the drawing top-left so \fscx0 -> \fscx100 wipes
+    from left to right. The canvas preview must anchor its fillRect at the left
+    edge (x - fullBw / 2 for badge, x - modelLineWidth / 2 for bar), not
+    expanding symmetrically from the center.
+    """
+    assert "ctx.fillRect(x - fullBw / 2, modelTopY - padY, bw, modelFontSize + padY * 2);" in JS_SRC
+    assert "ctx.fillRect(barX, barY, w, thickness);" in JS_SRC
+    assert "const barX = x - modelLineWidth / 2;" in JS_SRC
 
 
 # ---------------------------------------------------------------- shapes
@@ -285,3 +310,41 @@ def test_rotation_presets_never_use_wrapped_angles():
                             _grab(PY_SRC, r"def _loop_shake.*?(\[.*?\])", str) +
                             _grab(PY_SRC, r"def _out_glitch.*?(\[.*?\])", str)):
         assert abs(int(angle)) <= 45, f"wrapped angle {angle} will spin the line"
+
+
+def test_text_overlay_positions_and_styles_match():
+    """
+    Text Overlay Y coordinates and font size ratios must match between ASS and Canvas 2D.
+    """
+    assert _grab(PY_SRC, r'TEXT_OVERLAY_POSITIONS\s*=\s*\{[^}]*?"top":\s*([\d.]+)') == \
+           _grab(JS_SRC, r'TEXT_OVERLAY_Y\s*=\s*\{[^}]*?top:\s*([\d.]+)')
+    assert _grab(PY_SRC, r'TEXT_OVERLAY_POSITIONS\s*=\s*\{[^}]*?"middle":\s*([\d.]+)') == \
+           _grab(JS_SRC, r'TEXT_OVERLAY_Y\s*=\s*\{[^}]*?middle:\s*([\d.]+)')
+    assert _grab(PY_SRC, r'TEXT_OVERLAY_POSITIONS\s*=\s*\{[^}]*?"bottom":\s*([\d.]+)') == \
+           _grab(JS_SRC, r'TEXT_OVERLAY_Y\s*=\s*\{[^}]*?bottom:\s*([\d.]+)')
+
+
+def test_text_overlay_pill_badge_parity():
+    """
+    Pill badge background must use vector drawing (never BorderStyle=3 box),
+    and padding / opacity / radius metrics must match between Canvas 2D and ASS.
+    """
+    # 1. TextOverlayMain must use BorderStyle=1 (outline mode), NEVER 3 (opaque box)
+    style_line = _grab(PY_SRC, r"Style:\s*TextOverlayMain,([^\n]+)", str)
+    # Format: Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, ...
+    style_parts = [p.strip() for p in style_line.split(",")]
+    assert style_parts[14] == "1", f"TextOverlayMain BorderStyle must be 1, got {style_parts[14]}"
+
+    # 2. Pill padding factors must match between Python and JS
+    py_padx = _grab(PY_SRC, r"pad_x\s*=\s*round\(render_fs\s*\*\s*([\d.]+)\)")
+    js_padx = _grab(JS_SRC, r"padX\s*=\s*Math\.round\(renderFs\s*\*\s*([\d.]+)\)")
+    assert py_padx == js_padx == 0.6
+
+    py_pady = _grab(PY_SRC, r"pad_y\s*=\s*round\(render_fs\s*\*\s*([\d.]+)\)")
+    js_pady = _grab(JS_SRC, r"padY\s*=\s*Math\.round\(renderFs\s*\*\s*([\d.]+)\)")
+    assert py_pady == js_pady == 0.35
+
+    # 3. Canvas 2D opacity 0.65 -> ASS alpha 1 - 0.65 = 0.35 -> round(0.35 * 255) = 89 = 0x59
+    assert "\\alpha&H59&" in PY_SRC
+    assert "rgba(0, 0, 0, 0.65)" in JS_SRC
+

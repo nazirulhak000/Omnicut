@@ -1,7 +1,7 @@
 @echo off
-title TikTok Auto-Cutter Pro Studio Launcher
+title OmniCut Pro Studio Launcher
 echo ========================================================
-echo   TikTok Auto-Cutter Pro Studio (Kill and Run)
+echo   OmniCut Pro Studio (Kill and Run)
 echo ========================================================
 echo.
 
@@ -17,11 +17,11 @@ for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8501" ^| findstr "LISTENING
 )
 
 echo [2/3] Launching FastAPI Backend on http://localhost:8000 (WatchFiles reload=OFF for stable renders) ...
-start "TikTok Auto-Cutter Backend (FastAPI)" cmd /k "set FASTAPI_RELOAD=false && python scripts/api_server.py"
+start "OmniCut Pro Studio Backend (FastAPI)" cmd /k "set FASTAPI_RELOAD=false && python scripts/api_server.py"
 
 echo [3/3] Launching React Vite Frontend on http://localhost:5173 ...
 cd /d "%~dp0frontend"
-start "TikTok Auto-Cutter Frontend (Vite)" cmd /k "npm run dev"
+start "OmniCut Pro Studio Frontend (Vite)" cmd /k "npm run dev"
 
 echo.
 echo ========================================================

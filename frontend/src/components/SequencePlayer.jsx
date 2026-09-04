@@ -415,8 +415,7 @@ function drawTextWithMonoEmoji(ctx, text, x, y) {
   }
 }
 
-function drawCaption(ctx, cues, t, style = {}) {
-  const cue = cues.find(c => t >= c.start && t < c.end);
+function drawSingleCue(ctx, cue, t, style = {}) {
   if (!cue || !cue.text) return;
   const cueScale = Number(cue.scale) || 1.0;
   const globalScale = Math.min(2.5, Math.max(0.5, style.captionScale ?? 1));
@@ -454,10 +453,6 @@ function drawCaption(ctx, cues, t, style = {}) {
   
   const maxLineW = CANVAS_W * 0.86;
   const thaiLines = wrapCanvasText(cue.text, ctx, maxLineW);
-  // libass advances every \N line by exactly one style font size -- measured
-  // off a real render: a 72px style stepped 72px to the next line even
-  // though that line carried \fscx68\fscy68. So the English line advances by
-  // the Thai size too, and there is no extra gap between the two blocks.
   const thaiLineH = fontSize;
 
   // Stacked bilingual English subtitle
@@ -469,14 +464,10 @@ function drawCaption(ctx, cues, t, style = {}) {
     enLines = wrapCanvasText(cue.translation, ctx, CANVAS_W * 0.86);
   }
 
-  // Vertical anchoring must match the ASS alignment the renderer uses, which
-  // is not "centre the block" for every position: bottom (alignment 2) pins
-  // the block's BOTTOM edge MarginV above the frame bottom, top (alignment
-  // 8) pins its TOP, and only middle actually centres. Centring all three
-  // dropped the previewed caption about half a block lower than the render.
+  // Vertical anchoring: support per-cue position override (top / middle / bottom)
   const totalBlockH = (thaiLines.length + enLines.length) * fontSize;
-  const anchorY = CANVAS_H * (CAPTION_Y[style.captionPosition] ?? CAPTION_Y.bottom);
-  const pos = style.captionPosition || 'bottom';
+  const pos = cue.position || style.captionPosition || 'bottom';
+  const anchorY = CANVAS_H * (CAPTION_Y[pos] ?? CAPTION_Y.bottom);
   let blockTop;
   if (pos === 'top') blockTop = anchorY;
   else if (pos === 'middle') blockTop = anchorY - totalBlockH / 2;
@@ -599,6 +590,14 @@ function drawCaption(ctx, cues, t, style = {}) {
   ctx.restore();
 }
 
+function drawCaption(ctx, cues = [], t, style = {}) {
+  if (!cues || cues.length === 0) return;
+  const activeCues = cues.filter((c) => t >= c.start && t < c.end);
+  activeCues.forEach((cue) => {
+    drawSingleCue(ctx, cue, t, style);
+  });
+}
+
 function drawSticker(ctx, img, t, style = {}) {
   if (!img || !img.complete || !img.naturalWidth) return;
   const startTime = style.startTime ?? 0.5;
@@ -632,6 +631,141 @@ function drawSticker(ctx, img, t, style = {}) {
   ctx.restore();
 }
 
+// Where custom text overlays sit vertically as a fraction of canvas height.
+// Mirrors TEXT_OVERLAY_POSITIONS in subtitle_engine.py: top (0.20), middle (0.50), bottom (0.72).
+const TEXT_OVERLAY_Y = {
+  top: 0.20,
+  middle: 0.50,
+  bottom: 0.72,
+};
+
+function drawTextOverlays(ctx, textOverlays = [], t, fontName = 'Kanit') {
+  if (!textOverlays || textOverlays.length === 0) return;
+  const activeItems = textOverlays.filter(item => t >= item.start && t < item.end);
+  if (!activeItems.length) return;
+
+  let fontFam = "'Kanit', sans-serif";
+  let fontWeight = '900';
+  if (fontName === 'IBMPlex' || fontName === 'IBM Plex Sans Thai') {
+    fontFam = "'IBM Plex Sans Thai', sans-serif";
+    fontWeight = '700';
+  } else if (fontName === 'Prompt') {
+    fontFam = "'Prompt', sans-serif";
+    fontWeight = '800';
+  }
+
+  const baseFs = Math.round(CANVAS_W * 0.0463);
+
+  activeItems.forEach(item => {
+    const rawTxt = String(item.text || '').trim();
+    if (!rawTxt) return;
+
+    const scale = Math.min(2.5, Math.max(0.4, Number(item.scale) || 1.0));
+    const fs = Math.max(12, Math.round(baseFs * scale));
+
+    const elapsed = t - item.start;
+    const remaining = item.end - t;
+
+    let animScale = 1.0;
+    let animAlpha = 1.0;
+    let animDy = 0;
+
+    const anim = item.anim || 'pop';
+    if (anim === 'pop') {
+      const popElapsedMs = elapsed * 1000;
+      animScale = popElapsedMs >= 70 ? 1.0 : 1.25 + (1.0 - 1.25) * Math.max(0, popElapsedMs) / 70;
+    } else if (anim === 'fade') {
+      const fadeElapsedMs = elapsed * 1000;
+      animAlpha = Math.min(1.0, Math.max(0, fadeElapsedMs / 150));
+    } else if (anim === 'slide') {
+      const slideElapsedMs = elapsed * 1000;
+      const frac = Math.min(1.0, Math.max(0, slideElapsedMs / 200));
+      animDy = 40 * (1.0 - frac);
+      animAlpha = frac;
+    }
+
+    // Exit fade (last 150ms)
+    if (remaining < 0.15) {
+      animAlpha *= Math.max(0, remaining / 0.15);
+    }
+
+    const renderFs = Math.max(8, Math.round(fs * animScale));
+    ctx.save();
+    ctx.font = `${fontWeight} ${renderFs}px ${fontFam}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    const maxW = CANVAS_W * 0.85;
+    const rawLines = rawTxt.split('\n');
+    const wrappedLines = [];
+    rawLines.forEach(l => {
+      wrappedLines.push(...wrapCanvasText(l, ctx, maxW));
+    });
+    if (!wrappedLines.length) {
+      ctx.restore();
+      return;
+    }
+
+    const lineH = renderFs * 1.2;
+    const totalH = wrappedLines.length * lineH;
+    const pos = item.position || 'middle';
+    const yCenter = CANVAS_H * (TEXT_OVERLAY_Y[pos] ?? 0.50) + animDy;
+    const startY = yCenter - (totalH / 2) + (lineH / 2);
+    const xCenter = CANVAS_W / 2;
+
+    ctx.globalAlpha = animAlpha;
+
+    // Background style: pill badge
+    if (item.bgStyle === 'pill') {
+      let maxLineW = 0;
+      wrappedLines.forEach(l => {
+        const w = ctx.measureText(l).width;
+        if (w > maxLineW) maxLineW = w;
+      });
+      const padX = Math.round(renderFs * 0.6);
+      const padY = Math.round(renderFs * 0.35);
+      const pillW = maxLineW + padX * 2;
+      const pillH = totalH + padY * 2;
+      const pillX = xCenter - pillW / 2;
+      const pillY = yCenter - totalH / 2 - padY;
+      const radius = Math.round(pillH / 2);
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+      ctx.beginPath();
+      if (ctx.roundRect) {
+        ctx.roundRect(pillX, pillY, pillW, pillH, Math.min(radius, 14));
+      } else {
+        ctx.rect(pillX, pillY, pillW, pillH);
+      }
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Draw text lines
+    ctx.textAlign = 'left';
+    wrappedLines.forEach((line, idx) => {
+      const lineY = startY + idx * lineH;
+      const lineW = ctx.measureText(line).width;
+      const lineX = xCenter - lineW / 2;
+
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = Math.max(2, Math.round(renderFs * 0.12));
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+      ctx.shadowBlur = 4;
+      ctx.shadowOffsetX = 1.5;
+      ctx.shadowOffsetY = 2;
+      ctx.strokeText(line, lineX, lineY);
+
+      ctx.shadowColor = 'transparent';
+      ctx.fillStyle = item.color || '#FFFFFF';
+      drawTextWithMonoEmoji(ctx, line, lineX, lineY);
+    });
+
+    ctx.restore();
+  });
+}
+
 /**
  * 3-tier hook banner preview: brand (largest) / model (mid) / label
  * (smallest), mirroring subtitle_engine.py's generate_ass hook composition
@@ -647,6 +781,7 @@ function drawSticker(ctx, img, t, style = {}) {
 const HOOK_MOTION_DEFAULTS = { in: 'bounce', stagger: true, loop: 'pulse', out: 'fade', accent: 'underline' };
 const HOOK_STAGGER_STEP = 0.15; // seconds; mirrors STAGGER_STEP_MS
 const HOOK_DIM_OPACITY = 1 - 0x25 / 255; // mirrors ASS \alpha&H25&
+const HOOK_SWEEP_OPACITY = 1 - 0x60 / 255; // mirrors ASS \alpha&H60&
 const HOOK_OUTLINE_PX = 6; // HookHeader style Outline=6.0, flat for every tier
 
 // Mirrors front_outline = max(1.8, font_size * 0.040) in subtitle_engine.py,
@@ -791,10 +926,6 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
     fontFam = "'Prompt', sans-serif";
   }
 
-  let alpha = 1;
-  if (t < 0.2) alpha = t / 0.2;
-  if (t > hookDuration - 0.3) alpha = Math.max(0, (hookDuration - t) / 0.3);
-
   // Must stay the same fraction of frame width the renderer uses (hook_fs =
   // video_width * 0.065 in subtitle_engine.py). This canvas is exactly half
   // of the 1080-wide output, so the same ratio lands on the same on-screen
@@ -848,11 +979,12 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
   const outFx = t >= exitStartSec ? (outFn(t, exitStartSec, hookDuration) || {}) : {};
 
   // Gradient backdrop -- mirrors video_editor.py's geq overlay (dark at the
-  // top of the frame, fading to transparent by ~25% down), same alpha
-  // envelope as the text so it fades out alongside the banner, not after.
+  // top of the frame, fading to transparent by ~25% down), fades out
+  // alongside the banner's outFx during the exit window.
   const gradH = Math.round(CANVAS_H * 0.25);
   const grad = ctx.createLinearGradient(0, 0, 0, gradH);
-  grad.addColorStop(0, `rgba(0,0,0,${0.75 * alpha})`);
+  const bgAlpha = t >= exitStartSec ? (outFx.alpha ?? 1) : 1;
+  grad.addColorStop(0, `rgba(0,0,0,${0.75 * bgAlpha})`);
   grad.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, CANVAS_W, gradH);
@@ -908,20 +1040,23 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
     const revealFrac = t <= revealStart ? 0 : Math.min(1, (t - revealStart) / 0.3);
     ctx.save();
     ctx.shadowColor = 'transparent';
-    ctx.globalAlpha = alpha * (outFx.alpha ?? 1);
+    ctx.globalAlpha = (outFx.alpha ?? 1);
     ctx.fillStyle = modelColor;
     if (motion.accent === 'badge') {
       const padX = Math.round(modelFontSize * 0.38);
       const padY = Math.round(modelFontSize * 0.2);
-      const bw = (modelLineWidth / 2 + padX) * 2 * revealFrac;
+      const fullBw = (modelLineWidth / 2 + padX) * 2;
+      const bw = fullBw * revealFrac;
       // ASS \alpha is TRANSPARENCY, so &HB0& means 0.31 opacity, not 0.69.
       ctx.globalAlpha *= 1 - 0xB0 / 255;
-      ctx.fillRect(x - bw / 2, modelTopY - padY, bw, modelFontSize + padY * 2);
+      // Anchor left edge at x - fullBw / 2 matching \an7 anchor in ASS
+      ctx.fillRect(x - fullBw / 2, modelTopY - padY, bw, modelFontSize + padY * 2);
     } else {
       const thickness = Math.max(4, Math.round(modelFontSize * 0.1));
       const gap = Math.round(modelFontSize * 0.50);
       const w = modelLineWidth * revealFrac;
       const barY = modelTopY + modelFontSize + gap;
+      const barX = x - modelLineWidth / 2;
       // The renderer lays a blurred copy under the crisp bar (\blur7 at
       // \alpha&H60&) for glow; without it the preview's bar reads flatter
       // than what actually renders.
@@ -929,9 +1064,9 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
       ctx.shadowColor = modelColor;
       ctx.shadowBlur = 7;
       ctx.globalAlpha *= 1 - 0x60 / 255;
-      ctx.fillRect(x - w / 2, barY, w, thickness);
+      ctx.fillRect(barX, barY, w, thickness);
       ctx.restore();
-      ctx.fillRect(x - w / 2, barY, w, thickness);
+      ctx.fillRect(barX, barY, w, thickness);
     }
     ctx.restore();
   }
@@ -952,7 +1087,7 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
     const renderFs = Math.max(6, Math.round(settledFs * scale));
 
     ctx.save();
-    ctx.globalAlpha = alpha * (inFx.alpha ?? 1) * (loopFx.alpha ?? 1) * (outFx.alpha ?? 1);
+    ctx.globalAlpha = (inFx.alpha ?? 1) * (loopFx.alpha ?? 1) * (outFx.alpha ?? 1);
     if (inFx.blur) ctx.filter = `blur(${inFx.blur.toFixed(1)}px)`;
     if (rot) {
       // rotate about the line's own centre, matching \frz around \pos
@@ -1000,7 +1135,7 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
     const phase = ((t - maxEntryEndSec) % CYCLE) / 0.5;
     if (phase <= 1) {
       ctx.save();
-      ctx.globalAlpha = alpha * 0.62;
+      ctx.globalAlpha = (outFx.alpha ?? 1) * HOOK_SWEEP_OPACITY;
       ctx.fillStyle = '#FFFFFF';
       for (const s of sweeps) {
         const bandW = Math.max(10, s.halfW * 0.7);
@@ -1034,7 +1169,7 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
  * not by trusting a <video> element's own playback rate -- see
  * RESYNC_THRESHOLD's comment for why.
  */
-function SequencePlayer({ clips, cues = [], hookBrand = '', hookModel = '', hookLabel = '', hookDuration = 3.0, hookMotion = null, hookColors = null, audioUrl = null, compact = false, onPlayhead, onDurations, captionStyle = {}, stickerStyle = {} }, ref) {
+function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', hookModel = '', hookLabel = '', hookDuration = 3.0, hookMotion = null, hookColors = null, audioUrl = null, compact = false, onPlayhead, onDurations, captionStyle = {}, stickerStyle = {}, isMuted = false }, ref) {
   const canvasRef = useRef(null);
   const videoElsRef = useRef({});
   const audioElRef = useRef(null);
@@ -1049,8 +1184,9 @@ function SequencePlayer({ clips, cues = [], hookBrand = '', hookModel = '', hook
   const playheadRef = useRef(0);
   const prevActiveClipIdRef = useRef(null);
 
-  const captionKey = `${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}:${captionStyle.fontName}:${hookBrand}:${hookModel}:${hookLabel}:${hookDuration}:${JSON.stringify(hookMotion || {})}:${JSON.stringify(hookColors || {})}`;
+  const captionKey = `${captionStyle.hidden}:${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}:${captionStyle.fontName}:${hookBrand}:${hookModel}:${hookLabel}:${hookDuration}:${JSON.stringify(hookMotion || {})}:${JSON.stringify(hookColors || {})}`;
   const cuesKey = (cues || []).map(c => `${c._uid || c.id}:${c.start}:${c.end}:${c.text}:${c.translation}:${c.scale || 1}`).join(';;');
+  const textOverlaysKey = (textOverlays || []).map(t => `${t.id}:${t.start}:${t.end}:${t.text}:${t.position}:${t.scale}:${t.color}:${t.bgStyle}:${t.anim}`).join(';;');
   const stickerKey = `${stickerStyle.badge}:${stickerStyle.position}:${stickerStyle.scale}:${stickerStyle.startTime}`;
   const clipKey = clips.map(c => `${c.id}:${c.source_path}:${c.trim_start}:${c.trim_end}:${c.transition_in}:${c.transition_duration}:${c.brightness}:${c.contrast}:${c.saturation}:${c.zoom}:${c.pan_x}:${c.pan_y}:${c.mirror}:${c.rotation}`).join('|');
 
@@ -1136,14 +1272,17 @@ function SequencePlayer({ clips, cues = [], hookBrand = '', hookModel = '', hook
     ctx.globalAlpha = 1;
     ctx.filter = 'none';
     drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration, captionStyle.fontName, captionStyle.captionColor || '#FFE600', hookMotion, hookColors);
-    drawCaption(ctx, cues, t, captionStyle);
+    if (!captionStyle.hidden) {
+      drawCaption(ctx, cues, t, captionStyle);
+    }
     drawSticker(ctx, stickerImgRef.current, t, stickerStyle);
+    drawTextOverlays(ctx, textOverlays, t, captionStyle.fontName);
   };
 
   useEffect(() => {
     renderAt(playheadRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [segments, captionKey, stickerKey, cuesKey]);
+  }, [segments, captionKey, stickerKey, cuesKey, textOverlaysKey]);
 
   const lastNotifyRef = useRef(0);
 
@@ -1266,8 +1405,11 @@ function SequencePlayer({ clips, cues = [], hookBrand = '', hookModel = '', hook
         ctx.globalAlpha = 1;
         ctx.filter = 'none';
         drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration, captionStyle.fontName, captionStyle.captionColor || '#FFE600', hookMotion, hookColors);
-        drawCaption(ctx, cues, t, captionStyle);
+        if (!captionStyle.hidden) {
+          drawCaption(ctx, cues, t, captionStyle);
+        }
         drawSticker(ctx, stickerImgRef.current, t, stickerStyle);
+        drawTextOverlays(ctx, textOverlays, t, captionStyle.fontName);
       }
 
       setPlayhead(t);
@@ -1284,7 +1426,7 @@ function SequencePlayer({ clips, cues = [], hookBrand = '', hookModel = '', hook
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlaying, segments, cues, totalDuration]);
+  }, [isPlaying, segments, cues, textOverlays, totalDuration]);
 
   const togglePlay = () => {
     if (!segments.length) return;
@@ -1351,10 +1493,14 @@ function SequencePlayer({ clips, cues = [], hookBrand = '', hookModel = '', hook
       {/* Hidden audio element for voiceover + BGM playback */}
       {audioUrl && (
         <audio
-          ref={audioElRef}
+          ref={(el) => {
+            audioElRef.current = el;
+            if (el) el.muted = isMuted;
+          }}
           src={toMediaUrl(audioUrl)}
           preload="auto"
           playsInline
+          muted={isMuted}
         />
       )}
 

@@ -218,6 +218,7 @@ class VideoEditor:
         sticker_position: str = "top_right",
         sticker_scale: float = 1.0,
         hook_duration: Optional[float] = None,
+        auto_blur_landscape: bool = True,
         progress_callback: Optional[Callable[[float, float], None]] = None
     ) -> str:
         """
@@ -336,24 +337,29 @@ class VideoEditor:
                 )
 
                 node_name = f"clip_{idx}"
-                filter_complex.append(
-                    f"[{idx}:v]trim=start={trim_start}:duration={source_span},setpts=PTS-STARTPTS,"
-                    f"{speed_filter}{rot_filter}{mirror_filter}{eq_filter}{freeze_filter}"
-                    f"scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,"
-                    f"crop={VIDEO_WIDTH}:{VIDEO_HEIGHT},setsar=1,fps={FPS},"
-                    # The punch-zoom scale below computes its own SAR from
-                    # scaled_w/scaled_h (both rounded to even integers), which
-                    # drifts a hair off 1:1 even though the setsar=1 above
-                    # already ran -- a second scale always recomputes it. Only
-                    # visible once this feeds an xfade/concat chain
-                    # downstream (assemble_tiktok_video's has_transition
-                    # branch), which rejects mismatched SAR outright; a plain
-                    # single concat=n=N tolerates the drift, so this never
-                    # showed up before per-boundary transitions existed.
-                    # Re-pinning here, after the punch-zoom, is what actually
-                    # sticks.
-                    f"scale={scaled_w}:{scaled_h}:flags=lanczos,crop={VIDEO_WIDTH}:{VIDEO_HEIGHT}:{crop_x}:{crop_y},setsar=1[{node_name}];"
-                )
+                use_bg_blur = bool(clip.get("bg_blur")) or (clip.get("fit_mode") == "blur")
+                if use_bg_blur:
+                    pre_node = f"c_{idx}_pre"
+                    bg_node = f"c_{idx}_bg"
+                    fg_node = f"c_{idx}_fg"
+                    base_node = f"c_{idx}_base"
+                    filter_complex.append(
+                        f"[{idx}:v]trim=start={trim_start}:duration={source_span},setpts=PTS-STARTPTS,"
+                        f"{speed_filter}{rot_filter}{mirror_filter}{eq_filter}{freeze_filter}setsar=1,fps={FPS}[{pre_node}];"
+                        f"[{pre_node}]split=2[{bg_node}][{fg_node}];"
+                        f"[{bg_node}]scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,crop={VIDEO_WIDTH}:{VIDEO_HEIGHT},boxblur=25:5[{bg_node}2];"
+                        f"[{fg_node}]scale={VIDEO_WIDTH}:-1:force_original_aspect_ratio=decrease[{fg_node}2];"
+                        f"[{bg_node}2][{fg_node}2]overlay=(W-w)/2:(H-h)/2,setsar=1[{base_node}];"
+                        f"[{base_node}]scale={scaled_w}:{scaled_h}:flags=lanczos,crop={VIDEO_WIDTH}:{VIDEO_HEIGHT}:{crop_x}:{crop_y},setsar=1[{node_name}];"
+                    )
+                else:
+                    filter_complex.append(
+                        f"[{idx}:v]trim=start={trim_start}:duration={source_span},setpts=PTS-STARTPTS,"
+                        f"{speed_filter}{rot_filter}{mirror_filter}{eq_filter}{freeze_filter}"
+                        f"scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,"
+                        f"crop={VIDEO_WIDTH}:{VIDEO_HEIGHT},setsar=1,fps={FPS},"
+                        f"scale={scaled_w}:{scaled_h}:flags=lanczos,crop={VIDEO_WIDTH}:{VIDEO_HEIGHT}:{crop_x}:{crop_y},setsar=1[{node_name}];"
+                    )
                 concat_inputs.append(f"[{node_name}]")
                 clip_durations.append(duration)
 
@@ -428,9 +434,18 @@ class VideoEditor:
                     curr_t = end_t
                     shot_idx += 1
 
-            filter_complex.append(
-                f"[0:v]scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,crop={VIDEO_WIDTH}:{VIDEO_HEIGHT},setsar=1,fps={FPS}[base_v];"
-            )
+            is_landscape = info.get("width", 1080) > info.get("height", 1920)
+            if auto_blur_landscape and is_landscape:
+                filter_complex.append(
+                    f"[0:v]split=2[raw_bg][raw_fg];"
+                    f"[raw_bg]scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,crop={VIDEO_WIDTH}:{VIDEO_HEIGHT},boxblur=25:5[raw_bg_blur];"
+                    f"[raw_fg]scale={VIDEO_WIDTH}:-1:force_original_aspect_ratio=decrease[raw_fg_fit];"
+                    f"[raw_bg_blur][raw_fg_fit]overlay=(W-w)/2:(H-h)/2,setsar=1,fps={FPS}[base_v];"
+                )
+            else:
+                filter_complex.append(
+                    f"[0:v]scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,crop={VIDEO_WIDTH}:{VIDEO_HEIGHT},setsar=1,fps={FPS}[base_v];"
+                )
 
             for idx, shot in enumerate(shots):
                 s_dur = max(0.2, shot["end"] - shot["start"])

@@ -1,5 +1,5 @@
 """
-FastAPI Backend Server for TikTok Auto-Cutter AI & CapCut Pipeline
+FastAPI Backend Server for OmniCut Pro Studio AI & CapCut Pipeline
 Provides REST APIs, video/audio streaming with byte-range support, and SSE progress updates.
 """
 
@@ -41,8 +41,8 @@ from scripts.product_store import ProductStore
 from scripts.post_log import PostLog
 
 app = FastAPI(
-    title="TikTok Auto-Cutter Pro API",
-    description="Backend API for TikTok Auto-Cutter AI & CapCut Desktop Generator",
+    title="OmniCut Pro Studio API",
+    description="Backend API for OmniCut Pro Studio AI & CapCut Desktop Generator",
     version="2.0.0"
 )
 
@@ -140,6 +140,7 @@ class RenderRequest(BaseModel):
     caption_scale: Optional[float] = 1.0
     sticker_position: Optional[str] = "top_right"
     sticker_scale: Optional[float] = 1.0
+    text_overlays: Optional[List[Dict[str, Any]]] = None
 
 class DeleteFileRequest(BaseModel):
     file_path: str
@@ -1817,6 +1818,7 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                 caption_scale=req_data.caption_scale or 1.0,
                 sticker_position=req_data.sticker_position or "top_right",
                 sticker_scale=req_data.sticker_scale or 1.0,
+                text_overlays=req_data.text_overlays,
                 product_id=req_data.product_id,
                 angle_id=req_data.angle_id,
                 progress_callback=on_progress
@@ -1907,5 +1909,5 @@ def get_render_status(job_id: str):
 if __name__ == "__main__":
     import uvicorn
     should_reload = os.environ.get("FASTAPI_RELOAD", "true").lower() in ("1", "true")
-    print(f"🚀 Starting TikTok Auto-Cutter FastAPI on http://localhost:8000 (reload={should_reload}) ...")
+    print(f"🚀 Starting OmniCut Pro Studio FastAPI on http://localhost:8000 (reload={should_reload}) ...")
     uvicorn.run("scripts.api_server:app", host="0.0.0.0", port=8000, reload=should_reload)

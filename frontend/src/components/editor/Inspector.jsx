@@ -3,7 +3,7 @@ import {
   AlertTriangle, Film, MessageSquare, Settings2, Scissors,
   Trash2, Plus, Volume2, VolumeX, RotateCw, Play, Check, Search,
   Link2, Clock, Split, Sparkles, ArrowUp, ArrowDown,
-  Replace, CheckCheck, RefreshCw, X, ChevronUp, ChevronDown
+  Replace, CheckCheck, RefreshCw, X, ChevronUp, ChevronDown, Type
 } from 'lucide-react';
 import { TRANSITIONS, FADE_DURATION, MAX_TRANSITION_DURATION } from '../../lib/timelineMath';
 
@@ -76,8 +76,14 @@ export default function Inspector({
   onBatchFormatClean,
   onSeek,
   onSelectCue,
+  textOverlays = [],
+  onAddTextOverlay,
+  onUpdateTextOverlay,
+  onDeleteTextOverlay,
+  onSelectTextOverlay,
 }) {
-  const [activeTab, setActiveTab] = useState('cues'); // 'cues' | 'clip' | 'style'
+  const [activeTab, setActiveTab] = useState('cues'); // 'cues' | 'text' | 'clip' | 'style'
+  const [textSubTab, setTextSubTab] = useState('overlay'); // 'overlay' | 'hook'
   const [searchQuery, setSearchQuery] = useState('');
   const [showFindReplace, setShowFindReplace] = useState(false);
   const [findWord, setFindWord] = useState('');
@@ -86,10 +92,39 @@ export default function Inspector({
 
   const inputRefs = useRef({});
   const rowRefs = useRef({});
+  const hookHeaderCardRef = useRef(null);
+  const textOverlayCardRef = useRef(null);
+  const hookBrandInputRef = useRef(null);
   const isTypingRef = useRef(false);
   const gap = (audioDuration || 0) - totalDuration;
 
   const sfxList = assets?.sfx || [];
+
+  const selectedTextOverlay = selection?.type === 'text_overlay'
+    ? textOverlays.find((item) => item.id === selection.id)
+    : null;
+
+  // Auto-switch to corresponding tab when selected from Timeline
+  useEffect(() => {
+    if (selection?.type === 'hook') {
+      setActiveTab('text');
+      setTextSubTab('hook');
+      setTimeout(() => {
+        hookHeaderCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        hookBrandInputRef.current?.focus();
+      }, 50);
+    } else if (selection?.type === 'text_overlay') {
+      setActiveTab('text');
+      setTextSubTab('overlay');
+      setTimeout(() => {
+        textOverlayCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 50);
+    } else if (selection?.type === 'caption') {
+      setActiveTab('cues');
+    } else if (selection?.type === 'clip') {
+      setActiveTab('clip');
+    }
+  }, [selection]);
 
   // Filter cues by search query
   const filteredCues = cuesList.filter((cue) => {
@@ -197,7 +232,7 @@ export default function Inspector({
         <button
           type="button"
           onClick={() => setActiveTab('cues')}
-          className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+          className={`flex-1 py-1.5 px-1 rounded-xl text-[11px] sm:text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
             activeTab === 'cues'
               ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
               : 'text-slate-400 hover:text-white'
@@ -209,22 +244,35 @@ export default function Inspector({
 
         <button
           type="button"
+          onClick={() => setActiveTab('text')}
+          className={`flex-1 py-1.5 px-1 rounded-xl text-[11px] sm:text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+            activeTab === 'text'
+              ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Type className="w-3.5 h-3.5 text-[#25F4EE]" />
+          <span>ข้อความ & ฮุค</span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => setActiveTab('clip')}
           disabled={!selectedSeg}
-          className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+          className={`flex-1 py-1.5 px-1 rounded-xl text-[11px] sm:text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
             activeTab === 'clip'
               ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
               : 'text-slate-400 hover:text-white'
           }`}
         >
           <Film className="w-3.5 h-3.5" />
-          <span>คลิปที่เลือก</span>
+          <span>คลิป</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('style')}
-          className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+          className={`flex-1 py-1.5 px-1 rounded-xl text-[11px] sm:text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
             activeTab === 'style'
               ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
               : 'text-slate-400 hover:text-white'
@@ -241,152 +289,7 @@ export default function Inspector({
            ══════════════════════════════════════════════════════════ */}
         {activeTab === 'cues' && (
           <div className="space-y-2.5">
-            {/* 1. Header / Hook Banner (3 วิแรก) Control Card */}
-            <div className="rounded-2xl border border-white/[0.08] bg-black/40 p-2.5 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-[#E89274] flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-[#D97757]" />
-                  <span>Header พาดหัวบนจอ (3 วิแรก)</span>
-                </span>
-                <button
-                  type="button"
-                  onClick={onToggleHookHeader}
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
-                    showHookHeader
-                      ? 'bg-[#D97757]/20 border-[#D97757] text-[#E89274]'
-                      : 'bg-white/[0.04] border-white/[0.1] text-slate-500 hover:text-white'
-                  }`}
-                >
-                  {showHookHeader ? '✓ เปิดใช้งาน' : '✕ ซ่อนไว้'}
-                </button>
-              </div>
-
-              {showHookHeader && (
-                <div className="space-y-1.5 pt-0.5">
-                  <input
-                    type="text"
-                    value={hookBrand || ''}
-                    onChange={(e) => onHookBrandChange?.(e.target.value)}
-                    placeholder="แบรนด์ เช่น Logitech"
-                    className="w-full py-1.5 px-2.5 rounded-xl bg-black/60 border border-white/[0.1] text-sm font-extrabold uppercase tracking-wide text-white focus:outline-none focus:border-[#D97757] placeholder-slate-500 shadow-inner"
-                  />
-                  <input
-                    type="text"
-                    value={hookModel || ''}
-                    onChange={(e) => onHookModelChange?.(e.target.value)}
-                    placeholder="รุ่น/โมเดล เช่น Wave Keys"
-                    className="w-full py-1.5 px-2.5 rounded-xl bg-black/60 border border-white/[0.1] text-xs font-bold text-[#E6C24A] focus:outline-none focus:border-[#D97757] placeholder-slate-500 shadow-inner"
-                  />
-                  <input
-                    type="text"
-                    value={hookLabel || ''}
-                    onChange={(e) => onHookLabelChange?.(e.target.value)}
-                    placeholder="หมวดสินค้าสั้นๆ เช่น คีย์บอร์ดไร้สาย"
-                    className="w-full py-1 px-2.5 rounded-xl bg-black/60 border border-white/[0.1] text-[11px] font-semibold text-slate-300 focus:outline-none focus:border-[#D97757] placeholder-slate-500 shadow-inner"
-                  />
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-0.5">
-                    <span>ระยะเวลาแสดงผล:</span>
-                    <div className="flex items-center gap-1">
-                      {[2.0, 3.0, 4.0].map((sec) => (
-                        <button
-                          key={sec}
-                          type="button"
-                          onClick={() => onHookDurationChange?.(sec)}
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-mono border transition-all cursor-pointer ${
-                            Math.abs((hookDuration || 3.0) - sec) < 0.2
-                              ? 'bg-[#D97757]/30 border-[#D97757] text-[#E89274]'
-                              : 'bg-black/40 border-white/[0.08] text-slate-400 hover:text-white'
-                          }`}
-                        >
-                          {sec}s
-                        </button>
-                      ))}
-                      <input
-                        type="number"
-                        min="1.0"
-                        max="8.0"
-                        step="0.5"
-                        value={hookDuration || 3.0}
-                        onChange={(e) => onHookDurationChange?.(parseFloat(e.target.value) || 3.0)}
-                        className="w-12 py-0.5 px-1 rounded bg-black/50 border border-white/[0.1] text-right text-[11px] font-mono text-white focus:outline-none focus:border-[#D97757]"
-                      />
-                      <span>วิ</span>
-                    </div>
-                  </div>
-                  {/* Per-tier text colour. Empty means "renderer default"
-                      (white wordmark / accent model / muted label), so a
-                      brand with its own colour equity can set just the tier
-                      it cares about and leave the rest alone. */}
-                  <div className="flex items-center gap-2 pt-1">
-                    <span className="text-[10px] font-bold text-slate-400">สีตัวอักษร</span>
-                    {[
-                      { tier: 'brand', label: 'แบรนด์', fallback: '#FFFFFF' },
-                      { tier: 'model', label: 'รุ่น', fallback: style?.captionColor || '#FFE600' },
-                      { tier: 'label', label: 'หมวด', fallback: '#E0E0E0' },
-                    ].map(({ tier, label, fallback }) => (
-                      <label key={tier} className="flex items-center gap-1 cursor-pointer" title={label}>
-                        <input
-                          type="color"
-                          value={hookColors?.[tier] || fallback}
-                          onChange={(e) => onHookColorChange?.(tier, e.target.value)}
-                          className="h-5 w-5 cursor-pointer rounded border border-white/[0.15] bg-transparent p-0"
-                        />
-                        <span className="text-[10px] text-slate-400">{label}</span>
-                      </label>
-                    ))}
-                  </div>
-
-                  {/* Motion presets -- one pick per category, exactly like
-                      CapCut's own In / Loop / Out text-animation tabs. The
-                      options come from /api/hook-motion-presets so this list
-                      can never drift from what the renderer can actually
-                      draw; until it loads, only the stagger toggle shows. */}
-                  <div className="space-y-1 pt-1">
-                    {[
-                      { cat: 'in', label: 'เข้า' },
-                      { cat: 'loop', label: 'ค้าง' },
-                      { cat: 'out', label: 'ออก' },
-                      { cat: 'accent', label: 'ตกแต่ง' },
-                    ].map(({ cat, label }) => {
-                      const options = hookMotionCatalog?.[cat];
-                      if (!options) return null;
-                      return (
-                        <div key={cat} className="flex items-center gap-1.5">
-                          <span className="w-9 flex-shrink-0 text-[10px] font-bold text-slate-400">{label}</span>
-                          <select
-                            value={hookMotion?.[cat] ?? hookMotionDefault?.[cat] ?? 'none'}
-                            onChange={(e) => onHookMotionChange?.(cat, e.target.value)}
-                            className="flex-1 min-w-0 rounded-lg border border-white/[0.1] bg-black/60 px-2 py-1 text-[11px] font-semibold text-white shadow-inner focus:border-[#D97757] focus:outline-none"
-                          >
-                            {Object.entries(options).map(([id, meta]) => (
-                              <option key={id} value={id}>{meta.label_th}</option>
-                            ))}
-                          </select>
-                        </div>
-                      );
-                    })}
-                    {(() => {
-                      const on = hookMotion?.stagger !== false;
-                      return (
-                        <button
-                          type="button"
-                          onClick={() => onHookMotionChange?.('stagger', !on)}
-                          className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border transition-all cursor-pointer ${
-                            on
-                              ? 'bg-[#D97757]/20 border-[#D97757] text-[#E89274]'
-                              : 'bg-white/[0.04] border-white/[0.1] text-slate-500 hover:text-white'
-                          }`}
-                        >
-                          {on ? '✓' : '✕'} ทยอยเข้าทีละบรรทัด
-                        </button>
-                      );
-                    })()}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* 2. Caption Sizing & Position Quick Bar */}
+            {/* Caption Sizing & Position Quick Bar */}
             <div className="rounded-2xl border border-white/[0.08] bg-black/40 p-2.5 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-300">ขนาดและตำแหน่งคำบรรยาย</span>
@@ -751,6 +654,433 @@ export default function Inspector({
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════
+            MODE 2: ON-SCREEN GRAPHICS & TEXT OVERLAYS (ข้อความ & ฮุค)
+           ══════════════════════════════════════════════════════════ */}
+        {activeTab === 'text' && (
+          <div className="space-y-3">
+            {/* Sub-navigation between Text Overlays and Hook Header */}
+            <div className="flex rounded-xl bg-black/60 p-1 border border-white/[0.08] gap-1">
+              <button
+                type="button"
+                onClick={() => setTextSubTab('overlay')}
+                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  textSubTab === 'overlay'
+                    ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Type className="w-3.5 h-3.5" />
+                <span>ข้อความเสริม ({textOverlays.length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTextSubTab('hook')}
+                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  textSubTab === 'hook'
+                    ? 'bg-[#E6C24A]/20 text-[#E6C24A] border border-[#E6C24A]/30 shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Header ฮุค (3 วิแรก)</span>
+              </button>
+            </div>
+
+            {/* Sub-Tab 1: ข้อความเสริมบนจอ */}
+            {textSubTab === 'overlay' && (
+              <div
+                ref={textOverlayCardRef}
+                className="rounded-2xl border border-white/[0.08] bg-black/40 p-3 space-y-3 transition-all duration-200"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[#25F4EE] flex items-center gap-1.5">
+                    <Type className="w-3.5 h-3.5 text-[#25F4EE]" />
+                    <span>ข้อความเสริมบนจอ</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={onAddTextOverlay}
+                    className="py-1 px-2.5 rounded-lg bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                    title="เพิ่มข้อความเสริมใหม่ ณ เวลาที่หัวอ่านกำลังเล่น"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>เพิ่มข้อความ</span>
+                  </button>
+                </div>
+
+                {/* If an overlay is selected, show its full editor */}
+                {selectedTextOverlay ? (
+                  <div className="space-y-2.5 pt-2 border-t border-white/[0.08]">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-300">เนื้อหาข้อความ:</span>
+                      <button
+                        type="button"
+                        onClick={() => onDeleteTextOverlay?.(selectedTextOverlay.id)}
+                        className="text-rose-400 hover:text-rose-300 text-xs font-bold flex items-center gap-1 px-2 py-0.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 cursor-pointer"
+                        title="ลบข้อความนี้"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>ลบข้อความ</span>
+                      </button>
+                    </div>
+
+                    <textarea
+                      rows={2}
+                      value={selectedTextOverlay.text || ''}
+                      onChange={(e) => onUpdateTextOverlay?.(selectedTextOverlay.id, { text: e.target.value })}
+                      placeholder="พิมพ์ข้อความที่ต้องการแสดงบนจอ..."
+                      className="w-full px-3 py-2 rounded-xl bg-black/60 border border-white/[0.1] text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#25F4EE] shadow-inner resize-none"
+                    />
+
+                    {/* Timing fine-tune */}
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="space-y-1">
+                        <span className="text-slate-400">เริ่ม (วินาที):</span>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          value={selectedTextOverlay.start ?? 0}
+                          onChange={(e) => onUpdateTextOverlay?.(selectedTextOverlay.id, { start: Math.max(0, parseFloat(e.target.value) || 0) })}
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-black/60 border border-white/[0.1] text-xs font-mono text-white focus:outline-none focus:border-[#25F4EE]"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-slate-400">สิ้นสุด (วินาที):</span>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0.1"
+                          value={selectedTextOverlay.end ?? 2.5}
+                          onChange={(e) => onUpdateTextOverlay?.(selectedTextOverlay.id, { end: Math.max((selectedTextOverlay.start || 0) + 0.1, parseFloat(e.target.value) || 0.1) })}
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-black/60 border border-white/[0.1] text-xs font-mono text-white focus:outline-none focus:border-[#25F4EE]"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Position */}
+                    <div className="space-y-1.5 pt-1">
+                      <span className="text-xs text-slate-400">ตำแหน่งบนจอ:</span>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {[
+                          { pos: 'top', label: 'ด้านบน (20%)' },
+                          { pos: 'middle', label: 'กึ่งกลาง (50%)' },
+                          { pos: 'bottom', label: 'ด้านล่าง (72%)' },
+                        ].map(({ pos, label }) => (
+                          <button
+                            key={pos}
+                            type="button"
+                            onClick={() => onUpdateTextOverlay?.(selectedTextOverlay.id, { position: pos })}
+                            className={`py-1.5 px-2 rounded-lg text-xs font-bold border transition-all cursor-pointer truncate ${
+                              (selectedTextOverlay.position || 'middle') === pos
+                                ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
+                                : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Scale & Color */}
+                    <div className="space-y-2 pt-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-400">ขนาดตัวอักษร:</span>
+                        <span className="font-mono font-bold text-[#25F4EE]">
+                          {Math.round((selectedTextOverlay.scale ?? 1.0) * 100)}%
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {[0.8, 1.0, 1.25, 1.5].map((s) => (
+                          <button
+                            key={s}
+                            type="button"
+                            onClick={() => onUpdateTextOverlay?.(selectedTextOverlay.id, { scale: s })}
+                            className={`flex-1 py-1 rounded-md text-xs font-bold border transition-all cursor-pointer ${
+                              Math.abs((selectedTextOverlay.scale ?? 1.0) - s) < 0.05
+                                ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
+                                : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            {Math.round(s * 100)}%
+                          </button>
+                        ))}
+                      </div>
+                      <input
+                        type="range"
+                        min="0.6"
+                        max="2.2"
+                        step="0.05"
+                        value={selectedTextOverlay.scale ?? 1.0}
+                        onChange={(e) => onUpdateTextOverlay?.(selectedTextOverlay.id, { scale: parseFloat(e.target.value) })}
+                        className="w-full accent-[#25F4EE]"
+                      />
+                    </div>
+
+                    {/* Color & Background Style */}
+                    <div className="grid grid-cols-2 gap-3 pt-1 border-t border-white/[0.06]">
+                      <div className="space-y-1.5">
+                        <span className="text-xs text-slate-400">สีตัวอักษร:</span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {['#FFE600', '#FFFFFF', '#25F4EE', '#FF3B30', '#34C759', '#FF9500'].map((c) => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => onUpdateTextOverlay?.(selectedTextOverlay.id, { color: c })}
+                              className={`w-6 h-6 rounded-full border cursor-pointer transition-transform ${
+                                (selectedTextOverlay.color || '#FFE600') === c
+                                  ? 'scale-110 ring-2 ring-white border-white'
+                                  : 'border-white/20 hover:scale-105'
+                              }`}
+                              style={{ backgroundColor: c }}
+                              title={c}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <span className="text-xs text-slate-400">สไตล์พื้นหลัง:</span>
+                        <div className="flex items-center gap-1.5">
+                          {[
+                            { id: 'none', label: 'โปร่งใส (ไม่มีกล่อง)' },
+                            { id: 'pill', label: 'แถบดำมน' },
+                          ].map(({ id, label }) => (
+                            <button
+                              key={id}
+                              type="button"
+                              onClick={() => onUpdateTextOverlay?.(selectedTextOverlay.id, { bgStyle: id })}
+                              className={`flex-1 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                                (selectedTextOverlay.bgStyle || 'none') === id
+                                  ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
+                                  : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Entrance Animation */}
+                    <div className="space-y-1.5 pt-1">
+                      <span className="text-xs text-slate-400">แอนิเมชันเปิดตัว:</span>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {[
+                          { id: 'pop', label: 'เด้ง Pop' },
+                          { id: 'fade', label: 'โผล่ Fade' },
+                          { id: 'slide', label: 'สไลด์' },
+                          { id: 'none', label: 'ไม่มี' },
+                        ].map(({ id, label }) => (
+                          <button
+                            key={id}
+                            type="button"
+                            onClick={() => onUpdateTextOverlay?.(selectedTextOverlay.id, { anim: id })}
+                            className={`py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer truncate ${
+                              (selectedTextOverlay.anim || 'pop') === id
+                                ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
+                                : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : textOverlays.length > 0 ? (
+                  /* List of existing text overlays if none currently selected */
+                  <div className="space-y-1.5 pt-2 border-t border-white/[0.08]">
+                    <span className="text-xs text-slate-400">เลือกข้อความเพื่อแก้ไข:</span>
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                      {textOverlays.map((item) => (
+                        <div
+                          key={item.id}
+                          onClick={() => {
+                            onSelectTextOverlay?.(item.id);
+                            onSeek?.(item.start);
+                          }}
+                          className="flex items-center justify-between p-2 rounded-xl bg-black/40 hover:bg-white/[0.06] border border-white/[0.08] text-xs cursor-pointer transition-colors"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color || '#FFE600' }} />
+                            <span className="truncate font-semibold text-slate-200">{item.text || 'ข้อความว่าง'}</span>
+                          </div>
+                          <span className="font-mono text-xs text-slate-400 flex-shrink-0">
+                            {formatShortTime(item.start)} - {formatShortTime(item.end)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-xs text-slate-400 py-3 text-center border border-dashed border-white/[0.08] rounded-xl">
+                    ยังไม่มีข้อความเสริม — กดปุ่ม &quot;เพิ่มข้อความ&quot; ด้านบนเพื่อใส่ข้อความซ้อนบนจอ ณ เวลาที่ต้องการ
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Sub-Tab 2: Header พาดหัวบนจอ (3 วิแรก) */}
+            {textSubTab === 'hook' && (
+              <div
+                ref={hookHeaderCardRef}
+                className="rounded-2xl border border-white/[0.08] bg-black/40 p-3 space-y-2.5 transition-all duration-200"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[#E89274] flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-[#D97757]" />
+                    <span>Header พาดหัวบนจอ (3 วิแรก)</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={onToggleHookHeader}
+                    className={`text-xs font-bold px-2.5 py-0.5 rounded-full border transition-all cursor-pointer ${
+                      showHookHeader
+                        ? 'bg-[#D97757]/20 border-[#D97757] text-[#E89274]'
+                        : 'bg-white/[0.04] border-white/[0.1] text-slate-500 hover:text-white'
+                    }`}
+                  >
+                    {showHookHeader ? '✓ เปิดใช้งาน' : '✕ ซ่อนไว้'}
+                  </button>
+                </div>
+
+                {showHookHeader && (
+                  <div className="space-y-2 pt-1 border-t border-white/[0.08]">
+                    <div className="space-y-1">
+                      <span className="text-xs text-slate-400">แบรนด์สินค้า:</span>
+                      <input
+                        ref={hookBrandInputRef}
+                        type="text"
+                        value={hookBrand || ''}
+                        onChange={(e) => onHookBrandChange?.(e.target.value)}
+                        placeholder="แบรนด์ เช่น Logitech"
+                        className="w-full py-1.5 px-2.5 rounded-xl bg-black/60 border border-white/[0.1] text-sm font-extrabold uppercase tracking-wide text-white focus:outline-none focus:border-[#D97757] placeholder-slate-500 shadow-inner"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-xs text-slate-400">ชื่อรุ่น / โมเดล:</span>
+                      <input
+                        type="text"
+                        value={hookModel || ''}
+                        onChange={(e) => onHookModelChange?.(e.target.value)}
+                        placeholder="รุ่น/โมเดล เช่น Wave Keys"
+                        className="w-full py-1.5 px-2.5 rounded-xl bg-black/60 border border-white/[0.1] text-xs font-bold text-[#E6C24A] focus:outline-none focus:border-[#D97757] placeholder-slate-500 shadow-inner"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-xs text-slate-400">หมวดสินค้าสั้นๆ:</span>
+                      <input
+                        type="text"
+                        value={hookLabel || ''}
+                        onChange={(e) => onHookLabelChange?.(e.target.value)}
+                        placeholder="หมวดสินค้า เช่น คีย์บอร์ดไร้สาย"
+                        className="w-full py-1.5 px-2.5 rounded-xl bg-black/60 border border-white/[0.1] text-xs font-semibold text-slate-300 focus:outline-none focus:border-[#D97757] placeholder-slate-500 shadow-inner"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
+                      <span>ระยะเวลาแสดงผล:</span>
+                      <div className="flex items-center gap-1">
+                        {[2.0, 3.0, 4.0].map((sec) => (
+                          <button
+                            key={sec}
+                            type="button"
+                            onClick={() => onHookDurationChange?.(sec)}
+                            className={`px-2 py-0.5 rounded text-xs font-mono border transition-all cursor-pointer ${
+                              Math.abs((hookDuration || 3.0) - sec) < 0.2
+                                ? 'bg-[#D97757]/30 border-[#D97757] text-[#E89274]'
+                                : 'bg-black/40 border-white/[0.08] text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            {sec}s
+                          </button>
+                        ))}
+                        <input
+                          type="number"
+                          min="1.0"
+                          max="8.0"
+                          step="0.5"
+                          value={hookDuration || 3.0}
+                          onChange={(e) => onHookDurationChange?.(parseFloat(e.target.value) || 3.0)}
+                          className="w-14 py-0.5 px-1 rounded bg-black/50 border border-white/[0.1] text-right text-xs font-mono text-white focus:outline-none focus:border-[#D97757]"
+                        />
+                        <span>วิ</span>
+                      </div>
+                    </div>
+
+                    {/* Per-tier text colour */}
+                    <div className="flex items-center gap-3 pt-1 border-t border-white/[0.06]">
+                      <span className="text-xs font-bold text-slate-400">สีตัวอักษร:</span>
+                      {[
+                        { tier: 'brand', label: 'แบรนด์', fallback: '#FFFFFF' },
+                        { tier: 'model', label: 'รุ่น', fallback: style?.captionColor || '#FFE600' },
+                        { tier: 'label', label: 'หมวด', fallback: '#E0E0E0' },
+                      ].map(({ tier, label, fallback }) => (
+                        <label key={tier} className="flex items-center gap-1.5 cursor-pointer" title={label}>
+                          <input
+                            type="color"
+                            value={hookColors?.[tier] || fallback}
+                            onChange={(e) => onHookColorChange?.(tier, e.target.value)}
+                            className="h-5 w-5 cursor-pointer rounded border border-white/[0.15] bg-transparent p-0"
+                          />
+                          <span className="text-xs text-slate-400">{label}</span>
+                        </label>
+                      ))}
+                    </div>
+
+                    {/* Motion presets */}
+                    <div className="space-y-1.5 pt-1 border-t border-white/[0.06]">
+                      <span className="text-xs font-bold text-slate-400">แอนิเมชันพาดหัว:</span>
+                      {[
+                        { cat: 'in', label: 'เข้า' },
+                        { cat: 'loop', label: 'ค้าง' },
+                        { cat: 'out', label: 'ออก' },
+                        { cat: 'accent', label: 'ตกแต่ง' },
+                      ].map(({ cat, label }) => {
+                        const options = hookMotionCatalog?.[cat];
+                        if (!options) return null;
+                        return (
+                          <div key={cat} className="flex items-center gap-2">
+                            <span className="w-10 flex-shrink-0 text-xs font-bold text-slate-400">{label}</span>
+                            <select
+                              value={hookMotion?.[cat] ?? hookMotionDefault?.[cat] ?? 'none'}
+                              onChange={(e) => onHookMotionChange?.(cat, e.target.value)}
+                              className="flex-1 min-w-0 rounded-lg border border-white/[0.1] bg-black/60 px-2 py-1 text-xs font-semibold text-white shadow-inner focus:border-[#D97757] focus:outline-none"
+                            >
+                              {Object.entries(options).map(([id, meta]) => (
+                                <option key={id} value={id}>{meta.label_th}</option>
+                              ))}
+                            </select>
+                          </div>
+                        );
+                      })}
+                      {(() => {
+                        const on = hookMotion?.stagger !== false;
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => onHookMotionChange?.('stagger', !on)}
+                            className={`text-xs font-semibold px-2 py-1 rounded-full border transition-all cursor-pointer ${
+                              on
+                                ? 'bg-[#D97757]/20 border-[#D97757] text-[#E89274]'
+                                : 'bg-white/[0.04] border-white/[0.1] text-slate-500 hover:text-white'
+                            }`}
+                          >
+                            {on ? '✓' : '✕'} ทยอยเข้าทีละบรรทัด
+                          </button>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 

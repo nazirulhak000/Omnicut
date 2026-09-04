@@ -1,4 +1,4 @@
-# 🎬 TikTok Auto-Cutter Pro Studio (CapCut Automation Pipeline)
+# 🎬 OmniCut Pro Studio — AI Video Production Suite (CapCut Automation Pipeline)
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)

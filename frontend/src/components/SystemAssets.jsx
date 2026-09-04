@@ -676,7 +676,7 @@ export default function SystemAssets({
             <div className="p-4 rounded-xl bg-black/40 border border-white/[0.06] space-y-2 text-xs text-slate-200">
               <div className="font-bold text-white flex items-center gap-2 font-kanit">
                 <Sparkles className="w-4 h-4 text-[#25F4EE]" />
-                สเปกวิดีโอมาตรฐาน TikTok Auto-Cutter:
+                สเปกวิดีโอมาตรฐาน OmniCut Pro Studio:
               </div>
               <ul className="space-y-1 text-slate-400 text-sm list-disc list-inside">
                 <li>ขนาดหน้าจอ: <b>1080 x 1920 (9:16 Vertical Video)</b></li>

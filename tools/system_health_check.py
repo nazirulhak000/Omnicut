@@ -1,6 +1,6 @@
 """
 Comprehensive 6-Pillar System Health Diagnostic & Audit Runner
-Project: TikTok Auto-Cutter Pro Studio
+Project: OmniCut Pro Studio
 AGENTS.md Specification Compliance
 """
 
@@ -317,7 +317,7 @@ def check_api_contracts():
 # ----------------------------------------------------------------------
 def run_all():
     print(f"\n{Colors.BOLD}{Colors.CYAN}======================================================================{Colors.RESET}")
-    print(f"{Colors.BOLD}{Colors.CYAN} 🤖 TIKTOK AUTO-CUTTER PRO STUDIO — 6-PILLAR SYSTEM AUDIT{Colors.RESET}")
+    print(f"{Colors.BOLD}{Colors.CYAN} 🤖 OMNICUT PRO STUDIO — 6-PILLAR SYSTEM AUDIT{Colors.RESET}")
     print(f"{Colors.BOLD}{Colors.CYAN}======================================================================{Colors.RESET}\n")
 
     check_environment()

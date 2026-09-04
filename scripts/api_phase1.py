@@ -387,6 +387,7 @@ class RerollRequest(BaseModel):
     sticker_scale: Optional[float] = None
     clip_list: Optional[List[Dict[str, Any]]] = None
     transitions: Optional[List[Any]] = None
+    text_overlays: Optional[List[Dict[str, Any]]] = None
 
 
 # What each button costs, so the UI can warn before a slow one.
@@ -587,6 +588,7 @@ class UpdateProjectStateRequest(BaseModel):
     hook_duration: Optional[float] = None
     hook_motion: Optional[Dict[str, Any]] = None
     hook_colors: Optional[Dict[str, str]] = None
+    text_overlays: Optional[List[Dict[str, Any]]] = None
 
 
 @router.patch("/projects/{project_name}/state")
@@ -638,6 +640,9 @@ def update_project_state(project_name: str, req: UpdateProjectStateRequest):
     if req.hook_colors is not None:
         fields["hook_colors"] = req.hook_colors
         render_params["hook_colors"] = req.hook_colors
+    if req.text_overlays is not None:
+        fields["text_overlays"] = req.text_overlays
+        render_params["text_overlays"] = req.text_overlays
 
     fields["render_params"] = render_params
     updated = ProjectManifest.save(project_name, **fields)
@@ -646,6 +651,7 @@ def update_project_state(project_name: str, req: UpdateProjectStateRequest):
         "cues": updated.get("cues"),
         "micro_cues": updated.get("micro_cues"),
         "clip_list": updated.get("clip_list"),
+        "text_overlays": updated.get("text_overlays"),
         "updated_at": updated.get("updated_at"),
     }
 
@@ -664,7 +670,8 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
             "hook_brand", "hook_model", "hook_label", "hook_duration", "hook_motion", "hook_colors",
             "font_name", "bilingual_subtitles", "sticker_path", "bgm_name", "bgm_volume",
             "bgm_ducking", "lut_name", "lut_intensity", "caption_position", "caption_color",
-            "caption_scale", "sticker_position", "sticker_scale", "clip_list", "transitions"
+            "caption_scale", "sticker_position", "sticker_scale", "clip_list", "transitions",
+            "text_overlays"
         ]:
             if k not in params and k in manifest and manifest[k] is not None:
                 params[k] = manifest[k]
@@ -723,6 +730,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 sticker_scale=params.get("sticker_scale", 1.0),
                 clip_list=params.get("clip_list"),
                 transitions=params.get("transitions"),
+                text_overlays=params.get("text_overlays"),
                 export_mp4=True,
                 resume_from=stage,
                 progress_callback=on_progress,

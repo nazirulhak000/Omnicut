@@ -1,4 +1,4 @@
-# TikTok Auto-Cutter Pro Studio -- backend dependencies
+# OmniCut Pro Studio -- backend dependencies
 #
 # Generated from the actual imports in scripts/*.py, not a full `pip freeze`:
 # this machine has other projects' packages installed globally (torch,

@@ -41,14 +41,14 @@
         ],
         "tts_hook_title": "ปวดข้อมือ ปวดหลัง ปัญหาโลกแตกชาวออฟฟิศ!",
         "status": "in_production",
-        "updated_at": "2026-09-04T01:03:25",
+        "updated_at": "2026-09-04T07:59:42",
         "selected_videos": [
           "01_Raw/20260902153241_1/Logitech wav.mov"
         ],
         "selected_video": "01_Raw/20260902153241_1/Logitech wav.mov",
-        "video_url": "D:\\Winona\\Programmer\\Capcut\\04_Exports\\Ready_to_post\\TikTok_Logitech_Wave_Keys_20260904_004832.mp4",
+        "video_url": "D:\\Winona\\Programmer\\Capcut\\04_Exports\\Ready_to_post\\TikTok_Logitech_Wave_Keys_20260904_075943.mp4",
         "project_name": "TikTok_Logitech_Wave_Keys",
-        "qc_note": "เส้นใต้ไม่ผ่าน"
+        "qc_note": "not pass"
       },
       {
         "angle_id": "unboxing",
@@ -148,14 +148,14 @@
           "ราคานี้คือหาไม่ได้อีกแล้วนะ ย้ำว่าราคาพิเศษเฉพาะในตะกร้าตอนนี้เท่านั้น! รีบกดเลย ช้าอด ของหมด จะมาเสียใจทีหลังไม่ได้แล้วนะ!"
         ],
         "tts_hook_title": "ช้าหมด อดนะ! Logitech Wave Keys โปรไฟลุก",
-        "status": "scripted",
-        "updated_at": "2026-09-03T23:54:59",
+        "status": "in_production",
+        "updated_at": "2026-09-04T15:03:55",
         "selected_videos": [
           "01_Raw/20260902153241_1/Logitech wav.mov"
         ],
         "selected_video": "01_Raw/20260902153241_1/Logitech wav.mov",
-        "project_name": null,
-        "video_url": null
+        "project_name": "TikTok_Logitech_Wave_Keys_a5",
+        "video_url": "D:\\Winona\\Programmer\\Capcut\\04_Exports\\Ready_to_post\\TikTok_Logitech_Wave_Keys_a5_20260904_143958.mp4"
       },
       {
         "angle_id": "comparison",
@@ -265,10 +265,11 @@
       "TikTok_Logitech_Wave_Keys_a2",
       "TikTok_Logitech_Wave_Keys_a3",
       "TikTok_Logitech_Wave_Keys_a4",
-      "TikTok_Test_Rollback_99"
+      "TikTok_Test_Rollback_99",
+      "TikTok_Logitech_Wave_Keys_a5"
     ],
     "created_at": "2026-09-02T15:32:41",
-    "updated_at": "2026-09-04T01:03:25",
+    "updated_at": "2026-09-04T15:03:55",
     "videos": [
       {
         "name": "1027.mp4",

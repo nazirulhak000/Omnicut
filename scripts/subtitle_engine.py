@@ -410,6 +410,30 @@ def _hook_lightsweep_event(
     return f"Dialogue: 3,{start_t},{end_t},HookHeader,,0,0,0,,{tag}{line}"
 
 
+def _ass_rounded_pill_path(w: float, h: float, r: float) -> str:
+    """
+    Constructs a smooth vector rounded rectangle for ASS \\p1 drawing mode.
+    Exact parity with HTML5 Canvas roundRect(x, y, w, h, radius).
+    Uses standard cubic bezier curve approximation for 90-degree corner arcs:
+    k = r * 0.5522847498.
+    All coordinates are positive and anchored at top-left (\\an7).
+    """
+    r = max(1.0, min(r, w / 2, h / 2))
+    k = r * 0.5522847498
+    p = [
+        f"m {r:.1f} 0",
+        f"l {w - r:.1f} 0",
+        f"b {w - r + k:.1f} 0 {w:.1f} {r - k:.1f} {w:.1f} {r:.1f}",
+        f"l {w:.1f} {h - r:.1f}",
+        f"b {w:.1f} {h - r + k:.1f} {w - r + k:.1f} {h:.1f} {w - r:.1f} {h:.1f}",
+        f"l {r:.1f} {h:.1f}",
+        f"b {r - k:.1f} {h:.1f} 0 {h - r + k:.1f} 0 {h - r:.1f}",
+        f"l 0 {r:.1f}",
+        f"b 0 {r - k:.1f} {r - k:.1f} 0 {r:.1f} 0",
+    ]
+    return " ".join(p)
+
+
 def _hook_accent_events(
     accent_id: str, model_line: str, model_line_fs: int, model_y: int, model_colour: str,
     x_center: int, resolved_font: str, start_t: str, end_t: str,
@@ -479,6 +503,14 @@ CAPTION_POSITIONS = {
     "bottom": (2, 420),
     "middle": (5, 0),
     "top": (8, 260),
+}
+
+# Where custom text overlays sit vertically as a fraction of frame height.
+# top (0.20), middle (0.50), bottom (0.72 - above bottom caption safe zone).
+TEXT_OVERLAY_POSITIONS = {
+    "top": 0.20,
+    "middle": 0.50,
+    "bottom": 0.72,
 }
 
 
@@ -1171,7 +1203,8 @@ class SubtitleEngine:
         video_height: int = VIDEO_HEIGHT,
         caption_position: str = "bottom",
         caption_color: str = None,
-        caption_scale: float = 1.0
+        caption_scale: float = 1.0,
+        text_overlays: Optional[List[Dict[str, Any]]] = None
     ) -> Tuple[str, List[Dict]]:
         """
         Generate TikTok style ASS subtitle file with rapid-fire micro-bursts, 
@@ -1245,6 +1278,8 @@ Style: TikTokMinimalPill,{resolved_font},{font_size - 6},{primary},&H000000FF,&H
 Style: HookHeader,{resolved_font},{hook_fs},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0.5,0,1,6.0,0,8,60,60,260,1
 Style: HookHeaderShadow,{resolved_font},{hook_fs},&H00000000,&H00000000,&H00000000,&H00000000,1,0,0,0,100,100,0.5,0,1,7.0,0,8,62,58,257,1
 Style: SpecBar,{resolved_font},{font_size - 12},&H00000000,&H000000FF,&H00000000,&H0000E6FF,1,0,0,0,100,100,0.5,0,3,10,0,9,50,50,380,1
+Style: TextOverlayMain,{resolved_font},{base_fs},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0.5,0,1,5.0,2,5,60,60,0,1
+Style: TextOverlayPill,{resolved_font},{base_fs},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0.5,0,1,5.0,2,5,60,60,0,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -1577,6 +1612,106 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             # Layer 2, above the hook banner (1) and captions (0), in case a
             # long spec bar's footprint ever crosses either at the same time.
             events.append(f"Dialogue: 2,{spec_start},{spec_end},SpecBar,,0,0,0,,{spec_anim}📊 {on_screen}")
+
+        # 4. Custom Text Overlays (Freeform multi-layer text lines)
+        if text_overlays:
+            for item in text_overlays:
+                txt = str(item.get("text") or "").strip()
+                if not txt:
+                    continue
+                try:
+                    start_sec = float(item.get("start", 0.0))
+                except (TypeError, ValueError):
+                    start_sec = 0.0
+                try:
+                    end_sec = float(item.get("end", start_sec + 2.5))
+                except (TypeError, ValueError):
+                    end_sec = start_sec + 2.5
+                if end_sec <= start_sec:
+                    end_sec = start_sec + 1.0
+
+                start_t = cls._format_ass_time(start_sec)
+                end_t = cls._format_ass_time(end_sec)
+
+                pos = item.get("position", "middle")
+                y_ratio = TEXT_OVERLAY_POSITIONS.get(pos, 0.50)
+                y_pos = int(round(video_height * y_ratio))
+                x_pos = video_width // 2
+
+                try:
+                    scale = float(item.get("scale", 1.0) or 1.0)
+                except (TypeError, ValueError):
+                    scale = 1.0
+                scale = min(2.5, max(0.4, scale))
+
+                color_hex = ass_colour(item.get("color")) or "&H00FFFFFF"
+                bg_style = item.get("bgStyle", "none")
+                anim = item.get("anim", "pop")
+
+                dur_ms = int(round((end_sec - start_sec) * 1000))
+                exit_start_ms = max(50, dur_ms - 150)
+                exit_tag = f"\\t({exit_start_ms},{dur_ms},\\alpha&HFF&)"
+
+                target_scale = int(round(100 * scale * TEXT_SCALE_BOOST))
+                anim_tag = ""
+                pos_tag = f"\\an5\\pos({x_pos},{y_pos})"
+
+                if anim == "pop":
+                    snap_from = int(round(target_scale * 1.25))
+                    anim_tag = f"\\fscx{snap_from}\\fscy{snap_from}\\t(0,70,\\fscx{target_scale}\\fscy{target_scale})"
+                elif anim == "fade":
+                    anim_tag = f"\\fscx{target_scale}\\fscy{target_scale}\\alpha&HFF&\\t(0,150,\\alpha&H00&)"
+                elif anim == "slide":
+                    pos_tag = f"\\an5\\move({x_pos},{y_pos + 40},{x_pos},{y_pos},0,200)"
+                    anim_tag = f"\\fscx{target_scale}\\fscy{target_scale}\\alpha&HFF&\\t(0,200,\\alpha&H00&)"
+                else:  # none
+                    anim_tag = f"\\fscx{target_scale}\\fscy{target_scale}"
+
+                render_fs = int(round(base_fs * scale))
+                line_list = [l.strip() for l in txt.split("\n") if l.strip()]
+                clean_lines = "\\N".join(line_list)
+
+                # Layer 3: If bg_style == 'pill', draw smooth semi-transparent rounded pill badge
+                if bg_style == "pill" and line_list:
+                    line_h = round(render_fs * 1.2)
+                    total_h = len(line_list) * line_h
+                    max_line_w = 0
+                    for l in line_list:
+                        w = _measure_text_width_px(l, resolved_font, render_fs)
+                        if w is None:
+                            w = int(len(l) * render_fs * 0.55)
+                        if w > max_line_w:
+                            max_line_w = w
+                    pad_x = round(render_fs * 0.6)
+                    pad_y = round(render_fs * 0.35)
+                    pill_w = max_line_w + pad_x * 2
+                    pill_h = total_h + pad_y * 2
+                    pill_x = x_pos - pill_w / 2
+                    pill_y = y_pos - total_h / 2 - pad_y
+                    radius = min(round(pill_h / 2), 28)
+                    pill_path = _ass_rounded_pill_path(pill_w, pill_h, radius)
+
+                    if anim == "slide":
+                        pill_pos = f"\\an7\\move({pill_x:.0f},{pill_y + 40:.0f},{pill_x:.0f},{pill_y:.0f},0,200)"
+                        pill_anim = f"\\alpha&HFF&\\t(0,200,\\alpha&H59&)"
+                    elif anim == "fade":
+                        pill_pos = f"\\an7\\pos({pill_x:.0f},{pill_y:.0f})"
+                        pill_anim = f"\\alpha&HFF&\\t(0,150,\\alpha&H59&)"
+                    elif anim == "pop":
+                        pill_pos = f"\\an7\\pos({pill_x:.0f},{pill_y:.0f})"
+                        pill_anim = f"\\alpha&HFF&\\t(0,70,\\alpha&H59&)"
+                    else:  # none
+                        pill_pos = f"\\an7\\pos({pill_x:.0f},{pill_y:.0f})"
+                        pill_anim = f"\\alpha&H59&"
+
+                    pill_tag = f"{pill_pos}\\p1\\bord0\\shad0\\c&H000000&{pill_anim}{exit_tag}"
+                    events.append(f"Dialogue: 3,{start_t},{end_t},TextOverlayMain,,0,0,0,,{{{pill_tag}}}{pill_path}")
+
+                # Layer 4: Text itself (clean TextOverlayMain with outline and shadow, never ugly BorderStyle=3 box)
+                events.append(
+                    f"Dialogue: 4,{start_t},{end_t},TextOverlayMain,,0,0,0,,"
+                    f"{{{pos_tag}{anim_tag}\\c{color_hex}&{exit_tag}}}{clean_lines}"
+                )
 
         content = header + "\n".join(events) + "\n"
         out_path.write_text(content, encoding="utf-8")

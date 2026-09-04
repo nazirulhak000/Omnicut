@@ -32,7 +32,7 @@ from scripts.project_manifest import ProjectManifest
 from scripts.it_angles import LOOK_PRESETS, BGM_MOOD_MAP, DEFAULT_BGM
 
 class TikTokAutoCutterPipeline:
-    """Main pipeline to run full automated TikTok video creation."""
+    """Main pipeline to run full automated OmniCut Pro Studio video creation."""
 
     @classmethod
     def run(
@@ -63,7 +63,7 @@ class TikTokAutoCutterPipeline:
         sticker_path: Optional[str] = None,
         bgm_name: Optional[str] = None,
         bgm_volume: Optional[float] = None,
-        bgm_ducking: bool = False,
+        bgm_ducking: bool = True,
         lut_name: Optional[str] = None,
         lut_intensity: float = 1.0,
         clip_list: Optional[List[Dict[str, any]]] = None,
@@ -75,6 +75,7 @@ class TikTokAutoCutterPipeline:
         caption_position: str = "bottom",
         caption_color: Optional[str] = None,
         caption_scale: float = 1.0,
+        text_overlays: Optional[List[Dict[str, any]]] = None,
         sticker_position: str = "top_right",
         sticker_scale: float = 1.0,
         resume_from: Optional[str] = None,
@@ -181,7 +182,7 @@ class TikTokAutoCutterPipeline:
             return existing
 
         print(f"\n=======================================================")
-        print(f"🎬 Starting TikTok Auto-Cutter for: {product_name}")
+        print(f"🎬 Starting OmniCut Pro Studio for: {product_name}")
         print(f"📁 Project Folder: {project_dir}")
         if is_reroll:
             print(f"♻️  Re-roll from stage: {resume_from}")
@@ -418,6 +419,10 @@ class TikTokAutoCutterPipeline:
             effective_hook_duration = min(effective_hook_duration, total_duration)
             if effective_hook_brand or hook_model or hook_label:
                 gradient_hook_duration = effective_hook_duration
+            effective_text_overlays = text_overlays if text_overlays is not None else (
+                (manifest.get("text_overlays") if manifest else None) or
+                ((manifest.get("render_params") or {}).get("text_overlays") if manifest else None)
+            )
             _, micro_cues = SubtitleEngine.generate_ass(
                 cues=cues,
                 output_ass_path=str(ass_path),
@@ -431,7 +436,8 @@ class TikTokAutoCutterPipeline:
                 bilingual=bilingual_subtitles,
                 caption_position=caption_position,
                 caption_color=caption_color,
-                caption_scale=caption_scale
+                caption_scale=caption_scale,
+                text_overlays=effective_text_overlays
             )
             # Sync translations back to main cues
             cues = micro_cues
@@ -969,8 +975,10 @@ class TikTokAutoCutterPipeline:
                 "lut_intensity": lut_intensity,
                 "clip_list": actual_clip_list,
                 "transitions": transitions,
+                "text_overlays": effective_text_overlays,
             },
             "artifacts": artifacts,
+            "text_overlays": effective_text_overlays,
         }
         if product_meta:
             manifest_fields["product"] = product_meta
@@ -1012,3 +1020,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# Alias for OmniCut Pro Studio
+OmniCutPipeline = TikTokAutoCutterPipeline

@@ -1,7 +1,8 @@
 import React from 'react';
 import {
-  Copy, FlipHorizontal2, Gauge, Magnet, Maximize2, Redo2, Scissors, Trash2, Undo2, ZoomIn, ZoomOut, Plus, Type,
+  Copy, FlipHorizontal2, Gauge, Magnet, Maximize2, Redo2, Scissors, Trash2, Undo2, ZoomIn, ZoomOut, Type,
 } from 'lucide-react';
+import { formatTimecode } from '../../lib/timelineMath';
 
 const SPEEDS = [0.5, 1, 1.5, 2];
 
@@ -29,6 +30,8 @@ function ToolButton({ icon: Icon, label, hint, shortcut, onClick, disabled, acti
 }
 
 export default function Toolbar({
+  playhead = 0,
+  totalDuration = 0,
   hasClipSelected,
   hasSelection,
   selectedClip,
@@ -58,10 +61,20 @@ export default function Toolbar({
       <ToolButton icon={Undo2} label="ย้อน" hint="ย้อนการแก้ล่าสุด" shortcut="Ctrl+Z" onClick={onUndo} disabled={!canUndo} />
       <ToolButton icon={Redo2} label="ไปหน้า" hint="ทำสิ่งที่เพิ่งย้อนไปอีกครั้ง" shortcut="Ctrl+Shift+Z" onClick={onRedo} disabled={!canRedo} />
 
+      {/* Digital Timecode Display */}
+      <div
+        className="mx-1 flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#161514] border border-[#3A3833] font-mono text-xs font-semibold shadow-inner select-none"
+        title="เวลาปัจจุบัน / เวลาทั้งหมดของคลิป"
+      >
+        <span className="text-[#25F4EE]">{formatTimecode(playhead)}</span>
+        <span className="text-[#6B6660]">/</span>
+        <span className="text-[#9C968F]">{formatTimecode(totalDuration)}</span>
+      </div>
+
       <span className="mx-1 h-4 w-px bg-[#363430]" />
 
       <ToolButton icon={Scissors} label="แยก" hint="ผ่าคลิปตรงหัวอ่าน" shortcut="S / Ctrl+B" onClick={onSplit} disabled={!canSplit} />
-      <ToolButton icon={Plus} label="ข้อความ" hint="แทรกข้อความใหม่ตรงหัวอ่าน" onClick={onAddText} />
+      <ToolButton icon={Type} label="เพิ่มข้อความ" hint="แทรกข้อความใหม่ตรงหัวอ่าน" onClick={onAddText} />
       <ToolButton icon={Copy} label="ทำสำเนา" hint="ก๊อบคลิปที่เลือกต่อท้ายตัวเอง" onClick={onDuplicate} disabled={!hasClipSelected} />
       <ToolButton icon={Trash2} label="ลบ" shortcut="Del" onClick={onDelete} disabled={!hasSelection} />
 

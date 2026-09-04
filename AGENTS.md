@@ -6,7 +6,7 @@
 
 ## 🎯 1. ภาพรวมโปรเจกต์ (Project Overview)
 
-โปรเจกต์นี้คือ **TikTok Auto-Cutter Pro Studio** — ระบบ Automation Pipeline สำหรับสร้างและตัดต่อวิดีโอสั้นแนวตั้ง **9:16 (1080x1920)** อัตโนมัติด้วย Python, FastAPI, React/Vite และเชื่อมโยงกับ CapCut PC เพื่อผลิตคลิปรีวิวและขายสินค้าอย่างมีประสิทธิภาพ
+โปรเจกต์นี้คือ **OmniCut Pro Studio** (AI Video Production Suite) — ระบบ Automation Pipeline สำหรับสร้างและตัดต่อวิดีโอสั้นแนวตั้ง **9:16 (1080x1920)** อัตโนมัติด้วย Python, FastAPI, React/Vite และเชื่อมโยงกับ CapCut PC เพื่อผลิตคลิปรีวิวและขายสินค้าอย่างมีประสิทธิภาพ
 
 ---
 

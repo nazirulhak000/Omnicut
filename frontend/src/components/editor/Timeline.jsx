@@ -1,16 +1,20 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Film, MessageSquare, Music, Scissors, Waves } from 'lucide-react';
+import {
+  Copy, Eye, EyeOff, Film, FlipHorizontal2, Gauge, MessageSquare, Music, Plus, Scissors, Sparkles, Trash2, Type, Volume2, VolumeX, Waves, X
+} from 'lucide-react';
 import TimelineClip from './TimelineClip';
 import { CLIP_DRAG_TYPE } from './AssetPanel';
 import { getAudioPeaks, MAX_DECODE_SECONDS } from '../../lib/audioPeaks';
-import { formatTimecode } from '../../lib/timelineMath';
+import { formatTimecode, TRANSITIONS, FADE_DURATION } from '../../lib/timelineMath';
 
 const RULER_H = 22;
 const WAVE_COLUMNS = 1200;
 const VIDEO_H = 60;
+const HOOK_H = 26;
 const CAPTION_H = 30;
+const TEXT_OVERLAY_H = 30;
 const AUDIO_H = 30;
-const GUTTER = 92;        // left label column
+const GUTTER = 104;        // left label column
 const TRACK_GAP = 4;
 
 /** Tick spacing that keeps labels readable at any zoom. */
@@ -21,14 +25,17 @@ function tickStep(pxPerSec) {
   return 120;
 }
 
-function TrackLabel({ icon: Icon, children }) {
+function TrackLabel({ icon: Icon, children, action }) {
   return (
     <div
-      className="flex items-center gap-1.5 px-2 text-sm font-medium text-[#9C968F]"
+      className="flex items-center justify-between px-2 text-xs font-medium text-[#9C968F]"
       style={{ width: GUTTER }}
     >
-      <Icon className="h-3 w-3 flex-shrink-0" />
-      <span className="truncate">{children}</span>
+      <div className="flex items-center gap-1.5 truncate">
+        <Icon className="h-3 w-3 flex-shrink-0" />
+        <span className="truncate">{children}</span>
+      </div>
+      {action}
     </div>
   );
 }
@@ -64,16 +71,40 @@ export default function Timeline({
   onZoom,
   viewportRef,
   audioUrl,
+  isAudioMuted = false,
+  onToggleMuteAudio,
+  isCaptionHidden = false,
+  onToggleHideCaption,
+  onSplit,
+  onDuplicate,
+  onDelete,
+  onToggleMirror,
   // Edge/body drags snap to these (clip boundaries, playhead, audio end).
   // Both default to "no snapping" so the timeline still works if a caller
   // doesn't wire them up.
   snapCandidates: snapPoints = [],
   snapFunction = (t) => t,
+  showHookHeader = true,
+  hookBrand = '',
+  hookModel = '',
+  hookLabel = '',
+  hookDuration = 3.0,
+  onHookDurationChange,
+  onToggleHookHeader,
+  onSelectHook,
+  textOverlays = [],
+  onAddTextOverlay,
+  onTextOverlayChange,
+  onSelectTextOverlay,
+  isTextOverlayHidden = false,
+  onToggleHideTextOverlay,
 }) {
   const selectClip = (id) => (onSelectClip ? onSelectClip(id) : onSelect?.({ type: 'clip', id }));
   const selectCaption = (uid) => (onSelectCaption ? onSelectCaption(uid) : onSelect?.({ type: 'caption', id: uid }));
+  const selectTextOverlay = (id) => (onSelectTextOverlay ? onSelectTextOverlay(id) : onSelect?.({ type: 'text_overlay', id }));
   const trimClip = (id, patch) => (onTrim ? onTrim(id, patch) : onClipChange?.(id, patch, true));
   const shiftCaption = (uid, patch) => (onCaptionShift ? onCaptionShift(uid, patch) : onCaptionChange?.(uid, patch, true));
+  const shiftTextOverlay = (id, patch) => (onTextOverlayChange ? onTextOverlayChange(id, patch, true) : null);
   const dragBegin = () => (onTrimBegin || onBeginDrag)?.();
   const dragEnd = () => (onTrimEnd || onEndDrag)?.();
   const toggleTransition = (id) => {
@@ -91,10 +122,76 @@ export default function Timeline({
   const scrubbing = useRef(false);
   const captionDrag = useRef(null);
   const captionTrim = useRef(null);
+  const textDrag = useRef(null);
+  const textTrim = useRef(null);
   const bodyDrag = useRef(null);
   const [dropIndex, setDropIndex] = useState(null);
   const waveRef = useRef(null);
   const [waveInfo, setWaveInfo] = useState(null);
+  const [transitionMenuClipId, setTransitionMenuClipId] = useState(null);
+  const [contextMenu, setContextMenu] = useState(null);
+  const hasTextOverlays = Boolean(textOverlays && textOverlays.length > 0);
+
+  // Auto-stacking multi-layer calculation for overlapping text overlays
+  const { packedTextOverlays, textLaneCount } = useMemo(() => {
+    if (!textOverlays || textOverlays.length === 0) {
+      return { packedTextOverlays: [], textLaneCount: 0 };
+    }
+    const sorted = [...textOverlays].sort((a, b) => a.start - b.start);
+    const laneEndTimes = [];
+    const packed = sorted.map((item) => {
+      let assignedLane = -1;
+      for (let i = 0; i < laneEndTimes.length; i++) {
+        if (item.start >= laneEndTimes[i] - 0.05) {
+          assignedLane = i;
+          laneEndTimes[i] = item.end;
+          break;
+        }
+      }
+      if (assignedLane === -1) {
+        assignedLane = laneEndTimes.length;
+        laneEndTimes.push(item.end);
+      }
+      return { ...item, lane: assignedLane };
+    });
+    return { packedTextOverlays: packed, textLaneCount: Math.max(1, laneEndTimes.length) };
+  }, [textOverlays]);
+
+  const TEXT_LANE_ROW_H = 26;
+  const textTrackHeight = Math.max(TEXT_OVERLAY_H, textLaneCount * TEXT_LANE_ROW_H + 4);
+
+  // Close context menu & transition popover on outside pointer click or Escape
+  useEffect(() => {
+    const handleGlobalPointer = (e) => {
+      if (transitionMenuClipId && !e.target.closest('[data-transition-popover]') && !e.target.closest('[data-transition-trigger]')) {
+        setTransitionMenuClipId(null);
+      }
+      if (contextMenu && !e.target.closest('[data-context-menu]')) {
+        setContextMenu(null);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setTransitionMenuClipId(null);
+        setContextMenu(null);
+      }
+    };
+    window.addEventListener('pointerdown', handleGlobalPointer);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('pointerdown', handleGlobalPointer);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [transitionMenuClipId, contextMenu]);
+
+  const handleClipContextMenu = (e, seg) => {
+    setTransitionMenuClipId(null);
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      seg,
+    });
+  };
 
   // Ctrl/Cmd+wheel has to be bound natively with { passive: false }: React
   // registers its own root `wheel` listener as passive, so preventDefault()
@@ -281,6 +378,75 @@ export default function Timeline({
     if (d?.moved) dragEnd();
   };
 
+  const startTextTrim = (e, item, edge) => {
+    e.stopPropagation();
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+    textTrim.current = {
+      id: item.id,
+      edge,
+      startX: e.clientX,
+      start: item.start,
+      end: item.end,
+      moved: false,
+    };
+  };
+
+  const moveTextTrim = (e) => {
+    const d = textTrim.current;
+    if (!d) return;
+    const delta = (e.clientX - d.startX) / pxPerSec;
+    if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return;
+    if (!d.moved) { d.moved = true; dragBegin(); }
+
+    if (d.edge === 'left') {
+      const rawStart = Math.max(0, Math.min(d.end - 0.2, d.start + delta));
+      const snapped = snapFunction(rawStart, snapPoints);
+      shiftTextOverlay(d.id, { start: Math.round(snapped * 100) / 100 });
+    } else {
+      const rawEnd = Math.max(d.start + 0.2, d.end + delta);
+      const snapped = snapFunction(rawEnd, snapPoints);
+      shiftTextOverlay(d.id, { end: Math.round(snapped * 100) / 100 });
+    }
+  };
+
+  const endTextTrim = (e) => {
+    const d = textTrim.current;
+    textTrim.current = null;
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
+    if (d?.moved) dragEnd();
+  };
+
+  const hookTrim = useRef(null);
+
+  const startHookTrim = (e) => {
+    e.stopPropagation();
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+    hookTrim.current = {
+      startX: e.clientX,
+      startDuration: hookDuration || 3.0,
+      moved: false,
+    };
+  };
+
+  const moveHookTrim = (e) => {
+    const d = hookTrim.current;
+    if (!d) return;
+    const delta = (e.clientX - d.startX) / pxPerSec;
+    if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return;
+    if (!d.moved) { d.moved = true; dragBegin(); }
+    const rawDur = Math.max(1.0, Math.min(8.0, d.startDuration + delta));
+    const snapped = snapFunction(rawDur, snapPoints);
+    const clamped = Math.max(1.0, Math.min(8.0, Math.round(snapped * 10) / 10));
+    onHookDurationChange?.(clamped);
+  };
+
+  const endHookTrim = (e) => {
+    const d = hookTrim.current;
+    hookTrim.current = null;
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
+    if (d?.moved) dragEnd();
+  };
+
   const sfxMarkers = (cues || []).filter((c) => c.sfx);
 
   return (
@@ -317,11 +483,91 @@ export default function Timeline({
               <div style={{ height: VIDEO_H }} className="flex items-center">
                 <TrackLabel icon={Film}>วิดีโอ</TrackLabel>
               </div>
-              <div style={{ height: CAPTION_H }} className="flex items-center">
-                <TrackLabel icon={MessageSquare}>คำบรรยาย</TrackLabel>
+              <div style={{ height: HOOK_H }} className="flex items-center">
+                <TrackLabel
+                  icon={Sparkles}
+                  action={
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onToggleHookHeader?.(); }}
+                      title={showHookHeader ? 'คลิกเพื่อซ่อนป้ายฮุกบนพรีวิว' : 'คลิกเพื่อแสดงป้ายฮุกบนพรีวิว'}
+                      className={`p-1 rounded transition-colors ${
+                        !showHookHeader
+                          ? 'text-amber-400 hover:bg-amber-400/20'
+                          : 'text-[#E6C24A] hover:bg-[#E6C24A]/20'
+                      }`}
+                    >
+                      {!showHookHeader ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                    </button>
+                  }
+                >
+                  ป้ายฮุก
+                </TrackLabel>
               </div>
+              <div style={{ height: CAPTION_H }} className="flex items-center">
+                <TrackLabel
+                  icon={MessageSquare}
+                  action={
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onToggleHideCaption?.(); }}
+                      title={isCaptionHidden ? 'คลิกเพื่อแสดงคำบรรยายบนพรีวิว' : 'คลิกเพื่อซ่อนคำบรรยายบนพรีวิว'}
+                      className={`p-1 rounded transition-colors ${
+                        isCaptionHidden
+                          ? 'text-amber-400 hover:bg-amber-400/20'
+                          : 'text-[#9C968F] hover:text-[#EDE9E3] hover:bg-[#2C2B27]'
+                      }`}
+                    >
+                      {isCaptionHidden ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                    </button>
+                  }
+                >
+                  คำบรรยาย
+                </TrackLabel>
+              </div>
+              {hasTextOverlays && (
+                <div style={{ height: textTrackHeight }} className="flex items-center transition-all duration-150">
+                  <TrackLabel
+                    icon={Type}
+                    action={
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onToggleHideTextOverlay?.(); }}
+                        title={isTextOverlayHidden ? 'คลิกเพื่อแสดงข้อความเสริมบนพรีวิว' : 'คลิกเพื่อซ่อนข้อความเสริมบนพรีวิว'}
+                        className={`p-1 rounded transition-colors ${
+                          isTextOverlayHidden
+                            ? 'text-amber-400 hover:bg-amber-400/20'
+                            : 'text-[#9C968F] hover:text-[#EDE9E3] hover:bg-[#2C2B27]'
+                        }`}
+                      >
+                        {isTextOverlayHidden ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                      </button>
+                    }
+                  >
+                    {textLaneCount > 1 ? `ข้อความ (${textLaneCount})` : 'ข้อความ'}
+                  </TrackLabel>
+                </div>
+              )}
               <div style={{ height: AUDIO_H }} className="flex items-center">
-                <TrackLabel icon={Music}>เสียง</TrackLabel>
+                <TrackLabel
+                  icon={Music}
+                  action={
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onToggleMuteAudio?.(); }}
+                      title={isAudioMuted ? 'คลิกเพื่อเปิดเสียงพรีวิว' : 'คลิกเพื่อปิดเสียงพรีวิว (Mute)'}
+                      className={`p-1 rounded transition-colors ${
+                        isAudioMuted
+                          ? 'text-rose-400 hover:bg-rose-400/20'
+                          : 'text-[#9C968F] hover:text-[#EDE9E3] hover:bg-[#2C2B27]'
+                      }`}
+                    >
+                      {isAudioMuted ? <VolumeX className="h-3 w-3" /> : <Volume2 className="h-3 w-3" />}
+                    </button>
+                  }
+                >
+                  เสียง
+                </TrackLabel>
               </div>
             </div>
 
@@ -352,6 +598,7 @@ export default function Timeline({
                     isSelected={selection?.type === 'clip' && selection.id === seg.clip.id}
                     filmstrip={filmstrips?.[seg.clip.id]}
                     onSelect={selectClip}
+                    onContextMenu={handleClipContextMenu}
                     onTrim={trimClip}
                     onTrimBegin={dragBegin}
                     onTrimEnd={dragEnd}
@@ -365,25 +612,190 @@ export default function Timeline({
                 ))}
 
                 {segments.slice(1).map((seg) => {
-                  const isFade = (seg.clip.transition_in || 'cut') !== 'cut';
+                  const currentTransition = seg.clip.transition_in || 'cut';
+                  const isFade = currentTransition !== 'cut';
+                  const isOpen = transitionMenuClipId === seg.clip.id;
+                  const currentDuration = seg.clip.transition_duration ?? FADE_DURATION;
+                  const leftPx = seg.segStart * pxPerSec;
+
                   return (
-                    <button
-                      key={`tr-${seg.clip.id}`}
-                      onClick={(e) => { e.stopPropagation(); toggleTransition(seg.clip.id); }}
-                      title={isFade
-                        ? `${seg.clip.transition_in} ${seg.overlap.toFixed(1)} วิ — คลิกเปลี่ยนเป็นตัดตรง (เลือกแบบอื่นที่แผงขวา)`
-                        : 'ตัดตรง — คลิกเปลี่ยนเป็นรอยต่อแบบจาง'}
-                      className={`absolute top-1/2 z-20 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded border transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
-                        isFade
-                          ? 'border-[#D97757] bg-[#33251F] text-[#E89274]'
-                          : 'border-[#4A4742] bg-[#232220] text-[#9C968F] hover:text-[#EDE9E3]'
-                      }`}
-                      style={{ left: seg.segStart * pxPerSec }}
+                    <div
+                      key={`tr-wrap-${seg.clip.id}`}
+                      className="absolute top-0 bottom-0 pointer-events-none"
+                      style={{ left: leftPx }}
                     >
-                      {isFade ? <Waves className="h-3 w-3" /> : <Scissors className="h-3 w-3" />}
-                    </button>
+                      <button
+                        key={`tr-${seg.clip.id}`}
+                        data-transition-trigger=""
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setContextMenu(null);
+                          setTransitionMenuClipId(isOpen ? null : seg.clip.id);
+                        }}
+                        title={isFade
+                          ? `${currentTransition} ${seg.overlap.toFixed(1)} วิ — คลิกเพื่อเปลี่ยนทรานซิชัน`
+                          : 'ตัดตรง — คลิกเพื่อเลือกรอยต่อทรานซิชัน'}
+                        className={`pointer-events-auto absolute top-1/2 z-20 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded border transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
+                          isFade
+                            ? 'border-[#D97757] bg-[#33251F] text-[#E89274]'
+                            : 'border-[#4A4742] bg-[#232220] text-[#9C968F] hover:text-[#EDE9E3]'
+                        } ${isOpen ? 'ring-2 ring-[#25F4EE] z-30' : ''}`}
+                      >
+                        {isFade ? <Waves className="h-3 w-3" /> : <Scissors className="h-3 w-3" />}
+                      </button>
+
+                      {/* Quick Transition Popover */}
+                      {isOpen && (
+                        <div
+                          data-transition-popover=""
+                          onClick={(e) => e.stopPropagation()}
+                          className={`pointer-events-auto absolute bottom-full mb-2 z-50 w-56 rounded-xl border border-[#4A4742] bg-[#1C1B19]/95 p-2.5 shadow-2xl backdrop-blur-md text-xs text-[#EDE9E3] animate-in fade-in zoom-in-95 duration-150 ${
+                            leftPx < 120 ? 'left-0' : '-translate-x-1/2'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between pb-1.5 border-b border-[#363430]">
+                            <span className="font-semibold text-white flex items-center gap-1.5">
+                              <Waves className="h-3.5 w-3.5 text-[#25F4EE]" /> รอยต่อคลิป
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setTransitionMenuClipId(null)}
+                              className="p-0.5 text-slate-400 hover:text-white rounded"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+
+                          <div className="py-2 space-y-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onClipChange?.(seg.clip.id, { transition_in: 'cut' });
+                                setTransitionMenuClipId(null);
+                              }}
+                              className={`w-full py-1.5 px-2 rounded-lg text-left font-medium transition-colors flex items-center justify-between ${
+                                currentTransition === 'cut'
+                                  ? 'bg-[#D97757]/25 text-[#E89274] border border-[#D97757]/50'
+                                  : 'hover:bg-[#2C2B27] text-slate-300'
+                              }`}
+                            >
+                              <span>ตัดตรง (ไม่มีรอยต่อ)</span>
+                              {currentTransition === 'cut' && <Scissors className="h-3 w-3" />}
+                            </button>
+
+                            <div className="grid grid-cols-2 gap-1 pt-1">
+                              {TRANSITIONS.slice(0, 8).map((t) => {
+                                const active = currentTransition === t.id;
+                                return (
+                                  <button
+                                    key={t.id}
+                                    type="button"
+                                    onClick={() => {
+                                      onClipChange?.(seg.clip.id, {
+                                        transition_in: t.id,
+                                        transition_duration: currentDuration,
+                                      });
+                                      setTransitionMenuClipId(null);
+                                    }}
+                                    className={`py-1 px-2 rounded-lg text-left font-medium truncate transition-colors ${
+                                      active
+                                        ? 'bg-[#D97757] text-white'
+                                        : 'bg-[#282724] hover:bg-[#363430] text-slate-300'
+                                    }`}
+                                  >
+                                    {t.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Duration presets */}
+                          <div className="pt-2 border-t border-[#363430]">
+                            <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1.5">
+                              <span>ความยาวรอยต่อ:</span>
+                              <span className="font-mono font-bold text-[#25F4EE]">{currentDuration.toFixed(1)}s</span>
+                            </div>
+                            <div className="grid grid-cols-4 gap-1">
+                              {[0.3, 0.5, 0.8, 1.0].map((d) => (
+                                <button
+                                  key={d}
+                                  type="button"
+                                  onClick={() => {
+                                    onClipChange?.(seg.clip.id, {
+                                      transition_in: currentTransition === 'cut' ? 'fade' : currentTransition,
+                                      transition_duration: d,
+                                    });
+                                  }}
+                                  className={`py-0.5 rounded text-center font-mono text-xs transition-colors ${
+                                    Math.abs(currentDuration - d) < 0.05
+                                      ? 'bg-[#25F4EE]/20 border border-[#25F4EE] text-[#25F4EE] font-bold'
+                                      : 'bg-[#282724] hover:bg-[#363430] text-slate-400'
+                                  }`}
+                                >
+                                  {d}s
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
+              </div>
+
+              {/* hook header track */}
+              <div className="relative mt-1 rounded bg-[#181716]" style={{ height: HOOK_H }}>
+                {(() => {
+                  const hookText = [hookBrand, hookModel, hookLabel].filter(Boolean).join(' · ') || 'ป้ายฮุกพาดหัว (Hook Header)';
+                  const isSelected = selection?.type === 'hook';
+                  const dur = hookDuration || 3.0;
+                  const w = Math.max(24, dur * pxPerSec);
+
+                  return (
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onSelectHook) onSelectHook();
+                        else onSelect?.({ type: 'hook' });
+                      }}
+                      title={`${hookText} (0.0s - ${dur.toFixed(1)}s)`}
+                      className={`group absolute top-0.5 h-[calc(100%-4px)] touch-none select-none rounded text-left text-xs transition-colors duration-150 flex items-center ${
+                        !showHookHeader
+                          ? 'opacity-40 bg-[#282724] text-[#9C968F] ring-1 ring-white/10'
+                          : isSelected
+                            ? 'bg-[#3A3018] text-[#FFE600] ring-2 ring-[#E6C24A] shadow-[0_0_12px_rgba(230,194,74,0.3)]'
+                            : 'bg-[#2A2415] text-[#E6C24A] ring-1 ring-[#594B22] hover:ring-[#8C7636]'
+                      }`}
+                      style={{ left: 0, width: w }}
+                    >
+                      {/* Body */}
+                      <div className="flex-1 min-w-0 h-full flex items-center px-2 gap-1.5 overflow-hidden cursor-pointer">
+                        <Sparkles className="h-3 w-3 flex-shrink-0 text-[#E6C24A]" />
+                        <span className="truncate font-semibold text-[11px] tracking-wide">
+                          {hookText}
+                        </span>
+                        <span className="font-mono text-[10px] text-[#E6C24A]/70 flex-shrink-0 ml-auto">
+                          {dur.toFixed(1)}s
+                        </span>
+                      </div>
+
+                      {/* Right Trim Handle for Hook Duration */}
+                      <div
+                        onPointerDown={startHookTrim}
+                        onPointerMove={moveHookTrim}
+                        onPointerUp={endHookTrim}
+                        onPointerCancel={endHookTrim}
+                        title="ลากเพื่อปรับระยะเวลาแสดงผลป้ายฮุก (1.0 - 8.0 วิ)"
+                        className="h-full w-2.5 flex-shrink-0 cursor-ew-resize rounded-r hover:bg-[#E6C24A] bg-white/[0.04] transition-colors flex items-center justify-center z-10 opacity-60 group-hover:opacity-100"
+                      >
+                        <div className="h-2.5 w-0.5 rounded-full bg-white/40" />
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* caption track */}
@@ -471,6 +883,103 @@ export default function Timeline({
                 })}
               </div>
 
+              {/* text overlay track (only shown when overlays exist, auto-stacked by lane) */}
+              {hasTextOverlays && (
+                <div
+                  className="relative mt-1 rounded bg-[#181716] transition-all duration-150"
+                  style={{ height: textTrackHeight }}
+                >
+                  {packedTextOverlays.map((item) => {
+                    const selected = selection?.type === 'text_overlay' && selection.id === item.id;
+                    const w = Math.max(16, (item.end - item.start) * pxPerSec);
+                    const topPx = item.lane * TEXT_LANE_ROW_H + 2;
+                    return (
+                      <div
+                        key={item.id}
+                        onClick={(e) => { e.stopPropagation(); selectTextOverlay(item.id); }}
+                        title={`${item.text || 'ข้อความเสริม'} (${item.start.toFixed(2)}s - ${item.end.toFixed(2)}s)`}
+                        className={`group absolute touch-none select-none rounded text-left text-xs leading-[18px] transition-colors duration-150 flex items-center ${
+                          selected
+                            ? 'bg-[#153434] text-[#25F4EE] ring-2 ring-[#25F4EE] shadow-[0_0_10px_rgba(37,244,238,0.25)] z-10'
+                            : 'bg-[#1C2626] text-[#A2CCCC] ring-1 ring-[#2E4848] hover:ring-[#477070]'
+                        }`}
+                        style={{
+                          left: item.start * pxPerSec,
+                          width: w,
+                          top: topPx,
+                          height: TEXT_LANE_ROW_H - 4,
+                        }}
+                      >
+                        {/* Left Trim Handle */}
+                        <div
+                          onPointerDown={(e) => startTextTrim(e, item, 'left')}
+                          onPointerMove={moveTextTrim}
+                          onPointerUp={endTextTrim}
+                          onPointerCancel={endTextTrim}
+                          title="ลากเพื่อยืด/หดเวลาเริ่มต้น"
+                          className="h-full w-2.5 flex-shrink-0 cursor-ew-resize rounded-l hover:bg-[#25F4EE] bg-white/[0.04] transition-colors flex items-center justify-center z-10 opacity-60 group-hover:opacity-100"
+                        >
+                          <div className="h-2.5 w-0.5 rounded-full bg-white/40" />
+                        </div>
+
+                        {/* Middle Body (Drag to shift entire text overlay) */}
+                        <div
+                          onPointerDown={(e) => {
+                            try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+                            textDrag.current = {
+                              id: item.id, startX: e.clientX, start: item.start, end: item.end, moved: false,
+                            };
+                          }}
+                          onPointerMove={(e) => {
+                            const d = textDrag.current;
+                            if (!d || d.id !== item.id) return;
+                            const delta = (e.clientX - d.startX) / pxPerSec;
+                            if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return;
+                            if (!d.moved) { d.moved = true; dragBegin(); }
+                            const shift = Math.max(-d.start, delta);
+                            const rawStart = d.start + shift;
+                            const snappedStart = snapFunction(rawStart, snapPoints);
+                            const correction = snappedStart - rawStart;
+                            shiftTextOverlay(item.id, {
+                              start: Math.round((d.start + shift + correction) * 100) / 100,
+                              end: Math.round((d.end + shift + correction) * 100) / 100,
+                            });
+                          }}
+                          onPointerUp={(e) => {
+                            const d = textDrag.current;
+                            textDrag.current = null;
+                            try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
+                            if (d?.moved) dragEnd();
+                          }}
+                          onPointerCancel={(e) => {
+                            const d = textDrag.current;
+                            textDrag.current = null;
+                            try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
+                            if (d?.moved) dragEnd();
+                          }}
+                          className="flex-1 min-w-0 h-full flex items-center px-1.5 overflow-hidden cursor-grab active:cursor-grabbing gap-1"
+                        >
+                          <Type className="h-3 w-3 flex-shrink-0 text-[#25F4EE]" />
+                          <span className="truncate font-medium">{item.text || 'ข้อความเสริม'}</span>
+                        </div>
+
+                        {/* Right Trim Handle */}
+                        <div
+                          onPointerDown={(e) => startTextTrim(e, item, 'right')}
+                          onPointerMove={moveTextTrim}
+                          onPointerUp={endTextTrim}
+                          onPointerCancel={endTextTrim}
+                          title="ลากเพื่อยืด/หดเวลาสิ้นสุด"
+                          className="h-full w-2.5 flex-shrink-0 cursor-ew-resize rounded-r hover:bg-[#25F4EE] bg-white/[0.04] transition-colors flex items-center justify-center z-10 opacity-60 group-hover:opacity-100"
+                        >
+                          <div className="h-2.5 w-0.5 rounded-full bg-white/40" />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               {/* audio track */}
               <div className="relative mt-1 rounded bg-[#181716]" style={{ height: AUDIO_H }}>
                 {audioDuration > 0 && (
@@ -532,6 +1041,105 @@ export default function Timeline({
           </div>
         </div>
       </div>
+
+      {/* Right-Click Context Menu on Video Clips */}
+      {contextMenu && (
+        <div
+          data-context-menu=""
+          onClick={(e) => e.stopPropagation()}
+          className="fixed z-50 min-w-[190px] rounded-xl border border-[#4A4742] bg-[#1E1D1A]/95 p-1.5 shadow-2xl backdrop-blur-md text-xs text-[#EDE9E3] animate-in fade-in zoom-in-95 duration-100"
+          style={{
+            left: Math.max(10, Math.min(window.innerWidth - 200, contextMenu.x)),
+            top: Math.max(10, Math.min(window.innerHeight - 230, contextMenu.y)),
+          }}
+        >
+          <div className="px-2 py-1 font-mono text-[10px] font-semibold text-[#9C968F] border-b border-[#363430] truncate">
+            {contextMenu.seg.clip.source_path?.split(/[\\/]/).pop()}
+          </div>
+          <div className="py-1 space-y-0.5">
+            <button
+              type="button"
+              onClick={() => {
+                onSplit?.();
+                setContextMenu(null);
+              }}
+              className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-[#D97757]/20 hover:text-[#E89274] transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <Scissors className="h-3.5 w-3.5" />
+                <span>ผ่าคลิปตรงหัวอ่าน</span>
+              </span>
+              <span className="text-[10px] text-slate-500 font-mono">S / Ctrl+B</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onDuplicate?.();
+                setContextMenu(null);
+              }}
+              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[#2C2B27] transition-colors"
+            >
+              <Copy className="h-3.5 w-3.5" />
+              <span>ทำสำเนาคลิป</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onToggleMirror?.();
+                setContextMenu(null);
+              }}
+              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[#2C2B27] transition-colors"
+            >
+              <FlipHorizontal2 className="h-3.5 w-3.5" />
+              <span>กลับด้านภาพ (Mirror)</span>
+            </button>
+          </div>
+
+          <div className="my-1 border-t border-[#363430]" />
+          <div className="px-2 py-1 text-[10px] text-[#9C968F] flex items-center gap-1">
+            <Gauge className="h-3 w-3" />
+            <span>ปรับความเร็ว:</span>
+          </div>
+          <div className="grid grid-cols-4 gap-1 px-1">
+            {[0.5, 1, 1.5, 2].map((sp) => {
+              const cur = contextMenu.seg.clip.speed || 1;
+              return (
+                <button
+                  key={sp}
+                  type="button"
+                  onClick={() => {
+                    onClipChange?.(contextMenu.seg.clip.id, { speed: sp === 1 ? undefined : sp });
+                    setContextMenu(null);
+                  }}
+                  className={`py-1 rounded text-center font-semibold transition-colors ${
+                    cur === sp
+                      ? 'bg-[#D97757] text-white'
+                      : 'bg-[#282724] hover:bg-[#363430] text-[#C9C3BB]'
+                  }`}
+                >
+                  {sp}x
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="my-1 border-t border-[#363430]" />
+          <button
+            type="button"
+            onClick={() => {
+              onDelete?.();
+              setContextMenu(null);
+            }}
+            className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-rose-400 hover:bg-rose-500/20 transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>ลบคลิป</span>
+            </span>
+            <span className="text-[10px] text-rose-400/60 font-mono">Del</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

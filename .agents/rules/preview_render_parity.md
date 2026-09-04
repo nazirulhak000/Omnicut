@@ -134,7 +134,7 @@ ASS ใช้ `Layer` เลขน้อยวาดก่อน (อยู่�
 | ค่า | `subtitle_engine.py` | `SequencePlayer.jsx` |
 |---|---|---|
 | ขนาดฟอนต์ Hook | `hook_fs = video_width * 0.065` | `baseFontSize = CANVAS_W * 0.065` |
-| ขนาดฟอนต์ Caption | `base_fs = video_width * 0.0667` | `baseFs = CANVAS_W * 0.0667` |
+| ขนาดฟอนต์ Caption | `base_fs = video_width * 0.0463` | `baseFs = CANVAS_W * 0.0463` |
 | ระยะบรรทัด | `LINE_HEIGHT_FACTOR = 1.0` | `lineGap = 1.0`, `thaiLineH = fontSize` |
 | จุดเริ่มบล็อค Hook | `cursor_y = 260` (/1920) | `y = 130` (/960) |
 | สเกลแต่ละชั้น | `hook_tier_specs` 130/100/58 | `tierSpecs` sizePct |

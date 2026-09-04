@@ -1,5 +1,5 @@
 """
-Master Asset Builder for TikTok Auto-Cutter AI
+Master Asset Builder for OmniCut Pro Studio
 Generates and populates all 7 asset categories in 02_Assets/ with professional quality.
 """
 

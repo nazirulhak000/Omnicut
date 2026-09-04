@@ -1,5 +1,5 @@
 """
-Image Motion Engine for TikTok Auto-Cutter.
+Image Motion Engine for OmniCut Pro Studio.
 Converts product still images into dynamic, smooth Ken-Burns 9:16 vertical video clips
 synced with narration cues when no raw video footage is available.
 """
@@ -60,14 +60,16 @@ class ImageMotionEngine:
             img_path = valid_images[idx % len(valid_images)]
             seg_out = temp_dir / f"seg_{idx:03d}.mp4"
             
-            # Alternate Zoom In vs Zoom Out for dynamic feel
-            zoom_in = (idx % 2 == 0)
-            frames = int(math.ceil(dur * FPS))
+            # Dynamic Ken-Burns: smooth zoom rate scaled across the exact duration
+            max_zoom = 1.15
+            min_zoom = 1.00
+            zoom_range = max_zoom - min_zoom
+            step = zoom_range / max(1, frames)
             
             if zoom_in:
-                zoom_expr = f"min(zoom+0.0015,1.15)"
+                zoom_expr = f"min(1.0+{step:.6f}*on,{max_zoom})"
             else:
-                zoom_expr = f"max(1.15-0.0015*on,1.0)"
+                zoom_expr = f"max({max_zoom}-{step:.6f}*on,{min_zoom})"
 
             # FFmpeg filter:
             # 1. Background: scale image to fill 1080x1920 + boxblur

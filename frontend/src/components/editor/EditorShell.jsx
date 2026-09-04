@@ -257,6 +257,45 @@ export default function EditorShell({
   const [deleteError, setDeleteError] = useState(null);
   const [deleteScope, setDeleteScope] = useState('project');
   const [deleteOrigin, setDeleteOrigin] = useState(null);
+  const [isAudioMuted, setIsAudioMuted] = useState(false);
+  const [isCaptionHidden, setIsCaptionHidden] = useState(false);
+  const [textOverlays, setTextOverlays] = useState([]);
+  const [isTextOverlayHidden, setIsTextOverlayHidden] = useState(false);
+
+  const handleAddTextOverlay = useCallback(() => {
+    const startSec = Math.round(playhead * 100) / 100;
+    const endSec = Math.round((playhead + 2.5) * 100) / 100;
+    const newOverlay = {
+      id: `txt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      text: 'ข้อความใหม่',
+      start: startSec,
+      end: endSec,
+      position: 'middle',
+      scale: 1.0,
+      color: '#FFE600',
+      bgStyle: 'none',
+      anim: 'pop',
+    };
+    setTextOverlays((prev) => [...prev, newOverlay]);
+    setSelection({ type: 'text_overlay', id: newOverlay.id });
+    cuesDirty.current = true;
+    setSaveStatus('dirty');
+  }, [playhead]);
+
+  const handleUpdateTextOverlay = useCallback((id, patch) => {
+    setTextOverlays((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, ...patch } : item))
+    );
+    cuesDirty.current = true;
+    setSaveStatus('dirty');
+  }, []);
+
+  const handleDeleteTextOverlay = useCallback((id) => {
+    setTextOverlays((prev) => prev.filter((item) => item.id !== id));
+    setSelection((curr) => (curr?.type === 'text_overlay' && curr?.id === id ? null : curr));
+    cuesDirty.current = true;
+    setSaveStatus('dirty');
+  }, []);
 
   const mobilePlayerRef = useRef(null);
   const desktopPlayerRef = useRef(null);
@@ -441,6 +480,8 @@ export default function EditorShell({
       setHookMotion(data.hook_motion || data.render_params?.hook_motion || {});
       setHookColors(data.hook_colors || data.render_params?.hook_colors || {});
       setShowHookHeader(!!brand);
+      const rawTextOverlays = data.text_overlays || data.render_params?.text_overlays || [];
+      setTextOverlays(Array.isArray(rawTextOverlays) ? rawTextOverlays : []);
 
       const fontName = data.font_name || data.render_params?.font_name || data.style?.font_name || data.style?.fontName || 'IBMPlex';
       const bgmName = data.bgm_name || data.render_params?.bgm_name || data.style?.bgm_name || data.style?.bgmName || null;
@@ -608,8 +649,8 @@ export default function EditorShell({
           hook_label: showHookHeader ? (hookLabel || '') : '',
           hook_duration: hookDuration || 3.0,
           hook_motion: hookMotion,
-        hook_colors: hookColors,
           hook_colors: hookColors,
+          text_overlays: textOverlays,
         });
         setSaveStatus('saved');
       } catch (err) {
@@ -618,7 +659,7 @@ export default function EditorShell({
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [clipList, cuesList, style, projectName, hookBrand, hookModel, hookLabel, hookDuration, hookMotion, hookColors, showHookHeader]);
+  }, [clipList, cuesList, style, projectName, hookBrand, hookModel, hookLabel, hookDuration, hookMotion, hookColors, showHookHeader, textOverlays]);
 
   // Manual save handler (button click or Ctrl+S)
   const handleManualSave = useCallback(async () => {
@@ -661,13 +702,14 @@ export default function EditorShell({
         hook_duration: hookDuration || 3.0,
         hook_motion: hookMotion,
         hook_colors: hookColors,
+        text_overlays: textOverlays,
       });
       setSaveStatus('saved');
     } catch (err) {
       console.warn('Manual save failed:', err);
       setSaveStatus('dirty');
     }
-  }, [clipList, cuesList, style, projectName, hookBrand, hookModel, hookLabel, hookDuration, hookMotion, hookColors, showHookHeader]);
+  }, [projectName, clipList, cuesList, style, hookBrand, hookModel, hookLabel, hookDuration, hookMotion, hookColors, showHookHeader, textOverlays]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -778,6 +820,8 @@ export default function EditorShell({
       cuesDirty.current = true;
       set((prev) => ({ ...prev, cuesList: prev.cuesList.filter((c) => c._uid !== selection.id) }));
       setSelection(null);
+    } else if (selection?.type === 'text_overlay') {
+      handleDeleteTextOverlay(selection.id);
     }
   };
 
@@ -1151,6 +1195,7 @@ export default function EditorShell({
         cues: serializedCues,
         clip_list: serializedClips,
         transitions: serializedTransitions,
+        text_overlays: textOverlays,
       }).catch(() => {});
 
       const res = await startReroll({
@@ -1158,6 +1203,7 @@ export default function EditorShell({
         part: audioDirty ? 'bgm' : 'subtitles',
         clip_list: serializedClips,
         transitions: serializedTransitions,
+        text_overlays: textOverlays,
         bilingual_subtitles: true,
         hook_brand: showHookHeader ? (hookBrand || '') : '',
         hook_model: showHookHeader ? (hookModel || '') : '',
@@ -1570,13 +1616,16 @@ export default function EditorShell({
                   hookDuration={hookDuration}
                   hookMotion={hookMotion}
                   hookColors={hookColors}
+                  textOverlays={isTextOverlayHidden ? [] : textOverlays}
                   audioUrl={audioUrl}
                   captionStyle={{
                     captionPosition: style.captionPosition,
                     captionColor: style.captionColor,
                     captionScale: style.captionScale,
                     fontName: style.fontName,
+                    hidden: isCaptionHidden,
                   }}
+                  isMuted={isAudioMuted}
                   stickerStyle={{
                     badge: style.stickerBadge,
                     position: style.stickerPosition || 'top_right',
@@ -1695,6 +1744,8 @@ export default function EditorShell({
               /* TAB 1: TIMELINE (Compact fixed height, perfect snug fit with no empty black void) */
               <div className="flex-shrink-0 h-[215px] flex flex-col border-t border-white/[0.08] bg-[#0F1420]">
                 <Toolbar
+                  playhead={playhead}
+                  totalDuration={totalDuration}
                   hasClipSelected={!!selectedSeg}
                   hasSelection={!!selection}
                   selectedClip={selectedSeg?.clip}
@@ -1741,12 +1792,34 @@ export default function EditorShell({
                     onReorderSilent={(id, dir) => reorderClip(id, dir, true)}
                     onDropClip={addClip}
                     audioUrl={audioUrl}
+                    isAudioMuted={isAudioMuted}
+                    onToggleMuteAudio={() => setIsAudioMuted((v) => !v)}
+                    isCaptionHidden={isCaptionHidden}
+                    onToggleHideCaption={() => setIsCaptionHidden((v) => !v)}
+                    onSplit={splitAtPlayhead}
+                    onDuplicate={duplicateSelected}
+                    onDelete={deleteSelected}
+                    onToggleMirror={() => selectedSeg && patchClip(selectedSeg.clip.id, { mirror: !selectedSeg.clip.mirror })}
                     onBeginDrag={beginDrag}
                     onEndDrag={endDrag}
                     onZoom={(dir) => setZoomIndex((i) => Math.max(0, Math.min(ZOOM_LEVELS.length - 1, i + dir)))}
                     viewportRef={timelineViewportRef}
                     snapCandidates={snapEnabled ? snapCandidates(segments, playhead, audioDuration > 0 ? [audioDuration] : []) : []}
                     snapFunction={snapEnabled ? (t, c) => snapTime(t, c, SNAP_PX / pxPerSec) : (t) => t}
+                    showHookHeader={showHookHeader}
+                    hookBrand={hookBrand}
+                    hookModel={hookModel}
+                    hookLabel={hookLabel}
+                    hookDuration={hookDuration}
+                    onHookDurationChange={setHookDuration}
+                    onToggleHookHeader={() => setShowHookHeader((v) => !v)}
+                    onSelectHook={() => setSelection({ type: 'hook' })}
+                    textOverlays={textOverlays}
+                    onAddTextOverlay={handleAddTextOverlay}
+                    onTextOverlayChange={handleUpdateTextOverlay}
+                    onSelectTextOverlay={(id) => setSelection({ type: 'text_overlay', id })}
+                    isTextOverlayHidden={isTextOverlayHidden}
+                    onToggleHideTextOverlay={() => setIsTextOverlayHidden((v) => !v)}
                   />
                 </div>
               </div>
@@ -1758,6 +1831,7 @@ export default function EditorShell({
                     <AssetPanel
                       videos={videos}
                       clipList={clipList}
+                      durations={durations}
                       assets={assets}
                       style={style}
                       selectedCaption={selectedCaption}
@@ -1766,6 +1840,8 @@ export default function EditorShell({
                       onStyleChange={patchStyle}
                       onAssignSfx={(sfxId) => selectedCaption && patchCaption(selectedCaption._uid, { sfx: sfxId })}
                       onImportCues={handleImportCues}
+                      onVideoUploaded={onVideoUploaded}
+                      projectName={projectName}
                     />
                   </div>
                 )}
@@ -1813,6 +1889,11 @@ export default function EditorShell({
                       onBatchFormatClean={handleBatchFormatClean}
                       onSeek={seekPlayer}
                       onSelectCue={(uid) => setSelection({ type: 'caption', id: uid })}
+                      textOverlays={textOverlays}
+                      onAddTextOverlay={handleAddTextOverlay}
+                      onUpdateTextOverlay={handleUpdateTextOverlay}
+                      onDeleteTextOverlay={handleDeleteTextOverlay}
+                      onSelectTextOverlay={(id) => setSelection({ type: 'text_overlay', id })}
                     />
                   </div>
                 )}
@@ -1854,6 +1935,7 @@ export default function EditorShell({
                       <AssetPanel
                         videos={videos}
                         clipList={clipList}
+                        durations={durations}
                         assets={assets}
                         style={style}
                         selectedCaption={selectedCaption}
@@ -1862,6 +1944,8 @@ export default function EditorShell({
                         onStyleChange={patchStyle}
                         onAssignSfx={(sfxId) => selectedCaption && patchCaption(selectedCaption._uid, { sfx: sfxId })}
                         onImportCues={handleImportCues}
+                        onVideoUploaded={onVideoUploaded}
+                        projectName={projectName}
                       />
                     </div>
                     {/* Left Resizer */}
@@ -1906,13 +1990,16 @@ export default function EditorShell({
                     hookDuration={hookDuration}
                     hookMotion={hookMotion}
                     hookColors={hookColors}
+                    textOverlays={isTextOverlayHidden ? [] : textOverlays}
                     audioUrl={audioUrl}
                     captionStyle={{
                       captionPosition: style.captionPosition,
                       captionColor: style.captionColor,
                       captionScale: style.captionScale,
                       fontName: style.fontName,
+                      hidden: isCaptionHidden,
                     }}
+                    isMuted={isAudioMuted}
                     stickerStyle={{
                       badge: style.stickerBadge,
                       position: style.stickerPosition || 'top_right',
@@ -2066,6 +2153,11 @@ export default function EditorShell({
                         onBatchFormatClean={handleBatchFormatClean}
                         onSeek={seekPlayer}
                         onSelectCue={(uid) => setSelection({ type: 'caption', id: uid })}
+                        textOverlays={textOverlays}
+                        onAddTextOverlay={handleAddTextOverlay}
+                        onUpdateTextOverlay={handleUpdateTextOverlay}
+                        onDeleteTextOverlay={handleDeleteTextOverlay}
+                        onSelectTextOverlay={(id) => setSelection({ type: 'text_overlay', id })}
                       />
                     </div>
                   </div>
@@ -2104,6 +2196,8 @@ export default function EditorShell({
                   <span className="h-0.5 w-10 rounded-full bg-slate-600 transition-colors duration-150 group-hover:bg-[#25F4EE]" />
                 </div>
                 <Toolbar
+                  playhead={playhead}
+                  totalDuration={totalDuration}
                   hasClipSelected={!!selectedSeg}
                   hasSelection={!!selection}
                   selectedClip={selectedSeg?.clip}
@@ -2150,12 +2244,34 @@ export default function EditorShell({
                     onReorderSilent={(id, dir) => reorderClip(id, dir, true)}
                     onDropClip={addClip}
                     audioUrl={audioUrl}
+                    isAudioMuted={isAudioMuted}
+                    onToggleMuteAudio={() => setIsAudioMuted((v) => !v)}
+                    isCaptionHidden={isCaptionHidden}
+                    onToggleHideCaption={() => setIsCaptionHidden((v) => !v)}
+                    onSplit={splitAtPlayhead}
+                    onDuplicate={duplicateSelected}
+                    onDelete={deleteSelected}
+                    onToggleMirror={() => selectedSeg && patchClip(selectedSeg.clip.id, { mirror: !selectedSeg.clip.mirror })}
                     onBeginDrag={beginDrag}
                     onEndDrag={endDrag}
                     onZoom={(dir) => setZoomIndex((i) => Math.max(0, Math.min(ZOOM_LEVELS.length - 1, i + dir)))}
                     viewportRef={timelineViewportRef}
                     snapCandidates={snapEnabled ? snapCandidates(segments, playhead, audioDuration > 0 ? [audioDuration] : []) : []}
                     snapFunction={snapEnabled ? (t, c) => snapTime(t, c, SNAP_PX / pxPerSec) : (t) => t}
+                    showHookHeader={showHookHeader}
+                    hookBrand={hookBrand}
+                    hookModel={hookModel}
+                    hookLabel={hookLabel}
+                    hookDuration={hookDuration}
+                    onHookDurationChange={setHookDuration}
+                    onToggleHookHeader={() => setShowHookHeader((v) => !v)}
+                    onSelectHook={() => setSelection({ type: 'hook' })}
+                    textOverlays={textOverlays}
+                    onAddTextOverlay={handleAddTextOverlay}
+                    onTextOverlayChange={handleUpdateTextOverlay}
+                    onSelectTextOverlay={(id) => setSelection({ type: 'text_overlay', id })}
+                    isTextOverlayHidden={isTextOverlayHidden}
+                    onToggleHideTextOverlay={() => setIsTextOverlayHidden((v) => !v)}
                   />
                 </div>
               </div>
