@@ -201,14 +201,18 @@ class VoiceEngine:
 
         line_items = cls.segment_into_clauses(text_or_lines)
 
-        # Sanitize each line for TTS — strip emoji, expand abbreviations
+        # Sanitize each line for TTS — strip emoji, expand abbreviations for voice synthesis
+        # while PRESERVING original display_text for on-screen subtitle cues!
         try:
             from scripts.tts_sanitizer import TTSSanitizer
             for item in line_items:
-                if item.get("text"):
-                    item["text"] = TTSSanitizer.clean(item["text"])
+                orig_t = item.get("text", "")
+                item["display_text"] = orig_t
+                item["tts_text"] = TTSSanitizer.clean(orig_t) if orig_t else ""
         except ImportError:
-            pass  # Graceful fallback
+            for item in line_items:
+                item["display_text"] = item.get("text", "")
+                item["tts_text"] = item.get("text", "")
 
         if not line_items:
             raise ValueError("No text lines provided for voice synthesis.")
@@ -227,7 +231,8 @@ class VoiceEngine:
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             for idx, item in enumerate(line_items):
-                line_text = item["text"]
+                line_text = item["tts_text"]
+                display_text = item["display_text"]
                 if not line_text:
                     continue
 
@@ -320,7 +325,7 @@ class VoiceEngine:
                         "beat": beat_type,
                         "start": round(current_time, 3),
                         "end": round(current_time + seg_duration, 3),
-                        "text": line_text,
+                        "text": display_text,
                         "sfx": sfx_tag,
                         "word_timings": word_timings
                     })

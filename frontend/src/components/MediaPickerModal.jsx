@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { getRawVideos, uploadFile, deleteFile, removeVideoFromProduct, renameVideo } from '../api';
 import { Button, ConfirmModal, Modal } from './ui';
+import { isSameVideo } from '../lib/mediaUrl';
 
 export default function MediaPickerModal({
   isOpen = false,
@@ -121,8 +122,9 @@ export default function MediaPickerModal({
     }
 
     setSelectedList(prev => {
-      if (prev.includes(videoPath)) {
-        return prev.filter(p => p !== videoPath);
+      const already = prev.some(p => isSameVideo(p, videoPath));
+      if (already) {
+        return prev.filter(p => !isSameVideo(p, videoPath));
       } else {
         return [...prev, videoPath];
       }
@@ -530,7 +532,7 @@ export default function MediaPickerModal({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
               {filteredVideos.map((video) => {
                 const videoPath = video.path || video.rel_path;
-                const isSelected = selectedList.includes(videoPath) || selectedList.includes(video.path) || selectedList.includes(video.rel_path);
+                const isSelected = selectedList.some(p => isSameVideo(p, video));
                 const isPlaying = previewVideoPath === videoPath;
                 const videoUrl = `/api/media/${video.rel_path || video.path}`;
 

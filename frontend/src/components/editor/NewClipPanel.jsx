@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
   AlertCircle, Check, ChevronDown, ChevronRight, Film, Loader2, Package,
   Rocket, Sparkles, Upload, Volume2, FolderOpen, ArrowRight, Clock, Hourglass, CheckCircle2, Play
@@ -6,6 +6,8 @@ import {
 import { previewVoice, startRender, uploadFile, updateAngleVideos } from '../../api';
 import { DEFAULT_STUDIO_FORM, STUDIO_FORM_KEY, getSavedStudioForm } from '../../lib/studioDefaults';
 import { angleToForm, angleLabel } from '../../lib/angleToForm';
+import { isSameVideo, getMediaName } from '../../lib/mediaUrl';
+import { buildProjectName } from '../../lib/projectName';
 import { useRenderJob } from '../../hooks/useRenderJob';
 import MediaPickerModal from '../MediaPickerModal';
 
@@ -142,6 +144,10 @@ export default function NewClipPanel({
   } = useRenderJob({
     onComplete: (result) => {
       const name = result?.project_name || result?.projectName;
+      const targetAngle = currentAngle || angles[angleIndex];
+      if (productContext?.id && targetAngle?.angle_id && name) {
+        updateAngleStatus(productContext.id, targetAngle.angle_id, 'in_production', null, name).catch(() => {});
+      }
       if (name) onCreated?.(name);
     },
   });
@@ -154,15 +160,37 @@ export default function NewClipPanel({
   useEffect(() => {
     const next = angleToForm(angles[angleIndex], productContext || {});
     if (next) {
+      let resolvedVideo = next.selectedVideo || (next.selectedVideos && next.selectedVideos[0]) || '';
+      let resolvedVideos = next.selectedVideos && next.selectedVideos.length > 0 ? next.selectedVideos : (resolvedVideo ? [resolvedVideo] : []);
+
+      // If angle has selected_videos or selected_video directly
+      const curAngle = angles[angleIndex];
+      const angleVids = (curAngle?.selected_videos && curAngle.selected_videos.length > 0)
+        ? curAngle.selected_videos
+        : (curAngle?.selected_video ? [curAngle.selected_video] : []);
+
+      if (!resolvedVideo && angleVids.length > 0) {
+        resolvedVideo = angleVids[0];
+        resolvedVideos = angleVids;
+      }
+
+      // Canonical match against available videos list if available
+      if (resolvedVideo && videos.length > 0) {
+        const found = videos.find(v => isSameVideo(v, resolvedVideo));
+        if (found) {
+          resolvedVideo = found.path || found.rel_path;
+        }
+      }
+
       setForm((prev) => ({
         ...prev,
         ...next,
-        selectedVideo: next.selectedVideo || (next.selectedVideos && next.selectedVideos[0]) || '',
-        selectedVideos: next.selectedVideos || (next.selectedVideo ? [next.selectedVideo] : [])
+        selectedVideo: resolvedVideo || prev.selectedVideo || '',
+        selectedVideos: resolvedVideos.length > 0 ? resolvedVideos : (resolvedVideo ? [resolvedVideo] : prev.selectedVideos)
       }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productContext?.id, productContext?.title, angleIndex, angles.length, angles[angleIndex]?.selected_videos]);
+  }, [productContext?.id, productContext?.title, angleIndex, angles.length, angles[angleIndex]?.selected_videos, angles[angleIndex]?.selected_video, videos]);
 
   const angleAttachedVideos = useMemo(() => {
     if (currentAngle?.selected_videos && currentAngle.selected_videos.length > 0) {
@@ -180,34 +208,44 @@ export default function NewClipPanel({
   const displayVideos = useMemo(() => {
     if (angleAttachedVideos.length > 0) {
       return angleAttachedVideos.map(path => {
-        const found = videos.find(v => v.path === path || v.rel_path === path);
+        const found = videos.find(v => isSameVideo(v, path));
         if (found) return found;
-        const name = path.split(/[/\\]/).pop();
+        const name = getMediaName(path);
         return { path, name };
       });
     }
     return videos;
   }, [angleAttachedVideos, videos]);
 
-  // Project names come from the product name (pipeline.py), so two angles of
-  // the same product would land in the same folder and overwrite each other.
-  const projectName = useMemo(() => {
-    const clean = (form.productName || 'สินค้า')
-      .split('').filter((c) => /[\p{L}\p{N} _-]/u.test(c)).join('')
-      .trim().replace(/\s+/g, '_');
-    const base = `TikTok_${clean}`;
-    if (!existingProjects.includes(base)) return base;
-    // same product, another angle -> _a2, _a3 ...
-    for (let n = 2; n < 30; n++) {
-      const candidate = `${base}_a${n}`;
-      if (!existingProjects.includes(candidate)) return candidate;
-    }
-    return `${base}_${Date.now().toString(36)}`;
-  }, [form.productName, existingProjects]);
+  const isVideoSelected = useCallback((v) => {
+    if (!v) return false;
+    if (form.selectedVideo && isSameVideo(form.selectedVideo, v)) return true;
+    if (Array.isArray(form.selectedVideos) && form.selectedVideos.some((sv) => isSameVideo(sv, v))) return true;
+    if (!form.selectedVideo && displayVideos.length === 1 && angleAttachedVideos.length > 0) return true;
+    return false;
+  }, [form.selectedVideo, form.selectedVideos, displayVideos.length, angleAttachedVideos.length]);
 
-  const baseName = `TikTok_${(form.productName || '').trim().replace(/\s+/g, '_')}`;
-  const angleSpecificProject = currentAngle?.project_name || null;
-  const willCreateVariant = (angleSpecificProject || (projectName !== baseName)) && existingProjects.length > 0;
+  // Standard project name: [short_product]_[angle]_[1, 2, 3...]
+  // Resolves the angle context and prevents cryptic duplicates or overwriting.
+  const projectName = useMemo(() => {
+    return buildProjectName({
+      productName: form.productName,
+      angle: currentAngle || (angles && angles[angleIndex]),
+      angleIndex,
+      existingProjects,
+    });
+  }, [form.productName, currentAngle, angles, angleIndex, existingProjects]);
+
+  // The panel's footer reads both of these, but neither was ever declared --
+  // rendering the panel threw "angleSpecificProject is not defined" and the
+  // whole editor route fell through to the error boundary.
+  //
+  // The angle carries its own project once one has been created for it (the
+  // same `project_name` ContentTrackerHub and EditorShell read), and
+  // buildProjectName only returns a name ending in _1 when the base was free,
+  // so anything else means this create would spawn another variant.
+  const angleSpecificProject = (currentAngle || angles[angleIndex])?.project_name || '';
+  const willCreateVariant = Boolean(projectName) && !/_1$/.test(projectName);
 
   const handleUpload = async (file) => {
     if (!file) return;
@@ -273,6 +311,8 @@ export default function NewClipPanel({
       voice_rate: form.voiceSpeed,
       ad_tone: form.adTone || 'commercial_premium',
       human_voice_audio: null,
+      product_id: productContext?.id || null,
+      angle_id: (currentAngle?.angle_id || angles[angleIndex]?.angle_id) || null,
       font_name: form.fontName || 'IBMPlex',
       bilingual_subtitles: form.bilingualSubtitles !== false,
       use_ai_vision: form.useAiVision !== false,
@@ -413,10 +453,14 @@ export default function NewClipPanel({
                 </div>
               </div>
 
-              <div className="rounded-lg bg-white/[0.03] px-3 py-2.5 text-sm leading-relaxed text-slate-400 border border-white/[0.04]">
+              <div className="rounded-lg bg-white/[0.03] px-3 py-2.5 text-sm leading-relaxed text-slate-400 border border-white/[0.04] space-y-1">
                 <div className="truncate"><span className="text-[#9C968F] font-semibold">สินค้า:</span> {form.productName}</div>
                 <div className="truncate"><span className="text-[#9C968F] font-semibold">Hook:</span> {[form.hookBrand, form.hookModel, form.hookLabel].filter(Boolean).join(' · ') || '—'}</div>
                 <div className="truncate"><span className="text-[#9C968F] font-semibold">ปัญหา:</span> {form.painPoint || '—'}</div>
+                <div className="truncate text-xs font-mono text-cyan-300 pt-1 border-t border-white/[0.06] flex items-center gap-1.5">
+                  <span className="text-[#9C968F] font-sans font-semibold">ชื่อโปรเจกต์:</span>
+                  <span className="bg-cyan-950/60 text-cyan-300 px-1.5 py-0.5 rounded border border-cyan-800/40">{projectName}</span>
+                </div>
               </div>
               <button
                 type="button"
@@ -469,6 +513,12 @@ export default function NewClipPanel({
               <Field label="ปัญหาที่ลูกค้าเจอ" value={form.painPoint} onChange={(v) => patch({ painPoint: v })} />
               <Field label="จุดเด่น" value={form.keyFeatures} onChange={(v) => patch({ keyFeatures: v })} multiline />
               <Field label="โปรโมชั่น / CTA" value={form.priceDeal} onChange={(v) => patch({ priceDeal: v })} />
+              {angles.length === 0 && (
+                <div className="truncate text-xs font-mono text-cyan-300 py-1.5 px-2.5 bg-cyan-950/40 rounded-lg border border-cyan-800/30 flex items-center gap-1.5">
+                  <span className="text-[#9C968F] font-sans font-semibold">ชื่อโปรเจกต์:</span>
+                  <span>{projectName}</span>
+                </div>
+              )}
             </div>
           )}
         </Section>
@@ -480,29 +530,40 @@ export default function NewClipPanel({
           done={!!form.selectedVideo || angleAttachedVideos.length > 0 || (videos.length > 0)}
           hint={
             form.selectedVideo
-              ? `เลือก 1 คลิป (${(form.selectedVideo.split(/[/\\]/).pop())})`
+              ? `เลือก 1 คลิป (${getMediaName(form.selectedVideo)})`
               : (angleAttachedVideos.length > 0
                   ? `${displayVideos.length} ไฟล์ที่ผูกกับมุมนี้`
                   : (videos.length > 0 ? `ใช้คลิปทั้งหมดในคลัง (${videos.length} คลิป)` : 'ยังไม่มีคลิป'))
           }
         >
           <div className="max-h-40 space-y-1 overflow-y-auto">
-            {displayVideos.map((v) => (
-              <button
-                key={v.path}
-                type="button"
-                onClick={() => patch({ selectedVideo: v.path })}
-                className={`flex min-h-9 w-full items-center gap-2 rounded-lg border px-3 py-2 text-left transition-colors duration-150 cursor-pointer ${
-                  form.selectedVideo === v.path
-                    ? 'border-[#D97757] bg-[#D97757]/10 text-white'
-                    : 'border-white/[0.08] bg-black/40 text-slate-300 hover:border-white/[0.2]'
-                }`}
-              >
-                <Film className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
-                <span className="min-w-0 flex-1 truncate text-sm">{v.name}</span>
-                {form.selectedVideo === v.path && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#E89274]" />}
-              </button>
-            ))}
+            {displayVideos.map((v) => {
+              const selected = isVideoSelected(v);
+              return (
+                <button
+                  key={v.path || v.rel_path || v.name}
+                  type="button"
+                  onClick={() => {
+                    const chosen = v.path || v.rel_path;
+                    patch({ selectedVideo: chosen, selectedVideos: [chosen] });
+                  }}
+                  className={`flex min-h-9 w-full items-center gap-2 rounded-lg border px-3 py-2 text-left transition-colors duration-150 cursor-pointer ${
+                    selected
+                      ? 'border-[#D97757] bg-[#D97757]/15 text-white shadow-sm ring-1 ring-[#D97757]/30'
+                      : 'border-white/[0.08] bg-black/40 text-slate-300 hover:border-white/[0.2] hover:bg-white/[0.02]'
+                  }`}
+                >
+                  <Film className={`h-3.5 w-3.5 flex-shrink-0 ${selected ? 'text-[#E89274]' : 'text-slate-400'}`} />
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{v.name || getMediaName(v)}</span>
+                  {selected && (
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <span className="text-[10px] font-bold text-[#E89274] bg-[#D97757]/20 px-1.5 py-0.5 rounded">เลือกแล้ว</span>
+                      <Check className="h-4 w-4 text-[#E89274]" />
+                    </div>
+                  )}
+                </button>
+              );
+            })}
             {displayVideos.length === 0 && (
               <p className="px-1 py-2 text-sm text-[#9C968F]">ยังไม่มีคลิปดิบ — เลือกจากคลังหรืออัปโหลดด้านล่าง</p>
             )}

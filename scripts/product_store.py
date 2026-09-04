@@ -157,7 +157,8 @@ class ProductStore:
             if product["id"] == product_id:
                 angles = product.get("angles", [])
                 for angle in angles:
-                    if angle.get("angle_id") == angle_id:
+                    current_aid = angle.get("angle_id") or angle.get("id")
+                    if current_aid == angle_id:
                         angle["status"] = status
                         if video_url is not None:
                             angle["video_url"] = video_url if video_url else None
@@ -405,6 +406,10 @@ class ProductStore:
             p_clean_hook = re.sub(r"[\s\.\…\u2026]+", "", p_hook)
             p_clean_lines = [re.sub(r"[\s\.\…\u2026]+", "", l) for l in p_lines if l]
 
+            p_rp = p_data.get("render_params", {}) or {}
+            p_pid = p_rp.get("product_id") or p_data.get("product_id")
+            p_aid = p_rp.get("angle_id") or p_data.get("angle_id")
+
             # Check if an exported MP4 exists
             mp4_path = None
             art_mp4 = p_data.get("artifacts", {}).get("mp4_video", {}).get("path")
@@ -417,15 +422,20 @@ class ProductStore:
 
             # Match against products
             for product in products:
+                # If project explicitly specified a product_id, it MUST match product["id"]
+                if p_pid and product.get("id") and p_pid != product.get("id"):
+                    continue
+
                 for angle in product.get("angles", []):
-                    ang_hook_clean = re.sub(r"[\s\.\…\u2026]+", "", angle.get("hook_title") or "")
-                    ang_lines_clean = [re.sub(r"[\s\.\…\u2026]+", "", l) for l in angle.get("script_lines", []) if l]
+                    current_aid = angle.get("angle_id") or angle.get("id")
                     
-                    # Match condition: hook match or first script line match
                     is_match = False
-                    if p_clean_hook and ang_hook_clean and (p_clean_hook in ang_hook_clean or ang_hook_clean in p_clean_hook):
+
+                    # 1. Exact Product ID + Angle ID match from project manifest
+                    if p_pid and p_aid and product.get("id") == p_pid and current_aid == p_aid:
                         is_match = True
-                    elif p_clean_lines and ang_lines_clean and (p_clean_lines[0] in ang_lines_clean[0] or ang_lines_clean[0] in p_clean_lines[0]):
+                    # 2. Already explicitly linked by project_name on this angle
+                    elif angle.get("project_name") and angle.get("project_name") == p_folder.name:
                         is_match = True
 
                     if is_match:

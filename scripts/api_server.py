@@ -872,49 +872,81 @@ def stream_media(file_path: str, request: Request):
 @app.get("/api/exports")
 def list_exports():
     """Lists all rendered videos in 04_Exports/Ready_to_post enriched with product & script metadata.
-    Matching uses ProductStore data only — no hardcoded brand-name keywords.
+    Distinguishes latest active export vs previous superseded versions vs external unlinked files.
     """
     files = sorted(list(EXPORTS_DIR.glob("*.mp4")), key=os.path.getmtime, reverse=True)
     all_products = ProductStore.get_all()
 
-    # Build lookup: project_name prefix -> (product, angle)
+    # 1. Build lookup tables
     project_angle_map: Dict[str, tuple] = {}
     for p in all_products:
         for proj_name in p.get("projects", []):
-            project_angle_map[proj_name.lower()] = (p, None)
+            if proj_name:
+                project_angle_map[proj_name.lower()] = (p, None)
         for a in p.get("angles", []):
+            proj = a.get("project_name", "")
+            if proj:
+                project_angle_map[proj.lower()] = (p, a)
             vid_url = a.get("video_url", "")
             if vid_url:
                 project_angle_map[Path(vid_url).stem.lower()] = (p, a)
                 project_angle_map[Path(vid_url).name.lower()] = (p, a)
 
-    results = []
+    # Check 03_Projects/ folders to get script_data if available
+    project_disk_info: Dict[str, dict] = {}
+    projects_dir = BASE_DIR / "03_Projects"
+    if projects_dir.exists():
+        for pdir in projects_dir.iterdir():
+            if pdir.is_dir():
+                pjson = pdir / "project.json"
+                if pjson.exists():
+                    try:
+                        with open(pjson, "r", encoding="utf-8") as pf:
+                            project_disk_info[pdir.name.lower()] = json.load(pf)
+                    except Exception:
+                        pass
+
+    # Pass 1: Identify match for each file
+    raw_matches = []
     for f in files:
-        info = get_file_info(f)
         fname_low = f.name.lower()
         fstem_low = f.stem.lower()
 
         matched_prod = None
         matched_angle = None
+        matched_proj_name = None
 
-        # 1. Exact angle video_url match (most reliable)
+        # 1. Exact angle video_url match
         for p in all_products:
             for a in p.get("angles", []):
                 vid_url = a.get("video_url", "")
-                if vid_url and (f.name in vid_url or str(f) in vid_url):
+                if vid_url and (fname_low in vid_url.lower() or str(f).lower() in vid_url.lower()):
                     matched_prod, matched_angle = p, a
+                    matched_proj_name = a.get("project_name")
                     break
             if matched_prod:
                 break
 
-        # 2. Project name prefix match (e.g. filename starts with project folder name)
+        # 2. Project name prefix match (sort keys by descending length)
         if not matched_prod:
-            for proj_key, (p, a) in project_angle_map.items():
+            sorted_proj_keys = sorted(project_angle_map.keys(), key=len, reverse=True)
+            for proj_key in sorted_proj_keys:
                 if proj_key and (fstem_low.startswith(proj_key) or proj_key in fstem_low):
-                    matched_prod, matched_angle = p, a
+                    p, a = project_angle_map[proj_key]
+                    matched_prod = p
+                    matched_angle = a
+                    matched_proj_name = proj_key
                     break
 
-        # 3. Product ID match (if ID is embedded in filename)
+        # 2.5 Check project_disk_info if still not matched
+        if not matched_proj_name:
+            sorted_disk_keys = sorted(project_disk_info.keys(), key=len, reverse=True)
+            for dkey in sorted_disk_keys:
+                if dkey and (fstem_low.startswith(dkey) or dkey in fstem_low):
+                    matched_proj_name = dkey
+                    break
+
+        # 3. Product ID match
         if not matched_prod:
             for p in all_products:
                 pid = p.get("id", "").lower()
@@ -945,6 +977,11 @@ def list_exports():
             for a in matched_prod.get("angles", []):
                 aid = a.get("angle_id", "").lower()
                 aname = a.get("angle_name", "").lower()
+                aproj = (a.get("project_name") or "").lower()
+                if aproj and (aproj in fstem_low or fstem_low.startswith(aproj)):
+                    matched_angle = a
+                    matched_proj_name = a.get("project_name")
+                    break
                 if aid and aid in fstem_low:
                     matched_angle = a
                     break
@@ -952,12 +989,61 @@ def list_exports():
                     matched_angle = a
                     break
 
+        disk_proj = project_disk_info.get(matched_proj_name.lower()) if matched_proj_name else None
+
+        raw_matches.append({
+            "file": f,
+            "product": matched_prod,
+            "angle": matched_angle,
+            "proj_name": matched_proj_name,
+            "disk_proj": disk_proj
+        })
+
+    # Pass 2: Determine versioning per group
+    latest_file_per_group: Dict[str, Any] = {}
+    for item in raw_matches:
+        p = item["product"]
+        a = item["angle"]
+        proj = item["proj_name"]
+        group_key = None
+        if p and a:
+            group_key = f"{p.get('id')}:{a.get('angle_id')}"
+        elif proj:
+            group_key = f"proj:{proj}"
+        elif p:
+            group_key = f"prod:{p.get('id')}"
+
+        if group_key and group_key not in latest_file_per_group:
+            latest_file_per_group[group_key] = item["file"]
+
+    results = []
+    for item in raw_matches:
+        f = item["file"]
+        matched_prod = item["product"]
+        matched_angle = item["angle"]
+        matched_proj_name = item["proj_name"]
+        disk_proj = item["disk_proj"]
+
+        info = get_file_info(f)
+
+        group_key = None
+        if matched_prod and matched_angle:
+            group_key = f"{matched_prod.get('id')}:{matched_angle.get('angle_id')}"
+        elif matched_proj_name:
+            group_key = f"proj:{matched_proj_name}"
+        elif matched_prod:
+            group_key = f"prod:{matched_prod.get('id')}"
+
+        latest_f = latest_file_per_group.get(group_key) if group_key else None
+
+        # Product metadata
         if matched_prod:
             info["product_id"] = matched_prod.get("id")
             info["product_name"] = matched_prod.get("name")
             info["price_deal"] = matched_prod.get("price_note")
             info["key_features"] = ", ".join(matched_prod.get("selling_points", []))
 
+        # Script/Angle metadata
         if matched_angle:
             info["angle_id"] = matched_angle.get("angle_id")
             info["angle_name"] = matched_angle.get("angle_name")
@@ -968,19 +1054,59 @@ def list_exports():
             info["ad_tone"] = matched_angle.get("ad_tone")
             info["angle_status"] = matched_angle.get("status")
             info["qc_note"] = matched_angle.get("qc_note")
-            cur_video_url = matched_angle.get("video_url", "")
-            is_current = cur_video_url and (f.name in cur_video_url or str(f) in cur_video_url)
-            is_unlinked_old = not is_current  # this file is no longer the active export
-            info["is_unlinked"] = is_unlinked_old
-            # A file is QC rejected whenever its angle has an active qc_note
-            info["is_qc_rejected"] = bool(matched_angle.get("qc_note"))
+            info["project_name"] = matched_angle.get("project_name") or matched_proj_name
+        elif disk_proj:
+            s_data = disk_proj.get("script_data", {})
+            info["hook_title"] = s_data.get("hook")
+            info["script_lines"] = [l.get("text", "") if isinstance(l, dict) else str(l) for l in s_data.get("lines", [])]
+            info["project_name"] = disk_proj.get("project_name") or matched_proj_name
+
+        # Determine version status
+        # An export is linked to a script only if it has an angle or a project.json script
+        has_script = bool(matched_angle or (disk_proj and disk_proj.get("script_data", {}).get("hook")))
+
+        if has_script:
+            info["is_unlinked"] = False
+            # Only the single newest file in the group is 'latest'; earlier ones are 'previous_version'
+            if latest_f and latest_f == f:
+                info["is_latest"] = True
+                info["is_previous_version"] = False
+            else:
+                info["is_latest"] = False
+                info["is_previous_version"] = True
+                if latest_f:
+                    info["latest_video_name"] = latest_f.name
+                    info["latest_video_path"] = str(latest_f)
+                    info["latest_video_rel"] = f"04_Exports/Ready_to_post/{latest_f.name}"
+            info["is_qc_rejected"] = bool(matched_angle and matched_angle.get("qc_note"))
         else:
-            info["is_unlinked"] = True   # no angle match at all
+            info["is_unlinked"] = True
+            info["is_latest"] = False
+            info["is_previous_version"] = False
             info["is_qc_rejected"] = False
 
         results.append(info)
 
     return {"exports": results}
+
+class LinkAngleRequest(BaseModel):
+    video_path: str
+    product_id: str
+    angle_id: str
+
+@app.post("/api/exports/link-angle")
+def link_export_to_angle(req: LinkAngleRequest):
+    """Links an exported video to a product angle."""
+    try:
+        updated = ProductStore.update_angle_status(
+            product_id=req.product_id,
+            angle_id=req.angle_id,
+            status="rendered",
+            video_url=req.video_path
+        )
+        return {"status": "success", "product": updated}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/api/script/generate")
 def generate_script(req: ScriptGenerateRequest):
@@ -1373,6 +1499,7 @@ def generate_ai_scripts(req: ScriptGenerateRequest):
 - ราคา/โปร: {req.price_deal}
 
 กฎเหล็กการเขียนบทพูด:
+- ชื่อแบรนด์, ชื่อรุ่นสินค้า, และคำศัพท์เฉพาะทางที่เป็นภาษาอังกฤษ (เช่น Logitech, Wave Keys, Logi Bolt, Bluetooth, USB-C, Type-C, iPad ฯลฯ) ให้คงไว้เป็นภาษาอังกฤษตามชื่อทางการเสมอ ห้ามทับศัพท์เป็นคำไทยเพี้ยนๆ (เช่น ห้ามเขียน "โลจิเทค", "โลจิ โบลต์")
 - ห้ามใช้จุดไข่ปลา "..." หรือ "…" ในทุกฟิลด์โดยเด็ดขาด (ทั้งใน script_text, hook_title, caption) ให้เว้นวรรคธรรมดาแทน
 - ห้ามใช้ภาษาโฆษณาทีวีทางการ ให้ใช้ภาษาพูดเพื่อนสนิทป้ายยา
 - ห้ามใส่ emoji ในบทพูด (script_text) ใส่ได้เฉพาะ angle_name และ hook_title
@@ -1771,10 +1898,15 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
             elif (BASE_DIR / req_data.sticker_badge).exists():
                 sticker_file_path = str(BASE_DIR / req_data.sticker_badge)
 
-        # Update angle to in_production only when render actually starts
+        # Update angle to in_production with project_name when render starts
         if req_data.product_id and req_data.angle_id:
             try:
-                ProductStore.update_angle_status(req_data.product_id, req_data.angle_id, "in_production")
+                ProductStore.update_angle_status(
+                    req_data.product_id,
+                    req_data.angle_id,
+                    "in_production",
+                    project_name=req_data.project_name
+                )
             except Exception:
                 pass
 
@@ -1833,15 +1965,18 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
             except Exception as link_err:
                 print(f"Warning: could not link project to product: {link_err}")
 
-        # Update angle status to 'rendered' and attach video_url and project_name for 100% accurate export matching
+        # Update angle status strictly reflecting reality:
+        # If exported MP4 exists -> 'rendered'
+        # If timeline project was generated (export_mp4 is False) -> 'in_production' with project_name attached
         if req_data.product_id and req_data.angle_id:
             try:
                 mp4_val = result.get("mp4") or result.get("output_video") or result.get("video_path") or ""
+                is_rendered = bool(req_data.export_mp4 and mp4_val)
                 ProductStore.update_angle_status(
                     req_data.product_id,
                     req_data.angle_id,
-                    "rendered",
-                    video_url=str(mp4_val) if mp4_val else None,
+                    "rendered" if is_rendered else "in_production",
+                    video_url=str(mp4_val) if is_rendered else None,
                     project_name=result.get("project_name")
                 )
             except Exception as angle_err:
@@ -1909,5 +2044,10 @@ def get_render_status(job_id: str):
 if __name__ == "__main__":
     import uvicorn
     should_reload = os.environ.get("FASTAPI_RELOAD", "true").lower() in ("1", "true")
-    print(f"🚀 Starting OmniCut Pro Studio FastAPI on http://localhost:8000 (reload={should_reload}) ...")
-    uvicorn.run("scripts.api_server:app", host="0.0.0.0", port=8000, reload=should_reload)
+    uvicorn.run(
+        "scripts.api_server:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=should_reload,
+        reload_dirs=[str(PROJECT_ROOT / "scripts")] if should_reload else None
+    )

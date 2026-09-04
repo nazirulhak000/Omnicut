@@ -48,6 +48,8 @@ export const getRawVault = () => api.get('/raw-vault').then(r => r.data);
 export const reassignRawVideo = (payload) => api.post('/raw-vault/reassign', payload).then(r => r.data);
 export const batchDeleteRawVideos = (videoPaths) => api.post('/raw-vault/batch-delete', { video_paths: videoPaths }).then(r => r.data);
 export const getExports = () => api.get('/exports').then(r => r.data);
+export const linkExportToAngle = (videoPath, productId, angleId) =>
+  api.post('/exports/link-angle', { video_path: videoPath, product_id: productId, angle_id: angleId }).then(r => r.data);
 export const getSfxList = () => api.get('/sfx').then(r => r.data);
 
 export const generateScript = (data) => api.post('/script/generate', {

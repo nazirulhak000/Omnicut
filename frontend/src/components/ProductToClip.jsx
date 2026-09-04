@@ -3,13 +3,14 @@ import {
   Link2, Sparkles, Clapperboard, Loader2, Check, Copy,
   AlertCircle, ArrowRight, Upload, Trash2, RefreshCw, Plus, Film, Video,
   ChevronDown, ChevronUp, ChevronRight, Package, Rocket, FolderOpen, X,
-  Search, LayoutGrid, Filter, Play, Lock
+  Search, LayoutGrid, Filter, Play, Lock, Edit3, Replace
 } from 'lucide-react';
 import {
   scrapeAndPlanProduct, scrapeAndPlanProductAsync, getProducts, updateProduct, updateAngleStatus, updateAngleVideos, setDefaultVideosForProduct, deleteProduct, uploadFile
 } from '../api';
 import { Modal, Toast, Button, Badge, Input, Textarea, ConfirmModal } from './ui';
 import MediaPickerModal from './MediaPickerModal';
+import FindReplaceModal from './FindReplaceModal';
 import { toMediaUrl } from '../lib/mediaUrl';
 import { useToast } from '../hooks';
 import { useTaskManager } from '../context/TaskContext';
@@ -71,11 +72,49 @@ function ProductCard({ product, isSelected, onSelect }) {
 function ScriptAccordionItem({
   angle, index, isOpen, onToggle, onCopy, onSendToStudio, onOpenInTimeline, onPreviewExportVideo, copiedIndex,
   videos = [], onToggleVideoForAngle, onUploadVideo, uploadingImg = false,
-  onOpenMediaPicker
+  onOpenMediaPicker,
+  onSaveScript, onOpenFindReplace
 }) {
   const lines = Array.isArray(angle.script_lines)
     ? angle.script_lines
     : (angle.script_text ? angle.script_text.split('\n') : []);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState('');
+  const [editHook, setEditHook] = useState(angle.hook_title || '');
+
+  // Keep editor state in sync if external lines change while not actively editing
+  useEffect(() => {
+    if (!isEditing) {
+      setEditText(lines.join('\n'));
+      setEditHook(angle.hook_title || '');
+    }
+  }, [lines, angle.hook_title, isEditing]);
+
+  const handleStartEdit = (e) => {
+    e?.stopPropagation?.();
+    setEditText(lines.join('\n'));
+    setEditHook(angle.hook_title || '');
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setEditText(lines.join('\n'));
+    setEditHook(angle.hook_title || '');
+    setIsEditing(false);
+  };
+
+  const handleSave = () => {
+    const newLines = editText
+      .split('\n')
+      .map(l => l.trim())
+      .filter(Boolean);
+
+    if (newLines.length === 0) return;
+
+    onSaveScript && onSaveScript(index, newLines, editHook.trim());
+    setIsEditing(false);
+  };
 
   const curStatus = angle.status || 'scripted';
   // ONLY rendered if an actual video export URL exists or status is posted!
@@ -166,35 +205,123 @@ function ScriptAccordionItem({
       {/* Expanded Content */}
       {isOpen && (
         <div className="px-3 pb-3 space-y-3 border-t border-white/[0.06] pt-3 animate-fadeIn">
-          {/* Hook Highlight */}
-          {angle.hook_title && (
+          {/* Hook Highlight / Editor */}
+          {angle.hook_title && !isEditing && (
             <div className="p-2.5 rounded-lg bg-black/50 border-l-[3px] border-[#25F4EE] text-xs sm:text-sm font-bold text-cyan-200 leading-snug">
               {angle.hook_title}
             </div>
           )}
 
-          {/* Script Lines */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between text-sm text-slate-400 font-semibold">
-              <span>บทพูดพากย์ ({lines.length} ท่อน):</span>
-              <button
-                onClick={(e) => { e.stopPropagation(); onCopy(lines.join('\n'), index); }}
-                className="text-[#25F4EE] hover:underline flex items-center gap-1 cursor-pointer font-bold"
-              >
-                {copiedIndex === index
-                  ? <><Check className="w-3 h-3 text-emerald-400" /> คัดลอกแล้ว</>
-                  : <><Copy className="w-3 h-3" /> คัดลอก</>}
-              </button>
+          {/* Script Editing Box OR Read-Only Display */}
+          {isEditing ? (
+            <div className="space-y-2.5 p-3 rounded-xl bg-black/60 border border-[#25F4EE]/40 animate-fadeIn">
+              <div className="flex items-center justify-between text-xs text-[#25F4EE] font-bold">
+                <span className="flex items-center gap-1.5">
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>แก้ไขบทพูด (1 บรรทัด = 1 ท่อน):</span>
+                </span>
+                <span className="text-slate-400 text-[11px] font-mono">
+                  {editText.split('\n').filter(l => l.trim()).length} ท่อน
+                </span>
+              </div>
+
+              {/* Hook Input */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-slate-400">Hook พาดหัวคลิป:</label>
+                <input
+                  type="text"
+                  value={editHook}
+                  onChange={(e) => setEditHook(e.target.value)}
+                  placeholder="Hook พาดหัวคลิป..."
+                  className="w-full bg-[#080B11] border border-white/[0.12] focus:border-[#25F4EE] rounded-lg px-2.5 py-1.5 text-xs text-cyan-200 font-bold focus:outline-none"
+                />
+              </div>
+
+              {/* Script Textarea */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-slate-400">บทพูดพากย์แต่ละท่อน:</label>
+                <textarea
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  rows={Math.max(5, editText.split('\n').length)}
+                  className="w-full bg-[#080B11] border border-white/[0.12] focus:border-[#25F4EE] rounded-lg p-2.5 text-xs text-white font-mono leading-relaxed focus:outline-none resize-y"
+                  placeholder="พิมพ์บทพูดแต่ละท่อน เว้น 1 บรรทัดต่อ 1 ท่อน..."
+                />
+                <p className="text-[10px] text-slate-500">
+                  💡 แต่ละบรรทัดจะกลายเป็นซับไตเติล 1 ท่อนตามจังหวะเสียงพากย์อัตโนมัติ
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 text-xs font-semibold cursor-pointer flex items-center gap-1 transition-all"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>ยกเลิก</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  className="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md cursor-pointer flex items-center gap-1.5 active:scale-95 transition-all"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>บันทึกสคริปต์</span>
+                </button>
+              </div>
             </div>
-            <div className="p-2.5 rounded-lg bg-black/40 border border-white/[0.06] space-y-1 max-h-40 overflow-y-auto font-mono text-xs text-slate-200 leading-relaxed">
-              {lines.map((line, lIdx) => (
-                <div key={lIdx} className="flex items-start gap-1.5">
-                  <span className="text-[#25F4EE] font-bold flex-shrink-0">{lIdx + 1}.</span>
-                  <span>{line}</span>
+          ) : (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-sm text-slate-400 font-semibold">
+                <span>บทพูดพากย์ ({lines.length} ท่อน):</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleStartEdit}
+                    className="text-amber-300 hover:text-amber-200 hover:underline flex items-center gap-1 cursor-pointer font-bold text-xs"
+                    title="แก้ไขบทพูดในกล่องนี้โดยตรง"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>แก้ไข</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenFindReplace && onOpenFindReplace(index);
+                    }}
+                    className="text-cyan-300 hover:text-cyan-200 hover:underline flex items-center gap-1 cursor-pointer font-bold text-xs"
+                    title="ค้นหาและแทนที่คำในสคริปต์ทั้งหมด"
+                  >
+                    <Replace className="w-3.5 h-3.5" />
+                    <span>แทนที่คำ</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onCopy(lines.join('\n'), index); }}
+                    className="text-[#25F4EE] hover:underline flex items-center gap-1 cursor-pointer font-bold text-xs"
+                  >
+                    {copiedIndex === index
+                      ? <><Check className="w-3 h-3 text-emerald-400" /> คัดลอกแล้ว</>
+                      : <><Copy className="w-3 h-3" /> คัดลอก</>}
+                  </button>
                 </div>
-              ))}
+              </div>
+              <div
+                onClick={handleStartEdit}
+                className="p-2.5 rounded-lg bg-black/40 hover:bg-black/60 border border-white/[0.06] hover:border-white/[0.18] space-y-1 max-h-44 overflow-y-auto font-mono text-xs text-slate-200 leading-relaxed cursor-pointer transition-colors group/box relative"
+                title="คลิกที่กล่องนี้เพื่อแก้ไขสคริปต์ได้ทันที"
+              >
+                {lines.map((line, lIdx) => (
+                  <div key={lIdx} className="flex items-start gap-1.5">
+                    <span className="text-[#25F4EE] font-bold flex-shrink-0">{lIdx + 1}.</span>
+                    <span>{line}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* 🎬 Angle-Specific Footage Selector */}
           <div className="space-y-1.5 pt-1 border-t border-white/[0.06]">
@@ -458,6 +585,10 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const [pickerModalOpen, setPickerModalOpen] = useState(false);
   const [pickerAngleIndex, setPickerAngleIndex] = useState(0);
 
+  // Batch Find & Replace Modal State
+  const [findReplaceOpen, setFindReplaceOpen] = useState(false);
+  const [findReplaceAngleIdx, setFindReplaceAngleIdx] = useState(0);
+
   // Uploading Screenshot/Image
   const [uploadingImg, setUploadingImg] = useState(false);
   const fileInputRef = useRef(null);
@@ -484,6 +615,9 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
   useEffect(() => {
     loadHistory(selectedProductId);
+    const onFocus = () => loadHistory(selectedProductId);
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
   }, [selectedProductId, refreshTrigger]);
 
   const selectProduct = (item) => {
@@ -515,6 +649,58 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       showToast(`อัปเดตสถานะสคริปต์เรียบร้อยแล้ว`);
     } catch (err) {
       showToast('ไม่สามารถอัปเดตสถานะได้: ' + err.message, 'error');
+    }
+  };
+
+  const handleSaveScript = async (angleIdx, newLines, newHookTitle) => {
+    if (!productData?.id) return;
+    const targetAngle = angles[angleIdx];
+    if (!targetAngle) return;
+
+    const nextAngles = angles.map((ang, idx) => {
+      if (idx !== angleIdx) return ang;
+      const updated = {
+        ...ang,
+        script_lines: newLines,
+        script_text: newLines.join('\n'),
+        tts_lines: newLines,
+      };
+      if (typeof newHookTitle === 'string' && newHookTitle) {
+        updated.hook_title = newHookTitle;
+        updated.tts_hook_title = newHookTitle.replace(/^[^\w\s\u0E00-\u0E7F]+/, '').trim();
+      }
+      return updated;
+    });
+
+    setAngles(nextAngles);
+
+    try {
+      const res = await updateProduct(productData.id, { angles: nextAngles });
+      if (res.product) {
+        setProductData(prev => ({ ...prev, ...res.product, angles: res.product.angles }));
+        setHistoryList(prev => prev.map(p => p.id === res.product.id ? res.product : p));
+      }
+      showToast(`บันทึกสคริปต์มุมที่ ${angleIdx + 1} (${targetAngle.angle_name || 'สคริปต์'}) เรียบร้อยแล้ว`);
+    } catch (err) {
+      console.error('Failed to save script:', err);
+      showToast('ไม่สามารถบันทึกสคริปต์ได้: ' + err.message, 'error');
+    }
+  };
+
+  const handleApplyFindReplace = async ({ findText, replaceText, scope, updatedAngles, matchCount, affectedAnglesCount }) => {
+    if (!productData?.id) return;
+    setAngles(updatedAngles);
+
+    try {
+      const res = await updateProduct(productData.id, { angles: updatedAngles });
+      if (res.product) {
+        setProductData(prev => ({ ...prev, ...res.product, angles: res.product.angles }));
+        setHistoryList(prev => prev.map(p => p.id === res.product.id ? res.product : p));
+      }
+      showToast(`แทนที่คำว่า "${findText}" เป็น "${replaceText}" สำเร็จทั้งหมด ${matchCount} จุด ใน ${affectedAnglesCount} สคริปต์!`);
+    } catch (err) {
+      console.error('Failed to replace words in scripts:', err);
+      showToast('ไม่สามารถแทนที่คำในสคริปต์ได้: ' + err.message, 'error');
     }
   };
 
@@ -1022,7 +1208,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       <Modal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
-        title="เพิ่มสินค้าใหม่ ➔ ให้ AI สร้าง 4 สคริปต์"
+        title={`เพิ่มสินค้าใหม่ ➔ ให้ AI สร้าง ${angleCount} สคริปต์`}
         subtitle="รองรับทุกลิงก์ Shopee / TikTok Shop หรือพิมพ์สเปกตรงๆ"
         maxWidth="max-w-xl"
       >
@@ -1198,6 +1384,29 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
             </div>
           </div>
 
+          {/* Angle breakdown preview hint */}
+          <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.06] text-[11px] text-slate-400 space-y-1">
+            <div className="flex items-center gap-1.5 font-semibold text-slate-300">
+              <Sparkles className="w-3 h-3 text-[#25F4EE]" />
+              <span>แนวทางสคริปต์ที่ AI จะสร้างให้ ({angleCount} สคริปต์):</span>
+            </div>
+            {angleCount === 4 && (
+              <p className="text-slate-400 leading-relaxed">
+                1. 😫 ปัญหาก่อนใช้ • 2. ⚙️ <strong className="text-cyan-300">รีวิวสเปกเจาะลึก</strong> • 3. 🛍️ แกะกล่องว้าว • 4. 🔥 FOMO ดีลโปร
+              </p>
+            )}
+            {angleCount === 7 && (
+              <p className="text-slate-400 leading-relaxed">
+                4 มุมหลัก (รวม ⚙️ <strong className="text-cyan-300">รีวิวสเปกเจาะลึก</strong>) + 🆚 เทียบของเดิม + 🤫 ทริกลึก + ⚠️ เตือนภัยก่อนซื้อ
+              </p>
+            )}
+            {angleCount === 10 && (
+              <p className="text-slate-400 leading-relaxed">
+                ครบ 10 รูปแบบ (รวม ⚙️ <strong className="text-cyan-300">รีวิวสเปกเจาะลึก</strong>, สายเฉพาะทาง, รีวิว 3 เดือน, และคำนวณความคุ้มค่า)
+              </p>
+            )}
+          </div>
+
           <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/[0.08]">
             <Button variant="secondary" onClick={() => setShowAddModal(false)}>
               ยกเลิก
@@ -1255,6 +1464,18 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
+                  onClick={() => {
+                    setFindReplaceAngleIdx(openAngleIdx >= 0 ? openAngleIdx : 0);
+                    setFindReplaceOpen(true);
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-xs font-bold text-amber-300 cursor-pointer flex items-center gap-1.5 transition-all"
+                  title="ค้นหาและแทนที่คำในสคริปต์ทั้งหมด หรือเฉพาะมุมที่เลือก"
+                >
+                  <Replace className="w-3.5 h-3.5" />
+                  <span>ค้นหา & แทนที่คำ</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => handleOpenMediaPicker(-1)}
                   className="px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-xs font-bold text-[#25F4EE] cursor-pointer flex items-center gap-1.5 transition-all"
                   title="เลือกคลิปจากคลังหรืออัปโหลดใหม่ ให้เป็นคลิปเริ่มต้นของทุกสคริปต์"
@@ -1283,6 +1504,11 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   onUploadVideo={handleImageUpload}
                   uploadingImg={uploadingImg}
                   onOpenMediaPicker={handleOpenMediaPicker}
+                  onSaveScript={handleSaveScript}
+                  onOpenFindReplace={(i) => {
+                    setFindReplaceAngleIdx(i);
+                    setFindReplaceOpen(true);
+                  }}
                 />
               ))}
             </div>
@@ -1344,6 +1570,15 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         selectedVideos={angles[pickerAngleIndex]?.selected_videos || (angles[pickerAngleIndex]?.selected_video ? [angles[pickerAngleIndex]?.selected_video] : [])}
         onConfirm={handleConfirmMediaPicker}
         isMultiSelect={true}
+      />
+
+      {/* ── Batch Find & Replace Modal ── */}
+      <FindReplaceModal
+        isOpen={findReplaceOpen}
+        onClose={() => setFindReplaceOpen(false)}
+        angles={angles}
+        currentAngleIndex={findReplaceAngleIdx}
+        onApplyReplace={handleApplyFindReplace}
       />
 
       {/* ── Product Catalog Modal (Searchable Grid for 100+ items) ── */}
