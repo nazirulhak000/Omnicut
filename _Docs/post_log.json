@@ -2114,5 +2114,51 @@
       "commission_thb": 1020.0
     },
     "metrics_filled_at": "2026-09-04T21:24:37"
+  },
+  {
+    "id": "20260904214844_93",
+    "product_name": "Test Serum Anti-Aging",
+    "product_url": "",
+    "angle_key": "pain_point",
+    "angle_title": "🚫 เตือนห้ามซื้อถ้ายังไม่เห็นคลิปนี้",
+    "hook": "อย่าเพิ่งซื้อเซรั่ม",
+    "clip_file": "20260903_Serum_Hook1_v1.mp4",
+    "platform": "tiktok",
+    "caption": "เซรั่มกู้หน้าใสใน 7 วัน",
+    "hashtags": [
+      "#หน้าใส",
+      "#รีวิวสกินแคร์"
+    ],
+    "posted_at": "2026-09-04T21:48:44",
+    "metrics": {
+      "views": 15200,
+      "likes": 890,
+      "orders": 34,
+      "commission_thb": 1020.0
+    },
+    "metrics_filled_at": "2026-09-04T21:48:44"
+  },
+  {
+    "id": "20260904215002_94",
+    "product_name": "Test Serum Anti-Aging",
+    "product_url": "",
+    "angle_key": "pain_point",
+    "angle_title": "🚫 เตือนห้ามซื้อถ้ายังไม่เห็นคลิปนี้",
+    "hook": "อย่าเพิ่งซื้อเซรั่ม",
+    "clip_file": "20260903_Serum_Hook1_v1.mp4",
+    "platform": "tiktok",
+    "caption": "เซรั่มกู้หน้าใสใน 7 วัน",
+    "hashtags": [
+      "#หน้าใส",
+      "#รีวิวสกินแคร์"
+    ],
+    "posted_at": "2026-09-04T21:50:02",
+    "metrics": {
+      "views": 15200,
+      "likes": 890,
+      "orders": 34,
+      "commission_thb": 1020.0
+    },
+    "metrics_filled_at": "2026-09-04T21:50:02"
   }
 ]
