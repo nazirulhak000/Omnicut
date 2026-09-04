@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
   AlertCircle, Check, ChevronDown, ChevronRight, Film, Loader2, Package,
-  Rocket, Sparkles, Upload, Volume2, FolderOpen, ArrowRight, Clock, Hourglass, CheckCircle2, Play
+  Rocket, Sparkles, Upload, Volume2, FolderOpen, ArrowRight, Clock, Hourglass, CheckCircle2, Play,
+  FileText, Sliders
 } from 'lucide-react';
 import { previewVoice, startRender, uploadFile, updateAngleVideos } from '../../api';
 import { DEFAULT_STUDIO_FORM, STUDIO_FORM_KEY, getSavedStudioForm } from '../../lib/studioDefaults';
@@ -26,23 +27,21 @@ function formatRemaining(seconds) {
   return s > 15 ? `~${m} นาที ${s} วิ` : `~${m} นาที`;
 }
 
-// == GEMINI_VOICE_PRESETS in scripts/gemini_tts_engine.py. An id that is not
-// in that map falls through to a default voice without complaining, so the
-// picker would quietly play something else than it names.
+// == GEMINI_VOICE_PRESETS in scripts/gemini_tts_engine.py.
 const VOICE_PRESETS = [
-  { id: 'gemini_puck_male_hype', label: '⚡ Puck — ชายพลังสูง สไตล์ TikTok' },
-  { id: 'gemini_charon_male_pro', label: '🎙️ Charon — ชายทุ้มลึก น่าเชื่อถือ' },
-  { id: 'gemini_kore_female_bright', label: '✨ Kore — หญิงสดใส ป้ายยาเก่ง' },
-  { id: 'gemini_aoede_female_pro', label: '👑 Aoede — หญิงพรีเมียม นุ่มนวล' },
-  { id: 'gemini_fenrir_male_strong', label: '🔥 Fenrir — ชายสตรอง คมเข้ม' },
+  { id: 'gemini_puck_male_hype', label: 'Puck — ชายพลังสูง สไตล์ TikTok' },
+  { id: 'gemini_charon_male_pro', label: 'Charon — ชายทุ้มลึก น่าเชื่อถือ' },
+  { id: 'gemini_kore_female_bright', label: 'Kore — หญิงสดใส ป้ายยาเก่ง' },
+  { id: 'gemini_aoede_female_pro', label: 'Aoede — หญิงพรีเมียม นุ่มนวล' },
+  { id: 'gemini_fenrir_male_strong', label: 'Fenrir — ชายสตรอง คมเข้ม' },
 ];
 
 // == AD_TONE_PRESETS in the same file.
 const AD_TONES = [
-  { id: 'commercial_premium', label: '📢 โฆษณาพรีเมียม' },
-  { id: 'commercial_hype', label: '🔥 ป้ายยาไวรัล' },
-  { id: 'commercial_aesthetic', label: '✨ มินิมอล ดูแพง' },
-  { id: 'commercial_expert', label: '🎙️ ผู้เชี่ยวชาญ' },
+  { id: 'commercial_premium', label: 'โฆษณาพรีเมียม' },
+  { id: 'commercial_hype', label: 'ป้ายยาไวรัล' },
+  { id: 'commercial_aesthetic', label: 'มินิมอล ดูแพง' },
+  { id: 'commercial_expert', label: 'ผู้เชี่ยวชาญ' },
 ];
 
 /** "+15%" -> 1.15 for the preview endpoint, which wants a float. */
@@ -61,17 +60,29 @@ const FONTS = [
 /** Steps the backend reports, so the wait shows where it is rather than a bar. */
 const RENDER_STEPS = ['เขียนบท', 'พากย์เสียง', 'ทำซับ', 'มิกซ์เสียง', 'เปิด Editor'];
 
-function Section({ step, title, hint, children, done }) {
+function Section({ icon: Icon, title, hint, badgeText, children, done, className = '' }) {
   return (
-    <section className="rounded-2xl border border-white/[0.08] bg-black/40 p-3">
-      <header className="mb-2 flex items-center gap-2">
-        <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-base font-bold ${
-          done ? 'bg-[#D97757] text-white' : 'bg-white/[0.06] text-slate-400'
-        }`}>
-          {done ? <Check className="h-4 w-4" /> : step}
-        </span>
-        <h3 className="text-lg font-bold text-white">{title}</h3>
-        {hint && <span className="ml-auto text-sm text-[#9C968F]">{hint}</span>}
+    <section className={`rounded-2xl border border-white/[0.08] bg-[#0B0F19]/90 shadow-xl backdrop-blur-md p-4 sm:p-5 transition-all ${className}`}>
+      <header className="mb-3.5 flex items-center justify-between gap-2 pb-2.5 border-b border-white/[0.06]">
+        <div className="flex items-center gap-2.5 min-w-0">
+          {Icon && (
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 border ${
+              done
+                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
+                : 'bg-white/[0.05] border-white/[0.08] text-[#E89274]'
+            }`}>
+              {done ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+            </div>
+          )}
+          <h3 className="text-base sm:text-lg font-bold text-white tracking-wide truncate font-kanit">{title}</h3>
+        </div>
+        {badgeText ? (
+          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-white/[0.06] text-slate-300 border border-white/[0.08] truncate max-w-[200px]">
+            {badgeText}
+          </span>
+        ) : hint ? (
+          <span className="text-xs text-slate-400 font-mono truncate max-w-[200px]">{hint}</span>
+        ) : null}
       </header>
       {children}
     </section>
@@ -82,14 +93,14 @@ function Field({ label, value, onChange, onBlur, placeholder, multiline }) {
   const Tag = multiline ? 'textarea' : 'input';
   return (
     <label className="block">
-      <span className="mb-1 block text-sm text-slate-400">{label}</span>
+      <span className="mb-1 block text-xs font-semibold text-slate-400">{label}</span>
       <Tag
         value={value || ''}
-        rows={multiline ? 4 : undefined}
+        rows={multiline ? 3 : undefined}
         onChange={(e) => onChange(e.target.value)}
         onBlur={onBlur}
         placeholder={placeholder}
-        className="min-h-9 w-full resize-none rounded-lg border border-white/[0.08] bg-black/40 px-3 py-2 text-base text-white placeholder-slate-600 focus:border-[#D97757] focus:outline-none"
+        className="min-h-9 w-full resize-none rounded-xl border border-white/[0.08] bg-black/40 px-3 py-2 text-xs sm:text-sm text-slate-100 placeholder-slate-600 focus:border-[#25F4EE]/60 focus:ring-1 focus:ring-[#25F4EE]/30 focus:outline-none transition-all"
       />
     </label>
   );
@@ -418,343 +429,410 @@ export default function NewClipPanel({
   }
 
   return (
-    <div className="h-full overflow-y-auto p-4 xl:p-6">
-      <div className="mx-auto max-w-3xl space-y-3 xl:max-w-5xl xl:space-y-4">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-6 w-6 text-[#D97757]" />
-          <h2 className="text-2xl font-bold text-white">สร้างคลิปใหม่</h2>
-          <span className="ml-auto font-mono text-sm text-[#9C968F]">{projectName}</span>
+    <div className="h-full overflow-y-auto p-4 sm:p-6 lg:p-8 bg-[#07090E]">
+      <div className="mx-auto max-w-[1440px] space-y-5 animate-fadeIn">
+        {/* ── Top Header Bar ── */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-white/[0.06]">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#D97757]/20 to-[#FF8A65]/10 border border-[#D97757]/30 flex items-center justify-center text-[#E89274] shadow-md shadow-[#D97757]/10">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-xl sm:text-2xl font-black text-white font-kanit tracking-tight">สร้างคลิปใหม่</h2>
+              <p className="text-xs text-slate-400">ตรวจสอบบทพากย์ จัดการวัตถุดิบ และเริ่มตัดต่อเข้าสู่ไทม์ไลน์</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-start sm:self-center">
+            <span className="text-xs text-slate-500 font-semibold">ชื่อโปรเจกต์:</span>
+            <span className="px-2.5 py-1 rounded-lg bg-cyan-950/50 border border-cyan-800/40 text-cyan-300 font-mono text-xs font-bold shadow-inner truncate max-w-[320px]">
+              {projectName}
+            </span>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 xl:gap-4 xl:items-start">
-        {/* ── 1. product + angle ── */}
-        <Section step="1" title="สินค้า & มุมที่จะเล่า" done={!!form.productName} hint={productContext ? productContext.title : 'ยังไม่ได้เลือกสินค้า'}>
-          {angles.length > 0 ? (
-            <div className="space-y-2">
-              {/* Locked/Assigned Angle from Product flow (No arbitrary dropdown) */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-semibold text-slate-400">มุมที่ส่งมาตัดต่อ:</span>
+        {/* ── 2-Column Responsive Studio Layout ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6 items-start">
+
+          {/* ════════ LEFT COLUMN (Creative Core: Script & Audio Settings) ════════ */}
+          <div className="lg:col-span-7 space-y-5">
+
+            {/* 1. Voiceover Script Card */}
+            <Section
+              icon={FileText}
+              title="บทพูดพากย์"
+              done={!!form.customScript}
+              badgeText={
+                form.customScript
+                  ? `${form.customScript.split('\n').filter(Boolean).length} ท่อน · ${form.customScript.length} ตัวอักษร`
+                  : 'ยังไม่มีบทพูด'
+              }
+            >
+              <div className="space-y-3">
+                <div className="relative">
+                  <textarea
+                    rows={12}
+                    value={form.customScript || ''}
+                    onChange={(e) => patch({ customScript: e.target.value, useCustomScript: true })}
+                    placeholder="บทพูดจะถูกส่งมาจากมุมที่คุณเลือกในหน้าสินค้า..."
+                    className="w-full resize-none rounded-xl border border-white/[0.08] bg-black/50 px-3.5 py-3 text-sm sm:text-base leading-relaxed text-slate-100 placeholder-slate-600 focus:border-[#25F4EE]/60 focus:ring-1 focus:ring-[#25F4EE]/30 focus:outline-none font-sans shadow-inner transition-all"
+                  />
+                  {form.customScript && (
+                    <div className="absolute top-2.5 right-3 pointer-events-none">
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-black/70 border border-white/[0.08] text-slate-300">
+                        ~{Math.max(5, Math.round(form.customScript.length / 14))} วิ
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
+                  <span className="text-cyan-300 font-medium flex items-center gap-1.5">
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>ใช้บทพูดจากมุมที่ส่งมา (สามารถปรับแก้ไขข้อความได้อิสระ)</span>
+                  </span>
+                  <span className="font-mono text-slate-400">{form.customScript ? `${form.customScript.length} ตัวอักษร` : ''}</span>
+                </div>
+              </div>
+            </Section>
+
+            {/* 2. Audio & Style Card */}
+            <Section
+              icon={Sliders}
+              title="ตั้งค่าเสียง & สไตล์"
+              done={true}
+              badgeText="ค่าเริ่มต้นพร้อมใช้"
+            >
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  {/* Voice Preset */}
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-semibold text-slate-300">เสียงพากย์ AI</span>
+                    <div className="flex gap-1.5">
+                      <select
+                        value={form.voicePreset}
+                        onChange={(e) => patch({ voicePreset: e.target.value })}
+                        className="h-10 min-w-0 flex-1 rounded-xl border border-white/[0.08] bg-black/40 px-3 text-xs sm:text-sm text-white focus:border-[#25F4EE]/60 focus:outline-none cursor-pointer"
+                      >
+                        {VOICE_PRESETS.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={handlePreviewVoice}
+                        disabled={voiceBusy}
+                        title="ลองฟังเสียงพากย์"
+                        className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.04] text-slate-300 hover:text-white hover:bg-white/[0.08] disabled:opacity-40 cursor-pointer transition-colors"
+                      >
+                        {voiceBusy ? <Loader2 className="h-4 w-4 animate-spin text-[#25F4EE]" /> : <Volume2 className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </label>
+
+                  {/* Subtitle Font */}
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-semibold text-slate-300">ฟอนต์ซับไตเติล</span>
+                    <select
+                      value={form.fontName}
+                      onChange={(e) => patch({ fontName: e.target.value })}
+                      className="h-10 w-full rounded-xl border border-white/[0.08] bg-black/40 px-3 text-xs sm:text-sm text-white focus:border-[#25F4EE]/60 focus:outline-none cursor-pointer"
+                    >
+                      {FONTS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
+                    </select>
+                  </label>
+
+                  {/* Ad Tone */}
+                  <label className="block sm:col-span-2">
+                    <span className="mb-1.5 block text-xs font-semibold text-slate-300">โทนโฆษณา / สไตล์พากย์</span>
+                    <select
+                      value={form.adTone || 'commercial_premium'}
+                      onChange={(e) => patch({ adTone: e.target.value })}
+                      className="h-10 w-full rounded-xl border border-white/[0.08] bg-black/40 px-3 text-xs sm:text-sm text-white focus:border-[#25F4EE]/60 focus:outline-none cursor-pointer"
+                    >
+                      {AD_TONES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+                    </select>
+                  </label>
+                </div>
+
+                {/* Toggles */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-white/[0.06]">
+                  <label className="flex items-center gap-2.5 p-2.5 rounded-xl border border-white/[0.06] bg-black/30 text-xs text-slate-300 hover:text-white cursor-pointer transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={form.useAiVision !== false}
+                      onChange={(e) => patch({ useAiVision: e.target.checked })}
+                      className="h-4 w-4 rounded accent-[#D97757] cursor-pointer"
+                    />
+                    <span>ให้ AI ดูภาพเพื่อเลือกช็อตตัดต่อ</span>
+                  </label>
+
+                  <label className="flex items-center gap-2.5 p-2.5 rounded-xl border border-white/[0.06] bg-black/30 text-xs text-slate-300 hover:text-white cursor-pointer transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={form.bilingualSubtitles !== false}
+                      onChange={(e) => patch({ bilingualSubtitles: e.target.checked })}
+                      className="h-4 w-4 rounded accent-[#D97757] cursor-pointer"
+                    />
+                    <span>ซับสองภาษา (ไทย + อังกฤษ)</span>
+                  </label>
+                </div>
+
+                <p className="text-[11px] leading-relaxed text-slate-500 pt-1">
+                  สามารถปรับแต่ง BGM, เสียงเอฟเฟกต์ (SFX), ป้ายสติกเกอร์ และฟิลเตอร์สีได้ละเอียดทุกช็อตในไทม์ไลน์
+                </p>
+              </div>
+            </Section>
+          </div>
+
+          {/* ════════ RIGHT COLUMN (Context, Media & Action Dock) ════════ */}
+          <div className="lg:col-span-5 space-y-5">
+
+            {/* 3. Product & Angle Card */}
+            <Section
+              icon={Package}
+              title="สินค้า & มุมที่จะเล่า"
+              done={!!form.productName}
+              badgeText={productContext ? productContext.title : 'ยังไม่ได้เลือกสินค้า'}
+            >
+              {angles.length > 0 ? (
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-semibold text-slate-400">มุมที่ส่งมาตัดต่อ:</span>
+                      <button
+                        type="button"
+                        onClick={onGoToProductFlow}
+                        className="text-xs text-[#25F4EE] hover:underline flex items-center gap-1 cursor-pointer font-bold transition-colors"
+                        title="กลับไปเลือกมุมและคลิปที่หน้าสินค้า"
+                      >
+                        <span>เปลี่ยนมุม</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2 p-2.5 rounded-xl bg-black/50 border border-[#25F4EE]/30 shadow-inner">
+                      <div className="w-2 h-2 rounded-full bg-[#25F4EE] animate-pulse flex-shrink-0" />
+                      <span className="text-xs sm:text-sm font-bold text-cyan-200 truncate">
+                        {angleLabel(currentAngle || angles[angleIndex], angleIndex)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl bg-white/[0.03] p-3 text-xs leading-relaxed text-slate-300 border border-white/[0.04] space-y-1.5">
+                    <div className="truncate"><span className="text-slate-500 font-semibold">สินค้า:</span> <strong className="text-white">{form.productName}</strong></div>
+                    <div className="truncate"><span className="text-slate-500 font-semibold">Hook:</span> {[form.hookBrand, form.hookModel, form.hookLabel].filter(Boolean).join(' · ') || '—'}</div>
+                    <div className="truncate"><span className="text-slate-500 font-semibold">ปัญหา:</span> {form.painPoint || '—'}</div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowFields((v) => !v)}
+                    className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white cursor-pointer transition-colors"
+                  >
+                    {showFields ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                    <span>{showFields ? 'ซ่อนการแก้ไขข้อมูลสินค้า' : 'แก้ไขข้อมูลสินค้า & Hook เพิ่มเติม'}</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3">
+                    <Package className="h-4 w-4 flex-shrink-0 text-amber-400 mt-0.5" />
+                    <p className="text-xs leading-relaxed text-amber-200">
+                      ยังไม่ได้เลือกมุมจากเมนู “สินค้า → คลิป” — กรุณาไปเลือกมุมและผูกคลิปที่หน้าสินค้าก่อนเพื่อความแม่นยำ
+                    </p>
+                  </div>
                   <button
                     type="button"
                     onClick={onGoToProductFlow}
-                    className="text-xs text-[#25F4EE] hover:underline flex items-center gap-1 cursor-pointer font-bold transition-colors"
-                    title="กลับไปเลือกมุมและคลิปที่หน้าสินค้า"
+                    className="h-10 w-full rounded-xl border border-[#25F4EE]/40 bg-[#25F4EE]/10 text-xs sm:text-sm font-bold text-[#25F4EE] hover:bg-[#25F4EE]/20 cursor-pointer flex items-center justify-center gap-1.5 transition-all"
                   >
-                    <span>เปลี่ยนมุมที่หน้าสินค้า</span>
-                    <ArrowRight className="w-3 h-3" />
+                    <Package className="w-4 h-4" />
+                    <span>ไปเลือกสินค้า & มุมที่หน้าสินค้า</span>
                   </button>
                 </div>
-                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-black/50 border border-[#25F4EE]/30 shadow-inner">
-                  <div className="w-2 h-2 rounded-full bg-[#25F4EE] animate-pulse flex-shrink-0" />
-                  <span className="text-sm font-bold text-cyan-200 truncate">
-                    {angleLabel(currentAngle || angles[angleIndex], angleIndex)}
+              )}
+
+              {(showFields || angles.length === 0) && (
+                <div className="mt-3 space-y-2 pt-3 border-t border-white/[0.06]">
+                  <Field
+                    label="ชื่อสินค้า"
+                    value={form.productName}
+                    onChange={(v) => patch({ productName: v })}
+                    onBlur={() => {
+                      if (!form.hookBrand && !form.hookModel) {
+                        const { brand, model } = guessBrandModel(form.productName);
+                        if (brand || model) patch({ hookBrand: brand, hookModel: model });
+                      }
+                    }}
+                    placeholder="เช่น Esseger สายชาร์จแม่เหล็ก"
+                  />
+                  <Field label="Header: แบรนด์" value={form.hookBrand} onChange={(v) => patch({ hookBrand: v })} placeholder="เช่น Logitech" />
+                  <Field label="Header: รุ่น/โมเดล" value={form.hookModel} onChange={(v) => patch({ hookModel: v })} placeholder="เช่น Wave Keys" />
+                  <Field label="Header: หมวดสินค้า" value={form.hookLabel} onChange={(v) => patch({ hookLabel: v })} placeholder="เช่น คีย์บอร์ดไร้สาย" />
+                  <Field label="ปัญหาที่ลูกค้าเจอ" value={form.painPoint} onChange={(v) => patch({ painPoint: v })} />
+                  <Field label="จุดเด่น" value={form.keyFeatures} onChange={(v) => patch({ keyFeatures: v })} multiline />
+                  <Field label="โปรโมชั่น / CTA" value={form.priceDeal} onChange={(v) => patch({ priceDeal: v })} />
+                </div>
+              )}
+            </Section>
+
+            {/* 4. Raw Footage Card */}
+            <Section
+              icon={Film}
+              title="คลิปดิบ (Footage)"
+              done={!!form.selectedVideo || angleAttachedVideos.length > 0 || (videos.length > 0)}
+              badgeText={
+                form.selectedVideo
+                  ? `เลือก 1 คลิป`
+                  : (angleAttachedVideos.length > 0
+                      ? `${displayVideos.length} ไฟล์ที่ผูกไว้`
+                      : (videos.length > 0 ? `${videos.length} คลิปในคลัง` : 'ยังไม่มีคลิป'))
+              }
+            >
+              <div className="space-y-3">
+                <div className="max-h-44 space-y-1.5 overflow-y-auto pr-1">
+                  {displayVideos.map((v) => {
+                    const selected = isVideoSelected(v);
+                    return (
+                      <button
+                        key={v.path || v.rel_path || v.name}
+                        type="button"
+                        onClick={() => {
+                          const chosen = v.path || v.rel_path;
+                          patch({ selectedVideo: chosen, selectedVideos: [chosen] });
+                        }}
+                        className={`flex min-h-10 w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-all cursor-pointer ${
+                          selected
+                            ? 'border-[#D97757] bg-[#D97757]/15 text-white shadow-sm ring-1 ring-[#D97757]/30'
+                            : 'border-white/[0.08] bg-black/40 text-slate-300 hover:border-white/[0.2] hover:bg-white/[0.02]'
+                        }`}
+                      >
+                        <Film className={`h-4 w-4 flex-shrink-0 ${selected ? 'text-[#E89274]' : 'text-slate-500'}`} />
+                        <span className="min-w-0 flex-1 truncate text-xs sm:text-sm font-medium">{v.name || getMediaName(v)}</span>
+                        {selected && (
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <span className="text-[10px] font-bold text-[#E89274] bg-[#D97757]/25 px-2 py-0.5 rounded-md">เลือกแล้ว</span>
+                            <Check className="h-3.5 w-3.5 text-[#E89274]" />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                  {displayVideos.length === 0 && (
+                    <p className="px-1 py-3 text-xs text-slate-400 text-center bg-black/20 rounded-xl border border-dashed border-white/[0.08]">
+                      ยังไม่มีคลิปดิบ — เลือกจากคลังหรืออัปโหลดคลิปใหม่
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setMediaPickerOpen(true)}
+                    className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-[#25F4EE]/30 bg-[#25F4EE]/10 text-xs font-bold text-[#25F4EE] hover:bg-[#25F4EE]/20 transition-all cursor-pointer shadow-sm"
+                  >
+                    <FolderOpen className="h-3.5 w-3.5" />
+                    <span>เปิดคลังคลิป</span>
+                  </button>
+                  <label
+                    className={`flex h-10 items-center justify-center gap-1.5 rounded-xl border border-white/[0.1] bg-white/[0.04] text-xs font-bold text-slate-200 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer shadow-sm ${
+                      uploadPct !== null ? 'opacity-50 pointer-events-none' : ''
+                    }`}
+                  >
+                    <Upload className="h-3.5 w-3.5 text-[#25F4EE]" />
+                    <span>{uploadPct !== null ? `อัปโหลด ${uploadPct}%` : 'อัปโหลดคลิปใหม่'}</span>
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept="video/*,video/mp4,video/quicktime,video/webm,.mov,.mp4"
+                      className="sr-only"
+                      disabled={uploadPct !== null}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleUpload(file);
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                </div>
+              </div>
+            </Section>
+
+            {/* 5. Summary & Action Dock */}
+            <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-[#0F1420]/95 to-[#090C12]/95 p-4 sm:p-5 shadow-2xl backdrop-blur-xl space-y-3.5 ring-1 ring-white/[0.04]">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider font-kanit">ความพร้อมก่อนสร้าง</span>
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                  !missing ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                }`}>
+                  {!missing ? 'พร้อมสร้างคลิป' : 'ข้อมูลยังไม่ครบ'}
+                </span>
+              </div>
+
+              {/* Checklist Badges */}
+              <div className="space-y-1.5 text-xs text-slate-300">
+                <div className="flex items-center justify-between p-2 rounded-lg bg-black/40 border border-white/[0.04]">
+                  <span className="text-slate-400">1. สินค้า & มุม:</span>
+                  <span className={form.productName ? 'text-emerald-400 font-medium' : 'text-amber-400 font-medium'}>
+                    {form.productName ? 'ระบุแล้ว' : 'ยังไม่ระบุ'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between p-2 rounded-lg bg-black/40 border border-white/[0.04]">
+                  <span className="text-slate-400">2. คลิปดิบ:</span>
+                  <span className={form.selectedVideo ? 'text-emerald-400 font-medium' : 'text-amber-400 font-medium'}>
+                    {form.selectedVideo ? 'เลือกแล้ว' : 'ยังไม่ได้เลือก'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between p-2 rounded-lg bg-black/40 border border-white/[0.04]">
+                  <span className="text-slate-400">3. สคริปต์บทพากย์:</span>
+                  <span className={form.customScript ? 'text-emerald-400 font-medium' : 'text-amber-400 font-medium'}>
+                    {form.customScript ? `${form.customScript.length} ตัวอักษร` : 'ยังไม่มีบท'}
                   </span>
                 </div>
               </div>
 
-              <div className="rounded-lg bg-white/[0.03] px-3 py-2.5 text-sm leading-relaxed text-slate-400 border border-white/[0.04] space-y-1">
-                <div className="truncate"><span className="text-[#9C968F] font-semibold">สินค้า:</span> {form.productName}</div>
-                <div className="truncate"><span className="text-[#9C968F] font-semibold">Hook:</span> {[form.hookBrand, form.hookModel, form.hookLabel].filter(Boolean).join(' · ') || '—'}</div>
-                <div className="truncate"><span className="text-[#9C968F] font-semibold">ปัญหา:</span> {form.painPoint || '—'}</div>
-                <div className="truncate text-xs font-mono text-cyan-300 pt-1 border-t border-white/[0.06] flex items-center gap-1.5">
-                  <span className="text-[#9C968F] font-sans font-semibold">ชื่อโปรเจกต์:</span>
-                  <span className="bg-cyan-950/60 text-cyan-300 px-1.5 py-0.5 rounded border border-cyan-800/40">{projectName}</span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowFields((v) => !v)}
-                className="flex items-center gap-1 text-xs text-slate-400 hover:text-white cursor-pointer"
-              >
-                {showFields ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                แก้ข้อความสคริปต์/Hook เอง
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <div className="flex items-start gap-2 rounded-lg border border-[#5C4326] bg-[#2E2418] p-2">
-                <Package className="h-3.5 w-3.5 flex-shrink-0 text-[#C08A5E]" />
-                <p className="text-sm leading-relaxed text-[#D9BFA0]">
-                  ยังไม่ได้เลือกมุมจากเมนู “สินค้า → คลิป” — กรุณาไปเลือกมุมและผูกคลิปที่หน้าสินค้าก่อนเพื่อความถูกต้อง
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={onGoToProductFlow}
-                className="h-9 w-full rounded-lg border border-[#25F4EE]/40 bg-[#25F4EE]/10 text-sm font-bold text-[#25F4EE] hover:bg-[#25F4EE]/20 cursor-pointer flex items-center justify-center gap-1.5 transition-all"
-              >
-                <Package className="w-3.5 h-3.5" />
-                <span>ไปเลือกสินค้า & มุมที่หน้าสินค้า</span>
-              </button>
-            </div>
-          )}
-
-          {(showFields || angles.length === 0) && (
-            <div className="mt-2 space-y-2">
-              <Field
-                label="ชื่อสินค้า"
-                value={form.productName}
-                onChange={(v) => patch({ productName: v })}
-                onBlur={() => {
-                  // Only pre-fill while BOTH hook fields are still empty --
-                  // never overwrite a guess the user already corrected, or
-                  // one they typed themselves.
-                  if (!form.hookBrand && !form.hookModel) {
-                    const { brand, model } = guessBrandModel(form.productName);
-                    if (brand || model) patch({ hookBrand: brand, hookModel: model });
-                  }
-                }}
-                placeholder="เช่น Esseger สายชาร์จแม่เหล็ก"
-              />
-              <Field label="Header: แบรนด์" value={form.hookBrand} onChange={(v) => patch({ hookBrand: v })} placeholder="เช่น Logitech" />
-              <Field label="Header: รุ่น/โมเดล" value={form.hookModel} onChange={(v) => patch({ hookModel: v })} placeholder="เช่น Wave Keys" />
-              <Field label="Header: หมวดสินค้า" value={form.hookLabel} onChange={(v) => patch({ hookLabel: v })} placeholder="เช่น คีย์บอร์ดไร้สาย" />
-              <Field label="ปัญหาที่ลูกค้าเจอ" value={form.painPoint} onChange={(v) => patch({ painPoint: v })} />
-              <Field label="จุดเด่น" value={form.keyFeatures} onChange={(v) => patch({ keyFeatures: v })} multiline />
-              <Field label="โปรโมชั่น / CTA" value={form.priceDeal} onChange={(v) => patch({ priceDeal: v })} />
-              {angles.length === 0 && (
-                <div className="truncate text-xs font-mono text-cyan-300 py-1.5 px-2.5 bg-cyan-950/40 rounded-lg border border-cyan-800/30 flex items-center gap-1.5">
-                  <span className="text-[#9C968F] font-sans font-semibold">ชื่อโปรเจกต์:</span>
-                  <span>{projectName}</span>
-                </div>
-              )}
-            </div>
-          )}
-        </Section>
-
-        {/* ── 2. footage ── */}
-        <Section
-          step="2"
-          title="คลิปดิบ"
-          done={!!form.selectedVideo || angleAttachedVideos.length > 0 || (videos.length > 0)}
-          hint={
-            form.selectedVideo
-              ? `เลือก 1 คลิป (${getMediaName(form.selectedVideo)})`
-              : (angleAttachedVideos.length > 0
-                  ? `${displayVideos.length} ไฟล์ที่ผูกกับมุมนี้`
-                  : (videos.length > 0 ? `ใช้คลิปทั้งหมดในคลัง (${videos.length} คลิป)` : 'ยังไม่มีคลิป'))
-          }
-        >
-          <div className="max-h-40 space-y-1 overflow-y-auto">
-            {displayVideos.map((v) => {
-              const selected = isVideoSelected(v);
-              return (
-                <button
-                  key={v.path || v.rel_path || v.name}
-                  type="button"
-                  onClick={() => {
-                    const chosen = v.path || v.rel_path;
-                    patch({ selectedVideo: chosen, selectedVideos: [chosen] });
-                  }}
-                  className={`flex min-h-9 w-full items-center gap-2 rounded-lg border px-3 py-2 text-left transition-colors duration-150 cursor-pointer ${
-                    selected
-                      ? 'border-[#D97757] bg-[#D97757]/15 text-white shadow-sm ring-1 ring-[#D97757]/30'
-                      : 'border-white/[0.08] bg-black/40 text-slate-300 hover:border-white/[0.2] hover:bg-white/[0.02]'
-                  }`}
-                >
-                  <Film className={`h-3.5 w-3.5 flex-shrink-0 ${selected ? 'text-[#E89274]' : 'text-slate-400'}`} />
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{v.name || getMediaName(v)}</span>
-                  {selected && (
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <span className="text-[10px] font-bold text-[#E89274] bg-[#D97757]/20 px-1.5 py-0.5 rounded">เลือกแล้ว</span>
-                      <Check className="h-4 w-4 text-[#E89274]" />
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-            {displayVideos.length === 0 && (
-              <p className="px-1 py-2 text-sm text-[#9C968F]">ยังไม่มีคลิปดิบ — เลือกจากคลังหรืออัปโหลดด้านล่าง</p>
-            )}
-          </div>
-          <div className="flex items-center gap-2 mt-2">
-            <button
-              type="button"
-              onClick={() => setMediaPickerOpen(true)}
-              className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#25F4EE]/30 bg-[#25F4EE]/10 text-sm font-bold text-[#25F4EE] hover:bg-[#25F4EE]/20 transition-all cursor-pointer"
-            >
-              <FolderOpen className="h-3.5 w-3.5" />
-              <span>เปิดคลังคลิป (Grid)</span>
-            </button>
-            <label
-              className={`flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-white/[0.08] bg-black/40 text-sm font-bold text-slate-200 hover:text-white transition-all cursor-pointer ${
-                uploadPct !== null ? 'opacity-50 pointer-events-none' : ''
-              }`}
-            >
-              <Upload className="h-3.5 w-3.5 text-[#25F4EE]" />
-              <span>{uploadPct !== null ? `อัปโหลด ${uploadPct}%` : 'อัปโหลดคลิปใหม่'}</span>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="video/*,video/mp4,video/quicktime,video/webm,.mov,.mp4"
-                className="sr-only"
-                disabled={uploadPct !== null}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleUpload(file);
-                  e.target.value = '';
-                }}
-              />
-            </label>
-          </div>
-        </Section>
-        </div>
-
-        {/* ── 3. script ── */}
-        <Section
-          step="3"
-          title="บทพูดพากย์"
-          done={!!form.customScript}
-          hint={
-            form.customScript
-              ? `${(form.customScript.split('\n').filter(Boolean).length)} ท่อน (${form.customScript.length} ตัวอักษร)`
-              : 'ส่งบทมาจากหน้าสินค้า'
-          }
-        >
-          <div className="space-y-2">
-            <textarea
-              rows={10}
-              value={form.customScript || ''}
-              onChange={(e) => patch({ customScript: e.target.value, useCustomScript: true })}
-              placeholder="บทพูดจะถูกส่งมาจากมุมที่คุณเลือกในหน้าสินค้า..."
-              className="w-full resize-none rounded-lg border border-white/[0.08] bg-black/40 px-3 py-2.5 text-base leading-relaxed text-white placeholder-slate-600 focus:border-[#25F4EE] focus:outline-none font-mono text-xs sm:text-sm"
-            />
-            <div className="flex items-center justify-between text-xs text-slate-400">
-              <span className="text-[#25F4EE] font-medium flex items-center gap-1">
-                <Check className="w-3.5 h-3.5 text-emerald-400" />
-                <span>ใช้บทพูดจากมุมที่ส่งมา (สามารถปรับแก้ข้อความในกล่องได้)</span>
-              </span>
-              <span>{form.customScript ? `${form.customScript.length} ตัวอักษร` : ''}</span>
-            </div>
-          </div>
-        </Section>
-
-        {/* ── 4. advanced ── */}
-        <section className="rounded-2xl border border-white/[0.08] bg-black/40">
-          <button
-            type="button"
-            onClick={() => setShowAdvanced((v) => !v)}
-            className="flex w-full items-center gap-2 p-3 text-left cursor-pointer"
-          >
-            {showAdvanced ? <ChevronDown className="h-3.5 w-3.5 text-slate-400" /> : <ChevronRight className="h-3.5 w-3.5 text-slate-400" />}
-            <span className="text-lg font-bold text-white">ตั้งค่าเสียง & สไตล์</span>
-            <span className="ml-auto text-sm text-[#9C968F]">ค่าเริ่มต้นใช้ได้เลย</span>
-          </button>
-
-          {showAdvanced && (
-            <div className="space-y-2 border-t border-white/[0.08] p-3">
-              <label className="block">
-                <span className="mb-1 block text-sm text-slate-400">เสียงพากย์</span>
-                <div className="flex gap-1">
-                  <select
-                    value={form.voicePreset}
-                    onChange={(e) => patch({ voicePreset: e.target.value })}
-                    className="h-9 min-w-0 flex-1 rounded-lg border border-white/[0.08] bg-black/40 px-3 text-base text-white focus:outline-none"
-                  >
-                    {VOICE_PRESETS.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
-                  </select>
+              {angleSpecificProject ? (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-[#C08A5E]">
+                    <AlertCircle className="h-4 w-4 flex-shrink-0 text-amber-400" />
+                    <span>มุมนี้มีโปรเจกต์ <strong>{angleSpecificProject}</strong> ในไทม์ไลน์อยู่แล้ว</span>
+                  </div>
                   <button
                     type="button"
-                    onClick={handlePreviewVoice}
-                    disabled={voiceBusy}
-                    title="ลองฟังเสียง"
-                    className="flex h-9 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-black/40 text-slate-300 hover:text-white disabled:opacity-40 cursor-pointer"
+                    onClick={() => onCreated && onCreated(angleSpecificProject)}
+                    className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/25 cursor-pointer transition-all"
                   >
-                    {voiceBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Volume2 className="h-3.5 w-3.5" />}
+                    <Play className="w-3.5 h-3.5 fill-white" />
+                    <span>เปิดดูไทม์ไลน์ของมุมนี้</span>
                   </button>
                 </div>
-              </label>
+              ) : willCreateVariant ? (
+                <p className="flex items-center gap-1.5 text-xs text-[#C08A5E]">
+                  <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                  <span>จะถูกสร้างเป็นโปรเจกต์ใหม่: <strong>{projectName}</strong></span>
+                </p>
+              ) : null}
 
-              <label className="block">
-                <span className="mb-1 block text-sm text-slate-400">ฟอนต์ซับ</span>
-                <select
-                  value={form.fontName}
-                  onChange={(e) => patch({ fontName: e.target.value })}
-                  className="h-9 w-full rounded-lg border border-white/[0.08] bg-black/40 px-3 text-base text-white focus:outline-none"
-                >
-                  {FONTS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
-                </select>
-              </label>
+              {(renderError || aiError) && (
+                <p className="flex items-start gap-1.5 text-xs text-rose-400 bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/20">
+                  <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                  <span>{renderError || aiError}</span>
+                </p>
+              )}
 
-              <label className="block">
-                <span className="mb-1 block text-sm text-slate-400">โทนโฆษณา</span>
-                <select
-                  value={form.adTone || 'commercial_premium'}
-                  onChange={(e) => patch({ adTone: e.target.value })}
-                  className="h-9 w-full rounded-lg border border-white/[0.08] bg-black/40 px-3 text-base text-white focus:outline-none"
-                >
-                  {AD_TONES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-                </select>
-              </label>
-
-              <label className="flex items-center gap-2 text-sm text-slate-400 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.useAiVision !== false}
-                  onChange={(e) => patch({ useAiVision: e.target.checked })}
-                  className="h-[18px] w-[18px] flex-shrink-0 accent-[#D97757]"
-                />
-                ให้ AI ดูภาพเลือกช็อตให้ (ช้าลงเล็กน้อย แต่ตรงเนื้อหากว่า)
-              </label>
-
-              <label className="flex items-center gap-2 text-sm text-slate-400 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.bilingualSubtitles !== false}
-                  onChange={(e) => patch({ bilingualSubtitles: e.target.checked })}
-                  className="h-[18px] w-[18px] flex-shrink-0 accent-[#D97757]"
-                />
-                ซับสองภาษา (ไทย + อังกฤษ)
-              </label>
-
-              <p className="text-xs leading-relaxed text-[#9C968F]">
-                เพลง ฟิลเตอร์ ป้าย และหน้าตาซับ ปรับได้ละเอียดกว่านี้ในไทม์ไลน์หลังคลิปเสร็จ
-              </p>
+              {/* Main Submit Button */}
+              <button
+                type="button"
+                onClick={handleCreate}
+                disabled={!!missing}
+                title={missing || 'เริ่มสร้างคลิป'}
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#D97757] to-[#FF8A65] text-sm sm:text-base font-bold text-white transition-all shadow-lg shadow-[#D97757]/20 hover:brightness-110 hover:shadow-[#D97757]/30 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer active:scale-[0.98]"
+              >
+                <Rocket className="h-4 w-4" />
+                <span>สร้างคลิป & เข้าสู่ไทม์ไลน์</span>
+              </button>
+              {missing && <p className="text-center text-xs text-amber-400/90">{missing}</p>}
             </div>
-          )}
-        </section>
 
-        {/* ── 5. create ── */}
-        {angleSpecificProject ? (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 shadow-md">
-            <div className="flex items-center gap-2 text-sm text-[#C08A5E]">
-              <AlertCircle className="h-4 w-4 flex-shrink-0 text-amber-400" />
-              <span>มุมนี้มีโปรเจกต์ <strong>{angleSpecificProject}</strong> ในไทม์ไลน์อยู่แล้ว</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => onCreated && onCreated(angleSpecificProject)}
-              className="py-1.5 px-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-emerald-500/25 cursor-pointer self-start sm:self-auto transition-all"
-              title={`เปิดดูไทม์ไลน์ของมุมนี้ (${angleSpecificProject}) ทันที`}
-            >
-              <Play className="w-3.5 h-3.5 fill-white" />
-              <span>เปิดดูไทม์ไลน์ของมุมนี้</span>
-            </button>
           </div>
-        ) : willCreateVariant ? (
-          <p className="flex items-center gap-1.5 text-sm text-[#C08A5E]">
-            <AlertCircle className="h-3 w-3 flex-shrink-0" />
-            อันนี้จะถูกสร้างเป็นโปรเจกต์ใหม่: <strong>{projectName}</strong>
-          </p>
-        ) : null}
-        {(renderError || aiError) && (
-          <p className="flex items-start gap-1.5 text-sm text-[#E0A9A2]">
-            <AlertCircle className="h-3 w-3 flex-shrink-0" />{renderError || aiError}
-          </p>
-        )}
-
-        <button
-          type="button"
-          onClick={handleCreate}
-          disabled={!!missing}
-          title={missing || 'เริ่มสร้างคลิป'}
-          className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#D97757] text-base font-bold text-white transition-colors duration-150 hover:bg-[#C2683D] disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-        >
-          <Rocket className="h-4 w-4" />
-          สร้างคลิป
-        </button>
-        {missing && <p className="text-center text-sm text-[#9C968F]">{missing}</p>}
+        </div>
       </div>
 
       {/* ── Universal Media Picker Modal ── */}
