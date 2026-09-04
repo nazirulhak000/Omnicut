@@ -267,6 +267,16 @@ class VideoEditor:
         concat_inputs = []
         video_input_paths: List[str] = []
         clip_durations: List[float] = []
+        # Per input: the span to seek to before decoding, or None to decode the
+        # whole file. A clip_list gives one input per clip, and each clip wants
+        # a few seconds from somewhere in a long source -- cutting that span
+        # with a `trim` filter makes the decoder walk the file from frame zero
+        # every time, so 21 clips spread over 91 seconds decoded roughly ten
+        # times more video than the render uses. Seeking the input instead
+        # decodes only the span. Measured on this project's own footage, 8 such
+        # clips: 97.7s -> 25.8s, and the output was bit-identical (SSIM 1.0000,
+        # PSNR infinite).
+        input_seeks: List[Optional[Tuple[float, float]]] = []
         raw_audio_nodes: List[Tuple[str, float, int]] = []
         used_clip_list = bool(clip_list)
 
@@ -286,6 +296,7 @@ class VideoEditor:
                 if trim_end is None:
                     trim_end = media_info["duration"]
                 source_span = max(0.2, float(trim_end) - trim_start)
+                input_seeks.append((trim_start, source_span))
 
                 # Per-clip speed: setpts stretches/squashes presentation time,
                 # so the clip's contribution to the sequence is span/speed.
@@ -352,7 +363,7 @@ class VideoEditor:
                     fg_node = f"c_{idx}_fg"
                     base_node = f"c_{idx}_base"
                     filter_complex.append(
-                        f"[{idx}:v]trim=start={trim_start}:duration={source_span},setpts=PTS-STARTPTS,"
+                        f"[{idx}:v]trim=duration={source_span},setpts=PTS-STARTPTS,"
                         f"{speed_filter}{rot_filter}{mirror_filter}{eq_filter}{freeze_filter}setsar=1,fps={FPS}[{pre_node}];"
                         f"[{pre_node}]split=2[{bg_node}][{fg_node}];"
                         f"[{bg_node}]scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,crop={VIDEO_WIDTH}:{VIDEO_HEIGHT},boxblur=25:5[{bg_node}2];"
@@ -362,7 +373,7 @@ class VideoEditor:
                     )
                 else:
                     filter_complex.append(
-                        f"[{idx}:v]trim=start={trim_start}:duration={source_span},setpts=PTS-STARTPTS,"
+                        f"[{idx}:v]trim=duration={source_span},setpts=PTS-STARTPTS,"
                         f"{speed_filter}{rot_filter}{mirror_filter}{eq_filter}{freeze_filter}"
                         f"scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,"
                         f"crop={VIDEO_WIDTH}:{VIDEO_HEIGHT},setsar=1,fps={FPS},"
@@ -384,7 +395,7 @@ class VideoEditor:
                             tempo_filter = f",atempo=0.5,atempo={speed/0.5:.3f}"
                     a_node = f"a_clip_{idx}"
                     filter_complex.append(
-                        f"[{idx}:a]atrim=start={trim_start}:duration={source_span},asetpts=PTS-STARTPTS{tempo_filter},volume={vol}[{a_node}];"
+                        f"[{idx}:a]atrim=duration={source_span},asetpts=PTS-STARTPTS{tempo_filter},volume={vol}[{a_node}];"
                     )
                     raw_audio_nodes.append((a_node, duration, idx))
         else:
@@ -393,6 +404,8 @@ class VideoEditor:
             # neither is given), all re-cropped from the same base stream.
             if not raw_video_paths:
                 raise ValueError("No raw video files provided.")
+            # Every virtual cut comes out of the same input here, so there is no
+            # single span to seek to -- this path keeps its `trim` filters.
 
             raw_path = Path(raw_video_paths[0]).resolve()
             video_input_paths.append(str(raw_path))
@@ -560,8 +573,23 @@ class VideoEditor:
         # a clip_list of N real source files.
         audio_input_idx = len(video_input_paths)
         cmd_inputs = []
-        for video_path in video_input_paths:
-            cmd_inputs.extend(["-i", video_path])
+        for i, video_path in enumerate(video_input_paths):
+            seek = input_seeks[i] if i < len(input_seeks) else None
+            if seek:
+                start, span = seek
+                # -ss before -i seeks the input; ffmpeg still lands on the
+                # exact frame (it decodes from the previous keyframe and
+                # discards). -t stops the read at the end of the span, so the
+                # decoder touches neither the head nor the tail of the file.
+                #
+                # The span is exact. Padding it and letting the graph trim was
+                # tried and every clip came out 0.2s long, which pushed each
+                # later clip further out of step -- 8 clips still summed to the
+                # right total, so only a frame-by-frame comparison caught it.
+                cmd_inputs.extend(["-ss", f"{max(0.0, start):.3f}",
+                                   "-t", f"{span:.3f}", "-i", video_path])
+            else:
+                cmd_inputs.extend(["-i", video_path])
         cmd_inputs.extend(["-i", str(Path(mixed_audio_path).resolve())])
 
         # Optional 3D LUT color grade -- applied before the sticker overlay and

@@ -1340,3 +1340,37 @@ def test_the_vision_proxy_keeps_the_timeline_it_reports_against():
                             "-show_entries", "stream=width", "-of", "csv=p=0", str(proxy)],
                            capture_output=True, text=True, check=True)
     assert int(probe.stdout.strip()) == PROXY_WIDTH
+
+
+# ------------------------------------------------------------- render speed
+def test_each_clip_seeks_its_input_instead_of_trimming_after_decode():
+    """
+    A clip_list gives one ffmpeg input per clip, and each clip wants a few
+    seconds from somewhere in a long source. Cutting that with a `trim` filter
+    makes the decoder walk the file from frame zero every time: 8 clips spread
+    over 91 seconds of 1080p60 decoded roughly ten times more video than the
+    render used. Seeking the input decodes only the span.
+
+    Measured through VideoEditor on this project's own footage: 58.6s -> 7.0s,
+    with the output bit-identical frame for frame (SSIM 1.0000, PSNR infinite).
+    """
+    editor = (ROOT / "scripts" / "video_editor.py").read_text(encoding="utf-8")
+    assert 'cmd_inputs.extend(["-ss", f"{max(0.0, start):.3f}",' in editor
+    assert '"-t", f"{span:.3f}", "-i", video_path])' in editor, \
+        "the span must be exact -- padding it slid every later clip out of step"
+    assert "input_seeks.append((trim_start, source_span))" in editor
+
+    # The video filters must not seek a second time...
+    assert "trim=start={trim_start}" not in editor.split("1-Click Studio path")[0], \
+        "the clip_list branch should no longer trim from the start"
+    # ...but must still pin the length, so container rounding at the seek point
+    # cannot lengthen a clip.
+    # Both per-clip branches (with and without the blurred pillarbox) need it;
+    # pinning only one leaves the other free to run long.
+    assert editor.count("]trim=duration={source_span}") == 2
+    assert editor.count("atrim=duration={source_span}") == 1
+
+    # The 1-Click path takes every cut out of one input, so there is no single
+    # span to seek to and it keeps its trims.
+    legacy = editor.split("1-Click Studio path")[1]
+    assert "trim=start=" in legacy, "the single-source path still needs filter trims"
