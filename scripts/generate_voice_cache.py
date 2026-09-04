@@ -1,4 +1,4 @@
-﻿"""
+"""
 generate_voice_cache.py
 =======================
 Pre-generates audio preview samples for every VOICE_PRESET x AD_TONE combination
@@ -77,7 +77,9 @@ def check_status():
     return result
 
 
-def generate_combo(voice_id, tone_id, force=False):
+def generate_combo(voice_id, tone_id, force=False, delay=12):
+    """Generate a single combo. Returns True if generated, False if skipped."""
+    import time
     from scripts.gemini_tts_engine import GeminiFlashTTSEngine
     fname = cache_filename(voice_id, tone_id)
     out_path = CACHE_DIR / fname
@@ -87,19 +89,35 @@ def generate_combo(voice_id, tone_id, force=False):
     text = SAMPLE_TEXTS[tone_id]
     voice_cfg = VOICE_PRESETS[voice_id]
     print(f"  Generating {voice_cfg['label']} x {AD_TONES[tone_id]} ...")
-    try:
-        GeminiFlashTTSEngine.generate_speech(
-            text=text,
-            output_path=str(out_path),
-            voice_preset=voice_id,
-            ad_tone=tone_id,
-            speed=1.15,
-        )
-        print(f"  Saved: {fname}")
-        return True
-    except Exception as exc:
-        print(f"  FAILED ({voice_id}/{tone_id}): {exc}")
-        return False
+
+    # Retry up to 3 times on rate-limit / transient error
+    max_retries = 3
+    for attempt in range(1, max_retries + 1):
+        try:
+            GeminiFlashTTSEngine.generate_speech(
+                text=text,
+                output_path=str(out_path),
+                voice_preset=voice_id,
+                ad_tone=tone_id,
+                speed=1.15,
+            )
+            print(f"  Saved: {fname}")
+            # Polite delay after every successful generation to avoid hitting quota
+            if delay > 0:
+                time.sleep(delay)
+            return True
+        except Exception as exc:
+            err_str = str(exc)
+            is_rate_limit = "429" in err_str or "Too Many Requests" in err_str
+            if is_rate_limit and attempt < max_retries:
+                wait = 30 * attempt  # 30s, 60s, 90s
+                print(f"  Rate-limited (429). Waiting {wait}s before retry {attempt}/{max_retries-1}...")
+                time.sleep(wait)
+            else:
+                print(f"  FAILED ({voice_id}/{tone_id}) attempt {attempt}: {exc}")
+                if attempt >= max_retries:
+                    return False
+    return False
 
 
 def write_manifest(results):
@@ -136,6 +154,12 @@ def main():
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--voice", metavar="VOICE_ID")
     parser.add_argument("--tone", metavar="TONE_ID")
+    parser.add_argument(
+        "--delay", type=float, default=12,
+        metavar="SECONDS",
+        help="Seconds to wait between each generation call (default: 12). "
+             "Increase if hitting rate limits."
+    )
     args = parser.parse_args()
 
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -167,12 +191,16 @@ def main():
     if args.tone:
         combos = [(v, t) for v, t in combos if t == args.tone]
 
-    print(f"Processing {len(combos)} combinations (force={args.force})\n")
+    print(f"Processing {len(combos)} combinations (force={args.force}, delay={args.delay}s)\n")
+    eta_min = int(len(combos) * args.delay / 60) + 1
+    print(f"Estimated time: ~{eta_min} minutes (with {args.delay}s delay per call)\n")
 
     generated = skipped = failed = 0
-    for voice_id, tone_id in combos:
+    for i, (voice_id, tone_id) in enumerate(combos, 1):
+        print(f"[{i}/{len(combos)}]", end=" ")
         try:
-            if generate_combo(voice_id, tone_id, force=args.force):
+            result = generate_combo(voice_id, tone_id, force=args.force, delay=args.delay)
+            if result:
                 generated += 1
             else:
                 skipped += 1
