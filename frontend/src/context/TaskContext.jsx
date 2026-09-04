@@ -152,28 +152,39 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
     }
   };
 
-  const jumpToTaskResult = (task) => {
+  const jumpToTaskResult = (task, destinationTab = null) => {
     if (!task) return;
     setIsActivityDrawerOpen(false);
     setNotificationToast(null);
 
-    // If it's a video render/export task, always navigate to the Export Gallery ('gallery')
-    // so the user sees the real rendered .MP4 video result rather than reopening the timeline editor.
     const isRenderTask =
       task.type === 'render_video' ||
       task.type === 'render' ||
-      task.target_tab === 'gallery' ||
+      task.task_type === 'render_video' ||
+      task.task_type === 'render' ||
       (typeof task.title === 'string' && (task.title.includes('เรนเดอร์') || task.title.includes('ตัดต่อ')));
 
-    const targetTab = isRenderTask ? 'gallery' : (task.target_tab || 'flow');
-    const targetId = task.target_id || (task.result?.saved_product?.id || task.result?.product?.id || task.result?.project_name || task.payload?.project_name);
+    const projName = task.result?.project_name || task.payload?.project_name || task.target_id;
+
+    // For video creation/render tasks, navigate directly to Timeline Editor ('editor') by default
+    let targetTab = destinationTab;
+    if (!targetTab) {
+      targetTab = isRenderTask ? 'editor' : (task.target_tab || 'flow');
+    }
+
+    const targetId = projName || task.target_id || (task.result?.saved_product?.id || task.result?.product?.id);
 
     if (targetTab === 'flow' && targetId && onSelectProductForFlow) {
       onSelectProductForFlow(targetId);
     }
 
     if (onNavigateTab) {
-      onNavigateTab(targetTab, { targetId, taskResult: task.result, task });
+      onNavigateTab(targetTab, {
+        targetId,
+        projectName: projName,
+        taskResult: task.result,
+        task,
+      });
     }
   };
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Zap, CheckCircle2, AlertCircle, Clock, X, Trash2, ArrowRight,
-  Loader2, Sparkles, Film, Rocket, Mic, RefreshCw, Layers, ExternalLink
+  Loader2, Sparkles, Film, Rocket, Mic, RefreshCw, Layers, ExternalLink, Play
 } from 'lucide-react';
 import { useTaskManager } from '../context/TaskContext';
 
@@ -287,13 +287,29 @@ export function ActivityDrawer() {
                       )}
 
                       {isDone && (
-                        <button
-                          onClick={() => jumpToTaskResult(task)}
-                          className="px-3 py-1 rounded-lg bg-gradient-to-r from-[#25F4EE] to-blue-500 hover:brightness-110 text-slate-950 text-xs font-bold flex items-center gap-1 shadow-md shadow-[#25F4EE]/20 cursor-pointer active:scale-95 transition-all"
-                        >
-                          <span>ดูผลลัพธ์</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          {Boolean(task.result?.mp4 || task.result?.output_video || task.result?.final_video_path) && (
+                            <button
+                              onClick={() => jumpToTaskResult(task, 'gallery')}
+                              className="px-2 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1 cursor-pointer transition-all"
+                              title="เปิดดูคลิปวิดีโอที่ Export แล้วในคลังผลงาน"
+                            >
+                              <Play className="w-3 h-3" />
+                              <span>ดูคลิป</span>
+                            </button>
+                          )}
+                          <button
+                            onClick={() => jumpToTaskResult(task, 'editor')}
+                            className="px-3 py-1 rounded-lg bg-gradient-to-r from-[#25F4EE] to-blue-500 hover:brightness-110 text-slate-950 text-xs font-bold flex items-center gap-1 shadow-md shadow-[#25F4EE]/20 cursor-pointer active:scale-95 transition-all"
+                          >
+                            <span>
+                              {task.type === 'render_video' || task.type === 'render' || (typeof task.title === 'string' && (task.title.includes('เรนเดอร์') || task.title.includes('ตัดต่อ')))
+                                ? 'เปิดไทม์ไลน์'
+                                : 'ดูผลลัพธ์'}
+                            </span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       )}
 
                       {!isRunning && (
@@ -357,10 +373,10 @@ export function GlobalTaskNotification() {
         {isSuccess && notificationToast.task && (
           <div className="flex items-center justify-end gap-2 pt-1">
             <button
-              onClick={() => jumpToTaskResult(notificationToast.task)}
+              onClick={() => jumpToTaskResult(notificationToast.task, 'editor')}
               className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#25F4EE] to-blue-500 hover:brightness-110 text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-[#25F4EE]/20 cursor-pointer active:scale-95 transition-all"
             >
-              <span>กดเพื่อเปิดดูผลงานทันที</span>
+              <span>เปิดหน้าไทม์ไลน์ทันที</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -480,8 +496,9 @@ export function GlobalLiveRenderWidget({ currentTab, onNavigateToEditor, onNavig
         <button
           type="button"
           onClick={() => {
-            if (isDone && onNavigateToGallery) {
-              onNavigateToGallery();
+            const proj = liveStatus?.project_name || renderTask?.payload?.project_name || renderTask?.target_id;
+            if (isDone && onNavigateToEditor) {
+              onNavigateToEditor(proj);
             } else if (onNavigateToEditor) {
               onNavigateToEditor();
             }
@@ -492,7 +509,7 @@ export function GlobalLiveRenderWidget({ currentTab, onNavigateToEditor, onNavig
               : 'bg-[#D97757] hover:bg-[#C2683D] text-white'
           }`}
         >
-          <span>{isDone ? 'ดูผลงาน' : 'ดูหน้าตัดต่อ'}</span>
+          <span>{isDone ? 'เปิดไทม์ไลน์' : 'ดูหน้าตัดต่อ'}</span>
           <ExternalLink className="w-3 h-3" />
         </button>
       </div>

@@ -857,7 +857,7 @@ def trigger_reroll(req: RerollRequest, background_tasks: BackgroundTasks):
         task_type="render_video",
         title=f"{part_label}: {req.project_name}",
         payload={"project_name": req.project_name, "part": req.part},
-        target_tab="gallery",
+        target_tab="editor",
         target_id=req.project_name,
         task_id=job_id,
     )

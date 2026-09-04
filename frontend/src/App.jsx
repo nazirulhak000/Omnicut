@@ -234,6 +234,15 @@ export default function App() {
         setHighlightExportVideo(target);
       }
       refreshData();
+    } else if (tab === 'editor') {
+      const projName = extra?.projectName || extra?.targetId || extra?.taskResult?.project_name || extra?.task?.payload?.project_name || extra?.task?.target_id;
+      if (projName) {
+        setInitialProjectNameToLoad(projName);
+      }
+      if (extra?.taskResult?.saved_product) {
+        setActiveProductContext(extra.taskResult.saved_product);
+      }
+      refreshData();
     }
     setActiveTab(tab);
   };
@@ -290,6 +299,7 @@ export default function App() {
               <main className="min-h-0 flex-1 overflow-hidden p-0 md:p-1.5 pb-16 md:pb-1.5">
                 <Suspense fallback={<LoadingSpinner message="กำลังโหลด Video Editor..." />}>
                   <EditorShell
+                    key={initialProjectNameToLoad || 'editor-shell'}
                     videos={videos}
                     productContext={activeProductContext}
                     angleIndex={selectedAngleIndex}
@@ -393,7 +403,7 @@ export default function App() {
         <GlobalTaskNotification />
         <GlobalLiveRenderWidget
           currentTab={activeTab}
-          onNavigateToEditor={() => setActiveTab('editor')}
+          onNavigateToEditor={(projName) => handleNavigateTab('editor', { projectName: projName })}
           onNavigateToGallery={() => handleNavigateTab('gallery')}
         />
       </div>

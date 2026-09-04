@@ -2015,7 +2015,7 @@ def trigger_render(req: RenderRequest, background_tasks: BackgroundTasks):
         task_type="render_video",
         title=f"ตัดต่อวิดีโอ: {p_name}",
         payload={"project_name": req.project_name, "product_name": req.product_name},
-        target_tab="gallery",
+        target_tab="editor",
         target_id=req.project_name,
         task_id=job_id
     )
