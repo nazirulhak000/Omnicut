@@ -267,6 +267,23 @@ OFFICIAL_ENGLISH_MAP = [
     ("หัวเว่ย", "Huawei"),
 ]
 
+# ─────────────────────────────────────────────────────────────────────
+# Natural Spoken Thai Corrections (Fixes AI hallucinations & unnatural phrasing)
+# ─────────────────────────────────────────────────────────────────────
+NATURAL_THAI_REPLACEMENTS = [
+    (r"หนะคอม", "หน้าคอม"),
+    (r"หนะจอ", "หน้าจอ"),
+    (r"รักสุขภาพข้อมือตัวเองด่วนๆ", "รักข้อมือตัวเอง"),
+    (r"รักสุขภาพข้อมือตัวเอง", "รักข้อมือตัวเอง"),
+    (r"รักษาสุขภาพข้อมือตัวเอง", "รักข้อมือตัวเอง"),
+    (r"รักสุขภาพข้อมือ", "รักข้อมือตัวเอง"),
+    (r"รักษาสุขภาพข้อมือ", "รักข้อมือตัวเอง"),
+    (r"เพื่อสุขภาพข้อมือ", "เพื่อสุขภาพ"),
+    (r"เพื่อสุขภาพร่างกาย", "เพื่อสุขภาพ"),
+    (r"ราคาลดกระหน่ำด่วนๆ", "ราคาพิเศษ"),
+    (r"ลดกระหน่ำด่วนๆ", "ลดกระหน่ำ"),
+]
+
 
 class TTSSanitizer:
     """Cleans script text for natural-sounding Thai TTS output."""
@@ -395,11 +412,22 @@ class TTSSanitizer:
         return result
 
     @classmethod
+    def enforce_natural_thai(cls, text: str) -> str:
+        """Fix awkward AI hallucinations and machine-translated phrasing into natural spoken Thai."""
+        if not text:
+            return ""
+        result = text
+        for pat, repl in NATURAL_THAI_REPLACEMENTS:
+            result = re.sub(pat, repl, result)
+        return result
+
+    @classmethod
     def clean_display_text(cls, text: str) -> str:
         """
         Clean text for display (UI / Subtitles / Caption):
         - Enforces 100% strict male persona (ครับ / นะครับ, no ค่ะ / นะคะ)
         - Enforces Rule 9: English brand names, model names, and tech specs
+        - Fixes unnatural AI phrasing into natural spoken Thai
         - Adds clean spacing between Thai and English tokens for legibility
         - Strips ellipses (..., …)
         - Cleans multi-spaces
@@ -409,6 +437,7 @@ class TTSSanitizer:
         result = text
         result = cls.enforce_male_tone(result)
         result = cls.enforce_official_english(result)
+        result = cls.enforce_natural_thai(result)
         # Clean typography: spacing between Thai characters and English words
         result = re.sub(r'([ก-๙])([A-Za-z])', r'\1 \2', result)
         result = re.sub(r'([A-Za-z])([ก-๙])', r'\1 \2', result)

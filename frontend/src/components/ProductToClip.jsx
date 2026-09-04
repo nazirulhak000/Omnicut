@@ -226,12 +226,26 @@ function AngleActiveWorkbench({
   const [editText, setEditText] = useState('');
   const [editHook, setEditHook] = useState(angle.hook_title || '');
 
+  const scriptText = lines.join('\n');
+  const prevAngleIdRef = useRef(angle.angle_id || index);
+  const prevScriptTextRef = useRef(scriptText);
+  const prevHookRef = useRef(angle.hook_title || '');
+
+  // Keep editText and editHook in sync whenever angle is replaced externally (e.g. Find & Replace) or switched
   useEffect(() => {
-    if (!isEditing) {
-      setEditText(lines.join('\n'));
+    const curAngleId = angle.angle_id || index;
+    const angleChanged = curAngleId !== prevAngleIdRef.current;
+    const scriptChanged = scriptText !== prevScriptTextRef.current;
+    const hookChanged = (angle.hook_title || '') !== prevHookRef.current;
+
+    if (angleChanged || scriptChanged || hookChanged) {
+      setEditText(scriptText);
       setEditHook(angle.hook_title || '');
+      prevAngleIdRef.current = curAngleId;
+      prevScriptTextRef.current = scriptText;
+      prevHookRef.current = angle.hook_title || '';
     }
-  }, [angle, isEditing]);
+  }, [angle.angle_id, index, scriptText, angle.hook_title]);
 
   const handleStartEdit = (e) => {
     e && e.stopPropagation();
@@ -350,9 +364,26 @@ function AngleActiveWorkbench({
               <Edit3 className="w-3.5 h-3.5" />
               <span>แก้ไขบทพูดพากย์ (1 บรรทัด = 1 ท่อนซับไตเติล):</span>
             </span>
-            <span className="text-slate-400 text-xs font-mono">
-              {editText.split('\n').filter(l => l.trim()).length} ท่อน
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const newLines = editText.split('\n').map(l => l.trim()).filter(Boolean);
+                  if (newLines.length > 0) {
+                    onSaveScript && onSaveScript(index, newLines, editHook.trim());
+                  }
+                  onOpenFindReplace && onOpenFindReplace(index);
+                }}
+                className="px-2 py-0.5 rounded-md bg-white/[0.08] hover:bg-white/[0.15] text-cyan-300 text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer"
+                title="ค้นหาและแทนที่คำในสคริปต์นี้"
+              >
+                <Replace className="w-3 h-3" />
+                <span>แทนที่คำ</span>
+              </button>
+              <span className="text-slate-400 text-xs font-mono">
+                {editText.split('\n').filter(l => l.trim()).length} ท่อน
+              </span>
+            </div>
           </div>
 
           <div className="space-y-1">
