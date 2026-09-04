@@ -1497,3 +1497,66 @@ def test_one_default_bgm_across_render_mix_and_editor():
     assert "m.id === assets.default_bgm || m.name === assets.default_bgm" in shell
     assert "'เสียงหลักของช่อง'" not in shell, \
         "the label must name the track that will play, not a fixed string"
+
+
+def test_the_encoder_choice_is_not_tied_to_one_vendor():
+    """
+    The first version tried AMD's encoder first, because that is what the
+    machine it was written on has. On a laptop with an integrated AMD GPU and a
+    discrete NVIDIA one -- an ordinary machine -- that picks the weaker of the
+    two. The discrete families lead, and a miss costs a fraction of a second.
+    """
+    sys.path.insert(0, str(ROOT))
+    from scripts.video_editor import HW_ENCODER_CANDIDATES, _hw_args
+
+    assert HW_ENCODER_CANDIDATES.index("h264_nvenc") < HW_ENCODER_CANDIDATES.index("h264_amf")
+    assert "h264_qsv" in HW_ENCODER_CANDIDATES
+    assert "h264_videotoolbox" in HW_ENCODER_CANDIDATES, "a Mac would otherwise fall back to the CPU"
+
+    # Each family gets its own constant-quality mode, because the knobs are not
+    # the same scale: AMF takes cqp with separate I/P values, NVENC's crf
+    # equivalent is -cq under VBR, QSV uses -global_quality, and
+    # videotoolbox's -q:v runs the other way (higher is better).
+    for name in HW_ENCODER_CANDIDATES:
+        args = _hw_args(name, 20, 22)
+        assert args[:2] == ["-c:v", name]
+        assert len(args) > 2, f"{name} has no quality setting"
+    assert "-cq" in _hw_args("h264_nvenc", 20, 22)
+    assert "-global_quality" in _hw_args("h264_qsv", 20, 22)
+    assert "-qp_i" in _hw_args("h264_amf", 20, 22)
+    vt = _hw_args("h264_videotoolbox", 20, 22)
+    assert int(vt[vt.index("-q:v") + 1]) > 50, "videotoolbox's scale is inverted"
+
+
+def test_a_hardware_encoder_has_to_prove_its_quality_before_it_is_used():
+    """
+    Each family's quality knob is on its own scale, and only a machine that has
+    the hardware can say whether the number chosen for it is sane -- guessing
+    NVENC's from an AMD box is how a render comes out smeared. So a candidate
+    that encodes a frame is then made to hold up against libx264 on the same
+    frames, and is skipped if it does not.
+
+    Verified live: this machine's h264_amf passes at SSIM 0.974, and raising
+    the floor above that makes the render fall back to libx264.
+    """
+    assert "def _encoder_quality_ok(" in VIDEO_EDITOR_SRC
+    assert "HW_QUALITY_FLOOR" in VIDEO_EDITOR_SRC
+    assert "if ssim < HW_QUALITY_FLOOR:" in VIDEO_EDITOR_SRC
+    assert "if ssim is None:" in VIDEO_EDITOR_SRC, "an unmeasurable candidate must be skipped, not trusted"
+    assert '"-lavfi", "[0:v][1:v]ssim"' in VIDEO_EDITOR_SRC
+
+    sys.path.insert(0, str(ROOT))
+    from scripts.video_editor import HW_QUALITY_FLOOR
+    assert 0.9 <= HW_QUALITY_FLOOR < 1.0
+
+
+def test_the_probe_runs_once_per_process_not_once_per_render():
+    """
+    It costs a couple of seconds -- fine at server start, not per export.
+    Measured: 2.6s for the probe, then 7.2s and 7.4s for two renders in the
+    same process.
+    """
+    assert "if _hw_encoder_probed:" in VIDEO_EDITOR_SRC
+    assert "_hw_encoder_probed = True" in VIDEO_EDITOR_SRC
+    # The render path must ask through the cached accessor, never probe itself.
+    assert VIDEO_EDITOR_SRC.count("subprocess.run([\n                \"ffmpeg\", \"-hide_banner\", \"-loglevel\", \"error\",\n                \"-f\", \"lavfi\"") == 1
