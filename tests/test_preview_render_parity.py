@@ -11,6 +11,7 @@ Values marked "measured" were taken off a real ffmpeg+libass render rather
 than derived, and the comment says what was measured.
 """
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -716,7 +717,10 @@ def test_mid_playback_audio_changes_reach_the_tick_loop():
     and the stale level would fight the gain effect back down. Everything the
     loop reads goes through audioLiveRef.
     """
-    assert "audioLiveRef.current = { bgmVolume, bgmDucking, bgmRate, totalDuration, cues, shots: sfxShots }" in JS_SRC
+    live = re.search(r"audioLiveRef\.current = \{(.*?)\n  \};", JS_SRC, re.S)
+    assert live, "the live ref moved"
+    for field in ("bgmVolume", "bgmDucking", "bgmRate", "totalDuration", "cues", "shots: sfxShots"):
+        assert field in live.group(1), f"the tick cannot see {field}"
     tick = re.search(r"const tick = \(\) => \{(.*?)\n      rafRef", JS_SRC, re.S).group(1)
     for stale in ("bgmVolume", "bgmDucking", "sfxShots"):
         assert stale not in tick, f"tick reads {stale} from a stale closure"
@@ -991,18 +995,18 @@ def test_preview_plays_a_clips_own_audio_at_its_own_volume():
     body = fn.group(1)
     assert "createMediaElementSource(el)" in body
     assert "entry.gain.gain.setTargetAtTime(vol" in body
-    assert "clip: bus(AUDIO_MIX.CLIP_GAIN)" in JS_SRC
+    assert "clip: bus(trackLevel('clip'))" in JS_SRC
+    assert "clip: AUDIO_MIX.CLIP_GAIN" in JS_SRC
 
 
 def test_per_track_mute_and_solo_reach_the_gain_nodes():
     """Soloing one stem must silence the others, and solo has to beat mute."""
-    fx = re.search(r"const base = \{ voice: (.*?)\n  \}, \[trackKey, bgmVolume\]\);", JS_SRC, re.S)
-    assert fx, "the track-mix effect moved"
-    body = fx.group(1)
-    assert "soloed.length ? soloed.includes(track) : !trackMix?.mute?.[track]" in body
-    for track in ("bgm", "sfx", "clip"):
-        assert f"{track}:" in body, f"{track} has no bus in the track mix"
-    assert "AUDIO_MIX.VOICE_GAIN" in body
+    assert "soloedTracks.length ? soloedTracks.includes(track) : !trackMix?.mute?.[track]" in JS_SRC
+    base = re.search(r"const trackBase = \{(.*?)\};", JS_SRC, re.S)
+    assert base, "the per-track levels moved"
+    for track in ("voice", "bgm", "sfx", "clip"):
+        assert f"{track}:" in base.group(1), f"{track} has no level in the track mix"
+    assert "AUDIO_MIX.VOICE_GAIN" in base.group(1)
     shell = (ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx").read_text(encoding="utf-8")
     assert "if (kind === 'mute' && turningOn) next.solo[k] = false;" in shell
     assert "if (kind === 'solo' && turningOn) next.mute[k] = false;" in shell
@@ -1194,3 +1198,145 @@ def test_the_folded_row_mutes_the_group_it_is_labelled_for():
     # A third chip does not fit beside a name on a phone, and the row's own M
     # already mutes all four once folded.
     assert "{i === 0 && !dense && !audioCollapsed && (" in TIMELINE_SRC
+
+
+# ------------------------------------------------------------- mute holds
+def test_muting_a_track_survives_graph_creation_and_the_tick():
+    """
+    "Every M is lit and the music still plays." Two separate causes: the buses
+    were created at their raw levels, so muting before the first play left
+    nothing to apply the mute to and the effect does not re-run for a graph
+    that did not exist when it last fired; and the tick rewrote the BGM's gain
+    from the level alone every frame, so a mute that did land was undone within
+    16ms. Both now read one function.
+
+    Run against the shipped code with a stubbed AudioContext, because the bug
+    was in the interaction between three writers of the same gain -- which
+    reading any one of them cannot show.
+    """
+    import shutil
+    import subprocess
+    import tempfile
+
+    if not shutil.which("node"):
+        pytest.skip("needs node")
+
+    player = ROOT / "frontend" / "src" / "components" / "SequencePlayer.jsx"
+    runner = """
+import { readFileSync } from 'node:fs';
+const src = readFileSync(process.argv[2], 'utf8');
+const grab = (re, what) => { const m = src.match(re); if (!m) throw new Error('missing ' + what); return m[0]; };
+const code = `
+${grab(/const AUDIO_MIX = \\{[\\s\\S]*?\\n\\};/, 'AUDIO_MIX')}
+export function scope({ trackMix, bgmVolume, cues, totalDuration }) {
+  const mk = () => ({ gain: { value: 0, cancelScheduledValues() {}, setTargetAtTime(v) { this.value = v; } } });
+  const ctx = { currentTime: 0, state: 'running' };
+  const audioCtxRef = { current: ctx };
+  const audioNodesRef = { current: { bgm: mk(), voice: mk(), sfx: mk(), clip: mk() } };
+  ${grab(/const soloedTracks = [\\s\\S]*?const trackLevel = \\(track\\) => \\([\\s\\S]*?\\);/, 'trackLevel')}
+  const audioLiveRef = { current: { bgmVolume, cues, totalDuration, bgmDucking: false, bgmAudible: trackAudible('bgm') } };
+  ${grab(/const applyBgmEnvelope = \\(t\\) => \\{[\\s\\S]*?\\n  \\};/, 'applyBgmEnvelope')}
+  return { trackLevel, applyBgmEnvelope, bgm: audioNodesRef.current.bgm };
+}`;
+const m = await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
+const cases = {
+  none:        { mute: {}, solo: {} },
+  bgmMuted:    { mute: { bgm: true }, solo: {} },
+  allMuted:    { mute: { voice: true, bgm: true, sfx: true, clip: true }, solo: {} },
+  voiceSoloed: { mute: {}, solo: { voice: true } },
+  bgmSoloed:   { mute: {}, solo: { bgm: true } },
+};
+const out = {};
+for (const [name, trackMix] of Object.entries(cases)) {
+  const s = m.scope({ trackMix, bgmVolume: 0.12, cues: [{ start: 0, end: 5, text: 'x' }], totalDuration: 30 });
+  const level = s.trackLevel('bgm');
+  s.bgm.gain.value = level;
+  s.applyBgmEnvelope(1.0);           // the tick must not undo it
+  out[name] = { level, afterTick: s.bgm.gain.value };
+}
+console.log(JSON.stringify(out));
+"""
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "mute.mjs"
+        path.write_text(runner, encoding="utf-8")
+        res = subprocess.run(["node", str(path), str(player)], capture_output=True, text=True)
+        assert res.returncode == 0, res.stderr
+        got = json.loads(res.stdout)
+
+    assert got["none"] == {"level": 0.12, "afterTick": 0.12}
+    for silent in ("bgmMuted", "allMuted", "voiceSoloed"):
+        assert got[silent]["level"] == 0, f"{silent}: the bus was built audible"
+        assert got[silent]["afterTick"] == 0, f"{silent}: the tick brought the music back"
+    assert got["bgmSoloed"] == {"level": 0.12, "afterTick": 0.12}
+
+
+def test_the_gain_writers_share_one_source_of_truth():
+    """Three places set these gains; disagreeing is what the bug was."""
+    assert "const trackLevel = (track) => (trackAudible(track) ? trackBase[track] : 0);" in JS_SRC
+    for track in ("voice", "bgm", "sfx", "clip"):
+        assert f"{track}: bus(trackLevel('{track}'))" in JS_SRC
+    assert "nodes[track].gain.setTargetAtTime(trackLevel(track), ctx.currentTime, 0.01);" in JS_SRC
+    assert "bgmAudible: trackAudible('bgm')" in JS_SRC
+    assert "if (live.bgmAudible === false) {" in JS_SRC
+
+
+# --------------------------------------------------------- AI Vision upload
+def test_ai_vision_uploads_a_proxy_not_the_camera_original():
+    """
+    A first-time scene match was spending minutes on the upload: this project's
+    own clip is 241MB for 91 seconds of 1080p60, which is about six minutes on a
+    5 Mbps upstream and matched the ten-minute 1-Click runs. The model samples
+    video at roughly a frame a second to answer "which seconds show what", so
+    resolution and frame rate buy nothing. Measured: 640px at 6fps came to
+    3.7MB, 66x smaller, in 21 seconds of local transcoding.
+    """
+    src = (ROOT / "scripts" / "gemini_vision_matcher.py").read_text(encoding="utf-8")
+    assert "def _vision_proxy(" in src
+    assert "upload_file = cls._vision_proxy(video_file, file_hash) or video_file" in src, \
+        "a failed transcode must fall back to the original, not skip the match"
+    assert "with open(upload_file, \"rb\") as f:" in src, "the proxy has to be the file that is sent"
+    # The cache stays keyed on the ORIGINAL, or an already-uploaded clip stops
+    # being recognised and pays for the transcode and the upload again.
+    assert "file_hash = cls._compute_file_hash(video_file)" in src
+    assert 'cache[file_hash] = {' in src
+    assert 'proxy_dir / f"{file_hash}.mp4"' in src
+
+
+def test_the_vision_proxy_keeps_the_timeline_it_reports_against():
+    """
+    Scene timestamps are read straight off the proxy, so its duration has to be
+    the original's. Only the picture is reduced -- no trim, no speed change.
+    """
+    import shutil
+
+    if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
+        pytest.skip("needs ffmpeg")
+    sys.path.insert(0, str(ROOT))
+    from scripts.gemini_vision_matcher import GeminiVisionMatcher, PROXY_FPS, PROXY_WIDTH
+
+    src = next((p for p in (ROOT / "01_Raw").rglob("*") if p.suffix.lower() in (".mov", ".mp4")), None)
+    if src is None:
+        pytest.skip("no raw footage to probe")
+
+    import subprocess
+
+    def duration(path):
+        r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                            "-of", "csv=p=0", str(path)], capture_output=True, text=True, check=True)
+        return float(r.stdout.strip())
+
+    file_hash = GeminiVisionMatcher._compute_file_hash(src)
+    proxy = GeminiVisionMatcher._vision_proxy(src, file_hash)
+    assert proxy and proxy.exists()
+    # One frame of the proxy's own rate is the most a re-timed tail may differ.
+    assert abs(duration(src) - duration(proxy)) <= 1.0 / PROXY_FPS + 0.05
+    assert proxy.stat().st_size < src.stat().st_size, "a proxy that is not smaller buys nothing"
+
+    # Cached by the original's hash, so a second run costs nothing.
+    again = GeminiVisionMatcher._vision_proxy(src, file_hash)
+    assert again == proxy
+
+    probe = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0",
+                            "-show_entries", "stream=width", "-of", "csv=p=0", str(proxy)],
+                           capture_output=True, text=True, check=True)
+    assert int(probe.stdout.strip()) == PROXY_WIDTH

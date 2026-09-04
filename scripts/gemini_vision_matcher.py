@@ -9,6 +9,7 @@ import sys
 import json
 import time
 import hashlib
+import subprocess
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
@@ -38,6 +39,13 @@ if env_file.exists():
 
 # Vision cache file to avoid re-uploading the same large video files
 VISION_CACHE_FILE = ASSETS_DIR / ".vision_cache.json"
+
+# The proxy the model actually sees. It only has to answer which seconds show
+# what, and it samples about one frame a second, so resolution and frame rate
+# buy nothing here -- see _vision_proxy for the measurements.
+PROXY_WIDTH = 640
+PROXY_FPS = 6
+PROXY_CRF = 32
 
 class GeminiVisionMatcher:
     """Matches script cues to raw video scene timestamps using Gemini 2.5 Flash Multimodal Vision."""
@@ -75,6 +83,54 @@ class GeminiVisionMatcher:
             pass
 
     @classmethod
+    def _vision_proxy(cls, video_file: Path, file_hash: str) -> Optional[Path]:
+        """
+        A small stand-in for the footage, for scene matching only.
+
+        The source here is camera footage: measured on this project's own clip,
+        1920x1080 at 60fps came to 241MB for 91 seconds, and uploading that is
+        what a first-time scene match spends its minutes on -- around six
+        minutes on a 5 Mbps upstream, which matched the ten minutes a 1-Click
+        run was taking end to end.
+
+        The model reads this to answer "which seconds of this footage show what
+        the script is talking about", which needs neither the resolution nor the
+        frame rate: it samples video at about one frame a second. Measured on
+        that same clip, 640px wide at 6fps came to 3.7MB -- 66x smaller -- in
+        21 seconds of local transcoding, so the upload drops from minutes to
+        seconds even counting the transcode.
+
+        Duration and timebase are untouched, so every timestamp the model
+        returns still points at the same moment in the original.
+
+        Cached beside the vision cache and keyed by the original's hash, so a
+        second run skips the transcode too. Returns None if ffmpeg is missing or
+        fails, and the caller then uploads the original.
+        """
+        proxy_dir = VISION_CACHE_FILE.parent / ".vision_proxies"
+        proxy = proxy_dir / f"{file_hash}.mp4"
+        if proxy.exists() and proxy.stat().st_size > 0:
+            return proxy
+        try:
+            proxy_dir.mkdir(parents=True, exist_ok=True)
+            subprocess.run([
+                "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+                "-i", str(video_file),
+                "-vf", f"scale={PROXY_WIDTH}:-2,fps={PROXY_FPS}",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", str(PROXY_CRF),
+                "-an", str(proxy),
+            ], check=True)
+        except (subprocess.CalledProcessError, FileNotFoundError, OSError) as exc:
+            print(f"   ⚠️  ย่อไฟล์สำหรับ AI Vision ไม่ได้ ({exc}) — จะอัปไฟล์เต็ม")
+            return None
+        if not proxy.exists() or proxy.stat().st_size == 0:
+            return None
+        saved = video_file.stat().st_size / max(1, proxy.stat().st_size)
+        print(f"   🗜️  ย่อไฟล์ให้ AI Vision: {proxy.stat().st_size / 1048576:.1f} MB "
+              f"(เล็กลง {saved:.0f} เท่า) — อัปโหลดเร็วขึ้นมาก")
+        return proxy
+
+    @classmethod
     def get_or_upload_video(cls, client: Any, raw_video_path: str) -> Optional[Any]:
         """Uploads raw video to Google AI Studio Files API with local caching."""
         video_file = Path(raw_video_path).resolve()
@@ -93,15 +149,20 @@ class GeminiVisionMatcher:
             except Exception:
                 pass
 
+        # Send a small proxy rather than the camera original. The cache stays
+        # keyed by the ORIGINAL's hash, so an already-uploaded clip is still
+        # recognised and neither the transcode nor the upload happens twice.
+        upload_file = cls._vision_proxy(video_file, file_hash) or video_file
+
         # Upload new file using clean ASCII display name to avoid Windows header issues
-        print(f"   📤 Uploading raw footage to Google AI Studio Vision ({video_file.name})...")
+        print(f"   📤 Uploading footage to Google AI Studio Vision ({upload_file.name})...")
         from google.genai import types
-        with open(video_file, "rb") as f:
+        with open(upload_file, "rb") as f:
             uploaded = client.files.upload(
                 file=f,
                 config=types.UploadFileConfig(
-                    display_name="raw_footage.mov",
-                    mime_type="video/quicktime" if video_file.suffix.lower() == ".mov" else "video/mp4"
+                    display_name="raw_footage.mp4",
+                    mime_type="video/quicktime" if upload_file.suffix.lower() == ".mov" else "video/mp4"
                 )
             )
 

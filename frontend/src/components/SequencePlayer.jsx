@@ -1669,8 +1669,20 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
   // can change mid-playback has to come through a ref -- otherwise a volume
   // slider move or a freshly dropped SFX is invisible to it, and its stale
   // copy of the level fights the gain-setting effect right back down.
+  const soloedTracks = Object.keys(trackMix?.solo || {}).filter((k) => trackMix.solo[k]);
+  const trackAudible = (track) => (
+    soloedTracks.length ? soloedTracks.includes(track) : !trackMix?.mute?.[track]
+  );
+  const trackBase = { voice: AUDIO_MIX.VOICE_GAIN, bgm: bgmVolume, sfx: AUDIO_MIX.SFX_GAIN, clip: AUDIO_MIX.CLIP_GAIN };
+  /** Level a bus should sit at right now, mute and solo included. */
+  const trackLevel = (track) => (trackAudible(track) ? trackBase[track] : 0);
+
   const audioLiveRef = useRef({});
-  audioLiveRef.current = { bgmVolume, bgmDucking, bgmRate, totalDuration, cues, shots: sfxShots };
+  audioLiveRef.current = {
+    bgmVolume, bgmDucking, bgmRate, totalDuration, cues, shots: sfxShots,
+    // The tick needs the mute state too, or its envelope undoes the mute.
+    bgmAudible: trackAudible('bgm'),
+  };
 
   /**
    * Creates the graph on first use and routes whatever elements exist into it.
@@ -1692,12 +1704,17 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
         return n;
       };
       audioCtxRef.current = ctx;
+      // Built at the level the mix state says, not the raw one. Muting a
+      // track before ever pressing play left nothing to apply the mute to, and
+      // the effect that would have applied it does not re-run for a graph that
+      // did not exist when it last fired -- so the music came back at full
+      // level on the first play with every M lit.
       audioNodesRef.current = {
         master,
-        voice: bus(AUDIO_MIX.VOICE_GAIN),
-        bgm: bus(bgmVolume),
-        sfx: bus(AUDIO_MIX.SFX_GAIN),
-        clip: bus(AUDIO_MIX.CLIP_GAIN),
+        voice: bus(trackLevel('voice')),
+        bgm: bus(trackLevel('bgm')),
+        sfx: bus(trackLevel('sfx')),
+        clip: bus(trackLevel('clip')),
       };
     }
     const ctx = audioCtxRef.current;
@@ -1842,6 +1859,15 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
     const node = audioNodesRef.current?.bgm;
     if (!ctx || !node) return;
     const live = audioLiveRef.current;
+    // Muted or soloed out, the bed stays down whatever the envelope wants.
+    // Muted or soloed out, the bed stays down whatever the envelope wants.
+    if (live.bgmAudible === false) {
+      if (node.gain.value !== 0) {
+        node.gain.cancelScheduledValues(ctx.currentTime);
+        node.gain.setTargetAtTime(0, ctx.currentTime, 0.01);
+      }
+      return;
+    }
     let target = live.bgmVolume ?? AUDIO_MIX.BGM_GAIN;
     const speaking = (live.cues || []).some(
       (c) => t >= (Number(c.start) || 0) && t <= (Number(c.end) || 0)
@@ -1923,16 +1949,13 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
   // Per-track mute/solo. With the stems separate there is finally something to
   // solo: checking whether the BGM is fighting the voice, or whether an SFX
   // landed where it was meant to, no longer means guessing from the mix.
-  const soloed = Object.keys(trackMix?.solo || {}).filter((k) => trackMix.solo[k]);
-  const trackKey = `${JSON.stringify(trackMix?.mute || {})}|${soloed.sort().join(',')}`;
+  const trackKey = `${JSON.stringify(trackMix?.mute || {})}|${[...soloedTracks].sort().join(',')}`;
   useEffect(() => {
     const nodes = audioNodesRef.current;
     const ctx = audioCtxRef.current;
     if (!nodes || !ctx) return;
-    const base = { voice: AUDIO_MIX.VOICE_GAIN, bgm: bgmVolume, sfx: AUDIO_MIX.SFX_GAIN, clip: AUDIO_MIX.CLIP_GAIN };
-    Object.entries(base).forEach(([track, level]) => {
-      const audible = soloed.length ? soloed.includes(track) : !trackMix?.mute?.[track];
-      nodes[track].gain.setTargetAtTime(audible ? level : 0, ctx.currentTime, 0.01);
+    Object.keys(trackBase).forEach((track) => {
+      nodes[track].gain.setTargetAtTime(trackLevel(track), ctx.currentTime, 0.01);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackKey, bgmVolume]);
