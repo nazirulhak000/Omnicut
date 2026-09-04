@@ -62,6 +62,12 @@ const TIMELINE_MAX_H = 560;
 // widths (250 asset + 380 inspector + gutters = ~668px) leave under 100px
 // for the preview, which is not a usable editor.
 const LAYOUT_BREAKPOINT = 1024;
+// The stems the preview mixes, in the order the timeline lanes show them.
+const AUDIO_TRACKS = ['voice', 'bgm', 'sfx', 'clip'];
+// The Toolbar row inside the phone's timeline tab.
+const MOBILE_TOOLBAR_H = 44;
+// The timeline/assets/inspector tab strip above it.
+const MOBILE_TAB_ROW_H = 48;
 const ASSET_MIN_W = 180;
 const ASSET_MAX_W = 480;
 const ASSET_DEFAULT_W = 250;
@@ -209,8 +215,10 @@ export default function EditorShell({
 
   const applyMobilePreviewH = (px) => {
     const box = mobileWrapRef.current?.getBoundingClientRect();
-    // leave the panel enough for its tab row plus a couple of rows
-    const max = box ? Math.max(MOBILE_PREVIEW_MIN_H, box.height - 220) : 640;
+    // Leave room for the tab row and the timeline's own rows. This was a flat
+    // 220px, sized for a timeline that no longer has a fixed height.
+    const reserve = MOBILE_TAB_ROW_H + mobileTimelineH;
+    const max = box ? Math.max(MOBILE_PREVIEW_MIN_H, box.height - reserve) : 640;
     const clamped = Math.min(max, Math.max(MOBILE_PREVIEW_MIN_H, Math.round(px)));
     setMobilePreviewH(clamped);
     try { localStorage.setItem('editor.mobilePreviewH', String(clamped)); } catch (err) { /* private mode */ }
@@ -278,17 +286,28 @@ export default function EditorShell({
   const [deleteScope, setDeleteScope] = useState('project');
   const [deleteOrigin, setDeleteOrigin] = useState(null);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
-  const [audioCollapsed, setAudioCollapsed] = useState(false);
+  // Phones start with the audio group folded: four stem lanes are a desk-sized
+  // amount of detail, and the gutter has no room for their names next to the
+  // mute/solo chips. One tap opens them.
+  const [audioCollapsed, setAudioCollapsed] = useState(
+    () => (typeof window !== 'undefined' ? window.innerWidth < LAYOUT_BREAKPOINT : false)
+  );
   // Per-stem mute/solo for the preview. Playback-only -- it never reaches a
   // render payload, so soloing the BGM to check a level cannot change output.
   const [trackMix, setTrackMix] = useState({ mute: {}, solo: {} });
   const handleTrackMix = useCallback((track, kind) => {
     setTrackMix((prev) => {
       const next = { mute: { ...prev.mute }, solo: { ...prev.solo } };
-      next[kind][track] = !next[kind][track];
-      // Muting a track that is soloed would read as a contradiction on screen.
-      if (kind === 'mute' && next.mute[track]) next.solo[track] = false;
-      if (kind === 'solo' && next.solo[track]) next.mute[track] = false;
+      // 'all' is the folded group's own control: it flips every stem together,
+      // so a row labelled for the group actually acts on the group.
+      const targets = track === 'all' ? AUDIO_TRACKS : [track];
+      const turningOn = !targets.every((k) => next[kind][k]);
+      for (const k of targets) {
+        next[kind][k] = turningOn;
+        // Muting a track that is soloed would read as a contradiction on screen.
+        if (kind === 'mute' && turningOn) next.solo[k] = false;
+        if (kind === 'solo' && turningOn) next.mute[k] = false;
+      }
       return next;
     });
   }, []);
@@ -1393,6 +1412,13 @@ export default function EditorShell({
     bgm: audioStems?.bgm?.url || null,
   }), [voiceUrl, audioUrl, audioStems]);
 
+  // Height the phone's timeline tab wants: its toolbar plus exactly the rows on
+  // show. Folded audio and no text overlays make it short; unfolding grows it.
+  const mobileTimelineH = MOBILE_TOOLBAR_H + tracksFitHeight({
+    textOverlays: (textOverlays?.length || 0) > 0,
+    audioCollapsed,
+  });
+
   const progress = Math.round((jobStatus?.progress || 0) * 100);
   const bgmLabel = useMemo(() => {
     if (!style.bgmName) return 'เสียงหลักของช่อง';
@@ -1750,8 +1776,11 @@ export default function EditorShell({
           <div ref={mobileWrapRef} className="lg:hidden flex flex-col flex-1 min-h-0 overflow-hidden bg-[#07090E]">
             {/* Top: 9:16 Video Player Preview (Expands to fill top area, zero wasted space) */}
             <div
-              className="relative flex w-full flex-shrink-0 flex-col items-center justify-center bg-black/60 p-2"
-              style={{ height: mobilePreviewH }}
+              // The dragged height is a floor, not a cap: the timeline below is
+              // sized to its rows, so whatever those rows do not need belongs
+              // to the preview rather than sitting black between the two.
+              className="relative flex w-full min-h-0 flex-col items-center justify-center bg-black/60 p-2"
+              style={{ flex: `1 0 ${mobilePreviewH}px` }}
             >
               {isMobileView && (
                 <SequencePlayer
@@ -1892,8 +1921,16 @@ export default function EditorShell({
 
             {/* Bottom: Adaptive Workspace Panel */}
             {mobileTab === 'timeline' ? (
-              /* TAB 1: TIMELINE (Compact fixed height, perfect snug fit with no empty black void) */
-              <div className="flex-shrink-0 h-[215px] flex flex-col border-t border-white/[0.08] bg-[#0F1420]">
+              /* TAB 1: TIMELINE, sized to the rows it has to show rather than
+                 to a fixed 215px. That height showed three rows and clipped the
+                 other four once the audio lanes existed, and left a black void
+                 under itself; filling the space instead only moved the void
+                 below the tracks. It shrinks when the preview leaves less, and
+                 the tracks scroll rather than clip. */
+              <div
+                className="flex min-h-0 flex-shrink flex-col border-t border-white/[0.08] bg-[#0F1420]"
+                style={{ height: mobileTimelineH, maxHeight: mobileTimelineH }}
+              >
                 <Toolbar
                   playhead={playhead}
                   totalDuration={totalDuration}
@@ -1948,6 +1985,7 @@ export default function EditorShell({
                     onTrackMix={handleTrackMix}
                     audioCollapsed={audioCollapsed}
                     onToggleAudioGroup={() => setAudioCollapsed((v) => !v)}
+                    dense={isMobileView}
                     isAudioMuted={isAudioMuted}
                     onToggleMuteAudio={() => setIsAudioMuted((v) => !v)}
                     isCaptionHidden={isCaptionHidden}
@@ -2408,6 +2446,7 @@ export default function EditorShell({
                     onTrackMix={handleTrackMix}
                     audioCollapsed={audioCollapsed}
                     onToggleAudioGroup={() => setAudioCollapsed((v) => !v)}
+                    dense={isMobileView}
                     isAudioMuted={isAudioMuted}
                     onToggleMuteAudio={() => setIsAudioMuted((v) => !v)}
                     isCaptionHidden={isCaptionHidden}

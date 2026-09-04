@@ -684,6 +684,33 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
         if not raw_video:
             raw_video = str(BASE_DIR / "01_Raw")
 
+        # Resolve product_id and angle_id for accurate lifecycle synchronization
+        product_id = params.get("product_id") or (manifest.get("product") or {}).get("id")
+        angle_id = params.get("angle_id") or (manifest.get("angle") or {}).get("id") or (manifest.get("angle") or {}).get("angle_id")
+        if not (product_id and angle_id):
+            prod, ang = ProductStore.find_by_project(
+                project_name,
+                product_name=params.get("product_name") or "",
+                hook_title=params.get("hook_title") or "",
+                product_id=product_id or "",
+                angle_id=angle_id or ""
+            )
+            if prod and not product_id:
+                product_id = prod.get("id")
+            if ang and not angle_id:
+                angle_id = ang.get("angle_id") or ang.get("id")
+
+        if product_id and angle_id:
+            try:
+                ProductStore.update_angle_status(
+                    product_id,
+                    angle_id,
+                    "in_production",
+                    project_name=project_name
+                )
+            except Exception:
+                pass
+
         base_progress = render_jobs.progress_reporter(job_id)
 
         def on_progress(msg: str, progress: float):
@@ -723,6 +750,8 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 # never sticky: a draft is a one-off, the project keeps its
                 # post-quality setting for the next render
                 export_preset=overrides.get("export_preset", "post"),
+                product_id=product_id,
+                angle_id=angle_id,
                 caption_position=params.get("caption_position", "bottom"),
                 caption_color=params.get("caption_color"),
                 caption_scale=params.get("caption_scale", 1.0),
@@ -735,6 +764,26 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 resume_from=stage,
                 progress_callback=on_progress,
             )
+
+        mp4_val = result.get("mp4") or result.get("output_video") or result.get("video_path") or ""
+        if product_id and angle_id:
+            try:
+                ProductStore.update_angle_status(
+                    product_id,
+                    angle_id,
+                    "rendered" if mp4_val else "in_production",
+                    video_url=str(mp4_val) if mp4_val else None,
+                    project_name=project_name
+                )
+            except Exception as update_err:
+                print(f"Warning: could not update angle status after reroll: {update_err}")
+
+        if product_id:
+            try:
+                ProductStore.attach_project(product_id, project_name)
+            except Exception:
+                pass
+
         render_jobs.complete_job(job_id, result, message="🎉 เรนเดอร์เสร็จสมบูรณ์!")
         TaskManager.complete_task(
             job_id,
@@ -744,6 +793,16 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
         )
 
     except Exception as err:
+        if product_id and angle_id:
+            try:
+                ProductStore.update_angle_status(
+                    product_id,
+                    angle_id,
+                    "in_production",
+                    project_name=project_name
+                )
+            except Exception:
+                pass
         render_jobs.fail_job(job_id, err)
         TaskManager.fail_task(job_id, str(err), step_label="เรนเดอร์วิดีโอล้มเหลว")
 

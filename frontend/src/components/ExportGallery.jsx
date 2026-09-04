@@ -3,13 +3,60 @@ import {
   Film, Download, Folder, RefreshCw, Trash2,
   AlertTriangle, Check, Play, Search, Filter, ArrowUpDown,
   Smartphone, CheckSquare, Square, Share2, Copy, FileText, QrCode, Sparkles, HardDrive,
-  ShieldAlert, XCircle, CheckCircle2, History, FileQuestion, Link2
+  ShieldAlert, XCircle, CheckCircle2, History, FileQuestion, Link2,
+  Columns, List, LayoutGrid, Clock, Calendar, Tag, DollarSign, Layers, ChevronDown, ChevronUp, Zap, ShieldCheck
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { openFolder, deleteFile, getProducts, linkExportToAngle } from '../api';
 import { Modal, Toast, Button, Badge, ConfirmModal } from './ui';
 import { useDebounce, useToast } from '../hooks';
 import RawVaultPanel from './RawVaultPanel';
+
+// Helper: Format full date & time (e.g. "4 ก.ย. 2026, 18:45:20 น.")
+function formatDateTimeFull(str) {
+  if (!str) return 'เพิ่งตัดต่อเสร็จ';
+  try {
+    const d = new Date(str.includes('T') ? str : str.replace(' ', 'T'));
+    if (isNaN(d.getTime())) return str;
+    return d.toLocaleString('th-TH', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    }) + ' น.';
+  } catch {
+    return str;
+  }
+}
+
+// Helper: Relative time description (e.g. "5 นาทีที่แล้ว", "เมื่อสักครู่")
+function getRelativeTimeDesc(timestamp, dateStr) {
+  let ts = timestamp;
+  if (!ts && dateStr) {
+    try {
+      ts = new Date(dateStr.includes('T') ? dateStr : dateStr.replace(' ', 'T')).getTime() / 1000;
+    } catch {
+      ts = null;
+    }
+  }
+  if (!ts) return 'เพิ่งเสร็จ';
+  const diff = Date.now() / 1000 - ts;
+  if (diff < 60) return 'เมื่อสักครู่';
+  if (diff < 3600) return `${Math.floor(diff / 60)} นาทีที่แล้ว`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} ชม. ที่แล้ว`;
+  return `${Math.floor(diff / 86400)} วันที่แล้ว`;
+}
+
+// Helper: Format duration in minutes:seconds
+function formatDuration(sec) {
+  if (!sec || isNaN(sec)) return '--:--';
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${s < 10 ? '0' : ''}${s}`;
+}
 
 // Memoized Export Video Item Card
 const ExportCard = memo(function ExportCard({
@@ -209,8 +256,476 @@ const ExportCard = memo(function ExportCard({
   );
 });
 
+// ═══════════════════════════════════════════════════════════════════════
+// 🎬 EXPORT SIDEBAR ITEM (Left Column Playlist in Split View)
+// ═══════════════════════════════════════════════════════════════════════
+function ExportSidebarItem({ item, isSelected, isActive, onSelect, onToggleCheck }) {
+  return (
+    <div
+      onClick={onSelect}
+      className={`p-2.5 rounded-xl border transition-all cursor-pointer text-left group relative active:scale-98 ${
+        isActive
+          ? 'bg-[#25F4EE]/[0.08] border-[#25F4EE]/60 shadow-md shadow-[#25F4EE]/10 ring-1 ring-[#25F4EE]/30'
+          : 'bg-[#080B11] border-white/[0.06] hover:border-white/[0.18] hover:bg-white/[0.02]'
+      }`}
+    >
+      {isActive && (
+        <div className="absolute left-0 top-2 bottom-2 w-1 bg-[#25F4EE] rounded-r-full shadow-sm shadow-[#25F4EE]" />
+      )}
+
+      <div className="flex items-start gap-2.5">
+        {/* Checkbox */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleCheck(item.path);
+          }}
+          className="mt-1 w-5 h-5 rounded flex items-center justify-center border border-white/20 hover:border-[#25F4EE] transition-colors flex-shrink-0 cursor-pointer"
+        >
+          {isSelected ? <Check className="w-3.5 h-3.5 text-[#25F4EE]" /> : <Square className="w-3 h-3 text-slate-500" />}
+        </button>
+
+        {/* Mini 9:16 Thumbnail */}
+        <div className="w-10 h-16 rounded-lg overflow-hidden bg-black flex-shrink-0 relative border border-white/[0.08]">
+          {item.thumbnail_url ? (
+            <img src={item.thumbnail_url} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <video
+              src={`/api/media/${item.rel_path || item.path}#t=1.0`}
+              className="w-full h-full object-cover"
+              muted
+            />
+          )}
+        </div>
+
+        {/* Info */}
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex items-center justify-between gap-1.5">
+            <span className={`text-xs font-bold truncate ${isActive ? 'text-white' : 'text-slate-200'}`}>
+              {item.hook_title || item.name}
+            </span>
+            {item.is_latest ? (
+              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex-shrink-0">
+                ล่าสุด
+              </span>
+            ) : item.is_previous_version ? (
+              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 flex-shrink-0">
+                เก่า
+              </span>
+            ) : item.is_qc_rejected ? (
+              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-red-500/15 text-red-300 border border-red-500/30 flex-shrink-0">
+                QC
+              </span>
+            ) : null}
+          </div>
+
+          <p className="text-[11px] text-slate-400 truncate font-mono">
+            {item.name}
+          </p>
+
+          <div className="flex items-center gap-2 text-[10px] text-slate-500">
+            <span className="font-mono text-cyan-300">{item.size_mb} MB</span>
+            <span>•</span>
+            <span>{item.modified?.split(' ')?.[0] || 'เพิ่งสร้าง'}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// 📱 EXPORT MOBILE PILL (Horizontal Swipeable Tab for iPhone 15 PM)
+// ═══════════════════════════════════════════════════════════════════════
+function ExportMobilePill({ item, isActive, onSelect }) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`flex-shrink-0 snap-center px-2.5 py-2 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2 max-w-[200px] active:scale-95 ${
+        isActive
+          ? 'bg-[#25F4EE]/15 border-[#25F4EE] shadow-md shadow-[#25F4EE]/20 ring-1 ring-[#25F4EE]/40'
+          : 'bg-[#080B11] border-white/[0.08] hover:border-white/[0.2] text-slate-300'
+      }`}
+    >
+      <div className="w-8 h-12 rounded-md overflow-hidden bg-black flex-shrink-0 border border-white/[0.1]">
+        {item.thumbnail_url ? (
+          <img src={item.thumbnail_url} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <video src={`/api/media/${item.rel_path || item.path}#t=1.0`} className="w-full h-full object-cover" muted />
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1">
+          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+            item.is_latest ? 'bg-emerald-400' : item.is_previous_version ? 'bg-amber-400' : 'bg-slate-400'
+          }`} />
+          <span className={`text-xs font-bold truncate ${isActive ? 'text-white' : 'text-slate-300'}`}>
+            {item.hook_title || item.name}
+          </span>
+        </div>
+        <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+          {item.size_mb} MB
+        </div>
+      </div>
+    </button>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// 🎬 EXPORT ACTIVE WORKBENCH (Right Column Studio QC Panel in Split View)
+// ═══════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════
+// 🎬 EXPORT ACTIVE WORKBENCH (Studio QC & Deep Insights Panel)
+// ═══════════════════════════════════════════════════════════════════════
+function ExportActiveWorkbench({
+  video,
+  onSwapToLatest,
+  onOpenLinkModal,
+  onCopyCaption,
+  copiedCaption,
+  mobileBaseUrl,
+  onDelete
+}) {
+  const [videoDuration, setVideoDuration] = useState(null);
+  const [showFullScript, setShowFullScript] = useState(false);
+  const [copiedPath, setCopiedPath] = useState(false);
+
+  if (!video) {
+    return (
+      <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-8 text-center text-slate-400">
+        <Film className="w-10 h-10 mx-auto text-slate-600 mb-2" />
+        <p className="text-xs">เลือกคลิปจากรายการฝั่งซ้ายเพื่อตรวจ QC และดูรายละเอียด</p>
+      </div>
+    );
+  }
+
+  const handleCopyPath = () => {
+    const p = video.rel_path || video.path;
+    navigator.clipboard.writeText(p);
+    setCopiedPath(true);
+    setTimeout(() => setCopiedPath(false), 2000);
+  };
+
+  const scriptLines = Array.isArray(video.script_lines) ? video.script_lines : [];
+  const renderedTime = video.modified_time || video.modified;
+  const relativeTime = getRelativeTimeDesc(video.timestamp, renderedTime);
+
+  return (
+    <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-3.5 sm:p-5 shadow-xl space-y-4 animate-fadeIn">
+      {/* 1. Header with title & badges */}
+      <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 pb-3 border-b border-white/[0.08]">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              <Sparkles className="w-3 h-3 text-[#25F4EE]" />
+              <span>พรีวิว & ตรวจ QC วิดีโอ</span>
+            </span>
+            {video.is_latest && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                เวอร์ชันล่าสุด (พร้อมโพสต์)
+              </span>
+            )}
+            {video.is_previous_version && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                เวอร์ชันก่อนหน้า
+              </span>
+            )}
+            {video.is_qc_rejected && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/15 text-red-300 border border-red-500/30">
+                QC ปัดตก
+              </span>
+            )}
+          </div>
+          <h2 className="text-sm sm:text-base font-bold text-white font-kanit truncate mt-1">
+            {video.hook_title || video.name}
+          </h2>
+          <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono mt-0.5 truncate">
+            {video.product_name && (
+              <span className="text-[#25F4EE] font-bold">{video.product_name}</span>
+            )}
+            {video.angle_name && (
+              <>
+                <span>•</span>
+                <span className="text-slate-300">{video.angle_name}</span>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Side-by-side layout: Video Player + Info */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+        {/* Left: 9:16 Video Player Preview (No autoPlay to prevent echo) */}
+        <div className="md:col-span-5 w-full max-w-[260px] sm:max-w-[290px] aspect-[9/16] mx-auto rounded-2xl overflow-hidden bg-black border border-white/[0.12] shadow-2xl relative flex items-center justify-center ring-1 ring-white/[0.05]">
+          <video
+            key={video.rel_path || video.path}
+            src={`/api/media/${video.rel_path || video.path}`}
+            controls
+            playsInline
+            preload="metadata"
+            onLoadedMetadata={(e) => setVideoDuration(e.target.duration)}
+            className="w-full h-full object-contain"
+          />
+        </div>
+
+        {/* Right: Metadata, Specs, Marketing, Captions, QR */}
+        <div className="md:col-span-7 space-y-3">
+          {/* Version/QC Warning Banners */}
+          {video.is_previous_version && (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+              <div className="flex items-start gap-2.5">
+                <History className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                <div className="text-[11px] text-amber-300 font-kanit">
+                  <span className="font-bold block">เวอร์ชันก่อนหน้า (มีเวอร์ชันใหม่กว่าแทนที่แล้ว)</span>
+                  {video.latest_video_name && (
+                    <span className="text-amber-200/80 font-mono text-[10px] block truncate">
+                      ล่าสุด: {video.latest_video_name}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => onSwapToLatest(video)}
+                className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-xs font-bold transition-all cursor-pointer flex-shrink-0 active:scale-95"
+              >
+                ดูตัวล่าสุด
+              </button>
+            </div>
+          )}
+
+          {video.is_unlinked && (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 rounded-xl bg-slate-800/60 border border-slate-700/60">
+              <div className="flex items-start gap-2.5">
+                <FileQuestion className="w-4 h-4 text-slate-300 flex-shrink-0 mt-0.5" />
+                <div className="text-[11px] text-slate-300 font-kanit">
+                  <span className="font-bold block">คลิปภายนอก (ยังไม่ได้ผูกกับสคริปต์สินค้า)</span>
+                  <span className="text-slate-400 text-[10px] block">สามารถผูกเพื่อดึงแคปชันและข้อมูลสินค้าได้</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => onOpenLinkModal(video)}
+                className="px-2.5 py-1 rounded-lg bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 text-[#25F4EE] text-xs font-bold transition-all cursor-pointer flex-shrink-0 active:scale-95"
+              >
+                ผูกกับสคริปต์
+              </button>
+            </div>
+          )}
+
+          {/* 4 Deep Technical & Generation Spec Cards (2x2 Grid) */}
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            {/* Box 1: เวลาที่เจนเสร็จ */}
+            <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.08] space-y-1">
+              <div className="text-[10px] text-slate-400 flex items-center gap-1 font-kanit">
+                <Clock className="w-3 h-3 text-[#25F4EE]" />
+                <span>เวลาที่ตัดต่อเสร็จ</span>
+              </div>
+              <div className="font-mono text-white text-[11px] font-bold truncate">
+                {formatDateTimeFull(renderedTime)}
+              </div>
+              <div className="text-[10px] text-[#25F4EE] font-kanit">
+                {relativeTime}
+              </div>
+            </div>
+
+            {/* Box 2: ความยาวคลิป & FPS */}
+            <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.08] space-y-1">
+              <div className="text-[10px] text-slate-400 flex items-center gap-1 font-kanit">
+                <Film className="w-3 h-3 text-emerald-400" />
+                <span>ความยาว & เฟรมเรต</span>
+              </div>
+              <div className="font-mono text-emerald-300 text-[11px] font-bold">
+                {formatDuration(videoDuration)} นาที
+              </div>
+              <div className="text-[10px] text-slate-400 font-mono">
+                30 FPS • H.264 MP4
+              </div>
+            </div>
+
+            {/* Box 3: ขนาด & สเปกหน้าจอ */}
+            <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.08] space-y-1">
+              <div className="text-[10px] text-slate-400 flex items-center gap-1 font-kanit">
+                <HardDrive className="w-3 h-3 text-cyan-400" />
+                <span>ขนาดไฟล์ & สัดส่วน</span>
+              </div>
+              <div className="font-mono text-cyan-300 text-[11px] font-bold">
+                {video.size_mb} MB
+              </div>
+              <div className="text-[10px] text-slate-400 font-mono">
+                1080x1920 (9:16 FHD)
+              </div>
+            </div>
+
+            {/* Box 4: Safe Zone & ระดับเสียง */}
+            <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.08] space-y-1">
+              <div className="text-[10px] text-slate-400 flex items-center gap-1 font-kanit">
+                <ShieldCheck className="w-3 h-3 text-purple-400" />
+                <span>Safe Zone & อัตราเสียง</span>
+              </div>
+              <div className="font-mono text-purple-300 text-[11px] font-bold">
+                Safe Zone ล่าง 420px
+              </div>
+              <div className="text-[10px] text-slate-400 font-mono">
+                Voice 100% / SFX 28% / BGM 12%
+              </div>
+            </div>
+          </div>
+
+          {/* Product & Marketing Context Card */}
+          {(video.product_name || video.angle_name || video.price_deal || video.key_features) && (
+            <div className="p-3 rounded-xl bg-gradient-to-br from-white/[0.04] to-black/40 border border-white/[0.08] space-y-2">
+              <div className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
+                <span className="flex items-center gap-1.5 font-kanit">
+                  <Tag className="w-3.5 h-3.5 text-[#FE2C55]" />
+                  <span>ข้อมูลสินค้าและแคมเปญ</span>
+                </span>
+                {video.price_deal && (
+                  <span className="px-2 py-0.5 rounded-full bg-[#FE2C55]/15 text-[#FE2C55] font-bold text-[10px] border border-[#FE2C55]/30">
+                    {video.price_deal}
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-[11px] font-kanit">
+                <div>
+                  <span className="text-slate-500 block text-[10px]">สินค้า:</span>
+                  <span className="text-white font-medium truncate block">{video.product_name || '-'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px]">มุมมองรีวิว (Angle):</span>
+                  <span className="text-slate-200 font-medium truncate block">{video.angle_name || '-'}</span>
+                </div>
+                {video.ad_tone && (
+                  <div className="col-span-2">
+                    <span className="text-slate-500 block text-[10px]">โทนเสียงพากย์:</span>
+                    <span className="text-slate-300 text-[11px]">{video.ad_tone}</span>
+                  </div>
+                )}
+                {video.key_features && (
+                  <div className="col-span-2">
+                    <span className="text-slate-500 block text-[10px]">จุดขายสินค้า:</span>
+                    <span className="text-slate-300 text-[11px] line-clamp-2">{video.key_features}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Script Breakdown Accordion */}
+          {scriptLines.length > 0 && (
+            <div className="rounded-xl border border-white/[0.08] bg-black/40 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setShowFullScript(!showFullScript)}
+                className="w-full p-2.5 flex items-center justify-between text-xs font-bold text-slate-300 hover:text-white transition-colors cursor-pointer"
+              >
+                <span className="flex items-center gap-1.5 font-kanit">
+                  <Layers className="w-3.5 h-3.5 text-[#25F4EE]" />
+                  <span>บทพูดสคริปต์ในคลิป ({scriptLines.length} ท่อน • J-Cut)</span>
+                </span>
+                {showFullScript ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+              </button>
+
+              {showFullScript && (
+                <div className="p-3 border-t border-white/[0.06] space-y-2 bg-black/60 max-h-48 overflow-y-auto no-scrollbar font-mono text-xs">
+                  {scriptLines.map((line, idx) => (
+                    <div key={idx} className="flex items-start gap-2 p-1.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                      <span className="w-5 h-5 rounded bg-[#25F4EE]/10 text-[#25F4EE] flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">
+                        {idx + 1}
+                      </span>
+                      <p className="text-slate-300 leading-relaxed text-[11px]">
+                        {typeof line === 'string' ? line : line.text || line.dialogue || JSON.stringify(line)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Caption & Hashtag Box */}
+          <div className="p-3 rounded-xl bg-black/50 border border-white/[0.08] space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5 font-kanit">
+                <FileText className="w-3.5 h-3.5 text-[#25F4EE]" />
+                <span>แคปชัน & แฮชแท็กสำหรับโพสต์</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => onCopyCaption(`${video.tiktok_caption || 'รีวิวตัวเด็ด! สินค้าคุณภาพดีบอกต่อ'}\n\n${video.tiktok_hashtags || '#รีวิวของใช้ #ของดีบอกต่อ #tiktokshop'}`)}
+                className="px-2.5 py-1 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-[#25F4EE] hover:text-white text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer active:scale-95"
+              >
+                <Copy className="w-3 h-3" />
+                <span>{copiedCaption ? 'คัดลอกแล้ว!' : 'คัดลอก'}</span>
+              </button>
+            </div>
+            <p className="text-xs text-slate-300 bg-black/40 p-2.5 rounded-lg border border-white/[0.04] select-all leading-relaxed font-mono line-clamp-3">
+              {video.tiktok_caption || 'รีวิวตัวเด็ด! สินค้าคุณภาพดีบอกต่อ'}&nbsp;
+              {video.tiktok_hashtags || '#รีวิวของใช้ #ของดีบอกต่อ #tiktokshop'}
+            </p>
+          </div>
+
+          {/* File Path and QR Transfer */}
+          <div className="p-3 rounded-xl bg-black/40 border border-white/[0.08] flex items-center justify-between gap-3">
+            <div className="space-y-1 min-w-0 flex-1">
+              <div className="text-xs font-bold text-white flex items-center gap-1.5 font-kanit">
+                <Smartphone className="w-3.5 h-3.5 text-[#25F4EE]" />
+                <span>สแกน QR โหลดคลิปเข้ามือถือ</span>
+              </div>
+              <p className="text-[10px] text-slate-400">เปิดกล้องสแกนเพื่อโหลด MP4 ลงเครื่องทันที</p>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleCopyPath}
+                  className="px-2 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white text-[10px] font-mono flex items-center gap-1 transition-all cursor-pointer"
+                  title="คัดลอก Path ไฟล์"
+                >
+                  <Copy className="w-3 h-3" />
+                  <span>{copiedPath ? 'คัดลอก Path แล้ว' : 'คัดลอกที่อยู่ไฟล์'}</span>
+                </button>
+              </div>
+            </div>
+            <div className="p-1.5 bg-white rounded-xl shadow-lg flex-shrink-0">
+              <QRCodeSVG
+                value={`${mobileBaseUrl}/api/media/${encodeURIComponent(video.rel_path || video.path)}`}
+                size={68}
+                level="M"
+              />
+            </div>
+          </div>
+
+          {/* Bottom Action Buttons */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-white/[0.08]">
+            <a
+              href={`/api/media/${video.rel_path || video.path}`}
+              download={video.name}
+              className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg cursor-pointer active:scale-95 transition-all text-center"
+            >
+              <Download className="w-4 h-4" />
+              <span>ดาวน์โหลด MP4</span>
+            </a>
+            <button
+              type="button"
+              onClick={() => onDelete(video)}
+              className="py-2.5 px-3.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>ลบ</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ExportGallery({ exportsList, onRefresh, initialHighlightVideo, onClearHighlightVideo }) {
   const [activeMediaTab, setActiveMediaTab] = useState('exports');
+  const [viewMode, setViewMode] = useState('split'); // 'split' | 'grid'
+  const [activeVideoPath, setActiveVideoPath] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 250);
   const [selectedProductFilter, setSelectedProductFilter] = useState('all');
@@ -230,6 +745,15 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
   const [selectedLinkProductId, setSelectedLinkProductId] = useState('');
   const [selectedLinkAngleId, setSelectedLinkAngleId] = useState('');
   const [isLinking, setIsLinking] = useState(false);
+  const [modalDuration, setModalDuration] = useState(null);
+  const [modalShowScript, setModalShowScript] = useState(false);
+  const [modalCopiedPath, setModalCopiedPath] = useState(false);
+
+  useEffect(() => {
+    setModalDuration(null);
+    setModalShowScript(false);
+    setModalCopiedPath(false);
+  }, [selectedDetailVideo]);
 
   const handleSwapToLatest = useCallback((currentVideo) => {
     if (!currentVideo || !exportsList) return;
@@ -320,10 +844,12 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
     });
 
     if (matched) {
+      setActiveVideoPath(matched.path);
       setSelectedDetailVideo(matched);
       onClearHighlightVideo?.();
     } else if (exportsList.length > 0) {
       // Fallback: pick the latest rendered video if name slightly varied
+      setActiveVideoPath(exportsList[0].path);
       setSelectedDetailVideo(exportsList[0]);
       onClearHighlightVideo?.();
     }
@@ -348,6 +874,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
       showToast(`ลบไฟล์ ${deleteTarget.name} เรียบร้อยแล้ว`);
       setDeleteTarget(null);
       if (selectedDetailVideo?.path === deleteTarget.path) setSelectedDetailVideo(null);
+      if (activeVideoPath === deleteTarget.path) setActiveVideoPath(null);
       setSelectedVideos(prev => prev.filter(p => p !== deleteTarget.path));
       if (onRefresh) onRefresh();
     } catch (err) {
@@ -355,7 +882,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
     } finally {
       setDeleting(false);
     }
-  }, [deleteTarget, selectedDetailVideo, onRefresh, showToast]);
+  }, [deleteTarget, selectedDetailVideo, activeVideoPath, onRefresh, showToast]);
 
   const confirmBatchDelete = useCallback(async () => {
     if (selectedVideos.length === 0) return;
@@ -372,6 +899,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
       showToast(`ลบวิดีโอ ${selectedVideos.length} คลิปเรียบร้อยแล้ว`);
       setSelectedVideos([]);
       setShowBatchDeleteModal(false);
+      setActiveVideoPath(null);
       if (onRefresh) onRefresh();
     } catch (err) {
       showToast('เกิดข้อผิดพลาดในการลบไฟล์: ' + err.message, 'error');
@@ -453,6 +981,15 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
     return list;
   }, [exportsList, debouncedSearch, selectedProductFilter, statusFilter, sortBy]);
 
+  // Active Video computed for Split Studio view
+  const activeVideo = useMemo(() => {
+    if (activeVideoPath) {
+      const found = filteredExports.find(v => v.path === activeVideoPath);
+      if (found) return found;
+    }
+    return filteredExports[0] || null;
+  }, [activeVideoPath, filteredExports]);
+
   // Quick counts for filter chips
   const counts = useMemo(() => {
     if (!exportsList) return { all: 0, latest: 0, previous: 0, unlinked: 0, qc_rejected: 0 };
@@ -476,624 +1013,779 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
   const mobileBaseUrl = typeof window !== 'undefined' ? `http://${window.location.hostname}:5173` : '';
 
   return (
-    <div className="space-y-6 relative animate-fadeIn pb-16">
+    <div className="space-y-4 relative animate-fadeIn pb-16">
       {/* Central Toast Notification */}
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
 
-      {/* ── High-Level Media Center Switcher (Exports vs Raw Vault) ── */}
-      <div className="flex items-center justify-between gap-3 p-1.5 rounded-3xl bg-[#0B0F19]/90 border border-white/[0.08] backdrop-blur-xl shadow-xl">
-        <div className="flex items-center gap-2 flex-1">
-          <button
-            type="button"
-            onClick={() => setActiveMediaTab('exports')}
-            className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-              activeMediaTab === 'exports'
-                ? 'bg-gradient-to-r from-[#FE2C55]/20 to-[#FE2C55]/10 text-[#FE2C55] border border-[#FE2C55]/40 shadow-lg shadow-[#FE2C55]/10'
-                : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
-            }`}
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>คลิปตัดเสร็จ ({exportsList?.length || 0})</span>
-          </button>
+      {/* ── Unified Media Center & Command Bar ── */}
+      <div className="rounded-2xl sm:rounded-3xl border border-white/[0.08] bg-[#0B0F19]/90 backdrop-blur-xl p-3 sm:p-5 shadow-2xl relative overflow-hidden space-y-3 sm:space-y-4">
+        {/* Ambient Glow Aura */}
+        <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-br from-[#FE2C55]/10 via-[#25F4EE]/5 to-transparent rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
 
-          <button
-            type="button"
-            onClick={() => setActiveMediaTab('raw_vault')}
-            className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-              activeMediaTab === 'raw_vault'
-                ? 'bg-gradient-to-r from-[#25F4EE]/20 to-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/40 shadow-lg shadow-[#25F4EE]/10'
-                : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
-            }`}
-          >
-            <Film className="w-4 h-4" />
-            <span>คลิปดิบ</span>
-          </button>
+        {/* Row 1: Tab Switcher + Stats Badge + View Mode & Actions */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 relative z-10">
+          {/* Media Switcher Tabs */}
+          <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-black/40 border border-white/[0.06] w-full md:w-auto">
+            <button
+              type="button"
+              onClick={() => setActiveMediaTab('exports')}
+              className={`flex-1 md:flex-initial px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                activeMediaTab === 'exports'
+                  ? 'bg-[#FE2C55]/20 text-[#FE2C55] border border-[#FE2C55]/40 shadow-md shadow-[#FE2C55]/10'
+                  : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
+              }`}
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>คลิปตัดเสร็จ ({exportsList?.length || 0})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveMediaTab('raw_vault')}
+              className={`flex-1 md:flex-initial px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                activeMediaTab === 'raw_vault'
+                  ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-md shadow-[#25F4EE]/10'
+                  : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
+              }`}
+            >
+              <Film className="w-4 h-4" />
+              <span>คลิปดิบ (Raw Vault)</span>
+            </button>
+          </div>
+
+          {/* Quick Metrics & Studio Controls (Exports Tab Only) */}
+          {activeMediaTab === 'exports' && (
+            <div className="flex flex-wrap items-center justify-between md:justify-end gap-2 w-full md:w-auto">
+              {/* Metrics Pill */}
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs font-mono text-slate-300">
+                <span className="text-white font-bold">{filteredExports.length}</span> คลิป
+                <span className="text-slate-600">•</span>
+                <span className="text-[#25F4EE] font-bold">{totalMB}</span> MB
+                <span className="text-slate-600">•</span>
+                <span className="text-emerald-400 font-bold">9:16 FHD</span>
+              </div>
+
+              {/* View Mode Toggle: Studio vs Grid */}
+              <div className="flex items-center p-0.5 rounded-xl bg-black/40 border border-white/[0.08]">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('split')}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    viewMode === 'split'
+                      ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="โหมดสตูดิโอ 2 ฝั่ง (เลือกคลิปซ้าย ดู QC ขวา)"
+                >
+                  <Columns className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">สตูดิโอ 2 ฝั่ง</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('grid')}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    viewMode === 'grid'
+                      ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="โหมดตารางการ์ด 9:16 ทั้งหมด"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">ตารางการ์ด</span>
+                </button>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-1.5">
+                <Button
+                  onClick={onRefresh}
+                  variant="secondary"
+                  size="sm"
+                  icon={RefreshCw}
+                  className="px-2.5 sm:px-3"
+                  title="รีเฟรชคลังคลิป"
+                >
+                  <span className="hidden sm:inline">รีเฟรช</span>
+                </Button>
+                <Button
+                  onClick={handleOpenExportsFolder}
+                  variant="secondary"
+                  size="sm"
+                  icon={Folder}
+                  className="px-2.5 sm:px-3"
+                  title="เปิดโฟลเดอร์ Exports บนเครื่อง"
+                >
+                  <span className="hidden sm:inline">เปิดโฟลเดอร์</span>
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Row 2: Search, Filters & Status Bar (Only in exports tab) */}
+        {activeMediaTab === 'exports' && (
+          <div className="pt-3 border-t border-white/[0.06] space-y-3 relative z-10">
+            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5">
+              {/* Search input with clear */}
+              <div className="relative flex-1 md:max-w-md lg:max-w-lg">
+                <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="ค้นหาชื่อคลิป, แคปชัน, หรือสินค้า..."
+                  className="w-full bg-black/50 border border-white/[0.1] focus:border-[#FE2C55] focus:ring-1 focus:ring-[#FE2C55] rounded-xl pl-10 pr-9 py-2 text-xs text-white placeholder-slate-500 focus:outline-none transition-all"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center text-xs transition-colors cursor-pointer"
+                    title="ล้างคำค้นหา"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {/* Product and Sort dropdowns */}
+              <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
+                <div className="relative flex-1 sm:w-44">
+                  <select
+                    value={selectedProductFilter}
+                    onChange={(e) => setSelectedProductFilter(e.target.value)}
+                    className="w-full py-2 px-3 rounded-xl bg-black/50 border border-white/[0.1] text-white text-xs font-bold focus:outline-none focus:border-[#FE2C55] transition-colors cursor-pointer truncate"
+                  >
+                    <option value="all" className="bg-[#080B11]">สินค้าทั้งหมด ({exportsList?.length || 0})</option>
+                    {productTags.map(t => (
+                      <option key={t} value={t} className="bg-[#080B11]">{t}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="relative flex-1 sm:w-32">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="w-full py-2 px-3 rounded-xl bg-black/50 border border-white/[0.1] text-white text-xs font-bold focus:outline-none focus:border-[#FE2C55] transition-colors cursor-pointer"
+                  >
+                    <option value="newest" className="bg-[#080B11]">ใหม่ล่าสุด</option>
+                    <option value="oldest" className="bg-[#080B11]">เก่าที่สุด</option>
+                    <option value="size_desc" className="bg-[#080B11]">ขนาดใหญ่สุด</option>
+                    <option value="name" className="bg-[#080B11]">เรียงตามชื่อ</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Status Filter Chips & Batch Selection */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 no-scrollbar touch-pan-x flex-nowrap">
+                {[
+                  { id: 'all',         label: 'ทั้งหมด',              count: counts.all,          color: 'text-slate-300 border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.08]',   active: 'bg-[#25F4EE]/10 text-[#25F4EE] border-[#25F4EE]/40 shadow-sm shadow-[#25F4EE]/10' },
+                  { id: 'latest',      label: 'เวอร์ชันล่าสุด',        count: counts.latest,       color: 'text-emerald-300 border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10', active: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm shadow-emerald-500/10' },
+                  { id: 'previous',    label: 'เวอร์ชันก่อนหน้า',       count: counts.previous,     color: 'text-amber-300 border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10',   active: 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-500/10' },
+                  { id: 'unlinked',    label: 'คลิปภายนอก',          count: counts.unlinked,     color: 'text-slate-400 border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06]',  active: 'bg-slate-500/20 text-slate-200 border-slate-500/40' },
+                  { id: 'qc_rejected', label: 'QC ปัดตก',            count: counts.qc_rejected,  color: 'text-red-300 border-red-500/20 bg-red-500/5 hover:bg-red-500/10',         active: 'bg-red-500/20 text-red-300 border-red-500/40 shadow-sm shadow-red-500/10' },
+                ].map(chip => (
+                  <button
+                    key={chip.id}
+                    type="button"
+                    onClick={() => setStatusFilter(chip.id)}
+                    className={`py-1 px-2.5 rounded-lg text-xs font-bold border flex items-center gap-1.5 transition-all cursor-pointer flex-shrink-0 ${
+                      statusFilter === chip.id ? chip.active : chip.color
+                    }`}
+                  >
+                    {chip.id === 'latest' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
+                    {chip.id === 'previous' && <History className="w-3.5 h-3.5 text-amber-400" />}
+                    {chip.id === 'unlinked' && <FileQuestion className="w-3.5 h-3.5 text-slate-400" />}
+                    {chip.id === 'qc_rejected' && <ShieldAlert className="w-3.5 h-3.5 text-red-400" />}
+                    <span>{chip.label}</span>
+                    <span className="font-mono text-[11px] opacity-75">({chip.count})</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Batch Actions & Select All */}
+              <div className="flex items-center gap-2 justify-between sm:justify-end flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={toggleSelectAll}
+                  className="py-1 sm:py-1.5 px-2.5 sm:px-3 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-bold text-slate-300 flex items-center gap-1.5 cursor-pointer transition-colors active:scale-95"
+                >
+                  {selectedVideos.length === filteredExports.length && filteredExports.length > 0 ? (
+                    <CheckSquare className="w-3.5 h-3.5 text-[#FE2C55]" />
+                  ) : (
+                    <Square className="w-3.5 h-3.5 text-slate-400" />
+                  )}
+                  <span>เลือกทั้งหมด ({filteredExports.length})</span>
+                </button>
+
+                {selectedVideos.length > 0 && (
+                  <Button
+                    onClick={handleBatchDelete}
+                    loading={deleting}
+                    variant="danger"
+                    size="sm"
+                    icon={Trash2}
+                    className="py-1 px-2.5 text-xs active:scale-95"
+                  >
+                    ลบที่เลือก ({selectedVideos.length})
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
+      {/* ── Content View Area ── */}
       {activeMediaTab === 'raw_vault' ? (
         <RawVaultPanel />
       ) : (
         <>
-      {/* ── DETAILED VIDEO QC, FULL PREVIEW & METADATA MODAL ── */}
-      <Modal
-        isOpen={!!selectedDetailVideo}
-        onClose={() => setSelectedDetailVideo(null)}
-        title={selectedDetailVideo?.hook_title || selectedDetailVideo?.name || 'พรีวิววิดีโอ'}
-        subtitle={selectedDetailVideo?.hook_title ? selectedDetailVideo.name : 'พรีวิวคลิปขนาดเต็ม สแกน QR โหลดเข้ามือถือ'}
-        maxWidth="max-w-xl"
-      >
-        {selectedDetailVideo && (
-          <div className="space-y-4 max-h-[80vh] overflow-y-auto pr-1 no-scrollbar">
-            {/* 1. Large 9:16 Video Player Preview (เต็มขนาดหน้าจอ) */}
-            <div className="w-full max-w-[340px] sm:max-w-[380px] aspect-[9/16] max-h-[68vh] mx-auto rounded-2xl overflow-hidden bg-black border border-white/[0.12] shadow-2xl relative flex items-center justify-center ring-1 ring-white/[0.05]">
-              <video
-                key={selectedDetailVideo.rel_path || selectedDetailVideo.path}
-                src={`/api/media/${selectedDetailVideo.rel_path || selectedDetailVideo.path}`}
-                controls
-                autoPlay
-                playsInline
-                preload="auto"
-                className="w-full h-full object-contain"
-              />
+          {filteredExports.length === 0 ? (
+            /* Empty State */
+            <div className="p-16 text-center space-y-4 rounded-3xl border border-white/[0.08] glass-panel shadow-xl">
+              <div>
+                <h3 className="text-lg font-bold text-white">
+                  {searchQuery ? 'ไม่พบคลิปวิดีโอที่ค้นหา' : 'ยังไม่มีคลิปวิดีโอที่ตัดเสร็จในคลัง'}
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-md mx-auto">
+                  {searchQuery
+                    ? 'ลองพิมพ์คำค้นหาอื่น หรือเปลี่ยนตัวกรองสินค้า'
+                    : 'ไปที่เมนู 1-Click Studio แล้วกดเริ่มตัดต่อวิดีโอ คลิปที่ตัดเสร็จจะมาปรากฏในคลังนี้โดยอัตโนมัติ'}
+                </p>
+              </div>
             </div>
+          ) : viewMode === 'split' ? (
+            /* Master-Detail Studio Layout - Single Workbench in entire DOM (Prevents Audio Echo) */
+            <div className="space-y-4">
+              {/* Mobile (< lg): iPhone 15 Pro Max Touch-friendly Horizontal Snap Carousel */}
+              <div className="lg:hidden space-y-2">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5 font-kanit">
+                    <Film className="w-3.5 h-3.5 text-[#25F4EE]" />
+                    <span>เลือกคลิปตรวจ QC ({filteredExports.length})</span>
+                  </span>
+                  <span className="text-[11px] text-slate-500">ปัดซ้าย-ขวาเพื่อเลือก</span>
+                </div>
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 pt-1 px-1 snap-x snap-mandatory no-scrollbar -mx-2 px-2">
+                  {filteredExports.map(item => (
+                    <ExportMobilePill
+                      key={item.path}
+                      item={item}
+                      isActive={activeVideo?.path === item.path}
+                      onSelect={() => setActiveVideoPath(item.path)}
+                    />
+                  ))}
+                </div>
+              </div>
 
-            {/* Version / QC Status Banners */}
-            {selectedDetailVideo.is_previous_version && (
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30">
-                <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
-                    <History className="w-4 h-4 text-amber-400" />
+              {/* Main Responsive Grid: 1 Workbench in DOM */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+                {/* Left Column (5 Cols): Playlist (Desktop only) */}
+                <div className="hidden lg:block lg:col-span-5 space-y-2.5">
+                  <div className="flex items-center justify-between px-2 py-1">
+                    <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5 font-kanit">
+                      <List className="w-3.5 h-3.5 text-[#25F4EE]" />
+                      <span>รายการคลิป ({filteredExports.length})</span>
+                    </span>
+                    <span className="text-[11px] text-slate-500 font-mono">
+                      คลิกเพื่อเลือกตรวจ QC
+                    </span>
                   </div>
-                  <div>
-                    <div className="text-xs font-bold text-amber-300 mb-0.5">คลิปนี้เป็นเวอร์ชันก่อนหน้า (มีเวอร์ชันใหม่กว่าแทนที่แล้ว)</div>
-                    {selectedDetailVideo.latest_video_name && (
-                      <div className="text-[11px] text-amber-200/80">
-                        เวอร์ชันล่าสุด: <span className="font-mono text-white">{selectedDetailVideo.latest_video_name}</span>
-                      </div>
-                    )}
-                    <div className="text-[10px] text-slate-400 mt-0.5">สามารถสลับไปดูตัวล่าสุด หรือลบไฟล์นี้เพื่อประหยัดพื้นที่ดิสก์</div>
+
+                  <div className="space-y-2 max-h-[calc(100vh-230px)] overflow-y-auto pr-1 no-scrollbar">
+                    {filteredExports.map(item => (
+                      <ExportSidebarItem
+                        key={item.path}
+                        item={item}
+                        isSelected={selectedVideos.includes(item.path)}
+                        isActive={activeVideo?.path === item.path}
+                        onSelect={() => setActiveVideoPath(item.path)}
+                        onToggleCheck={toggleSelectVideo}
+                      />
+                    ))}
                   </div>
                 </div>
+
+                {/* Right Column (7 Cols on desktop, 100% on mobile): Single Workbench in DOM */}
+                <div className="w-full lg:col-span-7 lg:sticky lg:top-4">
+                  <ExportActiveWorkbench
+                    video={activeVideo}
+                    onSwapToLatest={handleSwapToLatest}
+                    onOpenLinkModal={handleOpenLinkModal}
+                    onCopyCaption={handleCopyCaption}
+                    copiedCaption={copiedCaption}
+                    mobileBaseUrl={mobileBaseUrl}
+                    onDelete={(v) => setDeleteTarget(v)}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Grid View: 9:16 Card Showcase */
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
+              {filteredExports.map((item, idx) => (
+                <ExportCard
+                  key={item.rel_path || item.path || idx}
+                  item={item}
+                  isSelected={selectedVideos.includes(item.path)}
+                  onToggleSelect={toggleSelectVideo}
+                  onOpenDetail={setSelectedDetailVideo}
+                  onOpenDelete={setDeleteTarget}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* ── Floating Batch Action Bar (Mobile & Desktop) ── */}
+          {selectedVideos.length > 0 && (
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-md w-[calc(100%-2rem)] p-3 rounded-2xl bg-[#0B0F19]/95 border border-[#25F4EE]/40 backdrop-blur-2xl shadow-2xl flex items-center justify-between gap-3 animate-fadeIn">
+              <div className="flex items-center gap-2.5 text-xs font-bold text-white">
+                <span className="w-6 h-6 rounded-lg bg-[#25F4EE]/20 text-[#25F4EE] flex items-center justify-center font-mono text-xs">
+                  {selectedVideos.length}
+                </span>
+                <span>เลือกไว้ {selectedVideos.length} คลิป</span>
+              </div>
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => handleSwapToLatest(selectedDetailVideo)}
-                  className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer flex-shrink-0 shadow-sm"
-                  title="เปิดดูคลิปเวอร์ชันล่าสุด"
+                  onClick={() => setSelectedVideos([])}
+                  className="py-1.5 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-xs font-bold text-slate-300 transition-colors cursor-pointer"
                 >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>สลับไปดูตัวล่าสุด</span>
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBatchDelete}
+                  className="py-1.5 px-3.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-xs font-bold text-white flex items-center gap-1.5 shadow-lg shadow-rose-500/20 transition-all active:scale-95 cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>ลบที่เลือก</span>
                 </button>
               </div>
-            )}
+            </div>
+          )}
 
-            {selectedDetailVideo.is_unlinked && (
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700/60">
-                <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-slate-700/40 border border-slate-600/40 flex items-center justify-center flex-shrink-0">
-                    <FileQuestion className="w-4 h-4 text-slate-300" />
+          {/* ── DETAILED VIDEO QC, FULL PREVIEW & METADATA MODAL (For Grid Card clicks) ── */}
+          <Modal
+            isOpen={!!selectedDetailVideo}
+            onClose={() => setSelectedDetailVideo(null)}
+            title={selectedDetailVideo?.hook_title || selectedDetailVideo?.name || 'พรีวิววิดีโอ'}
+            subtitle={selectedDetailVideo?.hook_title ? `${selectedDetailVideo.product_name ? `${selectedDetailVideo.product_name} • ` : ''}${selectedDetailVideo.name}` : 'พรีวิวคลิปขนาดเต็ม สแกน QR โหลดเข้ามือถือ'}
+            maxWidth="max-w-2xl"
+          >
+            {selectedDetailVideo && (
+              <div className="space-y-4 max-h-[80vh] overflow-y-auto pr-1 no-scrollbar">
+                {/* 1. Large 9:16 Video Player Preview (No autoPlay to prevent audio echo) */}
+                <div className="w-full max-w-[320px] sm:max-w-[360px] aspect-[9/16] max-h-[60vh] mx-auto rounded-2xl overflow-hidden bg-black border border-white/[0.12] shadow-2xl relative flex items-center justify-center ring-1 ring-white/[0.05]">
+                  <video
+                    key={selectedDetailVideo.rel_path || selectedDetailVideo.path}
+                    src={`/api/media/${selectedDetailVideo.rel_path || selectedDetailVideo.path}`}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    onLoadedMetadata={(e) => setModalDuration(e.target.duration)}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+
+                {/* Version / QC Status Banners */}
+                {selectedDetailVideo.is_previous_version && (
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
+                        <History className="w-4 h-4 text-amber-400" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-amber-300 mb-0.5">คลิปนี้เป็นเวอร์ชันก่อนหน้า (มีเวอร์ชันใหม่กว่าแทนที่แล้ว)</div>
+                        {selectedDetailVideo.latest_video_name && (
+                          <div className="text-[11px] text-amber-200/80">
+                            เวอร์ชันล่าสุด: <span className="font-mono text-white">{selectedDetailVideo.latest_video_name}</span>
+                          </div>
+                        )}
+                        <div className="text-[10px] text-slate-400 mt-0.5">สามารถสลับไปดูตัวล่าสุด หรือลบไฟล์นี้เพื่อประหยัดพื้นที่ดิสก์</div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleSwapToLatest(selectedDetailVideo)}
+                      className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer flex-shrink-0 shadow-sm"
+                      title="เปิดดูคลิปเวอร์ชันล่าสุด"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>สลับไปดูตัวล่าสุด</span>
+                    </button>
                   </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-200 mb-0.5">คลิปภายนอก (ยังไม่ได้ผูกกับสคริปต์สินค้า)</div>
-                    <div className="text-[11px] text-slate-400">
-                      ไฟล์นี้ยังไม่มีข้อมูลสคริปต์ในระบบ สามารถเลือกผูกกับสินค้าเพื่อดึงสคริปต์และแคปชันมาใช้ได้
+                )}
+
+                {selectedDetailVideo.is_unlinked && (
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700/60">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-slate-700/40 border border-slate-600/40 flex items-center justify-center flex-shrink-0">
+                        <FileQuestion className="w-4 h-4 text-slate-300" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-slate-200 mb-0.5">คลิปภายนอก (ยังไม่ได้ผูกกับสคริปต์สินค้า)</div>
+                        <div className="text-[11px] text-slate-400">
+                          ไฟล์นี้ยังไม่มีข้อมูลสคริปต์ในระบบ สามารถเลือกผูกกับสินค้าเพื่อดึงสคริปต์และแคปชันมาใช้ได้
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenLinkModal(selectedDetailVideo)}
+                      className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer flex-shrink-0 shadow-sm"
+                    >
+                      <Link2 className="w-3.5 h-3.5" />
+                      <span>ผูกกับสคริปต์</span>
+                    </button>
+                  </div>
+                )}
+
+                {selectedDetailVideo.is_latest && !selectedDetailVideo.is_qc_rejected && (
+                  <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-bold">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                    <span>คลิปเวอร์ชันล่าสุด (พร้อมใช้งานและโพสต์ลง TikTok ทันที)</span>
+                  </div>
+                )}
+
+                {/* QC Rejected Banner */}
+                {selectedDetailVideo.is_qc_rejected && (
+                  <div className="flex items-start gap-3 p-3 rounded-2xl bg-red-500/10 border border-red-500/30">
+                    <div className="w-9 h-9 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center flex-shrink-0">
+                      <ShieldAlert className="w-4 h-4 text-red-400" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-red-300 mb-0.5">คลิปนี้ถูกปัดตก QC — ถูกแทนที่แล้ว</div>
+                      {selectedDetailVideo.qc_note && (
+                        <div className="text-xs text-red-200/80 font-mono">{selectedDetailVideo.qc_note}</div>
+                      )}
+                      <div className="text-[10px] text-slate-400 mt-1">สามารถลบไฟล์นี้ได้อย่างปลอดภัย เวอร์ชันใหม่ถูก render แล้ว</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 4 Detailed Spec & Generation Time Cards (2x2 Grid) */}
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {/* Box 1: เวลาที่เจนเสร็จ */}
+                  <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.08] space-y-1">
+                    <div className="text-[10px] text-slate-400 flex items-center gap-1 font-kanit">
+                      <Clock className="w-3 h-3 text-[#25F4EE]" />
+                      <span>เวลาที่ตัดต่อเสร็จ</span>
+                    </div>
+                    <div className="font-mono text-white text-[11px] font-bold truncate">
+                      {formatDateTimeFull(selectedDetailVideo.modified_time || selectedDetailVideo.modified)}
+                    </div>
+                    <div className="text-[10px] text-[#25F4EE] font-kanit">
+                      {getRelativeTimeDesc(selectedDetailVideo.timestamp, selectedDetailVideo.modified_time || selectedDetailVideo.modified)}
+                    </div>
+                  </div>
+
+                  {/* Box 2: ความยาวคลิป & FPS */}
+                  <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.08] space-y-1">
+                    <div className="text-[10px] text-slate-400 flex items-center gap-1 font-kanit">
+                      <Film className="w-3 h-3 text-emerald-400" />
+                      <span>ความยาว & เฟรมเรต</span>
+                    </div>
+                    <div className="font-mono text-emerald-300 text-[11px] font-bold">
+                      {formatDuration(modalDuration)} นาที
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-mono">
+                      30 FPS • H.264 MP4
+                    </div>
+                  </div>
+
+                  {/* Box 3: ขนาด & สเปกหน้าจอ */}
+                  <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.08] space-y-1">
+                    <div className="text-[10px] text-slate-400 flex items-center gap-1 font-kanit">
+                      <HardDrive className="w-3 h-3 text-cyan-400" />
+                      <span>ขนาดไฟล์ & สัดส่วน</span>
+                    </div>
+                    <div className="font-mono text-cyan-300 text-[11px] font-bold">
+                      {selectedDetailVideo.size_mb} MB
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-mono">
+                      1080x1920 (9:16 FHD)
+                    </div>
+                  </div>
+
+                  {/* Box 4: Safe Zone & ระดับเสียง */}
+                  <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.08] space-y-1">
+                    <div className="text-[10px] text-slate-400 flex items-center gap-1 font-kanit">
+                      <ShieldCheck className="w-3 h-3 text-purple-400" />
+                      <span>Safe Zone & อัตราเสียง</span>
+                    </div>
+                    <div className="font-mono text-purple-300 text-[11px] font-bold">
+                      Safe Zone ล่าง 420px
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-mono">
+                      Voice 100% / SFX 28% / BGM 12%
                     </div>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleOpenLinkModal(selectedDetailVideo)}
-                  className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer flex-shrink-0 shadow-sm"
+
+                {/* Product & Marketing Context Card */}
+                {(selectedDetailVideo.product_name || selectedDetailVideo.angle_name || selectedDetailVideo.price_deal || selectedDetailVideo.key_features) && (
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-white/[0.04] to-black/40 border border-white/[0.08] space-y-2">
+                    <div className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 font-kanit">
+                        <Tag className="w-3.5 h-3.5 text-[#FE2C55]" />
+                        <span>ข้อมูลสินค้าและแคมเปญ</span>
+                      </span>
+                      {selectedDetailVideo.price_deal && (
+                        <span className="px-2 py-0.5 rounded-full bg-[#FE2C55]/15 text-[#FE2C55] font-bold text-[10px] border border-[#FE2C55]/30">
+                          {selectedDetailVideo.price_deal}
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-[11px] font-kanit">
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">สินค้า:</span>
+                        <span className="text-white font-medium truncate block">{selectedDetailVideo.product_name || '-'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">มุมมองรีวิว (Angle):</span>
+                        <span className="text-slate-200 font-medium truncate block">{selectedDetailVideo.angle_name || '-'}</span>
+                      </div>
+                      {selectedDetailVideo.ad_tone && (
+                        <div className="col-span-2">
+                          <span className="text-slate-500 block text-[10px]">โทนเสียงพากย์:</span>
+                          <span className="text-slate-300 text-[11px]">{selectedDetailVideo.ad_tone}</span>
+                        </div>
+                      )}
+                      {selectedDetailVideo.key_features && (
+                        <div className="col-span-2">
+                          <span className="text-slate-500 block text-[10px]">จุดขายสินค้า:</span>
+                          <span className="text-slate-300 text-[11px] line-clamp-2">{selectedDetailVideo.key_features}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Script Breakdown Accordion */}
+                {Array.isArray(selectedDetailVideo.script_lines) && selectedDetailVideo.script_lines.length > 0 && (
+                  <div className="rounded-xl border border-white/[0.08] bg-black/40 overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setModalShowScript(!modalShowScript)}
+                      className="w-full p-2.5 flex items-center justify-between text-xs font-bold text-slate-300 hover:text-white transition-colors cursor-pointer"
+                    >
+                      <span className="flex items-center gap-1.5 font-kanit">
+                        <Layers className="w-3.5 h-3.5 text-[#25F4EE]" />
+                        <span>บทพูดสคริปต์ในคลิป ({selectedDetailVideo.script_lines.length} ท่อน • J-Cut)</span>
+                      </span>
+                      {modalShowScript ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                    </button>
+
+                    {modalShowScript && (
+                      <div className="p-3 border-t border-white/[0.06] space-y-2 bg-black/60 max-h-48 overflow-y-auto no-scrollbar font-mono text-xs">
+                        {selectedDetailVideo.script_lines.map((line, idx) => (
+                          <div key={idx} className="flex items-start gap-2 p-1.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                            <span className="w-5 h-5 rounded bg-[#25F4EE]/10 text-[#25F4EE] flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">
+                              {idx + 1}
+                            </span>
+                            <p className="text-slate-300 leading-relaxed text-[11px]">
+                              {typeof line === 'string' ? line : line.text || line.dialogue || JSON.stringify(line)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 2. Caption & Hashtag Box */}
+                <div className="p-3.5 rounded-2xl bg-black/50 border border-white/[0.08] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5 font-kanit">
+                      <FileText className="w-3.5 h-3.5 text-[#25F4EE]" />
+                      <span>แคปชัน & แฮชแท็กสำหรับโพสต์</span>
+                    </span>
+                    <button
+                      onClick={() => handleCopyCaption(`${selectedDetailVideo.tiktok_caption || 'รีวิวตัวเด็ด! สินค้าคุณภาพดีบอกต่อ'}\n\n${selectedDetailVideo.tiktok_hashtags || '#รีวิวของใช้ #ของดีบอกต่อ #tiktokshop'}`)}
+                      className="px-2.5 py-1 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-[#25F4EE] hover:text-white text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <Copy className="w-3 h-3" />
+                      <span>{copiedCaption ? 'คัดลอกแล้ว!' : 'คัดลอก'}</span>
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-300 bg-black/40 p-2.5 rounded-xl border border-white/[0.04] select-all leading-relaxed font-mono">
+                    {selectedDetailVideo.tiktok_caption || 'รีวิวตัวเด็ด! สินค้าคุณภาพดีบอกต่อ'}&nbsp;
+                    {selectedDetailVideo.tiktok_hashtags || '#รีวิวของใช้ #ของดีบอกต่อ #tiktokshop'}
+                  </p>
+                </div>
+
+                {/* 3. File Path with copy button */}
+                <div className="p-3 rounded-2xl bg-black/40 border border-white/[0.08] flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <span className="text-[10px] text-slate-400 block font-kanit">ที่อยู่ไฟล์บนเครื่อง</span>
+                    <span className="text-xs font-mono text-slate-300 truncate block">
+                      {selectedDetailVideo.rel_path || selectedDetailVideo.name}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(selectedDetailVideo.rel_path || selectedDetailVideo.path);
+                      setModalCopiedPath(true);
+                      setTimeout(() => setModalCopiedPath(false), 2000);
+                    }}
+                    className="px-2.5 py-1.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-slate-200 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer flex-shrink-0"
+                  >
+                    <Copy className="w-3 h-3" />
+                    <span>{modalCopiedPath ? 'คัดลอกแล้ว' : 'คัดลอกที่อยู่'}</span>
+                  </button>
+                </div>
+
+                {/* 4. QR Mobile Download Section */}
+                <div className="p-4 rounded-2xl bg-black/40 border border-white/[0.08] text-center space-y-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#25F4EE]/10 border border-[#25F4EE]/30 flex items-center justify-center text-[#25F4EE] mx-auto">
+                    <Smartphone className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white font-kanit">สแกน QR โหลดคลิปเข้ามือถือ</h4>
+                    <p className="text-xs text-slate-400 mt-0.5">เปิดกล้องมือถือสแกนเพื่อดาวน์โหลดไฟล์ MP4 เข้าเครื่อง</p>
+                  </div>
+                  <div className="p-3 bg-white rounded-2xl inline-block shadow-xl">
+                    <QRCodeSVG
+                      value={`${mobileBaseUrl}/api/media/${encodeURIComponent(selectedDetailVideo.rel_path || selectedDetailVideo.path)}`}
+                      size={150}
+                      level="M"
+                    />
+                  </div>
+                </div>
+
+                {/* 5. Modal Footer Action Buttons */}
+                <div className="flex items-center gap-2 pt-2 border-t border-white/[0.08]">
+                  <a
+                    href={`/api/media/${selectedDetailVideo.rel_path || selectedDetailVideo.path}`}
+                    download={selectedDetailVideo.name}
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg cursor-pointer active:scale-95 transition-all text-center"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>ดาวน์โหลด MP4</span>
+                  </a>
+                  <Button
+                    onClick={() => {
+                      setDeleteTarget(selectedDetailVideo);
+                      setSelectedDetailVideo(null);
+                    }}
+                    variant="danger"
+                    size="md"
+                    icon={Trash2}
+                  >
+                    {selectedDetailVideo.is_previous_version ? 'ลบไฟล์เวอร์ชันนี้' : 'ลบไฟล์'}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Modal>
+
+          {/* ── LINK EXTERNAL VIDEO TO PRODUCT/ANGLE MODAL ── */}
+          <Modal
+            isOpen={!!linkingVideo}
+            onClose={() => setLinkingVideo(null)}
+            title="ผูกวิดีโอนี้กับสินค้าและสคริปต์"
+            subtitle={linkingVideo?.name}
+            maxWidth="max-w-md"
+          >
+            <div className="space-y-4">
+              <div className="p-3 rounded-xl bg-black/40 border border-white/[0.08] text-xs text-slate-300">
+                เลือกสินค้าและมุมมองสคริปต์ (Angle) ที่ต้องการเชื่อมโยงเข้ากับคลิปนี้ เมื่อเชื่อมแล้วคลิปจะถูกนำไปแสดงข้อมูลสคริปต์ แคปชัน และแท็กสินค้า
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-300">เลือกสินค้า</label>
+                <select
+                  value={selectedLinkProductId}
+                  onChange={handleLinkProductChange}
+                  className="w-full py-2.5 px-3 rounded-xl bg-black/60 border border-white/[0.12] text-white text-xs font-bold focus:outline-none focus:border-[#25F4EE]"
                 >
-                  <Link2 className="w-3.5 h-3.5" />
-                  <span>ผูกกับสคริปต์</span>
-                </button>
+                  {availableProducts.map(p => (
+                    <option key={p.id} value={p.id} className="bg-[#080B11]">
+                      {p.name || p.title || p.id}
+                    </option>
+                  ))}
+                </select>
               </div>
-            )}
 
-            {selectedDetailVideo.is_latest && !selectedDetailVideo.is_qc_rejected && (
-              <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-bold">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                <span>คลิปเวอร์ชันล่าสุด (พร้อมใช้งานและโพสต์ลง TikTok)</span>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-300">เลือกมุมสคริปต์ (Angle)</label>
+                {selectedProductAngles.length > 0 ? (
+                  <select
+                    value={selectedLinkAngleId}
+                    onChange={(e) => setSelectedLinkAngleId(e.target.value)}
+                    className="w-full py-2.5 px-3 rounded-xl bg-black/60 border border-white/[0.12] text-white text-xs font-bold focus:outline-none focus:border-[#25F4EE]"
+                  >
+                    {selectedProductAngles.map(a => (
+                      <option key={a.angle_id} value={a.angle_id} className="bg-[#080B11]">
+                        {a.angle_name || a.angle_id} {a.hook_title ? `— "${a.hook_title.slice(0, 30)}..."` : ''}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs">
+                    สินค้านี้ยังไม่มีมุมสคริปต์ที่สร้างไว้
+                  </div>
+                )}
               </div>
-            )}
 
-            {/* QC Rejected Banner — show if this file was superseded by a newer render */}
-            {selectedDetailVideo.is_qc_rejected && (
-              <div className="flex items-start gap-3 p-3 rounded-2xl bg-red-500/10 border border-red-500/30">
-                <div className="w-9 h-9 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center flex-shrink-0">
-                  <ShieldAlert className="w-4 h-4 text-red-400" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-red-300 mb-0.5">คลิปนี้ถูกปัดตก QC — ถูกแทนที่แล้ว</div>
-                  {selectedDetailVideo.qc_note && (
-                    <div className="text-xs text-red-200/80 font-mono">{selectedDetailVideo.qc_note}</div>
-                  )}
-                  <div className="text-[10px] text-slate-400 mt-1">สามารถลบไฟล์นี้ได้อย่างปลอดภัย เวอร์ชันใหม่ถูก render แล้ว</div>
-                </div>
-              </div>
-            )}
-
-            {/* 2. Caption & Hashtag Box */}
-            <div className="p-3.5 rounded-2xl bg-black/50 border border-white/[0.08] space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                  <FileText className="w-3.5 h-3.5 text-[#25F4EE]" />
-                  <span>แคปชัน & แฮชแท็กสำหรับโพสต์</span>
-                </span>
-                <button
-                  onClick={() => handleCopyCaption(`${selectedDetailVideo.tiktok_caption || 'รีวิวตัวเด็ด! สินค้าคุณภาพดีบอกต่อ'}\n\n${selectedDetailVideo.tiktok_hashtags || '#รีวิวของใช้ #ของดีบอกต่อ #tiktokshop'}`)}
-                  className="px-2.5 py-1 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-[#25F4EE] hover:text-white text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+              <div className="flex items-center gap-2 pt-2 border-t border-white/[0.08]">
+                <Button
+                  variant="secondary"
+                  onClick={() => setLinkingVideo(null)}
+                  disabled={isLinking}
+                  className="flex-1"
                 >
-                  <Copy className="w-3 h-3" />
-                  <span>{copiedCaption ? 'คัดลอกแล้ว!' : 'คัดลอก'}</span>
-                </button>
-              </div>
-              <p className="text-xs text-slate-300 bg-black/40 p-2.5 rounded-xl border border-white/[0.04] select-all leading-relaxed font-mono">
-                {selectedDetailVideo.tiktok_caption || 'รีวิวตัวเด็ด! สินค้าคุณภาพดีบอกต่อ'}&nbsp;
-                {selectedDetailVideo.tiktok_hashtags || '#รีวิวของใช้ #ของดีบอกต่อ #tiktokshop'}
-              </p>
-            </div>
-
-            {/* 3. Size & Format info chips */}
-            <div className="grid grid-cols-3 gap-2 text-center text-xs font-mono">
-              <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.08]">
-                <div className="text-[10px] text-slate-400">ขนาดไฟล์</div>
-                <div className="font-bold text-[#25F4EE] mt-0.5">{selectedDetailVideo.size_mb} MB</div>
-              </div>
-              <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.08]">
-                <div className="text-[10px] text-slate-400">ความละเอียด</div>
-                <div className="font-bold text-emerald-400 mt-0.5">1080x1920 (9:16)</div>
-              </div>
-              <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.08]">
-                <div className="text-[10px] text-slate-400">วันที่สร้าง</div>
-                <div className="text-slate-300 truncate mt-0.5">{selectedDetailVideo.modified?.split(' ')?.[0] || 'ล่าสุด'}</div>
+                  ยกเลิก
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={handleConfirmLink}
+                  loading={isLinking}
+                  disabled={!selectedLinkProductId || !selectedLinkAngleId}
+                  icon={Check}
+                  className="flex-1"
+                >
+                  {isLinking ? 'กำลังผูกคลิป...' : 'ยืนยันการผูกคลิป'}
+                </Button>
               </div>
             </div>
+          </Modal>
 
-            {/* 4. QR Mobile Download Section */}
-            <div className="p-4 rounded-2xl bg-black/40 border border-white/[0.08] text-center space-y-3">
-              <div className="w-10 h-10 rounded-xl bg-[#25F4EE]/10 border border-[#25F4EE]/30 flex items-center justify-center text-[#25F4EE] mx-auto">
-                <Smartphone className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-white">สแกน QR โหลดคลิปเข้ามือถือ</h4>
-                <p className="text-xs text-slate-400 mt-0.5">เปิดกล้องมือถือสแกนเพื่อดาวน์โหลดไฟล์ MP4 เข้าเครื่อง</p>
-              </div>
-              <div className="p-3 bg-white rounded-2xl inline-block shadow-xl">
-                <QRCodeSVG
-                  value={`${mobileBaseUrl}/api/media/${encodeURIComponent(selectedDetailVideo.rel_path || selectedDetailVideo.path)}`}
-                  size={150}
-                  level="M"
-                />
-              </div>
-            </div>
+          {/* ── Single Video Delete Confirm Modal ── */}
+          <ConfirmModal
+            isOpen={!!deleteTarget}
+            onClose={() => setDeleteTarget(null)}
+            onConfirm={confirmDelete}
+            title="ลบคลิปวิดีโอนี้ถาวร?"
+            description="ไฟล์วิดีโอ MP4 ในโฟลเดอร์ Exports จะถูกลบออกจากเครื่อง"
+            itemName={deleteTarget?.name}
+            dangerNote="การกระทำนี้ไม่สามารถย้อนกลับได้"
+            confirmText="ลบไฟล์ถาวร"
+            loading={deleting}
+            variant="danger"
+          />
 
-            {/* 5. Modal Footer Action Buttons */}
-            <div className="flex items-center gap-2 pt-2 border-t border-white/[0.08]">
-              <a
-                href={`/api/media/${selectedDetailVideo.rel_path || selectedDetailVideo.path}`}
-                download={selectedDetailVideo.name}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg cursor-pointer active:scale-95 transition-all"
-              >
-                <Download className="w-4 h-4" />
-                <span>ดาวน์โหลด MP4</span>
-              </a>
-              <Button
-                onClick={() => {
-                  setDeleteTarget(selectedDetailVideo);
-                  setSelectedDetailVideo(null);
-                }}
-                variant="danger"
-                size="md"
-                icon={Trash2}
-              >
-                {selectedDetailVideo.is_previous_version ? 'ลบไฟล์เวอร์ชันนี้' : 'ลบไฟล์'}
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* DELETE CONFIRMATION MODAL */}
-      <Modal
-        isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        title="ยืนยันการลบวิดีโอนี้?"
-        maxWidth="max-w-sm"
-      >
-        <div className="text-center space-y-4">
-          <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto border border-rose-500/20">
-            <AlertTriangle className="w-6 h-6" />
-          </div>
-          <p className="text-xs text-slate-300 font-mono break-all bg-black/40 p-2.5 rounded-xl border border-white/[0.08]">
-            {deleteTarget?.name}
-          </p>
-          <div className="flex items-center gap-2 pt-2">
-            <Button
-              variant="secondary"
-              onClick={() => setDeleteTarget(null)}
-              disabled={deleting}
-              className="flex-1"
-            >
-              ยกเลิก
-            </Button>
-            <Button
-              variant="danger"
-              onClick={confirmDelete}
-              loading={deleting}
-              className="flex-1"
-            >
-              {deleting ? 'กำลังลบ...' : 'ยืนยันลบ'}
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* ── LINK EXTERNAL VIDEO TO PRODUCT/ANGLE MODAL ── */}
-      <Modal
-        isOpen={!!linkingVideo}
-        onClose={() => setLinkingVideo(null)}
-        title="ผูกวิดีโอนี้กับสินค้าและสคริปต์"
-        subtitle={linkingVideo?.name}
-        maxWidth="max-w-md"
-      >
-        <div className="space-y-4">
-          <div className="p-3 rounded-xl bg-black/40 border border-white/[0.08] text-xs text-slate-300">
-            เลือกสินค้าและมุมมองสคริปต์ (Angle) ที่ต้องการเชื่อมโยงเข้ากับคลิปนี้ เมื่อเชื่อมแล้วคลิปจะถูกนำไปแสดงข้อมูลสคริปต์ แคปชัน และแท็กสินค้า
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-300">เลือกสินค้า</label>
-            <select
-              value={selectedLinkProductId}
-              onChange={handleLinkProductChange}
-              className="w-full py-2.5 px-3 rounded-xl bg-black/60 border border-white/[0.12] text-white text-xs font-bold focus:outline-none focus:border-[#25F4EE]"
-            >
-              {availableProducts.map(p => (
-                <option key={p.id} value={p.id} className="bg-[#080B11]">
-                  {p.name || p.title || p.id}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-300">เลือกมุมสคริปต์ (Angle)</label>
-            {selectedProductAngles.length > 0 ? (
-              <select
-                value={selectedLinkAngleId}
-                onChange={(e) => setSelectedLinkAngleId(e.target.value)}
-                className="w-full py-2.5 px-3 rounded-xl bg-black/60 border border-white/[0.12] text-white text-xs font-bold focus:outline-none focus:border-[#25F4EE]"
-              >
-                {selectedProductAngles.map(a => (
-                  <option key={a.angle_id} value={a.angle_id} className="bg-[#080B11]">
-                    {a.angle_name || a.angle_id} {a.hook_title ? `— "${a.hook_title.slice(0, 30)}..."` : ''}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs">
-                สินค้านี้ยังไม่มีมุมสคริปต์ที่สร้างไว้
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 pt-2 border-t border-white/[0.08]">
-            <Button
-              variant="secondary"
-              onClick={() => setLinkingVideo(null)}
-              disabled={isLinking}
-              className="flex-1"
-            >
-              ยกเลิก
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleConfirmLink}
-              loading={isLinking}
-              disabled={!selectedLinkProductId || !selectedLinkAngleId}
-              icon={Check}
-              className="flex-1"
-            >
-              {isLinking ? 'กำลังผูกคลิป...' : 'ยืนยันการผูกคลิป'}
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* ── Top Header Bar & Stats Overview (Cyber-Dark Glassmorphic) ── */}
-      <div className="rounded-2xl sm:rounded-3xl border border-white/[0.08] bg-[#0B0F19]/80 backdrop-blur-xl p-4 sm:p-7 shadow-2xl relative overflow-hidden space-y-4 sm:space-y-6">
-        {/* Ambient Glow Aura */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-[#FE2C55]/10 via-[#25F4EE]/5 to-transparent rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
-
-        {/* Top section: Title & Actions */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 sm:gap-5 relative z-10">
-          <div className="space-y-1.5 sm:space-y-2">
-            <div className="inline-flex items-center gap-2 px-2.5 sm:px-3 py-1 rounded-full bg-[#FE2C55]/10 border border-[#FE2C55]/30 text-[#FE2C55] text-[11px] sm:text-xs font-bold tracking-wide uppercase">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Exported Master Gallery</span>
-            </div>
-            <h1 className="text-xl sm:text-3xl font-black text-white tracking-tight font-kanit">
-              คลังคลิปตัดเสร็จ
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-400 max-w-2xl leading-relaxed">
-              คลิปวิดีโอ 9:16 คุณภาพสูง พร้อมสคริปต์ แคปชัน แฮชแท็ก และ QR สแกนโหลดลงมือถือ
-            </p>
-          </div>
-
-          {/* Quick Metrics & Actions Bar */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
-            {/* Metrics Shelf: 3 compact columns on mobile, clean inline pills on desktop */}
-            <div className="grid grid-cols-3 sm:flex sm:items-center gap-2 sm:gap-2.5">
-              {/* Metric 1 */}
-              <div className="px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl bg-white/[0.03] border border-white/[0.08] flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-center sm:text-left shadow-inner">
-                <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-[#FE2C55]/10 border border-[#FE2C55]/20 flex items-center justify-center text-[#FE2C55] mx-auto sm:mx-0 flex-shrink-0">
-                  <Film className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                </div>
-                <div>
-                  <div className="text-[10px] sm:text-[11px] text-slate-400 font-medium">คลิปตัดเสร็จ</div>
-                  <div className="text-xs sm:text-base font-black text-white font-mono">
-                    {exportsList?.length || 0} <span className="text-[10px] sm:text-xs font-normal text-slate-400">ไฟล์</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Metric 2 */}
-              <div className="px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl bg-white/[0.03] border border-white/[0.08] flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-center sm:text-left shadow-inner">
-                <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-[#25F4EE]/10 border border-[#25F4EE]/20 flex items-center justify-center text-[#25F4EE] mx-auto sm:mx-0 flex-shrink-0">
-                  <HardDrive className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                </div>
-                <div>
-                  <div className="text-[10px] sm:text-[11px] text-slate-400 font-medium">ความจุรวม</div>
-                  <div className="text-xs sm:text-base font-black text-white font-mono">
-                    {totalMB} <span className="text-[10px] sm:text-xs font-normal text-slate-400">MB</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Metric 3 */}
-              <div className="px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-center sm:text-left shadow-inner">
-                <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-300 mx-auto sm:mx-0 flex-shrink-0">
-                  <Smartphone className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                </div>
-                <div>
-                  <div className="text-[10px] sm:text-[11px] text-emerald-400/90 font-medium">สเปกคลิป</div>
-                  <div className="text-xs sm:text-base font-black text-emerald-300 font-mono">
-                    9:16 <span className="text-[10px] sm:text-xs font-normal text-emerald-400/80">FHD</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
-              <Button
-                onClick={onRefresh}
-                variant="secondary"
-                size="sm"
-                icon={RefreshCw}
-                className="justify-center"
-              >
-                รีเฟรช
-              </Button>
-              <Button
-                onClick={handleOpenExportsFolder}
-                variant="secondary"
-                size="sm"
-                icon={Folder}
-                className="justify-center"
-              >
-                เปิดโฟลเดอร์
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Tier 1: Search & Filter Dropdowns (Search + Product + Sort) ── */}
-        <div className="pt-4 border-t border-white/[0.06] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 relative z-10">
-          {/* Search Input with Clear Button */}
-          <div className="relative flex-1 md:max-w-md lg:max-w-lg">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="ค้นหาชื่อคลิป, แคปชัน, หรือสินค้า..."
-              className="w-full bg-black/50 border border-white/[0.1] focus:border-[#FE2C55] focus:ring-1 focus:ring-[#FE2C55] rounded-xl pl-10 pr-9 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none transition-all"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center text-xs transition-colors cursor-pointer"
-                title="ล้างคำค้นหา"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-
-          {/* Product Filter & Sort Dropdowns (Side-by-side on both mobile & desktop) */}
-          <div className="grid grid-cols-2 sm:flex sm:items-center gap-2.5 w-full md:w-auto">
-            {/* Product Filter Dropdown */}
-            <div className="relative flex-1 sm:w-48">
-              <select
-                value={selectedProductFilter}
-                onChange={(e) => setSelectedProductFilter(e.target.value)}
-                className="w-full py-2.5 px-3 rounded-xl bg-black/50 border border-white/[0.1] text-white text-xs font-bold focus:outline-none focus:border-[#FE2C55] transition-colors cursor-pointer truncate"
-              >
-                <option value="all" className="bg-[#080B11]">สินค้าทั้งหมด ({exportsList?.length || 0})</option>
-                {productTags.map(t => (
-                  <option key={t} value={t} className="bg-[#080B11]">{t}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Sort Dropdown */}
-            <div className="relative flex-1 sm:w-36">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="w-full py-2.5 px-3 rounded-xl bg-black/50 border border-white/[0.1] text-white text-xs font-bold focus:outline-none focus:border-[#FE2C55] transition-colors cursor-pointer"
-              >
-                <option value="newest" className="bg-[#080B11]">ใหม่ล่าสุด</option>
-                <option value="oldest" className="bg-[#080B11]">เก่าที่สุด</option>
-                <option value="size_desc" className="bg-[#080B11]">ขนาดใหญ่สุด</option>
-                <option value="name" className="bg-[#080B11]">เรียงตามชื่อ</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Tier 2: Status Filter Chips & Batch Actions ── */}
-        <div className="pt-3.5 border-t border-white/[0.06] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 relative z-10">
-          {/* Status Filter Chips (Smooth horizontal scroll on mobile) */}
-          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 sm:pb-0 no-scrollbar touch-pan-x -mx-1 px-1 sm:mx-0 sm:px-0 flex-nowrap">
-            {[
-              { id: 'all',         label: 'ทั้งหมด',              count: counts.all,          color: 'text-slate-300 border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.08]',   active: 'bg-[#25F4EE]/10 text-[#25F4EE] border-[#25F4EE]/40 shadow-sm shadow-[#25F4EE]/10' },
-              { id: 'latest',      label: 'เวอร์ชันล่าสุด',        count: counts.latest,       color: 'text-emerald-300 border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10', active: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm shadow-emerald-500/10' },
-              { id: 'previous',    label: 'เวอร์ชันก่อนหน้า',       count: counts.previous,     color: 'text-amber-300 border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10',   active: 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-500/10' },
-              { id: 'unlinked',    label: 'คลิปภายนอก',          count: counts.unlinked,     color: 'text-slate-400 border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06]',  active: 'bg-slate-500/20 text-slate-200 border-slate-500/40' },
-              { id: 'qc_rejected', label: 'QC ปัดตก',            count: counts.qc_rejected,  color: 'text-red-300 border-red-500/20 bg-red-500/5 hover:bg-red-500/10',         active: 'bg-red-500/20 text-red-300 border-red-500/40 shadow-sm shadow-red-500/10' },
-            ].map(chip => (
-              <button
-                key={chip.id}
-                type="button"
-                onClick={() => setStatusFilter(chip.id)}
-                className={`py-1.5 px-3 rounded-xl text-xs font-bold border flex items-center gap-1.5 transition-all cursor-pointer flex-shrink-0 ${
-                  statusFilter === chip.id ? chip.active : chip.color
-                }`}
-              >
-                {chip.id === 'latest' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
-                {chip.id === 'previous' && <History className="w-3.5 h-3.5 text-amber-400" />}
-                {chip.id === 'unlinked' && <FileQuestion className="w-3.5 h-3.5 text-slate-400" />}
-                {chip.id === 'qc_rejected' && <ShieldAlert className="w-3.5 h-3.5 text-red-400" />}
-                <span>{chip.label}</span>
-                <span className="font-mono text-[11px] opacity-75">({chip.count})</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Batch Actions & Select All */}
-          <div className="flex items-center gap-2 justify-between sm:justify-end flex-shrink-0">
-            <button
-              type="button"
-              onClick={toggleSelectAll}
-              className="py-1.5 sm:py-2 px-3 sm:px-3.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-bold text-slate-300 flex items-center gap-2 cursor-pointer transition-colors active:scale-95"
-            >
-              {selectedVideos.length === filteredExports.length && filteredExports.length > 0 ? (
-                <CheckSquare className="w-4 h-4 text-[#FE2C55]" />
-              ) : (
-                <Square className="w-4 h-4 text-slate-400" />
-              )}
-              <span>เลือกทั้งหมด ({filteredExports.length})</span>
-            </button>
-
-            {selectedVideos.length > 0 && (
-              <Button
-                onClick={handleBatchDelete}
-                loading={deleting}
-                variant="danger"
-                size="sm"
-                icon={Trash2}
-                className="active:scale-95"
-              >
-                ลบที่เลือก ({selectedVideos.length})
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ── 9:16 Video Grid Showcase (2 columns on mobile, up to 6 on 2xl) ── */}
-      {filteredExports.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
-          {filteredExports.map((item, idx) => (
-            <ExportCard
-              key={item.rel_path || item.path || idx}
-              item={item}
-              isSelected={selectedVideos.includes(item.path)}
-              onToggleSelect={toggleSelectVideo}
-              onOpenDetail={setSelectedDetailVideo}
-              onOpenDelete={setDeleteTarget}
-            />
-          ))}
-        </div>
-      ) : (
-        /* Empty State */
-        <div className="p-16 text-center space-y-4 rounded-3xl border border-white/[0.08] glass-panel shadow-xl">
-          <div>
-            <h3 className="text-lg font-bold text-white">
-              {searchQuery ? 'ไม่พบคลิปวิดีโอที่ค้นหา' : 'ยังไม่มีคลิปวิดีโอที่ตัดเสร็จในคลัง'}
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-md mx-auto">
-              {searchQuery
-                ? 'ลองพิมพ์คำค้นหาอื่น หรือเปลี่ยนตัวกรองสินค้า'
-                : 'ไปที่เมนู 1-Click Studio แล้วกดเริ่มตัดต่อวิดีโอ คลิปที่ตัดเสร็จจะมาปรากฏในคลังนี้โดยอัตโนมัติ'}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* ── Floating Batch Action Bar (Mobile & Desktop) ── */}
-      {selectedVideos.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-md w-[calc(100%-2rem)] p-3 rounded-2xl bg-[#0B0F19]/95 border border-[#25F4EE]/40 backdrop-blur-2xl shadow-2xl flex items-center justify-between gap-3 animate-fadeIn">
-          <div className="flex items-center gap-2.5 text-xs font-bold text-white">
-            <span className="w-6 h-6 rounded-lg bg-[#25F4EE]/20 text-[#25F4EE] flex items-center justify-center font-mono text-xs">
-              {selectedVideos.length}
-            </span>
-            <span>เลือกไว้ {selectedVideos.length} คลิป</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setSelectedVideos([])}
-              className="py-1.5 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-xs font-bold text-slate-300 transition-colors cursor-pointer"
-            >
-              ยกเลิก
-            </button>
-            <button
-              type="button"
-              onClick={handleBatchDelete}
-              className="py-1.5 px-3.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-xs font-bold text-white flex items-center gap-1.5 shadow-lg shadow-rose-500/20 transition-all active:scale-95 cursor-pointer"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>ลบที่เลือก</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── Single Video Delete Confirm Modal ── */}
-      <ConfirmModal
-        isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={confirmDelete}
-        title="ลบคลิปวิดีโอนี้ถาวร?"
-        description="ไฟล์วิดีโอ MP4 ในโฟลเดอร์ Exports จะถูกลบออกจากเครื่อง"
-        itemName={deleteTarget?.name}
-        dangerNote="การกระทำนี้ไม่สามารถย้อนกลับได้"
-        confirmText="ลบไฟล์ถาวร"
-        loading={deleting}
-        variant="danger"
-      />
-
-      {/* ── Batch Delete Confirm Modal ── */}
-      <ConfirmModal
-        isOpen={showBatchDeleteModal}
-        onClose={() => setShowBatchDeleteModal(false)}
-        onConfirm={confirmBatchDelete}
-        title={`ลบคลิปวิดีโอที่เลือกทั้งหมด (${selectedVideos.length} รายการ)?`}
-        description={`ไฟล์วิดีโอทั้งหมด ${selectedVideos.length} ไฟล์จะถูกลบออกจากเครื่องอย่างถาวร`}
-        dangerNote="การกระทำนี้ไม่สามารถย้อนกลับได้"
-        confirmText={`ลบทั้งหมด ${selectedVideos.length} ไฟล์`}
-        loading={deleting}
-        variant="danger"
-      />
-
-      </>
+          {/* ── Batch Delete Confirm Modal ── */}
+          <ConfirmModal
+            isOpen={showBatchDeleteModal}
+            onClose={() => setShowBatchDeleteModal(false)}
+            onConfirm={confirmBatchDelete}
+            title={`ลบคลิปวิดีโอที่เลือกทั้งหมด (${selectedVideos.length} รายการ)?`}
+            description={`ไฟล์วิดีโอทั้งหมด ${selectedVideos.length} ไฟล์จะถูกลบออกจากเครื่องอย่างถาวร`}
+            dangerNote="การกระทำนี้ไม่สามารถย้อนกลับได้"
+            confirmText={`ลบทั้งหมด ${selectedVideos.length} ไฟล์`}
+            loading={deleting}
+            variant="danger"
+          />
+        </>
       )}
     </div>
   );
 }
+

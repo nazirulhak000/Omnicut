@@ -90,6 +90,7 @@ export function tracksFitHeight({ textOverlays = false, audioCollapsed = false }
 // the bottom row is not flush against it.
 const TRACK_BOTTOM = 18;
 const GUTTER = 144;        // left label column
+const GUTTER_DENSE = 120;  // phones: the clips need the width more than the names do
 
 /** Tick spacing that keeps labels readable at any zoom. */
 function tickStep(pxPerSec) {
@@ -125,14 +126,14 @@ function MixButton({ active, pressed, activeClass, onClick, title, children }) {
   );
 }
 
-function TrackLabel({ icon: Icon, children, action, iconTitle, iconClass, onIconClick, dot, labelClass, fold }) {
+function TrackLabel({ icon: Icon, children, action, iconTitle, iconClass, onIconClick, dot, labelClass, fold, width, slotWidth = 26 }) {
   return (
     <div
       className="flex items-center gap-1 px-2 text-xs font-medium text-[#9C968F]"
-      style={{ width: GUTTER }}
+      style={{ width: width ?? GUTTER }}
     >
       <div className="flex min-w-0 flex-1 items-center gap-1.5">
-        <span className="flex w-[26px] flex-shrink-0 items-center gap-1.5">
+        <span className="flex flex-shrink-0 items-center gap-1.5" style={{ width: slotWidth }}>
         {fold && (
           <button
             type="button"
@@ -185,6 +186,7 @@ export default function Timeline({
   onTrackMix,
   audioCollapsed = false,
   onToggleAudioGroup,
+  dense = false,
   filmstrips,
   pxPerSec,
   playhead,
@@ -302,6 +304,8 @@ export default function Timeline({
   // Geometry for every row, resolved once. Both the label gutter and the lanes
   // spread the same object, so a row cannot be spaced differently on the two
   // sides -- which is exactly how the labels drifted out from under their lanes.
+  const gutterW = dense ? GUTTER_DENSE : GUTTER;
+
   const rows = useMemo(
     () => layoutRows({
       heights: { text: textTrackHeight },
@@ -388,7 +392,7 @@ export default function Timeline({
   useEffect(() => {
     const el = scrollRef.current;
     if (!el || el.offsetParent === null) return;
-    const x = GUTTER + playhead * pxPerSec;
+    const x = gutterW + playhead * pxPerSec;
     const left = el.scrollLeft;
     const right = left + el.clientWidth;
     const margin = 80;
@@ -625,7 +629,7 @@ export default function Timeline({
 
           {/* Ruler: click or drag to scrub */}
           <div className="sticky top-0 z-20 flex bg-[#1C1B19]">
-            <div style={{ width: GUTTER }} className="flex-shrink-0" />
+            <div style={{ width: gutterW }} className="flex-shrink-0" />
             <div
               onPointerDown={startScrub}
               onPointerMove={moveScrub}
@@ -650,10 +654,12 @@ export default function Timeline({
           <div className="flex" style={{ paddingTop: TRACK_TOP, paddingBottom: TRACK_BOTTOM }}>
             <div className="flex flex-shrink-0 flex-col">
               <div style={rowStyle('video')} className="flex items-center">
-                <TrackLabel icon={Film}>วิดีโอ</TrackLabel>
+                <TrackLabel icon={Film} width={gutterW} slotWidth={dense ? 14 : 26}>วิดีโอ</TrackLabel>
               </div>
               <div style={rowStyle('hook')} className="flex items-center">
                 <TrackLabel
+                  width={gutterW}
+                  slotWidth={dense ? 14 : 26}
                   icon={Sparkles}
                   action={
                     <button
@@ -675,6 +681,8 @@ export default function Timeline({
               </div>
               <div style={rowStyle('caption')} className="flex items-center">
                 <TrackLabel
+                  width={gutterW}
+                  slotWidth={dense ? 14 : 26}
                   icon={MessageSquare}
                   action={
                     <button
@@ -697,6 +705,8 @@ export default function Timeline({
               {hasTextOverlays && (
                 <div style={rowStyle('text')} className="flex items-center transition-all duration-150">
                   <TrackLabel
+                    width={gutterW}
+                  slotWidth={dense ? 14 : 26}
                     icon={Type}
                     action={
                       <button
@@ -718,13 +728,26 @@ export default function Timeline({
                 </div>
               )}
               {visibleStems.map(({ key, label, colour }, i) => {
+                // Folded, the one visible row stands for the whole group, so its
+                // chips have to act on the whole group. Leaving them pointed at
+                // the voice stem made a row labelled "เสียง" mute one track of
+                // four -- it read as a group control and was not one.
+                const group = audioCollapsed;
+                const mixKey = group ? 'all' : key;
                 const soloing = Object.values(trackMix?.solo || {}).some(Boolean);
-                const isSolo = !!trackMix?.solo?.[key];
-                const isMute = !!trackMix?.mute?.[key];
+                const isSolo = group
+                  ? STEMS.every((s) => trackMix?.solo?.[s.key])
+                  : !!trackMix?.solo?.[key];
+                const isMute = group
+                  ? STEMS.every((s) => trackMix?.mute?.[s.key])
+                  : !!trackMix?.mute?.[key];
                 const silent = soloing ? !isSolo : isMute;
                 return (
                   <div key={key} style={rowStyle(key)} className="flex items-center">
                     <TrackLabel
+                      width={gutterW}
+                      slotWidth={dense ? 14 : 26}
+                  slotWidth={dense ? 14 : 26}
                       // The leading slot is where a tree control is looked for,
                       // so the group's fold takes it. Folded, this row stands
                       // for the whole group and unfolds from the same place.
@@ -739,13 +762,17 @@ export default function Timeline({
                       // waveform, and going hollow says "silent" without
                       // relying on colour alone -- so does the struck-through
                       // label next to it.
-                      dot={{ colour, hollow: silent }}
+                      dot={dense ? undefined : { colour, hollow: silent }}
                       labelClass={`text-[11px] ${silent ? 'line-through decoration-[#6F6A64]' : ''}`}
                       action={
                         <span className="flex items-center gap-px">
-                          {i === 0 && (
+                          {i === 0 && !dense && !audioCollapsed && (
                             // Master mute is a peer of the per-track chips, not
-                            // a decoration on the group icon.
+                            // a decoration on the group icon. It is dropped on a
+                            // phone, and whenever the group is folded, because
+                            // the row's own M then mutes all four anyway -- and
+                            // a third chip is the difference between a name that
+                            // fits and one that ends in an ellipsis.
                             <MixButton
                               active={isAudioMuted}
                               activeClass="bg-rose-500/25 text-rose-300"
@@ -759,16 +786,16 @@ export default function Timeline({
                             active={silent}
                             pressed={isMute}
                             activeClass="bg-rose-500/25 text-rose-300"
-                            onClick={() => onTrackMix?.(key, 'mute')}
-                            title={`${isMute ? 'เปิด' : 'ปิด'}เสียงแทร็ก ${label}`}
+                            onClick={() => onTrackMix?.(mixKey, 'mute')}
+                            title={`${isMute ? 'เปิด' : 'ปิด'}เสียง${group ? 'ทุกแทร็ก' : `แทร็ก ${label}`}`}
                           >
                             M
                           </MixButton>
                           <MixButton
                             active={isSolo}
                             activeClass="bg-amber-400/25 text-amber-300"
-                            onClick={() => onTrackMix?.(key, 'solo')}
-                            title={`ฟังแทร็ก ${label} เดี่ยว`}
+                            onClick={() => onTrackMix?.(mixKey, 'solo')}
+                            title={group ? 'ฟังเฉพาะกลุ่มเสียง' : `ฟังแทร็ก ${label} เดี่ยว`}
                           >
                             S
                           </MixButton>

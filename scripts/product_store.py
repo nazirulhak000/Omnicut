@@ -132,6 +132,20 @@ class ProductStore:
                 product["updated_at"] = cls._now()
                 cls._save(products)
                 return product
+        raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
+
+    @classmethod
+    def attach_project(cls, product_id: str, project_name: str) -> Dict[str, Any]:
+        """Link a rendered project back to the product it came from."""
+        product = cls.get(product_id)
+        if not product:
+            raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
+
+        projects = product.get("projects", [])
+        if project_name not in projects:
+            projects.append(project_name)
+
+        return cls.update(product_id, projects=projects, status="rendered")
 
     @classmethod
     def update_angle_status(
@@ -179,13 +193,17 @@ class ProductStore:
     def rollback_by_video_or_project(cls, identifier: str) -> List[str]:
         """
         Finds any angle matching the given video filename or project_name,
-        and rolls its status back to 'scripted' (clearing video_url and project_name).
+        and rolls its status back.
+        If only the video MP4 was removed but the timeline project still exists on disk,
+        the angle transitions to 'in_production' (keeping project_name).
+        If the project itself was deleted or does not exist, it rolls back to 'scripted'.
         """
         if not identifier:
             return []
         products = cls._load()
         target_token = Path(identifier).stem.lower().strip()
         raw_id_low = identifier.lower().strip()
+        projects_dir = BASE_DIR / "03_Projects"
         rolled_back = []
         changed = False
 
@@ -193,14 +211,32 @@ class ProductStore:
             for angle in product.get("angles", []):
                 v_url = (angle.get("video_url") or "").lower()
                 p_name = (angle.get("project_name") or "").lower()
+                v_name = Path(v_url).name.lower() if v_url else ""
+                v_stem = Path(v_url).stem.lower() if v_url else ""
+
                 is_match = (
-                    (target_token and (target_token in v_url or target_token in p_name)) or
-                    (raw_id_low and (raw_id_low in v_url or raw_id_low in p_name))
+                    (p_name and (p_name == raw_id_low or p_name == target_token)) or
+                    (v_name and (v_name == raw_id_low or v_name == Path(identifier).name.lower())) or
+                    (v_stem and v_stem == target_token)
                 )
                 if is_match and angle.get("status") in ("rendered", "in_production"):
-                    angle["status"] = "scripted"
-                    angle["video_url"] = None
-                    angle["project_name"] = None
+                    cur_p_name = angle.get("project_name")
+                    has_proj = False
+                    if cur_p_name:
+                        # If the identifier being deleted IS the project itself, project will not exist
+                        if cur_p_name.lower() != raw_id_low and cur_p_name.lower() != target_token:
+                            proj_dir = projects_dir / cur_p_name
+                            if proj_dir.exists() and proj_dir.is_dir():
+                                has_proj = True
+
+                    if has_proj:
+                        angle["status"] = "in_production"
+                        angle["video_url"] = None
+                    else:
+                        angle["status"] = "scripted"
+                        angle["video_url"] = None
+                        angle["project_name"] = None
+
                     angle["updated_at"] = cls._now()
                     product["updated_at"] = cls._now()
                     rolled_back.append(angle.get("angle_id", ""))
@@ -291,19 +327,6 @@ class ProductStore:
         return product.get("videos", [])
 
     @classmethod
-    def attach_project(cls, product_id: str, project_name: str) -> Dict[str, Any]:
-        """Link a rendered project back to the product it came from."""
-        product = cls.get(product_id)
-        if not product:
-            raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
-
-        projects = product.get("projects", [])
-        if project_name not in projects:
-            projects.append(project_name)
-
-        return cls.update(product_id, projects=projects, status="rendered")
-
-    @classmethod
     def remove_angle(cls, product_id: str, angle_id: str) -> Dict[str, Any]:
         """
         Drop one angle (its hook, script and caption) from a product.
@@ -329,21 +352,40 @@ class ProductStore:
         return {"angle_removed": angle_id, "product_removed": None, "angles_left": len(remaining)}
 
     @classmethod
-    def find_by_project(cls, project_name: str, product_name: str = "", hook_title: str = ""):
+    def find_by_project(cls, project_name: str, product_name: str = "", hook_title: str = "", product_id: str = "", angle_id: str = ""):
         """
         Which product/angle a rendered project came from.
 
-        Prefers the explicit link (products carry the project names rendered
-        from them). Falls back to matching the product name and hook for
-        projects rendered before that link was recorded -- those are the only
-        two things a manifest kept about its origin.
+        Prefers exact product_id/angle_id or direct angle.project_name matching.
+        Falls back to product.projects list and product name/hook matching.
         """
         products = cls._load()
+        # 1. Exact product_id and angle_id if provided
+        if product_id:
+            for product in products:
+                if product.get("id") == product_id:
+                    if angle_id:
+                        for angle in product.get("angles") or []:
+                            if (angle.get("angle_id") or angle.get("id")) == angle_id:
+                                return product, angle
+                    return product, None
+
+        # 2. Direct match on angle.project_name
+        for product in products:
+            for angle in product.get("angles") or []:
+                if angle.get("project_name") == project_name:
+                    return product, angle
+
+        # 3. Match in product.projects list
         for product in products:
             if project_name in (product.get("projects") or []):
+                for angle in product.get("angles") or []:
+                    if angle.get("project_name") == project_name:
+                        return product, angle
                 angle = cls._match_angle(product, hook_title)
                 return product, angle
 
+        # 4. Fallback to product name and hook title
         if not product_name:
             return None, None
         for product in products:

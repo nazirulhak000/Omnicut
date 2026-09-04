@@ -332,7 +332,7 @@ export default function App() {
                 {/* SECTION: Media Assets Hub */}
                 {activeTab === 'assets' && (
                   <Suspense fallback={<LoadingSpinner message="กำลังโหลด Media Assets Hub..." />}>
-                    <MediaAssetsHub />
+                    <MediaAssetsHub status={status} />
                   </Suspense>
                 )}
 
