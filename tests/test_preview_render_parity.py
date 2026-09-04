@@ -1004,7 +1004,8 @@ def test_per_track_mute_and_solo_reach_the_gain_nodes():
         assert f"{track}:" in body, f"{track} has no bus in the track mix"
     assert "AUDIO_MIX.VOICE_GAIN" in body
     shell = (ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx").read_text(encoding="utf-8")
-    assert "if (kind === 'mute' && next.mute[track]) next.solo[track] = false;" in shell
+    assert "if (kind === 'mute' && turningOn) next.solo[k] = false;" in shell
+    assert "if (kind === 'solo' && turningOn) next.mute[k] = false;" in shell
     # Playback-only: soloing to check a level must never change what renders.
     payload_keys = re.findall(r"trackMix", shell)
     assert payload_keys, "trackMix state missing"
@@ -1024,7 +1025,7 @@ def test_timeline_draws_one_lane_per_stem_from_the_stems_own_file():
         ["voice", "bgm", "sfx", "clip"]
     assert "getAudioPeaks(url, WAVE_COLUMNS)" in tl
     assert "waveInfo" not in tl, "the merged-mix waveform should be gone"
-    assert "onTrackMix?.(key, 'mute')" in tl and "onTrackMix?.(key, 'solo')" in tl
+    assert "onTrackMix?.(mixKey, 'mute')" in tl and "onTrackMix?.(mixKey, 'solo')" in tl
 
 
 # ------------------------------------------------------------ timeline layout
@@ -1091,7 +1092,10 @@ def test_every_track_label_starts_at_the_same_x():
     the leading area is a fixed-width slot. Without it the audio labels sat 12px
     right of the others and the gutter's left edge read as ragged.
     """
-    assert re.search(r'className="flex w-\[26px\] flex-shrink-0 items-center gap-1\.5"', TIMELINE_SRC)
+    assert 'style={{ width: slotWidth }}' in TIMELINE_SRC
+    assert 'slotWidth = 26' in TIMELINE_SRC, 'the slot needs a default for rows that pass none'
+    # Every caller hands the same width in, so no row can indent differently.
+    assert TIMELINE_SRC.count('slotWidth={dense ? 14 : 26}') == 6
 
 
 def test_a_silent_track_says_so_without_relying_on_colour():
@@ -1127,3 +1131,66 @@ def test_the_folded_audio_group_can_be_unfolded_from_where_it_was_folded():
 def test_the_clip_audio_lane_explains_itself_when_empty():
     """Clip volume defaults to 0, so this lane is blank for most projects."""
     assert "ยังไม่ได้เปิดเสียงในคลิป" in TIMELINE_SRC
+
+
+# --------------------------------------------------------------- phone layout
+def test_the_gutter_gives_up_width_on_a_phone():
+    """
+    144px of names is 29% of a 500px screen, leaving the clips almost nothing.
+    The width comes from the caller so the two layout trees can differ, and the
+    colour dot goes on a phone -- the lane band already carries the colour, and
+    those 12px are the difference between a name that fits and an ellipsis.
+    """
+    dense = _grab(TIMELINE_SRC, r"const GUTTER_DENSE = (\d+);")
+    wide = _grab(TIMELINE_SRC, r"const GUTTER = (\d+);")
+    assert dense < wide
+    assert "const gutterW = dense ? GUTTER_DENSE : GUTTER;" in TIMELINE_SRC
+    assert "style={{ width: width ?? GUTTER }}" in TIMELINE_SRC
+    assert "dot={dense ? undefined : { colour, hollow: silent }}" in TIMELINE_SRC
+    # ...and the leading slot narrows with it, so the names stay flush.
+    assert TIMELINE_SRC.count("slotWidth={dense ? 14 : 26}") == 6
+    assert "dense={isMobileView}" in SHELL_SRC
+
+
+def test_the_phone_timeline_is_sized_by_its_rows_not_by_a_literal():
+    """
+    It was a fixed 215px with a comment claiming a snug fit. Once the audio
+    lanes existed that showed three rows, clipped the other four, and left a
+    black void below itself; filling the space instead only moved the void
+    under the tracks.
+    """
+    assert "mobileTimelineH = MOBILE_TOOLBAR_H + tracksFitHeight({" in SHELL_SRC
+    assert "audioCollapsed," in SHELL_SRC
+    assert "h-[215px]" not in SHELL_SRC
+    # The dock takes that height but may shrink, and the preview grows into
+    # whatever the rows do not need while keeping a floor of its own.
+    assert "style={{ flex: '0 1 auto', height: mobileTimelineH, maxHeight: mobileTimelineH }}" in SHELL_SRC
+    assert "style={{ flex: '1 1 auto', height: mobilePreviewH, minHeight: MOBILE_PREVIEW_MIN_H }}" in SHELL_SRC
+    assert "flex: `1 0 ${mobilePreviewH}px`" not in SHELL_SRC, \
+        "an unshrinkable preview crushed the tracks to 82px on a shorter window"
+    # The drag clamp has to reserve the timeline's real height, not a guess.
+    assert "const reserve = MOBILE_TAB_ROW_H + mobileTimelineH;" in SHELL_SRC
+
+
+def test_a_phone_starts_with_the_audio_group_folded():
+    """Four stem lanes are a desk-sized amount of detail; one tap opens them."""
+    assert re.search(r"useState\(\s*\n?\s*\(\) => \(typeof window !== 'undefined' \? window\.innerWidth < LAYOUT_BREAKPOINT : false\)\s*\n?\s*\)", SHELL_SRC)
+
+
+def test_the_folded_row_mutes_the_group_it_is_labelled_for():
+    """
+    Folded, the visible row says "เสียง" but its chips were still pointed at the
+    voice stem: it read as a group control and muted one track of four.
+    """
+    assert "const mixKey = group ? 'all' : key;" in TIMELINE_SRC
+    assert "onTrackMix?.(mixKey, 'mute')" in TIMELINE_SRC
+    assert "onTrackMix?.(mixKey, 'solo')" in TIMELINE_SRC
+    # ...and the group state reads from every stem, not just the visible one.
+    assert "STEMS.every((s) => trackMix?.mute?.[s.key])" in TIMELINE_SRC
+    assert "STEMS.every((s) => trackMix?.solo?.[s.key])" in TIMELINE_SRC
+    # EditorShell resolves 'all' to every stem.
+    assert "const targets = track === 'all' ? AUDIO_TRACKS : [track];" in SHELL_SRC
+    assert re.search(r"const AUDIO_TRACKS = \['voice', 'bgm', 'sfx', 'clip'\];", SHELL_SRC)
+    # A third chip does not fit beside a name on a phone, and the row's own M
+    # already mutes all four once folded.
+    assert "{i === 0 && !dense && !audioCollapsed && (" in TIMELINE_SRC

@@ -217,7 +217,7 @@ export default function EditorShell({
     const box = mobileWrapRef.current?.getBoundingClientRect();
     // Leave room for the tab row and the timeline's own rows. This was a flat
     // 220px, sized for a timeline that no longer has a fixed height.
-    const reserve = MOBILE_TAB_ROW_H + mobileTimelineH;
+    const reserve = MOBILE_TAB_ROW_H + (Number.isFinite(mobileTimelineH) ? mobileTimelineH : 0);
     const max = box ? Math.max(MOBILE_PREVIEW_MIN_H, box.height - reserve) : 640;
     const clamped = Math.min(max, Math.max(MOBILE_PREVIEW_MIN_H, Math.round(px)));
     setMobilePreviewH(clamped);
@@ -1776,11 +1776,13 @@ export default function EditorShell({
           <div ref={mobileWrapRef} className="lg:hidden flex flex-col flex-1 min-h-0 overflow-hidden bg-[#07090E]">
             {/* Top: 9:16 Video Player Preview (Expands to fill top area, zero wasted space) */}
             <div
-              // The dragged height is a floor, not a cap: the timeline below is
-              // sized to its rows, so whatever those rows do not need belongs
-              // to the preview rather than sitting black between the two.
+              // Grows into whatever the timeline's rows do not need, so no black
+              // band sits between the two, and shrinks with the window down to
+              // its own floor. `1 0` here starved the timeline instead: a
+              // preview height saved on a tall window refused to give any of it
+              // back and crushed the tracks to 82px.
               className="relative flex w-full min-h-0 flex-col items-center justify-center bg-black/60 p-2"
-              style={{ flex: `1 0 ${mobilePreviewH}px` }}
+              style={{ flex: '1 1 auto', height: mobilePreviewH, minHeight: MOBILE_PREVIEW_MIN_H }}
             >
               {isMobileView && (
                 <SequencePlayer
@@ -1928,8 +1930,8 @@ export default function EditorShell({
                  below the tracks. It shrinks when the preview leaves less, and
                  the tracks scroll rather than clip. */
               <div
-                className="flex min-h-0 flex-shrink flex-col border-t border-white/[0.08] bg-[#0F1420]"
-                style={{ height: mobileTimelineH, maxHeight: mobileTimelineH }}
+                className="flex min-h-0 flex-col border-t border-white/[0.08] bg-[#0F1420]"
+                style={{ flex: '0 1 auto', height: mobileTimelineH, maxHeight: mobileTimelineH }}
               >
                 <Toolbar
                   playhead={playhead}
