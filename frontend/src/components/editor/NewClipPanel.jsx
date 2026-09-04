@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import {
   AlertCircle, Check, ChevronDown, ChevronRight, Film, Loader2, Package,
   Rocket, Sparkles, Upload, Volume2, FolderOpen, ArrowRight, Clock, Hourglass, CheckCircle2, Play,
-  FileText, Sliders
+  FileText, Sliders, Mic2
 } from 'lucide-react';
 import { previewVoice, startRender, uploadFile, updateAngleVideos } from '../../api';
 import { DEFAULT_STUDIO_FORM, STUDIO_FORM_KEY, getSavedStudioForm } from '../../lib/studioDefaults';
@@ -11,6 +11,7 @@ import { isSameVideo, getMediaName } from '../../lib/mediaUrl';
 import { buildProjectName } from '../../lib/projectName';
 import { useRenderJob } from '../../hooks/useRenderJob';
 import MediaPickerModal from '../MediaPickerModal';
+import VoicePickerModal from '../VoicePickerModal';
 
 function formatTime(seconds) {
   if (seconds == null || isNaN(seconds)) return '00:00';
@@ -139,6 +140,7 @@ export default function NewClipPanel({
   const [voiceBusy, setVoiceBusy] = useState(false);
   const [uploadPct, setUploadPct] = useState(null);
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
+  const [voicePickerOpen, setVoicePickerOpen] = useState(false);
   const [nameConflict, setNameConflict] = useState(null);
   const fileRef = useRef(null);
 
@@ -504,27 +506,21 @@ export default function NewClipPanel({
             >
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  {/* Voice Preset */}
+                  {/* Voice Preset — opens VoicePickerModal */}
                   <label className="block">
                     <span className="mb-1.5 block text-xs font-semibold text-slate-300">เสียงพากย์ AI</span>
-                    <div className="flex gap-1.5">
-                      <select
-                        value={form.voicePreset}
-                        onChange={(e) => patch({ voicePreset: e.target.value })}
-                        className="h-10 min-w-0 flex-1 rounded-xl border border-white/[0.08] bg-black/40 px-3 text-xs sm:text-sm text-white focus:border-[#25F4EE]/60 focus:outline-none cursor-pointer"
-                      >
-                        {VOICE_PRESETS.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={handlePreviewVoice}
-                        disabled={voiceBusy}
-                        title="ลองฟังเสียงพากย์"
-                        className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.04] text-slate-300 hover:text-white hover:bg-white/[0.08] disabled:opacity-40 cursor-pointer transition-colors"
-                      >
-                        {voiceBusy ? <Loader2 className="h-4 w-4 animate-spin text-[#25F4EE]" /> : <Volume2 className="h-4 w-4" />}
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setVoicePickerOpen(true)}
+                      className="h-10 w-full flex items-center gap-2.5 px-3 rounded-xl border border-white/[0.08] bg-black/40 text-xs sm:text-sm text-white hover:border-[#E89274]/50 hover:bg-[#E89274]/[0.05] cursor-pointer transition-all text-left"
+                    >
+                      <Mic2 className="h-4 w-4 flex-shrink-0 text-[#E89274]" />
+                      <span className="flex-1 truncate">
+                        {VOICE_PRESETS.find(v => v.id === form.voicePreset)?.label || 'เลือกเสียงพากย์'}
+                      </span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/[0.06] border border-white/[0.08] text-slate-400 flex-shrink-0">เลือก</span>
+                    </button>
+                    <p className="mt-1 text-[10px] text-slate-500">โทน: {AD_TONES.find(t => t.id === (form.adTone || 'commercial_premium'))?.label || '—'}</p>
                   </label>
 
                   {/* Subtitle Font */}
@@ -539,18 +535,8 @@ export default function NewClipPanel({
                     </select>
                   </label>
 
-                  {/* Ad Tone */}
-                  <label className="block sm:col-span-2">
-                    <span className="mb-1.5 block text-xs font-semibold text-slate-300">โทนโฆษณา / สไตล์พากย์</span>
-                    <select
-                      value={form.adTone || 'commercial_premium'}
-                      onChange={(e) => patch({ adTone: e.target.value })}
-                      className="h-10 w-full rounded-xl border border-white/[0.08] bg-black/40 px-3 text-xs sm:text-sm text-white focus:border-[#25F4EE]/60 focus:outline-none cursor-pointer"
-                    >
-                      {AD_TONES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-                    </select>
-                  </label>
                 </div>
+
 
                 {/* Toggles */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-white/[0.06]">
@@ -852,6 +838,15 @@ export default function NewClipPanel({
           }
         }}
         isMultiSelect={true}
+      />
+
+      {/* ── Voice Picker Modal ── */}
+      <VoicePickerModal
+        isOpen={voicePickerOpen}
+        onClose={() => setVoicePickerOpen(false)}
+        selectedVoice={form.voicePreset}
+        selectedTone={form.adTone || 'commercial_premium'}
+        onSelect={({ voiceId, toneId }) => patch({ voicePreset: voiceId, adTone: toneId })}
       />
     </div>
   );
