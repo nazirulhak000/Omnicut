@@ -1017,73 +1017,45 @@ def list_exports():
         for p in all_products:
             for a in p.get("angles", []):
                 vid_url = a.get("video_url", "")
-                if vid_url and (fname_low in vid_url.lower() or str(f).lower() in vid_url.lower()):
-                    matched_prod, matched_angle = p, a
-                    matched_proj_name = a.get("project_name")
-                    break
+                if vid_url:
+                    vid_p = Path(vid_url)
+                    if fname_low == vid_p.name.lower() or fstem_low == vid_p.stem.lower():
+                        matched_prod, matched_angle = p, a
+                        matched_proj_name = a.get("project_name")
+                        break
             if matched_prod:
                 break
 
-        # 2. Project name prefix match (sort keys by descending length)
+        # 2. Exact project name match (stripping timestamp suffix like _YYYYMMDD_HHMMSS)
         if not matched_prod:
-            sorted_proj_keys = sorted(project_angle_map.keys(), key=len, reverse=True)
-            for proj_key in sorted_proj_keys:
-                if proj_key and (fstem_low.startswith(proj_key) or proj_key in fstem_low):
-                    p, a = project_angle_map[proj_key]
-                    matched_prod = p
-                    matched_angle = a
-                    matched_proj_name = proj_key
-                    break
+            import re
+            base_proj_name = re.sub(r'_\d{8}_\d{6}(_draft)?$', '', fstem_low)
+            if base_proj_name in project_angle_map:
+                p, a = project_angle_map[base_proj_name]
+                matched_prod = p
+                matched_angle = a
+                matched_proj_name = a.get("project_name") if a else base_proj_name
+            elif fstem_low in project_angle_map:
+                p, a = project_angle_map[fstem_low]
+                matched_prod = p
+                matched_angle = a
+                matched_proj_name = a.get("project_name") if a else fstem_low
 
         # 2.5 Check project_disk_info if still not matched
         if not matched_proj_name:
-            sorted_disk_keys = sorted(project_disk_info.keys(), key=len, reverse=True)
-            for dkey in sorted_disk_keys:
-                if dkey and (fstem_low.startswith(dkey) or dkey in fstem_low):
-                    matched_proj_name = dkey
-                    break
+            import re
+            base_proj_name = re.sub(r'_\d{8}_\d{6}(_draft)?$', '', fstem_low)
+            if base_proj_name in project_disk_info:
+                matched_proj_name = base_proj_name
+            elif fstem_low in project_disk_info:
+                matched_proj_name = fstem_low
 
-        # 3. Product ID match
+        # 3. Product ID match (exact token match)
         if not matched_prod:
             for p in all_products:
                 pid = p.get("id", "").lower()
-                if pid and pid in fstem_low:
+                if pid and (fstem_low == pid or fstem_low.startswith(f"{pid}_") or f"_{pid}_" in fstem_low):
                     matched_prod = p
-                    break
-
-        # 4. Token-based matching against product name
-        if not matched_prod:
-            import re
-            best_prod = None
-            best_score = 0
-            for p in all_products:
-                pname = p.get("name", "").lower()
-                tokens = [t for t in re.findall(r"[\w\u0E00-\u0E7F]+", pname) if len(t) >= 3]
-                if not tokens:
-                    continue
-                score = sum(1 for t in tokens if t in fstem_low)
-                if score > best_score:
-                    best_score = score
-                    best_prod = p
-            if best_prod and best_score >= 1:
-                matched_prod = best_prod
-
-        # If product is matched but angle isn't, search within product angles
-        if matched_prod and not matched_angle:
-            import re
-            for a in matched_prod.get("angles", []):
-                aid = a.get("angle_id", "").lower()
-                aname = a.get("angle_name", "").lower()
-                aproj = (a.get("project_name") or "").lower()
-                if aproj and (aproj in fstem_low or fstem_low.startswith(aproj)):
-                    matched_angle = a
-                    matched_proj_name = a.get("project_name")
-                    break
-                if aid and aid in fstem_low:
-                    matched_angle = a
-                    break
-                if aname and any(word in fstem_low for word in re.findall(r"[\w\u0E00-\u0E7F]{4,}", aname)):
-                    matched_angle = a
                     break
 
         disk_proj = project_disk_info.get(matched_proj_name.lower()) if matched_proj_name else None
@@ -1175,7 +1147,21 @@ def list_exports():
                     info["latest_video_name"] = latest_f.name
                     info["latest_video_path"] = str(latest_f)
                     info["latest_video_rel"] = f"04_Exports/Ready_to_post/{latest_f.name}"
-            info["is_qc_rejected"] = bool(matched_angle and matched_angle.get("qc_note"))
+
+            # Only mark as QC rejected if THIS SPECIFIC file is the one associated with the QC rejection,
+            # NOT all historic/other versions of the same angle!
+            angle_vid = (matched_angle.get("video_url") or "").lower() if matched_angle else ""
+            angle_qc_note = matched_angle.get("qc_note") if matched_angle else None
+            is_this_file_rejected = False
+            if angle_qc_note and angle_vid:
+                is_this_file_rejected = (fname_low in angle_vid or str(f).lower() in angle_vid or Path(angle_vid).name.lower() == fname_low)
+            elif angle_qc_note and matched_angle:
+                # If no video_url recorded on angle, only latest_f could possibly be the rejected one
+                is_this_file_rejected = (latest_f and latest_f == f)
+
+            info["is_qc_rejected"] = is_this_file_rejected
+            if not is_this_file_rejected:
+                info["qc_note"] = None
         else:
             info["is_unlinked"] = True
             info["is_latest"] = False
