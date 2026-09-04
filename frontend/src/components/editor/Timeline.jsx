@@ -14,7 +14,16 @@ const VIDEO_H = 60;
 const HOOK_H = 26;
 const CAPTION_H = 30;
 const TEXT_OVERLAY_H = 30;
-const AUDIO_H = 30;
+// One lane per stem now that the preview plays them separately: a single
+// merged "audio" lane could only ever show the mix, which most projects no
+// longer have, and gave nothing to mute or solo.
+const STEM_H = 24;
+const STEMS = [
+  { key: 'voice', label: 'พากย์', colour: '#8FBF9F', ring: '#33463A', bg: '#242A26' },
+  { key: 'bgm', label: 'เพลง', colour: '#9FB4D8', ring: '#33405A', bg: '#232833' },
+  { key: 'sfx', label: 'เอฟเฟกต์', colour: '#D8C39F', ring: '#524731', bg: '#302B22' },
+  { key: 'clip', label: 'เสียงคลิป', colour: '#C79FD8', ring: '#4A3155', bg: '#2C2333' },
+];
 const GUTTER = 104;        // left label column
 const TRACK_GAP = 4;
 
@@ -26,14 +35,27 @@ function tickStep(pxPerSec) {
   return 120;
 }
 
-function TrackLabel({ icon: Icon, children, action }) {
+function TrackLabel({ icon: Icon, children, action, iconTitle, iconClass, onIconClick }) {
   return (
     <div
       className="flex items-center justify-between px-2 text-xs font-medium text-[#9C968F]"
       style={{ width: GUTTER }}
     >
       <div className="flex items-center gap-1.5 truncate">
-        <Icon className="h-3 w-3 flex-shrink-0" />
+        {!Icon ? (
+          <span className="w-3 flex-shrink-0" />
+        ) : onIconClick ? (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onIconClick(); }}
+            title={iconTitle}
+            className="flex-shrink-0 rounded p-0.5 -m-0.5 transition-colors hover:bg-[#2C2B27] hover:text-[#EDE9E3]"
+          >
+            <Icon className={`h-3 w-3 ${iconClass || ''}`} />
+          </button>
+        ) : (
+          <Icon className="h-3 w-3 flex-shrink-0" />
+        )}
         <span className="truncate">{children}</span>
       </div>
       {action}
@@ -47,6 +69,9 @@ export default function Timeline({
   audioDuration,
   cues,
   bgmLabel,
+  stemUrls = {},
+  trackMix = null,
+  onTrackMix,
   filmstrips,
   pxPerSec,
   playhead,
@@ -127,8 +152,8 @@ export default function Timeline({
   const textTrim = useRef(null);
   const bodyDrag = useRef(null);
   const [dropIndex, setDropIndex] = useState(null);
-  const waveRef = useRef(null);
-  const [waveInfo, setWaveInfo] = useState(null);
+  const stemCanvasRefs = useRef({});
+  const [stemPeaks, setStemPeaks] = useState({});
   const [transitionMenuClipId, setTransitionMenuClipId] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
   const hasTextOverlays = Boolean(textOverlays && textOverlays.length > 0);
@@ -241,34 +266,44 @@ export default function Timeline({
     }
   }, [playhead, pxPerSec]);
 
-  // Real peaks for the audio track, decoded once per file (see audioPeaks.js)
-  // and drawn into a fixed-column canvas that CSS stretches to the track
-  // width -- zooming never re-decodes, and never allocates a 17000px canvas.
+  // Peaks per stem, from the stem's own file. The old single waveform decoded
+  // the mixed file, which 1-Click no longer writes -- the lane just went blank
+  // with nothing to say why.
   useEffect(() => {
     let alive = true;
-    if (!audioUrl) { setWaveInfo(null); return undefined; }
-    getAudioPeaks(audioUrl, WAVE_COLUMNS).then((info) => { if (alive) setWaveInfo(info); });
+    const wanted = { voice: stemUrls.voice || null, bgm: stemUrls.bgm || null };
+    Object.entries(wanted).forEach(([key, url]) => {
+      if (!url) {
+        setStemPeaks((prev) => (prev[key] ? { ...prev, [key]: null } : prev));
+        return;
+      }
+      getAudioPeaks(url, WAVE_COLUMNS).then((info) => {
+        if (alive) setStemPeaks((prev) => ({ ...prev, [key]: info }));
+      });
+    });
     return () => { alive = false; };
-  }, [audioUrl]);
+  }, [stemUrls.voice, stemUrls.bgm]);
 
   useEffect(() => {
-    const canvas = waveRef.current;
-    if (!canvas || !waveInfo?.peaks) return;
-    const ctx = canvas.getContext('2d');
-    const { width, height } = canvas;
-    ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = '#8FBF9F';
-    ctx.globalAlpha = 0.55;
-    const mid = height / 2;
-    for (let i = 0; i < WAVE_COLUMNS; i++) {
-      const min = waveInfo.peaks[i * 2];
-      const max = waveInfo.peaks[i * 2 + 1];
-      const top = mid - max * mid;
-      const bottom = mid - min * mid;
-      ctx.fillRect(i, top, 1, Math.max(1, bottom - top));
-    }
-    ctx.globalAlpha = 1;
-  }, [waveInfo]);
+    STEMS.forEach(({ key, colour }) => {
+      const canvas = stemCanvasRefs.current[key];
+      const info = stemPeaks[key];
+      if (!canvas || !info?.peaks) return;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = colour;
+      ctx.globalAlpha = 0.55;
+      const mid = canvas.height / 2;
+      for (let i = 0; i < WAVE_COLUMNS; i++) {
+        const min = info.peaks[i * 2];
+        const max = info.peaks[i * 2 + 1];
+        const top = mid - max * mid;
+        const bottom = mid - min * mid;
+        ctx.fillRect(i, top, 1, Math.max(1, bottom - top));
+      }
+      ctx.globalAlpha = 1;
+    });
+  }, [stemPeaks]);
 
   // Dropping a clip from the media bin. The insert position is whichever
   // boundary the pointer is nearest, so a drop reads like where it landed.
@@ -549,27 +584,53 @@ export default function Timeline({
                   </TrackLabel>
                 </div>
               )}
-              <div style={{ height: AUDIO_H }} className="flex items-center">
-                <TrackLabel
-                  icon={Music}
-                  action={
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); onToggleMuteAudio?.(); }}
-                      title={isAudioMuted ? 'คลิกเพื่อเปิดเสียงพรีวิว' : 'คลิกเพื่อปิดเสียงพรีวิว (Mute)'}
-                      className={`p-1 rounded transition-colors ${
-                        isAudioMuted
-                          ? 'text-rose-400 hover:bg-rose-400/20'
-                          : 'text-[#9C968F] hover:text-[#EDE9E3] hover:bg-[#2C2B27]'
-                      }`}
+              {STEMS.map(({ key, label }, i) => {
+                const soloed = Object.values(trackMix?.solo || {}).some(Boolean);
+                const isSolo = !!trackMix?.solo?.[key];
+                const isMute = !!trackMix?.mute?.[key];
+                const silent = soloed ? !isSolo : isMute;
+                return (
+                  <div key={key} style={{ height: STEM_H }} className={`flex items-center ${i ? '' : 'mt-1'}`}>
+                    <TrackLabel
+                      // The group icon doubles as the master mute: per-track
+                      // mute covers most of what this was for, but silencing
+                      // everything at once is still one click.
+                      icon={i === 0 ? (isAudioMuted ? VolumeX : Music) : undefined}
+                      iconTitle={i === 0
+                        ? (isAudioMuted ? 'คลิกเพื่อเปิดเสียงพรีวิวทั้งหมด' : 'คลิกเพื่อปิดเสียงพรีวิวทั้งหมด')
+                        : undefined}
+                      iconClass={i === 0 && isAudioMuted ? 'text-rose-400' : undefined}
+                      onIconClick={i === 0 ? onToggleMuteAudio : undefined}
+                      action={
+                        <span className="flex items-center gap-0.5">
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onTrackMix?.(key, 'mute'); }}
+                            title={`${isMute ? 'เปิด' : 'ปิด'}เสียงแทร็ก ${label}`}
+                            className={`rounded px-1 text-[10px] font-semibold leading-4 transition-colors ${
+                              silent ? 'bg-rose-500/25 text-rose-300' : 'text-[#6F6A64] hover:bg-[#2C2B27] hover:text-[#EDE9E3]'
+                            }`}
+                          >
+                            M
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onTrackMix?.(key, 'solo'); }}
+                            title={`ฟังแทร็ก ${label} เดี่ยว`}
+                            className={`rounded px-1 text-[10px] font-semibold leading-4 transition-colors ${
+                              isSolo ? 'bg-amber-400/25 text-amber-300' : 'text-[#6F6A64] hover:bg-[#2C2B27] hover:text-[#EDE9E3]'
+                            }`}
+                          >
+                            S
+                          </button>
+                        </span>
+                      }
                     >
-                      {isAudioMuted ? <VolumeX className="h-3 w-3" /> : <Volume2 className="h-3 w-3" />}
-                    </button>
-                  }
-                >
-                  เสียง
-                </TrackLabel>
-              </div>
+                      {label}
+                    </TrackLabel>
+                  </div>
+                );
+              })}
             </div>
 
             <div ref={laneRef} className="relative flex-1">
@@ -982,45 +1043,84 @@ export default function Timeline({
                 </div>
               )}
 
-              {/* audio track */}
-              <div className="relative mt-1 rounded bg-[#181716]" style={{ height: AUDIO_H }}>
-                {audioDuration > 0 && (
+              {/* audio stems: one lane each, so a level, a cue or a clip's own
+                  sound can be seen and soloed instead of hidden in one mix */}
+              {STEMS.map(({ key, label, colour, ring, bg }, i) => {
+                const soloed = Object.values(trackMix?.solo || {}).some(Boolean);
+                const silent = soloed ? !trackMix?.solo?.[key] : !!trackMix?.mute?.[key];
+                const info = stemPeaks[key];
+                const spanSecs = key === 'voice' || key === 'bgm'
+                  ? audioDuration
+                  : totalDuration;
+                return (
                   <div
-                    className="absolute top-1 flex h-[calc(100%-8px)] items-center overflow-hidden rounded bg-[#242A26] px-2 ring-1 ring-[#33463A]"
-                    style={{ left: 0, width: audioDuration * pxPerSec }}
-                    title="เสียงพากย์ + BGM ของทั้งคลิป (เปลี่ยนเพลงได้ที่แผงขวา)"
+                    key={key}
+                    className={`relative rounded bg-[#181716] ${i ? '' : 'mt-1'}`}
+                    style={{ height: STEM_H, opacity: silent ? 0.35 : 1 }}
                   >
-                    {waveInfo?.peaks && (
-                      <canvas
-                        ref={waveRef}
-                        width={WAVE_COLUMNS}
-                        height={AUDIO_H}
-                        className="pointer-events-none absolute inset-0 h-full w-full"
-                      />
+                    {spanSecs > 0 && (
+                      <div
+                        className="absolute top-0.5 flex h-[calc(100%-4px)] items-center overflow-hidden rounded px-2"
+                        style={{
+                          left: 0,
+                          width: spanSecs * pxPerSec,
+                          background: bg,
+                          boxShadow: `inset 0 0 0 1px ${ring}`,
+                        }}
+                        title={
+                          key === 'voice' ? 'เสียงพากย์ (voiceover.wav)'
+                            : key === 'bgm' ? `เพลงประกอบ${bgmLabel ? ` · ${bgmLabel}` : ' · ค่าเริ่มต้นของช่อง'} (เปลี่ยนได้ที่แผงขวา)`
+                              : key === 'sfx' ? 'เสียงเอฟเฟกต์ตามจังหวะซับ'
+                                : 'เสียงในตัวคลิป (ตั้งระดับได้ที่แผงขวา)'
+                        }
+                      >
+                        {info?.peaks && (
+                          <canvas
+                            ref={(el) => { stemCanvasRefs.current[key] = el; }}
+                            width={WAVE_COLUMNS}
+                            height={STEM_H}
+                            className="pointer-events-none absolute inset-0 h-full w-full"
+                          />
+                        )}
+                        <span
+                          className="relative truncate text-[10px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
+                          style={{ color: colour }}
+                        >
+                          {key === 'bgm' && bgmLabel ? `${label} · ${bgmLabel}` : label}
+                          {info?.truncated ? ` · รูปคลื่นแสดง ${MAX_DECODE_SECONDS} วิแรก` : ''}
+                        </span>
+                      </div>
                     )}
-                    <span className="relative truncate text-xs text-[#8FBF9F] drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-                      เสียงพากย์ + BGM{bgmLabel ? ` · ${bgmLabel}` : ' · ค่าเริ่มต้นของช่อง'}
-                      {waveInfo?.truncated ? ` · รูปคลื่นแสดง ${MAX_DECODE_SECONDS} วิแรก` : ''}
-                    </span>
+
+                    {/* clip lane: a block wherever a clip contributes its own audio */}
+                    {key === 'clip' && segments.filter((s) => Number(s.clip.volume) > 0).map((s) => (
+                      <div
+                        key={`clipaud-${s.clip.id}`}
+                        className="absolute top-0.5 h-[calc(100%-4px)] rounded bg-[#C79FD8]/30 ring-1 ring-[#C79FD8]/60"
+                        style={{ left: s.segStart * pxPerSec, width: Math.max(2, (s.segEnd - s.segStart) * pxPerSec) }}
+                        title={`เสียงในคลิปนี้ ${Math.round(Number(s.clip.volume) * 100)}%`}
+                      />
+                    ))}
+
+                    {key === 'sfx' && sfxMarkers.map((cue) => (
+                      <button
+                        key={`sfx-${cue._uid}`}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSeek?.(cue.start);
+                          selectCaption(cue._uid);
+                        }}
+                        title={`⚡ SFX: ${cue.sfx} (คลิกเพื่อกระโดดไปที่จังหวะนี้)`}
+                        className="group/sfx absolute top-0 z-20 flex -translate-x-1/2 cursor-pointer items-center gap-0.5 rounded-full border border-black/40 bg-[#D97757] px-1.5 py-0.5 shadow-lg transition-all hover:scale-110 hover:bg-[#25F4EE] hover:z-30"
+                        style={{ left: cue.start * pxPerSec }}
+                      >
+                        <span className="text-[9px] font-mono font-extrabold uppercase text-black leading-none">{cue.sfx}</span>
+                      </button>
+                    ))}
                   </div>
-                )}
-                {sfxMarkers.map((cue) => (
-                  <button
-                    key={`sfx-${cue._uid}`}
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSeek?.(cue.start);
-                      selectCaption(cue._uid);
-                    }}
-                    title={`⚡ SFX: ${cue.sfx} (คลิกเพื่อกระโดดไปที่จังหวะนี้)`}
-                    className="group/sfx absolute top-0.5 z-20 flex -translate-x-1/2 cursor-pointer items-center gap-0.5 rounded-full border border-black/40 bg-[#D97757] px-1.5 py-0.5 shadow-lg transition-all hover:scale-110 hover:bg-[#25F4EE] hover:z-30"
-                    style={{ left: cue.start * pxPerSec }}
-                  >
-                    <span className="text-[9px] font-mono font-extrabold uppercase text-black leading-none">{cue.sfx}</span>
-                  </button>
-                ))}
-              </div>
+                );
+              })}
 
               {/* the render is cut at the voiceover length, so show where that is */}
               {audioDuration > 0 && (

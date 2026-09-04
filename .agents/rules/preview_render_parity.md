@@ -156,6 +156,15 @@ ASS ใช้ `Layer` เลขน้อยวาดก่อน (อยู่�
 | alias SFX เก่า | `LEGACY_SFX_ALIASES` (asset_registry) | `LEGACY_SFX_ALIASES` (EditorShell) |
 | BGM default | `resolve_bgm_path()` | `DEFAULT_BGM_FILE` (EditorShell) |
 
+| ภาพ/สี | ฝั่ง render | ฝั่งพรีวิว |
+|---|---|---|
+| geometry ของ transition | `xfade=transition=...` | `clipIncomingRegion` / `slideOffsets` / `circleWeightAt` |
+| สีคั่นของ fade | `fadeblack` / `fadewhite` | `FADE_BRIDGE_OUT` / `FADE_BRIDGE_IN` |
+| LUT | `lut3d` + `resolve_lut_path()` | `lut3d.js` (`parseCube`/shader) + `grade` prop |
+| ความเข้ม LUT | `blend=all_opacity=strength` | `mix(src, graded, uStrength)` |
+| ลำดับเกรด | ก่อน sticker + ก่อน burn ซับ | `applyGrade` ก่อน `drawHookHeader` |
+| เสียงในคลิป | `volume=` + `adelay=clip_starts[i]` | bus `clip` + `wireClipAudio` |
+
 ---
 
 ## 5. ข้อยกเว้นที่ยอมรับได้ (ต้องแจ้งผู้ใช้ตรงๆ ห้ามเงียบ)
@@ -211,3 +220,116 @@ render ใช้ `-stream_loop -1` + `atempo` จาก chars/sec ของส�
 - **`loudnorm I=-14 TP=-1.0 LRA=8`**: two-pass ทำในเบราว์เซอร์ไม่ได้ →
   **ระดับเสียงรวมของพรีวิวจะไม่เท่าไฟล์จริง** สัดส่วนระหว่าง stem ตรง แต่ค่าสัมบูรณ์ไม่ตรง
 - **`apad=pad_dur=1.0`** ต่อท้าย voice ในไฟล์มิกซ์: พรีวิวไม่ต้องทำ (ไม่มีเสียงให้ pad)
+
+---
+
+## 7. Transition: canvas ต้องทำตาม geometry จริงของ `xfade`
+
+เคยพรีวิวเป็น crossfade ทุกแบบ → wipe/slide/circle ดูเหมือนกันหมดจนกว่าจะเรนเดอร์
+
+**วิธีวัด (ทำซ้ำได้)**: สร้าง input 2 ตัวที่ **พกพิกัดตัวเอง** — A เก็บ x ไว้ในช่อง R,
+B เก็บ y ไว้ในช่อง B แล้วยิง `xfade` → พิกเซลผลลัพธ์ทุกจุดบอกได้ว่า **มาจาก input ไหน
+และมาจากตำแหน่งไหน** จึงแยก wipe (mask ไม่ขยับภาพ) ออกจาก slide (ขยับภาพ) ได้แน่นอน
+สำหรับ fade/circle ใช้ input สีทึบ (แดง/น้ำเงิน) แล้วอ่านน้ำหนักผสมจากค่าช่องสี
+
+### 7.1 ⚠️ progress ของเฟรมที่ดึงมา ไม่เท่ากับ progress ที่สั่ง
+
+ffmpeg เลือกเฟรมเอง — ดึงที่ `-ss offset+0.25` ได้ progress จริง 0.263
+**ต้อง calibrate จาก `fade`** (ซึ่ง linear เป๊ะ: น้ำหนัก B = progress) ก่อนเทียบตัวอื่น
+ไม่ทำ = error จากการ sample จะดูเหมือน error ของสูตร (วัดได้ 2.5% กลายเป็น 0.83%)
+
+### 7.2 สูตรที่วัดได้ (เฟรมทดสอบ 120×200 ที่ progress 0.5)
+
+| transition | ผลที่วัด | สูตรในพรีวิว |
+|---|---|---|
+| `wipeleft` | B ครอง x ≥ 61 ไม่ขยับภาพ | `rect((1-p)*W, 0, W, H)` |
+| `wiperight` | B ครอง x ≤ 60 | `rect(0, 0, p*W, H)` |
+| `wipeup` | B ครอง y ≥ 101 | `rect(0, (1-p)*H, W, H)` |
+| `wipedown` | B ครอง y ≤ 100 | `rect(0, 0, W, p*H)` |
+| `slideleft` | A เลื่อน −60px (−p·W), B เข้าจากขวา | offset A `−p·W` / B `+(1−p)·W` |
+| `slideright` | A เลื่อน +60px | offset A `+p·W` / B `−(1−p)·W` |
+| `slideup` | B เลื่อน +100px (+(1−p)·H) | offset A `−p·H` / B `+(1−p)·H` |
+| `slidedown` | B เลื่อน −100px | offset A `+p·H` / B `−(1−p)·H` |
+| `circleopen` | น้ำหนัก B ลดตามรัศมี ตัด 0.5 ที่ r/z = 0.495 | `smoothstep((1−r/z) + 3(p−0.5))` |
+| `circleclose` | กลับด้าน ตัด 0.5 ที่ r/z = 0.505 | `smoothstep(r/z + 3(p−0.5))` |
+| `dissolve` | สัดส่วน = progress, per-pixel, ไม่ย้อนกลับ | threshold noise คงที่ `noise >= 1−p` |
+| `fade` | crossfade เชิงเส้น | alpha = p |
+| `fadeblack`/`fadewhite` | **ไม่ใช่ crossfade** — A ดำสนิทที่ p=0.167, B เริ่มโผล่ ~0.267 | 2 ช่วง + สีคั่น |
+
+**ความแม่นที่วัดได้**: wipe ≤0.83% พิกเซลผิดฝั่ง · slide ≤1.8px · circle ≤0.017 น้ำหนัก ·
+dissolve สัดส่วนต่าง ≤0.32% · fade ≤0.8%
+
+### 7.3 ⚠️ alpha ของ draw plan คือ alpha ตามลำดับทับ ไม่ใช่สัดส่วนของแต่ละชั้น
+
+ชั้นล่างต้องทึบ (alpha 1) แล้วชั้นบนค่อยผสม สำหรับ `fadeblack` ที่มี 3 ชั้น
+(A + สีคั่น + B) ต้องแปลงเป็น alpha ตามลำดับ: สีคั่นทับ A ด้วย `bridge/(1−wB)`
+แล้ว B ทับด้วย `wB` — ใส่ค่าดิบตรงๆ จะได้ภาพจางกว่าที่ควร
+
+### 7.4 ไม่ต้องยิง clip+draw หลายรอบเพื่อทำ ramp ต่อพิกเซล
+
+circle ใช้ **radial gradient + `destination-in`** บน canvas สำรอง (วาดเฟรม 1 ครั้ง)
+ไม่ใช่ 24 วง clip (จะกิน 12M พิกเซล/เฟรม) · dissolve ใช้ mask canvas ที่ threshold
+noise ทั้งภาพด้วย `Uint32Array` เขียนครั้งเดียวต่อพิกเซล
+
+### ข้อยกเว้นด้าน transition
+
+- **`dissolve` pattern**: PRNG ของ ffmpeg ไม่ใช่ sin-hash แบบ GLSL (ทดสอบแล้วตรงกัน 59%
+  = เดาสุ่ม) → พรีวิวใช้ noise ของตัวเอง **ลักษณะ/สัดส่วน/ทิศทางตรง แต่พิกเซลไม่ตรง**
+- **`fadeblack`/`fadewhite` easing**: รูปโค้งไม่ใช่ smoothstep แท้ ผิดสูงสุด **0.067 น้ำหนัก**
+  (≈17/255) ช่วงกลางที่เป็นสีคั่นล้วนตรงอยู่แล้ว
+
+---
+
+## 8. LUT (ฟิลเตอร์สี): ต้องเห็นในพรีวิว
+
+### 8.1 ⚠️ id ของ asset ไม่ใช่ชื่อไฟล์ (ซ้ำรอย BGM)
+
+`AssetPanel` ส่ง `lutName` เป็น registry id (`lut_warm_cozy_lifestyle`) แต่ pipeline ทำ
+`LUTS_DIR / lut_name` ซึ่งไม่มีไฟล์นั้น → `lut_path` ไม่ผ่าน `.exists()` →
+**ข้ามการเกรดสีเงียบๆ ทุกครั้ง ฟิลเตอร์ที่เลือกไม่เคยมีผลเลย**
+แก้ที่ `AssetRegistry.resolve_lut_path()` รับทั้ง id และชื่อไฟล์ ทั้งสองฝั่งใช้ตัวเดียวกัน
+**บทเรียน**: asset ทุกชนิดที่ UI เลือกด้วย id ต้องมี resolver ที่รับ id — เจอแล้ว 2 ชนิด (BGM, LUT)
+
+### 8.2 ⚠️ ต้องเกรด **จุดเดียวกันในลำดับ filter**
+
+render: `lut3d` → sticker overlay → subtitle burn
+พรีวิว: วาดชั้นวิดีโอ → **เกรด** → hook → caption → sticker → overlay
+เกรดหลังจากนั้นจะทำให้ **สีป้ายแบรนด์และสีซับเปลี่ยนไปด้วย** ซึ่ง render ไม่ทำ
+
+### 8.3 ⚠️ ครึ่งความเข้มต้องผสมแบบเดียวกัน
+
+`blend=all_mode=normal:all_opacity=strength` → `out = strength·graded + (1−strength)·original`
+= `mix(src, graded, strength)` ใน shader
+
+### 8.4 ⚠️ 3D texture ต้อง inset ครึ่ง texel
+
+ป้อน 0..1 ตรงๆ เข้า `sampler3D` จะไปโดนเขต clamp ทำให้ **ปลายสองข้างของเกรดแบน**
+ต้อง `rgb * (n-1)/n + 1/(2n)` — ตรวจแล้วตรง ffmpeg **ภายใน 1/255** ทั้ง 4 LUT ที่ติดตั้ง
+
+**ข้อยกเว้น**: ถ้าเบราว์เซอร์ไม่มี WebGL2 → พรีวิวไม่เกรด (ไม่ใช่จอดำ) และต้องบอกผู้ใช้
+
+---
+
+## 9. เสียงในตัวคลิป (per-clip volume)
+
+### 9.1 ⚠️ เสียงต่อคลิปต้อง `adelay` ไปตำแหน่งจริง ไม่ใช่ `concat`
+
+เดิม `concat` เสียงทุกคลิปต่อกันจาก 0 แต่ค่า default ของ `volume` คือ 0 →
+เคสปกติที่สุด (เพิ่มเสียงคลิปกลางคลิปเดียว) ทำให้ **เสียงคลิปนั้นเล่นที่ต้นวิดีโอ**
+วัดจริง: คลิปกลางช่วง 2.00–4.00s เสียงออกที่ **0.00–1.95s** (ผิด 2 วินาที) แก้แล้วออกที่ 2.00s เป๊ะ
+`clip_starts` ต้องคิดจาก **เลขชุดเดียวกับ offset ของ xfade** ไม่งั้นเสียงกับภาพเหลื่อมทุกรอยต่อ
+
+### 9.2 ⚠️ element วิดีโอในพรีวิวถูก mute ไว้
+
+มันมีไว้ decode เฟรม → คลิปที่ตั้ง volume > 0 จึง **เงียบในพรีวิวแต่ดังในไฟล์จริง**
+สไลเดอร์ขยับเลขที่ไม่มีใครได้ยิน ต้อง `muted={!(volume > 0)}` แล้วต่อเข้า bus เสียงคลิป
+
+**ข้อยกเว้น**: พรีวิวปรับ `playbackRate` ±6% เพื่อแก้ drift ของภาพ → เสียงในคลิปเพี้ยน pitch
+เล็กน้อยระหว่างชดเชย ต่างจาก `atempo` ของ render ที่รักษา pitch
+
+---
+
+## 10. Mute/Solo ต่อแทร็ก = เฉพาะการเล่น ห้ามหลุดไป payload
+
+`trackMix` อยู่ใน state ของ EditorShell และส่งเข้า player/Timeline เท่านั้น
+solo เพลงเพื่อฟังระดับเสียง **ต้องไม่เปลี่ยนไฟล์ที่เรนเดอร์ออกมา**

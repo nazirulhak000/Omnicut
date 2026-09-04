@@ -1,6 +1,7 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Play, Pause, Eye } from 'lucide-react';
 import { toMediaUrl } from '../lib/mediaUrl';
+import { createLutRenderer, loadCube } from '../lib/lut3d';
 import {
   buildSegments, totalDuration as totalDurationOf, getDrawPlan as planAt
 } from '../lib/timelineMath';
@@ -30,6 +31,10 @@ const RESYNC = {
 // the other -- see .agents/rules/preview_render_parity.md.
 const AUDIO_MIX = {
   VOICE_GAIN: 1.0,              // voice_vol   -- sfx_manager.py:61
+  // A clip's own audio is mixed in at the clip's `volume` (video_editor.py's
+  // per-clip `volume=` filter), then the whole raw-audio bus meets the voice
+  // bed through amix with normalize=0 -- so no extra scaling here.
+  CLIP_GAIN: 1.0,
   BGM_GAIN: 0.12,               // bgm_vol     -- sfx_manager.py:60
   SFX_GAIN: 0.28,               // sfx_vol     -- sfx_manager.py:63
   // The render ducks with sidechaincompress, which has no WebAudio equivalent.
@@ -94,6 +99,240 @@ function clipFilter(clip) {
 }
 
 function mirrorFlag(clip) { return !!clip?.mirror; }
+
+// ---------------------------------------------------------------- transitions
+// Every boundary used to preview as a crossfade, so a wipe, a slide and a
+// circle all looked the same until the file came out of ffmpeg. These are
+// ffmpeg xfade's own geometries, measured off real renders rather than guessed:
+// two inputs were built to carry their own coordinates (input A its x in the
+// red channel, input B its y in the blue channel) so every output pixel said
+// which input it came from and where in that input it sat.
+//
+// Measured at progress 0.5 on a 120x200 frame:
+//   wipeleft   A kept x<=60, B took x>=61, no displacement
+//   wiperight  mirrored
+//   wipeup     A kept y<=100, B took y>=101
+//   wipedown   mirrored
+//   slideleft  A displaced by -60px (-p*W), B entered from the right
+//   slideright A displaced by +60px, B entered from the left
+//   slideup    B displaced by +100px (+(1-p)*H): the pair travels up as one
+//   slidedown  mirrored
+//   dissolve   50/50 per-pixel noise, deterministic, monotonic reveal
+//   circleopen weight of B = smoothstep(0, 1, (1 - r/z) + 3*(p - 0.5))
+//   circleclose same with r/z instead of (1 - r/z)
+// The circle fits are exact to within 0.03 of weight across the whole radius
+// at every progress from 0.1 to 0.9.
+const SMOOTHSTEP = (x) => {
+  const c = Math.max(0, Math.min(1, x));
+  return c * c * (3 - 2 * c);
+};
+
+// fadeblack/fadewhite dip through a solid colour rather than crossfading.
+// Measured on a 30-frame transition: the outgoing frame reaches the bridge
+// colour at p = 0.167 and the incoming one starts leaving it at p = 0.267,
+// with an S-curve on each side. Reproduced to within 0.06 of weight -- the
+// exact easing of a one-sixth-of-a-transition dip is below what the eye can
+// separate, and the rendered file remains the source of truth.
+const FADE_BRIDGE_OUT = 1 / 6;
+const FADE_BRIDGE_IN = 0.2667;
+
+function bridgeWeights(progress) {
+  const wA = 1 - SMOOTHSTEP(progress / FADE_BRIDGE_OUT);
+  const wB = SMOOTHSTEP((progress - FADE_BRIDGE_IN) / (1 - FADE_BRIDGE_IN));
+  return { wA, wB, bridge: Math.max(0, 1 - wA - wB) };
+}
+
+// `dissolve` reveals the incoming clip per pixel. Measured on real renders: the
+// revealed share equals progress exactly, no pixel ever reverts as progress
+// grows, and the pattern is fine-grained per-pixel noise, not blocks. The
+// pattern is ffmpeg's own and is not the common sin-hash -- tested and it
+// agreed with the real frames only 59% of the time, i.e. a coin flip -- so the
+// preview uses its own uniform noise with a fixed seed. Same character, same
+// share, same monotonic reveal; the individual pixels differ, which is the one
+// approximation here and is invisible on a moving frame.
+let dissolveNoise = null;
+let dissolveMaskCanvas = null;
+let dissolveImage = null;
+let dissolveWords = null;
+let dissolveThreshold = -1;
+
+/** Mask canvas whose alpha is 255 exactly where the incoming clip shows. */
+function dissolveMaskFor(progress) {
+  if (!dissolveNoise) {
+    const n = CANVAS_W * CANVAS_H;
+    dissolveNoise = new Float32Array(n);
+    let seed = 0x9e3779b9;
+    for (let i = 0; i < n; i++) {
+      seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5;
+      dissolveNoise[i] = (seed >>> 0) / 4294967296;
+    }
+    dissolveMaskCanvas = document.createElement('canvas');
+    dissolveMaskCanvas.width = CANVAS_W;
+    dissolveMaskCanvas.height = CANVAS_H;
+    dissolveImage = dissolveMaskCanvas.getContext('2d').createImageData(CANVAS_W, CANVAS_H);
+    // One 32-bit write per pixel instead of four 8-bit ones.
+    dissolveWords = new Uint32Array(dissolveImage.data.buffer);
+  }
+  const threshold = 1 - Math.max(0, Math.min(1, progress));
+  if (threshold !== dissolveThreshold) {
+    for (let i = 0; i < dissolveWords.length; i++) {
+      dissolveWords[i] = dissolveNoise[i] >= threshold ? 0xFFFFFFFF : 0;
+    }
+    dissolveMaskCanvas.getContext('2d').putImageData(dissolveImage, 0, 0);
+    dissolveThreshold = threshold;
+  }
+  return dissolveMaskCanvas;
+}
+
+/**
+ * Clips `ctx` to the region the incoming clip owns at this progress, for the
+ * transitions that are a hard mask rather than a blend. Returns false when the
+ * type is not mask-based.
+ */
+function clipIncomingRegion(ctx, kind, p) {
+  switch (kind) {
+    case 'wipeleft':   // B enters from the right, edge travels left
+      ctx.rect((1 - p) * CANVAS_W, 0, CANVAS_W, CANVAS_H); return true;
+    case 'wiperight':
+      ctx.rect(0, 0, p * CANVAS_W, CANVAS_H); return true;
+    case 'wipeup':     // B enters from the bottom, edge travels up
+      ctx.rect(0, (1 - p) * CANVAS_H, CANVAS_W, CANVAS_H); return true;
+    case 'wipedown':
+      ctx.rect(0, 0, CANVAS_W, p * CANVAS_H); return true;
+    default:
+      return false;
+  }
+}
+
+/** Slide displacement, in canvas pixels, for the outgoing and incoming clip. */
+function slideOffsets(kind, p) {
+  switch (kind) {
+    case 'slideleft':  return [[-p * CANVAS_W, 0], [(1 - p) * CANVAS_W, 0]];
+    case 'slideright': return [[p * CANVAS_W, 0], [-(1 - p) * CANVAS_W, 0]];
+    case 'slideup':    return [[0, -p * CANVAS_H], [0, (1 - p) * CANVAS_H]];
+    case 'slidedown':  return [[0, p * CANVAS_H], [0, -(1 - p) * CANVAS_H]];
+    default:           return null;
+  }
+}
+
+/**
+ * How much of the incoming clip shows, ring by ring, for the two circle
+ * transitions. Canvas has no per-pixel shader, so the smooth radial ramp is
+ * drawn as concentric bands -- 24 of them across the diagonal, which is finer
+ * than the eye resolves on a moving frame.
+ */
+const CIRCLE_BANDS = 24;
+
+function circleWeightAt(kind, p, dNorm) {
+  const shifted = 3 * (p - 0.5);
+  return kind === 'circleopen'
+    ? SMOOTHSTEP((1 - dNorm) + shifted)
+    : SMOOTHSTEP(dNorm + shifted);
+}
+
+/** Draws one clip's frame with its grade, at `alpha`. */
+function drawClipInto(ctx, video, clip, alpha = 1) {
+  ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+  ctx.filter = clipFilter(clip);
+  const painted = drawVideoFrame(ctx, video, clip);
+  ctx.globalAlpha = 1;
+  ctx.filter = 'none';
+  return painted;
+}
+
+/**
+ * Paints one draw-plan entry with whatever geometry its transition calls for:
+ * a mask for the wipes and the dissolve, a displacement for the slides, a
+ * radial alpha ramp for the circles, a solid bridge colour for fadeblack and
+ * fadewhite, and a plain crossfade only for `fade` itself.
+ */
+function paintEntry(ctx, entry, video, offscreen) {
+  const { seg, transition: kind, progress: p, role, alpha } = entry;
+  const clip = seg.clip;
+
+  // Slides move both clips as one strip, so each side gets its own offset.
+  const slide = role && role !== 'solo' ? slideOffsets(kind, p) : null;
+  if (slide) {
+    const [dx, dy] = role === 'out' ? slide[0] : slide[1];
+    ctx.save();
+    ctx.translate(dx, dy);
+    const painted = drawClipInto(ctx, video, clip);
+    ctx.restore();
+    return painted;
+  }
+
+  if (role !== 'in') {
+    const painted = drawClipInto(ctx, video, clip);
+    // The outgoing side of a bridge fade also lays down the colour it dips
+    // through, so the incoming side only has to blend over it.
+    if (painted && role === 'out' && (kind === 'fadeblack' || kind === 'fadewhite')) {
+      const { wB, bridge } = bridgeWeights(p);
+      const cover = wB >= 1 ? 1 : bridge / (1 - wB);
+      if (cover > 0.001) {
+        ctx.globalAlpha = Math.min(1, cover);
+        ctx.fillStyle = kind === 'fadewhite' ? '#FFFFFF' : '#000000';
+        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        ctx.globalAlpha = 1;
+      }
+    }
+    return painted;
+  }
+
+  if (kind === 'dissolve') {
+    // Same off-screen route as the circles: draw the frame, then keep it only
+    // where the noise mask says the incoming clip has arrived.
+    const oc = offscreen.getContext('2d');
+    oc.setTransform(1, 0, 0, 1, 0, 0);
+    oc.globalCompositeOperation = 'source-over';
+    oc.clearRect(0, 0, CANVAS_W, CANVAS_H);
+    if (!drawClipInto(oc, video, clip)) return false;
+    oc.globalCompositeOperation = 'destination-in';
+    oc.drawImage(dissolveMaskFor(p), 0, 0);
+    oc.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    ctx.drawImage(offscreen, 0, 0);
+    return true;
+  }
+
+  if (kind === 'circleopen' || kind === 'circleclose') {
+    // A per-pixel radial weight with no shader: draw the frame off-screen,
+    // then keep it in proportion to a radial gradient built from the measured
+    // curve. One extra full-frame draw, instead of 24 clipped ones.
+    const oc = offscreen.getContext('2d');
+    oc.setTransform(1, 0, 0, 1, 0, 0);
+    oc.globalCompositeOperation = 'source-over';
+    oc.clearRect(0, 0, CANVAS_W, CANVAS_H);
+    if (!drawClipInto(oc, video, clip)) return false;
+    const cx = CANVAS_W / 2;
+    const cy = CANVAS_H / 2;
+    const z = Math.hypot(cx, cy);
+    const grad = oc.createRadialGradient(cx, cy, 0, cx, cy, z);
+    for (let i = 0; i <= CIRCLE_BANDS; i++) {
+      const d = i / CIRCLE_BANDS;
+      grad.addColorStop(d, `rgba(0,0,0,${circleWeightAt(kind, p, d).toFixed(4)})`);
+    }
+    oc.globalCompositeOperation = 'destination-in';
+    oc.fillStyle = grad;
+    oc.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    oc.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    ctx.drawImage(offscreen, 0, 0);
+    return true;
+  }
+
+  ctx.save();
+  ctx.beginPath();
+  if (clipIncomingRegion(ctx, kind, p)) {
+    ctx.clip();
+    const painted = drawClipInto(ctx, video, clip);
+    ctx.restore();
+    return painted;
+  }
+  ctx.restore();
+
+  const blend = (kind === 'fadeblack' || kind === 'fadewhite') ? bridgeWeights(p).wB : alpha;
+  return drawClipInto(ctx, video, clip, blend);
+}
 
 function drawVideoFrame(ctx, video, clip) {
   if (!video || !video.videoWidth || video.readyState < 2) return false;
@@ -1263,7 +1502,7 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
  * not by trusting a <video> element's own playback rate -- see RESYNC's
  * comment for why.
  */
-function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', hookModel = '', hookLabel = '', hookDuration = 3.0, hookMotion = null, hookColors = null, audioUrl = null, audioStems = null, compact = false, onPlayhead, onDurations, captionStyle = {}, stickerStyle = {}, isMuted = false }, ref) {
+function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', hookModel = '', hookLabel = '', hookDuration = 3.0, hookMotion = null, hookColors = null, audioUrl = null, audioStems = null, grade = null, trackMix = null, compact = false, onPlayhead, onDurations, captionStyle = {}, stickerStyle = {}, isMuted = false }, ref) {
   const canvasRef = useRef(null);
   const videoElsRef = useRef({});
   const audioElRef = useRef(null);
@@ -1271,11 +1510,27 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
   const audioCtxRef = useRef(null);
   const audioNodesRef = useRef(null);      // { master, voice, bgm, sfx }
   const mediaSourcesRef = useRef(new Map()); // element -> MediaElementAudioSourceNode
+  const clipGainsRef = useRef(new Map());    // clip id -> { el, gain } for clip audio
   const sfxBuffersRef = useRef(new Map());   // url -> AudioBuffer | Promise
   const sfxLiveRef = useRef([]);             // { key, time, node } already handed to WebAudio
   const rafRef = useRef(null);
   const clockRef = useRef({ startWall: 0, startT: 0 });
   const stickerImgRef = useRef(null);
+  const lutRef = useRef(null);          // parsed .cube for the chosen filter
+  const lutRendererRef = useRef(null);  // WebGL2 pass, or null where unavailable
+  const [lutReady, setLutReady] = useState(0);
+
+  // Scratch frame for transitions that need a per-pixel alpha ramp.
+  const offscreenRef = useRef(null);
+  const getOffscreen = () => {
+    if (!offscreenRef.current) {
+      const c = document.createElement('canvas');
+      c.width = CANVAS_W;
+      c.height = CANVAS_H;
+      offscreenRef.current = c;
+    }
+    return offscreenRef.current;
+  };
 
   const [durations, setDurations] = useState({});
   const [metadataReady, setMetadataReady] = useState(false);
@@ -1289,6 +1544,29 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
   const textOverlaysKey = (textOverlays || []).map(t => `${t.id}:${t.start}:${t.end}:${t.text}:${t.position}:${t.scale}:${t.color}:${t.bgStyle}:${t.anim}`).join(';;');
   const stickerKey = `${stickerStyle.badge}:${stickerStyle.position}:${stickerStyle.scale}:${stickerStyle.startTime}`;
   const clipKey = clips.map(c => `${c.id}:${c.source_path}:${c.trim_start}:${c.trim_end}:${c.transition_in}:${c.transition_duration}:${c.brightness}:${c.contrast}:${c.saturation}:${c.zoom}:${c.pan_x}:${c.pan_y}:${c.mirror}:${c.rotation}`).join('|');
+
+  // The Filter picker used to change nothing on screen -- the grade only
+  // showed up after a render. Load the same .cube the renderer will hand to
+  // lut3d and apply it to the video layer here.
+  useEffect(() => {
+    let alive = true;
+    if (!grade?.url) {
+      lutRef.current = null;
+      setLutReady((n) => n + 1);
+      return undefined;
+    }
+    loadCube(grade.url).then((lut) => {
+      if (!alive) return;
+      lutRef.current = lut;
+      setLutReady((n) => n + 1);
+    });
+    return () => { alive = false; };
+  }, [grade?.url]);
+
+  useEffect(() => () => {
+    lutRendererRef.current?.dispose();
+    lutRendererRef.current = null;
+  }, []);
 
   useEffect(() => {
     if (!stickerStyle?.badge || !stickerStyle?.stickers?.length) {
@@ -1419,6 +1697,7 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
         voice: bus(AUDIO_MIX.VOICE_GAIN),
         bgm: bus(bgmVolume),
         sfx: bus(AUDIO_MIX.SFX_GAIN),
+        clip: bus(AUDIO_MIX.CLIP_GAIN),
       };
     }
     const ctx = audioCtxRef.current;
@@ -1441,7 +1720,51 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
     // Decode every one-shot up front. Left to fire time, the first pass over a
     // cue is the one that has to wait for the fetch.
     (audioLiveRef.current.shots || []).forEach((shot) => loadSfxBuffer(ctx, shot.url));
+    wireClipAudio();
     return ctx;
+  };
+
+  /**
+   * Routes one clip's <video> element into the clip-audio bus at its own
+   * volume. The elements are muted by default (they exist to decode frames),
+   * so a clip with volume > 0 was silent in the preview while the render mixed
+   * it in -- the slider moved a number nothing could hear.
+   */
+  const wireClipAudio = () => {
+    const ctx = audioCtxRef.current;
+    const bus = audioNodesRef.current?.clip;
+    if (!ctx || !bus) return;
+    clips.forEach((clip) => {
+      const el = videoElsRef.current[clip.id];
+      if (!el) return;
+      const vol = Math.min(1, Math.max(0, Number(clip.volume) || 0));
+      if (vol <= 0.001) {
+        el.muted = true;
+        return;
+      }
+      el.muted = false;
+      let entry = clipGainsRef.current.get(clip.id);
+      if (!entry || entry.el !== el) {
+        if (mediaSourcesRef.current.has(el)) {
+          // Same element, already routed -- reuse its gain node.
+          entry = clipGainsRef.current.get(clip.id);
+        }
+        if (!entry || entry.el !== el) {
+          try {
+            const gain = ctx.createGain();
+            gain.connect(bus);
+            const src = ctx.createMediaElementSource(el);
+            src.connect(gain);
+            mediaSourcesRef.current.set(el, src);
+            entry = { el, gain };
+            clipGainsRef.current.set(clip.id, entry);
+          } catch {
+            return;   // element already belongs to another graph
+          }
+        }
+      }
+      entry.gain.gain.setTargetAtTime(vol, ctx.currentTime, 0.01);
+    });
   };
 
   /** Drops every one-shot already handed to WebAudio (seek, stop, unmount). */
@@ -1597,6 +1920,29 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
     if (nodes && ctx) nodes.master.gain.setTargetAtTime(isMuted ? 0 : 1, ctx.currentTime, 0.01);
   }, [isMuted]);
 
+  // Per-track mute/solo. With the stems separate there is finally something to
+  // solo: checking whether the BGM is fighting the voice, or whether an SFX
+  // landed where it was meant to, no longer means guessing from the mix.
+  const soloed = Object.keys(trackMix?.solo || {}).filter((k) => trackMix.solo[k]);
+  const trackKey = `${JSON.stringify(trackMix?.mute || {})}|${soloed.sort().join(',')}`;
+  useEffect(() => {
+    const nodes = audioNodesRef.current;
+    const ctx = audioCtxRef.current;
+    if (!nodes || !ctx) return;
+    const base = { voice: AUDIO_MIX.VOICE_GAIN, bgm: bgmVolume, sfx: AUDIO_MIX.SFX_GAIN, clip: AUDIO_MIX.CLIP_GAIN };
+    Object.entries(base).forEach(([track, level]) => {
+      const audible = soloed.length ? soloed.includes(track) : !trackMix?.mute?.[track];
+      nodes[track].gain.setTargetAtTime(audible ? level : 0, ctx.currentTime, 0.01);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trackKey, bgmVolume]);
+
+  // A clip's volume can change while it plays, and a clip can appear or vanish.
+  useEffect(() => {
+    if (audioCtxRef.current) wireClipAudio();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clipKey]);
+
   // A BGM volume change from the Inspector must be audible without a replay.
   useEffect(() => {
     const nodes = audioNodesRef.current;
@@ -1619,6 +1965,7 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
     });
     videoElsRef.current = {};
     mediaSourcesRef.current = new Map();
+    clipGainsRef.current = new Map();
     audioCtxRef.current?.close().catch(() => {});
     audioCtxRef.current = null;
     audioNodesRef.current = null;
@@ -1626,21 +1973,43 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
   }, []);
 
 
+  /**
+   * Grades whatever the video layers have painted, in place. The render applies
+   * lut3d before the sticker overlay and the subtitle burn, so this runs at
+   * the same point -- captions and badges keep their exact colours.
+   */
+  const applyGrade = (ctx, canvas) => {
+    const lut = lutRef.current;
+    const strength = grade?.intensity ?? 1;
+    if (!lut || !(strength > 0.001)) return;
+    if (!lutRendererRef.current) {
+      lutRendererRef.current = createLutRenderer(CANVAS_W, CANVAS_H) || { apply: () => null, dispose: () => {} };
+    }
+    const graded = lutRendererRef.current.apply(canvas, lut, strength);
+    if (!graded) return;
+    const prevAlpha = ctx.globalAlpha;
+    const prevFilter = ctx.filter;
+    ctx.globalAlpha = 1;
+    ctx.filter = 'none';
+    ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+    ctx.drawImage(graded, 0, 0);
+    ctx.globalAlpha = prevAlpha;
+    ctx.filter = prevFilter;
+  };
+
   const renderAt = (t) => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!ctx || !segments.length) return;
     const plan = getDrawPlan(t);
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
-    plan.forEach(({ seg, alpha }) => {
-      const video = videoElsRef.current[seg.clip.id];
-      if (!video) return;
-      ctx.globalAlpha = alpha;
-      ctx.filter = clipFilter(seg.clip);
-      drawVideoFrame(ctx, video, seg.clip);
+    plan.forEach((entry) => {
+      const video = videoElsRef.current[entry.seg.clip.id];
+      if (video) paintEntry(ctx, entry, video, getOffscreen());
     });
     ctx.globalAlpha = 1;
     ctx.filter = 'none';
+    applyGrade(ctx, canvas);
     drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration, captionStyle.fontName, captionStyle.captionColor || '#FFE600', hookMotion, hookColors);
     if (!captionStyle.hidden) {
       drawCaption(ctx, cues, t, captionStyle);
@@ -1652,7 +2021,7 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
   useEffect(() => {
     renderAt(playheadRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [segments, captionKey, stickerKey, cuesKey, textOverlaysKey]);
+  }, [segments, captionKey, stickerKey, cuesKey, textOverlaysKey, lutReady, grade?.intensity]);
 
   const lastNotifyRef = useRef(0);
 
@@ -1754,7 +2123,8 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
       const ctx = canvas?.getContext('2d');
       if (ctx) {
         let framePainted = false;
-        plan.forEach(({ seg, alpha }) => {
+        plan.forEach((entry) => {
+          const { seg } = entry;
           const video = videoElsRef.current[seg.clip.id];
           if (!video) return;
 
@@ -1775,9 +2145,7 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
 
           if (video.readyState >= 2 && !video.seeking) {
             if (!framePainted) ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
-            ctx.globalAlpha = alpha;
-            ctx.filter = clipFilter(seg.clip);
-            drawVideoFrame(ctx, video, seg.clip);
+            paintEntry(ctx, entry, video, getOffscreen());
             framePainted = true;
             prevActiveClipIdRef.current = seg.clip.id;
           }
@@ -1785,6 +2153,7 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
 
         ctx.globalAlpha = 1;
         ctx.filter = 'none';
+        if (framePainted) applyGrade(ctx, canvas);
         drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration, captionStyle.fontName, captionStyle.captionColor || '#FFE600', hookMotion, hookColors);
         if (!captionStyle.hidden) {
           drawCaption(ctx, cues, t, captionStyle);
@@ -1919,7 +2288,10 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
             ref={(el) => { if (el) videoElsRef.current[c.id] = el; }}
             src={toMediaUrl(c.source_path)}
             preload="auto"
-            muted
+            // These elements exist to decode frames, so they stay muted --
+            // except where the clip has its own volume, which the render mixes
+            // in and the preview now plays through the clip-audio bus.
+            muted={!(Number(c.volume) > 0)}
             playsInline
             onLoadedData={() => { if (!isPlaying) renderAt(playheadRef.current); }}
             onSeeked={() => { if (!isPlaying) renderAt(playheadRef.current); }}

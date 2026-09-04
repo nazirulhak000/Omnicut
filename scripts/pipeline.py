@@ -30,6 +30,7 @@ from scripts.beat_sync import BeatSync
 from scripts.script_tone_analyzer import ScriptToneAnalyzer
 from scripts.motion_analyzer import MotionAnalyzer
 from scripts.project_manifest import ProjectManifest
+from scripts.asset_registry import AssetRegistry
 from scripts.it_angles import LOOK_PRESETS, BGM_MOOD_MAP, DEFAULT_BGM
 
 # How much the framing has to change before a boundary counts as a real
@@ -1079,8 +1080,14 @@ class TikTokAutoCutterPipeline:
                 if clip.get("trim_end") is not None:
                     clip["trim_end"] = round(float(clip["trim_end"]) + overlap, 3)
 
-        # Opt-in LUT styling
-        lut_path = str(LUTS_DIR / lut_name) if lut_name else None
+        # Opt-in LUT styling. Resolved through the registry because the Filter
+        # picker stores a registry id, not a filename -- joining the id onto
+        # LUTS_DIR produced a path that never existed, so the grade was
+        # dropped without a word and choosing a filter did nothing at all.
+        resolved_lut = AssetRegistry.resolve_lut_path(lut_name) if lut_name else None
+        if lut_name and not resolved_lut:
+            print(f"   ⚠️  ไม่พบไฟล์ฟิลเตอร์ (LUT) ชื่อ {lut_name} -- ข้ามการเกรดสี")
+        lut_path = str(resolved_lut) if resolved_lut else None
 
         if export_mp4:
             _notify("✂️ [5/5] เริ่มต้นตัดต่อวิดีโอ 9:16 + Punch-Zoom...", 0.85)

@@ -114,22 +114,24 @@ export function getDrawPlan(segments, t) {
   if (idx === -1) idx = t < 0 ? 0 : segments.length - 1;
 
   const seg = segments[idx];
-  const plan = [{ seg, localTime: localTimeAt(seg, t), alpha: 1 }];
+  const plan = [{ seg, localTime: localTimeAt(seg, t), alpha: 1, role: 'solo' }];
 
-  // Every transition type previews as a crossfade -- the canvas cannot wipe or
-  // slide, and pretending otherwise would be a preview that lies. The rendered
-  // file uses the real xfade type.
+  // Inside an overlap the pair carries the boundary type and how far through it
+  // is, so the canvas can wipe/slide/dissolve the way ffmpeg will instead of
+  // crossfading everything. The geometry lives in SequencePlayer (it is the
+  // side that owns pixels); this only says which transition and how far.
   if (seg.isFade && idx > 0 && t < seg.segStart + seg.overlap) {
     const prevSeg = segments[idx - 1];
     const alpha = Math.max(0, Math.min(1, (t - seg.segStart) / seg.overlap));
+    const transition = seg.clip.transition_in || 'fade';
     // Alphas are PAINT-ORDER alphas, not per-clip contributions: entries are
     // drawn in order, each over the previous, so the base layer is opaque and
     // only the incoming one blends. Giving the outgoing clip `1 - alpha` here
     // instead left the composite at a*B + (1-a)^2*A over a cleared canvas --
     // total coverage sagging to 0.75 mid-transition, i.e. a visible dip to
     // the background that ffmpeg's xfade never shows.
-    plan[0] = { seg: prevSeg, localTime: localTimeAt(prevSeg, t), alpha: 1 };
-    plan.push({ seg, localTime: localTimeAt(seg, t), alpha });
+    plan[0] = { seg: prevSeg, localTime: localTimeAt(prevSeg, t), alpha: 1, role: 'out', transition, progress: alpha };
+    plan.push({ seg, localTime: localTimeAt(seg, t), alpha, role: 'in', transition, progress: alpha });
   }
   return plan;
 }

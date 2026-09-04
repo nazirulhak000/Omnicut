@@ -138,7 +138,7 @@ def test_crossfade_base_layer_is_opaque():
     mid-transition, a dip to background that ffmpeg's xfade never shows.
     """
     js_math = (ROOT / "frontend" / "src" / "lib" / "timelineMath.js").read_text(encoding="utf-8")
-    assert "localTime: localTimeAt(prevSeg, t), alpha: 1 }" in js_math
+    assert "localTime: localTimeAt(prevSeg, t), alpha: 1, role: 'out'" in js_math
 
 
 def test_hook_block_top_is_the_same_fraction_of_frame_height():
@@ -732,3 +732,296 @@ def test_audio_and_video_elements_are_torn_down_on_unmount():
     body = teardown.group(1)
     for expected in ("flushSfx()", "el.pause()", "removeAttribute('src')", "audioCtxRef.current?.close()"):
         assert expected in body, f"teardown does not {expected}"
+
+
+# ------------------------------------------------------- transitions in preview
+# Every boundary used to preview as a crossfade whatever it was, so a wipe, a
+# slide and a circle looked identical until the file came out of ffmpeg. The
+# geometry below was measured off real xfade renders (two inputs carrying their
+# own coordinates in the red and blue channels), not guessed -- see
+# .agents/rules/preview_render_parity.md section 7.
+TIMELINE_MATH = (ROOT / "frontend" / "src" / "lib" / "timelineMath.js").read_text(encoding="utf-8")
+
+
+def test_draw_plan_carries_the_boundary_type_and_progress():
+    """The painter cannot do a wipe if the plan only says 'blend this much'."""
+    assert "transition = seg.clip.transition_in || 'fade'" in TIMELINE_MATH
+    assert "role: 'solo'" in TIMELINE_MATH
+    # BOTH sides of a boundary need the type and the progress -- a slide moves
+    # the outgoing clip too, so carrying it on the incoming entry alone leaves
+    # the outgoing frame standing still under a sliding one.
+    for role in ("out", "in"):
+        assert re.search(rf"role: '{role}', transition, progress: alpha", TIMELINE_MATH),             f"the {role} entry does not carry the transition and progress"
+    assert "Every transition type previews as a crossfade" not in TIMELINE_MATH, \
+        "the crossfade-only note should be gone with the crossfade-only behaviour"
+
+
+@pytest.mark.parametrize("kind,expected", [
+    ("wipeleft", r"ctx\.rect\(\(1 - p\) \* CANVAS_W, 0, CANVAS_W, CANVAS_H\)"),
+    ("wiperight", r"ctx\.rect\(0, 0, p \* CANVAS_W, CANVAS_H\)"),
+    ("wipeup", r"ctx\.rect\(0, \(1 - p\) \* CANVAS_H, CANVAS_W, CANVAS_H\)"),
+    ("wipedown", r"ctx\.rect\(0, 0, CANVAS_W, p \* CANVAS_H\)"),
+])
+def test_wipe_edges_match_the_measured_direction(kind, expected):
+    """
+    Measured at progress 0.5 on a 120x200 frame: wipeleft left the incoming
+    clip holding x >= 61 (it enters from the right), wiperight x <= 60, wipeup
+    y >= 101, wipedown y <= 100 -- and none of them displaced either clip.
+    """
+    block = re.search(rf"case '{kind}':(.*?)return true;", JS_SRC, re.S)
+    assert block, f"{kind} is no longer mask-based"
+    assert re.search(expected, block.group(1)), f"{kind} wipes the wrong way"
+
+
+@pytest.mark.parametrize("kind,out_off,in_off", [
+    ("slideleft", "-p * CANVAS_W, 0", "(1 - p) * CANVAS_W, 0"),
+    ("slideright", "p * CANVAS_W, 0", "-(1 - p) * CANVAS_W, 0"),
+    ("slideup", "0, -p * CANVAS_H", "0, (1 - p) * CANVAS_H"),
+    ("slidedown", "0, p * CANVAS_H", "0, -(1 - p) * CANVAS_H"),
+])
+def test_slides_move_both_clips_as_one_strip(kind, out_off, in_off):
+    """
+    Measured: at progress 0.5 slideleft displaced the outgoing clip by -60px on
+    a 120px-wide frame (-p*W) and the incoming clip entered from the right --
+    the pair travels together, which is what separates a slide from a wipe.
+    """
+    line = re.search(rf"case '{kind}':\s*return \[\[(.*?)\], \[(.*?)\]\];", JS_SRC)
+    assert line, f"{kind} missing from slideOffsets"
+    assert line.group(1) == out_off and line.group(2) == in_off
+
+
+def test_circles_use_the_measured_radial_curve():
+    """
+    Fitted against real frames at every progress from 0.1 to 0.9 and across the
+    whole radius: the incoming clip's weight is
+    smoothstep((1 - r/z) + 3*(progress - 0.5)) for circleopen, and the same
+    with r/z for circleclose. Max error 0.017 of weight.
+    """
+    fn = re.search(r"function circleWeightAt\((.*?)\n\}", JS_SRC, re.S)
+    assert fn
+    body = fn.group(1)
+    assert "3 * (p - 0.5)" in body, "the 3x progress term is what the fit needed"
+    assert "SMOOTHSTEP((1 - dNorm) + shifted)" in body
+    assert "SMOOTHSTEP(dNorm + shifted)" in body
+
+
+def test_bridge_fades_dip_through_a_colour_instead_of_crossfading():
+    """
+    fadeblack/fadewhite are not crossfades: measured on a 30-frame transition,
+    the outgoing frame is fully black by progress 0.167 and the incoming one
+    only starts appearing around 0.267. Crossfading them showed both clips at
+    once through the middle, which the render never does.
+    """
+    assert _grab(JS_SRC, r"FADE_BRIDGE_OUT = 1 / (\d)") == 6
+    assert abs(_grab(JS_SRC, r"FADE_BRIDGE_IN = ([\d.]+)") - 0.2667) < 1e-6
+    paint = re.search(r"if \(painted && role === 'out' && \(kind === 'fadeblack'(.*?)\n    \}", JS_SRC, re.S)
+    assert paint, "the bridge colour is never laid down"
+    assert "fadewhite' ? '#FFFFFF' : '#000000'" in paint.group(1)
+    # Paint-order alpha: the colour goes over the outgoing clip, and the
+    # incoming clip then blends over both -- so its cover has to be rescaled.
+    assert "bridge / (1 - wB)" in paint.group(1)
+
+
+def test_dissolve_reveals_per_pixel_and_never_goes_backwards():
+    """
+    Measured: the revealed share equals progress, no pixel ever reverts as
+    progress grows, and the grain is per-pixel rather than blocky. ffmpeg's own
+    pattern is not the common sin-hash (tested: 59% agreement, a coin flip), so
+    the pixels differ while the character and the share match.
+    """
+    fn = re.search(r"function dissolveMaskFor\((.*?)\n\}", JS_SRC, re.S)
+    assert fn
+    body = fn.group(1)
+    assert "1 - Math.max(0, Math.min(1, progress))" in body, "share must equal progress"
+    assert "dissolveNoise[i] >= threshold" in body, "a fixed threshold keeps the reveal monotonic"
+    assert "Uint32Array" in body, "per-pixel work needs the 32-bit write, not four 8-bit ones"
+
+
+# --------------------------------------------------------------- colour grade
+def test_the_filter_picker_resolves_to_a_real_file_on_both_sides():
+    """
+    The picker stores a registry id ("lut_warm_cozy_lifestyle") while the
+    pipeline joined that id onto LUTS_DIR, where only the .cube filename
+    exists -- so `lut_path` never existed, the grade was skipped without a
+    word, and choosing a filter did nothing at all.
+    """
+    sys.path.insert(0, str(ROOT))
+    from scripts.asset_registry import AssetRegistry
+
+    luts = AssetRegistry.luts()
+    if not luts:
+        pytest.skip("no LUTs installed")
+    for entry in luts:
+        for key in ("id", "name"):
+            resolved = AssetRegistry.resolve_lut_path(entry[key])
+            assert resolved and resolved.name == entry["name"], \
+                f"{entry[key]} resolved to {resolved}"
+    assert AssetRegistry.resolve_lut_path("does_not_exist") is None
+
+    pipeline = (ROOT / "scripts" / "pipeline.py").read_text(encoding="utf-8")
+    assert "AssetRegistry.resolve_lut_path(lut_name)" in pipeline
+    assert "str(LUTS_DIR / lut_name)" not in pipeline, "the id-joined path is what was broken"
+
+    shell = (ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx").read_text(encoding="utf-8")
+    assert "l.id === style.lutName || l.name === style.lutName" in shell
+
+
+def test_preview_grades_at_the_same_point_in_the_chain_as_the_render():
+    """
+    The render applies lut3d before the sticker overlay and the subtitle burn,
+    so a brand-coloured badge and the caption colours are never re-graded. The
+    preview has to grade in the same place or those colours shift.
+    """
+    tick = re.search(r"if \(framePainted\) applyGrade\(ctx, canvas\);\s*\n\s*drawHookHeader", JS_SRC)
+    assert tick, "the grade must run after the video layers and before the hook"
+    still = re.search(r"applyGrade\(ctx, canvas\);\s*\n\s*drawHookHeader", JS_SRC)
+    assert still, "the paused frame must grade too, at the same point"
+
+    editor = (ROOT / "scripts" / "video_editor.py").read_text(encoding="utf-8")
+    lut_at = editor.index("lut3d=")
+    assert lut_at < editor.index("sticker_scaled"), "render order changed; preview order must follow"
+
+
+def test_partial_grade_strength_blends_the_same_way_as_the_render():
+    """ffmpeg blends the graded frame over the original at all_opacity=strength."""
+    editor = (ROOT / "scripts" / "video_editor.py").read_text(encoding="utf-8")
+    assert "blend=all_mode=normal:all_opacity={strength}" in editor
+    lut_js = (ROOT / "frontend" / "src" / "lib" / "lut3d.js").read_text(encoding="utf-8")
+    assert "mix(src.rgb, graded, uStrength)" in lut_js
+
+
+def test_lut_sampling_matches_ffmpeg_on_every_installed_cube():
+    """
+    Grades a probe that visits the whole RGB cube with the preview's own
+    parseCube + sampleLut and compares against ffmpeg's lut3d. Measured max
+    difference across all four installed LUTs: 1 level out of 255.
+    """
+    import shutil
+    import subprocess
+    import tempfile
+
+    if not shutil.which("node") or not shutil.which("ffmpeg"):
+        pytest.skip("needs node and ffmpeg")
+    sys.path.insert(0, str(ROOT))
+    from scripts.asset_registry import AssetRegistry
+
+    luts = AssetRegistry.luts()
+    if not luts:
+        pytest.skip("no LUTs installed")
+
+    n = 8
+    levels = [round(i * 255 / (n - 1)) for i in range(n)]
+    pixels = bytearray()
+    for r in levels:
+        for g in levels:
+            for b in levels:
+                pixels += bytes((r, g, b))
+    width, height = n * n, n
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        raw = tmp / "probe.raw"
+        raw.write_bytes(bytes(pixels))
+        runner = tmp / "grade.mjs"
+        lut_mod = (ROOT / "frontend" / "src" / "lib" / "lut3d.js").resolve().as_uri()
+        runner.write_text(
+            "import { readFileSync, writeFileSync } from 'node:fs';\n"
+            f"import {{ parseCube, sampleLut }} from '{lut_mod}';\n"
+            "const [,, cube, src, w, h, out] = process.argv;\n"
+            "const lut = parseCube(readFileSync(cube, 'utf8'));\n"
+            "const inp = readFileSync(src); const px = Number(w) * Number(h);\n"
+            "const buf = Buffer.alloc(px * 3);\n"
+            "for (let i = 0; i < px; i++) {\n"
+            "  const v = sampleLut(lut, inp[i*3]/255, inp[i*3+1]/255, inp[i*3+2]/255);\n"
+            "  for (let c = 0; c < 3; c++) buf[i*3+c] = Math.round(Math.min(1, Math.max(0, v[c])) * 255);\n"
+            "}\n"
+            "writeFileSync(out, buf);\n",
+            encoding="utf-8",
+        )
+
+        for entry in luts:
+            cube = Path(entry["path"])
+            ff_out = tmp / "ff.raw"
+            lut_arg = str(cube.resolve()).replace("\\", "/").replace(":", r"\:")
+            subprocess.run([
+                "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+                "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{width}x{height}", "-i", str(raw),
+                "-vf", f"lut3d='{lut_arg}'",
+                "-f", "rawvideo", "-pix_fmt", "rgb24", str(ff_out),
+            ], check=True)
+            js_out = tmp / "js.raw"
+            subprocess.run(["node", str(runner), str(cube), str(raw),
+                            str(width), str(height), str(js_out)], check=True)
+            a = ff_out.read_bytes()
+            b = js_out.read_bytes()
+            worst = max(abs(x - y) for x, y in zip(a, b))
+            assert worst <= 3, f"{entry['id']} differs from ffmpeg by {worst}/255"
+
+
+# ----------------------------------------------------------- per-clip audio
+def test_clip_audio_is_placed_where_the_clip_sits_not_end_to_end():
+    """
+    Each clip's own audio was concatenated from zero instead of delayed to its
+    timeline position. Clip volume defaults to 0, so the ordinary case --
+    raising the volume on one clip in the middle -- played that clip's sound at
+    the very start of the video. Verified on a real render: a middle clip's
+    tone moved from 0.00s to its true 2.00s once delayed.
+    """
+    editor = (ROOT / "scripts" / "video_editor.py").read_text(encoding="utf-8")
+    block = editor[editor.index("if raw_audio_nodes:"):editor.index("final_audio_map = \"[a_final]\"")]
+    assert "adelay=" in block, "clip audio must be delayed to its own start"
+    assert "concat=n=" not in block, "concatenating lays every clip's audio from zero"
+    assert "clip_starts[clip_idx]" in block
+    assert "amix=inputs=" in block and "duration=longest" in block
+    # The starts have to come from the same arithmetic as the video's xfade
+    # offsets, or the audio and the picture disagree at every transition.
+    assert "clip_starts.append(offset)" in editor
+    assert "raw_audio_nodes.append((a_node, duration, idx))" in editor
+
+
+def test_preview_plays_a_clips_own_audio_at_its_own_volume():
+    """
+    The decode elements are muted -- they exist for frames -- so a clip with
+    volume > 0 was silent in the preview while the render mixed it in. The
+    volume slider moved a number nothing could hear.
+    """
+    assert "muted={!(Number(c.volume) > 0)}" in JS_SRC
+    fn = re.search(r"const wireClipAudio = \(\) => \{(.*?)\n  \};", JS_SRC, re.S)
+    assert fn, "wireClipAudio missing"
+    body = fn.group(1)
+    assert "createMediaElementSource(el)" in body
+    assert "entry.gain.gain.setTargetAtTime(vol" in body
+    assert "clip: bus(AUDIO_MIX.CLIP_GAIN)" in JS_SRC
+
+
+def test_per_track_mute_and_solo_reach_the_gain_nodes():
+    """Soloing one stem must silence the others, and solo has to beat mute."""
+    fx = re.search(r"const base = \{ voice: (.*?)\n  \}, \[trackKey, bgmVolume\]\);", JS_SRC, re.S)
+    assert fx, "the track-mix effect moved"
+    body = fx.group(1)
+    assert "soloed.length ? soloed.includes(track) : !trackMix?.mute?.[track]" in body
+    for track in ("bgm", "sfx", "clip"):
+        assert f"{track}:" in body, f"{track} has no bus in the track mix"
+    assert "AUDIO_MIX.VOICE_GAIN" in body
+    shell = (ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx").read_text(encoding="utf-8")
+    assert "if (kind === 'mute' && next.mute[track]) next.solo[track] = false;" in shell
+    # Playback-only: soloing to check a level must never change what renders.
+    payload_keys = re.findall(r"trackMix", shell)
+    assert payload_keys, "trackMix state missing"
+    assert "trackMix" not in re.sub(r"\s+", " ", shell[shell.index("bgm_ducking: !!style.bgmDucking"):][:2000])
+
+
+def test_timeline_draws_one_lane_per_stem_from_the_stems_own_file():
+    """
+    The single waveform decoded the mixed file, which 1-Click no longer writes:
+    the lane went blank with nothing to say why. Each stem now draws from its
+    own file and carries its own mute/solo.
+    """
+    tl = (ROOT / "frontend" / "src" / "components" / "editor" / "Timeline.jsx").read_text(encoding="utf-8")
+    stems = re.search(r"const STEMS = \[(.*?)\];", tl, re.S)
+    assert stems
+    assert [k for k in ("voice", "bgm", "sfx", "clip") if f"key: '{k}'" in stems.group(1)] == \
+        ["voice", "bgm", "sfx", "clip"]
+    assert "getAudioPeaks(url, WAVE_COLUMNS)" in tl
+    assert "waveInfo" not in tl, "the merged-mix waveform should be gone"
+    assert "onTrackMix?.(key, 'mute')" in tl and "onTrackMix?.(key, 'solo')" in tl

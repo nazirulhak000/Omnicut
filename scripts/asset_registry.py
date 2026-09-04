@@ -258,6 +258,28 @@ class AssetRegistry:
         return None
 
     @classmethod
+    def resolve_lut_path(cls, name: str) -> Optional[Path]:
+        """
+        A stored `lut_name` -> real .cube path, or None if unknown.
+
+        Accepts either the filename ("lut_warm_cozy_lifestyle.cube") or the
+        registry id ("lut_warm_cozy_lifestyle"). The Filter picker sends the
+        id, so the old `LUTS_DIR / lut_name` never found the file and every
+        grade was skipped silently -- the picker appeared to do nothing.
+        """
+        if not name:
+            return None
+        direct = LUTS_DIR / name
+        if direct.exists():
+            return direct
+        for entry in cls.luts():
+            if entry.get("id") == name or entry.get("name") == name:
+                path = Path(entry["path"])
+                if path.exists():
+                    return path
+        return None
+
+    @classmethod
     def sfx_name_list(cls) -> List[str]:
         """Every playable SFX name, canonical ids plus the legacy short aliases, for prompt-building."""
         ids = [e["id"] for e in cls.sfx()]

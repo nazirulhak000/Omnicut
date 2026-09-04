@@ -267,7 +267,7 @@ class VideoEditor:
         concat_inputs = []
         video_input_paths: List[str] = []
         clip_durations: List[float] = []
-        raw_audio_nodes: List[Tuple[str, float]] = []
+        raw_audio_nodes: List[Tuple[str, float, int]] = []
         used_clip_list = bool(clip_list)
 
         if clip_list:
@@ -386,7 +386,7 @@ class VideoEditor:
                     filter_complex.append(
                         f"[{idx}:a]atrim=start={trim_start}:duration={source_span},asetpts=PTS-STARTPTS{tempo_filter},volume={vol}[{a_node}];"
                     )
-                    raw_audio_nodes.append((a_node, duration))
+                    raw_audio_nodes.append((a_node, duration, idx))
         else:
             # 1-Click Studio path (unchanged): single source video, virtual cut
             # points computed from cues/AI-matched shots (or a fixed rhythm if
@@ -489,6 +489,7 @@ class VideoEditor:
             acc_node = node_names[0]
             acc_dur = clip_durations[0]
             last_idx = len(node_names) - 1
+            clip_starts = [0.0]
 
             for i in range(1, len(node_names)):
                 boundary = boundaries[i - 1] if i - 1 < len(boundaries) else {"type": "cut", "duration": DEFAULT_TRANSITION_DURATION}
@@ -518,11 +519,13 @@ class VideoEditor:
                     filter_complex.append(
                         f"[{acc_node}][{next_node}]xfade=transition={boundary['type']}:duration={fade_dur}:offset={offset},setsar=1,fps={FPS}[{out_node}];"
                     )
+                    clip_starts.append(offset)
                     acc_dur = acc_dur + next_dur - fade_dur
                 else:
                     filter_complex.append(
                         f"[{acc_node}][{next_node}]concat=n=2:v=1:a=0,setsar=1,fps={FPS}[{out_node}];"
                     )
+                    clip_starts.append(acc_dur)
                     acc_dur = acc_dur + next_dur
 
                 acc_node = out_node
@@ -530,6 +533,12 @@ class VideoEditor:
             filter_complex.append(
                 f"{''.join(concat_inputs)}concat=n={len(concat_inputs)}:v=1:a=0[v_concat];"
             )
+            # Plain concat: every clip starts where the previous one ended.
+            clip_starts = []
+            _acc = 0.0
+            for _d in clip_durations:
+                clip_starts.append(_acc)
+                _acc += _d
 
         current_v = "[v_concat]"
 
@@ -634,12 +643,28 @@ class VideoEditor:
 
         # Mix raw audio with the main voice/BGM audio if any raw clip volume is active
         if raw_audio_nodes:
-            raw_a_in = "".join(f"[{node}]" for node, _ in raw_audio_nodes)
-            if len(raw_audio_nodes) > 1:
-                filter_complex.append(f";{raw_a_in}concat=n={len(raw_audio_nodes)}:v=0:a=1[raw_a_concat]")
-                raw_a_target = "[raw_a_concat]"
+            # Each clip's own audio has to be delayed to where that clip sits on
+            # the timeline. These used to be concatenated instead, which laid
+            # them end-to-end from zero: since clip volume defaults to 0, the
+            # common case -- raising the volume on one clip in the middle --
+            # played that clip's sound at the very start of the video, and any
+            # transition overlap shifted the rest out of sync as well.
+            delayed = []
+            for node, _dur, clip_idx in raw_audio_nodes:
+                start = clip_starts[clip_idx] if clip_idx < len(clip_starts) else 0.0
+                delay_ms = int(round(max(0.0, start) * 1000))
+                if delay_ms > 0:
+                    filter_complex.append(f";[{node}]adelay={delay_ms}|{delay_ms}[{node}_at]")
+                    delayed.append(f"[{node}_at]")
+                else:
+                    delayed.append(f"[{node}]")
+            if len(delayed) > 1:
+                filter_complex.append(
+                    f";{''.join(delayed)}amix=inputs={len(delayed)}:duration=longest:normalize=0[raw_a_mix]"
+                )
+                raw_a_target = "[raw_a_mix]"
             else:
-                raw_a_target = f"[{raw_audio_nodes[0][0]}]"
+                raw_a_target = delayed[0]
             filter_complex.append(
                 f";{raw_a_target}[{audio_input_idx}:a]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95:attack=5:release=50:level=false[a_final]"
             )

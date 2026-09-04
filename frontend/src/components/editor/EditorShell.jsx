@@ -272,6 +272,19 @@ export default function EditorShell({
   const [deleteScope, setDeleteScope] = useState('project');
   const [deleteOrigin, setDeleteOrigin] = useState(null);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
+  // Per-stem mute/solo for the preview. Playback-only -- it never reaches a
+  // render payload, so soloing the BGM to check a level cannot change output.
+  const [trackMix, setTrackMix] = useState({ mute: {}, solo: {} });
+  const handleTrackMix = useCallback((track, kind) => {
+    setTrackMix((prev) => {
+      const next = { mute: { ...prev.mute }, solo: { ...prev.solo } };
+      next[kind][track] = !next[kind][track];
+      // Muting a track that is soloed would read as a contradiction on screen.
+      if (kind === 'mute' && next.mute[track]) next.solo[track] = false;
+      if (kind === 'solo' && next.solo[track]) next.mute[track] = false;
+      return next;
+    });
+  }, []);
   const [isCaptionHidden, setIsCaptionHidden] = useState(false);
   const [textOverlays, setTextOverlays] = useState([]);
   const [isTextOverlayHidden, setIsTextOverlayHidden] = useState(false);
@@ -1358,6 +1371,21 @@ export default function EditorShell({
     };
   }, [voiceUrl, style.bgmName, style.bgmVolume, style.bgmDucking, assets.music, assets.sfx, cuesList]);
 
+  // The colour grade the preview should show, resolved the same way the
+  // renderer resolves it (registry id or filename -- see resolve_lut_path).
+  const grade = useMemo(() => {
+    if (!style.lutName) return null;
+    const entry = (assets.luts || []).find((l) => l.id === style.lutName || l.name === style.lutName);
+    if (!entry) return null;
+    return { url: toMediaUrl(entry.path), intensity: style.lutIntensity ?? 1 };
+  }, [style.lutName, style.lutIntensity, assets.luts]);
+
+  // The stem files the timeline draws waveforms from.
+  const stemUrls = useMemo(() => ({
+    voice: voiceUrl || audioUrl || null,
+    bgm: audioStems?.bgm?.url || null,
+  }), [voiceUrl, audioUrl, audioStems]);
+
   const progress = Math.round((jobStatus?.progress || 0) * 100);
   const bgmLabel = useMemo(() => {
     if (!style.bgmName) return 'เสียงหลักของช่อง';
@@ -1732,6 +1760,8 @@ export default function EditorShell({
                   textOverlays={isTextOverlayHidden ? [] : textOverlays}
                   audioUrl={audioUrl}
                   audioStems={audioStems}
+                  grade={grade}
+                  trackMix={trackMix}
                   captionStyle={{
                     captionPosition: style.captionPosition,
                     captionColor: style.captionColor,
@@ -1906,6 +1936,9 @@ export default function EditorShell({
                     onReorderSilent={(id, dir) => reorderClip(id, dir, true)}
                     onDropClip={addClip}
                     audioUrl={audioUrl || voiceUrl}
+                    stemUrls={stemUrls}
+                    trackMix={trackMix}
+                    onTrackMix={handleTrackMix}
                     isAudioMuted={isAudioMuted}
                     onToggleMuteAudio={() => setIsAudioMuted((v) => !v)}
                     isCaptionHidden={isCaptionHidden}
@@ -2107,6 +2140,8 @@ export default function EditorShell({
                     textOverlays={isTextOverlayHidden ? [] : textOverlays}
                     audioUrl={audioUrl}
                     audioStems={audioStems}
+                    grade={grade}
+                    trackMix={trackMix}
                     captionStyle={{
                       captionPosition: style.captionPosition,
                       captionColor: style.captionColor,
@@ -2359,6 +2394,9 @@ export default function EditorShell({
                     onReorderSilent={(id, dir) => reorderClip(id, dir, true)}
                     onDropClip={addClip}
                     audioUrl={audioUrl || voiceUrl}
+                    stemUrls={stemUrls}
+                    trackMix={trackMix}
+                    onTrackMix={handleTrackMix}
                     isAudioMuted={isAudioMuted}
                     onToggleMuteAudio={() => setIsAudioMuted((v) => !v)}
                     isCaptionHidden={isCaptionHidden}
