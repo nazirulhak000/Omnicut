@@ -15,6 +15,7 @@ const EditorShell = lazy(() => import('./components/editor/EditorShell'));
 const ExportGallery = lazy(() => import('./components/ExportGallery'));
 const MediaAssetsHub = lazy(() => import('./components/MediaAssetsHub'));
 const SystemSettings = lazy(() => import('./components/SystemSettings'));
+const MobileQuickPostPage = lazy(() => import('./components/MobileQuickPostPage'));
 
 import { angleToForm } from './lib/angleToForm';
 import { applyUiScale, initUiScale } from './lib/uiScale';
@@ -22,6 +23,15 @@ import { TaskProvider } from './context/TaskContext';
 import { ActivityDrawer, GlobalTaskNotification, ActivityIndicatorButton, GlobalLiveRenderWidget } from './components/ActivityCenter';
 
 export default function App() {
+  // Check if opened via Mobile Quick Post QR code
+  const [isQuickPostMode] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      return p.get('quick_post') === '1' || p.get('mobile_post') === '1';
+    } catch {
+      return false;
+    }
+  });
 
   // 1. Active Tab Persistence with Fallback Migration
   const [activeTab, setActiveTab] = useState(() => {
@@ -228,6 +238,16 @@ export default function App() {
     setActiveTab(tab);
   };
 
+  if (isQuickPostMode) {
+    return (
+      <div className={`h-screen w-screen overflow-y-auto bg-[#070A12] ${uiFont}`}>
+        <Suspense fallback={<LoadingSpinner message="กำลังเปิดตัวช่วยโพสต์ Quick Post..." />}>
+          <MobileQuickPostPage onExit={() => { window.location.href = window.location.pathname; }} />
+        </Suspense>
+      </div>
+    );
+  }
+
   return (
     <TaskProvider
       onNavigateTab={handleNavigateTab}
@@ -302,6 +322,7 @@ export default function App() {
                 {activeTab === 'tracker' && (
                   <Suspense fallback={<LoadingSpinner message="กำลังโหลด Content Tracker..." />}>
                     <ContentTrackerHub
+                      status={status}
                       onApplyToStudio={handleApplyScriptFromLab}
                       onRefresh={refreshData}
                       onGoToEditor={() => setActiveTab('editor')}

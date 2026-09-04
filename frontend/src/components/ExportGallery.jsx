@@ -688,9 +688,9 @@ function ExportActiveWorkbench({
                 </button>
               </div>
             </div>
-            <div className="p-1.5 bg-white rounded-xl shadow-lg flex-shrink-0">
+            <div className="p-1.5 bg-white rounded-xl shadow-lg flex-shrink-0" title="สแกนเพื่อเปิดตัวช่วยโพสต์ Quick Post บนมือถือ">
               <QRCodeSVG
-                value={`${mobileBaseUrl}/api/media/${encodeURIComponent(video.rel_path || video.path)}`}
+                value={`${mobileBaseUrl}/?quick_post=1&video=${encodeURIComponent(video.rel_path || video.path)}&product=${encodeURIComponent(video.product_name || video.name)}&caption=${encodeURIComponent(video.caption || '')}`}
                 size={68}
                 level="M"
               />
@@ -1647,12 +1647,12 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                     <Smartphone className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-white font-kanit">สแกน QR โหลดคลิปเข้ามือถือ</h4>
-                    <p className="text-xs text-slate-400 mt-0.5">เปิดกล้องมือถือสแกนเพื่อดาวน์โหลดไฟล์ MP4 เข้าเครื่อง</p>
+                    <h4 className="text-sm font-bold text-white font-kanit">สแกน QR เปิดตัวช่วยโพสต์บนมือถือ</h4>
+                    <p className="text-xs text-slate-400 mt-0.5">เปิดกล้องมือถือสแกนเพื่อโหลดคลิป, ก็อปแคปชัน, ก็อปชื่อปักตะกร้า และเปิด TikTok ทันที</p>
                   </div>
                   <div className="p-3 bg-white rounded-2xl inline-block shadow-xl">
                     <QRCodeSVG
-                      value={`${mobileBaseUrl}/api/media/${encodeURIComponent(selectedDetailVideo.rel_path || selectedDetailVideo.path)}`}
+                      value={`${mobileBaseUrl}/?quick_post=1&video=${encodeURIComponent(selectedDetailVideo.rel_path || selectedDetailVideo.path)}&product=${encodeURIComponent(selectedDetailVideo.product_name || selectedDetailVideo.name)}&caption=${encodeURIComponent(selectedDetailVideo.caption || '')}`}
                       size={150}
                       level="M"
                     />

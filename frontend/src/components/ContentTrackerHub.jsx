@@ -613,7 +613,8 @@ const TableRow = memo(function TableRow({
 // ═══════════════════════════════════════════════════════════════════════
 // 🌟 MAIN CONTENT TRACKER HUB COMPONENT (True Deep-Dive Tracking)
 // ═══════════════════════════════════════════════════════════════════════
-export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGallery, onGoToEditor, onGoToFlow }) {
+export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, onGoToGallery, onGoToEditor, onGoToFlow }) {
+  const mobileBaseUrl = status?.mobile_url || (typeof window !== 'undefined' ? `http://${window.location.hostname}:5173` : '');
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1270,55 +1271,77 @@ export default function ContentTrackerHub({ onApplyToStudio, onRefresh, onGoToGa
         )}
       </Modal>
 
-      {/* QR Code Modal for Mobile Transfer */}
+      {/* QR Code Modal for Mobile Quick Post Transfer */}
       <Modal
         isOpen={!!qrModalItem}
         onClose={() => setQrModalItem(null)}
-        title="สแกน QR เพื่อส่งคลิปเข้ามือถือ"
+        title="สแกนเพื่อเปิดตัวช่วยโพสต์บนมือถือ"
         subtitle={qrModalItem?.hook_title}
         maxWidth="max-w-sm"
       >
-        {qrModalItem && (
-          <div className="text-center space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-[#25F4EE]/10 border border-[#25F4EE]/30 text-[#25F4EE] flex items-center justify-center mx-auto shadow-md">
-              <Smartphone className="w-6 h-6" />
-            </div>
+        {qrModalItem && (() => {
+          const quickPostUrl = `${mobileBaseUrl}/?quick_post=1&pid=${encodeURIComponent(qrModalItem.parentProduct?.id || '')}&aid=${encodeURIComponent(qrModalItem.angle_id || '')}&video=${encodeURIComponent(qrModalItem.video_url || '')}&product=${encodeURIComponent(qrModalItem.parentProduct?.name || '')}&hook=${encodeURIComponent(qrModalItem.hook_title || '')}&caption=${encodeURIComponent(qrModalItem.tiktok_caption || '')}&hashtags=${encodeURIComponent(qrModalItem.tiktok_hashtags || '')}`;
 
-            <div className="bg-white p-3 rounded-2xl inline-block shadow-xl">
-              <QRCodeSVG value={mobileUrl} size={180} />
-            </div>
-
-            {/* Caption Preview & Copy inside Modal */}
-            <div className="p-3 rounded-xl bg-black/40 border border-white/[0.08] text-left space-y-2">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-200">
-                <span>แคปชัน & แฮชแท็กพร้อมโพสต์:</span>
-                <button
-                  onClick={() => handleCopyCaption(`${qrModalItem.tiktok_caption || ''}\n\n${qrModalItem.tiktok_hashtags || ''}`, 'modal')}
-                  className="text-xs font-bold text-[#25F4EE] hover:underline flex items-center gap-1 cursor-pointer"
-                >
-                  {copiedAngleId === 'modal' ? <><Check className="w-3.5 h-3.5 text-emerald-400" /> คัดลอกแล้ว</> : <><Copy className="w-3.5 h-3.5" /> คัดลอก</>}
-                </button>
+          return (
+            <div className="text-center space-y-3.5">
+              <div className="p-3 rounded-2xl bg-gradient-to-tr from-[#FE2C55]/15 to-[#25F4EE]/15 border border-[#25F4EE]/30 text-center space-y-1">
+                <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-[#25F4EE]">
+                  <Sparkles className="w-4 h-4" />
+                  <span>Quick Post Companion 4 สเต็ป</span>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  สแกนด้วย iPhone / Android เพื่อโหลดคลิป, ก็อปแคปชัน, ก็อปชื่อปักตะกร้า และเปิด TikTok ทันที
+                </p>
               </div>
-              <p className="text-xs text-slate-300 line-clamp-3 font-mono leading-relaxed select-all">
-                {qrModalItem.tiktok_caption} {qrModalItem.tiktok_hashtags}
-              </p>
-            </div>
 
-            <Button
-              onClick={() => {
-                handleAngleStatusChange(qrModalItem.parentProduct.id, qrModalItem.angle_id, 'mobile_ready');
-                setQrModalItem(null);
-                showToast('อัปเดตสถานะเป็น "ส่งเข้ามือถือแล้ว"');
-              }}
-              variant="tiktok"
-              size="md"
-              icon={Check}
-              className="w-full"
-            >
-              มาร์กว่า "ส่งเข้ามือถือแล้ว"
-            </Button>
-          </div>
-        )}
+              <div className="bg-white p-3 rounded-2xl inline-block shadow-xl">
+                <QRCodeSVG value={quickPostUrl} size={180} level="M" />
+              </div>
+
+              {/* Caption Preview & Copy inside Modal */}
+              <div className="p-3 rounded-xl bg-black/40 border border-white/[0.08] text-left space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-200">
+                  <span>แคปชัน & แฮชแท็กพร้อมโพสต์:</span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyCaption(`${qrModalItem.tiktok_caption || ''}\n\n${qrModalItem.tiktok_hashtags || ''}`, 'modal')}
+                    className="text-xs font-bold text-[#25F4EE] hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    {copiedAngleId === 'modal' ? <><Check className="w-3.5 h-3.5 text-emerald-400" /> คัดลอกแล้ว</> : <><Copy className="w-3.5 h-3.5" /> คัดลอก</>}
+                  </button>
+                </div>
+                <p className="text-xs text-slate-300 line-clamp-2 font-mono leading-relaxed select-all">
+                  {qrModalItem.tiktok_caption} {qrModalItem.tiktok_hashtags}
+                </p>
+              </div>
+
+              <div className="space-y-2 pt-1">
+                <Button
+                  onClick={() => {
+                    handleAngleStatusChange(qrModalItem.parentProduct.id, qrModalItem.angle_id, 'mobile_ready');
+                    setQrModalItem(null);
+                    showToast('อัปเดตสถานะเป็น "ส่งเข้ามือถือแล้ว"');
+                  }}
+                  variant="tiktok"
+                  size="md"
+                  icon={Check}
+                  className="w-full"
+                >
+                  มาร์กว่า "ส่งเข้ามือถือแล้ว"
+                </Button>
+
+                <a
+                  href={quickPostUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block text-[11px] text-slate-400 hover:text-[#25F4EE] hover:underline pt-1"
+                >
+                  ทดสอบเปิดหน้านี้บนเบราว์เซอร์นี้
+                </a>
+              </div>
+            </div>
+          );
+        })()}
       </Modal>
 
       {/* ── 1. Top Header Banner ── */}
