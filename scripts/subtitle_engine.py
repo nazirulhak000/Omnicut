@@ -308,6 +308,41 @@ def _measure_text_width_px(text: str, resolved_font: str, font_size_px: int) -> 
         return None
 
 
+_ASS_GLYPH_SCALE_CACHE: Dict[str, float] = {}
+
+
+def ass_glyph_scale(resolved_font: str) -> float:
+    """
+    How much smaller libass draws a glyph than its Fontsize number suggests.
+
+    libass sizes a face so the font's own line box (ascender + descender)
+    equals Fontsize, while PIL and CSS size the em square to that number.
+    Thai faces carry vertical metrics far taller than their em -- IBM Plex
+    Sans Thai is 1650 units of line box against a 1000-unit em -- so the same
+    number comes out about 40% smaller in libass than in a browser canvas.
+    Anything that measures text in order to place something next to it has to
+    measure at the size libass will really draw.
+    """
+    if resolved_font in _ASS_GLYPH_SCALE_CACHE:
+        return _ASS_GLYPH_SCALE_CACHE[resolved_font]
+    scale = 1.0
+    try:
+        from fontTools.ttLib import TTFont
+
+        path = {f["family"]: f["path"] for f in AssetRegistry.fonts()}.get(resolved_font)
+        if path:
+            face = TTFont(path, lazy=True)
+            upem = face["head"].unitsPerEm
+            os2 = face["OS/2"]
+            line_box = os2.usWinAscent + os2.usWinDescent
+            if upem and line_box:
+                scale = upem / line_box
+    except Exception:
+        scale = 1.0
+    _ASS_GLYPH_SCALE_CACHE[resolved_font] = scale
+    return scale
+
+
 def _hook_line_width_px(line: str, resolved_font: str, line_fs: int) -> float:
     """
     Half-width of a hook line in PlayRes pixels, real font metrics where
@@ -315,6 +350,9 @@ def _hook_line_width_px(line: str, resolved_font: str, line_fs: int) -> float:
     the wrap step is built on) where the font file can't be resolved -- so a
     width-dependent effect degrades in size rather than disappearing.
     """
+    # line_fs is the em size the text is drawn at (the \fscx boost applied
+    # when writing the tags cancels libass's own line-box scaling), so PIL's
+    # em-based measurement lines up 1:1 with what gets rendered.
     measured = _measure_text_width_px(line.replace("\\N", " "), resolved_font, line_fs)
     if measured is None:
         measured = int(len(line) * line_fs * 0.55)
@@ -412,7 +450,10 @@ def _hook_accent_events(
     # version, plus a blurred copy behind it for glow: at a 0.06 gap and a
     # 0.06 thickness it read as a plain text-decoration underline squeezed
     # between two lines rather than a deliberate poster element.
-    gap = round(model_line_fs * 0.26)
+    # Boosted glyphs overflow the line box libass reserves, so the ink
+    # runs lower than the nominal box bottom the cursor tracks. Measured
+    # against a real render: at 0.26 the bar touched the descenders.
+    gap = round(model_line_fs * 0.50)
     underline_y = model_y + model_line_fs + gap
     thickness = max(4, round(model_line_fs * 0.10))
     bar_w = half_w * 2
@@ -1008,6 +1049,61 @@ class SubtitleEngine:
 
         return result
 
+    # Words too functional to be worth emphasising if we have to pick one.
+    _EN_STOPWORDS = {
+        "a", "an", "the", "is", "are", "was", "were", "be", "been", "am", "of", "to", "in",
+        "on", "at", "for", "with", "and", "or", "but", "if", "it", "its", "this", "that",
+        "these", "those", "as", "by", "from", "up", "out", "so", "than", "then", "too",
+        "very", "can", "will", "just", "not", "no", "do", "does", "did", "you", "your",
+        "i", "my", "we", "our", "they", "their", "he", "she", "his", "her", "how", "what",
+        "who", "why", "when", "where", "all", "any", "more", "most", "some", "such", "own",
+        "about", "into", "over", "also", "have", "has", "had", "would", "could", "should",
+    }
+    _TH_PARTICLES = {
+        "ครับ", "ค่ะ", "คะ", "นะ", "น่ะ", "จ้า", "เลย", "ก็", "ที่", "ซึ่ง", "และ", "หรือ",
+        "แต่", "กับ", "ของ", "ใน", "จะ", "ได้", "ให้", "มา", "ไป", "อยู่", "คือ", "ว่า",
+        "เป็น", "มี", "ไม่", "แล้ว", "ด้วย", "อีก", "มัน", "เรา", "เขา", "ทั้ง", "ทุก",
+    }
+
+    @classmethod
+    def _salient_word_en(cls, text: str) -> Optional[str]:
+        """Longest non-stopword token, as the thing worth colouring."""
+        best = None
+        for raw in re.findall(r"[A-Za-z][A-Za-z'-]*", text):
+            if raw.lower() in cls._EN_STOPWORDS or len(raw) < 3:
+                continue
+            if best is None or len(raw) > len(best):
+                best = raw
+        return best
+
+    @classmethod
+    def _salient_word_th(cls, text: str) -> Optional[str]:
+        """Longest non-particle Thai token; falls back to the longest run of Thai letters."""
+        candidates: List[str] = []
+        try:
+            from pythainlp.tokenize import word_tokenize
+
+            candidates = [w.strip() for w in word_tokenize(text, engine="newmm") if w.strip()]
+        except Exception:
+            candidates = re.findall(r"[฀-๿]+", text)
+        best = None
+        for w in candidates:
+            if w in cls._TH_PARTICLES or len(w) < 3:
+                continue
+            if not re.search(r"[฀-๿]", w):
+                continue  # skip emoji/punctuation/latin
+            if best is None or len(w) > len(best):
+                best = w
+        return best
+
+    @classmethod
+    def _force_highlight(cls, text: str, word: Optional[str], colour: str, primary: str) -> str:
+        """Colour `word` inside `text` using the same wrapper the matchers use."""
+        if not word or word not in text:
+            return text
+        clean_primary = primary if primary.endswith("&") else f"{primary}&"
+        return text.replace(word, f"{{\\c{colour}}}{word}{{\\c{clean_primary}}}", 1)
+
     @classmethod
     def apply_bilingual_kinetic_highlighting(
         cls,
@@ -1038,6 +1134,22 @@ class SubtitleEngine:
 
         if not th_color and en_color:
             th_res = cls.apply_kinetic_highlighting(th_text, primary_color_ass=primary_th, color_hint=en_color, custom_keywords=custom_keywords)
+            th_color = en_color if "{\\c" in th_res else None
+
+        # Matching the colour is not the same as both lines actually having
+        # one. Re-running the other side with a colour hint only changes which
+        # dictionary is tried first -- if that line contains no listed keyword
+        # it still comes out plain, which is what left a highlighted Thai line
+        # sitting above an all-white English one (and the reverse). Measured on
+        # a real 28-cue project: 10 of them were lopsided this way.
+        #
+        # So when exactly one side found something, colour the other side's
+        # most salient word in the same colour rather than leaving the pair
+        # visibly inconsistent.
+        if th_color and not en_color:
+            en_res = cls._force_highlight(en_res, cls._salient_word_en(en_text), th_color, primary_en)
+        elif en_color and not th_color:
+            th_res = cls._force_highlight(th_res, cls._salient_word_th(th_text), en_color, primary_th)
 
         return th_res, en_res
 
@@ -1075,6 +1187,15 @@ class SubtitleEngine:
         # family's bold weight itself. See _load_font_family_map().
         font_map = _load_font_family_map()
         resolved_font = font_map.get(font_name, DEFAULT_FONT_FAMILY)
+        # libass sizes a face so its line box (ascender + descender) equals the
+        # style's Fontsize, while the canvas preview -- and every font size in
+        # this file -- means the em square. Thai faces run line boxes far
+        # taller than their em, so the same number rendered ~40% smaller than
+        # intended. Boosting \fscx/\fscy (never Fontsize) cancels that out:
+        # glyphs land at the intended em while line advance, which libass
+        # takes from Fontsize alone, stays untouched -- and \p drawings, whose
+        # coordinates are already PlayRes pixels, must NOT be boosted.
+        TEXT_SCALE_BOOST = 1.0 / ass_glyph_scale(resolved_font)
         is_pill_mode = font_name in ["capsule_pill", "Minimal Dark Capsule Pill"]
 
         # Caption placement and colour. ASS wants &HAABBGGRR, i.e. the reverse
@@ -1230,8 +1351,15 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 model_line_fs = None
                 model_y = None
                 for idx, (line, scale_pct, colour, tier_idx) in enumerate(tier_lines):
-                    target = round(scale_pct * shrink)
-                    line_fs = max(20, int(round(hook_fs * target / 100)))
+                    # Two percentages, deliberately: `layout_pct` is the design
+                    # intent in em (what the canvas preview draws and what every
+                    # width/position here is measured against), while `target`
+                    # is what actually goes into scx -- boosted by
+                    # TEXT_SCALE_BOOST so libass's own line-box scaling cancels
+                    # out and the glyphs land at the em size that was intended.
+                    layout_pct = round(scale_pct * shrink)
+                    target = round(layout_pct * TEXT_SCALE_BOOST)
+                    line_fs = max(20, int(round(hook_fs * layout_pct / 100)))
                     t0_ms = tier_idx * STAGGER_STEP_MS if motion["stagger"] else 0
                     if is_typewriter:
                         # its \clip needs this line's resolved width and y,
@@ -1259,7 +1387,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                         idx + 1 >= len(tier_lines) or tier_lines[idx + 1][3] != 1
                     )
                     if is_last_model_line and motion["accent"] != "none":
-                        reserve = 0.55 if motion["accent"] != "badge" else 0.30
+                        reserve = 0.80 if motion["accent"] != "badge" else 0.45
                         cursor_y += round(line_fs * reserve)
 
                 # One loop chain shared by every line: it depends only on
@@ -1326,23 +1454,32 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                         exit_start_ms, exit_end_ms, motion["stagger"],
                     ))
 
-        # 1-shot Batch Translation for all micro-cues
+        # Batch-translate whatever is still missing an English line.
+        #
+        # This used to reuse the stored translations whenever ANY cue had one
+        # (`any(...)`), so a batch that came back with gaps -- the free
+        # translation endpoint drops lines under load -- kept those gaps
+        # forever: every later render and re-roll saw "some translations
+        # exist" and never retried the empty ones. Measured across the
+        # project folders: one clip was missing English on 16 of 25 cues.
         en_translations = []
         if bilingual:
-            # Check if cues already have translations
-            has_existing = any(bool(c.get("translation")) for c in micro_cues)
-            if has_existing:
-                en_translations = [c.get("translation", "") for c in micro_cues]
-            else:
+            en_translations = [(c.get("translation") or "") for c in micro_cues]
+            missing_idx = [i for i, t in enumerate(en_translations) if not t.strip()]
+            if missing_idx:
                 try:
-                    from scripts.translator import SubtitleTranslator
-                    en_translations = SubtitleTranslator.translate_batch([c["text"] for c in micro_cues])
-                except Exception:
                     try:
-                        from translator import SubtitleTranslator
-                        en_translations = SubtitleTranslator.translate_batch([c["text"] for c in micro_cues])
+                        from scripts.translator import SubtitleTranslator
                     except Exception:
-                        en_translations = [""] * len(micro_cues)
+                        from translator import SubtitleTranslator
+                    fresh = SubtitleTranslator.translate_batch(
+                        [micro_cues[i]["text"] for i in missing_idx]
+                    )
+                    for i, translated in zip(missing_idx, fresh):
+                        if translated:
+                            en_translations[i] = translated
+                except Exception as err:
+                    print(f"   ⚠️  แปลอังกฤษไม่สำเร็จ ({err}) — ซับจะเป็นไทยอย่างเดียว")
         else:
             en_translations = [""] * len(micro_cues)
 
@@ -1375,6 +1512,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             cue_scale = float(cue.get("scale", 1.0) or 1.0)
             settle_pct = max(50, min(200, int(round(100 * cue_scale))))
             snap_pct = int(round(settle_pct * 1.25))
+            # em intent -> what \fscx has to say for libass to draw it (see
+            # TEXT_SCALE_BOOST). The preview keeps using the unboosted numbers.
+            settle_pct = int(round(settle_pct * TEXT_SCALE_BOOST))
+            snap_pct = int(round(snap_pct * TEXT_SCALE_BOOST))
             anim = f"{{\\fscx{snap_pct}\\fscy{snap_pct}\\t(0,70,\\fscx{settle_pct}\\fscy{settle_pct})}}"
             
             # Check for English Translation
@@ -1388,6 +1529,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 else:
                     cue["translation"] = ""
 
+            # The English line sits at 68% of the Thai one; that 68 is an em
+            # intent like every other size here, so it takes the same boost.
+            en_pct = int(round(68 * TEXT_SCALE_BOOST))
             # Apply Synchronized Bilingual Kinetic Highlighting (guaranteeing exact color parity)
             if en_wrapped:
                 highlighted_text, en_highlighted = cls.apply_bilingual_kinetic_highlighting(
@@ -1397,7 +1541,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     primary_en="&H00EAEAEA&",
                     custom_keywords=proj_keywords
                 )
-                en_sub = f"\\N{{\\fscx68\\fscy68\\c&H00EAEAEA&}}{en_highlighted}"
+                en_sub = f"\\N{{\\fscx{en_pct}\\fscy{en_pct}\\c&H00EAEAEA&}}{en_highlighted}"
             else:
                 highlighted_text = cls.apply_kinetic_highlighting(text, primary_color_ass=primary, custom_keywords=proj_keywords)
                 en_sub = ""
@@ -1406,7 +1550,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
             # Layer 0: Natural Soft Feathered Shadow (Gaussian Blur matching Canvas preview)
             if not is_pill_mode:
-                en_sub_shadow = f"\\N{{\\fscx68\\fscy68}}{en_wrapped}" if en_wrapped else ""
+                en_sub_shadow = f"\\N{{\\fscx{en_pct}\\fscy{en_pct}}}{en_wrapped}" if en_wrapped else ""
                 shadow_tag = f"{{\\blur{shadow_blur}\\alpha&H38&}}"
                 events.append(f"Dialogue: 0,{start_t},{end_t},TikTokSoftShadow,,0,0,0,,{anim}{shadow_tag}{text}{en_sub_shadow}")
 
@@ -1427,7 +1571,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 continue
             spec_start = cls._format_ass_time(cue["start"])
             spec_end = cls._format_ass_time(cue["end"])
-            spec_anim = "{\\fscx110\\fscy110\\t(0,100,\\fscx100\\fscy100)}"
+            spec_from = int(round(110 * TEXT_SCALE_BOOST))
+            spec_to = int(round(100 * TEXT_SCALE_BOOST))
+            spec_anim = f"{{\\fscx{spec_from}\\fscy{spec_from}\\t(0,100,\\fscx{spec_to}\\fscy{spec_to})}}"
             # Layer 2, above the hook banner (1) and captions (0), in case a
             # long spec bar's footprint ever crosses either at the same time.
             events.append(f"Dialogue: 2,{spec_start},{spec_end},SpecBar,,0,0,0,,{spec_anim}📊 {on_screen}")

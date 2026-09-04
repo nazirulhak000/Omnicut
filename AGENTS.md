@@ -29,7 +29,7 @@ AI ทุกตัว**ต้องเคารพโครงสร้างโ
 - `scripts/`: Backend Engine & Pipeline หลัก (FastAPI, TTS, Subtitles, Scraper, Editor)
 - `tools/`: สคริปต์ Utility เสริม (ดาวน์โหลดฟอนต์, เจนป้าย 3D, จัดการ Asset)
 - `frontend/`: Web Application UI (React + Vite)
-- `.agents/rules/`: กฎเฉพาะทาง เช่น การเจนสติกเกอร์ ([sticker_generation.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/sticker_generation.md)) และมาตรฐาน UI คลีนไร้สัญลักษณ์ซ้ำซ้อน ([ui_clean_standard.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/ui_clean_standard.md))
+- `.agents/rules/`: กฎเฉพาะทาง เช่น การเจนสติกเกอร์ ([sticker_generation.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/sticker_generation.md)), มาตรฐาน UI คลีนไร้สัญลักษณ์ซ้ำซ้อน ([ui_clean_standard.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/ui_clean_standard.md)) และ **กฎ Preview = Render** ([preview_render_parity.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/preview_render_parity.md))
 
 ---
 
@@ -78,6 +78,12 @@ AI ทุกตัว**ต้องเคารพโครงสร้างโ
    - ต้องปฏิบัติตาม [.agents/rules/ui_clean_standard.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/ui_clean_standard.md)
    - ข้อความปุ่มต้องกระชับ ตรงไปตรงมา ขึ้นต้นด้วยคำกริยาแอ็กชันทันทีโดยไม่มีสัญลักษณ์นำหน้า
    - สถานะคลิปต้องสะท้อนความเป็นจริงเท่านั้น: มีโฟลเดอร์โปรเจกต์ในไทม์ไลน์แต่ยังไม่เรนเดอร์ = `กำลังตัดต่อ` (`in_production`), มีไฟล์ MP4 ที่ Export เสร็จสิ้นจริง = `ตัดต่อเสร็จ` (`rendered`) ห้ามมีปุ่มเลื่อนข้ามสถานะเองโดยไม่ผ่านการทำงานจริง
+9. ✔️ **กฎ Preview = Render (บังคับทุกครั้งที่เพิ่ม/แก้ฟีเจอร์ในหน้า Editor ที่มีผลต่อภาพในวิดีโอ):**
+   - **ต้องอ่านและปฏิบัติตาม [.agents/rules/preview_render_parity.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/preview_render_parity.md) ทุกรอบ** ก่อนแตะ `frontend/src/components/SequencePlayer.jsx` หรือ `scripts/subtitle_engine.py`
+   - ระบบมี 2 engine วาดภาพเดียวกันคนละทาง (Canvas 2D ฝั่งพรีวิว / ASS+libass ฝั่งเรนเดอร์) — **ห้ามแก้ข้างเดียว** ต้องแก้คู่กันในงานเดียว
+   - ค่าคงที่ทุกตัวที่กำหนดภาพ (ratio, ระยะเวลา ms, factor, องศา, ความทึบ) ต้องเทียบกันได้เป็นตัวเลข และมี assertion ใน `tests/test_preview_render_parity.py`
+   - กับดักที่เคยหลุดจริงและต้องระวังทุกครั้ง: ASS `\alpha` = ความ**โปร่ง** (ต้องแปลง `1 - 0xNN/255` ไม่ใช่ก็อปเลข), องศาหมุนต้องใช้เลขติดลบ (`-3` ไม่ใช่ `357` เพราะ `\t` จะกวาดอ้อม 180°), `strokeText` วางเส้นกึ่งกลางจึงต้องคูณสองจาก ASS Outline, libass เดินบรรทัดละ 1.0× font size พอดี
+   - ห้ามสรุปว่า "ตรงแล้ว" จากการอ่านโค้ด — ต้อง **เรนเดอร์จริงด้วย ffmpeg แล้วดึงเฟรมมาดู/วัดพิกเซล** (motion ต้องดูหลายเฟรม: เข้า/ค้าง/ออก)
 
 ---
 

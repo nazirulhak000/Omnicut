@@ -107,7 +107,13 @@ export function getDrawPlan(segments, t) {
   if (seg.isFade && idx > 0 && t < seg.segStart + seg.overlap) {
     const prevSeg = segments[idx - 1];
     const alpha = Math.max(0, Math.min(1, (t - seg.segStart) / seg.overlap));
-    plan[0] = { seg: prevSeg, localTime: localTimeAt(prevSeg, t), alpha: 1 - alpha };
+    // Alphas are PAINT-ORDER alphas, not per-clip contributions: entries are
+    // drawn in order, each over the previous, so the base layer is opaque and
+    // only the incoming one blends. Giving the outgoing clip `1 - alpha` here
+    // instead left the composite at a*B + (1-a)^2*A over a cleared canvas --
+    // total coverage sagging to 0.75 mid-transition, i.e. a visible dip to
+    // the background that ffmpeg's xfade never shows.
+    plan[0] = { seg: prevSeg, localTime: localTimeAt(prevSeg, t), alpha: 1 };
     plan.push({ seg, localTime: localTimeAt(seg, t), alpha });
   }
   return plan;

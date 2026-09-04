@@ -22,7 +22,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks, Request
-from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
+from fastapi.responses import JSONResponse, FileResponse, Response, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -128,7 +128,12 @@ class RenderRequest(BaseModel):
     bgm_ducking: bool = False
     lut_name: Optional[str] = None  # LUT filename from AssetRegistry.luts(); None auto-picks by IT angle, or no grade
     clip_list: Optional[List[Dict[str, Any]]] = None  # Manual Editor: [{source_path, trim_start, trim_end}]; None keeps single-source auto-cut
-    transitions: Optional[List[str]] = None  # Manual Editor: "cut" | "fade" per boundary between clip_list entries
+    # Per boundary between clip_list entries. Two accepted shapes: the legacy
+    # bare string ("cut" | "fade" | ...) and the Editor's {type, duration}
+    # dict, which is what EditorShell actually sends now. Typed List[str]
+    # before, which rejected the dict form outright -- /api/reroll has always
+    # declared List[Any], so the two endpoints disagreed on the same field.
+    transitions: Optional[List[Any]] = None
     export_mp4: bool = True
     caption_position: Optional[str] = "bottom"
     caption_color: Optional[str] = None
@@ -253,12 +258,36 @@ def stream_media_file(file_path: Path, request: Request):
 
     STREAM_CHUNK_SIZE = 256 * 1024  # 256KB high-throughput buffer
 
+    # A StreamingResponse holds its file handle open for as long as the client
+    # keeps the connection, and an <audio> element parked on a project keeps
+    # one open for as long as the Editor tab is. On Windows that handle blocks
+    # deleting the project -- the server ends up refusing its own delete with
+    # WinError 32 on mixed_audio.wav. Project audio is only a few MB, so it is
+    # read into memory and the handle is closed before the response is even
+    # returned. Big exports stay streamed; nothing deletes those from here.
+    INLINE_MAX_BYTES = 32 * 1024 * 1024
+
     if range_header:
         byte_range = range_header.replace("bytes=", "").split("-")
         start = int(byte_range[0])
         end = int(byte_range[1]) if byte_range[1] else file_size - 1
         end = min(end, file_size - 1)
         chunk_size = (end - start) + 1
+
+        if file_size <= INLINE_MAX_BYTES:
+            with open(file_path, "rb") as f:
+                f.seek(start)
+                payload = f.read(chunk_size)
+            return Response(
+                content=payload,
+                status_code=206,
+                headers={
+                    "Content-Range": f"bytes {start}-{end}/{file_size}",
+                    "Accept-Ranges": "bytes",
+                    "Content-Length": str(len(payload)),
+                    "Content-Type": content_type,
+                },
+            )
 
         def iterfile():
             with open(file_path, "rb") as f:
@@ -280,6 +309,16 @@ def stream_media_file(file_path: Path, request: Request):
         }
         return StreamingResponse(iterfile(), status_code=206, headers=headers)
     else:
+        if file_size <= INLINE_MAX_BYTES:
+            return Response(
+                content=file_path.read_bytes(),
+                headers={
+                    "Accept-Ranges": "bytes",
+                    "Content-Length": str(file_size),
+                    "Content-Type": content_type,
+                },
+            )
+
         def iterfile():
             with open(file_path, "rb") as f:
                 while chunk := f.read(STREAM_CHUNK_SIZE):

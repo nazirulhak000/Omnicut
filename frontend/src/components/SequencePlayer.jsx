@@ -387,6 +387,11 @@ function parseKineticSegments(text, defaultColor = '#FFFFFF', colorHint = null, 
 // keeps the preview honest about what the render will actually look like.
 const EMOJI_RUN_RE = /(\p{Extended_Pictographic}(?:️|‍\p{Extended_Pictographic})*\s*)/gu;
 
+// Caption kinetic pop, mirroring `anim` in subtitle_engine.py: snap in at
+// 125% and settle to the cue's own scale over 70ms, linear, no alpha ramp.
+const CAPTION_POP_MS = 70;
+const CAPTION_POP_FROM = 1.25;
+
 function drawTextWithMonoEmoji(ctx, text, x, y) {
   if (!EMOJI_RUN_RE.test(text)) {
     ctx.fillText(text, x, y);
@@ -506,19 +511,32 @@ function drawCaption(ctx, cues, t, style = {}) {
     }
   }
 
+  // Kinetic pop, mirroring subtitle_engine.py's per-cue `anim`:
+  // \fscx125\fscy125 settling to the cue's own scale over 70ms from cue start.
+  // Only the Thai run pops -- the English run re-declares \fscx68 absolutely,
+  // so the transform never reaches it. Layout keeps using the settled size
+  // because libass advances lines by the STYLE size, not the animated one.
+  const popElapsedMs = (t - cue.start) * 1000;
+  const popScale = popElapsedMs >= CAPTION_POP_MS
+    ? 1
+    : CAPTION_POP_FROM + (1 - CAPTION_POP_FROM) * Math.max(0, popElapsedMs) / CAPTION_POP_MS;
+  const drawFs = Math.max(1, Math.round(fontSize * popScale));
+
   // Draw Thai lines
   thaiLines.forEach((line, idx) => {
     const lineY = thaiStartY + (idx * thaiLineH);
     const segments = parsedThaiLines[idx] || [{ text: line, color: primaryColor }];
 
-    ctx.font = `${fontWeight} ${fontSize}px ${fontFam}`;
+    ctx.font = `${fontWeight} ${drawFs}px ${fontFam}`;
     const segmentWidths = segments.map(seg => ctx.measureText(seg.text).width);
     const totalLineW = segmentWidths.reduce((sum, w) => sum + w, 0);
 
     // Pass 1: Outline / Stroke with crisp shadow
     ctx.textAlign = 'left';
     ctx.strokeStyle = '#000000';
-    ctx.lineWidth = captionOutlineWidth(fontSize);
+    // ScaledBorderAndShadow: yes in the ASS header, so the border scales with
+    // the pop too.
+    ctx.lineWidth = captionOutlineWidth(drawFs);
     ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
     ctx.shadowBlur = 3;
     ctx.shadowOffsetX = 2;
@@ -877,7 +895,7 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
       layoutY += settledFs * lineGap;
       const isLastModelLine = tierIdx === 1 && (idx + 1 >= wrapped.length || wrapped[idx + 1].tierIdx !== 1);
       if (isLastModelLine && motion.accent !== 'none') {
-        layoutY += settledFs * (motion.accent === 'badge' ? 0.3 : 0.55);
+        layoutY += settledFs * (motion.accent === 'badge' ? 0.45 : 0.80);
       }
     });
   }
@@ -901,7 +919,7 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
       ctx.fillRect(x - bw / 2, modelTopY - padY, bw, modelFontSize + padY * 2);
     } else {
       const thickness = Math.max(4, Math.round(modelFontSize * 0.1));
-      const gap = Math.round(modelFontSize * 0.26);
+      const gap = Math.round(modelFontSize * 0.50);
       const w = modelLineWidth * revealFrac;
       const barY = modelTopY + modelFontSize + gap;
       // The renderer lays a blurred copy under the crisp bar (\blur7 at
@@ -971,7 +989,7 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
     // subtitle_engine.py's y-cursor walk.
     const isLastModelLine = tierIdx === 1 && (idx + 1 >= wrapped.length || wrapped[idx + 1].tierIdx !== 1);
     if (isLastModelLine && motion.accent !== 'none') {
-      y += settledFs * (motion.accent === 'badge' ? 0.3 : 0.55);
+      y += settledFs * (motion.accent === 'badge' ? 0.45 : 0.80);
     }
   });
 

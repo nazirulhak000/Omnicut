@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Copy, FlipHorizontal2, Gauge, Magnet, Redo2, Scissors, Trash2, Undo2, ZoomIn, ZoomOut, Plus, Type,
+  Copy, FlipHorizontal2, Gauge, Magnet, Maximize2, Redo2, Scissors, Trash2, Undo2, ZoomIn, ZoomOut, Plus, Type,
 } from 'lucide-react';
 
 const SPEEDS = [0.5, 1, 1.5, 2];
@@ -46,6 +46,7 @@ export default function Toolbar({
   zoomIndex,
   zoomCount,
   onZoom,
+  onZoomToFit,
   snapEnabled,
   onToggleSnap,
 }) {
@@ -95,6 +96,7 @@ export default function Toolbar({
           {zoomIndex + 1}/{zoomCount}
         </span>
         <ToolButton icon={ZoomIn} label="" onClick={() => onZoom(1)} disabled={zoomIndex >= zoomCount - 1} />
+        <ToolButton icon={Maximize2} label="" hint="ซูมให้เห็นทั้งคลิปพอดีจอ" onClick={onZoomToFit} disabled={!onZoomToFit} />
       </div>
     </div>
   );

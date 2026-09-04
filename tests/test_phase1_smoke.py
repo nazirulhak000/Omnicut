@@ -10,6 +10,7 @@ _Docs/post_log.json, _Docs/products.json, or a real project folder.
 
 import json
 import hashlib
+import re
 import threading
 import time
 from pathlib import Path
@@ -514,6 +515,89 @@ def test_unknown_font_name_falls_back_instead_of_erroring():
 # ----------------------------------------------------------------------
 # Hook banner motion presets (In / Loop / Out / Accent, CapCut-style)
 # ----------------------------------------------------------------------
+@pytest.mark.parametrize(
+    "th, en",
+    [
+        # Thai matches a dictionary keyword, English matches nothing
+        ("ดูนี่ด่วนเลย!", "at this quickly!"),
+        ("มือเราจะวางสบายมาก", "Our hands will rest very comfortably."),
+        # English matches, Thai does not
+        ("❌ ทุกคน!", "everyone! Who has wrist pain?"),
+        ("หลังก็ตึง", "My back is tight."),
+    ],
+)
+def test_bilingual_highlight_never_leaves_one_line_plain(th, en):
+    """
+    Matching the colour is not the same as both lines having one. Re-running
+    the other side with a colour hint only reorders which dictionary is tried
+    -- a line with no listed keyword still came out plain, leaving a coloured
+    Thai line above an all-white English one. Measured on a real 28-cue
+    project, 10 cues were lopsided this way.
+    """
+    th_res, en_res = SubtitleEngine.apply_bilingual_kinetic_highlighting(
+        th_text=th, en_text=en, primary_th="&H00FFFFFF&", primary_en="&H00EAEAEA&",
+    )
+    th_colors = re.findall(r"\{\\c(&H[0-9A-Fa-f]+&)\}", th_res)
+    en_colors = re.findall(r"\{\\c(&H[0-9A-Fa-f]+&)\}", en_res)
+    assert th_colors, f"Thai line left plain: {th_res!r}"
+    assert en_colors, f"English line left plain: {en_res!r}"
+    assert th_colors[0] == en_colors[0], "both lines must use the same highlight colour"
+
+
+def test_missing_translations_are_retried_not_frozen(tmp_path, monkeypatch):
+    """
+    Cues that came back without an English line used to stay that way for
+    good: generate_ass reused the stored translations whenever ANY cue had
+    one, so a batch with gaps kept those gaps through every later render and
+    re-roll. One project folder was missing English on 16 of its 25 cues.
+    """
+    import scripts.translator as translator_mod
+
+    asked = []
+
+    def fake_batch(phrases, custom_dict=None):
+        asked.extend(phrases)
+        return [f"EN::{p}" for p in phrases]
+
+    monkeypatch.setattr(translator_mod.SubtitleTranslator, "translate_batch", staticmethod(fake_batch))
+
+    cues = [
+        {"id": 1, "start": 0.0, "end": 1.0, "text": "หนึ่ง", "translation": "one", "sfx": None},
+        {"id": 2, "start": 1.0, "end": 2.0, "text": "สอง", "translation": "", "sfx": None},
+        {"id": 3, "start": 2.0, "end": 3.0, "text": "สาม", "sfx": None},
+    ]
+    SubtitleEngine.generate_ass(
+        cues=cues, output_ass_path=str(tmp_path / "retry.ass"), bilingual=True,
+    )
+
+    # only the gaps are re-sent, and the one that already had English is kept
+    assert "หนึ่ง" not in asked, "a cue that already had English must not be re-translated"
+    assert asked, "cues missing English must be sent for translation"
+
+
+def test_bilingual_highlight_leaves_both_plain_when_neither_matches():
+    """The consistent outcome for a pair with nothing worth emphasising is
+    BOTH plain -- the fallback must not invent a highlight on one side."""
+    th_res, en_res = SubtitleEngine.apply_bilingual_kinetic_highlighting(
+        th_text="อืม", en_text="Um", primary_th="&H00FFFFFF&", primary_en="&H00EAEAEA&",
+    )
+    assert "{\\c" not in th_res and "{\\c" not in en_res
+
+
+def _brand_pct(base=130):
+    """
+    What a tier's \\fscx actually ends up as. Sizes in subtitle_engine are em
+    intents; the number reaching \\fscx is boosted by 1/ass_glyph_scale so
+    libass's line-box sizing cancels out. Derived here rather than hardcoded,
+    so changing the default font can't turn these into magic numbers that
+    quietly stop describing the code.
+    """
+    from scripts.subtitle_engine import ass_glyph_scale, _load_font_family_map
+
+    boost = 1.0 / ass_glyph_scale(_load_font_family_map().get("Kanit", "Kanit"))
+    return round(base * boost)
+
+
 def _hook_events(content: str) -> str:
     return "\n".join(l for l in content.splitlines() if l.startswith("Dialogue:") and "HookHeader" in l)
 
@@ -534,7 +618,7 @@ def _gen_hook_ass(tmp_path, name, hook_motion=None, hook_duration=3.0):
 
 def test_hook_motion_default_preset_is_bounce_stagger_pulse_bar(tmp_path):
     combined = _hook_events(_gen_hook_ass(tmp_path, "default"))
-    assert "\\fscx162" in combined, "bounce overshoot keyframe (130% target * 1.25) missing"
+    assert f"\\fscx{round(_brand_pct() * 1.25)}" in combined, "bounce overshoot keyframe missing"
     assert "&H25&" in combined, "pulse dim alpha missing"
     assert "\\p1" in combined, "accent bar drawing missing"
     assert "\\t(150," in combined, "model-tier stagger offset (150ms) missing"
@@ -556,29 +640,30 @@ def test_hook_motion_legacy_boolean_dict_falls_back_to_the_default_preset(tmp_pa
 @pytest.mark.parametrize(
     "preset, marker",
     [
-        ("bounce", "\\fscx162"),          # 130 * 1.25 overshoot
-        ("pop", "\\fscx153"),             # 130 * 1.18 overshoot
+        ("bounce", lambda: f"\\fscx{round(_brand_pct() * 1.25)}"),   # overshoot
+        ("pop", lambda: f"\\fscx{round(_brand_pct() * 1.18)}"),      # overshoot
         ("fade", "\\alpha&HFF&\\t(0,250,\\alpha&H00&)"),
-        ("zoom", "\\fscx234"),            # 130 * 1.8 start
+        ("zoom", lambda: f"\\fscx{round(_brand_pct() * 1.8)}"),      # zoom-in start
         ("slide_up", "\\move(540,320,540,260,0,300)"),
         ("blur", "\\blur12"),
         ("typewriter", "\\clip("),
-        ("none", "\\pos(540,260)\\fscx130\\fscy130\\t(2850"),
+        ("none", lambda: f"\\pos(540,260)\\fscx{_brand_pct()}\\fscy{_brand_pct()}\\t(2850"),
     ],
 )
 def test_each_in_preset_emits_its_own_technique(tmp_path, preset, marker):
     combined = _hook_events(_gen_hook_ass(
         tmp_path, f"in_{preset}", hook_motion={"in": preset, "loop": "none", "out": "fade", "accent": "none"},
     ))
-    assert marker in combined, f"In preset '{preset}' did not emit {marker!r}"
+    expected = marker() if callable(marker) else marker
+    assert expected in combined, f"In preset '{preset}' did not emit {expected!r}"
 
 
 @pytest.mark.parametrize(
     "preset, marker",
     [
         ("pulse", "\\alpha&H25&"),
-        ("wave", "\\frz357"),
-        ("shake", "\\frz358"),            # shake's 4-step cycle has an angle wave never uses
+        ("wave", "\\frz-3"),
+        ("shake", "\\frz-2"),             # shake's 5-step cycle has an angle wave never uses
         ("flicker", "\\alpha&H30&"),
         ("none", None),
     ],
@@ -617,8 +702,8 @@ def test_lightsweep_adds_an_overlay_event_per_line_not_a_tag(tmp_path):
     [
         ("fade", "\\t(2850,3000,\\alpha&HFF&)"),
         ("slide", "\\move(540,260,540,320,2850,3000)"),
-        ("zoom", "\\fscx182"),            # 130 * 1.4 grow-out
-        ("glitch", "\\t(2850,2890,\\frz357)"),
+        ("zoom", lambda: f"\\fscx{round(_brand_pct() * 1.4)}"),      # grow-out
+        ("glitch", "\\t(2850,2890,\\frz-3)"),
         ("none", "\\t(2999,3000,\\alpha&HFF&)"),
     ],
 )
@@ -626,7 +711,8 @@ def test_each_out_preset_emits_its_own_technique(tmp_path, preset, marker):
     combined = _hook_events(_gen_hook_ass(
         tmp_path, f"out_{preset}", hook_motion={"in": "none", "loop": "none", "out": preset, "accent": "none"},
     ))
-    assert marker in combined, f"Out preset '{preset}' did not emit {marker!r}"
+    expected = marker() if callable(marker) else marker
+    assert expected in combined, f"Out preset '{preset}' did not emit {expected!r}"
 
 
 @pytest.mark.parametrize("preset, drawings", [("underline", 2), ("badge", 1), ("none", 0)])
@@ -670,6 +756,59 @@ def test_accent_reserves_layout_space_so_it_never_overlaps_the_label(tmp_path):
     without = label_y({"in": "none", "loop": "none", "out": "fade", "accent": "none"})
     with_bar = label_y({"in": "none", "loop": "none", "out": "fade", "accent": "underline"})
     assert with_bar > without, "accent bar must push the label tier down, not draw over it"
+
+
+def test_hook_colors_override_each_tier_independently(tmp_path):
+    """
+    A brand with its own colour equity must be able to recolour just its own
+    tier; tiers left unset keep the poster defaults (white / accent / muted).
+    """
+    ass_path, _ = SubtitleEngine.generate_ass(
+        cues=[{"id": 1, "start": 0.0, "end": 1.0, "text": "ทดสอบ", "sfx": None}],
+        output_ass_path=str(tmp_path / "colors.ass"),
+        hook_brand="Logitech", hook_model="Wave Keys", hook_label="Wireless Keyboard",
+        hook_duration=3.0, hook_colors={"brand": "#00FF66"}, bilingual=False,
+    )
+    combined = _hook_events(Path(ass_path).read_text(encoding="utf-8"))
+    brand_line = [l for l in combined.splitlines() if "LOGITECH" in l and "Dialogue: 2," in l][0]
+    label_line = [l for l in combined.splitlines() if "Wireless Keyboard" in l and "Dialogue: 2," in l][0]
+    assert "\\c&H0066FF00&" in brand_line, "brand tier must take the override (ASS is &HBBGGRR)"
+    assert "\\c&H00E0E0E0&" in label_line, "an unset tier must keep its default colour"
+
+
+def test_lightsweep_overlay_matches_the_scale_of_the_line_it_shadows(tmp_path):
+    """
+    The sweep copy has to carry the same \\fscx/\\fscy as its base line. At
+    the style's default 100% it rendered as a visibly different-sized ghost
+    of the 130% brand and 58% label tiers instead of a shimmer over them.
+    """
+    combined = _hook_events(_gen_hook_ass(
+        tmp_path, "sweep_scale", hook_motion={"in": "none", "loop": "lightsweep", "out": "fade", "accent": "none"},
+    ))
+    base = {}
+    for line in combined.splitlines():
+        if line.startswith("Dialogue: 2,"):
+            base[line.split("}")[-1]] = line.split("\\fscx")[1].split("\\")[0]
+    for line in combined.splitlines():
+        if not line.startswith("Dialogue: 3,"):
+            continue
+        text = line.split("}")[-1]
+        assert f"\\fscx{base[text]}" in line, f"sweep for {text!r} does not match its line's scale"
+
+
+@pytest.mark.parametrize("preset_kind, preset", [("loop", "wave"), ("loop", "shake"), ("out", "glitch")])
+def test_rotation_presets_use_signed_angles_not_wrapped_ones(tmp_path, preset_kind, preset):
+    """
+    \\t interpolates linearly toward its target, so a -3 degree tilt written
+    as 357 sweeps the long way round through 180 and flips the line on its
+    head mid-step -- which is exactly what the glitch exit did before.
+    """
+    motion = {"in": "none", "loop": "none", "out": "fade", "accent": "none"}
+    motion[preset_kind] = preset
+    combined = _hook_events(_gen_hook_ass(tmp_path, f"rot_{preset}", hook_motion=motion))
+    assert "\\frz" in combined, f"{preset} emitted no rotation at all"
+    for angle in re.findall(r"\\frz(-?\d+)", combined):
+        assert abs(int(angle)) <= 45, f"{preset} used a wrapped angle {angle} that will spin the line"
 
 
 def test_preset_catalog_matches_the_builder_registries(client):
@@ -1319,7 +1458,12 @@ def test_caption_style_lands_in_the_ass_header(tmp_path):
     assert fields[3] == "&H0000E6FF", "primary colour"
     assert fields[18] == "8", "alignment 8 = top centre"
     assert fields[21] == "260", "top margin"
-    assert int(fields[2]) in (105, 108, 110, 117, 122), "scaled font size"
+    # Derived from the one tuned constant rather than a list of magic numbers:
+    # base_fs = round(video_width * 0.0463) in subtitle_engine.py, times the
+    # 1.5 caption_scale above. Retuning that ratio must be a deliberate act
+    # that updates this line AND the canvas side (guarded by
+    # tests/test_preview_render_parity.py), never a silent drift.
+    assert int(fields[2]) == max(24, round(round(1080 * 0.0463) * 1.5)) == 75, "scaled font size"
 
 
 def test_sticker_geometry_corners_and_clamped_size():

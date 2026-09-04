@@ -3,7 +3,7 @@ import {
   AlertCircle, AlertTriangle, CheckCircle2, Loader2, Maximize2, Minimize2,
   RefreshCw, Rocket, Scissors, Film, Layers, Sliders, Sparkles, Trash2,
   FolderOpen, Play, Copy, Check, X, Save,
-  ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen
+  ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Columns3,
 } from 'lucide-react';
 import {
   deleteProject, getAllAssets, getHookMotionPresets, getProject, getProjectOrigin, getProjects, getRenderStatus, startReroll, updateProjectCues, updateProjectClips, updateProjectState, openFolder, updateAngleStatus,
@@ -51,6 +51,11 @@ const MOBILE_PREVIEW_MIN_H = 160;
 const MOBILE_PREVIEW_DEFAULT = 0.45;   // share of the window height
 const TIMELINE_MAX_H = 460;
 const TIMELINE_DEFAULT_H = 212;
+// Where the editor switches between its mobile and desktop layout trees.
+// Tailwind `lg` (1024px): below it the desktop tree's own default panel
+// widths (250 asset + 380 inspector + gutters = ~668px) leave under 100px
+// for the preview, which is not a usable editor.
+const LAYOUT_BREAKPOINT = 1024;
 const ASSET_MIN_W = 180;
 const ASSET_MAX_W = 480;
 const ASSET_DEFAULT_W = 250;
@@ -168,8 +173,19 @@ export default function EditorShell({
   const mobileWrapRef = useRef(null);
   const mobileResizeRef = useRef(null);
   const [mobilePreviewH, setMobilePreviewH] = useState(() => {
-    const saved = parseInt(localStorage.getItem('editor.mobilePreviewH') || '', 10);
-    return Number.isFinite(saved) ? saved : Math.round(window.innerHeight * MOBILE_PREVIEW_DEFAULT);
+    // Range-checked and try/caught like the other three panel sizes below.
+    // Without either, a stale or hand-edited value went straight into
+    // style.height (a negative one collapsed the preview outright), and a
+    // localStorage that throws (private mode, blocked site data) took the
+    // whole initializer down with it.
+    const fallback = Math.round(window.innerHeight * MOBILE_PREVIEW_DEFAULT);
+    try {
+      const saved = parseInt(localStorage.getItem('editor.mobilePreviewH') || '', 10);
+      if (!Number.isFinite(saved)) return fallback;
+      return Math.max(MOBILE_PREVIEW_MIN_H, Math.min(saved, Math.round(window.innerHeight * 0.9)));
+    } catch (err) {
+      return fallback;
+    }
   });
 
   const applyMobilePreviewH = (px) => {
@@ -179,6 +195,20 @@ export default function EditorShell({
     const clamped = Math.min(max, Math.max(MOBILE_PREVIEW_MIN_H, Math.round(px)));
     setMobilePreviewH(clamped);
     try { localStorage.setItem('editor.mobilePreviewH', String(clamped)); } catch (err) { /* private mode */ }
+  };
+
+  const resetPanelSizes = () => {
+    setTimelineH(TIMELINE_DEFAULT_H);
+    setAssetW(ASSET_DEFAULT_W);
+    setInspectorW(INSPECTOR_DEFAULT_W);
+    setMobilePreviewH(Math.round(window.innerHeight * MOBILE_PREVIEW_DEFAULT));
+    setLeftSidebarCollapsed(false);
+    setRightSidebarCollapsed(false);
+    for (const key of ['capcut_timeline_h', 'editor.assetW', 'editor.inspectorW',
+                       'editor.mobilePreviewH', 'editor.leftSidebarCollapsed',
+                       'editor.rightSidebarCollapsed']) {
+      try { localStorage.removeItem(key); } catch (err) { /* private mode */ }
+    }
   };
 
   const applyTimelineH = (nextH) => {
@@ -230,10 +260,16 @@ export default function EditorShell({
 
   const mobilePlayerRef = useRef(null);
   const desktopPlayerRef = useRef(null);
-  const [isMobileView, setIsMobileView] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 768 : false));
+  // Must be the SAME breakpoint the two layout trees are gated on (lg,
+  // 1024px). The trees are chosen by CSS while the players are chosen by
+  // this flag, so any disagreement leaves a viewport range where the visible
+  // tree's player never mounts and the preview is simply blank.
+  const [isMobileView, setIsMobileView] = useState(
+    () => (typeof window !== 'undefined' ? window.innerWidth < LAYOUT_BREAKPOINT : false),
+  );
 
   useEffect(() => {
-    const handleResize = () => setIsMobileView(window.innerWidth < 768);
+    const handleResize = () => setIsMobileView(window.innerWidth < LAYOUT_BREAKPOINT);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -477,6 +513,27 @@ export default function EditorShell({
   const segments = useMemo(() => buildSegments(clipList, durations), [clipList, durations]);
   const totalDuration = useMemo(() => totalDurationOf(segments), [segments]);
   const pxPerSec = ZOOM_LEVELS[zoomIndex];
+
+  // Timeline content is `duration * pxPerSec + 240` wide (see Timeline.jsx),
+  // so at the default 50 px/s it outruns a 1440px viewport from about the
+  // twelfth 2-second clip and every session starts with manual scrolling.
+  // Picks the largest zoom step whose content still fits the track, so
+  // "fit" never lands on a level that scrolls anyway.
+  const timelineViewportRef = useRef(null);
+  const zoomToFit = useCallback(() => {
+    // Falls back to the window when no visible timeline has claimed the ref
+    // yet (see the visibility guard in Timeline.jsx), so the button still
+    // does something sensible rather than nothing.
+    const width = timelineViewportRef.current?.clientWidth || window.innerWidth;
+    if (!width || !totalDuration) return;
+    const usable = Math.max(120, width - 240 - 92); // ruler gutter + trailing pad
+    const wanted = usable / totalDuration;
+    let best = 0;
+    for (let i = 0; i < ZOOM_LEVELS.length; i++) {
+      if (ZOOM_LEVELS[i] <= wanted) best = i;
+    }
+    setZoomIndex(best);
+  }, [totalDuration]);
 
   // Clip / Caption mutation helpers
   const patchClip = useCallback((id, patch, silent = false) => {
@@ -727,6 +784,7 @@ export default function EditorShell({
   // Editor keyboard verbs. The app-level useKeyboardShortcuts hook covers tab
   // switching and save; these are the timeline ones, and they stay off while
   // the caret is in a field so typing "s" types an s.
+  const keyHandlerRef = useRef(null);
   useEffect(() => {
     const onKey = (e) => {
       const el = e.target;
@@ -780,9 +838,19 @@ export default function EditorShell({
           break;
       }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    // Stashed rather than subscribed: this effect deliberately has no
+    // dependency array so the handler is never stale, but binding the
+    // listener here too meant tearing down and re-adding a window listener
+    // on every single render (once per playhead frame while playing). The
+    // one-time subscription below reads through the ref instead.
+    keyHandlerRef.current = onKey;
   });
+
+  useEffect(() => {
+    const listener = (e) => keyHandlerRef.current?.(e);
+    window.addEventListener('keydown', listener);
+    return () => window.removeEventListener('keydown', listener);
+  }, []);
 
   const handleSplitCue = useCallback((cueUid, cursorIndex) => {
     set((prev) => {
@@ -1169,16 +1237,24 @@ export default function EditorShell({
                 <span className="text-[#E89274]">{formatTimecode(playhead)}</span>
                 <span className="hidden sm:inline"> / {formatTimecode(Math.max(totalDuration, audioDuration))}</span>
               </span>
-              <span className="hidden md:inline-flex items-center gap-1 text-[11px] font-mono text-slate-400 px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06]">
+              {/* Shown at every width: hidden below md, a phone user had no
+                  way at all to tell whether their edits had been saved. Only
+                  the wording collapses on narrow screens, not the state. */}
+              <span className="inline-flex items-center gap-1 text-[11px] font-mono text-slate-400 px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06]">
                 {saveStatus === 'saving' ? (
                   <span className="text-amber-400 flex items-center gap-1">
-                    <Loader2 className="w-3 h-3 animate-spin" /> กำลังบันทึก...
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span className="hidden md:inline">กำลังบันทึก...</span>
                   </span>
                 ) : saveStatus === 'dirty' ? (
-                  <span className="text-slate-400">มีการแก้ไข...</span>
+                  <span className="flex items-center gap-1 text-slate-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                    <span className="hidden md:inline">มีการแก้ไข...</span>
+                  </span>
                 ) : (
                   <span className="text-emerald-400 flex items-center gap-1">
-                    <Check className="w-3 h-3 text-emerald-400" /> บันทึกแล้ว
+                    <Check className="w-3 h-3 text-emerald-400" />
+                    <span className="hidden md:inline">บันทึกแล้ว</span>
                   </span>
                 )}
               </span>
@@ -1189,12 +1265,14 @@ export default function EditorShell({
         {/* Right: Sidebar Toggles, Fullscreen & Apply / Render Buttons */}
         <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
           {/* Quick Sidebar Toggles (Desktop) */}
-          <div className="hidden md:flex items-center gap-1 bg-black/40 border border-white/[0.08] p-0.5 rounded-xl">
+          {/* lg, not md: these collapse the desktop tree's own columns, so
+              below the layout breakpoint they have nothing to act on. */}
+          <div className="hidden lg:flex items-center gap-1 bg-black/40 border border-white/[0.08] p-0.5 rounded-xl">
             <button
               type="button"
               onClick={toggleLeftSidebar}
-              disabled={!projectName}
-              title={leftSidebarCollapsed ? 'เปิดแถบซ้าย (คลังสื่อ)' : 'ซ่อนแถบซ้าย'}
+              disabled={!projectName || zen}
+              title={zen ? 'ปิดโหมดเต็มจอก่อน (Esc)' : leftSidebarCollapsed ? 'เปิดแถบซ้าย (คลังสื่อ)' : 'ซ่อนแถบซ้าย'}
               className={`h-7 px-2 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer disabled:opacity-40 ${
                 leftSidebarCollapsed
                   ? 'text-slate-400 hover:text-white'
@@ -1207,8 +1285,8 @@ export default function EditorShell({
             <button
               type="button"
               onClick={toggleRightSidebar}
-              disabled={!projectName}
-              title={rightSidebarCollapsed ? 'เปิดแถบขวา (คำบรรยาย)' : 'ซ่อนแถบขวา'}
+              disabled={!projectName || zen}
+              title={zen ? 'ปิดโหมดเต็มจอก่อน (Esc)' : rightSidebarCollapsed ? 'เปิดแถบขวา (คำบรรยาย)' : 'ซ่อนแถบขวา'}
               className={`h-7 px-2 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer disabled:opacity-40 ${
                 rightSidebarCollapsed
                   ? 'text-slate-400 hover:text-white'
@@ -1236,13 +1314,23 @@ export default function EditorShell({
           <HeaderMenu
             items={[
               {
-                // the bar's own zen button is hidden below sm, so the menu is
-                // the only way to reach it on a narrow window
+                // the only control for zen mode -- there is no button for it
+                // on the bar itself
                 id: 'zen',
                 label: zen ? 'ย่อพรีวิวกลับ' : 'ขยายพรีวิวเต็มพื้นที่',
                 icon: zen ? Minimize2 : Maximize2,
                 disabled: !projectName,
                 onSelect: () => setZen((v) => !v),
+              },
+              {
+                // Each handle resets on double-click, but nothing advertises
+                // that, so a panel dragged somewhere awkward (or a stale
+                // stored size) had no discoverable way back.
+                id: 'reset-panels',
+                label: 'รีเซ็ตขนาดพาเนล',
+                icon: Columns3,
+                disabled: !projectName,
+                onSelect: resetPanelSizes,
               },
               {
                 id: 'reload',
@@ -1443,10 +1531,29 @@ export default function EditorShell({
         </div>
       ) : (
         <>
+          {/* Render failures belong to neither layout tree: this sat inside
+              the desktop centre column only, so a failed render on mobile
+              reported nothing at all and looked like it had simply stalled.
+              Shared placement is also the only version that can't drift
+              between the two trees again. */}
+          {applyError && (
+            <div className="flex flex-shrink-0 items-center gap-1.5 border-b border-rose-500/30 bg-rose-950/40 px-3 py-1.5 text-sm text-rose-200">
+              <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+              <span className="min-w-0 flex-1">{applyError}</span>
+              <button
+                type="button"
+                onClick={() => setApplyError(null)}
+                className="flex-shrink-0 rounded-lg px-1.5 py-0.5 text-xs font-bold text-rose-300 hover:bg-rose-500/20 hover:text-white cursor-pointer"
+              >
+                ปิด
+              </button>
+            </div>
+          )}
+
           {/* ══════════════════════════════════════════════════════════
               📱 MOBILE LAYOUT (< md breakpoint) - CapCut Mobile UX
              ══════════════════════════════════════════════════════════ */}
-          <div ref={mobileWrapRef} className="md:hidden flex flex-col flex-1 min-h-0 overflow-hidden bg-[#07090E]">
+          <div ref={mobileWrapRef} className="lg:hidden flex flex-col flex-1 min-h-0 overflow-hidden bg-[#07090E]">
             {/* Top: 9:16 Video Player Preview (Expands to fill top area, zero wasted space) */}
             <div
               className="relative flex w-full flex-shrink-0 flex-col items-center justify-center bg-black/60 p-2"
@@ -1549,6 +1656,7 @@ export default function EditorShell({
                 mobileResizeRef.current = null;
                 try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
               }}
+              onPointerCancel={() => { mobileResizeRef.current = null; }}
               onDoubleClick={() => applyMobilePreviewH(Math.round(window.innerHeight * MOBILE_PREVIEW_DEFAULT))}
               className="group flex h-5 flex-shrink-0 cursor-ns-resize touch-none items-center justify-center border-b border-white/[0.08] bg-[#0B0E17]"
             >
@@ -1609,6 +1717,7 @@ export default function EditorShell({
                   }}
                   zoomIndex={zoomIndex}
                   zoomCount={ZOOM_LEVELS.length}
+                  onZoomToFit={zoomToFit}
                   onZoom={(dir) => setZoomIndex((i) => Math.max(0, Math.min(ZOOM_LEVELS.length - 1, i + dir)))}
                   snapEnabled={snapEnabled}
                   onToggleSnap={() => setSnapEnabled((v) => !v)}
@@ -1635,6 +1744,7 @@ export default function EditorShell({
                     onBeginDrag={beginDrag}
                     onEndDrag={endDrag}
                     onZoom={(dir) => setZoomIndex((i) => Math.max(0, Math.min(ZOOM_LEVELS.length - 1, i + dir)))}
+                    viewportRef={timelineViewportRef}
                     snapCandidates={snapEnabled ? snapCandidates(segments, playhead, audioDuration > 0 ? [audioDuration] : []) : []}
                     snapFunction={snapEnabled ? (t, c) => snapTime(t, c, SNAP_PX / pxPerSec) : (t) => t}
                   />
@@ -1713,7 +1823,7 @@ export default function EditorShell({
           {/* ══════════════════════════════════════════════════════════
               🖥️ DESKTOP PRO LAYOUT (>= md breakpoint) - 3 Columns
              ══════════════════════════════════════════════════════════ */}
-          <div className="hidden md:flex flex-col flex-1 min-h-0">
+          <div className="hidden lg:flex flex-col flex-1 min-h-0">
             {/* Middle Row (AssetPanel + Video + Inspector) */}
             <div className="flex min-h-0 flex-1">
               {!zen && (
@@ -1822,11 +1932,6 @@ export default function EditorShell({
                     </div>
                     <p className="pt-1 text-center text-sm text-slate-400">{jobStatus?.message}</p>
                   </div>
-                )}
-                {applyError && (
-                  <p className="flex flex-shrink-0 items-center gap-1 text-sm text-rose-300">
-                    <AlertCircle className="h-3 w-3" />{applyError}
-                  </p>
                 )}
                 {applyResult && !applying && (
                   <div className="w-full max-w-[340px] flex-shrink-0 space-y-2 rounded-2xl border border-emerald-500/30 bg-[#0F1420]/95 p-3 shadow-2xl backdrop-blur-md animate-fadeIn">
@@ -1944,8 +2049,6 @@ export default function EditorShell({
                         hookMotionDefault={hookMotionDefault}
                         hookColors={hookColors}
                         onHookColorChange={handleHookColorChange}
-                      hookColors={hookColors}
-                      onHookColorChange={handleHookColorChange}
                         showHookHeader={showHookHeader}
                         onToggleHookHeader={() => setShowHookHeader((v) => !v)}
                         onAddTextAtPlayhead={addTextAtPlayhead}
@@ -1994,6 +2097,7 @@ export default function EditorShell({
                     resizeRef.current = null;
                     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) { /* released */ }
                   }}
+                  onPointerCancel={() => { resizeRef.current = null; }}
                   onDoubleClick={() => applyTimelineH(TIMELINE_DEFAULT_H)}
                   className="group flex h-2 flex-shrink-0 cursor-ns-resize touch-none items-center justify-center bg-[#0F1420]"
                 >
@@ -2022,6 +2126,7 @@ export default function EditorShell({
                   }}
                   zoomIndex={zoomIndex}
                   zoomCount={ZOOM_LEVELS.length}
+                  onZoomToFit={zoomToFit}
                   onZoom={(dir) => setZoomIndex((i) => Math.max(0, Math.min(ZOOM_LEVELS.length - 1, i + dir)))}
                   snapEnabled={snapEnabled}
                   onToggleSnap={() => setSnapEnabled((v) => !v)}
@@ -2048,6 +2153,7 @@ export default function EditorShell({
                     onBeginDrag={beginDrag}
                     onEndDrag={endDrag}
                     onZoom={(dir) => setZoomIndex((i) => Math.max(0, Math.min(ZOOM_LEVELS.length - 1, i + dir)))}
+                    viewportRef={timelineViewportRef}
                     snapCandidates={snapEnabled ? snapCandidates(segments, playhead, audioDuration > 0 ? [audioDuration] : []) : []}
                     snapFunction={snapEnabled ? (t, c) => snapTime(t, c, SNAP_PX / pxPerSec) : (t) => t}
                   />

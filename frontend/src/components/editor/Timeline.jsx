@@ -62,6 +62,7 @@ export default function Timeline({
   onBeginDrag,
   onEndDrag,
   onZoom,
+  viewportRef,
   audioUrl,
   // Edge/body drags snap to these (clip boundaries, playhead, audio end).
   // Both default to "no snapping" so the timeline still works if a caller
@@ -95,13 +96,52 @@ export default function Timeline({
   const waveRef = useRef(null);
   const [waveInfo, setWaveInfo] = useState(null);
 
-  const handleWheel = (e) => {
-    if (e.ctrlKey || e.metaKey) {
+  // Ctrl/Cmd+wheel has to be bound natively with { passive: false }: React
+  // registers its own root `wheel` listener as passive, so preventDefault()
+  // inside an onWheel prop is ignored and the browser page-zooms instead of
+  // the timeline.
+  const scrollRef = useRef(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onWheelNative = (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
       e.preventDefault();
-      const dir = e.deltaY < 0 ? 1 : -1;
-      onZoom?.(dir);
+      onZoom?.(e.deltaY < 0 ? 1 : -1);
+    };
+    el.addEventListener('wheel', onWheelNative, { passive: false });
+    return () => el.removeEventListener('wheel', onWheelNative);
+  }, [onZoom]);
+
+  // Share the scroll container with the parent so "fit to screen" can
+  // measure the real track width instead of guessing a viewport size.
+  //
+  // Guarded on actual visibility: the mobile and desktop layout trees are
+  // hidden from each other with CSS, not unmounted, so both Timelines can be
+  // alive at once. An offscreen one has clientWidth 0, and letting it claim
+  // the shared ref would make "fit to screen" measure nothing and quietly do
+  // nothing at all.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (viewportRef && el && el.offsetParent !== null) viewportRef.current = el;
+  }, [viewportRef, playhead]);
+
+  // Keep the playhead on screen while playing. Past ~12 clips the content is
+  // wider than the track, and nothing in here ever touched scrollLeft, so the
+  // playhead just walked off the right edge and stayed there.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || el.offsetParent === null) return;
+    const x = GUTTER + playhead * pxPerSec;
+    const left = el.scrollLeft;
+    const right = left + el.clientWidth;
+    const margin = 80;
+    if (x < left + margin) {
+      el.scrollLeft = Math.max(0, x - margin);
+    } else if (x > right - margin) {
+      el.scrollLeft = x - el.clientWidth + margin;
     }
-  };
+  }, [playhead, pxPerSec]);
 
   // Real peaks for the audio track, decoded once per file (see audioPeaks.js)
   // and drawn into a fixed-column canvas that CSS stretches to the track
@@ -245,7 +285,7 @@ export default function Timeline({
 
   return (
     <div className="flex h-full flex-col bg-[#1C1B19]">
-      <div onWheel={handleWheel} className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
         <div style={{ width: contentWidth, minWidth: '100%' }} className="relative">
 
           {/* Ruler: click or drag to scrub */}

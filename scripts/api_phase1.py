@@ -490,6 +490,18 @@ def delete_project(project_name: str, scope: str = "project"):
     except ValueError as err:
         raise HTTPException(status_code=400, detail=str(err))
     except OSError as err:
+        # WinError 32 here almost always means this very server still has the
+        # project's audio open for an editor <audio> element. Say so, because
+        # "[WinError 32] used by another process" sends people hunting for a
+        # media player that was never involved.
+        if getattr(err, "winerror", None) == 32:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"ลบไม่ได้เพราะไฟล์ยังถูกเปิดค้างอยู่: {getattr(err, 'filename', '') or err}. "
+                    "ปิดแท็บ Editor ของโปรเจกต์นี้ (หรือเปลี่ยนไปโปรเจกต์อื่น) แล้วลองใหม่"
+                ),
+            )
         raise HTTPException(status_code=500, detail=f"ลบไม่สำเร็จ: {err}")
 
 

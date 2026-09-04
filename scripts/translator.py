@@ -5,6 +5,7 @@ Uses 1-shot batch translation & dictionary mapping to achieve < 0.5s translation
 
 import sys
 import re
+import time
 from typing import Dict, List, Optional
 from concurrent.futures import ThreadPoolExecutor
 from deep_translator import GoogleTranslator
@@ -75,9 +76,34 @@ class SubtitleTranslator:
             return cls.DICT[norm_text]
         if text in cls._CACHE:
             return cls._CACHE[text]
+        # One attempt used to be the whole story: a single hiccup (and the
+        # free endpoint rate-limits readily when several phrases go out at
+        # once) returned "" and that cue simply never got an English line.
+        # Failures scattered through a clip rather than clustering, which is
+        # what a per-request limit looks like -- so retry with a short backoff
+        # before giving up.
+        for attempt in range(3):
+            try:
+                t = GoogleTranslator(source="auto", target="en")
+                res = t.translate(text)
+                if res and not any(sig in res for sig in ["Error 500", "500.", "That's an error", "<html", "<body"]):
+                    cleaned = res.strip().replace("\n", " ").replace("\\", "")
+                    cls._CACHE[text] = cleaned
+                    return cleaned
+            except Exception:
+                pass
+            if attempt < 2:
+                time.sleep(0.4 * (attempt + 1))
+
+        # Some phrases make the free Google endpoint answer with its own
+        # "Error 500" page every single time, however many retries -- two of
+        # this project's lines did exactly that. A second provider clears
+        # them, and it is the difference between a bilingual caption and a
+        # Thai-only one.
         try:
-            t = GoogleTranslator(source="auto", target="en")
-            res = t.translate(text)
+            from deep_translator import MyMemoryTranslator
+
+            res = MyMemoryTranslator(source="th-TH", target="en-US").translate(text)
             if res and not any(sig in res for sig in ["Error 500", "500.", "That's an error", "<html", "<body"]):
                 cleaned = res.strip().replace("\n", " ").replace("\\", "")
                 cls._CACHE[text] = cleaned
@@ -99,8 +125,16 @@ class SubtitleTranslator:
 
         norm_custom = {k.lower().strip(): v for k, v in custom_dict.items()} if custom_dict else None
 
-        with ThreadPoolExecutor(max_workers=6) as executor:
+        # 6 parallel requests is what provoked the rate-limiting in the first
+        # place; 3 with retries finishes about as fast and comes back whole.
+        with ThreadPoolExecutor(max_workers=3) as executor:
             results = list(executor.map(lambda p: cls._translate_single(p, norm_custom), cleaned_phrases))
+
+        # Never fail silently: a missing English line is invisible in the ASS
+        # (the cue just renders Thai-only), so say it out loud instead.
+        failed = [p for p, r in zip(cleaned_phrases, results) if p and not r]
+        if failed:
+            print(f"   ⚠️  แปลอังกฤษไม่สำเร็จ {len(failed)}/{len(cleaned_phrases)} บรรทัด: {failed[:3]}")
 
         return results
 
