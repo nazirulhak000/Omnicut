@@ -1014,7 +1014,15 @@ class SubtitleEngine:
                     return result.replace(ckw, replacement, 1)
 
         # Tier 3: Reviewer Mega-Dictionary
-        color_order = [color_hint] + [c for c in cls.KINETIC_KEYWORDS if c != color_hint] if color_hint else list(cls.KINETIC_KEYWORDS.keys())
+        # A colour hint means the other language already committed to one of
+        # the meaning groups (pain point / product / warning), so this line has
+        # to stay in that group. Merely trying it FIRST let a line fall through
+        # to a different group when the hinted one had no match -- Thai lit
+        # "ด่วนเลย" yellow from the pain-point list while English lit "look at
+        # this" red from the warning list, on the same cue. When the hinted
+        # group has nothing, the caller's salient-word fallback colours it in
+        # that same colour instead of switching groups.
+        color_order = [color_hint] if color_hint else list(cls.KINETIC_KEYWORDS.keys())
         for color_tag in color_order:
             kw_list = cls.KINETIC_KEYWORDS.get(color_tag, [])
             for kw in sorted(kw_list, key=len, reverse=True):
@@ -1067,7 +1075,15 @@ class SubtitleEngine:
                         return result[:start] + f"{{\\c{cyan_color}}}{matched_str}{{\\c{clean_primary}}}" + result[end:]
 
         # Tier 3: Reviewer Mega-Dictionary
-        color_order = [color_hint] + [c for c in cls.KINETIC_KEYWORDS_EN if c != color_hint] if color_hint else list(cls.KINETIC_KEYWORDS_EN.keys())
+        # A colour hint means the other language already committed to one of
+        # the meaning groups (pain point / product / warning), so this line has
+        # to stay in that group. Merely trying it FIRST let a line fall through
+        # to a different group when the hinted one had no match -- Thai lit
+        # "ด่วนเลย" yellow from the pain-point list while English lit "look at
+        # this" red from the warning list, on the same cue. When the hinted
+        # group has nothing, the caller's salient-word fallback colours it in
+        # that same colour instead of switching groups.
+        color_order = [color_hint] if color_hint else list(cls.KINETIC_KEYWORDS_EN.keys())
         for color_tag in color_order:
             kw_list = cls.KINETIC_KEYWORDS_EN.get(color_tag, [])
             for kw in sorted(kw_list, key=len, reverse=True):

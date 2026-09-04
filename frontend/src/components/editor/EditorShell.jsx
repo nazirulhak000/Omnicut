@@ -372,12 +372,15 @@ export default function EditorShell({
    * is a setter), so capturing the first instance here is safe.
    */
   const handleClipCreated = useCallback((newProjectName) => {
+    const curAngle = productContext?.angles?.[angleIndex];
+    if (productContext?.id && curAngle?.angle_id) {
+      updateAngleStatus(productContext.id, curAngle.angle_id, 'in_production', null, newProjectName).catch(() => {});
+    }
     getProjects()
       .then((data) => setProjectList(data?.projects || []))
       .catch(() => {})
       .finally(() => loadProject(newProjectName));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [productContext?.id, productContext?.angles, angleIndex]);
 
   // Load project list + assets on mount
   useEffect(() => {
@@ -433,16 +436,46 @@ export default function EditorShell({
         ? [{ source_path: data.render_params?.raw_video_path || data.raw_video_path, trim_start: 0, trim_end: null }]
         : [];
 
-      const clips = rawClips.map((c, i) => ({
-        id: newId(),
-        source_path: c.source_path || c.path || '',
-        trim_start: Number(c.trim_start) || 0,
-        trim_end: c.trim_end != null ? Number(c.trim_end) : null,
-        duration: Number(c.duration) || 0,
-        speed: Number(c.speed) || 1,
-        transition_in: c.transition_in || (i === 0 ? 'cut' : 'cut'),
-        mirror: !!c.mirror,
-      }));
+      // Spread the stored clip FIRST and only normalise the fields that need
+      // coercing. Listing fields explicitly meant everything unlisted was
+      // dropped on load and then written back stripped by the autosave --
+      // silently destroying the geometry (zoom/pan_x/pan_y/rotation), the
+      // colour grade (brightness/contrast/saturation) and the audio/framing
+      // options (volume/bg_blur/fit_mode/freeze_tail) that the renderer
+      // reads. That is why the render punched in on shots the preview drew
+      // flat: pipeline.py had written a real zoom, the editor deleted it, and
+      // video_editor.py fell back to its shot_scales table.
+      // The renderer records boundaries in a separate `transitions` array,
+      // one entry per gap between clips, and the pipeline also stamps them
+      // onto each clip. Nothing here ever read that array, so every clip fell
+      // back to 'cut' and the timeline showed hard cuts for a render full of
+      // fades -- and the autosave then wrote that all-cut list back, wiping
+      // the real boundaries. Clip-level wins when both exist, since that is
+      // what the user last edited.
+      const savedTransitions = data.transitions || data.render_params?.transitions || [];
+      const boundaryAt = (i) => {
+        const b = i > 0 ? savedTransitions[i - 1] : null;
+        if (!b) return {};
+        return typeof b === 'string'
+          ? { type: b }
+          : { type: b.type, duration: b.duration };
+      };
+
+      const clips = rawClips.map((c, i) => {
+        const b = boundaryAt(i);
+        return {
+          ...c,
+          id: newId(),
+          source_path: c.source_path || c.path || '',
+          trim_start: Number(c.trim_start) || 0,
+          trim_end: c.trim_end != null ? Number(c.trim_end) : null,
+          duration: Number(c.duration) || 0,
+          speed: Number(c.speed) || 1,
+          transition_in: c.transition_in || b.type || 'cut',
+          transition_duration: c.transition_duration ?? b.duration ?? undefined,
+          mirror: !!c.mirror,
+        };
+      });
 
       // Support cues: prefer sentence-level scenes for clean editing, fallback to micro_cues
       const rawCues = (data.cues && data.cues.length > 0)

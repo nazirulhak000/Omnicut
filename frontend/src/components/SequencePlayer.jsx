@@ -33,6 +33,8 @@ function clipFilter(clip) {
   return parts.length ? parts.join(' ') : 'none';
 }
 
+function mirrorFlag(clip) { return !!clip?.mirror; }
+
 function drawVideoFrame(ctx, video, clip) {
   if (!video || !video.videoWidth || video.readyState < 2) return false;
   const rotation = Number(clip?.rotation || 0) % 360;
@@ -58,6 +60,38 @@ function drawVideoFrame(ctx, video, clip) {
     sx += (roomX / 2) * (1 + panX);
     sy += (roomY / 2) * (1 + panY);
     sw = zw; sh = zh;
+  }
+
+  // Blurred-pillarbox framing: the renderer splits the clip, covers the frame
+  // with a boxblur(25:5) copy, lays the whole (contain-fit) frame over it, and
+  // only then applies the zoom crop. Drawing just the cover-fit crop here hid
+  // that entirely -- the preview cropped the sides off a shot the render was
+  // showing whole.
+  const useBgBlur = !!clip?.bg_blur || clip?.fit_mode === 'blur';
+  if (useBgBlur && rotation === 0) {
+    const zoomK = Math.min(3, Math.max(1, clip?.zoom || 1));
+    const panX = Math.min(1, Math.max(-1, clip?.pan_x || 0));
+    const panY = Math.min(1, Math.max(-1, clip?.pan_y || 0));
+    ctx.save();
+    // zoom/pan act on the finished composite, so they are a transform here
+    ctx.translate(CANVAS_W / 2, CANVAS_H / 2);
+    ctx.scale(zoomK, zoomK);
+    ctx.translate(-(CANVAS_W / 2) - (panX * (CANVAS_W * (zoomK - 1))) / (2 * zoomK),
+                  -(CANVAS_H / 2) - (panY * (CANVAS_H * (zoomK - 1))) / (2 * zoomK));
+    if (mirrorFlag(clip)) { ctx.translate(CANVAS_W, 0); ctx.scale(-1, 1); }
+    // background: cover-fit, blurred (boxblur 25 at 1080w ~= 12px at 540w)
+    let bx, by, bw, bh;
+    if (vRatio > cRatio) { bh = vh; bw = vh * cRatio; by = 0; bx = (vw - bw) / 2; }
+    else { bw = vw; bh = vw / cRatio; bx = 0; by = (vh - bh) / 2; }
+    ctx.filter = 'blur(12px)';
+    ctx.drawImage(video, bx, by, bw, bh, 0, 0, CANVAS_W, CANVAS_H);
+    ctx.filter = 'none';
+    // foreground: whole frame, contain-fit, centred
+    const fitScale = Math.min(CANVAS_W / vw, CANVAS_H / vh);
+    const fw = vw * fitScale, fh = vh * fitScale;
+    ctx.drawImage(video, 0, 0, vw, vh, (CANVAS_W - fw) / 2, (CANVAS_H - fh) / 2, fw, fh);
+    ctx.restore();
+    return true;
   }
 
   const mirror = !!clip?.mirror;

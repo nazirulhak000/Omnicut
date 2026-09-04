@@ -5,6 +5,7 @@ import {
   Link2, Clock, Split, Sparkles, ArrowUp, ArrowDown,
   Replace, CheckCheck, RefreshCw, X, ChevronUp, ChevronDown, Type
 } from 'lucide-react';
+import { TransitionIcon } from '../../lib/transitionIcons';
 import { TRANSITIONS, FADE_DURATION, MAX_TRANSITION_DURATION } from '../../lib/timelineMath';
 
 const SPEEDS = [0.5, 1, 1.5, 2];
@@ -1239,6 +1240,8 @@ export default function Inspector({
                   { key: 'pan_x', label: 'เลื่อนซ้าย-ขวา' },
                   { key: 'pan_y', label: 'เลื่อนขึ้น-ลง' },
                 ];
+                const bgBlur = !!selectedSeg.clip.bg_blur || selectedSeg.clip.fit_mode === 'blur';
+                const freezeTail = Number(selectedSeg.clip.freeze_tail) || 0;
                 return (
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
@@ -1251,6 +1254,34 @@ export default function Inspector({
                       >
                         รีเซ็ต
                       </button>
+                    </div>
+                    {/* Both change what actually renders, so they belong here
+                        rather than staying invisible fields on the clip. */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onClipChange?.({ bg_blur: bgBlur ? undefined : true, fit_mode: bgBlur ? undefined : 'blur' })}
+                        className={`flex-1 rounded-xl border px-2 py-1 text-xs font-bold transition-all cursor-pointer ${
+                          bgBlur
+                            ? 'border-[#25F4EE] bg-[#25F4EE]/15 text-[#25F4EE]'
+                            : 'border-white/[0.1] bg-black/40 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {bgBlur ? '✓ พื้นหลังเบลอ' : 'พื้นหลังเบลอ'}
+                      </button>
+                      <label className="flex items-center gap-1 text-xs text-slate-400">
+                        <span>ค้างท้าย</span>
+                        <input
+                          type="number" min="0" max="10" step="0.5"
+                          value={freezeTail}
+                          onChange={(e) => {
+                            const v = Math.min(10, Math.max(0, parseFloat(e.target.value) || 0));
+                            onClipChange?.({ freeze_tail: v === 0 ? undefined : v });
+                          }}
+                          className="w-14 rounded bg-black/50 border border-white/[0.1] px-1 py-0.5 text-right font-mono text-xs text-white focus:outline-none focus:border-[#25F4EE]"
+                        />
+                        <span>วิ</span>
+                      </label>
                     </div>
                     <label className="block">
                       <span className="mb-0.5 flex justify-between text-sm text-slate-400">
@@ -1361,12 +1392,13 @@ export default function Inspector({
                             transition_duration: dur,
                           })}
                           title={t.id}
-                          className={`py-1 rounded-lg text-sm font-bold transition-all cursor-pointer border ${
+                          className={`flex items-center justify-center gap-1.5 py-1 rounded-lg text-sm font-bold transition-all cursor-pointer border ${
                             kind === t.id
                               ? 'bg-[#D97757]/20 border-[#D97757] text-[#E89274]'
                               : 'bg-black/40 border-white/[0.08] text-slate-400 hover:text-white'
                           }`}
                         >
+                          <TransitionIcon type={t.id} className="h-3.5 w-3.5 flex-shrink-0" />
                           {t.label}
                         </button>
                       ))}

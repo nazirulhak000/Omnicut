@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { TransitionIcon } from '../../lib/transitionIcons';
 import {
   Copy, Eye, EyeOff, Film, FlipHorizontal2, Gauge, MessageSquare, Music, Plus, Scissors, Sparkles, Trash2, Type, Volume2, VolumeX, Waves, X
 } from 'lucide-react';
@@ -642,7 +643,7 @@ export default function Timeline({
                             : 'border-[#4A4742] bg-[#232220] text-[#9C968F] hover:text-[#EDE9E3]'
                         } ${isOpen ? 'ring-2 ring-[#25F4EE] z-30' : ''}`}
                       >
-                        {isFade ? <Waves className="h-3 w-3" /> : <Scissors className="h-3 w-3" />}
+                        <TransitionIcon type={currentTransition} className="h-3 w-3" />
                       </button>
 
                       {/* Quick Transition Popover */}
@@ -698,12 +699,13 @@ export default function Timeline({
                                       });
                                       setTransitionMenuClipId(null);
                                     }}
-                                    className={`py-1 px-2 rounded-lg text-left font-medium truncate transition-colors ${
+                                    className={`flex items-center gap-1.5 py-1 px-2 rounded-lg text-left font-medium truncate transition-colors ${
                                       active
                                         ? 'bg-[#D97757] text-white'
                                         : 'bg-[#282724] hover:bg-[#363430] text-slate-300'
                                     }`}
                                   >
+                                    <TransitionIcon type={t.id} className="h-3 w-3 flex-shrink-0" />
                                     {t.label}
                                   </button>
                                 );

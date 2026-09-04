@@ -12,6 +12,7 @@ than derived, and the comment says what was measured.
 """
 
 import re
+import sys
 from pathlib import Path
 
 import pytest
@@ -348,3 +349,173 @@ def test_text_overlay_pill_badge_parity():
     assert "\\alpha&H59&" in PY_SRC
     assert "rgba(0, 0, 0, 0.65)" in JS_SRC
 
+
+
+# ------------------------------------------------- per-clip field survival
+EDITOR_SRC = (ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx").read_text(encoding="utf-8")
+VIDEO_EDITOR_SRC = (ROOT / "scripts" / "video_editor.py").read_text(encoding="utf-8")
+
+
+def _render_clip_fields():
+    """Every per-clip key the renderer reads, straight from its own source."""
+    fields = set(re.findall(r'clip\.get\("([a-z_]+)"', VIDEO_EDITOR_SRC))
+    fields |= set(re.findall(r'clip\["([a-z_]+)"\]', VIDEO_EDITOR_SRC))
+    # frame_geometry reads pan_x/pan_y through a loop variable, and the eq
+    # filter reads the colour keys out of EQ_LIMITS the same way
+    fields |= {"pan_x", "pan_y"}
+    fields |= set(re.findall(r'^\s+"([a-z]+)": \(', _grab(VIDEO_EDITOR_SRC, r"EQ_LIMITS = \{(.*?)\}", str), re.M))
+    return fields - {"source_path"}
+
+
+def test_editor_preserves_every_field_the_renderer_reads():
+    """
+    The editor used to rebuild each clip from an explicit field list on load,
+    so anything the renderer understood but that list didn't mention was
+    dropped -- and the autosave then wrote the stripped clip back, destroying
+    it in the manifest. That is how a punch-zoom written by pipeline.py
+    vanished and left the render zoomed while the preview drew flat.
+
+    Spreading the stored clip keeps unknown fields alive, so this asserts the
+    spread is there rather than trying to enumerate fields the editor never
+    needs to know about individually.
+    """
+    load_block = EDITOR_SRC.split("const clips = rawClips.map(")[1].split("}));")[0]
+    assert "...c," in load_block, (
+        "clip load must spread the stored clip; listing fields explicitly "
+        "silently drops everything the renderer reads but the editor doesn't"
+    )
+    # and the save path must not re-strip them
+    for serialise in re.findall(r"clipList\.map\(\(\{([^}]*)\}\)", EDITOR_SRC):
+        dropped = {f.strip() for f in serialise.split(",") if f.strip() and "..." not in f}
+        leaked = dropped & _render_clip_fields()
+        assert not leaked, f"save path drops fields the renderer reads: {leaked}"
+
+
+@pytest.mark.parametrize("field", sorted(_render_clip_fields()))
+def test_every_render_clip_field_is_visible_somewhere_in_the_editor(field):
+    """
+    A field that changes the rendered picture but appears nowhere in the
+    editor is invisible state: the user cannot see it, cannot change it, and
+    cannot tell why the export differs from the preview. Each one has to be
+    drawn in the preview, or at minimum exposed in the Inspector.
+    """
+    preview_src = JS_SRC
+    inspector_src = (ROOT / "frontend" / "src" / "components" / "editor" / "Inspector.jsx").read_text(encoding="utf-8")
+    seen = field in preview_src or field in inspector_src
+    assert seen, f"'{field}' affects the render but is neither drawn nor editable"
+
+
+# ------------------------------------------------------- transition filling
+def test_all_cut_transitions_are_treated_as_undecided():
+    """
+    The tiered auto-wiring only runs when the pipeline cuts the shots itself,
+    so once a project had been opened in the editor -- which always sends a
+    clip_list plus a transitions array built from its own all-cut default --
+    it could never regain transitions. A real project sat at 21 boundaries,
+    21 hard cuts, with no path back.
+
+    An array that is entirely "cut" therefore means "nothing decided yet" and
+    gets filled; one non-cut entry marks the whole array as deliberate.
+    """
+    src = (ROOT / "scripts" / "pipeline.py").read_text(encoding="utf-8")
+    assert "_every_boundary_is_a_cut" in src
+    assert "boundary_count and _every_boundary_is_a_cut(transitions)" in src
+
+    # the filler must also stamp the clips, since the editor reads those
+    filler = src.split("if boundary_count and _every_boundary_is_a_cut(transitions):")[1].split("# Opt-in LUT")[0]
+    assert 'clip["transition_in"]' in filler
+    assert 'clip["transition_duration"]' in filler
+
+    # and the tiered path must never fall back to a bare cut any more
+    tiered = src.split("if tone == \"major\":")[1].split("if not transitions")[0]
+    assert '"cut"' not in tiered, "auto-wiring still has a hard-cut fallback"
+
+
+def test_transitions_follow_the_framing_and_never_repeat():
+    """
+    A fixed pattern (fade everywhere, dissolve every fourth) reads as
+    automated. The boundary effect should follow what the framing does across
+    it, and the same effect must not land twice in a row.
+    """
+    sys.path.insert(0, str(ROOT))
+    from scripts.pipeline import choose_transition
+
+    # pushing in vs pulling back get opposite-reading effects
+    assert choose_transition(1.0, 1.3, 0)["type"] == "circleopen"
+    assert choose_transition(1.3, 1.0, 0)["type"] == "circleclose"
+
+    # a boundary the framing barely crosses still gets something deliberate
+    assert choose_transition(1.1, 1.1, 0)["type"].startswith(("slide", "fade"))
+
+    # never the same effect twice running
+    picks, previous = [], None
+    for i, (a, b) in enumerate([(1.0, 1.3), (1.3, 1.6), (1.6, 1.0), (1.0, 1.0), (1.0, 1.0)]):
+        p = choose_transition(a, b, i, previous)
+        previous = p["type"]
+        picks.append(p["type"])
+    assert all(picks[i] != picks[i - 1] for i in range(1, len(picks))), picks
+
+    # and a cut is never a valid answer -- every boundary gets an effect
+    assert "cut" not in picks
+
+
+def test_transitions_do_not_shorten_the_video_against_the_audio():
+    """
+    A transition overlaps its two clips, so the finished video runs shorter
+    than the clips add up to -- by the sum of every transition. The shots are
+    cut to match the voiceover exactly, so putting a transition on all 12
+    boundaries of a real clip left the picture ending 3.1s before the audio
+    and subtitles did. Each outgoing clip has to get that time back.
+    """
+    src = (ROOT / "scripts" / "pipeline.py").read_text(encoding="utf-8")
+    block = src.split("# A transition overlaps its two clips")[1].split("# Opt-in LUT")[0]
+    assert 'clip["duration"] = round(float(clip.get("duration") or 0.0) + overlap, 3)' in block
+    assert 'clip["trim_end"]' in block, "the source out-point has to move too"
+    assert 'kind == "cut"' in block, "a plain cut costs no time and must be skipped"
+
+    # arithmetic: compensating each boundary restores the original length
+    clips = [{"duration": 2.0, "trim_end": 2.0} for _ in range(5)]
+    transitions = [{"type": "fade", "duration": 0.25} for _ in range(4)]
+    audio = sum(c["duration"] for c in clips)          # shots were cut to the voiceover
+    for i, b in enumerate(transitions):
+        clips[i]["duration"] += b["duration"]
+        clips[i]["trim_end"] += b["duration"]
+    rendered = sum(c["duration"] for c in clips) - sum(b["duration"] for b in transitions)
+    assert abs(rendered - audio) < 1e-6, f"video {rendered} vs audio {audio}"
+
+
+def test_voice_engine_records_what_actually_ran():
+    """
+    render_params only ever stored the engine that was REQUESTED, so a Gemini
+    TTS failure silently swapped the whole clip to Edge-TTS with nothing
+    anywhere saying so -- the giveaway was the wav being 44.1kHz stereo
+    instead of Gemini's 24kHz mono.
+    """
+    src = (ROOT / "scripts" / "pipeline.py").read_text(encoding="utf-8")
+    assert '"voice_engine_used": voice_engine_used' in src
+    assert 'voice_engine_used = "edge_tts"' in src, "the fallback must record itself"
+    assert "ลองใหม่อีกครั้ง" in src, "one transient failure should not decide the voice"
+
+
+def test_every_transition_has_its_own_timeline_glyph():
+    """
+    The timeline drew the same Waves icon for every boundary, so the strip
+    said only "something happens here" -- not which effect, and not whether
+    two neighbouring boundaries differed. Each id needs its own glyph, and no
+    two ids may share one or the strip is still ambiguous.
+    """
+    icons_src = (ROOT / "frontend" / "src" / "lib" / "transitionIcons.jsx").read_text(encoding="utf-8")
+    mapped = dict(re.findall(r"^  (\w+): (\w+),$", icons_src, re.M))
+
+    js_math = (ROOT / "frontend" / "src" / "lib" / "timelineMath.js").read_text(encoding="utf-8")
+    catalog = set(re.findall(r"\{ id: '([a-z]+)'", js_math)) | {"cut"}
+
+    missing = catalog - set(mapped)
+    assert not missing, f"transitions with no glyph of their own: {sorted(missing)}"
+
+    duplicates = [g for g in set(mapped.values()) if list(mapped.values()).count(g) > 1]
+    assert not duplicates, f"glyph reused across different transitions: {duplicates}"
+
+    # and the timeline must actually use the map rather than a fixed icon
+    timeline_src = (ROOT / "frontend" / "src" / "components" / "editor" / "Timeline.jsx").read_text(encoding="utf-8")
+    assert "<TransitionIcon type={currentTransition}" in timeline_src

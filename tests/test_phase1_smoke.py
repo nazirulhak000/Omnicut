@@ -575,6 +575,29 @@ def test_missing_translations_are_retried_not_frozen(tmp_path, monkeypatch):
     assert asked, "cues missing English must be sent for translation"
 
 
+def test_bilingual_highlight_stays_in_one_meaning_group():
+    """
+    The keyword dictionaries are three parallel meaning groups (pain point /
+    product / warning) in both languages. A colour hint used to only reorder
+    which group was tried first, so when the hinted group had no match the
+    line fell through to another group and took ITS colour: Thai lit
+    "ด่วนเลย" yellow from the pain-point list while English lit
+    "look at this" red from the warning list, on the same cue.
+    """
+    th_res, en_res = SubtitleEngine.apply_bilingual_kinetic_highlighting(
+        th_text="ดูนี่ด่วนเลย!", en_text="Look at this quickly!",
+        primary_th="&H00FFFFFF&", primary_en="&H00EAEAEA&",
+    )
+    th_colors = re.findall(r"\{\\c(&H[0-9A-Fa-f]+&)\}", th_res)
+    en_colors = re.findall(r"\{\\c(&H[0-9A-Fa-f]+&)\}", en_res)
+    assert th_colors and en_colors, "both lines must be highlighted"
+    assert th_colors[0] == en_colors[0], (
+        f"highlight switched meaning group: th={th_colors[0]} en={en_colors[0]}"
+    )
+    # and it must land on the counterpart word, not an unrelated phrase
+    assert "quickly" in en_res.split("}")[1] or "quickly" in en_res
+
+
 def test_bilingual_highlight_leaves_both_plain_when_neither_matches():
     """The consistent outcome for a pair with nothing worth emphasising is
     BOTH plain -- the fallback must not invent a highlight on one side."""
@@ -1757,3 +1780,81 @@ def test_kinetic_subtitles_and_rules():
 
 
 
+
+
+def _pipeline_run_kwargs(raw_video, project_name):
+    return dict(
+        product_name="test", project_name=project_name,
+        raw_video_path=str(raw_video), custom_script="ทดสอบเสียง",
+        voice_engine_type="edge_tts", use_ai_vision=False,
+    )
+
+
+def test_one_click_does_not_bake_the_audio_mix():
+    """
+    The mix exists for the ffmpeg render alone -- the editor previews the
+    stems. Baking it during a 1-Click that stops at the timeline only froze
+    the BGM and SFX picks before the user had seen them, so no mix should be
+    written and no mixed_audio artifact recorded.
+    """
+    import shutil
+    from unittest.mock import patch
+    from scripts.pipeline import TikTokAutoCutterPipeline
+    from scripts.config import PROJECTS_DIR
+
+    raw_video = next(Path("01_Raw").rglob("*.mov"), None) or next(Path("01_Raw").rglob("*.mp4"), None)
+    if raw_video is None:
+        pytest.skip("no raw video available in 01_Raw")
+
+    project_name = "TEST_no_mix_on_create"
+    try:
+        with patch("scripts.pipeline.SFXManager.mix_audio_track") as mixer:
+            TikTokAutoCutterPipeline.run(export_mp4=False, **_pipeline_run_kwargs(raw_video, project_name))
+        assert not mixer.called, "1-Click must not mix audio"
+
+        manifest = ProjectManifest.load(project_name)
+        assert "mixed_audio" not in (manifest.get("artifacts") or {}), (
+            "recording a mix that was never written is what made the reuse path "
+            "trust a missing file"
+        )
+        assert (manifest.get("artifacts") or {}).get("voice_audio"), "the voice stem is still needed"
+    finally:
+        shutil.rmtree(PROJECTS_DIR / project_name, ignore_errors=True)
+
+
+def test_render_mixes_on_demand_when_no_mix_exists_yet():
+    """
+    The editor's Render button resumes from "subtitles", which reports the mix
+    stage as already done. After a 1-Click that skipped mixing there is no file
+    to reuse, and the old code raised FileNotFoundError instead of just mixing.
+    """
+    import shutil
+    from unittest.mock import patch
+    from scripts.pipeline import TikTokAutoCutterPipeline
+    from scripts.config import PROJECTS_DIR
+
+    raw_video = next(Path("01_Raw").rglob("*.mov"), None) or next(Path("01_Raw").rglob("*.mp4"), None)
+    if raw_video is None:
+        pytest.skip("no raw video available in 01_Raw")
+
+    project_name = "TEST_mix_on_demand"
+    try:
+        with patch("scripts.pipeline.SFXManager.mix_audio_track"):
+            TikTokAutoCutterPipeline.run(export_mp4=False, **_pipeline_run_kwargs(raw_video, project_name))
+
+        def fake_mix(**kwargs):
+            Path(kwargs["output_audio_path"]).write_bytes(b"RIFF fake wav")
+            return kwargs["output_audio_path"]
+
+        with patch("scripts.pipeline.SFXManager.mix_audio_track", side_effect=fake_mix) as mixer, \
+             patch("scripts.pipeline.VideoEditor.assemble_tiktok_video", return_value="/fake/out.mp4"):
+            TikTokAutoCutterPipeline.run(
+                export_mp4=True, resume_from="subtitles",
+                **_pipeline_run_kwargs(raw_video, project_name),
+            )
+        assert mixer.called, "a render with no mix on disk has to make one"
+
+        manifest = ProjectManifest.load(project_name)
+        assert (manifest.get("artifacts") or {}).get("mixed_audio"), "now it exists, so record it"
+    finally:
+        shutil.rmtree(PROJECTS_DIR / project_name, ignore_errors=True)

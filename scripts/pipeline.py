@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import argparse
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -30,6 +31,40 @@ from scripts.script_tone_analyzer import ScriptToneAnalyzer
 from scripts.motion_analyzer import MotionAnalyzer
 from scripts.project_manifest import ProjectManifest
 from scripts.it_angles import LOOK_PRESETS, BGM_MOOD_MAP, DEFAULT_BGM
+
+# How much the framing has to change before a boundary counts as a real
+# push-in or pull-back rather than the same shot continuing.
+ZOOM_MOVE_THRESHOLD = 0.10
+
+
+def choose_transition(zoom_before, zoom_after, index, previous_type=None, tone="none"):
+    """
+    Pick a boundary effect that matches what the picture is doing there.
+
+    ffmpeg's xfade has no true zoom transition, so a push-in borrows
+    `circleopen` (an iris opening outward reads as moving in) and a pull-back
+    borrows `circleclose`. Everything else falls back to the soft options, and
+    the same effect never lands twice in a row -- a whole clip of identical
+    dissolves is what makes an edit feel automated.
+    """
+    dz = float(zoom_after or 1.0) - float(zoom_before or 1.0)
+
+    if tone == "major":
+        options = ["wipeleft", "wiperight", "circleopen"]
+    elif dz > ZOOM_MOVE_THRESHOLD:
+        options = ["circleopen", "dissolve"]          # pushing in
+    elif dz < -ZOOM_MOVE_THRESHOLD:
+        options = ["circleclose", "dissolve"]         # pulling back
+    elif abs(dz) < 0.03:
+        # framing barely moved: a slide sells it as a deliberate new angle
+        options = ["slideleft", "slideup", "fade"] if index % 2 == 0 else ["slideright", "slidedown", "fade"]
+    else:
+        options = ["dissolve", "fade"]
+
+    kind = next((o for o in options if o != previous_type), options[0])
+    duration = 0.35 if kind.startswith(("circle", "wipe", "slide")) else 0.25
+    return {"type": kind, "duration": duration}
+
 
 class TikTokAutoCutterPipeline:
     """Main pipeline to run full automated OmniCut Pro Studio video creation."""
@@ -90,6 +125,11 @@ class TikTokAutoCutterPipeline:
         stage and everything after it, reusing earlier artifacts recorded in the
         project manifest. A full run leaves `resume_from` as None.
         """
+        # Set before any branching: the manifest write at the end of the run
+        # reads this on every path, and a default tucked inside one branch is
+        # exactly how effective_text_overlays came to crash the resume route.
+        voice_engine_used = voice_engine_type
+
         def _notify(msg: str, progress: float):
             if progress_callback:
                 try:
@@ -158,8 +198,18 @@ class TikTokAutoCutterPipeline:
 
         # Determine Project Name
         if not project_name:
-            clean_name = "".join(c for c in product_name if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
-            project_name = f"TikTok_{clean_name}"
+            import re
+            cleaned = re.sub(r'\[[^\]]*\]', ' ', product_name or '')
+            cleaned = re.sub(r'\([^)]*\)', ' ', cleaned)
+            words = [w for w in re.sub(r'[^a-zA-Z0-9ก-๙\s_-]', ' ', cleaned).strip().split() if w]
+            short_prod = "_".join(words[:3]).lower() if words else "video"
+            base = short_prod
+            candidate = f"{base}_1"
+            v = 1
+            while (PROJECTS_DIR / candidate).exists():
+                v += 1
+                candidate = f"{base}_{v}"
+            project_name = candidate
 
         project_dir = PROJECTS_DIR / project_name
         project_dir.mkdir(parents=True, exist_ok=True)
@@ -314,14 +364,34 @@ class TikTokAutoCutterPipeline:
                     pass
 
             full_script_text = script_data.get("full_text") or "\n".join([l["text"] for l in script_data["lines"]])
+            # Which engine actually produced the audio, as opposed to which one
+            # was asked for. render_params only ever recorded the request, so a
+            # fallback left no trace: a clip could come back in the wrong voice
+            # with nothing anywhere explaining why.
+            voice_engine_used = "gemini_tts"
             try:
-                GeminiFlashTTSEngine.generate_speech(
-                    text=full_script_text,
-                    output_path=str(voice_audio_path),
-                    voice_name=gemini_voice,
-                    ad_tone=ad_tone or "commercial_premium",
-                    speed=speed_val
-                )
+                # One transient failure used to be enough to swap the voice for
+                # a whole clip. Retry before conceding, the same treatment the
+                # translator needed for the same reason.
+                last_tts_error = None
+                for attempt in range(2):
+                    try:
+                        GeminiFlashTTSEngine.generate_speech(
+                            text=full_script_text,
+                            output_path=str(voice_audio_path),
+                            voice_name=gemini_voice,
+                            ad_tone=ad_tone or "commercial_premium",
+                            speed=speed_val
+                        )
+                        last_tts_error = None
+                        break
+                    except Exception as tts_err:
+                        last_tts_error = tts_err
+                        if attempt == 0:
+                            print(f"⚠️ [Gemini Flash TTS] ล้มเหลว ({tts_err}) — ลองใหม่อีกครั้ง...")
+                            time.sleep(1.0)
+                if last_tts_error is not None:
+                    raise last_tts_error
 
                 probe_cmd = [
                     "ffprobe", "-v", "error", "-show_entries", "format=duration",
@@ -360,8 +430,9 @@ class TikTokAutoCutterPipeline:
                     curr_t = line_end
                 print(f"   Gemini Flash TTS voice generated! Duration: {total_duration:.2f}s, Cues: {len(cues)}")
             except Exception as gemini_err:
+                voice_engine_used = "edge_tts"
                 print(f"⚠️ [Gemini Flash TTS] Failed ({gemini_err}) — falling back to Edge-TTS...")
-                _notify("⚠️ Gemini TTS ขัดข้อง สลับไปใช้ Edge-TTS สำรอง...", 0.30)
+                _notify("⚠️ Gemini TTS ขัดข้อง สลับไปใช้ Edge-TTS สำรอง — เสียงจะไม่ใช่ Gemini", 0.30)
                 voice_res = VoiceEngine.generate_voiceover(
                     text_or_lines=script_data["lines"],
                     output_audio_path=str(voice_audio_path),
@@ -448,6 +519,14 @@ class TikTokAutoCutterPipeline:
             saved_params = (manifest.get("render_params") or {}) if manifest else {}
             if saved_params.get("hook_brand") or saved_params.get("hook_model") or saved_params.get("hook_label"):
                 gradient_hook_duration = float(saved_params.get("hook_duration") or 3.0)
+            # Only the regenerate branch above resolved these, but the manifest
+            # write at the end of the run reads them either way -- so a resume
+            # (every re-roll of video/bgm) crashed with UnboundLocalError
+            # AFTER the mp4 had already been rendered, losing the manifest
+            # update for a render that actually succeeded.
+            effective_text_overlays = text_overlays if text_overlays is not None else (
+                manifest.get("text_overlays") or saved_params.get("text_overlays")
+            )
             print(f"♻️  [3/5] Reusing subtitles: {ass_path.name} ({len(micro_cues)} micro-bursts)")
 
         # Auto-pick BGM by angle mood when the caller didn't name one --
@@ -468,7 +547,21 @@ class TikTokAutoCutterPipeline:
         # hook_title never move a timing — so the mix only has to be rebuilt
         # when the voice itself was regenerated. That is what makes a hook or
         # subtitle re-roll cheap.
-        if ProjectManifest.should_run("mix", resume_from):
+        # The baked mix exists for one consumer: the ffmpeg render. The editor
+        # previews the stems (voice / BGM / per-cue SFX) live, so a 1-Click that
+        # stops at the timeline has nothing to mix for -- and mixing there only
+        # froze the BGM and SFX choices before the user had seen them.
+        existing_mix = ProjectManifest.artifact_path(manifest, "mixed_audio") if manifest else None
+        mix_is_due = ProjectManifest.should_run("mix", resume_from)
+
+        if not export_mp4:
+            mixed_audio_path = existing_mix
+            print("[4/5] skip audio mix -- no video render yet (preview plays separate stems)")
+        elif mix_is_due or not existing_mix:
+            # `or not existing_mix` is what keeps a render honest after that
+            # skip: the editor's Render button resumes from "subtitles", which
+            # reports the mix stage as already done, and reusing a file that was
+            # never written raised FileNotFoundError instead.
             _notify("🎵 [4/5] กำลังมิกซ์เสียง Voice + เอฟเฟกต์ SFX (Boom/Pop/Cash) + BGM...", 0.65)
             print("\n🎵 [4/5] Mixing Audio (Voice + Boom/Whoosh/Pop/Ding/Cash SFX + Upbeat BGM)...")
             mixed_audio_path = _out_path("mixed_audio", ".wav")
@@ -486,15 +579,15 @@ class TikTokAutoCutterPipeline:
             )
             print(f"   Audio mixed: {mixed_audio_path}")
         else:
-            mixed_audio_path = _reuse("mixed_audio", "เสียงที่มิกซ์แล้ว")
-            print(f"♻️  [4/5] Reusing mixed audio: {mixed_audio_path.name}")
+            mixed_audio_path = existing_mix
+            print(f"[4/5] Reusing mixed audio: {mixed_audio_path.name}")
 
         result_paths = {
             "project_name": project_name,
             "project_dir": str(project_dir),
             "script": script_data,
             "voice_audio": str(voice_audio_path),
-            "mixed_audio": str(mixed_audio_path),
+            "mixed_audio": str(mixed_audio_path) if mixed_audio_path else None,
             "subtitles_ass": str(ass_path),
             "duration": total_duration,
             "mp4_video": None,
@@ -579,7 +672,11 @@ class TikTokAutoCutterPipeline:
         energy_mean: Optional[float] = None
         energy_std: Optional[float] = None
         try:
-            energy_times, energy_rms = BeatSync.get_rms_energy(mixed_audio_path)
+            # No mix yet on a 1-Click that stopped at the timeline; the zoom
+            # emphasis just falls back to the text-based signal below.
+            energy_times, energy_rms = (
+                BeatSync.get_rms_energy(mixed_audio_path) if mixed_audio_path else ([], [])
+            )
             if energy_rms:
                 energy_mean = sum(energy_rms) / len(energy_rms)
                 variance = sum((r - energy_mean) ** 2 for r in energy_rms) / len(energy_rms)
@@ -809,29 +906,46 @@ class TikTokAutoCutterPipeline:
 
                         if g_idx > 0:
                             # Boundary between this shot and the previous one.
-                            # Three tiers, cheapest signal first: a long pause
-                            # (real breath / topic change) gets a slower
-                            # dissolve; a short pause or a sentence ending
-                            # gets a quick fade; anything else -- including a
-                            # boundary that landed exactly on a music beat --
-                            # stays a hard cut, which is still the default
-                            # for most boundaries, not every one gets a
-                            # transition.
+                            # Strength scales with the signal: a topic change
+                            # gets a wipe, a real breath gets a dissolve, a
+                            # sentence ending gets a quick fade -- and every
+                            # remaining boundary still gets a short fade.
+                            #
+                            # It used to fall through to a hard cut, and on a
+                            # TTS voiceover that was nearly every boundary:
+                            # the lines run back to back so the measured gaps
+                            # sit around 0.08s, far under the 0.35s the fade
+                            # tier wants, and grouping cues into shots dilutes
+                            # the per-sentence signals further. A real render
+                            # came out 8 boundaries, 8 hard cuts, no
+                            # transition anywhere.
                             prev_last_cue = active_cues[groups[g_idx - 1][-1]]
                             next_first_cue = active_cues[group[0]]
                             gap = float(next_first_cue.get("start", 0.0)) - float(prev_last_cue.get("end", 0.0))
                             prev_text = str(prev_last_cue.get("text", "")).strip()
                             sentence_end = prev_text.endswith((".", "!", "?", "ครับ", "ค่ะ", "นะคะ", "นะครับ"))
                             tone = tone_shifts[g_idx - 1] if (g_idx - 1) < len(tone_shifts) else "none"
-                            if tone == "major":
-                                wipe_type = "wipeleft" if g_idx % 2 == 0 else "circleopen"
-                                auto_transitions.append({"type": wipe_type, "duration": 0.35})
-                            elif gap > 0.6:
-                                auto_transitions.append({"type": "dissolve", "duration": 0.3})
-                            elif gap > 0.35 or sentence_end:
-                                auto_transitions.append({"type": "fade", "duration": 0.2})
-                            else:
-                                auto_transitions.append("cut")
+                            # A real pause still earns a slower effect, but the
+                            # shape of it comes from what the framing does
+                            # across the boundary, and never repeats the
+                            # previous one. Same chooser the clip_list path
+                            # uses, so both routes look like one editor.
+                            previous_type = None
+                            if auto_transitions:
+                                last = auto_transitions[-1]
+                                previous_type = last.get("type") if isinstance(last, dict) else str(last)
+                            pick = choose_transition(
+                                shots[g_idx - 1].get("scale") if g_idx - 1 < len(shots) else 1.0,
+                                scale,
+                                g_idx,
+                                previous_type,
+                                tone,
+                            )
+                            if tone != "major" and gap > 0.6:
+                                pick["duration"] = max(pick["duration"], 0.35)
+                            elif tone != "major" and not (gap > 0.35 or sentence_end):
+                                pick["duration"] = min(pick["duration"], 0.25)
+                            auto_transitions.append(pick)
 
                     if not transitions and auto_transitions:
                         transitions = auto_transitions
@@ -857,7 +971,19 @@ class TikTokAutoCutterPipeline:
                     s_dur = max(0.2, shot["end"] - shot["start"])
                     raw_start_offset = float(shot.get("raw_offset", 0.0))
                     trim_end = round(raw_start_offset + s_dur, 3)
-                    generated_clips.append({
+                    # The boundary decided above belongs ON the clip as well
+                    # as in the separate `transitions` array. The editor reads
+                    # clip.transition_in, so hardcoding "cut" here meant the
+                    # timeline showed hard cuts everywhere no matter what the
+                    # renderer had actually been told to do.
+                    boundary = transitions[idx - 1] if (idx > 0 and transitions and idx - 1 < len(transitions)) else None
+                    if isinstance(boundary, dict):
+                        t_in, t_dur = boundary.get("type", "cut"), boundary.get("duration")
+                    elif isinstance(boundary, str):
+                        t_in, t_dur = boundary, None
+                    else:
+                        t_in, t_dur = "cut", None
+                    clip_entry = {
                         "id": f"clip_{idx}",
                         "source_path": str(raw_video),
                         "trim_start": round(raw_start_offset, 3),
@@ -866,8 +992,11 @@ class TikTokAutoCutterPipeline:
                         "speed": 1.0,
                         "zoom": round(float(shot.get("scale", 1.0)), 2),
                         "shot_index": idx,
-                        "transition_in": "cut"
-                    })
+                        "transition_in": t_in,
+                    }
+                    if t_dur is not None:
+                        clip_entry["transition_duration"] = float(t_dur)
+                    generated_clips.append(clip_entry)
                 actual_clip_list = generated_clips
             except Exception as shot_err:
                 print(f"Warning: Failed to generate shot clip_list: {shot_err}")
@@ -880,6 +1009,75 @@ class TikTokAutoCutterPipeline:
                     "speed": 1.0,
                     "transition_in": "cut"
                 }]
+
+        # Every boundary gets a transition, whichever path produced the clips.
+        #
+        # The tiered auto-wiring above only runs when the pipeline cuts the
+        # shots itself, i.e. the very first 1-Click. The moment a project has
+        # been opened in the editor it always carries a clip_list, so that
+        # branch was skipped for good -- and the editor sends a transitions
+        # array built from its own clips, which reads as "the user picked
+        # these" even when it is only the all-cut default the editor invented.
+        # Between the two, a project could never regain transitions once it
+        # had been opened: 21 boundaries, 21 hard cuts, no way back.
+        #
+        # So an array that is entirely "cut" is treated as "nothing decided
+        # yet" and filled in. Set even one boundary to something else and the
+        # whole array is left exactly as it is -- that is the signal that the
+        # choices are deliberate.
+        def _every_boundary_is_a_cut(items) -> bool:
+            if not items:
+                return True
+            for item in items:
+                kind = item.get("type") if isinstance(item, dict) else str(item)
+                if kind and kind != "cut":
+                    return False
+            return True
+
+        boundary_count = max(0, len(actual_clip_list or []) - 1)
+        if boundary_count and _every_boundary_is_a_cut(transitions):
+            # Matched to what the framing does across each boundary rather
+            # than a fixed pattern: a boundary that punches in gets an effect
+            # that reads as moving in, one that pulls back gets the reverse,
+            # and a boundary where the framing barely moved gets a slide so it
+            # still reads as a deliberate new angle. Nothing repeats twice in
+            # a row -- a whole clip of the same dissolve is what made this
+            # look automated.
+            transitions = []
+            previous_type = None
+            for i in range(boundary_count):
+                pick = choose_transition(
+                    actual_clip_list[i].get("zoom"),
+                    actual_clip_list[i + 1].get("zoom"),
+                    i,
+                    previous_type,
+                )
+                previous_type = pick["type"]
+                transitions.append(pick)
+            for i, clip in enumerate(actual_clip_list):
+                if i == 0:
+                    continue
+                clip["transition_in"] = transitions[i - 1]["type"]
+                clip["transition_duration"] = transitions[i - 1]["duration"]
+            print(f"   ✨ ใส่รอยต่อให้อัตโนมัติ {boundary_count} จุด (ไม่มีรอยต่อเดิมให้ยึด)")
+
+        # A transition overlaps its two clips, so the finished video is
+        # shorter than the clips add up to -- by the sum of every transition.
+        # The shots were cut to match the voiceover exactly, so adding
+        # transitions on top made the picture run out ~3s before the audio and
+        # the subtitles did. Give each outgoing clip that time back.
+        if transitions and actual_clip_list and len(actual_clip_list) > 1:
+            for i, boundary in enumerate(transitions[: len(actual_clip_list) - 1]):
+                kind = boundary.get("type") if isinstance(boundary, dict) else str(boundary)
+                if not kind or kind == "cut":
+                    continue
+                overlap = float(boundary.get("duration") or 0.0) if isinstance(boundary, dict) else 0.0
+                if overlap <= 0:
+                    continue
+                clip = actual_clip_list[i]
+                clip["duration"] = round(float(clip.get("duration") or 0.0) + overlap, 3)
+                if clip.get("trim_end") is not None:
+                    clip["trim_end"] = round(float(clip["trim_end"]) + overlap, 3)
 
         # Opt-in LUT styling
         lut_path = str(LUTS_DIR / lut_name) if lut_name else None
@@ -927,9 +1125,13 @@ class TikTokAutoCutterPipeline:
         # 6. Persist everything a re-roll will need to reuse
         artifacts = {
             "voice_audio": {"path": str(voice_audio_path)},
-            "mixed_audio": {"path": str(mixed_audio_path)},
             "subtitles_ass": {"path": str(ass_path)},
         }
+        # Recorded only when it exists. Writing it unconditionally is what let a
+        # manifest point at a mix that was never produced, which the reuse path
+        # then trusted.
+        if mixed_audio_path and Path(mixed_audio_path).exists():
+            artifacts["mixed_audio"] = {"path": str(mixed_audio_path)}
         if result_paths["mp4_video"]:
             artifacts["mp4_video"] = {"path": result_paths["mp4_video"]}
 
@@ -939,6 +1141,11 @@ class TikTokAutoCutterPipeline:
             "micro_cues": micro_cues,
             "total_duration": total_duration,
             "clip_list": actual_clip_list,
+            # The editor's save writes a top-level `transitions`, and only
+            # render_params carried the pipeline's own. Leaving the top-level
+            # copy stale meant the editor -- which reads it first -- kept
+            # showing the previous run's boundaries after a re-render.
+            "transitions": transitions,
             "render_params": {
                 "product_name": product_name,
                 "raw_video_path": str(raw_video),
@@ -955,6 +1162,8 @@ class TikTokAutoCutterPipeline:
                 "voice": voice,
                 "voice_rate": voice_rate,
                 "voice_engine_type": voice_engine_type,
+                # what actually ran, which is not always what was asked for
+                "voice_engine_used": voice_engine_used,
                 "voice_preset": voice_preset,
                 "ad_tone": ad_tone,
                 "human_voice_audio_path": human_voice_audio_path,

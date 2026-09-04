@@ -43,12 +43,19 @@ export const MIN_CLIP_DURATION = 0.2;
 export const ZOOM_LEVELS = [10, 25, 50, 100, 200];
 export const DEFAULT_ZOOM_INDEX = 2;
 
-/** Kept length of a clip on the sequence timeline, after trim and speed. */
+/**
+ * Kept length of a clip on the sequence timeline, after trim, speed and the
+ * freeze tail. The tail has to be counted here for the same reason
+ * video_editor.py adds it to its own `duration`: every later clip's start --
+ * and every transition offset -- is measured from this number, so leaving it
+ * out made the preview run short and drift against the render.
+ */
 export function clipDuration(clip, srcDuration) {
   const end = clip.trim_end ?? srcDuration ?? 0;
   const raw = end - (clip.trim_start || 0);
   const speed = clip.speed || 1;
-  return Math.max(MIN_CLIP_DURATION, raw / speed);
+  const freezeTail = Math.min(10, Math.max(0, Number(clip.freeze_tail) || 0));
+  return Math.max(MIN_CLIP_DURATION, raw / speed + freezeTail);
 }
 
 /**
@@ -76,10 +83,18 @@ export function totalDuration(segments) {
   return segments.length ? segments[segments.length - 1].segEnd : 0;
 }
 
-/** Source-file time for a global sequence time inside one segment. */
+/**
+ * Source-file time for a global sequence time inside one segment. Once the
+ * played span is used up the freeze tail holds the last frame, matching
+ * ffmpeg's tpad=stop_mode=clone.
+ */
 export function localTimeAt(seg, t) {
-  const speed = seg.clip.speed || 1;
-  return (seg.clip.trim_start || 0) + (t - seg.segStart) * speed;
+  const clip = seg.clip;
+  const speed = clip.speed || 1;
+  const start = clip.trim_start || 0;
+  const playedSpan = ((clip.trim_end ?? seg.srcDur ?? 0) - start) / speed;
+  const elapsed = Math.min(t - seg.segStart, playedSpan);
+  return start + elapsed * speed;
 }
 
 /**

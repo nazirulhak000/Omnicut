@@ -335,6 +335,14 @@ class VideoEditor:
                 scale, crop_x, crop_y, scaled_w, scaled_h = frame_geometry(
                     clip, shot_scales[idx % len(shot_scales)]
                 )
+                # Record what was actually used. Leaving the fallback implicit
+                # is what made the preview disagree with the render: the clip
+                # said nothing about zoom, so the preview drew 1.0 while this
+                # punched in to 1.35. Writing it back makes the decision
+                # visible in the editor and editable next time.
+                clip["zoom"] = round(scale, 3)
+                clip.setdefault("pan_x", 0.0)
+                clip.setdefault("pan_y", 0.0)
 
                 node_name = f"clip_{idx}"
                 use_bg_blur = bool(clip.get("bg_blur")) or (clip.get("fit_mode") == "blur")
