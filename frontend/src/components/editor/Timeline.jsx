@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { TransitionIcon } from '../../lib/transitionIcons';
 import {
+  ChevronDown, ChevronRight,
   Copy, Eye, EyeOff, Film, FlipHorizontal2, Gauge, MessageSquare, Music, Plus, Scissors, Sparkles, Trash2, Type, Volume2, VolumeX, Waves, X
 } from 'lucide-react';
 import TimelineClip from './TimelineClip';
@@ -10,22 +11,85 @@ import { formatTimecode, TRANSITIONS, FADE_DURATION } from '../../lib/timelineMa
 
 const RULER_H = 22;
 const WAVE_COLUMNS = 1200;
-const VIDEO_H = 60;
-const HOOK_H = 26;
-const CAPTION_H = 30;
-const TEXT_OVERLAY_H = 30;
+
+// Row heights on a 4px scale, with the video track deliberately the tall one:
+// it is what the eye lands on first, and everything else supports it.
+const VIDEO_H = 64;
+const HOOK_H = 28;
+const CAPTION_H = 28;
+const TEXT_OVERLAY_H = 28;
+const STEM_H = 24;
+
+// Rhythm. Rows inside a group sit close; the three groups (picture, overlays,
+// audio) are pushed apart. One repeated gap made eight rows read as a single
+// undifferentiated stack -- the grouping had to be inferred rather than seen.
+const ROW_GAP = 2;
+const GROUP_GAP = 10;
+const TRACK_TOP = 6;
 // One lane per stem now that the preview plays them separately: a single
 // merged "audio" lane could only ever show the mix, which most projects no
 // longer have, and gave nothing to mute or solo.
-const STEM_H = 24;
 const STEMS = [
   { key: 'voice', label: 'พากย์', colour: '#8FBF9F', ring: '#33463A', bg: '#242A26' },
   { key: 'bgm', label: 'เพลง', colour: '#9FB4D8', ring: '#33405A', bg: '#232833' },
-  { key: 'sfx', label: 'เอฟเฟกต์', colour: '#D8C39F', ring: '#524731', bg: '#302B22' },
-  { key: 'clip', label: 'เสียงคลิป', colour: '#C79FD8', ring: '#4A3155', bg: '#2C2333' },
+  { key: 'sfx', label: 'SFX', colour: '#D8C39F', ring: '#524731', bg: '#302B22' },
+  { key: 'clip', label: 'คลิป', colour: '#C79FD8', ring: '#4A3155', bg: '#2C2333' },
 ];
-const GUTTER = 104;        // left label column
-const TRACK_GAP = 4;
+
+// The label gutter and the lanes are two columns describing the same rows, so
+// they read their geometry from one list. They used to space themselves
+// differently -- `gap-1` on the gutter against per-lane `mt-1` -- and any row
+// that forgot its margin slid the labels out from under their lanes for every
+// row below it. With four audio lanes that drift reached 12px and the names no
+// longer sat beside their own waveforms.
+const TRACK_ROWS = [
+  { key: 'video', group: 'picture', height: VIDEO_H },
+  { key: 'hook', group: 'overlay', height: HOOK_H },
+  { key: 'caption', group: 'overlay', height: CAPTION_H },
+  { key: 'text', group: 'overlay', height: TEXT_OVERLAY_H, optional: true },
+  ...STEMS.map((s) => ({ key: s.key, group: 'audio', height: STEM_H })),
+];
+
+/**
+ * Height and top margin for every visible row, in order. `heights` overrides a
+ * row whose height depends on content; `present` drops an optional row.
+ */
+function layoutRows({ heights = {}, present = {}, collapsed = {} } = {}) {
+  const rows = [];
+  let prevGroup = null;
+  for (const row of TRACK_ROWS) {
+    if (row.optional && !present[row.key]) continue;
+    // A collapsed group keeps its first row as the group's own handle, so the
+    // fold is reversible from the same place it was folded.
+    if (collapsed[row.group] && prevGroup === row.group) continue;
+    const height = heights[row.key] ?? row.height;
+    const marginTop = prevGroup === null ? 0 : (row.group === prevGroup ? ROW_GAP : GROUP_GAP);
+    rows.push({ ...row, height, marginTop });
+    prevGroup = row.group;
+  }
+  return rows;
+}
+
+/**
+ * Height the track area needs to show every row without scrolling, chrome
+ * included. The dock's own min/default heights are derived from this: they used
+ * to be hand-tuned numbers, so adding the four audio lanes left the video track
+ * below the fold with vertical overflow hidden -- unreachable, with nothing on
+ * screen to say it was there.
+ */
+export function tracksFitHeight({ textOverlays = false, audioCollapsed = false } = {}) {
+  const rows = layoutRows({
+    present: { text: textOverlays },
+    collapsed: { audio: audioCollapsed },
+  });
+  const tracks = rows.reduce((sum, r) => sum + r.height + r.marginTop, 0);
+  return RULER_H + TRACK_TOP + tracks + TRACK_BOTTOM;
+}
+
+// Room under the last lane for the horizontal scrollbar, plus a little air so
+// the bottom row is not flush against it.
+const TRACK_BOTTOM = 18;
+const GUTTER = 144;        // left label column
 
 /** Tick spacing that keeps labels readable at any zoom. */
 function tickStep(pxPerSec) {
@@ -35,28 +99,75 @@ function tickStep(pxPerSec) {
   return 120;
 }
 
-function TrackLabel({ icon: Icon, children, action, iconTitle, iconClass, onIconClick }) {
+/**
+ * A mute/solo chip. The mark stays small because the gutter is narrow, but the
+ * hit area is padded out to something a pointer can actually catch.
+ */
+function MixButton({ active, pressed, activeClass, onClick, title, children }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+      title={title}
+      // `active` is how it looks, `pressed` is what it is. A track silenced
+      // because another one is soloed reads as silent on screen, but its mute
+      // button is not pressed -- announcing it as pressed would tell a screen
+      // reader the user muted something they never touched.
+      aria-pressed={pressed ?? active}
+      className={`grid h-[18px] w-[18px] place-items-center rounded text-[10px] font-semibold leading-none
+        transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1
+        focus-visible:outline-[#8FBF9F] ${
+        active ? activeClass : 'text-[#6F6A64] hover:bg-[#2C2B27] hover:text-[#EDE9E3]'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function TrackLabel({ icon: Icon, children, action, iconTitle, iconClass, onIconClick, dot, labelClass, fold }) {
   return (
     <div
-      className="flex items-center justify-between px-2 text-xs font-medium text-[#9C968F]"
+      className="flex items-center gap-1 px-2 text-xs font-medium text-[#9C968F]"
       style={{ width: GUTTER }}
     >
-      <div className="flex items-center gap-1.5 truncate">
-        {!Icon ? (
-          <span className="w-3 flex-shrink-0" />
-        ) : onIconClick ? (
+      <div className="flex min-w-0 flex-1 items-center gap-1.5">
+        <span className="flex w-[26px] flex-shrink-0 items-center gap-1.5">
+        {fold && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); fold.onToggle?.(); }}
+            title={fold.title}
+            aria-expanded={!fold.collapsed}
+            className="-m-0.5 flex-shrink-0 rounded p-0.5 text-[#6F6A64] transition-colors hover:bg-[#2C2B27] hover:text-[#EDE9E3]"
+          >
+            {fold.collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          </button>
+        )}
+        {Icon && onIconClick ? (
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onIconClick(); }}
             title={iconTitle}
-            className="flex-shrink-0 rounded p-0.5 -m-0.5 transition-colors hover:bg-[#2C2B27] hover:text-[#EDE9E3]"
+            className="-m-0.5 flex-shrink-0 rounded p-0.5 transition-colors hover:bg-[#2C2B27] hover:text-[#EDE9E3]"
           >
             <Icon className={`h-3 w-3 ${iconClass || ''}`} />
           </button>
-        ) : (
+        ) : Icon ? (
           <Icon className="h-3 w-3 flex-shrink-0" />
+        ) : null}
+        {dot && (
+          <span
+            className="h-[7px] w-[7px] flex-shrink-0 rounded-full"
+            style={dot.hollow
+              ? { boxShadow: `inset 0 0 0 1.5px ${dot.colour}`, opacity: 0.5 }
+              : { background: dot.colour }}
+          />
         )}
-        <span className="truncate">{children}</span>
+        </span>
+        <span className={`truncate ${labelClass || ''}`} title={typeof children === 'string' ? children : undefined}>
+          {children}
+        </span>
       </div>
       {action}
     </div>
@@ -72,6 +183,8 @@ export default function Timeline({
   stemUrls = {},
   trackMix = null,
   onTrackMix,
+  audioCollapsed = false,
+  onToggleAudioGroup,
   filmstrips,
   pxPerSec,
   playhead,
@@ -185,6 +298,26 @@ export default function Timeline({
 
   const TEXT_LANE_ROW_H = 26;
   const textTrackHeight = Math.max(TEXT_OVERLAY_H, textLaneCount * TEXT_LANE_ROW_H + 4);
+
+  // Geometry for every row, resolved once. Both the label gutter and the lanes
+  // spread the same object, so a row cannot be spaced differently on the two
+  // sides -- which is exactly how the labels drifted out from under their lanes.
+  const rows = useMemo(
+    () => layoutRows({
+      heights: { text: textTrackHeight },
+      present: { text: hasTextOverlays },
+      collapsed: { audio: audioCollapsed },
+    }),
+    [textTrackHeight, hasTextOverlays, audioCollapsed],
+  );
+  const visibleStems = audioCollapsed ? STEMS.slice(0, 1) : STEMS;
+  const rowStyleOf = useMemo(() => {
+    const byKey = {};
+    rows.forEach((r) => { byKey[r.key] = { height: r.height, marginTop: r.marginTop }; });
+    return byKey;
+  }, [rows]);
+  const rowStyle = (key) => rowStyleOf[key] || { height: 0, marginTop: 0 };
+  const tracksHeight = rows.reduce((sum, r) => sum + r.height + r.marginTop, 0);
 
   // Close context menu & transition popover on outside pointer click or Escape
   useEffect(() => {
@@ -487,7 +620,7 @@ export default function Timeline({
 
   return (
     <div className="flex h-full flex-col bg-[#1C1B19]">
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-x-auto overflow-y-auto">
         <div style={{ width: contentWidth, minWidth: '100%' }} className="relative">
 
           {/* Ruler: click or drag to scrub */}
@@ -514,12 +647,12 @@ export default function Timeline({
           </div>
 
           {/* Track lanes */}
-          <div className="flex" style={{ paddingTop: TRACK_GAP }}>
-            <div className="flex flex-shrink-0 flex-col gap-1">
-              <div style={{ height: VIDEO_H }} className="flex items-center">
+          <div className="flex" style={{ paddingTop: TRACK_TOP, paddingBottom: TRACK_BOTTOM }}>
+            <div className="flex flex-shrink-0 flex-col">
+              <div style={rowStyle('video')} className="flex items-center">
                 <TrackLabel icon={Film}>วิดีโอ</TrackLabel>
               </div>
-              <div style={{ height: HOOK_H }} className="flex items-center">
+              <div style={rowStyle('hook')} className="flex items-center">
                 <TrackLabel
                   icon={Sparkles}
                   action={
@@ -540,7 +673,7 @@ export default function Timeline({
                   ป้ายฮุก
                 </TrackLabel>
               </div>
-              <div style={{ height: CAPTION_H }} className="flex items-center">
+              <div style={rowStyle('caption')} className="flex items-center">
                 <TrackLabel
                   icon={MessageSquare}
                   action={
@@ -562,7 +695,7 @@ export default function Timeline({
                 </TrackLabel>
               </div>
               {hasTextOverlays && (
-                <div style={{ height: textTrackHeight }} className="flex items-center transition-all duration-150">
+                <div style={rowStyle('text')} className="flex items-center transition-all duration-150">
                   <TrackLabel
                     icon={Type}
                     action={
@@ -584,49 +717,68 @@ export default function Timeline({
                   </TrackLabel>
                 </div>
               )}
-              {STEMS.map(({ key, label }, i) => {
-                const soloed = Object.values(trackMix?.solo || {}).some(Boolean);
+              {visibleStems.map(({ key, label, colour }, i) => {
+                const soloing = Object.values(trackMix?.solo || {}).some(Boolean);
                 const isSolo = !!trackMix?.solo?.[key];
                 const isMute = !!trackMix?.mute?.[key];
-                const silent = soloed ? !isSolo : isMute;
+                const silent = soloing ? !isSolo : isMute;
                 return (
-                  <div key={key} style={{ height: STEM_H }} className={`flex items-center ${i ? '' : 'mt-1'}`}>
+                  <div key={key} style={rowStyle(key)} className="flex items-center">
                     <TrackLabel
-                      // The group icon doubles as the master mute: per-track
-                      // mute covers most of what this was for, but silencing
-                      // everything at once is still one click.
-                      icon={i === 0 ? (isAudioMuted ? VolumeX : Music) : undefined}
-                      iconTitle={i === 0
-                        ? (isAudioMuted ? 'คลิกเพื่อเปิดเสียงพรีวิวทั้งหมด' : 'คลิกเพื่อปิดเสียงพรีวิวทั้งหมด')
-                        : undefined}
-                      iconClass={i === 0 && isAudioMuted ? 'text-rose-400' : undefined}
-                      onIconClick={i === 0 ? onToggleMuteAudio : undefined}
+                      // The leading slot is where a tree control is looked for,
+                      // so the group's fold takes it. Folded, this row stands
+                      // for the whole group and unfolds from the same place.
+                      fold={i === 0 ? {
+                        collapsed: audioCollapsed,
+                        onToggle: onToggleAudioGroup,
+                        title: audioCollapsed
+                          ? 'คลิกเพื่อแสดงแทร็กเสียงทั้ง 4'
+                          : 'คลิกเพื่อรวมแทร็กเสียงให้เหลือแถวเดียว',
+                      } : undefined}
+                      // A dot in the lane's own colour ties the name to its
+                      // waveform, and going hollow says "silent" without
+                      // relying on colour alone -- so does the struck-through
+                      // label next to it.
+                      dot={{ colour, hollow: silent }}
+                      labelClass={`text-[11px] ${silent ? 'line-through decoration-[#6F6A64]' : ''}`}
                       action={
-                        <span className="flex items-center gap-0.5">
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); onTrackMix?.(key, 'mute'); }}
+                        <span className="flex items-center gap-px">
+                          {i === 0 && (
+                            // Master mute is a peer of the per-track chips, not
+                            // a decoration on the group icon.
+                            <MixButton
+                              active={isAudioMuted}
+                              activeClass="bg-rose-500/25 text-rose-300"
+                              onClick={onToggleMuteAudio}
+                              title={isAudioMuted ? 'เปิดเสียงพรีวิวทั้งหมด' : 'ปิดเสียงพรีวิวทั้งหมด'}
+                            >
+                              {isAudioMuted ? <VolumeX className="h-3 w-3" /> : <Volume2 className="h-3 w-3" />}
+                            </MixButton>
+                          )}
+                          <MixButton
+                            active={silent}
+                            pressed={isMute}
+                            activeClass="bg-rose-500/25 text-rose-300"
+                            onClick={() => onTrackMix?.(key, 'mute')}
                             title={`${isMute ? 'เปิด' : 'ปิด'}เสียงแทร็ก ${label}`}
-                            className={`rounded px-1 text-[10px] font-semibold leading-4 transition-colors ${
-                              silent ? 'bg-rose-500/25 text-rose-300' : 'text-[#6F6A64] hover:bg-[#2C2B27] hover:text-[#EDE9E3]'
-                            }`}
                           >
                             M
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); onTrackMix?.(key, 'solo'); }}
+                          </MixButton>
+                          <MixButton
+                            active={isSolo}
+                            activeClass="bg-amber-400/25 text-amber-300"
+                            onClick={() => onTrackMix?.(key, 'solo')}
                             title={`ฟังแทร็ก ${label} เดี่ยว`}
-                            className={`rounded px-1 text-[10px] font-semibold leading-4 transition-colors ${
-                              isSolo ? 'bg-amber-400/25 text-amber-300' : 'text-[#6F6A64] hover:bg-[#2C2B27] hover:text-[#EDE9E3]'
-                            }`}
                           >
                             S
-                          </button>
+                          </MixButton>
                         </span>
                       }
                     >
-                      {label}
+                      {/* Folded, the row stands for the group -- the chevron already says
+                          there is more behind it, so the count would only cost the
+                          width the name needs. */}
+                      {i === 0 && audioCollapsed ? 'เสียง' : label}
                     </TrackLabel>
                   </div>
                 );
@@ -637,7 +789,7 @@ export default function Timeline({
               {/* video track */}
               <div
                 className="relative rounded bg-[#181716]"
-                style={{ height: VIDEO_H }}
+                style={rowStyle('video')}
                 onDragOver={onDragOverTrack}
                 onDragLeave={() => setDropIndex(null)}
                 onDrop={onDropTrack}
@@ -810,7 +962,7 @@ export default function Timeline({
               </div>
 
               {/* hook header track */}
-              <div className="relative mt-1 rounded bg-[#181716]" style={{ height: HOOK_H }}>
+              <div className="relative rounded bg-[#181716]" style={rowStyle('hook')}>
                 {(() => {
                   const hookText = [hookBrand, hookModel, hookLabel].filter(Boolean).join(' · ') || 'ป้ายฮุกพาดหัว (Hook Header)';
                   const isSelected = selection?.type === 'hook';
@@ -862,7 +1014,7 @@ export default function Timeline({
               </div>
 
               {/* caption track */}
-              <div className="relative mt-1 rounded bg-[#181716]" style={{ height: CAPTION_H }}>
+              <div className="relative rounded bg-[#181716]" style={rowStyle('caption')}>
                 {(cues || []).map((cue) => {
                   const selected = selection?.type === 'caption' && selection.id === cue._uid;
                   const w = Math.max(14, (cue.end - cue.start) * pxPerSec);
@@ -949,8 +1101,8 @@ export default function Timeline({
               {/* text overlay track (only shown when overlays exist, auto-stacked by lane) */}
               {hasTextOverlays && (
                 <div
-                  className="relative mt-1 rounded bg-[#181716] transition-all duration-150"
-                  style={{ height: textTrackHeight }}
+                  className="relative rounded bg-[#181716] transition-all duration-150"
+                  style={rowStyle('text')}
                 >
                   {packedTextOverlays.map((item) => {
                     const selected = selection?.type === 'text_overlay' && selection.id === item.id;
@@ -1044,23 +1196,26 @@ export default function Timeline({
               )}
 
               {/* audio stems: one lane each, so a level, a cue or a clip's own
-                  sound can be seen and soloed instead of hidden in one mix */}
-              {STEMS.map(({ key, label, colour, ring, bg }, i) => {
-                const soloed = Object.values(trackMix?.solo || {}).some(Boolean);
-                const silent = soloed ? !trackMix?.solo?.[key] : !!trackMix?.mute?.[key];
+                  sound can be seen and soloed instead of hidden in one mix.
+                  The lane carries no name of its own -- the gutter already
+                  says it, and repeating it only wrote over the waveform. */}
+              {visibleStems.map(({ key, colour, ring, bg }) => {
+                const soloing = Object.values(trackMix?.solo || {}).some(Boolean);
+                const silent = soloing ? !trackMix?.solo?.[key] : !!trackMix?.mute?.[key];
                 const info = stemPeaks[key];
-                const spanSecs = key === 'voice' || key === 'bgm'
-                  ? audioDuration
-                  : totalDuration;
+                const spanSecs = key === 'voice' || key === 'bgm' ? audioDuration : totalDuration;
+                const note = key === 'bgm'
+                  ? (bgmLabel || 'ค่าเริ่มต้นของช่อง')
+                  : (info?.truncated ? `รูปคลื่นแสดง ${MAX_DECODE_SECONDS} วิแรก` : '');
                 return (
                   <div
                     key={key}
-                    className={`relative rounded bg-[#181716] ${i ? '' : 'mt-1'}`}
-                    style={{ height: STEM_H, opacity: silent ? 0.35 : 1 }}
+                    className="relative rounded bg-[#181716] transition-opacity duration-150"
+                    style={{ ...rowStyle(key), opacity: silent ? 0.4 : 1 }}
                   >
                     {spanSecs > 0 && (
                       <div
-                        className="absolute top-0.5 flex h-[calc(100%-4px)] items-center overflow-hidden rounded px-2"
+                        className="absolute inset-y-0 flex items-center overflow-hidden rounded"
                         style={{
                           left: 0,
                           width: spanSecs * pxPerSec,
@@ -1082,26 +1237,38 @@ export default function Timeline({
                             className="pointer-events-none absolute inset-0 h-full w-full"
                           />
                         )}
-                        <span
-                          className="relative truncate text-[10px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
-                          style={{ color: colour }}
-                        >
-                          {key === 'bgm' && bgmLabel ? `${label} · ${bgmLabel}` : label}
-                          {info?.truncated ? ` · รูปคลื่นแสดง ${MAX_DECODE_SECONDS} วิแรก` : ''}
-                        </span>
+                        {note && (
+                          <span
+                            className="relative ml-2 truncate text-[10px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
+                            style={{ color: colour }}
+                          >
+                            {note}
+                          </span>
+                        )}
                       </div>
                     )}
 
-                    {/* clip lane: a block wherever a clip contributes its own audio */}
+                    {/* clip lane: a block wherever a clip contributes its own audio.
+                        Clip volume defaults to 0, so this lane is empty for most
+                        projects -- say so rather than leaving a blank strip. */}
+                    {key === 'clip' && !segments.some((s) => Number(s.clip.volume) > 0) && (
+                      <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-[#6F6A64]">
+                        ยังไม่ได้เปิดเสียงในคลิป — ตั้งระดับได้ที่แผงขวา
+                      </span>
+                    )}
                     {key === 'clip' && segments.filter((s) => Number(s.clip.volume) > 0).map((s) => (
                       <div
                         key={`clipaud-${s.clip.id}`}
-                        className="absolute top-0.5 h-[calc(100%-4px)] rounded bg-[#C79FD8]/30 ring-1 ring-[#C79FD8]/60"
+                        className="absolute inset-y-0 rounded bg-[#C79FD8]/30 ring-1 ring-inset ring-[#C79FD8]/60"
                         style={{ left: s.segStart * pxPerSec, width: Math.max(2, (s.segEnd - s.segStart) * pxPerSec) }}
                         title={`เสียงในคลิปนี้ ${Math.round(Number(s.clip.volume) * 100)}%`}
                       />
                     ))}
 
+                    {/* An SFX hit is a moment, not a span: a tick pinned to the
+                        instant, with the name beside it so a run of them stays
+                        readable. Centred in the lane -- pinned to the top edge
+                        they read as belonging to the row above. */}
                     {key === 'sfx' && sfxMarkers.map((cue) => (
                       <button
                         key={`sfx-${cue._uid}`}
@@ -1111,11 +1278,16 @@ export default function Timeline({
                           onSeek?.(cue.start);
                           selectCaption(cue._uid);
                         }}
-                        title={`⚡ SFX: ${cue.sfx} (คลิกเพื่อกระโดดไปที่จังหวะนี้)`}
-                        className="group/sfx absolute top-0 z-20 flex -translate-x-1/2 cursor-pointer items-center gap-0.5 rounded-full border border-black/40 bg-[#D97757] px-1.5 py-0.5 shadow-lg transition-all hover:scale-110 hover:bg-[#25F4EE] hover:z-30"
+                        title={`SFX: ${cue.sfx} (คลิกเพื่อกระโดดไปที่จังหวะนี้)`}
+                        className="group/sfx absolute top-1/2 z-20 flex -translate-y-1/2 cursor-pointer items-center gap-1
+                          rounded-full pl-0 pr-1.5 transition-colors hover:z-30
+                          focus-visible:outline focus-visible:outline-1 focus-visible:outline-[#25F4EE]"
                         style={{ left: cue.start * pxPerSec }}
                       >
-                        <span className="text-[9px] font-mono font-extrabold uppercase text-black leading-none">{cue.sfx}</span>
+                        <span className="h-3 w-[3px] flex-shrink-0 rounded-full bg-[#D97757] transition-colors group-hover/sfx:bg-[#25F4EE]" />
+                        <span className="font-mono text-[9px] font-bold uppercase leading-none text-[#D8C39F] transition-colors group-hover/sfx:text-[#25F4EE]">
+                          {cue.sfx}
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -1134,7 +1306,7 @@ export default function Timeline({
               {/* playhead */}
               <div
                 className="pointer-events-none absolute z-30"
-                style={{ left: playhead * pxPerSec, top: -RULER_H - TRACK_GAP, bottom: 0 }}
+                style={{ left: playhead * pxPerSec, top: -RULER_H - TRACK_TOP, bottom: 0 }}
               >
                 <div className="absolute bottom-0 left-0 top-0 w-0.5 -translate-x-1/2 bg-[#D97757]" />
                 <div className="absolute top-0 h-2.5 w-2.5 -translate-x-1/2 rotate-45 bg-[#D97757]" />

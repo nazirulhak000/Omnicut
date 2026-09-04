@@ -1025,3 +1025,105 @@ def test_timeline_draws_one_lane_per_stem_from_the_stems_own_file():
     assert "getAudioPeaks(url, WAVE_COLUMNS)" in tl
     assert "waveInfo" not in tl, "the merged-mix waveform should be gone"
     assert "onTrackMix?.(key, 'mute')" in tl and "onTrackMix?.(key, 'solo')" in tl
+
+
+# ------------------------------------------------------------ timeline layout
+# The label gutter and the lanes are two columns describing the same rows. They
+# used to space themselves differently -- `gap-1` on the gutter against
+# per-lane `mt-1` -- so any row that forgot its margin slid every label below it
+# out from under its lane. With four audio lanes the drift reached 12px and the
+# track names no longer sat beside their own waveforms.
+TIMELINE_SRC = (ROOT / "frontend" / "src" / "components" / "editor" / "Timeline.jsx").read_text(encoding="utf-8")
+SHELL_SRC = (ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx").read_text(encoding="utf-8")
+
+
+def test_both_timeline_columns_take_their_geometry_from_one_row_list():
+    """
+    Every row's height and top margin comes from `rowStyle(key)`, which both
+    columns spread. Two spacing mechanisms for the same rows is what broke it.
+    """
+    assert "function layoutRows(" in TIMELINE_SRC
+    for key in ("video", "hook", "caption", "text"):
+        assert TIMELINE_SRC.count(f"rowStyle('{key}')") == 2, \
+            f"{key} should be spaced by rowStyle in both the gutter and the lane"
+    # The stem rows are rendered in loops, one per column.
+    assert TIMELINE_SRC.count("rowStyle(key)") == 2
+
+    # No row may carry its own spacing any more.
+    tracks = TIMELINE_SRC[TIMELINE_SRC.index("{/* Track lanes */}"):]
+    assert "mt-1" not in tracks, "a per-row margin is how the columns drifted apart"
+    assert "flex-col gap-" not in tracks, "a gap on one column only is the other half of the same bug"
+
+
+def test_row_spacing_separates_the_groups_instead_of_repeating_one_gap():
+    """
+    Eight rows at one gap read as a single undifferentiated stack -- the
+    grouping had to be inferred rather than seen. Rows inside a group sit close;
+    picture, overlays and audio are pushed apart.
+    """
+    row_gap = _grab(TIMELINE_SRC, r"const ROW_GAP = (\d+);")
+    group_gap = _grab(TIMELINE_SRC, r"const GROUP_GAP = (\d+);")
+    assert group_gap >= row_gap * 3, "the group separation has to read as deliberate"
+    groups = set(re.findall(r"group: '(\w+)'", TIMELINE_SRC))
+    assert groups == {"picture", "overlay", "audio"}
+
+
+def test_the_dock_height_is_derived_from_the_rows_it_has_to_show():
+    """
+    The dock's min and default heights were hand-tuned for a five-row timeline,
+    so the four audio lanes pushed the video track below a hidden overflow --
+    unreachable, with nothing on screen to say it was there.
+    """
+    assert "export function tracksFitHeight(" in TIMELINE_SRC
+    assert "import Timeline, { tracksFitHeight }" in SHELL_SRC
+    assert "TIMELINE_DEFAULT_H = TIMELINE_CHROME_H + tracksFitHeight()" in SHELL_SRC
+    assert "tracksFitHeight({ audioCollapsed: true })" in SHELL_SRC
+    assert not re.search(r"TIMELINE_(MIN|DEFAULT)_H = \d+", SHELL_SRC), \
+        "a literal dock height goes stale the moment a row is added"
+    # ...and a row can never be clipped away regardless of the dock's height.
+    assert "overflow-x-auto overflow-y-auto" in TIMELINE_SRC
+    assert "overflow-y-hidden" not in TIMELINE_SRC
+
+
+def test_every_track_label_starts_at_the_same_x():
+    """
+    Rows lead with different things -- an icon, or a fold and a colour dot -- so
+    the leading area is a fixed-width slot. Without it the audio labels sat 12px
+    right of the others and the gutter's left edge read as ragged.
+    """
+    assert re.search(r'className="flex w-\[26px\] flex-shrink-0 items-center gap-1\.5"', TIMELINE_SRC)
+
+
+def test_a_silent_track_says_so_without_relying_on_colour():
+    """A red chip alone fails anyone who cannot separate the hues."""
+    assert "line-through decoration-" in TIMELINE_SRC
+    assert "hollow: silent" in TIMELINE_SRC
+
+
+def test_mute_reports_what_it_is_not_how_it_looks():
+    """
+    A track silenced because another is soloed looks silent, but its mute
+    button is not pressed -- announcing otherwise tells a screen reader the user
+    muted something they never touched.
+    """
+    assert "aria-pressed={pressed ?? active}" in TIMELINE_SRC
+    assert re.search(r"active=\{silent\}\s*\n\s*pressed=\{isMute\}", TIMELINE_SRC)
+
+
+def test_mix_chips_have_a_hit_area_and_a_focus_ring():
+    """The marks are small because the gutter is narrow; the targets are not."""
+    chip = re.search(r"function MixButton\((.*?)\n\}", TIMELINE_SRC, re.S).group(1)
+    assert "h-[18px] w-[18px]" in chip
+    assert "focus-visible:outline" in chip
+
+
+def test_the_folded_audio_group_can_be_unfolded_from_where_it_was_folded():
+    """A group that folds away its own handle cannot be brought back."""
+    assert "if (collapsed[row.group] && prevGroup === row.group) continue;" in TIMELINE_SRC
+    assert "visibleStems = audioCollapsed ? STEMS.slice(0, 1) : STEMS" in TIMELINE_SRC
+    assert "aria-expanded={!fold.collapsed}" in TIMELINE_SRC
+
+
+def test_the_clip_audio_lane_explains_itself_when_empty():
+    """Clip volume defaults to 0, so this lane is blank for most projects."""
+    assert "ยังไม่ได้เปิดเสียงในคลิป" in TIMELINE_SRC

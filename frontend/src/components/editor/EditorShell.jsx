@@ -17,7 +17,7 @@ import { toMediaUrl } from '../../lib/mediaUrl';
 import SequencePlayer from '../SequencePlayer';
 import AssetPanel from './AssetPanel';
 import Inspector from './Inspector';
-import Timeline from './Timeline';
+import Timeline, { tracksFitHeight } from './Timeline';
 import Toolbar from './Toolbar';
 import NewClipPanel from './NewClipPanel';
 import { ActivityIndicatorButton } from '../ActivityCenter';
@@ -46,11 +46,17 @@ const EXPORT_PRESETS = [
   { id: 'draft', label: 'ทดลอง 720p', hint: 'เร็วกว่าประมาณ 2 เท่า ไฟล์มี _draft ต่อท้าย ไม่ใช่ไฟล์สำหรับโพสต์' },
 ];
 
-const TIMELINE_MIN_H = 196;
+// The dock's own chrome: the drag handle plus the toolbar above the tracks.
+const TIMELINE_CHROME_H = 8 + 44;
+// Derived from the tracks themselves rather than hand-tuned. These were fixed
+// numbers sized for a five-row timeline, so the four audio lanes pushed the
+// video track past the bottom edge where nothing could reach it.
+const TIMELINE_DEFAULT_H = TIMELINE_CHROME_H + tracksFitHeight();
+// Folded audio still shows picture, hook, captions and one audio row.
+const TIMELINE_MIN_H = TIMELINE_CHROME_H + tracksFitHeight({ audioCollapsed: true });
 const MOBILE_PREVIEW_MIN_H = 160;
 const MOBILE_PREVIEW_DEFAULT = 0.45;   // share of the window height
-const TIMELINE_MAX_H = 460;
-const TIMELINE_DEFAULT_H = 212;
+const TIMELINE_MAX_H = 560;
 // Where the editor switches between its mobile and desktop layout trees.
 // Tailwind `lg` (1024px): below it the desktop tree's own default panel
 // widths (250 asset + 380 inspector + gutters = ~668px) leave under 100px
@@ -272,6 +278,7 @@ export default function EditorShell({
   const [deleteScope, setDeleteScope] = useState('project');
   const [deleteOrigin, setDeleteOrigin] = useState(null);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
+  const [audioCollapsed, setAudioCollapsed] = useState(false);
   // Per-stem mute/solo for the preview. Playback-only -- it never reaches a
   // render payload, so soloing the BGM to check a level cannot change output.
   const [trackMix, setTrackMix] = useState({ mute: {}, solo: {} });
@@ -1939,6 +1946,8 @@ export default function EditorShell({
                     stemUrls={stemUrls}
                     trackMix={trackMix}
                     onTrackMix={handleTrackMix}
+                    audioCollapsed={audioCollapsed}
+                    onToggleAudioGroup={() => setAudioCollapsed((v) => !v)}
                     isAudioMuted={isAudioMuted}
                     onToggleMuteAudio={() => setIsAudioMuted((v) => !v)}
                     isCaptionHidden={isCaptionHidden}
@@ -2397,6 +2406,8 @@ export default function EditorShell({
                     stemUrls={stemUrls}
                     trackMix={trackMix}
                     onTrackMix={handleTrackMix}
+                    audioCollapsed={audioCollapsed}
+                    onToggleAudioGroup={() => setAudioCollapsed((v) => !v)}
                     isAudioMuted={isAudioMuted}
                     onToggleMuteAudio={() => setIsAudioMuted((v) => !v)}
                     isCaptionHidden={isCaptionHidden}
