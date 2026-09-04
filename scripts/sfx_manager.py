@@ -14,6 +14,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from scripts.config import SFX_DIR, MUSIC_DIR, BGM_VOLUME, VOICE_VOLUME, SFX_VOLUME
 from scripts.asset_registry import AssetRegistry
+from scripts.it_angles import DEFAULT_BGM
 
 class SFXManager:
     """Handles sound effects placement and background music mixing with auto-ducking."""
@@ -36,7 +37,7 @@ class SFXManager:
         in pipeline.py) doesn't have to duplicate the lookup or run a full
         mix just to find out.
         """
-        name = bgm_name or "bgm_over_loaded_hiphop_instrumental.mp3"
+        name = bgm_name or DEFAULT_BGM
         path = MUSIC_DIR / name
         if path.exists():
             return path
@@ -68,7 +69,7 @@ class SFXManager:
         # here can actually play the audio to judge it by ear). Overridable
         # per-render via RenderRequest.bgm_name; this is only what a render
         # falls back to when nothing is specified.
-        bgm_name: str = "bgm_over_loaded_hiphop_instrumental.mp3",
+        bgm_name: str = DEFAULT_BGM,
         bgm_vol: float = BGM_VOLUME,
         voice_vol: float = VOICE_VOLUME,
         sfx_vol: float = SFX_VOLUME,

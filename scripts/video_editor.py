@@ -82,11 +82,134 @@ def sticker_geometry(position: str, scale: float):
     return width, x, y
 
 # What "export quality" means, end to end. Draft trades resolution and encode
-# effort for wall clock on a machine with no GPU to fall back on.
+# effort for wall clock.
+#
+# `qp` is the hardware encoders' equivalent knob. On this project's footage
+# h264_amf at qp 20/22 measured SSIM 0.9942 and PSNR 49.3 dB against libx264
+# crf 18 -- indistinguishable -- in a smaller file (8.0MB against 11.1MB) and
+# 3.6x less wall clock.
 EXPORT_PRESETS = {
-    "post": {"width": VIDEO_WIDTH, "height": VIDEO_HEIGHT, "crf": 18, "x264_preset": "medium"},
-    "draft": {"width": 720, "height": 1280, "crf": 26, "x264_preset": "veryfast"},
+    "post": {"width": VIDEO_WIDTH, "height": VIDEO_HEIGHT, "crf": 18, "x264_preset": "medium",
+             "qp_i": 20, "qp_p": 22},
+    "draft": {"width": 720, "height": 1280, "crf": 26, "x264_preset": "veryfast",
+              "qp_i": 26, "qp_p": 28},
 }
+
+# Hardware encoders in the order they are tried. Being listed by `ffmpeg
+# -encoders` says nothing about whether the machine can use one -- this build
+# lists NVENC and QSV on a box that has neither, and both fail only when asked
+# to encode. So each is probed with a real one-frame encode, once per process.
+HW_ENCODER_CANDIDATES = ("h264_amf", "h264_nvenc", "h264_qsv")
+_hw_encoder_probe: Optional[str] = None
+_hw_encoder_probed = False
+
+
+def hardware_encoder() -> Optional[str]:
+    """
+    The first hardware H.264 encoder this machine can actually use, or None.
+
+    `OMNICUT_ENCODER` overrides: `cpu` forces libx264, any other value names an
+    encoder to use without probing.
+    """
+    global _hw_encoder_probe, _hw_encoder_probed
+    forced = os.environ.get("OMNICUT_ENCODER", "").strip()
+    if forced:
+        return None if forced.lower() in ("cpu", "x264", "libx264", "software") else forced
+    if _hw_encoder_probed:
+        return _hw_encoder_probe
+    _hw_encoder_probed = True
+    for name in HW_ENCODER_CANDIDATES:
+        try:
+            probe = subprocess.run([
+                "ffmpeg", "-hide_banner", "-loglevel", "error",
+                "-f", "lavfi", "-i", "color=black:s=256x256:d=0.1:r=30",
+                "-c:v", name, "-f", "null", "-",
+            ], capture_output=True, text=True, timeout=60)
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+            continue
+        if probe.returncode == 0:
+            _hw_encoder_probe = name
+            print(f"   ⚡ ใช้ตัวเข้ารหัสของการ์ดจอ ({name}) — เรนเดอร์เร็วขึ้นหลายเท่า")
+            return name
+    print("   💻 ไม่พบตัวเข้ารหัสของการ์ดจอที่ใช้ได้ — ใช้ CPU (libx264)")
+    return None
+
+
+def framing_filters(media_info: Dict[str, Any], scaled_w: int, scaled_h: int,
+                    crop_x: int, crop_y: int) -> Optional[str]:
+    """
+    One resample where the chain used two, or None when it cannot be done.
+
+    The chain scales the source up to cover the frame, centre-crops it, then
+    scales that by the zoom and crops again -- two full-frame resamples per
+    frame, the second with lanczos. Both stages together only ever show one
+    rectangle of the source, so cropping there and scaling once straight to the
+    frame gives the same picture for half the resampling. Measured: 25.8s ->
+    21.1s on eight clips, at SSIM 0.985 and PSNR 39.5 dB against the two-stage
+    chain -- and one lanczos pass instead of two is the sharper of the pair.
+
+    The catch is which dimensions to compute from. ffmpeg auto-rotates before
+    the filter graph, so a clip carrying `rotation -90` -- ordinary phone
+    footage -- reaches the filters as 1080x1920 while the container still says
+    1920x1080. Computing from the container numbers put the window in the wrong
+    place entirely (SSIM 0.74) and looked like a plausible crop until it was
+    compared frame by frame. Returns None when the dimensions are not known, so
+    the caller keeps the two-stage chain, which asks `scale` to work it out and
+    is immune to this.
+    """
+    sw = int(media_info.get("width") or 0)
+    sh = int(media_info.get("height") or 0)
+    if sw <= 0 or sh <= 0:
+        return None
+    if int(abs(float(media_info.get("rotation") or 0))) % 180 == 90:
+        sw, sh = sh, sw
+
+    cover = max(VIDEO_WIDTH / sw, VIDEO_HEIGHT / sh)   # stage 1: cover the frame
+    total = cover * (scaled_w / VIDEO_WIDTH)           # stage 2: the zoom on top
+    if total <= 0:
+        return None
+
+    # The visible window, in source pixels.
+    win_w = VIDEO_WIDTH / total
+    win_h = VIDEO_HEIGHT / total
+    off_x = ((sw * total - scaled_w) / 2 + crop_x) / total
+    off_y = ((sh * total - scaled_h) / 2 + crop_y) / total
+
+    def even(v: float) -> int:
+        n = int(round(v))
+        return max(2, n - (n % 2))
+
+    w, h = even(win_w), even(win_h)
+    x, y = max(0, int(round(off_x))), max(0, int(round(off_y)))
+    # A window smaller than the largest allowed zoom could ever call for means
+    # the numbers do not describe this file; upscaling a handful of pixels to a
+    # full frame would "work" and look nothing like the render.
+    if w < VIDEO_WIDTH / (ZOOM_LIMITS[1] * 1.05) or h < VIDEO_HEIGHT / (ZOOM_LIMITS[1] * 1.05):
+        return None
+    # A window that would reach past the source means the arithmetic disagrees
+    # with the file; fall back rather than emit a crop ffmpeg will reject.
+    if w > sw or h > sh or x + w > sw or y + h > sh:
+        return None
+    return f"crop={w}:{h}:{x}:{y},scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:flags=lanczos,setsar=1"
+
+
+def encoder_args(profile: Dict[str, Any]) -> List[str]:
+    """ffmpeg output args for the fastest encoder this machine can use."""
+    hw = hardware_encoder()
+    qp_i = int(profile.get("qp_i", 20))
+    qp_p = int(profile.get("qp_p", 22))
+    if hw == "h264_amf":
+        return ["-c:v", hw, "-profile:v", "high", "-quality", "balanced",
+                "-rc", "cqp", "-qp_i", str(qp_i), "-qp_p", str(qp_p)]
+    if hw == "h264_nvenc":
+        return ["-c:v", hw, "-profile:v", "high", "-preset", "p5",
+                "-rc", "constqp", "-qp", str(qp_i)]
+    if hw == "h264_qsv":
+        return ["-c:v", hw, "-profile:v", "high", "-global_quality", str(qp_i)]
+    if hw:
+        return ["-c:v", hw]
+    return ["-c:v", "libx264", "-profile:v", "high", "-level", "4.2",
+            "-preset", profile["x264_preset"], "-crf", str(profile["crf"])]
 
 
 def frame_geometry(clip: Dict[str, Any], default_scale: float):
@@ -372,13 +495,24 @@ class VideoEditor:
                         f"[{base_node}]scale={scaled_w}:{scaled_h}:flags=lanczos,crop={VIDEO_WIDTH}:{VIDEO_HEIGHT}:{crop_x}:{crop_y},setsar=1[{node_name}];"
                     )
                 else:
-                    filter_complex.append(
-                        f"[{idx}:v]trim=duration={source_span},setpts=PTS-STARTPTS,"
-                        f"{speed_filter}{rot_filter}{mirror_filter}{eq_filter}{freeze_filter}"
-                        f"scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,"
-                        f"crop={VIDEO_WIDTH}:{VIDEO_HEIGHT},setsar=1,fps={FPS},"
-                        f"scale={scaled_w}:{scaled_h}:flags=lanczos,crop={VIDEO_WIDTH}:{VIDEO_HEIGHT}:{crop_x}:{crop_y},setsar=1[{node_name}];"
-                    )
+                    # Mirror/rotate change which source pixels end up where, so
+                    # the composed window is only safe on the plain path.
+                    one_pass = None
+                    if not rot_filter and not mirror_filter:
+                        one_pass = framing_filters(media_info, scaled_w, scaled_h, crop_x, crop_y)
+                    if one_pass:
+                        filter_complex.append(
+                            f"[{idx}:v]trim=duration={source_span},setpts=PTS-STARTPTS,"
+                            f"{speed_filter}{eq_filter}{freeze_filter}fps={FPS},{one_pass}[{node_name}];"
+                        )
+                    else:
+                        filter_complex.append(
+                            f"[{idx}:v]trim=duration={source_span},setpts=PTS-STARTPTS,"
+                            f"{speed_filter}{rot_filter}{mirror_filter}{eq_filter}{freeze_filter}"
+                            f"scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,"
+                            f"crop={VIDEO_WIDTH}:{VIDEO_HEIGHT},setsar=1,fps={FPS},"
+                            f"scale={scaled_w}:{scaled_h}:flags=lanczos,crop={VIDEO_WIDTH}:{VIDEO_HEIGHT}:{crop_x}:{crop_y},setsar=1[{node_name}];"
+                        )
                 concat_inputs.append(f"[{node_name}]")
                 clip_durations.append(duration)
 
@@ -709,11 +843,7 @@ class VideoEditor:
             "-filter_complex", full_filter,
             "-map", "[v_final]",
             "-map", final_audio_map,
-            "-c:v", "libx264",
-            "-profile:v", "high",
-            "-level", "4.2",
-            "-preset", profile["x264_preset"],
-            "-crf", str(profile["crf"]),
+            *encoder_args(profile),
             "-r", str(target_fps),
             "-c:a", "aac",
             "-b:a", "192k",

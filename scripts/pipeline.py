@@ -1177,7 +1177,13 @@ class TikTokAutoCutterPipeline:
                 "font_name": font_name,
                 "bilingual_subtitles": bilingual_subtitles,
                 "sticker_path": sticker_path,
-                "bgm_name": bgm_name,
+                # The name that actually played, resolved through the mood
+                # map and the default. Storing the request instead left this
+                # None whenever the user had not picked a track, and the editor
+                # then showed its own idea of a default while the render used
+                # another -- the timeline said one song and the file played a
+                # different one.
+                "bgm_name": effective_bgm_name or bgm_name,
                 "bgm_volume": bgm_volume,
                 "bgm_ducking": bgm_ducking,
                 "product_id": product_id,

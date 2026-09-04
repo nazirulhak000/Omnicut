@@ -85,9 +85,6 @@ const LEGACY_SFX_ALIASES = {
   boom: 'sfx_vine_boom',
 };
 
-// resolve_bgm_path()'s default when a project names no BGM (sfx_manager.py:41).
-const DEFAULT_BGM_FILE = 'bgm_over_loaded_hiphop_instrumental.mp3';
-
 const EMPTY = { clipList: [], cuesList: [], style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false, captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1, stickerPosition: 'top_right', stickerScale: 1 } };
 
 let idCounter = 0;
@@ -109,7 +106,10 @@ export default function EditorShell({
   const [projectName, setProjectName] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(null);
-  const [assets, setAssets] = useState({ sfx: [], music: [], fonts: [], stickers: [], luts: [] });
+  // `default_bgm` comes from the server, which is where the render's own
+  // default lives. Keeping a copy here is what let the timeline claim one
+  // track while the file played another.
+  const [assets, setAssets] = useState({ sfx: [], music: [], fonts: [], stickers: [], luts: [], default_bgm: null });
   const { pollTasks } = useTaskManager();
 
   const [durations, setDurations] = useState({});
@@ -1362,7 +1362,7 @@ export default function EditorShell({
     // one in the folder -- so "no BGM chosen" still has music in the render.
     const bgmEntry =
       (style.bgmName ? music.find((m) => m.id === style.bgmName || m.name === style.bgmName) : null)
-      || music.find((m) => m.name === DEFAULT_BGM_FILE)
+      || music.find((m) => m.id === assets.default_bgm || m.name === assets.default_bgm)
       || music[0]
       || null;
 
@@ -1421,10 +1421,15 @@ export default function EditorShell({
 
   const progress = Math.round((jobStatus?.progress || 0) * 100);
   const bgmLabel = useMemo(() => {
-    if (!style.bgmName) return 'เสียงหลักของช่อง';
-    const found = assets.music?.find((m) => m.id === style.bgmName);
-    return found ? found.label_th || found.name : style.bgmName;
-  }, [style.bgmName, assets.music]);
+    // With nothing chosen this used to read "เสียงหลักของช่อง" -- a fixed
+    // string naming a track the render does not use. Name the one that will
+    // actually play, and say that it is the default.
+    const pick = style.bgmName || assets.default_bgm;
+    const found = assets.music?.find((m) => m.id === pick || m.name === pick);
+    const label = found ? (found.label_th || found.name) : pick;
+    if (!label) return '';
+    return style.bgmName ? label : `${label} (ค่าเริ่มต้น)`;
+  }, [style.bgmName, assets.music, assets.default_bgm]);
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-[#0A0D14]">

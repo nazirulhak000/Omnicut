@@ -631,9 +631,12 @@ def test_preview_resolves_the_same_bgm_file_the_render_will_use():
 
     shell = (ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx").read_text(encoding="utf-8")
     assert "m.id === style.bgmName || m.name === style.bgmName" in shell
-    default_py = re.search(r'name = bgm_name or "([^"]+)"', SFX_SRC).group(1)
-    assert f"DEFAULT_BGM_FILE = '{default_py}'" in shell, \
-        "preview must fall back to the same default bed as resolve_bgm_path"
+    # The default is one constant now, checked in
+    # test_one_default_bgm_across_render_mix_and_editor; here it only matters
+    # that the preview takes it from the server instead of keeping a copy.
+    assert "name = bgm_name or DEFAULT_BGM" in SFX_SRC
+    assert "m.id === assets.default_bgm || m.name === assets.default_bgm" in shell, \
+        "preview must take the default from the server, not hold its own"
 
 
 def test_legacy_sfx_aliases_match_on_both_sides():
@@ -1365,12 +1368,132 @@ def test_each_clip_seeks_its_input_instead_of_trimming_after_decode():
         "the clip_list branch should no longer trim from the start"
     # ...but must still pin the length, so container rounding at the seek point
     # cannot lengthen a clip.
-    # Both per-clip branches (with and without the blurred pillarbox) need it;
-    # pinning only one leaves the other free to run long.
-    assert editor.count("]trim=duration={source_span}") == 2
+    # Every per-clip branch needs it -- the blurred pillarbox, the two-stage
+    # framing and the one-pass framing. Pinning only some leaves the rest free
+    # to run long, which slides every later clip out of step.
+    assert editor.count("]trim=duration={source_span}") == 3
     assert editor.count("atrim=duration={source_span}") == 1
 
     # The 1-Click path takes every cut out of one input, so there is no single
     # span to seek to and it keeps its trims.
     legacy = editor.split("1-Click Studio path")[1]
     assert "trim=start=" in legacy, "the single-source path still needs filter trims"
+
+
+# --------------------------------------------------- encoder + framing
+
+
+def test_a_hardware_encoder_is_probed_not_assumed_from_the_encoder_list():
+    """
+    `ffmpeg -encoders` lists NVENC and QSV on this machine, which has neither;
+    both fail only when asked to encode. So each candidate gets a real
+    one-frame encode, once per process, and libx264 stays the fallback.
+    """
+    assert "def hardware_encoder(" in VIDEO_EDITOR_SRC
+    assert '"-f", "lavfi", "-i", "color=black:s=256x256:d=0.1:r=30"' in VIDEO_EDITOR_SRC
+    assert "if probe.returncode == 0:" in VIDEO_EDITOR_SRC
+    assert "_hw_encoder_probed" in VIDEO_EDITOR_SRC, "the probe must not run per render"
+    # An escape hatch, because a hardware encoder is a quality decision.
+    assert 'os.environ.get("OMNICUT_ENCODER"' in VIDEO_EDITOR_SRC
+    assert '("cpu", "x264", "libx264", "software")' in VIDEO_EDITOR_SRC
+
+
+def test_the_software_encoder_settings_are_unchanged_when_it_is_used():
+    """Falling back must produce what it always produced."""
+    sys.path.insert(0, str(ROOT))
+    import importlib
+    import scripts.video_editor as ve
+    importlib.reload(ve)
+
+    import os
+    os.environ["OMNICUT_ENCODER"] = "cpu"
+    try:
+        args = ve.encoder_args(ve.EXPORT_PRESETS["post"])
+    finally:
+        os.environ.pop("OMNICUT_ENCODER", None)
+    assert args == ["-c:v", "libx264", "-profile:v", "high", "-level", "4.2",
+                    "-preset", "medium", "-crf", "18"]
+
+
+def test_every_export_preset_carries_a_quality_setting_for_both_encoders():
+    sys.path.insert(0, str(ROOT))
+    from scripts.video_editor import EXPORT_PRESETS
+    for name, preset in EXPORT_PRESETS.items():
+        for key in ("crf", "x264_preset", "qp_i", "qp_p"):
+            assert key in preset, f"{name} has no {key}"
+        assert preset["qp_i"] <= preset["qp_p"], f"{name}: I-frames should not be the coarser ones"
+
+
+def test_the_composed_framing_uses_the_dimensions_the_filters_will_see():
+    """
+    ffmpeg auto-rotates before the filter graph, so ordinary phone footage
+    carrying `rotation -90` arrives as 1080x1920 while the container still says
+    1920x1080. Composing the crop from the container numbers put the window in
+    the wrong place entirely -- SSIM 0.74, and it looked like a plausible crop
+    until it was compared frame by frame.
+    """
+    sys.path.insert(0, str(ROOT))
+    from scripts.video_editor import framing_filters
+
+    rotated = framing_filters({"width": 1920, "height": 1080, "rotation": -90}, 1166, 2074, 43, 77)
+    upright = framing_filters({"width": 1080, "height": 1920, "rotation": 0}, 1166, 2074, 43, 77)
+    assert rotated == upright, "a rotated clip must frame the same as its rotated size"
+    assert rotated and rotated.startswith("crop=")
+    assert "scale=1080:1920:flags=lanczos" in rotated
+
+    # No zoom: the whole (already portrait) frame.
+    plain = framing_filters({"width": 1080, "height": 1920, "rotation": 0}, 1080, 1920, 0, 0)
+    assert plain.startswith("crop=1080:1920:0:0")
+
+    # Unknown or impossible geometry falls back to the two-stage chain, which
+    # asks `scale` to work it out and cannot get this wrong.
+    assert framing_filters({"rotation": 0}, 1166, 2074, 43, 77) is None
+    assert framing_filters({"width": 100, "height": 100, "rotation": 0}, 99999, 99999, 0, 0) is None
+
+
+def test_one_pass_framing_is_skipped_where_it_would_change_the_picture():
+    """
+    Mirror and rotate move which source pixels land where, and the blurred
+    pillarbox composites two layers -- neither is a single window of the
+    source, so both keep the two-stage chain.
+    """
+    assert "if not rot_filter and not mirror_filter:" in VIDEO_EDITOR_SRC
+    blur_branch = VIDEO_EDITOR_SRC[VIDEO_EDITOR_SRC.index("boxblur"):]
+    assert "framing_filters" not in blur_branch.split("else:")[0]
+
+
+# ------------------------------------------------------------ default BGM
+def test_one_default_bgm_across_render_mix_and_editor():
+    """
+    Four places disagreed about which track plays when a project names none:
+    the pipeline substituted it_angles.DEFAULT_BGM, resolve_bgm_path had its
+    own literal, the editor's stems memo had a third, and the timeline label
+    printed a fixed string naming a fourth. The timeline read "เสียงหลักของช่อง"
+    while the render played tiktok_upbeat -- confirmed by rebuilding the mix
+    once per candidate and scoring each against the project's own mixed file:
+    tiktok_upbeat_bgm.wav matched at 0.9993, the next best at 0.9907.
+    """
+    sys.path.insert(0, str(ROOT))
+    from scripts.it_angles import DEFAULT_BGM
+    from scripts.sfx_manager import SFXManager
+
+    sfx_src = (ROOT / "scripts" / "sfx_manager.py").read_text(encoding="utf-8")
+    assert "name = bgm_name or DEFAULT_BGM" in sfx_src
+    assert "bgm_over_loaded_hiphop_instrumental" not in sfx_src, "a second default crept back in"
+
+    resolved = SFXManager.resolve_bgm_path(None)
+    assert resolved and resolved.name == DEFAULT_BGM
+
+    # The render records the track it actually used, so the editor never has to
+    # guess -- with nothing chosen the pipeline picks by angle mood.
+    pipeline = (ROOT / "scripts" / "pipeline.py").read_text(encoding="utf-8")
+    assert '"bgm_name": effective_bgm_name or bgm_name,' in pipeline
+
+    # And the editor is told the default rather than keeping a copy.
+    api = (ROOT / "scripts" / "api_server.py").read_text(encoding="utf-8")
+    assert '"default_bgm": DEFAULT_BGM,' in api
+    shell = (ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx").read_text(encoding="utf-8")
+    assert "DEFAULT_BGM_FILE" not in shell, "the editor should not hold its own default"
+    assert "m.id === assets.default_bgm || m.name === assets.default_bgm" in shell
+    assert "'เสียงหลักของช่อง'" not in shell, \
+        "the label must name the track that will play, not a fixed string"

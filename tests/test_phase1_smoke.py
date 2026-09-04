@@ -1436,18 +1436,33 @@ def test_short_video_holds_its_last_frame_instead_of_ending_early(monkeypatch, t
     assert "[v_filled]" not in plenty_filter, "video longer than the audio needs no padding"
 
 
+def _quality_setting(cmd):
+    """
+    The encode-effort knob in use, whichever encoder ran. Asserting on x264's
+    `-crf`/`-preset` alone broke the moment a machine with a usable hardware
+    encoder was the one running the tests.
+    """
+    for flag in ("-crf", "-qp_i", "-global_quality", "-qp"):
+        if flag in cmd:
+            return flag, cmd[cmd.index(flag) + 1]
+    raise AssertionError(f"no quality setting in {cmd}")
+
+
 def test_draft_export_scales_down_and_lowers_encode_effort(monkeypatch, tmp_path):
     clip_list = [{"source_path": str(tmp_path / "a.mp4"), "trim_start": 0.0, "trim_end": 3.0}]
 
     post = _capture_ffmpeg_cmd(monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list)
-    assert "medium" in post and "18" in post
+    post_flag, post_quality = _quality_setting(post)
     post_filter = post[post.index("-filter_complex") + 1]
     assert "[v_subbed]" not in post_filter, "post quality must not add a scale pass"
 
     draft = _capture_ffmpeg_cmd(
         monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list, export_preset="draft",
     )
-    assert "veryfast" in draft and "26" in draft
+    draft_flag, draft_quality = _quality_setting(draft)
+    assert draft_flag == post_flag, "both presets should drive the same encoder"
+    # Draft asks for less: a higher crf, or a higher qp, is coarser and faster.
+    assert int(draft_quality) > int(post_quality)
     draft_filter = draft[draft.index("-filter_complex") + 1]
     assert "scale=720:1280" in draft_filter
     # subtitles burn before the downscale -- the .ass coordinates assume 1080
@@ -1459,7 +1474,9 @@ def test_unknown_export_preset_falls_back_to_post(monkeypatch, tmp_path):
     cmd = _capture_ffmpeg_cmd(
         monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list, export_preset="nonsense",
     )
-    assert "medium" in cmd
+    _, quality = _quality_setting(cmd)
+    post = _capture_ffmpeg_cmd(monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list)
+    assert quality == _quality_setting(post)[1], "an unknown preset must render like post"
     assert "scale=720:1280" not in cmd[cmd.index("-filter_complex") + 1]
 
 

@@ -60,6 +60,7 @@ app.add_middleware(
 from scripts import render_jobs
 from scripts.render_jobs import ACTIVE_JOBS
 from scripts.asset_registry import AssetRegistry
+from scripts.it_angles import DEFAULT_BGM
 from scripts.task_manager import TaskManager
 from scripts.post_log import PostLog
 from scripts.api_phase1 import router as phase1_router
@@ -1730,6 +1731,9 @@ def list_all_assets():
     return {
         "sfx": registry["sfx"],
         "music": registry["bgm"],
+        # Which track plays when a project names none. The editor used to keep
+        # its own copy of this and they drifted apart.
+        "default_bgm": DEFAULT_BGM,
         "fonts": font_list,
         "stickers": registry["stickers"],
         "luts": registry["luts"],
