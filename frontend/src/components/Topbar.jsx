@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import {
-  Rocket, Layers, Sparkles, Scissors, FolderDown, Settings,
+  Rocket, Layers, Scissors, FolderDown, Palette, Settings,
   Keyboard, Wifi, WifiOff, RefreshCw, Package
 } from 'lucide-react';
 import { ActivityIndicatorButton } from './ActivityCenter';
@@ -15,38 +15,52 @@ const TAB_CONFIG = {
   },
   tracker: {
     icon: Layers,
-    title: 'Content Tracker',
+    title: 'แทร็กเกอร์ 5 เฟส',
     badge: '2. Pipeline 5 Phases',
     badgeColor: 'bg-[#25F4EE]/10 text-[#25F4EE] border-[#25F4EE]/30',
     description: 'ติดตามสถานะคลิปตั้งแต่สคริปต์จนโพสต์เสร็จ'
   },
-  studio: {
-    icon: Sparkles,
-    title: '1-Click Studio',
-    badge: '3. Video Generator',
-    badgeColor: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
-    description: 'สร้างคลิป AI พากย์เสียง & เบิร์นซับ 1 คลิก'
-  },
   editor: {
     icon: Scissors,
-    title: 'Video Editor',
-    badge: '4. NLE Timeline',
+    title: 'ตัดต่อ & สร้างคลิป',
+    badge: '3. Studio Timeline',
+    badgeColor: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
+    description: 'ตัดต่อคำบรรยาย ไทม์ไลน์ และเสียงประกอบ'
+  },
+  studio: {
+    icon: Scissors,
+    title: 'ตัดต่อ & สร้างคลิป',
+    badge: '3. Studio Timeline',
     badgeColor: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
     description: 'ตัดต่อคำบรรยาย ไทม์ไลน์ และเสียงประกอบ'
   },
   gallery: {
     icon: FolderDown,
     title: 'Export Gallery',
-    badge: '5. Ready to Post',
+    badge: '4. Ready to Post',
     badgeColor: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
     description: 'คลังวิดีโอที่เรนเดอร์เสร็จ พร้อมแชร์เข้ามือถือ'
   },
   assets: {
+    icon: Palette,
+    title: 'Media Assets Hub',
+    badge: '5. Studio Assets',
+    badgeColor: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+    description: 'ระบบหลังบ้าน ฟอนต์ เสียง AI และสติกเกอร์ 3D'
+  },
+  settings: {
     icon: Settings,
-    title: 'Assets & System',
-    badge: '6. Studio Engine',
-    badgeColor: 'bg-slate-500/10 text-slate-300 border-slate-500/30',
-    description: 'ระบบหลังบ้าน ฟอนต์ เสียง AI และสติกเกอร์'
+    title: 'ตั้งค่าระบบ & สถิติ AI',
+    badge: '6. Settings & Tokens',
+    badgeColor: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30',
+    description: 'ตั้งค่าระบบ สถิติการใช้งานโทเคน AI และฟอนต์แสดงผล'
+  },
+  dashboard: {
+    icon: Settings,
+    title: 'ตั้งค่าระบบ & สถิติ AI',
+    badge: '6. Settings & Tokens',
+    badgeColor: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30',
+    description: 'ตั้งค่าระบบ สถิติการใช้งานโทเคน AI และฟอนต์แสดงผล'
   }
 };
 
