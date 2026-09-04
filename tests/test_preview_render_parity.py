@@ -1169,7 +1169,7 @@ def test_the_phone_timeline_is_sized_by_its_rows_not_by_a_literal():
     assert "flex: `1 0 ${mobilePreviewH}px`" not in SHELL_SRC, \
         "an unshrinkable preview crushed the tracks to 82px on a shorter window"
     # The drag clamp has to reserve the timeline's real height, not a guess.
-    assert "const reserve = MOBILE_TAB_ROW_H + mobileTimelineH;" in SHELL_SRC
+    assert "const reserve = MOBILE_TAB_ROW_H + (Number.isFinite(mobileTimelineH) ? mobileTimelineH : 0);" in SHELL_SRC
 
 
 def test_a_phone_starts_with_the_audio_group_folded():
