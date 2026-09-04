@@ -16,6 +16,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from scripts.config import FONTS_DIR, VIDEO_WIDTH, VIDEO_HEIGHT
 from scripts.asset_registry import AssetRegistry
+from scripts.hook_styles import resolve_hook_style
 
 TYPOGRAPHY_PRESETS_PATH = FONTS_DIR.parent / "Templates" / "typography_presets.json"
 DEFAULT_FONT_FAMILY = "IBM Plex Sans Thai"
@@ -1016,31 +1017,32 @@ class SubtitleEngine:
         if "{\\c" in text:
             return text
 
+        # Helper to safely replace keyword with color tags while avoiding Thai diacritic/tone mark collision
+        def _safe_replace_kw(target_str: str, kw: str, color_tag: str) -> str:
+            idx = target_str.find(kw)
+            if idx == -1:
+                return target_str
+            # If predecessor is a Thai character and not a space, insert a space so combining marks don't collide
+            prefix = ""
+            if idx > 0 and '\u0e00' <= target_str[idx - 1] <= '\u0e7f' and not target_str[idx - 1].isspace():
+                prefix = " "
+            replacement = f"{prefix}{{\\c{color_tag}}}{kw}{{\\c{clean_primary}}}"
+            return target_str[:idx] + replacement + target_str[idx + len(kw):]
+
         # Tier 2: Dynamic Project Keywords (injected into Electric Cyan features)
         if custom_keywords:
             for ckw in sorted(custom_keywords, key=len, reverse=True):
                 if len(ckw) >= 2 and ckw in result:
                     cyan_color = color_hint or "&H00FFE600&"
-                    replacement = f"{{\\c{cyan_color}}}{ckw}{{\\c{clean_primary}}}"
-                    return result.replace(ckw, replacement, 1)
+                    return _safe_replace_kw(result, ckw, cyan_color)
 
         # Tier 3: Reviewer Mega-Dictionary
-        # A colour hint means the other language already committed to one of
-        # the meaning groups (pain point / product / warning), so this line has
-        # to stay in that group. Merely trying it FIRST let a line fall through
-        # to a different group when the hinted one had no match -- Thai lit
-        # "ด่วนเลย" yellow from the pain-point list while English lit "look at
-        # this" red from the warning list, on the same cue. When the hinted
-        # group has nothing, the caller's salient-word fallback colours it in
-        # that same colour instead of switching groups.
         color_order = [color_hint] if color_hint else list(cls.KINETIC_KEYWORDS.keys())
         for color_tag in color_order:
             kw_list = cls.KINETIC_KEYWORDS.get(color_tag, [])
             for kw in sorted(kw_list, key=len, reverse=True):
                 if kw in result and f"{{\\c{color_tag}}}" not in result:
-                    replacement = f"{{\\c{color_tag}}}{kw}{{\\c{clean_primary}}}"
-                    result = result.replace(kw, replacement, 1)
-                    return result
+                    return _safe_replace_kw(result, kw, color_tag)
 
         return result
 
@@ -1161,7 +1163,14 @@ class SubtitleEngine:
         if not word or word not in text:
             return text
         clean_primary = primary if primary.endswith("&") else f"{primary}&"
-        return text.replace(word, f"{{\\c{colour}}}{word}{{\\c{clean_primary}}}", 1)
+        idx = text.find(word)
+        if idx == -1:
+            return text
+        prefix = ""
+        if idx > 0 and '\u0e00' <= text[idx - 1] <= '\u0e7f' and not text[idx - 1].isspace():
+            prefix = " "
+        replacement = f"{prefix}{{\\c{colour}}}{word}{{\\c{clean_primary}}}"
+        return text[:idx] + replacement + text[idx + len(word):]
 
     @classmethod
     def apply_bilingual_kinetic_highlighting(
@@ -1227,6 +1236,7 @@ class SubtitleEngine:
         hook_duration: float = 3.5,
         hook_motion: Optional[Dict[str, object]] = None,
         hook_colors: Optional[Dict[str, str]] = None,
+        hook_style: Optional[Dict[str, object]] = None,
         bilingual: bool = True,
         video_width: int = VIDEO_WIDTH,
         video_height: int = VIDEO_HEIGHT,
@@ -1258,6 +1268,18 @@ class SubtitleEngine:
         # takes from Fontsize alone, stays untouched -- and \p drawings, whose
         # coordinates are already PlayRes pixels, must NOT be boosted.
         TEXT_SCALE_BOOST = 1.0 / ass_glyph_scale(resolved_font)
+
+        # The hook's face, and the boost that belongs to it. A font's line box
+        # against its em is what TEXT_SCALE_BOOST cancels, so a banner in
+        # another face has to be measured with that face's number -- reusing
+        # the caption's would size the banner by the wrong metrics.
+        _hook_resolved = resolve_hook_style(
+            (hook_style or {}).get("template"), hook_style, hook_colors,
+        )
+        hook_font = font_map.get(_hook_resolved["font"], _hook_resolved["font"])
+        if hook_font not in {f["family"] for f in AssetRegistry.fonts()}:
+            hook_font = resolved_font
+        HOOK_SCALE_BOOST = 1.0 / ass_glyph_scale(hook_font)
         is_pill_mode = font_name in ["capsule_pill", "Minimal Dark Capsule Pill"]
 
         # Caption placement and colour. ASS wants &HAABBGGRR, i.e. the reverse
@@ -1304,8 +1326,9 @@ Style: TikTokWhite,{resolved_font},{font_size},{primary},&H000000FF,&H00000000,&
 Style: TikTokYellow,{resolved_font},{font_size},&H0000E6FF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0.5,0,1,{front_outline},0,2,60,60,420,1
 Style: TikTokCyan,{resolved_font},{font_size},&H00FFE600,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0.5,0,1,{front_outline},0,2,60,60,420,1
 Style: TikTokMinimalPill,{resolved_font},{font_size - 6},{primary},&H000000FF,&H00000000,&HCC000000,1,0,0,0,100,100,0.5,0,3,6,0,{alignment},60,60,{margin_v},1
-Style: HookHeader,{resolved_font},{hook_fs},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0.5,0,1,6.0,0,8,60,60,260,1
-Style: HookHeaderShadow,{resolved_font},{hook_fs},&H00000000,&H00000000,&H00000000,&H00000000,1,0,0,0,100,100,0.5,0,1,7.0,0,8,62,58,257,1
+Style: HookHeader,{hook_font},{hook_fs},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0.5,0,1,6.0,0,8,60,60,260,1
+Style: HookHeaderShadow,{hook_font},{hook_fs},&H00000000,&H00000000,&H00000000,&H00000000,1,0,0,0,100,100,0.5,0,1,7.0,0,8,62,58,257,1
+Style: HookHeaderPill,{hook_font},{hook_fs},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0.5,0,3,12,0,8,60,60,260,1
 Style: SpecBar,{resolved_font},{font_size - 12},&H00000000,&H000000FF,&H00000000,&H0000E6FF,1,0,0,0,100,100,0.5,0,3,10,0,9,50,50,380,1
 Style: TextOverlayMain,{resolved_font},{base_fs},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0.5,0,1,5.0,2,5,60,60,0,1
 Style: TextOverlayPill,{resolved_font},{base_fs},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0.5,0,1,5.0,2,5,60,60,0,1
@@ -1346,15 +1369,29 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             # green equity shouldn't be forced to white); an unset tier keeps
             # the poster default it had before -- white wordmark, accent
             # model, muted label.
-            colours = hook_colors or {}
-            brand_colour = ass_colour(colours.get("brand")) or "&H00FFFFFF"
-            model_colour = ass_colour(colours.get("model")) or ass_colour(caption_color) or "&H0000E6FF"
-            label_colour = ass_colour(colours.get("label")) or "&H00E0E0E0"
+            # The look comes from a template, overridable field by field, with
+            # the older per-tier colour map winning last so a project keeps the
+            # colours it was saved with. See scripts/hook_styles.py.
+            style = resolve_hook_style(
+                (hook_style or {}).get("template"),
+                hook_style,
+                hook_colors,
+            )
+            tiers = style["tiers"]
+
+            def tier_colour(key: str, fallback: str) -> str:
+                return ass_colour(tiers[key]["color"]) or fallback
+
+            brand_colour = tier_colour("brand", "&H00FFFFFF")
+            # An unset model colour still means "use the caption accent".
+            model_colour = tier_colour("model", ass_colour(caption_color) or "&H0000E6FF")
+            label_colour = tier_colour("label", "&H00E0E0E0")
             hook_tier_specs = [
-                (hook_brand, 130, brand_colour, 0),
-                (hook_model, 100, model_colour, 1),
-                (hook_label, 58, label_colour, 2),
+                (hook_brand, int(tiers["brand"]["size_pct"]), brand_colour, 0),
+                (hook_model, int(tiers["model"]["size_pct"]), model_colour, 1),
+                (hook_label, int(tiers["label"]["size_pct"]), label_colour, 2),
             ]
+            tier_key_by_idx = {0: "brand", 1: "model", 2: "label"}
 
             # Pass 1: wrap each tier at its OWN char width -- a 130%-scale
             # line needs a narrower wrap than a 58%-scale one, or the brand
@@ -1367,8 +1404,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 text = str(raw_text or "").strip()
                 if not text:
                     continue
-                if scale_pct == 130:
-                    text = text.upper()  # brand reads as a wordmark; .upper() is a no-op on Thai
+                if tiers[tier_key_by_idx[tier_idx]]["upper"]:
+                    text = text.upper()  # a wordmark reads as one; .upper() is a no-op on Thai
                 tier_fs = max(20, int(round(hook_fs * scale_pct / 100)))
                 dyn_max_chars = max(8, int(round(2600 / tier_fs)))
                 wrapped = cls.wrap_text_for_ass(text, max_chars_per_line=dyn_max_chars)
@@ -1422,7 +1459,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     # TEXT_SCALE_BOOST so libass's own line-box scaling cancels
                     # out and the glyphs land at the em size that was intended.
                     layout_pct = round(scale_pct * shrink)
-                    target = round(layout_pct * TEXT_SCALE_BOOST)
+                    target = round(layout_pct * HOOK_SCALE_BOOST)
                     line_fs = max(20, int(round(hook_fs * layout_pct / 100)))
                     t0_ms = tier_idx * STAGGER_STEP_MS if motion["stagger"] else 0
                     if is_typewriter:
@@ -1434,6 +1471,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     max_entry_end_ms = max(max_entry_end_ms, entry_end_ms)
                     line_records.append({
                         "line": line, "target": target, "line_fs": line_fs, "colour": colour,
+                        "tier": tier_key_by_idx[tier_idx],
                         "t0_ms": t0_ms, "in_tag": in_tag, "entry_end_ms": entry_end_ms,
                         "move_dy_in": move_dy_in, "y": cursor_y,
                     })
@@ -1464,7 +1502,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     out_tag, move_dy_out = out_builder(exit_start_ms, exit_end_ms, rec["target"])
 
                     if is_typewriter:
-                        half_w = _hook_line_width_px(rec["line"], resolved_font, rec["line_fs"])
+                        half_w = _hook_line_width_px(rec["line"], hook_font, rec["line_fs"])
                         top, bot = rec["y"] - 5, rec["y"] + rec["line_fs"] + 5
                         x_from, x_to = x_center - half_w, x_center + half_w
                         in_tag = (
@@ -1497,14 +1535,33 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                         f"Dialogue: 1,{start_t},{end_t},HookHeaderShadow,,0,0,0,,"
                         f"{{{common}\\blur5\\alpha&H40&}}{rec['line']}"
                     )
+                    tier_style = tiers[rec["tier"]]
+                    outline_colour = ass_colour(tier_style["outline_color"]) or "&H00000000"
+                    # \3c is the outline colour and \bord its width; the Style
+                    # carries only a default for both, so a tier that wants a
+                    # thick pink edge says so here.
+                    edge_tag = (
+                        f"\\3c{outline_colour}&"
+                        f"\\bord{float(tier_style['outline_px']):.1f}"
+                    )
+                    pill_colour = ass_colour(tier_style["pill"])
+                    if pill_colour:
+                        # A filled box behind the line: BorderStyle 3 paints it
+                        # with the outline colour, so the pill colour goes
+                        # there and the edge width becomes the box's padding.
+                        edge_tag = f"\\3c{pill_colour}&\\bord12\\shad0"
+                        events.append(
+                            f"Dialogue: 1,{start_t},{end_t},HookHeaderPill,,0,0,0,,"
+                            f"{{{common}{edge_tag}\\c{rec['colour']}&}}{rec['line']}"
+                        )
                     events.append(
                         f"Dialogue: 2,{start_t},{end_t},HookHeader,,0,0,0,,"
-                        f"{{{common}\\c{rec['colour']}&}}{rec['line']}"
+                        f"{{{common}{edge_tag}\\c{rec['colour']}&}}{rec['line']}"
                     )
 
                     if motion["loop"] == "lightsweep":
                         sweep = _hook_lightsweep_event(
-                            rec["line"], rec["line_fs"], rec["y"], x_center, resolved_font,
+                            rec["line"], rec["line_fs"], rec["y"], x_center, hook_font,
                             start_t, end_t, max_entry_end_ms, exit_start_ms, exit_end_ms,
                             rec["target"],
                         )
@@ -1514,7 +1571,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 if motion["accent"] != "none" and model_last_line and model_line_fs:
                     events.extend(_hook_accent_events(
                         motion["accent"], model_last_line, model_line_fs, model_y, model_colour,
-                        x_center, resolved_font, start_t, end_t,
+                        x_center, hook_font, start_t, end_t,
                         exit_start_ms, exit_end_ms, motion["stagger"],
                     ))
 

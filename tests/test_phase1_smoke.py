@@ -607,18 +607,27 @@ def test_bilingual_highlight_leaves_both_plain_when_neither_matches():
     assert "{\\c" not in th_res and "{\\c" not in en_res
 
 
-def _brand_pct(base=130):
+def _brand_pct(base=None, template=None):
     """
-    What a tier's \\fscx actually ends up as. Sizes in subtitle_engine are em
-    intents; the number reaching \\fscx is boosted by 1/ass_glyph_scale so
-    libass's line-box sizing cancels out. Derived here rather than hardcoded,
-    so changing the default font can't turn these into magic numbers that
-    quietly stop describing the code.
+    What the brand tier's \\fscx actually ends up as. Sizes in subtitle_engine
+    are em intents; the number reaching \\fscx is boosted by 1/ass_glyph_scale
+    so libass's line-box sizing cancels out. Derived here rather than
+    hardcoded, so changing a template's font or its tier size cannot turn these
+    into magic numbers that quietly stop describing the code.
+
+    The banner has its own face now, separate from the captions, so the boost
+    comes from THAT face -- a font's line box against its em is exactly what
+    the boost cancels, and using the caption's number would describe a banner
+    nobody renders.
     """
+    from scripts.hook_styles import resolve_hook_style
     from scripts.subtitle_engine import ass_glyph_scale, _load_font_family_map
 
-    boost = 1.0 / ass_glyph_scale(_load_font_family_map().get("Kanit", "Kanit"))
-    return round(base * boost)
+    style = resolve_hook_style(template)
+    hook_font = _load_font_family_map().get(style["font"], style["font"])
+    boost = 1.0 / ass_glyph_scale(hook_font)
+    size_pct = style["tiers"]["brand"]["size_pct"] if base is None else base
+    return round(round(size_pct) * boost)
 
 
 def _hook_events(content: str) -> str:

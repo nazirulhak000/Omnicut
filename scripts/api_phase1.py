@@ -362,6 +362,7 @@ class RerollRequest(BaseModel):
     hook_duration: Optional[float] = None
     hook_motion: Optional[Dict[str, Any]] = None
     hook_colors: Optional[Dict[str, str]] = None
+    hook_style: Optional[Dict[str, Any]] = None
     custom_script: Optional[str] = None
     script_overlays: Optional[List[str]] = None
     font_name: Optional[str] = None
@@ -588,6 +589,7 @@ class UpdateProjectStateRequest(BaseModel):
     hook_duration: Optional[float] = None
     hook_motion: Optional[Dict[str, Any]] = None
     hook_colors: Optional[Dict[str, str]] = None
+    hook_style: Optional[Dict[str, Any]] = None
     text_overlays: Optional[List[Dict[str, Any]]] = None
 
 
@@ -640,6 +642,9 @@ def update_project_state(project_name: str, req: UpdateProjectStateRequest):
     if req.hook_colors is not None:
         fields["hook_colors"] = req.hook_colors
         render_params["hook_colors"] = req.hook_colors
+    if req.hook_style is not None:
+        fields["hook_style"] = req.hook_style
+        render_params["hook_style"] = req.hook_style
     if req.text_overlays is not None:
         fields["text_overlays"] = req.text_overlays
         render_params["text_overlays"] = req.text_overlays
@@ -667,7 +672,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
             "raw_video_path", "product_name", "key_features", "pain_point", "price_deal",
             "custom_script", "script_overlays", "voice", "voice_rate", "voice_engine_type",
             "voice_preset", "ad_tone", "human_voice_audio_path",
-            "hook_brand", "hook_model", "hook_label", "hook_duration", "hook_motion", "hook_colors",
+            "hook_brand", "hook_model", "hook_label", "hook_duration", "hook_motion", "hook_colors", "hook_style",
             "font_name", "bilingual_subtitles", "sticker_path", "bgm_name", "bgm_volume",
             "bgm_ducking", "lut_name", "lut_intensity", "caption_position", "caption_color",
             "caption_scale", "sticker_position", "sticker_scale", "clip_list", "transitions",
@@ -739,6 +744,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 hook_duration=float(params.get("hook_duration", 3.0) or 3.0),
                 hook_motion=params.get("hook_motion"),
                 hook_colors=params.get("hook_colors"),
+                hook_style=params.get("hook_style"),
                 font_name=params.get("font_name", "IBMPlex"),
                 bilingual_subtitles=params.get("bilingual_subtitles", True),
                 sticker_path=params.get("sticker_path"),

@@ -79,10 +79,14 @@ def test_font_size_is_converted_between_the_two_text_engines():
     """
     assert "usWinAscent + os2.usWinDescent" in PY_SRC
     assert "TEXT_SCALE_BOOST = 1.0 / ass_glyph_scale(resolved_font)" in PY_SRC
+    # The banner has its own face now, so it needs the boost of THAT face: a
+    # font's line box against its em is what the boost cancels, and reusing the
+    # caption's number would size the banner by the wrong metrics.
+    assert "HOOK_SCALE_BOOST = 1.0 / ass_glyph_scale(hook_font)" in PY_SRC
 
     # every text scale that reaches \fscx carries the boost
     for probe in [
-        "target = round(layout_pct * TEXT_SCALE_BOOST)",       # hook tiers
+        "target = round(layout_pct * HOOK_SCALE_BOOST)",       # hook tiers, in the hook's own face
         "settle_pct = int(round(settle_pct * TEXT_SCALE_BOOST))",  # caption pop
         "en_pct = int(round(68 * TEXT_SCALE_BOOST))",          # english sub
         "spec_from = int(round(110 * TEXT_SCALE_BOOST))",      # spec bar
@@ -279,9 +283,12 @@ def test_outline_widths_match():
     stroke. Copying the number across without doubling for that difference
     drew the preview's outlines roughly twice as heavy as the render's.
     """
-    ass_hook_outline = float(_grab(PY_SRC, r"Style: HookHeader,[^\n]*?,1,([\d.]+),0,8", str))
-    canvas_hook_stroke = _grab(JS_SRC, r"const HOOK_OUTLINE_PX = (\d+);")
-    assert canvas_hook_stroke == ass_hook_outline  # 6.0 render px == 6 canvas px of centred stroke
+    # The banner's outline is per tier now, out of the template table, so the
+    # number itself is asserted where it lives -- see
+    # test_hook_templates_are_identical_on_both_sides. What still has to hold
+    # here is that both sides read that same field, and neither doubles it.
+    assert "ctx.lineWidth = outlinePx;" in JS_SRC
+    assert "bord{float(tier_style['outline_px']):.1f}" in PY_SRC
 
     ass_min, ass_ratio = (
         _grab(PY_SRC, r"front_outline = round\(max\(([\d.]+), font_size \* [\d.]+\), 1\)"),
@@ -1560,3 +1567,191 @@ def test_the_probe_runs_once_per_process_not_once_per_render():
     assert "_hw_encoder_probed = True" in VIDEO_EDITOR_SRC
     # The render path must ask through the cached accessor, never probe itself.
     assert VIDEO_EDITOR_SRC.count("subprocess.run([\n                \"ffmpeg\", \"-hide_banner\", \"-loglevel\", \"error\",\n                \"-f\", \"lavfi\"") == 1
+
+
+# --------------------------------------------------------- hook header looks
+# The banner had exactly one appearance, with every part of it a literal in the
+# ASS writer: a black 6px outline on all three tiers, sizes 130/100/58, the
+# caption's font, and the brand always upper-cased. A template names a whole
+# look and anything in it can still be overridden field by field.
+HOOK_PY = (ROOT / "scripts" / "hook_styles.py").read_text(encoding="utf-8")
+HOOK_JS = (ROOT / "frontend" / "src" / "lib" / "hookStyles.js").read_text(encoding="utf-8")
+
+
+def _js_hook_templates():
+    """The JS table, parsed. It is JS object literal syntax, close enough to
+    JSON once the trailing commas, quotes and `ACCENT` are normalised."""
+    block = re.search(r"export const HOOK_TEMPLATES = \{(.*?)\n\};", HOOK_JS, re.S)
+    assert block, "HOOK_TEMPLATES not found in the JS table"
+    text = "{" + block.group(1) + "}"
+    text = text.replace("ACCENT", "null")
+    text = re.sub(r"//[^\n]*", "", text)
+    text = re.sub(r"([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:", r'\1"\2":', text)
+    text = text.replace("'", '"')
+    text = re.sub(r",(\s*[}\]])", r"\1", text)
+    return json.loads(text)
+
+
+def test_hook_templates_are_identical_on_both_sides():
+    """
+    The ASS writer reads the Python table and the canvas preview reads the JS
+    one. A look that exists on only one side, or a tier that differs by a
+    single field, is a preview that lies about the render.
+    """
+    sys.path.insert(0, str(ROOT))
+    from scripts.hook_styles import HOOK_TEMPLATES, TIER_FIELDS, TIER_KEYS
+
+    js = _js_hook_templates()
+    assert set(js) == set(HOOK_TEMPLATES), \
+        f"only in JS: {set(js) - set(HOOK_TEMPLATES)}; only in Python: {set(HOOK_TEMPLATES) - set(js)}"
+
+    for name, py_tpl in HOOK_TEMPLATES.items():
+        js_tpl = js[name]
+        assert js_tpl["font"] == py_tpl["font"], f"{name}: font differs"
+        assert js_tpl["label_th"] == py_tpl["label_th"], f"{name}: label differs"
+        for tier in TIER_KEYS:
+            for field in TIER_FIELDS:
+                a, b = py_tpl["tiers"][tier][field], js_tpl["tiers"][tier][field]
+                assert a == b, f"{name}.{tier}.{field}: python {a!r} vs js {b!r}"
+
+
+def test_both_resolvers_agree_on_templates_overrides_and_colours():
+    """
+    Resolution order is the contract: template, then per-field overrides, then
+    the older colour map -- so a project keeps the colours it was saved with
+    whichever look it is on. Both sides are run on the same inputs.
+    """
+    import shutil
+    import subprocess
+    import tempfile
+
+    if not shutil.which("node"):
+        pytest.skip("needs node")
+    sys.path.insert(0, str(ROOT))
+    from scripts.hook_styles import resolve_hook_style
+
+    cases = [
+        {"template": None, "overrides": None, "colors": None},
+        {"template": "cute", "overrides": None, "colors": None},
+        {"template": "nonsense", "overrides": None, "colors": None},
+        {"template": "cute", "overrides": {"font": "Mitr"}, "colors": None},
+        {"template": "bold_pop", "overrides": {"tiers": {"brand": {"outline_px": 2}}}, "colors": None},
+        {"template": "plain", "overrides": None, "colors": {"model": "#cc7171"}},
+        {"template": "cute", "overrides": {"tiers": {"label": {"color": "#111111"}}},
+         "colors": {"label": "#222222"}},
+    ]
+
+    with tempfile.TemporaryDirectory() as tmp:
+        runner = Path(tmp) / "resolve.mjs"
+        mod = (ROOT / "frontend" / "src" / "lib" / "hookStyles.js").resolve().as_uri()
+        runner.write_text(
+            f"import {{ resolveHookStyle }} from '{mod}';\n"
+            "const cases = JSON.parse(process.argv[2]);\n"
+            "console.log(JSON.stringify(cases.map(c => resolveHookStyle(c.template, "
+            "{ ...(c.overrides || {}), template: c.template }, c.colors))));\n",
+            encoding="utf-8",
+        )
+        res = subprocess.run(["node", str(runner), json.dumps(cases)],
+                             capture_output=True, text=True)
+        assert res.returncode == 0, res.stderr
+        js_out = json.loads(res.stdout)
+
+    for case, js_style in zip(cases, js_out):
+        py_style = resolve_hook_style(
+            case["template"],
+            {**(case["overrides"] or {}), "template": case["template"]},
+            case["colors"],
+        )
+        assert py_style == js_style, f"{case} -> python {py_style} vs js {js_style}"
+
+
+def test_the_ass_writer_emits_the_per_tier_edge_from_the_template():
+    """
+    Outline colour and width were a Style-level literal, the same black 6.0 for
+    every tier, so "white text with a thick pink edge" was unreachable. \\3c is
+    the outline colour and \\bord its width, both per line now.
+    """
+    assert "resolve_hook_style(" in PY_SRC
+    assert "\\\\3c{outline_colour}&" in PY_SRC
+    assert "\\\\bord{float(tier_style['outline_px']):.1f}" in PY_SRC
+    # A pill is BorderStyle 3, which paints its box with the outline colour.
+    assert "Style: HookHeaderPill," in PY_SRC
+    assert "BorderStyle 3 paints it" in PY_SRC
+    # Sizes and the upper-casing come from the template, not from the tier's
+    # position or its size being the biggest one.
+    assert 'int(tiers["brand"]["size_pct"])' in PY_SRC
+    assert 'tiers[tier_key_by_idx[tier_idx]]["upper"]' in PY_SRC
+    assert "if scale_pct == 130:" not in PY_SRC, "upper-casing should not key off a size"
+
+
+def test_the_canvas_draws_the_same_per_tier_edge():
+    assert "resolveHookStyle(hookStyle?.template, hookStyle, hookColors)" in JS_SRC
+    assert "ctx.strokeStyle = outlineColor;" in JS_SRC
+    assert "if (outlinePx > 0.01) {" in JS_SRC, "an outline of 0 must draw no stroke at all"
+    assert "outlineColor: tier.outlineColor, outlinePx: tier.outlinePx, pill: tier.pill," in JS_SRC
+    # The pill's padding is the ASS pill style's own Outline value.
+    assert _grab(JS_SRC, r"const HOOK_PILL_PAD = (\d+);") == \
+        _grab(PY_SRC, r"Style: HookHeaderPill,[^\n]*?,3,(\d+),0,8", float)
+
+
+def test_the_banner_is_measured_in_its_own_face():
+    """
+    The banner can use a different font from the captions now. A font's line box
+    against its em is exactly what the \\fscx boost cancels, so the banner needs
+    the boost of ITS face -- and every width it measures has to use that face,
+    or the wrap and the accent geometry are computed against the wrong glyphs.
+    """
+    assert "HOOK_SCALE_BOOST = 1.0 / ass_glyph_scale(hook_font)" in PY_SRC
+    assert "target = round(layout_pct * HOOK_SCALE_BOOST)" in PY_SRC
+    assert "Style: HookHeader,{hook_font}," in PY_SRC
+    assert "Style: HookHeaderShadow,{hook_font}," in PY_SRC
+    # A template naming a font that is not installed falls back rather than
+    # handing libass a name it will silently substitute.
+    assert 'hook_font = resolved_font' in PY_SRC
+    assert 'if hook_font not in {f["family"] for f in AssetRegistry.fonts()}:' in PY_SRC
+
+
+def test_every_template_names_an_installed_font():
+    """A look whose font is missing renders in something else entirely."""
+    sys.path.insert(0, str(ROOT))
+    from scripts.asset_registry import AssetRegistry
+    from scripts.hook_styles import HOOK_TEMPLATES
+
+    families = {f["family"] for f in AssetRegistry.fonts()}
+    if not families:
+        pytest.skip("no fonts installed")
+    for name, tpl in HOOK_TEMPLATES.items():
+        assert tpl["font"] in families, f"{name} wants {tpl['font']}, which is not installed"
+
+
+def test_the_browser_loads_every_font_the_templates_use():
+    """
+    The canvas can only draw a face the page has actually loaded; without it the
+    preview silently falls back and stops matching the render.
+    """
+    sys.path.insert(0, str(ROOT))
+    from scripts.hook_styles import HOOK_TEMPLATES
+
+    html = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
+    for name, tpl in HOOK_TEMPLATES.items():
+        family = tpl["font"].replace(" ", "+")
+        assert f"family={family}" in html, \
+            f"{name} uses {tpl['font']}, which index.html does not load"
+
+
+def test_the_hook_style_survives_the_round_trip_to_a_render():
+    """A look that cannot reach the renderer is a preview-only decoration."""
+    for src, label in (
+        ((ROOT / "scripts" / "pipeline.py").read_text(encoding="utf-8"), "pipeline"),
+        ((ROOT / "scripts" / "api_server.py").read_text(encoding="utf-8"), "api_server"),
+        ((ROOT / "scripts" / "api_phase1.py").read_text(encoding="utf-8"), "api_phase1"),
+    ):
+        assert "hook_style" in src, f"{label} drops hook_style"
+    pipeline = (ROOT / "scripts" / "pipeline.py").read_text(encoding="utf-8")
+    assert "hook_style=hook_style," in pipeline, "the subtitle writer never receives it"
+    assert '"hook_style": hook_style,' in pipeline, "the manifest never stores it"
+
+    shell = (ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx").read_text(encoding="utf-8")
+    assert "setHookStyle(" in shell and "hook_style: hookStyle," in shell
+    assert shell.count("hookStyle={hookStyle}") == 4, \
+        "both players and both inspectors need it"

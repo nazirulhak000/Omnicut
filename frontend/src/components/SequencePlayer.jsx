@@ -2,6 +2,7 @@ import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, use
 import { Play, Pause, Eye } from 'lucide-react';
 import { toMediaUrl } from '../lib/mediaUrl';
 import { createLutRenderer, loadCube } from '../lib/lut3d';
+import { resolveHookStyle } from '../lib/hookStyles';
 import {
   buildSegments, totalDuration as totalDurationOf, getDrawPlan as planAt
 } from '../lib/timelineMath';
@@ -699,7 +700,9 @@ function parseKineticSegments(text, defaultColor = '#FFFFFF', colorHint = null, 
         const idx = text.indexOf(kw);
         if (idx !== -1) {
           const segments = [];
-          if (idx > 0) segments.push({ text: text.slice(0, idx), color: defaultColor });
+          const needsSpace = idx > 0 && /[\u0E00-\u0E7F]/.test(text[idx - 1]) && text[idx - 1] !== ' ';
+          const beforeStr = text.slice(0, idx) + (needsSpace ? ' ' : '');
+          if (beforeStr) segments.push({ text: beforeStr, color: defaultColor });
           segments.push({ text: kw, color });
           if (idx + kw.length < text.length) segments.push({ text: text.slice(idx + kw.length), color: defaultColor });
           return segments;
@@ -1134,7 +1137,8 @@ const HOOK_MOTION_DEFAULTS = { in: 'bounce', stagger: true, loop: 'pulse', out: 
 const HOOK_STAGGER_STEP = 0.15; // seconds; mirrors STAGGER_STEP_MS
 const HOOK_DIM_OPACITY = 1 - 0x25 / 255; // mirrors ASS \alpha&H25&
 const HOOK_SWEEP_OPACITY = 1 - 0x60 / 255; // mirrors ASS \alpha&H60&
-const HOOK_OUTLINE_PX = 6; // HookHeader style Outline=6.0, flat for every tier
+// The pill's padding, matching HookHeaderPill's Outline=12 in the ASS styles.
+const HOOK_PILL_PAD = 12;
 
 // Mirrors front_outline = max(1.8, font_size * 0.040) in subtitle_engine.py,
 // where font_size is the render-resolution size (twice this canvas one).
@@ -1266,17 +1270,35 @@ const HOOK_OUT_TRANSFORMS = {
   none: (t, s, e) => ({ alpha: t >= e - 0.001 ? 0 : 1 }),
 };
 
-function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 3.5, fontName = 'Kanit', accentColor = '#FFE600', hookMotion = null, hookColors = null) {
+// The heaviest weight index.html actually loads for each face. The ASS side
+// sets Bold=1 and libass emboldens whatever it finds, so the closest match is
+// the heaviest real weight -- asking for 900 from a face that only ships 400
+// gets a synthesised bold that is heavier than the render's.
+const HOOK_FONT_WEIGHTS = {
+  Kanit: 900,
+  Prompt: 800,
+  'Chakra Petch': 700,
+  Anuphan: 700,
+  'IBM Plex Sans Thai': 700,
+  'Bai Jamjuree': 700,
+  Krub: 700,
+  Mitr: 700,
+  Pridi: 700,
+  Sarabun: 700,
+  Mali: 700,
+  Itim: 400,
+  Chonburi: 400,
+};
+
+function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 3.5, fontName = 'Kanit', accentColor = '#FFE600', hookMotion = null, hookColors = null, hookStyle = null) {
   if ((!hookBrand && !hookModel && !hookLabel) || t > hookDuration) return;
   const motion = { ...HOOK_MOTION_DEFAULTS, ...(hookMotion || {}) };
-  const colors = hookColors || {};
-
-  let fontFam = "'Kanit', sans-serif";
-  if (fontName === 'IBMPlex' || fontName === 'IBM Plex Sans Thai') {
-    fontFam = "'IBM Plex Sans Thai', sans-serif";
-  } else if (fontName === 'Prompt') {
-    fontFam = "'Prompt', sans-serif";
-  }
+  // The look comes from the same template table the ASS writer reads, with the
+  // per-tier colour pickers winning last -- see frontend/src/lib/hookStyles.js
+  // and scripts/hook_styles.py.
+  const look = resolveHookStyle(hookStyle?.template, hookStyle, hookColors);
+  const fontFam = `'${look.font}', sans-serif`;
+  const fontWeight = HOOK_FONT_WEIGHTS[look.font] || 700;
 
   // Must stay the same fraction of frame width the renderer uses (hook_fs =
   // video_width * 0.065 in subtitle_engine.py). This canvas is exactly half
@@ -1288,10 +1310,22 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
   // subtitle_engine.py. tierIdx doubles as the stagger slot and marks the
   // model tier for the accent shape.
   const tierSpecs = [
-    { text: (hookBrand || '').trim().toUpperCase(), sizePct: 130, color: colors.brand || '#FFFFFF', tierIdx: 0 },
-    { text: (hookModel || '').trim(), sizePct: 100, color: colors.model || accentColor, tierIdx: 1 },
-    { text: (hookLabel || '').trim(), sizePct: 58, color: colors.label || '#E0E0E0', tierIdx: 2 },
-  ].filter((tier) => tier.text);
+    ['brand', hookBrand, '#FFFFFF'],
+    ['model', hookModel, accentColor],
+    ['label', hookLabel, '#E0E0E0'],
+  ].map(([key, raw, fallbackColor], tierIdx) => {
+    const tier = look.tiers[key];
+    const text = (raw || '').trim();
+    return {
+      text: tier.upper ? text.toUpperCase() : text,
+      sizePct: tier.size_pct,
+      color: tier.color || fallbackColor,
+      outlineColor: tier.outline_color || '#000000',
+      outlinePx: Number(tier.outline_px ?? 6),
+      pill: tier.pill || null,
+      tierIdx,
+    };
+  }).filter((tier) => tier.text);
   if (!tierSpecs.length) return;
 
   const maxW = CANVAS_W * 0.85;
@@ -1305,9 +1339,12 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
   const wrapped = [];
   for (const tier of tierSpecs) {
     const tierFs = Math.max(10, Math.round((baseFontSize * tier.sizePct) / 100));
-    ctx.font = `900 ${tierFs}px ${fontFam}`;
+    ctx.font = `${fontWeight} ${tierFs}px ${fontFam}`;
     for (const line of wrapCanvasText(tier.text, ctx, maxW)) {
-      wrapped.push({ line, fontSize: tierFs, color: tier.color, tierIdx: tier.tierIdx });
+      wrapped.push({
+        line, fontSize: tierFs, color: tier.color, tierIdx: tier.tierIdx,
+        outlineColor: tier.outlineColor, outlinePx: tier.outlinePx, pill: tier.pill,
+      });
     }
   }
 
@@ -1370,7 +1407,7 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
     wrapped.forEach(({ fontSize, color, tierIdx }, idx) => {
       const settledFs = Math.max(10, Math.round(fontSize * shrink));
       if (tierIdx === 1) {
-        ctx.font = `900 ${settledFs}px ${fontFam}`;
+        ctx.font = `${fontWeight} ${settledFs}px ${fontFam}`;
         modelLineWidth = ctx.measureText(wrapped[idx].line).width;
         modelFontSize = settledFs;
         modelColor = color;
@@ -1424,7 +1461,7 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
   }
 
   const sweeps = [];
-  wrapped.forEach(({ line, fontSize, color, tierIdx }, idx) => {
+  wrapped.forEach(({ line, fontSize, color, tierIdx, outlineColor, outlinePx, pill }, idx) => {
     // The cumulative y-cursor advances using the SETTLED size, not the
     // currently-animating scale -- an ASS \t transform (and this mirror of
     // it) animates glyph rendering, not layout reflow, so other lines must
@@ -1449,23 +1486,43 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
     }
     if (inFx.reveal != null) {
       // typewriter: same left-to-right clip the ASS \clip animation performs
-      ctx.font = `900 ${settledFs}px ${fontFam}`;
+      ctx.font = `${fontWeight} ${settledFs}px ${fontFam}`;
       const halfW = ctx.measureText(line).width / 2;
       ctx.beginPath();
       ctx.rect(x - halfW, y + dy - 5, halfW * 2 * inFx.reveal, settledFs + 10);
       ctx.clip();
     }
-    ctx.font = `900 ${renderFs}px ${fontFam}`;
-    // HookHeader's ASS Outline is a flat 6.0 render px for every tier;
-    // strokeText centres its stroke so only half lands outside the glyph.
-    ctx.lineWidth = HOOK_OUTLINE_PX;
-    ctx.strokeText(line, x, y + dy, maxW);
+    ctx.font = `${fontWeight} ${renderFs}px ${fontFam}`;
+    // A pill is the ASS BorderStyle 3 box: it is painted with the outline
+    // colour, and the outline width becomes its padding.
+    if (pill) {
+      const pillW = ctx.measureText(line).width;
+      const padX = HOOK_PILL_PAD;
+      const padY = HOOK_PILL_PAD * 0.5;
+      ctx.fillStyle = pill;
+      ctx.beginPath();
+      ctx.roundRect(
+        x - pillW / 2 - padX, y + dy - padY,
+        pillW + padX * 2, renderFs + padY * 2,
+        Math.min(12, renderFs * 0.35),
+      );
+      ctx.fill();
+    }
+    // ASS's Outline is in render pixels and grows outward only; strokeText
+    // centres its stroke, so half of the same number lands outside -- which is
+    // why the two sides carry the identical figure on a canvas of half the
+    // render's width. See .agents/rules/preview_render_parity.md 2.6.
+    if (outlinePx > 0.01) {
+      ctx.strokeStyle = outlineColor;
+      ctx.lineWidth = outlinePx;
+      ctx.strokeText(line, x, y + dy, maxW);
+    }
     ctx.fillStyle = color;
     ctx.fillText(line, x, y + dy, maxW);
     ctx.restore();
 
     if (motion.loop === 'lightsweep') {
-      ctx.font = `900 ${settledFs}px ${fontFam}`;
+      ctx.font = `${fontWeight} ${settledFs}px ${fontFam}`;
       sweeps.push({ line, y: y + dy, fs: settledFs, halfW: ctx.measureText(line).width / 2 });
     }
 
@@ -1498,7 +1555,7 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
         ctx.beginPath();
         ctx.rect(bandX, s.y - 5, bandW, s.fs + 10);
         ctx.clip();
-        ctx.font = `900 ${s.fs}px ${fontFam}`;
+        ctx.font = `${fontWeight} ${s.fs}px ${fontFam}`;
         ctx.fillText(s.line, x, s.y, maxW);
         ctx.restore();
       }
@@ -1521,7 +1578,7 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
  * not by trusting a <video> element's own playback rate -- see RESYNC's
  * comment for why.
  */
-function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', hookModel = '', hookLabel = '', hookDuration = 3.0, hookMotion = null, hookColors = null, audioUrl = null, audioStems = null, grade = null, trackMix = null, compact = false, onPlayhead, onDurations, captionStyle = {}, stickerStyle = {}, isMuted = false }, ref) {
+function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', hookModel = '', hookLabel = '', hookDuration = 3.0, hookMotion = null, hookColors = null, hookStyle = null, audioUrl = null, audioStems = null, grade = null, trackMix = null, compact = false, onPlayhead, onDurations, captionStyle = {}, stickerStyle = {}, isMuted = false }, ref) {
   const canvasRef = useRef(null);
   const videoElsRef = useRef({});
   const audioElRef = useRef(null);
@@ -1558,7 +1615,7 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
   const playheadRef = useRef(0);
   const prevActiveClipIdRef = useRef(null);
 
-  const captionKey = `${captionStyle.hidden}:${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}:${captionStyle.fontName}:${hookBrand}:${hookModel}:${hookLabel}:${hookDuration}:${JSON.stringify(hookMotion || {})}:${JSON.stringify(hookColors || {})}`;
+  const captionKey = `${captionStyle.hidden}:${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}:${captionStyle.fontName}:${hookBrand}:${hookModel}:${hookLabel}:${hookDuration}:${JSON.stringify(hookMotion || {})}:${JSON.stringify(hookColors || {})}:${JSON.stringify(hookStyle || {})}`;
   const cuesKey = (cues || []).map(c => `${c._uid || c.id}:${c.start}:${c.end}:${c.text}:${c.translation}:${c.scale || 1}`).join(';;');
   const textOverlaysKey = (textOverlays || []).map(t => `${t.id}:${t.start}:${t.end}:${t.text}:${t.position}:${t.scale}:${t.color}:${t.bgStyle}:${t.anim}`).join(';;');
   const stickerKey = `${stickerStyle.badge}:${stickerStyle.position}:${stickerStyle.scale}:${stickerStyle.startTime}`;
@@ -2052,7 +2109,7 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
     ctx.globalAlpha = 1;
     ctx.filter = 'none';
     applyGrade(ctx, canvas);
-    drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration, captionStyle.fontName, captionStyle.captionColor || '#FFE600', hookMotion, hookColors);
+    drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration, captionStyle.fontName, captionStyle.captionColor || '#FFE600', hookMotion, hookColors, hookStyle);
     if (!captionStyle.hidden) {
       drawCaption(ctx, cues, t, captionStyle);
     }
@@ -2196,7 +2253,7 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
         ctx.globalAlpha = 1;
         ctx.filter = 'none';
         if (framePainted) applyGrade(ctx, canvas);
-        drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration, captionStyle.fontName, captionStyle.captionColor || '#FFE600', hookMotion, hookColors);
+        drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration, captionStyle.fontName, captionStyle.captionColor || '#FFE600', hookMotion, hookColors, hookStyle);
         if (!captionStyle.hidden) {
           drawCaption(ctx, cues, t, captionStyle);
         }

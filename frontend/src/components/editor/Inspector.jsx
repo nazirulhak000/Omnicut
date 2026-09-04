@@ -7,6 +7,14 @@ import {
 } from 'lucide-react';
 import { TransitionIcon } from '../../lib/transitionIcons';
 import { TRANSITIONS, FADE_DURATION, MAX_TRANSITION_DURATION } from '../../lib/timelineMath';
+import { resolveHookStyle } from '../../lib/hookStyles';
+
+// The three lines of the banner, in the order they are drawn.
+const HOOK_TIERS = [
+  { tier: 'brand', label: 'แบรนด์' },
+  { tier: 'model', label: 'รุ่น' },
+  { tier: 'label', label: 'หมวด' },
+];
 
 const SPEEDS = [0.5, 1, 1.5, 2];
 
@@ -59,6 +67,12 @@ export default function Inspector({
   hookMotionCatalog = null,
   hookMotionDefault = null,
   hookColors = {},
+  hookStyle = null,
+  hookTemplates = null,
+  onHookTemplate,
+  onHookStyleChange,
+  onHookStyleReset,
+  fonts = [],
   onHookColorChange,
   showHookHeader = true,
   onToggleHookHeader,
@@ -83,6 +97,14 @@ export default function Inspector({
   onDeleteTextOverlay,
   onSelectTextOverlay,
 }) {
+  // What the controls show: the template's values with any overrides applied,
+  // so switching template updates every field instead of leaving stale numbers
+  // next to a look that no longer has them.
+  const resolvedHook = resolveHookStyle(hookStyle?.template, hookStyle, hookColors);
+  const hasHookOverrides = Boolean(
+    hookStyle?.font || Object.keys(hookStyle?.tiers || {}).length,
+  );
+
   const [activeTab, setActiveTab] = useState('cues'); // 'cues' | 'text' | 'clip' | 'style'
   const [textSubTab, setTextSubTab] = useState('overlay'); // 'overlay' | 'hook'
   const [searchQuery, setSearchQuery] = useState('');
@@ -1014,6 +1036,103 @@ export default function Inspector({
                         <span>วิ</span>
                       </div>
                     </div>
+
+                    {/* Look: a template first, then anything on top of it */}
+                    {hookTemplates && (
+                      <div className="space-y-1.5 pt-1 border-t border-white/[0.06]">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-400">สไตล์พาดหัว:</span>
+                          {hasHookOverrides && (
+                            <button
+                              type="button"
+                              onClick={() => onHookStyleReset?.()}
+                              title="ล้างค่าที่ปรับเอง กลับเป็นค่าของสไตล์นี้"
+                              className="rounded px-1.5 py-0.5 text-[10px] font-semibold text-amber-300 hover:bg-amber-400/20 cursor-pointer"
+                            >
+                              ปรับเองอยู่ · ล้าง
+                            </button>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 gap-1">
+                          {Object.entries(hookTemplates).map(([key, tpl]) => {
+                            const active = (hookStyle?.template || 'tech') === key;
+                            return (
+                              <button
+                                key={key}
+                                type="button"
+                                onClick={() => onHookTemplate?.(key)}
+                                title={tpl.label_th}
+                                className={`truncate rounded-lg px-2 py-1.5 text-left text-[11px] font-semibold transition-colors cursor-pointer ${
+                                  active
+                                    ? 'bg-[#D97757] text-white'
+                                    : 'bg-[#282724] text-[#C9C3BB] hover:bg-[#363430]'
+                                }`}
+                              >
+                                {tpl.label_th}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Font, shared by all three tiers */}
+                        <label className="flex items-center gap-2">
+                          <span className="text-xs text-slate-400">ฟอนต์:</span>
+                          <select
+                            value={resolvedHook.font}
+                            onChange={(e) => onHookStyleChange?.(null, 'font', e.target.value)}
+                            className="min-w-0 flex-1 rounded bg-black/50 border border-white/[0.1] px-1.5 py-0.5 text-xs text-white cursor-pointer focus:outline-none focus:border-[#D97757]"
+                          >
+                            {(fonts || []).map((f) => (
+                              <option key={f.family} value={f.family}>{f.family}</option>
+                            ))}
+                          </select>
+                        </label>
+
+                        {/* Per-tier: size, outline colour, outline width */}
+                        {HOOK_TIERS.map(({ tier, label }) => {
+                          const tierStyle = resolvedHook.tiers[tier];
+                          return (
+                            <div key={tier} className="flex items-center gap-2">
+                              <span className="w-10 flex-shrink-0 text-[11px] text-slate-400">{label}</span>
+                              <label className="flex items-center gap-1" title={`ขนาด ${label}`}>
+                                <input
+                                  type="number"
+                                  min={30}
+                                  max={200}
+                                  step={2}
+                                  value={Math.round(tierStyle.size_pct)}
+                                  onChange={(e) => onHookStyleChange?.(tier, 'size_pct', Number(e.target.value) || 100)}
+                                  className="w-12 rounded bg-black/50 border border-white/[0.1] px-1 py-0.5 text-right text-[11px] font-mono text-white focus:outline-none focus:border-[#D97757]"
+                                />
+                                <span className="text-[10px] text-slate-500">%</span>
+                              </label>
+                              <label className="flex items-center gap-1 cursor-pointer" title={`สีขอบ ${label}`}>
+                                <span className="text-[10px] text-slate-500">ขอบ</span>
+                                <input
+                                  type="color"
+                                  value={tierStyle.outline_color || '#000000'}
+                                  onChange={(e) => onHookStyleChange?.(tier, 'outline_color', e.target.value)}
+                                  className="h-5 w-5 cursor-pointer rounded border border-white/[0.15] bg-transparent p-0"
+                                />
+                              </label>
+                              <input
+                                type="range"
+                                min={0}
+                                max={16}
+                                step={1}
+                                value={Number(tierStyle.outline_px) || 0}
+                                onChange={(e) => onHookStyleChange?.(tier, 'outline_px', Number(e.target.value))}
+                                title={`ความหนาขอบ ${label} — 0 คือไม่มีขอบ`}
+                                className="min-w-0 flex-1 cursor-pointer accent-[#D97757]"
+                              />
+                              <span className="w-4 flex-shrink-0 text-right text-[10px] font-mono text-slate-500">
+                                {Math.round(Number(tierStyle.outline_px) || 0)}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
 
                     {/* Per-tier text colour */}
                     <div className="flex items-center gap-3 pt-1 border-t border-white/[0.06]">

@@ -18,6 +18,7 @@ import SequencePlayer from '../SequencePlayer';
 import AssetPanel from './AssetPanel';
 import Inspector from './Inspector';
 import Timeline, { tracksFitHeight } from './Timeline';
+import { DEFAULT_HOOK_TEMPLATE, HOOK_TEMPLATES } from '../../lib/hookStyles';
 import Toolbar from './Toolbar';
 import NewClipPanel from './NewClipPanel';
 import { ActivityIndicatorButton } from '../ActivityCenter';
@@ -272,6 +273,26 @@ export default function EditorShell({
   const [hookColors, setHookColors] = useState({});
   const handleHookColorChange = useCallback((tier, value) => {
     setHookColors((prev) => ({ ...prev, [tier]: value }));
+  }, []);
+
+  // Which Hook Header look is in use, plus whatever has been changed on top of
+  // it. A template is a starting point: `tiers` holds only the fields that
+  // were actually overridden, so switching template keeps custom edits that
+  // were made deliberately and drops the rest back to the new look's defaults.
+  const [hookStyle, setHookStyle] = useState({ template: DEFAULT_HOOK_TEMPLATE });
+  const handleHookTemplate = useCallback((template) => {
+    setHookStyle({ template });
+  }, []);
+  const handleHookStyleChange = useCallback((tier, field, value) => {
+    setHookStyle((prev) => {
+      if (tier === null) return { ...prev, [field]: value };
+      const tiers = { ...(prev.tiers || {}) };
+      tiers[tier] = { ...(tiers[tier] || {}), [field]: value };
+      return { ...prev, tiers };
+    });
+  }, []);
+  const handleHookStyleReset = useCallback(() => {
+    setHookStyle((prev) => ({ template: prev.template || DEFAULT_HOOK_TEMPLATE }));
   }, []);
   const [hookMotionCatalog, setHookMotionCatalog] = useState(null);
   const [hookMotionDefault, setHookMotionDefault] = useState(null);
@@ -565,6 +586,9 @@ export default function EditorShell({
       setHookDuration(hookDur > 0 ? hookDur : 3.0);
       setHookMotion(data.hook_motion || data.render_params?.hook_motion || {});
       setHookColors(data.hook_colors || data.render_params?.hook_colors || {});
+      setHookStyle(
+        data.hook_style || data.render_params?.hook_style || { template: DEFAULT_HOOK_TEMPLATE },
+      );
       setShowHookHeader(!!brand);
       const rawTextOverlays = data.text_overlays || data.render_params?.text_overlays || [];
       setTextOverlays(Array.isArray(rawTextOverlays) ? rawTextOverlays : []);
@@ -742,6 +766,8 @@ export default function EditorShell({
           hook_duration: hookDuration || 3.0,
           hook_motion: hookMotion,
           hook_colors: hookColors,
+        hook_style: hookStyle,
+          hook_style: hookStyle,
           text_overlays: textOverlays,
         });
         setSaveStatus('saved');
@@ -751,7 +777,7 @@ export default function EditorShell({
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [clipList, cuesList, style, projectName, hookBrand, hookModel, hookLabel, hookDuration, hookMotion, hookColors, showHookHeader, textOverlays]);
+  }, [clipList, cuesList, style, projectName, hookBrand, hookModel, hookLabel, hookDuration, hookMotion, hookColors, hookStyle, showHookHeader, textOverlays]);
 
   // Manual save handler (button click or Ctrl+S)
   const handleManualSave = useCallback(async () => {
@@ -794,6 +820,7 @@ export default function EditorShell({
         hook_duration: hookDuration || 3.0,
         hook_motion: hookMotion,
         hook_colors: hookColors,
+        hook_style: hookStyle,
         text_overlays: textOverlays,
       });
       setSaveStatus('saved');
@@ -801,7 +828,7 @@ export default function EditorShell({
       console.warn('Manual save failed:', err);
       setSaveStatus('dirty');
     }
-  }, [projectName, clipList, cuesList, style, hookBrand, hookModel, hookLabel, hookDuration, hookMotion, hookColors, showHookHeader, textOverlays]);
+  }, [projectName, clipList, cuesList, style, hookBrand, hookModel, hookLabel, hookDuration, hookMotion, hookColors, hookStyle, showHookHeader, textOverlays]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -1303,6 +1330,7 @@ export default function EditorShell({
         hook_duration: hookDuration || 3.0,
         hook_motion: hookMotion,
         hook_colors: hookColors,
+        hook_style: hookStyle,
         font_name: style.fontName,
         bgm_name: style.bgmName,
         lut_name: style.lutName,
@@ -1800,6 +1828,7 @@ export default function EditorShell({
                   hookDuration={hookDuration}
                   hookMotion={hookMotion}
                   hookColors={hookColors}
+                  hookStyle={hookStyle}
                   textOverlays={isTextOverlayHidden ? [] : textOverlays}
                   audioUrl={audioUrl}
                   audioStems={audioStems}
@@ -2072,7 +2101,13 @@ export default function EditorShell({
                       hookMotionCatalog={hookMotionCatalog}
                       hookMotionDefault={hookMotionDefault}
                       hookColors={hookColors}
+                    hookStyle={hookStyle}
                       onHookColorChange={handleHookColorChange}
+                      hookTemplates={HOOK_TEMPLATES}
+                      onHookTemplate={handleHookTemplate}
+                      onHookStyleChange={handleHookStyleChange}
+                      onHookStyleReset={handleHookStyleReset}
+                      fonts={assets.fonts}
                       showHookHeader={showHookHeader}
                       onToggleHookHeader={() => setShowHookHeader((v) => !v)}
                       onAddTextAtPlayhead={addTextAtPlayhead}
@@ -2191,6 +2226,7 @@ export default function EditorShell({
                     hookDuration={hookDuration}
                     hookMotion={hookMotion}
                     hookColors={hookColors}
+                    hookStyle={hookStyle}
                     textOverlays={isTextOverlayHidden ? [] : textOverlays}
                     audioUrl={audioUrl}
                     audioStems={audioStems}
@@ -2339,7 +2375,13 @@ export default function EditorShell({
                         hookMotionCatalog={hookMotionCatalog}
                         hookMotionDefault={hookMotionDefault}
                         hookColors={hookColors}
+                        hookStyle={hookStyle}
                         onHookColorChange={handleHookColorChange}
+                      hookTemplates={HOOK_TEMPLATES}
+                      onHookTemplate={handleHookTemplate}
+                      onHookStyleChange={handleHookStyleChange}
+                      onHookStyleReset={handleHookStyleReset}
+                      fonts={assets.fonts}
                         showHookHeader={showHookHeader}
                         onToggleHookHeader={() => setShowHookHeader((v) => !v)}
                         onAddTextAtPlayhead={addTextAtPlayhead}

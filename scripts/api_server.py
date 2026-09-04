@@ -108,6 +108,7 @@ class RenderRequest(BaseModel):
     hook_motion: Optional[Dict[str, Any]] = None
     # per-tier text colours: {brand, model, label} as #RRGGBB
     hook_colors: Optional[Dict[str, str]] = None
+    hook_style: Optional[Dict[str, Any]] = None
     custom_script: Optional[str] = None
     script_overlays: Optional[List[str]] = None  # per-line spec-bar text, index-aligned with custom_script
     voice_mode: str = "gemini_tts" # gemini_tts, edge_tts, human, video
@@ -826,15 +827,20 @@ def preview_voice(payload: Dict[str, Any]):
     out_file = voiceover_dir / f"preview_{int(time.time() * 1000)}.wav"
 
     try:
+        audio_path = None
         if GeminiFlashTTSEngine.is_available():
-            audio_path = GeminiFlashTTSEngine.generate_speech(
-                text=clean_text,
-                output_path=str(out_file),
-                voice_preset=voice_gender if "gemini_" in voice_gender else "gemini_puck_male_hype",
-                ad_tone=ad_tone,
-                speed=speed
-            )
-        else:
+            try:
+                audio_path = GeminiFlashTTSEngine.generate_speech(
+                    text=clean_text,
+                    output_path=str(out_file),
+                    voice_preset=voice_gender if "gemini_" in voice_gender else "gemini_puck_male_hype",
+                    ad_tone=ad_tone,
+                    speed=speed
+                )
+            except Exception as g_err:
+                print(f"⚠️ [preview_voice] Gemini TTS failed ({g_err}) — fallback to Edge-TTS...")
+
+        if not audio_path:
             gender = "female" if "female" in str(voice_gender).lower() or "Premwadee" in str(voice_gender) or "kore" in str(voice_gender).lower() or "aoede" in str(voice_gender).lower() else "male"
             res = VoiceEngine.generate_crystal_voice(
                 text_or_lines=clean_text,
@@ -1675,18 +1681,21 @@ def preview_voice(req: VoicePreviewRequest):
         # Same resolver the pipeline uses, so the audition matches the render.
         gemini_voice = GeminiFlashTTSEngine.resolve_voice(preset=req.voice_gender)
 
-        GeminiFlashTTSEngine.generate_speech(
-            text=req.text or "สวัสดีครับ สายชาร์จแม่เหล็กตัวนี้คือที่สุด ดูดแน่น ชาร์จเร็ว 66 วัตต์ รีบกดในตะกร้าซ้ายล่างได้เลยครับ",
-            output_path=str(sample_file),
-            voice_name=gemini_voice,
-            ad_tone=req.ad_tone or "commercial_premium",
-            speed=req.speed or 1.15
-        )
-        return {
-            "audio_url": f"/api/media/{sample_file.name}",
-            "duration": measure_wav_duration(sample_file),
-            "voice_name": gemini_voice
-        }
+        try:
+            GeminiFlashTTSEngine.generate_speech(
+                text=req.text or "สวัสดีครับ สายชาร์จแม่เหล็กตัวนี้คือที่สุด ดูดแน่น ชาร์จเร็ว 66 วัตต์ รีบกดในตะกร้าซ้ายล่างได้เลยครับ",
+                output_path=str(sample_file),
+                voice_name=gemini_voice,
+                ad_tone=req.ad_tone or "commercial_premium",
+                speed=req.speed or 1.15
+            )
+            return {
+                "audio_url": f"/api/media/{sample_file.name}",
+                "duration": measure_wav_duration(sample_file),
+                "voice_name": gemini_voice
+            }
+        except Exception as g_err:
+            print(f"⚠️ [preview_voice] Gemini TTS failed ({g_err}) — fallback to Edge-TTS...")
 
     res = VoiceEngine.generate_crystal_voice(
         text_or_lines=req.text or "สวัสดีค่ะ นี่คือเสียงตัวอย่างสำหรับคลิปรีวิวสินค้า",
@@ -2028,6 +2037,7 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                 hook_label=req_data.hook_label,
                 hook_motion=req_data.hook_motion,
                 hook_colors=req_data.hook_colors,
+                hook_style=req_data.hook_style,
                 font_name=req_data.font_name,
                 bilingual_subtitles=req_data.bilingual_subtitles,
                 use_ai_vision=req_data.use_ai_vision,
