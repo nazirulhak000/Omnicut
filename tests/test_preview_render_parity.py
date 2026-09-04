@@ -519,3 +519,216 @@ def test_every_transition_has_its_own_timeline_glyph():
     # and the timeline must actually use the map rather than a fixed icon
     timeline_src = (ROOT / "frontend" / "src" / "components" / "editor" / "Timeline.jsx").read_text(encoding="utf-8")
     assert "<TransitionIcon type={currentTransition}" in timeline_src
+
+
+# ------------------------------------------------------------------ audio
+# The preview no longer plays a baked mix: pipeline.py skips the mix unless a
+# video is actually being exported, and SequencePlayer.jsx plays the same stems
+# the renderer will mix (voice element + looped BGM element + one
+# AudioBufferSourceNode per SFX). Every level and every fire time therefore has
+# to agree with sfx_manager.py's ffmpeg graph, or "it sounded right in the
+# preview" stops meaning anything.
+SFX_SRC = (ROOT / "scripts" / "sfx_manager.py").read_text(encoding="utf-8")
+CONFIG_SRC = (ROOT / "scripts" / "config.py").read_text(encoding="utf-8")
+
+
+def _js_audio_mix(field):
+    return _grab(JS_SRC, rf"AUDIO_MIX = \{{.*?{field}: ([\d.]+)")
+
+
+def test_stem_gains_match_the_mix():
+    """voice/BGM/SFX levels are the mix's own defaults, not preview guesses."""
+    assert _js_audio_mix("VOICE_GAIN") == _grab(CONFIG_SRC, r"VOICE_VOLUME = ([\d.]+)")
+    assert _js_audio_mix("BGM_GAIN") == _grab(CONFIG_SRC, r"BGM_VOLUME = ([\d.]+)")
+    assert _js_audio_mix("SFX_GAIN") == _grab(CONFIG_SRC, r"SFX_VOLUME = ([\d.]+)")
+    # ...and the mix takes its defaults from that same place, rather than
+    # repeating the literals as it used to while config.py said something else.
+    for param, const in (("bgm_vol", "BGM_VOLUME"), ("voice_vol", "VOICE_VOLUME"), ("sfx_vol", "SFX_VOLUME")):
+        assert re.search(rf"{param}: float = {const}", SFX_SRC), \
+            f"{param} should default to config.{const}"
+
+
+def test_sfx_pre_roll_matches_and_reads_the_resolved_filename():
+    """
+    A transition whoosh starts 120ms early so its peak lands on the cut. The
+    render decides that from the resolved *filename*, so the preview must be
+    handed the filename too -- a cue tagged with a legacy alias ("whoosh")
+    resolves to sfx_whoosh_fast.wav, and testing the tag alone would still
+    work by luck while "boom" -> sfx_vine_boom.wav would not.
+    """
+    assert _js_audio_mix("SFX_PRE_ROLL") == _grab(SFX_SRC, r"pre_roll = ([\d.]+) if is_transition_sfx")
+    assert _js_audio_mix("SFX_MIN_TIME") == _grab(SFX_SRC, r"delay_ms = int\(max\(([\d.]+),")
+
+    py_words = re.search(r'is_transition_sfx = any\(w in sfx_name_low for w in \[(.*?)\]', SFX_SRC, re.S)
+    js_words = re.search(r"TRANSITION_SFX_WORDS = \[(.*?)\]", JS_SRC, re.S)
+    assert py_words and js_words
+    assert re.findall(r"[a-z]+", py_words.group(1)) == re.findall(r"[a-z]+", js_words.group(1))
+
+    # ...and the preview is given entry.name (the file), not just the cue tag.
+    shell = (ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx").read_text(encoding="utf-8")
+    assert "name: entry.name" in shell, "SFX pre-roll needs the resolved filename, not the cue tag"
+
+
+def test_sfx_fire_time_floors_to_whole_milliseconds_like_adelay():
+    """
+    adelay takes integer milliseconds (int(secs * 1000)), so the preview floors
+    the same way instead of keeping float seconds -- otherwise the two disagree
+    by a sub-millisecond step that grows into a visible mismatch on report.
+    """
+    assert "int(max(" in SFX_SRC and "* 1000)" in SFX_SRC
+    assert re.search(r"Math\.floor\(secs \* 1000\) / 1000", JS_SRC), \
+        "sfxFireTime must floor to ms to match adelay"
+
+
+def test_bgm_tail_fade_and_tempo_clamp_match():
+    assert _js_audio_mix("BGM_FADE_OUT") == _grab(SFX_SRC, r"afade=t=out:st=\{fade_start:.3f\}:d=([\d.]+)")
+    assert _js_audio_mix("BGM_TEMPO_BASELINE") == _grab(SFX_SRC, r"BASELINE_CHARS_PER_SEC = ([\d.]+)")
+    py_clamp = re.search(r"tempo_ratio = min\(([\d.]+), max\(([\d.]+),", SFX_SRC)
+    js_clamp = re.search(r"return Math\.min\(([\d.]+), Math\.max\(([\d.]+),", JS_SRC)
+    assert py_clamp and js_clamp
+    assert py_clamp.groups() == js_clamp.groups()
+
+
+def test_ducking_uses_the_measured_reduction_not_a_feel_value():
+    """
+    WebAudio has no sidechain, so the preview stands in a plain gain envelope.
+    sfx_manager.py records that its threshold/ratio were chosen by measuring
+    13.7 dB of reduction -- the preview's factor must be that same figure in
+    linear gain, and its attack/release must be the filter's own.
+    """
+    measured_db = _grab(SFX_SRC, r"pull the music down ([\d.]+) dB")
+    assert abs(_js_audio_mix("BGM_DUCK_GAIN") - 10 ** (-measured_db / 20)) < 0.002
+    assert _js_audio_mix("BGM_DUCK_ATTACK") * 1000 == _grab(SFX_SRC, r"attack=(\d+)")
+    assert _js_audio_mix("BGM_DUCK_RELEASE") * 1000 == _grab(SFX_SRC, r"release=(\d+)")
+
+
+def test_bgm_loops_and_is_speed_matched_on_both_sides():
+    assert "-stream_loop" in SFX_SRC and "atempo=" in SFX_SRC
+    assert re.search(r"src=\{audioStems\.bgm\.url\}[\s\S]{0,200}?loop", JS_SRC), \
+        "BGM element must loop to match -stream_loop -1"
+    assert re.search(r"bgm\.playbackRate = audioLiveRef\.current\.bgmRate", JS_SRC),         "BGM must be speed-matched like atempo, from the live tempo"
+
+
+def test_preview_resolves_the_same_bgm_file_the_render_will_use():
+    """
+    The picker sends a registry id ("bgm_brass_funk") while resolve_bgm_path
+    starts from a filename, so an id-only lookup silently landed on the
+    alphabetically-first track: the user picked one bed and rendered another.
+    Both sides now resolve ids, and both fall back the same way.
+    """
+    sys.path.insert(0, str(ROOT))
+    from scripts.asset_registry import AssetRegistry
+    from scripts.sfx_manager import SFXManager
+
+    beds = AssetRegistry.bgm()
+    if len(beds) < 2:
+        pytest.skip("needs at least two BGM files to tell a fallback from a hit")
+    for entry in beds:
+        resolved = SFXManager.resolve_bgm_path(entry["id"])
+        assert resolved and resolved.name == entry["name"], \
+            f"{entry['id']} resolved to {resolved} instead of its own file"
+
+    shell = (ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx").read_text(encoding="utf-8")
+    assert "m.id === style.bgmName || m.name === style.bgmName" in shell
+    default_py = re.search(r'name = bgm_name or "([^"]+)"', SFX_SRC).group(1)
+    assert f"DEFAULT_BGM_FILE = '{default_py}'" in shell, \
+        "preview must fall back to the same default bed as resolve_bgm_path"
+
+
+def test_legacy_sfx_aliases_match_on_both_sides():
+    """An old manifest saying "boom" must reach the same file in both places."""
+    sys.path.insert(0, str(ROOT))
+    from scripts.asset_registry import LEGACY_SFX_ALIASES
+
+    shell = (ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx").read_text(encoding="utf-8")
+    js_block = re.search(r"LEGACY_SFX_ALIASES = \{(.*?)\}", shell, re.S).group(1)
+    js_pairs = dict(re.findall(r"(\w+): '([^']+)'", js_block))
+    assert js_pairs == LEGACY_SFX_ALIASES
+
+
+def test_preview_lays_down_the_boom_the_mix_always_adds():
+    """The mix puts a boom on the hook at t=0 whether or not a cue asked."""
+    assert "# 2. Add Boom on 0.0s Hook" in SFX_SRC
+    shell = (ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx").read_text(encoding="utf-8")
+    assert re.search(r"sfxShots\.push\(\{ time: 0, id: 'boom'", shell), \
+        "preview must start with the same boom the mix does"
+
+
+def test_seeking_stops_the_stems_before_repositioning_them():
+    """
+    seekTo used to pause the videos but leave the audio playing and isPlaying
+    set, so a drag issued a seek per frame while the last was still pending,
+    the element lagged, and the tick kept reading its stale currentTime as the
+    master clock -- the playhead snapped back under the cursor. Stopping first
+    also drops queued SFX so they do not re-fire on the way back over a cue.
+    """
+    seek = re.search(r"const seekTo = \(t\) => \{(.*?)\n  \};", JS_SRC, re.S)
+    assert seek, "seekTo moved"
+    body = seek.group(1)
+    assert "stopStems()" in body and "cueStemsTo(clamped)" in body
+    assert body.index("stopStems()") < body.index("cueStemsTo(clamped)")
+    assert "if (isPlaying) startStems()" in body
+
+
+def test_a_late_decoded_one_shot_is_offset_not_played_from_its_start():
+    """
+    The first pass over a cue is the one that has to wait for a fetch, so a
+    buffer can resolve after its moment has passed. WebAudio would then play it
+    from sample zero, i.e. audibly late -- so it starts that far into the
+    buffer instead, and is abandoned entirely past SFX_LATE_LIMIT.
+    """
+    assert re.search(r"const late = ctx\.currentTime - when;", JS_SRC)
+    assert re.search(r"if \(late > AUDIO_MIX\.SFX_LATE_LIMIT \|\| late > buf\.duration\) return;", JS_SRC)
+    assert re.search(r"if \(late > 0\) src\.start\(ctx\.currentTime, late\);", JS_SRC)
+    # ...and buffers are warmed as soon as the graph exists so this is the rare
+    # path, not the normal one.
+    assert "forEach((shot) => loadSfxBuffer(ctx, shot.url))" in JS_SRC
+
+
+def test_a_fired_one_shot_is_not_rescheduled_while_still_in_its_window():
+    """
+    A 200ms SFX ends well inside the 500ms lookahead. Clearing its entry on
+    `ended` (as the first cut did) let the next tick schedule it again --
+    every short SFX double-fired. Entries now live until flushSfx.
+    """
+    assert "src.onended = () => { entry.node = null; };" in JS_SRC
+    assert not re.search(r"onended[\s\S]{0,80}sfxLiveRef\.current = sfxLiveRef\.current\.filter", JS_SRC)
+
+
+def test_swapping_a_stem_mid_playback_rewires_instead_of_going_silent():
+    """
+    Each audio element is keyed by URL, so choosing another BGM mounts a fresh
+    element the AudioContext has never been given -- without this it plays
+    nothing until the user presses play again, and the dead source node stays
+    in the map.
+    """
+    fx = re.search(r"// Swapping BGM(.*?)\}, \[audioStems\?\.voiceUrl, audioStems\?\.bgm\?\.url\]\);", JS_SRC, re.S)
+    assert fx, "re-wire effect missing"
+    body = fx.group(1)
+    assert "ensureAudioGraph()" in body and "startStems()" in body
+    assert "src.disconnect()" in body and "mediaSourcesRef.current.delete(el)" in body
+
+
+def test_mid_playback_audio_changes_reach_the_tick_loop():
+    """
+    The tick effect re-subscribes on only a few deps, so a BGM level or a new
+    SFX read straight from a closure would be a frame from before the change --
+    and the stale level would fight the gain effect back down. Everything the
+    loop reads goes through audioLiveRef.
+    """
+    assert "audioLiveRef.current = { bgmVolume, bgmDucking, bgmRate, totalDuration, cues, shots: sfxShots }" in JS_SRC
+    tick = re.search(r"const tick = \(\) => \{(.*?)\n      rafRef", JS_SRC, re.S).group(1)
+    for stale in ("bgmVolume", "bgmDucking", "sfxShots"):
+        assert stale not in tick, f"tick reads {stale} from a stale closure"
+
+
+def test_audio_and_video_elements_are_torn_down_on_unmount():
+    """
+    Nothing released media before: elements kept decoding and every editor
+    visit leaked an AudioContext (browsers cap how many may exist).
+    """
+    teardown = re.search(r"// Teardown:(.*?)\n  \}, \[\]\);", JS_SRC, re.S)
+    assert teardown, "teardown effect missing"
+    body = teardown.group(1)
+    for expected in ("flushSfx()", "el.pause()", "removeAttribute('src')", "audioCtxRef.current?.close()"):
+        assert expected in body, f"teardown does not {expected}"

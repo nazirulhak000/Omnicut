@@ -46,6 +46,12 @@ DEFAULT_VOICE_RATE = "+15%" # TikTok fast-paced speaking rate
 DEFAULT_VOICE_PITCH = "+0Hz"
 
 # Audio Settings
-BGM_VOLUME = 0.15 # -16dB
+# Mix levels. These are the values the render actually uses -- sfx_manager.py
+# takes its defaults from here rather than repeating literals, and the preview
+# mirrors them in SequencePlayer.jsx AUDIO_MIX (guarded by
+# tests/test_preview_render_parity.py). They used to disagree: this file said
+# 0.15/0.6 while the mix ran 0.12/0.28, and AGENTS.md documented the numbers
+# nothing used.
+BGM_VOLUME = 0.12    # -18dB, a bed under the voice
 VOICE_VOLUME = 1.0
-SFX_VOLUME = 0.6
+SFX_VOLUME = 0.28    # -11dB, present but not startling

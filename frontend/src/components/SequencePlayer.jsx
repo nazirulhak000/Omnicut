@@ -7,13 +7,73 @@ import {
 
 const CANVAS_W = 540;
 const CANVAS_H = 960;
-// How far a clip's decoded currentTime may drift from the wall-clock-derived
-// target before we force a reseek. Hidden <video> elements were measured
-// decoding at ~3-7x real time in this environment (Chromium doesn't pace
-// paint/compositor work the same way for off-screen media) -- an
-// independent clock plus periodic resync keeps playback at real speed
-// regardless of how fast the browser is willing to decode.
-const RESYNC_THRESHOLD = 0.15;
+// How far a stream's decoded currentTime may drift from the master clock
+// before it is pulled back. Hidden <video> elements were measured decoding at
+// ~3-7x real time in this environment (Chromium doesn't pace paint/compositor
+// work the same way for off-screen media) -- an independent clock plus these
+// resyncs keeps playback at real speed regardless of how fast the browser is
+// willing to decode.
+//
+// There used to be a single RESYNC_THRESHOLD here that nothing read, while the
+// values actually in force sat as literals spread through the tick.
+const RESYNC = {
+  AUDIO: 0.3,        // media element (voice/BGM) vs the master clock
+  VIDEO_HARD: 0.4,   // past this a video is seeked rather than slewed
+  VIDEO_SLEW: 0.04,  // inside this a video is nudged +-6% instead of seeked
+  START: 0.12,       // close enough to start a paused clip without seeking
+  PREROLL: 0.08,     // close enough to leave a pre-rolled clip where it is
+};
+
+// Mix constants, paired one-for-one with SFXManager.mix_audio_track's ffmpeg
+// graph (scripts/sfx_manager.py) so the preview's stem playback lands at the
+// same level and the same time as the rendered mix. Change one side, change
+// the other -- see .agents/rules/preview_render_parity.md.
+const AUDIO_MIX = {
+  VOICE_GAIN: 1.0,              // voice_vol   -- sfx_manager.py:61
+  BGM_GAIN: 0.12,               // bgm_vol     -- sfx_manager.py:60
+  SFX_GAIN: 0.28,               // sfx_vol     -- sfx_manager.py:63
+  // The render ducks with sidechaincompress, which has no WebAudio equivalent.
+  // Its threshold/ratio were picked by measuring 13.7 dB of reduction while
+  // the voice speaks, so the preview applies that same 13.7 dB as a plain gain
+  // envelope over the cue spans: 10^(-13.7/20).
+  BGM_DUCK_GAIN: 0.2065,
+  BGM_DUCK_ATTACK: 0.020,       // attack=20   -- sfx_manager.py:157
+  BGM_DUCK_RELEASE: 0.300,      // release=300 -- sfx_manager.py:157
+  BGM_FADE_OUT: 0.35,           // afade=t=out:d=0.35 -- sfx_manager.py:146
+  BGM_TEMPO_BASELINE: 10.0,     // BASELINE_CHARS_PER_SEC -- sfx_manager.py:132
+  SFX_PRE_ROLL: 0.12,           // pre_roll    -- sfx_manager.py:109
+  SFX_MIN_TIME: 0.02,           // max(0.02, ...) -- sfx_manager.py:110
+  SFX_LOOKAHEAD: 0.5,           // how early a one-shot is handed to WebAudio
+  SFX_LATE_LIMIT: 0.25,         // a hit later than this is dropped, not rushed
+};
+
+// Same word list the render uses to decide a transition whoosh starts early.
+const TRANSITION_SFX_WORDS = ['whoosh', 'swish', 'swoosh', 'transition'];
+
+/** Timeline time an SFX fires at, matching sfx_manager.py's adelay exactly. */
+function sfxFireTime(cueStart, sfxId) {
+  const low = String(sfxId || '').toLowerCase();
+  const preRoll = TRANSITION_SFX_WORDS.some((w) => low.includes(w)) ? AUDIO_MIX.SFX_PRE_ROLL : 0;
+  const secs = Math.max(AUDIO_MIX.SFX_MIN_TIME, (Number(cueStart) || 0) - preRoll);
+  // The render floors to whole milliseconds (int(secs * 1000)); match it so the
+  // two never disagree by a sub-millisecond rounding step.
+  return Math.floor(secs * 1000) / 1000;
+}
+
+/**
+ * The render nudges the BGM's tempo toward the script's reading speed
+ * (atempo, clamped to +-8%). Reproduced here from the same cue text so the bed
+ * loops at the same rate -- with the caveat that playbackRate shifts pitch
+ * where atempo preserves it.
+ */
+function bgmTempoRatio(cues) {
+  const totalChars = (cues || []).reduce((s, c) => s + String(c.text || '').length, 0);
+  const span = (cues || []).reduce(
+    (s, c) => s + Math.max(0.01, (Number(c.end) || 0) - (Number(c.start) || 0)), 0
+  );
+  const cps = span > 0 ? totalChars / span : AUDIO_MIX.BGM_TEMPO_BASELINE;
+  return Math.min(1.08, Math.max(0.92, cps / AUDIO_MIX.BGM_TEMPO_BASELINE));
+}
 
 /**
  * CSS filter that approximates video_editor.py's per-clip `eq`. ffmpeg's
@@ -1200,13 +1260,19 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
  * Apply produces.
  *
  * The global playhead is driven by an independent performance.now() clock,
- * not by trusting a <video> element's own playback rate -- see
- * RESYNC_THRESHOLD's comment for why.
+ * not by trusting a <video> element's own playback rate -- see RESYNC's
+ * comment for why.
  */
-function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', hookModel = '', hookLabel = '', hookDuration = 3.0, hookMotion = null, hookColors = null, audioUrl = null, compact = false, onPlayhead, onDurations, captionStyle = {}, stickerStyle = {}, isMuted = false }, ref) {
+function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', hookModel = '', hookLabel = '', hookDuration = 3.0, hookMotion = null, hookColors = null, audioUrl = null, audioStems = null, compact = false, onPlayhead, onDurations, captionStyle = {}, stickerStyle = {}, isMuted = false }, ref) {
   const canvasRef = useRef(null);
   const videoElsRef = useRef({});
   const audioElRef = useRef(null);
+  const bgmElRef = useRef(null);
+  const audioCtxRef = useRef(null);
+  const audioNodesRef = useRef(null);      // { master, voice, bgm, sfx }
+  const mediaSourcesRef = useRef(new Map()); // element -> MediaElementAudioSourceNode
+  const sfxBuffersRef = useRef(new Map());   // url -> AudioBuffer | Promise
+  const sfxLiveRef = useRef([]);             // { key, time, node } already handed to WebAudio
   const rafRef = useRef(null);
   const clockRef = useRef({ startWall: 0, startT: 0 });
   const stickerImgRef = useRef(null);
@@ -1290,6 +1356,276 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
 
   const getDrawPlan = (t) => planAt(segments, t);
 
+  // --- Stem audio -------------------------------------------------------
+  // 1-Click no longer bakes a mix (pipeline.py skips it unless a video is
+  // actually being exported), so the preview plays the separate stems the
+  // renderer will mix later: the voice wav on a media element, the chosen BGM
+  // looped on a second element, and one AudioBufferSourceNode per SFX hit.
+  // A BGM swap or a new SFX on a cue is then audible immediately instead of
+  // needing a full re-render to hear.
+  //
+  // The voice element stays the master clock (as the old mixed file was),
+  // because it is the one stem whose timeline is 1:1 with the video's.
+
+  const stemsKey = JSON.stringify(audioStems || null);
+
+  const sfxShots = useMemo(() => (
+    (audioStems?.sfx || [])
+      .map((s, i) => ({
+        key: `${i}:${s.id}@${s.time}`,
+        url: s.url,
+        // Pre-roll is decided by the resolved filename, exactly as the render
+        // does -- the cue tag can be a legacy alias that does not contain the
+        // word at all (whoosh -> sfx_whoosh_fast.wav).
+        time: sfxFireTime(s.time, s.name || s.id),
+      }))
+      .sort((a, b) => a.time - b.time)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ), [stemsKey]);
+
+  const bgmRate = useMemo(() => bgmTempoRatio(cues), [cuesKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const bgmVolume = audioStems?.bgm?.volume ?? AUDIO_MIX.BGM_GAIN;
+  const bgmDucking = !!audioStems?.bgm?.ducking;
+
+  // The tick loop only re-subscribes on a few deps, so anything it reads that
+  // can change mid-playback has to come through a ref -- otherwise a volume
+  // slider move or a freshly dropped SFX is invisible to it, and its stale
+  // copy of the level fights the gain-setting effect right back down.
+  const audioLiveRef = useRef({});
+  audioLiveRef.current = { bgmVolume, bgmDucking, bgmRate, totalDuration, cues, shots: sfxShots };
+
+  /**
+   * Creates the graph on first use and routes whatever elements exist into it.
+   * Must be called from a user gesture (play), or the context starts suspended
+   * and nothing is heard.
+   */
+  const ensureAudioGraph = () => {
+    const Ctx = typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext);
+    if (!Ctx) return null;
+    if (!audioCtxRef.current) {
+      const ctx = new Ctx();
+      const master = ctx.createGain();
+      master.gain.value = isMuted ? 0 : 1;
+      master.connect(ctx.destination);
+      const bus = (gain) => {
+        const n = ctx.createGain();
+        n.gain.value = gain;
+        n.connect(master);
+        return n;
+      };
+      audioCtxRef.current = ctx;
+      audioNodesRef.current = {
+        master,
+        voice: bus(AUDIO_MIX.VOICE_GAIN),
+        bgm: bus(bgmVolume),
+        sfx: bus(AUDIO_MIX.SFX_GAIN),
+      };
+    }
+    const ctx = audioCtxRef.current;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    // createMediaElementSource throws if called twice for the same element, and
+    // once routed, an element reaches the speakers only through this graph --
+    // so wire each one exactly once and remember it.
+    const wire = (el, node) => {
+      if (!el || !node || mediaSourcesRef.current.has(el)) return;
+      try {
+        const src = ctx.createMediaElementSource(el);
+        src.connect(node);
+        mediaSourcesRef.current.set(el, src);
+      } catch {
+        /* element already belongs to another graph -- leave it alone */
+      }
+    };
+    wire(audioElRef.current, audioNodesRef.current.voice);
+    wire(bgmElRef.current, audioNodesRef.current.bgm);
+    // Decode every one-shot up front. Left to fire time, the first pass over a
+    // cue is the one that has to wait for the fetch.
+    (audioLiveRef.current.shots || []).forEach((shot) => loadSfxBuffer(ctx, shot.url));
+    return ctx;
+  };
+
+  /** Drops every one-shot already handed to WebAudio (seek, stop, unmount). */
+  const flushSfx = () => {
+    sfxLiveRef.current.forEach(({ node }) => {
+      try {
+        if (node) { node.onended = null; node.stop(); }
+      } catch {
+        /* already finished */
+      }
+    });
+    sfxLiveRef.current = [];
+  };
+
+  /** Fetch + decode once per URL; the decoded buffer is reused every pass. */
+  const loadSfxBuffer = (ctx, url) => {
+    const cached = sfxBuffersRef.current.get(url);
+    if (cached) return cached;
+    const pending = fetch(url)
+      .then((r) => r.arrayBuffer())
+      .then((b) => ctx.decodeAudioData(b))
+      .then((buf) => { sfxBuffersRef.current.set(url, buf); return buf; })
+      .catch(() => { sfxBuffersRef.current.delete(url); return null; });
+    sfxBuffersRef.current.set(url, pending);
+    return pending;
+  };
+
+  /**
+   * Hands WebAudio every shot due within the lookahead window, converting
+   * timeline seconds to context seconds. Called each tick; scheduled shots are
+   * tracked so one fires once per pass over its time.
+   */
+  const pumpSfx = (t) => {
+    const ctx = audioCtxRef.current;
+    const node = audioNodesRef.current?.sfx;
+    if (!ctx || !node || ctx.state !== 'running') return;
+    (audioLiveRef.current.shots || []).forEach((shot) => {
+      if (shot.time < t - 0.05 || shot.time > t + AUDIO_MIX.SFX_LOOKAHEAD) return;
+      // An entry stays in the list once fired -- it is only cleared by
+      // flushSfx (stop/seek). Removing it when the sound ended would let a
+      // short SFX be scheduled again while the playhead was still inside its
+      // lookahead window, firing it twice.
+      if (sfxLiveRef.current.some((s) => s.key === shot.key)) return;
+      const when = ctx.currentTime + Math.max(0, shot.time - t);
+      const entry = { key: shot.key, time: shot.time, node: null };
+      sfxLiveRef.current.push(entry);
+      Promise.resolve(loadSfxBuffer(ctx, shot.url)).then((buf) => {
+        if (!buf || !sfxLiveRef.current.includes(entry)) return;
+        // A first, uncached hit can finish decoding after its moment has
+        // passed. Playing it from that far into the buffer keeps the sound
+        // aligned with the timeline instead of arriving audibly late; past
+        // SFX_LATE_LIMIT there is nothing worth salvaging.
+        const late = ctx.currentTime - when;
+        if (late > AUDIO_MIX.SFX_LATE_LIMIT || late > buf.duration) return;
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.connect(node);
+        src.onended = () => { entry.node = null; };
+        entry.node = src;
+        if (late > 0) src.start(ctx.currentTime, late);
+        else src.start(when);
+      });
+    });
+  };
+
+  /**
+   * BGM level for timeline position `t`. The render ducks with
+   * sidechaincompress keyed off the voice, which WebAudio cannot do -- so the
+   * cue spans stand in for "the voice is speaking" and the measured 13.7 dB of
+   * reduction is applied across them with the same attack/release times. The
+   * 0.35s tail fade (afade=t=out) is reproduced from the same end position.
+   */
+  const applyBgmEnvelope = (t) => {
+    const ctx = audioCtxRef.current;
+    const node = audioNodesRef.current?.bgm;
+    if (!ctx || !node) return;
+    const live = audioLiveRef.current;
+    let target = live.bgmVolume ?? AUDIO_MIX.BGM_GAIN;
+    const speaking = (live.cues || []).some(
+      (c) => t >= (Number(c.start) || 0) && t <= (Number(c.end) || 0)
+    );
+    if (live.bgmDucking && speaking) target *= AUDIO_MIX.BGM_DUCK_GAIN;
+    const total = live.totalDuration || 0;
+    const fadeStart = Math.max(0, total - AUDIO_MIX.BGM_FADE_OUT);
+    if (total > 0 && t > fadeStart) {
+      target *= Math.max(0, 1 - (t - fadeStart) / AUDIO_MIX.BGM_FADE_OUT);
+    }
+    if (Math.abs(node.gain.value - target) < 1e-4) return;
+    const ramp = target < node.gain.value ? AUDIO_MIX.BGM_DUCK_ATTACK : AUDIO_MIX.BGM_DUCK_RELEASE;
+    node.gain.cancelScheduledValues(ctx.currentTime);
+    node.gain.setTargetAtTime(target, ctx.currentTime, ramp / 3);
+  };
+
+  /** Puts every stem at timeline position `t` without starting playback. */
+  const cueStemsTo = (t) => {
+    if (audioElRef.current) {
+      try { audioElRef.current.currentTime = t; } catch { /* not seekable yet */ }
+    }
+    const bgm = bgmElRef.current;
+    if (bgm) {
+      // atempo runs before atrim in the render, so timeline second `t` sits
+      // `t * rate` seconds into the source file.
+      const dur = bgm.duration;
+      const pos = t * (audioLiveRef.current.bgmRate || 1);
+      try {
+        bgm.currentTime = Number.isFinite(dur) && dur > 0 ? pos % dur : pos;
+      } catch {
+        /* metadata still loading */
+      }
+    }
+    flushSfx();
+  };
+
+  const startStems = () => {
+    ensureAudioGraph();
+    audioElRef.current?.play().catch(() => {});
+    const bgm = bgmElRef.current;
+    if (bgm) {
+      bgm.playbackRate = audioLiveRef.current.bgmRate || 1;
+      bgm.play().catch(() => {});
+    }
+  };
+
+  const stopStems = () => {
+    audioElRef.current?.pause();
+    bgmElRef.current?.pause();
+    flushSfx();
+  };
+
+  // Swapping BGM (or loading another project) mounts a new element, keyed by
+  // URL, that the graph has never seen -- so wire it up and pick playback back
+  // up in place rather than going quiet until the next press of play. The old
+  // element is gone from the DOM by now, so its source node goes with it.
+  useEffect(() => {
+    mediaSourcesRef.current.forEach((src, el) => {
+      if (el.isConnected) return;
+      try { src.disconnect(); } catch { /* already detached */ }
+      mediaSourcesRef.current.delete(el);
+    });
+    if (!isPlaying) return;
+    ensureAudioGraph();
+    cueStemsTo(playheadRef.current);
+    startStems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audioStems?.voiceUrl, audioStems?.bgm?.url]);
+
+  // Muting has to happen at the master gain: once an element is routed through
+  // WebAudio its own `muted` flag is the only other lever, and SFX have no
+  // element at all.
+  useEffect(() => {
+    const nodes = audioNodesRef.current;
+    const ctx = audioCtxRef.current;
+    if (nodes && ctx) nodes.master.gain.setTargetAtTime(isMuted ? 0 : 1, ctx.currentTime, 0.01);
+  }, [isMuted]);
+
+  // A BGM volume change from the Inspector must be audible without a replay.
+  useEffect(() => {
+    const nodes = audioNodesRef.current;
+    const ctx = audioCtxRef.current;
+    if (nodes && ctx) nodes.bgm.gain.setTargetAtTime(bgmVolume, ctx.currentTime, 0.01);
+  }, [bgmVolume]);
+
+  // Teardown: without this the elements keep decoding and the AudioContext
+  // stays open after the editor unmounts (browsers cap how many may exist).
+  useEffect(() => () => {
+    flushSfx();
+    [audioElRef.current, bgmElRef.current].forEach((el) => {
+      if (!el) return;
+      el.pause();
+      el.removeAttribute('src');
+      el.load();
+    });
+    Object.values(videoElsRef.current).forEach((v) => {
+      try { v?.pause(); } catch { /* already detached */ }
+    });
+    videoElsRef.current = {};
+    mediaSourcesRef.current = new Map();
+    audioCtxRef.current?.close().catch(() => {});
+    audioCtxRef.current = null;
+    audioNodesRef.current = null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+
   const renderAt = (t) => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
@@ -1335,7 +1671,7 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
 
       if (t >= totalDuration) {
         Object.values(videoElsRef.current).forEach(v => v?.pause());
-        audioElRef.current?.pause();
+        stopStems();
         setPlayhead(totalDuration);
         onPlayhead?.(totalDuration);
         renderAt(totalDuration);
@@ -1344,8 +1680,19 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
       }
 
       // Keep Audio Element in check if it fell behind/drifted
-      if (audio && audio.src && !audio.paused && Math.abs(audio.currentTime - t) > 0.3) {
+      if (audio && audio.src && !audio.paused && Math.abs(audio.currentTime - t) > RESYNC.AUDIO) {
         audio.currentTime = t;
+      }
+
+      // Stems: fire the SFX due in the next lookahead window, hold the BGM at
+      // its ducked/faded level for this instant, and pull the looping bed back
+      // if it has drifted (its own loop restart is the usual cause).
+      pumpSfx(t);
+      applyBgmEnvelope(t);
+      const bgmEl = bgmElRef.current;
+      if (bgmEl && bgmEl.src && !bgmEl.paused && Number.isFinite(bgmEl.duration) && bgmEl.duration > 0) {
+        const want = (t * (audioLiveRef.current.bgmRate || 1)) % bgmEl.duration;
+        if (Math.abs(bgmEl.currentTime - want) > RESYNC.AUDIO) bgmEl.currentTime = want;
       }
 
       const plan = getDrawPlan(t);
@@ -1358,7 +1705,7 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
         const nextV = videoElsRef.current[upcomingSeg.clip.id];
         const nextStart = upcomingSeg.clip.trim_start || 0;
         if (nextV && nextV.paused && !nextV.seeking) {
-          if (Math.abs(nextV.currentTime - nextStart) > 0.08) {
+          if (Math.abs(nextV.currentTime - nextStart) > RESYNC.PREROLL) {
             nextV.currentTime = nextStart;
           }
         }
@@ -1371,21 +1718,21 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
         if (!v) return;
         if (v.paused) {
           // If already near localTime from pre-roll, start immediately without seek!
-          if (Math.abs(v.currentTime - localTime) > 0.12) {
+          if (Math.abs(v.currentTime - localTime) > RESYNC.START) {
             v.currentTime = localTime;
           }
           v.playbackRate = 1.0;
           v.play().catch(() => {});
         } else {
           const drift = v.currentTime - localTime;
-          if (Math.abs(drift) > 0.4) {
+          if (Math.abs(drift) > RESYNC.VIDEO_HARD) {
             // Large drift (after scrub or tab resume) -> hard seek
             v.currentTime = localTime;
             v.playbackRate = 1.0;
-          } else if (drift < -0.04) {
+          } else if (drift < -RESYNC.VIDEO_SLEW) {
             // Video is slightly trailing behind -> accelerate 6% to catch up smoothly
             v.playbackRate = 1.06;
-          } else if (drift > 0.04) {
+          } else if (drift > RESYNC.VIDEO_SLEW) {
             // Video is slightly ahead -> slow down 6% to let master clock catch up
             v.playbackRate = 0.94;
           } else {
@@ -1466,15 +1813,13 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
     if (!segments.length) return;
     if (isPlaying) {
       Object.values(videoElsRef.current).forEach(v => v?.pause());
-      audioElRef.current?.pause();
+      stopStems();
       setIsPlaying(false);
     } else {
       const startT = playhead >= totalDuration ? 0 : playhead;
       clockRef.current = { startWall: performance.now(), startT };
-      if (audioElRef.current) {
-        audioElRef.current.currentTime = startT;
-        audioElRef.current.play().catch(() => {});
-      }
+      cueStemsTo(startT);
+      startStems();
       setPlayhead(startT);
       onPlayhead?.(startT);
       setIsPlaying(true);
@@ -1485,13 +1830,20 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
     const maxDur = totalDuration || 999999;
     const clamped = Math.max(0, Math.min(maxDur, t));
     Object.values(videoElsRef.current).forEach(v => v?.pause());
-    if (audioElRef.current) {
-      audioElRef.current.currentTime = clamped;
-    }
+    // Stop the stems before repositioning them. Seeking a *playing* media
+    // element is asynchronous, so a drag used to issue a new seek every frame
+    // while the last one was still pending -- the element fell behind, the
+    // tick kept reading its stale currentTime as the master clock, and the
+    // playhead snapped back under the cursor. Pausing first also drops any
+    // SFX already handed to WebAudio, which would otherwise fire again on the
+    // way back over their cue.
+    stopStems();
+    cueStemsTo(clamped);
     setPlayhead(clamped);
     playheadRef.current = clamped;
     onPlayhead?.(clamped);
     clockRef.current = { startWall: performance.now(), startT: clamped };
+    if (isPlaying) startStems();
 
     const plan = getDrawPlan(clamped);
     plan.forEach(({ seg, localTime }) => {
@@ -1516,7 +1868,7 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
 
   const handleScrubInput = (e) => {
     if (isPlaying) {
-      audioElRef.current?.pause();
+      stopStems();
       setIsPlaying(false);
     }
     seekTo(parseFloat(e.target.value));
@@ -1524,16 +1876,31 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
 
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col items-center gap-2">
-      {/* Hidden audio element for voiceover + BGM playback */}
-      {audioUrl && (
+      {/* Master-clock audio: the voice stem when the project has one, else the
+          legacy baked mix so projects rendered before stem playback still have
+          sound. Both are muted through the WebAudio master gain, not the
+          element's own flag, once the graph has claimed them. */}
+      {(audioStems?.voiceUrl || audioUrl) && (
         <audio
-          ref={(el) => {
-            audioElRef.current = el;
-            if (el) el.muted = isMuted;
-          }}
-          src={toMediaUrl(audioUrl)}
+          key={audioStems?.voiceUrl || audioUrl}
+          ref={(el) => { audioElRef.current = el; if (el) el.muted = isMuted; }}
+          src={toMediaUrl(audioStems?.voiceUrl || audioUrl)}
           preload="auto"
           playsInline
+          muted={isMuted}
+        />
+      )}
+
+      {/* Background music, looped exactly as the render's -stream_loop -1 does.
+          Level and ducking live on its gain node, not here. */}
+      {audioStems?.bgm?.url && (
+        <audio
+          key={audioStems.bgm.url}
+          ref={(el) => { bgmElRef.current = el; if (el) el.muted = isMuted; }}
+          src={audioStems.bgm.url}
+          preload="auto"
+          playsInline
+          loop
           muted={isMuted}
         />
       )}

@@ -69,7 +69,7 @@ AI ทุกตัว**ต้องเคารพโครงสร้างโ
 5. ✔️ **TTS & Audio Standards:**
    - เสียงพากย์หลัก: Edge-TTS ภาษาไทย (`th-TH-PremwadeeNeural`, `th-TH-NiwatNeural`) ความเร็ว `+15%`
    - มีระบบ Fallback ไปยัง Gemini Flash TTS หรือ gTTS เมื่อจำเป็น
-   - ระดับเสียง: Voice = 1.0, SFX = 0.6, BGM = 0.15 (-16dB)
+   - ระดับเสียง (แหล่งเดียวที่ `scripts/config.py`): Voice = 1.0, SFX = 0.28, BGM = 0.12 — พรีวิวใช้ค่าเดียวกันผ่าน `AUDIO_MIX` ใน `SequencePlayer.jsx` และมีเทสยึดไว้ที่ `tests/test_preview_render_parity.py`
 6. ✔️ **Code Reliability & Subprocess:**
    - การเรียกใช้ FFmpeg / ImageMagick / Rembg ต้องรันผ่าน subprocess พร้อม error handling และ log ข้อความภาษาไทยที่เข้าใจง่าย
 7. ✔️ **มาตรฐานการตัดต่อแบบ J-Cut (Audio Lead-in Standard):**

@@ -145,6 +145,17 @@ ASS ใช้ `Layer` เลขน้อยวาดก่อน (อยู่�
 | Outline Caption | `front_outline = max(1.8, fs*0.040)` | `captionOutlineWidth()` |
 | Accent/Badge | `_hook_accent_events()` | บล็อค accent ใน `drawHookHeader` |
 
+| ค่าเสียง | ฝั่ง render | `SequencePlayer.jsx` |
+|---|---|---|
+| ระดับ voice/BGM/SFX | `config.py` BGM/VOICE/SFX_VOLUME | `AUDIO_MIX.*_GAIN` |
+| pre-roll SFX | `pre_roll = 0.12` (sfx_manager) | `AUDIO_MIX.SFX_PRE_ROLL` |
+| เวลาต่ำสุดของ SFX | `max(0.02, ...)` | `AUDIO_MIX.SFX_MIN_TIME` |
+| fade ท้าย BGM | `afade=t=out:d=0.35` | `AUDIO_MIX.BGM_FADE_OUT` |
+| tempo BGM | `BASELINE_CHARS_PER_SEC = 10.0` + clip 0.92–1.08 | `bgmTempoRatio()` |
+| ducking | `sidechaincompress attack=20 release=300` | `AUDIO_MIX.BGM_DUCK_*` |
+| alias SFX เก่า | `LEGACY_SFX_ALIASES` (asset_registry) | `LEGACY_SFX_ALIASES` (EditorShell) |
+| BGM default | `resolve_bgm_path()` | `DEFAULT_BGM_FILE` (EditorShell) |
+
 ---
 
 ## 5. ข้อยกเว้นที่ยอมรับได้ (ต้องแจ้งผู้ใช้ตรงๆ ห้ามเงียบ)
@@ -154,3 +165,49 @@ ASS ใช้ `Layer` เลขน้อยวาดก่อน (อยู่�
 - **ฟอนต์ fallback**: ถ้าเบราว์เซอร์ไม่มีฟอนต์เดียวกับที่ libass ใช้ ความกว้างจะต่างเล็กน้อย
 
 พบข้อยกเว้นใหม่ = **เขียนเพิ่มในหัวข้อนี้ แล้วบอกผู้ใช้** ห้ามปล่อยผ่านเงียบๆ
+
+---
+
+## 6. เสียง: พรีวิวเล่น stem แยก / render มิกซ์ด้วย ffmpeg
+
+กด 1 คลิกจะ **ไม่มิกซ์เสียง** (`pipeline.py` ข้ามเมื่อ `export_mp4=False`) พรีวิวเลยเล่น
+**stem แยกกัน** ผ่าน WebAudio: voice บน `<audio>` (เป็นนาฬิกาหลัก) · BGM บน `<audio loop>` ·
+SFX เป็น `AudioBufferSourceNode` ต่อจุด — เปลี่ยน BGM หรือใส่ SFX แล้วได้ยินทันที
+ตอนกดเรนเดอร์จริง `SFXManager.mix_audio_track()` ค่อยรวมเป็นไฟล์เดียว
+
+### 6.1 ⚠️ ระดับเสียงมีแหล่งเดียวคือ `scripts/config.py`
+
+`BGM_VOLUME` / `VOICE_VOLUME` / `SFX_VOLUME` → `sfx_manager.py` ใช้เป็น default ของพารามิเตอร์
+และ `AUDIO_MIX` ใน `SequencePlayer.jsx` ต้องมีค่าเท่ากัน (เทสยึดไว้แล้ว)
+เคยพลาด: `config.py` เขียน 0.15/0.6 แต่ mix รัน 0.12/0.28 และ `AGENTS.md` เขียนตามเลขที่ไม่มีใครใช้
+
+### 6.2 ⚠️ เวลา SFX ต้องคิดจาก **ชื่อไฟล์ที่ resolve แล้ว** ไม่ใช่ tag ใน cue
+
+render เช็ค `whoosh/swish/swoosh/transition` จาก `sfx_file.name` แล้วยิงก่อนรอยต่อ 0.12s
+cue ที่ tag ว่า `boom` resolve เป็น `sfx_vine_boom.wav` — เช็คจาก tag จะได้ผลต่าง
+พรีวิวต้องได้ชื่อไฟล์ส่งมาด้วย (`name: entry.name`) และ **ปัดลงเป็นมิลลิวินาทีเต็ม**
+เหมือน `adelay` ที่รับแต่ int (`int(secs * 1000)`)
+
+### 6.3 ⚠️ id ของ asset ไม่ใช่ชื่อไฟล์
+
+`AssetPanel` ส่ง `bgmName` เป็น registry id (`bgm_brass_funk`) แต่ `resolve_bgm_path()`
+เริ่มจากชื่อไฟล์ → เคยตกไปไฟล์แรกในโฟลเดอร์ทุกครั้ง **ผู้ใช้เลือกเพลงหนึ่ง แต่ render อีกเพลง**
+ทั้งสองฝั่งต้อง resolve id ได้ และ **fallback ต้องเหมือนกัน** (ไฟล์ default → ไฟล์แรก)
+SFX ก็มี alias เก่า (`LEGACY_SFX_ALIASES`) ต้องมีทั้งสองฝั่ง
+
+### 6.4 ⚠️ BGM ต้อง loop และเร่ง/หน่วงตาม `atempo`
+
+render ใช้ `-stream_loop -1` + `atempo` จาก chars/sec ของสคริปต์ (คลิป ±8%)
+`atempo` ทำงาน **ก่อน** `atrim` → วินาทีที่ `t` บนไทม์ไลน์ = `t * rate` ในไฟล์ต้นทาง
+
+### ข้อยกเว้นด้านเสียง (แจ้งผู้ใช้ ห้ามเงียบ)
+
+- **`atempo` vs `playbackRate`**: `atempo` รักษา pitch / `playbackRate` เปลี่ยน pitch ตามความเร็ว
+  ที่ ±8% ฟังแทบไม่ออก แต่ไม่ใช่กลไกเดียวกัน
+- **ducking**: render ใช้ `sidechaincompress` ซึ่ง WebAudio ไม่มี พรีวิวใช้ gain envelope คงที่
+  ตามช่วง cue (ลด 13.7 dB ตามที่วัดไว้ใน `sfx_manager.py`, attack/release เท่าฟิลเตอร์)
+  **วัดของจริงแล้ว**: การลดจริงแกว่าง 7.7–20.2 dB ตามระดับเสียงพากย์ขณะนั้น (มัธยฐาน ~14.9 dB
+  บนงานจริง) — ค่าคงที่เดียวจึงไม่ตรงเป๊ะได้ ใช้บอกทิศทางว่า "เพลงจะหลบเสียงพูด" เท่านั้น
+- **`loudnorm I=-14 TP=-1.0 LRA=8`**: two-pass ทำในเบราว์เซอร์ไม่ได้ →
+  **ระดับเสียงรวมของพรีวิวจะไม่เท่าไฟล์จริง** สัดส่วนระหว่าง stem ตรง แต่ค่าสัมบูรณ์ไม่ตรง
+- **`apad=pad_dur=1.0`** ต่อท้าย voice ในไฟล์มิกซ์: พรีวิวไม่ต้องทำ (ไม่มีเสียงให้ pad)

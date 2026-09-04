@@ -40,6 +40,17 @@ class SFXManager:
         path = MUSIC_DIR / name
         if path.exists():
             return path
+        # A registry id ("bgm_brass_funk") carries no extension, and the BGM
+        # picker sends the id, not the filename -- so every choice used to miss
+        # the path check above and land on the alphabetically-first file
+        # instead. Resolve ids the same way resolve_sfx_path() does before
+        # falling back, or the track the user picked is never the track that
+        # renders.
+        for entry in AssetRegistry.bgm():
+            if entry.get("id") == name:
+                by_id = Path(entry["path"])
+                if by_id.exists():
+                    return by_id
         bgm_files = list(MUSIC_DIR.glob("*.wav")) + list(MUSIC_DIR.glob("*.mp3"))
         return bgm_files[0] if bgm_files else None
 
@@ -58,9 +69,9 @@ class SFXManager:
         # per-render via RenderRequest.bgm_name; this is only what a render
         # falls back to when nothing is specified.
         bgm_name: str = "bgm_over_loaded_hiphop_instrumental.mp3",
-        bgm_vol: float = 0.12,
-        voice_vol: float = 1.0,
-        sfx_vol: float = 0.28,
+        bgm_vol: float = BGM_VOLUME,
+        voice_vol: float = VOICE_VOLUME,
+        sfx_vol: float = SFX_VOLUME,
         bgm_ducking: bool = False
     ) -> str:
         """

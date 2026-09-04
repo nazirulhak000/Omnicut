@@ -63,6 +63,19 @@ const INSPECTOR_MIN_W = 280;
 const INSPECTOR_MAX_W = 680;
 const INSPECTOR_DEFAULT_W = 380;
 
+// Mirrors asset_registry.py's LEGACY_SFX_ALIASES: an old manifest's cue can
+// still say "whoosh" where the registry id is "sfx_whoosh_fast".
+const LEGACY_SFX_ALIASES = {
+  whoosh: 'sfx_whoosh_fast',
+  pop: 'sfx_pop_bubble',
+  ding: 'sfx_bell_ding',
+  cash: 'sfx_cash_register',
+  boom: 'sfx_vine_boom',
+};
+
+// resolve_bgm_path()'s default when a project names no BGM (sfx_manager.py:41).
+const DEFAULT_BGM_FILE = 'bgm_over_loaded_hiphop_instrumental.mp3';
+
 const EMPTY = { clipList: [], cuesList: [], style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false, captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1, stickerPosition: 'top_right', stickerScale: 1 } };
 
 let idCounter = 0;
@@ -230,6 +243,7 @@ export default function EditorShell({
   const [previewModalVideo, setPreviewModalVideo] = useState(null);
   const [copiedPath, setCopiedPath] = useState(false);
   const [audioUrl, setAudioUrl] = useState(null);
+  const [voiceUrl, setVoiceUrl] = useState(null);
   const [hookBrand, setHookBrand] = useState('');
   const [hookModel, setHookModel] = useState('');
   const [hookLabel, setHookLabel] = useState('');
@@ -520,8 +534,14 @@ export default function EditorShell({
       const bgmName = data.bgm_name || data.render_params?.bgm_name || data.style?.bgm_name || data.style?.bgmName || null;
       const lutName = data.lut_name || data.render_params?.lut_name || data.style?.lut_name || data.style?.lutName || null;
       const stickerBadge = data.sticker_badge || data.render_params?.sticker_badge || data.style?.sticker_badge || data.style?.stickerBadge || null;
+      // A 1-Click no longer bakes a mix (that happens at render), so the
+      // preview plays the stems: the voice stem always exists, the mix only
+      // after an export. Keep reading the mix for older projects that have one
+      // -- the player prefers stems and falls back to it.
       const mixedAudio = data.artifacts?.mixed_audio?.path || null;
       setAudioUrl(mixedAudio ? toMediaUrl(mixedAudio) : null);
+      const voiceAudio = data.artifacts?.voice_audio?.path || null;
+      setVoiceUrl(voiceAudio ? toMediaUrl(voiceAudio) : null);
       const lutIntensity = Number(data.lut_intensity ?? data.render_params?.lut_intensity ?? data.style?.lut_intensity ?? data.style?.lutIntensity ?? 1);
       const bgmVolume = Number(data.bgm_volume ?? data.render_params?.bgm_volume ?? data.style?.bgm_volume ?? data.style?.bgmVolume ?? 0.12);
       const bgmDucking = !!(data.bgm_ducking ?? data.render_params?.bgm_ducking ?? data.style?.bgm_ducking ?? data.style?.bgmDucking);
@@ -1278,6 +1298,66 @@ export default function EditorShell({
     }
   };
 
+  // What the preview plays instead of a baked mix: the voice stem plus the
+  // same BGM and per-cue SFX files the renderer will mix, resolved to media
+  // URLs from the asset registry (each entry already carries an absolute
+  // path). Changing BGM or dropping an SFX on a cue is then audible at once,
+  // where before it needed a full re-render to hear.
+  //
+  // Every lookup here mirrors a backend resolver so the preview never plays a
+  // different file than the render: resolve_bgm_path()'s default-then-first
+  // fallback (sfx_manager.py:41-60), resolve_sfx_path()'s legacy short-name
+  // aliases (asset_registry.py:244-258), and the boom the mix always lays down
+  // at t=0 (sfx_manager.py:90-97).
+  const audioStems = useMemo(() => {
+    const music = assets.music || [];
+    const sfxList = assets.sfx || [];
+
+    const findSfx = (name) => {
+      if (!name) return null;
+      const canonical = LEGACY_SFX_ALIASES[name] || name;
+      return sfxList.find((s) => s.id === canonical) || null;
+    };
+
+    // resolve_bgm_path: the named file, else the default track, else the first
+    // one in the folder -- so "no BGM chosen" still has music in the render.
+    const bgmEntry =
+      (style.bgmName ? music.find((m) => m.id === style.bgmName || m.name === style.bgmName) : null)
+      || music.find((m) => m.name === DEFAULT_BGM_FILE)
+      || music[0]
+      || null;
+
+    const sfxShots = [];
+    const boom = findSfx('boom');
+    if (boom) sfxShots.push({ time: 0, id: 'boom', name: boom.name, url: toMediaUrl(boom.path) });
+    (cuesList || []).forEach((c) => {
+      if (!c.sfx) return;
+      const entry = findSfx(c.sfx);
+      if (!entry) return;
+      sfxShots.push({
+        time: Number(c.start) || 0,
+        id: c.sfx,
+        // The render's pre-roll test reads the resolved *filename*, not the cue
+        // tag (sfx_manager.py:107) -- pass it through so the preview fires early
+        // on exactly the same files.
+        name: entry.name,
+        url: toMediaUrl(entry.path),
+      });
+    });
+
+    return {
+      voiceUrl,
+      bgm: bgmEntry
+        ? {
+            url: toMediaUrl(bgmEntry.path),
+            volume: style.bgmVolume ?? 0.12,
+            ducking: !!style.bgmDucking,
+          }
+        : null,
+      sfx: sfxShots,
+    };
+  }, [voiceUrl, style.bgmName, style.bgmVolume, style.bgmDucking, assets.music, assets.sfx, cuesList]);
+
   const progress = Math.round((jobStatus?.progress || 0) * 100);
   const bgmLabel = useMemo(() => {
     if (!style.bgmName) return 'เสียงหลักของช่อง';
@@ -1651,6 +1731,7 @@ export default function EditorShell({
                   hookColors={hookColors}
                   textOverlays={isTextOverlayHidden ? [] : textOverlays}
                   audioUrl={audioUrl}
+                  audioStems={audioStems}
                   captionStyle={{
                     captionPosition: style.captionPosition,
                     captionColor: style.captionColor,
@@ -1824,7 +1905,7 @@ export default function EditorShell({
                     onReorder={reorderClip}
                     onReorderSilent={(id, dir) => reorderClip(id, dir, true)}
                     onDropClip={addClip}
-                    audioUrl={audioUrl}
+                    audioUrl={audioUrl || voiceUrl}
                     isAudioMuted={isAudioMuted}
                     onToggleMuteAudio={() => setIsAudioMuted((v) => !v)}
                     isCaptionHidden={isCaptionHidden}
@@ -2025,6 +2106,7 @@ export default function EditorShell({
                     hookColors={hookColors}
                     textOverlays={isTextOverlayHidden ? [] : textOverlays}
                     audioUrl={audioUrl}
+                    audioStems={audioStems}
                     captionStyle={{
                       captionPosition: style.captionPosition,
                       captionColor: style.captionColor,
@@ -2276,7 +2358,7 @@ export default function EditorShell({
                     onReorder={reorderClip}
                     onReorderSilent={(id, dir) => reorderClip(id, dir, true)}
                     onDropClip={addClip}
-                    audioUrl={audioUrl}
+                    audioUrl={audioUrl || voiceUrl}
                     isAudioMuted={isAudioMuted}
                     onToggleMuteAudio={() => setIsAudioMuted((v) => !v)}
                     isCaptionHidden={isCaptionHidden}
