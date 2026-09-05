@@ -183,14 +183,24 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
       )
     );
 
-    const projName = task.result?.project_name || task.payload?.project_name || task.target_id;
+    const isScrapeTask = Boolean(
+      task.type === 'scrape_and_plan' ||
+      task.task_type === 'scrape_and_plan' ||
+      (typeof task.title === 'string' && task.title.includes('วิเคราะห์สินค้า'))
+    );
+
+    const projName = !isScrapeTask ? (task.result?.project_name || task.payload?.project_name) : null;
+    const productId = task.result?.saved_product?.id || task.result?.product?.id || task.payload?.product_id || (isScrapeTask ? task.target_id : null);
 
     // Determine targetTab if not explicitly provided:
-    // Only route to Gallery preview if it's a real render task AND video exists (or is explicitly requested as gallery)
-    // Newly cut projects (edit_project / 1-click edit) MUST route directly to the Editor timeline
+    // 1. Scrape & Plan tasks -> Product -> Clip ('flow')
+    // 2. Render tasks with video -> Gallery preview ('gallery')
+    // 3. Newly cut projects (edit_project / 1-click edit) -> Editor timeline ('editor')
     let targetTab = destinationTab;
     if (!targetTab) {
-      if (hasVideo && isRenderTask) {
+      if (isScrapeTask) {
+        targetTab = 'flow';
+      } else if (hasVideo && isRenderTask) {
         targetTab = 'gallery';
       } else if (isEditTask || projName) {
         targetTab = 'editor';
@@ -199,10 +209,10 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
       }
     }
 
-    const targetId = projName || task.target_id || (task.result?.saved_product?.id || task.result?.product?.id);
+    const targetId = isScrapeTask ? (productId || task.target_id) : (projName || task.target_id || productId);
 
-    if (targetTab === 'flow' && targetId && onSelectProductForFlow) {
-      onSelectProductForFlow(targetId);
+    if (targetTab === 'flow' && (productId || targetId) && onSelectProductForFlow) {
+      onSelectProductForFlow(productId || targetId);
     }
 
     if (onNavigateTab) {
