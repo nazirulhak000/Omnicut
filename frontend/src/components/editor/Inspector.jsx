@@ -5,11 +5,20 @@ import {
   Link2, Clock, Split, Sparkles, ArrowUp, ArrowDown,
   Replace, CheckCheck, RefreshCw, X, ChevronUp, ChevronDown, Type,
   SlidersHorizontal, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline,
-  Music, Layers, Palette, Target, Globe, RotateCcw
+  Music, Layers, Palette, Target, Globe, RotateCcw, Magnet
 } from 'lucide-react';
 import { TransitionIcon } from '../../lib/transitionIcons';
 import { TRANSITIONS, FADE_DURATION, MAX_TRANSITION_DURATION } from '../../lib/timelineMath';
 import { resolveHookStyle } from '../../lib/hookStyles';
+import { toMediaUrl } from '../../lib/mediaUrl';
+
+const LEGACY_SFX_ALIASES = {
+  whoosh: 'sfx_whoosh_fast',
+  pop: 'sfx_pop_bubble',
+  ding: 'sfx_bell_ding',
+  cash: 'sfx_cash_register',
+  boom: 'sfx_vine_boom',
+};
 
 // The three lines of the banner, in the order they are drawn.
 const HOOK_TIERS = [
@@ -145,6 +154,7 @@ export default function Inspector({
   onSelect,
   trackMix = { mute: {}, solo: {} },
   onTrackMix,
+  onCloseAllCaptionGaps,
   onResetSubtitleTimings,
 }) {
   const resolvedHook = resolveHookStyle(hookStyle?.template, hookStyle, hookColors);
@@ -171,10 +181,24 @@ export default function Inspector({
   const hookHeaderCardRef = useRef(null);
   const textOverlayCardRef = useRef(null);
   const hookBrandInputRef = useRef(null);
+  const textAreaRef = useRef(null);
   const isTypingRef = useRef(false);
   const gap = (audioDuration || 0) - totalDuration;
 
   const sfxList = assets?.sfx || [];
+
+  const playSfxAudio = (sfxKey) => {
+    if (!sfxKey) return;
+    const canonical = LEGACY_SFX_ALIASES[sfxKey] || sfxKey;
+    const item = sfxList.find(s => s.id === canonical || s.name === canonical || s.id === sfxKey || s.name === sfxKey)
+      || sfxList.find(s => s.name?.toLowerCase().includes(sfxKey.toLowerCase()));
+    if (!item?.path) return;
+    try {
+      const audio = new Audio(toMediaUrl(item.path));
+      audio.volume = 0.28;
+      audio.play().catch(() => {});
+    } catch (_) {}
+  };
 
   const selectedTextOverlay = selection?.type === 'text_overlay'
     ? textOverlays.find((item) => item.id === selection.id)
@@ -199,6 +223,15 @@ export default function Inspector({
         hookHeaderCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         hookBrandInputRef.current?.focus();
       }, 50);
+    }
+
+    if (selection?.type === 'text_overlay' && selection?.focusText) {
+      setTimeout(() => {
+        if (textAreaRef.current) {
+          textAreaRef.current.focus();
+          textAreaRef.current.select();
+        }
+      }, 60);
     }
 
     prevSelectionTypeRef.current = selection?.type;
@@ -606,7 +639,18 @@ export default function Inspector({
                   <div className="p-2 rounded-2xl bg-black/50 border border-white/[0.08] space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-semibold text-slate-400">ขอบเขตการปรับแต่ง:</span>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {onCloseAllCaptionGaps && (
+                          <button
+                            type="button"
+                            onClick={onCloseAllCaptionGaps}
+                            className="px-2 py-1 rounded-lg bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[11px] font-semibold text-[#25F4EE] hover:text-[#52fffb] flex items-center gap-1 transition-all cursor-pointer"
+                            title="ดูดกล่องคำบรรยายทุกตัวให้ขยับมาเรียงชิดติดกันต่อเนื่องโดยไม่มีช่องว่าง"
+                          >
+                            <Magnet className="w-3 h-3 text-[#25F4EE]" />
+                            <span>ดูดชิดติดกัน</span>
+                          </button>
+                        )}
                         {onResetSubtitleTimings && (
                           <button
                             type="button"
@@ -676,6 +720,7 @@ export default function Inspector({
                 {/* Textarea Content Box */}
                 <div className="space-y-1.5">
                   <textarea
+                    ref={textAreaRef}
                     rows={2}
                     value={currentText}
                     onChange={(e) => handleTextContentChange(e.target.value)}
@@ -941,23 +986,30 @@ export default function Inspector({
                   </div>
                 </div>
 
-                {/* Text Overlay Specific: Animation & Background */}
+                {/* Text Overlay Specific: Animation, Badge Style & Linked SFX */}
                 {isOverlaySelected && selectedTextOverlay && (
-                  <div className="p-3 rounded-2xl bg-black/40 border border-white/[0.08] space-y-2.5">
-                    <span className="text-xs font-bold text-slate-300 block">แอนิเมชันและกรอบข้อความ</span>
-                    <div className="space-y-1">
-                      <span className="text-[11px] text-slate-400">แอนิเมชันตอนเข้า:</span>
+                  <div className="p-3 rounded-2xl bg-black/40 border border-white/[0.08] space-y-3">
+                    <div className="flex items-center justify-between pb-1 border-b border-white/[0.06]">
+                      <span className="text-xs font-bold text-slate-200">แอนิเมชัน กรอบ และเสียงป็อปอัพ</span>
+                    </div>
+
+                    {/* 1. In-Animation selector */}
+                    <div className="space-y-1.5">
+                      <span className="text-[11px] text-slate-400 font-medium">แอนิเมชันตอนเปิดตัว (In-Animation):</span>
                       <div className="grid grid-cols-3 gap-1">
                         {[
                           { id: 'pop', label: 'Pop เด้งเข้า' },
-                          { id: 'fade', label: 'Fade ค่อยๆ โผล่' },
+                          { id: 'zoom', label: 'Zoom พุ่งเข้า' },
+                          { id: 'stamp', label: 'Stamp กระแทก' },
                           { id: 'slide', label: 'Slide เลื่อนขึ้น' },
+                          { id: 'fade', label: 'Fade ค่อยๆ โผล่' },
+                          { id: 'none', label: 'None นิ่ง' },
                         ].map((a) => (
                           <button
                             key={a.id}
                             type="button"
                             onClick={() => onUpdateTextOverlay?.(selectedTextOverlay.id, { anim: a.id })}
-                            className={`py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                            className={`py-1 px-1 rounded-lg text-xs font-bold border transition-all cursor-pointer truncate text-center ${
                               (selectedTextOverlay.anim || 'pop') === a.id
                                 ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
                                 : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
@@ -966,6 +1018,86 @@ export default function Inspector({
                             {a.label}
                           </button>
                         ))}
+                      </div>
+                    </div>
+
+                    {/* 2. Badge Background Style */}
+                    <div className="space-y-1.5">
+                      <span className="text-[11px] text-slate-400 font-medium">สไตล์กรอบ/ป้ายพื้นหลัง:</span>
+                      <div className="grid grid-cols-3 gap-1">
+                        {[
+                          { id: 'none', label: 'ไม่มีกรอบ' },
+                          { id: 'pill', label: 'Dark Glass' },
+                          { id: 'badge_red', label: 'Sale แดง' },
+                          { id: 'badge_yellow', label: 'ดีล เหลือง' },
+                          { id: 'badge_cyan', label: 'Cyber นีออน' },
+                        ].map((bg) => (
+                          <button
+                            key={bg.id}
+                            type="button"
+                            onClick={() => onUpdateTextOverlay?.(selectedTextOverlay.id, { bgStyle: bg.id })}
+                            className={`py-1 px-1 rounded-lg text-xs font-bold border transition-all cursor-pointer truncate text-center ${
+                              (selectedTextOverlay.bgStyle || 'none') === bg.id
+                                ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
+                                : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            {bg.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* 3. Linked Sound FX */}
+                    <div className="space-y-1.5 pt-1 border-t border-white/[0.06]">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
+                          <Volume2 className="w-3.5 h-3.5 text-amber-400" />
+                          <span>เสียงเอฟเฟกต์ (SFX):</span>
+                        </span>
+                        {selectedTextOverlay.sfx && (
+                          <button
+                            type="button"
+                            onClick={() => playSfxAudio(selectedTextOverlay.sfx)}
+                            className="px-2 py-0.5 rounded-md bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 text-[10px] font-bold flex items-center gap-1 border border-amber-400/40 cursor-pointer transition-all"
+                            title="ทดลองฟังเสียงสด"
+                          >
+                            <Play className="w-2.5 h-2.5 fill-current" />
+                            <span>ลองฟัง</span>
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <select
+                          value={selectedTextOverlay.sfx || 'none'}
+                          onChange={(e) => {
+                            const val = e.target.value === 'none' ? null : e.target.value;
+                            onUpdateTextOverlay?.(selectedTextOverlay.id, { sfx: val });
+                            if (val) playSfxAudio(val);
+                          }}
+                          className="w-full py-1.5 px-2 rounded-xl bg-black/60 border border-white/[0.1] text-xs font-semibold text-white focus:outline-none focus:border-[#25F4EE] cursor-pointer"
+                        >
+                          <option value="none" className="bg-[#0A0D14] text-slate-400">ปิดเสียง (None)</option>
+                          <option value="pop" className="bg-[#0A0D14] text-white">Pop บับเบิล</option>
+                          <option value="ding" className="bg-[#0A0D14] text-white">Ding กระดิ่ง</option>
+                          <option value="cash" className="bg-[#0A0D14] text-white">Cash เปิดกล่องเงิน</option>
+                          <option value="sfx_coin_drop" className="bg-[#0A0D14] text-white">Coin เหรียญทอง</option>
+                          <option value="sfx_whoosh_fast" className="bg-[#0A0D14] text-white">Whoosh พุ่งเร็ว</option>
+                          <option value="boom" className="bg-[#0A0D14] text-white">Boom กระแทก</option>
+                          <option value="sfx_camera_shutter" className="bg-[#0A0D14] text-white">Shutter ถ่ายรูป</option>
+                          <option value="sfx_sub_drop" className="bg-[#0A0D14] text-white">Sub Drop ทุ้มลึก</option>
+                          <option value="sfx_bell_ding" className="bg-[#0A0D14] text-white">Bell Ding แจ้งเตือน</option>
+                          <option value="sfx_mouse_click" className="bg-[#0A0D14] text-white">Click คลิกเบา</option>
+                        </select>
+
+                        <div className="flex items-center text-[10px] text-slate-400 px-1">
+                          {selectedTextOverlay.sfx ? (
+                            <span className="text-emerald-400">✓ ผูกเสียงแล้ว (ลบตาม)</span>
+                          ) : (
+                            <span className="text-slate-500">ไม่มีเสียงประกอบ</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1528,6 +1660,19 @@ export default function Inspector({
               >
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
               </button>
+
+              {/* Close All Caption Gaps (ดูดชิดติดกัน) */}
+              {onCloseAllCaptionGaps && (
+                <button
+                  type="button"
+                  onClick={onCloseAllCaptionGaps}
+                  className="p-1.5 rounded-lg bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] hover:text-[#52fffb] text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors flex-shrink-0"
+                  title="ดูดคำบรรยายทุกกล่องให้เรียงต่อกันชิดสนิทโดยไม่มีช่องว่าง"
+                >
+                  <Magnet className="w-3.5 h-3.5 text-[#25F4EE]" />
+                  <span className="hidden sm:inline">ดูดชิดติดกัน</span>
+                </button>
+              )}
 
               {/* Reset Subtitle Timings */}
               {onResetSubtitleTimings && (

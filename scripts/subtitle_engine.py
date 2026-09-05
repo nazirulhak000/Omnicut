@@ -1770,6 +1770,12 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 if anim == "pop":
                     snap_from = int(round(target_scale * 1.25))
                     anim_tag = f"\\fscx{snap_from}\\fscy{snap_from}\\t(0,70,\\fscx{target_scale}\\fscy{target_scale})"
+                elif anim == "zoom":
+                    snap_from = int(round(target_scale * 1.45))
+                    anim_tag = f"\\fscx{snap_from}\\fscy{snap_from}\\t(0,100,\\fscx{target_scale}\\fscy{target_scale})"
+                elif anim == "stamp":
+                    snap_from = int(round(target_scale * 1.65))
+                    anim_tag = f"\\fscx{snap_from}\\fscy{snap_from}\\t(0,80,\\fscx{target_scale}\\fscy{target_scale})"
                 elif anim == "fade":
                     anim_tag = f"\\fscx{target_scale}\\fscy{target_scale}\\alpha&HFF&\\t(0,150,\\alpha&H00&)"
                 elif anim == "slide":
@@ -1782,8 +1788,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 line_list = [l.strip() for l in txt.split("\n") if l.strip()]
                 clean_lines = "\\N".join(line_list)
 
-                # Layer 3: If bg_style == 'pill', draw smooth semi-transparent rounded pill badge
-                if bg_style == "pill" and line_list:
+                # Layer 3: If bg_style != 'none', draw smooth rounded pill badge
+                if bg_style and bg_style != "none" and line_list:
                     line_h = round(render_fs * 1.2)
                     total_h = len(line_list) * line_h
                     max_line_w = 0
@@ -1802,20 +1808,38 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     radius = min(round(pill_h / 2), 28)
                     pill_path = _ass_rounded_pill_path(pill_w, pill_h, radius)
 
+                    badge_color = item.get("badgeColor")
+                    if bg_style == "badge_red" or badge_color == "#FE2C55":
+                        pill_hex = "&H00552CFE"
+                        base_alpha = "&H26&"
+                    elif bg_style == "badge_yellow" or badge_color == "#FFE600":
+                        pill_hex = "&H0000E6FF"
+                        base_alpha = "&H10&"
+                    elif bg_style == "badge_cyan" or badge_color == "#25F4EE":
+                        pill_hex = "&H00EEF425"
+                        base_alpha = "&H59&"
+                    elif badge_color:
+                        pill_hex = ass_colour(badge_color) or "&H00000000"
+                        base_alpha = "&H20&"
+                    else:  # 'pill' / dark glass (\alpha&H59& for 0.65 opacity parity)
+                        pill_hex = "&H00000000"
+                        base_alpha = "&H59&"
+
                     if anim == "slide":
                         pill_pos = f"\\an7\\move({pill_x:.0f},{pill_y + 40:.0f},{pill_x:.0f},{pill_y:.0f},0,200)"
-                        pill_anim = f"\\alpha&HFF&\\t(0,200,\\alpha&H59&)"
+                        pill_anim = f"\\alpha&HFF&\\t(0,200,\\alpha{base_alpha})"
                     elif anim == "fade":
                         pill_pos = f"\\an7\\pos({pill_x:.0f},{pill_y:.0f})"
-                        pill_anim = f"\\alpha&HFF&\\t(0,150,\\alpha&H59&)"
-                    elif anim == "pop":
+                        pill_anim = f"\\alpha&HFF&\\t(0,150,\\alpha{base_alpha})"
+                    elif anim in ("pop", "zoom", "stamp"):
                         pill_pos = f"\\an7\\pos({pill_x:.0f},{pill_y:.0f})"
-                        pill_anim = f"\\alpha&HFF&\\t(0,70,\\alpha&H59&)"
+                        dur_anim = 70 if anim == "pop" else (100 if anim == "zoom" else 80)
+                        pill_anim = f"\\alpha&HFF&\\t(0,{dur_anim},\\alpha{base_alpha})"
                     else:  # none
                         pill_pos = f"\\an7\\pos({pill_x:.0f},{pill_y:.0f})"
-                        pill_anim = f"\\alpha&H59&"
+                        pill_anim = f"\\alpha{base_alpha}"
 
-                    pill_tag = f"{pill_pos}\\p1\\bord0\\shad0\\c&H000000&{pill_anim}{exit_tag}"
+                    pill_tag = f"{pill_pos}\\p1\\bord0\\shad0\\c{pill_hex}&{pill_anim}{exit_tag}"
                     events.append(f"Dialogue: 3,{start_t},{end_t},TextOverlayMain,,0,0,0,,{{{pill_tag}}}{pill_path}")
 
                 # Layer 4: Text itself (clean TextOverlayMain with outline and shadow, never ugly BorderStyle=3 box)

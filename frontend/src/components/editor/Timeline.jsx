@@ -101,10 +101,12 @@ function tickStep(pxPerSec) {
 }
 
 /**
- * Computes deterministic collision push on cues when a cue is trimmed or dragged.
- * Ensures no overlapping, zero accumulated drift, and cues only push when colliding.
+ * Computes deterministic magnetic ripple on cues when a cue is trimmed or dragged.
+ * Extends -> pushes subsequent cues forward.
+ * Shrinks -> magnetically pulls subsequent cues backward (Magnetic Pull) without leaving gaps.
+ * Cues never overlap and maintain relative order with zero cumulative drift.
  */
-function applyCaptionCollisionPush(initialCues, targetUid, newStart, newEnd) {
+function applyCaptionMagneticRipple(initialCues, targetUid, newStart, newEnd) {
   if (!initialCues || !initialCues.length) return [];
   const list = initialCues.map((c) => ({ ...c }));
   const targetIdx = list.findIndex((c) => c._uid === targetUid || c.id === targetUid);
@@ -113,35 +115,32 @@ function applyCaptionCollisionPush(initialCues, targetUid, newStart, newEnd) {
   const validStart = Math.max(0, Math.round(newStart * 100) / 100);
   const validEnd = Math.max(validStart + 0.2, Math.round(newEnd * 100) / 100);
 
+  const initTarget = initialCues[targetIdx];
   list[targetIdx] = {
     ...list[targetIdx],
     start: validStart,
     end: validEnd,
   };
 
-  // Push subsequent cues only if there is a collision
+  const deltaEnd = Math.round((validEnd - initTarget.end) * 100) / 100;
+  const deltaStart = Math.round((validStart - initTarget.start) * 100) / 100;
+  // If end changed (e.g. right trim), use deltaEnd. Otherwise (e.g. body drag or left trim), use deltaStart
+  const shiftDelta = Math.abs(deltaEnd) > 0.001 ? deltaEnd : deltaStart;
+
   for (let i = targetIdx + 1; i < list.length; i++) {
     const prevCue = list[i - 1];
     const initCur = initialCues[i];
     const curDur = Math.max(0.2, Math.round((initCur.end - initCur.start) * 100) / 100);
 
-    if (prevCue.end > initCur.start) {
-      // Collided! Push forward just enough to clear prevCue without overlap
-      const shiftedStart = Math.round(prevCue.end * 100) / 100;
-      const shiftedEnd = Math.round((shiftedStart + curDur) * 100) / 100;
-      list[i] = {
-        ...list[i],
-        start: shiftedStart,
-        end: shiftedEnd,
-      };
-    } else {
-      // No collision: stays at its initial baseline
-      list[i] = {
-        ...list[i],
-        start: initCur.start,
-        end: initCur.end,
-      };
-    }
+    const wantedStart = Math.round((initCur.start + shiftDelta) * 100) / 100;
+    const shiftedStart = Math.max(prevCue.end, wantedStart);
+    const shiftedEnd = Math.round((shiftedStart + curDur) * 100) / 100;
+
+    list[i] = {
+      ...list[i],
+      start: shiftedStart,
+      end: shiftedEnd,
+    };
   }
 
   return list;
@@ -649,7 +648,7 @@ export default function Timeline({
       const newEnd = Math.round(Math.max(d.start + 0.2, snapped) * 100) / 100;
 
       if (snapEnabled && (onCuesChange || onCaptionRippleShift)) {
-        const nextCues = applyCaptionCollisionPush(d.initialCues, d.uid, d.start, newEnd);
+        const nextCues = applyCaptionMagneticRipple(d.initialCues, d.uid, d.start, newEnd);
         (onCuesChange || onCaptionRippleShift)(nextCues, true);
       } else {
         shiftCaption(d.uid, { end: newEnd });
@@ -1230,7 +1229,7 @@ export default function Timeline({
                           const finalEnd = Math.round((finalStart + dur) * 100) / 100;
 
                           if (snapEnabled && (onCuesChange || onCaptionRippleShift)) {
-                            const nextCues = applyCaptionCollisionPush(d.initialCues, d.uid, finalStart, finalEnd);
+                            const nextCues = applyCaptionMagneticRipple(d.initialCues, d.uid, finalStart, finalEnd);
                             (onCuesChange || onCaptionRippleShift)(nextCues, true);
                           } else {
                             shiftCaption(cue._uid, {

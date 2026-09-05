@@ -361,65 +361,6 @@ export default function EditorShell({
 
   const [previewTextTemplate, setPreviewTextTemplate] = useState(null);
 
-  const handleAddTextTemplate = useCallback((tpl) => {
-    const startSec = Math.round(playhead * 100) / 100;
-    const endSec = Math.round((playhead + 2.5) * 100) / 100;
-    const newOverlay = {
-      id: `txt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      text: tpl?.text || 'ข้อความใหม่',
-      start: startSec,
-      end: endSec,
-      position: 'middle',
-      x: 0.5,
-      y: 0.5,
-      scale: tpl?.scale || 1.0,
-      color: tpl?.color || '#FFFFFF',
-      fontName: tpl?.fontName || 'Kanit',
-      bgStyle: tpl?.bgStyle || 'none',
-      anim: tpl?.anim || 'pop',
-      templateId: tpl?.id || null,
-    };
-    setTextOverlays((prev) => [...prev, newOverlay]);
-    setSelection({ type: 'text_overlay', id: newOverlay.id });
-    setPreviewTextTemplate(null);
-    cuesDirty.current = true;
-    setSaveStatus('dirty');
-  }, [playhead]);
-
-  const handleUpdateTextOverlay = useCallback((id, patch) => {
-    setTextOverlays((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, ...patch } : item))
-    );
-    cuesDirty.current = true;
-    setSaveStatus('dirty');
-  }, []);
-
-  const handleSelectTextTemplate = useCallback((tpl) => {
-    if (!tpl) return;
-    // If a text overlay is currently selected, apply the template's style to it (preserving text)
-    if (selection?.type === 'text_overlay' && selection.id) {
-      handleUpdateTextOverlay(selection.id, {
-        color: tpl.color || '#FFFFFF',
-        fontName: tpl.fontName || 'Kanit',
-        scale: tpl.scale || 1.0,
-        anim: tpl.anim || 'pop',
-        bgStyle: tpl.bgStyle || 'none',
-        templateId: tpl.id,
-      });
-      setPreviewTextTemplate(null);
-      return;
-    }
-
-    // Otherwise toggle / set ephemeral preview on player
-    setPreviewTextTemplate((prev) => (prev?.id === tpl.id ? null : tpl));
-  }, [selection, handleUpdateTextOverlay]);
-
-  const handleDeleteTextOverlay = useCallback((id) => {
-    setTextOverlays((prev) => prev.filter((item) => item.id !== id));
-    setSelection((curr) => (curr?.type === 'text_overlay' && curr?.id === id ? null : curr));
-    cuesDirty.current = true;
-    setSaveStatus('dirty');
-  }, []);
 
   const mobilePlayerRef = useRef(null);
   const desktopPlayerRef = useRef(null);
@@ -436,6 +377,18 @@ export default function EditorShell({
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Dismiss ephemeral text template preview whenever clicking anywhere that isn't the template card or its plus button
+  useEffect(() => {
+    if (!previewTextTemplate) return;
+    const handleGlobalClick = (e) => {
+      // If clicking inside a text template card or add button, let their specific handlers run
+      if (e.target.closest('[data-text-template-card="true"]')) return;
+      setPreviewTextTemplate(null);
+    };
+    window.addEventListener('pointerdown', handleGlobalClick, true);
+    return () => window.removeEventListener('pointerdown', handleGlobalClick, true);
+  }, [previewTextTemplate]);
 
   const cuesDirty = useRef(false);
   const initialCuesRef = useRef([]);
@@ -755,6 +708,74 @@ export default function EditorShell({
     setZoomIndex(best);
   }, [totalDuration]);
 
+  const handleAddTextTemplate = useCallback((tpl) => {
+    const isHook = tpl?.category === 'hook';
+    const startSec = isHook ? 0.0 : Math.round(playhead * 100) / 100;
+    const defaultDur = isHook ? Math.min(3.5, totalDuration || 3.5) : 2.5;
+    const endSec = Math.round((startSec + defaultDur) * 100) / 100;
+    const newOverlay = {
+      id: `txt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      text: tpl?.text || 'ข้อความใหม่',
+      start: startSec,
+      end: endSec,
+      position: isHook ? 'top' : 'middle',
+      x: 0.5,
+      y: isHook ? 0.35 : 0.5,
+      scale: tpl?.scale || 1.0,
+      color: tpl?.color || '#FFFFFF',
+      fontName: tpl?.fontName || 'Kanit',
+      bgStyle: tpl?.bgStyle || 'none',
+      badgeColor: tpl?.badgeColor || null,
+      anim: tpl?.anim || 'pop',
+      sfx: tpl?.sfx || null,
+      sfxLabel: tpl?.sfxLabel || null,
+      templateId: tpl?.id || null,
+    };
+    setTextOverlays((prev) => [...prev, newOverlay]);
+    setSelection({ type: 'text_overlay', id: newOverlay.id, focusText: true });
+    setPreviewTextTemplate(null);
+    cuesDirty.current = true;
+    setSaveStatus('dirty');
+  }, [playhead, totalDuration]);
+
+  const handleUpdateTextOverlay = useCallback((id, patch) => {
+    setTextOverlays((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, ...patch } : item))
+    );
+    cuesDirty.current = true;
+    setSaveStatus('dirty');
+  }, []);
+
+  const handleSelectTextTemplate = useCallback((tpl) => {
+    if (!tpl) return;
+    // If a text overlay is currently selected, apply the template's style to it (preserving text)
+    if (selection?.type === 'text_overlay' && selection.id) {
+      handleUpdateTextOverlay(selection.id, {
+        color: tpl.color || '#FFFFFF',
+        fontName: tpl.fontName || 'Kanit',
+        scale: tpl.scale || 1.0,
+        anim: tpl.anim || 'pop',
+        bgStyle: tpl.bgStyle || 'none',
+        badgeColor: tpl.badgeColor || null,
+        sfx: tpl.sfx || null,
+        sfxLabel: tpl.sfxLabel || null,
+        templateId: tpl.id,
+      });
+      setPreviewTextTemplate(null);
+      return;
+    }
+
+    // Otherwise toggle / set ephemeral preview on player
+    setPreviewTextTemplate((prev) => (prev?.id === tpl.id ? null : tpl));
+  }, [selection, handleUpdateTextOverlay]);
+
+  const handleDeleteTextOverlay = useCallback((id) => {
+    setTextOverlays((prev) => prev.filter((item) => item.id !== id));
+    setSelection((curr) => (curr?.type === 'text_overlay' && curr?.id === id ? null : curr));
+    cuesDirty.current = true;
+    setSaveStatus('dirty');
+  }, []);
+
   // Clip / Caption mutation helpers
   const patchClip = useCallback((id, patch, silent = false) => {
     // silent = mid-gesture: no undo step of its own, the drag pushes one
@@ -802,6 +823,18 @@ export default function EditorShell({
     }));
   }, [set, setSilent]);
 
+  const [toastMessage, setToastMessage] = useState(null);
+  const toastTimeoutRef = useRef(null);
+
+  const showToast = useCallback((msg) => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToastMessage(msg);
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastMessage(null);
+      toastTimeoutRef.current = null;
+    }, 2500);
+  }, []);
+
   const handleResetSubtitleTimings = useCallback(() => {
     if (!initialCuesRef.current || initialCuesRef.current.length === 0) return;
     cuesDirty.current = true;
@@ -823,7 +856,27 @@ export default function EditorShell({
       };
     });
     setSaveStatus('dirty');
-  }, [set]);
+    showToast('รีเซ็ตเวลาคำบรรยายกลับสู่ค่าตั้งต้นแล้ว');
+  }, [set, showToast]);
+
+  const handleCloseAllCaptionGaps = useCallback(() => {
+    cuesDirty.current = true;
+    set((prev) => {
+      if (!prev.cuesList || !prev.cuesList.length) return prev;
+      const sorted = [...prev.cuesList].sort((a, b) => a.start - b.start);
+      let curTime = sorted[0].start;
+      const closed = sorted.map((c) => {
+        const dur = Math.max(0.2, Math.round((c.end - c.start) * 100) / 100);
+        const start = Math.round(curTime * 100) / 100;
+        const end = Math.round((start + dur) * 100) / 100;
+        curTime = end;
+        return { ...c, start, end };
+      });
+      return { ...prev, cuesList: closed };
+    });
+    setSaveStatus('dirty');
+    showToast('ดูดกล่องคำบรรยายให้เรียงชิดติดกันเรียบร้อยแล้ว');
+  }, [set, showToast]);
 
   const handleSelect = useCallback((sel, autoSeek = true) => {
     setSelection(sel);
@@ -1549,6 +1602,19 @@ export default function EditorShell({
       });
     });
 
+    (textOverlays || []).forEach((t) => {
+      if (!t.sfx) return;
+      const entry = findSfx(t.sfx);
+      if (!entry) return;
+      sfxShots.push({
+        time: Number(t.start) || 0,
+        id: t.sfx,
+        name: entry.name,
+        url: toMediaUrl(entry.path),
+        overlayId: t.id,
+      });
+    });
+
     return {
       voiceUrl,
       bgm: bgmEntry
@@ -1560,7 +1626,7 @@ export default function EditorShell({
         : null,
       sfx: sfxShots,
     };
-  }, [voiceUrl, style.bgmName, style.bgmVolume, style.bgmDucking, assets.music, assets.sfx, cuesList]);
+  }, [voiceUrl, style.bgmName, style.bgmVolume, style.bgmDucking, assets.music, assets.sfx, cuesList, textOverlays]);
 
   // The colour grade the preview should show, resolved the same way the
   // renderer resolves it (registry id or filename -- see resolve_lut_path).
@@ -2293,6 +2359,7 @@ export default function EditorShell({
                       onSelect={handleSelect}
                       trackMix={trackMix}
                       onTrackMix={handleTrackMix}
+                      onCloseAllCaptionGaps={handleCloseAllCaptionGaps}
                       onResetSubtitleTimings={handleResetSubtitleTimings}
                     />
                   </div>
@@ -2591,6 +2658,7 @@ export default function EditorShell({
                         onSelect={handleSelect}
                         trackMix={trackMix}
                         onTrackMix={handleTrackMix}
+                        onCloseAllCaptionGaps={handleCloseAllCaptionGaps}
                         onResetSubtitleTimings={handleResetSubtitleTimings}
                       />
                     </div>
@@ -2774,6 +2842,16 @@ export default function EditorShell({
                 ปิดหน้าต่าง
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Feedback Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] pointer-events-none animate-in fade-in slide-in-from-bottom-3 duration-200">
+          <div className="px-4 py-2 rounded-xl bg-[#1E1D1A]/95 border border-[#D97757]/60 text-white text-xs font-semibold shadow-2xl backdrop-blur-md flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-[#25F4EE] animate-pulse" />
+            <span>{toastMessage}</span>
           </div>
         </div>
       )}
