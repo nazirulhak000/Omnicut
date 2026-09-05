@@ -660,6 +660,7 @@ class TikTokAutoCutterPipeline:
                 cues=micro_cues,
                 total_duration=total_duration,
                 output_audio_path=str(mixed_audio_path),
+                text_overlays=effective_text_overlays,
                 **mix_kwargs
             )
             print(f"   Audio mixed: {mixed_audio_path}")

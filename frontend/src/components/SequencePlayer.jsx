@@ -1077,6 +1077,13 @@ function drawTextOverlays(ctx, textOverlays = [], t, fontName = 'Kanit', outBoun
     if (anim === 'pop') {
       const popElapsedMs = elapsed * 1000;
       animScale = popElapsedMs >= 70 ? 1.0 : 1.25 + (1.0 - 1.25) * Math.max(0, popElapsedMs) / 70;
+    } else if (anim === 'zoom') {
+      const zoomElapsedMs = elapsed * 1000;
+      animScale = zoomElapsedMs >= 100 ? 1.0 : 1.45 + (1.0 - 1.45) * Math.max(0, zoomElapsedMs) / 100;
+      animAlpha = Math.min(1.0, Math.max(0, zoomElapsedMs / 70));
+    } else if (anim === 'stamp') {
+      const stampElapsedMs = elapsed * 1000;
+      animScale = stampElapsedMs >= 80 ? 1.0 : 1.65 + (1.0 - 1.65) * Math.max(0, stampElapsedMs) / 80;
     } else if (anim === 'fade') {
       const fadeElapsedMs = elapsed * 1000;
       animAlpha = Math.min(1.0, Math.max(0, fadeElapsedMs / 150));
@@ -1149,10 +1156,24 @@ function drawTextOverlays(ctx, textOverlays = [], t, fontName = 'Kanit', outBoun
       });
     }
 
-    // Background style: pill badge
-    if (item.bgStyle === 'pill') {
+    // Background style: pill or badge
+    const bgStyle = item.bgStyle || 'none';
+    if (bgStyle !== 'none') {
       ctx.save();
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+      let fillCol = 'rgba(0, 0, 0, 0.65)';
+      let borderCol = null;
+      if (bgStyle === 'badge_red' || item.badgeColor === '#FE2C55') {
+        fillCol = '#FE2C55';
+      } else if (bgStyle === 'badge_yellow' || item.badgeColor === '#FFE600') {
+        fillCol = '#FFE600';
+      } else if (bgStyle === 'badge_cyan' || item.badgeColor === '#25F4EE') {
+        fillCol = 'rgba(37, 244, 238, 0.2)';
+        borderCol = '#25F4EE';
+      } else if (item.badgeColor) {
+        fillCol = item.badgeColor;
+      }
+
+      ctx.fillStyle = fillCol;
       ctx.beginPath();
       if (ctx.roundRect) {
         ctx.roundRect(pillX, pillY, pillW, pillH, Math.min(radius, 14));
@@ -1160,6 +1181,11 @@ function drawTextOverlays(ctx, textOverlays = [], t, fontName = 'Kanit', outBoun
         ctx.rect(pillX, pillY, pillW, pillH);
       }
       ctx.fill();
+      if (borderCol) {
+        ctx.strokeStyle = borderCol;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
       ctx.restore();
     }
 
@@ -1258,10 +1284,24 @@ function drawTextTemplatePreview(ctx, previewTemplate, bounds = null) {
     });
   }
 
-  // Background style: pill badge
-  if (previewTemplate.bgStyle === 'pill') {
+  // Background style: pill or badge
+  const previewBgStyle = previewTemplate.bgStyle || 'none';
+  if (previewBgStyle !== 'none') {
     ctx.save();
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+    let fillCol = 'rgba(0, 0, 0, 0.65)';
+    let borderCol = null;
+    if (previewBgStyle === 'badge_red' || previewTemplate.badgeColor === '#FE2C55') {
+      fillCol = '#FE2C55';
+    } else if (previewBgStyle === 'badge_yellow' || previewTemplate.badgeColor === '#FFE600') {
+      fillCol = '#FFE600';
+    } else if (previewBgStyle === 'badge_cyan' || previewTemplate.badgeColor === '#25F4EE') {
+      fillCol = 'rgba(37, 244, 238, 0.2)';
+      borderCol = '#25F4EE';
+    } else if (previewTemplate.badgeColor) {
+      fillCol = previewTemplate.badgeColor;
+    }
+
+    ctx.fillStyle = fillCol;
     ctx.beginPath();
     if (ctx.roundRect) {
       ctx.roundRect(pillX, pillY, pillW, pillH, Math.min(radius, 14));
@@ -1269,6 +1309,11 @@ function drawTextTemplatePreview(ctx, previewTemplate, bounds = null) {
       ctx.rect(pillX, pillY, pillW, pillH);
     }
     ctx.fill();
+    if (borderCol) {
+      ctx.strokeStyle = borderCol;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
     ctx.restore();
   }
 
@@ -2989,7 +3034,7 @@ function SequencePlayer({
                 </button>
               )}
 
-              {/* Ephemeral Text Template Preview Box Overlay */}
+              {/* Ephemeral Text Template Preview Box Overlay (Clean Dashed Border Only) */}
               {previewTextTemplate && (() => {
                 const previewBound = boundsRef.current.find((b) => b.type === 'template_preview');
                 const pX = previewBound ? (previewBound.x / CANVAS_W) * 100 : 15;
@@ -2998,48 +3043,14 @@ function SequencePlayer({
                 const pH = previewBound ? (previewBound.h / CANVAS_H) * 100 : 10;
                 return (
                   <div
-                    className="absolute z-35 pointer-events-auto select-none border-2 border-dashed border-[#25F4EE] rounded-xl shadow-[0_0_20px_rgba(37,244,238,0.35)] animate-pulse"
+                    className="pointer-events-none absolute z-35 select-none rounded-lg border border-dashed border-[#25F4EE]/80 shadow-[0_0_15px_rgba(37,244,238,0.25)]"
                     style={{
                       left: `${pX}%`,
                       top: `${pY}%`,
                       width: `${pW}%`,
                       height: `${pH}%`,
                     }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {/* Top Badge: ตัวอย่างสไตล์ */}
-                    <div className="absolute -top-7 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/90 backdrop-blur-md border border-[#25F4EE] text-[10px] text-white whitespace-nowrap shadow-lg">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#25F4EE] animate-ping" />
-                      <span className="font-bold text-[#25F4EE]">ตัวอย่างสไตล์: {previewTextTemplate.name}</span>
-                    </div>
-
-                    {/* Bottom Action Bar: กด + เพื่อใช้จริง / ปิด */}
-                    <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1 rounded-full bg-black/90 backdrop-blur-md border border-white/20 shadow-2xl">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onCommitPreviewTextTemplate?.(previewTextTemplate);
-                        }}
-                        className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#25F4EE] hover:bg-[#1fd3ce] text-black text-xs font-bold transition-all shadow cursor-pointer active:scale-95"
-                        title="นำข้อความนี้ลงในไทม์ไลน์จริง"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>ใช้สไตล์นี้</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDismissPreviewTextTemplate?.();
-                        }}
-                        className="px-2 py-0.5 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white text-xs font-semibold transition-all cursor-pointer"
-                        title="ปิดตัวอย่าง"
-                      >
-                        ยกเลิก
-                      </button>
-                    </div>
-                  </div>
+                  />
                 );
               })()}
 

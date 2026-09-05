@@ -18,247 +18,422 @@ const TABS = [
 export const CLIP_DRAG_TYPE = 'application/x-capcut-clip';
 export const TEXT_TEMPLATE_DRAG_TYPE = 'application/x-capcut-text-template';
 
+import { toMediaUrl } from '../../lib/mediaUrl';
+
+const LEGACY_SFX_ALIASES = {
+  whoosh: 'sfx_whoosh_fast',
+  pop: 'sfx_pop_bubble',
+  ding: 'sfx_bell_ding',
+  cash: 'sfx_cash_register',
+  boom: 'sfx_vine_boom',
+};
+
 export const TEXT_TEMPLATES = [
-  // 1. Trending / Hits (ฮิตติดเทรนด์)
+  // ─── 1. Hook พาดหัวเปิดคลิป (0 - 3.5s ตรึงสายตาทันที) ───
   {
-    id: 'tpl_3d_yellow_pop',
-    category: 'trending',
-    name: '3D Yellow Pop',
-    text: 'HIT DEAL 🔥',
+    id: 'tpl_hook_warning_stop',
+    category: 'hook',
+    name: 'อย่าเพิ่งซื้อถ้ายังไม่รู้',
+    text: 'อย่าเพิ่งซื้อ! ⚠️\nถ้ายังไม่รู้สิ่งนี้',
     fontName: 'Kanit',
     color: '#FFE600',
-    scale: 1.15,
-    anim: 'pop',
-    bgStyle: 'none',
+    scale: 1.35,
+    anim: 'stamp',
+    bgStyle: 'badge_red',
+    badgeColor: '#FE2C55',
+    sfx: 'boom',
+    sfxLabel: 'Boom กระแทก',
     cssPreview: {
       color: '#FFE600',
-      textShadow: '0 2px 0 #B89600, 0 4px 0 #7A6400, 0 5px 6px rgba(0,0,0,0.9)',
+      backgroundColor: '#FE2C55',
+      padding: '4px 10px',
+      borderRadius: '8px',
       fontWeight: '900',
+      lineHeight: '1.2',
+      textShadow: '0 2px 4px rgba(0,0,0,0.8)',
+      boxShadow: '0 4px 14px rgba(254,44,85,0.6)',
     },
   },
   {
-    id: 'tpl_cyber_neon_glow',
-    category: 'trending',
-    name: 'Cyber Neon',
-    text: 'CYBER ⚡',
+    id: 'tpl_hook_real_deal',
+    category: 'hook',
+    name: 'ตัวจบสายนี้จริงมั้ย?',
+    text: 'ตัวจบสายนี้จริงมั้ย? ⚡',
     fontName: 'Prompt',
     color: '#25F4EE',
-    scale: 1.15,
-    anim: 'pop',
-    bgStyle: 'none',
+    scale: 1.3,
+    anim: 'zoom',
+    bgStyle: 'pill',
+    sfx: 'sfx_whoosh_fast',
+    sfxLabel: 'Whoosh พุ่งเร็ว',
     cssPreview: {
       color: '#25F4EE',
-      textShadow: '0 0 10px #25F4EE, 0 0 20px rgba(37,244,238,0.6), 0 2px 4px #000',
+      backgroundColor: 'rgba(0,0,0,0.8)',
+      border: '1.5px solid #25F4EE',
+      padding: '3px 10px',
+      borderRadius: '999px',
       fontWeight: '900',
+      textShadow: '0 0 10px #25F4EE, 0 0 20px rgba(37,244,238,0.5)',
+      boxShadow: '0 0 15px rgba(37,244,238,0.3)',
     },
   },
   {
-    id: 'tpl_comic_sticker',
-    category: 'trending',
-    name: 'Comic Pop',
-    text: 'POP! 💥',
+    id: 'tpl_hook_honest_review',
+    category: 'hook',
+    name: 'รีวิวเรียลๆ 1 เดือน',
+    text: 'รีวิวเรียลๆ ใช้จริง 1 เดือน 📦',
     fontName: 'Kanit',
     color: '#FFFFFF',
-    scale: 1.2,
+    scale: 1.25,
     anim: 'pop',
-    bgStyle: 'none',
+    bgStyle: 'pill',
+    sfx: 'sfx_sub_drop',
+    sfxLabel: 'Sub Drop ทุ้มลึก',
     cssPreview: {
       color: '#FFFFFF',
-      WebkitTextStroke: '1.5px #FE2C55',
-      textShadow: '2px 2px 0 #000, 0 4px 8px rgba(254,44,85,0.6)',
-      fontWeight: '900',
+      backgroundColor: '#0F172A',
+      border: '1px solid rgba(255,255,255,0.2)',
+      padding: '3px 10px',
+      borderRadius: '8px',
+      fontWeight: '800',
+      textShadow: '0 2px 0 #000, 0 4px 6px rgba(0,0,0,0.9)',
     },
   },
   {
-    id: 'tpl_retro_sunset',
-    category: 'trending',
-    name: 'Sunset Orange',
-    text: 'TRENDING ✨',
-    fontName: 'Kanit',
-    color: '#FF7A00',
-    scale: 1.05,
-    anim: 'slide',
-    bgStyle: 'none',
-    cssPreview: {
-      color: '#FF7A00',
-      textShadow: '0 2px 0 #8A3D00, 0 4px 6px rgba(0,0,0,0.8)',
-      fontWeight: '900',
-    },
-  },
-
-  // 2. Sales & Deals (ราคา & ดีลเด็ด)
-  {
-    id: 'tpl_sale_red_badge',
-    category: 'sale',
-    name: 'Flash Sale Tag',
-    text: 'SALE 50% 🏷️',
+    id: 'tpl_hook_shock_reveal',
+    category: 'hook',
+    name: 'ลองแล้วถึงรู้!',
+    text: 'ลองแล้วถึงรู้! 😱',
     fontName: 'Kanit',
     color: '#FE2C55',
-    scale: 1.2,
+    scale: 1.35,
     anim: 'pop',
-    bgStyle: 'pill',
+    bgStyle: 'badge_yellow',
+    badgeColor: '#FFE600',
+    sfx: 'sfx_gasp_shock',
+    sfxLabel: 'Gasp ตกใจ',
     cssPreview: {
-      color: '#FFFFFF',
-      backgroundColor: '#FE2C55',
-      padding: '2px 8px',
-      borderRadius: '6px',
-      fontWeight: '900',
-      boxShadow: '0 4px 10px rgba(254,44,85,0.5)',
-    },
-  },
-  {
-    id: 'tpl_special_price',
-    category: 'sale',
-    name: 'Special Price',
-    text: 'ราคาพิเศษ 💰',
-    fontName: 'Prompt',
-    color: '#FFE600',
-    scale: 1.1,
-    anim: 'pop',
-    bgStyle: 'pill',
-    cssPreview: {
-      color: '#000000',
+      color: '#FE2C55',
       backgroundColor: '#FFE600',
-      padding: '2px 8px',
-      borderRadius: '6px',
+      padding: '4px 12px',
+      borderRadius: '8px',
       fontWeight: '900',
-      boxShadow: '0 4px 8px rgba(255,230,0,0.4)',
-    },
-  },
-  {
-    id: 'tpl_pin_location',
-    category: 'sale',
-    name: 'Pin Location',
-    text: 'พิกัดในคลิป 📍',
-    fontName: 'Kanit',
-    color: '#25F4EE',
-    scale: 1.0,
-    anim: 'slide',
-    bgStyle: 'pill',
-    cssPreview: {
-      color: '#25F4EE',
-      backgroundColor: 'rgba(37,244,238,0.15)',
-      border: '1px solid #25F4EE',
-      padding: '2px 8px',
-      borderRadius: '999px',
-      fontWeight: '700',
-    },
-  },
-  {
-    id: 'tpl_buy_one_get_one',
-    category: 'sale',
-    name: '1 แถม 1 Promo',
-    text: 'โปร 1 แถม 1 🎁',
-    fontName: 'Kanit',
-    color: '#FF6B00',
-    scale: 1.15,
-    anim: 'pop',
-    bgStyle: 'none',
-    cssPreview: {
-      color: '#FF6B00',
-      textShadow: '0 2px 8px rgba(255,107,0,0.7), 0 2px 0 #000',
-      fontWeight: '900',
+      textShadow: '1px 1px 0 #000',
+      boxShadow: '0 4px 12px rgba(255,230,0,0.5)',
     },
   },
 
-  // 3. Review & Badges (รีวิว & จุดขาย)
+  // ─── 2. รีวิว & ฟีเจอร์เด่น (Review & Feature Highlight) ───
   {
-    id: 'tpl_score_10_10',
+    id: 'tpl_review_score_10',
     category: 'review',
-    name: '10/10 Score',
+    name: 'คะแนน 10/10 ไม่หัก',
     text: '10/10 ไม่หัก 🌟',
     fontName: 'Kanit',
     color: '#FFD700',
     scale: 1.2,
     anim: 'pop',
     bgStyle: 'none',
+    sfx: 'ding',
+    sfxLabel: 'Ding กระดิ่ง',
     cssPreview: {
       color: '#FFD700',
-      textShadow: '0 0 10px rgba(255,215,0,0.8), 0 2px 2px #000',
+      textShadow: '0 0 10px rgba(255,215,0,0.8), 0 2px 0 #8A6D00, 0 3px 4px #000',
       fontWeight: '900',
     },
   },
   {
-    id: 'tpl_must_have',
+    id: 'tpl_review_must_have',
     category: 'review',
-    name: 'Must Have Stamp',
+    name: 'ของมันต้องมี',
     text: 'ของมันต้องมี ✔️',
     fontName: 'Kanit',
     color: '#00F59B',
-    scale: 1.1,
+    scale: 1.15,
     anim: 'pop',
-    bgStyle: 'none',
+    bgStyle: 'pill',
+    sfx: 'pop',
+    sfxLabel: 'Pop บับเบิล',
     cssPreview: {
       color: '#00F59B',
-      textShadow: '0 0 10px rgba(0,245,155,0.6), 0 2px 0 #000',
+      backgroundColor: 'rgba(0,0,0,0.75)',
+      border: '1px solid #00F59B',
+      padding: '3px 10px',
+      borderRadius: '999px',
       fontWeight: '900',
+      boxShadow: '0 0 12px rgba(0,245,155,0.3)',
     },
   },
   {
-    id: 'tpl_pros_cons',
+    id: 'tpl_review_pros_cons',
     category: 'review',
-    name: 'Pros & Cons',
-    text: 'ข้อดี vs ข้อเสีย ⚖️',
+    name: 'ข้อดี vs ข้อควรระวัง',
+    text: 'ข้อดี vs ข้อควรระวัง ⚖️',
     fontName: 'Prompt',
     color: '#FFFFFF',
-    scale: 1.05,
+    scale: 1.1,
     anim: 'slide',
     bgStyle: 'pill',
+    sfx: 'sfx_whoosh_fast',
+    sfxLabel: 'Whoosh ตัดฉาก',
     cssPreview: {
       color: '#FFFFFF',
-      backgroundColor: 'rgba(0,0,0,0.8)',
+      backgroundColor: 'rgba(0,0,0,0.85)',
       border: '1px solid rgba(255,255,255,0.3)',
-      padding: '2px 8px',
+      padding: '3px 10px',
       borderRadius: '6px',
       fontWeight: '800',
     },
   },
   {
-    id: 'tpl_verdict',
+    id: 'tpl_review_pro_tip',
     category: 'review',
-    name: 'Final Verdict',
-    text: 'คุ้มค่าน่าจัด 💯',
+    name: 'Pro Tip แนะนำ',
+    text: '💡 PRO TIP: แนะนำเลย',
+    fontName: 'Prompt',
+    color: '#25F4EE',
+    scale: 1.1,
+    anim: 'slide',
+    bgStyle: 'pill',
+    sfx: 'sfx_bell_ding',
+    sfxLabel: 'Bell Ding แจ้งเตือน',
+    cssPreview: {
+      color: '#25F4EE',
+      backgroundColor: 'rgba(37,244,238,0.15)',
+      border: '1px solid #25F4EE',
+      padding: '3px 10px',
+      borderRadius: '6px',
+      fontWeight: '800',
+    },
+  },
+  {
+    id: 'tpl_review_verdict',
+    category: 'review',
+    name: 'สรุปคุ้มค่าน่าจัด',
+    text: 'สรุปคุ้มค่าน่าจัด 💯',
     fontName: 'Kanit',
-    color: '#A855F7',
-    scale: 1.15,
+    color: '#C084FC',
+    scale: 1.2,
     anim: 'pop',
     bgStyle: 'none',
+    sfx: 'ding',
+    sfxLabel: 'Ding สำเร็จ',
     cssPreview: {
       color: '#C084FC',
-      textShadow: '0 0 10px rgba(168,85,247,0.7), 0 2px 0 #000',
+      textShadow: '0 0 12px rgba(168,85,247,0.8), 0 2px 0 #4C1D95, 0 3px 4px #000',
       fontWeight: '900',
     },
   },
 
-  // 4. Minimal & Clean (มินิมอล)
+  // ─── 3. ดีล & โปรโมชั่น (Sales & Deals) ───
   {
-    id: 'tpl_clean_lower_third',
-    category: 'minimal',
-    name: 'Clean Lower-Third',
-    text: 'Mini Review',
-    fontName: 'IBMPlex',
+    id: 'tpl_sale_flash_50',
+    category: 'sale',
+    name: 'Flash Sale Tag',
+    text: 'FLASH SALE 50% 🔥',
+    fontName: 'Kanit',
     color: '#FFFFFF',
-    scale: 0.95,
-    anim: 'fade',
-    bgStyle: 'pill',
+    scale: 1.25,
+    anim: 'stamp',
+    bgStyle: 'badge_red',
+    badgeColor: '#FE2C55',
+    sfx: 'cash',
+    sfxLabel: 'Cash เปิดกล่องเงิน',
     cssPreview: {
       color: '#FFFFFF',
-      backgroundColor: 'rgba(255,255,255,0.15)',
-      padding: '2px 10px',
-      borderRadius: '999px',
-      fontWeight: '600',
+      backgroundColor: '#FE2C55',
+      padding: '4px 10px',
+      borderRadius: '8px',
+      fontWeight: '900',
+      boxShadow: '0 4px 12px rgba(254,44,85,0.6)',
+      letterSpacing: '0.5px',
     },
   },
   {
-    id: 'tpl_modern_spec_tag',
+    id: 'tpl_sale_special_price',
+    category: 'sale',
+    name: 'ราคาพิเศษวันนี้',
+    text: 'ราคาพิเศษวันนี้ 💰',
+    fontName: 'Prompt',
+    color: '#000000',
+    scale: 1.15,
+    anim: 'pop',
+    bgStyle: 'badge_yellow',
+    badgeColor: '#FFE600',
+    sfx: 'sfx_coin_drop',
+    sfxLabel: 'Coin เหรียญทอง',
+    cssPreview: {
+      color: '#000000',
+      backgroundColor: '#FFE600',
+      padding: '3px 10px',
+      borderRadius: '6px',
+      fontWeight: '900',
+      boxShadow: '0 4px 10px rgba(255,230,0,0.5)',
+    },
+  },
+  {
+    id: 'tpl_sale_bogo',
+    category: 'sale',
+    name: 'โปรเด็ด 1 แถม 1',
+    text: 'โปรเด็ด 1 แถม 1 🎁',
+    fontName: 'Kanit',
+    color: '#FF6B00',
+    scale: 1.2,
+    anim: 'pop',
+    bgStyle: 'none',
+    sfx: 'pop',
+    sfxLabel: 'Pop บับเบิล',
+    cssPreview: {
+      color: '#FF6B00',
+      textShadow: '0 2px 0 #7C2D00, 0 4px 8px rgba(255,107,0,0.7)',
+      fontWeight: '900',
+    },
+  },
+  {
+    id: 'tpl_sale_drop_price',
+    category: 'sale',
+    name: 'ลดเหลือเพียง...',
+    text: 'ลดเหลือเพียง ฿99.- 🏷️',
+    fontName: 'Kanit',
+    color: '#FFE600',
+    scale: 1.25,
+    anim: 'zoom',
+    bgStyle: 'pill',
+    sfx: 'sfx_cash_register',
+    sfxLabel: 'Cash Register เก็บเงิน',
+    cssPreview: {
+      color: '#FFE600',
+      backgroundColor: 'rgba(0,0,0,0.85)',
+      border: '1.5px solid #FFE600',
+      padding: '3px 10px',
+      borderRadius: '8px',
+      fontWeight: '900',
+      boxShadow: '0 0 10px rgba(255,230,0,0.3)',
+    },
+  },
+  {
+    id: 'tpl_sale_limited_stock',
+    category: 'sale',
+    name: 'ด่วนจำกัด 100 ชิ้น',
+    text: 'ด่วน! จำกัด 100 ชิ้นแรก ⏳',
+    fontName: 'Prompt',
+    color: '#FFFFFF',
+    scale: 1.15,
+    anim: 'slide',
+    bgStyle: 'badge_red',
+    badgeColor: '#E11D48',
+    sfx: 'sfx_camera_shutter',
+    sfxLabel: 'Shutter ถ่ายรูป',
+    cssPreview: {
+      color: '#FFFFFF',
+      backgroundColor: '#E11D48',
+      padding: '3px 10px',
+      borderRadius: '999px',
+      fontWeight: '800',
+      boxShadow: '0 2px 8px rgba(225,29,72,0.5)',
+    },
+  },
+
+  // ─── 4. ป้ายพิกัด & Call to Action (CTA) ───
+  {
+    id: 'tpl_cta_basket',
+    category: 'cta',
+    name: 'พิกัดจิ้มตะกร้าเหลือง',
+    text: 'พิกัดจิ้มตะกร้าซ้ายล่าง 👇',
+    fontName: 'Kanit',
+    color: '#000000',
+    scale: 1.2,
+    anim: 'slide',
+    bgStyle: 'badge_yellow',
+    badgeColor: '#FFE600',
+    sfx: 'ding',
+    sfxLabel: 'Ding กระดิ่ง',
+    cssPreview: {
+      color: '#000000',
+      backgroundColor: '#FFE600',
+      padding: '4px 12px',
+      borderRadius: '999px',
+      fontWeight: '900',
+      boxShadow: '0 4px 10px rgba(255,230,0,0.6)',
+    },
+  },
+  {
+    id: 'tpl_cta_pin',
+    category: 'cta',
+    name: 'พิกัดในคลิป',
+    text: 'พิกัดในคลิป 📍',
+    fontName: 'Kanit',
+    color: '#25F4EE',
+    scale: 1.05,
+    anim: 'slide',
+    bgStyle: 'pill',
+    sfx: 'pop',
+    sfxLabel: 'Pop บับเบิล',
+    cssPreview: {
+      color: '#25F4EE',
+      backgroundColor: 'rgba(37,244,238,0.15)',
+      border: '1px solid #25F4EE',
+      padding: '3px 10px',
+      borderRadius: '999px',
+      fontWeight: '700',
+    },
+  },
+  {
+    id: 'tpl_cta_hurry_coupon',
+    category: 'cta',
+    name: 'เก็บคูปองลดเพิ่ม',
+    text: 'กดเก็บคูปองลดเพิ่ม 🎟️',
+    fontName: 'Prompt',
+    color: '#00F59B',
+    scale: 1.1,
+    anim: 'pop',
+    bgStyle: 'pill',
+    sfx: 'sfx_bell_ding',
+    sfxLabel: 'Bell Ding แจ้งเตือน',
+    cssPreview: {
+      color: '#00F59B',
+      backgroundColor: 'rgba(0,245,155,0.15)',
+      border: '1px solid #00F59B',
+      padding: '3px 10px',
+      borderRadius: '6px',
+      fontWeight: '800',
+    },
+  },
+  {
+    id: 'tpl_cta_save_favorite',
+    category: 'cta',
+    name: 'เซฟไว้ดูก่อนหมดโปร',
+    text: 'เซฟไว้เลย เดี๋ยวหาไม่เจอ 📌',
+    fontName: 'Prompt',
+    color: '#FFFFFF',
+    scale: 1.05,
+    anim: 'fade',
+    bgStyle: 'pill',
+    sfx: 'sfx_mouse_click',
+    sfxLabel: 'Click คลิกเบา',
+    cssPreview: {
+      color: '#F8FAFC',
+      backgroundColor: 'rgba(255,255,255,0.15)',
+      border: '1px solid rgba(255,255,255,0.3)',
+      padding: '3px 10px',
+      borderRadius: '999px',
+      fontWeight: '700',
+    },
+  },
+
+  // ─── 5. มินิมอล & คลีน (Minimal & Clean) ───
+  {
+    id: 'tpl_minimal_tech_spec',
     category: 'minimal',
     name: 'Tech Specs Tag',
     text: 'TECH SPECS',
     fontName: 'Prompt',
     color: '#E2E8F0',
-    scale: 0.9,
+    scale: 0.95,
     anim: 'fade',
     bgStyle: 'none',
+    sfx: 'sfx_mouse_click',
+    sfxLabel: 'Click คลิกเบา',
     cssPreview: {
       color: '#E2E8F0',
       letterSpacing: '2px',
@@ -268,22 +443,44 @@ export const TEXT_TEMPLATES = [
     },
   },
   {
-    id: 'tpl_capsule_pill',
+    id: 'tpl_minimal_lower_third',
     category: 'minimal',
-    name: 'Dark Glass Pill',
-    text: 'Highlights',
+    name: 'Clean Lower-Third',
+    text: 'PRODUCT REVIEW',
     fontName: 'IBMPlex',
-    color: '#94A3B8',
-    scale: 0.9,
+    color: '#FFFFFF',
+    scale: 0.95,
     anim: 'fade',
     bgStyle: 'pill',
+    sfx: 'sfx_mouse_click',
+    sfxLabel: 'Click คลิกเบา',
     cssPreview: {
-      color: '#F8FAFC',
-      backgroundColor: '#0F172A',
-      border: '1px solid rgba(255,255,255,0.15)',
+      color: '#FFFFFF',
+      backgroundColor: 'rgba(255,255,255,0.15)',
       padding: '2px 10px',
-      borderRadius: '6px',
+      borderRadius: '999px',
       fontWeight: '600',
+    },
+  },
+  {
+    id: 'tpl_minimal_feature_bullet',
+    category: 'minimal',
+    name: 'Key Highlight',
+    text: 'KEY HIGHLIGHT ✨',
+    fontName: 'Kanit',
+    color: '#25F4EE',
+    scale: 1.0,
+    anim: 'slide',
+    bgStyle: 'pill',
+    sfx: 'pop',
+    sfxLabel: 'Pop บับเบิล',
+    cssPreview: {
+      color: '#25F4EE',
+      backgroundColor: 'rgba(15,23,42,0.85)',
+      border: '1px solid rgba(37,244,238,0.4)',
+      padding: '3px 10px',
+      borderRadius: '6px',
+      fontWeight: '700',
     },
   },
 ];
@@ -377,6 +574,21 @@ export default function AssetPanel({
   const [query, setQuery] = useState('');
   const [textCategory, setTextCategory] = useState('all');
   const [textSearch, setTextSearch] = useState('');
+
+  // Live Preview SFX when clicking a text template
+  const playSfxPreview = (sfxKey) => {
+    if (!sfxKey || !assets?.sfx) return;
+    const sfxList = assets.sfx || [];
+    const canonical = LEGACY_SFX_ALIASES[sfxKey] || sfxKey;
+    const item = sfxList.find(s => s.id === canonical || s.name === canonical || s.id === sfxKey || s.name === sfxKey)
+      || sfxList.find(s => s.name?.toLowerCase().includes(sfxKey.toLowerCase()));
+    if (!item?.path) return;
+    try {
+      const audio = new Audio(toMediaUrl(item.path));
+      audio.volume = 0.28;
+      audio.play().catch(() => {});
+    } catch (_) {}
+  };
 
   // Quick video preview modal state
   const [previewVideo, setPreviewVideo] = useState(null);
@@ -1000,10 +1212,11 @@ export default function AssetPanel({
             <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar text-xs">
               {[
                 { id: 'all', label: 'ทั้งหมด' },
-                { id: 'trending', label: 'ฮิต / Trend' },
-                { id: 'sale', label: 'โปรโมชั่น / Sale' },
-                { id: 'review', label: 'รีวิว / Review' },
-                { id: 'minimal', label: 'มินิมอล / Clean' },
+                { id: 'hook', label: '🔥 Hook เปิดคลิป' },
+                { id: 'review', label: '⭐ รีวิว & ฟีเจอร์' },
+                { id: 'sale', label: '🏷️ ดีล & โปรโมชั่น' },
+                { id: 'cta', label: '🎯 พิกัด & CTA' },
+                { id: 'minimal', label: '💎 มินิมอล & คลีน' },
               ].map((cat) => (
                 <button
                   key={cat.id}
@@ -1034,12 +1247,16 @@ export default function AssetPanel({
                 return (
                   <div
                     key={tpl.id}
+                    data-text-template-card="true"
                     draggable={true}
                     onDragStart={(e) => {
                       e.dataTransfer.setData(TEXT_TEMPLATE_DRAG_TYPE, JSON.stringify(tpl));
                       e.dataTransfer.setData('text/plain', tpl.text);
                     }}
                     onClick={() => {
+                      if (tpl.sfx) {
+                        playSfxPreview(tpl.sfx);
+                      }
                       if (onSelectTextTemplate) {
                         onSelectTextTemplate(tpl);
                       } else if (onAddTextTemplate) {
@@ -1048,7 +1265,7 @@ export default function AssetPanel({
                         onAddTextAtPlayhead();
                       }
                     }}
-                    className={`group relative flex flex-col items-center justify-between rounded-xl border p-2.5 cursor-pointer transition-all hover:-translate-y-0.5 ${
+                    className={`group relative flex flex-col items-center justify-between rounded-xl border p-2 cursor-pointer transition-all hover:-translate-y-0.5 ${
                       isSelectedApplied
                         ? 'border-[#25F4EE] bg-[#25F4EE]/10 shadow-lg shadow-[#25F4EE]/20 ring-1 ring-[#25F4EE]/50'
                         : isPreviewing
@@ -1058,11 +1275,11 @@ export default function AssetPanel({
                     title={
                       isSelectedApplied
                         ? `สไตล์ปัจจุบันของข้อความที่เลือก: ${tpl.name}`
-                        : `คลิกเพื่อดูตัวอย่างสไตล์: ${tpl.name}`
+                        : `คลิกเพื่อดูตัวอย่างภาพและฟังเสียง: ${tpl.name} (${tpl.sfxLabel || tpl.sfx})`
                     }
                   >
                     {/* Visual Style Preview Card (CSS typography preview) */}
-                    <div className="w-full h-16 rounded-lg bg-black/60 border border-white/[0.04] flex items-center justify-center p-1.5 overflow-hidden text-center select-none relative group-hover:bg-black/40 transition-colors">
+                    <div className="w-full h-20 rounded-lg bg-black/60 border border-white/[0.04] flex flex-col items-center justify-center p-1.5 overflow-hidden text-center select-none relative group-hover:bg-black/40 transition-colors">
                       <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:8px_8px]" />
                       <span
                         style={tpl.cssPreview}
@@ -1071,10 +1288,16 @@ export default function AssetPanel({
                         {tpl.text}
                       </span>
                       {isPreviewing && (
-                        <div className="absolute top-1 right-1 px-1.5 py-0.5 rounded bg-[#25F4EE] text-[9px] font-bold text-black shadow">
+                        <div className="absolute top-1 right-1 px-1.5 py-0.5 rounded bg-[#25F4EE] text-[9px] font-bold text-black shadow animate-pulse">
                           พรีวิว
                         </div>
                       )}
+                      {/* Transition & SFX Micro-Badge */}
+                      <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/85 backdrop-blur text-[8.5px] font-medium text-slate-300 flex items-center gap-1 border border-white/[0.1] shadow-sm">
+                        <span className="text-[#25F4EE] font-bold">{tpl.anim.toUpperCase()}</span>
+                        <span className="text-slate-500">•</span>
+                        <span className="text-amber-300 font-semibold truncate max-w-[68px]">🔊 {tpl.sfxLabel || tpl.sfx}</span>
+                      </div>
                     </div>
 
                     {/* Template Meta / Add Icon */}
@@ -1086,6 +1309,9 @@ export default function AssetPanel({
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
+                          if (tpl.sfx) {
+                            playSfxPreview(tpl.sfx);
+                          }
                           if (onAddTextTemplate) {
                             onAddTextTemplate(tpl);
                           } else if (onAddTextAtPlayhead) {
@@ -1093,7 +1319,7 @@ export default function AssetPanel({
                           }
                         }}
                         className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-slate-300 hover:bg-[#25F4EE] hover:text-black hover:scale-110 active:scale-95 transition-all cursor-pointer"
-                        title={`ใส่ข้อความนี้ลงไทม์ไลน์ (+)`}
+                        title="ใส่ข้อความนี้ลงไทม์ไลน์"
                       >
                         <Plus className="h-3.5 w-3.5" />
                       </button>

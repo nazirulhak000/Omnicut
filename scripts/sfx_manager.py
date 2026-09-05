@@ -73,7 +73,8 @@ class SFXManager:
         bgm_vol: float = BGM_VOLUME,
         voice_vol: float = VOICE_VOLUME,
         sfx_vol: float = SFX_VOLUME,
-        bgm_ducking: bool = False
+        bgm_ducking: bool = False,
+        text_overlays: Optional[List[Dict]] = None
     ) -> str:
         """
         Mixes voiceover, SFX triggers at cue start times, and looped background music.
@@ -126,6 +127,26 @@ class SFXManager:
                 )
                 sfx_nodes.append(f"[{node_name}]")
                 input_count += 1
+
+        # 3.5 Add SFX inputs per text overlay
+        if text_overlays:
+            for idx, item in enumerate(text_overlays):
+                sfx_type = item.get("sfx")
+                if not sfx_type:
+                    continue
+                sfx_file = cls.resolve(sfx_type)
+                if sfx_file and sfx_file.exists():
+                    inputs.extend(["-i", str(sfx_file)])
+                    sfx_name_low = str(sfx_file.name).lower()
+                    is_transition_sfx = any(w in sfx_name_low for w in ["whoosh", "swish", "swoosh", "transition"])
+                    pre_roll = 0.12 if is_transition_sfx else 0.0
+                    delay_ms = int(max(0.02, float(item.get("start", 0.0)) - pre_roll) * 1000)
+                    node_name = f"sfx_txt_{idx}"
+                    filter_complex.append(
+                        f"[{input_count}:a]volume={sfx_vol},adelay={delay_ms}|{delay_ms}[{node_name}];"
+                    )
+                    sfx_nodes.append(f"[{node_name}]")
+                    input_count += 1
 
         # 4. Add BGM input if exists
         bgm_node = None

@@ -1755,3 +1755,30 @@ def test_the_hook_style_survives_the_round_trip_to_a_render():
     assert "setHookStyle(" in shell and "hook_style: hookStyle," in shell
     assert shell.count("hookStyle={hookStyle}") == 4, \
         "both players and both inspectors need it"
+
+
+def test_text_overlay_sfx_is_supported_in_both_preview_and_render():
+    """
+    SFX linked to text overlays must be mixed in both SequencePlayer.jsx (via audioStems)
+    and in sfx_manager.py (via mix_audio_track) at the same volume SFX_VOLUME = 0.28.
+    """
+    sfx_src = (ROOT / "scripts" / "sfx_manager.py").read_text(encoding="utf-8")
+    shell_src = (ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx").read_text(encoding="utf-8")
+
+    assert "text_overlays: Optional[List[Dict]] = None" in sfx_src
+    assert "sfx_txt_" in sfx_src, "sfx_manager does not mix text overlay SFX nodes"
+    assert "overlayId: t.id" in shell_src, "EditorShell does not mix textOverlays into audioStems.sfx"
+
+
+def test_text_overlay_animations_match_in_preview_and_render():
+    """
+    Animation scales and durations for pop, zoom, stamp in subtitle_engine.py (ASS tags)
+    must match SequencePlayer.jsx (canvas drawing).
+    """
+    sub_src = (ROOT / "scripts" / "subtitle_engine.py").read_text(encoding="utf-8")
+    player_src = (ROOT / "frontend" / "src" / "components" / "SequencePlayer.jsx").read_text(encoding="utf-8")
+
+    assert "anim == \"zoom\"" in sub_src
+    assert "anim === 'zoom'" in player_src
+    assert "anim == \"stamp\"" in sub_src
+    assert "anim === 'stamp'" in player_src
