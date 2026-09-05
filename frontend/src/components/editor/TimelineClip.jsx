@@ -173,11 +173,12 @@ export default function TimelineClip({
 
   return (
     <div
+      data-timeline-item="clip"
       role="button"
       tabIndex={0}
       aria-label={`คลิป ${fileName}`}
       aria-pressed={isSelected}
-      onClick={() => { if (!dragging) onSelect(clip.id); }}
+      onClick={(e) => { e.stopPropagation(); if (!dragging) onSelect(clip.id); }}
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();

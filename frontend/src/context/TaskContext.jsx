@@ -157,30 +157,41 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
     setIsActivityDrawerOpen(false);
     setNotificationToast(null);
 
-    const isRenderTask = Boolean(
-      task.type === 'render_video' ||
-      task.type === 'render' ||
-      task.task_type === 'render_video' ||
-      task.task_type === 'render' ||
-      (typeof task.title === 'string' && task.title.includes('เรนเดอร์'))
+    const hasVideo = Boolean(
+      task.result?.mp4 ||
+      task.result?.output_video ||
+      task.result?.final_video_path ||
+      task.result?.video_url
     );
 
     const isEditTask = Boolean(
+      task.type === 'edit_project' ||
       task.type === 'one_click' ||
       task.type === 'pipeline' ||
+      task.task_type === 'edit_project' ||
       (typeof task.title === 'string' && task.title.includes('ตัดต่อ'))
+    );
+
+    const isRenderTask = Boolean(
+      !isEditTask && (
+        task.type === 'render_video' ||
+        task.type === 'render' ||
+        task.task_type === 'render_video' ||
+        task.task_type === 'render' ||
+        (typeof task.title === 'string' && task.title.includes('เรนเดอร์'))
+      )
     );
 
     const projName = task.result?.project_name || task.payload?.project_name || task.target_id;
 
     // Determine targetTab if not explicitly provided:
-    // Render task -> Gallery video preview
-    // 1-Click edit task -> Timeline Editor
+    // Only route to Gallery preview if it's a real render task AND video exists (or is explicitly requested as gallery)
+    // Newly cut projects (edit_project / 1-click edit) MUST route directly to the Editor timeline
     let targetTab = destinationTab;
     if (!targetTab) {
-      if (isRenderTask) {
+      if (hasVideo && isRenderTask) {
         targetTab = 'gallery';
-      } else if (isEditTask) {
+      } else if (isEditTask || projName) {
         targetTab = 'editor';
       } else {
         targetTab = task.target_tab || 'flow';

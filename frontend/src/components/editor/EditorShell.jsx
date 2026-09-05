@@ -119,6 +119,7 @@ export default function EditorShell({
   const [playhead, setPlayhead] = useState(0);
   const [zoomIndex, setZoomIndex] = useState(2);
   const [snapEnabled, setSnapEnabled] = useState(true);
+  const [applyToAllCaptions, setApplyToAllCaptions] = useState(true);
 
   // Mobile Mode Switcher: 'timeline' | 'assets' | 'inspector'
   const [mobileTab, setMobileTab] = useState('timeline');
@@ -345,10 +346,36 @@ export default function EditorShell({
       start: startSec,
       end: endSec,
       position: 'middle',
+      x: 0.5,
+      y: 0.5,
       scale: 1.0,
       color: '#FFE600',
       bgStyle: 'none',
       anim: 'pop',
+    };
+    setTextOverlays((prev) => [...prev, newOverlay]);
+    setSelection({ type: 'text_overlay', id: newOverlay.id });
+    cuesDirty.current = true;
+    setSaveStatus('dirty');
+  }, [playhead]);
+
+  const handleAddTextTemplate = useCallback((tpl) => {
+    const startSec = Math.round(playhead * 100) / 100;
+    const endSec = Math.round((playhead + 2.5) * 100) / 100;
+    const newOverlay = {
+      id: `txt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      text: tpl?.text || 'ข้อความใหม่',
+      start: startSec,
+      end: endSec,
+      position: 'middle',
+      x: 0.5,
+      y: 0.5,
+      scale: tpl?.scale || 1.0,
+      color: tpl?.color || '#FFFFFF',
+      fontName: tpl?.fontName || 'Kanit',
+      bgStyle: tpl?.bgStyle || 'none',
+      anim: tpl?.anim || 'pop',
+      templateId: tpl?.id || null,
     };
     setTextOverlays((prev) => [...prev, newOverlay]);
     setSelection({ type: 'text_overlay', id: newOverlay.id });
@@ -715,13 +742,44 @@ export default function EditorShell({
   const patchCaption = useCallback((uid, patch, silent = false) => {
     cuesDirty.current = true;
     (silent ? setSilent : set)((prev) => {
-      const nextList = prev.cuesList.map((c) => (c._uid === uid ? { ...c, ...patch } : c));
+      const nextList = prev.cuesList.map((c) => ((c._uid === uid || c.id === uid) ? { ...c, ...patch } : c));
       const sorted = (!silent && ('start' in patch || 'end' in patch))
         ? [...nextList].sort((a, b) => a.start - b.start)
         : nextList;
       return { ...prev, cuesList: sorted };
     });
   }, [set, setSilent]);
+
+  const patchAllCaptions = useCallback((patch, silent = false) => {
+    cuesDirty.current = true;
+    (silent ? setSilent : set)((prev) => {
+      const nextList = prev.cuesList.map((c) => ({ ...c, ...patch }));
+      return { ...prev, cuesList: nextList };
+    });
+  }, [set, setSilent]);
+
+  const handleSelect = useCallback((sel, autoSeek = true) => {
+    setSelection(sel);
+    if (!sel || !autoSeek) return;
+    if (sel.type === 'caption') {
+      const cue = cuesList.find(c => c._uid === sel.id || c.id === sel.id);
+      if (cue && typeof cue.start === 'number') {
+        seekPlayer(cue.start);
+      }
+    } else if (sel.type === 'clip') {
+      const seg = segments.find(s => s.clip?.id === sel.id);
+      if (seg && typeof seg.segStart === 'number') {
+        seekPlayer(seg.segStart);
+      }
+    } else if (sel.type === 'text_overlay') {
+      const item = textOverlays.find(t => t.id === sel.id);
+      if (item && typeof item.start === 'number') {
+        seekPlayer(item.start);
+      }
+    } else if (sel.type === 'hook') {
+      seekPlayer(0);
+    }
+  }, [cuesList, segments, textOverlays, seekPlayer]);
 
   // Real-time auto-saving whenever clips, captions, or style are edited
   useEffect(() => {
@@ -891,7 +949,7 @@ export default function EditorShell({
     [selection, segments]
   );
   const selectedCaption = useMemo(
-    () => (selection?.type === 'caption' ? cuesList.find((c) => c._uid === selection.id) || null : null),
+    () => (selection?.type === 'caption' ? cuesList.find((c) => c._uid === selection.id || c.id === selection.id) || null : null),
     [selection, cuesList]
   );
 
@@ -1852,6 +1910,15 @@ export default function EditorShell({
                   compact
                   onPlayhead={setPlayhead}
                   onDurations={setDurations}
+                  selection={selection}
+                  onSelect={handleSelect}
+                  onUpdateTextOverlay={handleUpdateTextOverlay}
+                  onDeleteTextOverlay={handleDeleteTextOverlay}
+                  onUpdateCaption={patchCaption}
+                  applyToAllCaptions={applyToAllCaptions}
+                  onUpdateAllCaptions={patchAllCaptions}
+                  onStyleChange={patchStyle}
+                  onUpdateSticker={(patch) => patchStyle(patch)}
                 />
               )}
               {applying && (
@@ -2008,7 +2075,7 @@ export default function EditorShell({
                     pxPerSec={pxPerSec}
                     playhead={playhead}
                     selection={selection}
-                    onSelect={setSelection}
+                    onSelect={handleSelect}
                     onSeek={seekPlayer}
                     onClipChange={patchClip}
                     onCaptionChange={patchCaption}
@@ -2043,11 +2110,11 @@ export default function EditorShell({
                     hookDuration={hookDuration}
                     onHookDurationChange={setHookDuration}
                     onToggleHookHeader={() => setShowHookHeader((v) => !v)}
-                    onSelectHook={() => setSelection({ type: 'hook' })}
+                    onSelectHook={() => handleSelect({ type: 'hook' })}
                     textOverlays={textOverlays}
                     onAddTextOverlay={handleAddTextOverlay}
                     onTextOverlayChange={handleUpdateTextOverlay}
-                    onSelectTextOverlay={(id) => setSelection({ type: 'text_overlay', id })}
+                    onSelectTextOverlay={(id) => handleSelect({ type: 'text_overlay', id })}
                     isTextOverlayHidden={isTextOverlayHidden}
                     onToggleHideTextOverlay={() => setIsTextOverlayHidden((v) => !v)}
                   />
@@ -2066,7 +2133,8 @@ export default function EditorShell({
                       style={style}
                       selectedCaption={selectedCaption}
                       onAddClip={addClip}
-                      onAddTextAtPlayhead={addTextAtPlayhead}
+                      onAddTextAtPlayhead={handleAddTextOverlay}
+                      onAddTextTemplate={handleAddTextTemplate}
                       onStyleChange={patchStyle}
                       onAssignSfx={(sfxId) => selectedCaption && patchCaption(selectedCaption._uid, { sfx: sfxId })}
                       onImportCues={handleImportCues}
@@ -2114,6 +2182,9 @@ export default function EditorShell({
                       onStyleChange={patchStyle}
                       onClipChange={(patch) => selectedSeg && patchClip(selectedSeg.clip.id, patch)}
                       onCaptionChange={(cueUid, patch) => patchCaption(cueUid, patch)}
+                      applyToAll={applyToAllCaptions}
+                      onToggleApplyToAll={setApplyToAllCaptions}
+                      onPatchAllCaptions={patchAllCaptions}
                       onSplitCue={handleSplitCue}
                       onSplitCueAtPlayhead={handleSplitCueAtPlayhead}
                       onMergeCue={handleMergeCue}
@@ -2124,12 +2195,16 @@ export default function EditorShell({
                       onBatchFindAndReplace={handleBatchFindAndReplace}
                       onBatchFormatClean={handleBatchFormatClean}
                       onSeek={seekPlayer}
-                      onSelectCue={(uid) => setSelection({ type: 'caption', id: uid })}
+                      onSelectCue={(uid) => handleSelect({ type: 'caption', id: uid })}
                       textOverlays={textOverlays}
                       onAddTextOverlay={handleAddTextOverlay}
                       onUpdateTextOverlay={handleUpdateTextOverlay}
                       onDeleteTextOverlay={handleDeleteTextOverlay}
-                      onSelectTextOverlay={(id) => setSelection({ type: 'text_overlay', id })}
+                      onSelectTextOverlay={(id) => handleSelect({ type: 'text_overlay', id })}
+                      onSelectHook={() => handleSelect({ type: 'hook' })}
+                      onSelect={handleSelect}
+                      trackMix={trackMix}
+                      onTrackMix={handleTrackMix}
                     />
                   </div>
                 )}
@@ -2176,7 +2251,8 @@ export default function EditorShell({
                         style={style}
                         selectedCaption={selectedCaption}
                         onAddClip={addClip}
-                        onAddTextAtPlayhead={addTextAtPlayhead}
+                        onAddTextAtPlayhead={handleAddTextOverlay}
+                        onAddTextTemplate={handleAddTextTemplate}
                         onStyleChange={patchStyle}
                         onAssignSfx={(sfxId) => selectedCaption && patchCaption(selectedCaption._uid, { sfx: sfxId })}
                         onImportCues={handleImportCues}
@@ -2250,6 +2326,15 @@ export default function EditorShell({
                     compact
                     onPlayhead={setPlayhead}
                     onDurations={setDurations}
+                    selection={selection}
+                    onSelect={handleSelect}
+                    onUpdateTextOverlay={handleUpdateTextOverlay}
+                    onDeleteTextOverlay={handleDeleteTextOverlay}
+                    onUpdateCaption={patchCaption}
+                    applyToAllCaptions={applyToAllCaptions}
+                    onUpdateAllCaptions={patchAllCaptions}
+                    onStyleChange={patchStyle}
+                    onUpdateSticker={(patch) => patchStyle(patch)}
                   />
                 )}
                 {applying && (
@@ -2388,6 +2473,9 @@ export default function EditorShell({
                         onStyleChange={patchStyle}
                         onClipChange={(patch) => selectedSeg && patchClip(selectedSeg.clip.id, patch)}
                         onCaptionChange={(cueUid, patch) => patchCaption(cueUid, patch)}
+                        applyToAll={applyToAllCaptions}
+                        onToggleApplyToAll={setApplyToAllCaptions}
+                        onPatchAllCaptions={patchAllCaptions}
                         onSplitCue={handleSplitCue}
                         onSplitCueAtPlayhead={handleSplitCueAtPlayhead}
                         onMergeCue={handleMergeCue}
@@ -2398,12 +2486,16 @@ export default function EditorShell({
                         onBatchFindAndReplace={handleBatchFindAndReplace}
                         onBatchFormatClean={handleBatchFormatClean}
                         onSeek={seekPlayer}
-                        onSelectCue={(uid) => setSelection({ type: 'caption', id: uid })}
+                        onSelectCue={(uid) => handleSelect({ type: 'caption', id: uid })}
                         textOverlays={textOverlays}
                         onAddTextOverlay={handleAddTextOverlay}
                         onUpdateTextOverlay={handleUpdateTextOverlay}
                         onDeleteTextOverlay={handleDeleteTextOverlay}
-                        onSelectTextOverlay={(id) => setSelection({ type: 'text_overlay', id })}
+                        onSelectTextOverlay={(id) => handleSelect({ type: 'text_overlay', id })}
+                        onSelectHook={() => handleSelect({ type: 'hook' })}
+                        onSelect={handleSelect}
+                        trackMix={trackMix}
+                        onTrackMix={handleTrackMix}
                       />
                     </div>
                   </div>
@@ -2482,7 +2574,7 @@ export default function EditorShell({
                     pxPerSec={pxPerSec}
                     playhead={playhead}
                     selection={selection}
-                    onSelect={setSelection}
+                    onSelect={handleSelect}
                     onSeek={seekPlayer}
                     onClipChange={patchClip}
                     onCaptionChange={patchCaption}
@@ -2517,11 +2609,11 @@ export default function EditorShell({
                     hookDuration={hookDuration}
                     onHookDurationChange={setHookDuration}
                     onToggleHookHeader={() => setShowHookHeader((v) => !v)}
-                    onSelectHook={() => setSelection({ type: 'hook' })}
+                    onSelectHook={() => handleSelect({ type: 'hook' })}
                     textOverlays={textOverlays}
                     onAddTextOverlay={handleAddTextOverlay}
                     onTextOverlayChange={handleUpdateTextOverlay}
-                    onSelectTextOverlay={(id) => setSelection({ type: 'text_overlay', id })}
+                    onSelectTextOverlay={(id) => handleSelect({ type: 'text_overlay', id })}
                     isTextOverlayHidden={isTextOverlayHidden}
                     onToggleHideTextOverlay={() => setIsTextOverlayHidden((v) => !v)}
                   />

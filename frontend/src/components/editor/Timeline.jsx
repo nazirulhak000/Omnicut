@@ -240,9 +240,31 @@ export default function Timeline({
   isTextOverlayHidden = false,
   onToggleHideTextOverlay,
 }) {
-  const selectClip = (id) => (onSelectClip ? onSelectClip(id) : onSelect?.({ type: 'clip', id }));
-  const selectCaption = (uid) => (onSelectCaption ? onSelectCaption(uid) : onSelect?.({ type: 'caption', id: uid }));
-  const selectTextOverlay = (id) => (onSelectTextOverlay ? onSelectTextOverlay(id) : onSelect?.({ type: 'text_overlay', id }));
+  const deselectAll = () => {
+    if (onSelectClip) onSelectClip(null);
+    if (onSelectCaption) onSelectCaption(null);
+    if (onSelectTextOverlay) onSelectTextOverlay(null);
+    onSelect?.(null);
+  };
+
+  const selectClip = (id) => {
+    if (onSelectClip) onSelectClip(id);
+    else onSelect?.({ type: 'clip', id });
+    const seg = segments.find((sg) => sg.clip?.id === id);
+    if (seg && typeof seg.segStart === 'number') onSeek?.(seg.segStart);
+  };
+  const selectCaption = (uid) => {
+    if (onSelectCaption) onSelectCaption(uid);
+    else onSelect?.({ type: 'caption', id: uid });
+    const cue = cues.find((c) => c._uid === uid || c.id === uid);
+    if (cue && typeof cue.start === 'number') onSeek?.(cue.start);
+  };
+  const selectTextOverlay = (id) => {
+    if (onSelectTextOverlay) onSelectTextOverlay(id);
+    else onSelect?.({ type: 'text_overlay', id });
+    const item = textOverlays.find((t) => t.id === id);
+    if (item && typeof item.start === 'number') onSeek?.(item.start);
+  };
   const trimClip = (id, patch) => (onTrim ? onTrim(id, patch) : onClipChange?.(id, patch, true));
   const shiftCaption = (uid, patch) => (onCaptionShift ? onCaptionShift(uid, patch) : onCaptionChange?.(uid, patch, true));
   const shiftTextOverlay = (id, patch) => (onTextOverlayChange ? onTextOverlayChange(id, patch, true) : null);
@@ -499,18 +521,34 @@ export default function Timeline({
     const lane = laneRef.current;
     if (!lane) return 0;
     const rect = lane.getBoundingClientRect();
-    return Math.max(0, (e.clientX - rect.left) / pxPerSec);
+    const maxT = Math.max(totalDuration, audioDuration || 0);
+    const rawT = (e.clientX - rect.left) / pxPerSec;
+    return Math.max(0, maxT > 0 ? Math.min(maxT, rawT) : rawT);
   };
 
   const startScrub = (e) => {
+    deselectAll();
     scrubbing.current = true;
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* scrub still works */ }
-    onSeek(timeFromEvent(e));
+    onSeek?.(timeFromEvent(e));
   };
-  const moveScrub = (e) => { if (scrubbing.current) onSeek(timeFromEvent(e)); };
+  const moveScrub = (e) => { if (scrubbing.current) onSeek?.(timeFromEvent(e)); };
   const endScrub = (e) => {
     scrubbing.current = false;
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
+  };
+
+  const handleTrackAreaPointerDown = (e) => {
+    if (e.button !== 0) return;
+    const isInteractive = e.target.closest(
+      'button, [role="button"], [data-trim-handle], [data-transition-trigger], [data-transition-popover], [data-timeline-item]'
+    );
+    if (isInteractive) return;
+
+    deselectAll();
+    scrubbing.current = true;
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* scrub still works */ }
+    onSeek?.(timeFromEvent(e));
   };
 
   const startTrim = (e, cue, edge) => {
@@ -640,7 +678,7 @@ export default function Timeline({
               title="คลิกหรือลากเพื่อเลื่อนหัวอ่าน"
             >
               {ticks.map((t) => (
-                <div key={t} className="absolute top-0 h-full" style={{ left: t * pxPerSec }}>
+                <div key={t} className="pointer-events-none absolute top-0 h-full" style={{ left: t * pxPerSec }}>
                   <span className="absolute top-0 h-2 w-px bg-[#4A4742]" />
                   <span className="absolute top-2 -translate-x-1/2 font-mono text-xs text-[#9C968F]">
                     {formatTimecode(t)}
@@ -812,7 +850,14 @@ export default function Timeline({
               })}
             </div>
 
-            <div ref={laneRef} className="relative flex-1">
+            <div
+              ref={laneRef}
+              className="relative flex-1"
+              onPointerDown={handleTrackAreaPointerDown}
+              onPointerMove={moveScrub}
+              onPointerUp={endScrub}
+              onPointerCancel={endScrub}
+            >
               {/* video track */}
               <div
                 className="relative rounded bg-[#181716]"
@@ -998,10 +1043,12 @@ export default function Timeline({
 
                   return (
                     <div
+                      data-timeline-item="hook"
                       onClick={(e) => {
                         e.stopPropagation();
                         if (onSelectHook) onSelectHook();
                         else onSelect?.({ type: 'hook' });
+                        onSeek?.(0);
                       }}
                       title={`${hookText} (0.0s - ${dur.toFixed(1)}s)`}
                       className={`group absolute top-0.5 h-[calc(100%-4px)] touch-none select-none rounded text-left text-xs transition-colors duration-150 flex items-center ${
@@ -1048,7 +1095,11 @@ export default function Timeline({
                   return (
                     <div
                       key={cue._uid}
-                      onClick={() => selectCaption(cue._uid)}
+                      data-timeline-item="caption"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        selectCaption(cue._uid);
+                      }}
                       title={`${cue.text} (${cue.start.toFixed(2)}s - ${cue.end.toFixed(2)}s)`}
                       className={`group absolute top-1 h-[calc(100%-8px)] touch-none select-none rounded text-left text-xs leading-[18px] transition-colors duration-150 flex items-center ${
                         selected
@@ -1138,6 +1189,7 @@ export default function Timeline({
                     return (
                       <div
                         key={item.id}
+                        data-timeline-item="text_overlay"
                         onClick={(e) => { e.stopPropagation(); selectTextOverlay(item.id); }}
                         title={`${item.text || 'ข้อความเสริม'} (${item.start.toFixed(2)}s - ${item.end.toFixed(2)}s)`}
                         className={`group absolute touch-none select-none rounded text-left text-xs leading-[18px] transition-colors duration-150 flex items-center ${
@@ -1299,6 +1351,7 @@ export default function Timeline({
                     {key === 'sfx' && sfxMarkers.map((cue) => (
                       <button
                         key={`sfx-${cue._uid}`}
+                        data-timeline-item="sfx"
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();

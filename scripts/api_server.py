@@ -2073,10 +2073,11 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                 print(f"Warning: could not update angle status: {angle_err}")
 
         render_jobs.complete_job(job_id, result)
+        is_exported = bool(req_data.export_mp4 and (result.get("mp4") or result.get("output_video") or result.get("video_path")))
         TaskManager.complete_task(
             job_id,
             result=result,
-            step_label="🎉 การตัดต่อเสร็จสมบูรณ์ 100%!",
+            step_label="🎉 เรนเดอร์วิดีโอเสร็จสมบูรณ์ 100%!" if is_exported else "🎉 การตัดต่อเสร็จสมบูรณ์ 100%!",
             target_id=result.get("project_name")
         )
 
@@ -2087,7 +2088,8 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
             except Exception:
                 pass
         render_jobs.fail_job(job_id, e)
-        TaskManager.fail_task(job_id, str(e), step_label="การตัดต่อวิดีโอล้มเหลว")
+        fail_msg = "การเรนเดอร์วิดีโอล้มเหลว" if req_data.export_mp4 else "การตัดต่อวิดีโอล้มเหลว"
+        TaskManager.fail_task(job_id, str(e), step_label=fail_msg)
 
 @app.post("/api/render")
 def trigger_render(req: RenderRequest, background_tasks: BackgroundTasks):
@@ -2097,11 +2099,12 @@ def trigger_render(req: RenderRequest, background_tasks: BackgroundTasks):
 
     # Register in global TaskManager
     p_name = req.product_name or req.project_name or "วิดีโอใหม่"
+    is_render_task = bool(req.export_mp4)
     TaskManager.create_task(
-        task_type="render_video",
-        title=f"ตัดต่อวิดีโอ: {p_name}",
-        payload={"project_name": req.project_name, "product_name": req.product_name},
-        target_tab="editor",
+        task_type="render_video" if is_render_task else "edit_project",
+        title=f"{'เรนเดอร์วิดีโอ' if is_render_task else 'ตัดต่อวิดีโอ'}: {p_name}",
+        payload={"project_name": req.project_name, "product_name": req.product_name, "export_mp4": is_render_task},
+        target_tab="gallery" if is_render_task else "editor",
         target_id=req.project_name,
         task_id=job_id
     )

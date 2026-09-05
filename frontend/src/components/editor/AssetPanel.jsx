@@ -16,6 +16,277 @@ const TABS = [
 
 // Drag payload type shared with Timeline's drop target.
 export const CLIP_DRAG_TYPE = 'application/x-capcut-clip';
+export const TEXT_TEMPLATE_DRAG_TYPE = 'application/x-capcut-text-template';
+
+export const TEXT_TEMPLATES = [
+  // 1. Trending / Hits (ฮิตติดเทรนด์)
+  {
+    id: 'tpl_3d_yellow_pop',
+    category: 'trending',
+    name: '3D Yellow Pop',
+    text: 'HIT DEAL 🔥',
+    fontName: 'Kanit',
+    color: '#FFE600',
+    scale: 1.15,
+    anim: 'pop',
+    bgStyle: 'none',
+    cssPreview: {
+      color: '#FFE600',
+      textShadow: '0 2px 0 #B89600, 0 4px 0 #7A6400, 0 5px 6px rgba(0,0,0,0.9)',
+      fontWeight: '900',
+    },
+  },
+  {
+    id: 'tpl_cyber_neon_glow',
+    category: 'trending',
+    name: 'Cyber Neon',
+    text: 'CYBER ⚡',
+    fontName: 'Prompt',
+    color: '#25F4EE',
+    scale: 1.15,
+    anim: 'pop',
+    bgStyle: 'none',
+    cssPreview: {
+      color: '#25F4EE',
+      textShadow: '0 0 10px #25F4EE, 0 0 20px rgba(37,244,238,0.6), 0 2px 4px #000',
+      fontWeight: '900',
+    },
+  },
+  {
+    id: 'tpl_comic_sticker',
+    category: 'trending',
+    name: 'Comic Pop',
+    text: 'POP! 💥',
+    fontName: 'Kanit',
+    color: '#FFFFFF',
+    scale: 1.2,
+    anim: 'pop',
+    bgStyle: 'none',
+    cssPreview: {
+      color: '#FFFFFF',
+      WebkitTextStroke: '1.5px #FE2C55',
+      textShadow: '2px 2px 0 #000, 0 4px 8px rgba(254,44,85,0.6)',
+      fontWeight: '900',
+    },
+  },
+  {
+    id: 'tpl_retro_sunset',
+    category: 'trending',
+    name: 'Sunset Orange',
+    text: 'TRENDING ✨',
+    fontName: 'Kanit',
+    color: '#FF7A00',
+    scale: 1.05,
+    anim: 'slide',
+    bgStyle: 'none',
+    cssPreview: {
+      color: '#FF7A00',
+      textShadow: '0 2px 0 #8A3D00, 0 4px 6px rgba(0,0,0,0.8)',
+      fontWeight: '900',
+    },
+  },
+
+  // 2. Sales & Deals (ราคา & ดีลเด็ด)
+  {
+    id: 'tpl_sale_red_badge',
+    category: 'sale',
+    name: 'Flash Sale Tag',
+    text: 'SALE 50% 🏷️',
+    fontName: 'Kanit',
+    color: '#FE2C55',
+    scale: 1.2,
+    anim: 'pop',
+    bgStyle: 'pill',
+    cssPreview: {
+      color: '#FFFFFF',
+      backgroundColor: '#FE2C55',
+      padding: '2px 8px',
+      borderRadius: '6px',
+      fontWeight: '900',
+      boxShadow: '0 4px 10px rgba(254,44,85,0.5)',
+    },
+  },
+  {
+    id: 'tpl_special_price',
+    category: 'sale',
+    name: 'Special Price',
+    text: 'ราคาพิเศษ 💰',
+    fontName: 'Prompt',
+    color: '#FFE600',
+    scale: 1.1,
+    anim: 'pop',
+    bgStyle: 'pill',
+    cssPreview: {
+      color: '#000000',
+      backgroundColor: '#FFE600',
+      padding: '2px 8px',
+      borderRadius: '6px',
+      fontWeight: '900',
+      boxShadow: '0 4px 8px rgba(255,230,0,0.4)',
+    },
+  },
+  {
+    id: 'tpl_pin_location',
+    category: 'sale',
+    name: 'Pin Location',
+    text: 'พิกัดในคลิป 📍',
+    fontName: 'Kanit',
+    color: '#25F4EE',
+    scale: 1.0,
+    anim: 'slide',
+    bgStyle: 'pill',
+    cssPreview: {
+      color: '#25F4EE',
+      backgroundColor: 'rgba(37,244,238,0.15)',
+      border: '1px solid #25F4EE',
+      padding: '2px 8px',
+      borderRadius: '999px',
+      fontWeight: '700',
+    },
+  },
+  {
+    id: 'tpl_buy_one_get_one',
+    category: 'sale',
+    name: '1 แถม 1 Promo',
+    text: 'โปร 1 แถม 1 🎁',
+    fontName: 'Kanit',
+    color: '#FF6B00',
+    scale: 1.15,
+    anim: 'pop',
+    bgStyle: 'none',
+    cssPreview: {
+      color: '#FF6B00',
+      textShadow: '0 2px 8px rgba(255,107,0,0.7), 0 2px 0 #000',
+      fontWeight: '900',
+    },
+  },
+
+  // 3. Review & Badges (รีวิว & จุดขาย)
+  {
+    id: 'tpl_score_10_10',
+    category: 'review',
+    name: '10/10 Score',
+    text: '10/10 ไม่หัก 🌟',
+    fontName: 'Kanit',
+    color: '#FFD700',
+    scale: 1.2,
+    anim: 'pop',
+    bgStyle: 'none',
+    cssPreview: {
+      color: '#FFD700',
+      textShadow: '0 0 10px rgba(255,215,0,0.8), 0 2px 2px #000',
+      fontWeight: '900',
+    },
+  },
+  {
+    id: 'tpl_must_have',
+    category: 'review',
+    name: 'Must Have Stamp',
+    text: 'ของมันต้องมี ✔️',
+    fontName: 'Kanit',
+    color: '#00F59B',
+    scale: 1.1,
+    anim: 'pop',
+    bgStyle: 'none',
+    cssPreview: {
+      color: '#00F59B',
+      textShadow: '0 0 10px rgba(0,245,155,0.6), 0 2px 0 #000',
+      fontWeight: '900',
+    },
+  },
+  {
+    id: 'tpl_pros_cons',
+    category: 'review',
+    name: 'Pros & Cons',
+    text: 'ข้อดี vs ข้อเสีย ⚖️',
+    fontName: 'Prompt',
+    color: '#FFFFFF',
+    scale: 1.05,
+    anim: 'slide',
+    bgStyle: 'pill',
+    cssPreview: {
+      color: '#FFFFFF',
+      backgroundColor: 'rgba(0,0,0,0.8)',
+      border: '1px solid rgba(255,255,255,0.3)',
+      padding: '2px 8px',
+      borderRadius: '6px',
+      fontWeight: '800',
+    },
+  },
+  {
+    id: 'tpl_verdict',
+    category: 'review',
+    name: 'Final Verdict',
+    text: 'คุ้มค่าน่าจัด 💯',
+    fontName: 'Kanit',
+    color: '#A855F7',
+    scale: 1.15,
+    anim: 'pop',
+    bgStyle: 'none',
+    cssPreview: {
+      color: '#C084FC',
+      textShadow: '0 0 10px rgba(168,85,247,0.7), 0 2px 0 #000',
+      fontWeight: '900',
+    },
+  },
+
+  // 4. Minimal & Clean (มินิมอล)
+  {
+    id: 'tpl_clean_lower_third',
+    category: 'minimal',
+    name: 'Clean Lower-Third',
+    text: 'Mini Review',
+    fontName: 'IBMPlex',
+    color: '#FFFFFF',
+    scale: 0.95,
+    anim: 'fade',
+    bgStyle: 'pill',
+    cssPreview: {
+      color: '#FFFFFF',
+      backgroundColor: 'rgba(255,255,255,0.15)',
+      padding: '2px 10px',
+      borderRadius: '999px',
+      fontWeight: '600',
+    },
+  },
+  {
+    id: 'tpl_modern_spec_tag',
+    category: 'minimal',
+    name: 'Tech Specs Tag',
+    text: 'TECH SPECS',
+    fontName: 'Prompt',
+    color: '#E2E8F0',
+    scale: 0.9,
+    anim: 'fade',
+    bgStyle: 'none',
+    cssPreview: {
+      color: '#E2E8F0',
+      letterSpacing: '2px',
+      fontWeight: '700',
+      borderBottom: '2px solid #25F4EE',
+      paddingBottom: '2px',
+    },
+  },
+  {
+    id: 'tpl_capsule_pill',
+    category: 'minimal',
+    name: 'Dark Glass Pill',
+    text: 'Highlights',
+    fontName: 'IBMPlex',
+    color: '#94A3B8',
+    scale: 0.9,
+    anim: 'fade',
+    bgStyle: 'pill',
+    cssPreview: {
+      color: '#F8FAFC',
+      backgroundColor: '#0F172A',
+      border: '1px solid rgba(255,255,255,0.15)',
+      padding: '2px 10px',
+      borderRadius: '6px',
+      fontWeight: '600',
+    },
+  },
+];
 
 const FONTS = [
   { id: 'IBMPlex', name: 'IBM Plex Sans Thai' },
@@ -92,6 +363,7 @@ export default function AssetPanel({
   selectedCaption,    // cue object or null
   onAddClip,
   onAddTextAtPlayhead,
+  onAddTextTemplate,
   onStyleChange,
   onAssignSfx,
   onImportCues,       // (cues: Array<{ start, end, text, translation, sfx }>) => void
@@ -100,6 +372,8 @@ export default function AssetPanel({
 }) {
   const [tab, setTab] = useState('clips');
   const [query, setQuery] = useState('');
+  const [textCategory, setTextCategory] = useState('all');
+  const [textSearch, setTextSearch] = useState('');
 
   // Quick video preview modal state
   const [previewVideo, setPreviewVideo] = useState(null);
@@ -685,100 +959,137 @@ export default function AssetPanel({
           </>
         )}
 
-        {/* TAB 4: TEXT / FONTS */}
+        {/* TAB 4: TEXT / TEMPLATES & FONTS */}
         {tab === 'text' && (
-          <>
-            <style>{filtered.fonts
-              .filter((f) => f.file)
-              .map((f) => `@font-face{font-family:'ed-${f.id}';src:url('/api/media/${f.file.rel_path}') format('${(f.file.name || '').toLowerCase().endsWith('.otf') ? 'opentype' : 'truetype'}');font-display:swap;}`)
-              .join(' ')}</style>
-
-            {/* Quick Add Text at Playhead */}
+          <div className="space-y-3">
+            {/* Quick Add Default Text Button */}
             <button
               type="button"
               onClick={onAddTextAtPlayhead}
-              className="w-full py-2 px-3 mb-2.5 rounded-xl bg-gradient-to-r from-[#D97757] to-[#E89274] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-all"
+              className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#25F4EE] to-[#00D4FF] hover:brightness-110 text-black text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-[#25F4EE]/20 cursor-pointer transition-all active:scale-95"
             >
-              <Plus className="w-4 h-4" />
-              <span>เพิ่มข้อความที่หัวอ่าน</span>
+              <Plus className="w-4 h-4 text-black" />
+              <span>เพิ่มข้อความที่หัวอ่าน (Default Text)</span>
             </button>
 
-            <p className="px-1 pt-1 text-xs font-semibold uppercase tracking-wide text-[#9C968F]">
-              ฟอนต์คำบรรยาย
-            </p>
-            {filtered.fonts.map((f) => (
-              <Row key={f.id} active={style.fontName === f.id} onClick={() => onStyleChange({ fontName: f.id })}>
-                <Type className="h-3.5 w-3.5 flex-shrink-0 text-[#9C968F]" />
-                <span
-                  className="min-w-0 flex-1 truncate text-base text-[#EDE9E3]"
-                  style={f.file ? { fontFamily: `'ed-${f.id}', sans-serif` } : undefined}
+            {/* Search Input for Templates */}
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+              <input
+                type="text"
+                value={textSearch}
+                onChange={(e) => setTextSearch(e.target.value)}
+                placeholder="ค้นหาเทมเพลตข้อความ..."
+                className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-black/40 border border-white/[0.1] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#25F4EE]"
+              />
+              {textSearch && (
+                <button
+                  type="button"
+                  onClick={() => setTextSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
                 >
-                  {f.name} · ก ข ค
-                </span>
-                {style.fontName === f.id && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#D97757]" />}
-              </Row>
-            ))}
-            {filtered.fonts.length === 0 && (
-              <p className="px-1 py-2 text-sm text-[#6B6660]">ไม่พบฟอนต์ที่ค้นหา</p>
-            )}
-            <div className="mt-2 space-y-2 rounded-lg border border-white/[0.08] bg-black/40 px-2 py-2">
-              <span className="block text-sm font-semibold text-slate-300">หน้าตาคำบรรยาย</span>
-
-              <div>
-                <span className="mb-1 block text-sm text-slate-400">ตำแหน่ง</span>
-                <div className="grid grid-cols-3 gap-1">
-                  {[['top', 'บน'], ['middle', 'กลาง'], ['bottom', 'ล่าง']].map(([id, label]) => (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => onStyleChange({ captionPosition: id })}
-                      className={`rounded-lg border py-1 text-sm font-bold transition-colors duration-150 cursor-pointer ${
-                        (style.captionPosition || 'bottom') === id
-                          ? 'border-[#D97757] bg-[#D97757]/20 text-[#E89274]'
-                          : 'border-white/[0.08] bg-black/40 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <label className="block">
-                <span className="mb-1 flex justify-between text-sm text-slate-400">
-                  <span>ขนาดตัวอักษร</span>
-                  <span className="font-mono text-slate-300">{Math.round((style.captionScale ?? 1) * 100)}%</span>
-                </span>
-                <input
-                  type="range" min={0.5} max={2} step={0.05}
-                  value={style.captionScale ?? 1}
-                  onChange={(e) => onStyleChange({ captionScale: parseFloat(e.target.value) })}
-                  className="w-full accent-[#D97757]"
-                />
-              </label>
-
-              <label className="flex items-center justify-between">
-                <span className="text-sm text-slate-400">สีตัวอักษร</span>
-                <span className="flex items-center gap-2">
-                  <span className="font-mono text-sm text-slate-300">{style.captionColor || '#FFFFFF'}</span>
-                  <input
-                    type="color"
-                    value={style.captionColor || '#FFFFFF'}
-                    onChange={(e) => onStyleChange({ captionColor: e.target.value })}
-                    className="h-6 w-8 cursor-pointer rounded border border-white/[0.15] bg-transparent"
-                  />
-                </span>
-              </label>
-
-              <p className="text-xs leading-relaxed text-slate-500">
-                เปลี่ยนหน้าตาซับต้องสร้างไฟล์ซับใหม่ — Apply จะใช้เวลาเพิ่มเล็กน้อย
-              </p>
+                  <X className="h-3 w-3" />
+                </button>
+              )}
             </div>
 
-            <p className="px-1 pt-3 text-sm leading-relaxed text-[#6B6660]">
-              แก้ข้อความแต่ละท่อนได้ที่แผงขวา — คลิกท่อนคำบรรยายบนไทม์ไลน์
-            </p>
-          </>
+            {/* Category Filter Pills */}
+            <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar text-xs">
+              {[
+                { id: 'all', label: 'ทั้งหมด' },
+                { id: 'trending', label: 'ฮิต / Trend' },
+                { id: 'sale', label: 'โปรโมชั่น / Sale' },
+                { id: 'review', label: 'รีวิว / Review' },
+                { id: 'minimal', label: 'มินิมอล / Clean' },
+              ].map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setTextCategory(cat.id)}
+                  className={`px-2.5 py-1 rounded-full whitespace-nowrap text-[11px] font-semibold transition-all cursor-pointer ${
+                    textCategory === cat.id
+                      ? 'bg-[#25F4EE] text-black shadow-sm font-bold'
+                      : 'bg-white/[0.06] text-slate-300 hover:bg-white/[0.12] hover:text-white'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Visual Template Grid (2 columns like CapCut Text Effects) */}
+            <div className="grid grid-cols-2 gap-2">
+              {TEXT_TEMPLATES.filter((tpl) => {
+                const matchesCat = textCategory === 'all' || tpl.category === textCategory;
+                const matchesSearch = !textSearch.trim() || 
+                  tpl.name.toLowerCase().includes(textSearch.toLowerCase()) || 
+                  tpl.text.toLowerCase().includes(textSearch.toLowerCase());
+                return matchesCat && matchesSearch;
+              }).map((tpl) => (
+                <div
+                  key={tpl.id}
+                  draggable={true}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData(TEXT_TEMPLATE_DRAG_TYPE, JSON.stringify(tpl));
+                    e.dataTransfer.setData('text/plain', tpl.text);
+                  }}
+                  onClick={() => {
+                    if (onAddTextTemplate) {
+                      onAddTextTemplate(tpl);
+                    } else if (onAddTextAtPlayhead) {
+                      onAddTextAtPlayhead();
+                    }
+                  }}
+                  className="group relative flex flex-col items-center justify-between rounded-xl border border-white/[0.08] bg-gradient-to-b from-[#18181B] to-[#0E0E10] p-2.5 hover:border-[#25F4EE]/60 hover:shadow-lg hover:shadow-[#25F4EE]/10 cursor-pointer transition-all hover:-translate-y-0.5"
+                  title={`คลิกเพื่อใส่ในคลิป: ${tpl.name}`}
+                >
+                  {/* Visual Style Preview Card (CSS typography preview) */}
+                  <div className="w-full h-16 rounded-lg bg-black/60 border border-white/[0.04] flex items-center justify-center p-1.5 overflow-hidden text-center select-none relative group-hover:bg-black/40 transition-colors">
+                    <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:8px_8px]" />
+                    <span
+                      style={tpl.cssPreview}
+                      className="relative z-10 text-xs text-center max-w-full truncate px-1 transition-transform duration-200 group-hover:scale-105"
+                    >
+                      {tpl.text}
+                    </span>
+                  </div>
+
+                  {/* Template Meta / Add Icon */}
+                  <div className="w-full mt-2 flex items-center justify-between gap-1">
+                    <span className="text-[11px] font-medium text-slate-300 group-hover:text-white truncate">
+                      {tpl.name}
+                    </span>
+                    <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-slate-400 group-hover:bg-[#25F4EE] group-hover:text-black transition-all">
+                      <Plus className="h-3 w-3" />
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Quick Fonts Explorer Section */}
+            <div className="pt-3 border-t border-white/[0.08]">
+              <div className="flex items-center justify-between px-1 mb-2">
+                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  ฟอนต์มาตรฐาน ({filtered.fonts.length})
+                </span>
+              </div>
+              <div className="space-y-1">
+                {filtered.fonts.map((f) => (
+                  <Row key={f.id} active={style.fontName === f.id} onClick={() => onStyleChange({ fontName: f.id })}>
+                    <Type className="h-3.5 w-3.5 flex-shrink-0 text-[#25F4EE]" />
+                    <span
+                      className="min-w-0 flex-1 truncate text-xs text-slate-200"
+                      style={f.file ? { fontFamily: `'ed-${f.id}', sans-serif` } : undefined}
+                    >
+                      {f.name} · ก ข ค ABC
+                    </span>
+                    {style.fontName === f.id && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#25F4EE]" />}
+                  </Row>
+                ))}
+              </div>
+            </div>
+          </div>
         )}
 
         {/* TAB 5: STICKERS */}

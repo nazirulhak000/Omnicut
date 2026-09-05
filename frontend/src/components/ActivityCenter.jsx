@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Zap, CheckCircle2, AlertCircle, Clock, X, Trash2, ArrowRight,
-  Loader2, Sparkles, Film, Rocket, Mic, RefreshCw, Layers, ExternalLink, Play
+  Loader2, Sparkles, Film, Rocket, Mic, RefreshCw, Layers, ExternalLink, Play, Scissors
 } from 'lucide-react';
 import { useTaskManager } from '../context/TaskContext';
 
@@ -11,6 +11,9 @@ function getTaskIcon(type) {
       return <Rocket className="w-4 h-4 text-[#25F4EE]" />;
     case 'render_video':
       return <Film className="w-4 h-4 text-[#FE2C55]" />;
+    case 'edit_project':
+    case 'one_click':
+      return <Scissors className="w-4 h-4 text-[#25F4EE]" />;
     case 'voice_gen':
       return <Mic className="w-4 h-4 text-amber-400" />;
     default:
@@ -287,27 +290,35 @@ export function ActivityDrawer() {
                       )}
 
                       {isDone && (() => {
-                        const hasVideo = Boolean(task.result?.mp4 || task.result?.output_video || task.result?.final_video_path);
-                        const isRenderTask = Boolean(
+                        const hasVideo = Boolean(
+                          task.result?.mp4 ||
+                          task.result?.output_video ||
+                          task.result?.final_video_path ||
+                          task.result?.video_url
+                        );
+                        const isEditTask = Boolean(
+                          task.type === 'edit_project' ||
+                          task.type === 'one_click' ||
+                          task.type === 'pipeline' ||
+                          task.task_type === 'edit_project' ||
+                          (typeof task.title === 'string' && task.title.includes('ตัดต่อ'))
+                        );
+                        // A true render task requires explicit render type AND has actual exported video
+                        const isRealRenderTask = !isEditTask && (
                           task.type === 'render_video' ||
                           task.type === 'render' ||
                           task.task_type === 'render_video' ||
                           task.task_type === 'render' ||
                           (typeof task.title === 'string' && task.title.includes('เรนเดอร์'))
-                        );
-                        const is1ClickEdit = Boolean(
-                          task.type === 'one_click' ||
-                          task.type === 'pipeline' ||
-                          (typeof task.title === 'string' && task.title.includes('ตัดต่อ'))
-                        );
+                        ) && hasVideo;
 
-                        if (isRenderTask) {
+                        if (isRealRenderTask) {
                           return (
                             <div className="flex items-center gap-1.5">
                               <button
                                 onClick={() => jumpToTaskResult(task, 'gallery')}
                                 className="px-3 py-1 rounded-lg bg-gradient-to-r from-[#25F4EE] to-blue-500 hover:brightness-110 text-slate-950 text-xs font-bold flex items-center gap-1 shadow-md shadow-[#25F4EE]/20 cursor-pointer active:scale-95 transition-all"
-                                title="พรีวิวดูคลิปที่ตัดเสร็จแล้วในคลังผลงาน"
+                                title="พรีวิวดูคลิปที่เรนเดอร์เสร็จแล้วในคลังผลงาน"
                               >
                                 <Play className="w-3.5 h-3.5 fill-current" />
                                 <span>พรีวิวคลิป</span>
@@ -324,23 +335,16 @@ export function ActivityDrawer() {
                           );
                         }
 
+                        // For timeline cuts (edit_project / 1-click edit) or tasks without rendered video:
+                        // Show ONLY "เปิดไทม์ไลน์" (Primary prominent button)
                         return (
                           <div className="flex items-center gap-1.5">
-                            {hasVideo && (
-                              <button
-                                onClick={() => jumpToTaskResult(task, 'gallery')}
-                                className="px-2 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1 cursor-pointer transition-all"
-                                title="เปิดดูคลิปวิดีโอในคลังผลงาน"
-                              >
-                                <Play className="w-3 h-3 fill-current" />
-                                <span>ดูคลิป</span>
-                              </button>
-                            )}
                             <button
                               onClick={() => jumpToTaskResult(task, 'editor')}
                               className="px-3 py-1 rounded-lg bg-gradient-to-r from-[#25F4EE] to-blue-500 hover:brightness-110 text-slate-950 text-xs font-bold flex items-center gap-1 shadow-md shadow-[#25F4EE]/20 cursor-pointer active:scale-95 transition-all"
+                              title="เปิดโปรเจกต์ในหน้าไทม์ไลน์เพื่อตรวจสอบหรือแก้ไข"
                             >
-                              <span>{is1ClickEdit ? 'เปิดไทม์ไลน์' : 'ดูผลลัพธ์'}</span>
+                              <span>เปิดไทม์ไลน์</span>
                               <ArrowRight className="w-3.5 h-3.5" />
                             </button>
                           </div>
@@ -407,15 +411,28 @@ export function GlobalTaskNotification() {
 
         {isSuccess && notificationToast.task && (() => {
           const task = notificationToast.task;
-          const isRenderTask = Boolean(
+          const hasVideo = Boolean(
+            task.result?.mp4 ||
+            task.result?.output_video ||
+            task.result?.final_video_path ||
+            task.result?.video_url
+          );
+          const isEditTask = Boolean(
+            task.type === 'edit_project' ||
+            task.type === 'one_click' ||
+            task.type === 'pipeline' ||
+            task.task_type === 'edit_project' ||
+            (typeof task.title === 'string' && task.title.includes('ตัดต่อ'))
+          );
+          const isRealRenderTask = !isEditTask && (
             task.type === 'render_video' ||
             task.type === 'render' ||
             task.task_type === 'render_video' ||
             task.task_type === 'render' ||
             (typeof task.title === 'string' && task.title.includes('เรนเดอร์'))
-          );
+          ) && hasVideo;
 
-          if (isRenderTask) {
+          if (isRealRenderTask) {
             return (
               <div className="flex items-center justify-end gap-2 pt-1">
                 <button

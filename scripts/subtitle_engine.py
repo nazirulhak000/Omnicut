@@ -1674,14 +1674,24 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
             style = "TikTokMinimalPill" if is_pill_mode else "TikTokWhite"
 
+            pos_override = ""
+            if "x" in cue or "y" in cue:
+                norm_x = float(cue.get("x", 0.50))
+                norm_y = float(cue.get("y", 0.78125))
+                px_x = int(round(video_width * norm_x))
+                px_y = int(round(video_height * norm_y))
+                pos_override = f"\\an5\\pos({px_x},{px_y})"
+
             # Layer 0: Natural Soft Feathered Shadow (Gaussian Blur matching Canvas preview)
             if not is_pill_mode:
                 en_sub_shadow = f"\\N{{\\fscx{en_pct}\\fscy{en_pct}}}{en_wrapped}" if en_wrapped else ""
                 shadow_tag = f"{{\\blur{shadow_blur}\\alpha&H38&}}"
-                events.append(f"Dialogue: 0,{start_t},{end_t},TikTokSoftShadow,,0,0,0,,{anim}{shadow_tag}{text}{en_sub_shadow}")
+                shadow_pos = f"{{{pos_override}}}" if pos_override else ""
+                events.append(f"Dialogue: 0,{start_t},{end_t},TikTokSoftShadow,,0,0,0,,{shadow_pos}{anim}{shadow_tag}{text}{en_sub_shadow}")
 
             # Layer 1: Crisp Foreground Text with dynamic kinetic highlights
-            line_entry = f"Dialogue: 1,{start_t},{end_t},{style},,0,0,0,,{anim}{highlighted_text}{en_sub}"
+            main_pos = f"{{{pos_override}}}" if pos_override else ""
+            line_entry = f"Dialogue: 1,{start_t},{end_t},{style},,0,0,0,,{main_pos}{anim}{highlighted_text}{en_sub}"
             events.append(line_entry)
 
         # 3. Spec-Bar Overlays (IT vertical: the number goes on screen, not
@@ -1724,10 +1734,20 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 start_t = cls._format_ass_time(start_sec)
                 end_t = cls._format_ass_time(end_sec)
 
-                pos = item.get("position", "middle")
-                y_ratio = TEXT_OVERLAY_POSITIONS.get(pos, 0.50)
-                y_pos = int(round(video_height * y_ratio))
-                x_pos = video_width // 2
+                if "x" in item and item.get("x") is not None and "y" in item and item.get("y") is not None:
+                    try:
+                        x_pos = int(round(video_width * float(item["x"])))
+                        y_pos = int(round(video_height * float(item["y"])))
+                    except (TypeError, ValueError):
+                        pos = item.get("position", "middle")
+                        y_ratio = TEXT_OVERLAY_POSITIONS.get(pos, 0.50)
+                        y_pos = int(round(video_height * y_ratio))
+                        x_pos = video_width // 2
+                else:
+                    pos = item.get("position", "middle")
+                    y_ratio = TEXT_OVERLAY_POSITIONS.get(pos, 0.50)
+                    y_pos = int(round(video_height * y_ratio))
+                    x_pos = video_width // 2
 
                 try:
                     scale = float(item.get("scale", 1.0) or 1.0)

@@ -345,6 +345,7 @@ def test_rejects_answers_downstream_code_cannot_use(task, raw):
 def test_manual_mode_hands_back_the_prompt(monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.setenv("DISABLE_ANTIGRAVITY", "1")
+    monkeypatch.setattr(AIBridge, "get_api_keys", classmethod(lambda cls: []))
 
     with pytest.raises(ManualModeRequired) as excinfo:
         AIBridge.generate("caption", {

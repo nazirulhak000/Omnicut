@@ -414,22 +414,104 @@ class TikTokAutoCutterPipeline:
                             "on_screen": item.get("on_screen", "") if ci == 0 else ""
                         })
                 
-                total_chars = max(1, sum(len(x["text"]) for x in split_items))
-                curr_t = 0.0
-                for idx, item in enumerate(split_items):
-                    line_dur = (len(item["text"]) / total_chars) * total_duration
-                    line_end = min(total_duration, curr_t + line_dur)
-                    if idx == len(split_items) - 1:
-                        line_end = total_duration
-                    cues.append({
-                        "id": idx + 1,
-                        "start": round(curr_t, 3),
-                        "end": round(line_end, 3),
-                        "text": item["text"],
-                        "sfx": item.get("sfx"),
-                        "on_screen": item.get("on_screen", "")
-                    })
-                    curr_t = line_end
+                # Acoustically align subtitles to real speech bursts in waveform
+                # Eliminates drift and respects natural dramatic pauses/breathing
+                try:
+                    import soundfile as sf
+                    import numpy as np
+
+                    wav_data, sr = sf.read(str(voice_audio_path))
+                    if wav_data.ndim > 1:
+                        wav_data = wav_data[:, 0]
+                    total_dur = len(wav_data) / sr
+
+                    hop = int(0.01 * sr) # 10ms hops
+                    rms = np.array([np.sqrt(np.mean(wav_data[i:i+hop]**2)) for i in range(0, len(wav_data)-hop, hop)])
+                    peak = np.max(rms) if len(rms) > 0 else 1.0
+                    thresh = peak * 0.055
+
+                    min_pause_frames = int(0.14 / 0.01) # >140ms silence is speech pause
+                    is_speech = rms >= thresh
+
+                    blocks = []
+                    in_speech = False
+                    start_f = 0
+                    silence_count = 0
+
+                    for f, sp in enumerate(is_speech):
+                        if sp:
+                            if not in_speech:
+                                in_speech = True
+                                start_f = max(0, f - 2)
+                            silence_count = 0
+                        else:
+                            if in_speech:
+                                silence_count += 1
+                                if silence_count >= min_pause_frames:
+                                    in_speech = False
+                                    end_f = f - silence_count + 3
+                                    if end_f > start_f + 5:
+                                        blocks.append((start_f * 0.01, min(total_dur, end_f * 0.01)))
+                    if in_speech:
+                        blocks.append((start_f * 0.01, total_dur))
+
+                    total_speech_dur = sum(b[1] - b[0] for b in blocks) if blocks else total_duration
+                    total_chars = max(1, sum(len(x["text"]) for x in split_items))
+
+                    def _time_at_speech_offset(offset: float) -> float:
+                        accum = 0.0
+                        for b_start, b_end in blocks:
+                            b_dur = b_end - b_start
+                            if accum + b_dur >= offset:
+                                frac = (offset - accum) / b_dur if b_dur > 0 else 0
+                                return b_start + (frac * b_dur)
+                            accum += b_dur
+                        return blocks[-1][1] if blocks else total_dur
+
+                    curr_speech_offset = 0.0
+                    for idx, item in enumerate(split_items):
+                        item_chars = len(item["text"])
+                        dur_in_speech = (item_chars / total_chars) * total_speech_dur
+                        s_time = _time_at_speech_offset(curr_speech_offset)
+                        e_time = _time_at_speech_offset(curr_speech_offset + dur_in_speech)
+
+                        for b_start, b_end in blocks:
+                            if abs(s_time - b_start) < 0.15:
+                                s_time = b_start
+                                break
+
+                        if idx == 0:
+                            s_time = blocks[0][0] if blocks else 0.0
+                        if idx == len(split_items) - 1:
+                            e_time = total_duration
+
+                        cues.append({
+                            "id": idx + 1,
+                            "start": round(s_time, 3),
+                            "end": round(e_time, 3),
+                            "text": item["text"],
+                            "sfx": item.get("sfx"),
+                            "on_screen": item.get("on_screen", "")
+                        })
+                        curr_speech_offset += dur_in_speech
+                except Exception as align_err:
+                    print(f"⚠️ [Gemini Flash TTS] Acoustic alignment fallback ({align_err}) — using proportional fallback")
+                    total_chars = max(1, sum(len(x["text"]) for x in split_items))
+                    curr_t = 0.0
+                    for idx, item in enumerate(split_items):
+                        line_dur = (len(item["text"]) / total_chars) * total_duration
+                        line_end = min(total_duration, curr_t + line_dur)
+                        if idx == len(split_items) - 1:
+                            line_end = total_duration
+                        cues.append({
+                            "id": idx + 1,
+                            "start": round(curr_t, 3),
+                            "end": round(line_end, 3),
+                            "text": item["text"],
+                            "sfx": item.get("sfx"),
+                            "on_screen": item.get("on_screen", "")
+                        })
+                        curr_t = line_end
                 print(f"   Gemini Flash TTS voice generated! Duration: {total_duration:.2f}s, Cues: {len(cues)}")
             except Exception as gemini_err:
                 voice_engine_used = "edge_tts"

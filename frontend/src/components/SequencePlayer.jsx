@@ -1,5 +1,5 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { Play, Pause, Eye } from 'lucide-react';
+import { Play, Pause, Eye, Shield, Trash2, Move, RotateCcw } from 'lucide-react';
 import { toMediaUrl } from '../lib/mediaUrl';
 import { createLutRenderer, loadCube } from '../lib/lut3d';
 import { resolveHookStyle } from '../lib/hookStyles';
@@ -763,22 +763,24 @@ function drawTextWithMonoEmoji(ctx, text, x, y) {
   }
 }
 
-function drawSingleCue(ctx, cue, t, style = {}) {
+function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
   if (!cue || !cue.text) return;
-  const cueScale = Number(cue.scale) || 1.0;
-  const globalScale = Math.min(2.5, Math.max(0.5, style.captionScale ?? 1));
-  const effectiveScale = Math.min(3.0, Math.max(0.4, globalScale * cueScale));
+  const globalScale = Math.min(2.5, Math.max(0.5, style.captionScale ?? 1.0));
+  const effectiveScale = typeof cue.scale === 'number' && cue.scale > 0
+    ? Math.min(3.0, Math.max(0.4, cue.scale))
+    : globalScale;
   // Standard TikTok Subtitle Size: 100% (scale=1.0) is calibrated to 50pt on 1080w
   // (25px on 540w Canvas), exactly matching the user's preferred visual proportion.
   const baseFs = Math.round(CANVAS_W * 0.0463);
   const fontSize = Math.max(14, Math.round(baseFs * effectiveScale));
   
+  const fontFamName = cue.fontName || style.fontName || 'Kanit';
   let fontFam = "'Kanit', sans-serif";
   let fontWeight = '900';
-  if (style.fontName === 'IBMPlex' || style.fontName === 'IBM Plex Sans Thai') {
+  if (fontFamName === 'IBMPlex' || fontFamName === 'IBM Plex Sans Thai') {
     fontFam = "'IBM Plex Sans Thai', sans-serif";
     fontWeight = '700';
-  } else if (style.fontName === 'Prompt') {
+  } else if (fontFamName === 'Prompt') {
     fontFam = "'Prompt', sans-serif";
     fontWeight = '800';
   }
@@ -812,18 +814,47 @@ function drawSingleCue(ctx, cue, t, style = {}) {
     enLines = wrapCanvasText(cue.translation, ctx, CANVAS_W * 0.86);
   }
 
-  // Vertical anchoring: support per-cue position override (top / middle / bottom)
+  // Vertical anchoring: support per-cue position override (top / middle / bottom) or custom normalized y
   const totalBlockH = (thaiLines.length + enLines.length) * fontSize;
   const pos = cue.position || style.captionPosition || 'bottom';
   const anchorY = CANVAS_H * (CAPTION_Y[pos] ?? CAPTION_Y.bottom);
   let blockTop;
-  if (pos === 'top') blockTop = anchorY;
-  else if (pos === 'middle') blockTop = anchorY - totalBlockH / 2;
-  else blockTop = anchorY - totalBlockH;
+  if (typeof cue.y === 'number') {
+    blockTop = CANVAS_H * Math.max(0.05, Math.min(0.95, cue.y)) - totalBlockH / 2;
+  } else if (pos === 'top') {
+    blockTop = anchorY;
+  } else if (pos === 'middle') {
+    blockTop = anchorY - totalBlockH / 2;
+  } else {
+    blockTop = anchorY - totalBlockH;
+  }
   const thaiStartY = blockTop + thaiLineH / 2;
+  const normX = typeof cue.x === 'number' ? Math.max(0.05, Math.min(0.95, cue.x)) : (typeof style.captionX === 'number' ? style.captionX : 0.50);
+  const xCenter = CANVAS_W * normX;
+
+  if (outBounds && cue) {
+    const measuredW = Math.max(
+      ...thaiLines.map(l => ctx.measureText(l).width),
+      ...(enLines.length ? enLines.map(l => ctx.measureText(l).width) : [0]),
+      100
+    );
+    outBounds.push({
+      type: 'caption',
+      id: cue._uid || cue.id,
+      x: xCenter - measuredW / 2 - 12,
+      y: blockTop - 6,
+      w: measuredW + 24,
+      h: totalBlockH + 12,
+      normX,
+      normY: (blockTop + totalBlockH / 2) / CANVAS_H,
+      scale: effectiveScale,
+      label: (cue.text || 'คำบรรยาย').slice(0, 15),
+      cue,
+    });
+  }
 
   // Synchronized Bilingual Kinetic Highlighting
-  const primaryColor = CAPTION_COLORS[style.captionColor] || '#FFFFFF';
+  const primaryColor = CAPTION_COLORS[style.captionColor] || style.captionColor || '#FFFFFF';
   const enDefaultColor = '#EAEAEA';
 
   let activeKineticColor = null;
@@ -890,7 +921,7 @@ function drawSingleCue(ctx, cue, t, style = {}) {
     ctx.shadowOffsetX = 2;
     ctx.shadowOffsetY = 3;
 
-    let curX = (CANVAS_W - totalLineW) / 2;
+    let curX = xCenter - totalLineW / 2;
     segments.forEach((seg, sIdx) => {
       ctx.strokeText(seg.text, curX, lineY);
       curX += segmentWidths[sIdx];
@@ -898,7 +929,7 @@ function drawSingleCue(ctx, cue, t, style = {}) {
 
     // Pass 2: Color fills (sharp contrast without doubled shadow)
     ctx.shadowColor = 'transparent';
-    curX = (CANVAS_W - totalLineW) / 2;
+    curX = xCenter - totalLineW / 2;
     segments.forEach((seg, sIdx) => {
       ctx.fillStyle = seg.color;
       drawTextWithMonoEmoji(ctx, seg.text, curX, lineY);
@@ -927,7 +958,7 @@ function drawSingleCue(ctx, cue, t, style = {}) {
       ctx.shadowOffsetX = 1.5;
       ctx.shadowOffsetY = 2;
 
-      let curX = (CANVAS_W - totalLineW) / 2;
+      let curX = xCenter - totalLineW / 2;
       segments.forEach((seg, sIdx) => {
         ctx.strokeText(seg.text, curX, lineY);
         curX += segmentWidths[sIdx];
@@ -935,7 +966,7 @@ function drawSingleCue(ctx, cue, t, style = {}) {
 
       // Pass 2: Color fills (sharp contrast without doubled shadow)
       ctx.shadowColor = 'transparent';
-      curX = (CANVAS_W - totalLineW) / 2;
+      curX = xCenter - totalLineW / 2;
       segments.forEach((seg, sIdx) => {
         ctx.fillStyle = seg.color;
         ctx.fillText(seg.text, curX, lineY);
@@ -947,15 +978,15 @@ function drawSingleCue(ctx, cue, t, style = {}) {
   ctx.restore();
 }
 
-function drawCaption(ctx, cues = [], t, style = {}) {
+function drawCaption(ctx, cues = [], t, style = {}, outBounds = null) {
   if (!cues || cues.length === 0) return;
   const activeCues = cues.filter((c) => t >= c.start && t < c.end);
   activeCues.forEach((cue) => {
-    drawSingleCue(ctx, cue, t, style);
+    drawSingleCue(ctx, cue, t, style, outBounds);
   });
 }
 
-function drawSticker(ctx, img, t, style = {}) {
+function drawSticker(ctx, img, t, style = {}, outBounds = null) {
   if (!img || !img.complete || !img.naturalWidth) return;
   const startTime = style.startTime ?? 0.5;
   if (t < startTime) return;
@@ -980,6 +1011,21 @@ function drawSticker(ctx, img, t, style = {}) {
     x = Math.round((CANVAS_W - w) / 2); y = CANVAS_H - h - 420;
   }
 
+  if (outBounds) {
+    outBounds.push({
+      type: 'sticker',
+      id: 'sticker_badge',
+      x,
+      y,
+      w,
+      h,
+      normX: (x + w / 2) / CANVAS_W,
+      normY: (y + h / 2) / CANVAS_H,
+      scale,
+      label: 'สติกเกอร์ 3D',
+    });
+  }
+
   const elapsed = t - startTime;
   const alpha = Math.min(1, Math.max(0, elapsed / 0.3));
   ctx.save();
@@ -996,7 +1042,7 @@ const TEXT_OVERLAY_Y = {
   bottom: 0.72,
 };
 
-function drawTextOverlays(ctx, textOverlays = [], t, fontName = 'Kanit') {
+function drawTextOverlays(ctx, textOverlays = [], t, fontName = 'Kanit', outBounds = null) {
   if (!textOverlays || textOverlays.length === 0) return;
   const activeItems = textOverlays.filter(item => t >= item.start && t < item.end);
   if (!activeItems.length) return;
@@ -1066,27 +1112,45 @@ function drawTextOverlays(ctx, textOverlays = [], t, fontName = 'Kanit') {
     const lineH = renderFs * 1.2;
     const totalH = wrappedLines.length * lineH;
     const pos = item.position || 'middle';
-    const yCenter = CANVAS_H * (TEXT_OVERLAY_Y[pos] ?? 0.50) + animDy;
+    const normX = typeof item.x === 'number' ? Math.max(0.05, Math.min(0.95, item.x)) : 0.50;
+    const normY = typeof item.y === 'number' ? Math.max(0.05, Math.min(0.95, item.y)) : (TEXT_OVERLAY_Y[pos] ?? 0.50);
+    const xCenter = CANVAS_W * normX;
+    const yCenter = CANVAS_H * normY + animDy;
     const startY = yCenter - (totalH / 2) + (lineH / 2);
-    const xCenter = CANVAS_W / 2;
 
     ctx.globalAlpha = animAlpha;
 
+    let maxLineW = 0;
+    wrappedLines.forEach(l => {
+      const w = ctx.measureText(l).width;
+      if (w > maxLineW) maxLineW = w;
+    });
+    const padX = Math.round(renderFs * 0.6);
+    const padY = Math.round(renderFs * 0.35);
+    const pillW = maxLineW + padX * 2;
+    const pillH = totalH + padY * 2;
+    const pillX = xCenter - pillW / 2;
+    const pillY = yCenter - totalH / 2 - padY;
+    const radius = Math.round(pillH / 2);
+
+    if (outBounds) {
+      outBounds.push({
+        type: 'text_overlay',
+        id: item.id,
+        x: pillX,
+        y: pillY,
+        w: pillW,
+        h: pillH,
+        normX,
+        normY,
+        scale,
+        label: rawTxt.slice(0, 15),
+        item,
+      });
+    }
+
     // Background style: pill badge
     if (item.bgStyle === 'pill') {
-      let maxLineW = 0;
-      wrappedLines.forEach(l => {
-        const w = ctx.measureText(l).width;
-        if (w > maxLineW) maxLineW = w;
-      });
-      const padX = Math.round(renderFs * 0.6);
-      const padY = Math.round(renderFs * 0.35);
-      const pillW = maxLineW + padX * 2;
-      const pillH = totalH + padY * 2;
-      const pillX = xCenter - pillW / 2;
-      const pillY = yCenter - totalH / 2 - padY;
-      const radius = Math.round(pillH / 2);
-
       ctx.save();
       ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
       ctx.beginPath();
@@ -1580,8 +1644,42 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
  * not by trusting a <video> element's own playback rate -- see RESYNC's
  * comment for why.
  */
-function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', hookModel = '', hookLabel = '', hookDuration = 3.0, hookMotion = null, hookColors = null, hookStyle = null, audioUrl = null, audioStems = null, grade = null, trackMix = null, compact = false, onPlayhead, onDurations, captionStyle = {}, stickerStyle = {}, isMuted = false }, ref) {
+function SequencePlayer({
+  clips,
+  cues = [],
+  textOverlays = [],
+  hookBrand = '',
+  hookModel = '',
+  hookLabel = '',
+  hookDuration = 3.0,
+  hookMotion = null,
+  hookColors = null,
+  hookStyle = null,
+  audioUrl = null,
+  audioStems = null,
+  grade = null,
+  trackMix = null,
+  compact = false,
+  onPlayhead,
+  onDurations,
+  captionStyle = {},
+  stickerStyle = {},
+  isMuted = false,
+  selection = null,
+  onSelect = null,
+  onUpdateTextOverlay = null,
+  onDeleteTextOverlay = null,
+  onUpdateCaption = null,
+  applyToAllCaptions = true,
+  onUpdateAllCaptions = null,
+  onStyleChange = null,
+  onUpdateSticker = null,
+}, ref) {
   const canvasRef = useRef(null);
+  const containerRef = useRef(null);
+  const boundsRef = useRef([]);
+  const [showSafeZone, setShowSafeZone] = useState(false);
+  const [snapGuide, setSnapGuide] = useState({ x: null, y: null });
   const videoElsRef = useRef({});
   const audioElRef = useRef(null);
   const bgmElRef = useRef(null);
@@ -1617,11 +1715,238 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
   const playheadRef = useRef(0);
   const prevActiveClipIdRef = useRef(null);
 
-  const captionKey = `${captionStyle.hidden}:${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}:${captionStyle.fontName}:${hookBrand}:${hookModel}:${hookLabel}:${hookDuration}:${JSON.stringify(hookMotion || {})}:${JSON.stringify(hookColors || {})}:${JSON.stringify(hookStyle || {})}`;
-  const cuesKey = (cues || []).map(c => `${c._uid || c.id}:${c.start}:${c.end}:${c.text}:${c.translation}:${c.scale || 1}`).join(';;');
-  const textOverlaysKey = (textOverlays || []).map(t => `${t.id}:${t.start}:${t.end}:${t.text}:${t.position}:${t.scale}:${t.color}:${t.bgStyle}:${t.anim}`).join(';;');
+  const captionKey = `${captionStyle.hidden}:${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}:${captionStyle.captionX ?? ''}:${captionStyle.captionY ?? ''}:${captionStyle.fontName}:${hookBrand}:${hookModel}:${hookLabel}:${hookDuration}:${JSON.stringify(hookMotion || {})}:${JSON.stringify(hookColors || {})}:${JSON.stringify(hookStyle || {})}`;
+  const cuesKey = (cues || []).map(c => `${c._uid || c.id}:${c.start}:${c.end}:${c.text}:${c.translation}:${c.scale || 1}:${c.x ?? ''}:${c.y ?? ''}:${c.position ?? ''}`).join(';;');
+  const textOverlaysKey = (textOverlays || []).map(t => `${t.id}:${t.start}:${t.end}:${t.text}:${t.position}:${t.x}:${t.y}:${t.scale}:${t.color}:${t.bgStyle}:${t.anim}`).join(';;');
   const stickerKey = `${stickerStyle.badge}:${stickerStyle.position}:${stickerStyle.scale}:${stickerStyle.startTime}`;
   const clipKey = clips.map(c => `${c.id}:${c.source_path}:${c.trim_start}:${c.trim_end}:${c.transition_in}:${c.transition_duration}:${c.brightness}:${c.contrast}:${c.saturation}:${c.zoom}:${c.pan_x}:${c.pan_y}:${c.mirror}:${c.rotation}`).join('|');
+
+  // Interactive Bounding Box calculations
+  const selectedBox = useMemo(() => {
+    if (!selection) return null;
+    const fromBounds = boundsRef.current.find(b => b.type === selection.type && b.id === selection.id);
+    if (fromBounds) return fromBounds;
+
+    if (selection.type === 'caption') {
+      const cue = (cues || []).find(c => c._uid === selection.id || c.id === selection.id);
+      if (cue) {
+        const normX = typeof cue.x === 'number' ? cue.x : 0.5;
+        const pos = cue.position || captionStyle.captionPosition || 'bottom';
+        const normY = typeof cue.y === 'number' ? cue.y : (CAPTION_Y[pos] ?? CAPTION_Y.bottom);
+        const scale = Number(cue.scale) || 1.0;
+        const estW = Math.min(CANVAS_W * 0.85, Math.max(120, (cue.text?.length || 10) * 20 * scale));
+        const estH = Math.max(48, 52 * scale);
+        return {
+          type: 'caption',
+          id: cue._uid || cue.id,
+          x: CANVAS_W * normX - estW / 2,
+          y: CANVAS_H * normY - estH / 2,
+          w: estW,
+          h: estH,
+          normX,
+          normY,
+          scale,
+          label: (cue.text || 'คำบรรยาย').slice(0, 15),
+          cue,
+        };
+      }
+    }
+
+    if (selection.type === 'text_overlay') {
+      const item = textOverlays.find(t => t.id === selection.id);
+      if (item) {
+        const normX = typeof item.x === 'number' ? item.x : 0.5;
+        const normY = typeof item.y === 'number' ? item.y : (TEXT_OVERLAY_Y[item.position || 'middle'] ?? 0.5);
+        const scale = Math.min(2.5, Math.max(0.4, Number(item.scale) || 1.0));
+        const estimatedW = Math.max(140, Math.min(CANVAS_W * 0.85, (item.text?.length || 8) * 22 * scale));
+        const estimatedH = Math.max(48, 52 * scale);
+        return {
+          type: 'text_overlay',
+          id: item.id,
+          x: CANVAS_W * normX - estimatedW / 2,
+          y: CANVAS_H * normY - estimatedH / 2,
+          w: estimatedW,
+          h: estimatedH,
+          normX,
+          normY,
+          scale,
+          label: (item.text || 'ข้อความ').slice(0, 15),
+          item,
+        };
+      }
+    }
+    return null;
+  }, [selection, textOverlays, cues, playhead]);
+
+  const handleBoxDragStart = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!selectedBox || !containerRef.current) return;
+    const startMouseX = e.clientX;
+    const startMouseY = e.clientY;
+    const rect = containerRef.current.getBoundingClientRect();
+    const initialNormX = selectedBox.normX;
+    const initialNormY = selectedBox.normY;
+
+    const onPointerMove = (moveEvt) => {
+      const deltaPxX = moveEvt.clientX - startMouseX;
+      const deltaPxY = moveEvt.clientY - startMouseY;
+      let newNormX = initialNormX + deltaPxX / rect.width;
+      let newNormY = initialNormY + deltaPxY / rect.height;
+
+      newNormX = Math.max(0.05, Math.min(0.95, newNormX));
+      newNormY = Math.max(0.05, Math.min(0.95, newNormY));
+
+      // Smart Snapping (Center Guide at 50%, top/bottom guidelines)
+      let snapX = null;
+      let snapY = null;
+      if (Math.abs(newNormX - 0.5) < 0.025) {
+        newNormX = 0.5;
+        snapX = 0.5;
+      }
+      if (Math.abs(newNormY - 0.5) < 0.025) {
+        newNormY = 0.5;
+        snapY = 0.5;
+      } else if (Math.abs(newNormY - 0.20) < 0.025) {
+        newNormY = 0.20;
+        snapY = 0.20;
+      } else if (Math.abs(newNormY - 0.72) < 0.025) {
+        newNormY = 0.72;
+        snapY = 0.72;
+      }
+      setSnapGuide({ x: snapX, y: snapY });
+
+      const roundedX = Math.round(newNormX * 1000) / 1000;
+      const roundedY = Math.round(newNormY * 1000) / 1000;
+
+      if (selectedBox.type === 'text_overlay') {
+        onUpdateTextOverlay?.(selectedBox.id, {
+          x: roundedX,
+          y: roundedY,
+        });
+      } else if (selectedBox.type === 'caption') {
+        if (applyToAllCaptions && onUpdateAllCaptions) {
+          onUpdateAllCaptions({ x: roundedX, y: roundedY }, true);
+          onStyleChange?.({ captionX: roundedX, captionY: roundedY });
+        } else {
+          onUpdateCaption?.(selectedBox.id, {
+            x: roundedX,
+            y: roundedY,
+          }, true);
+        }
+      }
+    };
+
+    const onPointerUp = (upEvt) => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
+      setSnapGuide({ x: null, y: null });
+
+      if (selectedBox.type === 'caption' && upEvt) {
+        const deltaPxX = upEvt.clientX - startMouseX;
+        const deltaPxY = upEvt.clientY - startMouseY;
+        let finalX = Math.max(0.05, Math.min(0.95, initialNormX + deltaPxX / rect.width));
+        let finalY = Math.max(0.05, Math.min(0.95, initialNormY + deltaPxY / rect.height));
+        if (Math.abs(finalX - 0.5) < 0.025) finalX = 0.5;
+        if (Math.abs(finalY - 0.5) < 0.025) finalY = 0.5;
+        const roundedX = Math.round(finalX * 1000) / 1000;
+        const roundedY = Math.round(finalY * 1000) / 1000;
+        if (applyToAllCaptions && onUpdateAllCaptions) {
+          onUpdateAllCaptions({ x: roundedX, y: roundedY }, false);
+          onStyleChange?.({ captionX: roundedX, captionY: roundedY });
+        } else {
+          onUpdateCaption?.(selectedBox.id, {
+            x: roundedX,
+            y: roundedY,
+          }, false);
+        }
+      }
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+  };
+
+  const handleResizeStart = (e, corner) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!selectedBox || !containerRef.current) return;
+    const startMouseX = e.clientX;
+    const startMouseY = e.clientY;
+    const initialScale = selectedBox.scale || 1.0;
+    const rect = containerRef.current.getBoundingClientRect();
+    const centerX = rect.left + rect.width * selectedBox.normX;
+    const centerY = rect.top + rect.height * selectedBox.normY;
+    const initialDist = Math.hypot(startMouseX - centerX, startMouseY - centerY);
+
+    const onPointerMove = (moveEvt) => {
+      const currentDist = Math.hypot(moveEvt.clientX - centerX, moveEvt.clientY - centerY);
+      if (initialDist < 10) return;
+      const ratio = currentDist / initialDist;
+      let newScale = initialScale * ratio;
+      newScale = Math.max(0.4, Math.min(2.5, Math.round(newScale * 100) / 100));
+
+      if (selectedBox.type === 'text_overlay') {
+        onUpdateTextOverlay?.(selectedBox.id, { scale: newScale });
+      } else if (selectedBox.type === 'caption') {
+        if (applyToAllCaptions && onUpdateAllCaptions) {
+          onUpdateAllCaptions({ scale: newScale }, true);
+          onStyleChange?.({ captionScale: newScale });
+        } else {
+          onUpdateCaption?.(selectedBox.id, { scale: newScale }, true);
+        }
+      }
+    };
+
+    const onPointerUp = (upEvt) => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
+
+      if (selectedBox.type === 'caption' && upEvt) {
+        const currentDist = Math.hypot(upEvt.clientX - centerX, upEvt.clientY - centerY);
+        if (initialDist >= 10) {
+          const ratio = currentDist / initialDist;
+          let newScale = Math.max(0.4, Math.min(2.5, Math.round(initialScale * ratio * 100) / 100));
+          if (applyToAllCaptions && onUpdateAllCaptions) {
+            onUpdateAllCaptions({ scale: newScale }, false);
+            onStyleChange?.({ captionScale: newScale });
+          } else {
+            onUpdateCaption?.(selectedBox.id, { scale: newScale }, false);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+  };
+
+  const handleContainerClick = (e) => {
+    if (e.target.closest('.interactive-bounding-box')) return;
+    if (!containerRef.current) return;
+
+    const rect = containerRef.current.getBoundingClientRect();
+    const clickX = ((e.clientX - rect.left) / rect.width) * CANVAS_W;
+    const clickY = ((e.clientY - rect.top) / rect.height) * CANVAS_H;
+
+    const hit = boundsRef.current.find(
+      (b) => clickX >= b.x && clickX <= b.x + b.w && clickY >= b.y && clickY <= b.y + b.h
+    );
+
+    if (hit) {
+      onSelect?.({ type: hit.type, id: hit.id });
+    } else {
+      if (selection) {
+        onSelect?.(null);
+      } else {
+        togglePlay();
+      }
+    }
+  };
 
   // The Filter picker used to change nothing on screen -- the grade only
   // showed up after a render. Load the same .cube the renderer will hand to
@@ -2110,13 +2435,15 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
     });
     ctx.globalAlpha = 1;
     ctx.filter = 'none';
+    const bounds = [];
     applyGrade(ctx, canvas);
     drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration, captionStyle.fontName, captionStyle.captionColor || '#FFE600', hookMotion, hookColors, hookStyle);
     if (!captionStyle.hidden) {
-      drawCaption(ctx, cues, t, captionStyle);
+      drawCaption(ctx, cues, t, captionStyle, bounds);
     }
-    drawSticker(ctx, stickerImgRef.current, t, stickerStyle);
-    drawTextOverlays(ctx, textOverlays, t, captionStyle.fontName);
+    drawSticker(ctx, stickerImgRef.current, t, stickerStyle, bounds);
+    drawTextOverlays(ctx, textOverlays, t, captionStyle.fontName, bounds);
+    boundsRef.current = bounds;
   };
 
   useEffect(() => {
@@ -2254,13 +2581,15 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
 
         ctx.globalAlpha = 1;
         ctx.filter = 'none';
+        const bounds = [];
         if (framePainted) applyGrade(ctx, canvas);
         drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration, captionStyle.fontName, captionStyle.captionColor || '#FFE600', hookMotion, hookColors, hookStyle);
         if (!captionStyle.hidden) {
-          drawCaption(ctx, cues, t, captionStyle);
+          drawCaption(ctx, cues, t, captionStyle, bounds);
         }
-        drawSticker(ctx, stickerImgRef.current, t, stickerStyle);
-        drawTextOverlays(ctx, textOverlays, t, captionStyle.fontName);
+        drawSticker(ctx, stickerImgRef.current, t, stickerStyle, bounds);
+        drawTextOverlays(ctx, textOverlays, t, captionStyle.fontName, bounds);
+        boundsRef.current = bounds;
       }
 
       setPlayhead(t);
@@ -2406,7 +2735,9 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
           claim the full height and push the transport row off the pane. */}
       <div className="flex min-h-0 w-full flex-1 items-center justify-center">
         <div
-          className="relative overflow-hidden rounded-2xl border border-[#363430] bg-black shadow-2xl"
+          ref={containerRef}
+          onClick={handleContainerClick}
+          className="relative overflow-hidden rounded-2xl border border-[#363430] bg-black shadow-2xl select-none"
           style={{ height: '100%', width: 'auto', aspectRatio: '9/16', maxWidth: '100%' }}
         >
           <canvas
@@ -2427,20 +2758,132 @@ function SequencePlayer({ clips, cues = [], textOverlays = [], hookBrand = '', h
           )}
           {metadataReady && clips.length > 0 && (
             <>
-              <button
-                onClick={togglePlay}
-                className="group absolute inset-0 flex cursor-pointer items-center justify-center bg-black/0 transition-colors hover:bg-black/20"
-              >
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/60 text-white opacity-0 shadow-lg transition-all group-hover:bg-[#D97757] group-hover:opacity-100">
-                  {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
+              {/* Smart Snap Guides (Center Guidelines) */}
+              {snapGuide.x !== null && (
+                <div
+                  className="pointer-events-none absolute top-0 bottom-0 w-[1.5px] bg-[#25F4EE] shadow-[0_0_8px_#25F4EE] z-20"
+                  style={{ left: `${snapGuide.x * 100}%` }}
+                />
+              )}
+              {snapGuide.y !== null && (
+                <div
+                  className="pointer-events-none absolute left-0 right-0 h-[1.5px] bg-[#25F4EE] shadow-[0_0_8px_#25F4EE] z-20"
+                  style={{ top: `${snapGuide.y * 100}%` }}
+                />
+              )}
+
+              {/* TikTok Safe Zone Overlay (Safe 9:16 Area) */}
+              {showSafeZone && (
+                <div className="pointer-events-none absolute inset-0 z-20">
+                  <div className="absolute top-[12.5%] left-0 right-0 border-t border-dashed border-white/30 text-[9px] text-white/50 pl-2">
+                    Top Safe Margin
+                  </div>
+                  <div className="absolute top-[56.25%] left-0 right-0 border-t border-dashed border-[#FE2C55]/60 text-[9px] text-[#FE2C55]/80 pl-2">
+                    TikTok Safe Zone (Captions / Action Buttons)
+                  </div>
+                  <div className="absolute top-0 bottom-0 right-[13%] border-r border-dashed border-[#FE2C55]/60 text-[9px] text-[#FE2C55]/80 pt-2 text-right pr-1">
+                    Side Bar
+                  </div>
                 </div>
+              )}
+
+              {/* Interactive Bounding Box for Selected Element */}
+              {selectedBox && (
+                <div
+                  className="interactive-bounding-box absolute z-30 pointer-events-auto border-2 border-[#25F4EE] shadow-[0_0_12px_rgba(37,244,238,0.5)] cursor-move select-none"
+                  style={{
+                    left: `${(selectedBox.x / CANVAS_W) * 100}%`,
+                    top: `${(selectedBox.y / CANVAS_H) * 100}%`,
+                    width: `${(selectedBox.w / CANVAS_W) * 100}%`,
+                    height: `${(selectedBox.h / CANVAS_H) * 100}%`,
+                    touchAction: 'none',
+                    userSelect: 'none',
+                  }}
+                  onPointerDown={handleBoxDragStart}
+                >
+                  {/* Floating Info Tag on Top */}
+                  <div className="absolute -top-7 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/85 backdrop-blur-md border border-[#25F4EE]/40 text-[10px] text-white whitespace-nowrap pointer-events-none shadow-md">
+                    <span className="font-semibold text-[#25F4EE]">
+                      {selectedBox.label || 'ข้อความ'}
+                    </span>
+                    <span className="text-slate-300">
+                      {Math.round(selectedBox.scale * 100)}%
+                    </span>
+                    <span className="text-slate-400 font-mono text-[9px]">
+                      ({Math.round(selectedBox.normX * 100)}%, {Math.round(selectedBox.normY * 100)}%)
+                    </span>
+                  </div>
+
+                  {/* 4 Corner Resize Handles */}
+                  <div
+                    className="absolute -top-2 -left-2 w-4 h-4 rounded-full bg-white border-2 border-[#25F4EE] shadow-md cursor-nwse-resize hover:scale-125 transition-transform"
+                    style={{ touchAction: 'none' }}
+                    onPointerDown={(e) => handleResizeStart(e, 'nw')}
+                    title="ลากเพื่อย่อ/ขยาย"
+                  />
+                  <div
+                    className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-white border-2 border-[#25F4EE] shadow-md cursor-nesw-resize hover:scale-125 transition-transform"
+                    style={{ touchAction: 'none' }}
+                    onPointerDown={(e) => handleResizeStart(e, 'ne')}
+                    title="ลากเพื่อย่อ/ขยาย"
+                  />
+                  <div
+                    className="absolute -bottom-2 -right-2 w-4 h-4 rounded-full bg-white border-2 border-[#25F4EE] shadow-md cursor-nwse-resize hover:scale-125 transition-transform"
+                    style={{ touchAction: 'none' }}
+                    onPointerDown={(e) => handleResizeStart(e, 'se')}
+                    title="ลากเพื่อย่อ/ขยาย"
+                  />
+                  <div
+                    className="absolute -bottom-2 -left-2 w-4 h-4 rounded-full bg-white border-2 border-[#25F4EE] shadow-md cursor-nesw-resize hover:scale-125 transition-transform"
+                    style={{ touchAction: 'none' }}
+                    onPointerDown={(e) => handleResizeStart(e, 'sw')}
+                    title="ลากเพื่อย่อ/ขยาย"
+                  />
+
+                  {/* 4 Edge Capsule Handles */}
+                  <div className="absolute top-1/2 -left-1 -translate-y-1/2 w-2 h-4 rounded-full bg-white border border-black/40 shadow-sm pointer-events-none" />
+                  <div className="absolute top-1/2 -right-1 -translate-y-1/2 w-2 h-4 rounded-full bg-white border border-black/40 shadow-sm pointer-events-none" />
+                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-4 h-2 rounded-full bg-white border border-black/40 shadow-sm pointer-events-none" />
+                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-2 rounded-full bg-white border border-black/40 shadow-sm pointer-events-none" />
+
+                  {/* Center Anchor Point */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#25F4EE] pointer-events-none" />
+                </div>
+              )}
+
+              {/* Hover Play Button (Only active when no bounding box is selected) */}
+              {!selectedBox && (
+                <button
+                  type="button"
+                  onClick={togglePlay}
+                  className="group absolute inset-0 flex cursor-pointer items-center justify-center bg-black/0 transition-colors hover:bg-black/20"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/60 text-white opacity-0 shadow-lg transition-all group-hover:bg-[#25F4EE] group-hover:text-black group-hover:opacity-100">
+                    {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
+                  </div>
+                </button>
+              )}
+
+              {/* Safe Zone Toggle Button */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowSafeZone((v) => !v);
+                }}
+                title={showSafeZone ? 'ซ่อน Safe Zone' : 'แสดง TikTok Safe Zone (9:16)'}
+                className={`absolute top-2 right-2 z-30 flex h-7 px-2 items-center gap-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer backdrop-blur-md shadow-md ${
+                  showSafeZone
+                    ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
+                    : 'bg-black/60 border-white/[0.1] text-slate-400 hover:text-white'
+                }`}
+              >
+                <Shield className="w-3.5 h-3.5" />
+                <span>Safe Zone</span>
               </button>
-              {/* Timecode lives here, over the stage, instead of in a
-                  transport row below it -- the row's own play button was
-                  redundant with the click-to-play overlay above, and
-                  removing the row entirely (compact mode) gives the stage
-                  the full column height instead of losing a strip to it. */}
-              <div className="pointer-events-none absolute bottom-2 right-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-mono font-bold text-white/90 backdrop-blur-sm">
+
+              {/* Timecode lives here, over the stage */}
+              <div className="pointer-events-none absolute bottom-2 right-2 z-20 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-mono font-bold text-white/90 backdrop-blur-sm">
                 {playhead.toFixed(1)}s / {totalDuration.toFixed(1)}s
               </div>
             </>
