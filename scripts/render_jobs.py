@@ -151,15 +151,29 @@ def complete_job(job_id: str, result: Dict[str, Any], message: str = "🎉 ก�
     }
 
 
-def fail_job(job_id: str, error: Exception) -> None:
+def fail_job(job_id: str, error: Any) -> None:
     job = ACTIVE_JOBS.get(job_id)
     if not job:
         return
     job["status"] = "failed"
-    job["error"] = str(error)
-    job["message"] = f"❌ เกิดข้อผิดพลาด: {error}"
+
+    from scripts.error_handler import classify_exception, AppError, log_structured_error
+
+    if isinstance(error, AppError):
+        app_err = error
+    else:
+        proj = (job.get("result") or {}).get("project_name")
+        app_err = classify_exception(error if isinstance(error, Exception) else Exception(str(error)), project_name=proj, job_id=job_id)
+
+    log_structured_error(app_err)
+
+    job["error"] = app_err.message_th
+    job["error_category"] = app_err.category.value
+    job["error_code"] = app_err.code
+    job["suggestion_th"] = app_err.suggestion_th
+    job["message"] = f"❌ {app_err.message_th}"
     job["logs"].append({
         "time": datetime.datetime.now().strftime("%H:%M:%S"),
-        "msg": f"Error: {error}",
+        "msg": f"[{app_err.code}] {app_err.message_th}",
         "progress": 0,
     })

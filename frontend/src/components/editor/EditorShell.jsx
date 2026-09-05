@@ -16,12 +16,17 @@ import { useEditorHistory } from '../../hooks/useEditorHistory';
 import { useProjectAutosave } from '../../hooks/useProjectAutosave';
 import { useProjectLoader } from '../../hooks/useProjectLoader';
 import { useRenderJob } from '../../hooks/useRenderJob';
+import { usePanelLayout } from '../../hooks/usePanelLayout';
+import { useEditorSelection } from '../../hooks/useEditorSelection';
+import { useEditorCommands } from '../../hooks/useEditorCommands';
+import { useEditorShortcuts } from '../../hooks/useEditorShortcuts';
 import { toMediaUrl } from '../../lib/mediaUrl';
 import { editorStateToSavePayload, manifestToEditorState } from '../../lib/editorProjectState';
 import SequencePlayer from '../SequencePlayer';
 import AssetPanel from './AssetPanel';
 import Inspector from './Inspector';
 import Timeline, { tracksFitHeight } from './Timeline';
+import EditorHeader from './EditorHeader';
 import { DEFAULT_HOOK_TEMPLATE, HOOK_TEMPLATES } from '../../lib/hookStyles';
 import {
   guessBrandModel,
@@ -131,7 +136,6 @@ export default function EditorShell({
 
   const [durations, setDurations] = useState({});
   const [audioDuration, setAudioDuration] = useState(0);
-  const [selection, setSelection] = useState(null);
   const [playhead, setPlayhead] = useState(0);
   const [zoomIndex, setZoomIndex] = useState(2);
   const [snapEnabled, setSnapEnabled] = useState(true);
@@ -140,127 +144,12 @@ export default function EditorShell({
   // Mobile Mode Switcher: 'timeline' | 'assets' | 'inspector'
   const [mobileTab, setMobileTab] = useState('timeline');
 
-  // Desktop timeline height resizer
-  const [timelineH, setTimelineH] = useState(() => {
-    try {
-      const saved = Number(localStorage.getItem('capcut_timeline_h'));
-      return saved >= TIMELINE_MIN_H && saved <= TIMELINE_MAX_H ? saved : TIMELINE_DEFAULT_H;
-    } catch (err) {
-      return TIMELINE_DEFAULT_H;
-    }
-  });
-  const resizeRef = useRef(null);
-
-  // Desktop left asset-panel width resizer & collapse
-  const [assetW, setAssetW] = useState(() => {
-    try {
-      const saved = Number(localStorage.getItem('editor.assetW'));
-      return saved >= ASSET_MIN_W && saved <= ASSET_MAX_W ? saved : ASSET_DEFAULT_W;
-    } catch (err) {
-      return ASSET_DEFAULT_W;
-    }
-  });
-  const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(() => {
-    try {
-      return localStorage.getItem('editor.leftSidebarCollapsed') === 'true';
-    } catch (err) {
-      return false;
-    }
-  });
-  const assetResizeRef = useRef(null);
-  const applyAssetW = (nextW) => {
-    const clamped = Math.max(ASSET_MIN_W, Math.min(ASSET_MAX_W, nextW));
-    setAssetW(clamped);
-    try { localStorage.setItem('editor.assetW', String(clamped)); } catch (err) {}
-  };
-  const toggleLeftSidebar = () => {
-    setLeftSidebarCollapsed((prev) => {
-      const next = !prev;
-      try { localStorage.setItem('editor.leftSidebarCollapsed', String(next)); } catch (err) {}
-      return next;
-    });
-  };
-
-  // Desktop inspector-panel width resizer & collapse
-  const [inspectorW, setInspectorW] = useState(() => {
-    try {
-      const saved = Number(localStorage.getItem('editor.inspectorW'));
-      return saved >= INSPECTOR_MIN_W && saved <= INSPECTOR_MAX_W ? saved : INSPECTOR_DEFAULT_W;
-    } catch (err) {
-      return INSPECTOR_DEFAULT_W;
-    }
-  });
-  const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(() => {
-    try {
-      return localStorage.getItem('editor.rightSidebarCollapsed') === 'true';
-    } catch (err) {
-      return false;
-    }
-  });
-  const inspectorResizeRef = useRef(null);
-  const applyInspectorW = (nextW) => {
-    const clamped = Math.max(INSPECTOR_MIN_W, Math.min(INSPECTOR_MAX_W, nextW));
-    setInspectorW(clamped);
-    try { localStorage.setItem('editor.inspectorW', String(clamped)); } catch (err) { /* private mode */ }
-  };
-  const toggleRightSidebar = () => {
-    setRightSidebarCollapsed((prev) => {
-      const next = !prev;
-      try { localStorage.setItem('editor.rightSidebarCollapsed', String(next)); } catch (err) {}
-      return next;
-    });
-  };
-
-  // Mobile split. The preview used to be locked to 28vh on every tab except
-  // the timeline, which is why editing captions left the clip as a thumbnail.
-  const mobileWrapRef = useRef(null);
-  const mobileResizeRef = useRef(null);
-  const [mobilePreviewH, setMobilePreviewH] = useState(() => {
-    // Range-checked and try/caught like the other three panel sizes below.
-    // Without either, a stale or hand-edited value went straight into
-    // style.height (a negative one collapsed the preview outright), and a
-    // localStorage that throws (private mode, blocked site data) took the
-    // whole initializer down with it.
-    const fallback = Math.round(window.innerHeight * MOBILE_PREVIEW_DEFAULT);
-    try {
-      const saved = parseInt(localStorage.getItem('editor.mobilePreviewH') || '', 10);
-      if (!Number.isFinite(saved)) return fallback;
-      return Math.max(MOBILE_PREVIEW_MIN_H, Math.min(saved, Math.round(window.innerHeight * 0.9)));
-    } catch (err) {
-      return fallback;
-    }
-  });
-
-  const applyMobilePreviewH = (px) => {
-    const box = mobileWrapRef.current?.getBoundingClientRect();
-    // Leave room for the tab row and the timeline's own rows. This was a flat
-    // 220px, sized for a timeline that no longer has a fixed height.
-    const reserve = MOBILE_TAB_ROW_H + (Number.isFinite(mobileTimelineH) ? mobileTimelineH : 0);
-    const max = box ? Math.max(MOBILE_PREVIEW_MIN_H, box.height - reserve) : 640;
-    const clamped = Math.min(max, Math.max(MOBILE_PREVIEW_MIN_H, Math.round(px)));
-    setMobilePreviewH(clamped);
-    try { localStorage.setItem('editor.mobilePreviewH', String(clamped)); } catch (err) { /* private mode */ }
-  };
-
-  const resetPanelSizes = () => {
-    setTimelineH(TIMELINE_DEFAULT_H);
-    setAssetW(ASSET_DEFAULT_W);
-    setInspectorW(INSPECTOR_DEFAULT_W);
-    setMobilePreviewH(Math.round(window.innerHeight * MOBILE_PREVIEW_DEFAULT));
-    setLeftSidebarCollapsed(false);
-    setRightSidebarCollapsed(false);
-    for (const key of ['capcut_timeline_h', 'editor.assetW', 'editor.inspectorW',
-                       'editor.mobilePreviewH', 'editor.leftSidebarCollapsed',
-                       'editor.rightSidebarCollapsed']) {
-      try { localStorage.removeItem(key); } catch (err) { /* private mode */ }
-    }
-  };
-
-  const applyTimelineH = (nextH) => {
-    const clamped = Math.max(TIMELINE_MIN_H, Math.min(TIMELINE_MAX_H, nextH));
-    setTimelineH(clamped);
-    try { localStorage.setItem('capcut_timeline_h', String(clamped)); } catch (err) { /* ignore */ }
-  };
+  // Phones start with the audio group folded: four stem lanes are a desk-sized
+  // amount of detail, and the gutter has no room for their names next to the
+  // mute/solo chips. One tap opens them.
+  const [audioCollapsed, setAudioCollapsed] = useState(
+    () => (typeof window !== 'undefined' ? window.innerWidth < LAYOUT_BREAKPOINT : false)
+  );
 
   const [zen, setZen] = useState(false);
   const [confirmGap, setConfirmGap] = useState(0);
@@ -319,12 +208,6 @@ export default function EditorShell({
   const [deleteScope, setDeleteScope] = useState('project');
   const [deleteOrigin, setDeleteOrigin] = useState(null);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
-  // Phones start with the audio group folded: four stem lanes are a desk-sized
-  // amount of detail, and the gutter has no room for their names next to the
-  // mute/solo chips. One tap opens them.
-  const [audioCollapsed, setAudioCollapsed] = useState(
-    () => (typeof window !== 'undefined' ? window.innerWidth < LAYOUT_BREAKPOINT : false)
-  );
   // Per-stem mute/solo for the preview. Playback-only -- it never reaches a
   // render payload, so soloing the BGM to check a level cannot change output.
   const [trackMix, setTrackMix] = useState({ mute: {}, solo: {} });
@@ -687,6 +570,77 @@ export default function EditorShell({
 
   const segments = useMemo(() => buildSegments(clipList, durations), [clipList, durations]);
   const totalDuration = useMemo(() => totalDurationOf(segments), [segments]);
+
+  const {
+    selection,
+    setSelection,
+    handleSelect,
+    selectedSeg,
+    selectedCaption,
+    selectedOverlay,
+  } = useEditorSelection({
+    segments,
+    cuesList,
+    overlays,
+    hookOverlay,
+    playhead,
+    seekPlayer,
+  });
+
+  const {
+    addClip,
+    patchClip,
+    reorderClip,
+    splitAtPlayhead,
+    duplicateSelected,
+    deleteSelected,
+    addTextAtPlayhead,
+    patchCaption,
+    patchAllCaptions,
+    handleUpdateCuesList,
+    handleSplitCue,
+    handleSplitCueAtPlayhead,
+    handleMergeCue,
+    handleMergeWithPrevious,
+    handleReorderCues,
+    handleBatchFindAndReplace,
+    handleBatchFormatClean,
+    handleDeleteCue,
+    handleInsertCueAfter,
+    handleImportCues,
+  } = useEditorCommands({
+    set,
+    setSilent,
+    newId,
+    durations,
+    playhead,
+    segments,
+    selectedSeg,
+    selection,
+    setSelection,
+    cuesDirtyRef: cuesDirty,
+    handleDeleteOverlay,
+    onImportSuccess: () => setMobileTab('timeline'),
+  });
+
+  useEditorShortcuts({
+    undo,
+    redo,
+    splitAtPlayhead,
+    deleteSelected,
+    togglePlayer,
+    seekPlayer,
+    playhead,
+    totalDuration,
+    audioDuration,
+    setZoomIndex,
+    zoomLevelsLength: ZOOM_LEVELS.length,
+    selectedSeg,
+    patchClip,
+    zen,
+    setZen,
+  });
+
   const pxPerSec = ZOOM_LEVELS[zoomIndex];
 
   // Snapping candidates for subtitles when magnetic snap is active
@@ -768,52 +722,6 @@ export default function EditorShell({
     });
   }, [selection, overlays, handleReplaceOverlay]);
 
-  // Clip / Caption mutation helpers
-  const patchClip = useCallback((id, patch, silent = false) => {
-    // silent = mid-gesture: no undo step of its own, the drag pushes one
-    (silent ? setSilent : set)((prev) => ({
-      ...prev,
-      clipList: prev.clipList.map((c) => (c.id === id ? { ...c, ...patch } : c)),
-    }));
-  }, [set, setSilent]);
-
-  const reorderClip = useCallback((id, direction, silent = false) => {
-    (silent ? setSilent : set)((prev) => {
-      const idx = prev.clipList.findIndex((c) => c.id === id);
-      const target = idx + direction;
-      if (idx === -1 || target < 0 || target >= prev.clipList.length) return prev;
-      const next = [...prev.clipList];
-      [next[idx], next[target]] = [next[target], next[idx]];
-      return { ...prev, clipList: next };
-    });
-  }, [set, setSilent]);
-
-  const patchCaption = useCallback((uid, patch, silent = false) => {
-    cuesDirty.current = true;
-    (silent ? setSilent : set)((prev) => {
-      const nextList = prev.cuesList.map((c) => ((c._uid === uid || c.id === uid) ? { ...c, ...patch } : c));
-      const sorted = (!silent && ('start' in patch || 'end' in patch))
-        ? [...nextList].sort((a, b) => a.start - b.start)
-        : nextList;
-      return { ...prev, cuesList: sorted };
-    });
-  }, [set, setSilent]);
-
-  const patchAllCaptions = useCallback((patch, silent = false) => {
-    cuesDirty.current = true;
-    (silent ? setSilent : set)((prev) => {
-      const nextList = prev.cuesList.map((c) => ({ ...c, ...patch }));
-      return { ...prev, cuesList: nextList };
-    });
-  }, [set, setSilent]);
-
-  const handleUpdateCuesList = useCallback((newCues, silent = false) => {
-    cuesDirty.current = true;
-    (silent ? setSilent : set)((prev) => ({
-      ...prev,
-      cuesList: newCues,
-    }));
-  }, [set, setSilent]);
 
   const [toastMessage, setToastMessage] = useState(null);
   const toastTimeoutRef = useRef(null);
@@ -870,38 +778,6 @@ export default function EditorShell({
     showToast('ดูดกล่องคำบรรยายให้เรียงชิดติดกันเรียบร้อยแล้ว');
   }, [set, showToast]);
 
-  const handleSelect = useCallback((sel, autoSeek = true) => {
-    setSelection(sel);
-    if (!sel || !autoSeek) return;
-    if (sel.type === 'caption') {
-      const cue = cuesList.find(c => c._uid === sel.id || c.id === sel.id);
-      if (cue && typeof cue.start === 'number') {
-        const cueEnd = typeof cue.end === 'number' ? cue.end : cue.start + 2.0;
-        if (playhead < cue.start - 0.05 || playhead > cueEnd + 0.05) {
-          seekPlayer(cue.start);
-        }
-      }
-    } else if (sel.type === 'clip') {
-      const seg = segments.find(s => s.clip?.id === sel.id);
-      if (seg && typeof seg.segStart === 'number') {
-        const segEnd = typeof seg.segEnd === 'number' ? seg.segEnd : seg.segStart + 2.0;
-        if (playhead < seg.segStart - 0.05 || playhead > segEnd + 0.05) {
-          seekPlayer(seg.segStart);
-        }
-      }
-    } else if (sel.type === 'text_overlay' || sel.type === 'hook') {
-      // The banner has a start of its own now, so both kinds seek the same way.
-      const item = overlays.find((o) => o.id === sel.id)
-        || (sel.type === 'hook' ? hookOverlay : null);
-      if (item && typeof item.start === 'number') {
-        const itemEnd = typeof item.end === 'number' ? item.end : item.start + 2.0;
-        if (playhead < item.start - 0.05 || playhead > itemEnd + 0.05) {
-          seekPlayer(item.start);
-        }
-      }
-    }
-  }, [cuesList, segments, overlays, hookOverlay, playhead, seekPlayer]);
-
   useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
@@ -917,398 +793,6 @@ export default function EditorShell({
     set((prev) => ({ ...prev, style: { ...prev.style, ...patch } }));
   }, [set]);
 
-  /** insertAt = null appends (the click path); a number drops it in place. */
-  const addClip = useCallback((video, insertAt = null) => {
-    const rawDur = video.duration || durations[video.path] || 10;
-    const dur = Math.min(rawDur, 12);
-    set((prev) => {
-      const clip = {
-        id: newId(),
-        source_path: video.path,
-        trim_start: 0,
-        trim_end: dur,
-        duration: dur,
-        speed: 1,
-        transition_in: 'cut',
-        mirror: false,
-      };
-      const next = [...prev.clipList];
-      const at = insertAt === null ? next.length : Math.max(0, Math.min(next.length, insertAt));
-      next.splice(at, 0, clip);
-      return { ...prev, clipList: next };
-    });
-  }, [durations, set]);
-
-  const addTextAtPlayhead = useCallback(() => {
-    const curTime = Number(playhead.toFixed(2));
-    const dur = 2.5;
-    const newCue = {
-      start: curTime,
-      end: Number((curTime + dur).toFixed(2)),
-      text: 'ข้อความใหม่',
-      translation: 'New text',
-      scale: 1.0,
-      _uid: `cue-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
-    };
-    set((prev) => {
-      const next = [...prev.cuesList, newCue].sort((a, b) => a.start - b.start);
-      return { ...prev, cuesList: next };
-    });
-    setSelection({ type: 'caption', id: newCue._uid });
-    cuesDirty.current = true;
-  }, [playhead, set]);
-
-  const selectedSeg = useMemo(
-    () => (selection?.type === 'clip' ? segments.find((s) => s.clip.id === selection.id) || null : null),
-    [selection, segments]
-  );
-  const selectedCaption = useMemo(
-    () => (selection?.type === 'caption' ? cuesList.find((c) => c._uid === selection.id || c.id === selection.id) || null : null),
-    [selection, cuesList]
-  );
-
-  const splitAtPlayhead = () => {
-    const seg = selectedSeg || segments.find((s) => playhead >= s.segStart && playhead < s.segEnd);
-    if (!seg) return;
-    // splitClipAt takes the segment and a global sequence time, and returns
-    // null when either half would be shorter than MIN_CLIP_DURATION.
-    const pieces = splitClipAt(seg, playhead, newId);
-    if (!pieces) return;
-    const [left, right] = pieces;
-    set((prev) => {
-      const idx = prev.clipList.findIndex((c) => c.id === seg.clip.id);
-      if (idx === -1) return prev;
-      const next = [...prev.clipList];
-      next.splice(idx, 1, left, right);
-      return { ...prev, clipList: next };
-    });
-    setSelection({ type: 'clip', id: right.id });
-  };
-
-  const duplicateSelected = () => {
-    if (!selectedSeg) return;
-    const orig = selectedSeg.clip;
-    // transition_in describes the boundary with whatever clip used to precede
-    // this one, not a property of the clip itself. Copying it verbatim onto a
-    // duplicate placed right after the original would crossfade orig into its
-    // own copy -- splitClipAt already resets this for the same reason.
-    const dup = { ...orig, id: newId(), transition_in: 'cut' };
-    set((prev) => {
-      const idx = prev.clipList.findIndex((c) => c.id === orig.id);
-      if (idx === -1) return prev;
-      const next = [...prev.clipList];
-      next.splice(idx + 1, 0, dup);
-      return { ...prev, clipList: next };
-    });
-    setSelection({ type: 'clip', id: dup.id });
-  };
-
-  const deleteSelected = () => {
-    if (selection?.type === 'clip') {
-      set((prev) => ({ ...prev, clipList: prev.clipList.filter((c) => c.id !== selection.id) }));
-      setSelection(null);
-    } else if (selection?.type === 'caption') {
-      cuesDirty.current = true;
-      set((prev) => ({ ...prev, cuesList: prev.cuesList.filter((c) => c._uid !== selection.id) }));
-      setSelection(null);
-    } else if (selection?.type === 'text_overlay' || selection?.type === 'hook') {
-      handleDeleteOverlay(selection.id);
-    }
-  };
-
-  // Editor keyboard verbs. The app-level useKeyboardShortcuts hook covers tab
-  // switching and save; these are the timeline ones, and they stay off while
-  // the caret is in a field so typing "s" types an s.
-  const keyHandlerRef = useRef(null);
-  useEffect(() => {
-    const onKey = (e) => {
-      const el = e.target;
-      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return;
-
-      const mod = e.ctrlKey || e.metaKey;
-      if (mod && e.key.toLowerCase() === 'z') {
-        e.preventDefault();
-        if (e.shiftKey) redo(); else undo();
-        return;
-      }
-      if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
-      if (mod && e.key.toLowerCase() === 'b') { e.preventDefault(); splitAtPlayhead(); return; }
-      if (e.key === 'Escape' && zen) { e.preventDefault(); setZen(false); return; }
-
-      const jump = (delta) => {
-        const next = Math.max(0, Math.min(Math.max(totalDuration, audioDuration || 0), playhead + delta));
-        seekPlayer(next);
-      };
-
-      switch (e.key) {
-        case ' ':
-          e.preventDefault(); togglePlayer(); break;
-        case 's': case 'S':
-          e.preventDefault(); splitAtPlayhead(); break;
-        case 'j': case 'J':
-          e.preventDefault(); jump(-1.0); break;
-        case 'k': case 'K':
-          e.preventDefault(); togglePlayer(); break;
-        case 'l': case 'L':
-          e.preventDefault(); jump(1.0); break;
-        case 'Delete': case 'Backspace':
-          e.preventDefault(); deleteSelected(); break;
-        case 'ArrowLeft':
-          e.preventDefault(); jump(-(e.shiftKey ? 1 : 1 / 30)); break;
-        case 'ArrowRight':
-          e.preventDefault(); jump(e.shiftKey ? 1 : 1 / 30); break;
-        case '+': case '=':
-          e.preventDefault(); setZoomIndex((i) => Math.min(ZOOM_LEVELS.length - 1, i + 1)); break;
-        case '-': case '_':
-          e.preventDefault(); setZoomIndex((i) => Math.max(0, i - 1)); break;
-        case 'f': case 'F':
-          if (selectedSeg && selectedSeg.index > 0) {
-            e.preventDefault();
-            patchClip(selectedSeg.clip.id, {
-              transition_in: selectedSeg.clip.transition_in && selectedSeg.clip.transition_in !== 'cut' ? 'cut' : 'fade',
-            });
-          }
-          break;
-        default:
-          break;
-      }
-    };
-    // Stashed rather than subscribed: this effect deliberately has no
-    // dependency array so the handler is never stale, but binding the
-    // listener here too meant tearing down and re-adding a window listener
-    // on every single render (once per playhead frame while playing). The
-    // one-time subscription below reads through the ref instead.
-    keyHandlerRef.current = onKey;
-  });
-
-  useEffect(() => {
-    const listener = (e) => keyHandlerRef.current?.(e);
-    window.addEventListener('keydown', listener);
-    return () => window.removeEventListener('keydown', listener);
-  }, []);
-
-  const handleSplitCue = useCallback((cueUid, cursorIndex) => {
-    set((prev) => {
-      const idx = prev.cuesList.findIndex((c) => c._uid === cueUid);
-      if (idx === -1) return prev;
-      const target = prev.cuesList[idx];
-      const fullText = target.text || '';
-      const splitIdx = Math.max(1, Math.min(fullText.length - 1, cursorIndex || Math.floor(fullText.length / 2)));
-
-      const text1 = fullText.slice(0, splitIdx).trim();
-      const text2 = fullText.slice(splitIdx).trim();
-
-      const ratio = text1.length / (text1.length + text2.length || 1);
-      const dur = target.end - target.start;
-      const splitTime = Number((target.start + dur * ratio).toFixed(2));
-
-      // Proportionally split English translation words across the two split cues
-      const fullTrans = (target.translation || '').trim();
-      let trans1 = fullTrans;
-      let trans2 = '';
-      if (fullTrans) {
-        const words = fullTrans.split(/\s+/);
-        if (words.length > 1) {
-          const splitWordIdx = Math.max(1, Math.min(words.length - 1, Math.round(words.length * ratio)));
-          trans1 = words.slice(0, splitWordIdx).join(' ');
-          trans2 = words.slice(splitWordIdx).join(' ');
-        }
-      }
-
-      const cue1 = { ...target, end: splitTime, text: text1, translation: trans1 };
-      const cue2 = { ...target, start: splitTime, text: text2, translation: trans2, _uid: `cue-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}` };
-
-      const next = [...prev.cuesList];
-      next.splice(idx, 1, cue1, cue2);
-      cuesDirty.current = true;
-      return { ...prev, cuesList: next };
-    });
-  }, [set]);
-
-  const handleSplitCueAtPlayhead = useCallback((cueUid, playheadTime) => {
-    set((prev) => {
-      const idx = prev.cuesList.findIndex((c) => c._uid === cueUid);
-      if (idx === -1) return prev;
-      const target = prev.cuesList[idx];
-      if (playheadTime <= target.start + 0.1 || playheadTime >= target.end - 0.1) return prev;
-
-      const fullText = target.text || '';
-      const timeRatio = (playheadTime - target.start) / (target.end - target.start);
-      const splitCharIdx = Math.round(fullText.length * timeRatio);
-
-      const text1 = fullText.slice(0, splitCharIdx).trim() || fullText.slice(0, Math.floor(fullText.length / 2)).trim();
-      const text2 = fullText.slice(splitCharIdx).trim() || fullText.slice(Math.floor(fullText.length / 2)).trim();
-
-      const fullTrans = (target.translation || '').trim();
-      let trans1 = fullTrans;
-      let trans2 = '';
-      if (fullTrans) {
-        const words = fullTrans.split(/\s+/);
-        if (words.length > 1) {
-          const splitWordIdx = Math.max(1, Math.min(words.length - 1, Math.round(words.length * timeRatio)));
-          trans1 = words.slice(0, splitWordIdx).join(' ');
-          trans2 = words.slice(splitWordIdx).join(' ');
-        }
-      }
-
-      const cue1 = { ...target, end: Number(playheadTime.toFixed(2)), text: text1, translation: trans1 };
-      const cue2 = { ...target, start: Number(playheadTime.toFixed(2)), text: text2, translation: trans2, _uid: `cue-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}` };
-
-      const next = [...prev.cuesList];
-      next.splice(idx, 1, cue1, cue2);
-      cuesDirty.current = true;
-      return { ...prev, cuesList: next };
-    });
-  }, [set]);
-
-  const handleMergeCue = useCallback((cueUid) => {
-    set((prev) => {
-      const idx = prev.cuesList.findIndex((c) => c._uid === cueUid);
-      if (idx === -1 || idx >= prev.cuesList.length - 1) return prev;
-      const cur = prev.cuesList[idx];
-      const next = prev.cuesList[idx + 1];
-
-      const merged = {
-        ...cur,
-        end: next.end,
-        text: `${cur.text || ''} ${next.text || ''}`.trim(),
-        translation: `${cur.translation || ''} ${next.translation || ''}`.trim(),
-      };
-
-      const list = [...prev.cuesList];
-      list.splice(idx, 2, merged);
-      cuesDirty.current = true;
-      return { ...prev, cuesList: list };
-    });
-  }, [set]);
-
-  const handleMergeWithPrevious = useCallback((cueUid) => {
-    set((prev) => {
-      const idx = prev.cuesList.findIndex((c) => c._uid === cueUid);
-      if (idx <= 0) return prev;
-      const prevCue = prev.cuesList[idx - 1];
-      const curCue = prev.cuesList[idx];
-
-      const merged = {
-        ...prevCue,
-        end: curCue.end,
-        text: `${prevCue.text || ''} ${curCue.text || ''}`.trim(),
-        translation: `${prevCue.translation || ''} ${curCue.translation || ''}`.trim(),
-      };
-
-      const list = [...prev.cuesList];
-      list.splice(idx - 1, 2, merged);
-      cuesDirty.current = true;
-      return { ...prev, cuesList: list };
-    });
-  }, [set]);
-
-  const handleReorderCues = useCallback((fromIdx, toIdx) => {
-    set((prev) => {
-      if (fromIdx < 0 || fromIdx >= prev.cuesList.length || toIdx < 0 || toIdx >= prev.cuesList.length) return prev;
-      const list = [...prev.cuesList];
-      const [moved] = list.splice(fromIdx, 1);
-      list.splice(toIdx, 0, moved);
-      cuesDirty.current = true;
-      return { ...prev, cuesList: list };
-    });
-  }, [set]);
-
-  const handleBatchFindAndReplace = useCallback((findText, replaceText) => {
-    if (!findText) return 0;
-    let count = 0;
-    set((prev) => {
-      const regex = new RegExp(findText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-      const list = prev.cuesList.map((c) => {
-        const hasMatch = regex.test(c.text || '') || regex.test(c.translation || '');
-        if (hasMatch) {
-          count++;
-          return {
-            ...c,
-            text: (c.text || '').replace(regex, replaceText),
-            translation: c.translation ? c.translation.replace(regex, replaceText) : c.translation,
-          };
-        }
-        return c;
-      });
-      if (count > 0) cuesDirty.current = true;
-      return { ...prev, cuesList: list };
-    });
-    return count;
-  }, [set]);
-
-  const handleBatchFormatClean = useCallback(() => {
-    set((prev) => {
-      const list = prev.cuesList.map((c) => {
-        let txt = (c.text || '')
-          .replace(/\s+/g, ' ')
-          .replace(/^[,\.\-_\s]+|[,\.\-_\s]+$/g, '')
-          .trim();
-        return { ...c, text: txt };
-      });
-      cuesDirty.current = true;
-      return { ...prev, cuesList: list };
-    });
-  }, [set]);
-
-  const handleDeleteCue = useCallback((cueUid) => {
-    cuesDirty.current = true;
-    set((prev) => ({ ...prev, cuesList: prev.cuesList.filter((c) => c._uid !== cueUid) }));
-    setSelection(null);
-  }, [set]);
-
-  const handleInsertCueAfter = useCallback((afterCueUid) => {
-    set((prev) => {
-      const list = [...prev.cuesList];
-      if (!afterCueUid) {
-        const newCue = {
-          start: 0,
-          end: 3.0,
-          text: 'ข้อความคำบรรยายใหม่...',
-          translation: '',
-          sfx: null,
-          _uid: `cue-${Date.now().toString(36)}`,
-        };
-        cuesDirty.current = true;
-        return { ...prev, cuesList: [newCue] };
-      }
-
-      const idx = list.findIndex((c) => c._uid === afterCueUid);
-      if (idx === -1) return prev;
-      const cur = list[idx];
-      const start = cur.end;
-      const end = Number((cur.end + 2.5).toFixed(2));
-      const newCue = {
-        start,
-        end,
-        text: 'ข้อความคำบรรยายใหม่...',
-        translation: '',
-        sfx: null,
-        _uid: `cue-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
-      };
-      list.splice(idx + 1, 0, newCue);
-      cuesDirty.current = true;
-      return { ...prev, cuesList: list };
-    });
-  }, [set]);
-
-  const handleImportCues = useCallback((cues) => {
-    if (!cues || !Array.isArray(cues)) return;
-    cuesDirty.current = true;
-    set((prev) => ({
-      ...prev,
-      cuesList: cues.map((c, i) => ({
-        start: c.start,
-        end: c.end,
-        text: c.text,
-        translation: c.translation || '',
-        sfx: c.sfx || null,
-        _uid: `cue-${i}-${Date.now().toString(36)}`,
-      })),
-    }));
-    // Auto switch to timeline on mobile to see imported cues
-    setMobileTab('timeline');
-  }, [set]);
 
   const handleApply = async () => {
     if (!projectName) { setApplyError('เลือกโปรเจกต์ก่อน'); return; }
@@ -1479,6 +963,30 @@ export default function EditorShell({
     audioCollapsed,
   });
 
+  const {
+    timelineH,
+    applyTimelineH,
+    assetW,
+    applyAssetW,
+    leftSidebarCollapsed,
+    toggleLeftSidebar,
+    inspectorW,
+    applyInspectorW,
+    rightSidebarCollapsed,
+    toggleRightSidebar,
+    mobilePreviewH,
+    applyMobilePreviewH,
+    resetPanelSizes,
+    resizeRef,
+    assetResizeRef,
+    inspectorResizeRef,
+    mobileWrapRef,
+    mobileResizeRef,
+  } = usePanelLayout({ mobileTimelineH });
+
+  // The drag clamp has to reserve the timeline's real height, not a guess.
+  const reserve = MOBILE_TAB_ROW_H + (Number.isFinite(mobileTimelineH) ? mobileTimelineH : 0);
+
   const progress = Math.round((jobStatus?.progress || 0) * 100);
   const bgmLabel = useMemo(() => {
     // With nothing chosen this used to read "เสียงหลักของช่อง" -- a fixed
@@ -1494,181 +1002,36 @@ export default function EditorShell({
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-[#0A0D14]">
       {/* ── HEADER / TOPBAR ── */}
-      <div className="flex flex-shrink-0 items-center justify-between gap-2 border-b border-white/[0.08] bg-[#0F1420] px-2.5 sm:px-4 py-2">
-        {/* ── Identity: which clip is open, and where the playhead is. The
-              project name is the title of this screen, so it gets the room. ── */}
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <Scissors className="hidden h-4 w-4 flex-shrink-0 text-[#D97757] sm:block" />
-
-          <div className="relative min-w-0 flex-1 sm:max-w-[420px]">
-            <select
-              value={projectName}
-              onChange={(e) => loadProject(e.target.value)}
-              aria-label="โปรเจกต์ที่กำลังแก้"
-              className="h-9 w-full min-w-0 cursor-pointer truncate rounded-xl border border-transparent bg-transparent pl-1 pr-6 text-base font-bold text-white hover:border-white/[0.12] hover:bg-black/40 focus:border-[#D97757] focus:outline-none"
-            >
-              <option value="">— เลือกโปรเจกต์ —</option>
-              {projectList.map((p) => (
-                <option key={p.project_name} value={p.project_name} className="bg-[#0D111A] text-slate-200">
-                  {p.project_name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {projectName && (
-            <div className="flex items-center gap-2">
-              <span className="flex-shrink-0 font-mono text-sm font-bold text-slate-400">
-                <span className="text-[#E89274]">{formatTimecode(playhead)}</span>
-                <span className="hidden sm:inline"> / {formatTimecode(Math.max(totalDuration, audioDuration))}</span>
-              </span>
-              {/* Shown at every width: hidden below md, a phone user had no
-                  way at all to tell whether their edits had been saved. Only
-                  the wording collapses on narrow screens, not the state. */}
-              <span className="inline-flex items-center gap-1 text-[11px] font-mono text-slate-400 px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06]">
-                {saveStatus === 'saving' ? (
-                  <span className="text-amber-400 flex items-center gap-1">
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                    <span className="hidden md:inline">กำลังบันทึก...</span>
-                  </span>
-                ) : saveStatus === 'dirty' ? (
-                  <span className="flex items-center gap-1 text-slate-400">
-                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                    <span className="hidden md:inline">มีการแก้ไข...</span>
-                  </span>
-                ) : (
-                  <span className="text-emerald-400 flex items-center gap-1">
-                    <Check className="w-3 h-3 text-emerald-400" />
-                    <span className="hidden md:inline">บันทึกแล้ว</span>
-                  </span>
-                )}
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Right: Sidebar Toggles, Fullscreen & Apply / Render Buttons */}
-        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-          {/* Quick Sidebar Toggles (Desktop) */}
-          {/* lg, not md: these collapse the desktop tree's own columns, so
-              below the layout breakpoint they have nothing to act on. */}
-          <div className="hidden lg:flex items-center gap-1 bg-black/40 border border-white/[0.08] p-0.5 rounded-xl">
-            <button
-              type="button"
-              onClick={toggleLeftSidebar}
-              disabled={!projectName || zen}
-              title={zen ? 'ปิดโหมดเต็มจอก่อน (Esc)' : leftSidebarCollapsed ? 'เปิดแถบซ้าย (คลังสื่อ)' : 'ซ่อนแถบซ้าย'}
-              className={`h-7 px-2 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer disabled:opacity-40 ${
-                leftSidebarCollapsed
-                  ? 'text-slate-400 hover:text-white'
-                  : 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30'
-              }`}
-            >
-              {leftSidebarCollapsed ? <PanelLeftOpen className="h-3.5 w-3.5" /> : <PanelLeftClose className="h-3.5 w-3.5" />}
-              <span className="text-[11px]">ซ้าย</span>
-            </button>
-            <button
-              type="button"
-              onClick={toggleRightSidebar}
-              disabled={!projectName || zen}
-              title={zen ? 'ปิดโหมดเต็มจอก่อน (Esc)' : rightSidebarCollapsed ? 'เปิดแถบขวา (คำบรรยาย)' : 'ซ่อนแถบขวา'}
-              className={`h-7 px-2 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer disabled:opacity-40 ${
-                rightSidebarCollapsed
-                  ? 'text-slate-400 hover:text-white'
-                  : 'bg-[#D97757]/15 text-[#D97757] border border-[#D97757]/30'
-              }`}
-            >
-              <span className="text-[11px]">ขวา</span>
-              {rightSidebarCollapsed ? <PanelRightOpen className="h-3.5 w-3.5" /> : <PanelRightClose className="h-3.5 w-3.5" />}
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => { setProjectName(''); setSelection(null); }}
-            disabled={applying}
-            title="กลับไปหน้าสร้างคลิปใหม่"
-            className="flex h-9 items-center gap-1 rounded-xl border border-white/[0.08] bg-black/40 px-2 text-sm font-bold text-slate-200 hover:text-white disabled:opacity-50 cursor-pointer"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">คลิปใหม่</span>
-          </button>
-
-          <ActivityIndicatorButton className="hidden h-9 md:flex" />
-
-          <HeaderMenu
-            items={[
-              {
-                // the only control for zen mode -- there is no button for it
-                // on the bar itself
-                id: 'zen',
-                label: zen ? 'ย่อพรีวิวกลับ' : 'ขยายพรีวิวเต็มพื้นที่',
-                icon: zen ? Minimize2 : Maximize2,
-                disabled: !projectName,
-                onSelect: () => setZen((v) => !v),
-              },
-              {
-                // Each handle resets on double-click, but nothing advertises
-                // that, so a panel dragged somewhere awkward (or a stale
-                // stored size) had no discoverable way back.
-                id: 'reset-panels',
-                label: 'รีเซ็ตขนาดพาเนล',
-                icon: Columns3,
-                disabled: !projectName,
-                onSelect: resetPanelSizes,
-              },
-              {
-                id: 'reload',
-                label: loading ? 'กำลังโหลด...' : 'โหลดโปรเจกต์ใหม่',
-                icon: loading ? Loader2 : RefreshCw,
-                disabled: !projectName || loading,
-                onSelect: () => loadProject(projectName),
-              },
-              {
-                id: 'delete',
-                label: 'ลบโปรเจกต์นี้...',
-                icon: Trash2,
-                danger: true,
-                disabled: !projectName || loading || applying,
-                onSelect: () => {
-                  setDeleteError(null);
-                  setDeleteScope('project');
-                  setDeleteOrigin(null);
-                  setPendingDelete(projectName);
-                  getProjectOrigin(projectName).then(setDeleteOrigin).catch(() => setDeleteOrigin({}));
-                },
-              },
-            ]}
-          />
-
-          {projectName && (
-            <button
-              type="button"
-              onClick={handleManualSave}
-              disabled={saveStatus === 'saving' || applying}
-              title="บันทึกการแก้ไขลงโปรเจกต์ (Ctrl+S)"
-              className="flex h-9 items-center gap-1.5 rounded-xl border border-white/[0.12] bg-white/[0.06] hover:bg-white/[0.12] px-2.5 text-xs font-bold text-slate-200 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
-            >
-              {saveStatus === 'saving' ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
-              ) : (
-                <Save className="w-3.5 h-3.5 text-emerald-400" />
-              )}
-              <span className="hidden sm:inline">บันทึก</span>
-            </button>
-          )}
-
-          <RenderButton
-            presets={EXPORT_PRESETS}
-            value={exportPreset}
-            onChange={setExportPreset}
-            onRender={handleApply}
-            busy={applying}
-            progress={progress}
-            disabled={!projectName}
-          />
-        </div>
-      </div>
+      <EditorHeader
+        projectName={projectName}
+        setProjectName={setProjectName}
+        projectList={projectList}
+        loadProject={loadProject}
+        loading={loading}
+        playhead={playhead}
+        totalDuration={totalDuration}
+        audioDuration={audioDuration}
+        saveStatus={saveStatus}
+        handleManualSave={handleManualSave}
+        leftSidebarCollapsed={leftSidebarCollapsed}
+        toggleLeftSidebar={toggleLeftSidebar}
+        rightSidebarCollapsed={rightSidebarCollapsed}
+        toggleRightSidebar={toggleRightSidebar}
+        zen={zen}
+        setZen={setZen}
+        resetPanelSizes={resetPanelSizes}
+        setSelection={setSelection}
+        applying={applying}
+        handleApply={handleApply}
+        exportPreset={exportPreset}
+        setExportPreset={setExportPreset}
+        exportPresets={EXPORT_PRESETS}
+        progress={progress}
+        setDeleteError={setDeleteError}
+        setDeleteScope={setDeleteScope}
+        setDeleteOrigin={setDeleteOrigin}
+        setPendingDelete={setPendingDelete}
+      />
 
       {loadError && (
         <div className="flex flex-shrink-0 items-center gap-2 border-b border-rose-500/20 bg-rose-500/10 px-3 py-1.5 text-xs text-rose-300">

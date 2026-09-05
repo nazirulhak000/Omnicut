@@ -69,21 +69,35 @@ class ProjectManifest:
     @classmethod
     def load(cls, project_name: str) -> Optional[Dict[str, Any]]:
         path = cls.path_for(project_name)
-        if not path.exists():
+        bak_path = path.with_suffix(".json.bak")
+        if not path.exists() and not bak_path.exists():
             return None
         last_err = None
         for attempt in range(8):
             try:
-                content = path.read_text(encoding="utf-8")
-                if not content.strip():
-                    time.sleep(0.04 * (attempt + 1))
-                    continue
-                data = json.loads(content)
-                if isinstance(data, dict):
-                    return data
+                if path.exists():
+                    content = path.read_text(encoding="utf-8")
+                    if content.strip():
+                        data = json.loads(content)
+                        if isinstance(data, dict):
+                            return data
+                time.sleep(0.04 * (attempt + 1))
             except (json.JSONDecodeError, OSError) as err:
                 last_err = err
                 time.sleep(0.04 * (attempt + 1))
+
+        # Fallback to .bak if primary file is corrupted or empty
+        if bak_path.exists():
+            try:
+                bak_content = bak_path.read_text(encoding="utf-8")
+                if bak_content.strip():
+                    data = json.loads(bak_content)
+                    if isinstance(data, dict):
+                        print(f"🛡️ [ProjectManifest.load] Recovered valid manifest for '{project_name}' from backup (.bak) file.")
+                        return data
+            except Exception as bak_err:
+                last_err = bak_err
+
         if last_err:
             print(f"[ProjectManifest.load] Warning: Failed to read manifest at {path} after retries: {last_err}")
         return None
@@ -126,8 +140,15 @@ class ProjectManifest:
             manifest["updated_at"] = cls._now()
 
             path = cls.path_for(project_name)
+            bak_path = path.with_suffix(".json.bak")
             tmp = path.with_suffix(f".{uuid.uuid4().hex[:8]}.tmp")
             tmp.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+
+            if path.exists():
+                try:
+                    shutil.copy2(path, bak_path)
+                except Exception:
+                    pass
 
             last_err = None
             for attempt in range(5):

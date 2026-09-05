@@ -8,7 +8,7 @@ import sys
 import re
 import json
 from pathlib import Path
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Any
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -25,506 +25,57 @@ from scripts.overlay_model import (
     text_overlay_from_legacy,
 )
 
-TYPOGRAPHY_PRESETS_PATH = FONTS_DIR.parent / "Templates" / "typography_presets.json"
-DEFAULT_FONT_FAMILY = "IBM Plex Sans Thai"
-
-# Backward-compat aliases for UI ids that don't match a typography_presets.json
-# entry's own font_name/id (old space-free spellings, and capsule_pill's
-# display name). Anything not found here or in the presets file falls back
-# to DEFAULT_FONT_FAMILY, so an unrecognized font_name never errors.
-_LEGACY_FONT_ALIASES = {
-    "IBMPlex": "IBM Plex Sans Thai",
-    "ibm_tech": "IBM Plex Sans Thai",
-    "ChakraPetch": "Chakra Petch",
-    "Minimal Dark Capsule Pill": "capsule_pill",
-}
-
-
-def _load_font_family_map() -> Dict[str, str]:
-    """
-    UI font_name -> real embedded font family, built from
-    typography_presets.json (each preset's `id` and `font_name`) resolved
-    against AssetRegistry's fontTools-verified family names, not guessed
-    from a filename.
-
-    Every ASS style here already sets Bold=1, so libass/fontconfig picks the
-    bold weight of whichever family this resolves to -- naming the family is
-    enough, the style doesn't need a specific weight-suffixed name.
-    """
-    family_by_filename = {f["name"]: f["family"] for f in AssetRegistry.fonts()}
-    font_map: Dict[str, str] = {}
-
-    try:
-        presets = json.loads(TYPOGRAPHY_PRESETS_PATH.read_text(encoding="utf-8"))["presets"]
-    except (OSError, json.JSONDecodeError, KeyError):
-        presets = []
-
-    for preset in presets:
-        family = family_by_filename.get(preset.get("font_file", ""), DEFAULT_FONT_FAMILY)
-        font_map[preset["id"]] = family
-        font_map[preset["font_name"]] = family
-
-    # Every real family on disk maps to itself, not just the 5 that have a
-    # typography_presets.json entry -- so a font_name picker built straight
-    # off AssetRegistry.fonts() (e.g. "Tahoma", "Noto Sans Thai") works too,
-    # not only the curated preset ids.
-    for family in family_by_filename.values():
-        font_map.setdefault(family, family)
-
-    for alias, target in _LEGACY_FONT_ALIASES.items():
-        font_map[alias] = font_map.get(target, DEFAULT_FONT_FAMILY)
-
-    return font_map
-
-
-# Full CapCut-style motion preset system: one choice per category (In /
-# Loop / Out), each independently swappable, plus a separate Accent shape --
-# not tied to In/Loop/Out at all. Replaces the earlier 4-boolean-toggle
-# version (bounce/stagger/pulse/underline); an old-shaped saved dict simply
-# won't match any of these keys and silently falls back to the default
-# preset below, so no migration code is needed.
-DEFAULT_HOOK_MOTION = {"in": "bounce", "stagger": True, "loop": "pulse", "out": "fade", "accent": "underline"}
-
-
-def _resolve_hook_motion(hook_motion: Optional[Dict[str, object]]) -> Dict[str, object]:
-    resolved = dict(DEFAULT_HOOK_MOTION)
-    if hook_motion:
-        for k in DEFAULT_HOOK_MOTION:
-            v = hook_motion.get(k)
-            if v is not None:
-                resolved[k] = v
-    resolved["stagger"] = bool(resolved["stagger"])
-    return resolved
-
-
-def _chained_keyframes(prop: str, start_ms: int, end_ms: int, seg_ms: int, values: List[str]) -> str:
-    """
-    Generic cycling \\t chain animating a single ASS property (e.g. "alpha"
-    or "frz") through `values` in order, `seg_ms` per step, from start_ms
-    until end_ms -- the shared engine behind pulse/wave/shake/flicker.
-    Emits nothing if not even one step fits, rather than a single
-    stub keyframe that would read as a glitch instead of a loop.
-    """
-    segs = []
-    t = start_ms
-    i = 0
-    while t + seg_ms <= end_ms:
-        segs.append(f"\\t({t},{t + seg_ms},\\{prop}{values[i % len(values)]})")
-        t += seg_ms
-        i += 1
-    return "".join(segs)
-
-
-# ---- In (entrance) builders -------------------------------------------
-# Each takes (target_scale_pct, t0_ms) and returns (tag_fragment,
-# entry_end_ms, move_dy_px). move_dy_px is None for every preset except
-# slide_up, where it tells the per-line assembler to use \move instead of
-# a static \pos (see the "why not \move for wave/shake" note further down
-# -- ASS \move is a single linear segment, so only true one-shot slides can
-# use it; looping motion uses \frz rotation via _chained_keyframes instead).
-
-def _in_bounce(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
-    """Elastic overshoot/undershoot/settle via \\fscx/\\fscy, ~450ms."""
-    target = round(target_scale_pct)
-    over = round(target * 1.25)
-    under = round(target * 0.92)
-    settle_over = round(target * 1.05)
-    t1, t2, t3, t4 = t0_ms, t0_ms + 150, t0_ms + 280, t0_ms + 380
-    end_ms = t0_ms + 450
-    entry_from = round(target * 0.6)
-    tag = (
-        f"\\fscx{entry_from}\\fscy{entry_from}"
-        f"\\t({t1},{t2},\\fscx{over}\\fscy{over})"
-        f"\\t({t2},{t3},\\fscx{under}\\fscy{under})"
-        f"\\t({t3},{t4},\\fscx{settle_over}\\fscy{settle_over})"
-        f"\\t({t4},{end_ms},\\fscx{target}\\fscy{target})"
-    )
-    return tag, end_ms, None
-
-
-def _in_pop(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
-    """Snappier one-bounce version of bounce -- single overshoot, ~200ms."""
-    target = round(target_scale_pct)
-    over = round(target * 1.18)
-    entry_from = round(target * 0.55)
-    end_ms = t0_ms + 200
-    tag = (
-        f"\\fscx{entry_from}\\fscy{entry_from}"
-        f"\\t({t0_ms},{t0_ms + 120},\\fscx{over}\\fscy{over})"
-        f"\\t({t0_ms + 120},{end_ms},\\fscx{target}\\fscy{target})"
-    )
-    return tag, end_ms, None
-
-
-def _in_fade(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
-    target = round(target_scale_pct)
-    end_ms = t0_ms + 250
-    tag = f"\\fscx{target}\\fscy{target}\\alpha&HFF&\\t({t0_ms},{end_ms},\\alpha&H00&)"
-    return tag, end_ms, None
-
-
-def _in_zoom(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
-    target = round(target_scale_pct)
-    entry_from = round(target * 1.8)
-    end_ms = t0_ms + 300
-    tag = (
-        f"\\fscx{entry_from}\\fscy{entry_from}\\alpha&HFF&"
-        f"\\t({t0_ms},{t0_ms + 150},\\alpha&H00&)"
-        f"\\t({t0_ms},{end_ms},\\fscx{target}\\fscy{target})"
-    )
-    return tag, end_ms, None
-
-
-def _in_slide_up(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
-    target = round(target_scale_pct)
-    end_ms = t0_ms + 300
-    tag = f"\\fscx{target}\\fscy{target}\\alpha&HFF&\\t({t0_ms},{end_ms},\\alpha&H00&)"
-    return tag, end_ms, 60  # slides up from 60px below its final position
-
-
-def _in_blur(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
-    target = round(target_scale_pct)
-    end_ms = t0_ms + 350
-    tag = (
-        f"\\fscx{target}\\fscy{target}\\alpha&HFF&\\blur12"
-        f"\\t({t0_ms},{end_ms},\\alpha&H00&\\blur0)"
-    )
-    return tag, end_ms, None
-
-
-def _in_none(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
-    target = round(target_scale_pct)
-    return f"\\fscx{target}\\fscy{target}", t0_ms, None
-
-
-# typewriter is handled specially in the assembler (needs each line's real
-# rendered width + resolved (x,y), which aren't known until the y-cursor and
-# font-metrics pass has already run) -- not registered as a plain builder.
-HOOK_IN_BUILDERS = {
-    "bounce": _in_bounce, "pop": _in_pop, "fade": _in_fade, "zoom": _in_zoom,
-    "slide_up": _in_slide_up, "blur": _in_blur, "none": _in_none,
-}
-
-
-# ---- Loop (hold-period) builders ---------------------------------------
-# Each takes (start_ms, exit_start_ms) and returns a \\t chain fragment
-# (or "" if nothing fits/none selected). lightsweep is handled specially in
-# the assembler -- it's a separate overlay event, not a tag on the base line.
-
-def _loop_pulse(start_ms: int, exit_start_ms: int) -> str:
-    """Breathing alpha oscillation, opaque <-> dim (~85% opacity), 350ms/step."""
-    return _chained_keyframes("alpha", start_ms, exit_start_ms, 350, ["&H25&", "&H00&"])
-
-
-def _loop_wave(start_ms: int, exit_start_ms: int) -> str:
-    """
-    Gentle sway via small \\frz rotation, 400ms/step.
-
-    Angles are written signed ("-3"), never as their 0-360 equivalent
-    ("357"): \\t interpolates linearly between the current value and the
-    target, so animating 0 -> 357 sweeps the long way round through 180
-    and spins the line upside down mid-step.
-    """
-    return _chained_keyframes("frz", start_ms, exit_start_ms, 400, ["-3", "3", "0"])
-
-
-def _loop_shake(start_ms: int, exit_start_ms: int) -> str:
-    """Sharp jitter via \\frz, 90ms/step -- same technique as wave, faster/bigger."""
-    return _chained_keyframes("frz", start_ms, exit_start_ms, 90, ["-3", "3", "-2", "2", "0"])
-
-
-def _loop_flicker(start_ms: int, exit_start_ms: int) -> str:
-    """Uneven alpha flicker (irregular step lengths, unlike pulse's steady breathing)."""
-    pattern = [(80, "&H30&"), (150, "&H00&"), (60, "&H45&"), (200, "&H00&"), (90, "&H20&"), (180, "&H00&")]
-    segs = []
-    t = start_ms
-    i = 0
-    while True:
-        dur, alpha = pattern[i % len(pattern)]
-        if t + dur > exit_start_ms:
-            break
-        segs.append(f"\\t({t},{t + dur},\\alpha{alpha})")
-        t += dur
-        i += 1
-    return "".join(segs)
-
-
-def _loop_none(start_ms: int, exit_start_ms: int) -> str:
-    return ""
-
-
-HOOK_LOOP_BUILDERS = {
-    "pulse": _loop_pulse, "wave": _loop_wave, "shake": _loop_shake,
-    "flicker": _loop_flicker, "lightsweep": _loop_none, "none": _loop_none,
-}
-
-
-# ---- Out (exit) builders -------------------------------------------------
-# Each takes (exit_start_ms, exit_end_ms, target_scale_pct) and returns
-# (tag_fragment, move_dy_px). move_dy_px is None except for slide.
-
-def _out_fade(exit_start_ms: int, exit_end_ms: int, target_scale_pct: float) -> Tuple[str, Optional[int]]:
-    return f"\\t({exit_start_ms},{exit_end_ms},\\alpha&HFF&)", None
-
-
-def _out_slide(exit_start_ms: int, exit_end_ms: int, target_scale_pct: float) -> Tuple[str, Optional[int]]:
-    return f"\\t({exit_start_ms},{exit_end_ms},\\alpha&HFF&)", 60  # slides down 60px while fading
-
-
-def _out_zoom(exit_start_ms: int, exit_end_ms: int, target_scale_pct: float) -> Tuple[str, Optional[int]]:
-    target = round(target_scale_pct)
-    grown = round(target * 1.4)
-    return f"\\t({exit_start_ms},{exit_end_ms},\\fscx{grown}\\fscy{grown}\\alpha&HFF&)", None
-
-
-def _out_glitch(exit_start_ms: int, exit_end_ms: int, target_scale_pct: float) -> Tuple[str, Optional[int]]:
-    """Quick \\frz jitter steps packed into the short exit window, then a hard cut."""
-    jitter = _chained_keyframes("frz", exit_start_ms, max(exit_start_ms + 1, exit_end_ms - 40), 40, ["-3", "3", "0"])
-    return f"{jitter}\\t({exit_end_ms - 40},{exit_end_ms},\\frz0\\alpha&HFF&)", None
-
-
-def _out_none(exit_start_ms: int, exit_end_ms: int, target_scale_pct: float) -> Tuple[str, Optional[int]]:
-    return f"\\t({max(exit_start_ms, exit_end_ms - 1)},{exit_end_ms},\\alpha&HFF&)", None
-
-
-HOOK_OUT_BUILDERS = {
-    "fade": _out_fade, "slide": _out_slide, "zoom": _out_zoom,
-    "glitch": _out_glitch, "none": _out_none,
-}
-
-
-def _measure_text_width_px(text: str, resolved_font: str, font_size_px: int) -> Optional[int]:
-    """
-    Real rendered width of `text` at `font_size_px` in the family ASS will
-    actually draw it in, via the same physical font files AssetRegistry
-    already indexes (family -> path), not a filename guess. Returns None if
-    that family has no resolvable file on disk -- callers fall back to a
-    char-count estimate rather than dropping the caller's feature.
-    """
-    try:
-        from PIL import ImageFont
-    except ImportError:
-        return None
-    try:
-        family_to_path = {f["family"]: f["path"] for f in AssetRegistry.fonts()}
-        font_path = family_to_path.get(resolved_font)
-        if not font_path:
-            return None
-        bbox = ImageFont.truetype(font_path, font_size_px).getbbox(text)
-        return int(bbox[2] - bbox[0])
-    except Exception:
-        return None
-
-
-_ASS_GLYPH_SCALE_CACHE: Dict[str, float] = {}
-
-
-def ass_glyph_scale(resolved_font: str) -> float:
-    """
-    How much smaller libass draws a glyph than its Fontsize number suggests.
-
-    libass sizes a face so the font's own line box (ascender + descender)
-    equals Fontsize, while PIL and CSS size the em square to that number.
-    Thai faces carry vertical metrics far taller than their em -- IBM Plex
-    Sans Thai is 1650 units of line box against a 1000-unit em -- so the same
-    number comes out about 40% smaller in libass than in a browser canvas.
-    Anything that measures text in order to place something next to it has to
-    measure at the size libass will really draw.
-    """
-    if resolved_font in _ASS_GLYPH_SCALE_CACHE:
-        return _ASS_GLYPH_SCALE_CACHE[resolved_font]
-    scale = 1.0
-    try:
-        from fontTools.ttLib import TTFont
-
-        path = {f["family"]: f["path"] for f in AssetRegistry.fonts()}.get(resolved_font)
-        if path:
-            face = TTFont(path, lazy=True)
-            upem = face["head"].unitsPerEm
-            os2 = face["OS/2"]
-            line_box = os2.usWinAscent + os2.usWinDescent
-            if upem and line_box:
-                scale = upem / line_box
-    except Exception:
-        scale = 1.0
-    _ASS_GLYPH_SCALE_CACHE[resolved_font] = scale
-    return scale
-
-
-def _hook_line_width_px(line: str, resolved_font: str, line_fs: int) -> float:
-    """
-    Half-width of a hook line in PlayRes pixels, real font metrics where
-    available and a char-count estimate (the same avg-char-width assumption
-    the wrap step is built on) where the font file can't be resolved -- so a
-    width-dependent effect degrades in size rather than disappearing.
-    """
-    # line_fs is the em size the text is drawn at (the \fscx boost applied
-    # when writing the tags cancels libass's own line-box scaling), so PIL's
-    # em-based measurement lines up 1:1 with what gets rendered.
-    measured = _measure_text_width_px(line.replace("\\N", " "), resolved_font, line_fs)
-    if measured is None:
-        measured = int(len(line) * line_fs * 0.55)
-    return max(20, measured) / 2
-
-
-def _hook_lightsweep_event(
-    line: str, line_fs: int, y: int, x_center: int, resolved_font: str,
-    start_t: str, end_t: str, sweep_start_ms: int, exit_start_ms: int, exit_end_ms: int,
-    target_scale_pct: float,
-) -> Optional[str]:
-    """
-    Shimmer sweep: a second, brighter copy of the line drawn on top and
-    clipped to a narrow vertical band that travels across it, repeatedly,
-    for the whole hold period.
-
-    Why an extra event rather than a tag on the base line: \\clip is a
-    single state per line, and the typewriter In preset already animates it
-    for its reveal -- a sweep sharing that line would fight it. A separate
-    overlay owns its own \\clip outright.
-    """
-    half_w = _hook_line_width_px(line, resolved_font, line_fs)
-    band_w = max(20, int(half_w * 0.7))
-    left = x_center - half_w - band_w
-    right = x_center + half_w
-    top, bot = y - 5, y + line_fs + 5
-
-    SWEEP_MS = 500
-    segs = []
-    t = sweep_start_ms
-    while t + SWEEP_MS <= exit_start_ms:
-        segs.append(f"\\t({t},{t + SWEEP_MS},\\clip({right - band_w:.0f},{top},{right:.0f},{bot}))")
-        t += SWEEP_MS
-        # 1ms snap back to the left so the next cycle sweeps again instead of
-        # easing backwards -- \t always interpolates from wherever the last
-        # one ended, so a cycle needs an explicit near-instant reset.
-        if t + 1 <= exit_start_ms:
-            segs.append(f"\\t({t},{t + 1},\\clip({left:.0f},{top},{left + band_w:.0f},{bot}))")
-            t += 1
-    if not segs:
-        return None
-
-    # The overlay MUST carry the same \fscx/\fscy the line it shadows uses.
-    # Without it the copy renders at the style's 100% while the brand tier
-    # sits at 130% and the label at 58%, and the mismatch reads on screen as
-    # a second, differently-sized ghost of the text rather than a shimmer.
-    target = round(target_scale_pct)
-    tag = (
-        f"{{\\an8\\pos({x_center},{y})\\fscx{target}\\fscy{target}"
-        f"\\bord0\\shad0\\c&H00FFFFFF&\\alpha&H60&"
-        f"\\clip({left:.0f},{top},{left + band_w:.0f},{bot})"
-        f"{''.join(segs)}"
-        f"\\t({exit_start_ms},{exit_end_ms},\\alpha&HFF&)}}"
-    )
-    return f"Dialogue: 3,{start_t},{end_t},HookHeader,,0,0,0,,{tag}{line}"
-
-
-def _pill_fill_to_ass(fill: Optional[str]) -> Tuple[str, float]:
-    """
-    A pill's CSS fill as (ASS colour, opacity 0..1).
-
-    The two engines used to name these separately: the canvas painted an
-    rgba() and this writer carried a hand-tuned \\alpha per named badge. Only
-    the dark-glass one agreed -- the cyan badge rendered at 0.65 opacity where
-    the preview drew 0.2, so the neon badge came back looking like a solid
-    block. One number now, taken from the colour the preview actually paints.
-    """
-    text = (fill or "").strip()
-    if not text:
-        return "&H00000000", 1.0
-    match = re.match(r"rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)", text)
-    if match:
-        r, g, b = (int(round(float(match.group(i)))) for i in (1, 2, 3))
-        alpha = float(match.group(4)) if match.group(4) is not None else 1.0
-        return f"&H00{b:02X}{g:02X}{r:02X}", max(0.0, min(1.0, alpha))
-    return ass_colour(text) or "&H00000000", 1.0
-
-
-def _ass_rounded_pill_path(w: float, h: float, r: float) -> str:
-    """
-    Constructs a smooth vector rounded rectangle for ASS \\p1 drawing mode.
-    Exact parity with HTML5 Canvas roundRect(x, y, w, h, radius).
-    Uses standard cubic bezier curve approximation for 90-degree corner arcs:
-    k = r * 0.5522847498.
-    All coordinates are positive and anchored at top-left (\\an7).
-    """
-    r = max(1.0, min(r, w / 2, h / 2))
-    k = r * 0.5522847498
-    p = [
-        f"m {r:.1f} 0",
-        f"l {w - r:.1f} 0",
-        f"b {w - r + k:.1f} 0 {w:.1f} {r - k:.1f} {w:.1f} {r:.1f}",
-        f"l {w:.1f} {h - r:.1f}",
-        f"b {w:.1f} {h - r + k:.1f} {w - r + k:.1f} {h:.1f} {w - r:.1f} {h:.1f}",
-        f"l {r:.1f} {h:.1f}",
-        f"b {r - k:.1f} {h:.1f} 0 {h - r + k:.1f} 0 {h - r:.1f}",
-        f"l 0 {r:.1f}",
-        f"b 0 {r - k:.1f} {r - k:.1f} 0 {r:.1f} 0",
-    ]
-    return " ".join(p)
-
-
-def _hook_accent_events(
-    accent_id: str, model_line: str, model_line_fs: int, model_y: int, model_colour: str,
-    x_center: int, resolved_font: str, start_t: str, end_t: str,
-    exit_start_ms: int, exit_end_ms: int, stagger: bool,
-) -> List[str]:
-    """
-    Decorative shape tied to the model tier: an accent bar under it, or a
-    filled badge behind it. Both reveal by scaling out from the centre and
-    both sit on layers below the text (drawn first), so neither ever covers
-    the words it's decorating.
-    """
-    half_w = _hook_line_width_px(model_line, resolved_font, model_line_fs)
-    reveal_start = 300 if stagger else 0
-    reveal_end = reveal_start + 300
-    exit_tag = f"\\t({exit_start_ms},{exit_end_ms},\\alpha&HFF&)"
-
-    # Every shape below is drawn from an all-positive path anchored top-left
-    # (\an7) at its own left edge, NOT a centre-anchored path with negative
-    # coordinates: libass mis-anchors a negative-coordinate \p drawing (it
-    # lands with its right edge on \pos, off-centre by its own half-width,
-    # under every alignment tested) -- measured directly against a reference
-    # render. Scaling \fscx from 0 then reads as a left-to-right wipe, which
-    # is also what the reveal should look like.
-    if accent_id == "badge":
-        pad_x = round(model_line_fs * 0.38)
-        pad_y = round(model_line_fs * 0.20)
-        bw = (half_w + pad_x) * 2
-        bh = model_line_fs + pad_y * 2
-        draw = f"m 0 0 l {bw:.0f} 0 l {bw:.0f} {bh:.0f} l 0 {bh:.0f}"
-        tag = (
-            f"{{\\an7\\pos({x_center - bw / 2:.0f},{model_y - pad_y})\\p1\\bord0\\shad0"
-            f"\\c{model_colour}&\\alpha&HB0&\\fscx0"
-            f"\\t({reveal_start},{reveal_end},\\fscx100){exit_tag}}}"
-        )
-        return [f"Dialogue: 0,{start_t},{end_t},HookHeader,,0,0,0,,{tag}{draw}"]
-
-    # Accent bar (default). Thicker and further from the text than the first
-    # version, plus a blurred copy behind it for glow: at a 0.06 gap and a
-    # 0.06 thickness it read as a plain text-decoration underline squeezed
-    # between two lines rather than a deliberate poster element.
-    # Boosted glyphs overflow the line box libass reserves, so the ink
-    # runs lower than the nominal box bottom the cursor tracks. Measured
-    # against a real render: at 0.26 the bar touched the descenders.
-    gap = round(model_line_fs * 0.50)
-    underline_y = model_y + model_line_fs + gap
-    thickness = max(4, round(model_line_fs * 0.10))
-    bar_w = half_w * 2
-    left_x = x_center - half_w
-    draw = f"m 0 0 l {bar_w:.0f} 0 l {bar_w:.0f} {thickness} l 0 {thickness}"
-    reveal = f"\\fscx0\\t({reveal_start},{reveal_end},\\fscx100)"
-    glow_tag = (
-        f"{{\\an7\\pos({left_x:.0f},{underline_y})\\p1\\bord0\\shad0\\blur7"
-        f"\\c{model_colour}&\\alpha&H60&{reveal}{exit_tag}}}"
-    )
-    bar_tag = (
-        f"{{\\an7\\pos({left_x:.0f},{underline_y})\\p1\\bord0\\shad0"
-        f"\\c{model_colour}&{reveal}{exit_tag}}}"
-    )
-    return [
-        f"Dialogue: 0,{start_t},{end_t},HookHeader,,0,0,0,,{glow_tag}{draw}",
-        f"Dialogue: 0,{start_t},{end_t},HookHeader,,0,0,0,,{bar_tag}{draw}",
-    ]
+from scripts.subtitle import (
+    TYPOGRAPHY_PRESETS_PATH,
+    DEFAULT_FONT_FAMILY,
+    _LEGACY_FONT_ALIASES,
+    _load_font_family_map,
+    _measure_text_width_px,
+    ass_glyph_scale,
+    _hook_line_width_px,
+    DEFAULT_HOOK_MOTION,
+    _resolve_hook_motion,
+    _chained_keyframes,
+    HOOK_IN_BUILDERS,
+    HOOK_LOOP_BUILDERS,
+    HOOK_OUT_BUILDERS,
+    _in_bounce,
+    _in_pop,
+    _in_fade,
+    _in_zoom,
+    _in_slide_up,
+    _in_blur,
+    _in_none,
+    _loop_pulse,
+    _loop_wave,
+    _loop_shake,
+    _loop_flicker,
+    _loop_none,
+    _out_fade,
+    _out_slide,
+    _out_zoom,
+    _out_glitch,
+    _out_none,
+    ass_colour,
+    _pill_fill_to_ass,
+    _ass_rounded_pill_path,
+    _hook_lightsweep_event,
+    _hook_accent_events,
+    KINETIC_KEYWORDS,
+    KINETIC_KEYWORDS_EN,
+    wrap_text_for_ass,
+    wrap_en_for_ass,
+    apply_kinetic_highlighting,
+    apply_kinetic_highlighting_en,
+    apply_bilingual_kinetic_highlighting,
+    _EN_STOPWORDS,
+    _TH_PARTICLES,
+    _salient_word_en,
+    _salient_word_th,
+    _force_highlight,
+)
+
+LINE_HEIGHT_FACTOR = 1.0
 
 # Where the caption block sits: (ASS alignment, vertical margin).
 # 2 = bottom centre, 5 = middle centre, 8 = top centre.
@@ -534,34 +85,11 @@ CAPTION_POSITIONS = {
     "top": (8, 260),
 }
 
-# Where custom text overlays sit vertically as a fraction of frame height.
-# top (0.20), middle (0.50), bottom (0.72 - above bottom caption safe zone).
-# libass advances exactly one font size to the next \N line, even when that
-# line carries its own \fscx -- measured off a real render by pixel-scanning
-# the ink bands, not guessed. Every block that stacks lines reads this: the
-# banner's cursor walk, and the pill that has to be as tall as the text it
-# wraps. The text overlay's badge used 1.2 and came out a fifth too tall.
-LINE_HEIGHT_FACTOR = 1.0
-
 TEXT_OVERLAY_POSITIONS = {
     "top": 0.20,
     "middle": 0.50,
     "bottom": 0.72,
 }
-
-
-def ass_colour(hex_colour: str) -> str:
-    """#RRGGBB -> &H00BBGGRR. Returns "" for anything unparseable."""
-    if not hex_colour:
-        return ""
-    value = str(hex_colour).strip().lstrip("#")
-    if len(value) != 6:
-        return ""
-    try:
-        r, g, b = (int(value[i:i + 2], 16) for i in (0, 2, 4))
-    except ValueError:
-        return ""
-    return f"&H00{b:02X}{g:02X}{r:02X}"
 
 
 class SubtitleEngine:
@@ -808,217 +336,18 @@ class SubtitleEngine:
 
         return micro_cues
 
-    @classmethod
-    def wrap_text_for_ass(cls, text: str, max_chars_per_line: int = 40) -> str:
-        """
-        Wraps long Thai text into multiple balanced lines using ASS \\N,
-        preventing single-line horizontal font compression or overflow.
-        """
-        clean = re.sub(r'\s+', ' ', re.sub(r'[\.]{2,}|…', ' ', text)).strip().replace("\r", "")
-        if not clean or "\\N" in clean or "\n" in clean or len(clean) <= max_chars_per_line:
-            return clean.replace("\n", "\\N")
+    KINETIC_KEYWORDS = KINETIC_KEYWORDS
+    KINETIC_KEYWORDS_EN = KINETIC_KEYWORDS_EN
+    _EN_STOPWORDS = _EN_STOPWORDS
+    _TH_PARTICLES = _TH_PARTICLES
 
-        try:
-            from pythainlp.tokenize import word_tokenize
-            raw_words = word_tokenize(clean, engine="newmm")
-        except Exception:
-            raw_words = clean.split(" ")
+    @staticmethod
+    def wrap_text_for_ass(text: str, max_chars_per_line: int = 40) -> str:
+        return wrap_text_for_ass(text, max_chars_per_line=max_chars_per_line)
 
-        # Glue Thai grammatical prefixes so they never hang alone at line ends
-        prefixes = {"ผู้", "การ", "ความ", "นัก", "ชาว", "จาก"}
-        words = []
-        i = 0
-        while i < len(raw_words):
-            w = raw_words[i]
-            if w in prefixes and i + 1 < len(raw_words):
-                words.append(w + raw_words[i + 1])
-                i += 2
-            else:
-                words.append(w)
-                i += 1
-
-        # If length fits in 2 balanced lines:
-        if len(clean) <= max_chars_per_line * 2 and len(words) > 2:
-            target_mid = len(clean) / 2.0
-            best_idx = 1
-            best_diff = 99999
-            accum = 0
-            for idx, w in enumerate(words[:-1]):
-                accum += len(w)
-                diff = abs(accum - target_mid)
-                if diff < best_diff:
-                    best_diff = diff
-                    best_idx = idx + 1
-            l1 = "".join(words[:best_idx]).strip()
-            l2 = "".join(words[best_idx:]).strip()
-            return f"{l1}\\N{l2}"
-
-        # Otherwise chunk greedily
-        lines = []
-        curr = ""
-        for w in words:
-            if len(curr) + len(w) > max_chars_per_line and len(curr) >= 12:
-                lines.append(curr)
-                curr = w
-            else:
-                curr += w
-        if curr:
-            lines.append(curr)
-
-        return "\\N".join(lines) if len(lines) > 1 else clean
-
-    @classmethod
-    def wrap_en_for_ass(cls, text: str, max_chars_per_line: int = 58) -> str:
-        """Wraps long English subtitles neatly at word boundaries."""
-        clean = re.sub(r'\s+', ' ', re.sub(r'[\.]{2,}|…', ' ', text)).strip().replace("\r", "").replace("\n", " ")
-        if len(clean) <= max_chars_per_line:
-            return clean
-        words = clean.split(" ")
-        lines = []
-        curr = ""
-        for w in words:
-            if len(curr) + len(w) + 1 > max_chars_per_line and len(curr) >= 14:
-                lines.append(curr)
-                curr = w
-            else:
-                curr = f"{curr} {w}".strip()
-        if curr:
-            lines.append(curr)
-        return "\\N".join(lines) if len(lines) > 1 else clean
-
-    # Dynamic Kinetic Highlighting keywords (ASS color mapped)
-    # 🟡 &H0000E6FF& = Neon Yellow (Pain points, prices, deals, primary punch)
-    # 🔵 &H00FFE600& = Electric Cyan (Features, tech, ergonomics, certifications)
-    # 🔴 &H00303BFF& = Alert Red (Urgency, warnings)
-    KINETIC_KEYWORDS: Dict[str, List[str]] = {
-        "&H0000E6FF&": [  # 🟡 Neon Yellow (Pain points, prices, deals, primary punch, positive reactions)
-            # 1. Physical Discomfort & Pain Points
-            "ออฟฟิศซินโดรม", "ปวดข้อมือ", "ปวดหลัง", "ปวดคอ", "ปวดหัว", "ปวดไหล่", "ปวดขา", "ปวดเมื่อย",
-            "ปวดมือ", "ปวดตัว", "ปวด", "เมื่อยล้า", "เมื่อย", "ทรมาน", "เหนื่อยล้า", "เหนื่อย",
-            "เจ็บมือ", "บาดมือ", "แสบตา", "รกโต๊ะ", "เสียงดังหนวกหู", "เสียงกวนใจ",
-            # 2. Tech & Everyday Frustrations
-            "สายพันกัน", "สายขาด", "แบตหมดไว", "แบตเสื่อม", "กระตุก", "เครื่องค้าง", "ค้าง", "ช้ามาก", "ช้า",
-            "พังง่าย", "พัง", "หักง่าย", "หัก", "เสียเงินฟรี", "เสียดายเงิน", "เสีย", "หลุดบ่อย", "หลุด",
-            # 3. Beauty, Skin & Personal Care Problems
-            "สิวบุก", "สิวเห่อ", "สิวขึ้น", "เป็นสิว", "รอยสิว", "รอยดำ", "รอยแดง", "หน้ามัน", "หน้าหมอง", "หมองคล้ำ",
-            "ผิวแห้ง", "ผิวลอก", "เหนียวเหนอะหนะ", "เหนอะหนะ", "คราบฝังลึก", "สกปรก", "กลิ่นอับ", "เหม็นอับ", "เหม็น",
-            # 4. Fashion, Body & Confidence
-            "อึดอัด", "แน่นพุง", "พุงยื่น", "ขาใหญ่", "ดูอ้วน", "เชยๆ", "เชย", "ล้าสมัย", "ไม่มั่นใจ", "ไม่สวย",
-            "ปัญหา", "ยุ่งยาก", "เสียเวลา", "เปลืองแรง", "เปลืองเงิน", "หงุดหงิด",
-            # 5. Price, Deals, Vouchers & E-Commerce CTA
-            "ราคาพิเศษ", "ลดราคา", "ลดกระหน่ำ", "ลดแรง", "ดีลพิเศษ", "ดีลลับ", "โปรเด็ด", "โปรแรง", "โปรโมชั่น",
-            "แฟลชเซล", "flash sale", "โค้ดลด", "โค้ดลับ", "คูปอง", "ส่งฟรี", "1 แถม 1", "หนึ่งแถมหนึ่ง",
-            "ของแถม", "แจกฟรี", "ฟรี", "บาท", "หลักสิบ", "หลักร้อย", "ราคาดี", "ราคาโดน", "ถูกและดี",
-            "ถูกสุดๆ", "ถูกมาก", "คุ้มสุดๆ", "คุ้มค่า", "คุ้มราคา", "เกินคุ้ม", "คุ้ม", "ประหยัด", "ตกใจราคา",
-            "ตะกร้าส้ม", "ตะกร้าซ้ายล่าง", "ตะกร้า", "ใส่ตะกร้า", "จิ้มตะกร้า", "จิ้มเลย", "จิ้มตรงนี้", "กดตรงนี้",
-            "พิกัดในคอมเมนต์", "พิกัดในโปรไฟล์", "พิกัด", "ปักหมุด", "อย่ารอ", "อย่าช้า", "ช้าหมด",
-            "รีบตำ", "รีบจัด", "ด่วนเลย", "ด่วน", "ต้องมี", "ของมันต้องมี", "ขาดไม่ได้", "สอยด่วน", "รีบสอย",
-            "เคาะราคา", "สั่งซื้อเลย", "กดลงตะกร้า", "ลิงก์หน้าโปรไฟล์", "กดที่ลิงก์", "จัดโปร", "ลดเยอะมาก",
-            # 6. Viral Praise & Reviewer Hype
-            "ป้ายยา", "ตัวท็อป", "ตัวแม่", "ยืนหนึ่ง", "ตัวตึง", "ของดีบอกต่อ", "ใช้ดีบอกต่อ", "ของดี",
-            "ดีจริง", "ดูดีมาก", "ดีมาก", "ดีเกินคาด", "ดีเกินราคา", "ว้าวมาก", "ว้าว", "ตาแตก", "ตะลึง",
-            "สุดปัง", "ปังมาก", "จึ้งมาก", "จึ้ง", "เลิศมาก", "เลิศ", "เอาเรื่อง", "ของแทร่", "เปลี่ยนชีวิต",
-            "ยกระดับ", "หลงรักเลย", "หลงรัก", "ชอบมาก", "ติดใจ", "ไม่ผิดหวัง", "ไม่จกตา", "รีวิวจริง",
-            "ใช้จริง", "หมดปัญหา", "ลืมแบบเก่าไปเลย", "โคตรดี", "โคตรคุ้ม", "ฟินมาก", "ช็อค", "น่ารักกว่าในรูป", "ของที่รอคอย",
-            "สมคำร่ำลือ", "ตอบโจทย์", "ตัวจริง", "ปังไม่ไหว", "สิบเต็มสิบ", "10/10", "คุ้มสุดในรุ่น", "ยืนยันอีกเสียง",
-            "ขาดตัวนี้ไม่ได้", "ต้องมีติดบ้าน", "ไอเทมลับ", "ไอเทมเด็ด", "รอดไม่รอด", "ของมันต้องลอง", "ประทับใจ",
-            "เกินต้าน", "ยอมใจ", "เด็ดจริง", "ไม่คิดว่าจะดี", "ดีกว่าที่คิด", "คุ้มเกินเบอร์", "ปังสุด", "สุดจัด",
-            "ลองแล้วรัก", "ถูกใจมาก", "ใช้เองรีวิวเอง", "โนสปอน", "ซื้อเองใช้เอง", "ใช้จนหมด", "ซื้อซ้ำ", "ตุนด่วน", "ต้องตุน", "ตำด่วน", "ใช้ทุกวัน"
-        ],
-        "&H00FFE600&": [  # 🔵 Electric Cyan (Features, tech, ergonomics, certifications, comfort)
-            # 1. Tech, Gadgets & Hardware
-            "Logitech Wave Keys", "Logitech", "Wave Keys", "คีย์บอร์ดในฝัน", "คีย์บอร์ด", "ไร้สาย", "บลูทูธ",
-            "แม่เหล็ก", "แรงดูดสูง", "ดูดแน่น", "540 องศา", "360 องศา", "ชาร์จไว", "ฟาสชาร์จ", "66W", "100W",
-            "แบตอึด", "แบตทน", "ทนทาน", "แข็งแรง", "ประกันศูนย์", "ของแท้", "แท้ 100%", "จอสวย", "จอลื่น",
-            "120Hz", "คมชัด", "กล้องชัด", "เสียงดี", "เบสแน่น", "ตัดเสียงรบกวน", "กันน้ำ", "ชิปเร็ว",
-            "ลื่นไหล", "ไม่สะดุด", "เชื่อมต่อง่าย", "เสียบปุ๊บติดปั๊บ", "พกพาสะดวก", "น้ำหนักเบา", "กะทัดรัด",
-            "ปรับระดับได้", "พับเก็บได้", "ประหยัดพื้นที่", "ประกอบง่าย", "ใช้งานง่าย",
-            "ปุ่มเงียบ", "สวิตช์เงียบ", "ไร้สาย 2.4G", "ต่อได้ 3 อุปกรณ์", "สลับเครื่องไว", "รองรับ Mac และ Windows",
-            "ปรับความสูงได้", "วัสดุพรีเมียม", "งานประกอบเนี๊ยบ", "แบตเตอรี่ใช้ได้นาน", "ชาร์จครั้งเดียวอยู่ได้ยาว", "จับถนัดมือ",
-            # 2. Ergonomics, Comfort, Softness & Apparel
-            "สรีรศาสตร์", "เมมโมรี่โฟม", "ที่รองข้อมือ", "พิมพ์สบาย", "นั่งสบาย", "นอนสบาย", "ใส่สบาย",
-            "สบายมาก", "นุ่มสบาย", "สบายมือ", "สบายหลัง", "สบายตา", "สบายตัว", "สบาย", "นุ่มนิ่ม", "นุ่มฟู",
-            "นุ่มมาก", "นุ่มๆ", "นุ่ม", "ยืดหยุ่น", "สัมผัสนุ่ม", "ไม่ระคายเคือง", "ไม่บาดผิว", "ทรงสวย",
-            "ทรงเป๊ะ", "พอดีตัว", "เข้ารูป", "ทิ้งตัวสวย", "พรางหุ่น", "เก็บพุง", "ระบายอากาศ", "ไม่อับชื้น",
-            "ไม่ร้อน", "เย็นสบาย", "มินิมอล", "ดีไซน์แบบคลื่นๆ", "แบบคลื่นๆ", "คลื่น", "ดีไซน์สวย",
-            # 3. Skincare, Beauty & Quality Efficacy
-            "ผิวฉ่ำวาว", "ผิวฉ่ำน้ำ", "ผิวฉ่ำ", "หน้าใส", "ผิวเนียน", "ผิวกระจก", "ผิวนุ่มเด้ง", "หน้าเด็ก",
-            "ซึมไว", "ซึมเร็ว", "แห้งไว", "บางเบา", "ไม่เหนอะหนะ", "คุมมัน", "ผิวกระชับ", "รูขุมขนกระชับ",
-            "กลิ่นหอม", "หอมละมุน", "หอมฟุ้ง", "ติดทน", "ติดทนนาน", "ไม่ติดแมสก์", "กันเหงื่อ", "กันน้ำกันเหงื่อ",
-            "ปกปิดเนียน", "กลบเนียน", "ไม่วอก", "ไม่ลอย", "อ่อนโยน", "แพ้ง่ายใช้ได้", "สารสกัดธรรมชาติ",
-            "ออร์แกนิก", "พรีเมียมสุดๆ", "พรีเมียม", "หรูหรา", "ดูแพง", "สะอาดหมดจด", "ฆ่าเชื้อ", "กรองฝุ่น",
-            "รับรอง", "ผู้เชี่ยวชาญ", "แพทย์ผิวหนัง", "สุขภาพดี", "ปลอดภัย"
-        ],
-        "&H00303BFF&": [  # 🔴 Alert Red (Urgency, warnings)
-            "อย่าเพิ่งซื้อ", "อย่าเพิ่ง", "หยุดก่อน", "หยุดดูคลิปนี้", "ฟังทางนี้", "เตือนภัย", "เตือน",
-            "ระวังของปลอม", "ระวัง", "อันตราย", "เสี่ยง", "ห้ามทำ", "อย่าหาทำ", "อย่าพลาด",
-            "ห้ามพลาด", "ห้ามเลื่อนผ่าน", "ของปลอมระบาด", "ซื้อผิดรุ่น", "ดูให้จบ", "ข้อเสีย", "สิ่งที่ควรรู้",
-            "เช็กด่วน", "ระวังโดนหลอก", "ข้อควรระวัง", "อย่าเพิ่งเลื่อน", "เตือนไว้ก่อน", "ก่อนจะสาย", "จุดสังเกต", "ระวังผิดหวัง", "ดูตรงนี้ก่อน"
-        ]
-    }
-
-    # Dynamic Kinetic Highlighting keywords for English (ASS color mapped)
-    KINETIC_KEYWORDS_EN: Dict[str, List[str]] = {
-        "&H0000E6FF&": [  # 🟡 Neon Yellow (Pain points, prices, deals, primary punch, positive reactions)
-            # 1. Pain Points & Discomfort
-            "office syndrome", "wrist pain", "back pain", "neck pain", "shoulder pain", "headache", "leg pain",
-            "body pain", "hand hurts", "hurts", "painful", "pain", "tight", "sore", "exhausted",
-            "tiring", "tired", "suffering", "messy desk", "noisy",
-            # 2. Product/Usage Frustrations
-            "tangled", "broken cord", "dead battery", "low battery", "laggy", "lagging", "freezing", "too slow", "slow",
-            "breaks easily", "broken", "waste of money", "waste of time", "wasted", "annoying",
-            "acne breakout", "breakouts", "pimples", "dark spots", "redness", "oily skin", "dull skin",
-            "dry skin", "peeling skin", "sticky", "greasy", "deep stains", "dirty", "bad odor", "smelly",
-            "uncomfortable", "stuffy", "bloated", "tight fit", "outdated", "unconfident", "insecure",
-            "problems", "problem", "frustrating", "troublesome", "not sure",
-            # 3. Price, Promotions & Commerce CTA
-            "special price", "huge discount", "discount", "special deal", "secret deal", "best promo", "promotion",
-            "flash sale", "promo code", "voucher", "coupon", "free shipping", "buy 1 get 1", "bogo",
-            "free gift", "giveaway", "free", "baht", "super cheap", "cheap", "affordable", "best price",
-            "best value", "great value", "worth every penny", "worth it", "save money", "shocking price",
-            "yellow basket", "orange basket", "cart", "add to cart", "click cart", "click now", "click here",
-            "pinned link", "link in bio", "coordinates", "don't wait", "don't delay", "almost gone",
-            "buy now", "grab it now", "hurry up", "must have", "essential", "check profile link", "grab yours",
-            # 4. Viral Praise & Sensational Reactions
-            "holy grail", "game changer", "life-changing", "top tier", "the best", "highly recommend",
-            "really good", "looks really good", "looks good", "so good", "very good", "good", "exceeded expectations",
-            "unbelievable", "very wow", "wow", "mind blowing", "stunning", "gorgeous", "slay",
-            "aesthetic", "next level", "fell in love", "obsessed", "love it", "no regret", "won't be disappointed",
-            "real review", "tried and tested", "problem solved", "insanely good", "super worth it", "so satisfying",
-            "much cuter", "long-awaited", "recommend", "10 out of 10", "10/10", "worth the hype", "honest review",
-            "holy grail item", "no sponsor", "bought it myself", "repurchase", "stock up", "daily staple"
-        ],
-        "&H00FFE600&": [  # 🔵 Electric Cyan (Features, tech, ergonomics, certifications, comfort)
-            # 1. Tech, Hardware & Gadget Specs
-            "logitech wave keys", "wave keys", "logitech", "dream keyboard", "keyboard", "wireless", "bluetooth",
-            "magnetic", "strong magnet", "540 degrees", "360 degrees", "fast charging", "quick charge", "66w", "100w",
-            "long battery", "battery life", "durable", "sturdy", "warranty", "genuine", "authentic", "smooth screen",
-            "120hz", "crystal clear", "sharp camera", "great sound", "deep bass", "noise cancelling", "anc", "waterproof",
-            "fast chip", "ultra smooth", "easy connect", "plug and play", "portable", "lightweight", "compact",
-            "adjustable", "foldable", "space saving", "easy to assemble", "easy to use",
-            "silent keys", "quiet typing", "multi-device", "easy switch", "mac and windows compatible",
-            # 2. Comfort, Ergonomics & Fabric/Design
-            "ergonomic", "ergonomics", "memory foam", "wrist rest", "typing comfortable", "sit comfortably",
-            "comfortable fit", "comfortable", "comfy", "super comfy", "soft and comfy", "extra soft", "pillow soft",
-            "very soft", "soft", "flexible", "gentle touch", "non-irritating", "flattering fit",
-            "perfect fit", "slim fit", "tummy control", "breathable", "airy", "cool and fresh",
-            "minimalist", "minimal", "wavy design", "wavy", "sleek design", "beautiful design",
-            # 3. Skincare, Beauty & Clean Living
-            "glass skin", "glowy skin", "glowing skin", "clear skin", "smooth skin", "bouncy skin", "youthful",
-            "fast absorbing", "quick absorb", "quick drying", "lightweight texture", "non-sticky", "non-greasy", "oil control",
-            "firming", "pore tightening", "nice scent", "pleasant smell", "long lasting", "transfer-proof", "sweat-proof",
-            "water resistant", "full coverage", "natural finish", "no white cast", "gentle formula", "sensitive skin friendly",
-            "natural extracts", "organic", "very premium", "premium", "luxury", "looks expensive",
-            "deep clean", "antibacterial", "hepa filter", "certified", "experts", "expert",
-            "dermatologist", "healthy", "safe"
-        ],
-        "&H00303BFF&": [  # 🔴 Alert Red (Urgency, warnings)
-            "don't buy yet", "don't buy", "stop scrolling", "wait a minute", "listen to this", "urgent warning", "warning",
-            "beware of fake", "beware", "danger", "risky", "don't do this", "don't miss out",
-            "don't miss", "watch till the end", "counterfeit", "fake products", "cons", "must know",
-            "look at this", "watch this", "warn", "stop", "before you buy", "watch out", "critical warning", "check this before buying"
-        ]
-    }
+    @staticmethod
+    def wrap_en_for_ass(text: str, max_chars_per_line: int = 44) -> str:
+        return wrap_en_for_ass(text, max_chars_per_line=max_chars_per_line)
 
     @classmethod
     def apply_kinetic_highlighting(
@@ -1026,60 +355,11 @@ class SubtitleEngine:
         text: str,
         primary_color_ass: str = "&H00FFFFFF&",
         color_hint: Optional[str] = None,
-        custom_keywords: Optional[List[str]] = None
+        custom_keywords: Optional[List[str]] = None,
     ) -> str:
-        """
-        Scans text for power keywords with 3-tier intelligence:
-        Tier 1: Explicit manual markers *keyword* or [keyword] (100% user & AI control)
-        Tier 2: Dynamic Project Keywords (Product names, brand, specific hook keywords)
-        Tier 3: Reviewer Mega-Dictionary (500+ affiliate phrases across all niches)
-        """
-        if not text:
-            return text
-
-        clean_primary = primary_color_ass if primary_color_ass.endswith("&") else f"{primary_color_ass}&"
-        result = text
-        chosen_color = color_hint or "&H0000E6FF&"  # Default to Neon Yellow
-
-        # Tier 1: Manual Markers (*word* or [word])
-        marker_pattern = re.compile(r"(\*([^*]+)\*|\[([^\]]+)\])")
-        if marker_pattern.search(result):
-            def _replace_marker(m):
-                kw = m.group(2) or m.group(3)
-                return f"{{\\c{chosen_color}}}{kw}{{\\c{clean_primary}}}"
-            return marker_pattern.sub(_replace_marker, result)
-
-        if "{\\c" in text:
-            return text
-
-        # Helper to safely replace keyword with color tags while avoiding Thai diacritic/tone mark collision
-        def _safe_replace_kw(target_str: str, kw: str, color_tag: str) -> str:
-            idx = target_str.find(kw)
-            if idx == -1:
-                return target_str
-            # If predecessor is a Thai character and not a space, insert a space so combining marks don't collide
-            prefix = ""
-            if idx > 0 and '\u0e00' <= target_str[idx - 1] <= '\u0e7f' and not target_str[idx - 1].isspace():
-                prefix = " "
-            replacement = f"{prefix}{{\\c{color_tag}}}{kw}{{\\c{clean_primary}}}"
-            return target_str[:idx] + replacement + target_str[idx + len(kw):]
-
-        # Tier 2: Dynamic Project Keywords (injected into Electric Cyan features)
-        if custom_keywords:
-            for ckw in sorted(custom_keywords, key=len, reverse=True):
-                if len(ckw) >= 2 and ckw in result:
-                    cyan_color = color_hint or "&H00FFE600&"
-                    return _safe_replace_kw(result, ckw, cyan_color)
-
-        # Tier 3: Reviewer Mega-Dictionary
-        color_order = [color_hint] if color_hint else list(cls.KINETIC_KEYWORDS.keys())
-        for color_tag in color_order:
-            kw_list = cls.KINETIC_KEYWORDS.get(color_tag, [])
-            for kw in sorted(kw_list, key=len, reverse=True):
-                if kw in result and f"{{\\c{color_tag}}}" not in result:
-                    return _safe_replace_kw(result, kw, color_tag)
-
-        return result
+        return apply_kinetic_highlighting(
+            text, primary_color_ass=primary_color_ass, color_hint=color_hint, custom_keywords=custom_keywords
+        )
 
     @classmethod
     def apply_kinetic_highlighting_en(
@@ -1087,125 +367,23 @@ class SubtitleEngine:
         text: str,
         primary_color_ass: str = "&H00EAEAEA&",
         color_hint: Optional[str] = None,
-        custom_keywords: Optional[List[str]] = None
+        custom_keywords: Optional[List[str]] = None,
     ) -> str:
-        """
-        Scans English text with 3-tier intelligence matching Thai.
-        """
-        if not text:
-            return text
-
-        clean_primary = primary_color_ass if primary_color_ass.endswith("&") else f"{primary_color_ass}&"
-        result = text
-        chosen_color = color_hint or "&H0000E6FF&"
-
-        # Tier 1: Manual Markers (*word* or [word])
-        marker_pattern = re.compile(r"(\*([^*]+)\*|\[([^\]]+)\])")
-        if marker_pattern.search(result):
-            def _replace_marker(m):
-                kw = m.group(2) or m.group(3)
-                return f"{{\\c{chosen_color}}}{kw}{{\\c{clean_primary}}}"
-            return marker_pattern.sub(_replace_marker, result)
-
-        if "{\\c" in text:
-            return text
-
-        # Tier 2: Dynamic Project Keywords
-        if custom_keywords:
-            for ckw in sorted(custom_keywords, key=len, reverse=True):
-                if len(ckw) >= 2:
-                    pattern = re.compile(rf"(?i)\b{re.escape(ckw)}\b")
-                    match = pattern.search(result)
-                    if match:
-                        matched_str = match.group(0)
-                        start, end = match.span()
-                        cyan_color = color_hint or "&H00FFE600&"
-                        return result[:start] + f"{{\\c{cyan_color}}}{matched_str}{{\\c{clean_primary}}}" + result[end:]
-
-        # Tier 3: Reviewer Mega-Dictionary
-        # A colour hint means the other language already committed to one of
-        # the meaning groups (pain point / product / warning), so this line has
-        # to stay in that group. Merely trying it FIRST let a line fall through
-        # to a different group when the hinted one had no match -- Thai lit
-        # "ด่วนเลย" yellow from the pain-point list while English lit "look at
-        # this" red from the warning list, on the same cue. When the hinted
-        # group has nothing, the caller's salient-word fallback colours it in
-        # that same colour instead of switching groups.
-        color_order = [color_hint] if color_hint else list(cls.KINETIC_KEYWORDS_EN.keys())
-        for color_tag in color_order:
-            kw_list = cls.KINETIC_KEYWORDS_EN.get(color_tag, [])
-            for kw in sorted(kw_list, key=len, reverse=True):
-                pattern = re.compile(rf"(?i)\b{re.escape(kw)}\b")
-                match = pattern.search(result)
-                if match and f"{{\\c{color_tag}}}" not in result:
-                    matched_str = match.group(0)
-                    start, end = match.span()
-                    result = result[:start] + f"{{\\c{color_tag}}}{matched_str}{{\\c{clean_primary}}}" + result[end:]
-                    return result
-
-        return result
-
-    # Words too functional to be worth emphasising if we have to pick one.
-    _EN_STOPWORDS = {
-        "a", "an", "the", "is", "are", "was", "were", "be", "been", "am", "of", "to", "in",
-        "on", "at", "for", "with", "and", "or", "but", "if", "it", "its", "this", "that",
-        "these", "those", "as", "by", "from", "up", "out", "so", "than", "then", "too",
-        "very", "can", "will", "just", "not", "no", "do", "does", "did", "you", "your",
-        "i", "my", "we", "our", "they", "their", "he", "she", "his", "her", "how", "what",
-        "who", "why", "when", "where", "all", "any", "more", "most", "some", "such", "own",
-        "about", "into", "over", "also", "have", "has", "had", "would", "could", "should",
-    }
-    _TH_PARTICLES = {
-        "ครับ", "ค่ะ", "คะ", "นะ", "น่ะ", "จ้า", "เลย", "ก็", "ที่", "ซึ่ง", "และ", "หรือ",
-        "แต่", "กับ", "ของ", "ใน", "จะ", "ได้", "ให้", "มา", "ไป", "อยู่", "คือ", "ว่า",
-        "เป็น", "มี", "ไม่", "แล้ว", "ด้วย", "อีก", "มัน", "เรา", "เขา", "ทั้ง", "ทุก",
-    }
+        return apply_kinetic_highlighting_en(
+            text, primary_color_ass=primary_color_ass, color_hint=color_hint, custom_keywords=custom_keywords
+        )
 
     @classmethod
     def _salient_word_en(cls, text: str) -> Optional[str]:
-        """Longest non-stopword token, as the thing worth colouring."""
-        best = None
-        for raw in re.findall(r"[A-Za-z][A-Za-z'-]*", text):
-            if raw.lower() in cls._EN_STOPWORDS or len(raw) < 3:
-                continue
-            if best is None or len(raw) > len(best):
-                best = raw
-        return best
+        return _salient_word_en(text)
 
     @classmethod
     def _salient_word_th(cls, text: str) -> Optional[str]:
-        """Longest non-particle Thai token; falls back to the longest run of Thai letters."""
-        candidates: List[str] = []
-        try:
-            from pythainlp.tokenize import word_tokenize
-
-            candidates = [w.strip() for w in word_tokenize(text, engine="newmm") if w.strip()]
-        except Exception:
-            candidates = re.findall(r"[฀-๿]+", text)
-        best = None
-        for w in candidates:
-            if w in cls._TH_PARTICLES or len(w) < 3:
-                continue
-            if not re.search(r"[฀-๿]", w):
-                continue  # skip emoji/punctuation/latin
-            if best is None or len(w) > len(best):
-                best = w
-        return best
+        return _salient_word_th(text)
 
     @classmethod
     def _force_highlight(cls, text: str, word: Optional[str], colour: str, primary: str) -> str:
-        """Colour `word` inside `text` using the same wrapper the matchers use."""
-        if not word or word not in text:
-            return text
-        clean_primary = primary if primary.endswith("&") else f"{primary}&"
-        idx = text.find(word)
-        if idx == -1:
-            return text
-        prefix = ""
-        if idx > 0 and '\u0e00' <= text[idx - 1] <= '\u0e7f' and not text[idx - 1].isspace():
-            prefix = " "
-        replacement = f"{prefix}{{\\c{colour}}}{word}{{\\c{clean_primary}}}"
-        return text[:idx] + replacement + text[idx + len(word):]
+        return _force_highlight(text, word, colour, primary)
 
     @classmethod
     def apply_bilingual_kinetic_highlighting(
@@ -1214,49 +392,11 @@ class SubtitleEngine:
         en_text: str,
         primary_th: str = "&H00FFFFFF&",
         primary_en: str = "&H00EAEAEA&",
-        custom_keywords: Optional[List[str]] = None
+        custom_keywords: Optional[List[str]] = None,
     ) -> Tuple[str, str]:
-        """
-        Guarantees 100% color synchronization between stacked Thai and English subtitles:
-        - If Thai triggers a color, English prioritizes matching the same color category.
-        - If English triggers a color, Thai is re-checked against that color category.
-        """
-        th_res = cls.apply_kinetic_highlighting(th_text, primary_color_ass=primary_th, custom_keywords=custom_keywords)
-        th_color = None
-        if "{\\c" in th_res:
-            m = re.search(r"\{\\c(&H[0-9A-Fa-f]+&)\}", th_res)
-            if m:
-                th_color = m.group(1)
-
-        en_res = cls.apply_kinetic_highlighting_en(en_text, primary_color_ass=primary_en, color_hint=th_color, custom_keywords=custom_keywords)
-        en_color = None
-        if "{\\c" in en_res:
-            m = re.search(r"\{\\c(&H[0-9A-Fa-f]+&)\}", en_res)
-            if m:
-                en_color = m.group(1)
-
-        if not th_color and en_color:
-            th_res = cls.apply_kinetic_highlighting(th_text, primary_color_ass=primary_th, color_hint=en_color, custom_keywords=custom_keywords)
-            th_color = en_color if "{\\c" in th_res else None
-
-        # Matching the colour is not the same as both lines actually having
-        # one. Re-running the other side with a colour hint only changes which
-        # dictionary is tried first -- if that line contains no listed keyword
-        # it still comes out plain, which is what left a highlighted Thai line
-        # sitting above an all-white English one (and the reverse).
-        #
-        # So when exactly one side found something, colour the other side's
-        # most salient word in the same colour rather than leaving the pair
-        # visibly inconsistent.
-        if th_color and not en_color:
-            en_res = cls._force_highlight(en_res, cls._salient_word_en(en_text), th_color, primary_en)
-        elif en_color and not th_color:
-            th_res = cls._force_highlight(th_res, cls._salient_word_th(th_text), en_color, primary_th)
-        elif th_color and en_color and th_color != en_color:
-            # If both matched different colors, enforce Thai's color onto English for 100% parity
-            en_res = re.sub(r"\{\\c&H[0-9A-Fa-f]+&\}", f"{{\\c{th_color}}}", en_res)
-
-        return th_res, en_res
+        return apply_bilingual_kinetic_highlighting(
+            th_text, en_text, primary_th=primary_th, primary_en=primary_en, custom_keywords=custom_keywords
+        )
 
     @classmethod
     def generate_ass(

@@ -22,7 +22,10 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-PY_SRC = (ROOT / "scripts" / "subtitle_engine.py").read_text(encoding="utf-8")
+PY_SRC = ""
+for _sub in sorted((ROOT / "scripts" / "subtitle").glob("*.py")):
+    PY_SRC += _sub.read_text(encoding="utf-8") + "\n"
+PY_SRC += (ROOT / "scripts" / "subtitle_engine.py").read_text(encoding="utf-8")
 JS_SRC = (ROOT / "frontend" / "src" / "components" / "SequencePlayer.jsx").read_text(encoding="utf-8")
 
 

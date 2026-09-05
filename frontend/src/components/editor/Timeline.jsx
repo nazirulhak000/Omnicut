@@ -2,9 +2,20 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { TransitionIcon } from '../../lib/transitionIcons';
 import {
   ChevronDown, ChevronRight,
-  Copy, Eye, EyeOff, Film, FlipHorizontal2, Gauge, MessageSquare, Music, Plus, Scissors, Sparkles, Trash2, Type, Volume2, VolumeX, Waves, X
+  Eye, EyeOff, Film, MessageSquare, Music, Plus, Scissors, Sparkles, Type, Volume2, VolumeX, Waves, X
 } from 'lucide-react';
 import TimelineClip from './TimelineClip';
+import TimelineRuler from './timeline/TimelineRuler';
+import TimelinePlayhead from './timeline/TimelinePlayhead';
+import TimelineContextMenu from './timeline/TimelineContextMenu';
+import { useTimelineKeyboard } from '../../hooks/useTimelineKeyboard';
+import { useTimelineDrag } from '../../hooks/useTimelineDrag';
+import {
+  overlayLabel,
+  packTextOverlays,
+  tickStep,
+  indexFromX,
+} from '../../lib/timelineTrackModel';
 import { CLIP_DRAG_TYPE, TEXT_TEMPLATE_DRAG_TYPE } from './AssetPanel';
 import { getAudioPeaks, MAX_DECODE_SECONDS } from '../../lib/audioPeaks';
 import { formatTimecode, TRANSITIONS, FADE_DURATION } from '../../lib/timelineMath';
@@ -19,12 +30,6 @@ const WAVE_COLUMNS = 1200;
 // five seconds left the slider pinned and reading the wrong number.
 export const HOOK_MIN_DURATION = 1.0;
 export const HOOK_MAX_DURATION = 8.0;
-
-/** What a lane chip calls an overlay: its first tier that has words. */
-function overlayLabel(overlay) {
-  const tier = (overlay?.tiers || []).find((t) => (t.text || '').trim());
-  return (tier?.text || '').trim() || 'ข้อความเสริม';
-}
 
 const VIDEO_H = 64;
 const HOOK_H = 28;
@@ -103,60 +108,6 @@ export function tracksFitHeight({ textOverlays = false, audioCollapsed = false }
 const TRACK_BOTTOM = 18;
 const GUTTER = 144;        // left label column
 const GUTTER_DENSE = 120;  // phones: the clips need the width more than the names do
-
-/** Tick spacing that keeps labels readable at any zoom. */
-function tickStep(pxPerSec) {
-  for (const step of [1, 2, 5, 10, 15, 30, 60]) {
-    if (step * pxPerSec >= 56) return step;
-  }
-  return 120;
-}
-
-/**
- * Computes deterministic magnetic ripple on cues when a cue is trimmed or dragged.
- * Extends -> pushes subsequent cues forward.
- * Shrinks -> magnetically pulls subsequent cues backward (Magnetic Pull) without leaving gaps.
- * Cues never overlap and maintain relative order with zero cumulative drift.
- */
-function applyCaptionMagneticRipple(initialCues, targetUid, newStart, newEnd) {
-  if (!initialCues || !initialCues.length) return [];
-  const list = initialCues.map((c) => ({ ...c }));
-  const targetIdx = list.findIndex((c) => c._uid === targetUid || c.id === targetUid);
-  if (targetIdx === -1) return list;
-
-  const validStart = Math.max(0, Math.round(newStart * 100) / 100);
-  const validEnd = Math.max(validStart + 0.2, Math.round(newEnd * 100) / 100);
-
-  const initTarget = initialCues[targetIdx];
-  list[targetIdx] = {
-    ...list[targetIdx],
-    start: validStart,
-    end: validEnd,
-  };
-
-  const deltaEnd = Math.round((validEnd - initTarget.end) * 100) / 100;
-  const deltaStart = Math.round((validStart - initTarget.start) * 100) / 100;
-  // If end changed (e.g. right trim), use deltaEnd. Otherwise (e.g. body drag or left trim), use deltaStart
-  const shiftDelta = Math.abs(deltaEnd) > 0.001 ? deltaEnd : deltaStart;
-
-  for (let i = targetIdx + 1; i < list.length; i++) {
-    const prevCue = list[i - 1];
-    const initCur = initialCues[i];
-    const curDur = Math.max(0.2, Math.round((initCur.end - initCur.start) * 100) / 100);
-
-    const wantedStart = Math.round((initCur.start + shiftDelta) * 100) / 100;
-    const shiftedStart = Math.max(prevCue.end, wantedStart);
-    const shiftedEnd = Math.round((shiftedStart + curDur) * 100) / 100;
-
-    list[i] = {
-      ...list[i],
-      start: shiftedStart,
-      end: shiftedEnd,
-    };
-  }
-
-  return list;
-}
 
 /**
  * A mute/solo chip. The mark stays small because the gutter is narrow, but the
@@ -364,13 +315,9 @@ export default function Timeline({
     return false;
   };
   const laneRef = useRef(null);
-  const scrubbing = useRef(false);
-  const captionDrag = useRef(null);
-  const captionTrim = useRef(null);
-  const textDrag = useRef(null);
-  const textTrim = useRef(null);
-  const bodyDrag = useRef(null);
+  const scrollRef = useRef(null);
   const [dropIndex, setDropIndex] = useState(null);
+  const [templateDropAt, setTemplateDropAt] = useState(null);
   const stemCanvasRefs = useRef({});
   const [stemPeaks, setStemPeaks] = useState({});
   const [transitionMenuClipId, setTransitionMenuClipId] = useState(null);
@@ -378,29 +325,10 @@ export default function Timeline({
   const hasTextOverlays = Boolean(textOverlays && textOverlays.length > 0);
 
   // Auto-stacking multi-layer calculation for overlapping text overlays
-  const { packedTextOverlays, textLaneCount } = useMemo(() => {
-    if (!textOverlays || textOverlays.length === 0) {
-      return { packedTextOverlays: [], textLaneCount: 0 };
-    }
-    const sorted = [...textOverlays].sort((a, b) => a.start - b.start);
-    const laneEndTimes = [];
-    const packed = sorted.map((item) => {
-      let assignedLane = -1;
-      for (let i = 0; i < laneEndTimes.length; i++) {
-        if (item.start >= laneEndTimes[i] - 0.05) {
-          assignedLane = i;
-          laneEndTimes[i] = item.end;
-          break;
-        }
-      }
-      if (assignedLane === -1) {
-        assignedLane = laneEndTimes.length;
-        laneEndTimes.push(item.end);
-      }
-      return { ...item, lane: assignedLane };
-    });
-    return { packedTextOverlays: packed, textLaneCount: Math.max(1, laneEndTimes.length) };
-  }, [textOverlays]);
+  const { packedTextOverlays, textLaneCount } = useMemo(
+    () => packTextOverlays(textOverlays),
+    [textOverlays],
+  );
 
   const TEXT_LANE_ROW_H = 26;
   const textTrackHeight = Math.max(TEXT_OVERLAY_H, textLaneCount * TEXT_LANE_ROW_H + 4);
@@ -427,29 +355,15 @@ export default function Timeline({
   const rowStyle = (key) => rowStyleOf[key] || { height: 0, marginTop: 0 };
   const tracksHeight = rows.reduce((sum, r) => sum + r.height + r.marginTop, 0);
 
-  // Close context menu & transition popover on outside pointer click or Escape
-  useEffect(() => {
-    const handleGlobalPointer = (e) => {
-      if (transitionMenuClipId && !e.target.closest('[data-transition-popover]') && !e.target.closest('[data-transition-trigger]')) {
-        setTransitionMenuClipId(null);
-      }
-      if (contextMenu && !e.target.closest('[data-context-menu]')) {
-        setContextMenu(null);
-      }
-    };
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        setTransitionMenuClipId(null);
-        setContextMenu(null);
-      }
-    };
-    window.addEventListener('pointerdown', handleGlobalPointer);
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('pointerdown', handleGlobalPointer);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [transitionMenuClipId, contextMenu]);
+  // Global listeners for Escape, click outside, and native Ctrl/Cmd + wheel zoom
+  useTimelineKeyboard({
+    scrollRef,
+    onZoom,
+    transitionMenuClipId,
+    setTransitionMenuClipId,
+    contextMenu,
+    setContextMenu,
+  });
 
   const handleClipContextMenu = (e, seg) => {
     setTransitionMenuClipId(null);
@@ -459,23 +373,6 @@ export default function Timeline({
       seg,
     });
   };
-
-  // Ctrl/Cmd+wheel has to be bound natively with { passive: false }: React
-  // registers its own root `wheel` listener as passive, so preventDefault()
-  // inside an onWheel prop is ignored and the browser page-zooms instead of
-  // the timeline.
-  const scrollRef = useRef(null);
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const onWheelNative = (e) => {
-      if (!(e.ctrlKey || e.metaKey)) return;
-      e.preventDefault();
-      onZoom?.(e.deltaY < 0 ? 1 : -1);
-    };
-    el.addEventListener('wheel', onWheelNative, { passive: false });
-    return () => el.removeEventListener('wheel', onWheelNative);
-  }, [onZoom]);
 
   // Share the scroll container with the parent so "fit to screen" can
   // measure the real track width instead of guessing a viewport size.
@@ -548,24 +445,67 @@ export default function Timeline({
 
   // Dropping a clip from the media bin. The insert position is whichever
   // boundary the pointer is nearest, so a drop reads like where it landed.
-  const indexFromX = (clientX) => {
-    if (!laneRef.current) return segments.length;
-    const t = (clientX - laneRef.current.getBoundingClientRect().left) / pxPerSec;
-    let i = 0;
-    while (i < segments.length && t > (segments[i].segStart + segments[i].segEnd) / 2) i += 1;
-    return i;
-  };
+  // Dragging, trimming, and scrubbing controller
+  const {
+    timeFromEvent,
+    startScrub,
+    moveScrub,
+    endScrub,
+    handleTrackAreaPointerDown,
+    onBodyDragStart,
+    onBodyDragMove,
+    onBodyDragEnd,
+    startTrim,
+    moveTrim,
+    endTrim,
+    startCaptionBodyDrag,
+    moveCaptionBodyDrag,
+    endCaptionBodyDrag,
+    startTextTrim,
+    moveTextTrim,
+    endTextTrim,
+    startTextBodyDrag,
+    moveTextBodyDrag,
+    endTextBodyDrag,
+    startHookTrim,
+    moveHookTrim,
+    endHookTrim,
+  } = useTimelineDrag({
+    laneRef,
+    pxPerSec,
+    totalDuration,
+    audioDuration,
+    segments,
+    cues,
+    hookOverlay,
+    snapEnabled,
+    snapPoints,
+    snapFunction,
+    onSeek,
+    deselectAll,
+    dragBegin,
+    dragEnd,
+    shiftCaption,
+    onCuesChange,
+    onCaptionRippleShift,
+    shiftTextOverlay,
+    onUpdateOverlay,
+    reorder,
+  });
+
+  // Dropping a clip from the media bin. The insert position is whichever
+  // boundary the pointer is nearest, so a drop reads like where it landed.
   const dragHasClip = (e) => Array.from(e.dataTransfer?.types || []).includes(CLIP_DRAG_TYPE);
   const onDragOverTrack = (e) => {
     if (!dragHasClip(e)) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
-    setDropIndex(indexFromX(e.clientX));
+    setDropIndex(indexFromX(e.clientX, laneRef.current?.getBoundingClientRect(), pxPerSec, segments));
   };
   const onDropTrack = (e) => {
     if (!dragHasClip(e)) return;
     e.preventDefault();
-    const at = indexFromX(e.clientX);
+    const at = indexFromX(e.clientX, laneRef.current?.getBoundingClientRect(), pxPerSec, segments);
     setDropIndex(null);
     try {
       onDropClip?.(JSON.parse(e.dataTransfer.getData(CLIP_DRAG_TYPE)), at);
@@ -593,24 +533,6 @@ export default function Timeline({
     } catch (err) { /* malformed payload -- nothing to insert */ }
   };
 
-  // Dragging a clip body reorders it. The clip reports pointer positions; the
-  // decision lives here because only the timeline knows where the other clips
-  // are. Each crossing is one swap, and the whole gesture is one undo step.
-  const onBodyDragStart = () => { bodyDrag.current = true; dragBegin(); };
-  const onBodyDragMove = (clipId, clientX) => {
-    if (!bodyDrag.current || !laneRef.current) return false;
-    const t = (clientX - laneRef.current.getBoundingClientRect().left) / pxPerSec;
-    const myIdx = segments.findIndex((s) => s.clip.id === clipId);
-    const overIdx = segments.findIndex((s) => t >= s.segStart && t < s.segEnd);
-    if (myIdx === -1 || overIdx === -1 || overIdx === myIdx) return false;
-    return reorder(clipId, overIdx > myIdx ? 1 : -1, true);
-  };
-  const onBodyDragEnd = () => {
-    if (!bodyDrag.current) return;
-    bodyDrag.current = false;
-    dragEnd();
-  };
-
   const contentWidth = Math.max(audioDuration || 0, totalDuration, 1) * pxPerSec + 240;
   const step = tickStep(pxPerSec);
   const ticks = useMemo(() => {
@@ -619,165 +541,6 @@ export default function Timeline({
     for (let t = 0; t <= span + step; t += step) out.push(t);
     return out;
   }, [totalDuration, audioDuration, step]);
-
-  const timeFromEvent = (e) => {
-    const lane = laneRef.current;
-    if (!lane) return 0;
-    const rect = lane.getBoundingClientRect();
-    const maxT = Math.max(totalDuration, audioDuration || 0);
-    const rawT = (e.clientX - rect.left) / pxPerSec;
-    return Math.max(0, maxT > 0 ? Math.min(maxT, rawT) : rawT);
-  };
-
-  const startScrub = (e) => {
-    scrubbing.current = true;
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* scrub still works */ }
-    onSeek?.(timeFromEvent(e));
-  };
-  const moveScrub = (e) => { if (scrubbing.current) onSeek?.(timeFromEvent(e)); };
-  const endScrub = (e) => {
-    scrubbing.current = false;
-    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
-  };
-
-  const handleTrackAreaPointerDown = (e) => {
-    if (e.button !== 0) return;
-    const isInteractive = e.target.closest(
-      'button, [role="button"], [data-trim-handle], [data-transition-trigger], [data-transition-popover], [data-timeline-item]'
-    );
-    if (isInteractive) return;
-
-    deselectAll();
-    scrubbing.current = true;
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* scrub still works */ }
-    onSeek?.(timeFromEvent(e));
-  };
-
-  const startTrim = (e, cue, edge) => {
-    e.stopPropagation();
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
-    captionTrim.current = {
-      uid: cue._uid,
-      edge,
-      startX: e.clientX,
-      start: cue.start,
-      end: cue.end,
-      initialCues: (cues || []).map((c) => ({ ...c })),
-      moved: false,
-    };
-  };
-
-  const moveTrim = (e) => {
-    const d = captionTrim.current;
-    if (!d) return;
-    const delta = (e.clientX - d.startX) / pxPerSec;
-    if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return;
-    if (!d.moved) { d.moved = true; dragBegin(); }
-
-    if (d.edge === 'left') {
-      const targetIdx = (d.initialCues || []).findIndex((c) => c._uid === d.uid || c.id === d.uid);
-      const minStart = (snapEnabled && targetIdx > 0) ? d.initialCues[targetIdx - 1].end : 0;
-      const rawStart = Math.max(minStart, Math.min(d.end - 0.2, d.start + delta));
-      const snapped = snapFunction(rawStart, snapPoints);
-      const finalStart = Math.max(minStart, Math.round(snapped * 100) / 100);
-      shiftCaption(d.uid, { start: finalStart });
-    } else {
-      const rawEnd = Math.max(d.start + 0.2, d.end + delta);
-      const snapped = snapFunction(rawEnd, snapPoints);
-      const newEnd = Math.round(Math.max(d.start + 0.2, snapped) * 100) / 100;
-
-      if (snapEnabled && (onCuesChange || onCaptionRippleShift)) {
-        const nextCues = applyCaptionMagneticRipple(d.initialCues, d.uid, d.start, newEnd);
-        (onCuesChange || onCaptionRippleShift)(nextCues, true);
-      } else {
-        shiftCaption(d.uid, { end: newEnd });
-      }
-    }
-  };
-
-  const endTrim = (e) => {
-    const d = captionTrim.current;
-    captionTrim.current = null;
-    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
-    if (d?.moved) dragEnd();
-  };
-
-  const startTextTrim = (e, item, edge) => {
-    e.stopPropagation();
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
-    textTrim.current = {
-      id: item.id,
-      edge,
-      startX: e.clientX,
-      start: item.start,
-      end: item.end,
-      moved: false,
-    };
-  };
-
-  const moveTextTrim = (e) => {
-    const d = textTrim.current;
-    if (!d) return;
-    const delta = (e.clientX - d.startX) / pxPerSec;
-    if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return;
-    if (!d.moved) { d.moved = true; dragBegin(); }
-
-    if (d.edge === 'left') {
-      const rawStart = Math.max(0, Math.min(d.end - 0.2, d.start + delta));
-      const snapped = snapFunction(rawStart, snapPoints);
-      shiftTextOverlay(d.id, { start: Math.round(snapped * 100) / 100 });
-    } else {
-      const rawEnd = Math.max(d.start + 0.2, d.end + delta);
-      const snapped = snapFunction(rawEnd, snapPoints);
-      shiftTextOverlay(d.id, { end: Math.round(snapped * 100) / 100 });
-    }
-  };
-
-  const endTextTrim = (e) => {
-    const d = textTrim.current;
-    textTrim.current = null;
-    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
-    if (d?.moved) dragEnd();
-  };
-
-  // Where a dragged template card would land, in seconds, while it is over
-  // the timeline. null when nothing is being dragged.
-  const [templateDropAt, setTemplateDropAt] = useState(null);
-
-  const hookTrim = useRef(null);
-
-  const startHookTrim = (e) => {
-    e.stopPropagation();
-    if (!hookOverlay) return;
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
-    hookTrim.current = {
-      startX: e.clientX,
-      startEnd: hookOverlay.end,
-      start: hookOverlay.start,
-      moved: false,
-    };
-  };
-
-  const moveHookTrim = (e) => {
-    const d = hookTrim.current;
-    if (!d || !hookOverlay) return;
-    const delta = (e.clientX - d.startX) / pxPerSec;
-    if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return;
-    if (!d.moved) { d.moved = true; dragBegin(); }
-    const rawEnd = d.startEnd + delta;
-    const snapped = snapFunction(rawEnd, snapPoints);
-    const minEnd = d.start + HOOK_MIN_DURATION;
-    const maxEnd = d.start + HOOK_MAX_DURATION;
-    const clamped = Math.max(minEnd, Math.min(maxEnd, Math.round(snapped * 10) / 10));
-    onUpdateOverlay?.(hookOverlay.id, { end: clamped }, true);
-  };
-
-  const endHookTrim = (e) => {
-    const d = hookTrim.current;
-    hookTrim.current = null;
-    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
-    if (d?.moved) dragEnd();
-  };
 
   const sfxMarkers = (cues || []).filter((c) => c.sfx);
 
@@ -803,27 +566,15 @@ export default function Timeline({
           )}
 
           {/* Ruler: click or drag to scrub */}
-          <div className="sticky top-0 z-20 flex bg-[#1C1B19]">
-            <div style={{ width: gutterW }} className="flex-shrink-0" />
-            <div
-              onPointerDown={startScrub}
-              onPointerMove={moveScrub}
-              onPointerUp={endScrub}
-              onPointerCancel={endScrub}
-              className="relative flex-1 cursor-text touch-none border-b border-[#363430]"
-              style={{ height: RULER_H }}
-              title="คลิกหรือลากเพื่อเลื่อนหัวอ่าน"
-            >
-              {ticks.map((t) => (
-                <div key={t} className="pointer-events-none absolute top-0 h-full" style={{ left: t * pxPerSec }}>
-                  <span className="absolute top-0 h-2 w-px bg-[#4A4742]" />
-                  <span className="absolute top-2 -translate-x-1/2 font-mono text-xs text-[#9C968F]">
-                    {formatTimecode(t)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
+          <TimelineRuler
+            gutterW={gutterW}
+            rulerHeight={RULER_H}
+            ticks={ticks}
+            pxPerSec={pxPerSec}
+            onStartScrub={startScrub}
+            onMoveScrub={moveScrub}
+            onEndScrub={endScrub}
+          />
 
           {/* Track lanes */}
           <div className="flex" style={{ paddingTop: TRACK_TOP, paddingBottom: TRACK_BOTTOM }}>
@@ -1266,55 +1017,10 @@ export default function Timeline({
 
                       {/* Middle Body (Drag to shift entire cue) */}
                       <div
-                        onPointerDown={(e) => {
-                          try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
-                          captionDrag.current = {
-                            uid: cue._uid,
-                            startX: e.clientX,
-                            start: cue.start,
-                            end: cue.end,
-                            initialCues: (cues || []).map((c) => ({ ...c })),
-                            moved: false,
-                          };
-                        }}
-                        onPointerMove={(e) => {
-                          const d = captionDrag.current;
-                          if (!d || d.uid !== cue._uid) return;
-                          const delta = (e.clientX - d.startX) / pxPerSec;
-                          if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return;
-                          if (!d.moved) { d.moved = true; dragBegin(); }
-
-                          const targetIdx = (d.initialCues || []).findIndex((c) => c._uid === d.uid || c.id === d.uid);
-                          const dur = Math.round((d.end - d.start) * 100) / 100;
-                          const minStart = (snapEnabled && targetIdx > 0) ? d.initialCues[targetIdx - 1].end : 0;
-
-                          const rawStart = Math.max(minStart, d.start + delta);
-                          const snappedStart = snapFunction(rawStart, snapPoints);
-                          const finalStart = Math.max(minStart, Math.round(snappedStart * 100) / 100);
-                          const finalEnd = Math.round((finalStart + dur) * 100) / 100;
-
-                          if (snapEnabled && (onCuesChange || onCaptionRippleShift)) {
-                            const nextCues = applyCaptionMagneticRipple(d.initialCues, d.uid, finalStart, finalEnd);
-                            (onCuesChange || onCaptionRippleShift)(nextCues, true);
-                          } else {
-                            shiftCaption(cue._uid, {
-                              start: finalStart,
-                              end: finalEnd,
-                            });
-                          }
-                        }}
-                        onPointerUp={(e) => {
-                          const d = captionDrag.current;
-                          captionDrag.current = null;
-                          try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
-                          if (d?.moved) dragEnd();
-                        }}
-                        onPointerCancel={(e) => {
-                          const d = captionDrag.current;
-                          captionDrag.current = null;
-                          try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
-                          if (d?.moved) dragEnd();
-                        }}
+                        onPointerDown={(e) => startCaptionBodyDrag(e, cue)}
+                        onPointerMove={(e) => moveCaptionBodyDrag(e, cue)}
+                        onPointerUp={endCaptionBodyDrag}
+                        onPointerCancel={endCaptionBodyDrag}
                         className="flex-1 min-w-0 h-full flex items-center px-1 overflow-hidden cursor-grab active:cursor-grabbing"
                       >
                         <span className="truncate">{cue.text}</span>
@@ -1378,39 +1084,10 @@ export default function Timeline({
 
                         {/* Middle Body (Drag to shift entire text overlay) */}
                         <div
-                          onPointerDown={(e) => {
-                            try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
-                            textDrag.current = {
-                              id: item.id, startX: e.clientX, start: item.start, end: item.end, moved: false,
-                            };
-                          }}
-                          onPointerMove={(e) => {
-                            const d = textDrag.current;
-                            if (!d || d.id !== item.id) return;
-                            const delta = (e.clientX - d.startX) / pxPerSec;
-                            if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return;
-                            if (!d.moved) { d.moved = true; dragBegin(); }
-                            const shift = Math.max(-d.start, delta);
-                            const rawStart = d.start + shift;
-                            const snappedStart = snapFunction(rawStart, snapPoints);
-                            const correction = snappedStart - rawStart;
-                            shiftTextOverlay(item.id, {
-                              start: Math.round((d.start + shift + correction) * 100) / 100,
-                              end: Math.round((d.end + shift + correction) * 100) / 100,
-                            });
-                          }}
-                          onPointerUp={(e) => {
-                            const d = textDrag.current;
-                            textDrag.current = null;
-                            try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
-                            if (d?.moved) dragEnd();
-                          }}
-                          onPointerCancel={(e) => {
-                            const d = textDrag.current;
-                            textDrag.current = null;
-                            try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
-                            if (d?.moved) dragEnd();
-                          }}
+                          onPointerDown={(e) => startTextBodyDrag(e, item)}
+                          onPointerMove={(e) => moveTextBodyDrag(e, item)}
+                          onPointerUp={endTextBodyDrag}
+                          onPointerCancel={endTextBodyDrag}
                           className="flex-1 min-w-0 h-full flex items-center px-1.5 overflow-hidden cursor-grab active:cursor-grabbing gap-1"
                         >
                           <Type className="h-3 w-3 flex-shrink-0 text-[#25F4EE]" />
@@ -1544,116 +1221,26 @@ export default function Timeline({
               )}
 
               {/* playhead */}
-              <div
-                className="pointer-events-none absolute z-30"
-                style={{ left: playhead * pxPerSec, top: -RULER_H - TRACK_TOP, bottom: 0 }}
-              >
-                <div className="absolute bottom-0 left-0 top-0 w-0.5 -translate-x-1/2 bg-[#D97757]" />
-                <div className="absolute top-0 h-2.5 w-2.5 -translate-x-1/2 rotate-45 bg-[#D97757]" />
-              </div>
+              <TimelinePlayhead
+                playhead={playhead}
+                pxPerSec={pxPerSec}
+                topOffset={-RULER_H - TRACK_TOP}
+              />
             </div>
           </div>
         </div>
       </div>
 
       {/* Right-Click Context Menu on Video Clips */}
-      {contextMenu && (
-        <div
-          data-context-menu=""
-          onClick={(e) => e.stopPropagation()}
-          className="fixed z-50 min-w-[190px] rounded-xl border border-[#4A4742] bg-[#1E1D1A]/95 p-1.5 shadow-2xl backdrop-blur-md text-xs text-[#EDE9E3] animate-in fade-in zoom-in-95 duration-100"
-          style={{
-            left: Math.max(10, Math.min(window.innerWidth - 200, contextMenu.x)),
-            top: Math.max(10, Math.min(window.innerHeight - 230, contextMenu.y)),
-          }}
-        >
-          <div className="px-2 py-1 font-mono text-[10px] font-semibold text-[#9C968F] border-b border-[#363430] truncate">
-            {contextMenu.seg.clip.source_path?.split(/[\\/]/).pop()}
-          </div>
-          <div className="py-1 space-y-0.5">
-            <button
-              type="button"
-              onClick={() => {
-                onSplit?.();
-                setContextMenu(null);
-              }}
-              className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-[#D97757]/20 hover:text-[#E89274] transition-colors"
-            >
-              <span className="flex items-center gap-2">
-                <Scissors className="h-3.5 w-3.5" />
-                <span>ผ่าคลิปตรงหัวอ่าน</span>
-              </span>
-              <span className="text-[10px] text-slate-500 font-mono">S / Ctrl+B</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                onDuplicate?.();
-                setContextMenu(null);
-              }}
-              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[#2C2B27] transition-colors"
-            >
-              <Copy className="h-3.5 w-3.5" />
-              <span>ทำสำเนาคลิป</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                onToggleMirror?.();
-                setContextMenu(null);
-              }}
-              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[#2C2B27] transition-colors"
-            >
-              <FlipHorizontal2 className="h-3.5 w-3.5" />
-              <span>กลับด้านภาพ (Mirror)</span>
-            </button>
-          </div>
-
-          <div className="my-1 border-t border-[#363430]" />
-          <div className="px-2 py-1 text-[10px] text-[#9C968F] flex items-center gap-1">
-            <Gauge className="h-3 w-3" />
-            <span>ปรับความเร็ว:</span>
-          </div>
-          <div className="grid grid-cols-4 gap-1 px-1">
-            {[0.5, 1, 1.5, 2].map((sp) => {
-              const cur = contextMenu.seg.clip.speed || 1;
-              return (
-                <button
-                  key={sp}
-                  type="button"
-                  onClick={() => {
-                    onClipChange?.(contextMenu.seg.clip.id, { speed: sp === 1 ? undefined : sp });
-                    setContextMenu(null);
-                  }}
-                  className={`py-1 rounded text-center font-semibold transition-colors ${
-                    cur === sp
-                      ? 'bg-[#D97757] text-white'
-                      : 'bg-[#282724] hover:bg-[#363430] text-[#C9C3BB]'
-                  }`}
-                >
-                  {sp}x
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="my-1 border-t border-[#363430]" />
-          <button
-            type="button"
-            onClick={() => {
-              onDelete?.();
-              setContextMenu(null);
-            }}
-            className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-rose-400 hover:bg-rose-500/20 transition-colors"
-          >
-            <span className="flex items-center gap-2">
-              <Trash2 className="h-3.5 w-3.5" />
-              <span>ลบคลิป</span>
-            </span>
-            <span className="text-[10px] text-rose-400/60 font-mono">Del</span>
-          </button>
-        </div>
-      )}
+      <TimelineContextMenu
+        contextMenu={contextMenu}
+        onClose={() => setContextMenu(null)}
+        onSplit={onSplit}
+        onDuplicate={onDuplicate}
+        onToggleMirror={onToggleMirror}
+        onClipChange={onClipChange}
+        onDelete={onDelete}
+      />
     </div>
   );
 }
