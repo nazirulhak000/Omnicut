@@ -1187,6 +1187,114 @@ function drawTextOverlays(ctx, textOverlays = [], t, fontName = 'Kanit', outBoun
   });
 }
 
+function drawTextTemplatePreview(ctx, previewTemplate, bounds = null) {
+  if (!previewTemplate) return;
+
+  const rawTxt = String(previewTemplate.text || '').trim();
+  if (!rawTxt) return;
+
+  let fontFam = "'Kanit', sans-serif";
+  let fontWeight = '900';
+  const fName = previewTemplate.fontName || 'Kanit';
+  if (fName === 'IBMPlex' || fName === 'IBM Plex Sans Thai') {
+    fontFam = "'IBM Plex Sans Thai', sans-serif";
+    fontWeight = '700';
+  } else if (fName === 'Prompt') {
+    fontFam = "'Prompt', sans-serif";
+    fontWeight = '800';
+  }
+
+  const baseFs = Math.round(CANVAS_W * 0.0463);
+  const scale = Math.min(2.5, Math.max(0.4, Number(previewTemplate.scale) || 1.0));
+  const fs = Math.max(12, Math.round(baseFs * scale));
+
+  ctx.save();
+  ctx.font = `${fontWeight} ${fs}px ${fontFam}`;
+  ctx.textBaseline = 'middle';
+
+  const maxW = CANVAS_W * 0.85;
+  const rawLines = rawTxt.split('\n');
+  const wrappedLines = [];
+  rawLines.forEach(l => {
+    wrappedLines.push(...wrapCanvasText(l, ctx, maxW));
+  });
+  if (!wrappedLines.length) {
+    ctx.restore();
+    return;
+  }
+
+  const lineH = fs * 1.2;
+  const totalH = wrappedLines.length * lineH;
+  const xCenter = CANVAS_W * 0.5;
+  const yCenter = CANVAS_H * 0.5;
+  const startY = yCenter - (totalH / 2) + (lineH / 2);
+
+  let maxLineW = 0;
+  wrappedLines.forEach(l => {
+    const w = ctx.measureText(l).width;
+    if (w > maxLineW) maxLineW = w;
+  });
+  const padX = Math.round(fs * 0.6);
+  const padY = Math.round(fs * 0.35);
+  const pillW = maxLineW + padX * 2;
+  const pillH = totalH + padY * 2;
+  const pillX = xCenter - pillW / 2;
+  const pillY = yCenter - totalH / 2 - padY;
+  const radius = Math.round(pillH / 2);
+
+  if (bounds) {
+    bounds.push({
+      type: 'template_preview',
+      id: previewTemplate.id,
+      x: pillX,
+      y: pillY,
+      w: pillW,
+      h: pillH,
+      normX: 0.5,
+      normY: 0.5,
+      scale,
+      label: rawTxt.slice(0, 15),
+      template: previewTemplate,
+    });
+  }
+
+  // Background style: pill badge
+  if (previewTemplate.bgStyle === 'pill') {
+    ctx.save();
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+    ctx.beginPath();
+    if (ctx.roundRect) {
+      ctx.roundRect(pillX, pillY, pillW, pillH, Math.min(radius, 14));
+    } else {
+      ctx.rect(pillX, pillY, pillW, pillH);
+    }
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Draw text lines
+  ctx.textAlign = 'left';
+  wrappedLines.forEach((line, idx) => {
+    const lineY = startY + idx * lineH;
+    const lineW = ctx.measureText(line).width;
+    const lineX = xCenter - lineW / 2;
+
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = Math.max(2, Math.round(fs * 0.12));
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+    ctx.shadowBlur = 4;
+    ctx.shadowOffsetX = 1.5;
+    ctx.shadowOffsetY = 2;
+    ctx.strokeText(line, lineX, lineY);
+
+    ctx.shadowColor = 'transparent';
+    ctx.fillStyle = previewTemplate.color || '#FFFFFF';
+    drawTextWithMonoEmoji(ctx, line, lineX, lineY);
+  });
+
+  ctx.restore();
+}
+
 /**
  * 3-tier hook banner preview: brand (largest) / model (mid) / label
  * (smallest), mirroring subtitle_engine.py's generate_ass hook composition
@@ -1674,6 +1782,9 @@ function SequencePlayer({
   onUpdateAllCaptions = null,
   onStyleChange = null,
   onUpdateSticker = null,
+  previewTextTemplate = null,
+  onCommitPreviewTextTemplate = null,
+  onDismissPreviewTextTemplate = null,
 }, ref) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
@@ -1719,7 +1830,7 @@ function SequencePlayer({
   const cuesKey = (cues || []).map(c => `${c._uid || c.id}:${c.start}:${c.end}:${c.text}:${c.translation}:${c.scale || 1}:${c.x ?? ''}:${c.y ?? ''}:${c.position ?? ''}`).join(';;');
   const textOverlaysKey = (textOverlays || []).map(t => `${t.id}:${t.start}:${t.end}:${t.text}:${t.position}:${t.x}:${t.y}:${t.scale}:${t.color}:${t.bgStyle}:${t.anim}`).join(';;');
   const stickerKey = `${stickerStyle.badge}:${stickerStyle.position}:${stickerStyle.scale}:${stickerStyle.startTime}`;
-  const clipKey = clips.map(c => `${c.id}:${c.source_path}:${c.trim_start}:${c.trim_end}:${c.transition_in}:${c.transition_duration}:${c.brightness}:${c.contrast}:${c.saturation}:${c.zoom}:${c.pan_x}:${c.pan_y}:${c.mirror}:${c.rotation}`).join('|');
+  const previewTemplateKey = previewTextTemplate ? `${previewTextTemplate.id}:${previewTextTemplate.color}:${previewTextTemplate.fontName}:${previewTextTemplate.scale}:${previewTextTemplate.bgStyle}` : '';
 
   // Interactive Bounding Box calculations
   const selectedBox = useMemo(() => {
@@ -1938,8 +2049,15 @@ function SequencePlayer({
     );
 
     if (hit) {
+      if (hit.type === 'template_preview') {
+        // Clicking the preview box itself can be handled by the preview UI overlay
+        return;
+      }
       onSelect?.({ type: hit.type, id: hit.id });
     } else {
+      if (previewTextTemplate) {
+        onDismissPreviewTextTemplate?.();
+      }
       if (selection) {
         onSelect?.(null);
       } else {
@@ -2443,13 +2561,16 @@ function SequencePlayer({
     }
     drawSticker(ctx, stickerImgRef.current, t, stickerStyle, bounds);
     drawTextOverlays(ctx, textOverlays, t, captionStyle.fontName, bounds);
+    if (previewTextTemplate) {
+      drawTextTemplatePreview(ctx, previewTextTemplate, bounds);
+    }
     boundsRef.current = bounds;
   };
 
   useEffect(() => {
     renderAt(playheadRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [segments, captionKey, stickerKey, cuesKey, textOverlaysKey, lutReady, grade?.intensity]);
+  }, [segments, captionKey, stickerKey, cuesKey, textOverlaysKey, previewTemplateKey, lutReady, grade?.intensity]);
 
   const lastNotifyRef = useRef(0);
 
@@ -2589,6 +2710,9 @@ function SequencePlayer({
         }
         drawSticker(ctx, stickerImgRef.current, t, stickerStyle, bounds);
         drawTextOverlays(ctx, textOverlays, t, captionStyle.fontName, bounds);
+        if (previewTextTemplate) {
+          drawTextTemplatePreview(ctx, previewTextTemplate, bounds);
+        }
         boundsRef.current = bounds;
       }
 

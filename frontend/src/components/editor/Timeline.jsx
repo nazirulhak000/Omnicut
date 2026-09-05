@@ -225,6 +225,8 @@ export default function Timeline({
   // doesn't wire them up.
   snapCandidates: snapPoints = [],
   snapFunction = (t) => t,
+  snapEnabled = true,
+  onCaptionRippleShift,
   showHookHeader = true,
   hookBrand = '',
   hookModel = '',
@@ -251,19 +253,34 @@ export default function Timeline({
     if (onSelectClip) onSelectClip(id);
     else onSelect?.({ type: 'clip', id });
     const seg = segments.find((sg) => sg.clip?.id === id);
-    if (seg && typeof seg.segStart === 'number') onSeek?.(seg.segStart);
+    if (seg && typeof seg.segStart === 'number') {
+      const segEnd = typeof seg.segEnd === 'number' ? seg.segEnd : seg.segStart + 2.0;
+      if (playhead < seg.segStart - 0.05 || playhead > segEnd + 0.05) {
+        onSeek?.(seg.segStart);
+      }
+    }
   };
   const selectCaption = (uid) => {
     if (onSelectCaption) onSelectCaption(uid);
     else onSelect?.({ type: 'caption', id: uid });
     const cue = cues.find((c) => c._uid === uid || c.id === uid);
-    if (cue && typeof cue.start === 'number') onSeek?.(cue.start);
+    if (cue && typeof cue.start === 'number') {
+      const cueEnd = typeof cue.end === 'number' ? cue.end : cue.start + 2.0;
+      if (playhead < cue.start - 0.05 || playhead > cueEnd + 0.05) {
+        onSeek?.(cue.start);
+      }
+    }
   };
   const selectTextOverlay = (id) => {
     if (onSelectTextOverlay) onSelectTextOverlay(id);
     else onSelect?.({ type: 'text_overlay', id });
     const item = textOverlays.find((t) => t.id === id);
-    if (item && typeof item.start === 'number') onSeek?.(item.start);
+    if (item && typeof item.start === 'number') {
+      const itemEnd = typeof item.end === 'number' ? item.end : item.start + 2.0;
+      if (playhead < item.start - 0.05 || playhead > itemEnd + 0.05) {
+        onSeek?.(item.start);
+      }
+    }
   };
   const trimClip = (id, patch) => (onTrim ? onTrim(id, patch) : onClipChange?.(id, patch, true));
   const shiftCaption = (uid, patch) => (onCaptionShift ? onCaptionShift(uid, patch) : onCaptionChange?.(uid, patch, true));
@@ -527,7 +544,6 @@ export default function Timeline({
   };
 
   const startScrub = (e) => {
-    deselectAll();
     scrubbing.current = true;
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* scrub still works */ }
     onSeek?.(timeFromEvent(e));
@@ -578,7 +594,13 @@ export default function Timeline({
     } else {
       const rawEnd = Math.max(d.start + 0.2, d.end + delta);
       const snapped = snapFunction(rawEnd, snapPoints);
-      shiftCaption(d.uid, { end: Math.round(snapped * 100) / 100 });
+      const newEnd = Math.round(snapped * 100) / 100;
+      const actualShift = snapEnabled ? Math.round((newEnd - d.end) * 100) / 100 : 0;
+      if (snapEnabled && onCaptionRippleShift) {
+        onCaptionRippleShift(d.uid, { end: newEnd }, actualShift, true);
+      } else {
+        shiftCaption(d.uid, { end: newEnd });
+      }
     }
   };
 
@@ -1046,9 +1068,14 @@ export default function Timeline({
                       data-timeline-item="hook"
                       onClick={(e) => {
                         e.stopPropagation();
+                        const t = timeFromEvent(e);
                         if (onSelectHook) onSelectHook();
                         else onSelect?.({ type: 'hook' });
-                        onSeek?.(0);
+                        if (typeof t === 'number' && t >= 0 && t <= dur) {
+                          onSeek?.(t);
+                        } else if (playhead < 0 || playhead > dur + 0.05) {
+                          onSeek?.(0);
+                        }
                       }}
                       title={`${hookText} (0.0s - ${dur.toFixed(1)}s)`}
                       className={`group absolute top-0.5 h-[calc(100%-4px)] touch-none select-none rounded text-left text-xs transition-colors duration-150 flex items-center ${
@@ -1138,10 +1165,18 @@ export default function Timeline({
                           const rawStart = d.start + shift;
                           const snappedStart = snapFunction(rawStart, snapPoints);
                           const correction = snappedStart - rawStart;
-                          shiftCaption(cue._uid, {
-                            start: Math.round((d.start + shift + correction) * 100) / 100,
-                            end: Math.round((d.end + shift + correction) * 100) / 100,
-                          });
+                          const finalStart = Math.round((d.start + shift + correction) * 100) / 100;
+                          const dur = Math.round((d.end - d.start) * 100) / 100;
+                          const finalEnd = Math.round((finalStart + dur) * 100) / 100;
+                          const actualShift = snapEnabled ? Math.round((finalStart - d.start) * 100) / 100 : 0;
+                          if (snapEnabled && onCaptionRippleShift) {
+                            onCaptionRippleShift(cue._uid, { start: finalStart, end: finalEnd }, actualShift, true);
+                          } else {
+                            shiftCaption(cue._uid, {
+                              start: finalStart,
+                              end: finalEnd,
+                            });
+                          }
                         }}
                         onPointerUp={(e) => {
                           const d = captionDrag.current;

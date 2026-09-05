@@ -359,6 +359,8 @@ export default function EditorShell({
     setSaveStatus('dirty');
   }, [playhead]);
 
+  const [previewTextTemplate, setPreviewTextTemplate] = useState(null);
+
   const handleAddTextTemplate = useCallback((tpl) => {
     const startSec = Math.round(playhead * 100) / 100;
     const endSec = Math.round((playhead + 2.5) * 100) / 100;
@@ -379,6 +381,7 @@ export default function EditorShell({
     };
     setTextOverlays((prev) => [...prev, newOverlay]);
     setSelection({ type: 'text_overlay', id: newOverlay.id });
+    setPreviewTextTemplate(null);
     cuesDirty.current = true;
     setSaveStatus('dirty');
   }, [playhead]);
@@ -390,6 +393,26 @@ export default function EditorShell({
     cuesDirty.current = true;
     setSaveStatus('dirty');
   }, []);
+
+  const handleSelectTextTemplate = useCallback((tpl) => {
+    if (!tpl) return;
+    // If a text overlay is currently selected, apply the template's style to it (preserving text)
+    if (selection?.type === 'text_overlay' && selection.id) {
+      handleUpdateTextOverlay(selection.id, {
+        color: tpl.color || '#FFFFFF',
+        fontName: tpl.fontName || 'Kanit',
+        scale: tpl.scale || 1.0,
+        anim: tpl.anim || 'pop',
+        bgStyle: tpl.bgStyle || 'none',
+        templateId: tpl.id,
+      });
+      setPreviewTextTemplate(null);
+      return;
+    }
+
+    // Otherwise toggle / set ephemeral preview on player
+    setPreviewTextTemplate((prev) => (prev?.id === tpl.id ? null : tpl));
+  }, [selection, handleUpdateTextOverlay]);
 
   const handleDeleteTextOverlay = useCallback((id) => {
     setTextOverlays((prev) => prev.filter((item) => item.id !== id));
@@ -415,6 +438,7 @@ export default function EditorShell({
   }, []);
 
   const cuesDirty = useRef(false);
+  const initialCuesRef = useRef([]);
   const [saveStatus, setSaveStatus] = useState('saved'); // 'saved' | 'saving' | 'dirty'
   const isLoadedRef = useRef(false);
 
@@ -593,6 +617,7 @@ export default function EditorShell({
         sfx: c.sfx || null,
         _uid: `cue-${i}-${Date.now().toString(36)}`,
       }));
+      initialCuesRef.current = JSON.parse(JSON.stringify(cues || []));
 
       const rawMicroCues = (data.micro_cues && data.micro_cues.length > 0) ? data.micro_cues : [];
       setMicroCuesList(rawMicroCues);
@@ -698,6 +723,17 @@ export default function EditorShell({
   const totalDuration = useMemo(() => totalDurationOf(segments), [segments]);
   const pxPerSec = ZOOM_LEVELS[zoomIndex];
 
+  // Snapping candidates for subtitles when magnetic snap is active
+  const cueSnapPoints = useMemo(() => {
+    if (!snapEnabled) return [];
+    const pts = [];
+    cuesList.forEach((c) => {
+      if (typeof c.start === 'number') pts.push(c.start);
+      if (typeof c.end === 'number') pts.push(c.end);
+    });
+    return pts;
+  }, [snapEnabled, cuesList]);
+
   // Timeline content is `duration * pxPerSec + 240` wide (see Timeline.jsx),
   // so at the default 50 px/s it outruns a 1440px viewport from about the
   // twelfth 2-second clip and every session starts with manual scrolling.
@@ -758,28 +794,96 @@ export default function EditorShell({
     });
   }, [set, setSilent]);
 
+  const patchCaptionRipple = useCallback((uid, patch, rippleShift = 0, silent = false) => {
+    cuesDirty.current = true;
+    (silent ? setSilent : set)((prev) => {
+      const list = [...prev.cuesList];
+      const targetIdx = list.findIndex((c) => c._uid === uid || c.id === uid);
+      if (targetIdx === -1) return prev;
+
+      const targetCue = { ...list[targetIdx], ...patch };
+      list[targetIdx] = targetCue;
+
+      if (rippleShift !== 0) {
+        for (let i = targetIdx + 1; i < list.length; i++) {
+          const c = list[i];
+          const prevEnd = list[i - 1].end;
+          const dur = Math.max(0.2, Math.round((c.end - c.start) * 100) / 100);
+          const rawStart = Math.round((c.start + rippleShift) * 100) / 100;
+          const shiftedStart = Math.max(prevEnd, rawStart);
+          const shiftedEnd = Math.round((shiftedStart + dur) * 100) / 100;
+          list[i] = {
+            ...c,
+            start: shiftedStart,
+            end: shiftedEnd,
+          };
+        }
+      }
+
+      const sorted = (!silent && ('start' in patch || 'end' in patch))
+        ? [...list].sort((a, b) => a.start - b.start)
+        : list;
+      return { ...prev, cuesList: sorted };
+    });
+  }, [set, setSilent]);
+
+  const handleResetSubtitleTimings = useCallback(() => {
+    if (!initialCuesRef.current || initialCuesRef.current.length === 0) return;
+    cuesDirty.current = true;
+    set((prev) => {
+      const restored = prev.cuesList.map((c, i) => {
+        const init = initialCuesRef.current[i] || initialCuesRef.current.find((ic) => ic._uid === c._uid || ic.id === c.id);
+        if (init && typeof init.start === 'number' && typeof init.end === 'number') {
+          return {
+            ...c,
+            start: init.start,
+            end: init.end,
+          };
+        }
+        return c;
+      });
+      return {
+        ...prev,
+        cuesList: restored.sort((a, b) => a.start - b.start),
+      };
+    });
+    setSaveStatus('dirty');
+  }, [set]);
+
   const handleSelect = useCallback((sel, autoSeek = true) => {
     setSelection(sel);
     if (!sel || !autoSeek) return;
     if (sel.type === 'caption') {
       const cue = cuesList.find(c => c._uid === sel.id || c.id === sel.id);
       if (cue && typeof cue.start === 'number') {
-        seekPlayer(cue.start);
+        const cueEnd = typeof cue.end === 'number' ? cue.end : cue.start + 2.0;
+        if (playhead < cue.start - 0.05 || playhead > cueEnd + 0.05) {
+          seekPlayer(cue.start);
+        }
       }
     } else if (sel.type === 'clip') {
       const seg = segments.find(s => s.clip?.id === sel.id);
       if (seg && typeof seg.segStart === 'number') {
-        seekPlayer(seg.segStart);
+        const segEnd = typeof seg.segEnd === 'number' ? seg.segEnd : seg.segStart + 2.0;
+        if (playhead < seg.segStart - 0.05 || playhead > segEnd + 0.05) {
+          seekPlayer(seg.segStart);
+        }
       }
     } else if (sel.type === 'text_overlay') {
       const item = textOverlays.find(t => t.id === sel.id);
       if (item && typeof item.start === 'number') {
-        seekPlayer(item.start);
+        const itemEnd = typeof item.end === 'number' ? item.end : item.start + 2.0;
+        if (playhead < item.start - 0.05 || playhead > itemEnd + 0.05) {
+          seekPlayer(item.start);
+        }
       }
     } else if (sel.type === 'hook') {
-      seekPlayer(0);
+      const hookDur = hookDuration || 3.0;
+      if (playhead < 0 || playhead > hookDur + 0.05) {
+        seekPlayer(0);
+      }
     }
-  }, [cuesList, segments, textOverlays, seekPlayer]);
+  }, [cuesList, segments, textOverlays, hookDuration, playhead, seekPlayer]);
 
   // Real-time auto-saving whenever clips, captions, or style are edited
   useEffect(() => {
@@ -1919,6 +2023,9 @@ export default function EditorShell({
                   onUpdateAllCaptions={patchAllCaptions}
                   onStyleChange={patchStyle}
                   onUpdateSticker={(patch) => patchStyle(patch)}
+                  previewTextTemplate={previewTextTemplate}
+                  onCommitPreviewTextTemplate={handleAddTextTemplate}
+                  onDismissPreviewTextTemplate={() => setPreviewTextTemplate(null)}
                 />
               )}
               {applying && (
@@ -2101,8 +2208,10 @@ export default function EditorShell({
                     onEndDrag={endDrag}
                     onZoom={(dir) => setZoomIndex((i) => Math.max(0, Math.min(ZOOM_LEVELS.length - 1, i + dir)))}
                     viewportRef={timelineViewportRef}
-                    snapCandidates={snapEnabled ? snapCandidates(segments, playhead, audioDuration > 0 ? [audioDuration] : []) : []}
+                    snapCandidates={snapEnabled ? snapCandidates(segments, playhead, [...(audioDuration > 0 ? [audioDuration] : []), ...cueSnapPoints]) : []}
                     snapFunction={snapEnabled ? (t, c) => snapTime(t, c, SNAP_PX / pxPerSec) : (t) => t}
+                    snapEnabled={snapEnabled}
+                    onCaptionRippleShift={patchCaptionRipple}
                     showHookHeader={showHookHeader}
                     hookBrand={hookBrand}
                     hookModel={hookModel}
@@ -2135,6 +2244,9 @@ export default function EditorShell({
                       onAddClip={addClip}
                       onAddTextAtPlayhead={handleAddTextOverlay}
                       onAddTextTemplate={handleAddTextTemplate}
+                      onSelectTextTemplate={handleSelectTextTemplate}
+                      previewTextTemplate={previewTextTemplate}
+                      activeTextTemplateId={selection?.type === 'text_overlay' ? textOverlays.find((t) => t.id === selection.id)?.templateId : null}
                       onStyleChange={patchStyle}
                       onAssignSfx={(sfxId) => selectedCaption && patchCaption(selectedCaption._uid, { sfx: sfxId })}
                       onImportCues={handleImportCues}
@@ -2205,6 +2317,7 @@ export default function EditorShell({
                       onSelect={handleSelect}
                       trackMix={trackMix}
                       onTrackMix={handleTrackMix}
+                      onResetSubtitleTimings={handleResetSubtitleTimings}
                     />
                   </div>
                 )}
@@ -2253,6 +2366,9 @@ export default function EditorShell({
                         onAddClip={addClip}
                         onAddTextAtPlayhead={handleAddTextOverlay}
                         onAddTextTemplate={handleAddTextTemplate}
+                        onSelectTextTemplate={handleSelectTextTemplate}
+                        previewTextTemplate={previewTextTemplate}
+                        activeTextTemplateId={selection?.type === 'text_overlay' ? textOverlays.find((t) => t.id === selection.id)?.templateId : null}
                         onStyleChange={patchStyle}
                         onAssignSfx={(sfxId) => selectedCaption && patchCaption(selectedCaption._uid, { sfx: sfxId })}
                         onImportCues={handleImportCues}
@@ -2335,6 +2451,9 @@ export default function EditorShell({
                     onUpdateAllCaptions={patchAllCaptions}
                     onStyleChange={patchStyle}
                     onUpdateSticker={(patch) => patchStyle(patch)}
+                    previewTextTemplate={previewTextTemplate}
+                    onCommitPreviewTextTemplate={handleAddTextTemplate}
+                    onDismissPreviewTextTemplate={() => setPreviewTextTemplate(null)}
                   />
                 )}
                 {applying && (
@@ -2496,6 +2615,7 @@ export default function EditorShell({
                         onSelect={handleSelect}
                         trackMix={trackMix}
                         onTrackMix={handleTrackMix}
+                        onResetSubtitleTimings={handleResetSubtitleTimings}
                       />
                     </div>
                   </div>
@@ -2600,8 +2720,10 @@ export default function EditorShell({
                     onEndDrag={endDrag}
                     onZoom={(dir) => setZoomIndex((i) => Math.max(0, Math.min(ZOOM_LEVELS.length - 1, i + dir)))}
                     viewportRef={timelineViewportRef}
-                    snapCandidates={snapEnabled ? snapCandidates(segments, playhead, audioDuration > 0 ? [audioDuration] : []) : []}
+                    snapCandidates={snapEnabled ? snapCandidates(segments, playhead, [...(audioDuration > 0 ? [audioDuration] : []), ...cueSnapPoints]) : []}
                     snapFunction={snapEnabled ? (t, c) => snapTime(t, c, SNAP_PX / pxPerSec) : (t) => t}
+                    snapEnabled={snapEnabled}
+                    onCaptionRippleShift={patchCaptionRipple}
                     showHookHeader={showHookHeader}
                     hookBrand={hookBrand}
                     hookModel={hookModel}

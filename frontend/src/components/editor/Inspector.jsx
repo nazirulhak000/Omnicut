@@ -145,6 +145,7 @@ export default function Inspector({
   onSelect,
   trackMix = { mute: {}, solo: {} },
   onTrackMix,
+  onResetSubtitleTimings,
 }) {
   const resolvedHook = resolveHookStyle(hookStyle?.template, hookStyle, hookColors);
   const hasHookOverrides = Boolean(
@@ -605,15 +606,28 @@ export default function Inspector({
                   <div className="p-2 rounded-2xl bg-black/50 border border-white/[0.08] space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-semibold text-slate-400">ขอบเขตการปรับแต่ง:</span>
-                      <button
-                        type="button"
-                        onClick={handleResetFormat}
-                        className="px-2 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-[11px] font-semibold text-slate-300 hover:text-white flex items-center gap-1 transition-all cursor-pointer"
-                        title="คืนค่าขนาด 100%, ฟอนต์ Kanit, สีขาว และตำแหน่งกึ่งกลางล่าง"
-                      >
-                        <RotateCcw className="w-3 h-3 text-slate-400" />
-                        <span>รีเซ็ตค่าเริ่มต้น</span>
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        {onResetSubtitleTimings && (
+                          <button
+                            type="button"
+                            onClick={onResetSubtitleTimings}
+                            className="px-2 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-[11px] font-semibold text-amber-300 hover:text-amber-200 flex items-center gap-1 transition-all cursor-pointer"
+                            title="รีเซ็ตเวลาเริ่มต้นและสิ้นสุดของคำบรรยายทุกตัวกลับสู่ค่าตั้งต้นเดิม"
+                          >
+                            <Clock className="w-3 h-3 text-amber-400" />
+                            <span>รีเซ็ตเวลาตั้งต้น</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={handleResetFormat}
+                          className="px-2 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-[11px] font-semibold text-slate-300 hover:text-white flex items-center gap-1 transition-all cursor-pointer"
+                          title="คืนค่าขนาด 100%, ฟอนต์ Kanit, สีขาว และตำแหน่งกึ่งกลางล่าง"
+                        >
+                          <RotateCcw className="w-3 h-3 text-slate-400" />
+                          <span>รีเซ็ตค่าเริ่มต้น</span>
+                        </button>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-black/60 border border-white/[0.06]">
@@ -1514,6 +1528,19 @@ export default function Inspector({
               >
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
               </button>
+
+              {/* Reset Subtitle Timings */}
+              {onResetSubtitleTimings && (
+                <button
+                  type="button"
+                  onClick={onResetSubtitleTimings}
+                  className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-amber-300 hover:text-amber-200 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors flex-shrink-0"
+                  title="รีเซ็ตเวลาคำบรรยายทั้งหมดกลับสู่ค่าต้นฉบับ"
+                >
+                  <Clock className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="hidden sm:inline">รีเซ็ตเวลา</span>
+                </button>
+              )}
 
               {/* Add New Text at Playhead */}
               <button

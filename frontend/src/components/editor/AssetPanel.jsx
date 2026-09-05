@@ -364,6 +364,9 @@ export default function AssetPanel({
   onAddClip,
   onAddTextAtPlayhead,
   onAddTextTemplate,
+  onSelectTextTemplate,
+  previewTextTemplate = null,
+  activeTextTemplateId = null,
   onStyleChange,
   onAssignSfx,
   onImportCues,       // (cues: Array<{ start, end, text, translation, sfx }>) => void
@@ -1025,46 +1028,79 @@ export default function AssetPanel({
                   tpl.name.toLowerCase().includes(textSearch.toLowerCase()) || 
                   tpl.text.toLowerCase().includes(textSearch.toLowerCase());
                 return matchesCat && matchesSearch;
-              }).map((tpl) => (
-                <div
-                  key={tpl.id}
-                  draggable={true}
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData(TEXT_TEMPLATE_DRAG_TYPE, JSON.stringify(tpl));
-                    e.dataTransfer.setData('text/plain', tpl.text);
-                  }}
-                  onClick={() => {
-                    if (onAddTextTemplate) {
-                      onAddTextTemplate(tpl);
-                    } else if (onAddTextAtPlayhead) {
-                      onAddTextAtPlayhead();
+              }).map((tpl) => {
+                const isPreviewing = previewTextTemplate?.id === tpl.id;
+                const isSelectedApplied = activeTextTemplateId === tpl.id;
+                return (
+                  <div
+                    key={tpl.id}
+                    draggable={true}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData(TEXT_TEMPLATE_DRAG_TYPE, JSON.stringify(tpl));
+                      e.dataTransfer.setData('text/plain', tpl.text);
+                    }}
+                    onClick={() => {
+                      if (onSelectTextTemplate) {
+                        onSelectTextTemplate(tpl);
+                      } else if (onAddTextTemplate) {
+                        onAddTextTemplate(tpl);
+                      } else if (onAddTextAtPlayhead) {
+                        onAddTextAtPlayhead();
+                      }
+                    }}
+                    className={`group relative flex flex-col items-center justify-between rounded-xl border p-2.5 cursor-pointer transition-all hover:-translate-y-0.5 ${
+                      isSelectedApplied
+                        ? 'border-[#25F4EE] bg-[#25F4EE]/10 shadow-lg shadow-[#25F4EE]/20 ring-1 ring-[#25F4EE]/50'
+                        : isPreviewing
+                        ? 'border-[#25F4EE] bg-gradient-to-b from-[#1c2e38] to-[#0E0E10] shadow-lg shadow-[#25F4EE]/20'
+                        : 'border-white/[0.08] bg-gradient-to-b from-[#18181B] to-[#0E0E10] hover:border-[#25F4EE]/60 hover:shadow-lg hover:shadow-[#25F4EE]/10'
+                    }`}
+                    title={
+                      isSelectedApplied
+                        ? `สไตล์ปัจจุบันของข้อความที่เลือก: ${tpl.name}`
+                        : `คลิกเพื่อดูตัวอย่างสไตล์: ${tpl.name}`
                     }
-                  }}
-                  className="group relative flex flex-col items-center justify-between rounded-xl border border-white/[0.08] bg-gradient-to-b from-[#18181B] to-[#0E0E10] p-2.5 hover:border-[#25F4EE]/60 hover:shadow-lg hover:shadow-[#25F4EE]/10 cursor-pointer transition-all hover:-translate-y-0.5"
-                  title={`คลิกเพื่อใส่ในคลิป: ${tpl.name}`}
-                >
-                  {/* Visual Style Preview Card (CSS typography preview) */}
-                  <div className="w-full h-16 rounded-lg bg-black/60 border border-white/[0.04] flex items-center justify-center p-1.5 overflow-hidden text-center select-none relative group-hover:bg-black/40 transition-colors">
-                    <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:8px_8px]" />
-                    <span
-                      style={tpl.cssPreview}
-                      className="relative z-10 text-xs text-center max-w-full truncate px-1 transition-transform duration-200 group-hover:scale-105"
-                    >
-                      {tpl.text}
-                    </span>
-                  </div>
+                  >
+                    {/* Visual Style Preview Card (CSS typography preview) */}
+                    <div className="w-full h-16 rounded-lg bg-black/60 border border-white/[0.04] flex items-center justify-center p-1.5 overflow-hidden text-center select-none relative group-hover:bg-black/40 transition-colors">
+                      <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:8px_8px]" />
+                      <span
+                        style={tpl.cssPreview}
+                        className="relative z-10 text-xs text-center max-w-full truncate px-1 transition-transform duration-200 group-hover:scale-105"
+                      >
+                        {tpl.text}
+                      </span>
+                      {isPreviewing && (
+                        <div className="absolute top-1 right-1 px-1.5 py-0.5 rounded bg-[#25F4EE] text-[9px] font-bold text-black shadow">
+                          พรีวิว
+                        </div>
+                      )}
+                    </div>
 
-                  {/* Template Meta / Add Icon */}
-                  <div className="w-full mt-2 flex items-center justify-between gap-1">
-                    <span className="text-[11px] font-medium text-slate-300 group-hover:text-white truncate">
-                      {tpl.name}
-                    </span>
-                    <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-slate-400 group-hover:bg-[#25F4EE] group-hover:text-black transition-all">
-                      <Plus className="h-3 w-3" />
-                    </span>
+                    {/* Template Meta / Add Icon */}
+                    <div className="w-full mt-2 flex items-center justify-between gap-1">
+                      <span className={`text-[11px] font-medium truncate ${isSelectedApplied || isPreviewing ? 'text-[#25F4EE] font-bold' : 'text-slate-300 group-hover:text-white'}`}>
+                        {tpl.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onAddTextTemplate) {
+                            onAddTextTemplate(tpl);
+                          } else if (onAddTextAtPlayhead) {
+                            onAddTextAtPlayhead();
+                          }
+                        }}
+                        className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-slate-300 hover:bg-[#25F4EE] hover:text-black hover:scale-110 active:scale-95 transition-all cursor-pointer"
+                        title={`ใส่ข้อความนี้ลงไทม์ไลน์ (+)`}
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Quick Fonts Explorer Section */}
