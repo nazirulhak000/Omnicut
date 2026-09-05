@@ -292,6 +292,7 @@ export function ActivityDrawer() {
                       {isDone && (() => {
                         const hasVideo = Boolean(
                           task.result?.mp4 ||
+                          task.result?.mp4_video ||
                           task.result?.output_video ||
                           task.result?.final_video_path ||
                           task.result?.video_url
@@ -413,6 +414,7 @@ export function GlobalTaskNotification() {
           const task = notificationToast.task;
           const hasVideo = Boolean(
             task.result?.mp4 ||
+            task.result?.mp4_video ||
             task.result?.output_video ||
             task.result?.final_video_path ||
             task.result?.video_url

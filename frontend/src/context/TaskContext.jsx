@@ -159,6 +159,7 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
 
     const hasVideo = Boolean(
       task.result?.mp4 ||
+      task.result?.mp4_video ||
       task.result?.output_video ||
       task.result?.final_video_path ||
       task.result?.video_url

@@ -2060,7 +2060,7 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
         # If timeline project was generated (export_mp4 is False) -> 'in_production' with project_name attached
         if req_data.product_id and req_data.angle_id:
             try:
-                mp4_val = result.get("mp4") or result.get("output_video") or result.get("video_path") or ""
+                mp4_val = result.get("mp4") or result.get("mp4_video") or result.get("output_video") or result.get("video_path") or ""
                 is_rendered = bool(req_data.export_mp4 and mp4_val)
                 ProductStore.update_angle_status(
                     req_data.product_id,
@@ -2073,7 +2073,7 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                 print(f"Warning: could not update angle status: {angle_err}")
 
         render_jobs.complete_job(job_id, result)
-        is_exported = bool(req_data.export_mp4 and (result.get("mp4") or result.get("output_video") or result.get("video_path")))
+        is_exported = bool(req_data.export_mp4 and (result.get("mp4") or result.get("mp4_video") or result.get("output_video") or result.get("video_path")))
         TaskManager.complete_task(
             job_id,
             result=result,
