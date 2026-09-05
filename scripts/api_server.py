@@ -128,6 +128,8 @@ class RenderRequest(BaseModel):
     bgm_name: Optional[str] = None  # BGM filename from AssetRegistry.bgm(); None keeps SFXManager's own default
     bgm_volume: Optional[float] = None
     bgm_ducking: bool = False
+    # Per-stem render mutes from the Editor. Missing keys remain audible.
+    audio_mutes: Optional[Dict[str, bool]] = None
     lut_name: Optional[str] = None  # LUT filename from AssetRegistry.luts(); None auto-picks by IT angle, or no grade
     clip_list: Optional[List[Dict[str, Any]]] = None  # Manual Editor: [{source_path, trim_start, trim_end}]; None keeps single-source auto-cut
     # Per boundary between clip_list entries. Two accepted shapes: the legacy
@@ -143,6 +145,9 @@ class RenderRequest(BaseModel):
     sticker_position: Optional[str] = "top_right"
     sticker_scale: Optional[float] = 1.0
     text_overlays: Optional[List[Dict[str, Any]]] = None
+    # The one array. hook_* and text_overlays above are still accepted and
+    # converted, so an older client keeps working.
+    overlays: Optional[List[Dict[str, Any]]] = None
 
 class DeleteFileRequest(BaseModel):
     file_path: str
@@ -1602,6 +1607,9 @@ def generate_ai_scripts(req: ScriptGenerateRequest):
       "angle_name": "🚫 เตือนห้ามซื้อ / จี้จุดเจ็บ",
       "badge_color": "red",
       "hook_title": "พาดหัวแบนเนอร์บนจอ 3 วิแรก สั้นมาก",
+      "hook_brand": "ชื่อแบรนด์อย่างเดียว สั้นที่สุด 1 คำ ถ้าไม่มีแบรนด์ใส่ว่าง",
+      "hook_model": "รุ่นหรือจุดเด่น 1-3 คำ",
+      "hook_label": "หมวดสินค้า 1-2 คำ",
       "estimated_sec": 26,
       "script_text": "ประโยคที่ 1\\nประโยคที่ 2\\nประโยคที่ 3\\nประโยคที่ 4\\nประโยคที่ 5 ปิดการขายจิ้มตะกร้า",
       "caption": "แคปชั่นสั้นๆ สำหรับโพสต์",
@@ -1631,7 +1639,8 @@ def generate_ai_scripts(req: ScriptGenerateRequest):
         # Sanitize any stray ellipses across all fields
         import re as _re
         for angle in data.get("angles", []):
-            for k in ["script_text", "hook_title", "caption", "angle_name"]:
+            for k in ["script_text", "hook_title", "caption", "angle_name",
+                      "hook_brand", "hook_model", "hook_label"]:
                 v = angle.get(k)
                 if isinstance(v, str):
                     angle[k] = _re.sub(r'[.]{2,}|\u2026', ' ', v).strip()
@@ -2018,6 +2027,7 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                 voice_preset=req_data.voice_preset,
                 ad_tone=req_data.ad_tone or "commercial_premium",
                 human_voice_audio_path=human_voice_path,
+                overlays=req_data.overlays,
                 hook_brand=req_data.hook_brand,
                 hook_model=req_data.hook_model,
                 hook_label=req_data.hook_label,
@@ -2031,6 +2041,7 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                 bgm_name=req_data.bgm_name,
                 bgm_volume=req_data.bgm_volume,
                 bgm_ducking=req_data.bgm_ducking,
+                audio_mutes=req_data.audio_mutes,
                 lut_name=req_data.lut_name,
                 clip_list=req_data.clip_list,
                 transitions=req_data.transitions,

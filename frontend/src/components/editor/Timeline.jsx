@@ -5,7 +5,7 @@ import {
   Copy, Eye, EyeOff, Film, FlipHorizontal2, Gauge, MessageSquare, Music, Plus, Scissors, Sparkles, Trash2, Type, Volume2, VolumeX, Waves, X
 } from 'lucide-react';
 import TimelineClip from './TimelineClip';
-import { CLIP_DRAG_TYPE } from './AssetPanel';
+import { CLIP_DRAG_TYPE, TEXT_TEMPLATE_DRAG_TYPE } from './AssetPanel';
 import { getAudioPeaks, MAX_DECODE_SECONDS } from '../../lib/audioPeaks';
 import { formatTimecode, TRANSITIONS, FADE_DURATION } from '../../lib/timelineMath';
 
@@ -14,6 +14,18 @@ const WAVE_COLUMNS = 1200;
 
 // Row heights on a 4px scale, with the video track deliberately the tall one:
 // it is what the eye lands on first, and everything else supports it.
+// The banner's length, clamped in one place. The inspector's slider used to
+// allow 1.5-5.0s while this lane's handle allowed 1.0-8.0s, so dragging past
+// five seconds left the slider pinned and reading the wrong number.
+export const HOOK_MIN_DURATION = 1.0;
+export const HOOK_MAX_DURATION = 8.0;
+
+/** What a lane chip calls an overlay: its first tier that has words. */
+function overlayLabel(overlay) {
+  const tier = (overlay?.tiers || []).find((t) => (t.text || '').trim());
+  return (tier?.text || '').trim() || 'ข้อความเสริม';
+}
+
 const VIDEO_H = 64;
 const HOOK_H = 28;
 const CAPTION_H = 28;
@@ -248,6 +260,7 @@ export default function Timeline({
   onReorder,
   onReorderSilent,
   onDropClip,
+  onDropTextTemplate,
   // Newer shell prop names. Both sets are accepted so the timeline keeps
   // working whichever shape the shell passes.
   onSelect,
@@ -274,21 +287,26 @@ export default function Timeline({
   snapEnabled = true,
   onCuesChange,
   onCaptionRippleShift,
-  showHookHeader = true,
-  hookBrand = '',
-  hookModel = '',
-  hookLabel = '',
-  hookDuration = 3.0,
-  onHookDurationChange,
-  onToggleHookHeader,
-  onSelectHook,
-  textOverlays = [],
+  overlays = [],
+  onUpdateOverlay,
+  onSelectOverlay,
+  onToggleOverlayKindHidden,
+  onEnsureHookOverlay,
   onAddTextOverlay,
-  onTextOverlayChange,
-  onSelectTextOverlay,
-  isTextOverlayHidden = false,
-  onToggleHideTextOverlay,
 }) {
+  // The banner and the text overlays are one array; the two lanes are a view
+  // of it, so a trim on either takes the same clamp and the same handler.
+  // The banner's own slider used to allow 1.5-5.0s while this lane's handle
+  // allowed 1.0-8.0s, and dragging past 5s made the slider read wrong.
+  const hookOverlay = (overlays || []).find((o) => o.kind === 'hook') || null;
+  const textOverlays = (overlays || []).filter((o) => o.kind === 'text');
+  const showHookHeader = !!hookOverlay && !hookOverlay.hidden;
+  const isTextOverlayHidden = textOverlays.length > 0 && textOverlays.every((o) => o.hidden);
+  const onSelectTextOverlay = (id) => onSelectOverlay?.(id, 'text');
+  const onSelectHook = () => (hookOverlay ? onSelectOverlay?.(hookOverlay.id, 'hook') : null);
+  const onToggleHookHeader = () => onEnsureHookOverlay?.();
+  const onToggleHideTextOverlay = () => onToggleOverlayKindHidden?.('text');
+  const onTextOverlayChange = (id, patch, silent) => onUpdateOverlay?.(id, patch, silent);
   const deselectAll = () => {
     if (onSelectClip) onSelectClip(null);
     if (onSelectCaption) onSelectCaption(null);
@@ -554,6 +572,27 @@ export default function Timeline({
     } catch (err) { /* malformed payload -- nothing to insert */ }
   };
 
+  // A card from the template gallery, dropped where it should start. The
+  // gallery has always set this drag type and nothing has ever read it, so
+  // dragging a card onto the timeline did nothing at all.
+  const dragHasTemplate = (e) =>
+    Array.from(e.dataTransfer?.types || []).includes(TEXT_TEMPLATE_DRAG_TYPE);
+  const onDragOverContent = (e) => {
+    if (!dragHasTemplate(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    setTemplateDropAt(Math.max(0, timeFromEvent(e) ?? 0));
+  };
+  const onDropContent = (e) => {
+    if (!dragHasTemplate(e)) return;
+    e.preventDefault();
+    const at = Math.max(0, timeFromEvent(e) ?? 0);
+    setTemplateDropAt(null);
+    try {
+      onDropTextTemplate?.(JSON.parse(e.dataTransfer.getData(TEXT_TEMPLATE_DRAG_TYPE)), at);
+    } catch (err) { /* malformed payload -- nothing to insert */ }
+  };
+
   // Dragging a clip body reorders it. The clip reports pointer positions; the
   // decision lives here because only the timeline knows where the other clips
   // are. Each crossing is one swap, and the whole gesture is one undo step.
@@ -701,28 +740,36 @@ export default function Timeline({
     if (d?.moved) dragEnd();
   };
 
+  // Where a dragged template card would land, in seconds, while it is over
+  // the timeline. null when nothing is being dragged.
+  const [templateDropAt, setTemplateDropAt] = useState(null);
+
   const hookTrim = useRef(null);
 
   const startHookTrim = (e) => {
     e.stopPropagation();
+    if (!hookOverlay) return;
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
     hookTrim.current = {
       startX: e.clientX,
-      startDuration: hookDuration || 3.0,
+      startEnd: hookOverlay.end,
+      start: hookOverlay.start,
       moved: false,
     };
   };
 
   const moveHookTrim = (e) => {
     const d = hookTrim.current;
-    if (!d) return;
+    if (!d || !hookOverlay) return;
     const delta = (e.clientX - d.startX) / pxPerSec;
     if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return;
     if (!d.moved) { d.moved = true; dragBegin(); }
-    const rawDur = Math.max(1.0, Math.min(8.0, d.startDuration + delta));
-    const snapped = snapFunction(rawDur, snapPoints);
-    const clamped = Math.max(1.0, Math.min(8.0, Math.round(snapped * 10) / 10));
-    onHookDurationChange?.(clamped);
+    const rawEnd = d.startEnd + delta;
+    const snapped = snapFunction(rawEnd, snapPoints);
+    const minEnd = d.start + HOOK_MIN_DURATION;
+    const maxEnd = d.start + HOOK_MAX_DURATION;
+    const clamped = Math.max(minEnd, Math.min(maxEnd, Math.round(snapped * 10) / 10));
+    onUpdateOverlay?.(hookOverlay.id, { end: clamped }, true);
   };
 
   const endHookTrim = (e) => {
@@ -737,7 +784,23 @@ export default function Timeline({
   return (
     <div className="flex h-full flex-col bg-[#1C1B19]">
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-x-auto overflow-y-auto">
-        <div style={{ width: contentWidth, minWidth: '100%' }} className="relative">
+        <div
+          style={{ width: contentWidth, minWidth: '100%' }}
+          className="relative"
+          onDragOver={onDragOverContent}
+          onDragLeave={() => setTemplateDropAt(null)}
+          onDrop={onDropContent}
+        >
+          {templateDropAt !== null && (
+            <div
+              className="pointer-events-none absolute inset-y-0 z-30 w-0.5 bg-[#25F4EE] shadow-[0_0_8px_rgba(37,244,238,0.8)]"
+              style={{ left: templateDropAt * pxPerSec }}
+            >
+              <span className="absolute -top-0.5 left-1 rounded bg-[#25F4EE] px-1 py-0.5 font-mono text-[9px] font-bold text-black">
+                {templateDropAt.toFixed(1)}s
+              </span>
+            </div>
+          )}
 
           {/* Ruler: click or drag to scrub */}
           <div className="sticky top-0 z-20 flex bg-[#1C1B19]">
@@ -1110,9 +1173,11 @@ export default function Timeline({
               {/* hook header track */}
               <div className="relative rounded bg-[#181716]" style={rowStyle('hook')}>
                 {(() => {
-                  const hookText = [hookBrand, hookModel, hookLabel].filter(Boolean).join(' · ') || 'ป้ายฮุกพาดหัว (Hook Header)';
+                  const tierTexts = (hookOverlay?.tiers || []).map((tier) => tier.text).filter(Boolean);
+                  const hookText = tierTexts.join(' · ') || 'ป้ายฮุกพาดหัว (Hook Header)';
                   const isSelected = selection?.type === 'hook';
-                  const dur = hookDuration || 3.0;
+                  const start = hookOverlay?.start || 0;
+                  const dur = hookOverlay ? Math.max(0.1, hookOverlay.end - hookOverlay.start) : 3.0;
                   const w = Math.max(24, dur * pxPerSec);
 
                   return (
@@ -1123,13 +1188,13 @@ export default function Timeline({
                         const t = timeFromEvent(e);
                         if (onSelectHook) onSelectHook();
                         else onSelect?.({ type: 'hook' });
-                        if (typeof t === 'number' && t >= 0 && t <= dur) {
+                        if (typeof t === 'number' && t >= start && t <= start + dur) {
                           onSeek?.(t);
-                        } else if (playhead < 0 || playhead > dur + 0.05) {
-                          onSeek?.(0);
+                        } else if (playhead < start || playhead > start + dur + 0.05) {
+                          onSeek?.(start);
                         }
                       }}
-                      title={`${hookText} (0.0s - ${dur.toFixed(1)}s)`}
+                      title={`${hookText} (${start.toFixed(1)}s - ${(start + dur).toFixed(1)}s)`}
                       className={`group absolute top-0.5 h-[calc(100%-4px)] touch-none select-none rounded text-left text-xs transition-colors duration-150 flex items-center ${
                         !showHookHeader
                           ? 'opacity-40 bg-[#282724] text-[#9C968F] ring-1 ring-white/10'
@@ -1137,7 +1202,7 @@ export default function Timeline({
                             ? 'bg-[#3A3018] text-[#FFE600] ring-2 ring-[#E6C24A] shadow-[0_0_12px_rgba(230,194,74,0.3)]'
                             : 'bg-[#2A2415] text-[#E6C24A] ring-1 ring-[#594B22] hover:ring-[#8C7636]'
                       }`}
-                      style={{ left: 0, width: w }}
+                      style={{ left: start * pxPerSec, width: w }}
                     >
                       {/* Body */}
                       <div className="flex-1 min-w-0 h-full flex items-center px-2 gap-1.5 overflow-hidden cursor-pointer">
@@ -1156,7 +1221,7 @@ export default function Timeline({
                         onPointerMove={moveHookTrim}
                         onPointerUp={endHookTrim}
                         onPointerCancel={endHookTrim}
-                        title="ลากเพื่อปรับระยะเวลาแสดงผลป้ายฮุก (1.0 - 8.0 วิ)"
+                        title={`ลากเพื่อปรับระยะเวลาแสดงผลป้ายฮุก (${HOOK_MIN_DURATION.toFixed(1)} - ${HOOK_MAX_DURATION.toFixed(1)} วิ)`}
                         className="h-full w-2.5 flex-shrink-0 cursor-ew-resize rounded-r hover:bg-[#E6C24A] bg-white/[0.04] transition-colors flex items-center justify-center z-10 opacity-60 group-hover:opacity-100"
                       >
                         <div className="h-2.5 w-0.5 rounded-full bg-white/40" />
@@ -1286,7 +1351,7 @@ export default function Timeline({
                         key={item.id}
                         data-timeline-item="text_overlay"
                         onClick={(e) => { e.stopPropagation(); selectTextOverlay(item.id); }}
-                        title={`${item.text || 'ข้อความเสริม'} (${item.start.toFixed(2)}s - ${item.end.toFixed(2)}s)`}
+                        title={`${overlayLabel(item)} (${item.start.toFixed(2)}s - ${item.end.toFixed(2)}s)`}
                         className={`group absolute touch-none select-none rounded text-left text-xs leading-[18px] transition-colors duration-150 flex items-center ${
                           selected
                             ? 'bg-[#153434] text-[#25F4EE] ring-2 ring-[#25F4EE] shadow-[0_0_10px_rgba(37,244,238,0.25)] z-10'
@@ -1349,7 +1414,7 @@ export default function Timeline({
                           className="flex-1 min-w-0 h-full flex items-center px-1.5 overflow-hidden cursor-grab active:cursor-grabbing gap-1"
                         >
                           <Type className="h-3 w-3 flex-shrink-0 text-[#25F4EE]" />
-                          <span className="truncate font-medium">{item.text || 'ข้อความเสริม'}</span>
+                          <span className="truncate font-medium">{overlayLabel(item)}</span>
                         </div>
 
                         {/* Right Trim Handle */}

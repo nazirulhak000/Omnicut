@@ -2,7 +2,20 @@ import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, use
 import { Play, Pause, Eye, Shield, Trash2, Move, RotateCcw, Plus } from 'lucide-react';
 import { toMediaUrl } from '../lib/mediaUrl';
 import { createLutRenderer, loadCube } from '../lib/lut3d';
-import { resolveHookStyle } from '../lib/hookStyles';
+import {
+  ACCENT_COLOR,
+  ANCHOR_TOP,
+  CANVAS_SCALE,
+  DEFAULT_ANIM,
+  HOOK_ANIM,
+  PILL_PAD_X_EM,
+  PILL_PAD_Y_EM,
+  PILL_RADIUS_MAX_PX,
+  TEXT_FS_RATIO,
+  TEXT_POSITIONS,
+  fontWeight,
+  resolveLook,
+} from '../lib/overlayModel';
 import {
   buildSegments, totalDuration as totalDurationOf, getDrawPlan as planAt
 } from '../lib/timelineMath';
@@ -1036,309 +1049,6 @@ function drawSticker(ctx, img, t, style = {}, outBounds = null) {
 
 // Where custom text overlays sit vertically as a fraction of canvas height.
 // Mirrors TEXT_OVERLAY_POSITIONS in subtitle_engine.py: top (0.20), middle (0.50), bottom (0.72).
-const TEXT_OVERLAY_Y = {
-  top: 0.20,
-  middle: 0.50,
-  bottom: 0.72,
-};
-
-function drawTextOverlays(ctx, textOverlays = [], t, fontName = 'Kanit', outBounds = null) {
-  if (!textOverlays || textOverlays.length === 0) return;
-  const activeItems = textOverlays.filter(item => t >= item.start && t < item.end);
-  if (!activeItems.length) return;
-
-  let fontFam = "'Kanit', sans-serif";
-  let fontWeight = '900';
-  if (fontName === 'IBMPlex' || fontName === 'IBM Plex Sans Thai') {
-    fontFam = "'IBM Plex Sans Thai', sans-serif";
-    fontWeight = '700';
-  } else if (fontName === 'Prompt') {
-    fontFam = "'Prompt', sans-serif";
-    fontWeight = '800';
-  }
-
-  const baseFs = Math.round(CANVAS_W * 0.0463);
-
-  activeItems.forEach(item => {
-    const rawTxt = String(item.text || '').trim();
-    if (!rawTxt) return;
-
-    const scale = Math.min(2.5, Math.max(0.4, Number(item.scale) || 1.0));
-    const fs = Math.max(12, Math.round(baseFs * scale));
-
-    const elapsed = t - item.start;
-    const remaining = item.end - t;
-
-    let animScale = 1.0;
-    let animAlpha = 1.0;
-    let animDy = 0;
-
-    const anim = item.anim || 'pop';
-    if (anim === 'pop') {
-      const popElapsedMs = elapsed * 1000;
-      animScale = popElapsedMs >= 70 ? 1.0 : 1.25 + (1.0 - 1.25) * Math.max(0, popElapsedMs) / 70;
-    } else if (anim === 'zoom') {
-      const zoomElapsedMs = elapsed * 1000;
-      animScale = zoomElapsedMs >= 100 ? 1.0 : 1.45 + (1.0 - 1.45) * Math.max(0, zoomElapsedMs) / 100;
-      animAlpha = Math.min(1.0, Math.max(0, zoomElapsedMs / 70));
-    } else if (anim === 'stamp') {
-      const stampElapsedMs = elapsed * 1000;
-      animScale = stampElapsedMs >= 80 ? 1.0 : 1.65 + (1.0 - 1.65) * Math.max(0, stampElapsedMs) / 80;
-    } else if (anim === 'fade') {
-      const fadeElapsedMs = elapsed * 1000;
-      animAlpha = Math.min(1.0, Math.max(0, fadeElapsedMs / 150));
-    } else if (anim === 'slide') {
-      const slideElapsedMs = elapsed * 1000;
-      const frac = Math.min(1.0, Math.max(0, slideElapsedMs / 200));
-      animDy = 40 * (1.0 - frac);
-      animAlpha = frac;
-    }
-
-    // Exit fade (last 150ms)
-    if (remaining < 0.15) {
-      animAlpha *= Math.max(0, remaining / 0.15);
-    }
-
-    const renderFs = Math.max(8, Math.round(fs * animScale));
-    ctx.save();
-    ctx.font = `${fontWeight} ${renderFs}px ${fontFam}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-
-    const maxW = CANVAS_W * 0.85;
-    const rawLines = rawTxt.split('\n');
-    const wrappedLines = [];
-    rawLines.forEach(l => {
-      wrappedLines.push(...wrapCanvasText(l, ctx, maxW));
-    });
-    if (!wrappedLines.length) {
-      ctx.restore();
-      return;
-    }
-
-    const lineH = renderFs * 1.2;
-    const totalH = wrappedLines.length * lineH;
-    const pos = item.position || 'middle';
-    const normX = typeof item.x === 'number' ? Math.max(0.05, Math.min(0.95, item.x)) : 0.50;
-    const normY = typeof item.y === 'number' ? Math.max(0.05, Math.min(0.95, item.y)) : (TEXT_OVERLAY_Y[pos] ?? 0.50);
-    const xCenter = CANVAS_W * normX;
-    const yCenter = CANVAS_H * normY + animDy;
-    const startY = yCenter - (totalH / 2) + (lineH / 2);
-
-    ctx.globalAlpha = animAlpha;
-
-    let maxLineW = 0;
-    wrappedLines.forEach(l => {
-      const w = ctx.measureText(l).width;
-      if (w > maxLineW) maxLineW = w;
-    });
-    const padX = Math.round(renderFs * 0.6);
-    const padY = Math.round(renderFs * 0.35);
-    const pillW = maxLineW + padX * 2;
-    const pillH = totalH + padY * 2;
-    const pillX = xCenter - pillW / 2;
-    const pillY = yCenter - totalH / 2 - padY;
-    const radius = Math.round(pillH / 2);
-
-    if (outBounds) {
-      outBounds.push({
-        type: 'text_overlay',
-        id: item.id,
-        x: pillX,
-        y: pillY,
-        w: pillW,
-        h: pillH,
-        normX,
-        normY,
-        scale,
-        label: rawTxt.slice(0, 15),
-        item,
-      });
-    }
-
-    // Background style: pill or badge
-    const bgStyle = item.bgStyle || 'none';
-    if (bgStyle !== 'none') {
-      ctx.save();
-      let fillCol = 'rgba(0, 0, 0, 0.65)';
-      let borderCol = null;
-      if (bgStyle === 'badge_red' || item.badgeColor === '#FE2C55') {
-        fillCol = '#FE2C55';
-      } else if (bgStyle === 'badge_yellow' || item.badgeColor === '#FFE600') {
-        fillCol = '#FFE600';
-      } else if (bgStyle === 'badge_cyan' || item.badgeColor === '#25F4EE') {
-        fillCol = 'rgba(37, 244, 238, 0.2)';
-        borderCol = '#25F4EE';
-      } else if (item.badgeColor) {
-        fillCol = item.badgeColor;
-      }
-
-      ctx.fillStyle = fillCol;
-      ctx.beginPath();
-      if (ctx.roundRect) {
-        ctx.roundRect(pillX, pillY, pillW, pillH, Math.min(radius, 14));
-      } else {
-        ctx.rect(pillX, pillY, pillW, pillH);
-      }
-      ctx.fill();
-      if (borderCol) {
-        ctx.strokeStyle = borderCol;
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-      }
-      ctx.restore();
-    }
-
-    // Draw text lines
-    ctx.textAlign = 'left';
-    wrappedLines.forEach((line, idx) => {
-      const lineY = startY + idx * lineH;
-      const lineW = ctx.measureText(line).width;
-      const lineX = xCenter - lineW / 2;
-
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = Math.max(2, Math.round(renderFs * 0.12));
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
-      ctx.shadowBlur = 4;
-      ctx.shadowOffsetX = 1.5;
-      ctx.shadowOffsetY = 2;
-      ctx.strokeText(line, lineX, lineY);
-
-      ctx.shadowColor = 'transparent';
-      ctx.fillStyle = item.color || '#FFFFFF';
-      drawTextWithMonoEmoji(ctx, line, lineX, lineY);
-    });
-
-    ctx.restore();
-  });
-}
-
-function drawTextTemplatePreview(ctx, previewTemplate, bounds = null) {
-  if (!previewTemplate) return;
-
-  const rawTxt = String(previewTemplate.text || '').trim();
-  if (!rawTxt) return;
-
-  let fontFam = "'Kanit', sans-serif";
-  let fontWeight = '900';
-  const fName = previewTemplate.fontName || 'Kanit';
-  if (fName === 'IBMPlex' || fName === 'IBM Plex Sans Thai') {
-    fontFam = "'IBM Plex Sans Thai', sans-serif";
-    fontWeight = '700';
-  } else if (fName === 'Prompt') {
-    fontFam = "'Prompt', sans-serif";
-    fontWeight = '800';
-  }
-
-  const baseFs = Math.round(CANVAS_W * 0.0463);
-  const scale = Math.min(2.5, Math.max(0.4, Number(previewTemplate.scale) || 1.0));
-  const fs = Math.max(12, Math.round(baseFs * scale));
-
-  ctx.save();
-  ctx.font = `${fontWeight} ${fs}px ${fontFam}`;
-  ctx.textBaseline = 'middle';
-
-  const maxW = CANVAS_W * 0.85;
-  const rawLines = rawTxt.split('\n');
-  const wrappedLines = [];
-  rawLines.forEach(l => {
-    wrappedLines.push(...wrapCanvasText(l, ctx, maxW));
-  });
-  if (!wrappedLines.length) {
-    ctx.restore();
-    return;
-  }
-
-  const lineH = fs * 1.2;
-  const totalH = wrappedLines.length * lineH;
-  const xCenter = CANVAS_W * 0.5;
-  const yCenter = CANVAS_H * 0.5;
-  const startY = yCenter - (totalH / 2) + (lineH / 2);
-
-  let maxLineW = 0;
-  wrappedLines.forEach(l => {
-    const w = ctx.measureText(l).width;
-    if (w > maxLineW) maxLineW = w;
-  });
-  const padX = Math.round(fs * 0.6);
-  const padY = Math.round(fs * 0.35);
-  const pillW = maxLineW + padX * 2;
-  const pillH = totalH + padY * 2;
-  const pillX = xCenter - pillW / 2;
-  const pillY = yCenter - totalH / 2 - padY;
-  const radius = Math.round(pillH / 2);
-
-  if (bounds) {
-    bounds.push({
-      type: 'template_preview',
-      id: previewTemplate.id,
-      x: pillX,
-      y: pillY,
-      w: pillW,
-      h: pillH,
-      normX: 0.5,
-      normY: 0.5,
-      scale,
-      label: rawTxt.slice(0, 15),
-      template: previewTemplate,
-    });
-  }
-
-  // Background style: pill or badge
-  const previewBgStyle = previewTemplate.bgStyle || 'none';
-  if (previewBgStyle !== 'none') {
-    ctx.save();
-    let fillCol = 'rgba(0, 0, 0, 0.65)';
-    let borderCol = null;
-    if (previewBgStyle === 'badge_red' || previewTemplate.badgeColor === '#FE2C55') {
-      fillCol = '#FE2C55';
-    } else if (previewBgStyle === 'badge_yellow' || previewTemplate.badgeColor === '#FFE600') {
-      fillCol = '#FFE600';
-    } else if (previewBgStyle === 'badge_cyan' || previewTemplate.badgeColor === '#25F4EE') {
-      fillCol = 'rgba(37, 244, 238, 0.2)';
-      borderCol = '#25F4EE';
-    } else if (previewTemplate.badgeColor) {
-      fillCol = previewTemplate.badgeColor;
-    }
-
-    ctx.fillStyle = fillCol;
-    ctx.beginPath();
-    if (ctx.roundRect) {
-      ctx.roundRect(pillX, pillY, pillW, pillH, Math.min(radius, 14));
-    } else {
-      ctx.rect(pillX, pillY, pillW, pillH);
-    }
-    ctx.fill();
-    if (borderCol) {
-      ctx.strokeStyle = borderCol;
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-    }
-    ctx.restore();
-  }
-
-  // Draw text lines
-  ctx.textAlign = 'left';
-  wrappedLines.forEach((line, idx) => {
-    const lineY = startY + idx * lineH;
-    const lineW = ctx.measureText(line).width;
-    const lineX = xCenter - lineW / 2;
-
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = Math.max(2, Math.round(fs * 0.12));
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
-    ctx.shadowBlur = 4;
-    ctx.shadowOffsetX = 1.5;
-    ctx.shadowOffsetY = 2;
-    ctx.strokeText(line, lineX, lineY);
-
-    ctx.shadowColor = 'transparent';
-    ctx.fillStyle = previewTemplate.color || '#FFFFFF';
-    drawTextWithMonoEmoji(ctx, line, lineX, lineY);
-  });
-
-  ctx.restore();
-}
 
 /**
  * 3-tier hook banner preview: brand (largest) / model (mid) / label
@@ -1384,7 +1094,14 @@ function hookKeyframeAt(ms, kf) {
 // this line's own stagger start, plus how long it runs (durSec) so the loop
 // phase knows when every line has settled. reveal (0..1) drives the
 // typewriter's left-to-right clip.
-const HOOK_IN_TRANSFORMS = {
+//
+// The first eight came from the banner and the last five from the text
+// overlays, which had their own shorter, harder versions of three of the same
+// ideas -- a text `pop` snapped 1.25x down in 70ms where the banner's
+// overshot to 1.18x over 200ms. Merging them would have re-timed every
+// existing project, so both survive under separate names and
+// LEGACY_TEXT_ANIM in overlayModel.js maps the old spellings onto the new.
+const OVERLAY_IN_TRANSFORMS = {
   bounce: {
     durSec: 0.45,
     at: (ms) => ({ scale: hookKeyframeAt(ms, [[0, 0.6], [150, 1.25], [280, 0.92], [380, 1.05], [450, 1.0]]) }),
@@ -1422,6 +1139,33 @@ const HOOK_IN_TRANSFORMS = {
       blur: hookKeyframeAt(ms, [[0, 12], [350, 0]]),
     }),
   },
+  // --- the text overlays' own entrances, unchanged in timing ---
+  snap: {
+    durSec: 0.07,
+    at: (ms) => ({ scale: hookKeyframeAt(ms, [[0, 1.25], [70, 1.0]]) }),
+  },
+  pop_zoom: {
+    durSec: 0.1,
+    at: (ms) => ({
+      scale: hookKeyframeAt(ms, [[0, 1.45], [100, 1.0]]),
+      alpha: hookKeyframeAt(ms, [[0, 0], [70, 1]]),
+    }),
+  },
+  stamp: {
+    durSec: 0.08,
+    at: (ms) => ({ scale: hookKeyframeAt(ms, [[0, 1.65], [80, 1.0]]) }),
+  },
+  quick_fade: {
+    durSec: 0.15,
+    at: (ms) => ({ alpha: hookKeyframeAt(ms, [[0, 0], [150, 1]]) }),
+  },
+  rise: {
+    durSec: 0.2,
+    at: (ms) => ({
+      dy: hookKeyframeAt(ms, [[0, 40], [200, 0]]),
+      alpha: hookKeyframeAt(ms, [[0, 0], [200, 1]]),
+    }),
+  },
   none: { durSec: 0, at: () => ({}) },
 };
 
@@ -1446,7 +1190,7 @@ function hookCycleAt(tSec, startSec, endSec, stepSec, values) {
   return i === 0 ? values[values.length - 1] : prev;
 }
 
-const HOOK_LOOP_TRANSFORMS = {
+const OVERLAY_LOOP_TRANSFORMS = {
   pulse: (t, s, e) => ({ alpha: hookCycleAt(t, s, e, 0.35, [HOOK_DIM_OPACITY, 1.0]) }),
   wave: (t, s, e) => ({ rot: hookCycleAt(t, s, e, 0.4, [-3, 3, 0]) }),
   shake: (t, s, e) => ({ rot: hookCycleAt(t, s, e, 0.09, [-3, 3, -2, 2, 0]) }),
@@ -1472,7 +1216,7 @@ const HOOK_LOOP_TRANSFORMS = {
   none: () => ({}),
 };
 
-const HOOK_OUT_TRANSFORMS = {
+const OVERLAY_OUT_TRANSFORMS = {
   fade: (t, s, e) => ({ alpha: 1 - hookKeyframeAt((t - s) * 1000, [[0, 0], [(e - s) * 1000, 1]]) }),
   slide: (t, s, e) => ({
     alpha: 1 - hookKeyframeAt((t - s) * 1000, [[0, 0], [(e - s) * 1000, 1]]),
@@ -1493,183 +1237,258 @@ const HOOK_OUT_TRANSFORMS = {
 // sets Bold=1 and libass emboldens whatever it finds, so the closest match is
 // the heaviest real weight -- asking for 900 from a face that only ships 400
 // gets a synthesised bold that is heavier than the render's.
-const HOOK_FONT_WEIGHTS = {
-  Kanit: 900,
-  Prompt: 800,
-  'Chakra Petch': 700,
-  Anuphan: 700,
-  'IBM Plex Sans Thai': 700,
-  'Bai Jamjuree': 700,
-  Krub: 700,
-  Mitr: 700,
-  Pridi: 700,
-  Sarabun: 700,
-  Mali: 700,
-  Itim: 400,
-  Chonburi: 400,
-};
+/**
+ * Every piece of text burned into the frame, drawn by one function.
+ *
+ * The banner and the text overlays used to be two of these, each with its own
+ * font resolution, its own outline rule, its own line spacing and its own idea
+ * of what a background pill was -- and only the banner could set an outline
+ * colour at all, which is why a text overlay always looked the cheaper of the
+ * two. An overlay is a stack of tiers now; a banner has three, a text overlay
+ * has one, and everything below this line runs for both.
+ *
+ * Mirrors _overlay_events() in subtitle_engine.py. Draw order inside one
+ * overlay is scrim, then pills, then the accent shape, then the glyphs --
+ * shapes behind text, which is what the ASS Layer numbers encode
+ * (parity rule 2.11).
+ */
+function overlayFont(look, px) {
+  return `${fontWeight(look.font)} ${px}px '${look.font}', sans-serif`;
+}
 
-function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 3.5, fontName = 'Kanit', accentColor = '#FFE600', hookMotion = null, hookColors = null, hookStyle = null) {
-  if ((!hookBrand && !hookModel && !hookLabel) || t > hookDuration) return;
-  const motion = { ...HOOK_MOTION_DEFAULTS, ...(hookMotion || {}) };
-  // The look comes from the same template table the ASS writer reads, with the
-  // per-tier colour pickers winning last -- see frontend/src/lib/hookStyles.js
-  // and scripts/hook_styles.py.
-  const look = resolveHookStyle(hookStyle?.template, hookStyle, hookColors);
-  const fontFam = `'${look.font}', sans-serif`;
-  const fontWeight = HOOK_FONT_WEIGHTS[look.font] || 700;
+function overlayIsLive(overlay, t) {
+  return !!overlay && !overlay.hidden && t >= overlay.start && t < overlay.end;
+}
 
-  // Must stay the same fraction of frame width the renderer uses (hook_fs =
-  // video_width * 0.065 in subtitle_engine.py). This canvas is exactly half
-  // of the 1080-wide output, so the same ratio lands on the same on-screen
-  // size -- an earlier 0.052 * 1.64 made the preview ~31% larger than what
-  // actually rendered, which is why header sizes never matched.
-  const baseFontSize = Math.round(CANVAS_W * 0.065);
-  // Same tier percentages and colour fallbacks as hook_tier_specs in
-  // subtitle_engine.py. tierIdx doubles as the stagger slot and marks the
-  // model tier for the accent shape.
-  const tierSpecs = [
-    ['brand', hookBrand, '#FFFFFF'],
-    ['model', hookModel, accentColor],
-    ['label', hookLabel, '#E0E0E0'],
-  ].map(([key, raw, fallbackColor], tierIdx) => {
-    const tier = look.tiers[key];
-    const text = (raw || '').trim();
-    return {
-      text: tier.upper ? text.toUpperCase() : text,
-      sizePct: tier.size_pct,
-      color: tier.color || fallbackColor,
-      outlineColor: tier.outline_color || '#000000',
-      outlinePx: Number(tier.outline_px ?? 6),
-      pill: tier.pill || null,
-      tierIdx,
-    };
-  }).filter((tier) => tier.text);
-  if (!tierSpecs.length) return;
+/**
+ * The dark wash an overlay can lay behind itself, mirroring video_editor.py's
+ * geq gradient. It is a separate pass because the render burns it AFTER the
+ * sticker badge and BEFORE the subtitles (video_editor.py: sticker overlay,
+ * then grad_alpha overlay, then the subtitles filter). The preview used to
+ * paint it first of all, so the badge stayed bright in the editor and came
+ * back dimmed in the file.
+ */
+function drawOverlayScrims(ctx, overlays = [], t) {
+  for (const overlay of overlays) {
+    if (!overlayIsLive(overlay, t) || !overlay.scrim) continue;
+    const duration = Math.max(0.001, overlay.end - overlay.start);
+    const tRel = t - overlay.start;
+    const exitStartSec = Math.max(0.12, duration - 0.15);
+    const motion = { ...HOOK_ANIM, ...(overlay.anim || {}) };
+    const outFn = OVERLAY_OUT_TRANSFORMS[motion.out] || OVERLAY_OUT_TRANSFORMS.fade;
+    const alpha = tRel >= exitStartSec
+      ? ((outFn(tRel, exitStartSec, duration) || {}).alpha ?? 1)
+      : 1;
+    const gradH = Math.round(CANVAS_H * 0.25);
+    const grad = ctx.createLinearGradient(0, 0, 0, gradH);
+    grad.addColorStop(0, `rgba(0,0,0,${0.75 * alpha})`);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.save();
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, CANVAS_W, gradH);
+    ctx.restore();
+  }
+}
 
+function drawOverlays(ctx, overlays = [], t, accentColor = '#FFE600', outBounds = null) {
+  if (!overlays || !overlays.length) return;
+  // Painted in ASS Layer order, which is the z-order the render burns: the
+  // banner (2) under the text overlays (4).
+  const live = overlays.filter((o) => overlayIsLive(o, t));
+  live.sort((a, b) => (a.layer ?? 0) - (b.layer ?? 0));
+  for (const overlay of live) drawOneOverlay(ctx, overlay, t, accentColor, outBounds);
+}
+
+function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
+  const isHook = overlay.kind === 'hook';
+  const motion = { ...(isHook ? HOOK_ANIM : DEFAULT_ANIM), ...(overlay.anim || {}) };
+  const duration = Math.max(0.001, overlay.end - overlay.start);
+  // Every animation clock is relative to the overlay's own start. The banner
+  // used to assume it began at 0 because it always did; it can be dragged now.
+  const tRel = t - overlay.start;
+
+  const tiers = (overlay.tiers || [])
+    .map((tier, tierIdx) => {
+      const look = resolveLook(overlay.look, tier.look);
+      const raw = String(tier.text || '').trim();
+      const color = look.color === ACCENT_COLOR ? accentColor : look.color;
+      return { text: look.upper ? raw.toUpperCase() : raw, look, color, tierIdx };
+    })
+    .filter((tier) => tier.text);
+  if (!tiers.length) return;
+
+  const baseFontSize = Math.round(CANVAS_W * (overlay.base_fs_ratio || TEXT_FS_RATIO));
   const maxW = CANVAS_W * 0.85;
-  const x = CANVAS_W / 2;
+  const normX = typeof overlay.x === 'number' ? Math.max(0.05, Math.min(0.95, overlay.x)) : 0.5;
+  const normY = typeof overlay.y === 'number'
+    ? Math.max(0.05, Math.min(0.95, overlay.y))
+    : (TEXT_POSITIONS[overlay.position || 'middle'] ?? 0.5);
+  const x = CANVAS_W * normX;
 
   ctx.save();
-  ctx.textAlign = 'center';
+  ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
 
-  // Pass 1: wrap each tier at its OWN font size before measuring line count.
+  // Pass 1: wrap each tier at its OWN font size, before anything is measured
+  // against the block as a whole.
   const wrapped = [];
-  for (const tier of tierSpecs) {
-    const tierFs = Math.max(10, Math.round((baseFontSize * tier.sizePct) / 100));
-    ctx.font = `${fontWeight} ${tierFs}px ${fontFam}`;
+  for (const tier of tiers) {
+    const tierFs = Math.max(10, Math.round((baseFontSize * tier.look.size_pct) / 100));
+    ctx.font = overlayFont(tier.look, tierFs);
     for (const line of wrapCanvasText(tier.text, ctx, maxW)) {
-      wrapped.push({
-        line, fontSize: tierFs, color: tier.color, tierIdx: tier.tierIdx,
-        outlineColor: tier.outlineColor, outlinePx: tier.outlinePx, pill: tier.pill,
-      });
+      wrapped.push({ line, fontSize: tierFs, look: tier.look, color: tier.color, tierIdx: tier.tierIdx });
     }
   }
+  if (!wrapped.length) {
+    ctx.restore();
+    return;
+  }
 
-  // Pass 2: same HOOK_COMFORTABLE_LINES=4 shrink as the backend, so a long
-  // brand/model that wraps twice doesn't crowd the sticker badge (top-right,
-  // y=140) instead of just overflowing unbounded.
-  const shrink = Math.max(0.7, Math.min(1, 4 / wrapped.length));
+  // The banner shrinks past four lines so a long brand that wraps twice does
+  // not crowd the sticker badge; a text overlay is placed by hand and has no
+  // such neighbour, so it says null and keeps its size.
+  const comfortable = overlay.comfortable_lines;
+  const shrink = comfortable ? Math.max(0.7, Math.min(1, comfortable / wrapped.length)) : 1;
 
-  const inPreset = HOOK_IN_TRANSFORMS[motion.in] || HOOK_IN_TRANSFORMS.bounce;
-  const loopFn = HOOK_LOOP_TRANSFORMS[motion.loop] || HOOK_LOOP_TRANSFORMS.pulse;
-  const outFn = HOOK_OUT_TRANSFORMS[motion.out] || HOOK_OUT_TRANSFORMS.fade;
+  const inPreset = OVERLAY_IN_TRANSFORMS[motion.in] || OVERLAY_IN_TRANSFORMS.none;
+  const loopFn = OVERLAY_LOOP_TRANSFORMS[motion.loop] || OVERLAY_LOOP_TRANSFORMS.none;
+  const outFn = OVERLAY_OUT_TRANSFORMS[motion.out] || OVERLAY_OUT_TRANSFORMS.fade;
 
-  // The loop phase can't start until every tier's own entry has settled.
+  // The loop phase cannot start until every tier's own entry has settled.
   let maxEntryEndSec = 0;
   for (const { tierIdx } of wrapped) {
     const t0 = motion.stagger ? tierIdx * HOOK_STAGGER_STEP : 0;
     maxEntryEndSec = Math.max(maxEntryEndSec, t0 + inPreset.durSec);
   }
-  const exitStartSec = Math.max(0.12, hookDuration - 0.15);
-  const loopFx = loopFn(t, maxEntryEndSec, exitStartSec) || {};
-  const outFx = t >= exitStartSec ? (outFn(t, exitStartSec, hookDuration) || {}) : {};
+  const exitStartSec = Math.max(0.12, duration - 0.15);
+  const loopFx = loopFn(tRel, maxEntryEndSec, exitStartSec) || {};
+  const outFx = tRel >= exitStartSec ? (outFn(tRel, exitStartSec, duration) || {}) : {};
 
-  // Gradient backdrop -- mirrors video_editor.py's geq overlay (dark at the
-  // top of the frame, fading to transparent by ~25% down), fades out
-  // alongside the banner's outFx during the exit window.
-  const gradH = Math.round(CANVAS_H * 0.25);
-  const grad = ctx.createLinearGradient(0, 0, 0, gradH);
-  const bgAlpha = t >= exitStartSec ? (outFx.alpha ?? 1) : 1;
-  grad.addColorStop(0, `rgba(0,0,0,${0.75 * bgAlpha})`);
-  grad.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, CANVAS_W, gradH);
+  // Layout pre-pass: every line's settled size and y, resolved before any ink
+  // lands, so the pills and the accent can be painted underneath and the draw
+  // loop never has to recompute a cursor that might drift from this one.
+  const lineGap = 1.0; // LINE_HEIGHT_FACTOR in subtitle_engine.py, measured off libass
+  let blockH = 0;
+  for (let i = 0; i < wrapped.length; i++) {
+    const w = wrapped[i];
+    w.settledFs = Math.max(10, Math.round(w.fontSize * shrink));
+    blockH += w.settledFs * lineGap;
+    const isLastModelLine = w.tierIdx === 1
+      && (i + 1 >= wrapped.length || wrapped[i + 1].tierIdx !== 1);
+    w.accentReserve = isLastModelLine && motion.accent !== 'none'
+      ? w.settledFs * (motion.accent === 'badge' ? 0.45 : 0.80)
+      : 0;
+    blockH += w.accentReserve;
+  }
 
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
-  ctx.shadowBlur = 10;
-  ctx.shadowOffsetX = 3;
-  ctx.shadowOffsetY = 4;
-  ctx.strokeStyle = '#000000';
-  ctx.lineJoin = 'round';
-  ctx.miterLimit = 2;
+  // `y` names the top edge of the block for a banner and its centre for a
+  // text overlay -- the same thing an ASS Alignment says (parity rule 2.8).
+  const blockTop = overlay.anchor === ANCHOR_TOP
+    ? CANVAS_H * normY
+    : CANVAS_H * normY - blockH / 2;
 
-  let y = 130; // ~HookHeader's ASS MarginV=260 of 1920, scaled to this 960-tall canvas
-  // Must equal LINE_HEIGHT_FACTOR in subtitle_engine.py (1.0, measured off a
-  // real libass render). At 1.15 the preview stacked the tiers further apart
-  // than the render did, so the block never matched even once the font size
-  // itself lined up.
-  const lineGap = 1.0;
-  // Accent bookkeeping. Unlike the ASS side (which can't ask libass where a
-  // wrapped line landed and has to walk a LINE_HEIGHT_FACTOR cursor), the
-  // canvas measures its own text, so these come straight from layout.
-  let modelTopY = null, modelLineWidth = 0, modelFontSize = 0, modelColor = accentColor;
+  let cursor = blockTop;
+  let maxLineW = 0;
+  const tierBoxes = new Map();
+  for (const w of wrapped) {
+    w.y = cursor;
+    ctx.font = overlayFont(w.look, w.settledFs);
+    w.width = ctx.measureText(w.line).width;
+    if (w.width > maxLineW) maxLineW = w.width;
+    // A pill wraps a whole tier, not each line: a banner tier is normally one
+    // line so it looks the same as the per-line box it replaces, and a text
+    // overlay's two lines get the single badge they always had.
+    const box = tierBoxes.get(w.tierIdx);
+    if (!box) {
+      tierBoxes.set(w.tierIdx, { look: w.look, top: w.y, bottom: w.y + w.settledFs, width: w.width, fs: w.settledFs });
+    } else {
+      box.bottom = w.y + w.settledFs;
+      box.width = Math.max(box.width, w.width);
+    }
+    cursor += w.settledFs * lineGap + w.accentReserve;
+  }
 
-  // Layout pre-pass: resolve every line's y (and the model tier's metrics)
-  // BEFORE anything is painted, so the accent shape can be drawn first and
-  // sit behind the text. The renderer puts accents on a lower ASS layer for
-  // the same reason -- painting them after the text, as this used to, made
-  // the preview show a badge covering the words it is supposed to sit under.
-  {
-    let layoutY = y;
-    wrapped.forEach(({ fontSize, color, tierIdx }, idx) => {
-      const settledFs = Math.max(10, Math.round(fontSize * shrink));
-      if (tierIdx === 1) {
-        ctx.font = `${fontWeight} ${settledFs}px ${fontFam}`;
-        modelLineWidth = ctx.measureText(wrapped[idx].line).width;
-        modelFontSize = settledFs;
-        modelColor = color;
-        modelTopY = layoutY;
-      }
-      layoutY += settledFs * lineGap;
-      const isLastModelLine = tierIdx === 1 && (idx + 1 >= wrapped.length || wrapped[idx + 1].tierIdx !== 1);
-      if (isLastModelLine && motion.accent !== 'none') {
-        layoutY += settledFs * (motion.accent === 'badge' ? 0.45 : 0.80);
-      }
+  // Model-tier metrics for the accent shape, straight out of the layout the
+  // canvas can measure -- the ASS side has to walk a cursor for the same
+  // numbers because libass never reports where a wrapped line landed.
+  const modelLine = wrapped.find((w) => w.tierIdx === 1);
+
+  if (outBounds) {
+    const padX = Math.round(maxLineW * 0.04) + 8;
+    outBounds.push({
+      type: isHook ? 'hook' : 'text_overlay',
+      id: overlay.id,
+      x: x - maxLineW / 2 - padX,
+      y: blockTop - 6,
+      w: maxLineW + padX * 2,
+      h: blockH + 12,
+      normX,
+      normY,
+      sizePct: resolveLook(overlay.look, null).size_pct,
+      label: String((overlay.tiers[0] || {}).text || '').slice(0, 15),
+      item: overlay,
     });
+  }
+
+  // The scrim is drawn by drawOverlayScrims, in its own earlier pass -- the
+  // render burns it before the subtitles but after the sticker badge.
+
+  // Pills, behind everything the tier draws.
+  for (const box of tierBoxes.values()) {
+    const pill = box.look.pill;
+    if (!pill) continue;
+    const padX = Math.round(box.fs * (pill.pad_x_em ?? PILL_PAD_X_EM));
+    const padY = Math.round(box.fs * (pill.pad_y_em ?? PILL_PAD_Y_EM));
+    const pw = box.width + padX * 2;
+    const ph = (box.bottom - box.top) + padY * 2;
+    ctx.save();
+    ctx.globalAlpha = (outFx.alpha ?? 1) * (loopFx.alpha ?? 1);
+    ctx.shadowColor = 'transparent';
+    ctx.fillStyle = pill.fill;
+    ctx.beginPath();
+    const radius = Math.min(ph / 2, PILL_RADIUS_MAX_PX * CANVAS_SCALE);
+    if (ctx.roundRect) ctx.roundRect(x - pw / 2, box.top - padY, pw, ph, radius);
+    else ctx.rect(x - pw / 2, box.top - padY, pw, ph);
+    ctx.fill();
+    if (pill.border) {
+      ctx.strokeStyle = pill.border;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   // Accent shape under / behind the model tier. Follows the entry and exit
   // envelope but not the loop -- matching the backend, which never threads
   // loop keyframes into the accent events.
-  if (motion.accent !== 'none' && modelTopY != null) {
+  if (motion.accent !== 'none' && modelLine) {
     const revealStart = motion.stagger ? HOOK_STAGGER_STEP * 2 : 0;
-    const revealFrac = t <= revealStart ? 0 : Math.min(1, (t - revealStart) / 0.3);
+    const revealFrac = tRel <= revealStart ? 0 : Math.min(1, (tRel - revealStart) / 0.3);
+    const modelFontSize = modelLine.settledFs;
     ctx.save();
     ctx.shadowColor = 'transparent';
     ctx.globalAlpha = (outFx.alpha ?? 1);
-    ctx.fillStyle = modelColor;
+    ctx.fillStyle = modelLine.color;
     if (motion.accent === 'badge') {
       const padX = Math.round(modelFontSize * 0.38);
       const padY = Math.round(modelFontSize * 0.2);
-      const fullBw = (modelLineWidth / 2 + padX) * 2;
+      const fullBw = (modelLine.width / 2 + padX) * 2;
       const bw = fullBw * revealFrac;
       // ASS \alpha is TRANSPARENCY, so &HB0& means 0.31 opacity, not 0.69.
       ctx.globalAlpha *= 1 - 0xB0 / 255;
       // Anchor left edge at x - fullBw / 2 matching \an7 anchor in ASS
-      ctx.fillRect(x - fullBw / 2, modelTopY - padY, bw, modelFontSize + padY * 2);
+      ctx.fillRect(x - fullBw / 2, modelLine.y - padY, bw, modelFontSize + padY * 2);
     } else {
       const thickness = Math.max(4, Math.round(modelFontSize * 0.1));
       const gap = Math.round(modelFontSize * 0.50);
-      const w = modelLineWidth * revealFrac;
-      const barY = modelTopY + modelFontSize + gap;
-      const barX = x - modelLineWidth / 2;
+      const w = modelLine.width * revealFrac;
+      const barY = modelLine.y + modelFontSize + gap;
+      const barX = x - modelLine.width / 2;
       // The renderer lays a blurred copy under the crisp bar (\blur7 at
       // \alpha&H60&) for glow; without it the preview's bar reads flatter
       // than what actually renders.
       ctx.save();
-      ctx.shadowColor = modelColor;
+      ctx.shadowColor = modelLine.color;
       ctx.shadowBlur = 7;
       ctx.globalAlpha *= 1 - 0x60 / 255;
       ctx.fillRect(barX, barY, w, thickness);
@@ -1680,87 +1499,77 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
   }
 
   const sweeps = [];
-  wrapped.forEach(({ line, fontSize, color, tierIdx, outlineColor, outlinePx, pill }, idx) => {
-    // The cumulative y-cursor advances using the SETTLED size, not the
-    // currently-animating scale -- an ASS \t transform (and this mirror of
-    // it) animates glyph rendering, not layout reflow, so other lines must
-    // not jitter as this one animates.
-    const settledFs = Math.max(10, Math.round(fontSize * shrink));
-    const t0 = motion.stagger ? tierIdx * HOOK_STAGGER_STEP : 0;
-    const inFx = inPreset.at((t - t0) * 1000) || {};
+  for (const w of wrapped) {
+    // The cumulative y-cursor advanced using the SETTLED size, not the
+    // currently-animating scale -- an ASS \t transform (and this mirror of it)
+    // animates glyph rendering, not layout reflow, so other lines must not
+    // jitter as this one animates.
+    const t0 = motion.stagger ? w.tierIdx * HOOK_STAGGER_STEP : 0;
+    const inFx = inPreset.at((tRel - t0) * 1000) || {};
 
     const scale = (inFx.scale ?? 1) * (outFx.scale ?? 1);
     const dy = (inFx.dy ?? 0) + (outFx.dy ?? 0);
     const rot = (loopFx.rot ?? 0) + (outFx.rot ?? 0);
-    const renderFs = Math.max(6, Math.round(settledFs * scale));
+    const renderFs = Math.max(6, Math.round(w.settledFs * scale));
+    const lineY = w.y + dy;
 
     ctx.save();
     ctx.globalAlpha = (inFx.alpha ?? 1) * (loopFx.alpha ?? 1) * (outFx.alpha ?? 1);
     if (inFx.blur) ctx.filter = `blur(${inFx.blur.toFixed(1)}px)`;
     if (rot) {
       // rotate about the line's own centre, matching \frz around \pos
-      ctx.translate(x, y + settledFs / 2 + dy);
+      ctx.translate(x, lineY + w.settledFs / 2);
       ctx.rotate((rot * Math.PI) / 180);
-      ctx.translate(-x, -(y + settledFs / 2 + dy));
+      ctx.translate(-x, -(lineY + w.settledFs / 2));
     }
+    ctx.font = overlayFont(w.look, renderFs);
+    const drawnW = ctx.measureText(w.line).width;
+    const lineX = x - drawnW / 2;
     if (inFx.reveal != null) {
       // typewriter: same left-to-right clip the ASS \clip animation performs
-      ctx.font = `${fontWeight} ${settledFs}px ${fontFam}`;
-      const halfW = ctx.measureText(line).width / 2;
       ctx.beginPath();
-      ctx.rect(x - halfW, y + dy - 5, halfW * 2 * inFx.reveal, settledFs + 10);
+      ctx.rect(lineX, lineY - 5, drawnW * inFx.reveal, renderFs + 10);
       ctx.clip();
     }
-    ctx.font = `${fontWeight} ${renderFs}px ${fontFam}`;
-    // A pill is the ASS BorderStyle 3 box: it is painted with the outline
-    // colour, and the outline width becomes its padding.
-    if (pill) {
-      const pillW = ctx.measureText(line).width;
-      const padX = HOOK_PILL_PAD;
-      const padY = HOOK_PILL_PAD * 0.5;
-      ctx.fillStyle = pill;
-      ctx.beginPath();
-      ctx.roundRect(
-        x - pillW / 2 - padX, y + dy - padY,
-        pillW + padX * 2, renderFs + padY * 2,
-        Math.min(12, renderFs * 0.35),
-      );
-      ctx.fill();
+
+    // The shadow is a dark copy offset down-right. Its offsets are render
+    // pixels in the model, and this canvas is exactly half the render's width
+    // (parity rule 2.3).
+    const shadow = w.look.shadow;
+    if (shadow) {
+      ctx.shadowColor = shadow.color === '#000000' ? 'rgba(0, 0, 0, 0.9)' : shadow.color;
+      ctx.shadowBlur = shadow.blur * CANVAS_SCALE * 2;
+      ctx.shadowOffsetX = shadow.dx * CANVAS_SCALE;
+      ctx.shadowOffsetY = shadow.dy * CANVAS_SCALE;
+    } else {
+      ctx.shadowColor = 'transparent';
     }
-    // ASS's Outline is in render pixels and grows outward only; strokeText
-    // centres its stroke, so half of the same number lands outside -- which is
-    // why the two sides carry the identical figure on a canvas of half the
-    // render's width. See .agents/rules/preview_render_parity.md 2.6.
-    if (outlinePx > 0.01) {
-      ctx.strokeStyle = outlineColor;
-      ctx.lineWidth = outlinePx;
-      ctx.strokeText(line, x, y + dy, maxW);
+    // An ASS Outline grows outward only while strokeText centres its stroke,
+    // so half of the same number lands outside -- which is why both sides
+    // carry the identical figure on a canvas of half the render's width
+    // (parity rule 2.6).
+    if (w.look.outline_px > 0.01) {
+      ctx.strokeStyle = w.look.outline_color;
+      ctx.lineWidth = w.look.outline_px;
+      ctx.lineJoin = 'round';
+      ctx.miterLimit = 2;
+      ctx.strokeText(w.line, lineX, lineY, maxW);
     }
-    ctx.fillStyle = color;
-    ctx.fillText(line, x, y + dy, maxW);
+    ctx.shadowColor = 'transparent';
+    ctx.fillStyle = w.color;
+    drawTextWithMonoEmoji(ctx, w.line, lineX, lineY);
     ctx.restore();
 
     if (motion.loop === 'lightsweep') {
-      ctx.font = `${fontWeight} ${settledFs}px ${fontFam}`;
-      sweeps.push({ line, y: y + dy, fs: settledFs, halfW: ctx.measureText(line).width / 2 });
+      sweeps.push({ line: w.line, y: lineY, fs: w.settledFs, look: w.look, halfW: drawnW / 2 });
     }
-
-    y += settledFs * lineGap;
-
-    // Accent shapes take layout space after the model tier's last line, so
-    // the label below is never drawn through -- mirrors the same reserve in
-    // subtitle_engine.py's y-cursor walk.
-    const isLastModelLine = tierIdx === 1 && (idx + 1 >= wrapped.length || wrapped[idx + 1].tierIdx !== 1);
-    if (isLastModelLine && motion.accent !== 'none') {
-      y += settledFs * (motion.accent === 'badge' ? 0.45 : 0.80);
-    }
-  });
+  }
 
   // Shimmer band travelling across each line, repeatedly, for the hold --
   // mirrors _hook_lightsweep_event's 500ms cycle plus its instant reset.
-  if (sweeps.length && t >= maxEntryEndSec && t < exitStartSec) {
+  if (sweeps.length && tRel >= maxEntryEndSec && tRel < exitStartSec) {
     const CYCLE = 0.501;
-    const phase = ((t - maxEntryEndSec) % CYCLE) / 0.5;
+    const phase = ((tRel - maxEntryEndSec) % CYCLE) / 0.5;
     if (phase <= 1) {
       ctx.save();
       ctx.globalAlpha = (outFx.alpha ?? 1) * HOOK_SWEEP_OPACITY;
@@ -1774,8 +1583,8 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
         ctx.beginPath();
         ctx.rect(bandX, s.y - 5, bandW, s.fs + 10);
         ctx.clip();
-        ctx.font = `${fontWeight} ${s.fs}px ${fontFam}`;
-        ctx.fillText(s.line, x, s.y, maxW);
+        ctx.font = overlayFont(s.look, s.fs);
+        ctx.fillText(s.line, x - s.halfW, s.y, maxW);
         ctx.restore();
       }
       ctx.restore();
@@ -1800,14 +1609,7 @@ function drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration = 
 function SequencePlayer({
   clips,
   cues = [],
-  textOverlays = [],
-  hookBrand = '',
-  hookModel = '',
-  hookLabel = '',
-  hookDuration = 3.0,
-  hookMotion = null,
-  hookColors = null,
-  hookStyle = null,
+  overlays = [],
   audioUrl = null,
   audioStems = null,
   grade = null,
@@ -1820,8 +1622,8 @@ function SequencePlayer({
   isMuted = false,
   selection = null,
   onSelect = null,
-  onUpdateTextOverlay = null,
-  onDeleteTextOverlay = null,
+  onUpdateOverlay = null,
+  onDeleteOverlay = null,
   onUpdateCaption = null,
   applyToAllCaptions = true,
   onUpdateAllCaptions = null,
@@ -1834,6 +1636,13 @@ function SequencePlayer({
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const boundsRef = useRef([]);
+  // The template card the user is hovering is drawn as a real overlay rather
+  // than through a second near-copy of the drawing code, which is how the
+  // ephemeral preview used to drift from what committing it produced.
+  const drawnOverlays = useMemo(
+    () => (previewTextTemplate ? [...overlays, previewTextTemplate] : overlays),
+    [overlays, previewTextTemplate],
+  );
   const [showSafeZone, setShowSafeZone] = useState(false);
   const [snapGuide, setSnapGuide] = useState({ x: null, y: null });
   const videoElsRef = useRef({});
@@ -1871,12 +1680,14 @@ function SequencePlayer({
   const playheadRef = useRef(0);
   const prevActiveClipIdRef = useRef(null);
 
-  const captionKey = `${captionStyle.hidden}:${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}:${captionStyle.captionX ?? ''}:${captionStyle.captionY ?? ''}:${captionStyle.fontName}:${hookBrand}:${hookModel}:${hookLabel}:${hookDuration}:${JSON.stringify(hookMotion || {})}:${JSON.stringify(hookColors || {})}:${JSON.stringify(hookStyle || {})}`;
+  const captionKey = `${captionStyle.hidden}:${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}:${captionStyle.captionX ?? ''}:${captionStyle.captionY ?? ''}:${captionStyle.fontName}`;
   const cuesKey = (cues || []).map(c => `${c._uid || c.id}:${c.start}:${c.end}:${c.text}:${c.translation}:${c.scale || 1}:${c.x ?? ''}:${c.y ?? ''}:${c.position ?? ''}`).join(';;');
-  const textOverlaysKey = (textOverlays || []).map(t => `${t.id}:${t.start}:${t.end}:${t.text}:${t.position}:${t.x}:${t.y}:${t.scale}:${t.color}:${t.bgStyle}:${t.anim}`).join(';;');
+  // An overlay carries a whole look per tier now, so anything short of the
+  // real thing would miss a colour or an outline the user just changed.
+  const overlaysKey = JSON.stringify(drawnOverlays);
   const stickerKey = `${stickerStyle.badge}:${stickerStyle.position}:${stickerStyle.scale}:${stickerStyle.startTime}`;
   const clipKey = clips.map(c => `${c.id}:${c.source_path}:${c.trim_start}:${c.trim_end}:${c.transition_in}:${c.transition_duration}:${c.brightness}:${c.contrast}:${c.saturation}:${c.zoom}:${c.pan_x}:${c.pan_y}:${c.mirror}:${c.rotation}`).join('|');
-  const previewTemplateKey = previewTextTemplate ? `${previewTextTemplate.id}:${previewTextTemplate.color}:${previewTextTemplate.fontName}:${previewTextTemplate.scale}:${previewTextTemplate.bgStyle}` : '';
+
 
   // Interactive Bounding Box calculations
   const selectedBox = useMemo(() => {
@@ -1909,31 +1720,39 @@ function SequencePlayer({
       }
     }
 
-    if (selection.type === 'text_overlay') {
-      const item = textOverlays.find(t => t.id === selection.id);
+    // A rough box for an overlay that is not on screen at the playhead, so
+    // selecting one from the timeline still shows where it will land.
+    if (selection.type === 'text_overlay' || selection.type === 'hook') {
+      const item = overlays.find((o) => o.id === selection.id)
+        || (selection.type === 'hook' ? overlays.find((o) => o.kind === 'hook') : null);
       if (item) {
+        const look = resolveLook(item.look, null);
+        const firstText = String((item.tiers || [{}])[0].text || '');
         const normX = typeof item.x === 'number' ? item.x : 0.5;
-        const normY = typeof item.y === 'number' ? item.y : (TEXT_OVERLAY_Y[item.position || 'middle'] ?? 0.5);
-        const scale = Math.min(2.5, Math.max(0.4, Number(item.scale) || 1.0));
-        const estimatedW = Math.max(140, Math.min(CANVAS_W * 0.85, (item.text?.length || 8) * 22 * scale));
-        const estimatedH = Math.max(48, 52 * scale);
+        const normY = typeof item.y === 'number'
+          ? item.y
+          : (TEXT_POSITIONS[item.position || 'middle'] ?? 0.5);
+        const sizeScale = (look.size_pct || 100) / 100;
+        const estimatedW = Math.max(140, Math.min(CANVAS_W * 0.85, (firstText.length || 8) * 22 * sizeScale));
+        const estimatedH = Math.max(48, 52 * sizeScale * (item.tiers || []).length);
+        const anchoredTop = item.anchor === ANCHOR_TOP;
         return {
-          type: 'text_overlay',
+          type: selection.type,
           id: item.id,
           x: CANVAS_W * normX - estimatedW / 2,
-          y: CANVAS_H * normY - estimatedH / 2,
+          y: anchoredTop ? CANVAS_H * normY : CANVAS_H * normY - estimatedH / 2,
           w: estimatedW,
           h: estimatedH,
           normX,
           normY,
-          scale,
-          label: (item.text || 'ข้อความ').slice(0, 15),
+          sizePct: look.size_pct,
+          label: (firstText || 'ข้อความ').slice(0, 15),
           item,
         };
       }
     }
     return null;
-  }, [selection, textOverlays, cues, playhead]);
+  }, [selection, overlays, cues, playhead]);
 
   const handleBoxDragStart = (e) => {
     e.stopPropagation();
@@ -1976,8 +1795,8 @@ function SequencePlayer({
       const roundedX = Math.round(newNormX * 1000) / 1000;
       const roundedY = Math.round(newNormY * 1000) / 1000;
 
-      if (selectedBox.type === 'text_overlay') {
-        onUpdateTextOverlay?.(selectedBox.id, {
+      if (selectedBox.type === 'text_overlay' || selectedBox.type === 'hook') {
+        onUpdateOverlay?.(selectedBox.id, {
           x: roundedX,
           y: roundedY,
         });
@@ -2032,7 +1851,11 @@ function SequencePlayer({
     if (!selectedBox || !containerRef.current) return;
     const startMouseX = e.clientX;
     const startMouseY = e.clientY;
-    const initialScale = selectedBox.scale || 1.0;
+    // Captions still carry a bare multiplier; an overlay's size is a percent
+    // on its look, which is the number its tier editor shows.
+    const initialScale = selectedBox.sizePct != null
+      ? selectedBox.sizePct / 100
+      : (selectedBox.scale || 1.0);
     const rect = containerRef.current.getBoundingClientRect();
     const centerX = rect.left + rect.width * selectedBox.normX;
     const centerY = rect.top + rect.height * selectedBox.normY;
@@ -2045,8 +1868,10 @@ function SequencePlayer({
       let newScale = initialScale * ratio;
       newScale = Math.max(0.4, Math.min(2.5, Math.round(newScale * 100) / 100));
 
-      if (selectedBox.type === 'text_overlay') {
-        onUpdateTextOverlay?.(selectedBox.id, { scale: newScale });
+      if (selectedBox.type === 'text_overlay' || selectedBox.type === 'hook') {
+        onUpdateOverlay?.(selectedBox.id, {
+          look: { ...(selectedBox.item?.look || {}), size_pct: Math.round(newScale * 100) },
+        });
       } else if (selectedBox.type === 'caption') {
         if (applyToAllCaptions && onUpdateAllCaptions) {
           onUpdateAllCaptions({ scale: newScale }, true);
@@ -2601,22 +2426,21 @@ function SequencePlayer({
     ctx.filter = 'none';
     const bounds = [];
     applyGrade(ctx, canvas);
-    drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration, captionStyle.fontName, captionStyle.captionColor || '#FFE600', hookMotion, hookColors, hookStyle);
+    // Same order the render burns in (video_editor.py): the badge, then the
+    // scrim over it, then everything libass draws on top.
+    drawSticker(ctx, stickerImgRef.current, t, stickerStyle, bounds);
+    drawOverlayScrims(ctx, drawnOverlays, t);
     if (!captionStyle.hidden) {
       drawCaption(ctx, cues, t, captionStyle, bounds);
     }
-    drawSticker(ctx, stickerImgRef.current, t, stickerStyle, bounds);
-    drawTextOverlays(ctx, textOverlays, t, captionStyle.fontName, bounds);
-    if (previewTextTemplate) {
-      drawTextTemplatePreview(ctx, previewTextTemplate, bounds);
-    }
+    drawOverlays(ctx, drawnOverlays, t, captionStyle.captionColor || '#FFE600', bounds);
     boundsRef.current = bounds;
   };
 
   useEffect(() => {
     renderAt(playheadRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [segments, captionKey, stickerKey, cuesKey, textOverlaysKey, previewTemplateKey, lutReady, grade?.intensity]);
+  }, [segments, captionKey, stickerKey, cuesKey, overlaysKey, lutReady, grade?.intensity]);
 
   const lastNotifyRef = useRef(0);
 
@@ -2750,15 +2574,12 @@ function SequencePlayer({
         ctx.filter = 'none';
         const bounds = [];
         if (framePainted) applyGrade(ctx, canvas);
-        drawHookHeader(ctx, hookBrand, hookModel, hookLabel, t, hookDuration, captionStyle.fontName, captionStyle.captionColor || '#FFE600', hookMotion, hookColors, hookStyle);
+        drawSticker(ctx, stickerImgRef.current, t, stickerStyle, bounds);
+        drawOverlayScrims(ctx, drawnOverlays, t);
         if (!captionStyle.hidden) {
           drawCaption(ctx, cues, t, captionStyle, bounds);
         }
-        drawSticker(ctx, stickerImgRef.current, t, stickerStyle, bounds);
-        drawTextOverlays(ctx, textOverlays, t, captionStyle.fontName, bounds);
-        if (previewTextTemplate) {
-          drawTextTemplatePreview(ctx, previewTextTemplate, bounds);
-        }
+        drawOverlays(ctx, drawnOverlays, t, captionStyle.captionColor || '#FFE600', bounds);
         boundsRef.current = bounds;
       }
 
@@ -2776,7 +2597,7 @@ function SequencePlayer({
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlaying, segments, cues, textOverlays, totalDuration]);
+  }, [isPlaying, segments, cues, overlays, totalDuration]);
 
   const togglePlay = () => {
     if (!segments.length) return;
@@ -2977,7 +2798,9 @@ function SequencePlayer({
                       {selectedBox.label || 'ข้อความ'}
                     </span>
                     <span className="text-slate-300">
-                      {Math.round(selectedBox.scale * 100)}%
+                      {selectedBox.sizePct != null
+                        ? `${Math.round(selectedBox.sizePct)}%`
+                        : `${Math.round((selectedBox.scale || 1) * 100)}%`}
                     </span>
                     <span className="text-slate-400 font-mono text-[9px]">
                       ({Math.round(selectedBox.normX * 100)}%, {Math.round(selectedBox.normY * 100)}%)

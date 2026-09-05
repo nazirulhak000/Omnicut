@@ -1,5 +1,5 @@
 """
-Preview/render parity guard.
+Preview/render source-contract guard.
 
 The canvas preview (SequencePlayer.jsx) and the ASS renderer
 (subtitle_engine.py) are two independent implementations of the same
@@ -9,6 +9,9 @@ other fails here instead of shipping as "the preview lied about the render".
 
 Values marked "measured" were taken off a real ffmpeg+libass render rather
 than derived, and the comment says what was measured.
+
+Black-box FFmpeg checks live in test_preview_render_behavior.py so a source
+layout change and a real output change can be diagnosed independently.
 """
 
 import json
@@ -40,8 +43,12 @@ def test_hook_and_caption_font_ratios_match():
     Both sides size text as a fraction of frame width, and the canvas is
     exactly half the render's width, so the fractions must be identical.
     """
+    # The banner's ratio rides on the overlay now (base_fs_ratio), so the
+    # canvas reads it off the item; the number itself is asserted equal on
+    # both sides in test_overlay_geometry_constants_match_on_both_sides.
+    assert "Math.round(CANVAS_W * (overlay.base_fs_ratio || TEXT_FS_RATIO))" in JS_SRC
     assert _grab(PY_SRC, r"hook_fs = int\(round\(video_width \* ([\d.]+)\)\)") == \
-           _grab(JS_SRC, r"baseFontSize = Math\.round\(CANVAS_W \* ([\d.]+)\)")
+           _grab(OVERLAY_PY, r"\nHOOK_FS_RATIO = ([\d.]+)\n")
     assert _grab(PY_SRC, r"base_fs = int\(round\(video_width \* ([\d.]+)\)\)") == \
            _grab(JS_SRC, r"baseFs = Math\.round\(CANVAS_W \* ([\d.]+)\)")
 
@@ -147,16 +154,19 @@ def test_crossfade_base_layer_is_opaque():
 
 
 def test_hook_block_top_is_the_same_fraction_of_frame_height():
+    # The anchor is a field on the overlay now (HOOK_TOP_Y), and the canvas
+    # positions every overlay from it rather than a literal 130.
     ass_top = _grab(PY_SRC, r"cursor_y = (\d+)  # HookHeader") / 1920
-    canvas_top = _grab(JS_SRC, r"let y = (\d+); // ~HookHeader") / 960
-    assert ass_top == canvas_top
+    assert ass_top == 260.0 / 1920.0
+    assert "HOOK_TOP_Y = 260.0 / 1920.0" in OVERLAY_JS
+    assert "overlay.anchor === ANCHOR_TOP" in JS_SRC
 
 
 def test_tier_scales_and_shrink_rule_match():
     assert re.findall(r"\(hook_\w+, (\d+), \w+_colour, \d\)", PY_SRC) == \
            re.findall(r"sizePct: (\d+)", JS_SRC)
     assert _grab(PY_SRC, r"HOOK_COMFORTABLE_LINES = (\d+)") == \
-           _grab(JS_SRC, r"Math\.max\(0\.7, Math\.min\(1, (\d+) / wrapped\.length\)\)")
+           _grab(OVERLAY_JS, r"HOOK_COMFORTABLE_LINES = (\d+);")
 
 
 # ---------------------------------------------------------------- timing
@@ -164,7 +174,7 @@ def test_stagger_and_exit_windows_match():
     assert _grab(PY_SRC, r"STAGGER_STEP_MS = (\d+)") == \
            _grab(JS_SRC, r"HOOK_STAGGER_STEP = ([\d.]+)") * 1000
     assert _grab(PY_SRC, r"exit_start_ms = max\(120, exit_end_ms - (\d+)\)") == \
-           _grab(JS_SRC, r"exitStartSec = Math\.max\(0\.12, hookDuration - ([\d.]+)\)") * 1000
+           _grab(JS_SRC, r"exitStartSec = Math\.max\(0\.12, duration - ([\d.]+)\)") * 1000
 
 
 @pytest.mark.parametrize(
@@ -244,9 +254,9 @@ def test_accent_reveal_anchors_wipe_from_left_edge():
     edge (x - fullBw / 2 for badge, x - modelLineWidth / 2 for bar), not
     expanding symmetrically from the center.
     """
-    assert "ctx.fillRect(x - fullBw / 2, modelTopY - padY, bw, modelFontSize + padY * 2);" in JS_SRC
+    assert "ctx.fillRect(x - fullBw / 2, modelLine.y - padY, bw, modelFontSize + padY * 2);" in JS_SRC
     assert "ctx.fillRect(barX, barY, w, thickness);" in JS_SRC
-    assert "const barX = x - modelLineWidth / 2;" in JS_SRC
+    assert "const barX = x - modelLine.width / 2;" in JS_SRC
 
 
 # ---------------------------------------------------------------- shapes
@@ -287,7 +297,7 @@ def test_outline_widths_match():
     # number itself is asserted where it lives -- see
     # test_hook_templates_are_identical_on_both_sides. What still has to hold
     # here is that both sides read that same field, and neither doubles it.
-    assert "ctx.lineWidth = outlinePx;" in JS_SRC
+    assert "ctx.lineWidth = w.look.outline_px;" in JS_SRC
     assert "bord{float(tier_style['outline_px']):.1f}" in PY_SRC
 
     ass_min, ass_ratio = (
@@ -325,12 +335,13 @@ def test_text_overlay_positions_and_styles_match():
     """
     Text Overlay Y coordinates and font size ratios must match between ASS and Canvas 2D.
     """
-    assert _grab(PY_SRC, r'TEXT_OVERLAY_POSITIONS\s*=\s*\{[^}]*?"top":\s*([\d.]+)') == \
-           _grab(JS_SRC, r'TEXT_OVERLAY_Y\s*=\s*\{[^}]*?top:\s*([\d.]+)')
-    assert _grab(PY_SRC, r'TEXT_OVERLAY_POSITIONS\s*=\s*\{[^}]*?"middle":\s*([\d.]+)') == \
-           _grab(JS_SRC, r'TEXT_OVERLAY_Y\s*=\s*\{[^}]*?middle:\s*([\d.]+)')
-    assert _grab(PY_SRC, r'TEXT_OVERLAY_POSITIONS\s*=\s*\{[^}]*?"bottom":\s*([\d.]+)') == \
-           _grab(JS_SRC, r'TEXT_OVERLAY_Y\s*=\s*\{[^}]*?bottom:\s*([\d.]+)')
+    # The table lives in the shared model now; the canvas reads TEXT_POSITIONS
+    # from it rather than keeping a second copy that could drift.
+    for key in ("top", "middle", "bottom"):
+        assert _grab(PY_SRC, rf'TEXT_OVERLAY_POSITIONS\s*=\s*\{{[^}}]*?"{key}":\s*([\d.]+)') == \
+               _grab(OVERLAY_PY, rf'TEXT_POSITIONS[^=]*=\s*\{{[^}}]*?"{key}":\s*([\d.]+)') == \
+               _grab(OVERLAY_JS, rf'TEXT_POSITIONS\s*=\s*\{{[^}}]*?{key}:\s*([\d.]+)')
+    assert "TEXT_POSITIONS[overlay.position" in JS_SRC
 
 
 def test_text_overlay_pill_badge_parity():
@@ -344,23 +355,41 @@ def test_text_overlay_pill_badge_parity():
     style_parts = [p.strip() for p in style_line.split(",")]
     assert style_parts[14] == "1", f"TextOverlayMain BorderStyle must be 1, got {style_parts[14]}"
 
-    # 2. Pill padding factors must match between Python and JS
-    py_padx = _grab(PY_SRC, r"pad_x\s*=\s*round\(render_fs\s*\*\s*([\d.]+)\)")
-    js_padx = _grab(JS_SRC, r"padX\s*=\s*Math\.round\(renderFs\s*\*\s*([\d.]+)\)")
-    assert py_padx == js_padx == 0.6
+    # 2. The padding is a property of the pill now, so both sides read the
+    #    same em multiples off the look instead of hardcoding a pair each.
+    assert _grab(PY_SRC, r'pad_x = round\(render_fs \* float\(pill\.get\("pad_x_em"\) or ([\d.]+)\)\)') == \
+           _grab(OVERLAY_PY, r"\nPILL_PAD_X_EM = ([\d.]+)\n") == 0.6
+    assert _grab(PY_SRC, r'pad_y = round\(render_fs \* float\(pill\.get\("pad_y_em"\) or ([\d.]+)\)\)') == \
+           _grab(OVERLAY_PY, r"\nPILL_PAD_Y_EM = ([\d.]+)\n") == 0.35
+    assert 'pill.pad_x_em ?? PILL_PAD_X_EM' in JS_SRC
+    assert 'pill.pad_y_em ?? PILL_PAD_Y_EM' in JS_SRC
 
-    py_pady = _grab(PY_SRC, r"pad_y\s*=\s*round\(render_fs\s*\*\s*([\d.]+)\)")
-    js_pady = _grab(JS_SRC, r"padY\s*=\s*Math\.round\(renderFs\s*\*\s*([\d.]+)\)")
-    assert py_pady == js_pady == 0.35
+    # 3. The badge's opacity comes off the fill the preview paints, instead of
+    #    a hand-tuned \\alpha per named style. Dark glass is the one that used
+    #    to agree: 0.65 opacity -> 1 - 0.65 = 0.35 -> round(0.35 * 255) = 0x59.
+    sys.path.insert(0, str(ROOT))
+    from scripts.overlay_model import LEGACY_BG_STYLES
+    from scripts.subtitle_engine import _pill_fill_to_ass
 
-    # 3. Canvas 2D opacity 0.65 -> ASS alpha 1 - 0.65 = 0.35 -> round(0.35 * 255) = 89 = 0x59
-    assert "\\alpha&H59&" in PY_SRC
-    assert "rgba(0, 0, 0, 0.65)" in JS_SRC
+    for name, preset in LEGACY_BG_STYLES.items():
+        if not preset:
+            continue
+        _, opacity = _pill_fill_to_ass(preset["fill"])
+        js_fill = _grab(OVERLAY_JS, rf"{name}: \{{ fill: '([^']+)'", str)
+        assert js_fill == preset["fill"], f"{name}: python {preset['fill']!r} vs js {js_fill!r}"
+        if name == "pill":
+            assert round((1 - opacity) * 255) == 0x59
+
+    # A pill can carry a border, which the writer had no way to say before --
+    # the neon badge came back as a flat block without it.
+    assert 'ass_colour(pill.get("border"))' in PY_SRC
+    assert "if (pill.border) {" in JS_SRC
 
 
 
 # ------------------------------------------------- per-clip field survival
 EDITOR_SRC = (ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx").read_text(encoding="utf-8")
+PROJECT_STATE_SRC = (ROOT / "frontend" / "src" / "lib" / "editorProjectState.js").read_text(encoding="utf-8")
 VIDEO_EDITOR_SRC = (ROOT / "scripts" / "video_editor.py").read_text(encoding="utf-8")
 
 
@@ -387,13 +416,21 @@ def test_editor_preserves_every_field_the_renderer_reads():
     spread is there rather than trying to enumerate fields the editor never
     needs to know about individually.
     """
-    load_block = EDITOR_SRC.split("const clips = rawClips.map(")[1].split("}));")[0]
-    assert "...c," in load_block, (
-        "clip load must spread the stored clip; listing fields explicitly "
-        "silently drops everything the renderer reads but the editor doesn't"
-    )
+    clip_src = PROJECT_STATE_SRC if "sourceClips.map(" in PROJECT_STATE_SRC else EDITOR_SRC
+    if "const clipList = sourceClips.map(" in clip_src:
+        load_block = clip_src.split("const clipList = sourceClips.map(")[1].split("\n  });")[0]
+        assert "...clip," in load_block, (
+            "clip load must spread the stored clip; listing fields explicitly "
+            "silently drops everything the renderer reads but the editor doesn't"
+        )
+    else:
+        load_block = clip_src.split("const clips = rawClips.map(")[1].split("}));")[0]
+        assert "...c," in load_block, (
+            "clip load must spread the stored clip; listing fields explicitly "
+            "silently drops everything the renderer reads but the editor doesn't"
+        )
     # and the save path must not re-strip them
-    for serialise in re.findall(r"clipList\.map\(\(\{([^}]*)\}\)", EDITOR_SRC):
+    for serialise in re.findall(r"clipList\.map\(\(\{([^}]*)\}\)", clip_src):
         dropped = {f.strip() for f in serialise.split(",") if f.strip() and "..." not in f}
         leaked = dropped & _render_clip_fields()
         assert not leaked, f"save path drops fields the renderer reads: {leaked}"
@@ -488,7 +525,7 @@ def test_transitions_do_not_shorten_the_video_against_the_audio():
     for i, b in enumerate(transitions):
         clips[i]["duration"] += b["duration"]
         clips[i]["trim_end"] += b["duration"]
-    rendered = sum(c["duration"] for c in clips) - sum(b["duration"] for b in transitions)
+    rendered = sum(c["duration"] for c in clips) - sum(b["duration"] for c in transitions)
     assert abs(rendered - audio) < 1e-6, f"video {rendered} vs audio {audio}"
 
 
@@ -886,14 +923,29 @@ def test_preview_grades_at_the_same_point_in_the_chain_as_the_render():
     so a brand-coloured badge and the caption colours are never re-graded. The
     preview has to grade in the same place or those colours shift.
     """
-    tick = re.search(r"if \(framePainted\) applyGrade\(ctx, canvas\);\s*\n\s*drawHookHeader", JS_SRC)
-    assert tick, "the grade must run after the video layers and before the hook"
-    still = re.search(r"applyGrade\(ctx, canvas\);\s*\n\s*drawHookHeader", JS_SRC)
+    tick = re.search(r"if \(framePainted\) applyGrade\(ctx, canvas\);\s*\n\s*drawSticker", JS_SRC)
+    assert tick, "the grade must run after the video layers and before the badge"
+    still = re.search(r"applyGrade\(ctx, canvas\);\s*\n(?:\s*//[^\n]*\n)*\s*drawSticker", JS_SRC)
     assert still, "the paused frame must grade too, at the same point"
 
     editor = (ROOT / "scripts" / "video_editor.py").read_text(encoding="utf-8")
     lut_at = editor.index("lut3d=")
     assert lut_at < editor.index("sticker_scaled"), "render order changed; preview order must follow"
+
+
+def test_preview_layers_the_badge_scrim_and_subtitles_in_the_renders_order():
+    """
+    ffmpeg burns the badge, then the hook's gradient over it, then everything
+    libass draws. The preview used to paint the gradient first of all and the
+    badge after the banner, so a badge stayed bright in the editor and came
+    back dimmed in the file, and the banner sat under a badge it renders over.
+    """
+    editor = (ROOT / "scripts" / "video_editor.py").read_text(encoding="utf-8")
+    assert editor.index("sticker_scaled") < editor.index("grad_alpha_") < editor.index("subtitles='")
+
+    for block in re.findall(r"drawSticker\(ctx.*?boundsRef\.current = bounds;", JS_SRC, re.S):
+        assert block.index("drawSticker(") < block.index("drawOverlayScrims("), block
+        assert block.index("drawOverlayScrims(") < block.index("drawOverlays("), block
 
 
 def test_partial_grade_strength_blends_the_same_way_as_the_render():
@@ -1671,27 +1723,31 @@ def test_the_ass_writer_emits_the_per_tier_edge_from_the_template():
     every tier, so "white text with a thick pink edge" was unreachable. \\3c is
     the outline colour and \\bord its width, both per line now.
     """
-    assert "resolve_hook_style(" in PY_SRC
+    # The look is resolved per tier from the overlay itself now, which is what
+    # finally lets the editor's own numbers reach the burn.
+    assert "resolve_look(hook_overlay.get(\"look\")" in PY_SRC
     assert "\\\\3c{outline_colour}&" in PY_SRC
     assert "\\\\bord{float(tier_style['outline_px']):.1f}" in PY_SRC
     # A pill is BorderStyle 3, which paints its box with the outline colour.
     assert "Style: HookHeaderPill," in PY_SRC
     assert "BorderStyle 3 paints it" in PY_SRC
-    # Sizes and the upper-casing come from the template, not from the tier's
+    # Sizes and the upper-casing come from the look, not from the tier's
     # position or its size being the biggest one.
-    assert 'int(tiers["brand"]["size_pct"])' in PY_SRC
+    assert 'int(tier_looks[0]["size_pct"])' in PY_SRC
     assert 'tiers[tier_key_by_idx[tier_idx]]["upper"]' in PY_SRC
     assert "if scale_pct == 130:" not in PY_SRC, "upper-casing should not key off a size"
 
 
 def test_the_canvas_draws_the_same_per_tier_edge():
-    assert "resolveHookStyle(hookStyle?.template, hookStyle, hookColors)" in JS_SRC
-    assert "ctx.strokeStyle = outlineColor;" in JS_SRC
-    assert "if (outlinePx > 0.01) {" in JS_SRC, "an outline of 0 must draw no stroke at all"
-    assert "outlineColor: tier.outlineColor, outlinePx: tier.outlinePx, pill: tier.pill," in JS_SRC
-    # The pill's padding is the ASS pill style's own Outline value.
-    assert _grab(JS_SRC, r"const HOOK_PILL_PAD = (\d+);") == \
-        _grab(PY_SRC, r"Style: HookHeaderPill,[^\n]*?,3,(\d+),0,8", float)
+    # One resolveLook on each side, over the same TextLook fields.
+    assert "resolveLook(overlay.look, tier.look)" in JS_SRC
+    assert "ctx.strokeStyle = w.look.outline_color;" in JS_SRC
+    assert "if (w.look.outline_px > 0.01) {" in JS_SRC, "an outline of 0 must draw no stroke"
+    # The pill's padding is a multiple of the tier's own size on both sides,
+    # so it follows the text instead of staying at a flat 12px.
+    assert _grab(OVERLAY_JS, r"HOOK_PILL_PAD_X_EM = ([\d.]+);") == \
+           _grab(OVERLAY_PY, r"\nHOOK_PILL_PAD_X_EM = ([\d.]+)\n")
+    assert 'pill_pad = int(round(hook_fs * float(pill.get("pad_x_em") or 0.342)))' in PY_SRC
 
 
 def test_the_banner_is_measured_in_its_own_face():
@@ -1739,22 +1795,28 @@ def test_the_browser_loads_every_font_the_templates_use():
             f"{name} uses {tpl['font']}, which index.html does not load"
 
 
-def test_the_hook_style_survives_the_round_trip_to_a_render():
+def test_the_overlay_look_survives_the_round_trip_to_a_render():
     """A look that cannot reach the renderer is a preview-only decoration."""
     for src, label in (
         ((ROOT / "scripts" / "pipeline.py").read_text(encoding="utf-8"), "pipeline"),
         ((ROOT / "scripts" / "api_server.py").read_text(encoding="utf-8"), "api_server"),
         ((ROOT / "scripts" / "api_phase1.py").read_text(encoding="utf-8"), "api_phase1"),
     ):
-        assert "hook_style" in src, f"{label} drops hook_style"
+        assert "overlays" in src, f"{label} drops overlays"
     pipeline = (ROOT / "scripts" / "pipeline.py").read_text(encoding="utf-8")
-    assert "hook_style=hook_style," in pipeline, "the subtitle writer never receives it"
-    assert '"hook_style": hook_style,' in pipeline, "the manifest never stores it"
-
+    assert "overlays=effective_overlays," in pipeline, "the subtitle writer never receives them"
+    assert '"overlays": effective_overlays,' in pipeline
     shell = (ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx").read_text(encoding="utf-8")
-    assert "setHookStyle(" in shell and "hook_style: hookStyle," in shell
-    assert shell.count("hookStyle={hookStyle}") == 4, \
-        "both players and both inspectors need it"
+    # Saved, and handed to both players plus both inspectors and timelines.
+    assert "overlays," in shell and "overlays: Array.isArray(overlays)" in PROJECT_STATE_SRC
+    assert shell.count("overlays={overlays}") == 6, \
+        "both players, both timelines and both inspectors need them"
+
+    # The legacy keys are still READ (an old project has to open) but must
+    # never be written again, or the two representations drift apart.
+    assert "migrateToOverlays(manifest)" in PROJECT_STATE_SRC or "migrateToOverlays(data)" in shell
+    for dead in ("hook_brand:", "hook_model:", "hook_label:", "text_overlays:"):
+        assert dead not in shell, f"{dead} is still being written"
 
 
 def test_text_overlay_sfx_is_supported_in_both_preview_and_render():
@@ -1765,9 +1827,12 @@ def test_text_overlay_sfx_is_supported_in_both_preview_and_render():
     sfx_src = (ROOT / "scripts" / "sfx_manager.py").read_text(encoding="utf-8")
     shell_src = (ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx").read_text(encoding="utf-8")
 
-    assert "text_overlays: Optional[List[Dict]] = None" in sfx_src
-    assert "sfx_txt_" in sfx_src, "sfx_manager does not mix text overlay SFX nodes"
-    assert "overlayId: t.id" in shell_src, "EditorShell does not mix textOverlays into audioStems.sfx"
+    assert "overlays: Optional[List[Dict]] = None" in sfx_src
+    assert "sfx_txt_" in sfx_src, "sfx_manager does not mix overlay SFX nodes"
+    assert "overlayId: o.id" in shell_src, "EditorShell does not mix overlays into audioStems.sfx"
+    # A banner is an overlay too, so its own SFX has to reach the mix.
+    pipeline = (ROOT / "scripts" / "pipeline.py").read_text(encoding="utf-8")
+    assert "overlays=effective_overlays," in pipeline
 
 
 def test_text_overlay_animations_match_in_preview_and_render():
@@ -1778,7 +1843,264 @@ def test_text_overlay_animations_match_in_preview_and_render():
     sub_src = (ROOT / "scripts" / "subtitle_engine.py").read_text(encoding="utf-8")
     player_src = (ROOT / "frontend" / "src" / "components" / "SequencePlayer.jsx").read_text(encoding="utf-8")
 
-    assert "anim == \"zoom\"" in sub_src
-    assert "anim === 'zoom'" in player_src
-    assert "anim == \"stamp\"" in sub_src
-    assert "anim === 'stamp'" in player_src
+    # The three names a text overlay shared with the banner were renamed
+    # rather than merged, so both sets of keyframes survive.
+    assert 'anim == "pop_zoom"' in sub_src
+    assert "pop_zoom: {" in player_src
+    assert 'anim == "stamp"' in sub_src
+    assert "stamp: {" in player_src
+
+
+# ------------------------------------------------------------ overlay model
+# The banner and the text overlays were two spellings of one picture: `scale`
+# against `size_pct`, `bgStyle`+`badgeColor` against `pill`, one `anim` string
+# against four motion channels -- and no outline fields at all on the text
+# side, so a text overlay could never reach the look a hook template could.
+# scripts/overlay_model.py is the single spelling; overlayModel.js mirrors it.
+OVERLAY_PY = (ROOT / "scripts" / "overlay_model.py").read_text(encoding="utf-8")
+OVERLAY_JS = (ROOT / "frontend" / "src" / "lib" / "overlayModel.js").read_text(encoding="utf-8")
+
+_QUOTES_AND_SPACE = re.compile(r"""['"\s]""")
+
+
+def _js_const(name, cast=float):
+    return _grab(OVERLAY_JS, rf"export const {name} = ([\d.]+);", cast)
+
+
+def _py_const(name, cast=float):
+    # _grab runs with re.S, not re.M, so anchor on the newlines themselves.
+    return _grab(OVERLAY_PY, rf"\n{name}(?:: [^=]+)? = ([\d.]+)\n", cast)
+
+
+def _squash(text):
+    """Compare two object literals without caring about quoting or layout."""
+    return _QUOTES_AND_SPACE.sub("", text)
+
+
+def test_overlay_geometry_constants_match_on_both_sides():
+    """
+    Font-size ratios, the canvas/render halving, and the pill padding all
+    decide where ink lands. Each is one number that both engines read.
+    """
+    for name in ("CANVAS_SCALE", "HOOK_FS_RATIO", "TEXT_FS_RATIO",
+                 "PILL_PAD_X_EM", "PILL_PAD_Y_EM", "PILL_RADIUS_MAX_PX",
+                 "HOOK_PILL_PAD_X_EM", "HOOK_PILL_PAD_Y_EM"):
+        assert _py_const(name) == _js_const(name), f"{name} differs across the two sides"
+
+    # The ratios are the ones the two renderers already agreed on before they
+    # moved into the model, so nothing shifted on the way in.
+    assert _py_const("HOOK_FS_RATIO") == \
+        _grab(PY_SRC, r"hook_fs = int\(round\(video_width \* ([\d.]+)\)\)")
+    assert _py_const("TEXT_FS_RATIO") == \
+        _grab(PY_SRC, r"base_fs = int\(round\(video_width \* ([\d.]+)\)\)")
+
+
+def test_hook_block_anchor_is_the_same_fraction_of_the_frame():
+    """Parity rule 2.8: ASS MarginV 260/1920 against canvas y 130/960."""
+    assert "HOOK_TOP_Y = 260.0 / 1920.0" in OVERLAY_PY
+    assert "HOOK_TOP_Y = 260.0 / 1920.0" in OVERLAY_JS
+    assert 260.0 / 1920.0 == 130.0 / 960.0
+
+
+def test_a_text_overlays_outline_is_now_the_renders_number_not_the_previews():
+    """
+    The ASS style burned Outline 5.0 while the canvas derived its own
+    max(2, fs*0.12) -- 3px at 100%, 6px at 210%, never the same picture twice.
+    One number now, and the render's is the one that was true.
+    """
+    ass_outline = _grab(PY_SRC, r"Style: TextOverlayMain,[^\n]*?,1,([\d.]+),2,5,")
+    assert ass_outline == 5.0
+    assert _grab(OVERLAY_PY, r'"outline_px": ([\d.]+),\n    "shadow": DEFAULT_SHADOW') == ass_outline
+    assert _grab(OVERLAY_JS, r"outline_px: ([\d.]+),\n  shadow: DEFAULT_SHADOW") == ass_outline
+
+
+def test_shadow_defaults_match_on_both_sides():
+    for name in ("DEFAULT_SHADOW", "HOOK_SHADOW"):
+        py = re.search(rf"{name}[^=]*= (\{{[^}}]*\}})", OVERLAY_PY).group(1)
+        js = re.search(rf"{name} = (\{{[^}}]*\}})", OVERLAY_JS).group(1)
+        assert _squash(py) == _squash(js), f"{name} differs: python {py} vs js {js}"
+
+
+def test_anim_defaults_match_on_both_sides():
+    for name in ("DEFAULT_ANIM", "HOOK_ANIM"):
+        py = re.search(rf"{name}[^=]*= \{{(.*?)\}}", OVERLAY_PY, re.S).group(1)
+        js = re.search(rf"{name} = \{{(.*?)\}}", OVERLAY_JS, re.S).group(1)
+        fields = lambda block: sorted(
+            t.lower() for t in _squash(block).strip(",").split(",") if t
+        )
+        assert fields(py) == fields(js), f"{name} differs: python {py} vs js {js}"
+
+
+def test_ad_tone_to_template_matches_on_both_sides_and_names_real_templates():
+    """
+    The tone is picked per angle by the script AI. A first render dresses the
+    banner to match the voice instead of landing on 'tech' every time, so the
+    map has to name looks that actually exist.
+    """
+    sys.path.insert(0, str(ROOT))
+    from scripts.hook_styles import HOOK_TEMPLATES
+    from scripts.overlay_model import AD_TONE_TO_TEMPLATE
+
+    js_block = re.search(r"export const AD_TONE_TO_TEMPLATE = \{(.*?)\};", OVERLAY_JS, re.S).group(1)
+    js_map = dict(re.findall(r"(\w+):\s*'([^']+)'", js_block))
+    assert js_map == AD_TONE_TO_TEMPLATE, f"python {AD_TONE_TO_TEMPLATE} vs js {js_map}"
+
+    for tone, template in AD_TONE_TO_TEMPLATE.items():
+        assert template in HOOK_TEMPLATES, f"{tone} points at a look that does not exist"
+
+    # Every tone the TTS engine offers gets a look; a new tone must choose one.
+    tts = (ROOT / "scripts" / "gemini_tts_engine.py").read_text(encoding="utf-8")
+    tones = set(re.findall(r'^    "(\w+)": \{$', tts, re.M))
+    assert tones == set(AD_TONE_TO_TEMPLATE), \
+        f"tones without a banner look: {tones - set(AD_TONE_TO_TEMPLATE)}"
+
+
+# ------------------------------------------------------ migration behaviour
+LEGACY_CASES = [
+    # nothing at all -- no overlay, which is what showHookHeader was for
+    {},
+    {"hook_brand": "", "hook_model": "", "hook_label": "", "text_overlays": []},
+    # banner only, on each look
+    {"hook_brand": "Logitech", "hook_model": "Wave Keys", "hook_label": "Keyboard"},
+    {"hook_brand": "L", "hook_model": "W", "hook_label": "K", "hook_style": {"template": "cute"}},
+    {"hook_brand": "L", "hook_model": "W", "hook_label": "K", "hook_style": {"template": "bold_pop"}},
+    {"hook_brand": "L", "hook_model": "W", "hook_label": "K", "hook_style": {"template": "plain"}},
+    {"hook_brand": "L", "hook_model": "W", "hook_label": "K", "hook_style": {"template": "clean"}},
+    {"hook_brand": "L", "hook_model": "W", "hook_label": "K", "hook_style": {"template": "nonsense"}},
+    # a banner with no brand still exists -- the old !!brand check dropped it,
+    # then autosave wrote "" over the model and label it had not looked at
+    {"hook_model": "Wave Keys", "hook_label": "Keyboard"},
+    # per-tier overrides and the older colour map
+    {"hook_brand": "L", "hook_model": "W", "hook_label": "K", "hook_duration": 4.5,
+     "hook_style": {"template": "tech", "tiers": {"brand": {"size_pct": 160, "outline_px": 12}}},
+     "hook_colors": {"model": "#cc7171"}, "hook_motion": {"in": "typewriter", "loop": "none"}},
+    # text overlays, one per background style
+    {"text_overlays": [{"id": "a", "text": "x", "start": 0, "end": 2, "position": "middle",
+                        "x": 0.5, "y": 0.5, "scale": 1.0, "color": "#FFF", "bgStyle": "none",
+                        "anim": "pop"}]},
+    {"text_overlays": [{"id": "b", "text": "y", "start": 1, "end": 3, "position": "top",
+                        "x": None, "y": None, "scale": 2.1, "color": "#25F4EE",
+                        "fontName": "Prompt", "bgStyle": "badge_cyan", "anim": "slide",
+                        "sfx": "sfx_whoosh_fast", "sfxLabel": "W", "templateId": "t"}]},
+    {"text_overlays": [{"id": "c", "text": "z", "start": 0, "end": 1, "bgStyle": "badge_red",
+                        "badgeColor": "#FE2C55", "anim": "stamp", "scale": 1.35}]},
+    {"text_overlays": [{"id": "d", "text": "w", "start": 0, "end": 1, "bgStyle": "pill"}]},
+    # a badgeColor matching no preset is an arbitrary fill
+    {"text_overlays": [{"id": "e", "text": "v", "start": 0, "end": 1, "bgStyle": "none",
+                        "badgeColor": "#123456"}]},
+    # both kinds together, and the render_params fallback the editor reads
+    {"hook_brand": "L", "hook_model": "W", "hook_label": "K",
+     "text_overlays": [{"id": "f", "text": "u", "start": 0, "end": 1}]},
+    {"render_params": {"hook_brand": "L", "hook_model": "W", "hook_label": "K",
+                       "text_overlays": [{"id": "g", "text": "t", "start": 0, "end": 1}]}},
+]
+
+
+def test_both_migrations_produce_the_same_overlays():
+    """
+    The editor migrates on load and the pipeline migrates on read. They are
+    two implementations of one conversion; a project that opens differently
+    from the way it renders is the bug this whole model exists to remove.
+    """
+    import shutil
+    import subprocess
+    import tempfile
+
+    if not shutil.which("node"):
+        pytest.skip("needs node")
+    sys.path.insert(0, str(ROOT))
+    from scripts.overlay_model import migrate_to_overlays
+
+    with tempfile.TemporaryDirectory() as tmp:
+        runner = Path(tmp) / "migrate.mjs"
+        mod = (ROOT / "frontend" / "src" / "lib" / "overlayModel.js").resolve().as_uri()
+        runner.write_text(
+            f"import {{ migrateToOverlays }} from '{mod}';\n"
+            "const cases = JSON.parse(process.argv[2]);\n"
+            "console.log(JSON.stringify(cases.map(c => migrateToOverlays(c))));\n",
+            encoding="utf-8",
+        )
+        out = subprocess.run(
+            ["node", str(runner), json.dumps(LEGACY_CASES)],
+            capture_output=True, text=True, encoding="utf-8", cwd=str(ROOT),
+        )
+        assert out.returncode == 0, out.stderr
+        js_results = json.loads(out.stdout)
+
+    for case, js_overlays in zip(LEGACY_CASES, js_results):
+        py_overlays = migrate_to_overlays(case)
+        assert json.loads(json.dumps(py_overlays)) == js_overlays, \
+            f"migration differs for {case}"
+
+
+def test_migration_is_idempotent_and_survives_a_round_trip_through_legacy():
+    """
+    Legacy keys are read forever and never written again, so an old project
+    opens without anyone touching the file on disk. Converting what came back
+    out must land on the same overlays, or a save would drift the picture.
+    """
+    sys.path.insert(0, str(ROOT))
+    from scripts.overlay_model import migrate_to_overlays, overlays_to_legacy
+
+    for case in LEGACY_CASES:
+        once = migrate_to_overlays(case)
+        # an already-migrated manifest passes straight through
+        assert migrate_to_overlays({"overlays": once}) == once, f"passthrough changed {case}"
+        # legacy -> overlays -> legacy -> overlays is a fixed point
+        twice = migrate_to_overlays(overlays_to_legacy(once))
+        assert twice == once, f"round trip drifted for {case}"
+
+
+def test_every_saved_project_on_disk_still_opens():
+    """
+    The fixture is whatever is actually in 03_Projects: these are the files a
+    user would lose if the conversion missed a shape.
+    """
+    sys.path.insert(0, str(ROOT))
+    from scripts.overlay_model import migrate_to_overlays
+
+    projects = sorted((ROOT / "03_Projects").glob("*/project.json"))
+    if not projects:
+        pytest.skip("no saved projects to migrate")
+    for path in projects:
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+        for overlay in migrate_to_overlays(manifest):
+            assert overlay["kind"] in ("hook", "text"), path.name
+            assert overlay["tiers"], f"{path.name}: an overlay with no tiers draws nothing"
+            assert overlay["end"] >= overlay["start"], path.name
+            # a banner keeps all three tiers even when only one carries text
+            if overlay["kind"] == "hook":
+                assert len(overlay["tiers"]) == 3, path.name
+
+
+def test_font_weights_match_and_lose_nothing_from_the_banners_old_table():
+    """
+    Asking a face for a weight it does not ship gets a synthesised bold that
+    is heavier than the render's, so the weight per family is a table, not a
+    guess. It used to live in SequencePlayer.jsx as HOOK_FONT_WEIGHTS and
+    covered only the banner; the shared one has to keep every family that
+    table knew, or a banner regresses the moment the old copy goes away.
+    """
+    sys.path.insert(0, str(ROOT))
+    from scripts.overlay_model import DEFAULT_FONT_WEIGHT, FONT_WEIGHTS
+
+    def _weights(source, pattern):
+        block = re.search(pattern, source, re.S).group(1)
+        found = {}
+        for key, value in re.findall(r"[\"']?([A-Za-z][A-Za-z ]*)[\"']?\s*:\s*(\d+)", block):
+            found[key.strip()] = int(value)
+        return found
+
+    js = _weights(OVERLAY_JS, r"export const FONT_WEIGHTS = \{(.*?)\n\};")
+    assert js == FONT_WEIGHTS, f"python {FONT_WEIGHTS} vs js {js}"
+
+    legacy = _weights(JS_SRC, r"const HOOK_FONT_WEIGHTS = \{(.*?)\n\};") if \
+        "HOOK_FONT_WEIGHTS" in JS_SRC else {}
+    for family, weight in legacy.items():
+        assert FONT_WEIGHTS.get(family) == weight, \
+            f"{family} was {weight} for the banner and is {FONT_WEIGHTS.get(family)} now"
+
+    # The ids the editor actually stores must resolve, not fall through to the
+    # default: fontName 'IBMPlex' is what a text overlay saves.
+    for stored_id in ("Kanit", "Prompt", "IBMPlex", "NotoSansThai"):
+        assert stored_id in FONT_WEIGHTS, f"{stored_id} would fall back to {DEFAULT_FONT_WEIGHT}"

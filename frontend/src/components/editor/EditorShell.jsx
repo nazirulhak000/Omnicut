@@ -13,12 +13,30 @@ import {
   totalDuration as totalDurationOf,
 } from '../../lib/timelineMath';
 import { useEditorHistory } from '../../hooks/useEditorHistory';
+import { useProjectAutosave } from '../../hooks/useProjectAutosave';
+import { useProjectLoader } from '../../hooks/useProjectLoader';
+import { useRenderJob } from '../../hooks/useRenderJob';
 import { toMediaUrl } from '../../lib/mediaUrl';
+import { editorStateToSavePayload, manifestToEditorState } from '../../lib/editorProjectState';
 import SequencePlayer from '../SequencePlayer';
 import AssetPanel from './AssetPanel';
 import Inspector from './Inspector';
 import Timeline, { tracksFitHeight } from './Timeline';
 import { DEFAULT_HOOK_TEMPLATE, HOOK_TEMPLATES } from '../../lib/hookStyles';
+import {
+  guessBrandModel,
+  newHookOverlay,
+  newTextOverlay,
+  overlayFromTextTemplate,
+  overriddenTierFields,
+  restyleOverlayFromTemplate,
+  resolveLook,
+  templateForAdTone,
+  withHookTemplate,
+  withHookTemplateReset,
+  withTierLook,
+  withTierText,
+} from '../../lib/overlayModel';
 import Toolbar from './Toolbar';
 import NewClipPanel from './NewClipPanel';
 import { ActivityIndicatorButton } from '../ActivityCenter';
@@ -86,7 +104,7 @@ const LEGACY_SFX_ALIASES = {
   boom: 'sfx_vine_boom',
 };
 
-const EMPTY = { clipList: [], cuesList: [], style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false, captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1, stickerPosition: 'top_right', stickerScale: 1 } };
+const EMPTY = { clipList: [], cuesList: [], overlays: [], style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false, captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1, stickerPosition: 'top_right', stickerScale: 1 } };
 
 let idCounter = 0;
 const newId = () => `clip-${Date.now().toString(36)}-${++idCounter}`;
@@ -101,12 +119,10 @@ export default function EditorShell({
   onVideoUploaded,
 }) {
   const { state, set, setSilent, beginDrag, endDrag, undo, redo, reset, canUndo, canRedo } = useEditorHistory(EMPTY);
-  const { clipList, cuesList, style } = state;
+  const { clipList, cuesList, style, overlays } = state;
 
   const [projectList, setProjectList] = useState([]);
   const [projectName, setProjectName] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState(null);
   // `default_bgm` comes from the server, which is where the render's own
   // default lives. Keeping a copy here is what let the timeline claim one
   // track while the file played another.
@@ -247,12 +263,42 @@ export default function EditorShell({
   };
 
   const [zen, setZen] = useState(false);
-  const [applying, setApplying] = useState(false);
-  const [applyError, setApplyError] = useState(null);
-  const [applyResult, setApplyResult] = useState(null);
-  const [jobId, setJobId] = useState(null);
-  const [jobStatus, setJobStatus] = useState(null);
   const [confirmGap, setConfirmGap] = useState(0);
+
+  const handleRenderComplete = useCallback((rawResult, _id, targetProject) => {
+    if (productContext?.id && productContext?.angles?.[angleIndex]?.angle_id) {
+      try {
+        const vPath = rawResult?.mp4 || rawResult?.final_video_path || rawResult?.video_path || '';
+        updateAngleStatus(productContext.id, productContext.angles[angleIndex].angle_id, 'rendered', vPath, targetProject).catch(() => {});
+      } catch (e) {}
+    }
+  }, [productContext, angleIndex]);
+
+  const handleRenderError = useCallback((_errorMsg, _id, _targetProject) => {
+    if (productContext?.id && productContext?.angles?.[angleIndex]?.angle_id) {
+      try {
+        updateAngleStatus(productContext.id, productContext.angles[angleIndex].angle_id, 'scripted').catch(() => {});
+      } catch (e) {}
+    }
+  }, [productContext, angleIndex]);
+
+  const {
+    jobId,
+    jobStatus,
+    isRendering: applying,
+    applyResult,
+    setApplyResult,
+    applyError,
+    setApplyError,
+    progressPercent,
+    startJob,
+    stopJob,
+  } = useRenderJob({
+    projectName,
+    fetchStatus: getRenderStatus,
+    onComplete: handleRenderComplete,
+    onError: handleRenderError,
+  });
   // Draft = 720p/crf26/veryfast. Measured on this machine: a 12s clip took
   // 25.5s at post quality vs 12.5s as a draft (12.18 MB vs 1.82 MB).
   const [exportPreset, setExportPreset] = useState('post');
@@ -260,47 +306,12 @@ export default function EditorShell({
   const [copiedPath, setCopiedPath] = useState(false);
   const [audioUrl, setAudioUrl] = useState(null);
   const [voiceUrl, setVoiceUrl] = useState(null);
-  const [hookBrand, setHookBrand] = useState('');
-  const [hookModel, setHookModel] = useState('');
-  const [hookLabel, setHookLabel] = useState('');
-  const [hookDuration, setHookDuration] = useState(3.0);
-  // Partial dict of motion choices ({in, loop, out, accent} preset ids plus
-  // the stagger flag). Only what the user actually changed is stored -- an
-  // absent key falls back to the backend's own default preset in
-  // _resolve_hook_motion, so a fresh {} renders exactly like the default.
-  const [hookMotion, setHookMotion] = useState({});
-  // Per-tier text colours ({brand, model, label} as #RRGGBB). Unset tiers
-  // keep the renderer's poster defaults, so {} means "as before".
-  const [hookColors, setHookColors] = useState({});
-  const handleHookColorChange = useCallback((tier, value) => {
-    setHookColors((prev) => ({ ...prev, [tier]: value }));
-  }, []);
-
-  // Which Hook Header look is in use, plus whatever has been changed on top of
-  // it. A template is a starting point: `tiers` holds only the fields that
-  // were actually overridden, so switching template keeps custom edits that
-  // were made deliberately and drops the rest back to the new look's defaults.
-  const [hookStyle, setHookStyle] = useState({ template: DEFAULT_HOOK_TEMPLATE });
-  const handleHookTemplate = useCallback((template) => {
-    setHookStyle({ template });
-  }, []);
-  const handleHookStyleChange = useCallback((tier, field, value) => {
-    setHookStyle((prev) => {
-      if (tier === null) return { ...prev, [field]: value };
-      const tiers = { ...(prev.tiers || {}) };
-      tiers[tier] = { ...(tiers[tier] || {}), [field]: value };
-      return { ...prev, tiers };
-    });
-  }, []);
-  const handleHookStyleReset = useCallback(() => {
-    setHookStyle((prev) => ({ template: prev.template || DEFAULT_HOOK_TEMPLATE }));
-  }, []);
+  // Read off the manifest so the banner can dress itself the way the script's
+  // own narration tone asks for, and name the product without being told.
+  const [projectAdTone, setProjectAdTone] = useState(null);
+  const [projectProductName, setProjectProductName] = useState('');
   const [hookMotionCatalog, setHookMotionCatalog] = useState(null);
   const [hookMotionDefault, setHookMotionDefault] = useState(null);
-  const handleHookMotionToggle = useCallback((key, value) => {
-    setHookMotion((prev) => ({ ...prev, [key]: value }));
-  }, []);
-  const [showHookHeader, setShowHookHeader] = useState(true);
   const [microCuesList, setMicroCuesList] = useState([]);
   const [pendingDelete, setPendingDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -334,30 +345,121 @@ export default function EditorShell({
     });
   }, []);
   const [isCaptionHidden, setIsCaptionHidden] = useState(false);
-  const [textOverlays, setTextOverlays] = useState([]);
-  const [isTextOverlayHidden, setIsTextOverlayHidden] = useState(false);
+
+  // The banner and the text overlays are one array now, and it lives inside
+  // the undo history. The banner used to sit outside it as seven loose
+  // useStates, so retyping a brand was the one edit in this editor that
+  // Ctrl+Z could not take back.
+  const hookOverlay = useMemo(() => overlays.find((o) => o.kind === 'hook') || null, [overlays]);
+  const textOverlays = useMemo(() => overlays.filter((o) => o.kind === 'text'), [overlays]);
+  // The eye in the track gutter still speaks per track, so it reads and
+  // writes `hidden` across every overlay of that kind.
+  const isTextOverlayHidden = textOverlays.length > 0 && textOverlays.every((o) => o.hidden);
+  const showHookHeader = !!hookOverlay && !hookOverlay.hidden;
+
+  const markOverlaysDirty = useCallback(() => {
+    cuesDirty.current = true;
+    setSaveStatus('dirty');
+  }, []);
+
+  const handleUpdateOverlay = useCallback((id, patch) => {
+    set((s) => ({
+      ...s,
+      overlays: s.overlays.map((o) => (o.id === id ? { ...o, ...patch } : o)),
+    }));
+    markOverlaysDirty();
+  }, [set, markOverlaysDirty]);
+
+  /** Replace one overlay wholesale, for the withX helpers in overlayModel. */
+  const handleReplaceOverlay = useCallback((id, next) => {
+    set((s) => ({ ...s, overlays: s.overlays.map((o) => (o.id === id ? next : o)) }));
+    markOverlaysDirty();
+  }, [set, markOverlaysDirty]);
+
+  const handleAddOverlay = useCallback((overlay, select = true) => {
+    set((s) => ({ ...s, overlays: [...s.overlays, overlay] }));
+    if (select) setSelection({ type: overlay.kind === 'hook' ? 'hook' : 'text_overlay', id: overlay.id });
+    markOverlaysDirty();
+  }, [set, markOverlaysDirty]);
+
+  const handleDeleteOverlay = useCallback((id) => {
+    set((s) => ({ ...s, overlays: s.overlays.filter((o) => o.id !== id) }));
+    setSelection((prev) => (prev?.id === id ? null : prev));
+    markOverlaysDirty();
+  }, [set, markOverlaysDirty]);
+
+  const handleToggleOverlayKindHidden = useCallback((kind) => {
+    set((s) => {
+      const of = s.overlays.filter((o) => o.kind === kind);
+      const hiding = !(of.length > 0 && of.every((o) => o.hidden));
+      return { ...s, overlays: s.overlays.map((o) => (o.kind === kind ? { ...o, hidden: hiding } : o)) };
+    });
+    markOverlaysDirty();
+  }, [set, markOverlaysDirty]);
+
+  /**
+   * A banner look picked from the left panel. It creates the banner if there
+   * is not one yet, so the gallery is a way in rather than something that
+   * silently does nothing until the right panel has been opened first.
+   */
+  const handleApplyHookTemplate = useCallback((template) => {
+    if (!hookOverlay) {
+      const guess = guessBrandModel(projectProductName || productContext?.title || '');
+      const fresh = newHookOverlay({
+        brand: guess.brand, model: guess.model, template, duration: 3.0,
+      });
+      if (fresh) handleAddOverlay(fresh);
+      return;
+    }
+    handleReplaceOverlay(hookOverlay.id, withHookTemplate(hookOverlay, template));
+    setSelection({ type: 'hook', id: hookOverlay.id });
+  }, [hookOverlay, handleAddOverlay, handleReplaceOverlay, projectProductName, productContext]);
+
+  /** A template card dropped on the timeline, starting where it was let go. */
+  const handleDropTextTemplate = useCallback((tpl, atSeconds) => {
+    if (!tpl) return;
+    const start = Math.round(atSeconds * 100) / 100;
+    handleAddOverlay(overlayFromTextTemplate(tpl, {
+      id: `ovl_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      start,
+      end: start + 2.5,
+    }));
+  }, [handleAddOverlay]);
 
   const handleAddTextOverlay = useCallback(() => {
     const startSec = Math.round(playhead * 100) / 100;
-    const endSec = Math.round((playhead + 2.5) * 100) / 100;
-    const newOverlay = {
-      id: `txt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    handleAddOverlay(newTextOverlay({
+      id: `ovl_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       text: 'ข้อความใหม่',
       start: startSec,
-      end: endSec,
-      position: 'middle',
-      x: 0.5,
-      y: 0.5,
-      scale: 1.0,
-      color: '#FFE600',
-      bgStyle: 'none',
-      anim: 'pop',
-    };
-    setTextOverlays((prev) => [...prev, newOverlay]);
-    setSelection({ type: 'text_overlay', id: newOverlay.id });
-    cuesDirty.current = true;
-    setSaveStatus('dirty');
-  }, [playhead]);
+      end: startSec + 2.5,
+      look: { color: '#FFE600' },
+    }));
+  }, [playhead, handleAddOverlay]);
+
+  /**
+   * The banner, made on demand. It is an ordinary overlay, so "there isn't
+   * one yet" is simply an empty array rather than a visibility flag that
+   * could disagree with the three strings behind it.
+   */
+  const handleEnsureHookOverlay = useCallback(() => {
+    if (hookOverlay) {
+      handleUpdateOverlay(hookOverlay.id, { hidden: !hookOverlay.hidden });
+      return;
+    }
+    // The tone the script was written in picks the look, the same mapping a
+    // first render uses, so turning the banner on by hand lands on the same
+    // dressing the pipeline would have chosen.
+    const guess = guessBrandModel(projectProductName || productContext?.title || '');
+    const fresh = newHookOverlay({
+      brand: guess.brand,
+      model: guess.model,
+      template: templateForAdTone(projectAdTone),
+      duration: 3.0,
+    });
+    if (fresh) handleAddOverlay(fresh);
+  }, [hookOverlay, handleUpdateOverlay, handleAddOverlay, productContext,
+      projectProductName, projectAdTone]);
 
   const [previewTextTemplate, setPreviewTextTemplate] = useState(null);
 
@@ -392,7 +494,6 @@ export default function EditorShell({
 
   const cuesDirty = useRef(false);
   const initialCuesRef = useRef([]);
-  const [saveStatus, setSaveStatus] = useState('saved'); // 'saved' | 'saving' | 'dirty'
   const isLoadedRef = useRef(false);
 
   // Music lives in the mix, not the video pass. Apply has to ask for the
@@ -402,6 +503,83 @@ export default function EditorShell({
   // Caption look is baked into the .ass, which the "video" part reuses -- so a
   // caption style change has to ask for the subtitles part instead.
   const loadedCaptionStyle = useRef({ captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1 });
+
+  const savePayload = useMemo(() => editorStateToSavePayload({
+    clipList,
+    cuesList,
+    style,
+    overlays,
+    trackMix,
+  }), [clipList, cuesList, overlays, style, trackMix]);
+  const {
+    saveStatus,
+    setSaveStatus,
+    flush: flushAutosave,
+    saveNow: handleManualSave,
+    setBaseline: setSaveBaseline,
+  } = useProjectAutosave({
+    projectName,
+    payload: savePayload,
+    enabled: !!projectName && isLoadedRef.current,
+    saveProject: updateProjectState,
+  });
+
+  const mapProject = useCallback((manifest) => manifestToEditorState(manifest, {
+    createClipId: () => newId(),
+    createCueId: (index) => `cue-${index}-${Date.now().toString(36)}`,
+  }), []);
+
+  const applyLoadedProject = useCallback((name, loaded) => {
+    setProjectName(name);
+    initialCuesRef.current = JSON.parse(JSON.stringify(loaded.cuesList || []));
+    setMicroCuesList(loaded.microCuesList);
+    setProjectAdTone(loaded.adTone);
+    setProjectProductName(loaded.productName);
+    setAudioUrl(loaded.mixedAudioPath ? toMediaUrl(loaded.mixedAudioPath) : null);
+    setVoiceUrl(loaded.voiceAudioPath ? toMediaUrl(loaded.voiceAudioPath) : null);
+    setTrackMix(loaded.trackMix);
+    loadedCaptionStyle.current = {
+      captionPosition: loaded.style.captionPosition,
+      captionColor: loaded.style.captionColor,
+      captionScale: loaded.style.captionScale,
+    };
+    loadedAudioStyle.current = {
+      bgmName: loaded.style.bgmName,
+      bgmVolume: loaded.style.bgmVolume,
+      bgmDucking: loaded.style.bgmDucking,
+    };
+    reset({
+      clipList: loaded.clipList,
+      cuesList: loaded.cuesList,
+      overlays: loaded.overlays,
+      style: loaded.style,
+    });
+    setAudioDuration(loaded.audioDuration);
+    cuesDirty.current = false;
+    setSaveBaseline(name, editorStateToSavePayload(loaded));
+    isLoadedRef.current = true;
+  }, [reset, setSaveBaseline]);
+
+  const {
+    loadProject,
+    loading,
+    loadError,
+    setLoadError,
+  } = useProjectLoader({
+    fetchProject: getProject,
+    beforeLoad: async () => {
+      if (projectName && isLoadedRef.current) await flushAutosave();
+    },
+    mapProject,
+    onStart: () => {
+      isLoadedRef.current = false;
+      setSelection(null);
+      setApplyError(null);
+      setApplyResult(null);
+      setConfirmGap(0);
+    },
+    onLoaded: applyLoadedProject,
+  });
 
   const seekPlayer = useCallback((t) => {
     setPlayhead(t);
@@ -493,171 +671,6 @@ export default function EditorShell({
     }
   }, [initialProjectName, productContext, angleIndex]);
 
-  const loadProject = async (name) => {
-    if (!name) return;
-    setLoading(true);
-    setLoadError(null);
-    setSelection(null);
-    setApplyError(null);
-    setApplyResult(null);
-    setConfirmGap(0);
-    try {
-      const data = await getProject(name);
-      setProjectName(name);
-
-      // Support clips from data.clip_list or data.render_params.clip_list or fallback to raw_video_path
-      const rawClips = (data.clip_list && data.clip_list.length > 0)
-        ? data.clip_list
-        : (data.render_params?.clip_list && data.render_params.clip_list.length > 0)
-        ? data.render_params.clip_list
-        : (data.render_params?.raw_video_path || data.raw_video_path)
-        ? [{ source_path: data.render_params?.raw_video_path || data.raw_video_path, trim_start: 0, trim_end: null }]
-        : [];
-
-      // Spread the stored clip FIRST and only normalise the fields that need
-      // coercing. Listing fields explicitly meant everything unlisted was
-      // dropped on load and then written back stripped by the autosave --
-      // silently destroying the geometry (zoom/pan_x/pan_y/rotation), the
-      // colour grade (brightness/contrast/saturation) and the audio/framing
-      // options (volume/bg_blur/fit_mode/freeze_tail) that the renderer
-      // reads. That is why the render punched in on shots the preview drew
-      // flat: pipeline.py had written a real zoom, the editor deleted it, and
-      // video_editor.py fell back to its shot_scales table.
-      // The renderer records boundaries in a separate `transitions` array,
-      // one entry per gap between clips, and the pipeline also stamps them
-      // onto each clip. Nothing here ever read that array, so every clip fell
-      // back to 'cut' and the timeline showed hard cuts for a render full of
-      // fades -- and the autosave then wrote that all-cut list back, wiping
-      // the real boundaries. Clip-level wins when both exist, since that is
-      // what the user last edited.
-      const savedTransitions = data.transitions || data.render_params?.transitions || [];
-      const boundaryAt = (i) => {
-        const b = i > 0 ? savedTransitions[i - 1] : null;
-        if (!b) return {};
-        return typeof b === 'string'
-          ? { type: b }
-          : { type: b.type, duration: b.duration };
-      };
-
-      const clips = rawClips.map((c, i) => {
-        const b = boundaryAt(i);
-        return {
-          ...c,
-          id: newId(),
-          source_path: c.source_path || c.path || '',
-          trim_start: Number(c.trim_start) || 0,
-          trim_end: c.trim_end != null ? Number(c.trim_end) : null,
-          duration: Number(c.duration) || 0,
-          speed: Number(c.speed) || 1,
-          transition_in: c.transition_in || b.type || 'cut',
-          transition_duration: c.transition_duration ?? b.duration ?? undefined,
-          mirror: !!c.mirror,
-        };
-      });
-
-      // Support cues: prefer sentence-level scenes for clean editing, fallback to micro_cues
-      const rawCues = (data.cues && data.cues.length > 0)
-        ? data.cues
-        : (data.micro_cues && data.micro_cues.length > 0)
-        ? data.micro_cues
-        : [];
-
-      const cues = rawCues.map((c, i) => ({
-        start: Number(c.start) || 0,
-        end: Number(c.end) || 0,
-        text: c.text || '',
-        translation: c.translation || '',
-        sfx: c.sfx || null,
-        _uid: `cue-${i}-${Date.now().toString(36)}`,
-      }));
-      initialCuesRef.current = JSON.parse(JSON.stringify(cues || []));
-
-      const rawMicroCues = (data.micro_cues && data.micro_cues.length > 0) ? data.micro_cues : [];
-      setMicroCuesList(rawMicroCues);
-      // Deliberately does NOT fall back to data.script_data?.hook -- that's
-      // the voiceover's opening line (a full sentence, meant to be spoken),
-      // not a banner headline. Falling back to it here was the root cause
-      // of the old single-field hook banner showing up as a whole sentence.
-      // A legacy project saved before this 3-tier banner existed has none
-      // of these three fields -- all stay empty, banner hidden, user fills
-      // it in fresh (no auto-parsing an old hook_title into tiers).
-      const brand = data.hook_brand || data.render_params?.hook_brand || '';
-      const model = data.hook_model || data.render_params?.hook_model || '';
-      const label = data.hook_label || data.render_params?.hook_label || '';
-      setHookBrand(brand);
-      setHookModel(model);
-      setHookLabel(label);
-      const hookDur = Number(data.hook_duration || data.render_params?.hook_duration || 3.0);
-      setHookDuration(hookDur > 0 ? hookDur : 3.0);
-      setHookMotion(data.hook_motion || data.render_params?.hook_motion || {});
-      setHookColors(data.hook_colors || data.render_params?.hook_colors || {});
-      setHookStyle(
-        data.hook_style || data.render_params?.hook_style || { template: DEFAULT_HOOK_TEMPLATE },
-      );
-      setShowHookHeader(!!brand);
-      const rawTextOverlays = data.text_overlays || data.render_params?.text_overlays || [];
-      setTextOverlays(Array.isArray(rawTextOverlays) ? rawTextOverlays : []);
-
-      const fontName = data.font_name || data.render_params?.font_name || data.style?.font_name || data.style?.fontName || 'IBMPlex';
-      const bgmName = data.bgm_name || data.render_params?.bgm_name || data.style?.bgm_name || data.style?.bgmName || null;
-      const lutName = data.lut_name || data.render_params?.lut_name || data.style?.lut_name || data.style?.lutName || null;
-      const stickerBadge = data.sticker_badge || data.render_params?.sticker_badge || data.style?.sticker_badge || data.style?.stickerBadge || null;
-      // A 1-Click no longer bakes a mix (that happens at render), so the
-      // preview plays the stems: the voice stem always exists, the mix only
-      // after an export. Keep reading the mix for older projects that have one
-      // -- the player prefers stems and falls back to it.
-      const mixedAudio = data.artifacts?.mixed_audio?.path || null;
-      setAudioUrl(mixedAudio ? toMediaUrl(mixedAudio) : null);
-      const voiceAudio = data.artifacts?.voice_audio?.path || null;
-      setVoiceUrl(voiceAudio ? toMediaUrl(voiceAudio) : null);
-      const lutIntensity = Number(data.lut_intensity ?? data.render_params?.lut_intensity ?? data.style?.lut_intensity ?? data.style?.lutIntensity ?? 1);
-      const bgmVolume = Number(data.bgm_volume ?? data.render_params?.bgm_volume ?? data.style?.bgm_volume ?? data.style?.bgmVolume ?? 0.12);
-      const bgmDucking = !!(data.bgm_ducking ?? data.render_params?.bgm_ducking ?? data.style?.bgm_ducking ?? data.style?.bgmDucking);
-      const captionPosition = data.caption_position || data.render_params?.caption_position || data.style?.caption_position || data.style?.captionPosition || 'bottom';
-      const captionColor = data.caption_color || data.render_params?.caption_color || data.style?.caption_color || data.style?.captionColor || '#FFFFFF';
-      const rawScale = Number(data.caption_scale ?? data.render_params?.caption_scale ?? data.style?.caption_scale ?? data.style?.captionScale ?? 1);
-      // มาตรฐานฟอนต์คำบรรยายคลิปสั้นต้องเป็น 100% (1.0) เสมอ หากพบค่าย่อ legacy (<0.95) ให้ใช้ 1.0
-      const captionScale = (rawScale >= 0.95) ? rawScale : 1.0;
-      const stickerPosition = data.sticker_position || data.render_params?.sticker_position || data.style?.sticker_position || data.style?.stickerPosition || 'top_right';
-      const stickerScale = Number(data.sticker_scale ?? data.render_params?.sticker_scale ?? data.style?.sticker_scale ?? data.style?.stickerScale ?? 1);
-      loadedCaptionStyle.current = { captionPosition, captionColor, captionScale };
-      // Baseline for "did the music change?" -- without this the first Apply
-      // after loading would always take the slower re-mix path.
-      loadedAudioStyle.current = { bgmName, bgmVolume, bgmDucking };
-
-      isLoadedRef.current = false;
-      reset({
-        clipList: clips,
-        cuesList: cues,
-        style: {
-          fontName,
-          bgmName,
-          lutName,
-          lutIntensity,
-          stickerBadge,
-          bgmVolume,
-          bgmDucking,
-          captionPosition,
-          captionColor,
-          captionScale,
-          stickerPosition,
-          stickerScale,
-        },
-      });
-      setTimeout(() => {
-        isLoadedRef.current = true;
-        setSaveStatus('saved');
-      }, 150);
-
-      setAudioDuration(Number(data.audio_duration || data.total_duration) || 0);
-      cuesDirty.current = false;
-    } catch (err) {
-      setLoadError(err.message || `โหลดโปรเจกต์ ${name} ไม่สำเร็จ`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Filmstrip thumbnails
   const filmstrips = useMemo(() => {
     const map = {};
@@ -713,68 +726,47 @@ export default function EditorShell({
     const startSec = isHook ? 0.0 : Math.round(playhead * 100) / 100;
     const defaultDur = isHook ? Math.min(3.5, totalDuration || 3.5) : 2.5;
     const endSec = Math.round((startSec + defaultDur) * 100) / 100;
-    const newOverlay = {
-      id: `txt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      text: tpl?.text || 'ข้อความใหม่',
+    const overlay = overlayFromTextTemplate(tpl, {
+      id: `ovl_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       start: startSec,
       end: endSec,
-      position: isHook ? 'top' : 'middle',
-      x: 0.5,
-      y: isHook ? 0.35 : 0.5,
-      scale: tpl?.scale || 1.0,
-      color: tpl?.color || '#FFFFFF',
-      fontName: tpl?.fontName || 'Kanit',
-      bgStyle: tpl?.bgStyle || 'none',
-      badgeColor: tpl?.badgeColor || null,
-      anim: tpl?.anim || 'pop',
-      sfx: tpl?.sfx || null,
-      sfxLabel: tpl?.sfxLabel || null,
-      templateId: tpl?.id || null,
-    };
-    setTextOverlays((prev) => [...prev, newOverlay]);
-    setSelection({ type: 'text_overlay', id: newOverlay.id, focusText: true });
+    });
+    if (isHook) {
+      // An opening hook belongs at the top of the frame, above the caption
+      // band, which is where the card's own preview shows it.
+      overlay.position = 'top';
+      overlay.y = 0.35;
+    }
+    set((prev) => ({ ...prev, overlays: [...prev.overlays, overlay] }));
+    setSelection({ type: 'text_overlay', id: overlay.id, focusText: true });
     setPreviewTextTemplate(null);
     cuesDirty.current = true;
     setSaveStatus('dirty');
-  }, [playhead, totalDuration]);
-
-  const handleUpdateTextOverlay = useCallback((id, patch) => {
-    setTextOverlays((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, ...patch } : item))
-    );
-    cuesDirty.current = true;
-    setSaveStatus('dirty');
-  }, []);
+  }, [playhead, totalDuration, set]);
 
   const handleSelectTextTemplate = useCallback((tpl) => {
     if (!tpl) return;
-    // If a text overlay is currently selected, apply the template's style to it (preserving text)
+    // With an overlay selected, the card re-dresses it and keeps its words.
     if (selection?.type === 'text_overlay' && selection.id) {
-      handleUpdateTextOverlay(selection.id, {
-        color: tpl.color || '#FFFFFF',
-        fontName: tpl.fontName || 'Kanit',
-        scale: tpl.scale || 1.0,
-        anim: tpl.anim || 'pop',
-        bgStyle: tpl.bgStyle || 'none',
-        badgeColor: tpl.badgeColor || null,
-        sfx: tpl.sfx || null,
-        sfxLabel: tpl.sfxLabel || null,
-        templateId: tpl.id,
-      });
+      const current = overlays.find((o) => o.id === selection.id);
+      if (current) handleReplaceOverlay(current.id, restyleOverlayFromTemplate(current, tpl));
       setPreviewTextTemplate(null);
       return;
     }
-
-    // Otherwise toggle / set ephemeral preview on player
-    setPreviewTextTemplate((prev) => (prev?.id === tpl.id ? null : tpl));
-  }, [selection, handleUpdateTextOverlay]);
-
-  const handleDeleteTextOverlay = useCallback((id) => {
-    setTextOverlays((prev) => prev.filter((item) => item.id !== id));
-    setSelection((curr) => (curr?.type === 'text_overlay' && curr?.id === id ? null : curr));
-    cuesDirty.current = true;
-    setSaveStatus('dirty');
-  }, []);
+    // Otherwise the card previews itself on the canvas until dismissed. It is
+    // drawn as a real overlay by the one drawing path, so what is shown is
+    // exactly what committing it produces.
+    setPreviewTextTemplate((prev) => {
+      if (prev?.template_id === tpl.id) return null;
+      const preview = overlayFromTextTemplate(tpl, {
+        id: '__preview__',
+        start: 0,
+        end: Number.MAX_SAFE_INTEGER,
+      });
+      preview.position = 'middle';
+      return preview;
+    });
+  }, [selection, overlays, handleReplaceOverlay]);
 
   // Clip / Caption mutation helpers
   const patchClip = useCallback((id, patch, silent = false) => {
@@ -897,128 +889,18 @@ export default function EditorShell({
           seekPlayer(seg.segStart);
         }
       }
-    } else if (sel.type === 'text_overlay') {
-      const item = textOverlays.find(t => t.id === sel.id);
+    } else if (sel.type === 'text_overlay' || sel.type === 'hook') {
+      // The banner has a start of its own now, so both kinds seek the same way.
+      const item = overlays.find((o) => o.id === sel.id)
+        || (sel.type === 'hook' ? hookOverlay : null);
       if (item && typeof item.start === 'number') {
         const itemEnd = typeof item.end === 'number' ? item.end : item.start + 2.0;
         if (playhead < item.start - 0.05 || playhead > itemEnd + 0.05) {
           seekPlayer(item.start);
         }
       }
-    } else if (sel.type === 'hook') {
-      const hookDur = hookDuration || 3.0;
-      if (playhead < 0 || playhead > hookDur + 0.05) {
-        seekPlayer(0);
-      }
     }
-  }, [cuesList, segments, textOverlays, hookDuration, playhead, seekPlayer]);
-
-  // Real-time auto-saving whenever clips, captions, or style are edited
-  useEffect(() => {
-    if (!projectName || !isLoadedRef.current) return;
-    setSaveStatus('dirty');
-    const timer = setTimeout(async () => {
-      setSaveStatus('saving');
-      try {
-        const serializedClips = clipList.map(({ id, transition_in, transition_duration, ...c }) => c);
-        const serializedTransitions = clipList.slice(1).map((c) => ({
-          type: c.transition_in || 'cut',
-          duration: c.transition_duration ?? FADE_DURATION,
-        }));
-        const serializedCues = cuesList.map(({ _uid, ...c }) => c);
-        const serializedStyle = {
-          caption_scale: style.captionScale ?? 1,
-          caption_position: style.captionPosition || 'bottom',
-          caption_color: style.captionColor || '#FFFFFF',
-          font_name: style.fontName || 'IBMPlex',
-          bgm_name: style.bgmName || null,
-          bgm_volume: style.bgmVolume ?? 0.12,
-          bgm_ducking: !!style.bgmDucking,
-          lut_name: style.lutName || null,
-          lut_intensity: style.lutIntensity ?? 1,
-          sticker_badge: style.stickerBadge || null,
-          sticker_position: style.stickerPosition || 'top_right',
-          sticker_scale: style.stickerScale ?? 1,
-          captionScale: style.captionScale ?? 1,
-          captionPosition: style.captionPosition || 'bottom',
-          captionColor: style.captionColor || '#FFFFFF',
-          fontName: style.fontName || 'IBMPlex',
-        };
-        await updateProjectState(projectName, {
-          cues: serializedCues,
-          micro_cues: serializedCues,
-          clip_list: serializedClips,
-          transitions: serializedTransitions,
-          style: serializedStyle,
-          hook_brand: showHookHeader ? (hookBrand || '') : '',
-          hook_model: showHookHeader ? (hookModel || '') : '',
-          hook_label: showHookHeader ? (hookLabel || '') : '',
-          hook_duration: hookDuration || 3.0,
-          hook_motion: hookMotion,
-          hook_colors: hookColors,
-        hook_style: hookStyle,
-          hook_style: hookStyle,
-          text_overlays: textOverlays,
-        });
-        setSaveStatus('saved');
-      } catch (err) {
-        console.warn('Auto-save failed:', err);
-        setSaveStatus('dirty');
-      }
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [clipList, cuesList, style, projectName, hookBrand, hookModel, hookLabel, hookDuration, hookMotion, hookColors, hookStyle, showHookHeader, textOverlays]);
-
-  // Manual save handler (button click or Ctrl+S)
-  const handleManualSave = useCallback(async () => {
-    if (!projectName) return;
-    setSaveStatus('saving');
-    try {
-      const serializedClips = clipList.map(({ id, transition_in, transition_duration, ...c }) => c);
-      const serializedTransitions = clipList.slice(1).map((c) => ({
-        type: c.transition_in || 'cut',
-        duration: c.transition_duration ?? FADE_DURATION,
-      }));
-      const serializedCues = cuesList.map(({ _uid, ...c }) => c);
-      const serializedStyle = {
-        caption_scale: style.captionScale ?? 1,
-        caption_position: style.captionPosition || 'bottom',
-        caption_color: style.captionColor || '#FFFFFF',
-        font_name: style.fontName || 'IBMPlex',
-        bgm_name: style.bgmName || null,
-        bgm_volume: style.bgmVolume ?? 0.12,
-        bgm_ducking: !!style.bgmDucking,
-        lut_name: style.lutName || null,
-        lut_intensity: style.lutIntensity ?? 1,
-        sticker_badge: style.stickerBadge || null,
-        sticker_position: style.stickerPosition || 'top_right',
-        sticker_scale: style.stickerScale ?? 1,
-        captionScale: style.captionScale ?? 1,
-        captionPosition: style.captionPosition || 'bottom',
-        captionColor: style.captionColor || '#FFFFFF',
-        fontName: style.fontName || 'IBMPlex',
-      };
-      await updateProjectState(projectName, {
-        cues: serializedCues,
-        micro_cues: serializedCues,
-        clip_list: serializedClips,
-        transitions: serializedTransitions,
-        style: serializedStyle,
-        hook_brand: showHookHeader ? (hookBrand || '') : '',
-        hook_model: showHookHeader ? (hookModel || '') : '',
-        hook_label: showHookHeader ? (hookLabel || '') : '',
-        hook_duration: hookDuration || 3.0,
-        hook_motion: hookMotion,
-        hook_colors: hookColors,
-        hook_style: hookStyle,
-        text_overlays: textOverlays,
-      });
-      setSaveStatus('saved');
-    } catch (err) {
-      console.warn('Manual save failed:', err);
-      setSaveStatus('dirty');
-    }
-  }, [projectName, clipList, cuesList, style, hookBrand, hookModel, hookLabel, hookDuration, hookMotion, hookColors, hookStyle, showHookHeader, textOverlays]);
+  }, [cuesList, segments, overlays, hookOverlay, playhead, seekPlayer]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -1129,8 +1011,8 @@ export default function EditorShell({
       cuesDirty.current = true;
       set((prev) => ({ ...prev, cuesList: prev.cuesList.filter((c) => c._uid !== selection.id) }));
       setSelection(null);
-    } else if (selection?.type === 'text_overlay') {
-      handleDeleteTextOverlay(selection.id);
+    } else if (selection?.type === 'text_overlay' || selection?.type === 'hook') {
+      handleDeleteOverlay(selection.id);
     }
   };
 
@@ -1428,38 +1310,6 @@ export default function EditorShell({
     setMobileTab('timeline');
   }, [set]);
 
-  // Render polling
-  useEffect(() => {
-    if (!jobId || !applying) return;
-    const timer = setInterval(async () => {
-      try {
-        const st = await getRenderStatus(jobId);
-        setJobStatus(st);
-        if (st.status === 'done' || st.status === 'completed') {
-          setApplying(false);
-          setApplyResult(st.result || {});
-          clearInterval(timer);
-          if (productContext?.id && productContext?.angles?.[angleIndex]?.angle_id) {
-            try {
-              const vPath = st.result?.mp4 || st.result?.final_video_path || st.result?.video_path || '';
-              updateAngleStatus(productContext.id, productContext.angles[angleIndex].angle_id, 'rendered', vPath, projectName).catch(() => {});
-            } catch (e) {}
-          }
-        } else if (st.status === 'failed') {
-          setApplying(false);
-          setApplyError(st.error || 'เรนเดอร์ล้มเหลว');
-          clearInterval(timer);
-          if (productContext?.id && productContext?.angles?.[angleIndex]?.angle_id) {
-            try {
-              updateAngleStatus(productContext.id, productContext.angles[angleIndex].angle_id, 'scripted').catch(() => {});
-            } catch (e) {}
-          }
-        }
-      } catch (err) { /* keep polling */ }
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [jobId, applying]);
-
   const handleApply = async () => {
     if (!projectName) { setApplyError('เลือกโปรเจกต์ก่อน'); return; }
     if (!clipList.length) { setApplyError('เพิ่มคลิปในไทม์ไลน์ก่อน'); return; }
@@ -1479,56 +1329,35 @@ export default function EditorShell({
     // so there is nothing left to confirm.
     setConfirmGap(0);
 
-    setApplying(true);
-    setApplyError(null);
-    setApplyResult(null);
-    setJobStatus({ progress: 0.05, message: 'กำลังเตรียมข้อมูล...' });
-
     // Mark angle as in_production only when user actually triggers the render
     if (productContext?.id && productContext?.angles?.[angleIndex]?.angle_id) {
       try {
         updateAngleStatus(productContext.id, productContext.angles[angleIndex].angle_id, 'in_production').catch(() => {});
       } catch (e) {}
     }
-
     try {
-      // Guarantee cues, clips, and transitions are 100% saved in a single atomic transaction before render
-      const serializedCues = cuesList.map(({ _uid, ...c }) => c);
-      const serializedClips = clipList.map(({ id, transition_in, transition_duration, ...c }) => c);
-      const serializedTransitions = clipList.slice(1).map((c) => ({
-        type: c.transition_in || 'cut',
-        duration: c.transition_duration ?? FADE_DURATION,
-      }));
-
-      await updateProjectState(projectName, {
-        cues: serializedCues,
-        clip_list: serializedClips,
-        transitions: serializedTransitions,
-        text_overlays: textOverlays,
-      }).catch(() => {});
+      await updateProjectState(projectName, savePayload).catch(() => {});
+      const audioMutes = trackMix.mute || {};
 
       const res = await startReroll({
         project_name: projectName,
         part: audioDirty ? 'bgm' : 'subtitles',
-        clip_list: serializedClips,
-        transitions: serializedTransitions,
-        text_overlays: textOverlays,
+        clip_list: savePayload.clip_list,
+        transitions: savePayload.transitions,
+        overlays,
         bilingual_subtitles: true,
-        hook_brand: showHookHeader ? (hookBrand || '') : '',
-        hook_model: showHookHeader ? (hookModel || '') : '',
-        hook_label: showHookHeader ? (hookLabel || '') : '',
-        hook_duration: hookDuration || 3.0,
-        hook_motion: hookMotion,
-        hook_colors: hookColors,
-        hook_style: hookStyle,
         font_name: style.fontName,
         bgm_name: style.bgmName,
         lut_name: style.lutName,
         // "" is meaningful here: it clears the badge stored on the project.
         sticker_badge: style.stickerBadge ?? '',
         lut_intensity: style.lutIntensity ?? 1,
-        bgm_volume: style.bgmVolume ?? 0.12,
+        // Track mute is a render setting as well as a preview control. BGM is
+        // already an independent mixer input, so preserve the user's mute in
+        // the rerender payload instead of silently restoring it.
+        bgm_volume: audioMutes.bgm ? 0 : (style.bgmVolume ?? 0.12),
         bgm_ducking: !!style.bgmDucking,
+        audio_mutes: audioMutes,
         export_preset: exportPreset,
         caption_position: style.captionPosition || 'bottom',
         caption_color: style.captionColor || '#FFFFFF',
@@ -1536,7 +1365,7 @@ export default function EditorShell({
         sticker_position: style.stickerPosition || 'top_right',
         sticker_scale: style.stickerScale ?? 1,
       });
-      setJobId(res.job_id);
+      startJob(res.job_id);
       pollTasks?.();
       cuesDirty.current = false;
       loadedAudioStyle.current = {
@@ -1550,7 +1379,7 @@ export default function EditorShell({
         captionScale: style.captionScale ?? 1,
       };
     } catch (err) {
-      setApplying(false);
+      stopJob();
       setApplyError(formatErrorText(err));
     }
   };
@@ -1602,16 +1431,16 @@ export default function EditorShell({
       });
     });
 
-    (textOverlays || []).forEach((t) => {
-      if (!t.sfx) return;
-      const entry = findSfx(t.sfx);
+    (overlays || []).forEach((o) => {
+      if (!o.sfx || o.hidden) return;
+      const entry = findSfx(o.sfx);
       if (!entry) return;
       sfxShots.push({
-        time: Number(t.start) || 0,
-        id: t.sfx,
+        time: Number(o.start) || 0,
+        id: o.sfx,
         name: entry.name,
         url: toMediaUrl(entry.path),
-        overlayId: t.id,
+        overlayId: o.id,
       });
     });
 
@@ -1626,7 +1455,7 @@ export default function EditorShell({
         : null,
       sfx: sfxShots,
     };
-  }, [voiceUrl, style.bgmName, style.bgmVolume, style.bgmDucking, assets.music, assets.sfx, cuesList, textOverlays]);
+  }, [voiceUrl, style.bgmName, style.bgmVolume, style.bgmDucking, assets.music, assets.sfx, cuesList, overlays]);
 
   // The colour grade the preview should show, resolved the same way the
   // renderer resolves it (registry id or filename -- see resolve_lut_path).
@@ -2025,14 +1854,7 @@ export default function EditorShell({
                   ref={mobilePlayerRef}
                   clips={clipList}
                   cues={cuesList}
-                  hookBrand={showHookHeader ? hookBrand : ''}
-                  hookModel={showHookHeader ? hookModel : ''}
-                  hookLabel={showHookHeader ? hookLabel : ''}
-                  hookDuration={hookDuration}
-                  hookMotion={hookMotion}
-                  hookColors={hookColors}
-                  hookStyle={hookStyle}
-                  textOverlays={isTextOverlayHidden ? [] : textOverlays}
+                  overlays={overlays}
                   audioUrl={audioUrl}
                   audioStems={audioStems}
                   grade={grade}
@@ -2057,8 +1879,8 @@ export default function EditorShell({
                   onDurations={setDurations}
                   selection={selection}
                   onSelect={handleSelect}
-                  onUpdateTextOverlay={handleUpdateTextOverlay}
-                  onDeleteTextOverlay={handleDeleteTextOverlay}
+                  onUpdateOverlay={handleUpdateOverlay}
+                  onDeleteOverlay={handleDeleteOverlay}
                   onUpdateCaption={patchCaption}
                   applyToAllCaptions={applyToAllCaptions}
                   onUpdateAllCaptions={patchAllCaptions}
@@ -2254,20 +2076,13 @@ export default function EditorShell({
                     snapEnabled={snapEnabled}
                     onCuesChange={handleUpdateCuesList}
                     onCaptionRippleShift={handleUpdateCuesList}
-                    showHookHeader={showHookHeader}
-                    hookBrand={hookBrand}
-                    hookModel={hookModel}
-                    hookLabel={hookLabel}
-                    hookDuration={hookDuration}
-                    onHookDurationChange={setHookDuration}
-                    onToggleHookHeader={() => setShowHookHeader((v) => !v)}
-                    onSelectHook={() => handleSelect({ type: 'hook' })}
-                    textOverlays={textOverlays}
+                    overlays={overlays}
+                    onUpdateOverlay={handleUpdateOverlay}
                     onAddTextOverlay={handleAddTextOverlay}
-                    onTextOverlayChange={handleUpdateTextOverlay}
-                    onSelectTextOverlay={(id) => handleSelect({ type: 'text_overlay', id })}
-                    isTextOverlayHidden={isTextOverlayHidden}
-                    onToggleHideTextOverlay={() => setIsTextOverlayHidden((v) => !v)}
+                    onDropTextTemplate={handleDropTextTemplate}
+                    onSelectOverlay={(id, kind) => handleSelect({ type: kind === 'hook' ? 'hook' : 'text_overlay', id })}
+                    onToggleOverlayKindHidden={handleToggleOverlayKindHidden}
+                    onEnsureHookOverlay={handleEnsureHookOverlay}
                   />
                 </div>
               </div>
@@ -2287,8 +2102,11 @@ export default function EditorShell({
                       onAddTextAtPlayhead={handleAddTextOverlay}
                       onAddTextTemplate={handleAddTextTemplate}
                       onSelectTextTemplate={handleSelectTextTemplate}
+                      hookTemplates={HOOK_TEMPLATES}
+                      activeHookTemplate={hookOverlay?.template || null}
+                      onApplyHookTemplate={handleApplyHookTemplate}
                       previewTextTemplate={previewTextTemplate}
-                      activeTextTemplateId={selection?.type === 'text_overlay' ? textOverlays.find((t) => t.id === selection.id)?.templateId : null}
+                      activeTextTemplateId={selection?.type === 'text_overlay' ? overlays.find((o) => o.id === selection.id)?.template_id : null}
                       onStyleChange={patchStyle}
                       onAssignSfx={(sfxId) => selectedCaption && patchCaption(selectedCaption._uid, { sfx: sfxId })}
                       onImportCues={handleImportCues}
@@ -2310,28 +2128,12 @@ export default function EditorShell({
                       totalDuration={totalDuration}
                       audioDuration={audioDuration}
                       assets={assets}
-                      hookBrand={hookBrand}
-                      onHookBrandChange={setHookBrand}
-                      hookModel={hookModel}
-                      onHookModelChange={setHookModel}
-                      hookLabel={hookLabel}
-                      onHookLabelChange={setHookLabel}
-                      hookDuration={hookDuration}
-                      onHookDurationChange={setHookDuration}
-                      hookMotion={hookMotion}
-                      onHookMotionChange={handleHookMotionToggle}
+                      hookOverlay={hookOverlay}
                       hookMotionCatalog={hookMotionCatalog}
                       hookMotionDefault={hookMotionDefault}
-                      hookColors={hookColors}
-                    hookStyle={hookStyle}
-                      onHookColorChange={handleHookColorChange}
                       hookTemplates={HOOK_TEMPLATES}
-                      onHookTemplate={handleHookTemplate}
-                      onHookStyleChange={handleHookStyleChange}
-                      onHookStyleReset={handleHookStyleReset}
                       fonts={assets.fonts}
-                      showHookHeader={showHookHeader}
-                      onToggleHookHeader={() => setShowHookHeader((v) => !v)}
+                      onToggleHookHeader={handleEnsureHookOverlay}
                       onAddTextAtPlayhead={addTextAtPlayhead}
                       onStyleChange={patchStyle}
                       onClipChange={(patch) => selectedSeg && patchClip(selectedSeg.clip.id, patch)}
@@ -2350,11 +2152,12 @@ export default function EditorShell({
                       onBatchFormatClean={handleBatchFormatClean}
                       onSeek={seekPlayer}
                       onSelectCue={(uid) => handleSelect({ type: 'caption', id: uid })}
-                      textOverlays={textOverlays}
+                      overlays={overlays}
                       onAddTextOverlay={handleAddTextOverlay}
-                      onUpdateTextOverlay={handleUpdateTextOverlay}
-                      onDeleteTextOverlay={handleDeleteTextOverlay}
-                      onSelectTextOverlay={(id) => handleSelect({ type: 'text_overlay', id })}
+                      onUpdateOverlay={handleUpdateOverlay}
+                      onReplaceOverlay={handleReplaceOverlay}
+                      onDeleteOverlay={handleDeleteOverlay}
+                      onSelectOverlay={(id, kind) => handleSelect({ type: kind === 'hook' ? 'hook' : 'text_overlay', id })}
                       onSelectHook={() => handleSelect({ type: 'hook' })}
                       onSelect={handleSelect}
                       trackMix={trackMix}
@@ -2410,8 +2213,11 @@ export default function EditorShell({
                         onAddTextAtPlayhead={handleAddTextOverlay}
                         onAddTextTemplate={handleAddTextTemplate}
                         onSelectTextTemplate={handleSelectTextTemplate}
+                        hookTemplates={HOOK_TEMPLATES}
+                        activeHookTemplate={hookOverlay?.template || null}
+                        onApplyHookTemplate={handleApplyHookTemplate}
                         previewTextTemplate={previewTextTemplate}
-                        activeTextTemplateId={selection?.type === 'text_overlay' ? textOverlays.find((t) => t.id === selection.id)?.templateId : null}
+                        activeTextTemplateId={selection?.type === 'text_overlay' ? overlays.find((o) => o.id === selection.id)?.template_id : null}
                         onStyleChange={patchStyle}
                         onAssignSfx={(sfxId) => selectedCaption && patchCaption(selectedCaption._uid, { sfx: sfxId })}
                         onImportCues={handleImportCues}
@@ -2455,14 +2261,7 @@ export default function EditorShell({
                     ref={desktopPlayerRef}
                     clips={clipList}
                     cues={cuesList}
-                    hookBrand={showHookHeader ? hookBrand : ''}
-                  hookModel={showHookHeader ? hookModel : ''}
-                  hookLabel={showHookHeader ? hookLabel : ''}
-                    hookDuration={hookDuration}
-                    hookMotion={hookMotion}
-                    hookColors={hookColors}
-                    hookStyle={hookStyle}
-                    textOverlays={isTextOverlayHidden ? [] : textOverlays}
+                    overlays={overlays}
                     audioUrl={audioUrl}
                     audioStems={audioStems}
                     grade={grade}
@@ -2487,8 +2286,8 @@ export default function EditorShell({
                     onDurations={setDurations}
                     selection={selection}
                     onSelect={handleSelect}
-                    onUpdateTextOverlay={handleUpdateTextOverlay}
-                    onDeleteTextOverlay={handleDeleteTextOverlay}
+                    onUpdateOverlay={handleUpdateOverlay}
+                    onDeleteOverlay={handleDeleteOverlay}
                     onUpdateCaption={patchCaption}
                     applyToAllCaptions={applyToAllCaptions}
                     onUpdateAllCaptions={patchAllCaptions}
@@ -2609,28 +2408,12 @@ export default function EditorShell({
                         totalDuration={totalDuration}
                         audioDuration={audioDuration}
                         assets={assets}
-                        hookBrand={hookBrand}
-                        onHookBrandChange={setHookBrand}
-                        hookModel={hookModel}
-                        onHookModelChange={setHookModel}
-                        hookLabel={hookLabel}
-                        onHookLabelChange={setHookLabel}
-                        hookDuration={hookDuration}
-                        onHookDurationChange={setHookDuration}
-                        hookMotion={hookMotion}
-                        onHookMotionChange={handleHookMotionToggle}
+                        hookOverlay={hookOverlay}
                         hookMotionCatalog={hookMotionCatalog}
                         hookMotionDefault={hookMotionDefault}
-                        hookColors={hookColors}
-                        hookStyle={hookStyle}
-                        onHookColorChange={handleHookColorChange}
-                      hookTemplates={HOOK_TEMPLATES}
-                      onHookTemplate={handleHookTemplate}
-                      onHookStyleChange={handleHookStyleChange}
-                      onHookStyleReset={handleHookStyleReset}
-                      fonts={assets.fonts}
-                        showHookHeader={showHookHeader}
-                        onToggleHookHeader={() => setShowHookHeader((v) => !v)}
+                        hookTemplates={HOOK_TEMPLATES}
+                        fonts={assets.fonts}
+                        onToggleHookHeader={handleEnsureHookOverlay}
                         onAddTextAtPlayhead={addTextAtPlayhead}
                         onStyleChange={patchStyle}
                         onClipChange={(patch) => selectedSeg && patchClip(selectedSeg.clip.id, patch)}
@@ -2649,11 +2432,12 @@ export default function EditorShell({
                         onBatchFormatClean={handleBatchFormatClean}
                         onSeek={seekPlayer}
                         onSelectCue={(uid) => handleSelect({ type: 'caption', id: uid })}
-                        textOverlays={textOverlays}
+                        overlays={overlays}
                         onAddTextOverlay={handleAddTextOverlay}
-                        onUpdateTextOverlay={handleUpdateTextOverlay}
-                        onDeleteTextOverlay={handleDeleteTextOverlay}
-                        onSelectTextOverlay={(id) => handleSelect({ type: 'text_overlay', id })}
+                        onUpdateOverlay={handleUpdateOverlay}
+                        onReplaceOverlay={handleReplaceOverlay}
+                        onDeleteOverlay={handleDeleteOverlay}
+                        onSelectOverlay={(id, kind) => handleSelect({ type: kind === 'hook' ? 'hook' : 'text_overlay', id })}
                         onSelectHook={() => handleSelect({ type: 'hook' })}
                         onSelect={handleSelect}
                         trackMix={trackMix}
@@ -2769,20 +2553,13 @@ export default function EditorShell({
                     snapEnabled={snapEnabled}
                     onCuesChange={handleUpdateCuesList}
                     onCaptionRippleShift={handleUpdateCuesList}
-                    showHookHeader={showHookHeader}
-                    hookBrand={hookBrand}
-                    hookModel={hookModel}
-                    hookLabel={hookLabel}
-                    hookDuration={hookDuration}
-                    onHookDurationChange={setHookDuration}
-                    onToggleHookHeader={() => setShowHookHeader((v) => !v)}
-                    onSelectHook={() => handleSelect({ type: 'hook' })}
-                    textOverlays={textOverlays}
+                    overlays={overlays}
+                    onUpdateOverlay={handleUpdateOverlay}
                     onAddTextOverlay={handleAddTextOverlay}
-                    onTextOverlayChange={handleUpdateTextOverlay}
-                    onSelectTextOverlay={(id) => handleSelect({ type: 'text_overlay', id })}
-                    isTextOverlayHidden={isTextOverlayHidden}
-                    onToggleHideTextOverlay={() => setIsTextOverlayHidden((v) => !v)}
+                    onDropTextTemplate={handleDropTextTemplate}
+                    onSelectOverlay={(id, kind) => handleSelect({ type: kind === 'hook' ? 'hook' : 'text_overlay', id })}
+                    onToggleOverlayKindHidden={handleToggleOverlayKindHidden}
+                    onEnsureHookOverlay={handleEnsureHookOverlay}
                   />
                 </div>
               </div>

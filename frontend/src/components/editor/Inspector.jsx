@@ -9,7 +9,20 @@ import {
 } from 'lucide-react';
 import { TransitionIcon } from '../../lib/transitionIcons';
 import { TRANSITIONS, FADE_DURATION, MAX_TRANSITION_DURATION } from '../../lib/timelineMath';
-import { resolveHookStyle } from '../../lib/hookStyles';
+import { HOOK_MAX_DURATION, HOOK_MIN_DURATION } from './Timeline';
+import {
+  ACCENT_COLOR,
+  DEFAULT_TEXT_LOOK,
+  LEGACY_BG_STYLES,
+  PILL_PAD_X_EM,
+  PILL_PAD_Y_EM,
+  overriddenTierFields,
+  resolveLook,
+  withHookTemplate,
+  withHookTemplateReset,
+  withTierLook,
+  withTierText,
+} from '../../lib/overlayModel';
 import { toMediaUrl } from '../../lib/mediaUrl';
 
 const LEGACY_SFX_ALIASES = {
@@ -95,6 +108,27 @@ function NumberInput(props) {
   );
 }
 
+const HOOK_TIER_LABELS = ['แบรนด์', 'รุ่น / จุดเด่น', 'หมวดหมู่ / คำโปรย'];
+
+/**
+ * The five background chips are shorthand for a pill, which is what the look
+ * actually carries. bgStyle and badgeColor used to be their own fields, and a
+ * banner's pill was a third spelling of the same idea.
+ */
+function pillForBgStyle(id) {
+  const preset = LEGACY_BG_STYLES[id];
+  if (!preset) return null;
+  return { ...preset, pad_x_em: PILL_PAD_X_EM, pad_y_em: PILL_PAD_Y_EM };
+}
+
+function bgStyleOf(pill) {
+  if (!pill) return 'none';
+  for (const [id, preset] of Object.entries(LEGACY_BG_STYLES)) {
+    if (preset && preset.fill === pill.fill && preset.border === pill.border) return id;
+  }
+  return 'none';
+}
+
 export default function Inspector({
   selection,
   selectedSeg,
@@ -105,27 +139,11 @@ export default function Inspector({
   totalDuration = 0,
   audioDuration = 0,
   assets = {},
-  hookBrand = '',
-  onHookBrandChange,
-  hookModel = '',
-  onHookModelChange,
-  hookLabel = '',
-  onHookLabelChange,
-  hookDuration = 3.0,
-  onHookDurationChange,
-  hookMotion = {},
-  onHookMotionChange,
+  hookOverlay = null,
   hookMotionCatalog = null,
   hookMotionDefault = null,
-  hookColors = {},
-  hookStyle = null,
   hookTemplates = null,
-  onHookTemplate,
-  onHookStyleChange,
-  onHookStyleReset,
   fonts = [],
-  onHookColorChange,
-  showHookHeader = true,
   onToggleHookHeader,
   onAddTextAtPlayhead,
   onStyleChange,
@@ -145,22 +163,51 @@ export default function Inspector({
   onBatchFormatClean,
   onSeek,
   onSelectCue,
-  textOverlays = [],
+  overlays = [],
   onAddTextOverlay,
-  onUpdateTextOverlay,
-  onDeleteTextOverlay,
-  onSelectTextOverlay,
-  onSelectHook,
+  onUpdateOverlay,
+  onReplaceOverlay,
+  onDeleteOverlay,
+  onSelectOverlay,
   onSelect,
   trackMix = { mute: {}, solo: {} },
   onTrackMix,
   onCloseAllCaptionGaps,
   onResetSubtitleTimings,
 }) {
-  const resolvedHook = resolveHookStyle(hookStyle?.template, hookStyle, hookColors);
-  const hasHookOverrides = Boolean(
-    hookStyle?.font || Object.keys(hookStyle?.tiers || {}).length,
-  );
+  const textOverlays = (overlays || []).filter((o) => o.kind === 'text');
+  const showHookHeader = !!hookOverlay && !hookOverlay.hidden;
+  // Which tier fields the user has moved off the template, so each row can
+  // say so and offer to put it back.
+  const hookOverrides = hookOverlay ? overriddenTierFields(hookOverlay) : [];
+  const hasHookOverrides = hookOverrides.some((fields) => fields.length > 0);
+  const hookDuration = hookOverlay ? Math.max(0.1, hookOverlay.end - hookOverlay.start) : 3.0;
+  const hookMotion = hookOverlay?.anim || {};
+
+  const patchHookTier = (tierIdx, patch) => {
+    if (!hookOverlay) return;
+    onReplaceOverlay?.(hookOverlay.id, withTierLook(hookOverlay, tierIdx, patch));
+  };
+  const setHookTierText = (tierIdx, text) => {
+    if (!hookOverlay) return;
+    onReplaceOverlay?.(hookOverlay.id, withTierText(hookOverlay, tierIdx, text));
+  };
+  const onHookTemplate = (template) => {
+    if (!hookOverlay) return;
+    onReplaceOverlay?.(hookOverlay.id, withHookTemplate(hookOverlay, template));
+  };
+  const onHookStyleReset = () => {
+    if (!hookOverlay) return;
+    onReplaceOverlay?.(hookOverlay.id, withHookTemplateReset(hookOverlay));
+  };
+  const onHookDurationChange = (seconds) => {
+    if (!hookOverlay) return;
+    onUpdateOverlay?.(hookOverlay.id, { end: Math.round((hookOverlay.start + seconds) * 100) / 100 });
+  };
+  const onHookMotionChange = (key, value) => {
+    if (!hookOverlay) return;
+    onUpdateOverlay?.(hookOverlay.id, { anim: { ...(hookOverlay.anim || {}), [key]: value } });
+  };
 
   // Top tabs: 'properties' (Contextual Inspector) | 'cues' (Subtitle transcript) | 'overview' (Project settings)
   const [activeTab, setActiveTab] = useState('properties');
@@ -168,6 +215,9 @@ export default function Inspector({
   const effectiveApplyToAll = onToggleApplyToAll ? applyToAll : localApplyToAll;
   const toggleApplyToAll = onToggleApplyToAll || setLocalApplyToAll;
   const [textPattern, setTextPattern] = useState({ bold: true, italic: false, underline: false });
+  // Which banner row is expanded. One at a time keeps the panel scannable --
+  // three rows of five controls each is a wall.
+  const [openTier, setOpenTier] = useState(0);
   const [textAlign, setTextAlign] = useState('center');
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -200,8 +250,13 @@ export default function Inspector({
     } catch (_) {}
   };
 
+  // The shared text controls below drive a single-tier overlay. A banner has
+  // three and gets its own editor, so it is deliberately not selected here.
   const selectedTextOverlay = selection?.type === 'text_overlay'
-    ? textOverlays.find((item) => item.id === selection.id)
+    ? (overlays || []).find((item) => item.id === selection.id && item.kind === 'text')
+    : null;
+  const selectedLook = selectedTextOverlay
+    ? resolveLook(selectedTextOverlay.look, (selectedTextOverlay.tiers || [{}])[0].look)
     : null;
 
   // Track selection transitions to contextually open the Properties tab
@@ -339,8 +394,13 @@ export default function Inspector({
   const isCaptionSelected = Boolean(selectedCaption);
   const isTextSelected = isOverlaySelected || isCaptionSelected;
 
+  const patchOverlayLook = (patch) => {
+    if (!selectedTextOverlay) return;
+    onReplaceOverlay?.(selectedTextOverlay.id, withTierLook(selectedTextOverlay, 0, patch));
+  };
+
   const currentText = isOverlaySelected
-    ? (selectedTextOverlay.text || '')
+    ? ((selectedTextOverlay.tiers || [{}])[0].text || '')
     : isCaptionSelected
     ? (selectedCaption.text || '')
     : '';
@@ -348,19 +408,19 @@ export default function Inspector({
   const currentTranslation = isCaptionSelected ? selectedCaption.translation : null;
 
   const currentFont = isOverlaySelected
-    ? (selectedTextOverlay.fontName || style?.fontName || 'Kanit')
+    ? (selectedLook.font || style?.fontName || 'Kanit')
     : isCaptionSelected
     ? (selectedCaption.fontName || style?.fontName || 'Kanit')
     : (style?.fontName || 'Kanit');
 
   const currentScale = isOverlaySelected
-    ? (selectedTextOverlay.scale ?? 1.0)
+    ? (selectedLook.size_pct ?? 100) / 100
     : isCaptionSelected
     ? (selectedCaption.scale ?? style?.captionScale ?? 1.0)
     : (style?.captionScale ?? 1.0);
 
   const currentColor = isOverlaySelected
-    ? (selectedTextOverlay.color || '#FFE600')
+    ? (selectedLook.color === ACCENT_COLOR ? '#FFE600' : selectedLook.color)
     : isCaptionSelected
     ? (selectedCaption.color || style?.captionColor || '#FFFFFF')
     : (style?.captionColor || '#FFFFFF');
@@ -373,7 +433,7 @@ export default function Inspector({
 
   const handleFontChange = (fontName) => {
     if (isOverlaySelected) {
-      onUpdateTextOverlay?.(selectedTextOverlay.id, { fontName });
+      patchOverlayLook({ font: fontName });
     } else if (isCaptionSelected) {
       if (effectiveApplyToAll) {
         onStyleChange?.({ fontName });
@@ -389,7 +449,7 @@ export default function Inspector({
   const handleScaleChange = (scale) => {
     const clamped = Math.max(0.4, Math.min(2.2, parseFloat(scale) || 1.0));
     if (isOverlaySelected) {
-      onUpdateTextOverlay?.(selectedTextOverlay.id, { scale: clamped });
+      patchOverlayLook({ size_pct: Math.round(clamped * 100) });
     } else if (isCaptionSelected) {
       if (effectiveApplyToAll) {
         onStyleChange?.({ captionScale: clamped });
@@ -404,7 +464,7 @@ export default function Inspector({
 
   const handleColorChange = (color) => {
     if (isOverlaySelected) {
-      onUpdateTextOverlay?.(selectedTextOverlay.id, { color });
+      patchOverlayLook({ color });
     } else if (isCaptionSelected) {
       if (effectiveApplyToAll) {
         onStyleChange?.({ captionColor: color });
@@ -419,7 +479,7 @@ export default function Inspector({
 
   const handlePositionChange = (position) => {
     if (isOverlaySelected) {
-      onUpdateTextOverlay?.(selectedTextOverlay.id, { position, x: null, y: null });
+      onUpdateOverlay?.(selectedTextOverlay.id, { position, x: null, y: null });
     } else if (isCaptionSelected) {
       if (effectiveApplyToAll) {
         onStyleChange?.({ captionPosition: position, captionX: 0.5 });
@@ -434,13 +494,13 @@ export default function Inspector({
 
   const handleResetFormat = () => {
     if (isOverlaySelected && selectedTextOverlay) {
-      onUpdateTextOverlay?.(selectedTextOverlay.id, {
-        scale: 1.0,
-        x: 0.5,
-        y: 0.5,
-        fontName: 'Kanit',
+      onUpdateOverlay?.(selectedTextOverlay.id, { x: 0.5, y: 0.5, position: 'middle' });
+      patchOverlayLook({
+        size_pct: DEFAULT_TEXT_LOOK.size_pct,
+        font: 'Kanit',
         color: '#FFE600',
-        position: 'middle',
+        outline_color: DEFAULT_TEXT_LOOK.outline_color,
+        outline_px: DEFAULT_TEXT_LOOK.outline_px,
       });
     } else if (isCaptionSelected && selectedCaption) {
       if (effectiveApplyToAll) {
@@ -480,7 +540,7 @@ export default function Inspector({
 
   const handleTextContentChange = (val) => {
     if (isOverlaySelected) {
-      onUpdateTextOverlay?.(selectedTextOverlay.id, { text: val });
+      onReplaceOverlay?.(selectedTextOverlay.id, withTierText(selectedTextOverlay, 0, val));
     } else if (isCaptionSelected) {
       onCaptionChange?.(selectedCaption._uid, { text: val });
     }
@@ -563,7 +623,7 @@ export default function Inspector({
                 type="button"
                 onClick={() => {
                   if (textOverlays.length > 0) {
-                    onSelectTextOverlay?.(textOverlays[0].id);
+                    onSelectOverlay?.(textOverlays[0].id, 'text');
                   } else {
                     onAddTextOverlay?.();
                   }
@@ -624,7 +684,7 @@ export default function Inspector({
                   {isOverlaySelected && selectedTextOverlay && (
                     <button
                       type="button"
-                      onClick={() => onDeleteTextOverlay?.(selectedTextOverlay.id)}
+                      onClick={() => onDeleteOverlay?.(selectedTextOverlay.id)}
                       className="text-rose-400 hover:text-rose-300 text-[11px] font-bold flex items-center gap-1 px-2 py-0.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 cursor-pointer transition-colors"
                       title="ลบข้อความเสริมนี้"
                     >
@@ -751,7 +811,7 @@ export default function Inspector({
                         step="0.1"
                         min="0"
                         value={selectedTextOverlay.start ?? 0}
-                        onChange={(e) => onUpdateTextOverlay?.(selectedTextOverlay.id, { start: Math.max(0, parseFloat(e.target.value) || 0) })}
+                        onChange={(e) => onUpdateOverlay?.(selectedTextOverlay.id, { start: Math.max(0, parseFloat(e.target.value) || 0) })}
                         className="w-full px-2.5 py-1 rounded-lg bg-black/60 border border-white/[0.1] text-xs font-mono text-white focus:outline-none focus:border-[#25F4EE]"
                       />
                     </div>
@@ -762,7 +822,7 @@ export default function Inspector({
                         step="0.1"
                         min="0.1"
                         value={selectedTextOverlay.end ?? 2.5}
-                        onChange={(e) => onUpdateTextOverlay?.(selectedTextOverlay.id, { end: Math.max((selectedTextOverlay.start || 0) + 0.1, parseFloat(e.target.value) || 0.1) })}
+                        onChange={(e) => onUpdateOverlay?.(selectedTextOverlay.id, { end: Math.max((selectedTextOverlay.start || 0) + 0.1, parseFloat(e.target.value) || 0.1) })}
                         className="w-full px-2.5 py-1 rounded-lg bg-black/60 border border-white/[0.1] text-xs font-mono text-white focus:outline-none focus:border-[#25F4EE]"
                       />
                     </div>
@@ -998,19 +1058,19 @@ export default function Inspector({
                       <span className="text-[11px] text-slate-400 font-medium">แอนิเมชันตอนเปิดตัว (In-Animation):</span>
                       <div className="grid grid-cols-3 gap-1">
                         {[
-                          { id: 'pop', label: 'Pop เด้งเข้า' },
-                          { id: 'zoom', label: 'Zoom พุ่งเข้า' },
+                          { id: 'snap', label: 'Pop เด้งเข้า' },
+                          { id: 'pop_zoom', label: 'Zoom พุ่งเข้า' },
                           { id: 'stamp', label: 'Stamp กระแทก' },
-                          { id: 'slide', label: 'Slide เลื่อนขึ้น' },
-                          { id: 'fade', label: 'Fade ค่อยๆ โผล่' },
+                          { id: 'rise', label: 'Slide เลื่อนขึ้น' },
+                          { id: 'quick_fade', label: 'Fade ค่อยๆ โผล่' },
                           { id: 'none', label: 'None นิ่ง' },
                         ].map((a) => (
                           <button
                             key={a.id}
                             type="button"
-                            onClick={() => onUpdateTextOverlay?.(selectedTextOverlay.id, { anim: a.id })}
+                            onClick={() => onUpdateOverlay?.(selectedTextOverlay.id, { anim: { ...(selectedTextOverlay.anim || {}), in: a.id } })}
                             className={`py-1 px-1 rounded-lg text-xs font-bold border transition-all cursor-pointer truncate text-center ${
-                              (selectedTextOverlay.anim || 'pop') === a.id
+                              (selectedTextOverlay.anim?.in || 'snap') === a.id
                                 ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
                                 : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
                             }`}
@@ -1035,9 +1095,9 @@ export default function Inspector({
                           <button
                             key={bg.id}
                             type="button"
-                            onClick={() => onUpdateTextOverlay?.(selectedTextOverlay.id, { bgStyle: bg.id })}
+                            onClick={() => patchOverlayLook({ pill: pillForBgStyle(bg.id) })}
                             className={`py-1 px-1 rounded-lg text-xs font-bold border transition-all cursor-pointer truncate text-center ${
-                              (selectedTextOverlay.bgStyle || 'none') === bg.id
+                              bgStyleOf(selectedLook.pill) === bg.id
                                 ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
                                 : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
                             }`}
@@ -1073,7 +1133,7 @@ export default function Inspector({
                           value={selectedTextOverlay.sfx || 'none'}
                           onChange={(e) => {
                             const val = e.target.value === 'none' ? null : e.target.value;
-                            onUpdateTextOverlay?.(selectedTextOverlay.id, { sfx: val });
+                            onUpdateOverlay?.(selectedTextOverlay.id, { sfx: val });
                             if (val) playSfxAudio(val);
                           }}
                           className="w-full py-1.5 px-2 rounded-xl bg-black/60 border border-white/[0.1] text-xs font-semibold text-white focus:outline-none focus:border-[#25F4EE] cursor-pointer"
@@ -1136,139 +1196,240 @@ export default function Inspector({
                 <div className="flex items-center justify-between pb-1 border-b border-white/[0.08]">
                   <span className="text-xs font-bold text-[#E6C24A] flex items-center gap-1.5">
                     <Sparkles className="w-4 h-4 text-[#E6C24A]" />
-                    <span>Header ฮุค (3 วินาทีแรก)</span>
+                    <span>ป้ายฮุก</span>
+                    <span className="font-mono text-[10px] text-[#E6C24A]/60">
+                      {(hookOverlay?.start ?? 0).toFixed(1)}–{(hookOverlay?.end ?? 3).toFixed(1)}s
+                    </span>
                   </span>
                   <button
                     type="button"
-                    onClick={onToggleHookHeader}
-                    className={`text-xs font-bold px-2 py-0.5 rounded-lg border transition-all cursor-pointer ${
+                    onClick={() => onToggleHookHeader?.()}
+                    className={`px-2 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
                       showHookHeader
-                        ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
-                        : 'bg-white/[0.04] border-white/[0.1] text-slate-400'
+                        ? 'bg-[#E6C24A]/15 border-[#E6C24A]/50 text-[#E6C24A]'
+                        : 'bg-black/40 border-white/[0.1] text-slate-400 hover:text-white'
                     }`}
                   >
                     {showHookHeader ? 'เปิดใช้งาน' : 'ปิดอยู่'}
                   </button>
                 </div>
 
-                {/* 3-Tier Text Inputs */}
-                <div className="space-y-2">
-                  <div className="space-y-1">
-                    <span className="text-xs text-slate-400 font-bold">1. แบรนด์ (Tier 1 - ตัวใหญ่):</span>
-                    <input
-                      ref={hookBrandInputRef}
-                      type="text"
-                      value={hookBrand}
-                      onChange={(e) => onHookBrandChange?.(e.target.value)}
-                      placeholder="เช่น Logitech, Sony, Apple..."
-                      className="w-full px-3 py-1.5 rounded-xl bg-black/60 border border-white/[0.1] text-xs font-bold text-white placeholder-slate-500 focus:outline-none focus:border-[#E6C24A]"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <span className="text-xs text-slate-400 font-bold">2. รุ่น / จุดเด่น (Tier 2 - สีเน้น):</span>
-                    <input
-                      type="text"
-                      value={hookModel}
-                      onChange={(e) => onHookModelChange?.(e.target.value)}
-                      placeholder="เช่น Wave Keys, WH-1000XM5..."
-                      className="w-full px-3 py-1.5 rounded-xl bg-black/60 border border-white/[0.1] text-xs font-bold text-[#FFE600] placeholder-slate-500 focus:outline-none focus:border-[#FFE600]"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <span className="text-xs text-slate-400 font-bold">3. หมวดหมู่ / คำโปรย (Tier 3):</span>
-                    <input
-                      type="text"
-                      value={hookLabel}
-                      onChange={(e) => onHookLabelChange?.(e.target.value)}
-                      placeholder="เช่น คีย์บอร์ดไร้สายเพื่อสุขภาพ..."
-                      className="w-full px-3 py-1.5 rounded-xl bg-black/60 border border-white/[0.1] text-xs font-medium text-slate-200 placeholder-slate-500 focus:outline-none focus:border-[#E6C24A]"
-                    />
-                  </div>
-                </div>
-
-                {/* Duration Slider */}
-                <div className="space-y-1 pt-1 border-t border-white/[0.06]">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-400">ระยะเวลาแสดงฮุค:</span>
-                    <span className="font-mono font-bold text-[#E6C24A]">{hookDuration.toFixed(1)} วิ</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="1.5"
-                    max="5.0"
-                    step="0.5"
-                    value={hookDuration}
-                    onChange={(e) => onHookDurationChange?.(parseFloat(e.target.value))}
-                    className="w-full accent-[#E6C24A] cursor-pointer"
-                  />
-                </div>
-
-                {/* Templates Selection */}
-                {hookTemplates && (
-                  <div className="space-y-1.5 pt-1 border-t border-white/[0.06]">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-400">สไตล์เทมเพลตฮุค:</span>
-                      {hasHookOverrides && (
+                {!hookOverlay ? (
+                  <p className="py-4 text-center text-xs text-slate-500">
+                    ยังไม่มีป้ายฮุก — กด “ปิดอยู่” ด้านบนเพื่อสร้าง
+                  </p>
+                ) : (
+                  <>
+                    {/* Template row */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-medium text-slate-400">สไตล์</span>
                         <button
                           type="button"
-                          onClick={onHookStyleReset}
-                          className="rounded px-1.5 py-0.5 text-[10px] font-semibold text-amber-300 hover:bg-amber-400/20 cursor-pointer"
+                          onClick={() => onHookStyleReset?.()}
+                          disabled={!hasHookOverrides}
+                          title="คืนทุกแถวกลับเป็นค่าของสไตล์นี้"
+                          className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[10px] font-bold transition-all ${
+                            hasHookOverrides
+                              ? 'text-[#E6C24A] hover:bg-[#E6C24A]/10 cursor-pointer'
+                              : 'text-slate-600 cursor-not-allowed'
+                          }`}
                         >
-                          รีเซ็ตเป็นค่าเริ่มต้น
+                          <RotateCcw className="h-3 w-3" />
+                          รีเซ็ต
                         </button>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-2 gap-1">
-                      {Object.entries(hookTemplates).map(([key, tpl]) => {
-                        const active = (hookStyle?.template || 'tech') === key;
-                        return (
+                      </div>
+                      <div className="grid grid-cols-2 gap-1">
+                        {Object.entries(hookTemplates || {}).map(([key, tpl]) => (
                           <button
                             key={key}
                             type="button"
                             onClick={() => onHookTemplate?.(key)}
-                            className={`truncate rounded-lg px-2 py-1.5 text-left text-xs font-semibold transition-colors cursor-pointer border ${
-                              active
-                                ? 'bg-[#D97757]/20 border-[#D97757] text-[#E89274]'
-                                : 'bg-black/40 border-white/[0.08] text-slate-400 hover:text-white'
+                            title={tpl.label_th}
+                            className={`truncate rounded-lg border px-2 py-1 text-left text-[11px] font-bold transition-all cursor-pointer ${
+                              hookOverlay.template === key
+                                ? 'bg-[#E6C24A]/15 border-[#E6C24A] text-[#E6C24A]'
+                                : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
                             }`}
                           >
                             {tpl.label_th}
                           </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Duration */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-medium text-slate-400">ระยะเวลาแสดง</span>
+                        <span className="font-mono font-bold text-[#E6C24A]">{hookDuration.toFixed(1)} วิ</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={HOOK_MIN_DURATION}
+                        max={HOOK_MAX_DURATION}
+                        step={0.1}
+                        value={hookDuration}
+                        onChange={(e) => onHookDurationChange?.(parseFloat(e.target.value))}
+                        className="w-full accent-[#E6C24A] cursor-pointer"
+                      />
+                    </div>
+
+                    {/* One row per tier: text, size, colours, outline, caps. */}
+                    <div className="space-y-1.5">
+                      {HOOK_TIER_LABELS.map((tierLabel, idx) => {
+                        const tier = (hookOverlay.tiers || [])[idx];
+                        if (!tier) return null;
+                        const look = resolveLook(hookOverlay.look, tier.look);
+                        const overridden = hookOverrides[idx] || [];
+                        const open = openTier === idx;
+                        const swatch = look.color === ACCENT_COLOR ? '#FFE600' : look.color;
+                        return (
+                          <div
+                            key={tierLabel}
+                            className={`rounded-xl border transition-colors ${
+                              open ? 'border-[#E6C24A]/40 bg-black/50' : 'border-white/[0.07] bg-black/25'
+                            }`}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => setOpenTier(open ? -1 : idx)}
+                              className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left cursor-pointer"
+                            >
+                              <span className="w-4 flex-shrink-0 font-mono text-[10px] text-slate-500">{idx + 1}</span>
+                              <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-slate-300">
+                                {tier.text?.trim() || tierLabel}
+                              </span>
+                              <span className="flex-shrink-0 font-mono text-[10px] text-slate-500">
+                                {look.size_pct}%
+                              </span>
+                              <span
+                                className="h-3 w-3 flex-shrink-0 rounded-full border border-white/20"
+                                style={{ background: swatch }}
+                              />
+                              <span
+                                title={overridden.length ? `แก้จากสไตล์แล้ว: ${overridden.length} ค่า` : 'ค่าเดิมของสไตล์'}
+                                className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${
+                                  overridden.length ? 'bg-[#E6C24A]' : 'bg-transparent ring-1 ring-slate-600'
+                                }`}
+                              />
+                              <ChevronDown
+                                className={`h-3 w-3 flex-shrink-0 text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`}
+                              />
+                            </button>
+
+                            {open && (
+                              <div className="space-y-2 border-t border-white/[0.06] px-2.5 pb-2.5 pt-2">
+                                <input
+                                  ref={idx === 0 ? hookBrandInputRef : undefined}
+                                  value={tier.text || ''}
+                                  onChange={(e) => setHookTierText(idx, e.target.value)}
+                                  placeholder={tierLabel}
+                                  className="w-full rounded-lg border border-white/[0.1] bg-black/60 px-2 py-1.5 text-xs font-semibold text-white shadow-inner focus:border-[#E6C24A] focus:outline-none"
+                                />
+
+                                <div className="flex items-center gap-2">
+                                  <span className="w-11 flex-shrink-0 text-[10px] font-medium text-slate-400">ขนาด</span>
+                                  <input
+                                    type="range"
+                                    min={40}
+                                    max={220}
+                                    step={1}
+                                    value={look.size_pct}
+                                    onChange={(e) => patchHookTier(idx, { size_pct: parseInt(e.target.value, 10) })}
+                                    className="min-w-0 flex-1 accent-[#E6C24A] cursor-pointer"
+                                  />
+                                  <span className="w-9 flex-shrink-0 text-right font-mono text-[10px] text-[#E6C24A]">
+                                    {look.size_pct}%
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <span className="w-11 flex-shrink-0 text-[10px] font-medium text-slate-400">สี</span>
+                                  <input
+                                    type="color"
+                                    value={swatch}
+                                    onChange={(e) => patchHookTier(idx, { color: e.target.value })}
+                                    className="h-6 w-8 flex-shrink-0 cursor-pointer rounded border border-white/[0.1] bg-transparent"
+                                  />
+                                  <span className="w-11 flex-shrink-0 text-[10px] font-medium text-slate-400">ขอบ</span>
+                                  <input
+                                    type="color"
+                                    value={look.outline_color}
+                                    onChange={(e) => patchHookTier(idx, { outline_color: e.target.value })}
+                                    className="h-6 w-8 flex-shrink-0 cursor-pointer rounded border border-white/[0.1] bg-transparent"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => patchHookTier(idx, { upper: !look.upper })}
+                                    title="พิมพ์ใหญ่ทั้งบรรทัด"
+                                    className={`ml-auto flex-shrink-0 rounded-lg border px-2 py-0.5 text-[10px] font-black transition-all cursor-pointer ${
+                                      look.upper
+                                        ? 'border-[#E6C24A] bg-[#E6C24A]/15 text-[#E6C24A]'
+                                        : 'border-white/[0.08] bg-black/30 text-slate-500 hover:text-white'
+                                    }`}
+                                  >
+                                    AA
+                                  </button>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <span className="w-11 flex-shrink-0 text-[10px] font-medium text-slate-400">ขอบหนา</span>
+                                  <input
+                                    type="range"
+                                    min={0}
+                                    max={20}
+                                    step={0.5}
+                                    value={look.outline_px}
+                                    onChange={(e) => patchHookTier(idx, { outline_px: parseFloat(e.target.value) })}
+                                    className="min-w-0 flex-1 accent-[#E6C24A] cursor-pointer"
+                                  />
+                                  <span className="w-9 flex-shrink-0 text-right font-mono text-[10px] text-[#E6C24A]">
+                                    {look.outline_px}px
+                                  </span>
+                                </div>
+
+                                {look.color === ACCENT_COLOR && (
+                                  <p className="text-[10px] text-slate-500">
+                                    แถวนี้ใช้สีเดียวกับคำบรรยายอยู่ — เลือกสีเพื่อกำหนดเอง
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         );
                       })}
                     </div>
-                  </div>
-                )}
 
-                {/* Motion presets */}
-                <div className="space-y-1.5 pt-1 border-t border-white/[0.06]">
-                  <span className="text-xs font-bold text-slate-400">แอนิเมชันพาดหัว:</span>
-                  {[
-                    { cat: 'in', label: 'เข้า' },
-                    { cat: 'loop', label: 'ค้าง' },
-                    { cat: 'out', label: 'ออก' },
-                    { cat: 'accent', label: 'ตกแต่ง' },
-                  ].map(({ cat, label }) => {
-                    const options = hookMotionCatalog?.[cat];
-                    if (!options) return null;
-                    return (
-                      <div key={cat} className="flex items-center gap-2">
-                        <span className="w-12 flex-shrink-0 text-xs font-bold text-slate-400">{label}</span>
-                        <select
-                          value={hookMotion?.[cat] ?? hookMotionDefault?.[cat] ?? 'none'}
-                          onChange={(e) => onHookMotionChange?.(cat, e.target.value)}
-                          className="flex-1 min-w-0 rounded-lg border border-white/[0.1] bg-black/60 px-2 py-1 text-xs font-semibold text-white shadow-inner focus:border-[#E6C24A] focus:outline-none cursor-pointer"
-                        >
-                          {Object.entries(options).map(([id, meta]) => (
-                            <option key={id} value={id}>{meta.label_th}</option>
-                          ))}
-                        </select>
-                      </div>
-                    );
-                  })}
-                </div>
+                    {/* Motion presets */}
+                    <div className="space-y-1.5 pt-1 border-t border-white/[0.06]">
+                      <span className="text-xs font-bold text-slate-400">แอนิเมชันพาดหัว:</span>
+                      {[
+                        { cat: 'in', label: 'เข้า' },
+                        { cat: 'loop', label: 'ค้าง' },
+                        { cat: 'out', label: 'ออก' },
+                        { cat: 'accent', label: 'ตกแต่ง' },
+                      ].map(({ cat, label }) => {
+                        const options = hookMotionCatalog?.[cat];
+                        if (!options) return null;
+                        return (
+                          <div key={cat} className="flex items-center gap-2">
+                            <span className="w-12 flex-shrink-0 text-xs font-bold text-slate-400">{label}</span>
+                            <select
+                              value={hookMotion?.[cat] ?? hookMotionDefault?.[cat] ?? 'none'}
+                              onChange={(e) => onHookMotionChange?.(cat, e.target.value)}
+                              className="flex-1 min-w-0 rounded-lg border border-white/[0.1] bg-black/60 px-2 py-1 text-xs font-semibold text-white shadow-inner focus:border-[#E6C24A] focus:outline-none cursor-pointer"
+                            >
+                              {Object.entries(options).map(([id, meta]) => (
+                                <option key={id} value={id}>{meta.label_th}</option>
+                              ))}
+                            </select>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
               </div>
             ) : selectedSeg ? (
               /* ──────────────────────────────────────────────────────────

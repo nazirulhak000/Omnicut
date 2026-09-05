@@ -13,6 +13,7 @@ import {
 } from '../api';
 import { Modal, Toast, Button, Badge, Input } from './ui';
 import { useDebounce, useToast } from '../hooks';
+import { guessBrandModel } from '../lib/overlayModel';
 
 // 5 Granular Pipeline Phases (Original Vibrant & Readable Palette)
 const PIPELINE_PHASES = [
@@ -784,8 +785,13 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
       productId: product.id,
       angleId: angle.angle_id,
       productName: angle.product_name || product.name || 'สินค้า',
-      // Not auto-filling hookBrand/hookModel/hookLabel -- the 3-tier hook
-      // banner is manual-only (see EditorShell.jsx).
+      // The banner's three tiers come from the angle (the script AI splits
+      // the product name) and fall back to a whitespace split. They used to
+      // be left blank here on purpose, which meant the first render burned
+      // the whole product name into the brand tier and nothing into the rest.
+      hookBrand: angle.hook_brand || guessBrandModel(angle.product_name || '').brand,
+      hookModel: angle.hook_model || guessBrandModel(angle.product_name || '').model,
+      hookLabel: angle.hook_label || '',
       customScript: scriptText,
       keyFeatures: angle.key_features || product.description || '',
       painPoint: angle.pain_point || '',

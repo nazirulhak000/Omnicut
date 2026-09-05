@@ -17,6 +17,13 @@ if str(PROJECT_ROOT) not in sys.path:
 from scripts.config import FONTS_DIR, VIDEO_WIDTH, VIDEO_HEIGHT
 from scripts.asset_registry import AssetRegistry
 from scripts.hook_styles import resolve_hook_style
+from scripts.overlay_model import (
+    ACCENT_COLOR,
+    ASS_ALIGNMENT,
+    hook_overlay_from_legacy,
+    resolve_look,
+    text_overlay_from_legacy,
+)
 
 TYPOGRAPHY_PRESETS_PATH = FONTS_DIR.parent / "Templates" / "typography_presets.json"
 DEFAULT_FONT_FAMILY = "IBM Plex Sans Thai"
@@ -411,6 +418,27 @@ def _hook_lightsweep_event(
     return f"Dialogue: 3,{start_t},{end_t},HookHeader,,0,0,0,,{tag}{line}"
 
 
+def _pill_fill_to_ass(fill: Optional[str]) -> Tuple[str, float]:
+    """
+    A pill's CSS fill as (ASS colour, opacity 0..1).
+
+    The two engines used to name these separately: the canvas painted an
+    rgba() and this writer carried a hand-tuned \\alpha per named badge. Only
+    the dark-glass one agreed -- the cyan badge rendered at 0.65 opacity where
+    the preview drew 0.2, so the neon badge came back looking like a solid
+    block. One number now, taken from the colour the preview actually paints.
+    """
+    text = (fill or "").strip()
+    if not text:
+        return "&H00000000", 1.0
+    match = re.match(r"rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)", text)
+    if match:
+        r, g, b = (int(round(float(match.group(i)))) for i in (1, 2, 3))
+        alpha = float(match.group(4)) if match.group(4) is not None else 1.0
+        return f"&H00{b:02X}{g:02X}{r:02X}", max(0.0, min(1.0, alpha))
+    return ass_colour(text) or "&H00000000", 1.0
+
+
 def _ass_rounded_pill_path(w: float, h: float, r: float) -> str:
     """
     Constructs a smooth vector rounded rectangle for ASS \\p1 drawing mode.
@@ -508,6 +536,13 @@ CAPTION_POSITIONS = {
 
 # Where custom text overlays sit vertically as a fraction of frame height.
 # top (0.20), middle (0.50), bottom (0.72 - above bottom caption safe zone).
+# libass advances exactly one font size to the next \N line, even when that
+# line carries its own \fscx -- measured off a real render by pixel-scanning
+# the ink bands, not guessed. Every block that stacks lines reads this: the
+# banner's cursor walk, and the pill that has to be as tall as the text it
+# wraps. The text overlay's badge used 1.2 and came out a fifth too tall.
+LINE_HEIGHT_FACTOR = 1.0
+
 TEXT_OVERLAY_POSITIONS = {
     "top": 0.20,
     "middle": 0.50,
@@ -1243,7 +1278,8 @@ class SubtitleEngine:
         caption_position: str = "bottom",
         caption_color: str = None,
         caption_scale: float = 1.0,
-        text_overlays: Optional[List[Dict[str, Any]]] = None
+        text_overlays: Optional[List[Dict[str, Any]]] = None,
+        overlays: Optional[List[Dict[str, Any]]] = None
     ) -> Tuple[str, List[Dict]]:
         """
         Generate TikTok style ASS subtitle file with rapid-fire micro-bursts, 
@@ -1273,10 +1309,26 @@ class SubtitleEngine:
         # against its em is what TEXT_SCALE_BOOST cancels, so a banner in
         # another face has to be measured with that face's number -- reusing
         # the caption's would size the banner by the wrong metrics.
-        _hook_resolved = resolve_hook_style(
-            (hook_style or {}).get("template"), hook_style, hook_colors,
-        )
-        hook_font = font_map.get(_hook_resolved["font"], _hook_resolved["font"])
+        # Every overlay, in one shape. A caller that still passes the banner
+        # scalars and text_overlays[] is converted here rather than at each
+        # place they are read, so there is one vocabulary below this line.
+        if overlays is None:
+            overlays = []
+            _legacy_hook = hook_overlay_from_legacy(
+                hook_brand or "", hook_model or "", hook_label or "",
+                hook_duration, hook_motion, hook_colors, hook_style,
+            )
+            if _legacy_hook:
+                overlays.append(_legacy_hook)
+            overlays.extend(
+                text_overlay_from_legacy(t) for t in (text_overlays or []) if isinstance(t, dict)
+            )
+        live_overlays = [o for o in (overlays or []) if o and not o.get("hidden")]
+        hook_overlay = next((o for o in live_overlays if o.get("kind") == "hook"), None)
+        text_items = [o for o in live_overlays if o.get("kind") != "hook"]
+
+        _hook_look = resolve_look((hook_overlay or {}).get("look"), None)
+        hook_font = font_map.get(_hook_look["font"], _hook_look["font"])
         if hook_font not in {f["family"] for f in AssetRegistry.fonts()}:
             hook_font = resolved_font
         HOOK_SCALE_BOOST = 1.0 / ass_glyph_scale(hook_font)
@@ -1346,10 +1398,19 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         # own override block -- same stacking pattern the bilingual caption
         # block below already uses, so every property (\fscx/\fscy/\c) that
         # matters is re-declared per line and nothing leaks across a \N.
-        if hook_brand or hook_model or hook_label:
-            motion = _resolve_hook_motion(hook_motion)
-            start_t = cls._format_ass_time(0.0)
-            end_t = cls._format_ass_time(hook_duration)
+        if hook_overlay:
+            hook_start = float(hook_overlay.get("start") or 0.0)
+            hook_end = float(hook_overlay.get("end") or (hook_start + 3.0))
+            hook_duration = max(0.1, hook_end - hook_start)
+            hook_tier_texts = [
+                str((t or {}).get("text") or "") for t in (hook_overlay.get("tiers") or [])
+            ]
+            while len(hook_tier_texts) < 3:
+                hook_tier_texts.append("")
+            hook_brand, hook_model, hook_label = hook_tier_texts[:3]
+            motion = _resolve_hook_motion(hook_overlay.get("anim"))
+            start_t = cls._format_ass_time(hook_start)
+            end_t = cls._format_ass_time(hook_end)
             # The exit window every Out preset animates into. `\t` offsets are
             # relative to an event's own Start (0 for every hook line), so
             # they double as absolute ms. Guarded against a hook shorter than
@@ -1372,25 +1433,32 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             # The look comes from a template, overridable field by field, with
             # the older per-tier colour map winning last so a project keeps the
             # colours it was saved with. See scripts/hook_styles.py.
-            style = resolve_hook_style(
-                (hook_style or {}).get("template"),
-                hook_style,
-                hook_colors,
-            )
-            tiers = style["tiers"]
-
-            def tier_colour(key: str, fallback: str) -> str:
-                return ass_colour(tiers[key]["color"]) or fallback
-
-            brand_colour = tier_colour("brand", "&H00FFFFFF")
-            # An unset model colour still means "use the caption accent".
-            model_colour = tier_colour("model", ass_colour(caption_color) or "&H0000E6FF")
-            label_colour = tier_colour("label", "&H00E0E0E0")
-            hook_tier_specs = [
-                (hook_brand, int(tiers["brand"]["size_pct"]), brand_colour, 0),
-                (hook_model, int(tiers["model"]["size_pct"]), model_colour, 1),
-                (hook_label, int(tiers["label"]["size_pct"]), label_colour, 2),
+            # Each tier's own look, the same one the canvas resolves. The
+            # editor writes these directly now, so a size or an outline the
+            # user set is the number that gets burned.
+            tier_looks = [
+                resolve_look(hook_overlay.get("look"), (t or {}).get("look"))
+                for t in (hook_overlay.get("tiers") or [])
             ]
+            while len(tier_looks) < 3:
+                tier_looks.append(resolve_look(hook_overlay.get("look"), None))
+
+            def tier_colour(idx: int, fallback: str) -> str:
+                colour = tier_looks[idx]["color"]
+                if colour == ACCENT_COLOR:
+                    return fallback
+                return ass_colour(colour) or fallback
+
+            brand_colour = tier_colour(0, "&H00FFFFFF")
+            # An unset model colour still means "use the caption accent".
+            model_colour = tier_colour(1, ass_colour(caption_color) or "&H0000E6FF")
+            label_colour = tier_colour(2, "&H00E0E0E0")
+            hook_tier_specs = [
+                (hook_brand, int(tier_looks[0]["size_pct"]), brand_colour, 0),
+                (hook_model, int(tier_looks[1]["size_pct"]), model_colour, 1),
+                (hook_label, int(tier_looks[2]["size_pct"]), label_colour, 2),
+            ]
+            tiers = {"brand": tier_looks[0], "model": tier_looks[1], "label": tier_looks[2]}
             tier_key_by_idx = {0: "brand", 1: "model", 2: "label"}
 
             # Pass 1: wrap each tier at its OWN char width -- a 130%-scale
@@ -1432,7 +1500,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 # the accent bar a full line too low, under the label instead
                 # of the model. If it drifts after a font change, remeasure
                 # the same way rather than re-guessing.
-                LINE_HEIGHT_FACTOR = 1.0
                 x_center = video_width // 2
 
                 in_builder = HOOK_IN_BUILDERS.get(motion["in"], _in_bounce)
@@ -1544,12 +1611,19 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                         f"\\3c{outline_colour}&"
                         f"\\bord{float(tier_style['outline_px']):.1f}"
                     )
-                    pill_colour = ass_colour(tier_style["pill"])
+                    # A pill is an object now ({fill, border, padding}), the
+                    # same shape a text overlay's badge uses -- it was a bare
+                    # colour here and two other things elsewhere.
+                    pill = tier_style["pill"] or {}
+                    pill_colour = ass_colour(pill.get("fill"))
                     if pill_colour:
                         # A filled box behind the line: BorderStyle 3 paints it
                         # with the outline colour, so the pill colour goes
                         # there and the edge width becomes the box's padding.
-                        edge_tag = f"\\3c{pill_colour}&\\bord12\\shad0"
+                        # The padding follows the tier's own size now, instead
+                        # of the flat 12px that stayed put when a tier grew.
+                        pill_pad = int(round(hook_fs * float(pill.get("pad_x_em") or 0.342)))
+                        edge_tag = f"\\3c{pill_colour}&\\bord{pill_pad}\\shad0"
                         events.append(
                             f"Dialogue: 1,{start_t},{end_t},HookHeaderPill,,0,0,0,,"
                             f"{{{common}{edge_tag}\\c{rec['colour']}&}}{rec['line']}"
@@ -1715,9 +1789,15 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             events.append(f"Dialogue: 2,{spec_start},{spec_end},SpecBar,,0,0,0,,{spec_anim}📊 {on_screen}")
 
         # 4. Custom Text Overlays (Freeform multi-layer text lines)
-        if text_overlays:
-            for item in text_overlays:
-                txt = str(item.get("text") or "").strip()
+        if text_items:
+            for item in text_items:
+                # A text overlay is a one-tier overlay, so its look resolves
+                # exactly the way a banner tier's does -- which is what finally
+                # lets one carry a coloured outline, a real font, and caps.
+                look = resolve_look(item.get("look"), ((item.get("tiers") or [{}])[0] or {}).get("look"))
+                txt = str(((item.get("tiers") or [{}])[0] or {}).get("text") or "").strip()
+                if look["upper"]:
+                    txt = txt.upper()
                 if not txt:
                     continue
                 try:
@@ -1749,15 +1829,25 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     y_pos = int(round(video_height * y_ratio))
                     x_pos = video_width // 2
 
-                try:
-                    scale = float(item.get("scale", 1.0) or 1.0)
-                except (TypeError, ValueError):
-                    scale = 1.0
-                scale = min(2.5, max(0.4, scale))
+                scale = min(2.5, max(0.4, float(look["size_pct"]) / 100.0))
 
-                color_hex = ass_colour(item.get("color")) or "&H00FFFFFF"
-                bg_style = item.get("bgStyle", "none")
-                anim = item.get("anim", "pop")
+                colour_value = look["color"]
+                if colour_value == ACCENT_COLOR:
+                    colour_value = caption_color
+                color_hex = ass_colour(colour_value) or "&H00FFFFFF"
+                # The outline was a Style-level literal -- one black 5.0 for
+                # every overlay, which is why a text overlay could never reach
+                # the look a banner template could.
+                outline_hex = ass_colour(look["outline_color"]) or "&H00000000"
+                outline_px = float(look["outline_px"])
+                # The font was written by the inspector and read by nobody:
+                # this writer never looked at it and the canvas took the
+                # caption's. It is the look's font on both sides now.
+                item_font = font_map.get(look["font"], look["font"])
+                if item_font not in {f["family"] for f in AssetRegistry.fonts()}:
+                    item_font = resolved_font
+                pill = look["pill"] or None
+                anim = (item.get("anim") or {}).get("in") or "snap"
 
                 dur_ms = int(round((end_sec - start_sec) * 1000))
                 exit_start_ms = max(50, dur_ms - 150)
@@ -1767,18 +1857,22 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 anim_tag = ""
                 pos_tag = f"\\an5\\pos({x_pos},{y_pos})"
 
-                if anim == "pop":
+                # Preset names, not kinds: `snap`/`pop_zoom`/`quick_fade`/`rise`
+                # are what a text overlay's old pop/zoom/fade/slide are called
+                # in the shared table, where the banner's own pop and fade
+                # already meant different keyframes. Same numbers as before.
+                if anim == "snap":
                     snap_from = int(round(target_scale * 1.25))
                     anim_tag = f"\\fscx{snap_from}\\fscy{snap_from}\\t(0,70,\\fscx{target_scale}\\fscy{target_scale})"
-                elif anim == "zoom":
+                elif anim == "pop_zoom":
                     snap_from = int(round(target_scale * 1.45))
                     anim_tag = f"\\fscx{snap_from}\\fscy{snap_from}\\t(0,100,\\fscx{target_scale}\\fscy{target_scale})"
                 elif anim == "stamp":
                     snap_from = int(round(target_scale * 1.65))
                     anim_tag = f"\\fscx{snap_from}\\fscy{snap_from}\\t(0,80,\\fscx{target_scale}\\fscy{target_scale})"
-                elif anim == "fade":
+                elif anim == "quick_fade":
                     anim_tag = f"\\fscx{target_scale}\\fscy{target_scale}\\alpha&HFF&\\t(0,150,\\alpha&H00&)"
-                elif anim == "slide":
+                elif anim == "rise":
                     pos_tag = f"\\an5\\move({x_pos},{y_pos + 40},{x_pos},{y_pos},0,200)"
                     anim_tag = f"\\fscx{target_scale}\\fscy{target_scale}\\alpha&HFF&\\t(0,200,\\alpha&H00&)"
                 else:  # none
@@ -1788,19 +1882,22 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 line_list = [l.strip() for l in txt.split("\n") if l.strip()]
                 clean_lines = "\\N".join(line_list)
 
-                # Layer 3: If bg_style != 'none', draw smooth rounded pill badge
-                if bg_style and bg_style != "none" and line_list:
-                    line_h = round(render_fs * 1.2)
+                # Layer 3: a rounded pill behind the block, when the look has one
+                if pill and line_list:
+                    # libass advances one full font size per \N (measured, and
+                    # LINE_HEIGHT_FACTOR everywhere else), so the 1.2 this used
+                    # made every badge 20% taller than the text it wrapped.
+                    line_h = round(render_fs * LINE_HEIGHT_FACTOR)
                     total_h = len(line_list) * line_h
                     max_line_w = 0
                     for l in line_list:
-                        w = _measure_text_width_px(l, resolved_font, render_fs)
+                        w = _measure_text_width_px(l, item_font, render_fs)
                         if w is None:
                             w = int(len(l) * render_fs * 0.55)
                         if w > max_line_w:
                             max_line_w = w
-                    pad_x = round(render_fs * 0.6)
-                    pad_y = round(render_fs * 0.35)
+                    pad_x = round(render_fs * float(pill.get("pad_x_em") or 0.6))
+                    pad_y = round(render_fs * float(pill.get("pad_y_em") or 0.35))
                     pill_w = max_line_w + pad_x * 2
                     pill_h = total_h + pad_y * 2
                     pill_x = x_pos - pill_w / 2
@@ -1808,44 +1905,42 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     radius = min(round(pill_h / 2), 28)
                     pill_path = _ass_rounded_pill_path(pill_w, pill_h, radius)
 
-                    badge_color = item.get("badgeColor")
-                    if bg_style == "badge_red" or badge_color == "#FE2C55":
-                        pill_hex = "&H00552CFE"
-                        base_alpha = "&H26&"
-                    elif bg_style == "badge_yellow" or badge_color == "#FFE600":
-                        pill_hex = "&H0000E6FF"
-                        base_alpha = "&H10&"
-                    elif bg_style == "badge_cyan" or badge_color == "#25F4EE":
-                        pill_hex = "&H00EEF425"
-                        base_alpha = "&H59&"
-                    elif badge_color:
-                        pill_hex = ass_colour(badge_color) or "&H00000000"
-                        base_alpha = "&H20&"
-                    else:  # 'pill' / dark glass (\alpha&H59& for 0.65 opacity parity)
-                        pill_hex = "&H00000000"
-                        base_alpha = "&H59&"
+                    # The fill is the look's own colour now, and its alpha
+                    # comes off the rgba() the canvas paints -- the two used to
+                    # be a named bgStyle here and a colour literal there, which
+                    # is how the badge ended up twice as opaque in one of them.
+                    pill_hex, pill_opacity = _pill_fill_to_ass(pill.get("fill"))
+                    base_alpha = f"&H{int(round((1 - pill_opacity) * 255)):02X}&"
 
-                    if anim == "slide":
+                    if anim == "rise":
                         pill_pos = f"\\an7\\move({pill_x:.0f},{pill_y + 40:.0f},{pill_x:.0f},{pill_y:.0f},0,200)"
                         pill_anim = f"\\alpha&HFF&\\t(0,200,\\alpha{base_alpha})"
-                    elif anim == "fade":
+                    elif anim == "quick_fade":
                         pill_pos = f"\\an7\\pos({pill_x:.0f},{pill_y:.0f})"
                         pill_anim = f"\\alpha&HFF&\\t(0,150,\\alpha{base_alpha})"
-                    elif anim in ("pop", "zoom", "stamp"):
+                    elif anim in ("snap", "pop_zoom", "stamp"):
                         pill_pos = f"\\an7\\pos({pill_x:.0f},{pill_y:.0f})"
-                        dur_anim = 70 if anim == "pop" else (100 if anim == "zoom" else 80)
+                        dur_anim = 70 if anim == "snap" else (100 if anim == "pop_zoom" else 80)
                         pill_anim = f"\\alpha&HFF&\\t(0,{dur_anim},\\alpha{base_alpha})"
                     else:  # none
                         pill_pos = f"\\an7\\pos({pill_x:.0f},{pill_y:.0f})"
                         pill_anim = f"\\alpha{base_alpha}"
 
-                    pill_tag = f"{pill_pos}\\p1\\bord0\\shad0\\c{pill_hex}&{pill_anim}{exit_tag}"
+                    # A pill can carry a border (the neon badge is a wash plus
+                    # a bright edge). The preview drew one and this writer had
+                    # no way to say it, so the badge came back as a flat block.
+                    border_hex = ass_colour(pill.get("border")) if pill.get("border") else None
+                    edge = f"\\bord3\\3c{border_hex}&" if border_hex else "\\bord0"
+                    pill_tag = f"{pill_pos}\\p1{edge}\\shad0\\c{pill_hex}&{pill_anim}{exit_tag}"
                     events.append(f"Dialogue: 3,{start_t},{end_t},TextOverlayMain,,0,0,0,,{{{pill_tag}}}{pill_path}")
 
-                # Layer 4: Text itself (clean TextOverlayMain with outline and shadow, never ugly BorderStyle=3 box)
+                # Layer 4: the glyphs, with the look's own font, outline colour
+                # and outline width -- all three were Style-level literals, so
+                # a text overlay could never look like anything but the default.
                 events.append(
                     f"Dialogue: 4,{start_t},{end_t},TextOverlayMain,,0,0,0,,"
-                    f"{{{pos_tag}{anim_tag}\\c{color_hex}&{exit_tag}}}{clean_lines}"
+                    f"{{{pos_tag}{anim_tag}\\fn{item_font}\\c{color_hex}&"
+                    f"\\3c{outline_hex}&\\bord{outline_px:.1f}{exit_tag}}}{clean_lines}"
                 )
 
         content = header + "\n".join(events) + "\n"

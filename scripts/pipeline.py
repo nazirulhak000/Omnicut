@@ -22,6 +22,7 @@ from scripts.config import (
 from scripts.script_generator import ScriptGenerator
 from scripts.voice_engine import VoiceEngine
 from scripts.subtitle_engine import SubtitleEngine
+from scripts.overlay_model import migrate_to_overlays
 from scripts.sfx_manager import SFXManager
 from scripts.video_editor import VideoEditor
 from scripts.image_motion_engine import ImageMotionEngine
@@ -101,6 +102,7 @@ class TikTokAutoCutterPipeline:
         bgm_name: Optional[str] = None,
         bgm_volume: Optional[float] = None,
         bgm_ducking: bool = True,
+        audio_mutes: Optional[Dict[str, bool]] = None,
         lut_name: Optional[str] = None,
         lut_intensity: float = 1.0,
         clip_list: Optional[List[Dict[str, any]]] = None,
@@ -118,7 +120,8 @@ class TikTokAutoCutterPipeline:
         resume_from: Optional[str] = None,
         product_meta: Optional[Dict[str, any]] = None,
         angle_meta: Optional[Dict[str, any]] = None,
-        progress_callback: Optional[callable] = None
+        progress_callback: Optional[callable] = None,
+        overlays: Optional[List[Dict[str, any]]] = None,
     ) -> Dict[str, any]:
         """
         Executes all pipeline steps and returns paths to artifacts.
@@ -541,13 +544,12 @@ class TikTokAutoCutterPipeline:
 
         # 3. Subtitles Generation (Rapid-fire 2-4 word bursts)
         #
-        # `gradient_hook_duration` (None when there's no hook banner at all)
-        # is threaded down to assemble_tiktok_video below so its gradient
-        # backdrop only shows while the banner text is actually on screen --
-        # it must survive both branches here, not just the regenerate path,
-        # or a video-only reroll loses the gradient even though the reused
-        # .ass still burns the banner.
-        gradient_hook_duration = None
+        # `scrim_spans` is threaded down to assemble_tiktok_video below so its
+        # gradient backdrop only shows while the overlay that asked for one is
+        # actually on screen. It must survive both branches here, not just the
+        # regenerate path, or a video-only reroll loses the gradient even
+        # though the reused .ass still burns the banner.
+        scrim_spans = []
         if ProjectManifest.should_run("subtitles", resume_from):
             _notify("💬 [3/5] กำลังสร้างซับไตเติล TikTok เคลื่อนไหว (Kanit-Black 86pt)...", 0.50)
             print(f"\n💬 [3/5] Generating TikTok Animated Subtitles (.ass with {font_name} font & 3-word bursts)...")
@@ -555,7 +557,13 @@ class TikTokAutoCutterPipeline:
             # No caller supplies any of the three -- fall back to product_name
             # as the brand line alone, same as the old single-field default,
             # so the banner never silently disappears on a fresh 1-click run.
-            effective_hook_brand = hook_brand or (product_name if not (hook_model or hook_label) else "")
+            # The banner used to be substituted here when the caller left it
+            # blank, and the substitution was never saved -- the .ass burned
+            # the product name while the manifest kept "" and the editor drew
+            # nothing. The tiers arrive filled in now (overlay_model's
+            # guess_brand_model runs before the request is built), so there is
+            # nothing left to guess at render time.
+            effective_hook_brand = hook_brand
             # Hold time scales with how long the banner actually takes to
             # read (~11 chars/sec, the same fast cadence as the TikTok voice
             # rate) instead of one flat 3s for every title -- a 6-char hook
@@ -572,16 +580,37 @@ class TikTokAutoCutterPipeline:
                 # than the old flat 120ms pop-in ever did.
                 effective_hook_duration = max(2.0, min(banner_combined_len / 11.0 + 0.6, 5.0))
             effective_hook_duration = min(effective_hook_duration, total_duration)
-            if effective_hook_brand or hook_model or hook_label:
-                gradient_hook_duration = effective_hook_duration
             effective_text_overlays = text_overlays if text_overlays is not None else (
                 (manifest.get("text_overlays") if manifest else None) or
                 ((manifest.get("render_params") or {}).get("text_overlays") if manifest else None)
             )
+            # Whichever era the caller and the manifest speak, one array.
+            if overlays is not None:
+                effective_overlays = overlays
+            else:
+                effective_overlays = migrate_to_overlays({
+                    **(manifest or {}),
+                    "hook_brand": effective_hook_brand,
+                    "hook_model": hook_model,
+                    "hook_label": hook_label,
+                    "hook_duration": effective_hook_duration,
+                    "hook_motion": hook_motion,
+                    "hook_colors": hook_colors,
+                    "hook_style": hook_style,
+                    "text_overlays": effective_text_overlays,
+                })
+            # The top gradient belongs to whichever overlays asked for one; it
+            # used to be a second reading of hook_duration.
+            scrim_spans = [
+                (float(o.get("start") or 0.0), float(o.get("end") or 0.0))
+                for o in effective_overlays
+                if o.get("scrim") and not o.get("hidden")
+            ]
             _, micro_cues = SubtitleEngine.generate_ass(
                 cues=cues,
                 output_ass_path=str(ass_path),
                 font_name=font_name,
+                overlays=effective_overlays,
                 hook_brand=effective_hook_brand,
                 hook_model=hook_model,
                 hook_label=hook_label,
@@ -602,8 +631,14 @@ class TikTokAutoCutterPipeline:
             ass_path = _reuse("subtitles_ass", "ไฟล์ซับไตเติล")
             micro_cues = manifest["micro_cues"]
             saved_params = (manifest.get("render_params") or {}) if manifest else {}
-            if saved_params.get("hook_brand") or saved_params.get("hook_model") or saved_params.get("hook_label"):
-                gradient_hook_duration = float(saved_params.get("hook_duration") or 3.0)
+            # Only the regenerate branch resolved these, but the manifest write
+            # at the end of the run reads them either way.
+            effective_overlays = overlays if overlays is not None else migrate_to_overlays(manifest or {})
+            scrim_spans = [
+                (float(o.get("start") or 0.0), float(o.get("end") or 0.0))
+                for o in effective_overlays
+                if o.get("scrim") and not o.get("hidden")
+            ]
             # Only the regenerate branch above resolved these, but the manifest
             # write at the end of the run reads them either way -- so a resume
             # (every re-roll of video/bgm) crashed with UnboundLocalError
@@ -653,6 +688,13 @@ class TikTokAutoCutterPipeline:
             mix_kwargs = {"bgm_name": effective_bgm_name} if effective_bgm_name else {}
             if bgm_volume is not None:
                 mix_kwargs["bgm_vol"] = min(1.0, max(0.0, float(bgm_volume)))
+            mutes = audio_mutes or {}
+            if mutes.get("voice"):
+                mix_kwargs["voice_vol"] = 0.0
+            if mutes.get("sfx"):
+                mix_kwargs["sfx_vol"] = 0.0
+            if mutes.get("bgm"):
+                mix_kwargs["bgm_vol"] = 0.0
             if bgm_ducking:
                 mix_kwargs["bgm_ducking"] = True
             SFXManager.mix_audio_track(
@@ -660,7 +702,7 @@ class TikTokAutoCutterPipeline:
                 cues=micro_cues,
                 total_duration=total_duration,
                 output_audio_path=str(mixed_audio_path),
-                text_overlays=effective_text_overlays,
+                overlays=effective_overlays,
                 **mix_kwargs
             )
             print(f"   Audio mixed: {mixed_audio_path}")
@@ -1206,7 +1248,7 @@ class TikTokAutoCutterPipeline:
                 export_preset=export_preset,
                 sticker_position=sticker_position,
                 sticker_scale=sticker_scale,
-                hook_duration=gradient_hook_duration,
+                scrim_spans=scrim_spans,
                 progress_callback=on_ffmpeg_progress
             )
             result_paths["mp4_video"] = str(out_mp4)
@@ -1238,18 +1280,19 @@ class TikTokAutoCutterPipeline:
             # copy stale meant the editor -- which reads it first -- kept
             # showing the previous run's boundaries after a re-render.
             "transitions": transitions,
+            # Written at the top level as well as under render_params: the
+            # editor reads the top level first, and the pipeline used to write
+            # only the nested copy, so the two disagreed until the first
+            # autosave. Legacy hook keys are no longer written at all -- they
+            # are still read forever by migrate_to_overlays.
+            "overlays": effective_overlays,
             "render_params": {
                 "product_name": product_name,
                 "raw_video_path": str(raw_video),
                 "key_features": key_features,
                 "pain_point": pain_point,
                 "price_deal": price_deal,
-                "hook_brand": hook_brand,
-                "hook_model": hook_model,
-                "hook_label": hook_label,
-                "hook_motion": hook_motion,
-                "hook_colors": hook_colors,
-                "hook_style": hook_style,
+                "overlays": effective_overlays,
                 "custom_script": custom_script,
                 "script_overlays": script_overlays,
                 "voice": voice,
@@ -1272,6 +1315,7 @@ class TikTokAutoCutterPipeline:
                 "bgm_name": effective_bgm_name or bgm_name,
                 "bgm_volume": bgm_volume,
                 "bgm_ducking": bgm_ducking,
+                "audio_mutes": audio_mutes or {},
                 "product_id": product_id,
                 "angle_id": angle_id,
                 "caption_position": caption_position,

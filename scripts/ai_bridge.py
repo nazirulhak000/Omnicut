@@ -114,6 +114,13 @@ class AIBridge:
             "required_context": ["product_name", "angle_title", "hook", "specs", "price_deal"],
             "schema_hint": {
                 "hook_title": "ข้อความแบนเนอร์บนจอ 3 วิแรก สั้นมาก (ไม่เกิน 5-7 คำ)",
+                # The banner is three stacked tiers, not one sentence. Asking
+                # the model to split the product name is far more reliable
+                # than splitting it here on whitespace, which was the old
+                # fallback and got "เครื่องดูดฝุ่นไร้สายมินิมอล" wrong every time.
+                "hook_brand": "ชื่อแบรนด์อย่างเดียว สั้นที่สุด 1 คำ (เช่น Logitech) ถ้าไม่มีแบรนด์ใส่ว่าง",
+                "hook_model": "รุ่นหรือจุดเด่น 1-3 คำ (เช่น Wave Keys)",
+                "hook_label": "หมวดสินค้า 1-2 คำ (เช่น Keyboard / ครีมกันแดด)",
                 "lines": [
                     {
                         "text": "ประโยคพูดสั้นเป็นธรรมชาติ (เว้นวรรคระหว่างประโยคย่อย ประโยคสั้น <18 ตัวอักษรรวมกันได้ 2 ประโยค, ประโยคยาวแยก 1 บรรทัด)",
@@ -223,8 +230,9 @@ class AIBridge:
             raise ValueError("คำตอบต้องเป็น JSON object ไม่ใช่ list หรือค่าเดี่ยว")
 
         if task == "script":
-            if "hook_title" in data and isinstance(data["hook_title"], str):
-                data["hook_title"] = re.sub(r'\s+', ' ', re.sub(r'[\.]{2,}|…', ' ', data["hook_title"])).strip()
+            for key in ("hook_title", "hook_brand", "hook_model", "hook_label"):
+                if key in data and isinstance(data[key], str):
+                    data[key] = re.sub(r'\s+', ' ', re.sub(r'[\.]{2,}|…', ' ', data[key])).strip()
             if "lines" in data and isinstance(data["lines"], list):
                 for line in data["lines"]:
                     if "text" in line and isinstance(line["text"], str):

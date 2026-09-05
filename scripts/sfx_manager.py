@@ -74,7 +74,7 @@ class SFXManager:
         voice_vol: float = VOICE_VOLUME,
         sfx_vol: float = SFX_VOLUME,
         bgm_ducking: bool = False,
-        text_overlays: Optional[List[Dict]] = None
+        overlays: Optional[List[Dict]] = None
     ) -> str:
         """
         Mixes voiceover, SFX triggers at cue start times, and looped background music.
@@ -128,9 +128,10 @@ class SFXManager:
                 sfx_nodes.append(f"[{node_name}]")
                 input_count += 1
 
-        # 3.5 Add SFX inputs per text overlay
-        if text_overlays:
-            for idx, item in enumerate(text_overlays):
+        # 3.5 One SFX input per overlay that carries one. The banner is an
+        # overlay too now, so a banner with a whoosh mixes like any other.
+        if overlays:
+            for idx, item in enumerate(overlays):
                 sfx_type = item.get("sfx")
                 if not sfx_type:
                     continue

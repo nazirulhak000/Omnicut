@@ -4,7 +4,7 @@ import {
   Rocket, Sparkles, Upload, Volume2, FolderOpen, ArrowRight, Clock, Hourglass, CheckCircle2, Play,
   FileText, Sliders, Mic2
 } from 'lucide-react';
-import { previewVoice, startRender, uploadFile, updateAngleVideos } from '../../api';
+import { previewVoice, startRender, uploadFile, updateAngleVideos, updateAngleStatus } from '../../api';
 import { DEFAULT_STUDIO_FORM, STUDIO_FORM_KEY, getSavedStudioForm } from '../../lib/studioDefaults';
 import { angleToForm, angleLabel } from '../../lib/angleToForm';
 import { isSameVideo, getMediaName } from '../../lib/mediaUrl';
@@ -12,6 +12,7 @@ import { buildProjectName } from '../../lib/projectName';
 import { useRenderJob } from '../../hooks/useRenderJob';
 import MediaPickerModal from '../MediaPickerModal';
 import VoicePickerModal from '../VoicePickerModal';
+import { guessBrandModel, newHookOverlay, templateForAdTone } from '../../lib/overlayModel';
 
 function formatTime(seconds) {
   if (seconds == null || isNaN(seconds)) return '00:00';
@@ -107,21 +108,6 @@ function Field({ label, value, onChange, onBlur, placeholder, multiline }) {
   );
 }
 
-/**
- * Best-effort brand/model split from a free-text product name -- assumes
- * the common "Brand Model" word order (Logitech Wave Keys, Apple iPhone
- * 15). Wrong for names that don't lead with a brand (e.g. "เครื่องดูดฝุ่น
- * ไร้สายมินิมอล" splits to brand="เครื่องดูดฝุ่นไร้สายมินิมอล", model="")
- * -- only ever used to pre-fill the hook fields while they're still empty,
- * so a wrong guess costs one edit, never a silent wrong render.
- */
-function guessBrandModel(productName) {
-  const trimmed = String(productName || '').trim();
-  if (!trimmed) return { brand: '', model: '' };
-  const parts = trimmed.split(/\s+/);
-  if (parts.length <= 1) return { brand: trimmed, model: '' };
-  return { brand: parts[0], model: parts.slice(1).join(' ') };
-}
 
 export default function NewClipPanel({
   videos = [],
@@ -134,7 +120,12 @@ export default function NewClipPanel({
   onCreated,
 }) {
   const [form, setForm] = useState(() => getSavedStudioForm());
-  const [showFields, setShowFields] = useState(!productContext);
+  // The product flow used to arrive with these collapsed, which is why the
+  // banner was blank on nearly every first render: nobody opened them. They
+  // stay open until the banner has something in it.
+  const [showFields, setShowFields] = useState(
+    () => !productContext || !(getSavedStudioForm().hookBrand || '').trim(),
+  );
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [aiError, setAiError] = useState(null);
   const [voiceBusy, setVoiceBusy] = useState(false);
@@ -307,16 +298,38 @@ export default function NewClipPanel({
 
   const handleCreate = () => {
     if (missing || rendering) return;
+    const selectedSources = Array.from(new Set([
+      ...(Array.isArray(form.selectedVideos) ? form.selectedVideos : []),
+      form.selectedVideo,
+    ].filter(Boolean)));
     executeRender({
       project_name: projectName,
       product_name: form.productName,
       raw_video_path: form.selectedVideo,
+      // Preserve every selected source for the AI draft. The first source is
+      // retained as raw_video_path for backwards compatibility; the pipeline
+      // uses clip_list when more than one source is supplied.
+      clip_list: selectedSources.length > 1
+        ? selectedSources.map((source_path) => ({ source_path, trim_start: 0, trim_end: null }))
+        : null,
       key_features: form.keyFeatures,
       pain_point: form.painPoint,
       price_deal: form.priceDeal,
       hook_brand: form.hookBrand,
       hook_model: form.hookModel,
       hook_label: form.hookLabel,
+      // The banner goes out as an overlay, already dressed. Its look follows
+      // the narration tone the angle chose, so a first render stops landing
+      // on 'tech' whatever the clip actually sounds like -- and whatever the
+      // user picks in the editor afterwards still wins.
+      overlays: [
+        newHookOverlay({
+          brand: form.hookBrand || guessBrandModel(form.productName).brand,
+          model: form.hookModel || guessBrandModel(form.productName).model,
+          label: form.hookLabel,
+          template: templateForAdTone(form.adTone),
+        }),
+      ].filter(Boolean),
       custom_script: form.useCustomScript ? form.customScript : null,
       voice_mode: form.voiceMode,
       voice_gender: form.voiceGender,

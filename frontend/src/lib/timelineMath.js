@@ -39,6 +39,28 @@ export function transitionOverlap(clip) {
 export const FPS = 30;              // == config.py FPS
 export const MIN_CLIP_DURATION = 0.2;
 
+/** Resolve a numeric keyframe track at local clip time (seconds). */
+export function interpolateKeyframes(keyframes, time, fallback) {
+  const points = (Array.isArray(keyframes) ? keyframes : [])
+    .filter((p) => Number.isFinite(Number(p?.time)) && Number.isFinite(Number(p?.value)))
+    .map((p) => ({ time: Number(p.time), value: Number(p.value) }))
+    .sort((a, b) => a.time - b.time);
+  if (!points.length) return fallback;
+  if (time <= points[0].time) return points[0].value;
+  const last = points[points.length - 1];
+  if (time >= last.time) return last.value;
+  for (let i = 1; i < points.length; i += 1) {
+    const right = points[i];
+    if (time <= right.time) {
+      const left = points[i - 1];
+      const span = right.time - left.time;
+      const ratio = span > 0 ? (time - left.time) / span : 1;
+      return left.value + (right.value - left.value) * ratio;
+    }
+  }
+  return last.value;
+}
+
 // Zoom steps in pixels-per-second of timeline.
 export const ZOOM_LEVELS = [10, 25, 50, 100, 200];
 export const DEFAULT_ZOOM_INDEX = 2;
@@ -70,7 +92,13 @@ export function buildSegments(clips, durations = {}) {
   return clips.map((clip, i) => {
     const srcDur = durations[clip.id] || 0;
     const dur = clipDuration(clip, srcDur);
-    const overlap = i > 0 ? transitionOverlap(clip) : 0;
+    // A transition cannot consume more than either neighboring clip leaves
+    // available. Render clamps this same way before building xfade; applying
+    // the clamp here prevents negative segment starts for short clips.
+    const requestedOverlap = i > 0 ? transitionOverlap(clip) : 0;
+    const overlap = i > 0
+      ? Math.min(requestedOverlap, Math.max(0, acc), Math.max(0, dur) , Math.max(0, Math.min(acc, dur) - 0.05))
+      : 0;
     const isFade = overlap > 0;
     const segStart = i === 0 ? 0 : acc - overlap;
     const segEnd = segStart + dur;
@@ -168,7 +196,9 @@ export function splitClipAt(seg, t, makeId) {
   const sourceEnd = seg.clip.trim_end ?? seg.srcDur;
 
   return [
-    { ...seg.clip, id: makeId(), trim_end: cutSource },
+    // Freeze belongs to the final piece of the source. Copying it to both
+    // sides made a 6-second clip become 8 seconds after a split.
+    { ...seg.clip, id: makeId(), trim_end: cutSource, freeze_tail: undefined },
     { ...seg.clip, id: makeId(), trim_start: cutSource, trim_end: sourceEnd, transition_in: 'cut' },
   ];
 }

@@ -6,6 +6,8 @@
 // editor and the old Studio tab each did their own translation, picking the
 // same angle in two places would start two different renders.
 
+import { guessBrandModel } from './overlayModel';
+
 /**
  * @param {object} angle    one entry of productContext.angles
  * @param {object} context  the product context it came from (for fallbacks)
@@ -26,12 +28,20 @@ export function angleToForm(angle, context = {}) {
     .map(line => line.trim())
     .join('\n');
 
+  const productName = angle.product_name || context.title || 'สินค้า';
+  // The banner used to be manual-only, which in practice meant blank: the
+  // three fields are collapsed on this path and nobody opened them, so every
+  // first render burned the whole product name into the brand tier.
+  //
+  // The script AI splits it now. `angle.hook_title` is still deliberately
+  // NOT used -- it is a spoken sentence, not a stacked headline, and reading
+  // it here is what once put a full sentence across the banner.
+  const guessed = guessBrandModel(productName);
   const patch = {
-    productName: angle.product_name || context.title || 'สินค้า',
-    // Deliberately NOT auto-filling hookBrand/hookModel/hookLabel here --
-    // the 3-tier hook banner is manual-only input (see EditorShell.jsx),
-    // angle.hook_title is a full-sentence script hook meant to be spoken,
-    // not a short banner headline.
+    productName,
+    hookBrand: angle.hook_brand || guessed.brand,
+    hookModel: angle.hook_model || guessed.model,
+    hookLabel: angle.hook_label || '',
     customScript: scriptText,
     // A script that came from the flow is meant to be spoken as written --
     // anything else would throw away the angle the user just picked.

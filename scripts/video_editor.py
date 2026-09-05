@@ -304,6 +304,28 @@ def frame_geometry(clip: Dict[str, Any], default_scale: float):
     return scale, offset(room_x, "pan_x"), offset(room_y, "pan_y"), scaled_w, scaled_h
 
 
+def interpolate_keyframes(keyframes: Any, time: float, fallback: float) -> float:
+    """Deterministically resolve a numeric keyframe track at local time."""
+    points = []
+    for point in keyframes if isinstance(keyframes, list) else []:
+        try:
+            points.append((float(point["time"]), float(point["value"])))
+        except (KeyError, TypeError, ValueError):
+            continue
+    points.sort(key=lambda item: item[0])
+    if not points:
+        return fallback
+    if time <= points[0][0]:
+        return points[0][1]
+    if time >= points[-1][0]:
+        return points[-1][1]
+    for (left_t, left_v), (right_t, right_v) in zip(points, points[1:]):
+        if time <= right_t:
+            ratio = (time - left_t) / (right_t - left_t) if right_t > left_t else 1.0
+            return left_v + (right_v - left_v) * ratio
+    return points[-1][1]
+
+
 def normalize_transitions(transitions: List[Any]) -> List[Dict[str, Any]]:
     """
     Accept both shapes a caller may send for one boundary:
@@ -401,7 +423,7 @@ class VideoEditor:
         export_preset: str = "post",
         sticker_position: str = "top_right",
         sticker_scale: float = 1.0,
-        hook_duration: Optional[float] = None,
+        scrim_spans: list = None,
         auto_blur_landscape: bool = True,
         progress_callback: Optional[Callable[[float, float], None]] = None
     ) -> str:
@@ -437,15 +459,12 @@ class VideoEditor:
         # old behavior, zero risk to a caller that passes nothing.
         shot_scales = shot_scales or [1.25, 1.0, 1.35, 1.05, 1.3, 1.0]
 
-        # Determine optimal output FPS (auto-match 60fps if source is 60fps, else 30)
+        # Keep the final delivery cadence at the project standard (30 FPS).
+        # Source clips may be 60 FPS, but the filter graph already normalizes
+        # every input to FPS before transitions and composition. Re-promoting
+        # the output to 60 FPS only duplicates frames and makes platform
+        # transcoding less predictable without adding detail.
         target_fps = FPS
-        if raw_video_paths:
-            try:
-                first_info = cls.get_media_info(raw_video_paths[0])
-                if first_info.get("fps", 30) >= 45:
-                    target_fps = 60
-            except Exception:
-                pass
 
         filter_complex = []
         concat_inputs = []
@@ -823,11 +842,15 @@ class VideoEditor:
         # banner's white/accent text stays readable over busy footage.
         # Synthesized as its own lavfi `color` source right inside the
         # filter graph (no extra -i input needed, unlike the sticker above).
-        # Gated by `hook_duration` (None when there's no banner at all --
-        # skips this entire block) so it's only visible while the banner
-        # text actually is, fading out over 0.3s alongside the banner's own
-        # exit fade instead of a hard cut.
-        if hook_duration and hook_duration > 0:
+        # One span per overlay that asks for a scrim, so the wash is visible
+        # only while that overlay is, fading out over 0.3s alongside its own
+        # exit rather than cutting. It used to be a second reading of
+        # hook_duration, which is why the wash could only ever start at zero
+        # and why a re-roll that lost the banner's scalars rendered the
+        # banner with no backdrop at all.
+        for span_start, span_end in (scrim_spans or []):
+            if span_end <= span_start:
+                continue
             grad_h = int(round(VIDEO_HEIGHT * 0.25))
             grad_h = grad_h if grad_h % 2 == 0 else grad_h + 1
             fade_tail = 0.3
@@ -835,15 +858,19 @@ class VideoEditor:
             # lum=0 -- leaving them undefined does NOT default to black, it
             # decodes as an off colour (verified: came out visibly green).
             alpha_expr = (
-                f"255*(1-Y/H)*(if(lt(T\\,{hook_duration})\\,1\\,"
-                f"max(0\\,1-(T-{hook_duration})/{fade_tail})))"
+                f"255*(1-Y/H)*(if(lt(T\\,{span_start})\\,0\\,"
+                f"if(lt(T\\,{span_end})\\,1\\,"
+                f"max(0\\,1-(T-{span_end})/{fade_tail}))))"
             )
+            src = f"grad_src_{len(filter_complex)}"
+            alpha = f"grad_alpha_{len(filter_complex)}"
+            out = f"[v_gradient_{len(filter_complex)}]"
             filter_complex.append(
-                f"color=c=black:s={VIDEO_WIDTH}x{grad_h}:d={total_duration + 0.5}[grad_src];"
-                f"[grad_src]format=yuva420p,geq=lum='0':cb='128':cr='128':a='{alpha_expr}'[grad_alpha];"
-                f"{current_v}[grad_alpha]overlay=x=0:y=0:format=auto[v_gradient];"
+                f"color=c=black:s={VIDEO_WIDTH}x{grad_h}:d={total_duration + 0.5}[{src}];"
+                f"[{src}]format=yuva420p,geq=lum='0':cb='128':cr='128':a='{alpha_expr}'[{alpha}];"
+                f"{current_v}[{alpha}]overlay=x=0:y=0:format=auto{out};"
             )
-            current_v = "[v_gradient]"
+            current_v = out
 
         # Escape path for subtitles filter in FFmpeg Windows
         ass_path_str = str(Path(ass_subtitle_path).resolve()).replace('\\', '/').replace(':', '\\:')

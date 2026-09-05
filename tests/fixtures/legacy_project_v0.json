@@ -1,0 +1,41 @@
+{
+  "project_name": "legacy-v0",
+  "total_duration": 2.0,
+  "clip_list": [
+    {
+      "source_path": "01_Raw/legacy/source.mp4",
+      "trim_start": 0.0,
+      "trim_end": 2.0,
+      "duration": 2.0
+    }
+  ],
+  "cues": [
+    {
+      "start": 0.0,
+      "end": 2.0,
+      "text": "ข้อความเดิม"
+    }
+  ],
+  "hook_brand": "Legacy Brand",
+  "hook_model": "Legacy Model",
+  "hook_label": "Legacy Label",
+  "text_overlays": [
+    {
+      "id": "legacy-text-1",
+      "text": "ข้อความบนจอ",
+      "start": 0.25,
+      "end": 1.75
+    }
+  ],
+  "style": {
+    "fontName": "IBMPlex",
+    "captionPosition": "bottom",
+    "captionScale": 0.85
+  },
+  "render_params": {
+    "font_name": "IBMPlex",
+    "caption_position": "bottom",
+    "caption_scale": 0.85
+  },
+  "artifacts": {}
+}

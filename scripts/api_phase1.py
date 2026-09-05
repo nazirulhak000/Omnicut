@@ -389,6 +389,7 @@ class RerollRequest(BaseModel):
     clip_list: Optional[List[Dict[str, Any]]] = None
     transitions: Optional[List[Any]] = None
     text_overlays: Optional[List[Dict[str, Any]]] = None
+    overlays: Optional[List[Dict[str, Any]]] = None
 
 
 # What each button costs, so the UI can warn before a slow one.
@@ -591,6 +592,9 @@ class UpdateProjectStateRequest(BaseModel):
     hook_colors: Optional[Dict[str, str]] = None
     hook_style: Optional[Dict[str, Any]] = None
     text_overlays: Optional[List[Dict[str, Any]]] = None
+    overlays: Optional[List[Dict[str, Any]]] = None
+    track_mix: Optional[Dict[str, Any]] = None
+    audio_mutes: Optional[Dict[str, bool]] = None
 
 
 @router.patch("/projects/{project_name}/state")
@@ -605,6 +609,13 @@ def update_project_state(project_name: str, req: UpdateProjectStateRequest):
 
     fields: Dict[str, Any] = {}
     render_params = dict(manifest.get("render_params") or {})
+
+    if req.track_mix is not None:
+        fields["track_mix"] = req.track_mix
+        render_params["track_mix"] = req.track_mix
+    if req.audio_mutes is not None:
+        fields["audio_mutes"] = req.audio_mutes
+        render_params["audio_mutes"] = req.audio_mutes
 
     if req.cues is not None:
         fields["cues"] = req.cues
@@ -648,6 +659,12 @@ def update_project_state(project_name: str, req: UpdateProjectStateRequest):
     if req.text_overlays is not None:
         fields["text_overlays"] = req.text_overlays
         render_params["text_overlays"] = req.text_overlays
+    if req.overlays is not None:
+        # Written at both levels because the editor reads the top level first
+        # and the pipeline reads render_params; writing one left them
+        # disagreeing until the next save.
+        fields["overlays"] = req.overlays
+        render_params["overlays"] = req.overlays
 
     fields["render_params"] = render_params
     updated = ProjectManifest.save(project_name, **fields)
@@ -656,7 +673,7 @@ def update_project_state(project_name: str, req: UpdateProjectStateRequest):
         "cues": updated.get("cues"),
         "micro_cues": updated.get("micro_cues"),
         "clip_list": updated.get("clip_list"),
-        "text_overlays": updated.get("text_overlays"),
+        "overlays": updated.get("overlays"),
         "updated_at": updated.get("updated_at"),
     }
 
@@ -673,8 +690,10 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
             "custom_script", "script_overlays", "voice", "voice_rate", "voice_engine_type",
             "voice_preset", "ad_tone", "human_voice_audio_path",
             "hook_brand", "hook_model", "hook_label", "hook_duration", "hook_motion", "hook_colors", "hook_style",
+            "overlays",
             "font_name", "bilingual_subtitles", "sticker_path", "bgm_name", "bgm_volume",
             "bgm_ducking", "lut_name", "lut_intensity", "caption_position", "caption_color",
+            "audio_mutes",
             "caption_scale", "sticker_position", "sticker_scale", "clip_list", "transitions",
             "text_overlays"
         ]:
@@ -738,6 +757,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 voice_preset=params.get("voice_preset"),
                 ad_tone=params.get("ad_tone", "commercial_premium"),
                 human_voice_audio_path=params.get("human_voice_audio_path"),
+                overlays=params.get("overlays"),
                 hook_brand=params.get("hook_brand"),
                 hook_model=params.get("hook_model"),
                 hook_label=params.get("hook_label"),
@@ -751,6 +771,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 bgm_name=params.get("bgm_name"),
                 bgm_volume=params.get("bgm_volume"),
                 bgm_ducking=bool(params.get("bgm_ducking")),
+                audio_mutes=params.get("audio_mutes"),
                 lut_name=params.get("lut_name"),
                 lut_intensity=params.get("lut_intensity", 1.0),
                 # never sticky: a draft is a one-off, the project keeps its

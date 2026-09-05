@@ -19,6 +19,9 @@ export const CLIP_DRAG_TYPE = 'application/x-capcut-clip';
 export const TEXT_TEMPLATE_DRAG_TYPE = 'application/x-capcut-text-template';
 
 import { toMediaUrl } from '../../lib/mediaUrl';
+import TextLookPreview from './TextLookPreview';
+import { HOOK_FS_RATIO, HOOK_SHADOW, overlayFromTextTemplate } from '../../lib/overlayModel';
+import { TIER_KEYS } from '../../lib/hookStyles';
 
 const LEGACY_SFX_ALIASES = {
   whoosh: 'sfx_whoosh_fast',
@@ -27,6 +30,34 @@ const LEGACY_SFX_ALIASES = {
   cash: 'sfx_cash_register',
   boom: 'sfx_vine_boom',
 };
+
+/**
+ * A gallery card's look, resolved through the same conversion a saved project
+ * goes through. The card and the canvas cannot disagree because neither one
+ * carries its own description of the style.
+ */
+// What a banner card shows: three short stand-ins, so the size and colour
+// ladder of a template reads at a glance without needing a real product.
+const HOOK_CARD_SAMPLE = ['BRAND', 'รุ่นเด่น', 'หมวดสินค้า'];
+
+/** One tier of a hook template, in TextLook spelling, for a gallery card. */
+function hookCardLook(tpl, tierKey) {
+  const tier = tpl.tiers[tierKey];
+  return {
+    font: tpl.font,
+    size_pct: tier.size_pct,
+    color: tier.color === null ? '#FFE600' : tier.color,
+    outline_color: tier.outline_color,
+    outline_px: tier.outline_px,
+    upper: tier.upper,
+    pill: tier.pill ? { fill: tier.pill, border: null, pad_x_em: 0.342, pad_y_em: 0.171 } : null,
+    shadow: HOOK_SHADOW,
+  };
+}
+
+export function templateLook(tpl) {
+  return overlayFromTextTemplate(tpl, { id: '__card__', start: 0, end: 1 }).look;
+}
 
 export const TEXT_TEMPLATES = [
   // ─── 1. Hook พาดหัวเปิดคลิป (0 - 3.5s ตรึงสายตาทันที) ───
@@ -43,16 +74,10 @@ export const TEXT_TEMPLATES = [
     badgeColor: '#FE2C55',
     sfx: 'boom',
     sfxLabel: 'Boom กระแทก',
-    cssPreview: {
-      color: '#FFE600',
-      backgroundColor: '#FE2C55',
-      padding: '4px 10px',
-      borderRadius: '8px',
-      fontWeight: '900',
-      lineHeight: '1.2',
-      textShadow: '0 2px 4px rgba(0,0,0,0.8)',
-      boxShadow: '0 4px 14px rgba(254,44,85,0.6)',
-    },
+    // A coloured edge, thick enough to hold its own against the banner's --
+    // a text overlay had no outline fields at all before this, so every card
+    // in this gallery burned the same black 5.0 and read flat beside one.
+    look: { outline_color: '#5C0016', outline_px: 7.0 },
   },
   {
     id: 'tpl_hook_real_deal',
@@ -66,16 +91,10 @@ export const TEXT_TEMPLATES = [
     bgStyle: 'pill',
     sfx: 'sfx_whoosh_fast',
     sfxLabel: 'Whoosh พุ่งเร็ว',
-    cssPreview: {
-      color: '#25F4EE',
-      backgroundColor: 'rgba(0,0,0,0.8)',
-      border: '1.5px solid #25F4EE',
-      padding: '3px 10px',
-      borderRadius: '999px',
-      fontWeight: '900',
-      textShadow: '0 0 10px #25F4EE, 0 0 20px rgba(37,244,238,0.5)',
-      boxShadow: '0 0 15px rgba(37,244,238,0.3)',
-    },
+    // A coloured edge, thick enough to hold its own against the banner's --
+    // a text overlay had no outline fields at all before this, so every card
+    // in this gallery burned the same black 5.0 and read flat beside one.
+    look: { outline_color: '#04303A', outline_px: 6.0 },
   },
   {
     id: 'tpl_hook_honest_review',
@@ -89,15 +108,10 @@ export const TEXT_TEMPLATES = [
     bgStyle: 'pill',
     sfx: 'sfx_sub_drop',
     sfxLabel: 'Sub Drop ทุ้มลึก',
-    cssPreview: {
-      color: '#FFFFFF',
-      backgroundColor: '#0F172A',
-      border: '1px solid rgba(255,255,255,0.2)',
-      padding: '3px 10px',
-      borderRadius: '8px',
-      fontWeight: '800',
-      textShadow: '0 2px 0 #000, 0 4px 6px rgba(0,0,0,0.9)',
-    },
+    // A coloured edge, thick enough to hold its own against the banner's --
+    // a text overlay had no outline fields at all before this, so every card
+    // in this gallery burned the same black 5.0 and read flat beside one.
+    look: { outline_color: '#000000', outline_px: 6.0 },
   },
   {
     id: 'tpl_hook_shock_reveal',
@@ -112,15 +126,10 @@ export const TEXT_TEMPLATES = [
     badgeColor: '#FFE600',
     sfx: 'sfx_gasp_shock',
     sfxLabel: 'Gasp ตกใจ',
-    cssPreview: {
-      color: '#FE2C55',
-      backgroundColor: '#FFE600',
-      padding: '4px 12px',
-      borderRadius: '8px',
-      fontWeight: '900',
-      textShadow: '1px 1px 0 #000',
-      boxShadow: '0 4px 12px rgba(255,230,0,0.5)',
-    },
+    // A coloured edge, thick enough to hold its own against the banner's --
+    // a text overlay had no outline fields at all before this, so every card
+    // in this gallery burned the same black 5.0 and read flat beside one.
+    look: { outline_color: '#FFFFFF', outline_px: 9.0 },
   },
 
   // ─── 2. รีวิว & ฟีเจอร์เด่น (Review & Feature Highlight) ───
@@ -136,11 +145,6 @@ export const TEXT_TEMPLATES = [
     bgStyle: 'none',
     sfx: 'ding',
     sfxLabel: 'Ding กระดิ่ง',
-    cssPreview: {
-      color: '#FFD700',
-      textShadow: '0 0 10px rgba(255,215,0,0.8), 0 2px 0 #8A6D00, 0 3px 4px #000',
-      fontWeight: '900',
-    },
   },
   {
     id: 'tpl_review_must_have',
@@ -154,15 +158,6 @@ export const TEXT_TEMPLATES = [
     bgStyle: 'pill',
     sfx: 'pop',
     sfxLabel: 'Pop บับเบิล',
-    cssPreview: {
-      color: '#00F59B',
-      backgroundColor: 'rgba(0,0,0,0.75)',
-      border: '1px solid #00F59B',
-      padding: '3px 10px',
-      borderRadius: '999px',
-      fontWeight: '900',
-      boxShadow: '0 0 12px rgba(0,245,155,0.3)',
-    },
   },
   {
     id: 'tpl_review_pros_cons',
@@ -176,14 +171,6 @@ export const TEXT_TEMPLATES = [
     bgStyle: 'pill',
     sfx: 'sfx_whoosh_fast',
     sfxLabel: 'Whoosh ตัดฉาก',
-    cssPreview: {
-      color: '#FFFFFF',
-      backgroundColor: 'rgba(0,0,0,0.85)',
-      border: '1px solid rgba(255,255,255,0.3)',
-      padding: '3px 10px',
-      borderRadius: '6px',
-      fontWeight: '800',
-    },
   },
   {
     id: 'tpl_review_pro_tip',
@@ -197,14 +184,6 @@ export const TEXT_TEMPLATES = [
     bgStyle: 'pill',
     sfx: 'sfx_bell_ding',
     sfxLabel: 'Bell Ding แจ้งเตือน',
-    cssPreview: {
-      color: '#25F4EE',
-      backgroundColor: 'rgba(37,244,238,0.15)',
-      border: '1px solid #25F4EE',
-      padding: '3px 10px',
-      borderRadius: '6px',
-      fontWeight: '800',
-    },
   },
   {
     id: 'tpl_review_verdict',
@@ -218,11 +197,6 @@ export const TEXT_TEMPLATES = [
     bgStyle: 'none',
     sfx: 'ding',
     sfxLabel: 'Ding สำเร็จ',
-    cssPreview: {
-      color: '#C084FC',
-      textShadow: '0 0 12px rgba(168,85,247,0.8), 0 2px 0 #4C1D95, 0 3px 4px #000',
-      fontWeight: '900',
-    },
   },
 
   // ─── 3. ดีล & โปรโมชั่น (Sales & Deals) ───
@@ -239,15 +213,6 @@ export const TEXT_TEMPLATES = [
     badgeColor: '#FE2C55',
     sfx: 'cash',
     sfxLabel: 'Cash เปิดกล่องเงิน',
-    cssPreview: {
-      color: '#FFFFFF',
-      backgroundColor: '#FE2C55',
-      padding: '4px 10px',
-      borderRadius: '8px',
-      fontWeight: '900',
-      boxShadow: '0 4px 12px rgba(254,44,85,0.6)',
-      letterSpacing: '0.5px',
-    },
   },
   {
     id: 'tpl_sale_special_price',
@@ -262,14 +227,6 @@ export const TEXT_TEMPLATES = [
     badgeColor: '#FFE600',
     sfx: 'sfx_coin_drop',
     sfxLabel: 'Coin เหรียญทอง',
-    cssPreview: {
-      color: '#000000',
-      backgroundColor: '#FFE600',
-      padding: '3px 10px',
-      borderRadius: '6px',
-      fontWeight: '900',
-      boxShadow: '0 4px 10px rgba(255,230,0,0.5)',
-    },
   },
   {
     id: 'tpl_sale_bogo',
@@ -283,11 +240,6 @@ export const TEXT_TEMPLATES = [
     bgStyle: 'none',
     sfx: 'pop',
     sfxLabel: 'Pop บับเบิล',
-    cssPreview: {
-      color: '#FF6B00',
-      textShadow: '0 2px 0 #7C2D00, 0 4px 8px rgba(255,107,0,0.7)',
-      fontWeight: '900',
-    },
   },
   {
     id: 'tpl_sale_drop_price',
@@ -301,15 +253,6 @@ export const TEXT_TEMPLATES = [
     bgStyle: 'pill',
     sfx: 'sfx_cash_register',
     sfxLabel: 'Cash Register เก็บเงิน',
-    cssPreview: {
-      color: '#FFE600',
-      backgroundColor: 'rgba(0,0,0,0.85)',
-      border: '1.5px solid #FFE600',
-      padding: '3px 10px',
-      borderRadius: '8px',
-      fontWeight: '900',
-      boxShadow: '0 0 10px rgba(255,230,0,0.3)',
-    },
   },
   {
     id: 'tpl_sale_limited_stock',
@@ -324,14 +267,6 @@ export const TEXT_TEMPLATES = [
     badgeColor: '#E11D48',
     sfx: 'sfx_camera_shutter',
     sfxLabel: 'Shutter ถ่ายรูป',
-    cssPreview: {
-      color: '#FFFFFF',
-      backgroundColor: '#E11D48',
-      padding: '3px 10px',
-      borderRadius: '999px',
-      fontWeight: '800',
-      boxShadow: '0 2px 8px rgba(225,29,72,0.5)',
-    },
   },
 
   // ─── 4. ป้ายพิกัด & Call to Action (CTA) ───
@@ -348,14 +283,6 @@ export const TEXT_TEMPLATES = [
     badgeColor: '#FFE600',
     sfx: 'ding',
     sfxLabel: 'Ding กระดิ่ง',
-    cssPreview: {
-      color: '#000000',
-      backgroundColor: '#FFE600',
-      padding: '4px 12px',
-      borderRadius: '999px',
-      fontWeight: '900',
-      boxShadow: '0 4px 10px rgba(255,230,0,0.6)',
-    },
   },
   {
     id: 'tpl_cta_pin',
@@ -369,14 +296,6 @@ export const TEXT_TEMPLATES = [
     bgStyle: 'pill',
     sfx: 'pop',
     sfxLabel: 'Pop บับเบิล',
-    cssPreview: {
-      color: '#25F4EE',
-      backgroundColor: 'rgba(37,244,238,0.15)',
-      border: '1px solid #25F4EE',
-      padding: '3px 10px',
-      borderRadius: '999px',
-      fontWeight: '700',
-    },
   },
   {
     id: 'tpl_cta_hurry_coupon',
@@ -390,14 +309,6 @@ export const TEXT_TEMPLATES = [
     bgStyle: 'pill',
     sfx: 'sfx_bell_ding',
     sfxLabel: 'Bell Ding แจ้งเตือน',
-    cssPreview: {
-      color: '#00F59B',
-      backgroundColor: 'rgba(0,245,155,0.15)',
-      border: '1px solid #00F59B',
-      padding: '3px 10px',
-      borderRadius: '6px',
-      fontWeight: '800',
-    },
   },
   {
     id: 'tpl_cta_save_favorite',
@@ -411,14 +322,6 @@ export const TEXT_TEMPLATES = [
     bgStyle: 'pill',
     sfx: 'sfx_mouse_click',
     sfxLabel: 'Click คลิกเบา',
-    cssPreview: {
-      color: '#F8FAFC',
-      backgroundColor: 'rgba(255,255,255,0.15)',
-      border: '1px solid rgba(255,255,255,0.3)',
-      padding: '3px 10px',
-      borderRadius: '999px',
-      fontWeight: '700',
-    },
   },
 
   // ─── 5. มินิมอล & คลีน (Minimal & Clean) ───
@@ -434,13 +337,6 @@ export const TEXT_TEMPLATES = [
     bgStyle: 'none',
     sfx: 'sfx_mouse_click',
     sfxLabel: 'Click คลิกเบา',
-    cssPreview: {
-      color: '#E2E8F0',
-      letterSpacing: '2px',
-      fontWeight: '700',
-      borderBottom: '2px solid #25F4EE',
-      paddingBottom: '2px',
-    },
   },
   {
     id: 'tpl_minimal_lower_third',
@@ -454,13 +350,6 @@ export const TEXT_TEMPLATES = [
     bgStyle: 'pill',
     sfx: 'sfx_mouse_click',
     sfxLabel: 'Click คลิกเบา',
-    cssPreview: {
-      color: '#FFFFFF',
-      backgroundColor: 'rgba(255,255,255,0.15)',
-      padding: '2px 10px',
-      borderRadius: '999px',
-      fontWeight: '600',
-    },
   },
   {
     id: 'tpl_minimal_feature_bullet',
@@ -474,14 +363,6 @@ export const TEXT_TEMPLATES = [
     bgStyle: 'pill',
     sfx: 'pop',
     sfxLabel: 'Pop บับเบิล',
-    cssPreview: {
-      color: '#25F4EE',
-      backgroundColor: 'rgba(15,23,42,0.85)',
-      border: '1px solid rgba(37,244,238,0.4)',
-      padding: '3px 10px',
-      borderRadius: '6px',
-      fontWeight: '700',
-    },
   },
 ];
 
@@ -564,6 +445,9 @@ export default function AssetPanel({
   onSelectTextTemplate,
   previewTextTemplate = null,
   activeTextTemplateId = null,
+  hookTemplates = null,
+  activeHookTemplate = null,
+  onApplyHookTemplate = null,
   onStyleChange,
   onAssignSfx,
   onImportCues,       // (cues: Array<{ start, end, text, translation, sfx }>) => void
@@ -1212,7 +1096,12 @@ export default function AssetPanel({
             <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar text-xs">
               {[
                 { id: 'all', label: 'ทั้งหมด' },
-                { id: 'hook', label: '🔥 Hook เปิดคลิป' },
+                // Two different things were both called "hook": a punchy line
+                // that keeps someone watching, and the product badge in the
+                // first three seconds. They are separate rows now because
+                // they are separate jobs -- and separate lanes on the timeline.
+                { id: 'banner', label: '🏷️ ป้ายฮุก (แบรนด์)' },
+                { id: 'hook', label: '🔥 ฮุคคำพูด' },
                 { id: 'review', label: '⭐ รีวิว & ฟีเจอร์' },
                 { id: 'sale', label: '🏷️ ดีล & โปรโมชั่น' },
                 { id: 'cta', label: '🎯 พิกัด & CTA' },
@@ -1233,16 +1122,55 @@ export default function AssetPanel({
               ))}
             </div>
 
+            {/* The banner's own looks. Picking one dresses the clip's hook
+                overlay -- the left panel browses, the right panel edits, the
+                same way it works for every other kind of overlay. */}
+            {(textCategory === 'all' || textCategory === 'banner') && (
+              <div className="grid grid-cols-2 gap-2">
+                {Object.entries(hookTemplates || {}).map(([key, tpl]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    data-text-template-card="true"
+                    onClick={() => onApplyHookTemplate?.(key)}
+                    title={tpl.label_th}
+                    className={`group flex flex-col gap-1.5 rounded-xl border p-2 text-left transition-all hover:-translate-y-0.5 cursor-pointer ${
+                      activeHookTemplate === key
+                        ? 'border-[#E6C24A] bg-[#E6C24A]/10 shadow-lg shadow-[#E6C24A]/20 ring-1 ring-[#E6C24A]/50'
+                        : 'border-white/[0.08] bg-gradient-to-b from-[#18181B] to-[#0E0E10] hover:border-[#E6C24A]/60'
+                    }`}
+                  >
+                    <div className="relative flex h-20 w-full flex-col items-center justify-center gap-0.5 overflow-hidden rounded-lg border border-white/[0.04] bg-black/60 p-1.5">
+                      <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-black/70 to-transparent" />
+                      {TIER_KEYS.map((tierKey, i) => (
+                        <TextLookPreview
+                          key={tierKey}
+                          look={hookCardLook(tpl, tierKey)}
+                          text={HOOK_CARD_SAMPLE[i]}
+                          baseFsRatio={HOOK_FS_RATIO}
+                          scale={0.19}
+                          className="relative z-10"
+                        />
+                      ))}
+                    </div>
+                    <span className="truncate text-[10px] font-semibold text-slate-300">
+                      {tpl.label_th}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Visual Template Grid (2 columns like CapCut Text Effects) */}
             <div className="grid grid-cols-2 gap-2">
-              {TEXT_TEMPLATES.filter((tpl) => {
+              {(textCategory === 'banner' ? [] : TEXT_TEMPLATES).filter((tpl) => {
                 const matchesCat = textCategory === 'all' || tpl.category === textCategory;
                 const matchesSearch = !textSearch.trim() || 
                   tpl.name.toLowerCase().includes(textSearch.toLowerCase()) || 
                   tpl.text.toLowerCase().includes(textSearch.toLowerCase());
                 return matchesCat && matchesSearch;
               }).map((tpl) => {
-                const isPreviewing = previewTextTemplate?.id === tpl.id;
+                const isPreviewing = previewTextTemplate?.template_id === tpl.id;
                 const isSelectedApplied = activeTextTemplateId === tpl.id;
                 return (
                   <div
@@ -1281,12 +1209,12 @@ export default function AssetPanel({
                     {/* Visual Style Preview Card (CSS typography preview) */}
                     <div className="w-full h-20 rounded-lg bg-black/60 border border-white/[0.04] flex flex-col items-center justify-center p-1.5 overflow-hidden text-center select-none relative group-hover:bg-black/40 transition-colors">
                       <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:8px_8px]" />
-                      <span
-                        style={tpl.cssPreview}
-                        className="relative z-10 text-xs text-center max-w-full truncate px-1 transition-transform duration-200 group-hover:scale-105"
-                      >
-                        {tpl.text}
-                      </span>
+                      <TextLookPreview
+                        look={templateLook(tpl)}
+                        text={tpl.text}
+                        scale={0.34}
+                        className="relative z-10 max-w-full px-1 transition-transform duration-200 group-hover:scale-105"
+                      />
                       {isPreviewing && (
                         <div className="absolute top-1 right-1 px-1.5 py-0.5 rounded bg-[#25F4EE] text-[9px] font-bold text-black shadow animate-pulse">
                           พรีวิว
@@ -1294,7 +1222,7 @@ export default function AssetPanel({
                       )}
                       {/* Transition & SFX Micro-Badge */}
                       <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/85 backdrop-blur text-[8.5px] font-medium text-slate-300 flex items-center gap-1 border border-white/[0.1] shadow-sm">
-                        <span className="text-[#25F4EE] font-bold">{tpl.anim.toUpperCase()}</span>
+                        <span className="text-[#25F4EE] font-bold">{(tpl.anim || 'pop').toUpperCase()}</span>
                         <span className="text-slate-500">•</span>
                         <span className="text-amber-300 font-semibold truncate max-w-[68px]">🔊 {tpl.sfxLabel || tpl.sfx}</span>
                       </div>

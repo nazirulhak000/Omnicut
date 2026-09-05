@@ -14,6 +14,7 @@ import FindReplaceModal from './FindReplaceModal';
 import { toMediaUrl } from '../lib/mediaUrl';
 import { useToast } from '../hooks';
 import { useTaskManager } from '../context/TaskContext';
+import { guessBrandModel } from '../lib/overlayModel';
 
 // ═══════════════════════════════════════════════════════════════════════
 // 📦 PRODUCT CARD (Horizontal Gallery Item)
@@ -1535,8 +1536,13 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       productId: productData?.id,
       angleId: angle.angle_id,
       productName: angle.product_name || productData?.title || customKeyword || 'สินค้า',
-      // Not auto-filling hookBrand/hookModel/hookLabel -- the 3-tier hook
-      // banner is manual-only (see EditorShell.jsx).
+      // The banner's three tiers come from the angle (the script AI splits
+      // the product name) and fall back to a whitespace split. They used to
+      // be left blank here on purpose, which meant the first render burned
+      // the whole product name into the brand tier and nothing into the rest.
+      hookBrand: angle.hook_brand || guessBrandModel(angle.product_name || '').brand,
+      hookModel: angle.hook_model || guessBrandModel(angle.product_name || '').model,
+      hookLabel: angle.hook_label || '',
       customScript: scriptText,
       keyFeatures: angle.key_features || productData?.description || '',
       painPoint: angle.pain_point || '',
@@ -1579,8 +1585,13 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       productId: productData?.id,
       angleId: angle.angle_id,
       productName: angle.product_name || productData?.title || customKeyword || 'สินค้า',
-      // Not auto-filling hookBrand/hookModel/hookLabel -- the 3-tier hook
-      // banner is manual-only (see EditorShell.jsx).
+      // The banner's three tiers come from the angle (the script AI splits
+      // the product name) and fall back to a whitespace split. They used to
+      // be left blank here on purpose, which meant the first render burned
+      // the whole product name into the brand tier and nothing into the rest.
+      hookBrand: angle.hook_brand || guessBrandModel(angle.product_name || '').brand,
+      hookModel: angle.hook_model || guessBrandModel(angle.product_name || '').model,
+      hookLabel: angle.hook_label || '',
       customScript: scriptText,
       keyFeatures: angle.key_features || productData?.description || '',
       painPoint: angle.pain_point || '',
