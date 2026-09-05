@@ -1,5 +1,5 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { Play, Pause, Eye, Shield, Trash2, Move, RotateCcw } from 'lucide-react';
+import { Play, Pause, Eye, Shield, Trash2, Move, RotateCcw, Plus } from 'lucide-react';
 import { toMediaUrl } from '../lib/mediaUrl';
 import { createLutRenderer, loadCube } from '../lib/lut3d';
 import { resolveHookStyle } from '../lib/hookStyles';
@@ -1830,6 +1830,7 @@ function SequencePlayer({
   const cuesKey = (cues || []).map(c => `${c._uid || c.id}:${c.start}:${c.end}:${c.text}:${c.translation}:${c.scale || 1}:${c.x ?? ''}:${c.y ?? ''}:${c.position ?? ''}`).join(';;');
   const textOverlaysKey = (textOverlays || []).map(t => `${t.id}:${t.start}:${t.end}:${t.text}:${t.position}:${t.x}:${t.y}:${t.scale}:${t.color}:${t.bgStyle}:${t.anim}`).join(';;');
   const stickerKey = `${stickerStyle.badge}:${stickerStyle.position}:${stickerStyle.scale}:${stickerStyle.startTime}`;
+  const clipKey = clips.map(c => `${c.id}:${c.source_path}:${c.trim_start}:${c.trim_end}:${c.transition_in}:${c.transition_duration}:${c.brightness}:${c.contrast}:${c.saturation}:${c.zoom}:${c.pan_x}:${c.pan_y}:${c.mirror}:${c.rotation}`).join('|');
   const previewTemplateKey = previewTextTemplate ? `${previewTextTemplate.id}:${previewTextTemplate.color}:${previewTextTemplate.fontName}:${previewTextTemplate.scale}:${previewTextTemplate.bgStyle}` : '';
 
   // Interactive Bounding Box calculations
@@ -2975,8 +2976,8 @@ function SequencePlayer({
                 </div>
               )}
 
-              {/* Hover Play Button (Only active when no bounding box is selected) */}
-              {!selectedBox && (
+              {/* Hover Play Button (Only active when no bounding box is selected and not previewing template) */}
+              {!selectedBox && !previewTextTemplate && (
                 <button
                   type="button"
                   onClick={togglePlay}
@@ -2987,6 +2988,60 @@ function SequencePlayer({
                   </div>
                 </button>
               )}
+
+              {/* Ephemeral Text Template Preview Box Overlay */}
+              {previewTextTemplate && (() => {
+                const previewBound = boundsRef.current.find((b) => b.type === 'template_preview');
+                const pX = previewBound ? (previewBound.x / CANVAS_W) * 100 : 15;
+                const pY = previewBound ? (previewBound.y / CANVAS_H) * 100 : 45;
+                const pW = previewBound ? (previewBound.w / CANVAS_W) * 100 : 70;
+                const pH = previewBound ? (previewBound.h / CANVAS_H) * 100 : 10;
+                return (
+                  <div
+                    className="absolute z-35 pointer-events-auto select-none border-2 border-dashed border-[#25F4EE] rounded-xl shadow-[0_0_20px_rgba(37,244,238,0.35)] animate-pulse"
+                    style={{
+                      left: `${pX}%`,
+                      top: `${pY}%`,
+                      width: `${pW}%`,
+                      height: `${pH}%`,
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Top Badge: ตัวอย่างสไตล์ */}
+                    <div className="absolute -top-7 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/90 backdrop-blur-md border border-[#25F4EE] text-[10px] text-white whitespace-nowrap shadow-lg">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#25F4EE] animate-ping" />
+                      <span className="font-bold text-[#25F4EE]">ตัวอย่างสไตล์: {previewTextTemplate.name}</span>
+                    </div>
+
+                    {/* Bottom Action Bar: กด + เพื่อใช้จริง / ปิด */}
+                    <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1 rounded-full bg-black/90 backdrop-blur-md border border-white/20 shadow-2xl">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onCommitPreviewTextTemplate?.(previewTextTemplate);
+                        }}
+                        className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#25F4EE] hover:bg-[#1fd3ce] text-black text-xs font-bold transition-all shadow cursor-pointer active:scale-95"
+                        title="นำข้อความนี้ลงในไทม์ไลน์จริง"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>ใช้สไตล์นี้</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDismissPreviewTextTemplate?.();
+                        }}
+                        className="px-2 py-0.5 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white text-xs font-semibold transition-all cursor-pointer"
+                        title="ปิดตัวอย่าง"
+                      >
+                        ยกเลิก
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Safe Zone Toggle Button */}
               <button

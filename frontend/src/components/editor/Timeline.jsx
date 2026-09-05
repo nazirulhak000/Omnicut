@@ -101,6 +101,53 @@ function tickStep(pxPerSec) {
 }
 
 /**
+ * Computes deterministic collision push on cues when a cue is trimmed or dragged.
+ * Ensures no overlapping, zero accumulated drift, and cues only push when colliding.
+ */
+function applyCaptionCollisionPush(initialCues, targetUid, newStart, newEnd) {
+  if (!initialCues || !initialCues.length) return [];
+  const list = initialCues.map((c) => ({ ...c }));
+  const targetIdx = list.findIndex((c) => c._uid === targetUid || c.id === targetUid);
+  if (targetIdx === -1) return list;
+
+  const validStart = Math.max(0, Math.round(newStart * 100) / 100);
+  const validEnd = Math.max(validStart + 0.2, Math.round(newEnd * 100) / 100);
+
+  list[targetIdx] = {
+    ...list[targetIdx],
+    start: validStart,
+    end: validEnd,
+  };
+
+  // Push subsequent cues only if there is a collision
+  for (let i = targetIdx + 1; i < list.length; i++) {
+    const prevCue = list[i - 1];
+    const initCur = initialCues[i];
+    const curDur = Math.max(0.2, Math.round((initCur.end - initCur.start) * 100) / 100);
+
+    if (prevCue.end > initCur.start) {
+      // Collided! Push forward just enough to clear prevCue without overlap
+      const shiftedStart = Math.round(prevCue.end * 100) / 100;
+      const shiftedEnd = Math.round((shiftedStart + curDur) * 100) / 100;
+      list[i] = {
+        ...list[i],
+        start: shiftedStart,
+        end: shiftedEnd,
+      };
+    } else {
+      // No collision: stays at its initial baseline
+      list[i] = {
+        ...list[i],
+        start: initCur.start,
+        end: initCur.end,
+      };
+    }
+  }
+
+  return list;
+}
+
+/**
  * A mute/solo chip. The mark stays small because the gutter is narrow, but the
  * hit area is padded out to something a pointer can actually catch.
  */
@@ -226,6 +273,7 @@ export default function Timeline({
   snapCandidates: snapPoints = [],
   snapFunction = (t) => t,
   snapEnabled = true,
+  onCuesChange,
   onCaptionRippleShift,
   showHookHeader = true,
   hookBrand = '',
@@ -576,6 +624,7 @@ export default function Timeline({
       startX: e.clientX,
       start: cue.start,
       end: cue.end,
+      initialCues: (cues || []).map((c) => ({ ...c })),
       moved: false,
     };
   };
@@ -588,16 +637,20 @@ export default function Timeline({
     if (!d.moved) { d.moved = true; dragBegin(); }
 
     if (d.edge === 'left') {
-      const rawStart = Math.max(0, Math.min(d.end - 0.2, d.start + delta));
+      const targetIdx = (d.initialCues || []).findIndex((c) => c._uid === d.uid || c.id === d.uid);
+      const minStart = (snapEnabled && targetIdx > 0) ? d.initialCues[targetIdx - 1].end : 0;
+      const rawStart = Math.max(minStart, Math.min(d.end - 0.2, d.start + delta));
       const snapped = snapFunction(rawStart, snapPoints);
-      shiftCaption(d.uid, { start: Math.round(snapped * 100) / 100 });
+      const finalStart = Math.max(minStart, Math.round(snapped * 100) / 100);
+      shiftCaption(d.uid, { start: finalStart });
     } else {
       const rawEnd = Math.max(d.start + 0.2, d.end + delta);
       const snapped = snapFunction(rawEnd, snapPoints);
-      const newEnd = Math.round(snapped * 100) / 100;
-      const actualShift = snapEnabled ? Math.round((newEnd - d.end) * 100) / 100 : 0;
-      if (snapEnabled && onCaptionRippleShift) {
-        onCaptionRippleShift(d.uid, { end: newEnd }, actualShift, true);
+      const newEnd = Math.round(Math.max(d.start + 0.2, snapped) * 100) / 100;
+
+      if (snapEnabled && (onCuesChange || onCaptionRippleShift)) {
+        const nextCues = applyCaptionCollisionPush(d.initialCues, d.uid, d.start, newEnd);
+        (onCuesChange || onCaptionRippleShift)(nextCues, true);
       } else {
         shiftCaption(d.uid, { end: newEnd });
       }
@@ -1152,7 +1205,12 @@ export default function Timeline({
                         onPointerDown={(e) => {
                           try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
                           captionDrag.current = {
-                            uid: cue._uid, startX: e.clientX, start: cue.start, end: cue.end, moved: false,
+                            uid: cue._uid,
+                            startX: e.clientX,
+                            start: cue.start,
+                            end: cue.end,
+                            initialCues: (cues || []).map((c) => ({ ...c })),
+                            moved: false,
                           };
                         }}
                         onPointerMove={(e) => {
@@ -1161,16 +1219,19 @@ export default function Timeline({
                           const delta = (e.clientX - d.startX) / pxPerSec;
                           if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return;
                           if (!d.moved) { d.moved = true; dragBegin(); }
-                          const shift = Math.max(-d.start, delta);
-                          const rawStart = d.start + shift;
-                          const snappedStart = snapFunction(rawStart, snapPoints);
-                          const correction = snappedStart - rawStart;
-                          const finalStart = Math.round((d.start + shift + correction) * 100) / 100;
+
+                          const targetIdx = (d.initialCues || []).findIndex((c) => c._uid === d.uid || c.id === d.uid);
                           const dur = Math.round((d.end - d.start) * 100) / 100;
+                          const minStart = (snapEnabled && targetIdx > 0) ? d.initialCues[targetIdx - 1].end : 0;
+
+                          const rawStart = Math.max(minStart, d.start + delta);
+                          const snappedStart = snapFunction(rawStart, snapPoints);
+                          const finalStart = Math.max(minStart, Math.round(snappedStart * 100) / 100);
                           const finalEnd = Math.round((finalStart + dur) * 100) / 100;
-                          const actualShift = snapEnabled ? Math.round((finalStart - d.start) * 100) / 100 : 0;
-                          if (snapEnabled && onCaptionRippleShift) {
-                            onCaptionRippleShift(cue._uid, { start: finalStart, end: finalEnd }, actualShift, true);
+
+                          if (snapEnabled && (onCuesChange || onCaptionRippleShift)) {
+                            const nextCues = applyCaptionCollisionPush(d.initialCues, d.uid, finalStart, finalEnd);
+                            (onCuesChange || onCaptionRippleShift)(nextCues, true);
                           } else {
                             shiftCaption(cue._uid, {
                               start: finalStart,

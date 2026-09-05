@@ -794,37 +794,12 @@ export default function EditorShell({
     });
   }, [set, setSilent]);
 
-  const patchCaptionRipple = useCallback((uid, patch, rippleShift = 0, silent = false) => {
+  const handleUpdateCuesList = useCallback((newCues, silent = false) => {
     cuesDirty.current = true;
-    (silent ? setSilent : set)((prev) => {
-      const list = [...prev.cuesList];
-      const targetIdx = list.findIndex((c) => c._uid === uid || c.id === uid);
-      if (targetIdx === -1) return prev;
-
-      const targetCue = { ...list[targetIdx], ...patch };
-      list[targetIdx] = targetCue;
-
-      if (rippleShift !== 0) {
-        for (let i = targetIdx + 1; i < list.length; i++) {
-          const c = list[i];
-          const prevEnd = list[i - 1].end;
-          const dur = Math.max(0.2, Math.round((c.end - c.start) * 100) / 100);
-          const rawStart = Math.round((c.start + rippleShift) * 100) / 100;
-          const shiftedStart = Math.max(prevEnd, rawStart);
-          const shiftedEnd = Math.round((shiftedStart + dur) * 100) / 100;
-          list[i] = {
-            ...c,
-            start: shiftedStart,
-            end: shiftedEnd,
-          };
-        }
-      }
-
-      const sorted = (!silent && ('start' in patch || 'end' in patch))
-        ? [...list].sort((a, b) => a.start - b.start)
-        : list;
-      return { ...prev, cuesList: sorted };
-    });
+    (silent ? setSilent : set)((prev) => ({
+      ...prev,
+      cuesList: newCues,
+    }));
   }, [set, setSilent]);
 
   const handleResetSubtitleTimings = useCallback(() => {
@@ -2211,7 +2186,8 @@ export default function EditorShell({
                     snapCandidates={snapEnabled ? snapCandidates(segments, playhead, [...(audioDuration > 0 ? [audioDuration] : []), ...cueSnapPoints]) : []}
                     snapFunction={snapEnabled ? (t, c) => snapTime(t, c, SNAP_PX / pxPerSec) : (t) => t}
                     snapEnabled={snapEnabled}
-                    onCaptionRippleShift={patchCaptionRipple}
+                    onCuesChange={handleUpdateCuesList}
+                    onCaptionRippleShift={handleUpdateCuesList}
                     showHookHeader={showHookHeader}
                     hookBrand={hookBrand}
                     hookModel={hookModel}
@@ -2723,7 +2699,8 @@ export default function EditorShell({
                     snapCandidates={snapEnabled ? snapCandidates(segments, playhead, [...(audioDuration > 0 ? [audioDuration] : []), ...cueSnapPoints]) : []}
                     snapFunction={snapEnabled ? (t, c) => snapTime(t, c, SNAP_PX / pxPerSec) : (t) => t}
                     snapEnabled={snapEnabled}
-                    onCaptionRippleShift={patchCaptionRipple}
+                    onCuesChange={handleUpdateCuesList}
+                    onCaptionRippleShift={handleUpdateCuesList}
                     showHookHeader={showHookHeader}
                     hookBrand={hookBrand}
                     hookModel={hookModel}
