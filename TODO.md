@@ -68,18 +68,20 @@ npm test
   - ค้นหาแถวสินค้าในผลลัพธ์: รองรับทั้งกรณีแถวมีรหัสสินค้า หรือแถวผลลัพธ์จากการค้นหารหัสเฉพาะ
   - คลิกเลือก Radio/Checkbox ของสินค้ารายการแรกในผลการค้นหา และยืนยันสถานะ checked
   - คลิก "ถัดไป" และคลิก "เพิ่ม" เพื่อจบขั้นตอนแนบสินค้า
-- [ ] ตรวจขั้น 2–5 ด้วย behavioral regression; แยกผลจำลองออกจากผลบน TikTok จริง
-- [ ] ส่ง cover_path จากรายการคลิปไป prepare และเพิ่มปุ่มแนบปกพร้อมภาพตัวอย่าง
+- [x] ตรวจขั้น 2–5 ด้วย behavioral regression; แยกผลจำลองออกจากผลบน TikTok จริง
+- [x] ส่ง cover_path จากรายการคลิปไป prepare และเพิ่มปุ่มแนบปกพร้อมภาพตัวอย่าง (แก้ cover upload ผ่าน CDP ไม่เปิด native Windows file dialog)
+- [x] ซ่อมการเลือก Radio สินค้า และคลิกปุ่ม "ถัดไป" ใน .product-selector-container
 - [ ] ป้องกันคำสั่งซ้อนกัน; ทำต่ออัตโนมัติแบบหยุดทันทีเมื่อขั้นก่อนหน้าไม่ผ่าน และให้ผู้ใช้กดโพสต์เองตามข้อกำหนดเดิม
 - [x] ตรวจ syntax JavaScript, Node tests และ pytest ที่เกี่ยวข้อง
 - [ ] ทดสอบ TikTok จริง: caption, สินค้าตรง ID, ปก, schedule
 
-Notes: ปรับปรุงโค้ด Extension ให้ตรงกับ Element จริงจาก DevTools 5 จุด:
+Notes: ปรับปรุงโค้ด Extension ให้ตรงกับ Element จริงจาก DevTools และพฤติกรรม TikTok Studio:
 1. ใส่คำอธิบายก่อน แล้วเคาะเว้นวรรค 2 บรรทัด ตามด้วยแฮชแท็ก
 2. สลับไปแท็บ "นำเสนอสินค้า" (Showcase) ให้สำเร็จก่อนค้นหา ป้องกันพิมพ์ในแท็บ "ร้านของฉัน"
-3. เลือกสินค้าด้วย radio element: `tr.product-tb-row`, `.TUXRadioStandalone`, `input.TUXRadioStandalone-input` และคลิกด้วย CDP native click
-4. กดปุ่ม "ถัดไป" ด้านล่างขวาของตารางรายการสินค้า
+3. เลือกสินค้าด้วย radio element: เลิกเซ็ต input.checked=true ล่วงหน้าเพื่อไม่ให้ขัด React SyntheticEvent พร้อมเรียก React fiber props, DOM clicks และ CDP native clicks ทั้งที่ปุ่มและแถวสินค้า
+4. กดปุ่ม "ถัดไป" ด้านล่างขวาของตารางรายการสินค้า (.product-selector-container) พร้อม fallback native CDP click
 5. หน้ารายการสุดท้าย: สั่งคลุมดำชื่อสินค้า และกดปุ่ม "เพิ่ม" (Add button สีแดง) จบขั้นตอนปักตะกร้า
+6. แก้ปัญหาแนบภาพปก: ยกเลิกการคลิกที่ label uploadArea (ที่เคยเรียก Windows Explorer dialog) เปลี่ยนมาใช้ CDP DOM.setFileInputFiles ตรงที่ input[type=file] รอ preview แล้วกดบันทึก
 ผ่านการทดสอบ `node --test tiktok_autopost_extension/background.test.cjs` (6/6 passed) และ `pytest` (149 passed)
 
 รายการที่รู้แล้วว่าต้องทำ แต่ยังไม่ได้จัดเข้ารอบไหน

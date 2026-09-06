@@ -697,28 +697,35 @@ async function attachProductLink(send, productId) {
           try { el.click(); } catch (e) {}
         };
 
-        // 1. Direct input click and React checked property update
+        // 1. Direct input click
         if (input) {
-          const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'checked')?.set;
-          if (nativeSetter) {
-            try { nativeSetter.call(input, true); } catch (e) {}
-          } else {
-            input.checked = true;
-          }
-          input.dispatchEvent(new Event('input', { bubbles: true }));
-          input.dispatchEvent(new Event('change', { bubbles: true }));
-          triggerClick(input);
+          try { input.focus(); } catch (e) {}
+          try { input.click(); } catch (e) {}
         }
-
-        // 2. Container clicks (standalone wrapper, TUXRadio, name cell, row)
         if (standalone) triggerClick(standalone);
         if (tuxRadio) triggerClick(tuxRadio);
         if (nameCell) triggerClick(nameCell);
         triggerClick(targetRow);
 
-        const clickTarget = input || standalone || tuxRadio || targetRow;
+        // 2. Direct React fiber props trigger
+        for (const el of [input, standalone, tuxRadio, targetRow]) {
+          if (!el) continue;
+          const propKey = Object.keys(el).find(k => k.startsWith('__reactProps'));
+          if (propKey && el[propKey]) {
+            const p = el[propKey];
+            if (typeof p.onChange === 'function') {
+              try { p.onChange({ target: input, currentTarget: input }); } catch (e) {}
+            }
+            if (typeof p.onClick === 'function') {
+              try { p.onClick({ target: el, currentTarget: el }); } catch (e) {}
+            }
+          }
+        }
+
+        const clickTarget = standalone || input || tuxRadio || targetRow;
         try { clickTarget.scrollIntoView({ behavior: 'instant', block: 'center' }); } catch (e) {}
         const rect = clickTarget.getBoundingClientRect();
+        const rowRect = targetRow.getBoundingClientRect();
 
         // Extract product name from row
         const cells = Array.from(targetRow.querySelectorAll('td, [role="cell"], div, span, p'))
@@ -735,6 +742,7 @@ async function attachProductLink(send, productId) {
           success: true,
           name: cells[0] || '',
           point: { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 },
+          rowPoint: { x: rowRect.left + Math.min(rowRect.width / 2, 200), y: rowRect.top + rowRect.height / 2 },
           checked,
         };
       })()`,
@@ -754,12 +762,23 @@ async function attachProductLink(send, productId) {
         } catch (e) {}
       }
 
+      await sleep(400);
+
+      // Also click the row cell as fallback
+      if (selVal.rowPoint && selVal.rowPoint.x > 0 && selVal.rowPoint.y > 0) {
+        try {
+          await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: Math.round(selVal.rowPoint.x), y: Math.round(selVal.rowPoint.y) });
+          await send('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', buttons: 1, clickCount: 1, x: Math.round(selVal.rowPoint.x), y: Math.round(selVal.rowPoint.y) });
+          await send('Input.dispatchMouseEvent', { type: 'mouseReleased', button: 'left', buttons: 0, clickCount: 1, x: Math.round(selVal.rowPoint.x), y: Math.round(selVal.rowPoint.y) });
+        } catch (e) {}
+      }
+
       await sleep(600);
 
       // Verify that radio became checked OR Next button became enabled
       const statusCheck = await send('Runtime.evaluate', {
         expression: `(() => {
-          const root = document.querySelector('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal') || document;
+          const root = document.querySelector('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal, .product-selector-container') || document;
           const isChecked = Boolean(root.querySelector('.TUXRadioStandalone--checked, [class*="--checked"], input[type="radio"]:checked'));
           const buttons = Array.from(root.querySelectorAll('button, div[role="button"]'));
           const nextBtn = buttons.reverse().find(b => {
@@ -804,7 +823,7 @@ async function attachProductLink(send, productId) {
           const rect = el.getBoundingClientRect();
           return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
         };
-        const root = document.querySelector('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal') || document;
+        const root = document.querySelector('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal, .product-selector-container') || document;
         const buttons = Array.from(root.querySelectorAll('button, div[role="button"]')).filter(isVisible);
         const nextBtn = buttons.reverse().find(b => {
           const t = (b.innerText || b.textContent || '').trim();
@@ -812,6 +831,7 @@ async function attachProductLink(send, productId) {
           return (t === 'ถัดไป' || t === 'Next') && enabled && t !== 'ยกเลิก' && t !== 'Cancel';
         });
         if (nextBtn) {
+          nextBtn.focus();
           nextBtn.click();
           const rect = nextBtn.getBoundingClientRect();
           return { success: true, point: { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } };
