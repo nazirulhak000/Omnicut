@@ -72,3 +72,9 @@ test('cover is rejected before any page interaction when missing', async () => {
     throw new Error('must not touch page');
   }, null), /ยังไม่มีปก/);
 });
+
+test('background.js does not contain invalid numeric ID selectors like #1 or #2', () => {
+  const code = fs.readFileSync(path.join(__dirname, 'background.js'), 'utf8');
+  const invalidIdMatch = code.match(/querySelector(?:All)?\s*\(\s*['"`][^'"`]*#[0-9]/);
+  assert.equal(invalidIdMatch, null, `Found invalid numeric ID selector: ${invalidIdMatch?.[0]}`);
+});

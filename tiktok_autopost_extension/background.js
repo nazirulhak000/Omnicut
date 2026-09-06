@@ -302,8 +302,11 @@ async function switchToShowcaseTab(send) {
           }
         }
 
-        // 2. Check tab button with id="2"
-        const tab2 = document.querySelector('.TUXTabBar-item#2 button, button.TUXTabBar-itemTitle#2');
+        // 2. Check tab button with id="2" (MUST use [id="2"] attribute selector, #2 is invalid CSS)
+        let tab2 = null;
+        try {
+          tab2 = document.querySelector('.TUXTabBar-item[id="2"] button, button.TUXTabBar-itemTitle[id="2"], [id="2"] button');
+        } catch (e) {}
         if (tab2 && isVisible(tab2)) {
           if (tab2.classList.contains('TUXTabBar-itemTitle--active') || tab2.getAttribute('data-active') !== null) {
             return true;
@@ -346,14 +349,21 @@ async function switchToShowcaseTab(send) {
           return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
         };
 
-        // Primary: TikTok's exact TUXTabBar-item #2 or title
-        const primaryTarget = document.querySelector('.TUXTabBar-item#2 button, button.TUXTabBar-itemTitle#2, .TUXTabBar-item#2')
-          || Array.from(document.querySelectorAll('.TUXTabBar-itemTitle, [role="tab"], button, div, span')).filter(isVisible).find(el => {
+        // Primary: TikTok's exact TUXTabBar-item [id="2"] or title
+        let primaryTarget = null;
+        try {
+          primaryTarget = document.querySelector('.TUXTabBar-item[id="2"] button, button.TUXTabBar-itemTitle[id="2"], [id="2"] button, .TUXTabBar-item[id="2"]');
+        } catch (e) {}
+
+        if (!primaryTarget) {
+          const allElements = Array.from(document.querySelectorAll('.TUXTabBar-itemTitle, [role="tab"], button, div, span')).filter(isVisible);
+          primaryTarget = allElements.find(el => {
             const t = (el.innerText || el.textContent || '').trim();
             if (!t) return false;
             if (t.includes('ร้านของฉัน') || t.includes('My Shop') || t.includes('My shop') || t.includes('จัดการสินค้า')) return false;
             return t === 'นำเสนอสินค้า' || t.includes('นำเสนอสินค้า') || t === 'Showcase products' || t.includes('Showcase products') || t === 'Showcase' || t.includes('Showcase') || t.includes('ตู้โชว์');
           });
+        }
 
         if (!primaryTarget) return null;
 
