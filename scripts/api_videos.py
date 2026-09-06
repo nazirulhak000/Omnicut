@@ -569,7 +569,11 @@ def delete_file(req: DeleteFileRequest):
 
     def _on_deleted_success():
         try:
-            ProductStore.rollback_by_video_or_project(target.name)
+            ProductStore.rollback_by_video_or_project(
+                target.name,
+                product_id=req.product_id or "",
+                angle_id=req.angle_id or "",
+            )
         except Exception:
             pass
         return {"success": True, "message": f"ลบไฟล์ {target.name} เรียบร้อยแล้ว", "filename": target.name}

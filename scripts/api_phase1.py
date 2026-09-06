@@ -220,6 +220,7 @@ class ProductCreateRequest(BaseModel):
     price_note: str = ""
     target_buyer: str = ""
     thumbnail: str = ""
+    product_code: Optional[str] = None
 
 
 class ProductUpdateRequest(BaseModel):
@@ -233,6 +234,7 @@ class ProductUpdateRequest(BaseModel):
     status: Optional[str] = None
     angles: Optional[List[Dict[str, Any]]] = None
     tiktok_product_id: Optional[str] = None
+    product_code: Optional[str] = None
 
 
 def _meta_tag(html_text: str, prop: str) -> str:
@@ -413,10 +415,16 @@ def _project_origin(project_name: str):
     """The product and angle a project was rendered from, if they still exist."""
     manifest = ProjectManifest.load(project_name)
     params = (manifest or {}).get("render_params") or {}
+    # Prefer the stable ids the render pipeline stamps into render_params
+    # (see video_assembly_stage.py) -- matching by product_name/hook_title
+    # text risks grabbing the WRONG product/angle when two happen to share
+    # a name, which is disastrous here since this feeds project deletion.
+    product_id = params.get("product_id") or ((manifest or {}).get("product") or {}).get("id") or ""
+    angle_id = params.get("angle_id") or ((manifest or {}).get("angle") or {}).get("angle_id") or ((manifest or {}).get("angle") or {}).get("id") or ""
     product, angle = ProductStore.find_by_project(
         project_name,
-        product_name=params.get("product_name") or "",
-        hook_title=params.get("hook_title") or "",
+        product_id=product_id,
+        angle_id=angle_id,
     )
     return manifest, product, angle
 
@@ -467,9 +475,14 @@ def delete_project(project_name: str, scope: str = "project"):
         raise HTTPException(status_code=400, detail=f"scope '{scope}' ไม่ถูกต้อง")
 
     # Read the origin before the folder goes: the manifest is what points at it.
+    # Also used (regardless of scope) to scope the rollback below to the
+    # specific product/angle this project belongs to -- rolling back by
+    # filename/project_name alone risks touching an unrelated angle that
+    # happens to share the same stem.
     extra: Dict[str, Any] = {}
+    _, origin_product, origin_angle = _project_origin(project_name)
     if scope in ("angle", "product"):
-        _, product, angle = _project_origin(project_name)
+        product, angle = origin_product, origin_angle
         if not product:
             raise HTTPException(
                 status_code=409,
@@ -487,7 +500,11 @@ def delete_project(project_name: str, scope: str = "project"):
             extra = {"product_removed": product["id"], "angles_removed": len(product.get("angles") or [])}
 
     try:
-        ProductStore.rollback_by_video_or_project(project_name)
+        ProductStore.rollback_by_video_or_project(
+            project_name,
+            product_id=(origin_product or {}).get("id") or "",
+            angle_id=(origin_angle or {}).get("angle_id") or "",
+        )
         return {"success": True, "scope": scope, **ProjectManifest.delete(project_name), **extra}
     except FileNotFoundError as err:
         raise HTTPException(status_code=404, detail=str(err))
@@ -715,8 +732,6 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
         if not (product_id and angle_id):
             prod, ang = ProductStore.find_by_project(
                 project_name,
-                product_name=params.get("product_name") or "",
-                hook_title=params.get("hook_title") or "",
                 product_id=product_id or "",
                 angle_id=angle_id or ""
             )

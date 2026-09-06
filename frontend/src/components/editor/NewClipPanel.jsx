@@ -8,7 +8,7 @@ import { previewVoice, startRender, uploadFile, updateAngleVideos, updateAngleSt
 import { DEFAULT_STUDIO_FORM, STUDIO_FORM_KEY, getSavedStudioForm } from '../../lib/studioDefaults';
 import { angleToForm, angleLabel } from '../../lib/angleToForm';
 import { isSameVideo, getMediaName } from '../../lib/mediaUrl';
-import { buildProjectName } from '../../lib/projectName';
+import { buildProjectName, extractShortProductName, cleanAngleSlug } from '../../lib/projectName';
 import { useRenderJob } from '../../hooks/useRenderJob';
 import MediaPickerModal from '../MediaPickerModal';
 import VoicePickerModal from '../VoicePickerModal';
@@ -237,19 +237,36 @@ export default function NewClipPanel({
       angle: currentAngle || (angles && angles[angleIndex]),
       angleIndex,
       existingProjects,
+      productCode: productContext?.product_code || '',
     });
-  }, [form.productName, currentAngle, angles, angleIndex, existingProjects]);
+  }, [form.productName, currentAngle, angles, angleIndex, existingProjects, productContext?.product_code]);
 
   // The panel's footer reads both of these, but neither was ever declared --
   // rendering the panel threw "angleSpecificProject is not defined" and the
   // whole editor route fell through to the error boundary.
   //
   // The angle carries its own project once one has been created for it (the
-  // same `project_name` ContentTrackerHub and EditorShell read), and
-  // buildProjectName only returns a name ending in _1 when the base was free,
-  // so anything else means this create would spawn another variant.
+  // same `project_name` ContentTrackerHub and EditorShell read).
   const angleSpecificProject = (currentAngle || angles[angleIndex])?.project_name || '';
-  const willCreateVariant = Boolean(projectName) && !/_1$/.test(projectName);
+  // Whether creating now would spawn a new variant (_2, _3, ...) rather than
+  // the first-ever project for this product+angle: checked directly against
+  // existingProjects (does the "_1" entry already exist?) instead of
+  // pattern-matching projectName's own suffix, which broke the moment a
+  // legitimately-named project happened to end in something other than "_1"
+  // (or masked it when it did).
+  const willCreateVariant = useMemo(() => {
+    if (!projectName) return false;
+    const angleForSlug = currentAngle || (angles && angles[angleIndex]);
+    const codePart = (productContext?.product_code || '').trim().toUpperCase();
+    const base = codePart
+      ? `${codePart}-${cleanAngleSlug(angleForSlug, angleIndex)}`
+      : `${extractShortProductName(form.productName)}_${cleanAngleSlug(angleForSlug, angleIndex)}`;
+    const firstVariantName = `${base}_1`;
+    return (existingProjects || []).some((p) => {
+      const name = typeof p === 'string' ? p : (p && p.project_name) || '';
+      return name === firstVariantName;
+    });
+  }, [projectName, currentAngle, angles, angleIndex, productContext?.product_code, form.productName, existingProjects]);
 
   const handleUpload = async (file) => {
     if (!file) return;

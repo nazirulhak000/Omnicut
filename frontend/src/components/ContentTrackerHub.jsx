@@ -174,10 +174,15 @@ const KanbanCard = memo(function KanbanCard({
             <div className="flex items-center justify-between gap-1 text-xs">
               <span
                 onClick={() => onInspectAngle(ang)}
-                className="font-bold text-white truncate text-xs font-kanit hover:text-[#25F4EE] cursor-pointer"
+                className="font-bold text-white truncate text-xs font-kanit hover:text-[#25F4EE] cursor-pointer flex items-center gap-1 min-w-0"
                 title={`คลิกเพื่อดูรายละเอียดเชิงลึกของ: ${ang.parentProduct?.name}`}
               >
-                {ang.parentProduct?.name}
+                {ang.parentProduct?.product_code && (
+                  <span className="px-1 py-0.1 rounded bg-fuchsia-500/15 border border-fuchsia-500/30 text-fuchsia-300 font-mono text-[9px] flex-shrink-0">
+                    {ang.parentProduct.product_code}
+                  </span>
+                )}
+                <span className="truncate">{ang.parentProduct?.name}</span>
               </span>
               <div className="flex items-center gap-1 flex-shrink-0">
                 {ang.qc_note ? (
@@ -346,10 +351,15 @@ const KanbanCard = memo(function KanbanCard({
       <div className="flex items-center justify-between gap-1.5 text-xs">
         <span
           onClick={() => onInspectAngle(ang)}
-          className="font-bold text-white truncate flex-1 min-w-0 font-kanit text-sm hover:text-[#25F4EE] cursor-pointer"
+          className="font-bold text-white truncate flex-1 min-w-0 font-kanit text-sm hover:text-[#25F4EE] cursor-pointer flex items-center gap-1.5"
           title={`คลิกเพื่อดูรายละเอียดเชิงลึกของ: ${ang.parentProduct?.name}`}
         >
-          {ang.parentProduct?.name}
+          {ang.parentProduct?.product_code && (
+            <span className="px-1.5 py-0.2 rounded bg-fuchsia-500/15 border border-fuchsia-500/30 text-fuchsia-300 font-mono text-[10px] flex-shrink-0">
+              {ang.parentProduct.product_code}
+            </span>
+          )}
+          <span className="truncate">{ang.parentProduct?.name}</span>
         </span>
         <div className="flex items-center gap-1 flex-shrink-0">
           {ang.badge && (
@@ -1153,6 +1163,24 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     }
   }, [inspectAngle, showToast]);
 
+  // Short scannable code (e.g. "ESG01") so a person can match a CapCut
+  // project-picker entry back to its tracker row without reading the full
+  // Thai product name -- auto-generated on the backend, editable here once
+  // if the naive auto-abbreviation needs a human correction.
+  const handleSaveProductCode = useCallback(async (productId, code) => {
+    try {
+      const trimmed = code.trim().toUpperCase();
+      await updateProduct(productId, { product_code: trimmed || null });
+      setProducts(prev => prev.map(p => p.id === productId ? { ...p, product_code: trimmed || null } : p));
+      if (inspectAngle?.parentProduct?.id === productId) {
+        setInspectAngle(prev => prev ? { ...prev, parentProduct: { ...prev.parentProduct, product_code: trimmed || null } } : null);
+      }
+      showToast('บันทึกรหัสสินค้าแล้ว');
+    } catch (err) {
+      showToast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
+    }
+  }, [inspectAngle, showToast]);
+
   // Same prepare -> extension flow as ExportGallery's Post Studio panel --
   // hands the clip off to tiktok_autopost_extension/, which the user
   // triggers from its own popup on a real, already-logged-in TikTok Studio
@@ -1236,7 +1264,16 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
 
     let resolvedIdx = angleIdx;
     if (resolvedIdx < 0 && product?.angles) {
-      resolvedIdx = product.angles.findIndex(a => (a.angle_id && a.angle_id === angle?.angle_id) || a.hook_title === angle?.hook_title);
+      if (angle?.angle_id) {
+        resolvedIdx = product.angles.findIndex(a => a.angle_id === angle.angle_id);
+      } else {
+        // No angle_id on this angle at all -- a data problem, not something
+        // to paper over with a hook_title string match (two angles can share
+        // a title, which risks loading the WRONG angle's script/video into
+        // the editor). Surface it and fall back to index 0 rather than guess.
+        console.warn('[ContentTrackerHub] handleSendToStudio: angle has no angle_id -- cannot resolve its index reliably', angle);
+        resolvedIdx = -1;
+      }
       if (resolvedIdx < 0) resolvedIdx = 0;
     } else if (resolvedIdx < 0) {
       resolvedIdx = 0;
@@ -1366,7 +1403,13 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
 
     const productKeys = Object.keys(productBuckets);
     let currentProdIndex = 0;
-    const selectedAngleIds = new Set();
+    // angle_id alone is not unique -- it comes from a small fixed catalog
+    // (unboxing, pain_point, ...) shared by every product, so deduping by
+    // angle_id alone would treat "unboxing" from product A as already used
+    // once product B's "unboxing" was picked. Composite key matches
+    // scripts/api_exports.py's equivalent per-product-per-angle tracking.
+    const angleKey = (a) => `${a.parentProduct?.id || 'unknown'}:${a.angle_id}`;
+    const selectedAngleKeys = new Set();
 
     const newSlots = scheduleSlots.map((slot) => {
       let pickedAngle = null;
@@ -1374,18 +1417,18 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
       for (let attempt = 0; attempt < productKeys.length; attempt++) {
         const prodKey = productKeys[(currentProdIndex + attempt) % productKeys.length];
         const bucket = productBuckets[prodKey] || [];
-        const available = bucket.find((a) => !selectedAngleIds.has(a.angle_id));
+        const available = bucket.find((a) => !selectedAngleKeys.has(angleKey(a)));
         if (available) {
           pickedAngle = available;
-          selectedAngleIds.add(available.angle_id);
+          selectedAngleKeys.add(angleKey(available));
           currentProdIndex = (currentProdIndex + attempt + 1) % productKeys.length;
           break;
         }
       }
 
       if (!pickedAngle) {
-        pickedAngle = readyClips.find((a) => !selectedAngleIds.has(a.angle_id)) || readyClips[0];
-        if (pickedAngle) selectedAngleIds.add(pickedAngle.angle_id);
+        pickedAngle = readyClips.find((a) => !selectedAngleKeys.has(angleKey(a))) || readyClips[0];
+        if (pickedAngle) selectedAngleKeys.add(angleKey(pickedAngle));
       }
 
       return {
@@ -1556,6 +1599,34 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                   </div>
                 </div>
               )}
+
+              {/* Short scannable product code (per-product, not per-angle) --
+                  matches the prefix used in the CapCut project name so a
+                  person can tell projects apart at a glance without reading
+                  the full Thai product name. */}
+              <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.08] space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-300 flex-shrink-0">รหัสสินค้า:</span>
+                  <input
+                    key={`code-${inspectAngle.parentProduct?.id}`}
+                    id={`product-code-${inspectAngle.parentProduct?.id}`}
+                    type="text"
+                    defaultValue={inspectAngle.parentProduct?.product_code || ''}
+                    placeholder="เช่น ESG01 (auto-gen ให้แล้ว แก้เองได้)"
+                    className="flex-1 min-w-0 px-2 py-1 rounded-lg bg-black/40 border border-white/[0.1] text-xs text-white placeholder:text-slate-600 font-mono uppercase focus:outline-none focus:border-fuchsia-400/40"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const el = document.getElementById(`product-code-${inspectAngle.parentProduct?.id}`);
+                      handleSaveProductCode(inspectAngle.parentProduct?.id, el?.value || '');
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-slate-200 text-xs font-bold cursor-pointer active:scale-95 transition-all flex-shrink-0"
+                  >
+                    บันทึก
+                  </button>
+                </div>
+              </div>
 
               {/* Round BUG-3.3: TikTok Shop product ID (per-product, not per-angle) + ปักตะกร้า */}
               <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.08] space-y-2">

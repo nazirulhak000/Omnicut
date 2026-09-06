@@ -236,13 +236,22 @@ def test_find_by_project_prefers_the_recorded_link(product_file):
 
     other = ProductStore.add(url="https://x.test/4", name="ชื่อซ้ำ", platform="tiktok")
 
-    product, angle = ProductStore.find_by_project("TikTok_clip", product_name="ชื่อซ้ำ", hook_title="hook")
+    product, angle = ProductStore.find_by_project("TikTok_clip", product_id=linked["id"], angle_id="a1")
     assert product["id"] == linked["id"], "the explicit link wins over a same-named product"
     assert angle["angle_id"] == "a1"
 
-    # and a project with no link at all still resolves by name
-    product2, _ = ProductStore.find_by_project("TikTok_unlinked", product_name="ชื่อซ้ำ")
-    assert product2 is not None
+    # product_id alone (no angle_id) still resolves the product without
+    # guessing which angle -- it's on the caller to know the angle too.
+    product_only, angle_only = ProductStore.find_by_project("TikTok_clip", product_id=linked["id"])
+    assert product_only["id"] == linked["id"]
+    assert angle_only is None
+
+    # a project with no recorded link and no stable id at all must not guess
+    # by name -- two products share this display name, and guessing here is
+    # exactly the bug that let a delete cascade onto the wrong product.
+    product2, angle2 = ProductStore.find_by_project("TikTok_unlinked")
+    assert product2 is None
+    assert angle2 is None
 
 
 def test_delete_with_angle_scope_refuses_when_nothing_matches(client, projects_dir, product_file):

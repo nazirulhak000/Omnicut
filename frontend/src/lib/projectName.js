@@ -114,12 +114,14 @@ export function cleanAngleSlug(angle, fallbackIndex = 0) {
 
 /**
  * Builds a collision-free project name according to the standard:
- * [short_product]_[angle]_[1, 2, 3...]
+ * [short_product]_[angle]_[1, 2, 3...], or [product_code]-[angle]_[1, 2, 3...]
+ * when a product_code is available (short, scannable across many open projects).
  * @param {object} params
  * @param {string} params.productName
  * @param {object|string} [params.angle]
  * @param {number} [params.angleIndex=0]
  * @param {Array<string|object>} [params.existingProjects=[]]
+ * @param {string} [params.productCode='']
  * @returns {string}
  */
 export function buildProjectName({
@@ -127,15 +129,25 @@ export function buildProjectName({
   angle = null,
   angleIndex = 0,
   existingProjects = [],
+  productCode = '',
 }) {
-  const shortProduct = extractShortProductName(productName);
   const angleSlug = cleanAngleSlug(angle, angleIndex);
-  const base = `${shortProduct}_${angleSlug}`;
+  const codePart = (productCode || '').trim().toUpperCase();
+  const base = codePart ? `${codePart}-${angleSlug}` : `${extractShortProductName(productName)}_${angleSlug}`;
 
+  // Case-sensitive, matching the on-disk project folder project_manifest.py
+  // actually creates (PROJECTS_DIR / project_name, no case-folding). A
+  // case-insensitive check here could either wrongly flag two distinct
+  // folders as a collision, or (on a case-sensitive deployment filesystem,
+  // e.g. Linux) miss that "Name_1" and "name_1" really are two different
+  // folders that coexist on disk -- inconsistent behavior depending on which
+  // OS the check runs against vs. where files actually land. This generator
+  // always emits a consistent casing itself, so case-sensitivity here only
+  // matters against pre-existing/legacy or hand-renamed entries.
   const existingSet = new Set(
     (existingProjects || []).map((p) => {
-      if (typeof p === 'string') return p.toLowerCase();
-      if (p && p.project_name) return p.project_name.toLowerCase();
+      if (typeof p === 'string') return p;
+      if (p && p.project_name) return p.project_name;
       return '';
     })
   );
@@ -144,7 +156,7 @@ export function buildProjectName({
   let version = 1;
   while (version < 100) {
     const candidate = `${base}_${version}`;
-    if (!existingSet.has(candidate.toLowerCase())) {
+    if (!existingSet.has(candidate)) {
       return candidate;
     }
     version++;

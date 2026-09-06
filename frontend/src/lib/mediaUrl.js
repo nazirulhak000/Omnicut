@@ -11,6 +11,14 @@ export function toMediaUrl(rawPath) {
 /**
  * Compares two video references (can be objects, paths, relative paths, or filenames)
  * to determine if they point to the same video file, regardless of Windows/POSIX slashes.
+ *
+ * Matches on the full normalized path only. Two same-named files living in
+ * different folders (e.g. two products' raw footage both containing a
+ * "video.mp4") are NOT the same video, so there is no bare-basename
+ * fallback here -- that used to silently attach the wrong raw footage to a
+ * render. The only case treated as equal without a full path is when BOTH
+ * sides are already bare filenames (no directory separator at all), since
+ * then there is no path information to lose by comparing names.
  */
 export function isSameVideo(v1, v2) {
   if (!v1 || !v2) return false;
@@ -25,11 +33,15 @@ export function isSameVideo(v1, v2) {
   const norm2 = p2.replace(/\\/g, '/').toLowerCase().trim();
   if (norm1 === norm2) return true;
 
-  const name1 = norm1.split('/').pop();
-  const name2 = norm2.split('/').pop();
-  if (name1 && name2 && name1 === name2) return true;
+  const isBareName1 = !norm1.includes('/');
+  const isBareName2 = !norm2.includes('/');
 
-  if (norm1.endsWith('/' + name2) || norm2.endsWith('/' + name1)) return true;
+  // Legacy last-resort: only when NEITHER side carries any folder
+  // information at all, so a bare-name comparison cannot lose anything a
+  // full-path comparison would have caught.
+  if (isBareName1 && isBareName2) {
+    return norm1 === norm2;
+  }
 
   return false;
 }

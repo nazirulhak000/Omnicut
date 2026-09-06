@@ -67,6 +67,13 @@ class RenderRequest(BaseModel):
 
 class DeleteFileRequest(BaseModel):
     file_path: str
+    # Optional scoping for the angle-status rollback this delete triggers --
+    # when the caller already knows which product/angle this file belongs to
+    # (e.g. ExportGallery has both on the export item), passing them prevents
+    # rollback_by_video_or_project() from having to guess by filename stem
+    # alone, which risks touching an unrelated angle that shares the same stem.
+    product_id: Optional[str] = None
+    angle_id: Optional[str] = None
 
 
 class AddPostRequest(BaseModel):

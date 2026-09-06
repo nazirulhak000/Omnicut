@@ -8,6 +8,7 @@ Storage is a plain JSON file so it stays readable and hand-editable.
 """
 
 import json
+import re
 import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -72,6 +73,7 @@ class ProductStore:
         angles: Optional[List[Dict[str, Any]]] = None,
         images: Optional[List[Dict[str, Any]]] = None,
         tiktok_product_id: Optional[str] = None,
+        product_code: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Add a product, or return the existing one when the URL is already queued."""
         if not name.strip():
@@ -89,6 +91,12 @@ class ProductStore:
                         existing["images"] = images
                     if tiktok_product_id and tiktok_product_id.strip():
                         existing["tiktok_product_id"] = tiktok_product_id.strip()
+                    if not existing.get("product_code"):
+                        existing["product_code"] = (
+                            product_code.strip().upper()
+                            if (product_code and product_code.strip())
+                            else cls._generate_product_code(existing.get("name", ""), products)
+                        )
                     existing["updated_at"] = cls._now()
                     cls._save(products)
                     return existing
@@ -107,6 +115,7 @@ class ProductStore:
             "target_buyer": target_buyer,
             "thumbnail": thumbnail,
             "tiktok_product_id": tiktok_product_id.strip() if (tiktok_product_id and tiktok_product_id.strip()) else None,
+            "product_code": (product_code.strip().upper() if (product_code and product_code.strip()) else cls._generate_product_code(name, products)),
             "status": "scripted" if angles else "candidate",
             "angles": angles or [],
             "images": images or [],
@@ -131,6 +140,12 @@ class ProductStore:
                 status = fields.get("status")
                 if status and status not in STATUSES:
                     raise ValueError(f"status '{status}' ไม่ถูกต้อง — ต้องเป็นหนึ่งใน {', '.join(STATUSES)}")
+
+                # Uppercase product_code the same way add() does, so a
+                # code's casing does not drift depending on whether it was
+                # set at creation or edited later via PATCH.
+                if "product_code" in fields and fields["product_code"]:
+                    fields["product_code"] = fields["product_code"].strip().upper()
 
                 product.update(fields)
                 product["updated_at"] = cls._now()
@@ -203,13 +218,28 @@ class ProductStore:
         raise ValueError(f"ไม่พบสินค้า id '{product_id}' หรือ angle '{angle_id}'")
 
     @classmethod
-    def rollback_by_video_or_project(cls, identifier: str) -> List[str]:
+    def rollback_by_video_or_project(
+        cls,
+        identifier: str,
+        product_id: str = "",
+        angle_id: str = "",
+    ) -> List[str]:
         """
-        Finds any angle matching the given video filename or project_name,
+        Finds the angle matching the given video filename or project_name,
         and rolls its status back.
         If only the video MP4 was removed but the timeline project still exists on disk,
         the angle transitions to 'in_production' (keeping project_name).
         If the project itself was deleted or does not exist, it rolls back to 'scripted'.
+
+        `product_id`/`angle_id` scope the match to the specific angle the
+        caller is actually rolling back. When given, only that exact angle is
+        ever touched -- filename stems are not unique across products/angles
+        (two angles can render to files that stem-match), so matching by
+        filename alone risks rolling back an unrelated angle that happens to
+        share the same stem. When omitted (legacy callers that only know the
+        filename), at most ONE angle is still touched: the first match, and a
+        warning is logged if more than one candidate exists, since silently
+        mutating every stem-alike angle is exactly the bug this guards against.
         """
         if not identifier:
             return []
@@ -218,8 +248,49 @@ class ProductStore:
         raw_id_low = identifier.lower().strip()
         projects_dir = BASE_DIR / "03_Projects"
         rolled_back = []
-        changed = False
 
+        def _roll(product, angle):
+            cur_p_name = angle.get("project_name")
+            has_proj = False
+            if cur_p_name:
+                # If the identifier being deleted IS the project itself, project will not exist
+                if cur_p_name.lower() != raw_id_low and cur_p_name.lower() != target_token:
+                    proj_dir = projects_dir / cur_p_name
+                    if proj_dir.exists() and proj_dir.is_dir():
+                        has_proj = True
+
+            if has_proj:
+                angle["status"] = "in_production"
+                angle["video_url"] = None
+            else:
+                angle["status"] = "scripted"
+                angle["video_url"] = None
+                angle["project_name"] = None
+
+            angle["updated_at"] = cls._now()
+            product["updated_at"] = cls._now()
+            rolled_back.append(angle.get("angle_id", ""))
+
+        # Scoped path: caller knows exactly which angle it means. No stem
+        # matching at all -- the identifier is only used to decide
+        # in_production vs scripted above, not to locate the angle.
+        if product_id and angle_id:
+            for product in products:
+                if product.get("id") != product_id:
+                    continue
+                for angle in product.get("angles", []):
+                    current_aid = angle.get("angle_id") or angle.get("id")
+                    if current_aid == angle_id:
+                        _roll(product, angle)
+                        cls._save(products)
+                        return rolled_back
+            return rolled_back
+
+        # Legacy path: only the filename/project_name is known. Stop after
+        # the first match -- and warn if more exist -- rather than silently
+        # cascading the rollback onto every angle that happens to share the
+        # same filename stem.
+        matches = []
         for product in products:
             for angle in product.get("angles", []):
                 v_url = (angle.get("video_url") or "").lower()
@@ -232,36 +303,29 @@ class ProductStore:
                     (v_name and (v_name == raw_id_low or v_name == Path(identifier).name.lower())) or
                     (v_stem and v_stem == target_token)
                 )
-                # Round BUG-3: used to skip mobile_ready/posted angles entirely --
-                # deleting the file behind an already-posted clip left its card
-                # showing as if the video still existed. A user-triggered delete
-                # (unlike reconcile's passive best-effort scan) should always
-                # cascade, regardless of how far the angle's status advanced.
                 if is_match:
-                    cur_p_name = angle.get("project_name")
-                    has_proj = False
-                    if cur_p_name:
-                        # If the identifier being deleted IS the project itself, project will not exist
-                        if cur_p_name.lower() != raw_id_low and cur_p_name.lower() != target_token:
-                            proj_dir = projects_dir / cur_p_name
-                            if proj_dir.exists() and proj_dir.is_dir():
-                                has_proj = True
+                    matches.append((product, angle))
 
-                    if has_proj:
-                        angle["status"] = "in_production"
-                        angle["video_url"] = None
-                    else:
-                        angle["status"] = "scripted"
-                        angle["video_url"] = None
-                        angle["project_name"] = None
+        if not matches:
+            return rolled_back
 
-                    angle["updated_at"] = cls._now()
-                    product["updated_at"] = cls._now()
-                    rolled_back.append(angle.get("angle_id", ""))
-                    changed = True
+        if len(matches) > 1:
+            print(
+                f"[ProductStore.rollback_by_video_or_project] WARNING: '{identifier}' matched "
+                f"{len(matches)} angles by filename/project stem alone -- rolling back only the "
+                "first (product_id="
+                f"{matches[0][0].get('id')!r}, angle_id={(matches[0][1].get('angle_id') or matches[0][1].get('id'))!r}). "
+                "Pass product_id/angle_id explicitly to avoid this ambiguity."
+            )
 
-        if changed:
-            cls._save(products)
+        # Round BUG-3: used to skip mobile_ready/posted angles entirely --
+        # deleting the file behind an already-posted clip left its card
+        # showing as if the video still existed. A user-triggered delete
+        # (unlike reconcile's passive best-effort scan) should always
+        # cascade, regardless of how far the angle's status advanced.
+        product, angle = matches[0]
+        _roll(product, angle)
+        cls._save(products)
         return rolled_back
 
     @classmethod
@@ -370,12 +434,22 @@ class ProductStore:
         return {"angle_removed": angle_id, "product_removed": None, "angles_left": len(remaining)}
 
     @classmethod
-    def find_by_project(cls, project_name: str, product_name: str = "", hook_title: str = "", product_id: str = "", angle_id: str = ""):
+    def find_by_project(cls, project_name: str, product_id: str = "", angle_id: str = ""):
         """
         Which product/angle a rendered project came from.
 
-        Prefers exact product_id/angle_id or direct angle.project_name matching.
-        Falls back to product.projects list and product name/hook matching.
+        Prefers exact product_id/angle_id (the stable ids the render pipeline
+        stamps into project.json's render_params -- see video_assembly_stage.py)
+        or direct angle.project_name matching. Both are keyed off stable ids,
+        never off display name/hook text: this feeds project/product deletion
+        (DELETE /api/projects/{name}?scope=product), and matching by name text
+        risks cascade-deleting the WRONG product when two share a display name.
+
+        If none of that resolves anything, this refuses to guess rather than
+        falling back to a name-string match -- old projects rendered before
+        product_id/angle_id were recorded simply cannot be traced this way,
+        and it's safer to say "not found" than to silently match on a
+        collision-prone name.
         """
         products = cls._load()
         # 1. Exact product_id and angle_id if provided
@@ -394,31 +468,22 @@ class ProductStore:
                 if angle.get("project_name") == project_name:
                     return product, angle
 
-        # 3. Match in product.projects list
+        # 3. Match in product.projects list (still id-based: project_name is
+        # the same stable folder-name key recorded in product.projects, not
+        # a display-name heuristic)
         for product in products:
             if project_name in (product.get("projects") or []):
                 for angle in product.get("angles") or []:
                     if angle.get("project_name") == project_name:
                         return product, angle
-                angle = cls._match_angle(product, hook_title)
-                return product, angle
+                return product, None
 
-        # 4. Fallback to product name and hook title
-        if not product_name:
-            return None, None
-        for product in products:
-            names = {(product.get("name") or ""), (product.get("title") or "")}
-            names |= {(a.get("product_name") or "") for a in (product.get("angles") or [])}
-            if product_name in names:
-                return product, cls._match_angle(product, hook_title)
+        print(
+            f"[ProductStore.find_by_project] WARNING: no stable-id match for project "
+            f"'{project_name}' (product_id={product_id!r}, angle_id={angle_id!r}) -- "
+            "refusing to fall back to a name-based guess."
+        )
         return None, None
-
-    @staticmethod
-    def _match_angle(product: Dict[str, Any], hook_title: str):
-        for angle in product.get("angles") or []:
-            if hook_title and angle.get("hook_title") == hook_title:
-                return angle
-        return None
 
     @classmethod
     def delete(cls, product_id: str) -> None:
@@ -437,7 +502,6 @@ class ProductStore:
         Scans 03_Projects and 04_Exports to match existing rendered projects
         with their corresponding angles in products.json.
         """
-        import re
         products = cls._load()
         if not products:
             return False
@@ -464,11 +528,6 @@ class ProductStore:
                 p_data = json.loads(manifest_file.read_text(encoding="utf-8"))
             except Exception:
                 continue
-
-            p_hook = p_data.get("script_data", {}).get("hook", "") or ""
-            p_lines = [line.get("text", "") for line in p_data.get("script_data", {}).get("lines", [])]
-            p_clean_hook = re.sub(r"[\s\.\…\u2026]+", "", p_hook)
-            p_clean_lines = [re.sub(r"[\s\.\…\u2026]+", "", l) for l in p_lines if l]
 
             p_rp = p_data.get("render_params", {}) or {}
             p_pid = p_rp.get("product_id") or p_data.get("product_id")
@@ -666,6 +725,31 @@ class ProductStore:
         return counts
 
     # ------------------------------------------------------------------
+    @classmethod
+    def _generate_product_code(cls, name: str, products: Optional[List[Dict[str, Any]]] = None) -> str:
+        """Short scannable code for a product, e.g. 'ESS01' for 'ESSAGER สายชาร์จ...'.
+
+        Prefix is a naive first-3-letters of the name's first Latin word (falls
+        back to 'GEN' for pure-Thai names with no Latin brand token) — this is
+        meant to be corrected by hand once via the edit UI, not to be a perfect
+        brand abbreviation.
+        """
+        match = re.search(r"[A-Za-z]+", name or "")
+        prefix = (match.group(0)[:3] if match else "GEN").upper()
+        if len(prefix) < 3:
+            prefix = (prefix + "XXX")[:3]
+
+        existing = products if products is not None else cls._load()
+        max_n = 0
+        for product in existing:
+            code = (product.get("product_code") or "").upper()
+            m = re.match(rf"^{re.escape(prefix)}(\d+)$", code)
+            if m:
+                max_n = max(max_n, int(m.group(1)))
+        next_n = max_n + 1
+        suffix = f"{next_n:02d}" if next_n < 100 else str(next_n)
+        return f"{prefix}{suffix}"
+
     @staticmethod
     def detect_platform(url: str) -> str:
         lowered = (url or "").lower()

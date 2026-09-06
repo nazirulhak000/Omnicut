@@ -1241,7 +1241,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      await deleteFile(deleteTarget.path);
+      await deleteFile(deleteTarget.path, deleteTarget.product_id, deleteTarget.angle_id);
       showToast(`ลบไฟล์ ${deleteTarget.name} เรียบร้อยแล้ว`);
       setDeleteTarget(null);
       if (selectedDetailVideo?.path === deleteTarget.path) setSelectedDetailVideo(null);
@@ -1262,7 +1262,8 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
     try {
       for (const p of selectedVideos) {
         try {
-          await deleteFile(p);
+          const match = (exportsList || []).find(v => v.path === p || v.rel_path === p);
+          await deleteFile(p, match?.product_id, match?.angle_id);
         } catch (e) {
           console.error(e);
         }
@@ -1277,7 +1278,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
     } finally {
       setDeleting(false);
     }
-  }, [selectedVideos, onRefresh, showToast]);
+  }, [selectedVideos, exportsList, onRefresh, showToast]);
 
   const handleBatchDelete = useCallback(() => {
     if (selectedVideos.length === 0) return;

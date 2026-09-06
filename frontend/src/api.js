@@ -157,7 +157,11 @@ export const uploadMultipleFiles = (formData, onProgress) => api.post('/upload-m
   }
 }).then(r => r.data);
 
-export const deleteFile = (filePath) => api.post('/delete-file', { file_path: filePath }).then(r => r.data);
+export const deleteFile = (filePath, productId = null, angleId = null) => api.post('/delete-file', {
+  file_path: filePath,
+  product_id: productId || null,
+  angle_id: angleId || null,
+}).then(r => r.data);
 
 // --- Phase 1: product -> clip flow ---
 export const aiRun = (task, context) => api.post('/ai/prompt', { task, context }, { timeout: 90000 }).then(r => r.data);
