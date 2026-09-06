@@ -170,45 +170,72 @@ async function waitForCaptionEditor(send) {
 }
 
 // Clears any auto-filled filename that TikTok inserted, then types the clean caption and hashtags.
-async function typeCaption(send, text) {
-  if (!text?.trim()) throw new Error('กรุณากรอกคำอธิบายหรือแฮชแท็ก');
+async function typeCaption(send, captionOrText, hashtags = '') {
+  let caption = captionOrText || '';
+  let tags = hashtags || '';
+  // Support single multiline string if hashtags omitted
+  if (!tags && typeof caption === 'string' && caption.includes('\n\n')) {
+    const idx = caption.indexOf('\n\n');
+    tags = caption.slice(idx + 2);
+    caption = caption.slice(0, idx);
+  }
+
+  const cleanCaption = String(caption || '').trim();
+  const cleanTags = String(tags || '').trim();
+  if (!cleanCaption && !cleanTags) throw new Error('กรุณากรอกคำอธิบายหรือแฮชแท็ก');
+
   const captionQuery = OmniAutomation.page(`
     const editors = Array.from(document.querySelectorAll('[contenteditable="true"]')).filter(el =>
       visible(el) && !el.closest('[role="dialog"], [aria-modal="true"]'));
     return editors.length === 1 ? editors[0] : null;
   `);
+
+  // 1. Focus editor and clear existing text (filename) cleanly using DOM Range
   const focused = await OmniAutomation.evaluate(send, `(() => {
     const el = ${captionQuery};
     if (!el) return false;
     el.focus();
     try {
+      const range = document.createRange();
+      range.selectNodeContents(el);
       const sel = window.getSelection();
-      sel.selectAllChildren(el);
-    } catch (e) {}
-    try {
-      document.execCommand('selectAll', false, null);
+      sel.removeAllRanges();
+      sel.addRange(range);
       document.execCommand('delete', false, null);
     } catch (e) {}
     return document.activeElement === el;
   })()`);
+
   if (!focused) throw new Error('ไม่พบช่องแคปชันที่พร้อมกรอก หรือมีหลายช่อง กรุณาปิดหน้าต่างอื่นบน TikTok');
 
-  // Also send native Ctrl+A + Backspace via CDP to guarantee clearing any pre-filled filename
-  try {
-    await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'a', code: 'KeyA', windowsVirtualKeyCode: 65, modifiers: 2 });
-    await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'a', code: 'KeyA', windowsVirtualKeyCode: 65, modifiers: 2 });
-    await sleep(50);
-    await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 });
-    await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 });
-    await sleep(50);
-  } catch (e) {}
+  await sleep(150);
 
-  // Native browser editing inserts the clean text
-  await send('Input.insertText', {text});
+  // 2. Type clean caption
+  if (cleanCaption) {
+    await send('Input.insertText', { text: cleanCaption });
+    await sleep(200);
+  }
+
+  // 3. If hashtags exist, insert two line breaks and then type hashtags
+  if (cleanTags) {
+    if (cleanCaption) {
+      await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+      await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+      await sleep(100);
+      await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+      await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+      await sleep(100);
+    }
+    await send('Input.insertText', { text: cleanTags });
+    await sleep(200);
+  }
+
+  // 4. Verify that content was accepted
   await OmniAutomation.wait(send, `(() => {
     const el = ${captionQuery};
-    const normalize = value => String(value).replace(/\\s+/g, ' ').trim();
-    return Boolean(el && normalize(el.innerText || el.textContent) === normalize(${JSON.stringify(text)}));
+    const current = (el ? (el.innerText || el.textContent) : '').trim();
+    const probe = ${JSON.stringify(cleanCaption ? cleanCaption.slice(0, 15) : cleanTags.slice(0, 15))};
+    return Boolean(el && current.length > 0 && current.includes(probe));
   })()`, 'TikTok ยังไม่รับแคปชันครบ กรุณาตรวจช่องคำอธิบาย', 5000);
 }
 
@@ -566,7 +593,9 @@ async function attachProductLink(send, productId) {
         };
 
         const allInputs = Array.from(document.querySelectorAll('input'));
-        const search = allInputs.find(isSearchCandidate)
+        // Exact selectors from live TikTok Studio DOM screenshot
+        const search = document.querySelector('input.TUXTextInputCore-input, .product-search-input input, .product-search-bar input, input[placeholder="ค้นหาสินค้า"]')
+          || allInputs.find(isSearchCandidate)
           || document.querySelector('input[placeholder*="ค้นหา"], input[placeholder*="Search"], input[placeholder*="สินค้า"]')
           || document.querySelector('[class*="search"] input, [class*="Search"] input, .TUXInput-input')
           || allInputs.find(i => (i.type === 'text' || !i.type) && i.getBoundingClientRect().width > 100);
@@ -583,12 +612,12 @@ async function attachProductLink(send, productId) {
           search.dispatchEvent(new Event('input', { bubbles: true }));
           search.dispatchEvent(new Event('change', { bubbles: true }));
 
-          const searchContainer = search.closest('[class*="search"], [class*="input"], div') || search.parentElement;
-          if (searchContainer) {
-            const icon = searchContainer.querySelector('svg, button, [role="button"], span, i');
-            if (icon && icon !== search) {
-              try { icon.click(); } catch(e) {}
-            }
+          // Click trailing icon wrapper (.TUXTextInputCore-trailingIconWrapper)
+          const icon = document.querySelector('.TUXTextInputCore-trailingIconWrapper')
+            || (search.parentElement && search.parentElement.querySelector('.TUXTextInputCore-trailingIconWrapper, svg, button'))
+            || (search.closest('[class*="search"], [class*="input"], div') && search.closest('[class*="search"], [class*="input"], div').querySelector('svg, button, [role="button"], span, i'));
+          if (icon && icon !== search) {
+            try { icon.click(); } catch(e) {}
           }
           return { success: true };
         }
@@ -1099,14 +1128,7 @@ async function runTypeCaptionOnly({ caption, hashtags }) {
 
     await waitForCaptionEditor(send);
 
-    const captionParts = [];
-    if (caption && caption.trim()) captionParts.push(caption.trim());
-    if (hashtags && hashtags.trim()) captionParts.push(hashtags.trim());
-    const fullCaption = captionParts.join('\n\n');
-
-    if (fullCaption) {
-      await typeCaption(send, fullCaption);
-    }
+    await typeCaption(send, caption, hashtags);
     return { success: true };
   } finally {
     try {
