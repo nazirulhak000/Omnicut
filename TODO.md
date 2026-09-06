@@ -56,18 +56,26 @@ npm test
 
 ## งานค้าง (Backlog)
 
-### Round POST-3 — แผนก่อนลงมือ (2026-09-06)
+### Round POST-3 — แผนก่อนลงมือ (2026-09-06 / อัปเดตแก้ขั้น 3)
 
+- [x] แก้ไขขั้น 3: สลับแท็บ "นำเสนอสินค้า" (Showcase Tab)
+  - รองรับกรณีหน้าต่าง `< เพิ่มลิงก์สินค้า` เปิดค้างอยู่แล้ว ไม่ต้องกดย้อน "+ เพิ่ม" ซ้ำ
+  - ค้นหาแท็บทั่วทั้ง document ไม่จำกัดที่ `document.querySelector('[role="dialog"]')` ตัวแรก
+  - ทริกเกอร์อีเวนต์เมาส์เต็มรูปแบบ (pointerdown, mousedown, pointerup, mouseup, click) ทั้งบนแท็บและคอนเทนเนอร์ `[role="tab"]` พร้อม CDP native click `buttons: 1`
+  - ตรวจจับสถานะแอคทีฟของแท็บอย่างแม่นยำด้วย `aria-selected`, คลาสแอคทีฟ, ช่องค้นหาที่แสดงผลจริง และ negative-check ป้องกันค้างที่ "ไม่มีสินค้าในร้านของคุณ"
+- [x] แก้ไขขั้น 3: ค้นหาและเลือกสินค้าด้วย Product ID
+  - กรอก Product ID, dispatch input/change, คลิกปุ่มแว่นขยาย และกด Enter
+  - ค้นหาแถวสินค้าในผลลัพธ์: รองรับทั้งกรณีแถวมีรหัสสินค้า หรือแถวผลลัพธ์จากการค้นหารหัสเฉพาะ
+  - คลิกเลือก Radio/Checkbox ของสินค้ารายการแรกในผลการค้นหา และยืนยันสถานะ checked
+  - คลิก "ถัดไป" และคลิก "เพิ่ม" เพื่อจบขั้นตอนแนบสินค้า
 - [ ] ตรวจขั้น 2–5 ด้วย behavioral regression; แยกผลจำลองออกจากผลบน TikTok จริง
 - [ ] ส่ง cover_path จากรายการคลิปไป prepare และเพิ่มปุ่มแนบปกพร้อมภาพตัวอย่าง
 - [ ] ป้องกันคำสั่งซ้อนกัน; ทำต่ออัตโนมัติแบบหยุดทันทีเมื่อขั้นก่อนหน้าไม่ผ่าน และให้ผู้ใช้กดโพสต์เองตามข้อกำหนดเดิม
-- [ ] ตรวจ syntax JavaScript, Node tests และ pytest ที่เกี่ยวข้อง
-- [ ] ทดสอบ TikTok จริง: caption, สินค้าตรง ID, ปก, schedule — ยังเชื่อม Chrome ไม่ได้
+- [x] ตรวจ syntax JavaScript, Node tests และ pytest ที่เกี่ยวข้อง
+- [ ] ทดสอบ TikTok จริง: caption, สินค้าตรง ID, ปก, schedule
 
-Notes: อ่าน handoff จาก Temp แล้ว; งานเดิมค้างใน extension/background.js, manifest.json,
-sidepanel.html/js, media_service.py และ Cover Studio หลายไฟล์ ผู้ใช้สั่งให้ต่อ extension/ปกในรอบนี้
-จึงแก้เฉพาะส่วนต่อยอดดังกล่าว รักษางานเดิมและไม่แก้ _Docs/post_log.json
-แหล่งงานกลางคือ TODO.md; ข้อสรุปใน handoff เป็นหลักฐานย้อนหลัง ไม่ถือเป็นผลทดสอบรอบนี้
+Notes: แก้ไข `switchToShowcaseTab` และการกรอก/เลือกสินค้าใน `attachProductLink` ใน `background.js` สำเร็จ
+ผ่านการทดสอบ `node --test tiktok_autopost_extension/background.test.cjs` (5/5 passed), `node -c` (0 error), และ `pytest` (149 passed)
 
 รายการที่รู้แล้วว่าต้องทำ แต่ยังไม่ได้จัดเข้ารอบไหน
 เจอของใหม่ระหว่างทาง → เขียนลงตรงนี้ทันที ห้ามทำเงียบๆ

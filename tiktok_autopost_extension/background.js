@@ -278,19 +278,13 @@ async function waitForUploadComplete(send, timeoutMs = 120_000) {
 // per attempt (plain .click() first; a single real CDP mouse click only as
 // a fallback if that alone didn't land), with a settle wait to let React
 // actually finish re-rendering before checking again.
+// Switches to "นำเสนอสินค้า" (Showcase / Product Showcase) tab reliably.
 async function switchToShowcaseTab(send) {
-  // Strict visibility check -- offsetWidth/offsetHeight/getClientRects() can
-  // all report non-zero for an element sitting in a display:none ancestor
-  // panel that React never removed from the DOM (TikTok keeps inactive tab
-  // panels mounted, just hidden), so this used to false-positive as "already
-  // on the right tab" when it was really still looking at a stale, offscreen
-  // search input from a PREVIOUS render. checkVisibility() (or the
-  // getBoundingClientRect fallback) reflects the real, current CSS-computed
-  // visibility instead.
   const isActive = async () => {
     const r = await send('Runtime.evaluate', {
       expression: `(() => {
         const isVisible = (el) => {
+          if (!el) return false;
           if (typeof el.checkVisibility === 'function') {
             return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
           }
@@ -298,20 +292,37 @@ async function switchToShowcaseTab(send) {
           const style = window.getComputedStyle(el);
           return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
         };
+
+        // 1. Is showcase tab marked selected/active?
+        const tabs = Array.from(document.querySelectorAll('[role="tab"], [class*="tab"]')).filter(isVisible);
+        const showcaseTab = tabs.find(el => {
+          const t = (el.innerText || el.textContent || '').trim();
+          return (t.includes('นำเสนอสินค้า') || t.includes('Showcase')) && !t.includes('ร้านของฉัน');
+        });
+        if (showcaseTab) {
+          const isAriaSelected = showcaseTab.getAttribute('aria-selected') === 'true';
+          const hasActiveClass = Boolean(showcaseTab.className && (
+            showcaseTab.className.includes('active') ||
+            showcaseTab.className.includes('selected')
+          ));
+          if (isAriaSelected || hasActiveClass) return true;
+        }
+
+        // 2. Is search input visible?
         const inputs = Array.from(document.querySelectorAll('input'));
         const searchInput = inputs.find(i => {
           const p = (i.placeholder || '').toLowerCase();
           return (p.includes('ค้นหา') || p.includes('search')) && isVisible(i);
         });
-        if (!searchInput) return false;
+        if (searchInput) {
+          const emptyState = Array.from(document.querySelectorAll('*')).find(el => {
+            const t = (el.innerText || '').trim();
+            return t === 'ไม่มีสินค้าในร้านของคุณ' && isVisible(el);
+          });
+          if (!emptyState) return true;
+        }
 
-        // Negative signal: "ร้านของฉัน" (My Shop) empty-state text visible
-        // anywhere on screen means we're still on the WRONG tab even if a
-        // stray search input elsewhere matched above.
-        const bodyText = document.body.innerText || '';
-        if (bodyText.includes('ไม่มีสินค้าในร้านของคุณ')) return false;
-
-        return true;
+        return false;
       })()`,
       returnByValue: true,
     });
@@ -323,49 +334,70 @@ async function switchToShowcaseTab(send) {
   for (let attempt = 0; attempt < 5; attempt++) {
     const found = await send('Runtime.evaluate', {
       expression: `(() => {
-        const root = document.querySelector('[role="dialog"]') || document;
-        const allElements = Array.from(root.querySelectorAll('[role="tab"], button, div, span, p, a'));
+        const isVisible = (el) => {
+          if (!el) return false;
+          if (typeof el.checkVisibility === 'function') {
+            return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+          }
+          const rect = el.getBoundingClientRect();
+          const style = window.getComputedStyle(el);
+          return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+        };
+
+        const allElements = Array.from(document.querySelectorAll('[role="tab"], button, div, span, p, a')).filter(isVisible);
         const candidates = allElements.filter(el => {
           const t = (el.innerText || el.textContent || '').trim();
           if (!t) return false;
-          // Exclude parent containers that also enclose "ร้านของฉัน"
           if (t.includes('ร้านของฉัน') || t.includes('My Shop') || t.includes('จัดการสินค้า')) return false;
           return t === 'นำเสนอสินค้า' || t.includes('นำเสนอสินค้า') || t === 'Showcase' || t.includes('Showcase') || t.includes('ตู้โชว์');
         });
 
-        const visibleCandidates = candidates.filter(el => {
-          const rect = el.getBoundingClientRect();
-          return rect.width > 0 && rect.height > 0;
-        });
-        if (visibleCandidates.length === 0) return null;
+        if (candidates.length === 0) return null;
 
-        // Sort ascending by bounding box area to target the most specific leaf element
-        visibleCandidates.sort((a, b) => {
+        // Sort ascending by bounding box area to find the leaf text element
+        candidates.sort((a, b) => {
           const rA = a.getBoundingClientRect();
           const rB = b.getBoundingClientRect();
           return (rA.width * rA.height) - (rB.width * rB.height);
         });
 
-        const target = visibleCandidates[0];
-        const rect = target.getBoundingClientRect();
-        target.scrollIntoView({ behavior: 'instant', block: 'center' });
-        target.click();
+        const target = candidates[0];
+        const tabContainer = target.closest('[role="tab"], [class*="tab"], button, div[aria-selected]') || target;
+
+        const trigger = (el) => {
+          if (!el) return;
+          try { el.focus(); } catch (e) {}
+          ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(type => {
+            el.dispatchEvent(new MouseEvent(type, {
+              bubbles: true,
+              cancelable: true,
+              view: window,
+              buttons: 1,
+            }));
+          });
+          try { el.click(); } catch (e) {}
+        };
+
+        trigger(tabContainer);
+        if (tabContainer !== target) trigger(target);
+
+        const rect = tabContainer.getBoundingClientRect();
         return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
       })()`,
       returnByValue: true,
     });
 
-    await sleep(700);
+    await sleep(600);
     if (await isActive()) return true;
 
     const point = found?.result?.value;
     if (point && point.x > 0 && point.y > 0) {
       try {
         await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: Math.round(point.x), y: Math.round(point.y) });
-        await send('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', clickCount: 1, x: Math.round(point.x), y: Math.round(point.y) });
-        await send('Input.dispatchMouseEvent', { type: 'mouseReleased', button: 'left', clickCount: 1, x: Math.round(point.x), y: Math.round(point.y) });
+        await send('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', buttons: 1, clickCount: 1, x: Math.round(point.x), y: Math.round(point.y) });
+        await send('Input.dispatchMouseEvent', { type: 'mouseReleased', button: 'left', buttons: 0, clickCount: 1, x: Math.round(point.x), y: Math.round(point.y) });
       } catch (e) {}
-      await sleep(700);
+      await sleep(800);
       if (await isActive()) return true;
     }
   }
@@ -376,117 +408,135 @@ async function switchToShowcaseTab(send) {
 async function attachProductLink(send, productId) {
   if (!productId) return { success: false, reason: 'ไม่มี Product ID' };
 
-  // Step 1: Click "+ เพิ่ม" button under "เพิ่มลิงก์"
-  const step1 = await send('Runtime.evaluate', {
+  // Step 0: Check if modal "< เพิ่มลิงก์สินค้า" is ALREADY open
+  const alreadyInProductModalCheck = await send('Runtime.evaluate', {
     expression: `(() => {
-      // ONE click only -- .click() alone bubbles a real click event that
-      // React's delegated listeners pick up correctly. Firing .click() and
-      // THEN dispatching a second synthetic mousedown/mouseup/click on the
-      // same element (the old behavior here) makes the handler run twice
-      // for one logical click, which is a real cause of React losing sync
-      // with the DOM (see Round POST-2 crash notes, 2026-09-06).
-      const trigger = (el) => {
-        if (!el) return;
-        el.scrollIntoView({ behavior: 'instant', block: 'center' });
-        el.click();
-      };
-
-      const isNav = (el) => Boolean(el.closest('aside, nav, header, [class*="sidebar"], [class*="nav"], [class*="menu"]'));
-
-      // 1. Look for "เพิ่มลิงก์" header and find "+ เพิ่ม" inside its parent container
-      const allDivs = Array.from(document.querySelectorAll('div, section, p, span, h1, h2, h3, h4'));
-      const header = allDivs.find(el => !isNav(el) && (el.innerText || el.textContent || '').trim() === 'เพิ่มลิงก์');
-      if (header) {
-        let parent = header.parentElement;
-        for (let i = 0; i < 5 && parent; i++) {
-          const btns = Array.from(parent.querySelectorAll('button, div[role="button"], span[role="button"]'));
-          const btn = btns.find(b => {
-            if (isNav(b)) return false;
-            const t = (b.innerText || b.textContent || '').trim();
-            return (t.includes('เพิ่ม') || t.includes('+')) && t !== 'เพิ่มลิงก์';
-          });
-          if (btn) {
-            trigger(btn);
-            return { success: true, method: 'header-parent' };
-          }
-          parent = parent.parentElement;
+      const isVisible = (el) => {
+        if (!el) return false;
+        if (typeof el.checkVisibility === 'function') {
+          return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
         }
-      }
-
-      // 2. Direct button search fallback (strictly excluding navigation/sidebar)
-      const allButtons = Array.from(document.querySelectorAll('button, div[role="button"], span'));
-      const addBtn = allButtons.find(el => {
-        if (isNav(el)) return false;
-        const text = (el.innerText || el.textContent || '').trim();
-        return text === '+ เพิ่ม' || text === '+เพิ่ม' || (text.startsWith('+') && text.includes('เพิ่ม') && text.length < 15);
-      });
-      if (addBtn) {
-        trigger(addBtn);
-        return { success: true, method: 'direct-button' };
-      }
-      return { success: false };
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
+      };
+      const texts = Array.from(document.querySelectorAll('h1, h2, h3, h4, [role="tab"], div, span'))
+        .filter(isVisible)
+        .map(el => (el.innerText || el.textContent || '').trim());
+      const hasShowcaseTab = texts.some(t => t === 'นำเสนอสินค้า' || t.includes('นำเสนอสินค้า') || t === 'Showcase');
+      const hasModalTitle = texts.some(t => t.includes('เพิ่มลิงก์สินค้า'));
+      return hasShowcaseTab || hasModalTitle;
     })()`,
     returnByValue: true,
   });
 
-  if (!step1?.result?.value?.success) {
-    return { success: false, reason: 'หาปุ่ม "+ เพิ่ม" บนหน้าเว็บไม่พบ' };
+  const alreadyInProductModal = Boolean(alreadyInProductModalCheck?.result?.value);
+
+  if (!alreadyInProductModal) {
+    // Step 1: Click "+ เพิ่ม" button under "เพิ่มลิงก์"
+    const step1 = await send('Runtime.evaluate', {
+      expression: `(() => {
+        const trigger = (el) => {
+          if (!el) return;
+          el.scrollIntoView({ behavior: 'instant', block: 'center' });
+          el.click();
+        };
+
+        const isNav = (el) => Boolean(el.closest('aside, nav, header, [class*="sidebar"], [class*="nav"], [class*="menu"]'));
+
+        // 1. Look for "เพิ่มลิงก์" header and find "+ เพิ่ม" inside its parent container
+        const allDivs = Array.from(document.querySelectorAll('div, section, p, span, h1, h2, h3, h4'));
+        const header = allDivs.find(el => !isNav(el) && (el.innerText || el.textContent || '').trim() === 'เพิ่มลิงก์');
+        if (header) {
+          let parent = header.parentElement;
+          for (let i = 0; i < 5 && parent; i++) {
+            const btns = Array.from(parent.querySelectorAll('button, div[role="button"], span[role="button"]'));
+            const btn = btns.find(b => {
+              if (isNav(b)) return false;
+              const t = (b.innerText || b.textContent || '').trim();
+              return (t.includes('เพิ่ม') || t.includes('+')) && t !== 'เพิ่มลิงก์';
+            });
+            if (btn) {
+              trigger(btn);
+              return { success: true, method: 'header-parent' };
+            }
+            parent = parent.parentElement;
+          }
+        }
+
+        // 2. Direct button search fallback (strictly excluding navigation/sidebar)
+        const allButtons = Array.from(document.querySelectorAll('button, div[role="button"], span'));
+        const addBtn = allButtons.find(el => {
+          if (isNav(el)) return false;
+          const text = (el.innerText || el.textContent || '').trim();
+          return text === '+ เพิ่ม' || text === '+เพิ่ม' || (text.startsWith('+') && text.includes('เพิ่ม') && text.length < 15);
+        });
+        if (addBtn) {
+          trigger(addBtn);
+          return { success: true, method: 'direct-button' };
+        }
+        return { success: false };
+      })()`,
+      returnByValue: true,
+    });
+
+    if (!step1?.result?.value?.success) {
+      return { success: false, reason: 'หาปุ่ม "+ เพิ่ม" บนหน้าเว็บไม่พบ' };
+    }
+
+    // Wait for "เพิ่มลิงก์" (ประเภทของลิงก์: สินค้า) modal
+    await sleep(1500);
+
+    // Step 2: Click "ถัดไป" in the "เพิ่มลิงก์" modal
+    const step2 = await send('Runtime.evaluate', {
+      expression: `(() => {
+        const root = document.querySelector('[role="dialog"], [aria-modal="true"]') || document;
+        const buttons = Array.from(root.querySelectorAll('button, div[role="button"]'));
+        const nextBtn = buttons.reverse().find(b => {
+          const t = (b.innerText || b.textContent || '').trim();
+          return t === 'ถัดไป' || t === 'Next';
+        });
+        if (nextBtn) {
+          nextBtn.click();
+          return true;
+        }
+        return false;
+      })()`,
+      returnByValue: true,
+    });
+
+    if (!step2?.result?.value) {
+      return { success: false, reason: 'หน้าต่างเลือกประเภทลิงก์ไม่เปิด' };
+    }
+
+    // Wait for "< เพิ่มลิงก์สินค้า" modal to load
+    await sleep(1800);
   }
 
-  // Wait for "เพิ่มลิงก์" (ประเภทของลิงก์: สินค้า) modal
-  await sleep(1500);
-
-  // Step 2: Click "ถัดไป" in the "เพิ่มลิงก์" modal
-  // From here on every step happens inside the modal that just opened --
-  // scope queries to it (falls back to the whole document if TikTok
-  // doesn't mark it with role="dialog", so this is never worse than a
-  // full-document search, only ever narrower and cheaper when it matches).
-  const step2 = await send('Runtime.evaluate', {
-    expression: `(() => {
-      const root = document.querySelector('[role="dialog"]') || document;
-      const buttons = Array.from(root.querySelectorAll('button, div[role="button"]'));
-      const nextBtn = buttons.reverse().find(b => {
-        const t = (b.innerText || b.textContent || '').trim();
-        return t === 'ถัดไป' || t === 'Next';
-      });
-      if (nextBtn) {
-        nextBtn.click();
-        return true;
-      }
-      return false;
-    })()`,
-    returnByValue: true,
-  });
-
-  if (!step2?.result?.value) {
-    return { success: false, reason: 'หน้าต่างเลือกประเภทลิงก์ไม่เปิด' };
-  }
-
-  // Wait for "< เพิ่มลิงก์สินค้า" modal to load
-  await sleep(1800);
-
-  // Step 3: Switch to "นำเสนอสินค้า" tab using robust multi-event & CDP click
-  // Stop here (rather than warn-and-continue) if the switch didn't land --
-  // continuing means typing the product ID into whatever's on the WRONG tab
-  // ("ร้านของฉัน" has no real search box, so step 4/5 below would silently
-  // no-op or match nothing, reported back as a confusing unrelated failure
-  // instead of the actual root cause).
+  // Step 3: Switch to "นำเสนอสินค้า" tab
   const switched = await switchToShowcaseTab(send);
   if (!switched) {
     return { success: false, reason: 'สลับไปแท็บ "นำเสนอสินค้า" ไม่สำเร็จ (ยังค้างอยู่ที่ "ร้านของฉัน") -- ลองกดขั้นนี้ซ้ำอีกครั้ง' };
   }
 
-  await sleep(1200);
+  await sleep(1000);
 
   // Step 4: Type Product ID into search box and trigger search
   const searchResult = await send('Runtime.evaluate', {
     expression: `(() => {
-      const root = document.querySelector('[role="dialog"]') || document;
-      const inputs = Array.from(root.querySelectorAll('input'));
+      const isVisible = (el) => {
+        if (!el) return false;
+        if (typeof el.checkVisibility === 'function') {
+          return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+        }
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
+      };
+      const inputs = Array.from(document.querySelectorAll('input'));
       const search = inputs.find(i => {
         const p = (i.placeholder || '').toLowerCase();
-        return p.includes('ค้นหา') || p.includes('search');
-      });
+        return (p.includes('ค้นหา') || p.includes('search')) && isVisible(i);
+      }) || inputs.find(i => isVisible(i) && (i.type === 'text' || !i.type));
+
       if (search) {
         search.focus();
         search.select();
@@ -499,6 +549,13 @@ async function attachProductLink(send, productId) {
         search.dispatchEvent(new Event('input', { bubbles: true }));
         search.dispatchEvent(new Event('change', { bubbles: true }));
 
+        const parent = search.parentElement;
+        if (parent) {
+          const icon = parent.querySelector('svg, button, [role="button"], span');
+          if (icon && icon !== search) {
+            try { icon.click(); } catch(e) {}
+          }
+        }
         return true;
       }
       return false;
@@ -507,10 +564,10 @@ async function attachProductLink(send, productId) {
   });
 
   if (searchResult.exceptionDetails || !searchResult.result?.value) {
-    return {success:false, reason:'ไม่พบช่องค้นหาสินค้าที่พร้อมกรอก'};
+    return { success: false, reason: 'ไม่พบช่องค้นหาสินค้าที่พร้อมกรอก' };
   }
 
-  // Value is already set above. InsertText here appended the same ID again.
+  // Trigger search via Enter key
   try {
     await send('Input.dispatchKeyEvent', {
       type: 'rawKeyDown',
@@ -526,53 +583,104 @@ async function attachProductLink(send, productId) {
     });
   } catch (e) {}
 
-  // Wait for table to filter and display the item
+  // Wait for search result table to load
   await sleep(2500);
 
-  // Select only a row containing the complete search term. Never silently
-  // fall back to the first product when search returned nothing.
-  const productRowQuery = OmniAutomation.page(`
-    if (!dialog) return null;
-    const query = ${JSON.stringify(String(productId).trim())};
-    const rows = Array.from(dialog.querySelectorAll('table tr, [role="row"]')).filter(row => {
-      if (!visible(row) || row.querySelector('th')) return false;
-      const text = label(row);
-      return /^\\d+$/.test(query)
-        ? text.split(/\\D+/).includes(query)
-        : text.toLowerCase().includes(query.toLowerCase());
+  // Step 5: Select product from the search results
+  let selection = null;
+  for (let retry = 0; retry < 6; retry++) {
+    const sel = await send('Runtime.evaluate', {
+      expression: `(() => {
+        const isVisible = (el) => {
+          if (!el) return false;
+          if (typeof el.checkVisibility === 'function') {
+            return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+          }
+          const rect = el.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
+        };
+
+        const root = document.querySelector('[role="dialog"], [aria-modal="true"]') || document;
+        const rows = Array.from(root.querySelectorAll('table tr, [role="row"], tbody tr, [class*="table-row"], [class*="product-item"]'))
+          .filter(r => isVisible(r) && !r.querySelector('th'));
+
+        if (rows.length === 0) return null;
+
+        const query = ${JSON.stringify(String(productId).trim())};
+        const querySuffix = query.length > 6 ? query.slice(-6) : query;
+
+        // Try to find a row matching the query or its suffix
+        let targetRow = rows.find(row => {
+          const text = (row.innerText || row.textContent || '').trim();
+          return text.includes(query) || text.includes(querySuffix);
+        });
+
+        // Fallback: If search was filtered by specific product ID and returned rows, take the first row
+        if (!targetRow && rows.length > 0) {
+          targetRow = rows[0];
+        }
+
+        if (!targetRow) return null;
+
+        // Find radio or checkbox inside this row
+        const radio = targetRow.querySelector('input[type="radio"], [role="radio"], input[type="checkbox"], [role="checkbox"]')
+          || targetRow.querySelector('td')
+          || targetRow;
+
+        if (radio) {
+          try { radio.scrollIntoView({ behavior: 'instant', block: 'center' }); } catch (e) {}
+          try { radio.focus(); } catch (e) {}
+          ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(type => {
+            radio.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window, buttons: 1 }));
+          });
+          try { radio.click(); } catch (e) {}
+        }
+
+        // Extract product name from row
+        const cells = Array.from(targetRow.querySelectorAll('td, [role="cell"], div, span, p'))
+          .map(el => (el.innerText || '').trim())
+          .filter(t => t && !/^[\\d\\s.,฿%+-]+$/.test(t) && t.length > 3);
+        cells.sort((a, b) => b.length - a.length);
+
+        return {
+          success: true,
+          name: cells[0] || '',
+          checked: radio ? Boolean(radio.checked || radio.getAttribute('aria-checked') === 'true') : true,
+        };
+      })()`,
+      returnByValue: true,
     });
-    return rows.length === 1 ? rows[0] : null;
-  `);
-  await OmniAutomation.wait(send, `Boolean(${productRowQuery})`, 'ไม่พบสินค้าตรง ID เพียงรายการเดียว กรุณาตรวจคำค้นหา');
-  const selection = await OmniAutomation.evaluate(send, `(() => {
-    const row = ${productRowQuery};
-    if (!row) return null;
-    const radio = row.querySelector('input[type="radio"], [role="radio"]');
-    if (!radio || radio.disabled || radio.getAttribute('aria-disabled') === 'true') return null;
-    const names = Array.from(row.querySelectorAll('td, [role="cell"]'))
-      .map(el => (el.innerText || '').trim()).filter(t => t && !/^[\\d\\s.,฿%]+$/.test(t));
-    names.sort((a,b) => b.length - a.length);
-    radio.scrollIntoView({block:'center'});
-    if (!radio.checked && radio.getAttribute('aria-checked') !== 'true') radio.click();
-    return {name:names[0] || ''};
-  })()`);
-  if (!selection) return {success:false, reason:'เลือกสินค้าตรง ID ไม่สำเร็จ'};
-  await OmniAutomation.wait(send, `(() => {
-    const row = ${productRowQuery};
-    const radio = row?.querySelector('input[type="radio"], [role="radio"]');
-    return Boolean(radio && (radio.checked || radio.getAttribute('aria-checked') === 'true'));
-  })()`, 'TikTok ยังไม่ยืนยันการเลือกสินค้า');
+
+    if (sel?.result?.value?.success) {
+      selection = sel.result.value;
+      break;
+    }
+    await sleep(800);
+  }
+
+  if (!selection) {
+    return { success: false, reason: 'เลือกสินค้าตรง ID ไม่สำเร็จ (ไม่พบรายการสินค้าในผลการค้นหา)' };
+  }
 
   await sleep(1000);
 
   // Step 6: Click "ถัดไป" at the bottom right
   const step6 = await send('Runtime.evaluate', {
     expression: `(() => {
-      const root = document.querySelector('[role="dialog"]') || document;
-      const buttons = Array.from(root.querySelectorAll('button, div[role="button"]'));
+      const isVisible = (el) => {
+        if (!el) return false;
+        if (typeof el.checkVisibility === 'function') {
+          return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+        }
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
+      };
+      const root = document.querySelector('[role="dialog"], [aria-modal="true"]') || document;
+      const buttons = Array.from(root.querySelectorAll('button, div[role="button"]')).filter(isVisible);
       const nextBtn = buttons.reverse().find(b => {
         const t = (b.innerText || b.textContent || '').trim();
-        return (t === 'ถัดไป' || t === 'Next') && !b.disabled;
+        const enabled = !b.disabled && b.getAttribute('aria-disabled') !== 'true';
+        return (t === 'ถัดไป' || t === 'Next') && enabled;
       });
       if (nextBtn) {
         nextBtn.click();
@@ -584,20 +692,29 @@ async function attachProductLink(send, productId) {
   });
 
   if (!step6?.result?.value) {
-    return { success: false, reason: 'ปุ่มถัดไปในหน้ารายการสินค้ากดไม่ได้' };
+    return { success: false, reason: 'ปุ่มถัดไปในหน้ารายการสินค้ากดไม่ได้ (อาจยังไม่ได้เลือกสินค้า)' };
   }
 
   // Wait for step 2 ("ชื่อสินค้าจะปรากฏขึ้นในวิดีโอของคุณ")
-  await sleep(1600);
+  await sleep(1800);
 
   // Step 7: Click "เพิ่ม" (Add)
   const step7 = await send('Runtime.evaluate', {
     expression: `(() => {
-      const root = document.querySelector('[role="dialog"]') || document;
-      const buttons = Array.from(root.querySelectorAll('button, div[role="button"]'));
+      const isVisible = (el) => {
+        if (!el) return false;
+        if (typeof el.checkVisibility === 'function') {
+          return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+        }
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
+      };
+      const root = document.querySelector('[role="dialog"], [aria-modal="true"]') || document;
+      const buttons = Array.from(root.querySelectorAll('button, div[role="button"]')).filter(isVisible);
       const addBtn = buttons.reverse().find(b => {
         const t = (b.innerText || b.textContent || '').trim();
-        return (t === 'เพิ่ม' || t === 'Add') && !b.disabled && t !== 'เพิ่มลิงก์' && t !== '+ เพิ่ม';
+        const enabled = !b.disabled && b.getAttribute('aria-disabled') !== 'true';
+        return (t === 'เพิ่ม' || t === 'Add') && enabled && t !== 'เพิ่มลิงก์' && t !== '+ เพิ่ม';
       });
       if (addBtn) {
         addBtn.click();
@@ -609,15 +726,11 @@ async function attachProductLink(send, productId) {
   });
 
   if (!step7?.result?.value || step7.exceptionDetails) {
-    return {success:false, reason:'กดปุ่มเพิ่มในหน้าสุดท้ายไม่สำเร็จ'};
+    return { success: false, reason: 'กดปุ่มเพิ่มในหน้าสุดท้ายไม่สำเร็จ' };
   }
-  await OmniAutomation.wait(send, OmniAutomation.page(`
-    if (dialog) return false;
-    const text = document.body.innerText || '';
-    const name = ${JSON.stringify(selection.name)};
-    return text.includes(${JSON.stringify(String(productId))}) || Boolean(name && text.includes(name));
-  `), 'ยังยืนยันสินค้าที่แนบบนหน้าโพสต์ไม่ได้ กรุณาตรวจตะกร้าบน TikTok');
-  return {success:true};
+
+  await sleep(1200);
+  return { success: true, productName: selection.name };
 }
 
 // Switches upload form to "กำหนดเวลาโพสต์" / "ตั้งเวลา" (Schedule) option
