@@ -35,6 +35,21 @@ MIN_FRAMES = 2
 MAX_FRAMES = 40         # a 40-tile strip is already ~6400px wide
 
 
+def _is_contained(path: Path, root: Path) -> bool:
+    """
+    True if `path` is `root` or lives underneath it. Uses `Path.relative_to`
+    rather than a `str.startswith()` prefix check -- a prefix check treats
+    `D:\\...\\Capcut_evil\\` as "under" `D:\\...\\Capcut` because the string
+    happens to start with the same characters, which is not real path
+    containment. Both `path` and `root` are expected to already be resolved.
+    """
+    try:
+        path.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
 def _resolve_media(raw_path: str) -> Path:
     """Same absolute-or-BASE_DIR-relative rule (and guard) as stream_media()."""
     target = Path(urllib.parse.unquote(raw_path))
@@ -42,7 +57,7 @@ def _resolve_media(raw_path: str) -> Path:
         target = BASE_DIR / target
     target = target.resolve()
 
-    if not (str(target).startswith(str(BASE_DIR)) or str(target).startswith(str(CAPCUT_DRAFT_DIR))):
+    if not (_is_contained(target, BASE_DIR.resolve()) or _is_contained(target, CAPCUT_DRAFT_DIR.resolve())):
         raise HTTPException(status_code=403, detail="Access denied")
     if not target.exists():
         raise HTTPException(status_code=404, detail=f"ไม่พบไฟล์: {target.name}")

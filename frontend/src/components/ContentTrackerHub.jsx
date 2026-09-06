@@ -855,6 +855,14 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
   const mobileBaseUrl = status?.mobile_url || (typeof window !== 'undefined' ? `http://${window.location.hostname}:5173` : '');
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
+  // Round P1.5: request-sequence guard so an older, slower fetchProductsData()
+  // response can't resolve after a newer one and overwrite fresher state
+  // (angle statuses, video urls, a just-saved cover_url reverting on screen).
+  // Same pattern as hooks/useProjectLoader.js's requestSequence ref.
+  const productsRequestSequence = useRef(0);
+  useEffect(() => () => {
+    productsRequestSequence.current += 1;
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 250);
   const [selectedProductFilter, setSelectedProductFilter] = useState('all');
@@ -931,10 +939,34 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
   }, [pickedScriptIds]);
 
   // Today Date string for filtering posted clips (Local time 'YYYY-MM-DD')
-  const todayDateStr = useMemo(() => {
+  // Round P1.5 (7d): recomputed on visibility/focus + a low-frequency interval
+  // (not a one-shot useMemo) so a tab left open across midnight -- likely for
+  // an overnight content-scheduling tool -- doesn't keep filtering "posted
+  // today" against yesterday's date until the user manually reloads.
+  const computeTodayDateStr = () => {
     const d = new Date();
     const pad = (n) => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+  const [todayDateStr, setTodayDateStr] = useState(computeTodayDateStr);
+
+  useEffect(() => {
+    const refreshTodayDateStr = () => {
+      setTodayDateStr((prev) => {
+        const next = computeTodayDateStr();
+        return next === prev ? prev : next;
+      });
+    };
+    document.addEventListener('visibilitychange', refreshTodayDateStr);
+    window.addEventListener('focus', refreshTodayDateStr);
+    // Fallback for tabs that stay foregrounded/visible across midnight without
+    // ever blurring or hiding.
+    const intervalId = setInterval(refreshTodayDateStr, 60 * 1000);
+    return () => {
+      document.removeEventListener('visibilitychange', refreshTodayDateStr);
+      window.removeEventListener('focus', refreshTodayDateStr);
+      clearInterval(intervalId);
+    };
   }, []);
 
   const isAnglePostedToday = useCallback((ang) => {
@@ -1049,16 +1081,18 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
   };
 
   const fetchProductsData = useCallback(async () => {
+    const sequence = ++productsRequestSequence.current;
     setLoading(true);
     try {
       const res = await getProducts();
+      if (sequence !== productsRequestSequence.current) return;
       if (res.products) {
         setProducts(res.products);
       }
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      if (sequence === productsRequestSequence.current) setLoading(false);
     }
   }, []);
 
@@ -1096,6 +1130,9 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
   const handleAngleStatusChange = useCallback(async (productId, angleId, nextStatus, videoUrl = null, qcNote = null, clearQcNote = false, clearConflictNote = false) => {
     try {
       await updateAngleStatus(productId, angleId, nextStatus, videoUrl, null, qcNote, clearQcNote, clearConflictNote);
+      // Invalidate any in-flight fetchProductsData (even one started before this
+      // patch) so its response can't resolve afterwards and overwrite this patch.
+      productsRequestSequence.current += 1;
       setProducts(prev => prev.map(p => {
         if (p.id === productId) {
           const updatedAngles = p.angles?.map(a => {
@@ -1153,6 +1190,9 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     try {
       const trimmed = tiktokProductId.trim();
       await updateProduct(productId, { tiktok_product_id: trimmed || null });
+      // Invalidate any in-flight fetchProductsData (even one started before this
+      // patch) so its response can't resolve afterwards and overwrite this patch.
+      productsRequestSequence.current += 1;
       setProducts(prev => prev.map(p => p.id === productId ? { ...p, tiktok_product_id: trimmed || null } : p));
       if (inspectAngle?.parentProduct?.id === productId) {
         setInspectAngle(prev => prev ? { ...prev, parentProduct: { ...prev.parentProduct, tiktok_product_id: trimmed || null } } : null);
@@ -1171,6 +1211,9 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     try {
       const trimmed = code.trim().toUpperCase();
       await updateProduct(productId, { product_code: trimmed || null });
+      // Invalidate any in-flight fetchProductsData (even one started before this
+      // patch) so its response can't resolve afterwards and overwrite this patch.
+      productsRequestSequence.current += 1;
       setProducts(prev => prev.map(p => p.id === productId ? { ...p, product_code: trimmed || null } : p));
       if (inspectAngle?.parentProduct?.id === productId) {
         setInspectAngle(prev => prev ? { ...prev, parentProduct: { ...prev.parentProduct, product_code: trimmed || null } } : null);

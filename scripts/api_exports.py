@@ -18,6 +18,20 @@ from scripts.media_service import get_file_info
 from scripts.api_schemas import LinkAngleRequest
 from scripts.video_editor import VideoEditor
 
+
+def _is_contained(path: Path, root: Path) -> bool:
+    """True when `path` sits inside `root`.
+
+    `str.startswith` would also accept a sibling whose name merely extends
+    the root's (``Capcut_evil`` against ``Capcut``), so compare path
+    components instead.
+    """
+    try:
+        path.relative_to(root)
+    except ValueError:
+        return False
+    return True
+
 router = APIRouter(tags=["Exports"])
 
 # "Ready_to_post" was a permanent lie the moment the first clip got posted --
@@ -40,7 +54,25 @@ def list_exports():
 
     # 1. Build lookup tables
     project_angle_map: Dict[str, tuple] = {}
+    # Check 1 below used to be a nested "for every product: for every angle"
+    # scan per export file (O(files x products x angles)). It is replaced by
+    # two O(1) dict lookups (by video_url stem, by video_url name) built once
+    # here. The old loop broke on the FIRST product/angle (in all_products /
+    # angles iteration order) whose video_url stem OR name matched a given
+    # file -- a plain dict keyed by stem/name would instead let a LATER angle
+    # that happens to share a stem/name silently overwrite an earlier one.
+    # Each entry below is (insertion_seq, product, angle) so the lookup at
+    # match time can pick whichever of the stem/name hits has the smaller
+    # seq, reproducing the original first-match-wins priority exactly.
+    video_stem_map: Dict[str, tuple] = {}
+    video_name_map: Dict[str, tuple] = {}
+    # Check 3's exact-equality case (fstem_low == pid), first-match-wins.
+    product_id_map: Dict[str, dict] = {}
+    _angle_seq = 0
     for p in all_products:
+        pid_key = (p.get("id") or "").lower()
+        if pid_key and pid_key not in product_id_map:
+            product_id_map[pid_key] = p
         for proj_name in p.get("projects", []):
             if proj_name:
                 project_angle_map[proj_name.lower()] = (p, None)
@@ -52,6 +84,14 @@ def list_exports():
             if vid_url:
                 project_angle_map[Path(vid_url).stem.lower()] = (p, a)
                 project_angle_map[Path(vid_url).name.lower()] = (p, a)
+
+                stem_key = Path(vid_url).stem.lower()
+                name_key = Path(vid_url).name.lower()
+                if stem_key not in video_stem_map:
+                    video_stem_map[stem_key] = (_angle_seq, p, a)
+                if name_key not in video_name_map:
+                    video_name_map[name_key] = (_angle_seq, p, a)
+                _angle_seq += 1
 
     # Check 03_Projects/ folders to get script_data if available
     project_disk_info: Dict[str, dict] = {}
@@ -77,18 +117,18 @@ def list_exports():
         matched_angle = None
         matched_proj_name = None
 
-        # 1. Exact angle video_url match
-        for p in all_products:
-            for a in p.get("angles", []):
-                vid_url = a.get("video_url", "")
-                if vid_url:
-                    vid_p = Path(vid_url)
-                    if fname_low == vid_p.name.lower() or fstem_low == vid_p.stem.lower():
-                        matched_prod, matched_angle = p, a
-                        matched_proj_name = a.get("project_name")
-                        break
-            if matched_prod:
-                break
+        # 1. Exact angle video_url match (O(1) via the maps built above,
+        # instead of scanning every product's every angle for every file)
+        name_hit = video_name_map.get(fname_low)
+        stem_hit = video_stem_map.get(fstem_low)
+        if name_hit and stem_hit:
+            winner = name_hit if name_hit[0] <= stem_hit[0] else stem_hit
+        else:
+            winner = name_hit or stem_hit
+        if winner:
+            _, p, a = winner
+            matched_prod, matched_angle = p, a
+            matched_proj_name = a.get("project_name")
 
         # 2. Exact project name match (stripping timestamp suffix like _YYYYMMDD_HHMMSS)
         if not matched_prod:
@@ -112,13 +152,26 @@ def list_exports():
             elif fstem_low in project_disk_info:
                 matched_proj_name = fstem_low
 
-        # 3. Product ID match (exact token match)
+        # 3. Product ID match (exact token match). The exact-equality case
+        # (by far the common one -- pass 1/2 already caught most files, so
+        # this is only reached for files with no angle/project match at
+        # all) is an O(1) dict lookup via product_id_map built once above.
+        # The prefix ("{pid}_...") and infix ("..._{pid}_...") cases can't be
+        # turned into a plain dict lookup (pid is a variable-length,
+        # arbitrary-content token -- there is no fixed key to index on
+        # without risking a different match than the original substring
+        # scan), so they still walk all_products, but ONLY for files that
+        # reach this fallback, not for every file.
         if not matched_prod:
-            for p in all_products:
-                pid = p.get("id", "").lower()
-                if pid and (fstem_low == pid or fstem_low.startswith(f"{pid}_") or f"_{pid}_" in fstem_low):
-                    matched_prod = p
-                    break
+            exact_hit = product_id_map.get(fstem_low)
+            if exact_hit:
+                matched_prod = exact_hit
+            else:
+                for p in all_products:
+                    pid = p.get("id", "").lower()
+                    if pid and (fstem_low.startswith(f"{pid}_") or f"_{pid}_" in fstem_low):
+                        matched_prod = p
+                        break
 
         disk_proj = project_disk_info.get(matched_proj_name.lower()) if matched_proj_name else None
 
@@ -287,7 +340,7 @@ def mark_posted(req: MarkPostedRequest):
         src = BASE_DIR / req.file_path
     src = src.resolve()
 
-    if not str(src).startswith(str(EXPORTS_DIR.resolve())):
+    if not _is_contained(src, EXPORTS_DIR.resolve()):
         raise HTTPException(status_code=403, detail="ไฟล์นี้ไม่ได้อยู่ใน Ready_to_post")
     if not src.exists():
         raise HTTPException(status_code=404, detail=f"ไม่พบไฟล์: {src.name}")
@@ -341,8 +394,8 @@ def get_export_media_info(path: str):
     target = target.resolve()
 
     if not (
-        str(target).startswith(str(EXPORTS_DIR.resolve()))
-        or str(target).startswith(str(POSTED_DIR.resolve()))
+        _is_contained(target, EXPORTS_DIR.resolve())
+        or _is_contained(target, POSTED_DIR.resolve())
     ):
         raise HTTPException(status_code=403, detail="ไฟล์นี้ไม่ได้อยู่ในโฟลเดอร์ export ที่อนุญาต")
     if not target.exists():

@@ -1,9 +1,10 @@
 import os
 import sys
 import json
-import tempfile
 import threading
 from pathlib import Path
+
+import pytest
 from fastapi.testclient import TestClient
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -12,22 +13,49 @@ if str(ROOT) not in sys.path:
 
 from scripts.translator import SubtitleTranslator
 from scripts.token_tracker import TokenTracker
+from scripts import post_log
+from scripts import product_store as ps
 from scripts.post_log import PostLog
 from scripts.api_server import app, get_local_ip
 
-client = TestClient(app)
+
+@pytest.fixture
+def isolated_post_log(tmp_path, monkeypatch):
+    """Redirects PostLog storage into tmp_path -- never the real
+    _Docs/post_log.json. Per .agents/rules/testing_standard.md rule 3."""
+    target = tmp_path / "_Docs" / "post_log.json"
+    monkeypatch.setattr(post_log, "LOG_PATH", target)
+    return target
+
+
+@pytest.fixture
+def isolated_store(tmp_path, monkeypatch):
+    """Redirects ProductStore's STORE_PATH and BASE_DIR (which
+    reconcile_existing_projects/03_Projects/04_Exports scanning are all
+    derived from) into tmp_path -- never the real _Docs/products.json,
+    03_Projects/, or 04_Exports/."""
+    store_path = tmp_path / "_Docs" / "products.json"
+    monkeypatch.setattr(ps, "STORE_PATH", store_path)
+    monkeypatch.setattr(ps, "BASE_DIR", tmp_path)
+    return tmp_path
+
+
+@pytest.fixture
+def client():
+    return TestClient(app)
+
 
 def test_issue_2_translator_universal_and_custom_dict():
     # Universal phrase
     assert SubtitleTranslator._translate_single("ทุกคน") == "Everyone!"
     assert SubtitleTranslator._translate_single("ส่งฟรี") == "Free shipping"
     assert SubtitleTranslator._translate_single("ของมันต้องมี") == "Must-have item"
-    
+
     # Custom dict override
     custom = {"สายชาร์จ": "Fast Charger Cable"}
     res = SubtitleTranslator._translate_single("สายชาร์จ", custom_dict=custom)
     assert res == "Fast Charger Cable"
-    print("✅ Issue 2: Translator universal + custom_dict verified")
+
 
 def test_issue_6_token_tracker_concurrency():
     # Test atomic write and thread-safety
@@ -51,9 +79,9 @@ def test_issue_6_token_tracker_concurrency():
     summary = TokenTracker.get_summary()
     assert summary["totals"]["total_calls"] >= 10
     assert summary["totals"]["total_tokens"] > 0
-    print("✅ Issue 6: TokenTracker thread-safety and atomic save verified")
 
-def test_issue_5_post_log_endpoints():
+
+def test_issue_5_post_log_endpoints(client, isolated_post_log):
     # Test POST /api/posts
     payload = {
         "product_name": "Test Serum Anti-Aging",
@@ -99,12 +127,30 @@ def test_issue_5_post_log_endpoints():
     resp_perf = client.get("/api/posts/performance")
     assert resp_perf.status_code == 200
     assert "by_angle" in resp_perf.json()
-    print("✅ Issue 5: PostLog complete API feedback loop verified")
 
-def test_issue_8_delete_file_single_endpoint_and_webp_cleanup():
-    # Create temp files in 00_Inbox
-    inbox = ROOT / "00_Inbox"
-    inbox.mkdir(exist_ok=True)
+    # The isolated log file must have received the write -- the real
+    # _Docs/post_log.json must never see it.
+    assert isolated_post_log.exists()
+    logged = json.loads(isolated_post_log.read_text(encoding="utf-8"))
+    assert any(p["id"] == post_id for p in logged)
+
+
+def test_issue_8_delete_file_single_endpoint_and_webp_cleanup(client, isolated_store, monkeypatch):
+    # delete_file() lives in scripts.api_videos and computes its allowed
+    # roots from THAT module's own BASE_DIR name (bound at import time via
+    # `from scripts.config import BASE_DIR`), not scripts.config.BASE_DIR --
+    # so the module actually used at call time must be patched directly.
+    # On success it also calls ProductStore.rollback_by_video_or_project(),
+    # which is why isolated_store (redirecting ps.STORE_PATH/ps.BASE_DIR) is
+    # used here too -- otherwise that call would still touch the real
+    # _Docs/products.json even though this test only means to exercise the
+    # file-delete path.
+    import scripts.api_videos as api_videos_mod
+    tmp_path = isolated_store
+    inbox = tmp_path / "00_Inbox"
+    inbox.mkdir()
+    monkeypatch.setattr(api_videos_mod, "BASE_DIR", tmp_path)
+
     test_video = inbox / "test_delete_sample.mp4"
     test_webp = inbox / "test_delete_sample.webp"
     test_srt = inbox / "test_delete_sample-sub.srt"
@@ -122,22 +168,26 @@ def test_issue_8_delete_file_single_endpoint_and_webp_cleanup():
     assert not test_video.exists()
     assert not test_webp.exists()
     assert not test_srt.exists()
-    print("✅ Issue 8: delete_file single route & companion webp cleanup verified")
 
-def test_issue_9_get_local_ip_and_status_refresh():
+
+def test_issue_9_get_local_ip_and_status_refresh(client):
     ip1 = get_local_ip(force=True)
     assert ip1 and len(ip1) >= 7
     resp = client.get("/api/status?refresh_ip=true")
     assert resp.status_code == 200
     data = resp.json()
     assert data["local_ip"] == ip1
-    print("✅ Issue 9: get_local_ip force refresh & status endpoint verified")
 
-def test_issue_1_list_exports_dynamic_matching():
+
+def test_issue_1_list_exports_dynamic_matching(client):
+    # Read-only against whatever exports currently exist on disk -- no
+    # writes, so no isolation is required for this one.
     resp = client.get("/api/exports")
     assert resp.status_code == 200
     data = resp.json()
     assert "exports" in data
+
+
 def test_tts_sanitizer_word_boundaries():
     from scripts.tts_sanitizer import TTSSanitizer
     text = "From Chrome with love, product problem program detail email wait 20,000mAh 65W iPhone 15 Pro with AI chip"
@@ -153,80 +203,52 @@ def test_tts_sanitizer_word_boundaries():
     assert "65 วัตต์" in cleaned
     assert "โปร" in cleaned
     assert "เอไอ" in cleaned
-    print("✅ TTSSanitizer: Word boundaries & Thai unit pronunciation verified")
 
-def test_angle_lifecycle_and_rollback():
-    from scripts.product_store import ProductStore
-    products = ProductStore.get_all()
-    if not products or not products[0].get("angles"):
-        return
-    p_id = products[0]["id"]
+
+def test_angle_lifecycle_and_rollback(isolated_store):
+    tmp_path = isolated_store
+
+    product = ps.ProductStore.add(name="ทดสอบ Lifecycle", url="https://x.test/lifecycle")
+    p_id = product["id"]
     dummy_angle = {
         "angle_id": "test_angle_lifecycle_xyz",
         "angle_name": "Test Lifecycle",
         "hook_title": "Test Hook Lifecycle 999",
         "status": "scripted"
     }
-    all_p = ProductStore._load()
+    all_p = ps.ProductStore._load()
     for prod in all_p:
         if prod["id"] == p_id:
             prod.setdefault("angles", []).append(dummy_angle)
-    ProductStore._save(all_p)
+    ps.ProductStore._save(all_p)
 
     dummy_project = "TikTok_Test_Rollback_99"
-    dummy_proj_dir = ROOT / "03_Projects" / dummy_project
+    dummy_proj_dir = tmp_path / "03_Projects" / dummy_project
     dummy_proj_dir.mkdir(parents=True, exist_ok=True)
     (dummy_proj_dir / "project.json").write_text(json.dumps({"script_data": {"hook": "Test Hook Lifecycle 999"}}), encoding="utf-8")
 
-    try:
-        # 1. Update to in_production
-        ProductStore.update_angle_status(p_id, "test_angle_lifecycle_xyz", "in_production", project_name=dummy_project)
-        p = ProductStore.get(p_id)
-        assert any(a["angle_id"] == "test_angle_lifecycle_xyz" and a["status"] == "in_production" for a in p["angles"])
+    # 1. Update to in_production
+    ps.ProductStore.update_angle_status(p_id, "test_angle_lifecycle_xyz", "in_production", project_name=dummy_project)
+    p = ps.ProductStore.get(p_id)
+    assert any(a["angle_id"] == "test_angle_lifecycle_xyz" and a["status"] == "in_production" for a in p["angles"])
 
-        # 2. Update to rendered with project_name
-        dummy_video = f"04_Exports/Ready_to_post/{dummy_project}.mp4"
-        dummy_video_path = ROOT / dummy_video
-        dummy_video_path.parent.mkdir(parents=True, exist_ok=True)
-        dummy_video_path.write_text("dummy", encoding="utf-8")
+    # 2. Update to rendered with project_name
+    dummy_video = f"04_Exports/Ready_to_post/{dummy_project}.mp4"
+    dummy_video_path = tmp_path / dummy_video
+    dummy_video_path.parent.mkdir(parents=True, exist_ok=True)
+    dummy_video_path.write_text("dummy", encoding="utf-8")
 
-        ProductStore.update_angle_status(p_id, "test_angle_lifecycle_xyz", "rendered", video_url=dummy_video, project_name=dummy_project)
-        p = ProductStore.get(p_id)
-        assert any(a["angle_id"] == "test_angle_lifecycle_xyz" and a["status"] == "rendered" and a["project_name"] == dummy_project for a in p["angles"])
+    ps.ProductStore.update_angle_status(p_id, "test_angle_lifecycle_xyz", "rendered", video_url=dummy_video, project_name=dummy_project)
+    p = ps.ProductStore.get(p_id)
+    assert any(a["angle_id"] == "test_angle_lifecycle_xyz" and a["status"] == "rendered" and a["project_name"] == dummy_project for a in p["angles"])
 
-        # 3. Rollback by project name (after project/video removal)
-        import shutil
-        shutil.rmtree(dummy_proj_dir, ignore_errors=True)
-        if dummy_video_path.exists():
-            dummy_video_path.unlink()
+    # 3. Rollback by project name (after project/video removal)
+    import shutil
+    shutil.rmtree(dummy_proj_dir, ignore_errors=True)
+    if dummy_video_path.exists():
+        dummy_video_path.unlink()
 
-        rolled = ProductStore.rollback_by_video_or_project(dummy_project)
-        assert "test_angle_lifecycle_xyz" in rolled
-        p = ProductStore.get(p_id)
-        assert any(a["angle_id"] == "test_angle_lifecycle_xyz" and a["status"] == "scripted" and a["video_url"] is None for a in p["angles"])
-        print("✅ Angle Lifecycle: in_production -> rendered -> rollback to scripted verified")
-    finally:
-        # Clean up dummy project and dummy video
-        import shutil
-        shutil.rmtree(dummy_proj_dir, ignore_errors=True)
-        dummy_video_path = ROOT / f"04_Exports/Ready_to_post/{dummy_project}.mp4"
-        if dummy_video_path.exists():
-            dummy_video_path.unlink()
-
-        # Clean up dummy angle
-        try:
-            ProductStore.remove_angle(p_id, "test_angle_lifecycle_xyz")
-        except Exception:
-            pass
-        ProductStore.reconcile_existing_projects()
-
-if __name__ == "__main__":
-    test_issue_2_translator_universal_and_custom_dict()
-    test_issue_6_token_tracker_concurrency()
-    test_issue_5_post_log_endpoints()
-    test_issue_8_delete_file_single_endpoint_and_webp_cleanup()
-    test_issue_9_get_local_ip_and_status_refresh()
-    test_issue_1_list_exports_dynamic_matching()
-    test_tts_sanitizer_word_boundaries()
-    test_angle_lifecycle_and_rollback()
-    print("\n🎉 ALL 9 ANALYSIS FIXES + TTS WORD BOUNDARIES + ANGLE LIFECYCLE VERIFIED SUCCESSFULLY!")
+    rolled = ps.ProductStore.rollback_by_video_or_project(dummy_project)
+    assert "test_angle_lifecycle_xyz" in rolled
+    p = ps.ProductStore.get(p_id)
+    assert any(a["angle_id"] == "test_angle_lifecycle_xyz" and a["status"] == "scripted" and a["video_url"] is None for a in p["angles"])

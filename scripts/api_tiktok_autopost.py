@@ -31,12 +31,26 @@ router = APIRouter(prefix="/api/tiktok-autopost", tags=["tiktok-autopost"])
 _pending: Optional[dict] = None
 
 
+def _is_contained(path: Path, root: Path) -> bool:
+    """True when `path` sits inside `root`.
+
+    `str.startswith` would also accept a sibling whose name merely extends
+    the root's (``Capcut_evil`` against ``Capcut``), so compare path
+    components instead.
+    """
+    try:
+        path.relative_to(root)
+    except ValueError:
+        return False
+    return True
+
+
 def _resolve_under(raw_path: str, allowed_roots) -> Path:
     p = Path(raw_path)
     if not p.is_absolute():
         p = BASE_DIR / raw_path
     p = p.resolve()
-    if not any(str(p).startswith(str(root.resolve())) for root in allowed_roots):
+    if not any(_is_contained(p, root.resolve()) for root in allowed_roots):
         raise HTTPException(status_code=403, detail=f"ไฟล์นี้ไม่ได้อยู่ในโฟลเดอร์ที่อนุญาต: {raw_path}")
     if not p.exists():
         raise HTTPException(status_code=404, detail=f"ไม่พบไฟล์: {raw_path}")

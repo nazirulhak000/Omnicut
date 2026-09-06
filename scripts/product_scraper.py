@@ -1,6 +1,8 @@
 import re
 import json
 import os
+import socket
+import ipaddress
 import urllib.request
 import urllib.parse
 from typing import Dict, Any, List, Optional
@@ -12,6 +14,105 @@ BROWSER_UA = (
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/124.0.0.0 Safari/537.36"
 )
+
+# Only these hosts (and their subdomains) are legitimate scrape targets --
+# Shopee/TikTok product pages and the short-link domains their own "share"
+# buttons produce. Everything else is refused before a single socket opens,
+# so this doubles as the SSRF allowlist: a malicious or compromised link
+# can't redirect the scraper into cloud metadata endpoints, the app's own
+# API, or the local network no matter what host validation below says.
+ALLOWED_SCRAPE_DOMAINS = (
+    "shopee.co.th",
+    "shp.ee",
+    "tiktok.com",
+)
+
+
+def _hostname_allowed(hostname: str) -> bool:
+    """True if `hostname` is, or is a subdomain of, an allowed scrape domain."""
+    host = (hostname or "").lower().rstrip(".")
+    if not host:
+        return False
+    return any(host == d or host.endswith("." + d) for d in ALLOWED_SCRAPE_DOMAINS)
+
+
+def _validate_scrape_url(url: str) -> None:
+    """
+    Rejects any URL that is not a plain http(s) request to an allowed
+    domain resolving to a public, non-internal IP address.
+
+    This app has no authentication and CORS is wide open, so any web page
+    the user has open can hit this backend's endpoints. Without this check
+    a "paste a product link" field is a full SSRF primitive: an attacker
+    supplies http://169.254.169.254/... (cloud metadata / IAM credential
+    theft once this is deployed), http://127.0.0.1:8000/... (the app's own
+    API), or http://10.x/192.168.x/172.16-31.x (internal network scanning,
+    with scraped title/price echoed back as an oracle). Raises ValueError
+    on rejection so existing callers' `except ValueError` handling surfaces
+    a clear message instead of the request silently going through.
+    """
+    try:
+        parsed = urllib.parse.urlparse(url)
+    except Exception as e:
+        raise ValueError(f"Invalid URL: {e}")
+
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError("URL must start with http:// or https://")
+
+    hostname = parsed.hostname
+    if not hostname:
+        raise ValueError("URL is missing a hostname")
+
+    if not _hostname_allowed(hostname):
+        raise ValueError(f"Host '{hostname}' is not an allowed scrape target")
+
+    try:
+        addrinfo = socket.getaddrinfo(hostname, None)
+    except socket.gaierror as e:
+        raise ValueError(f"Could not resolve host '{hostname}': {e}")
+
+    if not addrinfo:
+        raise ValueError(f"Could not resolve host '{hostname}'")
+
+    for family, _type, _proto, _canon, sockaddr in addrinfo:
+        ip_str = sockaddr[0]
+        try:
+            ip = ipaddress.ip_address(ip_str)
+        except ValueError:
+            raise ValueError(f"Host '{hostname}' resolved to an invalid address")
+        if (
+            ip.is_loopback
+            or ip.is_private
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
+            raise ValueError(
+                f"Host '{hostname}' resolves to a non-public address ({ip_str}) and is refused"
+            )
+
+
+class _SafeRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """
+    Validates every redirect hop before following it.
+
+    `urllib` follows redirects automatically by default and the caller only
+    ever sees the final URL (`resp.geturl()`) -- so a link that starts on an
+    allowed host can 302 to an internal address and urllib will happily
+    fetch it with no further checks. Overriding `redirect_request` lets us
+    re-run the same host/IP validation on every hop, and refuse (rather than
+    silently drop) any hop that fails it.
+    """
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        _validate_scrape_url(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def _build_safe_opener(*handlers):
+    return urllib.request.build_opener(_SafeRedirectHandler(), *handlers)
+
 
 def _extract_meta(html: str, property_name: str) -> Optional[str]:
     """Extract content from meta tags by property or name."""
@@ -49,14 +150,13 @@ class ProductScraper:
     @classmethod
     def scrape_url(cls, url: str) -> Dict[str, Any]:
         url = url.strip()
-        if not url.startswith(("http://", "https://")):
-            raise ValueError("URL must start with http:// or https://")
+        _validate_scrape_url(url)
 
         resolved_url = url
         try:
             import http.cookiejar
             cookie_jar = http.cookiejar.CookieJar()
-            opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookie_jar))
+            opener = _build_safe_opener(urllib.request.HTTPCookieProcessor(cookie_jar))
             req = urllib.request.Request(
                 url,
                 headers={
@@ -67,8 +167,18 @@ class ProductScraper:
             )
             with opener.open(req, timeout=20) as resp:
                 resolved_url = resp.geturl() or url
+        except ValueError:
+            # A redirect hop failed host/IP validation -- refuse the whole
+            # request rather than silently falling back to the un-redirected
+            # (and possibly still-attacker-controlled) original URL.
+            raise
         except Exception as r_err:
             print(f"[ProductScraper] Redirect resolution note: {r_err}")
+
+        # resolved_url may differ from the already-validated `url` (redirect
+        # target); re-validate it since _SafeRedirectHandler only vets
+        # intermediate hops, not the value ultimately returned by geturl().
+        _validate_scrape_url(resolved_url)
 
         platform = "shopee" if "shopee" in resolved_url.lower() else ("tiktok" if "tiktok" in resolved_url.lower() else "general")
         title = _extract_slug_title(resolved_url)
@@ -86,7 +196,7 @@ class ProductScraper:
                     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
                 }
             )
-            with urllib.request.urlopen(req, timeout=20) as resp:
+            with _build_safe_opener().open(req, timeout=20) as resp:
                 raw_html = resp.read(600_000).decode("utf-8", errors="ignore")
                 
                 meta_title = _extract_meta(raw_html, "og:title") or _extract_meta(raw_html, "twitter:title")

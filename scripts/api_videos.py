@@ -33,6 +33,40 @@ from scripts.api_schemas import (
 router = APIRouter(tags=["Videos & Assets"])
 
 
+def _is_contained(path: Path, root: Path) -> bool:
+    """
+    True if `path` is `root` or lives underneath it. Uses `Path.relative_to`
+    rather than a `str.startswith()` prefix check -- a prefix check treats
+    `D:\\...\\Capcut_evil\\` as "under" `D:\\...\\Capcut` because the string
+    happens to start with the same characters, which is not real path
+    containment. Both `path` and `root` are expected to already be resolved.
+    """
+    try:
+        path.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
+def _safe_product_dir(base_dir: Path, product_id: str) -> Path:
+    """
+    Resolves `base_dir / product_id` and enforces the result stays contained
+    within `base_dir`. `product_id` is client-controlled (query param / form
+    field / JSON body) and otherwise flows straight into a Path join with no
+    validation -- a relative traversal (`..\\..\\Windows\\Temp`) or an
+    absolute path (`C:\\Users\\Public`, which makes `Path.__truediv__` discard
+    `base_dir` entirely) would let a caller read/write/move files anywhere the
+    process has access to. Legitimate ids are timestamp-based
+    (`YYYYmmddHHMMSS_n`), so containment is airtight for real usage.
+    Raises HTTPException(400) on any id that would escape base_dir.
+    """
+    resolved_base = base_dir.resolve()
+    candidate = (base_dir / product_id).resolve()
+    if not _is_contained(candidate, resolved_base):
+        raise HTTPException(status_code=400, detail="product_id ไม่ถูกต้อง")
+    return candidate
+
+
 @router.get("/api/videos")
 def list_raw_videos(product_id: Optional[str] = None):
     """Lists all available raw video candidates with fast single-pass scanning."""
@@ -46,13 +80,15 @@ def list_raw_videos(product_id: Optional[str] = None):
             prod_assigned = ProductStore.get_product_videos(product_id)
             assigned_paths = {v.get("path") or v.get("rel_path") for v in prod_assigned}
 
-            prod_dir = RAW_DIR / product_id
+            prod_dir = _safe_product_dir(RAW_DIR, product_id)
             prod_dir_paths = {p.resolve() for p in scan_video_files(prod_dir)} if prod_dir.exists() else set()
 
             for v in all_videos:
                 v_path = Path(v["path"]).resolve()
                 if v["path"] in assigned_paths or v["rel_path"] in assigned_paths or v_path in prod_dir_paths:
                     product_videos.append(v)
+        except HTTPException:
+            raise
         except Exception as e:
             print(f"Error fetching product videos: {e}")
             product_videos = []
@@ -147,7 +183,7 @@ async def upload_file(
     """Uploads a video or audio file to 00_Inbox or 01_Raw, and links to product if product_id is provided."""
     dest_dir = INBOX_DIR if target_dir == "inbox" else RAW_DIR
     if product_id:
-        dest_dir = RAW_DIR / product_id
+        dest_dir = _safe_product_dir(RAW_DIR, product_id)
         dest_dir.mkdir(parents=True, exist_ok=True)
 
     orig_filename = Path(file.filename or f"iphone_video_{int(time.time())}.mp4").name
@@ -200,38 +236,95 @@ async def upload_file(
 
 @router.get("/api/raw-vault")
 def get_raw_vault():
-    """Returns rich metadata of all raw footage grouped by products and unassigned clips."""
+    """Returns rich metadata of all raw footage grouped by products and unassigned clips.
+
+    Was O(products x raw_files): every raw file got compared against every
+    product's video list PLUS a directory-containment check, per product. At
+    SaaS-ish scale (thousands of products/files) that is millions of
+    comparisons per request. Rebuilt below as O(products + raw_files):
+    - `dir_owner_by_pid` resolves the RAW_DIR-relative directory ownership in
+      O(1) per file instead of `is_relative_to()` against every product's
+      dir. This is safe because product ids never contain a path separator
+      (they are opaque, e.g. timestamp-based), so `RAW_DIR/pid` directories
+      are always siblings, never nested in one another -- a file can be
+      "inside" at most one product's dir.
+    - `path_owners`/`rel_owners` map a raw file's path/rel_path to the list
+      of products whose stored `videos[]` reference it, replacing the
+      per-product set-membership scan.
+    A file can still match more than one product (dir-membership match plus
+    a *different* product's stale videos[] reference, for example) exactly
+    as before -- the old code had no `break` and appended the same file into
+    every matching product's list, so that multi-match behavior is
+    preserved here rather than "fixed".
+    """
     products = ProductStore._load()
     raw_file_paths = scan_video_files(RAW_DIR, INBOX_DIR)
     all_raw_files = [get_file_info(p) for p in raw_file_paths]
+    raw_dir_resolved = RAW_DIR.resolve()
 
-    product_groups = []
+    # Build all lookups ONCE, O(products + raw_files) total.
+    dir_owner_by_pid: Dict[str, dict] = {}          # pid -> product, only for products with a RAW_DIR/pid folder
+    path_owners: Dict[str, List[dict]] = {}          # v["path"] value -> [products that reference it]
+    rel_owners: Dict[str, List[dict]] = {}           # v["rel_path"] value -> [products that reference it]
+
+    for p in products:
+        pid = p["id"]
+        dir_owner_by_pid[pid] = p
+        for v in p.get("videos", []):
+            vp = v.get("path")
+            if vp:
+                path_owners.setdefault(vp, []).append(p)
+            vrp = v.get("rel_path")
+            if vrp:
+                rel_owners.setdefault(vrp, []).append(p)
+
+    prod_videos_by_pid: Dict[str, list] = {p["id"]: [] for p in products}
     assigned_file_paths = set()
 
+    for v in all_raw_files:
+        v_abs = Path(v["path"]).resolve()
+
+        candidates: List[dict] = []
+
+        # 1. Directory containment: is this file under RAW_DIR/<some pid>?
+        #    (mirrors the old per-product `v_abs.is_relative_to(prod_dir)`)
+        try:
+            rel_to_raw = v_abs.relative_to(raw_dir_resolved)
+            first_part = rel_to_raw.parts[0] if rel_to_raw.parts else None
+            if first_part and first_part in dir_owner_by_pid:
+                candidates.append(dir_owner_by_pid[first_part])
+        except ValueError:
+            pass  # not under RAW_DIR at all (e.g. came from INBOX_DIR)
+
+        # 2/3/4. Same three set-membership checks the old code did, just via
+        # a dict lookup instead of scanning every product's set.
+        candidates.extend(path_owners.get(v["path"], []))
+        candidates.extend(rel_owners.get(v["rel_path"], []))
+        # old code also checked `v["rel_path"] in assigned_in_store` (the
+        # PATH set) -- mirror that with rel_path looked up in path_owners too.
+        candidates.extend(path_owners.get(v["rel_path"], []))
+
+        matched_products: List[dict] = []
+        seen_pids = set()
+        for prod in candidates:
+            if prod["id"] not in seen_pids:
+                seen_pids.add(prod["id"])
+                matched_products.append(prod)
+
+        if matched_products:
+            assigned_file_paths.add(v_abs)
+        for prod in matched_products:
+            v_copy = dict(v)
+            v_copy["product_id"] = prod["id"]
+            v_copy["product_title"] = prod.get("title", prod["id"])
+            prod_videos_by_pid[prod["id"]].append(v_copy)
+
+    product_groups = []
     for p in products:
         pid = p["id"]
         p_title = p.get("title", pid)
         p_cover = p.get("image_url") or p.get("cover_image") or None
-        prod_dir = (RAW_DIR / pid).resolve()
-
-        prod_videos = []
-        assigned_in_store = {v.get("path") for v in p.get("videos", []) if v.get("path")}
-        assigned_rel_in_store = {v.get("rel_path") for v in p.get("videos", []) if v.get("rel_path")}
-
-        for v in all_raw_files:
-            v_abs = Path(v["path"]).resolve()
-            is_in_dir = False
-            try:
-                is_in_dir = v_abs.is_relative_to(prod_dir)
-            except Exception:
-                pass
-
-            if is_in_dir or v["path"] in assigned_in_store or v["rel_path"] in assigned_rel_in_store or v["rel_path"] in assigned_in_store:
-                v_copy = dict(v)
-                v_copy["product_id"] = pid
-                v_copy["product_title"] = p_title
-                prod_videos.append(v_copy)
-                assigned_file_paths.add(v_abs)
+        prod_videos = prod_videos_by_pid[pid]
 
         total_mb = sum(v.get("size_mb", 0) for v in prod_videos)
         product_groups.append({
@@ -295,7 +388,7 @@ def reassign_raw_video(payload: ReassignVideoPayload):
             print(f"Notice on remove from source product: {e}")
 
     if target_pid:
-        target_dir = RAW_DIR / target_pid
+        target_dir = _safe_product_dir(RAW_DIR, target_pid)
         target_dir.mkdir(parents=True, exist_ok=True)
         dest_path = target_dir / v_path.name
         if dest_path.resolve() != v_path.resolve():
@@ -505,7 +598,7 @@ def reveal_file(req: RevealFileRequest):
         (BASE_DIR / "04_Exports").resolve(),
         (BASE_DIR / "05_Covers_Thumbnails").resolve(),
     ]
-    if not any(str(target).startswith(str(root)) for root in allowed_roots):
+    if not any(_is_contained(target, root) for root in allowed_roots):
         raise HTTPException(status_code=403, detail="ไม่อนุญาตให้เปิดไฟล์นอกพื้นที่โปรเจกต์")
     if not target.exists():
         raise HTTPException(status_code=404, detail=f"ไม่พบไฟล์: {target.name}")
@@ -542,7 +635,7 @@ def delete_file(req: DeleteFileRequest):
         (BASE_DIR / "06_Archive").resolve()
     ]
 
-    is_safe = any(str(target).startswith(str(root)) for root in allowed_roots)
+    is_safe = any(_is_contained(target, root) for root in allowed_roots)
     if not is_safe:
         raise HTTPException(status_code=403, detail="ไม่อนุญาตให้ลบไฟล์นอกพื้นที่โปรเจกต์")
 
@@ -620,7 +713,7 @@ def stream_media(file_path: str, request: Request):
         target = BASE_DIR / decoded_path
 
     target = target.resolve()
-    if not (str(target).startswith(str(BASE_DIR)) or str(target).startswith(str(CAPCUT_DRAFT_DIR))):
+    if not (_is_contained(target, BASE_DIR.resolve()) or _is_contained(target, CAPCUT_DRAFT_DIR.resolve())):
         raise HTTPException(status_code=403, detail="Access denied")
 
     return stream_media_file(target, request)
