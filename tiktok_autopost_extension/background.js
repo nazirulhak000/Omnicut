@@ -23,6 +23,19 @@ const UPLOAD_URL_PATTERN = 'https://www.tiktok.com/tiktokstudio/upload*';
 const PROCESSING_TIMEOUT_MS = 90_000;
 const POLL_INTERVAL_MS = 2_000;
 
+// 2026-09-06 diagnostic A/B flag -- TEMPORARY, delete once we have an answer.
+// The tab crash was caught happening WHILE waitForUploadComplete() was still
+// polling (before attachProductLink even started), right as TikTok's own
+// cover/effects worker (clip-forge-effect-sdk) was initializing. Two
+// hypotheses: (a) our repeated Runtime.evaluate calls during that window
+// destabilize it, or (b) merely having chrome.debugger attached at all
+// during that window is enough, independent of what we send it. Setting
+// this to true replaces the active polling loop with one plain sleep
+// (debugger stays attached, zero CDP calls sent) so we can tell which:
+// crash persists -> (b); crash goes away -> (a), and the fix is to poll
+// less aggressively or via chrome.scripting instead of CDP.
+const DIAGNOSTIC_PASSIVE_WAIT = true;
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -141,10 +154,22 @@ async function waitForCaptionEditor(send) {
 // Clears any auto-filled filename that TikTok inserted, then types the clean caption and hashtags.
 async function typeCaption(send, text) {
   if (!text) return;
-  const { result } = await send('Runtime.evaluate', {
+
+  // Select-all + insertText as ONE atomic call. This used to be select+
+  // delete() in one Runtime.evaluate call, then a separate insertText() in
+  // a SECOND call 250ms later -- leaving the field genuinely empty for that
+  // 250ms gap. A real console capture (2026-09-06, "pageCrash form
+  // unmount" right above the `removeChild` crash in lib-react) points at
+  // TikTok's own React re-rendering the field during that empty window,
+  // so our later insertText() landed on a DOM node React had already
+  // touched -- a fiber/DOM mismatch that crashed the tab. insertText()
+  // over an active selection replaces it as one native edit operation, so
+  // there's no gap for TikTok's own code to react to an intermediate
+  // empty state.
+  const execResult = await send('Runtime.evaluate', {
     expression: `(() => {
       const el = document.querySelector('[contenteditable="true"]');
-      if (!el) return false;
+      if (!el) return { success: false, reason: 'not-found' };
       el.focus();
       try {
         const sel = window.getSelection();
@@ -153,24 +178,6 @@ async function typeCaption(send, text) {
         sel.removeAllRanges();
         sel.addRange(range);
       } catch (e) {}
-      // Select all contents and delete so TikTok's auto-inserted video filename is wiped out
-      document.execCommand('selectAll', false, null);
-      document.execCommand('delete', false, null);
-      return true;
-    })()`,
-    returnByValue: true,
-  });
-  if (!result || !result.value) {
-    throw new Error('พบช่องแคปชันแล้วแต่ focus ไม่สำเร็จ -- โครงสร้างหน้าอาจเปลี่ยนไป');
-  }
-  await sleep(250);
-
-  // 1. Try inserting the whole text via document.execCommand('insertText') which natively handles newlines in Blink
-  const execResult = await send('Runtime.evaluate', {
-    expression: `(() => {
-      const el = document.querySelector('[contenteditable="true"]');
-      if (!el) return { success: false };
-      el.focus();
       const ok = document.execCommand('insertText', false, ${JSON.stringify(text)});
       el.dispatchEvent(new Event('input', { bubbles: true }));
       el.dispatchEvent(new Event('change', { bubbles: true }));
@@ -179,6 +186,9 @@ async function typeCaption(send, text) {
     })()`,
     returnByValue: true,
   });
+  if (execResult?.result?.value?.reason === 'not-found') {
+    throw new Error('พบช่องแคปชันไม่เจอ -- โครงสร้างหน้าอาจเปลี่ยนไป');
+  }
 
   // 2. Fallback: line-by-line typing with clean Enter (WITHOUT text: '\r' which causes cursor carriage return)
   if (!execResult?.result?.value?.success) {
@@ -235,8 +245,13 @@ async function waitForUploadComplete(send, timeoutMs = 120_000) {
           return { isUploading: true, reason: 'percentage: ' + percentMatch[0] };
         }
 
-        // 2. Check for "Uploading..." in preview
-        if (allText.includes('Uploading...')) {
+        // 2. Check for "Uploading..." in preview -- TikTok Studio's Thai UI
+        // shows "กำลังอัปโหลด..." under the cover thumbnail at this stage,
+        // never the English string. This check only ever matched the
+        // English text, so on a Thai session it silently never fired --
+        // confirmed directly from a real screenshot at 0% upload,
+        // 2026-09-06. Both variants now required.
+        if (allText.includes('Uploading...') || allText.includes('กำลังอัปโหลด')) {
           return { isUploading: true, reason: 'preview-uploading' };
         }
 
@@ -258,6 +273,15 @@ async function waitForUploadComplete(send, timeoutMs = 120_000) {
         if (hasDisabledSubmit) {
           return { isUploading: true, reason: 'submit-disabled' };
         }
+
+        // NOTE (2026-09-06): a "check #5" here used to require the
+        // "แก้ไขหน้าปก" (Edit cover) button to be present+enabled before
+        // considering the upload done, on the theory that it only becomes
+        // clickable once TikTok's cover-generation worker finishes. Removed
+        // -- the user tested this directly on a real account and the
+        // button is clickable immediately at 0% upload, so that check never
+        // actually blocked anything. Don't reintroduce it without new
+        // evidence of what the real "still processing" signal is.
 
         return { isUploading: false };
       })()`,
@@ -307,7 +331,8 @@ async function switchToShowcaseTab(send) {
   for (let attempt = 0; attempt < 5; attempt++) {
     const found = await send('Runtime.evaluate', {
       expression: `(() => {
-        const allElements = Array.from(document.querySelectorAll('[role="tab"], button, div, span, p, a'));
+        const root = document.querySelector('[role="dialog"]') || document;
+        const allElements = Array.from(root.querySelectorAll('[role="tab"], button, div, span, p, a'));
         const candidates = allElements.filter(el => {
           const t = (el.innerText || el.textContent || '').trim();
           if (!t) return false;
@@ -706,7 +731,42 @@ async function clickPostButton(send) {
   }
 }
 
-async function runAttachProductOnly({ productId, scheduleMode }) {
+// 2026-09-06: minimal, deliberately-does-nothing-else action, added after
+// POST-2.10's isolation test showed the tab crash happens even with ZERO
+// CDP commands sent, purely from chrome.debugger sitting attached while
+// TikTok's own effects/cover engine initializes after a file is set. The
+// fix that test points at: never HOLD the debugger attached through that
+// window at all. This sets the file and detaches again immediately --
+// attached for well under a second, nowhere near long enough to overlap
+// with that engine's startup -- then leaves the rest (caption, product
+// link) to the separate buttons below, each of which is its own short
+// attach/act/detach cycle instead of one long session spanning the upload.
+async function runUploadFileOnly() {
+  const job = await fetchPendingJob();
+  if (!job.video_path) {
+    throw new Error('ไม่มีคลิปที่เตรียมไว้ -- กด "โพสต์ TikTok อัตโนมัติ" ในแอป OmniCut ก่อน');
+  }
+  const tab = await findUploadTab();
+  const send = cdp(tab.id);
+
+  await chrome.debugger.attach({ tabId: tab.id }, '1.3');
+  try {
+    await send('DOM.enable');
+    const fileNodeId = await findFileInputNodeId(send);
+    await setFileInput(send, fileNodeId, job.video_path);
+    return { success: true };
+  } finally {
+    try {
+      await chrome.debugger.detach({ tabId: tab.id });
+    } catch (e) {}
+  }
+}
+
+// 2026-09-06: kept deliberately single-purpose (product link only, no
+// scheduleMode) so each checklist step in the popup is its own isolated
+// attach/act/detach cycle -- see runScheduleModeOnly() and
+// runClickPostOnly() below for the steps this used to also do inline.
+async function runAttachProductOnly({ productId }) {
   const tab = await findUploadTab();
   const send = cdp(tab.id);
 
@@ -716,17 +776,52 @@ async function runAttachProductOnly({ productId, scheduleMode }) {
     await send('Runtime.enable');
 
     const attachResult = await attachProductLink(send, productId);
-    if (scheduleMode) {
-      try {
-        await switchToScheduleMode(send);
-      } catch (e) {}
-    }
 
     return {
       success: attachResult.success,
       reason: attachResult.reason,
       attachedProduct: attachResult.success,
     };
+  } finally {
+    try {
+      await chrome.debugger.detach({ tabId: tab.id });
+    } catch (e) {}
+  }
+}
+
+// Step-by-step checklist (2026-09-06, user request): each of these is its
+// own short attach -> act -> detach cycle, run one at a time from the
+// popup's checklist so the user can tell exactly which addition on top of
+// a working state is the one that introduces the crash, instead of guessing
+// at the whole combined flow again.
+async function runScheduleModeOnly() {
+  const tab = await findUploadTab();
+  const send = cdp(tab.id);
+
+  await chrome.debugger.attach({ tabId: tab.id }, '1.3');
+  try {
+    await send('DOM.enable');
+    await send('Runtime.enable');
+    await switchToScheduleMode(send);
+    return { success: true };
+  } finally {
+    try {
+      await chrome.debugger.detach({ tabId: tab.id });
+    } catch (e) {}
+  }
+}
+
+async function runClickPostOnly() {
+  const tab = await findUploadTab();
+  const send = cdp(tab.id);
+
+  await chrome.debugger.attach({ tabId: tab.id }, '1.3');
+  try {
+    await send('DOM.enable');
+    await send('Runtime.enable');
+    await clickPostButton(send);
+    const leaveDialogDismissed = await dismissLeaveConfirmDialogIfPresent(send).catch(() => false);
+    return { success: true, leaveDialogDismissed };
   } finally {
     try {
       await chrome.debugger.detach({ tabId: tab.id });
@@ -796,7 +891,11 @@ async function runAutopost({ autoClickPost, attachProduct, productId, caption, h
     }
 
     // Wait for video upload to finish before proceeding to link attachment and posting
-    await waitForUploadComplete(send, PROCESSING_TIMEOUT_MS);
+    if (DIAGNOSTIC_PASSIVE_WAIT) {
+      await sleep(35_000); // plain wait, zero CDP calls sent, debugger stays attached
+    } else {
+      await waitForUploadComplete(send, PROCESSING_TIMEOUT_MS);
+    }
 
     // Attach product link if requested
     const targetProductId = productId || job.tiktok_product_id || job.product_id;
@@ -853,11 +952,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .catch((err) => sendResponse({ success: false, error: err.message || String(err) }));
     return true;
   }
+  if (message?.action === 'upload-file-only') {
+    runUploadFileOnly()
+      .then((result) => sendResponse(result))
+      .catch((err) => sendResponse({ success: false, error: err.message || String(err) }));
+    return true;
+  }
   if (message?.action === 'attach-product-only') {
     runAttachProductOnly({
       productId: message.productId || null,
-      scheduleMode: !!message.scheduleMode,
     })
+      .then((result) => sendResponse(result))
+      .catch((err) => sendResponse({ success: false, error: err.message || String(err) }));
+    return true;
+  }
+  if (message?.action === 'schedule-mode-only') {
+    runScheduleModeOnly()
+      .then((result) => sendResponse(result))
+      .catch((err) => sendResponse({ success: false, error: err.message || String(err) }));
+    return true;
+  }
+  if (message?.action === 'click-post-only') {
+    runClickPostOnly()
       .then((result) => sendResponse(result))
       .catch((err) => sendResponse({ success: false, error: err.message || String(err) }));
     return true;

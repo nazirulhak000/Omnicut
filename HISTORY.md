@@ -21,7 +21,121 @@
 | Round 7 | template v2 + แกลเลอรีที่ขยับได้ | 2026-09-05 | 8 templates + motion presets · Animated gallery · pytest 356 pass · npm test 54 pass · build pass |
 | Round BUG-2 | แก้ข้อความซ้อนทับกันเป็นก้อนใน SequencePlayer (Hook / Text clumping) | 2026-09-05 | Guard Hook header & non-staggered overlays to monolithic · Contract test · pytest 356 pass · npm test 54 pass · build pass |
 | Round BUG-3 | angle ชนกัน (คลิปผิดสคริปต์) ใน Content Tracker Hub + ปุ่มปักตะกร้า TikTok | 2026-09-06 | reconcile collision guard + data_conflict_note · rollback ครอบทุก status · tiktok_product_id UI · pytest 367 pass · build pass |
+| Round TRK-3 | บอร์ดหลักคลีนไร้ความรก (Today-Only Posted, คลังสคริปต์ & การ์ดตัดต่อเสร็จแนวนอน) | 2026-09-06 | Today-Only posted + Archive Modal · Script Library Modal (หยิบทำวันนี้) · Compact Rendered Cards ~95px · pytest 373 pass · build pass |
+| Round TRK-2 | ตารางจัดคิวโพสต์ประจำวัน (Daily Run Sheet) & จัดกลุ่มย่อการ์ด (Product Grouping / Quick Pills) | 2026-09-06 | Daily Run Sheet tab (4 slots + auto-rotate + schedule time) + Quick Pills + Accordion · pytest 373 pass · npm test 54 pass · build pass |
+| Round TRK-1 | เพิ่มปุ่มส่งคลิปไป TikTok Studio พร้อม Modal ตรวจสอบ/ปักตะกร้า ในหน้า Tracker | 2026-09-06 | ContentTrackerHub 2-row buttons + Post Modal + Inspect toolbar · pytest 372 pass · npm test 54 pass · build pass |
 | Round PROD-1 | เพิ่มช่อง TikTok Product ID ตอนสร้างสคริปต์ + Fallback ค้นหาด้วยชื่อ + Click-to-Edit Cart ID ย้อนหลัง | 2026-09-06 | ProductToClip modal + Header badge edit + auto-resolve shortlinks · pytest 372 pass · npm test 54 pass · build pass |
+
+---
+
+## Round TRK-3 — บอร์ดหลักคลีนไร้ความรก (Today-Only Posted, คลังสคริปต์หยิบทำวันนี้ & การ์ดตัดต่อเสร็จแนวนอนกะทัดรัด)
+
+วันที่: 2026-09-06 · สั่งโดย: user (ผ่าน /grill-me) · สถานะ: เสร็จสิ้น
+
+**เป้าหมาย:** แก้ปัญหาบอร์ดหลักยืดยาวและรกเมื่อมีคลิปและสคริปต์สะสม 20-30+ รายการ ตามมติการสัมภาษณ์ `/grill-me` (3 ข้อ):
+1. คอลัมน์ "โพสต์แล้ว (Posted)": แสดงเฉพาะคลิปที่โพสต์วันนี้ (Today Only) เพื่อไม่ให้รกบอร์ด ส่วนคลิปเก่าในอดีตย้ายเข้าคลังประวัติอัตโนมัติ พร้อมปุ่มเปิดดูคลังประวัติ (Archive Modal)
+2. คอลัมน์ "สคริปต์พร้อม (Scripted)": คลังสคริปต์ (Script Library Modal) เก็บไว้ด้านหลัง บนบอร์ดหลักแสดงเฉพาะ 3-5 สคริปต์ที่เราหยิบมาทำวันนี้ พร้อมปุ่มหยิบเข้า/ปลดออก
+3. คอลัมน์ "ตัดต่อเสร็จ / ตรวจ QC (Rendered)": ปรับการ์ดเป็นการ์ดแนวนอนกะทัดรัด (Compact Horizontal Card สูง ~95px) ซ้ายเป็นมินิพรีวิว 9:16 ขวาเป็นชื่อสินค้า + QC ผ่าน + Hook 1 บรรทัด + แถบปุ่มแอ็กชันครบครัน (`ส่ง TikTok`, `มือถือ`, `QC`, `ตัดใหม่`)
+
+**สิ่งที่แก้ไข:**
+1. **TRK-3.1 คอลัมน์โพสต์แล้ว: Today-Only + Archive Modal**:
+   - กรองรายการคลิปในคอลัมน์ `posted` ให้แสดงเฉพาะคลิปที่มี `posted_at` หรือ `updated_at` เป็นวันปัจจุบัน (Local Time `YYYY-MM-DD`)
+   - คลิปที่โพสต์ก่อนหน้านี้ย้ายเข้าคลังประวัติอัตโนมัติ ไม่เปลืองพื้นที่บนบอร์ด
+   - มีปุ่ม `[คลัง (N)]` บนหัวคอลัมน์ และปุ่ม `[คลังประวัติคลิปเก่า (N คลิป)]` เพื่อเปิดดู Modal ประวัติคลิปทั้งหมดในอดีต (ค้นหาได้, ดูพรีวิววิดีโอ, ก๊อปปี้แคปชัน, ส่ง TikTok ซ้ำได้)
+   - อัปเดต `scripts/product_store.py` ให้บันทึกฟิลด์ `posted_at` เมื่อย้ายสถานะเป็น `posted`
+2. **TRK-3.2 คอลัมน์สคริปต์พร้อม: คลังสคริปต์ (Script Library) + สคริปต์หยิบทำวันนี้**:
+   - เพิ่ม State `pickedScriptIds` เก็บลง `localStorage` บันทึกสคริปต์ที่เลือกมาทำประจำวัน
+   - คอลัมน์บนบอร์ดหลักแสดงเฉพาะสคริปต์ที่หยิบมาทำวันนี้ ทำให้บอร์ดไม่ยาวเฟื้อย
+   - เพิ่มปุ่ม `[คลัง (N)]` บนหัวคอลัมน์ เปิด `ScriptLibraryModal` คลังสคริปต์ทั้งหมดเพื่อกดเลือก `[หยิบมาทำวันนี้]` หรือ `[อยู่ในคิววันนี้]` มีปุ่มลัด `[เลือก 4 รายการแรก]` และ `[ล้างคิว]`
+   - การ์ดสคริปต์บนบอร์ดมีปุ่ม `[X]` ปลดออกจากคิววันนี้ส่งกลับเข้าคลังได้ทันที
+3. **TRK-3.3 คอลัมน์ตัดต่อเสร็จ / ตรวจ QC: การ์ดแนวนอนกะทัดรัด (Compact Horizontal Card ~95px)**:
+   - ปรับความสูงการ์ดจาก ~350px ลงเหลือเพียง ~95px
+   - ด้านซ้าย: มินิพรีวิววิดีโอ 9:16 (52px) พร้อมปุ่ม Play เปิดดูตัวอย่าง
+   - ด้านขวา: ชื่อสินค้า + ป้ายสถานะ `QC ผ่าน` + Hook 1 บรรทัด + แถบปุ่มคำสั่งแถวเดียว (`[ส่ง TikTok]`, `[มือถือ]`, `[QC]`, `[ตัดใหม่]`, `[โพสต์แล้ว]`)
+   - สามารถจุคลิปตัดเสร็จได้ 5-10 คลิปในหน้าจอเดียวโดยไม่ต้องเลื่อนสกอร์ยาว
+4. **ผลการทดสอบ (Gate)**:
+   - `python -m compileall -q scripts` ผ่าน 100%
+   - `pytest tests/ -q` ผ่าน 373/373 tests (7 warnings เก่า)
+   - `npm run build` ผ่าน 100% ใน 4.06s
+   - `npm test` ผ่าน 54/54 tests
+   - ทดสอบจริงบนเบราว์เซอร์ผ่าน browser subagent และบันทึกภาพหน้าจอเรียบร้อย
+   - ปฏิบัติตามกฎ `ui_clean_standard.md` ไม่มีสัญลักษณ์ซ้ำซ้อน
+
+---
+
+## Round TRK-2 — ตารางจัดคิวโพสต์ประจำวัน (Daily Run Sheet) & จัดกลุ่มย่อการ์ด (Product Grouping / Quick Pills)
+
+วันที่: 2026-09-06 · สั่งโดย: user (ผ่าน /grill-me + /scrutinize) · สถานะ: เสร็จสิ้น
+
+**เป้าหมาย:** แก้ปัญหาการ์ดล้นจอเมื่อมีสคริปต์จำนวนมาก และรองรับ workflow โพสต์คลิปวันละ 3-5 คลิปแบบสลับสินค้าตามช่วงเวลา (เช้า A / เที่ยง B / เย็น C / ดึก D) โดยเพิ่มมุมมอง "คิวโพสต์ประจำวัน (Daily Run Sheet)" พร้อมระบบจัดคิวและสลับสินค้าอัตโนมัติ, ตั้งเวลาโพสต์ (Schedule Time), แถบ Quick Product Pills เลือกสินค้าเร็ว, Accordion Grouping ย่อการ์ดในบอร์ด 5 เฟส, และตัวกรองซ่อนคลิปที่โพสต์ไปแล้วเกิน 24 ชม.
+
+**สิ่งที่แก้ไข:**
+
+1. **TRK-2.1 แถบปุ่มลัดเลือกสินค้า (Quick Product Pills) & Accordion Grouping ในบอร์ด 5 เฟส**:
+   - เพิ่มแถบ Pills สินค้าใต้ Search bar: `[สินค้าทั้งหมด]` `[Logitech Wave Keys]` `[ESSAGER]`... สลับกรองสินค้าได้ในคลิกเดียว ไม่ต้องเลื่อนหาใน Dropdown
+   - เพิ่มโหมด Accordion Group by Product ในคอลัมน์ "สคริปต์พร้อม": พับ/กางตามชื่อสินค้าได้ ช่วยลดความยาวการ์ดจาก 20-30 ใบเหลือไม่กี่แถว
+   - เพิ่มระบบ Truncate ในคอลัมน์ "โพสต์แล้ว": ซ่อนคลิปที่โพสต์แล้วเมื่อมีเกิน 3 รายการ พร้อมปุ่ม "+ ดูคลิปเก่าทั้งหมด"
+
+2. **TRK-2.2 แท็บมุมมองใหม่ "คิวโพสต์ประจำวัน (Daily Run Sheet)"**:
+   - เพิ่มปุ่มสลับมุมมองที่ Header: `[บอร์ด 5 เฟส]` | `[คิวประจำวัน]` | `[ตารางข้อมูล]`
+   - โครงสร้าง 4 สล็อตมาตรฐานประจำวัน (เช้า 08:30 / เที่ยง 12:30 / เย็น 18:00 / ดึก 21:30) สามารถปรับตั้งเวลาได้อิสระ
+   - ปุ่ม `[เพิ่มรอบพิเศษ]` รองรับคลิปที่ 5 ของวัน
+   - เซฟสถานะคิวลง `localStorage` ตามวันที่อัตโนมัติ
+
+3. **TRK-2.3 อัลกอริทึม "จัดคิวสลับสินค้าอัตโนมัติ (Auto-Rotate Products)"**:
+   - ปุ่ม `[จัดคิวสลับสินค้าอัตโนมัติ]`: ดึงคลิปที่ตัดเสร็จมากระจายลง 4 สล็อตแบบ Round-Robin ไม่ให้สินค้าซ้ำกันติดๆ กัน
+   - รองรับการคลิก `[สลับคลิป]` หรือ `[เลือกคลิปที่ตัดเสร็จ]` ด้วย Modal แสดงคลิปทั้งหมดให้เลือกหยอดลงสล็อต
+
+4. **TRK-2.4 การส่งโพสต์และปักตะกร้าตรงจากสล็อตพร้อม Schedule Time**:
+   - รองรับการระบุเวลา Schedule Time ทั้งใน Daily Run Sheet และ TikTok Modal
+   - อัปเดต `scripts/api_tiktok_autopost.py` และ `frontend/src/api.js` และ `popup.js` รองรับ `schedule_time`
+   - เพิ่ม unit test `tests/test_api_tiktok_autopost.py`
+
+5. **ผลการทดสอบ (Gate)**:
+   - `npm run build` ผ่าน 100%
+   - `npm test` ผ่าน 54/54 tests
+   - `python -m compileall -q scripts` ผ่าน 100%
+   - `pytest tests/ -q` ผ่าน 373 passed (7 warnings)
+
+---
+
+## Round TRK-1 — เพิ่มปุ่มส่งคลิปไป TikTok Studio พร้อม Modal ตรวจสอบ/ปักตะกร้า ในหน้า Tracker (ContentTrackerHub)
+
+วันที่: 2026-09-06 · สั่งโดย: user (ผ่าน /grill-me) · สถานะ: เสร็จสิ้น
+
+**เป้าหมาย:** ในหน้า Tracker (`ContentTrackerHub.jsx`) เพิ่มปุ่ม "ส่ง TikTok" บนการ์ดในเฟส 3 "ตัดต่อเสร็จ / ตรวจ QC" คู่กับปุ่ม "ส่งมือถือ" พร้อมหน้าต่าง Modal สำหรับพรีวิวคลิป ตรวจทาน/แก้ไขแคปชั่น, แฮชแท็ก, และ TikTok Product ID ก่อนส่งข้อมูลไปยัง Extension และเปิด TikTok Studio
+
+**สิ่งที่แก้ไข:**
+
+1. **TRK-1.1 ปรับเลย์เอาต์การ์ด Kanban ในเฟส `rendered` (ตัดต่อเสร็จ) และ `mobile_ready`**:
+   - ปรับเลย์เอาต์การ์ด Kanban ในเฟส `rendered` เป็น 2 แถวสมดุล สวยงาม สะอาดตา:
+     - แถวบน (Publishing channels):
+       - ปุ่ม `[ส่ง TikTok]` (ไล่เฉด TikTok `#FE2C55` / `#25F4EE`) พร้อมไอคอน `<Rocket />` สำหรับเปิด Modal เตรียมโพสต์
+       - ปุ่ม `[ส่งมือถือ]` (สีม่วง) พร้อมไอคอน `<Smartphone />` สำหรับเปิด QR Code
+     - แถวล่าง (QC & Editing tools):
+       - ปุ่ม `[ตรวจ QC]` สำหรับเปิดดูพรีวิววิดีโอ
+       - ปุ่ม `[ตัดใหม่]` สำหรับส่งกลับไปตัดต่อใหม่
+     - แถบยืนยัน: ปุ่ม `[มาร์กว่าโพสต์แล้ว]` ย้ายลงมาเป็นปุ่มยืนยันปิดงาน
+   - เพิ่มปุ่ม `[ส่ง TikTok]` ในเฟส `mobile_ready`, ตาราง Mobile/Desktop View ด้วย
+
+2. **TRK-1.2 สร้าง Modal "เตรียมโพสต์ TikTok Studio (พร้อมปักตะกร้า)"**:
+   - เพิ่มหน้าต่าง Modal แบบ Interactive รองรับ:
+     - พรีวิวคลิปวิดีโอ 9:16 แบบฝังในหน้าต่าง พร้อมตัวเล่นวิดีโอ
+     - ช่องแก้ไข "คำอธิบายคลิป (Caption)" ดึงค่าอัตโนมัติจาก angle
+     - ช่องแก้ไข "แฮชแท็ก (Hashtags)" ดึงค่าอัตโนมัติจาก angle
+     - ช่องแก้ไข "รหัสสินค้าปักตะกร้า (TikTok Product ID / Search Keyword)" ดึงค่าจาก parent product หรือใช้ชื่อสินค้าเป็น fallback
+     - สรุป Checklist ความพร้อม: วิดีโอพร้อมอัปโหลด, แคปชั่น & แฮชแท็ก, และสถานะการปักตะกร้า
+     - ปุ่ม Action: `[ส่งข้อมูลเข้า Extension & เปิด TikTok Studio]` ทำการบันทึกข้อมูลเข้า extension ผ่าน `prepareTiktokAutopost` และเปิดหน้า TikTok Studio upload ทันที
+     - ปุ่มยืนยัน `[มาร์กว่าโพสต์แล้ว]` เพื่ออัปเดตสถานะเป็น `posted` เมื่อยืนยันว่าโพสต์บน TikTok สำเร็จ
+
+3. **TRK-1.3 เพิ่มปุ่มส่ง TikTok ใน Inspect Modal (Deep-Dive Modal)**:
+   - เพิ่มปุ่ม `[ส่ง TikTok]` ในแถบ Action Toolbar ด้านบนของ Inspect Modal ให้สามารถคลิกส่งโพสต์ได้โดยตรงจากหน้าต่างดูรายละเอียดเชิงลึก
+
+4. **ผลการทดสอบ (Gate)**:
+   - `npm run build` ผ่าน 100% (0 error)
+   - `npm test` ผ่าน 54/54 tests
+   - `python -m compileall -q scripts` ผ่าน 100%
+   - `pytest tests/ -q` ผ่าน 372 passed (7 warnings)
 
 ---
 

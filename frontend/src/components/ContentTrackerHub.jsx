@@ -5,13 +5,15 @@ import {
   Kanban, Table, Sparkles, CheckCircle2, Clock,
   ExternalLink, ChevronRight, ChevronLeft, Filter, AlertCircle,
   Video, Eye, Flame, TrendingUp, Plus, X, FileText, Scissors,
-  FolderDown, Info, Film, RotateCcw, ShieldAlert, AlertTriangle
+  FolderDown, Info, Film, RotateCcw, ShieldAlert, AlertTriangle,
+  Rocket, Calendar, Sun, Moon, Sunrise, Sunset, Shuffle, ChevronDown, ChevronUp,
+  Archive
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   getProducts, updateAngleStatus, deleteProduct, updateProduct, prepareTiktokAutopost
 } from '../api';
-import { Modal, Toast, Button, Badge, Input } from './ui';
+import { Modal, Toast, Button, Badge, Input, Textarea } from './ui';
 import { useDebounce, useToast } from '../hooks';
 import { guessBrandModel } from '../lib/overlayModel';
 
@@ -97,11 +99,13 @@ const KanbanCard = memo(function KanbanCard({
   onStatusChange,
   onPreviewVideo,
   onOpenQrModal,
+  onOpenTiktokModal,
   onInspectAngle,
   onCopyCaption,
   onQcFail,
   onQcPass,
   onDismissConflict,
+  onUnpickScript,
   copiedAngleId
 }) {
   const isSelected = false;
@@ -116,6 +120,146 @@ const KanbanCard = memo(function KanbanCard({
     ? ang.selected_videos
     : (ang.selected_video ? [ang.selected_video] : []);
   const hasVideos = chosenVideos.length > 0;
+
+  // ── Round TRK-3: Compact Horizontal Mini Video Card for 'rendered' phase (~95px height) ──
+  if (phaseId === 'rendered') {
+    return (
+      <div className={`p-2 rounded-xl border transition-all relative group shadow-sm flex gap-2.5 items-stretch ${
+        ang.qc_note
+          ? 'bg-[#120A06] border-red-500/40 hover:border-red-400/60 ring-1 ring-red-500/20'
+          : 'bg-[#09111C] border-[#25F4EE]/30 hover:border-[#25F4EE]/60 shadow-[#25F4EE]/5'
+      }`}>
+        {/* Left: Mini 9:16 Video Preview (~52px wide) */}
+        <div
+          onClick={() => ang.video_url && onPreviewVideo(ang.video_url, ang)}
+          className="w-[52px] flex-shrink-0 relative rounded-lg overflow-hidden bg-black/80 border border-white/[0.1] hover:border-[#25F4EE] transition-all cursor-pointer group/thumb aspect-[9/16]"
+          title="คลิกเพื่อพรีวิวคลิปเต็ม"
+        >
+          {ang.video_url ? (
+            <video
+              src={`/api/media/${ang.video_url}#t=1.0`}
+              muted
+              playsInline
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-slate-900 text-slate-600">
+              <Video className="w-4 h-4" />
+            </div>
+          )}
+          <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover/thumb:bg-black/10 transition-colors">
+            <div className="w-5 h-5 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center text-white border border-white/[0.2] group-hover/thumb:scale-110 transition-transform">
+              <Play className="w-2.5 h-2.5 fill-current text-[#25F4EE] ml-0.5" />
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Info & Actions */}
+        <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+          {/* Row 1: Product Name & QC Badge / Conflict */}
+          <div>
+            <div className="flex items-center justify-between gap-1 text-xs">
+              <span
+                onClick={() => onInspectAngle(ang)}
+                className="font-bold text-white truncate text-xs font-kanit hover:text-[#25F4EE] cursor-pointer"
+                title={`คลิกเพื่อดูรายละเอียดเชิงลึกของ: ${ang.parentProduct?.name}`}
+              >
+                {ang.parentProduct?.name}
+              </span>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                {ang.qc_note ? (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onQcPass && onQcPass(ang); }}
+                    className="px-1.5 py-0.2 rounded bg-red-500/20 border border-red-500/30 text-red-300 font-bold text-[10px] cursor-pointer"
+                    title={ang.qc_note}
+                  >
+                    QC ไม่ผ่าน
+                  </button>
+                ) : (
+                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 flex items-center gap-0.5">
+                    <Check className="w-2.5 h-2.5 text-emerald-400" />
+                    <span>QC ผ่าน</span>
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => onInspectAngle(ang)}
+                  className="p-0.5 rounded text-slate-500 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+                  title="ดูรายละเอียดจริงเชิงลึก"
+                >
+                  <Info className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+
+            {/* Row 2: 1-line Hook */}
+            <div
+              onClick={() => onInspectAngle(ang)}
+              className="pl-1.5 border-l-2 border-[#25F4EE] text-[11px] font-semibold text-cyan-200 truncate cursor-pointer hover:underline my-1"
+              title={ang.hook_title}
+            >
+              {ang.hook_title}
+            </div>
+          </div>
+
+          {/* Row 3: Compact Actions Toolbar */}
+          <div className="flex items-center gap-1 pt-1 border-t border-white/[0.06] overflow-x-auto no-scrollbar">
+            <button
+              type="button"
+              onClick={() => onOpenTiktokModal && onOpenTiktokModal(ang)}
+              className="py-1 px-2 rounded-lg bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:brightness-110 text-white text-[11px] font-bold flex items-center gap-1 shadow-sm cursor-pointer active:scale-95 whitespace-nowrap"
+              title="ส่งคลิปไป TikTok Studio"
+            >
+              <Rocket className="w-3 h-3 flex-shrink-0" />
+              <span>ส่ง TikTok</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onOpenQrModal(ang)}
+              className="py-1 px-1.5 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-300 text-[11px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap active:scale-95"
+              title="ส่งเข้ามือถือ"
+            >
+              <QrCode className="w-3 h-3 flex-shrink-0" />
+              <span>มือถือ</span>
+            </button>
+
+            {ang.video_url && (
+              <button
+                type="button"
+                onClick={() => onPreviewVideo(ang.video_url, ang)}
+                className="py-1 px-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] text-slate-200 text-[11px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                title="พรีวิวตรวจคลิปเต็มจอ"
+              >
+                <Play className="w-2.5 h-2.5 fill-current text-[#25F4EE]" />
+                <span>QC</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => onQcFail(ang)}
+              className="py-1 px-1.5 rounded-lg bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-[11px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap"
+              title="QC ไม่ผ่าน ส่งตัดใหม่"
+            >
+              <RotateCcw className="w-2.5 h-2.5" />
+              <span>ตัดใหม่</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onStatusChange(ang.parentProduct?.id, ang.angle_id, 'posted', null, null, true)}
+              className="p-1 rounded-lg bg-white/[0.03] hover:bg-emerald-500/20 hover:border-emerald-500/40 border border-white/[0.06] text-slate-400 hover:text-emerald-300 text-[11px] cursor-pointer ml-auto flex-shrink-0"
+              title="มาร์กว่าโพสต์แล้ว"
+            >
+              <Check className="w-3 h-3 text-emerald-400" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -197,6 +341,16 @@ const KanbanCard = memo(function KanbanCard({
           >
             <Info className="w-3 h-3" />
           </button>
+          {phaseId === 'scripted' && onUnpickScript && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onUnpickScript(ang.angle_id || ang.id); }}
+              className="p-0.5 rounded text-slate-500 hover:text-rose-400 hover:bg-white/[0.08] transition-colors cursor-pointer"
+              title="ปลดออกจากคิววันนี้ (ส่งกลับเข้าคลังสคริปต์)"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -223,53 +377,64 @@ const KanbanCard = memo(function KanbanCard({
       <div className="pt-1.5 border-t border-white/[0.06]">
         {phaseId === 'rendered' ? (
           <div className="space-y-1.5 w-full">
-            {/* Primary Action Button: Full-width Cyan QC Pass */}
-            {onQcPass && (
+            {/* Row 1 (Publishing Channels): [ส่ง TikTok] + [ส่งมือถือ] */}
+            <div className="grid grid-cols-2 gap-1.5 w-full">
               <button
                 type="button"
-                onClick={() => onQcPass(ang)}
-                className="w-full py-1.5 px-3 rounded-xl bg-gradient-to-r from-[#25F4EE] to-cyan-400 hover:brightness-110 text-slate-950 text-xs font-black flex items-center justify-center gap-1.5 shadow-md shadow-[#25F4EE]/20 cursor-pointer transition-all active:scale-95 whitespace-nowrap"
-                title={ang.qc_note ? "คลิกเพื่อแก้ให้ QC ผ่าน (ล้างป้ายแดงออก)" : "คลิกเพื่อยืนยัน QC ผ่าน (พร้อมส่งมือถือ)"}
+                onClick={() => onOpenTiktokModal && onOpenTiktokModal(ang)}
+                className="py-2 px-2 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-[#FE2C55]/20 cursor-pointer transition-all active:scale-95 whitespace-nowrap"
+                title="ส่งคลิป แคปชัน และไอดีปักตะกร้าไปโพสต์บน TikTok Studio"
               >
-                <Check className="w-3.5 h-3.5 text-slate-950 stroke-[3]" />
-                <span>{ang.qc_note ? "แก้เป็น QC ผ่าน" : "ยืนยัน QC ผ่าน"}</span>
+                <Rocket className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>ส่ง TikTok</span>
               </button>
-            )}
 
-            {/* Secondary Actions Row: 3 Balanced Equal Columns */}
-            <div className="grid grid-cols-3 gap-1.5 w-full">
+              <button
+                type="button"
+                onClick={() => onOpenQrModal(ang)}
+                className="py-2 px-2 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all whitespace-nowrap active:scale-95"
+                title="เปิด QR Code สแกนโหลดคลิปลงมือถือ"
+              >
+                <QrCode className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>ส่งมือถือ</span>
+              </button>
+            </div>
+
+            {/* Row 2 (QC & Editing Tools): [ตรวจ QC] + [ตัดใหม่] */}
+            <div className="grid grid-cols-2 gap-1.5 w-full">
               {ang.video_url ? (
                 <button
                   type="button"
                   onClick={() => onPreviewVideo(ang.video_url, ang)}
-                  className="py-1.5 px-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] text-slate-200 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors whitespace-nowrap"
-                  title="พรีวิวตรวจ QC"
+                  className="py-1.5 px-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
+                  title="พรีวิวตรวจคลิปเต็มจอ"
                 >
                   <Play className="w-3 h-3 fill-current text-[#25F4EE]" />
-                  <span>QC</span>
+                  <span>ตรวจ QC</span>
                 </button>
               ) : <div />}
 
               <button
                 type="button"
                 onClick={() => onQcFail(ang)}
-                className="py-1.5 px-1 rounded-lg bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors whitespace-nowrap"
+                className="py-1.5 px-2 rounded-lg bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
                 title="QC ไม่ผ่าน — ส่งตัดใหม่"
               >
                 <RotateCcw className="w-3 h-3" />
                 <span>ตัดใหม่</span>
               </button>
-
-              <button
-                type="button"
-                onClick={() => onOpenQrModal(ang)}
-                className="py-1.5 px-1 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-300 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors whitespace-nowrap"
-                title="ส่งเข้ามือถือ"
-              >
-                <QrCode className="w-3 h-3" />
-                <span>มือถือ</span>
-              </button>
             </div>
+
+            {/* Row 3: Quick Mark As Posted button */}
+            <button
+              type="button"
+              onClick={() => onStatusChange(ang.parentProduct?.id, ang.angle_id, 'posted', null, null, true)}
+              className="w-full py-1 px-2 rounded-lg bg-white/[0.03] hover:bg-emerald-500/15 hover:border-emerald-500/30 border border-white/[0.06] text-slate-400 hover:text-emerald-300 text-[11px] font-medium flex items-center justify-center gap-1 cursor-pointer transition-colors"
+              title="คลิกเมื่อโพสต์คลิปนี้บน TikTok สำเร็จแล้ว เพื่อย้ายไปช่องโพสต์แล้ว"
+            >
+              <Check className="w-3 h-3 text-emerald-400" />
+              <span>มาร์กว่าโพสต์แล้ว</span>
+            </button>
           </div>
         ) : (
           <div className="flex items-center justify-between gap-1.5">
@@ -305,6 +470,15 @@ const KanbanCard = memo(function KanbanCard({
 
               {phaseId === 'mobile_ready' && (
                 <>
+                  <button
+                    type="button"
+                    onClick={() => onOpenTiktokModal && onOpenTiktokModal(ang)}
+                    className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:brightness-110 text-white text-xs font-bold flex items-center gap-1 shadow-sm cursor-pointer transition-all active:scale-95"
+                    title="ส่งคลิปไป TikTok Studio"
+                  >
+                    <Rocket className="w-3 h-3" />
+                    <span>ส่ง TikTok</span>
+                  </button>
                   <button
                     onClick={() => onOpenQrModal(ang)}
                     className="px-2 py-1.5 rounded-lg bg-purple-500/15 border border-purple-500/30 text-purple-300 hover:bg-purple-500/25 text-xs font-bold flex items-center gap-1 cursor-pointer"
@@ -363,6 +537,7 @@ const MobileTableRowCard = memo(function MobileTableRowCard({
   onStatusChange,
   onPreviewVideo,
   onOpenQrModal,
+  onOpenTiktokModal,
   onInspectAngle,
   onCopyCaption,
   onQcPass,
@@ -376,60 +551,55 @@ const MobileTableRowCard = memo(function MobileTableRowCard({
   const captionText = `${ang.tiktok_caption || ''}\n\n${ang.tiktok_hashtags || ''}`.trim();
 
   return (
-    <div className="p-3 sm:p-4 rounded-2xl bg-[#0B0F19] border border-white/[0.08] space-y-3 shadow-md">
-      {/* 1. Top Row: Product + Badge + Status */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span
-              onClick={() => onInspectAngle(ang)}
-              className="font-bold text-white text-xs sm:text-sm font-kanit hover:text-[#25F4EE] cursor-pointer truncate"
-            >
-              {ang.parentProduct?.name}
-            </span>
-            {ang.badge && (
-              <span className="flex-shrink-0">
-                <Badge variant="cyan" size="sm">{ang.badge}</Badge>
-              </span>
-            )}
-          </div>
+    <div className="glass-card p-3 rounded-2xl border border-white/[0.08] space-y-2.5 bg-[#080B11]/90 shadow-lg">
+      {/* 1. Header Row */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+          <span
+            onClick={() => onInspectAngle(ang)}
+            className="font-bold text-white text-xs sm:text-sm font-kanit truncate hover:text-[#25F4EE] cursor-pointer"
+          >
+            {ang.parentProduct?.name}
+          </span>
+          {ang.badge && (
+            <Badge variant="cyan" size="sm">{ang.badge}</Badge>
+          )}
         </div>
-        <span className={`inline-flex items-center gap-1 py-1 px-2.5 rounded-lg text-xs font-bold border flex-shrink-0 whitespace-nowrap ${currentPhase.color}`}>
-          <currentPhase.icon className="w-3 h-3 flex-shrink-0" />
-          <span className="whitespace-nowrap">{currentPhase.label}</span>
+        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-lg border flex-shrink-0 whitespace-nowrap ${currentPhase.color}`}>
+          {currentPhase.label}
         </span>
       </div>
 
-      {/* 2. Hook Title (Cyan Accent Card) */}
+      {/* 2. Hook Title */}
       <div
         onClick={() => onInspectAngle(ang)}
-        className="p-2.5 rounded-xl bg-black/40 border-l-3 border-[#25F4EE] text-xs font-bold text-cyan-200 leading-snug cursor-pointer hover:bg-black/60 transition-colors"
+        className="text-xs font-bold text-cyan-200 line-clamp-2 pl-2 border-l-2 border-[#25F4EE] cursor-pointer hover:underline"
       >
         {ang.hook_title}
       </div>
 
-      {/* 3. Media & Caption Section */}
-      <div className="flex items-start gap-2.5">
-        {ang.video_url ? (
+      {/* 3. Media Preview & Caption Box */}
+      <div className="flex items-center gap-2">
+        {ang.video_url && (
           <button
             onClick={() => onPreviewVideo(ang.video_url)}
-            className="w-12 h-16 rounded-xl overflow-hidden bg-black relative border border-white/[0.1] hover:border-[#25F4EE] flex-shrink-0 group cursor-pointer shadow-sm"
+            className="w-10 h-14 rounded-xl overflow-hidden bg-black relative border border-white/[0.1] hover:border-[#25F4EE] flex-shrink-0 group cursor-pointer"
           >
             <video src={`/api/media/${ang.video_url}`} className="w-full h-full object-cover" muted />
             <div className="absolute inset-0 flex items-center justify-center bg-black/40 group-hover:bg-black/10">
-              <Play className="w-3.5 h-3.5 fill-current text-[#25F4EE]" />
+              <Play className="w-3 h-3 fill-current text-[#25F4EE]" />
             </div>
           </button>
-        ) : null}
+        )}
 
         <div className="flex-1 min-w-0">
           {(ang.status === 'mobile_ready' || ang.status === 'posted') ? (
             <button
               onClick={() => onCopyCaption(captionText, ang.angle_id)}
-              className="w-full text-left p-2 rounded-xl bg-black/40 hover:bg-black/60 border border-white/[0.06] text-slate-300 text-xs flex items-center justify-between gap-2 cursor-pointer transition-colors"
+              className="w-full text-left p-1.5 rounded-xl bg-black/40 hover:bg-black/60 border border-white/[0.06] text-slate-300 text-xs flex items-center justify-between gap-1.5 cursor-pointer transition-colors"
               title="คลิกเพื่อคัดลอกแคปชัน & แฮชแท็ก"
             >
-              <span className="line-clamp-2 font-mono text-xs text-slate-300">{ang.tiktok_caption || 'คัดลอกแคปชัน'}</span>
+              <span className="line-clamp-2 text-xs font-mono">{ang.tiktok_caption || 'คัดลอกแคปชัน'}</span>
               <span className="text-[#25F4EE] flex-shrink-0">
                 {copiedAngleId === ang.angle_id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
               </span>
@@ -442,11 +612,11 @@ const MobileTableRowCard = memo(function MobileTableRowCard({
         </div>
       </div>
 
-      {/* 4. Mobile Action Buttons (Thumb Friendly, No Text Squashing) */}
-      <div className="flex items-center gap-2 pt-1 border-t border-white/[0.06]">
+      {/* 4. Action Row */}
+      <div className="flex items-center gap-1.5 pt-1.5 border-t border-white/[0.06] flex-wrap">
         <button
           onClick={() => onInspectAngle(ang)}
-          className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.07] text-slate-300 flex items-center justify-center cursor-pointer active:scale-95 flex-shrink-0"
+          className="p-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-300 cursor-pointer active:scale-95 flex-shrink-0"
           title="ดูรายละเอียดจริงเชิงลึก"
         >
           <Info className="w-4 h-4" />
@@ -498,6 +668,7 @@ const TableRow = memo(function TableRow({
   onStatusChange,
   onPreviewVideo,
   onOpenQrModal,
+  onOpenTiktokModal,
   onInspectAngle,
   onCopyCaption,
   onQcPass,
@@ -609,6 +780,17 @@ const TableRow = memo(function TableRow({
             <span className="whitespace-nowrap">ส่งตัดต่อ</span>
           </button>
 
+          {ang.video_url && onOpenTiktokModal && (
+            <button
+              onClick={() => onOpenTiktokModal(ang)}
+              className="py-1.5 px-2.5 rounded-lg bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:brightness-110 text-white text-xs font-bold inline-flex items-center gap-1 cursor-pointer transition-all active:scale-95 whitespace-nowrap flex-shrink-0 shadow-sm"
+              title="ส่งคลิปไป TikTok Studio พร้อมปักตะกร้า"
+            >
+              <Rocket className="w-3.5 h-3.5 flex-shrink-0" />
+              <span>ส่ง TikTok</span>
+            </button>
+          )}
+
           {(ang.status === 'rendered' || ang.qc_note) && onQcPass && (
             <button
               onClick={() => onQcPass(ang)}
@@ -655,9 +837,160 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
   const [previewVideoUrl, setPreviewVideoUrl] = useState(null);
   const [previewVideoAngle, setPreviewVideoAngle] = useState(null);
   const [qrModalItem, setQrModalItem] = useState(null);
+  const [tiktokModalItem, setTiktokModalItem] = useState(null);
+  const [tiktokCaption, setTiktokCaption] = useState('');
+  const [tiktokHashtags, setTiktokHashtags] = useState('');
+  const [tiktokProductId, setTiktokProductId] = useState('');
+  const [tiktokScheduleTime, setTiktokScheduleTime] = useState('');
+  const [isSubmittingTiktok, setIsSubmittingTiktok] = useState(false);
   const [inspectAngle, setInspectAngle] = useState(null); // Deep-Dive Inspection state
   const colRefs = useRef({});
   const { toastMessage, showToast, hideToast } = useToast();
+
+  // ── Daily Run Sheet & Grouping States (Round TRK-2) ──
+  const [scheduleSlots, setScheduleSlots] = useState(() => {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const saved = localStorage.getItem(`capcut_daily_run_sheet_${today}`);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [
+      { id: 'morning', period: 'เช้า', label: 'รอบเช้า', time: '08:30', angle: null, status: 'pending' },
+      { id: 'noon',    period: 'เที่ยง', label: 'รอบเที่ยง', time: '12:30', angle: null, status: 'pending' },
+      { id: 'evening', period: 'เย็น', label: 'รอบเย็น', time: '18:00', angle: null, status: 'pending' },
+      { id: 'night',   period: 'ดึก',  label: 'รอบดึก',  time: '21:30', angle: null, status: 'pending' },
+    ];
+  });
+
+  useEffect(() => {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      localStorage.setItem(`capcut_daily_run_sheet_${today}`, JSON.stringify(scheduleSlots));
+    } catch {}
+  }, [scheduleSlots]);
+
+  const [slotPickerIndex, setSlotPickerIndex] = useState(null);
+  const [groupByProduct, setGroupByProduct] = useState(true);
+  const [collapsedGroups, setCollapsedGroups] = useState({});
+  const [hideOldPosted, setHideOldPosted] = useState(true);
+
+  // ── Round TRK-3: Decluttering Board States (Archive & Script Library) ──
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+  const [archiveSearchQuery, setArchiveSearchQuery] = useState('');
+  const [showScriptLibraryModal, setShowScriptLibraryModal] = useState(false);
+  const [scriptLibrarySearch, setScriptLibrarySearch] = useState('');
+
+  // Picked scripts for today's production (persists in localStorage)
+  const [pickedScriptIds, setPickedScriptIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem('omnicut_today_picked_scripts');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return null;
+  });
+
+  useEffect(() => {
+    if (pickedScriptIds !== null) {
+      try {
+        localStorage.setItem('omnicut_today_picked_scripts', JSON.stringify(pickedScriptIds));
+      } catch {}
+    }
+  }, [pickedScriptIds]);
+
+  // Today Date string for filtering posted clips (Local time 'YYYY-MM-DD')
+  const todayDateStr = useMemo(() => {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }, []);
+
+  const isAnglePostedToday = useCallback((ang) => {
+    const dateVal = ang.posted_at || ang.updated_at;
+    if (!dateVal) return false;
+    return String(dateVal).startsWith(todayDateStr);
+  }, [todayDateStr]);
+
+  const handleTogglePickScript = useCallback((aid) => {
+    setPickedScriptIds((prev) => {
+      const current = prev || [];
+      if (current.includes(aid)) {
+        return current.filter((id) => id !== aid);
+      }
+      return [...current, aid];
+    });
+  }, []);
+
+  const handlePickTopScripts = useCallback((angles, limit = 4) => {
+    const ids = angles.slice(0, limit).map((a) => a.angle_id || a.id);
+    setPickedScriptIds(ids);
+  }, []);
+
+  const handleClearPickedScripts = useCallback(() => {
+    setPickedScriptIds([]);
+  }, []);
+
+  useEffect(() => {
+    if (pickedScriptIds === null && products.length > 0) {
+      const allScripted = [];
+      products.forEach((p) => {
+        (p.angles || []).forEach((a) => {
+          if ((a.status || 'scripted') === 'scripted') {
+            allScripted.push(a.angle_id || a.id);
+          }
+        });
+      });
+      if (allScripted.length > 0) {
+        setPickedScriptIds(allScripted.slice(0, 4));
+      } else {
+        setPickedScriptIds([]);
+      }
+    }
+  }, [products, pickedScriptIds]);
+
+  const toggleGroupCollapse = (phaseId, groupKey) => {
+    const key = `${phaseId}_${groupKey}`;
+    setCollapsedGroups((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  const handleOpenTiktokModal = useCallback((ang, scheduleTime = '') => {
+    if (!ang) return;
+    const targetPid = ang?.parentProduct?.tiktok_product_id || ang?.parentProduct?.name || '';
+    setTiktokModalItem(ang);
+    setTiktokCaption(ang.tiktok_caption || ang.hook_title || '');
+    setTiktokHashtags(ang.tiktok_hashtags || '#รีวิว #ของดีบอกต่อ');
+    setTiktokProductId(targetPid);
+    setTiktokScheduleTime(scheduleTime || '');
+  }, []);
+
+  const handleConfirmTiktokAutopost = useCallback(async () => {
+    if (!tiktokModalItem) return;
+    if (!tiktokModalItem.video_url) {
+      showToast('ยังไม่มีไฟล์วิดีโอที่ตัดเสร็จสำหรับคลิปนี้', 'error');
+      return;
+    }
+    setIsSubmittingTiktok(true);
+    try {
+      await prepareTiktokAutopost(
+        tiktokModalItem.video_url,
+        null,
+        tiktokCaption,
+        tiktokHashtags,
+        tiktokModalItem.parentProduct?.id,
+        tiktokModalItem.angle_id,
+        tiktokProductId.trim() || undefined,
+        tiktokScheduleTime.trim() || undefined,
+      );
+      showToast('ส่งข้อมูลให้ Extension แล้ว! กำลังเปิด TikTok Studio...');
+      window.open('https://www.tiktok.com/tiktokstudio/upload', '_blank');
+    } catch (err) {
+      showToast('ส่งข้อมูลไม่สำเร็จ: ' + (err.response?.data?.detail || err.message), 'error');
+    } finally {
+      setIsSubmittingTiktok(false);
+    }
+  }, [tiktokModalItem, tiktokCaption, tiktokHashtags, tiktokProductId, tiktokScheduleTime, showToast]);
 
   const handlePreviewVideo = useCallback((url, ang = null) => {
     setPreviewVideoUrl(url);
@@ -960,6 +1293,121 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
       console.error('Drop parse error', err);
     }
   };
+
+  // 🔀 Smart Auto-Rotate Algorithm: Distribute ready clips fairly across products without consecutive repeats
+  const handleAutoRotateSlots = useCallback(() => {
+    const readyClips = allAnglesList.filter(
+      (a) => (a.status === 'rendered' || a.status === 'mobile_ready') && a.video_url
+    );
+
+    if (readyClips.length === 0) {
+      showToast('ยังไม่มีคลิปที่ตัดเสร็จในระบบ กรุณาตัดต่อคลิปก่อนจัดคิว', 'error');
+      return;
+    }
+
+    const productBuckets = {};
+    readyClips.forEach((ang) => {
+      const pid = ang.parentProduct?.id || 'unknown';
+      if (!productBuckets[pid]) productBuckets[pid] = [];
+      productBuckets[pid].push(ang);
+    });
+
+    const productKeys = Object.keys(productBuckets);
+    let currentProdIndex = 0;
+    const selectedAngleIds = new Set();
+
+    const newSlots = scheduleSlots.map((slot) => {
+      let pickedAngle = null;
+
+      for (let attempt = 0; attempt < productKeys.length; attempt++) {
+        const prodKey = productKeys[(currentProdIndex + attempt) % productKeys.length];
+        const bucket = productBuckets[prodKey] || [];
+        const available = bucket.find((a) => !selectedAngleIds.has(a.angle_id));
+        if (available) {
+          pickedAngle = available;
+          selectedAngleIds.add(available.angle_id);
+          currentProdIndex = (currentProdIndex + attempt + 1) % productKeys.length;
+          break;
+        }
+      }
+
+      if (!pickedAngle) {
+        pickedAngle = readyClips.find((a) => !selectedAngleIds.has(a.angle_id)) || readyClips[0];
+        if (pickedAngle) selectedAngleIds.add(pickedAngle.angle_id);
+      }
+
+      return {
+        ...slot,
+        angle: pickedAngle,
+        status: pickedAngle ? 'pending' : 'pending',
+      };
+    });
+
+    setScheduleSlots(newSlots);
+    showToast('จัดคิวสลับสินค้าอัตโนมัติ 4 ช่วงเวลาเรียบร้อยแล้ว!');
+  }, [allAnglesList, scheduleSlots, showToast]);
+
+  const handleAssignClipToSlot = useCallback((slotIndex, angle) => {
+    setScheduleSlots((prev) => {
+      const copy = [...prev];
+      if (copy[slotIndex]) {
+        copy[slotIndex] = { ...copy[slotIndex], angle, status: 'pending' };
+      }
+      return copy;
+    });
+    setSlotPickerIndex(null);
+    showToast('เพิ่มคลิปลงสล็อตเรียบร้อย');
+  }, [showToast]);
+
+  const handleRemoveClipFromSlot = useCallback((slotIndex) => {
+    setScheduleSlots((prev) => {
+      const copy = [...prev];
+      if (copy[slotIndex]) {
+        copy[slotIndex] = { ...copy[slotIndex], angle: null, status: 'pending' };
+      }
+      return copy;
+    });
+  }, []);
+
+  const handleUpdateSlotTime = useCallback((slotIndex, newTime) => {
+    setScheduleSlots((prev) => {
+      const copy = [...prev];
+      if (copy[slotIndex]) {
+        copy[slotIndex] = { ...copy[slotIndex], time: newTime };
+      }
+      return copy;
+    });
+  }, []);
+
+  const handleAddExtraSlot = useCallback(() => {
+    setScheduleSlots((prev) => {
+      const slotCount = prev.length;
+      return [
+        ...prev,
+        {
+          id: `extra_${Date.now()}`,
+          period: `รอบพิเศษ #${slotCount + 1}`,
+          label: `รอบพิเศษ ${slotCount + 1}`,
+          time: '15:30',
+          angle: null,
+          status: 'pending',
+        },
+      ];
+    });
+    showToast('เพิ่มรอบโพสต์พิเศษเรียบร้อย');
+  }, [showToast]);
+
+  const handleDeleteSlot = useCallback((slotIndex) => {
+    setScheduleSlots((prev) => prev.filter((_, idx) => idx !== slotIndex));
+    showToast('ลบรอบพิเศษออกแล้ว');
+  }, [showToast]);
+
+  const handleClearSlots = useCallback(() => {
+    setScheduleSlots((prev) =>
+      prev.map((s) => ({ ...s, angle: null, status: 'pending' }))
+    );
+    showToast('ล้างคิวของวันนี้เรียบร้อย');
+  }, [showToast]);
 
   return (
     <div className="space-y-3 animate-fadeIn pb-16">
@@ -1291,7 +1739,23 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                   </button>
                 )}
 
-                {/* Button 4: Mobile QR */}
+                {/* Button 4: TikTok Studio Post */}
+                {isRenderedOrBeyond && inspectAngle.video_url && (
+                  <button
+                    onClick={() => {
+                      const ang = inspectAngle;
+                      setInspectAngle(null);
+                      handleOpenTiktokModal(ang);
+                    }}
+                    className="py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all flex-shrink-0 whitespace-nowrap shadow-md shadow-[#FE2C55]/20 active:scale-95"
+                    title="ส่งคลิปไป TikTok Studio พร้อมปักตะกร้า"
+                  >
+                    <Rocket className="w-3.5 h-3.5" />
+                    <span>ส่ง TikTok</span>
+                  </button>
+                )}
+
+                {/* Button 5: Mobile QR */}
                 <button
                   onClick={() => {
                     setInspectAngle(null);
@@ -1491,6 +1955,506 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
         })()}
       </Modal>
 
+      {/* ── TikTok Studio Post Modal (Preview, Edit Caption & Product ID) ── */}
+      <Modal
+        isOpen={!!tiktokModalItem}
+        onClose={() => !isSubmittingTiktok && setTiktokModalItem(null)}
+        title="เตรียมโพสต์ TikTok Studio (พร้อมปักตะกร้า)"
+        subtitle={tiktokModalItem?.parentProduct?.name ? `${tiktokModalItem.parentProduct.name} — ${tiktokModalItem.hook_title || ''}` : tiktokModalItem?.hook_title}
+        maxWidth="max-w-lg"
+      >
+        {tiktokModalItem && (
+          <div className="space-y-4 pt-1">
+            {/* Top Video Preview & Info Banner */}
+            <div className="flex items-center gap-3 p-3 rounded-2xl bg-[#080B11] border border-white/[0.08]">
+              {tiktokModalItem.video_url ? (
+                <div className="w-16 aspect-[9/16] rounded-xl overflow-hidden bg-black border border-white/[0.1] flex-shrink-0 shadow-md">
+                  <video
+                    src={`/api/media/${tiktokModalItem.video_url}`}
+                    className="w-full h-full object-cover"
+                    controls={false}
+                    muted
+                  />
+                </div>
+              ) : null}
+              <div className="min-w-0 flex-1 space-y-1">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-xs font-bold text-white truncate font-kanit">
+                    {tiktokModalItem.parentProduct?.name}
+                  </span>
+                  {tiktokModalItem.badge && (
+                    <Badge variant="cyan" size="sm">{tiktokModalItem.badge}</Badge>
+                  )}
+                </div>
+                <p className="text-xs font-bold text-[#25F4EE] line-clamp-1">
+                  {tiktokModalItem.hook_title}
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  ระบบจะส่งข้อมูลคลิป แคปชัน และรหัสสินค้าให้ TikTok Studio Auto-post Extension
+                </p>
+              </div>
+            </div>
+
+            {/* Caption & Hashtag Inputs */}
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300">
+                  คำอธิบายคลิป (Caption):
+                </label>
+                <Textarea
+                  value={tiktokCaption}
+                  onChange={(e) => setTiktokCaption(e.target.value)}
+                  placeholder="เขียนแคปชั่นดึงดูดใจ..."
+                  rows={3}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300">
+                  แฮชแท็ก (Hashtags):
+                </label>
+                <Input
+                  value={tiktokHashtags}
+                  onChange={(e) => setTiktokHashtags(e.target.value)}
+                  placeholder="#รีวิว #ของดีบอกต่อ..."
+                />
+              </div>
+
+              <div className="space-y-1.5 pt-1 border-t border-white/[0.06]">
+                <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                  <span>รหัสสินค้าปักตะกร้า (TikTok Product ID):</span>
+                  <span className="text-[10px] text-slate-400">เว้นว่างไว้จะใช้ชื่อสินค้าค้นหาแทน</span>
+                </label>
+                <Input
+                  value={tiktokProductId}
+                  onChange={(e) => setTiktokProductId(e.target.value)}
+                  placeholder="เช่น 1737088044189583209 หรือชื่อสินค้า"
+                />
+              </div>
+
+              <div className="space-y-1.5 pt-1 border-t border-white/[0.06]">
+                <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-[#25F4EE]" />
+                    <span>เวลาตั้งเวลาโพสต์ล่วงหน้า (Schedule Time):</span>
+                  </span>
+                  <span className="text-[10px] text-slate-400">เว้นว่างไว้หากต้องการโพสต์ทันที</span>
+                </label>
+                <input
+                  type="time"
+                  value={tiktokScheduleTime}
+                  onChange={(e) => setTiktokScheduleTime(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/[0.1] text-xs font-mono text-white focus:outline-none focus:border-[#25F4EE]/50"
+                />
+              </div>
+            </div>
+
+            {/* Actions Bar */}
+            <div className="flex items-center justify-between pt-3 border-t border-white/[0.08] gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const pid = tiktokModalItem.parentProduct?.id;
+                  const aid = tiktokModalItem.angle_id;
+                  setTiktokModalItem(null);
+                  if (pid && aid) {
+                    handleAngleStatusChange(pid, aid, 'posted', null, null, true);
+                    showToast('มาร์กว่าโพสต์บน TikTok สำเร็จแล้ว');
+                  }
+                }}
+                className="text-xs text-slate-400 hover:text-emerald-400 transition-colors cursor-pointer flex items-center gap-1"
+                title="คลิกหากโพสต์คลิปนี้บน TikTok เสร็จสิ้นแล้ว"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>มาร์กว่าโพสต์แล้ว</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => setTiktokModalItem(null)}
+                  disabled={isSubmittingTiktok}
+                >
+                  ยกเลิก
+                </Button>
+                <button
+                  type="button"
+                  onClick={handleConfirmTiktokAutopost}
+                  disabled={isSubmittingTiktok}
+                  className="py-2 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-[#FE2C55]/25 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
+                >
+                  <Rocket className="w-3.5 h-3.5" />
+                  <span>{isSubmittingTiktok ? 'กำลังส่งข้อมูล...' : 'ส่งไป TikTok Studio'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* ── Slot Clip Picker Modal (Round TRK-2) ── */}
+      <Modal
+        isOpen={slotPickerIndex !== null}
+        onClose={() => setSlotPickerIndex(null)}
+        title="เลือกคลิปที่ตัดเสร็จลงคิว (Daily Run Sheet)"
+        subtitle={slotPickerIndex !== null ? `${scheduleSlots[slotPickerIndex]?.label} (เวลา ${scheduleSlots[slotPickerIndex]?.time})` : ''}
+        maxWidth="max-w-2xl"
+      >
+        <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1 pt-1">
+          {(() => {
+            const readyClips = allAnglesList.filter(
+              (a) => (a.status === 'rendered' || a.status === 'mobile_ready') && a.video_url
+            );
+
+            if (readyClips.length === 0) {
+              return (
+                <div className="py-12 text-center text-slate-500 text-xs">
+                  ไม่พบคลิปที่ตัดเสร็จในระบบ (ต้องมีสถานะ "ตัดต่อเสร็จ" หรือ "ส่งเข้ามือถือ")
+                </div>
+              );
+            }
+
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {readyClips.map((ang, idx) => (
+                  <div
+                    key={`${ang.parentProduct?.id}_${ang.angle_id || idx}`}
+                    onClick={() => handleAssignClipToSlot(slotPickerIndex, ang)}
+                    className="p-3 rounded-2xl bg-black/40 border border-white/[0.08] hover:border-[#25F4EE] hover:bg-white/[0.04] transition-all cursor-pointer flex items-center gap-3 group active:scale-98"
+                  >
+                    {ang.video_url && (
+                      <div className="w-12 aspect-[9/16] rounded-xl overflow-hidden bg-black border border-white/[0.1] flex-shrink-0 shadow-sm relative">
+                        <video
+                          src={`/api/media/${ang.video_url}`}
+                          className="w-full h-full object-cover"
+                          controls={false}
+                          muted
+                        />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-xs font-bold text-white font-kanit truncate">
+                          {ang.parentProduct?.name}
+                        </span>
+                        {ang.badge && (
+                          <Badge variant="cyan" size="sm">{ang.badge}</Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-[#25F4EE] font-bold line-clamp-2">
+                        {ang.hook_title}
+                      </p>
+                      <div className="text-[10px] text-slate-400">
+                        คลิกเพื่อเลือกคลิปนี้ลงรอบ {scheduleSlots[slotPickerIndex]?.label}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
+      </Modal>
+
+      {/* ── Script Library Modal (Round TRK-3) ── */}
+      <Modal
+        isOpen={showScriptLibraryModal}
+        onClose={() => setShowScriptLibraryModal(false)}
+        title="คลังสคริปต์ทั้งหมด (Script Library)"
+        subtitle="เลือกสคริปต์ 3-5 รายการเพื่อนำขึ้นมาตัดต่อบนบอร์ดประจำวันนี้"
+        maxWidth="max-w-3xl"
+      >
+        <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+          {/* Top Toolbar: Search & Quick Pick Actions */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pb-2 border-b border-white/[0.08]">
+            <div className="relative flex-1 min-w-0">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={scriptLibrarySearch}
+                onChange={(e) => setScriptLibrarySearch(e.target.value)}
+                placeholder="ค้นหาสคริปต์ หรือชื่อสินค้า..."
+                className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-black/50 border border-white/[0.1] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#25F4EE]/50"
+              />
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <span className="text-xs font-mono text-cyan-300 px-2 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                เลือกแล้ว: {pickedScriptIds?.length || 0} รายการ
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  const allScripted = allAnglesList.filter(a => (a.status || 'scripted') === 'scripted');
+                  handlePickTopScripts(allScripted, 4);
+                  showToast('เลือก 4 สคริปต์แรกเข้าคิววันนี้เรียบร้อย');
+                }}
+                className="px-2.5 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] text-slate-200 text-xs font-bold cursor-pointer transition-colors whitespace-nowrap"
+                title="เลือก 4 รายการแรกอัตโนมัติ"
+              >
+                เลือก 4 รายการแรก
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleClearPickedScripts();
+                  showToast('ล้างคิวสคริปต์วันนี้ทั้งหมด');
+                }}
+                className="px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-rose-500/15 border border-white/[0.06] hover:border-rose-500/30 text-slate-400 hover:text-rose-300 text-xs font-bold cursor-pointer transition-colors whitespace-nowrap"
+                title="ล้างการเลือกทั้งหมด"
+              >
+                ล้างคิว
+              </button>
+            </div>
+          </div>
+
+          {/* List of Available Scripts */}
+          {(() => {
+            const allScripted = allAnglesList.filter(a => (a.status || 'scripted') === 'scripted');
+            const q = scriptLibrarySearch.toLowerCase().trim();
+            const filtered = allScripted.filter(a =>
+              !q ||
+              (a.parentProduct?.name || '').toLowerCase().includes(q) ||
+              (a.hook_title || '').toLowerCase().includes(q)
+            );
+
+            if (filtered.length === 0) {
+              return (
+                <div className="py-12 text-center text-slate-500 text-xs">
+                  {allScripted.length === 0 ? 'ยังไม่มีสคริปต์ในระบบ' : 'ไม่พบสคริปต์ที่ตรงกับคำค้นหา'}
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-2.5">
+                {filtered.map((ang, idx) => {
+                  const aid = ang.angle_id || ang.id;
+                  const isPicked = (pickedScriptIds || []).includes(aid);
+                  const chosenVideos = (ang.selected_videos && ang.selected_videos.length > 0)
+                    ? ang.selected_videos
+                    : (ang.selected_video ? [ang.selected_video] : []);
+                  const hasVideos = chosenVideos.length > 0;
+
+                  return (
+                    <div
+                      key={`${ang.parentProduct?.id}_${aid || idx}`}
+                      className={`p-3 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                        isPicked
+                          ? 'bg-cyan-950/20 border-cyan-500/40 shadow-sm shadow-cyan-500/5'
+                          : 'bg-black/30 border-white/[0.08] hover:border-white/[0.15]'
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs font-bold text-white font-kanit">
+                            {ang.parentProduct?.name}
+                          </span>
+                          {ang.badge && (
+                            <Badge variant="cyan" size="sm">{ang.badge}</Badge>
+                          )}
+                          {hasVideos ? (
+                            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                              มีคลิปดิบพร้อม ({chosenVideos.length})
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-amber-400/80">
+                              ยังไม่ได้แนบคลิปดิบ
+                            </span>
+                          )}
+                        </div>
+                        <div className="pl-2 border-l-2 border-[#25F4EE] text-xs font-semibold text-cyan-200 line-clamp-1">
+                          {ang.hook_title}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 self-end sm:self-center flex-shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePickScript(aid)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 whitespace-nowrap ${
+                            isPicked
+                              ? 'bg-cyan-500/20 hover:bg-rose-500/20 border border-cyan-500/40 hover:border-rose-500/40 text-cyan-300 hover:text-rose-300'
+                              : 'bg-white/[0.06] hover:bg-cyan-500/20 border border-white/[0.1] hover:border-cyan-500/40 text-slate-200 hover:text-cyan-300'
+                          }`}
+                        >
+                          {isPicked ? (
+                            <>
+                              <Check className="w-3.5 h-3.5" />
+                              <span>อยู่ในคิววันนี้</span>
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="w-3.5 h-3.5" />
+                              <span>หยิบมาทำวันนี้</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </div>
+      </Modal>
+
+      {/* ── Historical Posted Clips Archive Modal (Round TRK-3) ── */}
+      <Modal
+        isOpen={showArchiveModal}
+        onClose={() => setShowArchiveModal(false)}
+        title="คลังประวัติคลิปที่โพสต์แล้วทั้งหมด (Posted Archive)"
+        subtitle="ประวัติคลิปที่โพสต์สำเร็จก่อนวันนี้ทั้งหมด เพื่อไม่ให้รกบอร์ดหลัก"
+        maxWidth="max-w-3xl"
+      >
+        <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+          {/* Top Search Toolbar */}
+          <div className="flex items-center justify-between gap-2 pb-2 border-b border-white/[0.08]">
+            <div className="relative flex-1 min-w-0">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={archiveSearchQuery}
+                onChange={(e) => setArchiveSearchQuery(e.target.value)}
+                placeholder="ค้นหาคลิปย้อนหลัง, สคริปต์, หรือชื่อสินค้า..."
+                className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-black/50 border border-white/[0.1] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#25F4EE]/50"
+              />
+            </div>
+            {archiveSearchQuery && (
+              <button
+                type="button"
+                onClick={() => setArchiveSearchQuery('')}
+                className="p-1 text-slate-400 hover:text-white"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* List of Archived Posted Clips */}
+          {(() => {
+            const allPosted = allAnglesList.filter(a => a.status === 'posted');
+            const q = archiveSearchQuery.toLowerCase().trim();
+            const filtered = allPosted.filter(a =>
+              !q ||
+              (a.parentProduct?.name || '').toLowerCase().includes(q) ||
+              (a.hook_title || '').toLowerCase().includes(q)
+            );
+
+            if (filtered.length === 0) {
+              return (
+                <div className="py-12 text-center text-slate-500 text-xs">
+                  {allPosted.length === 0 ? 'ยังไม่มีคลิปที่โพสต์ในระบบ' : 'ไม่พบคลิปที่ตรงกับคำค้นหา'}
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-2.5">
+                {filtered.map((ang, idx) => {
+                  const dateStr = ang.posted_at || ang.updated_at || '';
+                  const displayDate = dateStr ? new Date(dateStr).toLocaleDateString('th-TH', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  }) : 'ไม่ระบุเวลา';
+                  const captionText = `${ang.tiktok_caption || ''}\n\n${ang.tiktok_hashtags || ''}`.trim();
+
+                  return (
+                    <div
+                      key={`${ang.parentProduct?.id}_${ang.angle_id || idx}`}
+                      className="p-3 rounded-2xl bg-black/40 border border-white/[0.08] hover:border-emerald-500/40 transition-all flex items-center gap-3 group"
+                    >
+                      {/* Left: Mini 9:16 Video Preview */}
+                      {ang.video_url ? (
+                        <div
+                          onClick={() => handlePreviewVideo(ang.video_url, ang)}
+                          className="w-12 aspect-[9/16] rounded-xl overflow-hidden bg-black border border-white/[0.1] hover:border-[#25F4EE] flex-shrink-0 relative cursor-pointer group/vid"
+                          title="คลิกเพื่อเปิดดูวิดีโอ"
+                        >
+                          <video
+                            src={`/api/media/${ang.video_url}#t=1.0`}
+                            muted
+                            playsInline
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover/vid:bg-black/10">
+                            <Play className="w-3 h-3 fill-current text-[#25F4EE]" />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="w-12 aspect-[9/16] rounded-xl bg-slate-900 border border-white/[0.08] flex items-center justify-center flex-shrink-0 text-slate-600">
+                          <Film className="w-4 h-4" />
+                        </div>
+                      )}
+
+                      {/* Middle: Details */}
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs font-bold text-white font-kanit truncate">
+                            {ang.parentProduct?.name}
+                          </span>
+                          {ang.badge && (
+                            <Badge variant="cyan" size="sm">{ang.badge}</Badge>
+                          )}
+                          <span className="text-[10px] font-mono text-emerald-400/90 px-1.5 py-0.2 rounded bg-emerald-500/10 border border-emerald-500/20">
+                            {displayDate}
+                          </span>
+                        </div>
+                        <p className="text-xs text-[#25F4EE] font-bold line-clamp-1">
+                          {ang.hook_title}
+                        </p>
+                        {captionText && (
+                          <p className="text-[11px] text-slate-400 line-clamp-1">
+                            {captionText}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Right: Actions */}
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {captionText && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopyCaption(captionText, ang.angle_id)}
+                            className="p-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-300 hover:text-white cursor-pointer transition-colors"
+                            title="คัดลอกแคปชัน & แฮชแท็ก"
+                          >
+                            {copiedAngleId === ang.angle_id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-[#25F4EE]" />}
+                          </button>
+                        )}
+                        {ang.video_url && (
+                          <button
+                            type="button"
+                            onClick={() => handlePreviewVideo(ang.video_url, ang)}
+                            className="p-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-300 hover:text-[#25F4EE] cursor-pointer transition-colors"
+                            title="เปิดดูวิดีโอเต็ม"
+                          >
+                            <Play className="w-3.5 h-3.5 fill-current" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenTiktokModal && handleOpenTiktokModal(ang)}
+                          className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:brightness-110 text-white text-xs font-bold flex items-center gap-1 shadow-sm cursor-pointer active:scale-95 whitespace-nowrap"
+                          title="ส่งคลิปไป TikTok Studio อีกครั้ง"
+                        >
+                          <Rocket className="w-3 h-3 flex-shrink-0" />
+                          <span>ส่ง TikTok</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </div>
+      </Modal>
+
       {/* ── 1. Top Header Banner ── */}
       <div className="w-full max-w-full min-w-0 bg-[#0B0F19] border border-white/[0.08] p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3 sm:gap-4 overflow-hidden">
         <div className="flex items-start sm:items-center gap-3 sm:gap-3.5 w-full min-w-0 flex-1">
@@ -1528,6 +2492,19 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
             >
               <Kanban className="w-3.5 h-3.5" />
               <span>บอร์ด 5 เฟส</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSwitchViewMode('schedule')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'schedule'
+                  ? 'bg-gradient-to-r from-[#FE2C55]/20 to-[#25F4EE]/20 text-white border border-[#25F4EE]/40 shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+              title="ตารางจัดคิวโพสต์ประจำวัน (Daily Run Sheet)"
+            >
+              <Calendar className="w-3.5 h-3.5 text-[#25F4EE]" />
+              <span>คิวประจำวัน</span>
             </button>
             <button
               type="button"
@@ -1673,6 +2650,47 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
         </div>
       </div>
 
+      {/* ── Quick Product Pills (Round TRK-2) ── */}
+      {products.length > 0 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 pt-0.5">
+          <button
+            type="button"
+            onClick={() => setSelectedProductFilter('all')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer active:scale-95 flex items-center gap-1.5 ${
+              selectedProductFilter === 'all'
+                ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-sm'
+                : 'bg-white/[0.04] text-slate-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.06]'
+            }`}
+          >
+            <span>สินค้าทั้งหมด</span>
+            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-black/40 text-slate-300">
+              {allAnglesList.length}
+            </span>
+          </button>
+          {products.map((p) => {
+            const pCount = (p.angles || []).length;
+            const isSelected = selectedProductFilter === p.id;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setSelectedProductFilter(isSelected ? 'all' : p.id)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer active:scale-95 flex items-center gap-1.5 ${
+                  isSelected
+                    ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-sm'
+                    : 'bg-white/[0.04] text-slate-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.06]'
+                }`}
+              >
+                <span className="truncate max-w-[160px]">{p.name}</span>
+                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-black/40 text-slate-300">
+                  {pCount}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* ══════════════════════════════════════════════════════════
           3. REAL HORIZONTAL KANBAN BOARD (SWIPEABLE COLUMNS)
          ══════════════════════════════════════════════════════════ */}
@@ -1691,7 +2709,45 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
           {/* Real Horizontal Kanban Board with Snap-Scroll */}
           <div className="flex overflow-x-auto snap-x snap-mandatory gap-2.5 pb-3 no-scrollbar scroll-smooth items-start xl:grid xl:grid-cols-5 xl:overflow-x-visible xl:snap-none">
             {PIPELINE_PHASES.map((phase) => {
-              const phaseAngles = filteredAngles.filter(a => a.status === phase.id);
+              const rawPhaseAngles = filteredAngles.filter(a => a.status === phase.id);
+              const isScripted = phase.id === 'scripted';
+              const isPosted = phase.id === 'posted';
+
+              // In scripted phase: only show angles picked for today's production!
+              const activePickedIds = pickedScriptIds || [];
+              const displayedScriptAngles = isScripted
+                ? rawPhaseAngles.filter(a => activePickedIds.includes(a.angle_id || a.id))
+                : rawPhaseAngles;
+
+              // In posted phase: only show angles posted TODAY
+              const todayPostedAngles = isPosted
+                ? rawPhaseAngles.filter(isAnglePostedToday)
+                : [];
+              const archivedPostedAngles = isPosted
+                ? rawPhaseAngles.filter(a => !isAnglePostedToday(a))
+                : [];
+
+              const phaseAngles = isScripted
+                ? displayedScriptAngles
+                : isPosted
+                ? todayPostedAngles
+                : rawPhaseAngles;
+
+              // Group by product for 'scripted' phase if toggle active
+              const productGroups = {};
+              if (isScripted && groupByProduct) {
+                phaseAngles.forEach(ang => {
+                  const pid = ang.parentProduct?.id || 'other';
+                  if (!productGroups[pid]) {
+                    productGroups[pid] = {
+                      product: ang.parentProduct,
+                      angles: []
+                    };
+                  }
+                  productGroups[pid].angles.push(ang);
+                });
+              }
+              const groupKeys = Object.keys(productGroups);
 
               return (
                 <div
@@ -1705,18 +2761,137 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                       <phase.icon className="w-3.5 h-3.5 text-[#25F4EE]" />
                       <span>{phase.label}</span>
                     </div>
-                    <span className="text-sm font-mono font-bold px-1.5 py-0.2 rounded-full bg-black/60 border border-white/[0.08] text-slate-300">
-                      {phaseAngles.length}
-                    </span>
+
+                    <div className="flex items-center gap-1.5">
+                      {isScripted ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setShowScriptLibraryModal(true)}
+                            className="px-2 py-0.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors active:scale-95"
+                            title="เปิดคลังสคริปต์ทั้งหมดเพื่อเลือกเข้าบอร์ดประจำวัน"
+                          >
+                            <FolderDown className="w-3 h-3" />
+                            <span>คลัง ({rawPhaseAngles.length})</span>
+                          </button>
+                          <span
+                            className="text-xs font-mono font-bold px-1.5 py-0.2 rounded-full bg-black/60 border border-white/[0.08] text-[#25F4EE]"
+                            title={`คิววันนี้ ${displayedScriptAngles.length} จากสคริปต์ทั้งหมด ${rawPhaseAngles.length}`}
+                          >
+                            {displayedScriptAngles.length}/{rawPhaseAngles.length}
+                          </span>
+                        </>
+                      ) : isPosted ? (
+                        <>
+                          {archivedPostedAngles.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setShowArchiveModal(true)}
+                              className="px-2 py-0.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors active:scale-95"
+                              title="เปิดดูคลังประวัติคลิปที่โพสต์ในอดีตทั้งหมด"
+                            >
+                              <Archive className="w-3 h-3" />
+                              <span>คลัง ({archivedPostedAngles.length})</span>
+                            </button>
+                          )}
+                          <span className="text-xs font-mono font-bold px-1.5 py-0.2 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300">
+                            {todayPostedAngles.length} วันนี้
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-sm font-mono font-bold px-1.5 py-0.2 rounded-full bg-black/60 border border-white/[0.08] text-slate-300">
+                          {rawPhaseAngles.length}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Cards inside column (Vertical Scrollable within column) */}
                   <div className="space-y-2 max-h-[68vh] overflow-y-auto pr-0.5 min-h-[120px]">
-                    {phaseAngles.length === 0 ? (
+                    {isScripted && rawPhaseAngles.length > 0 && displayedScriptAngles.length === 0 ? (
+                      <div className="py-6 text-center space-y-2 border border-dashed border-white/[0.08] rounded-xl px-2">
+                        <div className="text-xs text-slate-400">ยังไม่ได้หยิบสคริปต์เข้าคิววันนี้</div>
+                        <button
+                          type="button"
+                          onClick={() => setShowScriptLibraryModal(true)}
+                          className="py-1.5 px-3 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <FolderDown className="w-3.5 h-3.5" />
+                          <span>เลือกสคริปต์จากคลัง ({rawPhaseAngles.length} รายการ)</span>
+                        </button>
+                      </div>
+                    ) : isPosted && rawPhaseAngles.length > 0 && todayPostedAngles.length === 0 ? (
+                      <div className="py-6 text-center space-y-2 border border-dashed border-white/[0.08] rounded-xl px-2">
+                        <div className="text-xs text-slate-400">วันนี้ยังไม่มีคลิปโพสต์ใหม่</div>
+                        {archivedPostedAngles.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setShowArchiveModal(true)}
+                            className="py-1.5 px-3 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Archive className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>ดูคลังประวัติ ({archivedPostedAngles.length} คลิป)</span>
+                          </button>
+                        )}
+                      </div>
+                    ) : phaseAngles.length === 0 ? (
                       <div className="py-8 text-center text-sm text-slate-500 border border-dashed border-white/[0.06] rounded-xl">
                         ไม่มีคลิปในขั้นตอนนี้
                       </div>
+                    ) : isScripted && groupByProduct ? (
+                      /* Accordion Group by Product View */
+                      groupKeys.map((pid) => {
+                        const grp = productGroups[pid];
+                        const isCollapsed = collapsedGroups[`${phase.id}_${pid}`];
+                        return (
+                          <div key={pid} className="rounded-xl border border-white/[0.08] overflow-hidden bg-black/30">
+                            <button
+                              type="button"
+                              onClick={() => toggleGroupCollapse(phase.id, pid)}
+                              className="w-full flex items-center justify-between px-2.5 py-2 bg-white/[0.03] hover:bg-white/[0.06] text-left transition-colors cursor-pointer"
+                            >
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                {isCollapsed ? (
+                                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                                ) : (
+                                  <ChevronDown className="w-3.5 h-3.5 text-[#25F4EE] flex-shrink-0" />
+                                )}
+                                <span className="text-xs font-bold text-slate-200 truncate font-kanit">
+                                  {grp.product?.name || 'สินค้า'}
+                                </span>
+                              </div>
+                              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-black/50 text-slate-400 border border-white/[0.06] flex-shrink-0">
+                                {grp.angles.length}
+                              </span>
+                            </button>
+                            {!isCollapsed && (
+                              <div className="p-1.5 space-y-2 bg-black/20">
+                                {grp.angles.map((ang, idx) => (
+                                  <KanbanCard
+                                    key={`${ang.parentProduct?.id}_${ang.angle_id || idx}`}
+                                    ang={ang}
+                                    phaseId={phase.id}
+                                    onSendToStudio={handleSendToStudio}
+                                    onStatusChange={handleAngleStatusChange}
+                                    onPreviewVideo={handlePreviewVideo}
+                                    onOpenQrModal={setQrModalItem}
+                                    onOpenTiktokModal={handleOpenTiktokModal}
+                                    onInspectAngle={setInspectAngle}
+                                    onCopyCaption={handleCopyCaption}
+                                    onQcFail={handleQcFail}
+                                    onQcPass={handleQcPass}
+                                    onDismissConflict={handleDismissConflict}
+                                    onUnpickScript={handleTogglePickScript}
+                                    copiedAngleId={copiedAngleId}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
                     ) : (
+                      /* Flat Cards List */
                       phaseAngles.map((ang, idx) => (
                         <KanbanCard
                           key={`${ang.parentProduct?.id}_${ang.angle_id || idx}`}
@@ -1726,14 +2901,264 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                           onStatusChange={handleAngleStatusChange}
                           onPreviewVideo={handlePreviewVideo}
                           onOpenQrModal={setQrModalItem}
+                          onOpenTiktokModal={handleOpenTiktokModal}
                           onInspectAngle={setInspectAngle}
                           onCopyCaption={handleCopyCaption}
                           onQcFail={handleQcFail}
                           onQcPass={handleQcPass}
                           onDismissConflict={handleDismissConflict}
+                          onUnpickScript={handleTogglePickScript}
                           copiedAngleId={copiedAngleId}
                         />
                       ))
+                    )}
+
+                    {/* Bottom Quick Action for Scripted Column */}
+                    {isScripted && rawPhaseAngles.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowScriptLibraryModal(true)}
+                        className="w-full py-2 px-2.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-dashed border-cyan-500/30 text-cyan-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                        title="เปิดคลังสคริปต์เพื่อหยิบสคริปต์เพิ่มเติมมาตัดต่อวันนี้"
+                      >
+                        <FolderDown className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>หยิบสคริปต์จากคลัง ({Math.max(0, rawPhaseAngles.length - displayedScriptAngles.length)} เหลืออยู่)</span>
+                      </button>
+                    )}
+
+                    {/* Bottom Quick Action for Posted Column */}
+                    {isPosted && archivedPostedAngles.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowArchiveModal(true)}
+                        className="w-full py-2 px-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                        title="เปิดดูคลิปที่โพสต์แล้วทั้งหมดในอดีต"
+                      >
+                        <Archive className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>คลังประวัติคลิปเก่า ({archivedPostedAngles.length} คลิป)</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════
+          4. DAILY RUN SHEET (ตารางจัดคิวโพสต์ประจำวัน 3-5 คลิป)
+         ══════════════════════════════════════════════════════════ */}
+      {viewMode === 'schedule' && (
+        <div className="space-y-4 animate-fadeIn">
+          {/* Daily Run Sheet Header Toolbar */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-[#0B0F19] border border-white/[0.08] flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-lg">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="p-2 rounded-xl bg-gradient-to-tr from-[#FE2C55] to-[#25F4EE] text-white flex-shrink-0 shadow-md">
+                  <Calendar className="w-4 h-4" />
+                </span>
+                <h3 className="text-base sm:text-lg font-bold text-white font-kanit">
+                  ตารางจัดคิวโพสต์ประจำวัน (Daily Run Sheet)
+                </h3>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/30 font-bold font-mono">
+                  {scheduleSlots.filter(s => s.angle).length} / {scheduleSlots.length} คิว
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                จัดคิวและสลับสินค้า 3-5 คลิปต่อวัน (เช้า A, เที่ยง B, เย็น C, ดึก D) พร้อมตั้งเวลาส่ง TikTok Studio และปักตะกร้าอัตโนมัติ
+              </p>
+            </div>
+
+            {/* Actions: Auto-Rotate, Add Slot, Clear */}
+            <div className="flex items-center gap-2 flex-wrap w-full md:w-auto justify-end">
+              <button
+                type="button"
+                onClick={handleAutoRotateSlots}
+                className="py-2 px-3.5 rounded-xl bg-gradient-to-r from-[#25F4EE] to-cyan-400 hover:brightness-110 text-slate-950 text-xs font-black flex items-center gap-1.5 shadow-md shadow-[#25F4EE]/20 cursor-pointer active:scale-95 transition-all whitespace-nowrap"
+                title="จัดคิวสลับสินค้าให้อัตโนมัติจากคลิปที่ตัดเสร็จ"
+              >
+                <Shuffle className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>จัดคิวสลับสินค้าอัตโนมัติ</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleAddExtraSlot}
+                className="py-2 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-slate-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all whitespace-nowrap"
+                title="เพิ่มรอบโพสต์พิเศษ (คลิปที่ 5)"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>เพิ่มรอบพิเศษ</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleClearSlots}
+                className="py-2 px-3 rounded-xl bg-white/[0.04] hover:bg-red-500/15 border border-white/[0.06] hover:border-red-500/30 text-slate-400 hover:text-red-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all whitespace-nowrap"
+                title="ล้างคิวทั้งหมดของวันนี้"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>ล้างคิว</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Slots Grid: Responsive 1 to 4 columns */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+            {scheduleSlots.map((slot, sIdx) => {
+              const ang = slot.angle;
+              const hasClip = !!ang;
+              const PeriodIcon = slot.id === 'morning' ? Sunrise : slot.id === 'noon' ? Sun : slot.id === 'evening' ? Sunset : slot.id === 'night' ? Moon : Clock;
+
+              return (
+                <div
+                  key={slot.id}
+                  className={`p-3.5 sm:p-4 rounded-2xl border transition-all flex flex-col justify-between glass-card ${
+                    hasClip
+                      ? 'bg-[#080B11] border-white/[0.12] hover:border-[#25F4EE]/40 shadow-lg'
+                      : 'bg-[#080B11]/50 border-dashed border-white/[0.08]'
+                  }`}
+                >
+                  {/* Slot Header */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between pb-2.5 border-b border-white/[0.08]">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="p-1.5 rounded-lg bg-[#25F4EE]/10 text-[#25F4EE] flex-shrink-0">
+                          <PeriodIcon className="w-4 h-4" />
+                        </span>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-white font-kanit truncate">
+                            {slot.label}
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            เป้าหมายเวลาโพสต์
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Editable Time Input */}
+                      <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5 text-[#25F4EE] flex-shrink-0" />
+                          <input
+                            type="time"
+                            value={slot.time}
+                            onChange={(e) => handleUpdateSlotTime(sIdx, e.target.value)}
+                            className="px-2 py-1 rounded-lg bg-black/60 border border-white/[0.1] text-xs font-mono font-bold text-white focus:outline-none focus:border-[#25F4EE]/50 w-[84px] text-center cursor-pointer"
+                          />
+                        </div>
+                        {slot.id?.startsWith('extra_') && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSlot(sIdx)}
+                            className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-red-500/20 border border-white/[0.08] hover:border-red-500/30 text-slate-400 hover:text-red-300 transition-colors cursor-pointer"
+                            title="ลบรอบพิเศษนี้ออก"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Clip Body */}
+                    {hasClip ? (
+                      <div className="space-y-2.5">
+                        {/* Video Thumb + Info */}
+                        <div className="flex gap-2.5">
+                          {ang.video_url ? (
+                            <div className="w-16 aspect-[9/16] rounded-xl overflow-hidden bg-black border border-white/[0.1] flex-shrink-0 relative group shadow-sm">
+                              <HoverVideoThumb
+                                videoUrl={ang.video_url}
+                                onClick={() => handlePreviewVideo(ang.video_url, ang)}
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-16 aspect-[9/16] rounded-xl bg-black/60 border border-white/[0.08] flex items-center justify-center flex-shrink-0">
+                              <Film className="w-5 h-5 text-slate-600" />
+                            </div>
+                          )}
+
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <div className="flex items-center gap-1 flex-wrap">
+                              <span className="text-xs font-bold text-white font-kanit truncate max-w-full">
+                                {ang.parentProduct?.name}
+                              </span>
+                              {ang.badge && (
+                                <Badge variant="cyan" size="sm">{ang.badge}</Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-[#25F4EE] font-bold line-clamp-2 leading-snug">
+                              {ang.hook_title}
+                            </p>
+                            {ang.parentProduct?.tiktok_product_id && (
+                              <div className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 truncate">
+                                🛒 {ang.parentProduct.tiktok_product_id}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Schedule & Post Action */}
+                        <div className="pt-2 border-t border-white/[0.06] space-y-2">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenTiktokModal(ang, slot.time)}
+                            className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-[#FE2C55]/20 cursor-pointer active:scale-95 transition-all whitespace-nowrap"
+                          >
+                            <Rocket className="w-3.5 h-3.5" />
+                            <span>ส่ง TikTok ({slot.time})</span>
+                          </button>
+
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setSlotPickerIndex(sIdx)}
+                              className="flex-1 py-1.5 px-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-slate-300 text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer active:scale-95 transition-all"
+                            >
+                              <RefreshCw className="w-3 h-3" />
+                              <span>สลับคลิป</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveClipFromSlot(sIdx)}
+                              className="py-1.5 px-2 rounded-lg bg-white/[0.04] hover:bg-red-500/15 border border-white/[0.06] hover:border-red-500/30 text-slate-400 hover:text-red-300 text-[11px] font-bold flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+                              title="นำคลิปออกจากรอบนี้"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Empty State */
+                      <div className="py-8 px-3 text-center space-y-3 flex flex-col items-center justify-center">
+                        <div className="w-10 h-10 rounded-full bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-slate-500">
+                          <Plus className="w-4 h-4" />
+                        </div>
+                        <div className="text-xs text-slate-400 font-medium">
+                          ยังไม่มีคลิปในรอบนี้
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setSlotPickerIndex(sIdx)}
+                            className="py-1.5 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-slate-200 text-xs font-bold cursor-pointer active:scale-95 transition-all"
+                          >
+                            เลือกคลิปที่ตัดเสร็จ
+                          </button>
+                          {slot.id?.startsWith('extra_') && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSlot(sIdx)}
+                              className="p-1.5 rounded-xl bg-white/[0.04] hover:bg-red-500/20 border border-white/[0.08] hover:border-red-500/30 text-slate-400 hover:text-red-300 transition-colors cursor-pointer"
+                              title="ลบรอบพิเศษนี้ออก"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1763,6 +3188,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                   onStatusChange={handleAngleStatusChange}
                   onPreviewVideo={handlePreviewVideo}
                   onOpenQrModal={setQrModalItem}
+                  onOpenTiktokModal={handleOpenTiktokModal}
                   onInspectAngle={setInspectAngle}
                   onCopyCaption={handleCopyCaption}
                   onQcPass={handleQcPass}
@@ -1801,6 +3227,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                         onStatusChange={handleAngleStatusChange}
                         onPreviewVideo={handlePreviewVideo}
                         onOpenQrModal={setQrModalItem}
+                        onOpenTiktokModal={handleOpenTiktokModal}
                         onInspectAngle={setInspectAngle}
                         onCopyCaption={handleCopyCaption}
                         onQcPass={handleQcPass}

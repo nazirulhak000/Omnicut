@@ -51,6 +51,7 @@ class PrepareRequest(BaseModel):
     product_id: Optional[str] = None
     angle_id: Optional[str] = None
     tiktok_product_id: Optional[str] = None
+    schedule_time: Optional[str] = None
 
 
 @router.post("/prepare")
@@ -71,6 +72,7 @@ def prepare(req: PrepareRequest):
         "product_id": req.product_id,
         "angle_id": req.angle_id,
         "tiktok_product_id": req.tiktok_product_id,
+        "schedule_time": req.schedule_time,
         "prepared_at": datetime.now().isoformat(),
     }
     return {"success": True}

@@ -107,10 +107,11 @@ export const markPosted = (filePath, productId = null, angleId = null) =>
 // tiktok_autopost_extension/ Chrome extension, which polls
 // GET /api/tiktok-autopost/pending itself -- see that endpoint's docstring
 // for why the app can't message the extension directly.
-export const prepareTiktokAutopost = (videoPath, coverPath, caption, hashtags, productId = null, angleId = null, tiktokProductId = null) =>
+export const prepareTiktokAutopost = (videoPath, coverPath, caption, hashtags, productId = null, angleId = null, tiktokProductId = null, scheduleTime = null) =>
   api.post('/tiktok-autopost/prepare', {
     video_path: videoPath, cover_path: coverPath, caption, hashtags,
     product_id: productId, angle_id: angleId, tiktok_product_id: tiktokProductId,
+    schedule_time: scheduleTime,
   }).then(r => r.data);
 
 export const transcribeMedia = (data) => api.post('/sub-srt/transcribe', data, { timeout: 180000 }).then(r => r.data);

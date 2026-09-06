@@ -194,6 +194,8 @@ class ProductStore:
                             angle["qc_note"] = None
                         if clear_conflict_note:
                             angle["data_conflict_note"] = None
+                        if status == "posted" and not angle.get("posted_at"):
+                            angle["posted_at"] = cls._now()
                         angle["updated_at"] = cls._now()
                         product["updated_at"] = cls._now()
                         cls._save(products)

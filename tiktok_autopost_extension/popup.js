@@ -1,88 +1,48 @@
-const runBtn = document.getElementById('runBtn');
-const typeCaptionOnlyBtn = document.getElementById('typeCaptionOnlyBtn');
-const attachOnlyBtn = document.getElementById('attachOnlyBtn');
-const statusEl = document.getElementById('status');
-const autoClickPostEl = document.getElementById('autoClickPost');
-const attachProductEl = document.getElementById('attachProduct');
-const productIdInput = document.getElementById('productIdInput');
 const captionInput = document.getElementById('captionInput');
 const hashtagsInput = document.getElementById('hashtagsInput');
-const scheduleModeEl = document.getElementById('scheduleMode');
+const productIdInput = document.getElementById('productIdInput');
+const statusEl = document.getElementById('status');
 
 function setStatus(text, kind) {
   statusEl.textContent = text;
   statusEl.className = kind || '';
 }
 
-// Safely restore inputs state from storage
+// Restore text inputs from storage (not the checklist ticks -- those are
+// per-session progress, not a saved preference) and auto-fill from
+// whatever OmniCut last prepared, same as before.
 try {
   if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-    chrome.storage.local.get(['autoClickPost', 'attachProduct', 'productId', 'caption', 'hashtags', 'scheduleMode'], (data) => {
-      // Round POST-2 note (2026-09-06, user feedback): autoClickPost is
-      // deliberately NEVER restored from storage, even though it's still
-      // saved below -- a prior test left it checked, it silently persisted
-      // across popup opens, and the extension auto-clicked Post while
-      // attachProductLink's fixed sleeps hadn't actually finished settling
-      // the product-attach modal yet. User wants to always click Post
-      // themselves for now ("ผมกดเอง ให้นายแค่ใส่ข้อมูลก่อน") -- so this
-      // checkbox always opens unchecked; re-check it by hand each time.
-      autoClickPostEl.checked = false;
-      if (data && typeof data.attachProduct === 'boolean') {
-        attachProductEl.checked = data.attachProduct;
-      }
-      if (data && typeof data.scheduleMode === 'boolean') {
-        scheduleModeEl.checked = data.scheduleMode;
-      }
-      if (data && data.productId) {
-        productIdInput.value = data.productId;
-      }
-      if (data && data.caption && !captionInput.value) {
-        captionInput.value = data.caption;
-      }
-      if (data && data.hashtags && !hashtagsInput.value) {
-        hashtagsInput.value = data.hashtags;
-      }
+    chrome.storage.local.get(['productId', 'caption', 'hashtags'], (data) => {
+      if (data?.productId) productIdInput.value = data.productId;
+      if (data?.caption && !captionInput.value) captionInput.value = data.caption;
+      if (data?.hashtags && !hashtagsInput.value) hashtagsInput.value = data.hashtags;
     });
 
-    const saveSettings = () => {
+    const saveInputs = () => {
       try {
         chrome.storage.local.set({
-          autoClickPost: autoClickPostEl.checked,
-          attachProduct: attachProductEl.checked,
-          scheduleMode: scheduleModeEl.checked,
           productId: productIdInput.value.trim(),
           caption: captionInput.value.trim(),
           hashtags: hashtagsInput.value.trim(),
         });
       } catch (err) {
-        console.warn('Cannot save settings:', err);
+        console.warn('Cannot save inputs:', err);
       }
     };
+    productIdInput.addEventListener('input', saveInputs);
+    captionInput.addEventListener('input', saveInputs);
+    hashtagsInput.addEventListener('input', saveInputs);
 
-    autoClickPostEl.addEventListener('change', saveSettings);
-    attachProductEl.addEventListener('change', saveSettings);
-    scheduleModeEl.addEventListener('change', saveSettings);
-    productIdInput.addEventListener('input', saveSettings);
-    captionInput.addEventListener('input', saveSettings);
-    hashtagsInput.addEventListener('input', saveSettings);
-
-    // Auto-fill from pending OmniCut job
     fetch('http://127.0.0.1:8000/api/tiktok-autopost/pending')
       .then((res) => (res.ok ? res.json() : null))
       .then((job) => {
-        if (job) {
-          const targetId = job.tiktok_product_id || job.product_id;
-          if (targetId && !productIdInput.value) {
-            productIdInput.value = targetId;
-          }
-          if (job.caption && (!captionInput.value || captionInput.value === '')) {
-            captionInput.value = job.caption;
-          }
-          if (job.hashtags && (!hashtagsInput.value || hashtagsInput.value === '')) {
-            hashtagsInput.value = job.hashtags;
-          }
-          saveSettings();
-        }
+        if (!job) return;
+        const targetId = job.tiktok_product_id || job.product_id;
+        if (targetId && !productIdInput.value) productIdInput.value = targetId;
+        if (job.caption && !captionInput.value) captionInput.value = job.caption;
+        if (job.hashtags && !hashtagsInput.value) hashtagsInput.value = job.hashtags;
+        saveInputs();
       })
       .catch(() => {});
   }
@@ -90,108 +50,32 @@ try {
   console.warn('Storage initialization warning:', err);
 }
 
-runBtn.addEventListener('click', () => {
-  runBtn.disabled = true;
-  setStatus('กำลังทำงาน... (ระบบจะอัปโหลด รอวิดีโอครบ 100% แล้วจึงปักตะกร้า)');
+// Generic runner for one checklist step: disables its own button while
+// running, sends the message, ticks its checkbox on success, reports the
+// error plainly on failure (including "tab crashed" -- chrome.runtime
+// reports a disconnected port the same way a normal error would show up).
+function wireStep(btnId, chkId, stepName, buildMessage, successText) {
+  const btn = document.getElementById(btnId);
+  const chk = document.getElementById(chkId);
 
-  try {
-    chrome.runtime.sendMessage(
-      {
-        action: 'run-autopost',
-        autoClickPost: autoClickPostEl.checked,
-        attachProduct: attachProductEl.checked,
-        productId: productIdInput.value.trim(),
-        caption: captionInput.value.trim(),
-        hashtags: hashtagsInput.value.trim(),
-        scheduleMode: scheduleModeEl.checked,
-      },
-      (response) => {
-        runBtn.disabled = false;
+  btn.addEventListener('click', () => {
+    btn.disabled = true;
+    setStatus(`กำลังทำ ${stepName}...`);
+
+    let message;
+    try {
+      message = buildMessage();
+    } catch (err) {
+      btn.disabled = false;
+      setStatus(err.message || String(err), 'error');
+      return;
+    }
+
+    try {
+      chrome.runtime.sendMessage(message, (response) => {
+        btn.disabled = false;
         if (chrome.runtime.lastError) {
-          setStatus('เกิดข้อผิดพลาดจาก Extension: ' + chrome.runtime.lastError.message, 'error');
-          return;
-        }
-        if (!response) {
-          setStatus('ไม่ได้รับคำตอบจาก Extension -- ลองกดใหม่อีกครั้ง หรือรีโหลด Extension', 'error');
-          return;
-        }
-        if (response.success) {
-          const leaveNote = response.autoClickedPost && !response.leaveDialogDismissed
-            ? ' (ถ้าเจอ dialog "แน่ใจหรือไม่ว่าต้องการออก" ค้างอยู่ กดออกเองได้เลย โพสต์ไปแล้วจริง)'
-            : '';
-          setStatus(
-            (response.autoClickedPost
-              ? 'เติมข้อมูล ปักตะกร้า และกดเผยแพร่ให้เรียบร้อยแล้ว 🎉'
-              : 'เติมข้อมูลและปักตะกร้าสำเร็จ! -- ตรวจสอบวันเวลาที่ต้องการ แล้วกด "กำหนดเวลา" ได้เลย 🎉') + leaveNote,
-            'success'
-          );
-        } else {
-          setStatus(response.error || 'เกิดข้อผิดพลาดไม่ทราบสาเหตุ', 'error');
-        }
-      }
-    );
-  } catch (err) {
-    runBtn.disabled = false;
-    setStatus('เกิดข้อผิดพลาดในการส่งคำสั่ง: ' + (err.message || String(err)), 'error');
-  }
-});
-
-typeCaptionOnlyBtn.addEventListener('click', () => {
-  const cap = captionInput.value.trim();
-  const hash = hashtagsInput.value.trim();
-  if (!cap && !hash) {
-    setStatus('กรุณากรอกคำอธิบายหรือแฮชแท็กก่อนกดพิมพ์', 'error');
-    return;
-  }
-  typeCaptionOnlyBtn.disabled = true;
-  setStatus('กำลังพิมพ์คำอธิบายและแฮชแท็ก...');
-
-  try {
-    chrome.runtime.sendMessage(
-      {
-        action: 'type-caption-only',
-        caption: cap,
-        hashtags: hash,
-      },
-      (response) => {
-        typeCaptionOnlyBtn.disabled = false;
-        if (chrome.runtime.lastError) {
-          setStatus('เกิดข้อผิดพลาด: ' + chrome.runtime.lastError.message, 'error');
-          return;
-        }
-        if (response?.success) {
-          setStatus('พิมพ์คำอธิบายและแฮชแท็กเรียบร้อยแล้ว! ✍️', 'success');
-        } else {
-          setStatus('พิมพ์ไม่สำเร็จ: ' + (response?.error || 'ไม่ทราบสาเหตุ'), 'error');
-        }
-      }
-    );
-  } catch (err) {
-    typeCaptionOnlyBtn.disabled = false;
-    setStatus('เกิดข้อผิดพลาด: ' + (err.message || String(err)), 'error');
-  }
-});
-
-attachOnlyBtn.addEventListener('click', () => {
-  const pId = productIdInput.value.trim();
-  if (!pId) {
-    setStatus('กรุณากรอก ID สินค้าก่อนกดปักตะกร้า', 'error');
-    return;
-  }
-  attachOnlyBtn.disabled = true;
-  setStatus('กำลังปักตะกร้าสินค้า... (กรุณารอประมาณ 5-7 วินาที)');
-
-  try {
-    chrome.runtime.sendMessage(
-      {
-        action: 'attach-product-only',
-        productId: pId,
-        scheduleMode: scheduleModeEl.checked,
-      },
-      (response) => {
-        attachOnlyBtn.disabled = false;
-        if (chrome.runtime.lastError) {
-          setStatus('เกิดข้อผิดพลาด: ' + chrome.runtime.lastError.message, 'error');
+          setStatus('เกิดข้อผิดพลาด (อาจเป็นเพราะแท็บแครช): ' + chrome.runtime.lastError.message, 'error');
           return;
         }
         if (!response) {
@@ -199,14 +83,44 @@ attachOnlyBtn.addEventListener('click', () => {
           return;
         }
         if (response.success) {
-          setStatus('ปักตะกร้าสินค้าสำเร็จเรียบร้อยแล้ว! 🎉', 'success');
+          chk.checked = true;
+          setStatus(successText, 'success');
         } else {
-          setStatus('ปักตะกร้าไม่สำเร็จ: ' + (response.reason || response.error || 'ไม่ทราบสาเหตุ'), 'error');
+          setStatus(response.error || response.reason || 'เกิดข้อผิดพลาดไม่ทราบสาเหตุ', 'error');
         }
-      }
-    );
-  } catch (err) {
-    attachOnlyBtn.disabled = false;
-    setStatus('เกิดข้อผิดพลาด: ' + (err.message || String(err)), 'error');
-  }
-});
+      });
+    } catch (err) {
+      btn.disabled = false;
+      setStatus('เกิดข้อผิดพลาดในการส่งคำสั่ง: ' + (err.message || String(err)), 'error');
+    }
+  });
+}
+
+wireStep('btn1', 'chk1', 'ขั้น 1 (อัปโหลดไฟล์)',
+  () => ({ action: 'upload-file-only' }),
+  'ขั้น 1 สำเร็จ -- ตั้งไฟล์แล้ว รอปกขึ้นครบเองด้วยตาก่อนทำขั้นถัดไป');
+
+wireStep('btn2', 'chk2', 'ขั้น 2 (พิมพ์คำอธิบาย/แฮชแท็ก)',
+  () => {
+    const caption = captionInput.value.trim();
+    const hashtags = hashtagsInput.value.trim();
+    if (!caption && !hashtags) throw new Error('กรุณากรอกคำอธิบายหรือแฮชแท็กก่อน');
+    return { action: 'type-caption-only', caption, hashtags };
+  },
+  'ขั้น 2 สำเร็จ -- พิมพ์คำอธิบาย/แฮชแท็กแล้ว');
+
+wireStep('btn3', 'chk3', 'ขั้น 3 (ปักตะกร้าสินค้า)',
+  () => {
+    const productId = productIdInput.value.trim();
+    if (!productId) throw new Error('กรุณากรอก ID สินค้าก่อน');
+    return { action: 'attach-product-only', productId };
+  },
+  'ขั้น 3 สำเร็จ -- ปักตะกร้าสินค้าแล้ว');
+
+wireStep('btn4', 'chk4', 'ขั้น 4 (สลับเป็นกำหนดเวลา)',
+  () => ({ action: 'schedule-mode-only' }),
+  'ขั้น 4 สำเร็จ -- สลับเป็นกำหนดเวลาแล้ว');
+
+wireStep('btn5', 'chk5', 'ขั้น 5 (กด Post/กำหนดเวลา)',
+  () => ({ action: 'click-post-only' }),
+  'ขั้น 5 สำเร็จ -- กด Post/กำหนดเวลาให้แล้ว 🎉');

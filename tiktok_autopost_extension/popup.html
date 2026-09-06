@@ -5,7 +5,7 @@
 <title>OmniCut TikTok Post Helper</title>
 <style>
   body {
-    width: 330px;
+    width: 340px;
     margin: 0;
     padding: 14px;
     font-family: "Segoe UI", sans-serif;
@@ -62,33 +62,19 @@
     border-color: #38bdf8;
   }
   button {
-    width: 100%;
-    padding: 9px;
     border: none;
-    border-radius: 10px;
+    border-radius: 8px;
     background: #25f4ee;
     color: #0b0f19;
     font-weight: 700;
-    font-size: 12px;
+    font-size: 11px;
     cursor: pointer;
+    padding: 7px 10px;
+    white-space: nowrap;
   }
   button:disabled {
-    opacity: 0.5;
+    opacity: 0.4;
     cursor: wait;
-  }
-  .btn-secondary {
-    background: rgba(37,244,238,0.1);
-    border: 1px solid rgba(37,244,238,0.4);
-    color: #25f4ee;
-    font-size: 11px;
-    margin-top: 6px;
-  }
-  .btn-outline {
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.15);
-    color: #cbd5e1;
-    font-size: 11px;
-    margin-top: 6px;
   }
   #status {
     margin-top: 10px;
@@ -99,11 +85,50 @@
   }
   #status.error { color: #fca5a5; }
   #status.success { color: #6ee7b7; }
+
+  .checklist {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 4px;
+    margin-bottom: 10px;
+  }
+  .step-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 6px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .step-row:last-child { border-bottom: none; }
+  .step-row input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+    accent-color: #25f4ee;
+  }
+  .step-label {
+    flex: 1;
+    font-size: 11px;
+    color: #e2e8f0;
+    min-width: 0;
+  }
+  .step-label small {
+    display: block;
+    color: #64748b;
+    font-size: 9px;
+  }
+  .step-note {
+    margin: 6px 0 12px;
+    font-size: 10px;
+    color: #64748b;
+  }
 </style>
 </head>
 <body>
   <h1>OmniCut TikTok Post Helper</h1>
-  <p>เปิดแท็บ tiktok.com/tiktokstudio/upload ที่ล็อกอินไว้แล้ว แล้วกดปุ่มด้านล่างหลังกด "โพสต์ TikTok อัตโนมัติ" ในแอป OmniCut</p>
+  <p>เปิดแท็บ tiktok.com/tiktokstudio/upload ที่ล็อกอินไว้แล้ว กดทำทีละขั้นด้านล่าง เรียงจากบนลงล่าง
+     แล้วสังเกตว่าขั้นไหนทำให้แท็บแครช (ช่องติ๊กจะขึ้นเองเมื่อขั้นนั้นสำเร็จ)</p>
 
   <!-- Caption & Hashtags preview & edit -->
   <div class="section-card">
@@ -111,36 +136,40 @@
     <textarea id="captionInput" rows="2" placeholder="คำอธิบายคลิปรีวิว..."></textarea>
     <span class="input-label" style="margin-top: 6px; font-weight: 600; color: #38bdf8;">🏷️ แฮชแท็ก (Hashtags):</span>
     <textarea id="hashtagsInput" rows="2" placeholder="#รีวิวของดี #พิกัดในตะกร้า..."></textarea>
+    <span class="input-label" style="margin-top: 6px; font-weight: 600; color: #38bdf8;">🛒 ID สินค้า (หรือคำค้นหา):</span>
+    <input type="text" id="productIdInput" value="1737088044189583209" style="font-family: monospace;" />
   </div>
 
-  <!-- Product Link (Affiliate Cart) -->
-  <div class="section-card">
-    <label style="margin-bottom: 6px; font-weight: 600; color: #38bdf8;">
-      <input type="checkbox" id="attachProduct" checked />
-      ปักตะกร้าสินค้า (เพิ่มลิงก์สินค้า)
-    </label>
-    <div style="display: flex; flex-direction: column; gap: 3px; margin-left: 20px;">
-      <span class="input-label">ID สินค้า (หรือคำค้นหา):</span>
-      <input type="text" id="productIdInput" value="1737088044189583209" style="font-family: monospace;" />
+  <!-- Step-by-step checklist -->
+  <div class="checklist">
+    <div class="step-row">
+      <input type="checkbox" id="chk1" />
+      <span class="step-label">1. อัปโหลดไฟล์<small>ตั้งไฟล์แล้ว detach ทันที ไม่รอ ไม่พิมพ์อะไรต่อ</small></span>
+      <button id="btn1" type="button">ทำ</button>
+    </div>
+    <div class="step-row">
+      <input type="checkbox" id="chk2" />
+      <span class="step-label">2. พิมพ์คำอธิบาย/แฮชแท็ก<small>ล้างชื่อไฟล์เดิม แล้วพิมพ์แทน</small></span>
+      <button id="btn2" type="button">ทำ</button>
+    </div>
+    <div class="step-row">
+      <input type="checkbox" id="chk3" />
+      <span class="step-label">3. ปักตะกร้าสินค้า<small>ค้นหา + แนบลิงก์สินค้าตาม ID ด้านบน</small></span>
+      <button id="btn3" type="button">ทำ</button>
+    </div>
+    <div class="step-row">
+      <input type="checkbox" id="chk4" />
+      <span class="step-label">4. สลับเป็น "กำหนดเวลา"<small>เปลี่ยนโหมดโพสต์ ไม่กดโพสต์จริง</small></span>
+      <button id="btn4" type="button">ทำ</button>
+    </div>
+    <div class="step-row">
+      <input type="checkbox" id="chk5" />
+      <span class="step-label">5. กด Post/กำหนดเวลา<small>⚠️ กดจริง โพสต์ขึ้นจริงถ้ากด</small></span>
+      <button id="btn5" type="button">ทำ</button>
     </div>
   </div>
-
-  <label>
-    <input type="checkbox" id="scheduleMode" checked />
-    สลับเป็น "กำหนดเวลาโพสต์" (Schedule)
-  </label>
-  <label>
-    <input type="checkbox" id="autoClickPost" />
-    กด Post/กำหนดเวลา อัตโนมัติทันที
-  </label>
-
-  <button id="runBtn">เติมข้อมูลคลิป + ปักตะกร้า</button>
-  <button id="typeCaptionOnlyBtn" type="button" class="btn-outline">
-    📝 เติมเฉพาะคำอธิบายและแฮชแท็ก
-  </button>
-  <button id="attachOnlyBtn" type="button" class="btn-secondary">
-    🎯 ปักตะกร้าสินค้าอย่างเดียว (สำหรับคลิปที่อัปแล้ว)
-  </button>
+  <p class="step-note">ทำทีละขั้นเท่านั้น รอผลก่อนกดขั้นถัดไป -- ถ้าแท็บแครชหลังกดขั้นไหน ขั้นนั้นแหละคือตัวการ
+    (ช่องติ๊กที่ไม่ขึ้นหลังกด = ขั้นนั้นทำให้พัง หรือหาไม่เจอ)</p>
 
   <div id="status"></div>
   <script src="popup.js"></script>
