@@ -15,6 +15,7 @@ import {
 import { Modal, Toast, Button, Badge, ConfirmModal } from './ui';
 import { useDebounce, useToast } from '../hooks';
 import RawVaultPanel from './RawVaultPanel';
+import CoverStudioModal from './CoverStudioModal';
 
 // The gallery's own QR used to be a degraded copy of ContentTrackerHub's --
 // missing pid/aid/hook/hashtags and reading `video.caption`, a key
@@ -447,6 +448,7 @@ function ExportActiveWorkbench({
   const [atSeconds, setAtSeconds] = useState(1.0);
   const [coverResult, setCoverResult] = useState(null);
   const [coverBusy, setCoverBusy] = useState(false);
+  const [showCoverStudio, setShowCoverStudio] = useState(false);
   const [revealBusy, setRevealBusy] = useState(false);
   const [postBusy, setPostBusy] = useState(false);
   const [autopostBusy, setAutopostBusy] = useState(false);
@@ -870,14 +872,25 @@ function ExportActiveWorkbench({
                   />
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[10px] text-slate-400 font-mono">วินาทีที่ {atSeconds.toFixed(1)}s</span>
-                    <button
-                      type="button"
-                      onClick={handleGenerateCoverClick}
-                      disabled={coverBusy}
-                      className="px-2.5 py-1 rounded-lg bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 text-[#25F4EE] text-[11px] font-bold cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-wait transition-all"
-                    >
-                      {coverBusy ? 'กำลังสร้าง...' : coverResult ? 'สร้างใหม่' : 'สร้างปก'}
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setShowCoverStudio(true)}
+                        className="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 text-[11px] font-bold cursor-pointer active:scale-95 transition-all flex items-center gap-1"
+                        title="เปิดสตูดิโอสร้างปกคลิป 9:16 แบบมืออาชีพ (Auto Highlight Crop + AI Hook + 3D Badge)"
+                      >
+                        <ImageIcon className="w-3.5 h-3.5" />
+                        <span>สตูดิโอทำปก 9:16</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleGenerateCoverClick}
+                        disabled={coverBusy}
+                        className="px-2.5 py-1 rounded-lg bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 text-[#25F4EE] text-[11px] font-bold cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-wait transition-all"
+                      >
+                        {coverBusy ? 'กำลังสร้าง...' : coverResult ? 'สร้างใหม่' : 'สร้างปก'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -992,6 +1005,16 @@ function ExportActiveWorkbench({
           )}
         </div>
       </div>
+
+      {/* 9:16 Cover Studio Modal */}
+      <CoverStudioModal
+        isOpen={showCoverStudio}
+        onClose={() => setShowCoverStudio(false)}
+        videoItem={video}
+        onCoverSaved={(res) => {
+          setCoverResult(res);
+        }}
+      />
     </div>
   );
 }

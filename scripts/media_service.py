@@ -12,7 +12,7 @@ from typing import Dict, Any, List, Optional
 from fastapi import Request, HTTPException, Response
 from fastapi.responses import StreamingResponse
 
-from scripts.config import BASE_DIR
+from scripts.config import BASE_DIR, COVERS_DIR
 
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".m4v", ".webm", ".hevc", ".mkv"}
 
@@ -63,11 +63,29 @@ def get_file_info(file_path: Path) -> Dict[str, Any]:
         except Exception:
             thumbnail_url = None
 
+    # Check for dedicated 9:16 cover image in 05_Covers_Thumbnails/
+    cover_url = None
+    cover_file = COVERS_DIR / f"{file_path.stem}_cover.jpg"
+    if not cover_file.exists():
+        cover_file = COVERS_DIR / f"{file_path.stem}_cover_3x4.jpg"
+    if not cover_file.exists():
+        cover_file = COVERS_DIR / f"{file_path.stem}.jpg"
+    cover_path = None
+    if cover_file.exists():
+        try:
+            cover_url = f"/api/media/{str(cover_file.relative_to(BASE_DIR)).replace('\\', '/')}"
+            cover_path = str(cover_file.relative_to(BASE_DIR)).replace('\\', '/')
+        except Exception:
+            cover_url = None
+            cover_path = None
+
     return {
         "name": file_path.name,
         "path": str(file_path),
         "rel_path": rel_path,
         "thumbnail_url": thumbnail_url,
+        "cover_url": cover_url,
+        "cover_path": cover_path,
         "size_bytes": stat.st_size,
         "size_mb": round(stat.st_size / (1024 * 1024), 2),
         "modified_time": datetime.datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),

@@ -8,9 +8,19 @@
 // and Puppeteer use. Chrome shows an un-hideable "being debugged" banner on
 // the tab the whole time this runs. That is intentional, not a bug to hide.
 //
-// This file only runs when the user clicks this extension's popup button,
-// on a tab they already have open and already logged into. Nothing here
-// schedules itself, polls in the background, or runs without that click.
+// This file only runs when the user clicks a button inside the side panel
+// (sidepanel.html/.js), on a tab they already have open and already logged
+// into. Nothing here schedules itself, polls in the background, or runs
+// without that click.
+//
+// 2026-09-06: clicking the toolbar icon now opens the side panel directly
+// (the old popup.html/popup.js checklist was merged into sidepanel.html as
+// its own tab and deleted -- one UI surface instead of two).
+importScripts('automation.js');
+
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((err) => {
+  console.error('setPanelBehavior failed:', err);
+});
 //
 // Selectors marked UNVERIFIED come from TIKTOK_AUTOPOST_PLAN.md §3 --
 // community-documented as of the plan's writing, never confirmed against a
@@ -69,6 +79,14 @@ async function clearPendingJob() {
 }
 
 async function findUploadTab() {
+  if (pinnedUploadTabId !== null) {
+    const tab = await chrome.tabs.get(pinnedUploadTabId);
+    const url = new URL(tab.url || 'about:blank');
+    if (url.hostname !== 'www.tiktok.com' || !url.pathname.includes('upload')) {
+      throw new Error('แท็บที่เริ่มงานออกจากหน้าอัปโหลดแล้ว กรุณาเปิดหน้าอัปโหลดใหม่');
+    }
+    return tab;
+  }
   try {
     const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (
@@ -153,82 +171,32 @@ async function waitForCaptionEditor(send) {
 
 // Clears any auto-filled filename that TikTok inserted, then types the clean caption and hashtags.
 async function typeCaption(send, text) {
-  if (!text) return;
-
-  // Select-all + insertText as ONE atomic call. This used to be select+
-  // delete() in one Runtime.evaluate call, then a separate insertText() in
-  // a SECOND call 250ms later -- leaving the field genuinely empty for that
-  // 250ms gap. A real console capture (2026-09-06, "pageCrash form
-  // unmount" right above the `removeChild` crash in lib-react) points at
-  // TikTok's own React re-rendering the field during that empty window,
-  // so our later insertText() landed on a DOM node React had already
-  // touched -- a fiber/DOM mismatch that crashed the tab. insertText()
-  // over an active selection replaces it as one native edit operation, so
-  // there's no gap for TikTok's own code to react to an intermediate
-  // empty state.
-  const execResult = await send('Runtime.evaluate', {
-    expression: `(() => {
-      const el = document.querySelector('[contenteditable="true"]');
-      if (!el) return { success: false, reason: 'not-found' };
-      el.focus();
-      try {
-        const sel = window.getSelection();
-        const range = document.createRange();
-        range.selectNodeContents(el);
-        sel.removeAllRanges();
-        sel.addRange(range);
-      } catch (e) {}
-      const ok = document.execCommand('insertText', false, ${JSON.stringify(text)});
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-      const hasContent = (el.innerText || el.textContent || '').trim().length > 0;
-      return { success: Boolean(ok && hasContent) };
-    })()`,
-    returnByValue: true,
-  });
-  if (execResult?.result?.value?.reason === 'not-found') {
-    throw new Error('พบช่องแคปชันไม่เจอ -- โครงสร้างหน้าอาจเปลี่ยนไป');
-  }
-
-  // 2. Fallback: line-by-line typing with clean Enter (WITHOUT text: '\r' which causes cursor carriage return)
-  if (!execResult?.result?.value?.success) {
-    const lines = text.split('\n');
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i].length > 0) {
-        await send('Input.insertText', { text: lines[i] });
-        await sleep(50);
-      }
-      if (i < lines.length - 1) {
-        await send('Input.dispatchKeyEvent', {
-          type: 'rawKeyDown',
-          key: 'Enter',
-          code: 'Enter',
-          windowsVirtualKeyCode: 13,
-        });
-        await send('Input.dispatchKeyEvent', {
-          type: 'keyUp',
-          key: 'Enter',
-          code: 'Enter',
-          windowsVirtualKeyCode: 13,
-        });
-        await sleep(50);
-      }
-    }
-  }
-
-  // Scroll containers to top so user sees the caption from line 1 (do not collapse selection to start!)
-  await sleep(150);
-  await send('Runtime.evaluate', {
-    expression: `(() => {
-      const el = document.querySelector('[contenteditable="true"]');
-      if (!el) return;
-      let p = el;
-      while (p && p !== document.body) {
-        p.scrollTop = 0;
-        p = p.parentElement;
-      }
-    })()`,
-  });
+  if (!text?.trim()) throw new Error('กรุณากรอกคำอธิบายหรือแฮชแท็ก');
+  const captionQuery = OmniAutomation.page(`
+    const editors = Array.from(document.querySelectorAll('[contenteditable="true"]')).filter(el =>
+      visible(el) && !el.closest('[role="dialog"], [aria-modal="true"]'));
+    return editors.length === 1 ? editors[0] : null;
+  `);
+  const focused = await OmniAutomation.evaluate(send, `(() => {
+    const el = ${captionQuery};
+    if (!el) return false;
+    el.focus();
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    return document.activeElement === el;
+  })()`);
+  if (!focused) throw new Error('ไม่พบช่องแคปชันที่พร้อมกรอก หรือมีหลายช่อง กรุณาปิดหน้าต่างอื่นบน TikTok');
+  // Native browser editing replaces the selection in one operation. Do not
+  // mutate innerHTML/textContent or dispatch fake input events into React.
+  await send('Input.insertText', {text});
+  await OmniAutomation.wait(send, `(() => {
+    const el = ${captionQuery};
+    const normalize = value => String(value).replace(/\\s+/g, ' ').trim();
+    return Boolean(el && normalize(el.innerText || el.textContent) === normalize(${JSON.stringify(text)}));
+  })()`, 'TikTok ยังไม่รับแคปชันครบ กรุณาตรวจช่องคำอธิบาย', 5000);
 }
 
 // Waits for TikTok Studio video upload/processing indicator to complete
@@ -311,15 +279,39 @@ async function waitForUploadComplete(send, timeoutMs = 120_000) {
 // a fallback if that alone didn't land), with a settle wait to let React
 // actually finish re-rendering before checking again.
 async function switchToShowcaseTab(send) {
+  // Strict visibility check -- offsetWidth/offsetHeight/getClientRects() can
+  // all report non-zero for an element sitting in a display:none ancestor
+  // panel that React never removed from the DOM (TikTok keeps inactive tab
+  // panels mounted, just hidden), so this used to false-positive as "already
+  // on the right tab" when it was really still looking at a stale, offscreen
+  // search input from a PREVIOUS render. checkVisibility() (or the
+  // getBoundingClientRect fallback) reflects the real, current CSS-computed
+  // visibility instead.
   const isActive = async () => {
     const r = await send('Runtime.evaluate', {
       expression: `(() => {
+        const isVisible = (el) => {
+          if (typeof el.checkVisibility === 'function') {
+            return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+          }
+          const rect = el.getBoundingClientRect();
+          const style = window.getComputedStyle(el);
+          return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+        };
         const inputs = Array.from(document.querySelectorAll('input'));
         const searchInput = inputs.find(i => {
           const p = (i.placeholder || '').toLowerCase();
-          return p.includes('ค้นหา') || p.includes('search');
+          return (p.includes('ค้นหา') || p.includes('search')) && isVisible(i);
         });
-        return Boolean(searchInput && (searchInput.offsetWidth > 0 || searchInput.offsetHeight > 0 || searchInput.getClientRects().length > 0));
+        if (!searchInput) return false;
+
+        // Negative signal: "ร้านของฉัน" (My Shop) empty-state text visible
+        // anywhere on screen means we're still on the WRONG tab even if a
+        // stray search input elsewhere matched above.
+        const bodyText = document.body.innerText || '';
+        if (bodyText.includes('ไม่มีสินค้าในร้านของคุณ')) return false;
+
+        return true;
       })()`,
       returnByValue: true,
     });
@@ -474,22 +466,27 @@ async function attachProductLink(send, productId) {
   await sleep(1800);
 
   // Step 3: Switch to "นำเสนอสินค้า" tab using robust multi-event & CDP click
+  // Stop here (rather than warn-and-continue) if the switch didn't land --
+  // continuing means typing the product ID into whatever's on the WRONG tab
+  // ("ร้านของฉัน" has no real search box, so step 4/5 below would silently
+  // no-op or match nothing, reported back as a confusing unrelated failure
+  // instead of the actual root cause).
   const switched = await switchToShowcaseTab(send);
   if (!switched) {
-    console.warn('สลับแท็บนำเสนอสินค้าอาจไม่สมบูรณ์ แต่จะลองค้นหาต่อ');
+    return { success: false, reason: 'สลับไปแท็บ "นำเสนอสินค้า" ไม่สำเร็จ (ยังค้างอยู่ที่ "ร้านของฉัน") -- ลองกดขั้นนี้ซ้ำอีกครั้ง' };
   }
 
   await sleep(1200);
 
   // Step 4: Type Product ID into search box and trigger search
-  await send('Runtime.evaluate', {
+  const searchResult = await send('Runtime.evaluate', {
     expression: `(() => {
       const root = document.querySelector('[role="dialog"]') || document;
       const inputs = Array.from(root.querySelectorAll('input'));
       const search = inputs.find(i => {
         const p = (i.placeholder || '').toLowerCase();
         return p.includes('ค้นหา') || p.includes('search');
-      }) || inputs[inputs.length - 1];
+      });
       if (search) {
         search.focus();
         search.select();
@@ -502,13 +499,6 @@ async function attachProductLink(send, productId) {
         search.dispatchEvent(new Event('input', { bubbles: true }));
         search.dispatchEvent(new Event('change', { bubbles: true }));
 
-        const p = search.parentElement;
-        if (p) {
-          const icon = p.querySelector('svg, button, span');
-          if (icon && icon !== search) {
-            icon.click();
-          }
-        }
         return true;
       }
       return false;
@@ -516,9 +506,12 @@ async function attachProductLink(send, productId) {
     returnByValue: true,
   });
 
-  // Also send CDP insertText + Enter key to search input
+  if (searchResult.exceptionDetails || !searchResult.result?.value) {
+    return {success:false, reason:'ไม่พบช่องค้นหาสินค้าที่พร้อมกรอก'};
+  }
+
+  // Value is already set above. InsertText here appended the same ID again.
   try {
-    await send('Input.insertText', { text: String(productId) });
     await send('Input.dispatchKeyEvent', {
       type: 'rawKeyDown',
       key: 'Enter',
@@ -536,44 +529,39 @@ async function attachProductLink(send, productId) {
   // Wait for table to filter and display the item
   await sleep(2500);
 
-  // Step 5: Click first radio button / row
-  const step5 = await send('Runtime.evaluate', {
-    expression: `(() => {
-      const root = document.querySelector('[role="dialog"]') || document;
-      const rows = Array.from(root.querySelectorAll('table tr, [role="row"], tbody tr'));
-      for (const row of rows) {
-        if (row.querySelector('th')) continue;
-        const text = row.innerText || row.textContent || '';
-        if (text.includes(${JSON.stringify(String(productId).slice(-6))}) || text.includes(${JSON.stringify(String(productId))})) {
-          const radio = row.querySelector('input[type="radio"], [role="radio"]') || row.querySelector('td') || row;
-          radio.scrollIntoView({ behavior: 'instant', block: 'center' });
-          radio.click();
-          return { success: true, matchText: true };
-        }
-      }
-
-      const radios = Array.from(root.querySelectorAll('input[type="radio"], [role="radio"]'));
-      const visibleRadios = radios.filter(r => r.offsetWidth > 0 || r.offsetHeight > 0 || r.getClientRects().length > 0);
-      if (visibleRadios.length > 0) {
-        visibleRadios[0].click();
-        return { success: true, count: visibleRadios.length };
-      }
-      for (const row of rows) {
-        if (row.querySelector('th')) continue;
-        const input = row.querySelector('input') || row.querySelector('span, svg, td');
-        if (input) {
-          input.click();
-          return { success: true, rowClicked: true };
-        }
-      }
-      return { success: false };
-    })()`,
-    returnByValue: true,
-  });
-
-  if (!step5?.result?.value?.success) {
-    return { success: false, reason: 'ไม่พบสินค้าตาม ID ในตู้โชว์' };
-  }
+  // Select only a row containing the complete search term. Never silently
+  // fall back to the first product when search returned nothing.
+  const productRowQuery = OmniAutomation.page(`
+    if (!dialog) return null;
+    const query = ${JSON.stringify(String(productId).trim())};
+    const rows = Array.from(dialog.querySelectorAll('table tr, [role="row"]')).filter(row => {
+      if (!visible(row) || row.querySelector('th')) return false;
+      const text = label(row);
+      return /^\\d+$/.test(query)
+        ? text.split(/\\D+/).includes(query)
+        : text.toLowerCase().includes(query.toLowerCase());
+    });
+    return rows.length === 1 ? rows[0] : null;
+  `);
+  await OmniAutomation.wait(send, `Boolean(${productRowQuery})`, 'ไม่พบสินค้าตรง ID เพียงรายการเดียว กรุณาตรวจคำค้นหา');
+  const selection = await OmniAutomation.evaluate(send, `(() => {
+    const row = ${productRowQuery};
+    if (!row) return null;
+    const radio = row.querySelector('input[type="radio"], [role="radio"]');
+    if (!radio || radio.disabled || radio.getAttribute('aria-disabled') === 'true') return null;
+    const names = Array.from(row.querySelectorAll('td, [role="cell"]'))
+      .map(el => (el.innerText || '').trim()).filter(t => t && !/^[\\d\\s.,฿%]+$/.test(t));
+    names.sort((a,b) => b.length - a.length);
+    radio.scrollIntoView({block:'center'});
+    if (!radio.checked && radio.getAttribute('aria-checked') !== 'true') radio.click();
+    return {name:names[0] || ''};
+  })()`);
+  if (!selection) return {success:false, reason:'เลือกสินค้าตรง ID ไม่สำเร็จ'};
+  await OmniAutomation.wait(send, `(() => {
+    const row = ${productRowQuery};
+    const radio = row?.querySelector('input[type="radio"], [role="radio"]');
+    return Boolean(radio && (radio.checked || radio.getAttribute('aria-checked') === 'true'));
+  })()`, 'TikTok ยังไม่ยืนยันการเลือกสินค้า');
 
   await sleep(1000);
 
@@ -620,31 +608,68 @@ async function attachProductLink(send, productId) {
     returnByValue: true,
   });
 
-  await sleep(1000);
-  return {
-    success: !!step7?.result?.value,
-    reason: step7?.result?.value ? 'สำเร็จ' : 'กดปุ่มเพิ่มในหน้าสุดท้ายไม่สำเร็จ',
-  };
+  if (!step7?.result?.value || step7.exceptionDetails) {
+    return {success:false, reason:'กดปุ่มเพิ่มในหน้าสุดท้ายไม่สำเร็จ'};
+  }
+  await OmniAutomation.wait(send, OmniAutomation.page(`
+    if (dialog) return false;
+    const text = document.body.innerText || '';
+    const name = ${JSON.stringify(selection.name)};
+    return text.includes(${JSON.stringify(String(productId))}) || Boolean(name && text.includes(name));
+  `), 'ยังยืนยันสินค้าที่แนบบนหน้าโพสต์ไม่ได้ กรุณาตรวจตะกร้าบน TikTok');
+  return {success:true};
 }
 
 // Switches upload form to "กำหนดเวลาโพสต์" / "ตั้งเวลา" (Schedule) option
 async function switchToScheduleMode(send) {
-  await send('Runtime.evaluate', {
+  const { result } = await send('Runtime.evaluate', {
     expression: `(() => {
-      const elements = Array.from(document.querySelectorAll('label, input[type="radio"], span, div'));
-      const scheduleOption = elements.find(el => {
+      // Exact-text match on LEAF elements only (label/span/div with no
+      // matching-text children of their own) -- matching on ANY ancestor
+      // whose combined innerText merely *includes* the phrase let a big
+      // wrapping <div> (e.g. the whole "post settings" section, which also
+      // contains the unrelated "ตำแหน่งที่ตั้ง" location field right below
+      // the schedule toggle) win the search. The old code then did
+      // el.querySelector('input') on that wide match -- the FIRST input
+      // inside a wide container is not necessarily the schedule radio, so it
+      // ended up opening the location dropdown instead (caught on a real
+      // screen recording, 2026-09-06).
+      const TARGETS = ['ตั้งเวลา', 'กำหนดเวลาโพสต์', 'กำหนดเวลา', 'Schedule'];
+      const isLeafMatch = (el) => {
         const t = (el.innerText || el.textContent || '').trim();
-        return t === 'ตั้งเวลา' || t === 'กำหนดเวลาโพสต์' || t === 'กำหนดเวลา' || t === 'Schedule' || t.includes('ตั้งเวลา') || t.includes('กำหนดเวลา');
+        if (!TARGETS.includes(t)) return false;
+        // Reject if a child element repeats the same exact text -- that
+        // child is the real leaf, this element is just its container.
+        return !Array.from(el.children).some(c => TARGETS.includes((c.innerText || c.textContent || '').trim()));
+      };
+
+      const candidates = Array.from(document.querySelectorAll('label, span, div, p')).filter(isLeafMatch);
+      if (candidates.length === 0) return { success: false, reason: 'not-found' };
+
+      // Prefer the smallest (most specific) match if several leaves matched.
+      candidates.sort((a, b) => {
+        const rA = a.getBoundingClientRect();
+        const rB = b.getBoundingClientRect();
+        return (rA.width * rA.height) - (rB.width * rB.height);
       });
-      if (scheduleOption) {
-        const input = scheduleOption.querySelector('input') || scheduleOption;
-        input.click();
-        return true;
-      }
-      return false;
+      const target = candidates[0];
+
+      // Click the radio/checkbox this label is FOR, or one immediately
+      // adjacent to it -- never a descendant search on a wide ancestor.
+      const forId = target.getAttribute('for');
+      const byFor = forId ? document.getElementById(forId) : null;
+      const input = byFor
+        || target.closest('label')?.querySelector(':scope > input[type="radio"], :scope > input[type="checkbox"]')
+        || target.parentElement?.querySelector(':scope > input[type="radio"], :scope > input[type="checkbox"]')
+        || target;
+
+      target.scrollIntoView({ behavior: 'instant', block: 'center' });
+      input.click();
+      return { success: true };
     })()`,
     returnByValue: true,
   });
+  return Boolean(result?.value?.success);
 }
 
 // After a successful Post/Schedule click, TikTok Studio's own SPA can throw
@@ -693,7 +718,9 @@ async function dismissLeaveConfirmDialogIfPresent(send, timeoutMs = 8000) {
 // right before this and let the user press Post themselves.
 async function clickPostButton(send) {
   // Ensure video upload/processing is complete before attempting to click post!
-  await waitForUploadComplete(send, 60_000);
+  if (!await waitForUploadComplete(send, 60_000)) {
+    throw new Error('TikTok ยังประมวลผลไม่เสร็จ จึงยังไม่กดโพสต์');
+  }
 
   const { result } = await send('Runtime.evaluate', {
     expression: `(() => {
@@ -766,6 +793,20 @@ async function runUploadFileOnly() {
 // scheduleMode) so each checklist step in the popup is its own isolated
 // attach/act/detach cycle -- see runScheduleModeOnly() and
 // runClickPostOnly() below for the steps this used to also do inline.
+async function runUploadCoverOnly() {
+  const job = await fetchPendingJob();
+  if (!job.cover_path) throw new Error('ยังไม่มีปก กดบันทึกปกในโปรแกรมแล้วเตรียมคลิปใหม่');
+  const tab = await findUploadTab();
+  await chrome.debugger.attach({tabId:tab.id}, '1.3');
+  try {
+    const send = cdp(tab.id);
+    await send('DOM.enable');
+    return await OmniAutomation.uploadCover(send, job.cover_path);
+  } finally {
+    await chrome.debugger.detach({tabId:tab.id}).catch(() => {});
+  }
+}
+
 async function runAttachProductOnly({ productId }) {
   const tab = await findUploadTab();
   const send = cdp(tab.id);
@@ -802,7 +843,10 @@ async function runScheduleModeOnly() {
   try {
     await send('DOM.enable');
     await send('Runtime.enable');
-    await switchToScheduleMode(send);
+    const switched = await switchToScheduleMode(send);
+    if (!switched) {
+      return { success: false, reason: 'หาตัวเลือก "กำหนดเวลา"/"ตั้งเวลา" บนหน้าเว็บไม่พบ' };
+    }
     return { success: true };
   } finally {
     try {
@@ -820,8 +864,7 @@ async function runClickPostOnly() {
     await send('DOM.enable');
     await send('Runtime.enable');
     await clickPostButton(send);
-    const leaveDialogDismissed = await dismissLeaveConfirmDialogIfPresent(send).catch(() => false);
-    return { success: true, leaveDialogDismissed };
+    return { success: true, clicked:true, posted:false };
   } finally {
     try {
       await chrome.debugger.detach({ tabId: tab.id });
@@ -856,140 +899,70 @@ async function runTypeCaptionOnly({ caption, hashtags }) {
   }
 }
 
-async function runAutopost({ autoClickPost, attachProduct, productId, caption, hashtags, scheduleMode }) {
-  const job = await fetchPendingJob().catch(() => ({}));
-  const tab = await findUploadTab();
-  const send = cdp(tab.id);
-
-  await chrome.debugger.attach({ tabId: tab.id }, '1.3');
+// Automated preparation stops before publication. Each stage has its own session.
+async function runPrepareDetails(message) {
+  const job = await fetchPendingJob();
+  const completed = [];
+  let step = 'caption';
   try {
-    await send('DOM.enable');
-    await send('Runtime.enable');
-
-    if (job.video_path) {
-      const fileNodeId = await findFileInputNodeId(send);
-      await setFileInput(send, fileNodeId, job.video_path);
+    const caption = message.caption ?? job.caption ?? '';
+    const hashtags = message.hashtags ?? job.hashtags ?? '';
+    if (![caption, hashtags].some(value => value.trim())) throw new Error('กรุณากรอกคำอธิบายหรือแฮชแท็ก');
+    await runTypeCaptionOnly({caption, hashtags});
+    completed.push('caption');
+    step = 'product';
+    const productId = message.productId || job.tiktok_product_id;
+    if (!productId) throw new Error('กรุณากรอก ID สินค้า');
+    const product = await runAttachProductOnly({productId});
+    if (!product.success) throw new Error(product.reason);
+    completed.push('product');
+    step = 'cover';
+    await runUploadCoverOnly();
+    completed.push('cover');
+    if (message.scheduleMode) {
+      step = 'schedule';
+      const schedule = await runScheduleModeOnly();
+      if (!schedule.success) throw new Error(schedule.reason);
+      completed.push('schedule');
     }
-
-    await waitForCaptionEditor(send);
-
-    // Prefer explicit caption and hashtags from popup inputs if provided, else job
-    const finalCaption = (caption !== undefined && caption !== null && caption.trim() !== '')
-      ? caption.trim()
-      : (job.caption || '');
-    const finalHashtags = (hashtags !== undefined && hashtags !== null && hashtags.trim() !== '')
-      ? hashtags.trim()
-      : (job.hashtags || '');
-
-    const captionParts = [];
-    if (finalCaption) captionParts.push(finalCaption);
-    if (finalHashtags) captionParts.push(finalHashtags);
-    const fullCaption = captionParts.join('\n\n');
-
-    if (fullCaption) {
-      await typeCaption(send, fullCaption);
-    }
-
-    // Wait for video upload to finish before proceeding to link attachment and posting
-    if (DIAGNOSTIC_PASSIVE_WAIT) {
-      await sleep(35_000); // plain wait, zero CDP calls sent, debugger stays attached
-    } else {
-      await waitForUploadComplete(send, PROCESSING_TIMEOUT_MS);
-    }
-
-    // Attach product link if requested
-    const targetProductId = productId || job.tiktok_product_id || job.product_id;
-    let attachResult = null;
-    if (attachProduct && targetProductId) {
-      try {
-        attachResult = await attachProductLink(send, targetProductId);
-      } catch (err) {
-        console.warn('Product link attachment note:', err);
-      }
-    }
-
-    // Switch to schedule post mode if requested
-    if (scheduleMode) {
-      try {
-        await switchToScheduleMode(send);
-      } catch (err) {
-        console.warn('Schedule mode note:', err);
-      }
-    }
-
-    let leaveDialogDismissed = false;
-    if (autoClickPost) {
-      await clickPostButton(send);
-      leaveDialogDismissed = await dismissLeaveConfirmDialogIfPresent(send).catch(() => false);
-    }
-
-    await clearPendingJob();
-    return {
-      success: true,
-      autoClickedPost: !!autoClickPost,
-      attachedProduct: !!attachResult?.success,
-      productReason: attachResult?.reason,
-      scheduleMode: !!scheduleMode,
-      leaveDialogDismissed,
-    };
-  } finally {
-    // Always detach, even on failure
-    try {
-      await chrome.debugger.detach({ tabId: tab.id });
-    } catch (e) {
-      // Already detached -- fine.
-    }
+    return {success:true, completed};
+  } catch (err) {
+    return {success:false, completed, step, error:err.message};
   }
 }
 
+let actionRunning = false;
+let pinnedUploadTabId = null;
+const actions = {
+  'upload-file-only': () => runUploadFileOnly(),
+  'type-caption-only': message => runTypeCaptionOnly(message),
+  'attach-product-only': message => runAttachProductOnly(message),
+  'schedule-mode-only': () => runScheduleModeOnly(),
+  'click-post-only': () => runClickPostOnly(),
+  'upload-cover-only': () => runUploadCoverOnly(),
+  'prepare-details': message => runPrepareDetails(message),
+};
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message?.action === 'type-caption-only') {
-    runTypeCaptionOnly({
-      caption: message.caption || '',
-      hashtags: message.hashtags || '',
-    })
-      .then((result) => sendResponse(result))
-      .catch((err) => sendResponse({ success: false, error: err.message || String(err) }));
-    return true;
-  }
-  if (message?.action === 'upload-file-only') {
-    runUploadFileOnly()
-      .then((result) => sendResponse(result))
-      .catch((err) => sendResponse({ success: false, error: err.message || String(err) }));
-    return true;
-  }
-  if (message?.action === 'attach-product-only') {
-    runAttachProductOnly({
-      productId: message.productId || null,
-    })
-      .then((result) => sendResponse(result))
-      .catch((err) => sendResponse({ success: false, error: err.message || String(err) }));
-    return true;
-  }
-  if (message?.action === 'schedule-mode-only') {
-    runScheduleModeOnly()
-      .then((result) => sendResponse(result))
-      .catch((err) => sendResponse({ success: false, error: err.message || String(err) }));
-    return true;
-  }
-  if (message?.action === 'click-post-only') {
-    runClickPostOnly()
-      .then((result) => sendResponse(result))
-      .catch((err) => sendResponse({ success: false, error: err.message || String(err) }));
-    return true;
-  }
   if (message?.action === 'run-autopost') {
-    runAutopost({
-      autoClickPost: !!message.autoClickPost,
-      attachProduct: !!message.attachProduct,
-      productId: message.productId || null,
-      caption: message.caption || '',
-      hashtags: message.hashtags || '',
-      scheduleMode: !!message.scheduleMode,
-    })
-      .then((result) => sendResponse(result))
-      .catch((err) => sendResponse({ success: false, error: err.message || String(err) }));
-    return true; // keep the message channel open for the async response
+    sendResponse({success:false, error:'กรุณาใช้ปุ่มทำต่อหลังอัปโหลดในแถบข้างรุ่นล่าสุด'});
+    return false;
   }
-  return false;
+  const action = actions[message?.action];
+  if (!action) return false;
+  if (actionRunning) {
+    sendResponse({success:false, error:'มีขั้นตอนกำลังทำอยู่ กรุณารอให้จบก่อน'});
+    return false;
+  }
+  actionRunning = true;
+  (async () => {
+    try {
+      pinnedUploadTabId = (await findUploadTab()).id;
+      return await action(message);
+    } finally {
+      pinnedUploadTabId = null;
+      actionRunning = false;
+    }
+  })().then(sendResponse).catch(err => sendResponse({success:false, error:err.message || String(err)}));
+  return true;
 });

@@ -8,6 +8,7 @@ RAW_DIR = BASE_DIR / "01_Raw"
 ASSETS_DIR = BASE_DIR / "02_Assets"
 PROJECTS_DIR = BASE_DIR / "03_Projects"
 EXPORTS_DIR = BASE_DIR / "04_Exports" / "Ready_to_post"
+COVERS_DIR = BASE_DIR / "05_Covers_Thumbnails"
 ARCHIVE_DIR = BASE_DIR / "06_Archive"
 
 FONTS_DIR = ASSETS_DIR / "Fonts"
@@ -17,7 +18,7 @@ STICKERS_DIR = ASSETS_DIR / "Stickers_Memes"
 LUTS_DIR = ASSETS_DIR / "LUTs_ColorPresets"
 
 # Ensure directories exist
-for p in [INBOX_DIR, RAW_DIR, ASSETS_DIR, PROJECTS_DIR, EXPORTS_DIR, ARCHIVE_DIR, FONTS_DIR, SFX_DIR, MUSIC_DIR, STICKERS_DIR, LUTS_DIR]:
+for p in [INBOX_DIR, RAW_DIR, ASSETS_DIR, PROJECTS_DIR, EXPORTS_DIR, COVERS_DIR, ARCHIVE_DIR, FONTS_DIR, SFX_DIR, MUSIC_DIR, STICKERS_DIR, LUTS_DIR]:
     p.mkdir(parents=True, exist_ok=True)
 
 # CapCut Draft Directory on Windows

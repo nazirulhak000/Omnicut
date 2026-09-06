@@ -13,6 +13,8 @@
 
 ## สถานะรวม
 
+- [ ] Round POST-3 — ซ่อมขั้นหลังอัปโหลดและแนบปกจาก Cover Studio (2026-09-06)
+
 - [x] Round DOC-1 — ตรวจโค้ดและอัปเดตเอกสาร/กฎให้ตรงกับระบบปัจจุบัน
 - [x] Round BUG-1 — แก้ปุ่มสร้างคลิปใหม่กดไม่ได้ (executeRender ใน useRenderJob)
 - [x] Round 4 — per-word layout (static, พิสูจน์ว่าเหมือนเดิมเป๊ะ)
@@ -21,12 +23,13 @@
 - [x] Round 7 — template v2 + แกลเลอรีที่ขยับได้
 - [x] Round BUG-2 — แก้ข้อความและ Hook Header ซ้อนทับกันเป็นก้อนใน SequencePlayer
 - [ ] Round POST-1 — Desktop Post Studio (ปก + ลากไฟล์ + แคปชั่น + ปิดวงจร Posted)
-- [ ] Round POST-2 — TikTok auto-post extension (พักไว้ตามคำสั่ง User)
+- [ ] Round POST-2 — TikTok auto-post extension (กลับมาทำตามคำสั่ง User: ขั้น 2–5 และส่งปก)
 - [x] Round BUG-3 — ซ่อม angle ชนกัน (คลิปผิดสคริปต์) ใน Content Tracker Hub + ปุ่มปักตะกร้า TikTok
 - [x] Round PROD-1 — เพิ่มช่องระบุ TikTok Product ID ตอนสร้างสคริปต์ใหม่ + Fallback ค้นหาด้วยชื่อสินค้า + Click-to-Edit Cart ID
 - [x] Round TRK-1 — เพิ่มปุ่มส่งคลิปไป TikTok Studio พร้อม Modal ตรวจสอบ/ปักตะกร้า ในหน้า Tracker (ContentTrackerHub)
 - [x] Round TRK-2 — ตารางจัดคิวโพสต์ประจำวัน (Daily Run Sheet) & จัดกลุ่มย่อการ์ด (Product Grouping / Quick Pills)
 - [x] Round TRK-3 — บอร์ดหลักคลีนไร้ความรก (Today-Only Posted, คลังสคริปต์หยิบทำวันนี้ & การ์ดตัดต่อเสร็จแนวนอนกะทัดรัด)
+- [x] Round COV-1 — สตูดิโอสร้างปกคลิปด่วน 9:16 & 3:4 (Auto Highlight Crop, Interactive Pan & Zoom Subtitle-Free, Dual Export)
 
 **ปิดไปแล้ว** (บล็อกเต็มอยู่ใน [HISTORY.md](file:///d:/Winona/Programmer/Capcut/HISTORY.md)):
 Round 1 รวม overlay เป็นโมเดลเดียว · Round 2 วางกฎรอบงาน · Round 3 ซ่อมฐาน+easing · Round DOC-1 อัปเดตเอกสาร · Round BUG-1 ซ่อมปุ่มสร้างคลิป executeRender · Round 4 per-word layout static · Round 5 per-word animation (word_stagger_ms) · Round 6 ช่องใหม่ที่ mirror ได้เป๊ะ (loop/out/skew) · Round 7 template v2 + แกลเลอรีที่ขยับได้ (8 templates + motion presets + inspector animated gallery) · Round BUG-2 ซ่อมข้อความ/Hook Header ซ้อนทับกันใน SequencePlayer · Round BUG-3 ซ่อม angle ชนกัน + ปุ่มปักตะกร้า TikTok ใน Content Tracker Hub · Round PROD-1 เพิ่มช่อง TikTok Product ID + Fallback ค้นหาด้วยชื่อ + Click-to-Edit Cart ID ย้อนหลัง · Round TRK-1 เพิ่มปุ่มส่ง TikTok Studio + Modal ตรวจสอบ/ปักตะกร้า ในหน้า Tracker · Round TRK-2 ตารางจัดคิวโพสต์ประจำวัน (Daily Run Sheet) & จัดกลุ่มย่อการ์ด (Product Grouping / Quick Pills) · Round TRK-3 บอร์ดหลักคลีนไร้ความรก (Today-Only Posted, คลังสคริปต์หยิบทำวันนี้ & การ์ดตัดต่อเสร็จแนวนอนกะทัดรัด)
@@ -52,6 +55,19 @@ npm test
 ---
 
 ## งานค้าง (Backlog)
+
+### Round POST-3 — แผนก่อนลงมือ (2026-09-06)
+
+- [ ] ตรวจขั้น 2–5 ด้วย behavioral regression; แยกผลจำลองออกจากผลบน TikTok จริง
+- [ ] ส่ง cover_path จากรายการคลิปไป prepare และเพิ่มปุ่มแนบปกพร้อมภาพตัวอย่าง
+- [ ] ป้องกันคำสั่งซ้อนกัน; ทำต่ออัตโนมัติแบบหยุดทันทีเมื่อขั้นก่อนหน้าไม่ผ่าน และให้ผู้ใช้กดโพสต์เองตามข้อกำหนดเดิม
+- [ ] ตรวจ syntax JavaScript, Node tests และ pytest ที่เกี่ยวข้อง
+- [ ] ทดสอบ TikTok จริง: caption, สินค้าตรง ID, ปก, schedule — ยังเชื่อม Chrome ไม่ได้
+
+Notes: อ่าน handoff จาก Temp แล้ว; งานเดิมค้างใน extension/background.js, manifest.json,
+sidepanel.html/js, media_service.py และ Cover Studio หลายไฟล์ ผู้ใช้สั่งให้ต่อ extension/ปกในรอบนี้
+จึงแก้เฉพาะส่วนต่อยอดดังกล่าว รักษางานเดิมและไม่แก้ _Docs/post_log.json
+แหล่งงานกลางคือ TODO.md; ข้อสรุปใน handoff เป็นหลักฐานย้อนหลัง ไม่ถือเป็นผลทดสอบรอบนี้
 
 รายการที่รู้แล้วว่าต้องทำ แต่ยังไม่ได้จัดเข้ารอบไหน
 เจอของใหม่ระหว่างทาง → เขียนลงตรงนี้ทันที ห้ามทำเงียบๆ
@@ -491,6 +507,205 @@ npm test
         native edit operation เดียว ไม่ต้องลบแยกอีกต่อไป) **ไม่มีช่องว่างให้ TikTok แทรกกลางคันได้เลย**
       - `node --check` ผ่าน, `pytest tests/ -q` 373 passed
       - **ยังไม่ได้ทดสอบจริงหลัง fix นี้** — รอพี่ reload extension แล้วลองขั้น 2 ซ้ำ 2-3 รอบตามที่แนะนำไว้
+      - **⚠️ ผลจริง:** ลองซ้ำแล้ว **error signature เดียวกันเป๊ะ** ไม่เปลี่ยนแม้แต่นิดเดียว ทั้งที่แก้จริง (ครั้งที่ 3
+        ที่ทฤษฎีต่างกันจริงทั้ง 3 รอบ) รวมกับที่เคยเจอ "ปุ่มเดียวกันโค้ดเดียวกัน บางรอบพังบางรอบผ่าน" (POST-2.13) —
+        สรุปร่วมกับพี่ว่า **นี่น่าจะเป็น race condition ในโค้ด TikTok เอง** (form/autosave ภายใน) ที่ถูก sensitize ให้
+        เกิดถี่ขึ้นเวลามี `chrome.debugger` ติดอยู่กับแท็บ ไม่ว่าเราจะสั่งอะไรตรงนั้นก็ตาม — ไม่ใช่บั๊กที่แก้จากโค้ดเรา
+        ได้จริงแบบ deterministic อีกต่อไป (ต่างจาก POST-2.12 ที่ปิดเคสแบบไม่มีหลักฐานพอ อันนี้มีหลักฐาน 3 รอบสนับสนุน)
+      - **พี่ตัดสินใจ:** พักการไล่ debug ส่วนอัตโนมัติเต็มรูปแบบไว้ตรงนี้จริงๆ (ไม่ปิดถาวร เผื่อ TikTok แก้ฝั่งเขาเอง
+        ในอนาคต) หันไปทำฟีเจอร์ใหม่ที่ทำได้จริงแทน — ดู POST-2.15
+
+- [x] **POST-2.15 เพิ่ม Chrome Side Panel แสดงรายการคลิป "ตัดต่อเสร็จ" จาก OmniCut โดยตรง (2026-09-06)**:
+      - **คำขอ:** "ทำ extension ให้โผล่มาจาก sidebar แล้วแสดงรายละเอียดคลิปที่มีสถานะตัดต่อเสร็จทั้งหมด" — ฟีเจอร์ใหม่
+        ที่ไม่เกี่ยวกับปัญหาแครชเลย ใช้ Chrome Side Panel API (Manifest V3) แยกจาก popup เดิม
+      - เพิ่ม `"sidePanel"` permission + `"side_panel": {"default_path": "sidepanel.html"}` ใน `manifest.json`
+      - สร้าง `sidepanel.html`/`sidepanel.js` ใหม่ — fetch `GET /api/exports` จาก backend เดียวกับที่แอปใช้เอง
+        (`http://127.0.0.1:8000`, host_permissions มีอยู่แล้ว) กรองเฉพาะ `angle_status === 'rendered' &&
+        is_latest !== false` (ตรงกับความหมาย "ตัดต่อเสร็จ" ของ `PIPELINE_PHASES` ใน `ContentTrackerHub.jsx` เป๊ะ —
+        ไม่รวมคลิปที่ไปถึง mobile_ready/posted แล้ว หรือคลิปที่ยังไม่ได้ผูกกับสคริปต์เลย)
+      - ยืนยันรูปทรง response จริงด้วย curl (8 exports จริง, มี 1 รายการ `angle_status='rendered', is_latest=true`
+        ตรงเงื่อนไขพอดี — Logitech Wave Keys ที่เพิ่งซ่อมจาก Round BUG-3) + เช็ค thumbnail URL จริงคืน 200
+      - แต่ละการ์ดโชว์ thumbnail (`.webp` เดิม) + ชื่อสินค้า + hook title + ขนาดไฟล์ + ปุ่ม "เตรียมคลิปนี้" ที่ยิง
+        `POST /api/tiktok-autopost/prepare` ตรง (endpoint เดียวกับที่ popup ใช้อยู่แล้ว) แล้วบอกให้ไปกดต่อใน popup
+      - เพิ่มปุ่ม "📋 เปิดรายการคลิปที่ตัดต่อเสร็จ (แถบข้าง)" ใน `popup.html` เรียก `chrome.sidePanel.open({windowId})`
+        (ต้องเรียกจาก user gesture โดยตรงตาม Chrome API ถึงจะเปิดได้ — เก็บ `default_popup` เดิมไว้ไม่แตะ
+        เพื่อไม่ให้ checklist หายไปเวลาคลิกไอคอน extension)
+      - `node --check` ผ่านทั้ง 3 ไฟล์ js, manifest.json valid JSON, HTML tag เช็คคร่าวๆ ผ่าน, `pytest tests/ -q`
+        373 passed (ไม่กระทบฝั่ง python เลย ฟีเจอร์นี้อยู่ใน extension ล้วนๆ)
+      - **ยังไม่ได้ทดสอบจริง** — รอพี่ reload extension แล้วกดปุ่มเปิดแถบข้างจาก popup ดู
+      - **⚠️ พี่ลองแล้ว: กดปุ่มไม่มีอะไรเกิดขึ้นเลย (ไม่มี error, ไม่มีแถบข้าง)** — เจอบั๊กจริงจากอ่านโค้ดตัวเอง:
+        `chrome.sidePanel.open()` ต้องถูกเรียก**ในจังหวะ user gesture โดยตรง** (synchronous เท่านั้น) แต่โค้ดเดิม
+        เรียก `chrome.windows.getCurrent()` (async) ก่อน แล้วค่อยเรียก `open()` **ข้างใน callback ของมัน** —
+        เสีย user gesture ไปแล้วตอนนั้น ทำให้ `open()` throw แบบ **synchronous ทันที ก่อนจะถึง `.catch()` เลย** —
+        เป็น uncaught exception ที่พี่มองไม่เห็นเลย (comment ในโค้ดเดิมพูดถูกว่าต้องเรียก sync แต่ implement ผิดเอง)
+      - **แก้แล้ว:** ย้ายการดึง `windowId` ไปทำ**ตอน popup โหลด** (cache ไว้ล่วงหน้าตั้งแต่แรก ไม่ใช่ตอนกด) พอกดปุ่ม
+        เรียก `chrome.sidePanel.open({windowId: currentWindowId})` **แบบ sync ทันที ไม่มีช่องว่าง async คั่นกลาง
+        เลย** ([popup.js:11+](tiktok_autopost_extension/popup.js#L11)) + เพิ่ม try/catch ครอบกันการ throw
+        แบบ synchronous ไว้ด้วย เผื่อพังกรณีอื่นจะได้เห็น error จริงแทนที่จะเงียบ
+      - `node --check` ผ่าน, `pytest tests/ -q` 373 passed
+      - **ยังไม่ได้ทดสอบจริงหลัง fix นี้** — รอพี่ reload extension แล้วลองกดปุ่มอีกที
+
+- [x] **POST-2.16 รวม popup เดิม + side panel เป็น UI เดียว ตาม /grill-me (6 คำถามตอบครบ) (2026-09-06)**:
+      - **คำขอ:** "อยากให้กด extension แล้วเปิดแถบข้างเลย ไม่ใช่กดปุ่ม แล้วออกแบบให้สวยงามด้วย" — grill-me สรุป:
+        (1) รวม checklist เดิมเข้า side panel เป็น 2 แท็บ ลบ popup ทิ้งเลย (2) แท็บสวิตช์บนสุด (3) มี confirm
+        dialog ก่อนเปลี่ยนคลิป active ถ้า checklist ทำค้างอยู่ (4) เพิ่มปุ่ม mark-posted **ในตัว extension เลย**
+        (พี่ขอเองนอกเหนือจาก 2 ตัวเลือกที่เสนอไป — ไม่ต้องสลับไปกดในแอป OmniCut) (5) กล่อง mark-posted แยกท้ายสุด
+        (6) รีเฟรชรายการคลิปแบบ manual เท่านั้น (ปุ่มเดิม ไม่ auto-poll)
+      - **ลบ:** `popup.html`, `popup.js` ทั้งคู่ (`rm`) — เช็คด้วย `grep` แล้วว่าไม่มีโค้ด/manifest ที่อ้างถึงอีก
+        (เจอแค่ log เก่าใน TODO.md/HISTORY.md ซึ่งเป็นบันทึกอดีต ไม่กระทบ)
+      - **`manifest.json`:** เอา `"default_popup": "popup.html"` ออกจาก `"action"` (เหลือแค่ `default_title`)
+      - **`background.js`:** เพิ่ม `chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })` ต้นไฟล์
+        — ทำให้กดไอคอน extension เปิดแถบข้างตรงทันที ไม่ต้องผ่านปุ่มกลางทางอีก
+      - **`sidepanel.html`** เขียนใหม่ทั้งไฟล์: เพิ่ม tab switcher (`#tabBtnList`/`#tabBtnChecklist`), แท็บ 2
+        ("ขั้นตอนโพสต์") ย้าย caption/hashtags/productId inputs + checklist 5 ขั้นเดิมมาจาก popup.html ทุกอย่าง,
+        เพิ่ม `#activeClipBanner` (โชว์คลิปที่กำลังทำอยู่), เพิ่มกล่อง `.mark-posted-card` (สีเขียว แยกจากปุ่ม
+        automation โทนอันตราย) พร้อม `#markPostedBtn`, เพิ่ม `#confirmOverlay` modal สำหรับ confirm เปลี่ยนคลิป
+      - **`sidepanel.js`** เขียนใหม่ทั้งไฟล์ เพิ่มจากของเดิม (list-only): tab-switch logic, `activeClip` state,
+        `handlePrepareClick()` เช็ค `anyStepChecked()` ก่อน — ถ้ามีขั้นติ๊กค้างอยู่และกดคลิปอื่น จะเปิด confirm
+        dialog ก่อนเสมอ (`askConfirm()` คืน Promise ผูกกับปุ่ม ok/cancel), `prepareClip()` ยิง `/prepare` เหมือน
+        เดิมแล้วเติม caption/hashtags/productId ลง input พร้อมสลับไปแท็บ checklist อัตโนมัติ + reset ช่องติ๊กทั้ง 5
+      - ปุ่ม checklist 5 ขั้น ย้าย `wireStep()` มาจาก popup.js เดิมเกือบคำต่อคำ ผูก action เดิมทุกตัว
+        (`upload-file-only`/`type-caption-only`/`attach-product-only`/`schedule-mode-only`/`click-post-only`)
+        — ไม่แตะ `background.js` ส่วนนี้เลย ยังใช้ message contract เดิมทั้งหมด
+      - **ใหม่:** `markPostedBtn` handler ยิง `POST /api/exports/mark-posted` ตรง ({file_path, product_id,
+        angle_id} จาก `activeClip`) — endpoint นี้มีอยู่แล้วใน `scripts/api_exports.py` (ไม่ได้แก้ backend เลย)
+        สำเร็จแล้ว reset `activeClip`/checklist กลับที่ว่าง + เรียก `loadExports()` ใหม่ให้คลิปหายจากรายการ
+      - เช็ค element id ตรงกันทุกตัวระหว่าง HTML กับ `getElementById` ใน JS ด้วย script python เทียบ set — ตรงกัน
+        ครบ (มี false positive 2 ตัวจาก regex จับ template literal `chk${n}`/`btn${n}` ผิด ไม่ใช่ id จริง)
+      - `node --check` ผ่านทั้ง `sidepanel.js`/`background.js`, manifest.json valid JSON
+      - **ยังไม่ได้รัน `pytest` รอบนี้ และ**ยังไม่ได้ทดสอบจริง** — รอพี่ reload extension ที่ `chrome://extensions`
+        แล้วทดสอบ: (1) คลิกไอคอนต้องเปิดแถบข้างตรงเลย ไม่มี popup แทรกอีก (2) แท็บ "รายการคลิป" เห็นคลิปเดิม
+        (3) กด "เตรียมคลิปนี้" ต้องสลับไปแท็บ checklist พร้อมข้อมูลเติมให้ (4) ลองกด "เตรียมคลิปนี้" คลิปอื่นตอน
+        checklist ทำค้าง ต้องขึ้น confirm dialog ก่อน (5) ปุ่ม "มาร์คว่าโพสต์แล้ว" ทดสอบกับคลิปจริงได้ตามที่พี่สะดวก
+        (เป็นข้อมูลจริงของพี่ ปุ่มนี้ไม่แตะ TikTok เลย แค่ย้ายไฟล์ในเครื่อง — ตัดสินใจเองได้ว่าจะลองกับคลิปไหน)
+
+- [x] **POST-2.17 ปรับ UI side panel ให้สวยขึ้น ผ่าน `/impeccable polish` + craft-floor (2026-09-06)**:
+      - **คำขอ:** "ปรับหน้า UI ให้สวยๆหน่อย สวยที่สุด ใช้งานง่าย สบายตา" พร้อมสกรีนช็อตของ POST-2.16 (แบนมาก —
+        สี cyan เดียวทั้งจอ ไม่มี depth ไม่มี hierarchy, tab ดูเป็นปุ่มลอยไม่ใช่ segmented control)
+      - รัน `context.mjs` — ไม่มี `PRODUCT.md`/`DESIGN.md` ในโปรเจกต์ (scoped fix ไปได้เลยไม่ต้อง block) จัดเป็น
+        **Operate mode** (task-completion tool ไม่ใช่ marketing surface) ตาม `polish.md`
+      - เขียน `sidepanel.html` ใหม่ทั้ง `<style>`: เพิ่ม design tokens (`--bg/--surface/--surface-raised` 3 ระดับ
+        elevation, `--text-primary/secondary/tertiary` 3 ระดับ, accent/success/danger แยกชัดเป็น semantic role
+        ไม่ใช้ cyan ทุกที่แบบเดิม), shadow scale จริง (sm/md/lg มี offset+blur ตาม craft-floor "Depth" rule),
+        radius scale, easing curve เดียว (`cubic-bezier(0.16,1,0.3,1)`)
+      - ปุ่มแยก role ชัด: `.btn-primary` (cyan, action หลัก) / `.btn-ghost` (neutral, secondary) / `.btn-step`
+        (checklist) / `.btn-success` (mark-posted, เขียวแยกจาก automation ตามที่ตั้งใจไว้ตั้งแต่ POST-2.16)
+        ทุกปุ่มมี hover (translateY -1px + สี) + active (scale/brightness) + disabled state
+      - Tab switcher ทำเป็น segmented control จริง (พื้นหลังเดียว active state เป็นแท่งทึบสีตัดกัน แทนปุ่มลอย
+        แยกกันแบบเดิม) + hover state บนแท็บที่ไม่ active
+      - Checklist step แต่ละแถวเพิ่ม `.step-num` (เลขในวงกลม เปลี่ยนเป็นเขียวเมื่อ `input:checked` ด้วย
+        `:has()` selector) แทนแค่ checkbox ลอยเดี่ยวๆ — step 5 (กด Post จริง) มี `.danger` class เน้นสีต่างจาก
+        step อื่นเพราะเป็นขั้นที่กดแล้วย้อนไม่ได้
+      - Card คลิป: เพิ่ม hover elevation (translateY -1px + shadow เข้ม), ชื่อสินค้าเป็น uppercase label
+        แยก hierarchy จาก hook title, meta แยก dot separator
+      - Empty/error state: จาก text สั้นๆ เป็นกล่อง dashed border (`.empty`) / กล่อง danger wash (`.error`)
+        ให้เห็นชัดว่าเป็น state ไม่ใช่ข้อความหลุด
+      - Confirm modal: เพิ่ม `backdrop-filter: blur(3px)` บน overlay + scale-in animation บนกล่อง (แทนโผล่มาทันที)
+      - เพิ่ม `@media (prefers-reduced-motion: reduce)` ปิด animation ทั้งหมดตาม craft-floor "Motion" rule
+      - `sidepanel.js`: ปุ่ม "เตรียมคลิปนี้" ที่สร้างด้วย `createElement` เพิ่ม `btn.className = 'btn-primary'`
+        (เดิมไม่มี class เลย), `setStatus()` เปลี่ยน default จาก `kind || ''` เป็น `kind || 'info'` ให้ทุกข้อความ
+        สถานะได้กล่องสไตล์เดียวกันแทนที่จะเป็น text ลอยไม่มี padding เวลาไม่ส่ง kind มา
+      - **เจอจาก detector จริง (`detect.mjs`):** รอบแรกมี `--shadow-glow-accent`/`--shadow-glow-success` เป็น
+        zero-offset colored halo บน `.btn-primary`/`.btn-success` — ตรง antipattern "dark-glow" (ท่า AI-slop
+        ที่ detector เช็คเฉพาะ) แก้เป็น `--shadow-cta` (neutral elevation shadow มี offset+blur จริง ไม่มีสี)
+        ตัวเดียวใช้ร่วมกัน 3 จุด + เอา glow ออกจากจุดสีเขียวๆ บนจุดไฟหน้า h1 ด้วย — รันซ้ำแล้ว detector คืน `[]`
+      - เช็ค element id ตรงกันหมดระหว่าง HTML/JS (script python เทียบ set, false positive 2 ตัวจาก regex
+        จับ template literal `chk${n}`/`btn${n}` ผิดเหมือนรอบก่อน ไม่ใช่ id จริง), เช็ค tag เปิด-ปิดสมดุลหมด
+      - `node --check sidepanel.js` ผ่าน, `pytest tests/ -q` 381 passed (ไม่กระทบฝั่ง python เลย)
+      - **ยังไม่ได้ทดสอบจริงในเครื่องพี่** — รอ reload extension ที่ `chrome://extensions` แล้วดูหน้าตาจริง
+        ทั้ง 2 แท็บ + ลอง hover/click ปุ่มต่างๆ ว่า transition ลื่นไหม
+
+- [x] **POST-2.18 เพิ่มปุ่มคัดลอก caption+hashtags รวม + ทำ checkbox ติ๊กเองได้ (2026-09-06)**:
+      - **คำขอ:** (1) "คำอธิบายกับแฮชแท็กอยากอยู่ช่องเดียวกัน หรือไม่ก็มีปุ่มคัดลอกทั้งสองอันพร้อมกัน" (2) "ตอนนี้
+        ยังกดทำแล้วรันต่อไม่ได้ อยากติ๊กหัวข้อเพื่อทำ checklist เองได้ไหม"
+      - ถามพี่ก่อน 2 คำถาม: (1) แยกช่องเดิม+ปุ่มคัดลอกรวม vs รวมเป็นช่องเดียว → พี่เลือก**แยกช่องเดิม+ปุ่มคัดลอก**
+        (ไม่เสี่ยงพังการแยก parse hashtag ที่ `background.js` พึ่งอยู่) (2) ติ๊กเองแล้วต้องเกิดอะไร → พี่เลือก
+        **แค่ mark progress ด้วยมือ** ปุ่ม "ทำ" ยังทำงานเดิมทุกอย่าง (auto-tick เมื่อ CDP สำเร็จจริง)
+      - **ปุ่มคัดลอกรวม:** เพิ่ม `#copyAllBtn` ใต้ 2 textarea ใน `sidepanel.html` — `sidepanel.js` ต่อ
+        `caption + '\n\n' + hashtags` (ตัด field ที่ว่างออกด้วย `.filter(Boolean)`) แล้ว
+        `navigator.clipboard.writeText()` (ใช้ได้ตรงในหน้า extension เอง ไม่ต้องเพิ่ม permission ใน
+        manifest.json) สำเร็จแล้วเปลี่ยนปุ่มเป็น "✅ คัดลอกแล้ว" สีเขียวชั่วคราว 1.5 วิ แล้วคืนข้อความเดิม
+      - **checkbox ติ๊กเองได้:** เดิม checkbox ถูกซ่อนด้วย `pointer-events: none` แสดงแค่ `.step-num` (เลขวงกลม)
+        เป็น `<span>` อ่านอย่างเดียว — เปลี่ยน `.step-num` จาก `<span>` เป็น `<label for="chkN">` ทั้ง 5 ขั้น
+        ([sidepanel.html](tiktok_autopost_extension/sidepanel.html)) ให้คลิกที่เลขวงกลม = toggle checkbox
+        ผ่านกลไก HTML label association มาตรฐาน (ไม่ต้องเขียน JS toggle เพิ่มเอง) + เพิ่ม `cursor: pointer` +
+        hover/active state ให้เห็นว่ากดได้ ปุ่ม "ทำ" ยังคงอยู่คู่กันเหมือนเดิม ไม่ได้ตัดออก
+      - **ไม่ต้องแก้ `sidepanel.js` เรื่อง checkbox เลย** — เช็คโค้ดแล้ว `anyStepChecked()`/`resetChecklist()`/
+        `wireStep()` อ่าน-เขียนผ่าน `.checked` เฉยๆ ไม่สนว่าใครเป็นคนติ๊ก (ปุ่ม "ทำ" หรือพี่เอง) ผลพลอยได้ที่ถูกต้อง
+        พอดี: ติ๊กเองก็ trigger confirm-dialog ตอนเปลี่ยนคลิปเหมือนกดปุ่ม "ทำ" จริง (สมเหตุสมผล เพราะแปลว่าพี่
+        ทำขั้นนั้นไปแล้วจริงๆ ไม่ว่าจะทำเองนอกระบบหรือให้ extension ทำให้)
+      - แก้ `step-note` ท้าย checklist ให้อธิบาย 2 วิธี (กดปุ่ม "ทำ" ให้อัตโนมัติ / กดเลขวงกลมเองถ้าทำเองแล้ว)
+      - `node --check sidepanel.js` ผ่าน, detector (`detect.mjs`) คืน `[]` (ไม่มี antipattern ใหม่), id ตรงกัน
+        ทุกตัว, tag เปิด-ปิดสมดุล (รวม `<label>` 5 คู่ใหม่), `pytest tests/ -q` 381 passed
+      - **ยังไม่ได้ทดสอบจริง** — รอ reload extension แล้วลอง (1) กดปุ่มคัดลอกรวม วางใน caption box ของ TikTok
+        ดูว่าได้ครบทั้ง 2 ส่วน (2) ลองกดเลขวงกลมของขั้นที่ยังไม่ทำ ดูว่าติ๊ก/เปลี่ยนสีเขียวได้ทันที
+
+- [x] **POST-2.19 แก้บั๊กจริง: ขั้น 3 ปักตะกร้าค้างที่แท็บ "ร้านของฉัน" ไม่สลับไป "นำเสนอสินค้า" (2026-09-06)**:
+      - **หลักฐาน:** พี่ส่งสกรีนช็อต — modal "เพิ่มลิงก์สินค้า" ค้างอยู่แท็บ "ร้านของฉัน" (empty state
+        "ไม่มีสินค้าในร้านของคุณ") ไม่เคยสลับไปแท็บ "นำเสนอสินค้า" เลย ทั้งที่ ID/พิมพ์ค้นหาถูกส่งเข้าไปแล้ว
+        (พี่บรรยาย: "ปักตระกร้า มันทำได้ถึงแค่ร้านค้า ไม่เปิดแทบนำสเนอสินค้า แล้วใส่เลขไอดีติ้กเลือกบันทึกให้")
+      - **root cause จากอ่านโค้ด `switchToShowcaseTab()`'s `isActive()`
+        ([background.js:322-335](tiktok_autopost_extension/background.js#L322) เดิม):** เช็คแค่
+        `searchInput.offsetWidth > 0 || offsetHeight > 0 || getClientRects().length > 0` — ทั้ง 3 เงื่อนไขนี้
+        คืนค่า non-zero ได้แม้ element อยู่ใน ancestor ที่ `display: none` (React ของ TikTok เก็บ tab panel
+        ที่ไม่ active ไว้ใน DOM ต่อ ไม่ได้ unmount) แปลว่าถ้ามี search input เก่าค้างจาก render รอบก่อนที่ไหน
+        สักที่ในหน้า `isActive()` จะ**คืน `true` เท็จตั้งแต่การเช็คครั้งแรก** (บรรทัด `if (await isActive())
+        return true`) ทำให้ฟังก์ชันไม่เคยพยายามคลิกแท็บที่ถูกต้องเลย แล้วปล่อยผ่านไปเป็น "switched=true" ทั้งที่
+        ยังอยู่ "ร้านของฉัน" จริงๆ
+      - **แก้ 2 จุด:**
+        1. `isActive()` เปลี่ยนเป็นเช็ค `checkVisibility()` จริง (fallback `getBoundingClientRect` +
+           `getComputedStyle` ถ้า browser เก่าไม่รองรับ) **บวกเช็ค negative signal ตรงๆ**: ถ้าเจอข้อความ
+           "ไม่มีสินค้าในร้านของคุณ" ที่ไหนในหน้า ถือว่ายังไม่ active แน่นอน ไม่ว่า search input จะดูเหมือน
+           visible แค่ไหนก็ตาม ([background.js:321-360](tiktok_autopost_extension/background.js#L321))
+        2. `attachProductLink()` เดิมเจอ `switched === false` แค่ `console.warn` แล้ว**เดินหน้าต่อ** พิมพ์ ID
+           ลง search box ที่ไม่มีอยู่จริง (เพราะ "ร้านของฉัน" ไม่มี search) — เปลี่ยนเป็น **หยุดทันทีและ return
+           error ชัดเจน** `'สลับไปแท็บ "นำเสนอสินค้า" ไม่สำเร็จ (ยังค้างอยู่ที่ "ร้านของฉัน") -- ลองกดขั้นนี้ซ้ำ'`
+           ([background.js:508-514](tiktok_autopost_extension/background.js#L508)) แทนที่จะปล่อยให้พังต่อแบบ
+           เงียบๆ แล้วไปโผล่ error ที่ไม่เกี่ยวกันในขั้นถัดไป (หาสินค้าไม่เจอ/กดปุ่มไม่ได้)
+      - `node --check` ผ่าน, `pytest tests/ -q` 381 passed (ไม่กระทบฝั่ง python)
+      - **ยังไม่ได้ทดสอบจริง** — รอพี่ reload extension แล้วลองกดขั้น 3 (ปักตะกร้าสินค้า) ใหม่ ดูว่าสลับไปแท็บ
+        "นำเสนอสินค้า" ได้จริงไหม ถ้ายังพังอีก ตอนนี้จะได้ error message ที่ชี้ตรงจุดแทนที่จะเงียบเหมือนก่อน
+      - **✅ ผลจริง (พี่ทดสอบแล้ว):** POST-2.19 แก้ตรงจุด — ขั้น 3 เดินผ่านไปจนถึงหน้า "เพิ่มลิงก์สินค้า" มีชื่อ
+        สินค้า "LOGITECH WAVE KEYS (สีขาว/สีดำ" ขึ้นรอกด "เพิ่ม" ได้จริงแล้ว (พี่ส่งสกรีนช็อตยืนยัน)
+
+- [x] **POST-2.20 แก้บั๊ก: ขั้น 4 "สลับเป็นกำหนดเวลา" กดโดน dropdown "ตำแหน่งที่ตั้ง" แทน (2026-09-06)**:
+      - **หลักฐาน:** พี่ส่งสกรีนช็อต — กดขั้น 4 แล้ว dropdown "ตำแหน่งที่ตั้ง" (Location) เปิดขึ้นมาแทน ไม่ใช่ตัวเลือก
+        "กำหนดเวลา" ("สลับเป็นกำหนดเวลา มันไปกดเลือกตำแหน่งแทน")
+      - **root cause จากอ่านโค้ด `switchToScheduleMode()`
+        ([background.js:667-685](tiktok_autopost_extension/background.js#L667) เดิม):** ค้นหา element ด้วย
+        `t.includes('กำหนดเวลา')` แบบ **ไม่จำกัดว่าต้องเป็น leaf** — ถ้า TikTok วาง "กำหนดเวลาโพสต์" กับฟิลด์
+        "ตำแหน่งที่ตั้ง" ไว้ใน section เดียวกัน `<div>` ครอบใหญ่ที่สุด (parent) ก็จะ match ก่อนเพราะ
+        `innerText` ของมันรวมข้อความลูกทุกตัวไว้อยู่แล้ว (includes เจอแน่นอน) โค้ดเดิมหยิบ div ใหญ่นั้นมาแล้ว
+        `.querySelector('input')` หา **input ตัวแรกที่เจอใน DOM order ภายใน container นั้น** ซึ่งถ้า input
+        ของฟิลด์ location มาก่อน input ของ schedule radio ใน DOM ก็จะกดโดน location แทนทันที
+      - **แก้:** เขียนใหม่ 3 จุด
+        1. เปลี่ยนจาก `includes()` เป็น **exact match** (`TARGETS.includes(t)`) และเพิ่มเงื่อนไข **ห้ามมี child
+           element ที่มีข้อความตรงกันซ้ำ** (`isLeafMatch`) — ป้องกัน parent div ที่ห่อ label จริงไว้ข้างในชนะ
+        2. ถ้า match หลายตัว เรียงเอา bounding-box **เล็กสุดก่อน** (element เฉพาะเจาะจงที่สุด) เหมือน pattern
+           ที่ใช้กับ `switchToShowcaseTab` ไปแล้วใน POST-2.5/2.6
+        3. หา input ที่จะคลิกด้วย `getAttribute('for')` → `getElementById` (ผูก label-for ตรงมาตรฐาน) ก่อน
+           แล้วค่อย fallback ไป `:scope > input` (ลูกตรงๆ ชั้นเดียว ไม่ query ลึกเข้าไปในลูกหลาน) แทนที่จะ
+           `querySelector('input')` แบบเดิมที่มองเข้าไปได้ลึกทั้ง subtree
+        4. เปลี่ยน return type จาก `undefined` เป็น `{success: boolean}` จริง — `runScheduleModeOnly()`
+           ([background.js:866](tiktok_autopost_extension/background.js#L866)) เช็คค่านี้แล้ว **return
+           error ชัดเจน** ถ้าหาตัวเลือกไม่เจอ แทนที่จะ report สำเร็จเสมอแบบเดิม (`return { success: true }`
+           ไม่สนใจผลจริงเลย)
+      - `node --check` ผ่าน, `pytest tests/ -q` 381 passed (ไม่กระทบฝั่ง python)
+      - **ยังไม่ได้ทดสอบจริง** — รอพี่ reload extension แล้วลองกดขั้น 4 ใหม่ ดูว่าคลิกโดน "กำหนดเวลา" ตรงๆ
+        แทนที่จะไปโดน location dropdown
+
+- [ ] **POST-2.21 เพิ่มขั้นตอนอัปโหลดภาพปก (Cover Upload) ใน Extension Side Panel — ปิดจุดเจ็บไม่ต้องเปิดโฟลเดอร์ลากไฟล์เอง (2026-09-06)**:
+      - **คำขอ:** "มันค่อนข้างยุ่งยากที่จะเปิด folder แล้วมาเลือก ผมมี extension แล้วจะให้นายทำต่อจากอีก เอเจนน่ะ"
+      - **วิเคราะห์:** ปัจจุบันระบบทำปก 9:16 (COV-1) เซฟไฟล์ไว้ใน `05_Covers_Thumbnails/{stem}_cover.jpg` คมชัดแล้ว แต่ขั้นตอนโพสต์ใน TikTok Studio พี่ยังต้องเปิดโฟลเดอร์ใน Windows Explorer แล้วลากไฟล์รูปปกไปหยอดเองในหน้าแก้ไขหน้าปก
+      - **แผนงานรอบนี้:**
+        1. **Backend (`media_service.py` & `api_exports.py`):** คืนค่า `cover_path` ใน `GET /api/exports` เพื่อให้ extension รู้จักตำแหน่งไฟล์รูปปกจริงในเครื่อง
+        2. **Extension (`sidepanel.js` & `sidepanel.html`):**
+           - ส่ง `cover_path` ไปยัง `POST /api/tiktok-autopost/prepare` เมื่อกด "เตรียมคลิปนี้"
+           - เพิ่มพรีวิวรูปปก 9:16 ใน Side Panel ใต้ชื่อคลิป เพื่อให้เห็นภาพปกทันทีก่อนอัปโหลด
+           - เพิ่มขั้นตอนใน Checklist: "อัปโหลดภาพปก" (ปุ่มกดทำ + checkbox ติ๊กมือ/ออโต้)
+        3. **Extension Background Worker (`background.js`):**
+           - เพิ่ม handler `upload-cover-only`: attach debugger สั้นๆ -> คลิกเปิด modal "แก้ไขหน้าปก" ของ TikTok Studio -> หา `<input type="file">` ของรูปภาพ -> เรียก `DOM.setFileInputFiles` ใส่ไฟล์ปกจาก `05_Covers_Thumbnails/` -> รอภาพโหลด -> คลิกปุ่ม "บันทึก" ใน modal -> detach ทันที (ไม่แช่ session ป้องกัน tab crash)
+      - **Gate:** `node --check` ทุกไฟล์ js ผ่าน, `pytest tests/ -q` ผ่าน, ตรวจสอบ element id และ HTML tags ถูกต้องครบถ้วน
 
 ### Gate
 
@@ -518,6 +733,58 @@ npm test
 ---
 
 ## Round TRK-3 — บอร์ดหลักคลีนไร้ความรก (Today-Only Posted, คลังสคริปต์หยิบทำวันนี้ & การ์ดตัดต่อเสร็จแนวนอนกะทัดรัด) — ย้ายบล็อกเต็มไป [HISTORY.md](file:///d:/Winona/Programmer/Capcut/HISTORY.md) แล้ว
+ 
+---
+
+## Round COV-1 — สตูดิโอสร้างปกคลิปด่วน 9:16 (Auto Highlight Crop, AI Hook & 4 TikTok Templates)
+
+- **เป้าหมาย:** สตูดิโอสร้างภาพปกคลิปแนวตั้ง 9:16 (1080x1920) สำหรับโพสต์ลง TikTok Studio เพื่อเพิ่มยอดคลิก (CTR) ดึงภาพช็อตเด่น + AI ช่วยคิดข้อความ Hook ปกสั้นทรงพลัง + 4 แม่แบบสำเร็จรูปสไตล์ TikTok พร้อมปรับตำแหน่งข้อความ 3 โซน (บน/กลาง/ล่าง) และแปะป้าย 3D
+- **ผลลัพธ์จาก Grill-Me:**
+  1. ภาพพื้นหลัง: เลือกช็อตเด่นจาก 4-6 Candidate frames + Scrubber วิดีโอ หรือ อัปโหลดรูปสินค้าความละเอียดสูง
+  2. ข้อความ Hook: AI เจน 4 สไตล์สั้นกระชับ (Curiosity, Value, Problem/Solution, Review/Rating) + แก้ไขคำได้อิสระ
+  3. สไตล์แม่แบบ: 4 ธีม TikTok ยอดนิยม (Neon `#FFE600` ขอบดำ, Yellow Bar แถบเหลืองอักษรดำ, Modern Box กล่องกระจกเงา, Minimal Bold ขาวขอบดำหนา)
+  4. ตำแหน่ง Hook: เลือกได้ 3 โซน (บน ~25% default, กลาง ~50%, ล่างเหนือบาร์ ~70%)
+  5. ตรา 3D Badge: เลือกแปะมุมซ้ายบน / มุมขวาบน / ไม่ใส่
+  6. เอาต์พุต: บันทึกลง `05_Covers_Thumbnails/{video_stem}_cover.jpg` ขนาด 1080x1920 พร้อมอัปเดต `cover_url` ให้ Tracker นำไปใช้ทันที
+- **กฎเหล็กที่ต้องรักษา:**
+  - เคารพ `ui_clean_standard.md` (ไม่มีสัญลักษณ์ซ้ำซ้อน ไม่มีเครื่องหมายบวกหรืออีโมจินำหน้าข้อความปุ่ม)
+  - ไม่ใช้ hardcoded absolute path (ใช้ `BASE_DIR` จาก `scripts/config.py`)
+
+### งานย่อย
+
+- [x] **COV-1.1 Backend: Candidate Highlight Extraction & Image Scrubber API**
+      - เพิ่ม `POST /api/covers/highlights` ใน `scripts/api_covers.py` สกัด 4-6 เฟรมสำคัญจากคลิป mp4 ส่งเป็น thumbnail base64 หรือ image URL
+      - ปรับ `POST /api/covers/preview-frame` รองรับการระบุวินาทีละเอียด (timestamp) สำหรับ live scrubbing
+- [x] **COV-1.2 Backend: AI Cover Hook Generator & 4 Pro Templates Render Engine**
+      - เพิ่ม `POST /api/covers/generate-hooks` เจน 4 สไตล์ Hook สั้นกระชับ 2-4 คำ
+      - ปรับปรุง `POST /api/covers/render-pro` เรนเดอร์ไฟล์ JPG 1080x1920 ด้วย Pillow/FFmpeg รองรับ 4 templates, 3 โซนตำแหน่ง Hook, vertical pan offset, และป้าย 3D badge overlay
+- [x] **COV-1.3 Frontend: CoverStudioModal.jsx คอมโพเนนต์สตูดิโอ 9:16**
+      - จอพรีวิว 9:16 พร้อม Safe Zone Overlay Guide (ขอบล่าง 420px และไอคอน TikTok ด้านขวา)
+      - ส่วนเลือกรูป (4 ช็อตเด่น + Scrubber ละเอียด + อัปโหลดรูป)
+      - ส่วนข้อความ Hook (AI Pills 4 สไตล์ + ช่องพิมพ์แก้คำ + ปุ่มเลือก 3 โซนตำแหน่ง)
+      - ส่วนสไตล์แม่แบบ (4 การ์ดแม่แบบ + ตัวเลือกป้าย 3D badge)
+- [x] **COV-1.4 Frontend Integration: ContentTrackerHub & ExportGallery**
+      - เพิ่มปุ่ม `[สร้างปก]` บนการ์ด "ตัดต่อเสร็จ" และในแถวตาราง Daily Run Sheet
+      - ผูก Event เมื่อบันทึกเสร็จ อัปเดตข้อมูลปกให้การ์ดแสดงรูปปกจริงทันที
+- [x] **COV-1.5 TikTok Clean Capture, 3:4 Profile Ratio, Overlay Toggles & Dual Export (User ร้องขอ 2026-09-06)**:
+      - **Backend (`scripts/api_covers.py`)**:
+        - รองรับ `aspect_ratio`: `"9:16"` (1080x1920), `"3:4"` (1080x1440), หรือ `"both"`
+        - รองรับสวิตช์ `enable_hook_text` และ `enable_badge` (ปิดแล้วได้ภาพคลีน 100%)
+        - รองรับการค้นหา Raw Footage จาก `01_Raw/` หรือ `03_Projects/{project_name}/project.json`
+        - คำนวณ Crop 3:4 อัตโนมัติร่วมกับ `pan_y_pct`
+        - บันทึกทั้งไฟล์ `_cover.jpg` (9:16) และ `_cover_3x4.jpg` (3:4) เมื่อเลือก `"both"`
+      - **Frontend (`CoverStudioModal.jsx`)**:
+        - ติ๊กออก Hook และ Badge เป็น Default (`enableHookText = false`, `enableBadge = false`) ตามคำขอ
+        - รองรับ **ลากเลื่อน (Drag to Pan) บนหน้าจอพรีวิวโดยตรง** ด้วยเมาส์/ทัช
+        - รองรับ **ซูมเข้า-ออก (Zoom In/Out 1.0x - 2.5x)** ด้วย Scroll Wheel และ Slider ซูมขยายเพื่อดันซับไตเติลหลุดขอบเฟรม 100%
+        - ซิงก์ค่า `zoom_scale` และ `pan_y_pct` ไปยัง Backend `render_pro_cover` ให้เรนเดอร์ภาพตรงเป๊ะกับพรีวิว
+- [x] **COV-1.6 Gate & Tests Verification**
+      - รัน `python -m compileall -q scripts` → ผ่านฉลุย ไร้ syntax error
+      - รัน `python -m pytest tests/ -q -p no:cacheprovider` → **381 passed** (ครอบคลุม `test_covers_pro.py` 8 เคสครบทุก template + 3:4 profile + dual export + zoom/pan)
+      - รัน `npm run build` ใน `frontend/` → ผ่าน 100% ไม่มี type/lint error (สร้าง bundle เรียบร้อยใน 4.16s)
+      - ทดสอบ endpoint ด้วย python script / pytest → ยืนยัน parity ครบ
+      - ตรวจสอบความถูกต้องด้วย `browser_subagent` → บันทึกวิดีโอ `cover_studio_zoom_drag_demo_1788705513755.webp` ยืนยันการลากเลื่อนพรีวิว, ปรับซูม 1.5x ดันซับหลุดเฟรม, และบันทึกสำเร็จจริงทั้ง 9:16 และ 3:4
+
 
 
 

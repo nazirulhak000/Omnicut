@@ -98,6 +98,24 @@ export const generateCover = (videoPath, atSeconds, brand = '', model = '', labe
     video_path: videoPath, at_seconds: atSeconds, brand, model, label, template,
   }).then(r => r.data);
 
+export const getCoverBadges = () => api.get('/covers/badges').then(r => r.data);
+
+export const getCoverHighlights = (videoPath) =>
+  api.post('/covers/highlights', { video_path: videoPath }).then(r => r.data);
+
+export const generateCoverHooks = (productName, angleTitle = '', scriptContent = '') =>
+  api.post('/covers/generate-hooks', {
+    product_name: productName,
+    angle_title: angleTitle,
+    script_content: scriptContent,
+  }).then(r => r.data);
+
+export const renderProCover = (payload) =>
+  api.post('/covers/render-pro', payload).then(r => r.data);
+
+export const getCoverRawSources = (videoPath) =>
+  api.post('/covers/raw-sources', { video_path: videoPath }).then(r => r.data);
+
 export const markPosted = (filePath, productId = null, angleId = null) =>
   api.post('/exports/mark-posted', {
     file_path: filePath, product_id: productId, angle_id: angleId,

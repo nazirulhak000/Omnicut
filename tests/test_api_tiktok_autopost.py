@@ -3,17 +3,60 @@ from fastapi.testclient import TestClient
 from pathlib import Path
 
 from scripts.api_server import app
-from scripts.config import EXPORTS_DIR
 import scripts.api_tiktok_autopost as tap
+import scripts.media_service as media
 
 client = TestClient(app)
+
+@pytest.fixture(autouse=True)
+def isolated_files(tmp_path, monkeypatch):
+    exports = tmp_path / '04_Exports' / 'Ready_to_post'
+    covers = tmp_path / '05_Covers_Thumbnails'
+    exports.mkdir(parents=True)
+    covers.mkdir()
+    monkeypatch.setattr(tap, 'BASE_DIR', tmp_path)
+    monkeypatch.setattr(tap, 'EXPORTS_DIR', exports)
+    monkeypatch.setattr(tap, 'POSTED_DIR', tmp_path / '04_Exports' / 'Posted')
+    monkeypatch.setattr(tap, 'COVERS_DIR', covers)
+    monkeypatch.setattr(tap, '_pending', None)
+    monkeypatch.setattr(media, 'BASE_DIR', tmp_path)
+    monkeypatch.setattr(media, 'COVERS_DIR', covers)
+
+
+@pytest.mark.parametrize('suffix', ['_cover.jpg', '_cover_3x4.jpg'])
+def test_export_cover_path_reaches_pending_job(suffix):
+    video = tap.EXPORTS_DIR / 'review.mp4'
+    video.write_bytes(b'fixture')
+    cover = tap.COVERS_DIR / f'review{suffix}'
+    cover.write_bytes(b'fixture')
+    item = media.get_file_info(video)
+    assert item['cover_path'] == f'05_Covers_Thumbnails/review{suffix}'
+    response = client.post('/api/tiktok-autopost/prepare', json={
+        'video_path': item['rel_path'], 'cover_path': item['cover_path'],
+    })
+    assert response.status_code == 200
+    pending = client.get('/api/tiktok-autopost/pending').json()
+    assert Path(pending['cover_path']) == cover.resolve()
+    assert Path(pending['video_path']) == video.resolve()
+
+
+def test_missing_cover_does_not_replace_pending_job():
+    video = tap.EXPORTS_DIR / 'review.mp4'
+    video.write_bytes(b'fixture')
+    previous = {'caption': 'previous job'}
+    tap._pending = previous
+    response = client.post('/api/tiktok-autopost/prepare', json={
+        'video_path': str(video), 'cover_path': '05_Covers_Thumbnails/missing.jpg',
+    })
+    assert response.status_code == 404
+    assert tap._pending == previous
 
 def test_prepare_and_get_pending_with_schedule_time(tmp_path, monkeypatch):
     # Ensure pending is cleared first
     tap._pending = None
 
     # Create dummy mp4 file under EXPORTS_DIR
-    dummy_video = EXPORTS_DIR / "dummy_test_schedule.mp4"
+    dummy_video = tap.EXPORTS_DIR / "dummy_test_schedule.mp4"
     dummy_video.write_bytes(b"dummy")
 
     try:

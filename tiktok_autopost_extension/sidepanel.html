@@ -1,0 +1,665 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<title>OmniCut TikTok Post Helper</title>
+<style>
+  @font-face {
+    font-family: "IBM Plex Sans Thai";
+    font-style: normal;
+    font-weight: 400 700;
+    src: local("IBM Plex Sans Thai");
+  }
+
+  :root {
+    --bg: #0a0e17;
+    --surface: #121828;
+    --surface-raised: #171f33;
+    --surface-hover: #1c2540;
+    --border: rgba(148, 163, 184, 0.14);
+    --border-strong: rgba(148, 163, 184, 0.24);
+
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-tertiary: #5b6b85;
+
+    --accent: #22d3ee;
+    --accent-strong: #67e8f9;
+    --accent-wash: rgba(34, 211, 238, 0.1);
+    --accent-wash-strong: rgba(34, 211, 238, 0.22);
+    --accent-ink: #052a30;
+
+    --danger: #fb7185;
+    --danger-wash: rgba(251, 113, 133, 0.12);
+
+    --success: #34d399;
+    --success-strong: #6ee7b7;
+    --success-wash: rgba(52, 211, 153, 0.1);
+    --success-wash-strong: rgba(52, 211, 153, 0.22);
+    --success-ink: #032b1e;
+
+    --radius-lg: 16px;
+    --radius-md: 12px;
+    --radius-sm: 8px;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.24);
+    --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 12px 32px -8px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.35);
+    --shadow-cta: 0 3px 10px -2px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.3);
+
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  * { box-sizing: border-box; }
+
+  ::selection { background: var(--accent-wash-strong); color: var(--text-primary); }
+
+  ::-webkit-scrollbar { width: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 8px;
+    border: 2px solid var(--bg);
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+
+  html, body {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    padding: 16px;
+    font-family: "IBM Plex Sans Thai", "Segoe UI", system-ui, sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    background:
+      radial-gradient(1200px 480px at 15% -10%, rgba(34, 211, 238, 0.06), transparent 60%),
+      var(--bg);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1 {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 2px 0 16px;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  h1::before {
+    content: "";
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-wash);
+    flex-shrink: 0;
+  }
+
+  p.sub {
+    font-size: 11.5px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    margin: 0 0 12px;
+  }
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  button {
+    font-family: inherit;
+  }
+
+  /* ---- Focus ring (keyboard) ---------------------------------------- */
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid var(--accent-strong);
+    outline-offset: 2px;
+  }
+
+  /* ---- Section cards --------------------------------------------------- */
+  .section-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 14px;
+    border-radius: var(--radius-md);
+    margin-bottom: 12px;
+    box-shadow: var(--shadow-sm);
+  }
+  .input-label {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .input-label .ic { font-size: 12px; line-height: 1; }
+  .field + .field { margin-top: 12px; }
+
+  .btn-copy-all {
+    width: 100%;
+    justify-content: center;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    font-size: 11.5px;
+  }
+  .btn-copy-all.copied {
+    background: var(--success-wash-strong);
+    border-color: var(--success);
+    color: var(--success-strong);
+  }
+
+  textarea, input[type="text"] {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-strong);
+    background: var(--bg);
+    color: var(--text-primary);
+    font-size: 12px;
+    font-family: inherit;
+    transition: border-color 0.15s var(--ease-out), box-shadow 0.15s var(--ease-out);
+    resize: vertical;
+  }
+  textarea::placeholder, input[type="text"]::placeholder { color: var(--text-tertiary); }
+  textarea:hover, input[type="text"]:hover { border-color: rgba(148, 163, 184, 0.34); }
+  textarea:focus, input[type="text"]:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-wash);
+  }
+
+  /* ---- Buttons ----------------------------------------------------------- */
+  button {
+    border: none;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 8px 12px;
+    white-space: nowrap;
+    transition: transform 0.12s var(--ease-out), box-shadow 0.15s var(--ease-out),
+                background-color 0.15s var(--ease-out), filter 0.15s var(--ease-out);
+  }
+  button:disabled { opacity: 0.4; cursor: not-allowed; filter: grayscale(0.3); }
+
+  .btn-primary {
+    background: var(--accent);
+    color: var(--accent-ink);
+    box-shadow: var(--shadow-cta);
+  }
+  .btn-primary:hover:not(:disabled) { background: var(--accent-strong); transform: translateY(-1px); }
+  .btn-primary:active:not(:disabled) { transform: translateY(0); filter: brightness(0.96); }
+
+  .btn-ghost {
+    background: var(--surface-raised);
+    border: 1px solid var(--border-strong);
+    color: var(--text-secondary);
+  }
+  .btn-ghost:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary); border-color: rgba(148, 163, 184, 0.4); }
+  .btn-ghost:active:not(:disabled) { transform: translateY(1px); }
+
+  .btn-step {
+    background: var(--surface-raised);
+    border: 1px solid var(--border-strong);
+    color: var(--text-primary);
+    flex-shrink: 0;
+  }
+  .btn-step:hover:not(:disabled) { background: var(--accent-wash); border-color: var(--accent); color: var(--accent-strong); }
+  .btn-step:active:not(:disabled) { transform: scale(0.97); }
+
+  .btn-success {
+    background: var(--success);
+    color: var(--success-ink);
+    box-shadow: var(--shadow-cta);
+  }
+  .btn-success:hover:not(:disabled) { background: var(--success-strong); transform: translateY(-1px); }
+  .btn-success:active:not(:disabled) { transform: translateY(0); filter: brightness(0.96); }
+
+  /* ---- Tabs (segmented control) ------------------------------------------ */
+  .tabs {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 4px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-sm);
+  }
+  .tab-btn {
+    position: relative;
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: var(--radius-sm);
+    padding: 9px 6px;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    z-index: 1;
+    transition: color 0.2s var(--ease-out);
+  }
+  .tab-btn .ic { font-size: 13px; }
+  .tab-btn:hover:not(.active) { color: var(--text-primary); }
+  .tab-btn.active {
+    color: var(--accent-ink);
+    background: var(--accent);
+    box-shadow: var(--shadow-cta);
+  }
+  .tab-panel { display: none; animation: fade-in 0.22s var(--ease-out); }
+  .tab-panel.active { display: block; }
+
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(3px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tab-panel { animation: none; }
+    button, textarea, input, .card { transition: none !important; }
+  }
+
+  /* ---- Clip list ------------------------------------------------------- */
+  #list { display: flex; flex-direction: column; gap: 10px; }
+
+  .card {
+    display: flex;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    box-shadow: var(--shadow-sm);
+    transition: border-color 0.18s var(--ease-out), box-shadow 0.18s var(--ease-out), transform 0.18s var(--ease-out);
+  }
+  .card:hover {
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+  }
+  .card img {
+    width: 56px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    background: #000;
+    flex-shrink: 0;
+    box-shadow: var(--shadow-sm);
+  }
+  .card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .card-product {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--accent-strong);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 3px;
+  }
+  .card-hook {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text-primary);
+    line-height: 1.4;
+    margin: 0 0 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .card-meta {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .card-meta .dot { width: 3px; height: 3px; border-radius: 999px; background: var(--text-tertiary); flex-shrink: 0; }
+  .card-body button { margin-top: auto; align-self: flex-start; }
+
+  #refreshBtn {
+    width: 100%;
+    margin-bottom: 14px;
+    justify-content: center;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .empty, .error {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    padding: 36px 16px;
+    text-align: center;
+    background: var(--surface);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-md);
+    line-height: 1.6;
+  }
+  .error { color: var(--danger); background: var(--danger-wash); border-color: rgba(251, 113, 133, 0.3); border-style: solid; }
+
+  /* ---- Active-clip banner --------------------------------------------- */
+  #activeClipBanner {
+    background: var(--accent-wash);
+    border: 1px solid rgba(34, 211, 238, 0.28);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    font-size: 12px;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  #activeClipBanner::before {
+    content: "🎬";
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  #activeClipBanner b {
+    color: var(--accent-strong);
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 2px;
+  }
+  #activeClipBanner.empty-state {
+    background: var(--surface);
+    border-color: var(--border);
+    color: var(--text-tertiary);
+    font-size: 11.5px;
+  }
+  #activeClipBanner.empty-state::before { content: "👋"; opacity: 0.6; }
+
+  /* ---- Checklist ---------------------------------------------------- */
+  .checklist {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 4px;
+    margin-bottom: 4px;
+    box-shadow: var(--shadow-sm);
+  }
+  .step-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--border);
+    transition: background-color 0.15s var(--ease-out);
+  }
+  .step-row:last-child { border-bottom: none; }
+  .step-row:hover { background: rgba(255, 255, 255, 0.015); }
+
+  .step-num {
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border-strong);
+    color: var(--text-secondary);
+    font-size: 10.5px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: all 0.15s var(--ease-out);
+  }
+  .step-num:hover { border-color: var(--accent); color: var(--accent-strong); transform: scale(1.08); }
+  .step-num:active { transform: scale(0.94); }
+  .step-row:has(input:checked) .step-num {
+    background: var(--success);
+    border-color: var(--success);
+    color: var(--success-ink);
+  }
+  .step-row:has(input:checked) .step-num:hover { border-color: var(--success-strong); transform: scale(1.08); }
+  .step-row:has(input:checked) .step-label { color: var(--text-secondary); }
+  .step-row:has(input:checked) .step-label strong { text-decoration: line-through; text-decoration-color: var(--text-tertiary); }
+
+  .step-row input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 0;
+    height: 0;
+  }
+
+  .step-label { flex: 1; font-size: 12px; color: var(--text-primary); min-width: 0; }
+  .step-label strong { font-weight: 600; }
+  .step-label small { display: block; color: var(--text-tertiary); font-size: 10px; margin-top: 2px; }
+  .step-row.danger .step-label small { color: var(--danger); opacity: 0.85; }
+
+  .step-note {
+    margin: 10px 2px 14px;
+    font-size: 10.5px;
+    color: var(--text-tertiary);
+    line-height: 1.6;
+    padding: 8px 10px;
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+  }
+
+  /* ---- Mark-posted: deliberately calmer / distinct from automation ---- */
+  .mark-posted-card {
+    background: var(--success-wash);
+    border: 1px solid rgba(52, 211, 153, 0.28);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    margin-top: 16px;
+  }
+  .mark-posted-card .label-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--success-strong);
+    margin-bottom: 6px;
+  }
+  .mark-posted-card p {
+    color: var(--text-secondary);
+    margin: 0 0 12px;
+    font-size: 11.5px;
+    line-height: 1.6;
+  }
+  #markPostedBtn { width: 100%; justify-content: center; display: flex; align-items: center; gap: 6px; }
+
+  /* ---- Status toast ---------------------------------------------------- */
+  #status {
+    margin-top: 14px;
+    font-size: 12px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    min-height: 0;
+  }
+  #status:empty { display: none; }
+  #status.info, #status.error, #status.success {
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    animation: toast-in 0.2s var(--ease-out);
+  }
+  @keyframes toast-in { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
+  #status.info { background: var(--surface); border-color: var(--border); color: var(--text-secondary); }
+  #status.error { background: var(--danger-wash); border-color: rgba(251, 113, 133, 0.3); color: var(--danger); }
+  #status.success { background: var(--success-wash); border-color: rgba(52, 211, 153, 0.3); color: var(--success-strong); }
+
+  /* ---- Confirm modal ----------------------------------------------------- */
+  #confirmOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(5, 8, 15, 0.7);
+    backdrop-filter: blur(3px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 10;
+    animation: overlay-in 0.15s var(--ease-out);
+  }
+  #confirmOverlay.show { display: flex; }
+  @keyframes overlay-in { from { opacity: 0; } to { opacity: 1; } }
+
+  #confirmBox {
+    background: var(--surface-raised);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    padding: 18px;
+    font-size: 12px;
+    max-width: 280px;
+    box-shadow: var(--shadow-lg);
+    animation: box-in 0.2s var(--ease-out);
+  }
+  @keyframes box-in {
+    from { opacity: 0; transform: scale(0.96) translateY(4px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  #confirmBox .icon { font-size: 22px; margin-bottom: 8px; display: block; }
+  #confirmBox p { color: var(--text-primary); margin: 0 0 16px; line-height: 1.6; }
+  #confirmBox .row { display: flex; gap: 8px; }
+  #confirmBox .row button { flex: 1; }
+</style>
+</head>
+<body>
+  <h1>OmniCut TikTok Post Helper</h1>
+
+  <div class="tabs">
+    <button type="button" id="tabBtnList" class="tab-btn active"><span class="ic">📋</span> รายการคลิป</button>
+    <button type="button" id="tabBtnChecklist" class="tab-btn"><span class="ic">✅</span> ขั้นตอนโพสต์</button>
+  </div>
+
+  <!-- Tab 1: clip list -->
+  <div id="panelList" class="tab-panel active">
+    <p class="sub">คลิปที่ตัดต่อเสร็จ (พร้อมโพสต์) ดึงจาก OmniCut Pro Studio โดยตรง</p>
+    <button id="refreshBtn" type="button" class="btn-ghost"><span class="ic">🔄</span> รีเฟรช</button>
+    <div id="list"></div>
+  </div>
+
+  <!-- Tab 2: checklist -->
+  <div id="panelChecklist" class="tab-panel">
+    <div id="activeClipBanner" class="empty-state">ยังไม่ได้เลือกคลิป — ไปที่แท็บ "รายการคลิป" แล้วกด "เตรียมคลิปนี้" ก่อน</div>
+    <img id="activeCover" hidden alt="ปกที่บันทึกจาก Cover Studio" style="max-width:120px;max-height:180px;object-fit:contain;border-radius:8px;margin:12px 0" />
+
+    <div class="section-card">
+      <div class="field">
+        <span class="input-label"><span class="ic">📝</span> คำอธิบายคลิป (Caption)</span>
+        <textarea id="captionInput" rows="2" placeholder="คำอธิบายคลิปรีวิว..."></textarea>
+      </div>
+      <div class="field">
+        <span class="input-label"><span class="ic">🏷️</span> แฮชแท็ก (Hashtags)</span>
+        <textarea id="hashtagsInput" rows="2" placeholder="#รีวิวของดี #พิกัดในตะกร้า..."></textarea>
+      </div>
+      <button id="copyAllBtn" type="button" class="btn-ghost btn-copy-all">
+        <span class="ic">📋</span> คัดลอกคำอธิบาย + แฮชแท็ก
+      </button>
+      <div class="field">
+        <span class="input-label"><span class="ic">🛒</span> ID สินค้า (หรือคำค้นหา)</span>
+        <input type="text" id="productIdInput" placeholder="1737088044189583209" style="font-family: 'Cascadia Code', Consolas, monospace;" />
+      </div>
+    </div>
+
+    <p class="sub">เปิดแท็บ tiktok.com/tiktokstudio/upload ที่ล็อกอินไว้แล้ว กดทำทีละขั้นด้านล่าง เรียงจากบนลงล่าง
+       แล้วสังเกตว่าขั้นไหนทำให้แท็บแครช (ช่องติ๊กจะขึ้นเองเมื่อขั้นนั้นสำเร็จ)</p>
+
+    <button id="prepareDetailsBtn" type="button" class="btn-primary">ทำต่อหลังอัปโหลด</button>
+    <label><input id="prepareSchedule" type="checkbox" /> สลับเป็นกำหนดเวลาหลังเตรียมครบ</label>
+    <p class="step-note">กรอกคำอธิบาย ปักตะกร้า และแนบปกตามลำดับ หยุดทันทีเมื่อพบข้อผิดพลาด จากนั้นตรวจข้อมูลและกดโพสต์ด้วยตัวเอง</p>
+    <div class="checklist">
+      <div class="step-row">
+        <input type="checkbox" id="chk1" />
+        <label for="chk1" class="step-num">1</label>
+        <span class="step-label"><strong>อัปโหลดไฟล์</strong><small>ตั้งไฟล์แล้ว detach ทันที ไม่รอ ไม่พิมพ์อะไรต่อ</small></span>
+        <button id="btn1" type="button" class="btn-step">ทำ</button>
+      </div>
+      <div class="step-row">
+        <input type="checkbox" id="chk2" />
+        <label for="chk2" class="step-num">2</label>
+        <span class="step-label"><strong>พิมพ์คำอธิบาย/แฮชแท็ก</strong><small>ล้างชื่อไฟล์เดิม แล้วพิมพ์แทน</small></span>
+        <button id="btn2" type="button" class="btn-step">ทำ</button>
+      </div>
+      <div class="step-row">
+        <input type="checkbox" id="chk3" />
+        <label for="chk3" class="step-num">3</label>
+        <span class="step-label"><strong>ปักตะกร้าสินค้า</strong><small>ค้นหา + แนบลิงก์สินค้าตาม ID ด้านบน</small></span>
+        <button id="btn3" type="button" class="btn-step">ทำ</button>
+      </div>
+      <div class="step-row">
+        <input type="checkbox" id="chk4" />
+        <label for="chk4" class="step-num">4</label>
+        <span class="step-label"><strong>สลับเป็น "กำหนดเวลา"</strong><small>เปลี่ยนโหมดโพสต์ ไม่กดโพสต์จริง</small></span>
+        <button id="btn4" type="button" class="btn-step">ทำ</button>
+      </div>
+      <div class="step-row">
+        <input type="checkbox" id="chk6" />
+        <label for="chk6" class="step-num">5</label>
+        <span class="step-label"><strong>แนบภาพปกจากโปรแกรม</strong><small>เปิดแก้ไขหน้าปก อัปโหลดรูปที่บันทึก แล้วบันทึกบน TikTok</small></span>
+        <button id="btn6" type="button" class="btn-step">ทำ</button>
+      </div>
+      <div class="step-row danger">
+        <input type="checkbox" id="chk5" />
+        <label for="chk5" class="step-num">6</label>
+        <span class="step-label"><strong>กด Post/กำหนดเวลา</strong><small>⚠️ กดจริง โพสต์ขึ้นจริงถ้ากด</small></span>
+        <button id="btn5" type="button" class="btn-step">ทำ</button>
+      </div>
+    </div>
+    <p class="step-note">กดปุ่ม "ทำ" ให้ extension ทำขั้นนั้นให้อัตโนมัติ (ช่องติ๊กจะขึ้นเองถ้าสำเร็จ) หรือกดที่ตัวเลข
+      วงกลมได้เอง เผื่อทำขั้นนั้นเองนอกระบบแล้วแค่อยากมาร์คไว้ — ทำทีละขั้น รอผลก่อนกดขั้นถัดไป</p>
+
+    <!-- Manual, safe -- never touches TikTok, just OmniCut's own file/state -->
+    <div class="mark-posted-card">
+      <div class="label-row"><span class="ic">✅</span> มาร์คว่าโพสต์แล้ว</div>
+      <p>กดเองหลังเห็นว่าโพสต์ขึ้นจริงบน TikTok แล้ว (ปุ่มนี้ไม่แตะ TikTok เลย แค่ย้ายไฟล์ + อัปเดตสถานะใน OmniCut)</p>
+      <button id="markPostedBtn" type="button" class="btn-success">มาร์คว่าโพสต์แล้ว</button>
+    </div>
+  </div>
+
+  <div id="status"></div>
+
+  <div id="confirmOverlay">
+    <div id="confirmBox">
+      <span class="icon">🔄</span>
+      <p id="confirmText"></p>
+      <div class="row">
+        <button id="confirmCancelBtn" type="button" class="btn-ghost">ยกเลิก</button>
+        <button id="confirmOkBtn" type="button" class="btn-primary">ยืนยัน เปลี่ยนคลิป</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>

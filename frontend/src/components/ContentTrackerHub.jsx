@@ -7,12 +7,13 @@ import {
   Video, Eye, Flame, TrendingUp, Plus, X, FileText, Scissors,
   FolderDown, Info, Film, RotateCcw, ShieldAlert, AlertTriangle,
   Rocket, Calendar, Sun, Moon, Sunrise, Sunset, Shuffle, ChevronDown, ChevronUp,
-  Archive
+  Archive, Image as ImageIcon
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   getProducts, updateAngleStatus, deleteProduct, updateProduct, prepareTiktokAutopost
 } from '../api';
+import CoverStudioModal from './CoverStudioModal';
 import { Modal, Toast, Button, Badge, Input, Textarea } from './ui';
 import { useDebounce, useToast } from '../hooks';
 import { guessBrandModel } from '../lib/overlayModel';
@@ -100,6 +101,7 @@ const KanbanCard = memo(function KanbanCard({
   onPreviewVideo,
   onOpenQrModal,
   onOpenTiktokModal,
+  onOpenCoverStudio,
   onInspectAngle,
   onCopyCaption,
   onQcFail,
@@ -129,13 +131,19 @@ const KanbanCard = memo(function KanbanCard({
           ? 'bg-[#120A06] border-red-500/40 hover:border-red-400/60 ring-1 ring-red-500/20'
           : 'bg-[#09111C] border-[#25F4EE]/30 hover:border-[#25F4EE]/60 shadow-[#25F4EE]/5'
       }`}>
-        {/* Left: Mini 9:16 Video Preview (~52px wide) */}
+        {/* Left: Mini 9:16 Video or Cover Preview (~52px wide) */}
         <div
           onClick={() => ang.video_url && onPreviewVideo(ang.video_url, ang)}
           className="w-[52px] flex-shrink-0 relative rounded-lg overflow-hidden bg-black/80 border border-white/[0.1] hover:border-[#25F4EE] transition-all cursor-pointer group/thumb aspect-[9/16]"
-          title="คลิกเพื่อพรีวิวคลิปเต็ม"
+          title={ang.cover_url ? "คลิกเพื่อพรีวิว (มีภาพปก 9:16 แล้ว)" : "คลิกเพื่อพรีวิวคลิปเต็ม"}
         >
-          {ang.video_url ? (
+          {ang.cover_url ? (
+            <img
+              src={ang.cover_url}
+              alt="Cover 9:16"
+              className="w-full h-full object-cover"
+            />
+          ) : ang.video_url ? (
             <video
               src={`/api/media/${ang.video_url}#t=1.0`}
               muted
@@ -146,6 +154,11 @@ const KanbanCard = memo(function KanbanCard({
             <div className="w-full h-full flex items-center justify-center bg-slate-900 text-slate-600">
               <Video className="w-4 h-4" />
             </div>
+          )}
+          {ang.cover_url && (
+            <span className="absolute top-0.5 right-0.5 px-1 py-0.2 rounded bg-amber-500/90 text-slate-950 font-black text-[8px] uppercase tracking-wider z-10 shadow">
+              ปก
+            </span>
           )}
           <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover/thumb:bg-black/10 transition-colors">
             <div className="w-5 h-5 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center text-white border border-white/[0.2] group-hover/thumb:scale-110 transition-transform">
@@ -213,6 +226,16 @@ const KanbanCard = memo(function KanbanCard({
             >
               <Rocket className="w-3 h-3 flex-shrink-0" />
               <span>ส่ง TikTok</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onOpenCoverStudio && onOpenCoverStudio(ang)}
+              className="py-1 px-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-[11px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap active:scale-95"
+              title="สตูดิโอสร้างปกคลิป 9:16 (Auto Crop + AI Hook + 3D Badge)"
+            >
+              <ImageIcon className="w-3 h-3 flex-shrink-0" />
+              <span>{ang.cover_url ? 'แก้ปก' : 'สร้างปก'}</span>
             </button>
 
             <button
@@ -955,6 +978,8 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     }));
   };
 
+  const [coverStudioItem, setCoverStudioItem] = useState(null);
+
   const handleOpenTiktokModal = useCallback((ang, scheduleTime = '') => {
     if (!ang) return;
     const targetPid = ang?.parentProduct?.tiktok_product_id || ang?.parentProduct?.name || '';
@@ -975,7 +1000,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     try {
       await prepareTiktokAutopost(
         tiktokModalItem.video_url,
-        null,
+        tiktokModalItem.cover_path || tiktokModalItem.cover_url || null,
         tiktokCaption,
         tiktokHashtags,
         tiktokModalItem.parentProduct?.id,
@@ -1030,6 +1055,33 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
   useEffect(() => {
     fetchProductsData();
   }, [fetchProductsData]);
+
+  const handleOpenCoverStudio = useCallback((ang) => {
+    if (!ang) return;
+    const item = {
+      path: ang.video_url || '',
+      rel_path: ang.video_url || '',
+      name: ang.parentProduct?.name || '',
+      product_name: ang.parentProduct?.name || '',
+      hook_title: ang.hook_title || '',
+      angle_name: ang.angle_name || '',
+      thumbnail_url: ang.cover_url || ang.thumbnail_url || (ang.video_url ? `/api/media/${ang.video_url}` : ''),
+      cover_url: ang.cover_url || '',
+      parentProduct: ang.parentProduct,
+      angle_id: ang.angle_id,
+    };
+    setCoverStudioItem(item);
+  }, []);
+
+  const handleCoverSaved = useCallback((res) => {
+    showToast('สร้างภาพปก 9:16 สำเร็จแล้ว!');
+    if (tiktokModalItem) {
+      setTiktokModalItem((prev) =>
+        prev ? { ...prev, cover_url: res.media_url, cover_path: res.cover_path } : null
+      );
+    }
+    fetchProductsData();
+  }, [tiktokModalItem, showToast, fetchProductsData]);
 
   const handleAngleStatusChange = useCallback(async (productId, angleId, nextStatus, videoUrl = null, qcNote = null, clearQcNote = false, clearConflictNote = false) => {
     try {
@@ -1755,6 +1807,22 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                   </button>
                 )}
 
+                {/* Button 4.5: Cover Studio 9:16 */}
+                {isRenderedOrBeyond && inspectAngle.video_url && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const ang = inspectAngle;
+                      handleOpenCoverStudio(ang);
+                    }}
+                    className="py-2.5 px-3.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all flex-shrink-0 whitespace-nowrap active:scale-95"
+                    title="สตูดิโอสร้างปกคลิป 9:16 (Auto Highlight Crop + AI Hook + 3D Badge)"
+                  >
+                    <ImageIcon className="w-3.5 h-3.5" />
+                    <span>สร้างปก 9:16</span>
+                  </button>
+                )}
+
                 {/* Button 5: Mobile QR */}
                 <button
                   onClick={() => {
@@ -1993,6 +2061,52 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                   ระบบจะส่งข้อมูลคลิป แคปชัน และรหัสสินค้าให้ TikTok Studio Auto-post Extension
                 </p>
               </div>
+            </div>
+
+            {/* Cover 9:16 Preview & Creator */}
+            <div className="flex items-center justify-between p-3 rounded-2xl bg-[#0B101B] border border-white/[0.08]">
+              <div className="flex items-center gap-3 min-w-0">
+                {tiktokModalItem.cover_url ? (
+                  <div className="w-12 aspect-[9/16] rounded-lg overflow-hidden border border-amber-500/40 flex-shrink-0 shadow-md">
+                    <img
+                      src={tiktokModalItem.cover_url}
+                      alt="Cover 9:16"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-12 aspect-[9/16] rounded-lg bg-slate-900 border border-slate-800 flex flex-col items-center justify-center text-slate-500 flex-shrink-0">
+                    <ImageIcon className="w-4 h-4 opacity-40" />
+                    <span className="text-[8px] mt-0.5">ยังไม่มีปก</span>
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-white">ภาพปกคลิป 9:16 (TikTok Cover)</span>
+                    {tiktokModalItem.cover_url ? (
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-300 font-bold border border-emerald-500/30">
+                        พร้อมส่ง
+                      </span>
+                    ) : (
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-300 font-bold border border-amber-500/30">
+                        แนะนำทำปก
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                    {tiktokModalItem.cover_url ? 'มีภาพปกพร้อมแนบไปกับคลิปแล้ว' : 'เพิ่มยอดคลิกด้วยการเลือกช็อตเด่น + Hook AI'}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleOpenCoverStudio(tiktokModalItem)}
+                className="py-1.5 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer whitespace-nowrap active:scale-95 transition-all flex-shrink-0"
+              >
+                <ImageIcon className="w-3.5 h-3.5" />
+                <span>{tiktokModalItem.cover_url ? 'เปลี่ยนภาพปก' : 'สร้างปก 9:16'}</span>
+              </button>
             </div>
 
             {/* Caption & Hashtag Inputs */}
@@ -2876,6 +2990,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                                     onPreviewVideo={handlePreviewVideo}
                                     onOpenQrModal={setQrModalItem}
                                     onOpenTiktokModal={handleOpenTiktokModal}
+                                    onOpenCoverStudio={handleOpenCoverStudio}
                                     onInspectAngle={setInspectAngle}
                                     onCopyCaption={handleCopyCaption}
                                     onQcFail={handleQcFail}
@@ -2902,6 +3017,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                           onPreviewVideo={handlePreviewVideo}
                           onOpenQrModal={setQrModalItem}
                           onOpenTiktokModal={handleOpenTiktokModal}
+                          onOpenCoverStudio={handleOpenCoverStudio}
                           onInspectAngle={setInspectAngle}
                           onCopyCaption={handleCopyCaption}
                           onQcFail={handleQcFail}
@@ -3113,6 +3229,15 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                           <div className="flex items-center gap-1.5">
                             <button
                               type="button"
+                              onClick={() => handleOpenCoverStudio(ang)}
+                              className="py-1.5 px-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/25 text-amber-300 text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer active:scale-95 transition-all"
+                              title="สตูดิโอสร้างปกคลิป 9:16"
+                            >
+                              <ImageIcon className="w-3 h-3" />
+                              <span>{ang.cover_url ? 'แก้ปก' : 'สร้างปก'}</span>
+                            </button>
+                            <button
+                              type="button"
                               onClick={() => setSlotPickerIndex(sIdx)}
                               className="flex-1 py-1.5 px-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-slate-300 text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer active:scale-95 transition-all"
                             >
@@ -3241,6 +3366,14 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
           </div>
         </div>
       )}
+
+      {/* ── 9:16 Cover & Hook Studio Modal ── */}
+      <CoverStudioModal
+        isOpen={!!coverStudioItem}
+        onClose={() => setCoverStudioItem(null)}
+        videoItem={coverStudioItem}
+        onCoverSaved={handleCoverSaved}
+      />
     </div>
   );
 }
