@@ -547,7 +547,8 @@ async function attachProductLink(send, productId) {
         }
       }
 
-      const inputs = Array.from(document.querySelectorAll('input'));
+      const root = document.querySelector('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal') || document;
+      const inputs = Array.from(root.querySelectorAll('input'));
       const search = inputs.find(i => {
         const p = (i.placeholder || '').toLowerCase();
         return (p.includes('ค้นหา') || p.includes('search')) && isVisible(i);
@@ -565,9 +566,9 @@ async function attachProductLink(send, productId) {
         search.dispatchEvent(new Event('input', { bubbles: true }));
         search.dispatchEvent(new Event('change', { bubbles: true }));
 
-        const parent = search.parentElement;
-        if (parent) {
-          const icon = parent.querySelector('svg, button, [role="button"], span');
+        const searchContainer = search.closest('[class*="search"], [class*="input"], div') || search.parentElement;
+        if (searchContainer) {
+          const icon = searchContainer.querySelector('svg, button, [role="button"], span, i');
           if (icon && icon !== search) {
             try { icon.click(); } catch(e) {}
           }
@@ -647,8 +648,7 @@ async function attachProductLink(send, productId) {
         if (!targetRow) return null;
 
         // Find radio or checkbox inside this row
-        const radio = targetRow.querySelector('input[type="radio"], [role="radio"], input[type="checkbox"], [role="checkbox"]')
-          || targetRow.querySelector('td')
+        const radio = targetRow.querySelector('input[type="radio"], [role="radio"], [class*="radio"], [class*="checkbox"], span[class*="radio"], td:first-child, [role="cell"]:first-child')
           || targetRow;
 
         if (radio) {
@@ -660,6 +660,8 @@ async function attachProductLink(send, productId) {
           try { radio.click(); } catch (e) {}
         }
 
+        const rect = radio.getBoundingClientRect();
+
         // Extract product name from row
         const cells = Array.from(targetRow.querySelectorAll('td, [role="cell"], div, span, p'))
           .map(el => (el.innerText || '').trim())
@@ -669,14 +671,24 @@ async function attachProductLink(send, productId) {
         return {
           success: true,
           name: cells[0] || '',
+          point: { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 },
           checked: radio ? Boolean(radio.checked || radio.getAttribute('aria-checked') === 'true') : true,
         };
       })()`,
       returnByValue: true,
     });
 
-    if (sel?.result?.value?.success) {
-      selection = sel.result.value;
+    const selVal = sel?.result?.value;
+    if (selVal?.success) {
+      selection = selVal;
+      // Send real CDP mouse click on radio coordinates to guarantee state change
+      if (selVal.point && selVal.point.x > 0 && selVal.point.y > 0) {
+        try {
+          await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: Math.round(selVal.point.x), y: Math.round(selVal.point.y) });
+          await send('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', buttons: 1, clickCount: 1, x: Math.round(selVal.point.x), y: Math.round(selVal.point.y) });
+          await send('Input.dispatchMouseEvent', { type: 'mouseReleased', button: 'left', buttons: 0, clickCount: 1, x: Math.round(selVal.point.x), y: Math.round(selVal.point.y) });
+        } catch (e) {}
+      }
       break;
     }
     await sleep(800);
@@ -688,7 +700,7 @@ async function attachProductLink(send, productId) {
 
   await sleep(1000);
 
-  // Step 6: Click "ถัดไป" at the bottom right
+  // Step 6: Click "ถัดไป" (Next) at the bottom right
   const step6 = await send('Runtime.evaluate', {
     expression: `(() => {
       const isVisible = (el) => {
@@ -699,7 +711,7 @@ async function attachProductLink(send, productId) {
         const rect = el.getBoundingClientRect();
         return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
       };
-      const root = document.querySelector('[role="dialog"], [aria-modal="true"]') || document;
+      const root = document.querySelector('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal') || document;
       const buttons = Array.from(root.querySelectorAll('button, div[role="button"]')).filter(isVisible);
       const nextBtn = buttons.reverse().find(b => {
         const t = (b.innerText || b.textContent || '').trim();
@@ -708,52 +720,95 @@ async function attachProductLink(send, productId) {
       });
       if (nextBtn) {
         nextBtn.click();
-        return true;
+        const rect = nextBtn.getBoundingClientRect();
+        return { success: true, point: { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } };
       }
-      return false;
+      return { success: false };
     })()`,
     returnByValue: true,
   });
 
-  if (!step6?.result?.value) {
+  const step6Val = step6?.result?.value;
+  if (!step6Val?.success) {
     return { success: false, reason: 'ปุ่มถัดไปในหน้ารายการสินค้ากดไม่ได้ (อาจยังไม่ได้เลือกสินค้า)' };
   }
 
-  // Wait for step 2 ("ชื่อสินค้าจะปรากฏขึ้นในวิดีโอของคุณ")
-  await sleep(1800);
-
-  // Step 7: Click "เพิ่ม" (Add)
-  const step7 = await send('Runtime.evaluate', {
-    expression: `(() => {
-      const isVisible = (el) => {
-        if (!el) return false;
-        if (typeof el.checkVisibility === 'function') {
-          return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
-        }
-        const rect = el.getBoundingClientRect();
-        return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
-      };
-      const root = document.querySelector('[role="dialog"], [aria-modal="true"]') || document;
-      const buttons = Array.from(root.querySelectorAll('button, div[role="button"]')).filter(isVisible);
-      const addBtn = buttons.reverse().find(b => {
-        const t = (b.innerText || b.textContent || '').trim();
-        const enabled = !b.disabled && b.getAttribute('aria-disabled') !== 'true';
-        return (t === 'เพิ่ม' || t === 'Add') && enabled && t !== 'เพิ่มลิงก์' && t !== '+ เพิ่ม';
-      });
-      if (addBtn) {
-        addBtn.click();
-        return true;
-      }
-      return false;
-    })()`,
-    returnByValue: true,
-  });
-
-  if (!step7?.result?.value || step7.exceptionDetails) {
-    return { success: false, reason: 'กดปุ่มเพิ่มในหน้าสุดท้ายไม่สำเร็จ' };
+  // Also send native click on Next button if needed
+  if (step6Val.point && step6Val.point.x > 0 && step6Val.point.y > 0) {
+    try {
+      await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: Math.round(step6Val.point.x), y: Math.round(step6Val.point.y) });
+      await send('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', buttons: 1, clickCount: 1, x: Math.round(step6Val.point.x), y: Math.round(step6Val.point.y) });
+      await send('Input.dispatchMouseEvent', { type: 'mouseReleased', button: 'left', buttons: 0, clickCount: 1, x: Math.round(step6Val.point.x), y: Math.round(step6Val.point.y) });
+    } catch (e) {}
   }
 
-  await sleep(1200);
+  // Wait for step 2 ("ชื่อสินค้าจะปรากฏขึ้นในวิดีโอของคุณ" / Title setting view)
+  await sleep(2000);
+
+  // Step 7: Focus & Select All (คลุมดำตั้งชื่อ), then click "ถัดไป" / "เพิ่ม" (Next / Add)
+  let confirmed = false;
+  for (let retry = 0; retry < 5; retry++) {
+    const step7 = await send('Runtime.evaluate', {
+      expression: `(() => {
+        const isVisible = (el) => {
+          if (!el) return false;
+          if (typeof el.checkVisibility === 'function') {
+            return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+          }
+          const rect = el.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
+        };
+        const root = document.querySelector('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal') || document;
+
+        // 1. คลุมดำตั้งชื่อ (Highlight/select all in product title input)
+        const nameInput = root.querySelector('input[type="text"], input:not([type]), textarea');
+        if (nameInput && isVisible(nameInput)) {
+          try {
+            nameInput.focus();
+            nameInput.select();
+            nameInput.dispatchEvent(new Event('focus', { bubbles: true }));
+            nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+          } catch (e) {}
+        }
+
+        // 2. Click confirmation button ("ถัดไป" / "เพิ่ม" / "Next" / "Add")
+        const buttons = Array.from(root.querySelectorAll('button, div[role="button"]')).filter(isVisible);
+        const addBtn = buttons.reverse().find(b => {
+          const t = (b.innerText || b.textContent || '').trim();
+          const enabled = !b.disabled && b.getAttribute('aria-disabled') !== 'true';
+          return (t === 'ถัดไป' || t === 'เพิ่ม' || t === 'ยืนยัน' || t === 'Next' || t === 'Add' || t === 'Confirm') &&
+                 enabled && t !== 'เพิ่มลิงก์' && t !== '+ เพิ่ม' && t !== 'ยกเลิก' && t !== 'Cancel';
+        });
+        if (addBtn) {
+          addBtn.click();
+          const rect = addBtn.getBoundingClientRect();
+          return { success: true, point: { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } };
+        }
+        return { success: false };
+      })()`,
+      returnByValue: true,
+    });
+
+    const step7Val = step7?.result?.value;
+    if (step7Val?.success) {
+      if (step7Val.point && step7Val.point.x > 0 && step7Val.point.y > 0) {
+        try {
+          await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: Math.round(step7Val.point.x), y: Math.round(step7Val.point.y) });
+          await send('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', buttons: 1, clickCount: 1, x: Math.round(step7Val.point.x), y: Math.round(step7Val.point.y) });
+          await send('Input.dispatchMouseEvent', { type: 'mouseReleased', button: 'left', buttons: 0, clickCount: 1, x: Math.round(step7Val.point.x), y: Math.round(step7Val.point.y) });
+        } catch (e) {}
+      }
+      confirmed = true;
+      break;
+    }
+    await sleep(800);
+  }
+
+  if (!confirmed) {
+    return { success: false, reason: 'กดปุ่มถัดไป/เพิ่มในหน้าตั้งชื่อสินค้าไม่สำเร็จ' };
+  }
+
+  await sleep(1500);
   return { success: true, productName: selection.name };
 }
 
