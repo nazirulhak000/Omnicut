@@ -181,16 +181,29 @@ async function typeCaption(send, text) {
     const el = ${captionQuery};
     if (!el) return false;
     el.focus();
-    const range = document.createRange();
-    range.selectNodeContents(el);
-    const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
+    try {
+      const sel = window.getSelection();
+      sel.selectAllChildren(el);
+    } catch (e) {}
+    try {
+      document.execCommand('selectAll', false, null);
+      document.execCommand('delete', false, null);
+    } catch (e) {}
     return document.activeElement === el;
   })()`);
   if (!focused) throw new Error('ไม่พบช่องแคปชันที่พร้อมกรอก หรือมีหลายช่อง กรุณาปิดหน้าต่างอื่นบน TikTok');
-  // Native browser editing replaces the selection in one operation. Do not
-  // mutate innerHTML/textContent or dispatch fake input events into React.
+
+  // Also send native Ctrl+A + Backspace via CDP to guarantee clearing any pre-filled filename
+  try {
+    await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'a', code: 'KeyA', windowsVirtualKeyCode: 65, modifiers: 2 });
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'a', code: 'KeyA', windowsVirtualKeyCode: 65, modifiers: 2 });
+    await sleep(50);
+    await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 });
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 });
+    await sleep(50);
+  } catch (e) {}
+
+  // Native browser editing inserts the clean text
   await send('Input.insertText', {text});
   await OmniAutomation.wait(send, `(() => {
     const el = ${captionQuery};
