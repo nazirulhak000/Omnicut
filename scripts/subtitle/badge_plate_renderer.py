@@ -64,7 +64,7 @@ def _ass_rounded_pill_path(w: float, h: float, r: float) -> str:
 def _hook_lightsweep_event(
     line: str, line_fs: int, y: int, x_center: int, resolved_font: str,
     start_t: str, end_t: str, sweep_start_ms: int, exit_start_ms: int, exit_end_ms: int,
-    target_scale_pct: float,
+    target_scale_pct: float, style_name: str = "HookHeader",
 ) -> Optional[str]:
     """
     Shimmer sweep: a second, brighter copy of the line drawn on top and
@@ -96,7 +96,7 @@ def _hook_lightsweep_event(
         f"{''.join(segs)}"
         f"\\t({exit_start_ms},{exit_end_ms},\\alpha&HFF&)}}"
     )
-    return f"Dialogue: 3,{start_t},{end_t},HookHeader,,0,0,0,,{tag}{line}"
+    return f"Dialogue: 3,{start_t},{end_t},{style_name},,0,0,0,,{tag}{line}"
 
 
 def _hook_accent_events(

@@ -19,6 +19,7 @@ import {
 import {
   buildSegments, totalDuration as totalDurationOf, getDrawPlan as planAt
 } from '../lib/timelineMath';
+import { requestOverlayLayout, getCachedOverlayLayout } from '../lib/overlayLayoutClient.js';
 
 const CANVAS_W = 540;
 const CANVAS_H = 960;
@@ -1077,15 +1078,22 @@ function captionOutlineWidth(canvasFontSize) {
   return Math.max(1.8, canvasFontSize * 2 * 0.04);
 }
 
-/** Piecewise-linear interpolation over [[ms, value], ...] keyframes. */
+// Easing power-law constants matching motion_effects.py
+const ACCEL_SOFT_OUT = 0.6;
+const ACCEL_SNAP_IN = 2.2;
+
+/** Piecewise interpolation over [[ms, value, accel?], ...] keyframes with power-law easing. */
 function hookKeyframeAt(ms, kf) {
   if (ms <= kf[0][0]) return kf[0][1];
   const last = kf[kf.length - 1];
   if (ms >= last[0]) return last[1];
   for (let i = 0; i < kf.length - 1; i++) {
     const [t1, v1] = kf[i];
-    const [t2, v2] = kf[i + 1];
-    if (ms >= t1 && ms <= t2) return v1 + (v2 - v1) * ((ms - t1) / (t2 - t1));
+    const [t2, v2, accel = 1.0] = kf[i + 1];
+    if (ms >= t1 && ms <= t2) {
+      const p = (ms - t1) / (t2 - t1);
+      return v1 + (v2 - v1) * Math.pow(p, accel);
+    }
   }
   return last[1];
 }
@@ -1106,9 +1114,31 @@ const OVERLAY_IN_TRANSFORMS = {
     durSec: 0.45,
     at: (ms) => ({ scale: hookKeyframeAt(ms, [[0, 0.6], [150, 1.25], [280, 0.92], [380, 1.05], [450, 1.0]]) }),
   },
+  bounce_soft: {
+    durSec: 0.45,
+    at: (ms) => ({
+      scale: hookKeyframeAt(ms, [
+        [0, 0.6],
+        [150, 1.25, ACCEL_SOFT_OUT],
+        [280, 0.92, 1.0],
+        [380, 1.05, 1.0],
+        [450, 1.0, ACCEL_SOFT_OUT],
+      ]),
+    }),
+  },
   pop: {
     durSec: 0.2,
     at: (ms) => ({ scale: hookKeyframeAt(ms, [[0, 0.55], [120, 1.18], [200, 1.0]]) }),
+  },
+  pop_soft: {
+    durSec: 0.2,
+    at: (ms) => ({
+      scale: hookKeyframeAt(ms, [
+        [0, 0.55],
+        [120, 1.18, ACCEL_SOFT_OUT],
+        [200, 1.0, ACCEL_SNAP_IN],
+      ]),
+    }),
   },
   fade: {
     durSec: 0.25,
@@ -1247,7 +1277,7 @@ const OVERLAY_OUT_TRANSFORMS = {
  * two. An overlay is a stack of tiers now; a banner has three, a text overlay
  * has one, and everything below this line runs for both.
  *
- * Mirrors _overlay_events() in subtitle_engine.py. Draw order inside one
+ * Mirrors overlay_events() in scripts/subtitle/overlay_events.py. Draw order inside one
  * overlay is scrim, then pills, then the accent shape, then the glyphs --
  * shapes behind text, which is what the ASS Layer numbers encode
  * (parity rule 2.11).
@@ -1325,6 +1355,34 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
     : (TEXT_POSITIONS[overlay.position || 'middle'] ?? 0.5);
   const x = CANVAS_W * normX;
 
+  const wordStaggerSec = (motion.word_stagger_ms || 0) / 1000;
+  const isWordStagger = !isHook && wordStaggerSec > 0;
+
+  if (isHook && overlay.layout) {
+    delete overlay.layout;
+  }
+
+  if (isWordStagger && !overlay.layout) {
+    const primaryText = tiers.map(t => t.text).join('\n');
+    const primaryLook = tiers[0]?.look || {};
+    const primaryFsPx = Math.round((baseFontSize * (primaryLook.size_pct || 100)) / 100 * 2);
+    const layoutParams = {
+      text: primaryText,
+      fontName: primaryLook.font,
+      fontSizePx: primaryFsPx,
+      normX,
+      normY,
+    };
+    const cached = getCachedOverlayLayout(layoutParams);
+    if (cached) {
+      overlay.layout = cached;
+    } else {
+      requestOverlayLayout(layoutParams, (res) => {
+        overlay.layout = res;
+      });
+    }
+  }
+
   ctx.save();
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
@@ -1356,6 +1414,15 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
 
   // The loop phase cannot start until every tier's own entry has settled.
   let maxEntryEndSec = 0;
+  if (wordStaggerSec > 0 && overlay.layout?.lines) {
+    let totalWords = 0;
+    for (const line of overlay.layout.lines) {
+      if (line.words) totalWords += line.words.length;
+    }
+    if (totalWords > 0) {
+      maxEntryEndSec = (totalWords - 1) * wordStaggerSec + inPreset.durSec;
+    }
+  }
   for (const { tierIdx } of wrapped) {
     const t0 = motion.stagger ? tierIdx * HOOK_STAGGER_STEP : 0;
     maxEntryEndSec = Math.max(maxEntryEndSec, t0 + inPreset.durSec);
@@ -1499,6 +1566,7 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
   }
 
   const sweeps = [];
+  let runningWordCounter = 0;
   for (const w of wrapped) {
     // The cumulative y-cursor advanced using the SETTLED size, not the
     // currently-animating scale -- an ASS \t transform (and this mirror of it)
@@ -1510,57 +1578,177 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
     const scale = (inFx.scale ?? 1) * (outFx.scale ?? 1);
     const dy = (inFx.dy ?? 0) + (outFx.dy ?? 0);
     const rot = (loopFx.rot ?? 0) + (outFx.rot ?? 0);
-    const renderFs = Math.max(6, Math.round(w.settledFs * scale));
     const lineY = w.y + dy;
 
-    ctx.save();
-    ctx.globalAlpha = (inFx.alpha ?? 1) * (loopFx.alpha ?? 1) * (outFx.alpha ?? 1);
-    if (inFx.blur) ctx.filter = `blur(${inFx.blur.toFixed(1)}px)`;
-    if (rot) {
-      // rotate about the line's own centre, matching \frz around \pos
-      ctx.translate(x, lineY + w.settledFs / 2);
-      ctx.rotate((rot * Math.PI) / 180);
-      ctx.translate(-x, -(lineY + w.settledFs / 2));
-    }
-    ctx.font = overlayFont(w.look, renderFs);
-    const drawnW = ctx.measureText(w.line).width;
-    const lineX = x - drawnW / 2;
-    if (inFx.reveal != null) {
-      // typewriter: same left-to-right clip the ASS \clip animation performs
-      ctx.beginPath();
-      ctx.rect(lineX, lineY - 5, drawnW * inFx.reveal, renderFs + 10);
-      ctx.clip();
-    }
-
-    // The shadow is a dark copy offset down-right. Its offsets are render
-    // pixels in the model, and this canvas is exactly half the render's width
-    // (parity rule 2.3).
     const shadow = w.look.shadow;
-    if (shadow) {
-      ctx.shadowColor = shadow.color === '#000000' ? 'rgba(0, 0, 0, 0.9)' : shadow.color;
-      ctx.shadowBlur = shadow.blur * CANVAS_SCALE * 2;
-      ctx.shadowOffsetX = shadow.dx * CANVAS_SCALE;
-      ctx.shadowOffsetY = shadow.dy * CANVAS_SCALE;
+    const lineIndex = wrapped.indexOf(w);
+    const lineLayout = overlay.layout?.lines?.[lineIndex];
+    const lineWords = lineLayout?.words;
+
+    if (isWordStagger && lineWords && lineWords.length > 0) {
+      const wordStartIdx = runningWordCounter;
+      runningWordCounter += lineWords.length;
+
+      ctx.save();
+      ctx.globalAlpha = (loopFx.alpha ?? 1) * (outFx.alpha ?? 1);
+      if (rot) {
+        ctx.translate(x, lineY + w.settledFs / 2);
+        ctx.rotate((rot * Math.PI) / 180);
+        ctx.translate(-x, -(lineY + w.settledFs / 2));
+      }
+      ctx.font = overlayFont(w.look, w.settledFs);
+
+      // Pass 1: Outlines (with shadow if outline exists)
+      if (w.look.outline_px > 0.01) {
+        ctx.strokeStyle = w.look.outline_color;
+        ctx.lineWidth = w.look.outline_px;
+        ctx.lineJoin = 'round';
+        ctx.miterLimit = 2;
+        for (let wi = 0; wi < lineWords.length; wi++) {
+          const wordItem = lineWords[wi];
+          const wordIdx = wordStartIdx + wi;
+          const wordT0 = wordStaggerSec > 0 ? wordIdx * wordStaggerSec : 0;
+          const wordTRel = tRel - wordT0;
+          if (wordTRel < 0) continue;
+
+          const wordInFx = inPreset.at(wordTRel * 1000) || {};
+          const wordScale = (wordInFx.scale ?? 1) * (outFx.scale ?? 1);
+          const wordDy = (wordInFx.dy ?? 0) + (outFx.dy ?? 0);
+          const wordAlpha = (wordInFx.alpha ?? 1);
+          if (wordAlpha <= 0.001) continue;
+
+          const wx = wordItem.x * CANVAS_W;
+          const ww = (wordItem.w || 0) * CANVAS_W;
+          const wordCx = wx + ww / 2;
+          const wordCy = lineY + w.settledFs / 2;
+          const targetY = lineY + wordDy;
+
+          ctx.save();
+          ctx.globalAlpha *= wordAlpha;
+          if (wordInFx.blur) ctx.filter = `blur(${wordInFx.blur.toFixed(1)}px)`;
+          if (shadow) {
+            ctx.shadowColor = shadow.color === '#000000' ? 'rgba(0, 0, 0, 0.9)' : shadow.color;
+            ctx.shadowBlur = shadow.blur * CANVAS_SCALE * 2;
+            ctx.shadowOffsetX = shadow.dx * CANVAS_SCALE;
+            ctx.shadowOffsetY = shadow.dy * CANVAS_SCALE;
+          } else {
+            ctx.shadowColor = 'transparent';
+          }
+          const hasSkew = w.look.skew && Math.abs(w.look.skew) > 0.001;
+          const hasScale = Math.abs(wordScale - 1) > 0.001;
+          if (hasScale || hasSkew) {
+            ctx.translate(wordCx, wordCy);
+            if (hasScale) ctx.scale(wordScale, wordScale);
+            if (hasSkew) ctx.transform(1, 0, w.look.skew, 1, 0, 0);
+            ctx.translate(-wordCx, -wordCy);
+          }
+          ctx.strokeText(wordItem.text, wx, targetY);
+          ctx.restore();
+        }
+      }
+
+      // Pass 2: Fills (with shadow only if no outline was drawn)
+      ctx.fillStyle = w.color;
+      for (let wi = 0; wi < lineWords.length; wi++) {
+        const wordItem = lineWords[wi];
+        const wordIdx = wordStartIdx + wi;
+        const wordT0 = wordStaggerSec > 0 ? wordIdx * wordStaggerSec : 0;
+        const wordTRel = tRel - wordT0;
+        if (wordTRel < 0) continue;
+
+        const wordInFx = inPreset.at(wordTRel * 1000) || {};
+        const wordScale = (wordInFx.scale ?? 1) * (outFx.scale ?? 1);
+        const wordDy = (wordInFx.dy ?? 0) + (outFx.dy ?? 0);
+        const wordAlpha = (wordInFx.alpha ?? 1);
+        if (wordAlpha <= 0.001) continue;
+
+        const wx = wordItem.x * CANVAS_W;
+        const ww = (wordItem.w || 0) * CANVAS_W;
+        const wordCx = wx + ww / 2;
+        const wordCy = lineY + w.settledFs / 2;
+        const targetY = lineY + wordDy;
+
+        ctx.save();
+        ctx.globalAlpha *= wordAlpha;
+        if (wordInFx.blur) ctx.filter = `blur(${wordInFx.blur.toFixed(1)}px)`;
+        if (!w.look.outline_px || w.look.outline_px <= 0.01) {
+          if (shadow) {
+            ctx.shadowColor = shadow.color === '#000000' ? 'rgba(0, 0, 0, 0.9)' : shadow.color;
+            ctx.shadowBlur = shadow.blur * CANVAS_SCALE * 2;
+            ctx.shadowOffsetX = shadow.dx * CANVAS_SCALE;
+            ctx.shadowOffsetY = shadow.dy * CANVAS_SCALE;
+          } else {
+            ctx.shadowColor = 'transparent';
+          }
+        } else {
+          ctx.shadowColor = 'transparent';
+        }
+        const hasSkew = w.look.skew && Math.abs(w.look.skew) > 0.001;
+        const hasScale = Math.abs(wordScale - 1) > 0.001;
+        if (hasScale || hasSkew) {
+          ctx.translate(wordCx, wordCy);
+          if (hasScale) ctx.scale(wordScale, wordScale);
+          if (hasSkew) ctx.transform(1, 0, w.look.skew, 1, 0, 0);
+          ctx.translate(-wordCx, -wordCy);
+        }
+        drawTextWithMonoEmoji(ctx, wordItem.text, wx, targetY);
+        ctx.restore();
+      }
+      ctx.restore();
     } else {
+      const renderFs = Math.max(6, Math.round(w.settledFs * scale));
+      ctx.save();
+      ctx.globalAlpha = (inFx.alpha ?? 1) * (loopFx.alpha ?? 1) * (outFx.alpha ?? 1);
+      if (inFx.blur) ctx.filter = `blur(${inFx.blur.toFixed(1)}px)`;
+      if (rot) {
+        // rotate about the line's own centre, matching \frz around \pos
+        ctx.translate(x, lineY + w.settledFs / 2);
+        ctx.rotate((rot * Math.PI) / 180);
+        ctx.translate(-x, -(lineY + w.settledFs / 2));
+      }
+      if (w.look.skew && Math.abs(w.look.skew) > 0.001) {
+        const lineCy = lineY + w.settledFs / 2;
+        ctx.translate(x, lineCy);
+        ctx.transform(1, 0, w.look.skew, 1, 0, 0);
+        ctx.translate(-x, -lineCy);
+      }
+      ctx.font = overlayFont(w.look, renderFs);
+      const drawnW = ctx.measureText(w.line).width;
+      const lineX = x - drawnW / 2;
+      if (inFx.reveal != null) {
+        // typewriter: same left-to-right clip the ASS \clip animation performs
+        ctx.beginPath();
+        ctx.rect(lineX, lineY - 5, drawnW * inFx.reveal, renderFs + 10);
+        ctx.clip();
+      }
+
+      // The shadow is a dark copy offset down-right. Its offsets are render
+      // pixels in the model, and this canvas is exactly half the render's width
+      // (parity rule 2.3).
+      if (shadow) {
+        ctx.shadowColor = shadow.color === '#000000' ? 'rgba(0, 0, 0, 0.9)' : shadow.color;
+        ctx.shadowBlur = shadow.blur * CANVAS_SCALE * 2;
+        ctx.shadowOffsetX = shadow.dx * CANVAS_SCALE;
+        ctx.shadowOffsetY = shadow.dy * CANVAS_SCALE;
+      } else {
+        ctx.shadowColor = 'transparent';
+      }
+      if (w.look.outline_px > 0.01) {
+        ctx.strokeStyle = w.look.outline_color;
+        ctx.lineWidth = w.look.outline_px;
+        ctx.lineJoin = 'round';
+        ctx.miterLimit = 2;
+        ctx.strokeText(w.line, lineX, lineY, maxW);
+      }
       ctx.shadowColor = 'transparent';
+      ctx.fillStyle = w.color;
+      drawTextWithMonoEmoji(ctx, w.line, lineX, lineY);
+      ctx.restore();
     }
-    // An ASS Outline grows outward only while strokeText centres its stroke,
-    // so half of the same number lands outside -- which is why both sides
-    // carry the identical figure on a canvas of half the render's width
-    // (parity rule 2.6).
-    if (w.look.outline_px > 0.01) {
-      ctx.strokeStyle = w.look.outline_color;
-      ctx.lineWidth = w.look.outline_px;
-      ctx.lineJoin = 'round';
-      ctx.miterLimit = 2;
-      ctx.strokeText(w.line, lineX, lineY, maxW);
-    }
-    ctx.shadowColor = 'transparent';
-    ctx.fillStyle = w.color;
-    drawTextWithMonoEmoji(ctx, w.line, lineX, lineY);
-    ctx.restore();
 
     if (motion.loop === 'lightsweep') {
+      ctx.font = overlayFont(w.look, w.settledFs);
+      const drawnW = ctx.measureText(w.line).width;
       sweeps.push({ line: w.line, y: lineY, fs: w.settledFs, look: w.look, halfW: drawnW / 2 });
     }
   }
@@ -1584,6 +1772,12 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
         ctx.rect(bandX, s.y - 5, bandW, s.fs + 10);
         ctx.clip();
         ctx.font = overlayFont(s.look, s.fs);
+        if (s.look.skew && Math.abs(s.look.skew) > 0.001) {
+          const lineCy = s.y + s.fs / 2;
+          ctx.translate(x, lineCy);
+          ctx.transform(1, 0, s.look.skew, 1, 0, 0);
+          ctx.translate(-x, -lineCy);
+        }
         ctx.fillText(s.line, x - s.halfW, s.y, maxW);
         ctx.restore();
       }

@@ -21,6 +21,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from scripts.config import BASE_DIR, CAPCUT_DRAFT_DIR
 from scripts.video_editor import VideoEditor
+from scripts.api_schemas import OverlayLayoutRequest
 
 router = APIRouter(prefix="/api/editor", tags=["editor"])
 
@@ -135,4 +136,22 @@ def get_filmstrip(path: str, count: int = 10):
         sprite,
         media_type="image/jpeg",
         headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
+@router.post("/overlay/layout")
+def get_overlay_layout(req: OverlayLayoutRequest):
+    """
+    Computes static per-word positions (x, y, w) in normalized coordinates.
+    Mirrors libass dialogue layout calculations for zero-drift preview parity.
+    """
+    from scripts.subtitle.word_layout import layout_overlay
+    return layout_overlay(
+        text=req.text,
+        font_name=req.font_name,
+        font_size_px=req.font_size_px,
+        norm_x=req.norm_x,
+        norm_y=req.norm_y,
+        video_w=req.video_w,
+        video_h=req.video_h,
     )

@@ -9,6 +9,7 @@ from scripts.subtitle.font_metrics import (
     _LEGACY_FONT_ALIASES,
     _load_font_family_map,
     _measure_text_width_px,
+    prefix_advances,
     ass_glyph_scale,
     _hook_line_width_px,
 )
@@ -43,6 +44,9 @@ from scripts.subtitle.badge_plate_renderer import (
     _ass_rounded_pill_path,
     _hook_lightsweep_event,
     _hook_accent_events,
+)
+from scripts.subtitle.overlay_events import (
+    overlay_events,
 )
 from scripts.subtitle.translation_service import (
     KINETIC_KEYWORDS,

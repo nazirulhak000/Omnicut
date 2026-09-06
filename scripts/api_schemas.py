@@ -124,3 +124,13 @@ class LinkAngleRequest(BaseModel):
     video_path: str
     product_id: str
     angle_id: str
+
+
+class OverlayLayoutRequest(BaseModel):
+    text: str
+    font_name: str = "Kanit"
+    font_size_px: float = 75.0
+    norm_x: float = 0.5
+    norm_y: float = 0.5
+    video_w: int = 1080
+    video_h: int = 1920

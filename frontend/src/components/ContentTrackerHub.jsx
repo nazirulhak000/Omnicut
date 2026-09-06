@@ -5,11 +5,11 @@ import {
   Kanban, Table, Sparkles, CheckCircle2, Clock,
   ExternalLink, ChevronRight, ChevronLeft, Filter, AlertCircle,
   Video, Eye, Flame, TrendingUp, Plus, X, FileText, Scissors,
-  FolderDown, Info, Film, RotateCcw, ShieldAlert
+  FolderDown, Info, Film, RotateCcw, ShieldAlert, AlertTriangle
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
-  getProducts, updateAngleStatus, deleteProduct, updateProduct
+  getProducts, updateAngleStatus, deleteProduct, updateProduct, prepareTiktokAutopost
 } from '../api';
 import { Modal, Toast, Button, Badge, Input } from './ui';
 import { useDebounce, useToast } from '../hooks';
@@ -101,6 +101,7 @@ const KanbanCard = memo(function KanbanCard({
   onCopyCaption,
   onQcFail,
   onQcPass,
+  onDismissConflict,
   copiedAngleId
 }) {
   const isSelected = false;
@@ -126,6 +127,27 @@ const KanbanCard = memo(function KanbanCard({
           : 'bg-[#0B0F19] border-white/[0.08] hover:border-[#25F4EE]/40'
       }`}
     >
+      {/* Round BUG-3: Data Conflict Banner -- this angle's clip got auto-unlinked
+          because another angle already legitimately claimed the same project/video */}
+      {ang.data_conflict_note && (
+        <div className="flex items-center justify-between gap-1.5 py-1 px-2 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-bold">
+          <div className="flex items-start gap-1.5 min-w-0 flex-1">
+            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-amber-400" />
+            <span className="leading-snug" title={ang.data_conflict_note}>ปลดคลิปอัตโนมัติ: ชนกับ angle อื่น (ต้องผูกคลิปใหม่)</span>
+          </div>
+          {onDismissConflict && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onDismissConflict(ang); }}
+              className="px-2 py-0.5 rounded-md bg-white/[0.1] hover:bg-white/[0.18] text-amber-200 font-black text-[10px] cursor-pointer whitespace-nowrap active:scale-95 transition-all"
+              title="เข้าใจแล้ว ซ่อนคำเตือนนี้"
+            >
+              เข้าใจแล้ว
+            </button>
+          )}
+        </div>
+      )}
+
       {/* QC Status Banner: Red if failed (with one-click fix button), Cyan if passed/rendered */}
       {ang.qc_note ? (
         <div className="flex items-center justify-between gap-1.5 py-1 px-2 rounded-lg bg-red-500/15 border border-red-500/30 text-red-300 text-xs font-bold">
@@ -676,9 +698,9 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     fetchProductsData();
   }, [fetchProductsData]);
 
-  const handleAngleStatusChange = useCallback(async (productId, angleId, nextStatus, videoUrl = null, qcNote = null, clearQcNote = false) => {
+  const handleAngleStatusChange = useCallback(async (productId, angleId, nextStatus, videoUrl = null, qcNote = null, clearQcNote = false, clearConflictNote = false) => {
     try {
-      await updateAngleStatus(productId, angleId, nextStatus, videoUrl, null, qcNote, clearQcNote);
+      await updateAngleStatus(productId, angleId, nextStatus, videoUrl, null, qcNote, clearQcNote, clearConflictNote);
       setProducts(prev => prev.map(p => {
         if (p.id === productId) {
           const updatedAngles = p.angles?.map(a => {
@@ -689,6 +711,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
               ...(videoUrl ? { video_url: videoUrl } : {}),
               ...(qcNote !== null ? { qc_note: qcNote } : {}),
               ...(clearQcNote ? { qc_note: null } : {}),
+              ...(clearConflictNote ? { data_conflict_note: null } : {}),
             };
           }) || [];
           return { ...p, angles: updatedAngles };
@@ -703,6 +726,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
           ...(videoUrl ? { video_url: videoUrl } : {}),
           ...(qcNote !== null ? { qc_note: qcNote } : {}),
           ...(clearQcNote ? { qc_note: null } : {}),
+          ...(clearConflictNote ? { data_conflict_note: null } : {}),
         } : null);
       }
       showToast('อัปเดตสถานะสำเร็จ');
@@ -710,6 +734,67 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
       showToast('ไม่สามารถอัปเดตสถานะได้: ' + err.message, 'error');
     }
   }, [inspectAngle, showToast]);
+
+  // Round BUG-3: dismisses the "auto-unlinked from another angle's clip"
+  // banner reconcile_existing_projects() leaves on the loser of a collision.
+  const handleDismissConflict = useCallback(async (ang) => {
+    if (!ang || !ang.parentProduct) return;
+    await handleAngleStatusChange(
+      ang.parentProduct.id,
+      ang.angle_id,
+      ang.status || 'scripted',
+      null,
+      null,
+      false,
+      true, // clearConflictNote
+    );
+  }, [handleAngleStatusChange]);
+
+  // Round BUG-3.3: TikTok Shop product ID lives on the PRODUCT (one TikTok
+  // Shop listing serves every angle of that product), not the angle --
+  // there was previously no UI anywhere to set it (only ESSAGER has one,
+  // set by hand-editing products.json).
+  const handleSaveTiktokProductId = useCallback(async (productId, tiktokProductId) => {
+    try {
+      const trimmed = tiktokProductId.trim();
+      await updateProduct(productId, { tiktok_product_id: trimmed || null });
+      setProducts(prev => prev.map(p => p.id === productId ? { ...p, tiktok_product_id: trimmed || null } : p));
+      if (inspectAngle?.parentProduct?.id === productId) {
+        setInspectAngle(prev => prev ? { ...prev, parentProduct: { ...prev.parentProduct, tiktok_product_id: trimmed || null } } : null);
+      }
+      showToast('บันทึก TikTok Product ID แล้ว');
+    } catch (err) {
+      showToast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
+    }
+  }, [inspectAngle, showToast]);
+
+  // Same prepare -> extension flow as ExportGallery's Post Studio panel --
+  // hands the clip off to tiktok_autopost_extension/, which the user
+  // triggers from its own popup on a real, already-logged-in TikTok Studio
+  // upload tab (see scripts/api_tiktok_autopost.py's docstring for why the
+  // app can't message the extension directly).
+  const handlePrepareAutopost = useCallback(async (ang) => {
+    const targetPid = ang?.parentProduct?.tiktok_product_id || ang?.parentProduct?.name || '';
+    if (!targetPid) {
+      showToast('สินค้านี้ยังไม่มี TikTok Product ID หรือชื่อสินค้า -- ใส่ก่อนถึงจะปักตะกร้าได้', 'error');
+      return;
+    }
+    if (!ang.video_url) {
+      showToast('มุมนี้ยังไม่มีคลิปที่เรนเดอร์แล้ว', 'error');
+      return;
+    }
+    try {
+      await prepareTiktokAutopost(
+        ang.video_url, null,
+        ang.tiktok_caption || '', ang.tiktok_hashtags || '',
+        ang.parentProduct.id, ang.angle_id,
+        targetPid,
+      );
+      showToast('เตรียมคลิปให้ extension แล้ว -- ไปคลิกไอคอน extension บนแท็บ TikTok Studio ที่เปิดไว้');
+    } catch (err) {
+      showToast('เตรียมคลิปไม่สำเร็จ: ' + (err.response?.data?.detail || err.message), 'error');
+    }
+  }, [showToast]);
 
   // ── QC Fail Modal state ──────────────────────────────────────────────────
   const [qcFailTarget, setQcFailTarget] = useState(null); // angle object
@@ -940,6 +1025,27 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                 </div>
               </div>
 
+              {/* Round BUG-3: Data Conflict Alert — this angle got auto-unlinked
+                  because another angle already legitimately claimed the same clip */}
+              {inspectAngle.data_conflict_note && (
+                <div className="flex items-start justify-between gap-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                  <div className="flex items-start gap-2 min-w-0 flex-1">
+                    <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-400" />
+                    <div>
+                      <div className="text-xs font-bold text-amber-300 mb-0.5">ปลดคลิปอัตโนมัติ — ชนกับ angle อื่น</div>
+                      <div className="text-xs text-amber-200/90 font-mono leading-snug">{inspectAngle.data_conflict_note}</div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDismissConflict(inspectAngle)}
+                    className="px-2 py-0.5 rounded-md bg-white/[0.1] hover:bg-white/[0.18] text-amber-200 font-black text-[10px] cursor-pointer whitespace-nowrap active:scale-95 transition-all flex-shrink-0"
+                  >
+                    เข้าใจแล้ว
+                  </button>
+                </div>
+              )}
+
               {/* QC Note Alert — shown when a previous QC fail note exists */}
               {inspectAngle.qc_note && (
                 <div className="flex items-start gap-2 p-2.5 rounded-xl bg-red-500/10 border border-red-500/30">
@@ -950,6 +1056,41 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                   </div>
                 </div>
               )}
+
+              {/* Round BUG-3.3: TikTok Shop product ID (per-product, not per-angle) + ปักตะกร้า */}
+              <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.08] space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-300 flex-shrink-0">TikTok Product ID:</span>
+                  <input
+                    key={inspectAngle.parentProduct?.id}
+                    id={`tiktok-pid-${inspectAngle.parentProduct?.id}`}
+                    type="text"
+                    defaultValue={inspectAngle.parentProduct?.tiktok_product_id || ''}
+                    placeholder="เช่น 1737088044189583209 (ว่าง = ใช้ชื่อสินค้าค้นหา)"
+                    className="flex-1 min-w-0 px-2 py-1 rounded-lg bg-black/40 border border-white/[0.1] text-xs text-white placeholder:text-slate-600 font-mono focus:outline-none focus:border-[#25F4EE]/40"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const el = document.getElementById(`tiktok-pid-${inspectAngle.parentProduct?.id}`);
+                      handleSaveTiktokProductId(inspectAngle.parentProduct?.id, el?.value || '');
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-slate-200 text-xs font-bold cursor-pointer active:scale-95 transition-all flex-shrink-0"
+                  >
+                    บันทึก
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handlePrepareAutopost(inspectAngle)}
+                  disabled={(!inspectAngle.parentProduct?.tiktok_product_id && !inspectAngle.parentProduct?.name) || !inspectAngle.video_url}
+                  title={(!inspectAngle.parentProduct?.tiktok_product_id && !inspectAngle.parentProduct?.name) ? 'ใส่ TikTok Product ID หรือชื่อสินค้าก่อน' : (!inspectAngle.video_url ? 'ยังไม่มีคลิปที่เรนเดอร์แล้ว' : 'เตรียมคลิปให้ extension ปักตะกร้า')}
+                  className="w-full py-2 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Flame className="w-3.5 h-3.5" />
+                  <span>ส่ง TikTok ปักตะกร้า</span>
+                </button>
+              </div>
 
               {/* 2. Hook Title 3s (Compact) */}
               <div className="space-y-1">
@@ -1589,6 +1730,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                           onCopyCaption={handleCopyCaption}
                           onQcFail={handleQcFail}
                           onQcPass={handleQcPass}
+                          onDismissConflict={handleDismissConflict}
                           copiedAngleId={copiedAngleId}
                         />
                       ))

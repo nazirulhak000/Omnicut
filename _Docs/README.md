@@ -1,5 +1,7 @@
 # Workflow ตัดคลิป TikTok (รีวิว/ขายสินค้า) — CapCut
 
+> เอกสารนี้เป็น workflow ฝั่ง production/CapCut ที่เก็บไว้ใช้อ้างอิง สำหรับ Web Editor และโครงสร้างโค้ดปัจจุบันให้อ่าน [../README.md](../README.md), [../ARCHITECTURE.md](../ARCHITECTURE.md) และ [../TODO.md](../TODO.md) การตั้งค่า export มาตรฐานของระบบปัจจุบันคือ 1080x1920, H.264/AAC, 30 FPS
+
 ## Pipeline ต้นน้ำ → ปลายน้ำ
 
 **ต้นน้ำ**

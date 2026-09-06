@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
+from pydantic import BaseModel
 
 from scripts.config import (
     BASE_DIR, INBOX_DIR, RAW_DIR, EXPORTS_DIR, ASSETS_DIR,
@@ -465,7 +466,12 @@ def open_folder(req: OpenFolderRequest):
         "capcut": CAPCUT_DRAFT_DIR,
         "root": BASE_DIR
     }
-    target_path = folder_map.get(req.target, Path(req.target))
+    # Unknown keys used to fall through to Path(req.target) with no BASE_DIR
+    # containment check at all -- every real caller passes a literal key
+    # ('exports', etc.), so there is nothing that needs the escape hatch.
+    target_path = folder_map.get(req.target)
+    if target_path is None:
+        raise HTTPException(status_code=400, detail=f"ไม่รู้จักปลายทาง: {req.target}")
 
     if os.name == 'nt':
         try:
@@ -476,6 +482,46 @@ def open_folder(req: OpenFolderRequest):
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
     return {"success": False, "message": "Not on Windows"}
+
+
+class RevealFileRequest(BaseModel):
+    file_path: str
+
+
+@router.post("/api/reveal-file")
+def reveal_file(req: RevealFileRequest):
+    """
+    Opens Explorer with one file pre-selected -- `explorer /select,<path>` --
+    instead of just the containing folder. Before this, "เปิดโฟลเดอร์" put the
+    user in a directory of 8+ mp4s with timestamped Thai filenames and left
+    them to find the right one by eye; this highlights it for them directly.
+    """
+    target = Path(req.file_path)
+    if not target.is_absolute():
+        target = BASE_DIR / req.file_path
+    target = target.resolve()
+
+    allowed_roots = [
+        (BASE_DIR / "04_Exports").resolve(),
+        (BASE_DIR / "05_Covers_Thumbnails").resolve(),
+    ]
+    if not any(str(target).startswith(str(root)) for root in allowed_roots):
+        raise HTTPException(status_code=403, detail="ไม่อนุญาตให้เปิดไฟล์นอกพื้นที่โปรเจกต์")
+    if not target.exists():
+        raise HTTPException(status_code=404, detail=f"ไม่พบไฟล์: {target.name}")
+
+    if os.name != 'nt':
+        return {"success": False, "message": "Not on Windows"}
+    try:
+        # explorer.exe's own argument parser wants "/select,<path>" as ONE
+        # token (comma glued to the path, no space) -- not standard argv
+        # quoting. Fire-and-forget: explorer.exe is well known to exit
+        # non-zero even on success, so its return code is not a signal to
+        # check (os.startfile above reports nothing back either).
+        subprocess.Popen(['explorer', f'/select,{target}'])
+        return {"success": True, "path": str(target)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/api/delete-file")

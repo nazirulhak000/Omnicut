@@ -176,6 +176,50 @@
   animation: shimmer 1.8s infinite ease-in-out;
 }
 
+/* ── Template Gallery Motion Micro-Animations ── */
+@keyframes templatePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
+@keyframes templateWave {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-2px) rotate(-1.5deg); }
+  75% { transform: translateY(2px) rotate(1.5deg); }
+}
+
+@keyframes templateShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-2.5px) rotate(-1deg); }
+  40% { transform: translateX(2.5px) rotate(1deg); }
+  60% { transform: translateX(-1.5px) rotate(-0.5deg); }
+  80% { transform: translateX(1.5px) rotate(0.5deg); }
+}
+
+@keyframes templateFlicker {
+  0%, 100% { opacity: 1; filter: brightness(1.2) drop-shadow(0 0 8px rgba(254,44,85,0.7)); }
+  25% { opacity: 0.85; filter: brightness(0.95); }
+  50% { opacity: 1; filter: brightness(1.35) drop-shadow(0 0 12px rgba(254,44,85,0.9)); }
+  75% { opacity: 0.9; filter: brightness(1); }
+}
+
+@keyframes templateLightsweep {
+  0% { transform: translateX(-150%) skewX(-20deg); }
+  50%, 100% { transform: translateX(250%) skewX(-20deg); }
+}
+
+@keyframes templatePopZoom {
+  0%, 100% { transform: scale(1); }
+  40% { transform: scale(1.08); filter: drop-shadow(0 0 8px rgba(37,244,238,0.75)); }
+}
+
+.anim-preview-pulse { animation: templatePulse 1.8s infinite ease-in-out; }
+.anim-preview-wave { animation: templateWave 2.2s infinite ease-in-out; }
+.anim-preview-shake { animation: templateShake 1.2s infinite ease-in-out; }
+.anim-preview-flicker { animation: templateFlicker 1.4s infinite ease-in-out; }
+.anim-preview-lightsweep { animation: templateLightsweep 2.5s infinite ease-in-out; }
+.anim-preview-pop_zoom { animation: templatePopZoom 1.6s infinite ease-in-out; }
+
 /* ── Safe area for mobile bottom bar ── */
 .safe-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);

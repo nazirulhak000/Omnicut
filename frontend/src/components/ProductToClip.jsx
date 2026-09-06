@@ -3,10 +3,13 @@ import {
   Link2, Sparkles, Clapperboard, Loader2, Check, Copy,
   AlertCircle, ArrowRight, Upload, Trash2, RefreshCw, Plus, Film, Video,
   ChevronDown, ChevronUp, ChevronRight, Package, Rocket, FolderOpen, X,
-  Search, LayoutGrid, Filter, Play, Lock, Edit3, Replace, Columns, List
+  Search, LayoutGrid, Filter, Play, Lock, Edit3, Replace, Columns, List,
+  ShoppingBag
 } from 'lucide-react';
 import {
-  scrapeAndPlanProduct, scrapeAndPlanProductAsync, getProducts, updateProduct, updateAngleStatus, updateAngleVideos, setDefaultVideosForProduct, deleteProduct, uploadFile
+  scrapeAndPlanProduct, scrapeAndPlanProductAsync, getProducts, updateProduct,
+  updateAngleStatus, updateAngleVideos, setDefaultVideosForProduct, deleteProduct,
+  uploadFile, resolveTiktokProductId
 } from '../api';
 import { Modal, Toast, Button, Badge, Input, Textarea, ConfirmModal } from './ui';
 import MediaPickerModal from './MediaPickerModal';
@@ -1092,6 +1095,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const [url, setUrl] = useState('');
   const [customKeyword, setCustomKeyword] = useState('');
   const [rawText, setRawText] = useState('');
+  const [tiktokProductId, setTiktokProductId] = useState('');
   const [fetching, setFetching] = useState(false);
   const [fetchError, setFetchError] = useState(null);
 
@@ -1146,6 +1150,72 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   // Angle Count Selection
   const [angleCount, setAngleCount] = useState(7); // Default: 7 (Sweet Spot)
 
+  // Edit TikTok Product ID Modal State (Backlog & Post-creation support)
+  const [showEditTiktokIdModal, setShowEditTiktokIdModal] = useState(false);
+  const [editTiktokIdInput, setEditTiktokIdInput] = useState('');
+  const [resolvingTiktokId, setResolvingTiktokId] = useState(false);
+  const [savingTiktokId, setSavingTiktokId] = useState(false);
+
+  const handleOpenEditTiktokIdModal = () => {
+    if (!productData) return;
+    setEditTiktokIdInput(productData.tiktok_product_id || '');
+    setShowEditTiktokIdModal(true);
+  };
+
+  const handleResolveAndSetId = async (inputVal) => {
+    const trimmed = (inputVal || '').trim();
+    if (!trimmed) return;
+    if (/^\d{10,}$/.test(trimmed)) {
+      setEditTiktokIdInput(trimmed);
+      return;
+    }
+    setResolvingTiktokId(true);
+    try {
+      const res = await resolveTiktokProductId(trimmed);
+      if (res?.success && res?.product_id) {
+        setEditTiktokIdInput(res.product_id);
+        showToast(`ดึงรหัสสินค้าสำเร็จ: ${res.product_id}`);
+      } else {
+        showToast('ไม่พบรหัสสินค้า TikTok ในลิงก์นี้ — กรุณาใส่รหัสตัวเลขโดยตรง', 'warning');
+      }
+    } catch (e) {
+      showToast('ไม่สามารถดึงรหัสจากลิงก์ได้: ' + (e.message || ''), 'error');
+    } finally {
+      setResolvingTiktokId(false);
+    }
+  };
+
+  const handleSaveTiktokId = async () => {
+    if (!productData) return;
+    setSavingTiktokId(true);
+    try {
+      let finalId = editTiktokIdInput.trim();
+      if (finalId && !/^\d{10,}$/.test(finalId) && (finalId.startsWith('http://') || finalId.startsWith('https://') || finalId.includes('tiktok.com'))) {
+        try {
+          const res = await resolveTiktokProductId(finalId);
+          if (res?.success && res?.product_id) {
+            finalId = res.product_id;
+          }
+        } catch (_) {}
+      }
+
+      const patchVal = finalId || null;
+      await updateProduct(productData.id, { tiktok_product_id: patchVal });
+
+      setProductData(prev => prev ? { ...prev, tiktok_product_id: patchVal } : prev);
+      setHistoryList(prev => prev.map(p => p.id === productData.id ? { ...p, tiktok_product_id: patchVal } : p));
+
+      setShowEditTiktokIdModal(false);
+      showToast(patchVal
+        ? `บันทึกรหัส TikTok ID (${patchVal}) ให้ทั้ง ${productData.angles?.length || 0} สคริปต์แล้ว`
+        : 'ปรับเป็นใช้ชื่อสินค้าค้นหาปักตะกร้าแทนแล้ว');
+    } catch (err) {
+      showToast('บันทึกไม่สำเร็จ: ' + (err.message || ''), 'error');
+    } finally {
+      setSavingTiktokId(false);
+    }
+  };
+
   // Media Picker Modal State
   const [pickerModalOpen, setPickerModalOpen] = useState(false);
   const [pickerAngleIndex, setPickerAngleIndex] = useState(0);
@@ -1196,6 +1266,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       price_note: item.price_note || '',
       status: item.status || 'scripted',
       images: item.images || (item.thumbnail ? [{ rel_path: item.thumbnail, name: 'thumb' }] : []),
+      tiktok_product_id: item.tiktok_product_id || '',
     });
     setAngles(item.angles || []);
     setOpenAngleIdx(0); // Reset accordion to first angle
@@ -1320,7 +1391,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         raw_text: inputMode === 'text' ? `${customKeyword}\n${rawText}` : undefined,
         custom_keyword: customKeyword || undefined,
         image_path: inputMode === 'image' ? selectedImage : undefined,
-        angle_count: angleCount
+        angle_count: angleCount,
+        tiktok_product_id: tiktokProductId.trim() || undefined,
       };
 
       // Non-blocking async background task execution
@@ -1330,6 +1402,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         setUrl('');
         setCustomKeyword('');
         setRawText('');
+        setTiktokProductId('');
         showToast(`🚀 เริ่มวิเคราะห์สินค้า & สร้าง ${angleCount} สคริปต์ในเบื้องหลังแล้ว — สามารถเปลี่ยนหน้าหรือทำงานต่อได้ทันที`);
       } else {
         // Fallback to sync if async did not return task_id
@@ -1340,6 +1413,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
           setUrl('');
           setCustomKeyword('');
           setRawText('');
+          setTiktokProductId('');
           await loadHistory();
           showToast(`AI วิเคราะห์และสร้าง ${angleCount} สคริปต์สำเร็จแล้ว`);
         }
@@ -1654,6 +1728,31 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                     {productData.price_note}
                   </span>
                 )}
+                {productData && (
+                  productData.tiktok_product_id ? (
+                    <button
+                      type="button"
+                      onClick={handleOpenEditTiktokIdModal}
+                      className="inline-flex items-center gap-1.5 text-[10px] sm:text-xs font-bold font-mono text-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20 px-2.5 py-0.5 rounded-full border border-cyan-500/20 hover:border-cyan-500/40 transition-colors cursor-pointer group"
+                      title="คลิกเพื่อแก้ไขหรือล้างไอดีสินค้า (มีผลกับทุกสคริปต์ในชุดนี้)"
+                    >
+                      <ShoppingBag className="w-3 h-3 text-cyan-400" />
+                      <span>ID: {productData.tiktok_product_id}</span>
+                      <Edit3 className="w-2.5 h-2.5 opacity-60 group-hover:opacity-100 transition-opacity" />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleOpenEditTiktokIdModal}
+                      className="inline-flex items-center gap-1.5 text-[10px] sm:text-xs text-slate-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] px-2.5 py-0.5 rounded-full border border-white/[0.08] hover:border-white/[0.2] transition-colors cursor-pointer group"
+                      title="ไม่มี ID ระบบจะค้นหาด้วยชื่อสินค้า — คลิกเพื่อใส่ไอดีหรือลิงก์แชร์ย้อนหลัง"
+                    >
+                      <ShoppingBag className="w-3 h-3 text-slate-400 group-hover:text-cyan-400 transition-colors" />
+                      <span>ปักตะกร้าด้วยชื่อ</span>
+                      <span className="text-[10px] text-cyan-400 font-medium group-hover:underline">ใส่ไอดี</span>
+                    </button>
+                  )
+                )}
               </div>
               <h1 className="text-sm sm:text-base md:text-lg font-bold text-white font-kanit truncate tracking-tight">
                 {productData?.title || productData?.name || (historyList.length > 0 ? 'เลือกสินค้าจากรายการด้านล่าง' : 'ยังไม่มีสินค้า — เริ่มวิเคราะห์สินค้าใหม่')}
@@ -1838,7 +1937,22 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                 label="ลิงก์สินค้า:"
                 type="url"
                 value={url}
-                onChange={(e) => setUrl(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setUrl(val);
+                  if (!tiktokProductId) {
+                    const m = val.match(/\/(?:product|item)\/(\d{10,})/) || val.match(/[?&](?:item_id|itemId|product_id)=(\d{10,})/);
+                    if (m) {
+                      setTiktokProductId(m[1]);
+                    } else if (val.includes('tiktok.com')) {
+                      resolveTiktokProductId(val.trim()).then(res => {
+                        if (res?.success && res?.product_id) {
+                          setTiktokProductId(res.product_id);
+                        }
+                      }).catch(() => {});
+                    }
+                  }
+                }}
                 placeholder="https://shopee.co.th/product/... หรือ https://vt.tiktok.com/..."
               />
               <p className="text-sm text-slate-500">
@@ -1956,6 +2070,42 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
               )}
             </div>
           )}
+
+          {/* TikTok Product ID Input (Optional - falls back to product name) */}
+          <div className="pt-2 border-t border-white/[0.06] space-y-1.5">
+            <Input
+              label="ไอดีสินค้าสำหรับปักตะกร้า (TikTok Product ID):"
+              type="text"
+              value={tiktokProductId}
+              onChange={(e) => {
+                const val = e.target.value;
+                setTiktokProductId(val);
+                const m = val.match(/\/(?:product|item)\/(\d{10,})/) || val.match(/[?&](?:item_id|itemId|product_id)=(\d{10,})/);
+                if (m) {
+                  setTiktokProductId(m[1]);
+                }
+              }}
+              onPaste={(e) => {
+                const pasted = e.clipboardData.getData('text');
+                if (pasted && (pasted.startsWith('http://') || pasted.startsWith('https://') || pasted.includes('tiktok.com'))) {
+                  const m = pasted.match(/\/(?:product|item)\/(\d{10,})/) || pasted.match(/[?&](?:item_id|itemId|product_id)=(\d{10,})/);
+                  if (m) {
+                    setTimeout(() => setTiktokProductId(m[1]), 20);
+                  } else {
+                    resolveTiktokProductId(pasted.trim()).then(res => {
+                      if (res?.success && res?.product_id) {
+                        setTiktokProductId(res.product_id);
+                      }
+                    }).catch(() => {});
+                  }
+                }
+              }}
+              placeholder="เช่น 1737088044189583209 หรือวางลิงก์แชร์ vt.tiktok.com..."
+            />
+            <p className="text-[11px] text-slate-400">
+              💡 ใส่ไอดีเป็นหลักสำหรับปักตะกร้าอัตโนมัติ (หรือวางลิงก์แชร์เพื่อดึงไอดี) หากไม่มีระบบจะค้นหาด้วยชื่อสินค้าแทนให้ตรงที่สุด
+            </p>
+          </div>
 
           {/* ── Angle Count Selector ── */}
           <div className="flex items-center gap-3 py-2.5">
@@ -2488,6 +2638,135 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* ── Edit TikTok Product ID Modal (Post-creation / Backlog support) ── */}
+      <Modal
+        isOpen={showEditTiktokIdModal}
+        onClose={() => !savingTiktokId && setShowEditTiktokIdModal(false)}
+        title="ไอดีสินค้าสำหรับปักตะกร้า (TikTok Product ID)"
+        subtitle={`สินค้านี้: ${productData?.title || productData?.name || ''}`}
+        maxWidth="max-w-lg"
+      >
+        <div className="space-y-4 pt-1">
+          <div className="p-3 bg-cyan-500/[0.06] border border-cyan-500/20 rounded-xl space-y-1">
+            <div className="flex items-center gap-2 text-cyan-400 text-xs font-bold">
+              <ShoppingBag className="w-4 h-4 flex-shrink-0" />
+              <span>แนบกับทุกสคริปต์ในชุดนี้ ({productData?.angles?.length || 0} สคริปต์)</span>
+            </div>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              ไอดีนี้จะถูกบันทึกไว้ที่ระดับตัวสินค้า ทำให้ทุกมุมขายและทุกคลิปที่เรนเดอร์ในชุดนี้ ใช้ไอดีเดียวกันนี้ในการค้นหาและปักตะกร้าอัตโนมัติบน TikTok Shop ทันที
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+              <span>ระบุรหัสตัวเลข หรือ วางลิงก์สินค้า / ลิงก์แชร์:</span>
+              {resolvingTiktokId && (
+                <span className="text-[11px] text-cyan-400 flex items-center gap-1">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  กำลังดึงไอดีจากลิงก์...
+                </span>
+              )}
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                value={editTiktokIdInput}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setEditTiktokIdInput(val);
+                  const m = val.match(/\/(?:product|item)\/(\d{10,})/) || val.match(/[?&](?:item_id|itemId|product_id)=(\d{10,})/);
+                  if (m) {
+                    setEditTiktokIdInput(m[1]);
+                    showToast(`ดึงรหัสสินค้าสำเร็จ: ${m[1]}`);
+                  }
+                }}
+                onPaste={(e) => {
+                  const pasted = e.clipboardData.getData('text');
+                  if (pasted && (pasted.startsWith('http://') || pasted.startsWith('https://') || pasted.includes('tiktok.com'))) {
+                    setTimeout(() => handleResolveAndSetId(pasted), 50);
+                  }
+                }}
+                placeholder="เช่น 1737088044189583209 หรือวาง https://vt.tiktok.com/..."
+                className="w-full bg-[#080B11] border border-white/[0.1] focus:border-[#25F4EE] text-white text-xs px-3 py-2.5 rounded-xl focus:outline-none placeholder-slate-500 font-mono"
+                autoFocus
+              />
+              {editTiktokIdInput && (
+                <button
+                  type="button"
+                  onClick={() => setEditTiktokIdInput('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white cursor-pointer p-1"
+                  title="ล้างค่า"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {editTiktokIdInput && (editTiktokIdInput.startsWith('http://') || editTiktokIdInput.startsWith('https://') || editTiktokIdInput.includes('tiktok.com')) && !/^\d{10,}$/.test(editTiktokIdInput) && (
+              <button
+                type="button"
+                onClick={() => handleResolveAndSetId(editTiktokIdInput)}
+                disabled={resolvingTiktokId}
+                className="w-full py-1.5 px-3 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-cyan-500/30"
+              >
+                {resolvingTiktokId ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>กำลังตามลิงก์เพื่อแกะไอดี...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>ดึงรหัสตัวเลขจากลิงก์นี้</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            <p className="text-[11px] text-slate-500">
+              💡 รองรับทั้งรหัสตัวเลข 15–19 หลัก, ลิงก์สินค้า TikTok Shop หรือลิงก์แชร์สั้น (vt.tiktok.com)
+              <br />
+              หากเว้นว่างไว้ ระบบจะใช้ชื่อสินค้าในการค้นหาเพื่อปักตะกร้าแทน
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between pt-3 border-t border-white/[0.08]">
+            {productData?.tiktok_product_id ? (
+              <button
+                type="button"
+                onClick={() => setEditTiktokIdInput('')}
+                className="text-xs text-slate-400 hover:text-red-400 transition-colors cursor-pointer"
+              >
+                ล้างไอดี (ใช้ชื่อค้นหา)
+              </button>
+            ) : <div />}
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => setShowEditTiktokIdModal(false)}
+                disabled={savingTiktokId}
+              >
+                ยกเลิก
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleSaveTiktokId}
+                disabled={savingTiktokId || resolvingTiktokId}
+                className="bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-white font-bold"
+              >
+                {savingTiktokId ? (
+                  <span className="flex items-center gap-1.5">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    บันทึก...
+                  </span>
+                ) : 'บันทึก'}
+              </Button>
+            </div>
+          </div>
+        </div>
       </Modal>
 
       {/* ── Delete Confirmation Modal ── */}

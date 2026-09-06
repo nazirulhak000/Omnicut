@@ -2,8 +2,10 @@
 API Router for Product Scraping, Content Planning, and Video Attachments.
 """
 
+import re
 import time
 import shutil
+import urllib.request
 from pathlib import Path
 from typing import Dict, Any
 
@@ -17,6 +19,55 @@ from scripts.media_service import get_file_info
 from scripts.tts_sanitizer import TTSSanitizer
 
 router = APIRouter(tags=["Products"])
+
+
+def resolve_tiktok_product_id(url_or_id: str) -> Dict[str, Any]:
+    """Extracts or resolves a TikTok numeric Product ID from ID, full URL, or shortlink."""
+    cleaned = (url_or_id or "").strip()
+    if not cleaned:
+        return {"success": False, "product_id": None, "resolved_url": None}
+
+    # 1. Direct 10+ digit number
+    if re.fullmatch(r"\d{10,}", cleaned):
+        return {"success": True, "product_id": cleaned, "resolved_url": None}
+
+    # 2. Extract from string if it matches standard product URL patterns
+    m = re.search(r"/(?:product|item)/(\d{10,})", cleaned) or re.search(r"[?&](?:item_id|itemId|product_id)=(\d{10,})", cleaned)
+    if m:
+        return {"success": True, "product_id": m.group(1), "resolved_url": cleaned}
+
+    # 3. If it looks like a URL (e.g. vt.tiktok.com shortlink or web link), resolve redirect
+    if cleaned.startswith("http://") or cleaned.startswith("https://"):
+        try:
+            req = urllib.request.Request(
+                cleaned,
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+            )
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                final_url = resp.geturl()
+                m2 = re.search(r"/(?:product|item)/(\d{10,})", final_url) or re.search(r"[?&](?:item_id|itemId|product_id)=(\d{10,})", final_url)
+                if m2:
+                    return {"success": True, "product_id": m2.group(1), "resolved_url": final_url}
+                m3 = re.search(r"(\d{15,})", final_url)
+                if m3:
+                    return {"success": True, "product_id": m3.group(1), "resolved_url": final_url}
+                return {"success": False, "product_id": None, "resolved_url": final_url}
+        except Exception as e:
+            print(f"Notice: Failed to resolve redirect for {cleaned}: {e}")
+
+    # 4. Fallback: check any 15+ consecutive digits anywhere in input
+    m4 = re.search(r"(\d{15,})", cleaned)
+    if m4:
+        return {"success": True, "product_id": m4.group(1), "resolved_url": None}
+
+    return {"success": False, "product_id": None, "resolved_url": None}
+
+
+@router.post("/api/products/resolve-tiktok-id")
+def resolve_tiktok_id_endpoint(payload: Dict[str, Any]):
+    """Resolves a raw string, direct ID, full URL, or shortlink to a numeric TikTok Product ID."""
+    url_or_id = payload.get("url_or_id", "")
+    return resolve_tiktok_product_id(url_or_id)
 
 
 @router.post("/api/products/{product_id}/videos")
@@ -73,6 +124,7 @@ def update_product_angle_status(product_id: str, angle_id: str, payload: Dict[st
     project_name = payload.get("project_name")
     qc_note = payload.get("qc_note")          # str | None
     clear_qc_note = bool(payload.get("clear_qc_note", False))
+    clear_conflict_note = bool(payload.get("clear_conflict_note", False))
     if not status:
         raise HTTPException(status_code=400, detail="Missing status")
     try:
@@ -84,6 +136,7 @@ def update_product_angle_status(product_id: str, angle_id: str, payload: Dict[st
             project_name=project_name,
             qc_note=qc_note,
             clear_qc_note=clear_qc_note,
+            clear_conflict_note=clear_conflict_note,
         )
         return {"success": True, "product": updated}
     except ValueError as err:
@@ -161,6 +214,16 @@ def scrape_and_plan(payload: Dict[str, Any]):
             product_info["raw_text"] = f"{product_info.get('title', '')}\n{raw_text}"
 
         angle_count = int(payload.get("angle_count", 10))
+        tiktok_product_id = str(payload.get("tiktok_product_id") or "").strip()
+        if tiktok_product_id:
+            resolved = resolve_tiktok_product_id(tiktok_product_id)
+            if resolved.get("success") and resolved.get("product_id"):
+                tiktok_product_id = resolved["product_id"]
+        elif url:
+            resolved = resolve_tiktok_product_id(url)
+            if resolved.get("success") and resolved.get("product_id"):
+                tiktok_product_id = resolved["product_id"]
+
         angles = ProductScraper.generate_content_matrix(product_info, count=angle_count)
 
         thumbnail_img = ""
@@ -175,9 +238,11 @@ def scrape_and_plan(payload: Dict[str, Any]):
             price_note=product_info.get("price_note", ""),
             thumbnail=thumbnail_img,
             angles=angles,
-            images=product_info.get("images", [])
+            images=product_info.get("images", []),
+            tiktok_product_id=tiktok_product_id or None,
         )
         product_info["id"] = saved_prod["id"]
+        product_info["tiktok_product_id"] = saved_prod.get("tiktok_product_id")
 
         return {
             "success": True,
@@ -248,6 +313,16 @@ def _execute_scrape_and_plan_worker(task_id: str, payload: Dict[str, Any]):
         if product_info.get("images") and len(product_info["images"]) > 0:
             thumbnail_img = product_info["images"][0].get("rel_path", "")
 
+        tiktok_product_id = str(payload.get("tiktok_product_id") or "").strip()
+        if tiktok_product_id:
+            resolved = resolve_tiktok_product_id(tiktok_product_id)
+            if resolved.get("success") and resolved.get("product_id"):
+                tiktok_product_id = resolved["product_id"]
+        elif url:
+            resolved = resolve_tiktok_product_id(url)
+            if resolved.get("success") and resolved.get("product_id"):
+                tiktok_product_id = resolved["product_id"]
+
         saved_prod = ProductStore.add(
             name=product_info.get("title", "สินค้า"),
             url=product_info.get("url", ""),
@@ -256,9 +331,11 @@ def _execute_scrape_and_plan_worker(task_id: str, payload: Dict[str, Any]):
             price_note=product_info.get("price_note", ""),
             thumbnail=thumbnail_img,
             angles=angles,
-            images=product_info.get("images", [])
+            images=product_info.get("images", []),
+            tiktok_product_id=tiktok_product_id or None,
         )
         product_info["id"] = saved_prod["id"]
+        product_info["tiktok_product_id"] = saved_prod.get("tiktok_product_id")
 
         result_data = {
             "product": product_info,

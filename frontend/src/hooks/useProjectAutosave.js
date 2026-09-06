@@ -88,7 +88,7 @@ export function useProjectAutosave({
 
   useEffect(() => {
     const saveBeforeUnload = () => {
-      const job = queue.peekPending();
+      const job = queue.peekPending() || (queue.isSaving() ? latestRef.current : null);
       if (!job || typeof fetch !== 'function') return;
       fetch(`/api/projects/${encodeURIComponent(job.projectName)}/state`, {
         method: 'PATCH',

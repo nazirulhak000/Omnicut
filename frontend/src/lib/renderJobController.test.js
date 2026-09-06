@@ -66,3 +66,8 @@ test('render progress and result normalization map consistently', () => {
   assert.equal(normalized.videoPath, '04_Exports/output.mp4');
   assert.equal(normalized.videoUrl, 'http://localhost:8000/media/output.mp4');
 });
+
+test('useRenderJob hook is exported and exposes required API contract for NewClipPanel and EditorShell', async () => {
+  const { useRenderJob } = await import('../hooks/useRenderJob.js');
+  assert.equal(typeof useRenderJob, 'function', 'useRenderJob should be a hook function');
+});

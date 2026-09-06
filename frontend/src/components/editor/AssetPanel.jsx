@@ -55,6 +55,18 @@ function hookCardLook(tpl, tierKey) {
   };
 }
 
+function getMotionPreviewClass(motion) {
+  const loop = motion?.loop;
+  const animIn = motion?.in;
+  if (loop === 'flicker') return 'group-hover:anim-preview-flicker';
+  if (loop === 'shake' || animIn === 'pop') return 'group-hover:anim-preview-shake';
+  if (loop === 'wave') return 'group-hover:anim-preview-wave';
+  if (loop === 'pulse' || animIn === 'bounce') return 'group-hover:anim-preview-pulse';
+  if (animIn === 'pop_zoom') return 'group-hover:anim-preview-pop_zoom';
+  if (loop === 'lightsweep') return 'group-hover:anim-preview-lightsweep';
+  return 'group-hover:scale-105';
+}
+
 export function templateLook(tpl) {
   return overlayFromTextTemplate(tpl, { id: '__card__', start: 0, end: 1 }).look;
 }
@@ -130,6 +142,49 @@ export const TEXT_TEMPLATES = [
     // a text overlay had no outline fields at all before this, so every card
     // in this gallery burned the same black 5.0 and read flat beside one.
     look: { outline_color: '#FFFFFF', outline_px: 9.0 },
+  },
+  {
+    id: 'tpl_hook_flash_sale',
+    category: 'hook',
+    name: 'โปรไฟลุก Flash Sale',
+    text: 'โปรไฟลุก ด่วน! 🔥\nลดกระหน่ำวันนี้',
+    fontName: 'Kanit',
+    color: '#FFE04C',
+    scale: 1.35,
+    anim: 'pop',
+    bgStyle: 'badge_red',
+    badgeColor: '#FE2C55',
+    sfx: 'boom',
+    sfxLabel: 'Boom ไฟลุก',
+    look: { outline_color: '#000000', outline_px: 8.0 },
+  },
+  {
+    id: 'tpl_hook_neon_cyber',
+    category: 'hook',
+    name: 'นีออน ไซเบอร์ไฮป์',
+    text: 'รุ่นใหม่มาแรง ⚡\nCYBER 2026',
+    fontName: 'Chakra Petch',
+    color: '#25F4EE',
+    scale: 1.3,
+    anim: 'zoom',
+    bgStyle: 'pill',
+    sfx: 'whoosh',
+    sfxLabel: 'Whoosh นีออน',
+    look: { outline_color: '#000000', outline_px: 8.0 },
+  },
+  {
+    id: 'tpl_hook_minimal_luxury',
+    category: 'hook',
+    name: 'ลักชัวรี ลุคหรูพรีเมียม',
+    text: 'LUXURY EDITION ✨\nตัวท็อปพรีเมียม',
+    fontName: 'Prompt',
+    color: '#E6C24A',
+    scale: 1.25,
+    anim: 'rise',
+    bgStyle: 'pill',
+    sfx: 'ding',
+    sfxLabel: 'Ding กระดิ่งทอง',
+    look: { outline_color: '#1A1A1A', outline_px: 4.0 },
   },
 
   // ─── 2. รีวิว & ฟีเจอร์เด่น (Review & Feature Highlight) ───
@@ -1141,17 +1196,21 @@ export default function AssetPanel({
                     }`}
                   >
                     <div className="relative flex h-20 w-full flex-col items-center justify-center gap-0.5 overflow-hidden rounded-lg border border-white/[0.04] bg-black/60 p-1.5">
-                      <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-black/70 to-transparent" />
-                      {TIER_KEYS.map((tierKey, i) => (
-                        <TextLookPreview
-                          key={tierKey}
-                          look={hookCardLook(tpl, tierKey)}
-                          text={HOOK_CARD_SAMPLE[i]}
-                          baseFsRatio={HOOK_FS_RATIO}
-                          scale={0.19}
-                          className="relative z-10"
-                        />
-                      ))}
+                      <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
+                      <div className={`w-full flex flex-col items-center justify-center gap-0.5 relative z-10 transition-transform duration-200 ${getMotionPreviewClass(tpl.motion)}`}>
+                        {TIER_KEYS.map((tierKey, i) => (
+                          <TextLookPreview
+                            key={tierKey}
+                            look={hookCardLook(tpl, tierKey)}
+                            text={HOOK_CARD_SAMPLE[i]}
+                            baseFsRatio={HOOK_FS_RATIO}
+                            scale={0.19}
+                          />
+                        ))}
+                      </div>
+                      <span className="absolute top-1 right-1 px-1 py-0.2 text-[8px] font-mono font-bold rounded bg-black/70 text-[#E6C24A] border border-[#E6C24A]/30">
+                        {(tpl.motion?.loop || tpl.motion?.in || '').toUpperCase()}
+                      </span>
                     </div>
                     <span className="truncate text-[10px] font-semibold text-slate-300">
                       {tpl.label_th}

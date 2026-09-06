@@ -208,8 +208,8 @@ export default function EditorShell({
   const [deleteScope, setDeleteScope] = useState('project');
   const [deleteOrigin, setDeleteOrigin] = useState(null);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
-  // Per-stem mute/solo for the preview. Playback-only -- it never reaches a
-  // render payload, so soloing the BGM to check a level cannot change output.
+  // Per-stem mute/solo for the preview. Mutes persist and reach the renderer;
+  // solo remains a monitoring control and does not mute the exported mix.
   const [trackMix, setTrackMix] = useState({ mute: {}, solo: {} });
   const handleTrackMix = useCallback((track, kind) => {
     setTrackMix((prev) => {

@@ -232,6 +232,7 @@ class ProductUpdateRequest(BaseModel):
     target_buyer: Optional[str] = None
     status: Optional[str] = None
     angles: Optional[List[Dict[str, Any]]] = None
+    tiktok_product_id: Optional[str] = None
 
 
 def _meta_tag(html_text: str, prop: str) -> str:

@@ -31,6 +31,7 @@ from scripts.subtitle import (
     _LEGACY_FONT_ALIASES,
     _load_font_family_map,
     _measure_text_width_px,
+    prefix_advances,
     ass_glyph_scale,
     _hook_line_width_px,
     DEFAULT_HOOK_MOTION,
@@ -61,6 +62,7 @@ from scripts.subtitle import (
     _ass_rounded_pill_path,
     _hook_lightsweep_event,
     _hook_accent_events,
+    overlay_events,
     KINETIC_KEYWORDS,
     KINETIC_KEYWORDS_EN,
     wrap_text_for_ass,
@@ -513,17 +515,17 @@ PlayResY: {video_height}
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: TikTokSoftShadow,{resolved_font},{font_size},&H00000000,&H00000000,&H00000000,&H00000000,1,0,0,0,100,100,0.5,0,1,{shadow_outline},0,{alignment},{shadow_margin_l},{shadow_margin_r},{shadow_margin_v},1
-Style: TikTokWhite,{resolved_font},{font_size},{primary},&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0.5,0,1,{front_outline},0,{alignment},60,60,{margin_v},1
-Style: TikTokYellow,{resolved_font},{font_size},&H0000E6FF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0.5,0,1,{front_outline},0,2,60,60,420,1
-Style: TikTokCyan,{resolved_font},{font_size},&H00FFE600,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0.5,0,1,{front_outline},0,2,60,60,420,1
-Style: TikTokMinimalPill,{resolved_font},{font_size - 6},{primary},&H000000FF,&H00000000,&HCC000000,1,0,0,0,100,100,0.5,0,3,6,0,{alignment},60,60,{margin_v},1
-Style: HookHeader,{hook_font},{hook_fs},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0.5,0,1,6.0,0,8,60,60,260,1
-Style: HookHeaderShadow,{hook_font},{hook_fs},&H00000000,&H00000000,&H00000000,&H00000000,1,0,0,0,100,100,0.5,0,1,7.0,0,8,62,58,257,1
-Style: HookHeaderPill,{hook_font},{hook_fs},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0.5,0,3,12,0,8,60,60,260,1
-Style: SpecBar,{resolved_font},{font_size - 12},&H00000000,&H000000FF,&H00000000,&H0000E6FF,1,0,0,0,100,100,0.5,0,3,10,0,9,50,50,380,1
-Style: TextOverlayMain,{resolved_font},{base_fs},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0.5,0,1,5.0,2,5,60,60,0,1
-Style: TextOverlayPill,{resolved_font},{base_fs},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0.5,0,1,5.0,2,5,60,60,0,1
+Style: TikTokSoftShadow,{resolved_font},{font_size},&H00000000,&H00000000,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,{shadow_outline},0,{alignment},{shadow_margin_l},{shadow_margin_r},{shadow_margin_v},1
+Style: TikTokWhite,{resolved_font},{font_size},{primary},&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,{front_outline},0,{alignment},60,60,{margin_v},1
+Style: TikTokYellow,{resolved_font},{font_size},&H0000E6FF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,{front_outline},0,2,60,60,420,1
+Style: TikTokCyan,{resolved_font},{font_size},&H00FFE600,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,{front_outline},0,2,60,60,420,1
+Style: TikTokMinimalPill,{resolved_font},{font_size - 6},{primary},&H000000FF,&H00000000,&HCC000000,1,0,0,0,100,100,0,0,3,6,0,{alignment},60,60,{margin_v},1
+Style: HookHeader,{hook_font},{hook_fs},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,6.0,0,8,60,60,260,1
+Style: HookHeaderShadow,{hook_font},{hook_fs},&H00000000,&H00000000,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,7.0,0,8,62,58,257,1
+Style: HookHeaderPill,{hook_font},{hook_fs},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,3,12,0,8,60,60,260,1
+Style: SpecBar,{resolved_font},{font_size - 12},&H00000000,&H000000FF,&H00000000,&H0000E6FF,1,0,0,0,100,100,0,0,3,10,0,9,50,50,380,1
+Style: TextOverlayMain,{resolved_font},{base_fs},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,5.0,2,5,60,60,0,1
+Style: TextOverlayPill,{resolved_font},{base_fs},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,5.0,2,5,60,60,0,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -539,255 +541,14 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         # block below already uses, so every property (\fscx/\fscy/\c) that
         # matters is re-declared per line and nothing leaks across a \N.
         if hook_overlay:
-            hook_start = float(hook_overlay.get("start") or 0.0)
-            hook_end = float(hook_overlay.get("end") or (hook_start + 3.0))
-            hook_duration = max(0.1, hook_end - hook_start)
-            hook_tier_texts = [
-                str((t or {}).get("text") or "") for t in (hook_overlay.get("tiers") or [])
-            ]
-            while len(hook_tier_texts) < 3:
-                hook_tier_texts.append("")
-            hook_brand, hook_model, hook_label = hook_tier_texts[:3]
-            motion = _resolve_hook_motion(hook_overlay.get("anim"))
-            start_t = cls._format_ass_time(hook_start)
-            end_t = cls._format_ass_time(hook_end)
-            # The exit window every Out preset animates into. `\t` offsets are
-            # relative to an event's own Start (0 for every hook line), so
-            # they double as absolute ms. Guarded against a hook shorter than
-            # the entry animation ever producing exit_start >= exit_end,
-            # which a renderer could choke on.
-            exit_end_ms = int(hook_duration * 1000)
-            exit_start_ms = max(120, exit_end_ms - 150)
-            if exit_start_ms >= exit_end_ms:
-                exit_start_ms = max(0, exit_end_ms - 50)
-
-            # (raw text, target scale % of hook_fs, Main-layer colour, tier index)
-            # tier index also doubles as the stagger slot (0=brand, 1=model,
-            # 2=label) and marks which physical line(s) the accent shape
-            # attaches to (tier 1, model).
-            #
-            # Each tier's colour is independently overridable (a brand with
-            # green equity shouldn't be forced to white); an unset tier keeps
-            # the poster default it had before -- white wordmark, accent
-            # model, muted label.
-            # The look comes from a template, overridable field by field, with
-            # the older per-tier colour map winning last so a project keeps the
-            # colours it was saved with. See scripts/hook_styles.py.
-            # Each tier's own look, the same one the canvas resolves. The
-            # editor writes these directly now, so a size or an outline the
-            # user set is the number that gets burned.
-            tier_looks = [
-                resolve_look(hook_overlay.get("look"), (t or {}).get("look"))
-                for t in (hook_overlay.get("tiers") or [])
-            ]
-            while len(tier_looks) < 3:
-                tier_looks.append(resolve_look(hook_overlay.get("look"), None))
-
-            def tier_colour(idx: int, fallback: str) -> str:
-                colour = tier_looks[idx]["color"]
-                if colour == ACCENT_COLOR:
-                    return fallback
-                return ass_colour(colour) or fallback
-
-            brand_colour = tier_colour(0, "&H00FFFFFF")
-            # An unset model colour still means "use the caption accent".
-            model_colour = tier_colour(1, ass_colour(caption_color) or "&H0000E6FF")
-            label_colour = tier_colour(2, "&H00E0E0E0")
-            hook_tier_specs = [
-                (hook_brand, int(tier_looks[0]["size_pct"]), brand_colour, 0),
-                (hook_model, int(tier_looks[1]["size_pct"]), model_colour, 1),
-                (hook_label, int(tier_looks[2]["size_pct"]), label_colour, 2),
-            ]
-            tiers = {"brand": tier_looks[0], "model": tier_looks[1], "label": tier_looks[2]}
-            tier_key_by_idx = {0: "brand", 1: "model", 2: "label"}
-
-            # Pass 1: wrap each tier at its OWN char width -- a 130%-scale
-            # line needs a narrower wrap than a 58%-scale one, or the brand
-            # line runs wider than the frame while the label line wraps too
-            # early. wrap_text_for_ass is the same balanced-wrap caption
-            # already uses below; the hook banner never called it before.
-            tier_lines = []  # (line_text, scale_pct, colour, tier_idx)
-            model_last_line = None
-            for raw_text, scale_pct, colour, tier_idx in hook_tier_specs:
-                text = str(raw_text or "").strip()
-                if not text:
-                    continue
-                if tiers[tier_key_by_idx[tier_idx]]["upper"]:
-                    text = text.upper()  # a wordmark reads as one; .upper() is a no-op on Thai
-                tier_fs = max(20, int(round(hook_fs * scale_pct / 100)))
-                dyn_max_chars = max(8, int(round(2600 / tier_fs)))
-                wrapped = cls.wrap_text_for_ass(text, max_chars_per_line=dyn_max_chars)
-                lines = wrapped.split("\\N")
-                for line in lines:
-                    tier_lines.append((line, scale_pct, colour, tier_idx))
-                if tier_idx == 1:
-                    model_last_line = lines[-1]
-
-            if tier_lines:
-                # Pass 2: more than ~4 lines total (e.g. a long brand name
-                # wrapping twice) starts crowding the sticker badge
-                # (top-right, y=140) and reads as clutter for a short
-                # banner -- shrink every tier proportionally instead of
-                # letting the block grow unbounded. Floor at 0.7 so it never
-                # shrinks past reading as a headline.
-                HOOK_COMFORTABLE_LINES = 4
-                shrink = max(0.7, min(1.0, HOOK_COMFORTABLE_LINES / len(tier_lines)))
-                STAGGER_STEP_MS = 150
-
-                # Line-height factor for the manual vertical cursor. Measured
-                # directly off a real ffmpeg+libass render (pixel-scanned ink
-                # bands per tier), not guessed -- an initial 1.28 guess put
-                # the accent bar a full line too low, under the label instead
-                # of the model. If it drifts after a font change, remeasure
-                # the same way rather than re-guessing.
-                x_center = video_width // 2
-
-                in_builder = HOOK_IN_BUILDERS.get(motion["in"], _in_bounce)
-                loop_builder = HOOK_LOOP_BUILDERS.get(motion["loop"], _loop_pulse)
-                out_builder = HOOK_OUT_BUILDERS.get(motion["out"], _out_fade)
-                is_typewriter = motion["in"] == "typewriter"
-
-                # Pass 3: walk the y-cursor once and resolve every line's
-                # size, position and entrance up front. Each line becomes its
-                # OWN dialogue event (rather than \N-joined into one shared
-                # block) because \move, \frz and \clip are per-event state --
-                # slide/wave/shake/glitch/typewriter all need to act on one
-                # line without dragging its neighbours along.
-                cursor_y = 260  # HookHeader style's MarginV: top edge of the block
-                line_records = []
-                max_entry_end_ms = 0
-                model_line_fs = None
-                model_y = None
-                for idx, (line, scale_pct, colour, tier_idx) in enumerate(tier_lines):
-                    # Two percentages, deliberately: `layout_pct` is the design
-                    # intent in em (what the canvas preview draws and what every
-                    # width/position here is measured against), while `target`
-                    # is what actually goes into scx -- boosted by
-                    # TEXT_SCALE_BOOST so libass's own line-box scaling cancels
-                    # out and the glyphs land at the em size that was intended.
-                    layout_pct = round(scale_pct * shrink)
-                    target = round(layout_pct * HOOK_SCALE_BOOST)
-                    line_fs = max(20, int(round(hook_fs * layout_pct / 100)))
-                    t0_ms = tier_idx * STAGGER_STEP_MS if motion["stagger"] else 0
-                    if is_typewriter:
-                        # its \clip needs this line's resolved width and y,
-                        # which only exist once this walk has placed it
-                        in_tag, entry_end_ms, move_dy_in = None, t0_ms + 400, None
-                    else:
-                        in_tag, entry_end_ms, move_dy_in = in_builder(target, t0_ms)
-                    max_entry_end_ms = max(max_entry_end_ms, entry_end_ms)
-                    line_records.append({
-                        "line": line, "target": target, "line_fs": line_fs, "colour": colour,
-                        "tier": tier_key_by_idx[tier_idx],
-                        "t0_ms": t0_ms, "in_tag": in_tag, "entry_end_ms": entry_end_ms,
-                        "move_dy_in": move_dy_in, "y": cursor_y,
-                    })
-                    if tier_idx == 1:
-                        model_line_fs = line_fs
-                        model_y = cursor_y
-                    cursor_y += round(line_fs * LINE_HEIGHT_FACTOR)
-
-                    # An accent shape is a layout element, not an overlay:
-                    # reserve room for it after the model tier's last line so
-                    # the label below never has a bar drawn through it (at
-                    # LINE_HEIGHT_FACTOR 1.0 consecutive lines touch exactly,
-                    # leaving no natural gap to borrow).
-                    is_last_model_line = tier_idx == 1 and (
-                        idx + 1 >= len(tier_lines) or tier_lines[idx + 1][3] != 1
-                    )
-                    if is_last_model_line and motion["accent"] != "none":
-                        reserve = 0.80 if motion["accent"] != "badge" else 0.45
-                        cursor_y += round(line_fs * reserve)
-
-                # One loop chain shared by every line: it depends only on
-                # timing, and starts once the LAST tier has finished entering
-                # so a stagger never leaves one line pulsing while another is
-                # still flying in.
-                loop_tag = loop_builder(max_entry_end_ms, exit_start_ms)
-
-                for rec in line_records:
-                    out_tag, move_dy_out = out_builder(exit_start_ms, exit_end_ms, rec["target"])
-
-                    if is_typewriter:
-                        half_w = _hook_line_width_px(rec["line"], hook_font, rec["line_fs"])
-                        top, bot = rec["y"] - 5, rec["y"] + rec["line_fs"] + 5
-                        x_from, x_to = x_center - half_w, x_center + half_w
-                        in_tag = (
-                            f"\\clip({x_from:.0f},{top},{x_from:.0f},{bot})"
-                            f"\\t({rec['t0_ms']},{rec['entry_end_ms']},"
-                            f"\\clip({x_from:.0f},{top},{x_to:.0f},{bot}))"
-                        )
-                    else:
-                        in_tag = rec["in_tag"]
-
-                    # \move is a single linear segment, so a line can only
-                    # truly slide once: a sliding entrance wins the slot over
-                    # a sliding exit, which still fades out in place via
-                    # out_tag -- it loses the travel, not the exit.
-                    if rec["move_dy_in"] is not None:
-                        pos_tag = (
-                            f"\\move({x_center},{rec['y'] + rec['move_dy_in']},"
-                            f"{x_center},{rec['y']},{rec['t0_ms']},{rec['entry_end_ms']})"
-                        )
-                    elif move_dy_out is not None:
-                        pos_tag = (
-                            f"\\move({x_center},{rec['y']},{x_center},{rec['y'] + move_dy_out},"
-                            f"{exit_start_ms},{exit_end_ms})"
-                        )
-                    else:
-                        pos_tag = f"\\pos({x_center},{rec['y']})"
-
-                    common = f"\\an8{pos_tag}{in_tag}{loop_tag}{out_tag}"
-                    events.append(
-                        f"Dialogue: 1,{start_t},{end_t},HookHeaderShadow,,0,0,0,,"
-                        f"{{{common}\\blur5\\alpha&H40&}}{rec['line']}"
-                    )
-                    tier_style = tiers[rec["tier"]]
-                    outline_colour = ass_colour(tier_style["outline_color"]) or "&H00000000"
-                    # \3c is the outline colour and \bord its width; the Style
-                    # carries only a default for both, so a tier that wants a
-                    # thick pink edge says so here.
-                    edge_tag = (
-                        f"\\3c{outline_colour}&"
-                        f"\\bord{float(tier_style['outline_px']):.1f}"
-                    )
-                    # A pill is an object now ({fill, border, padding}), the
-                    # same shape a text overlay's badge uses -- it was a bare
-                    # colour here and two other things elsewhere.
-                    pill = tier_style["pill"] or {}
-                    pill_colour = ass_colour(pill.get("fill"))
-                    if pill_colour:
-                        # A filled box behind the line: BorderStyle 3 paints it
-                        # with the outline colour, so the pill colour goes
-                        # there and the edge width becomes the box's padding.
-                        # The padding follows the tier's own size now, instead
-                        # of the flat 12px that stayed put when a tier grew.
-                        pill_pad = int(round(hook_fs * float(pill.get("pad_x_em") or 0.342)))
-                        edge_tag = f"\\3c{pill_colour}&\\bord{pill_pad}\\shad0"
-                        events.append(
-                            f"Dialogue: 1,{start_t},{end_t},HookHeaderPill,,0,0,0,,"
-                            f"{{{common}{edge_tag}\\c{rec['colour']}&}}{rec['line']}"
-                        )
-                    events.append(
-                        f"Dialogue: 2,{start_t},{end_t},HookHeader,,0,0,0,,"
-                        f"{{{common}{edge_tag}\\c{rec['colour']}&}}{rec['line']}"
-                    )
-
-                    if motion["loop"] == "lightsweep":
-                        sweep = _hook_lightsweep_event(
-                            rec["line"], rec["line_fs"], rec["y"], x_center, hook_font,
-                            start_t, end_t, max_entry_end_ms, exit_start_ms, exit_end_ms,
-                            rec["target"],
-                        )
-                        if sweep:
-                            events.append(sweep)
-
-                if motion["accent"] != "none" and model_last_line and model_line_fs:
-                    events.extend(_hook_accent_events(
-                        motion["accent"], model_last_line, model_line_fs, model_y, model_colour,
-                        x_center, hook_font, start_t, end_t,
-                        exit_start_ms, exit_end_ms, motion["stagger"],
-                    ))
+            hook_ctx = {
+                "video_width": video_width,
+                "video_height": video_height,
+                "hook_fs": hook_fs,
+                "hook_font": hook_font,
+                "caption_color": caption_color,
+            }
+            events.extend(overlay_events(hook_overlay, hook_ctx))
 
         # Batch-translate whatever is still missing an English line.
         #
@@ -931,157 +692,15 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         # 4. Custom Text Overlays (Freeform multi-layer text lines)
         if text_items:
             for item in text_items:
-                # A text overlay is a one-tier overlay, so its look resolves
-                # exactly the way a banner tier's does -- which is what finally
-                # lets one carry a coloured outline, a real font, and caps.
-                look = resolve_look(item.get("look"), ((item.get("tiers") or [{}])[0] or {}).get("look"))
-                txt = str(((item.get("tiers") or [{}])[0] or {}).get("text") or "").strip()
-                if look["upper"]:
-                    txt = txt.upper()
-                if not txt:
-                    continue
-                try:
-                    start_sec = float(item.get("start", 0.0))
-                except (TypeError, ValueError):
-                    start_sec = 0.0
-                try:
-                    end_sec = float(item.get("end", start_sec + 2.5))
-                except (TypeError, ValueError):
-                    end_sec = start_sec + 2.5
-                if end_sec <= start_sec:
-                    end_sec = start_sec + 1.0
-
-                start_t = cls._format_ass_time(start_sec)
-                end_t = cls._format_ass_time(end_sec)
-
-                if "x" in item and item.get("x") is not None and "y" in item and item.get("y") is not None:
-                    try:
-                        x_pos = int(round(video_width * float(item["x"])))
-                        y_pos = int(round(video_height * float(item["y"])))
-                    except (TypeError, ValueError):
-                        pos = item.get("position", "middle")
-                        y_ratio = TEXT_OVERLAY_POSITIONS.get(pos, 0.50)
-                        y_pos = int(round(video_height * y_ratio))
-                        x_pos = video_width // 2
-                else:
-                    pos = item.get("position", "middle")
-                    y_ratio = TEXT_OVERLAY_POSITIONS.get(pos, 0.50)
-                    y_pos = int(round(video_height * y_ratio))
-                    x_pos = video_width // 2
-
-                scale = min(2.5, max(0.4, float(look["size_pct"]) / 100.0))
-
-                colour_value = look["color"]
-                if colour_value == ACCENT_COLOR:
-                    colour_value = caption_color
-                color_hex = ass_colour(colour_value) or "&H00FFFFFF"
-                # The outline was a Style-level literal -- one black 5.0 for
-                # every overlay, which is why a text overlay could never reach
-                # the look a banner template could.
-                outline_hex = ass_colour(look["outline_color"]) or "&H00000000"
-                outline_px = float(look["outline_px"])
-                # The font was written by the inspector and read by nobody:
-                # this writer never looked at it and the canvas took the
-                # caption's. It is the look's font on both sides now.
-                item_font = font_map.get(look["font"], look["font"])
-                if item_font not in {f["family"] for f in AssetRegistry.fonts()}:
-                    item_font = resolved_font
-                pill = look["pill"] or None
-                anim = (item.get("anim") or {}).get("in") or "snap"
-
-                dur_ms = int(round((end_sec - start_sec) * 1000))
-                exit_start_ms = max(50, dur_ms - 150)
-                exit_tag = f"\\t({exit_start_ms},{dur_ms},\\alpha&HFF&)"
-
-                target_scale = int(round(100 * scale * TEXT_SCALE_BOOST))
-                anim_tag = ""
-                pos_tag = f"\\an5\\pos({x_pos},{y_pos})"
-
-                # Preset names, not kinds: `snap`/`pop_zoom`/`quick_fade`/`rise`
-                # are what a text overlay's old pop/zoom/fade/slide are called
-                # in the shared table, where the banner's own pop and fade
-                # already meant different keyframes. Same numbers as before.
-                if anim == "snap":
-                    snap_from = int(round(target_scale * 1.25))
-                    anim_tag = f"\\fscx{snap_from}\\fscy{snap_from}\\t(0,70,\\fscx{target_scale}\\fscy{target_scale})"
-                elif anim == "pop_zoom":
-                    snap_from = int(round(target_scale * 1.45))
-                    anim_tag = f"\\fscx{snap_from}\\fscy{snap_from}\\t(0,100,\\fscx{target_scale}\\fscy{target_scale})"
-                elif anim == "stamp":
-                    snap_from = int(round(target_scale * 1.65))
-                    anim_tag = f"\\fscx{snap_from}\\fscy{snap_from}\\t(0,80,\\fscx{target_scale}\\fscy{target_scale})"
-                elif anim == "quick_fade":
-                    anim_tag = f"\\fscx{target_scale}\\fscy{target_scale}\\alpha&HFF&\\t(0,150,\\alpha&H00&)"
-                elif anim == "rise":
-                    pos_tag = f"\\an5\\move({x_pos},{y_pos + 40},{x_pos},{y_pos},0,200)"
-                    anim_tag = f"\\fscx{target_scale}\\fscy{target_scale}\\alpha&HFF&\\t(0,200,\\alpha&H00&)"
-                else:  # none
-                    anim_tag = f"\\fscx{target_scale}\\fscy{target_scale}"
-
-                render_fs = int(round(base_fs * scale))
-                line_list = [l.strip() for l in txt.split("\n") if l.strip()]
-                clean_lines = "\\N".join(line_list)
-
-                # Layer 3: a rounded pill behind the block, when the look has one
-                if pill and line_list:
-                    # libass advances one full font size per \N (measured, and
-                    # LINE_HEIGHT_FACTOR everywhere else), so the 1.2 this used
-                    # made every badge 20% taller than the text it wrapped.
-                    line_h = round(render_fs * LINE_HEIGHT_FACTOR)
-                    total_h = len(line_list) * line_h
-                    max_line_w = 0
-                    for l in line_list:
-                        w = _measure_text_width_px(l, item_font, render_fs)
-                        if w is None:
-                            w = int(len(l) * render_fs * 0.55)
-                        if w > max_line_w:
-                            max_line_w = w
-                    pad_x = round(render_fs * float(pill.get("pad_x_em") or 0.6))
-                    pad_y = round(render_fs * float(pill.get("pad_y_em") or 0.35))
-                    pill_w = max_line_w + pad_x * 2
-                    pill_h = total_h + pad_y * 2
-                    pill_x = x_pos - pill_w / 2
-                    pill_y = y_pos - total_h / 2 - pad_y
-                    radius = min(round(pill_h / 2), 28)
-                    pill_path = _ass_rounded_pill_path(pill_w, pill_h, radius)
-
-                    # The fill is the look's own colour now, and its alpha
-                    # comes off the rgba() the canvas paints -- the two used to
-                    # be a named bgStyle here and a colour literal there, which
-                    # is how the badge ended up twice as opaque in one of them.
-                    pill_hex, pill_opacity = _pill_fill_to_ass(pill.get("fill"))
-                    base_alpha = f"&H{int(round((1 - pill_opacity) * 255)):02X}&"
-
-                    if anim == "rise":
-                        pill_pos = f"\\an7\\move({pill_x:.0f},{pill_y + 40:.0f},{pill_x:.0f},{pill_y:.0f},0,200)"
-                        pill_anim = f"\\alpha&HFF&\\t(0,200,\\alpha{base_alpha})"
-                    elif anim == "quick_fade":
-                        pill_pos = f"\\an7\\pos({pill_x:.0f},{pill_y:.0f})"
-                        pill_anim = f"\\alpha&HFF&\\t(0,150,\\alpha{base_alpha})"
-                    elif anim in ("snap", "pop_zoom", "stamp"):
-                        pill_pos = f"\\an7\\pos({pill_x:.0f},{pill_y:.0f})"
-                        dur_anim = 70 if anim == "snap" else (100 if anim == "pop_zoom" else 80)
-                        pill_anim = f"\\alpha&HFF&\\t(0,{dur_anim},\\alpha{base_alpha})"
-                    else:  # none
-                        pill_pos = f"\\an7\\pos({pill_x:.0f},{pill_y:.0f})"
-                        pill_anim = f"\\alpha{base_alpha}"
-
-                    # A pill can carry a border (the neon badge is a wash plus
-                    # a bright edge). The preview drew one and this writer had
-                    # no way to say it, so the badge came back as a flat block.
-                    border_hex = ass_colour(pill.get("border")) if pill.get("border") else None
-                    edge = f"\\bord3\\3c{border_hex}&" if border_hex else "\\bord0"
-                    pill_tag = f"{pill_pos}\\p1{edge}\\shad0\\c{pill_hex}&{pill_anim}{exit_tag}"
-                    events.append(f"Dialogue: 3,{start_t},{end_t},TextOverlayMain,,0,0,0,,{{{pill_tag}}}{pill_path}")
-
-                # Layer 4: the glyphs, with the look's own font, outline colour
-                # and outline width -- all three were Style-level literals, so
-                # a text overlay could never look like anything but the default.
-                events.append(
-                    f"Dialogue: 4,{start_t},{end_t},TextOverlayMain,,0,0,0,,"
-                    f"{{{pos_tag}{anim_tag}\\fn{item_font}\\c{color_hex}&"
-                    f"\\3c{outline_hex}&\\bord{outline_px:.1f}{exit_tag}}}{clean_lines}"
-                )
+                text_ctx = {
+                    "video_width": video_width,
+                    "video_height": video_height,
+                    "base_fs": base_fs,
+                    "resolved_font": resolved_font,
+                    "font_map": font_map,
+                    "caption_color": caption_color,
+                }
+                events.extend(overlay_events(item, text_ctx))
 
         content = header + "\n".join(events) + "\n"
         out_path.write_text(content, encoding="utf-8")

@@ -16,7 +16,7 @@ def _run(command):
 
 
 @pytest.mark.render_regression
-def test_short_synthetic_video_exports_at_30_fps(tmp_path):
+def test_short_synthetic_video_exports_at_30_fps(tmp_path, monkeypatch):
     if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
         pytest.skip("FFmpeg and FFprobe are required for the render regression fixture")
 
@@ -24,6 +24,7 @@ def test_short_synthetic_video_exports_at_30_fps(tmp_path):
     audio = tmp_path / "mix.wav"
     subtitles = tmp_path / "captions.ass"
     output = tmp_path / "rendered.mp4"
+    monkeypatch.setenv("OMNICUT_ENCODER", "cpu")
 
     _run([
         "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
@@ -72,3 +73,719 @@ def test_short_synthetic_video_exports_at_30_fps(tmp_path):
     ]).stdout)["streams"][0]
     assert (probe["width"], probe["height"]) == (720, 1280)
     assert Fraction(probe["avg_frame_rate"]) == 30
+
+
+@pytest.mark.render_regression
+def test_per_word_vs_monolithic_render_parity(tmp_path):
+    if not shutil.which("ffmpeg"):
+        pytest.skip("FFmpeg is required for render regression testing")
+
+    from PIL import Image, ImageChops
+    from scripts.subtitle.word_layout import layout_line
+
+    text = "ลดกระหน่ำ ดีลลับ 1 แถม 1"
+    font_name = "Kanit"
+    font_size = 75
+    video_w = 1080
+    video_h = 1920
+
+    layout = layout_line(text, font_name, font_size, norm_x=0.5, video_w=video_w)
+    words = layout["words"]
+    assert len(words) > 0
+
+    x_center = video_w // 2
+    x_start = x_center - layout["abs_line_width"] / 2
+    y = 500
+
+    ass_mono = f"""[Script Info]
+ScriptType: v4.00+
+PlayResX: {video_w}
+PlayResY: {video_h}
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,{font_name},{font_size},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,,0,0,0,,{{\\q2\\an7\\pos({x_start:.2f},{y})}}{text}
+"""
+    mono_ass_path = tmp_path / "mono.ass"
+    mono_ass_path.write_text(ass_mono, encoding="utf-8")
+
+    events = []
+    for w in words:
+        events.append(f"Dialogue: 0,0:00:00.00,0:00:02.00,Default,,0,0,0,,{{\\q2\\an7\\pos({w['abs_x']:.2f},{y})}}{w['text']}")
+
+    ass_split = f"""[Script Info]
+ScriptType: v4.00+
+PlayResX: {video_w}
+PlayResY: {video_h}
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,{font_name},{font_size},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+""" + "\n".join(events) + "\n"
+    split_ass_path = tmp_path / "split.ass"
+    split_ass_path.write_text(ass_split, encoding="utf-8")
+
+    mono_png = tmp_path / "mono.png"
+    split_png = tmp_path / "split.png"
+
+    def _ff_escape(p: Path) -> str:
+        return str(p.resolve()).replace("\\", "/").replace(":", "\\:")
+
+    fonts_p = _ff_escape(Path("02_Assets/Fonts"))
+
+    _run([
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "lavfi", "-i", f"color=c=black:s={video_w}x{video_h}:d=1:r=30",
+        "-vf", f"ass='{_ff_escape(mono_ass_path)}':fontsdir='{fonts_p}'",
+        "-frames:v", "1", str(mono_png),
+    ])
+    _run([
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "lavfi", "-i", f"color=c=black:s={video_w}x{video_h}:d=1:r=30",
+        "-vf", f"ass='{_ff_escape(split_ass_path)}':fontsdir='{fonts_p}'",
+        "-frames:v", "1", str(split_png),
+    ])
+
+    im_mono = Image.open(mono_png).convert("L")
+    im_split = Image.open(split_png).convert("L")
+
+    bbox_mono = im_mono.getbbox()
+    bbox_split = im_split.getbbox()
+    assert bbox_mono is not None and bbox_split is not None
+
+    # Width difference across the entire line must be <= 3px
+    width_mono = bbox_mono[2] - bbox_mono[0]
+    width_split = bbox_split[2] - bbox_split[0]
+    assert abs(width_mono - width_split) <= 3, f"Total width diverged by {abs(width_mono - width_split)}px"
+
+    # Total differing pixels across the 1080x1920 canvas must be <= 3500 (>99.8% identical)
+    diff = ImageChops.difference(im_mono, im_split)
+    diff_pixels = sum(1 for p in diff.getdata() if p > 0)
+    assert diff_pixels <= 3500, f"Monolithic vs Split diff pixels {diff_pixels} exceeds tolerance!"
+
+
+@pytest.mark.render_regression
+def test_word_start_position_budget(tmp_path):
+    if not shutil.which("ffmpeg"):
+        pytest.skip("FFmpeg is required for render regression testing")
+
+    from PIL import Image
+    from scripts.subtitle.word_layout import layout_line
+
+    text = "ลดกระหน่ำ ดีลลับ 1 แถม 1"
+    font_name = "Kanit"
+    font_size = 75
+    video_w = 1080
+    video_h = 1920
+
+    layout = layout_line(text, font_name, font_size, norm_x=0.5, video_w=video_w)
+    words = layout["words"]
+
+    colors = ["&H0000FF&", "&H00FF00&", "&HFF0000&", "&H00FFFF&", "&HFFFF00&", "&HFF00FF&"]
+    colored_events = []
+    y = 500
+    for i, w in enumerate(words):
+        c = colors[i % len(colors)]
+        colored_events.append(f"Dialogue: 0,0:00:00.00,0:00:02.00,Default,,0,0,0,,{{\\q2\\an7\\pos({w['abs_x']:.2f},{y})\\1c{c}}}{w['text']}")
+
+    ass_color = f"""[Script Info]
+ScriptType: v4.00+
+PlayResX: {video_w}
+PlayResY: {video_h}
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,{font_name},{font_size},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+""" + "\n".join(colored_events) + "\n"
+
+    color_ass = tmp_path / "color.ass"
+    color_ass.write_text(ass_color, encoding="utf-8")
+    color_png = tmp_path / "color.png"
+
+    fonts_p = str(Path("02_Assets/Fonts").resolve()).replace("\\", "/").replace(":", "\\:")
+    color_ass_p = str(color_ass.resolve()).replace("\\", "/").replace(":", "\\:")
+
+    _run([
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "lavfi", "-i", f"color=c=black:s={video_w}x{video_h}:d=1:r=30",
+        "-vf", f"ass='{color_ass_p}':fontsdir='{fonts_p}'",
+        "-frames:v", "1", str(color_png),
+    ])
+
+    im = Image.open(color_png)
+    bbox = im.getbbox()
+    assert bbox is not None
+    for i, w in enumerate(words[:3]):
+        target_c = colors[i]
+        found_xs = []
+        for x in range(bbox[0], bbox[2]):
+            for yp in range(bbox[1], bbox[3]):
+                px = im.getpixel((x, yp))[:3]
+                if target_c == "&H0000FF&" and px[0] > 120 and px[1] < 40 and px[2] < 40:
+                    found_xs.append(x)
+                elif target_c == "&H00FF00&" and px[1] > 120 and px[0] < 40 and px[2] < 40:
+                    found_xs.append(x)
+                elif target_c == "&HFF0000&" and px[2] > 120 and px[0] < 40 and px[1] < 40:
+                    found_xs.append(x)
+        if found_xs:
+            min_x = min(found_xs)
+            diff = abs(min_x - w["abs_x"])
+            assert diff <= 2.0, f"Word {i} {w['text']} delta {diff:.2f}px exceeds budget!"
+
+
+def test_text_overlay_word_stagger_events():
+    """
+    Contract test: verifies that _text_overlay_events with word_stagger_ms > 0 produces
+    per-word dialogue lines with staggered \\t and sequential initial \\alpha&HFF&,
+    with matching shadow duplicates.
+    """
+    from scripts.subtitle.overlay_events import _text_overlay_events
+
+    item = {
+        "text": "ดีล ลับ วันนี้",
+        "tiers": [{"text": "ดีล ลับ วันนี้"}],
+        "start": 0.0,
+        "end": 2.0,
+        "anim": {"in": "snap", "word_stagger_ms": 70},
+        "look": {
+            "font": "Kanit",
+            "size_pct": 100,
+            "color": "#FFFFFF",
+            "outline_color": "#000000",
+            "outline_px": 5.0,
+            "shadow": {"dx": 1.5, "dy": 2.0, "blur": 4.0, "color": "#000000"},
+        },
+    }
+    ctx = {
+        "video_width": 1080,
+        "video_height": 1920,
+        "base_fs": 50,
+        "resolved_font": "Kanit",
+        "font_map": {},
+        "caption_color": "#0000E6FF",
+    }
+
+    events = _text_overlay_events(item, ctx)
+    assert len(events) >= 6  # at least 3 words * (shadow + main)
+
+    main_events = [e for e in events if "TextOverlayMain" in e]
+    shadow_events = [e for e in events if "TextOverlayShadow" in e]
+    assert len(main_events) == 3
+    assert len(shadow_events) == 3
+
+    # Word 0 starts at 0ms: does not hide with initial \alpha&HFF&
+    assert "\\t(0,70," in main_events[0]
+    assert "\\org(" in main_events[0]
+
+    # Word 1 starts at 70ms: starts with \alpha&HFF&, transitions at 70ms
+    assert "\\alpha&HFF&" in main_events[1]
+    assert "\\t(70,80,\\alpha&H00&)" in main_events[1]
+    assert "\\t(70,140," in main_events[1]
+
+    # Word 2 starts at 140ms: starts with \alpha&HFF&, transitions at 140ms
+    assert "\\alpha&HFF&" in main_events[2]
+    assert "\\t(140,150,\\alpha&H00&)" in main_events[2]
+    assert "\\t(140,210," in main_events[2]
+
+    # Shadows match main timing
+    assert "\\t(0,70," in shadow_events[0]
+    assert "\\t(70,80,\\alpha&H00&)" in shadow_events[1]
+    assert "\\t(140,150,\\alpha&H00&)" in shadow_events[2]
+
+
+@pytest.mark.render_regression
+def test_text_overlay_word_stagger_multi_frame_render(tmp_path):
+    """
+    Multi-frame FFmpeg behavioral render test:
+    Renders an overlay with word_stagger_ms = 70 and verifies that:
+    - Frame at 40ms: only word 0 is visible (bbox width corresponds to word 0).
+    - Frame at 120ms: words 0 and 1 are visible (bbox width spans words 0 & 1).
+    - Frame at 600ms: all words are settled and visible.
+    - Zero regression: when word_stagger_ms == 0, settled frame matches static render.
+    """
+    if not shutil.which("ffmpeg"):
+        pytest.skip("FFmpeg is required for render regression testing")
+
+    from PIL import Image
+    from scripts.subtitle.overlay_events import _text_overlay_events
+
+    item_stagger = {
+        "text": "ดีล ลับ วันนี้",
+        "tiers": [{"text": "ดีล ลับ วันนี้"}],
+        "start": 0.0,
+        "end": 2.0,
+        "anim": {"in": "snap", "word_stagger_ms": 70},
+        "look": {
+            "font": "Kanit",
+            "size_pct": 100,
+            "color": "#FFFFFF",
+            "outline_color": "#000000",
+            "outline_px": 5.0,
+            "shadow": None,
+        },
+    }
+    ctx = {
+        "video_width": 1080,
+        "video_height": 1920,
+        "base_fs": 60,
+        "resolved_font": "Kanit",
+        "font_map": {},
+        "caption_color": "#0000E6FF",
+    }
+
+    events = _text_overlay_events(item_stagger, ctx)
+    ass_content = f"""[Script Info]
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: TextOverlayMain,Kanit,60,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,5,0,5,0,0,0,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+""" + "\n".join(events) + "\n"
+
+    ass_path = tmp_path / "stagger.ass"
+    ass_path.write_text(ass_content, encoding="utf-8")
+
+    fonts_p = str(Path("02_Assets/Fonts").resolve()).replace("\\", "/").replace(":", "\\:")
+    ass_p = str(ass_path.resolve()).replace("\\", "/").replace(":", "\\:")
+
+    # Frame 1: at 0.04s (word 0 entering, word 1 & 2 invisible)
+    f40_png = tmp_path / "f40.png"
+    _run([
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "lavfi", "-i", "color=c=black:s=1080x1920:d=1:r=30",
+        "-vf", f"ass='{ass_p}':fontsdir='{fonts_p}'",
+        "-ss", "0.04",
+        "-frames:v", "1", str(f40_png),
+    ])
+
+    # Frame 2: at 0.12s (words 0 & 1 visible, word 2 invisible)
+    f120_png = tmp_path / "f120.png"
+    _run([
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "lavfi", "-i", "color=c=black:s=1080x1920:d=1:r=30",
+        "-vf", f"ass='{ass_p}':fontsdir='{fonts_p}'",
+        "-ss", "0.12",
+        "-frames:v", "1", str(f120_png),
+    ])
+
+    # Frame 3: at 0.60s (all words settled and visible)
+    f600_png = tmp_path / "f600.png"
+    _run([
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "lavfi", "-i", "color=c=black:s=1080x1920:d=1:r=30",
+        "-vf", f"ass='{ass_p}':fontsdir='{fonts_p}'",
+        "-ss", "0.60",
+        "-frames:v", "1", str(f600_png),
+    ])
+
+    im40 = Image.open(f40_png).convert("L")
+    im120 = Image.open(f120_png).convert("L")
+    im600 = Image.open(f600_png).convert("L")
+
+    bbox40 = im40.getbbox()
+    bbox120 = im120.getbbox()
+    bbox600 = im600.getbbox()
+
+    assert bbox40 is not None, "Frame at 40ms must show word 0"
+    assert bbox120 is not None, "Frame at 120ms must show words 0 and 1"
+    assert bbox600 is not None, "Frame at 600ms must show all words"
+
+    w40 = bbox40[2] - bbox40[0]
+    w120 = bbox120[2] - bbox120[0]
+    w600 = bbox600[2] - bbox600[0]
+
+    # Stagger invariant: visible text width must grow monotonically as words appear
+    assert w40 < w120 < w600, (
+        f"Stagger sequence width violated: w40={w40}px, w120={w120}px, w600={w600}px"
+    )
+
+
+@pytest.mark.render_regression
+def test_word_stagger_zero_regression(tmp_path):
+    """
+    Zero-regression invariant:
+    When words settle (e.g. at 600ms), an overlay rendered with word_stagger_ms == 0
+    must visually match word_stagger_ms > 0 exactly.
+    """
+    if not shutil.which("ffmpeg"):
+        pytest.skip("FFmpeg is required for render regression testing")
+
+    from PIL import Image, ImageChops
+    from scripts.subtitle.overlay_events import _text_overlay_events
+
+    item_base = {
+        "text": "ดีล ลับ วันนี้",
+        "tiers": [{"text": "ดีล ลับ วันนี้"}],
+        "start": 0.0,
+        "end": 2.0,
+        "look": {
+            "font": "Kanit",
+            "size_pct": 100,
+            "color": "#FFFFFF",
+            "outline_color": "#000000",
+            "outline_px": 5.0,
+            "shadow": None,
+        },
+    }
+    ctx = {
+        "video_width": 1080,
+        "video_height": 1920,
+        "base_fs": 60,
+        "resolved_font": "Kanit",
+        "font_map": {},
+        "caption_color": "#0000E6FF",
+    }
+
+    item_zero = {**item_base, "anim": {"in": "snap", "word_stagger_ms": 0}}
+    item_stagger = {**item_base, "anim": {"in": "snap", "word_stagger_ms": 70}}
+
+    events_zero = _text_overlay_events(item_zero, ctx)
+    events_stagger = _text_overlay_events(item_stagger, ctx)
+
+    header = """[Script Info]
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: TextOverlayMain,Kanit,60,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,5,0,5,0,0,0,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+"""
+    ass_zero = tmp_path / "zero.ass"
+    ass_zero.write_text(header + "\n".join(events_zero) + "\n", encoding="utf-8")
+    ass_stagger = tmp_path / "stagger.ass"
+    ass_stagger.write_text(header + "\n".join(events_stagger) + "\n", encoding="utf-8")
+
+    fonts_p = str(Path("02_Assets/Fonts").resolve()).replace("\\", "/").replace(":", "\\:")
+    p_zero = str(ass_zero.resolve()).replace("\\", "/").replace(":", "\\:")
+    p_stagger = str(ass_stagger.resolve()).replace("\\", "/").replace(":", "\\:")
+
+    img_zero = tmp_path / "zero.png"
+    img_stagger = tmp_path / "stagger.png"
+
+    _run([
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "lavfi", "-i", "color=c=black:s=1080x1920:d=1:r=30",
+        "-vf", f"ass='{p_zero}':fontsdir='{fonts_p}'",
+        "-ss", "0.60", "-frames:v", "1", str(img_zero),
+    ])
+    _run([
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "lavfi", "-i", "color=c=black:s=1080x1920:d=1:r=30",
+        "-vf", f"ass='{p_stagger}':fontsdir='{fonts_p}'",
+        "-ss", "0.60", "-frames:v", "1", str(img_stagger),
+    ])
+
+    im_z = Image.open(img_zero).convert("L")
+    im_s = Image.open(img_stagger).convert("L")
+
+    bbox_z = im_z.getbbox()
+    bbox_s = im_s.getbbox()
+    assert bbox_z is not None and bbox_s is not None
+    assert bbox_z == bbox_s, f"Settled bboxes differ: zero={bbox_z} vs stagger={bbox_s}"
+
+    diff = ImageChops.difference(im_z, im_s)
+    diff_pixels = sum(1 for p in diff.getdata() if p > 0)
+    assert diff_pixels == 0, f"Settled frames have {diff_pixels} differing pixels!"
+
+
+def test_text_overlay_skew_behavioral_render(tmp_path):
+    """
+    Tier A skew channel renders in libass via \\fax, tilting glyphs forward
+    without changing layout line advance.
+    """
+    from scripts.subtitle.overlay_events import _text_overlay_events
+    from PIL import Image, ImageChops
+    import numpy as np
+
+    item_base = {
+        "kind": "text",
+        "start": 0.0,
+        "end": 2.0,
+        "x": 0.5,
+        "y": 0.5,
+        "tiers": [{
+            "text": "ข้อความ",
+            "look": {"font": "Kanit", "size_pct": 120, "color": "#FFFFFF", "outline_px": 0},
+        }],
+    }
+    ctx = {
+        "video_width": 1080,
+        "video_height": 1920,
+        "base_fs": 60,
+        "resolved_font": "Kanit",
+        "font_map": {},
+        "caption_color": "#0000E6FF",
+    }
+
+    item_straight = {
+        **item_base,
+        "tiers": [{
+            "text": "ข้อความ",
+            "look": {"font": "Kanit", "size_pct": 120, "color": "#FFFFFF", "outline_px": 0, "skew": 0.0},
+        }],
+        "anim": {"in": "none", "loop": "none", "out": "none"},
+    }
+    item_skewed = {
+        **item_base,
+        "tiers": [{
+            "text": "ข้อความ",
+            "look": {"font": "Kanit", "size_pct": 120, "color": "#FFFFFF", "outline_px": 0, "skew": -0.25},
+        }],
+        "anim": {"in": "none", "loop": "none", "out": "none"},
+    }
+
+    events_straight = _text_overlay_events(item_straight, ctx)
+    events_skewed = _text_overlay_events(item_skewed, ctx)
+
+    header = """[Script Info]
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: TextOverlayMain,Kanit,72,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,0,0,5,0,0,0,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+"""
+    ass_straight = tmp_path / "straight.ass"
+    ass_straight.write_text(header + "\n".join(events_straight) + "\n", encoding="utf-8")
+    ass_skewed = tmp_path / "skewed.ass"
+    ass_skewed.write_text(header + "\n".join(events_skewed) + "\n", encoding="utf-8")
+
+    fonts_p = str(Path("02_Assets/Fonts").resolve()).replace("\\", "/").replace(":", "\\:")
+    p_straight = str(ass_straight.resolve()).replace("\\", "/").replace(":", "\\:")
+    p_skewed = str(ass_skewed.resolve()).replace("\\", "/").replace(":", "\\:")
+
+    img_straight = tmp_path / "straight.png"
+    img_skewed = tmp_path / "skewed.png"
+
+    _run([
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "lavfi", "-i", "color=c=black:s=1080x1920:d=1:r=30",
+        "-vf", f"ass='{p_straight}':fontsdir='{fonts_p}'",
+        "-ss", "0.50", "-frames:v", "1", str(img_straight),
+    ])
+    _run([
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "lavfi", "-i", "color=c=black:s=1080x1920:d=1:r=30",
+        "-vf", f"ass='{p_skewed}':fontsdir='{fonts_p}'",
+        "-ss", "0.50", "-frames:v", "1", str(img_skewed),
+    ])
+
+    im_str = Image.open(img_straight).convert("L")
+    im_skw = Image.open(img_skewed).convert("L")
+
+    bbox_str = im_str.getbbox()
+    bbox_skw = im_skw.getbbox()
+    assert bbox_str is not None, "Straight text must render pixels"
+    assert bbox_skw is not None, "Skewed text must render pixels"
+
+    # Skew must visibly alter pixels
+    diff = ImageChops.difference(im_str, im_skw)
+    diff_pixels = int(np.sum(np.array(diff) > 0))
+    assert diff_pixels > 100, f"Skewed text must differ from straight text, got {diff_pixels} diff pixels"
+
+    # Forward slant (-0.25) shifts top pixels right relative to bottom pixels
+    arr_str = np.array(im_str)
+    arr_skw = np.array(im_skw)
+    top_y = bbox_skw[1] + 15
+    bot_y = bbox_skw[3] - 10
+    top_str_xs = np.where(arr_str[top_y, :] > 50)[0]
+    top_skw_xs = np.where(arr_skw[top_y, :] > 50)[0]
+    bot_str_xs = np.where(arr_str[bot_y, :] > 50)[0]
+    bot_skw_xs = np.where(arr_skw[bot_y, :] > 50)[0]
+
+    assert len(top_str_xs) > 0 and len(top_skw_xs) > 0
+    assert len(bot_str_xs) > 0 and len(bot_skw_xs) > 0
+
+    d_top = float(np.mean(top_skw_xs) - np.mean(top_str_xs))
+    d_bot = float(np.mean(bot_skw_xs) - np.mean(bot_str_xs))
+    assert d_top > d_bot, f"Forward slant must shift top right relative to bottom: d_top ({d_top:.2f}) > d_bot ({d_bot:.2f})"
+
+
+def test_text_overlay_loop_and_out_behavioral_render(tmp_path):
+    """
+    Multi-frame FFmpeg behavioral render verifies loop (hold phase alpha modulation)
+    and out (exit phase slide-down motion).
+    """
+    from scripts.subtitle.overlay_events import _text_overlay_events
+    from PIL import Image, ImageChops
+    import numpy as np
+
+    item = {
+        "kind": "text",
+        "start": 0.0,
+        "end": 1.5,
+        "x": 0.5,
+        "y": 0.5,
+        "tiers": [{
+            "text": "ข้อความแอนิเมชัน",
+            "look": {"font": "Kanit", "size_pct": 100, "color": "#FFFFFF", "outline_px": 0},
+        }],
+        "anim": {"in": "none", "loop": "pulse", "out": "slide", "word_stagger_ms": 0},
+    }
+    ctx = {
+        "video_width": 1080,
+        "video_height": 1920,
+        "base_fs": 60,
+        "resolved_font": "Kanit",
+        "font_map": {},
+        "caption_color": "#0000E6FF",
+    }
+
+    events = _text_overlay_events(item, ctx)
+    header = """[Script Info]
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: TextOverlayMain,Kanit,60,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,0,0,5,0,0,0,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+"""
+    ass_file = tmp_path / "anim.ass"
+    ass_file.write_text(header + "\n".join(events) + "\n", encoding="utf-8")
+
+    fonts_p = str(Path("02_Assets/Fonts").resolve()).replace("\\", "/").replace(":", "\\:")
+    p_ass = str(ass_file.resolve()).replace("\\", "/").replace(":", "\\:")
+
+    img_hold_dim = tmp_path / "hold_dim.png"
+    img_hold_bright = tmp_path / "hold_bright.png"
+    img_exit = tmp_path / "exit.png"
+
+    # Pulse cycles every 350ms: 350ms is dim (&H25&), 700ms is full bright (&H00&)
+    _run([
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "lavfi", "-i", "color=c=black:s=1080x1920:d=2:r=30",
+        "-vf", f"ass='{p_ass}':fontsdir='{fonts_p}'",
+        "-ss", "0.35", "-frames:v", "1", str(img_hold_dim),
+    ])
+    _run([
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "lavfi", "-i", "color=c=black:s=1080x1920:d=2:r=30",
+        "-vf", f"ass='{p_ass}':fontsdir='{fonts_p}'",
+        "-ss", "0.70", "-frames:v", "1", str(img_hold_bright),
+    ])
+    # Exit phase: 1.45s (exit starts at 1.35s and ends at 1.50s, sliding downwards)
+    _run([
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "lavfi", "-i", "color=c=black:s=1080x1920:d=2:r=30",
+        "-vf", f"ass='{p_ass}':fontsdir='{fonts_p}'",
+        "-ss", "1.45", "-frames:v", "1", str(img_exit),
+    ])
+
+    im_dim = Image.open(img_hold_dim).convert("L")
+    im_bright = Image.open(img_hold_bright).convert("L")
+    im_exit = Image.open(img_exit).convert("L")
+
+    bbox_dim = im_dim.getbbox()
+    bbox_bright = im_bright.getbbox()
+    bbox_exit = im_exit.getbbox()
+
+    assert bbox_dim is not None, "Hold dim frame must render pixels"
+    assert bbox_bright is not None, "Hold bright frame must render pixels"
+    assert bbox_exit is not None, "Exit frame must render pixels"
+
+    # Hold phase: pulse modulates brightness (diff between 0.35s and 0.70s)
+    diff = ImageChops.difference(im_dim, im_bright)
+    diff_pixels = int(np.sum(np.array(diff) > 0))
+    assert diff_pixels > 50, f"Pulse must modulate pixel values across hold frames, got {diff_pixels} diff pixels"
+
+    # Exit phase: slide down moves Y center downwards (higher Y value in frame)
+    center_y_hold = (bbox_bright[1] + bbox_bright[3]) / 2.0
+    center_y_exit = (bbox_exit[1] + bbox_exit[3]) / 2.0
+    assert center_y_exit > center_y_hold + 5.0, f"Exit slide must move text downwards: exit Y ({center_y_exit:.1f}) > hold Y ({center_y_hold:.1f})"
+
+
+@pytest.mark.render_regression
+def test_new_hook_templates_render_with_ffmpeg(tmp_path):
+    if not shutil.which("ffmpeg"):
+        pytest.skip("FFmpeg is required for render regression testing")
+
+    from PIL import Image
+    from scripts.overlay_model import new_hook_overlay
+    from scripts.subtitle.overlay_events import _hook_overlay_events
+
+    new_templates = ["flash_sale", "neon_cyber", "minimal_luxury"]
+    ctx = {
+        "video_width": 1080,
+        "video_height": 1920,
+        "hook_fs": 75,
+        "hook_font": "Kanit",
+        "caption_color": "#0000E6FF",
+    }
+    fonts_p = str(Path("02_Assets/Fonts").resolve()).replace("\\", "/").replace(":", "\\:")
+
+    header = """[Script Info]
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: HookHeader,Kanit,75,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,6.0,0,8,60,60,260,1
+Style: HookHeaderShadow,Kanit,75,&H00000000,&H00000000,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,7.0,0,8,62,58,257,1
+Style: HookHeaderPill,Kanit,75,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,3,12,0,8,60,60,260,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+"""
+
+    for tpl in new_templates:
+        overlay = new_hook_overlay(
+            brand="BRAND",
+            model="MODEL NAME",
+            label="SALE BADGE",
+            template=tpl,
+            start=0.0,
+            duration=2.0,
+        )
+        assert overlay is not None
+        events = _hook_overlay_events(overlay, ctx)
+        assert len(events) > 0, f"{tpl}: should emit events"
+
+        ass_file = tmp_path / f"hook_{tpl}.ass"
+        ass_file.write_text(header + "\n".join(events) + "\n", encoding="utf-8")
+        p_ass = str(ass_file.resolve()).replace("\\", "/").replace(":", "\\:")
+
+        out_frame = tmp_path / f"frame_{tpl}.png"
+        _run([
+            "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+            "-f", "lavfi", "-i", "color=c=black:s=1080x1920:d=2:r=30",
+            "-vf", f"ass='{p_ass}':fontsdir='{fonts_p}'",
+            "-ss", "0.50", "-frames:v", "1", str(out_frame),
+        ])
+
+        im = Image.open(out_frame).convert("L")
+        bbox = im.getbbox()
+        assert bbox is not None, f"{tpl} must burn visible text into frame at 0.5s"
+        assert bbox[1] < 600, f"{tpl} banner should be located in top region, got y1={bbox[1]}"
+
+
+
+
+

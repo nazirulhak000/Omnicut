@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { sanitizeText, sanitizeScript } from './lib/sanitize';
+import { sanitizeText, sanitizeScript } from './lib/sanitize.js';
 
 const api = axios.create({
   baseURL: '/api',
@@ -48,6 +48,7 @@ export const getRawVault = () => api.get('/raw-vault').then(r => r.data);
 export const reassignRawVideo = (payload) => api.post('/raw-vault/reassign', payload).then(r => r.data);
 export const batchDeleteRawVideos = (videoPaths) => api.post('/raw-vault/batch-delete', { video_paths: videoPaths }).then(r => r.data);
 export const getExports = () => api.get('/exports').then(r => r.data);
+export const getExportMediaInfo = (path) => api.get('/exports/media-info', { params: { path } }).then(r => r.data);
 export const linkExportToAngle = (videoPath, productId, angleId) =>
   api.post('/exports/link-angle', { video_path: videoPath, product_id: productId, angle_id: angleId }).then(r => r.data);
 export const getSfxList = () => api.get('/sfx').then(r => r.data);
@@ -85,6 +86,32 @@ export const startRender = (data) => api.post('/render', {
 
 export const getRenderStatus = (jobId) => api.get(`/render/status/${jobId}`, { timeout: 15000 }).then(r => r.data);
 export const openFolder = (target) => api.post('/open-folder', { target }).then(r => r.data);
+
+// Round POST-1: desktop "post to TikTok" flow -- reveal a single file
+// pre-selected in Explorer (instead of just opening its folder), generate a
+// real jpg cover (TikTok's uploader rejects the gallery's .webp poster), and
+// close the Ready_to_post -> Posted lifecycle that never had a second half.
+export const revealFile = (filePath) => api.post('/reveal-file', { file_path: filePath }).then(r => r.data);
+
+export const generateCover = (videoPath, atSeconds, brand = '', model = '', label = '', template = null) =>
+  api.post('/covers/generate', {
+    video_path: videoPath, at_seconds: atSeconds, brand, model, label, template,
+  }).then(r => r.data);
+
+export const markPosted = (filePath, productId = null, angleId = null) =>
+  api.post('/exports/mark-posted', {
+    file_path: filePath, product_id: productId, angle_id: angleId,
+  }).then(r => r.data);
+
+// Round POST-2: hands a prepared job (abs paths + caption) to the
+// tiktok_autopost_extension/ Chrome extension, which polls
+// GET /api/tiktok-autopost/pending itself -- see that endpoint's docstring
+// for why the app can't message the extension directly.
+export const prepareTiktokAutopost = (videoPath, coverPath, caption, hashtags, productId = null, angleId = null, tiktokProductId = null) =>
+  api.post('/tiktok-autopost/prepare', {
+    video_path: videoPath, cover_path: coverPath, caption, hashtags,
+    product_id: productId, angle_id: angleId, tiktok_product_id: tiktokProductId,
+  }).then(r => r.data);
 
 export const transcribeMedia = (data) => api.post('/sub-srt/transcribe', data, { timeout: 180000 }).then(r => r.data);
 
@@ -132,13 +159,16 @@ export const scrapeAndPlanProduct = (payload) => {
 export const getProducts = (status) => api.get('/products', { params: status ? { status } : {} }).then(r => r.data);
 export const createProduct = (data) => api.post('/products', data).then(r => r.data);
 export const updateProduct = (id, data) => api.patch(`/products/${id}`, data).then(r => r.data);
-export const updateAngleStatus = (productId, angleId, status, videoUrl = null, projectName = null, qcNote = null, clearQcNote = false) =>
+export const resolveTiktokProductId = (urlOrId) =>
+  api.post('/products/resolve-tiktok-id', { url_or_id: urlOrId }).then(r => r.data);
+export const updateAngleStatus = (productId, angleId, status, videoUrl = null, projectName = null, qcNote = null, clearQcNote = false, clearConflictNote = false) =>
   api.patch(`/products/${productId}/angles/${angleId}`, {
     status,
     video_url: videoUrl,
     project_name: projectName,
     ...(qcNote !== null ? { qc_note: qcNote } : {}),
     ...(clearQcNote ? { clear_qc_note: true } : {}),
+    ...(clearConflictNote ? { clear_conflict_note: true } : {}),
   }).then(r => r.data);
 
 export const updateAngleVideos = (productId, angleId, selectedVideos) => api.post(`/products/${productId}/angles/${angleId}/videos`, { selected_videos: selectedVideos }).then(r => r.data);
@@ -192,6 +222,8 @@ export const clearCompletedTasksApi = () => api.post('/tasks/clear-completed').t
 export const getTokenSummary = () => api.get('/tokens/summary').then(r => r.data);
 export const getTokenHistory = (limit = 50) => api.get('/tokens/history', { params: { limit } }).then(r => r.data);
 export const resetTokenAnalytics = () => api.post('/tokens/reset').then(r => r.data);
+
+export const fetchOverlayLayout = (payload) => api.post('/editor/overlay/layout', payload).then(r => r.data);
 
 export default api;
 

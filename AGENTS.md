@@ -2,6 +2,20 @@
 
 คู่มือและกฎเหล็กสำหรับ AI Coding Assistants (Claude Code, Cursor, Copilot, Gemini CLI, ChatGPT) ในการทำงาน พัฒนาโค้ด และส่งต่องานในโปรเจกต์นี้
 
+> ## 🛑 อ่านก่อนแตะโค้ดบรรทัดแรก — ทุกครั้ง ทุกงาน ไม่ว่าเล็กหรือใหญ่
+>
+> 1. เปิด **[TODO.md](file:///d:/Winona/Programmer/Capcut/TODO.md)** ดูว่ารอบก่อนค้างอะไร
+>    (รอบที่ปิดแล้วอยู่ใน **[HISTORY.md](file:///d:/Winona/Programmer/Capcut/HISTORY.md)**)
+> 2. รัน `git status` ดูว่ามีงานของใครค้างใน working tree อยู่หรือเปล่า
+> 3. **เขียนแผนของรอบนี้ลง `TODO.md` ก่อน** แล้วค่อยลงมือ — เอกสารแผนต้องอยู่ในโปรเจกต์เสมอ
+>    ห้ามทิ้งไว้ใน `.claude/plans/` หรือโฟลเดอร์ชั่วคราว เพราะเจ้าของโปรเจกต์มองไม่เห็น
+> 4. **ปิดรอบแล้วย้ายบล็อกไป `HISTORY.md`** เหลือชื่อรอบบรรทัดเดียวใน `TODO.md`
+>
+> รายละเอียดทั้งหมดอยู่ที่ **[.agents/rules/work_loop.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/work_loop.md)**
+> — ถ้ามันไม่ได้อยู่ใน `TODO.md` แปลว่ามันไม่ได้เกิดขึ้น
+>
+> โครงสร้างระบบล่าสุดอยู่ที่ **[ARCHITECTURE.md](file:///d:/Winona/Programmer/Capcut/ARCHITECTURE.md)** และกฎทดสอบอยู่ที่ **[.agents/rules/testing_standard.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/testing_standard.md)**
+
 ---
 
 ## 🎯 1. ภาพรวมโปรเจกต์ (Project Overview)
@@ -85,6 +99,20 @@ AI ทุกตัว**ต้องเคารพโครงสร้างโ
    - ค่าคงที่ทุกตัวที่กำหนดภาพ (ratio, ระยะเวลา ms, factor, องศา, ความทึบ) ต้องเทียบกันได้เป็นตัวเลข และมี assertion ใน `tests/test_preview_render_parity.py`
    - กับดักที่เคยหลุดจริงและต้องระวังทุกครั้ง: ASS `\alpha` = ความ**โปร่ง** (ต้องแปลง `1 - 0xNN/255` ไม่ใช่ก็อปเลข), องศาหมุนต้องใช้เลขติดลบ (`-3` ไม่ใช่ `357` เพราะ `\t` จะกวาดอ้อม 180°), `strokeText` วางเส้นกึ่งกลางจึงต้องคูณสองจาก ASS Outline, libass เดินบรรทัดละ 1.0× font size พอดี
    - ห้ามสรุปว่า "ตรงแล้ว" จากการอ่านโค้ด — ต้อง **เรนเดอร์จริงด้วย ffmpeg แล้วดึงเฟรมมาดู/วัดพิกเซล** (motion ต้องดูหลายเฟรม: เข้า/ค้าง/ออก)
+10. ✔️ **วางแผนลง Todo กลางก่อนลงมือ ทุกรอบ (Plan-Before-Code):**
+   - **ต้องอ่านและปฏิบัติตาม [.agents/rules/work_loop.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/work_loop.md) ทุกรอบ**
+   - ไฟล์ Todo กลางมีที่เดียวคือ [TODO.md](file:///d:/Winona/Programmer/Capcut/TODO.md) — **ห้ามแตกไฟล์ todo ใหม่**
+   - **แผนต้องอยู่ในโปรเจกต์** ห้ามทิ้งไว้ใน `.claude/plans/` (เป็นแค่กระดาษทดของเครื่องมือ User มองไม่เห็น) — งานใหญ่ให้เพิ่มไฟล์ `<ชื่องาน>_PLAN.md` ที่รากโปรเจกต์
+   - **ปิดรอบแล้วต้องย้ายบล็อกเต็มไป [HISTORY.md](file:///d:/Winona/Programmer/Capcut/HISTORY.md)** + เพิ่มแถวในตารางสารบัญ แล้วเหลือชื่อรอบบรรทัดเดียวใน `TODO.md`
+   - ลำดับบังคับ: อ่าน `TODO.md` + `git status` → **เขียนแผนรอบนี้ลง `TODO.md` ก่อนแตะโค้ด** → ทำ → รัน Gate จริง → ติ๊กเฉพาะที่ผ่าน → เขียน Notes ที่มีตัวเลขจริง
+   - **ห้ามติ๊ก `[x]` เพราะเขียนโค้ดเสร็จ** ต้องผ่าน Gate ของข้อนั้นก่อน และห้ามลบข้อที่ทำไม่สำเร็จทิ้ง
+   - **งานใหม่ที่โผล่กลางทาง (บั๊กที่เจอ / user สั่งเพิ่ม) ต้องเขียนลง `TODO.md` ทันที** แล้วตัดสินใจว่าทำรอบนี้หรือคาไว้ใน Backlog พร้อมเหตุผล — ห้ามทำเงียบๆ
+   - ก่อนเริ่มต้องเช็คว่ามี AI หรือคนอื่นแก้ไฟล์เดียวกันค้างอยู่ไหม ถ้าซ้ำให้ถาม User ก่อน (เคยเกิดจริงจนแยก commit ไม่ได้)
+11. ✔️ **เขียนและรัน Test ตามชนิดงาน:**
+   - ต้องอ่านและทำตาม [.agents/rules/testing_standard.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/testing_standard.md)
+   - Test ต้อง deterministic/offline และใช้ temp storage ห้ามแก้ข้อมูลจริงใน `01_Raw/`, `02_Assets/`, `03_Projects/` หรือ `_Docs/post_log.json`
+   - ห้ามเพิ่ม manual script ที่มี side effect เป็น `tests/test_*.py`; ให้ย้ายไป `tools/`
+   - การแก้ visual contract ต้องมีทั้ง parity test และ FFmpeg behavioral render พร้อมตรวจหลายเฟรม
 
 ---
 
@@ -93,14 +121,22 @@ AI ทุกตัว**ต้องเคารพโครงสร้างโ
 | โมดูล / สคริปต์ | หน้าที่การทำงาน |
 | :--- | :--- |
 | `scripts/config.py` | ศูนย์รวมการตั้งค่า Path, สเปกวิดีโอ, เสียง TTS, และระดับเสียง |
-| `scripts/api_server.py` | FastAPI Server ให้บริการ Endpoint สำหรับ Web UI และคำสั่ง Pipeline |
-| `scripts/pipeline.py` | Orchestrator หลัก ควบคุมลำดับงานตั้งแต่สคริปต์จนถึงการตัดต่อ |
+| `scripts/api_server.py` | FastAPI app factory/mount point; route จริงแยกอยู่ใน `scripts/api_*.py` |
+| `scripts/api_schemas.py` | Pydantic request schemas ที่ router ใช้ร่วมกัน |
+| `scripts/media_service.py` | Path validation, metadata, streaming helpers |
+| `scripts/pipeline.py` | Orchestrator ที่ส่งงานผ่าน modular stages |
+| `scripts/pipeline_context.py` | State และ artifact contract ระหว่าง pipeline stages |
+| `scripts/stages/` | Source, Script, Voice, Subtitle, Audio Mix, Shot Matching และ Video Assembly |
 | `scripts/voice_engine.py` | ตัวจัดการสร้างเสียงสังเคราะห์ (Edge-TTS / gTTS) |
 | `scripts/gemini_tts_engine.py` | โมดูลแปลงเสียงด้วย Gemini Flash Audio Model |
-| `scripts/subtitle_engine.py` | ตัดแบ่งคำภาษาไทย สร้างไฟล์ `.srt` / `.ass` และเรนเดอร์ซับไตเติล |
+| `scripts/subtitle_engine.py` | Facade สำหรับสร้าง `.srt` / `.ass`; implementation ย่อยอยู่ใน `scripts/subtitle/` |
+| `scripts/overlay_model.py` | Overlay model ฝั่ง renderer ที่ mirror กับ frontend |
 | `scripts/product_scraper.py` | ดึงข้อมูล รายละเอียด และจุดขายสินค้าจากลิงก์ |
 | `tools/build_3d_pro_badges.py` | สร้างและตัดแยกชุดป้ายรีวิว 3D อัตโนมัติ |
-| `frontend/` | Dashboard React + Vite สำหรับพรีวิวและควบคุมโปรเจกต์ |
+| `frontend/src/lib/editorProjectState.js` | Manifest migration และ serializer กลางของ Save/Autosave |
+| `frontend/src/hooks/` | Project load/autosave, render job, commands, selection, layout และ cleanup |
+| `frontend/src/lib/timelineSchema.js` | Timeline Document v2 และ in-memory legacy migration |
+| `frontend/src/components/SequencePlayer.jsx` | Canvas/audio preview ที่ต้องรักษา parity กับ renderer |
 
 ---
 
@@ -119,9 +155,13 @@ AI ทุกตัว**ต้องเคารพโครงสร้างโ
   cd frontend
   npm run dev
   ```
-- **รันชุดทดสอบ (Unit Tests):**
-  ```bash
-  pytest tests/
+- **รัน Gate มาตรฐาน:**
+  ```powershell
+  python -m compileall -q scripts
+  python -m pytest tests/ -q -p no:cacheprovider --tb=short
+  Set-Location frontend
+  npm test
+  npm run build
   ```
 
 ---

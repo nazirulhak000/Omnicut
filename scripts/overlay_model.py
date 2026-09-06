@@ -52,10 +52,10 @@ TEXT_FS_RATIO = 0.0463
 # The last three are the ids the editor stores rather than family names --
 # a text overlay saves fontName 'IBMPlex', not 'IBM Plex Sans Thai'.
 FONT_WEIGHTS: Dict[str, int] = {
-    "Kanit": 900,
-    "Prompt": 800,
+    "Kanit": 700,
+    "Prompt": 700,
     "Chakra Petch": 700,
-    "Anuphan": 700,
+    "Anuphan": 400,
     "IBM Plex Sans Thai": 700,
     "Bai Jamjuree": 700,
     "Krub": 700,
@@ -66,8 +66,8 @@ FONT_WEIGHTS: Dict[str, int] = {
     "Itim": 400,
     "Chonburi": 400,
     "IBMPlex": 700,
-    "Noto Sans Thai": 700,
-    "NotoSansThai": 700,
+    "Noto Sans Thai": 400,
+    "NotoSansThai": 400,
 }
 DEFAULT_FONT_WEIGHT = 700
 
@@ -78,7 +78,7 @@ DEFAULT_FONT_WEIGHT = 700
 TEXT_LOOK_FIELDS: Tuple[str, ...] = (
     "font", "size_pct", "color",
     "outline_color", "outline_px",
-    "shadow", "pill", "upper",
+    "shadow", "pill", "upper", "skew",
 )
 
 # A dark copy of the glyphs, offset down-right. The render draws it as its own
@@ -115,6 +115,7 @@ DEFAULT_TEXT_LOOK: Dict[str, Any] = {
     "shadow": DEFAULT_SHADOW,
     "pill": None,
     "upper": False,
+    "skew": 0.0,
 }
 
 # ------------------------------------------------------- legacy vocabulary
@@ -134,7 +135,7 @@ LEGACY_BG_STYLES: Dict[str, Optional[Dict[str, Any]]] = {
 # two exits were the same picture under two spellings and only the entrance
 # needed reconciling.
 DEFAULT_ANIM: Dict[str, Any] = {
-    "in": "snap", "loop": "none", "out": "fade", "accent": "none", "stagger": False,
+    "in": "snap", "loop": "none", "out": "fade", "accent": "none", "stagger": False, "word_stagger_ms": 0,
 }
 # The banner's defaults, previously DEFAULT_HOOK_MOTION in subtitle_engine.py.
 HOOK_ANIM: Dict[str, Any] = {
@@ -314,7 +315,7 @@ def hook_overlay_from_legacy(
             {"text": texts[i], "look": _hook_tier_look(resolved["font"], resolved["tiers"][key])}
             for i, key in enumerate(TIER_KEYS)
         ],
-        "anim": {**HOOK_ANIM, **(motion or {})},
+        "anim": {**HOOK_ANIM, **(resolved.get("motion") or {}), **(motion or {})},
         # The banner is what the top gradient was always for; it is a property
         # of this overlay now rather than a second reading of hook_duration.
         "scrim": True,

@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<title>OmniCut TikTok Post Helper</title>
+<style>
+  body {
+    width: 330px;
+    margin: 0;
+    padding: 14px;
+    font-family: "Segoe UI", sans-serif;
+    background: #0b0f19;
+    color: #e2e8f0;
+  }
+  h1 {
+    font-size: 13px;
+    font-weight: 700;
+    margin: 0 0 10px;
+    color: #fff;
+  }
+  p {
+    font-size: 11px;
+    line-height: 1.5;
+    color: #94a3b8;
+    margin: 0 0 10px;
+  }
+  label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: #cbd5e1;
+    margin-bottom: 8px;
+    cursor: pointer;
+  }
+  .section-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+  }
+  .input-label {
+    font-size: 10px;
+    color: #94a3b8;
+    margin-bottom: 3px;
+    display: block;
+  }
+  textarea, input[type="text"] {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid #334155;
+    background: #0f172a;
+    color: #f8fafc;
+    font-size: 11px;
+    font-family: inherit;
+  }
+  textarea:focus, input[type="text"]:focus {
+    outline: none;
+    border-color: #38bdf8;
+  }
+  button {
+    width: 100%;
+    padding: 9px;
+    border: none;
+    border-radius: 10px;
+    background: #25f4ee;
+    color: #0b0f19;
+    font-weight: 700;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  button:disabled {
+    opacity: 0.5;
+    cursor: wait;
+  }
+  .btn-secondary {
+    background: rgba(37,244,238,0.1);
+    border: 1px solid rgba(37,244,238,0.4);
+    color: #25f4ee;
+    font-size: 11px;
+    margin-top: 6px;
+  }
+  .btn-outline {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #cbd5e1;
+    font-size: 11px;
+    margin-top: 6px;
+  }
+  #status {
+    margin-top: 10px;
+    font-size: 11px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  #status.error { color: #fca5a5; }
+  #status.success { color: #6ee7b7; }
+</style>
+</head>
+<body>
+  <h1>OmniCut TikTok Post Helper</h1>
+  <p>เปิดแท็บ tiktok.com/tiktokstudio/upload ที่ล็อกอินไว้แล้ว แล้วกดปุ่มด้านล่างหลังกด "โพสต์ TikTok อัตโนมัติ" ในแอป OmniCut</p>
+
+  <!-- Caption & Hashtags preview & edit -->
+  <div class="section-card">
+    <span class="input-label" style="font-weight: 600; color: #38bdf8;">📝 คำอธิบายคลิป (Caption):</span>
+    <textarea id="captionInput" rows="2" placeholder="คำอธิบายคลิปรีวิว..."></textarea>
+    <span class="input-label" style="margin-top: 6px; font-weight: 600; color: #38bdf8;">🏷️ แฮชแท็ก (Hashtags):</span>
+    <textarea id="hashtagsInput" rows="2" placeholder="#รีวิวของดี #พิกัดในตะกร้า..."></textarea>
+  </div>
+
+  <!-- Product Link (Affiliate Cart) -->
+  <div class="section-card">
+    <label style="margin-bottom: 6px; font-weight: 600; color: #38bdf8;">
+      <input type="checkbox" id="attachProduct" checked />
+      ปักตะกร้าสินค้า (เพิ่มลิงก์สินค้า)
+    </label>
+    <div style="display: flex; flex-direction: column; gap: 3px; margin-left: 20px;">
+      <span class="input-label">ID สินค้า (หรือคำค้นหา):</span>
+      <input type="text" id="productIdInput" value="1737088044189583209" style="font-family: monospace;" />
+    </div>
+  </div>
+
+  <label>
+    <input type="checkbox" id="scheduleMode" checked />
+    สลับเป็น "กำหนดเวลาโพสต์" (Schedule)
+  </label>
+  <label>
+    <input type="checkbox" id="autoClickPost" />
+    กด Post/กำหนดเวลา อัตโนมัติทันที
+  </label>
+
+  <button id="runBtn">เติมข้อมูลคลิป + ปักตะกร้า</button>
+  <button id="typeCaptionOnlyBtn" type="button" class="btn-outline">
+    📝 เติมเฉพาะคำอธิบายและแฮชแท็ก
+  </button>
+  <button id="attachOnlyBtn" type="button" class="btn-secondary">
+    🎯 ปักตะกร้าสินค้าอย่างเดียว (สำหรับคลิปที่อัปแล้ว)
+  </button>
+
+  <div id="status"></div>
+  <script src="popup.js"></script>
+</body>
+</html>

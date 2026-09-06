@@ -34,6 +34,7 @@ HOOK_TEMPLATES: Dict[str, Dict[str, Any]] = {
             "label": {"size_pct": 58, "color": "#E0E0E0", "outline_color": "#000000",
                       "outline_px": 6.0, "upper": False, "pill": None},
         },
+        "motion": {"in": "bounce", "loop": "pulse", "out": "fade", "accent": "underline", "stagger": True},
     },
     "cute": {
         "label_th": "คิ้วท์ — ตัวขาว ขอบชมพูหนา",
@@ -46,6 +47,7 @@ HOOK_TEMPLATES: Dict[str, Dict[str, Any]] = {
             "label": {"size_pct": 62, "color": "#FFFFFF", "outline_color": "#E86BC7",
                       "outline_px": 0.0, "upper": False, "pill": "#E86BC7"},
         },
+        "motion": {"in": "bounce_soft", "loop": "wave", "out": "fade", "accent": "none", "stagger": True},
     },
     "bold_pop": {
         "label_th": "ป็อปตัวหนา — บานเย็น ขอบขาวหนา",
@@ -58,6 +60,7 @@ HOOK_TEMPLATES: Dict[str, Dict[str, Any]] = {
             "label": {"size_pct": 78, "color": "#4CE0FF", "outline_color": "#FFFFFF",
                       "outline_px": 10.0, "upper": False, "pill": None},
         },
+        "motion": {"in": "pop", "loop": "shake", "out": "zoom", "accent": "badge", "stagger": True},
     },
     "plain": {
         "label_th": "เรียบ — ขาวหนา ไม่มีขอบ",
@@ -70,6 +73,7 @@ HOOK_TEMPLATES: Dict[str, Dict[str, Any]] = {
             "label": {"size_pct": 58, "color": "#C8C8C8", "outline_color": "#000000",
                       "outline_px": 0.0, "upper": False, "pill": None},
         },
+        "motion": {"in": "fade", "loop": "none", "out": "fade", "accent": "none", "stagger": False},
     },
     "clean": {
         "label_th": "คลีน — ขาว ขอบดำบาง",
@@ -82,6 +86,46 @@ HOOK_TEMPLATES: Dict[str, Dict[str, Any]] = {
             "label": {"size_pct": 60, "color": "#D0D0D0", "outline_color": "#101010",
                       "outline_px": 3.0, "upper": False, "pill": None},
         },
+        "motion": {"in": "slide_up", "loop": "lightsweep", "out": "fade", "accent": "none", "stagger": True},
+    },
+    "flash_sale": {
+        "label_th": "โปรไฟลุก — แดงสด ป้ายส้มเหลืองสะดุดตา",
+        "font": "Kanit",
+        "tiers": {
+            "brand": {"size_pct": 128, "color": "#FFFFFF", "outline_color": "#FE2C55",
+                      "outline_px": 10.0, "upper": True, "pill": None},
+            "model": {"size_pct": 112, "color": "#FFE04C", "outline_color": "#000000",
+                      "outline_px": 8.0, "upper": False, "pill": None},
+            "label": {"size_pct": 68, "color": "#FFFFFF", "outline_color": "#000000",
+                      "outline_px": 0.0, "upper": False, "pill": "#FE2C55"},
+        },
+        "motion": {"in": "pop", "loop": "flicker", "out": "slide", "accent": "badge", "stagger": True},
+    },
+    "neon_cyber": {
+        "label_th": "นีออน — ฟ้าไซเบอร์ ขอบมืดเรืองแสง",
+        "font": "Chakra Petch",
+        "tiers": {
+            "brand": {"size_pct": 130, "color": "#FFFFFF", "outline_color": "#000000",
+                      "outline_px": 8.0, "upper": True, "pill": None},
+            "model": {"size_pct": 105, "color": "#25F4EE", "outline_color": "#000000",
+                      "outline_px": 8.0, "upper": False, "pill": None},
+            "label": {"size_pct": 64, "color": "#FFE04C", "outline_color": "#000000",
+                      "outline_px": 4.0, "upper": False, "pill": None},
+        },
+        "motion": {"in": "pop_zoom", "loop": "wave", "out": "glitch", "accent": "underline", "stagger": True},
+    },
+    "minimal_luxury": {
+        "label_th": "ลักชัวรี — ทองขาว คมชัด สไตล์แบรนด์เนม",
+        "font": "Prompt",
+        "tiers": {
+            "brand": {"size_pct": 124, "color": "#FFFFFF", "outline_color": "#1A1A1A",
+                      "outline_px": 4.0, "upper": True, "pill": None},
+            "model": {"size_pct": 96, "color": "#E6C24A", "outline_color": "#1A1A1A",
+                      "outline_px": 4.0, "upper": False, "pill": None},
+            "label": {"size_pct": 60, "color": "#C8C8C8", "outline_color": "#1A1A1A",
+                      "outline_px": 2.0, "upper": False, "pill": None},
+        },
+        "motion": {"in": "quick_fade", "loop": "lightsweep", "out": "fade", "accent": "underline", "stagger": True},
     },
 }
 
@@ -116,6 +160,7 @@ def resolve_hook_style(
         "template": template if template in HOOK_TEMPLATES else DEFAULT_HOOK_TEMPLATE,
         "font": over.get("font") or base["font"],
         "tiers": {},
+        "motion": dict(over.get("motion") or base.get("motion") or {}),
     }
     for key in TIER_KEYS:
         tier = dict(base["tiers"][key])

@@ -30,10 +30,10 @@ export const TEXT_FS_RATIO = 0.0463;
 // The last three are the ids the editor stores rather than family names -- a
 // text overlay saves fontName 'IBMPlex', not 'IBM Plex Sans Thai'.
 export const FONT_WEIGHTS = {
-  Kanit: 900,
-  Prompt: 800,
+  Kanit: 700,
+  Prompt: 700,
   'Chakra Petch': 700,
-  Anuphan: 700,
+  Anuphan: 400,
   'IBM Plex Sans Thai': 700,
   'Bai Jamjuree': 700,
   Krub: 700,
@@ -44,15 +44,15 @@ export const FONT_WEIGHTS = {
   Itim: 400,
   Chonburi: 400,
   IBMPlex: 700,
-  'Noto Sans Thai': 700,
-  NotoSansThai: 700,
+  'Noto Sans Thai': 400,
+  NotoSansThai: 400,
 };
 export const DEFAULT_FONT_WEIGHT = 700;
 
 export const TEXT_LOOK_FIELDS = [
   'font', 'size_pct', 'color',
   'outline_color', 'outline_px',
-  'shadow', 'pill', 'upper',
+  'shadow', 'pill', 'upper', 'skew',
 ];
 
 // A dark copy of the glyphs, offset down-right. Offsets are RENDER pixels --
@@ -83,6 +83,7 @@ export const DEFAULT_TEXT_LOOK = {
   shadow: DEFAULT_SHADOW,
   pill: null,
   upper: false,
+  skew: 0.0,
 };
 
 // bgStyle + badgeColor collapse into one pill object.
@@ -100,7 +101,7 @@ export const LEGACY_BG_STYLES = {
 // two exits were the same picture under two spellings and only the entrance
 // needed reconciling.
 export const DEFAULT_ANIM = {
-  in: 'snap', loop: 'none', out: 'fade', accent: 'none', stagger: false,
+  in: 'snap', loop: 'none', out: 'fade', accent: 'none', stagger: false, word_stagger_ms: 0,
 };
 export const HOOK_ANIM = {
   in: 'bounce', loop: 'pulse', out: 'fade', accent: 'underline', stagger: true,
@@ -251,7 +252,7 @@ export function hookOverlayFromLegacy(brand, model, label, duration, motion, col
       text: texts[i],
       look: hookTierLook(resolved.font, resolved.tiers[key]),
     })),
-    anim: { ...HOOK_ANIM, ...(motion || {}) },
+    anim: { ...HOOK_ANIM, ...(resolved.motion || {}), ...(motion || {}) },
     // The banner is what the top gradient was always for; it is a property of
     // this overlay now rather than a second reading of hook_duration.
     scrim: true,
@@ -470,6 +471,7 @@ export function withHookTemplate(overlay, template) {
     ...overlay,
     template: fresh.template,
     look: { ...fresh.look },
+    anim: { ...fresh.anim },
     tiers: fresh.tiers.map((tier, i) => ({
       text: texts[i],
       look: { ...tier.look, ...kept[i] },
@@ -486,7 +488,7 @@ export function withHookTemplateReset(overlay) {
     { template: overlay.template || DEFAULT_HOOK_TEMPLATE },
   );
   if (!fresh) return overlay;
-  return { ...overlay, look: { ...fresh.look }, tiers: fresh.tiers };
+  return { ...overlay, look: { ...fresh.look }, anim: { ...fresh.anim }, tiers: fresh.tiers };
 }
 
 /** Which tier fields the user has moved off the template, for the UI's dots. */

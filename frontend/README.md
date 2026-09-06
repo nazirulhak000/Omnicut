@@ -1,16 +1,50 @@
-# React + Vite
+# OmniCut Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React 19 + Vite frontend สำหรับ Product-to-Clip, Script Lab, Asset Library, Content Tracker, Export Gallery และ Editor แบบ multi-track
 
-Currently, two official plugins are available:
+## รันระบบ
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```powershell
+npm install
+npm run dev
+```
 
-## React Compiler
+Frontend ใช้ `/api` ไปยัง FastAPI ที่ port 8000 ผ่านค่าของ Vite ใน `vite.config.js`
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## คำสั่งตรวจ
 
-## Expanding the Oxlint configuration
+```powershell
+npm test
+npm run build
+npm run lint
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+`npm test` ใช้ Node built-in test runner และเก็บ test ของ pure logic ไว้ที่ `src/lib/*.test.js` ไม่ต้องเพิ่ม Jest หรือ Vitest หากยังไม่มีเหตุผลที่ต้อง render component DOM
+
+## โครงสร้าง Editor
+
+- `components/editor/EditorShell.jsx`: ประกอบหน้าจอและเชื่อม state/hook
+- `components/SequencePlayer.jsx`: Canvas preview และ audio preview
+- `components/editor/Timeline.jsx`: timeline composition
+- `components/editor/timeline/`: ruler, playhead, headers และ context menu
+- `components/editor/inspector/`: inspector แยกตามชนิด selection
+- `hooks/useProjectLoader.js`: โหลดโปรเจกต์และกัน stale response
+- `hooks/useProjectAutosave.js`: debounce, flush และ page unload save
+- `hooks/useRenderJob.js`: polling, resume และ cleanup งาน render
+- `hooks/useEditorHistory.js`: undo/redo document state
+- `lib/editorProjectState.js`: manifest migration และ save serializer
+- `lib/timelineSchema.js`: Timeline Document v2 และ migration
+- `lib/timelineMath.js`: เวลา, split, trim, transition, snap และ ripple
+- `lib/overlayModel.js`: model สำหรับ hook/text overlay ที่ mirror กับ Python
+- `lib/keyframeModel.js`: keyframe interpolation ที่ mirror กับ renderer
+
+## กฎสำคัญ
+
+- Manual Save, Autosave และ pre-render save ต้องใช้ `editorStateToSavePayload()` ชุดเดียว
+- Logic ที่ทดสอบได้ให้แยกเป็น pure function ใน `src/lib/` แล้วเพิ่ม `.test.js`
+- อย่าถือ copy ของ Editor document ใน Inspector; ทุก control ต้อง patch field ที่เลือกผ่าน command กลาง
+- การเพิ่ม listener, interval หรือ timeout ต้องคืน cleanup ใน effect เสมอ
+- การแก้ภาพใน `SequencePlayer.jsx` ต้องแก้ renderer คู่กันและทำตาม `../.agents/rules/preview_render_parity.md`
+- ปุ่มต้องทำตาม `../.agents/rules/ui_clean_standard.md` ห้ามใส่สัญลักษณ์ซ้ำกับ icon
+
+อ่านภาพรวมทั้งระบบที่ [ARCHITECTURE.md](../ARCHITECTURE.md) และสถานะงานล่าสุดที่ [TODO.md](../TODO.md)

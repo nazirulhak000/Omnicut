@@ -184,7 +184,9 @@ def test_stagger_and_exit_windows_match():
     "preset, py_pattern",
     [
         ("bounce", r"def _in_bounce.*?end_ms = t0_ms \+ (\d+)"),
+        ("bounce_soft", r"def _in_bounce_soft.*?end_ms = t0_ms \+ (\d+)"),
         ("pop", r"def _in_pop.*?end_ms = t0_ms \+ (\d+)"),
+        ("pop_soft", r"def _in_pop_soft.*?end_ms = t0_ms \+ (\d+)"),
         ("fade", r"def _in_fade.*?end_ms = t0_ms \+ (\d+)"),
         ("zoom", r"def _in_zoom.*?end_ms = t0_ms \+ (\d+)"),
         ("slide_up", r"def _in_slide_up.*?end_ms = t0_ms \+ (\d+)"),
@@ -195,6 +197,34 @@ def test_stagger_and_exit_windows_match():
 def test_in_preset_durations_match(preset, py_pattern):
     assert _grab(PY_SRC, py_pattern) == \
            _grab(JS_SRC, rf"{preset}: \{{\s*durSec: ([\d.]+)") * 1000
+
+
+def test_easing_accel_constants_and_byte_identity_parity():
+    """
+    ACCEL constants must match between motion_effects.py and SequencePlayer.jsx,
+    and linear keyframes (accel=1.0) must serialize to byte-identical legacy ASS tags.
+    """
+    assert _grab(PY_SRC, r"ACCEL_SOFT_OUT = ([\d.]+)") == _grab(JS_SRC, r"const ACCEL_SOFT_OUT = ([\d.]+);")
+    assert _grab(PY_SRC, r"ACCEL_SNAP_IN = ([\d.]+)") == _grab(JS_SRC, r"const ACCEL_SNAP_IN = ([\d.]+);")
+
+    from scripts.subtitle.motion_effects import _in_bounce, _in_pop, _in_fade, _in_pop_soft, _in_bounce_soft
+    tag_bounce, end_bounce, _ = _in_bounce(236, 0)
+    assert tag_bounce == r"\fscx142\fscy142\t(0,150,\fscx295\fscy295)\t(150,280,\fscx217\fscy217)\t(280,380,\fscx248\fscy248)\t(380,450,\fscx236\fscy236)"
+    assert end_bounce == 450
+
+    tag_pop, end_pop, _ = _in_pop(236, 0)
+    assert tag_pop == r"\fscx130\fscy130\t(0,120,\fscx278\fscy278)\t(120,200,\fscx236\fscy236)"
+    assert end_pop == 200
+
+    tag_fade, end_fade, _ = _in_fade(236, 0)
+    assert tag_fade == r"\fscx236\fscy236\alpha&HFF&\t(0,250,\alpha&H00&)"
+    assert end_fade == 250
+
+    # Verify soft presets carry the accel tag
+    tag_pop_soft, _, _ = _in_pop_soft(236, 0)
+    assert r"\t(0,120,0.6,\fscx278\fscy278)" in tag_pop_soft
+    assert r"\t(120,200,2.2,\fscx236\fscy236)" in tag_pop_soft
+
 
 
 @pytest.mark.parametrize(
@@ -1664,6 +1694,7 @@ def test_hook_templates_are_identical_on_both_sides():
         js_tpl = js[name]
         assert js_tpl["font"] == py_tpl["font"], f"{name}: font differs"
         assert js_tpl["label_th"] == py_tpl["label_th"], f"{name}: label differs"
+        assert js_tpl.get("motion") == py_tpl.get("motion"), f"{name}: motion differs"
         for tier in TIER_KEYS:
             for field in TIER_FIELDS:
                 a, b = py_tpl["tiers"][tier][field], js_tpl["tiers"][tier][field]
@@ -1843,7 +1874,7 @@ def test_text_overlay_animations_match_in_preview_and_render():
     Animation scales and durations for pop, zoom, stamp in subtitle_engine.py (ASS tags)
     must match SequencePlayer.jsx (canvas drawing).
     """
-    sub_src = (ROOT / "scripts" / "subtitle_engine.py").read_text(encoding="utf-8")
+    sub_src = PY_SRC
     player_src = (ROOT / "frontend" / "src" / "components" / "SequencePlayer.jsx").read_text(encoding="utf-8")
 
     # The three names a text overlay shared with the banner were renamed
@@ -1932,6 +1963,18 @@ def test_anim_defaults_match_on_both_sides():
             t.lower() for t in _squash(block).strip(",").split(",") if t
         )
         assert fields(py) == fields(js), f"{name} differs: python {py} vs js {js}"
+
+
+def test_text_look_fields_and_defaults_match_on_both_sides():
+    py_fields = set(re.findall(r'"([a-z_]+)"', re.search(r"TEXT_LOOK_FIELDS[^=]*= \((.*?)\)", OVERLAY_PY, re.S).group(1)))
+    js_fields = set(re.findall(r"'([a-z_]+)'", re.search(r"TEXT_LOOK_FIELDS = \[(.*?)\];", OVERLAY_JS, re.S).group(1)))
+    assert py_fields == js_fields, f"TEXT_LOOK_FIELDS mismatch: py {py_fields} vs js {js_fields}"
+
+    py_default = re.search(r"DEFAULT_TEXT_LOOK[^=]*= \{(.*?)\}", OVERLAY_PY, re.S).group(1)
+    js_default = re.search(r"DEFAULT_TEXT_LOOK = \{(.*?)\};", OVERLAY_JS, re.S).group(1)
+    extract_keys = lambda b: set(re.findall(r'["\']?([a-z_]+)["\']?\s*:', b))
+    assert extract_keys(py_default) == extract_keys(js_default)
+
 
 
 def test_ad_tone_to_template_matches_on_both_sides_and_names_real_templates():
@@ -2107,3 +2150,90 @@ def test_font_weights_match_and_lose_nothing_from_the_banners_old_table():
     # default: fontName 'IBMPlex' is what a text overlay saves.
     for stored_id in ("Kanit", "Prompt", "IBMPlex", "NotoSansThai"):
         assert stored_id in FONT_WEIGHTS, f"{stored_id} would fall back to {DEFAULT_FONT_WEIGHT}"
+
+
+def test_subtitle_engine_styles_spacing_is_zero():
+    """Every ASS Style row must declare Spacing=0 (not 0.5) to avoid Thai glyph corruption and preview drift."""
+    sub_engine_src = (ROOT / "scripts" / "subtitle_engine.py").read_text(encoding="utf-8")
+    style_lines = re.findall(r"^Style:\s*([^\n]+)", sub_engine_src, re.M)
+    assert style_lines, "Must have Style declarations in subtitle_engine.py"
+    for line in style_lines:
+        parts = [p.strip() for p in line.split(",")]
+        # Format: Name(0), Fontname(1), Fontsize(2), PrimaryColour(3), SecondaryColour(4),
+        # OutlineColour(5), BackColour(6), Bold(7), Italic(8), Underline(9), StrikeOut(10),
+        # ScaleX(11), ScaleY(12), Spacing(13)
+        assert len(parts) >= 14, f"Malformed style line: {line}"
+        spacing = parts[13]
+        assert spacing == "0", f"Style {parts[0]} Spacing must be 0, got {spacing}"
+
+
+def test_font_metrics_advance_width_parity():
+    """_measure_text_width_px uses advance width, and prefix_advances returns monotonic cumulative advances."""
+    from scripts.subtitle.font_metrics import _measure_text_width_px, prefix_advances
+
+    tokens = ["ทดสอบ", "ข้อความ", "หลายคำ"]
+    advances = prefix_advances(tokens, "Kanit", 75)
+    assert advances is not None
+    assert len(advances) == len(tokens) + 1
+    assert advances[0] == 0.0
+    for i in range(1, len(advances)):
+        assert advances[i] > advances[i - 1], "Cumulative advances must be strictly increasing"
+
+    total_w = _measure_text_width_px("".join(tokens), "Kanit", 75)
+    assert abs(advances[-1] - total_w) < 1.0, f"prefix sum {advances[-1]} vs measured {total_w}"
+
+
+def test_text_overlay_events_wires_loop_out_and_skew():
+    """Text overlay ASS events must thread anim.loop, anim.out, and look.skew correctly."""
+    from scripts.subtitle.overlay_events import _text_overlay_events
+
+    ctx = {
+        "video_width": 1080,
+        "video_height": 1920,
+        "base_fs": 50,
+        "resolved_font": "Kanit",
+        "font_map": {},
+        "caption_color": "#0000E6FF",
+    }
+    item = {
+        "kind": "text",
+        "start": 0.0,
+        "end": 3.0,
+        "x": 0.5,
+        "y": 0.5,
+        "tiers": [{
+            "text": "ข้อความ ทดสอบ",
+            "look": {"font": "Kanit", "size_pct": 100, "skew": -0.25},
+        }],
+        "anim": {
+            "in": "snap",
+            "loop": "pulse",
+            "out": "slide",
+            "word_stagger_ms": 50,
+        },
+    }
+
+    events = _text_overlay_events(item, ctx)
+    assert events, "Events must not be empty"
+
+    all_dialogues = "\n".join(events)
+    # Check skew tag \fax
+    assert r"\fax-0.25" in all_dialogues, "Skew tag \\fax-0.25 must be present in dialogue tags"
+    # Check loop pulse (contains alpha oscillation \t(...,\alpha...)
+    assert r"\alpha&H" in all_dialogues and r"\t(" in all_dialogues, "Loop animation tags must be generated"
+    # Check out slide (contains \move with exit offset dy 60)
+    assert r"\move(" in all_dialogues, "Slide out must use \\move tag for exit animation"
+
+
+def test_hook_overlay_guarded_against_per_word_layout():
+    """
+    Hook Header (overlay.kind === 'hook') must never be split into words or request
+    overlay.layout, which would crush Thai words/kerning horizontally into clumps.
+    Only text overlays with word_stagger_ms > 0 may run word layout.
+    """
+    assert "const isWordStagger = !isHook && wordStaggerSec > 0;" in JS_SRC
+    assert "if (isHook && overlay.layout)" in JS_SRC
+    assert "if (isWordStagger && !overlay.layout)" in JS_SRC
+    assert "if (isWordStagger && lineWords && lineWords.length > 0)" in JS_SRC
+
+

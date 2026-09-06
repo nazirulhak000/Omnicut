@@ -54,9 +54,10 @@ def _load_font_family_map() -> Dict[str, str]:
 
 def _measure_text_width_px(text: str, resolved_font: str, font_size_px: int) -> Optional[int]:
     """
-    Real rendered width of `text` at `font_size_px` in the family ASS will
+    Real rendered advance width of `text` at `font_size_px` in the family ASS will
     actually draw it in, via the same physical font files AssetRegistry
     already indexes (family -> path).
+    Uses font.getlength() (advance width including sidebearings) rather than getbbox() (ink bbox).
     """
     try:
         from PIL import ImageFont
@@ -67,8 +68,33 @@ def _measure_text_width_px(text: str, resolved_font: str, font_size_px: int) -> 
         font_path = family_to_path.get(resolved_font)
         if not font_path:
             return None
-        bbox = ImageFont.truetype(font_path, font_size_px).getbbox(text)
-        return int(bbox[2] - bbox[0])
+        font = ImageFont.truetype(font_path, font_size_px)
+        return int(round(font.getlength(text)))
+    except Exception:
+        return None
+
+
+def prefix_advances(text_tokens: List[str], resolved_font: str, font_size_px: int) -> Optional[List[float]]:
+    """
+    Cumulative advance width at each token boundary for `text_tokens`.
+    Returns [0.0, adv_1, adv_2, ..., adv_total] measured via real font advances.
+    """
+    try:
+        from PIL import ImageFont
+    except ImportError:
+        return None
+    try:
+        family_to_path = {f["family"]: f["path"] for f in AssetRegistry.fonts()}
+        font_path = family_to_path.get(resolved_font)
+        if not font_path:
+            return None
+        font = ImageFont.truetype(font_path, font_size_px)
+        advances = [0.0]
+        cumulative = ""
+        for token in text_tokens:
+            cumulative += token
+            advances.append(float(font.getlength(cumulative)))
+        return advances
     except Exception:
         return None
 

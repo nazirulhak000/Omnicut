@@ -14,6 +14,8 @@ import {
 import {
   ACCENT_COLOR,
   DEFAULT_TEXT_LOOK,
+  HOOK_FS_RATIO,
+  HOOK_SHADOW,
   overriddenTierFields,
   resolveLook,
   withHookTemplate,
@@ -21,6 +23,8 @@ import {
   withTierLook,
   withTierText,
 } from '../../../lib/overlayModel';
+import { TIER_KEYS } from '../../../lib/hookStyles';
+import TextLookPreview from '../TextLookPreview';
 import {
   pillForBgStyle,
   bgStyleOf,
@@ -33,6 +37,33 @@ import { FONT_OPTIONS, PRESET_STYLES } from './CaptionInspector';
 const HOOK_TIER_LABELS = ['แบรนด์', 'รุ่น / จุดเด่น', 'หมวดหมู่ / คำโปรย'];
 const HOOK_MIN_DURATION = 1.0;
 const HOOK_MAX_DURATION = 8.0;
+const HOOK_CARD_SAMPLE = ['BRAND', 'รุ่นเด่น', 'คำโปรย'];
+
+function hookCardLook(tpl, tierKey) {
+  const tier = (tpl.tiers || {})[tierKey] || {};
+  return {
+    font: tpl.font,
+    size_pct: tier.size_pct,
+    color: tier.color === null ? '#FFE600' : tier.color,
+    outline_color: tier.outline_color,
+    outline_px: tier.outline_px,
+    upper: tier.upper,
+    pill: tier.pill ? { fill: tier.pill, border: null, pad_x_em: 0.342, pad_y_em: 0.171 } : null,
+    shadow: HOOK_SHADOW,
+  };
+}
+
+function getMotionPreviewClass(motion) {
+  const loop = motion?.loop;
+  const animIn = motion?.in;
+  if (loop === 'flicker') return 'group-hover:anim-preview-flicker';
+  if (loop === 'shake' || animIn === 'pop') return 'group-hover:anim-preview-shake';
+  if (loop === 'wave') return 'group-hover:anim-preview-wave';
+  if (loop === 'pulse' || animIn === 'bounce') return 'group-hover:anim-preview-pulse';
+  if (animIn === 'pop_zoom') return 'group-hover:anim-preview-pop_zoom';
+  if (loop === 'lightsweep') return 'group-hover:anim-preview-lightsweep';
+  return 'group-hover:scale-105';
+}
 
 const LEGACY_SFX_ALIASES = {
   whoosh: 'sfx_whoosh_fast',
@@ -181,22 +212,62 @@ export default function OverlayInspector({
                   รีเซ็ต
                 </button>
               </div>
-              <div className="grid grid-cols-2 gap-1">
-                {Object.entries(hookTemplates || {}).map(([key, tpl]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => onHookTemplate(key)}
-                    title={tpl.label_th}
-                    className={`truncate rounded-lg border px-2 py-1 text-left text-[11px] font-bold transition-all cursor-pointer ${
-                      hookOverlay.template === key
-                        ? 'bg-[#E6C24A]/15 border-[#E6C24A] text-[#E6C24A]'
-                        : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {tpl.label_th}
-                  </button>
-                ))}
+              <div className="grid grid-cols-2 gap-2">
+                {Object.entries(hookTemplates || {}).map(([key, tpl]) => {
+                  const isSelected = hookOverlay.template === key;
+                  const labelParts = (tpl.label_th || '').split(' — ');
+                  const titleName = labelParts[0] || key;
+                  const motionTag = tpl.motion?.loop || tpl.motion?.in || 'pop';
+                  const motionClass = getMotionPreviewClass(tpl.motion);
+
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => onHookTemplate(key)}
+                      title={tpl.label_th}
+                      className={`group relative flex flex-col gap-1.5 rounded-xl border p-2 text-left transition-all hover:-translate-y-0.5 cursor-pointer overflow-hidden ${
+                        isSelected
+                          ? 'border-[#E6C24A] bg-[#E6C24A]/10 shadow-[0_0_15px_rgba(230,194,74,0.2)] ring-1 ring-[#E6C24A]/50'
+                          : 'border-white/[0.08] bg-gradient-to-b from-[#18181B] to-[#0E0E10] hover:border-[#E6C24A]/60'
+                      }`}
+                    >
+                      {/* Top Header: Title + Motion Badge */}
+                      <div className="flex items-center justify-between gap-1 w-full">
+                        <span className={`text-[11px] font-bold truncate ${isSelected ? 'text-[#E6C24A]' : 'text-slate-200'}`}>
+                          {titleName}
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded text-[8.5px] font-mono font-bold bg-black/60 text-[#E6C24A] border border-[#E6C24A]/30 shrink-0">
+                          {motionTag.toUpperCase()}
+                        </span>
+                      </div>
+
+                      {/* Mini Live Preview Box with Micro-Motion on Hover */}
+                      <div className="relative flex h-16 w-full flex-col items-center justify-center gap-0.5 overflow-hidden rounded-lg border border-white/[0.04] bg-black/60 p-1">
+                        <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
+                        <div className={`w-full flex flex-col items-center justify-center gap-0.5 relative z-10 transition-transform duration-200 ${motionClass}`}>
+                          {TIER_KEYS.map((tierKey, i) => (
+                            <TextLookPreview
+                              key={tierKey}
+                              look={hookCardLook(tpl, tierKey)}
+                              text={HOOK_CARD_SAMPLE[i]}
+                              baseFsRatio={HOOK_FS_RATIO}
+                              scale={0.16}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Footer: Font & Active indicator */}
+                      <div className="flex items-center justify-between text-[9.5px] text-slate-400 pt-0.5">
+                        <span className="truncate">{tpl.font}</span>
+                        {isSelected && (
+                          <span className="text-[9px] font-bold text-[#E6C24A] shrink-0">ใช้งานอยู่</span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -557,18 +628,23 @@ export default function OverlayInspector({
               >
                 B
               </button>
-              <button
-                type="button"
-                onClick={() => setTextPattern((p) => ({ ...p, italic: !p.italic }))}
-                className={`flex-1 py-1 rounded-lg text-xs font-bold italic border transition-all cursor-pointer ${
-                  textPattern.italic
-                    ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
-                    : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
-                }`}
-                title="ตัวเอียง"
-              >
-                I
-              </button>
+              {(() => {
+                const isItalic = Math.abs(selectedLook.skew || 0) > 0.01;
+                return (
+                  <button
+                    type="button"
+                    onClick={() => patchOverlayLook({ skew: isItalic ? 0.0 : -0.25 })}
+                    className={`flex-1 py-1 rounded-lg text-xs font-bold italic border transition-all cursor-pointer ${
+                      isItalic
+                        ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
+                        : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
+                    }`}
+                    title="ตัวเอียง (Skew -0.25)"
+                  >
+                    I
+                  </button>
+                );
+              })()}
               <button
                 type="button"
                 onClick={() => setTextPattern((p) => ({ ...p, underline: !p.underline }))}
@@ -724,6 +800,90 @@ export default function OverlayInspector({
                 }`}
               >
                 {a.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 1.1 Word Stagger selector */}
+        <div className="space-y-1.5">
+          <span className="text-[11px] text-slate-400 font-medium">ความเร็วคำทยอยเข้า (Word Stagger):</span>
+          <div className="grid grid-cols-4 gap-1">
+            {[
+              { id: 0, label: '0ms พร้อมกัน' },
+              { id: 50, label: '50ms เร็ว' },
+              { id: 70, label: '70ms กลาง' },
+              { id: 100, label: '100ms ช้า' },
+            ].map((s) => {
+              const currentStagger = Number(selectedTextOverlay.anim?.word_stagger_ms || 0);
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => onUpdateOverlay?.(selectedTextOverlay.id, { anim: { ...(selectedTextOverlay.anim || {}), word_stagger_ms: s.id } })}
+                  className={`py-1 px-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer truncate text-center ${
+                    currentStagger === s.id
+                      ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
+                      : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 1.2 Loop Animation selector */}
+        <div className="space-y-1.5">
+          <span className="text-[11px] text-slate-400 font-medium">แอนิเมชันตอนค้าง (Loop Animation):</span>
+          <div className="grid grid-cols-3 gap-1">
+            {[
+              { id: 'none', label: 'None นิ่ง' },
+              { id: 'pulse', label: 'Pulse หายใจ' },
+              { id: 'wave', label: 'Wave แกว่ง' },
+              { id: 'shake', label: 'Shake สั่น' },
+              { id: 'flicker', label: 'Flicker กระพริบ' },
+              { id: 'lightsweep', label: 'Light Sweep แสงวาบ' },
+            ].map((lp) => (
+              <button
+                key={lp.id}
+                type="button"
+                onClick={() => onUpdateOverlay?.(selectedTextOverlay.id, { anim: { ...(selectedTextOverlay.anim || {}), loop: lp.id } })}
+                className={`py-1 px-1 rounded-lg text-xs font-bold border transition-all cursor-pointer truncate text-center ${
+                  (selectedTextOverlay.anim?.loop || 'none') === lp.id
+                    ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
+                    : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
+                }`}
+              >
+                {lp.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 1.3 Out Animation selector */}
+        <div className="space-y-1.5">
+          <span className="text-[11px] text-slate-400 font-medium">แอนิเมชันตอนออก (Out Animation):</span>
+          <div className="grid grid-cols-3 gap-1">
+            {[
+              { id: 'fade', label: 'Fade ค่อยๆ จาง' },
+              { id: 'slide', label: 'Slide หล่นลง' },
+              { id: 'zoom', label: 'Zoom ขยายจาง' },
+              { id: 'glitch', label: 'Glitch สั่นวูบ' },
+              { id: 'none', label: 'Cut ตัดทันที' },
+            ].map((o) => (
+              <button
+                key={o.id}
+                type="button"
+                onClick={() => onUpdateOverlay?.(selectedTextOverlay.id, { anim: { ...(selectedTextOverlay.anim || {}), out: o.id } })}
+                className={`py-1 px-1 rounded-lg text-xs font-bold border transition-all cursor-pointer truncate text-center ${
+                  (selectedTextOverlay.anim?.out || 'fade') === o.id
+                    ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
+                    : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
+                }`}
+              >
+                {o.label}
               </button>
             ))}
           </div>

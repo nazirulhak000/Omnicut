@@ -6,7 +6,9 @@
 [![FFmpeg](https://img.shields.io/badge/Media-FFmpeg-007808.svg?logo=ffmpeg&logoColor=white)](https://ffmpeg.org/)
 [![CapCut Compatible](https://img.shields.io/badge/Integration-CapCut%20PC-00C4CC.svg)](https://www.capcut.com/)
 
-ระบบอัตโนมัติแบบครบวงจรสำหรับสร้าง ผลิต และตัดต่อวิดีโอสั้นแนวตั้ง **9:16 (1080x1920)** สำหรับ TikTok, YouTube Shorts และ Reels ตั้งแต่การสกัดข้อมูลสินค้า, เขียนสคริปต์, เจนเสียงพากย์ AI, ตัดแบ่งช็อตอัตโนมัติ, ตัดคำซับไตเติลภาษาไทย, ใส่ BGM/SFX/Stickers, ไปจนถึงการส่งต่อไปยัง **CapCut PC** หรือเรนเดอร์เสร็จสิ้นพร้อมโพสต์
+ระบบอัตโนมัติสำหรับสร้างและตัดต่อวิดีโอสั้นแนวตั้ง **9:16 (1080x1920, 30 FPS)** สำหรับ TikTok, YouTube Shorts และ Reels ครอบคลุมข้อมูลสินค้า, AI draft, เสียงพากย์, ซับไทย/อังกฤษ, BGM/SFX, Editor แบบ multi-track, keyframes, partial reroll และไฟล์ H.264/AAC พร้อมโพสต์ โดยยังส่งต่อไป CapCut PC ได้เมื่อจำเป็น
+
+เริ่มทำงานกับโค้ดให้อ่าน [AGENTS.md](AGENTS.md), [TODO.md](TODO.md) และ [ARCHITECTURE.md](ARCHITECTURE.md) ก่อน สถานะใน `TODO.md` ใหม่กว่าเอกสารสรุปอื่นเสมอ
 
 ---
 
@@ -22,6 +24,10 @@
 - 🎨 **Universal 3D Badges & Sticker Sheet:** ระบบสร้างป้ายรีวิว 6 แบบมาตรฐาน (Pros, Cons, Warning, Pro Tip, Score, Verdict) ขอบ Die-cut ใช้งานซ้ำได้ทุกคลิป
 - 🎵 **Smart SFX & BGM Ducking:** จัดการเสียงเอฟเฟกต์ (Whoosh, Pop, Ding) และปรับระดับเพลงพื้นหลังอัตโนมัติขณะมีเสียงพูด
 - 🖥️ **Web UI Control Center:** แดชบอร์ด React + Vite ควบคุมทุกขั้นตอนและพรีวิวงานได้แบบเรียลไทม์
+- 🎞️ **Flexible Timeline Editor:** รองรับหลาย Video/Overlay/Audio tracks, trim, split, duplicate, transition, ripple, snap, mute/solo/visibility และ undo/redo
+- 💾 **Safe Project State:** Manifest migration, autosave แบบ latest-write-wins, flush ก่อนสลับโปรเจกต์ และ atomic save
+- 🔁 **Partial Reroll:** เปลี่ยน Hook, Subtitle, BGM, Voice หรือ Video โดย reuse artifact ของ stage ก่อนหน้า
+- 🎚️ **Preview = Render Contracts:** Canvas preview และ ASS/libass renderer ใช้ model/constant ที่ mirror กัน พร้อม source, behavior และ FFmpeg regression tests
 
 ---
 
@@ -44,9 +50,13 @@ Capcut/
 ├── 05_Covers_Thumbnails/   # รูปหน้าปกคลิปและ Thumbnail สัดส่วน 9:16
 ├── 06_Archive/             # สำรองข้อมูลไฟล์ Raw และโปรเจกต์เก่าเกิน 30 วัน
 ├── frontend/               # เว็บแอปพลิเคชัน React + Vite UI
-├── scripts/                # Backend API & Processing Engines (FastAPI, Pipeline, TTS)
+├── scripts/                # FastAPI routers, pipeline stages, TTS, subtitle และ renderer
 ├── tools/                  # สคริปต์ Utility (Font Downloader, Badge Generator, Asset Builder)
+├── tests/                  # Backend, contract, parity, render และ compatibility tests
+├── .agents/rules/          # กฎเฉพาะงานสำหรับคนและ AI Agent
 ├── AGENTS.md               # กฎเหล็กและคู่มือสำหรับ AI Coding Assistants
+├── ARCHITECTURE.md         # แผนผังโมดูลและ data flow ปัจจุบัน
+├── TODO.md                 # สถานะงานกลางและ handoff ระหว่างรอบ
 ├── requirements.txt        # รายการ Python dependencies
 └── start_app.bat           # สคริปต์คลิกเดียวเพื่อเปิดใช้งาน Backend & Frontend
 ```
@@ -81,7 +91,7 @@ flowchart LR
 ## 🛠️ ความต้องการของระบบ (Prerequisites)
 
 1. **Python 3.10 ขึ้นไป**
-2. **Node.js 18+ & npm** (สำหรับรัน Web Frontend)
+2. **Node.js 20.19+ หรือ 22.12+ & npm** (Vite 8; เครื่องที่ตรวจล่าสุดใช้ Node 24)
 3. **FFmpeg & FFprobe:** ต้องติดตั้งและเพิ่มลงใน System `PATH` เรียบร้อยแล้ว (ทดสอบด้วย `ffmpeg -version`)
 4. **CapCut for PC (Windows):** แนะนำติดตั้งเพื่อเปิดไฟล์ Draft ได้สะดวก
 
@@ -140,6 +150,21 @@ npm run dev
 
 ---
 
+## 🧪 การตรวจระบบ
+
+```powershell
+python -m compileall -q scripts
+python -c "import scripts.api_server as app; print(len(app.app.routes))"
+python -m pytest tests/ -q -p no:cacheprovider --tb=short
+Set-Location frontend
+npm test
+npm run build
+```
+
+ผลตรวจล่าสุด 2026-09-05: Python 336 tests ผ่าน, Frontend 51 tests ผ่าน, FastAPI 76 routes และ Vite build ผ่าน อ่านชนิด test และข้อห้ามที่ [.agents/rules/testing_standard.md](.agents/rules/testing_standard.md)
+
+---
+
 ## 🏷️ Naming Conventions
 
 - **Raw Footage Folder:** `YYYYMMDD_ชื่อสินค้า-ประเด็นสั้นๆ`  
@@ -155,11 +180,14 @@ npm run dev
 - [ ] **Hook 3 วินาทีแรก:** ภาพและเสียงสะดุดตา หยุดนิ้วคนดูได้ทันที
 - [ ] **Subtitles & Spacing:** ข้อความซับไตเติลภาษาไทยถูกต้อง ไม่มีปัญหาสระลอยหรือวรรณยุกต์ซ้อน
 - [ ] **Price & CTA:** ราคา โปรโมชั่น และพิกัดสั่งซื้อขึ้นชัดเจนบนหน้าจอ
-- [ ] **Audio Balance:** เสียงพากย์ชัดเจน เพลง BGM ดังพอเหมาะ (-16dB) และไม่ติดลิขสิทธิ์
+- [ ] **Audio Balance:** ตรวจ Voice/SFX/BGM ตามค่าใน `scripts/config.py` และลองฟัง mute/ducking ใน Preview ก่อน Export
 - [ ] **Safe Zone 9:16:** ข้อความ/สติกเกอร์ไม่ถูกบังด้วยปุ่ม Like/Comment/Share ของ TikTok
 - [ ] **Cover / Thumbnail:** ตัวหนังสือบนหน้าปกอ่านง่าย สีสันดึงดูด
 
 ---
 
 ## 📄 ใบอนุญาตและการพัฒนา (License & Guidelines)
-- สำหรับกฎและข้อกำหนดในการเขียนโค้ดและส่งต่องานให้ AI Assistant ให้อ่านที่ [AGENTS.md](file:///d:/Winona/Programmer/Capcut/AGENTS.md)
+- กฎหลัก: [AGENTS.md](AGENTS.md)
+- สถานะงานและ handoff: [TODO.md](TODO.md)
+- โครงสร้างระบบ: [ARCHITECTURE.md](ARCHITECTURE.md)
+- กฎทดสอบ: [.agents/rules/testing_standard.md](.agents/rules/testing_standard.md)

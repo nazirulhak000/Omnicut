@@ -13,7 +13,9 @@ registries (guarded by a test).
 
 HOOK_IN_PRESETS = {
     "bounce": {"label_th": "เด้งเข้า", "label_en": "Bounce"},
+    "bounce_soft": {"label_th": "เด้งนุ่ม", "label_en": "Soft Bounce"},
     "pop": {"label_th": "ป็อป", "label_en": "Pop"},
+    "pop_soft": {"label_th": "ป็อปนุ่ม", "label_en": "Soft Pop"},
     "fade": {"label_th": "จางเข้า", "label_en": "Fade"},
     "zoom": {"label_th": "ซูมเข้า", "label_en": "Zoom"},
     "slide_up": {"label_th": "เลื่อนขึ้น", "label_en": "Slide Up"},

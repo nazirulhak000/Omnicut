@@ -5,17 +5,26 @@ API Router for Exported Videos and Versioning.
 import os
 import re
 import json
+import shutil
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from scripts.config import BASE_DIR, EXPORTS_DIR
 from scripts.product_store import ProductStore
 from scripts.media_service import get_file_info
 from scripts.api_schemas import LinkAngleRequest
+from scripts.video_editor import VideoEditor
 
 router = APIRouter(tags=["Exports"])
+
+# "Ready_to_post" was a permanent lie the moment the first clip got posted --
+# nothing ever moved the file out, so list_exports() (scanning ONLY this dir)
+# kept showing a posted clip as still-to-post forever. Posted/ is scanned
+# alongside it below so a moved clip stays findable, tagged `is_posted`.
+POSTED_DIR = EXPORTS_DIR.parent / "Posted"
 
 
 @router.get("/api/exports")
@@ -23,7 +32,10 @@ def list_exports():
     """Lists all rendered videos in 04_Exports/Ready_to_post enriched with product & script metadata.
     Distinguishes latest active export vs previous superseded versions vs external unlinked files.
     """
-    files = sorted(list(EXPORTS_DIR.glob("*.mp4")), key=os.path.getmtime, reverse=True)
+    files = sorted(
+        list(EXPORTS_DIR.glob("*.mp4")) + list(POSTED_DIR.glob("*.mp4")),
+        key=os.path.getmtime, reverse=True,
+    )
     all_products = ProductStore.get_all()
 
     # 1. Build lookup tables
@@ -144,6 +156,7 @@ def list_exports():
         disk_proj = item["disk_proj"]
 
         info = get_file_info(f)
+        info["is_posted"] = f.parent.resolve() == POSTED_DIR.resolve()
 
         group_key = None
         if matched_prod and matched_angle:
@@ -160,7 +173,10 @@ def list_exports():
             info["product_id"] = matched_prod.get("id")
             info["product_name"] = matched_prod.get("name")
             info["price_deal"] = matched_prod.get("price_note")
-            info["key_features"] = ", ".join(matched_prod.get("selling_points", []))
+            info["tiktok_product_id"] = (
+                matched_prod.get("tiktok_product_id")
+                or matched_prod.get("name", "")
+            )
 
         # Script/Angle metadata
         if matched_angle:
@@ -178,6 +194,8 @@ def list_exports():
             s_data = disk_proj.get("script_data", {})
             info["hook_title"] = s_data.get("hook")
             info["script_lines"] = [l.get("text", "") if isinstance(l, dict) else str(l) for l in s_data.get("lines", [])]
+            info["tiktok_caption"] = s_data.get("hook", "") + " พิกัดในตะกร้าเลย 👇" if s_data.get("hook") else ""
+            info["tiktok_hashtags"] = f"#{matched_prod.get('name', '').replace(' ', '')} #รีวิวของดี #พิกัดในตะกร้า" if (matched_prod and matched_prod.get("name")) else "#รีวิวของดี #พิกัดในตะกร้า"
             info["project_name"] = disk_proj.get("project_name") or matched_proj_name
 
         # Determine version status
@@ -194,7 +212,10 @@ def list_exports():
                 if latest_f:
                     info["latest_video_name"] = latest_f.name
                     info["latest_video_path"] = str(latest_f)
-                    info["latest_video_rel"] = f"04_Exports/Ready_to_post/{latest_f.name}"
+                    # Derived from the file's real parent, not hardcoded to
+                    # Ready_to_post -- the "latest version" of a group can now
+                    # be one that already moved to Posted/.
+                    info["latest_video_rel"] = str(latest_f.relative_to(BASE_DIR)).replace("\\", "/")
 
             angle_vid = (matched_angle.get("video_url") or "").lower() if matched_angle else ""
             angle_qc_note = matched_angle.get("qc_note") if matched_angle else None
@@ -231,3 +252,100 @@ def link_export_to_angle(req: LinkAngleRequest):
         return {"status": "success", "product": updated}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+class MarkPostedRequest(BaseModel):
+    file_path: str
+    product_id: Optional[str] = None
+    angle_id: Optional[str] = None
+
+
+def _posted_companions(mp4_path: Path) -> List[Path]:
+    """Every file that travels with an export when it moves: the gallery
+    poster (webp) and, since Round POST-1, the TikTok cover (jpg)."""
+    stem = mp4_path.stem
+    found = [mp4_path.with_suffix(".webp")]
+    cover = BASE_DIR / "05_Covers_Thumbnails" / f"{stem}_cover.jpg"
+    if cover.exists():
+        found.append(cover)
+    return found
+
+
+@router.post("/api/exports/mark-posted")
+def mark_posted(req: MarkPostedRequest):
+    """
+    Moves a clip (+ its poster/cover) from Ready_to_post/ into Posted/, and
+    when the angle is known, sets its status to 'posted' with the new path.
+
+    ProductStore.reconcile() preserves 'posted'/'mobile_ready' status
+    regardless of where the manifest's video_url points (product_store.py's
+    "Preserve advanced lifecycle status" branch), so moving the file here
+    does not fight the background reconciler.
+    """
+    src = Path(req.file_path)
+    if not src.is_absolute():
+        src = BASE_DIR / req.file_path
+    src = src.resolve()
+
+    if not str(src).startswith(str(EXPORTS_DIR.resolve())):
+        raise HTTPException(status_code=403, detail="ไฟล์นี้ไม่ได้อยู่ใน Ready_to_post")
+    if not src.exists():
+        raise HTTPException(status_code=404, detail=f"ไม่พบไฟล์: {src.name}")
+
+    companions = _posted_companions(src)
+    POSTED_DIR.mkdir(parents=True, exist_ok=True)
+
+    dest = POSTED_DIR / src.name
+    shutil.move(str(src), str(dest))
+    moved = [str(dest.relative_to(BASE_DIR)).replace("\\", "/")]
+    for companion in companions:
+        if companion.exists():
+            companion_dest = POSTED_DIR / companion.name
+            shutil.move(str(companion), str(companion_dest))
+            moved.append(str(companion_dest.relative_to(BASE_DIR)).replace("\\", "/"))
+
+    if req.product_id and req.angle_id:
+        try:
+            updated = ProductStore.update_angle_status(
+                product_id=req.product_id,
+                angle_id=req.angle_id,
+                status="posted",
+                video_url=str(dest.relative_to(BASE_DIR)).replace("\\", "/"),
+            )
+            return {"success": True, "moved": moved, "product": updated}
+        except Exception as e:
+            # The file already moved -- report the status-update failure
+            # rather than rolling the move back; "it's in Posted/" stays true
+            # either way, and the angle can be re-linked by hand afterward.
+            return {"success": True, "moved": moved, "status_warning": str(e)}
+
+    return {"success": True, "moved": moved}
+
+
+@router.get("/api/exports/media-info")
+def get_export_media_info(path: str):
+    """
+    Real per-file ffprobe data for the Post Studio spec tiles, fetched
+    on-demand for whichever single clip is on screen -- NOT folded into
+    list_exports() itself, since ffprobing every export on every gallery
+    refresh would add real latency that grows with the export count for a
+    property only ever looked at one clip at a time.
+
+    Exists because the spec tiles used to hardcode "1080x1920 (9:16 FHD)" /
+    "30 FPS - H.264 MP4" for every clip, which quietly lied for a `_draft`
+    720p export.
+    """
+    target = Path(path)
+    if not target.is_absolute():
+        target = BASE_DIR / path
+    target = target.resolve()
+
+    if not (
+        str(target).startswith(str(EXPORTS_DIR.resolve()))
+        or str(target).startswith(str(POSTED_DIR.resolve()))
+    ):
+        raise HTTPException(status_code=403, detail="ไฟล์นี้ไม่ได้อยู่ในโฟลเดอร์ export ที่อนุญาต")
+    if not target.exists():
+        raise HTTPException(status_code=404, detail=f"ไม่พบไฟล์: {target.name}")
+
+    return VideoEditor.get_media_info(str(target))

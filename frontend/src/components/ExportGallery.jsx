@@ -1,16 +1,62 @@
-import React, { useState, useMemo, useEffect, useCallback, memo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef, memo } from 'react';
 import {
   Film, Download, Folder, RefreshCw, Trash2,
   AlertTriangle, Check, Play, Search, Filter, ArrowUpDown,
   Smartphone, CheckSquare, Square, Share2, Copy, FileText, QrCode, Sparkles, HardDrive,
   ShieldAlert, XCircle, CheckCircle2, History, FileQuestion, Link2,
-  Columns, List, LayoutGrid, Clock, Calendar, Tag, DollarSign, Layers, ChevronDown, ChevronUp, Zap, ShieldCheck
+  Columns, List, LayoutGrid, Clock, Calendar, Tag, DollarSign, Layers, ChevronDown, ChevronUp, Zap, ShieldCheck,
+  Image as ImageIcon, FolderOpen, ExternalLink
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { openFolder, deleteFile, getProducts, linkExportToAngle } from '../api';
+import {
+  openFolder, deleteFile, getProducts, linkExportToAngle,
+  revealFile, generateCover, markPosted, prepareTiktokAutopost, getExportMediaInfo,
+} from '../api';
 import { Modal, Toast, Button, Badge, ConfirmModal } from './ui';
 import { useDebounce, useToast } from '../hooks';
 import RawVaultPanel from './RawVaultPanel';
+
+// The gallery's own QR used to be a degraded copy of ContentTrackerHub's --
+// missing pid/aid/hook/hashtags and reading `video.caption`, a key
+// /api/exports never returns (it returns `tiktok_caption`). A scanned QR
+// landed on a mobile page that could not call updateAngleStatus
+// (MobileQuickPostPage.jsx requires both ids) and showed an empty caption.
+// One builder now, matching ContentTrackerHub.jsx's URL shape exactly.
+function buildQuickPostUrl(mobileBaseUrl, video) {
+  const params = new URLSearchParams({
+    quick_post: '1',
+    pid: video.product_id || '',
+    aid: video.angle_id || '',
+    video: video.rel_path || video.path || '',
+    product: video.product_name || video.name || '',
+    hook: video.hook_title || '',
+    caption: video.tiktok_caption || '',
+    hashtags: video.tiktok_hashtags || '',
+  });
+  return `${mobileBaseUrl}/?${params.toString()}`;
+}
+
+// The 2 spec tiles below used to hardcode "30 FPS - H.264 MP4" and
+// "1080x1920 (9:16 FHD)" for every clip -- silently wrong for a `_draft`
+// 720p export. Derive both from a real ffprobe result instead
+// (GET /api/exports/media-info); the other 2 tiles (Safe Zone, Voice/SFX/BGM
+// mix ratio) are legitimate app-wide constants, not per-file data, and stay
+// hardcoded on purpose.
+function formatCodecSpec(mediaInfo) {
+  if (!mediaInfo) return 'กำลังตรวจสอบ...';
+  const codec = (mediaInfo.codec_name || '').toLowerCase();
+  const codecLabel = codec === 'h264' ? 'H.264' : codec === 'hevc' ? 'H.265/HEVC' : (codec ? codec.toUpperCase() : 'MP4');
+  return `${mediaInfo.fps || '-'} FPS • ${codecLabel} MP4`;
+}
+
+function formatResolutionSpec(mediaInfo) {
+  if (!mediaInfo) return 'กำลังตรวจสอบ...';
+  const w = mediaInfo.width;
+  const h = mediaInfo.height;
+  const longSide = Math.max(w || 0, h || 0);
+  const label = longSide >= 1920 ? '9:16 FHD' : longSide >= 1280 ? '9:16 HD' : '9:16';
+  return `${w}x${h} (${label})`;
+}
 
 // Helper: Format full date & time (e.g. "4 ก.ย. 2026, 18:45:20 น.")
 function formatDateTimeFull(str) {
@@ -387,11 +433,55 @@ function ExportActiveWorkbench({
   onCopyCaption,
   copiedCaption,
   mobileBaseUrl,
-  onDelete
+  onDelete,
+  onGenerateCover,
+  onRevealFile,
+  onMarkPosted,
+  onPrepareAutopost
 }) {
+  const videoRef = useRef(null);
   const [videoDuration, setVideoDuration] = useState(null);
   const [showFullScript, setShowFullScript] = useState(false);
   const [copiedPath, setCopiedPath] = useState(false);
+  const [mediaInfo, setMediaInfo] = useState(null);
+  const [atSeconds, setAtSeconds] = useState(1.0);
+  const [coverResult, setCoverResult] = useState(null);
+  const [coverBusy, setCoverBusy] = useState(false);
+  const [revealBusy, setRevealBusy] = useState(false);
+  const [postBusy, setPostBusy] = useState(false);
+  const [autopostBusy, setAutopostBusy] = useState(false);
+  const [showTierInputs, setShowTierInputs] = useState(false);
+  const [tierBrand, setTierBrand] = useState('');
+  const [tierModel, setTierModel] = useState('');
+  const [tierLabel, setTierLabel] = useState('');
+  const [autopostEnabled] = useState(() => {
+    try {
+      return localStorage.getItem('omnicut_tiktok_autopost_enabled') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  // Reset per-video Post Studio state whenever the selected clip changes --
+  // otherwise a cover grabbed for the previous video would linger on screen.
+  useEffect(() => {
+    setAtSeconds(1.0);
+    setCoverResult(null);
+    setShowTierInputs(false);
+    setTierBrand('');
+    setTierModel('');
+    setTierLabel('');
+  }, [video?.rel_path || video?.path]);
+
+  useEffect(() => {
+    if (!video) return;
+    let cancelled = false;
+    setMediaInfo(null);
+    getExportMediaInfo(video.rel_path || video.path)
+      .then((info) => { if (!cancelled) setMediaInfo(info); })
+      .catch(() => { if (!cancelled) setMediaInfo(null); });
+    return () => { cancelled = true; };
+  }, [video?.rel_path || video?.path]);
 
   if (!video) {
     return (
@@ -407,6 +497,37 @@ function ExportActiveWorkbench({
     navigator.clipboard.writeText(p);
     setCopiedPath(true);
     setTimeout(() => setCopiedPath(false), 2000);
+  };
+
+  const handleScrub = (e) => {
+    const v = parseFloat(e.target.value);
+    setAtSeconds(v);
+    if (videoRef.current) videoRef.current.currentTime = v;
+  };
+
+  const handleGenerateCoverClick = async () => {
+    setCoverBusy(true);
+    const res = await onGenerateCover(video, atSeconds, { brand: tierBrand, model: tierModel, label: tierLabel });
+    if (res) setCoverResult(res);
+    setCoverBusy(false);
+  };
+
+  const handleRevealClick = async () => {
+    setRevealBusy(true);
+    await onRevealFile(video);
+    setRevealBusy(false);
+  };
+
+  const handleMarkPostedClick = async () => {
+    setPostBusy(true);
+    await onMarkPosted(video);
+    setPostBusy(false);
+  };
+
+  const handlePrepareAutopostClick = async () => {
+    setAutopostBusy(true);
+    await onPrepareAutopost(video, coverResult?.cover_path || null);
+    setAutopostBusy(false);
   };
 
   const scriptLines = Array.isArray(video.script_lines) ? video.script_lines : [];
@@ -461,6 +582,7 @@ function ExportActiveWorkbench({
         {/* Left: 9:16 Video Player Preview (No autoPlay to prevent echo) */}
         <div className="md:col-span-5 w-full max-w-[260px] sm:max-w-[290px] aspect-[9/16] mx-auto rounded-2xl overflow-hidden bg-black border border-white/[0.12] shadow-2xl relative flex items-center justify-center ring-1 ring-white/[0.05]">
           <video
+            ref={videoRef}
             key={video.rel_path || video.path}
             src={`/api/media/${video.rel_path || video.path}`}
             controls
@@ -542,7 +664,7 @@ function ExportActiveWorkbench({
                 {formatDuration(videoDuration)} นาที
               </div>
               <div className="text-[10px] text-slate-400 font-mono">
-                30 FPS • H.264 MP4
+                {formatCodecSpec(mediaInfo)}
               </div>
             </div>
 
@@ -556,7 +678,7 @@ function ExportActiveWorkbench({
                 {video.size_mb} MB
               </div>
               <div className="text-[10px] text-slate-400 font-mono">
-                1080x1920 (9:16 FHD)
+                {formatResolutionSpec(mediaInfo)}
               </div>
             </div>
 
@@ -653,20 +775,120 @@ function ExportActiveWorkbench({
                 <FileText className="w-3.5 h-3.5 text-[#25F4EE]" />
                 <span>แคปชัน & แฮชแท็กสำหรับโพสต์</span>
               </span>
-              <button
-                type="button"
-                onClick={() => onCopyCaption(`${video.tiktok_caption || 'รีวิวตัวเด็ด! สินค้าคุณภาพดีบอกต่อ'}\n\n${video.tiktok_hashtags || '#รีวิวของใช้ #ของดีบอกต่อ #tiktokshop'}`)}
-                className="px-2.5 py-1 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-[#25F4EE] hover:text-white text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer active:scale-95"
-              >
-                <Copy className="w-3 h-3" />
-                <span>{copiedCaption ? 'คัดลอกแล้ว!' : 'คัดลอก'}</span>
-              </button>
+              {video.tiktok_caption ? (
+                <button
+                  type="button"
+                  onClick={() => onCopyCaption(`${video.tiktok_caption}\n\n${video.tiktok_hashtags || ''}`)}
+                  className="px-2.5 py-1 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-[#25F4EE] hover:text-white text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer active:scale-95"
+                >
+                  <Copy className="w-3 h-3" />
+                  <span>{copiedCaption ? 'คัดลอกแล้ว!' : 'คัดลอก'}</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onOpenLinkModal?.(video)}
+                  className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                >
+                  <AlertTriangle className="w-3 h-3" />
+                  <span>ผูกกับสินค้าก่อน</span>
+                </button>
+              )}
             </div>
-            <p className="text-xs text-slate-300 bg-black/40 p-2.5 rounded-lg border border-white/[0.04] select-all leading-relaxed font-mono line-clamp-3">
-              {video.tiktok_caption || 'รีวิวตัวเด็ด! สินค้าคุณภาพดีบอกต่อ'}&nbsp;
-              {video.tiktok_hashtags || '#รีวิวของใช้ #ของดีบอกต่อ #tiktokshop'}
-            </p>
+            {video.tiktok_caption ? (
+              <p className="text-xs text-slate-300 bg-black/40 p-2.5 rounded-lg border border-white/[0.04] select-all leading-relaxed font-mono line-clamp-3">
+                {video.tiktok_caption}&nbsp;
+                {video.tiktok_hashtags || ''}
+              </p>
+            ) : (
+              <p className="text-xs text-amber-400/90 bg-amber-950/20 p-2.5 rounded-lg border border-amber-500/20">
+                ⚠ คลิปนี้ยังไม่ได้ผูกกับ Angle สินค้า — ยังไม่มีแคปชันจริงให้คัดลอก
+                (เดิมจะเผลอคัดลอกข้อความตัวอย่างไปโพสต์แทน)
+              </p>
+            )}
           </div>
+
+          {/* Post Studio: pick a cover frame (fixes the .webp TikTok rejects) */}
+          {!video.is_posted && (
+            <div className="p-3 rounded-xl bg-black/50 border border-white/[0.08] space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5 font-kanit">
+                  <ImageIcon className="w-3.5 h-3.5 text-[#25F4EE]" />
+                  <span>ปกโพสต์ (Cover)</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowTierInputs(!showTierInputs)}
+                  className="text-[10px] text-slate-500 hover:text-slate-300 font-kanit cursor-pointer"
+                >
+                  {showTierInputs ? 'ซ่อนช่องแต่งข้อความ' : 'ใส่ข้อความบนปก (ไม่บังคับ)'}
+                </button>
+              </div>
+
+              {showTierInputs && (
+                <div className="grid grid-cols-3 gap-1.5">
+                  <input
+                    value={tierBrand}
+                    onChange={(e) => setTierBrand(e.target.value)}
+                    placeholder="แบรนด์"
+                    className="min-w-0 px-2 py-1 rounded-lg bg-black/40 border border-white/[0.08] text-[11px] text-white placeholder:text-slate-600 focus:outline-none focus:border-[#25F4EE]/40"
+                  />
+                  <input
+                    value={tierModel}
+                    onChange={(e) => setTierModel(e.target.value)}
+                    placeholder="รุ่น/หัวข้อ"
+                    className="min-w-0 px-2 py-1 rounded-lg bg-black/40 border border-white/[0.08] text-[11px] text-white placeholder:text-slate-600 focus:outline-none focus:border-[#25F4EE]/40"
+                  />
+                  <input
+                    value={tierLabel}
+                    onChange={(e) => setTierLabel(e.target.value)}
+                    placeholder="ป้ายท้าย"
+                    className="min-w-0 px-2 py-1 rounded-lg bg-black/40 border border-white/[0.08] text-[11px] text-white placeholder:text-slate-600 focus:outline-none focus:border-[#25F4EE]/40"
+                  />
+                </div>
+              )}
+
+              <div className="flex gap-3 items-center">
+                <div className="w-14 aspect-[9/16] rounded-lg overflow-hidden bg-black border border-white/[0.1] flex-shrink-0">
+                  {coverResult ? (
+                    <img src={coverResult.media_url} className="w-full h-full object-cover" alt="ตัวอย่างปก" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-slate-600">
+                      <ImageIcon className="w-4 h-4" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0 space-y-1">
+                  <input
+                    type="range"
+                    min={0}
+                    max={Math.max(videoDuration || 1, 0.1)}
+                    step={0.1}
+                    value={Math.min(atSeconds, videoDuration || atSeconds)}
+                    onChange={handleScrub}
+                    className="w-full accent-[#25F4EE] cursor-pointer"
+                  />
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] text-slate-400 font-mono">วินาทีที่ {atSeconds.toFixed(1)}s</span>
+                    <button
+                      type="button"
+                      onClick={handleGenerateCoverClick}
+                      disabled={coverBusy}
+                      className="px-2.5 py-1 rounded-lg bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 text-[#25F4EE] text-[11px] font-bold cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-wait transition-all"
+                    >
+                      {coverBusy ? 'กำลังสร้าง...' : coverResult ? 'สร้างใหม่' : 'สร้างปก'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {coverResult && (
+                <p className="text-[10px] text-emerald-300/90 bg-emerald-950/20 px-2.5 py-1.5 rounded-lg border border-emerald-500/20">
+                  บันทึกแล้วที่ {coverResult.cover_path} — ลากไฟล์นี้วางเป็นปกตอนอัพโหลด (ไฟล์ .jpg, TikTok รับ)
+                </p>
+              )}
+            </div>
+          )}
 
           {/* File Path and QR Transfer */}
           <div className="p-3 rounded-xl bg-black/40 border border-white/[0.08] flex items-center justify-between gap-3">
@@ -690,7 +912,7 @@ function ExportActiveWorkbench({
             </div>
             <div className="p-1.5 bg-white rounded-xl shadow-lg flex-shrink-0" title="สแกนเพื่อเปิดตัวช่วยโพสต์ Quick Post บนมือถือ">
               <QRCodeSVG
-                value={`${mobileBaseUrl}/?quick_post=1&video=${encodeURIComponent(video.rel_path || video.path)}&product=${encodeURIComponent(video.product_name || video.name)}&caption=${encodeURIComponent(video.caption || '')}`}
+                value={buildQuickPostUrl(mobileBaseUrl, video)}
                 size={68}
                 level="M"
               />
@@ -716,13 +938,65 @@ function ExportActiveWorkbench({
               <span>ลบ</span>
             </button>
           </div>
+
+          {/* Post Studio: reveal-in-Explorer -> drag into TikTok Studio -> mark posted */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <button
+              type="button"
+              onClick={handleRevealClick}
+              disabled={revealBusy}
+              className="flex-1 py-2 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-300 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
+            >
+              <Folder className="w-3.5 h-3.5" />
+              <span>เปิดไฟล์ใน Explorer</span>
+            </button>
+            <a
+              href="https://www.tiktok.com/tiktokstudio/upload"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 py-2 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-300 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all text-center"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span>เปิด TikTok Studio</span>
+            </a>
+            {video.is_posted ? (
+              <span className="flex-1 py-2 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>โพสต์แล้ว</span>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={handleMarkPostedClick}
+                disabled={postBusy}
+                className="flex-1 py-2 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>{postBusy ? 'กำลังมาร์ค...' : 'มาร์คว่าโพสต์แล้ว'}</span>
+              </button>
+            )}
+          </div>
+
+          {/* Round POST-2: experimental auto-post, off unless enabled in Settings */}
+          {autopostEnabled && !video.is_posted && (
+            <button
+              type="button"
+              onClick={handlePrepareAutopostClick}
+              disabled={autopostBusy}
+              className="w-full py-2 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
+              title="ต้องติดตั้ง tiktok_autopost_extension/ และเปิดแท็บ TikTok Studio ที่ล็อกอินไว้ก่อน"
+            >
+              <Zap className="w-3.5 h-3.5" />
+              <span>{autopostBusy ? 'กำลังเตรียม...' : 'โพสต์ TikTok อัตโนมัติ (ทดลอง)'}</span>
+            </button>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-export default function ExportGallery({ exportsList, onRefresh, initialHighlightVideo, onClearHighlightVideo }) {
+export default function ExportGallery({ exportsList, onRefresh, initialHighlightVideo, onClearHighlightVideo, status }) {
   const [activeMediaTab, setActiveMediaTab] = useState('exports');
   const [viewMode, setViewMode] = useState(() => {
     try {
@@ -760,11 +1034,19 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
   const [modalDuration, setModalDuration] = useState(null);
   const [modalShowScript, setModalShowScript] = useState(false);
   const [modalCopiedPath, setModalCopiedPath] = useState(false);
+  const [modalMediaInfo, setModalMediaInfo] = useState(null);
 
   useEffect(() => {
     setModalDuration(null);
     setModalShowScript(false);
     setModalCopiedPath(false);
+    setModalMediaInfo(null);
+    if (!selectedDetailVideo) return;
+    let cancelled = false;
+    getExportMediaInfo(selectedDetailVideo.rel_path || selectedDetailVideo.path)
+      .then((info) => { if (!cancelled) setModalMediaInfo(info); })
+      .catch(() => { if (!cancelled) setModalMediaInfo(null); });
+    return () => { cancelled = true; };
   }, [selectedDetailVideo]);
 
   const handleSwapToLatest = useCallback((currentVideo) => {
@@ -876,6 +1158,60 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
     setCopiedCaption(true);
     showToast('คัดลอกแคปชันเรียบร้อยแล้ว');
     setTimeout(() => setCopiedCaption(false), 2000);
+  }, [showToast]);
+
+  // Round POST-1.3: Post Studio actions -- cover grab, reveal-in-Explorer,
+  // and closing the Ready_to_post -> Posted lifecycle from inside the panel.
+  const handleGenerateCover = useCallback(async (video, atSeconds, tiers) => {
+    try {
+      const res = await generateCover(
+        video.rel_path || video.path, atSeconds,
+        tiers?.brand || '', tiers?.model || '', tiers?.label || '',
+      );
+      showToast('สร้างปกเรียบร้อยแล้ว — ลากไฟล์นี้ (05_Covers_Thumbnails) ไปวางตอนอัพโหลด');
+      return res;
+    } catch (err) {
+      showToast('สร้างปกไม่สำเร็จ: ' + (err.response?.data?.detail || err.message), 'error');
+      return null;
+    }
+  }, [showToast]);
+
+  const handleRevealFile = useCallback(async (video) => {
+    try {
+      await revealFile(video.rel_path || video.path);
+    } catch (err) {
+      showToast('เปิด Explorer ไม่สำเร็จ: ' + (err.response?.data?.detail || err.message), 'error');
+    }
+  }, [showToast]);
+
+  const handleMarkPosted = useCallback(async (video) => {
+    try {
+      await markPosted(video.rel_path || video.path, video.product_id || null, video.angle_id || null);
+      showToast(`มาร์ค "${video.hook_title || video.name}" ว่าโพสต์แล้ว — ย้ายไฟล์ไป Posted/ แล้ว`);
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      showToast('มาร์คว่าโพสต์แล้วไม่สำเร็จ: ' + (err.response?.data?.detail || err.message), 'error');
+    }
+  }, [showToast, onRefresh]);
+
+  const handlePrepareAutopost = useCallback(async (video, coverPath) => {
+    try {
+      const caption = video.tiktok_caption || video.caption || video.hook_title || '';
+      const hashtags = video.tiktok_hashtags || (video.product_name ? `#${video.product_name.replace(/\s+/g, '')} #รีวิวของดี #พิกัดในตะกร้า` : '#รีวิวของดี #พิกัดในตะกร้า');
+      await prepareTiktokAutopost(
+        video.rel_path || video.path,
+        coverPath || null,
+        caption,
+        hashtags,
+        video.product_id || null,
+        video.angle_id || null,
+        video.tiktok_product_id || null,
+      );
+      showToast('เตรียมข้อมูลคลิปเข้า Extension สำเร็จ! ให้เปิด Extension บนแท็บ TikTok เพื่อเริ่มเติมข้อมูล');
+      window.open('https://www.tiktok.com/tiktokstudio/upload', '_blank');
+    } catch (err) {
+      showToast('เตรียมคลิปไม่สำเร็จ: ' + (err.response?.data?.detail || err.message), 'error');
+    }
   }, [showToast]);
 
   const confirmDelete = useCallback(async () => {
@@ -1022,12 +1358,15 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
     }
   }, [selectedVideos.length, filteredExports]);
 
-  const mobileBaseUrl = typeof window !== 'undefined' ? `http://${window.location.hostname}:5173` : '';
+  // status.mobile_url (from /api/status) survives a production build served
+  // from a different port than the Vite dev server's 5173; ContentTrackerHub
+  // already does the same fallback chain.
+  const mobileBaseUrl = status?.mobile_url || (typeof window !== 'undefined' ? `http://${window.location.hostname}:5173` : '');
 
   return (
     <div className="space-y-4 relative animate-fadeIn pb-16">
       {/* Central Toast Notification */}
-      <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
+      <Toast message={toastMessage} onClose={hideToast} />
 
       {/* ── Unified Media Center & Command Bar ── */}
       <div className="rounded-2xl sm:rounded-3xl border border-white/[0.08] bg-[#0B0F19]/90 backdrop-blur-xl p-3 sm:p-5 shadow-2xl relative overflow-hidden space-y-3 sm:space-y-4">
@@ -1332,6 +1671,10 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                     copiedCaption={copiedCaption}
                     mobileBaseUrl={mobileBaseUrl}
                     onDelete={(v) => setDeleteTarget(v)}
+                    onGenerateCover={handleGenerateCover}
+                    onRevealFile={handleRevealFile}
+                    onMarkPosted={handleMarkPosted}
+                    onPrepareAutopost={handlePrepareAutopost}
                   />
                 </div>
               </div>
@@ -1506,7 +1849,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                       {formatDuration(modalDuration)} นาที
                     </div>
                     <div className="text-[10px] text-slate-400 font-mono">
-                      30 FPS • H.264 MP4
+                      {formatCodecSpec(modalMediaInfo)}
                     </div>
                   </div>
 
@@ -1520,7 +1863,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                       {selectedDetailVideo.size_mb} MB
                     </div>
                     <div className="text-[10px] text-slate-400 font-mono">
-                      1080x1920 (9:16 FHD)
+                      {formatResolutionSpec(modalMediaInfo)}
                     </div>
                   </div>
 
@@ -1617,18 +1960,35 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                       <FileText className="w-3.5 h-3.5 text-[#25F4EE]" />
                       <span>แคปชัน & แฮชแท็กสำหรับโพสต์</span>
                     </span>
-                    <button
-                      onClick={() => handleCopyCaption(`${selectedDetailVideo.tiktok_caption || 'รีวิวตัวเด็ด! สินค้าคุณภาพดีบอกต่อ'}\n\n${selectedDetailVideo.tiktok_hashtags || '#รีวิวของใช้ #ของดีบอกต่อ #tiktokshop'}`)}
-                      className="px-2.5 py-1 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-[#25F4EE] hover:text-white text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
-                    >
-                      <Copy className="w-3 h-3" />
-                      <span>{copiedCaption ? 'คัดลอกแล้ว!' : 'คัดลอก'}</span>
-                    </button>
+                    {selectedDetailVideo.tiktok_caption ? (
+                      <button
+                        onClick={() => handleCopyCaption(`${selectedDetailVideo.tiktok_caption}\n\n${selectedDetailVideo.tiktok_hashtags || ''}`)}
+                        className="px-2.5 py-1 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-[#25F4EE] hover:text-white text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>{copiedCaption ? 'คัดลอกแล้ว!' : 'คัดลอก'}</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleOpenLinkModal(selectedDetailVideo)}
+                        className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                      >
+                        <AlertTriangle className="w-3 h-3" />
+                        <span>ผูกกับสินค้าก่อน</span>
+                      </button>
+                    )}
                   </div>
-                  <p className="text-xs text-slate-300 bg-black/40 p-2.5 rounded-xl border border-white/[0.04] select-all leading-relaxed font-mono">
-                    {selectedDetailVideo.tiktok_caption || 'รีวิวตัวเด็ด! สินค้าคุณภาพดีบอกต่อ'}&nbsp;
-                    {selectedDetailVideo.tiktok_hashtags || '#รีวิวของใช้ #ของดีบอกต่อ #tiktokshop'}
-                  </p>
+                  {selectedDetailVideo.tiktok_caption ? (
+                    <p className="text-xs text-slate-300 bg-black/40 p-2.5 rounded-xl border border-white/[0.04] select-all leading-relaxed font-mono">
+                      {selectedDetailVideo.tiktok_caption}&nbsp;
+                      {selectedDetailVideo.tiktok_hashtags || ''}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-amber-400/90 bg-amber-950/20 p-2.5 rounded-xl border border-amber-500/20">
+                      ⚠ คลิปนี้ยังไม่ได้ผูกกับ Angle สินค้า — ยังไม่มีแคปชันจริงให้คัดลอก
+                      (เดิมจะเผลอคัดลอกข้อความตัวอย่างไปโพสต์แทน)
+                    </p>
+                  )}
                 </div>
 
                 {/* 3. File Path with copy button */}
@@ -1653,6 +2013,59 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                   </button>
                 </div>
 
+                {/* 3.5 Post Studio Quick Actions (Desktop & TikTok Helper) */}
+                <div className="p-3.5 rounded-2xl bg-[#0B0F19] border border-amber-500/20 space-y-2.5">
+                  <div className="text-xs font-bold text-amber-300 flex items-center justify-between font-kanit">
+                    <span className="flex items-center gap-1.5">
+                      <Zap className="w-3.5 h-3.5 text-amber-400" />
+                      <span>โพสต์คลิปผ่านคอม (Post Studio)</span>
+                    </span>
+                    {selectedDetailVideo.is_posted ? (
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" />
+                        <span>โพสต์แล้ว</span>
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleMarkPosted(selectedDetailVideo)}
+                        className="px-2 py-0.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/20 cursor-pointer"
+                      >
+                        มาร์คว่าโพสต์แล้ว
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleRevealFile(selectedDetailVideo)}
+                      className="flex-1 py-2 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                    >
+                      <FolderOpen className="w-3.5 h-3.5" />
+                      <span>เปิดใน Explorer</span>
+                    </button>
+                    <a
+                      href="https://www.tiktok.com/tiktokstudio/upload"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 py-2 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>เปิด TikTok Studio</span>
+                    </a>
+                  </div>
+                  {!selectedDetailVideo.is_posted && (
+                    <button
+                      type="button"
+                      onClick={() => handlePrepareAutopost(selectedDetailVideo, null)}
+                      className="w-full py-2.5 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all shadow-md"
+                    >
+                      <Zap className="w-3.5 h-3.5" />
+                      <span>โพสต์ TikTok อัตโนมัติ (ทดลอง)</span>
+                    </button>
+                  )}
+                </div>
+
                 {/* 4. QR Mobile Download Section */}
                 <div className="p-4 rounded-2xl bg-black/40 border border-white/[0.08] text-center space-y-3">
                   <div className="w-10 h-10 rounded-xl bg-[#25F4EE]/10 border border-[#25F4EE]/30 flex items-center justify-center text-[#25F4EE] mx-auto">
@@ -1664,7 +2077,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                   </div>
                   <div className="p-3 bg-white rounded-2xl inline-block shadow-xl">
                     <QRCodeSVG
-                      value={`${mobileBaseUrl}/?quick_post=1&video=${encodeURIComponent(selectedDetailVideo.rel_path || selectedDetailVideo.path)}&product=${encodeURIComponent(selectedDetailVideo.product_name || selectedDetailVideo.name)}&caption=${encodeURIComponent(selectedDetailVideo.caption || '')}`}
+                      value={buildQuickPostUrl(mobileBaseUrl, selectedDetailVideo)}
                       size={150}
                       level="M"
                     />

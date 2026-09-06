@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "OmniCut TikTok Post Helper",
+  "version": "0.1.0",
+  "description": "เติม mp4/ปก/แคปชั่นในหน้าอัปโหลด TikTok Studio ให้อัตโนมัติ ต้องกดเริ่มเองทุกครั้ง ไม่มี schedule/headless (Round POST-2 ของ OmniCut Pro Studio)",
+  "permissions": ["debugger", "tabs", "storage"],
+  "host_permissions": [
+    "http://127.0.0.1:8000/*",
+    "https://www.tiktok.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "OmniCut TikTok Post Helper"
+  }
+}

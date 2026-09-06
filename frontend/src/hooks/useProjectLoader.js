@@ -17,9 +17,10 @@ export function useProjectLoader({ fetchProject, beforeLoad, mapProject, onStart
     const sequence = ++requestSequence.current;
     setLoading(true);
     setLoadError(null);
-    callbacks.current.onStart?.(name);
     try {
       await callbacks.current.beforeLoad?.(name);
+      if (sequence !== requestSequence.current) return null;
+      callbacks.current.onStart?.(name);
       const manifest = await callbacks.current.fetchProject(name);
       if (sequence !== requestSequence.current) return null;
       const mapped = callbacks.current.mapProject

@@ -354,6 +354,7 @@ export default function App() {
                       onRefresh={refreshData}
                       initialHighlightVideo={highlightExportVideo}
                       onClearHighlightVideo={() => setHighlightExportVideo(null)}
+                      status={status}
                     />
                   </Suspense>
                 )}

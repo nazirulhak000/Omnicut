@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   Settings, Folder, HardDrive, CheckCircle2, Sliders, Type,
   Sparkles, RefreshCw, Smartphone, ShieldCheck, Cpu, Layers,
-  BarChart3, Columns, List, ChevronRight
+  BarChart3, Columns, List, ChevronRight, AlertTriangle, Bug
 } from 'lucide-react';
 import { openFolder } from '../api';
 import TokenDashboard from './TokenDashboard';
@@ -17,6 +17,25 @@ export default function SystemSettings({
 }) {
   const [activeTab, setActiveTab] = useState(initialSubTab); // 'tokens' | 'appearance' | 'paths' | 'engine'
   const [viewMode, setViewMode] = useState('split'); // 'split' | 'classic'
+
+  // Round POST-2: TikTok auto-post extension toggle -- off by default, per
+  // TIKTOK_AUTOPOST_PLAN.md Gate §4 ("ปิดไว้เป็นค่าเริ่มต้น เปิดผ่าน toggle นี้เท่านั้น").
+  const [autopostEnabled, setAutopostEnabled] = useState(() => {
+    try {
+      return localStorage.getItem('omnicut_tiktok_autopost_enabled') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const toggleAutopost = () => {
+    setAutopostEnabled((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('omnicut_tiktok_autopost_enabled', next ? 'true' : 'false');
+      } catch {}
+      return next;
+    });
+  };
 
   const handleOpen = (target) => {
     openFolder(target);
@@ -356,6 +375,60 @@ export default function SystemSettings({
                   <li>ฟอนต์คำบรรยาย: <b>Prompt, IBM Plex Sans Thai, Kanit</b></li>
                 </ul>
               </div>
+            </div>
+
+            {/* Round POST-2: TikTok Auto-Post Extension (experimental, risky) */}
+            <div className="p-4 sm:p-5 space-y-3.5 bg-[#0B0F19] rounded-2xl border border-amber-500/20 shadow-lg">
+              <div className="flex items-center justify-between gap-3 pb-2 border-b border-white/[0.08]">
+                <h3 className="text-xs sm:text-sm font-bold text-white font-kanit flex items-center gap-2">
+                  <Bug className="w-4 h-4 text-amber-400" />
+                  TikTok Auto-Post Extension (ทดลอง — มีความเสี่ยง)
+                </h3>
+                <button
+                  type="button"
+                  onClick={toggleAutopost}
+                  className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${
+                    autopostEnabled ? 'bg-emerald-500' : 'bg-white/[0.12]'
+                  }`}
+                  title={autopostEnabled ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
+                >
+                  <span
+                    className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                      autopostEnabled ? 'translate-x-5' : 'translate-x-0.5'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-300 leading-relaxed font-kanit">
+                ให้ Chrome extension เติม mp4 + ปก + แคปชั่นลงหน้า TikTok Studio ที่ล็อกอินอยู่แล้วให้อัตโนมัติ
+                ผ่าน <code className="text-[10px] bg-black/40 px-1 py-0.5 rounded">chrome.debugger</code> —
+                กลไกเดียวกับที่ Playwright/Puppeteer ใช้ทดสอบเว็บ ไม่ใช่บอทปลอมตัว แต่ Chrome จะโชว์แถบ
+                "กำลัง debug เบราว์เซอร์นี้" ค้างตลอดเวลาที่ทำงาน (ซ่อนไม่ได้) และพี่ต้องกดเริ่มเองทุกครั้ง
+                — ไม่มี schedule ไม่มี headless รายละเอียดเต็มดู{' '}
+                <span className="font-mono text-amber-300">TIKTOK_AUTOPOST_PLAN.md</span>
+              </p>
+
+              <div className="p-3 rounded-xl bg-amber-950/20 border border-amber-500/20 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                <p className="text-[11px] text-amber-200/90 font-kanit leading-relaxed">
+                  ยังไม่ผ่านการทดสอบกับหน้า TikTok Studio จริง (โครงสร้างหน้าเว็บอาจเปลี่ยนได้ทุกเมื่อ) —
+                  ทดสอบกับคลิปทดลอง 3-5 คลิปก่อน แล้วสังเกตอาการบัญชี ก่อนใช้เป็นประจำ
+                  ปุ่ม "เปิด TikTok Studio" แบบลากเองใน Post Studio ยังอยู่คู่กันเสมอ ปิดฟีเจอร์นี้ได้ทุกเมื่อ
+                </p>
+              </div>
+
+              {autopostEnabled && (
+                <div className="p-3 rounded-xl bg-black/40 border border-white/[0.06] text-[11px] text-slate-300 font-kanit space-y-1.5">
+                  <div className="font-bold text-white">วิธีติดตั้ง extension (ครั้งแรกครั้งเดียว):</div>
+                  <ol className="list-decimal list-inside space-y-1 text-slate-400">
+                    <li>เปิด <span className="font-mono text-slate-300">chrome://extensions</span> แล้วเปิด "Developer mode"</li>
+                    <li>กด "Load unpacked" แล้วเลือกโฟลเดอร์ <span className="font-mono text-slate-300">tiktok_autopost_extension/</span> ในโปรเจกต์</li>
+                    <li>เปิดแท็บ <span className="font-mono text-slate-300">tiktok.com/tiktokstudio/upload</span> ที่ล็อกอินไว้แล้ว</li>
+                    <li>ในแอปนี้ กด "โพสต์ TikTok อัตโนมัติ" ใน Post Studio แล้วคลิกไอคอน extension เพื่อเริ่ม</li>
+                  </ol>
+                </div>
+              )}
             </div>
           </div>
         );

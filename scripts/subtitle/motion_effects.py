@@ -33,6 +33,33 @@ def _chained_keyframes(prop: str, start_ms: int, end_ms: int, seg_ms: int, value
     return "".join(segs)
 
 
+ACCEL_SOFT_OUT = 0.6
+ACCEL_SNAP_IN = 2.2
+
+
+def serialize_keyframes(keyframes: List[Tuple[int, Dict[str, object], float]]) -> str:
+    """
+    Serialize keyframe list into ASS override tags.
+    Format: [(t_ms, {prop: value}, accel), ...]
+    Keyframe 0 sets initial property values (before animation starts).
+    Subsequent keyframes emit \\t(t_prev, t_curr, [accel], tags).
+    If accel == 1.0, standard linear \\t(t1,t2,tags) is emitted (byte-identical with legacy).
+    """
+    if not keyframes:
+        return ""
+    initial_tags = "".join(f"\\{prop}{val}" for prop, val in keyframes[0][1].items())
+    segs = []
+    for i in range(1, len(keyframes)):
+        t_prev, _, _ = keyframes[i - 1]
+        t_curr, props, accel = keyframes[i]
+        prop_str = "".join(f"\\{prop}{val}" for prop, val in props.items())
+        if accel == 1.0:
+            segs.append(f"\\t({t_prev},{t_curr},{prop_str})")
+        else:
+            segs.append(f"\\t({t_prev},{t_curr},{accel:g},{prop_str})")
+    return initial_tags + "".join(segs)
+
+
 # ---- In (entrance) builders -------------------------------------------
 
 def _in_bounce(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
@@ -41,17 +68,34 @@ def _in_bounce(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[
     over = round(target * 1.25)
     under = round(target * 0.92)
     settle_over = round(target * 1.05)
-    t1, t2, t3, t4 = t0_ms, t0_ms + 150, t0_ms + 280, t0_ms + 380
     end_ms = t0_ms + 450
     entry_from = round(target * 0.6)
-    tag = (
-        f"\\fscx{entry_from}\\fscy{entry_from}"
-        f"\\t({t1},{t2},\\fscx{over}\\fscy{over})"
-        f"\\t({t2},{t3},\\fscx{under}\\fscy{under})"
-        f"\\t({t3},{t4},\\fscx{settle_over}\\fscy{settle_over})"
-        f"\\t({t4},{end_ms},\\fscx{target}\\fscy{target})"
-    )
-    return tag, end_ms, None
+    kfs = [
+        (t0_ms, {"fscx": entry_from, "fscy": entry_from}, 1.0),
+        (t0_ms + 150, {"fscx": over, "fscy": over}, 1.0),
+        (t0_ms + 280, {"fscx": under, "fscy": under}, 1.0),
+        (t0_ms + 380, {"fscx": settle_over, "fscy": settle_over}, 1.0),
+        (end_ms, {"fscx": target, "fscy": target}, 1.0),
+    ]
+    return serialize_keyframes(kfs), end_ms, None
+
+
+def _in_bounce_soft(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
+    """Soft bounce easing without harsh linear reversal at peaks."""
+    target = round(target_scale_pct)
+    over = round(target * 1.25)
+    under = round(target * 0.92)
+    settle_over = round(target * 1.05)
+    end_ms = t0_ms + 450
+    entry_from = round(target * 0.6)
+    kfs = [
+        (t0_ms, {"fscx": entry_from, "fscy": entry_from}, 1.0),
+        (t0_ms + 150, {"fscx": over, "fscy": over}, ACCEL_SOFT_OUT),
+        (t0_ms + 280, {"fscx": under, "fscy": under}, 1.0),
+        (t0_ms + 380, {"fscx": settle_over, "fscy": settle_over}, 1.0),
+        (end_ms, {"fscx": target, "fscy": target}, ACCEL_SOFT_OUT),
+    ]
+    return serialize_keyframes(kfs), end_ms, None
 
 
 def _in_pop(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
@@ -60,19 +104,36 @@ def _in_pop(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int
     over = round(target * 1.18)
     entry_from = round(target * 0.55)
     end_ms = t0_ms + 200
-    tag = (
-        f"\\fscx{entry_from}\\fscy{entry_from}"
-        f"\\t({t0_ms},{t0_ms + 120},\\fscx{over}\\fscy{over})"
-        f"\\t({t0_ms + 120},{end_ms},\\fscx{target}\\fscy{target})"
-    )
-    return tag, end_ms, None
+    kfs = [
+        (t0_ms, {"fscx": entry_from, "fscy": entry_from}, 1.0),
+        (t0_ms + 120, {"fscx": over, "fscy": over}, 1.0),
+        (end_ms, {"fscx": target, "fscy": target}, 1.0),
+    ]
+    return serialize_keyframes(kfs), end_ms, None
+
+
+def _in_pop_soft(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
+    """Soft deceleration pop using ACCEL_SOFT_OUT and ACCEL_SNAP_IN."""
+    target = round(target_scale_pct)
+    over = round(target * 1.18)
+    entry_from = round(target * 0.55)
+    end_ms = t0_ms + 200
+    kfs = [
+        (t0_ms, {"fscx": entry_from, "fscy": entry_from}, 1.0),
+        (t0_ms + 120, {"fscx": over, "fscy": over}, ACCEL_SOFT_OUT),
+        (end_ms, {"fscx": target, "fscy": target}, ACCEL_SNAP_IN),
+    ]
+    return serialize_keyframes(kfs), end_ms, None
 
 
 def _in_fade(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
     target = round(target_scale_pct)
     end_ms = t0_ms + 250
-    tag = f"\\fscx{target}\\fscy{target}\\alpha&HFF&\\t({t0_ms},{end_ms},\\alpha&H00&)"
-    return tag, end_ms, None
+    kfs = [
+        (t0_ms, {"fscx": target, "fscy": target, "alpha": "&HFF&"}, 1.0),
+        (end_ms, {"alpha": "&H00&"}, 1.0),
+    ]
+    return serialize_keyframes(kfs), end_ms, None
 
 
 def _in_zoom(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
@@ -90,18 +151,22 @@ def _in_zoom(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[in
 def _in_slide_up(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
     target = round(target_scale_pct)
     end_ms = t0_ms + 300
-    tag = f"\\fscx{target}\\fscy{target}\\alpha&HFF&\\t({t0_ms},{end_ms},\\alpha&H00&)"
+    kfs = [
+        (t0_ms, {"fscx": target, "fscy": target, "alpha": "&HFF&"}, 1.0),
+        (end_ms, {"alpha": "&H00&"}, 1.0),
+    ]
+    tag = serialize_keyframes(kfs)
     return tag, end_ms, 60  # slides up from 60px below
 
 
 def _in_blur(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
     target = round(target_scale_pct)
     end_ms = t0_ms + 350
-    tag = (
-        f"\\fscx{target}\\fscy{target}\\alpha&HFF&\\blur12"
-        f"\\t({t0_ms},{end_ms},\\alpha&H00&\\blur0)"
-    )
-    return tag, end_ms, None
+    kfs = [
+        (t0_ms, {"fscx": target, "fscy": target, "alpha": "&HFF&", "blur": "12"}, 1.0),
+        (end_ms, {"alpha": "&H00&", "blur": "0"}, 1.0),
+    ]
+    return serialize_keyframes(kfs), end_ms, None
 
 
 def _in_none(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
@@ -110,7 +175,9 @@ def _in_none(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[in
 
 
 HOOK_IN_BUILDERS = {
-    "bounce": _in_bounce, "pop": _in_pop, "fade": _in_fade, "zoom": _in_zoom,
+    "bounce": _in_bounce, "bounce_soft": _in_bounce_soft,
+    "pop": _in_pop, "pop_soft": _in_pop_soft,
+    "fade": _in_fade, "zoom": _in_zoom,
     "slide_up": _in_slide_up, "blur": _in_blur, "none": _in_none,
 }
 

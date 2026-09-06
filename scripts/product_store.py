@@ -71,6 +71,7 @@ class ProductStore:
         thumbnail: str = "",
         angles: Optional[List[Dict[str, Any]]] = None,
         images: Optional[List[Dict[str, Any]]] = None,
+        tiktok_product_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Add a product, or return the existing one when the URL is already queued."""
         if not name.strip():
@@ -86,6 +87,8 @@ class ProductStore:
                         existing["status"] = "scripted"
                     if images:
                         existing["images"] = images
+                    if tiktok_product_id and tiktok_product_id.strip():
+                        existing["tiktok_product_id"] = tiktok_product_id.strip()
                     existing["updated_at"] = cls._now()
                     cls._save(products)
                     return existing
@@ -103,6 +106,7 @@ class ProductStore:
             "price_note": price_note,
             "target_buyer": target_buyer,
             "thumbnail": thumbnail,
+            "tiktok_product_id": tiktok_product_id.strip() if (tiktok_product_id and tiktok_product_id.strip()) else None,
             "status": "scripted" if angles else "candidate",
             "angles": angles or [],
             "images": images or [],
@@ -157,6 +161,7 @@ class ProductStore:
         project_name: Optional[str] = None,
         qc_note: Optional[str] = None,
         clear_qc_note: bool = False,
+        clear_conflict_note: bool = False,
     ) -> Dict[str, Any]:
         """Updates the lifecycle status of a specific script angle in a product.
 
@@ -165,6 +170,10 @@ class ProductStore:
                    opened for re-editing.
         clear_qc_note – pass True to wipe any previous qc_note (e.g. when the
                          angle passes QC and advances beyond 'rendered').
+        clear_conflict_note – pass True to dismiss the `data_conflict_note`
+                               reconcile_existing_projects() sets when it
+                               auto-unlinks this angle from another angle's
+                               project/video (Round BUG-3).
         """
         products = cls._load()
         for product in products:
@@ -183,6 +192,8 @@ class ProductStore:
                             angle["qc_note"] = qc_note.strip() or None
                         elif clear_qc_note:
                             angle["qc_note"] = None
+                        if clear_conflict_note:
+                            angle["data_conflict_note"] = None
                         angle["updated_at"] = cls._now()
                         product["updated_at"] = cls._now()
                         cls._save(products)
@@ -219,7 +230,12 @@ class ProductStore:
                     (v_name and (v_name == raw_id_low or v_name == Path(identifier).name.lower())) or
                     (v_stem and v_stem == target_token)
                 )
-                if is_match and angle.get("status") in ("rendered", "in_production"):
+                # Round BUG-3: used to skip mobile_ready/posted angles entirely --
+                # deleting the file behind an already-posted clip left its card
+                # showing as if the video still existed. A user-triggered delete
+                # (unlike reconcile's passive best-effort scan) should always
+                # cascade, regardless of how far the angle's status advanced.
+                if is_match:
                     cur_p_name = angle.get("project_name")
                     has_proj = False
                     if cur_p_name:
@@ -427,7 +443,11 @@ class ProductStore:
         changed = False
         projects_dir = BASE_DIR / "03_Projects"
         exports_dir = BASE_DIR / "04_Exports" / "Ready_to_post"
-        
+        # A posted clip's mp4 lives here now (Round POST-1.4) -- if this scan
+        # only checked Ready_to_post, a posted clip would look exactly like
+        # "no export exists yet" the moment it was moved out.
+        posted_dir = BASE_DIR / "04_Exports" / "Posted"
+
         if not projects_dir.exists():
             return False
 
@@ -457,12 +477,34 @@ class ProductStore:
             art_mp4 = p_data.get("artifacts", {}).get("mp4_video", {}).get("path")
             if art_mp4 and Path(art_mp4).exists():
                 mp4_path = art_mp4
-            elif exports_dir.exists():
-                candidates = list(exports_dir.glob(f"{p_folder.name}*.mp4"))
-                if candidates:
-                    mp4_path = str(candidates[0])
+            else:
+                for scan_dir in (exports_dir, posted_dir):
+                    if not scan_dir.exists():
+                        continue
+                    candidates = list(scan_dir.glob(f"{p_folder.name}*.mp4"))
+                    if candidates:
+                        mp4_path = str(candidates[0])
+                        break
 
-            # Match against products
+            # Match against products.
+            #
+            # Round BUG-3: this used to apply the update below to EVERY
+            # angle that matched, with no cap -- if two angles both claimed
+            # this same p_folder (one legitimately via its own manifest,
+            # one only because its own project_name field already said so),
+            # both got the same video_url/status, forever, since condition
+            # #2 just re-confirms whatever project_name an angle already
+            # has without ever verifying it's actually this angle's own
+            # render. Now: condition #1 (this folder's OWN manifest names
+            # this exact product+angle) is ground truth and always wins.
+            # Condition #2 (self-referential -- "an angle already claims
+            # this folder") is only a fallback, and at most ONE angle may
+            # win it per folder per pass; every other angle claiming the
+            # same folder is a data conflict and gets unlinked back to
+            # scripted instead of silently mirroring the winner's clip.
+            authoritative_match = None  # (product, angle) via condition #1
+            self_ref_matches = []       # [(product, angle), ...] via condition #2
+
             for product in products:
                 # If project explicitly specified a product_id, it MUST match product["id"]
                 if p_pid and product.get("id") and p_pid != product.get("id"):
@@ -470,59 +512,85 @@ class ProductStore:
 
                 for angle in product.get("angles", []):
                     current_aid = angle.get("angle_id") or angle.get("id")
-                    
-                    is_match = False
 
                     # 1. Exact Product ID + Angle ID match from project manifest
                     if p_pid and p_aid and product.get("id") == p_pid and current_aid == p_aid:
-                        is_match = True
+                        if authoritative_match is None:
+                            authoritative_match = (product, angle)
                     # 2. Already explicitly linked by project_name on this angle
                     elif angle.get("project_name") and angle.get("project_name") == p_folder.name:
-                        is_match = True
+                        self_ref_matches.append((product, angle))
 
-                    if is_match:
-                        # Ensure project is linked
-                        if angle.get("project_name") != p_folder.name:
-                            angle["project_name"] = p_folder.name
+            winner = authoritative_match or (self_ref_matches[0] if self_ref_matches else None)
+            losers = self_ref_matches if authoritative_match else self_ref_matches[1:]
+
+            for _loser_product, loser_angle in losers:
+                loser_angle["project_name"] = None
+                loser_angle["video_url"] = None
+                loser_angle["status"] = "scripted"
+                loser_angle["data_conflict_note"] = (
+                    f"ปลดออกจาก '{p_folder.name}' อัตโนมัติ — ชนกับ angle อื่นที่ผูกกับคลิปนี้ถูกต้องกว่า ({cls._now()})"
+                )
+                loser_angle["updated_at"] = cls._now()
+                changed = True
+
+            if winner:
+                product, angle = winner
+
+                # Ensure project is linked
+                if angle.get("project_name") != p_folder.name:
+                    angle["project_name"] = p_folder.name
+                    changed = True
+
+                if mp4_path:
+                    # If angle has a QC failure note or is explicitly set to in_production,
+                    # do NOT automatically overwrite it to 'rendered'!
+                    if angle.get("qc_note"):
+                        if angle.get("status") != "in_production":
+                            angle["status"] = "in_production"
                             changed = True
-
-                        if mp4_path:
-                            # If angle has a QC failure note or is explicitly set to in_production,
-                            # do NOT automatically overwrite it to 'rendered'!
-                            if angle.get("qc_note"):
-                                if angle.get("status") != "in_production":
-                                    angle["status"] = "in_production"
-                                    changed = True
-                                if angle.get("video_url") != mp4_path:
-                                    angle["video_url"] = mp4_path
-                                    changed = True
-                            elif angle.get("status") in ("mobile_ready", "posted"):
-                                # Preserve advanced lifecycle status
-                                if angle.get("video_url") != mp4_path:
-                                    angle["video_url"] = mp4_path
-                                    changed = True
-                            elif angle.get("status") == "in_production":
-                                # User is currently editing in Studio or sent for re-edit
-                                if angle.get("video_url") != mp4_path:
-                                    angle["video_url"] = mp4_path
-                                    changed = True
-                            else:
-                                if angle.get("status") != "rendered" or angle.get("video_url") != mp4_path:
-                                    angle["status"] = "rendered"
-                                    angle["video_url"] = mp4_path
-                                    changed = True
-                        else:
-                            # Project timeline exists in 03_Projects, but NO exported MP4 video yet!
-                            # It MUST be 'in_production', NOT 'rendered'!
-                            if angle.get("status") != "in_production" or angle.get("video_url") is not None:
-                                angle["status"] = "in_production"
-                                angle["video_url"] = None
-                                changed = True
-
-                        p_list = product.setdefault("projects", [])
-                        if p_folder.name not in p_list:
-                            p_list.append(p_folder.name)
+                        if angle.get("video_url") != mp4_path:
+                            angle["video_url"] = mp4_path
                             changed = True
+                    elif angle.get("status") in ("mobile_ready", "posted"):
+                        # Preserve advanced lifecycle status
+                        if angle.get("video_url") != mp4_path:
+                            angle["video_url"] = mp4_path
+                            changed = True
+                    elif angle.get("status") == "in_production":
+                        # User is currently editing in Studio or sent for re-edit
+                        if angle.get("video_url") != mp4_path:
+                            angle["video_url"] = mp4_path
+                            changed = True
+                    else:
+                        if angle.get("status") != "rendered" or angle.get("video_url") != mp4_path:
+                            angle["status"] = "rendered"
+                            angle["video_url"] = mp4_path
+                            changed = True
+                elif angle.get("status") in ("mobile_ready", "posted"):
+                    # No mp4 found by either path -- this scan's own
+                    # heuristic came up empty, which used to be read
+                    # as "no export was ever made" and wiped the
+                    # angle back to in_production. That is exactly
+                    # what happened to a posted clip the instant its
+                    # file moved to Posted/ and its manifest's
+                    # artifacts.mp4_video.path (still pointing at the
+                    # old Ready_to_post location) stopped resolving.
+                    # An already-posted clip does not get less posted
+                    # because this pass could not find its file.
+                    pass
+                else:
+                    # Project timeline exists in 03_Projects, but NO exported MP4 video yet!
+                    # It MUST be 'in_production', NOT 'rendered'!
+                    if angle.get("status") != "in_production" or angle.get("video_url") is not None:
+                        angle["status"] = "in_production"
+                        angle["video_url"] = None
+                        changed = True
+
+                p_list = product.setdefault("projects", [])
+                if p_folder.name not in p_list:
+                    p_list.append(p_folder.name)
+                    changed = True
 
         # Strict state validation: Clean up any angle whose project or video does not actually exist on disk
         for product in products:

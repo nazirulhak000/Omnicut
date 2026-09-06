@@ -43,6 +43,8 @@ from scripts.api_editor import router as editor_router
 from scripts.api_tokens import router as tokens_router
 from scripts.api_voice import router as voice_router
 from scripts.api_videos import router as videos_router
+from scripts.api_covers import router as covers_router
+from scripts.api_tiktok_autopost import router as tiktok_autopost_router
 from scripts.api_products import router as products_router
 from scripts.api_exports import router as exports_router
 from scripts.api_tasks import router as tasks_router
@@ -70,6 +72,8 @@ app.include_router(editor_router)
 app.include_router(tokens_router)
 app.include_router(voice_router)
 app.include_router(videos_router)
+app.include_router(covers_router)
+app.include_router(tiktok_autopost_router)
 app.include_router(products_router)
 app.include_router(exports_router)
 app.include_router(tasks_router)

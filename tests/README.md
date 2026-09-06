@@ -1,24 +1,33 @@
-# Test suites
+# Automated Test Suites
 
-Run the complete automated safety net from the repository root:
+รันจากรากโปรเจกต์:
 
 ```powershell
 python -m pytest tests/ -q -p no:cacheprovider --tb=short
 ```
 
-The suites have separate purposes:
+สถานะตรวจล่าสุด 2026-09-05: `336 passed, 5 warnings in 44.08s`
 
-- `test_refactor_baseline_contracts.py` protects API routes, old manifests, Editor save payloads, and save/reload behavior.
-- `test_preview_render_parity.py` checks source-level contracts between the Canvas preview and renderer.
-- `test_preview_render_behavior.py` runs black-box FFmpeg output checks using files created only under pytest's temporary directory.
-- `test_phase1_smoke.py` covers manifest, pipeline, reroll, media, and renderer logic without touching live project data.
+## ชุดหลัก
 
-Files listed in `conftest.py` are manual diagnostics retained for historical use. They render media or call external services at import time, so pytest must not collect them as automated tests.
+- `test_backend_api_contracts.py`: FastAPI route และ schema contracts
+- `test_refactor_baseline_contracts.py`: manifest เก่า, Editor payload และ save/reload
+- `test_pipeline_stages.py`: stage order, reroll reuse และ failure reporting
+- `test_preview_render_parity.py`: source contracts ระหว่าง Canvas กับ Python renderer
+- `test_preview_render_behavior.py`: render คลิปสังเคราะห์จริงใน temp directory
+- `test_subtitle_snapshot.py`: ASS output และ Thai layout snapshots
+- `test_keyframe_parity.py`: interpolation parity ระหว่าง Python/JavaScript
+- `test_error_handling_recovery.py`: error mapping, atomic save และ recovery
+- `test_final_compatibility_signoff.py`: compatibility/sign-off gate
+- `test_phase1_smoke.py`: regression coverage ของ manifest, media, pipeline และ renderer
 
-To roll back a completed refactor commit while preserving later history, record its hash in `REFACTOR_PLAN.md` and run:
+ไฟล์ใน `conftest.py` คือ manual diagnostics รุ่นเก่าที่ถูกกันออกจาก pytest เพราะบางไฟล์ render หรือเรียกบริการภายนอกตั้งแต่ import ห้ามเพิ่มรายชื่อใหม่เพื่อซ่อน test ที่ล้ม ให้ย้ายสคริปต์ทดลองใหม่ไป `tools/` แทน
+
+Frontend tests รันแยก:
 
 ```powershell
-git revert <commit-hash>
+Set-Location frontend
+npm test
 ```
 
-When the working tree already contains unrelated work, do not use `git reset`, `git checkout`, or `git clean` as a rollback method.
+อ่านกฎเต็มที่ [.agents/rules/testing_standard.md](../.agents/rules/testing_standard.md)

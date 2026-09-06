@@ -145,56 +145,69 @@ _TH_PARTICLES = {
 def wrap_text_for_ass(text: str, max_chars_per_line: int = 40) -> str:
     """
     Wraps long Thai text into multiple balanced lines using ASS \\N.
+    Mirrors wrapCanvasText() in SequencePlayer.jsx.
     """
-    clean = re.sub(r'\s+', ' ', re.sub(r'[\.]{2,}|…', ' ', text)).strip().replace("\r", "")
-    if not clean or "\\N" in clean or "\n" in clean or len(clean) <= max_chars_per_line:
-        return clean.replace("\n", "\\N")
-
-    try:
-        from pythainlp.tokenize import word_tokenize
-        raw_words = word_tokenize(clean, engine="newmm")
-    except Exception:
-        raw_words = clean.split(" ")
+    if not text:
+        return ""
+    raw_paras = str(text).replace("\\N", "\n").split("\n")
+    result_lines = []
 
     prefixes = {"ผู้", "การ", "ความ", "นัก", "ชาว", "จาก"}
-    words = []
-    i = 0
-    while i < len(raw_words):
-        w = raw_words[i]
-        if w in prefixes and i + 1 < len(raw_words):
-            words.append(w + raw_words[i + 1])
-            i += 2
-        else:
-            words.append(w)
-            i += 1
 
-    if len(clean) <= max_chars_per_line * 2 and len(words) > 2:
-        target_mid = len(clean) / 2.0
-        best_idx = 1
-        best_diff = 99999
-        accum = 0
-        for idx, w in enumerate(words[:-1]):
-            accum += len(w)
-            diff = abs(accum - target_mid)
-            if diff < best_diff:
-                best_diff = diff
-                best_idx = idx + 1
-        l1 = "".join(words[:best_idx]).strip()
-        l2 = "".join(words[best_idx:]).strip()
-        return f"{l1}\\N{l2}"
+    for para in raw_paras:
+        clean = re.sub(r'\s+', ' ', re.sub(r'[\.]{2,}|…', ' ', para)).strip().replace("\r", "")
+        if not clean:
+            continue
+        if len(clean) <= max_chars_per_line:
+            result_lines.append(clean)
+            continue
 
-    lines = []
-    curr = ""
-    for w in words:
-        if len(curr) + len(w) > max_chars_per_line and len(curr) >= 12:
+        try:
+            from pythainlp.tokenize import word_tokenize
+            raw_words = word_tokenize(clean, engine="newmm")
+        except Exception:
+            raw_words = clean.split(" ")
+
+        words = []
+        i = 0
+        while i < len(raw_words):
+            w = raw_words[i]
+            if w in prefixes and i + 1 < len(raw_words):
+                words.append(w + raw_words[i + 1])
+                i += 2
+            else:
+                words.append(w)
+                i += 1
+
+        if len(clean) <= max_chars_per_line * 2 and len(words) > 2:
+            target_mid = len(clean) / 2.0
+            best_idx = 1
+            best_diff = 99999
+            accum = 0
+            for idx, w in enumerate(words[:-1]):
+                accum += len(w)
+                diff = abs(accum - target_mid)
+                if diff < best_diff:
+                    best_diff = diff
+                    best_idx = idx + 1
+            l1 = "".join(words[:best_idx]).strip()
+            l2 = "".join(words[best_idx:]).strip()
+            result_lines.extend([l1, l2])
+            continue
+
+        lines = []
+        curr = ""
+        for w in words:
+            if len(curr) + len(w) > max_chars_per_line and len(curr) >= 12:
+                lines.append(curr)
+                curr = w
+            else:
+                curr += w
+        if curr:
             lines.append(curr)
-            curr = w
-        else:
-            curr += w
-    if curr:
-        lines.append(curr)
+        result_lines.extend(lines if lines else [clean])
 
-    return "\\N".join(lines) if len(lines) > 1 else clean
+    return "\\N".join(result_lines) if result_lines else str(text).strip()
 
 
 def wrap_en_for_ass(text: str, max_chars_per_line: int = 58) -> str:

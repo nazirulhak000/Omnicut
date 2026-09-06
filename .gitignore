@@ -24,7 +24,11 @@ Thumbs.db
 01_Raw/*
 03_Projects/
 04_Exports/*
+05_Covers_Thumbnails/*
+!05_Covers_Thumbnails/.gitkeep
 scratch/
+tests/scratch*/
+tools/tiktok_browser_profile/
 # Test and tool generated outputs
 tests/output/
 tools/output/
