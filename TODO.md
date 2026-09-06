@@ -74,8 +74,13 @@ npm test
 - [x] ตรวจ syntax JavaScript, Node tests และ pytest ที่เกี่ยวข้อง
 - [ ] ทดสอบ TikTok จริง: caption, สินค้าตรง ID, ปก, schedule
 
-Notes: แก้ไข `switchToShowcaseTab` และการกรอก/เลือกสินค้าใน `attachProductLink` ใน `background.js` สำเร็จ
-ผ่านการทดสอบ `node --test tiktok_autopost_extension/background.test.cjs` (5/5 passed), `node -c` (0 error), และ `pytest` (149 passed)
+Notes: ปรับปรุงโค้ด Extension ให้ตรงกับ Element จริงจาก DevTools 5 จุด:
+1. ใส่คำอธิบายก่อน แล้วเคาะเว้นวรรค 2 บรรทัด ตามด้วยแฮชแท็ก
+2. สลับไปแท็บ "นำเสนอสินค้า" (Showcase) ให้สำเร็จก่อนค้นหา ป้องกันพิมพ์ในแท็บ "ร้านของฉัน"
+3. เลือกสินค้าด้วย radio element: `tr.product-tb-row`, `.TUXRadioStandalone`, `input.TUXRadioStandalone-input` และคลิกด้วย CDP native click
+4. กดปุ่ม "ถัดไป" ด้านล่างขวาของตารางรายการสินค้า
+5. หน้ารายการสุดท้าย: สั่งคลุมดำชื่อสินค้า และกดปุ่ม "เพิ่ม" (Add button สีแดง) จบขั้นตอนปักตะกร้า
+ผ่านการทดสอบ `node --test tiktok_autopost_extension/background.test.cjs` (6/6 passed) และ `pytest` (149 passed)
 
 รายการที่รู้แล้วว่าต้องทำ แต่ยังไม่ได้จัดเข้ารอบไหน
 เจอของใหม่ระหว่างทาง → เขียนลงตรงนี้ทันที ห้ามทำเงียบๆ
