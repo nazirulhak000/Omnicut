@@ -219,12 +219,11 @@ async function typeCaption(send, captionOrText, hashtags = '') {
   // 3. If hashtags exist, insert two line breaks and then type hashtags
   if (cleanTags) {
     if (cleanCaption) {
-      await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
-      await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
-      await sleep(100);
-      await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
-      await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
-      await sleep(100);
+      for (let i = 0; i < 2; i++) {
+        await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r', unmodifiedText: '\r' });
+        await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+        await sleep(100);
+      }
     }
     await send('Input.insertText', { text: cleanTags });
     await sleep(200);
@@ -325,24 +324,22 @@ async function switchToShowcaseTab(send) {
       expression: `(() => {
         const isVisible = (el) => {
           if (!el) return false;
-          if (typeof el.checkVisibility === 'function') {
-            return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
-          }
           const rect = el.getBoundingClientRect();
           const style = window.getComputedStyle(el);
           return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
         };
 
-        // 1. Check TikTok design system active tab class
-        const activeItem = document.querySelector('.TUXTabBar-itemTitle--active, [class*="itemTitle--active"], [class*="tab--active"], [aria-selected="true"]');
+        // 1. Strict check: which tab has TUXTabBar-itemTitle--active
+        const activeItem = document.querySelector('.TUXTabBar-itemTitle--active, [class*="itemTitle--active"]');
         if (activeItem && isVisible(activeItem)) {
           const t = (activeItem.innerText || activeItem.textContent || '').trim();
+          // Active tab must be Showcase / นำเสนอสินค้า, NEVER ร้านของฉัน / My shop
           if ((t.includes('นำเสนอสินค้า') || t.includes('Showcase')) && !t.includes('ร้าน') && !t.includes('Shop')) {
             return true;
           }
         }
 
-        // 2. Check tab button with id="2" (MUST use [id="2"] attribute selector, #2 is invalid CSS)
+        // 2. Check tab button with id="2"
         let tab2 = null;
         try {
           tab2 = document.querySelector('.TUXTabBar-item[id="2"] button, button.TUXTabBar-itemTitle[id="2"], [id="2"] button');
@@ -351,20 +348,6 @@ async function switchToShowcaseTab(send) {
           if (tab2.classList.contains('TUXTabBar-itemTitle--active') || tab2.getAttribute('data-active') !== null) {
             return true;
           }
-        }
-
-        // 3. Check if empty showcase or search input is visible
-        const showcaseIndicator = Array.from(document.querySelectorAll('.tips-title, .product-empty-container, [class*="empty"], input')).find(el => {
-          if (!isVisible(el)) return false;
-          const t = (el.innerText || el.placeholder || '').toLowerCase();
-          return t.includes('showcase') || t.includes('ตู้โชว์') || t.includes('นำเสนอสินค้า') || t.includes('ค้นหา') || t.includes('search');
-        });
-        if (showcaseIndicator) {
-          const shopEmpty = Array.from(document.querySelectorAll('*')).find(el => {
-            const t = (el.innerText || '').trim();
-            return (t === 'ไม่มีสินค้าในร้านของคุณ' || t === 'No products in your shop') && isVisible(el);
-          });
-          if (!shopEmpty) return true;
         }
 
         return false;
@@ -376,38 +359,35 @@ async function switchToShowcaseTab(send) {
 
   if (await isActive()) return true;
 
-  for (let attempt = 0; attempt < 5; attempt++) {
+  for (let attempt = 0; attempt < 6; attempt++) {
     const found = await send('Runtime.evaluate', {
       expression: `(() => {
         const isVisible = (el) => {
           if (!el) return false;
-          if (typeof el.checkVisibility === 'function') {
-            return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
-          }
           const rect = el.getBoundingClientRect();
           const style = window.getComputedStyle(el);
           return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
         };
 
-        // Primary: TikTok's exact TUXTabBar-item [id="2"] or title
+        // Target: [id="2"] button or button with text "นำเสนอสินค้า"
         let primaryTarget = null;
         try {
           primaryTarget = document.querySelector('.TUXTabBar-item[id="2"] button, button.TUXTabBar-itemTitle[id="2"], [id="2"] button, .TUXTabBar-item[id="2"]');
         } catch (e) {}
 
         if (!primaryTarget) {
-          const allElements = Array.from(document.querySelectorAll('.TUXTabBar-itemTitle, [role="tab"], button, div, span')).filter(isVisible);
+          const allElements = Array.from(document.querySelectorAll('.TUXTabBar-itemTitle, [class*="itemTitle"], button, div, span')).filter(isVisible);
           primaryTarget = allElements.find(el => {
             const t = (el.innerText || el.textContent || '').trim();
             if (!t) return false;
             if (t.includes('ร้านของฉัน') || t.includes('My Shop') || t.includes('My shop') || t.includes('จัดการสินค้า')) return false;
-            return t === 'นำเสนอสินค้า' || t.includes('นำเสนอสินค้า') || t === 'Showcase products' || t.includes('Showcase products') || t === 'Showcase' || t.includes('Showcase') || t.includes('ตู้โชว์');
+            return t === 'นำเสนอสินค้า' || t.includes('นำเสนอสินค้า') || t === 'Showcase products' || t.includes('Showcase products') || t === 'Showcase' || t.includes('Showcase');
           });
         }
 
         if (!primaryTarget) return null;
 
-        const tabContainer = primaryTarget.closest('button, .TUXTabBar-item, [role="tab"]') || primaryTarget;
+        const tabContainer = primaryTarget.closest('button, .TUXTabBar-item') || primaryTarget;
 
         const trigger = (el) => {
           if (!el) return;
@@ -432,9 +412,6 @@ async function switchToShowcaseTab(send) {
       returnByValue: true,
     });
 
-    await sleep(600);
-    if (await isActive()) return true;
-
     const point = found?.result?.value;
     if (point && point.x > 0 && point.y > 0) {
       try {
@@ -442,9 +419,10 @@ async function switchToShowcaseTab(send) {
         await send('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', buttons: 1, clickCount: 1, x: Math.round(point.x), y: Math.round(point.y) });
         await send('Input.dispatchMouseEvent', { type: 'mouseReleased', button: 'left', buttons: 0, clickCount: 1, x: Math.round(point.x), y: Math.round(point.y) });
       } catch (e) {}
-      await sleep(800);
-      if (await isActive()) return true;
     }
+
+    await sleep(1000);
+    if (await isActive()) return true;
   }
   return false;
 }
@@ -666,6 +644,7 @@ async function attachProductLink(send, productId) {
 
   // Step 5: Select product from the search results
   let selection = null;
+  let lastNotFoundReason = null;
   for (let retry = 0; retry < 6; retry++) {
     const sel = await send('Runtime.evaluate', {
       expression: `(() => {
@@ -678,8 +657,8 @@ async function attachProductLink(send, productId) {
           return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
         };
 
-        const root = document.querySelector('[role="dialog"], [aria-modal="true"]') || document;
-        const rows = Array.from(root.querySelectorAll('table tr, [role="row"], tbody tr, [class*="table-row"], [class*="product-item"]'))
+        const root = document.querySelector('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal') || document;
+        const rows = Array.from(root.querySelectorAll('tr.product-tb-row, [class*="product-tb-row"], table tr, [role="row"], tbody tr'))
           .filter(r => isVisible(r) && !r.querySelector('th'));
 
         if (rows.length === 0) return null;
@@ -693,15 +672,14 @@ async function attachProductLink(send, productId) {
           return text.includes(query) || text.includes(querySuffix);
         });
 
-        // Fallback: If search was filtered by specific product ID and returned rows, take the first row
-        if (!targetRow && rows.length > 0) {
-          targetRow = rows[0];
-        }
+        // No blind "take the first row" fallback here: clicking an unverified
+        // row can attach the WRONG product to a live TikTok post. If no row's
+        // text actually contains the target product ID, report that plainly
+        // so the caller can retry, alert, or abort -- never guess.
+        if (!targetRow) return { success: false, reason: 'product_not_found_in_results' };
 
-        if (!targetRow) return null;
-
-        // Find radio or checkbox inside this row
-        const radio = targetRow.querySelector('input[type="radio"], [role="radio"], [class*="radio"], [class*="checkbox"], span[class*="radio"], td:first-child, [role="cell"]:first-child')
+        // Exact radio element from DevTools screenshot: .TUXRadioStandalone, input.TUXRadioStandalone-input
+        const radio = targetRow.querySelector('.TUXRadioStandalone, input.TUXRadioStandalone-input, .TUXRadio, input[type="radio"], td:first-child')
           || targetRow;
 
         if (radio) {
@@ -725,7 +703,7 @@ async function attachProductLink(send, productId) {
           success: true,
           name: cells[0] || '',
           point: { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 },
-          checked: radio ? Boolean(radio.checked || radio.getAttribute('aria-checked') === 'true') : true,
+          checked: Boolean(targetRow.querySelector('.TUXRadioStandalone--checked, input:checked')),
         };
       })()`,
       returnByValue: true,
@@ -744,10 +722,21 @@ async function attachProductLink(send, productId) {
       }
       break;
     }
+    // selVal may be null (rows not rendered yet -- keep retrying) or an
+    // explicit { success: false, reason: 'product_not_found_in_results' }
+    // (rows rendered, but none match the target product ID). Track the
+    // latter so a definitive "not found" is reported as such below instead
+    // of the generic timeout message.
+    if (selVal && selVal.success === false && selVal.reason) {
+      lastNotFoundReason = selVal.reason;
+    }
     await sleep(800);
   }
 
   if (!selection) {
+    if (lastNotFoundReason === 'product_not_found_in_results') {
+      return { success: false, reason: 'product_not_found_in_results' };
+    }
     return { success: false, reason: 'เลือกสินค้าตรง ID ไม่สำเร็จ (ไม่พบรายการสินค้าในผลการค้นหา)' };
   }
 
@@ -769,7 +758,7 @@ async function attachProductLink(send, productId) {
       const nextBtn = buttons.reverse().find(b => {
         const t = (b.innerText || b.textContent || '').trim();
         const enabled = !b.disabled && b.getAttribute('aria-disabled') !== 'true';
-        return (t === 'ถัดไป' || t === 'Next') && enabled;
+        return (t === 'ถัดไป' || t === 'Next') && enabled && t !== 'ยกเลิก' && t !== 'Cancel';
       });
       if (nextBtn) {
         nextBtn.click();
@@ -798,7 +787,7 @@ async function attachProductLink(send, productId) {
   // Wait for step 2 ("ชื่อสินค้าจะปรากฏขึ้นในวิดีโอของคุณ" / Title setting view)
   await sleep(2000);
 
-  // Step 7: Focus & Select All (คลุมดำตั้งชื่อ), then click "ถัดไป" / "เพิ่ม" (Next / Add)
+  // Step 7: Focus & Select All (คลุมดำตั้งชื่อ), then click "เพิ่ม" (Add button)
   let confirmed = false;
   for (let retry = 0; retry < 5; retry++) {
     const step7 = await send('Runtime.evaluate', {
@@ -813,8 +802,8 @@ async function attachProductLink(send, productId) {
         };
         const root = document.querySelector('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal') || document;
 
-        // 1. คลุมดำตั้งชื่อ (Highlight/select all in product title input)
-        const nameInput = root.querySelector('input[type="text"], input:not([type]), textarea');
+        // 1. คลุมดำตั้งชื่อ (Highlight/select all in product title input: input.TUXTextInputCore-input)
+        const nameInput = root.querySelector('input.TUXTextInputCore-input, input[type="text"], input:not([type]), textarea');
         if (nameInput && isVisible(nameInput)) {
           try {
             nameInput.focus();
@@ -824,12 +813,12 @@ async function attachProductLink(send, productId) {
           } catch (e) {}
         }
 
-        // 2. Click confirmation button ("ถัดไป" / "เพิ่ม" / "Next" / "Add")
+        // 2. Click "เพิ่ม" (Add button as seen in DevTools screenshot)
         const buttons = Array.from(root.querySelectorAll('button, div[role="button"]')).filter(isVisible);
         const addBtn = buttons.reverse().find(b => {
           const t = (b.innerText || b.textContent || '').trim();
           const enabled = !b.disabled && b.getAttribute('aria-disabled') !== 'true';
-          return (t === 'ถัดไป' || t === 'เพิ่ม' || t === 'ยืนยัน' || t === 'Next' || t === 'Add' || t === 'Confirm') &&
+          return (t === 'เพิ่ม' || t === 'Add' || t === 'ยืนยัน' || t === 'Confirm' || t === 'ถัดไป') &&
                  enabled && t !== 'เพิ่มลิงก์' && t !== '+ เพิ่ม' && t !== 'ยกเลิก' && t !== 'Cancel';
         });
         if (addBtn) {
