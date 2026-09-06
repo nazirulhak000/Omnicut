@@ -293,33 +293,35 @@ async function switchToShowcaseTab(send) {
           return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
         };
 
-        // 1. Is showcase tab marked selected/active?
-        const tabs = Array.from(document.querySelectorAll('[role="tab"], [class*="tab"]')).filter(isVisible);
-        const showcaseTab = tabs.find(el => {
-          const t = (el.innerText || el.textContent || '').trim();
-          return (t.includes('นำเสนอสินค้า') || t.includes('Showcase')) && !t.includes('ร้านของฉัน');
-        });
-        if (showcaseTab) {
-          const isAriaSelected = showcaseTab.getAttribute('aria-selected') === 'true';
-          const hasActiveClass = Boolean(showcaseTab.className && (
-            showcaseTab.className.includes('active') ||
-            showcaseTab.className.includes('selected')
-          ));
-          if (isAriaSelected || hasActiveClass) return true;
+        // 1. Check TikTok design system active tab class
+        const activeItem = document.querySelector('.TUXTabBar-itemTitle--active, [class*="itemTitle--active"], [class*="tab--active"], [aria-selected="true"]');
+        if (activeItem && isVisible(activeItem)) {
+          const t = (activeItem.innerText || activeItem.textContent || '').trim();
+          if ((t.includes('นำเสนอสินค้า') || t.includes('Showcase')) && !t.includes('ร้าน') && !t.includes('Shop')) {
+            return true;
+          }
         }
 
-        // 2. Is search input visible?
-        const inputs = Array.from(document.querySelectorAll('input'));
-        const searchInput = inputs.find(i => {
-          const p = (i.placeholder || '').toLowerCase();
-          return (p.includes('ค้นหา') || p.includes('search')) && isVisible(i);
+        // 2. Check tab button with id="2"
+        const tab2 = document.querySelector('.TUXTabBar-item#2 button, button.TUXTabBar-itemTitle#2');
+        if (tab2 && isVisible(tab2)) {
+          if (tab2.classList.contains('TUXTabBar-itemTitle--active') || tab2.getAttribute('data-active') !== null) {
+            return true;
+          }
+        }
+
+        // 3. Check if empty showcase or search input is visible
+        const showcaseIndicator = Array.from(document.querySelectorAll('.tips-title, .product-empty-container, [class*="empty"], input')).find(el => {
+          if (!isVisible(el)) return false;
+          const t = (el.innerText || el.placeholder || '').toLowerCase();
+          return t.includes('showcase') || t.includes('ตู้โชว์') || t.includes('นำเสนอสินค้า') || t.includes('ค้นหา') || t.includes('search');
         });
-        if (searchInput) {
-          const emptyState = Array.from(document.querySelectorAll('*')).find(el => {
+        if (showcaseIndicator) {
+          const shopEmpty = Array.from(document.querySelectorAll('*')).find(el => {
             const t = (el.innerText || '').trim();
-            return t === 'ไม่มีสินค้าในร้านของคุณ' && isVisible(el);
+            return (t === 'ไม่มีสินค้าในร้านของคุณ' || t === 'No products in your shop') && isVisible(el);
           });
-          if (!emptyState) return true;
+          if (!shopEmpty) return true;
         }
 
         return false;
@@ -344,25 +346,18 @@ async function switchToShowcaseTab(send) {
           return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
         };
 
-        const allElements = Array.from(document.querySelectorAll('[role="tab"], button, div, span, p, a')).filter(isVisible);
-        const candidates = allElements.filter(el => {
-          const t = (el.innerText || el.textContent || '').trim();
-          if (!t) return false;
-          if (t.includes('ร้านของฉัน') || t.includes('My Shop') || t.includes('จัดการสินค้า')) return false;
-          return t === 'นำเสนอสินค้า' || t.includes('นำเสนอสินค้า') || t === 'Showcase' || t.includes('Showcase') || t.includes('ตู้โชว์');
-        });
+        // Primary: TikTok's exact TUXTabBar-item #2 or title
+        const primaryTarget = document.querySelector('.TUXTabBar-item#2 button, button.TUXTabBar-itemTitle#2, .TUXTabBar-item#2')
+          || Array.from(document.querySelectorAll('.TUXTabBar-itemTitle, [role="tab"], button, div, span')).filter(isVisible).find(el => {
+            const t = (el.innerText || el.textContent || '').trim();
+            if (!t) return false;
+            if (t.includes('ร้านของฉัน') || t.includes('My Shop') || t.includes('My shop') || t.includes('จัดการสินค้า')) return false;
+            return t === 'นำเสนอสินค้า' || t.includes('นำเสนอสินค้า') || t === 'Showcase products' || t.includes('Showcase products') || t === 'Showcase' || t.includes('Showcase') || t.includes('ตู้โชว์');
+          });
 
-        if (candidates.length === 0) return null;
+        if (!primaryTarget) return null;
 
-        // Sort ascending by bounding box area to find the leaf text element
-        candidates.sort((a, b) => {
-          const rA = a.getBoundingClientRect();
-          const rB = b.getBoundingClientRect();
-          return (rA.width * rA.height) - (rB.width * rB.height);
-        });
-
-        const target = candidates[0];
-        const tabContainer = target.closest('[role="tab"], [class*="tab"], button, div[aria-selected]') || target;
+        const tabContainer = primaryTarget.closest('button, .TUXTabBar-item, [role="tab"]') || primaryTarget;
 
         const trigger = (el) => {
           if (!el) return;
@@ -379,7 +374,7 @@ async function switchToShowcaseTab(send) {
         };
 
         trigger(tabContainer);
-        if (tabContainer !== target) trigger(target);
+        if (tabContainer !== primaryTarget) trigger(primaryTarget);
 
         const rect = tabContainer.getBoundingClientRect();
         return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
@@ -422,8 +417,8 @@ async function attachProductLink(send, productId) {
       const texts = Array.from(document.querySelectorAll('h1, h2, h3, h4, [role="tab"], div, span'))
         .filter(isVisible)
         .map(el => (el.innerText || el.textContent || '').trim());
-      const hasShowcaseTab = texts.some(t => t === 'นำเสนอสินค้า' || t.includes('นำเสนอสินค้า') || t === 'Showcase');
-      const hasModalTitle = texts.some(t => t.includes('เพิ่มลิงก์สินค้า'));
+      const hasShowcaseTab = texts.some(t => t === 'นำเสนอสินค้า' || t.includes('นำเสนอสินค้า') || t === 'Showcase' || t.includes('Showcase products'));
+      const hasModalTitle = texts.some(t => t.includes('เพิ่มลิงก์สินค้า') || t.includes('Add product links'));
       return hasShowcaseTab || hasModalTitle;
     })()`,
     returnByValue: true,
@@ -445,7 +440,7 @@ async function attachProductLink(send, productId) {
 
         // 1. Look for "เพิ่มลิงก์" header and find "+ เพิ่ม" inside its parent container
         const allDivs = Array.from(document.querySelectorAll('div, section, p, span, h1, h2, h3, h4'));
-        const header = allDivs.find(el => !isNav(el) && (el.innerText || el.textContent || '').trim() === 'เพิ่มลิงก์');
+        const header = allDivs.find(el => !isNav(el) && ((el.innerText || el.textContent || '').trim() === 'เพิ่มลิงก์' || (el.innerText || el.textContent || '').trim() === 'Add link'));
         if (header) {
           let parent = header.parentElement;
           for (let i = 0; i < 5 && parent; i++) {
@@ -453,7 +448,7 @@ async function attachProductLink(send, productId) {
             const btn = btns.find(b => {
               if (isNav(b)) return false;
               const t = (b.innerText || b.textContent || '').trim();
-              return (t.includes('เพิ่ม') || t.includes('+')) && t !== 'เพิ่มลิงก์';
+              return (t.includes('เพิ่ม') || t.includes('Add') || t.includes('+')) && t !== 'เพิ่มลิงก์' && t !== 'Add link';
             });
             if (btn) {
               trigger(btn);
@@ -468,7 +463,8 @@ async function attachProductLink(send, productId) {
         const addBtn = allButtons.find(el => {
           if (isNav(el)) return false;
           const text = (el.innerText || el.textContent || '').trim();
-          return text === '+ เพิ่ม' || text === '+เพิ่ม' || (text.startsWith('+') && text.includes('เพิ่ม') && text.length < 15);
+          return text === '+ เพิ่ม' || text === '+เพิ่ม' || text === '+ Add' || text === '+Add' ||
+            ((text.startsWith('+') || text.includes('+')) && (text.includes('เพิ่ม') || text.includes('Add')) && text.length < 15);
         });
         if (addBtn) {
           trigger(addBtn);
@@ -531,6 +527,16 @@ async function attachProductLink(send, productId) {
         const rect = el.getBoundingClientRect();
         return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
       };
+
+      // Check if Showcase is in empty state (no products added yet)
+      const emptyContainer = Array.from(document.querySelectorAll('.product-empty-container, [class*="empty"], .tips-title')).find(isVisible);
+      if (emptyContainer) {
+        const text = (emptyContainer.innerText || emptyContainer.textContent || '').trim();
+        if (text.includes('No products in your showcase') || text.includes('ไม่มีสินค้าในตู้โชว์') || text.includes('ไม่มีสินค้าในการนำเสนอ')) {
+          return { emptyShowcase: true, text };
+        }
+      }
+
       const inputs = Array.from(document.querySelectorAll('input'));
       const search = inputs.find(i => {
         const p = (i.placeholder || '').toLowerCase();
@@ -556,14 +562,22 @@ async function attachProductLink(send, productId) {
             try { icon.click(); } catch(e) {}
           }
         }
-        return true;
+        return { success: true };
       }
-      return false;
+      return { success: false };
     })()`,
     returnByValue: true,
   });
 
-  if (searchResult.exceptionDetails || !searchResult.result?.value) {
+  const searchVal = searchResult?.result?.value;
+  if (searchVal?.emptyShowcase) {
+    return {
+      success: false,
+      reason: 'ในตู้โชว์ (Showcase) ของบัญชี TikTok นี้ยังไม่มีสินค้า กรุณาเพิ่มสินค้าลงใน Showcase ผ่านแอป TikTok (Profile > TikTok Shop) ก่อนทำขั้นตอนนี้',
+    };
+  }
+
+  if (searchResult.exceptionDetails || !searchVal?.success) {
     return { success: false, reason: 'ไม่พบช่องค้นหาสินค้าที่พร้อมกรอก' };
   }
 
