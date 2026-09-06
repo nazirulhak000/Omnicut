@@ -539,70 +539,81 @@ async function attachProductLink(send, productId) {
 
   await sleep(1000);
 
-  // Step 4: Type Product ID into search box and trigger search
-  const searchResult = await send('Runtime.evaluate', {
-    expression: `(() => {
-      const isVisible = (el) => {
-        if (!el) return false;
-        if (typeof el.checkVisibility === 'function') {
-          return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
-        }
-        const rect = el.getBoundingClientRect();
-        return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
-      };
-
-      // Check if Showcase is in empty state (no products added yet)
-      const emptyContainer = Array.from(document.querySelectorAll('.product-empty-container, [class*="empty"], .tips-title')).find(isVisible);
-      if (emptyContainer) {
-        const text = (emptyContainer.innerText || emptyContainer.textContent || '').trim();
-        if (text.includes('No products in your showcase') || text.includes('ไม่มีสินค้าในตู้โชว์') || text.includes('ไม่มีสินค้าในการนำเสนอ')) {
-          return { emptyShowcase: true, text };
-        }
-      }
-
-      const root = document.querySelector('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal') || document;
-      const inputs = Array.from(root.querySelectorAll('input'));
-      const search = inputs.find(i => {
-        const p = (i.placeholder || '').toLowerCase();
-        return (p.includes('ค้นหา') || p.includes('search')) && isVisible(i);
-      }) || inputs.find(i => isVisible(i) && (i.type === 'text' || !i.type));
-
-      if (search) {
-        search.focus();
-        search.select();
-        const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
-        if (nativeSetter) {
-          nativeSetter.call(search, ${JSON.stringify(productId)});
-        } else {
-          search.value = ${JSON.stringify(productId)};
-        }
-        search.dispatchEvent(new Event('input', { bubbles: true }));
-        search.dispatchEvent(new Event('change', { bubbles: true }));
-
-        const searchContainer = search.closest('[class*="search"], [class*="input"], div') || search.parentElement;
-        if (searchContainer) {
-          const icon = searchContainer.querySelector('svg, button, [role="button"], span, i');
-          if (icon && icon !== search) {
-            try { icon.click(); } catch(e) {}
+  // Step 4: Type Product ID into search box and trigger search (retry up to 6 times while Showcase tab loads)
+  let searchFound = false;
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const searchResult = await send('Runtime.evaluate', {
+      expression: `(() => {
+        // 1. Check if Showcase is in empty state (no products added yet)
+        const emptyContainer = Array.from(document.querySelectorAll('.product-empty-container, [class*="empty"], .tips-title')).find(el => {
+          const rect = el.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0;
+        });
+        if (emptyContainer) {
+          const text = (emptyContainer.innerText || emptyContainer.textContent || '').trim();
+          if (text.includes('No products in your showcase') || text.includes('ไม่มีสินค้าในตู้โชว์') || text.includes('ไม่มีสินค้าในการนำเสนอ')) {
+            return { emptyShowcase: true, text };
           }
         }
-        return { success: true };
-      }
-      return { success: false };
-    })()`,
-    returnByValue: true,
-  });
 
-  const searchVal = searchResult?.result?.value;
-  if (searchVal?.emptyShowcase) {
-    return {
-      success: false,
-      reason: 'ในตู้โชว์ (Showcase) ของบัญชี TikTok นี้ยังไม่มีสินค้า กรุณาเพิ่มสินค้าลงใน Showcase ผ่านแอป TikTok (Profile > TikTok Shop) ก่อนทำขั้นตอนนี้',
-    };
+        // 2. Find search input box across the modal and document
+        const isSearchCandidate = (i) => {
+          if (!i || i.type === 'file' || i.type === 'radio' || i.type === 'checkbox' || i.type === 'button') return false;
+          const rect = i.getBoundingClientRect();
+          if (rect.width === 0 || rect.height === 0) return false;
+          const p = (i.placeholder || '').toLowerCase();
+          return p.includes('ค้นหา') || p.includes('search') || p.includes('สินค้า');
+        };
+
+        const allInputs = Array.from(document.querySelectorAll('input'));
+        const search = allInputs.find(isSearchCandidate)
+          || document.querySelector('input[placeholder*="ค้นหา"], input[placeholder*="Search"], input[placeholder*="สินค้า"]')
+          || document.querySelector('[class*="search"] input, [class*="Search"] input, .TUXInput-input')
+          || allInputs.find(i => (i.type === 'text' || !i.type) && i.getBoundingClientRect().width > 100);
+
+        if (search) {
+          search.focus();
+          search.select();
+          const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+          if (nativeSetter) {
+            nativeSetter.call(search, ${JSON.stringify(productId)});
+          } else {
+            search.value = ${JSON.stringify(productId)};
+          }
+          search.dispatchEvent(new Event('input', { bubbles: true }));
+          search.dispatchEvent(new Event('change', { bubbles: true }));
+
+          const searchContainer = search.closest('[class*="search"], [class*="input"], div') || search.parentElement;
+          if (searchContainer) {
+            const icon = searchContainer.querySelector('svg, button, [role="button"], span, i');
+            if (icon && icon !== search) {
+              try { icon.click(); } catch(e) {}
+            }
+          }
+          return { success: true };
+        }
+        return { success: false };
+      })()`,
+      returnByValue: true,
+    });
+
+    const searchVal = searchResult?.result?.value;
+    if (searchVal?.emptyShowcase) {
+      return {
+        success: false,
+        reason: 'ในตู้โชว์ (Showcase) ของบัญชี TikTok นี้ยังไม่มีสินค้า กรุณาเพิ่มสินค้าลงใน Showcase ผ่านแอป TikTok (Profile > TikTok Shop) ก่อนทำขั้นตอนนี้',
+      };
+    }
+
+    if (searchVal?.success) {
+      searchFound = true;
+      break;
+    }
+    await sleep(800);
   }
 
-  if (searchResult.exceptionDetails || !searchVal?.success) {
-    return { success: false, reason: 'ไม่พบช่องค้นหาสินค้าที่พร้อมกรอก' };
+  if (!searchFound) {
+    return { success: false, reason: 'ไม่พบช่องค้นหาสินค้าที่พร้อมกรอก (ลองตรวจสอบว่าอยู่ในแท็บ "นำเสนอสินค้า" แล้วหรือยัง)' };
   }
 
   // Trigger search via Enter key
