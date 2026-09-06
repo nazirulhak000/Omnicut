@@ -190,19 +190,12 @@ async function typeCaption(send, captionOrText, hashtags = '') {
     return editors.length === 1 ? editors[0] : null;
   `);
 
-  // 1. Focus editor and clear existing text (filename) cleanly using DOM Range
+  // 1. Focus editor and clear existing text cleanly using native Ctrl+A + Backspace
+  // Draft.js strictly requires native keyboard events to update its internal EditorState
   const focused = await OmniAutomation.evaluate(send, `(() => {
     const el = ${captionQuery};
     if (!el) return false;
     el.focus();
-    try {
-      const range = document.createRange();
-      range.selectNodeContents(el);
-      const sel = window.getSelection();
-      sel.removeAllRanges();
-      sel.addRange(range);
-      document.execCommand('delete', false, null);
-    } catch (e) {}
     return document.activeElement === el;
   })()`);
 
@@ -210,13 +203,21 @@ async function typeCaption(send, captionOrText, hashtags = '') {
 
   await sleep(150);
 
-  // 2. Type clean caption
+  // Clear any existing text (auto-filled filename or previous content)
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'a', code: 'KeyA', windowsVirtualKeyCode: 65, modifiers: 2 });
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'a', code: 'KeyA', windowsVirtualKeyCode: 65, modifiers: 2 });
+  await sleep(50);
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 });
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 });
+  await sleep(150);
+
+  // 2. Type clean caption first
   if (cleanCaption) {
     await send('Input.insertText', { text: cleanCaption });
-    await sleep(200);
+    await sleep(250);
   }
 
-  // 3. If hashtags exist, insert two line breaks and then type hashtags
+  // 3. If hashtags exist, insert two line breaks and then type hashtags second
   if (cleanTags) {
     if (cleanCaption) {
       for (let i = 0; i < 2; i++) {
@@ -226,16 +227,23 @@ async function typeCaption(send, captionOrText, hashtags = '') {
       }
     }
     await send('Input.insertText', { text: cleanTags });
-    await sleep(200);
+    await sleep(250);
   }
 
-  // 4. Verify that content was accepted
+  // 4. Verify that content was accepted and caption comes before hashtags
   await OmniAutomation.wait(send, `(() => {
     const el = ${captionQuery};
     const current = (el ? (el.innerText || el.textContent) : '').trim();
-    const probe = ${JSON.stringify(cleanCaption ? cleanCaption.slice(0, 15) : cleanTags.slice(0, 15))};
-    return Boolean(el && current.length > 0 && current.includes(probe));
-  })()`, 'TikTok ยังไม่รับแคปชันครบ กรุณาตรวจช่องคำอธิบาย', 5000);
+    if (!current) return false;
+    const hasCap = ${JSON.stringify(cleanCaption ? cleanCaption.slice(0, 10) : '')};
+    const hasTag = ${JSON.stringify(cleanTags ? cleanTags.slice(0, 10) : '')};
+    if (hasCap && !current.includes(hasCap)) return false;
+    if (hasTag && !current.includes(hasTag)) return false;
+    if (hasCap && hasTag) {
+      return current.indexOf(hasCap) < current.indexOf(hasTag);
+    }
+    return true;
+  })()`, 'TikTok ยังไม่รับแคปชันครบตามลำดับ กรุณาตรวจช่องคำอธิบาย', 5000);
 }
 
 // Waits for TikTok Studio video upload/processing indicator to complete
@@ -642,10 +650,10 @@ async function attachProductLink(send, productId) {
   // Wait for search result table to load
   await sleep(2500);
 
-  // Step 5: Select product from the search results
+  // Step 5: Select product from search results and verify radio is checked
   let selection = null;
   let lastNotFoundReason = null;
-  for (let retry = 0; retry < 6; retry++) {
+  for (let retry = 0; retry < 8; retry++) {
     const sel = await send('Runtime.evaluate', {
       expression: `(() => {
         const isVisible = (el) => {
@@ -672,26 +680,45 @@ async function attachProductLink(send, productId) {
           return text.includes(query) || text.includes(querySuffix);
         });
 
-        // No blind "take the first row" fallback here: clicking an unverified
-        // row can attach the WRONG product to a live TikTok post. If no row's
-        // text actually contains the target product ID, report that plainly
-        // so the caller can retry, alert, or abort -- never guess.
         if (!targetRow) return { success: false, reason: 'product_not_found_in_results' };
 
-        // Exact radio element from DevTools screenshot: .TUXRadioStandalone, input.TUXRadioStandalone-input
-        const radio = targetRow.querySelector('.TUXRadioStandalone, input.TUXRadioStandalone-input, .TUXRadio, input[type="radio"], td:first-child')
-          || targetRow;
+        // Exact elements from DevTools: input.TUXRadioStandalone-input, .TUXRadioStandalone, .TUXRadio
+        const input = targetRow.querySelector('input.TUXRadioStandalone-input, input[type="radio"]');
+        const standalone = targetRow.querySelector('.TUXRadioStandalone');
+        const tuxRadio = targetRow.querySelector('.TUXRadio');
+        const nameCell = targetRow.querySelector('.product-name-cell, [class*="product-name"]');
 
-        if (radio) {
-          try { radio.scrollIntoView({ behavior: 'instant', block: 'center' }); } catch (e) {}
-          try { radio.focus(); } catch (e) {}
+        const triggerClick = (el) => {
+          if (!el) return;
+          try { el.focus(); } catch (e) {}
           ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(type => {
-            radio.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window, buttons: 1 }));
+            el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window, buttons: 1 }));
           });
-          try { radio.click(); } catch (e) {}
+          try { el.click(); } catch (e) {}
+        };
+
+        // 1. Direct input click and React checked property update
+        if (input) {
+          const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'checked')?.set;
+          if (nativeSetter) {
+            try { nativeSetter.call(input, true); } catch (e) {}
+          } else {
+            input.checked = true;
+          }
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+          triggerClick(input);
         }
 
-        const rect = radio.getBoundingClientRect();
+        // 2. Container clicks (standalone wrapper, TUXRadio, name cell, row)
+        if (standalone) triggerClick(standalone);
+        if (tuxRadio) triggerClick(tuxRadio);
+        if (nameCell) triggerClick(nameCell);
+        triggerClick(targetRow);
+
+        const clickTarget = input || standalone || tuxRadio || targetRow;
+        try { clickTarget.scrollIntoView({ behavior: 'instant', block: 'center' }); } catch (e) {}
+        const rect = clickTarget.getBoundingClientRect();
 
         // Extract product name from row
         const cells = Array.from(targetRow.querySelectorAll('td, [role="cell"], div, span, p'))
@@ -699,11 +726,16 @@ async function attachProductLink(send, productId) {
           .filter(t => t && !/^[\\d\\s.,฿%+-]+$/.test(t) && t.length > 3);
         cells.sort((a, b) => b.length - a.length);
 
+        const checked = Boolean(
+          targetRow.querySelector('.TUXRadioStandalone--checked, [class*="--checked"], input:checked') ||
+          (input && input.checked)
+        );
+
         return {
           success: true,
           name: cells[0] || '',
           point: { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 },
-          checked: Boolean(targetRow.querySelector('.TUXRadioStandalone--checked, input:checked')),
+          checked,
         };
       })()`,
       returnByValue: true,
@@ -712,7 +744,8 @@ async function attachProductLink(send, productId) {
     const selVal = sel?.result?.value;
     if (selVal?.success) {
       selection = selVal;
-      // Send real CDP mouse click on radio coordinates to guarantee state change
+
+      // Send real CDP mouse click on radio coordinates
       if (selVal.point && selVal.point.x > 0 && selVal.point.y > 0) {
         try {
           await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: Math.round(selVal.point.x), y: Math.round(selVal.point.y) });
@@ -720,14 +753,30 @@ async function attachProductLink(send, productId) {
           await send('Input.dispatchMouseEvent', { type: 'mouseReleased', button: 'left', buttons: 0, clickCount: 1, x: Math.round(selVal.point.x), y: Math.round(selVal.point.y) });
         } catch (e) {}
       }
-      break;
-    }
-    // selVal may be null (rows not rendered yet -- keep retrying) or an
-    // explicit { success: false, reason: 'product_not_found_in_results' }
-    // (rows rendered, but none match the target product ID). Track the
-    // latter so a definitive "not found" is reported as such below instead
-    // of the generic timeout message.
-    if (selVal && selVal.success === false && selVal.reason) {
+
+      await sleep(600);
+
+      // Verify that radio became checked OR Next button became enabled
+      const statusCheck = await send('Runtime.evaluate', {
+        expression: `(() => {
+          const root = document.querySelector('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal') || document;
+          const isChecked = Boolean(root.querySelector('.TUXRadioStandalone--checked, [class*="--checked"], input[type="radio"]:checked'));
+          const buttons = Array.from(root.querySelectorAll('button, div[role="button"]'));
+          const nextBtn = buttons.reverse().find(b => {
+            const t = (b.innerText || b.textContent || '').trim();
+            const enabled = !b.disabled && b.getAttribute('aria-disabled') !== 'true';
+            return (t === 'ถัดไป' || t === 'Next') && enabled && t !== 'ยกเลิก' && t !== 'Cancel';
+          });
+          return { isChecked, nextEnabled: Boolean(nextBtn) };
+        })()`,
+        returnByValue: true,
+      });
+
+      const st = statusCheck?.result?.value;
+      if (st?.isChecked || st?.nextEnabled) {
+        break;
+      }
+    } else if (selVal && selVal.success === false && selVal.reason) {
       lastNotFoundReason = selVal.reason;
     }
     await sleep(800);
@@ -740,48 +789,55 @@ async function attachProductLink(send, productId) {
     return { success: false, reason: 'เลือกสินค้าตรง ID ไม่สำเร็จ (ไม่พบรายการสินค้าในผลการค้นหา)' };
   }
 
-  await sleep(1000);
+  await sleep(600);
 
   // Step 6: Click "ถัดไป" (Next) at the bottom right
-  const step6 = await send('Runtime.evaluate', {
-    expression: `(() => {
-      const isVisible = (el) => {
-        if (!el) return false;
-        if (typeof el.checkVisibility === 'function') {
-          return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+  let step6Success = false;
+  for (let retry = 0; retry < 5; retry++) {
+    const step6 = await send('Runtime.evaluate', {
+      expression: `(() => {
+        const isVisible = (el) => {
+          if (!el) return false;
+          if (typeof el.checkVisibility === 'function') {
+            return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+          }
+          const rect = el.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
+        };
+        const root = document.querySelector('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal') || document;
+        const buttons = Array.from(root.querySelectorAll('button, div[role="button"]')).filter(isVisible);
+        const nextBtn = buttons.reverse().find(b => {
+          const t = (b.innerText || b.textContent || '').trim();
+          const enabled = !b.disabled && b.getAttribute('aria-disabled') !== 'true';
+          return (t === 'ถัดไป' || t === 'Next') && enabled && t !== 'ยกเลิก' && t !== 'Cancel';
+        });
+        if (nextBtn) {
+          nextBtn.click();
+          const rect = nextBtn.getBoundingClientRect();
+          return { success: true, point: { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } };
         }
-        const rect = el.getBoundingClientRect();
-        return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
-      };
-      const root = document.querySelector('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal') || document;
-      const buttons = Array.from(root.querySelectorAll('button, div[role="button"]')).filter(isVisible);
-      const nextBtn = buttons.reverse().find(b => {
-        const t = (b.innerText || b.textContent || '').trim();
-        const enabled = !b.disabled && b.getAttribute('aria-disabled') !== 'true';
-        return (t === 'ถัดไป' || t === 'Next') && enabled && t !== 'ยกเลิก' && t !== 'Cancel';
-      });
-      if (nextBtn) {
-        nextBtn.click();
-        const rect = nextBtn.getBoundingClientRect();
-        return { success: true, point: { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } };
-      }
-      return { success: false };
-    })()`,
-    returnByValue: true,
-  });
+        return { success: false };
+      })()`,
+      returnByValue: true,
+    });
 
-  const step6Val = step6?.result?.value;
-  if (!step6Val?.success) {
-    return { success: false, reason: 'ปุ่มถัดไปในหน้ารายการสินค้ากดไม่ได้ (อาจยังไม่ได้เลือกสินค้า)' };
+    const step6Val = step6?.result?.value;
+    if (step6Val?.success) {
+      step6Success = true;
+      if (step6Val.point && step6Val.point.x > 0 && step6Val.point.y > 0) {
+        try {
+          await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: Math.round(step6Val.point.x), y: Math.round(step6Val.point.y) });
+          await send('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', buttons: 1, clickCount: 1, x: Math.round(step6Val.point.x), y: Math.round(step6Val.point.y) });
+          await send('Input.dispatchMouseEvent', { type: 'mouseReleased', button: 'left', buttons: 0, clickCount: 1, x: Math.round(step6Val.point.x), y: Math.round(step6Val.point.y) });
+        } catch (e) {}
+      }
+      break;
+    }
+    await sleep(800);
   }
 
-  // Also send native click on Next button if needed
-  if (step6Val.point && step6Val.point.x > 0 && step6Val.point.y > 0) {
-    try {
-      await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: Math.round(step6Val.point.x), y: Math.round(step6Val.point.y) });
-      await send('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', buttons: 1, clickCount: 1, x: Math.round(step6Val.point.x), y: Math.round(step6Val.point.y) });
-      await send('Input.dispatchMouseEvent', { type: 'mouseReleased', button: 'left', buttons: 0, clickCount: 1, x: Math.round(step6Val.point.x), y: Math.round(step6Val.point.y) });
-    } catch (e) {}
+  if (!step6Success) {
+    return { success: false, reason: 'ปุ่มถัดไปในหน้ารายการสินค้ากดไม่ได้ (อาจยังไม่ได้เลือกสินค้า)' };
   }
 
   // Wait for step 2 ("ชื่อสินค้าจะปรากฏขึ้นในวิดีโอของคุณ" / Title setting view)
