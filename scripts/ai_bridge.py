@@ -368,6 +368,14 @@ class AIBridge:
         """
         prompt = cls.build_prompt(task, context)
 
+        # Pre-flight budget check -- BEFORE either paid path below (Antigravity
+        # Pro at :385-ish and the AI Studio API fallback at :419-ish both record
+        # usage only after a successful call; this is what actually stops a
+        # runaway loop from spending past the configured daily cap). Raises
+        # AppError(AI_QUOTA_EXCEEDED) if over budget; no-op if unconfigured.
+        from scripts.quota import check_budget
+        check_budget(task=task)
+
         # 1. Preferred: Antigravity Pro (free with subscription, high reasoning)
         if prefer_antigravity and cls.has_antigravity_cli():
             t0 = time.time()

@@ -212,7 +212,9 @@ class GeminiVisionMatcher:
         Uses Gemini 2.5 Flash with Native Video Understanding to map each script cue
         to the best visual time slice in the raw video.
         """
-        # Fast local cache check before calling API
+        # Fast local cache check before calling API -- a cache hit costs
+        # nothing and must never consume quota, so the budget check below
+        # sits AFTER this, not before it.
         cached_matched = cls.get_cached_matches(raw_video_path, cues)
         if cached_matched:
             print(f"   ⚡ Reusing {len(cached_matched)} AI Vision matched shots from local cache!")
@@ -222,6 +224,14 @@ class GeminiVisionMatcher:
         if not api_key:
             print("   ⚠️ No GEMINI_API_KEY found — using standard beat cuts.")
             return []
+
+        # Pre-flight budget check -- only reached on a cache miss, and still
+        # before the (expensive) video upload + generate_content call below.
+        # Usage is recorded only after a successful match, around :344-ish.
+        # Raises AppError(AI_QUOTA_EXCEEDED) if over budget; no-op if
+        # unconfigured.
+        from scripts.quota import check_budget
+        check_budget(task="vision_match")
 
         file_hash = cls._compute_file_hash(Path(raw_video_path).resolve())
         cache = cls._load_cache()

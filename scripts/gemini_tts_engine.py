@@ -129,6 +129,13 @@ class GeminiFlashTTSEngine:
         if not api_keys:
             raise ValueError("GEMINI_API_KEY is missing. Please set it in .env or environment.")
 
+        # Pre-flight budget check -- before the paid network call below
+        # (usage is recorded only after a successful generation, around
+        # :257-ish). Raises AppError(AI_QUOTA_EXCEEDED) if over budget;
+        # no-op if unconfigured.
+        from scripts.quota import check_budget
+        check_budget(task="tts")
+
         # Determine Gemini Voice Name
         target_voice = "Kore"
         if voice_name:

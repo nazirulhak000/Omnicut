@@ -959,53 +959,84 @@ class VideoEditor:
                 errors="ignore"
             )
 
-            stderr_chunks = []
-            def _drain_stderr():
-                try:
-                    for s_line in iter(proc.stderr.readline, ''):
-                        if not s_line:
-                            break
-                        stderr_chunks.append(s_line)
-                        if len(stderr_chunks) > 100:
-                            stderr_chunks.pop(0)
-                except Exception:
-                    pass
-
-            stderr_thread = threading.Thread(target=_drain_stderr, daemon=True)
-            stderr_thread.start()
-
-            last_reported = 0
-            while True:
-                line = proc.stdout.readline()
-                if not line:
-                    break
-                line = line.strip()
-                if line.startswith("out_time_us="):
+            render_succeeded = False
+            try:
+                stderr_chunks = []
+                def _drain_stderr():
                     try:
-                        us = float(line.split("=")[1])
-                        curr_sec = us / 1_000_000.0
-                        now = time.time()
-                        if now - last_reported >= 0.4:
-                            progress_callback(curr_sec, float(total_duration))
-                            last_reported = now
+                        for s_line in iter(proc.stderr.readline, ''):
+                            if not s_line:
+                                break
+                            stderr_chunks.append(s_line)
+                            if len(stderr_chunks) > 100:
+                                stderr_chunks.pop(0)
                     except Exception:
                         pass
-                elif line.startswith("out_time_ms="):
+
+                stderr_thread = threading.Thread(target=_drain_stderr, daemon=True)
+                stderr_thread.start()
+
+                last_reported = 0
+                while True:
+                    line = proc.stdout.readline()
+                    if not line:
+                        break
+                    line = line.strip()
+                    if line.startswith("out_time_us="):
+                        try:
+                            us = float(line.split("=")[1])
+                            curr_sec = us / 1_000_000.0
+                            now = time.time()
+                            if now - last_reported >= 0.4:
+                                progress_callback(curr_sec, float(total_duration))
+                                last_reported = now
+                        except Exception:
+                            pass
+                    elif line.startswith("out_time_ms="):
+                        try:
+                            ms = float(line.split("=")[1])
+                            curr_sec = ms / 1_000_000.0
+                            now = time.time()
+                            if now - last_reported >= 0.4:
+                                progress_callback(curr_sec, float(total_duration))
+                                last_reported = now
+                        except Exception:
+                            pass
+                proc.wait(timeout=300)
+                stderr_thread.join(timeout=1.0)
+                if proc.returncode != 0:
+                    err = "".join(stderr_chunks)
+                    print("FFmpeg Error details:", err[-500:])
+                    raise RuntimeError(f"FFmpeg render failed:\n{err[-500:]}")
+                render_succeeded = True
+            finally:
+                if not render_succeeded:
+                    # Whatever went wrong -- timeout, KeyboardInterrupt, a
+                    # bad returncode raised above, anything unforeseen -- the
+                    # ffmpeg child must not be left running. It was writing
+                    # only to `out_file` (this call's own -y output target),
+                    # so terminating it and removing that one path can never
+                    # touch a different, unrelated render.
+                    if proc.poll() is None:
+                        proc.terminate()
+                        try:
+                            proc.wait(timeout=5)
+                        except subprocess.TimeoutExpired:
+                            proc.kill()
+                            proc.wait(timeout=5)
+                    # Drop the partial file this invocation was writing so a
+                    # retry doesn't inherit a half-encoded .mp4. `out_file` is
+                    # this call's own -y target -- never touched unless this
+                    # specific render failed, so a good file at that path
+                    # from a *previous successful* render of the same output
+                    # name would already have been truncated by ffmpeg's own
+                    # -y the moment this run started writing; nothing here
+                    # deletes a file this invocation didn't just corrupt.
                     try:
-                        ms = float(line.split("=")[1])
-                        curr_sec = ms / 1_000_000.0
-                        now = time.time()
-                        if now - last_reported >= 0.4:
-                            progress_callback(curr_sec, float(total_duration))
-                            last_reported = now
-                    except Exception:
+                        if out_file.exists():
+                            out_file.unlink()
+                    except OSError:
                         pass
-            proc.wait(timeout=300)
-            stderr_thread.join(timeout=1.0)
-            if proc.returncode != 0:
-                err = "".join(stderr_chunks)
-                print("FFmpeg Error details:", err[-500:])
-                raise RuntimeError(f"FFmpeg render failed:\n{err[-500:]}")
         else:
             print(f"Executing video render to: {out_file}...")
             try:

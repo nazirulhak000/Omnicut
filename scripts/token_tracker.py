@@ -266,3 +266,32 @@ class TokenTracker:
         with cls._lock:
             new_data = cls._get_default_structure()
             cls._save(new_data)
+
+    @classmethod
+    def get_usage_today(cls) -> Dict[str, Any]:
+        """Sum tokens and commercial-equivalent cost for events dated today.
+
+        Used by scripts/quota.py as the pre-flight budget check. Today is
+        computed from local wall-clock date, same as record_event()'s
+        `date` field, so this stays consistent with what get_summary()'s
+        daily_stats already show.
+        """
+        with cls._lock:
+            data = cls._load()
+            events = data.get("events", [])
+            today = datetime.datetime.now().strftime("%Y-%m-%d")
+            total_tokens = 0
+            cost_thb = 0.0
+            calls = 0
+            for ev in events:
+                if ev.get("date") != today:
+                    continue
+                total_tokens += ev.get("total_tokens", 0)
+                cost_thb += ev.get("cost_saved_thb", 0.0)
+                calls += 1
+            return {
+                "date": today,
+                "total_tokens": total_tokens,
+                "cost_thb": round(cost_thb, 4),
+                "calls": calls,
+            }

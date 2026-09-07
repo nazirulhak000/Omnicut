@@ -230,20 +230,51 @@ async function typeCaption(send, captionOrText, hashtags = '') {
     await sleep(250);
   }
 
-  // 4. Verify that content was accepted and caption comes before hashtags
+  // 4. Verify that content was accepted IN FULL (not just a 10-char prefix)
+  // and that caption comes before hashtags. Draft.js can drop text mid-insert
+  // if the editor loses focus, and a prefix-only check let a truncated or
+  // garbled caption pass silently as long as the first ~10 chars matched.
+  //
+  // Normalization must be identical on both sides (what we tried to type vs.
+  // what innerText reports back) or this would never pass at all: the
+  // contenteditable's innerText legitimately differs from the raw input in
+  // whitespace/newline handling (Draft.js renders each line as its own
+  // block, so consecutive blank lines can collapse or gain trailing spaces)
+  // and can contain zero-width characters the input never had. `normalize()`
+  // here: trims each line, drops zero-width/BOM chars, collapses runs of
+  // whitespace to a single space, and joins lines with a single '\n' --
+  // applied identically to the expected and actual strings so real
+  // formatting differences wash out but dropped/garbled content does not.
+  const normalizeForCompare = (s) => String(s || '')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .split('\n')
+    .map((line) => line.trim().replace(/\s+/g, ' '))
+    .join('\n')
+    .trim();
+
+  const normCaption = normalizeForCompare(cleanCaption);
+  const normTags = normalizeForCompare(cleanTags);
+
   await OmniAutomation.wait(send, `(() => {
     const el = ${captionQuery};
-    const current = (el ? (el.innerText || el.textContent) : '').trim();
-    if (!current) return false;
-    const hasCap = ${JSON.stringify(cleanCaption ? cleanCaption.slice(0, 10) : '')};
-    const hasTag = ${JSON.stringify(cleanTags ? cleanTags.slice(0, 10) : '')};
+    const raw = el ? (el.innerText || el.textContent || '') : '';
+    if (!raw.trim()) return false;
+    const normalize = (s) => String(s || '')
+      .replace(/[\\u200B-\\u200D\\uFEFF]/g, '')
+      .split('\\n')
+      .map((line) => line.trim().replace(/\\s+/g, ' '))
+      .join('\\n')
+      .trim();
+    const current = normalize(raw);
+    const hasCap = ${JSON.stringify(normCaption)};
+    const hasTag = ${JSON.stringify(normTags)};
     if (hasCap && !current.includes(hasCap)) return false;
     if (hasTag && !current.includes(hasTag)) return false;
     if (hasCap && hasTag) {
       return current.indexOf(hasCap) < current.indexOf(hasTag);
     }
     return true;
-  })()`, 'TikTok ยังไม่รับแคปชันครบตามลำดับ กรุณาตรวจช่องคำอธิบาย', 5000);
+  })()`, 'TikTok ยังไม่รับแคปชันครบตามที่พิมพ์ (อาจถูกตัด/เพี้ยนบางส่วน) กรุณาตรวจช่องคำอธิบาย', 5000);
 }
 
 // Waits for TikTok Studio video upload/processing indicator to complete
@@ -436,7 +467,7 @@ async function switchToShowcaseTab(send) {
 }
 
 // Automatically clicks "+ เพิ่ม" under "เพิ่มลิงก์", searches product by ID, and adds it.
-async function attachProductLink(send, productId) {
+async function attachProductLink(send, productId, cartName = '') {
   if (!productId) return { success: false, reason: 'ไม่มี Product ID' };
 
   // Step 0: Check if modal "< เพิ่มลิงก์สินค้า" is ALREADY open
@@ -688,41 +719,22 @@ async function attachProductLink(send, productId) {
         const tuxRadio = targetRow.querySelector('.TUXRadio');
         const nameCell = targetRow.querySelector('.product-name-cell, [class*="product-name"]');
 
-        const triggerClick = (el) => {
-          if (!el) return;
-          try { el.focus(); } catch (e) {}
-          ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(type => {
-            el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window, buttons: 1 }));
-          });
-          try { el.click(); } catch (e) {}
-        };
-
-        // 1. Direct input click
-        if (input) {
-          try { input.focus(); } catch (e) {}
-          try { input.click(); } catch (e) {}
-        }
-        if (standalone) triggerClick(standalone);
-        if (tuxRadio) triggerClick(tuxRadio);
-        if (nameCell) triggerClick(nameCell);
-        triggerClick(targetRow);
-
-        // 2. Direct React fiber props trigger
-        for (const el of [input, standalone, tuxRadio, targetRow]) {
-          if (!el) continue;
-          const propKey = Object.keys(el).find(k => k.startsWith('__reactProps'));
-          if (propKey && el[propKey]) {
-            const p = el[propKey];
-            if (typeof p.onChange === 'function') {
-              try { p.onChange({ target: input, currentTarget: input }); } catch (e) {}
-            }
-            if (typeof p.onClick === 'function') {
-              try { p.onClick({ target: el, currentTarget: el }); } catch (e) {}
-            }
-          }
+        // TUXRadio is toggle-like. The old code clicked input, wrapper, name,
+        // row, then CDP coordinates, which could select and immediately
+        // deselect the same item. Perform one DOM click only; the outer loop
+        // may use one native CDP click as a single fallback after verification.
+        const isChecked = () => Boolean(
+          (input && (input.checked || input.getAttribute('aria-checked') === 'true')) ||
+          targetRow.querySelector('.TUXRadioStandalone--checked, [class*="--checked"], [aria-checked="true"]')
+        );
+        if (!isChecked()) {
+          const clickTarget = input || standalone || tuxRadio;
+          if (!clickTarget) return { success: false, reason: 'radio_not_found' };
+          clickTarget.focus?.();
+          clickTarget.click();
         }
 
-        const clickTarget = standalone || input || tuxRadio || targetRow;
+        const clickTarget = input || standalone || tuxRadio || targetRow;
         try { clickTarget.scrollIntoView({ behavior: 'instant', block: 'center' }); } catch (e) {}
         const rect = clickTarget.getBoundingClientRect();
         const rowRect = targetRow.getBoundingClientRect();
@@ -743,7 +755,7 @@ async function attachProductLink(send, productId) {
           name: cells[0] || '',
           point: { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 },
           rowPoint: { x: rowRect.left + Math.min(rowRect.width / 2, 200), y: rowRect.top + rowRect.height / 2 },
-          checked,
+          checked: isChecked(),
         };
       })()`,
       returnByValue: true,
@@ -751,25 +763,14 @@ async function attachProductLink(send, productId) {
 
     const selVal = sel?.result?.value;
     if (selVal?.success) {
-      selection = selVal;
-
-      // Send real CDP mouse click on radio coordinates
-      if (selVal.point && selVal.point.x > 0 && selVal.point.y > 0) {
+      // Accept a DOM click only if it actually checked the radio. If React
+      // ignored it, issue one native click at the radio point. Never click
+      // both radio and row: that toggles the control back to unchecked.
+      if (!selVal.checked && selVal.point && selVal.point.x > 0 && selVal.point.y > 0) {
         try {
           await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: Math.round(selVal.point.x), y: Math.round(selVal.point.y) });
           await send('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', buttons: 1, clickCount: 1, x: Math.round(selVal.point.x), y: Math.round(selVal.point.y) });
           await send('Input.dispatchMouseEvent', { type: 'mouseReleased', button: 'left', buttons: 0, clickCount: 1, x: Math.round(selVal.point.x), y: Math.round(selVal.point.y) });
-        } catch (e) {}
-      }
-
-      await sleep(400);
-
-      // Also click the row cell as fallback
-      if (selVal.rowPoint && selVal.rowPoint.x > 0 && selVal.rowPoint.y > 0) {
-        try {
-          await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: Math.round(selVal.rowPoint.x), y: Math.round(selVal.rowPoint.y) });
-          await send('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', buttons: 1, clickCount: 1, x: Math.round(selVal.rowPoint.x), y: Math.round(selVal.rowPoint.y) });
-          await send('Input.dispatchMouseEvent', { type: 'mouseReleased', button: 'left', buttons: 0, clickCount: 1, x: Math.round(selVal.rowPoint.x), y: Math.round(selVal.rowPoint.y) });
         } catch (e) {}
       }
 
@@ -793,6 +794,7 @@ async function attachProductLink(send, productId) {
 
       const st = statusCheck?.result?.value;
       if (st?.isChecked || st?.nextEnabled) {
+        selection = selVal;
         break;
       }
     } else if (selVal && selVal.success === false && selVal.reason) {
@@ -863,10 +865,9 @@ async function attachProductLink(send, productId) {
   // Wait for step 2 ("ชื่อสินค้าจะปรากฏขึ้นในวิดีโอของคุณ" / Title setting view)
   await sleep(2000);
 
-  // Step 7: Focus & Select All (คลุมดำตั้งชื่อ), then click "เพิ่ม" (Add button)
-  let confirmed = false;
-  for (let retry = 0; retry < 5; retry++) {
-    const step7 = await send('Runtime.evaluate', {
+  // Step 7: TikTok opens a second dialog for the cart display name. Wait for
+  // its TUX input, optionally replace the name, then click Add once.
+  const step7 = await send('Runtime.evaluate', {
       expression: `(() => {
         const isVisible = (el) => {
           if (!el) return false;
@@ -876,7 +877,9 @@ async function attachProductLink(send, productId) {
           const rect = el.getBoundingClientRect();
           return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
         };
-        const root = document.querySelector('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal') || document;
+        const roots = Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal'))
+          .filter(isVisible);
+        const root = roots.at(-1) || document;
 
         // 1. คลุมดำตั้งชื่อ (Highlight/select all in product title input: input.TUXTextInputCore-input)
         const nameInput = root.querySelector('input.TUXTextInputCore-input, input[type="text"], input:not([type]), textarea');
@@ -884,14 +887,19 @@ async function attachProductLink(send, productId) {
           try {
             nameInput.focus();
             nameInput.select();
-            nameInput.dispatchEvent(new Event('focus', { bubbles: true }));
-            nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+            const desired = ${JSON.stringify(String(cartName || ''))};
+            if (desired) {
+              const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+              if (setter) setter.call(nameInput, desired); else nameInput.value = desired;
+              nameInput.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: desired }));
+              nameInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
           } catch (e) {}
         }
 
         // 2. Click "เพิ่ม" (Add button as seen in DevTools screenshot)
         const buttons = Array.from(root.querySelectorAll('button, div[role="button"]')).filter(isVisible);
-        const addBtn = buttons.reverse().find(b => {
+        const addBtn = buttons.find(b => {
           const t = (b.innerText || b.textContent || '').trim();
           const enabled = !b.disabled && b.getAttribute('aria-disabled') !== 'true';
           return (t === 'เพิ่ม' || t === 'Add' || t === 'ยืนยัน' || t === 'Confirm' || t === 'ถัดไป') &&
@@ -907,31 +915,81 @@ async function attachProductLink(send, productId) {
       returnByValue: true,
     });
 
-    const step7Val = step7?.result?.value;
-    if (step7Val?.success) {
-      if (step7Val.point && step7Val.point.x > 0 && step7Val.point.y > 0) {
-        try {
-          await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: Math.round(step7Val.point.x), y: Math.round(step7Val.point.y) });
-          await send('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', buttons: 1, clickCount: 1, x: Math.round(step7Val.point.x), y: Math.round(step7Val.point.y) });
-          await send('Input.dispatchMouseEvent', { type: 'mouseReleased', button: 'left', buttons: 0, clickCount: 1, x: Math.round(step7Val.point.x), y: Math.round(step7Val.point.y) });
-        } catch (e) {}
-      }
-      confirmed = true;
-      break;
-    }
-    await sleep(800);
-  }
-
-  if (!confirmed) {
+  const step7Val = step7?.result?.value;
+  if (!step7Val?.success) {
     return { success: false, reason: 'กดปุ่มถัดไป/เพิ่มในหน้าตั้งชื่อสินค้าไม่สำเร็จ' };
   }
 
   await sleep(1500);
+
+  // Step 8: Verify the product actually attached. Finding+clicking the Add
+  // button proves nothing on its own -- this is an affiliate tool, so a post
+  // published with no product link attached is a total commercial loss.
+  // Evidence checked for: the "< เพิ่มลิงก์สินค้า" / "เพิ่มลิงก์" modal
+  // having closed, OR a product chip/badge for this item now showing in the
+  // compose form underneath the caption editor.
+  const attachConfirmed = await (async () => {
+    const deadline = Date.now() + 8000;
+    while (Date.now() < deadline) {
+      const check = await send('Runtime.evaluate', {
+        expression: `(() => {
+          const isVisible = (el) => {
+            if (!el) return false;
+            if (typeof el.checkVisibility === 'function') {
+              return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+            }
+            const rect = el.getBoundingClientRect();
+            return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
+          };
+
+          // 1. Modal closed: neither the product-link modal title nor the
+          // Showcase tab (both only visible while the modal is open) remain
+          // on screen.
+          const texts = Array.from(document.querySelectorAll('h1, h2, h3, h4, [role="tab"], div, span'))
+            .filter(isVisible)
+            .map(el => (el.innerText || el.textContent || '').trim());
+          const modalStillOpen = texts.some(t =>
+            t.includes('เพิ่มลิงก์สินค้า') || t.includes('Add product links') ||
+            t === 'นำเสนอสินค้า' || t.includes('นำเสนอสินค้า') || t === 'Showcase' || t.includes('Showcase products'));
+          if (!modalStillOpen) {
+            return { done: true, ok: true, reason: 'modal-closed' };
+          }
+
+          // 2. Product chip/badge visible in the compose form (outside any
+          // dialog) -- e.g. a card showing the attached product's name/price
+          // under the caption editor. TikTok renders this with classes like
+          // "product-anchor", "productCard", "anchor-card"; fall back to any
+          // visible element outside a dialog that shows the attached
+          // product's name text.
+          const dialogRoot = document.querySelector('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal');
+          const chip = document.querySelector(
+            '[class*="product-anchor"], [class*="productAnchor"], [class*="anchor-card"], [class*="product-card"], [class*="productCard"], [class*="linked-product"]'
+          );
+          if (chip && isVisible(chip) && (!dialogRoot || !dialogRoot.contains(chip))) {
+            return { done: true, ok: true, reason: 'chip-visible' };
+          }
+
+          return { done: false };
+        })()`,
+        returnByValue: true,
+      });
+
+      const val = check?.result?.value;
+      if (val?.done) return val.ok;
+      await sleep(500);
+    }
+    return false;
+  })();
+
+  if (!attachConfirmed) {
+    return { success: false, reason: 'product_attach_not_confirmed: กดเพิ่มลิงก์สินค้าแล้ว แต่ไม่พบหลักฐานว่าแนบติดจริง (หน้าต่างเลือกสินค้าอาจยังไม่ปิด หรือไม่มีชิปสินค้าโผล่ในฟอร์ม) กรุณาตรวจสอบด้วยตาก่อนโพสต์' };
+  }
+
   return { success: true, productName: selection.name };
 }
 
 // Switches upload form to "กำหนดเวลาโพสต์" / "ตั้งเวลา" (Schedule) option
-async function switchToScheduleMode(send) {
+async function switchToScheduleMode(send, schedule = {}) {
   const { result } = await send('Runtime.evaluate', {
     expression: `(() => {
       // Exact-text match on LEAF elements only (label/span/div with no
@@ -979,7 +1037,151 @@ async function switchToScheduleMode(send) {
     })()`,
     returnByValue: true,
   });
-  return Boolean(result?.value?.success);
+
+  if (!result?.value?.success) return { success: false, reason: 'not-found' };
+
+  // Clicking whatever element resolved (byFor input, or a fallback that can
+  // be a non-interactive <span>/<div> when no real form control was found)
+  // is not proof the toggle actually activated -- a click on a non-
+  // interactive element is a no-op. Poll for real evidence: the radio/
+  // checkbox reporting checked/aria-checked, or the date/time picker fields
+  // that only render once schedule mode is active.
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    const verify = await send('Runtime.evaluate', {
+      expression: `(() => {
+        const isVisible = (el) => {
+          if (!el) return false;
+          if (typeof el.checkVisibility === 'function') {
+            return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+          }
+          const rect = el.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
+        };
+
+        const TARGETS = ['ตั้งเวลา', 'กำหนดเวลาโพสต์', 'กำหนดเวลา', 'Schedule'];
+        const isLeafMatch = (el) => {
+          const t = (el.innerText || el.textContent || '').trim();
+          if (!TARGETS.includes(t)) return false;
+          return !Array.from(el.children).some(c => TARGETS.includes((c.innerText || c.textContent || '').trim()));
+        };
+        const candidates = Array.from(document.querySelectorAll('label, span, div, p')).filter(isLeafMatch);
+        candidates.sort((a, b) => {
+          const rA = a.getBoundingClientRect();
+          const rB = b.getBoundingClientRect();
+          return (rA.width * rA.height) - (rB.width * rB.height);
+        });
+        const target = candidates[0];
+
+        // 1. The radio/checkbox this label controls reports checked.
+        if (target) {
+          const forId = target.getAttribute('for');
+          const byFor = forId ? document.getElementById(forId) : null;
+          const input = byFor
+            || target.closest('label')?.querySelector(':scope > input[type="radio"], :scope > input[type="checkbox"]')
+            || target.parentElement?.querySelector(':scope > input[type="radio"], :scope > input[type="checkbox"]');
+          if (input && (input.checked || input.getAttribute('aria-checked') === 'true')) return true;
+          // Some TikTok radios are styled divs with a --checked class rather
+          // than a native input; check the label's own ancestry for that too.
+          const styledRadio = target.closest('label, div')?.querySelector('[class*="--checked"], [aria-checked="true"]');
+          if (styledRadio && isVisible(styledRadio)) return true;
+        }
+
+        // 2. Date/time picker fields only render once schedule mode is on
+        // (e.g. a date input, or a visible "เลือกวันที่"/"เลือกเวลา" picker
+        // control that doesn't exist in immediate-post mode).
+        const pickerTexts = ['เลือกวันที่', 'เลือกเวลา', 'Select date', 'Select time'];
+        const hasPicker = Array.from(document.querySelectorAll('input[type="date"], input[type="time"], div, span, button'))
+          .some(el => {
+            if (el.tagName === 'INPUT') return isVisible(el);
+            const t = (el.innerText || el.textContent || '').trim();
+            return pickerTexts.includes(t) && isVisible(el);
+          });
+        if (hasPicker) return true;
+
+        return false;
+      })()`,
+      returnByValue: true,
+    });
+    if (verify?.result?.value) return setScheduleDateTime(send, schedule);
+    await sleep(400);
+  }
+  return { success: false, reason: 'schedule_toggle_not_confirmed' };
+}
+
+// TikTok renders the schedule controls as TUX buttons rather than native
+// date/time inputs (the visible values look like 2026-09-07 and 02:05). Set
+// them only when the caller supplied values, then verify the exact value is
+// visible. An empty value intentionally means "toggle only; user chooses".
+async function setScheduleDateTime(send, { date = '', time = '' } = {}) {
+  const requested = {date: String(date || '').trim(), time: String(time || '').trim()};
+  if (!requested.date && !requested.time) return {success:true, changed:false};
+  const result = await send('Runtime.evaluate', {
+    expression: `(() => {
+      const visible = el => {
+        if (!el) return false;
+        if (el.checkVisibility && !el.checkVisibility({checkOpacity:true,checkVisibilityCSS:true})) return false;
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
+      };
+      const clickables = Array.from(document.querySelectorAll('button, [role="button"], input')).filter(visible);
+      const exact = value => clickables.filter(el =>
+        String(el.value || el.innerText || el.textContent || '').trim() === value);
+      const findDate = exact(${JSON.stringify(requested.date)})[0];
+      const findTime = exact(${JSON.stringify(requested.time)})[0];
+      const nativeDate = document.querySelector('input[type="date"]');
+      const nativeTime = document.querySelector('input[type="time"]');
+      const setNative = (input, value) => {
+        if (!input || !value) return false;
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        if (setter) setter.call(input, value); else input.value = value;
+        input.dispatchEvent(new Event('input', {bubbles:true}));
+        input.dispatchEvent(new Event('change', {bubbles:true}));
+        return true;
+      };
+      if (${JSON.stringify(requested.date)} && setNative(nativeDate, ${JSON.stringify(requested.date)})) return {native:'date'};
+      if (${JSON.stringify(requested.time)} && setNative(nativeTime, ${JSON.stringify(requested.time)})) return {native:'time'};
+      const currentDate = clickables.find(el => /^\\d{4}-\\d{2}-\\d{2}$/.test(String(el.innerText || el.value || '').trim()));
+      const currentTime = clickables.find(el => /^\\d{1,2}:\\d{2}$/.test(String(el.innerText || el.value || '').trim()));
+      const target = ${JSON.stringify(requested.date)} ? (findDate || currentDate) : (findTime || currentTime);
+      if (!target) return {success:false};
+      target.scrollIntoView({block:'center'});
+      target.click();
+      return {success:true, opened: !findDate && !findTime};
+    })()` ,
+    returnByValue: true,
+  });
+  if (result?.exceptionDetails) return {success:false, reason:'schedule_control_error'};
+  // If the requested value was not already visible, the first click opened a
+  // picker. Click the exact requested option in the newly opened menu.
+  for (const value of [requested.date, requested.time].filter(Boolean)) {
+    const picked = await send('Runtime.evaluate', {
+      expression: `(() => {
+        const visible = el => {
+          if (!el) return false;
+          if (el.checkVisibility && !el.checkVisibility({checkOpacity:true,checkVisibilityCSS:true})) return false;
+          const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0;
+        };
+        const matches = Array.from(document.querySelectorAll('button, [role="option"], [role="gridcell"], div, span'))
+          .filter(visible).filter(el => (el.innerText || el.textContent || '').trim() === ${JSON.stringify(value)});
+        if (matches.length !== 1) return false;
+        matches[0].click(); return true;
+      })()` , returnByValue:true,
+    });
+    if (picked?.result?.value) continue;
+  }
+  const verify = await send('Runtime.evaluate', {
+    expression: `(() => {
+      const value = text => Array.from(document.querySelectorAll('button, [role="button"], input, [role="option"]'))
+        .some(el => { const r=el.getBoundingClientRect(); return r.width>0 && r.height>0 && String(el.value || el.innerText || el.textContent || '').trim() === text; });
+      return ${JSON.stringify(requested.date)} ? value(${JSON.stringify(requested.date)}) : true;
+    })()` , returnByValue:true,
+  });
+  if (requested.time) {
+    const timeVerify = await send('Runtime.evaluate', {expression:`Array.from(document.querySelectorAll('button,[role="button"],input')).some(el => { const r=el.getBoundingClientRect(); return r.width>0 && r.height>0 && String(el.value || el.innerText || el.textContent || '').trim() === ${JSON.stringify(requested.time)}; })()`, returnByValue:true});
+    if (!timeVerify?.result?.value) return {success:false, reason:'schedule_time_not_confirmed'};
+  }
+  return verify?.result?.value ? {success:true, changed:true} : {success:false, reason:'schedule_date_not_confirmed'};
 }
 
 // After a successful Post/Schedule click, TikTok Studio's own SPA can throw
@@ -1022,11 +1224,108 @@ async function dismissLeaveConfirmDialogIfPresent(send, timeoutMs = 8000) {
   return false;
 }
 
+// After clicking Post/Schedule, polls for evidence the click actually did
+// something -- TikTok never confirms via a dedicated success signal we can
+// rely on, so this looks for any of: (a) the URL navigating away from the
+// upload page, (b) the compose form / caption editor disappearing, (c) a
+// validation-error toast/banner TikTok shows for a REJECTED submit (caption
+// too short, cover required, category missing, etc). (a) and (b) both mean
+// "the click was accepted and TikTok moved on" -- we don't need to
+// distinguish "posted immediately" from "scheduled" here, the caller already
+// knows which one it asked for. (c) is reported back verbatim so the user
+// sees TikTok's own reason. Bounded by timeoutMs; if neither success nor
+// failure evidence shows up in time, this returns 'timeout' rather than ever
+// assuming success -- an unconfirmed click must not be reported as a post.
+async function waitForPostConfirmation(send, tabId, timeoutMs = 20_000) {
+  const start = Date.now();
+  let consecutiveEditorGone = 0;
+  while (Date.now() - start < timeoutMs) {
+    let check;
+    try {
+      check = await send('Runtime.evaluate', {
+      expression: `(() => {
+        const isVisible = (el) => {
+          if (!el) return false;
+          if (typeof el.checkVisibility === 'function') {
+            return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+          }
+          const rect = el.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
+        };
+
+        // 1. TikTok's own validation-error toast/banner for a rejected submit.
+        const errorNodes = Array.from(document.querySelectorAll(
+          '[class*="toast"], [class*="Toast"], [class*="notice"], [class*="Notice"], [class*="error"], [class*="Error"], [role="alert"]'
+        )).filter(isVisible);
+        for (const el of errorNodes) {
+          const t = (el.innerText || el.textContent || '').trim();
+          if (!t) continue;
+          // Only treat it as a rejection if it actually reads like one --
+          // avoid false-positives from unrelated visible elements that
+          // merely have "error" somewhere in a class name.
+          if (/แคปชัน|คำอธิบาย|หน้าปก|cover|caption|หมวดหมู่|category|ล้มเหลว|ไม่สำเร็จ|failed|required|กรุณา(กรอก|เลือก)/i.test(t)) {
+            return { done: true, failed: true, message: t.slice(0, 300) };
+          }
+        }
+
+        // 2. Compose form gone (caption editor / cover editor no longer present).
+        const stillEditing = document.querySelector('[contenteditable="true"]');
+        if (!stillEditing) {
+          return { done: true, failed: false, reason: 'editor-gone' };
+        }
+
+        return { done: false };
+      })()`,
+        returnByValue: true,
+      });
+    } catch (e) {
+      // Runtime.evaluate can reject outright if the page navigated away
+      // between our poll and the CDP round-trip (execution context
+      // destroyed) -- that failure mode IS the success signal (URL moved
+      // on), not an error to swallow into "still pending".
+      return { confirmed: true, reason: 'navigation-during-eval' };
+    }
+
+    const val = check?.result?.value;
+    if (val?.done) {
+      if (val.failed) {
+        return { confirmed: false, message: val.message };
+      }
+      // "editor-gone" alone can be a one-frame flicker mid-re-render rather
+      // than a real navigation away -- require it to hold across two
+      // consecutive polls (~700ms apart) before trusting it, so a transient
+      // DOM swap right after the click doesn't get reported as success.
+      consecutiveEditorGone += 1;
+      if (consecutiveEditorGone >= 2) {
+        return { confirmed: true, reason: val.reason };
+      }
+    } else {
+      consecutiveEditorGone = 0;
+    }
+
+    // URL navigating away from the upload page is also conclusive success
+    // evidence, and cheaper to check without round-tripping into the page.
+    try {
+      const target = await chrome.tabs.get(tabId);
+      if (target?.url && !target.url.includes('/tiktokstudio/upload')) {
+        return { confirmed: true, reason: 'navigated-away' };
+      }
+    } catch (e) {
+      // Tab gone entirely (closed / navigated so hard chrome.tabs.get races) --
+      // treat as navigated away rather than erroring the whole flow.
+      return { confirmed: true, reason: 'tab-gone' };
+    }
+
+    await sleep(700);
+  }
+  return { confirmed: false, timedOut: true };
+}
+
 // UNVERIFIED (plan §3): selector is the plan's best-guess placeholder
 // (`.btn-post:not(.disabled)`). Only runs when the user has explicitly
 // opted into auto-click via the popup checkbox -- default is to stop
 // right before this and let the user press Post themselves.
-async function clickPostButton(send) {
+async function clickPostButton(send, tabId) {
   // Ensure video upload/processing is complete before attempting to click post!
   if (!await waitForUploadComplete(send, 60_000)) {
     throw new Error('TikTok ยังประมวลผลไม่เสร็จ จึงยังไม่กดโพสต์');
@@ -1066,6 +1365,27 @@ async function clickPostButton(send) {
   if (!result?.value?.success) {
     throw new Error('หาปุ่ม Post / กำหนดเวลา ที่กดได้ไม่เจอ (อาจยังประมวลผลไม่เสร็จ) -- กดเองแทน');
   }
+
+  // The click landed on an element -- now confirm TikTok actually acted on
+  // it. TikTok's SPA can also throw up a native "leave site? changes not
+  // saved" navigation guard right after a genuinely-successful click, before
+  // routing away finishes; dismiss that first so it doesn't get mistaken for
+  // "still on the compose form" by waitForPostConfirmation.
+  await dismissLeaveConfirmDialogIfPresent(send, 4000);
+
+  const confirmation = await waitForPostConfirmation(send, tabId, 20_000);
+
+  if (!confirmation.confirmed) {
+    if (confirmation.message) {
+      throw new Error('TikTok ปฏิเสธการโพสต์: ' + confirmation.message);
+    }
+    throw new Error('post_not_confirmed: กดปุ่มโพสต์แล้วแต่ไม่พบสัญญาณว่าสำเร็จหรือไม่สำเร็จภายในเวลาที่กำหนด กรุณาตรวจสอบหน้า TikTok ด้วยตาก่อนลองใหม่');
+  }
+
+  // A dialog can still appear after confirmation resolves via URL/tab checks
+  // (which don't wait on it) -- best-effort dismiss once more so it doesn't
+  // sit there blocking the tab for the next action.
+  await dismissLeaveConfirmDialogIfPresent(send, 2000);
 }
 
 // 2026-09-06: minimal, deliberately-does-nothing-else action, added after
@@ -1117,7 +1437,7 @@ async function runUploadCoverOnly() {
   }
 }
 
-async function runAttachProductOnly({ productId }) {
+async function runAttachProductOnly({ productId, cartName = '' }) {
   const tab = await findUploadTab();
   const send = cdp(tab.id);
 
@@ -1126,7 +1446,7 @@ async function runAttachProductOnly({ productId }) {
     await send('DOM.enable');
     await send('Runtime.enable');
 
-    const attachResult = await attachProductLink(send, productId);
+    const attachResult = await attachProductLink(send, productId, cartName);
 
     return {
       success: attachResult.success,
@@ -1145,7 +1465,7 @@ async function runAttachProductOnly({ productId }) {
 // popup's checklist so the user can tell exactly which addition on top of
 // a working state is the one that introduces the crash, instead of guessing
 // at the whole combined flow again.
-async function runScheduleModeOnly() {
+async function runScheduleModeOnly({ date = '', time = '' } = {}) {
   const tab = await findUploadTab();
   const send = cdp(tab.id);
 
@@ -1153,8 +1473,11 @@ async function runScheduleModeOnly() {
   try {
     await send('DOM.enable');
     await send('Runtime.enable');
-    const switched = await switchToScheduleMode(send);
-    if (!switched) {
+    const switched = await switchToScheduleMode(send, {date, time});
+    if (!switched.success) {
+      if (switched.reason === 'schedule_toggle_not_confirmed') {
+        return { success: false, reason: 'schedule_toggle_not_confirmed: กดตัวเลือก "กำหนดเวลา"/"ตั้งเวลา" แล้ว แต่ไม่พบหลักฐานว่าสลับโหมดสำเร็จ (ไม่พบ radio ที่ checked หรือช่องเลือกวันที่/เวลา) หากไม่แก้ไข โพสต์อาจออกทันทีแทนที่จะตั้งเวลา' };
+      }
       return { success: false, reason: 'หาตัวเลือก "กำหนดเวลา"/"ตั้งเวลา" บนหน้าเว็บไม่พบ' };
     }
     return { success: true };
@@ -1173,8 +1496,12 @@ async function runClickPostOnly() {
   try {
     await send('DOM.enable');
     await send('Runtime.enable');
-    await clickPostButton(send);
-    return { success: true, clicked:true, posted:false };
+    // clickPostButton now throws unless it finds real evidence the post
+    // went through (URL navigated away, compose form gone, or tab closed) --
+    // reaching this line means it's actually confirmed, so `posted:true` is
+    // no longer a guess.
+    await clickPostButton(send, tab.id);
+    return { success: true, clicked: true, posted: true };
   } finally {
     try {
       await chrome.debugger.detach({ tabId: tab.id });
@@ -1216,7 +1543,7 @@ async function runPrepareDetails(message) {
     step = 'product';
     const productId = message.productId || job.tiktok_product_id;
     if (!productId) throw new Error('กรุณากรอก ID สินค้า');
-    const product = await runAttachProductOnly({productId});
+    const product = await runAttachProductOnly({productId, cartName: message.cartName || ''});
     if (!product.success) throw new Error(product.reason);
     completed.push('product');
     step = 'cover';
@@ -1224,7 +1551,7 @@ async function runPrepareDetails(message) {
     completed.push('cover');
     if (message.scheduleMode) {
       step = 'schedule';
-      const schedule = await runScheduleModeOnly();
+      const schedule = await runScheduleModeOnly({date: message.scheduleDate, time: message.scheduleTime});
       if (!schedule.success) throw new Error(schedule.reason);
       completed.push('schedule');
     }
@@ -1240,7 +1567,7 @@ const actions = {
   'upload-file-only': () => runUploadFileOnly(),
   'type-caption-only': message => runTypeCaptionOnly(message),
   'attach-product-only': message => runAttachProductOnly(message),
-  'schedule-mode-only': () => runScheduleModeOnly(),
+  'schedule-mode-only': message => runScheduleModeOnly(message),
   'click-post-only': () => runClickPostOnly(),
   'upload-cover-only': () => runUploadCoverOnly(),
   'prepare-details': message => runPrepareDetails(message),

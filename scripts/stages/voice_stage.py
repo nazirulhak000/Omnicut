@@ -7,11 +7,220 @@ Edge-TTS synthesis, acoustic waveform alignment, and cue timing generation.
 import time
 import subprocess
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 
 from scripts.voice_engine import VoiceEngine
 from scripts.subtitle_engine import SubtitleEngine
 from scripts.pipeline_context import PipelineContext
+from scripts.error_handler import AppError, ErrorCategory
+
+
+def _probe_audio_duration(audio_path: Path) -> float:
+    """
+    Runs ffprobe to get an audio file's duration in seconds.
+
+    Raises AppError (category=FFMPEG) instead of silently defaulting to a
+    plausible-looking-but-wrong value when ffprobe fails, returns empty
+    stdout, or reports a non-positive/unparseable duration. A wrong
+    duration here silently truncates or pads the final render (it flows
+    into cue generation and the ffmpeg `-t {total_duration}` trim), so it
+    must fail loudly rather than default to a stand-in like 15.0.
+    """
+    probe_cmd = [
+        "ffprobe", "-v", "error", "-show_entries", "format=duration",
+        "-of", "default=noprint_wrappers=1:nokey=1", str(audio_path)
+    ]
+    try:
+        probe_res = subprocess.run(
+            probe_cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore"
+        )
+    except Exception as exc:
+        raise AppError(
+            category=ErrorCategory.FFMPEG,
+            code="FFPROBE_LAUNCH_FAILED",
+            message_th="ไม่สามารถเรียกใช้ ffprobe เพื่อตรวจสอบความยาวไฟล์เสียงได้",
+            suggestion_th="กรุณาตรวจสอบว่าติดตั้ง ffmpeg/ffprobe ครบถ้วนและอยู่ใน PATH",
+            details=f"file={audio_path}, error={exc}",
+        ) from exc
+
+    stdout = (probe_res.stdout or "").strip()
+    stderr = (probe_res.stderr or "").strip()
+
+    if probe_res.returncode != 0 or not stdout:
+        raise AppError(
+            category=ErrorCategory.FFMPEG,
+            code="FFPROBE_DURATION_FAILED",
+            message_th="ตรวจสอบความยาวไฟล์เสียงพากย์ไม่สำเร็จ (ffprobe ล้มเหลวหรือไฟล์เสีย)",
+            suggestion_th="กรุณาตรวจสอบว่าไฟล์เสียงต้นทางไม่เสียหายและเป็นฟอร์แมตมาตรฐาน",
+            details=f"file={audio_path}, returncode={probe_res.returncode}, stderr={stderr[:1000]}",
+        )
+
+    try:
+        duration = float(stdout)
+    except ValueError as exc:
+        raise AppError(
+            category=ErrorCategory.FFMPEG,
+            code="FFPROBE_DURATION_UNPARSEABLE",
+            message_th="ffprobe คืนค่าความยาวไฟล์เสียงที่ไม่สามารถแปลงเป็นตัวเลขได้",
+            suggestion_th="กรุณาตรวจสอบว่าไฟล์เสียงต้นทางไม่เสียหายและเป็นฟอร์แมตมาตรฐาน",
+            details=f"file={audio_path}, stdout={stdout!r}, stderr={stderr[:1000]}",
+        ) from exc
+
+    if duration <= 0:
+        raise AppError(
+            category=ErrorCategory.FFMPEG,
+            code="FFPROBE_DURATION_NONPOSITIVE",
+            message_th="ffprobe รายงานว่าไฟล์เสียงพากย์มีความยาวเป็นศูนย์หรือติดลบ",
+            suggestion_th="กรุณาตรวจสอบว่าไฟล์เสียงต้นทางไม่เสียหายและมีเนื้อหาเสียงจริง",
+            details=f"file={audio_path}, duration={duration}",
+        )
+
+    return duration
+
+
+def _rms_speech_blocks(wav_data, sr: int) -> Tuple[List[Tuple[float, float]], float]:
+    """
+    Detects contiguous speech blocks (start, end) in seconds from raw audio
+    samples using a simple RMS-energy threshold with a minimum-pause gate.
+    Shared by both the Gemini TTS and human-voice alignment paths.
+    """
+    import numpy as np
+
+    total_dur = len(wav_data) / sr
+    hop = int(0.01 * sr)  # 10ms hops
+    if hop <= 0 or len(wav_data) <= hop:
+        return [], total_dur
+
+    rms = np.array([np.sqrt(np.mean(wav_data[i:i + hop] ** 2)) for i in range(0, len(wav_data) - hop, hop)])
+    peak = np.max(rms) if len(rms) > 0 else 1.0
+    thresh = peak * 0.055
+
+    min_pause_frames = int(0.14 / 0.01)  # >140ms silence is a speech pause
+    is_speech = rms >= thresh
+
+    blocks: List[Tuple[float, float]] = []
+    in_speech = False
+    start_f = 0
+    silence_count = 0
+
+    for f, sp in enumerate(is_speech):
+        if sp:
+            if not in_speech:
+                in_speech = True
+                start_f = max(0, f - 2)
+            silence_count = 0
+        else:
+            if in_speech:
+                silence_count += 1
+                if silence_count >= min_pause_frames:
+                    in_speech = False
+                    end_f = f - silence_count + 3
+                    if end_f > start_f + 5:
+                        blocks.append((start_f * 0.01, min(total_dur, end_f * 0.01)))
+    if in_speech:
+        blocks.append((start_f * 0.01, total_dur))
+
+    return blocks, total_dur
+
+
+def _proportional_fallback_cues(split_items: List[Dict[str, Any]], total_duration: float) -> List[Dict[str, Any]]:
+    """Even/proportional (character-count weighted) cue split -- the safe
+    fallback used when acoustic alignment fails or looks implausible."""
+    cues: List[Dict[str, Any]] = []
+    total_chars = max(1, sum(len(x["text"]) for x in split_items))
+    curr_t = 0.0
+    for idx, item in enumerate(split_items):
+        line_dur = (len(item["text"]) / total_chars) * total_duration
+        line_end = min(total_duration, curr_t + line_dur)
+        if idx == len(split_items) - 1:
+            line_end = total_duration
+        cues.append({
+            "id": idx + 1,
+            "start": round(curr_t, 3),
+            "end": round(line_end, 3),
+            "text": item["text"],
+            "sfx": item.get("sfx"),
+            "on_screen": item.get("on_screen", "")
+        })
+        curr_t = line_end
+    return cues
+
+
+def _rms_aligned_cues(
+    voice_audio_path: Path,
+    split_items: List[Dict[str, Any]],
+    total_duration: float,
+    log_prefix: str = "[Voice Alignment]",
+) -> List[Dict[str, Any]]:
+    """
+    Builds cues aligned to detected speech blocks in the actual audio
+    (energy/RMS-based), falling back to a proportional character-count
+    split -- logged when it happens -- if alignment fails outright or
+    produces an implausible result (fewer detected speech blocks than
+    script lines, which means silence/pause detection couldn't tell the
+    lines apart and any alignment built on it would be worse than an even
+    split, not better).
+    """
+    try:
+        import soundfile as sf
+
+        wav_data, sr = sf.read(str(voice_audio_path))
+        if wav_data.ndim > 1:
+            wav_data = wav_data[:, 0]
+
+        blocks, total_dur = _rms_speech_blocks(wav_data, sr)
+
+        if len(blocks) < len(split_items):
+            print(
+                f"⚠️ {log_prefix} พบช่วงเสียงพูด {len(blocks)} ช่วง แต่มี {len(split_items)} บรรทัด "
+                f"({log_prefix} detected fewer speech blocks than script lines) — falling back to proportional split"
+            )
+            return _proportional_fallback_cues(split_items, total_duration)
+
+        total_speech_dur = sum(b[1] - b[0] for b in blocks) if blocks else total_duration
+        total_chars = max(1, sum(len(x["text"]) for x in split_items))
+
+        def _time_at_speech_offset(offset: float) -> float:
+            accum = 0.0
+            for b_start, b_end in blocks:
+                b_dur = b_end - b_start
+                if accum + b_dur >= offset:
+                    frac = (offset - accum) / b_dur if b_dur > 0 else 0
+                    return b_start + (frac * b_dur)
+                accum += b_dur
+            return blocks[-1][1] if blocks else total_dur
+
+        cues: List[Dict[str, Any]] = []
+        curr_speech_offset = 0.0
+        for idx, item in enumerate(split_items):
+            item_chars = len(item["text"])
+            dur_in_speech = (item_chars / total_chars) * total_speech_dur
+            s_time = _time_at_speech_offset(curr_speech_offset)
+            e_time = _time_at_speech_offset(curr_speech_offset + dur_in_speech)
+
+            for b_start, b_end in blocks:
+                if abs(s_time - b_start) < 0.15:
+                    s_time = b_start
+                    break
+
+            if idx == 0:
+                s_time = blocks[0][0] if blocks else 0.0
+            if idx == len(split_items) - 1:
+                e_time = total_duration
+
+            cues.append({
+                "id": idx + 1,
+                "start": round(s_time, 3),
+                "end": round(e_time, 3),
+                "text": item["text"],
+                "sfx": item.get("sfx"),
+                "on_screen": item.get("on_screen", "")
+            })
+            curr_speech_offset += dur_in_speech
+        return cues
+    except Exception as align_err:
+        print(f"⚠️ {log_prefix} Acoustic alignment fallback ({align_err}) — using proportional fallback")
+        return _proportional_fallback_cues(split_items, total_duration)
 
 
 class VoiceStage:
@@ -44,25 +253,23 @@ class VoiceStage:
             ]
             subprocess.run(conv_cmd, capture_output=True, encoding="utf-8", errors="ignore")
 
-            probe_cmd = [
-                "ffprobe", "-v", "error", "-show_entries", "format=duration",
-                "-of", "default=noprint_wrappers=1:nokey=1", str(voice_audio_path)
-            ]
-            probe_res = subprocess.run(probe_cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore")
-            total_duration = float(probe_res.stdout.strip()) if probe_res.stdout.strip() else 15.0
+            total_duration = _probe_audio_duration(voice_audio_path)
 
             lines_list = script_data["lines"]
-            num_lines = max(1, len(lines_list))
-            dur_per_line = total_duration / num_lines
-            for idx, item in enumerate(lines_list):
-                cues.append({
-                    "id": idx + 1,
-                    "start": idx * dur_per_line,
-                    "end": (idx + 1) * dur_per_line,
+            split_items = [
+                {
                     "text": item["text"],
                     "sfx": item.get("sfx"),
-                    "on_screen": item.get("on_screen", "")
-                })
+                    "on_screen": item.get("on_screen", ""),
+                }
+                for item in lines_list
+            ]
+            cues = _rms_aligned_cues(
+                voice_audio_path=voice_audio_path,
+                split_items=split_items,
+                total_duration=total_duration,
+                log_prefix="[Human Voice]",
+            )
             print(f"   Human voice loaded! Duration: {total_duration:.2f}s, Cues synced: {len(cues)}")
 
         elif ctx.voice_engine_type == "gemini_tts":
@@ -104,12 +311,7 @@ class VoiceStage:
                 if last_tts_error is not None:
                     raise last_tts_error
 
-                probe_cmd = [
-                    "ffprobe", "-v", "error", "-show_entries", "format=duration",
-                    "-of", "default=noprint_wrappers=1:nokey=1", str(voice_audio_path)
-                ]
-                probe_res = subprocess.run(probe_cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore")
-                total_duration = float(probe_res.stdout.strip()) if probe_res.stdout.strip() else 15.0
+                total_duration = _probe_audio_duration(voice_audio_path)
 
                 lines_list = script_data["lines"]
                 split_items = []
@@ -122,102 +324,12 @@ class VoiceStage:
                             "on_screen": item.get("on_screen", "") if ci == 0 else ""
                         })
 
-                try:
-                    import soundfile as sf
-                    import numpy as np
-
-                    wav_data, sr = sf.read(str(voice_audio_path))
-                    if wav_data.ndim > 1:
-                        wav_data = wav_data[:, 0]
-                    total_dur = len(wav_data) / sr
-
-                    hop = int(0.01 * sr)  # 10ms hops
-                    rms = np.array([np.sqrt(np.mean(wav_data[i:i+hop]**2)) for i in range(0, len(wav_data)-hop, hop)])
-                    peak = np.max(rms) if len(rms) > 0 else 1.0
-                    thresh = peak * 0.055
-
-                    min_pause_frames = int(0.14 / 0.01)  # >140ms silence is speech pause
-                    is_speech = rms >= thresh
-
-                    blocks = []
-                    in_speech = False
-                    start_f = 0
-                    silence_count = 0
-
-                    for f, sp in enumerate(is_speech):
-                        if sp:
-                            if not in_speech:
-                                in_speech = True
-                                start_f = max(0, f - 2)
-                            silence_count = 0
-                        else:
-                            if in_speech:
-                                silence_count += 1
-                                if silence_count >= min_pause_frames:
-                                    in_speech = False
-                                    end_f = f - silence_count + 3
-                                    if end_f > start_f + 5:
-                                        blocks.append((start_f * 0.01, min(total_dur, end_f * 0.01)))
-                    if in_speech:
-                        blocks.append((start_f * 0.01, total_dur))
-
-                    total_speech_dur = sum(b[1] - b[0] for b in blocks) if blocks else total_duration
-                    total_chars = max(1, sum(len(x["text"]) for x in split_items))
-
-                    def _time_at_speech_offset(offset: float) -> float:
-                        accum = 0.0
-                        for b_start, b_end in blocks:
-                            b_dur = b_end - b_start
-                            if accum + b_dur >= offset:
-                                frac = (offset - accum) / b_dur if b_dur > 0 else 0
-                                return b_start + (frac * b_dur)
-                            accum += b_dur
-                        return blocks[-1][1] if blocks else total_dur
-
-                    curr_speech_offset = 0.0
-                    for idx, item in enumerate(split_items):
-                        item_chars = len(item["text"])
-                        dur_in_speech = (item_chars / total_chars) * total_speech_dur
-                        s_time = _time_at_speech_offset(curr_speech_offset)
-                        e_time = _time_at_speech_offset(curr_speech_offset + dur_in_speech)
-
-                        for b_start, b_end in blocks:
-                            if abs(s_time - b_start) < 0.15:
-                                s_time = b_start
-                                break
-
-                        if idx == 0:
-                            s_time = blocks[0][0] if blocks else 0.0
-                        if idx == len(split_items) - 1:
-                            e_time = total_duration
-
-                        cues.append({
-                            "id": idx + 1,
-                            "start": round(s_time, 3),
-                            "end": round(e_time, 3),
-                            "text": item["text"],
-                            "sfx": item.get("sfx"),
-                            "on_screen": item.get("on_screen", "")
-                        })
-                        curr_speech_offset += dur_in_speech
-                except Exception as align_err:
-                    print(f"⚠️ [Gemini Flash TTS] Acoustic alignment fallback ({align_err}) — using proportional fallback")
-                    total_chars = max(1, sum(len(x["text"]) for x in split_items))
-                    curr_t = 0.0
-                    for idx, item in enumerate(split_items):
-                        line_dur = (len(item["text"]) / total_chars) * total_duration
-                        line_end = min(total_duration, curr_t + line_dur)
-                        if idx == len(split_items) - 1:
-                            line_end = total_duration
-                        cues.append({
-                            "id": idx + 1,
-                            "start": round(curr_t, 3),
-                            "end": round(line_end, 3),
-                            "text": item["text"],
-                            "sfx": item.get("sfx"),
-                            "on_screen": item.get("on_screen", "")
-                        })
-                        curr_t = line_end
+                cues = _rms_aligned_cues(
+                    voice_audio_path=voice_audio_path,
+                    split_items=split_items,
+                    total_duration=total_duration,
+                    log_prefix="[Gemini Flash TTS]",
+                )
                 print(f"   Gemini Flash TTS voice generated! Duration: {total_duration:.2f}s, Cues: {len(cues)}")
             except Exception as gemini_err:
                 voice_engine_used = "edge_tts"

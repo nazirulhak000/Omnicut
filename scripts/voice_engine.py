@@ -64,6 +64,31 @@ class VoiceEngine:
         }
     }
 
+    # Fallback speaking-rate estimate (chars/sec) for lines that produce no
+    # audio at all, so an inserted silence segment is roughly as long as the
+    # real take would have been -- mirrors the same baseline sfx_manager.py
+    # uses for its own text-length-based duration estimate.
+    BASELINE_CHARS_PER_SEC = 10.0
+    MIN_FALLBACK_SILENCE_S = 0.60
+    MAX_FALLBACK_SILENCE_S = 6.0
+
+    @classmethod
+    def _estimate_silence_duration_s(cls, text: str, rate_pct: int) -> float:
+        """
+        Estimates how long a line's spoken audio *would* have been, purely
+        from character count and the line's configured rate offset, for use
+        as a stand-in silence duration when every TTS path failed for that
+        line. Not meant to be precise -- only to keep the rest of the
+        timeline's cues aligned with their real audio instead of drifting
+        earlier by a missing line's worth of time.
+        """
+        char_count = len(text.strip()) if text else 0
+        if char_count <= 0:
+            char_count = 12  # empty-after-sanitize lines still get a floor pause
+        speed_mult = max(0.5, 1.0 + (rate_pct / 100.0))
+        est = (char_count / cls.BASELINE_CHARS_PER_SEC) / speed_mult
+        return min(cls.MAX_FALLBACK_SILENCE_S, max(cls.MIN_FALLBACK_SILENCE_S, est))
+
     @staticmethod
     def _trim_silence(data: np.ndarray, sample_rate: int = 44100, threshold_db: float = -42.0) -> Tuple[np.ndarray, float]:
         """
@@ -228,12 +253,35 @@ class VoiceEngine:
         sample_rate = 44100
         current_time = 0.0
         total_lines = len(line_items)
+        substituted_lines = []  # idx of lines that got a silence stand-in instead of real audio
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             for idx, item in enumerate(line_items):
                 line_text = item["tts_text"]
                 display_text = item["display_text"]
                 if not line_text:
+                    # Sanitizing left nothing to speak (emoji/symbol-only line).
+                    # Still emit a cue + silence so every later line's timeline
+                    # stays aligned with its real audio position instead of
+                    # permanently drifting earlier by this line's duration.
+                    beat_type = cls.detect_beat_type(idx, total_lines, display_text or "")
+                    fallback_dur = cls._estimate_silence_duration_s(display_text or "", base_rate_pct)
+                    print(f"⚠️ [VoiceEngine] Line {idx + 1}/{total_lines} sanitized to empty text "
+                          f"(display: {display_text!r}) -- inserting {fallback_dur:.2f}s of silence "
+                          f"to keep subsequent cues aligned.")
+                    cues.append({
+                        "id": idx + 1,
+                        "beat": beat_type,
+                        "start": round(current_time, 3),
+                        "end": round(current_time + fallback_dur, 3),
+                        "text": display_text,
+                        "sfx": None,
+                        "word_timings": [],
+                        "substituted": True,
+                    })
+                    audio_segments.append(np.zeros(int(fallback_dur * sample_rate), dtype=np.float32))
+                    current_time += fallback_dur
+                    substituted_lines.append(idx)
                     continue
 
                 # 1. Determine Beat & Dynamic Prosody
@@ -248,6 +296,7 @@ class VoiceEngine:
 
                 raw_mp3 = Path(tmp_dir) / f"raw_{idx}.mp3"
                 proc_wav = Path(tmp_dir) / f"proc_{idx}.wav"
+                tts_errors = []  # collected diagnostics from each fallback attempt, for the warning if all fail
 
                 # 2. Synthesize via Edge-TTS's streaming API first -- same
                 # audio the CLI would produce, but captures per-word
@@ -260,6 +309,7 @@ class VoiceEngine:
                     line_text, voice_name, rate_str, pitch_str, raw_mp3
                 )
                 if not raw_mp3.exists() or raw_mp3.stat().st_size == 0:
+                    tts_errors.append("edge-tts streaming API: no output produced (see edge-tts CLI result below)")
                     cmd_edge = [
                         "edge-tts",
                         "--voice", voice_name,
@@ -268,8 +318,14 @@ class VoiceEngine:
                         "--text", line_text,
                         "--write-media", str(raw_mp3)
                     ]
-                    subprocess.run(cmd_edge, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    edge_proc = subprocess.run(cmd_edge, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
                     line_word_timings = None  # CLI path never carries word data
+                    if edge_proc.returncode != 0 or not raw_mp3.exists() or raw_mp3.stat().st_size == 0:
+                        stderr_txt = (edge_proc.stderr or b"").decode("utf-8", errors="ignore").strip()
+                        tts_errors.append(
+                            f"edge-tts CLI: returncode={edge_proc.returncode}"
+                            + (f", stderr={stderr_txt[-500:]}" if stderr_txt else "")
+                        )
 
                 # Fallback to gTTS if needed
                 if not raw_mp3.exists() or raw_mp3.stat().st_size == 0:
@@ -277,8 +333,8 @@ class VoiceEngine:
                         from gtts import gTTS
                         tts = gTTS(text=line_text, lang='th')
                         tts.save(str(raw_mp3))
-                    except Exception:
-                        pass
+                    except Exception as gtts_err:
+                        tts_errors.append(f"gTTS: {type(gtts_err).__name__}: {gtts_err}")
 
                 # 3. Post-process Audio with High-Presence Equalizer & Loudness Normalization (-16 LUFS)
                 if raw_mp3.exists() and raw_mp3.stat().st_size > 0:
@@ -288,7 +344,15 @@ class VoiceEngine:
                         "-ar", str(sample_rate), "-ac", "2",
                         str(proc_wav)
                     ]
-                    subprocess.run(cmd_ffmpeg, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    ffmpeg_proc = subprocess.run(cmd_ffmpeg, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+                    if ffmpeg_proc.returncode != 0 or not proc_wav.exists():
+                        stderr_txt = (ffmpeg_proc.stderr or b"").decode("utf-8", errors="ignore").strip()
+                        tts_errors.append(
+                            f"ffmpeg post-process: returncode={ffmpeg_proc.returncode}"
+                            + (f", stderr={stderr_txt[-500:]}" if stderr_txt else "")
+                        )
+                elif not tts_errors:
+                    tts_errors.append("no TTS engine produced audio (edge-tts and gTTS both yielded no output)")
 
                 # 4. Read waveform & register cues with exact sample accuracy
                 if proc_wav.exists():
@@ -327,7 +391,8 @@ class VoiceEngine:
                         "end": round(current_time + seg_duration, 3),
                         "text": display_text,
                         "sfx": sfx_tag,
-                        "word_timings": word_timings
+                        "word_timings": word_timings,
+                        "substituted": False,
                     })
 
                     # Guarantee 1-D float32 before appending (guards against edge-cases
@@ -344,6 +409,41 @@ class VoiceEngine:
                         current_time += seg_duration + clean_pause
                     else:
                         current_time += seg_duration
+                else:
+                    # Every TTS path (edge-tts streaming API, edge-tts CLI, gTTS)
+                    # failed to produce usable audio for this line. Insert a
+                    # silence stand-in sized off the line's text length so
+                    # `current_time` still advances roughly as far as real
+                    # speech would have carried it -- every later line's cue
+                    # keeps pointing at its actual audio position instead of
+                    # drifting permanently earlier by this line's duration.
+                    fallback_dur = cls._estimate_silence_duration_s(line_text, line_rate_pct)
+                    reason = "; ".join(tts_errors) if tts_errors else "unknown failure (no diagnostics captured)"
+                    print(f"⚠️ [VoiceEngine] Line {idx + 1}/{total_lines} failed to synthesize "
+                          f"(text: {display_text!r}) -- {reason}. Inserting {fallback_dur:.2f}s of "
+                          f"silence to keep subsequent cues aligned.")
+
+                    cues.append({
+                        "id": idx + 1,
+                        "beat": beat_type,
+                        "start": round(current_time, 3),
+                        "end": round(current_time + fallback_dur, 3),
+                        "text": display_text,
+                        "sfx": None,
+                        "word_timings": [],
+                        "substituted": True,
+                    })
+                    audio_segments.append(np.zeros(int(fallback_dur * sample_rate), dtype=np.float32))
+
+                    if idx < total_lines - 1:
+                        clean_pause = min(0.08, max(0.04, pause_s * 0.4))
+                        silence_gap = np.zeros(int(clean_pause * sample_rate), dtype=np.float32)
+                        audio_segments.append(silence_gap)
+                        current_time += fallback_dur + clean_pause
+                    else:
+                        current_time += fallback_dur
+
+                    substituted_lines.append(idx)
 
             # Concatenate all audio segments
             if audio_segments:
@@ -357,10 +457,21 @@ class VoiceEngine:
             stereo_audio = np.column_stack((final_audio, final_audio))
             sf.write(str(out_audio), stereo_audio, sample_rate)
 
+        if substituted_lines:
+            print(f"⚠️ [VoiceEngine] {len(substituted_lines)}/{total_lines} line(s) substituted with "
+                  f"silence (indices: {substituted_lines}) -- see warnings above for per-line reasons.")
+
         return {
             "audio_path": str(out_audio),
             "duration": total_duration,
-            "cues": cues
+            "cues": cues,
+            # Additive fields -- existing callers that only read "audio_path"/
+            # "duration"/"cues" (scripts/api_voice.py, scripts/stages/voice_stage.py)
+            # are unaffected by dict-key access. Callers that care can check
+            # "substituted_line_count" to detect that some lines had no real
+            # audio and got a timed silence stand-in instead.
+            "substituted_line_count": len(substituted_lines),
+            "substituted_line_indices": substituted_lines,
         }
 
     @classmethod

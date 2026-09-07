@@ -7,6 +7,9 @@ const activeClipBanner = document.getElementById('activeClipBanner');
 const captionInput = document.getElementById('captionInput');
 const hashtagsInput = document.getElementById('hashtagsInput');
 const productIdInput = document.getElementById('productIdInput');
+const cartNameInput = document.getElementById('cartNameInput');
+const scheduleDateInput = document.getElementById('scheduleDateInput');
+const scheduleTimeInput = document.getElementById('scheduleTimeInput');
 const markPostedBtn = document.getElementById('markPostedBtn');
 const copyAllBtn = document.getElementById('copyAllBtn');
 
@@ -190,6 +193,7 @@ async function prepareClip(item) {
     captionInput.value = item.tiktok_caption || '';
     hashtagsInput.value = item.tiktok_hashtags || '';
     productIdInput.value = item.tiktok_product_id || '';
+    cartNameInput.value = item.product_name || '';
     resetChecklist();
     renderActiveClipBanner();
     showTab('checklist');
@@ -266,12 +270,12 @@ wireStep('btn3', 'chk3', 'ขั้น 3 (ปักตะกร้าสิน�
   () => {
     const productId = productIdInput.value.trim();
     if (!productId) throw new Error('กรุณากรอก ID สินค้าก่อน');
-    return { action: 'attach-product-only', productId };
+    return { action: 'attach-product-only', productId, cartName: cartNameInput.value.trim() };
   },
   'ขั้น 3 สำเร็จ -- ปักตะกร้าสินค้าแล้ว');
 
 wireStep('btn4', 'chk4', 'ขั้น 4 (สลับเป็นกำหนดเวลา)',
-  () => ({ action: 'schedule-mode-only' }),
+  () => ({ action: 'schedule-mode-only', date: scheduleDateInput.value, time: scheduleTimeInput.value }),
   'ขั้น 4 สำเร็จ -- สลับเป็นกำหนดเวลาแล้ว');
 
 wireStep('btn5', 'chk5', 'ขั้น 5 (กด Post/กำหนดเวลา)',
@@ -299,6 +303,7 @@ document.getElementById('prepareDetailsBtn').addEventListener('click', async () 
     const response = await chrome.runtime.sendMessage({
       action:'prepare-details', caption:captionInput.value.trim(),
       hashtags:hashtagsInput.value.trim(), productId:productIdInput.value.trim(), scheduleMode,
+      cartName:cartNameInput.value.trim(), scheduleDate:scheduleDateInput.value, scheduleTime:scheduleTimeInput.value,
     });
     const checks = {caption:2, product:3, cover:6, schedule:4};
     for (const step of response?.completed || []) document.getElementById(`chk${checks[step]}`).checked = true;

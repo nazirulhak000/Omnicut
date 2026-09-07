@@ -56,8 +56,14 @@ globalThis.OmniAutomation = (() => {
 
     // 1. Check if cover editor modal is already open
     const isModalOpen = await evaluate(send, `(() => {
+      const visible = el => {
+        if (!el) return false;
+        if (el.checkVisibility && !el.checkVisibility({checkOpacity:true,checkVisibilityCSS:true})) return false;
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
+      };
       const area = document.querySelector('.ImageUpload__uploadArea, [class*="ImageUpload"], [class*="cover-modal"], [class*="CoverModal"]');
-      return Boolean(area && (area.offsetWidth > 0 || area.offsetHeight > 0));
+      return visible(area);
     })()`);
 
     if (!isModalOpen) {
@@ -89,7 +95,10 @@ globalThis.OmniAutomation = (() => {
       // Wait for cover modal to open
       await wait(send, `(() => {
         const area = document.querySelector('.ImageUpload__uploadArea, [class*="ImageUpload"], [class*="uploadArea"]');
-        return Boolean(area && (area.offsetWidth > 0 || area.offsetHeight > 0));
+        if (!area) return false;
+        if (area.checkVisibility && !area.checkVisibility({checkOpacity:true,checkVisibilityCSS:true})) return false;
+        const r = area.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 && getComputedStyle(area).visibility !== 'hidden';
       })()`, 'รอหน้าต่างแก้ไขปกเปิดไม่ทัน', 15000);
     }
 
@@ -100,16 +109,19 @@ globalThis.OmniAutomation = (() => {
     // Instead, find the input[type="file"] and set files directly via CDP DOM.setFileInputFiles!
     const fileInputQuery = `(() => {
       // 1. Inside ImageUpload uploadArea
-      const uploadArea = document.querySelector('.ImageUpload__uploadArea, [class*="ImageUpload"], [class*="uploadArea"]');
+      const uploadArea = document.querySelector('label.ImageUpload__uploadArea, .ImageUpload__uploadArea, [class*="ImageUpload"], [class*="uploadArea"]');
       if (uploadArea) {
-        const input = uploadArea.querySelector('input[type="file"]') || uploadArea.parentElement?.querySelector('input[type="file"]');
+        const forId = uploadArea.getAttribute('for');
+        const input = (forId && document.getElementById(forId)) ||
+          uploadArea.querySelector('input[type="file"]') ||
+          uploadArea.parentElement?.querySelector('input[type="file"]');
         if (input) return input;
       }
       // 2. Any file input with accept image
       const allInputs = Array.from(document.querySelectorAll('input[type="file"]'));
       const imgInput = allInputs.find(i => {
         const acc = (i.accept || '').toLowerCase();
-        return acc.includes('image') || acc.includes('png') || acc.includes('jpg');
+        return acc.includes('image') || acc.includes('png') || acc.includes('jpg') || acc.includes('jpeg');
       });
       if (imgInput) return imgInput;
       // 3. Last file input on page
@@ -117,6 +129,19 @@ globalThis.OmniAutomation = (() => {
       return allInputs[0] || null;
     })()`;
 
+    // TikTok sometimes creates the input only after the upload-area label is
+    // activated. Prefer a direct input when present; otherwise click the
+    // label once, then immediately take the input through CDP (no OS picker
+    // interaction is required from the user).
+    const hasInput = await evaluate(send, `Boolean(${fileInputQuery})`);
+    if (!hasInput) {
+      await evaluate(send, `(() => {
+        const label = document.querySelector('label.ImageUpload__uploadArea, label[role="button"], [class*="ImageUpload__uploadArea"]');
+        if (!label) return false;
+        label.click();
+        return true;
+      })()`);
+    }
     await wait(send, `Boolean(${fileInputQuery})`, 'ไม่พบช่องอัปโหลดภาพปกในหน้าต่างแก้ไขปก');
 
     const {result, exceptionDetails} = await send('Runtime.evaluate', {expression:fileInputQuery});

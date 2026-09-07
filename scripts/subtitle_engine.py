@@ -107,6 +107,39 @@ class SubtitleEngine:
         cs = int((s - int(s)) * 100)
         return f"{h}:{m:02d}:{int(s):02d}.{cs:02d}"
 
+    @staticmethod
+    def _tokenize_long_part_th(part: str, max_line_len: int) -> List[str]:
+        """
+        Segments a single over-length Thai run (no reliable inter-word spaces)
+        into natural clause chunks at conjunctions and word boundaries using
+        PyThaiNLP. Returns `[part]` unchanged if PyThaiNLP is unavailable, the
+        tokenizer raises, or tokenization doesn't actually shorten anything
+        (e.g. a single unsplittable word) -- callers must treat a length-1
+        result as "could not split further", not as a bug.
+        """
+        try:
+            from pythainlp.tokenize import word_tokenize
+        except Exception:
+            return [part]
+
+        try:
+            words = word_tokenize(part, engine="newmm")
+            clause_chunks = []
+            curr = ""
+            conjunctions = {"ว่า", "เพราะ", "ถ้า", "และ", "หรือ", "แต่", "เมื่อ", "มัน", "ที่", "ซึ่ง", "จน", "แล้ว", "คือ"}
+            for w in words:
+                if (w in conjunctions and len(curr) >= 16) or (len(curr) + len(w) > max_line_len and len(curr) >= 14):
+                    if curr:
+                        clause_chunks.append(curr)
+                    curr = w
+                else:
+                    curr += w
+            if curr:
+                clause_chunks.append(curr)
+            return clause_chunks if clause_chunks else [part]
+        except Exception:
+            return [part]
+
     @classmethod
     def split_into_smart_clauses(cls, text: str, short_clause_max: int = 18, max_line_len: int = 34) -> List[str]:
         """
@@ -125,27 +158,20 @@ class SubtitleEngine:
         if not raw_parts:
             return [clean_text]
 
-        # 1.1 If input has no spaces (or very few) and is longer than max_line_len:
-        # Segment into natural clauses at conjunctions and word boundaries using PyThaiNLP
-        if len(raw_parts) <= 1 and len(clean_text) > max_line_len:
-            try:
-                from pythainlp.tokenize import word_tokenize
-                words = word_tokenize(clean_text, engine="newmm")
-                clause_chunks = []
-                curr = ""
-                conjunctions = {"ว่า", "เพราะ", "ถ้า", "และ", "หรือ", "แต่", "เมื่อ", "มัน", "ที่", "ซึ่ง", "จน", "แล้ว", "คือ"}
-                for w in words:
-                    if (w in conjunctions and len(curr) >= 16) or (len(curr) + len(w) > max_line_len and len(curr) >= 14):
-                        clause_chunks.append(curr)
-                        curr = w
-                    else:
-                        curr += w
-                if curr:
-                    clause_chunks.append(curr)
-                if len(clause_chunks) > 1:
-                    raw_parts = clause_chunks
-            except Exception:
-                pass
+        # 1.1 Thai has no inter-word spaces, so a single over-length run can
+        # slip through even when the surrounding line happens to contain an
+        # incidental space elsewhere (e.g. "สายชาร์จแม่เหล็กแรงดูดสูงงานดีมาก จริงๆ"
+        # has 2 raw_parts, but the first one alone is >34 chars). Tokenize
+        # EVERY part that individually exceeds max_line_len, not only when
+        # the whole line has no spaces at all -- short parts that already
+        # fit are left untouched so pairing/merging below still applies.
+        expanded_parts: List[str] = []
+        for p in raw_parts:
+            if len(p) > max_line_len:
+                expanded_parts.extend(cls._tokenize_long_part_th(p, max_line_len))
+            else:
+                expanded_parts.append(p)
+        raw_parts = expanded_parts
 
         # 2. First pass: merge tiny orphan fragments into preceding clause
         merged_parts = []
