@@ -157,7 +157,13 @@ class GeminiFlashTTSEngine:
         except ImportError:
             pass  # Graceful fallback if sanitizer not available
 
-        # Build Acting Direction Prompt
+        # Build Acting Direction Prompt.
+        # An unrecognised tone deliberately keeps reading with the
+        # commercial_premium direction rather than failing the synthesis --
+        # but say so, since the voice then follows a direction nobody asked
+        # for and the result only sounds slightly off, never broken.
+        if ad_tone not in AD_TONE_PRESETS:
+            print(f"   ⚠️ [GeminiTTS] ไม่รู้จัก ad_tone '{ad_tone}' — ใช้ commercial_premium แทน")
         tone_cfg = AD_TONE_PRESETS.get(ad_tone, AD_TONE_PRESETS["commercial_premium"])
         formatted_prompt = f"[{tone_cfg['prompt']}]\n\nRead the following Thai transcript using the commercial acting direction above:\n{clean_text}"
 

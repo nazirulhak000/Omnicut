@@ -469,11 +469,7 @@ def test_match_script_to_video_truncated_json_response_falls_back_gracefully(mon
     )
 
 
-def test_match_script_to_video_truncated_response_reuses_prior_cache_for_same_video(monkeypatch, tmp_path):
-    """When parsing fails but an earlier successful match for this same
-    video exists under a different cue-set key, the current code scans
-    cache['matches'] for any key starting with this file's hash and reuses
-    it rather than returning an empty list -- documented current behavior."""
+def _prime_failed_parse(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "fake-key")
     monkeypatch.setenv("DAILY_TOKEN_LIMIT", "0")
     monkeypatch.setenv("DAILY_COST_THB_LIMIT", "0")
@@ -483,20 +479,53 @@ def test_match_script_to_video_truncated_response_reuses_prior_cache_for_same_vi
         classmethod(lambda cls, client, path: MagicMock(name="remote_video")),
     )
 
+
+def test_a_failed_parse_does_not_reuse_a_match_from_a_different_script(monkeypatch, tmp_path):
+    """A cached map for the same video but different cues must be ignored.
+
+    The fallbacks used to scan for any key starting with the file hash --
+    the video half of `{file_hash}_{md5(cue text)}` -- so after a script
+    edit they returned shots timed to lines that no longer existed, with
+    nothing to say the map was stale. Returning [] sends the render to
+    rhythmic cuts instead, which is right for text nobody has analysed.
+    """
+    _prime_failed_parse(monkeypatch)
+
     raw = tmp_path / "raw.mp4"
     raw.write_bytes(b"data")
     file_hash = gvm.GeminiVisionMatcher._compute_file_hash(raw.resolve())
-    prior_shots = [{"cue_id": 1, "start_time": 1.0, "end_time": 3.0}]
-    gvm.GeminiVisionMatcher._save_cache({"matches": {f"{file_hash}_oldkey": prior_shots}})
+    stale_shots = [{"cue_id": 1, "start_time": 1.0, "end_time": 3.0}]
+    gvm.GeminiVisionMatcher._save_cache({"matches": {f"{file_hash}_oldkey": stale_shots}})
 
     resp = MagicMock()
     resp.text = "not even json"
-    factory = _fake_client_factory([resp])
-
-    with patch("google.genai.Client", side_effect=factory):
+    with patch("google.genai.Client", side_effect=_fake_client_factory([resp])):
         result = gvm.GeminiVisionMatcher.match_script_to_video(str(raw), _CUES, raw_duration=10.0)
 
-    assert result == prior_shots
+    assert result == []
+
+
+def test_a_failed_parse_still_reuses_the_map_for_this_exact_script(monkeypatch, tmp_path):
+    """The same-video-same-cues entry is still worth falling back to."""
+    import hashlib
+
+    _prime_failed_parse(monkeypatch)
+
+    raw = tmp_path / "raw.mp4"
+    raw.write_bytes(b"data")
+    file_hash = gvm.GeminiVisionMatcher._compute_file_hash(raw.resolve())
+    # Key it exactly as match_script_to_video does.
+    cues_summary = "|".join([f"{c.get('text', '')}" for c in _CUES])
+    exact_key = f"{file_hash}_{hashlib.md5(cues_summary.encode('utf-8')).hexdigest()}"
+    shots = [{"cue_id": 1, "start_time": 1.0, "end_time": 3.0}]
+    gvm.GeminiVisionMatcher._save_cache({"matches": {exact_key: shots}})
+
+    resp = MagicMock()
+    resp.text = "not even json"
+    with patch("google.genai.Client", side_effect=_fake_client_factory([resp])):
+        result = gvm.GeminiVisionMatcher.match_script_to_video(str(raw), _CUES, raw_duration=10.0)
+
+    assert result == shots
 
 
 def test_match_script_to_video_quota_error_is_never_caught_by_the_broad_except(monkeypatch, tmp_path):

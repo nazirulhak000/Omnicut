@@ -194,6 +194,8 @@ class GeminiVisionMatcher:
     @classmethod
     def get_cached_matches(cls, raw_video_path: str, cues: List[Dict]) -> Optional[List[Dict]]:
         """Checks if scene matches exist in the local cache without calling any API or printing warnings."""
+        # (see _exact_cached_match below for why the fallbacks match on the
+        # full key rather than the file hash alone)
         try:
             file_hash = cls._compute_file_hash(Path(raw_video_path).resolve())
             cues_summary = "|".join([f"{c.get('text', '')}" for c in cues])
@@ -207,6 +209,19 @@ class GeminiVisionMatcher:
         except Exception:
             pass
         return None
+
+    @staticmethod
+    def _exact_cached_match(cache: Dict, match_cache_key: str) -> Optional[List[Dict]]:
+        """The cached scene map for this exact video AND script, or None.
+
+        The fallbacks below used to scan for any key starting with the file
+        hash, which is the video half of `{file_hash}_{md5(cue text)}` -- so
+        after a script edit they returned the shot list matched against the
+        OLD lines: shots timed to text that is no longer there, and no sign
+        anything was wrong. Rhythmic cuts are the better answer in that case.
+        """
+        entry = (cache or {}).get("matches", {}).get(match_cache_key)
+        return entry if entry else None
 
     @classmethod
     def match_script_to_video(
@@ -254,12 +269,10 @@ class GeminiVisionMatcher:
             remote_video = cls.get_or_upload_video(client, raw_video_path)
             if not remote_video:
                 print("   ⚠️ Could not process video file for Vision — checking cached shots or using beat cuts.")
-                # Fallback to any cached match for this video
-                if "matches" in cache:
-                    for k, v in cache["matches"].items():
-                        if k.startswith(file_hash) and v:
-                            print(f"   ♻️ Reusing previous scene map ({len(v)} shots) for this video!")
-                            return v
+                cached = cls._exact_cached_match(cache, match_cache_key)
+                if cached:
+                    print(f"   ♻️ Reusing the scene map for this exact script ({len(cached)} shots)!")
+                    return cached
                 return []
 
             # Format cues for prompt
@@ -360,12 +373,10 @@ class GeminiVisionMatcher:
                     break
 
             if not response or not response.text:
-                # If API quota failed, check if any previous match exists for this video
-                if "matches" in cache:
-                    for k, v in cache["matches"].items():
-                        if k.startswith(file_hash) and v:
-                            print(f"   ♻️ Rate limit hit: Reusing previous video scene map ({len(v)} shots)!")
-                            return v
+                cached = cls._exact_cached_match(cache, match_cache_key)
+                if cached:
+                    print(f"   ♻️ Rate limit hit: reusing the scene map for this exact script ({len(cached)} shots)!")
+                    return cached
                 raise last_err or RuntimeError("No response from Gemini Vision models.")
 
             resp_text = response.text or ""
@@ -412,11 +423,10 @@ class GeminiVisionMatcher:
 
         except Exception as e:
             print(f"   ⚠️ Gemini Vision Matcher error ({e}) — checking fallback.")
-            if "matches" in cache:
-                for k, v in cache["matches"].items():
-                    if k.startswith(file_hash) and v:
-                        print(f"   ♻️ Reusing previous scene map ({len(v)} shots) for this video!")
-                        return v
+            cached = cls._exact_cached_match(cache, match_cache_key)
+            if cached:
+                print(f"   ♻️ Reusing the scene map for this exact script ({len(cached)} shots)!")
+                return cached
             return []
 
 if __name__ == "__main__":

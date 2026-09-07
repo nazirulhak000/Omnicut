@@ -261,10 +261,14 @@ def test_successful_generation_at_default_speed_invokes_atempo_ffmpeg(monkeypatc
     assert not out_path.with_suffix(".raw.wav").exists()
 
 
-def test_ad_tone_prompt_uses_requested_tone_and_falls_back_for_unknown(monkeypatch, tmp_path):
-    """AD_TONE_PRESETS.get(ad_tone, ...premium) -- an unknown tone must not
-    raise, it silently uses the premium prompt. Documented current behavior:
-    a typo'd ad_tone degrades quietly rather than erroring."""
+def test_ad_tone_prompt_uses_requested_tone_and_falls_back_for_unknown(monkeypatch, tmp_path, capsys):
+    """An unknown tone keeps reading with commercial_premium -- and says so.
+
+    Failing the synthesis over a typo'd tone would be worse than reading in
+    a slightly wrong voice, so the fallback stays; the warning is there
+    because the result only sounds a bit off, never broken, so nothing else
+    would reveal that the requested direction was ignored.
+    """
     monkeypatch.setattr(GeminiFlashTTSEngine, "get_api_keys", classmethod(lambda cls: ["key-1"]))
     from scripts import token_tracker
     monkeypatch.setattr(token_tracker.TokenTracker, "record_event", lambda **kw: None)
@@ -283,6 +287,25 @@ def test_ad_tone_prompt_uses_requested_tone_and_falls_back_for_unknown(monkeypat
 
     prompt_text = captured["body"]["contents"][0]["parts"][0]["text"]
     assert "Premium commercial" in prompt_text  # commercial_premium's own prompt text
+
+    # The substitution must be visible, not silent.
+    out = capsys.readouterr().out
+    assert "not_a_real_tone" in out and "commercial_premium" in out
+
+
+def test_a_known_ad_tone_warns_about_nothing(monkeypatch, tmp_path, capsys):
+    """The warning must not fire for a tone that exists."""
+    monkeypatch.setattr(GeminiFlashTTSEngine, "get_api_keys", classmethod(lambda cls: ["key-1"]))
+    from scripts import token_tracker
+    monkeypatch.setattr(token_tracker.TokenTracker, "record_event", lambda **kw: None)
+
+    with patch("urllib.request.urlopen", side_effect=lambda req, timeout=None: _fake_urlopen(_ok_payload_bytes())):
+        GeminiFlashTTSEngine.generate_speech(
+            text="test", output_path=_out_path(tmp_path),
+            ad_tone="commercial_premium", speed=1.0,
+        )
+
+    assert "ไม่รู้จัก ad_tone" not in capsys.readouterr().out
 
 
 def test_voice_name_argument_overrides_preset(monkeypatch, tmp_path):
