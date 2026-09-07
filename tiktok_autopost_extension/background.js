@@ -616,12 +616,17 @@ async function attachProductLink(send, productId, cartName = '') {
           return p.includes('ค้นหา') || p.includes('search') || p.includes('สินค้า');
         };
 
-        const allInputs = Array.from(document.querySelectorAll('input'));
+        const productContainer = document.querySelector('.product-selector-container');
+        const dialogs = Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal'))
+          .filter(el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
+        const root = productContainer?.closest('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal')
+          || dialogs.at(-1) || productContainer || document;
+        const allInputs = Array.from(root.querySelectorAll('input'));
         // Exact selectors from live TikTok Studio DOM screenshot
-        const search = document.querySelector('input.TUXTextInputCore-input, .product-search-input input, .product-search-bar input, input[placeholder="ค้นหาสินค้า"]')
+        const search = root.querySelector('input.TUXTextInputCore-input, .product-search-input input, .product-search-bar input, input[placeholder="ค้นหาสินค้า"]')
           || allInputs.find(isSearchCandidate)
-          || document.querySelector('input[placeholder*="ค้นหา"], input[placeholder*="Search"], input[placeholder*="สินค้า"]')
-          || document.querySelector('[class*="search"] input, [class*="Search"] input, .TUXInput-input')
+          || root.querySelector('input[placeholder*="ค้นหา"], input[placeholder*="Search"], input[placeholder*="สินค้า"]')
+          || root.querySelector('[class*="search"] input, [class*="Search"] input, .TUXInput-input')
           || allInputs.find(i => (i.type === 'text' || !i.type) && i.getBoundingClientRect().width > 100);
 
         if (search) {
@@ -637,7 +642,7 @@ async function attachProductLink(send, productId, cartName = '') {
           search.dispatchEvent(new Event('change', { bubbles: true }));
 
           // Click trailing icon wrapper (.TUXTextInputCore-trailingIconWrapper)
-          const icon = document.querySelector('.TUXTextInputCore-trailingIconWrapper')
+          const icon = root.querySelector('.TUXTextInputCore-trailingIconWrapper')
             || (search.parentElement && search.parentElement.querySelector('.TUXTextInputCore-trailingIconWrapper, svg, button'))
             || (search.closest('[class*="search"], [class*="input"], div') && search.closest('[class*="search"], [class*="input"], div').querySelector('svg, button, [role="button"], span, i'));
           if (icon && icon !== search) {

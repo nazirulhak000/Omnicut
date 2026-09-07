@@ -868,3 +868,9 @@ Notes: ปรับปรุงโค้ด Extension ให้ตรงกั�
 - [ ] ทดสอบกับแท็บ TikTok ที่ล็อกอินจริงเพื่อยืนยันวันเวลาและการอัปโหลดปก (ต้องทำหลัง reload extension)
 
 
+#### POST-3.5 — แก้ regression ขั้น 3 หลังทดสอบจริง (2026-09-07)
+
+- [x] จำกัดช่องค้นหา Product ID และไอคอนค้นหาให้อยู่ใน dialog ของ Product Selector ล่าสุด
+- [x] เพิ่ม regression assertion ป้องกันการย้อนกลับไปใช้ `document.querySelector` ช่องแรกทั้งหน้า
+- [x] รัน syntax check, Node regression และ backend tests
+- [ ] ยืนยันกับ TikTok Studio จริงหลัง Reload extension
