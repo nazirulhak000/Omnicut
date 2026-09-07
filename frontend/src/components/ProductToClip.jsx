@@ -1267,6 +1267,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       status: item.status || 'scripted',
       images: item.images || (item.thumbnail ? [{ rel_path: item.thumbnail, name: 'thumb' }] : []),
       tiktok_product_id: item.tiktok_product_id || '',
+      product_code: item.product_code || '',
     });
     setAngles(item.angles || []);
     setOpenAngleIdx(0); // Reset accordion to first angle
