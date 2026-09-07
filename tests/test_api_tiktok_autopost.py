@@ -51,6 +51,26 @@ def test_missing_cover_does_not_replace_pending_job():
     assert response.status_code == 404
     assert tap._pending == previous
 
+
+def test_cover_update_refreshes_prepared_job_without_repreparing_video():
+    video = tap.EXPORTS_DIR / 'review.mp4'
+    video.write_bytes(b'fixture')
+    old_cover = tap.COVERS_DIR / 'old.jpg'
+    new_cover = tap.COVERS_DIR / 'new.jpg'
+    old_cover.write_bytes(b'old')
+    new_cover.write_bytes(b'new')
+    assert client.post('/api/tiktok-autopost/prepare', json={
+        'video_path': str(video), 'cover_path': str(old_cover),
+    }).status_code == 200
+
+    response = client.post('/api/tiktok-autopost/cover', json={
+        'cover_path': '05_Covers_Thumbnails/new.jpg',
+    })
+    assert response.status_code == 200
+    pending = client.get('/api/tiktok-autopost/pending').json()
+    assert Path(pending['video_path']) == video.resolve()
+    assert Path(pending['cover_path']) == new_cover.resolve()
+
 def test_prepare_and_get_pending_with_schedule_time(tmp_path, monkeypatch):
     # Ensure pending is cleared first
     tap._pending = None

@@ -62,8 +62,8 @@ globalThis.OmniAutomation = (() => {
         const r = el.getBoundingClientRect();
         return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
       };
-      const area = document.querySelector('label.ImageUpload__uploadArea, input[type="file"], [class*="cover-modal"], [class*="CoverModal"]');
-      return visible(area);
+      const areas = Array.from(document.querySelectorAll('label.ImageUpload__uploadArea, input[type="file"], [class*="cover-modal"], [class*="CoverModal"]'));
+      return areas.some(visible);
     })()`);
 
     if (!isModalOpen) {
@@ -96,11 +96,12 @@ globalThis.OmniAutomation = (() => {
 
       // Wait for cover modal to open
       await wait(send, `(() => {
-        const area = document.querySelector('.ImageUpload__uploadArea, [class*="ImageUpload"], [class*="uploadArea"]');
-        if (!area) return false;
-        if (area.checkVisibility && !area.checkVisibility({checkOpacity:true,checkVisibilityCSS:true})) return false;
-        const r = area.getBoundingClientRect();
-        return r.width > 0 && r.height > 0 && getComputedStyle(area).visibility !== 'hidden';
+        const areas = Array.from(document.querySelectorAll('label.ImageUpload__uploadArea, [class*="uploadArea"]'));
+        return areas.some(area => {
+          if (area.checkVisibility && !area.checkVisibility({checkOpacity:true,checkVisibilityCSS:true})) return false;
+          const r = area.getBoundingClientRect();
+          return r.width > 0 && r.height > 0 && getComputedStyle(area).visibility !== 'hidden';
+        });
       })()`, 'รอหน้าต่างแก้ไขปกเปิดไม่ทัน', 15000);
     }
 
@@ -111,7 +112,11 @@ globalThis.OmniAutomation = (() => {
     // Instead, find the input[type="file"] and set files directly via CDP DOM.setFileInputFiles!
     const fileInputQuery = `(() => {
       // 1. Inside ImageUpload uploadArea
-      const uploadArea = document.querySelector('label.ImageUpload__uploadArea, [class*="uploadArea"]');
+      const dialogCandidates = Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"], [class*="modal"], [class*="Modal"]'))
+        .filter(el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
+      const scope = dialogCandidates.at(-1) || document;
+      const uploadArea = scope.querySelector('label.ImageUpload__uploadArea, [class*="uploadArea"]')
+        || document.querySelector('label.ImageUpload__uploadArea, [class*="uploadArea"]');
       if (uploadArea) {
         const forId = uploadArea.getAttribute('for');
         const input = (forId && document.getElementById(forId)) ||
@@ -120,9 +125,6 @@ globalThis.OmniAutomation = (() => {
         if (input) return input;
       }
       // 2. Any file input with accept image
-      const dialogs = Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"], [class*="modal"], [class*="Modal"]'))
-        .filter(el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
-      const scope = dialogs.at(-1) || document;
       const allInputs = Array.from(scope.querySelectorAll('input[type="file"]'));
       const imgInput = allInputs.find(i => {
         const acc = (i.accept || '').toLowerCase();

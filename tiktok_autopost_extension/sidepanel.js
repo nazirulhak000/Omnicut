@@ -241,7 +241,8 @@ function wireStep(btnId, chkId, stepName, buildMessage, successText) {
         }
         if (response.success) {
           chk.checked = true;
-          setStatus(successText, 'success');
+          const messageText = typeof successText === 'function' ? successText(response) : successText;
+          setStatus(messageText, 'success');
         } else {
           setStatus(response.error || response.reason || 'เกิดข้อผิดพลาดไม่ทราบสาเหตุ', 'error');
         }
@@ -276,7 +277,7 @@ wireStep('btn3', 'chk3', 'ขั้น 3 (ปักตะกร้าสิน�
 
 wireStep('btn4', 'chk4', 'ขั้น 4 (สลับเป็นกำหนดเวลา)',
   () => ({ action: 'schedule-mode-only', date: scheduleDateInput.value, time: scheduleTimeInput.value }),
-  'ขั้น 4 สำเร็จ -- สลับเป็นกำหนดเวลาแล้ว');
+  response => `ขั้น 4 สำเร็จ -- TikTok ยืนยันกำหนดเวลา ${response.requestedDate || scheduleDateInput.value} ${response.requestedTime || scheduleTimeInput.value} แล้ว`);
 
 wireStep('btn5', 'chk5', 'ขั้น 5 (กด Post/กำหนดเวลา)',
   () => ({ action: 'click-post-only' }),
@@ -285,7 +286,7 @@ wireStep('btn5', 'chk5', 'ขั้น 5 (กด Post/กำหนดเวล�
 wireStep('btn6', 'chk6', 'แนบภาพปก',
   () => {
     if (!activeClip?.cover_path) throw new Error('บันทึกปกในโปรแกรม แล้วกดรีเฟรชและเตรียมคลิปนี้ใหม่ก่อน');
-    return {action:'upload-cover-only'};
+    return {action:'upload-cover-only', coverPath: activeClip.cover_path};
   },
   'ส่งภาพปกและบันทึกแล้ว ตรวจภาพตัวอย่างบน TikTok ก่อนโพสต์');
 
@@ -304,6 +305,7 @@ document.getElementById('prepareDetailsBtn').addEventListener('click', async () 
       action:'prepare-details', caption:captionInput.value.trim(),
       hashtags:hashtagsInput.value.trim(), productId:productIdInput.value.trim(), scheduleMode,
       cartName:cartNameInput.value.trim(), scheduleDate:scheduleDateInput.value, scheduleTime:scheduleTimeInput.value,
+      coverPath: activeClip.cover_path,
     });
     const checks = {caption:2, product:3, cover:6, schedule:4};
     for (const step of response?.completed || []) document.getElementById(`chk${checks[step]}`).checked = true;

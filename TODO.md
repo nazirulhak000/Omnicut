@@ -859,4 +859,12 @@ Notes: ปรับปรุงโค้ด Extension ให้ตรงกั�
 
 
 
+#### POST-3.4 implementation update (2026-09-07)
+
+- [x] ส่ง `cover_path` ล่าสุดจาก Side Panel ไปอัปเดต pending job ก่อนเปิด Cover Studio
+- [x] จำกัดการค้นหา cover modal และ file input ให้อยู่ใน modal ล่าสุด ลดโอกาสเลือก DOM เก่าค้าง
+- [x] รองรับรายการชั่วโมง/นาทีที่แสดงแบบมีหรือไม่มีเลขศูนย์นำหน้า และยืนยันค่าที่แสดงหลังเลือก
+- [x] รัน syntax check, Node regression และ backend tests: Node 7 passed, backend 5 passed
+- [ ] ทดสอบกับแท็บ TikTok ที่ล็อกอินจริงเพื่อยืนยันวันเวลาและการอัปโหลดปก (ต้องทำหลัง reload extension)
+
 

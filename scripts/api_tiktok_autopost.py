@@ -68,6 +68,10 @@ class PrepareRequest(BaseModel):
     schedule_time: Optional[str] = None
 
 
+class CoverUpdateRequest(BaseModel):
+    cover_path: str
+
+
 @router.post("/prepare")
 def prepare(req: PrepareRequest):
     """Called by the app's Post Studio panel. Validates + resolves both
@@ -90,6 +94,21 @@ def prepare(req: PrepareRequest):
         "prepared_at": datetime.now().isoformat(),
     }
     return {"success": True}
+
+
+@router.post("/cover")
+def update_cover(req: CoverUpdateRequest):
+    """Refresh the cover on the already-prepared job.
+
+    The editor can save a new cover after the extension job was prepared.
+    Resolve and validate the path before mutating the in-memory job so a
+    failed refresh never destroys the previous valid cover.
+    """
+    if _pending is None:
+        raise HTTPException(status_code=404, detail="ยังไม่มีคลิปที่เตรียมไว้")
+    cover_abs = _resolve_under(req.cover_path, [COVERS_DIR])
+    _pending["cover_path"] = str(cover_abs)
+    return {"success": True, "cover_path": str(cover_abs)}
 
 
 @router.get("/pending")

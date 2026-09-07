@@ -78,6 +78,24 @@ async function clearPendingJob() {
   }
 }
 
+async function refreshPendingCover(coverPath) {
+  if (!coverPath) return;
+  let res;
+  try {
+    res = await fetch(`${BACKEND}/api/tiktok-autopost/cover`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({cover_path: coverPath}),
+    });
+  } catch (err) {
+    throw new Error('เชื่อมต่อ Backend เพื่ออัปเดตภาพปกไม่สำเร็จ');
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail || `อัปเดตภาพปกไม่สำเร็จ (HTTP ${res.status})`);
+  }
+}
+
 async function findUploadTab() {
   if (pinnedUploadTabId !== null) {
     const tab = await chrome.tabs.get(pinnedUploadTabId);
@@ -1160,11 +1178,11 @@ async function setScheduleDateTime(send, { date = '', time = '' } = {}) {
           await sleep(120);
         }
       }
-      const day = String(Number(target[3]));
+      const day = Number(target[3]);
       const picked = await sendEval(`(() => {
         const visible = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
         const days = Array.from(document.querySelectorAll('[class*="calendar-wrapper"] span.day.valid'))
-          .filter(el => visible(el) && el.textContent.trim() === ${JSON.stringify(day)});
+          .filter(el => visible(el) && Number.parseInt(el.textContent.trim(), 10) === ${day});
         if (!days.length) return false; days[0].click(); return true;
       })()`);
       if (!picked?.result?.value) throw new Error('เลือกวันที่ที่ต้องการไม่สำเร็จ');
@@ -1175,10 +1193,12 @@ async function setScheduleDateTime(send, { date = '', time = '' } = {}) {
       if (!/^\d{2}:\d{2}$/.test(requestedTime)) throw new Error('รูปแบบเวลาต้องเป็น HH:mm');
       await openInput('/^\\d{1,2}:\\d{2}$/', 'เปิดตัวเลือกเวลาไม่สำเร็จ');
       const [hour, minute] = requestedTime.split(':');
+      const hourNumber = Number(hour);
+      const minuteNumber = Number(minute);
       const pickedHour = await sendEval(`(() => {
         const visible = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
         const values = Array.from(document.querySelectorAll('span.tiktok-timepicker-option-text.tiktok-timepicker-left'))
-          .filter(el => visible(el) && el.textContent.trim() === ${JSON.stringify(hour)});
+          .filter(el => visible(el) && Number.parseInt(el.textContent.trim(), 10) === ${hourNumber});
         if (!values.length) return false; values[0].click(); return true;
       })()`);
       if (!pickedHour?.result?.value) throw new Error('เลือกชั่วโมงที่ต้องการไม่สำเร็จ');
@@ -1186,7 +1206,7 @@ async function setScheduleDateTime(send, { date = '', time = '' } = {}) {
       const pickedMinute = await sendEval(`(() => {
         const visible = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
         const values = Array.from(document.querySelectorAll('span.tiktok-timepicker-option-text.tiktok-timepicker-right'))
-          .filter(el => visible(el) && el.textContent.trim() === ${JSON.stringify(minute)});
+          .filter(el => visible(el) && Number.parseInt(el.textContent.trim(), 10) === ${minuteNumber});
         if (!values.length) return false; values[0].click(); return true;
       })()`);
       if (!pickedMinute?.result?.value) throw new Error('เลือกนาทีที่ต้องการไม่สำเร็จ');
@@ -1486,7 +1506,8 @@ async function runUploadFileOnly() {
 // scheduleMode) so each checklist step in the popup is its own isolated
 // attach/act/detach cycle -- see runScheduleModeOnly() and
 // runClickPostOnly() below for the steps this used to also do inline.
-async function runUploadCoverOnly() {
+async function runUploadCoverOnly({coverPath = ''} = {}) {
+  await refreshPendingCover(coverPath);
   const job = await fetchPendingJob();
   if (!job.cover_path) throw new Error('ยังไม่มีปก กดบันทึกปกในโปรแกรมแล้วเตรียมคลิปใหม่');
   const tab = await findUploadTab();
@@ -1543,7 +1564,7 @@ async function runScheduleModeOnly({ date = '', time = '' } = {}) {
       }
       return { success: false, reason: 'หาตัวเลือก "กำหนดเวลา"/"ตั้งเวลา" บนหน้าเว็บไม่พบ' };
     }
-    return switched;
+    return {...switched, requestedDate: date || '', requestedTime: time || ''};
   } finally {
     try {
       await chrome.debugger.detach({ tabId: tab.id });
@@ -1610,7 +1631,7 @@ async function runPrepareDetails(message) {
     if (!product.success) throw new Error(product.reason);
     completed.push('product');
     step = 'cover';
-    await runUploadCoverOnly();
+    await runUploadCoverOnly({coverPath: message.coverPath});
     completed.push('cover');
     if (message.scheduleMode) {
       step = 'schedule';
@@ -1632,7 +1653,7 @@ const actions = {
   'attach-product-only': message => runAttachProductOnly(message),
   'schedule-mode-only': message => runScheduleModeOnly(message),
   'click-post-only': () => runClickPostOnly(),
-  'upload-cover-only': () => runUploadCoverOnly(),
+  'upload-cover-only': message => runUploadCoverOnly(message),
   'prepare-details': message => runPrepareDetails(message),
 };
 
