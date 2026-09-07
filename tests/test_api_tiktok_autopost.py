@@ -73,6 +73,51 @@ def test_cover_update_refreshes_prepared_job_without_repreparing_video():
     assert Path(pending['cover_path']) == new_cover.resolve()
 
 
+def test_prepare_resolves_product_cover_when_request_path_is_missing(tmp_path, monkeypatch):
+    video = tap.EXPORTS_DIR / 'logitech_wave_keys_new_angle_20260907_110509.mp4'
+    video.write_bytes(b'fixture')
+    cover = tap.COVERS_DIR / 'Logitech Wave Keys_cover_3x4.jpg'
+    cover.write_bytes(b'cover')
+    monkeypatch.setattr(tap.ProductStore, 'get_all', lambda: [{
+        'id': 'product-1',
+        'name': 'Logitech Wave Keys',
+        'angles': [],
+    }])
+
+    response = client.post('/api/tiktok-autopost/prepare', json={
+        'video_path': str(video),
+        'product_id': 'product-1',
+    })
+
+    assert response.status_code == 200
+    assert response.json()['cover_path'] == '05_Covers_Thumbnails/Logitech Wave Keys_cover_3x4.jpg'
+    pending = client.get('/api/tiktok-autopost/pending').json()
+    assert Path(pending['cover_path']) == cover.resolve()
+
+
+def test_pending_repairs_missing_cover_before_extension_reads_it(tmp_path, monkeypatch):
+    video = tap.EXPORTS_DIR / 'logitech_wave_keys_new_angle.mp4'
+    video.write_bytes(b'fixture')
+    cover = tap.COVERS_DIR / 'Logitech Wave Keys_cover_3x4.jpg'
+    cover.write_bytes(b'cover')
+    monkeypatch.setattr(tap.ProductStore, 'get_all', lambda: [{
+        'id': 'product-1',
+        'name': 'Logitech Wave Keys',
+        'angles': [],
+    }])
+    tap._pending = {
+        'video_path': str(video.resolve()),
+        'cover_path': None,
+        'product_id': 'product-1',
+        'angle_id': None,
+        'product_name': None,
+    }
+
+    pending = client.get('/api/tiktok-autopost/pending').json()
+
+    assert Path(pending['cover_path']) == cover.resolve()
+
+
 def test_product_named_cover_fallback_is_case_insensitive(tmp_path, monkeypatch):
     covers = tmp_path / '05_Covers_Thumbnails'
     covers.mkdir(exist_ok=True)
@@ -185,7 +230,7 @@ def test_prepare_and_get_pending_with_schedule_time(tmp_path, monkeypatch):
             "schedule_time": "12:30",
         })
         assert res.status_code == 200
-        assert res.json() == {"success": True}
+        assert res.json() == {"success": True, "cover_path": None}
 
         # Check pending
         pending_res = client.get("/api/tiktok-autopost/pending")

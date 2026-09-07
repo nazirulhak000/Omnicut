@@ -235,13 +235,15 @@ async function prepareClip(item) {
         product_id: item.product_id || null,
         angle_id: item.angle_id || null,
         tiktok_product_id: item.tiktok_product_id || null,
+        product_name: item.product_name || null,
       }),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
       throw new Error(body.detail || `HTTP ${res.status}`);
     }
-    activeClip = item;
+    const prepared = await res.json();
+    activeClip = {...item, cover_path: prepared.cover_path || item.cover_path || null};
     captionInput.value = item.tiktok_caption || '';
     hashtagsInput.value = item.tiktok_hashtags || '';
     productIdInput.value = item.tiktok_product_id || '';
@@ -344,8 +346,8 @@ wireStep('btn5', 'chk5', 'ขั้น 5 (กด Post/กำหนดเวล�
 
 wireStep('btn6', 'chk6', 'แนบภาพปก',
   () => {
-    if (!activeClip?.cover_path) throw new Error('บันทึกปกในโปรแกรม แล้วกดรีเฟรชและเตรียมคลิปนี้ใหม่ก่อน');
-    return {action:'upload-cover-only', coverPath: activeClip.cover_path};
+    if (!activeClip) throw new Error('ยังไม่ได้เลือกคลิป — ไปที่แท็บ "รายการคลิป" แล้วกด "เตรียมคลิปนี้" ก่อน');
+    return {action:'upload-cover-only', coverPath: activeClip.cover_path || ''};
   },
   'ส่งภาพปกและบันทึกแล้ว ตรวจภาพตัวอย่างบน TikTok ก่อนโพสต์');
 

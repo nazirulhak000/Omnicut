@@ -117,6 +117,8 @@ test('live DOM contracts for the reported TikTok screens stay in the worker', ()
   assert.match(automation, /หน้าต่าง Cover Studio ยังไม่ปิด/);
   assert.match(panel, /scheduleDateInput/);
   assert.match(panel, /scheduleTimeInput/);
+  assert.match(panel, /product_name: item\.product_name/);
+  assert.match(panel, /activeClip\.cover_path \|\| ''/);
   assert.match(panel, /SCHEDULE_LEAD_MINUTES = 15/);
   assert.match(panel, /minute \+= 5/);
   assert.match(panel, /classList\.add\('completed'\)/);

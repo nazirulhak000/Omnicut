@@ -17,6 +17,7 @@
 - [x] Round POST-3.14 — เปิด Cover Studio ผ่านพอร์ทัล, ใช้ชื่อโปรเจคเป็นชื่อปก, และย้ายชื่อโปรเจค Logitech ให้เป็น LOG01 (2026-09-07)
 - [x] Round POST-3.15 — ให้ `/api/exports` เลือกปกตามชื่อโปรเจคก่อน fallback เดิม (2026-09-07)
 - [ ] Round POST-3.16 — ปกแสดง 3:4 และแก้ Extension แนบปกข้อ 5 ให้เปิด dialog/อัปโหลดได้จริง (2026-09-07)
+- [ ] Round POST-3.17 — ซ่อม path ปกที่หายก่อนข้อ 5 และยืนยันการส่งต่อไป TikTok (2026-09-07)
 
 - [x] Round DOC-1 — ตรวจโค้ดและอัปเดตเอกสาร/กฎให้ตรงกับระบบปัจจุบัน
 - [x] Round BUG-1 — แก้ปุ่มสร้างคลิปใหม่กดไม่ได้ (executeRender ใน useRenderJob)
@@ -85,6 +86,36 @@ npm test
 - งานค้างใน working tree ก่อนเริ่ม: `scripts/db.py`, `scripts/product_store.py`, `tests/test_reconcile_transaction.py` จากงานอื่น; ห้ามแตะหรือ stage รวม
 - Full regression: `pytest tests/` ผ่าน 864 tests และไม่มีไฟล์ขั้นตอน 1–4 ถูกแก้ในรอบนี้
 - Live page navigation เคยยืนยันการเปิด Cover Studio ได้ แต่ยังไม่มี TikTok tab ที่เชื่อมผ่าน CDP สำหรับกด Extension ข้อ 5 จริง จึงยังไม่ติ๊ก gate live นี้จนกว่าจะทดสอบบน Chrome session ของผู้ใช้
+
+
+## Round POST-3.17 — ซ่อม path ปกที่หายก่อนข้อ 5
+
+วันที่: 2026-09-07 · สั่งโดย: user · สถานะ: กำลังทำ
+
+**หลักฐานอาการ:** งาน pending จริงมี `cover_path: null` ทั้งที่มีไฟล์ `05_Covers_Thumbnails/Logitech Wave Keys_cover_3x4.jpg`; Side Panel จึงหยุดที่ guard ของข้อ 5 ก่อนส่งคำสั่งเปิด Cover Studio
+
+**ขอบเขต:** แก้เฉพาะการ resolve/ส่งต่อ path ปกและผลลัพธ์ของขั้นตอนแนบปก ไม่แตะ runtime ของขั้นตอน 1–4 และไม่แตะปุ่มโพสต์
+
+### Todo
+
+- [x] เพิ่มการค้นหาปกจากชื่อโปรเจค/ชื่อสินค้าและเลือก 3:4 เป็นค่าเริ่มต้นเมื่อ `prepare` ไม่มี `cover_path`
+- [x] ทำให้ `pending` ซ่อม `cover_path` ที่หายได้ก่อน Extension ทำข้อ 5
+- [x] ส่ง `cover_path` ที่ backend ยืนยันกลับไปยัง Side Panel
+- [x] เพิ่ม regression tests สำหรับ pending ที่ไม่มี path แต่มีปกชื่อสินค้า
+- [x] คง guard/selector ของข้อ 1–4 และปุ่มโพสต์เดิม
+
+### Gate
+
+- [x] `python -m pytest tests/test_api_tiktok_autopost.py -q -p no:cacheprovider --tb=short` — 11 passed
+- [x] `node --check tiktok_autopost_extension/sidepanel.js` และ `node --test tiktok_autopost_extension/background.test.cjs` — 8 passed
+- [x] `python -m compileall -q scripts`
+- [ ] ตรวจหน้า TikTok จริง: กดข้อ 5 แล้วพบ dialog, ใส่ปก, บันทึกปก โดยไม่กดโพสต์
+
+### Notes
+
+- หลักฐาน live ก่อนแก้: `/api/tiktok-autopost/pending` คืน `cover_path: null`; helper ใหม่ resolve ได้เป็น `05_Covers_Thumbnails/Logitech Wave Keys_cover_3x4.jpg` จาก `product_id=20260904233315_1`
+- ตรวจ DOM TikTok จริงแล้วพบปุ่ม `แก้ไขหน้าปก` 1 จุด, `cover-editor-container` 1 จุด และ `input[type=file]` แบบซ่อน 1 จุด; การอัปโหลดไฟล์ผ่าน browser controller ถูกระบบควบคุมไฟล์บล็อก จึงยังไม่ติ๊ก live gate
+- Full regression หลังแก้: `866 passed, 6 warnings`; ขั้นตอน 1–4 และปุ่มโพสต์ไม่ได้ถูกแก้
 
 ## งานค้าง (Backlog)
 

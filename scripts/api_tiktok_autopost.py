@@ -16,12 +16,14 @@ run by one person clicking one button at a time, not a queue.
 """
 from datetime import datetime
 from pathlib import Path
+import re
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from scripts.config import BASE_DIR, EXPORTS_DIR
+from scripts.product_store import ProductStore
 
 POSTED_DIR = BASE_DIR / "04_Exports" / "Posted"
 COVERS_DIR = BASE_DIR / "05_Covers_Thumbnails"
@@ -57,6 +59,79 @@ def _resolve_under(raw_path: str, allowed_roots) -> Path:
     return p
 
 
+_TIMESTAMP_SUFFIX = re.compile(r"_\d{8}_\d{6}(?:_draft)?$", re.IGNORECASE)
+_COVER_SUFFIXES = ("_cover_3x4.jpg", "_cover.jpg")
+
+
+def _find_named_cover(stem: str) -> Optional[Path]:
+    """Find a generated cover by stem, preferring TikTok's 3:4 crop."""
+    name = str(stem or "").strip()
+    if not name or not COVERS_DIR.exists():
+        return None
+    candidates = {candidate.name.casefold(): candidate for candidate in COVERS_DIR.iterdir() if candidate.is_file()}
+    for suffix in _COVER_SUFFIXES:
+        match = candidates.get(f"{name}{suffix}".casefold())
+        if match:
+            return match
+    return None
+
+
+def _cover_names_for_job(video_abs: Path, product_id: str = "", angle_id: str = "", product_name: str = "") -> list[str]:
+    """Return deterministic project/product stems that may own this cover."""
+    names: list[str] = [video_abs.stem, _TIMESTAMP_SUFFIX.sub("", video_abs.stem)]
+    try:
+        products = ProductStore.get_all()
+    except Exception:
+        products = []
+    for product in products:
+        if product_id and str(product.get("id", "")) != str(product_id):
+            continue
+        if product_name and str(product.get("name", "")).casefold() != str(product_name).casefold():
+            continue
+        if not product_id and not product_name:
+            continue
+        names.append(str(product.get("name", "")))
+        for angle in product.get("angles", []) or []:
+            if angle_id and str(angle.get("angle_id", "")) != str(angle_id):
+                continue
+            names.append(str(angle.get("project_name", "")))
+            video_url = str(angle.get("video_url", ""))
+            if video_url:
+                names.append(Path(video_url).stem)
+    return list(dict.fromkeys(name for name in names if name.strip()))
+
+
+def _resolve_cover_for_job(video_abs: Path, *, product_id: str = "", angle_id: str = "", product_name: str = "") -> Optional[Path]:
+    for stem in _cover_names_for_job(video_abs, product_id, angle_id, product_name):
+        cover = _find_named_cover(stem)
+        if cover:
+            return cover
+    return None
+
+
+def _relative_cover(path: Optional[Path]) -> Optional[str]:
+    if not path:
+        return None
+    return str(path.relative_to(BASE_DIR)).replace("\\", "/")
+
+
+def _repair_pending_cover() -> None:
+    """Backfill a missing cover for a pending job before the extension reads it."""
+    if not _pending or _pending.get("cover_path"):
+        return
+    video_raw = _pending.get("video_path")
+    if not video_raw:
+        return
+    cover = _resolve_cover_for_job(
+        Path(video_raw),
+        product_id=str(_pending.get("product_id") or ""),
+        angle_id=str(_pending.get("angle_id") or ""),
+        product_name=str(_pending.get("product_name") or ""),
+    )
+    if cover:
+        _pending["cover_path"] = str(cover.resolve())
+
+
 class PrepareRequest(BaseModel):
     video_path: str
     cover_path: Optional[str] = None
@@ -65,6 +140,7 @@ class PrepareRequest(BaseModel):
     product_id: Optional[str] = None
     angle_id: Optional[str] = None
     tiktok_product_id: Optional[str] = None
+    product_name: Optional[str] = None
     schedule_time: Optional[str] = None
 
 
@@ -80,6 +156,13 @@ def prepare(req: PrepareRequest):
     extension to pick up next."""
     video_abs = _resolve_under(req.video_path, [EXPORTS_DIR, POSTED_DIR])
     cover_abs = _resolve_under(req.cover_path, [COVERS_DIR]) if req.cover_path else None
+    if cover_abs is None:
+        cover_abs = _resolve_cover_for_job(
+            video_abs,
+            product_id=req.product_id or "",
+            angle_id=req.angle_id or "",
+            product_name=req.product_name or "",
+        )
 
     global _pending
     _pending = {
@@ -90,10 +173,11 @@ def prepare(req: PrepareRequest):
         "product_id": req.product_id,
         "angle_id": req.angle_id,
         "tiktok_product_id": req.tiktok_product_id,
+        "product_name": req.product_name,
         "schedule_time": req.schedule_time,
         "prepared_at": datetime.now().isoformat(),
     }
-    return {"success": True}
+    return {"success": True, "cover_path": _relative_cover(cover_abs)}
 
 
 @router.post("/cover")
@@ -118,6 +202,7 @@ def get_pending():
     the app's button first rather than silently doing nothing."""
     if _pending is None:
         raise HTTPException(status_code=404, detail="ยังไม่มีคลิปที่เตรียมไว้ -- กด 'โพสต์ TikTok อัตโนมัติ' ในแอปก่อน")
+    _repair_pending_cover()
     return _pending
 
 
