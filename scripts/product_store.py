@@ -8,6 +8,15 @@ Storage is SQLite (see scripts/db.py) behind the exact same _load()/_save()
 contract this module always had, mirrored out to a plain JSON file so it
 stays readable, hand-editable, and diffable as a backup. The mirror file
 lives at STORE_PATH, same path as before.
+
+Path fields (angle.video_url, angle.selected_videos[], video.path,
+video.rel_path) are stored BASE_DIR-relative wherever the path is actually
+under BASE_DIR -- see scripts/path_utils.py for the full convention and why
+(SAAS_READINESS_PLAN.md P0 item 4). Every write site below normalizes
+through `path_utils.to_relative()` before saving; every read site that
+touches disk (`Path(...).exists()`) resolves through
+`path_utils.to_absolute()` first, so both newly-written relative paths and
+old absolute ones already on disk keep working.
 """
 
 import json
@@ -19,8 +28,24 @@ from typing import Any, Dict, List, Optional
 
 from scripts.config import BASE_DIR
 from scripts.db import DocumentTable
+from scripts import path_utils
 
 STORE_PATH = BASE_DIR / "_Docs" / "products.json"
+
+
+def _to_relative(path: object) -> Optional[str]:
+    """Wraps path_utils.to_relative(), pinned to THIS module's own BASE_DIR
+    name rather than path_utils' own import of it -- tests monkeypatch
+    `product_store.BASE_DIR` (see tests/test_rollback_all_statuses.py and
+    friends), and that patch must be honored here too, not just by the
+    BASE_DIR-derived directories (projects_dir, exports_dir, ...) already
+    read directly off this module's BASE_DIR elsewhere in this file."""
+    return path_utils.to_relative(path, base_dir=BASE_DIR)
+
+
+def _to_absolute(path: object) -> Optional[Path]:
+    """See _to_relative() above -- same reasoning, read direction."""
+    return path_utils.to_absolute(path, base_dir=BASE_DIR)
 
 # candidate      → the URL is saved, nothing else done yet
 # scripted       → angles picked and a script exists
@@ -239,7 +264,7 @@ class ProductStore:
                         if current_aid == angle_id:
                             angle["status"] = status
                             if video_url is not None:
-                                angle["video_url"] = video_url if video_url else None
+                                angle["video_url"] = _to_relative(video_url) if video_url else None
                             if project_name is not None:
                                 angle["project_name"] = project_name if project_name else None
                             # QC note handling
@@ -368,14 +393,15 @@ class ProductStore:
     @classmethod
     def update_angle_videos(cls, product_id: str, angle_id: str, selected_videos: List[str]) -> Dict[str, Any]:
         """Persists selected raw footage attachments for a specific script angle in a product."""
+        rel_videos = [_to_relative(v) for v in selected_videos]
         with cls._mutate() as products:
             for product in products:
                 if product["id"] == product_id:
                     angles = product.get("angles", [])
                     for angle in angles:
                         if angle.get("angle_id") == angle_id:
-                            angle["selected_videos"] = selected_videos
-                            angle["selected_video"] = selected_videos[0] if selected_videos else None
+                            angle["selected_videos"] = rel_videos
+                            angle["selected_video"] = rel_videos[0] if rel_videos else None
                             angle["updated_at"] = cls._now()
                             product["updated_at"] = cls._now()
                             return product
@@ -384,6 +410,7 @@ class ProductStore:
     @classmethod
     def set_default_videos_for_all_angles(cls, product_id: str, selected_videos: List[str]) -> Dict[str, Any]:
         """Sets default raw footage attachments for all script angles belonging to this product."""
+        rel_videos = [_to_relative(v) for v in selected_videos]
         with cls._mutate() as products:
             for product in products:
                 if product["id"] == product_id:
@@ -391,28 +418,60 @@ class ProductStore:
                         # Do not overwrite angles that are actively in_production in timeline
                         if angle.get("status") == "in_production" or (angle.get("project_name") and angle.get("status") not in ("rendered", "posted")):
                             continue
-                        angle["selected_videos"] = selected_videos
-                        angle["selected_video"] = selected_videos[0] if selected_videos else None
+                        angle["selected_videos"] = rel_videos
+                        angle["selected_video"] = rel_videos[0] if rel_videos else None
                         angle["updated_at"] = cls._now()
-                    # Also ensure each video is in product['videos']
+                    # Also ensure each video is in product['videos']. `path`
+                    # is kept absolute here -- scripts/api_videos.py (off
+                    # limits for this change) does exact string comparisons
+                    # like `v.get("path") == str(some_absolute_path)` when
+                    # renaming/deleting raw files, so `path` must stay
+                    # resolvable the same way it always was. `rel_path` is
+                    # what actually becomes genuinely relative (it used to
+                    # be a lie: the exact same absolute string as `path`).
                     v_list = product.setdefault("videos", [])
-                    for v_path in selected_videos:
-                        if not any(v.get("path") == v_path or v.get("rel_path") == v_path for v in v_list):
-                            v_list.append({"rel_path": v_path, "path": v_path})
+                    for v_path, rel in zip(selected_videos, rel_videos):
+                        v_abs = str(_to_absolute(v_path))
+                        if not any(v.get("path") == v_path or v.get("rel_path") == rel or v.get("path") == v_abs for v in v_list):
+                            v_list.append({"rel_path": rel, "path": v_abs})
                     product["updated_at"] = cls._now()
                     return product
             raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
 
     @classmethod
     def add_video_to_product(cls, product_id: str, video_info: Dict[str, Any]) -> Dict[str, Any]:
-        """Attaches a raw footage item specifically to a product."""
+        """Attaches a raw footage item specifically to a product.
+
+        `video_info` normally comes from media_service.get_file_info(), whose
+        `path` is already an absolute string and `rel_path` already
+        BASE_DIR-relative -- that shape is preserved as-is here (not
+        rewritten to relative) because scripts/api_videos.py (off limits for
+        this change) does exact string comparisons against `path` as an
+        absolute string when renaming/deleting raw files. A caller that
+        passes only a bare/relative path in `path` or `rel_path` gets both
+        fields filled in consistently (absolute in `path`, relative in
+        `rel_path`) rather than stored as a half-formed dict.
+        """
+        video_info = dict(video_info)
+        raw_path = video_info.get("path") or video_info.get("rel_path")
+        if raw_path:
+            rel = _to_relative(raw_path)
+            abs_path = str(_to_absolute(raw_path))
+            video_info["path"] = video_info.get("path") or abs_path
+            video_info["rel_path"] = rel
+        else:
+            rel = None
+
         with cls._mutate() as products:
             for product in products:
                 if product["id"] == product_id:
                     v_list = product.setdefault("videos", [])
                     # Avoid duplicates
-                    v_path = video_info.get("path") or video_info.get("rel_path")
-                    if not any(v.get("path") == v_path or v.get("rel_path") == v_path for v in v_list):
+                    if not any(
+                        v.get("path") == video_info.get("path")
+                        or v.get("rel_path") == rel
+                        for v in v_list
+                    ):
                         v_list.append(video_info)
                     product["updated_at"] = cls._now()
                     return product
@@ -421,6 +480,8 @@ class ProductStore:
     @classmethod
     def remove_video_from_product(cls, product_id: str, video_path: str) -> Dict[str, Any]:
         """Removes a footage link from a product."""
+        rel = _to_relative(video_path)
+        abs_str = str(_to_absolute(video_path)) if video_path else None
         with cls._mutate() as products:
             for product in products:
                 if product["id"] == product_id:
@@ -428,6 +489,8 @@ class ProductStore:
                     product["videos"] = [
                         v for v in v_list
                         if v.get("path") != video_path and v.get("rel_path") != video_path
+                        and v.get("path") != rel and v.get("rel_path") != rel
+                        and v.get("path") != abs_str and v.get("rel_path") != abs_str
                     ]
                     product["updated_at"] = cls._now()
                     return product
@@ -566,18 +629,23 @@ class ProductStore:
             p_pid = p_rp.get("product_id") or p_data.get("product_id")
             p_aid = p_rp.get("angle_id") or p_data.get("angle_id")
 
-            # Check if an exported MP4 exists
+            # Check if an exported MP4 exists. project.json's own
+            # artifacts.mp4_video.path is written absolute by
+            # video_assembly_stage.py -- normalize to BASE_DIR-relative
+            # before it ever reaches angle["video_url"] below, so this
+            # store keeps its own data relative regardless of what other
+            # writers put in project.json.
             mp4_path = None
             art_mp4 = p_data.get("artifacts", {}).get("mp4_video", {}).get("path")
-            if art_mp4 and Path(art_mp4).exists():
-                mp4_path = art_mp4
+            if art_mp4 and _to_absolute(art_mp4).exists():
+                mp4_path = _to_relative(art_mp4)
             else:
                 for scan_dir in (exports_dir, posted_dir):
                     if not scan_dir.exists():
                         continue
                     candidates = list(scan_dir.glob(f"{p_folder.name}*.mp4"))
                     if candidates:
-                        mp4_path = str(candidates[0])
+                        mp4_path = _to_relative(str(candidates[0]))
                         break
 
             # Match against products.
@@ -699,7 +767,7 @@ class ProductStore:
                 has_video = False
                 v_url = angle.get("video_url")
                 if v_url:
-                    if Path(v_url).exists():
+                    if _to_absolute(v_url).exists():
                         has_video = True
                     else:
                         ready_file = exports_dir / Path(v_url).name

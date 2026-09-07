@@ -9,6 +9,14 @@ the hook" no cheaper than rebuilding the whole clip.
 This module writes those four values plus every artifact path to
 03_Projects/<name>/project.json, and hands out versioned filenames so an
 earlier take is never destroyed.
+
+Artifact paths (manifest["artifacts"][key]["path"]) are normalized to
+BASE_DIR-relative on the way in (`save()`) and resolved back to an absolute
+Path on the way out (`artifact_path()`) -- see scripts/path_utils.py for the
+full convention and SAAS_READINESS_PLAN.md P0 item 4 for why. Callers
+(video_assembly_stage.py and friends) still just pass whatever path str()
+gives them; this module is the one place that funnels every artifact write,
+so the normalization lives here rather than at each caller.
 """
 
 import json
@@ -20,7 +28,8 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from scripts.config import PROJECTS_DIR
+from scripts.config import PROJECTS_DIR, BASE_DIR
+from scripts import path_utils
 
 MANIFEST_NAME = "project.json"
 MANIFEST_VERSION = 1
@@ -119,6 +128,23 @@ class ProjectManifest:
 
     _SAVE_LOCK = threading.Lock()
 
+    @staticmethod
+    def _normalize_artifacts(artifacts: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        """Rewrite every artifact entry's `path` to BASE_DIR-relative before
+        it is persisted. Callers today (video_assembly_stage.py,
+        rename_projects_with_product_code.py) build these entries as
+        `{"path": str(some_absolute_path), ...other fields}` -- this leaves
+        every other field untouched and only touches `path`."""
+        if not artifacts:
+            return artifacts
+        normalized: Dict[str, Any] = {}
+        for key, entry in artifacts.items():
+            if isinstance(entry, dict) and entry.get("path"):
+                entry = dict(entry)
+                entry["path"] = path_utils.to_relative(entry["path"], base_dir=BASE_DIR)
+            normalized[key] = entry
+        return normalized
+
     @classmethod
     def save(cls, project_name: str, **fields: Any) -> Dict[str, Any]:
         """Merge `fields` into the manifest and write it out safely with lock and retry."""
@@ -133,7 +159,7 @@ class ProjectManifest:
                 "artifacts": {},
             }
 
-            artifacts = fields.pop("artifacts", None)
+            artifacts = cls._normalize_artifacts(fields.pop("artifacts", None))
             manifest.update(fields)
             if artifacts:
                 manifest.setdefault("artifacts", {}).update(artifacts)
@@ -212,12 +238,17 @@ class ProjectManifest:
 
     @classmethod
     def artifact_path(cls, manifest: Dict[str, Any], key: str) -> Optional[Path]:
-        """The recorded path for an artifact, if it is still on disk."""
+        """The recorded path for an artifact, if it is still on disk.
+
+        Resolves through path_utils.to_absolute() so this works whether the
+        stored entry is BASE_DIR-relative (new data, or old data run through
+        scripts/migrate_paths_to_relative.py) or a legacy absolute path (old,
+        un-migrated project.json files still on disk)."""
         entry = (manifest.get("artifacts") or {}).get(key)
-        if not entry:
+        if not entry or not entry.get("path"):
             return None
-        path = Path(entry["path"])
-        return path if path.exists() else None
+        path = path_utils.to_absolute(entry["path"], base_dir=BASE_DIR)
+        return path if path and path.exists() else None
 
     # ------------------------------------------------------------------
     # Listing
