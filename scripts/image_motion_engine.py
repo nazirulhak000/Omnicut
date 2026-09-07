@@ -60,6 +60,10 @@ class ImageMotionEngine:
             img_path = valid_images[idx % len(valid_images)]
             seg_out = temp_dir / f"seg_{idx:03d}.mp4"
             
+            # Alternate Zoom In vs Zoom Out for dynamic feel
+            zoom_in = (idx % 2 == 0)
+            frames = int(math.ceil(dur * FPS))
+
             # Dynamic Ken-Burns: smooth zoom rate scaled across the exact duration
             max_zoom = 1.15
             min_zoom = 1.00
