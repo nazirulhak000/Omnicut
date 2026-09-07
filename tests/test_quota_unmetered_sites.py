@@ -131,8 +131,17 @@ def _isolate_tone_cache(monkeypatch, tmp_path):
     """
     import scripts.script_tone_analyzer as sta
 
-    monkeypatch.setattr(sta, "TONE_CACHE_FILE", tmp_path / ".tone_cache.json")
+    cache_path = tmp_path / ".tone_cache.json"
+    monkeypatch.setattr(sta, "TONE_CACHE_FILE", cache_path)
     monkeypatch.setenv("GEMINI_API_KEY", "test-key-not-used")
+
+    # Fail loudly rather than quietly reading the real cache under
+    # 02_Assets, which holds real entries: the module reads the binding and
+    # the env var directly, so if either escapes the patch these tests would
+    # pass or fail depending on what the machine happens to have.
+    assert sta.TONE_CACHE_FILE == cache_path
+    assert not sta.TONE_CACHE_FILE.exists()
+    assert sta.ScriptToneAnalyzer.is_available(), "the env patch did not take"
     return sta
 
 
