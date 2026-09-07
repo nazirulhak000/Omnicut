@@ -188,29 +188,60 @@ class GeminiFlashTTSEngine:
         data = None
         last_error = None
 
+        # Retry shape per (key, model) -- bounded, not an elaborate
+        # framework. HTTPError.code is a real int status (no string
+        # matching needed, unlike the SDK path in ai_bridge.py this engine
+        # doesn't use): 429 backs off (Retry-After header if present, else a
+        # short default) and retries the SAME key+model once before moving
+        # on; a non-HTTP URLError/timeout (network down, DNS, connect
+        # refused) is transient and retries the SAME key+model once after a
+        # short fixed backoff; 401/403 (invalid/revoked key) and any other
+        # HTTP status rotate immediately -- retrying can't fix those.
+        RATE_LIMIT_DEFAULT_BACKOFF = 5.0
+        RATE_LIMIT_MAX_BACKOFF = 30.0
+        TRANSIENT_BACKOFF = 2.0
+
         # Multi-key & Multi-model fallback matrix
         for key_idx, cur_key in enumerate(api_keys, 1):
             key_tag = f"Key #{key_idx} (..{cur_key[-6:]})"
             for model_name in model_candidates:
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={cur_key}"
-                req = urllib.request.Request(
-                    url,
-                    data=json.dumps(payload).encode("utf-8"),
-                    headers={"Content-Type": "application/json"}
-                )
-                try:
-                    with urllib.request.urlopen(req, timeout=75) as resp:
-                        data = json.loads(resp.read().decode("utf-8"))
-                        print(f"✨ [Gemini Flash TTS] Used model '{model_name}' on {key_tag} with voice '{target_voice}'")
+                for attempt in range(2):
+                    req = urllib.request.Request(
+                        url,
+                        data=json.dumps(payload).encode("utf-8"),
+                        headers={"Content-Type": "application/json"}
+                    )
+                    try:
+                        with urllib.request.urlopen(req, timeout=75) as resp:
+                            data = json.loads(resp.read().decode("utf-8"))
+                            print(f"✨ [Gemini Flash TTS] Used model '{model_name}' on {key_tag} with voice '{target_voice}'")
+                            break
+                    except urllib.error.HTTPError as he:
+                        last_error = he
+                        if he.code == 429 and attempt == 0:
+                            backoff = RATE_LIMIT_DEFAULT_BACKOFF
+                            try:
+                                retry_after = he.headers.get("Retry-After") if he.headers else None
+                                if retry_after:
+                                    backoff = min(float(retry_after), RATE_LIMIT_MAX_BACKOFF)
+                            except (TypeError, ValueError):
+                                pass
+                            print(f"⚠️ [Gemini Flash TTS] {key_tag} with '{model_name}' rate-limited (429) — retrying same key/model in {backoff:.0f}s...")
+                            time.sleep(backoff)
+                            continue
+                        print(f"⚠️ [Gemini Flash TTS] {key_tag} with '{model_name}' returned HTTP {he.code} — checking next fallback...")
                         break
-                except urllib.error.HTTPError as he:
-                    last_error = he
-                    print(f"⚠️ [Gemini Flash TTS] {key_tag} with '{model_name}' returned HTTP {he.code} — checking next fallback...")
-                    continue
-                except Exception as e:
-                    last_error = e
-                    print(f"⚠️ [Gemini Flash TTS] {key_tag} with '{model_name}' failed ({e}) — checking next fallback...")
-                    continue
+                    except Exception as e:
+                        last_error = e
+                        if attempt == 0:
+                            print(f"⚠️ [Gemini Flash TTS] {key_tag} with '{model_name}' failed ({e}) — retrying same key/model in {TRANSIENT_BACKOFF:.0f}s...")
+                            time.sleep(TRANSIENT_BACKOFF)
+                            continue
+                        print(f"⚠️ [Gemini Flash TTS] {key_tag} with '{model_name}' failed ({e}) — checking next fallback...")
+                        break
+                if data:
+                    break
             if data:
                 break
 

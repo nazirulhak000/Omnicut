@@ -32,6 +32,91 @@ DEFAULT_MODEL = "gemini-2.5-flash"
 PRO_MODEL = "gemini-3.8-flash-high"
 ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
 
+# Bound on the API-key request itself (seconds). Matches the CLI path's
+# `timeout=120` passed to subprocess.run so the two execution paths fail on a
+# comparable clock instead of the API path being unbounded.
+API_REQUEST_TIMEOUT_SECONDS = 120
+
+# Retry shape for the direct API-key path (see classify_genai_error below):
+# a couple of bounded attempts with a short backoff, not an elaborate retry
+# framework. Worst case per key: RATE_LIMIT_MAX_BACKOFF_SECONDS (one retry of
+# the same key) or TRANSIENT_BACKOFF_SECONDS (one retry of the same key);
+# auth/unknown failures rotate immediately with no added delay.
+RATE_LIMIT_DEFAULT_BACKOFF_SECONDS = 5.0
+RATE_LIMIT_MAX_BACKOFF_SECONDS = 30.0
+TRANSIENT_BACKOFF_SECONDS = 2.0
+
+
+def classify_genai_error(exc: BaseException) -> str:
+    """Classify an exception raised by google-genai's `generate_content` into
+    one of: "quota" (this app's own daily cap -- scripts/quota.py -- never
+    retried or rotated here, the caller must check this first), "rate_limit"
+    (HTTP 429 -- back off and retry the SAME key), "auth" (HTTP 401/403 --
+    invalid/revoked key, rotate immediately), "transient" (network/timeout --
+    retry the SAME key with a short backoff, then rotate), or "other"
+    (current/default behavior -- rotate to the next key).
+
+    Prefers the SDK's typed exceptions (google.genai.errors.ClientError /
+    ServerError, both carrying a `.code` HTTP status int) over string
+    matching. Falls back to matching on the message only for shapes the SDK
+    does not type (e.g. httpx transport errors have no status code).
+    """
+    from scripts.quota import is_quota_error
+    if is_quota_error(exc):
+        return "quota"
+
+    try:
+        from google.genai import errors as genai_errors
+    except Exception:
+        genai_errors = None
+
+    if genai_errors is not None and isinstance(exc, genai_errors.APIError):
+        code = getattr(exc, "code", None)
+        if code == 429:
+            return "rate_limit"
+        if code in (401, 403):
+            return "auth"
+        return "other"
+
+    try:
+        import httpx
+        if isinstance(exc, (httpx.TimeoutException, httpx.TransportError)):
+            return "transient"
+    except Exception:
+        pass
+
+    # Last-resort fallback for exception shapes the installed SDK/httpx
+    # version does not type (kept narrow -- this is a safety net, not the
+    # primary classification path).
+    err_str = str(exc).lower()
+    if "429" in err_str or "resource_exhausted" in err_str or "rate limit" in err_str:
+        return "rate_limit"
+    if "401" in err_str or "403" in err_str or "api key not valid" in err_str or "permission_denied" in err_str:
+        return "auth"
+    if "timeout" in err_str or "connection" in err_str or "network" in err_str:
+        return "transient"
+    return "other"
+
+
+def _extract_retry_after_seconds(exc: BaseException) -> Optional[float]:
+    """Best-effort read of a `retry-after` header off the SDK error's
+    attached HTTP response, if the exception carries one. Returns None if
+    unavailable/unparseable so the caller falls back to a fixed default."""
+    response = getattr(exc, "response", None)
+    headers = getattr(response, "headers", None)
+    if not headers:
+        return None
+    try:
+        value = headers.get("retry-after")
+    except Exception:
+        return None
+    if not value:
+        return None
+    try:
+        return max(0.0, float(value))
+    except (TypeError, ValueError):
+        return None
+
 
 def get_agy_path() -> Optional[Path]:
     """Find the Antigravity CLI executable on this system."""
@@ -407,38 +492,82 @@ class AIBridge:
                 print(f"⚠️ [AIBridge] Antigravity Pro error ({err}) — attempting fallback to API Key...")
 
         # 2. Direct AI Studio API Key fallback (cycles through all configured keys)
+        #
+        # Retry shape per key (bounded, not an elaborate framework):
+        #   - rate_limit (HTTP 429): back off (retry-after if the SDK gave one,
+        #     else a short default) and retry the SAME key once more before
+        #     rotating -- a burst limiter is more likely to clear than a dead
+        #     key is to come back.
+        #   - transient (network/timeout): retry the SAME key once after a
+        #     short fixed backoff, then rotate.
+        #   - auth (401/403): rotate immediately, no delay -- retrying an
+        #     invalid/revoked key cannot succeed.
+        #   - other/unclassified: current behavior -- rotate immediately.
+        #   - quota (this app's own daily cap): never retried or rotated --
+        #     re-raised immediately so it surfaces to the caller unchanged.
+        #
+        # Worst case wall clock across N keys, all rate-limited at the cap:
+        # N * (RATE_LIMIT_MAX_BACKOFF_SECONDS + 2 request timeouts), i.e. for
+        # a typical 2-key setup capped at the request timeout:
+        # 2 * (30s backoff + 2*120s timeout) = 540s. Auth/other failures add
+        # no backoff, so an all-invalid-keys case is just N request timeouts.
         api_keys = cls.get_api_keys()
         if api_keys:
             from google import genai  # imported lazily so manual mode needs no SDK
+            from google.genai import types as genai_types
+
+            http_options = genai_types.HttpOptions(timeout=API_REQUEST_TIMEOUT_SECONDS * 1000)
+
             for key_idx, cur_key in enumerate(api_keys, 1):
-                t0 = time.time()
-                try:
-                    print(f"⚡ [AIBridge] Generating '{task}' via Google AI Studio API ({model}) [Key #{key_idx}]...")
-                    client = genai.Client(api_key=cur_key)
-                    response = client.models.generate_content(model=model, contents=prompt)
-                    latency = time.time() - t0
-                    raw_text = response.text or ""
-                    parsed = cls.parse_response(task, raw_text)
+                client = genai.Client(api_key=cur_key, http_options=http_options)
+                for attempt in range(2):
+                    t0 = time.time()
                     try:
-                        from scripts.token_tracker import TokenTracker
-                        in_tok = max(100, len(prompt) // 2)
-                        out_tok = max(50, len(raw_text) // 2)
-                        p_name = context.get("product_name", "") or context.get("product_title", "")
-                        TokenTracker.record_event(
-                            task=task,
-                            model=model,
-                            provider="gemini_api",
-                            input_tokens=in_tok,
-                            output_tokens=out_tok,
-                            latency_seconds=latency,
-                            project_name=p_name
-                        )
-                    except Exception:
-                        pass
-                    return parsed
-                except Exception as api_err:
-                    print(f"⚠️ [AIBridge] Key #{key_idx} error ({api_err}) — attempting next key...")
-                    continue
+                        print(f"⚡ [AIBridge] Generating '{task}' via Google AI Studio API ({model}) [Key #{key_idx}, attempt {attempt + 1}]...")
+                        response = client.models.generate_content(model=model, contents=prompt)
+                        latency = time.time() - t0
+                        raw_text = response.text or ""
+                        parsed = cls.parse_response(task, raw_text)
+                        try:
+                            from scripts.token_tracker import TokenTracker
+                            in_tok = max(100, len(prompt) // 2)
+                            out_tok = max(50, len(raw_text) // 2)
+                            p_name = context.get("product_name", "") or context.get("product_title", "")
+                            TokenTracker.record_event(
+                                task=task,
+                                model=model,
+                                provider="gemini_api",
+                                input_tokens=in_tok,
+                                output_tokens=out_tok,
+                                latency_seconds=latency,
+                                project_name=p_name
+                            )
+                        except Exception:
+                            pass
+                        return parsed
+                    except Exception as api_err:
+                        from scripts.quota import is_quota_error
+                        if is_quota_error(api_err):
+                            raise
+
+                        kind = classify_genai_error(api_err)
+                        if kind == "rate_limit" and attempt == 0:
+                            backoff = _extract_retry_after_seconds(api_err)
+                            if backoff is None:
+                                backoff = RATE_LIMIT_DEFAULT_BACKOFF_SECONDS
+                            backoff = min(backoff, RATE_LIMIT_MAX_BACKOFF_SECONDS)
+                            print(f"⚠️ [AIBridge] Key #{key_idx} rate-limited (429) — retrying same key in {backoff:.0f}s...")
+                            time.sleep(backoff)
+                            continue
+                        if kind == "transient" and attempt == 0:
+                            print(f"⚠️ [AIBridge] Key #{key_idx} transient error ({api_err}) — retrying same key in {TRANSIENT_BACKOFF_SECONDS:.0f}s...")
+                            time.sleep(TRANSIENT_BACKOFF_SECONDS)
+                            continue
+                        if kind == "auth":
+                            print(f"⚠️ [AIBridge] Key #{key_idx} auth error ({api_err}) — rotating to next key...")
+                        else:
+                            print(f"⚠️ [AIBridge] Key #{key_idx} error ({api_err}) — attempting next key...")
+                        break
 
         # 3. Manual copy-paste fallback
         raise ManualModeRequired(prompt, task)

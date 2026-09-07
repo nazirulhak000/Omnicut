@@ -40,6 +40,13 @@ if env_file.exists():
 # Vision cache file to avoid re-uploading the same large video files
 VISION_CACHE_FILE = ASSETS_DIR / ".vision_cache.json"
 
+# Bound on the generate_content() scene-matching call only (not on the client
+# used for file upload+polling just above, which legitimately needs minutes
+# for a large video and already bounds itself with its own retry/sleep loop
+# -- see get_or_upload_video). 180s mirrors the "up to 3 minutes" precedent
+# already used for file-processing wait on 3-5 minute footage.
+VISION_GENERATE_TIMEOUT_SECONDS = 180
+
 # The proxy the model actually sees. It only has to answer which seconds show
 # what, and it samples about one frame a second, so resolution and frame rate
 # buy nothing here -- see _vision_proxy for the measurements.
@@ -235,6 +242,11 @@ class GeminiVisionMatcher:
 
         file_hash = cls._compute_file_hash(Path(raw_video_path).resolve())
         cache = cls._load_cache()
+        # Same derivation as get_cached_matches() above -- needed again here
+        # (not just returned from that call) so a successful match can be
+        # saved back into the persistent cache under the same key.
+        cues_summary = "|".join([f"{c.get('text', '')}" for c in cues])
+        match_cache_key = f"{file_hash}_{hashlib.md5(cues_summary.encode('utf-8')).hexdigest()}"
 
         try:
             from google import genai
@@ -290,28 +302,60 @@ class GeminiVisionMatcher:
             chosen_model = "gemini-2.5-flash"
             t_vision_start = time.time()
 
+            # Retry shape per model (bounded -- 2 attempts, short backoff, no
+            # elaborate framework), matching scripts/ai_bridge.py's
+            # classify_genai_error: rate_limit (429) backs off (retry-after
+            # if the SDK gave one, else a default) and retries the SAME
+            # model/request once before falling through to the next model;
+            # transient (network/timeout) retries once with a short fixed
+            # backoff; auth/other classifications stop retrying this model
+            # immediately and move on (retrying an invalid key or an
+            # unclassified failure on the same model cannot help). A quota
+            # AppError can never reach here -- check_budget() above already
+            # ran outside this try block and raises before this point.
+            from scripts.ai_bridge import (
+                classify_genai_error,
+                _extract_retry_after_seconds,
+                RATE_LIMIT_DEFAULT_BACKOFF_SECONDS,
+                RATE_LIMIT_MAX_BACKOFF_SECONDS,
+                TRANSIENT_BACKOFF_SECONDS,
+            )
+
             for model_name in models_to_try:
                 print(f"   👁️ Calling {model_name} Vision to analyze raw footage...")
                 for attempt in range(2):
                     try:
+                        from google.genai import types as genai_types
                         response = client.models.generate_content(
                             model=model_name,
                             contents=[
                                 remote_video,
                                 prompt
-                            ]
+                            ],
+                            config=genai_types.GenerateContentConfig(
+                                http_options=genai_types.HttpOptions(
+                                    timeout=VISION_GENERATE_TIMEOUT_SECONDS * 1000
+                                )
+                            ),
                         )
                         if response and response.text:
                             chosen_model = model_name
                             break
                     except Exception as err:
                         last_err = err
-                        err_str = str(err)
-                        if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
-                            print(f"   ⚠️ Rate Limit (429) hit on {model_name}. Retrying in 10s...")
-                            time.sleep(10)
-                        else:
-                            time.sleep(2)
+                        kind = classify_genai_error(err)
+                        if kind == "rate_limit" and attempt == 0:
+                            backoff = _extract_retry_after_seconds(err) or RATE_LIMIT_DEFAULT_BACKOFF_SECONDS
+                            backoff = min(backoff, RATE_LIMIT_MAX_BACKOFF_SECONDS)
+                            print(f"   ⚠️ Rate Limit (429) hit on {model_name}. Retrying same model in {backoff:.0f}s...")
+                            time.sleep(backoff)
+                            continue
+                        if kind == "transient" and attempt == 0:
+                            print(f"   ⚠️ Transient error on {model_name} ({err}). Retrying same model in {TRANSIENT_BACKOFF_SECONDS:.0f}s...")
+                            time.sleep(TRANSIENT_BACKOFF_SECONDS)
+                            continue
+                        print(f"   ⚠️ {model_name} failed ({err}) — moving to next model fallback...")
+                        break
                 if response and response.text:
                     break
 
