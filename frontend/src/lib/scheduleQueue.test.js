@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addDays, buildScheduleIso, groupScheduleItems, templateForWeek, weekStartForDate } from './scheduleQueue.js';
+import { addDays, buildScheduleIso, groupScheduleItems, mergeScheduleDraft, templateForWeek, weekStartForDate } from './scheduleQueue.js';
 import { scheduleTimeOptions, snapTimeToFiveMinutes } from './scheduleQueue.js';
 
 test('schedule times use five-minute increments', () => {
@@ -27,4 +27,11 @@ test('weekly template helpers use Monday boundaries and preserve three slots', (
   assert.equal(template.days['0'].enabled, false);
   assert.deepEqual(template.days['0'].times, ['12:30', '19:00', '21:30']);
   assert.deepEqual(template.days['1'].times, ['12:30', '19:00', '21:30']);
+});
+
+test('schedule field edits retain the latest date and time together', () => {
+  let draft = { date: '2026-09-08', time: '12:30' };
+  draft = mergeScheduleDraft(draft, 'date', '2026-09-12');
+  draft = mergeScheduleDraft(draft, 'time', '21:30');
+  assert.deepEqual(draft, { date: '2026-09-12', time: '21:30' });
 });

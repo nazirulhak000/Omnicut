@@ -27,6 +27,13 @@ export function buildScheduleIso(date, time) {
   return `${date}T${snapTimeToFiveMinutes(time)}:00+07:00`;
 }
 
+export function mergeScheduleDraft(current, field, value) {
+  return {
+    date: field === 'date' ? String(value || '') : String(current?.date || ''),
+    time: field === 'time' ? String(value || '') : String(current?.time || ''),
+  };
+}
+
 export function scheduleTimeOptions() {
   return Array.from({ length: 288 }, (_, index) => `${pad2(Math.floor(index / 12))}:${pad2((index % 12) * 5)}`);
 }

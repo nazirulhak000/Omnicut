@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, ChevronDown, ChevronUp, Clock, Copy, GripVertical, Image as ImageIcon, Layers, Plus, RefreshCw, Rocket, RotateCcw, Settings2, Shuffle, Trash2 } from 'lucide-react';
 import { Modal, Badge } from './ui';
 import { commitScheduleAutofill, copyScheduleTemplate, createScheduleQueue, getScheduleQueue, getScheduleTemplate, prepareScheduleQueue, previewScheduleAutofill, removeScheduleQueue, resetScheduleTemplate, saveScheduleTemplate, updateScheduleQueue } from '../api';
-import { addDays, buildScheduleIso, dateOnly, DEFAULT_PRIMARY_TIMES, groupScheduleItems, localParts, primaryTimeOptions, PROJECT_TIME_ZONE, scheduleTimeOptions, templateForWeek, toLocalDateTime, weekStartForDate } from '../lib/scheduleQueue';
+import { addDays, buildScheduleIso, dateOnly, DEFAULT_PRIMARY_TIMES, groupScheduleItems, localParts, mergeScheduleDraft, primaryTimeOptions, PROJECT_TIME_ZONE, scheduleTimeOptions, templateForWeek, toLocalDateTime, weekStartForDate } from '../lib/scheduleQueue';
 
 const STATUS_LABELS = {
   planned: 'รอจัดส่ง',
@@ -132,6 +132,8 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   const [requeueOpen, setRequeueOpen] = useState(false);
   const [requeueTarget, setRequeueTarget] = useState(null);
   const [requeueDraft, setRequeueDraft] = useState(nextSlot());
+  const scheduleDrafts = useRef(new Map());
+  const scheduleRequestIds = useRef(new Map());
   const primaryOptions = useMemo(() => primaryTimeOptions(), []);
 
   const loadQueue = async () => {
@@ -139,6 +141,8 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
     try {
       const response = await getScheduleQueue();
       setQueue(response.items || []);
+      scheduleDrafts.current.clear();
+      scheduleRequestIds.current.clear();
     } catch (error) {
       showToast?.(`โหลดคิวไม่สำเร็จ: ${error.response?.data?.detail || error.message}`, 'error');
     } finally {
@@ -207,13 +211,29 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   };
 
   const reschedule = async (item, date, time) => {
+    const requestId = (scheduleRequestIds.current.get(item.id) || 0) + 1;
+    scheduleRequestIds.current.set(item.id, requestId);
+    scheduleDrafts.current.set(item.id, { date, time });
     try {
       const updated = await updateScheduleQueue(item.id, { scheduled_at: buildScheduleIso(date, time) });
-      setQueue((prev) => prev.map((row) => row.id === item.id ? updated : row));
-      showToast?.('ย้ายเวลาในคิวแล้ว');
+      if (scheduleRequestIds.current.get(item.id) === requestId) {
+        scheduleDrafts.current.set(item.id, localParts(updated.scheduled_at));
+        setQueue((prev) => prev.map((row) => row.id === item.id ? updated : row));
+        showToast?.('ย้ายเวลาในคิวแล้ว');
+      }
     } catch (error) {
-      showToast?.(error.response?.data?.detail || error.message || 'ย้ายเวลาไม่สำเร็จ', 'error');
+      if (scheduleRequestIds.current.get(item.id) === requestId) {
+        scheduleDrafts.current.delete(item.id);
+        showToast?.(error.response?.data?.detail || error.message || 'ย้ายเวลาไม่สำเร็จ', 'error');
+      }
     }
+  };
+
+  const updateScheduleField = (item, field, value) => {
+    const current = scheduleDrafts.current.get(item.id) || localParts(item.scheduled_at);
+    const next = mergeScheduleDraft(current, field, value);
+    scheduleDrafts.current.set(item.id, next);
+    void reschedule(item, next.date, next.time);
   };
 
   const resetForMove = async (item) => {
@@ -412,8 +432,8 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                           <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-1.5"><span className="text-xs font-bold text-white truncate">{item.product_name || 'ไม่ระบุสินค้า'}</span><Badge className={STATUS_STYLES[item.status] || STATUS_STYLES.planned}>{STATUS_LABELS[item.status] || item.status}</Badge>{overdue && <Badge className="text-red-200 bg-red-500/10 border-red-500/25">เลยกำหนด</Badge>}</div><p className="text-sm text-cyan-200 font-bold mt-1 line-clamp-2">{item.hook_title || item.project_name || item.video_path}</p><p className="text-[10px] text-slate-500 font-mono mt-1 truncate">{item.video_path}</p></div>
                         </div>
                         <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                          <label className="flex items-center gap-1.5 text-[10px] text-slate-500"><CalendarDays className="w-3.5 h-3.5" /><input type="date" value={parts.date} disabled={item.status !== 'planned'} onChange={(event) => reschedule(item, event.target.value, parts.time)} className="px-2 py-1.5 rounded-lg bg-black/50 border border-white/[0.1] text-xs text-white" /></label>
-                          <label className="flex items-center gap-1.5 text-[10px] text-slate-500"><Clock className="w-3.5 h-3.5 text-cyan-300" /><select value={parts.time} disabled={item.status !== 'planned'} onChange={(event) => reschedule(item, parts.date, event.target.value)} className="px-2 py-1.5 rounded-lg bg-black/50 border border-white/[0.1] text-xs text-white font-mono">{timeOptions.map((time) => <option key={time} value={time}>{time}</option>)}</select></label>
+                          <label className="flex items-center gap-1.5 text-[10px] text-slate-500"><CalendarDays className="w-3.5 h-3.5" /><input type="date" value={scheduleDrafts.current.get(item.id)?.date || parts.date} disabled={item.status !== 'planned'} onChange={(event) => updateScheduleField(item, 'date', event.target.value)} className="px-2 py-1.5 rounded-lg bg-black/50 border border-white/[0.1] text-xs text-white" /></label>
+                          <label className="flex items-center gap-1.5 text-[10px] text-slate-500"><Clock className="w-3.5 h-3.5 text-cyan-300" /><select value={scheduleDrafts.current.get(item.id)?.time || parts.time} disabled={item.status !== 'planned'} onChange={(event) => updateScheduleField(item, 'time', event.target.value)} className="px-2 py-1.5 rounded-lg bg-black/50 border border-white/[0.1] text-xs text-white font-mono">{timeOptions.map((time) => <option key={time} value={time}>{time}</option>)}</select></label>
                           {overdue && item.status === 'planned' && <button type="button" onClick={() => openRequeue(item)} className="px-2.5 py-1.5 rounded-lg border border-red-400/30 text-red-200 text-[11px]">จัดคิวใหม่</button>}
                           {item.status === 'planned' || item.status === 'failed' ? <button type="button" onClick={() => prepareItem(item)} className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-white text-[11px] font-bold flex items-center gap-1"><Rocket className="w-3.5 h-3.5" />เตรียมให้ Extension</button> : item.status === 'ready_for_extension' ? <button type="button" onClick={() => resetForMove(item)} className="px-2.5 py-1.5 rounded-lg border border-amber-400/25 text-amber-200 text-[11px]">รีเซ็ตเพื่อย้าย</button> : null}
                           {clip && onOpenCoverStudio ? <button type="button" data-cover-state={hasCover ? 'ready' : 'missing'} onClick={() => onOpenCoverStudio(clip)} className={`p-1.5 rounded-lg border transition-colors ${hasCover ? 'border-emerald-400/45 bg-emerald-400/10 text-white shadow-[0_0_12px_rgba(52,211,153,0.16)] hover:bg-emerald-400/20' : 'border-white/[0.1] text-slate-600 hover:text-white hover:border-white/[0.2]'}`} title={hasCover ? 'มีภาพปกแล้ว · คลิกเพื่อแก้ไข' : 'ยังไม่มีภาพปก · คลิกเพื่อสร้าง'} aria-label={hasCover ? 'มีภาพปกแล้ว คลิกเพื่อแก้ไข' : 'ยังไม่มีภาพปก คลิกเพื่อสร้าง'}><ImageIcon className="w-3.5 h-3.5" /></button> : <span role="img" data-cover-state={hasCover ? 'ready' : 'missing'} className={`p-1.5 rounded-lg border ${hasCover ? 'border-emerald-400/45 bg-emerald-400/10 text-white' : 'border-white/[0.08] text-slate-700'}`} title={hasCover ? 'มีภาพปกแล้ว' : 'ยังไม่มีภาพปก'} aria-label={hasCover ? 'มีภาพปกแล้ว' : 'ยังไม่มีภาพปก'}><ImageIcon className="w-3.5 h-3.5" /></span>}
