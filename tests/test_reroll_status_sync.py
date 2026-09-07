@@ -159,3 +159,69 @@ def test_a_reroll_with_no_output_stays_in_production(isolated_store, projects_di
     updated = ProductStore.get(product["id"])
     angle = next(a for a in updated["angles"] if a["angle_id"] == "unboxing")
     assert angle["status"] == "in_production"
+
+
+def test_a_failed_reroll_restores_the_prior_rendered_state(isolated_store, projects_dir, monkeypatch):
+    """A reroll attempted on an already-"rendered" angle (a good prior video
+    exists) that then raises inside the pipeline must land back on
+    "rendered" with the ORIGINAL video_url -- not get stuck on
+    "in_production" with no video, which would require manual intervention
+    since reconcile_existing_projects() never promotes in_production back to
+    rendered on its own."""
+    project_name = "widget_test_3"
+    original_video_url = f"04_Exports/Ready_to_post/{project_name}_original.mp4"
+
+    product = ProductStore.add(name="Widget", url="https://x.test/w3")
+    ProductStore.update(product["id"], angles=[{
+        "angle_id": "unboxing",
+        "hook_title": "แกะกล่องว้าว",
+        "status": "rendered",
+        "video_url": original_video_url,
+        "script_lines": ["a"],
+    }])
+
+    # A real export file (+ manifest artifact entry pointing at it) is
+    # required -- ProductStore.get() runs reconcile_existing_projects() as a
+    # side effect, and its "strict state validation" pass immediately wipes
+    # any "rendered" angle whose video_url does not resolve to a real file on
+    # disk, regardless of grace period. Without this, the pre-reroll snapshot
+    # itself would already read "in_production", defeating the test.
+    _write_real_export(isolated_store, original_video_url, project_name)
+
+    ProjectManifest.save(
+        project_name,
+        script_data={"lines": [{"text": "a"}]},
+        cues=[], micro_cues=[], total_duration=5.0,
+        render_params={
+            "raw_video_path": str(projects_dir / "nope.mp4"),
+            "product_id": product["id"],
+            "angle_id": "unboxing",
+        },
+    )
+
+    import scripts.pipeline as pipeline_mod
+
+    def _raise(cls, **kw):
+        raise RuntimeError("ffmpeg exploded / source file moved")
+
+    monkeypatch.setattr(
+        pipeline_mod.TikTokAutoCutterPipeline,
+        "run",
+        classmethod(_raise),
+    )
+
+    from scripts.api_phase1 import _execute_reroll
+    from scripts import render_jobs
+    render_jobs.create_job("job_test_3")
+
+    _execute_reroll("job_test_3", project_name, "video", {})
+
+    updated = ProductStore.get(product["id"])
+    angle = next(a for a in updated["angles"] if a["angle_id"] == "unboxing")
+    assert angle["status"] == "rendered", (
+        f"a failed reroll on a 'rendered' angle must restore 'rendered', "
+        f"got {angle['status']!r}"
+    )
+    assert angle["video_url"] == original_video_url, (
+        "a failed reroll must preserve the ORIGINAL video_url, not wipe it"
+    )

@@ -3,6 +3,7 @@ Pipeline Context for OmniCut Pro Studio Pipeline.
 Encapsulates parameters, mutable stage state, and helper methods across all pipeline stages.
 """
 
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
@@ -66,6 +67,7 @@ class PipelineContext:
     angle_meta: Optional[Dict[str, Any]] = None
     progress_callback: Optional[Callable[[str, float], None]] = None
     overlays: Optional[List[Dict[str, Any]]] = None
+    cancel_event: Optional[threading.Event] = None
 
     # 2. Stage Execution State
     project_dir: Optional[Path] = None

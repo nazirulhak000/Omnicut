@@ -4,6 +4,7 @@ API Router for global task and activity management.
 
 from fastapi import APIRouter, HTTPException
 from scripts.task_manager import TaskManager
+from scripts import render_jobs
 
 router = APIRouter(tags=["Tasks"])
 
@@ -26,10 +27,22 @@ def get_task_by_id(task_id: str):
 
 @router.post("/api/tasks/{task_id}/cancel")
 def cancel_task(task_id: str):
-    """Cancels a pending/running task."""
+    """
+    Cancels a pending/running task.
+
+    task_id and render job_id are the same uuid4 for every render/reroll task
+    (see api_render.py's trigger_render and api_phase1.py's trigger_reroll,
+    both of which mint one uuid4 and pass it as both render_jobs.create_job's
+    job_id and TaskManager.create_task's task_id) -- so this also asks the
+    render-job side to stop the actual background work, not just flip
+    TaskManager's own bookkeeping. request_cancel() is a no-op (returns
+    False) for a task_id that never had a matching render job -- e.g. a
+    non-render task type -- so this is safe to call unconditionally.
+    """
     task = TaskManager.cancel_task(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+    render_jobs.request_cancel(task_id)
     return {"success": True, "task": task}
 
 

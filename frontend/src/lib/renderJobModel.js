@@ -11,6 +11,8 @@ export function calculateJobProgress(statusData) {
       message: '',
       isDone: false,
       isFailed: false,
+      isCancelled: false,
+      isCancelling: false,
       isRunning: false,
     };
   }
@@ -23,13 +25,25 @@ export function calculateJobProgress(statusData) {
   const statusStr = String(statusData.status || '').toLowerCase();
   const isDone = statusStr === 'done' || statusStr === 'completed';
   const isFailed = statusStr === 'failed' || statusStr === 'error';
-  const isRunning = !isDone && !isFailed && (statusStr === 'rendering' || statusStr === 'processing' || percent > 0 || statusStr === 'queued');
+  // "cancelling" is the transient state between a cancel request and the
+  // worker thread actually unwinding -- still in flight, so it counts as
+  // running (the poller keeps polling). "cancelled" is the real terminal
+  // state once the worker has stopped -- distinct from isFailed so callers
+  // can show "cancelled by you" instead of an error message.
+  const isCancelling = statusStr === 'cancelling';
+  const isCancelled = statusStr === 'cancelled';
+  const isRunning = !isDone && !isFailed && !isCancelled
+    && (statusStr === 'rendering' || statusStr === 'processing' || statusStr === 'queued' || isCancelling || percent > 0);
 
   const defaultMsg = isDone
     ? 'เรนเดอร์เสร็จสมบูรณ์'
-    : isFailed
-      ? (statusData.error || 'เกิดข้อผิดพลาดในการเรนเดอร์')
-      : `กำลังเรนเดอร์ ${percent}%`;
+    : isCancelled
+      ? 'ยกเลิกงานแล้ว'
+      : isCancelling
+        ? 'กำลังยกเลิกงาน...'
+        : isFailed
+          ? (statusData.error || 'เกิดข้อผิดพลาดในการเรนเดอร์')
+          : `กำลังเรนเดอร์ ${percent}%`;
 
   const message = statusData.message || statusData.step_label || defaultMsg;
 
@@ -38,6 +52,8 @@ export function calculateJobProgress(statusData) {
     message,
     isDone,
     isFailed,
+    isCancelled,
+    isCancelling,
     isRunning,
   };
 }
@@ -57,7 +73,12 @@ export function normalizeJobResult(result) {
     || result.mp4_video
     || null;
 
-  const videoUrl = result.video_url
+  // mp4_url is the servable "/api/media/..." URL that render_jobs.py's
+  // complete_job() actually populates on the backend; video_url and the
+  // "starts with http" check on videoPath are kept as fallbacks for older
+  // or differently-shaped job results that don't carry mp4_url.
+  const videoUrl = result.mp4_url
+    || result.video_url
     || (videoPath && typeof videoPath === 'string' && videoPath.startsWith('http') ? videoPath : null);
 
   return {
@@ -105,8 +126,15 @@ export function formatJobError(err) {
 // Entries written by the old per-project scheme
 // (`${STORAGE_PREFIX}${projectName}` -> raw jobId string) live under a key
 // shape this code never writes or reads, so they are simply invisible to
-// the new code -- never a parse/read crash, just inert leftovers that
-// sessionStorage's own per-tab lifetime will clear out.
+// the new code -- never a parse/read crash, just an inert leftover.
+//
+// Backing store: localStorage, not sessionStorage. sessionStorage is scoped
+// per-tab, so a render started in one tab was invisible to a second tab on
+// the same project, and closing (not just navigating away from) the tab
+// that started a still-running render wiped the entry entirely -- the
+// render would keep going server-side with zero UI trace of it. localStorage
+// is shared across tabs of the same origin and survives tab close, so both
+// gaps close without changing the key name or JSON shape.
 const JOB_ENTRY_KEY = `${STORAGE_PREFIX}job`;
 
 function readJobEntry(storage) {
@@ -132,7 +160,7 @@ function readJobEntry(storage) {
  *   the storage key.
  * @param {string} jobId Stable backend job id (uuid4).
  */
-export function saveActiveJob(projectKey, jobId, storage = globalThis?.sessionStorage) {
+export function saveActiveJob(projectKey, jobId, storage = globalThis?.localStorage) {
   if (!jobId || !storage) return;
   try {
     storage.setItem(JOB_ENTRY_KEY, JSON.stringify({ jobId: String(jobId), projectKey: projectKey || null }));
@@ -156,7 +184,7 @@ export function saveActiveJob(projectKey, jobId, storage = globalThis?.sessionSt
  * want to double check or display it, but getActiveJob itself always
  * surfaces whatever job this tab has in flight.
  */
-export function getActiveJob(_projectKey, storage = globalThis?.sessionStorage) {
+export function getActiveJob(_projectKey, storage = globalThis?.localStorage) {
   if (!storage) return null;
   const entry = readJobEntry(storage);
   return entry ? entry.jobId : null;
@@ -166,12 +194,12 @@ export function getActiveJob(_projectKey, storage = globalThis?.sessionStorage) 
  * Like getActiveJob, but returns the full stored entry ({ jobId, projectKey })
  * instead of just the job id, for callers that want the saved label too.
  */
-export function getActiveJobEntry(storage = globalThis?.sessionStorage) {
+export function getActiveJobEntry(storage = globalThis?.localStorage) {
   if (!storage) return null;
   return readJobEntry(storage);
 }
 
-export function clearActiveJob(projectKey, storage = globalThis?.sessionStorage) {
+export function clearActiveJob(projectKey, storage = globalThis?.localStorage) {
   if (!storage) return;
   try {
     storage.removeItem(JOB_ENTRY_KEY);

@@ -47,6 +47,75 @@ def _to_absolute(path: object) -> Optional[Path]:
     """See _to_relative() above -- same reasoning, read direction."""
     return path_utils.to_absolute(path, base_dir=BASE_DIR)
 
+
+# How long after a status change reconcile_existing_projects() gives that
+# status the benefit of the doubt before trusting a single failed disk check
+# enough to revert it. A real render pipeline takes far longer than this to
+# even reach the point of setting "rendered", so a status stamped more
+# recently than this was almost certainly just legitimately set -- any disk
+# check that comes up empty in that window is far more likely a transient
+# path-resolution/AV-lock/fsync-visibility miss than a genuine "this was
+# never rendered".
+RECONCILE_GRACE_PERIOD_SECONDS = 60
+
+
+def _within_grace_period(status_updated_at: object, now: Optional[datetime.datetime] = None) -> bool:
+    """True when `status_updated_at` (an angle's status_updated_at field, an
+    ISO timestamp string in the same naive-local convention as
+    ProductStore._now()) is newer than RECONCILE_GRACE_PERIOD_SECONDS ago.
+
+    Missing or malformed input is treated as "no grace period, evaluate
+    normally" (returns False) rather than raising -- reconcile_existing_projects()
+    runs on every poll and must never be taken down by a bad/absent
+    timestamp on one angle.
+    """
+    if not status_updated_at:
+        return False
+    try:
+        stamped = datetime.datetime.fromisoformat(str(status_updated_at))
+    except (TypeError, ValueError):
+        print(
+            f"[product_store] WARNING: could not parse status_updated_at "
+            f"{status_updated_at!r} -- evaluating without a grace period."
+        )
+        return False
+    reference = now or datetime.datetime.now()
+    try:
+        elapsed = (reference - stamped).total_seconds()
+    except TypeError:
+        # Mixed aware/naive datetimes -- same "don't crash reconcile" rule.
+        print(
+            f"[product_store] WARNING: status_updated_at {status_updated_at!r} "
+            "is not comparable to the current timestamp -- evaluating "
+            "without a grace period."
+        )
+        return False
+    return 0 <= elapsed < RECONCILE_GRACE_PERIOD_SECONDS
+
+
+def _find_mp4_by_glob(folder_name: str, *scan_dirs: Path) -> Optional[str]:
+    """Fallback mp4 lookup shared by every place in this module that needs
+    to answer "does an export for this project actually exist on disk"
+    beyond trusting one stored/manifest path literally. Searches each
+    scan_dir (in order) for f"{folder_name}*.mp4" and returns the
+    BASE_DIR-relative path to the newest match (by mtime) it finds, or None.
+
+    Newest-first (not candidates[0] off an unsorted glob) matters once a
+    project has been re-rendered without its old export cleaned up first --
+    otherwise which stale file wins is whatever order the filesystem
+    happens to hand back, not the actual latest render.
+    """
+    for scan_dir in scan_dirs:
+        if not scan_dir.exists():
+            continue
+        candidates = list(scan_dir.glob(f"{folder_name}*.mp4"))
+        if not candidates:
+            continue
+        candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        return _to_relative(str(candidates[0]))
+    return None
+
+
 # candidate      → the URL is saved, nothing else done yet
 # scripted       → angles picked and a script exists
 # in_production  → currently editing in Studio
@@ -263,6 +332,17 @@ class ProductStore:
                         current_aid = angle.get("angle_id") or angle.get("id")
                         if current_aid == angle_id:
                             angle["status"] = status
+                            # Dedicated "when did the status itself last
+                            # change" stamp -- angle["updated_at"] below is
+                            # touched by unrelated angle writes too (cover
+                            # uploads, video attach), so it can't be used to
+                            # tell a just-set status apart from a stale one.
+                            # reconcile_existing_projects()'s grace-period
+                            # guard reads this to avoid reverting a status
+                            # this method JUST committed, on the strength of
+                            # a single, non-retried disk check that happened
+                            # to miss the file a moment later.
+                            angle["status_updated_at"] = cls._now()
                             if video_url is not None:
                                 angle["video_url"] = _to_relative(video_url) if video_url else None
                             if project_name is not None:
@@ -734,13 +814,10 @@ class ProductStore:
             if art_mp4 and _to_absolute(art_mp4).exists():
                 mp4_path = _to_relative(art_mp4)
             else:
-                for scan_dir in (exports_dir, posted_dir):
-                    if not scan_dir.exists():
-                        continue
-                    candidates = list(scan_dir.glob(f"{p_folder.name}*.mp4"))
-                    if candidates:
-                        mp4_path = _to_relative(str(candidates[0]))
-                        break
+                # Newest-match-wins fallback (see _find_mp4_by_glob) --
+                # a project re-rendered without cleanup can leave more than
+                # one export file behind; always prefer the latest one.
+                mp4_path = _find_mp4_by_glob(p_folder.name, exports_dir, posted_dir)
 
             # Match against products.
             #
@@ -822,6 +899,14 @@ class ProductStore:
                         if angle.get("status") != "rendered" or angle.get("video_url") != mp4_path:
                             angle["status"] = "rendered"
                             angle["video_url"] = mp4_path
+                            # Same stamp update_angle_status() sets -- this
+                            # promotion is itself a legitimate status change,
+                            # and without this stamp the strict-validation
+                            # pass later in this same function (or the very
+                            # next poll) has no way to tell this apart from
+                            # a stale "rendered" and could revert it right
+                            # back on a single disk-check miss.
+                            angle["status_updated_at"] = cls._now()
                             changed = True
                 elif angle.get("status") in ("mobile_ready", "posted"):
                     # No mp4 found by either path -- this scan's own
@@ -836,9 +921,37 @@ class ProductStore:
                     # because this pass could not find its file.
                     pass
                 else:
-                    # Project timeline exists in 03_Projects, but NO exported MP4 video yet!
-                    # It MUST be 'in_production', NOT 'rendered'!
-                    if angle.get("status") != "in_production" or angle.get("video_url") is not None:
+                    # Project timeline exists in 03_Projects, but this pass's
+                    # own mp4_path lookup (manifest path + exports/posted
+                    # glob) came up empty. If the angle isn't currently
+                    # "rendered", there's nothing to protect -- just apply
+                    # the "MUST be in_production" rule as before. If it IS
+                    # "rendered", this is exactly the hazard described on
+                    # product_store.py's module docstring history: a status
+                    # just committed by update_angle_status() (or by the
+                    # promotion above) can lose this one lookup to a
+                    # transient path-resolution/AV-lock/fsync-visibility
+                    # miss. Before reverting a "rendered" angle: (a) retry
+                    # via the same glob fallback the lookup above already
+                    # uses -- a stale/mismatched manifest path shouldn't cost
+                    # a real file that's actually sitting in exports_dir/
+                    # posted_dir under a different name, and (b) if that
+                    # still finds nothing, give a freshly-set status a grace
+                    # period before trusting this single check enough to
+                    # revert it.
+                    if angle.get("status") == "rendered":
+                        retry_mp4 = _find_mp4_by_glob(p_folder.name, exports_dir, posted_dir)
+                        if retry_mp4:
+                            if angle.get("video_url") != retry_mp4:
+                                angle["video_url"] = retry_mp4
+                                changed = True
+                        elif _within_grace_period(angle.get("status_updated_at")):
+                            pass  # freshly rendered -- do not revert yet
+                        elif angle.get("status") != "in_production" or angle.get("video_url") is not None:
+                            angle["status"] = "in_production"
+                            angle["video_url"] = None
+                            changed = True
+                    elif angle.get("status") != "in_production" or angle.get("video_url") is not None:
                         angle["status"] = "in_production"
                         angle["video_url"] = None
                         changed = True
@@ -857,7 +970,7 @@ class ProductStore:
                     p_path = projects_dir / p_name
                     if p_path.exists() and p_path.is_dir():
                         has_proj = True
-                
+
                 has_video = False
                 v_url = angle.get("video_url")
                 if v_url:
@@ -869,13 +982,54 @@ class ProductStore:
                             has_video = True
 
                 if angle.get("status") == "rendered" and not has_video:
-                    if has_proj:
+                    # CRITICAL: do not treat "this one disk check didn't
+                    # resolve the file" as "this was never rendered" --
+                    # update_angle_status() can commit status="rendered" and
+                    # the very next get()/get_all()/list() call (exactly
+                    # what a caller does to confirm the write, or what the
+                    # next frontend poll does) runs this same reconcile pass
+                    # immediately afterward. A single non-retried .exists()
+                    # check can miss a genuinely-written file for reasons
+                    # that have nothing to do with whether it was rendered
+                    # (a transient path-resolution mismatch, an AV lock, or
+                    # a check that lands a few hundred ms before the write's
+                    # fsync is visible) -- silently reverting on that alone
+                    # would erase a just-completed, successfully-committed
+                    # write with no error raised anywhere.
+                    #
+                    # Before concluding the video truly doesn't exist:
+                    # 1. Retry via the same glob fallback used elsewhere in
+                    #    this function -- the stored video_url can be
+                    #    stale/mismatched (e.g. pointed at Ready_to_post
+                    #    after the file moved to Posted/) even outside any
+                    #    grace period, so this check alone fixes real false
+                    #    negatives, not just transient ones.
+                    # 2. Only if that also finds nothing, consult the grace
+                    #    period: a status stamped within the last
+                    #    RECONCILE_GRACE_PERIOD_SECONDS was almost certainly
+                    #    just legitimately set (a real render pipeline takes
+                    #    far longer than that to even reach "rendered"), so
+                    #    hold off reverting it this pass -- the next poll(s)
+                    #    will re-check once the transient condition (if any)
+                    #    has had time to clear.
+                    retry_mp4 = _find_mp4_by_glob(p_name or "", exports_dir, posted_dir) if p_name else None
+                    if not retry_mp4 and v_url:
+                        retry_mp4 = _find_mp4_by_glob(Path(v_url).stem, exports_dir, posted_dir)
+                    if retry_mp4:
+                        if angle.get("video_url") != retry_mp4:
+                            angle["video_url"] = retry_mp4
+                            changed = True
+                    elif _within_grace_period(angle.get("status_updated_at")):
+                        pass  # freshly rendered -- give it another pass before reverting
+                    elif has_proj:
                         angle["status"] = "in_production"
+                        angle["video_url"] = None
+                        changed = True
                     else:
                         angle["status"] = "scripted"
                         angle["project_name"] = None
-                    angle["video_url"] = None
-                    changed = True
+                        angle["video_url"] = None
+                        changed = True
                 elif angle.get("status") == "in_production" and not has_proj:
                     # No project folder on disk! Revert strictly to scripted
                     angle["status"] = "scripted"

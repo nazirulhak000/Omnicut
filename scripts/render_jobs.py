@@ -17,6 +17,22 @@ from typing import Any, Callable, Dict, Iterator, Optional
 
 from scripts.config import BASE_DIR
 
+class RenderCancelled(Exception):
+    """
+    Raised when a job's cancel_event is observed set -- inside the pipeline's
+    stage loop (scripts/pipeline.py) or inside the ffmpeg polling loop
+    (scripts/video_editor.py). Deliberately a distinct type from every other
+    failure so api_render.py / api_phase1.py can tell "the user asked to stop
+    this" apart from "this actually broke" and route each to the right
+    terminal state (cancelled vs failed) instead of collapsing both into the
+    generic except Exception path.
+
+    Lives here (not in pipeline.py) so video_editor.py can raise/import it
+    too without a pipeline.py <-> video_editor.py import cycle -- pipeline.py
+    already imports VideoEditor from video_editor.py.
+    """
+
+
 ACTIVE_JOBS: Dict[str, Dict[str, Any]] = {}
 
 # Single well-known owner for the current single-user deployment -- mirrors
@@ -57,7 +73,7 @@ def _prune_old_jobs(max_keep: int = 50) -> None:
         return
     finished_keys = [
         k for k, v in ACTIVE_JOBS.items()
-        if v.get("status") in ("completed", "failed")
+        if v.get("status") in ("completed", "failed", "cancelled")
     ]
     excess = len(ACTIVE_JOBS) - max_keep
     for k in finished_keys[:excess]:
@@ -77,6 +93,10 @@ def create_job(job_id: str, message: str = "กำลังเริ่มต้
         "result": None,
         "error": None,
         "owner_id": owner_id or DEFAULT_OWNER,
+        # Cooperative-cancellation signal: the pipeline and the ffmpeg polling
+        # loop both check this between units of work and unwind with
+        # RenderCancelled when it is set. request_cancel() is the only writer.
+        "cancel_event": threading.Event(),
     }
     return ACTIVE_JOBS[job_id]
 
@@ -123,7 +143,11 @@ def progress_reporter(job_id: str, owner_id: Optional[str] = None) -> Callable[[
         job = get_job(job_id, owner_id=owner_id)
         if not job:
             return
-        job["status"] = "processing"
+        # A "cancelling" job is already unwinding -- don't bounce it back to
+        # "processing" just because one more progress tick arrives before the
+        # cancel is actually observed by the pipeline/ffmpeg loop.
+        if job.get("status") not in ("cancelling", "cancelled"):
+            job["status"] = "processing"
         job["progress"] = min(1.0, max(0.0, progress))
         job["message"] = msg
         job["logs"].append({
@@ -140,7 +164,8 @@ def update_progress(job_id: str, progress: float, message: str = "", owner_id: O
     job = get_job(job_id, owner_id=owner_id)
     if not job:
         return
-    job["status"] = "processing"
+    if job.get("status") not in ("cancelling", "cancelled"):
+        job["status"] = "processing"
     job["progress"] = min(1.0, max(0.0, float(progress)))
     if message:
         job["message"] = str(message)
@@ -148,6 +173,72 @@ def update_progress(job_id: str, progress: float, message: str = "", owner_id: O
         "time": datetime.datetime.now().strftime("%H:%M:%S"),
         "msg": message or job.get("message", ""),
         "progress": int(job["progress"] * 100),
+    })
+
+
+def request_cancel(job_id: str, owner_id: Optional[str] = None) -> bool:
+    """
+    Ask a running/queued job to stop. Sets its cancel_event (so the pipeline
+    and the ffmpeg polling loop notice cooperatively) and moves its status to
+    the transient "cancelling" state -- not yet terminal, since the worker
+    thread may take a moment to actually unwind. Returns False when the job
+    is unknown or already in a terminal state (nothing left to cancel).
+    """
+    job = get_job(job_id, owner_id=owner_id)
+    if not job:
+        return False
+    if job.get("status") in ("completed", "failed", "cancelled"):
+        return False
+
+    event = job.get("cancel_event")
+    if event is None:
+        # Job created before this field existed (e.g. across a hot-reload) --
+        # give it one now so is_cancel_requested() still works going forward.
+        event = threading.Event()
+        job["cancel_event"] = event
+    event.set()
+
+    job["status"] = "cancelling"
+    job["message"] = "กำลังยกเลิกงาน..."
+    job["logs"].append({
+        "time": datetime.datetime.now().strftime("%H:%M:%S"),
+        "msg": "ผู้ใช้ขอยกเลิกงาน — กำลังรอให้หยุดอย่างปลอดภัย",
+        "progress": int(job.get("progress", 0.0) * 100),
+    })
+    return True
+
+
+def is_cancel_requested(job_id: str, owner_id: Optional[str] = None) -> bool:
+    """True if request_cancel() has been called for this job."""
+    job = get_job(job_id, owner_id=owner_id)
+    if not job:
+        return False
+    event = job.get("cancel_event")
+    return bool(event and event.is_set())
+
+
+def get_cancel_event(job_id: str, owner_id: Optional[str] = None) -> Optional[threading.Event]:
+    """The job's cancel_event itself, for threading into the pipeline/ffmpeg
+    call as `cancel_event=` rather than polling by job_id from deep inside."""
+    job = get_job(job_id, owner_id=owner_id)
+    if not job:
+        return None
+    return job.get("cancel_event")
+
+
+def cancel_job(job_id: str, message: str = "งานถูกยกเลิกโดยผู้ใช้", owner_id: Optional[str] = None) -> None:
+    """Mark a job's final, terminal "cancelled" state once its worker thread
+    has actually unwound (called from the RenderCancelled except branch) --
+    distinct from "cancelling", which only means a stop was requested."""
+    job = get_job(job_id, owner_id=owner_id)
+    if not job:
+        return
+    job["status"] = "cancelled"
+    job["message"] = message
+    job["logs"].append({
+        "time": datetime.datetime.now().strftime("%H:%M:%S"),
+        "msg": message,
+        "progress": int(job.get("progress", 0.0) * 100),
     })
 
 

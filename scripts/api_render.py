@@ -18,6 +18,7 @@ from scripts.pipeline import TikTokAutoCutterPipeline
 from scripts.product_store import ProductStore
 from scripts.task_manager import TaskManager
 from scripts import render_jobs
+from scripts.render_jobs import RenderCancelled
 from scripts.media_service import scan_video_files, get_local_ip
 from scripts.api_schemas import RenderRequest
 
@@ -68,6 +69,7 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
 
         with render_jobs.render_slot(job_id):
             result = TikTokAutoCutterPipeline.run(
+                cancel_event=render_jobs.get_cancel_event(job_id),
                 product_name=req_data.product_name,
                 raw_video_path=str(raw_video),
                 project_name=req_data.project_name,
@@ -141,6 +143,22 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
             target_id=result.get("project_name")
         )
 
+    except RenderCancelled:
+        # A cancel is not a failure: revert the angle exactly as a fresh
+        # render's failure path already does (there is no earlier "rendered"
+        # state a fresh render could be reverting *from* -- unlike a reroll,
+        # which restores its pre-action snapshot instead, see _execute_reroll
+        # in api_phase1.py), then bring all three systems to the same
+        # terminal "cancelled" state instead of "failed".
+        if req_data.product_id and req_data.angle_id:
+            try:
+                ProductStore.update_angle_status(req_data.product_id, req_data.angle_id, "scripted")
+            except Exception as angle_err:
+                print(f"Warning: Could not revert angle status after cancel: {angle_err}")
+
+        render_jobs.cancel_job(job_id)
+        TaskManager.cancel_task(job_id)
+
     except Exception as e:
         from scripts.error_handler import classify_exception
 
@@ -190,7 +208,13 @@ def get_render_status(job_id: str):
     """Returns current status and progress of a render job."""
     job = render_jobs.get_job(job_id)
     if job is not None:
-        return job
+        # cancel_event is a threading.Event living on the in-memory job dict
+        # for request_cancel()/is_cancel_requested() to use -- it is not
+        # JSON-serializable and was never part of this response's contract,
+        # so it must never reach FastAPI's jsonable_encoder. Every other key
+        # ("cancelling"/"cancelled" statuses included) already round-trips
+        # through the same shape "completed"/"failed" use.
+        return {k: v for k, v in job.items() if k != "cancel_event"}
 
     task = TaskManager.get_task(job_id)
     if task:

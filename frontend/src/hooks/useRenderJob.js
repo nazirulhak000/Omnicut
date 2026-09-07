@@ -70,7 +70,7 @@ export function useRenderJob({
     clearTimer();
     if (!id || !targetProject) return;
 
-    timerRef.current = setInterval(async () => {
+    const checkOnce = async () => {
       // Guard: If component unmounted or project switched, abort immediately
       if (!isMountedRef.current || activeProjectRef.current !== targetProject) {
         clearTimer();
@@ -90,7 +90,7 @@ export function useRenderJob({
         }
 
         setJobStatus(st);
-        const { isDone, isFailed } = calculateJobProgress(st);
+        const { isDone, isFailed, isCancelled } = calculateJobProgress(st);
 
         if (isDone) {
           clearTimer();
@@ -102,6 +102,14 @@ export function useRenderJob({
           const normalized = normalizeJobResult(rawResult);
           setApplyResult(rawResult);
           callbacksRef.current.onComplete?.(rawResult, id, targetProject, normalized);
+        } else if (isCancelled) {
+          // Terminal, but not an error -- stop polling and clear the
+          // "rendering" flag the same way isFailed does, without routing it
+          // through onError/applyError (which the UI renders as a failure).
+          clearTimer();
+          setIsRendering(false);
+          setStartTime(null);
+          clearActiveJob(targetProject);
         } else if (isFailed) {
           clearTimer();
           setIsRendering(false);
@@ -117,7 +125,17 @@ export function useRenderJob({
           clearTimer();
         }
       }
-    }, pollIntervalMs);
+    };
+
+    // Run an immediate check rather than waiting for the first interval
+    // tick. This matters most when resuming a job entry loaded from
+    // storage (see the project-switch effect below): the stored entry is
+    // never trusted blindly -- its status is confirmed against the server
+    // right away instead of only after pollIntervalMs has elapsed (during
+    // which an unmount/project-switch could occur and the check would
+    // never happen at all).
+    checkOnce();
+    timerRef.current = setInterval(checkOnce, pollIntervalMs);
   }, [clearTimer, pollIntervalMs]);
 
   const startJob = useCallback((newJobId, initialStatus = null) => {

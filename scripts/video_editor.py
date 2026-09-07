@@ -3,6 +3,7 @@ import json
 import math
 import os
 import sys
+import threading
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -16,6 +17,7 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
         pass
 from typing import Any, List, Dict, Tuple, Callable, Optional
 from scripts.config import VIDEO_WIDTH, VIDEO_HEIGHT, FPS, MIN_SHOT_DURATION, MAX_SHOT_DURATION, FONTS_DIR
+from scripts.render_jobs import RenderCancelled
 
 # ffmpeg's xfade transitions we expose. Anything outside this set falls back to
 # "fade" rather than reaching the filter graph -- an unknown name there kills
@@ -427,7 +429,8 @@ class VideoEditor:
         sticker_scale: float = 1.0,
         scrim_spans: list = None,
         auto_blur_landscape: bool = True,
-        progress_callback: Optional[Callable[[float, float], None]] = None
+        progress_callback: Optional[Callable[[float, float], None]] = None,
+        cancel_event: Optional[threading.Event] = None,
     ) -> str:
         """
         Takes raw footage, creates fast-paced punch-in cuts synced to audio duration and Gemini Vision scenes,
@@ -964,7 +967,6 @@ class VideoEditor:
             cmd.insert(1, "-nostats")
             print(f"Executing video render with real-time progress to: {out_file}...")
             import time
-            import threading
             proc = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
@@ -992,7 +994,15 @@ class VideoEditor:
                 stderr_thread.start()
 
                 last_reported = 0
+                cancelled = False
                 while True:
+                    # Checked every iteration of this loop -- ffmpeg's own
+                    # `-progress pipe:1` line cadence (well under a second
+                    # per line during a real encode) is what makes this a
+                    # timely poll rather than a wait for the next 0.4s report.
+                    if cancel_event is not None and cancel_event.is_set():
+                        cancelled = True
+                        break
                     line = proc.stdout.readline()
                     if not line:
                         break
@@ -1017,6 +1027,14 @@ class VideoEditor:
                                 last_reported = now
                         except Exception:
                             pass
+
+                if cancelled:
+                    # render_succeeded stays False, so the finally block below
+                    # runs the exact same terminate/kill + partial-file cleanup
+                    # as the timeout path, then this raises instead of the
+                    # generic RuntimeError/TimeoutExpired other failures raise.
+                    raise RenderCancelled("Render cancelled by user request")
+
                 proc.wait(timeout=300)
                 stderr_thread.join(timeout=1.0)
                 if proc.returncode != 0:

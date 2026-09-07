@@ -113,7 +113,8 @@ class VideoAssemblyStage:
                 sticker_position=ctx.sticker_position,
                 sticker_scale=ctx.sticker_scale,
                 scrim_spans=ctx.scrim_spans,
-                progress_callback=on_ffmpeg_progress
+                progress_callback=on_ffmpeg_progress,
+                cancel_event=ctx.cancel_event,
             )
             ctx.result_paths["mp4_video"] = str(out_mp4)
             ctx.result_paths["ai_matched_shots"] = ctx.ai_matched_shots

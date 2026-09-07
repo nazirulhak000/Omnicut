@@ -43,6 +43,15 @@ class TaskStatus:
     CANCELLED = "cancelled"
 
 
+# Task types that correspond to a render/reroll job which flips a
+# ProductStore angle to "in_production" at start (see api_render.py's
+# execute_render_job() and api_phase1.py's _execute_reroll()). Read off the
+# actual task_type= values passed to create_task() at every call site
+# (api_render.py's /api/render, api_phase1.py's /reroll) -- "scrape_and_plan"
+# (api_products.py) never touches angle status and is deliberately excluded.
+RENDER_TASK_TYPES = ("render_video", "edit_project")
+
+
 class TaskManager:
     """Thread-safe persistent task queue and activity tracker."""
     _tasks: Dict[str, Dict[str, Any]] = {}
@@ -73,8 +82,11 @@ class TaskManager:
 
             # Mark any tasks that were left in processing/queued as failed (server crashed/restarted)
             changed = False
+            orphaned_render_tasks = []
             for task_id, task in cls._tasks.items():
                 if task.get("status") in [TaskStatus.QUEUED, TaskStatus.PROCESSING]:
+                    if task.get("type") in RENDER_TASK_TYPES:
+                        orphaned_render_tasks.append(task)
                     task["status"] = TaskStatus.FAILED
                     task["error"] = "เซิร์ฟเวอร์รีสตาร์ท — งานถูกยกเลิกอัตโนมัติ"
                     task["step_label"] = "งานถูกขัดจังหวะจากการรีสตาร์ทระบบ"
@@ -84,6 +96,126 @@ class TaskManager:
             cls._initialized = True
             if changed:
                 cls._save_to_disk_locked()
+
+        # A render/reroll task swept to "failed" above (by this same
+        # restart) left its ProductStore angle set to "in_production" --
+        # that flip happens at render *start* (api_render.py's
+        # execute_render_job(), api_phase1.py's _execute_reroll()) and is
+        # only ever reverted from each function's own `except` block on a
+        # normal in-process failure. A killed/restarted process never runs
+        # that except block, so without this the angle sits on
+        # "in_production" forever -- reconcile_existing_projects()
+        # deliberately never demotes that status on its own (it can't tell
+        # an orphan from a genuinely live edit). Done outside _TASK_LOCK:
+        # it calls into ProductStore, which takes its own separate lock,
+        # and nothing here needs _TASK_LOCK held while it runs.
+        if orphaned_render_tasks:
+            cls._revert_orphaned_render_angles(orphaned_render_tasks)
+
+    @classmethod
+    def _revert_orphaned_render_angles(cls, tasks: List[Dict[str, Any]]) -> None:
+        """For each render/reroll task just swept to "failed" by a restart,
+        resolve the product/angle it was working on and revert that angle's
+        status away from "in_production" -- the same status a normal
+        failed-render's own except-block already sets (see
+        api_render.py's execute_render_job() and api_phase1.py's
+        _execute_reroll()), just reached by a different path: this process
+        never got to run that except-block because it was killed/restarted
+        mid-render instead of failing in-process.
+
+        Resolution mirrors _execute_reroll()'s own logic exactly (payload
+        first, then ProductStore.find_by_project() using the payload's
+        project_name) rather than inventing a new approach -- see
+        api_phase1.py's _execute_reroll() for the source of this pattern.
+
+        Deliberately conservative: the only status this ever writes is
+        "scripted" (the safe default a normal failed render already uses),
+        never anything that could look like a successful render. A task
+        whose product/angle cannot be resolved, or whose product/angle no
+        longer exists, is skipped with a log line -- never raised, since a
+        stale/incomplete task record must not be able to crash startup.
+        """
+        # Local import: avoids a module-level import cycle risk (this file
+        # is imported very early, at process/module-import time) and keeps
+        # product_store's own import graph exactly as it already is.
+        from scripts.product_store import ProductStore
+
+        for task in tasks:
+            task_id = task.get("id", "<unknown>")
+            payload = task.get("payload") or {}
+
+            product_id = payload.get("product_id")
+            angle_id = payload.get("angle_id")
+
+            project_name = payload.get("project_name")
+            if not (product_id and angle_id) and project_name:
+                try:
+                    prod, ang = ProductStore.find_by_project(
+                        project_name,
+                        product_id=product_id or "",
+                        angle_id=angle_id or "",
+                    )
+                except Exception as lookup_err:
+                    print(
+                        f"⚠️ [TaskManager] restart recovery: could not look up product/angle "
+                        f"for orphaned task {task_id!r} (project_name={project_name!r}): {lookup_err}"
+                    )
+                    prod, ang = None, None
+                if prod and not product_id:
+                    product_id = prod.get("id")
+                if ang and not angle_id:
+                    angle_id = ang.get("angle_id") or ang.get("id")
+
+            if not (product_id and angle_id):
+                print(
+                    f"⚠️ [TaskManager] restart recovery: task {task_id!r} (type={task.get('type')!r}) "
+                    f"looked like an orphaned render but no product_id/angle_id could be resolved "
+                    f"(payload={payload!r}) -- skipping, angle status left untouched."
+                )
+                continue
+
+            try:
+                product = ProductStore.get(product_id)
+                angle = None
+                if product:
+                    for a in product.get("angles", []) or []:
+                        if (a.get("angle_id") or a.get("id")) == angle_id:
+                            angle = a
+                            break
+
+                if angle is None:
+                    print(
+                        f"⚠️ [TaskManager] restart recovery: product={product_id!r} "
+                        f"angle={angle_id!r} resolved from orphaned task {task_id!r} no longer "
+                        "exists -- skipping, nothing to revert."
+                    )
+                    continue
+
+                if angle.get("status") != "in_production":
+                    # Something else (a later real render, a manual edit)
+                    # already moved this angle on since the crash -- do not
+                    # clobber whatever it's doing now just because an old
+                    # task record still points at it.
+                    print(
+                        f"[TaskManager] restart recovery: skipping product={product_id!r} "
+                        f"angle={angle_id!r} for orphaned task {task_id!r} -- current status "
+                        f"is {angle.get('status')!r}, not 'in_production', so nothing to revert."
+                    )
+                    continue
+
+                ProductStore.update_angle_status(product_id, angle_id, "scripted")
+                print(
+                    f"[TaskManager] restart recovery: reverted product={product_id!r} "
+                    f"angle={angle_id!r} from 'in_production' to 'scripted' -- its render "
+                    f"task {task_id!r} (type={task.get('type')!r}) was orphaned by a server "
+                    f"restart and never reached its own failure handler."
+                )
+            except Exception as revert_err:
+                print(
+                    f"⚠️ [TaskManager] restart recovery: could not revert product={product_id!r} "
+                    f"angle={angle_id!r} for orphaned task {task_id!r}: {revert_err} -- "
+                    "skipping, angle status left untouched."
+                )
 
     _last_disk_save = 0.0
 

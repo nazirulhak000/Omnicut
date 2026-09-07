@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import LoadingSpinner from './components/LoadingSpinner';
@@ -6,7 +6,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import ShortcutsModal from './components/ShortcutsModal';
 import { Toast } from './components/ui';
 import { useKeyboardShortcuts } from './hooks';
-import { getSystemStatus, getRawVideos, getExports, updateAngleStatus } from './api';
+import { getSystemStatus, getRawVideos, getExports, updateAngleStatus, getProducts } from './api';
 
 // ── Lazy-loaded view chunks for Code Splitting ──
 const ProductToClip = lazy(() => import('./components/ProductToClip'));
@@ -66,10 +66,19 @@ export default function App() {
   };
 
   // 3. Active Product Context Persistence (from Menu 1 & Menu 2)
+  // Tracks whether the *current* activeProductContext is the one that was
+  // lazily hydrated from localStorage on mount (and hasn't yet been
+  // revalidated against the backend), vs. a fresh selection made this
+  // session. Only the former should ever be silently cleared/replaced by
+  // the revalidation effect below -- a brand-new pick must never look stale.
+  const cameFromLocalStorageRef = useRef(false);
   const [activeProductContext, setActiveProductContext] = useState(() => {
     try {
       const raw = localStorage.getItem('capcut_active_product_context');
-      return raw ? JSON.parse(raw) : null;
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed) cameFromLocalStorageRef.current = true;
+      return parsed;
     } catch {
       return null;
     }
@@ -154,6 +163,61 @@ export default function App() {
     refreshData();
   }, []);
 
+  // Revalidate a product/angle context that was hydrated from localStorage
+  // on mount against the backend's current product list. Cached data can go
+  // stale silently (product renamed/edited/deleted since the last session),
+  // so once fresh products are available: drop the cached context if the
+  // product no longer exists, or replace it with the fresh copy if it does
+  // but differs. Runs exactly once, and only for context that came from
+  // localStorage -- a selection made during this session is never touched.
+  useEffect(() => {
+    if (!cameFromLocalStorageRef.current) return;
+
+    let cancelled = false;
+
+    (async () => {
+      const productId = activeProductContext?.id;
+      // Synthetic contexts (e.g. an ad-hoc script with no saved product
+      // behind it) have no backend record to revalidate against -- leave
+      // them alone.
+      if (!productId || productId === 'custom') {
+        cameFromLocalStorageRef.current = false;
+        return;
+      }
+
+      try {
+        const fresh = await getProducts();
+        const freshList = Array.isArray(fresh) ? fresh : (fresh?.products || []);
+        if (cancelled) return;
+
+        const freshProduct = freshList.find((p) => p.id === productId);
+
+        if (!freshProduct) {
+          // Deleted since it was cached -- fall back to "nothing selected".
+          setActiveProductContext(null);
+          setSelectedAngleIndex(0);
+          setActiveAngleContext(null);
+        } else if (JSON.stringify(freshProduct) !== JSON.stringify(activeProductContext)) {
+          // Still exists but edited/renamed/re-angled -- the cache should
+          // only remember *which* product/angle was selected, not the
+          // product's field values, so replace it with the current copy.
+          setActiveProductContext(freshProduct);
+          if (!freshProduct.angles?.[selectedAngleIndex]) {
+            setSelectedAngleIndex(0);
+          }
+        }
+      } catch (err) {
+        // Backend unreachable/erroring -- keep showing the cached context
+        // rather than clearing it out from under the user.
+        console.error('Failed to revalidate cached product context:', err);
+      } finally {
+        if (!cancelled) cameFromLocalStorageRef.current = false;
+      }
+    })();
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSelectAngle = (index) => {
     // The create panel maps the angle to form fields itself (lib/angleToForm),

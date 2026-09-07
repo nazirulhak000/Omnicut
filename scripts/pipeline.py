@@ -5,6 +5,7 @@ Main orchestrator that runs automated video production via modular pipeline stag
 
 import sys
 import argparse
+import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -48,6 +49,7 @@ from scripts.stages import (
     ShotMatchingStage,
     VideoAssemblyStage,
 )
+from scripts.render_jobs import RenderCancelled
 
 # Threshold for transition push-in / pull-back
 ZOOM_MOVE_THRESHOLD = 0.10
@@ -143,9 +145,16 @@ class TikTokAutoCutterPipeline:
         angle_meta: Optional[Dict[str, Any]] = None,
         progress_callback: Optional[callable] = None,
         overlays: Optional[List[Dict[str, Any]]] = None,
+        cancel_event: Optional[threading.Event] = None,
     ) -> Dict[str, Any]:
         """
         Executes all pipeline steps via modular PipelineContext and stages.
+
+        `cancel_event`, when given, is checked between every stage (and is
+        also handed to VideoAssemblyStage so the ffmpeg subprocess itself can
+        be interrupted mid-encode, see video_editor.py). Setting it raises
+        RenderCancelled instead of letting the remaining stages run to
+        completion unaware a cancel was requested.
         """
         ctx = PipelineContext(
             product_name=product_name,
@@ -196,7 +205,12 @@ class TikTokAutoCutterPipeline:
             angle_meta=angle_meta,
             progress_callback=progress_callback,
             overlays=overlays,
+            cancel_event=cancel_event,
         )
+
+        def _raise_if_cancelled() -> None:
+            if cancel_event is not None and cancel_event.is_set():
+                raise RenderCancelled(f"Render cancelled for project '{ctx.project_name or project_name}'")
 
         # SourceResolutionStage invents a project name when the caller did not
         # supply one, and that name exists only on ctx until this method
@@ -206,24 +220,35 @@ class TikTokAutoCutterPipeline:
         try:
             # Stage 1: Source Resolution
             SourceResolutionStage.run(ctx)
+            _raise_if_cancelled()
 
             # Stage 2: Script Setup
             ScriptStage.run(ctx)
+            _raise_if_cancelled()
 
             # Stage 3: Voiceover & Timing
             VoiceStage.run(ctx)
+            _raise_if_cancelled()
 
             # Stage 4: Subtitles & Overlays
             SubtitleStage.run(ctx)
+            _raise_if_cancelled()
 
             # Stage 5: Audio Mix (SFX + BGM)
             AudioMixStage.run(ctx)
+            _raise_if_cancelled()
 
             # Stage 6: Shot Matching & Visual Motion
             ShotMatchingStage.run(ctx)
+            _raise_if_cancelled()
 
-            # Stage 7: Video Assembly & Manifest Persistence
+            # Stage 7: Video Assembly & Manifest Persistence (also checks
+            # cancel_event itself, mid-encode, via ctx.cancel_event)
             VideoAssemblyStage.run(ctx)
+        except RenderCancelled as cancel_err:
+            if getattr(ctx, "project_name", None):
+                setattr(cancel_err, "pipeline_project_name", ctx.project_name)
+            raise
         except Exception as stage_err:
             if getattr(ctx, "project_name", None):
                 # Read by api_render.py / _execute_reroll when classifying the

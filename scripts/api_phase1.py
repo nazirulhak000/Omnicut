@@ -28,6 +28,7 @@ from scripts.product_store import STATUSES, ProductStore
 from scripts.config import BASE_DIR, COVERS_DIR, STICKERS_DIR
 from scripts.project_manifest import REROLL_STAGE, ProjectManifest
 from scripts import render_jobs
+from scripts.render_jobs import RenderCancelled
 from scripts.task_manager import TaskManager
 
 router = APIRouter(prefix="/api", tags=["phase1"])
@@ -831,6 +832,28 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
             if ang and not angle_id:
                 angle_id = ang.get("angle_id") or ang.get("id")
 
+        # Snapshot the angle's pre-reroll status/video so a failed reroll can
+        # restore exactly what was there before this attempt started (e.g. a
+        # "rendered" angle with a good prior video must not get stuck on
+        # "in_production" just because this reroll attempt failed).
+        prev_status = None
+        prev_video_url = None
+        if product_id and angle_id:
+            try:
+                existing_product = ProductStore.get(product_id)
+                existing_angle = next(
+                    (
+                        a for a in (existing_product or {}).get("angles", [])
+                        if (a.get("angle_id") or a.get("id")) == angle_id
+                    ),
+                    None,
+                )
+                if existing_angle:
+                    prev_status = existing_angle.get("status")
+                    prev_video_url = existing_angle.get("video_url")
+            except Exception as snapshot_err:
+                print(f"Warning: could not snapshot pre-reroll angle state: {snapshot_err}")
+
         if product_id and angle_id:
             try:
                 ProductStore.update_angle_status(
@@ -842,6 +865,42 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
             except Exception:
                 pass
 
+        def _restore_pre_reroll_snapshot() -> None:
+            """
+            Put the angle back exactly where it was before this reroll
+            attempt started. Shared by the cancel path and the generic
+            failure path below -- both mean "this attempt never happened",
+            so both restore the same snapshot rather than one of them
+            hardcoding "in_production" independently.
+            """
+            if not (product_id and angle_id):
+                return
+            try:
+                if prev_status is not None:
+                    ProductStore.update_angle_status(
+                        product_id,
+                        angle_id,
+                        prev_status,
+                        video_url=prev_video_url,
+                        project_name=project_name
+                    )
+                else:
+                    # Snapshot was never taken (product/angle missing at
+                    # snapshot time, e.g. deleted mid-reroll) -- fall back to
+                    # the old hardcoded behavior rather than guessing.
+                    print(
+                        f"Warning: no pre-reroll snapshot for angle '{angle_id}' "
+                        f"(product '{product_id}') -- falling back to 'in_production'"
+                    )
+                    ProductStore.update_angle_status(
+                        product_id,
+                        angle_id,
+                        "in_production",
+                        project_name=project_name
+                    )
+            except Exception:
+                pass
+
         base_progress = render_jobs.progress_reporter(job_id)
 
         def on_progress(msg: str, progress: float):
@@ -850,6 +909,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
 
         with render_jobs.render_slot(job_id):
             result = TikTokAutoCutterPipeline.run(
+                cancel_event=render_jobs.get_cancel_event(job_id),
                 product_name=params.get("product_name", project_name),
                 raw_video_path=raw_video,
                 project_name=project_name,
@@ -932,17 +992,23 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
             target_id=project_name,
         )
 
+    except RenderCancelled:
+        # Same "this attempt never happened" outcome as a failure, but the
+        # user asked for it -- restore the pre-reroll snapshot exactly as the
+        # generic failure path does (reused via _restore_pre_reroll_snapshot
+        # rather than duplicated), then bring all three systems to the real
+        # terminal "cancelled" state instead of "failed".
+        _restore_pre_reroll_snapshot()
+        render_jobs.cancel_job(job_id)
+        TaskManager.cancel_task(job_id)
+
     except Exception as err:
-        if product_id and angle_id:
-            try:
-                ProductStore.update_angle_status(
-                    product_id,
-                    angle_id,
-                    "in_production",
-                    project_name=project_name
-                )
-            except Exception:
-                pass
+        # Restore whatever the angle actually was before this reroll attempt
+        # started, instead of hardcoding "in_production" -- an angle that was
+        # "rendered" (with a perfectly good prior video) must land back on
+        # "rendered" with that same video_url, not get stuck requiring manual
+        # intervention.
+        _restore_pre_reroll_snapshot()
         render_jobs.fail_job(job_id, err)
         TaskManager.fail_task(job_id, str(err), step_label="เรนเดอร์วิดีโอล้มเหลว")
 
