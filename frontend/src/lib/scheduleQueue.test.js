@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addDays, buildScheduleIso, groupScheduleItems, mergeScheduleDraft, templateForWeek, weekStartForDate } from './scheduleQueue.js';
+import { addDays, buildScheduleIso, groupScheduleItems, mergeScheduleDraft, nextSlotAfterLatest, templateForWeek, weekStartForDate } from './scheduleQueue.js';
 import { scheduleTimeOptions, snapTimeToFiveMinutes } from './scheduleQueue.js';
 
 test('schedule times use five-minute increments', () => {
@@ -34,4 +34,15 @@ test('schedule field edits retain the latest date and time together', () => {
   draft = mergeScheduleDraft(draft, 'date', '2026-09-12');
   draft = mergeScheduleDraft(draft, 'time', '21:30');
   assert.deepEqual(draft, { date: '2026-09-12', time: '21:30' });
+});
+
+test('requeue defaults five minutes after the latest unposted queue item', () => {
+  const fallback = { date: '2026-09-10', time: '12:30' };
+  assert.deepEqual(nextSlotAfterLatest([
+    { status: 'posted', scheduled_at: '2026-09-12T21:30:00+07:00' },
+    { status: 'planned', scheduled_at: '2026-09-10T19:00:00+07:00' },
+  ], fallback), { date: '2026-09-10', time: '19:05' });
+  assert.deepEqual(nextSlotAfterLatest([
+    { status: 'planned', scheduled_at: '2020-01-01T12:30:00+07:00' },
+  ], fallback), fallback);
 });

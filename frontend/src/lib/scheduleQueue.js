@@ -117,6 +117,21 @@ export function addMinutes(date, minutes) {
   return localParts(value.toISOString());
 }
 
+export function nextSlotAfterLatest(items = [], fallback = toLocalDateTime()) {
+  const latestMs = items
+    .filter((item) => item?.status !== 'posted')
+    .map((item) => new Date(item?.scheduled_at || '').getTime())
+    .filter(Number.isFinite)
+    .reduce((latest, value) => Math.max(latest, value), 0);
+
+  if (!latestMs) return { ...fallback };
+
+  const candidate = addMinutes(localParts(new Date(latestMs).toISOString()), 5);
+  const fallbackMs = new Date(buildScheduleIso(fallback.date, fallback.time)).getTime();
+  const candidateMs = new Date(buildScheduleIso(candidate.date, candidate.time)).getTime();
+  return candidateMs > fallbackMs ? candidate : { ...fallback };
+}
+
 export function sortScheduleItems(items = []) {
   return [...items].sort((a, b) => String(a.scheduled_at || '').localeCompare(String(b.scheduled_at || '')) || String(a.id || '').localeCompare(String(b.id || '')));
 }

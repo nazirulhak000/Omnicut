@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, ChevronDown, ChevronUp, Clock, Copy, GripVertical, Image as ImageIcon, Layers, Plus, RefreshCw, Rocket, RotateCcw, Settings2, Shuffle, Trash2 } from 'lucide-react';
 import { Modal, Badge } from './ui';
 import { commitScheduleAutofill, copyScheduleTemplate, createScheduleQueue, getScheduleQueue, getScheduleTemplate, prepareScheduleQueue, previewScheduleAutofill, removeScheduleQueue, resetScheduleTemplate, saveScheduleTemplate, updateScheduleQueue } from '../api';
-import { addDays, buildScheduleIso, dateOnly, DEFAULT_PRIMARY_TIMES, groupScheduleItems, localParts, mergeScheduleDraft, primaryTimeOptions, PROJECT_TIME_ZONE, scheduleTimeOptions, templateForWeek, toLocalDateTime, weekStartForDate } from '../lib/scheduleQueue';
+import { addDays, buildScheduleIso, dateOnly, DEFAULT_PRIMARY_TIMES, groupScheduleItems, localParts, mergeScheduleDraft, nextSlotAfterLatest, primaryTimeOptions, PROJECT_TIME_ZONE, scheduleTimeOptions, templateForWeek, toLocalDateTime, weekStartForDate } from '../lib/scheduleQueue';
 
 const STATUS_LABELS = {
   planned: 'รอจัดส่ง',
@@ -273,7 +273,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
 
   const openRequeue = (item) => {
     setRequeueTarget(item);
-    setRequeueDraft(nextSlot(queue));
+    setRequeueDraft(nextSlotAfterLatest(queue, nextSlot()));
     setRequeueOpen(true);
   };
 
