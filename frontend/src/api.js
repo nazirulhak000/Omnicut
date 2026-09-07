@@ -12,7 +12,9 @@ const api = axios.create({
 // send the header when a value is present -- that keeps today's unset-key
 // setup working unchanged. See frontend/.env.example for the env var and
 // the bundle-visibility caveat (this value ships inside the built JS).
-const API_KEY = import.meta.env.VITE_API_KEY;
+// `import.meta.env` only exists under Vite; the lib tests import modules
+// that reach this file through plain `node --test`, where it is undefined.
+const API_KEY = import.meta.env?.VITE_API_KEY;
 api.interceptors.request.use((config) => {
   if (API_KEY) {
     config.headers['X-API-Key'] = API_KEY;

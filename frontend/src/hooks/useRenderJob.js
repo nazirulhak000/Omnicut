@@ -192,7 +192,12 @@ export function useRenderJob({
       return undefined;
     }
 
-    // Check if there is an active background render job for this project
+    // Check if there is an active background render job for this tab. The
+    // job is tracked by its stable job_id, not by project label (see
+    // renderJobModel.js) -- so this resumes correctly even if the label the
+    // job was started under differs from the current `projectName` (e.g. a
+    // project shown under its canonical on-disk name here after having been
+    // started from NewClipPanel's own product-name-based label).
     const storedJobId = getActiveJob(projectName);
     if (storedJobId) {
       setJobId(storedJobId);

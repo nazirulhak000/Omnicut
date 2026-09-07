@@ -9,7 +9,13 @@ import {
   saveActiveJob,
 } from './renderJobModel.js';
 
-test('render job controller isolates jobs across different projects', async () => {
+test('render job controller tracks one active job per tab, addressed by job id rather than project label', async () => {
+  // A browser tab only ever has one render in flight at a time (EditorShell
+  // and NewClipPanel's useRenderJob instances are never mounted together),
+  // so storage holds a single job entry rather than one per project label.
+  // Starting a new render for a different project supersedes the previous
+  // entry -- there is nothing left to "isolate" by label, and the label is
+  // no longer part of the storage key at all (see renderJobModel.js).
   const store = new Map();
   const mockStorage = {
     setItem: (k, v) => store.set(k, String(v)),
@@ -18,14 +24,15 @@ test('render job controller isolates jobs across different projects', async () =
   };
 
   saveActiveJob('Project_A', 'job-a-99', mockStorage);
-  saveActiveJob('Project_B', 'job-b-100', mockStorage);
-
   assert.equal(getActiveJob('Project_A', mockStorage), 'job-a-99');
-  assert.equal(getActiveJob('Project_B', mockStorage), 'job-b-100');
 
-  clearActiveJob('Project_A', mockStorage);
-  assert.equal(getActiveJob('Project_A', mockStorage), null);
+  saveActiveJob('Project_B', 'job-b-100', mockStorage);
   assert.equal(getActiveJob('Project_B', mockStorage), 'job-b-100');
+  // The prior project's job was superseded, not kept alongside it.
+  assert.equal(getActiveJob('Project_A', mockStorage), 'job-b-100');
+
+  clearActiveJob('Project_B', mockStorage);
+  assert.equal(getActiveJob('Project_B', mockStorage), null);
 });
 
 test('stale project guard prevents callbacks for previous project', async () => {
