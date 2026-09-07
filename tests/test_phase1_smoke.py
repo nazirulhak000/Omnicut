@@ -1013,16 +1013,24 @@ def test_look_presets_are_actually_distinct_across_angles():
     assert len(patterns) >= 6, f"expected real per-angle variety, got only {len(patterns)} distinct patterns"
 
 
-def test_angle_key_resolves_to_the_right_shot_scales_via_pipeline():
+def test_angle_key_resolves_to_the_right_shot_scales_via_pipeline(tmp_path, monkeypatch):
     """End-to-end through pipeline.run(), not just a dict lookup in isolation."""
-    import shutil
     from unittest.mock import patch
     from scripts.pipeline import TikTokAutoCutterPipeline
-    from scripts.config import PROJECTS_DIR
+    from scripts.stages import source_resolution
 
     raw_video = next(Path("01_Raw").rglob("*.mov"), None) or next(Path("01_Raw").rglob("*.mp4"), None)
     if raw_video is None:
         pytest.skip("no raw video available in 01_Raw to render against")
+
+    # Redirect every module that has its own bound PROJECTS_DIR name -- per
+    # .agents/rules/testing_standard.md rule 3, this must never touch the
+    # real 03_Projects/. source_resolution is what actually mkdir()s the
+    # project folder; project_manifest is what reads/writes project.json.
+    target = tmp_path / "03_Projects"
+    target.mkdir()
+    monkeypatch.setattr(source_resolution, "PROJECTS_DIR", target)
+    monkeypatch.setattr(project_manifest, "PROJECTS_DIR", target)
 
     project_name = "TEST_look_preset_resolution"
     captured = {}
@@ -1031,17 +1039,14 @@ def test_angle_key_resolves_to_the_right_shot_scales_via_pipeline():
         captured["shot_scales"] = kwargs.get("shot_scales")
         return "/fake/out.mp4"
 
-    try:
-        with patch("scripts.pipeline.VideoEditor.assemble_tiktok_video", side_effect=fake_assemble):
-            TikTokAutoCutterPipeline.run(
-                product_name="test", project_name=project_name,
-                raw_video_path=str(raw_video), custom_script="ทดสอบ",
-                voice_engine_type="edge_tts", export_mp4=True, use_ai_vision=False,
-                angle_meta={"angle_key": "fake_vs_real"},
-            )
-        assert captured["shot_scales"] == LOOK_PRESETS["fake_vs_real"]
-    finally:
-        shutil.rmtree(PROJECTS_DIR / project_name, ignore_errors=True)
+    with patch("scripts.pipeline.VideoEditor.assemble_tiktok_video", side_effect=fake_assemble):
+        TikTokAutoCutterPipeline.run(
+            product_name="test", project_name=project_name,
+            raw_video_path=str(raw_video), custom_script="ทดสอบ",
+            voice_engine_type="edge_tts", export_mp4=True, use_ai_vision=False,
+            angle_meta={"angle_key": "fake_vs_real"},
+        )
+    assert captured["shot_scales"] == LOOK_PRESETS["fake_vs_real"]
 
 
 # ----------------------------------------------------------------------
@@ -1826,71 +1831,79 @@ def _pipeline_run_kwargs(raw_video, project_name):
     )
 
 
-def test_one_click_does_not_bake_the_audio_mix():
+def test_one_click_does_not_bake_the_audio_mix(tmp_path, monkeypatch):
     """
     The mix exists for the ffmpeg render alone -- the editor previews the
     stems. Baking it during a 1-Click that stops at the timeline only froze
     the BGM and SFX picks before the user had seen them, so no mix should be
     written and no mixed_audio artifact recorded.
     """
-    import shutil
     from unittest.mock import patch
     from scripts.pipeline import TikTokAutoCutterPipeline
-    from scripts.config import PROJECTS_DIR
+    from scripts.stages import source_resolution
 
     raw_video = next(Path("01_Raw").rglob("*.mov"), None) or next(Path("01_Raw").rglob("*.mp4"), None)
     if raw_video is None:
         pytest.skip("no raw video available in 01_Raw")
 
+    # Per .agents/rules/testing_standard.md rule 3 -- never the real
+    # 03_Projects/. source_resolution mkdir()s the project folder;
+    # project_manifest reads/writes project.json.
+    target = tmp_path / "03_Projects"
+    target.mkdir()
+    monkeypatch.setattr(source_resolution, "PROJECTS_DIR", target)
+    monkeypatch.setattr(project_manifest, "PROJECTS_DIR", target)
+
     project_name = "TEST_no_mix_on_create"
-    try:
-        with patch("scripts.pipeline.SFXManager.mix_audio_track") as mixer:
-            TikTokAutoCutterPipeline.run(export_mp4=False, **_pipeline_run_kwargs(raw_video, project_name))
-        assert not mixer.called, "1-Click must not mix audio"
+    with patch("scripts.pipeline.SFXManager.mix_audio_track") as mixer:
+        TikTokAutoCutterPipeline.run(export_mp4=False, **_pipeline_run_kwargs(raw_video, project_name))
+    assert not mixer.called, "1-Click must not mix audio"
 
-        manifest = ProjectManifest.load(project_name)
-        assert "mixed_audio" not in (manifest.get("artifacts") or {}), (
-            "recording a mix that was never written is what made the reuse path "
-            "trust a missing file"
-        )
-        assert (manifest.get("artifacts") or {}).get("voice_audio"), "the voice stem is still needed"
-    finally:
-        shutil.rmtree(PROJECTS_DIR / project_name, ignore_errors=True)
+    manifest = ProjectManifest.load(project_name)
+    assert "mixed_audio" not in (manifest.get("artifacts") or {}), (
+        "recording a mix that was never written is what made the reuse path "
+        "trust a missing file"
+    )
+    assert (manifest.get("artifacts") or {}).get("voice_audio"), "the voice stem is still needed"
 
 
-def test_render_mixes_on_demand_when_no_mix_exists_yet():
+def test_render_mixes_on_demand_when_no_mix_exists_yet(tmp_path, monkeypatch):
     """
     The editor's Render button resumes from "subtitles", which reports the mix
     stage as already done. After a 1-Click that skipped mixing there is no file
     to reuse, and the old code raised FileNotFoundError instead of just mixing.
     """
-    import shutil
     from unittest.mock import patch
     from scripts.pipeline import TikTokAutoCutterPipeline
-    from scripts.config import PROJECTS_DIR
+    from scripts.stages import source_resolution
 
     raw_video = next(Path("01_Raw").rglob("*.mov"), None) or next(Path("01_Raw").rglob("*.mp4"), None)
     if raw_video is None:
         pytest.skip("no raw video available in 01_Raw")
 
+    # Per .agents/rules/testing_standard.md rule 3 -- never the real
+    # 03_Projects/. source_resolution mkdir()s the project folder;
+    # project_manifest reads/writes project.json.
+    target = tmp_path / "03_Projects"
+    target.mkdir()
+    monkeypatch.setattr(source_resolution, "PROJECTS_DIR", target)
+    monkeypatch.setattr(project_manifest, "PROJECTS_DIR", target)
+
     project_name = "TEST_mix_on_demand"
-    try:
-        with patch("scripts.pipeline.SFXManager.mix_audio_track"):
-            TikTokAutoCutterPipeline.run(export_mp4=False, **_pipeline_run_kwargs(raw_video, project_name))
+    with patch("scripts.pipeline.SFXManager.mix_audio_track"):
+        TikTokAutoCutterPipeline.run(export_mp4=False, **_pipeline_run_kwargs(raw_video, project_name))
 
-        def fake_mix(**kwargs):
-            Path(kwargs["output_audio_path"]).write_bytes(b"RIFF fake wav")
-            return kwargs["output_audio_path"]
+    def fake_mix(**kwargs):
+        Path(kwargs["output_audio_path"]).write_bytes(b"RIFF fake wav")
+        return kwargs["output_audio_path"]
 
-        with patch("scripts.pipeline.SFXManager.mix_audio_track", side_effect=fake_mix) as mixer, \
-             patch("scripts.pipeline.VideoEditor.assemble_tiktok_video", return_value="/fake/out.mp4"):
-            TikTokAutoCutterPipeline.run(
-                export_mp4=True, resume_from="subtitles",
-                **_pipeline_run_kwargs(raw_video, project_name),
-            )
-        assert mixer.called, "a render with no mix on disk has to make one"
+    with patch("scripts.pipeline.SFXManager.mix_audio_track", side_effect=fake_mix) as mixer, \
+         patch("scripts.pipeline.VideoEditor.assemble_tiktok_video", return_value="/fake/out.mp4"):
+        TikTokAutoCutterPipeline.run(
+            export_mp4=True, resume_from="subtitles",
+            **_pipeline_run_kwargs(raw_video, project_name),
+        )
+    assert mixer.called, "a render with no mix on disk has to make one"
 
-        manifest = ProjectManifest.load(project_name)
-        assert (manifest.get("artifacts") or {}).get("mixed_audio"), "now it exists, so record it"
-    finally:
-        shutil.rmtree(PROJECTS_DIR / project_name, ignore_errors=True)
+    manifest = ProjectManifest.load(project_name)
+    assert (manifest.get("artifacts") or {}).get("mixed_audio"), "now it exists, so record it"

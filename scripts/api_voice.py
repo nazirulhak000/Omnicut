@@ -18,6 +18,7 @@ from scripts.config import (
 from scripts.script_generator import ScriptGenerator
 from scripts.voice_engine import VoiceEngine
 from scripts.gemini_tts_engine import GeminiFlashTTSEngine
+from scripts.quota import is_quota_error
 from scripts.tts_sanitizer import TTSSanitizer
 from scripts.api_schemas import (
     ScriptGenerateRequest, VoicePreviewRequest, TranscribeRequest
@@ -131,6 +132,13 @@ def preview_voice(req: VoicePreviewRequest):
                 "voice_name": gemini_voice
             }
         except Exception as g_err:
+            # A quota hit is the user's own daily cap stopping the call, not
+            # a provider failure -- surface it instead of silently falling
+            # back to Edge-TTS (which would hide why Gemini voice was
+            # skipped). Any other failure (network, SDK, model unavailable)
+            # keeps degrading to Edge-TTS exactly as before.
+            if is_quota_error(g_err):
+                raise HTTPException(status_code=429, detail=g_err.suggestion_th)
             print(f"⚠️ [preview_voice] Gemini TTS failed ({g_err}) — fallback to Edge-TTS...")
 
     res = VoiceEngine.generate_crystal_voice(

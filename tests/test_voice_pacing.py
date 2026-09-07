@@ -18,7 +18,11 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
 
 SAMPLE_RATE = 44100
 OUT_DIR = Path("02_Assets/Voiceover/Test_Pacing")
-OUT_DIR.mkdir(parents=True, exist_ok=True)
+# NOTE: this file has no `def test_*` functions -- it is a manual diagnostic
+# script (see .agents/rules/testing_standard.md rule 4: side effects at
+# import time are not allowed in tests/test_*.py). OUT_DIR is only created
+# when main() actually runs under `if __name__ == "__main__":`, never on
+# plain pytest collection/import.
 
 # Sample Tech Script with 5 distinct beats
 SCRIPT_BEATS = [
@@ -97,6 +101,7 @@ async def build_rhythmic_voice(voice_name: str, label: str, rate: str = "+18%", 
         return str(out_file), cues
 
 async def main():
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
     print("\n🎙️ Synthesizing Rhythmic Voice Samples with Dramatic Pauses...\n")
     # 1. Male Niwat (Fast, Energetic, Tech)
     f_male, cues_m = await build_rhythmic_voice("th-TH-NiwatNeural", "male_niwat", rate="+20%", pitch="+2Hz")

@@ -16,6 +16,7 @@ from scripts.script_tone_analyzer import ScriptToneAnalyzer
 from scripts.sfx_manager import SFXManager
 from scripts.it_angles import LOOK_PRESETS
 from scripts.pipeline_context import PipelineContext
+from scripts.quota import is_quota_error
 
 
 class ShotMatchingStage:
@@ -72,7 +73,26 @@ class ShotMatchingStage:
                     )
                     ctx.notify("👁️ [AI Vision] จับคู่ฉากสมบูรณ์ กำลังส่งต่อให้ขั้นตอนตัดต่อ...", 0.82)
                 except Exception as e:
-                    print(f"   ⚠️ AI Vision Matching skipped ({e}) — using rhythmic cuts.")
+                    # A quota hit means the user's own daily AI budget cap
+                    # stopped this call -- not a Gemini/network failure. AI
+                    # Vision matching is a quality enhancement (it only
+                    # refines which scenes get picked); its absence never
+                    # blocks the render, since the code below already
+                    # tolerates ai_matched_shots staying None and falls back
+                    # to rhythmic/beat-synced cuts. So we keep that graceful
+                    # degradation instead of failing the whole render over a
+                    # non-essential feature -- but the reason must be loud
+                    # and visible in the job's own progress log, not just a
+                    # server-side print, so the user knows it was their
+                    # budget cap and not a broken provider.
+                    if is_quota_error(e):
+                        ctx.notify(
+                            "⚠️ เกินโควต้า AI ต่อวันแล้ว — ข้าม AI Vision Matching ใช้จังหวะตัดต่อแบบ rhythmic cuts แทน",
+                            0.82,
+                        )
+                        print(f"   ⚠️ AI Vision Matching skipped: quota exceeded ({e}) — using rhythmic cuts.")
+                    else:
+                        print(f"   ⚠️ AI Vision Matching skipped ({e}) — using rhythmic cuts.")
 
         shot_scales = LOOK_PRESETS.get(ctx.angle_meta.get("angle_key", "")) if ctx.angle_meta else None
 

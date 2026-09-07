@@ -7,6 +7,7 @@ import re
 from typing import List, Optional, Tuple
 
 from scripts.subtitle.font_metrics import _hook_line_width_px
+from scripts.subtitle.translation_service import ass_escape_text
 
 
 def ass_colour(hex_colour: str) -> str:
@@ -96,7 +97,10 @@ def _hook_lightsweep_event(
         f"{''.join(segs)}"
         f"\\t({exit_start_ms},{exit_end_ms},\\alpha&HFF&)}}"
     )
-    return f"Dialogue: 3,{start_t},{end_t},{style_name},,0,0,0,,{tag}{line}"
+    # `line` is only measured (unescaped) above for pixel width -- escaped
+    # here, at the final embed, since this text is scraper/user-controlled
+    # product copy and must never be read as its own override tag.
+    return f"Dialogue: 3,{start_t},{end_t},{style_name},,0,0,0,,{tag}{ass_escape_text(line)}"
 
 
 def _hook_accent_events(

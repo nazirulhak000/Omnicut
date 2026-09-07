@@ -6,6 +6,7 @@ Generates or prepares TikTok script cues using custom script, AIBridge, ScriptGe
 from scripts.ai_bridge import AIBridge
 from scripts.script_generator import ScriptGenerator
 from scripts.pipeline_context import PipelineContext
+from scripts.quota import is_quota_error
 
 
 class ScriptStage:
@@ -58,7 +59,22 @@ class ScriptStage:
                             }
                             print(f"✨ [Pipeline] Dynamic script ready! ({len(ai_lines)} lines)")
                     except Exception as ai_err:
-                        print(f"⚠️ [Pipeline] AI script gen failed ({ai_err}) — falling back to ScriptGenerator...")
+                        # A quota hit means the user's own daily AI budget
+                        # cap stopped this call, not a provider failure.
+                        # Script generation still has a safe, non-AI
+                        # fallback (ScriptGenerator) so the render is never
+                        # blocked -- but the reason must be loud and visible
+                        # in the job's own progress log, not just a
+                        # server-side print, so the user knows it was their
+                        # budget cap and not a broken provider.
+                        if is_quota_error(ai_err):
+                            ctx.notify(
+                                "⚠️ เกินโควต้า AI ต่อวันแล้ว — ใช้สคริปต์สำเร็จรูปแทนสคริปต์ AI",
+                                0.12,
+                            )
+                            print(f"⚠️ [Pipeline] AI script gen skipped: quota exceeded ({ai_err}) — falling back to ScriptGenerator...")
+                        else:
+                            print(f"⚠️ [Pipeline] AI script gen failed ({ai_err}) — falling back to ScriptGenerator...")
 
                 if ai_script:
                     script_data = ai_script

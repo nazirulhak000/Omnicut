@@ -830,7 +830,13 @@ class VideoEditor:
         # Optional Promotional Sticker Overlay (Top-Right Badge with entry animation)
         if sticker_path and Path(sticker_path).exists():
             badge_w, badge_x, badge_y = sticker_geometry(sticker_position, sticker_scale)
-            st_idx = len(cmd_inputs) // 2
+            # The sticker is appended right after the mixed audio, so it is the
+            # input following audio_input_idx. Counting `cmd_inputs` instead
+            # assumed every input spends exactly two slots ("-i", path), which
+            # a clip_list render breaks: each trimmed clip spends six
+            # ("-ss", val, "-t", val, "-i", path), inflating the index to
+            # 3N+1 instead of N+1 and pointing the overlay at no such stream.
+            st_idx = audio_input_idx + 1
             cmd_inputs.extend(["-i", str(Path(sticker_path).resolve())])
             # Scale badge nicely (width ~ 380px) and place in top right or center top
             filter_complex.append(

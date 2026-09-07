@@ -31,6 +31,8 @@ from typing import Optional
 
 from scripts.error_handler import AppError, ErrorCategory
 
+QUOTA_ERROR_CODE = "AI_QUOTA_EXCEEDED"
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 ENV_FILE = PROJECT_ROOT / ".env"
 
@@ -91,10 +93,24 @@ def get_daily_cost_thb_limit() -> float:
     return _read_float_env("DAILY_COST_THB_LIMIT", DEFAULT_DAILY_COST_THB_LIMIT)
 
 
+def is_quota_error(exc: BaseException) -> bool:
+    """True if `exc` is the AppError check_budget() raises when the user's
+    own daily cap stopped the call -- as opposed to a genuine provider
+    failure (network down, API error, model unavailable).
+
+    Callers that wrap a paid AI/TTS/vision call in a broad `except Exception`
+    to degrade gracefully must check this FIRST and let a quota hit surface
+    as a real, user-visible error instead of silently falling back -- a
+    fallback would hide the real reason (the user's own spending cap, not
+    the provider) from the user.
+    """
+    return isinstance(exc, AppError) and exc.code == QUOTA_ERROR_CODE
+
+
 def _quota_error(reason: str, usage: dict, limit_desc: str) -> AppError:
     return AppError(
         category=ErrorCategory.AI_PROVIDER,
-        code="AI_QUOTA_EXCEEDED",
+        code=QUOTA_ERROR_CODE,
         message_th="เกินโควต้าการใช้งาน AI ที่ตั้งไว้ต่อวันแล้ว",
         suggestion_th=(
             f"{reason} วันนี้ใช้ไปแล้ว {usage.get('total_tokens', 0):,} tokens "

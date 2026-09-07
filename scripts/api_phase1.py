@@ -18,6 +18,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 
 from scripts.ai_bridge import AIBridge, ManualModeRequired
+from scripts.quota import is_quota_error
 from scripts.hook_motion_presets import hook_motion_catalog
 from scripts.it_angles import ANGLES_BY_KEY, catalog_for_prompt, fallback_angles
 from scripts.subtitle_engine import DEFAULT_HOOK_MOTION
@@ -88,6 +89,13 @@ def ai_prompt(req: AIPromptRequest):
     except ValueError as err:
         raise HTTPException(status_code=400, detail=str(err))
     except Exception as err:  # SDK/network failures must not kill the panel
+        # A quota hit is the user's own daily cap stopping the call, not a
+        # provider failure -- surface it as a real error instead of silently
+        # degrading to manual mode (which would hide why the AI call was
+        # skipped). Any other AppError category (and every non-AppError
+        # exception) keeps falling back to manual mode exactly as before.
+        if is_quota_error(err):
+            raise HTTPException(status_code=429, detail=err.suggestion_th)
         try:
             prompt = AIBridge.build_prompt(req.task, req.context)
         except ValueError as build_err:

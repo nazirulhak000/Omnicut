@@ -29,7 +29,7 @@ from scripts.subtitle.motion_effects import (
     _loop_none,
     _out_fade,
 )
-from scripts.subtitle.translation_service import wrap_text_for_ass
+from scripts.subtitle.translation_service import ass_escape_text, wrap_text_for_ass
 
 LINE_HEIGHT_FACTOR = 1.0
 TEXT_SCALE_BOOST = 1.08
@@ -225,18 +225,25 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
             pill_pad = int(round(hook_fs * float(pill.get("pad_x_em") or 0.342)))
             edge_tag = f"\\3c{pill_colour}&\\bord{pill_pad}\\shad0"
             # BorderStyle 3 paints it with the outline colour.
+            #
+            # rec["line"] stays unescaped everywhere above (width measurement,
+            # typewriter \clip math) and only gets escaped right here, at the
+            # last moment it is embedded after a `{...}` override block --
+            # product/brand/model/label text is scraper- and user-controlled,
+            # so a literal `{`/`}`/`\` in it must never be read as its own
+            # override tag by libass.
             events.append(
                 f"Dialogue: 1,{start_t},{end_t},HookHeaderPill,,0,0,0,,"
-                f"{{{common}{edge_tag}\\c{rec['colour']}&}}{rec['line']}"
+                f"{{{common}{edge_tag}\\c{rec['colour']}&}}{ass_escape_text(rec['line'])}"
             )
 
         events.append(
             f"Dialogue: 1,{start_t},{end_t},HookHeaderShadow,,0,0,0,,"
-            f"{{{common}\\blur5\\alpha&H40&}}{rec['line']}"
+            f"{{{common}\\blur5\\alpha&H40&}}{ass_escape_text(rec['line'])}"
         )
         events.append(
             f"Dialogue: 2,{start_t},{end_t},HookHeader,,0,0,0,,"
-            f"{{{common}{edge_tag}\\c{rec['colour']}&}}{rec['line']}"
+            f"{{{common}{edge_tag}\\c{rec['colour']}&}}{ass_escape_text(rec['line'])}"
         )
 
         if motion["loop"] == "lightsweep":
@@ -512,6 +519,11 @@ def _text_overlay_events(item: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]
                     else:
                         w_anim = f"\\fscx{target_scale}\\fscy{target_scale}"
 
+                # w_text is free-form user overlay text (word["abs_x"]/["abs_w"]
+                # were already measured against the unescaped word by
+                # layout_overlay(), so escaping only here -- at the final embed
+                # -- doesn't disturb that positioning math).
+                w_text_safe = ass_escape_text(w_text)
                 if shadow and shad_color:
                     if anim_in == "rise":
                         s_pos = f"\\q2\\an7\\move({w_x + shad_dx:.1f},{line_y + shad_dy + 40:.1f},{w_x + shad_dx:.1f},{line_y + shad_dy:.1f},{word_t0},{t1})"
@@ -520,10 +532,10 @@ def _text_overlay_events(item: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]
                     else:
                         s_pos = f"\\q2\\an7\\pos({w_x + shad_dx:.1f},{line_y + shad_dy:.1f})"
                     s_tag = f"{s_pos}{font_tag}{skew_tag}{w_anim}{loop_tag}\\c{shad_color}&\\blur{shad_blur:.1f}{out_tag}"
-                    events.append(f"Dialogue: 3,{start_t},{end_t},TextOverlayShadow,,0,0,0,,{{{s_tag}}}{w_text}")
+                    events.append(f"Dialogue: 3,{start_t},{end_t},TextOverlayShadow,,0,0,0,,{{{s_tag}}}{w_text_safe}")
 
                 w_content_tag = f"{w_pos}{font_tag}{skew_tag}{w_anim}{loop_tag}\\c{color_hex}&{outline_tag}{out_tag}"
-                events.append(f"Dialogue: 4,{start_t},{end_t},TextOverlayMain,,0,0,0,,{{{w_content_tag}}}{w_text}")
+                events.append(f"Dialogue: 4,{start_t},{end_t},TextOverlayMain,,0,0,0,,{{{w_content_tag}}}{w_text_safe}")
 
         if anim_loop == "lightsweep":
             for line_info in lines_data:
@@ -545,7 +557,7 @@ def _text_overlay_events(item: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]
             pos_tag = f"\\an5\\pos({x_pos},{y_pos})"
 
         content_tag = f"{pos_tag}{font_tag}{skew_tag}{anim_tag}{loop_tag}\\c{color_hex}&{outline_tag}{out_tag}"
-        events.append(f"Dialogue: 4,{start_t},{end_t},TextOverlayMain,,0,0,0,,{{{content_tag}}}{clean_lines}")
+        events.append(f"Dialogue: 4,{start_t},{end_t},TextOverlayMain,,0,0,0,,{{{content_tag}}}{ass_escape_text(clean_lines)}")
 
         if anim_loop == "lightsweep":
             line_h = round(render_fs * LINE_HEIGHT_FACTOR)

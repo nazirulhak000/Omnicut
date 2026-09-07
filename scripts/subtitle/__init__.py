@@ -51,6 +51,7 @@ from scripts.subtitle.overlay_events import (
 from scripts.subtitle.translation_service import (
     KINETIC_KEYWORDS,
     KINETIC_KEYWORDS_EN,
+    ass_escape_text,
     wrap_text_for_ass,
     wrap_en_for_ass,
     apply_kinetic_highlighting,
@@ -101,6 +102,7 @@ __all__ = [
     "_hook_accent_events",
     "KINETIC_KEYWORDS",
     "KINETIC_KEYWORDS_EN",
+    "ass_escape_text",
     "wrap_text_for_ass",
     "wrap_en_for_ass",
     "apply_kinetic_highlighting",

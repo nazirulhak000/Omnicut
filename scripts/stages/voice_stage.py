@@ -13,6 +13,7 @@ from scripts.voice_engine import VoiceEngine
 from scripts.subtitle_engine import SubtitleEngine
 from scripts.pipeline_context import PipelineContext
 from scripts.error_handler import AppError, ErrorCategory
+from scripts.quota import is_quota_error
 
 
 def _probe_audio_duration(audio_path: Path) -> float:
@@ -305,9 +306,14 @@ class VoiceStage:
                         break
                     except Exception as tts_err:
                         last_tts_error = tts_err
-                        if attempt == 0:
+                        # A quota hit is the user's own daily cap -- it will
+                        # not clear a second later, so retrying just wastes
+                        # time before falling back the same way anyway.
+                        if attempt == 0 and not is_quota_error(tts_err):
                             print(f"⚠️ [Gemini Flash TTS] ล้มเหลว ({tts_err}) — ลองใหม่อีกครั้ง...")
                             time.sleep(1.0)
+                        elif is_quota_error(tts_err):
+                            break
                 if last_tts_error is not None:
                     raise last_tts_error
 
@@ -333,8 +339,19 @@ class VoiceStage:
                 print(f"   Gemini Flash TTS voice generated! Duration: {total_duration:.2f}s, Cues: {len(cues)}")
             except Exception as gemini_err:
                 voice_engine_used = "edge_tts"
-                print(f"⚠️ [Gemini Flash TTS] Failed ({gemini_err}) — falling back to Edge-TTS...")
-                ctx.notify("⚠️ Gemini TTS ขัดข้อง สลับไปใช้ Edge-TTS สำรอง — เสียงจะไม่ใช่ Gemini", 0.30)
+                # A quota hit means the user's own daily AI budget cap
+                # stopped this call, not a Gemini/network failure. Voice
+                # synthesis still has a safe, non-AI fallback (Edge-TTS) so
+                # the render is never blocked -- but the reason must be loud
+                # and visible in the job's own progress log, not just a
+                # server-side print, so the user knows it was their budget
+                # cap and not a broken provider.
+                if is_quota_error(gemini_err):
+                    print(f"⚠️ [Gemini Flash TTS] Skipped: quota exceeded ({gemini_err}) — falling back to Edge-TTS...")
+                    ctx.notify("⚠️ เกินโควต้า AI ต่อวันแล้ว — สลับไปใช้ Edge-TTS สำรอง — เสียงจะไม่ใช่ Gemini", 0.30)
+                else:
+                    print(f"⚠️ [Gemini Flash TTS] Failed ({gemini_err}) — falling back to Edge-TTS...")
+                    ctx.notify("⚠️ Gemini TTS ขัดข้อง สลับไปใช้ Edge-TTS สำรอง — เสียงจะไม่ใช่ Gemini", 0.30)
                 voice_res = VoiceEngine.generate_voiceover(
                     text_or_lines=script_data["lines"],
                     output_audio_path=str(voice_audio_path),

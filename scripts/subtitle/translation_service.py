@@ -142,6 +142,38 @@ _TH_PARTICLES = {
 }
 
 
+def ass_escape_text(text: str) -> str:
+    """
+    Escapes literal ASS override-tag syntax in plain user/scraper text before
+    it is ever interpolated into a `{...}` override block.
+
+    Product names and captions come from Shopee/TikTok listings and free-form
+    user input -- an unescaped `{` or `}` in that text is indistinguishable
+    from the override-tag delimiters this file emits around it, so a name
+    like "Cool Mic {\\c&HFF0000&}HACKED{\\c&H00FFFFFF&}" would inject its own
+    colour/position/blur override straight into the rendered subtitle. ASS's
+    own escape for its two structural characters is a backslash prefix, so
+    `\\{` / `\\}` render as literal braces instead of opening/closing an
+    override block (per the libass/VSFilter override-tag grammar).
+
+    A literal backslash in user text is just as dangerous: unescaped, it can
+    start what looks like an override sequence to libass's tag parser (e.g. a
+    stray `\\c` inside plain text), so backslashes are doubled here too --
+    before the brace escaping, so the backslashes just added for `{`/`}` are
+    never themselves re-escaped.
+
+    Callers must run this over raw text BEFORE wrap_text_for_ass /
+    wrap_en_for_ass / apply_*_highlighting -- those only ever add well-formed
+    `\\N` and `{\\c...}` sequences of their own and never re-encode existing
+    backslashes, so escaping first keeps this safe all the way through.
+    """
+    if not text:
+        return text
+    escaped = str(text).replace("\\", "\\\\")
+    escaped = escaped.replace("{", "\\{").replace("}", "\\}")
+    return escaped
+
+
 def wrap_text_for_ass(text: str, max_chars_per_line: int = 40) -> str:
     """
     Wraps long Thai text into multiple balanced lines using ASS \\N.

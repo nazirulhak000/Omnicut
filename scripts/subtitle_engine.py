@@ -65,6 +65,7 @@ from scripts.subtitle import (
     overlay_events,
     KINETIC_KEYWORDS,
     KINETIC_KEYWORDS_EN,
+    ass_escape_text,
     wrap_text_for_ass,
     wrap_en_for_ass,
     apply_kinetic_highlighting,
@@ -624,11 +625,20 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             end_t = cls._format_ass_time(cue["end"])
             # Exact line wrap calibration matching SequencePlayer.jsx maxLineW = 464px (86% of 1080w = 928px)
             dyn_max_chars = max(24, int(round(3100 / max(20, font_size))))
-            text = cls.wrap_text_for_ass(cue["text"].strip(), max_chars_per_line=dyn_max_chars)
+            # cue["text"] is caption text the AI script/translator produced from
+            # scraper- and user-controlled product data -- a literal `{`/`}`
+            # or `\` in it must render as a literal character, never open an
+            # ASS override block (see ass_escape_text). Escaped BEFORE
+            # wrapping/highlighting so those only ever see plain text and add
+            # their own well-formed \N / {\c...} sequences on top.
+            text = cls.wrap_text_for_ass(ass_escape_text(cue["text"].strip()), max_chars_per_line=dyn_max_chars)
             if not text:
                 continue
-            # Sync wrapped text with \\N back into cue object for 100% editor preview parity
-            cue["text"] = text
+            # Sync wrapped (but NOT escaped) text back into cue object for
+            # 100% editor preview parity -- this dict is also what a re-roll
+            # feeds back into generate_ass() as ctx.cues, so storing the
+            # escaped form here would double-escape on every subsequent run.
+            cue["text"] = cls.wrap_text_for_ass(cue["text"].strip(), max_chars_per_line=dyn_max_chars)
 
             # Kinetic Pop Animation: Snap in 125% -> Settle 100% (or cue.scale) in 70ms
             cue_scale = float(cue.get("scale", 1.0) or 1.0)
@@ -645,9 +655,12 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             if bilingual and idx < len(en_translations):
                 candidate_en = (en_translations[idx] or cue.get("translation", "")).strip()
                 if candidate_en and not any(sig in candidate_en for sig in ["Error 500", "500.", "That's an error", "<html"]):
+                    # Store the raw translation for editor parity / manifest
+                    # persistence (same re-roll double-escape hazard as
+                    # cue["text"] above); escape only the copy that feeds ASS.
                     cue["translation"] = candidate_en
                     dyn_en_chars = max(26, int(round(4000 / max(20, font_size))))
-                    en_wrapped = cls.wrap_en_for_ass(candidate_en, max_chars_per_line=dyn_en_chars)
+                    en_wrapped = cls.wrap_en_for_ass(ass_escape_text(candidate_en), max_chars_per_line=dyn_en_chars)
                 else:
                     cue["translation"] = ""
 
@@ -713,7 +726,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             spec_anim = f"{{\\fscx{spec_from}\\fscy{spec_from}\\t(0,100,\\fscx{spec_to}\\fscy{spec_to})}}"
             # Layer 2, above the hook banner (1) and captions (0), in case a
             # long spec bar's footprint ever crosses either at the same time.
-            events.append(f"Dialogue: 2,{spec_start},{spec_end},SpecBar,,0,0,0,,{spec_anim}📊 {on_screen}")
+            # on_screen is AI-script-generated but ultimately derived from
+            # scraped product data, so it gets the same override-tag escaping
+            # as every other user/scraper-controlled caption text.
+            events.append(f"Dialogue: 2,{spec_start},{spec_end},SpecBar,,0,0,0,,{spec_anim}📊 {ass_escape_text(on_screen)}")
 
         # 4. Custom Text Overlays (Freeform multi-layer text lines)
         if text_items:
