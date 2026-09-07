@@ -203,6 +203,7 @@ Date: 2026-09-07; Requested by: user; Status: in progress
 - [x] Add deterministic regression coverage for path-only saved covers and restoring the selected 3:4 variant after refresh.
 - [x] Improve the cover card behavior so the action clearly says edit when a saved cover exists and create when it does not.
 - [x] Merge matching `/api/exports` cover metadata when the live `/api/products` response omits saved cover fields.
+- [x] Add a large 3:4 cover preview in the TikTok modal, with a direct path back to Cover Studio for editing.
 - [x] Run frontend/backend tests and build.
 - [ ] Verify the remaining live edit -> save -> refresh flow in the browser.
 
@@ -217,6 +218,7 @@ Date: 2026-09-07; Requested by: user; Status: in progress
 
 - Implementation commit: `f2dbfed` (`fix: restore saved cover metadata in TikTok modal`).
 - The live `/api/products` response currently returns null cover fields for this product while `/api/exports` contains the matching saved 3:4 cover. The client now merges that export metadata by project name/video reference and preserves any explicit angle cover.
+- Browser check: clicking the saved 3:4 thumbnail opens a large preview, and `เปลี่ยนภาพปก` closes it and opens Cover Studio with the current cover loaded.
 - Existing uncommitted changes belong to another workstream: `frontend/src/components/editor/EditorShell.jsx`, `frontend/src/components/editor/Timeline.jsx`, `frontend/src/components/editor/TimelineClip.jsx`, `frontend/src/lib/timelineMath.js`, `frontend/src/lib/timelineMath.test.js`, and the untracked screenshots `alt-drag-left.png`, `alt-drag-mid.png`, `clip-selected.png`, `timeline-loaded.png`; do not modify, delete, or stage them.
 - Steps 1-4 and the extension upload implementation are frozen by the user.
 ## งานค้าง (Backlog)

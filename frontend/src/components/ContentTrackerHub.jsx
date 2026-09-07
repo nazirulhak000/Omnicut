@@ -872,6 +872,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
   const [previewVideoAngle, setPreviewVideoAngle] = useState(null);
   const [qrModalItem, setQrModalItem] = useState(null);
   const [tiktokModalItem, setTiktokModalItem] = useState(null);
+  const [coverPreviewItem, setCoverPreviewItem] = useState(null);
   const [tiktokCaption, setTiktokCaption] = useState('');
   const [tiktokHashtags, setTiktokHashtags] = useState('');
   const [tiktokProductId, setTiktokProductId] = useState('');
@@ -2200,13 +2201,22 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
             <div className="flex items-center justify-between p-3 rounded-2xl bg-[#0B101B] border border-white/[0.08]">
               <div className="flex items-center gap-3 min-w-0">
                 {tiktokModalItem.cover_url ? (
-                  <div className="w-12 aspect-[3/4] rounded-lg overflow-hidden border border-amber-500/40 flex-shrink-0 shadow-md">
+                  <button
+                    type="button"
+                    onClick={() => setCoverPreviewItem(tiktokModalItem)}
+                    className="group relative w-12 aspect-[3/4] rounded-lg overflow-hidden border border-amber-500/40 flex-shrink-0 shadow-md cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-[#25F4EE]"
+                    aria-label="เปิดพรีวิวภาพปก 3:4"
+                    title="เปิดพรีวิวภาพปกขนาดใหญ่"
+                  >
                     <img
                       src={tiktokModalItem.cover_url}
                       alt="Cover 3:4"
                       className="w-full h-full object-cover"
                     />
-                  </div>
+                    <span className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/35 transition-colors">
+                      <Eye className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 drop-shadow-md transition-opacity" />
+                    </span>
+                  </button>
                 ) : (
                   <div className="w-12 aspect-[3/4] rounded-lg bg-slate-900 border border-slate-800 flex flex-col items-center justify-center text-slate-500 flex-shrink-0">
                     <ImageIcon className="w-4 h-4 opacity-40" />
@@ -2334,6 +2344,42 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                   <span>{isSubmittingTiktok ? 'กำลังส่งข้อมูล...' : 'ส่งไป TikTok Studio'}</span>
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Large cover preview keeps inspection separate from editing. */}
+      <Modal
+        isOpen={!!coverPreviewItem}
+        onClose={() => setCoverPreviewItem(null)}
+        title="พรีวิวภาพปก 3:4"
+        subtitle={coverPreviewItem?.project_name || coverPreviewItem?.parentProduct?.name || ''}
+        maxWidth="max-w-2xl"
+      >
+        {coverPreviewItem?.cover_url && (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-amber-500/25 bg-black/50 p-3 sm:p-5 flex items-center justify-center min-h-[18rem]">
+              <img
+                src={coverPreviewItem.cover_url}
+                alt="พรีวิวภาพปก 3:4"
+                className="max-h-[62dvh] w-auto max-w-full object-contain rounded-xl shadow-2xl"
+              />
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs text-slate-400">กดเปลี่ยนภาพปกเพื่อปรับภาพต่อใน Cover Studio</p>
+              <Button
+                variant="outline"
+                size="sm"
+                icon={ImageIcon}
+                onClick={() => {
+                  const item = coverPreviewItem;
+                  setCoverPreviewItem(null);
+                  handleOpenCoverStudio(item);
+                }}
+              >
+                เปลี่ยนภาพปก
+              </Button>
             </div>
           </div>
         )}
