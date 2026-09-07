@@ -7,6 +7,7 @@ import {
 import { formatTimecode } from '../../lib/timelineMath.js';
 import HeaderMenu from './HeaderMenu.jsx';
 import RenderButton from './RenderButton.jsx';
+import ProjectSelector from './ProjectSelector.jsx';
 import { ActivityIndicatorButton } from '../ActivityCenter.jsx';
 import { getProjectOrigin } from '../../api.js';
 
@@ -40,13 +41,13 @@ export default function EditorHeader({
   setDeleteOrigin,
   setPendingDelete,
 }) {
-  const handleDeleteRequest = () => {
-    if (!projectName) return;
+  const handleDeleteRequest = (name = projectName) => {
+    if (!name) return;
     setDeleteError?.(null);
     setDeleteScope?.('project');
     setDeleteOrigin?.(null);
-    setPendingDelete?.(projectName);
-    getProjectOrigin(projectName)
+    setPendingDelete?.(name);
+    getProjectOrigin(name)
       .then((orig) => setDeleteOrigin?.(orig))
       .catch(() => setDeleteOrigin?.({}));
   };
@@ -57,21 +58,12 @@ export default function EditorHeader({
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <Scissors className="hidden h-4 w-4 flex-shrink-0 text-[#D97757] sm:block" />
 
-        <div className="relative min-w-0 flex-1 sm:max-w-[420px]">
-          <select
-            value={projectName}
-            onChange={(e) => loadProject(e.target.value)}
-            aria-label="โปรเจกต์ที่กำลังแก้"
-            className="h-9 w-full min-w-0 cursor-pointer truncate rounded-xl border border-transparent bg-transparent pl-1 pr-6 text-base font-bold text-white hover:border-white/[0.12] hover:bg-black/40 focus:border-[#D97757] focus:outline-none"
-          >
-            <option value="">— เลือกโปรเจกต์ —</option>
-            {projectList.map((p) => (
-              <option key={p.project_name} value={p.project_name} className="bg-[#0D111A] text-slate-200">
-                {p.project_name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <ProjectSelector
+          projectName={projectName}
+          projectList={projectList}
+          loadProject={loadProject}
+          onRequestDelete={handleDeleteRequest}
+        />
 
         {projectName && (
           <div className="flex items-center gap-2">

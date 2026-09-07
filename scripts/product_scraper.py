@@ -233,12 +233,29 @@ class ProductScraper:
         }
 
     @classmethod
-    def generate_content_matrix(cls, product_data: Dict[str, Any], count: int = 10) -> List[Dict[str, Any]]:
-        """Generates full 10-Angle Master Content Matrix in natural Thai spoken language."""
+    def generate_content_matrix(
+        cls,
+        product_data: Dict[str, Any],
+        count: int = 10,
+        image_paths: Optional[List[str]] = None,
+    ) -> List[Dict[str, Any]]:
+        """Generates full 10-Angle Master Content Matrix in natural Thai spoken language.
+
+        image_paths (product photos, spec-sheet or review screenshots) are
+        sent to Gemini as actual image content alongside the prompt -- not
+        just used for a thumbnail -- so specs/features the user only has as a
+        screenshot (no URL, no typed description) still reach the model.
+        """
         title = product_data.get("title", "")
         desc = product_data.get("description", "")
         price = product_data.get("price_note", "")
         raw = product_data.get("raw_text", "")
+        image_rule = (
+            "\n8. **ภาพที่แนบมาด้วย (Reference Images)**:\n"
+            "   - ผู้ใช้แนบภาพหน้าจอสินค้า/สเปกชีท/รีวิวมาด้วย ให้อ่านสรรพคุณ สเปก จุดเด่น และรายละเอียดจากภาพเหล่านั้นโดยตรง\n"
+            "   - หากข้อมูลในภาพขัดแย้งกับข้อความด้านบน ให้ยึดข้อมูลในภาพเป็นหลัก เพราะเป็นข้อมูลจริงจากสินค้า\n"
+            if image_paths else ""
+        )
 
         prompt = f"""
 # Role & Objective
@@ -298,7 +315,7 @@ class ProductScraper:
 
 7. **กฎพิเศษกรณีดึงข้อมูลจาก URL (Shopee / TikTok Shop / เว็บไซต์)**:
    - หากรายละเอียดมีสั้น ให้ดึงความรู้สเปกจริงอย่างเป็นทางการ (Official Hardware Specs) มาเขียนให้ตรงความจริง 100% ห้ามมั่วสเปก
-
+{image_rule}
 จงสร้างผลลัพธ์เป็น JSON Array ที่มี {count} Object ตาม 10 มุมมองนี้:
 1. "pain_point": 😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน (Problem / Agitation / Solution)
 2. "spec_review": ⚙️ รีวิวสเปกเจาะลึก / ฟังก์ชันจัดเต็ม (Deep Spec Review & Technical Features)
@@ -353,6 +370,32 @@ class ProductScraper:
 
             try:
                 from google import genai
+                from google.genai import types
+
+                # Reference screenshots ride alongside the prompt as actual
+                # image content -- not just a thumbnail -- so the model reads
+                # specs/features straight off a screenshot even when there's
+                # no URL or typed description to scrape them from. A file
+                # that's since moved or is unreadable is skipped rather than
+                # failing the whole request; the text prompt still carries.
+                image_parts = []
+                for img_path in (image_paths or []):
+                    try:
+                        p = Path(img_path)
+                        if not p.is_absolute():
+                            p = BASE_DIR / p
+                        ext = p.suffix.lower().lstrip(".")
+                        mime = {
+                            "jpg": "image/jpeg", "jpeg": "image/jpeg",
+                            "png": "image/png", "webp": "image/webp",
+                            "heic": "image/heic", "heif": "image/heif",
+                        }.get(ext, "image/jpeg")
+                        image_parts.append(types.Part.from_bytes(data=p.read_bytes(), mime_type=mime))
+                    except Exception as img_err:
+                        print(f"[ProductScraper] Skipping unreadable reference image {img_path}: {img_err}")
+
+                contents = [prompt, *image_parts] if image_parts else prompt
+
                 client = genai.Client(api_key=api_key)
                 resp = None
                 for m_name in ["gemini-3.5-flash", "gemini-flash-latest", "gemini-2.5-flash", "gemini-3.5-flash-lite"]:
@@ -360,7 +403,7 @@ class ProductScraper:
                         print(f"[ProductScraper] Calling Gemini with model {m_name}...")
                         resp = client.models.generate_content(
                             model=m_name,
-                            contents=prompt
+                            contents=contents
                         )
                         if resp and resp.text:
                             print(f"[ProductScraper] Successfully received response from {m_name}")

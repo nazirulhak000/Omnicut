@@ -64,6 +64,34 @@ def resolve_tiktok_product_id(url_or_id: str) -> Dict[str, Any]:
     return {"success": False, "product_id": None, "resolved_url": None}
 
 
+def _apply_images_to_product_info(product_info: Dict[str, Any], image_paths: list, custom_keyword: str, raw_text: str) -> None:
+    """Attach up to MAX reference images to product_info in place.
+
+    Shared by the sync and async scrape-and-plan paths so both stay in sync
+    on how a rel_path is computed and how the first image seeds a title when
+    nothing else was typed -- previously duplicated logic that only handled
+    a single image_path.
+    """
+    if not image_paths:
+        return
+    entries = []
+    for raw_path in image_paths:
+        img_p = Path(raw_path)
+        img_name = img_p.name
+        img_rel = str(img_p.relative_to(BASE_DIR)).replace("\\", "/") if BASE_DIR in img_p.parents else img_name
+        entries.append({"name": img_name, "rel_path": img_rel, "local_path": str(img_p)})
+    product_info["images"] = entries
+    product_info["image_count"] = len(entries)
+    product_info["thumbnail"] = entries[0]["rel_path"]
+    if not custom_keyword and not raw_text:
+        first_name = entries[0]["name"]
+        clean_title = Path(first_name).stem.replace("_", " ").replace("-", " ")
+        product_info["title"] = clean_title or "สินค้า"
+        product_info["description"] = (
+            f"สินค้าจากภาพ {len(entries)} รูป" if len(entries) > 1 else f"สินค้าจากภาพ {first_name}"
+        )
+
+
 @router.post("/api/products/resolve-tiktok-id")
 def resolve_tiktok_id_endpoint(payload: Dict[str, Any]):
     """Resolves a raw string, direct ID, full URL, or shortlink to a numeric TikTok Product ID."""
@@ -196,9 +224,9 @@ def scrape_and_plan(payload: Dict[str, Any]):
     url = payload.get("url", "").strip()
     raw_text = payload.get("raw_text", "").strip()
     custom_keyword = payload.get("custom_keyword", "").strip()
-    image_path = payload.get("image_path", "").strip()
+    image_paths = payload.get("image_paths") or []
 
-    if not url and not raw_text and not custom_keyword and not image_path:
+    if not url and not raw_text and not custom_keyword and not image_paths:
         raise HTTPException(status_code=400, detail="กรุณาระบุลิงก์ ข้อความรายละเอียด หรือรูปภาพสินค้า")
 
     try:
@@ -216,17 +244,7 @@ def scrape_and_plan(payload: Dict[str, Any]):
                 "image_count": 0
             }
 
-        if image_path:
-            img_p = Path(image_path)
-            img_name = img_p.name
-            img_rel = str(img_p.relative_to(BASE_DIR)).replace("\\", "/") if BASE_DIR in img_p.parents else img_name
-            product_info["images"] = [{"name": img_name, "rel_path": img_rel, "local_path": str(img_p)}]
-            product_info["image_count"] = 1
-            product_info["thumbnail"] = img_rel
-            if not custom_keyword and not raw_text:
-                clean_title = img_p.stem.replace("_", " ").replace("-", " ")
-                product_info["title"] = clean_title or "สินค้า"
-                product_info["description"] = f"สินค้าจากภาพ {img_name}"
+        _apply_images_to_product_info(product_info, image_paths, custom_keyword, raw_text)
 
         if custom_keyword:
             product_info["title"] = custom_keyword
@@ -245,7 +263,10 @@ def scrape_and_plan(payload: Dict[str, Any]):
             if resolved.get("success") and resolved.get("product_id"):
                 tiktok_product_id = resolved["product_id"]
 
-        angles = ProductScraper.generate_content_matrix(product_info, count=angle_count)
+        angles = ProductScraper.generate_content_matrix(
+            product_info, count=angle_count,
+            image_paths=[img["local_path"] for img in product_info.get("images", [])],
+        )
 
         thumbnail_img = ""
         if product_info.get("images") and len(product_info["images"]) > 0:
@@ -276,7 +297,9 @@ def scrape_and_plan(payload: Dict[str, Any]):
         # would send them looking for a broken URL instead.
         if is_quota_error(e):
             raise HTTPException(status_code=429, detail=e.suggestion_th)
-        print(f"[API] Scrape and plan error: {e}")
+        import traceback
+        print(f"[API] Scrape and plan error: {type(e).__name__}: {e}")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -287,7 +310,7 @@ def _execute_scrape_and_plan_worker(task_id: str, payload: Dict[str, Any]):
         url = payload.get("url", "").strip()
         raw_text = payload.get("raw_text", "").strip()
         custom_keyword = payload.get("custom_keyword", "").strip()
-        image_path = payload.get("image_path", "").strip()
+        image_paths = payload.get("image_paths") or []
         angle_count = int(payload.get("angle_count", 7))
 
         if url:
@@ -305,17 +328,7 @@ def _execute_scrape_and_plan_worker(task_id: str, payload: Dict[str, Any]):
                 "image_count": 0
             }
 
-        if image_path:
-            img_p = Path(image_path)
-            img_name = img_p.name
-            img_rel = str(img_p.relative_to(BASE_DIR)).replace("\\", "/") if BASE_DIR in img_p.parents else img_name
-            product_info["images"] = [{"name": img_name, "rel_path": img_rel, "local_path": str(img_p)}]
-            product_info["image_count"] = 1
-            product_info["thumbnail"] = img_rel
-            if not custom_keyword and not raw_text:
-                clean_title = img_p.stem.replace("_", " ").replace("-", " ")
-                product_info["title"] = clean_title or "สินค้า"
-                product_info["description"] = f"สินค้าจากภาพ {img_name}"
+        _apply_images_to_product_info(product_info, image_paths, custom_keyword, raw_text)
 
         if custom_keyword:
             product_info["title"] = custom_keyword
@@ -327,8 +340,13 @@ def _execute_scrape_and_plan_worker(task_id: str, payload: Dict[str, Any]):
         if len(title_display) > 35:
             title_display = title_display[:35]
 
-        TaskManager.update_progress(task_id, 0.55, f"AI กำลังแต่ง {angle_count} สคริปต์ ({title_display})")
-        angles = ProductScraper.generate_content_matrix(product_info, count=angle_count)
+        img_count = len(product_info.get("images", []))
+        vision_note = f" (อ่านสรรพคุณจากภาพ {img_count} รูปด้วย)" if img_count else ""
+        TaskManager.update_progress(task_id, 0.55, f"AI กำลังแต่ง {angle_count} สคริปต์ ({title_display}){vision_note}")
+        angles = ProductScraper.generate_content_matrix(
+            product_info, count=angle_count,
+            image_paths=[img["local_path"] for img in product_info.get("images", [])],
+        )
 
         TaskManager.update_progress(task_id, 0.85, "กำลังปรับแต่งบทพูดสำหรับเสียงพากย์ AI (TTS Sanitizer)")
         angles = TTSSanitizer.process_angles(angles)
@@ -375,7 +393,15 @@ def _execute_scrape_and_plan_worker(task_id: str, payload: Dict[str, Any]):
             target_id=saved_prod["id"]
         )
     except Exception as e:
-        print(f"❌ [TaskManager] Scrape task failed ({task_id}): {e}")
+        # str(e) alone drops the exception type and traceback, which is what
+        # made a prior "'str' object has no attribute 'get'" failure here
+        # nearly impossible to trace back to its actual origin (turned out to
+        # be a google-genai SDK error path, several layers below this code).
+        # Logging the type + full traceback costs nothing and is the only way
+        # the next occurrence gets diagnosed directly instead of by inference.
+        import traceback
+        print(f"❌ [TaskManager] Scrape task failed ({task_id}): {type(e).__name__}: {e}")
+        traceback.print_exc()
         if is_quota_error(e):
             # Say which cap stopped it. "วิเคราะห์สินค้าไม่สำเร็จ" would send the
             # user looking for a bad URL instead of their own daily budget.
@@ -394,10 +420,11 @@ def scrape_and_plan_async(payload: Dict[str, Any], background_tasks: BackgroundT
     url = payload.get("url", "").strip()
     raw_text = payload.get("raw_text", "").strip()
     custom_keyword = payload.get("custom_keyword", "").strip()
+    image_paths = payload.get("image_paths") or []
     angle_count = int(payload.get("angle_count", 7))
 
-    if not url and not raw_text and not custom_keyword:
-        raise HTTPException(status_code=400, detail="กรุณาระบุลิงก์ ข้อความรายละเอียด หรือชื่อสินค้า")
+    if not url and not raw_text and not custom_keyword and not image_paths:
+        raise HTTPException(status_code=400, detail="กรุณาระบุลิงก์ ข้อความรายละเอียด รูปภาพ หรือชื่อสินค้า")
 
     name_label = custom_keyword or (f"ลิงก์: {url[:30]}" if url else "สินค้าใหม่")
     task_title = f"วิเคราะห์สินค้า: {name_label} ({angle_count} สคริปต์)"

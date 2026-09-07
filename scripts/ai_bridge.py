@@ -336,6 +336,8 @@ class AIBridge:
             if not isinstance(angles, list) or not angles:
                 raise ValueError("ต้องมี key 'angles' เป็น list และมีอย่างน้อย 1 มุม")
             for i, angle in enumerate(angles, 1):
+                if not isinstance(angle, dict):
+                    raise ValueError(f"มุมที่ {i} ต้องเป็น object ไม่ใช่ {type(angle).__name__}")
                 for key in ("angle_key", "title", "hook"):
                     if not angle.get(key):
                         raise ValueError(f"มุมที่ {i} ขาด '{key}'")
@@ -345,6 +347,8 @@ class AIBridge:
             if not isinstance(lines, list) or not lines:
                 raise ValueError("ต้องมี key 'lines' เป็น list และมีอย่างน้อย 1 บรรทัด")
             for i, line in enumerate(lines, 1):
+                if not isinstance(line, dict):
+                    raise ValueError(f"บรรทัดที่ {i} ต้องเป็น object ไม่ใช่ {type(line).__name__}")
                 if not line.get("text"):
                     raise ValueError(f"บรรทัดที่ {i} ไม่มี 'text'")
 

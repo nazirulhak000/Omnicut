@@ -66,7 +66,7 @@ def test_scrape_and_plan_accepts_tiktok_product_id(isolated_store, monkeypatch):
     monkeypatch.setattr(
         ProductScraper,
         "generate_content_matrix",
-        lambda info, count=10: [{
+        lambda info, count=10, image_paths=None: [{
             "angle_id": "ang1",
             "angle_name": "Review",
             "hook_title": "Hook",
@@ -107,7 +107,7 @@ def test_scrape_and_plan_auto_extracts_id_from_tiktok_url(isolated_store, monkey
     monkeypatch.setattr(
         ProductScraper,
         "generate_content_matrix",
-        lambda info, count=10: []
+        lambda info, count=10, image_paths=None: []
     )
 
     client = TestClient(app)

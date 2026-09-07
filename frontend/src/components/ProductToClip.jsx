@@ -19,6 +19,11 @@ import { useToast } from '../hooks';
 import { useTaskManager } from '../context/TaskContext';
 import { guessBrandModel } from '../lib/overlayModel';
 
+// One Gemini vision call reads all of these together (product photo, spec
+// sheet, review screenshots) -- capped so a single analyze request stays a
+// handful of images, not an unbounded upload.
+const MAX_ANALYZE_IMAGES = 5;
+
 // ═══════════════════════════════════════════════════════════════════════
 // 📦 PRODUCT CARD (Horizontal Gallery Item)
 // ═══════════════════════════════════════════════════════════════════════
@@ -1101,7 +1106,10 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
   // Active Product & Angles State
   const [productData, setProductData] = useState(null);
-  const [selectedImage, setSelectedImage] = useState(null);
+  // Up to MAX_ANALYZE_IMAGES reference screenshots (product page, spec sheet,
+  // reviews) the AI reads directly via vision when generating angles -- not
+  // just a single cover thumbnail. Each entry: { path, previewUrl, name }.
+  const [selectedImages, setSelectedImages] = useState([]);
   const [angles, setAngles] = useState([]);
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [openAngleIdx, setOpenAngleIdx] = useState(0); // Accordion: which angle is expanded
@@ -1378,7 +1386,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       showToast('กรุณาระบุชื่อสินค้าหรือสเปกก่อนครับ', 'warning');
       return;
     }
-    if (inputMode === 'image' && !selectedImage && !customKeyword.trim()) {
+    if (inputMode === 'image' && selectedImages.length === 0 && !customKeyword.trim()) {
       showToast('กรุณาอัปโหลดรูปภาพหรือระบุชื่อสินค้าก่อนครับ', 'warning');
       return;
     }
@@ -1391,7 +1399,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         url: inputMode === 'link' ? url : undefined,
         raw_text: inputMode === 'text' ? `${customKeyword}\n${rawText}` : undefined,
         custom_keyword: customKeyword || undefined,
-        image_path: inputMode === 'image' ? selectedImage : undefined,
+        image_paths: inputMode === 'image' ? selectedImages.map((img) => img.path) : undefined,
         angle_count: angleCount,
         tiktok_product_id: tiktokProductId.trim() || undefined,
       };
@@ -1404,6 +1412,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         setCustomKeyword('');
         setRawText('');
         setTiktokProductId('');
+        setSelectedImages([]);
         showToast(`🚀 เริ่มวิเคราะห์สินค้า & สร้าง ${angleCount} สคริปต์ในเบื้องหลังแล้ว — สามารถเปลี่ยนหน้าหรือทำงานต่อได้ทันที`);
       } else {
         // Fallback to sync if async did not return task_id
@@ -1415,6 +1424,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
           setCustomKeyword('');
           setRawText('');
           setTiktokProductId('');
+          setSelectedImages([]);
           await loadHistory();
           showToast(`AI วิเคราะห์และสร้าง ${angleCount} สคริปต์สำเร็จแล้ว`);
         }
@@ -1427,36 +1437,73 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     }
   };
 
-  const [previewImage, setPreviewImage] = useState(null);
-
   const handleImageUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingImg(true);
-    const isVideo = file.type.startsWith('video/') || /\.(mp4|mov|webm|mkv|avi)$/i.test(file.name);
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('target_dir', isVideo ? 'raw' : 'inbox');
-    try {
-      const res = await uploadFile(formData);
-      if (res.file) {
-        const filePath = res.file.rel_path || res.file.path;
-        if (isVideo) {
-          // Set as DEFAULT video for ALL angles of this product!
-          if (productData?.id) {
-            const updateRes = await setDefaultVideosForProduct(productData.id, [filePath]);
-            if (updateRes.product) {
-              setProductData(updateRes.product);
-              setAngles(updateRes.product.angles || []);
-              setHistoryList(prev => prev.map(p => p.id === updateRes.product.id ? updateRes.product : p));
-            }
-            onRefresh && onRefresh();
-            showToast(`แนบคลิป "${file.name}" เป็นคลิปหลักเริ่มต้นให้ทุกสคริปต์เรียบร้อยแล้ว`);
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    // The video branch below (drop a clip here to set it as this product's
+    // default footage) only ever meant one file at a time -- keep that
+    // exactly as it was. Multi-select only applies to the image/reference
+    // path this function otherwise serves.
+    const isVideoFile = (f) => f.type.startsWith('video/') || /\.(mp4|mov|webm|mkv|avi)$/i.test(f.name);
+    if (files.length === 1 && isVideoFile(files[0])) {
+      const file = files[0];
+      setUploadingImg(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('target_dir', 'raw');
+      try {
+        const res = await uploadFile(formData);
+        if (res.file && productData?.id) {
+          const filePath = res.file.rel_path || res.file.path;
+          const updateRes = await setDefaultVideosForProduct(productData.id, [filePath]);
+          if (updateRes.product) {
+            setProductData(updateRes.product);
+            setAngles(updateRes.product.angles || []);
+            setHistoryList(prev => prev.map(p => p.id === updateRes.product.id ? updateRes.product : p));
           }
-        } else {
-          setSelectedImage(filePath);
-          showToast('อัปโหลดรูปภาพเรียบร้อยแล้ว');
+          onRefresh && onRefresh();
+          showToast(`แนบคลิป "${file.name}" เป็นคลิปหลักเริ่มต้นให้ทุกสคริปต์เรียบร้อยแล้ว`);
         }
+      } catch (err) {
+        showToast('อัปโหลดไม่สำเร็จ: ' + (err.friendlyMessage || err.message), 'error');
+      } finally {
+        setUploadingImg(false);
+        if (e.target) e.target.value = '';
+      }
+      return;
+    }
+
+    const room = MAX_ANALYZE_IMAGES - selectedImages.length;
+    if (room <= 0) {
+      showToast(`แนบได้สูงสุด ${MAX_ANALYZE_IMAGES} รูปต่อครั้งครับ`, 'warning');
+      if (e.target) e.target.value = '';
+      return;
+    }
+    const toUpload = files.filter((f) => !isVideoFile(f)).slice(0, room);
+    if (files.length > toUpload.length) {
+      showToast(`แนบได้สูงสุด ${MAX_ANALYZE_IMAGES} รูปต่อครั้ง — เก็บแค่ ${toUpload.length} รูปแรก`, 'warning');
+    }
+
+    setUploadingImg(true);
+    try {
+      const uploaded = [];
+      for (const file of toUpload) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('target_dir', 'inbox');
+        const res = await uploadFile(formData);
+        if (res.file) {
+          uploaded.push({
+            path: res.file.rel_path || res.file.path,
+            previewUrl: toMediaUrl(res.file.rel_path || res.file.path),
+            name: file.name,
+          });
+        }
+      }
+      if (uploaded.length) {
+        setSelectedImages((prev) => [...prev, ...uploaded]);
+        showToast(uploaded.length > 1 ? `อัปโหลดรูปภาพ ${uploaded.length} รูปเรียบร้อยแล้ว` : 'อัปโหลดรูปภาพเรียบร้อยแล้ว');
       }
     } catch (err) {
       showToast('อัปโหลดไม่สำเร็จ: ' + (err.friendlyMessage || err.message), 'error');
@@ -1996,47 +2043,57 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
               />
               <div>
                 <label className="text-xs font-semibold text-slate-300 block mb-1.5">
-                  รูปสินค้าหรือภาพหน้าจอ:
+                  รูปสินค้าหรือภาพหน้าจอ (แนบได้สูงสุด {MAX_ANALYZE_IMAGES} รูป — AI จะอ่านสรรพคุณ/สเปคจากทุกรูปที่แนบ):
                 </label>
+
+                {selectedImages.length > 0 && (
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-2">
+                    {selectedImages.map((img, i) => (
+                      <div key={img.path} className="relative group aspect-square rounded-xl overflow-hidden border border-white/[0.12] bg-black/40">
+                        <img src={img.previewUrl} alt={img.name} className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setSelectedImages((prev) => prev.filter((_, idx) => idx !== i))}
+                          title="ลบรูปนี้"
+                          className="absolute top-1 right-1 flex items-center justify-center w-5 h-5 rounded-full bg-black/70 text-rose-300 hover:bg-rose-500/80 hover:text-white cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div
                   className="relative block border-2 border-dashed border-white/[0.15] hover:border-[#25F4EE]/50 rounded-2xl p-6 text-center cursor-pointer transition-colors bg-black/30"
                 >
                   <input
                     ref={fileInputRef}
                     type="file"
+                    multiple
                     accept="image/*,image/heic,image/heif,image/jpeg,image/png,image/webp,.heic,.HEIC,.heif,.HEIF,.jpg,.jpeg,.png,.webp"
                     onChange={handleImageUpload}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                    disabled={uploadingImg || selectedImages.length >= MAX_ANALYZE_IMAGES}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20 disabled:cursor-not-allowed"
                   />
                   {uploadingImg ? (
                     <div className="flex flex-col items-center gap-2 text-[#25F4EE] pointer-events-none">
                       <Loader2 className="w-6 h-6 animate-spin" />
                       <span className="text-xs font-bold">กำลังอัปโหลดรูปภาพ...</span>
                     </div>
-                  ) : (selectedImage || previewImage) ? (
-                    <div className="space-y-2 relative z-30">
-                      {previewImage && (
-                        <img
-                          src={previewImage}
-                          alt="Uploaded Preview"
-                          className="h-32 mx-auto rounded-xl object-contain border border-white/[0.1] shadow-md mb-2"
-                        />
-                      )}
-                      <div className="text-xs font-bold text-emerald-400">เลือกรูปแล้ว:</div>
-                      <div className="text-sm text-slate-400 font-mono">{(selectedImage || 'image').split('\\').pop()?.split('/').pop()}</div>
-                      <button
-                        type="button"
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedImage(null); setPreviewImage(null); }}
-                        className="text-xs text-rose-400 hover:underline cursor-pointer"
-                      >
-                        ลบรูปออก
-                      </button>
+                  ) : selectedImages.length >= MAX_ANALYZE_IMAGES ? (
+                    <div className="space-y-1.5 text-slate-400 pointer-events-none">
+                      <Check className="w-7 h-7 mx-auto text-emerald-400" />
+                      <div className="text-xs font-bold text-emerald-400">แนบครบ {MAX_ANALYZE_IMAGES} รูปแล้ว</div>
+                      <div className="text-sm text-slate-500">ลบรูปด้านบนก่อนถึงจะแนบเพิ่มได้</div>
                     </div>
                   ) : (
                     <div className="space-y-1.5 text-slate-400 pointer-events-none">
                       <Upload className="w-7 h-7 mx-auto text-slate-500" />
-                      <div className="text-xs font-bold text-slate-200">แตะเพื่อเลือกรูปสินค้า</div>
-                      <div className="text-sm text-slate-500">รองรับ HEIC, JPG, PNG, WebP</div>
+                      <div className="text-xs font-bold text-slate-200">
+                        {selectedImages.length > 0 ? `แตะเพื่อเลือกเพิ่ม (${selectedImages.length}/${MAX_ANALYZE_IMAGES})` : 'แตะเพื่อเลือกรูปสินค้า'}
+                      </div>
+                      <div className="text-sm text-slate-500">รองรับ HEIC, JPG, PNG, WebP · เลือกได้หลายรูปพร้อมกัน</div>
                     </div>
                   )}
                 </div>
@@ -2046,9 +2103,10 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   <span className="text-[11px] font-bold text-slate-400 block">หรือเลือกไฟล์รูปภาพ:</span>
                   <input
                     type="file"
+                    multiple
                     accept="image/*,image/heic,image/heif,image/jpeg,image/png,image/webp,.heic,.HEIC,.heif,.HEIF,.jpg,.jpeg,.png,.webp"
                     onChange={handleImageUpload}
-                    disabled={uploadingImg}
+                    disabled={uploadingImg || selectedImages.length >= MAX_ANALYZE_IMAGES}
                     className="block w-full text-xs text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#25F4EE]/20 file:text-[#25F4EE] hover:file:bg-[#25F4EE]/30 file:cursor-pointer cursor-pointer"
                   />
                 </div>
