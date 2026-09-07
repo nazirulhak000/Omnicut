@@ -73,6 +73,39 @@ test('cover is rejected before any page interaction when missing', async () => {
   }, null), /ยังไม่มีปก/);
 });
 
+test('cover upload dispatches input and change events after CDP sets the hidden file input', async () => {
+  const ctx = worker();
+  const calls = [];
+  let filesSet = false;
+  const send = async (method, params = {}) => {
+    calls.push({method, params});
+    if (method === 'Runtime.evaluate') {
+      const expression = String(params.expression || '');
+      if (expression.includes('dialogCandidates') && !params.returnByValue) {
+        return {result: {objectId: 'cover-input'}};
+      }
+      if (expression.includes('input.files.length') && expression.includes('preview')) {
+        return {result: {value: filesSet}};
+      }
+      return {result: {value: true}};
+    }
+    if (method === 'DOM.requestNode') return {nodeId: 7};
+    if (method === 'DOM.setFileInputFiles') {
+      filesSet = true;
+      return {};
+    }
+    return {};
+  };
+
+  await ctx.OmniAutomation.uploadCover(send, 'D:/covers/demo_cover_3x4.jpg');
+  const eventExpression = calls
+    .filter(call => call.method === 'Runtime.evaluate')
+    .map(call => String(call.params.expression || ''))
+    .find(expression => expression.includes("dispatchEvent(new Event('input'") );
+  assert.ok(eventExpression, 'must notify React about the selected cover');
+  assert.match(eventExpression, /dispatchEvent\(new Event\('change'/);
+});
+
 test('schedule time follows TikTok five-minute increments', () => {
   const ctx = worker();
   assert.equal(ctx.normalizeScheduleTime('16:08'), '16:10');

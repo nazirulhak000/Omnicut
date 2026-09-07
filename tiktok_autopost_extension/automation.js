@@ -202,14 +202,32 @@ globalThis.OmniAutomation = (() => {
     }
     await wait(send, `Boolean(${fileInputQuery})`, 'ไม่พบช่องอัปโหลดภาพปกในหน้าต่างแก้ไขปก');
 
-    const {result, exceptionDetails} = await send('Runtime.evaluate', {expression:fileInputQuery});
-    if (exceptionDetails || !result?.objectId) throw new Error('ช่องอัปโหลดปกไม่พร้อม');
+    const {result, exceptionDetails} = await send('Runtime.evaluate', {
+      expression: fileInputQuery,
+      returnByValue: false,
+    });
+    if (exceptionDetails) throw new Error(`ประเมินช่องอัปโหลดปกล้มเหลว: ${exceptionDetails.text || 'TikTok เปลี่ยนหน้า'}`);
+    if (!result?.objectId) throw new Error('ช่องอัปโหลดปกไม่พร้อม');
     try {
       const {nodeId} = await send('DOM.requestNode', {objectId:result.objectId});
+      if (!nodeId) throw new Error('ขอ node ของช่องอัปโหลดปกไม่สำเร็จ');
       await send('DOM.setFileInputFiles', {nodeId, files:[coverPath]});
     } finally {
       await send('Runtime.releaseObject', {objectId:result.objectId}).catch(() => {});
     }
+
+    // DOM.setFileInputFiles updates the browser's FileList, but it does not
+    // reliably emit the React-facing events that TikTok uses to create the
+    // preview. Notify the same hidden input explicitly without clicking the
+    // label (which would open the native OS picker).
+    const notified = await evaluate(send, `(() => {
+      const input = ${fileInputQuery};
+      if (!input || !input.files || input.files.length === 0) return false;
+      input.dispatchEvent(new Event('input', {bubbles:true}));
+      input.dispatchEvent(new Event('change', {bubbles:true}));
+      return true;
+    })()`);
+    if (!notified) throw new Error('ส่งไฟล์ปกแล้ว แต่ TikTok ยังไม่รับไฟล์ในช่องอัปโหลด');
 
     // 3. Wait for image preview to render inside the modal
     await wait(send, `(() => {
