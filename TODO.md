@@ -19,6 +19,7 @@
 - [ ] Round POST-3.16 — ปกแสดง 3:4 และแก้ Extension แนบปกข้อ 5 ให้เปิด dialog/อัปโหลดได้จริง (2026-09-07)
 - [ ] Round POST-3.17 — ซ่อม path ปกที่หายก่อนข้อ 5 และยืนยันการส่งต่อไป TikTok (2026-09-07)
 - [ ] Round POST-3.18 — make CDP cover upload notify TikTok React (2026-09-07)
+- [x] Round POST-3.19 - restore generated cover in TikTok post modal (2026-09-07)
 
 - [x] Round DOC-1 — ตรวจโค้ดและอัปเดตเอกสาร/กฎให้ตรงกับระบบปัจจุบัน
 - [x] Round BUG-1 — แก้ปุ่มสร้างคลิปใหม่กดไม่ได้ (executeRender ใน useRenderJob)

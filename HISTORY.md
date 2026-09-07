@@ -28,6 +28,7 @@
 
 | Round POST-3.14 | Cover Studio portal entry, project-based cover naming, and LOG01 legacy project migration | 2026-09-07 | commit 2a1e395 -> frontend 63 tests pass -> build pass -> backend compile/tests pass |
 | Round POST-3.15 | Prefer project-named covers in export metadata before the legacy product fallback | 2026-09-07 | focused backend tests 8 passed -> compileall passed |
+| Round POST-3.19 | Restore generated cover visibility in the TikTok post modal after backend refresh | 2026-09-07 | User confirmed step 5 cover upload works; focused backend tests 14 passed; frontend tests 65 passed; build passed |
 ---
 
 ## Round TRK-3 — บอร์ดหลักคลีนไร้ความรก (Today-Only Posted, คลังสคริปต์หยิบทำวันนี้ & การ์ดตัดต่อเสร็จแนวนอนกะทัดรัด)
@@ -740,3 +741,33 @@ Date: 2026-09-07
 Result: /api/exports now checks <project_name>_cover.jpg (and the 3:4 variant) before using the legacy product-named cover fallback. This keeps the cover generated for each project attached to the matching export and preserves compatibility with older product-level covers.
 
 Evidence: focused TikTok backend tests 8 passed with one existing Starlette/httpx deprecation warning; python -m compileall -q scripts passed.
+
+---
+## Round POST-3.19 - restore generated cover in TikTok post modal
+
+Date: 2026-09-07; Requested by: user; Status: complete
+
+**Evidence:** The generated 3:4 cover is now available in the TikTok preparation flow and the user confirmed that step 5 can upload it after the runtime was refreshed.
+
+**Scope:** Trace the saved cover from the Editor callback through product refresh and TikTok modal state. Steps 1-4 and the extension upload flow remain unchanged.
+
+### Todo
+
+- [x] Reproduce the missing-cover state from the live `/api/products` response and modal mapping.
+- [x] Reuse the existing deterministic persistence and 3:4 variant regression coverage (`tests/test_product_cover_persistence.py` and `frontend/src/lib/coverVariant.test.js`).
+- [x] Confirm the smallest runtime gap: the running backend process predated the cover persistence commit; restarting it loaded the current API hydration code without a frontend mapping change.
+- [x] Re-run frontend tests/build and relevant backend cover tests.
+- [x] Confirm the modal/upload flow shows the saved cover after refresh (user verification).
+
+### Gate
+
+- [x] `python -m pytest tests/test_product_cover_persistence.py tests/test_api_tiktok_autopost.py -q -p no:cacheprovider --tb=short` - 14 passed, 1 existing warning
+- [x] `npm test` - 65 passed
+- [x] `npm run build` - passed
+- [x] `git diff --check` - passed
+- [x] Browser/extension flow - user confirmed cover upload now works
+
+### Notes
+
+- The live API returned null cover fields while an older backend process was still running; the current source-level API hydration resolves the saved project-named 3:4 file correctly.
+- No code change was made in this verification round. Existing cover persistence/mapping code remains the source of truth, and steps 1-4 stay locked.
