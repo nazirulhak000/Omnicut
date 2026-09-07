@@ -98,4 +98,5 @@ test('live DOM contracts for the reported TikTok screens stay in the worker', ()
   const searchStep = code.slice(code.indexOf('// Step 4: Type Product ID'), code.indexOf('const searchVal'));
   assert.match(searchStep, /const search = root\.querySelector/);
   assert.doesNotMatch(searchStep, /const search = document\.querySelector/);
+  assert.match(searchStep, /productContainers\.at\(-1\)/);
 });

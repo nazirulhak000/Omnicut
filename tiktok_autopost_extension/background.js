@@ -616,7 +616,8 @@ async function attachProductLink(send, productId, cartName = '') {
           return p.includes('ค้นหา') || p.includes('search') || p.includes('สินค้า');
         };
 
-        const productContainer = document.querySelector('.product-selector-container');
+        const productContainers = Array.from(document.querySelectorAll('.product-selector-container')).filter(el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
+        const productContainer = productContainers.at(-1);
         const dialogs = Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal'))
           .filter(el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
         const root = productContainer?.closest('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal')
@@ -710,7 +711,8 @@ async function attachProductLink(send, productId, cartName = '') {
 
         const dialogs = Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal'))
           .filter(isVisible);
-        const productContainer = document.querySelector('.product-selector-container');
+        const productContainers = Array.from(document.querySelectorAll('.product-selector-container')).filter(el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
+        const productContainer = productContainers.at(-1);
         const root = productContainer?.closest('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal')
           || dialogs.at(-1) || document;
         const rows = Array.from(root.querySelectorAll('tr.product-tb-row, [class*="product-tb-row"], table tr, [role="row"], tbody tr'))
@@ -795,7 +797,8 @@ async function attachProductLink(send, productId, cartName = '') {
       // Verify that radio became checked OR Next button became enabled
       const statusCheck = await send('Runtime.evaluate', {
         expression: `(() => {
-          const productContainer = document.querySelector('.product-selector-container');
+          const productContainers = Array.from(document.querySelectorAll('.product-selector-container')).filter(el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
+          const productContainer = productContainers.at(-1);
           const dialogs = Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal'))
             .filter(el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
           const root = productContainer?.closest('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal')
@@ -845,7 +848,8 @@ async function attachProductLink(send, productId, cartName = '') {
           const rect = el.getBoundingClientRect();
           return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
         };
-        const productContainer = document.querySelector('.product-selector-container');
+        const productContainers = Array.from(document.querySelectorAll('.product-selector-container')).filter(el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
+        const productContainer = productContainers.at(-1);
         const dialogs = Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal'))
           .filter(el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
         const root = productContainer?.closest('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal')
