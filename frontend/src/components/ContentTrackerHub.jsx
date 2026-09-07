@@ -593,11 +593,8 @@ const MobileTableRowCard = memo(function MobileTableRowCard({
             onClick={() => onInspectAngle(ang)}
             className="font-bold text-white text-xs sm:text-sm font-kanit truncate hover:text-[#25F4EE] cursor-pointer"
           >
-            {ang.parentProduct?.name}
+            {ang.project_name || ang.parentProduct?.name}
           </span>
-          {ang.badge && (
-            <Badge variant="cyan" size="sm">{ang.badge}</Badge>
-          )}
         </div>
         <span className={`text-[11px] font-bold px-2 py-0.5 rounded-lg border flex-shrink-0 whitespace-nowrap ${currentPhase.color}`}>
           {currentPhase.label}
@@ -1366,6 +1363,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
         title: product.name,
         description: product.description,
         price_note: product.price_note,
+        product_code: product.product_code || '',
         images: product.images || [],
         angles: product.angles || [angle]
       },
