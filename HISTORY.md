@@ -710,3 +710,9 @@ Result: `setScheduleDateTime` now detects an already-open date/time picker and a
 
 Date: 2026-09-07
 Result: Time selection now searches all TikTok hour/minute options and scrolls the requested option into view before clicking. This fixes the recorded case where Side Panel selected `10:00` but TikTok stayed at `10:40` because `00` was outside the visible virtual-scroll window. Node regression suite passed 8/8.
+
+
+## Round POST-3.12 - Find Cover Studio Save outside the editor root
+
+Date: 2026-09-07
+Result: Cover automation now includes TikTok's `cover-editor-container` and prefers that outer container when locating the Save button. The live DOM showed Save is a sibling of `CoverEditor__root`, which explained why the modal opened but the automation could not finish. Node regression suite passed 8/8; local file injection remains pending a direct extension test.

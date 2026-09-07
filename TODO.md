@@ -942,3 +942,21 @@ Notes: Live TikTok inspection found the schedule input at `11:25` while Side Pan
 - [ ] Verify with the reloaded extension on the real tab without publishing.
 
 Notes: Only `tiktok_autopost_extension/background.js` and its regression contract changed in this round. Steps 1-3, Cover step, and publishing remain untouched. Other files were already modified by parallel work and were not staged.
+
+#### POST-3.12 - Find Cover Studio save button outside the editor root (2026-09-07)
+
+- [ ] Include TikTok `cover-editor-container` in the save-button scope; the visible Save button is a sibling container outside `CoverEditor__root`.
+- [ ] Add a regression contract for the real Cover Studio DOM classes.
+- [ ] Run syntax check and Node regression without changing schedule, steps 1-3, or publishing.
+- [ ] Verify modal -> local cover file -> Save through the reloaded extension when direct file injection is available.
+
+
+#### POST-3.12 implementation update (2026-09-07)
+
+- [x] Include `cover-editor-container` in Cover Studio save-button discovery.
+- [x] Prefer the outer container because TikTok renders Save beside `CoverEditor__root`.
+- [x] Add a regression contract for the real DOM class.
+- [x] Run syntax checks and Node regression: 8 passed.
+- [ ] Verify local file injection and Save through the reloaded extension; direct browser control still blocks local file transmission.
+
+Notes: Schedule code and steps 1-3 remain frozen.

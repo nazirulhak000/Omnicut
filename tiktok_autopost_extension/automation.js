@@ -180,9 +180,12 @@ globalThis.OmniAutomation = (() => {
         const rect = el.getBoundingClientRect();
         return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
       };
-      const roots = Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"], [class*="CoverEditor__root"], [class*="cover-modal"], [class*="CoverModal"]'))
+      const roots = Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"], [class*="CoverEditor__root"], [class*="cover-editor-container"], [class*="cover-modal"], [class*="CoverModal"]'))
         .filter(isVisible);
-      const root = roots.at(-1) || document;
+      // TikTok renders the header (including Save) as a sibling of
+      // CoverEditor__root under cover-editor-container, so prefer that
+      // outer container when it exists.
+      const root = roots.find(el => String(el.className || '').includes('cover-editor-container')) || roots.at(-1) || document;
       const buttons = Array.from(root.querySelectorAll('button, div[role="button"]')).filter(isVisible);
       const saveBtn = buttons.reverse().find(b => {
         if (b.disabled || b.getAttribute('aria-disabled') === 'true') return false;

@@ -108,6 +108,7 @@ test('live DOM contracts for the reported TikTok screens stay in the worker', ()
   assert.match(automation, /ImageUpload__uploadArea/);
   assert.match(automation, /DOM\.setFileInputFiles/);
   assert.match(automation, /CoverEditor__root/);
+  assert.match(automation, /cover-editor-container/);
   assert.match(code, /ขั้น 5: เตรียมไฟล์ปกไม่สำเร็จ/);
   assert.match(code, /ขั้น 5: เปิด\/อัปโหลด\/บันทึกปกไม่สำเร็จ/);
   assert.match(automation, /หน้าต่าง Cover Studio ยังไม่ปิด/);
