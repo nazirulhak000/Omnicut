@@ -1,0 +1,1284 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OmniCut Pro Studio — Full Production & Automation Flowchart</title>
+  <!-- Google Fonts: IBM Plex Sans Thai + Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-darkest: #040711;
+      --bg-main: #070c18;
+      --bg-surface: #0e172a;
+      --bg-surface-elevated: #162238;
+      --bg-card: rgba(14, 23, 42, 0.75);
+      --bg-card-hover: rgba(22, 34, 56, 0.85);
+
+      --border-subtle: rgba(255, 255, 255, 0.06);
+      --border-card: rgba(148, 163, 184, 0.14);
+      --border-card-hover: rgba(34, 211, 238, 0.35);
+
+      --text-pure: #ffffff;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-tertiary: #64748b;
+
+      --cyan: #22d3ee;
+      --cyan-bright: #67e8f9;
+      --cyan-glow: rgba(34, 211, 238, 0.35);
+      --cyan-wash: rgba(34, 211, 238, 0.1);
+
+      --emerald: #10b981;
+      --emerald-bright: #34d399;
+      --emerald-glow: rgba(16, 185, 129, 0.35);
+      --emerald-wash: rgba(16, 185, 129, 0.1);
+
+      --indigo: #6366f1;
+      --indigo-bright: #818cf8;
+      --indigo-glow: rgba(99, 102, 241, 0.35);
+
+      --rose: #f43f5e;
+      --rose-bright: #fb7185;
+      --rose-wash: rgba(244, 63, 94, 0.1);
+
+      --amber: #f59e0b;
+      --amber-bright: #fbbf24;
+      --amber-wash: rgba(245, 158, 11, 0.1);
+
+      --neon-yellow: #ffe600;
+
+      --radius-xl: 20px;
+      --radius-lg: 16px;
+      --radius-md: 12px;
+      --radius-sm: 8px;
+      --radius-pill: 9999px;
+
+      --shadow-card: 0 10px 30px -5px rgba(0, 0, 0, 0.5), 0 0 1px 1px rgba(255, 255, 255, 0.05);
+      --shadow-glow: 0 0 25px rgba(34, 211, 238, 0.25);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      scroll-behavior: smooth;
+      color-scheme: dark;
+    }
+
+    body {
+      background:
+        radial-gradient(1200px 500px at 50% 0%, rgba(34, 211, 238, 0.12), transparent 70%),
+        radial-gradient(900px 600px at 90% 40%, rgba(99, 102, 241, 0.08), transparent 70%),
+        radial-gradient(800px 500px at 10% 80%, rgba(16, 185, 129, 0.06), transparent 70%),
+        var(--bg-main);
+      color: var(--text-primary);
+      font-family: "IBM Plex Sans Thai", "Plus Jakarta Sans", sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      padding: 0;
+      margin: 0;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ---- Navigation Top Bar ---------------------------------------------- */
+    .top-nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(7, 12, 24, 0.82);
+      backdrop-filter: blur(18px);
+      border-bottom: 1px solid var(--border-card);
+      padding: 12px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: inherit;
+    }
+    .nav-logo-orb {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      background: linear-gradient(135deg, var(--cyan), #0284c7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 16px var(--cyan-glow);
+    }
+    .nav-title {
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--text-pure);
+      letter-spacing: -0.02em;
+    }
+    .nav-tag {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: var(--radius-pill);
+      background: var(--cyan-wash);
+      color: var(--cyan-bright);
+      border: 1px solid rgba(34, 211, 238, 0.3);
+      margin-left: 6px;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: var(--radius-pill);
+      transition: all 0.18s ease;
+    }
+    .nav-links a:hover {
+      color: var(--cyan-bright);
+      background: var(--cyan-wash);
+    }
+
+    /* ---- Main Container -------------------------------------------------- */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    /* ---- Hero Section ---------------------------------------------------- */
+    .hero {
+      text-align: center;
+      padding: 30px 10px 50px;
+      position: relative;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      border-radius: var(--radius-pill);
+      background: rgba(34, 211, 238, 0.12);
+      border: 1px solid rgba(34, 211, 238, 0.35);
+      color: var(--cyan-bright);
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 18px;
+      box-shadow: 0 0 20px rgba(34, 211, 238, 0.15);
+    }
+    .hero h1 {
+      font-size: 40px;
+      font-weight: 800;
+      line-height: 1.25;
+      color: var(--text-pure);
+      letter-spacing: -0.03em;
+      margin-bottom: 16px;
+    }
+    .hero h1 span {
+      background: linear-gradient(135deg, var(--cyan-bright) 0%, #38bdf8 50%, #818cf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero p {
+      max-width: 740px;
+      margin: 0 auto 30px;
+      font-size: 16.5px;
+      color: var(--text-secondary);
+      line-height: 1.65;
+    }
+
+    /* Quick Specs Highlights */
+    .hero-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    .stat-pill {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-lg);
+      padding: 14px 18px;
+      text-align: left;
+      backdrop-filter: blur(14px);
+      box-shadow: var(--shadow-card);
+      transition: all 0.2s ease;
+    }
+    .stat-pill:hover {
+      border-color: var(--cyan);
+      transform: translateY(-2px);
+    }
+    .stat-pill .label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-tertiary);
+      margin-bottom: 4px;
+    }
+    .stat-pill .val {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-pure);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .stat-pill .val span {
+      color: var(--cyan-bright);
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    /* ---- Filter & Search Bar --------------------------------------------- */
+    .controls-bar {
+      margin: 40px auto 30px;
+      max-width: 960px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      background: rgba(14, 23, 42, 0.6);
+      padding: 8px 12px;
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--border-card);
+      backdrop-filter: blur(16px);
+    }
+    .search-box {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 10px;
+    }
+    .search-box input {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 14px;
+      outline: none;
+    }
+    .search-box input::placeholder {
+      color: var(--text-tertiary);
+    }
+
+    /* ---- Visual Pipeline Flow Diagram (Interactive Node Graph) ---------- */
+    .pipeline-flow-section {
+      margin: 40px 0 60px;
+    }
+    .section-header {
+      margin-bottom: 24px;
+    }
+    .section-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-pure);
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section-subtitle {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    /* Step Nodes Row */
+    .node-chain {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 12px;
+      position: relative;
+    }
+    @media (max-width: 1024px) {
+      .node-chain {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+    @media (max-width: 640px) {
+      .node-chain {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .node-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-lg);
+      padding: 18px 14px;
+      backdrop-filter: blur(16px);
+      text-decoration: none;
+      color: inherit;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .node-card:hover {
+      border-color: var(--cyan);
+      box-shadow: 0 8px 24px rgba(34, 211, 238, 0.2);
+      transform: translateY(-4px);
+    }
+    .node-num {
+      width: 26px;
+      height: 26px;
+      border-radius: var(--radius-pill);
+      background: rgba(34, 211, 238, 0.15);
+      border: 1px solid rgba(34, 211, 238, 0.4);
+      color: var(--cyan-bright);
+      font-weight: 700;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+    }
+    .node-title {
+      font-size: 14.5px;
+      font-weight: 700;
+      color: var(--text-pure);
+      line-height: 1.35;
+      margin-bottom: 6px;
+    }
+    .node-desc {
+      font-size: 11.5px;
+      color: var(--text-secondary);
+      line-height: 1.45;
+      margin-bottom: 12px;
+    }
+    .node-badge {
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: var(--radius-pill);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-tertiary);
+      align-self: flex-start;
+      margin-top: auto;
+    }
+
+    /* Color variations for nodes */
+    .node-card.cyan .node-num { background: rgba(34, 211, 238, 0.2); color: var(--cyan-bright); border-color: var(--cyan); }
+    .node-card.indigo .node-num { background: rgba(99, 102, 241, 0.2); color: var(--indigo-bright); border-color: var(--indigo); }
+    .node-card.amber .node-num { background: rgba(245, 158, 11, 0.2); color: var(--amber-bright); border-color: var(--amber); }
+    .node-card.rose .node-num { background: rgba(244, 63, 94, 0.2); color: var(--rose-bright); border-color: var(--rose); }
+    .node-card.emerald .node-num { background: rgba(16, 185, 129, 0.2); color: var(--emerald-bright); border-color: var(--emerald); }
+    .node-card.blue .node-num { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border-color: #0284c7; }
+
+    /* ---- Deep Dive Phase Cards ------------------------------------------- */
+    .phase-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-xl);
+      padding: 30px;
+      margin-bottom: 36px;
+      backdrop-filter: blur(18px);
+      box-shadow: var(--shadow-card);
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .phase-card:hover {
+      border-color: rgba(148, 163, 184, 0.25);
+    }
+    .phase-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--cyan);
+    }
+    .phase-card.p1::before { background: var(--cyan); }
+    .phase-card.p2::before { background: var(--indigo); }
+    .phase-card.p3::before { background: var(--amber); }
+    .phase-card.p4::before { background: var(--rose); }
+    .phase-card.p5::before { background: var(--emerald); }
+    .phase-card.p6::before { background: #38bdf8; }
+
+    .phase-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .phase-badge-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .phase-badge {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 3px 10px;
+      border-radius: var(--radius-pill);
+      background: var(--cyan-wash);
+      color: var(--cyan-bright);
+      border: 1px solid rgba(34, 211, 238, 0.3);
+    }
+    .phase-engine {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      font-family: "JetBrains Mono", monospace;
+    }
+    .phase-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-pure);
+      letter-spacing: -0.02em;
+    }
+    .phase-summary {
+      font-size: 14.5px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      max-width: 820px;
+      margin-top: 6px;
+    }
+
+    /* 3-Column Info Grid */
+    .phase-details-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 18px;
+      margin-top: 24px;
+    }
+    @media (max-width: 900px) {
+      .phase-details-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .detail-box {
+      background: rgba(8, 14, 28, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      border-radius: var(--radius-md);
+      padding: 16px;
+    }
+    .detail-box-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--cyan-bright);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .detail-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+    .detail-list li {
+      position: relative;
+      padding-left: 18px;
+      line-height: 1.45;
+    }
+    .detail-list li::before {
+      content: "•";
+      position: absolute;
+      left: 4px;
+      color: var(--cyan);
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .rule-callout {
+      margin-top: 18px;
+      padding: 14px 18px;
+      border-radius: var(--radius-md);
+      background: rgba(244, 63, 94, 0.08);
+      border: 1px solid rgba(244, 63, 94, 0.25);
+      color: #fda4af;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    .rule-callout strong {
+      color: var(--rose-bright);
+    }
+
+    .tip-callout {
+      margin-top: 18px;
+      padding: 14px 18px;
+      border-radius: var(--radius-md);
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      color: #a7f3d0;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    .tip-callout strong {
+      color: var(--emerald-bright);
+    }
+
+    /* ---- Stepper Pipeline Graphic for Extension -------------------------- */
+    .extension-stepper-box {
+      margin-top: 20px;
+      background: rgba(6, 11, 24, 0.75);
+      border: 1px solid rgba(34, 211, 238, 0.25);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+    }
+    .stepper-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .stepper-header h4 {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-pure);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 10px;
+    }
+    @media (max-width: 860px) {
+      .steps-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+    @media (max-width: 500px) {
+      .steps-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    .step-item {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      font-size: 12px;
+    }
+    .step-item-num {
+      display: inline-block;
+      width: 22px;
+      height: 22px;
+      line-height: 20px;
+      text-align: center;
+      font-weight: 700;
+      border-radius: var(--radius-pill);
+      background: var(--cyan-wash);
+      color: var(--cyan-bright);
+      border: 1px solid rgba(34, 211, 238, 0.4);
+      margin-bottom: 6px;
+    }
+    .step-item strong {
+      display: block;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+      font-size: 12.5px;
+    }
+    .step-item p {
+      color: var(--text-tertiary);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    /* ---- Reference Specs Table ------------------------------------------- */
+    .specs-table-section {
+      margin: 50px 0;
+    }
+    .table-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-card);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13.5px;
+    }
+    th, td {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    th {
+      background: rgba(14, 23, 42, 0.95);
+      font-weight: 700;
+      color: var(--text-pure);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+    .code-pill {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 12px;
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--cyan-bright);
+      border: 1px solid var(--border-card);
+    }
+
+    /* ---- Directory Structure Section ------------------------------------- */
+    .dir-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+    .dir-card {
+      background: rgba(11, 18, 33, 0.7);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+    }
+    .dir-name {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--cyan-bright);
+      margin-bottom: 4px;
+    }
+    .dir-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.45;
+    }
+
+    /* ---- Footer ---------------------------------------------------------- */
+    footer {
+      text-align: center;
+      padding: 40px 20px;
+      border-top: 1px solid var(--border-card);
+      color: var(--text-tertiary);
+      font-size: 13px;
+    }
+    footer a {
+      color: var(--cyan);
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation -->
+  <nav class="top-nav">
+    <a href="#" class="nav-brand">
+      <div class="nav-logo-orb">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      </div>
+      <span class="nav-title">OmniCut Pro Studio</span>
+      <span class="nav-tag">WORKFLOW GUIDE</span>
+    </a>
+    <div class="nav-links">
+      <a href="#pipeline">แผนผังระบบ</a>
+      <a href="#phases">ขั้นตอนทั้ง 6 เฟส</a>
+      <a href="#specs">สเปกและกฎเหล็ก</a>
+      <a href="#directories">โครงสร้างโฟลเดอร์</a>
+    </div>
+  </nav>
+
+  <div class="container">
+
+    <!-- Hero Header -->
+    <header class="hero">
+      <div class="hero-badge">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+        คู่มือสรุปโฟลว์ฉบับสมบูรณ์ (End-to-End Production Pipeline)
+      </div>
+      <h1>แผนผังและขั้นตอนการผลิตวิดีโอ <span>OmniCut Pro Studio</span></h1>
+      <p>
+        คู่มืออธิบายการทำงานจากวัตถุดิบต้นฉบับ สู่การวิเคราะห์จุดขาย AI สคริปต์ 10 มุมมอง พากย์เสียง AI แบบ J-Cut ตัดต่อ 9:16 ด้วย Kinetic Subtitles ทำปก 3:4 และส่งโพสต์ TikTok Shop อัตโนมัติในคลิกเดียว
+      </p>
+
+      <div class="hero-stats">
+        <div class="stat-pill">
+          <div class="label">รูปแบบวิดีโอมาตรฐาน</div>
+          <div class="val">9:16 <span>1080x1920 @ 30 FPS</span></div>
+        </div>
+        <div class="stat-pill">
+          <div class="label">ระบบเสียง J-Cut Lead-in</div>
+          <div class="val">150–250ms <span>เสียงเริ่มก่อนภาพตัด</span></div>
+        </div>
+        <div class="stat-pill">
+          <div class="label">ซับไตเติล Micro-Burst</div>
+          <div class="val">2–4 คำ <span>ตัดคำด้วย PyThaiNLP</span></div>
+        </div>
+        <div class="stat-pill">
+          <div class="label">คิวโพสต์ประจำวัน (Slots)</div>
+          <div class="val">3–4 รอบ <span>12:30, 19:00, 21:30</span></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Search / Filter -->
+    <div class="controls-bar">
+      <div class="search-box">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="filterInput" placeholder="ค้นหาขั้นตอน, ฟังก์ชัน, กฎเหล็ก, สเปก (เช่น Extension, ปก 3:4, J-Cut, TTS, TikTok ID)..." onkeyup="filterContent()" />
+      </div>
+    </div>
+
+    <!-- Section: Visual Pipeline Chain -->
+    <section id="pipeline" class="pipeline-flow-section">
+      <div class="section-header">
+        <h2 class="section-title">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 3v18"/><path d="M3 7.5h4"/><path d="M3 12h18"/><path d="M3 16.5h4"/><path d="M17 3v18"/><path d="M17 7.5h4"/><path d="M17 16.5h4"/></svg>
+          แผนผังลำดับกระบวนการ 6 เฟส (Master Production Flow)
+        </h2>
+        <div class="section-subtitle">คลิกที่การ์ดเพื่อกระโดดไปยังรายละเอียดของเฟสนั้นๆ ได้ทันที</div>
+      </div>
+
+      <div class="node-chain">
+        <a href="#phase1" class="node-card cyan">
+          <div>
+            <div class="node-num">01</div>
+            <div class="node-title">วิเคราะห์สินค้า & 10 มุมมองขาย</div>
+            <div class="node-desc">Shopee/TikTok URL, สเปกชีท, ภาพสินค้าหลายรูป อ่านสเปกด้วย Gemini Vision</div>
+          </div>
+          <div class="node-badge">ProductToClip</div>
+        </a>
+
+        <a href="#phase2" class="node-card indigo">
+          <div>
+            <div class="node-num">02</div>
+            <div class="node-title">สคริปต์, TTS & J-Cut Audio Mix</div>
+            <div class="node-desc">เสียง AI Premwadee/Niwat +15%, J-Cut เสียงเริ่มก่อนภาพ 150-250ms, BGM + SFX</div>
+          </div>
+          <div class="node-badge">Audio Mix 1:0.28:0.12</div>
+        </a>
+
+        <a href="#phase3" class="node-card amber">
+          <div>
+            <div class="node-num">03</div>
+            <div class="node-title">ตัดต่อ 9:16 & ซับ Kinetic</div>
+            <div class="node-desc">Safe Zone ล่าง 420px, ซับสั้นกระชับ 2-4 คำ, ไฮไลต์เหลืองนีออน #FFE600, ป้าย 3D Pro</div>
+          </div>
+          <div class="node-badge">Preview = Render</div>
+        </a>
+
+        <a href="#phase4" class="node-card rose">
+          <div>
+            <div class="node-num">04</div>
+            <div class="node-title">สร้างปกด่วน Cover Studio</div>
+            <div class="node-desc">ดึงเฟรมเด่นไร้ซับไตเติล, Pan & Zoom ปรับมุมมอง, Dual Export ส่งออกทั้ง 3:4 และ 9:16</div>
+          </div>
+          <div class="node-badge">3:4 TikTok Thumbnail</div>
+        </a>
+
+        <a href="#phase5" class="node-card emerald">
+          <div>
+            <div class="node-num">05</div>
+            <div class="node-title">จัดคิวโพสต์ Daily Run Sheet</div>
+            <div class="node-desc">จัดคิวโพสต์ 3 รอบทอง (12:30, 19:00, 21:30), ปักตะกร้าสินค้า TikTok Product ID</div>
+          </div>
+          <div class="node-badge">Content Tracker Hub</div>
+        </a>
+
+        <a href="#phase6" class="node-card blue">
+          <div>
+            <div class="node-num">06</div>
+            <div class="node-title">โพสต์อัตโนมัติด้วย Extension</div>
+            <div class="node-desc">ปุ่มเปิด TikTok Studio จุดเดียว, ออโต้ฟิลล์สคริปต์, ปักตะกร้า, แนบปก 3:4 และตั้งเวลาโพสต์</div>
+          </div>
+          <div class="node-badge">6-Step Stepper Pipeline</div>
+        </a>
+      </div>
+    </section>
+
+    <!-- Detailed Phases -->
+    <section id="phases">
+
+      <!-- Phase 1 -->
+      <article id="phase1" class="phase-card p1">
+        <div class="phase-header">
+          <div>
+            <div class="phase-badge-row">
+              <span class="phase-badge">เฟสที่ 1 (Phase 1)</span>
+              <span class="phase-engine">scripts/product_scraper.py · scripts/api_products.py</span>
+            </div>
+            <h3 class="phase-title">การนำเข้าสินค้า & เจนมุมมองขาย (Master Content Matrix)</h3>
+            <p class="phase-summary">
+              แปลงข้อมูลดิบของสินค้าจากลิงก์ Shopee / TikTok Shop หรือภาพถ่ายสเปกชีท ให้กลายเป็น Master Content Matrix 10 มุมมองขายระดับมืออาชีพ พร้อมระบุ TikTok Product ID อัตโนมัติ
+            </p>
+          </div>
+        </div>
+
+        <div class="phase-details-grid">
+          <div class="detail-box">
+            <div class="detail-box-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              ข้อมูลนำเข้า (Inputs)
+            </div>
+            <ul class="detail-list">
+              <li><strong>URL สินค้า:</strong> ลิงก์ Shopee หรือ TikTok Shop (รองรับทั้งลิงก์เต็มและ shortlinks เช่น vt.tiktok.com)</li>
+              <li><strong>ภาพสินค้า (Reference Images):</strong> แนบรูปสินค้า/สเปกชีทได้สูงสุด 5 รูป AI จะอ่านสรรพคุณด้วย Gemini Vision</li>
+              <li><strong>สเปกหรือคำอธิบาย:</strong> ข้อความจุดขายเพิ่มเติม (Raw text)</li>
+            </ul>
+          </div>
+
+          <div class="detail-box">
+            <div class="detail-box-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              ผลลัพธ์ที่ได้ (Outputs)
+            </div>
+            <ul class="detail-list">
+              <li><strong>10 มุมมองขาย (10 Master Angles):</strong> เจาะจงตามหลักจิตวิทยา เช่น Pain Point, รีวิวสเปกเจาะลึก, แกะกล่อง, เคล็ดลับ ฯลฯ</li>
+              <li><strong>TikTok Product ID:</strong> สกัดรหัสตัวเลข 19 หลักสำหรับปักตะกร้าอัตโนมัติ</li>
+              <li><strong>บันทึกในแคตตาล็อก:</strong> จัดเก็บข้อมูลสินค้าไว้ใน <code>_Docs/products.json</code> ใช้งานซ้ำได้ทันที</li>
+            </ul>
+          </div>
+
+          <div class="detail-box">
+            <div class="detail-box-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              กฎเหล็กประจำเฟส
+            </div>
+            <ul class="detail-list">
+              <li><strong>ห้ามทับศัพท์ภาษาอังกฤษเพี้ยน:</strong> ชื่อแบรนด์และสเปกต้องคงรูปอังกฤษ เช่น <em>"Logitech Wave Keys"</em>, <em>"Bluetooth"</em>, <em>"USB-C"</em></li>
+              <li><strong>ห้ามมั่วสเปก:</strong> ข้อมูลต้องตรงตาม Hardware Specs และข้อเท็จจริงของสินค้า 100%</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="tip-callout">
+          <strong>Pro Tip:</strong> หากสินค้าไม่มีหน้าเว็บ ให้ถ่ายภาพกล่องบรรจุภัณฑ์หรือสเปกชีทหลังกล่องแนบเข้ามา AI จะทำการ OCR อ่านสรรพคุณและจุดเด่นมาเขียนบทให้เองโดยไม่ต้องพิมพ์มือ
+        </div>
+      </article>
+
+      <!-- Phase 2 -->
+      <article id="phase2" class="phase-card p2">
+        <div class="phase-header">
+          <div>
+            <div class="phase-badge-row">
+              <span class="phase-badge" style="background: rgba(99,102,241,0.12); color: var(--indigo-bright); border-color: rgba(99,102,241,0.3);">เฟสที่ 2 (Phase 2)</span>
+              <span class="phase-engine">scripts/voice_engine.py · scripts/stages/audio_mix_stage.py</span>
+            </div>
+            <h3 class="phase-title">การสร้างเสียงพากย์ AI, ตัดต่อแบบ J-Cut & การมิกซ์เสียงมาตรฐาน</h3>
+            <p class="phase-summary">
+              แปลงสคริปต์เป็นเสียงพากย์ภาษาไทยที่กระชับ สมจริง ดึงดูดความสนใจด้วยเทคนิค J-Cut Audio Lead-in เพื่อให้คนดูติดตามต่อจนจบคลิปโดยไม่กดปัดหนี
+            </p>
+          </div>
+        </div>
+
+        <div class="phase-details-grid">
+          <div class="detail-box">
+            <div class="detail-box-title" style="color: var(--indigo-bright);">TTS Voice Specs</div>
+            <ul class="detail-list">
+              <li><strong>เสียงหลัก (Primary Voice):</strong> Edge-TTS ภาษาไทย (<code>th-TH-PremwadeeNeural</code> สำหรับเสียงหญิง, <code>th-TH-NiwatNeural</code> สำหรับเสียงชาย)</li>
+              <li><strong>ความเร็ว (Playback Speed):</strong> เร่งความเร็วเสียงขึ้น <strong>+15%</strong> เพื่อความกระชับ ฉับไว สไตล์คลิป TikTok</li>
+              <li><strong>ระบบสำรอง (Fallback):</strong> มีระบบสลับไปใช้ Gemini Flash Audio หรือ gTTS อัตโนมัติเมื่อเครือข่ายขัดข้อง</li>
+            </ul>
+          </div>
+
+          <div class="detail-box">
+            <div class="detail-box-title" style="color: var(--indigo-bright);">J-Cut Lead-in Standard</div>
+            <ul class="detail-list">
+              <li><strong>Audio Lead-in 150–250ms:</strong> เสียงพูดประโยคถัดไป (หรือ SFX Whoosh) ต้องดังขึ้น <em>ก่อนที่ภาพจะตัดเปลี่ยนช็อต</em></li>
+              <li><strong>ประโยชน์:</strong> ลดความแข็งกระด้างของการตัดภาพกระตุก (Avoid Jarring Jump Cuts) และสร้างความอยากรู้ล่วงหน้า (Anticipation)</li>
+            </ul>
+          </div>
+
+          <div class="detail-box">
+            <div class="detail-box-title" style="color: var(--indigo-bright);">Audio Mix Standard</div>
+            <ul class="detail-list">
+              <li><strong>Voice (เสียงพากย์หลัก):</strong> ระดับเสียง <code>1.00</code> ชัดเจนนำหน้าเสมอ</li>
+              <li><strong>SFX (เสียงเอฟเฟกต์ Whoosh/Ding/Pop):</strong> ระดับเสียง <code>0.28</code></li>
+              <li><strong>BGM (เพลงประกอบ):</strong> ระดับเสียง <code>0.12</code> คลอเบาๆ ไม่กลบเสียงพูด</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="rule-callout">
+          <strong>กฎเหล็กบทพูด:</strong> ห้ามใส่จุดไข่ปลา หรือ "..." หรือ "…" ในบทพูดเด็ดขาด ให้ใช้การเว้นวรรคตามธรรมชาติ เพื่อป้องกันไม่ให้จุดไข่ปลาหลุดไปติดในซับไตเติลบนหน้าจอ
+        </div>
+      </article>
+
+      <!-- Phase 3 -->
+      <article id="phase3" class="phase-card p3">
+        <div class="phase-header">
+          <div>
+            <div class="phase-badge-row">
+              <span class="phase-badge" style="background: rgba(245,158,11,0.12); color: var(--amber-bright); border-color: rgba(245,158,11,0.3);">เฟสที่ 3 (Phase 3)</span>
+              <span class="phase-engine">scripts/subtitle_engine.py · frontend/src/components/SequencePlayer.jsx</span>
+            </div>
+            <h3 class="phase-title">การตัดต่อวิดีโอ 9:16, ซับไตเติล Kinetic & แผ่นป้าย 3D Pro</h3>
+            <p class="phase-summary">
+              ประกอบวิดีโอสัดส่วน 9:16 คุม Safe Zone ไม่ให้ถูกปุ่ม TikTok บัง พร้อมซับไตเติลแบบ Micro-Burst ไฮไลต์คำสำคัญสีนีออน และป้าย 3D แบบ Universal Reusable
+            </p>
+          </div>
+        </div>
+
+        <div class="phase-details-grid">
+          <div class="detail-box">
+            <div class="detail-box-title" style="color: var(--amber-bright);">สเปกวิดีโอ & Safe Zone</div>
+            <ul class="detail-list">
+              <li><strong>ความละเอียด & เฟรมเรต:</strong> 1080x1920 (9:16 Vertical) ที่ 30 FPS บีบอัด H.264/AAC +faststart</li>
+              <li><strong>Safe Zone ล่าง 420px:</strong> ห้ามวางข้อความหรือสติกเกอร์ในระยะ 420px จากขอบจอล่าง เพราะจะถูกชื่อบัญชี แคปชัน และปุ่ม TikTok บดบัง</li>
+              <li><strong>Safe Zone ขวา 120px:</strong> เว้นระยะจากขอบขวาเพื่อหลบปุ่ม Like, Comment, Share</li>
+            </ul>
+          </div>
+
+          <div class="detail-box">
+            <div class="detail-box-title" style="color: var(--amber-bright);">Kinetic Micro-Burst Subtitles</div>
+            <ul class="detail-list">
+              <li><strong>การตัดคำ:</strong> ใช้ <code>pythainlp</code> ตัดคำเป็นชุดสั้น 2–4 คำ (16–24 ตัวอักษร) เพื่อให้อ่านจบในชั่วพริบตา</li>
+              <li><strong>Dynamic Highlight:</strong> คำที่เป็น Pain Point หรือราคาสินค้า จะถูกเด้งไฮไลต์ด้วยสีเหลืองนีออน <code>#FFE600</code> พร้อมขอบดำคมชัด</li>
+              <li><strong>Preview = Render:</strong> Canvas 2D ใน Editor แสดงผลตรงกับ FFmpeg libass 100%</li>
+            </ul>
+          </div>
+
+          <div class="detail-box">
+            <div class="detail-box-title" style="color: var(--amber-bright);">ป้าย 3D Universal Badges</div>
+            <ul class="detail-list">
+              <li><strong>6 ป้ายมาตรฐาน:</strong> PROS, CONS, WARNING, PRO TIP, SCORE, VERDICT</li>
+              <li><strong>Die-cut Border:</strong> ขอบขาวนูน 3D พื้นหลังโปร่งใส สามารถนำไปแปะทับได้ทุกคลิปโดยไม่ระบุชื่อสินค้าเฉพาะเจาะจง</li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <!-- Phase 4 -->
+      <article id="phase4" class="phase-card p4">
+        <div class="phase-header">
+          <div>
+            <div class="phase-badge-row">
+              <span class="phase-badge" style="background: rgba(244,63,94,0.12); color: var(--rose-bright); border-color: rgba(244,63,94,0.3);">เฟสที่ 4 (Phase 4)</span>
+              <span class="phase-engine">CoverStudioModal.jsx · scripts/api_exports.py</span>
+            </div>
+            <h3 class="phase-title">สตูดิโอสร้างปกคลิปด่วน (Cover Studio Dual Export)</h3>
+            <p class="phase-summary">
+              ระบบแคปเฟรมไฮไลต์ที่สะอาดปราศจากซับไตเติลบังหน้าสินค้า พร้อมเครื่องมือ Pan & Zoom จัดองค์ประกอบ และส่งออกพร้อมกันทั้งขนาด 3:4 และ 9:16
+            </p>
+          </div>
+        </div>
+
+        <div class="phase-details-grid">
+          <div class="detail-box">
+            <div class="detail-box-title" style="color: var(--rose-bright);">Highlight Frame Picker</div>
+            <ul class="detail-list">
+              <li><strong>ดึงเฟรมต้นฉบับ:</strong> ดึงภาพจากวิดีโอ Raw โดยตรงเพื่อไม่ให้ติดตัวหนังสือซับไตเติลบนหน้าจอ</li>
+              <li><strong>Smart Timestamp:</strong> แนะนำจุดเวลาที่ภาพสินค้าชัดเจนที่สุดในคลิป</li>
+            </ul>
+          </div>
+
+          <div class="detail-box">
+            <div class="detail-box-title" style="color: var(--rose-bright);">Interactive Pan & Zoom</div>
+            <ul class="detail-list">
+              <li><strong>กรอบ 3:4 มาตรฐาน TikTok:</strong> กำหนดกรอบปลอดภัย 3:4 พอดีกับหน้า Feed และหน้า Profile Grid ของ TikTok</li>
+              <li><strong>ปรับมุมมองอิสระ:</strong> ลากซูมและจัดวางตำแหน่งสินค้าให้อยู่ตรงกลางจุดนำสายตา</li>
+            </ul>
+          </div>
+
+          <div class="detail-box">
+            <div class="detail-box-title" style="color: var(--rose-bright);">Dual Export & Naming</div>
+            <ul class="detail-list">
+              <li><strong>ส่งออก 2 ไฟล์อัตโนมัติ:</strong> <code>[ProjectName]_cover_3x4.jpg</code> สำหรับอัปโหลดใน TikTok และ <code>_cover_9x16.jpg</code> สำหรับพรีวิวเต็มจอ</li>
+              <li><strong>จัดเก็บเป็นระเบียบ:</strong> เก็บไว้ที่โฟลเดอร์ <code>05_Covers_Thumbnails/</code></li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <!-- Phase 5 -->
+      <article id="phase5" class="phase-card p5">
+        <div class="phase-header">
+          <div>
+            <div class="phase-badge-row">
+              <span class="phase-badge" style="background: rgba(16,185,129,0.12); color: var(--emerald-bright); border-color: rgba(16,185,129,0.3);">เฟสที่ 5 (Phase 5)</span>
+              <span class="phase-engine">frontend/src/components/ContentTrackerHub.jsx · scripts/api_posts.py</span>
+            </div>
+            <h3 class="phase-title">การจัดคิวโพสต์ประจำวัน & ติดตามสถานะ (Content Tracker & Daily Run Sheet)</h3>
+            <p class="phase-summary">
+              กระดานคลังคลิปและตารางจัดคิวโพสต์ประจำวัน (Daily Run Sheet) กระจายโพสต์ตาม 3 ช่วงเวลาทองของ TikTok ป้องกันการโพสต์คลิปสินค้าเดียวกันซ้ำติดกัน
+            </p>
+          </div>
+        </div>
+
+        <div class="phase-details-grid">
+          <div class="detail-box">
+            <div class="detail-box-title" style="color: var(--emerald-bright);">ช่วงเวลาทอง (Publishing Slots)</div>
+            <ul class="detail-list">
+              <li><strong>Slot 1 (เที่ยงวัน):</strong> <code>12:30 น.</code> คนพักทานข้าว ดูคลิปสั้น</li>
+              <li><strong>Slot 2 (หัวค่ำ):</strong> <code>19:00 น.</code> เลิกงาน เดินทางกลับบ้าน ผ่อนคลาย</li>
+              <li><strong>Slot 3 (ดึก):</strong> <code>21:30 น.</code> เวลาช้อปปิ้งออนไลน์สูงสุดก่อนนอน</li>
+            </ul>
+          </div>
+
+          <div class="detail-box">
+            <div class="detail-box-title" style="color: var(--emerald-bright);">สถานะตามโฟลว์จริง (Real Lifecycle)</div>
+            <ul class="detail-list">
+              <li><code>scripted</code> (ร่างสคริปต์): มีไอเดียแต่ยังไม่มีการตัดต่อ</li>
+              <li><code>in_production</code> (กำลังตัดต่อ): มีโฟลเดอร์โปรเจกต์ในไทม์ไลน์</li>
+              <li><code>rendered</code> (ตัดเสร็จแล้ว): มีไฟล์ MP4 เรนเดอร์เสร็จใน <code>04_Exports/</code></li>
+              <li><code>posted</code> (โพสต์แล้ว): โพสต์ขึ้น TikTok Shop สำเร็จ</li>
+            </ul>
+          </div>
+
+          <div class="detail-box">
+            <div class="detail-box-title" style="color: var(--emerald-bright);">Product Rotation</div>
+            <ul class="detail-list">
+              <li><strong>สลับสินค้าอัตโนมัติ:</strong> ระบบจะหมุนเวียนสลับสินค้า A, B, C ไม่ให้ซ้ำติดกัน เพื่อไม่ให้ Algorithm ของ TikTok มองว่าเป็นคลิปสแปม</li>
+              <li><strong>Cover Status Pill:</strong> แสดงไอคอนสถานะว่าคลิปนี้มีปก 3:4 เตรียมไว้พร้อมแล้วหรือยัง</li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <!-- Phase 6 -->
+      <article id="phase6" class="phase-card p6">
+        <div class="phase-header">
+          <div>
+            <div class="phase-badge-row">
+              <span class="phase-badge" style="background: rgba(56,189,248,0.12); color: #38bdf8; border-color: rgba(56,189,248,0.3);">เฟสที่ 6 (Phase 6)</span>
+              <span class="phase-engine">tiktok_autopost_extension/ · Sidepanel & Background Service Worker</span>
+            </div>
+            <h3 class="phase-title">ตัวช่วยโพสต์ TikTok อัตโนมัติ (TikTok Auto-Post Chrome Extension)</h3>
+            <p class="phase-summary">
+              ส่วนขยาย Chrome Extension สไตล์ Cyber-Studio Dark ที่เชื่อมต่อระหว่าง OmniCut Studio และหน้าอัปโหลดของ TikTok Studio ช่วยทำงานซ้ำซ้อนให้เสร็จในไม่กี่วินาที
+            </p>
+          </div>
+        </div>
+
+        <div class="extension-stepper-box">
+          <div class="stepper-header">
+            <h4>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2.2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              กระบวนการโพสต์ 6 ขั้นตอน (Stepper Timeline Pipeline)
+            </h4>
+            <span class="code-pill">Header Button จุดเดียว: "เปิด TikTok Studio"</span>
+          </div>
+
+          <div class="steps-grid">
+            <div class="step-item">
+              <span class="step-item-num">1</span>
+              <strong>อัปโหลดวิดีโอ</strong>
+              <p>ลากไฟล์ MP4 จากโฟลเดอร์ 04_Exports ลงในช่องอัปโหลดของ TikTok</p>
+            </div>
+
+            <div class="step-item">
+              <span class="step-item-num">2</span>
+              <strong>แคปชัน & แท็ก</strong>
+              <p>กดปุ่มคัดลอกหรือ Auto-fill ใส่ข้อความอธิบายและแฮชแท็กอัตโนมัติ</p>
+            </div>
+
+            <div class="step-item">
+              <span class="step-item-num">3</span>
+              <strong>ค้นหาสินค้า</strong>
+              <p>เปิดแท็บ Showcase นำ TikTok Product ID ไปค้นหาในตะกร้า</p>
+            </div>
+
+            <div class="step-item">
+              <span class="step-item-num">4</span>
+              <strong>ตั้งชื่อตะกร้า</strong>
+              <p>ระบุชื่อสินค้าบนตะกร้าไม่เกิน 30 ตัวอักษร ให้ดึงดูดใจและกดง่าย</p>
+            </div>
+
+            <div class="step-item">
+              <span class="step-item-num">5</span>
+              <strong>แนบรูปปก 3:4</strong>
+              <p>ส่งไฟล์ปก 3:4 ที่แคปจาก Cover Studio เข้าหน้าต่าง TikTok อัตโนมัติ</p>
+            </div>
+
+            <div class="step-item">
+              <span class="step-item-num">6</span>
+              <strong>กำหนดเวลาโพสต์</strong>
+              <p>เลือกวันเวลาตาม Daily Run Sheet หรือกดบันทึกเป็นแบบร่าง (Draft)</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="tip-callout" style="margin-top: 20px;">
+          <strong>ปุ่มเปิด TikTok Studio จุดเดียว:</strong> อยู่ที่มุมขวาบนของ Header Extension เสมอ เมื่อกดจะสลับไปยังแท็บ TikTok Studio เดิมที่เปิดอยู่ทันที หรือเปิดแท็บใหม่ให้หากยังไม่ได้เปิด สะดวกและไม่เกะกะสายตา
+        </div>
+      </article>
+
+    </section>
+
+    <!-- Section: Technical Specs & Rules -->
+    <section id="specs" class="specs-table-section">
+      <div class="section-header">
+        <h2 class="section-title">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          ตารางสรุปสเปกและค่าคงที่ของระบบ (Standard Technical Matrix)
+        </h2>
+        <div class="section-subtitle">ค่าคอนฟิกมาตรฐานที่ใช้ควบคุมความเที่ยงตรงระหว่าง Frontend Preview และ Backend FFmpeg Renderer</div>
+      </div>
+
+      <div class="table-card">
+        <table>
+          <thead>
+            <tr>
+              <th>หัวข้อ (Parameter)</th>
+              <th>ค่ามาตรฐาน (Value)</th>
+              <th>ตำแหน่งไฟล์อ้างอิง (Source of Truth)</th>
+              <th>หมายเหตุ (Purpose)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Video Resolution</strong></td>
+              <td><span class="code-pill">1080 x 1920 (9:16)</span></td>
+              <td><code>scripts/config.py</code></td>
+              <td>สัดส่วนเต็มหน้าจอมือถือสำหรับ TikTok / Reels / Shorts</td>
+            </tr>
+            <tr>
+              <td><strong>Frame Rate</strong></td>
+              <td><span class="code-pill">30 FPS</span></td>
+              <td><code>scripts/config.py</code></td>
+              <td>เฟรมเรตมาตรฐานสำหรับการตัดต่อคลิปสั้น</td>
+            </tr>
+            <tr>
+              <td><strong>Bottom Safe Zone</strong></td>
+              <td><span class="code-pill">420 พิกเซล</span></td>
+              <td><code>scripts/subtitle_engine.py</code></td>
+              <td>เว้นพื้นที่ด้านล่างไม่ให้ถูกชื่อเพลง แคปชัน และปุ่ม TikTok บัง</td>
+            </tr>
+            <tr>
+              <td><strong>Audio Mix: Voice</strong></td>
+              <td><span class="code-pill">1.00 (100%)</span></td>
+              <td><code>scripts/config.py (AUDIO_MIX)</code></td>
+              <td>ระดับความดังเสียงพากย์หลัก ชัดเจนนำหน้าเสมอ</td>
+            </tr>
+            <tr>
+              <td><strong>Audio Mix: SFX</strong></td>
+              <td><span class="code-pill">0.28 (28%)</span></td>
+              <td><code>scripts/config.py (AUDIO_MIX)</code></td>
+              <td>ระดับเสียงเอฟเฟกต์ Whoosh / Ding / Pop ไม่กลบเสียงพูด</td>
+            </tr>
+            <tr>
+              <td><strong>Audio Mix: BGM</strong></td>
+              <td><span class="code-pill">0.12 (12%)</span></td>
+              <td><code>scripts/config.py (AUDIO_MIX)</code></td>
+              <td>ระดับเสียงเพลงประกอบ คลอเบาๆ สร้างบรรยากาศ</td>
+            </tr>
+            <tr>
+              <td><strong>J-Cut Lead-in Offset</strong></td>
+              <td><span class="code-pill">150 – 250 ms</span></td>
+              <td><code>.agents/rules/j_cut_rules.md</code></td>
+              <td>เสียงประโยคถัดไปดังขึ้นก่อนเปลี่ยนภาพช็อต B-roll</td>
+            </tr>
+            <tr>
+              <td><strong>Kinetic Highlight Color</strong></td>
+              <td><span class="code-pill">#FFE600 (Neon Yellow)</span></td>
+              <td><code>scripts/subtitle/motion_effects.py</code></td>
+              <td>สีเน้นคำสำคัญ คำราคา และจุดเจ็บปวด (Pain Point)</td>
+            </tr>
+            <tr>
+              <td><strong>TikTok Cover Aspect</strong></td>
+              <td><span class="code-pill">3:4 (900x1200)</span></td>
+              <td><code>CoverStudioModal.jsx</code></td>
+              <td>ขนาดภาพปกที่แสดงบนหน้าฟีดและโปรไฟล์ TikTok ไม่ถูกคร็อปแหว่ง</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Section: Directory Structure -->
+    <section id="directories" class="specs-table-section">
+      <div class="section-header">
+        <h2 class="section-title">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          โครงสร้างโฟลเดอร์มาตรฐาน (Directory Reference)
+        </h2>
+        <div class="section-subtitle">ระบบจัดเก็บไฟล์แบบแยกหมวดหมู่อย่างเป็นระบบ ห้ามวางไฟล์กระจัดกระจายนอกโฟลเดอร์ที่กำหนด</div>
+      </div>
+
+      <div class="dir-grid">
+        <div class="dir-card">
+          <div class="dir-name">00_Inbox/</div>
+          <div class="dir-desc">ไฟล์ดิบ วิดีโอที่ sync จากมือถือ ไอเดีย และสคริปต์ย่อที่รอการคัดแยก</div>
+        </div>
+
+        <div class="dir-card">
+          <div class="dir-name">01_Raw/</div>
+          <div class="dir-desc">วัตถุดิบต้นฉบับแยกตามโฟลเดอร์ <code>YYYYMMDD_ชื่อสินค้า-ประเด็น/</code> (ห้ามลบเด็ดขาด)</div>
+        </div>
+
+        <div class="dir-card">
+          <div class="dir-name">02_Assets/</div>
+          <div class="dir-desc">Fonts (Kanit/Prompt), เพลง BGM, SFX เสียงเอฟเฟกต์, ป้ายสติกเกอร์ 3D, พรีเซ็ตสี LUTs</div>
+        </div>
+
+        <div class="dir-card">
+          <div class="dir-name">03_Projects/</div>
+          <div class="dir-desc">ไฟล์โปรเจกต์ <code>project.json</code>, สคริปต์ย่อ, แคปชัน และดราฟต์งานตัดต่อ</div>
+        </div>
+
+        <div class="dir-card">
+          <div class="dir-name">04_Exports/</div>
+          <div class="dir-desc">วิดีโอที่ตัดต่อเสร็จสมบูรณ์แยกเป็น <code>Ready_to_post/</code> และ <code>Posted/</code></div>
+        </div>
+
+        <div class="dir-card">
+          <div class="dir-name">05_Covers_Thumbnails/</div>
+          <div class="dir-desc">ไฟล์ปกคลิปและ Thumbnail สัดส่วน 3:4 และ 9:16 ที่ส่งออกจาก Cover Studio</div>
+        </div>
+
+        <div class="dir-card">
+          <div class="dir-name">06_Archive/</div>
+          <div class="dir-desc">พื้นที่สำรองและประวัติไฟล์เก่าหลังโพสต์แล้วเกิน 30 วันเพื่อประหยัดพื้นที่</div>
+        </div>
+
+        <div class="dir-card">
+          <div class="dir-name">tiktok_autopost_extension/</div>
+          <div class="dir-desc">Chrome Extension ตัวช่วยส่งโพสต์และกรอกข้อมูลขึ้น TikTok Studio อัตโนมัติ</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <p>OmniCut Pro Studio — AI Vertical Video Production & TikTok Shop Automation Suite</p>
+      <p style="margin-top: 6px; font-size: 12px;">คู่มือและแผนผังนี้สร้างขึ้นเพื่อให้อ่านและทำความเข้าใจโฟลว์ทั้งระบบได้อย่างง่ายดาย</p>
+    </footer>
+
+  </div>
+
+  <script>
+    function filterContent() {
+      const q = document.getElementById('filterInput').value.toLowerCase().trim();
+      const cards = document.querySelectorAll('.phase-card, .node-card, .dir-card');
+
+      cards.forEach(card => {
+        const text = card.innerText.toLowerCase();
+        if (!q || text.includes(q)) {
+          card.style.display = '';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+  </script>
+</body>
+</html>
