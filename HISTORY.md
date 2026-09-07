@@ -694,3 +694,8 @@ Result: User confirmed that step 4 changes TikTok's date and time without publis
 
 Date: 2026-09-07
 Result: Cover upload now scopes file input and save button to TikTok's visible `CoverEditor__root`, enables the CDP Runtime domain, and verifies the editor closes after saving. Node regression suite passed 8/8; live upload verification remains pending after extension reload.
+
+## Round POST-3.8 - Improve schedule time picker and completion state
+
+Date: 2026-09-07
+Result: Side Panel time selection now offers five-minute increments only, enforces a 15-minute lead time for today, and displays a durable completed style on successful steps. Product attachment and publication flows were unchanged; Node regression suite passed 8/8.

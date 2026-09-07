@@ -30,6 +30,54 @@ const confirmCancelBtn = document.getElementById('confirmCancelBtn');
 let activeClip = null;
 let busy = false;
 
+const SCHEDULE_LEAD_MINUTES = 15;
+
+function localDateValue(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function minimumScheduleDateTime() {
+  const minimum = new Date(Date.now() + SCHEDULE_LEAD_MINUTES * 60 * 1000);
+  minimum.setSeconds(0, 0);
+  const remainder = minimum.getMinutes() % 5;
+  if (remainder) minimum.setMinutes(minimum.getMinutes() + (5 - remainder));
+  return minimum;
+}
+
+function populateScheduleTimes() {
+  const previous = scheduleTimeInput.value;
+  const selectedDate = scheduleDateInput.value;
+  const minimum = minimumScheduleDateTime();
+  const today = localDateValue(minimum);
+  const minimumTime = `${String(minimum.getHours()).padStart(2, '0')}:${String(minimum.getMinutes()).padStart(2, '0')}`;
+  const options = ['<option value="">เลือกเวลา</option>'];
+  for (let hour = 0; hour < 24; hour += 1) {
+    for (let minute = 0; minute < 60; minute += 5) {
+      const value = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+      const disabled = selectedDate === today && value < minimumTime ? ' disabled' : '';
+      options.push(`<option value="${value}"${disabled}>${value}</option>`);
+    }
+  }
+  scheduleTimeInput.innerHTML = options.join('');
+  const previousOption = scheduleTimeInput.querySelector(`option[value="${previous}"]`);
+  if (previousOption && !previousOption.disabled) scheduleTimeInput.value = previous;
+  else if (selectedDate === today) scheduleTimeInput.value = minimumTime;
+}
+
+function syncScheduleConstraints() {
+  const minimum = minimumScheduleDateTime();
+  const minimumDate = localDateValue(minimum);
+  scheduleDateInput.min = minimumDate;
+  if (scheduleDateInput.value && scheduleDateInput.value < minimumDate) scheduleDateInput.value = minimumDate;
+  populateScheduleTimes();
+}
+
+scheduleDateInput.addEventListener('change', syncScheduleConstraints);
+syncScheduleConstraints();
+
 function setBusy(value) {
   busy = value;
   document.querySelectorAll('#panelChecklist button, #list button, #refreshBtn, #panelChecklist input, #panelChecklist textarea')
@@ -81,7 +129,11 @@ function askConfirm(message) {
 }
 
 function resetChecklist() {
-  [1, 2, 3, 4, 5, 6].forEach((n) => { document.getElementById(`chk${n}`).checked = false; });
+  [1, 2, 3, 4, 5, 6].forEach((n) => {
+    const checkbox = document.getElementById(`chk${n}`);
+    checkbox.checked = false;
+    checkbox.closest('.step-row')?.classList.remove('completed');
+  });
 }
 
 function renderActiveClipBanner() {
@@ -217,6 +269,7 @@ function wireStep(btnId, chkId, stepName, buildMessage, successText) {
     if (busy) return;
     setBusy(true);
     chk.checked = false;
+    chk.closest('.step-row')?.classList.remove('completed');
     setStatus(`กำลังทำ ${stepName}...`);
 
     let message;
@@ -241,6 +294,7 @@ function wireStep(btnId, chkId, stepName, buildMessage, successText) {
         }
         if (response.success) {
           chk.checked = true;
+          chk.closest('.step-row')?.classList.add('completed');
           const messageText = typeof successText === 'function' ? successText(response) : successText;
           setStatus(messageText, 'success');
         } else {
@@ -303,7 +357,11 @@ document.getElementById('prepareDetailsBtn').addEventListener('click', async () 
   }
   const scheduleMode = document.getElementById('prepareSchedule').checked;
   setBusy(true);
-  [2, 3, 6, ...(scheduleMode ? [4] : [])].forEach(n => { document.getElementById(`chk${n}`).checked = false; });
+  [2, 3, 6, ...(scheduleMode ? [4] : [])].forEach(n => {
+    const checkbox = document.getElementById(`chk${n}`);
+    checkbox.checked = false;
+    checkbox.closest('.step-row')?.classList.remove('completed');
+  });
   setStatus('กำลังกรอกข้อมูล ปักตะกร้า และแนบปก โปรดรอผลก่อนแก้ไขหน้า TikTok');
   try {
     const response = await chrome.runtime.sendMessage({

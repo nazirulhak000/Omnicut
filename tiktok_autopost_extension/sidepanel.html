@@ -173,7 +173,8 @@
     font-size: 10.5px;
     font-weight: 600;
   }
-  .schedule-input-group input {
+  .schedule-input-group input,
+  .schedule-input-group select {
     width: 100%;
     box-sizing: border-box;
     min-height: 36px;
@@ -186,8 +187,10 @@
     color-scheme: dark;
     transition: border-color 0.15s var(--ease-out), box-shadow 0.15s var(--ease-out);
   }
-  .schedule-input-group input:hover { border-color: rgba(148, 163, 184, 0.42); }
-  .schedule-input-group input:focus {
+  .schedule-input-group input:hover,
+  .schedule-input-group select:hover { border-color: rgba(148, 163, 184, 0.42); }
+  .schedule-input-group input:focus,
+  .schedule-input-group select:focus {
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 3px var(--accent-wash);
@@ -483,9 +486,16 @@
     border-color: var(--success);
     color: var(--success-ink);
   }
+  .step-row.completed .step-num {
+    background: var(--success);
+    border-color: var(--success);
+    color: var(--success-ink);
+  }
   .step-row:has(input:checked) .step-num:hover { border-color: var(--success-strong); transform: scale(1.08); }
   .step-row:has(input:checked) .step-label { color: var(--text-secondary); }
   .step-row:has(input:checked) .step-label strong { text-decoration: line-through; text-decoration-color: var(--text-tertiary); }
+  .step-row.completed .step-label { color: var(--text-secondary); }
+  .step-row.completed .step-label strong { text-decoration: line-through; text-decoration-color: var(--text-tertiary); }
 
   .step-row input[type="checkbox"] {
     position: absolute;
@@ -644,7 +654,9 @@
           </label>
           <label class="schedule-input-group">
             <span>เวลา (ทุก 5 นาที)</span>
-            <input type="time" id="scheduleTimeInput" step="300" />
+            <select id="scheduleTimeInput" aria-label="เวลา (ทุก 5 นาที)">
+              <option value="">เลือกเวลา</option>
+            </select>
           </label>
         </div>
       </div>
