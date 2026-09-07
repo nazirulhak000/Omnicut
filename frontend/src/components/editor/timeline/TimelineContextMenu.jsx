@@ -1,5 +1,5 @@
 import React from 'react';
-import { Copy, FlipHorizontal2, Gauge, Scissors, Trash2 } from 'lucide-react';
+import { Copy, Crop, FlipHorizontal2, Gauge, Scissors, Trash2 } from 'lucide-react';
 
 export default function TimelineContextMenu({
   contextMenu,
@@ -7,6 +7,7 @@ export default function TimelineContextMenu({
   onSplit,
   onDuplicate,
   onToggleMirror,
+  onAdjustTrim,
   onClipChange,
   onDelete,
 }) {
@@ -64,6 +65,17 @@ export default function TimelineContextMenu({
         >
           <FlipHorizontal2 className="h-3.5 w-3.5" />
           <span>กลับด้านภาพ (Mirror)</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            onAdjustTrim?.();
+            onClose?.();
+          }}
+          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[#2C2B27] transition-colors"
+        >
+          <Crop className="h-3.5 w-3.5" />
+          <span>ปรับช่วงตัด</span>
         </button>
       </div>
 

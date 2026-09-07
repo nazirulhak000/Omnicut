@@ -196,7 +196,6 @@ export default function Timeline({
   audioCollapsed = false,
   onToggleAudioGroup,
   dense = false,
-  filmstrips,
   pxPerSec,
   playhead,
   selection,
@@ -230,6 +229,7 @@ export default function Timeline({
   onDuplicate,
   onDelete,
   onToggleMirror,
+  onAdjustTrim,
   // Edge/body drags snap to these (clip boundaries, playhead, audio end).
   // Both default to "no snapping" so the timeline still works if a caller
   // doesn't wire them up.
@@ -770,7 +770,6 @@ export default function Timeline({
                     seg={seg}
                     pxPerSec={pxPerSec}
                     isSelected={selection?.type === 'clip' && selection.id === seg.clip.id}
-                    filmstrip={filmstrips?.[seg.clip.id]}
                     onSelect={selectClip}
                     onContextMenu={handleClipContextMenu}
                     onTrim={trimClip}
@@ -1238,6 +1237,7 @@ export default function Timeline({
         onSplit={onSplit}
         onDuplicate={onDuplicate}
         onToggleMirror={onToggleMirror}
+        onAdjustTrim={() => onAdjustTrim?.(contextMenu.seg)}
         onClipChange={onClipChange}
         onDelete={onDelete}
       />

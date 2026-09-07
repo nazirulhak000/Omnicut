@@ -6,7 +6,7 @@ import {
   ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Columns3,
 } from 'lucide-react';
 import {
-  deleteProject, getAllAssets, getHookMotionPresets, getProject, getProjectOrigin, getProjects, getRenderStatus, startReroll, updateProjectCues, updateProjectClips, updateProjectState, openFolder, updateAngleStatus,
+  deleteProject, getAllAssets, getHookMotionPresets, getProducts, getProject, getProjectOrigin, getProjects, getRenderStatus, startReroll, updateProjectCues, updateProjectClips, updateProjectState, openFolder, updateAngleStatus, updateAngleCover,
 } from '../../api';
 import {
   FADE_DURATION, ZOOM_LEVELS, buildSegments, formatTimecode, splitClipAt, snapCandidates, snapTime,
@@ -26,6 +26,7 @@ import SequencePlayer from '../SequencePlayer';
 import AssetPanel from './AssetPanel';
 import Inspector from './Inspector';
 import Timeline, { tracksFitHeight } from './Timeline';
+import TrimAdjustModal from './timeline/TrimAdjustModal';
 import EditorHeader from './EditorHeader';
 import { DEFAULT_HOOK_TEMPLATE, HOOK_TEMPLATES } from '../../lib/hookStyles';
 import {
@@ -44,6 +45,7 @@ import {
 } from '../../lib/overlayModel';
 import Toolbar from './Toolbar';
 import NewClipPanel from './NewClipPanel';
+import CoverStudioModal from '../CoverStudioModal';
 import { ActivityIndicatorButton } from '../ActivityCenter';
 import { useTaskManager } from '../../context/TaskContext';
 import HeaderMenu from './HeaderMenu';
@@ -207,6 +209,11 @@ export default function EditorShell({
   const [deleteError, setDeleteError] = useState(null);
   const [deleteScope, setDeleteScope] = useState('project');
   const [deleteOrigin, setDeleteOrigin] = useState(null);
+  const [trimAdjustSeg, setTrimAdjustSeg] = useState(null); // seg being edited in TrimAdjustModal, or null when closed
+  // Render is blocked until the angle has a cover -- gated in handleApply.
+  // null when closed; otherwise the videoItem shape CoverStudioModal expects.
+  const [coverGateItem, setCoverGateItem] = useState(null);
+  const [coverGateChecking, setCoverGateChecking] = useState(false);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   // Per-stem mute/solo for the preview. Mutes persist and reach the renderer;
   // solo remains a monitoring control and does not mute the exported mix.
@@ -554,16 +561,19 @@ export default function EditorShell({
     }
   }, [initialProjectName, productContext, angleIndex]);
 
-  // Filmstrip thumbnails
+  // Filmstrip thumbnails -- one real sprite per unique source file, from the
+  // working /api/editor/filmstrip endpoint (durations is keyed by clip.id,
+  // per SequencePlayer's onDurations, not by source_path).
   const filmstrips = useMemo(() => {
     const map = {};
     clipList.forEach((c) => {
       if (!c.source_path || map[c.source_path]) return;
-      const count = framesFor(durations[c.source_path] || 12);
-      map[c.source_path] = Array.from(
-        { length: count },
-        (_, i) => `/api/media/${c.source_path}?thumb=1&idx=${i}&count=${count}`
-      );
+      const srcDur = durations[c.id] || 0;
+      const count = framesFor(srcDur || 12);
+      map[c.source_path] = {
+        url: `/api/editor/filmstrip?path=${encodeURIComponent(c.source_path)}&count=${count}`,
+        frames: count,
+      };
     });
     return map;
   }, [clipList, durations]);
@@ -794,9 +804,59 @@ export default function EditorShell({
   }, [set]);
 
 
+  // Building the videoItem CoverStudioModal expects from whatever the editor
+  // currently knows about this angle -- same shape ContentTrackerHub's
+  // handleOpenCoverStudio builds, minus the fields only the tracker's list
+  // view has (cover_url/cover_3x4_url), which the modal re-fetches itself.
+  const buildCoverGateItem = useCallback((angle, product) => ({
+    path: angle?.video_url || '',
+    rel_path: angle?.video_url || '',
+    name: product?.name || '',
+    product_name: product?.name || '',
+    project_name: angle?.project_name || projectName || '',
+    hook_title: angle?.hook_title || '',
+    angle_name: angle?.angle_name || '',
+    cover_path: angle?.cover_path || '',
+    cover_3x4_path: angle?.cover_3x4_path || '',
+    cover_9x16_path: angle?.cover_9x16_path || '',
+    parentProduct: product,
+    angle_id: angle?.angle_id,
+  }), [projectName]);
+
   const handleApply = async () => {
     if (!projectName) { setApplyError('เลือกโปรเจกต์ก่อน'); return; }
     if (!clipList.length) { setApplyError('เพิ่มคลิปในไทม์ไลน์ก่อน'); return; }
+
+    // Cover is required before a render is allowed to start. Resolved by
+    // project_name against a fresh product fetch rather than trusting the
+    // productContext/angleIndex props -- those are null whenever the editor
+    // was reached by picking a project straight from the header dropdown
+    // instead of via the product-flow tab, which would otherwise skip this
+    // gate entirely for every render started that way.
+    setCoverGateChecking(true);
+    try {
+      const fresh = await getProducts();
+      const freshList = Array.isArray(fresh) ? fresh : (fresh?.products || []);
+      let matchProduct = null;
+      let matchAngle = null;
+      for (const p of freshList) {
+        const a = (p.angles || []).find((ang) => ang.project_name === projectName);
+        if (a) { matchProduct = p; matchAngle = a; break; }
+      }
+      const hasCover = !!(matchAngle?.cover_path || matchAngle?.cover_3x4_path || matchAngle?.cover_9x16_path);
+      if (matchAngle && !hasCover) {
+        setCoverGateItem(buildCoverGateItem(matchAngle, matchProduct));
+        setCoverGateChecking(false);
+        return;
+      }
+      // No matching angle found at all (e.g. a manually-created project with
+      // no product/angle record) -- nothing to gate on, let the render proceed.
+    } catch (e) {
+      // Cover-check itself failing (network hiccup) shouldn't block a
+      // render the user can otherwise legitimately make -- fail open here,
+      // the render's own error handling covers a genuinely broken backend.
+    }
+    setCoverGateChecking(false);
 
     const base = loadedAudioStyle.current;
     const audioDirty = (style.bgmName ?? null) !== (base.bgmName ?? null)
@@ -867,6 +927,28 @@ export default function EditorShell({
       setApplyError(formatErrorText(err));
     }
   };
+
+  // Cover saved from the render-gate modal: persist it to the angle, then
+  // continue straight into the render the user originally asked for instead
+  // of making them press "เรนเดอร์" a second time.
+  const handleCoverGateSaved = useCallback(async (res) => {
+    const productId = coverGateItem?.parentProduct?.id;
+    const angleId = coverGateItem?.angle_id;
+    if (productId && angleId && (res?.cover_path || res?.cover_3x4_path || res?.cover_9x16_path)) {
+      try {
+        await updateAngleCover(productId, angleId, {
+          cover_path: res.cover_path || null,
+          cover_3x4_path: res.cover_3x4_path || null,
+          cover_9x16_path: res.cover_9x16_path || null,
+        });
+      } catch (e) {
+        setApplyError('บันทึกภาพปกไม่สำเร็จ: ' + (e.response?.data?.detail || e.message));
+        return;
+      }
+    }
+    setCoverGateItem(null);
+    handleApply();
+  }, [coverGateItem, handleApply]);
 
   // What the preview plays instead of a baked mix: the voice stem plus the
   // same BGM and per-cue SFX files the renderer will mix, resolved to media
@@ -1021,7 +1103,7 @@ export default function EditorShell({
         setZen={setZen}
         resetPanelSizes={resetPanelSizes}
         setSelection={setSelection}
-        applying={applying}
+        applying={applying || coverGateChecking}
         handleApply={handleApply}
         exportPreset={exportPreset}
         setExportPreset={setExportPreset}
@@ -1404,7 +1486,6 @@ export default function EditorShell({
                     audioDuration={audioDuration}
                     cues={cuesList}
                     bgmLabel={bgmLabel}
-                    filmstrips={filmstrips}
                     pxPerSec={pxPerSec}
                     playhead={playhead}
                     selection={selection}
@@ -1430,6 +1511,7 @@ export default function EditorShell({
                     onDuplicate={duplicateSelected}
                     onDelete={deleteSelected}
                     onToggleMirror={() => selectedSeg && patchClip(selectedSeg.clip.id, { mirror: !selectedSeg.clip.mirror })}
+                    onAdjustTrim={setTrimAdjustSeg}
                     onBeginDrag={beginDrag}
                     onEndDrag={endDrag}
                     onZoom={(dir) => setZoomIndex((i) => Math.max(0, Math.min(ZOOM_LEVELS.length - 1, i + dir)))}
@@ -1881,7 +1963,6 @@ export default function EditorShell({
                     audioDuration={audioDuration}
                     cues={cuesList}
                     bgmLabel={bgmLabel}
-                    filmstrips={filmstrips}
                     pxPerSec={pxPerSec}
                     playhead={playhead}
                     selection={selection}
@@ -1907,6 +1988,7 @@ export default function EditorShell({
                     onDuplicate={duplicateSelected}
                     onDelete={deleteSelected}
                     onToggleMirror={() => selectedSeg && patchClip(selectedSeg.clip.id, { mirror: !selectedSeg.clip.mirror })}
+                    onAdjustTrim={setTrimAdjustSeg}
                     onBeginDrag={beginDrag}
                     onEndDrag={endDrag}
                     onZoom={(dir) => setZoomIndex((i) => Math.max(0, Math.min(ZOOM_LEVELS.length - 1, i + dir)))}
@@ -1995,6 +2077,24 @@ export default function EditorShell({
           </div>
         </div>
       )}
+
+      <TrimAdjustModal
+        isOpen={!!trimAdjustSeg}
+        onClose={() => setTrimAdjustSeg(null)}
+        clip={trimAdjustSeg?.clip}
+        srcDur={trimAdjustSeg?.srcDur}
+        filmstripUrl={filmstrips?.[trimAdjustSeg?.clip?.source_path]?.url}
+        onConfirm={(clipId, patch) => patchClip(clipId, patch)}
+      />
+
+      {/* Blocks render until the angle has a cover -- opened from handleApply
+          when the pre-render cover check finds none. */}
+      <CoverStudioModal
+        isOpen={!!coverGateItem}
+        onClose={() => setCoverGateItem(null)}
+        videoItem={coverGateItem}
+        onCoverSaved={handleCoverGateSaved}
+      />
     </div>
   );
 }

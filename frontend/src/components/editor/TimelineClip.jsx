@@ -5,15 +5,15 @@ import { MIN_CLIP_DURATION } from '../../lib/timelineMath';
 const CLIP_RADIUS = 6;
 
 /**
- * One video clip on the timeline: filmstrip texture, selection, drag-to-trim
- * on either edge, and drag-the-body to reorder. Trim edits trim_start /
- * trim_end on the source, so the visible filmstrip window shifts with it.
+ * One video clip on the timeline: selection, drag-to-trim on either edge,
+ * and drag-the-body to reorder. To shift/resize the trim window against the
+ * raw source file (rather than just resizing on the timeline's own grid),
+ * see TrimAdjustModal (opened via the clip's right-click context menu).
  */
 export default function TimelineClip({
   seg,
   pxPerSec,
   isSelected,
-  filmstrip,          // { url, frames } | null
   onSelect,
   onContextMenu,
   onTrim,             // (clipId, patch) during drag -- no undo step
@@ -36,20 +36,6 @@ export default function TimelineClip({
 
   const width = Math.max(14, seg.dur * pxPerSec);
   const left = seg.segStart * pxPerSec;
-
-  // Map the sprite (which spans the whole source file) onto just the trimmed
-  // window, so the frames shown are the frames that will actually render.
-  const filmstripStyle = (() => {
-    if (!filmstrip?.url || !seg.srcDur) return {};
-    const spanSource = Math.max(MIN_CLIP_DURATION, seg.dur * speed);
-    const scaleFactor = seg.srcDur / spanSource;
-    return {
-      backgroundImage: `linear-gradient(rgba(24,23,22,0.55), rgba(24,23,22,0.55)), url("${filmstrip.url}")`,
-      backgroundSize: `100% 100%, ${width * scaleFactor}px 100%`,
-      backgroundPositionX: `0px, ${-(clip.trim_start / seg.srcDur) * width * scaleFactor}px`,
-      backgroundRepeat: 'no-repeat, no-repeat',
-    };
-  })();
 
   const startBodyDrag = (e) => {
     // the trim handles have their own drag; their event bubbles up here
@@ -208,7 +194,6 @@ export default function TimelineClip({
         width,
         borderRadius: CLIP_RADIUS,
         backgroundColor: '#282724',
-        ...filmstripStyle,
         ...(dragging
           ? { transform: `translateX(${dragDx}px)`, opacity: 0.85, zIndex: 30 }
           : null),

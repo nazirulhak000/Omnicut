@@ -203,6 +203,41 @@ export function splitClipAt(seg, t, makeId) {
   ];
 }
 
+/**
+ * Shift a clip's trim window by `deltaSource` source-seconds while holding
+ * (trim_end - trim_start) exactly constant, clamped to [0, srcDur]. Used by
+ * TrimAdjustModal's "drag the whole box" gesture -- distinct from
+ * resizeTrimWindow, which changes the span instead of moving it.
+ */
+export function shiftTrimWindow(clip, deltaSource, srcDur) {
+  const span = (clip.trim_end ?? srcDur ?? 0) - (clip.trim_start || 0);
+  const maxStart = Math.max(0, (srcDur || 0) - span);
+  const nextStart = Math.min(maxStart, Math.max(0, (clip.trim_start || 0) + deltaSource));
+  return {
+    trim_start: Math.round(nextStart * 100) / 100,
+    trim_end: Math.round((nextStart + span) * 100) / 100,
+  };
+}
+
+/**
+ * Resize one edge of a clip's trim window by `deltaSource` source-seconds,
+ * changing the span (unlike shiftTrimWindow, which holds it constant). Used
+ * by TrimAdjustModal's edge-drag handles -- pixels there map directly to
+ * source-seconds (the modal shows one raw file in isolation), so there is no
+ * sequence/speed conversion or timeline-grid snapping to account for, unlike
+ * the main timeline's own edge-drag-to-resize (TimelineClip.jsx).
+ */
+export function resizeTrimWindow(edge, clip, deltaSource, srcDur) {
+  const trimStart = clip.trim_start || 0;
+  const trimEnd = clip.trim_end ?? srcDur ?? 0;
+  if (edge === 'start') {
+    const next = Math.min(Math.max(0, trimStart + deltaSource), trimEnd - MIN_CLIP_DURATION);
+    return { trim_start: Math.round(next * 100) / 100, trim_end: Math.round(trimEnd * 100) / 100 };
+  }
+  const next = Math.max(Math.min(srcDur || trimEnd, trimEnd + deltaSource), trimStart + MIN_CLIP_DURATION);
+  return { trim_start: Math.round(trimStart * 100) / 100, trim_end: Math.round(next * 100) / 100 };
+}
+
 /** 00:04.2 style timecode (mm:ss.tenths). */
 export function formatTimecode(seconds) {
   const s = Math.max(0, seconds || 0);

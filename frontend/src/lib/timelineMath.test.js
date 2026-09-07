@@ -8,6 +8,8 @@ import {
   localTimeAt,
   transitionOverlap,
   splitClipAt,
+  shiftTrimWindow,
+  resizeTrimWindow,
   snapTime,
   snapCandidates,
   formatTimecode,
@@ -135,6 +137,86 @@ test('splitClipAt returns null when cut position is too close to boundaries', ()
   assert.equal(splitClipAt(seg, 0.1, () => 'x'), null);
   // cut at 1.95s (> segEnd - MIN_CLIP_DURATION) -> invalid
   assert.equal(splitClipAt(seg, 1.95, () => 'x'), null);
+});
+
+test('shiftTrimWindow moves the trim window by deltaSource, keeping its span constant', () => {
+  // matches the feature's own motivating example: 1.5-4.13 (2.63s span) -> shift +6.5s -> 8.0-10.63
+  const clip = { trim_start: 1.5, trim_end: 4.13 };
+  assert.deepEqual(shiftTrimWindow(clip, 6.5, 20), { trim_start: 8.0, trim_end: 10.63 });
+});
+
+test('shiftTrimWindow clamps at the start of the source, preserving span', () => {
+  const clip = { trim_start: 1.5, trim_end: 4.13 };
+  const result = shiftTrimWindow(clip, -100, 20);
+  assert.equal(result.trim_start, 0);
+  assert.equal(Math.round((result.trim_end - result.trim_start) * 100) / 100, 2.63);
+});
+
+test('shiftTrimWindow clamps at the end of the source, preserving span', () => {
+  const clip = { trim_start: 1.5, trim_end: 4.13 };
+  const result = shiftTrimWindow(clip, 100, 20);
+  assert.equal(result.trim_end, 20);
+  assert.equal(Math.round((result.trim_end - result.trim_start) * 100) / 100, 2.63);
+});
+
+test('shiftTrimWindow pins to the tiny remaining room when the span nearly fills the source', () => {
+  const clip = { trim_start: 0.05, trim_end: 9.95 }; // 9.9s span in a 10s source -> 0.1s of room total
+  const result = shiftTrimWindow(clip, 5, 10);
+  // maxStart = srcDur - span = 0.1, so a large positive delta pins there, not at 0
+  assert.equal(result.trim_start, 0.1);
+  assert.equal(Math.round((result.trim_end - result.trim_start) * 100) / 100, 9.9);
+});
+
+test('shiftTrimWindow computes span against srcDur when trim_end starts null', () => {
+  const clip = { trim_start: 2, trim_end: null };
+  const result = shiftTrimWindow(clip, 1, 10);
+  // original span = 10 - 2 = 8s; shifted +1 -> would need trim_end=11 > srcDur, so clamps to start=2
+  assert.equal(result.trim_start, 2);
+  assert.equal(result.trim_end, 10);
+});
+
+test('resizeTrimWindow moves the start edge, changing the span', () => {
+  const clip = { trim_start: 1.5, trim_end: 4.13 };
+  const result = resizeTrimWindow('start', clip, 1.0, 20);
+  assert.equal(result.trim_start, 2.5);
+  assert.equal(result.trim_end, 4.13); // end edge untouched
+});
+
+test('resizeTrimWindow moves the end edge, changing the span', () => {
+  const clip = { trim_start: 1.5, trim_end: 4.13 };
+  const result = resizeTrimWindow('end', clip, 2.0, 20);
+  assert.equal(result.trim_start, 1.5); // start edge untouched
+  assert.equal(result.trim_end, 6.13);
+});
+
+test('resizeTrimWindow clamps the start edge at 0', () => {
+  const clip = { trim_start: 1.5, trim_end: 4.13 };
+  const result = resizeTrimWindow('start', clip, -100, 20);
+  assert.equal(result.trim_start, 0);
+  assert.equal(result.trim_end, 4.13);
+});
+
+test('resizeTrimWindow clamps the end edge at srcDur', () => {
+  const clip = { trim_start: 1.5, trim_end: 4.13 };
+  const result = resizeTrimWindow('end', clip, 100, 20);
+  assert.equal(result.trim_start, 1.5);
+  assert.equal(result.trim_end, 20);
+});
+
+test('resizeTrimWindow never lets either edge cross past MIN_CLIP_DURATION from the other', () => {
+  const clip = { trim_start: 1.5, trim_end: 4.13 };
+  const startResult = resizeTrimWindow('start', clip, 100, 20); // pushes start way past end
+  assert.equal(startResult.trim_start, Math.round((4.13 - MIN_CLIP_DURATION) * 100) / 100);
+
+  const endResult = resizeTrimWindow('end', clip, -100, 20); // pushes end way before start
+  assert.equal(endResult.trim_end, Math.round((1.5 + MIN_CLIP_DURATION) * 100) / 100);
+});
+
+test('resizeTrimWindow computes span against srcDur when trim_end starts null', () => {
+  const clip = { trim_start: 2, trim_end: null };
+  const result = resizeTrimWindow('end', clip, 3, 10);
+  assert.equal(result.trim_start, 2);
+  assert.equal(result.trim_end, 10); // was null -> resolves to srcDur, +3 clamps back to srcDur
 });
 
 test('snapTime snaps to nearest candidate within tolerance', () => {
