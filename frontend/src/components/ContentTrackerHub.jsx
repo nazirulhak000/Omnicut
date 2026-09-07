@@ -176,14 +176,14 @@ const KanbanCard = memo(function KanbanCard({
               <span
                 onClick={() => onInspectAngle(ang)}
                 className="font-bold text-white truncate text-xs font-kanit hover:text-[#25F4EE] cursor-pointer flex items-center gap-1 min-w-0"
-                title={`คลิกเพื่อดูรายละเอียดเชิงลึกของ: ${ang.parentProduct?.name}`}
+                title={`คลิกเพื่อดูรายละเอียดเชิงลึกของ: ${ang.project_name || ang.parentProduct?.name}`}
               >
                 {ang.parentProduct?.product_code && (
                   <span className="px-1 py-0.1 rounded bg-fuchsia-500/15 border border-fuchsia-500/30 text-fuchsia-300 font-mono text-[9px] flex-shrink-0">
                     {ang.parentProduct.product_code}
                   </span>
                 )}
-                <span className="truncate">{ang.parentProduct?.name}</span>
+                <span className="truncate">{ang.project_name || ang.parentProduct?.name}</span>
               </span>
               <div className="flex items-center gap-1 flex-shrink-0">
                 {ang.qc_note ? (
