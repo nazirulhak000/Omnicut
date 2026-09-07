@@ -188,6 +188,8 @@ Date: 2026-09-07; Requested by: user; Status: in progress
 - The follow-up now sends `DOM.setFileInputFiles` with the scoped Runtime `objectId`, dispatches events on that same object, and retries once if TikTok replaces the hidden input.
 - `frontend/src/components/ContentTrackerHub.jsx` and `frontend/src/components/ProductToClip.jsx` contain unrelated working-tree changes; do not touch or stage them.
 
+- [x] Round POST-3.21 - multi-day TikTok publishing queue (2026-09-07)
+
 ## Round POST-3.20 - edit generated cover inside OmniCut
 
 Date: 2026-09-07; Requested by: user; Status: in progress

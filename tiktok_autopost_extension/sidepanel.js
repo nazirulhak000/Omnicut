@@ -159,6 +159,17 @@ function isReadyToPost(item) {
   return item.angle_status === 'rendered' && item.is_latest !== false;
 }
 
+function queueScheduleParts(iso) {
+  if (!iso) return { schedule_date: '', schedule_time: '' };
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return { schedule_date: '', schedule_time: '' };
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(date).reduce((out, part) => ({ ...out, [part.type]: part.value }), {});
+  return { schedule_date: `${parts.year}-${parts.month}-${parts.day}`, schedule_time: `${parts.hour}:${parts.minute}` };
+}
+
 async function loadExports() {
   listEl.innerHTML = '<div class="empty">กำลังโหลด...</div>';
   let items;
@@ -172,7 +183,36 @@ async function loadExports() {
     return;
   }
 
-  const ready = items.filter(isReadyToPost);
+  // When the desktop app has a durable schedule, the extension should show
+  // that planned list first so date/time and the one-at-a-time handoff stay
+  // aligned. If no schedule exists yet, retain the original ready-export
+  // list for backwards compatibility.
+  let scheduled = [];
+  try {
+    const queueRes = await fetch(`${BACKEND}/api/schedule-queue`);
+    if (queueRes.ok) {
+      const queueData = await queueRes.json();
+      scheduled = (queueData.items || [])
+        .filter((item) => ['planned', 'ready_for_extension', 'failed'].includes(item.status))
+        .map((item) => ({
+          ...item,
+          rel_path: item.video_path,
+          name: item.project_name || item.video_path,
+          product_name: item.product_name,
+          hook_title: item.hook_title,
+          tiktok_caption: item.caption,
+          tiktok_hashtags: item.hashtags,
+          tiktok_product_id: item.tiktok_product_id,
+          cover_url: item.cover_url || (item.cover_path ? `/api/media/${item.cover_path}` : null),
+          thumbnail_url: item.cover_url || (item.cover_path ? `/api/media/${item.cover_path}` : null),
+          ...queueScheduleParts(item.scheduled_at),
+        }));
+    }
+  } catch (err) {
+    // The queue API was added after the extension; an older backend can still
+    // serve the original ready-export list.
+  }
+  const ready = scheduled.length ? scheduled : items.filter(isReadyToPost);
   if (ready.length === 0) {
     listEl.innerHTML = '<div class="empty">ยังไม่มีคลิปที่ตัดต่อเสร็จรอโพสต์ตอนนี้</div>';
     return;
@@ -192,7 +232,7 @@ async function loadExports() {
     body.innerHTML = `
       <div class="card-product">${escapeHtml(item.product_name || 'ไม่ทราบสินค้า')}</div>
       <div class="card-hook">${escapeHtml(item.hook_title || item.name)}</div>
-      <div class="card-meta">${escapeHtml(item.size_mb)} MB · ${escapeHtml(item.modified_time || '')}</div>
+      <div class="card-meta">${item.schedule_date ? `กำหนด ${escapeHtml(item.schedule_date)} ${escapeHtml(item.schedule_time || '')}` : `${escapeHtml(item.size_mb || '')} MB · ${escapeHtml(item.modified_time || '')}`}</div>
     `;
 
     const btn = document.createElement('button');
@@ -236,6 +276,9 @@ async function prepareClip(item) {
         angle_id: item.angle_id || null,
         tiktok_product_id: item.tiktok_product_id || null,
         product_name: item.product_name || null,
+        queue_id: item.id || null,
+        schedule_date: item.schedule_date || null,
+        schedule_time: item.schedule_time || null,
       }),
     });
     if (!res.ok) {
@@ -244,6 +287,9 @@ async function prepareClip(item) {
     }
     const prepared = await res.json();
     activeClip = {...item, cover_path: prepared.cover_path || item.cover_path || null};
+    if (item.schedule_date) scheduleDateInput.value = item.schedule_date;
+    if (item.schedule_time) scheduleTimeInput.value = item.schedule_time;
+    syncScheduleConstraints();
     captionInput.value = item.tiktok_caption || '';
     hashtagsInput.value = item.tiktok_hashtags || '';
     productIdInput.value = item.tiktok_product_id || '';

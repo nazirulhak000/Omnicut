@@ -29,6 +29,7 @@
 | Round POST-3.14 | Cover Studio portal entry, project-based cover naming, and LOG01 legacy project migration | 2026-09-07 | commit 2a1e395 -> frontend 63 tests pass -> build pass -> backend compile/tests pass |
 | Round POST-3.15 | Prefer project-named covers in export metadata before the legacy product fallback | 2026-09-07 | focused backend tests 8 passed -> compileall passed |
 | Round POST-3.19 | Restore generated cover visibility in the TikTok post modal after backend refresh | 2026-09-07 | User confirmed step 5 cover upload works; focused backend tests 14 passed; frontend tests 65 passed; build passed |
+| Round POST-3.21 | Multi-day persistent TikTok publishing queue and Agenda/Extension handoff | 2026-09-07 | Schedule API/store, multi-day Agenda, single/bulk assignment, five-minute timezone-safe slots, guarded reschedule, extension queue handoff; pytest 873 passed, npm test 82 passed, build and browser smoke passed |
 ---
 
 ## Round TRK-3 — บอร์ดหลักคลีนไร้ความรก (Today-Only Posted, คลังสคริปต์หยิบทำวันนี้ & การ์ดตัดต่อเสร็จแนวนอนกะทัดรัด)
@@ -771,3 +772,38 @@ Date: 2026-09-07; Requested by: user; Status: complete
 
 - The live API returned null cover fields while an older backend process was still running; the current source-level API hydration resolves the saved project-named 3:4 file correctly.
 - No code change was made in this verification round. Existing cover persistence/mapping code remains the source of truth, and steps 1-4 stay locked.
+
+
+## Round POST-3.21 - Multi-day TikTok publishing queue
+
+Date: 2026-09-07; Requested by: user; Status: complete
+
+**Goal:** Replace the today-only Daily Run Sheet with a durable multi-day agenda that makes every scheduled export, date, and time unambiguous and can hand one selected queue item to the TikTok Extension.
+
+**Scope:** Persist queue items by exported `video_path`; prevent duplicate scheduling; support single and bulk assignment, five-minute slots, chronological sorting, drag/reschedule, lifecycle states, and one-at-a-time Extension handoff. Steps 1-4, cover editing/upload, and the unrelated editor work remain unchanged.
+
+### Todo
+
+- [x] Add a backend schedule queue store/API with `video_path`, `scheduled_at`, status, and audit timestamps.
+- [x] Replace today-only localStorage slots with a multi-day Agenda view grouped and sorted by Asia/Bangkok date/time.
+- [x] Add single and bulk queue assignment with five-minute snapping, collision validation, and duplicate prevention.
+- [x] Add drag/reschedule and explicit remove-from-queue actions with lifecycle guards.
+- [x] Add one-item Extension preparation from the queue and preserve the existing manual checklist flow.
+- [x] Add deterministic tests for persistence, uniqueness, sorting, collisions, state transitions, and API handoff.
+- [x] Run frontend/backend tests, build, syntax checks, and browser verification.
+
+### Gate
+
+- [x] `python -m compileall -q scripts` and `python -m pytest tests/ -q -p no:cacheprovider --tb=short` ? 873 passed, 6 existing warnings.
+- [x] `npm test` ? 82 passed.
+- [x] `npm run build` ? passed.
+- [x] `node --check` for extension scripts ? passed.
+- [x] Browser smoke ? Agenda opened, single queue row rendered with date/time, date reschedule persisted, and remove returned the export to the ready pool. Bulk ordering, duplicate/collision guards, lifecycle locks, and extension handoff are covered by deterministic tests and the shared PATCH/prepare paths.
+
+### Notes
+
+- Queue identity is the stable export filename under `04_Exports`, so moving an MP4 to `Posted` can close the same queue row. Re-exporting creates a new filename identity.
+- Queue records persist through the document/SQLite mirror and retain the schedule in `Asia/Bangkok` ISO timestamps.
+- The Extension now prefers active queue rows, receives the scheduled date/time for the selected item, and keeps the existing fallback ready-export list when no queue exists.
+- Removing a planned item never deletes the MP4. Items handed to the Extension must be reset before moving, and posted items are locked.
+- Existing uncommitted editor work was intentionally left unstaged. Steps 1-4 and the extension upload implementation remain frozen by the user.

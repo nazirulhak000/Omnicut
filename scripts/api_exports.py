@@ -416,6 +416,31 @@ def _posted_companions(mp4_path: Path) -> List[Path]:
     return found
 
 
+def _mark_scheduled_queue_item_posted(source: Path, destination: Path) -> None:
+    """Close the durable queue row when the extension moves this export.
+
+    Queue identity is filename-based across Ready_to_post/Posted, so moving
+    the file must update its lifecycle while keeping the same one-clip guard.
+    A queue update is best-effort here: the export move remains authoritative
+    even if an old installation has no schedule table yet.
+    """
+    try:
+        from scripts.api_schedule_queue import video_key
+        from scripts.schedule_store import ScheduleQueueStore, now_iso
+        key = video_key(source)
+        with ScheduleQueueStore._mutate() as records:
+            for row in records:
+                if row.get("video_key") == key or Path(str(row.get("video_path", ""))).name.casefold() == source.name.casefold():
+                    row["video_path"] = str(destination.relative_to(BASE_DIR)).replace("\\", "/")
+                    row["status"] = "posted"
+                    row["posted_at"] = now_iso()
+                    row["updated_at"] = now_iso()
+    except Exception:
+        # Never turn a successful file move into a failed post because the
+        # optional queue mirror is unavailable.
+        return
+
+
 @router.post("/api/exports/mark-posted")
 def mark_posted(req: MarkPostedRequest):
     """
@@ -448,6 +473,8 @@ def mark_posted(req: MarkPostedRequest):
             companion_dest = POSTED_DIR / companion.name
             shutil.move(str(companion), str(companion_dest))
             moved.append(str(companion_dest.relative_to(BASE_DIR)).replace("\\", "/"))
+
+    _mark_scheduled_queue_item_posted(src, dest)
 
     if req.product_id and req.angle_id:
         try:

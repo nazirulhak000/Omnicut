@@ -148,6 +148,12 @@ export const prepareTiktokAutopost = (videoPath, coverPath, caption, hashtags, p
     schedule_time: scheduleTime,
   }).then(r => r.data);
 
+export const getScheduleQueue = (params = {}) => api.get('/schedule-queue', { params }).then(r => r.data);
+export const createScheduleQueue = (payload) => api.post('/schedule-queue', payload).then(r => r.data);
+export const updateScheduleQueue = (id, payload) => api.patch(`/schedule-queue/${id}`, payload).then(r => r.data);
+export const removeScheduleQueue = (id) => api.delete(`/schedule-queue/${id}`).then(r => r.data);
+export const prepareScheduleQueue = (id) => api.post(`/schedule-queue/${id}/prepare`).then(r => r.data);
+
 export const transcribeMedia = (data) => api.post('/sub-srt/transcribe', data, { timeout: 180000 }).then(r => r.data);
 
 // Uploads with extended 5-minute timeout for large HD/4K videos

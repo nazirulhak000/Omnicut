@@ -141,6 +141,8 @@ class PrepareRequest(BaseModel):
     angle_id: Optional[str] = None
     tiktok_product_id: Optional[str] = None
     product_name: Optional[str] = None
+    queue_id: Optional[str] = None
+    schedule_date: Optional[str] = None
     schedule_time: Optional[str] = None
 
 
@@ -174,9 +176,23 @@ def prepare(req: PrepareRequest):
         "angle_id": req.angle_id,
         "tiktok_product_id": req.tiktok_product_id,
         "product_name": req.product_name,
+        "schedule_date": req.schedule_date,
         "schedule_time": req.schedule_time,
         "prepared_at": datetime.now().isoformat(),
     }
+    if req.queue_id:
+        try:
+            from scripts.schedule_store import ScheduleQueueStore
+            with ScheduleQueueStore._mutate() as records:
+                row = next((item for item in records if item.get("id") == req.queue_id), None)
+                if row:
+                    row["status"] = "ready_for_extension"
+                    row["extension_prepared_at"] = datetime.now().isoformat()
+                    row["updated_at"] = datetime.now().isoformat()
+        except Exception:
+            # The post handoff itself is already prepared; an optional queue
+            # mirror must never prevent the extension from continuing.
+            pass
     return {"success": True, "cover_path": _relative_cover(cover_abs)}
 
 
