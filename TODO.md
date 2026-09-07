@@ -167,6 +167,13 @@ Date: 2026-09-07; Requested by: user; Status: in progress
 - [x] Add deterministic backend regression coverage for cover persistence and refresh.
 - [ ] Verify step 5 with the extension after the persisted cover is restored.
 
+### Upload acceptance follow-up
+
+- [x] Use the exact input object from the scoped Cover Studio query for CDP assignment and React notification.
+- [x] Verify the post-assignment notification targets the same input object instead of a fresh global selector.
+- [x] Add a regression test for TikTok replacing or resetting the hidden input, with one controlled retry.
+- [ ] Re-run the real extension step 5 flow and confirm preview plus Save.
+
 ### Gate
 
 - [x] `node --check tiktok_autopost_extension/automation.js`
@@ -175,8 +182,9 @@ Date: 2026-09-07; Requested by: user; Status: in progress
 
 ### Notes
 
-- `node --test tiktok_autopost_extension/background.test.cjs`: 10 passed; the regression test failed before the fix because no events were dispatched and passes after the fix.
+- `node --test tiktok_autopost_extension/background.test.cjs`: 12 passed; the new exact-object and input-replacement regressions pass.
 - The Codex browser controller blocks `fileChooser.setFiles`; real file injection must be exercised by the extension debugger.
+- The follow-up now sends `DOM.setFileInputFiles` with the scoped Runtime `objectId`, dispatches events on that same object, and retries once if TikTok replaces the hidden input.
 - `frontend/src/components/ContentTrackerHub.jsx` and `frontend/src/components/ProductToClip.jsx` contain unrelated working-tree changes; do not touch or stage them.
 
 ## งานค้าง (Backlog)

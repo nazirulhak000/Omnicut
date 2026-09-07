@@ -91,7 +91,10 @@ test('cover upload dispatches input and change events after CDP sets the hidden 
     }
     if (method === 'DOM.getDocument') return {root: {nodeId: 1}};
     if (method === 'DOM.querySelectorAll') return {nodeIds: [7]};
-    if (method === 'DOM.requestNode') return {nodeId: 7};
+    if (method === 'DOM.resolveNode') return {object: {objectId: 'cover-input'}};
+    if (method === 'Runtime.callFunctionOn') {
+      return {result: {value: {fileCount: filesSet ? 1 : 0}}};
+    }
     if (method === 'DOM.setFileInputFiles') {
       filesSet = true;
       return {};
@@ -100,11 +103,10 @@ test('cover upload dispatches input and change events after CDP sets the hidden 
   };
 
   await ctx.OmniAutomation.uploadCover(send, 'D:/covers/demo_cover_3x4.jpg');
-  const eventExpression = calls
-    .filter(call => call.method === 'Runtime.evaluate')
-    .map(call => String(call.params.expression || ''))
-    .find(expression => expression.includes("dispatchEvent(new Event('input'") );
+  const notifyCall = calls.find(call => call.method === 'Runtime.callFunctionOn');
+  const eventExpression = String(notifyCall?.params.functionDeclaration || '');
   assert.ok(eventExpression, 'must notify React about the selected cover');
+  assert.match(eventExpression, /dispatchEvent\(new Event\('input'/);
   assert.match(eventExpression, /dispatchEvent\(new Event\('change'/);
 });
 
@@ -123,6 +125,10 @@ test('cover upload resolves the DOM node directly when Runtime.requestNode canno
     }
     if (method === 'DOM.getDocument') return {root: {nodeId: 1}};
     if (method === 'DOM.querySelectorAll') return {nodeIds: [13]};
+    if (method === 'DOM.resolveNode') return {object: {objectId: 'cover-input'}};
+    if (method === 'Runtime.callFunctionOn') {
+      return {result: {value: {fileCount: filesSet ? 1 : 0}}};
+    }
     if (method === 'DOM.setFileInputFiles') {
       filesSet = true;
       return {};
@@ -136,6 +142,71 @@ test('cover upload resolves the DOM node directly when Runtime.requestNode canno
   const setFileCall = calls.find(call => call.method === 'DOM.setFileInputFiles');
   assert.equal(setFileCall.params.nodeId, 13);
   assert.equal(Array.from(setFileCall.params.files)[0], 'D:/covers/demo_cover_3x4.jpg');
+  assert.ok(calls.some(call => call.method === 'DOM.resolveNode'));
+  const notifyCall = calls.find(call => call.method === 'Runtime.callFunctionOn');
+  assert.match(notifyCall.params.functionDeclaration, /dispatchEvent\(new Event\('change'/);
+});
+
+test('cover upload sets the exact Cover Studio input object returned by the scoped query', async () => {
+  const ctx = worker();
+  const calls = [];
+  let filesSet = false;
+  const send = async (method, params = {}) => {
+    calls.push({method, params});
+    if (method === 'Runtime.evaluate') {
+      const expression = String(params.expression || '');
+      if (expression.includes('dialogCandidates') && params.returnByValue === false) {
+        return {result: {objectId: 'exact-cover-input'}};
+      }
+      return {result: {value: filesSet || true}};
+    }
+    if (method === 'DOM.setFileInputFiles') {
+      filesSet = true;
+      return {};
+    }
+    if (method === 'Runtime.callFunctionOn') {
+      return {result: {value: {fileCount: filesSet ? 1 : 0}}};
+    }
+    if (method === 'Runtime.releaseObject') return {};
+    return {};
+  };
+
+  await ctx.OmniAutomation.uploadCover(send, 'D:/covers/demo_cover_3x4.jpg');
+  const setFileCall = calls.find(call => call.method === 'DOM.setFileInputFiles');
+  assert.equal(setFileCall.params.objectId, 'exact-cover-input');
+  assert.equal('nodeId' in setFileCall.params, false);
+  assert.ok(calls.some(call => call.method === 'Runtime.callFunctionOn'));
+});
+
+test('cover upload retries once when TikTok replaces the hidden input during file assignment', async () => {
+  const ctx = worker();
+  const calls = [];
+  let targetNumber = 0;
+  let notifyNumber = 0;
+  const send = async (method, params = {}) => {
+    calls.push({method, params});
+    if (method === 'Runtime.evaluate') {
+      const expression = String(params.expression || '');
+      if (expression.includes('dialogCandidates') && params.returnByValue === false) {
+        targetNumber += 1;
+        return {result: {objectId: targetNumber === 1 ? 'stale-cover-input' : 'replacement-cover-input'}};
+      }
+      return {result: {value: true}};
+    }
+    if (method === 'DOM.setFileInputFiles') return {};
+    if (method === 'Runtime.callFunctionOn') {
+      notifyNumber += 1;
+      return {result: {value: {fileCount: notifyNumber === 1 ? 0 : 1}}};
+    }
+    return {};
+  };
+
+  await ctx.OmniAutomation.uploadCover(send, 'D:/covers/demo_cover_3x4.jpg');
+  const setCalls = calls.filter(call => call.method === 'DOM.setFileInputFiles');
+  assert.deepEqual(setCalls.map(call => call.params.objectId), [
+    'stale-cover-input',
+    'replacement-cover-input',
+  ]);
 });
 
 test('schedule time follows TikTok five-minute increments', () => {

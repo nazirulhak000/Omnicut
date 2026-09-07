@@ -66,6 +66,54 @@ globalThis.OmniAutomation = (() => {
     throw new Error('ไม่พบ node ของช่องอัปโหลดปกใน Cover Studio');
   }
 
+  async function resolveCoverInputTarget(send, fileInputQuery) {
+    // Keep the Runtime object returned by the same scoped query that found the
+    // editor input. A global DOM snapshot can contain TikTok's video input and
+    // a second hidden cover input; picking the last node made CDP set one
+    // element while React listened to another.
+    const response = await send('Runtime.evaluate', {
+      expression: fileInputQuery,
+      returnByValue: false,
+    });
+    if (response.exceptionDetails) {
+      throw new Error(`ประเมินช่องอัปโหลดปกล้มเหลว: ${response.exceptionDetails.text || 'TikTok เปลี่ยนหน้า'}`);
+    }
+    if (response.result?.objectId) return {objectId: response.result.objectId};
+
+    // Keep a DOM-node fallback for TikTok builds that do not expose a wrapper
+    // object from Runtime.evaluate. It still uses the editor input selector
+    // first, then reports the exact node used to the caller.
+    return {nodeId: await findCoverInputNodeId(send)};
+  }
+
+  async function notifyCoverInput(send, target) {
+    // Resolve the exact DOM node that received DOM.setFileInputFiles. A fresh
+    // document query can return a different hidden input when TikTok rerenders
+    // the editor, which made the old post-upload FileList check report zero.
+    let objectId = target?.objectId;
+    if (!objectId && target?.nodeId) {
+      const resolved = await send('DOM.resolveNode', {nodeId: target.nodeId});
+      objectId = resolved?.object?.objectId;
+    }
+    if (!objectId) throw new Error('ไม่สามารถเชื่อมต่อช่องอัปโหลดปกหลังส่งไฟล์');
+    try {
+      const response = await send('Runtime.callFunctionOn', {
+        objectId,
+        functionDeclaration: `function() {
+          if (!this.files || this.files.length === 0) return {fileCount: 0};
+          this.dispatchEvent(new Event('input', {bubbles:true}));
+          this.dispatchEvent(new Event('change', {bubbles:true}));
+          return {fileCount: this.files.length, fileName: this.files[0]?.name || ''};
+        }`,
+        returnByValue: true,
+      });
+      if (response.exceptionDetails) throw new Error(response.exceptionDetails.text || 'TikTok ปฏิเสธไฟล์ปก');
+      return Number(response.result?.value?.fileCount || 0) > 0;
+    } finally {
+      await send('Runtime.releaseObject', {objectId}).catch(() => {});
+    }
+  }
+
   async function uploadCover(send, coverPath) {
     if (!coverPath) throw new Error('คลิปนี้ยังไม่มีปกที่บันทึกในโปรแกรม');
 
@@ -217,26 +265,27 @@ globalThis.OmniAutomation = (() => {
     }
     await wait(send, `Boolean(${fileInputQuery})`, 'ไม่พบช่องอัปโหลดภาพปกในหน้าต่างแก้ไขปก');
 
-    const nodeId = await findCoverInputNodeId(send);
-    await send('DOM.setFileInputFiles', {nodeId, files:[coverPath]});
-
     // DOM.setFileInputFiles updates the browser's FileList, but it does not
     // reliably emit the React-facing events that TikTok uses to create the
-    // preview. Notify the same hidden input explicitly without clicking the
-    // label (which would open the native OS picker).
-    const notified = await evaluate(send, `(() => {
-      const input = ${fileInputQuery};
-      if (!input || !input.files || input.files.length === 0) return false;
-      input.dispatchEvent(new Event('input', {bubbles:true}));
-      input.dispatchEvent(new Event('change', {bubbles:true}));
-      return true;
-    })()`);
+    // preview. Use the exact input object returned by the scoped query so the
+    // following events reach the same React handler. If TikTok replaced that
+    // hidden input during the first assignment, resolve the scoped input once
+    // more and retry against the replacement.
+    let target = await resolveCoverInputTarget(send, fileInputQuery);
+    let notified = false;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const setParams = {files:[coverPath]};
+      if (target.objectId) setParams.objectId = target.objectId;
+      else setParams.nodeId = target.nodeId;
+      await send('DOM.setFileInputFiles', setParams);
+      notified = await notifyCoverInput(send, target);
+      if (notified) break;
+      if (attempt === 0) target = await resolveCoverInputTarget(send, fileInputQuery);
+    }
     if (!notified) throw new Error('ส่งไฟล์ปกแล้ว แต่ TikTok ยังไม่รับไฟล์ในช่องอัปโหลด');
 
     // 3. Wait for image preview to render inside the modal
     await wait(send, `(() => {
-      const input = ${fileInputQuery};
-      if (!input || !input.files || input.files.length === 0) return false;
       const preview = Array.from(document.querySelectorAll('img, canvas')).some(el => {
         const rect = el.getBoundingClientRect();
         return rect.width > 50 && rect.height > 50 && (el.tagName === 'CANVAS' || (el.complete && el.naturalWidth > 0));
