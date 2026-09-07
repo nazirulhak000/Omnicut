@@ -9,6 +9,16 @@ Audit ของ Capcut content studio — สถานะปัจจุบั�
 > ข้อ `renderJobModel` และ `keyframe_engine` ที่รอบก่อนเขียนว่า "กำลังแก้/ยังเปิด" **ปิดไปแล้ว** (`46135c7`, `cd2d778`) — ย้ายลงท้ายเอกสารแล้ว
 > `tiktok_autopost_extension/` เป็นพื้นที่ของ dev อีกคนที่แก้อยู่ตลอด — เช็ค `git log` ก่อนเชื่อสถานะฝั่งนั้น
 
+> ## 🛑 ขอบเขตวันนี้ (2026-09-07): ใช้เองคนเดียว ยังไม่เปิดให้คนอื่น
+>
+> เจ้าของโปรเจกต์ตัดสินใจแล้วว่า **ยังไม่ทำ SaaS** — ข้อ 1 (auth จริง), ข้อ 2 (job queue),
+> ข้อ 6 (tenant isolation), ข้อ 7–9 (normalize schema / object storage) **พักไว้ทั้งหมด**
+> เอกสารยังเก็บไว้เพราะวิเคราะห์แล้วและจะได้ไม่ต้องรื้อใหม่ถ้าวันหนึ่งเปลี่ยนใจ
+>
+> **สิ่งที่ยังคุ้มทำถึงจะใช้คนเดียว:** ข้อ 3 (`reconcile_existing_projects()` หลุด transaction —
+> UI poll ทุก 1.5 วิ + background render ชนกันเองได้ ไม่ต้องมีผู้ใช้คนที่สอง)
+> และการต่อ `X-API-Key` เข้า extension ถ้าวันไหนเปิด `OMNICUT_API_KEY` (ดูข้อ 1)
+
 ---
 
 ## ⚠️ เรื่องสำคัญที่ต้องรู้ก่อนอ่านต่อ
@@ -42,6 +52,7 @@ Audit ของ Capcut content studio — สถานะปัจจุบั�
 | **`ProductStore.reconcile_existing_projects()` ยังใช้ bare `_load()`/`_save()`** | 🟠 หลุดจาก transaction ที่ `83a9f1e` วางไว้ |
 | **`token_tracker` cache ยังมีช่องโหว่ same-tick-same-size** | 🟡 ทฤษฎีล้วนๆ วันนี้ ไม่เคยเจอจริง |
 | **SQLite เป็น document store** (`angles`/`videos` ไม่ normalize) | 🟠 ตั้งใจ — ต้องแลกกับงาน rewrite ใหญ่ก่อนแตะ |
+| Vision cache ข้าม cue set / `ad_tone` fallback เงียบ | ✅ ตัดสินใจแล้ว (`ada92f6`) |
 | **Extension cover flow ผ่าน CDP path เอง — ยังไม่ verify จริง** | 🟠 Playwright ปฏิเสธ file send, รอทดสอบผ่าน extension จริง |
 | `keyframe_engine.py` ไม่มีใครเรียก | ✅ ตรวจแล้ว (`cd2d778`) — **ไม่ลบ** เป็น Phase 9 scaffolding ที่มี easing/clamp เกินของ live + doc ยังอ้าง `ease_out`; ใส่ STATUS ใน docstring แทน |
 
@@ -173,22 +184,6 @@ Audit ของ Capcut content studio — สถานะปัจจุบั�
 
 ---
 
-## สิ่งที่ต้องมนุษย์ตัดสินใจ (ไม่ใช่บัค)
-
-### 11. `ad_tone` ที่ไม่รู้จักตกไปใช้ prompt `commercial_premium` เงียบๆ
-`scripts/gemini_tts_engine.py:161`, `scripts/overlay_model.py:174`
-
-พฤติกรรมนี้ยืนยันแล้วว่า**ยังอยู่เหมือนเดิม** (`a2a9eff` เขียน test cover พฤติกรรมนี้ตามที่เป็นอยู่ ไม่ได้เปลี่ยน) คำถามที่ต้องตอบ: อยาก fallback เงียบๆ แบบนี้ต่อไป (ยืดหยุ่นกับ tone ใหม่ที่ยังไม่ list) หรืออยาก raise/warn เมื่อเจอ `ad_tone` ที่ไม่รู้จัก (จับ typo/data เพี้ยนได้เร็วกว่า)
-
-### 12. Vision matcher คืน cache เก่าข้าม cue set ได้เมื่อ parse response ไม่ออก
-`scripts/gemini_vision_matcher.py:260,366,417` — เมื่อ parse response จาก Gemini ไม่สำเร็จ โค้ด fallback ไปหา cache entry ตัวไหนก็ได้ที่ **share แค่ file hash เดียวกัน** (`if k.startswith(file_hash) and v`) ไม่ตรวจว่า cue set เดียวกันไหม (`match_cache_key` เต็มคือ `file_hash + cue_hash`)
-
-ยืนยันแล้วว่ายังอยู่เหมือนเดิม (`a2a9eff` cover พฤติกรรมนี้ตามที่เป็น ไม่เปลี่ยน) **ความเสี่ยงจริง:** แก้สคริปต์ (เปลี่ยน cue) แล้ว render ใหม่ แต่ vision response ครั้งใหม่ parse ไม่ออก (เช่น Gemini ตอบ format แปลก) → ได้ scene matching ของสคริปต์ **เก่า** มาใช้แบบเงียบๆ ไม่มี error
-
-คำถามที่ต้องตอบ: อยากให้ fallback ไปหา cache แบบกว้างๆ (ดีกว่าไม่มีอะไรเลยตอน API ล่ม) หรืออยากให้ fallback แคบลงเหลือแค่ cue_hash เดียวกัน (ปลอดภัยกว่าแต่ parse fail = ไม่มี match เลย)
-
----
-
 ## ✅ สิ่งที่ทำถูกอยู่แล้ว (อย่าเสียเวลาแก้)
 
 **Backend/data**
@@ -212,19 +207,19 @@ Audit ของ Capcut content studio — สถานะปัจจุบั�
 **Chrome extension**
 - `host_permissions` แคบ (localhost:8000 + tiktok.com เท่านั้น) ไม่มี `<all_urls>`
 - Error plumbing ถูกต้อง — throw แล้วเด้งถึง UI จริง (`sidepanel.js:230-243`)
-- `automation.js` มี `page()`/`buttonQuery()` helper — pattern ดี แต่ยังไม่ถูกขยายไปใช้ทั่ว (ดูข้อ 13)
+- `automation.js` มี `page()`/`buttonQuery()` helper — pattern ดี แต่ยังไม่ถูกขยายไปใช้ทั่ว (ดูข้อ 11)
 - Post/link-attach/schedule-toggle ตอนนี้ poll ยืนยันผลจริงก่อน report success แล้ว (`c12527b` + live-verify รอบ POST-3.1-3.4)
 
 ---
 
 ## ยังเปิดอยู่: Chrome extension (พื้นที่ของ dev อีกคน — ไม่แตะโค้ด แต่บันทึกไว้)
 
-### 13. Selector ยังกระจัดกระจาย ไม่มีไฟล์กลาง 🟡
+### 11. Selector ยังกระจัดกระจาย ไม่มีไฟล์กลาง 🟡
 ไม่มี `selectors.js` หรือไฟล์รวม selector ใดๆ — `background.js` ยัง hand-roll แยกทุกฟังก์ชัน (68 จุดที่เรียก `querySelector`/`getElementById` ใน `background.js` ไฟล์เดียว) ประวัติ commit ช่วงนี้เห็นชัดว่าเป็นปัญหาจริง: `03c47cf`, `279b8ee`, `33210f2`, `bfeb7e6`, `f8be9b7`, `7c5cf50`, `78eda05`, `32c6972`, `ae9cced` — **9 commit แก้ selector/targeting ใน 28 commit ล่าสุด** เกือบหนึ่งในสาม
 
 การรวมเป็นไฟล์เดียวจะคุ้มมากขึ้นเรื่อยๆ ทุกครั้งที่ TikTok เปลี่ยน UI — แต่ไม่ใช่ของที่แก้ได้ในเอกสารนี้ (directory เป็นของ dev อีกคน)
 
-### 14. Cover flow ผ่าน CDP path ของ extension เอง — ยังไม่ verify จริง 🟠
+### 12. Cover flow ผ่าน CDP path ของ extension เอง — ยังไม่ verify จริง 🟠
 `b24091d` บันทึกไว้ชัดเจน: Playwright session จริงเปิด Cover Studio ได้ พบ `label.ImageUpload__uploadArea` แต่ **การส่งไฟล์ผ่าน Playwright ถูกปฏิเสธ** (`fileChooser.setFiles: Not allowed`) — เป็นข้อจำกัดของ browser sandbox ไม่ใช่บัคของ extension เอง
 
 extension มีทางของตัวเอง (upload ผ่าน CDP โดยตรง ไม่ใช้ OS file dialog — ตาม commit `a968d9f` ก่อนหน้า `d4fc3dc`) แต่**เส้นทางนั้นยังไม่เคย verify กับ TikTok จริงหลังแพตช์รอบล่าสุด** (`008aadd`, `ae9cced` แก้ cover upload/diagnostics เพิ่มอีก แต่ TODO.md เองยังทำเครื่องหมาย task นี้ค้างอยู่ที่ POST-3.4: "ทำให้ข้อแนบปกเปิด Cover Studio ได้... ยืนยัน flow หน้าปก... โดยไม่กดเผยแพร่" — ยังไม่ติ๊ก)
@@ -255,8 +250,6 @@ extension มีทางของตัวเอง (upload ผ่าน CDP �
 13. Normalize SQLite schema (ข้อ 9, 11) — รอจนกว่า record count เริ่มกระทบ perf จริง (JSON blob ต่อแถวยังไหวถึงหลักพัน record)
 
 **เฟส 4 — ตัดสินใจที่รอมนุษย์ (ทำเมื่อไหร่ก็ได้ ไม่ block อะไร)**
-14. `ad_tone` fallback เงียบๆ (ข้อ 11) — ตอบแล้วค่อยแก้โค้ด
-15. Vision cache stale-match scope (ข้อ 12) — ตอบแล้วค่อยแก้โค้ด
 
 ---
 
@@ -286,6 +279,8 @@ extension มีทางของตัวเอง (upload ผ่าน CDP �
 - **Test เขียนทับ data จริง** — `test_analysis_fixes.py`, `test_export_versioning.py` ไม่ใช้ `tmp_path` → isolate แล้ว (`d4fc3dc`, เพิ่มอีกใน `1c0e07b` ที่พบ 4 test สร้าง real project dir ใต้ `03_Projects`)
 - **Task/job id เดาได้ + ไม่มี owner scoping** — `f"task_{ms_timestamp}_{6 hex}"` walkable, `_tasks`/`ACTIVE_JOBS` ไม่มี owner key เลย → `secrets.token_urlsafe(16)` + `owner_id` scoping ทุก lookup/mutation (`18735fd`)
 - **`complete_task()`/`fail_task()` ไม่มี terminal guard** — task ที่ fail แล้วโดน complete ทับสถานะได้ (ค้าง error ไว้พร้อม status COMPLETED) → เพิ่ม guard (`18735fd`)
+- **Vision matcher คืน scene map ของสคริปต์อื่น** — fallback 3 จุดหา cache ด้วย `k.startswith(file_hash)` ซึ่งเป็นครึ่งวิดีโอของ key `{file_hash}_{md5(cue text)}` → แก้บทแล้ว render ใหม่ แต่ parse response ไม่ออก = ได้ shot ที่ตรงกับบทเก่ามาเงียบๆ → **ตัดสินใจแล้ว: ต้องตรงทั้ง key** (วิดีโอ+บท) ไม่ตรงก็ตกไป rhythmic cuts (`ada92f6`)
+- **`ad_tone` ที่ไม่รู้จักเงียบๆ** — **ตัดสินใจแล้ว: ใช้ `commercial_premium` ต่อ** (fail เพราะพิมพ์ผิดแย่กว่า) แต่เพิ่ม warning เพราะเสียงที่ออกมาเพี้ยนเล็กน้อยไม่มีอะไรบอกว่า direction ที่ขอถูกทิ้ง (`ada92f6`)
 - **`renderJobModel.js` key ด้วยชื่อ project ที่แสดงผล** — label ต่างกันระหว่าง save/read (EditorShell กับ NewClipPanel คำนวณคนละที่) ทำให้หา job ที่กำลังรันไม่เจอ UI บอกว่าไม่มี render, และ fallback `'วิดีโอ'` ทำให้ render ที่ไม่มีชื่อสองงานทับ key กัน → เปลี่ยนเป็น key เดียวทั้งแท็บถือ `{jobId, projectKey}` addressed ด้วย uuid4 ของ job (`46135c7`)
 - **`import.meta.env` ล้มตอนรัน lib test** — interceptor `X-API-Key` อ่าน `import.meta.env.VITE_API_KEY` ตรงๆ แต่ `node --test` ไม่ผ่าน Vite → throw ล้มไป 2 suite → optional chaining (`46135c7`)
 - **Render ที่ล้มกลางทางตามรอยโฟลเดอร์ไม่ได้** — ชื่อโปรเจกต์ที่ stage 1 ตั้งเองอยู่แค่ใน `ctx` จน `run()` return, `api_render` ใช้ `req_data.project_name` ที่เป็น `None` พอดี, `fail_job` fallback อ่าน `job["result"]` ที่มีค่าแค่ตอนสำเร็จ (dead logic) → stamp ชื่อบน exception + เขียน `.run_started.json` เป็น breadcrumb (ตั้งใจไม่ใช่ `project.json` เพราะ `require()` ถือว่ามี manifest = render เสร็จ จะทำให้ reroll วิ่งบน artifact ที่ไม่มี) (`566c3de`)
