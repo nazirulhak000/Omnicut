@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addDays, buildScheduleIso, groupScheduleItems, mergeScheduleDraft, nextSlotAfterLatest, templateForWeek, weekStartForDate } from './scheduleQueue.js';
+import { addDays, buildScheduleIso, groupScheduleItems, mergeScheduleDraft, nextTemplateSlotAfterLatest, templateForWeek, weekStartForDate } from './scheduleQueue.js';
 import { scheduleTimeOptions, snapTimeToFiveMinutes } from './scheduleQueue.js';
 
 test('schedule times use five-minute increments', () => {
@@ -36,13 +36,13 @@ test('schedule field edits retain the latest date and time together', () => {
   assert.deepEqual(draft, { date: '2026-09-12', time: '21:30' });
 });
 
-test('requeue defaults five minutes after the latest unposted queue item', () => {
-  const fallback = { date: '2026-09-10', time: '12:30' };
-  assert.deepEqual(nextSlotAfterLatest([
-    { status: 'posted', scheduled_at: '2026-09-12T21:30:00+07:00' },
-    { status: 'planned', scheduled_at: '2026-09-10T19:00:00+07:00' },
-  ], fallback), { date: '2026-09-10', time: '19:05' });
-  assert.deepEqual(nextSlotAfterLatest([
-    { status: 'planned', scheduled_at: '2020-01-01T12:30:00+07:00' },
-  ], fallback), fallback);
+test('requeue defaults to the next empty slot from the weekly template', () => {
+  const template = { days: Object.fromEntries(Array.from({ length: 7 }, (_, index) => [String(index), { enabled: true, times: ['12:00', '19:30', '21:00'] }])) };
+  const queue = [
+    { status: 'posted', scheduled_at: '2026-09-20T21:00:00+07:00' },
+    { status: 'planned', scheduled_at: '2026-09-08T19:30:00+07:00' },
+    { status: 'planned', scheduled_at: '2026-09-08T21:00:00+07:00' },
+  ];
+  assert.deepEqual(nextTemplateSlotAfterLatest(queue, { '2026-09-07': template }, new Date('2026-09-07T10:00:00+07:00')), { date: '2026-09-09', time: '12:00' });
+  assert.equal(nextTemplateSlotAfterLatest(queue, {}, new Date('2026-09-07T10:00:00+07:00')), null);
 });

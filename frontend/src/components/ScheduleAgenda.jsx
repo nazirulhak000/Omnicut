@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, ChevronDown, ChevronUp, Clock, Copy, GripVertical, Image as ImageIcon, Layers, Plus, RefreshCw, Rocket, RotateCcw, Settings2, Shuffle, Trash2 } from 'lucide-react';
 import { Modal, Badge } from './ui';
 import { commitScheduleAutofill, copyScheduleTemplate, createScheduleQueue, getScheduleQueue, getScheduleTemplate, prepareScheduleQueue, previewScheduleAutofill, removeScheduleQueue, resetScheduleTemplate, saveScheduleTemplate, updateScheduleQueue } from '../api';
-import { addDays, buildScheduleIso, dateOnly, DEFAULT_PRIMARY_TIMES, groupScheduleItems, localParts, mergeScheduleDraft, nextSlotAfterLatest, primaryTimeOptions, PROJECT_TIME_ZONE, scheduleTimeOptions, templateForWeek, toLocalDateTime, weekStartForDate } from '../lib/scheduleQueue';
+import { addDays, buildScheduleIso, dateOnly, DEFAULT_PRIMARY_TIMES, groupScheduleItems, localParts, mergeScheduleDraft, nextTemplateSlotAfterLatest, primaryTimeOptions, PROJECT_TIME_ZONE, scheduleTimeOptions, templateForWeek, toLocalDateTime, weekStartForDate } from '../lib/scheduleQueue';
 
 const STATUS_LABELS = {
   planned: 'รอจัดส่ง',
@@ -131,9 +131,11 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   const [autofillBusy, setAutofillBusy] = useState(false);
   const [requeueOpen, setRequeueOpen] = useState(false);
   const [requeueTarget, setRequeueTarget] = useState(null);
-  const [requeueDraft, setRequeueDraft] = useState(nextSlot());
+  const [requeueDraft, setRequeueDraft] = useState({ date: '', time: '' });
+  const [requeueLoading, setRequeueLoading] = useState(false);
   const scheduleDrafts = useRef(new Map());
   const scheduleRequestIds = useRef(new Map());
+  const requeueRequestId = useRef(0);
   const primaryOptions = useMemo(() => primaryTimeOptions(), []);
 
   const loadQueue = async () => {
@@ -271,10 +273,39 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
     if (current.date !== date) await reschedule(item, date, current.time);
   };
 
-  const openRequeue = (item) => {
+  const openRequeue = async (item) => {
+    const requestId = requeueRequestId.current + 1;
+    requeueRequestId.current = requestId;
+    const now = new Date();
     setRequeueTarget(item);
-    setRequeueDraft(nextSlotAfterLatest(queue, nextSlot()));
+    setRequeueDraft({ date: '', time: '' });
+    setRequeueLoading(true);
     setRequeueOpen(true);
+    try {
+      const latestMs = queue
+        .filter((row) => row?.status !== 'posted')
+        .map((row) => new Date(row?.scheduled_at || '').getTime())
+        .filter(Number.isFinite)
+        .reduce((latest, value) => Math.max(latest, value), 0);
+      const startDate = dateOnly(new Date(Math.max(now.getTime(), latestMs)));
+      const templates = {};
+      let slot = null;
+      for (let offset = 0; offset < 366 && !slot; offset += 7) {
+        const week = weekStartForDate(addDays(startDate, offset));
+        templates[week] = await getScheduleTemplate(week);
+        slot = nextTemplateSlotAfterLatest(queue, templates, now);
+      }
+      if (requestId !== requeueRequestId.current) return;
+      setRequeueDraft(slot || { date: '', time: '' });
+      if (!slot) showToast?.('ไม่พบช่องว่างตามเทมเพลต กรุณาเลือกวันเวลาเอง', 'error');
+    } catch (error) {
+      if (requestId === requeueRequestId.current) {
+        setRequeueDraft({ date: '', time: '' });
+        showToast?.(errorText(error, 'โหลดเทมเพลตเวลาไม่สำเร็จ กรุณาเลือกวันเวลาเอง'), 'error');
+      }
+    } finally {
+      if (requestId === requeueRequestId.current) setRequeueLoading(false);
+    }
   };
 
   const saveRequeue = async () => {
@@ -492,7 +523,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
       </Modal>
 
       <Modal isOpen={requeueOpen} onClose={() => setRequeueOpen(false)} title="จัดคิวคลิปที่เลยกำหนดใหม่" subtitle="ระบบจะอัปเดตรายการเดิมและไม่สร้างคลิปซ้ำ" maxWidth="max-w-xl">
-        <div className="space-y-4"><div className="rounded-xl border border-red-400/20 bg-red-500/[0.06] p-3 text-xs text-red-100">{requeueTarget?.product_name || 'คลิป'} · {requeueTarget?.hook_title || requeueTarget?.video_path}</div><div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><label className="space-y-1 text-xs font-bold text-slate-300">วันที่<input type="date" value={requeueDraft.date} onChange={(event) => setRequeueDraft((prev) => ({ ...prev, date: event.target.value }))} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white" /></label><label className="space-y-1 text-xs font-bold text-slate-300">เวลา<input type="time" step="300" value={requeueDraft.time} onChange={(event) => setRequeueDraft((prev) => ({ ...prev, time: event.target.value }))} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white font-mono" /></label></div><div className="flex justify-end gap-2"><button type="button" onClick={() => setRequeueOpen(false)} className="px-3 py-2 rounded-xl text-xs text-slate-300">ยกเลิก</button><button type="button" disabled={saving} onClick={saveRequeue} className="px-4 py-2 rounded-xl bg-cyan-400 text-slate-950 text-xs font-black disabled:opacity-50">บันทึกคิวใหม่</button></div></div>
+        <div className="space-y-4"><div className="rounded-xl border border-red-400/20 bg-red-500/[0.06] p-3 text-xs text-red-100">{requeueTarget?.product_name || 'คลิป'} · {requeueTarget?.hook_title || requeueTarget?.video_path}</div>{requeueLoading && <p className="text-xs text-cyan-200">กำลังหาช่องว่างถัดไปตามเทมเพลต...</p>}<div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><label className="space-y-1 text-xs font-bold text-slate-300">วันที่<input type="date" value={requeueDraft.date || ''} disabled={requeueLoading} onChange={(event) => setRequeueDraft((prev) => ({ ...prev, date: event.target.value }))} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white disabled:opacity-50" /></label><label className="space-y-1 text-xs font-bold text-slate-300">เวลา<input type="time" step="300" value={requeueDraft.time || ''} disabled={requeueLoading} onChange={(event) => setRequeueDraft((prev) => ({ ...prev, time: event.target.value }))} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white font-mono disabled:opacity-50" /></label></div><div className="flex justify-end gap-2"><button type="button" onClick={() => setRequeueOpen(false)} className="px-3 py-2 rounded-xl text-xs text-slate-300">ยกเลิก</button><button type="button" disabled={saving || requeueLoading || !requeueDraft.date || !requeueDraft.time} onClick={saveRequeue} className="px-4 py-2 rounded-xl bg-cyan-400 text-slate-950 text-xs font-black disabled:opacity-50">บันทึกคิวใหม่</button></div></div>
       </Modal>
     </div>
   );

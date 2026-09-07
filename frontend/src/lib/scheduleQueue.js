@@ -117,19 +117,41 @@ export function addMinutes(date, minutes) {
   return localParts(value.toISOString());
 }
 
-export function nextSlotAfterLatest(items = [], fallback = toLocalDateTime()) {
+export function nextTemplateSlotAfterLatest(items = [], templatesByWeek = {}, now = new Date()) {
   const latestMs = items
     .filter((item) => item?.status !== 'posted')
     .map((item) => new Date(item?.scheduled_at || '').getTime())
     .filter(Number.isFinite)
     .reduce((latest, value) => Math.max(latest, value), 0);
+  const cursorMs = Math.max(now.getTime(), latestMs);
+  const cursorDate = parseDateOnly(toLocalDateTime(new Date(cursorMs)).date);
+  const occupied = new Set(items
+    .filter((item) => item?.status !== 'posted')
+    .map((item) => {
+      const timestamp = new Date(item?.scheduled_at || '');
+      if (Number.isNaN(timestamp.getTime())) return null;
+      const parts = localParts(timestamp.toISOString());
+      return buildScheduleIso(parts.date, parts.time);
+    })
+    .filter(Boolean));
 
-  if (!latestMs) return { ...fallback };
-
-  const candidate = addMinutes(localParts(new Date(latestMs).toISOString()), 5);
-  const fallbackMs = new Date(buildScheduleIso(fallback.date, fallback.time)).getTime();
-  const candidateMs = new Date(buildScheduleIso(candidate.date, candidate.time)).getTime();
-  return candidateMs > fallbackMs ? candidate : { ...fallback };
+  for (let offset = 0; offset < 366; offset += 1) {
+    const date = new Date(cursorDate.getTime());
+    date.setUTCDate(date.getUTCDate() + offset);
+    const dateKey = `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}-${pad2(date.getUTCDate())}`;
+    const week = weekStartForDate(dateKey);
+    const rawTemplate = templatesByWeek[week] || templatesByWeek.default;
+    if (!rawTemplate) continue;
+    const template = templateForWeek(rawTemplate, week);
+    const dayConfig = template.days[String((date.getUTCDay() + 6) % 7)];
+    if (dayConfig?.enabled === false) continue;
+    for (const time of dayConfig?.times || []) {
+      const iso = buildScheduleIso(dateKey, time);
+      const timestamp = new Date(iso).getTime();
+      if (timestamp > cursorMs && !occupied.has(iso)) return { date: dateKey, time };
+    }
+  }
+  return null;
 }
 
 export function sortScheduleItems(items = []) {
