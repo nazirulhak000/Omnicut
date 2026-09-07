@@ -1175,16 +1175,24 @@ async function setScheduleDateTime(send, { date = '', time = '' } = {}) {
       const pickedHour = await sendEval(`(() => {
         const visible = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
         const values = Array.from(document.querySelectorAll('span.tiktok-timepicker-option-text.tiktok-timepicker-left'))
-          .filter(el => visible(el) && Number.parseInt(el.textContent.trim(), 10) === ${hourNumber});
-        if (!values.length) return false; values[0].click(); return true;
+          .filter(el => Number.parseInt(el.textContent.trim(), 10) === ${hourNumber});
+        const value = values.find(visible) || values[0];
+        if (!value) return false;
+        value.scrollIntoView({block:'center'});
+        value.click();
+        return true;
       })()`);
       if (!pickedHour?.result?.value) throw new Error('เลือกชั่วโมงที่ต้องการไม่สำเร็จ');
       await sleep(180);
       const pickedMinute = await sendEval(`(() => {
         const visible = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
         const values = Array.from(document.querySelectorAll('span.tiktok-timepicker-option-text.tiktok-timepicker-right'))
-          .filter(el => visible(el) && Number.parseInt(el.textContent.trim(), 10) === ${minuteNumber});
-        if (!values.length) return false; values[0].click(); return true;
+          .filter(el => Number.parseInt(el.textContent.trim(), 10) === ${minuteNumber});
+        const value = values.find(visible) || values[0];
+        if (!value) return false;
+        value.scrollIntoView({block:'center'});
+        value.click();
+        return true;
       })()`);
       if (!pickedMinute?.result?.value) throw new Error('เลือกนาทีที่ต้องการไม่สำเร็จ');
       await sleep(250);

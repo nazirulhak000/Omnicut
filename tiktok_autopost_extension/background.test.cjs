@@ -96,6 +96,7 @@ test('live DOM contracts for the reported TikTok screens stay in the worker', ()
   assert.match(code, /scheduleDate/);
   assert.match(code, /tiktok-timepicker-option-text/);
   assert.match(code, /pickerOpen/);
+  assert.match(code, /scrollIntoView\(\{block:'center'\}\)/g);
   assert.match(code, /calendar-wrapper.*span\.day\.valid/);
   assert.match(code, /calendar-wrapper/);
   assert.match(code, /span\.day\.valid/);
