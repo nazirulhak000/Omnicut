@@ -62,7 +62,7 @@ globalThis.OmniAutomation = (() => {
         const r = el.getBoundingClientRect();
         return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
       };
-      const area = document.querySelector('.ImageUpload__uploadArea, [class*="ImageUpload"], [class*="cover-modal"], [class*="CoverModal"]');
+      const area = document.querySelector('label.ImageUpload__uploadArea, input[type="file"], [class*="cover-modal"], [class*="CoverModal"]');
       return visible(area);
     })()`);
 
@@ -74,7 +74,9 @@ globalThis.OmniAutomation = (() => {
           const rect = el.getBoundingClientRect();
           return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
         };
-        const targets = Array.from(document.querySelectorAll('.edit-container, [class*="edit-container"], [class*="cover-container"] div, button, div, span'))
+        const exact = Array.from(document.querySelectorAll('div.edit-container')).find(isVisible);
+        const targets = [exact, ...Array.from(document.querySelectorAll('[class*="edit-container"], [class*="cover-container"] div, button, div, span'))]
+          .filter(Boolean)
           .filter(isVisible);
         const btn = targets.find(el => {
           const t = (el.innerText || el.textContent || '').trim();
@@ -109,7 +111,7 @@ globalThis.OmniAutomation = (() => {
     // Instead, find the input[type="file"] and set files directly via CDP DOM.setFileInputFiles!
     const fileInputQuery = `(() => {
       // 1. Inside ImageUpload uploadArea
-      const uploadArea = document.querySelector('label.ImageUpload__uploadArea, .ImageUpload__uploadArea, [class*="ImageUpload"], [class*="uploadArea"]');
+      const uploadArea = document.querySelector('label.ImageUpload__uploadArea, [class*="uploadArea"]');
       if (uploadArea) {
         const forId = uploadArea.getAttribute('for');
         const input = (forId && document.getElementById(forId)) ||
@@ -118,7 +120,10 @@ globalThis.OmniAutomation = (() => {
         if (input) return input;
       }
       // 2. Any file input with accept image
-      const allInputs = Array.from(document.querySelectorAll('input[type="file"]'));
+      const dialogs = Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"], [class*="modal"], [class*="Modal"]'))
+        .filter(el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
+      const scope = dialogs.at(-1) || document;
+      const allInputs = Array.from(scope.querySelectorAll('input[type="file"]'));
       const imgInput = allInputs.find(i => {
         const acc = (i.accept || '').toLowerCase();
         return acc.includes('image') || acc.includes('png') || acc.includes('jpg') || acc.includes('jpeg');
@@ -136,7 +141,7 @@ globalThis.OmniAutomation = (() => {
     const hasInput = await evaluate(send, `Boolean(${fileInputQuery})`);
     if (!hasInput) {
       await evaluate(send, `(() => {
-        const label = document.querySelector('label.ImageUpload__uploadArea, label[role="button"], [class*="ImageUpload__uploadArea"]');
+      const label = document.querySelector('label.ImageUpload__uploadArea, label[role="button"], [class*="uploadArea"]');
         if (!label) return false;
         label.click();
         return true;
