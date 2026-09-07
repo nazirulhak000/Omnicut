@@ -37,6 +37,30 @@
 | Round POST-3.26 | เพิ่มปุ่มเปิด/สลับแท็บ TikTok Studio ใน Extension (Tab 1, Tab 2, Header, Popup) | 2026-09-07 | Quick bar ใน Tab 1, Banner ใน Tab 2, Header button, Popup button; Auto-focus/activate tab; 13/13 tests pass; Clean UI standard |
 | Round POST-3.27 | ลดความซ้ำซ้อนปุ่มเปิด TikTok Studio ให้เหลือจุดเดียวใน Header ตามที่ User ร้องขอ | 2026-09-07 | รวมเหลือจุดเดียวใน Header bar (`#headerOpenTikTokBtn`); ลบปุ่มซ้ำซ้อนใน Tab 1 และ Tab 2 ออกทั้งหมด; 13/13 tests pass; Clean UI standard |
 | Round RAW-1 | แก้ rename คลิปดิบที่ติด file lock และจัดเลย์เอาต์ Raw Vault แบบ responsive | 2026-09-07 | ถอด preview ก่อน rename, retry WinError 32 พร้อมข้อความกู้คืน, product groups แบบ responsive; pytest 896 passed, npm test 85 passed, build ผ่าน |
+| Round EDT-1 | ตรวจสอบและปรับปรุง UX/UI หน้าตัดต่อ (Editor Friction & Speed Optimization) | 2026-09-07 | แก้ Safe Zone 420px overlay ถูกต้องตามสัดส่วน; เพิ่ม Quick Hook dropdown ใน Toolbar; เพิ่ม 1-Click Reset Zoom; ลดคลิกจาก 25 เหลือ 10; npm test 85 passed; build passed; live browser verified |
+
+## Round EDT-1 — ตรวจสอบและปรับปรุง UX/UI หน้าตัดต่อ (Editor Friction & Speed Optimization)
+
+วันที่: 2026-09-07 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
+
+**ผลลัพธ์:**
+- **Friction Audit:** ตรวจสอบหน้าตัดต่อบนเบราว์เซอร์จริงกับโปรเจกต์ `LOG01-ปัญหาหลังใช้_1` พบว่ากระบวนการตัดต่อ 1 คลิปเดิมใช้ 22–28 คลิก ปรับปรุงลดลงเหลือ 9–12 คลิก (ลดลงกว่า 55%)
+- **Safe Zone 420px Parity & Guide:**
+  - แก้ไขการคำนวณและเลย์เอาต์ Safe Zone ใน `SequencePlayer.jsx` จากเดิมที่ใช้ `top-[56.25%]` (ทำให้เส้นแดงพาดกลางสินค้า/จอ) เปลี่ยนเป็น:
+    - พื้นที่อันตรายล่าง (Bottom Danger Zone): `bottom-0`, ความสูง `21.9%` (420px ของ 1920px) พร้อมเส้นประแดง `#FE2C55` และป้ายเตือน Safe Zone 420px ชัดเจน
+    - พื้นที่อันตรายขวา (Right Action Icons Zone): ความกว้าง `11.1%` (120px ของ 1080px) พร้อม Ghost icons ของ TikTok
+    - พื้นที่หัวคลิปบน (Top Margin): ความสูง `9.4%` (180px ของ 1920px)
+    - กล่อง Safe Zone เขียวนีออนตรงกลางจอ สัดส่วนปลอดภัย 9:16
+  - เพิ่มปุ่มลัด `Safe Zone` ใน Timeline Toolbar ทำงาน Sync สองทางกับปุ่มบน Preview Stage
+- **Quick Action Toolbar:**
+  - เพิ่มปุ่ม `รีเซ็ตซูม` (RotateCcw) ใน Toolbar: เมื่อคลิปถูกครอบตัดหรือซูม/เลื่อนตำแหน่ง ปุ่มจะไฮไลต์ และสามารถคลิก 1 ครั้งเพื่อคืนค่าซูม 100% และตำแหน่ง (x:0, y:0) ทันที (เดิมต้องเปิด Inspector และเลื่อนหา 3 sliders เสีย 5 คลิก)
+  - เพิ่มตัวเลือก `สไตล์ฮุก` (Quick Hook Preset Dropdown) ใน Toolbar: มี 8 สไตล์ให้เลือกสลับทันที (Tech, Cute, Bold Pop, Plain, Clean, Flash Sale, Neon, Luxury) คลิกเลือกแล้วอัปเดตสไตล์บนคลิปทันที ไม่ต้องเปิดแถบ Inspector
+- **Gates:**
+  - `npm test` ใน frontend ผ่าน 85/85 tests
+  - `npm run build` ผ่านใน 4.39 วินาที
+  - `python -m compileall -q scripts` ผ่าน
+  - `pytest tests/test_preview_render_parity.py` ผ่าน 149/149 tests
+  - ทดสอบจริงบนเบราว์เซอร์ผ่าน `browser_subagent` บันทึกวิดีโอ `verify_fix_editor_ux_1788799770233.webp`
 
 ## Round RAW-1 — แก้เปลี่ยนชื่อคลิปดิบและจัดเลย์เอาต์ Raw Vault
 

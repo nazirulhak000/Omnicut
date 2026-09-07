@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Copy, FlipHorizontal2, Gauge, Magnet, Maximize2, Redo2, Scissors, Trash2, Undo2, ZoomIn, ZoomOut, Type,
+  Copy, FlipHorizontal2, Gauge, Magnet, Maximize2, Redo2, RotateCcw, Scissors, Shield, Sparkles, Trash2, Undo2, ZoomIn, ZoomOut, Type,
 } from 'lucide-react';
 import { formatTimecode } from '../../lib/timelineMath';
 
@@ -46,6 +46,12 @@ export default function Toolbar({
   onDelete,
   onToggleMirror,
   onCycleSpeed,
+  onResetClipTransform,
+  hasTransformOverride = false,
+  currentHookTemplate = 'tech',
+  onApplyHookTemplate,
+  showSafeZone = false,
+  onToggleSafeZone,
   zoomIndex,
   zoomCount,
   onZoom,
@@ -95,8 +101,47 @@ export default function Toolbar({
         disabled={!hasClipSelected}
         active={speed !== 1}
       />
+      <ToolButton
+        icon={RotateCcw}
+        label="รีเซ็ตซูม"
+        hint="คืนค่าซูมและตำแหน่งช็อตเป็น 100%"
+        onClick={onResetClipTransform}
+        disabled={!hasClipSelected || !hasTransformOverride}
+        active={hasTransformOverride}
+      />
+
+      {/* Quick Hook Style Preset Selector */}
+      <span className="mx-1 h-4 w-px bg-[#363430]" />
+      <div
+        className="flex items-center gap-1.5 rounded-lg bg-[#1C1B19] border border-[#3A3833] px-2 py-1 text-xs flex-shrink-0"
+        title="เลือกสไตล์ป้ายฮุกพาดหัวคลิป (สร้างหรือเปลี่ยนทันที)"
+      >
+        <Sparkles className="h-3.5 w-3.5 text-[#FFE600] flex-shrink-0" />
+        <span className="text-[#A8A29E] font-medium hidden md:inline">ฮุก:</span>
+        <select
+          value={currentHookTemplate || 'tech'}
+          onChange={(e) => onApplyHookTemplate?.(e.target.value)}
+          className="bg-transparent text-xs font-semibold text-[#EDE9E3] focus:outline-none cursor-pointer pr-1"
+        >
+          <option value="tech" className="bg-[#232220] text-[#EDE9E3]">เทค (Tech)</option>
+          <option value="cute" className="bg-[#232220] text-[#EDE9E3]">คิ้วท์ (Cute)</option>
+          <option value="bold_pop" className="bg-[#232220] text-[#EDE9E3]">ป็อปตัวหนา (Bold Pop)</option>
+          <option value="plain" className="bg-[#232220] text-[#EDE9E3]">เรียบ (Plain)</option>
+          <option value="clean" className="bg-[#232220] text-[#EDE9E3]">คลีน (Clean)</option>
+          <option value="flash_sale" className="bg-[#232220] text-[#EDE9E3]">โปรไฟลุก (Flash Sale)</option>
+          <option value="neon_cyber" className="bg-[#232220] text-[#EDE9E3]">นีออน (Neon)</option>
+          <option value="minimal_luxury" className="bg-[#232220] text-[#EDE9E3]">ลักชัวรี (Luxury)</option>
+        </select>
+      </div>
 
       <div className="ml-auto flex items-center gap-1">
+        <ToolButton
+          icon={Shield}
+          label="Safe Zone"
+          hint="เปิด/ปิดเส้นไกด์ TikTok Safe Zone 420px"
+          onClick={onToggleSafeZone}
+          active={showSafeZone}
+        />
         <ToolButton
           icon={Magnet}
           label="ดูดขอบ"

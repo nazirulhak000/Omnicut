@@ -352,6 +352,8 @@ export default function EditorShell({
       projectProductName, projectAdTone]);
 
   const [previewTextTemplate, setPreviewTextTemplate] = useState(null);
+  const [showSafeZone, setShowSafeZone] = useState(false);
+  const handleToggleSafeZone = useCallback(() => setShowSafeZone((v) => !v), []);
 
 
   const mobilePlayerRef = useRef(null);
@@ -652,6 +654,16 @@ export default function EditorShell({
   });
 
   const pxPerSec = ZOOM_LEVELS[zoomIndex];
+
+  const hasTransformOverride = !!selectedSeg?.clip && (
+    (selectedSeg.clip.zoom !== undefined && selectedSeg.clip.zoom !== 1) ||
+    (selectedSeg.clip.pan_x !== undefined && selectedSeg.clip.pan_x !== 0) ||
+    (selectedSeg.clip.pan_y !== undefined && selectedSeg.clip.pan_y !== 0)
+  );
+  const handleResetClipTransform = useCallback(() => {
+    if (!selectedSeg?.clip) return;
+    patchClip(selectedSeg.clip.id, { zoom: 1, pan_x: 0, pan_y: 0 });
+  }, [selectedSeg?.clip, patchClip]);
 
   // Snapping candidates for subtitles when magnetic snap is active
   const cueSnapPoints = useMemo(() => {
@@ -1334,6 +1346,8 @@ export default function EditorShell({
                   previewTextTemplate={previewTextTemplate}
                   onCommitPreviewTextTemplate={handleAddTextTemplate}
                   onDismissPreviewTextTemplate={() => setPreviewTextTemplate(null)}
+                  showSafeZone={showSafeZone}
+                  onToggleSafeZone={handleToggleSafeZone}
                 />
               )}
               {applying && (
@@ -1472,6 +1486,12 @@ export default function EditorShell({
                     const next = order[(order.indexOf(cur) + 1) % order.length] || 1;
                     patchClip(selectedSeg.clip.id, { speed: next === 1 ? undefined : next });
                   }}
+                  onResetClipTransform={handleResetClipTransform}
+                  hasTransformOverride={hasTransformOverride}
+                  currentHookTemplate={hookOverlay?.template || DEFAULT_HOOK_TEMPLATE}
+                  onApplyHookTemplate={handleApplyHookTemplate}
+                  showSafeZone={showSafeZone}
+                  onToggleSafeZone={handleToggleSafeZone}
                   zoomIndex={zoomIndex}
                   zoomCount={ZOOM_LEVELS.length}
                   onZoomToFit={zoomToFit}
@@ -1741,6 +1761,8 @@ export default function EditorShell({
                     previewTextTemplate={previewTextTemplate}
                     onCommitPreviewTextTemplate={handleAddTextTemplate}
                     onDismissPreviewTextTemplate={() => setPreviewTextTemplate(null)}
+                    showSafeZone={showSafeZone}
+                    onToggleSafeZone={handleToggleSafeZone}
                   />
                 )}
                 {applying && (
@@ -1949,6 +1971,12 @@ export default function EditorShell({
                     const next = order[(order.indexOf(cur) + 1) % order.length] || 1;
                     patchClip(selectedSeg.clip.id, { speed: next === 1 ? undefined : next });
                   }}
+                  onResetClipTransform={handleResetClipTransform}
+                  hasTransformOverride={hasTransformOverride}
+                  currentHookTemplate={hookOverlay?.template || DEFAULT_HOOK_TEMPLATE}
+                  onApplyHookTemplate={handleApplyHookTemplate}
+                  showSafeZone={showSafeZone}
+                  onToggleSafeZone={handleToggleSafeZone}
                   zoomIndex={zoomIndex}
                   zoomCount={ZOOM_LEVELS.length}
                   onZoomToFit={zoomToFit}

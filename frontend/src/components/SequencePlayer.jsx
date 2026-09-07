@@ -1,4 +1,4 @@
-import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Play, Pause, Eye, Shield, Trash2, Move, RotateCcw, Plus } from 'lucide-react';
 import { toMediaUrl } from '../lib/mediaUrl';
 import { createLutRenderer, loadCube } from '../lib/lut3d';
@@ -1826,6 +1826,8 @@ function SequencePlayer({
   previewTextTemplate = null,
   onCommitPreviewTextTemplate = null,
   onDismissPreviewTextTemplate = null,
+  showSafeZone: externalShowSafeZone = undefined,
+  onToggleSafeZone = null,
 }, ref) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
@@ -1837,7 +1839,15 @@ function SequencePlayer({
     () => (previewTextTemplate ? [...overlays, previewTextTemplate] : overlays),
     [overlays, previewTextTemplate],
   );
-  const [showSafeZone, setShowSafeZone] = useState(false);
+  const [internalShowSafeZone, setInternalShowSafeZone] = useState(false);
+  const showSafeZone = externalShowSafeZone !== undefined ? externalShowSafeZone : internalShowSafeZone;
+  const toggleSafeZone = useCallback(() => {
+    if (onToggleSafeZone) {
+      onToggleSafeZone();
+    } else {
+      setInternalShowSafeZone((v) => !v);
+    }
+  }, [onToggleSafeZone]);
   const [snapGuide, setSnapGuide] = useState({ x: null, y: null });
   const videoElsRef = useRef({});
   const audioElRef = useRef(null);
@@ -2959,15 +2969,40 @@ function SequencePlayer({
 
               {/* TikTok Safe Zone Overlay (Safe 9:16 Area) */}
               {showSafeZone && (
-                <div className="pointer-events-none absolute inset-0 z-20">
-                  <div className="absolute top-[12.5%] left-0 right-0 border-t border-dashed border-white/30 text-[9px] text-white/50 pl-2">
-                    Top Safe Margin
+                <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
+                  {/* Top Margin (180px / 1920 = 9.4%) */}
+                  <div className="absolute top-0 left-0 right-0 h-[9.4%] bg-black/25 border-b border-dashed border-white/40 flex items-center px-2">
+                    <span className="text-[9px] font-medium text-slate-300 bg-black/70 px-1.5 py-0.5 rounded border border-white/15">
+                      หลบแถบ Following / For You (180px)
+                    </span>
                   </div>
-                  <div className="absolute top-[56.25%] left-0 right-0 border-t border-dashed border-[#FE2C55]/60 text-[9px] text-[#FE2C55]/80 pl-2">
-                    TikTok Safe Zone (Captions / Action Buttons)
+
+                  {/* Right Side Bar (120px / 1080 = 11.1%) */}
+                  <div className="absolute top-[9.4%] bottom-[21.9%] right-0 w-[11.1%] bg-rose-500/[0.08] border-l border-dashed border-[#FE2C55]/70 flex flex-col items-center justify-center gap-2.5 p-1">
+                    <div className="text-[7.5px] font-bold text-rose-300 rotate-90 whitespace-nowrap bg-black/80 px-1 py-0.5 rounded border border-rose-500/30">
+                      หลบปุ่ม Like / Share
+                    </div>
+                    <div className="w-4 h-4 rounded-full border border-white/25 bg-white/10 flex items-center justify-center text-[8px] text-white/50">👤</div>
+                    <div className="w-4 h-4 rounded-full border border-rose-500/30 bg-rose-500/10 flex items-center justify-center text-[8px] text-rose-300">♥</div>
+                    <div className="w-4 h-4 rounded-full border border-white/25 bg-white/10 flex items-center justify-center text-[8px] text-white/50">💬</div>
+                    <div className="w-4 h-4 rounded-full border border-white/25 bg-white/10 flex items-center justify-center text-[8px] text-white/50">↗</div>
                   </div>
-                  <div className="absolute top-0 bottom-0 right-[13%] border-r border-dashed border-[#FE2C55]/60 text-[9px] text-[#FE2C55]/80 pt-2 text-right pr-1">
-                    Side Bar
+
+                  {/* Bottom Danger Zone (420px / 1920 = 21.9%) */}
+                  <div className="absolute bottom-0 left-0 right-0 h-[21.9%] bg-rose-500/[0.08] border-t-2 border-dashed border-[#FE2C55] flex flex-col justify-end p-2">
+                    <div className="flex items-center gap-1.5 text-[9px] font-bold text-[#FE2C55] bg-black/85 px-2 py-0.5 rounded w-fit backdrop-blur-sm border border-[#FE2C55]/40 mb-1">
+                      <span>Safe Zone ล่าง 420px (หลบแคปชัน/ตะกร้า/เพลง)</span>
+                    </div>
+                    <div className="text-[8px] text-rose-200/60 pl-0.5">
+                      ห้ามวางซับไตเติลหรือสติกเกอร์ในโซนนี้
+                    </div>
+                  </div>
+
+                  {/* 100% Safe Region Corner Indicator */}
+                  <div className="absolute top-[9.4%] left-0 right-[11.1%] bottom-[21.9%] pointer-events-none border border-emerald-500/20">
+                    <div className="absolute top-1 left-1.5 text-[8px] font-bold text-emerald-400 bg-black/75 px-1.5 py-0.5 rounded border border-emerald-500/30 shadow">
+                      SAFE ZONE (9:16)
+                    </div>
                   </div>
                 </div>
               )}
@@ -3076,7 +3111,7 @@ function SequencePlayer({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setShowSafeZone((v) => !v);
+                  toggleSafeZone();
                 }}
                 title={showSafeZone ? 'ซ่อน Safe Zone' : 'แสดง TikTok Safe Zone (9:16)'}
                 className={`absolute top-2 right-2 z-30 flex h-7 px-2 items-center gap-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer backdrop-blur-md shadow-md ${
