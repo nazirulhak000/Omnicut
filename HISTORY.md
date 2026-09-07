@@ -699,3 +699,8 @@ Result: Cover upload now scopes file input and save button to TikTok's visible `
 
 Date: 2026-09-07
 Result: Side Panel time selection now offers five-minute increments only, enforces a 15-minute lead time for today, and displays a durable completed style on successful steps. Product attachment and publication flows were unchanged; Node regression suite passed 8/8.
+## Round POST-3.10 - Keep open TikTok pickers stable and expose cover-step failures
+
+Date: 2026-09-07
+Result: `setScheduleDateTime` now detects an already-open date/time picker and avoids toggling it closed before choosing the requested value. Cover automation errors now identify the failing step, while existing Cover Studio targeting remains scoped to the latest modal. Live inspection confirmed TikTok supports five-minute values and the edit-cover control opens `CoverEditor__root`; file transmission still requires a direct extension test because the browser controller blocks local file injection. Node regression suite passed 8/8.
+

@@ -95,6 +95,8 @@ test('live DOM contracts for the reported TikTok screens stay in the worker', ()
   assert.match(code, /cartName/);
   assert.match(code, /scheduleDate/);
   assert.match(code, /tiktok-timepicker-option-text/);
+  assert.match(code, /pickerOpen/);
+  assert.match(code, /calendar-wrapper.*span\.day\.valid/);
   assert.match(code, /calendar-wrapper/);
   assert.match(code, /span\.day\.valid/);
   const scheduleFn = code.slice(code.indexOf('async function switchToScheduleMode'), code.indexOf('async function setScheduleDateTime'));
@@ -105,6 +107,8 @@ test('live DOM contracts for the reported TikTok screens stay in the worker', ()
   assert.match(automation, /ImageUpload__uploadArea/);
   assert.match(automation, /DOM\.setFileInputFiles/);
   assert.match(automation, /CoverEditor__root/);
+  assert.match(code, /ขั้น 5: เตรียมไฟล์ปกไม่สำเร็จ/);
+  assert.match(code, /ขั้น 5: เปิด\/อัปโหลด\/บันทึกปกไม่สำเร็จ/);
   assert.match(automation, /หน้าต่าง Cover Studio ยังไม่ปิด/);
   assert.match(panel, /scheduleDateInput/);
   assert.match(panel, /scheduleTimeInput/);

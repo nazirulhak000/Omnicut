@@ -1116,15 +1116,20 @@ async function setScheduleDateTime(send, { date = '', time = '' } = {}) {
   if (!requestedDate && !requestedTime) return {success: true, changed: false};
 
   const sendEval = expression => send('Runtime.evaluate', {expression, returnByValue: true});
-  const openInput = async (pattern, error) => {
+  const openInput = async (pattern, error, pickerSelector = '') => {
     const opened = await sendEval(`(() => {
       const visible = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
       const inputs = Array.from(document.querySelectorAll('input.TUXTextInputCore-input, input[type="date"], input[type="time"]'))
         .filter(el => visible(el) && ${pattern}.test(String(el.value || '').trim()));
       if (inputs.length !== 1) return {success: false, count: inputs.length};
       const current = String(inputs[0].value || '').trim();
-      inputs[0].click();
-      return {success: true, current};
+      const pickerOpen = ${JSON.stringify(pickerSelector)} && Array.from(document.querySelectorAll(${JSON.stringify(pickerSelector)})).some(visible);
+      // TikTok's picker is a toggle. When the user left it open, clicking the
+      // input again closes it and the following option lookup cannot select
+      // anything. Keep an already-open picker in place; only open it when
+      // the matching picker is not visible yet.
+      if (!pickerOpen) inputs[0].click();
+      return {success: true, current, pickerOpen};
     })()`);
     if (!opened?.result?.value?.success) throw new Error(error);
     return opened.result.value.current;
@@ -1134,7 +1139,7 @@ async function setScheduleDateTime(send, { date = '', time = '' } = {}) {
     if (requestedDate) {
       const target = /^(\d{4})-(\d{2})-(\d{2})$/.exec(requestedDate);
       if (!target) throw new Error('รูปแบบวันที่ต้องเป็น YYYY-MM-DD');
-      const current = await openInput('/^\\d{4}-\\d{2}-\\d{2}$/', 'เปิดตัวเลือกวันที่ไม่สำเร็จ');
+      const current = await openInput('/^\\d{4}-\\d{2}-\\d{2}$/', 'เปิดตัวเลือกวันที่ไม่สำเร็จ', '[class*=\"calendar-wrapper\"] span.day.valid');
       const currentMatch = /^(\d{4})-(\d{2})-\d{2}$/.exec(current);
       if (currentMatch) {
         const from = Number(currentMatch[1]) * 12 + Number(currentMatch[2]);
@@ -1163,7 +1168,7 @@ async function setScheduleDateTime(send, { date = '', time = '' } = {}) {
 
     if (requestedTime) {
       if (!/^\d{2}:\d{2}$/.test(requestedTime)) throw new Error('รูปแบบเวลาต้องเป็น HH:mm');
-      await openInput('/^\\d{1,2}:\\d{2}$/', 'เปิดตัวเลือกเวลาไม่สำเร็จ');
+      await openInput('/^\\d{1,2}:\\d{2}$/', 'เปิดตัวเลือกเวลาไม่สำเร็จ', 'span.tiktok-timepicker-option-text');
       const [hour, minute] = requestedTime.split(':');
       const hourNumber = Number(hour);
       const minuteNumber = Number(minute);
@@ -1479,9 +1484,13 @@ async function runUploadFileOnly() {
 // attach/act/detach cycle -- see runScheduleModeOnly() and
 // runClickPostOnly() below for the steps this used to also do inline.
 async function runUploadCoverOnly({coverPath = ''} = {}) {
-  await refreshPendingCover(coverPath);
+  try {
+    await refreshPendingCover(coverPath);
+  } catch (err) {
+    throw new Error(`ขั้น 5: เตรียมไฟล์ปกไม่สำเร็จ — ${err.message || String(err)}`);
+  }
   const job = await fetchPendingJob();
-  if (!job.cover_path) throw new Error('ยังไม่มีปก กดบันทึกปกในโปรแกรมแล้วเตรียมคลิปใหม่');
+  if (!job.cover_path) throw new Error('ขั้น 5: ยังไม่มีปก กดบันทึกปกในโปรแกรมแล้วเตรียมคลิปใหม่');
   const tab = await findUploadTab();
   await chrome.debugger.attach({tabId:tab.id}, '1.3');
   try {
@@ -1489,6 +1498,8 @@ async function runUploadCoverOnly({coverPath = ''} = {}) {
     await send('DOM.enable');
     await send('Runtime.enable');
     return await OmniAutomation.uploadCover(send, job.cover_path);
+  } catch (err) {
+    throw new Error(`ขั้น 5: เปิด/อัปโหลด/บันทึกปกไม่สำเร็จ — ${err.message || String(err)}`);
   } finally {
     await chrome.debugger.detach({tabId:tab.id}).catch(() => {});
   }
