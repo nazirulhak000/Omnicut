@@ -7,7 +7,7 @@ to disk so jobs survive page refreshes, tab switching, and server restarts.
 import os
 import sys
 import json
-import uuid
+import secrets
 import time
 import datetime
 import threading
@@ -26,6 +26,13 @@ TASKS_FILE = STORAGE_DIR / "task_registry.json"
 
 _TASK_LOCK = threading.RLock()
 _WORKER_POOL = ThreadPoolExecutor(max_workers=4, thread_name_prefix="capcut_worker")
+
+# Single well-known owner for the current single-user deployment. Every task
+# created without an explicit owner_id is attributed to this constant, so
+# behavior for today's one user is identical to before ownership scoping
+# existed. Multi-tenancy (real per-request owner resolution, auth, etc.) is a
+# later step -- this just makes the data shape ready for it.
+DEFAULT_OWNER = "local"
 
 
 class TaskStatus:
@@ -110,10 +117,15 @@ class TaskManager:
         target_tab: str = "flow",
         target_id: Optional[str] = None,
         task_id: Optional[str] = None,
+        owner_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Creates and registers a new task."""
         cls.initialize()
-        t_id = task_id or f"task_{int(time.time() * 1000)}_{uuid.uuid4().hex[:6]}"
+        # secrets.token_urlsafe rather than the old timestamp-ms + 6 hex chars
+        # scheme: that scheme was guessable/walkable (sequential-ish prefix,
+        # low-entropy suffix). Callers that pass an explicit task_id (e.g. a
+        # render job's uuid4) are unaffected.
+        t_id = task_id or secrets.token_urlsafe(16)
         now = cls._now_iso()
 
         task_obj = {
@@ -131,6 +143,7 @@ class TaskManager:
             "created_at": now,
             "updated_at": now,
             "completed_at": None,
+            "owner_id": owner_id or DEFAULT_OWNER,
             "logs": [{"time": datetime.datetime.now().strftime("%H:%M:%S"), "msg": "งานถูกสร้างขึ้นในระบบ", "progress": 0}],
         }
 
@@ -140,6 +153,17 @@ class TaskManager:
 
         return task_obj
 
+    @staticmethod
+    def _owned_by(task: Dict[str, Any], owner_id: Optional[str]) -> bool:
+        """True if `owner_id` is unset (unscoped call) or matches the task's owner.
+
+        Tasks persisted before this field existed have no "owner_id" key --
+        treat those as DEFAULT_OWNER so old data keeps working under scoping.
+        """
+        if owner_id is None:
+            return True
+        return task.get("owner_id", DEFAULT_OWNER) == owner_id
+
     @classmethod
     def update_progress(
         cls,
@@ -147,12 +171,13 @@ class TaskManager:
         progress: float,
         step_label: Optional[str] = None,
         msg: Optional[str] = None,
+        owner_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Updates progress and step label for a task."""
         cls.initialize()
         with _TASK_LOCK:
             task = cls._tasks.get(task_id)
-            if not task:
+            if not task or not cls._owned_by(task, owner_id):
                 return None
 
             # Don't overwrite finished states
@@ -186,13 +211,20 @@ class TaskManager:
         result: Any = None,
         step_label: str = "ดำเนินการเสร็จสิ้น 100%",
         target_id: Optional[str] = None,
+        owner_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Marks a task as completed."""
         cls.initialize()
         with _TASK_LOCK:
             task = cls._tasks.get(task_id)
-            if not task:
+            if not task or not cls._owned_by(task, owner_id):
                 return None
+            # A task that already reached a terminal state stays there, the way
+            # update_progress() and cancel_task() already treat one. Without
+            # this, completing an already-failed task flipped it to COMPLETED
+            # while leaving its `error` populated -- a record claiming both.
+            if task["status"] in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]:
+                return task
 
             task["status"] = TaskStatus.COMPLETED
             task["progress"] = 1.0
@@ -217,13 +249,19 @@ class TaskManager:
         task_id: str,
         error: str,
         step_label: str = "เกิดข้อผิดพลาดในการประมวลผล",
+        owner_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Marks a task as failed."""
         cls.initialize()
         with _TASK_LOCK:
             task = cls._tasks.get(task_id)
-            if not task:
+            if not task or not cls._owned_by(task, owner_id):
                 return None
+            # Terminal is terminal, as in complete_task(). Restart recovery in
+            # initialize() sets the status directly rather than coming through
+            # here, so it is unaffected by this guard.
+            if task["status"] in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]:
+                return task
 
             task["status"] = TaskStatus.FAILED
             task["error"] = str(error)
@@ -240,12 +278,12 @@ class TaskManager:
             return task
 
     @classmethod
-    def cancel_task(cls, task_id: str) -> Optional[Dict[str, Any]]:
+    def cancel_task(cls, task_id: str, owner_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Cancels a pending or running task."""
         cls.initialize()
         with _TASK_LOCK:
             task = cls._tasks.get(task_id)
-            if not task:
+            if not task or not cls._owned_by(task, owner_id):
                 return None
 
             if task["status"] in [TaskStatus.COMPLETED, TaskStatus.FAILED]:
@@ -260,41 +298,57 @@ class TaskManager:
             return task
 
     @classmethod
-    def get_task(cls, task_id: str) -> Optional[Dict[str, Any]]:
-        """Retrieves a single task by ID."""
+    def get_task(cls, task_id: str, owner_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Retrieves a single task by ID.
+
+        A task_id that exists but belongs to a different owner behaves
+        exactly like a missing task_id (returns None) -- it must never
+        distinguish "not found" from "not yours", or the lookup itself
+        becomes an oracle confirming the id exists.
+        """
         cls.initialize()
         with _TASK_LOCK:
-            return cls._tasks.get(task_id)
+            task = cls._tasks.get(task_id)
+            if not task or not cls._owned_by(task, owner_id):
+                return None
+            return task
 
     @classmethod
-    def get_active_tasks(cls, limit: int = 50) -> List[Dict[str, Any]]:
-        """Returns all running/queued tasks plus recent completed/failed tasks (sorted by updated_at desc)."""
+    def get_active_tasks(cls, limit: int = 50, owner_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Returns all running/queued tasks plus recent completed/failed tasks (sorted by updated_at desc).
+
+        With owner_id given, only that owner's tasks are considered -- an
+        unscoped call (owner_id=None) still returns everything, unchanged
+        from before scoping existed.
+        """
         cls.initialize()
         with _TASK_LOCK:
-            all_list = list(cls._tasks.values())
+            all_list = [t for t in cls._tasks.values() if cls._owned_by(t, owner_id)]
             # Sort newest first
             all_list.sort(key=lambda t: t.get("updated_at", ""), reverse=True)
             return all_list[:limit]
 
     @classmethod
-    def delete_task(cls, task_id: str) -> bool:
+    def delete_task(cls, task_id: str, owner_id: Optional[str] = None) -> bool:
         """Deletes a task from registry."""
         cls.initialize()
         with _TASK_LOCK:
-            if task_id in cls._tasks:
-                del cls._tasks[task_id]
-                cls._save_to_disk_locked()
-                return True
-            return False
+            task = cls._tasks.get(task_id)
+            if not task or not cls._owned_by(task, owner_id):
+                return False
+            del cls._tasks[task_id]
+            cls._save_to_disk_locked()
+            return True
 
     @classmethod
-    def clear_completed(cls) -> int:
+    def clear_completed(cls, owner_id: Optional[str] = None) -> int:
         """Clears all completed, failed, or cancelled tasks."""
         cls.initialize()
         with _TASK_LOCK:
             to_del = [
                 tid for tid, t in cls._tasks.items()
                 if t.get("status") in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]
+                and cls._owned_by(t, owner_id)
             ]
             for tid in to_del:
                 del cls._tasks[tid]

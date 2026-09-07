@@ -19,6 +19,24 @@ from scripts.config import BASE_DIR
 
 ACTIVE_JOBS: Dict[str, Dict[str, Any]] = {}
 
+# Single well-known owner for the current single-user deployment -- mirrors
+# scripts.task_manager.DEFAULT_OWNER. Jobs created without an explicit
+# owner_id are attributed to this constant so behavior for today's one user
+# is unchanged. Real per-tenant owners arrive with auth (later step).
+DEFAULT_OWNER = "local"
+
+
+def _owned_by(job: Dict[str, Any], owner_id: Optional[str]) -> bool:
+    """True if `owner_id` is unset (unscoped call) or matches the job's owner.
+
+    Jobs created before this field existed have no "owner_id" key -- treat
+    those as DEFAULT_OWNER so in-flight jobs from just before a hot-reload
+    keep working under scoping.
+    """
+    if owner_id is None:
+        return True
+    return job.get("owner_id", DEFAULT_OWNER) == owner_id
+
 # This machine renders on CPU with no CUDA and 13.7GB RAM (see
 # _Docs/PRD_phase1.md section 3) -- two ffmpeg encodes or two TTS calls at
 # once is a real OOM/thrash risk, not a theoretical one. Every render and
@@ -46,7 +64,7 @@ def _prune_old_jobs(max_keep: int = 50) -> None:
         ACTIVE_JOBS.pop(k, None)
 
 
-def create_job(job_id: str, message: str = "กำลังเริ่มต้นกระบวนการ...") -> Dict[str, Any]:
+def create_job(job_id: str, message: str = "กำลังเริ่มต้นกระบวนการ...", owner_id: Optional[str] = None) -> Dict[str, Any]:
     """Register a queued job and return it."""
     _prune_old_jobs(max_keep=50)
     ACTIVE_JOBS[job_id] = {
@@ -58,12 +76,26 @@ def create_job(job_id: str, message: str = "กำลังเริ่มต้
         "logs": [],
         "result": None,
         "error": None,
+        "owner_id": owner_id or DEFAULT_OWNER,
     }
     return ACTIVE_JOBS[job_id]
 
 
+def get_job(job_id: str, owner_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Retrieves a single job by ID, scoped to `owner_id` when given.
+
+    A job_id that exists but belongs to a different owner behaves exactly
+    like a missing job_id (returns None) -- never a permission error that
+    would confirm the id exists.
+    """
+    job = ACTIVE_JOBS.get(job_id)
+    if not job or not _owned_by(job, owner_id):
+        return None
+    return job
+
+
 @contextmanager
-def render_slot(job_id: str) -> Iterator[None]:
+def render_slot(job_id: str, owner_id: Optional[str] = None) -> Iterator[None]:
     """
     Block until it is this job's turn to actually render, updating its status
     to "queued" with an explanatory message for as long as it has to wait.
@@ -73,7 +105,7 @@ def render_slot(job_id: str) -> Iterator[None]:
             TikTokAutoCutterPipeline.run(...)
     """
     if _RENDER_SLOT.locked():
-        job = ACTIVE_JOBS.get(job_id)
+        job = get_job(job_id, owner_id=owner_id)
         if job:
             job["status"] = "queued"
             job["message"] = "รอคิว — เครื่องนี้ตัดต่อได้ทีละคลิป มีงานอื่นกำลังทำอยู่"
@@ -85,10 +117,10 @@ def render_slot(job_id: str) -> Iterator[None]:
         _RENDER_SLOT.release()
 
 
-def progress_reporter(job_id: str) -> Callable[[str, float], None]:
+def progress_reporter(job_id: str, owner_id: Optional[str] = None) -> Callable[[str, float], None]:
     """A `progress_callback` for the pipeline that writes into the job."""
     def on_progress(msg: str, progress: float) -> None:
-        job = ACTIVE_JOBS.get(job_id)
+        job = get_job(job_id, owner_id=owner_id)
         if not job:
             return
         job["status"] = "processing"
@@ -103,9 +135,9 @@ def progress_reporter(job_id: str) -> Callable[[str, float], None]:
     return on_progress
 
 
-def update_progress(job_id: str, progress: float, message: str = "") -> None:
+def update_progress(job_id: str, progress: float, message: str = "", owner_id: Optional[str] = None) -> None:
     """Direct helper to update a job's progress and message."""
-    job = ACTIVE_JOBS.get(job_id)
+    job = get_job(job_id, owner_id=owner_id)
     if not job:
         return
     job["status"] = "processing"
@@ -133,9 +165,9 @@ def media_url(file_path: Optional[str]) -> Optional[str]:
     return f"/api/media/{relative}".replace("\\", "/")
 
 
-def complete_job(job_id: str, result: Dict[str, Any], message: str = "🎉 การตัดต่อเสร็จสมบูรณ์ 100%!") -> None:
+def complete_job(job_id: str, result: Dict[str, Any], message: str = "🎉 การตัดต่อเสร็จสมบูรณ์ 100%!", owner_id: Optional[str] = None) -> None:
     """Mark a job finished, shaping the pipeline result for the frontend."""
-    job = ACTIVE_JOBS.get(job_id)
+    job = get_job(job_id, owner_id=owner_id)
     if not job:
         return
     job["status"] = "completed"
@@ -151,8 +183,8 @@ def complete_job(job_id: str, result: Dict[str, Any], message: str = "🎉 ก�
     }
 
 
-def fail_job(job_id: str, error: Any) -> None:
-    job = ACTIVE_JOBS.get(job_id)
+def fail_job(job_id: str, error: Any, owner_id: Optional[str] = None) -> None:
+    job = get_job(job_id, owner_id=owner_id)
     if not job:
         return
     job["status"] = "failed"

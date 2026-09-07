@@ -17,7 +17,6 @@ from scripts.config import (
 from scripts.pipeline import TikTokAutoCutterPipeline
 from scripts.product_store import ProductStore
 from scripts.task_manager import TaskManager
-from scripts.render_jobs import ACTIVE_JOBS
 from scripts import render_jobs
 from scripts.media_service import scan_video_files, get_local_ip
 from scripts.api_schemas import RenderRequest
@@ -185,8 +184,9 @@ def trigger_render(req: RenderRequest, background_tasks: BackgroundTasks):
 @router.get("/api/render/status/{job_id}")
 def get_render_status(job_id: str):
     """Returns current status and progress of a render job."""
-    if job_id in ACTIVE_JOBS:
-        return ACTIVE_JOBS[job_id]
+    job = render_jobs.get_job(job_id)
+    if job is not None:
+        return job
 
     task = TaskManager.get_task(job_id)
     if task:
