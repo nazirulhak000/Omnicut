@@ -1,7 +1,15 @@
+# NOTE: this file has no `def test_*` functions -- it is a manual diagnostic
+# script (see .agents/rules/testing_standard.md rule 4: side effects at
+# import time are not allowed in tests/test_*.py). Output files are only
+# written when main() actually runs under `if __name__ == "__main__":`,
+# never on plain pytest collection/import.
+
 import subprocess
 from pathlib import Path
 
-ass_content = """[Script Info]
+
+def main():
+    ass_content = """[Script Info]
 Title: Test Thai Vowels
 ScriptType: v4.00+
 PlayResX: 1080
@@ -22,18 +30,22 @@ Dialogue: 0,0:00:00.00,0:00:05.00,IBMTest,,0,0,0,,3. IBM Plex: ลดพิเ�
 Dialogue: 0,0:00:00.00,0:00:05.00,NotoTest,,0,0,0,,4. Noto: ลดพิเศษวันนี้ อย่าเพิ่งซื้อ
 """
 
-Path("test_thai_vowels.ass").write_text(ass_content, encoding="utf-8")
+    Path("test_thai_vowels.ass").write_text(ass_content, encoding="utf-8")
 
-# Render 1 frame image with FFmpeg
-ass_p = str(Path("test_thai_vowels.ass").resolve()).replace("\\", "/").replace(":", "\\:")
-fonts_p = str(Path("02_Assets/Fonts").resolve()).replace("\\", "/").replace(":", "\\:")
+    # Render 1 frame image with FFmpeg
+    ass_p = str(Path("test_thai_vowels.ass").resolve()).replace("\\", "/").replace(":", "\\:")
+    fonts_p = str(Path("02_Assets/Fonts").resolve()).replace("\\", "/").replace(":", "\\:")
 
-cmd = [
-    "ffmpeg", "-y",
-    "-f", "lavfi", "-i", "color=c=#1A1E2E:s=1080x1920:d=1",
-    "-vf", f"subtitles='{ass_p}':fontsdir='{fonts_p}'",
-    "-frames:v", "1",
-    "test_thai_vowels_result.png"
-]
-subprocess.run(cmd)
-print("Rendered test_thai_vowels_result.png")
+    cmd = [
+        "ffmpeg", "-y",
+        "-f", "lavfi", "-i", "color=c=#1A1E2E:s=1080x1920:d=1",
+        "-vf", f"subtitles='{ass_p}':fontsdir='{fonts_p}'",
+        "-frames:v", "1",
+        "test_thai_vowels_result.png"
+    ]
+    subprocess.run(cmd)
+    print("Rendered test_thai_vowels_result.png")
+
+
+if __name__ == "__main__":
+    main()

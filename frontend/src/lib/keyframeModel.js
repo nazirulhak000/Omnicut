@@ -3,6 +3,16 @@
  *
  * Implements deterministic interpolation for Zoom, Pan, Opacity, and Volume
  * across sequence playback and rendering.
+ *
+ * STATUS (2026-09-07): Scaffolded in Phase 9 (per-clip Zoom/Pan/Opacity/Volume
+ * keyframe tracks on Timeline v2) and accepted as PASS at the data-model
+ * layer, but not yet imported by any live frontend component (only by its
+ * own test, keyframeModel.test.js). Its Python twin, scripts/keyframe_engine.py,
+ * is likewise not called from the render pipeline. Do not assume this module
+ * is on the preview/render path — see the STATUS note in
+ * scripts/keyframe_engine.py for the modules that are actually live today
+ * (timelineMath.js's interpolateKeyframes, and SequencePlayer.jsx's
+ * hook/text-overlay power-law easing).
  */
 
 export const EASING_FUNCTIONS = {

@@ -1,6 +1,12 @@
 """
 Tests keyframe interpolation parity between Python and JavaScript models.
 Ensures mathematical consistency at 0%, 25%, 50%, 75%, and 100% time points.
+
+NOTE: as of 2026-09-07, scripts/keyframe_engine.py and its JS twin
+frontend/src/lib/keyframeModel.js are both dormant (Phase 9 scaffolding,
+never wired into a live caller on either side). This test locks their
+mutual parity, not their correctness against production behavior — see
+the STATUS note atop scripts/keyframe_engine.py before assuming otherwise.
 """
 
 from scripts.keyframe_engine import (

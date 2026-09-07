@@ -2,6 +2,26 @@
 Keyframe Animation Engine (Python Parity Implementation).
 Guarantees 100% mathematical parity with frontend/src/lib/keyframeModel.js
 for Zoom, Pan, Opacity, and Volume keyframe interpolation across render stages.
+
+STATUS (2026-09-07): Scaffolded in Phase 9 (per-clip Zoom/Pan/Opacity/Volume
+keyframe tracks on Timeline v2) and accepted as PASS at the data-model layer,
+but never wired into a live caller. `scripts/video_editor.py` still uses its
+own, simpler `interpolate_keyframes` (linear only, no easing/clamping/tier
+resolution) for the actual render pipeline; the JS twin
+`frontend/src/lib/keyframeModel.js` is likewise not imported by any live
+frontend component (only by its own test). Only `tests/test_keyframe_parity.py`
+currently exercises this module, so it verifies parity between two modules
+that are both dormant, not a guarantee about production behavior.
+
+Do not assume this module is on the render or preview path. If you want to
+actually wire it in (e.g. give video_editor.py real easing/clamping), that is
+still a live TODO — this file is ready to be the Python half of that, but
+nothing has connected it yet. If you are looking for the numeric keyframe
+interpolation that actually runs in the pipeline today, see
+`interpolate_keyframes` in `scripts/video_editor.py`; for the live per-clip
+timeline keyframe math, see `interpolateKeyframes` in
+`frontend/src/lib/timelineMath.js`; for live hook/text-overlay easing, see
+`hookKeyframeAt`-style power-law easing in `frontend/src/components/SequencePlayer.jsx`.
 """
 
 from typing import Dict, List, Optional, Tuple, Any
