@@ -874,3 +874,17 @@ Notes: ปรับปรุงโค้ด Extension ให้ตรงกั�
 - [x] เพิ่ม regression assertion ป้องกันการย้อนกลับไปใช้ `document.querySelector` ช่องแรกทั้งหน้า
 - [x] รัน syntax check, Node regression และ backend tests
 - [ ] ยืนยันกับ TikTok Studio จริงหลัง Reload extension
+#### POST-3.6 — แก้เฉพาะข้อ 4–5 โดยล็อกข้อ 1–3 (2026-09-07)
+
+- [ ] ตรวจและแก้ schedule picker ให้เลือกวัน/เวลาใน TikTok จริง พร้อมยืนยันค่าที่แสดง
+- [ ] ตรวจและแก้ Cover Studio ให้เปิด modal ล่าสุดและแนบไฟล์ปกผ่าน CDP
+- [ ] ห้ามแก้ฟังก์ชันค้นหา/เลือกสินค้าในข้อ 1–3
+- [ ] รัน syntax, Node regression และ backend tests
+- [ ] ทดสอบกับแท็บ TikTok Studio ที่ล็อกอินจริงหลัง reload extension
+#### POST-3.6 implementation update (2026-09-07)
+
+- [x] จำกัดการเลือก schedule ให้ใช้ label/radio ที่มองเห็น และค้นหา radio ที่ซ้อนอยู่ใน label ได้จริง
+- [x] คงการแก้ Cover Studio และการส่ง cover path ล่าสุดจากรอบก่อน
+- [x] ไม่แก้โค้ดค้นหา/เลือกสินค้าในรอบนี้
+- [x] รัน syntax check และ Node regression: 7 passed
+- [ ] ทดสอบวันเวลาและปกกับแท็บ TikTok จริงหลัง Reload extension

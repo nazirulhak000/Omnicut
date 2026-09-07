@@ -1039,8 +1039,12 @@ async function switchToScheduleMode(send, schedule = {}) {
         // child is the real leaf, this element is just its container.
         return !Array.from(el.children).some(c => TARGETS.includes((c.innerText || c.textContent || '').trim()));
       };
+      const isVisible = (el) => {
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
+      };
 
-      const candidates = Array.from(document.querySelectorAll('label, span, div, p')).filter(isLeafMatch);
+      const candidates = Array.from(document.querySelectorAll('label, span, div, p')).filter(el => isVisible(el) && isLeafMatch(el));
       if (candidates.length === 0) return { success: false, reason: 'not-found' };
 
       // Prefer the smallest (most specific) match if several leaves matched.
@@ -1056,8 +1060,8 @@ async function switchToScheduleMode(send, schedule = {}) {
       const forId = target.getAttribute('for');
       const byFor = forId ? document.getElementById(forId) : null;
       const input = byFor
-        || target.closest('label')?.querySelector(':scope > input[type="radio"], :scope > input[type="checkbox"]')
-        || target.parentElement?.querySelector(':scope > input[type="radio"], :scope > input[type="checkbox"]')
+        || target.closest('label')?.querySelector('input[type="radio"], input[type="checkbox"]')
+        || target.parentElement?.querySelector('input[type="radio"], input[type="checkbox"]')
         || target;
 
       target.scrollIntoView({ behavior: 'instant', block: 'center' });
@@ -1094,7 +1098,7 @@ async function switchToScheduleMode(send, schedule = {}) {
           if (!TARGETS.includes(t)) return false;
           return !Array.from(el.children).some(c => TARGETS.includes((c.innerText || c.textContent || '').trim()));
         };
-        const candidates = Array.from(document.querySelectorAll('label, span, div, p')).filter(isLeafMatch);
+        const candidates = Array.from(document.querySelectorAll('label, span, div, p')).filter(el => isVisible(el) && isLeafMatch(el));
         candidates.sort((a, b) => {
           const rA = a.getBoundingClientRect();
           const rB = b.getBoundingClientRect();
@@ -1107,8 +1111,8 @@ async function switchToScheduleMode(send, schedule = {}) {
           const forId = target.getAttribute('for');
           const byFor = forId ? document.getElementById(forId) : null;
           const input = byFor
-            || target.closest('label')?.querySelector(':scope > input[type="radio"], :scope > input[type="checkbox"]')
-            || target.parentElement?.querySelector(':scope > input[type="radio"], :scope > input[type="checkbox"]');
+            || target.closest('label')?.querySelector('input[type="radio"], input[type="checkbox"]')
+            || target.parentElement?.querySelector('input[type="radio"], input[type="checkbox"]');
           if (input && (input.checked || input.getAttribute('aria-checked') === 'true')) return true;
           // Some TikTok radios are styled divs with a --checked class rather
           // than a native input; check the label's own ancestry for that too.
