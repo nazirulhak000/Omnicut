@@ -194,7 +194,14 @@ def fail_job(job_id: str, error: Any, owner_id: Optional[str] = None) -> None:
     if isinstance(error, AppError):
         app_err = error
     else:
-        proj = (job.get("result") or {}).get("project_name")
+        # job["result"] is only populated by complete_job(), so on this path
+        # it is always absent -- the name has to come from the exception the
+        # pipeline stamped it onto, or from the job's own record.
+        proj = (
+            getattr(error, "pipeline_project_name", None)
+            or job.get("project_name")
+            or (job.get("result") or {}).get("project_name")
+        )
         app_err = classify_exception(error if isinstance(error, Exception) else Exception(str(error)), project_name=proj, job_id=job_id)
 
     log_structured_error(app_err)

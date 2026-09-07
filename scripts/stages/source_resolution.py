@@ -3,6 +3,8 @@ Source Resolution Stage for OmniCut Pro Studio.
 Resolves raw video / image assets, verifies integrity, establishes project folder and manifest state.
 """
 
+import datetime
+import json
 import re
 from pathlib import Path
 from typing import List
@@ -92,6 +94,34 @@ class SourceResolutionStage:
         project_dir = PROJECTS_DIR / project_name
         project_dir.mkdir(parents=True, exist_ok=True)
         ctx.project_dir = project_dir
+
+        # Leave a breadcrumb naming the run that owns this folder. The real
+        # manifest is only written by VideoAssemblyStage once everything
+        # succeeds, so a run that fails partway leaves voiceover, subtitles
+        # and audio here with nothing to say where they came from -- and a
+        # later attempt with no project_name picks the next free folder name,
+        # abandoning this one silently.
+        #
+        # Deliberately NOT project.json: ProjectManifest.require() treats any
+        # manifest as proof of a completed render, so a partial one there
+        # would let a reroll start against artifacts that do not exist yet.
+        try:
+            (project_dir / ".run_started.json").write_text(
+                json.dumps(
+                    {
+                        "project_name": project_name,
+                        "product_name": ctx.product_name,
+                        "started_at": datetime.datetime.now().isoformat(timespec="seconds"),
+                        "resume_from": ctx.resume_from,
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+        except OSError as e:
+            # A breadcrumb is not worth failing a render over.
+            print(f"   ⚠️ ไม่สามารถเขียน .run_started.json: {e}")
 
         is_reroll = bool(ctx.resume_from)
         ctx.is_reroll = is_reroll

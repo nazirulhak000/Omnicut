@@ -144,7 +144,11 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
     except Exception as e:
         from scripts.error_handler import classify_exception
 
-        app_err = classify_exception(e, project_name=req_data.project_name, job_id=job_id)
+        # The pipeline stamps the name it resolved onto the exception, which
+        # is the only way to learn it when the caller sent none and a stage
+        # failed before run() could return.
+        failed_project = getattr(e, "pipeline_project_name", None) or req_data.project_name
+        app_err = classify_exception(e, project_name=failed_project, job_id=job_id)
         if req_data.product_id and req_data.angle_id:
             try:
                 ProductStore.update_angle_status(req_data.product_id, req_data.angle_id, "scripted")

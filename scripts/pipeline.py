@@ -198,26 +198,39 @@ class TikTokAutoCutterPipeline:
             overlays=overlays,
         )
 
-        # Stage 1: Source Resolution
-        SourceResolutionStage.run(ctx)
+        # SourceResolutionStage invents a project name when the caller did not
+        # supply one, and that name exists only on ctx until this method
+        # returns. A stage raising after that point would take the name with
+        # it, leaving the failure report unable to say which folder holds the
+        # partial work -- so stamp it onto the exception on the way out.
+        try:
+            # Stage 1: Source Resolution
+            SourceResolutionStage.run(ctx)
 
-        # Stage 2: Script Setup
-        ScriptStage.run(ctx)
+            # Stage 2: Script Setup
+            ScriptStage.run(ctx)
 
-        # Stage 3: Voiceover & Timing
-        VoiceStage.run(ctx)
+            # Stage 3: Voiceover & Timing
+            VoiceStage.run(ctx)
 
-        # Stage 4: Subtitles & Overlays
-        SubtitleStage.run(ctx)
+            # Stage 4: Subtitles & Overlays
+            SubtitleStage.run(ctx)
 
-        # Stage 5: Audio Mix (SFX + BGM)
-        AudioMixStage.run(ctx)
+            # Stage 5: Audio Mix (SFX + BGM)
+            AudioMixStage.run(ctx)
 
-        # Stage 6: Shot Matching & Visual Motion
-        ShotMatchingStage.run(ctx)
+            # Stage 6: Shot Matching & Visual Motion
+            ShotMatchingStage.run(ctx)
 
-        # Stage 7: Video Assembly & Manifest Persistence
-        VideoAssemblyStage.run(ctx)
+            # Stage 7: Video Assembly & Manifest Persistence
+            VideoAssemblyStage.run(ctx)
+        except Exception as stage_err:
+            if getattr(ctx, "project_name", None):
+                # Read by api_render.py / _execute_reroll when classifying the
+                # failure. setattr rather than a wrapper exception so the
+                # original type and traceback reach classify_exception intact.
+                setattr(stage_err, "pipeline_project_name", ctx.project_name)
+            raise
 
         return ctx.result_paths
 
