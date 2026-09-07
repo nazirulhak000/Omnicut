@@ -1,5 +1,5 @@
 """
-One-time migration: rename 3 pre-existing CapCut project folders to prepend
+One-time migration: rename pre-existing CapCut project folders to prepend
 their product_code (e.g. "essager_สายชาร์จแม่เหล็ก_ปัญหาก่อนใช้_1" -> "ESS01-ปัญหาก่อนใช้_1"),
 matching the naming convention new projects now get automatically
 (frontend/src/lib/projectName.js's buildProjectName).
@@ -32,6 +32,7 @@ RENAMES = [
     ("essager_สายชาร์จแม่เหล็ก_ปัญหาก่อนใช้_1", "ESS01-ปัญหาก่อนใช้_1", "20260905182956_2", "pain_point"),
     ("logitech_wave_keys_รีวิวสเปก_1", "LOG01-รีวิวสเปก_1", "20260904233315_1", "spec_review"),
     ("logitech_wave_keys_ปัญหาก่อนใช้_1", "LOG01-ปัญหาก่อนใช้_1", "20260904233315_1", "pain_point"),
+    ("logitech_wave_keys_แกะกล่องว้าว_1", "LOG01-แกะกล่องว้าว_1", "20260904233315_1", "unboxing"),
 ]
 
 ARTIFACT_KEYS_TO_REWRITE = ("voice_audio", "subtitles_ass", "mixed_audio")

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Sparkles,
@@ -24,6 +25,7 @@ import {
   getCoverRawSources,
   revealFile,
 } from '../api';
+import { resolveCoverExportStem } from '../lib/coverNaming.js';
 
 export default function CoverStudioModal({
   isOpen,
@@ -31,12 +33,10 @@ export default function CoverStudioModal({
   videoItem,
   onCoverSaved,
 }) {
-  if (!isOpen || !videoItem) return null;
-
   // Paths & info
-  const videoPath = videoItem.path || videoItem.rel_path || '';
-  const productName = videoItem.product_name || videoItem.name || 'สินค้า';
-  const angleTitle = videoItem.hook_title || videoItem.angle_name || '';
+  const videoPath = videoItem?.path || videoItem?.rel_path || '';
+  const productName = videoItem?.product_name || videoItem?.name || 'สินค้า';
+  const angleTitle = videoItem?.hook_title || videoItem?.angle_name || '';
 
   // State
   const [loading, setLoading] = useState(false);
@@ -96,6 +96,7 @@ export default function CoverStudioModal({
   // Load initial data: badges, highlights, hooks, raw sources
   useEffect(() => {
     let mounted = true;
+    if (!isOpen || !videoItem) return undefined;
     setLoading(true);
     setError(null);
 
@@ -136,7 +137,12 @@ export default function CoverStudioModal({
     return () => {
       mounted = false;
     };
-  }, [videoPath, productName, angleTitle]);
+  }, [isOpen, videoPath, productName, angleTitle, videoItem]);
+
+  // Keep hook order stable across closed -> open transitions. Previously this
+  // component returned before its hooks, so opening it from the TikTok modal
+  // caused React's "rendered more hooks" error and no editor appeared.
+  if (!isOpen || !videoItem) return null;
 
   // When switching source to raw clip, load highlights from the raw clip
   const handleSwitchToRawSource = async (rawPath) => {
@@ -277,9 +283,7 @@ export default function CoverStudioModal({
       setSuccessMsg('');
 
       const activeVideoTarget = activeSourceType === 'raw' ? selectedRawPath : videoPath;
-      const exportStem = videoItem?.name
-        ? videoItem.name.replace(/\.[^/.]+$/, '')
-        : (videoItem?.stem || (videoItem?.path ? videoItem.path.split(/[/\\]/).pop().replace(/\.[^/.]+$/, '') : null));
+      const exportStem = resolveCoverExportStem(videoItem);
 
       const payload = {
         video_path: activeVideoTarget,
@@ -330,8 +334,8 @@ export default function CoverStudioModal({
   const guideBoxH = 360;
   const guideBoxTop = Math.round(120 * (panY / 100));
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-md animate-fadeIn">
+  return createPortal(
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-3 bg-black/80 backdrop-blur-md animate-fadeIn">
       <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-5xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-3.5 border-b border-slate-800 bg-slate-950/60">
@@ -1298,6 +1302,7 @@ export default function CoverStudioModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
