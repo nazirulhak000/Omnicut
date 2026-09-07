@@ -11,13 +11,13 @@ import {
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
-  getProducts, updateAngleStatus, updateAngleCover, deleteProduct, updateProduct, prepareTiktokAutopost
+  getProducts, getExports, updateAngleStatus, updateAngleCover, deleteProduct, updateProduct, prepareTiktokAutopost
 } from '../api';
 import CoverStudioModal from './CoverStudioModal';
 import { Modal, Toast, Button, Badge, Input, Textarea } from './ui';
 import { useDebounce, useToast } from '../hooks';
 import { guessBrandModel } from '../lib/overlayModel';
-import { applyCoverResult, getCoverVariant } from '../lib/coverVariant';
+import { applyCoverResult, getCoverVariant, mergeCoverMetadata } from '../lib/coverVariant';
 
 // 5 Granular Pipeline Phases (Original Vibrant & Readable Palette)
 const PIPELINE_PHASES = [
@@ -1082,10 +1082,13 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     const sequence = ++productsRequestSequence.current;
     setLoading(true);
     try {
-      const res = await getProducts();
+      const [res, exportsRes] = await Promise.all([
+        getProducts(),
+        getExports().catch(() => ({ exports: [] })),
+      ]);
       if (sequence !== productsRequestSequence.current) return;
       if (res.products) {
-        setProducts(res.products);
+        setProducts(mergeCoverMetadata(res.products, exportsRes));
       }
     } catch (err) {
       console.error(err);

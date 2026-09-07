@@ -202,19 +202,21 @@ Date: 2026-09-07; Requested by: user; Status: in progress
 - [x] Define the edit path: open Cover Studio with the existing cover context, allow frame/crop/text changes, and persist the resulting 3:4 path.
 - [x] Add deterministic regression coverage for path-only saved covers and restoring the selected 3:4 variant after refresh.
 - [x] Improve the cover card behavior so the action clearly says edit when a saved cover exists and create when it does not.
+- [x] Merge matching `/api/exports` cover metadata when the live `/api/products` response omits saved cover fields.
 - [x] Run frontend/backend tests and build.
 - [ ] Verify the remaining live edit -> save -> refresh flow in the browser.
 
 ### Gate
 
-- [x] `npm test` - 72 passed
+- [x] `npm test` - 74 passed
 - [x] `npm run build` - passed
-- [x] relevant backend cover tests - 14 passed, 1 existing warning
+- [x] backend suite - 869 passed, 6 existing warnings
 - [ ] browser verification of edit -> save -> refresh -> modal
 
 ### Notes
 
-- Implementation commit: `0e35cbc` (`fix: restore path-only cover previews`).
+- Implementation commit: `6252c6a` (`fix: restore saved cover metadata in TikTok modal`).
+- The live `/api/products` response currently returns null cover fields for this product while `/api/exports` contains the matching saved 3:4 cover. The client now merges that export metadata by project name/video reference and preserves any explicit angle cover.
 - Existing uncommitted changes belong to another workstream: `frontend/src/components/editor/EditorShell.jsx`, `frontend/src/components/editor/Timeline.jsx`, `frontend/src/components/editor/TimelineClip.jsx`, `frontend/src/lib/timelineMath.js`, `frontend/src/lib/timelineMath.test.js`, and the untracked screenshots `alt-drag-left.png`, `alt-drag-mid.png`, `clip-selected.png`, `timeline-loaded.png`; do not modify, delete, or stage them.
 - Steps 1-4 and the extension upload implementation are frozen by the user.
 ## งานค้าง (Backlog)

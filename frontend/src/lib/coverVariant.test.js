@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyCoverResult, getCoverVariant } from './coverVariant.js';
+import { applyCoverResult, getCoverVariant, mergeCoverMetadata } from './coverVariant.js';
 
 test('prefers the 3:4 crop while retaining the 9:16 fallback', () => {
   const item = {
@@ -47,4 +47,36 @@ test('keeps a path-only saved cover visible after applying an editor result', ()
 
   assert.equal(updated.cover_url, '/api/media/05_Covers_Thumbnails/edited_cover_3x4.jpg');
   assert.equal(updated.cover_path, '05_Covers_Thumbnails/edited_cover_3x4.jpg');
+});
+
+test('restores missing product cover fields from the matching export', () => {
+  const products = [{
+    id: 'product-1',
+    angles: [{
+      angle_id: 'unboxing',
+      project_name: 'LOG01-แกะกล่องว้าว_1',
+      video_url: '04_Exports/Ready_to_post/logitech_wave_keys_แกะกล่องว้าว_1.mp4',
+    }],
+  }];
+  const merged = mergeCoverMetadata(products, {
+    exports: [{
+      project_name: 'LOG01-แกะกล่องว้าว_1',
+      rel_path: '04_Exports/Ready_to_post/logitech_wave_keys_แกะกล่องว้าว_1.mp4',
+      cover_path: '05_Covers_Thumbnails/LOG01-แกะกล่องว้าว_1_cover_3x4.jpg',
+      cover_3x4_path: '05_Covers_Thumbnails/LOG01-แกะกล่องว้าว_1_cover_3x4.jpg',
+      cover_url: '/api/media/05_Covers_Thumbnails/LOG01-แกะกล่องว้าว_1_cover_3x4.jpg',
+      cover_3x4_url: '/api/media/05_Covers_Thumbnails/LOG01-แกะกล่องว้าว_1_cover_3x4.jpg',
+    }],
+  });
+
+  assert.equal(merged[0].angles[0].cover_3x4_path, '05_Covers_Thumbnails/LOG01-แกะกล่องว้าว_1_cover_3x4.jpg');
+  assert.equal(merged[0].angles[0].cover_3x4_url, '/api/media/05_Covers_Thumbnails/LOG01-แกะกล่องว้าว_1_cover_3x4.jpg');
+});
+
+test('does not replace an explicit angle cover with export fallback data', () => {
+  const merged = mergeCoverMetadata([
+    { angles: [{ project_name: 'LOG01', cover_3x4_path: '05_Covers_Thumbnails/manual.jpg' }] },
+  ], [{ project_name: 'LOG01', cover_3x4_path: '05_Covers_Thumbnails/export.jpg' }]);
+
+  assert.equal(merged[0].angles[0].cover_3x4_path, '05_Covers_Thumbnails/manual.jpg');
 });

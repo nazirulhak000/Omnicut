@@ -51,3 +51,44 @@ export function applyCoverResult(item = {}, result = {}) {
     cover_9x16_path: nineBySixteen.path || item.cover_9x16_path || null,
   };
 }
+
+function normalizeReference(value) {
+  return String(value || '').replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase();
+}
+
+function sameReference(left, right) {
+  const a = normalizeReference(left);
+  const b = normalizeReference(right);
+  if (!a || !b) return false;
+  return a === b || a.endsWith(`/${b}`) || b.endsWith(`/${a}`);
+}
+
+/**
+ * Product responses from older backend workers can omit hydrated cover
+ * fields even though the matching export already exposes them. Merge only
+ * missing fields from the export so an explicit angle cover always wins.
+ */
+export function mergeCoverMetadata(products = [], exports = []) {
+  const exportItems = Array.isArray(exports) ? exports : (exports?.exports || []);
+  return products.map((product) => ({
+    ...product,
+    angles: (product.angles || []).map((angle) => {
+      const match = exportItems.find((item) => (
+        (angle.project_name && item.project_name && normalizeReference(angle.project_name) === normalizeReference(item.project_name))
+        || sameReference(angle.video_url, item.rel_path || item.path)
+      ));
+      if (!match) return angle;
+      return {
+        ...angle,
+        cover_path: angle.cover_path || match.cover_path || null,
+        cover_3x4_path: angle.cover_3x4_path || match.cover_3x4_path || null,
+        cover_9x16_path: angle.cover_9x16_path || match.cover_9x16_path || null,
+        cover_url: angle.cover_url || match.cover_url || null,
+        cover_3x4_url: angle.cover_3x4_url || match.cover_3x4_url || null,
+        cover_9x16_url: angle.cover_9x16_url || match.cover_9x16_url || null,
+        media_url: angle.media_url || match.media_url || null,
+        media_url_3x4: angle.media_url_3x4 || match.media_url_3x4 || null,
+      };
+    }),
+  }));
+}
