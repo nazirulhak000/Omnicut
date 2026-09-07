@@ -31,6 +31,41 @@
 | Round POST-3.19 | Restore generated cover visibility in the TikTok post modal after backend refresh | 2026-09-07 | User confirmed step 5 cover upload works; focused backend tests 14 passed; frontend tests 65 passed; build passed |
 | Round POST-3.21 | Multi-day persistent TikTok publishing queue and Agenda/Extension handoff | 2026-09-07 | Schedule API/store, multi-day Agenda, single/bulk assignment, five-minute timezone-safe slots, guarded reschedule, extension queue handoff; pytest 873 passed, npm test 82 passed, build and browser smoke passed |
 | Round POST-3.22 | Weekly schedule templates and product-rotating auto-fill | 2026-09-07 | Backend template persistence/preview/atomic commit; Agenda editor and overdue requeue; pytest 879 passed, npm test 83 passed, build passed |
+| Round POST-3.23 | Reduce default publishing schedule to three slots | 2026-09-07 | Defaults 12:30, 19:00, 21:30; legacy five-slot templates migrate safely; pytest 891 passed, npm test 83 passed, build and compileall passed |
+
+## Round POST-3.23 - reduce default publishing slots to three
+
+Date: 2026-09-07; Requested by: user; Status: complete (browser gate deferred)
+
+**Goal:** Reduce the default weekly publishing schedule to three practical TikTok windows: 12:30, 19:00, and 21:30.
+
+**Scope:** Update the frontend template editor and backend schedule defaults; migrate templates saved with the previous five-slot defaults; keep custom three-slot weekly overrides, queue records, Extension handoff, cover flow, and steps 1-4 unchanged.
+
+### Todo
+
+- [x] Change the shared frontend default slots to 12:30, 19:00, 21:30.
+- [x] Change the backend default slots and validation to three unique five-minute slots.
+- [x] Migrate legacy five-slot templates to the new three-slot defaults on read/save.
+- [x] Resize the weekly template editor grid and helper text for three columns.
+- [x] Add frontend and backend regression coverage for the new defaults and migration.
+- [x] Run the full backend/frontend gates and inspect the isolated diff.
+
+### Gate
+
+- [x] `python -m pytest tests/test_schedule_queue.py -q -p no:cacheprovider --tb=short` — 9 passed.
+- [x] `node --test frontend/src/lib/scheduleQueue.test.js` — 3 passed.
+- [x] `python -m compileall -q scripts` — passed.
+- [x] `python -m pytest tests/ -q -p no:cacheprovider --tb=short` — 891 passed, 6 existing warnings.
+- [x] `npm test` — 83 passed.
+- [x] `npm run build` — passed.
+- [ ] Browser verification — deferred; no browser runtime gate was available in this round.
+
+### Notes
+
+- Existing queue timestamps are untouched; only the reusable template defaults change.
+- A saved five-slot legacy template is readable and normalised to the three new defaults instead of causing a validation failure.
+- Custom weekly templates may still use three distinct times, so a later week can override the defaults without changing existing queue items.
+- Unrelated editor and pipeline changes already present in the working tree were left unstaged.
 
 ## Round POST-3.22 - weekly schedule templates and product-rotating auto-fill
 

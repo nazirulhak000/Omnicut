@@ -18,7 +18,8 @@ from scripts.schedule_store import ScheduleQueueStore, ScheduleTemplateStore, ne
 
 POSTED_DIR = EXPORTS_DIR.parent / "Posted"
 PROJECT_TZ = ZoneInfo("Asia/Bangkok")
-DEFAULT_PRIMARY_TIMES = ("07:00", "10:00", "12:00", "16:00", "20:00")
+DEFAULT_PRIMARY_TIMES = ("12:30", "19:00", "21:30")
+LEGACY_PRIMARY_TIMES = ("07:00", "10:00", "12:00", "16:00", "20:00")
 DAY_INDICES = tuple(range(7))
 ACTIVE_STATUSES = {"planned", "ready_for_extension", "awaiting_post", "failed"}
 ALL_STATUSES = ACTIVE_STATUSES | {"posted"}
@@ -158,8 +159,12 @@ def _normalise_days(days: Dict[str, ScheduleDayPayload] | Dict[str, Any]) -> Dic
             raw = raw if isinstance(raw, dict) else {}
             enabled, times = bool(raw.get("enabled", True)), raw.get("times", DEFAULT_PRIMARY_TIMES)
         values = [_valid_time(value) for value in times]
-        if len(values) != 5 or len(set(values)) != 5:
-            raise HTTPException(status_code=422, detail="แต่ละวันต้องมีเวลาไม่ซ้ำกัน 5 เวลา")
+        if len(values) == len(LEGACY_PRIMARY_TIMES):
+            # Keep templates saved before the three-slot schedule readable while
+            # moving them to the new defaults on the next template read/save.
+            values = list(DEFAULT_PRIMARY_TIMES)
+        if len(values) != len(DEFAULT_PRIMARY_TIMES) or len(set(values)) != len(DEFAULT_PRIMARY_TIMES):
+            raise HTTPException(status_code=422, detail=f"แต่ละวันต้องมีเวลาไม่ซ้ำกัน {len(DEFAULT_PRIMARY_TIMES)} เวลา")
         output[str(index)] = {"enabled": enabled, "times": sorted(values)}
     return output
 

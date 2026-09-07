@@ -92,7 +92,7 @@ def test_prepare_marks_one_item_and_sends_date_time_to_extension(queue_workspace
 
 
 def test_weekly_template_upsert_copy_and_reset(queue_workspace):
-    custom = {"enabled": True, "times": ["06:00", "09:00", "12:00", "15:00", "21:00"]}
+    custom = {"enabled": True, "times": ["06:00", "15:00", "21:00"]}
     saved = client.put(
         "/api/schedule-queue/template",
         json={"week_start": "2030-01-07", "days": {"0": custom}},
@@ -109,7 +109,18 @@ def test_weekly_template_upsert_copy_and_reset(queue_workspace):
     reset = client.delete("/api/schedule-queue/template/2030-01-14")
     assert reset.status_code == 200
     assert reset.json()["id"] == "default"
-    assert reset.json()["days"]["0"]["times"] == ["07:00", "10:00", "12:00", "16:00", "20:00"]
+    assert reset.json()["days"]["0"]["times"] == ["12:30", "19:00", "21:30"]
+
+
+def test_legacy_five_slot_template_migrates_to_three_defaults(queue_workspace):
+    queue_store.ScheduleTemplateStore._save([{
+        "id": "default",
+        "week_start": None,
+        "days": {str(index): {"enabled": True, "times": ["07:00", "10:00", "12:00", "16:00", "20:00"]} for index in range(7)},
+    }])
+    response = client.get("/api/schedule-queue/template")
+    assert response.status_code == 200
+    assert response.json()["days"]["0"]["times"] == ["12:30", "19:00", "21:30"]
 
 
 def test_autofill_preview_rotates_products_and_commit_is_atomic(queue_workspace):
@@ -168,6 +179,6 @@ def test_autofill_starts_after_latest_queue_timestamp_and_skips_past_slots(queue
     )
     assert preview.status_code == 200
     assert [row["scheduled_at"] for row in preview.json()["items"]] == [
-        "2030-01-07T12:00+07:00",
-        "2030-01-07T16:00+07:00",
+        "2030-01-07T12:30+07:00",
+        "2030-01-07T19:00+07:00",
     ]

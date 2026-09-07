@@ -20,11 +20,11 @@ test('agenda groups and sorts by scheduled timestamp', () => {
   assert.deepEqual(grouped['2026-09-10'].map((item) => item.id), ['c', 'a']);
 });
 
-test('weekly template helpers use Monday boundaries and preserve five slots', () => {
+test('weekly template helpers use Monday boundaries and preserve three slots', () => {
   assert.equal(weekStartForDate('2026-09-10'), '2026-09-07');
   assert.equal(addDays('2026-09-07', 6), '2026-09-13');
   const template = templateForWeek({ days: { '0': { enabled: false, times: ['20:00', '07:00', '16:00', '12:00', '10:00'] } } }, '2026-09-07');
   assert.equal(template.days['0'].enabled, false);
-  assert.deepEqual(template.days['0'].times, ['07:00', '10:00', '12:00', '16:00', '20:00']);
-  assert.deepEqual(template.days['1'].times, ['07:00', '10:00', '12:00', '16:00', '20:00']);
+  assert.deepEqual(template.days['0'].times, ['12:30', '19:00', '21:30']);
+  assert.deepEqual(template.days['1'].times, ['12:30', '19:00', '21:30']);
 });

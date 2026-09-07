@@ -12,6 +12,9 @@
 ---
 
 ## สถานะรวม
+- [x] Round POST-3.23 - reduce default publishing slots to three (2026-09-07)
+- [ ] Backlog — เก็บสัญญาณพฤติกรรม TikTok รายคลิป (retention, product clicks, add-to-cart, conversion) เพื่อวัดผลเวลา/Hook/สินค้าและแนะนำคิวจากข้อมูลจริง
+
 - [x] Round POST-3.22 - weekly schedule templates and product-rotating auto-fill (2026-09-07)
 
 - [ ] Round POST-3 — ซ่อมขั้นหลังอัปโหลดและแนบปกจาก Cover Studio (2026-09-06)
