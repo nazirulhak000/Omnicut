@@ -66,3 +66,8 @@ frontend/public/voice_cache/
 
 # Runtime-generated product database (rebuilt from scraper)
 _Docs/products.json
+
+# SQLite store backing ProductStore/PostLog (scripts/db.py) + WAL/SHM files
+_Docs/store.db
+_Docs/store.db-wal
+_Docs/store.db-shm

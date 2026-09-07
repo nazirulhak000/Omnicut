@@ -5,20 +5,40 @@ Every clip that actually goes live gets a row here, and 48 hours later the
 numbers get filled in by hand. Without this the angle picker is guessing
 forever; with it, the app can tell which angles and hooks earn clicks.
 
-Storage is a plain JSON file so it stays readable and hand-editable.
+Storage is SQLite (see scripts/db.py) behind the exact same _load()/_save()
+contract this module always had, mirrored out to a plain JSON file so it
+stays readable, hand-editable, and diffable as a backup. The mirror file
+lives at LOG_PATH, same path as before.
 """
 
 import json
+import uuid
 import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from scripts.config import BASE_DIR
+from scripts.db import DocumentTable
 
 LOG_PATH = BASE_DIR / "_Docs" / "post_log.json"
 METRICS_DUE_HOURS = 48
 
 METRIC_FIELDS = ("views", "likes", "comments", "shares", "cart_clicks", "orders", "commission_thb")
+
+
+def _log_db_path() -> Path:
+    # Same sqlite file ProductStore uses (BASE_DIR/_Docs/store.db), different
+    # table -- both stores' JSON mirrors already live side by side in _Docs/.
+    return LOG_PATH.parent / "store.db"
+
+
+def _log_json_path() -> Path:
+    # Read LOG_PATH dynamically (not captured at import time) so tests that
+    # monkeypatch scripts.post_log.LOG_PATH keep working.
+    return LOG_PATH
+
+
+_TABLE = DocumentTable("posts", _log_db_path, _log_json_path)
 
 
 class PostLog:
@@ -29,20 +49,18 @@ class PostLog:
     # ------------------------------------------------------------------
     @classmethod
     def _load(cls) -> List[Dict[str, Any]]:
-        if not LOG_PATH.exists():
-            return []
-        try:
-            data = json.loads(LOG_PATH.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            return []
-        return data if isinstance(data, list) else []
+        return _TABLE.load()
 
     @classmethod
     def _save(cls, posts: List[Dict[str, Any]]) -> None:
-        LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        tmp = LOG_PATH.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(posts, ensure_ascii=False, indent=2), encoding="utf-8")
-        tmp.replace(LOG_PATH)
+        _TABLE.save(posts)
+
+    @classmethod
+    def _mutate(cls):
+        """See ProductStore._mutate() -- same fix, same reasoning: hold one
+        SQLite transaction across the read-modify-write instead of loading
+        outside any lock."""
+        return _TABLE.mutate()
 
     # ------------------------------------------------------------------
     # Writing
@@ -62,50 +80,54 @@ class PostLog:
         posted_at: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Record that a clip went live. Returns the stored row."""
-        posts = cls._load()
         now = datetime.datetime.now()
 
-        post = {
-            "id": f"{now.strftime('%Y%m%d%H%M%S')}_{len(posts) + 1}",
-            "product_name": product_name,
-            "product_url": product_url,
-            "angle_key": angle_key,
-            "angle_title": angle_title,
-            "hook": hook,
-            "clip_file": clip_file,
-            "platform": platform,
-            "caption": caption,
-            "hashtags": hashtags or [],
-            "posted_at": posted_at or now.isoformat(timespec="seconds"),
-            "metrics": None,
-            "metrics_filled_at": None,
-        }
-        posts.append(post)
-        cls._save(posts)
-        return post
+        # _mutate() holds one SQLite transaction across the read-modify-write
+        # (P0 item 1 / plan step 2) -- two concurrent add_post() calls used to
+        # both read the same posts list outside any lock and could silently
+        # drop one row on save; the id used to collide too (see the uuid4
+        # below -- was f"{timestamp}_{len(posts)+1}", which two posts added
+        # in the same second at the same list length would share).
+        with cls._mutate() as posts:
+            post = {
+                "id": uuid.uuid4().hex,
+                "product_name": product_name,
+                "product_url": product_url,
+                "angle_key": angle_key,
+                "angle_title": angle_title,
+                "hook": hook,
+                "clip_file": clip_file,
+                "platform": platform,
+                "caption": caption,
+                "hashtags": hashtags or [],
+                "posted_at": posted_at or now.isoformat(timespec="seconds"),
+                "metrics": None,
+                "metrics_filled_at": None,
+            }
+            posts.append(post)
+            return post
 
     @classmethod
     def update_metrics(cls, post_id: str, metrics: Dict[str, Any]) -> Dict[str, Any]:
         """Fill in the 48-hour numbers for one post."""
-        posts = cls._load()
-        for post in posts:
-            if post["id"] == post_id:
-                clean = {}
-                for field in METRIC_FIELDS:
-                    raw = metrics.get(field)
-                    if raw in (None, ""):
-                        continue
-                    try:
-                        clean[field] = float(raw) if field == "commission_thb" else int(raw)
-                    except (TypeError, ValueError):
-                        raise ValueError(f"ค่า '{field}' ต้องเป็นตัวเลข (ได้: {raw!r})")
+        with cls._mutate() as posts:
+            for post in posts:
+                if post["id"] == post_id:
+                    clean = {}
+                    for field in METRIC_FIELDS:
+                        raw = metrics.get(field)
+                        if raw in (None, ""):
+                            continue
+                        try:
+                            clean[field] = float(raw) if field == "commission_thb" else int(raw)
+                        except (TypeError, ValueError):
+                            raise ValueError(f"ค่า '{field}' ต้องเป็นตัวเลข (ได้: {raw!r})")
 
-                post["metrics"] = clean
-                post["metrics_filled_at"] = datetime.datetime.now().isoformat(timespec="seconds")
-                cls._save(posts)
-                return post
+                    post["metrics"] = clean
+                    post["metrics_filled_at"] = datetime.datetime.now().isoformat(timespec="seconds")
+                    return post
 
-        raise ValueError(f"ไม่พบโพสต์ id '{post_id}'")
+            raise ValueError(f"ไม่พบโพสต์ id '{post_id}'")
 
     # ------------------------------------------------------------------
     # Reading

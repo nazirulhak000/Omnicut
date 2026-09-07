@@ -4,16 +4,21 @@ Product queue — the front of the funnel.
 Affiliate work is a stream of products, not one project. This keeps the ones
 worth filming, what the AI worked out about each, and how far each has got.
 
-Storage is a plain JSON file so it stays readable and hand-editable.
+Storage is SQLite (see scripts/db.py) behind the exact same _load()/_save()
+contract this module always had, mirrored out to a plain JSON file so it
+stays readable, hand-editable, and diffable as a backup. The mirror file
+lives at STORE_PATH, same path as before.
 """
 
 import json
 import re
+import uuid
 import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from scripts.config import BASE_DIR
+from scripts.db import DocumentTable
 
 STORE_PATH = BASE_DIR / "_Docs" / "products.json"
 
@@ -28,9 +33,29 @@ STATUSES = ("candidate", "scripted", "in_production", "rendered", "mobile_ready"
 
 import threading
 
+
+def _store_db_path() -> Path:
+    # STORE_PATH.parent is BASE_DIR/_Docs -- both products and posts share one
+    # sqlite file there, but live in their own tables.
+    return STORE_PATH.parent / "store.db"
+
+
+def _store_json_path() -> Path:
+    # Read STORE_PATH dynamically (not captured at import time) so tests that
+    # monkeypatch scripts.product_store.STORE_PATH keep working.
+    return STORE_PATH
+
+
+_TABLE = DocumentTable("products", _store_db_path, _store_json_path)
+
+
 class ProductStore:
     """The list of products in play, with what the AI worked out about each."""
 
+    # Kept only so any external code that still references ProductStore._lock
+    # (none found in this repo, but this was public-by-convention before)
+    # does not hit an AttributeError. No longer load-bearing for correctness
+    # -- the real mutual exclusion is the SQLite transaction in _mutate().
     _lock: threading.Lock = threading.Lock()
 
     # ------------------------------------------------------------------
@@ -38,21 +63,34 @@ class ProductStore:
     # ------------------------------------------------------------------
     @classmethod
     def _load(cls) -> List[Dict[str, Any]]:
-        if not STORE_PATH.exists():
-            return []
-        try:
-            data = json.loads(STORE_PATH.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            return []
-        return data if isinstance(data, list) else []
+        return _TABLE.load()
 
     @classmethod
     def _save(cls, products: List[Dict[str, Any]]) -> None:
-        with cls._lock:
-            STORE_PATH.parent.mkdir(parents=True, exist_ok=True)
-            tmp = STORE_PATH.with_suffix(".json.tmp")
-            tmp.write_text(json.dumps(products, ensure_ascii=False, indent=2), encoding="utf-8")
-            tmp.replace(STORE_PATH)
+        _TABLE.save(products)
+
+    @classmethod
+    def _mutate(cls):
+        """Context manager: read-modify-write the full product list as one
+        SQLite transaction (fixes the lost-update race -- see class docs on
+        the individual write methods below, and _Docs/SAAS_READINESS_PLAN.md
+        P0 item 1). Every write method that used to do
+
+            products = cls._load()
+            ...mutate...
+            cls._save(products)
+
+        with the load OUTSIDE any lock now does
+
+            with cls._mutate() as products:
+                ...mutate...
+
+        instead -- the save happens automatically (and only) on a clean
+        exit, still inside the same transaction the load happened in, so
+        two concurrent writers can no longer both read stale data and have
+        one silently clobber the other's write.
+        """
+        return _TABLE.mutate()
 
     # ------------------------------------------------------------------
     # Writing
@@ -79,79 +117,81 @@ class ProductStore:
         if not name.strip():
             raise ValueError("ต้องมีชื่อสินค้า")
 
-        products = cls._load()
+        # The load-modify-save below used to run with the load OUTSIDE any
+        # lock (P0 item 1 in SAAS_READINESS_PLAN.md): two concurrent adds for
+        # the same new URL could both read "not found" and both append a
+        # product, or a concurrent add-for-existing-URL update could vanish
+        # under a concurrent unrelated add. _mutate() holds one SQLite
+        # transaction across the whole read-modify-write.
+        with cls._mutate() as products:
+            if url.strip():
+                for existing in products:
+                    if existing.get("url", "").strip() == url.strip():
+                        if angles:
+                            existing["angles"] = angles
+                            existing["status"] = "scripted"
+                        if images:
+                            existing["images"] = images
+                        if tiktok_product_id and tiktok_product_id.strip():
+                            existing["tiktok_product_id"] = tiktok_product_id.strip()
+                        if not existing.get("product_code"):
+                            existing["product_code"] = (
+                                product_code.strip().upper()
+                                if (product_code and product_code.strip())
+                                else cls._generate_product_code(existing.get("name", ""), products)
+                            )
+                        existing["updated_at"] = cls._now()
+                        return existing
 
-        if url.strip():
-            for existing in products:
-                if existing.get("url", "").strip() == url.strip():
-                    if angles:
-                        existing["angles"] = angles
-                        existing["status"] = "scripted"
-                    if images:
-                        existing["images"] = images
-                    if tiktok_product_id and tiktok_product_id.strip():
-                        existing["tiktok_product_id"] = tiktok_product_id.strip()
-                    if not existing.get("product_code"):
-                        existing["product_code"] = (
-                            product_code.strip().upper()
-                            if (product_code and product_code.strip())
-                            else cls._generate_product_code(existing.get("name", ""), products)
-                        )
-                    existing["updated_at"] = cls._now()
-                    cls._save(products)
-                    return existing
-
-        now = cls._now()
-        product = {
-            "id": f"{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}_{len(products) + 1}",
-            "name": name.strip(),
-            "url": url.strip(),
-            "platform": platform or cls.detect_platform(url),
-            "category": category,
-            "specs": specs or [],
-            "pain_points": pain_points or [],
-            "selling_points": selling_points or [],
-            "price_note": price_note,
-            "target_buyer": target_buyer,
-            "thumbnail": thumbnail,
-            "tiktok_product_id": tiktok_product_id.strip() if (tiktok_product_id and tiktok_product_id.strip()) else None,
-            "product_code": (product_code.strip().upper() if (product_code and product_code.strip()) else cls._generate_product_code(name, products)),
-            "status": "scripted" if angles else "candidate",
-            "angles": angles or [],
-            "images": images or [],
-            "videos": [],
-            "projects": [],
-            "created_at": now,
-            "updated_at": now,
-        }
-        products.append(product)
-        cls._save(products)
-        return product
+            now = cls._now()
+            product = {
+                "id": uuid.uuid4().hex,
+                "name": name.strip(),
+                "url": url.strip(),
+                "platform": platform or cls.detect_platform(url),
+                "category": category,
+                "specs": specs or [],
+                "pain_points": pain_points or [],
+                "selling_points": selling_points or [],
+                "price_note": price_note,
+                "target_buyer": target_buyer,
+                "thumbnail": thumbnail,
+                "tiktok_product_id": tiktok_product_id.strip() if (tiktok_product_id and tiktok_product_id.strip()) else None,
+                "product_code": (product_code.strip().upper() if (product_code and product_code.strip()) else cls._generate_product_code(name, products)),
+                "status": "scripted" if angles else "candidate",
+                "angles": angles or [],
+                "images": images or [],
+                "videos": [],
+                "projects": [],
+                "created_at": now,
+                "updated_at": now,
+            }
+            products.append(product)
+            return product
 
     @classmethod
     def update(cls, product_id: str, **fields: Any) -> Dict[str, Any]:
         """Patch a product. Unknown keys are stored as-is so the UI can grow."""
-        products = cls._load()
-        for product in products:
-            if product["id"] == product_id:
-                fields.pop("id", None)
-                fields.pop("created_at", None)
+        with cls._mutate() as products:
+            for product in products:
+                if product["id"] == product_id:
+                    fields.pop("id", None)
+                    fields.pop("created_at", None)
 
-                status = fields.get("status")
-                if status and status not in STATUSES:
-                    raise ValueError(f"status '{status}' ไม่ถูกต้อง — ต้องเป็นหนึ่งใน {', '.join(STATUSES)}")
+                    status = fields.get("status")
+                    if status and status not in STATUSES:
+                        raise ValueError(f"status '{status}' ไม่ถูกต้อง — ต้องเป็นหนึ่งใน {', '.join(STATUSES)}")
 
-                # Uppercase product_code the same way add() does, so a
-                # code's casing does not drift depending on whether it was
-                # set at creation or edited later via PATCH.
-                if "product_code" in fields and fields["product_code"]:
-                    fields["product_code"] = fields["product_code"].strip().upper()
+                    # Uppercase product_code the same way add() does, so a
+                    # code's casing does not drift depending on whether it was
+                    # set at creation or edited later via PATCH.
+                    if "product_code" in fields and fields["product_code"]:
+                        fields["product_code"] = fields["product_code"].strip().upper()
 
-                product.update(fields)
-                product["updated_at"] = cls._now()
-                cls._save(products)
-                return product
-        raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
+                    product.update(fields)
+                    product["updated_at"] = cls._now()
+                    return product
+            raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
 
     @classmethod
     def attach_project(cls, product_id: str, project_name: str) -> Dict[str, Any]:
@@ -190,32 +230,31 @@ class ProductStore:
                                auto-unlinks this angle from another angle's
                                project/video (Round BUG-3).
         """
-        products = cls._load()
-        for product in products:
-            if product["id"] == product_id:
-                angles = product.get("angles", [])
-                for angle in angles:
-                    current_aid = angle.get("angle_id") or angle.get("id")
-                    if current_aid == angle_id:
-                        angle["status"] = status
-                        if video_url is not None:
-                            angle["video_url"] = video_url if video_url else None
-                        if project_name is not None:
-                            angle["project_name"] = project_name if project_name else None
-                        # QC note handling
-                        if qc_note is not None:
-                            angle["qc_note"] = qc_note.strip() or None
-                        elif clear_qc_note:
-                            angle["qc_note"] = None
-                        if clear_conflict_note:
-                            angle["data_conflict_note"] = None
-                        if status == "posted" and not angle.get("posted_at"):
-                            angle["posted_at"] = cls._now()
-                        angle["updated_at"] = cls._now()
-                        product["updated_at"] = cls._now()
-                        cls._save(products)
-                        return product
-        raise ValueError(f"ไม่พบสินค้า id '{product_id}' หรือ angle '{angle_id}'")
+        with cls._mutate() as products:
+            for product in products:
+                if product["id"] == product_id:
+                    angles = product.get("angles", [])
+                    for angle in angles:
+                        current_aid = angle.get("angle_id") or angle.get("id")
+                        if current_aid == angle_id:
+                            angle["status"] = status
+                            if video_url is not None:
+                                angle["video_url"] = video_url if video_url else None
+                            if project_name is not None:
+                                angle["project_name"] = project_name if project_name else None
+                            # QC note handling
+                            if qc_note is not None:
+                                angle["qc_note"] = qc_note.strip() or None
+                            elif clear_qc_note:
+                                angle["qc_note"] = None
+                            if clear_conflict_note:
+                                angle["data_conflict_note"] = None
+                            if status == "posted" and not angle.get("posted_at"):
+                                angle["posted_at"] = cls._now()
+                            angle["updated_at"] = cls._now()
+                            product["updated_at"] = cls._now()
+                            return product
+            raise ValueError(f"ไม่พบสินค้า id '{product_id}' หรือ angle '{angle_id}'")
 
     @classmethod
     def rollback_by_video_or_project(
@@ -243,7 +282,6 @@ class ProductStore:
         """
         if not identifier:
             return []
-        products = cls._load()
         target_token = Path(identifier).stem.lower().strip()
         raw_id_low = identifier.lower().strip()
         projects_dir = BASE_DIR / "03_Projects"
@@ -271,134 +309,129 @@ class ProductStore:
             product["updated_at"] = cls._now()
             rolled_back.append(angle.get("angle_id", ""))
 
-        # Scoped path: caller knows exactly which angle it means. No stem
-        # matching at all -- the identifier is only used to decide
-        # in_production vs scripted above, not to locate the angle.
-        if product_id and angle_id:
+        with cls._mutate() as products:
+            # Scoped path: caller knows exactly which angle it means. No stem
+            # matching at all -- the identifier is only used to decide
+            # in_production vs scripted above, not to locate the angle.
+            if product_id and angle_id:
+                for product in products:
+                    if product.get("id") != product_id:
+                        continue
+                    for angle in product.get("angles", []):
+                        current_aid = angle.get("angle_id") or angle.get("id")
+                        if current_aid == angle_id:
+                            _roll(product, angle)
+                            return rolled_back
+                return rolled_back
+
+            # Legacy path: only the filename/project_name is known. Stop after
+            # the first match -- and warn if more exist -- rather than silently
+            # cascading the rollback onto every angle that happens to share the
+            # same filename stem.
+            matches = []
             for product in products:
-                if product.get("id") != product_id:
-                    continue
                 for angle in product.get("angles", []):
-                    current_aid = angle.get("angle_id") or angle.get("id")
-                    if current_aid == angle_id:
-                        _roll(product, angle)
-                        cls._save(products)
-                        return rolled_back
-            return rolled_back
+                    v_url = (angle.get("video_url") or "").lower()
+                    p_name = (angle.get("project_name") or "").lower()
+                    v_name = Path(v_url).name.lower() if v_url else ""
+                    v_stem = Path(v_url).stem.lower() if v_url else ""
 
-        # Legacy path: only the filename/project_name is known. Stop after
-        # the first match -- and warn if more exist -- rather than silently
-        # cascading the rollback onto every angle that happens to share the
-        # same filename stem.
-        matches = []
-        for product in products:
-            for angle in product.get("angles", []):
-                v_url = (angle.get("video_url") or "").lower()
-                p_name = (angle.get("project_name") or "").lower()
-                v_name = Path(v_url).name.lower() if v_url else ""
-                v_stem = Path(v_url).stem.lower() if v_url else ""
+                    is_match = (
+                        (p_name and (p_name == raw_id_low or p_name == target_token)) or
+                        (v_name and (v_name == raw_id_low or v_name == Path(identifier).name.lower())) or
+                        (v_stem and v_stem == target_token)
+                    )
+                    if is_match:
+                        matches.append((product, angle))
 
-                is_match = (
-                    (p_name and (p_name == raw_id_low or p_name == target_token)) or
-                    (v_name and (v_name == raw_id_low or v_name == Path(identifier).name.lower())) or
-                    (v_stem and v_stem == target_token)
+            if not matches:
+                return rolled_back
+
+            if len(matches) > 1:
+                print(
+                    f"[ProductStore.rollback_by_video_or_project] WARNING: '{identifier}' matched "
+                    f"{len(matches)} angles by filename/project stem alone -- rolling back only the "
+                    "first (product_id="
+                    f"{matches[0][0].get('id')!r}, angle_id={(matches[0][1].get('angle_id') or matches[0][1].get('id'))!r}). "
+                    "Pass product_id/angle_id explicitly to avoid this ambiguity."
                 )
-                if is_match:
-                    matches.append((product, angle))
 
-        if not matches:
+            # Round BUG-3: used to skip mobile_ready/posted angles entirely --
+            # deleting the file behind an already-posted clip left its card
+            # showing as if the video still existed. A user-triggered delete
+            # (unlike reconcile's passive best-effort scan) should always
+            # cascade, regardless of how far the angle's status advanced.
+            product, angle = matches[0]
+            _roll(product, angle)
             return rolled_back
-
-        if len(matches) > 1:
-            print(
-                f"[ProductStore.rollback_by_video_or_project] WARNING: '{identifier}' matched "
-                f"{len(matches)} angles by filename/project stem alone -- rolling back only the "
-                "first (product_id="
-                f"{matches[0][0].get('id')!r}, angle_id={(matches[0][1].get('angle_id') or matches[0][1].get('id'))!r}). "
-                "Pass product_id/angle_id explicitly to avoid this ambiguity."
-            )
-
-        # Round BUG-3: used to skip mobile_ready/posted angles entirely --
-        # deleting the file behind an already-posted clip left its card
-        # showing as if the video still existed. A user-triggered delete
-        # (unlike reconcile's passive best-effort scan) should always
-        # cascade, regardless of how far the angle's status advanced.
-        product, angle = matches[0]
-        _roll(product, angle)
-        cls._save(products)
-        return rolled_back
 
     @classmethod
     def update_angle_videos(cls, product_id: str, angle_id: str, selected_videos: List[str]) -> Dict[str, Any]:
         """Persists selected raw footage attachments for a specific script angle in a product."""
-        products = cls._load()
-        for product in products:
-            if product["id"] == product_id:
-                angles = product.get("angles", [])
-                for angle in angles:
-                    if angle.get("angle_id") == angle_id:
-                        angle["selected_videos"] = selected_videos
-                        angle["selected_video"] = selected_videos[0] if selected_videos else None
-                        angle["updated_at"] = cls._now()
-                        product["updated_at"] = cls._now()
-                        cls._save(products)
-                        return product
-        raise ValueError(f"ไม่พบสินค้า id '{product_id}' หรือ angle '{angle_id}'")
+        with cls._mutate() as products:
+            for product in products:
+                if product["id"] == product_id:
+                    angles = product.get("angles", [])
+                    for angle in angles:
+                        if angle.get("angle_id") == angle_id:
+                            angle["selected_videos"] = selected_videos
+                            angle["selected_video"] = selected_videos[0] if selected_videos else None
+                            angle["updated_at"] = cls._now()
+                            product["updated_at"] = cls._now()
+                            return product
+            raise ValueError(f"ไม่พบสินค้า id '{product_id}' หรือ angle '{angle_id}'")
 
     @classmethod
     def set_default_videos_for_all_angles(cls, product_id: str, selected_videos: List[str]) -> Dict[str, Any]:
         """Sets default raw footage attachments for all script angles belonging to this product."""
-        products = cls._load()
-        for product in products:
-            if product["id"] == product_id:
-                for angle in product.get("angles", []):
-                    # Do not overwrite angles that are actively in_production in timeline
-                    if angle.get("status") == "in_production" or (angle.get("project_name") and angle.get("status") not in ("rendered", "posted")):
-                        continue
-                    angle["selected_videos"] = selected_videos
-                    angle["selected_video"] = selected_videos[0] if selected_videos else None
-                    angle["updated_at"] = cls._now()
-                # Also ensure each video is in product['videos']
-                v_list = product.setdefault("videos", [])
-                for v_path in selected_videos:
-                    if not any(v.get("path") == v_path or v.get("rel_path") == v_path for v in v_list):
-                        v_list.append({"rel_path": v_path, "path": v_path})
-                product["updated_at"] = cls._now()
-                cls._save(products)
-                return product
-        raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
+        with cls._mutate() as products:
+            for product in products:
+                if product["id"] == product_id:
+                    for angle in product.get("angles", []):
+                        # Do not overwrite angles that are actively in_production in timeline
+                        if angle.get("status") == "in_production" or (angle.get("project_name") and angle.get("status") not in ("rendered", "posted")):
+                            continue
+                        angle["selected_videos"] = selected_videos
+                        angle["selected_video"] = selected_videos[0] if selected_videos else None
+                        angle["updated_at"] = cls._now()
+                    # Also ensure each video is in product['videos']
+                    v_list = product.setdefault("videos", [])
+                    for v_path in selected_videos:
+                        if not any(v.get("path") == v_path or v.get("rel_path") == v_path for v in v_list):
+                            v_list.append({"rel_path": v_path, "path": v_path})
+                    product["updated_at"] = cls._now()
+                    return product
+            raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
 
     @classmethod
     def add_video_to_product(cls, product_id: str, video_info: Dict[str, Any]) -> Dict[str, Any]:
         """Attaches a raw footage item specifically to a product."""
-        products = cls._load()
-        for product in products:
-            if product["id"] == product_id:
-                v_list = product.setdefault("videos", [])
-                # Avoid duplicates
-                v_path = video_info.get("path") or video_info.get("rel_path")
-                if not any(v.get("path") == v_path or v.get("rel_path") == v_path for v in v_list):
-                    v_list.append(video_info)
-                product["updated_at"] = cls._now()
-                cls._save(products)
-                return product
-        raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
+        with cls._mutate() as products:
+            for product in products:
+                if product["id"] == product_id:
+                    v_list = product.setdefault("videos", [])
+                    # Avoid duplicates
+                    v_path = video_info.get("path") or video_info.get("rel_path")
+                    if not any(v.get("path") == v_path or v.get("rel_path") == v_path for v in v_list):
+                        v_list.append(video_info)
+                    product["updated_at"] = cls._now()
+                    return product
+            raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
 
     @classmethod
     def remove_video_from_product(cls, product_id: str, video_path: str) -> Dict[str, Any]:
         """Removes a footage link from a product."""
-        products = cls._load()
-        for product in products:
-            if product["id"] == product_id:
-                v_list = product.get("videos", [])
-                product["videos"] = [
-                    v for v in v_list
-                    if v.get("path") != video_path and v.get("rel_path") != video_path
-                ]
-                product["updated_at"] = cls._now()
-                cls._save(products)
-                return product
-        raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
+        with cls._mutate() as products:
+            for product in products:
+                if product["id"] == product_id:
+                    v_list = product.get("videos", [])
+                    product["videos"] = [
+                        v for v in v_list
+                        if v.get("path") != video_path and v.get("rel_path") != video_path
+                    ]
+                    product["updated_at"] = cls._now()
+                    return product
+            raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
 
     @classmethod
     def get_product_videos(cls, product_id: str) -> List[Dict[str, Any]]:
@@ -487,11 +520,11 @@ class ProductStore:
 
     @classmethod
     def delete(cls, product_id: str) -> None:
-        products = cls._load()
-        remaining = [p for p in products if p["id"] != product_id]
-        if len(remaining) == len(products):
-            raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
-        cls._save(remaining)
+        with cls._mutate() as products:
+            remaining = [p for p in products if p["id"] != product_id]
+            if len(remaining) == len(products):
+                raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
+            products[:] = remaining
 
     # ------------------------------------------------------------------
     # Reading & Automatic Reconciliation
