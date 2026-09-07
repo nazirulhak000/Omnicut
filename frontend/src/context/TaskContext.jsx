@@ -48,7 +48,15 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
 
   // Keep a map of previous statuses to detect transitions (e.g. processing -> completed)
   const prevStatusesRef = useRef({});
-  const isPollingRef = useRef(false);
+  // Holds the Promise of an in-flight pollTasks() call (or null when idle).
+  const inFlightPollRef = useRef(null);
+  // Set when pollTasks() is called again while one is already in flight.
+  // The in-flight call's data may predate this request's caller (e.g. a
+  // cancelTask() confirming refresh requested mid-poll needs a *fresh* fetch,
+  // not the stale one already underway) -- so instead of dropping the extra
+  // call, we queue exactly one more fetch to run right after the current one
+  // finishes, and hand its promise to the caller.
+  const queuedPollRef = useRef(null);
 
   const activeTasks = tasks.filter(t => t.status === 'processing' || t.status === 'queued');
   const activeCount = activeTasks.length;
@@ -63,58 +71,86 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
     }
   }, [tasks]);
 
-  const pollTasks = useCallback(async () => {
-    if (isPollingRef.current) return;
-    isPollingRef.current = true;
+  const fetchAndApplyTasks = useCallback(async () => {
+    const res = await getActiveTasks();
+    if (res && Array.isArray(res.tasks)) {
+      const fetchedTasks = res.tasks;
 
-    try {
-      const res = await getActiveTasks();
-      if (res && Array.isArray(res.tasks)) {
-        const fetchedTasks = res.tasks;
-
-        // Check for state transitions
-        fetchedTasks.forEach(t => {
-          const prevStatus = prevStatusesRef.current[t.id];
-          if (prevStatus && prevStatus !== t.status) {
-            if (t.status === 'completed') {
-              playCompletionChime();
-              setNotificationToast({
-                type: 'success',
-                title: '🎉 งานเสร็จสมบูรณ์!',
-                message: t.step_label || t.title,
-                task: t,
-                time: Date.now()
-              });
-              // Auto-refresh child views
-              setRefreshTrigger(prev => prev + 1);
-            } else if (t.status === 'failed') {
-              setNotificationToast({
-                type: 'error',
-                title: '❌ งานไม่สำเร็จ',
-                message: t.error || t.step_label || t.title,
-                task: t,
-                time: Date.now()
-              });
-            }
+      // Check for state transitions
+      fetchedTasks.forEach(t => {
+        const prevStatus = prevStatusesRef.current[t.id];
+        if (prevStatus && prevStatus !== t.status) {
+          if (t.status === 'completed') {
+            playCompletionChime();
+            setNotificationToast({
+              type: 'success',
+              title: '🎉 งานเสร็จสมบูรณ์!',
+              message: t.step_label || t.title,
+              task: t,
+              time: Date.now()
+            });
+            // Auto-refresh child views
+            setRefreshTrigger(prev => prev + 1);
+          } else if (t.status === 'failed') {
+            setNotificationToast({
+              type: 'error',
+              title: '❌ งานไม่สำเร็จ',
+              message: t.error || t.step_label || t.title,
+              task: t,
+              time: Date.now()
+            });
           }
+        }
+        prevStatusesRef.current[t.id] = t.status;
+      });
+
+      // Initialize prevStatuses for new tasks
+      fetchedTasks.forEach(t => {
+        if (!prevStatusesRef.current[t.id]) {
           prevStatusesRef.current[t.id] = t.status;
-        });
+        }
+      });
 
-        // Initialize prevStatuses for new tasks
-        fetchedTasks.forEach(t => {
-          if (!prevStatusesRef.current[t.id]) {
-            prevStatusesRef.current[t.id] = t.status;
-          }
-        });
-
-        setTasks(fetchedTasks);
-      }
-    } catch (err) {
-      // Network failure or backend temporarily unavailable
-    } finally {
-      isPollingRef.current = false;
+      setTasks(fetchedTasks);
     }
   }, []);
+
+  // Starts exactly one fresh fetch, tracked via inFlightPollRef.
+  const startPoll = useCallback(() => {
+    const run = (async () => {
+      try {
+        await fetchAndApplyTasks();
+      } catch (err) {
+        // Network failure or backend temporarily unavailable
+      } finally {
+        inFlightPollRef.current = null;
+      }
+    })();
+
+    inFlightPollRef.current = run;
+    return run;
+  }, [fetchAndApplyTasks]);
+
+  const pollTasks = useCallback(() => {
+    // If a poll is already running, don't drop this call -- queue exactly
+    // one more fetch to run right after it finishes and hand its promise to
+    // the caller. This matters for confirming refreshes (cancelTask, etc.):
+    // the in-flight poll may have started before their mutating API call
+    // resolved, so its data can be stale for their purposes.
+    if (inFlightPollRef.current) {
+      if (!queuedPollRef.current) {
+        queuedPollRef.current = inFlightPollRef.current
+          .catch(() => {}) // don't let the current poll's error skip the queued one
+          .then(() => {
+            queuedPollRef.current = null;
+            return startPoll();
+          });
+      }
+      return queuedPollRef.current;
+    }
+
+    return startPoll();
+  }, [startPoll]);
 
   // Adaptive Polling: 1.5s when active tasks exist, 6s when idle
   useEffect(() => {

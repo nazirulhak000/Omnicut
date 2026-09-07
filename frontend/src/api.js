@@ -6,6 +6,20 @@ const api = axios.create({
   timeout: 60000, // 60 seconds default
 });
 
+// ── Request Interceptor: attach shared-secret API key when configured ──
+// Mirrors scripts/auth.py's OMNICUT_API_KEY gate (checked via X-API-Key).
+// The gate is permissive when the backend has no key configured, so we only
+// send the header when a value is present -- that keeps today's unset-key
+// setup working unchanged. See frontend/.env.example for the env var and
+// the bundle-visibility caveat (this value ships inside the built JS).
+const API_KEY = import.meta.env.VITE_API_KEY;
+api.interceptors.request.use((config) => {
+  if (API_KEY) {
+    config.headers['X-API-Key'] = API_KEY;
+  }
+  return config;
+});
+
 // ── Response Error Interceptor for Clean, Actionable Error Messages ──
 api.interceptors.response.use(
   (response) => response,

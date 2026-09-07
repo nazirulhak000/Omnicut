@@ -1052,6 +1052,11 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
   const [linkingVideo, setLinkingVideo] = useState(null);
   const [availableProducts, setAvailableProducts] = useState([]);
   const [selectedLinkProductId, setSelectedLinkProductId] = useState('');
+  // Request-sequence guard so an older, slower handleOpenLinkModal() fetch
+  // can't clobber a newer one's selection -- same pattern as
+  // hooks/useProjectLoader.js's requestSequence ref (and
+  // productsRequestSequence above in this same file).
+  const linkModalRequestSequence = useRef(0);
   const [selectedLinkAngleId, setSelectedLinkAngleId] = useState('');
   const [isLinking, setIsLinking] = useState(false);
   const [modalDuration, setModalDuration] = useState(null);
@@ -1090,9 +1095,11 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
   }, [exportsList, showToast]);
 
   const handleOpenLinkModal = useCallback(async (video) => {
+    const sequence = ++linkModalRequestSequence.current;
     setLinkingVideo(video);
     try {
       const res = await getProducts();
+      if (sequence !== linkModalRequestSequence.current) return; // superseded by a later open
       const prods = Array.isArray(res) ? res : (res?.products || []);
       setAvailableProducts(prods);
       if (prods.length > 0) {
@@ -1104,6 +1111,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
         }
       }
     } catch (err) {
+      if (sequence !== linkModalRequestSequence.current) return;
       showToast('ไม่สามารถโหลดรายชื่อสินค้าได้: ' + err.message, 'error');
     }
   }, [showToast]);

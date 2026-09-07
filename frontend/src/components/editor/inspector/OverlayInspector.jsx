@@ -110,20 +110,26 @@ export default function OverlayInspector({
   };
 
   useEffect(() => {
+    let hookTimeoutId;
+    let textTimeoutId;
     if (selection?.type === 'hook') {
-      setTimeout(() => {
+      hookTimeoutId = setTimeout(() => {
         hookHeaderCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         hookBrandInputRef.current?.focus();
       }, 50);
     }
     if (selection?.type === 'text_overlay' && selection?.focusText) {
-      setTimeout(() => {
+      textTimeoutId = setTimeout(() => {
         if (textAreaRef.current) {
           textAreaRef.current.focus();
           textAreaRef.current.select();
         }
       }, 60);
     }
+    return () => {
+      clearTimeout(hookTimeoutId);
+      clearTimeout(textTimeoutId);
+    };
   }, [selection]);
 
   // ═════════════════════════════════════════════════════════════════════
