@@ -58,6 +58,57 @@ def _find_cover_by_stem(stem: str) -> Optional[Path]:
     return None
 
 
+def _find_cover_sibling(cover: Path, suffix: str) -> Optional[Path]:
+    """Find the other generated crop next to ``cover`` (case-insensitive)."""
+    name = cover.name
+    folded = name.casefold()
+    if folded.endswith("_cover_3x4.jpg"):
+        base = name[:-len("_cover_3x4.jpg")]
+    elif folded.endswith("_cover.jpg"):
+        base = name[:-len("_cover.jpg")]
+    else:
+        return None
+    expected = f"{base}{suffix}"
+    direct = cover.parent / expected
+    if direct.is_file():
+        return direct
+    if cover.parent.exists():
+        expected_folded = expected.casefold()
+        for candidate in cover.parent.iterdir():
+            if candidate.is_file() and candidate.name.casefold() == expected_folded:
+                return candidate
+    return None
+
+
+def _promote_tiktok_cover_variant(info: Dict[str, Any]) -> None:
+    """Expose both crops and make 3:4 the generic cover for TikTok flows."""
+    raw = info.get("cover_path")
+    if not raw:
+        return
+    selected = Path(raw)
+    if not selected.is_absolute():
+        selected = BASE_DIR / selected
+    if not selected.is_file():
+        return
+
+    cover_3x4 = selected if selected.name.casefold().endswith("_cover_3x4.jpg") else _find_cover_sibling(selected, "_cover_3x4.jpg")
+    cover_9x16 = selected if selected.name.casefold().endswith("_cover.jpg") else _find_cover_sibling(selected, "_cover.jpg")
+
+    def add_variant(key: str, path: Optional[Path]) -> None:
+        if not path or not path.is_file():
+            return
+        rel = str(path.relative_to(BASE_DIR)).replace("\\", "/")
+        info[key] = rel
+        info[key.replace("_path", "_url")] = f"/api/media/{rel}"
+
+    add_variant("cover_3x4_path", cover_3x4)
+    add_variant("cover_9x16_path", cover_9x16)
+    if cover_3x4 and cover_3x4.is_file():
+        rel = str(cover_3x4.relative_to(BASE_DIR)).replace("\\", "/")
+        info["cover_path"] = rel
+        info["cover_url"] = f"/api/media/{rel}"
+
+
 def _find_project_cover(project_name: str) -> Optional[Path]:
     """Find a cover saved with the canonical project name."""
     return _find_cover_by_stem(project_name)
@@ -250,6 +301,7 @@ def list_exports():
                 rel_cover = str(product_cover.relative_to(BASE_DIR)).replace("\\", "/")
                 info["cover_path"] = rel_cover
                 info["cover_url"] = f"/api/media/{rel_cover}"
+        _promote_tiktok_cover_variant(info)
 
         group_key = None
         if matched_prod and matched_angle:

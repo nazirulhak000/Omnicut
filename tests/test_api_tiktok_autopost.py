@@ -128,6 +128,44 @@ def test_list_exports_prefers_project_named_cover_over_product_fallback(tmp_path
     item = exports_api.list_exports()['exports'][0]
     assert item['cover_path'] == '05_Covers_Thumbnails/LOG01-แกะกล่องว้าว_1_cover.jpg'
 
+
+def test_list_exports_promotes_3x4_cover_and_keeps_9x16_fallback(tmp_path, monkeypatch):
+    exports_dir = tmp_path / '04_Exports' / 'Ready_to_post'
+    posted_dir = tmp_path / '04_Exports' / 'Posted'
+    covers = tmp_path / '05_Covers_Thumbnails'
+    exports_dir.mkdir(parents=True, exist_ok=True)
+    posted_dir.mkdir(parents=True, exist_ok=True)
+    covers.mkdir(parents=True, exist_ok=True)
+
+    video = exports_dir / 'rendered.mp4'
+    video.write_bytes(b'video')
+    cover_9x16 = covers / 'LOG01-review_1_cover.jpg'
+    cover_3x4 = covers / 'LOG01-review_1_cover_3x4.jpg'
+    cover_9x16.write_bytes(b'9x16')
+    cover_3x4.write_bytes(b'3x4')
+
+    monkeypatch.setattr(exports_api, 'BASE_DIR', tmp_path)
+    monkeypatch.setattr(exports_api, 'EXPORTS_DIR', exports_dir)
+    monkeypatch.setattr(exports_api, 'POSTED_DIR', posted_dir)
+    monkeypatch.setattr(exports_api, 'COVERS_DIR', covers)
+    monkeypatch.setattr(media, 'BASE_DIR', tmp_path)
+    monkeypatch.setattr(media, 'COVERS_DIR', covers)
+    monkeypatch.setattr(exports_api.ProductStore, 'get_all', lambda: [{
+        'id': 'product-1',
+        'name': 'Logitech Wave Keys',
+        'angles': [{
+            'angle_id': 'review',
+            'project_name': 'LOG01-review_1',
+            'video_url': '04_Exports/Ready_to_post/rendered.mp4',
+            'status': 'rendered',
+        }],
+    }])
+
+    item = exports_api.list_exports()['exports'][0]
+    assert item['cover_path'] == '05_Covers_Thumbnails/LOG01-review_1_cover_3x4.jpg'
+    assert item['cover_3x4_path'] == '05_Covers_Thumbnails/LOG01-review_1_cover_3x4.jpg'
+    assert item['cover_9x16_path'] == '05_Covers_Thumbnails/LOG01-review_1_cover.jpg'
+
 def test_prepare_and_get_pending_with_schedule_time(tmp_path, monkeypatch):
     # Ensure pending is cleared first
     tap._pending = None

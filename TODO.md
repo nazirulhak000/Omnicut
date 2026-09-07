@@ -16,6 +16,7 @@
 - [ ] Round POST-3 — ซ่อมขั้นหลังอัปโหลดและแนบปกจาก Cover Studio (2026-09-06)
 - [x] Round POST-3.14 — เปิด Cover Studio ผ่านพอร์ทัล, ใช้ชื่อโปรเจคเป็นชื่อปก, และย้ายชื่อโปรเจค Logitech ให้เป็น LOG01 (2026-09-07)
 - [x] Round POST-3.15 — ให้ `/api/exports` เลือกปกตามชื่อโปรเจคก่อน fallback เดิม (2026-09-07)
+- [ ] Round POST-3.16 — ปกแสดง 3:4 และแก้ Extension แนบปกข้อ 5 ให้เปิด dialog/อัปโหลดได้จริง (2026-09-07)
 
 - [x] Round DOC-1 — ตรวจโค้ดและอัปเดตเอกสาร/กฎให้ตรงกับระบบปัจจุบัน
 - [x] Round BUG-1 — แก้ปุ่มสร้างคลิปใหม่กดไม่ได้ (executeRender ใน useRenderJob)
@@ -55,6 +56,35 @@ npm test
 [.agents/rules/preview_render_parity.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/preview_render_parity.md)
 
 ---
+
+
+
+## Round POST-3.16 — แก้การแนบปกข้อ 5 และแสดงภาพปก 3:4
+
+วันที่: 2026-09-07 · สั่งโดย: user · สถานะ: กำลังทำ
+
+**ขอบเขต:** แก้เฉพาะขั้นตอนแนบปกของ Extension (HTML btn6/chk6 และ automation uploadCover) กับการแสดงปกใน TikTok modal; ล็อกขั้นตอน 1–4 ไม่แตะ
+
+### Todo
+
+- [x] ปรับ TikTok modal ให้ใช้ภาพปก 3:4 เมื่อมีไฟล์ 3:4 และส่ง path เดียวกันไปขั้นตอนปก
+- [x] ทำให้ Extension ตรวจ/กด “แก้ไขหน้าปก” ได้จาก DOM จริง พร้อม fallback click ที่ไม่เปิด native file picker ก่อนเวลา
+- [x] ทำให้ตัวค้นหา dialog, file input และปุ่มบันทึกครอบคลุมโครงสร้าง TikTok ปัจจุบัน โดยไม่เปลี่ยนขั้นตอน 1–4
+- [x] เพิ่ม regression tests สำหรับ mapping ปก 3:4, export variant และ selector contract ของข้อ 5
+
+### Gate
+
+- [x] `node --check tiktok_autopost_extension/automation.js` และ `node --check tiktok_autopost_extension/background.js`
+- [x] `node --test tiktok_autopost_extension/background.test.cjs`
+- [x] `npm test` และ `npm run build` ใน `frontend/`
+- [x] `python -m compileall -q scripts` และ `python -m pytest tests/test_api_tiktok_autopost.py -q -p no:cacheprovider --tb=short`
+- [ ] ทดสอบหน้าเว็บจริง: เปิด TikTok modal → Cover Studio, บันทึก both, ตรวจ preview 3:4 และตรวจว่าข้อ 5 พบ dialog/file input (ไม่กด Post)
+
+### Notes
+
+- งานค้างใน working tree ก่อนเริ่ม: `scripts/db.py`, `scripts/product_store.py`, `tests/test_reconcile_transaction.py` จากงานอื่น; ห้ามแตะหรือ stage รวม
+- Full regression: `pytest tests/` ผ่าน 864 tests และไม่มีไฟล์ขั้นตอน 1–4 ถูกแก้ในรอบนี้
+- Live page navigation เคยยืนยันการเปิด Cover Studio ได้ แต่ยังไม่มี TikTok tab ที่เชื่อมผ่าน CDP สำหรับกด Extension ข้อ 5 จริง จึงยังไม่ติ๊ก gate live นี้จนกว่าจะทดสอบบน Chrome session ของผู้ใช้
 
 ## งานค้าง (Backlog)
 

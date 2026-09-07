@@ -17,6 +17,7 @@ import CoverStudioModal from './CoverStudioModal';
 import { Modal, Toast, Button, Badge, Input, Textarea } from './ui';
 import { useDebounce, useToast } from '../hooks';
 import { guessBrandModel } from '../lib/overlayModel';
+import { applyCoverResult, getCoverVariant } from '../lib/coverVariant';
 
 // 5 Granular Pipeline Phases (Original Vibrant & Readable Palette)
 const PIPELINE_PHASES = [
@@ -1025,7 +1026,12 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
   const handleOpenTiktokModal = useCallback((ang, scheduleTime = '') => {
     if (!ang) return;
     const targetPid = ang?.parentProduct?.tiktok_product_id || ang?.parentProduct?.name || '';
-    setTiktokModalItem(ang);
+    const cover = getCoverVariant(ang);
+    setTiktokModalItem({
+      ...ang,
+      cover_url: cover.url || ang.cover_url || '',
+      cover_path: cover.path || ang.cover_path || '',
+    });
     setTiktokCaption(ang.tiktok_caption || ang.hook_title || '');
     setTiktokHashtags(ang.tiktok_hashtags || '#รีวิว #ของดีบอกต่อ');
     setTiktokProductId(targetPid);
@@ -1102,6 +1108,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
 
   const handleOpenCoverStudio = useCallback((ang) => {
     if (!ang) return;
+    const cover = getCoverVariant(ang);
     const item = {
       path: ang.video_url || '',
       rel_path: ang.video_url || '',
@@ -1111,7 +1118,10 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
       hook_title: ang.hook_title || '',
       angle_name: ang.angle_name || '',
       thumbnail_url: ang.cover_url || ang.thumbnail_url || (ang.video_url ? `/api/media/${ang.video_url}` : ''),
-      cover_url: ang.cover_url || '',
+      cover_url: cover.url || ang.cover_url || '',
+      cover_path: cover.path || ang.cover_path || '',
+      cover_3x4_url: ang.cover_3x4_url || ang.media_url_3x4 || '',
+      cover_3x4_path: ang.cover_3x4_path || '',
       parentProduct: ang.parentProduct,
       angle_id: ang.angle_id,
     };
@@ -1119,11 +1129,9 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
   }, []);
 
   const handleCoverSaved = useCallback((res) => {
-    showToast('สร้างภาพปก 9:16 สำเร็จแล้ว!');
+    showToast('สร้างภาพปก 3:4 สำเร็จแล้ว!');
     if (tiktokModalItem) {
-      setTiktokModalItem((prev) =>
-        prev ? { ...prev, cover_url: res.media_url, cover_path: res.cover_path } : null
-      );
+      setTiktokModalItem((prev) => (prev ? applyCoverResult(prev, res) : null));
     }
     fetchProductsData();
   }, [tiktokModalItem, showToast, fetchProductsData]);
@@ -2178,26 +2186,26 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
               </div>
             </div>
 
-            {/* Cover 9:16 Preview & Creator */}
+            {/* TikTok cover uses the dedicated 3:4 crop when available. */}
             <div className="flex items-center justify-between p-3 rounded-2xl bg-[#0B101B] border border-white/[0.08]">
               <div className="flex items-center gap-3 min-w-0">
                 {tiktokModalItem.cover_url ? (
-                  <div className="w-12 aspect-[9/16] rounded-lg overflow-hidden border border-amber-500/40 flex-shrink-0 shadow-md">
+                  <div className="w-12 aspect-[3/4] rounded-lg overflow-hidden border border-amber-500/40 flex-shrink-0 shadow-md">
                     <img
                       src={tiktokModalItem.cover_url}
-                      alt="Cover 9:16"
+                      alt="Cover 3:4"
                       className="w-full h-full object-cover"
                     />
                   </div>
                 ) : (
-                  <div className="w-12 aspect-[9/16] rounded-lg bg-slate-900 border border-slate-800 flex flex-col items-center justify-center text-slate-500 flex-shrink-0">
+                  <div className="w-12 aspect-[3/4] rounded-lg bg-slate-900 border border-slate-800 flex flex-col items-center justify-center text-slate-500 flex-shrink-0">
                     <ImageIcon className="w-4 h-4 opacity-40" />
                     <span className="text-[8px] mt-0.5">ยังไม่มีปก</span>
                   </div>
                 )}
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-white">ภาพปกคลิป 9:16 (TikTok Cover)</span>
+                    <span className="text-xs font-bold text-white">ภาพปกคลิป 3:4 (TikTok Cover)</span>
                     {tiktokModalItem.cover_url ? (
                       <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-300 font-bold border border-emerald-500/30">
                         พร้อมส่ง
@@ -2220,7 +2228,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                 className="py-1.5 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer whitespace-nowrap active:scale-95 transition-all flex-shrink-0"
               >
                 <ImageIcon className="w-3.5 h-3.5" />
-                <span>{tiktokModalItem.cover_url ? 'เปลี่ยนภาพปก' : 'สร้างปก 9:16'}</span>
+                <span>{tiktokModalItem.cover_url ? 'เปลี่ยนภาพปก' : 'สร้างปก 3:4'}</span>
               </button>
             </div>
 
