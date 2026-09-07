@@ -427,23 +427,12 @@ async function switchToShowcaseTab(send) {
         if (!primaryTarget) return null;
 
         const tabContainer = primaryTarget.closest('button, .TUXTabBar-item') || primaryTarget;
-
-        const trigger = (el) => {
-          if (!el) return;
-          try { el.focus(); } catch (e) {}
-          ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(type => {
-            el.dispatchEvent(new MouseEvent(type, {
-              bubbles: true,
-              cancelable: true,
-              view: window,
-              buttons: 1,
-            }));
-          });
-          try { el.click(); } catch (e) {}
-        };
-
-        trigger(tabContainer);
-        if (tabContainer !== primaryTarget) trigger(primaryTarget);
+        // React/TUX tabs toggle on one logical click. Do not synthesize a
+        // pointer sequence on both the item and its button; that previously
+        // produced duplicate state transitions and left the modal on the
+        // wrong tab.
+        try { tabContainer.focus(); } catch (e) {}
+        try { tabContainer.click(); } catch (e) { return null; }
 
         const rect = tabContainer.getBoundingClientRect();
         return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
@@ -696,7 +685,11 @@ async function attachProductLink(send, productId, cartName = '') {
           return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
         };
 
-        const root = document.querySelector('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal') || document;
+        const dialogs = Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal'))
+          .filter(isVisible);
+        const productContainer = document.querySelector('.product-selector-container');
+        const root = productContainer?.closest('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal')
+          || dialogs.at(-1) || document;
         const rows = Array.from(root.querySelectorAll('tr.product-tb-row, [class*="product-tb-row"], table tr, [role="row"], tbody tr'))
           .filter(r => isVisible(r) && !r.querySelector('th'));
 
@@ -728,13 +721,13 @@ async function attachProductLink(send, productId, cartName = '') {
           targetRow.querySelector('.TUXRadioStandalone--checked, [class*="--checked"], [aria-checked="true"]')
         );
         if (!isChecked()) {
-          const clickTarget = input || standalone || tuxRadio;
+          const clickTarget = standalone || tuxRadio || input;
           if (!clickTarget) return { success: false, reason: 'radio_not_found' };
           clickTarget.focus?.();
           clickTarget.click();
         }
 
-        const clickTarget = input || standalone || tuxRadio || targetRow;
+        const clickTarget = standalone || tuxRadio || input || targetRow;
         try { clickTarget.scrollIntoView({ behavior: 'instant', block: 'center' }); } catch (e) {}
         const rect = clickTarget.getBoundingClientRect();
         const rowRect = targetRow.getBoundingClientRect();
@@ -779,7 +772,11 @@ async function attachProductLink(send, productId, cartName = '') {
       // Verify that radio became checked OR Next button became enabled
       const statusCheck = await send('Runtime.evaluate', {
         expression: `(() => {
-          const root = document.querySelector('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal, .product-selector-container') || document;
+          const productContainer = document.querySelector('.product-selector-container');
+          const dialogs = Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal'))
+            .filter(el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
+          const root = productContainer?.closest('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal')
+            || dialogs.at(-1) || productContainer || document;
           const isChecked = Boolean(root.querySelector('.TUXRadioStandalone--checked, [class*="--checked"], input[type="radio"]:checked'));
           const buttons = Array.from(root.querySelectorAll('button, div[role="button"]'));
           const nextBtn = buttons.reverse().find(b => {
@@ -825,7 +822,11 @@ async function attachProductLink(send, productId, cartName = '') {
           const rect = el.getBoundingClientRect();
           return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
         };
-        const root = document.querySelector('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal, .product-selector-container') || document;
+        const productContainer = document.querySelector('.product-selector-container');
+        const dialogs = Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal'))
+          .filter(el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
+        const root = productContainer?.closest('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal')
+          || dialogs.at(-1) || productContainer || document;
         const buttons = Array.from(root.querySelectorAll('button, div[role="button"]')).filter(isVisible);
         const nextBtn = buttons.reverse().find(b => {
           const t = (b.innerText || b.textContent || '').trim();
@@ -846,13 +847,6 @@ async function attachProductLink(send, productId, cartName = '') {
     const step6Val = step6?.result?.value;
     if (step6Val?.success) {
       step6Success = true;
-      if (step6Val.point && step6Val.point.x > 0 && step6Val.point.y > 0) {
-        try {
-          await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: Math.round(step6Val.point.x), y: Math.round(step6Val.point.y) });
-          await send('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', buttons: 1, clickCount: 1, x: Math.round(step6Val.point.x), y: Math.round(step6Val.point.y) });
-          await send('Input.dispatchMouseEvent', { type: 'mouseReleased', button: 'left', buttons: 0, clickCount: 1, x: Math.round(step6Val.point.x), y: Math.round(step6Val.point.y) });
-        } catch (e) {}
-      }
       break;
     }
     await sleep(800);
@@ -867,7 +861,9 @@ async function attachProductLink(send, productId, cartName = '') {
 
   // Step 7: TikTok opens a second dialog for the cart display name. Wait for
   // its TUX input, optionally replace the name, then click Add once.
-  const step7 = await send('Runtime.evaluate', {
+  let step7Val = null;
+  for (let retry = 0; retry < 8; retry++) {
+    const step7 = await send('Runtime.evaluate', {
       expression: `(() => {
         const isVisible = (el) => {
           if (!el) return false;
@@ -897,6 +893,8 @@ async function attachProductLink(send, productId, cartName = '') {
           } catch (e) {}
         }
 
+        if (!nameInput || !isVisible(nameInput)) return { success: false, reason: 'cart_name_dialog_not_ready' };
+
         // 2. Click "เพิ่ม" (Add button as seen in DevTools screenshot)
         const buttons = Array.from(root.querySelectorAll('button, div[role="button"]')).filter(isVisible);
         const addBtn = buttons.find(b => {
@@ -915,7 +913,11 @@ async function attachProductLink(send, productId, cartName = '') {
       returnByValue: true,
     });
 
-  const step7Val = step7?.result?.value;
+    step7Val = step7?.result?.value;
+    if (step7Val?.success) break;
+    await sleep(700);
+  }
+
   if (!step7Val?.success) {
     return { success: false, reason: 'กดปุ่มถัดไป/เพิ่มในหน้าตั้งชื่อสินค้าไม่สำเร็จ' };
   }
@@ -1113,75 +1115,136 @@ async function switchToScheduleMode(send, schedule = {}) {
 // date/time inputs (the visible values look like 2026-09-07 and 02:05). Set
 // them only when the caller supplied values, then verify the exact value is
 // visible. An empty value intentionally means "toggle only; user chooses".
+// TikTok's schedule controls are readonly TUX inputs backed by custom pickers:
+// date cells expose only the day number and time uses separate hour/minute lists.
 async function setScheduleDateTime(send, { date = '', time = '' } = {}) {
+  const requestedDate = String(date || '').trim();
+  const rawTime = String(time || '').trim();
+  const requestedTime = /^(\d{1,2}):(\d{2})$/.test(rawTime)
+    ? rawTime.replace(/^(\d):/, '0$1:')
+    : rawTime;
+  if (!requestedDate && !requestedTime) return {success: true, changed: false};
+
+  const sendEval = expression => send('Runtime.evaluate', {expression, returnByValue: true});
+  const openInput = async (pattern, error) => {
+    const opened = await sendEval(`(() => {
+      const visible = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+      const inputs = Array.from(document.querySelectorAll('input.TUXTextInputCore-input, input[type="date"], input[type="time"]'))
+        .filter(el => visible(el) && ${pattern}.test(String(el.value || '').trim()));
+      if (inputs.length !== 1) return {success: false, count: inputs.length};
+      const current = String(inputs[0].value || '').trim();
+      inputs[0].click();
+      return {success: true, current};
+    })()`);
+    if (!opened?.result?.value?.success) throw new Error(error);
+    return opened.result.value.current;
+  };
+
+  try {
+    if (requestedDate) {
+      const target = /^(\d{4})-(\d{2})-(\d{2})$/.exec(requestedDate);
+      if (!target) throw new Error('รูปแบบวันที่ต้องเป็น YYYY-MM-DD');
+      const current = await openInput('/^\\d{4}-\\d{2}-\\d{2}$/', 'เปิดตัวเลือกวันที่ไม่สำเร็จ');
+      const currentMatch = /^(\d{4})-(\d{2})-\d{2}$/.exec(current);
+      if (currentMatch) {
+        const from = Number(currentMatch[1]) * 12 + Number(currentMatch[2]);
+        const to = Number(target[1]) * 12 + Number(target[2]);
+        const delta = Math.max(-24, Math.min(24, to - from));
+        for (let i = 0; i < Math.abs(delta); i++) {
+          const moved = await sendEval(`(() => {
+            const arrows = document.querySelectorAll('[class*="calendar-wrapper"] .month-header-wrapper .arrow');
+            const arrow = arrows[${delta >= 0 ? 1 : 0}];
+            if (!arrow) return false; arrow.click(); return true;
+          })()`);
+          if (!moved?.result?.value) throw new Error('เลื่อนไปเดือนที่ต้องการไม่สำเร็จ');
+          await sleep(120);
+        }
+      }
+      const day = String(Number(target[3]));
+      const picked = await sendEval(`(() => {
+        const visible = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+        const days = Array.from(document.querySelectorAll('[class*="calendar-wrapper"] span.day.valid'))
+          .filter(el => visible(el) && el.textContent.trim() === ${JSON.stringify(day)});
+        if (!days.length) return false; days[0].click(); return true;
+      })()`);
+      if (!picked?.result?.value) throw new Error('เลือกวันที่ที่ต้องการไม่สำเร็จ');
+      await sleep(250);
+    }
+
+    if (requestedTime) {
+      if (!/^\d{2}:\d{2}$/.test(requestedTime)) throw new Error('รูปแบบเวลาต้องเป็น HH:mm');
+      await openInput('/^\\d{1,2}:\\d{2}$/', 'เปิดตัวเลือกเวลาไม่สำเร็จ');
+      const [hour, minute] = requestedTime.split(':');
+      const pickedHour = await sendEval(`(() => {
+        const visible = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+        const values = Array.from(document.querySelectorAll('span.tiktok-timepicker-option-text.tiktok-timepicker-left'))
+          .filter(el => visible(el) && el.textContent.trim() === ${JSON.stringify(hour)});
+        if (!values.length) return false; values[0].click(); return true;
+      })()`);
+      if (!pickedHour?.result?.value) throw new Error('เลือกชั่วโมงที่ต้องการไม่สำเร็จ');
+      await sleep(180);
+      const pickedMinute = await sendEval(`(() => {
+        const visible = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+        const values = Array.from(document.querySelectorAll('span.tiktok-timepicker-option-text.tiktok-timepicker-right'))
+          .filter(el => visible(el) && el.textContent.trim() === ${JSON.stringify(minute)});
+        if (!values.length) return false; values[0].click(); return true;
+      })()`);
+      if (!pickedMinute?.result?.value) throw new Error('เลือกนาทีที่ต้องการไม่สำเร็จ');
+      await sleep(250);
+    }
+  } catch (err) {
+    return {success: false, reason: err.message};
+  }
+
+  const values = await sendEval(`(() => {
+    const visible = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+    return Array.from(document.querySelectorAll('input.TUXTextInputCore-input, input[type="date"], input[type="time"]'))
+      .filter(visible).map(el => String(el.value || '').trim());
+  })()`);
+  const shown = values?.result?.value || [];
+  const success = (!requestedDate || shown.includes(requestedDate)) && (!requestedTime || shown.includes(requestedTime));
+  return success
+    ? {success: true, changed: true}
+    : {success: false, changed: true, reason: 'schedule_value_not_confirmed'};
+}
+
+async function setScheduleDateTimeLegacy(send, { date = '', time = '' } = {}) {
   const requested = {date: String(date || '').trim(), time: String(time || '').trim()};
   if (!requested.date && !requested.time) return {success:true, changed:false};
-  const result = await send('Runtime.evaluate', {
-    expression: `(() => {
-      const visible = el => {
-        if (!el) return false;
-        if (el.checkVisibility && !el.checkVisibility({checkOpacity:true,checkVisibilityCSS:true})) return false;
-        const r = el.getBoundingClientRect();
-        return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
-      };
-      const clickables = Array.from(document.querySelectorAll('button, [role="button"], input')).filter(visible);
-      const exact = value => clickables.filter(el =>
-        String(el.value || el.innerText || el.textContent || '').trim() === value);
-      const findDate = exact(${JSON.stringify(requested.date)})[0];
-      const findTime = exact(${JSON.stringify(requested.time)})[0];
-      const nativeDate = document.querySelector('input[type="date"]');
-      const nativeTime = document.querySelector('input[type="time"]');
-      const setNative = (input, value) => {
-        if (!input || !value) return false;
-        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-        if (setter) setter.call(input, value); else input.value = value;
-        input.dispatchEvent(new Event('input', {bubbles:true}));
-        input.dispatchEvent(new Event('change', {bubbles:true}));
-        return true;
-      };
-      if (${JSON.stringify(requested.date)} && setNative(nativeDate, ${JSON.stringify(requested.date)})) return {native:'date'};
-      if (${JSON.stringify(requested.time)} && setNative(nativeTime, ${JSON.stringify(requested.time)})) return {native:'time'};
-      const currentDate = clickables.find(el => /^\\d{4}-\\d{2}-\\d{2}$/.test(String(el.innerText || el.value || '').trim()));
-      const currentTime = clickables.find(el => /^\\d{1,2}:\\d{2}$/.test(String(el.innerText || el.value || '').trim()));
-      const target = ${JSON.stringify(requested.date)} ? (findDate || currentDate) : (findTime || currentTime);
-      if (!target) return {success:false};
-      target.scrollIntoView({block:'center'});
-      target.click();
-      return {success:true, opened: !findDate && !findTime};
-    })()` ,
-    returnByValue: true,
-  });
-  if (result?.exceptionDetails) return {success:false, reason:'schedule_control_error'};
-  // If the requested value was not already visible, the first click opened a
-  // picker. Click the exact requested option in the newly opened menu.
-  for (const value of [requested.date, requested.time].filter(Boolean)) {
-    const picked = await send('Runtime.evaluate', {
-      expression: `(() => {
-        const visible = el => {
-          if (!el) return false;
-          if (el.checkVisibility && !el.checkVisibility({checkOpacity:true,checkVisibilityCSS:true})) return false;
-          const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0;
-        };
-        const matches = Array.from(document.querySelectorAll('button, [role="option"], [role="gridcell"], div, span'))
-          .filter(visible).filter(el => (el.innerText || el.textContent || '').trim() === ${JSON.stringify(value)});
-        if (matches.length !== 1) return false;
-        matches[0].click(); return true;
-      })()` , returnByValue:true,
-    });
-    if (picked?.result?.value) continue;
+  const selectValue = async (value, pattern, error) => {
+    const direct = await send('Runtime.evaluate', {expression:`(() => {
+      const visible = el => { const r=el.getBoundingClientRect(); return r.width>0 && r.height>0 && (!el.checkVisibility || el.checkVisibility({checkOpacity:true,checkVisibilityCSS:true})); };
+      return Array.from(document.querySelectorAll('button,[role="button"],input,[role="option"],[role="gridcell"]')).some(el => visible(el) && String(el.value || el.innerText || el.textContent || '').trim() === ${JSON.stringify(value)});
+    })()`, returnByValue:true});
+    if (direct?.result?.value) return true;
+    const opened = await send('Runtime.evaluate', {expression:`(() => {
+      const visible = el => { const r=el.getBoundingClientRect(); return r.width>0 && r.height>0 && (!el.checkVisibility || el.checkVisibility({checkOpacity:true,checkVisibilityCSS:true})); };
+      const controls = Array.from(document.querySelectorAll('button,[role="button"],input')).filter(el => visible(el) && ${pattern}.test(String(el.value || el.innerText || el.textContent || '').trim()));
+      if (controls.length !== 1) return false; controls[0].click(); return true;
+    })()`, returnByValue:true});
+    if (!opened?.result?.value) throw new Error(error);
+    await sleep(500);
+    const picked = await send('Runtime.evaluate', {expression:`(() => {
+      const visible = el => { const r=el.getBoundingClientRect(); return r.width>0 && r.height>0 && (!el.checkVisibility || el.checkVisibility({checkOpacity:true,checkVisibilityCSS:true})); };
+      const matches = Array.from(document.querySelectorAll('button,[role="option"],[role="gridcell"],div,span')).filter(el => visible(el) && (el.innerText || el.textContent || '').trim() === ${JSON.stringify(value)});
+      if (matches.length !== 1) return false; matches[0].click(); return true;
+    })()`, returnByValue:true});
+    if (!picked?.result?.value) throw new Error(error);
+    return true;
+  };
+  try {
+    if (requested.date) await selectValue(requested.date, `/^\\d{4}-\\d{2}-\\d{2}$/`, 'เลือกวันที่ที่ต้องการไม่สำเร็จ');
+    if (requested.time) await selectValue(requested.time, `/^\\d{1,2}:\\d{2}$/`, 'เลือกเวลาที่ต้องการไม่สำเร็จ');
+  } catch (err) {
+    return {success:false, reason:err.message};
   }
-  const verify = await send('Runtime.evaluate', {
-    expression: `(() => {
-      const value = text => Array.from(document.querySelectorAll('button, [role="button"], input, [role="option"]'))
-        .some(el => { const r=el.getBoundingClientRect(); return r.width>0 && r.height>0 && String(el.value || el.innerText || el.textContent || '').trim() === text; });
-      return ${JSON.stringify(requested.date)} ? value(${JSON.stringify(requested.date)}) : true;
-    })()` , returnByValue:true,
-  });
-  if (requested.time) {
-    const timeVerify = await send('Runtime.evaluate', {expression:`Array.from(document.querySelectorAll('button,[role="button"],input')).some(el => { const r=el.getBoundingClientRect(); return r.width>0 && r.height>0 && String(el.value || el.innerText || el.textContent || '').trim() === ${JSON.stringify(requested.time)}; })()`, returnByValue:true});
-    if (!timeVerify?.result?.value) return {success:false, reason:'schedule_time_not_confirmed'};
-  }
-  return verify?.result?.value ? {success:true, changed:true} : {success:false, reason:'schedule_date_not_confirmed'};
+  const verify = await send('Runtime.evaluate', {expression:`(() => {
+    const visible = el => { const r=el.getBoundingClientRect(); return r.width>0 && r.height>0 && (!el.checkVisibility || el.checkVisibility({checkOpacity:true,checkVisibilityCSS:true})); };
+    const has = value => Array.from(document.querySelectorAll('button,[role="button"],input')).some(el => visible(el) && String(el.value || el.innerText || el.textContent || '').trim() === value);
+    return {date: ${JSON.stringify(requested.date)} ? has(${JSON.stringify(requested.date)}) : true, time: ${JSON.stringify(requested.time)} ? has(${JSON.stringify(requested.time)}) : true};
+  })()`, returnByValue:true});
+  const values = verify?.result?.value;
+  return values?.date && values?.time ? {success:true, changed:true} : {success:false, reason:'schedule_value_not_confirmed'};
 }
 
 // After a successful Post/Schedule click, TikTok Studio's own SPA can throw
@@ -1480,7 +1543,7 @@ async function runScheduleModeOnly({ date = '', time = '' } = {}) {
       }
       return { success: false, reason: 'หาตัวเลือก "กำหนดเวลา"/"ตั้งเวลา" บนหน้าเว็บไม่พบ' };
     }
-    return { success: true };
+    return switched;
   } finally {
     try {
       await chrome.debugger.detach({ tabId: tab.id });

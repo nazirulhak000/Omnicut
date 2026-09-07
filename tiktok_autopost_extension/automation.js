@@ -155,6 +155,8 @@ globalThis.OmniAutomation = (() => {
 
     // 3. Wait for image preview to render inside the modal
     await wait(send, `(() => {
+      const input = ${fileInputQuery};
+      if (!input || !input.files || input.files.length === 0) return false;
       const preview = Array.from(document.querySelectorAll('img, canvas')).some(el => {
         const rect = el.getBoundingClientRect();
         return rect.width > 50 && rect.height > 50 && (el.tagName === 'CANVAS' || (el.complete && el.naturalWidth > 0));

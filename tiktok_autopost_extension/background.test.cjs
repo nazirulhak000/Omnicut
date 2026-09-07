@@ -78,3 +78,21 @@ test('background.js does not contain invalid numeric ID selectors like #1 or #2'
   const invalidIdMatch = code.match(/querySelector(?:All)?\s*\(\s*['"`][^'"`]*#[0-9]/);
   assert.equal(invalidIdMatch, null, `Found invalid numeric ID selector: ${invalidIdMatch?.[0]}`);
 });
+
+test('live DOM contracts for the reported TikTok screens stay in the worker', () => {
+  const code = fs.readFileSync(path.join(__dirname, 'background.js'), 'utf8');
+  const automation = fs.readFileSync(path.join(__dirname, 'automation.js'), 'utf8');
+  const panel = fs.readFileSync(path.join(__dirname, 'sidepanel.js'), 'utf8');
+  assert.match(code, /TUXRadioStandalone-input/);
+  assert.match(code, /cartName/);
+  assert.match(code, /scheduleDate/);
+  assert.match(code, /tiktok-timepicker-option-text/);
+  assert.match(code, /calendar-wrapper/);
+  assert.match(code, /span\.day\.valid/);
+  const showcaseFn = code.slice(code.indexOf('async function switchToShowcaseTab'), code.indexOf('async function attachProductLink'));
+  assert.doesNotMatch(showcaseFn, /dispatchEvent\(new MouseEvent/);
+  assert.match(automation, /ImageUpload__uploadArea/);
+  assert.match(automation, /DOM\.setFileInputFiles/);
+  assert.match(panel, /scheduleDateInput/);
+  assert.match(panel, /scheduleTimeInput/);
+});
