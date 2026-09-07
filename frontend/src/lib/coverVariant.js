@@ -1,3 +1,5 @@
+import { toMediaUrl } from './mediaUrl.js';
+
 /**
  * Keeps the two generated cover crops explicit. TikTok's cover picker uses
  * the 3:4 crop; the 9:16 file remains available as a fallback for older
@@ -5,11 +7,14 @@
  */
 export function getCoverVariant(item = {}, preferred = '3:4') {
   const threeByFour = {
-    url: item.cover_3x4_url || item.media_url_3x4 || '',
+    // Older API responses persisted the path but omitted its derived URL.
+    // Resolve it here so the posting modal can still render and edit that
+    // saved cover without requiring another server-side migration.
+    url: item.cover_3x4_url || item.media_url_3x4 || toMediaUrl(item.cover_3x4_path),
     path: item.cover_3x4_path || '',
   };
   const nineBySixteen = {
-    url: item.cover_9x16_url || item.media_url || item.cover_url || '',
+    url: item.cover_9x16_url || item.media_url || item.cover_url || toMediaUrl(item.cover_9x16_path || item.cover_path),
     path: item.cover_9x16_path || item.cover_path || '',
   };
   const ordered = preferred === '3:4'
@@ -20,11 +25,11 @@ export function getCoverVariant(item = {}, preferred = '3:4') {
 
 export function applyCoverResult(item = {}, result = {}) {
   const threeByFour = {
-    url: result.media_url_3x4 || result.cover_3x4_url || '',
+    url: result.media_url_3x4 || result.cover_3x4_url || toMediaUrl(result.cover_3x4_path),
     path: result.cover_3x4_path || '',
   };
   const nineBySixteen = {
-    url: result.media_url || result.cover_url || '',
+    url: result.media_url || result.cover_url || toMediaUrl(result.cover_path),
     path: result.cover_path || '',
   };
   const selected = getCoverVariant({

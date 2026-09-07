@@ -188,6 +188,35 @@ Date: 2026-09-07; Requested by: user; Status: in progress
 - The follow-up now sends `DOM.setFileInputFiles` with the scoped Runtime `objectId`, dispatches events on that same object, and retries once if TikTok replaces the hidden input.
 - `frontend/src/components/ContentTrackerHub.jsx` and `frontend/src/components/ProductToClip.jsx` contain unrelated working-tree changes; do not touch or stage them.
 
+## Round POST-3.20 - edit generated cover inside OmniCut
+
+Date: 2026-09-07; Requested by: user; Status: in progress
+
+**Goal:** Let the user edit or regenerate the saved 3:4 TikTok cover directly in OmniCut Cover Studio, then keep the selected cover visible in the TikTok preparation modal after refresh.
+
+**Scope:** Inspect the current TikTok modal -> Cover Studio handoff, saved cover hydration, and edit affordance. Keep steps 1-4 and the working extension upload flow unchanged.
+
+### Todo
+
+- [x] Reproduce the current modal state where a saved cover is not shown or the edit action is unclear.
+- [x] Define the edit path: open Cover Studio with the existing cover context, allow frame/crop/text changes, and persist the resulting 3:4 path.
+- [x] Add deterministic regression coverage for path-only saved covers and restoring the selected 3:4 variant after refresh.
+- [x] Improve the cover card behavior so the action clearly says edit when a saved cover exists and create when it does not.
+- [x] Run frontend/backend tests and build.
+- [ ] Verify the remaining live edit -> save -> refresh flow in the browser.
+
+### Gate
+
+- [x] `npm test` - 72 passed
+- [x] `npm run build` - passed
+- [x] relevant backend cover tests - 14 passed, 1 existing warning
+- [ ] browser verification of edit -> save -> refresh -> modal
+
+### Notes
+
+- Implementation commit: `0e35cbc` (`fix: restore path-only cover previews`).
+- Existing uncommitted changes belong to another workstream: `frontend/src/components/editor/EditorShell.jsx`, `frontend/src/components/editor/Timeline.jsx`, `frontend/src/components/editor/TimelineClip.jsx`, `frontend/src/lib/timelineMath.js`, `frontend/src/lib/timelineMath.test.js`, and the untracked screenshots `alt-drag-left.png`, `alt-drag-mid.png`, `clip-selected.png`, `timeline-loaded.png`; do not modify, delete, or stage them.
+- Steps 1-4 and the extension upload implementation are frozen by the user.
 ## งานค้าง (Backlog)
 
 ### Round POST-3 — แผนก่อนลงมือ (2026-09-06 / อัปเดตแก้ขั้น 3)
