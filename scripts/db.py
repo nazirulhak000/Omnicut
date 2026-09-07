@@ -327,6 +327,7 @@ class _MutateCtx:
         self._table = table
         self._conn: sqlite3.Connection | None = None
         self._records: List[Dict[str, Any]] | None = None
+        self._snapshot: str | None = None
 
     def __enter__(self) -> List[Dict[str, Any]]:
         t = self._table
@@ -336,6 +337,13 @@ class _MutateCtx:
         self._conn = conn
         rows = conn.execute(f"SELECT data FROM {t._table}").fetchall()
         self._records = [json.loads(r[0]) for r in rows]
+        # Remember what was read so __exit__ can tell a real mutation from a
+        # block that turned out to change nothing. Some callers hold this
+        # transaction only because they MIGHT write -- product_store's
+        # reconcile_existing_projects() runs on every product listing, and
+        # rewriting every row plus the JSON mirror each time the UI polls
+        # would be pure churn.
+        self._snapshot = json.dumps(self._records, ensure_ascii=False, sort_keys=True)
         return self._records
 
     def __exit__(self, exc_type, exc, tb) -> bool:
@@ -347,6 +355,13 @@ class _MutateCtx:
 
         t = self._table
         records = self._records or []
+        if json.dumps(records, ensure_ascii=False, sort_keys=True) == self._snapshot:
+            # Nothing changed. Close the transaction without touching the
+            # table; the write lock was held for the duration either way, so
+            # a concurrent writer still could not have raced this block.
+            conn.execute("COMMIT")
+            return False
+
         try:
             conn.execute(f"DELETE FROM {t._table}")
             for record in records:

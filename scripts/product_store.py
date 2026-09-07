@@ -598,11 +598,6 @@ class ProductStore:
         Scans 03_Projects and 04_Exports to match existing rendered projects
         with their corresponding angles in products.json.
         """
-        products = cls._load()
-        if not products:
-            return False
-
-        changed = False
         projects_dir = BASE_DIR / "03_Projects"
         exports_dir = BASE_DIR / "04_Exports" / "Ready_to_post"
         # A posted clip's mp4 lives here now (Round POST-1.4) -- if this scan
@@ -610,8 +605,33 @@ class ProductStore:
         # "no export exists yet" the moment it was moved out.
         posted_dir = BASE_DIR / "04_Exports" / "Posted"
 
+        # Checked before opening the transaction: there is nothing to
+        # reconcile against without the folder, so no reason to take the
+        # write lock.
         if not projects_dir.exists():
             return False
+
+        changed = False
+        # The scan below reads the disk and rewrites angle status/paths, so
+        # it has to hold the same transaction the read happened in -- it used
+        # to _load() here and _save() at the end, which is exactly the
+        # lost-update race 83a9f1e closed everywhere else: get_all() calls
+        # this on every product listing, so a UI poll and a finishing render
+        # could each read the same list and one silently drop the other's
+        # reconciliation. _mutate() commits without rewriting when nothing
+        # actually changed, which is the common case here.
+        with cls._mutate() as products:
+            if not products:
+                return False
+            changed = cls._reconcile_into(products, projects_dir, exports_dir, posted_dir)
+        return changed
+
+    @classmethod
+    def _reconcile_into(cls, products, projects_dir, exports_dir, posted_dir) -> bool:
+        """The scan itself, mutating `products` in place. Returns True when
+        anything changed. Split out so the transaction boundary above stays
+        readable; not meant to be called directly."""
+        changed = False
 
         for p_folder in projects_dir.iterdir():
             if not p_folder.is_dir():
@@ -789,8 +809,6 @@ class ProductStore:
                     angle["video_url"] = None
                     changed = True
 
-        if changed:
-            cls._save(products)
         return changed
 
     @classmethod
