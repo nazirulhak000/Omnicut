@@ -191,6 +191,19 @@ def generate_ai_scripts(req: ScriptGenerateRequest):
             ]
         }
 
+    # Pre-flight budget check. This endpoint calls Gemini directly rather than
+    # through ai_bridge, so it needs its own gate -- without it the daily cap
+    # cannot apply here at all, and the except below would report a cap as a
+    # generic fallback anyway. Answer 429 as /api/voice/preview does; there is
+    # no global AppError handler, so an uncaught one would surface as a 500.
+    from scripts.quota import check_budget
+    try:
+        check_budget(task="ai_script")
+    except Exception as q_err:
+        if is_quota_error(q_err):
+            raise HTTPException(status_code=429, detail=q_err.suggestion_th)
+        raise
+
     try:
         from google import genai
         client = genai.Client(api_key=api_key)

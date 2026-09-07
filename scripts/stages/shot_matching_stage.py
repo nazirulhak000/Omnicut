@@ -357,7 +357,18 @@ class ShotMatchingStage:
                     generated_clips.append(clip_entry)
                 actual_clip_list = generated_clips
             except Exception as shot_err:
-                print(f"Warning: Failed to generate shot clip_list: {shot_err}")
+                # Same reasoning as the AI Vision handler above: a quota hit is
+                # the user's own daily cap, not a provider failure, and the
+                # single-clip fallback below hides that distinction unless it
+                # is said out loud in the job's progress log.
+                if is_quota_error(shot_err):
+                    ctx.notify(
+                        "⚠️ เกินโควต้า AI ต่อวันแล้ว — ข้ามการวิเคราะห์โทนบท ใช้คลิปเดียวตลอดความยาวแทน",
+                        0.85,
+                    )
+                    print(f"Warning: tone-shift analysis skipped: quota exceeded ({shot_err})")
+                else:
+                    print(f"Warning: Failed to generate shot clip_list: {shot_err}")
                 actual_clip_list = [{
                     "id": "clip_0",
                     "source_path": str(raw_video),

@@ -344,6 +344,13 @@ class ProductScraper:
                         api_key = line.split("=", 1)[1].strip()
                         break
         if api_key:
+            # Pre-flight budget check. This calls Gemini directly rather than
+            # through ai_bridge, so without its own gate the daily cap cannot
+            # apply here -- and the except below folds every failure into the
+            # template fallback, which would report a cap as a scrape miss.
+            from scripts.quota import check_budget
+            check_budget(task="content_matrix")
+
             try:
                 from google import genai
                 client = genai.Client(api_key=api_key)

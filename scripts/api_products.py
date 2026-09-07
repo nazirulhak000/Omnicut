@@ -16,6 +16,7 @@ from scripts.product_scraper import ProductScraper
 from scripts.product_store import ProductStore
 from scripts.task_manager import TaskManager
 from scripts.media_service import get_file_info
+from scripts.quota import is_quota_error
 from scripts.tts_sanitizer import TTSSanitizer
 
 router = APIRouter(tags=["Products"])
@@ -251,6 +252,10 @@ def scrape_and_plan(payload: Dict[str, Any]):
             "angles": angles
         }
     except Exception as e:
+        # A quota hit is the user's own daily cap, not a scrape failure; 500
+        # would send them looking for a broken URL instead.
+        if is_quota_error(e):
+            raise HTTPException(status_code=429, detail=e.suggestion_th)
         print(f"[API] Scrape and plan error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -351,7 +356,16 @@ def _execute_scrape_and_plan_worker(task_id: str, payload: Dict[str, Any]):
         )
     except Exception as e:
         print(f"❌ [TaskManager] Scrape task failed ({task_id}): {e}")
-        TaskManager.fail_task(task_id, str(e), step_label="วิเคราะห์สินค้าไม่สำเร็จ")
+        if is_quota_error(e):
+            # Say which cap stopped it. "วิเคราะห์สินค้าไม่สำเร็จ" would send the
+            # user looking for a bad URL instead of their own daily budget.
+            TaskManager.fail_task(
+                task_id,
+                e.suggestion_th,
+                step_label="เกินโควต้า AI ต่อวันแล้ว",
+            )
+        else:
+            TaskManager.fail_task(task_id, str(e), step_label="วิเคราะห์สินค้าไม่สำเร็จ")
 
 
 @router.post("/api/products/scrape-and-plan-async")

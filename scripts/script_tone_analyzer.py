@@ -82,6 +82,13 @@ class ScriptToneAnalyzer:
             return cached
 
         expected_len = len(group_texts) - 1
+
+        # Pre-flight budget check, after the cache lookup above so a hit costs
+        # no quota, and outside the try below so AppError(AI_QUOTA_EXCEEDED)
+        # reaches the caller instead of being folded into the generic fallback.
+        from scripts.quota import check_budget
+        check_budget(task="tone_shift")
+
         try:
             from google import genai
 
