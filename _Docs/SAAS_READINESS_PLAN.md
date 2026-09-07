@@ -15,9 +15,8 @@ Audit ของ Capcut content studio — สถานะปัจจุบั�
 > ข้อ 6 (tenant isolation), ข้อ 7–9 (normalize schema / object storage) **พักไว้ทั้งหมด**
 > เอกสารยังเก็บไว้เพราะวิเคราะห์แล้วและจะได้ไม่ต้องรื้อใหม่ถ้าวันหนึ่งเปลี่ยนใจ
 >
-> **สิ่งที่ยังคุ้มทำถึงจะใช้คนเดียว:** ข้อ 3 (`reconcile_existing_projects()` หลุด transaction —
-> UI poll ทุก 1.5 วิ + background render ชนกันเองได้ ไม่ต้องมีผู้ใช้คนที่สอง)
-> และการต่อ `X-API-Key` เข้า extension ถ้าวันไหนเปิด `OMNICUT_API_KEY` (ดูข้อ 1)
+> **สิ่งที่คุ้มทำสำหรับใช้คนเดียว — ทำครบแล้ว** (`fe45404` ปิด `reconcile_existing_projects()`
+> ซึ่งเป็นข้อสุดท้าย) เหลือแค่ต่อ `X-API-Key` เข้า extension ถ้าวันไหนเปิด `OMNICUT_API_KEY` (ดูข้อ 1)
 
 ---
 
@@ -40,7 +39,7 @@ Audit ของ Capcut content studio — สถานะปัจจุบั�
 | SSRF (product scraper) | ✅ ปิดแล้ว (`d4fc3dc`) — resolve + block private/loopback ทุก redirect hop + domain allowlist |
 | Frontend fetch race (tracker board) | ✅ ปิดแล้ว (`d4fc3dc`, ขยายเพิ่ม `a8c7870`) |
 | O(n²) export/raw-vault scan | ✅ ปิดแล้ว (`d4fc3dc`) |
-| Lost-update race (JSON store) | ✅ ปิดแล้ว (`83a9f1e` — ย้ายลง SQLite + `BEGIN IMMEDIATE`) — **ยกเว้น 1 เมธอดที่ยังหลุด ดูข้อ 3** |
+| Lost-update race (JSON store) | ✅ ปิดครบแล้ว (`83a9f1e` ย้ายลง SQLite + `BEGIN IMMEDIATE`, `fe45404` เก็บเมธอดสุดท้าย) |
 | Absolute path ฝังใน data | ✅ ปิดแล้ว (`cea03eb`) — ปลดล็อก object storage แล้ว |
 | Silent-fail pipeline (TTS drop, timeout, ffprobe 15s) | ✅ ปิดแล้ว (`c12527b`) |
 | Extension silent-success (post/link/schedule ไม่เช็คผล) | ✅ ปิดแล้ว (`c12527b`, live-verify รอบ POST-3.x) |
@@ -49,7 +48,7 @@ Audit ของ Capcut content studio — สถานะปัจจุบั�
 | **ไม่มี auth/per-user identity เลย** | 🔴 blocking สำหรับ SaaS — ยังไม่เริ่ม |
 | **Render in-process, `_RENDER_SLOT` ล็อกเดียวทั้งโปรเซส** | 🔴 blocking — ไม่มี job queue |
 | `renderJobModel.js` key ด้วยชื่อ project | ✅ ปิดแล้ว (`46135c7`) — key เดียวทั้งแท็บ addressed ด้วย job uuid4 |
-| **`ProductStore.reconcile_existing_projects()` ยังใช้ bare `_load()`/`_save()`** | 🟠 หลุดจาก transaction ที่ `83a9f1e` วางไว้ |
+| `ProductStore.reconcile_existing_projects()` หลุด transaction | ✅ ปิดแล้ว (`fe45404`) — เข้า `_mutate()` แล้ว + commit เฉพาะตอนเปลี่ยนจริง |
 | **`token_tracker` cache ยังมีช่องโหว่ same-tick-same-size** | 🟡 ทฤษฎีล้วนๆ วันนี้ ไม่เคยเจอจริง |
 | **SQLite เป็น document store** (`angles`/`videos` ไม่ normalize) | 🟠 ตั้งใจ — ต้องแลกกับงาน rewrite ใหญ่ก่อนแตะ |
 | Vision cache ข้าม cue set / `ad_tone` fallback เงียบ | ✅ ตัดสินใจแล้ว (`ada92f6`) |
@@ -58,7 +57,10 @@ Audit ของ Capcut content studio — สถานะปัจจุบั�
 
 ---
 
-## P0 — ยังเปิดอยู่วันนี้ (ผลกระทบจริง ไม่ต้องรอ SaaS)
+## P0 — blocking ถ้าจะเปิดให้คนอื่น (พักไว้ตามขอบเขตด้านบน)
+
+> ทั้งสองข้อในหมวดนี้ **ไม่กระทบการใช้เองคนเดียว** — เก็บไว้เพราะเป็นสิ่งแรกที่ต้องทำ
+> ถ้าวันหนึ่งเปลี่ยนใจ ไม่ใช่ของค้างที่ต้องรีบ
 
 ### 1. ไม่มี authentication จริง 🔴
 `scripts/api_server.py:92-128`
@@ -83,18 +85,6 @@ Audit ของ Capcut content studio — สถานะปัจจุบั�
 
 **Fix:** ต้องเป็น job queue จริง (arq แนะนำกว่า Celery สำหรับทีมเล็ก — asyncio-native, ops น้อย) + `_RENDER_SLOT` กลายเป็น worker-pool sizing + per-tenant concurrency rule
 **Effort:** LARGE — เป็นโปรเจกต์แยก ต้องคิดเรื่อง retry policy ด้วย (TTS network ล้ม = retry ได้, ffmpeg OOM = อย่า retry)
-
-### 3. `ProductStore.reconcile_existing_projects()` หลุดจาก transaction 🟠
-`scripts/product_store.py:596-793`
-
-`83a9f1e` ย้าย `ProductStore`/`PostLog` ทั้งคู่ไปอยู่บน SQLite แล้วครอบทุก mutate ด้วย `_mutate()` context manager ที่เปิด `BEGIN IMMEDIATE` (ดู `scripts/db.py:197,230,335`) — แก้ lost-update race ของเดิมได้จริง
-
-แต่ `reconcile_existing_projects()` (เรียกจาก `get_all()` ทุกครั้งที่ list สินค้า) ยังเขียนแบบเดิม: `products = cls._load()` ตรง entry (บรรทัด 601) แก้ list ใน memory ตลอดฟังก์ชัน แล้ว `cls._save(products)` ท้ายฟังก์ชัน (บรรทัด 793) — **ไม่ผ่าน `_mutate()` เลย** เป็นเมธอดเดียวที่เหลือหลุดจาก 12 จุดที่ใช้ `with cls._mutate()` ถูกต้อง
-
-**Failure scenario:** สอง request เรียก `get_all()` พร้อมกัน (poll UI 2 แท็บ, หรือ background job + UI) — ทั้งคู่ `_load()` เห็น state เดียวกัน, mutate คนละ field, `_save()` ทับกัน → การ reconcile ของฝั่งหนึ่งหาย เงียบๆ เหมือนบัคเดิมที่ `83a9f1e` เพิ่งแก้ไป แต่หลุดเฉพาะ endpoint นี้
-
-**Fix:** ห่อทั้งฟังก์ชันด้วย `with cls._mutate() as products:` เหมือนเมธอดอื่น (ต้องปรับ logic เพราะตอนนี้มี early-return `if not products: return False` และหลาย `if changed: cls._save()` — ต้อง restructure ให้เข้ากับ pattern yield-then-commit)
-**Effort:** SMALL–MEDIUM (ฟังก์ชันยาว ~200 บรรทัด logic ซับซ้อนกว่าเมธอดอื่นที่ย้ายไปแล้ว ต้อง test ครอบคลุม edge case เดิมทั้งหมด)
 
 ---
 
@@ -279,6 +269,7 @@ extension มีทางของตัวเอง (upload ผ่าน CDP �
 - **Test เขียนทับ data จริง** — `test_analysis_fixes.py`, `test_export_versioning.py` ไม่ใช้ `tmp_path` → isolate แล้ว (`d4fc3dc`, เพิ่มอีกใน `1c0e07b` ที่พบ 4 test สร้าง real project dir ใต้ `03_Projects`)
 - **Task/job id เดาได้ + ไม่มี owner scoping** — `f"task_{ms_timestamp}_{6 hex}"` walkable, `_tasks`/`ACTIVE_JOBS` ไม่มี owner key เลย → `secrets.token_urlsafe(16)` + `owner_id` scoping ทุก lookup/mutation (`18735fd`)
 - **`complete_task()`/`fail_task()` ไม่มี terminal guard** — task ที่ fail แล้วโดน complete ทับสถานะได้ (ค้าง error ไว้พร้อม status COMPLETED) → เพิ่ม guard (`18735fd`)
+- **`reconcile_existing_projects()` เขียนนอก transaction** — เมธอดสุดท้ายที่เหลือใช้ pattern เดิม (`_load()` ต้น → mutate → `_save()` ท้าย, read อยู่นอกล็อก) และ `get_all()` เรียกมันทุกครั้งที่ list สินค้า → UI poll ทุก 1.5 วิ กับ render ที่เพิ่งเสร็จ อ่าน list เดียวกันแล้วทับกันได้เอง **ไม่ต้องมีผู้ใช้คนที่สอง** → ย้ายเข้า `_mutate()` + ให้ `_MutateCtx` commit เฉพาะตอน records เปลี่ยนจริง (ไม่งั้น scan ที่ไม่เจออะไรจะ rewrite ทุกแถว + แตะ mirror ทุก poll) (`fe45404`)
 - **Vision matcher คืน scene map ของสคริปต์อื่น** — fallback 3 จุดหา cache ด้วย `k.startswith(file_hash)` ซึ่งเป็นครึ่งวิดีโอของ key `{file_hash}_{md5(cue text)}` → แก้บทแล้ว render ใหม่ แต่ parse response ไม่ออก = ได้ shot ที่ตรงกับบทเก่ามาเงียบๆ → **ตัดสินใจแล้ว: ต้องตรงทั้ง key** (วิดีโอ+บท) ไม่ตรงก็ตกไป rhythmic cuts (`ada92f6`)
 - **`ad_tone` ที่ไม่รู้จักเงียบๆ** — **ตัดสินใจแล้ว: ใช้ `commercial_premium` ต่อ** (fail เพราะพิมพ์ผิดแย่กว่า) แต่เพิ่ม warning เพราะเสียงที่ออกมาเพี้ยนเล็กน้อยไม่มีอะไรบอกว่า direction ที่ขอถูกทิ้ง (`ada92f6`)
 - **`renderJobModel.js` key ด้วยชื่อ project ที่แสดงผล** — label ต่างกันระหว่าง save/read (EditorShell กับ NewClipPanel คำนวณคนละที่) ทำให้หา job ที่กำลังรันไม่เจอ UI บอกว่าไม่มี render, และ fallback `'วิดีโอ'` ทำให้ render ที่ไม่มีชื่อสองงานทับ key กัน → เปลี่ยนเป็น key เดียวทั้งแท็บถือ `{jobId, projectKey}` addressed ด้วย uuid4 ของ job (`46135c7`)
