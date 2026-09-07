@@ -14,6 +14,7 @@
 ## สถานะรวม
 
 - [ ] Round POST-3 — ซ่อมขั้นหลังอัปโหลดและแนบปกจาก Cover Studio (2026-09-06)
+- [x] Round POST-3.14 — เปิด Cover Studio ผ่านพอร์ทัล, ใช้ชื่อโปรเจคเป็นชื่อปก, และย้ายชื่อโปรเจค Logitech ให้เป็น LOG01 (2026-09-07)
 
 - [x] Round DOC-1 — ตรวจโค้ดและอัปเดตเอกสาร/กฎให้ตรงกับระบบปัจจุบัน
 - [x] Round BUG-1 — แก้ปุ่มสร้างคลิปใหม่กดไม่ได้ (executeRender ใน useRenderJob)
@@ -978,13 +979,3 @@ Notes: Schedule code and steps 1-3 remain frozen.
 - [ ] Verify the reloaded extension receives the fallback `cover_path` and completes Cover Studio upload.
 
 Notes: Schedule selection logic itself remains frozen; only checklist styling and cover metadata resolution changed.
-
-#### POST-3.14 - Cover Studio entry, project-based cover names, and legacy project label
-
-Date: 2026-09-07
-
-- [ ] Keep CoverStudioModal hook order stable so opening it from the TikTok modal renders the editor instead of triggering a React render error.
-- [ ] Pass the canonical project name into Cover Studio and use it as the cover export stem, with the video stem as a safe fallback.
-- [ ] Migrate the remaining legacy Logitech unboxing project label to the existing LOG01 naming convention with a backup, without touching schedule code or steps 1-4.
-- [ ] Add regression coverage for cover stem resolution and run frontend/backend checks.
-- [ ] Record exact verification results and move this block to HISTORY.md when the gates pass.
