@@ -348,26 +348,21 @@ const KanbanCard = memo(function KanbanCard({
         </div>
       ))}
       
-      {/* 1. Header: Product Name + Badge + Detail Inspect Icon */}
+      {/* 1. Header: Project Name (falls back to product name pre-editor) + Detail Inspect Icon */}
       <div className="flex items-center justify-between gap-1.5 text-xs">
         <span
           onClick={() => onInspectAngle(ang)}
           className="font-bold text-white truncate flex-1 min-w-0 font-kanit text-sm hover:text-[#25F4EE] cursor-pointer flex items-center gap-1.5"
-          title={`คลิกเพื่อดูรายละเอียดเชิงลึกของ: ${ang.parentProduct?.name}`}
+          title={`คลิกเพื่อดูรายละเอียดเชิงลึกของ: ${ang.project_name || ang.parentProduct?.name}`}
         >
           {ang.parentProduct?.product_code && (
             <span className="px-1.5 py-0.2 rounded bg-fuchsia-500/15 border border-fuchsia-500/30 text-fuchsia-300 font-mono text-[10px] flex-shrink-0">
               {ang.parentProduct.product_code}
             </span>
           )}
-          <span className="truncate">{ang.parentProduct?.name}</span>
+          <span className="truncate">{ang.project_name || ang.parentProduct?.name}</span>
         </span>
         <div className="flex items-center gap-1 flex-shrink-0">
-          {ang.badge && (
-            <span className="text-xs px-1.5 py-0.2 font-mono font-bold rounded bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/30 whitespace-nowrap">
-              {ang.badge}
-            </span>
-          )}
           <button
             onClick={() => onInspectAngle(ang)}
             className="p-0.5 rounded text-slate-500 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
