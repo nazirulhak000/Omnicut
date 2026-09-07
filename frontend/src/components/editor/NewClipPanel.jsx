@@ -52,10 +52,13 @@ function rateToSpeed(rate) {
   return m ? 1 + Number(m[1]) / 100 : 1.15;
 }
 
+// Kanit/Prompt removed 2026-09-07: their font files have no GPOS mark-anchor
+// for stacked Thai tone marks (เพิ่ง/สิ่ง render with the tone mark and vowel
+// merged into one blob) -- confirmed via a libass-vs-PIL differential render,
+// same collapse in both, so it's the font file itself, not a libass bug.
+// IBM Plex Sans Thai and Noto Sans Thai render these correctly.
 const FONTS = [
   { id: 'IBMPlex', label: 'IBM Plex Sans Thai' },
-  { id: 'Kanit', label: 'Kanit' },
-  { id: 'Prompt', label: 'Prompt' },
   { id: 'NotoSansThai', label: 'Noto Sans Thai' },
 ];
 

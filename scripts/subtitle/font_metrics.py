@@ -20,6 +20,12 @@ _LEGACY_FONT_ALIASES = {
     "ibm_tech": "IBM Plex Sans Thai",
     "ChakraPetch": "Chakra Petch",
     "Minimal Dark Capsule Pill": "capsule_pill",
+    # NewClipPanel.jsx's font picker sends this id, which never matched any
+    # preset id/font_name/family key below -- it silently fell through to
+    # DEFAULT_FONT_FAMILY (IBM Plex), so picking "Noto Sans Thai" in the UI
+    # rendered in IBM Plex instead, with no error or indication (found while
+    # diagnosing the Kanit/Prompt tone-mark bug, 2026-09-07).
+    "NotoSansThai": "Noto Sans Thai",
 }
 
 

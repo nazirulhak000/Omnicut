@@ -58,6 +58,18 @@ npm test
 
 ### Round POST-3 — แผนก่อนลงมือ (2026-09-06 / อัปเดตแก้ขั้น 3)
 
+#### POST-3.1 — แก้จากหลักฐานหน้าจอ TikTok จริง (2026-09-07)
+
+- [ ] Radio สินค้า: ลดการคลิกซ้ำเหลือครั้งเดียวต่อ fallback และยืนยัน `checked/aria-checked` ก่อนเดินหน้า
+- [ ] Dialog ตั้งชื่อตะกร้า: รอ input `TUXTextInputCore-input` และปุ่ม `เพิ่ม` แล้วตรวจ modal ปิด/ชิปสินค้าหลังเพิ่ม
+- [ ] ตั้งเวลา: รับค่า date/time จาก Side Panel และยืนยันค่าที่แสดงจริงก่อนรายงานสำเร็จ
+- [ ] ปก: รองรับ `label.ImageUpload__uploadArea` และ file input ที่อยู่ใน/ข้าง label ผ่าน `DOM.setFileInputFiles`
+- [ ] เพิ่ม regression test สำหรับ radio toggle, cart-name dialog, schedule payload และ cover selector
+
+หลักฐาน: ภาพวันที่ 2026-09-07 แสดง `input.TUXRadioStandalone-input` ที่ยังไม่ถูกเลือก,
+dialog ชื่อสินค้าใช้ `input.TUXTextInputCore-input` และปกใช้ `label.ImageUpload__uploadArea`
+role=`button`; การทดสอบ live ยังไม่ปิดจนกว่าผู้ใช้จะ reload extension และยืนยันผลจริง
+
 - [x] แก้ไขขั้น 3: สลับแท็บ "นำเสนอสินค้า" (Showcase Tab)
   - รองรับกรณีหน้าต่าง `< เพิ่มลิงก์สินค้า` เปิดค้างอยู่แล้ว ไม่ต้องกดย้อน "+ เพิ่ม" ซ้ำ
   - ค้นหาแท็บทั่วทั้ง document ไม่จำกัดที่ `document.querySelector('[role="dialog"]')` ตัวแรก
