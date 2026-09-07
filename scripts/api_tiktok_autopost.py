@@ -61,6 +61,38 @@ def _resolve_under(raw_path: str, allowed_roots) -> Path:
 
 _TIMESTAMP_SUFFIX = re.compile(r"_\d{8}_\d{6}(?:_draft)?$", re.IGNORECASE)
 _COVER_SUFFIXES = ("_cover_3x4.jpg", "_cover.jpg")
+_COVER_9X16_SUFFIX = "_cover.jpg"
+_COVER_3X4_SUFFIX = "_cover_3x4.jpg"
+
+
+def _prefer_3x4_cover(path: Optional[Path]) -> Optional[Path]:
+    """Use TikTok's profile crop when an explicit legacy 9:16 path is given.
+
+    Queue rows created before cover variants were split can still contain the
+    9:16 ``*_cover.jpg`` path.  Keep custom covers untouched, but transparently
+    switch to the sibling 3:4 variant whenever it exists so the extension and
+    the app preview use the same image.
+    """
+    if path is None:
+        return None
+    name = path.name
+    if not name.casefold().endswith(_COVER_9X16_SUFFIX):
+        return path
+    stem = name[: -len(_COVER_9X16_SUFFIX)]
+    expected_name = f"{stem}{_COVER_3X4_SUFFIX}"
+    candidate = path.with_name(expected_name)
+    if candidate.is_file():
+        return candidate
+    # Windows filesystems are case-insensitive, while tests and mounted
+    # workspaces may be case-sensitive.  Match the sibling name explicitly.
+    try:
+        expected_folded = expected_name.casefold()
+        for sibling in path.parent.iterdir():
+            if sibling.is_file() and sibling.name.casefold() == expected_folded:
+                return sibling
+    except OSError:
+        pass
+    return path
 
 
 def _find_named_cover(stem: str) -> Optional[Path]:
@@ -158,6 +190,7 @@ def prepare(req: PrepareRequest):
     extension to pick up next."""
     video_abs = _resolve_under(req.video_path, [EXPORTS_DIR, POSTED_DIR])
     cover_abs = _resolve_under(req.cover_path, [COVERS_DIR]) if req.cover_path else None
+    cover_abs = _prefer_3x4_cover(cover_abs)
     if cover_abs is None:
         cover_abs = _resolve_cover_for_job(
             video_abs,
@@ -206,7 +239,7 @@ def update_cover(req: CoverUpdateRequest):
     """
     if _pending is None:
         raise HTTPException(status_code=404, detail="ยังไม่มีคลิปที่เตรียมไว้")
-    cover_abs = _resolve_under(req.cover_path, [COVERS_DIR])
+    cover_abs = _prefer_3x4_cover(_resolve_under(req.cover_path, [COVERS_DIR]))
     _pending["cover_path"] = str(cover_abs)
     return {"success": True, "cover_path": str(cover_abs)}
 

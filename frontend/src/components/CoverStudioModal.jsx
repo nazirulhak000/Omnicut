@@ -44,6 +44,7 @@ export default function CoverStudioModal({
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState('');
   const [savedResult, setSavedResult] = useState(null);
+  const savedPreviewSignatureRef = useRef('');
 
   // Source selection: 'exported' | 'raw' | 'upload'
   const [activeSourceType, setActiveSourceType] = useState('exported');
@@ -204,6 +205,26 @@ export default function CoverStudioModal({
     setCustomImageFile(null);
   };
 
+  const getPreviewSignature = () => JSON.stringify([
+    videoPath,
+    activeSourceType,
+    selectedRawPath,
+    currentSeconds,
+    customImage,
+    zoom,
+    panX,
+    panY,
+    enableHookText,
+    enableBadge,
+    template,
+    hookText,
+    subText,
+    hookPosition,
+    selectedBadge,
+    badgePosition,
+    aspectRatio,
+  ]);
+
   // Find active preview image source
   const getPreviewImageSrc = () => {
     if (customImage) return customImage;
@@ -211,6 +232,15 @@ export default function CoverStudioModal({
     if (matched) return matched.thumb_url;
     if (candidates.length > 0) return candidates[0].thumb_url;
     return videoItem.thumbnail_url || videoItem.cover_url || '';
+  };
+
+  // Once saved, show the exact 3:4 file only while the editor still matches
+  // the saved settings. Any subsequent edit automatically returns to the
+  // live frame preview, so the user never mistakes a stale render for a draft.
+  const getSavedPreviewImageSrc = () => {
+    if (previewMode !== '3:4' || !savedResult) return '';
+    if (savedPreviewSignatureRef.current !== getPreviewSignature()) return '';
+    return savedResult.media_url_3x4 || (aspectRatio === '3:4' ? savedResult.media_url : '');
   };
 
   // Drag handlers on preview screen
@@ -306,6 +336,7 @@ export default function CoverStudioModal({
 
       const res = await renderProCover(payload);
       if (res && res.success) {
+        savedPreviewSignatureRef.current = getPreviewSignature();
         setSavedResult(res);
         const ratioLabel =
           aspectRatio === 'both' ? 'ทั้ง 9:16 และ 3:4' : aspectRatio === '3:4' ? '3:4' : '9:16';
@@ -333,6 +364,9 @@ export default function CoverStudioModal({
   // Max vertical offset = 480 - 360 = 120px
   const guideBoxH = 360;
   const guideBoxTop = Math.round(120 * (panY / 100));
+  const savedPreviewImageSrc = getSavedPreviewImageSrc();
+  const previewImageSrc = savedPreviewImageSrc || getPreviewImageSrc();
+  const showingSavedPreview = Boolean(savedPreviewImageSrc);
 
   return createPortal(
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-3 bg-black/80 backdrop-blur-md animate-fadeIn">
@@ -409,9 +443,9 @@ export default function CoverStudioModal({
                 title="คลิกค้างแล้วลากเพื่อเลื่อนตำแหน่งภาพ | หมุนลูกกลิ้งเมาส์เพื่อซูมเข้า-ออก"
               >
                 {/* Background Frame with Zoom & Pan */}
-                {getPreviewImageSrc() ? (
+                {previewImageSrc ? (
                   <img
-                    src={getPreviewImageSrc()}
+                    src={previewImageSrc}
                     alt="Cover Frame"
                     className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none transition-transform duration-75"
                     style={{
@@ -596,9 +630,9 @@ export default function CoverStudioModal({
                 onWheel={handleWheel}
                 title="คลิกค้างแล้วลากเพื่อเลื่อนตำแหน่งภาพ | หมุนลูกกลิ้งเมาส์เพื่อซูมเข้า-ออก"
               >
-                {getPreviewImageSrc() ? (
+                {previewImageSrc ? (
                   <img
-                    src={getPreviewImageSrc()}
+                    src={previewImageSrc}
                     alt="Cover Frame 3:4"
                     className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none transition-transform duration-75"
                     style={{
@@ -616,7 +650,7 @@ export default function CoverStudioModal({
                 )}
 
                 {/* Hook Text Layer (if enabled) */}
-                {enableHookText && (
+                {enableHookText && !showingSavedPreview && (
                   <div
                     className="absolute inset-x-3 pointer-events-none transition-all flex flex-col items-center text-center z-30"
                     style={{
@@ -670,7 +704,7 @@ export default function CoverStudioModal({
                 )}
 
                 {/* 3D Badge */}
-                {enableBadge && selectedBadge && badgePosition !== 'none' && (
+                {enableBadge && !showingSavedPreview && selectedBadge && badgePosition !== 'none' && (
                   <div
                     className="absolute pointer-events-none z-30"
                     style={{

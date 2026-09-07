@@ -41,6 +41,25 @@ def test_export_cover_path_reaches_pending_job(suffix):
     assert Path(pending['video_path']) == video.resolve()
 
 
+def test_explicit_9x16_cover_uses_matching_tiktok_3x4_variant():
+    video = tap.EXPORTS_DIR / 'review.mp4'
+    video.write_bytes(b'fixture')
+    cover_9x16 = tap.COVERS_DIR / 'review_cover.jpg'
+    cover_3x4 = tap.COVERS_DIR / 'review_cover_3x4.jpg'
+    cover_9x16.write_bytes(b'9x16')
+    cover_3x4.write_bytes(b'3x4')
+
+    response = client.post('/api/tiktok-autopost/prepare', json={
+        'video_path': str(video),
+        'cover_path': str(cover_9x16),
+    })
+
+    assert response.status_code == 200
+    assert response.json()['cover_path'] == '05_Covers_Thumbnails/review_cover_3x4.jpg'
+    pending = client.get('/api/tiktok-autopost/pending').json()
+    assert Path(pending['cover_path']) == cover_3x4.resolve()
+
+
 def test_missing_cover_does_not_replace_pending_job():
     video = tap.EXPORTS_DIR / 'review.mp4'
     video.write_bytes(b'fixture')
@@ -71,6 +90,28 @@ def test_cover_update_refreshes_prepared_job_without_repreparing_video():
     pending = client.get('/api/tiktok-autopost/pending').json()
     assert Path(pending['video_path']) == video.resolve()
     assert Path(pending['cover_path']) == new_cover.resolve()
+
+
+def test_cover_update_uses_matching_tiktok_3x4_variant():
+    video = tap.EXPORTS_DIR / 'review.mp4'
+    video.write_bytes(b'fixture')
+    cover_9x16 = tap.COVERS_DIR / 'review_cover.jpg'
+    cover_3x4 = tap.COVERS_DIR / 'review_cover_3x4.jpg'
+    cover_9x16.write_bytes(b'9x16')
+    cover_3x4.write_bytes(b'3x4')
+    assert client.post('/api/tiktok-autopost/prepare', json={
+        'video_path': str(video),
+        'cover_path': str(cover_9x16),
+    }).status_code == 200
+
+    response = client.post('/api/tiktok-autopost/cover', json={
+        'cover_path': '05_Covers_Thumbnails/review_cover.jpg',
+    })
+
+    assert response.status_code == 200
+    assert Path(response.json()['cover_path']) == cover_3x4.resolve()
+    pending = client.get('/api/tiktok-autopost/pending').json()
+    assert Path(pending['cover_path']) == cover_3x4.resolve()
 
 
 def test_prepare_resolves_product_cover_when_request_path_is_missing(tmp_path, monkeypatch):
