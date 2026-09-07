@@ -675,3 +675,7 @@ hook อยู่ใต้ sticker ในพรีวิวแต่อยู่
 
 วันที่: 2026-09-07  
 ผลลัพธ์: commit `bfeb7e6`; เพิ่ม endpoint refresh cover, จำกัด modal/file input ล่าสุด, รองรับเวลาแบบมีหรือไม่มีศูนย์นำหน้า; Node 7 passed, backend 5 passed
+## Round POST-3.5 - Fix product search scoping
+
+Date: 2026-09-07
+Result: commit `33210f2`; Product ID search and search icon are scoped to the latest Product Selector dialog; Node regression suite passed 7/7.
