@@ -67,6 +67,28 @@ def _safe_product_dir(base_dir: Path, product_id: str) -> Path:
     return candidate
 
 
+_RENAME_RETRY_ATTEMPTS = 8
+_RENAME_RETRY_DELAY_SECONDS = 0.2
+
+
+def _is_file_lock_error(error: OSError) -> bool:
+    """Return True for the transient Windows error raised by open media files."""
+    return getattr(error, "winerror", None) == 32
+
+
+def _rename_with_retry(source: Path, target: Path) -> None:
+    """Rename a media file, allowing a player a moment to release its handle."""
+    for attempt in range(_RENAME_RETRY_ATTEMPTS):
+        try:
+            source.rename(target)
+            return
+        except OSError as error:
+            if not _is_file_lock_error(error) or attempt == _RENAME_RETRY_ATTEMPTS - 1:
+                raise
+            gc.collect()
+            time.sleep(_RENAME_RETRY_DELAY_SECONDS)
+
+
 @router.get("/api/videos")
 def list_raw_videos(product_id: Optional[str] = None):
     """Lists all available raw video candidates with fast single-pass scanning."""
@@ -140,9 +162,19 @@ def rename_video_file(payload: RenameVideoPayload):
         target_path = v_path.parent / f"{target_path.stem}_{int(time.time())}{orig_suffix}"
 
     try:
-        v_path.rename(target_path)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"เปลี่ยนชื่อไฟล์บนดิสก์ไม่สำเร็จ: {e}")
+        _rename_with_retry(v_path, target_path)
+    except OSError as error:
+        if _is_file_lock_error(error):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"ระบบยังเปิดคลิป '{v_path.name}' อยู่ ปิดพรีวิวหรือโปรแกรมที่เปิดไฟล์นี้ "
+                    "แล้วลองบันทึกชื่อใหม่อีกครั้ง"
+                ),
+            )
+        raise HTTPException(status_code=500, detail=f"เปลี่ยนชื่อไฟล์บนดิสก์ไม่สำเร็จ: {error}")
+    except Exception as error:
+        raise HTTPException(status_code=500, detail=f"เปลี่ยนชื่อไฟล์บนดิสก์ไม่สำเร็จ: {error}")
 
     new_file_info = get_file_info(target_path)
 

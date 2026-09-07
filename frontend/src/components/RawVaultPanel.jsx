@@ -113,6 +113,10 @@ export default function RawVaultPanel() {
 
   // Rename Actions
   const handleStartRename = (video) => {
+    const videoPath = video.path || video.rel_path;
+    if (activePreviewPath === videoPath) {
+      setActivePreviewPath(null);
+    }
     setPendingRenameVideo(video);
     setRenameInputText((video.name || '').replace(/\.[^/.]+$/, ''));
     setRenameError(null);
@@ -125,6 +129,7 @@ export default function RawVaultPanel() {
     setRenameError(null);
     try {
       const vPath = pendingRenameVideo.path || pendingRenameVideo.rel_path;
+      setActivePreviewPath(null);
       await renameVideo(vPath, renameInputText.trim(), pendingRenameVideo.product_id);
       showToast('เปลี่ยนชื่อคลิปสำเร็จ', 'success');
       setPendingRenameVideo(null);
@@ -324,11 +329,11 @@ export default function RawVaultPanel() {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300 relative pb-10">
+    <div className="space-y-4 animate-in fade-in duration-300 relative pb-10">
       <Toast message={toastMessage} onClose={hideToast} />
 
       {/* ── Top Header & Storage Summary ── */}
-      <div className="rounded-3xl border border-white/[0.08] bg-[#0B0F19]/80 backdrop-blur-xl p-5 sm:p-7 shadow-2xl relative overflow-hidden">
+      <div className="rounded-3xl border border-white/[0.08] bg-[#0B0F19]/80 backdrop-blur-xl p-4 sm:p-5 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-[#25F4EE]/10 to-[#FE2C55]/5 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
 
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 relative z-10">
@@ -516,7 +521,7 @@ export default function RawVaultPanel() {
           </Button>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-4 items-start">
           {/* Product-Scoped Video Groups */}
           {filteredProducts.map((product) => {
             const isCollapsed = collapsedGroups[product.product_id];
@@ -525,7 +530,7 @@ export default function RawVaultPanel() {
             return (
               <div
                 key={product.product_id}
-                className="rounded-3xl border border-white/[0.08] bg-[#0B0F19]/70 backdrop-blur-md overflow-hidden transition-all shadow-xl hover:border-white/[0.15]"
+                className="rounded-2xl border border-white/[0.08] bg-[#0B0F19]/70 backdrop-blur-md overflow-hidden transition-all shadow-xl hover:border-white/[0.15]"
               >
                 {/* Group Header */}
                 <div
@@ -604,7 +609,7 @@ export default function RawVaultPanel() {
                         ยังไม่มีคลิปดิบในสินค้านี้ — กดปุ่ม "เพิ่มคลิป" เพื่ออัปโหลด
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 mt-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
                         {videos.map((video) => renderVideoCard(video, product.product_id))}
                       </div>
                     )}
@@ -616,7 +621,7 @@ export default function RawVaultPanel() {
 
           {/* Unassigned / B-Roll Footage Shelf */}
           {filteredUnassigned.length > 0 && (
-            <div className="rounded-3xl border border-amber-500/20 bg-[#0B0F19]/70 backdrop-blur-md overflow-hidden transition-all shadow-xl">
+            <div className="xl:col-span-2 2xl:col-span-3 rounded-2xl border border-amber-500/20 bg-[#0B0F19]/70 backdrop-blur-md overflow-hidden transition-all shadow-xl">
               <div
                 onClick={() => toggleGroup('unassigned_group')}
                 className="p-4 sm:p-5 flex items-center justify-between gap-4 cursor-pointer hover:bg-white/[0.02] transition-colors select-none"
@@ -652,7 +657,7 @@ export default function RawVaultPanel() {
 
               {!collapsedGroups['unassigned_group'] && (
                 <div className="p-4 sm:p-5 pt-0 border-t border-white/[0.04]">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 mt-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
                     {filteredUnassigned.map((video) => renderVideoCard(video, null))}
                   </div>
                 </div>

@@ -36,6 +36,30 @@
 | Round POST-3.25 | Redesign Extension UX/UI (Cyber-Studio Dark, IBM Plex Sans Thai, Studio Monitor & Stepper Pipeline) | 2026-09-07 | Embedded IBM Plex Sans Thai fonts; Studio Monitor card; 2-column affiliate grid; Stepper Pipeline with progress meter; zero emoji pollution; 12/12 extension tests pass; live browser verified |
 | Round POST-3.26 | เพิ่มปุ่มเปิด/สลับแท็บ TikTok Studio ใน Extension (Tab 1, Tab 2, Header, Popup) | 2026-09-07 | Quick bar ใน Tab 1, Banner ใน Tab 2, Header button, Popup button; Auto-focus/activate tab; 13/13 tests pass; Clean UI standard |
 | Round POST-3.27 | ลดความซ้ำซ้อนปุ่มเปิด TikTok Studio ให้เหลือจุดเดียวใน Header ตามที่ User ร้องขอ | 2026-09-07 | รวมเหลือจุดเดียวใน Header bar (`#headerOpenTikTokBtn`); ลบปุ่มซ้ำซ้อนใน Tab 1 และ Tab 2 ออกทั้งหมด; 13/13 tests pass; Clean UI standard |
+| Round RAW-1 | แก้ rename คลิปดิบที่ติด file lock และจัดเลย์เอาต์ Raw Vault แบบ responsive | 2026-09-07 | ถอด preview ก่อน rename, retry WinError 32 พร้อมข้อความกู้คืน, product groups แบบ responsive; pytest 896 passed, npm test 85 passed, build ผ่าน |
+
+## Round RAW-1 — แก้เปลี่ยนชื่อคลิปดิบและจัดเลย์เอาต์ Raw Vault
+
+วันที่: 2026-09-07 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
+
+**ผลลัพธ์:**
+
+1. ถอดตัวเล่น preview ออกจากคลิปที่กำลังจะเปลี่ยนชื่อ และถอดซ้ำก่อนส่งคำขอ เพื่อคืน file handle ให้ Windows
+2. เพิ่ม retry สำหรับ `WinError 32` และตอบ `409` พร้อมข้อความให้ปิด preview เมื่อ lock ยังอยู่
+3. เปลี่ยนกลุ่มสินค้าเป็น responsive grid (เดสก์ท็อป 2–3 คอลัมน์, จอเล็ก 1 คอลัมน์) และให้ชั้นคลิปอิสระเต็มความกว้าง ลดพื้นที่ว่างจากกลุ่มที่มีคลิปน้อย
+4. รักษา flow อัปโหลด, ผูกสินค้า, ลบ, เลือก, preview, ค้นหา และการ์ดเดิมทั้งหมด
+
+### Gate
+
+- [x] `python -m pytest tests/ -q -p no:cacheprovider --tb=short` — 896 passed
+- [x] `python -m compileall -q scripts/api_videos.py`
+- [x] `npm test` — 85 passed
+- [x] `npm run build`
+- [x] Impeccable layout detector — ไม่พบ findings
+
+### Notes
+
+- เพิ่ม `tests/test_api_videos_rename.py` ครอบคลุม retry lock และการตอบ conflict เมื่อ lock ค้าง
 
 ## Round POST-3.27 — ลดความซ้ำซ้อนปุ่มเปิด TikTok Studio ให้เหลือจุดเดียวใน Header
 
