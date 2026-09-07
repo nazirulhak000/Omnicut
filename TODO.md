@@ -12,6 +12,7 @@
 ---
 
 ## สถานะรวม
+- [x] Round POST-3.24 - indicate cover status in daily queue (2026-09-07)
 - [x] Round POST-3.23 - reduce default publishing slots to three (2026-09-07)
 - [ ] Backlog — เก็บสัญญาณพฤติกรรม TikTok รายคลิป (retention, product clicks, add-to-cart, conversion) เพื่อวัดผลเวลา/Hook/สินค้าและแนะนำคิวจากข้อมูลจริง
 

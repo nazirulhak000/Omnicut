@@ -32,6 +32,38 @@
 | Round POST-3.21 | Multi-day persistent TikTok publishing queue and Agenda/Extension handoff | 2026-09-07 | Schedule API/store, multi-day Agenda, single/bulk assignment, five-minute timezone-safe slots, guarded reschedule, extension queue handoff; pytest 873 passed, npm test 82 passed, build and browser smoke passed |
 | Round POST-3.22 | Weekly schedule templates and product-rotating auto-fill | 2026-09-07 | Backend template persistence/preview/atomic commit; Agenda editor and overdue requeue; pytest 879 passed, npm test 83 passed, build passed |
 | Round POST-3.23 | Reduce default publishing schedule to three slots | 2026-09-07 | Defaults 12:30, 19:00, 21:30; legacy five-slot templates migrate safely; pytest 891 passed, npm test 83 passed, build and compileall passed |
+| Round POST-3.24 | Show saved-cover status in the daily queue | 2026-09-07 | Bright cover icon when a 3:4/9:16 cover exists, subdued icon when missing, Cover Studio action preserved; npm test 83 passed, build and live Agenda smoke passed |
+
+## Round POST-3.24 - indicate cover status in daily queue
+
+Date: 2026-09-07; Requested by: user; Status: complete
+
+**Goal:** Make the daily queue answer at a glance whether each scheduled clip already has a saved cover.
+
+**Scope:** Reuse cover metadata from the queue item and its ready export; show the existing Cover Studio image action in a bright semantic state when a cover exists and a subdued state when it does not; preserve the preview, schedule controls, Extension handoff, and steps 1-5.
+
+### Todo
+
+- [x] Resolve cover presence from URL/path fields for the queue item and matched clip, including 3:4 and 9:16 variants.
+- [x] Use a bright cover icon with a clear tooltip/accessible label for saved covers.
+- [x] Use a subdued cover icon with a create-cover tooltip when no saved cover exists.
+- [x] Keep the icon clickable for the existing Cover Studio flow whenever the ready clip is available.
+- [x] Use the resolved cover for the row thumbnail so saved covers remain visible after queue refresh.
+
+### Gate
+
+- [x] `npm test` — 83 passed.
+- [x] `npm run build` — passed.
+- [x] `git diff --check` — passed.
+- [x] Impeccable detector — completed; remaining warnings are existing file-wide color-pattern findings outside this narrow state change.
+- [x] Browser smoke — live Agenda rendered two saved-cover rows with `data-cover-state="ready"`, bright icon styling, and the accessible label `มีภาพปกแล้ว คลิกเพื่อแก้ไข`.
+
+### Notes
+
+- The missing-cover branch is intentionally dark and keeps the title/ARIA text `ยังไม่มีภาพปก คลิกเพื่อสร้าง`.
+- No backend, queue identity, schedule timestamp, Extension step, or frozen posting step was changed.
+- Unrelated editor files and local schedule JSON artifacts remained unstaged.
+
 
 ## Round POST-3.23 - reduce default publishing slots to three
 
