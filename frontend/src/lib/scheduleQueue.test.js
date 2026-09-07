@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildScheduleIso, groupScheduleItems, scheduleTimeOptions, snapTimeToFiveMinutes } from './scheduleQueue.js';
+import { addDays, buildScheduleIso, groupScheduleItems, templateForWeek, weekStartForDate } from './scheduleQueue.js';
+import { scheduleTimeOptions, snapTimeToFiveMinutes } from './scheduleQueue.js';
 
 test('schedule times use five-minute increments', () => {
   assert.equal(snapTimeToFiveMinutes('10:02'), '10:00');
@@ -17,4 +18,13 @@ test('agenda groups and sorts by scheduled timestamp', () => {
   ]);
   assert.deepEqual(Object.keys(grouped), ['2026-09-10', '2026-09-11']);
   assert.deepEqual(grouped['2026-09-10'].map((item) => item.id), ['c', 'a']);
+});
+
+test('weekly template helpers use Monday boundaries and preserve five slots', () => {
+  assert.equal(weekStartForDate('2026-09-10'), '2026-09-07');
+  assert.equal(addDays('2026-09-07', 6), '2026-09-13');
+  const template = templateForWeek({ days: { '0': { enabled: false, times: ['20:00', '07:00', '16:00', '12:00', '10:00'] } } }, '2026-09-07');
+  assert.equal(template.days['0'].enabled, false);
+  assert.deepEqual(template.days['0'].times, ['07:00', '10:00', '12:00', '16:00', '20:00']);
+  assert.deepEqual(template.days['1'].times, ['07:00', '10:00', '12:00', '16:00', '20:00']);
 });

@@ -28,6 +28,7 @@ def queue_workspace(tmp_path, monkeypatch):
     monkeypatch.setattr(queue_api, "EXPORTS_DIR", exports)
     monkeypatch.setattr(queue_api, "POSTED_DIR", posted)
     monkeypatch.setattr(queue_store, "SCHEDULE_QUEUE_PATH", tmp_path / "_Docs" / "schedule_queue.json")
+    monkeypatch.setattr(queue_store, "SCHEDULE_TEMPLATE_PATH", tmp_path / "_Docs" / "schedule_templates.json")
     autopost._pending = None
     return video_a, video_b
 
@@ -89,3 +90,84 @@ def test_prepare_marks_one_item_and_sends_date_time_to_extension(queue_workspace
     assert captured["schedule_date"] == "2026-09-14"
     assert captured["schedule_time"] == "15:25"
 
+
+def test_weekly_template_upsert_copy_and_reset(queue_workspace):
+    custom = {"enabled": True, "times": ["06:00", "09:00", "12:00", "15:00", "21:00"]}
+    saved = client.put(
+        "/api/schedule-queue/template",
+        json={"week_start": "2030-01-07", "days": {"0": custom}},
+    )
+    assert saved.status_code == 200
+    assert saved.json()["id"] == "week:2030-01-07"
+    assert saved.json()["days"]["0"]["times"] == custom["times"]
+    copied = client.post(
+        "/api/schedule-queue/template/copy",
+        json={"source_week_start": "2030-01-07", "target_week_start": "2030-01-14"},
+    )
+    assert copied.status_code == 200
+    assert copied.json()["days"]["0"]["times"] == custom["times"]
+    reset = client.delete("/api/schedule-queue/template/2030-01-14")
+    assert reset.status_code == 200
+    assert reset.json()["id"] == "default"
+    assert reset.json()["days"]["0"]["times"] == ["07:00", "10:00", "12:00", "16:00", "20:00"]
+
+
+def test_autofill_preview_rotates_products_and_commit_is_atomic(queue_workspace):
+    video_a, video_b = queue_workspace
+    video_c = video_a.parent / "c.mp4"
+    video_d = video_a.parent / "d.mp4"
+    video_c.write_bytes(b"c")
+    video_d.write_bytes(b"d")
+    clips = [
+        {"video_path": str(video_a), "product_id": "A", "product_name": "A"},
+        {"video_path": str(video_b), "product_id": "B", "product_name": "B"},
+        {"video_path": str(video_c), "product_id": "A", "product_name": "A"},
+        {"video_path": str(video_d), "product_id": "B", "product_name": "B"},
+    ]
+    preview = client.post(
+        "/api/schedule-queue/auto-fill/preview",
+        json={"start_date": "2030-01-07", "end_date": "2030-01-07", "clips": clips, "seed": 7},
+    )
+    assert preview.status_code == 200
+    rows = preview.json()["items"]
+    assert len(rows) == 4
+    assert all(a["product_id"] != b["product_id"] for a, b in zip(rows, rows[1:]))
+    committed = client.post("/api/schedule-queue/auto-fill", json={"items": rows})
+    assert committed.status_code == 200
+    collision = client.post("/api/schedule-queue/auto-fill", json={"items": rows[:1]})
+    assert collision.status_code == 409
+    assert len(client.get("/api/schedule-queue").json()["items"]) == 4
+
+
+def test_overdue_planned_row_is_annotated_without_changing_status(queue_workspace):
+    video_a, _ = queue_workspace
+    item = client.post("/api/schedule-queue", json=payload(video_a, "2020-01-06T08:00:00+07:00")).json()["items"][0]
+    listed = client.get("/api/schedule-queue").json()["items"][0]
+    assert listed["id"] == item["id"]
+    assert listed["status"] == "planned"
+    assert listed["is_overdue"] is True
+
+
+def test_autofill_starts_after_latest_queue_timestamp_and_skips_past_slots(queue_workspace):
+    video_a, video_b = queue_workspace
+    video_c = video_a.parent / "c.mp4"
+    video_c.write_bytes(b"c")
+    existing = client.post("/api/schedule-queue", json=payload(video_a, "2030-01-07T10:00:00+07:00"))
+    assert existing.status_code == 200
+    preview = client.post(
+        "/api/schedule-queue/auto-fill/preview",
+        json={
+            "start_date": "2030-01-07",
+            "end_date": "2030-01-07",
+            "clips": [
+                {"video_path": str(video_b), "product_id": "B", "product_name": "B"},
+                {"video_path": str(video_c), "product_id": "C", "product_name": "C"},
+            ],
+            "seed": 11,
+        },
+    )
+    assert preview.status_code == 200
+    assert [row["scheduled_at"] for row in preview.json()["items"]] == [
+        "2030-01-07T12:00+07:00",
+        "2030-01-07T16:00+07:00",
+    ]

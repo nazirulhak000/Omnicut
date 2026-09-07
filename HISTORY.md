@@ -30,6 +30,43 @@
 | Round POST-3.15 | Prefer project-named covers in export metadata before the legacy product fallback | 2026-09-07 | focused backend tests 8 passed -> compileall passed |
 | Round POST-3.19 | Restore generated cover visibility in the TikTok post modal after backend refresh | 2026-09-07 | User confirmed step 5 cover upload works; focused backend tests 14 passed; frontend tests 65 passed; build passed |
 | Round POST-3.21 | Multi-day persistent TikTok publishing queue and Agenda/Extension handoff | 2026-09-07 | Schedule API/store, multi-day Agenda, single/bulk assignment, five-minute timezone-safe slots, guarded reschedule, extension queue handoff; pytest 873 passed, npm test 82 passed, build and browser smoke passed |
+| Round POST-3.22 | Weekly schedule templates and product-rotating auto-fill | 2026-09-07 | Backend template persistence/preview/atomic commit; Agenda editor and overdue requeue; pytest 879 passed, npm test 83 passed, build passed |
+
+## Round POST-3.22 - weekly schedule templates and product-rotating auto-fill
+
+Date: 2026-09-07; Requested by: user; Status: complete (browser gate deferred; browser runtime was unavailable after automated smoke finalization)
+
+**Goal:** Add reusable weekly time templates and an explicit auto-fill flow that appends ready clips to the durable multi-day queue while rotating products fairly.
+
+**Scope:** Persist Monday-Sunday templates in the backend; support per-week overrides, enabled days, five primary times per day, previewed auto-fill for today/this week/custom ranges, product rotation, random clip selection, overdue reuse, and append-after-latest semantics. Keep existing queue records, Extension handoff, cover flow, steps 1-4, and editor work unchanged.
+
+### Todo
+
+- [x] Add backend template storage/API with default and week-specific Monday-Sunday schedules.
+- [x] Add Agenda controls for weekly template editing, copying, resetting, enabled days, and saved week selection.
+- [x] Add auto-fill preview for today, this week, or custom date range with optional clip limit and product filter.
+- [x] Implement append-after-latest scheduling, skip past slots, preserve existing queue, and show empty-slot reasons.
+- [x] Implement random product order with no adjacent product repeat across day boundaries and random clip choice within each product.
+- [x] Mark overdue unposted rows and provide a reviewable requeue flow without duplicating MP4 identities.
+- [x] Add deterministic tests for template persistence, week boundaries, append cursor, fairness, limits, overdue reuse, and collisions.
+- [x] Run backend/frontend tests, build, syntax checks; browser verification deferred because the runtime was unavailable.
+
+### Gate
+
+- [x] Backend schedule template/auto-fill tests pass.
+- [x] Frontend tests pass.
+- [x] `npm run build` passes.
+- [ ] Browser verification: deferred; browser runtime was unavailable after automated smoke finalization.
+
+### Notes
+
+- `pytest tests/ -q`: 879 passed, 6 warnings; `npm test`: 83 passed; `npm run build` and `python -m compileall -q scripts` passed.
+- Browser UI gate was not rerun in this environment because the prior browser runtime had already finalized; API and component behavior are covered by deterministic tests/build.
+
+- Week means Monday-Sunday in `Asia/Bangkok`; changing a template never mutates existing queue timestamps.
+- Auto-fill uses only ready, unqueued, unposted exports, preserves the one-MP4-once rule, and requires explicit confirmation after preview.
+- If a selected range has no future primary slot, the preview continues after the latest queue item into the next enabled day.
+- Existing editor files remain another workstream and must not be modified or staged.
 ---
 
 ## Round TRK-3 — บอร์ดหลักคลีนไร้ความรก (Today-Only Posted, คลังสคริปต์หยิบทำวันนี้ & การ์ดตัดต่อเสร็จแนวนอนกะทัดรัด)

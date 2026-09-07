@@ -12,6 +12,7 @@
 ---
 
 ## สถานะรวม
+- [x] Round POST-3.22 - weekly schedule templates and product-rotating auto-fill (2026-09-07)
 
 - [ ] Round POST-3 — ซ่อมขั้นหลังอัปโหลดและแนบปกจาก Cover Studio (2026-09-06)
 - [x] Round POST-3.14 — เปิด Cover Studio ผ่านพอร์ทัล, ใช้ชื่อโปรเจคเป็นชื่อปก, และย้ายชื่อโปรเจค Logitech ให้เป็น LOG01 (2026-09-07)

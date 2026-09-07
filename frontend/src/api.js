@@ -153,6 +153,12 @@ export const createScheduleQueue = (payload) => api.post('/schedule-queue', payl
 export const updateScheduleQueue = (id, payload) => api.patch(`/schedule-queue/${id}`, payload).then(r => r.data);
 export const removeScheduleQueue = (id) => api.delete(`/schedule-queue/${id}`).then(r => r.data);
 export const prepareScheduleQueue = (id) => api.post(`/schedule-queue/${id}/prepare`).then(r => r.data);
+export const getScheduleTemplate = (weekStart = null) => api.get('/schedule-queue/template', { params: weekStart ? { week_start: weekStart } : {} }).then(r => r.data);
+export const saveScheduleTemplate = (payload) => api.put('/schedule-queue/template', payload).then(r => r.data);
+export const copyScheduleTemplate = (payload) => api.post('/schedule-queue/template/copy', payload).then(r => r.data);
+export const resetScheduleTemplate = (weekStart) => api.delete(`/schedule-queue/template/${weekStart}`).then(r => r.data);
+export const previewScheduleAutofill = (payload) => api.post('/schedule-queue/auto-fill/preview', payload).then(r => r.data);
+export const commitScheduleAutofill = (payload) => api.post('/schedule-queue/auto-fill', payload).then(r => r.data);
 
 export const transcribeMedia = (data) => api.post('/sub-srt/transcribe', data, { timeout: 180000 }).then(r => r.data);
 
