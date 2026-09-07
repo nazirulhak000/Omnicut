@@ -215,7 +215,7 @@ Date: 2026-09-07; Requested by: user; Status: in progress
 
 ### Notes
 
-- Implementation commit: `6252c6a` (`fix: restore saved cover metadata in TikTok modal`).
+- Implementation commit: `f2dbfed` (`fix: restore saved cover metadata in TikTok modal`).
 - The live `/api/products` response currently returns null cover fields for this product while `/api/exports` contains the matching saved 3:4 cover. The client now merges that export metadata by project name/video reference and preserves any explicit angle cover.
 - Existing uncommitted changes belong to another workstream: `frontend/src/components/editor/EditorShell.jsx`, `frontend/src/components/editor/Timeline.jsx`, `frontend/src/components/editor/TimelineClip.jsx`, `frontend/src/lib/timelineMath.js`, `frontend/src/lib/timelineMath.test.js`, and the untracked screenshots `alt-drag-left.png`, `alt-drag-mid.png`, `clip-selected.png`, `timeline-loaded.png`; do not modify, delete, or stage them.
 - Steps 1-4 and the extension upload implementation are frozen by the user.
