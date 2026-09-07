@@ -62,7 +62,7 @@ globalThis.OmniAutomation = (() => {
         const r = el.getBoundingClientRect();
         return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
       };
-      const areas = Array.from(document.querySelectorAll('label.ImageUpload__uploadArea, input[type="file"], [class*="cover-modal"], [class*="CoverModal"]'));
+      const areas = Array.from(document.querySelectorAll('label.ImageUpload__uploadArea, input[type="file"], [class*="cover-modal"], [class*="CoverModal"], [class*="CoverEditor__root"]'));
       return areas.some(visible);
     })()`);
 
@@ -112,7 +112,7 @@ globalThis.OmniAutomation = (() => {
     // Instead, find the input[type="file"] and set files directly via CDP DOM.setFileInputFiles!
     const fileInputQuery = `(() => {
       // 1. Inside ImageUpload uploadArea
-      const dialogCandidates = Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"], [class*="modal"], [class*="Modal"]'))
+      const dialogCandidates = Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"], [class*="modal"], [class*="Modal"], [class*="CoverEditor__root"]'))
         .filter(el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
       const scope = dialogCandidates.at(-1) || document;
       const uploadArea = scope.querySelector('label.ImageUpload__uploadArea, [class*="uploadArea"]')
@@ -180,7 +180,10 @@ globalThis.OmniAutomation = (() => {
         const rect = el.getBoundingClientRect();
         return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
       };
-      const buttons = Array.from(document.querySelectorAll('button, div[role="button"]')).filter(isVisible);
+      const roots = Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"], [class*="CoverEditor__root"], [class*="cover-modal"], [class*="CoverModal"]'))
+        .filter(isVisible);
+      const root = roots.at(-1) || document;
+      const buttons = Array.from(root.querySelectorAll('button, div[role="button"]')).filter(isVisible);
       const saveBtn = buttons.reverse().find(b => {
         if (b.disabled || b.getAttribute('aria-disabled') === 'true') return false;
         const t = (b.innerText || b.textContent || '').trim();
@@ -197,7 +200,15 @@ globalThis.OmniAutomation = (() => {
       throw new Error('ไม่พบปุ่ม "บันทึก" ในหน้าต่างแก้ไขปก');
     }
 
-    await new Promise(r => setTimeout(r, 1500));
+    await wait(send, `(() => {
+      const visible = el => {
+        if (!el) return false;
+        if (el.checkVisibility && !el.checkVisibility({checkOpacity:true,checkVisibilityCSS:true})) return false;
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
+      };
+      return !Array.from(document.querySelectorAll('[class*="CoverEditor__root"], [class*="cover-modal"], [class*="CoverModal"]')).some(visible);
+    })()`, 'บันทึกปกแล้ว แต่หน้าต่าง Cover Studio ยังไม่ปิด', 8000);
     return {success:true};
   }
 

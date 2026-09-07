@@ -689,3 +689,8 @@ Result: Schedule step now clicks only TikTok's schedule radio and never the fina
 
 Date: 2026-09-07
 Result: User confirmed that step 4 changes TikTok's date and time without publishing automatically. Step 4 is frozen; cover upload verification remains the only pending part of this round.
+
+## Round POST-3.7 - Harden Cover Studio upload targeting
+
+Date: 2026-09-07
+Result: Cover upload now scopes file input and save button to TikTok's visible `CoverEditor__root`, enables the CDP Runtime domain, and verifies the editor closes after saving. Node regression suite passed 8/8; live upload verification remains pending after extension reload.

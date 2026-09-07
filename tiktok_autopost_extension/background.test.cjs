@@ -104,6 +104,8 @@ test('live DOM contracts for the reported TikTok screens stay in the worker', ()
   assert.doesNotMatch(showcaseFn, /dispatchEvent\(new MouseEvent/);
   assert.match(automation, /ImageUpload__uploadArea/);
   assert.match(automation, /DOM\.setFileInputFiles/);
+  assert.match(automation, /CoverEditor__root/);
+  assert.match(automation, /หน้าต่าง Cover Studio ยังไม่ปิด/);
   assert.match(panel, /scheduleDateInput/);
   assert.match(panel, /scheduleTimeInput/);
   const searchStep = code.slice(code.indexOf('// Step 4: Type Product ID'), code.indexOf('const searchVal'));

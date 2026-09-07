@@ -891,3 +891,19 @@ Notes: ปรับปรุงโค้ด Extension ให้ตรงกั�
 - [x] รัน syntax check และ Node regression: 8 passed
 - [x] ผู้ใช้ยืนยันว่าขั้น 4 เปลี่ยนวันและเวลาใน TikTok ได้จริง และไม่โพสต์อัตโนมัติ
 - [ ] ทดสอบการแนบปกกับแท็บ TikTok จริงหลัง Reload extension
+
+#### POST-3.7 — แก้เฉพาะ flow แนบปก (2026-09-07)
+
+- [x] ตรวจจุดเปิด Cover Studio และขอบเขต modal จาก DOM จริง
+- [x] ทำให้ CDP file upload และการกดบันทึกเลือกองค์ประกอบใน modal ล่าสุดเท่านั้น
+- [x] ห้ามแก้โค้ดข้อ 1–4 และห้ามแตะปุ่มโพสต์
+- [x] เพิ่ม regression test สำหรับ flow แนบปก
+- [x] รัน syntax และ Node regression
+- [ ] ทดสอบแนบปกกับแท็บ TikTok จริงหลัง Reload extension
+#### POST-3.7 implementation update (2026-09-07)
+
+- [x] ตรวจพบ root จริงของ Cover Studio (`CoverEditor__root`) ที่ไม่มี `role="dialog"`
+- [x] จำกัดการค้นหา input และปุ่มบันทึกไว้ใน Cover Studio ล่าสุด
+- [x] เปิด `Runtime` ก่อนใช้ CDP file upload และยืนยันว่า modal ปิดหลังบันทึก
+- [x] เพิ่ม regression contract สำหรับ Cover Studio และรัน Node regression: 8 passed
+- [ ] ทดสอบแนบปกจริงหลัง Reload extension

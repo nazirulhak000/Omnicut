@@ -1487,6 +1487,7 @@ async function runUploadCoverOnly({coverPath = ''} = {}) {
   try {
     const send = cdp(tab.id);
     await send('DOM.enable');
+    await send('Runtime.enable');
     return await OmniAutomation.uploadCover(send, job.cover_path);
   } finally {
     await chrome.debugger.detach({tabId:tab.id}).catch(() => {});
