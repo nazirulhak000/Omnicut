@@ -705,7 +705,16 @@ class VideoEditor:
                 concat_inputs.append(f"[{node_name}]")
 
         boundaries = normalize_transitions(transitions)
-        has_transition = used_clip_list and any(b["type"] != "cut" for b in boundaries)
+        # A transition needs two sides. With a single clip the reduction below
+        # never runs, so nothing emits [v_concat] -- while the code after it
+        # sets current_v to that label regardless, leaving the subtitle burn
+        # and every other later stage reading a node ffmpeg was never given.
+        # Falling through to the plain concat path defines the label.
+        has_transition = (
+            used_clip_list
+            and len(concat_inputs) >= 2
+            and any(b["type"] != "cut" for b in boundaries)
+        )
 
         if has_transition:
             # Sequential reduction: fold clips left-to-right, using xfade at a

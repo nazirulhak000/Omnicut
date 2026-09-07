@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { getActiveTasks, cancelTaskApi, deleteTaskApi, clearCompletedTasksApi } from '../api';
 
 const TaskContext = createContext(null);
@@ -125,34 +125,34 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
   }, [activeCount, pollTasks]);
 
   // Actions
-  const cancelTask = async (taskId) => {
+  const cancelTask = useCallback(async (taskId) => {
     try {
       await cancelTaskApi(taskId);
       await pollTasks();
     } catch (e) {
       console.error('Cancel task failed:', e);
     }
-  };
+  }, [pollTasks]);
 
-  const deleteTask = async (taskId) => {
+  const deleteTask = useCallback(async (taskId) => {
     try {
       await deleteTaskApi(taskId);
       setTasks(prev => prev.filter(t => t.id !== taskId));
     } catch (e) {
       console.error('Delete task failed:', e);
     }
-  };
+  }, []);
 
-  const clearCompleted = async () => {
+  const clearCompleted = useCallback(async () => {
     try {
       await clearCompletedTasksApi();
       setTasks(prev => prev.filter(t => t.status === 'processing' || t.status === 'queued'));
     } catch (e) {
       console.error('Clear completed tasks failed:', e);
     }
-  };
+  }, []);
 
-  const jumpToTaskResult = (task, destinationTab = null) => {
+  const jumpToTaskResult = useCallback((task, destinationTab = null) => {
     if (!task) return;
     setIsActivityDrawerOpen(false);
     setNotificationToast(null);
@@ -223,13 +223,17 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
         task,
       });
     }
-  };
+  }, [onSelectProductForFlow, onNavigateTab]);
 
-  const toggleActivityDrawer = () => {
+  const toggleActivityDrawer = useCallback(() => {
     setIsActivityDrawerOpen(prev => !prev);
-  };
+  }, []);
 
-  const value = {
+  // Memoized because polling replaces `tasks` every 1.5s while a task runs.
+  // A fresh object literal here re-rendered every useTaskManager() consumer on
+  // each tick -- EditorShell and ProductToClip among them, both large trees --
+  // even when the only thing that changed was a field they never read.
+  const value = useMemo(() => ({
     tasks,
     activeTasks,
     activeCount,
@@ -245,7 +249,12 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
     deleteTask,
     clearCompleted,
     jumpToTaskResult
-  };
+  }), [
+    tasks, activeTasks, activeCount, completedTasks,
+    isActivityDrawerOpen, toggleActivityDrawer,
+    notificationToast, refreshTrigger,
+    pollTasks, cancelTask, deleteTask, clearCompleted, jumpToTaskResult
+  ]);
 
   return (
     <TaskContext.Provider value={value}>
