@@ -27,6 +27,7 @@
 | Round PROD-1 | เพิ่มช่อง TikTok Product ID ตอนสร้างสคริปต์ + Fallback ค้นหาด้วยชื่อ + Click-to-Edit Cart ID ย้อนหลัง | 2026-09-06 | ProductToClip modal + Header badge edit + auto-resolve shortlinks · pytest 372 pass · npm test 54 pass · build pass |
 
 | Round POST-3.14 | Cover Studio portal entry, project-based cover naming, and LOG01 legacy project migration | 2026-09-07 | commit 2a1e395 -> frontend 63 tests pass -> build pass -> backend compile/tests pass |
+| Round POST-3.15 | Prefer project-named covers in export metadata before the legacy product fallback | 2026-09-07 | focused backend tests 8 passed -> compileall passed |
 ---
 
 ## Round TRK-3 — บอร์ดหลักคลีนไร้ความรก (Today-Only Posted, คลังสคริปต์หยิบทำวันนี้ & การ์ดตัดต่อเสร็จแนวนอนกะทัดรัด)
@@ -731,3 +732,11 @@ Date: 2026-09-07
 Result: Fixed the CoverStudioModal hook-order crash and rendered it through a top-level portal so the editor appears above the TikTok posting modal. Cover exports now use the canonical project name, with a video-stem fallback for legacy items. The remaining Logitech unboxing project was backed up and migrated to the LOG01 naming convention; schedule logic and steps 1-4 were left unchanged.
 
 Evidence: backup archive created under D:/Winona/Programmer/Capcut_backups/; frontend tests 63 passed; Vite build passed; python compileall passed; focused TikTok backend tests 6 passed.
+
+
+## Round POST-3.15 - Project-named cover lookup
+
+Date: 2026-09-07
+Result: /api/exports now checks <project_name>_cover.jpg (and the 3:4 variant) before using the legacy product-named cover fallback. This keeps the cover generated for each project attached to the matching export and preserves compatibility with older product-level covers.
+
+Evidence: focused TikTok backend tests 8 passed with one existing Starlette/httpx deprecation warning; python -m compileall -q scripts passed.

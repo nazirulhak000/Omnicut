@@ -41,9 +41,9 @@ router = APIRouter(tags=["Exports"])
 POSTED_DIR = EXPORTS_DIR.parent / "Posted"
 
 
-def _find_product_cover(product_name: str) -> Optional[Path]:
-    """Find a cover saved with the product name when no export-stem cover exists."""
-    name = str(product_name or "").strip()
+def _find_cover_by_stem(stem: str) -> Optional[Path]:
+    """Find a generated 9:16 cover by its canonical stem."""
+    name = str(stem or "").strip()
     if not name or not COVERS_DIR.exists():
         return None
     for suffix in ("_cover.jpg", "_cover_3x4.jpg"):
@@ -56,6 +56,16 @@ def _find_product_cover(product_name: str) -> Optional[Path]:
             if candidate.is_file() and candidate.name.casefold() == expected_folded:
                 return candidate
     return None
+
+
+def _find_project_cover(project_name: str) -> Optional[Path]:
+    """Find a cover saved with the canonical project name."""
+    return _find_cover_by_stem(project_name)
+
+
+def _find_product_cover(product_name: str) -> Optional[Path]:
+    """Find a legacy cover saved with the product name."""
+    return _find_cover_by_stem(product_name)
 
 
 @router.get("/api/exports")
@@ -227,6 +237,13 @@ def list_exports():
 
         info = get_file_info(f)
         info["is_posted"] = f.parent.resolve() == POSTED_DIR.resolve()
+        if not info.get("cover_path"):
+            project_name = (matched_angle or {}).get("project_name") or matched_proj_name
+            project_cover = _find_project_cover(project_name)
+            if project_cover:
+                rel_cover = str(project_cover.relative_to(BASE_DIR)).replace("\\", "/")
+                info["cover_path"] = rel_cover
+                info["cover_url"] = f"/api/media/{rel_cover}"
         if not info.get("cover_path") and matched_prod:
             product_cover = _find_product_cover(matched_prod.get("name", ""))
             if product_cover:

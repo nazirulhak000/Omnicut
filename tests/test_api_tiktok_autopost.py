@@ -82,6 +82,52 @@ def test_product_named_cover_fallback_is_case_insensitive(tmp_path, monkeypatch)
 
     assert exports_api._find_product_cover('logitech wave keys') == cover
 
+
+def test_project_named_cover_lookup_is_case_insensitive(tmp_path, monkeypatch):
+    covers = tmp_path / '05_Covers_Thumbnails'
+    covers.mkdir(exist_ok=True)
+    cover = covers / 'LOG01-แกะกล่องว้าว_1_cover.jpg'
+    cover.write_bytes(b'cover')
+    monkeypatch.setattr(exports_api, 'COVERS_DIR', covers)
+
+    assert exports_api._find_project_cover('log01-แกะกล่องว้าว_1') == cover
+
+
+def test_list_exports_prefers_project_named_cover_over_product_fallback(tmp_path, monkeypatch):
+    exports_dir = tmp_path / '04_Exports' / 'Ready_to_post'
+    posted_dir = tmp_path / '04_Exports' / 'Posted'
+    covers = tmp_path / '05_Covers_Thumbnails'
+    exports_dir.mkdir(parents=True, exist_ok=True)
+    posted_dir.mkdir(parents=True, exist_ok=True)
+    covers.mkdir(parents=True, exist_ok=True)
+
+    video = exports_dir / 'rendered.mp4'
+    video.write_bytes(b'video')
+    project_cover = covers / 'LOG01-แกะกล่องว้าว_1_cover.jpg'
+    project_cover.write_bytes(b'project cover')
+    product_cover = covers / 'Logitech Wave Keys_cover.jpg'
+    product_cover.write_bytes(b'product cover')
+
+    monkeypatch.setattr(exports_api, 'BASE_DIR', tmp_path)
+    monkeypatch.setattr(exports_api, 'EXPORTS_DIR', exports_dir)
+    monkeypatch.setattr(exports_api, 'POSTED_DIR', posted_dir)
+    monkeypatch.setattr(exports_api, 'COVERS_DIR', covers)
+    monkeypatch.setattr(media, 'BASE_DIR', tmp_path)
+    monkeypatch.setattr(media, 'COVERS_DIR', covers)
+    monkeypatch.setattr(exports_api.ProductStore, 'get_all', lambda: [{
+        'id': 'product-1',
+        'name': 'Logitech Wave Keys',
+        'angles': [{
+            'angle_id': 'unboxing',
+            'project_name': 'LOG01-แกะกล่องว้าว_1',
+            'video_url': '04_Exports/Ready_to_post/rendered.mp4',
+            'status': 'rendered',
+        }],
+    }])
+
+    item = exports_api.list_exports()['exports'][0]
+    assert item['cover_path'] == '05_Covers_Thumbnails/LOG01-แกะกล่องว้าว_1_cover.jpg'
+
 def test_prepare_and_get_pending_with_schedule_time(tmp_path, monkeypatch):
     # Ensure pending is cleared first
     tap._pending = None
