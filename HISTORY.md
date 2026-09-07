@@ -716,3 +716,9 @@ Result: Time selection now searches all TikTok hour/minute options and scrolls t
 
 Date: 2026-09-07
 Result: Cover automation now includes TikTok's `cover-editor-container` and prefers that outer container when locating the Save button. The live DOM showed Save is a sibling of `CoverEditor__root`, which explained why the modal opened but the automation could not finish. Node regression suite passed 8/8; local file injection remains pending a direct extension test.
+
+
+## Round POST-3.13 - Persist schedule completion and resolve saved product covers
+
+Date: 2026-09-07
+Result: The prepare-details flow now applies the green completed row class when it marks step 4. Export metadata now falls back to a product-named cover such as `Logitech Wave Keys_cover.jpg`, allowing the extension to receive a cover path even when the cover filename does not match the video stem. Backend focused tests passed 6/6, extension tests passed 8/8, and Python compileall passed.

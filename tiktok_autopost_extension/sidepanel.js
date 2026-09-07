@@ -371,7 +371,11 @@ document.getElementById('prepareDetailsBtn').addEventListener('click', async () 
       coverPath: activeClip.cover_path,
     });
     const checks = {caption:2, product:3, cover:6, schedule:4};
-    for (const step of response?.completed || []) document.getElementById(`chk${checks[step]}`).checked = true;
+    for (const step of response?.completed || []) {
+      const checkbox = document.getElementById(`chk${checks[step]}`);
+      checkbox.checked = true;
+      checkbox.closest('.step-row')?.classList.add('completed');
+    }
     if (!response?.success) throw new Error(response?.error || 'ไม่ได้รับผลการทำงาน');
     setStatus('เตรียมครบแล้ว ตรวจข้อมูลบน TikTok และกดโพสต์ได้เลย', 'success');
   } catch (err) {

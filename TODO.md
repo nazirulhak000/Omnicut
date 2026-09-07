@@ -960,3 +960,21 @@ Notes: Only `tiktok_autopost_extension/background.js` and its regression contrac
 - [ ] Verify local file injection and Save through the reloaded extension; direct browser control still blocks local file transmission.
 
 Notes: Schedule code and steps 1-3 remain frozen.
+
+#### POST-3.13 - Persist completed schedule styling and resolve product-named covers (2026-09-07)
+
+- [ ] Add the `completed` row class whenever `prepare-details` marks a step checkbox, including schedule step 4.
+- [ ] Let `/api/exports` resolve a saved product-named cover such as `Logitech Wave Keys_cover.jpg` when the export stem has no exact cover file.
+- [ ] Add regression coverage for the completion class and product-cover fallback.
+- [ ] Run focused frontend/backend tests and build checks without changing schedule behavior or steps 1-3.
+- [ ] Verify the extension receives `cover_path` and can start Cover Studio after reloading.
+
+
+#### POST-3.13 implementation update (2026-09-07)
+
+- [x] Add `.completed` styling when `prepare-details` marks any checklist checkbox, including schedule step 4.
+- [x] Resolve product-named covers such as `Logitech Wave Keys_cover.jpg` when an export-stem cover is absent.
+- [x] Add deterministic fallback test and run focused checks: backend 6 passed, extension 8 passed, Python compileall passed.
+- [ ] Verify the reloaded extension receives the fallback `cover_path` and completes Cover Studio upload.
+
+Notes: Schedule selection logic itself remains frozen; only checklist styling and cover metadata resolution changed.

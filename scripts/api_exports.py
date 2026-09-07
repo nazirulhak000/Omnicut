@@ -12,7 +12,7 @@ from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from scripts.config import BASE_DIR, EXPORTS_DIR
+from scripts.config import BASE_DIR, EXPORTS_DIR, COVERS_DIR
 from scripts.product_store import ProductStore
 from scripts.media_service import get_file_info
 from scripts.api_schemas import LinkAngleRequest
@@ -39,6 +39,23 @@ router = APIRouter(tags=["Exports"])
 # kept showing a posted clip as still-to-post forever. Posted/ is scanned
 # alongside it below so a moved clip stays findable, tagged `is_posted`.
 POSTED_DIR = EXPORTS_DIR.parent / "Posted"
+
+
+def _find_product_cover(product_name: str) -> Optional[Path]:
+    """Find a cover saved with the product name when no export-stem cover exists."""
+    name = str(product_name or "").strip()
+    if not name or not COVERS_DIR.exists():
+        return None
+    for suffix in ("_cover.jpg", "_cover_3x4.jpg"):
+        expected = f"{name}{suffix}"
+        direct = COVERS_DIR / expected
+        if direct.is_file():
+            return direct
+        expected_folded = expected.casefold()
+        for candidate in COVERS_DIR.iterdir():
+            if candidate.is_file() and candidate.name.casefold() == expected_folded:
+                return candidate
+    return None
 
 
 @router.get("/api/exports")
@@ -210,6 +227,12 @@ def list_exports():
 
         info = get_file_info(f)
         info["is_posted"] = f.parent.resolve() == POSTED_DIR.resolve()
+        if not info.get("cover_path") and matched_prod:
+            product_cover = _find_product_cover(matched_prod.get("name", ""))
+            if product_cover:
+                rel_cover = str(product_cover.relative_to(BASE_DIR)).replace("\\", "/")
+                info["cover_path"] = rel_cover
+                info["cover_url"] = f"/api/media/{rel_cover}"
 
         group_key = None
         if matched_prod and matched_angle:

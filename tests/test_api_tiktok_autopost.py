@@ -5,6 +5,7 @@ from pathlib import Path
 from scripts.api_server import app
 import scripts.api_tiktok_autopost as tap
 import scripts.media_service as media
+import scripts.api_exports as exports_api
 
 client = TestClient(app)
 
@@ -70,6 +71,16 @@ def test_cover_update_refreshes_prepared_job_without_repreparing_video():
     pending = client.get('/api/tiktok-autopost/pending').json()
     assert Path(pending['video_path']) == video.resolve()
     assert Path(pending['cover_path']) == new_cover.resolve()
+
+
+def test_product_named_cover_fallback_is_case_insensitive(tmp_path, monkeypatch):
+    covers = tmp_path / '05_Covers_Thumbnails'
+    covers.mkdir(exist_ok=True)
+    cover = covers / 'Logitech Wave Keys_cover.jpg'
+    cover.write_bytes(b'cover')
+    monkeypatch.setattr(exports_api, 'COVERS_DIR', covers)
+
+    assert exports_api._find_product_cover('logitech wave keys') == cover
 
 def test_prepare_and_get_pending_with_schedule_time(tmp_path, monkeypatch):
     # Ensure pending is cleared first
