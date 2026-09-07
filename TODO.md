@@ -60,15 +60,45 @@ npm test
 
 #### POST-3.1 — แก้จากหลักฐานหน้าจอ TikTok จริง (2026-09-07)
 
-- [ ] Radio สินค้า: ลดการคลิกซ้ำเหลือครั้งเดียวต่อ fallback และยืนยัน `checked/aria-checked` ก่อนเดินหน้า
-- [ ] Dialog ตั้งชื่อตะกร้า: รอ input `TUXTextInputCore-input` และปุ่ม `เพิ่ม` แล้วตรวจ modal ปิด/ชิปสินค้าหลังเพิ่ม
-- [ ] ตั้งเวลา: รับค่า date/time จาก Side Panel และยืนยันค่าที่แสดงจริงก่อนรายงานสำเร็จ
-- [ ] ปก: รองรับ `label.ImageUpload__uploadArea` และ file input ที่อยู่ใน/ข้าง label ผ่าน `DOM.setFileInputFiles`
-- [ ] เพิ่ม regression test สำหรับ radio toggle, cart-name dialog, schedule payload และ cover selector
+- [x] Radio สินค้า: ลดการคลิกซ้ำเหลือครั้งเดียวต่อ fallback และยืนยัน `checked/aria-checked` ก่อนเดินหน้า
+- [x] Dialog ตั้งชื่อตะกร้า: รอ input `TUXTextInputCore-input` และปุ่ม `เพิ่ม` แล้วตรวจ modal ปิด/ชิปสินค้าหลังเพิ่ม
+- [x] ตั้งเวลา: รับค่า date/time จาก Side Panel และยืนยันค่าที่แสดงจริงก่อนรายงานสำเร็จ
+- [x] ปก: รองรับ `label.ImageUpload__uploadArea` และ file input ที่อยู่ใน/ข้าง label ผ่าน `DOM.setFileInputFiles`
+- [x] เพิ่ม regression test สำหรับ radio toggle, cart-name dialog, schedule payload และ cover selector
 
 หลักฐาน: ภาพวันที่ 2026-09-07 แสดง `input.TUXRadioStandalone-input` ที่ยังไม่ถูกเลือก,
 dialog ชื่อสินค้าใช้ `input.TUXTextInputCore-input` และปกใช้ `label.ImageUpload__uploadArea`
 role=`button`; การทดสอบ live ยังไม่ปิดจนกว่าผู้ใช้จะ reload extension และยืนยันผลจริง
+
+ผล gate: `node --check` ผ่านทุกไฟล์, `node --test tiktok_autopost_extension/background.test.cjs` = 7 passed,
+`python -m pytest tests/test_api_tiktok_autopost.py -q -p no:cacheprovider` = 4 passed, 1 known warning.
+ยังไม่ได้ทดสอบ TikTok จริงหลังแพตช์รอบนี้
+
+#### POST-3.2 — แก้ตามผลทดสอบ Playwright จริง (2026-09-07)
+
+- [x] ปรับการเลือกสินค้าให้คลิก wrapper ของ `TUXRadioStandalone` เมื่อ native input ไม่เปลี่ยน `checked` และต้องคลิกเพียงครั้งเดียว
+- [x] ปรับตัวเลือกเวลาให้ใช้รายการชั่วโมง/นาทีของ TikTok (`.tiktok-timepicker-option-text`) และตัวเลือกวันที่ `.day.valid` แทนการหา text แบบ ISO ตรง ๆ
+- [x] เอา fallback click ซ้ำของปุ่ม “ถัดไป” ออก เพื่อไม่ให้ dialog ถูกเปิด/ปิดซ้ำ
+- [ ] ยืนยัน flow หน้าปกด้วย `div.edit-container` → `label.ImageUpload__uploadArea` → file input → บันทึก โดยไม่กดเผยแพร่
+- [x] รัน node tests, backend test และตรวจ syntax หลังแก้
+
+หลักฐาน Playwright รอบนี้: พบ input วันเวลาเป็น `readonly` (`09:35`, `2026-09-07`); เปิด picker สำเร็จและเลือกเวลา `10:10` กับวันที่ `2026-09-08` ได้จริงด้วยรายการ DOM ของ TikTok; เลือกสินค้า ID `1737230577125983588` ผ่าน wrapper แล้ว `checked=true`, เปิด dialog ตั้งชื่อและกด `เพิ่ม` สำเร็จจนเห็นชิป `Logitech Wave Keys`; คลิก `div.edit-container` เปิด Cover Studio และพบ `label.ImageUpload__uploadArea` 1 จุด แต่การส่งไฟล์ผ่าน Chrome Playwright ถูกระบบเบราว์เซอร์ปฏิเสธ (`fileChooser.setFiles: Not allowed`) จึงยังไม่ติ๊ก gate แนบไฟล์จนกว่าจะทดสอบผ่าน extension/CDP จริง
+
+#### POST-3.3 — แก้ root ของ modal ซ้อน (2026-09-07)
+
+- [x] ให้การค้นหาแถวสินค้าและปุ่ม “ถัดไป” เลือก `.product-selector-container`/dialog ล่าสุด แทน dialog เก่าที่ค้างอยู่ใน DOM
+- [x] คงการคลิก wrapper radio เพียงครั้งเดียวและตรวจ `checked` หลังคลิก
+- [x] ลดการสลับแท็บ Showcase เหลือ logical click เดียว ตัด synthetic pointer sequence ที่ซ้ำบน tab และ container
+- [x] รัน syntax check, node regression และ backend test หลังแก้
+
+หลักฐาน: ใน DOM จริงของ TikTok พบ dialog “เพิ่มลิงก์” เก่ายังคงอยู่พร้อม dialog “เพิ่มลิงก์สินค้า”; root เดิมจึงมีโอกาสค้นหาแถวผิด dialog แพตช์นี้บังคับ scope ไปที่ product selector ล่าสุด
+
+#### POST-3.4 — แก้ข้อ 4/5 จากผลใช้งานหลังคอมมิต (2026-09-07)
+
+- [ ] ทำให้ schedule เลือกค่าใหม่แล้วกดปุ่มยืนยันของ TikTok (`ตั้งเวลา`) ก่อนตรวจค่าที่แสดง และคืน error ถ้าปุ่มยืนยันไม่ทำงาน
+- [ ] ทำให้ข้อแนบปกเปิด Cover Studio ได้แม้ปุ่มเป็น `div.edit-container` และเลือกไฟล์ input ที่อยู่ใน modal ล่าสุดเท่านั้น
+- [ ] แสดงผลลัพธ์แต่ละขั้นใน Side Panel ให้ผู้ใช้รู้ว่าค่า schedule/cover ถูกส่งจริงหรือหยุดที่จุดใด
+- [ ] รัน node regression, backend test และ syntax check
 
 - [x] แก้ไขขั้น 3: สลับแท็บ "นำเสนอสินค้า" (Showcase Tab)
   - รองรับกรณีหน้าต่าง `< เพิ่มลิงก์สินค้า` เปิดค้างอยู่แล้ว ไม่ต้องกดย้อน "+ เพิ่ม" ซ้ำ
@@ -107,12 +137,26 @@ Notes: ปรับปรุงโค้ด Extension ให้ตรงกั�
 
 ### บั๊กที่เจอแล้วแต่ยังไม่ได้แก้
 
-- [ ] **วรรณยุกต์ไทยชั้นสองยุบใน libass** — `เพิ่ง`→`เพีง`, `สิ่ง`→`สีง`
-      (ส่วน `ซื้อ`/`นี้` ซ้อนถูก) กระทบทั้งแอป ไม่ใช่เฉพาะ overlay
-      - หลักฐาน: เกิดที่ `bord0` ด้วย · เกิดครบทั้ง 6 ฟอนต์ (Prompt/Kanit/IBM Plex/Chakra Petch/Anuphan/Itim)
-        · เกิดผ่าน caption path ที่ไม่ได้ถูกแก้เลย → เป็น mark positioning ของ libass เอง
-      - ffmpeg build มี `--enable-libharfbuzz` แล้ว จึงไม่ใช่เรื่อง shaping ที่ปิดอยู่
-      - ยังไม่ได้ทำ: หาสาเหตุจริง (font mark anchor? libass version?) และวิธีแก้
+- [x] **วรรณยุกต์ไทยชั้นสองยุบ — แก้แล้ว (2026-09-07, ใช้ `/diagnose`)**: `เพิ่ง`→`เพีง`, `สิ่ง`→`สีง`
+      - **ข้อสันนิษฐานเดิมผิด:** ไม่ใช่ libass mark positioning และไม่ใช่ครบทั้ง 6 ฟอนต์ตามที่บันทึกไว้ก่อนหน้า
+      - **root cause จริง (พิสูจน์ด้วย differential render):** สร้าง harness render คำเดียวกันสองทาง — (a) ผ่าน
+        libass/ffmpeg (production path) (b) ผ่าน PIL ImageFont (คนละ text shaper คนละ engine ไม่ผ่าน libass เลย)
+        ผลออกมา**ยุบเหมือนกันเป๊ะทั้งคู่** → พิสูจน์ว่าไม่ใช่ libass แต่เป็นตัวไฟล์ฟอนต์เอง (ขาด GPOS mark-to-mark
+        anchor สำหรับ mark ไทยซ้อนสองชั้น เช่น สระอิ + ไม้เอก)
+      - เช็คครบทั้ง 6 ฟอนต์จริง (ไม่ใช่แค่เชื่อบันทึกเดิม): **Kanit/Prompt/Mitr/Itim พัง** ·
+        **IBM Plex Sans Thai/Chakra Petch/Anuphan ถูก** (Noto Sans Thai ก็ถูกด้วย, ทดสอบเพิ่มนอก 6 ตัวเดิม)
+      - ทดสอบ workaround ทาง text-level (ZWJ/ZWNJ คั่นระหว่าง mark, สลับลำดับ mark) — **ไม่ช่วยเลย** ยืนยันว่า
+        เป็นปัญหาที่ font file เท่านั้น แก้จาก input text ไม่ได้จริง
+      - **แก้แล้ว:** เอา Kanit/Prompt ออกจาก dropdown เลือกฟอนต์ใน `NewClipPanel.jsx:55-60` (เหลือ IBM Plex
+        Sans Thai + Noto Sans Thai เท่านั้น) — ไม่แตะฟอนต์ที่ preset อื่น (`kanit_viral`/`prompt_modern`/
+        `mitr_minimal`/`capsule_pill` ใน `typography_presets.json` ยังอยู่เผื่อใช้ทางอื่น แค่ไม่โผล่ใน dropdown นี้)
+      - **เจอบั๊กเพิ่มระหว่างทาง (ไม่เกี่ยวกับ tone mark):** ตัวเลือก "Noto Sans Thai" ใน dropdown เดียวกันนี้
+        ส่ง `font_name="NotoSansThai"` ซึ่ง**ไม่เคย match key ไหนใน `_load_font_family_map()` เลย** — fallback
+        ไปที่ `DEFAULT_FONT_FAMILY` (IBM Plex) แบบเงียบๆ ไม่มี error คนเลือก Noto จะได้ IBM Plex แทนโดยไม่รู้ตัว
+        แก้แล้วเพิ่ม alias `"NotoSansThai": "Noto Sans Thai"` ใน `_LEGACY_FONT_ALIASES`
+        ([font_metrics.py:18-25](scripts/subtitle/font_metrics.py#L18))
+      - เทสใหม่ `tests/test_font_family_mapping.py` (3 เคส) ยืนยัน mapping ทั้งสองจุด — ผ่านหมด,
+        `pytest tests/ -q` 492 passed, `npx vite build` ผ่าน
 
 ### ปรับปรุงที่ยังไม่จำเป็นเร่งด่วน
 
