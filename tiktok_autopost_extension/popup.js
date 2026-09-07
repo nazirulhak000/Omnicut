@@ -123,4 +123,63 @@ wireStep('btn4', 'chk4', 'ขั้น 4 (สลับเป็นกำหน�
 
 wireStep('btn5', 'chk5', 'ขั้น 5 (กด Post/กำหนดเวลา)',
   () => ({ action: 'click-post-only' }),
-  'ขั้น 5 สำเร็จ -- กด Post/กำหนดเวลาให้แล้ว 🎉');
+  'ขั้น 5 สำเร็จ -- กด Post/กำหนดเวลาให้แล้ว');
+
+// ── Open TikTok Studio Upload Tab ─────────────────────────────────────────
+const TIKTOK_UPLOAD_URL = 'https://www.tiktok.com/tiktokstudio/upload';
+
+async function findExistingTikTokTab() {
+  if (typeof chrome === 'undefined' || !chrome.tabs) return null;
+  try {
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (
+      activeTab?.url &&
+      activeTab.url.includes('tiktok.com') &&
+      (activeTab.url.includes('upload') || activeTab.url.includes('studio') || activeTab.url.includes('creator'))
+    ) {
+      return activeTab;
+    }
+  } catch (e) {}
+
+  const patterns = [
+    'https://www.tiktok.com/tiktokstudio/upload*',
+    'https://www.tiktok.com/creator-center/upload*',
+    '*://*.tiktok.com/*upload*',
+    '*://*.tiktok.com/tiktokstudio*',
+  ];
+  for (const pattern of patterns) {
+    try {
+      const tabs = await chrome.tabs.query({ url: pattern });
+      if (tabs && tabs.length > 0) return tabs[0];
+    } catch (e) {}
+  }
+  return null;
+}
+
+async function openTikTokUploadTab() {
+  if (typeof chrome !== 'undefined' && chrome.tabs) {
+    try {
+      const tab = await findExistingTikTokTab();
+      if (tab && tab.id) {
+        await chrome.tabs.update(tab.id, { active: true });
+        if (tab.windowId && chrome.windows) {
+          await chrome.windows.update(tab.windowId, { focused: true });
+        }
+        setStatus('สลับไปยังแท็บ TikTok Studio เรียบร้อยแล้ว', 'success');
+        return;
+      }
+      chrome.tabs.create({ url: TIKTOK_UPLOAD_URL }, () => {
+        setStatus('เปิดแท็บ TikTok Studio แล้ว กรุณารอหน้าเว็บโหลดครบ', 'success');
+      });
+    } catch (err) {
+      chrome.tabs.create({ url: TIKTOK_UPLOAD_URL }, () => {
+        setStatus('เปิดแท็บ TikTok Studio แล้ว กรุณารอหน้าเว็บโหลดครบ', 'success');
+      });
+    }
+  } else {
+    window.open(TIKTOK_UPLOAD_URL, '_blank');
+  }
+}
+
+document.getElementById('popupOpenTikTokBtn')?.addEventListener('click', openTikTokUploadTab);
+

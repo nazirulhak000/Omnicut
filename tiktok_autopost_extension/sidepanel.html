@@ -2,66 +2,81 @@
 <html lang="th">
 <head>
 <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>OmniCut TikTok Post Helper</title>
 <style>
   @font-face {
     font-family: "IBM Plex Sans Thai";
     font-style: normal;
-    font-weight: 400 700;
-    src: local("IBM Plex Sans Thai");
+    font-weight: 400 500;
+    src: url("fonts/IBMPlexSansThai-Medium.ttf") format("truetype");
+  }
+  @font-face {
+    font-family: "IBM Plex Sans Thai";
+    font-style: normal;
+    font-weight: 600 700;
+    src: url("fonts/IBMPlexSansThai-Bold.ttf") format("truetype");
   }
 
   :root {
-    --bg: #0a0e17;
-    --surface: #121828;
-    --surface-raised: #171f33;
-    --surface-hover: #1c2540;
-    --border: rgba(148, 163, 184, 0.14);
-    --border-strong: rgba(148, 163, 184, 0.24);
+    --bg-darkest: #05070d;
+    --bg: #080c16;
+    --bg-surface: #0f1626;
+    --bg-elevated: #162035;
+    --bg-hover: #1c2944;
+    --glass-card: rgba(15, 23, 42, 0.75);
+    --glass-input: rgba(8, 12, 22, 0.85);
 
+    --border-subtle: rgba(255, 255, 255, 0.07);
+    --border-card: rgba(148, 163, 184, 0.16);
+    --border-focus: rgba(34, 211, 238, 0.6);
+
+    --text-pure: #ffffff;
     --text-primary: #f1f5f9;
     --text-secondary: #94a3b8;
-    --text-tertiary: #5b6b85;
+    --text-tertiary: #64748b;
 
-    --accent: #22d3ee;
-    --accent-strong: #67e8f9;
-    --accent-wash: rgba(34, 211, 238, 0.1);
-    --accent-wash-strong: rgba(34, 211, 238, 0.22);
-    --accent-ink: #052a30;
+    --cyan: #22d3ee;
+    --cyan-bright: #67e8f9;
+    --cyan-glow: 0 0 20px rgba(34, 211, 238, 0.35);
+    --cyan-wash: rgba(34, 211, 238, 0.12);
+    --cyan-ink: #031b24;
 
-    --danger: #fb7185;
-    --danger-wash: rgba(251, 113, 133, 0.12);
+    --emerald: #10b981;
+    --emerald-bright: #34d399;
+    --emerald-glow: 0 0 20px rgba(16, 185, 129, 0.35);
+    --emerald-wash: rgba(16, 185, 129, 0.12);
 
-    --success: #34d399;
-    --success-strong: #6ee7b7;
-    --success-wash: rgba(52, 211, 153, 0.1);
-    --success-wash-strong: rgba(52, 211, 153, 0.22);
-    --success-ink: #032b1e;
+    --rose: #f43f5e;
+    --rose-bright: #fb7185;
+    --rose-glow: 0 0 18px rgba(244, 63, 94, 0.35);
+    --rose-wash: rgba(244, 63, 94, 0.14);
 
-    --radius-lg: 16px;
-    --radius-md: 12px;
-    --radius-sm: 8px;
+    --indigo: #6366f1;
+    --indigo-wash: rgba(99, 102, 241, 0.14);
 
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.24);
-    --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
-    --shadow-lg: 0 12px 32px -8px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.35);
-    --shadow-cta: 0 3px 10px -2px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.3);
+    --radius-xl: 18px;
+    --radius-lg: 14px;
+    --radius-md: 10px;
+    --radius-sm: 7px;
+    --radius-pill: 999px;
 
-    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --shadow-card: 0 8px 24px -4px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4);
+    --shadow-glow-btn: 0 6px 20px rgba(34, 211, 238, 0.38), 0 2px 4px rgba(0, 0, 0, 0.5);
+    --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   * { box-sizing: border-box; }
 
-  ::selection { background: var(--accent-wash-strong); color: var(--text-primary); }
+  ::selection { background: var(--cyan); color: var(--cyan-ink); }
 
-  ::-webkit-scrollbar { width: 10px; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
-    background: var(--border-strong);
-    border-radius: 8px;
-    border: 2px solid var(--bg);
+    background: rgba(148, 163, 184, 0.22);
+    border-radius: var(--radius-pill);
   }
-  ::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.45); }
 
   html, body {
     height: 100%;
@@ -69,433 +84,693 @@
 
   body {
     margin: 0;
-    padding: 16px;
-    font-family: "IBM Plex Sans Thai", "Segoe UI", system-ui, sans-serif;
+    padding: 14px;
+    font-family: "IBM Plex Sans Thai", "Leelawadee UI", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     font-size: 13px;
     line-height: 1.5;
     background:
-      radial-gradient(1200px 480px at 15% -10%, rgba(34, 211, 238, 0.06), transparent 60%),
+      radial-gradient(800px 320px at 50% -5%, rgba(34, 211, 238, 0.12), transparent 75%),
+      radial-gradient(600px 300px at 100% 60%, rgba(99, 102, 241, 0.07), transparent 70%),
+      radial-gradient(400px 250px at 0% 100%, rgba(244, 63, 94, 0.05), transparent 70%),
       var(--bg);
     color: var(--text-primary);
     -webkit-font-smoothing: antialiased;
   }
 
-  h1 {
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-    margin: 2px 0 16px;
-    color: var(--text-primary);
+  /* ---- Studio Brand Bar ------------------------------------------------ */
+  .studio-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 2px 12px;
+    border-bottom: 1px solid var(--border-subtle);
+    margin-bottom: 14px;
+  }
+  .brand-meta {
     display: flex;
     align-items: center;
     gap: 8px;
   }
-  h1::before {
-    content: "";
-    display: inline-block;
-    width: 7px;
-    height: 7px;
-    border-radius: 999px;
-    background: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-wash);
+  .pulse-orb {
+    width: 9px;
+    height: 9px;
+    border-radius: var(--radius-pill);
+    background: var(--cyan);
+    box-shadow: var(--cyan-glow);
+    position: relative;
     flex-shrink: 0;
   }
-
-  p.sub {
-    font-size: 11.5px;
-    line-height: 1.6;
-    color: var(--text-secondary);
-    margin: 0 0 12px;
+  .pulse-orb::after {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    border-radius: var(--radius-pill);
+    border: 1.5px solid var(--cyan);
+    animation: orb-ring 2.2s infinite ease-out;
   }
-
-  label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 11px;
-    color: var(--text-secondary);
-    cursor: pointer;
+  @keyframes orb-ring {
+    0% { transform: scale(1); opacity: 0.9; }
+    100% { transform: scale(2.2); opacity: 0; }
   }
-
-  button {
-    font-family: inherit;
-  }
-
-  /* ---- Focus ring (keyboard) ---------------------------------------- */
-  button:focus-visible,
-  input:focus-visible,
-  textarea:focus-visible,
-  [tabindex]:focus-visible {
-    outline: 2px solid var(--accent-strong);
-    outline-offset: 2px;
-  }
-
-  /* ---- Section cards --------------------------------------------------- */
-  .section-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    padding: 14px;
-    border-radius: var(--radius-md);
-    margin-bottom: 12px;
-    box-shadow: var(--shadow-sm);
-  }
-  .input-label {
-    font-size: 10.5px;
-    font-weight: 600;
-    letter-spacing: 0.01em;
-    color: var(--text-secondary);
-    margin-bottom: 6px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-  }
-  .input-label .ic { font-size: 12px; line-height: 1; }
-  .field + .field { margin-top: 12px; }
-
-  .schedule-fields {
-    padding: 12px 13px 13px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--surface-muted, var(--bg));
-  }
-  .schedule-inputs {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 10px;
-    margin-top: 9px;
-  }
-  .schedule-input-group {
+  .brand-text {
     display: flex;
     flex-direction: column;
-    align-items: stretch;
-    gap: 5px;
-    color: var(--text-secondary);
-    font-size: 10.5px;
-    font-weight: 600;
   }
-  .schedule-input-group input,
-  .schedule-input-group select {
-    width: 100%;
-    box-sizing: border-box;
-    min-height: 36px;
-    padding: 8px 9px;
-    border: 1px solid var(--border-strong);
-    border-radius: var(--radius-sm);
-    background: var(--bg);
-    color: var(--text-primary);
-    font: inherit;
-    color-scheme: dark;
-    transition: border-color 0.15s var(--ease-out), box-shadow 0.15s var(--ease-out);
-  }
-  .schedule-input-group input:hover,
-  .schedule-input-group select:hover { border-color: rgba(148, 163, 184, 0.42); }
-  .schedule-input-group input:focus,
-  .schedule-input-group select:focus {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-wash);
-  }
-
-  .btn-copy-all {
-    width: 100%;
-    justify-content: center;
+  .brand-title {
+    font-size: 14.5px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--text-pure);
+    line-height: 1.2;
     display: flex;
     align-items: center;
     gap: 6px;
-    margin-top: 10px;
-    font-size: 11.5px;
   }
-  .btn-copy-all.copied {
-    background: var(--success-wash-strong);
-    border-color: var(--success);
-    color: var(--success-strong);
-  }
-
-  textarea, input[type="text"] {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 8px 10px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border-strong);
-    background: var(--bg);
-    color: var(--text-primary);
-    font-size: 12px;
-    font-family: inherit;
-    transition: border-color 0.15s var(--ease-out), box-shadow 0.15s var(--ease-out);
-    resize: vertical;
-  }
-  textarea::placeholder, input[type="text"]::placeholder { color: var(--text-tertiary); }
-  textarea:hover, input[type="text"]:hover { border-color: rgba(148, 163, 184, 0.34); }
-  textarea:focus, input[type="text"]:focus {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-wash);
-  }
-
-  /* ---- Buttons ----------------------------------------------------------- */
-  button {
-    border: none;
-    border-radius: var(--radius-sm);
+  .brand-subtitle {
+    font-size: 9.5px;
     font-weight: 600;
-    font-size: 12px;
-    cursor: pointer;
-    padding: 8px 12px;
-    white-space: nowrap;
-    transition: transform 0.12s var(--ease-out), box-shadow 0.15s var(--ease-out),
-                background-color 0.15s var(--ease-out), filter 0.15s var(--ease-out);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-tertiary);
   }
-  button:disabled { opacity: 0.4; cursor: not-allowed; filter: grayscale(0.3); }
-
-  .btn-primary {
-    background: var(--accent);
-    color: var(--accent-ink);
-    box-shadow: var(--shadow-cta);
-  }
-  .btn-primary:hover:not(:disabled) { background: var(--accent-strong); transform: translateY(-1px); }
-  .btn-primary:active:not(:disabled) { transform: translateY(0); filter: brightness(0.96); }
-
-  .btn-ghost {
-    background: var(--surface-raised);
-    border: 1px solid var(--border-strong);
-    color: var(--text-secondary);
-  }
-  .btn-ghost:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary); border-color: rgba(148, 163, 184, 0.4); }
-  .btn-ghost:active:not(:disabled) { transform: translateY(1px); }
-
-  .btn-step {
-    background: var(--surface-raised);
-    border: 1px solid var(--border-strong);
-    color: var(--text-primary);
-    flex-shrink: 0;
-  }
-  .btn-step:hover:not(:disabled) { background: var(--accent-wash); border-color: var(--accent); color: var(--accent-strong); }
-  .btn-step:active:not(:disabled) { transform: scale(0.97); }
-
-  .btn-success {
-    background: var(--success);
-    color: var(--success-ink);
-    box-shadow: var(--shadow-cta);
-  }
-  .btn-success:hover:not(:disabled) { background: var(--success-strong); transform: translateY(-1px); }
-  .btn-success:active:not(:disabled) { transform: translateY(0); filter: brightness(0.96); }
-
-  /* ---- Tabs (segmented control) ------------------------------------------ */
-  .tabs {
-    position: relative;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    padding: 4px;
-    margin-bottom: 16px;
-    box-shadow: var(--shadow-sm);
-  }
-  .tab-btn {
-    position: relative;
-    background: transparent;
-    color: var(--text-secondary);
-    border-radius: var(--radius-sm);
-    padding: 9px 6px;
-    font-size: 12px;
-    font-weight: 600;
+  .header-actions {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 6px;
-    z-index: 1;
-    transition: color 0.2s var(--ease-out);
+    gap: 8px;
   }
-  .tab-btn .ic { font-size: 13px; }
-  .tab-btn:hover:not(.active) { color: var(--text-primary); }
-  .tab-btn.active {
-    color: var(--accent-ink);
-    background: var(--accent);
-    box-shadow: var(--shadow-cta);
-  }
-  .tab-panel { display: none; animation: fade-in 0.22s var(--ease-out); }
-  .tab-panel.active { display: block; }
-
-  @keyframes fade-in {
-    from { opacity: 0; transform: translateY(3px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .tab-panel { animation: none; }
-    button, textarea, input, .card { transition: none !important; }
-  }
-
-  /* ---- Clip list ------------------------------------------------------- */
-  #list { display: flex; flex-direction: column; gap: 10px; }
-
-  .card {
-    display: flex;
-    gap: 12px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    padding: 12px;
-    box-shadow: var(--shadow-sm);
-    transition: border-color 0.18s var(--ease-out), box-shadow 0.18s var(--ease-out), transform 0.18s var(--ease-out);
-  }
-  .card:hover {
-    border-color: var(--border-strong);
-    box-shadow: var(--shadow-md);
-    transform: translateY(-1px);
-  }
-  .card img {
-    width: 56px;
-    height: 100px;
-    object-fit: cover;
-    border-radius: var(--radius-sm);
-    background: #000;
-    flex-shrink: 0;
-    box-shadow: var(--shadow-sm);
-  }
-  .card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-  .card-product {
-    font-size: 10.5px;
+  .btn-header-tiktok {
+    background: rgba(34, 211, 238, 0.14);
+    border: 1px solid rgba(34, 211, 238, 0.4);
+    color: var(--cyan-bright);
+    font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.02em;
-    text-transform: uppercase;
-    color: var(--accent-strong);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-bottom: 3px;
+    padding: 4px 10px;
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.18s var(--ease-spring);
   }
-  .card-hook {
-    font-size: 12.5px;
-    font-weight: 500;
+  .btn-header-tiktok:hover {
+    background: rgba(34, 211, 238, 0.25);
+    border-color: var(--cyan);
+    color: #ffffff;
+    box-shadow: 0 0 14px rgba(34, 211, 238, 0.4);
+    transform: translateY(-1px);
+  }
+  .btn-header-tiktok:active { transform: translateY(0); }
+
+  .status-pill {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: var(--radius-pill);
+    background: rgba(16, 185, 129, 0.14);
+    color: var(--emerald-bright);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .status-dot-green {
+    width: 5px;
+    height: 5px;
+    border-radius: var(--radius-pill);
+    background: var(--emerald-bright);
+    box-shadow: var(--emerald-glow);
+  }
+
+
+
+  /* ---- Segmented Switch (Sliding Tabs) ---------------------------------- */
+  .segmented-switch {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    background: rgba(11, 16, 28, 0.85);
+    border: 1px solid var(--border-card);
+    border-radius: var(--radius-pill);
+    padding: 3px;
+    margin-bottom: 14px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  }
+  .switch-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    border-radius: var(--radius-pill);
+    padding: 9px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    transition: all 0.2s var(--ease-spring);
+  }
+  .switch-btn svg {
+    transition: transform 0.2s var(--ease-spring);
+  }
+  .switch-btn:hover:not(.active) {
     color: var(--text-primary);
-    line-height: 1.4;
-    margin: 0 0 8px;
+    background: rgba(255, 255, 255, 0.04);
+  }
+  .switch-btn:hover svg {
+    transform: translateY(-1px);
+  }
+  .switch-btn.active {
+    color: var(--cyan-ink);
+    background: linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%);
+    box-shadow: var(--shadow-glow-btn);
+    font-weight: 700;
+  }
+  .switch-btn.active svg {
+    stroke: var(--cyan-ink);
+  }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; animation: tab-slide 0.22s var(--ease-spring); }
+
+  @keyframes tab-slide {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ---- Studio Monitor (Active Clip Card) ------------------------------- */
+  .studio-monitor {
+    position: relative;
+    background: linear-gradient(145deg, rgba(19, 29, 52, 0.75) 0%, rgba(13, 20, 36, 0.9) 100%);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    backdrop-filter: blur(20px);
+    border-radius: var(--radius-lg);
+    padding: 12px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+  }
+  .studio-monitor::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(34, 211, 238, 0.4) 50%, transparent 100%);
+  }
+
+  .monitor-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  .monitor-chip-live {
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--cyan-bright);
+    background: var(--cyan-wash);
+    border: 1px solid rgba(34, 211, 238, 0.25);
+    padding: 2px 7px;
+    border-radius: var(--radius-pill);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .monitor-chip-ratio {
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--text-tertiary);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .monitor-stage {
+    display: flex;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .monitor-frame {
+    flex-shrink: 0;
+    width: 72px;
+    height: 98px;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: #000;
+    border: 1.5px solid rgba(148, 163, 184, 0.25);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .monitor-frame:has(#activeCover[hidden]) {
+    display: none;
+  }
+  #activeCover {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.3s var(--ease-spring);
+  }
+  .monitor-frame:hover #activeCover {
+    transform: scale(1.05);
+  }
+
+  #activeClipBanner {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  #activeClipBanner.empty-state {
+    padding: 16px 12px;
+    border-radius: var(--radius-md);
+    background: rgba(11, 16, 28, 0.6);
+    border: 1.5px dashed rgba(148, 163, 184, 0.2);
+    color: var(--text-secondary);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    font-size: 11.5px;
+  }
+  .active-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--cyan-bright);
+    margin-bottom: 4px;
+  }
+  .active-badge .pulse-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: var(--radius-pill);
+    background: var(--cyan);
+    box-shadow: var(--cyan-glow);
+  }
+  .active-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    line-height: 1.35;
+    color: var(--text-pure);
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
-  .card-meta {
-    font-size: 10px;
-    color: var(--text-tertiary);
-    margin-bottom: 10px;
+
+  /* ---- Content Inspector Card ------------------------------------------ */
+  .inspector-card {
+    background: var(--glass-card);
+    border: 1px solid var(--border-card);
+    backdrop-filter: blur(20px);
+    padding: 14px;
+    border-radius: var(--radius-lg);
+    margin-bottom: 14px;
+    box-shadow: var(--shadow-card);
+  }
+  .inspector-header {
     display: flex;
     align-items: center;
-    gap: 5px;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-subtle);
   }
-  .card-meta .dot { width: 3px; height: 3px; border-radius: 999px; background: var(--text-tertiary); flex-shrink: 0; }
-  .card-body button { margin-top: auto; align-self: flex-start; }
-
-  #refreshBtn {
-    width: 100%;
-    margin-bottom: 14px;
-    justify-content: center;
+  .inspector-title {
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-primary);
     display: flex;
     align-items: center;
     gap: 6px;
   }
-
-  .empty, .error {
-    font-size: 12px;
-    color: var(--text-tertiary);
-    padding: 36px 16px;
-    text-align: center;
-    background: var(--surface);
-    border: 1px dashed var(--border-strong);
-    border-radius: var(--radius-md);
-    line-height: 1.6;
+  .inspector-title svg {
+    color: var(--cyan);
   }
-  .error { color: var(--danger); background: var(--danger-wash); border-color: rgba(251, 113, 133, 0.3); border-style: solid; }
 
-  /* ---- Active-clip banner --------------------------------------------- */
-  #activeClipBanner {
-    background: var(--accent-wash);
-    border: 1px solid rgba(34, 211, 238, 0.28);
-    border-radius: var(--radius-md);
-    padding: 12px 14px;
-    margin-bottom: 14px;
-    font-size: 12px;
-    color: var(--text-primary);
+  .field-group {
+    margin-bottom: 12px;
+  }
+  .field-label-row {
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: space-between;
+    margin-bottom: 5px;
   }
-  #activeClipBanner::before {
-    content: "🎬";
-    font-size: 16px;
+  .field-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .field-label svg {
+    color: var(--cyan);
+  }
+  .field-tag-badge {
+    font-size: 9.5px;
+    color: var(--text-tertiary);
+    font-family: "Cascadia Code", Consolas, monospace;
+  }
+
+  textarea, input[type="text"] {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 11px;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    background: var(--glass-input);
+    color: var(--text-pure);
+    font-size: 12px;
+    font-family: inherit;
+    line-height: 1.45;
+    transition: all 0.18s var(--ease-spring);
+    resize: vertical;
+  }
+  textarea:focus, input[type="text"]:focus {
+    outline: none;
+    border-color: var(--cyan);
+    box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.16), 0 0 16px rgba(34, 211, 238, 0.12);
+    background: #090e1b;
+  }
+  textarea::placeholder, input[type="text"]::placeholder {
+    color: var(--text-tertiary);
+  }
+
+  /* Copy Button */
+  .btn-copy-action {
+    width: 100%;
+    margin: 4px 0 14px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: var(--radius-md);
+    background: rgba(22, 32, 53, 0.9);
+    border: 1px solid rgba(34, 211, 238, 0.25);
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    transition: all 0.18s var(--ease-spring);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  }
+  .btn-copy-action:hover:not(:disabled) {
+    background: rgba(34, 211, 238, 0.12);
+    border-color: var(--cyan);
+    color: var(--cyan-bright);
+    box-shadow: 0 0 14px rgba(34, 211, 238, 0.25);
+    transform: translateY(-1px);
+  }
+  .btn-copy-action.copied {
+    background: var(--emerald-wash) !important;
+    border-color: var(--emerald) !important;
+    color: var(--emerald-bright) !important;
+  }
+
+  /* Affiliate & Basket Grid */
+  .affiliate-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  /* Schedule Sub-Widget */
+  .schedule-widget {
+    background: rgba(11, 16, 28, 0.7);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    margin-top: 4px;
+  }
+  .schedule-widget-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .schedule-widget-title svg {
+    color: var(--cyan);
+  }
+  .schedule-widget-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .schedule-widget-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 10.5px;
+    color: var(--text-tertiary);
+    font-weight: 600;
+  }
+  .schedule-widget-group input,
+  .schedule-widget-group select {
+    width: 100%;
+    min-height: 35px;
+    padding: 6px 9px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: var(--radius-sm);
+    background: var(--glass-input);
+    color: var(--text-pure);
+    font-size: 11.5px;
+    font-family: inherit;
+    color-scheme: dark;
+    transition: all 0.15s;
+  }
+  .schedule-widget-group input:focus,
+  .schedule-widget-group select:focus {
+    outline: none;
+    border-color: var(--cyan);
+    box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.15);
+  }
+
+  /* ---- Command Center (Primary Action & Checklist) ---------------------- */
+  .command-card {
+    background: var(--glass-card);
+    border: 1px solid var(--border-card);
+    backdrop-filter: blur(20px);
+    border-radius: var(--radius-lg);
+    padding: 14px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Big Hero Action */
+  .hero-post-btn {
+    width: 100%;
+    padding: 12px 18px;
+    border-radius: var(--radius-md);
+    font-size: 13.5px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    background: linear-gradient(135deg, #22d3ee 0%, #0284c7 100%);
+    color: #021a24;
+    border: none;
+    box-shadow: var(--shadow-glow-btn);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s var(--ease-spring);
+    margin-bottom: 10px;
+  }
+  .hero-post-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #67e8f9 0%, #06b6d4 100%);
+    box-shadow: 0 8px 26px rgba(34, 211, 238, 0.55), 0 2px 6px rgba(0, 0, 0, 0.5);
+    transform: translateY(-2px);
+  }
+  .hero-post-btn:active:not(:disabled) {
+    transform: translateY(0);
+    filter: brightness(0.95);
+  }
+  .hero-post-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    filter: grayscale(0.5);
+    transform: none !important;
+  }
+
+  /* Schedule Toggle Switch */
+  .switch-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    margin-bottom: 14px;
+    user-select: none;
+    padding: 4px 2px;
+  }
+  .switch-row input[type="checkbox"] {
+    appearance: none;
+    width: 17px;
+    height: 17px;
+    border-radius: 5px;
+    border: 1.5px solid rgba(148, 163, 184, 0.3);
+    background: var(--bg-surface);
+    cursor: pointer;
+    position: relative;
+    transition: all 0.18s;
     flex-shrink: 0;
   }
-  #activeClipBanner b {
-    color: var(--accent-strong);
-    display: block;
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    margin-bottom: 2px;
+  .switch-row input[type="checkbox"]:checked {
+    background: var(--cyan);
+    border-color: var(--cyan);
+    box-shadow: 0 0 10px rgba(34, 211, 238, 0.4);
   }
-  #activeClipBanner.empty-state {
-    background: var(--surface);
-    border-color: var(--border);
-    color: var(--text-tertiary);
-    font-size: 11.5px;
+  .switch-row input[type="checkbox"]:checked::after {
+    content: "";
+    position: absolute;
+    left: 4.5px;
+    top: 2px;
+    width: 4px;
+    height: 8px;
+    border: solid #021a24;
+    border-width: 0 2.2px 2.2px 0;
+    transform: rotate(45deg);
   }
-  #activeClipBanner.empty-state::before { content: "👋"; opacity: 0.6; }
 
-  /* ---- Checklist ---------------------------------------------------- */
-  .checklist {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    padding: 4px;
-    margin-bottom: 4px;
-    box-shadow: var(--shadow-sm);
-  }
-  .step-row {
+  /* Pipeline Progress Header */
+  .pipeline-header {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 8px;
-    border-bottom: 1px solid var(--border);
-    transition: background-color 0.15s var(--ease-out);
+    justify-content: space-between;
+    margin-bottom: 8px;
   }
-  .step-row:last-child { border-bottom: none; }
-  .step-row:hover { background: rgba(255, 255, 255, 0.015); }
+  .pipeline-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+  }
+  .pipeline-meter-text {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--cyan-bright);
+  }
+  .pipeline-track {
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+    margin-bottom: 14px;
+  }
+  .pipeline-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #22d3ee, #10b981);
+    border-radius: var(--radius-pill);
+    transition: width 0.3s var(--ease-spring);
+  }
+
+  /* Stepper Pipeline List */
+  .checklist {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .checklist::before {
+    content: "";
+    position: absolute;
+    top: 20px;
+    bottom: 24px;
+    left: 17px;
+    width: 2px;
+    background: linear-gradient(to bottom, rgba(34, 211, 238, 0.4) 0%, rgba(148, 163, 184, 0.15) 100%);
+    z-index: 0;
+  }
+
+  .step-row {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 10px;
+    background: rgba(11, 16, 28, 0.65);
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    border-radius: var(--radius-md);
+    transition: all 0.18s var(--ease-spring);
+  }
+  .step-row:hover {
+    background: rgba(22, 32, 53, 0.85);
+    border-color: rgba(148, 163, 184, 0.3);
+    transform: translateX(2px);
+  }
 
   .step-num {
-    width: 24px;
-    height: 24px;
-    border-radius: 999px;
-    background: var(--surface-raised);
-    border: 1px solid var(--border-strong);
+    width: 26px;
+    height: 26px;
+    border-radius: var(--radius-pill);
+    background: #090e1a;
+    border: 2px solid rgba(148, 163, 184, 0.28);
     color: var(--text-secondary);
-    font-size: 10.5px;
+    font-size: 11px;
     font-weight: 700;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
     cursor: pointer;
-    transition: all 0.15s var(--ease-out);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    transition: all 0.2s var(--ease-spring);
   }
-  .step-num:hover { border-color: var(--accent); color: var(--accent-strong); transform: scale(1.08); }
-  .step-num:active { transform: scale(0.94); }
-  .step-row:has(input:checked) .step-num {
-    background: var(--success);
-    border-color: var(--success);
-    color: var(--success-ink);
+  .step-num:hover {
+    border-color: var(--cyan);
+    color: var(--cyan-bright);
+    box-shadow: var(--cyan-glow);
+    transform: scale(1.1);
   }
+
+  .step-row:has(input:checked) .step-num,
   .step-row.completed .step-num {
-    background: var(--success);
-    border-color: var(--success);
-    color: var(--success-ink);
+    background: var(--emerald);
+    border-color: var(--emerald-bright);
+    color: #022416;
+    box-shadow: var(--emerald-glow);
   }
-  .step-row:has(input:checked) .step-num:hover { border-color: var(--success-strong); transform: scale(1.08); }
-  .step-row:has(input:checked) .step-label { color: var(--text-secondary); }
-  .step-row:has(input:checked) .step-label strong { text-decoration: line-through; text-decoration-color: var(--text-tertiary); }
-  .step-row.completed .step-label { color: var(--text-secondary); }
-  .step-row.completed .step-label strong { text-decoration: line-through; text-decoration-color: var(--text-tertiary); }
+  .step-row:has(input:checked) .step-label strong,
+  .step-row.completed .step-label strong {
+    color: var(--text-secondary);
+    text-decoration: line-through;
+    text-decoration-color: var(--text-tertiary);
+  }
 
   .step-row input[type="checkbox"] {
     position: absolute;
@@ -505,154 +780,511 @@
     height: 0;
   }
 
-  .step-label { flex: 1; font-size: 12px; color: var(--text-primary); min-width: 0; }
-  .step-label strong { font-weight: 600; }
-  .step-label small { display: block; color: var(--text-tertiary); font-size: 10px; margin-top: 2px; }
-  .step-row.danger .step-label small { color: var(--danger); opacity: 0.85; }
-
-  .step-note {
-    margin: 10px 2px 14px;
-    font-size: 10.5px;
+  .step-label {
+    flex: 1;
+    min-width: 0;
+  }
+  .step-label strong {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-pure);
+    letter-spacing: -0.01em;
+  }
+  .step-label small {
+    display: block;
+    font-size: 10px;
     color: var(--text-tertiary);
-    line-height: 1.6;
-    padding: 8px 10px;
-    background: var(--surface);
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
+    margin-top: 1px;
+    line-height: 1.35;
   }
 
-  /* ---- Mark-posted: deliberately calmer / distinct from automation ---- */
+  .btn-step {
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    color: var(--text-primary);
+    padding: 5px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s;
+  }
+  .btn-step:hover:not(:disabled) {
+    background: var(--cyan-wash);
+    border-color: var(--cyan);
+    color: var(--cyan-bright);
+    box-shadow: 0 0 10px rgba(34, 211, 238, 0.3);
+    transform: scale(1.04);
+  }
+  .btn-step:active:not(:disabled) { transform: scale(0.96); }
+  .btn-step:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none !important;
+  }
+
+  /* Step 6 Danger */
+  .step-row.danger {
+    border-color: rgba(244, 63, 94, 0.25);
+    background: rgba(30, 15, 25, 0.5);
+  }
+  .step-row.danger .step-num {
+    border-color: rgba(244, 63, 94, 0.4);
+  }
+  .step-row.danger .step-label strong {
+    color: #fda4af;
+  }
+  .step-row.danger .step-label small {
+    color: var(--rose-bright);
+  }
+  .step-row.danger .btn-step {
+    background: var(--rose-wash);
+    border-color: rgba(244, 63, 94, 0.4);
+    color: #fda4af;
+  }
+  .step-row.danger .btn-step:hover:not(:disabled) {
+    background: rgba(244, 63, 94, 0.28);
+    border-color: var(--rose);
+    box-shadow: var(--rose-glow);
+  }
+
+  .step-note {
+    font-size: 10.5px;
+    color: var(--text-tertiary);
+    line-height: 1.5;
+    padding: 8px 10px;
+    background: rgba(11, 16, 28, 0.6);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle);
+    margin: 12px 0;
+  }
+
+  /* ---- Mark Posted Studio Card ----------------------------------------- */
   .mark-posted-card {
-    background: var(--success-wash);
-    border: 1px solid rgba(52, 211, 153, 0.28);
-    border-radius: var(--radius-md);
+    background: linear-gradient(145deg, rgba(6, 38, 26, 0.7) 0%, rgba(4, 24, 16, 0.85) 100%);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: var(--radius-lg);
     padding: 14px;
-    margin-top: 16px;
+    margin-top: 14px;
+    box-shadow: var(--shadow-card);
   }
   .mark-posted-card .label-row {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 11px;
+    font-size: 11.5px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: var(--success-strong);
-    margin-bottom: 6px;
+    letter-spacing: 0.04em;
+    color: var(--emerald-bright);
+    margin-bottom: 5px;
   }
   .mark-posted-card p {
     color: var(--text-secondary);
     margin: 0 0 12px;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .btn-mark-posted {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: var(--radius-md);
+    font-size: 12.5px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #022416;
+    border: none;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    transition: all 0.18s var(--ease-spring);
+  }
+  .btn-mark-posted:hover:not(:disabled) {
+    background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+    box-shadow: var(--emerald-glow), 0 4px 14px rgba(16, 185, 129, 0.4);
+    transform: translateY(-1px);
+  }
+
+  /* ---- Clip List (Tab 1) ----------------------------------------------- */
+  #list { display: flex; flex-direction: column; gap: 10px; }
+
+  .card {
+    display: flex;
+    gap: 12px;
+    background: var(--glass-card);
+    border: 1px solid var(--border-card);
+    backdrop-filter: blur(16px);
+    border-radius: var(--radius-lg);
+    padding: 12px;
+    box-shadow: var(--shadow-card);
+    transition: all 0.2s var(--ease-spring);
+  }
+  .card:hover {
+    border-color: rgba(34, 211, 238, 0.35);
+    box-shadow: 0 10px 28px -4px rgba(0, 0, 0, 0.6), 0 0 16px rgba(34, 211, 238, 0.1);
+    transform: translateY(-2px);
+  }
+  .card img {
+    width: 58px;
+    height: 88px;
+    object-fit: cover;
+    border-radius: var(--radius-md);
+    background: #000;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    flex-shrink: 0;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
+  }
+  .card-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .card-product {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--cyan-bright);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+  }
+  .card-hook {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text-pure);
+    line-height: 1.35;
+    margin: 0 0 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .card-meta {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .card-body button {
+    margin-top: auto;
+    align-self: flex-start;
+    padding: 6px 12px;
     font-size: 11.5px;
+    border-radius: var(--radius-pill);
+    background: linear-gradient(135deg, #22d3ee, #0891b2);
+    color: #021a24;
+    border: none;
+    box-shadow: 0 2px 8px rgba(34, 211, 238, 0.3);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .card-body button:hover:not(:disabled) {
+    background: linear-gradient(135deg, #67e8f9, #22d3ee);
+    box-shadow: var(--cyan-glow);
+    transform: translateY(-1px);
+  }
+
+
+
+  .btn-refresh-full {
+    width: 100%;
+    margin-bottom: 14px;
+    padding: 9px;
+    font-size: 12px;
+    font-weight: 600;
+    background: rgba(22, 32, 53, 0.7);
+    border: 1px solid var(--border-card);
+    border-radius: var(--radius-pill);
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    transition: all 0.18s;
+  }
+  .btn-refresh-full:hover:not(:disabled) {
+    background: rgba(34, 211, 238, 0.1);
+    border-color: var(--cyan);
+    color: var(--cyan-bright);
+  }
+
+  .empty, .error {
+    font-size: 11.5px;
+    color: var(--text-tertiary);
+    padding: 34px 14px;
+    text-align: center;
+    background: var(--glass-card);
+    border: 1.5px dashed var(--border-card);
+    border-radius: var(--radius-lg);
     line-height: 1.6;
   }
-  #markPostedBtn { width: 100%; justify-content: center; display: flex; align-items: center; gap: 6px; }
+  .error {
+    color: var(--rose-bright);
+    background: var(--rose-wash);
+    border-color: rgba(244, 63, 94, 0.35);
+    border-style: solid;
+  }
 
-  /* ---- Status toast ---------------------------------------------------- */
+  /* ---- Status Toast ---------------------------------------------------- */
   #status {
     margin-top: 14px;
-    font-size: 12px;
-    line-height: 1.6;
+    font-size: 11.5px;
+    line-height: 1.5;
     white-space: pre-wrap;
     word-break: break-word;
-    min-height: 0;
   }
   #status:empty { display: none; }
   #status.info, #status.error, #status.success {
-    padding: 10px 12px;
-    border-radius: var(--radius-sm);
-    border: 1px solid transparent;
-    animation: toast-in 0.2s var(--ease-out);
+    padding: 10px 14px;
+    border-radius: var(--radius-md);
+    animation: toast-slide 0.22s var(--ease-spring);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   }
-  @keyframes toast-in { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
-  #status.info { background: var(--surface); border-color: var(--border); color: var(--text-secondary); }
-  #status.error { background: var(--danger-wash); border-color: rgba(251, 113, 133, 0.3); color: var(--danger); }
-  #status.success { background: var(--success-wash); border-color: rgba(52, 211, 153, 0.3); color: var(--success-strong); }
+  @keyframes toast-slide {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  #status.info {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-card);
+    color: var(--text-secondary);
+  }
+  #status.error {
+    background: var(--rose-wash);
+    border: 1px solid rgba(244, 63, 94, 0.4);
+    color: #fda4af;
+  }
+  #status.success {
+    background: var(--emerald-wash);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    color: var(--emerald-bright);
+  }
 
-  /* ---- Confirm modal ----------------------------------------------------- */
+  /* ---- Confirmation Modal ---------------------------------------------- */
   #confirmOverlay {
     position: fixed;
     inset: 0;
-    background: rgba(5, 8, 15, 0.7);
-    backdrop-filter: blur(3px);
+    background: rgba(3, 5, 10, 0.82);
+    backdrop-filter: blur(8px);
     display: none;
     align-items: center;
     justify-content: center;
-    padding: 20px;
-    z-index: 10;
-    animation: overlay-in 0.15s var(--ease-out);
+    padding: 16px;
+    z-index: 100;
+    animation: overlay-fade 0.15s;
   }
   #confirmOverlay.show { display: flex; }
-  @keyframes overlay-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes overlay-fade { from { opacity: 0; } to { opacity: 1; } }
 
   #confirmBox {
-    background: var(--surface-raised);
-    border: 1px solid var(--border-strong);
-    border-radius: var(--radius-lg);
-    padding: 18px;
-    font-size: 12px;
-    max-width: 280px;
-    box-shadow: var(--shadow-lg);
-    animation: box-in 0.2s var(--ease-out);
+    background: #0d1527;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: var(--radius-xl);
+    padding: 20px;
+    font-size: 12.5px;
+    max-width: 300px;
+    width: 100%;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+    animation: box-pop 0.2s var(--ease-spring);
   }
-  @keyframes box-in {
-    from { opacity: 0; transform: scale(0.96) translateY(4px); }
+  @keyframes box-pop {
+    from { opacity: 0; transform: scale(0.95) translateY(4px); }
     to { opacity: 1; transform: scale(1) translateY(0); }
   }
-  #confirmBox .icon { font-size: 22px; margin-bottom: 8px; display: block; }
-  #confirmBox p { color: var(--text-primary); margin: 0 0 16px; line-height: 1.6; }
+  .modal-orb {
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-pill);
+    background: var(--cyan-wash);
+    border: 1px solid rgba(34, 211, 238, 0.35);
+    color: var(--cyan-bright);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+  }
+  #confirmBox p {
+    color: var(--text-primary);
+    margin: 0 0 16px;
+    line-height: 1.55;
+  }
   #confirmBox .row { display: flex; gap: 8px; }
-  #confirmBox .row button { flex: 1; }
+  #confirmBox .row button {
+    flex: 1;
+    padding: 9px;
+    font-size: 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-weight: 600;
+  }
+  #confirmCancelBtn {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border-card);
+    color: var(--text-secondary);
+  }
+  #confirmOkBtn {
+    background: linear-gradient(135deg, #22d3ee, #0284c7);
+    border: none;
+    color: #021a24;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
 </style>
 </head>
 <body>
-  <h1>OmniCut TikTok Post Helper</h1>
+  <!-- Top Bar -->
+  <header class="studio-bar">
+    <div class="brand-meta">
+      <div class="pulse-orb"></div>
+      <div class="brand-text">
+        <span class="brand-title">OmniCut Studio</span>
+        <span class="brand-subtitle">TikTok Post Helper</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button id="headerOpenTikTokBtn" type="button" class="btn-header-tiktok" title="เปิดหน้าอัปโหลด TikTok Studio">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+        <span>เปิด TikTok Studio</span>
+      </button>
+      <div class="status-pill">
+        <span class="status-dot-green"></span>
+        Ready
+      </div>
+    </div>
+  </header>
 
-  <div class="tabs">
-    <button type="button" id="tabBtnList" class="tab-btn active"><span class="ic">📋</span> รายการคลิป</button>
-    <button type="button" id="tabBtnChecklist" class="tab-btn"><span class="ic">✅</span> ขั้นตอนโพสต์</button>
+  <!-- Segmented Switch -->
+  <div class="segmented-switch">
+    <button type="button" id="tabBtnList" class="switch-btn active">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 3v18"/><path d="M3 7.5h4"/><path d="M3 12h18"/><path d="M3 16.5h4"/><path d="M17 3v18"/><path d="M17 7.5h4"/><path d="M17 16.5h4"/></svg>
+      รายการคลิป
+    </button>
+    <button type="button" id="tabBtnChecklist" class="switch-btn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      ขั้นตอนโพสต์
+    </button>
   </div>
 
-  <!-- Tab 1: clip list -->
+  <!-- Tab 1: Clip List -->
   <div id="panelList" class="tab-panel active">
-    <p class="sub">คลิปที่ตัดต่อเสร็จ (พร้อมโพสต์) ดึงจาก OmniCut Pro Studio โดยตรง</p>
-    <button id="refreshBtn" type="button" class="btn-ghost"><span class="ic">🔄</span> รีเฟรช</button>
+    <button id="refreshBtn" type="button" class="btn-refresh-full" title="รีเฟรชรายการคลิป">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+      <span>รีเฟรชรายการคลิป</span>
+    </button>
     <div id="list"></div>
   </div>
 
-  <!-- Tab 2: checklist -->
+  <!-- Tab 2: Checklist & Post Helper -->
   <div id="panelChecklist" class="tab-panel">
-    <div id="activeClipBanner" class="empty-state">ยังไม่ได้เลือกคลิป — ไปที่แท็บ "รายการคลิป" แล้วกด "เตรียมคลิปนี้" ก่อน</div>
-    <img id="activeCover" hidden alt="ปกที่บันทึกจาก Cover Studio" style="max-width:120px;max-height:180px;object-fit:contain;border-radius:8px;margin:12px 0" />
+    <!-- Active Clip Studio Monitor -->
+    <div class="studio-monitor">
+      <div class="monitor-header-row">
+        <span class="monitor-chip-live">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+          Preview Monitor
+        </span>
+        <span class="monitor-chip-ratio">9:16 HD</span>
+      </div>
+      <div class="monitor-stage">
+        <div id="activeCoverWrapper" class="monitor-frame">
+          <img id="activeCover" hidden alt="ปกที่บันทึกจาก Cover Studio" />
+        </div>
+        <div id="activeClipBanner" class="empty-state">
+          ยังไม่ได้เลือกคลิป — ไปที่แท็บ "รายการคลิป" แล้วกด "เตรียมคลิปนี้" ก่อน
+        </div>
+      </div>
+    </div>
 
-    <div class="section-card">
-      <div class="field">
-        <span class="input-label"><span class="ic">📝</span> คำอธิบายคลิป (Caption)</span>
+    <!-- Post Details Inspector -->
+    <div class="inspector-card">
+      <div class="inspector-header">
+        <span class="inspector-title">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+          แคปชัน & แท็กสินค้า
+        </span>
+        <span class="field-tag-badge">READY TO POST</span>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label-row">
+          <span class="field-label">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="15" x2="3" y1="12" y2="12"/><line x1="17" x2="3" y1="18" y2="18"/></svg>
+            คำอธิบายคลิป (Caption)
+          </span>
+        </div>
         <textarea id="captionInput" rows="2" placeholder="คำอธิบายคลิปรีวิว..."></textarea>
       </div>
-      <div class="field">
-        <span class="input-label"><span class="ic">🏷️</span> แฮชแท็ก (Hashtags)</span>
+
+      <div class="field-group">
+        <div class="field-label-row">
+          <span class="field-label">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="9" y2="9"/><line x1="4" x2="20" y1="15" y2="15"/><line x1="10" x2="8" y1="3" y2="21"/><line x1="16" x2="14" y1="3" y2="21"/></svg>
+            แฮชแท็ก (Hashtags)
+          </span>
+        </div>
         <textarea id="hashtagsInput" rows="2" placeholder="#รีวิวของดี #พิกัดในตะกร้า..."></textarea>
       </div>
-      <button id="copyAllBtn" type="button" class="btn-ghost btn-copy-all">
-        <span class="ic">📋</span> คัดลอกคำอธิบาย + แฮชแท็ก
+
+      <button id="copyAllBtn" type="button" class="btn-copy-action">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+        คัดลอกคำอธิบาย + แฮชแท็ก
       </button>
-      <div class="field">
-        <span class="input-label"><span class="ic">🛒</span> ID สินค้า (หรือคำค้นหา)</span>
-        <input type="text" id="productIdInput" placeholder="1737088044189583209" style="font-family: 'Cascadia Code', Consolas, monospace;" />
+
+      <div class="affiliate-grid">
+        <div>
+          <div class="field-label-row">
+            <span class="field-label">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8 8a2 2 0 0 0 2.828 0l7.172-7.172a2 2 0 0 0 0-2.828z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>
+              ID สินค้า
+            </span>
+          </div>
+          <input type="text" id="productIdInput" placeholder="1737088044..." style="font-family: 'Cascadia Code', Consolas, monospace;" />
+        </div>
+        <div>
+          <div class="field-label-row">
+            <span class="field-label">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+              ชื่อตะกร้า
+            </span>
+          </div>
+          <input type="text" id="cartNameInput" maxlength="30" placeholder="ชื่อบนตะกร้า" />
+        </div>
       </div>
-      <div class="field">
-        <span class="input-label">ชื่อตะกร้าสินค้า (เว้นว่างใช้ชื่อเดิม)</span>
-        <input type="text" id="cartNameInput" maxlength="30" placeholder="ชื่อที่จะแสดงบนตะกร้า" />
-      </div>
-      <div class="field schedule-fields">
-        <span class="input-label">วันและเวลาตั้งโพสต์ (เว้นว่างให้เลือกบน TikTok)</span>
-        <div class="schedule-inputs">
-          <label class="schedule-input-group">
+
+      <!-- Schedule Widget -->
+      <div class="schedule-widget">
+        <div class="schedule-widget-title">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+          วันและเวลาตั้งโพสต์ (เว้นว่างเพื่อเลือกบน TikTok)
+        </div>
+        <div class="schedule-widget-inputs">
+          <label class="schedule-widget-group">
             <span>วันที่</span>
             <input type="date" id="scheduleDateInput" />
           </label>
-          <label class="schedule-input-group">
+          <label class="schedule-widget-group">
             <span>เวลา (ทุก 5 นาที)</span>
             <select id="scheduleTimeInput" aria-label="เวลา (ทุก 5 นาที)">
               <option value="">เลือกเวลา</option>
@@ -662,70 +1294,138 @@
       </div>
     </div>
 
-    <p class="sub">เปิดแท็บ tiktok.com/tiktokstudio/upload ที่ล็อกอินไว้แล้ว กดทำทีละขั้นด้านล่าง เรียงจากบนลงล่าง
-       แล้วสังเกตว่าขั้นไหนทำให้แท็บแครช (ช่องติ๊กจะขึ้นเองเมื่อขั้นนั้นสำเร็จ)</p>
+    <!-- Automation Command Center -->
+    <div class="command-card">
 
-    <button id="prepareDetailsBtn" type="button" class="btn-primary">ทำต่อหลังอัปโหลด</button>
-    <label><input id="prepareSchedule" type="checkbox" /> สลับเป็นกำหนดเวลาหลังเตรียมครบ</label>
-    <p class="step-note">กรอกคำอธิบาย ปักตะกร้า และแนบปกตามลำดับ หยุดทันทีเมื่อพบข้อผิดพลาด จากนั้นตรวจข้อมูลและกดโพสต์ด้วยตัวเอง</p>
-    <div class="checklist">
-      <div class="step-row">
-        <input type="checkbox" id="chk1" />
-        <label for="chk1" class="step-num">1</label>
-        <span class="step-label"><strong>อัปโหลดไฟล์</strong><small>ตั้งไฟล์แล้ว detach ทันที ไม่รอ ไม่พิมพ์อะไรต่อ</small></span>
-        <button id="btn1" type="button" class="btn-step">ทำ</button>
+
+      <button id="prepareDetailsBtn" type="button" class="hero-post-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        ทำต่อหลังอัปโหลด (Auto-Fill & Attach)
+      </button>
+
+      <label class="switch-row">
+        <input id="prepareSchedule" type="checkbox" />
+        <span>สลับเป็นกำหนดเวลาหลังเตรียมครบ</span>
+      </label>
+
+      <!-- Stepper Pipeline -->
+      <div class="pipeline-header">
+        <span class="pipeline-title">ขั้นตอนการทำงาน (Pipeline)</span>
+        <span id="stepProgressText" class="pipeline-meter-text">0 / 6 สำเร็จ</span>
       </div>
-      <div class="step-row">
-        <input type="checkbox" id="chk2" />
-        <label for="chk2" class="step-num">2</label>
-        <span class="step-label"><strong>พิมพ์คำอธิบาย/แฮชแท็ก</strong><small>ล้างชื่อไฟล์เดิม แล้วพิมพ์แทน</small></span>
-        <button id="btn2" type="button" class="btn-step">ทำ</button>
+      <div class="pipeline-track">
+        <div id="stepProgressFill" class="pipeline-fill"></div>
       </div>
-      <div class="step-row">
-        <input type="checkbox" id="chk3" />
-        <label for="chk3" class="step-num">3</label>
-        <span class="step-label"><strong>ปักตะกร้าสินค้า</strong><small>ค้นหา + แนบลิงก์สินค้าตาม ID ด้านบน</small></span>
-        <button id="btn3" type="button" class="btn-step">ทำ</button>
+
+      <div class="checklist">
+        <div class="step-row">
+          <input type="checkbox" id="chk1" />
+          <label for="chk1" class="step-num">1</label>
+          <div class="step-label">
+            <strong>อัปโหลดไฟล์วิดีโอ</strong>
+            <small>ตั้งไฟล์แล้ว detach ทันที ไม่รอ ไม่พิมพ์อะไรต่อ</small>
+          </div>
+          <button id="btn1" type="button" class="btn-step">
+            <span>ทำ</span>
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </button>
+        </div>
+
+        <div class="step-row">
+          <input type="checkbox" id="chk2" />
+          <label for="chk2" class="step-num">2</label>
+          <div class="step-label">
+            <strong>พิมพ์คำอธิบาย / แฮชแท็ก</strong>
+            <small>ล้างชื่อไฟล์เดิม แล้วพิมพ์แคปชันแทน</small>
+          </div>
+          <button id="btn2" type="button" class="btn-step">
+            <span>ทำ</span>
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </button>
+        </div>
+
+        <div class="step-row">
+          <input type="checkbox" id="chk3" />
+          <label for="chk3" class="step-num">3</label>
+          <div class="step-label">
+            <strong>ปักตะกร้าสินค้า</strong>
+            <small>ค้นหา + แนบลิงก์สินค้าตาม ID สินค้า</small>
+          </div>
+          <button id="btn3" type="button" class="btn-step">
+            <span>ทำ</span>
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </button>
+        </div>
+
+        <div class="step-row">
+          <input type="checkbox" id="chk4" />
+          <label for="chk4" class="step-num">4</label>
+          <div class="step-label">
+            <strong>สลับเป็นกำหนดเวลา</strong>
+            <small>เปลี่ยนโหมดโพสต์ ไม่กดโพสต์จริง</small>
+          </div>
+          <button id="btn4" type="button" class="btn-step">
+            <span>ทำ</span>
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </button>
+        </div>
+
+        <div class="step-row">
+          <input type="checkbox" id="chk6" />
+          <label for="chk6" class="step-num">5</label>
+          <div class="step-label">
+            <strong>แนบภาพปกจากโปรแกรม</strong>
+            <small>เปิดแก้ไขหน้าปก อัปโหลดรูป 3:4 แล้วบันทึกบน TikTok</small>
+          </div>
+          <button id="btn6" type="button" class="btn-step">
+            <span>ทำ</span>
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </button>
+        </div>
+
+        <div class="step-row danger">
+          <input type="checkbox" id="chk5" />
+          <label for="chk5" class="step-num">6</label>
+          <div class="step-label">
+            <strong>กด Post / กำหนดเวลา</strong>
+            <small>⚠️ คำเตือน: โพสต์ขึ้นจริงบน TikTok Studio</small>
+          </div>
+          <button id="btn5" type="button" class="btn-step">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+            <span>ทำ</span>
+          </button>
+        </div>
       </div>
-      <div class="step-row">
-        <input type="checkbox" id="chk4" />
-        <label for="chk4" class="step-num">4</label>
-        <span class="step-label"><strong>สลับเป็น "กำหนดเวลา"</strong><small>เปลี่ยนโหมดโพสต์ ไม่กดโพสต์จริง</small></span>
-        <button id="btn4" type="button" class="btn-step">ทำ</button>
-      </div>
-      <div class="step-row">
-        <input type="checkbox" id="chk6" />
-        <label for="chk6" class="step-num">5</label>
-        <span class="step-label"><strong>แนบภาพปกจากโปรแกรม</strong><small>เปิดแก้ไขหน้าปก อัปโหลดรูปที่บันทึก แล้วบันทึกบน TikTok</small></span>
-        <button id="btn6" type="button" class="btn-step">ทำ</button>
-      </div>
-      <div class="step-row danger">
-        <input type="checkbox" id="chk5" />
-        <label for="chk5" class="step-num">6</label>
-        <span class="step-label"><strong>กด Post/กำหนดเวลา</strong><small>⚠️ กดจริง โพสต์ขึ้นจริงถ้ากด</small></span>
-        <button id="btn5" type="button" class="btn-step">ทำ</button>
-      </div>
+
+      <p class="step-note">กดปุ่ม "ทำ" ให้ extension ดำเนินการให้อัตโนมัติ หรือกดตัวเลขวงกลมเพื่อมาร์คเมื่อทำเองนอกระบบ — ดำเนินการทีละขั้นและรอผลก่อนกดขั้นถัดไป</p>
     </div>
-    <p class="step-note">กดปุ่ม "ทำ" ให้ extension ทำขั้นนั้นให้อัตโนมัติ (ช่องติ๊กจะขึ้นเองถ้าสำเร็จ) หรือกดที่ตัวเลข
-      วงกลมได้เอง เผื่อทำขั้นนั้นเองนอกระบบแล้วแค่อยากมาร์คไว้ — ทำทีละขั้น รอผลก่อนกดขั้นถัดไป</p>
 
-    <!-- Manual, safe -- never touches TikTok, just OmniCut's own file/state -->
+    <!-- Mark Posted Card -->
     <div class="mark-posted-card">
-      <div class="label-row"><span class="ic">✅</span> มาร์คว่าโพสต์แล้ว</div>
-      <p>กดเองหลังเห็นว่าโพสต์ขึ้นจริงบน TikTok แล้ว (ปุ่มนี้ไม่แตะ TikTok เลย แค่ย้ายไฟล์ + อัปเดตสถานะใน OmniCut)</p>
-      <button id="markPostedBtn" type="button" class="btn-success">มาร์คว่าโพสต์แล้ว</button>
+      <div class="label-row">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+        มาร์คว่าโพสต์แล้ว
+      </div>
+      <p>กดหลังจากที่คลิปโพสต์ขึ้นจริงบน TikTok เรียบร้อยแล้ว (ปุ่มนี้ไม่แตะ TikTok จะย้ายไฟล์และอัปเดตสถานะใน OmniCut เท่านั้น)</p>
+      <button id="markPostedBtn" type="button" class="btn-mark-posted">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        มาร์คว่าโพสต์แล้ว
+      </button>
     </div>
   </div>
 
   <div id="status"></div>
 
+  <!-- Confirm Modal -->
   <div id="confirmOverlay">
     <div id="confirmBox">
-      <span class="icon">🔄</span>
+      <div class="modal-orb">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+      </div>
       <p id="confirmText"></p>
       <div class="row">
-        <button id="confirmCancelBtn" type="button" class="btn-ghost">ยกเลิก</button>
-        <button id="confirmOkBtn" type="button" class="btn-primary">ยืนยัน เปลี่ยนคลิป</button>
+        <button id="confirmCancelBtn" type="button">ยกเลิก</button>
+        <button id="confirmOkBtn" type="button">ยืนยัน เปลี่ยนคลิป</button>
       </div>
     </div>
   </div>

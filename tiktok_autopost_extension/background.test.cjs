@@ -263,3 +263,31 @@ test('live DOM contracts for the reported TikTok screens stay in the worker', ()
   assert.doesNotMatch(searchStep, /const search = document\.querySelector/);
   assert.match(searchStep, /productContainers\.at\(-1\)/);
 });
+
+test('extension UI exposes single consolidated TikTok upload opener and complies with clean UI standard', () => {
+  const sideHtml = fs.readFileSync(path.join(__dirname, 'sidepanel.html'), 'utf8');
+  const sideJs = fs.readFileSync(path.join(__dirname, 'sidepanel.js'), 'utf8');
+  const popupHtml = fs.readFileSync(path.join(__dirname, 'popup.html'), 'utf8');
+  const popupJs = fs.readFileSync(path.join(__dirname, 'popup.js'), 'utf8');
+
+  // Verify single global header opener exists in sidepanel and single opener in popup
+  assert.match(sideHtml, /id="headerOpenTikTokBtn"/);
+  assert.match(popupHtml, /id="popupOpenTikTokBtn"/);
+
+  // Verify redundant buttons were removed (User requested exactly one single spot)
+  assert.doesNotMatch(sideHtml, /id="listOpenTikTokBtn"/);
+  assert.doesNotMatch(sideHtml, /id="openTikTokBtn"/);
+  assert.doesNotMatch(sideJs, /listOpenTikTokBtn/);
+  assert.doesNotMatch(sideJs, /openTikTokBtn/);
+
+  // Verify listeners and URL opener in JS
+  assert.match(sideJs, /headerOpenTikTokBtn/);
+  assert.match(sideJs, /tiktok\.com\/tiktokstudio\/upload/);
+  assert.match(popupJs, /popupOpenTikTokBtn/);
+  assert.match(popupJs, /tiktok\.com\/tiktokstudio\/upload/);
+
+  // Verify clean UI standard: no emojis in button texts
+  assert.doesNotMatch(sideHtml, /<button[^>]*>[^<]*[\u{1F300}-\u{1F9FF}][^<]*<\/button>/u);
+  assert.doesNotMatch(popupHtml, /<button[^>]*>[^<]*[\u{1F300}-\u{1F9FF}][^<]*<\/button>/u);
+});
+

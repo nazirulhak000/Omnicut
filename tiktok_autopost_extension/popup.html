@@ -2,142 +2,294 @@
 <html lang="th">
 <head>
 <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>OmniCut TikTok Post Helper</title>
 <style>
+  :root {
+    --bg: #070a12;
+    --bg-elevated: #0d1322;
+    --surface: rgba(18, 26, 44, 0.72);
+    --surface-raised: rgba(26, 38, 64, 0.82);
+    --border: rgba(148, 163, 184, 0.12);
+    --border-strong: rgba(148, 163, 184, 0.22);
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-tertiary: #64748b;
+    --accent: #22d3ee;
+    --accent-strong: #67e8f9;
+    --accent-wash: rgba(34, 211, 238, 0.09);
+    --accent-ink: #04202c;
+    --danger: #f43f5e;
+    --danger-wash: rgba(244, 63, 94, 0.12);
+    --success: #10b981;
+    --success-wash: rgba(16, 185, 129, 0.12);
+    --radius-md: 12px;
+    --radius-sm: 8px;
+    --radius-pill: 999px;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  * { box-sizing: border-box; }
+
   body {
-    width: 340px;
+    width: 350px;
     margin: 0;
     padding: 14px;
-    font-family: "Segoe UI", sans-serif;
-    background: #0b0f19;
-    color: #e2e8f0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background:
+      radial-gradient(400px 200px at 50% -10%, rgba(34, 211, 238, 0.08), transparent 70%),
+      var(--bg);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
   }
-  h1 {
-    font-size: 13px;
-    font-weight: 700;
-    margin: 0 0 10px;
-    color: #fff;
-  }
-  p {
-    font-size: 11px;
-    line-height: 1.5;
-    color: #94a3b8;
-    margin: 0 0 10px;
-  }
-  label {
+
+  .header {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 11px;
-    color: #cbd5e1;
-    margin-bottom: 8px;
-    cursor: pointer;
+    justify-content: space-between;
+    margin-bottom: 12px;
   }
+  .brand-group {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .brand-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--accent);
+  }
+  h1 {
+    font-size: 13.5px;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-primary);
+  }
+  .badge {
+    font-size: 9.5px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: var(--radius-pill);
+    background: var(--accent-wash);
+    color: var(--accent-strong);
+    border: 1px solid rgba(34, 211, 238, 0.2);
+  }
+
+  p.guide {
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    margin: 0 0 12px;
+  }
+
   .section-card {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
-    padding: 10px;
-    border-radius: 10px;
-    margin-bottom: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(10px);
+    padding: 12px;
+    border-radius: var(--radius-md);
+    margin-bottom: 12px;
   }
   .input-label {
-    font-size: 10px;
-    color: #94a3b8;
-    margin-bottom: 3px;
-    display: block;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
   }
+  .input-label svg {
+    color: var(--accent);
+  }
+  .field + .field { margin-top: 10px; }
+
   textarea, input[type="text"] {
     width: 100%;
     box-sizing: border-box;
-    padding: 6px 8px;
-    border-radius: 6px;
-    border: 1px solid #334155;
-    background: #0f172a;
-    color: #f8fafc;
-    font-size: 11px;
+    padding: 6px 9px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-strong);
+    background: var(--bg);
+    color: var(--text-primary);
+    font-size: 11.5px;
     font-family: inherit;
+    line-height: 1.45;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    resize: vertical;
   }
   textarea:focus, input[type="text"]:focus {
     outline: none;
-    border-color: #38bdf8;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-wash);
   }
+
+  /* Stepper checklist */
+  .checklist {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(10px);
+    border-radius: var(--radius-md);
+    padding: 6px;
+    margin-bottom: 10px;
+  }
+  .step-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .step-row:last-child { border-bottom: none; }
+
+  .step-row input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    border-radius: 4px;
+    accent-color: var(--accent);
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .step-label {
+    flex: 1;
+    font-size: 11.5px;
+    color: var(--text-primary);
+    min-width: 0;
+  }
+  .step-label small {
+    display: block;
+    color: var(--text-tertiary);
+    font-size: 9.5px;
+    margin-top: 1px;
+  }
+  .step-row.danger .step-label { color: #fda4af; }
+  .step-row.danger .step-label small { color: var(--danger); }
+
   button {
     border: none;
-    border-radius: 8px;
-    background: #25f4ee;
-    color: #0b0f19;
-    font-weight: 700;
+    border-radius: var(--radius-pill);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    color: var(--text-primary);
+    font-weight: 600;
     font-size: 11px;
     cursor: pointer;
-    padding: 7px 10px;
+    padding: 5px 10px;
     white-space: nowrap;
+    transition: all 0.15s;
+  }
+  button:hover:not(:disabled) {
+    background: var(--accent-wash);
+    border-color: var(--accent);
+    color: var(--accent-strong);
   }
   button:disabled {
-    opacity: 0.4;
-    cursor: wait;
+    opacity: 0.45;
+    cursor: not-allowed;
   }
+
+  .step-row.danger button {
+    background: var(--danger-wash);
+    border-color: rgba(244, 63, 94, 0.3);
+    color: #fda4af;
+  }
+
+  .step-note {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    line-height: 1.5;
+    margin: 6px 0 10px;
+  }
+
   #status {
     margin-top: 10px;
     font-size: 11px;
     line-height: 1.5;
     white-space: pre-wrap;
     word-break: break-word;
+    border-radius: var(--radius-sm);
+    padding: 7px 10px;
+    display: none;
   }
-  #status.error { color: #fca5a5; }
-  #status.success { color: #6ee7b7; }
-
-  .checklist {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 10px;
-    padding: 4px;
-    margin-bottom: 10px;
+  #status:not(:empty) { display: block; }
+  #status.error { background: var(--danger-wash); color: #fda4af; border: 1px solid rgba(244, 63, 94, 0.3); }
+  #status.success { background: var(--success-wash); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.3); }
+  .popup-launcher-bar {
+    margin-bottom: 12px;
   }
-  .step-row {
+  .btn-popup-tiktok {
+    width: 100%;
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 7px 6px;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
+    justify-content: center;
+    gap: 7px;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    background: linear-gradient(135deg, rgba(34, 211, 238, 0.18) 0%, rgba(2, 132, 199, 0.22) 100%);
+    border: 1px solid rgba(34, 211, 238, 0.4);
+    color: var(--accent-strong);
+    font-size: 11.5px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transition: all 0.18s var(--ease-out);
   }
-  .step-row:last-child { border-bottom: none; }
-  .step-row input[type="checkbox"] {
-    width: 15px;
-    height: 15px;
-    flex-shrink: 0;
-    accent-color: #25f4ee;
+  .btn-popup-tiktok:hover {
+    background: linear-gradient(135deg, rgba(34, 211, 238, 0.32) 0%, rgba(2, 132, 199, 0.38) 100%);
+    border-color: var(--accent);
+    color: #ffffff;
+    box-shadow: 0 0 14px rgba(34, 211, 238, 0.35);
+    transform: translateY(-1px);
   }
-  .step-label {
-    flex: 1;
-    font-size: 11px;
-    color: #e2e8f0;
-    min-width: 0;
-  }
-  .step-label small {
-    display: block;
-    color: #64748b;
-    font-size: 9px;
-  }
-  .step-note {
-    margin: 6px 0 12px;
-    font-size: 10px;
-    color: #64748b;
+  .btn-popup-tiktok:active {
+    transform: translateY(0);
   }
 </style>
 </head>
 <body>
-  <h1>OmniCut TikTok Post Helper</h1>
-  <p>เปิดแท็บ tiktok.com/tiktokstudio/upload ที่ล็อกอินไว้แล้ว กดทำทีละขั้นด้านล่าง เรียงจากบนลงล่าง
-     แล้วสังเกตว่าขั้นไหนทำให้แท็บแครช (ช่องติ๊กจะขึ้นเองเมื่อขั้นนั้นสำเร็จ)</p>
+  <div class="header">
+    <div class="brand-group">
+      <div class="brand-dot"></div>
+      <h1>OmniCut</h1>
+    </div>
+    <span class="badge">TikTok Post Helper</span>
+  </div>
+
+  <div class="popup-launcher-bar">
+    <button id="popupOpenTikTokBtn" type="button" class="btn-popup-tiktok" title="เปิดหรือสลับไปยังหน้าอัปโหลด TikTok Studio">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+      <span>เปิดหน้าอัปโหลด TikTok Studio</span>
+    </button>
+  </div>
+
+  <p class="guide">เปิดแท็บ tiktok.com/tiktokstudio/upload ที่ล็อกอินไว้แล้ว กดทำทีละขั้นด้านล่าง เรียงจากบนลงล่าง</p>
 
   <!-- Caption & Hashtags preview & edit -->
   <div class="section-card">
-    <span class="input-label" style="font-weight: 600; color: #38bdf8;">📝 คำอธิบายคลิป (Caption):</span>
-    <textarea id="captionInput" rows="2" placeholder="คำอธิบายคลิปรีวิว..."></textarea>
-    <span class="input-label" style="margin-top: 6px; font-weight: 600; color: #38bdf8;">🏷️ แฮชแท็ก (Hashtags):</span>
-    <textarea id="hashtagsInput" rows="2" placeholder="#รีวิวของดี #พิกัดในตะกร้า..."></textarea>
-    <span class="input-label" style="margin-top: 6px; font-weight: 600; color: #38bdf8;">🛒 ID สินค้า (หรือคำค้นหา):</span>
-    <input type="text" id="productIdInput" value="1737088044189583209" style="font-family: monospace;" />
+    <div class="field">
+      <span class="input-label">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="15" x2="3" y1="12" y2="12"/><line x1="17" x2="3" y1="18" y2="18"/></svg>
+        คำอธิบายคลิป (Caption)
+      </span>
+      <textarea id="captionInput" rows="2" placeholder="คำอธิบายคลิปรีวิว..."></textarea>
+    </div>
+    <div class="field">
+      <span class="input-label">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="9" y2="9"/><line x1="4" x2="20" y1="15" y2="15"/><line x1="10" x2="8" y1="3" y2="21"/><line x1="16" x2="14" y1="3" y2="21"/></svg>
+        แฮชแท็ก (Hashtags)
+      </span>
+      <textarea id="hashtagsInput" rows="2" placeholder="#รีวิวของดี #พิกัดในตะกร้า..."></textarea>
+    </div>
+    <div class="field">
+      <span class="input-label">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8 8a2 2 0 0 0 2.828 0l7.172-7.172a2 2 0 0 0 0-2.828z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>
+        ID สินค้า (หรือคำค้นหา)
+      </span>
+      <input type="text" id="productIdInput" value="1737088044189583209" style="font-family: monospace;" />
+    </div>
   </div>
 
   <!-- Step-by-step checklist -->
@@ -159,17 +311,16 @@
     </div>
     <div class="step-row">
       <input type="checkbox" id="chk4" />
-      <span class="step-label">4. สลับเป็น "กำหนดเวลา"<small>เปลี่ยนโหมดโพสต์ ไม่กดโพสต์จริง</small></span>
+      <span class="step-label">4. สลับเป็นกำหนดเวลา<small>เปลี่ยนโหมดโพสต์ ไม่กดโพสต์จริง</small></span>
       <button id="btn4" type="button">ทำ</button>
     </div>
-    <div class="step-row">
+    <div class="step-row danger">
       <input type="checkbox" id="chk5" />
-      <span class="step-label">5. กด Post/กำหนดเวลา<small>⚠️ กดจริง โพสต์ขึ้นจริงถ้ากด</small></span>
+      <span class="step-label">5. กด Post/กำหนดเวลา<small>โพสต์ขึ้นจริงบน TikTok เมื่อกดขั้นนี้</small></span>
       <button id="btn5" type="button">ทำ</button>
     </div>
   </div>
-  <p class="step-note">ทำทีละขั้นเท่านั้น รอผลก่อนกดขั้นถัดไป -- ถ้าแท็บแครชหลังกดขั้นไหน ขั้นนั้นแหละคือตัวการ
-    (ช่องติ๊กที่ไม่ขึ้นหลังกด = ขั้นนั้นทำให้พัง หรือหาไม่เจอ)</p>
+  <p class="step-note">ทำทีละขั้นเท่านั้น รอผลก่อนกดขั้นถัดไป (ช่องติ๊กจะขึ้นเองเมื่อขั้นนั้นสำเร็จ)</p>
 
   <div id="status"></div>
   <script src="popup.js"></script>

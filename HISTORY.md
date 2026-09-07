@@ -33,6 +33,92 @@
 | Round POST-3.22 | Weekly schedule templates and product-rotating auto-fill | 2026-09-07 | Backend template persistence/preview/atomic commit; Agenda editor and overdue requeue; pytest 879 passed, npm test 83 passed, build passed |
 | Round POST-3.23 | Reduce default publishing schedule to three slots | 2026-09-07 | Defaults 12:30, 19:00, 21:30; legacy five-slot templates migrate safely; pytest 891 passed, npm test 83 passed, build and compileall passed |
 | Round POST-3.24 | Show saved-cover status in the daily queue | 2026-09-07 | Bright cover icon when a 3:4/9:16 cover exists, subdued icon when missing, Cover Studio action preserved; npm test 83 passed, build and live Agenda smoke passed |
+| Round POST-3.25 | Redesign Extension UX/UI (Cyber-Studio Dark, IBM Plex Sans Thai, Studio Monitor & Stepper Pipeline) | 2026-09-07 | Embedded IBM Plex Sans Thai fonts; Studio Monitor card; 2-column affiliate grid; Stepper Pipeline with progress meter; zero emoji pollution; 12/12 extension tests pass; live browser verified |
+| Round POST-3.26 | เพิ่มปุ่มเปิด/สลับแท็บ TikTok Studio ใน Extension (Tab 1, Tab 2, Header, Popup) | 2026-09-07 | Quick bar ใน Tab 1, Banner ใน Tab 2, Header button, Popup button; Auto-focus/activate tab; 13/13 tests pass; Clean UI standard |
+| Round POST-3.27 | ลดความซ้ำซ้อนปุ่มเปิด TikTok Studio ให้เหลือจุดเดียวใน Header ตามที่ User ร้องขอ | 2026-09-07 | รวมเหลือจุดเดียวใน Header bar (`#headerOpenTikTokBtn`); ลบปุ่มซ้ำซ้อนใน Tab 1 และ Tab 2 ออกทั้งหมด; 13/13 tests pass; Clean UI standard |
+
+## Round POST-3.27 — ลดความซ้ำซ้อนปุ่มเปิด TikTok Studio ให้เหลือจุดเดียวใน Header
+
+วันที่: 2026-09-07 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
+
+**หลักฐานและคำสั่ง:** User แจ้งว่า "ซ้ำซ้อนมากมีหลายจุดมา ขอจุดเดียวพอครับ" พร้อมภาพถ่ายหน้าจอที่ชี้ให้เห็นปุ่มเปิด TikTok 3 จุดพร้อมกัน (Header, Tab 1 quick bar, Tab 2 launcher banner)
+
+**ผลลัพธ์:**
+1. รวมเหลือจุดเดียวใน **Header bar** (`#headerOpenTikTokBtn` "เปิด TikTok Studio") สไตล์ Cyber-Studio Pill พร้อมไอคอน External Link สะอาดตา มองเห็นและเข้าถึงได้ตลอดเวลาไม่ว่าจะอยู่แท็บใด
+2. นำปุ่ม `#listOpenTikTokBtn` ออกจาก Tab 1 คืนค่าปุ่ม `#refreshBtn` เป็นปุ่มเต็มกว้าง (`.btn-refresh-full`) เรียบหรู ไม่เกะกะรายการคลิป
+3. นำ `.tiktok-launcher-banner` และ `#openTikTokBtn` ออกจาก Tab 2 ให้เข้าสู่แผงคำสั่งหลักโดยตรง
+4. ทำความสะอาด event listeners ใน `sidepanel.js` และ CSS selectors ที่ไม่ใช้งาน
+5. อัปเดต assertion ใน `background.test.cjs` ยืนยันการมีอยู่เฉพาะปุ่ม Header ใน sidepanel และ Popup ใน popup window พร้อมตรวจจับว่าไม่มีปุ่มซ้ำซ้อน
+
+### Todo
+
+- [x] ปรับ `sidepanel.html`: เอา `#listOpenTikTokBtn` ใน Tab 1 ออก และคืนค่า `#refreshBtn` ให้สะอาดตา
+- [x] ปรับ `sidepanel.html`: เอา `.tiktok-launcher-banner` และ `#openTikTokBtn` ใน Tab 2 ออก
+- [x] เก็บกวาด CSS ที่เกี่ยวข้องใน `sidepanel.html`
+- [x] ปรับ `sidepanel.js`: เอา listeners ของปุ่มที่ลบออก คงไว้เฉพาะ `#headerOpenTikTokBtn`
+- [x] อัปเดต contract test ใน `background.test.cjs`
+- [x] รัน Gate ตรวจสอบ (`node --check`, `node --test`) และถ่ายภาพ snapshot ตรวจความเรียบร้อย
+
+### Gate
+
+- [x] `node --check tiktok_autopost_extension/sidepanel.js` (ผ่าน)
+- [x] `node --test tiktok_autopost_extension/background.test.cjs` (ผ่านครบ 13/13 tests)
+- [x] ตรวจภาพ Sidepanel UI ทั้ง Tab 1 และ Tab 2 ไม่เหลือปุ่มซ้ำซ้อน ยืนยันผ่าน browser snapshot
+
+## Round POST-3.26 — เพิ่มปุ่มเปิด/สลับแท็บอัปโหลด TikTok Studio ใน Extension
+
+วันที่: 2026-09-07 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** เพิ่มปุ่มเปิด/สลับแท็บอัปโหลด TikTok Studio (`https://www.tiktok.com/tiktokstudio/upload`) ที่เด่นชัดและกดใช้งานได้ทันทีใน Chrome Extension:
+- มีปุ่ม Quick Launch ที่หัวตาราง Tab 1 (รายการคลิป) เคียงข้างปุ่มรีเฟรช ให้ผู้ใช้เปิดแท็บ TikTok Studio ได้ทันทีตั้งแต่เปิด Extension
+- มีปุ่มเปิดหน้าอัปโหลดที่ชัดเจนใน Tab 2 (ขั้นตอนโพสต์) และ Header
+- เพิ่มปุ่มใน `popup.html` ด้วย
+- ปรับปรุงฟังก์ชัน `openTikTokUploadTab()` ให้ตรวจจับทั้ง `tiktokstudio/upload`, `creator-center/upload` และ `tiktokstudio` ถ้ามีเปิดอยู่แล้วให้ switch tab + focus window ทันที ถ้ายังไม่มีให้เปิดแท็บใหม่
+- ปฏิบัติตามกฎ UI Clean Standard (ไม่มี emoji หรือ symbol ซ้ำซ้อน, ใช้ clean SVG) และไม่แตะขั้นตอน automation
+
+### Todo
+
+- [x] เพิ่มปุ่ม Quick Launch "เปิดหน้าอัปโหลด TikTok" ใน Tab 1 (`#panelList`) ใน `sidepanel.html`
+- [x] ปรับปรุงการแสดงผลปุ่มเปิด TikTok ใน Header (`#headerOpenTikTokBtn`) และ Tab 2 (`#openTikTokBtn`) ให้เด่นชัดและใช้งานง่าย
+- [x] ปรับปรุงฟังก์ชัน `openTikTokUploadTab()` ใน `sidepanel.js` ให้ค้นหาแท็บ TikTok ได้รอบด้าน (ทุก pattern) และสลับแท็บพร้อม focus window หรือเปิดใหม่หากยังไม่มี
+- [x] เพิ่มปุ่มเปิด TikTok Studio ใน `popup.html` และเชื่อมต่อกับ `openTikTokUploadTab()` ใน `popup.js`
+- [x] ทดสอบ syntax (`node --check`) และรัน test suite `background.test.cjs`
+
+### Gate
+
+- [x] `node --check tiktok_autopost_extension/sidepanel.js` (ผ่าน)
+- [x] `node --check tiktok_autopost_extension/popup.js` (ผ่าน)
+- [x] `node --test tiktok_autopost_extension/background.test.cjs` (13/13 ผ่าน)
+- [x] UI ทดสอบแสดงผลปุ่มเปิดแท็บชัดเจน สวยงามตาม Cyber-Studio Dark ทั้งใน Tab 1, Tab 2, Header และ Popup
+
+### Notes
+
+- รักษากฎ `ui_clean_standard.md` ไม่ใส่ emoji หรือเครื่องหมายซ้ำซ้อน
+- ไม่กระทบ logic automation 1-6
+
+## Round POST-3.25 — Redesign Extension UX/UI (Cyber-Studio Dark & Stepper Timeline)
+
+Date: 2026-09-07; Requested by: user; Status: complete
+
+**Goal:** ปรับโฉม UX/UI ของ Chrome Extension (`sidepanel.html`, `sidepanel.js`, `popup.html`) สู่ระดับ Cyber-Studio Dark Glassmorphism, ลบ Emoji รกตาและใช้ Clean SVG Icons ทั้งหมดตามกฎ `ui_clean_standard.md`, ปรับ Checklist เป็น Interactive Stepper Timeline พร้อมฝังฟอนต์ `IBM Plex Sans Thai` โดยไม่แตะต้อง Logic และขั้นตอนการทำงานเดิม 100%
+
+### Todo
+
+- [x] ออกแบบ Design System ใน `sidepanel.html`: โทน Cyber-Studio Dark (`#070a11`, `#121828`, `#22d3ee`, `#34d399`, `#f43f5e`), backdrop blur, crisp micro-borders
+- [x] ฝังฟอนต์ `IBM Plex Sans Thai` (Medium & Bold) เข้า `fonts/` โหลดผ่าน `@font-face`
+- [x] เปลี่ยน Emoji ทั้งหมดในหัวข้อ, แท็บ, ปุ่ม, ป้าย, และสถานะ เป็น Clean inline SVG Icons (Lucide-style) ตามกฎ `ui_clean_standard.md`
+- [x] พัฒนา Active Clip Studio Monitor: รวม 3:4 Preview Monitor, live aspect ratio badge, hook title, product badge, และเวลาโพสต์
+- [x] ปรับโฉม Checklist 1-6 ให้เป็น Stepper Pipeline Command Center: เส้นเชื่อม vertical stepper, glowing node rings, badge แสดงสถานะ, hover/active tactile micro-interactions, แยก Danger style ให้ Step 6 เด่นชัด พร้อมหลอดนีออนความคืบหน้าเรียลไทม์
+- [x] ปรับปรุง Section Cards, Input Textareas, Copy button, Schedule date/time selector และ Status notification ให้โมเดิร์น สบายตา
+- [x] ตรวจสอบว่า DOM IDs, classes สำคัญ, และ String patterns ที่ `background.test.cjs` ตรวจสอบยังคงอยู่ครบถ้วน 100%
+- [x] ปรับ `popup.html` ให้มีสไตล์ Cyber-Studio Dark สอดคล้องกัน
+
+### Gate
+
+- [x] `node --check tiktok_autopost_extension/sidepanel.js` และ `popup.js` — passed
+- [x] `node --test tiktok_autopost_extension/background.test.cjs` — 12/12 passed
+- [x] `python -m pytest tests/test_api_tiktok_autopost.py` — 11 passed
+- [x] เปิดดู UI จริงผ่าน Browser ตรวจสอบความสวยงาม การแสดงผล ไม่มี overflow, responsive บน side panel width, และ contrast ratio
 
 ## Round POST-3.24 - indicate cover status in daily queue
 

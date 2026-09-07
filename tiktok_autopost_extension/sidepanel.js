@@ -85,7 +85,15 @@ function setBusy(value) {
 }
 
 function setStatus(text, kind) {
-  statusEl.textContent = text;
+  let iconSvg = '';
+  if (kind === 'success') {
+    iconSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  } else if (kind === 'error') {
+    iconSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>';
+  } else if (kind === 'info') {
+    iconSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="16" y2="12"/><line x1="12" x2="12.01" y1="8" y2="8"/></svg>';
+  }
+  statusEl.innerHTML = iconSvg ? `${iconSvg} <span>${escapeHtml(text)}</span>` : escapeHtml(text);
   statusEl.className = kind || 'info';
 }
 
@@ -128,12 +136,22 @@ function askConfirm(message) {
   });
 }
 
+function updatePipelineProgress() {
+  const fill = document.getElementById('stepProgressFill');
+  const text = document.getElementById('stepProgressText');
+  if (!fill || !text) return;
+  const count = [1, 2, 3, 4, 5, 6].filter(n => document.getElementById(`chk${n}`)?.checked).length;
+  fill.style.width = `${Math.round((count / 6) * 100)}%`;
+  text.textContent = `${count} / 6 สำเร็จ`;
+}
+
 function resetChecklist() {
   [1, 2, 3, 4, 5, 6].forEach((n) => {
     const checkbox = document.getElementById(`chk${n}`);
     checkbox.checked = false;
     checkbox.closest('.step-row')?.classList.remove('completed');
   });
+  updatePipelineProgress();
 }
 
 function renderActiveClipBanner() {
@@ -143,11 +161,21 @@ function renderActiveClipBanner() {
   else cover.removeAttribute('src');
   if (!activeClip) {
     activeClipBanner.className = 'empty-state';
-    activeClipBanner.textContent = 'ยังไม่ได้เลือกคลิป -- ไปที่แท็บ "รายการคลิป" แล้วกด "เตรียมคลิปนี้" ก่อน';
+    activeClipBanner.innerHTML = `
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.6;margin-bottom:2px"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 3v18"/><path d="M3 7.5h4"/><path d="M3 12h18"/><path d="M3 16.5h4"/><path d="M17 3v18"/><path d="M17 7.5h4"/><path d="M17 16.5h4"/></svg>
+      <span>ยังไม่ได้เลือกคลิป — ไปที่แท็บ "รายการคลิป" แล้วกด "เตรียมคลิปนี้" ก่อน</span>
+    `;
     return;
   }
   activeClipBanner.className = '';
-  activeClipBanner.innerHTML = `<b>กำลังทำคลิป:</b>${escapeHtml(activeClip.hook_title || activeClip.name)}`;
+  const productLabel = activeClip.product_name ? `<div style="font-size:9.5px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:2px">${escapeHtml(activeClip.product_name)}</div>` : '';
+  const timeLabel = activeClip.schedule_time ? `<div style="font-size:10px;color:var(--text-tertiary);margin-top:3px;display:flex;align-items:center;gap:4px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> กำหนดโพสต์ ${escapeHtml(activeClip.schedule_date || '')} ${escapeHtml(activeClip.schedule_time || '')}</div>` : '';
+  activeClipBanner.innerHTML = `
+    <span class="active-badge"><span class="pulse-dot"></span>กำลังทำคลิป</span>
+    ${productLabel}
+    <span class="active-title">${escapeHtml(activeClip.hook_title || activeClip.name)}</span>
+    ${timeLabel}
+  `;
 }
 
 // ── "ตัดต่อเสร็จ" == ProductStore angle status 'rendered' (see
@@ -238,7 +266,7 @@ async function loadExports() {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'btn-primary';
-    btn.textContent = 'เตรียมคลิปนี้ ➜';
+    btn.innerHTML = `เตรียมคลิปนี้ <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>`;
     btn.addEventListener('click', () => handlePrepareClick(item));
     body.appendChild(btn);
 
@@ -297,7 +325,7 @@ async function prepareClip(item) {
     resetChecklist();
     renderActiveClipBanner();
     showTab('checklist');
-    setStatus('เตรียมคลิปแล้ว! กดทำทีละขั้นด้านล่างได้เลย 🎉', 'success');
+    setStatus('เตรียมคลิปแล้ว ทำทีละขั้นด้านล่างได้เลย', 'success');
   } catch (err) {
     setStatus('เตรียมคลิปไม่สำเร็จ: ' + err.message, 'error');
   } finally {
@@ -343,6 +371,7 @@ function wireStep(btnId, chkId, stepName, buildMessage, successText) {
         if (response.success) {
           chk.checked = true;
           chk.closest('.step-row')?.classList.add('completed');
+          updatePipelineProgress();
           const messageText = typeof successText === 'function' ? successText(response) : successText;
           setStatus(messageText, 'success');
         } else {
@@ -388,7 +417,7 @@ wireStep('btn4', 'chk4', 'ขั้น 4 (สลับเป็นกำหน�
 
 wireStep('btn5', 'chk5', 'ขั้น 5 (กด Post/กำหนดเวลา)',
   () => ({ action: 'click-post-only' }),
-  'ขั้น 5 สำเร็จ -- กด Post/กำหนดเวลาให้แล้ว 🎉');
+  'ขั้น 5 สำเร็จ -- กด Post/กำหนดเวลาให้แล้ว');
 
 wireStep('btn6', 'chk6', 'แนบภาพปก',
   () => {
@@ -424,6 +453,7 @@ document.getElementById('prepareDetailsBtn').addEventListener('click', async () 
       checkbox.checked = true;
       checkbox.closest('.step-row')?.classList.add('completed');
     }
+    updatePipelineProgress();
     if (!response?.success) throw new Error(response?.error || 'ไม่ได้รับผลการทำงาน');
     setStatus('เตรียมครบแล้ว ตรวจข้อมูลบน TikTok และกดโพสต์ได้เลย', 'success');
   } catch (err) {
@@ -452,7 +482,7 @@ copyAllBtn.addEventListener('click', async () => {
   }
   copyAllBtn.classList.add('copied');
   const originalHtml = copyAllBtn.innerHTML;
-  copyAllBtn.innerHTML = '<span class="ic">✅</span> คัดลอกแล้ว';
+  copyAllBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> คัดลอกแล้ว';
   setTimeout(() => {
     copyAllBtn.classList.remove('copied');
     copyAllBtn.innerHTML = originalHtml;
@@ -481,7 +511,7 @@ markPostedBtn.addEventListener('click', async () => {
       const body = await res.json().catch(() => ({}));
       throw new Error(body.detail || `HTTP ${res.status}`);
     }
-    setStatus(`มาร์ค "${activeClip.hook_title || activeClip.name}" ว่าโพสต์แล้ว -- ย้ายไฟล์ไป Posted/ แล้ว 🎉`, 'success');
+    setStatus(`มาร์ค "${activeClip.hook_title || activeClip.name}" ว่าโพสต์แล้ว -- ย้ายไฟล์ไป Posted/ แล้ว`, 'success');
     activeClip = null;
     resetChecklist();
     renderActiveClipBanner();
@@ -493,5 +523,68 @@ markPostedBtn.addEventListener('click', async () => {
   }
 });
 
+// ── Open TikTok Studio Upload Tab ─────────────────────────────────────────
+const TIKTOK_UPLOAD_URL = 'https://www.tiktok.com/tiktokstudio/upload';
+
+async function findExistingTikTokTab() {
+  if (typeof chrome === 'undefined' || !chrome.tabs) return null;
+  try {
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (
+      activeTab?.url &&
+      activeTab.url.includes('tiktok.com') &&
+      (activeTab.url.includes('upload') || activeTab.url.includes('studio') || activeTab.url.includes('creator'))
+    ) {
+      return activeTab;
+    }
+  } catch (e) {}
+
+  const patterns = [
+    'https://www.tiktok.com/tiktokstudio/upload*',
+    'https://www.tiktok.com/creator-center/upload*',
+    '*://*.tiktok.com/*upload*',
+    '*://*.tiktok.com/tiktokstudio*',
+  ];
+  for (const pattern of patterns) {
+    try {
+      const tabs = await chrome.tabs.query({ url: pattern });
+      if (tabs && tabs.length > 0) return tabs[0];
+    } catch (e) {}
+  }
+  return null;
+}
+
+async function openTikTokUploadTab() {
+  if (typeof chrome !== 'undefined' && chrome.tabs) {
+    try {
+      const tab = await findExistingTikTokTab();
+      if (tab && tab.id) {
+        await chrome.tabs.update(tab.id, { active: true });
+        if (tab.windowId && chrome.windows) {
+          await chrome.windows.update(tab.windowId, { focused: true });
+        }
+        setStatus('สลับไปยังแท็บ TikTok Studio เรียบร้อยแล้ว', 'success');
+        return;
+      }
+      chrome.tabs.create({ url: TIKTOK_UPLOAD_URL }, () => {
+        setStatus('เปิดแท็บ TikTok Studio แล้ว กรุณารอหน้าเว็บโหลดครบ', 'success');
+      });
+    } catch (err) {
+      chrome.tabs.create({ url: TIKTOK_UPLOAD_URL }, () => {
+        setStatus('เปิดแท็บ TikTok Studio แล้ว กรุณารอหน้าเว็บโหลดครบ', 'success');
+      });
+    }
+  } else {
+    window.open(TIKTOK_UPLOAD_URL, '_blank');
+  }
+}
+
+document.getElementById('headerOpenTikTokBtn')?.addEventListener('click', openTikTokUploadTab);
+
+[1, 2, 3, 4, 5, 6].forEach((n) => {
+  document.getElementById(`chk${n}`)?.addEventListener('change', updatePipelineProgress);
+});
+
 renderActiveClipBanner();
 loadExports();
+updatePipelineProgress();
