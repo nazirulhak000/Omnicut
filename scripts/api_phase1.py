@@ -899,7 +899,13 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 progress_callback=on_progress,
             )
 
-        mp4_val = result.get("mp4") or result.get("output_video") or result.get("video_path") or ""
+        # Round: the pipeline's own result_paths key is "mp4_video"
+        # (video_assembly_stage.py) -- "mp4"/"output_video"/"video_path" were
+        # never keys it sets, so this always read "" here and every reroll
+        # left the angle stuck on "in_production" no matter how the render
+        # actually finished. api_render.py's initial-render path already
+        # checked "mp4_video" correctly; this path just never matched it.
+        mp4_val = result.get("mp4_video") or result.get("mp4") or result.get("output_video") or result.get("video_path") or ""
         if product_id and angle_id:
             try:
                 ProductStore.update_angle_status(
