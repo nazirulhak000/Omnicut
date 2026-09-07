@@ -120,6 +120,56 @@ def test_scrape_and_plan_auto_extracts_id_from_tiktok_url(isolated_store, monkey
     assert data["saved_product"]["tiktok_product_id"] == "1737088044189583209"
 
 
+def test_scrape_and_plan_handles_url_string_images_from_scrape(isolated_store, monkeypatch):
+    """ProductScraper.scrape_url() puts plain image URL strings (scraped off
+    <meta og:image>/<img> tags) in its "images" list, not dicts -- unlike
+    user-uploaded images, which arrive as {name, rel_path, local_path} dicts.
+    A real TikTok Shop cart/product-page scrape hits exactly this shape and
+    used to crash the whole request with "'str' object has no attribute
+    'get'" (thumbnail_img lookup) or "string indices must be integers, not
+    'str'" (vision image_paths lookup) before both were made to tolerate a
+    bare URL string image entry.
+    """
+    from scripts.product_scraper import ProductScraper
+    monkeypatch.setattr(
+        ProductScraper,
+        "scrape_url",
+        lambda url: {
+            "platform": "tiktok",
+            "url": url,
+            "title": "GoChek Wireless Microphone",
+            "description": "Noise-cancelling clip mic",
+            "price_note": "199.-",
+            "images": [
+                "https://p16-oec-sg.ibyteimg.com/tos-alisg/example1.webp",
+                "https://p16-oec-sg.ibyteimg.com/tos-alisg/example2.webp",
+            ],
+            "image_count": 2,
+        }
+    )
+    seen_image_paths = []
+
+    def fake_generate_content_matrix(info, count=10, image_paths=None):
+        seen_image_paths.append(image_paths)
+        return []
+
+    monkeypatch.setattr(ProductScraper, "generate_content_matrix", fake_generate_content_matrix)
+
+    client = TestClient(app)
+    res = client.post("/api/products/scrape-and-plan", json={
+        "url": "https://vt.tiktok.com/ZS9SxAbCd/",
+        "angle_count": 4,
+    })
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert data["success"] is True
+    # A remote scraped image has no local file -- vision can't read it, so it
+    # must be excluded from image_paths rather than crashing the lookup.
+    assert seen_image_paths == [[]]
+    # The product-page thumbnail still gets set from the scraped URL directly.
+    assert data["saved_product"]["thumbnail"].startswith("https://")
+
+
 def test_api_exports_fallback_to_name_when_id_missing(isolated_store):
     from scripts.api_exports import list_exports
     # When product has tiktok_product_id, use it. When none, use name.

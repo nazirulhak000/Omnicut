@@ -16,7 +16,15 @@ preview reads. The two are compared field by field in
 tests/test_preview_render_parity.py -- a look that only exists on one side is a
 preview that lies about the render.
 """
+import json
+import logging
+from pathlib import Path
 from typing import Any, Dict, Optional
+
+logger = logging.getLogger(__name__)
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+CUSTOM_HOOK_TEMPLATES_FILE = BASE_DIR / "02_Assets" / "Templates" / "custom_hook_templates.json"
 
 # Colour of `None` on the model tier means "use the caption accent colour",
 # which is what the banner did before any of this existed.
@@ -134,6 +142,83 @@ TIER_KEYS = ("brand", "model", "label")
 TIER_FIELDS = ("size_pct", "color", "outline_color", "outline_px", "upper", "pill")
 
 
+def load_custom_hook_templates() -> Dict[str, Dict[str, Any]]:
+    """Load user-saved custom hook templates from 02_Assets/Templates/custom_hook_templates.json."""
+    if not CUSTOM_HOOK_TEMPLATES_FILE.exists():
+        return {}
+    try:
+        with open(CUSTOM_HOOK_TEMPLATES_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data.get("templates", {})
+    except Exception as e:
+        logger.warning("Failed to load custom hook templates: %s", e)
+        return {}
+
+
+def get_all_hook_templates() -> Dict[str, Dict[str, Any]]:
+    """Return both built-in templates and user custom templates merged."""
+    custom = load_custom_hook_templates()
+    merged = dict(HOOK_TEMPLATES)
+    merged.update(custom)
+    return merged
+
+
+def save_custom_hook_template(template_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Save or update a custom hook template.
+    template_id is sanitized and ensured to start with custom_.
+    """
+    clean_id = (template_id or "").strip()
+    if not clean_id.startswith("custom_"):
+        clean_id = f"custom_{clean_id or 'template'}"
+
+    base = HOOK_TEMPLATES[DEFAULT_HOOK_TEMPLATE]
+    tiers = {}
+    input_tiers = data.get("tiers") or {}
+    for key in TIER_KEYS:
+        tier_data = dict(base["tiers"][key])
+        if key in input_tiers:
+            for field in TIER_FIELDS:
+                if field in input_tiers[key] and input_tiers[key][field] is not None:
+                    tier_data[field] = input_tiers[key][field]
+        tiers[key] = tier_data
+
+    entry = {
+        "id": clean_id,
+        "label_th": data.get("label_th") or data.get("name") or f"สไตล์ของฉัน ({clean_id})",
+        "font": data.get("font") or base["font"],
+        "tiers": tiers,
+        "motion": dict(data.get("motion") or base.get("motion") or {}),
+        "is_custom": True,
+    }
+
+    CUSTOM_HOOK_TEMPLATES_FILE.parent.mkdir(parents=True, exist_ok=True)
+    current_templates = load_custom_hook_templates()
+    current_templates[clean_id] = entry
+
+    tmp_file = CUSTOM_HOOK_TEMPLATES_FILE.with_suffix(".tmp")
+    with open(tmp_file, "w", encoding="utf-8") as f:
+        json.dump({"version": "1.0", "templates": current_templates}, f, ensure_ascii=False, indent=2)
+    tmp_file.replace(CUSTOM_HOOK_TEMPLATES_FILE)
+
+    return entry
+
+
+def delete_custom_hook_template(template_id: str) -> bool:
+    """Delete a custom hook template. Cannot delete built-in templates."""
+    if template_id in HOOK_TEMPLATES:
+        return False
+    current_templates = load_custom_hook_templates()
+    if template_id not in current_templates:
+        return False
+    del current_templates[template_id]
+    tmp_file = CUSTOM_HOOK_TEMPLATES_FILE.with_suffix(".tmp")
+    with open(tmp_file, "w", encoding="utf-8") as f:
+        json.dump({"version": "1.0", "templates": current_templates}, f, ensure_ascii=False, indent=2)
+    tmp_file.replace(CUSTOM_HOOK_TEMPLATES_FILE)
+    return True
+
+
 def resolve_hook_style(
     template: Optional[str] = None,
     overrides: Optional[Dict[str, Any]] = None,
@@ -150,14 +235,15 @@ def resolve_hook_style(
     still what the colour pickers write. It wins over both, so an existing
     project keeps the colours it was saved with.
     """
-    base = HOOK_TEMPLATES.get(template or DEFAULT_HOOK_TEMPLATE) \
+    all_templates = get_all_hook_templates()
+    base = all_templates.get(template or DEFAULT_HOOK_TEMPLATE) \
         or HOOK_TEMPLATES[DEFAULT_HOOK_TEMPLATE]
     over = overrides or {}
     over_tiers = over.get("tiers") or {}
     picked_colors = colors or {}
 
     resolved = {
-        "template": template if template in HOOK_TEMPLATES else DEFAULT_HOOK_TEMPLATE,
+        "template": template if template in all_templates else DEFAULT_HOOK_TEMPLATE,
         "font": over.get("font") or base["font"],
         "tiers": {},
         "motion": dict(over.get("motion") or base.get("motion") or {}),

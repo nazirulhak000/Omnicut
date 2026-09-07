@@ -1,8 +1,14 @@
 // Backend accepts absolute or BASE_DIR-relative paths at /api/media/{path}
 // (scripts/api_server.py's stream_media()) -- encode each segment so Thai
 // filenames/spaces survive, but keep the "/" separators the route needs.
+//
+// A scraped product-page thumbnail (TikTok/Shopee CDN) is already a full
+// external URL with nothing on our own disk to serve -- routing it through
+// /api/media/ would try to encode the whole URL as a local path segment and
+// 404. Serve it directly from its own host instead.
 export function toMediaUrl(rawPath) {
   if (!rawPath) return '';
+  if (rawPath.startsWith('http://') || rawPath.startsWith('https://')) return rawPath;
   if (rawPath.startsWith('/api/media/')) return rawPath;
   const normalized = rawPath.replace(/\\/g, '/');
   return '/api/media/' + normalized.split('/').map(encodeURIComponent).join('/');

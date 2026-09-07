@@ -12,7 +12,7 @@ from typing import Dict, Any
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 
 from scripts.config import BASE_DIR, RAW_DIR
-from scripts.product_scraper import ProductScraper
+from scripts.product_scraper import ProductScraper, DURATION_SPECS, DEFAULT_DURATION, EXTRA_BEAT_BLOCKS
 from scripts.product_store import ProductStore
 from scripts.task_manager import TaskManager
 from scripts.media_service import get_file_info
@@ -64,14 +64,39 @@ def resolve_tiktok_product_id(url_or_id: str) -> Dict[str, Any]:
     return {"success": False, "product_id": None, "resolved_url": None}
 
 
+def _normalize_scraped_images(product_info: Dict[str, Any]) -> None:
+    """ProductScraper.scrape_url() puts plain image URL strings in "images"
+    (scraped straight off <meta og:image>/<img> tags -- there is no local
+    file, so there's nothing to compute a rel_path/local_path from). Every
+    downstream reader here expects dict entries with those keys, which is
+    what _apply_images_to_product_info below produces for user-uploaded
+    images -- so a URL-string entry left as-is crashes the first time
+    anything calls .get(...) on it, or tries to read it as a local path.
+    Normalize to the same dict shape (with local_path omitted, since one
+    doesn't exist) before any of that code ever sees it.
+    """
+    images = product_info.get("images") or []
+    if images and isinstance(images[0], str):
+        product_info["images"] = [
+            {"name": url.rsplit("/", 1)[-1].split("?", 1)[0] or "image", "url": url}
+            for url in images
+        ]
+
+
 def _apply_images_to_product_info(product_info: Dict[str, Any], image_paths: list, custom_keyword: str, raw_text: str) -> None:
-    """Attach up to MAX reference images to product_info in place.
+    """Attach up to MAX user-uploaded reference images to product_info in place.
 
     Shared by the sync and async scrape-and-plan paths so both stay in sync
     on how a rel_path is computed and how the first image seeds a title when
     nothing else was typed -- previously duplicated logic that only handled
     a single image_path.
+
+    User-uploaded images always take priority: if the user attached photos,
+    those replace whatever scrape_url() may have already put in "images"
+    (product page thumbnails), since the user's own screenshots are the
+    reference they explicitly meant to give the AI.
     """
+    _normalize_scraped_images(product_info)
     if not image_paths:
         return
     entries = []
@@ -253,6 +278,15 @@ def scrape_and_plan(payload: Dict[str, Any]):
             product_info["raw_text"] = f"{product_info.get('title', '')}\n{raw_text}"
 
         angle_count = int(payload.get("angle_count", 10))
+        duration = str(payload.get("duration") or DEFAULT_DURATION)
+        if duration not in DURATION_SPECS:
+            raise HTTPException(status_code=400, detail=f"duration ต้องเป็นหนึ่งใน {', '.join(DURATION_SPECS)}")
+        extra_beats = payload.get("extra_beats")
+        if extra_beats is not None:
+            invalid = [b for b in extra_beats if b not in EXTRA_BEAT_BLOCKS]
+            if invalid:
+                raise HTTPException(status_code=400, detail=f"extra_beats ไม่รู้จัก: {', '.join(invalid)}")
+
         tiktok_product_id = str(payload.get("tiktok_product_id") or "").strip()
         if tiktok_product_id:
             resolved = resolve_tiktok_product_id(tiktok_product_id)
@@ -265,12 +299,17 @@ def scrape_and_plan(payload: Dict[str, Any]):
 
         angles = ProductScraper.generate_content_matrix(
             product_info, count=angle_count,
-            image_paths=[img["local_path"] for img in product_info.get("images", [])],
+            # Vision only reads local files -- a scraped product-page image is
+            # a remote URL with no local_path, so it's skipped here rather
+            # than attempted and failed.
+            image_paths=[img["local_path"] for img in product_info.get("images", []) if img.get("local_path")],
+            duration=duration,
+            extra_beats=extra_beats,
         )
 
         thumbnail_img = ""
         if product_info.get("images") and len(product_info["images"]) > 0:
-            thumbnail_img = product_info["images"][0].get("rel_path", "")
+            thumbnail_img = product_info["images"][0].get("rel_path") or product_info["images"][0].get("url", "")
 
         saved_prod = ProductStore.add(
             name=product_info.get("title", "สินค้า"),
@@ -282,6 +321,8 @@ def scrape_and_plan(payload: Dict[str, Any]):
             angles=angles,
             images=product_info.get("images", []),
             tiktok_product_id=tiktok_product_id or None,
+            description=product_info.get("description", ""),
+            raw_text=product_info.get("raw_text", ""),
         )
         product_info["id"] = saved_prod["id"]
         product_info["tiktok_product_id"] = saved_prod.get("tiktok_product_id")
@@ -345,7 +386,10 @@ def _execute_scrape_and_plan_worker(task_id: str, payload: Dict[str, Any]):
         TaskManager.update_progress(task_id, 0.55, f"AI กำลังแต่ง {angle_count} สคริปต์ ({title_display}){vision_note}")
         angles = ProductScraper.generate_content_matrix(
             product_info, count=angle_count,
-            image_paths=[img["local_path"] for img in product_info.get("images", [])],
+            # Vision only reads local files -- a scraped product-page image is
+            # a remote URL with no local_path, so it's skipped here rather
+            # than attempted and failed.
+            image_paths=[img["local_path"] for img in product_info.get("images", []) if img.get("local_path")],
         )
 
         TaskManager.update_progress(task_id, 0.85, "กำลังปรับแต่งบทพูดสำหรับเสียงพากย์ AI (TTS Sanitizer)")
@@ -354,7 +398,7 @@ def _execute_scrape_and_plan_worker(task_id: str, payload: Dict[str, Any]):
         TaskManager.update_progress(task_id, 0.95, "กำลังบันทึกลงแคตตาล็อกสินค้า")
         thumbnail_img = ""
         if product_info.get("images") and len(product_info["images"]) > 0:
-            thumbnail_img = product_info["images"][0].get("rel_path", "")
+            thumbnail_img = product_info["images"][0].get("rel_path") or product_info["images"][0].get("url", "")
 
         tiktok_product_id = str(payload.get("tiktok_product_id") or "").strip()
         if tiktok_product_id:
@@ -376,6 +420,8 @@ def _execute_scrape_and_plan_worker(task_id: str, payload: Dict[str, Any]):
             angles=angles,
             images=product_info.get("images", []),
             tiktok_product_id=tiktok_product_id or None,
+            description=product_info.get("description", ""),
+            raw_text=product_info.get("raw_text", ""),
         )
         product_info["id"] = saved_prod["id"]
         product_info["tiktok_product_id"] = saved_prod.get("tiktok_product_id")
@@ -425,6 +471,15 @@ def scrape_and_plan_async(payload: Dict[str, Any], background_tasks: BackgroundT
 
     if not url and not raw_text and not custom_keyword and not image_paths:
         raise HTTPException(status_code=400, detail="กรุณาระบุลิงก์ ข้อความรายละเอียด รูปภาพ หรือชื่อสินค้า")
+
+    duration = str(payload.get("duration") or DEFAULT_DURATION)
+    if duration not in DURATION_SPECS:
+        raise HTTPException(status_code=400, detail=f"duration ต้องเป็นหนึ่งใน {', '.join(DURATION_SPECS)}")
+    extra_beats = payload.get("extra_beats")
+    if extra_beats is not None:
+        invalid = [b for b in extra_beats if b not in EXTRA_BEAT_BLOCKS]
+        if invalid:
+            raise HTTPException(status_code=400, detail=f"extra_beats ไม่รู้จัก: {', '.join(invalid)}")
 
     name_label = custom_keyword or (f"ลิงก์: {url[:30]}" if url else "สินค้าใหม่")
     task_title = f"วิเคราะห์สินค้า: {name_label} ({angle_count} สคริปต์)"

@@ -1,0 +1,81 @@
+{
+  "version": "1.0",
+  "templates": {
+    "custom_1788801633": {
+      "id": "custom_1788801633",
+      "label_th": "VIP นีออน ทดสอบ",
+      "font": "Kanit",
+      "tiers": {
+        "brand": {
+          "size_pct": 110,
+          "color": "#FFE600",
+          "outline_color": "#000000",
+          "outline_px": 8,
+          "upper": true,
+          "pill": null
+        },
+        "model": {
+          "size_pct": 140,
+          "color": "#FFFFFF",
+          "outline_color": "#000000",
+          "outline_px": 10,
+          "upper": false,
+          "pill": "#25F4EE"
+        },
+        "label": {
+          "size_pct": 58,
+          "color": "#E0E0E0",
+          "outline_color": "#000000",
+          "outline_px": 6.0,
+          "upper": false,
+          "pill": null
+        }
+      },
+      "motion": {
+        "in": "pop_zoom",
+        "loop": "lightsweep",
+        "out": "fade"
+      },
+      "is_custom": true
+    },
+    "custom_1788801924": {
+      "id": "custom_1788801924",
+      "label_th": "Cyber Neon Pro",
+      "font": "Kanit",
+      "tiers": {
+        "brand": {
+          "size_pct": 174,
+          "color": "#2c2121",
+          "outline_color": "#FFFFFF",
+          "outline_px": 14,
+          "upper": false,
+          "pill": null
+        },
+        "model": {
+          "size_pct": 113,
+          "color": "#f47171",
+          "outline_color": "#FFFFFF",
+          "outline_px": 17,
+          "upper": false,
+          "pill": null
+        },
+        "label": {
+          "size_pct": 78,
+          "color": "#4CE0FF",
+          "outline_color": "#FFFFFF",
+          "outline_px": 9,
+          "upper": false,
+          "pill": null
+        }
+      },
+      "motion": {
+        "in": "pop",
+        "loop": "shake",
+        "out": "zoom",
+        "accent": "badge",
+        "stagger": true
+      },
+      "is_custom": true
+    }
+  }
+}

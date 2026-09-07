@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import {
   deleteProject, getAllAssets, getHookMotionPresets, getProducts, getProject, getProjectOrigin, getProjects, getRenderStatus, startReroll, updateProjectCues, updateProjectClips, updateProjectState, openFolder, updateAngleStatus, updateAngleCover,
+  getHookTemplates, saveCustomHookTemplate, deleteCustomHookTemplate,
 } from '../../api';
 import {
   FADE_DURATION, ZOOM_LEVELS, buildSegments, formatTimecode, splitClipAt, snapCandidates, snapTime,
@@ -28,7 +29,7 @@ import Inspector from './Inspector';
 import Timeline, { tracksFitHeight } from './Timeline';
 import TrimAdjustModal from './timeline/TrimAdjustModal';
 import EditorHeader from './EditorHeader';
-import { DEFAULT_HOOK_TEMPLATE, HOOK_TEMPLATES } from '../../lib/hookStyles';
+import { DEFAULT_HOOK_TEMPLATE, HOOK_TEMPLATES, registerCustomHookTemplates } from '../../lib/hookStyles';
 import {
   guessBrandModel,
   newHookOverlay,
@@ -203,6 +204,35 @@ export default function EditorShell({
   const [projectProductName, setProjectProductName] = useState('');
   const [hookMotionCatalog, setHookMotionCatalog] = useState(null);
   const [hookMotionDefault, setHookMotionDefault] = useState(null);
+  const [customHookTemplates, setCustomHookTemplates] = useState({});
+
+  const handleSaveCustomHookTemplate = useCallback(async (payload) => {
+    try {
+      const res = await saveCustomHookTemplate(payload);
+      if (res?.templates) {
+        setCustomHookTemplates(res.templates);
+        registerCustomHookTemplates(res.templates);
+      }
+      return res;
+    } catch (err) {
+      console.error('Save custom hook template error:', err);
+      throw err;
+    }
+  }, []);
+
+  const handleDeleteCustomHookTemplate = useCallback(async (templateId) => {
+    try {
+      const res = await deleteCustomHookTemplate(templateId);
+      if (res?.templates) {
+        setCustomHookTemplates(res.templates);
+        registerCustomHookTemplates(res.templates);
+      }
+      return res;
+    } catch (err) {
+      console.error('Delete custom hook template error:', err);
+      throw err;
+    }
+  }, []);
   const [microCuesList, setMicroCuesList] = useState([]);
   const [pendingDelete, setPendingDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -549,6 +579,15 @@ export default function EditorShell({
         setHookMotionDefault(data?.default || null);
       })
       .catch((err) => console.warn('Hook motion preset fetch failed:', err));
+
+    getHookTemplates()
+      .then((data) => {
+        if (data?.custom) {
+          setCustomHookTemplates(data.custom);
+          registerCustomHookTemplates(data.custom);
+        }
+      })
+      .catch((err) => console.warn('Hook templates fetch failed:', err));
   }, []);
 
   // Load project handed down from script lab or flow
@@ -1489,6 +1528,7 @@ export default function EditorShell({
                   onResetClipTransform={handleResetClipTransform}
                   hasTransformOverride={hasTransformOverride}
                   currentHookTemplate={hookOverlay?.template || DEFAULT_HOOK_TEMPLATE}
+                  customHookTemplates={customHookTemplates}
                   onApplyHookTemplate={handleApplyHookTemplate}
                   showSafeZone={showSafeZone}
                   onToggleSafeZone={handleToggleSafeZone}
@@ -1568,6 +1608,8 @@ export default function EditorShell({
                       onAddTextTemplate={handleAddTextTemplate}
                       onSelectTextTemplate={handleSelectTextTemplate}
                       hookTemplates={HOOK_TEMPLATES}
+                      customHookTemplates={customHookTemplates}
+                      onDeleteCustomHookTemplate={handleDeleteCustomHookTemplate}
                       activeHookTemplate={hookOverlay?.template || null}
                       onApplyHookTemplate={handleApplyHookTemplate}
                       previewTextTemplate={previewTextTemplate}
@@ -1597,6 +1639,9 @@ export default function EditorShell({
                       hookMotionCatalog={hookMotionCatalog}
                       hookMotionDefault={hookMotionDefault}
                       hookTemplates={HOOK_TEMPLATES}
+                      customHookTemplates={customHookTemplates}
+                      onSaveCustomHookTemplate={handleSaveCustomHookTemplate}
+                      onDeleteCustomHookTemplate={handleDeleteCustomHookTemplate}
                       fonts={assets.fonts}
                       onToggleHookHeader={handleEnsureHookOverlay}
                       onAddTextAtPlayhead={addTextAtPlayhead}
@@ -1679,6 +1724,8 @@ export default function EditorShell({
                         onAddTextTemplate={handleAddTextTemplate}
                         onSelectTextTemplate={handleSelectTextTemplate}
                         hookTemplates={HOOK_TEMPLATES}
+                        customHookTemplates={customHookTemplates}
+                        onDeleteCustomHookTemplate={handleDeleteCustomHookTemplate}
                         activeHookTemplate={hookOverlay?.template || null}
                         onApplyHookTemplate={handleApplyHookTemplate}
                         previewTextTemplate={previewTextTemplate}
@@ -1879,6 +1926,9 @@ export default function EditorShell({
                         hookMotionCatalog={hookMotionCatalog}
                         hookMotionDefault={hookMotionDefault}
                         hookTemplates={HOOK_TEMPLATES}
+                        customHookTemplates={customHookTemplates}
+                        onSaveCustomHookTemplate={handleSaveCustomHookTemplate}
+                        onDeleteCustomHookTemplate={handleDeleteCustomHookTemplate}
                         fonts={assets.fonts}
                         onToggleHookHeader={handleEnsureHookOverlay}
                         onAddTextAtPlayhead={addTextAtPlayhead}
@@ -1974,6 +2024,7 @@ export default function EditorShell({
                   onResetClipTransform={handleResetClipTransform}
                   hasTransformOverride={hasTransformOverride}
                   currentHookTemplate={hookOverlay?.template || DEFAULT_HOOK_TEMPLATE}
+                  customHookTemplates={customHookTemplates}
                   onApplyHookTemplate={handleApplyHookTemplate}
                   showSafeZone={showSafeZone}
                   onToggleSafeZone={handleToggleSafeZone}

@@ -27,6 +27,75 @@ ALLOWED_SCRAPE_DOMAINS = (
     "tiktok.com",
 )
 
+# Target length per duration tier. The 5 core beats (Hook/Pain/Product/Feel/
+# CTA) stay fixed at every tier -- what changes is how much room each beat
+# gets, plus how many EXTRA_BEAT_BLOCKS get inserted between Product and CTA.
+# word/char counts assume the same +15% TTS speed the original 30s rule was
+# tuned for.
+DURATION_SPECS = {
+    "30s": {
+        "label": "30 วินาที (สั้นกระชับ)",
+        "seconds_range": "30 - 38 วินาที",
+        "word_range": "70 - 85 คำ",
+        "char_range": "280 - 350 ตัวอักษร",
+        "max_seconds": "40 วินาที",
+        "default_extra_beats": 0,
+    },
+    "60s": {
+        "label": "60 วินาที (มาตรฐาน)",
+        "seconds_range": "55 - 65 วินาที",
+        "word_range": "140 - 165 คำ",
+        "char_range": "560 - 660 ตัวอักษร",
+        "max_seconds": "70 วินาที",
+        "default_extra_beats": 2,
+    },
+    "90s": {
+        "label": "90 วินาที (แอดวานซ์ ละเอียด)",
+        "seconds_range": "85 - 95 วินาที",
+        "word_range": "210 - 245 คำ",
+        "char_range": "840 - 980 ตัวอักษร",
+        "max_seconds": "100 วินาที",
+        "default_extra_beats": 4,
+    },
+}
+DEFAULT_DURATION = "30s"
+
+# Optional beats a caller can request (checkbox in the UI, or the default mix
+# for 60s/90s when the caller doesn't specify which ones). Each entry is
+# inserted as its own numbered beat between the core Product and CTA beats --
+# the AI is told exactly what content belongs in it, so two different beats
+# requested together don't collapse into the same paragraph.
+EXTRA_BEAT_BLOCKS = {
+    "spec_detail": {
+        "label": "สเปก/สรรพคุณละเอียด",
+        "instruction": (
+            "เจาะสเปกเทคนิคแบบเป็นทางการให้ครบถ้วนกว่าเดิม (ตัวเลข หน่วยวัด มาตรฐานที่สินค้ามี) "
+            "อธิบายว่าสเปกแต่ละอย่างส่งผลต่อการใช้งานจริงยังไง ไม่ใช่แค่ท่องสเปกเฉยๆ"
+        ),
+    },
+    "comparison": {
+        "label": "เปรียบเทียบของเดิม vs ของใหม่",
+        "instruction": (
+            "เทียบให้เห็นภาพชัดระหว่างของแบบเดิมที่คนส่วนใหญ่ใช้อยู่ กับสินค้านี้ "
+            "ชี้จุดที่ต่างกันจริงและทำไมของใหม่ถึงคุ้มกว่า ไม่ใช่แค่บอกว่า \"ดีกว่า\" ลอยๆ"
+        ),
+    },
+    "use_cases": {
+        "label": "การใช้งานจริง/เคสตัวอย่างหลายสถานการณ์",
+        "instruction": (
+            "ยกตัวอย่างสถานการณ์การใช้งานจริงอย่างน้อย 2-3 สถานการณ์ที่ต่างกัน "
+            "(เช่น ใช้ที่บ้าน ใช้นอกสถานที่ ใช้ตอนทำงาน) ให้คนดูเห็นภาพว่าตัวเองจะใช้ตอนไหนได้บ้าง"
+        ),
+    },
+    "faq": {
+        "label": "ตอบคำถามที่มักเจอ (FAQ) / ข้อกังวล",
+        "instruction": (
+            "หยิบข้อกังวลที่คนมักถามก่อนซื้อของแบบนี้ 1-2 ข้อ (เช่น เรื่องความทนทาน การรับประกัน ความเข้ากันได้) "
+            "มาตอบให้หายกังวลตรงๆ แบบพูดคุยเป็นกันเอง ไม่ใช่ตอบทางการเกินไป"
+        ),
+    },
+}
+
 
 def _hostname_allowed(hostname: str) -> bool:
     """True if `hostname` is, or is a subdomain of, an allowed scrape domain."""
@@ -238,6 +307,8 @@ class ProductScraper:
         product_data: Dict[str, Any],
         count: int = 10,
         image_paths: Optional[List[str]] = None,
+        duration: str = DEFAULT_DURATION,
+        extra_beats: Optional[List[str]] = None,
     ) -> List[Dict[str, Any]]:
         """Generates full 10-Angle Master Content Matrix in natural Thai spoken language.
 
@@ -245,17 +316,73 @@ class ProductScraper:
         sent to Gemini as actual image content alongside the prompt -- not
         just used for a thumbnail -- so specs/features the user only has as a
         screenshot (no URL, no typed description) still reach the model.
+
+        duration selects a DURATION_SPECS tier ("30s"/"60s"/"90s") -- every
+        tier keeps the same 5 core beats (Hook/Pain/Product/Feel/CTA), only
+        the target length and the number of inserted extra beats change.
+
+        extra_beats is a list of EXTRA_BEAT_BLOCKS keys to insert between the
+        core Product and CTA beats. None means "use this tier's default mix"
+        (DURATION_SPECS[duration]["default_extra_beats"] beats, chosen in
+        EXTRA_BEAT_BLOCKS order) -- pass an explicit list (including []) to
+        override that, e.g. from a UI checkbox selection.
         """
         title = product_data.get("title", "")
         desc = product_data.get("description", "")
         price = product_data.get("price_note", "")
         raw = product_data.get("raw_text", "")
-        image_rule = (
-            "\n8. **ภาพที่แนบมาด้วย (Reference Images)**:\n"
-            "   - ผู้ใช้แนบภาพหน้าจอสินค้า/สเปกชีท/รีวิวมาด้วย ให้อ่านสรรพคุณ สเปก จุดเด่น และรายละเอียดจากภาพเหล่านั้นโดยตรง\n"
-            "   - หากข้อมูลในภาพขัดแย้งกับข้อความด้านบน ให้ยึดข้อมูลในภาพเป็นหลัก เพราะเป็นข้อมูลจริงจากสินค้า\n"
-            if image_paths else ""
+
+        spec = DURATION_SPECS.get(duration, DURATION_SPECS[DEFAULT_DURATION])
+        if extra_beats is None:
+            n = spec["default_extra_beats"]
+            extra_beats = list(EXTRA_BEAT_BLOCKS.keys())[:n]
+        active_beats = [EXTRA_BEAT_BLOCKS[b] for b in extra_beats if b in EXTRA_BEAT_BLOCKS]
+
+        next_rule_num = 8
+        if image_paths:
+            image_rule = (
+                f"\n{next_rule_num}. **ภาพที่แนบมาด้วย (Reference Images)**:\n"
+                "   - ผู้ใช้แนบภาพหน้าจอสินค้า/สเปกชีท/รีวิวมาด้วย ให้อ่านสรรพคุณ สเปก จุดเด่น และรายละเอียดจากภาพเหล่านั้นโดยตรง\n"
+                "   - หากข้อมูลในภาพขัดแย้งกับข้อความด้านบน ให้ยึดข้อมูลในภาพเป็นหลัก เพราะเป็นข้อมูลจริงจากสินค้า\n"
+            )
+            next_rule_num += 1
+        else:
+            image_rule = ""
+
+        beat_count = 5 + len(active_beats)
+        _example_core = [
+            "ทุกคน ใครที่นั่งทำงานแล้วเริ่มปวดข้อมือร้าวถึงศอก ฟังทางนี้ด่วนเลยครับ",
+            "นั่งพิมพ์ทั้งวัน ด้วยคีย์บอร์ดแบนๆ มือมันต้องเกร็ง ทรมานจนไม่อยากทำงานใช่ไหมครับ",
+            "ผมบอกเลยว่าชีวิตเปลี่ยนแน่นอน พอได้มาลอง {{product_name}} คีย์บอร์ดเพื่อสุขภาพตัวใหม่ล่าสุด",
+        ]
+        _example_extra = [
+            f"(ตัวอย่างท่อนเสริม \"{b['label']}\" — พูดตามเนื้อหาจริงของสินค้านี้ ไม่ใช่ก๊อปประโยคนี้ไปเฉยๆ)"
+            for b in active_beats
+        ]
+        _example_tail = [
+            "เค้าดีไซน์โค้งรูปคลื่น รับกับมือธรรมชาติ พร้อมเบาะรองข้อมือ Memory Foam นุ่มๆ พิมพ์สบายทั้งวันไม่เมื่อยเลยครับ",
+            "รักข้อมือตัวเอง รีบกดสั่งราคาพิเศษ ในตะกร้าสีเหลือง ซ้ายล่างตอนนี้ได้เลยครับ",
+        ]
+        example_script_lines_json = json.dumps(
+            _example_core + _example_extra + _example_tail, ensure_ascii=False, indent=4
         )
+
+        if active_beats:
+            extra_beat_rule_num = next_rule_num
+            extra_beat_rule = (
+                f"\n{extra_beat_rule_num}. **ท่อนเสริมที่ต้องแทรกระหว่างท่อนที่ 3 (เปิดตัวสินค้า) กับท่อนสุดท้าย (CTA) "
+                f"รวม {len(active_beats)} ท่อน (Extra Content Beats)**:\n"
+                + "\n".join(
+                    f"   - {b['label']}: {b['instruction']}"
+                    for b in active_beats
+                )
+                + "\n   - แต่ละท่อนเสริมนับเป็นท่อนพูดของตัวเองในลิสต์ script_lines "
+                  "(ไม่ใช่ยัดรวมเข้าไปในท่อนอื่น) เรียงต่อกันอย่างเป็นธรรมชาติ ไม่ใช่แค่แปะต่อกันดื้อๆ\n"
+            )
+            beat_structure_ref = f"4/{extra_beat_rule_num}"
+        else:
+            extra_beat_rule = ""
+            beat_structure_ref = "4"
 
         prompt = f"""
 # Role & Objective
@@ -279,9 +406,9 @@ class ProductScraper:
      * "แบตเตอรี่อึดสุดขีด ใช้ได้นานสูงสุดถึง 36 เดือน ด้วยถ่าน AAA แค่ 2 ก้อน คุ้มมากครับ"
      * "สเปกจัดเต็มขนาดนี้ ราคาพิเศษสุดคุ้ม กดดูในตะกร้าสีเหลือง ซ้ายล่างตอนนี้ได้เลยครับ"
 
-2. **ความยาวคลิปเป้าหมาย 30 - 38 วินาทีพอดี (Strict Duration Standard)**:
-   - เมื่อพากย์ด้วยเสียงพากย์ AI (+15% speed) สคริปต์รวมทั้ง 5 ท่อนต้องมีความยาวประมาณ **70 - 85 คำ** (ประมาณ **280 - 350 ตัวอักษร**) เพื่อให้เวลาจบที่ 30 - 38 วินาทีกำลังพอดี
-   - **ห้ามเขียนยืดยาวเกิน 40 วินาทีเด็ดขาด!** ตัดเนื้อหาที่เวิ่นเว้อออก เล่าตรงประเด็น กระชับ จังหวะเร็วแบบ Short-form TikTok
+2. **ความยาวคลิปเป้าหมาย {spec["seconds_range"]}พอดี (Strict Duration Standard)**:
+   - เมื่อพากย์ด้วยเสียงพากย์ AI (+15% speed) สคริปต์รวมทั้ง {beat_count} ท่อนต้องมีความยาวประมาณ **{spec["word_range"]}** (ประมาณ **{spec["char_range"]}**) เพื่อให้เวลาจบที่ {spec["seconds_range"]}กำลังพอดี
+   - **ห้ามเขียนยืดยาวเกิน {spec["max_seconds"]}เด็ดขาด!** ตัดเนื้อหาที่เวิ่นเว้อออก เล่าตรงประเด็น กระชับ ได้ใจความ ไม่ใส่มากเกินความจำเป็น
 
 3. **น้ำเสียงและเพศของผู้พูด (Strict Male Persona 100%)**:
    - **ผู้พูดต้องเป็นผู้ชายเท่านั้น (Male Tone Only)**
@@ -289,12 +416,13 @@ class ProductScraper:
    - **ห้ามมีคำลงท้ายเพศหญิงโดยเด็ดขาด เช่น "ค่ะ", "นะคะ", "คะ", "จ้า", "น้า", "แกรรร", "หนู"**
    - ใช้น้ำเสียงจริงใจ มีพลัง เหมือนเพื่อนผู้ชายสายไอที/สายรีวิวมาบอกต่อของดี
 
-4. **โครงสร้างสคริปต์ 5 ท่อนทรงพลัง สั้นกระชับ (5-Beat Viral Structure)**:
-   - ท่อนที่ 1 (Hook สะกดนิ้ว 0-3 วิ, ~10-14 คำ): ประโยคเปิดคลิปดึงดูดคนที่เจอปัญหานี้ ชี้เป้าทันที
-   - ท่อนที่ 2 (Pain Point / สเปกหลัก 4-9 วิ, ~14-18 คำ): ขยี้ปัญหาเดิมๆ หรือชูฟังก์ชันหลักที่แก้ปัญหา
-   - ท่อนที่ 3 (Core Tech & Compatibility 10-15 วิ, ~14-18 คำ): เปิดตัวสินค้า ชูชื่อรุ่นภาษาอังกฤษทางการ ความง่ายในการเชื่อมต่อ
-   - ท่อนที่ 4 (Real Feel & Endurance 16-22 วิ, ~16-20 คำ): จุดเด่นตอนใช้งานจริง สัมผัสดีไซน์ ความทนทาน แบตเตอรี่
-   - ท่อนที่ 5 (High-Converting CTA 23-30 วิ, ~12-16 คำ): ชวนตัดสินใจกดสั่งซื้อในตะกร้าสีเหลืองซ้ายล่างทันที
+4. **โครงสร้างสคริปต์ {beat_count} ท่อนทรงพลัง (Core 5-Beat + ท่อนเสริม)**:
+   - ท่อนที่ 1 (Hook สะกดนิ้ว, ~10-14 คำ): ประโยคเปิดคลิปดึงดูดคนที่เจอปัญหานี้ ชี้เป้าทันที
+   - ท่อนที่ 2 (Pain Point / สเปกหลัก, ~14-18 คำ): ขยี้ปัญหาเดิมๆ หรือชูฟังก์ชันหลักที่แก้ปัญหา
+   - ท่อนที่ 3 (Core Tech & Compatibility, ~14-18 คำ): เปิดตัวสินค้า ชูชื่อรุ่นภาษาอังกฤษทางการ ความง่ายในการเชื่อมต่อ
+   {"- (ท่อนเสริมแทรกตรงนี้ ดูกฎข้อ 9 ด้านล่าง)" if active_beats else ""}
+   - ท่อนถัดมา (Real Feel & Endurance, ~16-20 คำ): จุดเด่นตอนใช้งานจริง สัมผัสดีไซน์ ความทนทาน แบตเตอรี่
+   - ท่อนสุดท้าย (High-Converting CTA, ~12-16 คำ): ชวนตัดสินใจกดสั่งซื้อในตะกร้าสีเหลืองซ้ายล่างทันที
 
 5. **กฎภาษาและการเขียนคำเฉพาะ (Strict Official English Retention)**:
    - **ชื่อแบรนด์, ชื่อรุ่นสินค้า, และศัพท์เทคนิคเฉพาะทาง ต้องเขียนเป็นภาษาอังกฤษตามชื่อทางการเสมอ ห้ามแปลงหรือทับศัพท์เป็นภาษาไทยเด็ดขาด**:
@@ -315,7 +443,7 @@ class ProductScraper:
 
 7. **กฎพิเศษกรณีดึงข้อมูลจาก URL (Shopee / TikTok Shop / เว็บไซต์)**:
    - หากรายละเอียดมีสั้น ให้ดึงความรู้สเปกจริงอย่างเป็นทางการ (Official Hardware Specs) มาเขียนให้ตรงความจริง 100% ห้ามมั่วสเปก
-{image_rule}
+{image_rule}{extra_beat_rule}
 จงสร้างผลลัพธ์เป็น JSON Array ที่มี {count} Object ตาม 10 มุมมองนี้:
 1. "pain_point": 😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน (Problem / Agitation / Solution)
 2. "spec_review": ⚙️ รีวิวสเปกเจาะลึก / ฟังก์ชันจัดเต็ม (Deep Spec Review & Technical Features)
@@ -328,7 +456,7 @@ class ProductScraper:
 9. "longterm_review": ⭐ รีวิวเพื่อนเตือนเพื่อน ใช้จริง 3 เดือน (Real Experience)
 10. "math_value": 💡 คำนวณความคุ้มค่าต่อวัน (Math & Value Breakdown)
 
-แต่ละ Object ใน JSON ต้องมีโครงสร้างดังนี้ (คุมความยาวให้พากย์จบใน 30 - 38 วินาทีพอดี และเว้นวรรคก้อนความคิดใน script_lines):
+แต่ละ Object ใน JSON ต้องมีโครงสร้างดังนี้ (script_lines ต้องมีทั้งหมด {beat_count} ท่อนตามกฎข้อ {beat_structure_ref}, คุมความยาวให้พากย์จบใน {spec["seconds_range"]}พอดี และเว้นวรรคก้อนความคิดในแต่ละท่อน):
 {{
   "angle_id": "pain_point",
   "angle_name": "😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน",
@@ -339,13 +467,7 @@ class ProductScraper:
   "key_features": "จุดเด่น 3-4 ข้อที่ตอบโจทย์",
   "price_deal": "ข้อเสนอราคา/โปรโมชั่นและการเร่งรีบ",
   "ad_tone": "commercial_premium",
-  "script_lines": [
-    "ทุกคน ใครที่นั่งทำงานแล้วเริ่มปวดข้อมือร้าวถึงศอก ฟังทางนี้ด่วนเลยครับ",
-    "นั่งพิมพ์ทั้งวัน ด้วยคีย์บอร์ดแบนๆ มือมันต้องเกร็ง ทรมานจนไม่อยากทำงานใช่ไหมครับ",
-    "ผมบอกเลยว่าชีวิตเปลี่ยนแน่นอน พอได้มาลอง {{product_name}} คีย์บอร์ดเพื่อสุขภาพตัวใหม่ล่าสุด",
-    "เค้าดีไซน์โค้งรูปคลื่น รับกับมือธรรมชาติ พร้อมเบาะรองข้อมือ Memory Foam นุ่มๆ พิมพ์สบายทั้งวันไม่เมื่อยเลยครับ",
-    "รักข้อมือตัวเอง รีบกดสั่งราคาพิเศษ ในตะกร้าสีเหลือง ซ้ายล่างตอนนี้ได้เลยครับ"
-  ],
+  "script_lines": {example_script_lines_json},
   "tiktok_caption": "บอกลาอาการปวดข้อมือ! อัปเกรดชีวิตด้วย {{product_name}} คีย์บอร์ดเพื่อสุขภาพที่นุ่มสบายที่สุด พิกัดในตะกร้าเลย 👇",
   "tiktok_hashtags": "#นายหน้าtiktok #รีวิวของดี #ของมันต้องมี #tiktokป้ายยา #พิกัดในตะกร้า"
 }}

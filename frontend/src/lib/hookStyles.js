@@ -95,6 +95,20 @@ export const DEFAULT_HOOK_TEMPLATE = 'tech';
 export const TIER_KEYS = ['brand', 'model', 'label'];
 export const TIER_FIELDS = ['size_pct', 'color', 'outline_color', 'outline_px', 'upper', 'pill'];
 
+let customHookTemplatesRegistry = {};
+
+export function registerCustomHookTemplates(templates) {
+  customHookTemplatesRegistry = { ...(templates || {}) };
+}
+
+export function getCustomHookTemplates() {
+  return customHookTemplatesRegistry;
+}
+
+export function getAllHookTemplates(extraCustom) {
+  return { ...HOOK_TEMPLATES, ...customHookTemplatesRegistry, ...(extraCustom || {}) };
+}
+
 /**
  * A template plus its overrides, flattened into one style the drawing code can
  * use. Mirrors resolve_hook_style() in scripts/hook_styles.py.
@@ -102,14 +116,15 @@ export const TIER_FIELDS = ['size_pct', 'color', 'outline_color', 'outline_px', 
  * `colors` is the older per-tier colour map that the colour pickers still
  * write; it wins over both, so a project keeps the colours it was saved with.
  */
-export function resolveHookStyle(template, overrides, colors) {
-  const base = HOOK_TEMPLATES[template] || HOOK_TEMPLATES[DEFAULT_HOOK_TEMPLATE];
+export function resolveHookStyle(template, overrides, colors, extraTemplates) {
+  const allTemplates = { ...HOOK_TEMPLATES, ...customHookTemplatesRegistry, ...(extraTemplates || {}) };
+  const base = allTemplates[template] || allTemplates[DEFAULT_HOOK_TEMPLATE] || HOOK_TEMPLATES[DEFAULT_HOOK_TEMPLATE];
   const over = overrides || {};
   const overTiers = over.tiers || {};
   const picked = colors || {};
 
   const resolved = {
-    template: HOOK_TEMPLATES[template] ? template : DEFAULT_HOOK_TEMPLATE,
+    template: allTemplates[template] ? template : DEFAULT_HOOK_TEMPLATE,
     font: over.font || base.font,
     tiers: {},
     motion: { ...(over.motion || base.motion || {}) },

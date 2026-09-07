@@ -49,6 +49,7 @@ export default function Toolbar({
   onResetClipTransform,
   hasTransformOverride = false,
   currentHookTemplate = 'tech',
+  customHookTemplates = {},
   onApplyHookTemplate,
   showSafeZone = false,
   onToggleSafeZone,
@@ -123,14 +124,25 @@ export default function Toolbar({
           onChange={(e) => onApplyHookTemplate?.(e.target.value)}
           className="bg-transparent text-xs font-semibold text-[#EDE9E3] focus:outline-none cursor-pointer pr-1"
         >
-          <option value="tech" className="bg-[#232220] text-[#EDE9E3]">เทค (Tech)</option>
-          <option value="cute" className="bg-[#232220] text-[#EDE9E3]">คิ้วท์ (Cute)</option>
-          <option value="bold_pop" className="bg-[#232220] text-[#EDE9E3]">ป็อปตัวหนา (Bold Pop)</option>
-          <option value="plain" className="bg-[#232220] text-[#EDE9E3]">เรียบ (Plain)</option>
-          <option value="clean" className="bg-[#232220] text-[#EDE9E3]">คลีน (Clean)</option>
-          <option value="flash_sale" className="bg-[#232220] text-[#EDE9E3]">โปรไฟลุก (Flash Sale)</option>
-          <option value="neon_cyber" className="bg-[#232220] text-[#EDE9E3]">นีออน (Neon)</option>
-          <option value="minimal_luxury" className="bg-[#232220] text-[#EDE9E3]">ลักชัวรี (Luxury)</option>
+          {Object.keys(customHookTemplates || {}).length > 0 && (
+            <optgroup label="🌟 แม่แบบของฉัน">
+              {Object.entries(customHookTemplates).map(([id, tpl]) => (
+                <option key={id} value={id} className="bg-[#232220] text-[#25F4EE]">
+                  {tpl.label_th || tpl.name || id}
+                </option>
+              ))}
+            </optgroup>
+          )}
+          <optgroup label="⚡ แม่แบบมาตรฐาน">
+            <option value="tech" className="bg-[#232220] text-[#EDE9E3]">เทค (Tech)</option>
+            <option value="cute" className="bg-[#232220] text-[#EDE9E3]">คิ้วท์ (Cute)</option>
+            <option value="bold_pop" className="bg-[#232220] text-[#EDE9E3]">ป็อปตัวหนา (Bold Pop)</option>
+            <option value="plain" className="bg-[#232220] text-[#EDE9E3]">เรียบ (Plain)</option>
+            <option value="clean" className="bg-[#232220] text-[#EDE9E3]">คลีน (Clean)</option>
+            <option value="flash_sale" className="bg-[#232220] text-[#EDE9E3]">โปรไฟลุก (Flash Sale)</option>
+            <option value="neon_cyber" className="bg-[#232220] text-[#EDE9E3]">นีออน (Neon)</option>
+            <option value="minimal_luxury" className="bg-[#232220] text-[#EDE9E3]">ลักชัวรี (Luxury)</option>
+          </optgroup>
         </select>
       </div>
 

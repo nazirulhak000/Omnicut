@@ -37,7 +37,34 @@
 | Round POST-3.26 | เพิ่มปุ่มเปิด/สลับแท็บ TikTok Studio ใน Extension (Tab 1, Tab 2, Header, Popup) | 2026-09-07 | Quick bar ใน Tab 1, Banner ใน Tab 2, Header button, Popup button; Auto-focus/activate tab; 13/13 tests pass; Clean UI standard |
 | Round POST-3.27 | ลดความซ้ำซ้อนปุ่มเปิด TikTok Studio ให้เหลือจุดเดียวใน Header ตามที่ User ร้องขอ | 2026-09-07 | รวมเหลือจุดเดียวใน Header bar (`#headerOpenTikTokBtn`); ลบปุ่มซ้ำซ้อนใน Tab 1 และ Tab 2 ออกทั้งหมด; 13/13 tests pass; Clean UI standard |
 | Round RAW-1 | แก้ rename คลิปดิบที่ติด file lock และจัดเลย์เอาต์ Raw Vault แบบ responsive | 2026-09-07 | ถอด preview ก่อน rename, retry WinError 32 พร้อมข้อความกู้คืน, product groups แบบ responsive; pytest 896 passed, npm test 85 passed, build ผ่าน |
+| Round HOK-1 | ระบบ Custom Hook Template Studio (สร้างและบันทึกแม่แบบฮุกด้วยตัวเอง) | 2026-09-07 | CRUD API + 02_Assets/Templates/custom_hook_templates.json + UI บันทึกสไตล์ใน Inspector + AssetPanel + Toolbar optgroup; pytest 2 passed, parity 149 passed, npm test 85 passed, build passed, live browser verified |
 | Round EDT-1 | ตรวจสอบและปรับปรุง UX/UI หน้าตัดต่อ (Editor Friction & Speed Optimization) | 2026-09-07 | แก้ Safe Zone 420px overlay ถูกต้องตามสัดส่วน; เพิ่ม Quick Hook dropdown ใน Toolbar; เพิ่ม 1-Click Reset Zoom; ลดคลิกจาก 25 เหลือ 10; npm test 85 passed; build passed; live browser verified |
+
+## Round HOK-1 — ระบบ Custom Hook Template Studio (สร้างและบันทึกแม่แบบฮุกด้วยตัวเอง)
+
+วันที่: 2026-09-07 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
+
+**ผลลัพธ์:**
+- **Custom Template Storage & CRUD Backend:**
+  - สร้างไฟล์เก็บข้อมูล `02_Assets/Templates/custom_hook_templates.json` รองรับการเก็บสไตล์ฮุกส่วนตัว (font, size, colors, motion, layout, text tiers)
+  - พัฒนาโมดูล `scripts/hook_styles.py` ให้มีฟังก์ชัน `load_custom_hook_templates()`, `save_custom_hook_template()`, `delete_custom_hook_template()` พร้อม atomic write
+  - เพิ่ม API routes ใน `scripts/api_editor.py`: `GET /api/editor/hook-templates`, `POST /api/editor/hook-templates`, `DELETE /api/editor/hook-templates/{template_id}`
+- **Frontend Sync & Dynamic Registration:**
+  - เพิ่ม API client ใน `frontend/src/api.js`: `getHookTemplates()`, `saveCustomHookTemplate()`, `deleteCustomHookTemplate()`
+  - อัปเดต `frontend/src/lib/hookStyles.js` ให้มีฟังก์ชัน `registerCustomHookTemplates()` รวมแม่แบบส่วนตัวเข้ากับ Built-in 8 รูปแบบแบบไร้รอยต่อ
+- **Inspector & Quick Save UI:**
+  - เพิ่มการ์ด "บันทึกเป็นสไตล์ของฉัน" ใน `OverlayInspector.jsx` พร้อมช่องกรอกชื่อและปุ่มบันทึก
+  - เมื่อบันทึกสำเร็จ แม่แบบจะขึ้นในการ์ดเลือกสไตล์ทันที พร้อมกรอบสีนีออนไซเบอร์ `#25F4EE`, ป้ายชื่อ, แท็ก motion, และปุ่มถังขยะลบแม่แบบ
+- **AssetPanel & Toolbar Integration:**
+  - แถบ "ข้อความ" ใน `AssetPanel.jsx` แบ่งหมวดหมู่ชัดเจน: "แม่แบบของฉัน" และ "แม่แบบมาตรฐาน" พร้อมปุ่มลบ
+  - เมนูดรอปดาวน์ `ฮุก:` บน Quick Toolbar ใน `Toolbar.jsx` แสดง `<optgroup label="🌟 แม่แบบของฉัน">` และ `<optgroup label="⚡ แม่แบบมาตรฐาน">` ซิงก์ข้อมูลอัตโนมัติ
+- **Gates & Verification:**
+  - `pytest tests/test_hook_templates_custom.py` ผ่าน 2/2 tests
+  - `pytest tests/test_preview_render_parity.py` ผ่าน 149/149 tests
+  - `python -m compileall -q scripts` ผ่าน
+  - `npm test` ใน frontend ผ่าน 85/85 tests
+  - `npm run build` ผ่านใน 3.22 วินาที
+  - ทดสอบสดบนเบราว์เซอร์จริงผ่าน `browser_subagent` (บันทึกคลิป `hook_template_studio_1788801788848.webp`) สร้างแม่แบบ `Cyber Neon Pro` สำเร็จ แสดงผลใน Inspector, AssetPanel, และ Toolbar ครบถ้วน
 
 ## Round EDT-1 — ตรวจสอบและปรับปรุง UX/UI หน้าตัดต่อ (Editor Friction & Speed Optimization)
 

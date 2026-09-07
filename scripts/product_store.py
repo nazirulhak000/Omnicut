@@ -206,8 +206,17 @@ class ProductStore:
         images: Optional[List[Dict[str, Any]]] = None,
         tiktok_product_id: Optional[str] = None,
         product_code: Optional[str] = None,
+        description: str = "",
+        raw_text: str = "",
     ) -> Dict[str, Any]:
-        """Add a product, or return the existing one when the URL is already queued."""
+        """Add a product, or return the existing one when the URL is already queued.
+
+        description/raw_text are the scraped product-page text (or typed
+        spec text) the content matrix was generated from -- persisted here so
+        a later single-angle reroll has the same source material to work
+        from instead of only the angle's own already-condensed fields
+        (pain_point/key_features), which lose detail the original text had.
+        """
         if not name.strip():
             raise ValueError("ต้องมีชื่อสินค้า")
 
@@ -228,6 +237,10 @@ class ProductStore:
                             existing["images"] = images
                         if tiktok_product_id and tiktok_product_id.strip():
                             existing["tiktok_product_id"] = tiktok_product_id.strip()
+                        if description:
+                            existing["description"] = description
+                        if raw_text:
+                            existing["raw_text"] = raw_text
                         if not existing.get("product_code"):
                             existing["product_code"] = (
                                 product_code.strip().upper()
@@ -250,6 +263,8 @@ class ProductStore:
                 "price_note": price_note,
                 "target_buyer": target_buyer,
                 "thumbnail": thumbnail,
+                "description": description,
+                "raw_text": raw_text,
                 "tiktok_product_id": tiktok_product_id.strip() if (tiktok_product_id and tiktok_product_id.strip()) else None,
                 "product_code": (product_code.strip().upper() if (product_code and product_code.strip()) else cls._generate_product_code(name, products)),
                 "status": "scripted" if angles else "candidate",

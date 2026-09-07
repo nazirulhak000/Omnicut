@@ -7,13 +7,16 @@ never has to edit the busy api_server.py surface.
 """
 
 import sys
+import time
 import hashlib
 import subprocess
 import urllib.parse
 from pathlib import Path
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -170,3 +173,49 @@ def get_overlay_layout(req: OverlayLayoutRequest):
         video_w=req.video_w,
         video_h=req.video_h,
     )
+
+
+class SaveCustomHookTemplateRequest(BaseModel):
+    id: Optional[str] = None
+    label_th: Optional[str] = None
+    name: Optional[str] = None
+    font: Optional[str] = None
+    tiers: Optional[Dict[str, Any]] = None
+    motion: Optional[Dict[str, Any]] = None
+
+
+@router.get("/hook-templates")
+def list_hook_templates():
+    """Returns built-in templates and user custom templates."""
+    from scripts.hook_styles import HOOK_TEMPLATES, load_custom_hook_templates
+    custom = load_custom_hook_templates()
+    return {
+        "status": "success",
+        "builtin": HOOK_TEMPLATES,
+        "custom": custom,
+        "all": {**HOOK_TEMPLATES, **custom},
+    }
+
+
+@router.post("/hook-templates")
+def create_or_update_hook_template(req: SaveCustomHookTemplateRequest):
+    """Saves or updates a custom hook template in 02_Assets/Templates/custom_hook_templates.json."""
+    from scripts.hook_styles import save_custom_hook_template, load_custom_hook_templates
+    tid = req.id or f"custom_{int(time.time())}"
+    data = req.model_dump() if hasattr(req, "model_dump") else req.dict()
+    saved = save_custom_hook_template(tid, data)
+    all_custom = load_custom_hook_templates()
+    return {"status": "success", "template_id": tid, "template": saved, "templates": all_custom}
+
+
+@router.delete("/hook-templates/{template_id}")
+def remove_custom_hook_template(template_id: str):
+    """Deletes a custom hook template. Built-in templates cannot be deleted."""
+    from scripts.hook_styles import delete_custom_hook_template, load_custom_hook_templates, HOOK_TEMPLATES
+    if template_id in HOOK_TEMPLATES:
+        raise HTTPException(status_code=400, detail="ไม่สามารถลบแม่แบบมาตรฐานได้")
+    success = delete_custom_hook_template(template_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="ไม่พบแม่แบบที่ต้องการลบ")
+    all_custom = load_custom_hook_templates()
+    return {"status": "success", "deleted_id": template_id, "templates": all_custom}

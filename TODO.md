@@ -12,6 +12,7 @@
 ---
 
 ## สถานะรวม
+- [x] Round HOK-1 - Custom Hook Template Studio (สร้างและบันทึกแม่แบบฮุกด้วยตัวเอง) (2026-09-07)
 - [x] Round EDT-1 - Editor UX/UI Friction and Speed Optimization (2026-09-07)
 - [x] Round POST-3.27 - Consolidate TikTok Studio upload tab opener to single header button (2026-09-07)
 - [x] Round POST-3.26 - Add TikTok Studio Upload tab opener button to Extension (2026-09-07)
@@ -73,6 +74,7 @@ npm test
 
 - [x] Round RAW-1 - Raw Vault rename recovery and responsive clip layout (2026-09-07)
 - [x] Round EDT-1 - Editor UX/UI Friction and Speed Optimization (2026-09-07)
+- [x] Round HOK-1 - Custom Hook Template Studio (สร้างและบันทึกแม่แบบฮุกด้วยตัวเอง) (2026-09-07)
 
 ## Round POST-3.16 — แก้การแนบปกข้อ 5 และแสดงภาพปก 3:4
 

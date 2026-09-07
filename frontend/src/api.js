@@ -279,4 +279,8 @@ export const resetTokenAnalytics = () => api.post('/tokens/reset').then(r => r.d
 
 export const fetchOverlayLayout = (payload) => api.post('/editor/overlay/layout', payload).then(r => r.data);
 
+export const getHookTemplates = () => api.get('/editor/hook-templates').then(r => r.data);
+export const saveCustomHookTemplate = (payload) => api.post('/editor/hook-templates', payload).then(r => r.data);
+export const deleteCustomHookTemplate = (id) => api.delete(`/editor/hook-templates/${encodeURIComponent(id)}`).then(r => r.data);
+
 export default api;

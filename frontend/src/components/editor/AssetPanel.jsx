@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useRef } from 'react';
 import {
   Check, Film, Music, Palette, Plus, Search, Sticker, Type, Volume2, Play, Square,
-  FileText, Sparkles, Loader2, Download, Copy, RefreshCw, Layers, Eye, X, Upload, Clock
+  FileText, Sparkles, Loader2, Download, Copy, RefreshCw, Layers, Eye, X, Upload, Clock, Trash2
 } from 'lucide-react';
 import { transcribeMedia, uploadFile } from '../../api';
 
@@ -501,6 +501,8 @@ export default function AssetPanel({
   previewTextTemplate = null,
   activeTextTemplateId = null,
   hookTemplates = null,
+  customHookTemplates = {},
+  onDeleteCustomHookTemplate = null,
   activeHookTemplate = null,
   onApplyHookTemplate = null,
   onStyleChange,
@@ -1181,42 +1183,113 @@ export default function AssetPanel({
                 overlay -- the left panel browses, the right panel edits, the
                 same way it works for every other kind of overlay. */}
             {(textCategory === 'all' || textCategory === 'banner') && (
-              <div className="grid grid-cols-2 gap-2">
-                {Object.entries(hookTemplates || {}).map(([key, tpl]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    data-text-template-card="true"
-                    onClick={() => onApplyHookTemplate?.(key)}
-                    title={tpl.label_th}
-                    className={`group flex flex-col gap-1.5 rounded-xl border p-2 text-left transition-all hover:-translate-y-0.5 cursor-pointer ${
-                      activeHookTemplate === key
-                        ? 'border-[#E6C24A] bg-[#E6C24A]/10 shadow-lg shadow-[#E6C24A]/20 ring-1 ring-[#E6C24A]/50'
-                        : 'border-white/[0.08] bg-gradient-to-b from-[#18181B] to-[#0E0E10] hover:border-[#E6C24A]/60'
-                    }`}
-                  >
-                    <div className="relative flex h-20 w-full flex-col items-center justify-center gap-0.5 overflow-hidden rounded-lg border border-white/[0.04] bg-black/60 p-1.5">
-                      <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
-                      <div className={`w-full flex flex-col items-center justify-center gap-0.5 relative z-10 transition-transform duration-200 ${getMotionPreviewClass(tpl.motion)}`}>
-                        {TIER_KEYS.map((tierKey, i) => (
-                          <TextLookPreview
-                            key={tierKey}
-                            look={hookCardLook(tpl, tierKey)}
-                            text={HOOK_CARD_SAMPLE[i]}
-                            baseFsRatio={HOOK_FS_RATIO}
-                            scale={0.19}
-                          />
-                        ))}
-                      </div>
-                      <span className="absolute top-1 right-1 px-1 py-0.2 text-[8px] font-mono font-bold rounded bg-black/70 text-[#E6C24A] border border-[#E6C24A]/30">
-                        {(tpl.motion?.loop || tpl.motion?.in || '').toUpperCase()}
+              <div className="flex flex-col gap-3">
+                {/* Custom Hook Templates */}
+                {Object.keys(customHookTemplates || {}).length > 0 && (
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between px-0.5">
+                      <span className="text-[11px] font-bold text-[#25F4EE] flex items-center gap-1">
+                        <span>แม่แบบของฉัน</span>
+                        <span className="text-[9px] font-normal text-slate-400">({Object.keys(customHookTemplates).length})</span>
                       </span>
                     </div>
-                    <span className="truncate text-[10px] font-semibold text-slate-300">
-                      {tpl.label_th}
-                    </span>
-                  </button>
-                ))}
+                    <div className="grid grid-cols-2 gap-2">
+                      {Object.entries(customHookTemplates).map(([key, tpl]) => (
+                        <div
+                          key={key}
+                          data-text-template-card="true"
+                          onClick={() => onApplyHookTemplate?.(key)}
+                          title={tpl.label_th}
+                          className={`group relative flex flex-col gap-1.5 rounded-xl border p-2 text-left transition-all hover:-translate-y-0.5 cursor-pointer ${
+                            activeHookTemplate === key
+                              ? 'border-[#25F4EE] bg-[#25F4EE]/10 shadow-lg shadow-[#25F4EE]/20 ring-1 ring-[#25F4EE]/50'
+                              : 'border-[#25F4EE]/30 bg-gradient-to-b from-[#18181B] to-[#0E0E10] hover:border-[#25F4EE]'
+                          }`}
+                        >
+                          <div className="relative flex h-20 w-full flex-col items-center justify-center gap-0.5 overflow-hidden rounded-lg border border-white/[0.04] bg-black/60 p-1.5">
+                            <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
+                            <div className={`w-full flex flex-col items-center justify-center gap-0.5 relative z-10 transition-transform duration-200 ${getMotionPreviewClass(tpl.motion)}`}>
+                              {TIER_KEYS.map((tierKey, i) => (
+                                <TextLookPreview
+                                  key={tierKey}
+                                  look={hookCardLook(tpl, tierKey)}
+                                  text={HOOK_CARD_SAMPLE[i]}
+                                  baseFsRatio={HOOK_FS_RATIO}
+                                  scale={0.19}
+                                />
+                              ))}
+                            </div>
+                            {onDeleteCustomHookTemplate && (
+                              <button
+                                type="button"
+                                title="ลบสไตล์นี้"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (window.confirm(`ต้องการลบแม่แบบ "${tpl.label_th}" หรือไม่?`)) {
+                                    onDeleteCustomHookTemplate(key);
+                                  }
+                                }}
+                                className="absolute top-1 left-1 p-1 rounded bg-black/80 text-rose-400 hover:text-rose-200 opacity-0 group-hover:opacity-100 transition-opacity z-20"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            )}
+                            <span className="absolute top-1 right-1 px-1 py-0.2 text-[8px] font-mono font-bold rounded bg-black/70 text-[#25F4EE] border border-[#25F4EE]/30">
+                              {(tpl.motion?.loop || tpl.motion?.in || '').toUpperCase()}
+                            </span>
+                          </div>
+                          <span className="truncate text-[10px] font-semibold text-slate-200 group-hover:text-[#25F4EE]">
+                            {tpl.label_th}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Standard Hook Templates */}
+                <div className="flex flex-col gap-1.5">
+                  {Object.keys(customHookTemplates || {}).length > 0 && (
+                    <span className="text-[11px] font-bold text-slate-400 px-0.5">แม่แบบมาตรฐาน</span>
+                  )}
+                  <div className="grid grid-cols-2 gap-2">
+                    {Object.entries(hookTemplates || {}).map(([key, tpl]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        data-text-template-card="true"
+                        onClick={() => onApplyHookTemplate?.(key)}
+                        title={tpl.label_th}
+                        className={`group flex flex-col gap-1.5 rounded-xl border p-2 text-left transition-all hover:-translate-y-0.5 cursor-pointer ${
+                          activeHookTemplate === key
+                            ? 'border-[#E6C24A] bg-[#E6C24A]/10 shadow-lg shadow-[#E6C24A]/20 ring-1 ring-[#E6C24A]/50'
+                            : 'border-white/[0.08] bg-gradient-to-b from-[#18181B] to-[#0E0E10] hover:border-[#E6C24A]/60'
+                        }`}
+                      >
+                        <div className="relative flex h-20 w-full flex-col items-center justify-center gap-0.5 overflow-hidden rounded-lg border border-white/[0.04] bg-black/60 p-1.5">
+                          <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
+                          <div className={`w-full flex flex-col items-center justify-center gap-0.5 relative z-10 transition-transform duration-200 ${getMotionPreviewClass(tpl.motion)}`}>
+                            {TIER_KEYS.map((tierKey, i) => (
+                              <TextLookPreview
+                                key={tierKey}
+                                look={hookCardLook(tpl, tierKey)}
+                                text={HOOK_CARD_SAMPLE[i]}
+                                baseFsRatio={HOOK_FS_RATIO}
+                                scale={0.19}
+                              />
+                            ))}
+                          </div>
+                          <span className="absolute top-1 right-1 px-1 py-0.2 text-[8px] font-mono font-bold rounded bg-black/70 text-[#E6C24A] border border-[#E6C24A]/30">
+                            {(tpl.motion?.loop || tpl.motion?.in || '').toUpperCase()}
+                          </span>
+                        </div>
+                        <span className="truncate text-[10px] font-semibold text-slate-300">
+                          {tpl.label_th}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
 

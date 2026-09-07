@@ -33,7 +33,10 @@ function ProductCard({ product, isSelected, onSelect }) {
   const total = pAngles.length || 4;
   const pct = Math.round((pDone / total) * 100);
   const thumb = product.images?.[0];
-  const thumbSrc = thumb ? `/api/media/${thumb.rel_path || thumb.local_path}` : null;
+  // A scraped product-page image only ever has .url (external CDN link);
+  // a user-uploaded one only has .rel_path/.local_path -- toMediaUrl handles
+  // both, including the http(s) passthrough a bare CDN link needs.
+  const thumbSrc = thumb ? toMediaUrl(thumb.rel_path || thumb.local_path || thumb.url) : null;
 
   return (
     <button
@@ -1279,9 +1282,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     });
     setAngles(item.angles || []);
     setOpenAngleIdx(0); // Reset accordion to first angle
-    if (item.images && item.images.length > 0) {
-      setSelectedImage(item.images[0].local_path || item.images[0].rel_path);
-    }
+    setSelectedImages([]);
   };
 
   const handleAngleStatusChange = async (angleId, nextStatus) => {
@@ -2526,7 +2527,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   const total = pAngles.length || 4;
                   const pct = Math.round((pDone / total) * 100);
                   const thumb = p.images?.[0];
-                  const thumbSrc = thumb ? `/api/media/${thumb.rel_path || thumb.local_path}` : null;
+                  const thumbSrc = thumb ? toMediaUrl(thumb.rel_path || thumb.local_path || thumb.url) : null;
                   const isSelected = selectedHistoryId === p.id;
 
                   return (

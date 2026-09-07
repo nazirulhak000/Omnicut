@@ -40,6 +40,9 @@ export default function Inspector({
   hookMotionCatalog = null,
   hookMotionDefault = null,
   hookTemplates = null,
+  customHookTemplates = {},
+  onSaveCustomHookTemplate = null,
+  onDeleteCustomHookTemplate = null,
   fonts = [],
   onToggleHookHeader,
   onAddTextAtPlayhead,
@@ -231,6 +234,9 @@ export default function Inspector({
                 hookMotionCatalog={hookMotionCatalog}
                 hookMotionDefault={hookMotionDefault}
                 hookTemplates={hookTemplates}
+                customHookTemplates={customHookTemplates}
+                onSaveCustomHookTemplate={onSaveCustomHookTemplate}
+                onDeleteCustomHookTemplate={onDeleteCustomHookTemplate}
                 assets={assets}
                 onToggleHookHeader={onToggleHookHeader}
                 onUpdateOverlay={onUpdateOverlay}
@@ -259,6 +265,9 @@ export default function Inspector({
                 hookMotionCatalog={hookMotionCatalog}
                 hookMotionDefault={hookMotionDefault}
                 hookTemplates={hookTemplates}
+                customHookTemplates={customHookTemplates}
+                onSaveCustomHookTemplate={onSaveCustomHookTemplate}
+                onDeleteCustomHookTemplate={onDeleteCustomHookTemplate}
                 assets={assets}
                 onToggleHookHeader={onToggleHookHeader}
                 onUpdateOverlay={onUpdateOverlay}

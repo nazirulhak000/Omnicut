@@ -10,6 +10,9 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
+  BookmarkPlus,
+  Check,
+  Loader2,
 } from 'lucide-react';
 import {
   ACCENT_COLOR,
@@ -80,6 +83,9 @@ export default function OverlayInspector({
   hookMotionCatalog,
   hookMotionDefault,
   hookTemplates,
+  customHookTemplates = {},
+  onSaveCustomHookTemplate = null,
+  onDeleteCustomHookTemplate = null,
   assets = {},
   onToggleHookHeader,
   onUpdateOverlay,
@@ -89,6 +95,9 @@ export default function OverlayInspector({
   const [openTier, setOpenTier] = useState(0);
   const [textPattern, setTextPattern] = useState({ bold: true, italic: false, underline: false });
   const [textAlign, setTextAlign] = useState('center');
+  const [newTemplateName, setNewTemplateName] = useState('');
+  const [isSavingCustom, setIsSavingCustom] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   const hookHeaderCardRef = useRef(null);
   const hookBrandInputRef = useRef(null);
@@ -158,6 +167,45 @@ export default function OverlayInspector({
       if (!hookOverlay) return;
       onReplaceOverlay?.(hookOverlay.id, withHookTemplateReset(hookOverlay));
     };
+    const handleSaveAsTemplate = async () => {
+      if (!newTemplateName.trim() || !hookOverlay || !onSaveCustomHookTemplate) return;
+      setIsSavingCustom(true);
+      try {
+        const font = hookOverlay.look?.font || (hookOverlay.tiers?.[0]?.look?.font) || 'Kanit';
+        const tiers = {};
+        TIER_KEYS.forEach((tierKey, idx) => {
+          const tier = (hookOverlay.tiers || [])[idx] || {};
+          const look = resolveLook(hookOverlay.look, tier.look);
+          tiers[tierKey] = {
+            size_pct: look.size_pct || 100,
+            color: look.color === null || look.color === undefined ? '#FFE600' : look.color,
+            outline_color: look.outline_color || '#000000',
+            outline_px: look.outline_px !== undefined ? Number(look.outline_px) : 6.0,
+            upper: !!look.upper,
+            pill: look.pill?.fill || null,
+          };
+        });
+        const motion = hookOverlay.anim || {};
+        const res = await onSaveCustomHookTemplate({
+          name: newTemplateName.trim(),
+          label_th: newTemplateName.trim(),
+          font,
+          tiers,
+          motion,
+        });
+        setSaveSuccess(true);
+        setNewTemplateName('');
+        setTimeout(() => setSaveSuccess(false), 3000);
+        if (res?.id) {
+          onReplaceOverlay?.(hookOverlay.id, withHookTemplate(hookOverlay, res.id));
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsSavingCustom(false);
+      }
+    };
+
     const onHookDurationChange = (seconds) => {
       if (!hookOverlay) return;
       onUpdateOverlay?.(hookOverlay.id, { end: Math.round((hookOverlay.start + seconds) * 100) / 100 });
@@ -166,6 +214,46 @@ export default function OverlayInspector({
       if (!hookOverlay) return;
       onUpdateOverlay?.(hookOverlay.id, { anim: { ...(hookOverlay.anim || {}), [key]: value } });
     };
+
+    const handleSaveCustom = async () => {
+      if (!newTemplateName.trim() || !onSaveCustomHookTemplate) return;
+      setIsSavingCustom(true);
+      try {
+        const tiersObj = {};
+        (hookOverlay?.tiers || []).forEach((t, i) => {
+          const tierKey = TIER_KEYS[i];
+          if (tierKey) {
+            const resolved = resolveLook(hookOverlay.look, t.look);
+            tiersObj[tierKey] = {
+              size_pct: resolved.size_pct ?? 100,
+              color: resolved.color ?? '#FFFFFF',
+              outline_color: resolved.outline_color ?? '#000000',
+              outline_px: resolved.outline_px ?? 8,
+              upper: resolved.upper ?? false,
+              pill: resolved.pill ? (typeof resolved.pill === 'string' ? resolved.pill : resolved.pill.fill) : null,
+            };
+          }
+        });
+
+        const payload = {
+          name: newTemplateName.trim(),
+          label_th: newTemplateName.trim(),
+          font: (hookOverlay?.look?.font) || 'Kanit',
+          motion: hookOverlay?.anim || { in: 'pop', out: 'fade', loop: 'pulse' },
+          tiers: tiersObj,
+        };
+        await onSaveCustomHookTemplate(payload);
+        setSaveSuccess(true);
+        setNewTemplateName('');
+        setTimeout(() => setSaveSuccess(false), 2500);
+      } catch (err) {
+        alert(err?.message || 'บันทึกสไตล์ไม่สำเร็จ');
+      } finally {
+        setIsSavingCustom(false);
+      }
+    };
+
+    const combinedTemplates = { ...(customHookTemplates || {}), ...(hookTemplates || {}) };
 
     return (
       <div
@@ -182,11 +270,11 @@ export default function OverlayInspector({
           </span>
           <button
             type="button"
-            onClick={() => onToggleHookHeader?.()}
-            className={`px-2 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
+            onClick={onToggleHookHeader}
+            className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-colors cursor-pointer ${
               showHookHeader
-                ? 'bg-[#E6C24A]/15 border-[#E6C24A]/50 text-[#E6C24A]'
-                : 'bg-black/40 border-white/[0.1] text-slate-400 hover:text-white'
+                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                : 'bg-white/[0.05] text-slate-500 border-white/[0.08]'
             }`}
           >
             {showHookHeader ? 'เปิดใช้งาน' : 'ปิดอยู่'}
@@ -219,31 +307,60 @@ export default function OverlayInspector({
                 </button>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                {Object.entries(hookTemplates || {}).map(([key, tpl]) => {
+                {Object.entries(combinedTemplates).map(([key, tpl]) => {
                   const isSelected = hookOverlay.template === key;
-                  const labelParts = (tpl.label_th || '').split(' — ');
+                  const labelParts = (tpl.label_th || tpl.name || key).split(' — ');
                   const titleName = labelParts[0] || key;
                   const motionTag = tpl.motion?.loop || tpl.motion?.in || 'pop';
                   const motionClass = getMotionPreviewClass(tpl.motion);
+                  const isCustom = !!tpl.is_custom || (customHookTemplates && !!customHookTemplates[key]);
 
                   return (
                     <button
                       key={key}
                       type="button"
                       onClick={() => onHookTemplate(key)}
-                      title={tpl.label_th}
+                      title={tpl.label_th || tpl.name || key}
                       className={`group relative flex flex-col gap-1.5 rounded-xl border p-2 text-left transition-all hover:-translate-y-0.5 cursor-pointer overflow-hidden ${
                         isSelected
-                          ? 'border-[#E6C24A] bg-[#E6C24A]/10 shadow-[0_0_15px_rgba(230,194,74,0.2)] ring-1 ring-[#E6C24A]/50'
-                          : 'border-white/[0.08] bg-gradient-to-b from-[#18181B] to-[#0E0E10] hover:border-[#E6C24A]/60'
+                          ? isCustom
+                            ? 'border-[#25F4EE] bg-[#25F4EE]/10 shadow-[0_0_15px_rgba(37,244,238,0.2)] ring-1 ring-[#25F4EE]/50'
+                            : 'border-[#E6C24A] bg-[#E6C24A]/10 shadow-[0_0_15px_rgba(230,194,74,0.2)] ring-1 ring-[#E6C24A]/50'
+                          : isCustom
+                            ? 'border-[#25F4EE]/30 bg-gradient-to-b from-[#18181B] to-[#0E0E10] hover:border-[#25F4EE]/60'
+                            : 'border-white/[0.08] bg-gradient-to-b from-[#18181B] to-[#0E0E10] hover:border-[#E6C24A]/60'
                       }`}
                     >
+                      {/* Delete button for custom template */}
+                      {isCustom && onDeleteCustomHookTemplate && (
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`ต้องการลบแม่แบบ "${tpl.label_th || tpl.name || key}" ใช่หรือไม่?`)) {
+                              onDeleteCustomHookTemplate(key);
+                            }
+                          }}
+                          title="ลบแม่แบบนี้"
+                          className="absolute top-1 right-1 z-20 p-1 rounded bg-black/70 hover:bg-red-500/80 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-2.5 h-2.5" />
+                        </span>
+                      )}
+
                       {/* Top Header: Title + Motion Badge */}
                       <div className="flex items-center justify-between gap-1 w-full">
-                        <span className={`text-[11px] font-bold truncate ${isSelected ? 'text-[#E6C24A]' : 'text-slate-200'}`}>
+                        <span className={`text-[11px] font-bold truncate ${
+                          isSelected
+                            ? (isCustom ? 'text-[#25F4EE]' : 'text-[#E6C24A]')
+                            : (isCustom ? 'text-[#25F4EE]' : 'text-slate-200')
+                        }`}>
                           {titleName}
                         </span>
-                        <span className="px-1.5 py-0.5 rounded text-[8.5px] font-mono font-bold bg-black/60 text-[#E6C24A] border border-[#E6C24A]/30 shrink-0">
+                        <span className={`px-1.5 py-0.5 rounded text-[8.5px] font-mono font-bold bg-black/60 shrink-0 border ${
+                          isCustom ? 'text-[#25F4EE] border-[#25F4EE]/30' : 'text-[#E6C24A] border-[#E6C24A]/30'
+                        }`}>
                           {motionTag.toUpperCase()}
                         </span>
                       </div>
@@ -268,7 +385,9 @@ export default function OverlayInspector({
                       <div className="flex items-center justify-between text-[9.5px] text-slate-400 pt-0.5">
                         <span className="truncate">{tpl.font}</span>
                         {isSelected && (
-                          <span className="text-[9px] font-bold text-[#E6C24A] shrink-0">ใช้งานอยู่</span>
+                          <span className={`text-[9px] font-bold shrink-0 ${isCustom ? 'text-[#25F4EE]' : 'text-[#E6C24A]'}`}>
+                            ใช้งานอยู่
+                          </span>
                         )}
                       </div>
                     </button>
@@ -276,6 +395,49 @@ export default function OverlayInspector({
                 })}
               </div>
             </div>
+
+            {/* Save As My Style Card */}
+            {onSaveCustomHookTemplate && (
+              <div className="rounded-xl border border-[#25F4EE]/30 bg-[#25F4EE]/5 p-2.5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-[#25F4EE] flex items-center gap-1.5">
+                    <BookmarkPlus className="w-3.5 h-3.5" />
+                    <span>บันทึกเป็นสไตล์ของฉัน</span>
+                  </span>
+                  {saveSuccess && (
+                    <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-0.5">
+                      <Check className="w-3 h-3" />
+                      <span>บันทึกเรียบร้อย!</span>
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    value={newTemplateName}
+                    onChange={(e) => setNewTemplateName(e.target.value)}
+                    placeholder="พิมพ์ชื่อสไตล์ (เช่น VIP Gold, สไตล์ประจำแบรนด์)..."
+                    className="flex-1 min-w-0 rounded-lg border border-white/[0.12] bg-black/60 px-2 py-1 text-xs text-white placeholder-slate-500 focus:border-[#25F4EE] focus:outline-none"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveCustom();
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSaveCustom}
+                    disabled={!newTemplateName.trim() || isSavingCustom}
+                    className="flex items-center gap-1 rounded-lg bg-[#25F4EE] hover:bg-[#1fe2dc] disabled:opacity-40 disabled:cursor-not-allowed px-2.5 py-1 text-xs font-bold text-black transition-all cursor-pointer shrink-0"
+                  >
+                    {isSavingCustom ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <BookmarkPlus className="w-3.5 h-3.5" />
+                    )}
+                    <span>บันทึกสไตล์</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Duration */}
             <div className="space-y-1">
