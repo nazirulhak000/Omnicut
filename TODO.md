@@ -889,4 +889,5 @@ Notes: ปรับปรุงโค้ด Extension ให้ตรงกั�
 - [x] คงการแก้ Cover Studio และการส่ง cover path ล่าสุดจากรอบก่อน
 - [x] ไม่แก้โค้ดค้นหา/เลือกสินค้าในรอบนี้
 - [x] รัน syntax check และ Node regression: 8 passed
-- [ ] ทดสอบวันเวลาและปกกับแท็บ TikTok จริงหลัง Reload extension
+- [x] ผู้ใช้ยืนยันว่าขั้น 4 เปลี่ยนวันและเวลาใน TikTok ได้จริง และไม่โพสต์อัตโนมัติ
+- [ ] ทดสอบการแนบปกกับแท็บ TikTok จริงหลัง Reload extension

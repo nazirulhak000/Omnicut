@@ -684,3 +684,8 @@ Result: commit `33210f2`; Product ID search and search icon are scoped to the la
 
 Date: 2026-09-07
 Result: Schedule step now clicks only TikTok's schedule radio and never the final publish button; requested times are normalized to TikTok's five-minute increments and the Side Panel date/time controls were restyled. Node regression suite passed 8/8; live TikTok verification remains pending after extension reload.
+
+## Round POST-3.6 verification - Schedule step confirmed by user
+
+Date: 2026-09-07
+Result: User confirmed that step 4 changes TikTok's date and time without publishing automatically. Step 4 is frozen; cover upload verification remains the only pending part of this round.
