@@ -4,9 +4,10 @@ Audit ของ Capcut content studio — สถานะปัจจุบั�
 
 สถานะวันนี้: **single-user local app** — data อยู่ใน SQLite (`_Docs/*.db`, JSON เดิมเหลือเป็น live mirror), media อยู่ในโฟลเดอร์ `00_Inbox`…`06_Archive` (path เก็บแบบ relative แล้ว), auth เป็น shared-secret ปิดอยู่โดย default, รัน render ในโปรเซสเดียวกับ API
 
-> **Verified against commit `ae9cced`** (2026-09-07, `HEAD` ตอนเขียนรอบนี้ — เอกสารก่อนหน้าค้างอยู่ที่ `d4fc3dc`)
-> รอบนี้อ่าน `git log d4fc3dc..HEAD` ทั้ง 28 commit แบบเต็มข้อความ + spot-check โค้ดจริงทุกข้อที่เอกสารเดิมบอกว่ายังเปิดอยู่
-> มี agent อื่นแก้โค้ดคู่ขนานอยู่ระหว่างที่เขียนเอกสารนี้ — เช็ค `git log`/`git status` ก่อนเชื่อสถานะข้อไหนที่สำคัญมาก
+> **Verified against commit `b4807a6`** (2026-09-07 — เอกสารก่อนหน้าค้างอยู่ที่ `d4fc3dc`)
+> อ่าน `git log d4fc3dc..HEAD` แบบเต็มข้อความ + spot-check โค้ดจริงทุกข้อที่เอกสารเดิมบอกว่ายังเปิดอยู่
+> ข้อ `renderJobModel` และ `keyframe_engine` ที่รอบก่อนเขียนว่า "กำลังแก้/ยังเปิด" **ปิดไปแล้ว** (`46135c7`, `cd2d778`) — ย้ายลงท้ายเอกสารแล้ว
+> `tiktok_autopost_extension/` เป็นพื้นที่ของ dev อีกคนที่แก้อยู่ตลอด — เช็ค `git log` ก่อนเชื่อสถานะฝั่งนั้น
 
 ---
 
@@ -37,12 +38,12 @@ Audit ของ Capcut content studio — สถานะปัจจุบั�
 | API key gate + CORS allowlist | 🟡 มีกลไกแล้วแต่ **ปิดอยู่โดย default** — ไม่ใช่ auth จริง |
 | **ไม่มี auth/per-user identity เลย** | 🔴 blocking สำหรับ SaaS — ยังไม่เริ่ม |
 | **Render in-process, `_RENDER_SLOT` ล็อกเดียวทั้งโปรเซส** | 🔴 blocking — ไม่มี job queue |
-| **`renderJobModel.js` key ด้วยชื่อ project ไม่ใช่ id คงที่** | 🟡 มี agent อื่นกำลังแก้ — diff อยู่ใน working tree แล้วแต่ยังไม่ commit ณ ตอนตรวจ |
+| `renderJobModel.js` key ด้วยชื่อ project | ✅ ปิดแล้ว (`46135c7`) — key เดียวทั้งแท็บ addressed ด้วย job uuid4 |
 | **`ProductStore.reconcile_existing_projects()` ยังใช้ bare `_load()`/`_save()`** | 🟠 หลุดจาก transaction ที่ `83a9f1e` วางไว้ |
 | **`token_tracker` cache ยังมีช่องโหว่ same-tick-same-size** | 🟡 ทฤษฎีล้วนๆ วันนี้ ไม่เคยเจอจริง |
 | **SQLite เป็น document store** (`angles`/`videos` ไม่ normalize) | 🟠 ตั้งใจ — ต้องแลกกับงาน rewrite ใหญ่ก่อนแตะ |
 | **Extension cover flow ผ่าน CDP path เอง — ยังไม่ verify จริง** | 🟠 Playwright ปฏิเสธ file send, รอทดสอบผ่าน extension จริง |
-| **`keyframe_engine.py` เป็น dead code** | 🟢 ลบได้เลย ไม่มีอะไรเรียก |
+| `keyframe_engine.py` ไม่มีใครเรียก | ✅ ตรวจแล้ว (`cd2d778`) — **ไม่ลบ** เป็น Phase 9 scaffolding ที่มี easing/clamp เกินของ live + doc ยังอ้าง `ease_out`; ใส่ STATUS ใน docstring แทน |
 
 ---
 
@@ -58,7 +59,7 @@ Audit ของ Capcut content studio — สถานะปัจจุบั�
 **นี่คือ shared secret ไม่ใช่ auth** — ไม่มี JWT, ไม่มี session, ไม่มี user table, ไม่มีทางแยกว่าใครยิง request ไหน
 
 **Fix:** ระยะสั้นคือให้ extension ส่ง header (เล็ก, ทำได้ไว) ระยะยาวต้องเป็น JWT/session + `get_current_user()` จริงตอนทำ multi-tenant
-**Effort:** SMALL (ต่อสาย extension) / LARGE (auth จริงต่อ user) — **นี่คือ effort ประเมินเดิมที่ผิด**: เอกสารเก่าบอก "MEDIUM (proper)" แต่หลังเห็นว่าทุก endpoint (108+ ตัว), ทุก store (`ProductStore`/`PostLog`/`TaskManager`/`ProjectManifest`), และ global state 6 ตัว (ดูข้อ 8) ต้องร้อย identity ผ่านหมด — ควรนับเป็นงานระดับสัปดาห์ ไม่ใช่วัน
+**Effort:** SMALL (ต่อสาย extension) / LARGE (auth จริงต่อ user) — **นี่คือ effort ประเมินเดิมที่ผิด**: เอกสารเก่าบอก "MEDIUM (proper)" แต่หลังเห็นว่าทุก endpoint (108+ ตัว), ทุก store (`ProductStore`/`PostLog`/`TaskManager`/`ProjectManifest`), และ global state 6 ตัว (ดูข้อ 6) ต้องร้อย identity ผ่านหมด — ควรนับเป็นงานระดับสัปดาห์ ไม่ใช่วัน
 
 ### 2. Render เป็น in-process, ล็อกเดียวทั้งโปรเซส 🔴
 `scripts/render_jobs.py:20,45` (`ACTIVE_JOBS`, `_RENDER_SLOT`)
@@ -72,15 +73,7 @@ Audit ของ Capcut content studio — สถานะปัจจุบั�
 **Fix:** ต้องเป็น job queue จริง (arq แนะนำกว่า Celery สำหรับทีมเล็ก — asyncio-native, ops น้อย) + `_RENDER_SLOT` กลายเป็น worker-pool sizing + per-tenant concurrency rule
 **Effort:** LARGE — เป็นโปรเจกต์แยก ต้องคิดเรื่อง retry policy ด้วย (TTS network ล้ม = retry ได้, ffmpeg OOM = อย่า retry)
 
-### 3. `renderJobModel.js` เก็บ active job key ด้วยชื่อ project ไม่ใช่ id คงที่ 🟡 กำลังถูกแก้ (uncommitted ณ ตอนตรวจ)
-`frontend/src/lib/renderJobModel.js:84-109` เดิม (`saveActiveJob`/`getActiveJob`/`clearActiveJob`) เรียกจาก `frontend/src/hooks/useRenderJob.js:139,196` ด้วย `currentProject`/`projectName` (ทั้งคู่คือชื่อโฟลเดอร์โปรเจกต์ที่แสดงผล ไม่ใช่ stable id) — sessionStorage key เดิมคือ `` `omnicut_active_render_${projectName}` `` เปลี่ยนชื่อโปรเจกต์แล้ว key เก่าหา job ไม่เจอ, หรือถ้าสองโปรเจกต์ fallback label ชนกัน (เช่นตกไปเป็น `'วิดีโอ'` เหมือนกัน) จะอ่าน/ทับ job ผิดตัว
-
-**สถานะตอนตรวจสอบ (`git status` ที่ HEAD `ae9cced`):** มี agent อื่นแก้ไฟล์นี้อยู่จริง **แต่ยังไม่ commit** — working tree มี diff ที่เปลี่ยน storage model ทั้งหมด: จาก key-per-project (`${STORAGE_PREFIX}${projectName}` → jobId string) เป็น **key เดียวคงที่ทั้งแท็บ** (`` `${STORAGE_PREFIX}job` `` → JSON `{jobId, projectKey}`) โดยอ้างเหตุผลว่ามี render ได้แค่ 1 งานต่อแท็บอยู่แล้ว (`EditorShell` กับ `NewClipPanel` ไม่ mount พร้อมกัน) จึงไม่จำเป็นต้อง key ด้วย project เลย เก็บ label ไว้เป็น payload field เพื่อ diagnostics แทน
-
-**ยังไม่ verify:** diff นี้ยังไม่ผ่านการ build/test รอบใหม่เท่าที่เห็น ณ ตอนตรวจ (ไฟล์ที่แก้พร้อมกันมีทั้ง `useRenderJob.js`, `renderJobController.test.js`, `renderJobModel.test.js` และไฟล์ไม่เกี่ยวกัน เช่น `keyframe_engine.py`/`api_render.py`/`pipeline.py` — แสดงว่ามีงานอื่นปนอยู่ในรอบแก้เดียวกัน) ผู้รับช่วงต่อควรเช็ค `git log`/`git status`/test ก่อนถือว่าข้อนี้ปิดแล้ว
-**Effort เดิม (ถ้ายังไม่ merge):** SMALL — เปลี่ยน key เป็น stable id/single-slot ตามที่ diff นี้ทำอยู่
-
-### 4. `ProductStore.reconcile_existing_projects()` หลุดจาก transaction 🟠
+### 3. `ProductStore.reconcile_existing_projects()` หลุดจาก transaction 🟠
 `scripts/product_store.py:596-793`
 
 `83a9f1e` ย้าย `ProductStore`/`PostLog` ทั้งคู่ไปอยู่บน SQLite แล้วครอบทุก mutate ด้วย `_mutate()` context manager ที่เปิด `BEGIN IMMEDIATE` (ดู `scripts/db.py:197,230,335`) — แก้ lost-update race ของเดิมได้จริง
@@ -92,19 +85,11 @@ Audit ของ Capcut content studio — สถานะปัจจุบั�
 **Fix:** ห่อทั้งฟังก์ชันด้วย `with cls._mutate() as products:` เหมือนเมธอดอื่น (ต้องปรับ logic เพราะตอนนี้มี early-return `if not products: return False` และหลาย `if changed: cls._save()` — ต้อง restructure ให้เข้ากับ pattern yield-then-commit)
 **Effort:** SMALL–MEDIUM (ฟังก์ชันยาว ~200 บรรทัด logic ซับซ้อนกว่าเมธอดอื่นที่ย้ายไปแล้ว ต้อง test ครอบคลุม edge case เดิมทั้งหมด)
 
-### 5. `keyframe_engine.py` เป็น dead code 🟢
-`scripts/keyframe_engine.py` — grep ทั้ง `scripts/` แล้วไม่มีไฟล์ไหน import เลย มีแค่ `.pyc` cache กับ `tests/test_keyframe_parity.py` ที่ทดสอบมันตรงๆ
-
-Pipeline จริงใช้ `interpolate_keyframes` ของ `scripts/video_editor.py:307` เอง (ง่ายกว่า self-contained กว่า) `keyframe_engine.py` ไม่ได้ถูกเรียกจาก stage ไหนเลย
-
-**Fix:** ลบไฟล์ + test คู่กัน (หรือถ้าอยากเก็บไว้เป็น reference ให้ย้ายไป `_Docs/` แทนที่จะอยู่ปนใน `scripts/`)
-**Effort:** SMALL (แต่ไม่เร่งด่วน — ไม่ก่อความเสียหายอะไร แค่ทำให้ codebase สับสนว่าตัวไหนคือของจริง)
-
 ---
 
 ## P1 — ต้องทำก่อนให้คนนอกแตะ (ไม่ blocking วันนี้แต่ blocking SaaS)
 
-### 6. Quota enforcement ครบจุดแล้ว แต่ยังไม่มี hard budget table จริง 🟡
+### 4. Quota enforcement ครบจุดแล้ว แต่ยังไม่มี hard budget table จริง 🟡
 `scripts/quota.py` + เรียกจาก `ai_bridge.py:461`, `api_voice.py:199`, `gemini_tts_engine.py:136`, `gemini_vision_matcher.py:240`, `product_scraper.py:351`, `script_tone_analyzer.py:89`
 
 **เปลี่ยนจากเอกสารเก่ามาก:** ตอน `d4fc3dc` ยังไม่มี quota check เลย (`token_tracker.py` มีแต่ `get_history()`) วันนี้ `check_budget()` เรียกก่อนทุกจุดที่จ่ายเงินจริงแล้วครบ 6 จุด — cache hit ของ vision matcher ไม่โดนหักด้วย (check วางหลัง cache lookup ตามที่ตั้งใจ)
@@ -115,7 +100,7 @@ Pipeline จริงใช้ `interpolate_keyframes` ของ `scripts/video_
 **Fix:** เพิ่มตาราง budget ต่อ tenant/user จริงตอนทำ multi-tenant
 **Effort:** MEDIUM (โครง check_budget วางไว้ดีแล้ว งานที่เหลือคือ schema + debit-in-transaction)
 
-### 7. `token_tracker` cache ยังมี same-tick-same-size gap ทางทฤษฎี 🟡
+### 5. `token_tracker` cache ยังมี same-tick-same-size gap ทางทฤษฎี 🟡
 `scripts/token_tracker.py:83-106` (`_disk_stamp`)
 
 `22559a1` เปลี่ยนจาก plain `st_mtime` (float วินาที) เป็น `(st_mtime_ns, st_size)` แก้ปัญหาที่ Windows/FAT filesystem มี mtime resolution หยาบจนสองการเขียนในวินาทีเดียวกันอ่าน mtime เท่ากัน — **ของเดิมพังบ่อยกว่านี้มาก** เพราะ float-seconds ชนกันง่าย
@@ -125,7 +110,7 @@ Pipeline จริงใช้ `interpolate_keyframes` ของ `scripts/video_
 **ความเสี่ยงจริงวันนี้:** ต่ำมาก — ต้องมีสองโปรเซสเขียน token analytics พร้อมกันในนาโนวินาทีเดียวกัน "และ" ขนาดบังเอิญเท่ากันเป๊ะ ยังไม่เคยพบเจอจริง เก็บไว้เป็นความรู้ว่ามีช่องโหว่ทางทฤษฎีอยู่ ไม่ต้องรีบแก้ก่อน job queue จริง (ข้อ 2) ซึ่งจะเปลี่ยนโมเดล concurrency ทั้งหมดอยู่ดี
 **Fix ถ้าจะแก้:** เนื้อหา hash (เช่น จำนวน events + last event id) แทนการอิง stat() ล้วนๆ, หรือรอย้ายเป็น DB-backed counter ตอนทำ tenant budget (ข้อ 6) เพราะจะพันกันอยู่แล้ว
 
-### 8. Global state ที่ leak ข้าม tenant ได้ถ้าแชร์โปรเซส 🔴
+### 6. Global state ที่ leak ข้าม tenant ได้ถ้าแชร์โปรเซส 🔴
 | ที่ | ปัญหา | ผลถ้าไม่แก้ |
 |---|---|---|
 | `task_manager.py` `_tasks` | มี `owner_id` แล้ว (`18735fd`) แต่ default เดียวกันหมดเพราะไม่มี auth ผูก | รอ auth จริงก่อนถึงจะแยก tenant ได้จริง |
@@ -143,7 +128,7 @@ Pipeline จริงใช้ `interpolate_keyframes` ของ `scripts/video_
 
 ## P2 — งานที่ต้องคิดก่อนแตะ (ไม่ใช่บัค แต่ต้องมีคนตัดสินใจ)
 
-### 9. SQLite เป็น document store ไม่ใช่ normalized schema 🟠
+### 7. SQLite เป็น document store ไม่ใช่ normalized schema 🟠
 `scripts/db.py` + `scripts/product_store.py`
 
 `83a9f1e` ย้าย `ProductStore`/`PostLog` ลง SQLite แล้ว **แต่เก็บเป็น one-row-per-id, ทั้ง record เป็น JSON blob** — `angles`/`videos` ยังซ้อนอยู่ใน JSON ของแถว `products` ไม่ได้แยกเป็นตารางลูก
@@ -157,7 +142,7 @@ Pipeline จริงใช้ `interpolate_keyframes` ของ `scripts/video_
 
 **Effort:** LARGE — ห้ามประเมินเป็น "แค่ ALTER TABLE" เพราะตัวบล็อกจริงคือ call site ที่แก้ nested structure ตรงๆ ไม่ใช่ schema เอง
 
-### 10. Media ยังอยู่ local disk — แต่ object storage ทำได้แล้ววันนี้ ✅ (เปลี่ยนจากเดิม)
+### 8. Media ยังอยู่ local disk — แต่ object storage ทำได้แล้ววันนี้ ✅ (เปลี่ยนจากเดิม)
 `cea03eb` ลบ blocker เดิมออกแล้ว: path ทั้งหมด (`angle.video_url`, `angle.selected_videos`, `product.videos[].rel_path`) เก็บเป็น BASE_DIR-relative จริงแล้ว (ก่อนหน้านี้ `rel_path` เก็บ absolute path เหมือน `path` เป๊ะ — ชื่อฟิลด์หลอก ตอนนี้แก้แล้ว) มี `scripts/migrate_paths_to_relative.py` แปลงของเก่า (round-trip verify ก่อนเขียนทับ)
 
 **ยังต้องมีก่อนย้ายจริง:** `MediaStore` abstraction 2 backend (local passthrough / object-store ที่ download มา scratch dir ก่อน render แล้ว upload กลับ) — **ffmpeg อ่าน S3/GCS URL ตรงๆ ไม่ได้** ต้องมีไฟล์บนดิสก์เสมอ
@@ -167,7 +152,7 @@ Pipeline จริงใช้ `interpolate_keyframes` ของ `scripts/video_
 **คำแนะนำ:** local disk พอสำหรับ MVP SaaS ย้ายขึ้น object storage เมื่อ (ก) worker หลายเครื่อง (ข) storage เกินดิสก์เดียว (ค) ต้องการ CDN — blocker เดิม (absolute path) หายไปแล้ว เหลือแค่เป็นงานที่ทำได้เมื่อจำเป็น ไม่ใช่ prerequisite
 **Effort:** MEDIUM (wrapper layer เท่านั้น — ffmpeg/PIL ตรงกลางไม่ต้องแก้)
 
-### 11. Schema mapping ถ้าจะ normalize (จาก record จริง)
+### 9. Schema mapping ถ้าจะ normalize (จาก record จริง)
 **`products`** — `tenant_id` FK NOT NULL indexed (ยังไม่มี), `platform` ควรเป็น enum (วันนี้ free-form), `product_code` ต้อง `UNIQUE (tenant_id, product_code)` และ `_generate_product_code()` ต้อง scan เฉพาะ tenant ตัวเอง (วันนี้ scan ทั้งตาราง)
 
 **`angles`** — ต้องแยกเป็นตารางเอง (วันนี้ซ้อนใน `products` JSON) `angle_id` เป็น taxonomy คงที่ ~7-8 ตัวแต่เก็บเป็น free text ตัดทิ้งได้: `script_text` (= join ของ `script_lines`) และ `selected_video` (= `selected_videos[0]`) คำนวณตอนอ่านแทน
@@ -178,7 +163,7 @@ Pipeline จริงใช้ `interpolate_keyframes` ของ `scripts/video_
 
 **`usage_events`** — map ตรงๆ ได้ **`totals` เปลี่ยนสถานะแล้ว**: เดิมเป็น manual-sync aggregate ที่ drift ได้ วันนี้ `22559a1` ทำให้ reconstructable แล้ว (`totals == trimmed_aggregate + sum(events)`, ยืนยันด้วย test) — ยังแนะนำให้ใช้ `SUM() GROUP BY` ตอนอ่านถ้าย้ายลง DB จริง เพราะ SQL ทำ aggregate ได้ native โดยไม่ต้องพึ่ง invariant ที่ต้องรักษาด้วยมือ
 
-### 12. Rendering — สองระบบซ้อนกันเหมือนเดิม (ยังไม่รวม)
+### 10. Rendering — สองระบบซ้อนกันเหมือนเดิม (ยังไม่รวม)
 1. `render_jobs.py` — `ACTIVE_JOBS` in-memory + `_RENDER_SLOT` ล็อกเดียว, หายหมดตอน restart, มี `owner_id` แล้ว
 2. `task_manager.py` — persist ลง `task_registry.json`, `ThreadPoolExecutor(max_workers=4)`, restart แล้ว mark ทุกงานค้างเป็น failed ไม่ resume, มี `owner_id` แล้ว, terminal-state guard แล้ว (`18735fd` — `complete_task()`/`fail_task()` ไม่ทับ state ที่จบแล้วอีก)
 
@@ -190,12 +175,12 @@ Pipeline จริงใช้ `interpolate_keyframes` ของ `scripts/video_
 
 ## สิ่งที่ต้องมนุษย์ตัดสินใจ (ไม่ใช่บัค)
 
-### 13. `ad_tone` ที่ไม่รู้จักตกไปใช้ prompt `commercial_premium` เงียบๆ
+### 11. `ad_tone` ที่ไม่รู้จักตกไปใช้ prompt `commercial_premium` เงียบๆ
 `scripts/gemini_tts_engine.py:161`, `scripts/overlay_model.py:174`
 
 พฤติกรรมนี้ยืนยันแล้วว่า**ยังอยู่เหมือนเดิม** (`a2a9eff` เขียน test cover พฤติกรรมนี้ตามที่เป็นอยู่ ไม่ได้เปลี่ยน) คำถามที่ต้องตอบ: อยาก fallback เงียบๆ แบบนี้ต่อไป (ยืดหยุ่นกับ tone ใหม่ที่ยังไม่ list) หรืออยาก raise/warn เมื่อเจอ `ad_tone` ที่ไม่รู้จัก (จับ typo/data เพี้ยนได้เร็วกว่า)
 
-### 14. Vision matcher คืน cache เก่าข้าม cue set ได้เมื่อ parse response ไม่ออก
+### 12. Vision matcher คืน cache เก่าข้าม cue set ได้เมื่อ parse response ไม่ออก
 `scripts/gemini_vision_matcher.py:260,366,417` — เมื่อ parse response จาก Gemini ไม่สำเร็จ โค้ด fallback ไปหา cache entry ตัวไหนก็ได้ที่ **share แค่ file hash เดียวกัน** (`if k.startswith(file_hash) and v`) ไม่ตรวจว่า cue set เดียวกันไหม (`match_cache_key` เต็มคือ `file_hash + cue_hash`)
 
 ยืนยันแล้วว่ายังอยู่เหมือนเดิม (`a2a9eff` cover พฤติกรรมนี้ตามที่เป็น ไม่เปลี่ยน) **ความเสี่ยงจริง:** แก้สคริปต์ (เปลี่ยน cue) แล้ว render ใหม่ แต่ vision response ครั้งใหม่ parse ไม่ออก (เช่น Gemini ตอบ format แปลก) → ได้ scene matching ของสคริปต์ **เก่า** มาใช้แบบเงียบๆ ไม่มี error
@@ -209,7 +194,7 @@ Pipeline จริงใช้ `interpolate_keyframes` ของ `scripts/video_
 **Backend/data**
 - Atomic write (tmp + replace) — ใช้ได้กับ local filesystem
 - `gemini_vision_matcher.py` cache keyed by file hash + cue hash เช็คก่อนเรียก API ถูกต้อง (bug ที่เคยทำให้ cache ไม่เคยถูกเขียนแก้แล้วที่ `ece95f1`)
-- SQLite transaction (`BEGIN IMMEDIATE`) ที่ `db.py` — ปิด lost-update race ได้จริงยกเว้น 1 จุด (ข้อ 4)
+- SQLite transaction (`BEGIN IMMEDIATE`) ที่ `db.py` — ปิด lost-update race ได้จริงยกเว้น 1 จุด (ข้อ 3)
 - Render หลักเป็น ffmpeg pass เดียว ไม่ re-encode ซ้ำ
 - `asset_registry.py` ไม่ต้องมี tenant_id — asset กลางใช้ร่วมกันถูกแล้ว
 
@@ -227,19 +212,19 @@ Pipeline จริงใช้ `interpolate_keyframes` ของ `scripts/video_
 **Chrome extension**
 - `host_permissions` แคบ (localhost:8000 + tiktok.com เท่านั้น) ไม่มี `<all_urls>`
 - Error plumbing ถูกต้อง — throw แล้วเด้งถึง UI จริง (`sidepanel.js:230-243`)
-- `automation.js` มี `page()`/`buttonQuery()` helper — pattern ดี แต่ยังไม่ถูกขยายไปใช้ทั่ว (ดูข้อ 15)
+- `automation.js` มี `page()`/`buttonQuery()` helper — pattern ดี แต่ยังไม่ถูกขยายไปใช้ทั่ว (ดูข้อ 13)
 - Post/link-attach/schedule-toggle ตอนนี้ poll ยืนยันผลจริงก่อน report success แล้ว (`c12527b` + live-verify รอบ POST-3.1-3.4)
 
 ---
 
 ## ยังเปิดอยู่: Chrome extension (พื้นที่ของ dev อีกคน — ไม่แตะโค้ด แต่บันทึกไว้)
 
-### 15. Selector ยังกระจัดกระจาย ไม่มีไฟล์กลาง 🟡
+### 13. Selector ยังกระจัดกระจาย ไม่มีไฟล์กลาง 🟡
 ไม่มี `selectors.js` หรือไฟล์รวม selector ใดๆ — `background.js` ยัง hand-roll แยกทุกฟังก์ชัน (68 จุดที่เรียก `querySelector`/`getElementById` ใน `background.js` ไฟล์เดียว) ประวัติ commit ช่วงนี้เห็นชัดว่าเป็นปัญหาจริง: `03c47cf`, `279b8ee`, `33210f2`, `bfeb7e6`, `f8be9b7`, `7c5cf50`, `78eda05`, `32c6972`, `ae9cced` — **9 commit แก้ selector/targeting ใน 28 commit ล่าสุด** เกือบหนึ่งในสาม
 
 การรวมเป็นไฟล์เดียวจะคุ้มมากขึ้นเรื่อยๆ ทุกครั้งที่ TikTok เปลี่ยน UI — แต่ไม่ใช่ของที่แก้ได้ในเอกสารนี้ (directory เป็นของ dev อีกคน)
 
-### 16. Cover flow ผ่าน CDP path ของ extension เอง — ยังไม่ verify จริง 🟠
+### 14. Cover flow ผ่าน CDP path ของ extension เอง — ยังไม่ verify จริง 🟠
 `b24091d` บันทึกไว้ชัดเจน: Playwright session จริงเปิด Cover Studio ได้ พบ `label.ImageUpload__uploadArea` แต่ **การส่งไฟล์ผ่าน Playwright ถูกปฏิเสธ** (`fileChooser.setFiles: Not allowed`) — เป็นข้อจำกัดของ browser sandbox ไม่ใช่บัคของ extension เอง
 
 extension มีทางของตัวเอง (upload ผ่าน CDP โดยตรง ไม่ใช้ OS file dialog — ตาม commit `a968d9f` ก่อนหน้า `d4fc3dc`) แต่**เส้นทางนั้นยังไม่เคย verify กับ TikTok จริงหลังแพตช์รอบล่าสุด** (`008aadd`, `ae9cced` แก้ cover upload/diagnostics เพิ่มอีก แต่ TODO.md เองยังทำเครื่องหมาย task นี้ค้างอยู่ที่ POST-3.4: "ทำให้ข้อแนบปกเปิด Cover Studio ได้... ยืนยัน flow หน้าปก... โดยไม่กดเผยแพร่" — ยังไม่ติ๊ก)
@@ -252,9 +237,7 @@ extension มีทางของตัวเอง (upload ผ่าน CDP �
 
 **เฟส 0 — เก็บของที่ทำค้าง (เล็ก, ทำได้ทันที)**
 1. ต่อสาย `X-API-Key` เข้า extension (ข้อ 1) — ก่อน `OMNICUT_API_KEY` จะถูกเปิดใช้จริงเมื่อไหร่ก็ได้แล้วมันจะพังทันที
-2. ห่อ `reconcile_existing_projects()` ด้วย `_mutate()` (ข้อ 4) — เป็นรูโหว่เดียวที่เหลือของ pattern ที่ `83a9f1e` เพิ่งปิดไปทั้งระบบ
-3. แก้ `renderJobModel.js` key เป็น stable id (ข้อ 3) — เช็คก่อนว่า agent อื่นทำเสร็จหรือยัง
-4. ลบ `keyframe_engine.py` dead code (ข้อ 5)
+2. ห่อ `reconcile_existing_projects()` ด้วย `_mutate()` (ข้อ 3) — เป็นรูโหว่เดียวที่เหลือของ pattern ที่ `83a9f1e` เพิ่งปิดไปทั้งระบบ
 
 **เฟส 1 — Auth จริง (จุดที่ block ทุกอย่างต่อจากนี้)**
 5. ออกแบบ user/session model — JWT หรือ session cookie, ตาราง `users`
@@ -272,8 +255,8 @@ extension มีทางของตัวเอง (upload ผ่าน CDP �
 13. Normalize SQLite schema (ข้อ 9, 11) — รอจนกว่า record count เริ่มกระทบ perf จริง (JSON blob ต่อแถวยังไหวถึงหลักพัน record)
 
 **เฟส 4 — ตัดสินใจที่รอมนุษย์ (ทำเมื่อไหร่ก็ได้ ไม่ block อะไร)**
-14. `ad_tone` fallback เงียบๆ (ข้อ 13) — ตอบแล้วค่อยแก้โค้ด
-15. Vision cache stale-match scope (ข้อ 14) — ตอบแล้วค่อยแก้โค้ด
+14. `ad_tone` fallback เงียบๆ (ข้อ 11) — ตอบแล้วค่อยแก้โค้ด
+15. Vision cache stale-match scope (ข้อ 12) — ตอบแล้วค่อยแก้โค้ด
 
 ---
 
@@ -303,6 +286,11 @@ extension มีทางของตัวเอง (upload ผ่าน CDP �
 - **Test เขียนทับ data จริง** — `test_analysis_fixes.py`, `test_export_versioning.py` ไม่ใช้ `tmp_path` → isolate แล้ว (`d4fc3dc`, เพิ่มอีกใน `1c0e07b` ที่พบ 4 test สร้าง real project dir ใต้ `03_Projects`)
 - **Task/job id เดาได้ + ไม่มี owner scoping** — `f"task_{ms_timestamp}_{6 hex}"` walkable, `_tasks`/`ACTIVE_JOBS` ไม่มี owner key เลย → `secrets.token_urlsafe(16)` + `owner_id` scoping ทุก lookup/mutation (`18735fd`)
 - **`complete_task()`/`fail_task()` ไม่มี terminal guard** — task ที่ fail แล้วโดน complete ทับสถานะได้ (ค้าง error ไว้พร้อม status COMPLETED) → เพิ่ม guard (`18735fd`)
+- **`renderJobModel.js` key ด้วยชื่อ project ที่แสดงผล** — label ต่างกันระหว่าง save/read (EditorShell กับ NewClipPanel คำนวณคนละที่) ทำให้หา job ที่กำลังรันไม่เจอ UI บอกว่าไม่มี render, และ fallback `'วิดีโอ'` ทำให้ render ที่ไม่มีชื่อสองงานทับ key กัน → เปลี่ยนเป็น key เดียวทั้งแท็บถือ `{jobId, projectKey}` addressed ด้วย uuid4 ของ job (`46135c7`)
+- **`import.meta.env` ล้มตอนรัน lib test** — interceptor `X-API-Key` อ่าน `import.meta.env.VITE_API_KEY` ตรงๆ แต่ `node --test` ไม่ผ่าน Vite → throw ล้มไป 2 suite → optional chaining (`46135c7`)
+- **Render ที่ล้มกลางทางตามรอยโฟลเดอร์ไม่ได้** — ชื่อโปรเจกต์ที่ stage 1 ตั้งเองอยู่แค่ใน `ctx` จน `run()` return, `api_render` ใช้ `req_data.project_name` ที่เป็น `None` พอดี, `fail_job` fallback อ่าน `job["result"]` ที่มีค่าแค่ตอนสำเร็จ (dead logic) → stamp ชื่อบน exception + เขียน `.run_started.json` เป็น breadcrumb (ตั้งใจไม่ใช่ `project.json` เพราะ `require()` ถือว่ามี manifest = render เสร็จ จะทำให้ reroll วิ่งบน artifact ที่ไม่มี) (`566c3de`)
+- **Test diagnostics เขียนไฟล์ลง repo root ทุกครั้งที่รัน** — 8 ไฟล์ใน `tests/` ไม่มี test function แต่ pytest import ตอน collect ทำให้ module body รัน → ใส่ `__main__` guard + ลบ artifact 14 ไฟล์ที่ค้าง (`cd2d778`)
+- **`keyframe_engine.py` + `keyframeModel.js` เป็น Phase 9 scaffolding ที่ไม่มีใครเรียก** — ตรวจแล้ว**ไม่ลบ** เพราะมี easing/clamping/tier resolution ที่ของ live ไม่มี และ `TEMPLATE_MOTION_PLAN.md` ยังอ้าง `ease_out` เป็น naming guard → ใส่ STATUS ใน docstring ชี้ไปที่ของจริง (`video_editor.interpolate_keyframes`, `timelineMath.interpolateKeyframes`, easing ใน `SequencePlayer.jsx`) (`cd2d778`)
 
 ---
 
