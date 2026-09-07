@@ -152,6 +152,47 @@
   .input-label .ic { font-size: 12px; line-height: 1; }
   .field + .field { margin-top: 12px; }
 
+  .schedule-fields {
+    padding: 12px 13px 13px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-muted, var(--bg));
+  }
+  .schedule-inputs {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px;
+    margin-top: 9px;
+  }
+  .schedule-input-group {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 5px;
+    color: var(--text-secondary);
+    font-size: 10.5px;
+    font-weight: 600;
+  }
+  .schedule-input-group input {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 36px;
+    padding: 8px 9px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--text-primary);
+    font: inherit;
+    color-scheme: dark;
+    transition: border-color 0.15s var(--ease-out), box-shadow 0.15s var(--ease-out);
+  }
+  .schedule-input-group input:hover { border-color: rgba(148, 163, 184, 0.42); }
+  .schedule-input-group input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-wash);
+  }
+
   .btn-copy-all {
     width: 100%;
     justify-content: center;
@@ -597,8 +638,14 @@
       <div class="field schedule-fields">
         <span class="input-label">วันและเวลาตั้งโพสต์ (เว้นว่างให้เลือกบน TikTok)</span>
         <div class="schedule-inputs">
-          <input type="date" id="scheduleDateInput" />
-          <input type="time" id="scheduleTimeInput" />
+          <label class="schedule-input-group">
+            <span>วันที่</span>
+            <input type="date" id="scheduleDateInput" />
+          </label>
+          <label class="schedule-input-group">
+            <span>เวลา (ทุก 5 นาที)</span>
+            <input type="time" id="scheduleTimeInput" step="300" />
+          </label>
         </div>
       </div>
     </div>

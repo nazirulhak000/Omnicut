@@ -1021,49 +1021,18 @@ async function attachProductLink(send, productId, cartName = '') {
 async function switchToScheduleMode(send, schedule = {}) {
   const { result } = await send('Runtime.evaluate', {
     expression: `(() => {
-      // Exact-text match on LEAF elements only (label/span/div with no
-      // matching-text children of their own) -- matching on ANY ancestor
-      // whose combined innerText merely *includes* the phrase let a big
-      // wrapping <div> (e.g. the whole "post settings" section, which also
-      // contains the unrelated "ตำแหน่งที่ตั้ง" location field right below
-      // the schedule toggle) win the search. The old code then did
-      // el.querySelector('input') on that wide match -- the FIRST input
-      // inside a wide container is not necessarily the schedule radio, so it
-      // ended up opening the location dropdown instead (caught on a real
-      // screen recording, 2026-09-06).
-      const TARGETS = ['ตั้งเวลา', 'กำหนดเวลาโพสต์', 'กำหนดเวลา', 'Schedule'];
-      const isLeafMatch = (el) => {
-        const t = (el.innerText || el.textContent || '').trim();
-        if (!TARGETS.includes(t)) return false;
-        // Reject if a child element repeats the same exact text -- that
-        // child is the real leaf, this element is just its container.
-        return !Array.from(el.children).some(c => TARGETS.includes((c.innerText || c.textContent || '').trim()));
-      };
       const isVisible = (el) => {
         const r = el.getBoundingClientRect();
         return r.width > 0 && r.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
       };
-
-      const candidates = Array.from(document.querySelectorAll('label, span, div, p')).filter(el => isVisible(el) && isLeafMatch(el));
-      if (candidates.length === 0) return { success: false, reason: 'not-found' };
-
-      // Prefer the smallest (most specific) match if several leaves matched.
-      candidates.sort((a, b) => {
-        const rA = a.getBoundingClientRect();
-        const rB = b.getBoundingClientRect();
-        return (rA.width * rA.height) - (rB.width * rB.height);
-      });
-      const target = candidates[0];
-
-      // Click the radio/checkbox this label is FOR, or one immediately
-      // adjacent to it -- never a descendant search on a wide ancestor.
-      const forId = target.getAttribute('for');
-      const byFor = forId ? document.getElementById(forId) : null;
-      const input = byFor
-        || target.closest('label')?.querySelector('input[type="radio"], input[type="checkbox"]')
-        || target.parentElement?.querySelector('input[type="radio"], input[type="checkbox"]')
-        || target;
-
+      // Target the schedule radio by its form value. Matching the visible
+      // text "ตั้งเวลา" is unsafe because the final publish button uses the
+      // same text and could be clicked here, publishing immediately.
+      const radios = Array.from(document.querySelectorAll('input[type="radio"][value="schedule"]'))
+        .filter(isVisible);
+      if (!radios.length) return { success: false, reason: 'not-found' };
+      const input = radios[radios.length - 1];
+      const target = input.closest('label') || input.parentElement || input;
       target.scrollIntoView({ behavior: 'instant', block: 'center' });
       input.click();
       return { success: true };
@@ -1073,12 +1042,9 @@ async function switchToScheduleMode(send, schedule = {}) {
 
   if (!result?.value?.success) return { success: false, reason: 'not-found' };
 
-  // Clicking whatever element resolved (byFor input, or a fallback that can
-  // be a non-interactive <span>/<div> when no real form control was found)
-  // is not proof the toggle actually activated -- a click on a non-
-  // interactive element is a no-op. Poll for real evidence: the radio/
-  // checkbox reporting checked/aria-checked, or the date/time picker fields
-  // that only render once schedule mode is active.
+  // A click returning without an exception is not proof the toggle activated.
+  // Poll for the schedule radio reporting checked/aria-checked, or for the
+  // date/time picker fields that render only after schedule mode is active.
   const deadline = Date.now() + 5000;
   while (Date.now() < deadline) {
     const verify = await send('Runtime.evaluate', {
@@ -1092,33 +1058,11 @@ async function switchToScheduleMode(send, schedule = {}) {
           return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
         };
 
-        const TARGETS = ['ตั้งเวลา', 'กำหนดเวลาโพสต์', 'กำหนดเวลา', 'Schedule'];
-        const isLeafMatch = (el) => {
-          const t = (el.innerText || el.textContent || '').trim();
-          if (!TARGETS.includes(t)) return false;
-          return !Array.from(el.children).some(c => TARGETS.includes((c.innerText || c.textContent || '').trim()));
-        };
-        const candidates = Array.from(document.querySelectorAll('label, span, div, p')).filter(el => isVisible(el) && isLeafMatch(el));
-        candidates.sort((a, b) => {
-          const rA = a.getBoundingClientRect();
-          const rB = b.getBoundingClientRect();
-          return (rA.width * rA.height) - (rB.width * rB.height);
-        });
-        const target = candidates[0];
-
-        // 1. The radio/checkbox this label controls reports checked.
-        if (target) {
-          const forId = target.getAttribute('for');
-          const byFor = forId ? document.getElementById(forId) : null;
-          const input = byFor
-            || target.closest('label')?.querySelector('input[type="radio"], input[type="checkbox"]')
-            || target.parentElement?.querySelector('input[type="radio"], input[type="checkbox"]');
-          if (input && (input.checked || input.getAttribute('aria-checked') === 'true')) return true;
-          // Some TikTok radios are styled divs with a --checked class rather
-          // than a native input; check the label's own ancestry for that too.
-          const styledRadio = target.closest('label, div')?.querySelector('[class*="--checked"], [aria-checked="true"]');
-          if (styledRadio && isVisible(styledRadio)) return true;
-        }
+        // Verify the same schedule radio we clicked. Never infer success from
+        // generic text because the publish button also says "ตั้งเวลา".
+        const scheduleRadio = Array.from(document.querySelectorAll('input[type="radio"][value="schedule"]'))
+          .find(isVisible);
+        if (scheduleRadio && (scheduleRadio.checked || scheduleRadio.getAttribute('aria-checked') === 'true')) return true;
 
         // 2. Date/time picker fields only render once schedule mode is on
         // (e.g. a date input, or a visible "เลือกวันที่"/"เลือกเวลา" picker
@@ -1148,12 +1092,27 @@ async function switchToScheduleMode(send, schedule = {}) {
 // visible. An empty value intentionally means "toggle only; user chooses".
 // TikTok's schedule controls are readonly TUX inputs backed by custom pickers:
 // date cells expose only the day number and time uses separate hour/minute lists.
+// TikTok exposes minutes in five-minute increments, so normalize extension
+// input before opening the picker (16:08 becomes 16:10, including hour carry).
+function normalizeScheduleTime(rawTime) {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(String(rawTime || '').trim());
+  if (!match) return '';
+  let hour = Number(match[1]);
+  let minute = Number(match[2]);
+  if (hour > 23 || minute > 59) return '';
+  minute = Math.round(minute / 5) * 5;
+  if (minute === 60) {
+    hour = (hour + 1) % 24;
+    minute = 0;
+  }
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
 async function setScheduleDateTime(send, { date = '', time = '' } = {}) {
   const requestedDate = String(date || '').trim();
   const rawTime = String(time || '').trim();
-  const requestedTime = /^(\d{1,2}):(\d{2})$/.test(rawTime)
-    ? rawTime.replace(/^(\d):/, '0$1:')
-    : rawTime;
+  const requestedTime = rawTime ? normalizeScheduleTime(rawTime) : '';
+  if (rawTime && !requestedTime) return {success: false, changed: false, reason: 'เวลาต้องอยู่ในรูปแบบ HH:mm และอยู่ระหว่าง 00:00-23:59'};
   if (!requestedDate && !requestedTime) return {success: true, changed: false};
 
   const sendEval = expression => send('Runtime.evaluate', {expression, returnByValue: true});
@@ -1237,7 +1196,7 @@ async function setScheduleDateTime(send, { date = '', time = '' } = {}) {
   const shown = values?.result?.value || [];
   const success = (!requestedDate || shown.includes(requestedDate)) && (!requestedTime || shown.includes(requestedTime));
   return success
-    ? {success: true, changed: true}
+    ? {success: true, changed: true, requestedDate, requestedTime}
     : {success: false, changed: true, reason: 'schedule_value_not_confirmed'};
 }
 
@@ -1565,19 +1524,29 @@ async function runAttachProductOnly({ productId, cartName = '' }) {
 async function runScheduleModeOnly({ date = '', time = '' } = {}) {
   const tab = await findUploadTab();
   const send = cdp(tab.id);
+  const rawTime = String(time || '').trim();
+  const normalizedTime = rawTime ? normalizeScheduleTime(rawTime) : '';
+  if (rawTime && !normalizedTime) {
+    return { success: false, reason: 'เวลาต้องอยู่ในรูปแบบ HH:mm และอยู่ระหว่าง 00:00-23:59' };
+  }
 
   await chrome.debugger.attach({ tabId: tab.id }, '1.3');
   try {
     await send('DOM.enable');
     await send('Runtime.enable');
-    const switched = await switchToScheduleMode(send, {date, time});
+    const switched = await switchToScheduleMode(send, {date, time: normalizedTime});
     if (!switched.success) {
       if (switched.reason === 'schedule_toggle_not_confirmed') {
         return { success: false, reason: 'schedule_toggle_not_confirmed: กดตัวเลือก "กำหนดเวลา"/"ตั้งเวลา" แล้ว แต่ไม่พบหลักฐานว่าสลับโหมดสำเร็จ (ไม่พบ radio ที่ checked หรือช่องเลือกวันที่/เวลา) หากไม่แก้ไข โพสต์อาจออกทันทีแทนที่จะตั้งเวลา' };
       }
       return { success: false, reason: 'หาตัวเลือก "กำหนดเวลา"/"ตั้งเวลา" บนหน้าเว็บไม่พบ' };
     }
-    return {...switched, requestedDate: date || '', requestedTime: time || ''};
+    return {
+      ...switched,
+      requestedDate: date || '',
+      requestedTime: normalizedTime,
+      adjustedTime: Boolean(rawTime && normalizedTime !== rawTime),
+    };
   } finally {
     try {
       await chrome.debugger.detach({ tabId: tab.id });

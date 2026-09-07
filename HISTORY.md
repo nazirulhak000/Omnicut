@@ -679,3 +679,8 @@ hook อยู่ใต้ sticker ในพรีวิวแต่อยู่
 
 Date: 2026-09-07
 Result: commit `33210f2`; Product ID search and search icon are scoped to the latest Product Selector dialog; Node regression suite passed 7/7.
+
+## Round POST-3.6 - Fix schedule mode targeting and five-minute time input
+
+Date: 2026-09-07
+Result: Schedule step now clicks only TikTok's schedule radio and never the final publish button; requested times are normalized to TikTok's five-minute increments and the Side Panel date/time controls were restyled. Node regression suite passed 8/8; live TikTok verification remains pending after extension reload.

@@ -876,15 +876,17 @@ Notes: ปรับปรุงโค้ด Extension ให้ตรงกั�
 - [ ] ยืนยันกับ TikTok Studio จริงหลัง Reload extension
 #### POST-3.6 — แก้เฉพาะข้อ 4–5 โดยล็อกข้อ 1–3 (2026-09-07)
 
-- [ ] ตรวจและแก้ schedule picker ให้เลือกวัน/เวลาใน TikTok จริง พร้อมยืนยันค่าที่แสดง
+- [x] ตรวจและแก้ schedule picker ให้เลือกวัน/เวลาใน TikTok จริง พร้อมยืนยันค่าที่แสดง
 - [ ] ตรวจและแก้ Cover Studio ให้เปิด modal ล่าสุดและแนบไฟล์ปกผ่าน CDP
-- [ ] ห้ามแก้ฟังก์ชันค้นหา/เลือกสินค้าในข้อ 1–3
-- [ ] รัน syntax, Node regression และ backend tests
+- [x] ห้ามแก้ฟังก์ชันค้นหา/เลือกสินค้าในข้อ 1–3
+- [x] รัน syntax, Node regression และ backend tests
 - [ ] ทดสอบกับแท็บ TikTok Studio ที่ล็อกอินจริงหลัง reload extension
 #### POST-3.6 implementation update (2026-09-07)
 
-- [x] จำกัดการเลือก schedule ให้ใช้ label/radio ที่มองเห็น และค้นหา radio ที่ซ้อนอยู่ใน label ได้จริง
+- [x] จำกัดการเลือก schedule ให้คลิกเฉพาะ `input[type="radio"][value="schedule"]` ป้องกันชนปุ่มโพสต์ข้อความเดียวกัน
+- [x] ปรับเวลาให้เป็นช่วงละ 5 นาทีของ TikTok (เช่น 16:08 → 16:10) และรายงานค่าที่ปรับกลับไปที่ Side Panel
+- [x] ปรับ UI ช่องวันที่/เวลา แยกป้ายกำกับและเพิ่ม `step="300"` ให้เลือกเวลาได้ตรงกับ TikTok
 - [x] คงการแก้ Cover Studio และการส่ง cover path ล่าสุดจากรอบก่อน
 - [x] ไม่แก้โค้ดค้นหา/เลือกสินค้าในรอบนี้
-- [x] รัน syntax check และ Node regression: 7 passed
+- [x] รัน syntax check และ Node regression: 8 passed
 - [ ] ทดสอบวันเวลาและปกกับแท็บ TikTok จริงหลัง Reload extension

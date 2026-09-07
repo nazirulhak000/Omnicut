@@ -277,7 +277,12 @@ wireStep('btn3', 'chk3', 'ขั้น 3 (ปักตะกร้าสิน�
 
 wireStep('btn4', 'chk4', 'ขั้น 4 (สลับเป็นกำหนดเวลา)',
   () => ({ action: 'schedule-mode-only', date: scheduleDateInput.value, time: scheduleTimeInput.value }),
-  response => `ขั้น 4 สำเร็จ -- TikTok ยืนยันกำหนดเวลา ${response.requestedDate || scheduleDateInput.value} ${response.requestedTime || scheduleTimeInput.value} แล้ว`);
+  response => {
+    if (response.adjustedTime && response.requestedTime) scheduleTimeInput.value = response.requestedTime;
+    const when = `${response.requestedDate || scheduleDateInput.value} ${response.requestedTime || scheduleTimeInput.value}`.trim();
+    const adjusted = response.adjustedTime ? ' (ปรับเวลาเป็นช่วงละ 5 นาทีตาม TikTok)' : '';
+    return `ขั้น 4 สำเร็จ -- เปลี่ยนเป็นกำหนดเวลา ${when} แล้ว${adjusted} กดขั้น 5 เมื่อต้องการโพสต์`;
+  });
 
 wireStep('btn5', 'chk5', 'ขั้น 5 (กด Post/กำหนดเวลา)',
   () => ({ action: 'click-post-only' }),

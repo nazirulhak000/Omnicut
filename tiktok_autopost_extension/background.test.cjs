@@ -73,6 +73,14 @@ test('cover is rejected before any page interaction when missing', async () => {
   }, null), /ยังไม่มีปก/);
 });
 
+test('schedule time follows TikTok five-minute increments', () => {
+  const ctx = worker();
+  assert.equal(ctx.normalizeScheduleTime('16:08'), '16:10');
+  assert.equal(ctx.normalizeScheduleTime('23:58'), '00:00');
+  assert.equal(ctx.normalizeScheduleTime('09:35'), '09:35');
+  assert.equal(ctx.normalizeScheduleTime('24:00'), '');
+});
+
 test('background.js does not contain invalid numeric ID selectors like #1 or #2', () => {
   const code = fs.readFileSync(path.join(__dirname, 'background.js'), 'utf8');
   const invalidIdMatch = code.match(/querySelector(?:All)?\s*\(\s*['"`][^'"`]*#[0-9]/);
@@ -89,6 +97,9 @@ test('live DOM contracts for the reported TikTok screens stay in the worker', ()
   assert.match(code, /tiktok-timepicker-option-text/);
   assert.match(code, /calendar-wrapper/);
   assert.match(code, /span\.day\.valid/);
+  const scheduleFn = code.slice(code.indexOf('async function switchToScheduleMode'), code.indexOf('async function setScheduleDateTime'));
+  assert.match(scheduleFn, /input\[type="radio"\]\[value="schedule"\]/);
+  assert.doesNotMatch(scheduleFn, /const TARGETS = \['ตั้งเวลา'/);
   const showcaseFn = code.slice(code.indexOf('async function switchToShowcaseTab'), code.indexOf('async function attachProductLink'));
   assert.doesNotMatch(showcaseFn, /dispatchEvent\(new MouseEvent/);
   assert.match(automation, /ImageUpload__uploadArea/);
