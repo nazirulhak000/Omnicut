@@ -40,7 +40,8 @@ class TokenTracker:
     """Thread-safe singleton engine for recording and aggregating AI token analytics."""
 
     _cache: Optional[Dict[str, Any]] = None
-    _cache_mtime: float = 0.0
+    _cache_mtime: float = 0.0  # kept for backward compatibility / introspection
+    _cache_stamp: tuple = (0, -1)  # (st_mtime_ns, st_size) -- see _load()
     _lock: threading.Lock = threading.Lock()
 
     @classmethod
@@ -51,6 +52,23 @@ class TokenTracker:
             "updated_at": datetime.datetime.now().isoformat(),
             "events": [],
             "totals": {
+                # Lifetime totals -- must always equal
+                # trimmed_aggregate[<field>] + sum(e[<field>] for e in events).
+                # See "trimmed_aggregate" below: it absorbs whatever `events`
+                # drops on the 1000-event trim so `totals` stays exactly
+                # reconstructable from what's actually stored, instead of
+                # silently drifting into an unverifiable hand-kept counter.
+                "total_tokens": 0,
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "thinking_tokens": 0,
+                "total_calls": 0,
+                "total_cost_saved_thb": 0.0,
+            },
+            # Aggregate of exactly the events trimmed off the front of
+            # `events` by the 1000-event cap. Kept so `totals` remains
+            # auditable: totals[<f>] == trimmed_aggregate[<f>] + sum(events).
+            "trimmed_aggregate": {
                 "total_tokens": 0,
                 "input_tokens": 0,
                 "output_tokens": 0,
@@ -61,16 +79,40 @@ class TokenTracker:
         }
 
     @classmethod
-    def _load(cls) -> Dict[str, Any]:
-        # Check if disk file was updated by another process/worker
-        disk_mtime = 0.0
-        if ANALYTICS_FILE.exists():
-            try:
-                disk_mtime = ANALYTICS_FILE.stat().st_mtime
-            except OSError:
-                pass
+    def _disk_stamp(cls) -> tuple:
+        """(st_mtime_ns, st_size) for the analytics file, or (0, -1) if it
+        doesn't exist / can't be stat'd.
 
-        if cls._cache is not None and disk_mtime <= cls._cache_mtime:
+        Plain st_mtime (float seconds) is not fine-grained enough to trust
+        alone: filesystems (Windows/FAT-derived volumes in particular) can
+        have coarse mtime resolution, so two writes -- e.g. from the API
+        process and a background worker -- can land within the same
+        reported mtime tick. A stale cache would then never invalidate,
+        which for check_budget()'s pre-flight read is exactly the silent
+        under-count the budget gate cannot afford. st_mtime_ns adds
+        nanosecond precision, and st_size is a cheap, independent signal --
+        content that changed (a new event appended, totals bumped) almost
+        always changes the byte length too. Comparing both makes a same-tick
+        concurrent write detectable in the realistic case at the cost of a
+        single extra stat() field read (stat() is already being called).
+        """
+        if not ANALYTICS_FILE.exists():
+            return (0, -1)
+        try:
+            st = ANALYTICS_FILE.stat()
+            return (st.st_mtime_ns, st.st_size)
+        except OSError:
+            return (0, -1)
+
+    @classmethod
+    def _load(cls) -> Dict[str, Any]:
+        # Check if disk file was updated by another process/worker. Any
+        # difference (not just "newer") invalidates the cache -- mtime_ns
+        # and size are independent signals, not a monotonic ordering, so
+        # equality is the only safe "unchanged" test.
+        disk_stamp = cls._disk_stamp()
+
+        if cls._cache is not None and disk_stamp == cls._cache_stamp:
             return cls._cache
 
         if ANALYTICS_FILE.exists():
@@ -78,14 +120,16 @@ class TokenTracker:
                 data = json.loads(ANALYTICS_FILE.read_text(encoding="utf-8"))
                 if isinstance(data, dict):
                     cls._cache = data
-                    cls._cache_mtime = disk_mtime
+                    cls._cache_stamp = disk_stamp
+                    cls._cache_mtime = disk_stamp[0] / 1e9 if disk_stamp[0] else 0.0
                     return data
             except Exception:
                 pass
 
         data = cls._get_default_structure()
         cls._cache = data
-        cls._cache_mtime = disk_mtime
+        cls._cache_stamp = disk_stamp
+        cls._cache_mtime = disk_stamp[0] / 1e9 if disk_stamp[0] else 0.0
         return data
 
     @classmethod
@@ -100,10 +144,8 @@ class TokenTracker:
             )
             tmp_file.replace(ANALYTICS_FILE)
             cls._cache = data
-            try:
-                cls._cache_mtime = ANALYTICS_FILE.stat().st_mtime
-            except OSError:
-                cls._cache_mtime = time.time()
+            cls._cache_stamp = cls._disk_stamp()
+            cls._cache_mtime = cls._cache_stamp[0] / 1e9 if cls._cache_stamp[0] else time.time()
         except Exception as e:
             print(f"⚠️ [TokenTracker] Failed to persist analytics: {e}")
 
@@ -161,14 +203,28 @@ class TokenTracker:
                 "metadata": metadata or {}
             }
 
-            # Keep max 1,000 historical events to preserve disk and memory
+            # Keep max 1,000 historical events to preserve disk and memory.
+            # Whatever gets trimmed off the front is folded into
+            # trimmed_aggregate so `totals` (lifetime) stays exactly equal to
+            # trimmed_aggregate + sum(events) -- never a number the stored
+            # data can no longer reconstruct or verify.
             events = data.get("events", [])
             events.append(event)
             if len(events) > 1000:
+                dropped = events[:-1000]
                 events = events[-1000:]
+                trimmed = data.setdefault("trimmed_aggregate", {})
+                trimmed["total_tokens"] = trimmed.get("total_tokens", 0) + sum(e.get("total_tokens", 0) for e in dropped)
+                trimmed["input_tokens"] = trimmed.get("input_tokens", 0) + sum(e.get("input_tokens", 0) for e in dropped)
+                trimmed["output_tokens"] = trimmed.get("output_tokens", 0) + sum(e.get("output_tokens", 0) for e in dropped)
+                trimmed["thinking_tokens"] = trimmed.get("thinking_tokens", 0) + sum(e.get("thinking_tokens", 0) for e in dropped)
+                trimmed["total_calls"] = trimmed.get("total_calls", 0) + len(dropped)
+                trimmed["total_cost_saved_thb"] = round(
+                    trimmed.get("total_cost_saved_thb", 0.0) + sum(e.get("cost_saved_thb", 0.0) for e in dropped), 2
+                )
             data["events"] = events
 
-            # Accumulate totals
+            # Accumulate totals (lifetime figure; see trimmed_aggregate above)
             totals = data.setdefault("totals", {})
             totals["total_tokens"] = totals.get("total_tokens", 0) + total_tokens
             totals["input_tokens"] = totals.get("input_tokens", 0) + input_tokens
@@ -235,6 +291,10 @@ class TokenTracker:
 
             return {
                 "totals": {
+                    # Lifetime figures. Reconstructable as
+                    # trimmed_aggregate[<f>] + sum(e[<f>] for e in events) --
+                    # never a number the stored data can't verify. See
+                    # data["trimmed_aggregate"], surfaced below for audit.
                     "total_tokens": totals.get("total_tokens", 0),
                     "input_tokens": totals.get("input_tokens", 0),
                     "output_tokens": totals.get("output_tokens", 0),
@@ -243,6 +303,11 @@ class TokenTracker:
                     "total_cost_saved_thb": round(totals.get("total_cost_saved_thb", 0.0), 2),
                     "avg_latency_seconds": avg_latency,
                 },
+                # Aggregate of events trimmed off the retained 1000-event
+                # window. Not read by the current dashboard; present so
+                # totals["total_tokens"] etc. can be audited/reconstructed as
+                # trimmed_aggregate + sum(events) instead of trusted blindly.
+                "trimmed_aggregate": data.get("trimmed_aggregate", {}),
                 "tokens_by_model": tokens_by_model,
                 "calls_by_model": calls_by_model,
                 "tokens_by_task": tokens_by_task,

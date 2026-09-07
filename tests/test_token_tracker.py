@@ -39,6 +39,7 @@ def isolated_analytics(tmp_path, monkeypatch):
     monkeypatch.setattr(tt_module, "ANALYTICS_FILE", analytics_file)
     monkeypatch.setattr(TokenTracker, "_cache", None)
     monkeypatch.setattr(TokenTracker, "_cache_mtime", 0.0)
+    monkeypatch.setattr(TokenTracker, "_cache_stamp", (0, -1))
     yield analytics_file
 
 
@@ -131,13 +132,18 @@ def test_record_event_totals_track_sum_of_events(isolated_analytics):
 
 
 def test_record_event_totals_survive_the_1000_event_trim(isolated_analytics):
-    """BUG CANDIDATE: totals accumulate on every write and are never
-    trimmed, but `events` is capped at 1000 and drops old entries. Once
-    more than 1000 events have ever been recorded, totals necessarily
-    stops equaling sum(events) -- it becomes a lifetime counter while
-    events is a rolling window. Document current behavior: totals keeps
-    growing across the trim rather than being recomputed from the
-    surviving window."""
+    """FIXED (was BUG CANDIDATE): `totals` accumulates on every write and is
+    never trimmed, while `events` is capped at 1000 and drops old entries.
+    Past 1000 lifetime events, totals["total_tokens"] necessarily stops
+    equaling sum(events) -- it becomes a lifetime counter while events is a
+    rolling window, and get_summary() reported the lifetime number directly
+    with no way for a reader to verify it against what's stored.
+
+    Fix: whatever record_event() trims off the front of `events` is folded
+    into data["trimmed_aggregate"], so lifetime `totals` is no longer an
+    unverifiable hand-kept counter -- it is exactly reconstructable as
+    trimmed_aggregate + sum(events). This test now asserts that identity
+    instead of merely documenting the drift."""
     for i in range(1005):
         TokenTracker.record_event(
             task=f"t{i}", model="gemini-2.5-flash", provider="gemini_api",
@@ -146,11 +152,22 @@ def test_record_event_totals_survive_the_1000_event_trim(isolated_analytics):
     data = TokenTracker._load()
     events_sum = sum(e["total_tokens"] for e in data["events"])
     totals_total = data["totals"]["total_tokens"]
+    trimmed_total = data["trimmed_aggregate"]["total_tokens"]
 
     # events window only has 1000 of the 1005 recorded -> sum(events) < totals.
     assert events_sum == 1000
     assert totals_total == 1005
-    assert totals_total != events_sum  # documents the drift, not asserting it's fine
+    assert totals_total != events_sum  # lifetime vs. retained-window drift is real
+
+    # ...but it's no longer unverifiable: the 5 trimmed events (t0..t4, 1
+    # token each) are captured in trimmed_aggregate, so totals is exactly
+    # reconstructable from what's actually stored on disk.
+    assert trimmed_total == 5
+    assert totals_total == trimmed_total + events_sum
+
+    calls_trimmed = data["trimmed_aggregate"]["total_calls"]
+    assert calls_trimmed == 5
+    assert data["totals"]["total_calls"] == calls_trimmed + len(data["events"])
 
 
 # ---------------------------------------------------------------------------
@@ -267,32 +284,56 @@ def test_get_usage_today_defaults_missing_numeric_fields_to_zero(isolated_analyt
 
 
 # ---------------------------------------------------------------------------
-# class-level cache (_cache / _cache_mtime) invalidation
+# class-level cache (_cache / _cache_stamp) invalidation
 # ---------------------------------------------------------------------------
 
-def test_cache_serves_stale_data_until_disk_mtime_advances(isolated_analytics, monkeypatch):
-    """_load() only re-reads from disk when disk_mtime > cls._cache_mtime.
-    Prime the cache via a normal record_event, then overwrite the file on
-    disk with a *different* mtime that is not newer (simulate a filesystem
-    with coarse mtime resolution) and confirm the cache is what is served
-    -- documents that this is a genuine, if narrow, staleness window."""
+def test_cache_invalidates_on_same_mtime_but_different_size(isolated_analytics, monkeypatch):
+    """FIXED (was BUG CANDIDATE): _load() used to key invalidation purely off
+    st_mtime, so a competing writer whose update landed with an mtime no
+    newer than the cached one (real on coarse-resolution filesystems --
+    Windows is the platform here) would be served stale data forever. _load()
+    now compares (st_mtime_ns, st_size) -- content that changes (a new event
+    appended) almost always changes the byte length too, so a same-mtime
+    concurrent write is now caught via the size half of the pair even when
+    the mtime half looks unchanged."""
     TokenTracker.record_event(
         task="a", model="gemini-2.5-flash", provider="gemini_api",
         input_tokens=1, output_tokens=1,
     )
-    cached_mtime = TokenTracker._cache_mtime
+    cached_mtime_ns = TokenTracker._cache_stamp[0]
 
-    # Simulate another process writing a materially different file, but
-    # force its mtime to look no newer than what's cached.
+    # Simulate another process writing a materially different (and
+    # differently-sized) file, but force its mtime to look no newer than
+    # what's cached -- the coarse-filesystem-resolution scenario.
     other_data = TokenTracker._get_default_structure()
-    other_data["events"] = [{"date": "2000-01-01", "total_tokens": 777777}]
+    other_data["events"] = [{"date": "2000-01-01", "total_tokens": 777777, "task": "external"}]
     isolated_analytics.write_text(json.dumps(other_data), encoding="utf-8")
     import os
-    os.utime(isolated_analytics, (cached_mtime, cached_mtime))
+    cached_mtime_s = cached_mtime_ns / 1e9
+    os.utime(isolated_analytics, (cached_mtime_s, cached_mtime_s))
 
     data = TokenTracker._load()
-    # Still serving the in-memory cache, not the rewritten file.
-    assert data["events"][0]["task"] == "a"
+    # Picks up the rewritten file because its size differs from the cache's,
+    # even though its mtime does not look newer.
+    assert data["events"][0]["task"] == "external"
+    assert data["events"][0]["total_tokens"] == 777777
+
+
+def test_cache_serves_cached_data_when_stamp_is_truly_unchanged(isolated_analytics):
+    """Sanity check for the other direction: when the on-disk (mtime_ns,
+    size) stamp genuinely has not changed, _load() must still serve the
+    cache rather than re-reading on every call -- this is what keeps the
+    per-call cost cheap for check_budget(), which reads on every paid call."""
+    TokenTracker.record_event(
+        task="a", model="gemini-2.5-flash", provider="gemini_api",
+        input_tokens=1, output_tokens=1,
+    )
+    cached_events_obj = TokenTracker._cache["events"]
+
+    data = TokenTracker._load()
+    # Same object identity -- proves this was served from cache, not
+    # re-parsed from disk.
+    assert data["events"] is cached_events_obj
 
 
 def test_cache_invalidates_when_disk_file_changes_underneath(isolated_analytics, monkeypatch):
@@ -364,6 +405,25 @@ def test_get_summary_recent_events_returns_last_50_newest_first(isolated_analyti
     assert len(recent) == 50
     assert recent[0]["task"] == "t59"   # newest first
     assert recent[-1]["task"] == "t10"  # oldest of the kept window
+
+
+def test_get_summary_exposes_trimmed_aggregate_for_audit(isolated_analytics):
+    """get_summary()'s totals are a lifetime figure that can outlive the
+    retained 1000-event window; it now also surfaces trimmed_aggregate so a
+    reader can verify totals == trimmed_aggregate + sum(recent window),
+    rather than trusting totals as an opaque, unverifiable number."""
+    for i in range(1005):
+        TokenTracker.record_event(
+            task=f"t{i}", model="gemini-2.5-flash", provider="gemini_api",
+            input_tokens=1, output_tokens=0,
+        )
+    summary = TokenTracker.get_summary()
+    assert summary["trimmed_aggregate"]["total_tokens"] == 5
+    assert summary["trimmed_aggregate"]["total_calls"] == 5
+    # get_summary() doesn't return raw events, but _load() does -- confirm
+    # the identity holds against the same underlying data get_summary() read.
+    events_sum = sum(e["total_tokens"] for e in TokenTracker._load()["events"])
+    assert summary["totals"]["total_tokens"] == summary["trimmed_aggregate"]["total_tokens"] + events_sum
 
 
 def test_get_summary_daily_stats_sorted_ascending_and_capped_at_14_days(isolated_analytics):
