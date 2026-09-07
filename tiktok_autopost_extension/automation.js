@@ -51,6 +51,21 @@ globalThis.OmniAutomation = (() => {
     }
   }
 
+  async function findCoverInputNodeId(send) {
+    const {root} = await send('DOM.getDocument', {depth:-1, pierce:true});
+    if (!root?.nodeId) throw new Error('อ่านโครงสร้างหน้า TikTok เพื่อหาช่องอัปโหลดปกไม่สำเร็จ');
+    const selectors = [
+      'label.ImageUpload__uploadArea input[type="file"]',
+      'input[type="file"][accept*="image"]',
+      'input[type="file"]',
+    ];
+    for (const selector of selectors) {
+      const {nodeIds} = await send('DOM.querySelectorAll', {nodeId:root.nodeId, selector});
+      if (nodeIds?.length) return nodeIds.at(-1);
+    }
+    throw new Error('ไม่พบ node ของช่องอัปโหลดปกใน Cover Studio');
+  }
+
   async function uploadCover(send, coverPath) {
     if (!coverPath) throw new Error('คลิปนี้ยังไม่มีปกที่บันทึกในโปรแกรม');
 
@@ -202,19 +217,8 @@ globalThis.OmniAutomation = (() => {
     }
     await wait(send, `Boolean(${fileInputQuery})`, 'ไม่พบช่องอัปโหลดภาพปกในหน้าต่างแก้ไขปก');
 
-    const {result, exceptionDetails} = await send('Runtime.evaluate', {
-      expression: fileInputQuery,
-      returnByValue: false,
-    });
-    if (exceptionDetails) throw new Error(`ประเมินช่องอัปโหลดปกล้มเหลว: ${exceptionDetails.text || 'TikTok เปลี่ยนหน้า'}`);
-    if (!result?.objectId) throw new Error('ช่องอัปโหลดปกไม่พร้อม');
-    try {
-      const {nodeId} = await send('DOM.requestNode', {objectId:result.objectId});
-      if (!nodeId) throw new Error('ขอ node ของช่องอัปโหลดปกไม่สำเร็จ');
-      await send('DOM.setFileInputFiles', {nodeId, files:[coverPath]});
-    } finally {
-      await send('Runtime.releaseObject', {objectId:result.objectId}).catch(() => {});
-    }
+    const nodeId = await findCoverInputNodeId(send);
+    await send('DOM.setFileInputFiles', {nodeId, files:[coverPath]});
 
     // DOM.setFileInputFiles updates the browser's FileList, but it does not
     // reliably emit the React-facing events that TikTok uses to create the

@@ -89,6 +89,8 @@ test('cover upload dispatches input and change events after CDP sets the hidden 
       }
       return {result: {value: true}};
     }
+    if (method === 'DOM.getDocument') return {root: {nodeId: 1}};
+    if (method === 'DOM.querySelectorAll') return {nodeIds: [7]};
     if (method === 'DOM.requestNode') return {nodeId: 7};
     if (method === 'DOM.setFileInputFiles') {
       filesSet = true;
@@ -104,6 +106,36 @@ test('cover upload dispatches input and change events after CDP sets the hidden 
     .find(expression => expression.includes("dispatchEvent(new Event('input'") );
   assert.ok(eventExpression, 'must notify React about the selected cover');
   assert.match(eventExpression, /dispatchEvent\(new Event\('change'/);
+});
+
+test('cover upload resolves the DOM node directly when Runtime.requestNode cannot resolve TikTok input', async () => {
+  const ctx = worker();
+  const calls = [];
+  let filesSet = false;
+  const send = async (method, params = {}) => {
+    calls.push({method, params});
+    if (method === 'Runtime.evaluate') {
+      const expression = String(params.expression || '');
+      if (expression.includes('input.files.length') && expression.includes('preview')) {
+        return {result: {value: filesSet}};
+      }
+      return {result: {value: true}};
+    }
+    if (method === 'DOM.getDocument') return {root: {nodeId: 1}};
+    if (method === 'DOM.querySelectorAll') return {nodeIds: [13]};
+    if (method === 'DOM.setFileInputFiles') {
+      filesSet = true;
+      return {};
+    }
+    if (method === 'DOM.requestNode') return {};
+    return {};
+  };
+
+  await ctx.OmniAutomation.uploadCover(send, 'D:/covers/demo_cover_3x4.jpg');
+  assert.equal(calls.some(call => call.method === 'DOM.requestNode'), false);
+  const setFileCall = calls.find(call => call.method === 'DOM.setFileInputFiles');
+  assert.equal(setFileCall.params.nodeId, 13);
+  assert.equal(Array.from(setFileCall.params.files)[0], 'D:/covers/demo_cover_3x4.jpg');
 });
 
 test('schedule time follows TikTok five-minute increments', () => {

@@ -154,11 +154,18 @@ Date: 2026-09-07; Requested by: user; Status: in progress
 
 ### Todo
 
-- [x] Record each CDP boundary: locate input -> request node -> set file -> verify `files.length`
+- [x] Record each CDP boundary: locate input with DOM.getDocument/querySelectorAll -> set file -> verify files.length
 - [x] Dispatch `input`/`change` after `DOM.setFileInputFiles` so TikTok React receives the file
 - [x] Report actionable errors when TikTok rejects the file or preview does not appear
 - [x] Add a regression contract test for event dispatch and file verification
 - [ ] Run the real Chrome step 5 flow: preview the program cover and click Save without clicking Post
+
+### Persistence follow-up
+
+- [x] Persist generated cover paths on the selected product angle so a refresh can restore the cover.
+- [x] Return cover path and media URL variants from the products API after reload.
+- [x] Add deterministic backend regression coverage for cover persistence and refresh.
+- [ ] Verify step 5 with the extension after the persisted cover is restored.
 
 ### Gate
 
@@ -168,7 +175,7 @@ Date: 2026-09-07; Requested by: user; Status: in progress
 
 ### Notes
 
-- `node --test tiktok_autopost_extension/background.test.cjs`: 9 passed; the regression test failed before the fix because no events were dispatched and passes after the fix.
+- `node --test tiktok_autopost_extension/background.test.cjs`: 10 passed; the regression test failed before the fix because no events were dispatched and passes after the fix.
 - The Codex browser controller blocks `fileChooser.setFiles`; real file injection must be exercised by the extension debugger.
 - `frontend/src/components/ContentTrackerHub.jsx` and `frontend/src/components/ProductToClip.jsx` contain unrelated working-tree changes; do not touch or stage them.
 

@@ -144,6 +144,26 @@ def update_product_angle_status(product_id: str, angle_id: str, payload: Dict[st
         raise HTTPException(status_code=404, detail=str(err))
 
 
+@router.patch("/api/products/{product_id}/angles/{angle_id}/cover")
+def update_product_angle_cover(product_id: str, angle_id: str, payload: Dict[str, Any]):
+    """Persists generated 9:16/3:4 cover paths for one product angle."""
+    if not any(payload.get(key) for key in ("cover_path", "cover_3x4_path", "cover_9x16_path")):
+        raise HTTPException(status_code=400, detail="ต้องระบุไฟล์ปกอย่างน้อยหนึ่งไฟล์")
+    try:
+        updated = ProductStore.update_angle_cover(
+            product_id,
+            angle_id,
+            cover_path=payload.get("cover_path"),
+            cover_3x4_path=payload.get("cover_3x4_path"),
+            cover_9x16_path=payload.get("cover_9x16_path"),
+        )
+        return {"success": True, "product": updated}
+    except LookupError as err:
+        raise HTTPException(status_code=404, detail=str(err))
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail=str(err))
+
+
 @router.post("/api/products/{product_id}/angles/{angle_id}/videos")
 def update_angle_videos_endpoint(product_id: str, angle_id: str, payload: Dict[str, Any]):
     """Persists selected raw footage attachments for a specific script angle."""

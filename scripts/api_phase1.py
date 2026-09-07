@@ -12,6 +12,7 @@ import html
 import urllib.error
 import urllib.parse
 import urllib.request
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
@@ -24,7 +25,7 @@ from scripts.it_angles import ANGLES_BY_KEY, catalog_for_prompt, fallback_angles
 from scripts.subtitle_engine import DEFAULT_HOOK_MOTION
 from scripts.post_log import METRIC_FIELDS, PostLog
 from scripts.product_store import STATUSES, ProductStore
-from scripts.config import BASE_DIR, STICKERS_DIR
+from scripts.config import BASE_DIR, COVERS_DIR, STICKERS_DIR
 from scripts.project_manifest import REROLL_STAGE, ProjectManifest
 from scripts import render_jobs
 from scripts.task_manager import TaskManager
@@ -213,6 +214,87 @@ def get_performance():
 # ----------------------------------------------------------------------
 # Product queue
 # ----------------------------------------------------------------------
+def _cover_stem(value: object) -> str:
+    """Return the filename stem used by the cover renderer."""
+    text = str(value or "").strip().replace("\\", "/")
+    text = text.rsplit("/", 1)[-1]
+    if not text:
+        return ""
+    stem = Path(text).stem
+    return re.sub(r"_cover(?:_3x4)?$", "", stem, flags=re.IGNORECASE)
+
+
+def _cover_url(relative_path: Optional[str]) -> str:
+    if not relative_path:
+        return ""
+    return f"/api/media/{urllib.parse.quote(str(relative_path).replace(chr(92), '/'), safe='/')}"
+
+
+def _hydrate_product_covers(products: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Attach persisted or discoverable cover variants to product angles.
+
+    Older cover renders predate the angle association API. For those records,
+    look up the renderer's canonical ``<stem>_cover*.jpg`` siblings using the
+    angle project/video identity. New renders already carry paths and simply
+    receive their media URLs here.
+    """
+    covers_root = COVERS_DIR.resolve()
+    for product in products:
+        angles = product.get("angles") or []
+        for angle in angles:
+            cover_path = angle.get("cover_path") or ""
+            cover_3x4_path = angle.get("cover_3x4_path") or ""
+            cover_9x16_path = angle.get("cover_9x16_path") or ""
+
+            if cover_path:
+                if cover_path.casefold().endswith("_cover_3x4.jpg"):
+                    cover_3x4_path = cover_3x4_path or cover_path
+                else:
+                    cover_9x16_path = cover_9x16_path or cover_path
+
+            # Product name is a safe fallback only for a single-angle product;
+            # otherwise one legacy file could appear on every angle.
+            if not (cover_path or cover_3x4_path or cover_9x16_path):
+                stems = [angle.get("project_name"), Path(str(angle.get("video_url") or "")).stem]
+                if len(angles) == 1:
+                    stems.append(product.get("name"))
+                for raw_stem in stems:
+                    stem = _cover_stem(raw_stem)
+                    if not stem:
+                        continue
+                    candidate_9x16 = covers_root / f"{stem}_cover.jpg"
+                    candidate_3x4 = covers_root / f"{stem}_cover_3x4.jpg"
+                    if candidate_9x16.is_file() or candidate_3x4.is_file():
+                        if candidate_9x16.is_file():
+                            cover_9x16_path = str(candidate_9x16.relative_to(BASE_DIR.resolve())).replace("\\", "/")
+                        if candidate_3x4.is_file():
+                            cover_3x4_path = str(candidate_3x4.relative_to(BASE_DIR.resolve())).replace("\\", "/")
+                        break
+
+            if cover_9x16_path:
+                angle["cover_9x16_path"] = cover_9x16_path
+            if cover_3x4_path:
+                angle["cover_3x4_path"] = cover_3x4_path
+            if not cover_path:
+                cover_path = cover_9x16_path or cover_3x4_path
+            if cover_path:
+                angle["cover_path"] = cover_path
+
+            url_9x16 = _cover_url(cover_9x16_path)
+            url_3x4 = _cover_url(cover_3x4_path)
+            if url_9x16:
+                angle["cover_9x16_url"] = url_9x16
+                angle["cover_url"] = url_9x16
+                angle["media_url"] = url_9x16
+            elif url_3x4:
+                angle["cover_url"] = url_3x4
+                angle["media_url"] = url_3x4
+            if url_3x4:
+                angle["cover_3x4_url"] = url_3x4
+                angle["media_url_3x4"] = url_3x4
+    return products
+
+
 class ProductFetchRequest(BaseModel):
     url: str
 
@@ -331,7 +413,8 @@ def fetch_product(req: ProductFetchRequest):
 def list_products(status: Optional[str] = None):
     if status and status not in STATUSES:
         raise HTTPException(status_code=400, detail=f"status ต้องเป็นหนึ่งใน {', '.join(STATUSES)}")
-    return {"products": ProductStore.list(status), "summary": ProductStore.summary()}
+    products = _hydrate_product_covers(ProductStore.list(status))
+    return {"products": products, "summary": ProductStore.summary()}
 
 
 @router.post("/products")

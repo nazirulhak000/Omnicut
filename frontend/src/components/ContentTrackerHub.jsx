@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
-  getProducts, updateAngleStatus, deleteProduct, updateProduct, prepareTiktokAutopost
+  getProducts, updateAngleStatus, updateAngleCover, deleteProduct, updateProduct, prepareTiktokAutopost
 } from '../api';
 import CoverStudioModal from './CoverStudioModal';
 import { Modal, Toast, Button, Badge, Input, Textarea } from './ui';
@@ -1120,13 +1120,27 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     setCoverStudioItem(item);
   }, []);
 
-  const handleCoverSaved = useCallback((res) => {
+  const handleCoverSaved = useCallback(async (res) => {
     showToast('สร้างภาพปก 3:4 สำเร็จแล้ว!');
     if (tiktokModalItem) {
       setTiktokModalItem((prev) => (prev ? applyCoverResult(prev, res) : null));
     }
-    fetchProductsData();
-  }, [tiktokModalItem, showToast, fetchProductsData]);
+    const productId = coverStudioItem?.parentProduct?.id;
+    const angleId = coverStudioItem?.angle_id;
+    if (productId && angleId && (res?.cover_path || res?.cover_3x4_path || res?.cover_9x16_path)) {
+      try {
+        await updateAngleCover(productId, angleId, {
+          cover_path: res.cover_path || null,
+          cover_3x4_path: res.cover_3x4_path || null,
+          cover_9x16_path: res.cover_9x16_path || null,
+        });
+      } catch (err) {
+        showToast('บันทึกภาพปกเข้ากับมุมสินค้าไม่สำเร็จ: ' + (err.response?.data?.detail || err.message), 'error');
+        return;
+      }
+    }
+    await fetchProductsData();
+  }, [coverStudioItem, tiktokModalItem, showToast, fetchProductsData]);
 
   const handleAngleStatusChange = useCallback(async (productId, angleId, nextStatus, videoUrl = null, qcNote = null, clearQcNote = false, clearConflictNote = false) => {
     try {

@@ -26,7 +26,7 @@ import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from scripts.config import BASE_DIR
+from scripts.config import BASE_DIR, COVERS_DIR
 from scripts.db import DocumentTable
 from scripts import path_utils
 
@@ -280,6 +280,80 @@ class ProductStore:
                             product["updated_at"] = cls._now()
                             return product
             raise ValueError(f"ไม่พบสินค้า id '{product_id}' หรือ angle '{angle_id}'")
+
+    @classmethod
+    def update_angle_cover(
+        cls,
+        product_id: str,
+        angle_id: str,
+        cover_path: Optional[str] = None,
+        cover_3x4_path: Optional[str] = None,
+        cover_9x16_path: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Persist generated cover variants on the angle that owns them.
+
+        Cover files are generated outside the product queue. Keeping their
+        relative paths on the angle makes the association survive a page
+        refresh while preserving the existing cover naming and media routes.
+        Only files inside ``05_Covers_Thumbnails`` are accepted.
+        """
+
+        def normalize_cover_path(raw_path: Optional[str], field_name: str) -> Optional[str]:
+            if raw_path is None:
+                return None
+            rel_path = _to_relative(raw_path)
+            absolute = _to_absolute(rel_path)
+            if not rel_path or absolute is None:
+                raise ValueError(f"{field_name} ต้องระบุไฟล์ปก")
+            try:
+                resolved = absolute.resolve()
+                resolved.relative_to(COVERS_DIR.resolve())
+            except (OSError, ValueError):
+                raise ValueError(f"{field_name} ต้องอยู่ในโฟลเดอร์ 05_Covers_Thumbnails")
+            if not resolved.is_file():
+                raise ValueError(f"ไม่พบไฟล์ปก: {resolved.name}")
+            return str(resolved.relative_to(BASE_DIR.resolve())).replace("\\", "/")
+
+        normalized = {
+            "cover_path": normalize_cover_path(cover_path, "cover_path"),
+            "cover_3x4_path": normalize_cover_path(cover_3x4_path, "cover_3x4_path"),
+            "cover_9x16_path": normalize_cover_path(cover_9x16_path, "cover_9x16_path"),
+        }
+        if not any(value for value in normalized.values()):
+            raise ValueError("ต้องระบุไฟล์ปกอย่างน้อยหนึ่งไฟล์")
+
+        def is_3x4(path: Optional[str]) -> bool:
+            return bool(path and Path(path).name.casefold().endswith("_cover_3x4.jpg"))
+
+        with cls._mutate() as products:
+            for product in products:
+                if product.get("id") != product_id:
+                    continue
+                for angle in product.get("angles", []):
+                    current_aid = angle.get("angle_id") or angle.get("id")
+                    if current_aid != angle_id:
+                        continue
+
+                    for key, value in normalized.items():
+                        if value is not None:
+                            angle[key] = value
+
+                    # ``cover_path`` is the long-standing primary field.
+                    # Mirror it into an explicit 9:16 field unless the only
+                    # generated file is the 3:4 variant.
+                    if normalized["cover_path"]:
+                        if is_3x4(normalized["cover_path"]):
+                            angle.setdefault("cover_3x4_path", normalized["cover_path"])
+                        else:
+                            angle.setdefault("cover_9x16_path", normalized["cover_path"])
+                    if not angle.get("cover_path"):
+                        angle["cover_path"] = angle.get("cover_9x16_path") or angle.get("cover_3x4_path")
+
+                    angle["updated_at"] = cls._now()
+                    product["updated_at"] = cls._now()
+                    return product
+                raise LookupError(f"ไม่พบ angle '{angle_id}' ในสินค้า '{product_id}'")
+            raise LookupError(f"ไม่พบสินค้า id '{product_id}'")
 
     @classmethod
     def rollback_by_video_or_project(

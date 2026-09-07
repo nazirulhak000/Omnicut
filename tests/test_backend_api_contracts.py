@@ -37,6 +37,7 @@ EXPECTED_API_ROUTES = {
     ("DELETE", "/api/products/{product_id}"),
     ("PATCH", "/api/products/{product_id}"),
     ("PATCH", "/api/products/{product_id}/angles/{angle_id}"),
+    ("PATCH", "/api/products/{product_id}/angles/{angle_id}/cover"),
     ("POST", "/api/products/{product_id}/angles/{angle_id}/videos"),
     ("POST", "/api/products/{product_id}/default-videos"),
     ("DELETE", "/api/products/{product_id}/videos"),

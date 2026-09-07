@@ -210,6 +210,9 @@ export const updateAngleStatus = (productId, angleId, status, videoUrl = null, p
     ...(clearConflictNote ? { clear_conflict_note: true } : {}),
   }).then(r => r.data);
 
+export const updateAngleCover = (productId, angleId, cover) =>
+  api.patch(`/products/${productId}/angles/${angleId}/cover`, cover).then(r => r.data);
+
 export const updateAngleVideos = (productId, angleId, selectedVideos) => api.post(`/products/${productId}/angles/${angleId}/videos`, { selected_videos: selectedVideos }).then(r => r.data);
 export const setDefaultVideosForProduct = (productId, selectedVideos) => api.post(`/products/${productId}/default-videos`, { selected_videos: selectedVideos }).then(r => r.data);
 export const deleteProduct = (id) => api.delete(`/products/${id}`).then(r => r.data);
@@ -265,4 +268,3 @@ export const resetTokenAnalytics = () => api.post('/tokens/reset').then(r => r.d
 export const fetchOverlayLayout = (payload) => api.post('/editor/overlay/layout', payload).then(r => r.data);
 
 export default api;
-
