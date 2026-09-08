@@ -48,6 +48,62 @@
 | Round STK-1 | Interactive Sticker Timeline Track, Free Canvas Drag/Resize, and Parity Render Engine | 2026-09-08 | แทร็กสติกเกอร์บนไทม์ไลน์ + Drag & Resize อิสระบน Canvas + ลบ 6-pos grid + Parity 100% (between enable & normX, normY) · pytest 148 passed · parity 149 passed · build passed · live browser verified |
 | Round STK-2 | Multi-Sticker Support, 3-Second Default Duration, and Smooth Canvas Resizing | 2026-09-08 | Default 3s + Linear vector projection smooth resize handles + Multi-stickers array & timeline auto-stacking sub-lanes + FFmpeg multi-overlay chaining + Parity 100% · pytest 149 passed · test_multi_stickers 2 passed · npm test 85 passed · build passed · live browser verified |
 | Round STK-3 | Sticker Baseline 100% Size, Track Eye Toggle, Deletion, and Preview-Before-Add | 2026-09-08 | STICKER_BASE_WIDTH 160 + Eye toggle hides canvas + Delete key/Inspector + Preview then '+' add · pytest 299 passed · npm test 85 passed · build passed · live browser verified |
+| Round SUB-THAI-1 | แก้สระและวรรณยุกต์ไทยซ้อนกันในคลิปเรนเดอร์ | 2026-09-08 | เปลี่ยน caption entrance จาก ASS `\\fscx/\\fscy` เป็น alpha fade 70ms และ mirror ใน Canvas; เพิ่ม FFmpeg multi-frame regression ด้วย `นั่งพิมพ์งานทั้งวัน`; pytest 926 passed · npm test 85 passed · build/compileall passed |
+| Round STK-PRO-1 | ชุดสติกเกอร์และป้ายรีวิวสายไอทีระดับโปร (Photorealistic Tech Review Badges) | 2026-09-08 | ออกแบบ Master Prompt 3 ชุด + เจนและสไลซ์ 18 ป้ายไอทีระดับโปร (Dark Glass, CNC Aluminum, Titanium, Micro-LED) + สำรองของเดิมลง _backup_cartoon/ + อัปเดต AssetPanel · parity/behavior 159 passed · npm test 85 passed · build passed · 18 RGBA verified |
+
+## Round STK-PRO-1 — ชุดสติกเกอร์และป้ายรีวิวสายไอทีระดับโปร (Photorealistic Tech Review Badges)
+
+วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+**ปัญหาและสิ่งที่ทำ:**
+1. **ออกแบบ Master Prompts สาย Tech ฮาร์ดแวร์จริง 3 ชุด (18 ป้าย):**
+   - ผู้ใช้แจ้งว่าสติกเกอร์ชุดก่อนหน้าดูเป็นการ์ตูน/ของเล่นพลาสติก ไม่เข้ากับคลิปรีวิวสินค้าไอที จึงออกแบบ Master Prompts ใหม่ทั้งหมด โดยเน้นวัสดุระดับสูง (Photorealistic Industrial Design): Smoked Tempered Glass, CNC-machined Space Gray Aluminum, Brushed Titanium, Laser-etched typography, Micro-LED telemetry lights, Multi-layer circuit traces และ Cyber HUD callouts ปราศจากตัวการ์ตูนหรือกราฟิกคอมิกส์ 100%
+   - **Sheet 1 (Core Review Badges):** PROS (Matte obsidian pill, neon green LED), CONS (Space gray aluminum, crimson LED), WARNING (Titanium hex plate, amber hazard stripes), PRO TIP (Dark glassmorphism, cyan cyber circuit trace), PERFORMANCE (PCB chip plate, neon speedometer gauge), VERDICT (Matte black ceramic plaque, gold rating bars)
+   - **Sheet 2 (Tech Specs & Callouts):** BATTERY LIFE (Dark glass lithium cell, emerald power LEDs), BUILD QUALITY (Brushed titanium shield, chamfered bevels), SPECS (PCB telemetry tag, cyan LEDs), BEST VALUE (Obsidian plaque with gold trim and diamond), TECH ARROW (Aerodynamic titanium pointer with cyan neon edge), HUD CALLOUT (Cyber camera viewfinder reticle frame)
+   - **Sheet 3 (Hardware Features & Rating):** SCORE (9.8/10 digital OLED segment display with 5 gauge dots), MUST BUY (Brushed titanium award medal, gold rim), DISPLAY (OLED deep black screen, liquid HDR wave), AUDIO (CNC perforated speaker grille, cyan soundwave), CAMERA (Leica-style camera lens module, aperture blades), CONNECTIVITY (Glass badge, cyan Wi-Fi lightning bolt)
+2. **เจนรูปภาพความละเอียดสูง 3 แผ่นและสไลซ์โปร่งใส (Alpha Cutout):**
+   - เจนภาพ 3 แผ่นด้วย `generate_image` บน Solid Pure White (`#FFFFFF`) พร้อม Thick Die-cut Border ตามกฎ `sticker_generation.md`
+   - สร้างสคริปต์ `tools/slice_pro_tech_stickers.py` ตัดแยกแต่ละป้ายและตัดพื้นหลังโปร่งใสด้วย AI `rembg` ได้ PNG คมกริบขนาด ~500-600px พร้อม Bounding box ที่กระชับพอดี
+   - สำรองสติกเกอร์การ์ตูนเดิม 12 ชิ้นไว้ใน `02_Assets/Stickers_Memes/_backup_cartoon/` ตามกฎเหล็กข้อ 1 (Strict Rule 1)
+   - ปล่อยไฟล์ PNG โปร่งใสทั้ง 18 ป้ายลงใน `02_Assets/Stickers_Memes/`
+3. **อัปเดตชื่อภาษาไทยใน Frontend UI (AssetPanel.jsx):**
+   - อัปเดตดิคชันนารี `STICKER_TITLES` ใน `frontend/src/components/editor/AssetPanel.jsx` ให้ครอบคลุมสติกเกอร์ใหม่ทั้งหมด 18 ชิ้นด้วยชื่อภาษาไทยทางการ สะอาด ปราศจากอีโมจิหรือสัญลักษณ์ซ้ำซ้อนตามกฎเหล็กข้อ 8
+
+### Gate
+
+- [x] `python -m compileall -q scripts` (ผ่าน: 0 errors)
+- [x] `python -m pytest tests/test_preview_render_parity.py tests/test_preview_render_behavior.py -q -p no:cacheprovider` (ผ่าน: 159 passed, 2 warnings in 8.55s)
+- [x] `npm --prefix frontend test` (ผ่าน: 85 passed in 1.60s)
+- [x] `npm --prefix frontend run build` (ผ่าน: 1963 modules built in 3.30s)
+- [x] ตรวจสอบไฟล์ PNG โปร่งใสทั้ง 18 รายการใน `02_Assets/Stickers_Memes/` (ผ่าน: ครบ 18 ชิ้น โหมด RGBA มี Alpha โปร่งใส 100%)
+
+### Notes
+
+- สติกเกอร์เดิม 12 ชิ้นที่เป็นภาพการ์ตูนได้รับการสำรองไว้อย่างปลอดภัยที่ `02_Assets/Stickers_Memes/_backup_cartoon/`
+- ป้ายทั้งหมด 18 ชิ้นเป็น Universal Reusable Badges ไม่ระบุรุ่นสินค้าหรือยี่ห้อ สามารถนำไปใช้กับคลิปรีวิวไอทีและแกดเจ็ตได้ทุกตัว
+- ใน Editor หน้า AssetPanel แสดงชื่อภาษาไทยชัดเจน เช่น "จุดเด่น (PROS)", "ข้อสังเกต (CONS)", "อายุแบตเตอรี่ (Battery)", "คะแนนรีวิว 9.8 (Score)", "ชิปประมวลผล (Performance)" เป็นต้น
+
+## Round SUB-THAI-1 — แก้สระและวรรณยุกต์ไทยซ้อนกันในคลิปเรนเดอร์
+
+วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+**ปัญหาและสิ่งที่ทำ:**
+
+1. ตรวจ repro ด้วยข้อความ `นั่งพิมพ์งานทั้งวัน` ซึ่งมีคู่เครื่องหมายซ้อน `ั + ่` และพบว่า caption ใช้ `\\fscx125/\\fscy125` ในช่วง 70ms แรก การขยาย raster หลัง libass จัดตำแหน่ง mark แล้วทำให้เครื่องหมายชนกันได้ในเฟรมต้น ๆ
+2. เปลี่ยน caption entrance ใน `scripts/subtitle_engine.py` เป็น `\\alpha&HFF&\\t(0,70,\\alpha&H00&)` ซึ่งไม่เปลี่ยนเรขาคณิตของ glyph และจัดลำดับ tag ให้ shadow fade ไปพร้อมกับตัวอักษร
+3. เปลี่ยน Canvas ใน `frontend/src/components/SequencePlayer.jsx` ให้ใช้ `globalAlpha` fade 70ms และคงขนาด/ตำแหน่ง glyph เท่าเฟรม settled เพื่อรักษา Preview = Render
+4. เพิ่ม source parity test และ FFmpeg behavioral render test ที่ตรวจเฟรมซ่อน, เฟรมแรกที่มองเห็น และเฟรม settled โดย bounding box ของข้อความต่างกันไม่เกิน 4px
+
+### Gate
+
+- [x] `python -m compileall -q scripts` (ผ่าน)
+- [x] Focused subtitle/preview tests: 165 passed, 2 warnings
+- [x] Full backend tests: 926 passed, 6 warnings, 110.92s
+- [x] `npm test`: 85 passed
+- [x] `npm run build`: ผ่าน, 1963 modules built
+- [x] FFmpeg behavioral render: stacked Thai marks ผ่าน multi-frame geometry check
+
+Notes: ไม่แตะ `01_Raw/` หรือ `02_Assets/`; ใช้ synthetic fixture ใน temp storage และตรวจภาพจาก FFmpeg จริง
 
 ## Round STK-3 — ปรับขนาดสติกเกอร์ 100% เท่ากับขนาดจอที่ผู้ใช้ต้องการ, ซ่อมปุ่มปิดตาแทร็กสติกเกอร์, ลบสติกเกอร์ได้ทุกช่องทาง และระบบพรีวิวก่อนกดบวกเหมือนข้อความ
 

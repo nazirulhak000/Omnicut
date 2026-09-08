@@ -749,10 +749,10 @@ function parseKineticSegments(text, defaultColor = '#FFFFFF', colorHint = null, 
 // keeps the preview honest about what the render will actually look like.
 const EMOJI_RUN_RE = /(\p{Extended_Pictographic}(?:️|‍\p{Extended_Pictographic})*\s*)/gu;
 
-// Caption kinetic pop, mirroring `anim` in subtitle_engine.py: snap in at
-// 125% and settle to the cue's own scale over 70ms, linear, no alpha ramp.
-const CAPTION_POP_MS = 70;
-const CAPTION_POP_FROM = 1.25;
+// Thai-safe caption entrance, mirroring `caption_anim` in subtitle_engine.py.
+// Fade changes visibility only; scaling a shaped Thai run can collapse the
+// stacked mark pair ั + ่ (for example, นั่ง) in libass during the first frames.
+const CAPTION_FADE_MS = 70;
 
 function drawTextWithMonoEmoji(ctx, text, x, y) {
   if (!EMOJI_RUN_RE.test(text)) {
@@ -800,6 +800,11 @@ function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
   }
 
   ctx.save();
+  const fadeElapsedMs = (t - cue.start) * 1000;
+  const captionAlpha = fadeElapsedMs >= CAPTION_FADE_MS
+    ? 1
+    : Math.min(1, Math.max(0, fadeElapsedMs / CAPTION_FADE_MS));
+  ctx.globalAlpha *= captionAlpha;
   ctx.font = `${fontWeight} ${fontSize}px ${fontFam}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -904,32 +909,19 @@ function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
     }
   }
 
-  // Kinetic pop, mirroring subtitle_engine.py's per-cue `anim`:
-  // \fscx125\fscy125 settling to the cue's own scale over 70ms from cue start.
-  // Only the Thai run pops -- the English run re-declares \fscx68 absolutely,
-  // so the transform never reaches it. Layout keeps using the settled size
-  // because libass advances lines by the STYLE size, not the animated one.
-  const popElapsedMs = (t - cue.start) * 1000;
-  const popScale = popElapsedMs >= CAPTION_POP_MS
-    ? 1
-    : CAPTION_POP_FROM + (1 - CAPTION_POP_FROM) * Math.max(0, popElapsedMs) / CAPTION_POP_MS;
-  const drawFs = Math.max(1, Math.round(fontSize * popScale));
-
   // Draw Thai lines
   thaiLines.forEach((line, idx) => {
     const lineY = thaiStartY + (idx * thaiLineH);
     const segments = parsedThaiLines[idx] || [{ text: line, color: primaryColor }];
 
-    ctx.font = `${fontWeight} ${drawFs}px ${fontFam}`;
+    ctx.font = `${fontWeight} ${fontSize}px ${fontFam}`;
     const segmentWidths = segments.map(seg => ctx.measureText(seg.text).width);
     const totalLineW = segmentWidths.reduce((sum, w) => sum + w, 0);
 
     // Pass 1: Outline / Stroke with crisp shadow
     ctx.textAlign = 'left';
     ctx.strokeStyle = '#000000';
-    // ScaledBorderAndShadow: yes in the ASS header, so the border scales with
-    // the pop too.
-    ctx.lineWidth = captionOutlineWidth(drawFs);
+    ctx.lineWidth = captionOutlineWidth(fontSize);
     ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
     ctx.shadowBlur = 3;
     ctx.shadowOffsetX = 2;

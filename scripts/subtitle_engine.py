@@ -667,11 +667,13 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             # escaped form here would double-escape on every subsequent run.
             cue["text"] = cls.wrap_text_for_ass(cue["text"].strip(), max_chars_per_line=dyn_max_chars)
 
-            # Kinetic Pop Animation: Snap in 125% -> Settle 100% (or cue.scale) in 70ms
-            cue_scale = float(cue.get("scale", 1.0) or 1.0)
-            settle_pct = max(50, min(200, int(round(100 * cue_scale))))
-            snap_pct = int(round(settle_pct * 1.25))
-            anim = f"{{\\fscx{snap_pct}\\fscy{snap_pct}\\t(0,70,\\fscx{settle_pct}\\fscy{settle_pct})}}"
+            # Thai-safe entrance: fade in over 70ms without geometric scaling.
+            # Scaling a shaped Thai run with \fscx/\fscy after libass has
+            # positioned its marks can collapse the stacked pair ั + ่
+            # (for example, นั่ง) during the first frames. Alpha does not
+            # alter glyph geometry, so HarfBuzz/libass keeps the mark anchors
+            # intact while the caption still enters quickly.
+            caption_anim = r"{\alpha&HFF&\t(0,70,\alpha&H00&)}"
             
             # Check for English Translation
             en_wrapped = ""
@@ -725,11 +727,14 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 en_sub_shadow = f"\\N{{\\fscx{en_pct}\\fscy{en_pct}}}{en_wrapped}" if en_wrapped else ""
                 shadow_tag = f"{{\\blur{shadow_blur}\\alpha&H38&}}"
                 shadow_pos = f"{{{pos_override}}}" if pos_override else ""
-                events.append(f"Dialogue: 0,{start_t},{end_t},TikTokSoftShadow,,0,0,0,,{shadow_pos}{anim}{shadow_tag}{text}{en_sub_shadow}")
+                # Keep the fade after the shadow's static alpha tag so the
+                # shadow follows the same entrance and is not visible alone
+                # on the first frame.
+                events.append(f"Dialogue: 0,{start_t},{end_t},TikTokSoftShadow,,0,0,0,,{shadow_pos}{shadow_tag}{caption_anim}{text}{en_sub_shadow}")
 
             # Layer 1: Crisp Foreground Text with dynamic kinetic highlights
             main_pos = f"{{{pos_override}}}" if pos_override else ""
-            line_entry = f"Dialogue: 1,{start_t},{end_t},{style},,0,0,0,,{main_pos}{anim}{highlighted_text}{en_sub}"
+            line_entry = f"Dialogue: 1,{start_t},{end_t},{style},,0,0,0,,{main_pos}{caption_anim}{highlighted_text}{en_sub}"
             events.append(line_entry)
 
         # 3. Spec-Bar Overlays (IT vertical: the number goes on screen, not

@@ -111,7 +111,6 @@ def test_font_size_is_converted_between_the_two_text_engines():
     # (unboosted) percent, since Fontsize alone accounts for it
     for probe in [
         "target = layout_pct",                    # hook tiers
-        "snap_pct = int(round(settle_pct * 1.25))",  # caption pop (no boost multiply/divide)
         "en_pct = 68",                             # english sub
         "spec_from = 110",                         # spec bar
         "spec_to = 100",                           # spec bar settle
@@ -127,16 +126,16 @@ def test_font_size_is_converted_between_the_two_text_engines():
     assert "TEXT_SCALE_BOOST" not in drawing_block, "accent drawings must not take the text boost"
 
 
-def test_caption_pop_animation_matches():
+def test_caption_fade_animation_matches_and_is_thai_safe():
     """
-    The renderer pops each cue in at 125% and settles over 70ms
-    (subtitle_engine.py's per-cue `anim`). The preview had no entrance
-    animation at all, so captions appeared already settled.
+    Captions enter with a 70ms alpha fade in both engines. A geometric
+    \fscx/\fscy pop is deliberately forbidden here because libass can apply
+    it after shaping and collapse stacked Thai marks such as ั + ่ in นั่ง.
     """
-    assert _grab(PY_SRC, r"snap_pct = int\(round\(settle_pct \* ([\d.]+)\)\)") == \
-           _grab(JS_SRC, r"const CAPTION_POP_FROM = ([\d.]+);")
-    assert _grab(PY_SRC, r"anim = f\"\{\{\\\\fscx\{snap_pct\}\\\\fscy\{snap_pct\}\\\\t\(0,(\d+),")  == \
-           _grab(JS_SRC, r"const CAPTION_POP_MS = (\d+);")
+    assert 'caption_anim = r"{\\alpha&HFF&\\t(0,70,\\alpha&H00&)}"' in PY_SRC
+    assert _grab(JS_SRC, r"const CAPTION_FADE_MS = (\d+);") == 70
+    assert "\\\\fscx{snap_pct}" not in PY_SRC
+    assert "const CAPTION_POP_FROM" not in JS_SRC
 
 
 def test_transition_defaults_match():

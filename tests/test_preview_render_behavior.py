@@ -172,6 +172,65 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
 
 @pytest.mark.render_regression
+def test_thai_stacked_marks_keep_settled_geometry_during_caption_entrance(tmp_path):
+    """The first visible caption frame must not geometrically scale Thai marks.
+
+    ``นั่ง`` contains the stacked mark pair ั + ่. A libass ``\\fscx`` pop can
+    shape that pair correctly and then enlarge the raster, which makes the
+    marks collide. The caption entrance is therefore an alpha fade; this
+    behavioral check renders the first visible frame and the settled frame and
+    requires their ink bounding boxes to have the same geometry.
+    """
+    if not shutil.which("ffmpeg"):
+        pytest.skip("FFmpeg is required for the Thai render regression")
+
+    from PIL import Image, ImageChops
+    from scripts.subtitle_engine import SubtitleEngine
+
+    ass_path = tmp_path / "thai_stacked_marks.ass"
+    SubtitleEngine.generate_ass(
+        cues=[{
+            "start": 0.0,
+            "end": 0.6,
+            "text": "นั่งพิมพ์งานทั้งวัน",
+            "translation": "unused",
+        }],
+        output_ass_path=str(ass_path),
+        font_name="Kanit",
+        bilingual=False,
+        caption_position="middle",
+    )
+
+    ass_filter_path = str(ass_path.resolve()).replace("\\", "/").replace(":", "\\:")
+    frames_pattern = str(tmp_path / "frame-%02d.png")
+    _run([
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "lavfi", "-i", "color=c=0xB49464:s=1080x1920:r=30:d=0.6",
+        "-vf", f"subtitles='{ass_filter_path}':fontsdir='02_Assets/Fonts'",
+        "-frames:v", "16", frames_pattern,
+    ])
+
+    def ink_bbox(path):
+        image = Image.open(path).convert("RGB")
+        background = Image.new("RGB", image.size, image.getpixel((0, 0)))
+        diff = ImageChops.difference(image, background).convert("L")
+        return diff.point(lambda value: 255 if value > 8 else 0).getbbox()
+
+    first_hidden = ink_bbox(tmp_path / "frame-01.png")
+    first_visible = ink_bbox(tmp_path / "frame-02.png")
+    settled = ink_bbox(tmp_path / "frame-16.png")
+    assert first_hidden is None
+    assert first_visible is not None
+    assert settled is not None
+    first_width = first_visible[2] - first_visible[0]
+    settled_width = settled[2] - settled[0]
+    first_height = first_visible[3] - first_visible[1]
+    settled_height = settled[3] - settled[1]
+    assert abs(first_width - settled_width) <= 4
+    assert abs(first_height - settled_height) <= 4
+
+
+@pytest.mark.render_regression
 def test_word_start_position_budget(tmp_path):
     if not shutil.which("ffmpeg"):
         pytest.skip("FFmpeg is required for render regression testing")
@@ -805,8 +864,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         bbox = im.getbbox()
         assert bbox is not None, f"{tpl} must burn visible text into frame at 0.5s"
         assert bbox[1] < 600, f"{tpl} banner should be located in top region, got y1={bbox[1]}"
-
-
 
 
 
