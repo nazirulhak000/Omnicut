@@ -860,6 +860,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
         # "in_production" just because this reroll attempt failed).
         prev_status = None
         prev_video_url = None
+        prev_export_id = None
         if product_id and angle_id:
             try:
                 existing_product = ProductStore.get(product_id)
@@ -873,6 +874,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 if existing_angle:
                     prev_status = existing_angle.get("status")
                     prev_video_url = existing_angle.get("video_url")
+                    prev_export_id = existing_angle.get("export_id")
                     if prev_status == "posted" or existing_angle.get("posted_at"):
                         raise HTTPException(
                             status_code=400,
@@ -920,7 +922,8 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                         angle_id,
                         prev_status,
                         video_url=prev_video_url,
-                        project_name=project_name
+                        project_name=project_name,
+                        export_id=prev_export_id,
                     )
                 else:
                     # Snapshot was never taken (product/angle missing at
@@ -1011,7 +1014,8 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                     angle_id,
                     "rendered" if mp4_val else "in_production",
                     video_url=str(mp4_val) if mp4_val else None,
-                    project_name=project_name
+                    project_name=project_name,
+                    export_id=result.get("export_id") if mp4_val else None,
                 )
             except Exception as update_err:
                 print(f"Warning: could not update angle status after reroll: {update_err}")

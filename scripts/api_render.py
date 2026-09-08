@@ -165,7 +165,8 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                     req_data.angle_id,
                     "rendered" if is_rendered else "in_production",
                     video_url=str(mp4_val) if is_rendered else None,
-                    project_name=result.get("project_name")
+                    project_name=result.get("project_name"),
+                    export_id=result.get("export_id") if is_rendered else None,
                 )
             except Exception as angle_err:
                 print(f"Warning: could not update angle status: {angle_err}")

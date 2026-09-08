@@ -1,4 +1,8 @@
 const BACKEND = 'http://127.0.0.1:8000';
+const {
+  buildExtensionClipList,
+  getExtensionStatus,
+} = window.OmniCutClipState || {};
 
 const listEl = document.getElementById('list');
 const statusEl = document.getElementById('status');
@@ -82,6 +86,7 @@ function setBusy(value) {
   busy = value;
   document.querySelectorAll('#panelChecklist button, #list button, #refreshBtn, #panelChecklist input, #panelChecklist textarea')
     .forEach(el => { el.disabled = value; });
+  markPostedBtn.disabled = value || !activeClip;
 }
 
 function setStatus(text, kind) {
@@ -155,6 +160,7 @@ function resetChecklist() {
 }
 
 function renderActiveClipBanner() {
+  markPostedBtn.disabled = busy || !activeClip;
   const cover = document.getElementById('activeCover');
   cover.hidden = !activeClip?.cover_url;
   if (activeClip?.cover_url) cover.src = `${BACKEND}${activeClip.cover_url}`;
@@ -176,15 +182,6 @@ function renderActiveClipBanner() {
     <span class="active-title">${escapeHtml(activeClip.hook_title || activeClip.name)}</span>
     ${timeLabel}
   `;
-}
-
-// ── "ตัดต่อเสร็จ" == ProductStore angle status 'rendered' (see
-// PIPELINE_PHASES in ContentTrackerHub.jsx) -- exports whose matched angle
-// has already advanced further (mobile_ready/posted) or has no matched
-// angle at all are deliberately left out; this panel is specifically
-// "what's done editing and ready to post", not a general file browser.
-function isReadyToPost(item) {
-  return item.angle_status === 'rendered' && item.is_latest !== false;
 }
 
 function queueScheduleParts(iso) {
@@ -221,10 +218,11 @@ async function loadExports() {
     if (queueRes.ok) {
       const queueData = await queueRes.json();
       scheduled = (queueData.items || [])
-        .filter((item) => ['planned', 'ready_for_extension', 'failed'].includes(item.status))
+        .filter((item) => ['planned', 'ready_for_extension', 'awaiting_post', 'failed'].includes(item.status))
         .map((item) => ({
           ...item,
           rel_path: item.video_path,
+          export_id: item.export_id,
           name: item.project_name || item.video_path,
           product_name: item.product_name,
           hook_title: item.hook_title,
@@ -240,7 +238,15 @@ async function loadExports() {
     // The queue API was added after the extension; an older backend can still
     // serve the original ready-export list.
   }
-  const ready = scheduled.length ? scheduled : items.filter(isReadyToPost);
+  // Build the final list: scheduled queue items first (they already have
+  // a date/time the user committed to), then any rendered exports that are
+  // NOT already represented in the queue.  The old "scheduled.length ?
+  // scheduled : exports" OR-logic hid newly-rendered clips whenever any
+  // older schedule entry was still in ready_for_extension state -- BUG-EXT-1.
+  const ready = buildExtensionClipList(items, scheduled).map((item) => ({
+    ...item,
+    ...(item.is_scheduled ? {} : { is_scheduled: false }),
+  }));
   if (ready.length === 0) {
     listEl.innerHTML = '<div class="empty">ยังไม่มีคลิปที่ตัดต่อเสร็จรอโพสต์ตอนนี้</div>';
     return;
@@ -257,9 +263,11 @@ async function loadExports() {
 
     const body = document.createElement('div');
     body.className = 'card-body';
+    const lifecycle = getExtensionStatus(item);
     body.innerHTML = `
       <div class="card-product">${escapeHtml(item.product_name || 'ไม่ทราบสินค้า')}</div>
       <div class="card-hook">${escapeHtml(item.hook_title || item.name)}</div>
+      <div class="card-status ${lifecycle.kind}">${escapeHtml(lifecycle.label)}</div>
       <div class="card-meta">${item.schedule_date ? `กำหนด ${escapeHtml(item.schedule_date)} ${escapeHtml(item.schedule_time || '')}` : `${escapeHtml(item.size_mb || '')} MB · ${escapeHtml(item.modified_time || '')}`}</div>
     `;
 
@@ -297,6 +305,7 @@ async function prepareClip(item) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         video_path: item.rel_path,
+        export_id: item.export_id || null,
         cover_path: item.cover_path || null,
         caption: item.tiktok_caption || '',
         hashtags: item.tiktok_hashtags || '',
@@ -324,6 +333,7 @@ async function prepareClip(item) {
     cartNameInput.value = item.product_name || '';
     resetChecklist();
     renderActiveClipBanner();
+    markPostedBtn.disabled = false;
     showTab('checklist');
     setStatus('เตรียมคลิปแล้ว ทำทีละขั้นด้านล่างได้เลย', 'success');
   } catch (err) {
@@ -503,6 +513,7 @@ markPostedBtn.addEventListener('click', async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         file_path: activeClip.rel_path,
+        export_id: activeClip.export_id || null,
         product_id: activeClip.product_id || null,
         angle_id: activeClip.angle_id || null,
       }),
@@ -515,11 +526,12 @@ markPostedBtn.addEventListener('click', async () => {
     activeClip = null;
     resetChecklist();
     renderActiveClipBanner();
-    loadExports();
+    await loadExports();
+    showTab('list');
   } catch (err) {
     setStatus('มาร์คไม่สำเร็จ: ' + err.message, 'error');
   } finally {
-    markPostedBtn.disabled = false;
+    markPostedBtn.disabled = !activeClip;
   }
 });
 

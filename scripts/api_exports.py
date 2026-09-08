@@ -5,6 +5,7 @@ API Router for Exported Videos and Versioning.
 import os
 import re
 import json
+import filecmp
 import shutil
 from pathlib import Path
 from typing import Dict, Any, List, Optional
@@ -17,6 +18,7 @@ from scripts.product_store import ProductStore
 from scripts.media_service import get_file_info
 from scripts.api_schemas import LinkAngleRequest
 from scripts.video_editor import VideoEditor
+from scripts.export_registry import ExportRegistry
 
 
 def _is_contained(path: Path, root: Path) -> bool:
@@ -39,6 +41,62 @@ router = APIRouter(tags=["Exports"])
 # kept showing a posted clip as still-to-post forever. Posted/ is scanned
 # alongside it below so a moved clip stays findable, tagged `is_posted`.
 POSTED_DIR = EXPORTS_DIR.parent / "Posted"
+
+
+def _stored_export_path(raw_path: Any) -> Optional[Path]:
+    """Resolve a ProductStore export path without guessing from a display name."""
+    if not raw_path:
+        return None
+    path = Path(str(raw_path))
+    return path.resolve() if path.is_absolute() else (BASE_DIR / path).resolve()
+
+
+def _is_actual_posted_export(file_path: Path, angle: Optional[Dict[str, Any]]) -> bool:
+    """Return true only for the export file that has posted evidence.
+
+    ``angle.status == 'posted'`` is angle-level history, not a version
+    identity. Older files of that angle must remain deletable. A physical
+    file in Posted/ is conclusive; otherwise use the exact stored video path,
+    with a same-name Posted/ duplicate treated as the already-posted copy.
+    """
+    resolved = file_path.resolve()
+    if resolved.parent == POSTED_DIR.resolve():
+        return True
+    if not angle or not (angle.get("status") == "posted" or angle.get("posted_at")):
+        return False
+    stored = _stored_export_path(angle.get("video_url"))
+    if stored and stored == resolved:
+        # Older mark-posted attempts could leave the same filename in both
+        # folders while the manifest still points at Ready_to_post. The
+        # Ready copy is then the removable duplicate; Posted/ is the actual
+        # evidence file and is the only one that stays locked.
+        if resolved.parent == EXPORTS_DIR.resolve() and (POSTED_DIR / resolved.name).is_file():
+            return False
+        return True
+    return False
+
+
+def _is_posted_duplicate_copy(
+    file_path: Path,
+    angle: Optional[Dict[str, Any]],
+    registry_by_path: Dict[Path, Dict[str, Any]],
+) -> bool:
+    """Identify the old Ready copy left beside its Posted proof.
+
+    The old move flow could leave the same MP4 in both directories. Matching
+    that pair by basename alone would be unsafe, so require identical bytes
+    and a Posted registry record (or posted evidence from the angle).
+    """
+    if file_path.parent.resolve() != EXPORTS_DIR.resolve():
+        return False
+    posted_peer = POSTED_DIR / file_path.name
+    if not posted_peer.is_file():
+        return False
+    posted_record = registry_by_path.get(posted_peer.resolve())
+    if not posted_record or posted_record.get("status") != "posted":
+        if not _is_actual_posted_export(posted_peer, angle):
+            return False
+    return _same_file_contents(file_path, posted_peer)
 
 
 def _find_cover_by_stem(stem: str) -> Optional[Path]:
@@ -144,6 +202,7 @@ def list_exports():
     # seq, reproducing the original first-match-wins priority exactly.
     video_stem_map: Dict[str, tuple] = {}
     video_name_map: Dict[str, tuple] = {}
+    product_angle_id_map: Dict[tuple, tuple] = {}
     # Check 3's exact-equality case (fstem_low == pid), first-match-wins.
     product_id_map: Dict[str, dict] = {}
     _angle_seq = 0
@@ -155,6 +214,9 @@ def list_exports():
             if proj_name:
                 project_angle_map[proj_name.lower()] = (p, None)
         for a in p.get("angles", []):
+            angle_key = a.get("angle_id") or a.get("id")
+            if pid_key and angle_key:
+                product_angle_id_map[(pid_key, str(angle_key))] = (p, a)
             proj = a.get("project_name", "")
             if proj:
                 project_angle_map[proj.lower()] = (p, a)
@@ -185,6 +247,18 @@ def list_exports():
                     except Exception:
                         pass
 
+    # A registry hit is authoritative. Filename/project matching below is
+    # retained only as a one-time migration path for exports made before
+    # export_id existed.
+    registry_by_path: Dict[Path, Dict[str, Any]] = {}
+    try:
+        for record in ExportRegistry._load():
+            registered_path = _stored_export_path(record.get("path"))
+            if registered_path:
+                registry_by_path[registered_path] = record
+    except Exception as registry_err:
+        print(f"[api_exports] WARNING: could not load export registry: {registry_err}")
+
     # Pass 1: Identify match for each file
     raw_matches = []
     for f in files:
@@ -195,6 +269,22 @@ def list_exports():
         matched_angle = None
         matched_proj_name = None
 
+        registry_record = registry_by_path.get(f.resolve())
+        if registry_record:
+            registered_product = product_id_map.get(str(registry_record.get("product_id") or "").lower())
+            registered_angle = None
+            if registered_product:
+                registered_angle = product_angle_id_map.get(
+                    (str(registered_product.get("id") or "").lower(), str(registry_record.get("angle_id") or "")),
+                    (None, None),
+                )[1]
+            if registered_product:
+                matched_prod = registered_product
+                matched_angle = registered_angle
+                matched_proj_name = registry_record.get("project_name") or (
+                    registered_angle or {}
+                ).get("project_name")
+
         # 1. Exact angle video_url match (O(1) via the maps built above,
         # instead of scanning every product's every angle for every file)
         name_hit = video_name_map.get(fname_low)
@@ -203,7 +293,7 @@ def list_exports():
             winner = name_hit if name_hit[0] <= stem_hit[0] else stem_hit
         else:
             winner = name_hit or stem_hit
-        if winner:
+        if winner and not matched_prod:
             _, p, a = winner
             matched_prod, matched_angle = p, a
             matched_proj_name = a.get("project_name")
@@ -258,7 +348,8 @@ def list_exports():
             "product": matched_prod,
             "angle": matched_angle,
             "proj_name": matched_proj_name,
-            "disk_proj": disk_proj
+            "disk_proj": disk_proj,
+            "registry_record": registry_record,
         })
 
     # Pass 2: Determine versioning per group
@@ -275,7 +366,9 @@ def list_exports():
         elif p:
             group_key = f"prod:{p.get('id')}"
 
-        if group_key and group_key not in latest_file_per_group:
+        if group_key and group_key not in latest_file_per_group and not _is_posted_duplicate_copy(
+            item["file"], item["angle"], registry_by_path
+        ):
             latest_file_per_group[group_key] = item["file"]
 
     results = []
@@ -285,12 +378,38 @@ def list_exports():
         matched_angle = item["angle"]
         matched_proj_name = item["proj_name"]
         disk_proj = item["disk_proj"]
+        registry_record = item["registry_record"]
+        is_duplicate_copy = _is_posted_duplicate_copy(f, matched_angle, registry_by_path)
 
         info = get_file_info(f)
-        info["is_posted"] = (
-            f.parent.resolve() == POSTED_DIR.resolve()
-            or bool(matched_angle and (matched_angle.get("status") == "posted" or matched_angle.get("posted_at")))
+        is_posted = bool(
+            (registry_record or {}).get("status") == "posted"
+            or _is_actual_posted_export(f, matched_angle)
         )
+        if is_duplicate_copy:
+            # The Ready copy is removable, but it must never be offered to
+            # Extension as the latest clip when its identical Posted proof
+            # already exists.
+            is_posted = False
+            info["is_duplicate_copy"] = True
+        info["is_posted"] = is_posted
+        try:
+            export_record = ExportRegistry.ensure(
+                f,
+                product_id=matched_prod.get("id") if matched_prod else None,
+                angle_id=matched_angle.get("angle_id") if matched_angle else None,
+                project_name=(matched_angle or {}).get("project_name") or matched_proj_name,
+                status="posted" if is_posted else "rendered",
+                posted_at=(matched_angle or {}).get("posted_at") if is_posted else None,
+            )
+            info["export_id"] = export_record["id"]
+            info["export_status"] = export_record.get("status")
+        except Exception as registry_err:
+            # Listing remains usable on a legacy read-only installation;
+            # render/mark flows still persist identity before they proceed.
+            print(f"[api_exports] WARNING: could not persist export identity for {f.name}: {registry_err}")
+            info["export_id"] = None
+            info["export_status"] = "posted" if is_posted else "rendered"
         if not info.get("cover_path"):
             project_name = (matched_angle or {}).get("project_name") or matched_proj_name
             project_cover = _find_project_cover(project_name)
@@ -315,6 +434,10 @@ def list_exports():
             group_key = f"prod:{matched_prod.get('id')}"
 
         latest_f = latest_file_per_group.get(group_key) if group_key else None
+        if latest_f:
+            latest_record = registry_by_path.get(latest_f.resolve())
+            if latest_record:
+                info["latest_export_id"] = latest_record.get("id")
 
         # Product metadata
         if matched_prod:
@@ -391,11 +514,31 @@ def list_exports():
 def link_export_to_angle(req: LinkAngleRequest):
     """Links an exported video to a product angle."""
     try:
+        export_record = ExportRegistry.get(req.export_id) if req.export_id else None
+        if req.export_id and export_record is None:
+            raise HTTPException(status_code=409, detail="ไม่พบ export_id ที่ระบุ จึงหยุดการผูกคลิปเพื่อป้องกันการแมพผิดตัว")
+        if export_record is None:
+            export_record = ExportRegistry.find_by_path(req.video_path)
+        if export_record is None:
+            export_record = ExportRegistry.ensure(
+                req.video_path,
+                product_id=req.product_id,
+                angle_id=req.angle_id,
+                status="rendered",
+            )
+        requested_path = _stored_export_path(req.video_path)
+        registered_path = _stored_export_path(export_record.get("path"))
+        if requested_path != registered_path:
+            raise HTTPException(status_code=409, detail="export_id ไม่ตรงกับไฟล์ที่เลือก")
+        if export_record.get("status") == "posted":
+            raise HTTPException(status_code=409, detail="คลิปนี้โพสต์แล้ว ไม่สามารถนำกลับไปผูกเป็นคลิปใหม่ได้")
+        _require_latest_export(export_record, req.product_id, req.angle_id)
         updated = ProductStore.update_angle_status(
             product_id=req.product_id,
             angle_id=req.angle_id,
             status="rendered",
-            video_url=req.video_path
+            video_url=req.video_path,
+            export_id=export_record["id"],
         )
         return {"status": "success", "product": updated}
     except Exception as e:
@@ -404,6 +547,7 @@ def link_export_to_angle(req: LinkAngleRequest):
 
 class MarkPostedRequest(BaseModel):
     file_path: str
+    export_id: Optional[str] = None
     product_id: Optional[str] = None
     angle_id: Optional[str] = None
 
@@ -419,7 +563,7 @@ def _posted_companions(mp4_path: Path) -> List[Path]:
     return found
 
 
-def _mark_scheduled_queue_item_posted(source: Path, destination: Path) -> None:
+def _mark_scheduled_queue_item_posted(source: Path, destination: Path, export_id: Optional[str] = None) -> None:
     """Close the durable queue row when the extension moves this export.
 
     Queue identity is filename-based across Ready_to_post/Posted, so moving
@@ -433,15 +577,62 @@ def _mark_scheduled_queue_item_posted(source: Path, destination: Path) -> None:
         key = video_key(source)
         with ScheduleQueueStore._mutate() as records:
             for row in records:
-                if row.get("video_key") == key or Path(str(row.get("video_path", ""))).name.casefold() == source.name.casefold():
+                exact_id = export_id and row.get("export_id") == export_id
+                legacy_match = not export_id and (
+                    row.get("video_key") == key
+                    or Path(str(row.get("video_path", ""))).name.casefold() == source.name.casefold()
+                )
+                if exact_id or legacy_match:
                     row["video_path"] = str(destination.relative_to(BASE_DIR)).replace("\\", "/")
                     row["status"] = "posted"
                     row["posted_at"] = now_iso()
                     row["updated_at"] = now_iso()
+                    if exact_id:
+                        break
     except Exception:
         # Never turn a successful file move into a failed post because the
         # optional queue mirror is unavailable.
         return
+
+
+def _same_file_contents(left: Path, right: Path) -> bool:
+    try:
+        return filecmp.cmp(left, right, shallow=False)
+    except OSError:
+        return False
+
+
+def _move_or_reuse_posted(source: Path, destination: Path) -> None:
+    """Move one companion into Posted without overwriting posted evidence.
+
+    A previous interrupted/retried mark can leave the same file in both
+    folders. Treat identical copies as an idempotent retry and reject a
+    conflicting destination with an actionable 409 instead of leaking a 500
+    from ``shutil.move``.
+    """
+    if source.resolve() == destination.resolve():
+        return
+    if destination.exists():
+        if not _same_file_contents(source, destination):
+            raise HTTPException(
+                status_code=409,
+                detail=f"มีไฟล์ชื่อเดียวกันใน Posted/ แต่เนื้อหาไม่ตรงกัน: {destination.name}",
+            )
+        source.unlink()
+        return
+    shutil.move(str(source), str(destination))
+
+
+def _require_latest_export(export_record: Dict[str, Any], product_id: Optional[str], angle_id: Optional[str]) -> None:
+    """Prevent a stale version from entering the posting flow."""
+    if not product_id or not angle_id:
+        return
+    latest = ExportRegistry.latest_for_angle(product_id, angle_id)
+    if latest and latest.get("id") != export_record.get("id"):
+        raise HTTPException(
+            status_code=409,
+            detail="ไฟล์นี้ไม่ใช่ export เวอร์ชันล่าสุดของมุมนี้ กรุณาเลือกคลิปล่าสุด",
+        )
 
 
 @router.post("/api/exports/mark-posted")
@@ -460,24 +651,57 @@ def mark_posted(req: MarkPostedRequest):
         src = BASE_DIR / req.file_path
     src = src.resolve()
 
-    if not _is_contained(src, EXPORTS_DIR.resolve()):
-        raise HTTPException(status_code=403, detail="ไฟล์นี้ไม่ได้อยู่ใน Ready_to_post")
+    if not (_is_contained(src, EXPORTS_DIR.resolve()) or _is_contained(src, POSTED_DIR.resolve())):
+        raise HTTPException(status_code=403, detail="ไฟล์นี้ไม่ได้อยู่ในโฟลเดอร์ export ที่อนุญาต")
     if not src.exists():
         raise HTTPException(status_code=404, detail=f"ไม่พบไฟล์: {src.name}")
+
+    export_record = ExportRegistry.get(req.export_id) if req.export_id else ExportRegistry.find_by_path(src)
+    if req.export_id and export_record is None:
+        raise HTTPException(status_code=409, detail="ไม่พบ export_id ที่ระบุ จึงหยุดการโพสต์เพื่อป้องกันการเลือกคลิปผิดตัว")
+    if export_record is None:
+        export_record = ExportRegistry.ensure(
+            src,
+            product_id=req.product_id,
+            angle_id=req.angle_id,
+            status="rendered",
+        )
+    else:
+        registry_path = _stored_export_path(export_record.get("path"))
+        if registry_path != src:
+            raise HTTPException(
+                status_code=409,
+                detail="export_id ไม่ตรงกับไฟล์ที่เลือก จึงหยุดการทำรายการเพื่อป้องกันการมาร์กผิดคลิป",
+            )
+
+    _require_latest_export(export_record, req.product_id, req.angle_id)
 
     companions = _posted_companions(src)
     POSTED_DIR.mkdir(parents=True, exist_ok=True)
 
     dest = POSTED_DIR / src.name
-    shutil.move(str(src), str(dest))
-    moved = [str(dest.relative_to(BASE_DIR)).replace("\\", "/")]
+    move_pairs = [(src, dest)]
     for companion in companions:
         if companion.exists():
-            companion_dest = POSTED_DIR / companion.name
-            shutil.move(str(companion), str(companion_dest))
-            moved.append(str(companion_dest.relative_to(BASE_DIR)).replace("\\", "/"))
+            move_pairs.append((companion, POSTED_DIR / companion.name))
 
-    _mark_scheduled_queue_item_posted(src, dest)
+    # Preflight all collisions before moving anything, so a conflicting
+    # poster/cover cannot leave a half-moved export behind.
+    for source, destination in move_pairs:
+        if destination.exists() and source.resolve() != destination.resolve() and not _same_file_contents(source, destination):
+            raise HTTPException(
+                status_code=409,
+                detail=f"มีไฟล์ชื่อเดียวกันใน Posted/ แต่เนื้อหาไม่ตรงกัน: {destination.name}",
+            )
+
+    _move_or_reuse_posted(src, dest)
+    moved = [str(dest.relative_to(BASE_DIR)).replace("\\", "/")]
+    for companion, companion_dest in move_pairs[1:]:
+        _move_or_reuse_posted(companion, companion_dest)
+        moved.append(str(companion_dest.relative_to(BASE_DIR)).replace("\\", "/"))
+
+    _mark_scheduled_queue_item_posted(src, dest, export_record["id"])
+    export_record = ExportRegistry.move_and_mark_posted(export_record["id"], dest)
 
     if req.product_id and req.angle_id:
         try:
@@ -486,6 +710,7 @@ def mark_posted(req: MarkPostedRequest):
                 angle_id=req.angle_id,
                 status="posted",
                 video_url=str(dest.relative_to(BASE_DIR)).replace("\\", "/"),
+                export_id=export_record["id"],
             )
             return {"success": True, "moved": moved, "product": updated}
         except Exception as e:

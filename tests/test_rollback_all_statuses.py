@@ -1,12 +1,13 @@
 """
 Regression test for Round BUG-3.2: deleting a clip's file must roll its
-angle back regardless of how far its status advanced.
+angle back for removable lifecycle states. A posted angle is permanent
+history and must remain untouched even when an older export is deleted.
 
 rollback_by_video_or_project() used to only touch angles whose status was
-"rendered" or "in_production" -- once an angle reached "mobile_ready" or
-"posted", deleting its file via ExportGallery's delete button silently did
-nothing, leaving Content Tracker Hub's card looking like the video still
-existed.
+"rendered" or "in_production" -- once an angle reached "mobile_ready",
+deleting its file via ExportGallery's delete button silently did nothing,
+leaving Content Tracker Hub's card looking like the video still existed.
+The later Posted protection contract intentionally excludes "posted".
 
 Uses tmp_path + monkeypatch throughout, per .agents/rules/testing_standard.md
 rule 3 -- never touches the real _Docs/products.json or 03_Projects/.
@@ -56,7 +57,7 @@ def _seed(tmp_path, *, angle_status, with_project_dir):
     return video_path.name
 
 
-@pytest.mark.parametrize("angle_status", ["rendered", "in_production", "mobile_ready", "posted"])
+@pytest.mark.parametrize("angle_status", ["rendered", "in_production", "mobile_ready"])
 def test_rollback_fires_for_every_status_when_project_dir_still_exists(isolated_store, angle_status):
     tmp_path = isolated_store
     filename = _seed(tmp_path, angle_status=angle_status, with_project_dir=True)
@@ -70,7 +71,7 @@ def test_rollback_fires_for_every_status_when_project_dir_still_exists(isolated_
     assert angle["video_url"] is None
 
 
-@pytest.mark.parametrize("angle_status", ["mobile_ready", "posted"])
+@pytest.mark.parametrize("angle_status", ["mobile_ready"])
 def test_rollback_fires_even_when_project_dir_is_also_gone(isolated_store, angle_status):
     tmp_path = isolated_store
     filename = _seed(tmp_path, angle_status=angle_status, with_project_dir=False)
@@ -83,3 +84,18 @@ def test_rollback_fires_even_when_project_dir_is_also_gone(isolated_store, angle
     assert angle["status"] == "scripted"
     assert angle["video_url"] is None
     assert angle["project_name"] is None
+
+
+@pytest.mark.parametrize("with_project_dir", [True, False])
+def test_rollback_never_changes_posted_angle(isolated_store, with_project_dir):
+    """A delete of an older version cannot demote the posted version's angle."""
+    tmp_path = isolated_store
+    filename = _seed(tmp_path, angle_status="posted", with_project_dir=with_project_dir)
+
+    rolled_back = ps.ProductStore.rollback_by_video_or_project(filename)
+
+    assert rolled_back == []
+    products = json.loads((tmp_path / "_Docs" / "products.json").read_text(encoding="utf-8"))
+    angle = products[0]["angles"][0]
+    assert angle["status"] == "posted"
+    assert angle["video_url"] is not None

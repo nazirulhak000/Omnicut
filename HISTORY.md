@@ -1332,3 +1332,11 @@ Date: 2026-09-07; Requested by: user; Status: complete
 - [x] `npm --prefix frontend run build` (Pass: 0 errors, built in 4.25s)
 - [x] Live Browser Subagent Verification (Pass: ตรวจสอบแทร็กสติกเกอร์บนไทม์ไลน์, กรอบ interactive bounding box พร้อมจุดดึงขยาย 4 มุม 4 ด้าน, การลากวางอิสระ, และพาเนลตั้งค่าที่ลบ 6-pos grid ออกเรียบร้อย)
 
+## Round POST-LIFECYCLE-1 — Export identity and posting lifecycle lock (2026-09-08)
+
+- ต้นเหตุที่ตรวจพบ: MP4 เดียวกันมีสำเนาอยู่ทั้ง `Ready_to_post/` และ `Posted/` แต่ระบบเดิมสร้างรายการจาก path สองรายการ จึงดูเหมือนมีคลิปใหม่ซ้ำกัน
+- เพิ่ม `export_id` ต่อ export version และส่งต่อครบตั้งแต่ render, Gallery, queue, Extension, mark-posted, delete, rename และ cover metadata
+- สำเนา Ready ที่ byte-identical กับ Posted จะไม่ถูกถือเป็น latest/ไม่ถูกส่งเข้า Extension และยังลบได้ ส่วน Posted เป็นหลักฐานที่ล็อกไว้
+- ปุ่มมาร์กโพสต์ทุกจุดต้องผ่าน `/api/exports/mark-posted`; API ปฏิเสธการเปลี่ยนสถานะเป็น posted โดยไม่มี `export_id` และตรวจ ID ตรงกับ path
+- ข้อมูลจริงของ GOCHEK ถูก reconcile ให้ชี้ `04_Exports/Posted/..._20260908_190309.mp4` พร้อม `exp_982f701ea975462b87d0fc9dfb7cebf9`
+- Gate: `pytest tests/` 940 passed, 1 deselected, 6 warnings; Node Extension 17 passed; frontend 86 passed; build และ compileall ผ่าน

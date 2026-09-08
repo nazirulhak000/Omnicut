@@ -21,6 +21,7 @@ const STATUS_STYLES = {
 };
 
 function clipKey(clip) {
+  if (clip?.export_id) return `export:${String(clip.export_id)}`;
   return String(clip?.video_url || '').replaceAll('\\', '/').toLowerCase();
 }
 
@@ -50,6 +51,7 @@ function clipToPayload(clip, scheduledAt) {
   return {
     video_path: clip.video_url,
     scheduled_at: scheduledAt,
+    export_id: clip.export_id || null,
     product_id: product.id || null,
     angle_id: clip.angle_id || null,
     product_name: product.name || clip.product_name || null,
@@ -76,6 +78,7 @@ function nextSlot() {
 }
 
 function queueKey(item) {
+  if (item?.export_id) return `export:${String(item.export_id)}`;
   return String(item?.video_path || '').replaceAll('\\', '/').toLowerCase();
 }
 
@@ -83,6 +86,7 @@ function clipToAutofillPayload(clip) {
   const product = clip.parentProduct || {};
   return {
     video_path: clip.video_url,
+    export_id: clip.export_id || null,
     product_id: product.id || clip.product_id || null,
     angle_id: clip.angle_id || null,
     product_name: product.name || clip.product_name || null,
@@ -154,7 +158,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
 
   useEffect(() => { loadQueue(); }, []);
 
-  const queuedKeys = useMemo(() => new Set(queue.map((item) => String(item.video_path || '').replaceAll('\\', '/').toLowerCase())), [queue]);
+  const queuedKeys = useMemo(() => new Set(queue.map(queueKey)), [queue]);
   const availableClips = useMemo(() => {
     const seen = new Set();
     return readyClips.filter((clip) => {
@@ -448,7 +452,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                 <div className="divide-y divide-white/[0.06]">
                   {grouped[date].map((item) => {
                     const parts = localParts(item.scheduled_at);
-                    const clip = readyClips.find((candidate) => clipKey(candidate) === String(item.video_path || '').replaceAll('\\', '/').toLowerCase());
+                    const clip = readyClips.find((candidate) => clipKey(candidate) === queueKey(item));
                     const coverPath = coverValue(item, clip);
                     const hasCover = Boolean(coverPath);
                     const overdue = item.is_overdue || (item.status === 'planned' && new Date(item.scheduled_at).getTime() < Date.now());

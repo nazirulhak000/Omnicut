@@ -73,13 +73,18 @@ export function mergeCoverMetadata(products = [], exports = []) {
   return products.map((product) => ({
     ...product,
     angles: (product.angles || []).map((angle) => {
-      const match = exportItems.find((item) => (
-        (angle.project_name && item.project_name && normalizeReference(angle.project_name) === normalizeReference(item.project_name))
-        || sameReference(angle.video_url, item.rel_path || item.path)
-      ));
+      const match = (angle.export_id && exportItems.find((item) => item.export_id === angle.export_id))
+        || exportItems.find((item) => {
+          // Once either side has a stable identity, never fall back to a
+          // project/path match that can select a sibling version.
+          if (angle.export_id || item.export_id) return false;
+          return (angle.project_name && item.project_name && normalizeReference(angle.project_name) === normalizeReference(item.project_name))
+            || sameReference(angle.video_url, item.rel_path || item.path);
+        });
       if (!match) return angle;
       return {
         ...angle,
+        export_id: angle.export_id || match.export_id || null,
         cover_path: angle.cover_path || match.cover_path || null,
         cover_3x4_path: angle.cover_3x4_path || match.cover_3x4_path || null,
         cover_9x16_path: angle.cover_9x16_path || match.cover_9x16_path || null,

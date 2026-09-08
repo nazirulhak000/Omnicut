@@ -72,6 +72,7 @@ class RenderRequest(BaseModel):
 
 class DeleteFileRequest(BaseModel):
     file_path: str
+    export_id: Optional[str] = None
     # Optional scoping for the angle-status rollback this delete triggers --
     # when the caller already knows which product/angle this file belongs to
     # (e.g. ExportGallery has both on the export item), passing them prevents
@@ -134,6 +135,7 @@ class BatchDeleteVideosPayload(BaseModel):
 
 class LinkAngleRequest(BaseModel):
     video_path: str
+    export_id: Optional[str] = None
     product_id: str
     angle_id: str
 

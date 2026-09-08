@@ -36,6 +36,7 @@ function buildQuickPostUrl(mobileBaseUrl, video) {
     quick_post: '1',
     pid: video.product_id || '',
     aid: video.angle_id || '',
+    eid: video.export_id || '',
     video: video.rel_path || video.path || '',
     product: video.product_name || video.name || '',
     hook: video.hook_title || '',
@@ -603,7 +604,7 @@ function ExportActiveWorkbench({
         <div className="md:col-span-5 w-full max-w-[260px] sm:max-w-[290px] aspect-[9/16] mx-auto rounded-2xl overflow-hidden bg-black border border-white/[0.12] shadow-2xl relative flex items-center justify-center ring-1 ring-white/[0.05]">
           <video
             ref={videoRef}
-            key={video.rel_path || video.path}
+            key={video.export_id || video.rel_path || video.path}
             src={`/api/media/${video.rel_path || video.path}`}
             controls
             playsInline
@@ -1110,6 +1111,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
   const handleSwapToLatest = useCallback((currentVideo) => {
     if (!currentVideo || !exportsList) return;
     const latest = exportsList.find(v => {
+      if (currentVideo.latest_export_id && v.export_id === currentVideo.latest_export_id) return true;
       if (currentVideo.latest_video_name && v.name === currentVideo.latest_video_name) return true;
       if (currentVideo.latest_video_path && (v.path === currentVideo.latest_video_path || v.rel_path === currentVideo.latest_video_rel)) return true;
       if (currentVideo.product_id && currentVideo.angle_id && v.product_id === currentVideo.product_id && v.angle_id === currentVideo.angle_id && v.is_latest) return true;
@@ -1170,7 +1172,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
     }
     setIsLinking(true);
     try {
-      await linkExportToAngle(linkingVideo.path, selectedLinkProductId, selectedLinkAngleId);
+      await linkExportToAngle(linkingVideo.path, selectedLinkProductId, selectedLinkAngleId, linkingVideo.export_id || null);
       showToast('ผูกคลิปกับสคริปต์เรียบร้อยแล้ว');
       setLinkingVideo(null);
       if (selectedDetailVideo?.path === linkingVideo.path) {
@@ -1247,7 +1249,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
 
   const handleMarkPosted = useCallback(async (video) => {
     try {
-      await markPosted(video.rel_path || video.path, video.product_id || null, video.angle_id || null);
+      await markPosted(video.rel_path || video.path, video.product_id || null, video.angle_id || null, video.export_id || null);
       showToast(`มาร์ค "${video.hook_title || video.name}" ว่าโพสต์แล้ว — ย้ายไฟล์ไป Posted/ แล้ว`);
       if (onRefresh) onRefresh();
     } catch (err) {
@@ -1267,6 +1269,8 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
         video.product_id || null,
         video.angle_id || null,
         video.tiktok_product_id || null,
+        null,
+        video.export_id || null,
       );
       showToast('เตรียมข้อมูลคลิปเข้า Extension สำเร็จ! ให้เปิด Extension บนแท็บ TikTok เพื่อเริ่มเติมข้อมูล');
       window.open('https://www.tiktok.com/tiktokstudio/upload', '_blank');
@@ -1284,7 +1288,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
     }
     setDeleting(true);
     try {
-      await deleteFile(deleteTarget.path, deleteTarget.product_id, deleteTarget.angle_id);
+      await deleteFile(deleteTarget.path, deleteTarget.product_id, deleteTarget.angle_id, deleteTarget.export_id || null);
       showToast(`ลบไฟล์ ${deleteTarget.name} เรียบร้อยแล้ว`);
       setDeleteTarget(null);
       if (selectedDetailVideo?.path === deleteTarget.path) setSelectedDetailVideo(null);
@@ -1318,7 +1322,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
       for (const p of deletablePaths) {
         try {
           const match = (exportsList || []).find(v => v.path === p || v.rel_path === p);
-          await deleteFile(p, match?.product_id, match?.angle_id);
+          await deleteFile(p, match?.product_id, match?.angle_id, match?.export_id || null);
         } catch (e) {
           console.error(e);
         }
@@ -1703,7 +1707,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                 <div className="flex items-center gap-2 overflow-x-auto pb-2 pt-1 px-1 snap-x snap-mandatory no-scrollbar -mx-2 px-2">
                   {filteredExports.map(item => (
                     <ExportMobilePill
-                      key={item.path}
+                    key={item.export_id || item.path}
                       item={item}
                       isActive={activeVideo?.path === item.path}
                       onSelect={() => setActiveVideoPath(item.path)}
@@ -1729,7 +1733,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                   <div className="space-y-2 max-h-[calc(100vh-230px)] overflow-y-auto pr-1 no-scrollbar">
                     {filteredExports.map(item => (
                       <ExportSidebarItem
-                        key={item.path}
+                        key={item.export_id || item.path}
                         item={item}
                         isSelected={selectedVideos.includes(item.path)}
                         isActive={activeVideo?.path === item.path}
@@ -1763,7 +1767,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
               {filteredExports.map((item, idx) => (
                 <ExportCard
-                  key={item.rel_path || item.path || idx}
+                  key={item.export_id || item.rel_path || item.path || idx}
                   item={item}
                   isSelected={selectedVideos.includes(item.path)}
                   onToggleSelect={toggleSelectVideo}
@@ -1816,7 +1820,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                 {/* 1. Large 9:16 Video Player Preview (No autoPlay to prevent audio echo) */}
                 <div className="w-full max-w-[320px] sm:max-w-[360px] aspect-[9/16] max-h-[60vh] mx-auto rounded-2xl overflow-hidden bg-black border border-white/[0.12] shadow-2xl relative flex items-center justify-center ring-1 ring-white/[0.05]">
                   <video
-                    key={selectedDetailVideo.rel_path || selectedDetailVideo.path}
+                    key={selectedDetailVideo.export_id || selectedDetailVideo.rel_path || selectedDetailVideo.path}
                     src={`/api/media/${selectedDetailVideo.rel_path || selectedDetailVideo.path}`}
                     controls
                     playsInline

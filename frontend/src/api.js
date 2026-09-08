@@ -65,8 +65,10 @@ export const reassignRawVideo = (payload) => api.post('/raw-vault/reassign', pay
 export const batchDeleteRawVideos = (videoPaths) => api.post('/raw-vault/batch-delete', { video_paths: videoPaths }).then(r => r.data);
 export const getExports = () => api.get('/exports').then(r => r.data);
 export const getExportMediaInfo = (path) => api.get('/exports/media-info', { params: { path } }).then(r => r.data);
-export const linkExportToAngle = (videoPath, productId, angleId) =>
-  api.post('/exports/link-angle', { video_path: videoPath, product_id: productId, angle_id: angleId }).then(r => r.data);
+export const linkExportToAngle = (videoPath, productId, angleId, exportId = null) =>
+  api.post('/exports/link-angle', {
+    video_path: videoPath, export_id: exportId, product_id: productId, angle_id: angleId,
+  }).then(r => r.data);
 export const getSfxList = () => api.get('/sfx').then(r => r.data);
 
 export const generateScript = (data) => api.post('/script/generate', {
@@ -132,19 +134,20 @@ export const renderProCover = (payload) =>
 export const getCoverRawSources = (videoPath) =>
   api.post('/covers/raw-sources', { video_path: videoPath }).then(r => r.data);
 
-export const markPosted = (filePath, productId = null, angleId = null) =>
+export const markPosted = (filePath, productId = null, angleId = null, exportId = null) =>
   api.post('/exports/mark-posted', {
-    file_path: filePath, product_id: productId, angle_id: angleId,
+    file_path: filePath, export_id: exportId, product_id: productId, angle_id: angleId,
   }).then(r => r.data);
 
 // Round POST-2: hands a prepared job (abs paths + caption) to the
 // tiktok_autopost_extension/ Chrome extension, which polls
 // GET /api/tiktok-autopost/pending itself -- see that endpoint's docstring
 // for why the app can't message the extension directly.
-export const prepareTiktokAutopost = (videoPath, coverPath, caption, hashtags, productId = null, angleId = null, tiktokProductId = null, scheduleTime = null) =>
+export const prepareTiktokAutopost = (videoPath, coverPath, caption, hashtags, productId = null, angleId = null, tiktokProductId = null, scheduleTime = null, exportId = null) =>
   api.post('/tiktok-autopost/prepare', {
     video_path: videoPath, cover_path: coverPath, caption, hashtags,
     product_id: productId, angle_id: angleId, tiktok_product_id: tiktokProductId,
+    export_id: exportId,
     schedule_time: scheduleTime,
   }).then(r => r.data);
 
@@ -185,8 +188,9 @@ export const uploadMultipleFiles = (formData, onProgress) => api.post('/upload-m
   }
 }).then(r => r.data);
 
-export const deleteFile = (filePath, productId = null, angleId = null) => api.post('/delete-file', {
+export const deleteFile = (filePath, productId = null, angleId = null, exportId = null) => api.post('/delete-file', {
   file_path: filePath,
+  export_id: exportId || null,
   product_id: productId || null,
   angle_id: angleId || null,
 }).then(r => r.data);
@@ -212,11 +216,12 @@ export const createProduct = (data) => api.post('/products', data).then(r => r.d
 export const updateProduct = (id, data) => api.patch(`/products/${id}`, data).then(r => r.data);
 export const resolveTiktokProductId = (urlOrId) =>
   api.post('/products/resolve-tiktok-id', { url_or_id: urlOrId }).then(r => r.data);
-export const updateAngleStatus = (productId, angleId, status, videoUrl = null, projectName = null, qcNote = null, clearQcNote = false, clearConflictNote = false) =>
+export const updateAngleStatus = (productId, angleId, status, videoUrl = null, projectName = null, qcNote = null, clearQcNote = false, clearConflictNote = false, exportId = null) =>
   api.patch(`/products/${productId}/angles/${angleId}`, {
     status,
     video_url: videoUrl,
     project_name: projectName,
+    export_id: exportId || null,
     ...(qcNote !== null ? { qc_note: qcNote } : {}),
     ...(clearQcNote ? { clear_qc_note: true } : {}),
     ...(clearConflictNote ? { clear_conflict_note: true } : {}),

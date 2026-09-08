@@ -12,6 +12,7 @@ from scripts.config import EXPORTS_DIR
 from scripts.asset_registry import AssetRegistry
 from scripts.project_manifest import ProjectManifest
 from scripts.pipeline_context import PipelineContext
+from scripts.export_registry import ExportRegistry
 
 
 def _every_boundary_is_a_cut(items) -> bool:
@@ -133,6 +134,18 @@ class VideoAssemblyStage:
             ctx.notify("🎉 การตัดต่อและเรนเดอร์เสร็จสมบูรณ์ 100%!", 1.0)
             print(f"   🎉 FINAL MP4 READY: {out_mp4}")
 
+        export_id = None
+        if ctx.result_paths.get("mp4_video"):
+            export_record = ExportRegistry.ensure(
+                ctx.result_paths["mp4_video"],
+                product_id=ctx.product_id,
+                angle_id=ctx.angle_id,
+                project_name=ctx.project_name,
+                status="rendered",
+            )
+            export_id = export_record["id"]
+            ctx.result_paths["export_id"] = export_id
+
         # Persist manifest
         artifacts = {
             "voice_audio": {"path": str(ctx.voice_audio_path)},
@@ -141,9 +154,13 @@ class VideoAssemblyStage:
         if ctx.mixed_audio_path and Path(ctx.mixed_audio_path).exists():
             artifacts["mixed_audio"] = {"path": str(ctx.mixed_audio_path)}
         if ctx.result_paths.get("mp4_video"):
-            artifacts["mp4_video"] = {"path": ctx.result_paths["mp4_video"]}
+            artifacts["mp4_video"] = {
+                "path": ctx.result_paths["mp4_video"],
+                "export_id": export_id,
+            }
 
         manifest_fields = {
+            "export_id": export_id,
             "script_data": ctx.script_data,
             "cues": ctx.cues,
             "micro_cues": ctx.micro_cues,

@@ -978,6 +978,29 @@
     align-items: center;
     gap: 5px;
   }
+  .card-status {
+    width: fit-content;
+    max-width: 100%;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.3;
+    padding: 3px 6px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .card-status.scheduled {
+    color: var(--cyan-bright);
+    background: rgba(34, 211, 238, 0.1);
+    border: 1px solid rgba(34, 211, 238, 0.25);
+  }
+  .card-status.unscheduled {
+    color: #fcd34d;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.28);
+  }
   .card-body button {
     margin-top: auto;
     align-self: flex-start;
@@ -1430,6 +1453,7 @@
     </div>
   </div>
 
+  <script src="clip_state.js"></script>
   <script src="sidepanel.js"></script>
 </body>
 </html>

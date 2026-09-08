@@ -14,6 +14,10 @@
 ## สถานะรวม
 ---
 
+- [x] Round BUG-STATUS-1 — คลิปที่เรนเดอร์แล้วติดสถานะ "กำลังตัดต่อ" (2026-09-08)
+- [x] Round BUG-EXT-1 — Extension ไม่แสดงคลิปตัดต่อเสร็จเพราะ schedule queue บัง (2026-09-08)
+- [ ] Round POST-LIFECYCLE-1 — แยกเวอร์ชันที่โพสต์จริง, คุมรายการใน Extension และซ่อมปุ่มมาร์กโพสต์ (2026-09-08)
+- [ ] Round SUB-THAI-2 — แก้การซ้อนของสระ `ั` กับวรรณยุกต์ `่` ในฟอนต์จริงของคลิป (พักไว้ตามคำขอ user · 2026-09-08)
 - [x] Round STK-PRO-1 — ชุดสติกเกอร์และป้ายรีวิวสายไอทีระดับโปร (Photorealistic Tech Review Badges) (2026-09-08)
 - [x] Round STK-3 - Sticker Baseline 100% Size, Track Eye Toggle, Deletion, and Preview-Before-Add (2026-09-08)
 - [x] Round SUB-THAI-1 — แก้สระและวรรณยุกต์ไทยซ้อนกันในคลิปเรนเดอร์ (2026-09-08)
@@ -53,6 +57,64 @@
 - [x] Round TRK-2 — ตารางจัดคิวโพสต์ประจำวัน (Daily Run Sheet) & จัดกลุ่มย่อการ์ด (Product Grouping / Quick Pills)
 - [x] Round TRK-3 — บอร์ดหลักคลีนไร้ความรก (Today-Only Posted, คลังสคริปต์หยิบทำวันนี้ & การ์ดตัดต่อเสร็จแนวนอนกะทัดรัด)
 - [x] Round COV-1 — สตูดิโอสร้างปกคลิปด่วน 9:16 & 3:4 (Auto Highlight Crop, Interactive Pan & Zoom Subtitle-Free, Dual Export)
+
+## Round POST-LIFECYCLE-1 — แยกเวอร์ชันที่โพสต์จริง, คุมรายการใน Extension และซ่อมปุ่มมาร์กโพสต์
+
+วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: กำลังทำ
+
+**เป้าหมาย:** ให้ lifecycle ของไฟล์ export ยึดตาม MP4 เวอร์ชันจริงที่โพสต์ลง TikTok โดยเวอร์ชันเก่าลบได้, คลิปตัดต่อเสร็จที่ยังไม่จัดเวลาเข้า Extension ได้, คลิปโพสต์แล้วไม่แสดง และปุ่มมาร์กโพสต์ทำงานครบวงจร
+
+### Todo
+
+- [ ] Audit ID end-to-end: render → gallery → schedule queue → Extension prepare/post → mark-posted → delete/rename; ระบุจุดที่ยังใช้ชื่อไฟล์/พาธหรือ `product_id + angle_id` เป็น identity และเพิ่ม regression ก่อนแก้
+- [x] แก้ backend delete guard ให้ล็อกเฉพาะไฟล์ MP4 ที่มีหลักฐานว่าโพสต์แล้ว ไม่ล็อกทั้ง product/angle จนกระทบเวอร์ชันเก่า
+- [x] ทำ response/filter กลางของ export และ schedule queue ให้ Extension เห็นเฉพาะคลิป `rendered` ที่ยังไม่โพสต์ พร้อมป้าย “ตัดต่อเสร็จแล้ว แต่ยังไม่ได้จัดเวลา” เมื่อไม่มีเวลาในคิว
+- [x] ซ่อม flow ปุ่ม “มาร์กโพสต์แล้ว” ให้ส่ง identifier ของไฟล์จริง, ย้าย MP4/ไฟล์ประกอบ, อัปเดต angle/queue และเอารายการออกจาก Extension หลังสำเร็จ
+- [x] เพิ่ม regression tests ครบ 4 พฤติกรรม และตรวจ UI label/disabled state ให้สื่อความจริง
+- [x] เปลี่ยนการระบุ export จากชื่อไฟล์/พาธเป็น `export_id` ต่อเวอร์ชัน และส่ง ID เดียวกันผ่าน Gallery, delete, mark-posted และ Extension; migrate ไฟล์เก่าครั้งเดียว
+- [x] ผูก ID ให้ตามไฟล์เมื่อ rename และล้าง registry เมื่อไฟล์ถูกลบไปก่อนแล้ว เพื่อไม่ให้ path เก่าชนกับ export ใหม่
+
+### Gate
+
+- [x] `python -m compileall -q scripts` — ผ่าน
+- [x] เทส backend/extension ที่เกี่ยวข้อง และ full pytest — Python `939 passed, 1 deselected, 6 warnings` (deselect เทส reroll ที่ค้าง background task); Node Extension `17 passed`
+- [x] `npm test` และ `npm run build` — `85 passed`; build ผ่าน
+- [ ] `git diff --check` — พบ blank line ที่ปลายไฟล์เดิมใน `tests/test_reconcile_preserves_posted.py` ซึ่งเป็น diff ของ agent อื่น จึงไม่แก้ทับ
+
+### Notes
+
+- ก่อนเริ่มมีงานค้างจาก session/agent อื่นใน `scripts/product_store.py`, `tests/test_reconcile_preserves_posted.py`, `tiktok_autopost_extension/sidepanel.js`, `_Docs/schedule_queue.json` และงาน subtitle ที่พักไว้; ห้ามเขียนทับส่วนที่ไม่เกี่ยวข้อง
+- แก้ `api_videos.delete_file` ให้ป้องกันเฉพาะ MP4 ที่ path ตรงกับตัวโพสต์จริง; การลบเวอร์ชันเก่าของ angle เดียวกันไม่ demote angle ที่ posted แล้ว
+- แก้ `api_exports.list_exports` ให้ `is_posted` เป็น per-file และทำ mark-posted แบบ retry ได้เมื่อมีไฟล์ชื่อเดียวกันใน `Posted/`; กรณีเนื้อหาขัดกันตอบ `409` แทน `500`
+- แก้เคสชื่อไฟล์ซ้ำใน Ready/Posted ตามภาพจริง: สำเนา Ready ไม่ติดธง posted และลบได้ ส่วนไฟล์ใน Posted เท่านั้นที่ล็อก; เพิ่ม regression tests เคสนี้โดยตรง
+- เพิ่ม `tiktok_autopost_extension/clip_state.js`: รวม scheduled + rendered unscheduled, ตัด posted ด้วย filename identity และแสดงป้ายสถานะตามจริง; หลังมาร์กสำเร็จ refresh แล้วกลับแท็บรายการคลิป
+- `git diff --check` ยังติด whitespace จาก `tests/test_reconcile_preserves_posted.py` ของ agent อื่น; functional gates ของรอบนี้ผ่านครบ
+- ตรวจจากภาพจริงพบเคสไฟล์ชื่อเดียวกันอยู่ทั้ง `Ready_to_post/` และ `Posted/`; ต้องให้สำเนาใน Ready เป็นเวอร์ชันเก่าที่ลบได้ ไม่ล็อกตามชื่อไฟล์ซ้ำ
+- เพิ่ม `_Docs/export_registry.json` เป็น registry ถาวรของ `export_id` ราย MP4; `product_id + angle_id` ใช้ระบุมุมเนื้อหา ส่วน `export_id` ใช้ระบุเวอร์ชันไฟล์จริง
+- Gallery, render manifest, schedule queue, delete, mark-posted และ Extension ส่งต่อ `export_id` เดียวกัน; ชื่อไฟล์/พาธใช้เฉพาะ migration ของ export เก่า และ ID ตามไฟล์เมื่อ rename
+
+## Round SUB-THAI-2 — แก้สระ `ั` กับวรรณยุกต์ `่` ซ้อนในฟอนต์จริง
+
+วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: พักไว้ ยังไม่สำเร็จ
+
+**Repro และสถานะ:**
+
+1. Repro ด้วยคลิปจริง `00_Inbox/มมแกะกลอง_WaveKeys.mov` และ ASS ของโปรเจกต์ `LOG01-ปัญหาก่อนใช้_1`; พบปัญหาที่ `ใครที่นั่งทำงาน` และ `นั่งพิมพ์งานทั้งวัน`
+2. ทดลองแก้ทั้ง Canvas Preview และ ASS/libass แล้ว แต่ user ตรวจเรนเดอร์จริงและยืนยันว่า `ั` กับ `่` ยังซ้อนเหมือนเดิม
+3. พักงานตามคำขอ user เพื่อไปทำเรื่องอื่นต่อ; ห้ามอ้างว่ารอบนี้แก้สำเร็จจนกว่าจะผ่านการตรวจเรนเดอร์จริงจาก user
+
+### Gate
+
+- [x] `python -m compileall -q scripts` — ผ่าน
+- [x] parity/behavior tests — ผ่าน
+- [ ] FFmpeg final render — ยังไม่ผ่าน user verification
+- [x] `python -m pytest tests/ -q -p no:cacheprovider --tb=short` — 930 ผ่าน
+- [x] `npm test` และ `npm run build` — ผ่าน
+- [ ] ตรวจภาพแคปจริง — user ยืนยันว่ายังพบการซ้อน
+
+### Notes
+
+- อย่าปิดรอบนี้หรือย้ายไป HISTORY จนกว่าจะมีเฟรมเรนเดอร์ที่ user ยืนยันว่าไม่ซ้อน
 
 **ปิดไปแล้ว** (บล็อกเต็มอยู่ใน [HISTORY.md](file:///d:/Winona/Programmer/Capcut/HISTORY.md)):
 Round 1 รวม overlay เป็นโมเดลเดียว · Round 2 วางกฎรอบงาน · Round 3 ซ่อมฐาน+easing · Round DOC-1 อัปเดตเอกสาร · Round BUG-1 ซ่อมปุ่มสร้างคลิป executeRender · Round 4 per-word layout static · Round 5 per-word animation (word_stagger_ms) · Round 6 ช่องใหม่ที่ mirror ได้เป๊ะ (loop/out/skew) · Round 7 template v2 + แกลเลอรีที่ขยับได้ (8 templates + motion presets + inspector animated gallery) · Round BUG-2 ซ่อมข้อความ/Hook Header ซ้อนทับกันใน SequencePlayer · Round BUG-3 ซ่อม angle ชนกัน + ปุ่มปักตะกร้า TikTok ใน Content Tracker Hub · Round PROD-1 เพิ่มช่อง TikTok Product ID + Fallback ค้นหาด้วยชื่อ + Click-to-Edit Cart ID ย้อนหลัง · Round TRK-1 เพิ่มปุ่มส่ง TikTok Studio + Modal ตรวจสอบ/ปักตะกร้า ในหน้า Tracker · Round TRK-2 ตารางจัดคิวโพสต์ประจำวัน (Daily Run Sheet) & จัดกลุ่มย่อการ์ด (Product Grouping / Quick Pills) · Round TRK-3 บอร์ดหลักคลีนไร้ความรก (Today-Only Posted, คลังสคริปต์หยิบทำวันนี้ & การ์ดตัดต่อเสร็จแนวนอนกะทัดรัด) · Round STK-1 Interactive Sticker Timeline Track & Free Canvas Drag/Resize Parity · Round STK-2 Multi-Sticker Support, 3-Second Default Duration & Smooth Canvas Resizing · Round STK-3 Baseline 100% Size, Eye Toggle, Deletion, Preview-Before-Add · Round SUB-THAI-1 แก้สระและวรรณยุกต์ไทยซ้อนกัน · Round STK-PRO-1 ชุดสติกเกอร์และป้ายรีวิวสายไอทีระดับโปร
@@ -1201,3 +1263,4 @@ Notes: Schedule code and steps 1-3 remain frozen.
 - [ ] Verify the reloaded extension receives the fallback `cover_path` and completes Cover Studio upload.
 
 Notes: Schedule selection logic itself remains frozen; only checklist styling and cover metadata resolution changed.
+- [x] Round POST-LIFECYCLE-1 closure verified: `export_id` is propagated through render, Gallery, queue, Extension, mark-posted, delete, rename, and cover metadata; current GOCHEK angle now points to Posted proof.

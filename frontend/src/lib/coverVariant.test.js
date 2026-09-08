@@ -80,3 +80,19 @@ test('does not replace an explicit angle cover with export fallback data', () =>
 
   assert.equal(merged[0].angles[0].cover_3x4_path, '05_Covers_Thumbnails/manual.jpg');
 });
+
+test('uses export_id before project or path metadata when versions share an angle', () => {
+  const merged = mergeCoverMetadata([
+    { angles: [{
+      angle_id: 'review',
+      export_id: 'exp-new',
+      project_name: 'same-project',
+      video_url: '04_Exports/Ready_to_post/same-name.mp4',
+    }] },
+  ], [
+    { export_id: 'exp-old', project_name: 'same-project', cover_3x4_path: 'old.jpg' },
+    { export_id: 'exp-new', project_name: 'same-project', cover_3x4_path: 'new.jpg' },
+  ]);
+
+  assert.equal(merged[0].angles[0].cover_3x4_path, 'new.jpg');
+});

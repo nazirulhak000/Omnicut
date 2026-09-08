@@ -24,6 +24,7 @@ from pydantic import BaseModel
 
 from scripts.config import BASE_DIR, EXPORTS_DIR
 from scripts.product_store import ProductStore
+from scripts.export_registry import ExportRegistry
 
 POSTED_DIR = BASE_DIR / "04_Exports" / "Posted"
 COVERS_DIR = BASE_DIR / "05_Covers_Thumbnails"
@@ -166,6 +167,7 @@ def _repair_pending_cover() -> None:
 
 class PrepareRequest(BaseModel):
     video_path: str
+    export_id: Optional[str] = None
     cover_path: Optional[str] = None
     caption: str = ""
     hashtags: str = ""
@@ -189,6 +191,37 @@ def prepare(req: PrepareRequest):
     needs a real filesystem path, not a URL) and stashes them for the
     extension to pick up next."""
     video_abs = _resolve_under(req.video_path, [EXPORTS_DIR, POSTED_DIR])
+    export_record = ExportRegistry.get(req.export_id) if req.export_id else ExportRegistry.find_by_path(video_abs)
+    if req.export_id and export_record is None:
+        raise HTTPException(status_code=409, detail="ไม่พบ export_id ที่ระบุ จึงหยุดการเตรียมโพสต์เพื่อป้องกันการเลือกคลิปผิดตัว")
+    if export_record is None:
+        try:
+            export_record = ExportRegistry.ensure(
+                video_abs,
+                product_id=req.product_id,
+                angle_id=req.angle_id,
+            )
+        except ValueError:
+            # Test/embedded callers may mount a temporary BASE_DIR in this
+            # router while the registry still points at the production root.
+            # Keep the legacy path-only handoff for that isolated case; the
+            # real application uses one shared BASE_DIR and always gets an ID.
+            export_record = {"id": None, "path": str(video_abs)}
+    registered = Path(str(export_record.get("path") or ""))
+    if not registered.is_absolute():
+        registered = (BASE_DIR / registered).resolve()
+    else:
+        registered = registered.resolve()
+    if registered != video_abs.resolve():
+        raise HTTPException(status_code=409, detail="export_id ไม่ตรงกับไฟล์ที่เลือก")
+    if export_record.get("status") == "posted":
+        raise HTTPException(status_code=409, detail="คลิปนี้ถูกโพสต์ไปแล้ว ไม่ต้องส่งเข้า Extension ซ้ำ")
+    latest_record = ExportRegistry.latest_for_angle(req.product_id, req.angle_id)
+    if latest_record and latest_record.get("id") != export_record.get("id"):
+        raise HTTPException(
+            status_code=409,
+            detail="ไฟล์นี้ไม่ใช่ export เวอร์ชันล่าสุดของมุมนี้ กรุณาเลือกคลิปล่าสุด",
+        )
     cover_abs = _resolve_under(req.cover_path, [COVERS_DIR]) if req.cover_path else None
     cover_abs = _prefer_3x4_cover(cover_abs)
     if cover_abs is None:
@@ -202,6 +235,7 @@ def prepare(req: PrepareRequest):
     global _pending
     _pending = {
         "video_path": str(video_abs),
+        "export_id": export_record.get("id"),
         "cover_path": str(cover_abs) if cover_abs else None,
         "caption": req.caption,
         "hashtags": req.hashtags,

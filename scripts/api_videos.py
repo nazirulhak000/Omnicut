@@ -22,6 +22,7 @@ from scripts.config import (
 from scripts.asset_registry import AssetRegistry
 from scripts.it_angles import DEFAULT_BGM
 from scripts.product_store import ProductStore
+from scripts.export_registry import ExportRegistry
 from scripts.media_service import (
     scan_video_files, get_file_info, stream_media_file
 )
@@ -177,6 +178,15 @@ def rename_video_file(payload: RenameVideoPayload):
         raise HTTPException(status_code=500, detail=f"เปลี่ยนชื่อไฟล์บนดิสก์ไม่สำเร็จ: {error}")
 
     new_file_info = get_file_info(target_path)
+
+    # A rename must not manufacture a second export identity for the same
+    # rendered file. Keep the original export_id attached to the new path.
+    try:
+        export_record = ExportRegistry.find_by_path(v_path)
+        if export_record:
+            ExportRegistry.update_path(export_record.get("id"), target_path)
+    except Exception as e:
+        print(f"Notice: Failed to update export registry on rename: {e}")
 
     try:
         products = ProductStore._load()
@@ -658,6 +668,24 @@ def delete_file(req: DeleteFileRequest):
 
     target = target.resolve()
 
+    export_record = ExportRegistry.get(req.export_id) if req.export_id else ExportRegistry.find_by_path(target)
+    if export_record is not None:
+        registered = Path(str(export_record.get("path") or ""))
+        if not registered.is_absolute():
+            registered = (BASE_DIR / registered).resolve()
+        else:
+            registered = registered.resolve()
+        if registered != target:
+            raise HTTPException(
+                status_code=409,
+                detail="export_id ไม่ตรงกับไฟล์ที่เลือก จึงหยุดการลบเพื่อป้องกันการลบผิดเวอร์ชัน",
+            )
+        if export_record.get("status") == "posted":
+            raise HTTPException(
+                status_code=400,
+                detail="คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้ลบเพื่อเก็บไว้เป็นหลักฐาน",
+            )
+
     allowed_roots = [
         (BASE_DIR / "00_Inbox").resolve(),
         (BASE_DIR / "01_Raw").resolve(),
@@ -682,23 +710,41 @@ def delete_file(req: DeleteFileRequest):
             for a in p.get("angles", []):
                 if a.get("status") == "posted" or a.get("posted_at"):
                     v_url = a.get("video_url")
-                    if v_url and Path(v_url).name.lower() == target.name.lower():
+                    if not v_url:
+                        continue
+                    stored = Path(v_url)
+                    if not stored.is_absolute():
+                        stored = (BASE_DIR / stored).resolve()
+                    else:
+                        stored = stored.resolve()
+
+                    # Protect only the exact posted export. A product/angle
+                    # can have several rendered versions; the identifier pair
+                    # alone is intentionally NOT enough to block an older MP4.
+                    exact_posted_file = stored == target
+                    ready_duplicate = (
+                        target.parent == (BASE_DIR / "04_Exports" / "Ready_to_post").resolve()
+                        and (posted_dir / target.name).is_file()
+                        and stored == target
+                    )
+                    if exact_posted_file and not ready_duplicate:
                         raise HTTPException(
                             status_code=400,
                             detail="คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้ลบเพื่อเก็บไว้เป็นหลักฐาน"
                         )
-                    if req.product_id and req.angle_id:
-                        if p.get("id") == req.product_id and (a.get("angle_id") or a.get("id")) == req.angle_id:
-                            raise HTTPException(
-                                status_code=400,
-                                detail="คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้ลบเพื่อเก็บไว้เป็นหลักฐาน"
-                            )
     except HTTPException:
         raise
     except Exception:
         pass
 
     if not target.exists():
+        # A missing file must not leave its old ID attached to a future file
+        # that happens to reuse the same path.
+        if export_record:
+            try:
+                ExportRegistry.remove(export_record.get("id"))
+            except Exception:
+                pass
         return {"success": True, "message": "ไฟล์ถูกลบไปแล้ว", "filename": target.name}
 
     stem = target.stem
@@ -719,15 +765,46 @@ def delete_file(req: DeleteFileRequest):
 
     gc.collect()
 
+    def _should_rollback_deleted_export():
+        if not export_record or not req.product_id or not req.angle_id:
+            return True
+        product = next((p for p in ProductStore._load() if p.get("id") == req.product_id), None)
+        angle = next(
+            (
+                a for a in (product or {}).get("angles", [])
+                if (a.get("angle_id") or a.get("id")) == req.angle_id
+            ),
+            None,
+        )
+        if not angle:
+            return True
+        if angle.get("export_id") and angle.get("export_id") != export_record.get("id"):
+            return False
+        current_path = angle.get("video_url")
+        if not current_path:
+            return True
+        current = Path(str(current_path))
+        if not current.is_absolute():
+            current = (BASE_DIR / current).resolve()
+        else:
+            current = current.resolve()
+        return current == target
+
     def _on_deleted_success():
         try:
-            ProductStore.rollback_by_video_or_project(
-                target.name,
-                product_id=req.product_id or "",
-                angle_id=req.angle_id or "",
-            )
+            if _should_rollback_deleted_export():
+                ProductStore.rollback_by_video_or_project(
+                    target.name,
+                    product_id=req.product_id or "",
+                    angle_id=req.angle_id or "",
+                )
         except Exception:
             pass
+        if export_record:
+            try:
+                ExportRegistry.remove(export_record.get("id"))
+            except Exception:
+                pass
         return {"success": True, "message": f"ลบไฟล์ {target.name} เรียบร้อยแล้ว", "filename": target.name}
 
     for attempt in range(3):

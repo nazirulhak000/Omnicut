@@ -29,6 +29,7 @@ from typing import Any, Dict, List, Optional
 from scripts.config import BASE_DIR, COVERS_DIR
 from scripts.db import DocumentTable
 from scripts import path_utils
+from scripts.export_registry import ExportRegistry
 
 STORE_PATH = BASE_DIR / "_Docs" / "products.json"
 
@@ -114,6 +115,40 @@ def _find_mp4_by_glob(folder_name: str, *scan_dirs: Path) -> Optional[str]:
         candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
         return _to_relative(str(candidates[0]))
     return None
+
+
+def _registry_record_for_path(raw_path: object) -> Optional[Dict[str, Any]]:
+    """Read an existing per-file identity without creating one in reconcile."""
+    try:
+        return ExportRegistry.find_by_path(_to_absolute(raw_path))
+    except Exception:
+        return None
+
+
+def _preferred_registered_export(
+    product_id: Optional[str],
+    angle_id: Optional[str],
+    candidate_path: Optional[str],
+) -> tuple[Optional[str], Optional[str]]:
+    """Return the path/ID pair that owns this angle's current export.
+
+    The registry is authoritative once an export has an ID. In particular,
+    a Posted record wins over a stale Ready copy left by the old move flow.
+    """
+    try:
+        record = ExportRegistry.latest_for_angle(product_id, angle_id)
+        if record:
+            path = _to_absolute(record.get("path"))
+            if path and path.exists():
+                return _to_relative(path), str(record.get("id"))
+    except Exception:
+        pass
+
+    if candidate_path:
+        record = _registry_record_for_path(candidate_path)
+        if record:
+            return candidate_path, str(record.get("id"))
+    return candidate_path, None
 
 
 # candidate      → the URL is saved, nothing else done yet
@@ -326,6 +361,7 @@ class ProductStore:
         qc_note: Optional[str] = None,
         clear_qc_note: bool = False,
         clear_conflict_note: bool = False,
+        export_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Updates the lifecycle status of a specific script angle in a product.
 
@@ -346,6 +382,15 @@ class ProductStore:
                     for angle in angles:
                         current_aid = angle.get("angle_id") or angle.get("id")
                         if current_aid == angle_id:
+                            if export_id:
+                                export_record = ExportRegistry.get(export_id)
+                                if export_record is None:
+                                    raise ValueError(f"ไม่พบ export_id '{export_id}'")
+                                if video_url is not None:
+                                    stored_path = _to_absolute(export_record.get("path"))
+                                    requested_path = _to_absolute(video_url)
+                                    if stored_path != requested_path:
+                                        raise ValueError("export_id ไม่ตรงกับ video_url ของไฟล์ที่เลือก")
                             # Strict guard: An angle that has been posted is permanently sealed as proof/archive.
                             # Never allow demoting status away from 'posted' under any circumstances.
                             if (angle.get("status") == "posted" or angle.get("posted_at")) and status != "posted":
@@ -364,6 +409,8 @@ class ProductStore:
                             angle["status_updated_at"] = cls._now()
                             if video_url is not None:
                                 angle["video_url"] = _to_relative(video_url) if video_url else None
+                            if export_id is not None:
+                                angle["export_id"] = export_id
                             if project_name is not None:
                                 angle["project_name"] = project_name if project_name else None
                             # QC note handling
@@ -517,6 +564,13 @@ class ProductStore:
         rolled_back = []
 
         def _roll(product, angle):
+            # Deleting an older export of the same angle must not demote the
+            # angle whose different export was already posted. The delete
+            # API decides whether the exact file is protected; this guard
+            # keeps the follow-up status rollback safe when that exact-file
+            # check correctly allows an older version through.
+            if angle.get("status") == "posted" or angle.get("posted_at"):
+                return
             cur_p_name = angle.get("project_name")
             has_proj = False
             if cur_p_name:
@@ -529,9 +583,11 @@ class ProductStore:
             if has_proj:
                 angle["status"] = "in_production"
                 angle["video_url"] = None
+                angle["export_id"] = None
             else:
                 angle["status"] = "scripted"
                 angle["video_url"] = None
+                angle["export_id"] = None
                 angle["project_name"] = None
 
             angle["updated_at"] = cls._now()
@@ -873,6 +929,7 @@ class ProductStore:
             # store keeps its own data relative regardless of what other
             # writers put in project.json.
             mp4_path = None
+            mp4_export_id = None
             art_mp4 = p_data.get("artifacts", {}).get("mp4_video", {}).get("path")
             if art_mp4 and _to_absolute(art_mp4).exists():
                 mp4_path = _to_relative(art_mp4)
@@ -923,6 +980,7 @@ class ProductStore:
             for _loser_product, loser_angle in losers:
                 loser_angle["project_name"] = None
                 loser_angle["video_url"] = None
+                loser_angle["export_id"] = None
                 loser_angle["status"] = "scripted"
                 loser_angle["data_conflict_note"] = (
                     f"ปลดออกจาก '{p_folder.name}' อัตโนมัติ — ชนกับ angle อื่นที่ผูกกับคลิปนี้ถูกต้องกว่า ({cls._now()})"
@@ -932,6 +990,15 @@ class ProductStore:
 
             if winner:
                 product, angle = winner
+
+                # Resolve the actual per-file identity after the logical
+                # product/angle match. This prevents a stale Ready copy from
+                # winning over the Posted proof when both paths exist.
+                mp4_path, mp4_export_id = _preferred_registered_export(
+                    product.get("id"),
+                    angle.get("angle_id") or angle.get("id"),
+                    mp4_path,
+                )
 
                 # Ensure project is linked
                 if angle.get("project_name") != p_folder.name:
@@ -962,9 +1029,20 @@ class ProductStore:
                             angle["video_url"] = mp4_path
                             changed = True
                     elif angle.get("status") == "in_production":
-                        # User is currently editing in Studio or sent for re-edit
-                        if angle.get("video_url") != mp4_path:
+                        # An MP4 was found on disk even though the angle is
+                        # still flagged in_production.  This happens when the
+                        # render pipeline completes successfully but the
+                        # api_render.py status-write either runs after an
+                        # earlier reconcile pass (rare but real) or the app
+                        # restarted mid-render and the task-manager reverted
+                        # the status before this pass ran.  Regardless of how
+                        # we got here: a file on disk IS the proof the render
+                        # finished -- promote to "rendered" exactly like the
+                        # normal promotion path does.
+                        if angle.get("status") != "rendered" or angle.get("video_url") != mp4_path:
+                            angle["status"] = "rendered"
                             angle["video_url"] = mp4_path
+                            angle["status_updated_at"] = cls._now()
                             changed = True
                     else:
                         if angle.get("status") != "rendered" or angle.get("video_url") != mp4_path:
@@ -979,6 +1057,10 @@ class ProductStore:
                             # back on a single disk-check miss.
                             angle["status_updated_at"] = cls._now()
                             changed = True
+
+                    if mp4_export_id and angle.get("export_id") != mp4_export_id:
+                        angle["export_id"] = mp4_export_id
+                        changed = True
                 elif angle.get("status") in ("mobile_ready", "posted") or angle.get("posted_at"):
                     if angle.get("posted_at") and angle.get("status") != "posted":
                         angle["status"] = "posted"
@@ -1016,8 +1098,14 @@ class ProductStore:
                     if angle.get("status") == "rendered":
                         retry_mp4 = _find_mp4_by_glob(p_folder.name, exports_dir, posted_dir)
                         if retry_mp4:
-                            if angle.get("video_url") != retry_mp4:
+                            retry_record = _registry_record_for_path(retry_mp4)
+                            retry_export_id = retry_record.get("id") if retry_record else None
+                            if angle.get("video_url") != retry_mp4 or (
+                                retry_export_id and angle.get("export_id") != retry_export_id
+                            ):
                                 angle["video_url"] = retry_mp4
+                                if retry_export_id:
+                                    angle["export_id"] = retry_export_id
                                 changed = True
                         elif _within_grace_period(angle.get("status_updated_at")):
                             pass  # freshly rendered -- do not revert yet
@@ -1106,17 +1194,20 @@ class ProductStore:
                     elif has_proj:
                         angle["status"] = "in_production"
                         angle["video_url"] = None
+                        angle["export_id"] = None
                         changed = True
                     else:
                         angle["status"] = "scripted"
                         angle["project_name"] = None
                         angle["video_url"] = None
+                        angle["export_id"] = None
                         changed = True
                 elif angle.get("status") == "in_production" and not has_proj:
                     # No project folder on disk! Revert strictly to scripted
                     angle["status"] = "scripted"
                     angle["project_name"] = None
                     angle["video_url"] = None
+                    angle["export_id"] = None
                     changed = True
 
         return changed

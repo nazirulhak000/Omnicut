@@ -151,3 +151,55 @@ def test_reconcile_finds_mp4_that_moved_to_posted_dir_via_widened_scan(isolated_
     angle = products[0]["angles"][0]
     assert angle["status"] == "rendered"
     assert "Posted" in angle["video_url"]
+
+
+def test_reconcile_promotes_in_production_to_rendered_when_mp4_exists(isolated_store):
+    """BUG-STATUS-1 regression: an angle stuck at in_production that already
+    has a completed MP4 file on disk must be promoted to 'rendered' by
+    reconcile_existing_projects(), not left permanently at in_production.
+
+    Root cause: the previous guard at product_store.py:964 only synced
+    video_url but never changed status when status == 'in_production'.
+    This caused clips to stay at 'กำลังตัดต่อ' after a successful render.
+    """
+    tmp_path = isolated_store
+    project_name = "demo_product_angle1_1"
+
+    ready_dir = tmp_path / "04_Exports" / "Ready_to_post"
+    ready_dir.mkdir(parents=True, exist_ok=True)
+    mp4_file = ready_dir / f"{project_name}_20260908_172143.mp4"
+    mp4_file.write_bytes(b"fake rendered mp4")
+
+    # Angle is stuck at in_production even though the MP4 is present
+    _seed(tmp_path, angle_status="in_production", video_url=str(mp4_file))
+
+    ps.ProductStore.reconcile_existing_projects()
+
+    products = json.loads((tmp_path / "_Docs" / "products.json").read_text(encoding="utf-8"))
+    angle = products[0]["angles"][0]
+    assert angle["status"] == "rendered", (
+        f"Expected 'rendered' but got {angle['status']!r}: "
+        "reconcile failed to promote an in_production angle that has an MP4 on disk"
+    )
+    assert angle["video_url"] is not None
+
+
+def test_reconcile_does_not_promote_in_production_when_no_mp4(isolated_store):
+    """Companion to BUG-STATUS-1: when status is in_production and there is
+    genuinely no MP4 on disk, reconcile must NOT silently promote to rendered.
+    The angle should stay in_production (it has a project folder, just no export).
+    """
+    tmp_path = isolated_store
+    project_name = "demo_product_angle1_1"
+
+    # No MP4 anywhere -- project dir exists but render hasn't finished
+    _seed(tmp_path, angle_status="in_production", video_url=None)
+
+    ps.ProductStore.reconcile_existing_projects()
+
+    products = json.loads((tmp_path / "_Docs" / "products.json").read_text(encoding="utf-8"))
+    angle = products[0]["angles"][0]
+    assert angle["status"] == "in_production", (
+        f"Expected 'in_production' (render not done) but got {angle['status']!r}"
+    )
+

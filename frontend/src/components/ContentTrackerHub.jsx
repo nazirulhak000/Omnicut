@@ -10,7 +10,7 @@ import {
   Archive, Image as ImageIcon
 } from 'lucide-react';
 import {
-  getProducts, getExports, updateAngleStatus, updateAngleCover, deleteProduct, updateProduct, prepareTiktokAutopost
+  getProducts, getExports, updateAngleStatus, updateAngleCover, deleteProduct, updateProduct, prepareTiktokAutopost, markPosted
 } from '../api';
 import CoverStudioModal from './CoverStudioModal';
 import ScheduleAgenda from './ScheduleAgenda';
@@ -1025,6 +1025,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
         tiktokModalItem.angle_id,
         tiktokProductId.trim() || undefined,
         tiktokScheduleTime.trim() || undefined,
+        tiktokModalItem.export_id || null,
       );
       showToast('ส่งข้อมูลให้ Extension แล้ว! กำลังเปิด TikTok Studio...');
       window.open('https://www.tiktok.com/tiktokstudio/upload', '_blank');
@@ -1097,6 +1098,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
       cover_3x4_path: ang.cover_3x4_path || '',
       parentProduct: ang.parentProduct,
       angle_id: ang.angle_id,
+      export_id: ang.export_id || null,
     };
     setCoverStudioItem(item);
   }, []);
@@ -1123,9 +1125,24 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     await fetchProductsData();
   }, [coverStudioItem, tiktokModalItem, showToast, fetchProductsData]);
 
-  const handleAngleStatusChange = useCallback(async (productId, angleId, nextStatus, videoUrl = null, qcNote = null, clearQcNote = false, clearConflictNote = false) => {
+  const handleAngleStatusChange = useCallback(async (productId, angleId, nextStatus, videoUrl = null, qcNote = null, clearQcNote = false, clearConflictNote = false, exportId = null) => {
     try {
-      await updateAngleStatus(productId, angleId, nextStatus, videoUrl, null, qcNote, clearQcNote, clearConflictNote);
+      if (nextStatus === 'posted') {
+        const sourceAngle = products
+          .find((product) => product.id === productId)
+          ?.angles?.find((angle) => angle.angle_id === angleId);
+        const exactVideo = videoUrl || sourceAngle?.video_url;
+        const exactExportId = exportId || sourceAngle?.export_id;
+        if (!exactVideo || !exactExportId) {
+          throw new Error('ไม่พบ export_id ของคลิปนี้ จึงหยุดการมาร์กโพสต์เพื่อป้องกันการเลือกคลิปผิดตัว');
+        }
+        await markPosted(exactVideo, productId, angleId, exactExportId);
+        productsRequestSequence.current += 1;
+        await fetchProductsData();
+        showToast('มาร์กว่าโพสต์แล้วสำเร็จ');
+        return;
+      }
+      await updateAngleStatus(productId, angleId, nextStatus, videoUrl, null, qcNote, clearQcNote, clearConflictNote, exportId);
       // Invalidate any in-flight fetchProductsData (even one started before this
       // patch) so its response can't resolve afterwards and overwrite this patch.
       productsRequestSequence.current += 1;
@@ -1140,6 +1157,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
               ...(qcNote !== null ? { qc_note: qcNote } : {}),
               ...(clearQcNote ? { qc_note: null } : {}),
               ...(clearConflictNote ? { data_conflict_note: null } : {}),
+              ...(exportId ? { export_id: exportId } : {}),
             };
           }) || [];
           return { ...p, angles: updatedAngles };
@@ -1155,13 +1173,14 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
           ...(qcNote !== null ? { qc_note: qcNote } : {}),
           ...(clearQcNote ? { qc_note: null } : {}),
           ...(clearConflictNote ? { data_conflict_note: null } : {}),
+          ...(exportId ? { export_id: exportId } : {}),
         } : null);
       }
       showToast('อัปเดตสถานะสำเร็จ');
     } catch (err) {
       showToast('ไม่สามารถอัปเดตสถานะได้: ' + err.message, 'error');
     }
-  }, [inspectAngle, showToast]);
+  }, [products, inspectAngle, fetchProductsData, showToast]);
 
   // Round BUG-3: dismisses the "auto-unlinked from another angle's clip"
   // banner reconcile_existing_projects() leaves on the loser of a collision.
@@ -1241,6 +1260,8 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
         ang.tiktok_caption || '', ang.tiktok_hashtags || '',
         ang.parentProduct.id, ang.angle_id,
         targetPid,
+        null,
+        ang.export_id || null,
       );
       showToast('เตรียมคลิปให้ extension แล้ว -- ไปคลิกไอคอน extension บนแท็บ TikTok Studio ที่เปิดไว้');
     } catch (err) {
@@ -1284,6 +1305,8 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
       ang.video_url || null,
       null,     // clear qc_note
       true,     // clearQcNote
+      false,
+      ang.export_id || null,
     );
     showToast('🎉 QC ผ่านเรียบร้อยแล้ว! ล้างข้อความไม่ผ่านออก และการ์ดเป็นสีฟ้าพร้อมใช้งาน');
     setPreviewVideoUrl(null);
@@ -1963,7 +1986,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
           // embedding the full text here too just risks a long AI-written
           // caption + hashtag list pushing the URL past a QR code's payload
           // ceiling ("RangeError: Data too long" from QRCodeSVG).
-          const quickPostUrl = `${mobileBaseUrl}/?quick_post=1&pid=${encodeURIComponent(qrModalItem.parentProduct?.id || '')}&aid=${encodeURIComponent(qrModalItem.angle_id || '')}&video=${encodeURIComponent(qrModalItem.video_url || '')}&product=${encodeURIComponent(qrModalItem.parentProduct?.name || '')}&hook=${encodeURIComponent(qrModalItem.hook_title || '')}`;
+          const quickPostUrl = `${mobileBaseUrl}/?quick_post=1&pid=${encodeURIComponent(qrModalItem.parentProduct?.id || '')}&aid=${encodeURIComponent(qrModalItem.angle_id || '')}&eid=${encodeURIComponent(qrModalItem.export_id || '')}&video=${encodeURIComponent(qrModalItem.video_url || '')}&product=${encodeURIComponent(qrModalItem.parentProduct?.name || '')}&hook=${encodeURIComponent(qrModalItem.hook_title || '')}`;
 
           return (
             <div className="text-center space-y-3.5">
@@ -2183,9 +2206,20 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                 onClick={() => {
                   const pid = tiktokModalItem.parentProduct?.id;
                   const aid = tiktokModalItem.angle_id;
-                  setTiktokModalItem(null);
                   if (pid && aid) {
-                    handleAngleStatusChange(pid, aid, 'posted', null, null, true);
+                    markPosted(
+                      tiktokModalItem.video_url,
+                      pid,
+                      aid,
+                      tiktokModalItem.export_id || null,
+                    ).then(async () => {
+                      setTiktokModalItem(null);
+                      showToast('มาร์กว่าโพสต์แล้วสำเร็จ');
+                      await fetchProductsData();
+                    }).catch((err) => {
+                      showToast('ไม่สามารถมาร์กว่าโพสต์แล้วได้: ' + (err.response?.data?.detail || err.message), 'error');
+                    });
+                    return;
                     showToast('มาร์กว่าโพสต์บน TikTok สำเร็จแล้ว');
                   }
                 }}

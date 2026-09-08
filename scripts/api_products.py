@@ -175,12 +175,18 @@ def update_product_angle_status(product_id: str, angle_id: str, payload: Dict[st
     """
     status = payload.get("status")
     video_url = payload.get("video_url")
+    export_id = payload.get("export_id")
     project_name = payload.get("project_name")
     qc_note = payload.get("qc_note")          # str | None
     clear_qc_note = bool(payload.get("clear_qc_note", False))
     clear_conflict_note = bool(payload.get("clear_conflict_note", False))
     if not status:
         raise HTTPException(status_code=400, detail="Missing status")
+    if status == "posted" and not export_id:
+        raise HTTPException(
+            status_code=409,
+            detail="การมาร์กโพสต์ต้องระบุ export_id และต้องผ่าน /api/exports/mark-posted เท่านั้น",
+        )
     try:
         updated = ProductStore.update_angle_status(
             product_id,
@@ -188,6 +194,7 @@ def update_product_angle_status(product_id: str, angle_id: str, payload: Dict[st
             status,
             video_url=video_url,
             project_name=project_name,
+            export_id=export_id,
             qc_note=qc_note,
             clear_qc_note=clear_qc_note,
             clear_conflict_note=clear_conflict_note,

@@ -4,7 +4,7 @@ import {
   Smartphone, CheckCircle2, ArrowRight, Video, AlertCircle,
   Tag, Film, Play, RotateCcw, Home
 } from 'lucide-react';
-import { updateAngleStatus, getProducts, markPosted } from '../api';
+import { getProducts, markPosted } from '../api';
 
 export default function MobileQuickPostPage({ onExit }) {
   const [params, setParams] = useState(() => {
@@ -12,6 +12,7 @@ export default function MobileQuickPostPage({ onExit }) {
     return {
       productId: p.get('pid') || '',
       angleId: p.get('aid') || '',
+      exportId: p.get('eid') || '',
       videoUrl: p.get('video') || '',
       productName: p.get('product') || '',
       hookTitle: p.get('hook') || '',
@@ -74,7 +75,9 @@ export default function MobileQuickPostPage({ onExit }) {
   const effectiveHook = angleData?.hook_title || params.hookTitle || 'คลิปรีวิวสินค้า';
   const effectiveCaption = angleData?.tiktok_caption || params.caption || '';
   const effectiveHashtags = angleData?.tiktok_hashtags || params.hashtags || '';
-  const effectiveVideo = angleData?.video_url || params.videoUrl || '';
+  // The QR code carries the exact export. Angle-level video_url is only a
+  // legacy fallback and must never override that stable identity.
+  const effectiveVideo = params.videoUrl || angleData?.video_url || '';
   const fullPostText = `${effectiveCaption}\n\n${effectiveHashtags}`.trim();
 
   // Step 1: Handle Video Download / Save
@@ -145,13 +148,13 @@ export default function MobileQuickPostPage({ onExit }) {
       try {
         if (effectiveVideo) {
           try {
-            await markPosted(effectiveVideo, params.productId, params.angleId);
+            await markPosted(effectiveVideo, params.productId, params.angleId, params.exportId || null);
           } catch {
             // Fallback to direct status update if file already in Posted or moved
-            await updateAngleStatus(params.productId, params.angleId, 'posted', effectiveVideo, null, null, true);
+            throw new Error('การโพสต์ต้องยืนยันด้วย export_id และไฟล์จริงเท่านั้น');
           }
         } else {
-          await updateAngleStatus(params.productId, params.angleId, 'posted', null, null, null, true);
+          throw new Error('ไม่พบไฟล์ export ที่ระบุสำหรับการโพสต์');
         }
         setIsPosted(true);
         showToast('🎉 บันทึกสถานะ "โพสต์แล้ว" ส่งกลับไปที่คอมพิวเตอร์เรียบร้อย!');
@@ -160,7 +163,7 @@ export default function MobileQuickPostPage({ onExit }) {
       }
     } else {
       if (effectiveVideo) {
-        try { await markPosted(effectiveVideo); } catch {}
+        await markPosted(effectiveVideo, null, null, params.exportId || null);
       }
       setIsPosted(true);
       showToast('🎉 มาร์กว่าโพสต์เรียบร้อยแล้ว!');

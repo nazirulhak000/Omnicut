@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from scripts.api_tiktok_autopost import PrepareRequest, prepare
 from scripts.config import BASE_DIR, EXPORTS_DIR
+from scripts.export_registry import ExportRegistry
 from scripts.schedule_store import ScheduleQueueStore, ScheduleTemplateStore, new_id, now_iso
 
 POSTED_DIR = EXPORTS_DIR.parent / "Posted"
@@ -37,6 +38,7 @@ router = APIRouter(prefix="/api/schedule-queue", tags=["schedule-queue"])
 class QueueItemPayload(BaseModel):
     video_path: str
     scheduled_at: str
+    export_id: Optional[str] = None
     product_id: Optional[str] = None
     angle_id: Optional[str] = None
     product_name: Optional[str] = None
@@ -52,6 +54,7 @@ class QueueItemPayload(BaseModel):
 class QueueCreateRequest(BaseModel):
     video_path: Optional[str] = None
     scheduled_at: Optional[str] = None
+    export_id: Optional[str] = None
     product_id: Optional[str] = None
     angle_id: Optional[str] = None
     product_name: Optional[str] = None
@@ -93,6 +96,7 @@ class TemplateCopyRequest(BaseModel):
 
 class AutoFillClipPayload(BaseModel):
     video_path: str
+    export_id: Optional[str] = None
     product_id: Optional[str] = None
     angle_id: Optional[str] = None
     product_name: Optional[str] = None
@@ -268,7 +272,20 @@ def sort_records(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 def _payload_to_record(payload: QueueItemPayload, existing_keys: set, existing_times: set) -> Dict[str, Any]:
     path = resolve_video(payload.video_path)
-    key = video_key(path)
+    export_record = ExportRegistry.get(payload.export_id) if payload.export_id else ExportRegistry.find_by_path(path)
+    if payload.export_id and export_record is None:
+        raise HTTPException(status_code=409, detail="ไม่พบ export_id ที่ระบุ จึงหยุดการจัดคิวเพื่อป้องกันการเลือกคลิปผิดตัว")
+    export_id = export_record.get("id") if export_record else payload.export_id
+    if export_record:
+        registered = resolve_video(export_record.get("path"))
+        if registered != path:
+            raise HTTPException(status_code=409, detail="export_id ไม่ตรงกับไฟล์ที่เลือก")
+        if export_record.get("status") == "posted":
+            raise HTTPException(status_code=409, detail="คลิปนี้ถูกโพสต์แล้ว ไม่สามารถจัดคิวซ้ำได้")
+        latest = ExportRegistry.latest_for_angle(payload.product_id, payload.angle_id)
+        if latest and latest.get("id") != export_record.get("id"):
+            raise HTTPException(status_code=409, detail="ไฟล์นี้ไม่ใช่ export เวอร์ชันล่าสุดของมุมนี้ กรุณาเลือกคลิปล่าสุด")
+    key = f"export:{export_id}" if export_id else video_key(path)
     if key in existing_keys:
         raise HTTPException(status_code=409, detail=f"คลิปนี้อยู่ในคิวแล้ว: {path.name}")
     when = parse_scheduled_at(payload.scheduled_at)
@@ -280,6 +297,7 @@ def _payload_to_record(payload: QueueItemPayload, existing_keys: set, existing_t
         "id": new_id(),
         "video_path": relative_path(path),
         "video_key": key,
+        "export_id": export_id,
         "scheduled_at": iso,
         "status": "planned",
         "product_id": payload.product_id,
@@ -310,6 +328,7 @@ def _request_items(req: QueueCreateRequest) -> List[QueueItemPayload]:
     return [QueueItemPayload(
         video_path=req.video_path,
         scheduled_at=req.scheduled_at,
+        export_id=req.export_id,
         product_id=req.product_id,
         angle_id=req.angle_id,
         product_name=req.product_name,
@@ -380,6 +399,22 @@ def _eligible_clip_key(path: str) -> str:
     return video_key(resolve_video(path))
 
 
+def _existing_queue_keys(records: List[Dict[str, Any]]) -> set[str]:
+    """Keep new ID keys compatible with pre-ID queue rows during migration."""
+    keys: set[str] = set()
+    for row in records:
+        if row.get("export_id"):
+            keys.add(f"export:{row['export_id']}")
+        if row.get("video_key"):
+            keys.add(str(row["video_key"]))
+        if row.get("video_path"):
+            try:
+                keys.add(video_key(resolve_video(row["video_path"])))
+            except HTTPException:
+                pass
+    return keys
+
+
 def _auto_fill_preview(req: AutoFillRequest) -> Dict[str, Any]:
     start = _date_value(req.start_date, field="start_date")
     end = _date_value(req.end_date, field="end_date")
@@ -389,18 +424,23 @@ def _auto_fill_preview(req: AutoFillRequest) -> Dict[str, Any]:
         raise HTTPException(status_code=422, detail="ช่วง auto-fill ยาวได้ไม่เกิน 366 วัน")
 
     records = ScheduleQueueStore._load()
-    queued_keys = {
-        str(row.get("video_key") or _eligible_clip_key(row["video_path"]))
-        for row in records
-        if row.get("video_path")
-    }
+    queued_keys = _existing_queue_keys(records)
     requested_products = {str(value) for value in req.product_ids if str(value).strip()}
     candidates: List[tuple[str, AutoFillClipPayload]] = []
     skipped_invalid: List[Dict[str, str]] = []
     seen: set[str] = set()
     for clip in req.clips:
         try:
-            key = _eligible_clip_key(clip.video_path)
+            key = f"export:{clip.export_id}" if clip.export_id else _eligible_clip_key(clip.video_path)
+            export_record = ExportRegistry.get(clip.export_id) if clip.export_id else ExportRegistry.find_by_path(resolve_video(clip.video_path))
+            if clip.export_id and export_record is None:
+                raise HTTPException(status_code=409, detail="ไม่พบ export_id ของคลิปที่ส่งมา")
+            if export_record:
+                if export_record.get("status") == "posted":
+                    raise HTTPException(status_code=409, detail="คลิปที่โพสต์แล้วไม่สามารถนำมาจัดคิวซ้ำได้")
+                latest = ExportRegistry.latest_for_angle(clip.product_id, clip.angle_id)
+                if latest and latest.get("id") != export_record.get("id"):
+                    raise HTTPException(status_code=409, detail="คลิปนี้ไม่ใช่ export เวอร์ชันล่าสุดของมุมนี้")
         except HTTPException as exc:
             skipped_invalid.append({"video_path": clip.video_path, "reason": str(exc.detail)})
             continue
@@ -532,7 +572,7 @@ def commit_auto_fill(req: AutoFillCommitRequest):
     # Reuse the queue's atomic identity/time validation so a preview can never
     # silently overwrite a manual row added while the modal was open.
     with ScheduleQueueStore._mutate() as records:
-        existing_keys = {str(item.get("video_key") or video_key(resolve_video(item["video_path"]))) for item in records}
+        existing_keys = _existing_queue_keys(records)
         existing_times = {str(item.get("scheduled_at")) for item in records if item.get("status") != "posted"}
         created = [_payload_to_record(item, existing_keys, existing_times) for item in req.items]
         records.extend(created)
@@ -554,6 +594,13 @@ def list_queue(status: Optional[str] = Query(default=None), date_from: Optional[
     enriched = []
     for row in sort_records(records):
         item = dict(row)
+        if not item.get("export_id") and item.get("video_path"):
+            try:
+                export_record = ExportRegistry.find_by_path(resolve_video(item["video_path"]))
+                if export_record:
+                    item["export_id"] = export_record.get("id")
+            except Exception:
+                pass
         scheduled = _queue_timestamp(item.get("scheduled_at", ""))
         item["is_overdue"] = bool(item.get("status") == "planned" and scheduled and scheduled < now)
         enriched.append(item)
@@ -564,7 +611,7 @@ def list_queue(status: Optional[str] = Query(default=None), date_from: Optional[
 def create_queue(req: QueueCreateRequest):
     items = _request_items(req)
     with ScheduleQueueStore._mutate() as records:
-        existing_keys = {str(item.get("video_key") or video_key(resolve_video(item["video_path"]))) for item in records}
+        existing_keys = _existing_queue_keys(records)
         existing_times = {str(item.get("scheduled_at")) for item in records if item.get("status") != "posted"}
         created = [_payload_to_record(item, existing_keys, existing_times) for item in items]
         records.extend(created)
@@ -629,6 +676,7 @@ def prepare_queue_item(item_id: str):
             hashtags=item.get("hashtags") or "",
             product_id=item.get("product_id"),
             angle_id=item.get("angle_id"),
+            export_id=item.get("export_id"),
             tiktok_product_id=item.get("tiktok_product_id"),
             product_name=item.get("product_name"),
             schedule_date=when.strftime("%Y-%m-%d"),
