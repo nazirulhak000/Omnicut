@@ -138,6 +138,19 @@ def test_caption_fade_animation_matches_and_is_thai_safe():
     assert "const CAPTION_POP_FROM" not in JS_SRC
 
 
+def test_thai_caption_face_is_explicit_and_mirrored():
+    """IBM body captions must use the same SemiBold cut in both engines."""
+    assert '"IBM Plex Sans Thai": ("IBM Plex Sans Thai SemiBold", 0)' in PY_SRC
+    assert 'caption_font, caption_bold = ass_caption_face(resolved_font)' in PY_SRC
+    assert 'Style: TikTokWhite,{caption_font}' in PY_SRC
+    assert "fontWeight = '600';" in JS_SRC
+    assert "function drawCaptionText(ctx, text, x, y, fontSize, drawText, repairThaiMarks = true)" in JS_SRC
+    assert "drawText('\\u0E48', toneX" in JS_SRC
+    assert "ctx.measureText(base).width;" in JS_SRC
+    assert "fontSize * 0.13" in JS_SRC
+    assert r"{{\\bord1\\shad1\\an5\\pos({mark_x},{mark_y})}}" in PY_SRC
+
+
 def test_transition_defaults_match():
     """
     Preview and render each keep their own literal for the default/max

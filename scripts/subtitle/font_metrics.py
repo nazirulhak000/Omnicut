@@ -5,14 +5,28 @@ and font family resolution against AssetRegistry and typography presets.
 """
 
 import json
+import re
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, List, Optional, Tuple
 
 from scripts.config import FONTS_DIR
 from scripts.asset_registry import AssetRegistry
 
 TYPOGRAPHY_PRESETS_PATH = FONTS_DIR.parent / "Templates" / "typography_presets.json"
 DEFAULT_FONT_FAMILY = "IBM Plex Sans Thai"
+
+# A family name is not enough to select a stable Thai face when several cuts
+# share the same typographic family.  In particular, asking libass for
+# `IBM Plex Sans Thai` + Bold=1 selects the Bold face, while the browser's
+# caption contract uses the loaded 600 cut.  The Bold cut and the SemiBold cut
+# have subtly different mark anchors; the former is the one that makes the
+# `ั` + `่` pair in `นั่ง` look fused after the ASS scale conversion.  Keep the
+# family for metrics, but pin the caption renderer to the same physical cut as
+# Canvas.  This is intentionally caption-only; overlay looks still resolve
+# their own requested weight.
+_ASS_CAPTION_FACE_OVERRIDES: Dict[str, Tuple[str, int]] = {
+    "IBM Plex Sans Thai": ("IBM Plex Sans Thai SemiBold", 0),
+}
 
 # Backward-compat aliases for UI ids
 _LEGACY_FONT_ALIASES = {
@@ -181,6 +195,101 @@ def has_true_bold_face(resolved_font: str) -> bool:
         result = True
     _HAS_TRUE_BOLD_CACHE[resolved_font] = result
     return result
+
+
+def ass_caption_face(resolved_font: str) -> Tuple[str, int]:
+    """Return the explicit ASS face and Bold flag used by body captions.
+
+    ASS font matching is family based, so a family containing multiple Thai
+    weights can silently choose a different cut from Canvas.  Returning the
+    face and the flag together makes the renderer contract explicit and keeps
+    callers from reintroducing synthetic bold on the affected family.
+    """
+    return _ASS_CAPTION_FACE_OVERRIDES.get(
+        resolved_font,
+        (resolved_font, 1 if has_true_bold_face(resolved_font) else 0),
+    )
+
+
+def repair_thai_mark_pair(
+    ass_text: str,
+    resolved_font: str,
+    font_size_px: int,
+    video_width: int,
+    line_anchor_ys: List[float],
+    line_center_x: Optional[float] = None,
+) -> Tuple[str, List[Tuple[int, int]]]:
+    """Remove the fused mai han-akat/tone pair and return tone placements.
+
+    The IBM Plex Thai face currently bundled with the app rasterises
+    ``ั่`` in one shared vertical band under libass, even when its real
+    SemiBold face and GPOS tables are selected.  ASS has no per-glyph y
+    offset, so the stable workaround is to leave ``ั`` in the normal run and
+    draw ``่`` as a zero-advance companion event at the same base x, raised by
+    a font-relative amount.  The returned coordinates are PlayRes pixels;
+    callers can reuse the same style and animation tags for the companion.
+
+    Only the raw adjacent pair is changed.  ASS override blocks and line
+    breaks remain untouched, and text without the pair is returned byte-for-
+    byte unchanged.
+    """
+    pair = "\u0e31\u0e48"
+    if pair not in ass_text:
+        return ass_text, []
+
+    def visible(value: str) -> str:
+        return re.sub(r"\{[^{}]*\}", "", value)
+
+    def width(value: str) -> float:
+        if not value:
+            return 0.0
+        measured = _measure_text_width_px(value, resolved_font, font_size_px)
+        if measured is not None:
+            # Pillow measures the font in its em square, while libass sizes
+            # the same face from the OS/2 win ascent+descent line box.  The
+            # scale difference is especially visible here: without it the
+            # companion tone is placed as if the Thai line were ~1.65x wider
+            # than the pixels libass actually draws.
+            return float(measured) * ass_glyph_scale(resolved_font)
+        return float(len(value) * font_size_px * 0.55) * ass_glyph_scale(resolved_font)
+
+    repaired_lines: List[str] = []
+    tone_positions: List[Tuple[int, int]] = []
+    for line_idx, segment in enumerate(ass_text.split(r"\N")):
+        raw_indices = [match.start() for match in re.finditer(pair, segment)]
+        if not raw_indices:
+            repaired_lines.append(segment)
+            continue
+
+        plain_line = visible(segment)
+        line_width = width(plain_line)
+        line_center = video_width / 2.0 if line_center_x is None else line_center_x
+        line_left = line_center - line_width / 2.0
+        for raw_idx in raw_indices:
+            plain_before = visible(segment[:raw_idx])
+            if not plain_before:
+                continue
+            base = plain_before[-1]
+            prefix = plain_before[:-1]
+            # Thai's mark-to-base anchor for this face is at the far side of
+            # the base advance, not at its visual midpoint.  Using half the
+            # advance leaves the detached tone just left of the consonant
+            # (and is particularly obvious after a long centred line).
+            base_x = line_left + width(prefix) + width(base)
+            anchor_y = line_anchor_ys[min(line_idx, len(line_anchor_ys) - 1)]
+            # The detached ASS tone glyph's ink sits ~0.33em above its
+            # `\an5` anchor.  Raising the anchor by 0.13em leaves a small
+            # optical gap above mai han-akat; 0.23em made it float too far
+            # above bilingual captions.
+            tone_raise = max(6, int(round(font_size_px * 0.13)))
+            tone_positions.append((int(round(base_x)), int(round(anchor_y - tone_raise))))
+
+        repaired = segment
+        for raw_idx in reversed(raw_indices):
+            repaired = repaired[: raw_idx + 1] + repaired[raw_idx + 2 :]
+        repaired_lines.append(repaired)
+
+    return r"\N".join(repaired_lines), tone_positions
 
 
 def _hook_line_width_px(line: str, resolved_font: str, line_fs: int) -> float:

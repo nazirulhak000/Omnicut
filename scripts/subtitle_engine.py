@@ -34,6 +34,8 @@ from scripts.subtitle import (
     prefix_advances,
     ass_glyph_scale,
     has_true_bold_face,
+    ass_caption_face,
+    repair_thai_mark_pair,
     _hook_line_width_px,
     DEFAULT_HOOK_MOTION,
     _resolve_hook_motion,
@@ -472,6 +474,11 @@ class SubtitleEngine:
         # docstring for the full empirical diagnosis (2026-09-08).
         font_map = _load_font_family_map()
         resolved_font = font_map.get(font_name, DEFAULT_FONT_FAMILY)
+        # Body captions use an explicit physical face so libass and Canvas
+        # shape the Thai run with the same IBM Plex cut.  Keep the family name
+        # above for metrics and use this face only in TikTok caption styles;
+        # custom overlays retain their own look/weight contract.
+        caption_font, caption_bold = ass_caption_face(resolved_font)
         resolved_bold = 1 if has_true_bold_face(resolved_font) else 0
         # libass sizes a face so its line box (ascender + descender) equals the
         # style's Fontsize, while the canvas preview -- and every font size in
@@ -548,6 +555,54 @@ class SubtitleEngine:
         base_fs_boosted = int(round(base_fs * TEXT_SCALE_BOOST))
         hook_fs_boosted = int(round(hook_fs * HOOK_SCALE_BOOST))
 
+        def caption_line_anchors(line_count: int, value_lines: Optional[List[str]] = None) -> List[float]:
+            """Return the ASS line centres for a caption block."""
+            count = max(1, int(line_count))
+            # The English line carries a 68% vertical scale override, and
+            # libass uses that scaled line box for the distance from the Thai
+            # line above it.  Walking those per-line steps keeps a detached
+            # tone mark on the same Thai baseline in bilingual captions.
+            value_scales = [
+                0.68 if r"\fscx68" in line else 1.0
+                for line in (value_lines or [])
+            ]
+            if len(value_scales) != count:
+                value_scales = [1.0] * count
+            line_heights = [font_size_boosted * scale for scale in value_scales]
+            offsets = [0.0]
+            for idx in range(1, count):
+                offsets.append(offsets[-1] + line_heights[idx])
+            total_span = offsets[-1] if offsets else 0.0
+
+            def centred_anchors(block_center: float) -> List[float]:
+                first = block_center - total_span / 2.0
+                return [first + offset for offset in offsets]
+
+            if pos_override:
+                return centred_anchors(float(px_y))
+            if alignment == 5:
+                return centred_anchors(video_height / 2.0)
+            if alignment == 2:
+                bottom_line_center = video_height - margin_v - font_size_boosted / 2
+                return [
+                    bottom_line_center - (total_span - offsets[idx])
+                    for idx in range(count)
+                ]
+            top_line_center = margin_v + font_size_boosted / 2
+            return [top_line_center + offset for offset in offsets]
+
+        def repair_caption_text(value: str) -> Tuple[str, List[Tuple[int, int]]]:
+            if resolved_font != "IBM Plex Sans Thai":
+                return value, []
+            return repair_thai_mark_pair(
+                value,
+                resolved_font,
+                font_size_boosted,
+                video_width,
+                caption_line_anchors(value.count(r"\N") + 1, value.split(r"\N")),
+                float(px_x) if pos_override else None,
+            )
+
         # Dynamic Soft Shadow & Outline metrics (Zero hardcoding: scales with any font, scale, and resolution)
         front_outline = round(max(1.8, font_size * 0.040), 1)
         shadow_outline = round(max(2.2, font_size * 0.050), 1)
@@ -569,11 +624,11 @@ PlayResY: {video_height}
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: TikTokSoftShadow,{resolved_font},{font_size_boosted},&H00000000,&H00000000,&H00000000,&H00000000,{resolved_bold},0,0,0,100,100,0,0,1,{shadow_outline},0,{alignment},{shadow_margin_l},{shadow_margin_r},{shadow_margin_v},1
-Style: TikTokWhite,{resolved_font},{font_size_boosted},{primary},&H000000FF,&H00000000,&H00000000,{resolved_bold},0,0,0,100,100,0,0,1,{front_outline},0,{alignment},60,60,{margin_v},1
-Style: TikTokYellow,{resolved_font},{font_size_boosted},&H0000E6FF,&H000000FF,&H00000000,&H00000000,{resolved_bold},0,0,0,100,100,0,0,1,{front_outline},0,2,60,60,420,1
-Style: TikTokCyan,{resolved_font},{font_size_boosted},&H00FFE600,&H000000FF,&H00000000,&H00000000,{resolved_bold},0,0,0,100,100,0,0,1,{front_outline},0,2,60,60,420,1
-Style: TikTokMinimalPill,{resolved_font},{int(round((font_size - 6) * TEXT_SCALE_BOOST))},{primary},&H000000FF,&H00000000,&HCC000000,{resolved_bold},0,0,0,100,100,0,0,3,6,0,{alignment},60,60,{margin_v},1
+Style: TikTokSoftShadow,{caption_font},{font_size_boosted},&H00000000,&H00000000,&H00000000,&H00000000,{caption_bold},0,0,0,100,100,0,0,1,{shadow_outline},0,{alignment},{shadow_margin_l},{shadow_margin_r},{shadow_margin_v},1
+Style: TikTokWhite,{caption_font},{font_size_boosted},{primary},&H000000FF,&H00000000,&H00000000,{caption_bold},0,0,0,100,100,0,0,1,{front_outline},0,{alignment},60,60,{margin_v},1
+Style: TikTokYellow,{caption_font},{font_size_boosted},&H0000E6FF,&H000000FF,&H00000000,&H00000000,{caption_bold},0,0,0,100,100,0,0,1,{front_outline},0,2,60,60,420,1
+Style: TikTokCyan,{caption_font},{font_size_boosted},&H00FFE600,&H000000FF,&H00000000,&H00000000,{caption_bold},0,0,0,100,100,0,0,1,{front_outline},0,2,60,60,420,1
+Style: TikTokMinimalPill,{caption_font},{int(round((font_size - 6) * TEXT_SCALE_BOOST))},{primary},&H000000FF,&H00000000,&HCC000000,{caption_bold},0,0,0,100,100,0,0,3,6,0,{alignment},60,60,{margin_v},1
 Style: HookHeader,{hook_font},{hook_fs_boosted},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,{hook_bold},0,0,0,100,100,0,0,1,6.0,0,8,60,60,260,1
 Style: HookHeaderShadow,{hook_font},{hook_fs_boosted},&H00000000,&H00000000,&H00000000,&H00000000,{hook_bold},0,0,0,100,100,0,0,1,7.0,0,8,62,58,257,1
 Style: HookHeaderPill,{hook_font},{hook_fs_boosted},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,{hook_bold},0,0,0,100,100,0,0,3,12,0,8,60,60,260,1
@@ -730,12 +785,33 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 # Keep the fade after the shadow's static alpha tag so the
                 # shadow follows the same entrance and is not visible alone
                 # on the first frame.
-                events.append(f"Dialogue: 0,{start_t},{end_t},TikTokSoftShadow,,0,0,0,,{shadow_pos}{shadow_tag}{caption_anim}{text}{en_sub_shadow}")
+                shadow_text, shadow_marks = repair_caption_text(text + en_sub_shadow)
+                shadow_entry = f"Dialogue: 0,{start_t},{end_t},TikTokSoftShadow,,0,0,0,,{shadow_pos}{shadow_tag}{caption_anim}{shadow_text}"
+                events.append(shadow_entry)
+                for mark_x, mark_y in shadow_marks:
+                    events.append(
+                        f"Dialogue: 0,{start_t},{end_t},TikTokSoftShadow,,0,0,0,,"
+                        f"{shadow_tag}{caption_anim}{{\\bord1\\shad1\\an5\\pos({mark_x},{mark_y})}}่"
+                    )
 
             # Layer 1: Crisp Foreground Text with dynamic kinetic highlights
             main_pos = f"{{{pos_override}}}" if pos_override else ""
-            line_entry = f"Dialogue: 1,{start_t},{end_t},{style},,0,0,0,,{main_pos}{caption_anim}{highlighted_text}{en_sub}"
+            main_text, main_marks = repair_caption_text(highlighted_text + en_sub)
+            line_entry = f"Dialogue: 1,{start_t},{end_t},{style},,0,0,0,,{main_pos}{caption_anim}{main_text}"
             events.append(line_entry)
+            for mark_x, mark_y in main_marks:
+                mark_colour = ""
+                # Keep the active kinetic colour on the detached tone mark.
+                # The final reset is deliberately not copied: this event ends
+                # at the tone glyph, so no following text can inherit it.
+                before_mark = highlighted_text.split(r"\N", 1)[0]
+                colour_tags = re.findall(r"\{\\c(&H[0-9A-Fa-f]+&)\}", before_mark)
+                if colour_tags:
+                    mark_colour = f"{{\\c{colour_tags[-1]}}}"
+                events.append(
+                    f"Dialogue: 1,{start_t},{end_t},{style},,0,0,0,,"
+                    f"{main_pos}{caption_anim}{{\\bord1\\shad1\\an5\\pos({mark_x},{mark_y})}}{mark_colour}่"
+                )
 
         # 3. Spec-Bar Overlays (IT vertical: the number goes on screen, not
         # just in the voiceover). These read from the original sentence-level

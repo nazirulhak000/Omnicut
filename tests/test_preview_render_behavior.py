@@ -192,14 +192,18 @@ def test_thai_stacked_marks_keep_settled_geometry_during_caption_entrance(tmp_pa
         cues=[{
             "start": 0.0,
             "end": 0.6,
-            "text": "นั่งพิมพ์งานทั้งวัน",
+            "text": "\u0e19\u0e31\u0e48\u0e07",
             "translation": "unused",
         }],
         output_ass_path=str(ass_path),
-        font_name="Kanit",
+        font_name="IBMPlex",
         bilingual=False,
         caption_position="middle",
     )
+    generated = ass_path.read_text(encoding="utf-8")
+    assert "Style: TikTokWhite,IBM Plex Sans Thai SemiBold" in generated
+    assert "TikTokWhite,,0,0,0,,{\\alpha&HFF&\\t(0,70,\\alpha&H00&)}{\\bord1\\shad1\\an5\\pos(" in generated
+    assert "TikTokWhite,,0,0,0,,{\\alpha&HFF&\\t(0,70,\\alpha&H00&)}นัง" in generated
 
     ass_filter_path = str(ass_path.resolve()).replace("\\", "/").replace(":", "\\:")
     frames_pattern = str(tmp_path / "frame-%02d.png")
@@ -228,6 +232,87 @@ def test_thai_stacked_marks_keep_settled_geometry_during_caption_entrance(tmp_pa
     settled_height = settled[3] - settled[1]
     assert abs(first_width - settled_width) <= 4
     assert abs(first_height - settled_height) <= 4
+
+
+@pytest.mark.render_regression
+def test_ibm_thai_marks_have_separate_vertical_bands(tmp_path):
+    """The two marks in ``นั่ง`` must not rasterise into one vertical band."""
+    if not shutil.which("ffmpeg"):
+        pytest.skip("FFmpeg is required for the Thai render regression")
+
+    from PIL import Image
+
+    # Colour each combining mark independently.  ASS colours are BGR, so the
+    # first mark is blue and the detached tone mark is green.  No
+    # outline/shadow is used: the measurement is of glyph fills, not
+    # decoration.
+    from scripts.subtitle.font_metrics import repair_thai_mark_pair
+
+    pair = "ใครที่นั่ง"
+    repaired, placements = repair_thai_mark_pair(
+        pair, "IBM Plex Sans Thai", 82, 1080, [960]
+    )
+    assert repaired == "ใครที่นัง"
+    assert len(placements) == 1
+    mark_x, mark_y = placements[0]
+    _, custom_placements = repair_thai_mark_pair(
+        pair, "IBM Plex Sans Thai", 82, 1080, [960], line_center_x=700
+    )
+    assert custom_placements[0][0] == mark_x + 160
+    coloured_body = (
+        "ใครที่น{\\1c&HFF0000&}\u0e31{\\1c&HFFFFFF&}ง"
+    )
+    coloured_tone = f"{{\\an5\\pos({mark_x},{mark_y})\\1c&H00FF00&}}\u0e48"
+    ass = tmp_path / "thai_mark_bands.ass"
+    ass.write_text(
+        "[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\n"
+        "[V4+ Styles]\n"
+        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, "
+        "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, "
+        "Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
+        "Style: Default,IBM Plex Sans Thai SemiBold,82,&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,5,0,0,0,1\n"
+        "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+        f"Dialogue: 0,0:00:00.00,0:00:01.00,Default,,0,0,0,,{{\\an5\\pos(540,960)}}{coloured_body}\n"
+        f"Dialogue: 1,0:00:00.00,0:00:01.00,Default,,0,0,0,,{coloured_tone}\n",
+        encoding="utf-8",
+    )
+
+    ass_filter_path = str(ass.resolve()).replace("\\", "/").replace(":", "\\:")
+    output = tmp_path / "thai_mark_bands.png"
+    _run([
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-threads", "1", "-f", "lavfi", "-i", "color=c=0xB49464:s=1080x1920:r=30:d=1",
+        "-vf", f"subtitles='{ass_filter_path}':fontsdir='02_Assets/Fonts'",
+        "-frames:v", "1", str(output),
+    ])
+
+    image = Image.open(output).convert("RGB")
+    pixels = image.load()
+
+    def colour_bbox(kind):
+        points = []
+        for y in range(image.height):
+            for x in range(image.width):
+                red, green, blue = pixels[x, y]
+                if kind == "blue" and blue > 150 and blue > red + 40 and blue > green + 40:
+                    points.append((x, y))
+                if kind == "green" and green > 150 and green > red + 40 and green > blue + 40:
+                    points.append((x, y))
+        assert points, f"{kind} mark fill was not found"
+        xs, ys = zip(*points)
+        return min(xs), min(ys), max(xs) + 1, max(ys) + 1
+
+    first_mark = colour_bbox("blue")
+    tone_mark = colour_bbox("green")
+    # Mai han-akat is below the mai ek tone mark.  A shared/overlapping band
+    # is the regression: the fill bands must have a visible gap.
+    assert first_mark[1] > tone_mark[1]
+    assert tone_mark[3] <= first_mark[1], (
+        f"Thai marks overlap vertically: first={first_mark}, tone={tone_mark}"
+    )
+    assert tone_mark[0] < first_mark[2] and first_mark[0] < tone_mark[2], (
+        f"Detached tone drifted away from its base glyph: first={first_mark}, tone={tone_mark}"
+    )
 
 
 @pytest.mark.render_regression
@@ -864,6 +949,3 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         bbox = im.getbbox()
         assert bbox is not None, f"{tpl} must burn visible text into frame at 0.5s"
         assert bbox[1] < 600, f"{tpl} banner should be located in top region, got y1={bbox[1]}"
-
-
-

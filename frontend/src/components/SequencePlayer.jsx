@@ -777,6 +777,42 @@ function drawTextWithMonoEmoji(ctx, text, x, y) {
   }
 }
 
+// IBM Plex Sans Thai's `ั่` pair is rasterised into one crowded vertical band
+// by the ASS/libass path.  Keep the same repair in Canvas so the preview does
+// not show a different glyph geometry from the exported clip.
+function drawCaptionText(ctx, text, x, y, fontSize, drawText, repairThaiMarks = true) {
+  const pair = '\u0E31\u0E48';
+  if (!repairThaiMarks || !text.includes(pair)) {
+    drawText(text, x, y);
+    return;
+  }
+
+  const body = text.replaceAll(pair, '\u0E31');
+  drawText(body, x, y);
+
+  let searchFrom = 0;
+  while (true) {
+    const pairAt = text.indexOf(pair, searchFrom);
+    if (pairAt < 1) break;
+    const baseAt = pairAt - 1;
+    const prefix = text.slice(0, baseAt).replaceAll(pair, '\u0E31');
+    const base = text[baseAt];
+    // The IBM Thai mark-to-base anchor is at the far side of the consonant's
+    // advance, so using its midpoint leaves the detached tone a few pixels
+    // left of the base glyph on centred lines.
+    const toneX = x + ctx.measureText(prefix).width + ctx.measureText(base).width;
+    // The body uses the full caption outline, but a detached 0E48 is only a
+    // one-pixel ASS border at render scale.  A full-width stroke would turn
+    // the narrow tone glyph into a square.
+    const oldLineWidth = ctx.lineWidth;
+    ctx.lineWidth = Math.max(1, Math.round(fontSize * 2 * 0.02));
+    // Keep the same 0.13em optical raise as the ASS/libass renderer.
+    drawText('\u0E48', toneX, y - Math.max(4, Math.round(fontSize * 0.13)));
+    ctx.lineWidth = oldLineWidth;
+    searchFrom = pairAt + pair.length;
+  }
+}
+
 function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
   if (!cue || !cue.text) return;
   const globalScale = Math.min(2.5, Math.max(0.5, style.captionScale ?? 1.0));
@@ -793,11 +829,15 @@ function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
   let fontWeight = '900';
   if (fontFamName === 'IBMPlex' || fontFamName === 'IBM Plex Sans Thai') {
     fontFam = "'IBM Plex Sans Thai', sans-serif";
-    fontWeight = '700';
+    // Keep body captions on the same physical cut as ASS/libass.  The IBM
+    // family also ships Bold; requesting it here made the browser and render
+    // choose different Thai mark anchors for `ั` + `่` in `นั่ง`.
+    fontWeight = '600';
   } else if (fontFamName === 'Prompt') {
     fontFam = "'Prompt', sans-serif";
     fontWeight = '800';
   }
+  const repairThaiMarks = fontFamName === 'IBMPlex' || fontFamName === 'IBM Plex Sans Thai';
 
   ctx.save();
   const fadeElapsedMs = (t - cue.start) * 1000;
@@ -929,7 +969,7 @@ function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
 
     let curX = xCenter - totalLineW / 2;
     segments.forEach((seg, sIdx) => {
-      ctx.strokeText(seg.text, curX, lineY);
+      drawCaptionText(ctx, seg.text, curX, lineY, fontSize, (value, px, py) => ctx.strokeText(value, px, py), repairThaiMarks);
       curX += segmentWidths[sIdx];
     });
 
@@ -938,7 +978,7 @@ function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
     curX = xCenter - totalLineW / 2;
     segments.forEach((seg, sIdx) => {
       ctx.fillStyle = seg.color;
-      drawTextWithMonoEmoji(ctx, seg.text, curX, lineY);
+      drawCaptionText(ctx, seg.text, curX, lineY, fontSize, (value, px, py) => drawTextWithMonoEmoji(ctx, value, px, py), repairThaiMarks);
       curX += segmentWidths[sIdx];
     });
   });

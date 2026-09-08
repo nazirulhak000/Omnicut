@@ -12,6 +12,8 @@ from scripts.subtitle.font_metrics import (
     prefix_advances,
     ass_glyph_scale,
     has_true_bold_face,
+    ass_caption_face,
+    repair_thai_mark_pair,
     _hook_line_width_px,
 )
 from scripts.subtitle.motion_effects import (
@@ -73,6 +75,8 @@ __all__ = [
     "_measure_text_width_px",
     "ass_glyph_scale",
     "has_true_bold_face",
+    "ass_caption_face",
+    "repair_thai_mark_pair",
     "_hook_line_width_px",
     "DEFAULT_HOOK_MOTION",
     "_resolve_hook_motion",
