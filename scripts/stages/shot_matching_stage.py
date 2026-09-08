@@ -22,6 +22,53 @@ from scripts.quota import is_quota_error
 class ShotMatchingStage:
     """Matches script cues to visual scenes, computes rhythmic cuts and content-aware zoom emphasis."""
 
+    @staticmethod
+    def _expand_ai_shots_to_cues(matched_shots: Optional[List[dict]], n_cues: int) -> Optional[List[dict]]:
+        """
+        Positionally-indexed one-entry-per-micro-cue array from Gemini's
+        response, which may cover several consecutive cues with one merged
+        shot (`cue_ids: [5, 6, 7]`) instead of the older one-shot-per-cue
+        shape (`cue_id: 5`, 0- or 1-indexed depending on vintage). Every cue
+        inside a merged shot is pointed at that same shot object, so the
+        caller's ai_matched_shots[anchor_idx] lookup keeps working unchanged
+        regardless of which shape the model (or a cached response) used.
+        """
+        if not matched_shots:
+            return matched_shots
+        expanded: List[Optional[dict]] = [None] * n_cues
+
+        def place(idx0: int, shot: dict) -> None:
+            if 0 <= idx0 < n_cues and expanded[idx0] is None:
+                expanded[idx0] = shot
+
+        for shot in matched_shots:
+            if not isinstance(shot, dict):
+                continue
+            cue_ids = shot.get("cue_ids")
+            if isinstance(cue_ids, list) and cue_ids:
+                for cid in cue_ids:
+                    try:
+                        place(int(cid) - 1, shot)
+                    except (TypeError, ValueError):
+                        continue
+                continue
+            cue_id = shot.get("cue_id")
+            if cue_id is not None:
+                try:
+                    idx0 = int(cue_id) - 1
+                except (TypeError, ValueError):
+                    continue
+                place(idx0, shot)
+
+        # Cues an older/partial response left unmapped fall back to no AI
+        # shot (None) rather than misaligning every cue after the gap --
+        # the caller already tolerates ai_shot being None per-cue.
+        if any(s is None for s in expanded) and not any(expanded):
+            # Nothing mapped at all (e.g. a legacy cache with neither key) --
+            # positional passthrough matches the pre-merge behavior exactly.
+            return list(matched_shots[:n_cues]) + [None] * max(0, n_cues - len(matched_shots))
+        return expanded
+
     @classmethod
     def run(cls, ctx: PipelineContext) -> None:
         raw_video = ctx.raw_video
@@ -62,16 +109,27 @@ class ShotMatchingStage:
             cached_shots = GeminiVisionMatcher.get_cached_matches(str(raw_video), micro_cues)
             if cached_shots:
                 print(f"   ⚡ [AI Vision] Reusing {len(cached_shots)} cached scene matches (Instant 0s)")
-                ai_matched_shots = cached_shots
+                ai_matched_shots = cls._expand_ai_shots_to_cues(cached_shots, len(micro_cues))
             else:
                 ctx.notify("👁️ [AI Vision] ให้ Gemini 2.5 Flash ดูคลิปและเลือกฉากที่ตรงกับสคริปต์ (ครั้งแรก)...", 0.76)
                 print("\n👁️ [AI Vision] Gemini 2.5 Flash is analyzing raw footage scenes (first time)...")
                 try:
-                    ai_matched_shots = GeminiVisionMatcher.match_script_to_video(
+                    raw_matched_shots = GeminiVisionMatcher.match_script_to_video(
                         raw_video_path=str(raw_video),
                         cues=micro_cues,
                         raw_duration=raw_duration
                     )
+                    # Gemini now merges consecutive micro-cues that belong to
+                    # the same sentence/idea into one shot (cue_ids: [5,6,7]
+                    # instead of a 1:1 cue_id), so the cut rhythm follows
+                    # sentence beats instead of forcing a new shot every
+                    # micro-cue. The grouping/anchor logic a few dozen lines
+                    # below still indexes ai_matched_shots positionally by
+                    # micro-cue (ai_matched_shots[anchor_idx]), so the merged
+                    # response is expanded back to one entry per micro-cue
+                    # here -- every cue inside a merged shot points at the
+                    # same AI shot -- rather than touching that indexing.
+                    ai_matched_shots = cls._expand_ai_shots_to_cues(raw_matched_shots, len(micro_cues))
                     ctx.notify("👁️ [AI Vision] จับคู่ฉากสมบูรณ์ กำลังส่งต่อให้ขั้นตอนตัดต่อ...", 0.82)
                 except Exception as e:
                     # A quota hit means the user's own daily AI budget cap

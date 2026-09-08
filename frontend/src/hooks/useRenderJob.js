@@ -120,10 +120,25 @@ export function useRenderJob({
           callbacksRef.current.onError?.(errorMsg, id, targetProject);
         }
       } catch (err) {
-        // Network errors or temporary timeouts: continue polling unless explicitly fatal
         if (!isMountedRef.current || activeProjectRef.current !== targetProject) {
           clearTimer();
+          return;
         }
+        // A 404 means the backend has no record of this job at all (it was
+        // never created, or the server restarted and lost in-memory job
+        // state) -- unlike a network blip or timeout, retrying can never
+        // succeed, so without this the poll loop runs forever and the UI
+        // stays stuck on "checking render status" indefinitely.
+        if (err?.response?.status === 404) {
+          clearTimer();
+          setIsRendering(false);
+          setStartTime(null);
+          clearActiveJob(targetProject);
+          const errorMsg = 'ไม่พบงานเรนเดอร์นี้แล้ว (อาจถูกล้างหรือเซิร์ฟเวอร์รีสตาร์ท) กรุณาเรนเดอร์ใหม่';
+          setApplyError(errorMsg);
+          callbacksRef.current.onError?.(errorMsg, id, targetProject);
+        }
+        // Other network errors or temporary timeouts: continue polling.
       }
     };
 
