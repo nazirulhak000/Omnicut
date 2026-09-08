@@ -33,6 +33,7 @@ from scripts.subtitle import (
     _measure_text_width_px,
     prefix_advances,
     ass_glyph_scale,
+    has_true_bold_face,
     _hook_line_width_px,
     DEFAULT_HOOK_MOTION,
     _resolve_hook_motion,
@@ -460,10 +461,18 @@ class SubtitleEngine:
         micro_cues = cls.generate_micro_cues(cues)
 
         # Real embedded family name for whichever font the UI selected --
-        # every style below sets Bold=1, so libass/fontconfig picks that
-        # family's bold weight itself. See _load_font_family_map().
+        # every style below sets Bold=<resolved_bold>, requesting that
+        # family's real bold weight from libass/fontconfig ONLY when one
+        # actually exists (has_true_bold_face). Noto Sans Thai's registered
+        # file is internally mislabeled Regular/weight-400 despite its
+        # "SemiBold" filename -- a Bold=1 request against it has no genuine
+        # bold face to land on, so libass/DirectWrite synthetically embolden
+        # the Regular outline instead, which breaks the GPOS mark-to-mark
+        # anchor delta ั+่ ("นั่ง") depends on. See has_true_bold_face()'s
+        # docstring for the full empirical diagnosis (2026-09-08).
         font_map = _load_font_family_map()
         resolved_font = font_map.get(font_name, DEFAULT_FONT_FAMILY)
+        resolved_bold = 1 if has_true_bold_face(resolved_font) else 0
         # libass sizes a face so its line box (ascender + descender) equals the
         # style's Fontsize, while the canvas preview -- and every font size in
         # this file -- means the em square. Thai faces run line boxes far
@@ -500,6 +509,7 @@ class SubtitleEngine:
         hook_font = font_map.get(_hook_look["font"], _hook_look["font"])
         if hook_font not in {f["family"] for f in AssetRegistry.fonts()}:
             hook_font = resolved_font
+        hook_bold = 1 if has_true_bold_face(hook_font) else 0
         HOOK_SCALE_BOOST = 1.0 / ass_glyph_scale(hook_font)
         is_pill_mode = font_name in ["capsule_pill", "Minimal Dark Capsule Pill"]
 
@@ -520,6 +530,23 @@ class SubtitleEngine:
         base_fs = int(round(video_width * 0.0463))
         font_size = max(20, int(round(base_fs * scale)))
         hook_fs = int(round(video_width * 0.065))
+
+        # Style Fontsize fields below carry each one's OWN em-vs-line-box
+        # boost baked in (rather than leaving Fontsize at the unboosted
+        # number and pushing the whole boost onto \fscx/\fscy, as this file
+        # used to). libass's GPOS mark-to-mark anchor delta that ั+่ ("นั่ง")
+        # depends on only stays correct when a glyph is rasterized fresh at
+        # its final size -- scaling it up afterward via \fscx/\fscy breaks
+        # that anchor, worse the more it scales, regardless of Bold. Every
+        # \fscx/\fscy percent written below this point must therefore be
+        # divided by the same style's boost (never left at the old boosted
+        # number), which numerically cancels against the Fontsize increase
+        # and reproduces the exact same rendered size -- verified pixel-
+        # identical against the old scheme, both for a plain caption line
+        # and for the hook banner (2026-09-08).
+        font_size_boosted = int(round(font_size * TEXT_SCALE_BOOST))
+        base_fs_boosted = int(round(base_fs * TEXT_SCALE_BOOST))
+        hook_fs_boosted = int(round(hook_fs * HOOK_SCALE_BOOST))
 
         # Dynamic Soft Shadow & Outline metrics (Zero hardcoding: scales with any font, scale, and resolution)
         front_outline = round(max(1.8, font_size * 0.040), 1)
@@ -542,17 +569,17 @@ PlayResY: {video_height}
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: TikTokSoftShadow,{resolved_font},{font_size},&H00000000,&H00000000,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,{shadow_outline},0,{alignment},{shadow_margin_l},{shadow_margin_r},{shadow_margin_v},1
-Style: TikTokWhite,{resolved_font},{font_size},{primary},&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,{front_outline},0,{alignment},60,60,{margin_v},1
-Style: TikTokYellow,{resolved_font},{font_size},&H0000E6FF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,{front_outline},0,2,60,60,420,1
-Style: TikTokCyan,{resolved_font},{font_size},&H00FFE600,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,{front_outline},0,2,60,60,420,1
-Style: TikTokMinimalPill,{resolved_font},{font_size - 6},{primary},&H000000FF,&H00000000,&HCC000000,1,0,0,0,100,100,0,0,3,6,0,{alignment},60,60,{margin_v},1
-Style: HookHeader,{hook_font},{hook_fs},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,6.0,0,8,60,60,260,1
-Style: HookHeaderShadow,{hook_font},{hook_fs},&H00000000,&H00000000,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,7.0,0,8,62,58,257,1
-Style: HookHeaderPill,{hook_font},{hook_fs},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,3,12,0,8,60,60,260,1
-Style: SpecBar,{resolved_font},{font_size - 12},&H00000000,&H000000FF,&H00000000,&H0000E6FF,1,0,0,0,100,100,0,0,3,10,0,9,50,50,380,1
-Style: TextOverlayMain,{resolved_font},{base_fs},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,5.0,2,5,60,60,0,1
-Style: TextOverlayPill,{resolved_font},{base_fs},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,5.0,2,5,60,60,0,1
+Style: TikTokSoftShadow,{resolved_font},{font_size_boosted},&H00000000,&H00000000,&H00000000,&H00000000,{resolved_bold},0,0,0,100,100,0,0,1,{shadow_outline},0,{alignment},{shadow_margin_l},{shadow_margin_r},{shadow_margin_v},1
+Style: TikTokWhite,{resolved_font},{font_size_boosted},{primary},&H000000FF,&H00000000,&H00000000,{resolved_bold},0,0,0,100,100,0,0,1,{front_outline},0,{alignment},60,60,{margin_v},1
+Style: TikTokYellow,{resolved_font},{font_size_boosted},&H0000E6FF,&H000000FF,&H00000000,&H00000000,{resolved_bold},0,0,0,100,100,0,0,1,{front_outline},0,2,60,60,420,1
+Style: TikTokCyan,{resolved_font},{font_size_boosted},&H00FFE600,&H000000FF,&H00000000,&H00000000,{resolved_bold},0,0,0,100,100,0,0,1,{front_outline},0,2,60,60,420,1
+Style: TikTokMinimalPill,{resolved_font},{int(round((font_size - 6) * TEXT_SCALE_BOOST))},{primary},&H000000FF,&H00000000,&HCC000000,{resolved_bold},0,0,0,100,100,0,0,3,6,0,{alignment},60,60,{margin_v},1
+Style: HookHeader,{hook_font},{hook_fs_boosted},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,{hook_bold},0,0,0,100,100,0,0,1,6.0,0,8,60,60,260,1
+Style: HookHeaderShadow,{hook_font},{hook_fs_boosted},&H00000000,&H00000000,&H00000000,&H00000000,{hook_bold},0,0,0,100,100,0,0,1,7.0,0,8,62,58,257,1
+Style: HookHeaderPill,{hook_font},{hook_fs_boosted},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,{hook_bold},0,0,0,100,100,0,0,3,12,0,8,60,60,260,1
+Style: SpecBar,{resolved_font},{int(round((font_size - 12) * TEXT_SCALE_BOOST))},&H00000000,&H000000FF,&H00000000,&H0000E6FF,{resolved_bold},0,0,0,100,100,0,0,3,10,0,9,50,50,380,1
+Style: TextOverlayMain,{resolved_font},{base_fs_boosted},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,{resolved_bold},0,0,0,100,100,0,0,1,5.0,2,5,60,60,0,1
+Style: TextOverlayPill,{resolved_font},{base_fs_boosted},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,{resolved_bold},0,0,0,100,100,0,0,1,5.0,2,5,60,60,0,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -644,10 +671,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             cue_scale = float(cue.get("scale", 1.0) or 1.0)
             settle_pct = max(50, min(200, int(round(100 * cue_scale))))
             snap_pct = int(round(settle_pct * 1.25))
-            # em intent -> what \fscx has to say for libass to draw it (see
-            # TEXT_SCALE_BOOST). The preview keeps using the unboosted numbers.
-            settle_pct = int(round(settle_pct * TEXT_SCALE_BOOST))
-            snap_pct = int(round(snap_pct * TEXT_SCALE_BOOST))
             anim = f"{{\\fscx{snap_pct}\\fscy{snap_pct}\\t(0,70,\\fscx{settle_pct}\\fscy{settle_pct})}}"
             
             # Check for English Translation
@@ -664,9 +687,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 else:
                     cue["translation"] = ""
 
-            # The English line sits at 68% of the Thai one; that 68 is an em
-            # intent like every other size here, so it takes the same boost.
-            en_pct = int(round(68 * TEXT_SCALE_BOOST))
+            # The English line sits at 68% of the Thai one; \fscx/\fscy stay
+            # at the plain percent now that Fontsize carries the boost (see
+            # anim's comment above).
+            en_pct = 68
             # Apply Synchronized Bilingual Kinetic Highlighting (guaranteeing exact color parity)
             if en_wrapped:
                 highlighted_text, en_highlighted = cls.apply_bilingual_kinetic_highlighting(
@@ -721,8 +745,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 continue
             spec_start = cls._format_ass_time(cue["start"])
             spec_end = cls._format_ass_time(cue["end"])
-            spec_from = int(round(110 * TEXT_SCALE_BOOST))
-            spec_to = int(round(100 * TEXT_SCALE_BOOST))
+            spec_from = 110
+            spec_to = 100
             spec_anim = f"{{\\fscx{spec_from}\\fscy{spec_from}\\t(0,100,\\fscx{spec_to}\\fscy{spec_to})}}"
             # Layer 2, above the hook banner (1) and captions (0), in case a
             # long spec bar's footprint ever crosses either at the same time.

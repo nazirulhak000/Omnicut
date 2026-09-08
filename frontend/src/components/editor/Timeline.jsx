@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { TransitionIcon } from '../../lib/transitionIcons';
 import {
   ChevronDown, ChevronRight,
-  Eye, EyeOff, Film, MessageSquare, Music, Plus, Scissors, Sparkles, Type, Volume2, VolumeX, Waves, X
+  Eye, EyeOff, Film, MessageSquare, Music, Plus, Scissors, Smile, Sparkles, Type, Volume2, VolumeX, Waves, X
 } from 'lucide-react';
 import TimelineClip from './TimelineClip';
 import TimelineRuler from './timeline/TimelineRuler';
@@ -13,6 +13,7 @@ import { useTimelineDrag } from '../../hooks/useTimelineDrag';
 import {
   overlayLabel,
   packTextOverlays,
+  packStickers,
   tickStep,
   indexFromX,
 } from '../../lib/timelineTrackModel';
@@ -33,6 +34,7 @@ export const HOOK_MAX_DURATION = 8.0;
 
 const VIDEO_H = 64;
 const HOOK_H = 28;
+const STICKER_H = 28;
 const CAPTION_H = 28;
 const TEXT_OVERLAY_H = 28;
 const STEM_H = 24;
@@ -62,6 +64,7 @@ const STEMS = [
 const TRACK_ROWS = [
   { key: 'video', group: 'picture', height: VIDEO_H },
   { key: 'hook', group: 'overlay', height: HOOK_H },
+  { key: 'sticker', group: 'overlay', height: STICKER_H, optional: true },
   { key: 'caption', group: 'overlay', height: CAPTION_H },
   { key: 'text', group: 'overlay', height: TEXT_OVERLAY_H, optional: true },
   ...STEMS.map((s) => ({ key: s.key, group: 'audio', height: STEM_H })),
@@ -94,9 +97,9 @@ function layoutRows({ heights = {}, present = {}, collapsed = {} } = {}) {
  * below the fold with vertical overflow hidden -- unreachable, with nothing on
  * screen to say it was there.
  */
-export function tracksFitHeight({ textOverlays = false, audioCollapsed = false } = {}) {
+export function tracksFitHeight({ textOverlays = false, audioCollapsed = false, sticker = false } = {}) {
   const rows = layoutRows({
-    present: { text: textOverlays },
+    present: { text: textOverlays, sticker },
     collapsed: { audio: audioCollapsed },
   });
   const tracks = rows.reduce((sum, r) => sum + r.height + r.marginTop, 0);
@@ -244,6 +247,13 @@ export default function Timeline({
   onToggleOverlayKindHidden,
   onEnsureHookOverlay,
   onAddTextOverlay,
+  stickerStyle,
+  stickers = [],
+  onUpdateSticker,
+  stickerAssets = [],
+  onSelectSticker,
+  isStickerHidden = false,
+  onToggleHideSticker,
 }) {
   // The banner and the text overlays are one array; the two lanes are a view
   // of it, so a trim on either takes the same clamp and the same handler.
@@ -323,6 +333,23 @@ export default function Timeline({
   const [transitionMenuClipId, setTransitionMenuClipId] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
   const hasTextOverlays = Boolean(textOverlays && textOverlays.length > 0);
+  const effectiveStickers = useMemo(() => {
+    if (Array.isArray(stickers) && stickers.length > 0) return stickers;
+    if (stickerStyle?.badge) {
+      return [{
+        id: 'sticker_badge',
+        badge: stickerStyle.badge,
+        start: stickerStyle.startTime ?? 0.5,
+        end: stickerStyle.endTime ?? (totalDuration || 15),
+        scale: stickerStyle.scale ?? 1,
+        normX: stickerStyle.normX,
+        normY: stickerStyle.normY,
+      }];
+    }
+    return [];
+  }, [stickers, stickerStyle, totalDuration]);
+
+  const hasSticker = effectiveStickers.length > 0;
 
   // Auto-stacking multi-layer calculation for overlapping text overlays
   const { packedTextOverlays, textLaneCount } = useMemo(
@@ -330,8 +357,15 @@ export default function Timeline({
     [textOverlays],
   );
 
+  const { packedStickers, stickerLaneCount } = useMemo(
+    () => packStickers(effectiveStickers),
+    [effectiveStickers],
+  );
+
   const TEXT_LANE_ROW_H = 26;
+  const STICKER_LANE_ROW_H = 26;
   const textTrackHeight = Math.max(TEXT_OVERLAY_H, textLaneCount * TEXT_LANE_ROW_H + 4);
+  const stickerTrackHeight = Math.max(STICKER_H, stickerLaneCount * STICKER_LANE_ROW_H + 4);
 
   // Geometry for every row, resolved once. Both the label gutter and the lanes
   // spread the same object, so a row cannot be spaced differently on the two
@@ -340,11 +374,11 @@ export default function Timeline({
 
   const rows = useMemo(
     () => layoutRows({
-      heights: { text: textTrackHeight },
-      present: { text: hasTextOverlays },
+      heights: { text: textTrackHeight, sticker: stickerTrackHeight },
+      present: { text: hasTextOverlays, sticker: hasSticker },
       collapsed: { audio: audioCollapsed },
     }),
-    [textTrackHeight, hasTextOverlays, audioCollapsed],
+    [textTrackHeight, stickerTrackHeight, hasTextOverlays, hasSticker, audioCollapsed],
   );
   const visibleStems = audioCollapsed ? STEMS.slice(0, 1) : STEMS;
   const rowStyleOf = useMemo(() => {
@@ -470,6 +504,12 @@ export default function Timeline({
     startHookTrim,
     moveHookTrim,
     endHookTrim,
+    startStickerTrim,
+    moveStickerTrim,
+    endStickerTrim,
+    startStickerBodyDrag,
+    moveStickerBodyDrag,
+    endStickerBodyDrag,
   } = useTimelineDrag({
     laneRef,
     pxPerSec,
@@ -478,6 +518,8 @@ export default function Timeline({
     segments,
     cues,
     hookOverlay,
+    stickerStyle,
+    onUpdateSticker,
     snapEnabled,
     snapPoints,
     snapFunction,
@@ -605,6 +647,31 @@ export default function Timeline({
                   ป้ายฮุก
                 </TrackLabel>
               </div>
+              {hasSticker && (
+                <div style={rowStyle('sticker')} className="flex items-center transition-all duration-150">
+                  <TrackLabel
+                    width={gutterW}
+                    slotWidth={dense ? 14 : 26}
+                    icon={Smile}
+                    action={
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onToggleHideSticker?.(); }}
+                        title={isStickerHidden ? 'คลิกเพื่อแสดงสติกเกอร์บนพรีวิว' : 'คลิกเพื่อซ่อนสติกเกอร์บนพรีวิว'}
+                        className={`p-1 rounded transition-colors ${
+                          isStickerHidden
+                            ? 'text-amber-400 hover:bg-amber-400/20'
+                            : 'text-[#9C968F] hover:text-[#EDE9E3] hover:bg-[#2C2B27]'
+                        }`}
+                      >
+                        {isStickerHidden ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                      </button>
+                    }
+                  >
+                    สติกเกอร์
+                  </TrackLabel>
+                </div>
+              )}
               <div style={rowStyle('caption')} className="flex items-center">
                 <TrackLabel
                   width={gutterW}
@@ -673,7 +740,6 @@ export default function Timeline({
                     <TrackLabel
                       width={gutterW}
                       slotWidth={dense ? 14 : 26}
-                  slotWidth={dense ? 14 : 26}
                       // The leading slot is where a tree control is looked for,
                       // so the group's fold takes it. Folded, this row stands
                       // for the whole group and unfolds from the same place.
@@ -980,6 +1046,107 @@ export default function Timeline({
                   );
                 })()}
               </div>
+
+              {/* sticker track */}
+              {hasSticker && (
+                <div
+                  className="relative rounded bg-[#181716] transition-all duration-150"
+                  style={rowStyle('sticker')}
+                >
+                  {packedStickers.map((item) => {
+                    const start = item.start ?? 0.5;
+                    const end = item.end ?? (totalDuration || 15);
+                    const dur = Math.max(0.2, end - start);
+                    const isSelected = selection?.type === 'sticker' && (selection.id === item.id || (!selection.id && item.id === 'sticker_badge'));
+                    const w = Math.max(24, dur * pxPerSec);
+                    const activeBadge = (stickerAssets || []).find((s) => s.name === item.badge)
+                      || (stickerAssets || []).find((s) => s.path === item.badge);
+                    const stickerName = activeBadge?.title || activeBadge?.name?.replace(/\.[^.]+$/, '') || item.badge || 'สติกเกอร์ 3D';
+                    const topPx = (item.lane || 0) * STICKER_LANE_ROW_H + 2;
+
+                    return (
+                      <div
+                        key={item.id}
+                        data-timeline-item="sticker"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const t = timeFromEvent(e);
+                          if (onSelectSticker) onSelectSticker(item.id);
+                          else onSelect?.({ type: 'sticker', id: item.id });
+                          if (typeof t === 'number' && t >= start && t <= end) {
+                            onSeek?.(t);
+                          } else if (playhead < start || playhead > end + 0.05) {
+                            onSeek?.(start);
+                          }
+                        }}
+                        title={`${stickerName} (${start.toFixed(1)}s - ${end.toFixed(1)}s)`}
+                        className={`group absolute touch-none select-none rounded text-left text-xs transition-colors duration-150 flex items-center ${
+                          isStickerHidden || item.hidden
+                            ? 'opacity-40 bg-[#282724] text-[#9C968F] ring-1 ring-white/10'
+                            : isSelected
+                              ? 'bg-[#14323B] text-[#25F4EE] ring-2 ring-[#25F4EE] shadow-[0_0_12px_rgba(37,244,238,0.3)] z-10'
+                              : 'bg-[#13272D] text-[#64D8D2] ring-1 ring-[#1E4D54] hover:ring-[#2FA0A8]'
+                        }`}
+                        style={{
+                          left: start * pxPerSec,
+                          width: w,
+                          top: topPx,
+                          height: STICKER_LANE_ROW_H - 4,
+                        }}
+                      >
+                        {/* Left Trim Handle */}
+                        <div
+                          onPointerDown={(e) => startStickerTrim(e, 'left', item)}
+                          onPointerMove={moveStickerTrim}
+                          onPointerUp={endStickerTrim}
+                          onPointerCancel={endStickerTrim}
+                          title="ลากเพื่อยืด/หดเวลาเริ่มต้นของสติกเกอร์"
+                          className="h-full w-2.5 flex-shrink-0 cursor-ew-resize rounded-l hover:bg-[#25F4EE] bg-white/[0.04] transition-colors flex items-center justify-center z-10 opacity-60 group-hover:opacity-100"
+                        >
+                          <div className="h-2.5 w-0.5 rounded-full bg-white/40" />
+                        </div>
+
+                        {/* Middle Body */}
+                        <div
+                          onPointerDown={(e) => startStickerBodyDrag(e, item)}
+                          onPointerMove={moveStickerBodyDrag}
+                          onPointerUp={endStickerBodyDrag}
+                          onPointerCancel={endStickerBodyDrag}
+                          className="flex-1 min-w-0 h-full flex items-center px-2 gap-1.5 overflow-hidden cursor-move"
+                        >
+                          {activeBadge?.url ? (
+                            <img
+                              src={activeBadge.url}
+                              alt=""
+                              className="h-4 w-4 object-contain flex-shrink-0"
+                            />
+                          ) : (
+                            <Smile className="h-3 w-3 flex-shrink-0 text-[#25F4EE]" />
+                          )}
+                          <span className="truncate font-semibold text-[11px] tracking-wide">
+                            {stickerName}
+                          </span>
+                          <span className="font-mono text-[10px] text-[#25F4EE]/70 flex-shrink-0 ml-auto">
+                            {dur.toFixed(1)}s
+                          </span>
+                        </div>
+
+                        {/* Right Trim Handle */}
+                        <div
+                          onPointerDown={(e) => startStickerTrim(e, 'right', item)}
+                          onPointerMove={moveStickerTrim}
+                          onPointerUp={endStickerTrim}
+                          onPointerCancel={endStickerTrim}
+                          title="ลากเพื่อยืด/หดเวลาสิ้นสุดของสติกเกอร์"
+                          className="h-full w-2.5 flex-shrink-0 cursor-ew-resize rounded-r hover:bg-[#25F4EE] bg-white/[0.04] transition-colors flex items-center justify-center z-10 opacity-60 group-hover:opacity-100"
+                        >
+                          <div className="h-2.5 w-0.5 rounded-full bg-white/40" />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* caption track */}
               <div className="relative rounded bg-[#181716]" style={rowStyle('caption')}>

@@ -92,7 +92,7 @@ def _hook_lightsweep_event(
     target = round(target_scale_pct)
     tag = (
         f"{{\\an8\\pos({x_center},{y})\\fscx{target}\\fscy{target}"
-        f"\\bord0\\shad0\\c&H00FFFFFF&\\alpha&H60&"
+        f"\\bord0\\shad0\\c&H00FFFFFF&\\alpha&H20&"
         f"\\clip({left:.0f},{top},{left + band_w:.0f},{bot})"
         f"{''.join(segs)}"
         f"\\t({exit_start_ms},{exit_end_ms},\\alpha&HFF&)}}"
@@ -121,7 +121,8 @@ def _hook_accent_events(
         pad_y = round(model_line_fs * 0.20)
         bw = (half_w + pad_x) * 2
         bh = model_line_fs + pad_y * 2
-        draw = f"m 0 0 l {bw:.0f} 0 l {bw:.0f} {bh:.0f} l 0 {bh:.0f}"
+        r = min(12.0, bh / 3.0)
+        draw = _ass_rounded_pill_path(bw, bh, r)
         tag = (
             f"{{\\an7\\pos({x_center - bw / 2:.0f},{model_y - pad_y})\\p1\\bord0\\shad0"
             f"\\c{model_colour}&\\alpha&HB0&\\fscx0"
@@ -129,8 +130,161 @@ def _hook_accent_events(
         )
         return [f"Dialogue: 0,{start_t},{end_t},HookHeader,,0,0,0,,{tag}{draw}"]
 
+    if accent_id == "bracket":
+        pad_x = round(model_line_fs * 0.25)
+        pad_y = round(model_line_fs * 0.08)
+        bracket_w = max(6, round(model_line_fs * 0.16))
+        thickness = max(3, round(model_line_fs * 0.08))
+        h = model_line_fs + pad_y * 2
+        top_y = model_y - pad_y
+        left_x = x_center - half_w - pad_x
+        right_x = x_center + half_w + pad_x - bracket_w
+        draw_l = f"m 0 0 l {bracket_w} 0 l {bracket_w} {thickness} l {thickness} {thickness} l {thickness} {h - thickness} l {bracket_w} {h - thickness} l {bracket_w} {h} l 0 {h}"
+        draw_r = f"m 0 0 l {bracket_w} 0 l {bracket_w} {h} l 0 {h} l 0 {h - thickness} l {bracket_w - thickness} {h - thickness} l {bracket_w - thickness} {thickness} l 0 {thickness}"
+        reveal = f"\\alpha&HFF&\\t({reveal_start},{reveal_end},\\alpha&H00&)"
+        tag_l = f"{{\\an7\\pos({left_x:.0f},{top_y})\\p1\\bord0\\shad0\\c{model_colour}&{reveal}{exit_tag}}}"
+        tag_r = f"{{\\an7\\pos({right_x:.0f},{top_y})\\p1\\bord0\\shad0\\c{model_colour}&{reveal}{exit_tag}}}"
+        return [
+            f"Dialogue: 0,{start_t},{end_t},HookHeader,,0,0,0,,{tag_l}{draw_l}",
+            f"Dialogue: 0,{start_t},{end_t},HookHeader,,0,0,0,,{tag_r}{draw_r}",
+        ]
+
+    if accent_id == "glow_box":
+        pad_x = round(model_line_fs * 0.30)
+        pad_y = round(model_line_fs * 0.12)
+        bw = (half_w + pad_x) * 2
+        bh = model_line_fs + pad_y * 2
+        thickness = max(3, round(model_line_fs * 0.07))
+        draw = f"m 0 0 l {bw:.0f} 0 l {bw:.0f} {bh:.0f} l 0 {bh:.0f} l 0 0 m {thickness} {thickness} l {thickness} {bh - thickness:.0f} l {bw - thickness:.0f} {bh - thickness:.0f} l {bw - thickness:.0f} {thickness} l {thickness} {thickness}"
+        reveal = f"\\alpha&HFF&\\t({reveal_start},{reveal_end},\\alpha&H00&)"
+        box_x = x_center - bw / 2
+        box_y = model_y - pad_y
+        glow_tag = f"{{\\an7\\pos({box_x:.0f},{box_y})\\p1\\bord0\\shad0\\blur6\\c{model_colour}&\\alpha&H60&{reveal}{exit_tag}}}"
+        box_tag = f"{{\\an7\\pos({box_x:.0f},{box_y})\\p1\\bord0\\shad0\\c{model_colour}&{reveal}{exit_tag}}}"
+        return [
+            f"Dialogue: 0,{start_t},{end_t},HookHeader,,0,0,0,,{glow_tag}{draw}",
+            f"Dialogue: 0,{start_t},{end_t},HookHeader,,0,0,0,,{box_tag}{draw}",
+        ]
+
+    if accent_id == "double_bar":
+        gap = round(model_line_fs * 0.12)
+        thickness = max(3, round(model_line_fs * 0.08))
+        bar_w = half_w * 2
+        left_x = x_center - half_w
+        top_bar_y = model_y - gap - thickness
+        bot_bar_y = model_y + model_line_fs + gap
+        draw = f"m 0 0 l {bar_w:.0f} 0 l {bar_w:.0f} {thickness} l 0 {thickness}"
+        reveal = f"\\fscx0\\t({reveal_start},{reveal_end},\\fscx100)"
+        tag_top = f"{{\\an7\\pos({left_x:.0f},{top_bar_y})\\p1\\bord0\\shad0\\c{model_colour}&{reveal}{exit_tag}}}"
+        tag_bot = f"{{\\an7\\pos({left_x:.0f},{bot_bar_y})\\p1\\bord0\\shad0\\c{model_colour}&{reveal}{exit_tag}}}"
+        return [
+            f"Dialogue: 0,{start_t},{end_t},HookHeader,,0,0,0,,{tag_top}{draw}",
+            f"Dialogue: 0,{start_t},{end_t},HookHeader,,0,0,0,,{tag_bot}{draw}",
+        ]
+
+    if accent_id == "sale_tag":
+        pad_x = round(model_line_fs * 0.36)
+        pad_y = round(model_line_fs * 0.12)
+        bw = (half_w + pad_x) * 2
+        bh = model_line_fs + pad_y * 2
+        notch = round(bh * 0.40)
+        draw = f"m 0 {bh / 2:.1f} l {notch:.1f} 0 l {bw:.1f} 0 l {bw:.1f} {bh:.1f} l {notch:.1f} {bh:.1f} l 0 {bh / 2:.1f}"
+        reveal = f"\\alpha&HFF&\\t({reveal_start},{reveal_end},\\alpha&H00&)"
+        tag_x = x_center - bw / 2
+        tag_y = model_y - pad_y
+        tag = f"{{\\an7\\pos({tag_x:.0f},{tag_y})\\p1\\bord0\\shad0\\c{model_colour}&\\alpha&HB8&{reveal}{exit_tag}}}"
+        return [f"Dialogue: 0,{start_t},{end_t},HookHeader,,0,0,0,,{tag}{draw}"]
+
+    if accent_id == "pill_badge":
+        pad_x = round(model_line_fs * 0.35)
+        pad_y = round(model_line_fs * 0.14)
+        bw = (half_w + pad_x) * 2
+        bh = model_line_fs + pad_y * 2
+        r = bh / 2.0
+        thickness = max(3, round(model_line_fs * 0.07))
+        draw_outer = _ass_rounded_pill_path(bw, bh, r)
+        reveal = f"\\alpha&HFF&\\t({reveal_start},{reveal_end},\\alpha&H00&)"
+        box_x = x_center - bw / 2
+        box_y = model_y - pad_y
+        tag = f"{{\\an7\\pos({box_x:.0f},{box_y})\\p1\\bord{thickness}\\shad0\\3c{model_colour}&\\1a&HFF&{reveal}{exit_tag}}}"
+        return [f"Dialogue: 0,{start_t},{end_t},HookHeader,,0,0,0,,{tag}{draw_outer}"]
+
+    if accent_id == "marker":
+        pad_x = round(model_line_fs * 0.22)
+        bw = (half_w + pad_x) * 2
+        bh = round(model_line_fs * 0.46)
+        marker_y = model_y + round(model_line_fs * 0.42)
+        r = min(6.0, bh / 3.0)
+        draw = _ass_rounded_pill_path(bw, bh, r)
+        reveal = f"\\fscx0\\t({reveal_start},{reveal_end},\\fscx100)"
+        tag = f"{{\\an7\\pos({x_center - bw / 2:.0f},{marker_y})\\p1\\bord0\\shad0\\c{model_colour}&\\alpha&HA0&{reveal}{exit_tag}}}"
+        return [f"Dialogue: 0,{start_t},{end_t},HookHeader,,0,0,0,,{tag}{draw}"]
+
+    if accent_id == "bold_quotes":
+        pad_x = round(model_line_fs * 0.28)
+        quote_fs = round(model_line_fs * 1.15)
+        left_x = x_center - half_w - pad_x
+        right_x = x_center + half_w + round(pad_x * 0.3)
+        reveal = f"\\alpha&HFF&\\t({reveal_start},{reveal_end},\\alpha&H00&)"
+        tag_l = f"{{\\an7\\pos({left_x:.0f},{model_y - round(model_line_fs * 0.15)})\\fs{quote_fs}\\bord0\\shad0\\c{model_colour}&{reveal}{exit_tag}}}"
+        tag_r = f"{{\\an7\\pos({right_x:.0f},{model_y - round(model_line_fs * 0.15)})\\fs{quote_fs}\\bord0\\shad0\\c{model_colour}&{reveal}{exit_tag}}}"
+        return [
+            f"Dialogue: 0,{start_t},{end_t},HookHeader,,0,0,0,,{tag_l}“",
+            f"Dialogue: 0,{start_t},{end_t},HookHeader,,0,0,0,,{tag_r}”",
+        ]
+
+    if accent_id == "dashed_box":
+        pad_x = round(model_line_fs * 0.28)
+        pad_y = round(model_line_fs * 0.10)
+        bw = (half_w + pad_x) * 2
+        bh = model_line_fs + pad_y * 2
+        clen = max(8, round(model_line_fs * 0.22))
+        thickness = max(3, round(model_line_fs * 0.07))
+        box_x = x_center - bw / 2
+        box_y = model_y - pad_y
+        draw_tl = f"m 0 0 l {clen} 0 l {clen} {thickness} l {thickness} {thickness} l {thickness} {clen} l 0 {clen}"
+        draw_tr = f"m {bw - clen} 0 l {bw} 0 l {bw} {clen} l {bw - thickness} {clen} l {bw - thickness} {thickness} l {bw - clen} {thickness}"
+        draw_bl = f"m 0 {bh - clen} l {thickness} {bh - clen} l {thickness} {bh - thickness} l {clen} {bh - thickness} l {clen} {bh} l 0 {bh}"
+        draw_br = f"m {bw - clen} {bh} l {bw - clen} {bh - thickness} l {bw - thickness} {bh - thickness} l {bw - thickness} {bh - clen} l {bw} {bh - clen} l {bw} {bh}"
+        draw = f"{draw_tl} {draw_tr} {draw_bl} {draw_br}"
+        reveal = f"\\alpha&HFF&\\t({reveal_start},{reveal_end},\\alpha&H00&)"
+        tag = f"{{\\an7\\pos({box_x:.0f},{box_y})\\p1\\bord0\\shad0\\c{model_colour}&{reveal}{exit_tag}}}"
+        return [f"Dialogue: 0,{start_t},{end_t},HookHeader,,0,0,0,,{tag}{draw}"]
+
+    if accent_id == "speed_slash":
+        pad_x = round(model_line_fs * 0.26)
+        pad_y = round(model_line_fs * 0.08)
+        h = model_line_fs + pad_y * 2
+        sw = max(4, round(model_line_fs * 0.08))
+        gap_s = max(3, round(model_line_fs * 0.06))
+        skew_dx = round(h * 0.28)
+        draw_slash = f"m {skew_dx} 0 l {skew_dx + sw} 0 l {sw} {h} l 0 {h}"
+        draw_pair = f"{draw_slash} m {skew_dx + sw + gap_s} 0 l {skew_dx + sw * 2 + gap_s} 0 l {sw * 2 + gap_s} {h} l {sw + gap_s} {h}"
+        pair_w = skew_dx + sw * 2 + gap_s
+        left_x = x_center - half_w - pad_x - pair_w
+        right_x = x_center + half_w + pad_x
+        reveal = f"\\alpha&HFF&\\t({reveal_start},{reveal_end},\\alpha&H00&)"
+        top_y = model_y - pad_y
+        tag_l = f"{{\\an7\\pos({left_x:.0f},{top_y})\\p1\\bord0\\shad0\\c{model_colour}&{reveal}{exit_tag}}}"
+        tag_r = f"{{\\an7\\pos({right_x:.0f},{top_y})\\p1\\bord0\\shad0\\c{model_colour}&{reveal}{exit_tag}}}"
+        return [
+            f"Dialogue: 0,{start_t},{end_t},HookHeader,,0,0,0,,{tag_l}{draw_pair}",
+            f"Dialogue: 0,{start_t},{end_t},HookHeader,,0,0,0,,{tag_r}{draw_pair}",
+        ]
+
+    if accent_id == "gradient_line":
+        gap = round(model_line_fs * 0.12)
+        underline_y = model_y + model_line_fs + gap
+        thickness = max(2, round(model_line_fs * 0.06))
+        bar_w = half_w * 2
+        left_x = x_center - half_w
+        draw = f"m 0 0 l {bar_w:.0f} 0 l {bar_w:.0f} {thickness} l 0 {thickness}"
+        reveal = f"\\fscx0\\t({reveal_start},{reveal_end},\\fscx100)"
+        bar_tag = f"{{\\an7\\pos({left_x:.0f},{underline_y})\\p1\\bord0\\shad0\\c{model_colour}&\\alpha&H40&{reveal}{exit_tag}}}"
+        return [f"Dialogue: 0,{start_t},{end_t},HookHeader,,0,0,0,,{bar_tag}{draw}"]
+
     # Accent bar (default with glow blur behind)
-    gap = round(model_line_fs * 0.50)
+    gap = round(model_line_fs * 0.12)
     underline_y = model_y + model_line_fs + gap
     thickness = max(4, round(model_line_fs * 0.10))
     bar_w = half_w * 2

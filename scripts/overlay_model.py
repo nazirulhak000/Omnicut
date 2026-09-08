@@ -79,6 +79,8 @@ TEXT_LOOK_FIELDS: Tuple[str, ...] = (
     "font", "size_pct", "color",
     "outline_color", "outline_px",
     "shadow", "pill", "upper", "skew",
+    "bold", "italic", "underline",
+    "accent_color",
 )
 
 # A dark copy of the glyphs, offset down-right. The render draws it as its own
@@ -116,6 +118,10 @@ DEFAULT_TEXT_LOOK: Dict[str, Any] = {
     "pill": None,
     "upper": False,
     "skew": 0.0,
+    "bold": False,
+    "italic": False,
+    "underline": False,
+    "accent_color": None,
 }
 
 # ------------------------------------------------------- legacy vocabulary
@@ -262,12 +268,13 @@ def _pill_from_legacy(bg_style: Optional[str], badge_color: Optional[str]) -> Op
 
 def _hook_tier_look(resolved_font: str, tier: Dict[str, Any]) -> Dict[str, Any]:
     """One resolved hook tier, in TextLook spelling."""
+    tier_font = tier.get("font") or resolved_font
     pill = None
     if tier.get("pill"):
         pill = {"fill": tier["pill"], "border": None,
                 "pad_x_em": HOOK_PILL_PAD_X_EM, "pad_y_em": HOOK_PILL_PAD_Y_EM}
     return {
-        "font": resolved_font,
+        "font": tier_font,
         "size_pct": tier["size_pct"],
         "color": ACCENT_COLOR if tier.get("color") is None else tier["color"],
         "outline_color": tier["outline_color"],
@@ -275,6 +282,9 @@ def _hook_tier_look(resolved_font: str, tier: Dict[str, Any]) -> Dict[str, Any]:
         "shadow": dict(HOOK_SHADOW),
         "pill": pill,
         "upper": bool(tier.get("upper")),
+        "bold": bool(tier.get("bold")),
+        "italic": bool(tier.get("italic")),
+        "underline": bool(tier.get("underline")),
     }
 
 

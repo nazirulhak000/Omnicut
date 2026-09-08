@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useRef } from 'react';
 import {
   Check, Film, Music, Palette, Plus, Search, Sticker, Type, Volume2, Play, Square,
-  FileText, Sparkles, Loader2, Download, Copy, RefreshCw, Layers, Eye, X, Upload, Clock, Trash2
+  FileText, Sparkles, Loader2, Download, Copy, RefreshCw, Layers, Eye, X, Upload, Clock, Trash2, Ban, RotateCcw
 } from 'lucide-react';
 import { transcribeMedia, uploadFile } from '../../api';
 
@@ -487,6 +487,19 @@ function Row({ active, onClick, children, title, draggable, onDragStart, onDragE
   );
 }
 
+export const STICKER_TITLES = {
+  plate_banner_yellow_3d: 'แผ่นป้าย 3D สีเหลืองนีออน',
+  plate_banner_cyan_3d: 'แผ่นป้าย 3D สีฟ้านีออน',
+  plate_banner_coral_3d: 'แผ่นป้าย 3D สีส้มคอรัล',
+  frame_tech_callout_3d: 'กรอบข้อความ 3D Tech HUD',
+  frame_tech_callout_hollow_3d: 'กรอบโปร่ง 3D Tech HUD',
+  arrow_pointer_yellow_3d: 'ลูกศรชี้ 3D สีเหลือง',
+  arrow_pointer_cyan_3d: 'ลูกศรชี้ 3D สีฟ้า',
+  accent_sparkle_star_3d: 'ดาวประกาย 3D Pop Star',
+  badge_exclamation_alert_3d: 'ป้ายเตือน 3D ห้ามพลาด Alert',
+  icon_fire_hot_deal_3d: 'ไอคอนไฟ 3D ดีลร้อนแรง',
+};
+
 export default function AssetPanel({
   videos = [],
   clipList = [],
@@ -510,11 +523,23 @@ export default function AssetPanel({
   onImportCues,       // (cues: Array<{ start, end, text, translation, sfx }>) => void
   onVideoUploaded,
   projectName = '',
+  stickers = [],
+  selectedStickerId = null,
+  previewSticker = null,
+  onPreviewSticker = null,
+  onAddSticker = null,
+  onUpdateSticker = null,
+  onDeleteSticker = null,
+  onClearStickers = null,
+  onSelectSticker = null,
+  playhead = 0,
+  totalDuration = 0,
 }) {
   const [tab, setTab] = useState('clips');
   const [query, setQuery] = useState('');
   const [textCategory, setTextCategory] = useState('all');
   const [textSearch, setTextSearch] = useState('');
+  const [textSubTab, setTextSubTab] = useState('hook');
 
   // Live Preview SFX when clicking a text template
   const playSfxPreview = (sfxKey) => {
@@ -667,7 +692,14 @@ export default function AssetPanel({
       videos: (videos || []).filter((v) => !q || v.name.toLowerCase().includes(q)),
       sfx: (assets?.sfx || []).filter(match),
       music: (assets?.music || []).filter(match),
-      stickers: (assets?.stickers || []).filter(match),
+      stickers: (assets?.stickers || [])
+        .filter((s) => !s.name?.toLowerCase().endsWith('.jpg'))
+        .filter((s) => {
+          if (!q) return true;
+          const baseName = (s.name || '').replace(/\.(png|webp|jpg)$/i, '');
+          const thTitle = STICKER_TITLES[baseName] || '';
+          return `${thTitle} ${s.name || ''}`.toLowerCase().includes(q);
+        }),
       luts: (assets?.luts || []).filter(match),
       fonts: FONTS
         .map((f) => {
@@ -718,11 +750,20 @@ export default function AssetPanel({
           <div className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
             <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="ค้นหา..."
-              className="w-full py-1.5 pl-8 pr-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-xs focus:outline-none focus:border-[#25F4EE]"
+              value={tab === 'text' ? textSearch : query}
+              onChange={(e) => (tab === 'text' ? setTextSearch(e.target.value) : setQuery(e.target.value))}
+              placeholder={tab === 'text' ? 'ค้นหาเทมเพลตข้อความ...' : 'ค้นหา...'}
+              className="w-full py-1.5 pl-8 pr-7 rounded-xl bg-black/50 border border-white/[0.08] text-white text-xs focus:outline-none focus:border-[#25F4EE]"
             />
+            {Boolean(tab === 'text' ? textSearch : query) && (
+              <button
+                type="button"
+                onClick={() => (tab === 'text' ? setTextSearch('') : setQuery(''))}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
           </div>
 
           {tab === 'clips' && (
@@ -1118,71 +1159,34 @@ export default function AssetPanel({
         {/* TAB 4: TEXT / TEMPLATES & FONTS */}
         {tab === 'text' && (
           <div className="space-y-3">
-            {/* Quick Add Default Text Button */}
-            <button
-              type="button"
-              onClick={onAddTextAtPlayhead}
-              className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#25F4EE] to-[#00D4FF] hover:brightness-110 text-black text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-[#25F4EE]/20 cursor-pointer transition-all active:scale-95"
-            >
-              <Plus className="w-4 h-4 text-black" />
-              <span>เพิ่มข้อความที่หัวอ่าน (Default Text)</span>
-            </button>
-
-            {/* Search Input for Templates */}
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-              <input
-                type="text"
-                value={textSearch}
-                onChange={(e) => setTextSearch(e.target.value)}
-                placeholder="ค้นหาเทมเพลตข้อความ..."
-                className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-black/40 border border-white/[0.1] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#25F4EE]"
-              />
-              {textSearch && (
-                <button
-                  type="button"
-                  onClick={() => setTextSearch('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              )}
+            {/* Sub-tabs: 3-Tier Hook vs Single Text */}
+            <div className="grid grid-cols-2 gap-1 p-1 bg-black/40 rounded-xl border border-white/[0.08]">
+              <button
+                type="button"
+                onClick={() => setTextSubTab('hook')}
+                className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  textSubTab === 'hook'
+                    ? 'bg-[#25F4EE] text-black shadow'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'
+                }`}
+              >
+                ป้ายฮุกแบรนด์ (3-Tier)
+              </button>
+              <button
+                type="button"
+                onClick={() => setTextSubTab('single')}
+                className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  textSubTab === 'single'
+                    ? 'bg-[#25F4EE] text-black shadow'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'
+                }`}
+              >
+                ข้อความเดี่ยว (Single)
+              </button>
             </div>
 
-            {/* Category Filter Pills */}
-            <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar text-xs">
-              {[
-                { id: 'all', label: 'ทั้งหมด' },
-                // Two different things were both called "hook": a punchy line
-                // that keeps someone watching, and the product badge in the
-                // first three seconds. They are separate rows now because
-                // they are separate jobs -- and separate lanes on the timeline.
-                { id: 'banner', label: '🏷️ ป้ายฮุก (แบรนด์)' },
-                { id: 'hook', label: '🔥 ฮุคคำพูด' },
-                { id: 'review', label: '⭐ รีวิว & ฟีเจอร์' },
-                { id: 'sale', label: '🏷️ ดีล & โปรโมชั่น' },
-                { id: 'cta', label: '🎯 พิกัด & CTA' },
-                { id: 'minimal', label: '💎 มินิมอล & คลีน' },
-              ].map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setTextCategory(cat.id)}
-                  className={`px-2.5 py-1 rounded-full whitespace-nowrap text-[11px] font-semibold transition-all cursor-pointer ${
-                    textCategory === cat.id
-                      ? 'bg-[#25F4EE] text-black shadow-sm font-bold'
-                      : 'bg-white/[0.06] text-slate-300 hover:bg-white/[0.12] hover:text-white'
-                  }`}
-                >
-                  {cat.label}
-                </button>
-              ))}
-            </div>
-
-            {/* The banner's own looks. Picking one dresses the clip's hook
-                overlay -- the left panel browses, the right panel edits, the
-                same way it works for every other kind of overlay. */}
-            {(textCategory === 'all' || textCategory === 'banner') && (
+            {/* SUB-TAB 1: 3-TIER HOOK TEMPLATES */}
+            {textSubTab === 'hook' && (
               <div className="flex flex-col gap-3">
                 {/* Custom Hook Templates */}
                 {Object.keys(customHookTemplates || {}).length > 0 && (
@@ -1293,15 +1297,53 @@ export default function AssetPanel({
               </div>
             )}
 
-            {/* Visual Template Grid (2 columns like CapCut Text Effects) */}
-            <div className="grid grid-cols-2 gap-2">
-              {(textCategory === 'banner' ? [] : TEXT_TEMPLATES).filter((tpl) => {
-                const matchesCat = textCategory === 'all' || tpl.category === textCategory;
-                const matchesSearch = !textSearch.trim() || 
-                  tpl.name.toLowerCase().includes(textSearch.toLowerCase()) || 
-                  tpl.text.toLowerCase().includes(textSearch.toLowerCase());
-                return matchesCat && matchesSearch;
-              }).map((tpl) => {
+            {/* SUB-TAB 2: SINGLE TEXT / EFFECTS */}
+            {textSubTab === 'single' && (
+              <div className="space-y-3">
+                {/* Quick Add Text Button */}
+                <button
+                  type="button"
+                  onClick={onAddTextAtPlayhead}
+                  className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#25F4EE] to-[#00D4FF] hover:brightness-110 text-black text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-[#25F4EE]/20 cursor-pointer transition-all active:scale-95"
+                >
+                  <Plus className="w-4 h-4 text-black" />
+                  <span>เพิ่มข้อความที่หัวอ่าน</span>
+                </button>
+
+                {/* Category Filter Pills (Clean standard: no emojis) */}
+                <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar text-xs">
+                  {[
+                    { id: 'all', label: 'ทั้งหมด' },
+                    { id: 'hook', label: 'ฮุคคำพูด' },
+                    { id: 'review', label: 'รีวิว & ฟีเจอร์' },
+                    { id: 'sale', label: 'ดีล & โปรโมชั่น' },
+                    { id: 'cta', label: 'พิกัด & CTA' },
+                    { id: 'minimal', label: 'มินิมอล & คลีน' },
+                  ].map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setTextCategory(cat.id)}
+                      className={`px-2.5 py-1 rounded-full whitespace-nowrap text-[11px] font-semibold transition-all cursor-pointer ${
+                        textCategory === cat.id
+                          ? 'bg-[#25F4EE] text-black shadow-sm font-bold'
+                          : 'bg-white/[0.06] text-slate-300 hover:bg-white/[0.12] hover:text-white'
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Visual Template Grid (2 columns like CapCut Text Effects) */}
+                <div className="grid grid-cols-2 gap-2">
+                  {TEXT_TEMPLATES.filter((tpl) => {
+                    const matchesCat = textCategory === 'all' || tpl.category === textCategory;
+                    const matchesSearch = !textSearch.trim() || 
+                      tpl.name.toLowerCase().includes(textSearch.toLowerCase()) || 
+                      tpl.text.toLowerCase().includes(textSearch.toLowerCase());
+                    return matchesCat && matchesSearch;
+                  }).map((tpl) => {
                 const isPreviewing = previewTextTemplate?.template_id === tpl.id;
                 const isSelectedApplied = activeTextTemplateId === tpl.id;
                 return (
@@ -1388,6 +1430,8 @@ export default function AssetPanel({
                 );
               })}
             </div>
+          </div>
+        )}
 
             {/* Quick Fonts Explorer Section */}
             <div className="pt-3 border-t border-white/[0.08]">
@@ -1415,69 +1459,238 @@ export default function AssetPanel({
         )}
 
         {/* TAB 5: STICKERS */}
-        {tab === 'sticker' && (
-          <>
-            {style.stickerBadge ? (
-              <div className="mb-2 space-y-2.5 rounded-xl border border-white/[0.08] bg-black/40 p-2.5">
-                <div>
-                  <span className="mb-1.5 block text-xs font-semibold text-slate-300">ตำแหน่งการวางป้าย</span>
-                  <div className="grid grid-cols-3 gap-1">
-                    {[
-                      ['top_left', 'บนซ้าย'], ['top_center', 'กึ่งกลางบน'], ['top_right', 'บนขวา'],
-                      ['bottom_left', 'ล่างซ้าย'], ['bottom_center', 'กึ่งกลางล่าง'], ['bottom_right', 'ล่างขวา'],
-                    ].map(([id, label]) => (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => onStyleChange({ stickerPosition: id })}
-                        className={`rounded-lg border py-1.5 text-xs font-bold transition-all cursor-pointer ${
-                          (style.stickerPosition || 'top_right') === id
-                            ? 'border-[#25F4EE] bg-[#25F4EE]/20 text-[#25F4EE]'
-                            : 'border-white/[0.08] bg-black/40 text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
+        {tab === 'sticker' && (() => {
+          const effectiveStickers = (stickers && stickers.length > 0)
+            ? stickers
+            : (style.stickerBadge ? [{
+                id: 'sticker_badge',
+                badge: style.stickerBadge,
+                scale: style.stickerScale ?? 1,
+                start: style.stickerStartTime ?? 0.5,
+                end: style.stickerEndTime ?? 3.5,
+                normX: style.stickerNormX ?? 0.5,
+                normY: style.stickerNormY ?? 0.35,
+              }] : []);
+
+          const activeSticker = (effectiveStickers.find((s) => s.id === selectedStickerId))
+            || (effectiveStickers.length > 0 ? effectiveStickers[effectiveStickers.length - 1] : null);
+
+          return (
+            <>
+              {activeSticker ? (
+                <div className="mb-2 space-y-2.5 rounded-xl border border-white/[0.08] bg-black/40 p-2.5">
+                  <div className="flex items-center justify-between pb-1 border-b border-white/[0.06]">
+                    <span className="text-xs font-bold text-[#25F4EE] flex items-center gap-1.5 truncate">
+                      <Sticker className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span className="truncate">{STICKER_TITLES[activeSticker.badge?.replace(/\.[^.]+$/, '')] || activeSticker.badge}</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onDeleteSticker ? onDeleteSticker(activeSticker.id) : onStyleChange({ stickerBadge: '' })}
+                      title="ลบสติกเกอร์นี้ออกจากวิดีโอ"
+                      className="flex items-center gap-1 text-[11px] text-red-400 hover:text-red-300 px-1.5 py-0.5 rounded bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 cursor-pointer transition-colors"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      <span>ลบ</span>
+                    </button>
+                  </div>
+
+                  {/* Duration / Timing summary */}
+                  <div className="flex items-center justify-between text-xs text-slate-300 bg-white/[0.03] rounded-lg px-2.5 py-2 border border-white/[0.05]">
+                    <div className="flex items-center gap-1.5 text-slate-400">
+                      <Clock className="h-3.5 w-3.5 text-[#25F4EE]" />
+                      <span>ช่วงเวลาแสดงผล</span>
+                    </div>
+                    <div className="font-mono text-slate-200 font-medium">
+                      {(activeSticker.start ?? 0.5).toFixed(1)}s – {(activeSticker.end ?? 3.5).toFixed(1)}s
+                      <span className="text-[#25F4EE] ml-1">
+                        ({Math.max(0.2, (activeSticker.end ?? 3.5) - (activeSticker.start ?? 0.5)).toFixed(1)}s)
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Scale slider & Center reset button */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs text-slate-300">
+                      <span>ขนาดป้าย / สติกเกอร์</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onUpdateSticker ? onUpdateSticker(activeSticker.id, { normX: 0.5, normY: 0.35 }) : onStyleChange({ stickerNormX: 0.5, stickerNormY: 0.35 })}
+                          title="รีเซ็ตตำแหน่งมาที่กึ่งกลางหน้าจอ"
+                          className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-[#25F4EE] px-1.5 py-0.5 rounded bg-white/[0.05] hover:bg-[#25F4EE]/10 border border-white/[0.05] cursor-pointer transition-colors"
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                          <span>จัดกึ่งกลาง</span>
+                        </button>
+                        <span className="font-mono text-[#25F4EE] font-bold">
+                          {Math.round((activeSticker.scale ?? 1) * 100)}%
+                        </span>
+                      </div>
+                    </div>
+                    <input
+                      type="range"
+                      min={0.4}
+                      max={2.5}
+                      step={0.05}
+                      value={activeSticker.scale ?? 1}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (onUpdateSticker) onUpdateSticker(activeSticker.id, { scale: val });
+                        else onStyleChange({ stickerScale: val });
+                      }}
+                      className="w-full accent-[#25F4EE]"
+                    />
+                  </div>
+
+                  <div className="text-[10px] text-slate-400/80 leading-relaxed bg-[#25F4EE]/[0.04] p-2 rounded-lg border border-[#25F4EE]/10">
+                    💡 ลากตำแหน่งและดึงขอบปรับขนาดได้โดยตรงบนพรีวิว หรือเลื่อนปรับเวลาได้บนไทม์ไลน์
                   </div>
                 </div>
-                <label className="block">
-                  <span className="mb-1 flex justify-between text-xs text-slate-300">
-                    <span>ขนาดป้าย / สติกเกอร์</span>
-                    <span className="font-mono text-[#25F4EE] font-bold">{Math.round((style.stickerScale ?? 1) * 100)}%</span>
-                  </span>
-                  <input
-                    type="range" min={0.4} max={2} step={0.05}
-                    value={style.stickerScale ?? 1}
-                    onChange={(e) => onStyleChange({ stickerScale: parseFloat(e.target.value) })}
-                    className="w-full accent-[#25F4EE]"
-                  />
-                </label>
-              </div>
-            ) : null}
+              ) : null}
 
-            <Row active={!style.stickerBadge} onClick={() => onStyleChange({ stickerBadge: '' })}>
-              <Sticker className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
-              <span className="min-w-0 flex-1 truncate text-sm text-slate-200">ไม่ใส่ป้าย / สติกเกอร์</span>
-              {!style.stickerBadge && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#25F4EE]" />}
-            </Row>
-            {filtered.stickers.map((s) => (
-              <Row
-                key={s.id}
-                active={style.stickerBadge === s.name || style.stickerBadge === s.id}
-                onClick={() => onStyleChange({ stickerBadge: s.name })}
-                title={s.name}
+              {/* Multi-sticker pills list if multiple exist */}
+              {effectiveStickers.length > 1 && (
+                <div className="mb-2 space-y-1">
+                  <span className="text-[11px] font-medium text-slate-400">สติกเกอร์ในวิดีโอ ({effectiveStickers.length}):</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {effectiveStickers.map((stk) => {
+                      const isSel = activeSticker?.id === stk.id;
+                      const title = STICKER_TITLES[stk.badge?.replace(/\.[^.]+$/, '')] || stk.badge;
+                      return (
+                        <button
+                          key={stk.id}
+                          type="button"
+                          onClick={() => onSelectSticker ? onSelectSticker(stk.id) : null}
+                          className={`text-[11px] px-2 py-1 rounded-lg border transition-all flex items-center gap-1 cursor-pointer ${
+                            isSel
+                              ? 'border-[#25F4EE] bg-[#25F4EE]/20 text-[#25F4EE] font-bold'
+                              : 'border-white/10 bg-black/30 text-slate-300 hover:border-white/20'
+                          }`}
+                        >
+                          <span className="truncate max-w-[90px]">{title}</span>
+                          <span className="font-mono text-[10px] text-slate-400">({(stk.end - stk.start).toFixed(1)}s)</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Clear / No sticker button */}
+              <button
+                type="button"
+                onClick={() => onClearStickers ? onClearStickers() : onStyleChange({ stickerBadge: '' })}
+                className={`w-full flex items-center justify-between rounded-xl border px-3 py-2 text-xs font-semibold transition-all cursor-pointer ${
+                  effectiveStickers.length === 0
+                    ? 'border-[#25F4EE] bg-[#25F4EE]/10 text-[#25F4EE]'
+                    : 'border-white/[0.08] bg-black/40 text-slate-400 hover:border-white/20 hover:text-white'
+                }`}
               >
-                <img src={s.img_url} alt="" className="h-7 w-7 flex-shrink-0 rounded-md object-contain bg-black/40 p-0.5 border border-white/[0.06]" />
-                <span className="min-w-0 flex-1 truncate text-sm text-slate-200">{s.name.replace(/\.(png|webp|jpg)$/i, '')}</span>
-                {(style.stickerBadge === s.name || style.stickerBadge === s.id) && <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#25F4EE]" />}
-              </Row>
-            ))}
-            <p className="px-1 pt-2 text-xs leading-relaxed text-slate-500">
-              พรีวิวสดจะแสดงป้ายบนจอวิดีโอทันที และเรนเดอร์เข้าไฟล์จริงด้วย FFmpeg Overlay
-            </p>
-          </>
-        )}
+                <div className="flex items-center gap-2">
+                  <Ban className="h-3.5 w-3.5" />
+                  <span>{effectiveStickers.length > 0 ? 'ล้างสติกเกอร์ทั้งหมด' : 'ไม่มีสติกเกอร์'}</span>
+                </div>
+                {effectiveStickers.length === 0 && <Check className="h-3.5 w-3.5 text-[#25F4EE]" />}
+              </button>
+
+              {/* 3D Stickers Visual Grid (Click to preview, Plus icon to add to timeline) */}
+              <div className="grid grid-cols-3 gap-2.5 pt-1">
+                {filtered.stickers.map((s) => {
+                  const baseName = s.name.replace(/\.(png|webp|jpg)$/i, '');
+                  const displayName = STICKER_TITLES[baseName] || baseName;
+                  const isInUse = effectiveStickers.some((stk) => stk.badge === s.name || stk.badge === s.id);
+                  const isCurrentActive = activeSticker?.badge === s.name || activeSticker?.badge === s.id;
+                  const isPreviewing = previewSticker === s.name;
+
+                  return (
+                    <div
+                      key={s.id}
+                      data-sticker-card="true"
+                      onClick={() => {
+                        if (onPreviewSticker) {
+                          onPreviewSticker(s.name);
+                        } else if (onAddSticker) {
+                          onAddSticker(s.name);
+                        }
+                      }}
+                      title={`${displayName} — คลิกเพื่อดูตัวอย่าง (กด + เพื่อเพิ่มลงไทม์ไลน์)`}
+                      className={`group relative aspect-square rounded-2xl border p-2 flex items-center justify-center transition-all cursor-pointer overflow-hidden select-none ${
+                        isPreviewing
+                          ? 'border-[#25F4EE] bg-[#25F4EE]/15 ring-2 ring-[#25F4EE]/60 shadow-[0_0_18px_rgba(37,244,238,0.35)]'
+                          : isCurrentActive
+                            ? 'border-[#25F4EE]/80 bg-[#25F4EE]/10 ring-1 ring-[#25F4EE]/40'
+                            : isInUse
+                              ? 'border-[#25F4EE]/40 bg-[#25F4EE]/5'
+                              : 'border-white/[0.08] bg-black/40 hover:border-white/25 hover:bg-white/[0.06]'
+                      }`}
+                    >
+                      {/* Ephemeral Preview Pill */}
+                      {isPreviewing && (
+                        <span className="absolute top-1.5 left-1.5 z-10 px-1.5 py-0.5 rounded-full bg-[#25F4EE] text-[8.5px] font-bold text-slate-950 shadow animate-pulse">
+                          พรีวิว
+                        </span>
+                      )}
+
+                      {/* Add to Timeline (+) Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onAddSticker) {
+                            onAddSticker(s.name);
+                          } else {
+                            onStyleChange?.({ stickerBadge: s.name, stickerStartTime: playhead, stickerEndTime: playhead + 3.0 });
+                          }
+                        }}
+                        className="absolute top-1.5 right-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-white/[0.12] text-slate-200 hover:bg-[#25F4EE] hover:text-black hover:scale-110 active:scale-95 transition-all cursor-pointer shadow-md"
+                        title={`เพิ่ม ${displayName} ลงไทม์ไลน์ที่ ${playhead.toFixed(1)}s (ยาว 3.0s)`}
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </button>
+
+                      <img
+                        src={s.img_url}
+                        alt={displayName}
+                        className="max-h-[82%] max-w-[88%] object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)] transition-transform duration-200 group-hover:scale-110"
+                      />
+
+                      {isInUse && (
+                        <span className="absolute bottom-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#25F4EE] text-slate-950 shadow-md">
+                          <Check className="h-2.5 w-2.5 stroke-[3]" />
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Action Button When Previewing */}
+              {previewSticker && (
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onAddSticker) {
+                        onAddSticker(previewSticker);
+                      } else {
+                        onStyleChange?.({ stickerBadge: previewSticker, stickerStartTime: playhead, stickerEndTime: playhead + 3.0 });
+                      }
+                    }}
+                    className="w-full py-2.5 px-3 rounded-xl bg-[#25F4EE] hover:bg-[#1de0da] text-slate-950 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#25F4EE]/25 transition-all active:scale-[0.98]"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>เพิ่ม {STICKER_TITLES[previewSticker.replace(/\.[^.]+$/, '')] || 'สติกเกอร์'} ลงไทม์ไลน์</span>
+                  </button>
+                </div>
+              )}
+
+              <p className="px-1 pt-1.5 text-[11px] leading-relaxed text-slate-500 text-center">
+                คลิกที่รูปเพื่อดูตัวอย่างบนจอวิดีโอ กดปุ่ม + เพื่อเพิ่มลงไทม์ไลน์ (ยาว 3 วินาที)
+              </p>
+            </>
+          );
+        })()}
 
         {/* TAB 6: LUTS / FILTERS */}
         {tab === 'filter' && (

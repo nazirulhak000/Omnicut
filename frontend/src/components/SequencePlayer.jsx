@@ -1000,35 +1000,43 @@ function drawCaption(ctx, cues = [], t, style = {}, outBounds = null) {
   });
 }
 
-function drawSticker(ctx, img, t, style = {}, outBounds = null) {
+function drawSingleSticker(ctx, img, t, stk, outBounds = null) {
   if (!img || !img.complete || !img.naturalWidth) return;
-  const startTime = style.startTime ?? 0.5;
-  if (t < startTime) return;
+  const startTime = stk.start ?? stk.startTime ?? 0.5;
+  const endTime = stk.end != null ? stk.end : (stk.endTime != null ? stk.endTime : 999999);
+  if (t < startTime || t > endTime) return;
 
-  const scale = Math.min(2, Math.max(0.4, style.scale ?? 1));
-  const baseW = 380;
+  const scale = Math.min(3.5, Math.max(0.3, stk.scale ?? 1));
+  const baseW = 160;
   const w = Math.round(baseW * scale);
   const h = Math.round(w * (img.naturalHeight / img.naturalWidth));
 
   let x = CANVAS_W - w - 40;
   let y = 140;
-  const pos = style.position || 'top_right';
-  if (pos === 'top_left') {
-    x = 40; y = 140;
-  } else if (pos === 'bottom_right') {
-    x = CANVAS_W - w - 40; y = CANVAS_H - h - 420;
-  } else if (pos === 'bottom_left') {
-    x = 40; y = CANVAS_H - h - 420;
-  } else if (pos === 'top_center') {
-    x = Math.round((CANVAS_W - w) / 2); y = 140;
-  } else if (pos === 'bottom_center') {
-    x = Math.round((CANVAS_W - w) / 2); y = CANVAS_H - h - 420;
+  const normX = typeof stk.normX === 'number' ? stk.normX : stk.norm_x;
+  const normY = typeof stk.normY === 'number' ? stk.normY : stk.norm_y;
+  if (typeof normX === 'number' && typeof normY === 'number') {
+    x = Math.round(normX * CANVAS_W - w / 2);
+    y = Math.round(normY * CANVAS_H - h / 2);
+  } else {
+    const pos = stk.position || 'top_right';
+    if (pos === 'top_left') {
+      x = 40; y = 140;
+    } else if (pos === 'bottom_right') {
+      x = CANVAS_W - w - 40; y = CANVAS_H - h - 420;
+    } else if (pos === 'bottom_left') {
+      x = 40; y = CANVAS_H - h - 420;
+    } else if (pos === 'top_center') {
+      x = Math.round((CANVAS_W - w) / 2); y = 140;
+    } else if (pos === 'bottom_center') {
+      x = Math.round((CANVAS_W - w) / 2); y = CANVAS_H - h - 420;
+    }
   }
 
   if (outBounds) {
     outBounds.push({
       type: 'sticker',
-      id: 'sticker_badge',
+      id: stk.id || 'sticker_badge',
       x,
       y,
       w,
@@ -1036,7 +1044,8 @@ function drawSticker(ctx, img, t, style = {}, outBounds = null) {
       normX: (x + w / 2) / CANVAS_W,
       normY: (y + h / 2) / CANVAS_H,
       scale,
-      label: 'สติกเกอร์ 3D',
+      label: stk.badge?.replace(/\.[^.]+$/, '') || 'สติกเกอร์ 3D',
+      item: stk,
     });
   }
 
@@ -1046,6 +1055,55 @@ function drawSticker(ctx, img, t, style = {}, outBounds = null) {
   ctx.globalAlpha = alpha;
   ctx.drawImage(img, x, y, w, h);
   ctx.restore();
+}
+
+function drawStickers(ctx, imagesMap, singleImg, t, stickersList, outBounds = null, isStickerHidden = false, previewSticker = null) {
+  if (isStickerHidden) return;
+  if (stickersList && stickersList.length > 0) {
+    stickersList.forEach((stk) => {
+      if (stk.hidden) return;
+      const bKey = stk.badge || '';
+      const img = imagesMap?.get?.(bKey) || imagesMap?.get?.(bKey.toLowerCase()) || singleImg;
+      if (img) drawSingleSticker(ctx, img, t, stk, outBounds);
+    });
+  } else if (singleImg) {
+    drawSingleSticker(ctx, singleImg, t, {}, outBounds);
+  }
+
+  // Ephemeral preview sticker on canvas (centered)
+  if (previewSticker) {
+    const pKey = previewSticker;
+    const img = imagesMap?.get?.(pKey) || imagesMap?.get?.(pKey.toLowerCase()) || singleImg;
+    if (img && img.complete && img.naturalWidth) {
+      const baseW = 160;
+      const scale = 1.0;
+      const w = Math.round(baseW * scale);
+      const h = Math.round(w * (img.naturalHeight / img.naturalWidth));
+      const x = Math.round(CANVAS_W * 0.5 - w / 2);
+      const y = Math.round(CANVAS_H * 0.5 - h / 2);
+      if (outBounds) {
+        outBounds.push({
+          type: 'sticker_preview',
+          id: 'sticker_preview',
+          x,
+          y,
+          w,
+          h,
+          normX: 0.5,
+          normY: 0.5,
+          scale: 1.0,
+          label: previewSticker.replace(/\.[^.]+$/, ''),
+        });
+      }
+      ctx.save();
+      ctx.drawImage(img, x, y, w, h);
+      ctx.restore();
+    }
+  }
+}
+
+function drawSticker(ctx, img, t, stkStyle, outBounds = null) {
+  drawSingleSticker(ctx, img, t, stkStyle || {}, outBounds);
 }
 
 // Where custom text overlays sit vertically as a fraction of canvas height.
@@ -1066,7 +1124,7 @@ function drawSticker(ctx, img, t, style = {}, outBounds = null) {
 const HOOK_MOTION_DEFAULTS = { in: 'bounce', stagger: true, loop: 'pulse', out: 'fade', accent: 'underline' };
 const HOOK_STAGGER_STEP = 0.15; // seconds; mirrors STAGGER_STEP_MS
 const HOOK_DIM_OPACITY = 1 - 0x25 / 255; // mirrors ASS \alpha&H25&
-const HOOK_SWEEP_OPACITY = 1 - 0x60 / 255; // mirrors ASS \alpha&H60&
+const HOOK_SWEEP_OPACITY = 1 - 0x20 / 255; // mirrors ASS \alpha&H20&
 // The pill's padding, matching HookHeaderPill's Outline=12 in the ASS styles.
 const HOOK_PILL_PAD = 12;
 
@@ -1283,7 +1341,9 @@ const OVERLAY_OUT_TRANSFORMS = {
  * (parity rule 2.11).
  */
 function overlayFont(look, px) {
-  return `${fontWeight(look.font)} ${px}px '${look.font}', sans-serif`;
+  const weight = look?.bold ? 'bold' : fontWeight(look?.font);
+  const style = look?.italic ? 'italic ' : '';
+  return `${style}${weight} ${px}px '${look?.font}', sans-serif`;
 }
 
 function overlayIsLive(overlay, t) {
@@ -1389,9 +1449,10 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
 
   // Pass 1: wrap each tier at its OWN font size, before anything is measured
   // against the block as a whole.
+  const masterScale = ((resolveLook(overlay.look, null).size_pct ?? 100) / 100);
   const wrapped = [];
   for (const tier of tiers) {
-    const tierFs = Math.max(10, Math.round((baseFontSize * tier.look.size_pct) / 100));
+    const tierFs = Math.max(10, Math.round(((baseFontSize * (tier.look.size_pct ?? 100)) / 100) * masterScale));
     ctx.font = overlayFont(tier.look, tierFs);
     for (const line of wrapCanvasText(tier.text, ctx, maxW)) {
       wrapped.push({ line, fontSize: tierFs, look: tier.look, color: tier.color, tierIdx: tier.tierIdx });
@@ -1443,7 +1504,7 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
     const isLastModelLine = w.tierIdx === 1
       && (i + 1 >= wrapped.length || wrapped[i + 1].tierIdx !== 1);
     w.accentReserve = isLastModelLine && motion.accent !== 'none'
-      ? w.settledFs * (motion.accent === 'badge' ? 0.45 : 0.80)
+      ? w.settledFs * (motion.accent === 'badge' ? 0.08 : 0.22)
       : 0;
     blockH += w.accentReserve;
   }
@@ -1532,10 +1593,11 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
     const revealStart = motion.stagger ? HOOK_STAGGER_STEP * 2 : 0;
     const revealFrac = tRel <= revealStart ? 0 : Math.min(1, (tRel - revealStart) / 0.3);
     const modelFontSize = modelLine.settledFs;
+    const accentColor = overlay.look?.accent_color || modelLine.look?.accent_color || modelLine.color;
     ctx.save();
     ctx.shadowColor = 'transparent';
     ctx.globalAlpha = (outFx.alpha ?? 1);
-    ctx.fillStyle = modelLine.color;
+    ctx.fillStyle = accentColor;
     if (motion.accent === 'badge') {
       const padX = Math.round(modelFontSize * 0.38);
       const padY = Math.round(modelFontSize * 0.2);
@@ -1544,10 +1606,178 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
       // ASS \alpha is TRANSPARENCY, so &HB0& means 0.31 opacity, not 0.69.
       ctx.globalAlpha *= 1 - 0xB0 / 255;
       // Anchor left edge at x - fullBw / 2 matching \an7 anchor in ASS
-      ctx.fillRect(x - fullBw / 2, modelLine.y - padY, bw, modelFontSize + padY * 2);
+      const bx = x - fullBw / 2;
+      const by = modelLine.y - padY;
+      const bh = modelFontSize + padY * 2;
+      const radius = Math.min(Math.round(padY * 0.9), 16, Math.max(0, bw / 2), bh / 2);
+      if (ctx.roundRect && radius > 0 && bw > 0) {
+        ctx.beginPath();
+        ctx.roundRect(bx, by, bw, bh, radius);
+        ctx.fill();
+      } else {
+        ctx.fillRect(x - fullBw / 2, modelLine.y - padY, bw, modelFontSize + padY * 2);
+      }
+    } else if (motion.accent === 'bracket') {
+      const padX = Math.round(modelFontSize * 0.25);
+      const padY = Math.round(modelFontSize * 0.08);
+      const bracketW = Math.max(6, Math.round(modelFontSize * 0.16));
+      const thickness = Math.max(3, Math.round(modelFontSize * 0.08));
+      const h = modelFontSize + padY * 2;
+      const topY = modelLine.y - padY;
+      const leftX = x - modelLine.width / 2 - padX;
+      const rightX = x + modelLine.width / 2 + padX - bracketW;
+      ctx.globalAlpha *= revealFrac;
+      // Left bracket: [
+      ctx.fillRect(leftX, topY, bracketW, thickness);
+      ctx.fillRect(leftX, topY, thickness, h);
+      ctx.fillRect(leftX, topY + h - thickness, bracketW, thickness);
+      // Right bracket: ]
+      ctx.fillRect(rightX, topY, bracketW, thickness);
+      ctx.fillRect(rightX + bracketW - thickness, topY, thickness, h);
+      ctx.fillRect(rightX, topY + h - thickness, bracketW, thickness);
+    } else if (motion.accent === 'glow_box') {
+      const padX = Math.round(modelFontSize * 0.30);
+      const padY = Math.round(modelFontSize * 0.12);
+      const bw = (modelLine.width / 2 + padX) * 2;
+      const bh = modelFontSize + padY * 2;
+      const thickness = Math.max(3, Math.round(modelFontSize * 0.07));
+      const boxX = x - bw / 2;
+      const boxY = modelLine.y - padY;
+      ctx.globalAlpha *= revealFrac;
+      ctx.save();
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = thickness;
+      ctx.shadowColor = accentColor;
+      ctx.shadowBlur = 6;
+      ctx.strokeRect(boxX + thickness / 2, boxY + thickness / 2, bw - thickness, bh - thickness);
+      ctx.restore();
+    } else if (motion.accent === 'double_bar') {
+      const gap = Math.round(modelFontSize * 0.12);
+      const thickness = Math.max(3, Math.round(modelFontSize * 0.08));
+      const w = modelLine.width * revealFrac;
+      const barX = x - modelLine.width / 2;
+      const topBarY = modelLine.y - gap - thickness;
+      const botBarY = modelLine.y + modelFontSize + gap;
+      ctx.fillRect(barX, topBarY, w, thickness);
+      ctx.fillRect(barX, botBarY, w, thickness);
+    } else if (motion.accent === 'sale_tag') {
+      const padX = Math.round(modelFontSize * 0.36);
+      const padY = Math.round(modelFontSize * 0.12);
+      const bw = (modelLine.width / 2 + padX) * 2;
+      const bh = modelFontSize + padY * 2;
+      const notch = Math.round(bh * 0.40);
+      const tagX = x - bw / 2;
+      const tagY = modelLine.y - padY;
+      const tagOpacity = 1 - 0xB8 / 255;
+      ctx.globalAlpha *= revealFrac * tagOpacity;
+      ctx.beginPath();
+      ctx.moveTo(tagX, tagY + bh / 2);
+      ctx.lineTo(tagX + notch, tagY);
+      ctx.lineTo(tagX + bw, tagY);
+      ctx.lineTo(tagX + bw, tagY + bh);
+      ctx.lineTo(tagX + notch, tagY + bh);
+      ctx.closePath();
+      ctx.fill();
+    } else if (motion.accent === 'pill_badge') {
+      const padX = Math.round(modelFontSize * 0.35);
+      const padY = Math.round(modelFontSize * 0.14);
+      const bw = (modelLine.width / 2 + padX) * 2;
+      const bh = modelFontSize + padY * 2;
+      const r = bh / 2;
+      const thickness = Math.max(3, Math.round(modelFontSize * 0.07));
+      const boxX = x - bw / 2;
+      const boxY = modelLine.y - padY;
+      ctx.globalAlpha *= revealFrac;
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = thickness;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(boxX + thickness / 2, boxY + thickness / 2, bw - thickness, bh - thickness, r);
+      else ctx.rect(boxX + thickness / 2, boxY + thickness / 2, bw - thickness, bh - thickness);
+      ctx.stroke();
+    } else if (motion.accent === 'marker') {
+      const padX = Math.round(modelFontSize * 0.22);
+      const fullBw = (modelLine.width / 2 + padX) * 2;
+      const bw = fullBw * revealFrac;
+      const bh = Math.round(modelFontSize * 0.46);
+      const markerY = modelLine.y + Math.round(modelFontSize * 0.42);
+      const r = Math.min(6, bh / 3);
+      const markerOpacity = 1 - 0xA0 / 255;
+      ctx.globalAlpha *= markerOpacity;
+      const mx = x - fullBw / 2;
+      ctx.beginPath();
+      if (ctx.roundRect && r > 0 && bw > 0) ctx.roundRect(mx, markerY, bw, bh, r);
+      else ctx.fillRect(mx, markerY, bw, bh);
+      ctx.fill();
+    } else if (motion.accent === 'bold_quotes') {
+      const padX = Math.round(modelFontSize * 0.28);
+      const quoteFs = Math.round(modelFontSize * 1.15);
+      const leftX = x - modelLine.width / 2 - padX;
+      const rightX = x + modelLine.width / 2 + Math.round(padX * 0.3);
+      ctx.globalAlpha *= revealFrac;
+      ctx.font = `900 ${quoteFs}px sans-serif`;
+      ctx.fillText('“', leftX, modelLine.y + quoteFs * 0.7);
+      ctx.fillText('”', rightX, modelLine.y + quoteFs * 0.7);
+    } else if (motion.accent === 'dashed_box') {
+      const padX = Math.round(modelFontSize * 0.28);
+      const padY = Math.round(modelFontSize * 0.10);
+      const bw = (modelLine.width / 2 + padX) * 2;
+      const bh = modelFontSize + padY * 2;
+      const clen = Math.max(8, Math.round(modelFontSize * 0.22));
+      const thickness = Math.max(3, Math.round(modelFontSize * 0.07));
+      const boxX = x - bw / 2;
+      const boxY = modelLine.y - padY;
+      ctx.globalAlpha *= revealFrac;
+      // 4 focus corners: top-left, top-right, bottom-left, bottom-right
+      ctx.fillRect(boxX, boxY, clen, thickness);
+      ctx.fillRect(boxX, boxY, thickness, clen);
+      ctx.fillRect(boxX + bw - clen, boxY, clen, thickness);
+      ctx.fillRect(boxX + bw - thickness, boxY, thickness, clen);
+      ctx.fillRect(boxX, boxY + bh - clen, thickness, clen);
+      ctx.fillRect(boxX, boxY + bh - thickness, clen, thickness);
+      ctx.fillRect(boxX + bw - clen, boxY + bh - thickness, clen, thickness);
+      ctx.fillRect(boxX + bw - thickness, boxY + bh - clen, thickness, clen);
+    } else if (motion.accent === 'speed_slash') {
+      const padX = Math.round(modelFontSize * 0.26);
+      const padY = Math.round(modelFontSize * 0.08);
+      const h = modelFontSize + padY * 2;
+      const sw = Math.max(4, Math.round(modelFontSize * 0.08));
+      const gapS = Math.max(3, Math.round(modelFontSize * 0.06));
+      const skewDx = Math.round(h * 0.28);
+      const pairW = skewDx + sw * 2 + gapS;
+      const leftX = x - modelLine.width / 2 - padX - pairW;
+      const rightX = x + modelLine.width / 2 + padX;
+      const topY = modelLine.y - padY;
+      ctx.globalAlpha *= revealFrac;
+      const drawPair = (startX) => {
+        ctx.beginPath();
+        ctx.moveTo(startX + skewDx, topY);
+        ctx.lineTo(startX + skewDx + sw, topY);
+        ctx.lineTo(startX + sw, topY + h);
+        ctx.lineTo(startX, topY + h);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(startX + skewDx + sw + gapS, topY);
+        ctx.lineTo(startX + skewDx + sw * 2 + gapS, topY);
+        ctx.lineTo(startX + sw * 2 + gapS, topY + h);
+        ctx.lineTo(startX + sw + gapS, topY + h);
+        ctx.closePath();
+        ctx.fill();
+      };
+      drawPair(leftX);
+      drawPair(rightX);
+    } else if (motion.accent === 'gradient_line') {
+      const gap = Math.round(modelFontSize * 0.12);
+      const thickness = Math.max(2, Math.round(modelFontSize * 0.06));
+      const w = modelLine.width * revealFrac;
+      const barY = modelLine.y + modelFontSize + gap;
+      const barX = x - modelLine.width / 2;
+      const gradLineOpacity = 1 - 0x40 / 255;
+      ctx.globalAlpha *= gradLineOpacity;
+      ctx.fillRect(barX, barY, w, thickness);
     } else {
       const thickness = Math.max(4, Math.round(modelFontSize * 0.1));
-      const gap = Math.round(modelFontSize * 0.50);
+      const gap = Math.round(modelFontSize * 0.12);
       const w = modelLine.width * revealFrac;
       const barY = modelLine.y + modelFontSize + gap;
       const barX = x - modelLine.width / 2;
@@ -1555,7 +1785,7 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
       // \alpha&H60&) for glow; without it the preview's bar reads flatter
       // than what actually renders.
       ctx.save();
-      ctx.shadowColor = modelLine.color;
+      ctx.shadowColor = accentColor;
       ctx.shadowBlur = 7;
       ctx.globalAlpha *= 1 - 0x60 / 255;
       ctx.fillRect(barX, barY, w, thickness);
@@ -1692,6 +1922,17 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
           ctx.translate(-wordCx, -wordCy);
         }
         drawTextWithMonoEmoji(ctx, wordItem.text, wx, targetY);
+        if (w.look.underline) {
+          ctx.save();
+          ctx.strokeStyle = w.color;
+          ctx.lineWidth = Math.max(1.5, Math.round(w.settledFs * 0.07));
+          const underlineY = targetY + w.settledFs * 0.95;
+          ctx.beginPath();
+          ctx.moveTo(wx, underlineY);
+          ctx.lineTo(wx + ww, underlineY);
+          ctx.stroke();
+          ctx.restore();
+        }
         ctx.restore();
       }
       ctx.restore();
@@ -1743,6 +1984,17 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
       ctx.shadowColor = 'transparent';
       ctx.fillStyle = w.color;
       drawTextWithMonoEmoji(ctx, w.line, lineX, lineY);
+      if (w.look.underline) {
+        ctx.save();
+        ctx.strokeStyle = w.color;
+        ctx.lineWidth = Math.max(1.5, Math.round(renderFs * 0.07));
+        const underlineY = lineY + renderFs * 0.95;
+        ctx.beginPath();
+        ctx.moveTo(lineX, underlineY);
+        ctx.lineTo(lineX + drawnW, underlineY);
+        ctx.stroke();
+        ctx.restore();
+      }
       ctx.restore();
     }
 
@@ -1813,6 +2065,7 @@ function SequencePlayer({
   onDurations,
   captionStyle = {},
   stickerStyle = {},
+  stickers = [],
   isMuted = false,
   selection = null,
   onSelect = null,
@@ -1823,6 +2076,9 @@ function SequencePlayer({
   onUpdateAllCaptions = null,
   onStyleChange = null,
   onUpdateSticker = null,
+  isStickerHidden = false,
+  previewSticker = null,
+  onDismissPreviewSticker = null,
   previewTextTemplate = null,
   onCommitPreviewTextTemplate = null,
   onDismissPreviewTextTemplate = null,
@@ -1861,9 +2117,29 @@ function SequencePlayer({
   const rafRef = useRef(null);
   const clockRef = useRef({ startWall: 0, startT: 0 });
   const stickerImgRef = useRef(null);
+  const stickerImagesRef = useRef(new Map());
   const lutRef = useRef(null);          // parsed .cube for the chosen filter
   const lutRendererRef = useRef(null);  // WebGL2 pass, or null where unavailable
   const [lutReady, setLutReady] = useState(0);
+
+  const effectiveStickersList = useMemo(() => {
+    if (Array.isArray(stickers) && stickers.length > 0) {
+      return stickers;
+    }
+    if (stickerStyle?.badge) {
+      return [{
+        id: 'sticker_badge',
+        badge: stickerStyle.badge,
+        start: stickerStyle.startTime ?? 0,
+        end: stickerStyle.endTime ?? 999999,
+        scale: stickerStyle.scale ?? 1,
+        normX: stickerStyle.normX ?? 0.8,
+        normY: stickerStyle.normY ?? 0.15,
+        position: stickerStyle.position || 'top_right',
+      }];
+    }
+    return [];
+  }, [stickers, stickerStyle]);
 
   // Scratch frame for transitions that need a per-pixel alpha ramp.
   const offscreenRef = useRef(null);
@@ -1889,7 +2165,8 @@ function SequencePlayer({
   // An overlay carries a whole look per tier now, so anything short of the
   // real thing would miss a colour or an outline the user just changed.
   const overlaysKey = JSON.stringify(drawnOverlays);
-  const stickerKey = `${stickerStyle.badge}:${stickerStyle.position}:${stickerStyle.scale}:${stickerStyle.startTime}`;
+  const stickerKey = `${stickerStyle.badge}:${stickerStyle.position}:${stickerStyle.scale}:${stickerStyle.startTime}:${stickerStyle.endTime}:${stickerStyle.normX}:${stickerStyle.normY}`;
+  const stickersKey = (stickers || []).map(s => `${s.id}:${s.badge}:${s.start}:${s.end}:${s.scale}:${s.normX}:${s.normY}:${s.hidden}`).join('|');
   const clipKey = clips.map(c => `${c.id}:${c.source_path}:${c.trim_start}:${c.trim_end}:${c.transition_in}:${c.transition_duration}:${c.brightness}:${c.contrast}:${c.saturation}:${c.zoom}:${c.pan_x}:${c.pan_y}:${c.mirror}:${c.rotation}`).join('|');
 
 
@@ -1955,8 +2232,40 @@ function SequencePlayer({
         };
       }
     }
+
+    if (selection.type === 'sticker') {
+      if (isStickerHidden) return null;
+      const matchedSticker = effectiveStickersList.find(s => s.id === selection.id) || effectiveStickersList[0];
+      if (!matchedSticker) return null;
+      const scale = Math.min(3.5, Math.max(0.3, matchedSticker?.scale ?? stickerStyle?.scale ?? 1));
+      const baseW = 160;
+      const w = Math.round(baseW * scale);
+      const bKey = matchedSticker?.badge;
+      const img = bKey ? (stickerImagesRef.current?.get?.(bKey) || stickerImagesRef.current?.get?.(bKey.toLowerCase())) : null;
+      const aspect = (img && img.naturalWidth) ? (img.naturalHeight / img.naturalWidth) : 1.0;
+      const h = Math.round(w * aspect);
+      const normX = typeof matchedSticker?.normX === 'number'
+        ? matchedSticker.normX
+        : (typeof stickerStyle?.normX === 'number' ? stickerStyle.normX : 0.5);
+      const normY = typeof matchedSticker?.normY === 'number'
+        ? matchedSticker.normY
+        : (typeof stickerStyle?.normY === 'number' ? stickerStyle.normY : 0.35);
+      return {
+        type: 'sticker',
+        id: matchedSticker?.id || 'sticker_badge',
+        x: Math.round(CANVAS_W * normX - w / 2),
+        y: Math.round(CANVAS_H * normY - h / 2),
+        w,
+        h,
+        normX,
+        normY,
+        scale,
+        label: matchedSticker?.badge?.replace(/\.[^.]+$/, '') || 'สติกเกอร์ 3D',
+        item: matchedSticker,
+      };
+    }
     return null;
-  }, [selection, overlays, cues, playhead]);
+  }, [selection, overlays, cues, playhead, effectiveStickersList, stickerStyle, isStickerHidden]);
 
   const handleBoxDragStart = (e) => {
     e.stopPropagation();
@@ -2004,6 +2313,8 @@ function SequencePlayer({
           x: roundedX,
           y: roundedY,
         });
+      } else if (selectedBox.type === 'sticker') {
+        onUpdateSticker?.(selectedBox.id, { normX: roundedX, normY: roundedY });
       } else if (selectedBox.type === 'caption') {
         if (applyToAllCaptions && onUpdateAllCaptions) {
           onUpdateAllCaptions({ x: roundedX, y: roundedY }, true);
@@ -2063,19 +2374,29 @@ function SequencePlayer({
     const rect = containerRef.current.getBoundingClientRect();
     const centerX = rect.left + rect.width * selectedBox.normX;
     const centerY = rect.top + rect.height * selectedBox.normY;
-    const initialDist = Math.hypot(startMouseX - centerX, startMouseY - centerY);
+    const dx = startMouseX - centerX;
+    const dy = startMouseY - centerY;
+    const initialDist = Math.hypot(dx, dy);
+    if (initialDist < 10) return;
+    const dirX = dx / initialDist;
+    const dirY = dy / initialDist;
 
     const onPointerMove = (moveEvt) => {
-      const currentDist = Math.hypot(moveEvt.clientX - centerX, moveEvt.clientY - centerY);
-      if (initialDist < 10) return;
-      const ratio = currentDist / initialDist;
-      let newScale = initialScale * ratio;
-      newScale = Math.max(0.4, Math.min(2.5, Math.round(newScale * 100) / 100));
+      const deltaX = moveEvt.clientX - startMouseX;
+      const deltaY = moveEvt.clientY - startMouseY;
+      const projectedDelta = deltaX * dirX + deltaY * dirY;
+      const scaleFactor = 1 + projectedDelta / initialDist;
+      let newScale = initialScale * scaleFactor;
+      const minS = selectedBox.type === 'sticker' ? 0.3 : 0.4;
+      const maxS = selectedBox.type === 'sticker' ? 3.5 : 2.5;
+      newScale = Math.max(minS, Math.min(maxS, Math.round(newScale * 100) / 100));
 
       if (selectedBox.type === 'text_overlay' || selectedBox.type === 'hook') {
         onUpdateOverlay?.(selectedBox.id, {
           look: { ...(selectedBox.item?.look || {}), size_pct: Math.round(newScale * 100) },
         });
+      } else if (selectedBox.type === 'sticker') {
+        onUpdateSticker?.(selectedBox.id, { scale: newScale });
       } else if (selectedBox.type === 'caption') {
         if (applyToAllCaptions && onUpdateAllCaptions) {
           onUpdateAllCaptions({ scale: newScale }, true);
@@ -2092,16 +2413,16 @@ function SequencePlayer({
       window.removeEventListener('pointercancel', onPointerUp);
 
       if (selectedBox.type === 'caption' && upEvt) {
-        const currentDist = Math.hypot(upEvt.clientX - centerX, upEvt.clientY - centerY);
-        if (initialDist >= 10) {
-          const ratio = currentDist / initialDist;
-          let newScale = Math.max(0.4, Math.min(2.5, Math.round(initialScale * ratio * 100) / 100));
-          if (applyToAllCaptions && onUpdateAllCaptions) {
-            onUpdateAllCaptions({ scale: newScale }, false);
-            onStyleChange?.({ captionScale: newScale });
-          } else {
-            onUpdateCaption?.(selectedBox.id, { scale: newScale }, false);
-          }
+        const deltaX = upEvt.clientX - startMouseX;
+        const deltaY = upEvt.clientY - startMouseY;
+        const projectedDelta = deltaX * dirX + deltaY * dirY;
+        const scaleFactor = 1 + projectedDelta / initialDist;
+        let newScale = Math.max(0.4, Math.min(2.5, Math.round(initialScale * scaleFactor * 100) / 100));
+        if (applyToAllCaptions && onUpdateAllCaptions) {
+          onUpdateAllCaptions({ scale: newScale }, false);
+          onStyleChange?.({ captionScale: newScale });
+        } else {
+          onUpdateCaption?.(selectedBox.id, { scale: newScale }, false);
         }
       }
     };
@@ -2124,14 +2445,20 @@ function SequencePlayer({
     );
 
     if (hit) {
-      if (hit.type === 'template_preview') {
+      if (hit.type === 'template_preview' || hit.type === 'sticker_preview') {
         // Clicking the preview box itself can be handled by the preview UI overlay
+        return;
+      }
+      if (hit.type === 'sticker' && isStickerHidden) {
         return;
       }
       onSelect?.({ type: hit.type, id: hit.id });
     } else {
       if (previewTextTemplate) {
         onDismissPreviewTextTemplate?.();
+      }
+      if (previewSticker) {
+        onDismissPreviewSticker?.();
       }
       if (selection) {
         onSelect?.(null);
@@ -2165,54 +2492,158 @@ function SequencePlayer({
   }, []);
 
   useEffect(() => {
-    if (!stickerStyle?.badge || !stickerStyle?.stickers?.length) {
+    const catalog = stickerStyle?.stickers || [];
+    if (!catalog.length && !effectiveStickersList.length && !stickerStyle?.badge) {
       stickerImgRef.current = null;
+      stickerImagesRef.current.clear();
       renderAt(playheadRef.current);
       return;
     }
-    const found = stickerStyle.stickers.find((s) => 
-      s.name === stickerStyle.badge || 
-      s.id === stickerStyle.badge || 
-      s.path === stickerStyle.badge ||
-      (s.name && stickerStyle.badge && s.name.toLowerCase() === String(stickerStyle.badge).toLowerCase())
-    );
-    if (found?.img_url) {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.src = found.img_url;
-      img.onload = () => {
-        stickerImgRef.current = img;
-        renderAt(playheadRef.current);
-      };
-    } else {
-      stickerImgRef.current = null;
-      renderAt(playheadRef.current);
+
+    if (stickerStyle?.badge) {
+      const found = catalog.find((s) => 
+        s.name === stickerStyle.badge || 
+        s.id === stickerStyle.badge || 
+        s.path === stickerStyle.badge ||
+        (s.name && stickerStyle.badge && s.name.toLowerCase() === String(stickerStyle.badge).toLowerCase())
+      );
+      if (found?.img_url) {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = found.img_url;
+        img.onload = () => {
+          stickerImgRef.current = img;
+          renderAt(playheadRef.current);
+        };
+      } else {
+        stickerImgRef.current = null;
+      }
     }
-  }, [stickerStyle.badge, stickerStyle.stickers]);
+
+    effectiveStickersList.forEach((stk) => {
+      const bKey = stk.badge;
+      if (!bKey) return;
+      if (stickerImagesRef.current.has(bKey)) return;
+
+      const found = catalog.find((s) =>
+        s.name === bKey ||
+        s.id === bKey ||
+        s.path === bKey ||
+        (s.name && s.name.toLowerCase() === String(bKey).toLowerCase())
+      );
+      if (found?.img_url) {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = found.img_url;
+        img.onload = () => {
+          stickerImagesRef.current.set(bKey, img);
+          stickerImagesRef.current.set(bKey.toLowerCase(), img);
+          renderAt(playheadRef.current);
+        };
+      }
+    });
+
+    if (previewSticker && !stickerImagesRef.current.has(previewSticker)) {
+      const bKey = previewSticker;
+      const found = catalog.find((s) =>
+        s.name === bKey ||
+        s.id === bKey ||
+        s.path === bKey ||
+        (s.name && s.name.toLowerCase() === String(bKey).toLowerCase())
+      );
+      if (found?.img_url) {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = found.img_url;
+        img.onload = () => {
+          stickerImagesRef.current.set(bKey, img);
+          stickerImagesRef.current.set(bKey.toLowerCase(), img);
+          renderAt(playheadRef.current);
+        };
+      }
+    }
+
+    renderAt(playheadRef.current);
+  }, [stickerStyle.badge, stickerStyle.stickers, effectiveStickersList, previewSticker]);
+
+  useEffect(() => {
+    renderAt(playheadRef.current);
+  }, [isStickerHidden, previewSticker]);
 
   // Load real duration for every clip up front -- segment timing needs it
   // (a clip with trim_end === null trims to "the source's own end").
   useEffect(() => {
+    if (!clips || clips.length === 0) {
+      setMetadataReady(false);
+      setIsPlaying(false);
+      setPlayhead(0);
+      setDurations({});
+      return undefined;
+    }
+
     setMetadataReady(false);
     setIsPlaying(false);
-    setPlayhead(0);
     let cancelled = false;
 
-    const waits = clips.map(c => new Promise((resolve) => {
-      const v = videoElsRef.current[c.id];
-      if (!v) return resolve();
-      if (v.readyState >= 1) return resolve();
-      const onLoaded = () => { v.removeEventListener('loadedmetadata', onLoaded); resolve(); };
-      v.addEventListener('loadedmetadata', onLoaded);
-    }));
-
-    Promise.all(waits).then(() => {
-      if (cancelled) return;
+    const collectDurations = () => {
       const d = {};
-      clips.forEach(c => { d[c.id] = videoElsRef.current[c.id]?.duration || 0; });
+      clips.forEach((c) => {
+        const measured = videoElsRef.current[c.id]?.duration;
+        d[c.id] = (Number.isFinite(measured) && measured > 0)
+          ? measured
+          : (Number(c.duration) || Number(c.source_duration) || Number(c.trim_end) || 0);
+      });
+      return d;
+    };
+
+    const finishLoading = () => {
+      if (cancelled) return;
+      const d = collectDurations();
       setDurations(d);
       setMetadataReady(true);
       onDurations?.(d);
+
+      // Seek active video element to the playhead so first frame renders immediately
+      const activeSegs = buildSegments(clips, d);
+      const targetT = playheadRef.current || 0;
+      const plan = planAt(activeSegs, targetT);
+      plan.forEach(({ seg, localTime }) => {
+        const v = videoElsRef.current[seg.clip.id];
+        if (v && Number.isFinite(localTime)) {
+          try { v.currentTime = localTime; } catch {}
+        }
+      });
+      requestAnimationFrame(() => renderAt(targetT));
+    };
+
+    const waits = clips.map((c) => new Promise((resolve) => {
+      const v = videoElsRef.current[c.id];
+      if (!v || v.readyState >= 1) return resolve();
+      let done = false;
+      const cleanup = () => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        v.removeEventListener('loadedmetadata', cleanup);
+        v.removeEventListener('loadeddata', cleanup);
+        v.removeEventListener('canplay', cleanup);
+        v.removeEventListener('error', cleanup);
+        resolve();
+      };
+      // Individual per-clip safety timeout so a slow or stalled media request doesn't block the UI
+      const timer = setTimeout(cleanup, 800);
+      v.addEventListener('loadedmetadata', cleanup);
+      v.addEventListener('loadeddata', cleanup);
+      v.addEventListener('canplay', cleanup);
+      v.addEventListener('error', cleanup);
+    }));
+
+    // Global race with a 1200ms ceiling: even if multiple offscreen requests queue up in Chromium,
+    // we never leave the user permanently blocked on "กำลังโหลดวิดีโอ...".
+    const globalTimeout = new Promise((resolve) => setTimeout(resolve, 1200));
+
+    Promise.race([Promise.all(waits), globalTimeout]).then(() => {
+      finishLoading();
     });
 
     return () => { cancelled = true; };
@@ -2220,7 +2651,7 @@ function SequencePlayer({
   }, [clipKey]);
 
   const segments = useMemo(
-    () => (metadataReady ? buildSegments(clips, durations) : []),
+    () => buildSegments(clips, durations),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [clipKey, metadataReady, durations]
   );
@@ -2632,7 +3063,7 @@ function SequencePlayer({
     applyGrade(ctx, canvas);
     // Same order the render burns in (video_editor.py): the badge, then the
     // scrim over it, then everything libass draws on top.
-    drawSticker(ctx, stickerImgRef.current, t, stickerStyle, bounds);
+    drawStickers(ctx, stickerImagesRef.current, stickerImgRef.current, t, effectiveStickersList, bounds, isStickerHidden, previewSticker);
     drawOverlayScrims(ctx, drawnOverlays, t);
     if (!captionStyle.hidden) {
       drawCaption(ctx, cues, t, captionStyle, bounds);
@@ -2644,7 +3075,7 @@ function SequencePlayer({
   useEffect(() => {
     renderAt(playheadRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [segments, captionKey, stickerKey, cuesKey, overlaysKey, lutReady, grade?.intensity]);
+  }, [segments, captionKey, stickerKey, stickersKey, cuesKey, overlaysKey, lutReady, grade?.intensity]);
 
   const lastNotifyRef = useRef(0);
 
@@ -2745,6 +3176,7 @@ function SequencePlayer({
       const canvas = canvasRef.current;
       const ctx = canvas?.getContext('2d');
       if (ctx) {
+        ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
         let framePainted = false;
         plan.forEach((entry) => {
           const { seg } = entry;
@@ -2756,8 +3188,7 @@ function SequencePlayer({
           if (video.seeking && prevActiveClipIdRef.current && prevActiveClipIdRef.current !== seg.clip.id) {
             const prevV = videoElsRef.current[prevActiveClipIdRef.current];
             const prevSeg = segments.find(s => s.clip.id === prevActiveClipIdRef.current);
-            if (prevV && prevSeg && prevV.readyState >= 2 && !prevV.seeking) {
-              if (!framePainted) ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+            if (prevV && prevSeg && prevV.readyState >= 2) {
               ctx.globalAlpha = 1;
               ctx.filter = clipFilter(prevSeg.clip);
               drawVideoFrame(ctx, prevV, prevSeg.clip);
@@ -2766,8 +3197,7 @@ function SequencePlayer({
             }
           }
 
-          if (video.readyState >= 2 && !video.seeking) {
-            if (!framePainted) ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+          if (video.readyState >= 2) {
             paintEntry(ctx, entry, video, getOffscreen());
             framePainted = true;
             prevActiveClipIdRef.current = seg.clip.id;
@@ -2778,7 +3208,7 @@ function SequencePlayer({
         ctx.filter = 'none';
         const bounds = [];
         if (framePainted) applyGrade(ctx, canvas);
-        drawSticker(ctx, stickerImgRef.current, t, stickerStyle, bounds);
+        drawStickers(ctx, stickerImagesRef.current, stickerImgRef.current, t, effectiveStickersList, bounds, isStickerHidden, previewSticker);
         drawOverlayScrims(ctx, drawnOverlays, t);
         if (!captionStyle.hidden) {
           drawCaption(ctx, cues, t, captionStyle, bounds);
@@ -2910,7 +3340,13 @@ function SequencePlayer({
         {clips.map((c) => (
           <video
             key={c.id}
-            ref={(el) => { if (el) videoElsRef.current[c.id] = el; }}
+            ref={(el) => {
+              if (el) {
+                videoElsRef.current[c.id] = el;
+              } else {
+                delete videoElsRef.current[c.id];
+              }
+            }}
             src={toMediaUrl(c.source_path)}
             preload="auto"
             // These elements exist to decode frames, so they stay muted --
@@ -3063,10 +3499,30 @@ function SequencePlayer({
                   />
 
                   {/* 4 Edge Capsule Handles */}
-                  <div className="absolute top-1/2 -left-1 -translate-y-1/2 w-2 h-4 rounded-full bg-white border border-black/40 shadow-sm pointer-events-none" />
-                  <div className="absolute top-1/2 -right-1 -translate-y-1/2 w-2 h-4 rounded-full bg-white border border-black/40 shadow-sm pointer-events-none" />
-                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-4 h-2 rounded-full bg-white border border-black/40 shadow-sm pointer-events-none" />
-                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-2 rounded-full bg-white border border-black/40 shadow-sm pointer-events-none" />
+                  <div
+                    className="absolute top-1/2 -left-1.5 -translate-y-1/2 w-2.5 h-5 rounded-full bg-white border border-[#25F4EE] shadow-sm cursor-ew-resize hover:scale-125 transition-transform"
+                    style={{ touchAction: 'none' }}
+                    onPointerDown={(e) => handleResizeStart(e, 'w')}
+                    title="ลากเพื่อย่อ/ขยาย"
+                  />
+                  <div
+                    className="absolute top-1/2 -right-1.5 -translate-y-1/2 w-2.5 h-5 rounded-full bg-white border border-[#25F4EE] shadow-sm cursor-ew-resize hover:scale-125 transition-transform"
+                    style={{ touchAction: 'none' }}
+                    onPointerDown={(e) => handleResizeStart(e, 'e')}
+                    title="ลากเพื่อย่อ/ขยาย"
+                  />
+                  <div
+                    className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-5 h-2.5 rounded-full bg-white border border-[#25F4EE] shadow-sm cursor-ns-resize hover:scale-125 transition-transform"
+                    style={{ touchAction: 'none' }}
+                    onPointerDown={(e) => handleResizeStart(e, 'n')}
+                    title="ลากเพื่อย่อ/ขยาย"
+                  />
+                  <div
+                    className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-5 h-2.5 rounded-full bg-white border border-[#25F4EE] shadow-sm cursor-ns-resize hover:scale-125 transition-transform"
+                    style={{ touchAction: 'none' }}
+                    onPointerDown={(e) => handleResizeStart(e, 's')}
+                    title="ลากเพื่อย่อ/ขยาย"
+                  />
 
                   {/* Center Anchor Point */}
                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#25F4EE] pointer-events-none" />
@@ -3103,6 +3559,30 @@ function SequencePlayer({
                       height: `${pH}%`,
                     }}
                   />
+                );
+              })()}
+
+              {/* Ephemeral Sticker Preview Box Overlay */}
+              {previewSticker && (() => {
+                const previewBound = boundsRef.current.find((b) => b.type === 'sticker_preview');
+                const pX = previewBound ? (previewBound.x / CANVAS_W) * 100 : 42.6;
+                const pY = previewBound ? (previewBound.y / CANVAS_H) * 100 : 46;
+                const pW = previewBound ? (previewBound.w / CANVAS_W) * 100 : 14.8;
+                const pH = previewBound ? (previewBound.h / CANVAS_H) * 100 : 8.3;
+                return (
+                  <div
+                    className="pointer-events-none absolute z-35 select-none rounded-2xl border border-dashed border-[#25F4EE] shadow-[0_0_18px_rgba(37,244,238,0.35)] flex items-start justify-center"
+                    style={{
+                      left: `${pX}%`,
+                      top: `${pY}%`,
+                      width: `${pW}%`,
+                      height: `${pH}%`,
+                    }}
+                  >
+                    <span className="absolute -top-5 px-2 py-0.5 rounded-full bg-[#25F4EE] text-[9px] font-bold text-slate-950 shadow animate-pulse">
+                      พรีวิวสติกเกอร์
+                    </span>
+                  </div>
                 );
               })()}
 

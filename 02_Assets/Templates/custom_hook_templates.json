@@ -76,6 +76,162 @@
         "stagger": true
       },
       "is_custom": true
+    },
+    "custom_1788839062": {
+      "id": "custom_1788839062",
+      "label_th": "test",
+      "font": "Kanit",
+      "tiers": {
+        "brand": {
+          "size_pct": 174,
+          "color": "#2e2929",
+          "outline_color": "#FFFFFF",
+          "outline_px": 14,
+          "upper": false,
+          "pill": null
+        },
+        "model": {
+          "size_pct": 113,
+          "color": "#f47171",
+          "outline_color": "#FFFFFF",
+          "outline_px": 17,
+          "upper": false,
+          "pill": null
+        },
+        "label": {
+          "size_pct": 78,
+          "color": "#4CE0FF",
+          "outline_color": "#FFFFFF",
+          "outline_px": 9,
+          "upper": false,
+          "pill": null
+        }
+      },
+      "motion": {
+        "in": "pop",
+        "loop": "shake",
+        "out": "zoom",
+        "accent": "badge",
+        "stagger": true
+      },
+      "is_custom": true
+    },
+    "custom_1788839082": {
+      "id": "custom_1788839082",
+      "label_th": "test",
+      "font": "Kanit",
+      "tiers": {
+        "brand": {
+          "size_pct": 174,
+          "color": "#f7f7f7",
+          "outline_color": "#FFFFFF",
+          "outline_px": 14,
+          "upper": false,
+          "pill": null
+        },
+        "model": {
+          "size_pct": 113,
+          "color": "#f47171",
+          "outline_color": "#FFFFFF",
+          "outline_px": 17,
+          "upper": false,
+          "pill": null
+        },
+        "label": {
+          "size_pct": 78,
+          "color": "#4CE0FF",
+          "outline_color": "#FFFFFF",
+          "outline_px": 9,
+          "upper": false,
+          "pill": null
+        }
+      },
+      "motion": {
+        "in": "pop",
+        "loop": "shake",
+        "out": "zoom",
+        "accent": "badge",
+        "stagger": true
+      },
+      "is_custom": true
+    },
+    "custom_1788841263": {
+      "id": "custom_1788841263",
+      "label_th": "big",
+      "font": "Kanit",
+      "tiers": {
+        "brand": {
+          "size_pct": 320,
+          "color": "#3f3131",
+          "outline_color": "#FFFFFF",
+          "outline_px": 8.5,
+          "upper": false,
+          "pill": null
+        },
+        "model": {
+          "size_pct": 208,
+          "color": "#f47171",
+          "outline_color": "#FFFFFF",
+          "outline_px": 17,
+          "upper": false,
+          "pill": null
+        },
+        "label": {
+          "size_pct": 144,
+          "color": "#4CE0FF",
+          "outline_color": "#FFFFFF",
+          "outline_px": 9,
+          "upper": false,
+          "pill": null
+        }
+      },
+      "motion": {
+        "in": "pop",
+        "loop": "lightsweep",
+        "out": "zoom",
+        "accent": "badge",
+        "stagger": true
+      },
+      "is_custom": true
+    },
+    "custom_1788842335": {
+      "id": "custom_1788842335",
+      "label_th": "test 5",
+      "font": "Kanit",
+      "tiers": {
+        "brand": {
+          "size_pct": 166,
+          "color": "#282525",
+          "outline_color": "#fafafa",
+          "outline_px": 5,
+          "upper": false,
+          "pill": null
+        },
+        "model": {
+          "size_pct": 211,
+          "color": "#f47171",
+          "outline_color": "#FFFFFF",
+          "outline_px": 6,
+          "upper": false,
+          "pill": null
+        },
+        "label": {
+          "size_pct": 113,
+          "color": "#4CE0FF",
+          "outline_color": "#FFFFFF",
+          "outline_px": 6.5,
+          "upper": false,
+          "pill": null
+        }
+      },
+      "motion": {
+        "in": "pop",
+        "loop": "lightsweep",
+        "out": "zoom",
+        "accent": "badge",
+        "stagger": true
+      },
+      "is_custom": true
     }
   }
 }

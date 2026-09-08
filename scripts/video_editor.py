@@ -69,18 +69,32 @@ STICKER_POSITIONS = {
     "bottom_left": ("40", "(H-h-420)"),
     "bottom_center": ("(W-w)/2", "(H-h-420)"),
 }
-STICKER_BASE_WIDTH = 380
+STICKER_BASE_WIDTH = 160
 
 
-def sticker_geometry(position: str, scale: float):
+def sticker_geometry(
+    position: str,
+    scale: float,
+    norm_x: Optional[float] = None,
+    norm_y: Optional[float] = None,
+    canvas_w: int = VIDEO_WIDTH,
+    canvas_h: int = VIDEO_HEIGHT,
+):
     """(width, x expression, y expression) for the badge overlay."""
     try:
-        factor = min(2.0, max(0.4, float(scale or 1.0)))
+        factor = min(3.5, max(0.3, float(scale or 1.0)))
     except (TypeError, ValueError):
         factor = 1.0
     width = int(round(STICKER_BASE_WIDTH * factor))
     width = width if width % 2 == 0 else width + 1
-    x, y = STICKER_POSITIONS.get(position, STICKER_POSITIONS["top_right"])
+    if norm_x is not None and norm_y is not None:
+        px_x = int(round(canvas_w * float(norm_x) - width / 2))
+        px_x = max(10, min(canvas_w - width - 10, px_x))
+        target_center_y = int(round(canvas_h * float(norm_y)))
+        x = str(px_x)
+        y = f"({target_center_y}-h/2)"
+    else:
+        x, y = STICKER_POSITIONS.get(position, STICKER_POSITIONS["top_right"])
     return width, x, y
 
 # What "export quality" means, end to end. Draft trades resolution and encode
@@ -427,6 +441,11 @@ class VideoEditor:
         export_preset: str = "post",
         sticker_position: str = "top_right",
         sticker_scale: float = 1.0,
+        sticker_start_time: float = None,
+        sticker_end_time: float = None,
+        sticker_norm_x: float = None,
+        sticker_norm_y: float = None,
+        stickers: Optional[List[Dict[str, Any]]] = None,
         scrim_spans: list = None,
         auto_blur_landscape: bool = True,
         progress_callback: Optional[Callable[[float, float], None]] = None,
@@ -840,23 +859,74 @@ class VideoEditor:
                 )
             current_v = "[v_graded]"
 
-        # Optional Promotional Sticker Overlay (Top-Right Badge with entry animation)
-        if sticker_path and Path(sticker_path).exists():
-            badge_w, badge_x, badge_y = sticker_geometry(sticker_position, sticker_scale)
-            # The sticker is appended right after the mixed audio, so it is the
-            # input following audio_input_idx. Counting `cmd_inputs` instead
-            # assumed every input spends exactly two slots ("-i", path), which
-            # a clip_list render breaks: each trimmed clip spends six
-            # ("-ss", val, "-t", val, "-i", path), inflating the index to
-            # 3N+1 instead of N+1 and pointing the overlay at no such stream.
-            st_idx = audio_input_idx + 1
-            cmd_inputs.extend(["-i", str(Path(sticker_path).resolve())])
-            # Scale badge nicely (width ~ 380px) and place in top right or center top
-            filter_complex.append(
-                f"[{st_idx}:v]scale={badge_w}:-1[sticker_scaled];"
-                f"{current_v}[sticker_scaled]overlay=x={badge_x}:y={badge_y}:enable='gte(t,0.5)':format=auto[v_stickered];"
+        profile = EXPORT_PRESETS.get(export_preset, EXPORT_PRESETS["post"])
+
+        # Optional Promotional Sticker Overlays (Multiple Stickers or legacy single sticker)
+        effective_stickers = []
+        if stickers and isinstance(stickers, list):
+            for stk in stickers:
+                if not isinstance(stk, dict) or stk.get("hidden"):
+                    continue
+                stk_badge = stk.get("badge") or stk.get("path")
+                p = None
+                if stk_badge:
+                    b_path = Path(stk_badge)
+                    if b_path.exists():
+                        p = b_path
+                    elif (STICKERS_DIR / stk_badge).exists():
+                        p = STICKERS_DIR / stk_badge
+                    elif not stk_badge.endswith(".png") and (STICKERS_DIR / f"{stk_badge}.png").exists():
+                        p = STICKERS_DIR / f"{stk_badge}.png"
+                if p and p.exists():
+                    effective_stickers.append({
+                        "path": p,
+                        "scale": stk.get("scale", 1.0),
+                        "norm_x": stk.get("norm_x", stk.get("normX")),
+                        "norm_y": stk.get("norm_y", stk.get("normY")),
+                        "start": stk.get("start", stk.get("start_time")),
+                        "end": stk.get("end", stk.get("end_time")),
+                        "position": stk.get("position", "top_right"),
+                    })
+        elif sticker_path and Path(sticker_path).exists():
+            effective_stickers.append({
+                "path": Path(sticker_path),
+                "scale": sticker_scale,
+                "norm_x": sticker_norm_x,
+                "norm_y": sticker_norm_y,
+                "start": sticker_start_time,
+                "end": sticker_end_time,
+                "position": sticker_position,
+            })
+
+        for s_idx, stk_info in enumerate(effective_stickers):
+            badge_w, badge_x, badge_y = sticker_geometry(
+                stk_info.get("position", "top_right"),
+                stk_info.get("scale", 1.0),
+                norm_x=stk_info.get("norm_x"),
+                norm_y=stk_info.get("norm_y"),
+                canvas_w=profile["width"],
+                canvas_h=profile["height"],
             )
-            current_v = "[v_stickered]"
+            # The stickers are appended right after the mixed audio and preceding stickers
+            st_idx = audio_input_idx + 1 + s_idx
+            cmd_inputs.extend(["-i", str(stk_info["path"].resolve())])
+            st_start = stk_info.get("start")
+            st_end = stk_info.get("end")
+            if st_start is not None or st_end is not None:
+                st_start_val = max(0.0, float(st_start if st_start is not None else 0.5))
+                if st_end is not None and float(st_end) > st_start_val:
+                    enable_expr = f"between(t,{st_start_val:.2f},{float(st_end):.2f})"
+                else:
+                    enable_expr = f"gte(t,{st_start_val:.2f})"
+            else:
+                enable_expr = "gte(t,0.5)"
+            stk_node = "sticker_scaled" if s_idx == 0 else f"sticker_scaled_{s_idx}"
+            out_label = f"[v_stickered_{s_idx}]"
+            filter_complex.append(
+                f"[{st_idx}:v]scale={badge_w}:-1[{stk_node}];"
+                f"{current_v}[{stk_node}]overlay=x={badge_x}:y={badge_y}:enable='{enable_expr}':format=auto{out_label};"
+            )
+            current_v = out_label
 
         # Optional gradient backdrop behind the hook banner -- dark at the
         # top of the frame, fading to transparent by ~25% down, so the

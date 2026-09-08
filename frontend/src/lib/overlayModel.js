@@ -53,6 +53,8 @@ export const TEXT_LOOK_FIELDS = [
   'font', 'size_pct', 'color',
   'outline_color', 'outline_px',
   'shadow', 'pill', 'upper', 'skew',
+  'bold', 'italic', 'underline',
+  'accent_color',
 ];
 
 // A dark copy of the glyphs, offset down-right. Offsets are RENDER pixels --
@@ -84,6 +86,10 @@ export const DEFAULT_TEXT_LOOK = {
   pill: null,
   upper: false,
   skew: 0.0,
+  bold: false,
+  italic: false,
+  underline: false,
+  accent_color: null,
 };
 
 // bgStyle + badgeColor collapse into one pill object.
@@ -208,11 +214,12 @@ function pillFromLegacy(bgStyle, badgeColor) {
 }
 
 function hookTierLook(resolvedFont, tier) {
+  const tierFont = tier.font || resolvedFont;
   const pill = tier.pill
     ? { fill: tier.pill, border: null, pad_x_em: HOOK_PILL_PAD_X_EM, pad_y_em: HOOK_PILL_PAD_Y_EM }
     : null;
   return {
-    font: resolvedFont,
+    font: tierFont,
     size_pct: tier.size_pct,
     color: tier.color === null || tier.color === undefined ? ACCENT_COLOR : tier.color,
     outline_color: tier.outline_color,
@@ -220,6 +227,9 @@ function hookTierLook(resolvedFont, tier) {
     shadow: { ...HOOK_SHADOW },
     pill,
     upper: !!tier.upper,
+    bold: !!tier.bold,
+    italic: !!tier.italic,
+    underline: !!tier.underline,
   };
 }
 
@@ -440,8 +450,13 @@ function tierOverrides(overlay, template) {
     const base = ((baseline && baseline.tiers[i]) || {}).look || {};
     const kept = {};
     for (const field of TEXT_LOOK_FIELDS) {
-      // The font and the shadow belong to the template, not to the tier.
-      if (field === 'font' || field === 'shadow') continue;
+      if (field === 'shadow') continue;
+      if (field === 'font') {
+        if (current.font && current.font !== base.font) {
+          kept.font = current.font;
+        }
+        continue;
+      }
       // An absent field means "inherit", which is not an override.
       if (current[field] === undefined || current[field] === null) continue;
       if (JSON.stringify(current[field]) !== JSON.stringify(base[field])) {
@@ -450,6 +465,31 @@ function tierOverrides(overlay, template) {
     }
     return kept;
   });
+}
+
+/** Set master font for hook, updating tiers that follow the master font. */
+export function withHookFont(overlay, newFont) {
+  if (!overlay || !newFont) return overlay;
+  const prevMaster = overlay.look?.font || 'Kanit';
+  const updatedTiers = (overlay.tiers || []).map((tier) => {
+    const currentTierFont = tier.look?.font;
+    const shouldUpdateTier = !currentTierFont || currentTierFont === prevMaster;
+    return {
+      ...tier,
+      look: {
+        ...(tier.look || {}),
+        font: shouldUpdateTier ? newFont : currentTierFont,
+      },
+    };
+  });
+  return {
+    ...overlay,
+    look: {
+      ...(overlay.look || {}),
+      font: newFont,
+    },
+    tiers: updatedTiers,
+  };
 }
 
 /**
@@ -472,10 +512,14 @@ export function withHookTemplate(overlay, template) {
     template: fresh.template,
     look: { ...fresh.look },
     anim: { ...fresh.anim },
-    tiers: fresh.tiers.map((tier, i) => ({
-      text: texts[i],
-      look: { ...tier.look, ...kept[i] },
-    })),
+    tiers: fresh.tiers.map((tier, i) => {
+      const overrides = { ...(kept[i] || {}) };
+      delete overrides.size_pct;
+      return {
+        text: texts[i],
+        look: { ...tier.look, ...overrides },
+      };
+    }),
   };
 }
 

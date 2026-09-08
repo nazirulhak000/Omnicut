@@ -254,6 +254,8 @@ def resolve_hook_style(
             value = (over_tiers.get(key) or {}).get(field)
             if value is not None:
                 tier[field] = value
+        if (over_tiers.get(key) or {}).get("font"):
+            tier["font"] = over_tiers[key]["font"]
         if picked_colors.get(key):
             tier["color"] = picked_colors[key]
         resolved["tiers"][key] = tier

@@ -21,6 +21,7 @@ import {
   HOOK_SHADOW,
   overriddenTierFields,
   resolveLook,
+  withHookFont,
   withHookTemplate,
   withHookTemplateReset,
   withTierLook,
@@ -41,6 +42,12 @@ const HOOK_TIER_LABELS = ['แบรนด์', 'รุ่น / จุดเด�
 const HOOK_MIN_DURATION = 1.0;
 const HOOK_MAX_DURATION = 8.0;
 const HOOK_CARD_SAMPLE = ['BRAND', 'รุ่นเด่น', 'คำโปรย'];
+
+export const FALLBACK_ACCENT_OPTIONS = {
+  underline: { label_th: 'เส้นใต้เรืองแสง', label_en: 'Accent Bar' },
+  badge: { label_th: 'แถบไฮไลต์', label_en: 'Badge' },
+  none: { label_th: 'ไม่มี', label_en: 'None' },
+};
 
 function hookCardLook(tpl, tierKey) {
   const tier = (tpl.tiers || {})[tierKey] || {};
@@ -220,16 +227,20 @@ export default function OverlayInspector({
       setIsSavingCustom(true);
       try {
         const tiersObj = {};
+        const masterMul = ((hookOverlay?.look?.size_pct ?? 100) / 100);
         (hookOverlay?.tiers || []).forEach((t, i) => {
           const tierKey = TIER_KEYS[i];
           if (tierKey) {
             const resolved = resolveLook(hookOverlay.look, t.look);
             tiersObj[tierKey] = {
-              size_pct: resolved.size_pct ?? 100,
+              size_pct: Math.round((resolved.size_pct ?? 100) * masterMul),
               color: resolved.color ?? '#FFFFFF',
               outline_color: resolved.outline_color ?? '#000000',
               outline_px: resolved.outline_px ?? 8,
               upper: resolved.upper ?? false,
+              bold: resolved.bold ?? false,
+              italic: resolved.italic ?? false,
+              underline: resolved.underline ?? false,
               pill: resolved.pill ? (typeof resolved.pill === 'string' ? resolved.pill : resolved.pill.fill) : null,
             };
           }
@@ -456,6 +467,29 @@ export default function OverlayInspector({
               />
             </div>
 
+            {/* Master Font Selector */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="font-medium text-slate-400">ฟอนต์หลักของป้ายฮุก</span>
+                <span className="font-mono text-[10px] text-[#E6C24A]">{hookOverlay.look?.font || 'Kanit'}</span>
+              </div>
+              <select
+                value={hookOverlay.look?.font || 'Kanit'}
+                onChange={(e) => onReplaceOverlay?.(hookOverlay.id, withHookFont(hookOverlay, e.target.value))}
+                className="w-full rounded-lg border border-white/[0.1] bg-black/60 px-2 py-1.5 text-xs font-semibold text-white shadow-inner focus:border-[#E6C24A] focus:outline-none cursor-pointer"
+              >
+                {FONT_OPTIONS.map((f) => {
+                  const fontVal = f.id || f.value;
+                  const fontLbl = f.name || f.label;
+                  return (
+                    <option key={fontVal} value={fontVal} className="bg-[#18181B] text-white" style={{ fontFamily: fontVal }}>
+                      {fontLbl}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
             {/* One row per tier */}
             <div className="space-y-1.5">
               {HOOK_TIER_LABELS.map((tierLabel, idx) => {
@@ -509,6 +543,32 @@ export default function OverlayInspector({
                           className="w-full rounded-lg border border-white/[0.1] bg-black/60 px-2 py-1.5 text-xs font-semibold text-white shadow-inner focus:border-[#E6C24A] focus:outline-none"
                         />
 
+                        {/* Per-Tier Font Override */}
+                        <div className="flex items-center gap-2">
+                          <span className="w-11 flex-shrink-0 text-[10px] font-medium text-slate-400">ฟอนต์</span>
+                          <select
+                            value={tier.font || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              const updatedTiers = [...(hookOverlay.tiers || [])];
+                              updatedTiers[idx] = { ...updatedTiers[idx], font: val || undefined };
+                              onReplaceOverlay?.(hookOverlay.id, { ...hookOverlay, tiers: updatedTiers });
+                            }}
+                            className="min-w-0 flex-1 rounded border border-white/[0.1] bg-black/60 px-2 py-1 text-[11px] text-white focus:border-[#E6C24A] focus:outline-none cursor-pointer"
+                          >
+                            <option value="">ตามฟอนต์หลัก ({hookOverlay.look?.font || 'Kanit'})</option>
+                            {FONT_OPTIONS.map((f) => {
+                              const fontVal = f.id || f.value;
+                              const fontLbl = f.name || f.label;
+                              return (
+                                <option key={fontVal} value={fontVal} className="bg-[#18181B] text-white" style={{ fontFamily: fontVal }}>
+                                  {fontLbl}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+
                         <div className="flex items-center gap-2">
                           <span className="w-11 flex-shrink-0 text-[10px] font-medium text-slate-400">ขนาด</span>
                           <input
@@ -540,18 +600,56 @@ export default function OverlayInspector({
                             onChange={(e) => patchHookTier(idx, { outline_color: e.target.value })}
                             className="h-6 w-8 flex-shrink-0 cursor-pointer rounded border border-white/[0.1] bg-transparent"
                           />
-                          <button
-                            type="button"
-                            onClick={() => patchHookTier(idx, { upper: !look.upper })}
-                            title="พิมพ์ใหญ่ทั้งบรรทัด"
-                            className={`ml-auto flex-shrink-0 rounded-lg border px-2 py-0.5 text-[10px] font-black transition-all cursor-pointer ${
-                              look.upper
-                                ? 'border-[#E6C24A] bg-[#E6C24A]/15 text-[#E6C24A]'
-                                : 'border-white/[0.08] bg-black/30 text-slate-500 hover:text-white'
-                            }`}
-                          >
-                            AA
-                          </button>
+                          <div className="ml-auto flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => patchHookTier(idx, { bold: !look.bold })}
+                              title="ตัวหนา"
+                              className={`h-6 w-6 flex items-center justify-center rounded-lg border text-[11px] font-black transition-all cursor-pointer ${
+                                look.bold
+                                  ? 'border-[#E6C24A] bg-[#E6C24A]/20 text-[#E6C24A]'
+                                  : 'border-white/[0.08] bg-black/30 text-slate-500 hover:text-white'
+                              }`}
+                            >
+                              B
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => patchHookTier(idx, { italic: !look.italic })}
+                              title="ตัวเอียง"
+                              className={`h-6 w-6 flex items-center justify-center rounded-lg border text-[11px] font-bold italic transition-all cursor-pointer font-serif ${
+                                look.italic
+                                  ? 'border-[#E6C24A] bg-[#E6C24A]/20 text-[#E6C24A]'
+                                  : 'border-white/[0.08] bg-black/30 text-slate-500 hover:text-white'
+                              }`}
+                            >
+                              I
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => patchHookTier(idx, { underline: !look.underline })}
+                              title="ขีดเส้นใต้"
+                              className={`h-6 w-6 flex items-center justify-center rounded-lg border text-[11px] font-bold underline transition-all cursor-pointer ${
+                                look.underline
+                                  ? 'border-[#E6C24A] bg-[#E6C24A]/20 text-[#E6C24A]'
+                                  : 'border-white/[0.08] bg-black/30 text-slate-500 hover:text-white'
+                              }`}
+                            >
+                              U
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => patchHookTier(idx, { upper: !look.upper })}
+                              title="ตัวพิมพ์ใหญ่ทั้งบรรทัด"
+                              className={`h-6 w-6 flex items-center justify-center rounded-lg border text-[10px] font-black transition-all cursor-pointer ${
+                                look.upper
+                                  ? 'border-[#E6C24A] bg-[#E6C24A]/20 text-[#E6C24A]'
+                                  : 'border-white/[0.08] bg-black/30 text-slate-500 hover:text-white'
+                              }`}
+                            >
+                              AA
+                            </button>
+                          </div>
                         </div>
 
                         <div className="flex items-center gap-2">
@@ -591,23 +689,128 @@ export default function OverlayInspector({
                 { cat: 'out', label: 'ออก' },
                 { cat: 'accent', label: 'ตกแต่ง' },
               ].map(({ cat, label }) => {
-                const options = hookMotionCatalog?.[cat];
+                const options = cat === 'accent'
+                  ? { ...FALLBACK_ACCENT_OPTIONS, ...(hookMotionCatalog?.[cat] || {}) }
+                  : hookMotionCatalog?.[cat];
                 if (!options) return null;
                 return (
-                  <div key={cat} className="flex items-center gap-2">
-                    <span className="w-12 flex-shrink-0 text-xs font-bold text-slate-400">{label}</span>
-                    <select
-                      value={hookMotion?.[cat] ?? hookMotionDefault?.[cat] ?? 'none'}
-                      onChange={(e) => onHookMotionChange(cat, e.target.value)}
-                      className="flex-1 min-w-0 rounded-lg border border-white/[0.1] bg-black/60 px-2 py-1 text-xs font-semibold text-white shadow-inner focus:border-[#E6C24A] focus:outline-none cursor-pointer"
-                    >
-                      {Object.entries(options).map(([id, meta]) => (
-                        <option key={id} value={id}>{meta.label_th}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <React.Fragment key={cat}>
+                    <div className="flex items-center gap-2">
+                      <span className="w-12 flex-shrink-0 text-xs font-bold text-slate-400">{label}</span>
+                      <select
+                        value={hookMotion?.[cat] ?? hookMotionDefault?.[cat] ?? 'none'}
+                        onChange={(e) => onHookMotionChange(cat, e.target.value)}
+                        className="flex-1 min-w-0 rounded-lg border border-white/[0.1] bg-black/60 px-2 py-1 text-xs font-semibold text-white shadow-inner focus:border-[#E6C24A] focus:outline-none cursor-pointer"
+                      >
+                        {Object.entries(options).map(([id, meta]) => (
+                          <option key={id} value={id}>{meta.label_th}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {cat === 'accent' && (hookMotion?.accent ?? hookMotionDefault?.accent ?? 'none') !== 'none' && (
+                      <div className="flex items-center gap-2 pl-14 pt-0.5 pb-1">
+                        <span className="text-[10px] font-medium text-slate-400">สีตกแต่ง</span>
+                        <div className="flex items-center gap-1.5 flex-1">
+                          <input
+                            type="color"
+                            value={hookMotion?.accent_color || hookOverlay?.look?.accent_color || '#FFE600'}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              onHookMotionChange('accent_color', val);
+                              if (hookOverlay && onReplaceOverlay) {
+                                onReplaceOverlay(hookOverlay.id, {
+                                  ...hookOverlay,
+                                  look: { ...(hookOverlay.look || {}), accent_color: val },
+                                });
+                              }
+                            }}
+                            className="h-6 w-8 flex-shrink-0 cursor-pointer rounded border border-white/[0.1] bg-transparent"
+                            title="เลือกสีตกแต่งเอง"
+                          />
+                          <div className="flex items-center gap-1">
+                            {['#FFE600', '#25F4EE', '#FE2C55', '#FFFFFF', '#A855F7', '#22C55E'].map((swatch) => (
+                              <button
+                                key={swatch}
+                                type="button"
+                                style={{ backgroundColor: swatch }}
+                                onClick={() => {
+                                  onHookMotionChange('accent_color', swatch);
+                                  if (hookOverlay && onReplaceOverlay) {
+                                    onReplaceOverlay(hookOverlay.id, {
+                                      ...hookOverlay,
+                                      look: { ...(hookOverlay.look || {}), accent_color: swatch },
+                                    });
+                                  }
+                                }}
+                                title={swatch}
+                                className="w-4 h-4 rounded-full border border-black/40 hover:scale-110 transition-transform cursor-pointer"
+                              />
+                            ))}
+                          </div>
+                          {(hookMotion?.accent_color || hookOverlay?.look?.accent_color) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onHookMotionChange('accent_color', null);
+                                if (hookOverlay && onReplaceOverlay) {
+                                  onReplaceOverlay(hookOverlay.id, {
+                                    ...hookOverlay,
+                                    look: { ...(hookOverlay.look || {}), accent_color: null },
+                                  });
+                                }
+                              }}
+                              className="ml-auto text-[9px] px-1.5 py-0.5 rounded bg-white/[0.06] hover:bg-white/[0.12] text-slate-400 hover:text-white transition-colors cursor-pointer"
+                              title="รีเซ็ตกลับไปใช้สีตามแถวไฮไลต์อัตโนมัติ"
+                            >
+                              อัตโนมัติ
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </React.Fragment>
                 );
               })}
+
+              {/* Animation Speed / Dynamics */}
+              <div className="flex items-center gap-2 pt-1">
+                <span className="w-12 flex-shrink-0 text-xs font-bold text-slate-400">สปีด</span>
+                <div className="flex-1 grid grid-cols-3 gap-1 bg-black/40 p-0.5 rounded-lg border border-white/[0.08]">
+                  {[
+                    { id: 'fast', label: 'เร็ว (0.15s)' },
+                    { id: 'normal', label: 'ปกติ (0.25s)' },
+                    { id: 'smooth', label: 'นุ่มนวล (0.4s)' },
+                  ].map((spd) => {
+                    const isCurrent = (hookMotion?.speed || 'normal') === spd.id;
+                    return (
+                      <button
+                        key={spd.id}
+                        type="button"
+                        onClick={() => onHookMotionChange('speed', spd.id)}
+                        className={`py-1 px-1 text-[10px] font-bold rounded transition-all cursor-pointer truncate text-center ${
+                          isCurrent
+                            ? 'bg-[#E6C24A] text-black shadow-sm'
+                            : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
+                        }`}
+                      >
+                        {spd.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Stagger Toggle */}
+              <div className="flex items-center justify-between text-xs pt-1">
+                <span className="font-bold text-slate-400">ทยอยเด้งทีละแถว (Stagger)</span>
+                <input
+                  type="checkbox"
+                  checked={hookMotion?.stagger !== false}
+                  onChange={(e) => onHookMotionChange('stagger', e.target.checked)}
+                  className="accent-[#E6C24A] w-4 h-4 cursor-pointer rounded"
+                />
+              </div>
             </div>
           </>
         )}

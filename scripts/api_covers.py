@@ -352,14 +352,16 @@ def find_raw_sources_for_video(video_path: Path) -> List[Dict[str, Any]]:
 def get_badges_catalog() -> List[Dict[str, str]]:
     """Returns available 3D Badges in 02_Assets/Stickers_Memes with friendly Thai titles."""
     badge_titles = {
-        "badge_authentic_shield_3d.png": "ของแท้ 100%",
-        "badge_best_seller_3d.png": "สินค้าขายดี Best Seller",
-        "badge_cod_secure_3d.png": "เก็บเงินปลายทาง COD",
-        "badge_flash_sale_3d.png": "Flash Sale ด่วน",
-        "badge_free_shipping_3d.png": "ส่งฟรี Free Shipping",
-        "badge_hot_deal_3d.png": "ดีลเด็ด Hot Deal",
-        "badge_special_gift_3d.png": "มีของแถม Special Gift",
-        "badge_yellow_cart_3d.png": "ปักตะกร้าเหลือง",
+        "plate_banner_yellow_3d.png": "แผ่นป้าย 3D สีเหลืองนีออน",
+        "plate_banner_cyan_3d.png": "แผ่นป้าย 3D สีฟ้านีออน",
+        "plate_banner_coral_3d.png": "แผ่นป้าย 3D สีส้มคอรัล",
+        "frame_tech_callout_3d.png": "กรอบข้อความ 3D Tech HUD",
+        "frame_tech_callout_hollow_3d.png": "กรอบโปร่ง 3D Tech HUD",
+        "arrow_pointer_yellow_3d.png": "ลูกศรชี้ 3D สีเหลือง",
+        "arrow_pointer_cyan_3d.png": "ลูกศรชี้ 3D สีฟ้า",
+        "accent_sparkle_star_3d.png": "ดาวประกาย 3D Pop Star",
+        "badge_exclamation_alert_3d.png": "ป้ายเตือน 3D ห้ามพลาด Alert",
+        "icon_fire_hot_deal_3d.png": "ไอคอนไฟ 3D ดีลร้อนแรง",
     }
     badges = []
     if STICKERS_DIR.exists():

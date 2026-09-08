@@ -2,6 +2,7 @@ import React from 'react';
 import {
   Scissors, Loader2, Check, Sparkles, Save, PanelLeftOpen, PanelLeftClose,
   PanelRightOpen, PanelRightClose, Minimize2, Maximize2, Columns3, RefreshCw, Trash2,
+  Image as ImageIcon, AlertTriangle,
 } from 'lucide-react';
 
 import { formatTimecode } from '../../lib/timelineMath.js';
@@ -41,6 +42,9 @@ export default function EditorHeader({
   setDeleteScope,
   setDeleteOrigin,
   setPendingDelete,
+  coverStatus = null,
+  coverChecking = false,
+  onOpenCoverStudio,
 }) {
   const handleDeleteRequest = (name = projectName) => {
     if (!name) return;
@@ -189,6 +193,39 @@ export default function EditorHeader({
               <Save className="w-3.5 h-3.5 text-emerald-400" />
             )}
             <span className="hidden sm:inline">บันทึก</span>
+          </button>
+        )}
+
+        {projectName && (
+          <button
+            type="button"
+            onClick={onOpenCoverStudio}
+            disabled={coverChecking || applying}
+            title={
+              coverChecking
+                ? 'กำลังตรวจสอบภาพปก...'
+                : coverStatus === true
+                  ? 'มีภาพปกแล้ว — คลิกเพื่อแก้ไข'
+                  : coverStatus === false
+                    ? 'ยังไม่มีภาพปก — คลิกเพื่อสร้าง (ต้องมีก่อนเรนเดอร์)'
+                    : 'เปิดตัวช่วยสร้างภาพปก'
+            }
+            className={`flex h-9 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 ${
+              coverStatus === false
+                ? 'border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
+                : 'border-white/[0.12] bg-white/[0.06] text-slate-200 hover:bg-white/[0.12] hover:text-white'
+            }`}
+          >
+            {coverChecking ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
+            ) : coverStatus === true ? (
+              <ImageIcon className="w-3.5 h-3.5 text-emerald-400" />
+            ) : coverStatus === false ? (
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+            ) : (
+              <ImageIcon className="w-3.5 h-3.5 text-slate-400" />
+            )}
+            <span className="hidden sm:inline">ปก</span>
           </button>
         )}
 

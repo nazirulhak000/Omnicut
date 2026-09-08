@@ -133,6 +133,56 @@ def ass_glyph_scale(resolved_font: str) -> float:
     return scale
 
 
+_HAS_TRUE_BOLD_CACHE: Dict[str, bool] = {}
+
+
+def has_true_bold_face(resolved_font: str) -> bool:
+    """
+    Whether asking libass for `resolved_font` at Bold=1 actually lands on a
+    genuinely bold outline, rather than triggering synthetic/faux-bold
+    emboldening on the one (non-bold) file AssetRegistry has for this family.
+
+    Found while diagnosing the "นั่ง" tone-mark collapse bug (2026-09-08):
+    every ASS style this engine writes hardcodes Bold=1 on the assumption
+    that libass/DirectWrite will resolve it to that family's real bold
+    weight (see the comment above resolved_font's assignment in
+    subtitle_engine.py). That holds for e.g. IBM Plex Sans Thai, which has
+    a separate face whose macStyle bold bit is genuinely set -- but
+    02_Assets/Fonts/NotoSansThai-SemiBold.ttf is internally mislabeled as
+    Regular/weight-400 in its own name table despite the filename, so a
+    Bold=1 request against "Noto Sans Thai" has no real bold face to land
+    on. DirectWrite/libass silently substitutes the same Regular-labeled
+    file anyway and applies synthetic bold to it -- which breaks GPOS
+    mark-to-mark anchor deltas that ั+่ (and only that specific stacked
+    pair, empirically) depends on. Detecting "no genuine bold face" from
+    the registered file's own OS/2 table lets style generation skip Bold=1
+    for exactly the families where it would only do damage.
+    """
+    if resolved_font in _HAS_TRUE_BOLD_CACHE:
+        return _HAS_TRUE_BOLD_CACHE[resolved_font]
+    result = True  # fail open -- assume a real bold face exists rather than
+    # silently thinning out a caption style, matching every other lookup
+    # miss/exception default in this module.
+    try:
+        from fontTools.ttLib import TTFont
+
+        path = {f["family"]: f["path"] for f in AssetRegistry.fonts()}.get(resolved_font)
+        if path:
+            face = TTFont(path, lazy=True)
+            os2 = face["OS/2"]
+            name_table = face["name"]
+            subfamily = (name_table.getDebugName(17) or name_table.getDebugName(2) or "").lower()
+            fs_selection_bold = bool(os2.fsSelection & 0x20)
+            mac_style_bold = bool(face["head"].macStyle & 0x1)
+            weight_bold = int(getattr(os2, "usWeightClass", 400) or 400) >= 600
+            name_says_bold = "bold" in subfamily
+            result = fs_selection_bold or mac_style_bold or weight_bold or name_says_bold
+    except Exception:
+        result = True
+    _HAS_TRUE_BOLD_CACHE[resolved_font] = result
+    return result
+
+
 def _hook_line_width_px(line: str, resolved_font: str, line_fs: int) -> float:
     """
     Half-width of a hook line in PlayRes pixels.

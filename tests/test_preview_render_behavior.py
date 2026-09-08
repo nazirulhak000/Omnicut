@@ -606,15 +606,36 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     diff_pixels = int(np.sum(np.array(diff) > 0))
     assert diff_pixels > 100, f"Skewed text must differ from straight text, got {diff_pixels} diff pixels"
 
-    # Forward slant (-0.25) shifts top pixels right relative to bottom pixels
+    # Forward slant (-0.25) shifts top pixels right relative to bottom pixels.
+    # "ข้อความ" stacks a tone mark well above its base glyphs, so a row
+    # picked by simple offset/proportion from the bbox can land in the gap
+    # between them -- scan outward from the target row for the nearest one
+    # that actually has ink, on both images independently (their bboxes and
+    # gaps differ slightly under skew).
     arr_str = np.array(im_str)
     arr_skw = np.array(im_skw)
-    top_y = bbox_skw[1] + 15
-    bot_y = bbox_skw[3] - 10
-    top_str_xs = np.where(arr_str[top_y, :] > 50)[0]
-    top_skw_xs = np.where(arr_skw[top_y, :] > 50)[0]
-    bot_str_xs = np.where(arr_str[bot_y, :] > 50)[0]
-    bot_skw_xs = np.where(arr_skw[bot_y, :] > 50)[0]
+
+    def _nearest_row_with_ink(arr, y_target, y_lo, y_hi):
+        for delta in range(0, y_hi - y_lo + 1):
+            for y in (y_target + delta, y_target - delta):
+                if y_lo <= y <= y_hi and np.any(arr[y, :] > 50):
+                    return y
+        return None
+
+    bbox_h = bbox_skw[3] - bbox_skw[1]
+    top_target = bbox_skw[1] + max(1, round(bbox_h * 0.25))
+    bot_target = bbox_skw[3] - max(1, round(bbox_h * 0.20))
+    top_y_str = _nearest_row_with_ink(arr_str, top_target, bbox_str[1], bbox_str[3])
+    top_y_skw = _nearest_row_with_ink(arr_skw, top_target, bbox_skw[1], bbox_skw[3])
+    bot_y_str = _nearest_row_with_ink(arr_str, bot_target, bbox_str[1], bbox_str[3])
+    bot_y_skw = _nearest_row_with_ink(arr_skw, bot_target, bbox_skw[1], bbox_skw[3])
+    assert None not in (top_y_str, top_y_skw, bot_y_str, bot_y_skw), \
+        "Could not find an inked row near the target band in one of the renders"
+
+    top_str_xs = np.where(arr_str[top_y_str, :] > 50)[0]
+    top_skw_xs = np.where(arr_skw[top_y_skw, :] > 50)[0]
+    bot_str_xs = np.where(arr_str[bot_y_str, :] > 50)[0]
+    bot_skw_xs = np.where(arr_skw[bot_y_skw, :] > 50)[0]
 
     assert len(top_str_xs) > 0 and len(top_skw_xs) > 0
     assert len(bot_str_xs) > 0 and len(bot_skw_xs) > 0

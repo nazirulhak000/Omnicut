@@ -5,3 +5,4 @@ export { Modal } from './Modal';
 export { Toast } from './Toast';
 export { Badge } from './Badge';
 export { ConfirmModal } from './ConfirmModal';
+export { SafeQRCode } from './SafeQRCode';

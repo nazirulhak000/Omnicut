@@ -9,13 +9,12 @@ import {
   Rocket, Calendar, Sun, Moon, Sunrise, Sunset, Shuffle, ChevronDown, ChevronUp,
   Archive, Image as ImageIcon
 } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
 import {
   getProducts, getExports, updateAngleStatus, updateAngleCover, deleteProduct, updateProduct, prepareTiktokAutopost
 } from '../api';
 import CoverStudioModal from './CoverStudioModal';
 import ScheduleAgenda from './ScheduleAgenda';
-import { Modal, Toast, Button, Badge, Input, Textarea } from './ui';
+import { Modal, Toast, Button, Badge, Input, Textarea, SafeQRCode } from './ui';
 import { useDebounce, useToast } from '../hooks';
 import { guessBrandModel } from '../lib/overlayModel';
 import { applyCoverResult, getCoverVariant, mergeCoverMetadata } from '../lib/coverVariant';
@@ -1958,7 +1957,13 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
         maxWidth="max-w-sm"
       >
         {qrModalItem && (() => {
-          const quickPostUrl = `${mobileBaseUrl}/?quick_post=1&pid=${encodeURIComponent(qrModalItem.parentProduct?.id || '')}&aid=${encodeURIComponent(qrModalItem.angle_id || '')}&video=${encodeURIComponent(qrModalItem.video_url || '')}&product=${encodeURIComponent(qrModalItem.parentProduct?.name || '')}&hook=${encodeURIComponent(qrModalItem.hook_title || '')}&caption=${encodeURIComponent(qrModalItem.tiktok_caption || '')}&hashtags=${encodeURIComponent(qrModalItem.tiktok_hashtags || '')}`;
+          // caption/hashtags deliberately omitted from the QR-encoded URL --
+          // MobileQuickPostPage fetches the live product/angle via pid+aid
+          // and reads tiktok_caption/tiktok_hashtags straight off that, so
+          // embedding the full text here too just risks a long AI-written
+          // caption + hashtag list pushing the URL past a QR code's payload
+          // ceiling ("RangeError: Data too long" from QRCodeSVG).
+          const quickPostUrl = `${mobileBaseUrl}/?quick_post=1&pid=${encodeURIComponent(qrModalItem.parentProduct?.id || '')}&aid=${encodeURIComponent(qrModalItem.angle_id || '')}&video=${encodeURIComponent(qrModalItem.video_url || '')}&product=${encodeURIComponent(qrModalItem.parentProduct?.name || '')}&hook=${encodeURIComponent(qrModalItem.hook_title || '')}`;
 
           return (
             <div className="text-center space-y-3.5">
@@ -1973,7 +1978,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
               </div>
 
               <div className="bg-white p-3 rounded-2xl inline-block shadow-xl">
-                <QRCodeSVG value={quickPostUrl} size={180} level="M" />
+                <SafeQRCode value={quickPostUrl} size={180} level="M" />
               </div>
 
               {/* Caption Preview & Copy inside Modal */}

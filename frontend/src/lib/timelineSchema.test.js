@@ -10,11 +10,12 @@ import {
 
 test('createDefaultTracks returns complete set of video, overlay, and audio tracks', () => {
   const tracks = createDefaultTracks();
-  assert.equal(tracks.length, 7);
+  assert.equal(tracks.length, 8);
   const types = tracks.map((t) => t.type);
   assert.ok(types.includes('video'));
   assert.ok(types.includes('audio'));
   assert.ok(types.includes('overlay'));
+  assert.ok(tracks.some((t) => t.id === 'track-o3' && t.name === 'Stickers'));
 
   const v1 = tracks.find((t) => t.id === 'track-v1');
   assert.equal(v1.visible, true);

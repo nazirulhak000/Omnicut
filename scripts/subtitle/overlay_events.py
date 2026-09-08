@@ -32,7 +32,6 @@ from scripts.subtitle.motion_effects import (
 from scripts.subtitle.translation_service import ass_escape_text, wrap_text_for_ass
 
 LINE_HEIGHT_FACTOR = 1.0
-TEXT_SCALE_BOOST = 1.08
 
 TEXT_OVERLAY_POSITIONS = {
     "top": 0.20,
@@ -118,6 +117,9 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
     tiers = {"brand": tier_looks[0], "model": tier_looks[1], "label": tier_looks[2]}
     tier_key_by_idx = {0: "brand", 1: "model", 2: "label"}
 
+    master_look = resolve_look(hook_overlay.get("look"), None)
+    master_scale = max(0.2, min(3.0, float(master_look.get("size_pct", 100)) / 100.0))
+
     tier_lines = []
     model_last_line = None
     for raw_text, scale_pct, colour, tier_idx in hook_tier_specs:
@@ -126,12 +128,13 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
             continue
         if tiers[tier_key_by_idx[tier_idx]]["upper"]:
             text = text.upper()
-        tier_fs = max(20, int(round(hook_fs * scale_pct / 100)))
+        scaled_pct = round(scale_pct * master_scale)
+        tier_fs = max(16, int(round(hook_fs * scaled_pct / 100)))
         dyn_max_chars = max(8, int(round(2600 / tier_fs)))
         wrapped = wrap_text_for_ass(text, max_chars_per_line=dyn_max_chars)
         lines = wrapped.split("\\N")
         for line in lines:
-            tier_lines.append((line, scale_pct, colour, tier_idx))
+            tier_lines.append((line, scaled_pct, colour, tier_idx))
         if tier_idx == 1:
             model_last_line = lines[-1]
 
@@ -140,8 +143,34 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
 
     HOOK_COMFORTABLE_LINES = 4
     shrink = max(0.7, min(1.0, HOOK_COMFORTABLE_LINES / len(tier_lines)))
+
     STAGGER_STEP_MS = 150
+    anim_speed = (hook_overlay.get("anim") or {}).get("speed", "normal")
+    speed_factor = 0.6 if anim_speed == "fast" else (1.5 if anim_speed == "smooth" else 1.0)
+    effective_stagger_ms = max(50, int(round(STAGGER_STEP_MS * speed_factor)))
+
     x_center = video_width // 2
+    if "x" in hook_overlay and hook_overlay.get("x") is not None:
+        try:
+            x_center = int(round(video_width * float(hook_overlay["x"])))
+        except (TypeError, ValueError):
+            x_center = video_width // 2
+
+    cursor_y = 260  # HookHeader top anchor
+    if "y" in hook_overlay and hook_overlay.get("y") is not None:
+        try:
+            cursor_y = int(round(video_height * float(hook_overlay["y"])))
+        except (TypeError, ValueError):
+            cursor_y = 260
+
+    # HookHeader/HookHeaderShadow/HookHeaderPill's Style Fontsize (set in
+    # subtitle_engine.py's header) already carries this boost, so every
+    # \fscx/\fscy this function and its builders compute below must be
+    # divided by it instead of multiplied -- rasterizing the glyph fresh at
+    # its boosted Fontsize instead of transforming it afterward via fscx/
+    # fscy is what keeps the GPOS mark-to-mark anchor ั+่ ("นั่ง") from
+    # colliding, regardless of scale or Bold (see subtitle_engine.py's
+    # font_size_boosted comment for the full empirical diagnosis).
     HOOK_SCALE_BOOST = 1.0 / ass_glyph_scale(hook_font)
 
     in_builder = HOOK_IN_BUILDERS.get(motion["in"], _in_bounce)
@@ -149,24 +178,28 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
     out_builder = HOOK_OUT_BUILDERS.get(motion["out"], _out_fade)
     is_typewriter = motion["in"] == "typewriter"
 
-    cursor_y = 260  # HookHeader top anchor
     line_records = []
     max_entry_end_ms = 0
     model_line_fs = None
     model_y = None
     for idx, (line, scale_pct, colour, tier_idx) in enumerate(tier_lines):
         layout_pct = round(scale_pct * shrink)
-        target = round(layout_pct * HOOK_SCALE_BOOST)
-        line_fs = max(20, int(round(hook_fs * layout_pct / 100)))
-        t0_ms = tier_idx * STAGGER_STEP_MS if motion["stagger"] else 0
+        # \fscx/\fscy stay at the plain (unboosted) percent now that
+        # Fontsize (Style block in subtitle_engine.py) carries this font's
+        # boost -- see that file's font_size_boosted comment.
+        target = layout_pct
+        line_fs = max(16, int(round(hook_fs * layout_pct / 100)))
+        t0_ms = tier_idx * effective_stagger_ms if motion["stagger"] else 0
         if is_typewriter:
             in_tag, entry_end_ms, move_dy_in = None, t0_ms + 400, None
         else:
             in_tag, entry_end_ms, move_dy_in = in_builder(target, t0_ms)
         max_entry_end_ms = max(max_entry_end_ms, entry_end_ms)
+        tier_font = tier_looks[tier_idx].get("font") or hook_font
         line_records.append({
             "line": line, "target": target, "line_fs": line_fs, "colour": colour,
-            "tier": tier_key_by_idx[tier_idx],
+            "tier": tier_key_by_idx[tier_idx], "tier_idx": tier_idx,
+            "tier_font": tier_font,
             "t0_ms": t0_ms, "in_tag": in_tag, "entry_end_ms": entry_end_ms,
             "move_dy_in": move_dy_in, "y": cursor_y,
         })
@@ -179,7 +212,7 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
             idx + 1 >= len(tier_lines) or tier_lines[idx + 1][3] != 1
         )
         if is_last_model_line and motion["accent"] != "none":
-            reserve = 0.80 if motion["accent"] != "badge" else 0.45
+            reserve = 0.22 if motion["accent"] != "badge" else 0.08
             cursor_y += round(line_fs * reserve)
 
     loop_tag = loop_builder(max_entry_end_ms, exit_start_ms)
@@ -211,9 +244,16 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
             )
         else:
             pos_tag = f"\\pos({x_center},{rec['y']})"
-
-        common = f"\\an8{pos_tag}{in_tag}{loop_tag}{out_tag}"
+        font_override = f"\\fn{rec['tier_font']}" if rec.get("tier_font") and rec["tier_font"] != hook_font else ""
         tier_style = tiers[rec["tier"]]
+        style_tags = ""
+        if tier_style.get("bold"):
+            style_tags += "\\b1"
+        if tier_style.get("italic"):
+            style_tags += "\\i1"
+        if tier_style.get("underline"):
+            style_tags += "\\u1"
+        common = f"\\an8{pos_tag}{font_override}{style_tags}{in_tag}{loop_tag}{out_tag}"
         outline_colour = ass_colour(tier_style["outline_color"]) or "&H00000000"
         edge_tag = (
             f"\\3c{outline_colour}&"
@@ -256,8 +296,10 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
                 events.append(sweep)
 
     if motion["accent"] != "none" and model_last_line and model_line_fs:
+        accent_color_override = (hook_overlay.get("look") or {}).get("accent_color") or (tier_looks[1] or {}).get("accent_color") or (motion or {}).get("accent_color")
+        resolved_accent_colour = ass_colour(accent_color_override) if accent_color_override else model_colour
         events.extend(_hook_accent_events(
-            motion["accent"], model_last_line, model_line_fs, model_y, model_colour,
+            motion["accent"], model_last_line, model_line_fs, model_y, resolved_accent_colour,
             x_center, hook_font, start_t, end_t,
             exit_start_ms, exit_end_ms, motion["stagger"],
         ))
@@ -336,7 +378,19 @@ def _text_overlay_events(item: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]
     if exit_start_ms >= exit_end_ms:
         exit_start_ms = max(0, exit_end_ms - 50)
 
-    target_scale = int(round(100 * scale * TEXT_SCALE_BOOST))
+    # Fontsize can't be boosted at the shared TextOverlayMain/Pill Style
+    # level per-item (each item can carry its own font), so a per-event \fs
+    # override carries this item's own boost instead. \fscx/\fscy below stay
+    # at the plain (unboosted) percent -- used to be multiplied by a flat
+    # 1.08 regardless of the item's actual font, which was itself a latent
+    # bug -- since rasterizing fresh at the boosted Fontsize instead of
+    # transforming the glyph afterward via fscx/fscy is what keeps the GPOS
+    # mark-to-mark anchor ั+่ ("นั่ง") from colliding (see subtitle_engine.py's
+    # font_size_boosted comment).
+    item_boost = 1.0 / ass_glyph_scale(item_font)
+    item_fs = int(round(base_fs * item_boost))
+    fs_tag = f"\\fs{item_fs}"
+    target_scale = int(round(100 * scale))
     pos_tag = f"\\an5\\pos({x_pos},{y_pos})"
 
     in_dur_map = {
@@ -443,7 +497,7 @@ def _text_overlay_events(item: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]
         pill_tag = f"{pill_pos}\\p1{edge}\\shad0\\c{pill_hex}&{pill_anim}{out_tag}"
         events.append(f"Dialogue: 3,{start_t},{end_t},TextOverlayMain,,0,0,0,,{{{pill_tag}}}{pill_path}")
 
-    font_tag = f"\\fn{item_font}" if item_font else ""
+    font_tag = f"\\fn{item_font}{fs_tag}" if item_font else fs_tag
     outline_tag = f"\\3c{outline_hex}&\\bord{outline_px:.1f}"
 
     if has_words:

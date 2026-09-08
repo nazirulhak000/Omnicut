@@ -42,6 +42,132 @@
 | Round BUG-4 | แก้ไขคลิปบวมสะสมทุกครั้งที่เรนเดอร์ (Transition Overlap Compounding Feedback Loop) | 2026-09-08 | แก้ video_assembly_stage + video_editor acc_dur + normalized 5 swollen projects + pytest 159 passed + parity 149 passed |
 | Round POST-4 | ป้องกันการลบวิดีโอที่โพสต์แล้วใน Gallery, ล็อกไม่ให้เรนเดอร์ซ้ำในหน้าตัดต่อ และแก้ปัญหาย้อนสถานะ | 2026-09-08 | ProductStore rollback guard + Gallery disable delete + Editor lock render + tests passed 3/3 |
 | Round POST-5 | ยกระดับความสมบูรณ์และเสถียรภาพของวงจรชีวิตคลิปที่โพสต์แล้ว (Full Posted Evidence & Lifecycle Integrity Lockdown) | 2026-09-08 | DB immunity against demoting/deleting posted angles + Editor delete modal locked + ProductToClip read-only + Drag&Drop guard + Mobile mark-posted file move + tests passed 7/7 |
+| Round ACCENT-PRO-1 | เพิ่มสไตล์ตกแต่งป้ายฮุกให้หลากหลาย 11+ รูปแบบระดับโปร (Adaptive Framing, Hybrid Color, Motion Sync, 100% Parity) | 2026-09-08 | 12 styles catalogued + ASS vector drawing (\p1) + Canvas 2D mirror + accent_color picker + 149 parity pass + 147 smoke pass |
+| Round PREV-2 | ซ่อมบั๊กพรีวิวดำและข้อความตกค้าง (Fix Infinite Seek Loop in renderAt & Unconditional Canvas Clear) | 2026-09-08 | นำ currentTime mutation ออกจาก renderAt + เคลียร์ canvas ต้นเฟรมใน tick() + วาด readyState >= 2 ทันที + 149 parity pass + 147 smoke pass + build pass |
+| Round ACCENT-REV-1 | คืนค่าตัวเลือกตกแต่ง (Accent) กลับเป็น 3 ตัวเลือกดั้งเดิมตามคำสั่งผู้ใช้ | 2026-09-08 | คืนค่า underline, badge, none ตามคำสั่งผู้ใช้ · 149 parity passed · build passed · smoke tests passed |
+| Round STK-1 | Interactive Sticker Timeline Track, Free Canvas Drag/Resize, and Parity Render Engine | 2026-09-08 | แทร็กสติกเกอร์บนไทม์ไลน์ + Drag & Resize อิสระบน Canvas + ลบ 6-pos grid + Parity 100% (between enable & normX, normY) · pytest 148 passed · parity 149 passed · build passed · live browser verified |
+| Round STK-2 | Multi-Sticker Support, 3-Second Default Duration, and Smooth Canvas Resizing | 2026-09-08 | Default 3s + Linear vector projection smooth resize handles + Multi-stickers array & timeline auto-stacking sub-lanes + FFmpeg multi-overlay chaining + Parity 100% · pytest 149 passed · test_multi_stickers 2 passed · npm test 85 passed · build passed · live browser verified |
+| Round STK-3 | Sticker Baseline 100% Size, Track Eye Toggle, Deletion, and Preview-Before-Add | 2026-09-08 | STICKER_BASE_WIDTH 160 + Eye toggle hides canvas + Delete key/Inspector + Preview then '+' add · pytest 299 passed · npm test 85 passed · build passed · live browser verified |
+
+## Round STK-3 — ปรับขนาดสติกเกอร์ 100% เท่ากับขนาดจอที่ผู้ใช้ต้องการ, ซ่อมปุ่มปิดตาแทร็กสติกเกอร์, ลบสติกเกอร์ได้ทุกช่องทาง และระบบพรีวิวก่อนกดบวกเหมือนข้อความ
+
+วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+**ปัญหาและสิ่งที่ทำ (4 ข้อตามคำสั่ง User):**
+1. **ไอคอนขนาดนี้อยากให้เป็น 100% (Baseline 100% Scale):**
+   - ขนาดที่ผู้ใช้ชี้ในภาพหน้าจอเดิมมี Scale 40% (~152-160px) ถูกตั้งเป็นขนาดมาตรฐาน 100% (`scale = 1.0`)
+   - แก้ไข `STICKER_BASE_WIDTH = 160` ใน `scripts/video_editor.py` และ `baseW = 160` ใน `frontend/src/components/SequencePlayer.jsx`
+   - ปรับ scale clamp ให้รองรับได้กว้าง 30% ถึง 350% ลื่นไหลเป็นธรรมชาติ
+   - ปรับการทดสอบ Parity ใน `tests/test_phase1_smoke.py`
+2. **กดปิดตา สตก ที่ไทมไลน์ไม่ได้อ่ะ (Track Eye Toggle):**
+   - ใน `EditorShell.jsx` เพิ่ม state `isStickerHidden` และฟังก์ชัน `handleToggleHideSticker`
+   - เชื่อมต่อส่งไปยัง `<Timeline />` (ทั้งโหมดเดสก์ท็อปและมือถือ) และ `<SequencePlayer />`
+   - ใน `SequencePlayer.jsx`: เมื่อ `isStickerHidden` เป็นจริง จะหยุดวาดสติกเกอร์บน Canvas ทันที พร้อมป้องกันการคลิก/ลากย้ายสติกเกอร์ที่ถูกซ่อน
+3. **เพิ่มได้แต่ลบไม่ได้อ่ะ (Multi-Way Sticker Deletion):**
+   - ใน `useEditorCommands.js` ในฟังก์ชัน `deleteSelected()` เพิ่มเงื่อนไข `selection?.type === 'sticker'` ให้ลบออกจากอาเรย์ `stickers: [...]` รองรับปุ่ม `Delete`/`Backspace` บนคีย์บอร์ด และปุ่มถังขยะบน Toolbar
+   - สร้างคอมโพเนนต์ `StickerInspector.jsx` แสดงข้อมูลสติกเกอร์ (เวลาเริ่ม, เวลาจบ, สเกล %, พิกัด) พร้อมปุ่มลบสีแดงเด่นชัด `ลบสติกเกอร์`
+   - เชื่อมต่อ `StickerInspector` ใน `Inspector.jsx` เมื่อเลือกสติกเกอร์บนไทม์ไลน์
+4. **ตอนกดให้พรีวิวก่อน ถ้าอยากให้ลงไทมไลน์ ค่อยกด + เหมือน ข้อความอ่ะ (Preview First & Plus Button Add):**
+   - ใน `AssetPanel.jsx` แท็บสติกเกอร์: คลิกที่การ์ดสติกเกอร์จะเป็นการพรีวิว (`onPreviewSticker(s.name)`) โดยยังไม่เพิ่มลงไทม์ไลน์
+   - บนหน้าจอวิดีโอ Canvas จะแสดงภาพสติกเกอร์ตัวอย่างกึ่งกลางจอ พร้อมกรอบประสีฟ้านีออนและป้าย `พรีวิวสติกเกอร์` แบบ Ephemeral ชั่วคราว (คลิกนอกกล่องจะปิดพรีวิวอัตโนมัติ)
+   - บนการ์ดสติกเกอร์ มีปุ่ม `+` มุมขวาบน (สไตล์เดียวกับ Text Template) เมื่อกดปุ่ม `+` จึงจะเพิ่มสติกเกอร์ลงบนไทม์ไลน์ที่ตำแหน่ง Playhead (ความยาว 3.0s)
+   - เพิ่มปุ่มกดด้านล่าง `เพิ่ม [ชื่อสติกเกอร์] ลงไทม์ไลน์` ให้กดเพิ่มได้สะดวกอีกทางหนึ่ง
+
+### Gate
+- [x] `python -m compileall -q scripts` (Pass)
+- [x] `python -m pytest tests/test_preview_render_parity.py tests/test_multi_stickers.py tests/test_phase1_smoke.py -q -p no:cacheprovider` (299 passed in 41.66s)
+- [x] `npm test` ใน `frontend/` (85 passed in 1.78s)
+- [x] `npm run build` ใน `frontend/` (Pass, 1963 modules built in 4.25s)
+- [x] Live Browser Verification (Recorded video `verify_stk3_features_1788859163223.webp`):
+  1. ขนาด 100% เท่ากับขนาด 160px บนหน้าจอวิดีโอ
+  2. พรีวิวก่อนเพิ่มได้ และมีป้าย "พรีวิว"
+  3. กดปุ่ม `+` เพื่อเพิ่มลงไทม์ไลน์ 3.0s
+  4. ปุ่มตา [👁️] ซ่อน/แสดงสติกเกอร์บนวิดีโอได้จริง
+  5. ลบสติกเกอร์ได้จริงทุกช่องทาง ทั้งปุ่มลบในแผงและปุ่ม Del
+
+## Round STK-2 — Multi-Sticker Support, 3-Second Default Duration, and Smooth Canvas Resizing
+
+วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+**ปัญหาและสิ่งที่ทำ:**
+1. **Default 3 sec:** กำหนดเวลาเริ่มต้นของสติกเกอร์ที่เพิ่มใหม่เป็น 3.0 วินาทีเสมอ (`start = playhead`, `end = min(totalDuration, playhead + 3.0)`)
+2. **การยืดขยายให้สมูท (Smooth Linear Resizing):** แก้ไขจาก Euclidean radial distance (`Math.hypot`) ที่กระตุกและสะบัดขยายผิดธรรมชาติเมื่อข้ามแกน มาเป็น Linear Vector Projection (`projectedDelta = deltaX * dirX + deltaY * dirY`, `scaleFactor = 1 + projectedDelta / initialDist`) ทำให้การลากย่อขยายลื่นไหล ติดนิ้ว 1:1 ทุก Handle
+3. **รองรับสติกเกอร์หลายตัวพร้อมกัน (Multi-Stickers Array):** เปลี่ยนโมเดลเป็น `stickers: [...]` แสดงบนไทม์ไลน์พร้อมกัน และสามารถทับซ้อนเวลาเดียวกันได้ (Overlapping Stickers) โดยมีอัลกอริทึม `packStickers(stickers)` จัดเรียงแยก sub-lanes อัตโนมัติ
+4. **Preview = Render Parity 100%:**
+   - ฝั่ง Frontend (`SequencePlayer.jsx`): โหลดและแคชภาพสติกเกอร์ทุกตัวใน `stickerImagesRef`, แสดงสติกเกอร์ทั้งหมดที่อยู่ในช่วงเวลา `t`, รองรับการคลิกเลือกเพื่อย้าย/ย่อขยายแต่ละตัว
+   - ฝั่ง Backend (`video_editor.py`, `video_assembly_stage.py`, `pipeline.py`, `api_schemas.py`): รองรับ `stickers: List[Dict]` สร้าง filter complex overlay ต่อเนื่อง `[v_stickered_{i}]` พร้อม `enable='between(t,start,end)'` และขนาด/พิกัดเฉพาะตัว
+5. **UI คลีนตาม Rule 8:** ใน `AssetPanel.jsx` แสดงตัวควบคุมสติกเกอร์ที่ถูกเลือก (Inspect Duration, Scale, Center Reset, Delete), รายการชิปสติกเกอร์ทั้งหมดในวิดีโอ, และปุ่มล้างสติกเกอร์ทั้งหมด
+
+### Gate
+- [x] `python -m compileall -q scripts` (Pass)
+- [x] `pytest tests/test_preview_render_parity.py` (149 passed in 4.74s)
+- [x] `pytest tests/test_phase1_smoke.py -k sticker` (3 passed in 1.02s)
+- [x] `pytest tests/test_multi_stickers.py` (2 passed in 0.26s)
+- [x] `npm --prefix frontend run build` (Pass, 1962 modules transformed, built in 4.88s)
+- [x] `npm --prefix frontend test` (85 passed in 1.76s)
+- [x] Browser Subagent live visual verification on `LOG01-ปัญหาก่อนใช้_1` (Added 2 overlapping stickers: 3.0s alert badge + 2.3s arrow pointer, verified simultaneous canvas rendering on video, auto-stacked timeline sub-lanes, and smooth resize handles).
+
+
+วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+**ปัญหาและสิ่งที่ทำ:**
+- ผู้ใช้สั่ง: "ถ้าแค่เพิ่มข้อความมา ซ้าย ขวา บน ล่าง แล้วเรียกตกแต่งแล้ว ก็พอเถอะ เหมือนเดิม"
+- คืนค่าตัวเลือกการตกแต่งป้ายฮุก (Accent) ให้กลับมาสะอาด กระชับ คลีน เหมือนเดิม โดยมีเพียง 3 ตัวเลือกหลักดั้งเดิม:
+  1. `underline` ("เส้นใต้เรืองแสง" / Accent Bar)
+  2. `badge` ("แถบไฮไลต์" / Badge)
+  3. `none` ("ไม่มี" / None)
+- ไฟล์ที่อัปเดต:
+  - `scripts/hook_motion_presets.py`: คืนค่า `HOOK_ACCENT_PRESETS` เหลือ 3 ตัวเลือกดั้งเดิม
+  - `frontend/src/components/editor/inspector/OverlayInspector.jsx`: คืนค่า `FALLBACK_ACCENT_OPTIONS` เหลือ 3 ตัวเลือกดั้งเดิม
+  - รีสตาร์ต Backend API Server เพื่อให้ serving ค่าใหม่ทันที
+- การทดสอบและ Gate:
+  - `python -m compileall -q scripts`: ผ่าน 100%
+  - `python -m pytest tests/test_preview_render_parity.py -q -p no:cacheprovider`: ผ่านครบ 149/149 passed
+  - `npm --prefix frontend run build`: ผ่านสะอาด 100%
+  - `python -m pytest tests/test_phase1_smoke.py -k "accent or hook_motion" -q -p no:cacheprovider`: ผ่าน 8/8 passed
+
+## Round PREV-2 — ซ่อมบั๊กพรีวิวดำและข้อความตกค้าง (Fix Infinite Seek Loop in renderAt & Unconditional Canvas Clear)
+
+วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+**ปัญหาและสาเหตุ:**
+1. **ภาพวิดีโอดำ (Black Screen):** ใน `renderAt(t)` มีการสั่ง `video.currentTime = entry.localTime` เมื่อตรวจพบความคลาดเคลื่อนเกิน 0.08s แต่ `renderAt` ถูกผูกเป็น listener ของ `onSeeked` ทำให้เกิด **Infinite Seek Loop** (seeked -> renderAt -> seek -> seeked) ส่งผลให้ `<video>` ติดสถานะ `seeking = true` ตลอดเวลา ไม่ยอมส่งเฟรมภาพที่ถอดรหัสแล้วออกมายัง Canvas
+2. **ข้อความฮุกและซับไตเติลค้าง/ซ้อนทับเป็นภาพซ้อน (Ghosting / Overlay Echo):** ใน `tick()` การสั่ง `ctx.clearRect(0, 0, CANVAS_W, CANVAS_H)` ถูกครอบไว้ใต้เงื่อนไข `if (video.readyState >= 2 && !video.seeking) { if (!framePainted) ctx.clearRect(...) }` เมื่อวิดีโอติด seeking หรือยังไม่มีเฟรมใหม่ `ctx.clearRect` จะไม่ถูกเรียกเลย ทำให้ภาพข้อความของวินาทีก่อนหน้า (เช่น ป้ายฮุกช่วง 0-3s) ค้างอยู่บน Canvas ถาวร ไม่หายไปแม้วินาทีที่เล่นอยู่จะเกิน 3s แล้วก็ตาม
+
+**ผลลัพธ์:**
+- `frontend/src/components/SequencePlayer.jsx`:
+  - นำ `video.currentTime = ...` ออกจาก `renderAt(t)` 100% ทำให้ `renderAt` ทำหน้าที่วาดเฟรมบริสุทธิ์ หยุดการเกิด Infinite Seek Loop โดยสิ้นเชิง
+  - ย้าย `ctx.clearRect(0, 0, CANVAS_W, CANVAS_H)` ขึ้นมาทำงานที่จุดเริ่มต้นของรอบวาดใน `tick()` แบบ Unconditional ทุกเฟรม ลบล้างข้อความ/ซับไตเติลของวินาทีก่อนหน้าที่หมดอายุไปแล้ว ไม่ให้หลงเหลือ ghosting หรือภาพซ้อนบนจอ
+  - ปรับปรุงการวาดเฟรมวิดีโอให้วาดทันทีเมื่อ `video.readyState >= 2` โดยไม่ถูกสกัดกั้นด้วยสถานะ `video.seeking` ในคลิปเดียวกัน
+  - ลดความซ้ำซ้อนของ event listeners บน `<video>` ให้เหลือเฉพาะ `onLoadedData` และ `onSeeked`
+- ตรวจสอบ Gate ผ่านทั้งหมด: Parity 149/149 passed, Smoke 147/147 passed, npm run build passed
+
+
+## Round ACCENT-PRO-1 — เพิ่มสไตล์ตกแต่งป้ายฮุกให้หลากหลาย 11+ รูปแบบระดับโปร (Adaptive Framing, Hybrid Color, Motion Sync, 100% Parity)
+
+วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+**ปัญหาและขอบเขตงาน:**
+1. เมนูตกแต่ง ("ตกแต่ง" ใน Inspector) มีเพียง 2-3 แบบ และในบางครั้งไม่โหลดบนหน้าเว็บ ผู้ใช้ต้องการความหลากหลายที่สวยงามระดับมืออาชีพสำหรับคลิป TikTok/Shorts
+2. เพิ่มชุดสไตล์ตกแต่ง 11+ รูปแบบ:
+   - `bracket` (กรอบมุมไซเบอร์ Tech Brackets `[ ]`), `glow_box` (กล่องนีออนเรืองแสง), `double_bar` (เส้นคู่บนล่าง)
+   - `sale_tag` (ป้ายแท็กสินค้าราคาพิเศษ), `pill_badge` (ป้ายแคปซูลโมเดิร์น), `marker` (ไฮไลต์ปากกาเมจิก)
+   - `bold_quotes` (เครื่องหมายคำพูดใหญ่ “ ”), `dashed_box` (กรอบเส้นประโฟกัส), `speed_slash` (ขีดเฉียงสปอร์ต //)
+   - `gradient_line` (เส้นไล่เฉดมินิมอล), `underline` (เส้นใต้เรืองแสง), `badge` (แถบไฮไลต์), `none` (ไม่มี)
+3. ระบบจัดวางอัจฉริยะ (Adaptive Placement): รูปแบบกรอบครอบทั้งป้าย, รูปแบบเส้นเน้นเฉพาะบรรทัดหลัก, รูปแบบแท็ก/คำพูดโอบล้อมข้อความ
+4. สีไฮบริด (Hybrid Color): ซิงก์สีอัตโนมัติตามสีไฮไลต์ของป้าย พร้อมให้เลือกสีเฉพาะของตกแต่งได้อิสระใน Inspector (พร้อมปุ่มคืนค่าอัตโนมัติ)
+5. Local Catalog Fallback: ให้เมนูหน้าเว็บแสดงครบทั้ง 12 รายการทันทีโดยไม่ต้องรอรีสตาร์ตเซิร์ฟเวอร์
+6. Preview = Render Parity 100%: วาดรูปทรงเรขาคณิตตรงกันทั้ง Canvas 2D และ ASS Vector Drawing (`\p1`)
+
+**ผลลัพธ์:**
+- `scripts/hook_motion_presets.py`: ลงทะเบียนครบ 12 สไตล์ใน `HOOK_ACCENT_PRESETS`
+- `scripts/overlay_model.py` & `frontend/src/lib/overlayModel.js`: เพิ่มฟิลด์ `accent_color` ใน Overlay Look
+- `frontend/src/components/editor/inspector/OverlayInspector.jsx`: เพิ่ม `FALLBACK_ACCENT_OPTIONS` และ Accent Color Picker UI พร้อมสวอทช์สียอดนิยม
+- `scripts/subtitle/badge_plate_renderer.py`: เพิ่มการสร้างคำสั่งวาดเส้นเวกเตอร์ ASS (`\p1`) ครบทั้ง 11+ สไตล์
+- `scripts/subtitle/overlay_events.py`: ซิงก์ Accent เข้ากับไทม์ไลน์และส่งผ่านสี `accent_color` อย่างถูกต้อง
+- `frontend/src/components/SequencePlayer.jsx`: รองรับการวาด Canvas 2D ครบทุกสไตล์ตรงกับ ASS 100%
+- ผ่าน Gate ตรวจสอบครบทุกตัว: `compileall` ผ่าน, `pytest test_preview_render_parity.py` ผ่าน 149/149 ข้อ, `npm run build` ผ่านสมบูรณ์, `test_phase1_smoke.py` ผ่าน 147/147 ข้อ
+
 
 ## Round POST-5 — ยกระดับความสมบูรณ์และเสถียรภาพของวงจรชีวิตคลิปที่โพสต์แล้ว (Full Posted Evidence & Lifecycle Integrity Lockdown)
 
@@ -1129,3 +1255,24 @@ Date: 2026-09-07; Requested by: user; Status: complete
 - The Extension now prefers active queue rows, receives the scheduled date/time for the selected item, and keeps the existing fallback ready-export list when no queue exists.
 - Removing a planned item never deletes the MP4. Items handed to the Extension must be reset before moving, and posted items are locked.
 - Existing uncommitted editor work was intentionally left unstaged. Steps 1-4 and the extension upload implementation remain frozen by the user.
+
+
+## Round STK-1 — Interactive Sticker Timeline Track, Free Canvas Drag/Resize, and Parity Render Engine
+
+วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
+
+**ปัญหาและสิ่งที่ทำ:**
+1. **ไทม์ไลน์สติกเกอร์ไม่มี:** เพิ่มแทร็กสติกเกอร์ (Sticker Track) บนไทม์ไลน์ อยู่ใต้ป้ายฮุกและเหนือคำบรรยาย พร้อมไอคอน Smile, ชื่อสติกเกอร์, เวลาแสดงผลกี่วินาที `(start - end)`, Left Trim Handle, Right Trim Handle, และ Body Drag สำหรับเลื่อนเวลาทั้งก้อน
+2. **ปรับย่อ/ขยายสติกเกอร์ได้อย่างอิสระ:** เพิ่มการคำนวณ `selectedBox.type === 'sticker'` ใน `handleBoxDragStart` และ `handleResizeStart` บน `SequencePlayer.jsx` ทำให้ผู้ใช้สามารถลากปุ่มกลม 4 มุมและปุ่มแคปซูล 4 ด้านเพื่อย่อขยายขนาดได้ตั้งแต่ 0.4× ถึง 2.0×
+3. **เอาตัวเลือกตำแหน่งการวางสติกเกอร์ 6 จุดเดิมออก:** ลบปุ่ม 6 ตำแหน่ง (บนซ้าย, กึ่งกลางบน, ฯลฯ) ใน `AssetPanel.jsx` ออกตามคำขอของผู้ใช้ โดยเปลี่ยนเป็นการแสดงช่วงเวลาแสดงผล `(start - end)` พร้อมปุ่ม "จัดกึ่งกลาง" (Center Reset) และแถบสไลเดอร์ขนาด
+4. **Preview = Render Parity 100%:** อัปเดต `video_editor.py` และ `video_assembly_stage.py` ให้ส่งและคำนวณ `sticker_start_time`, `sticker_end_time`, `sticker_norm_x`, `sticker_norm_y` ลงในคำสั่ง FFmpeg ด้วย `enable='between(t,start,end)'` และพิกัดจุดกึ่งกลางตรงกับหน้าจอพรีวิว 1:1
+
+### Gate
+
+- [x] `python -m compileall -q scripts` (Pass: 0 errors)
+- [x] `pytest tests/test_preview_render_parity.py` (Pass: 149 passed)
+- [x] `pytest tests/test_phase1_smoke.py` (Pass: 148 passed)
+- [x] `pytest tests/test_sticker_input_index.py` (Pass: 5 passed)
+- [x] `npm --prefix frontend run build` (Pass: 0 errors, built in 4.25s)
+- [x] Live Browser Subagent Verification (Pass: ตรวจสอบแทร็กสติกเกอร์บนไทม์ไลน์, กรอบ interactive bounding box พร้อมจุดดึงขยาย 4 มุม 4 ด้าน, การลากวางอิสระ, และพาเนลตั้งค่าที่ลบ 6-pos grid ออกเรียบร้อย)
+

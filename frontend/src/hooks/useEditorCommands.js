@@ -107,6 +107,12 @@ export function useEditorCommands({
       setSelection(null);
     } else if (selection?.type === 'text_overlay' || selection?.type === 'hook') {
       handleDeleteOverlay(selection.id);
+    } else if (selection?.type === 'sticker') {
+      set((prev) => ({
+        ...prev,
+        stickers: (prev.stickers || []).filter((s) => s.id !== selection.id),
+      }));
+      setSelection(null);
     }
   }, [handleDeleteOverlay, markCuesDirty, selection, set, setSelection]);
 

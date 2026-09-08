@@ -135,6 +135,7 @@ export function resolveHookStyle(template, overrides, colors, extraTemplates) {
       const value = (overTiers[key] || {})[field];
       if (value !== null && value !== undefined) tier[field] = value;
     }
+    if ((overTiers[key] || {}).font) tier.font = overTiers[key].font;
     if (picked[key]) tier.color = picked[key];
     resolved.tiers[key] = tier;
   }

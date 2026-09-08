@@ -50,6 +50,15 @@ export function createDefaultTracks() {
       z_index: 40,
     },
     {
+      id: 'track-o3',
+      type: 'overlay',
+      name: 'Stickers',
+      locked: false,
+      muted: false,
+      visible: true,
+      z_index: 45,
+    },
+    {
       id: 'track-a1',
       type: 'audio',
       name: 'Voice Track',

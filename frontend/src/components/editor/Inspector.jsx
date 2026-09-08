@@ -7,11 +7,13 @@ import {
   Sparkles,
   Type,
   SlidersHorizontal,
+  Smile,
 } from 'lucide-react';
 
 import ClipInspector from './inspector/ClipInspector';
 import CaptionInspector from './inspector/CaptionInspector';
 import OverlayInspector from './inspector/OverlayInspector';
+import StickerInspector from './inspector/StickerInspector';
 import CuesTranscriptInspector from './inspector/CuesTranscriptInspector';
 import ProjectInspector from './inspector/ProjectInspector';
 
@@ -74,8 +76,15 @@ export default function Inspector({
   onTrackMix,
   onCloseAllCaptionGaps,
   onResetSubtitleTimings,
+  stickers = [],
+  onUpdateSticker = null,
+  onDeleteSticker = null,
 }) {
   const textOverlays = (overlays || []).filter((o) => o.kind === 'text');
+
+  const selectedSticker = selection?.type === 'sticker'
+    ? (stickers || []).find((item) => item.id === selection.id) || (stickers?.[0] || null)
+    : null;
 
   // Top tabs: 'properties' (Contextual Inspector) | 'cues' (Subtitle transcript) | 'overview' (Project settings)
   const [activeTab, setActiveTab] = useState('properties');
@@ -223,6 +232,21 @@ export default function Inspector({
                   <span>คลิปที่ {selectedSeg.index + 1}</span>
                 </button>
               )}
+
+              {selectedSticker && (
+                <button
+                  type="button"
+                  onClick={() => onSelect?.({ type: 'sticker', id: selectedSticker.id })}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 flex-shrink-0 cursor-pointer border ${
+                    selection?.type === 'sticker'
+                      ? 'bg-[#25F4EE]/15 border-[#25F4EE] text-[#25F4EE]'
+                      : 'bg-white/[0.04] border-white/[0.08] text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Smile className="w-3 h-3" />
+                  <span>สติกเกอร์</span>
+                </button>
+              )}
             </div>
 
             {/* Contextual Sub-views */}
@@ -273,6 +297,13 @@ export default function Inspector({
                 onUpdateOverlay={onUpdateOverlay}
                 onReplaceOverlay={onReplaceOverlay}
                 onDeleteOverlay={onDeleteOverlay}
+              />
+            ) : selection?.type === 'sticker' && selectedSticker ? (
+              <StickerInspector
+                sticker={selectedSticker}
+                onUpdateSticker={onUpdateSticker}
+                onDeleteSticker={onDeleteSticker}
+                totalDuration={totalDuration}
               />
             ) : selectedSeg ? (
               <ClipInspector

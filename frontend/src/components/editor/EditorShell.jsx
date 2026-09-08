@@ -112,7 +112,7 @@ const LEGACY_SFX_ALIASES = {
   boom: 'sfx_vine_boom',
 };
 
-const EMPTY = { clipList: [], cuesList: [], overlays: [], style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false, captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1, stickerPosition: 'top_right', stickerScale: 1 } };
+const EMPTY = { clipList: [], cuesList: [], overlays: [], stickers: [], style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false, captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1, stickerPosition: 'top_right', stickerScale: 1 } };
 
 let idCounter = 0;
 const newId = () => `clip-${Date.now().toString(36)}-${++idCounter}`;
@@ -127,10 +127,19 @@ export default function EditorShell({
   onVideoUploaded,
 }) {
   const { state, set, setSilent, beginDrag, endDrag, undo, redo, reset, canUndo, canRedo } = useEditorHistory(EMPTY);
-  const { clipList, cuesList, style, overlays } = state;
+  const { clipList, cuesList, style, overlays, stickers = [] } = state;
 
   const [projectList, setProjectList] = useState([]);
-  const [projectName, setProjectName] = useState('');
+  const [projectName, setProjectName] = useState(() => {
+    if (initialProjectName) return initialProjectName;
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const fromUrl = urlParams.get('project');
+      if (fromUrl) return fromUrl;
+      return localStorage.getItem('omnicut_active_project') || '';
+    }
+    return '';
+  });
   // `default_bgm` comes from the server, which is where the render's own
   // default lives. Keeping a copy here is what let the timeline claim one
   // track while the file played another.
@@ -245,6 +254,17 @@ export default function EditorShell({
   // null when closed; otherwise the videoItem shape CoverStudioModal expects.
   const [coverGateItem, setCoverGateItem] = useState(null);
   const [coverGateChecking, setCoverGateChecking] = useState(false);
+  // Whether opening the modal should auto-continue into a render once the
+  // cover is saved (handleCoverGateSaved's original behavior, for the
+  // render-blocked case) -- false when the user opened it proactively via
+  // the header's "ปก" button just to check/create a cover, where jumping
+  // straight into a render they didn't ask for would be a surprise.
+  const coverGateAutoRenderRef = useRef(true);
+  // Surfaced in the header as a status badge so the user can tell whether
+  // this project's angle already has a cover without having to hit render
+  // and get blocked to find out. null = not yet resolved (no matching
+  // angle, or still checking); true/false once a fresh fetch resolves it.
+  const [coverStatus, setCoverStatus] = useState(null);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   // Per-stem mute/solo for the preview. Mutes persist and reach the renderer;
   // solo remains a monitoring control and does not mute the exported mix.
@@ -383,6 +403,13 @@ export default function EditorShell({
       projectProductName, projectAdTone]);
 
   const [previewTextTemplate, setPreviewTextTemplate] = useState(null);
+  const [previewSticker, setPreviewSticker] = useState(null);
+  const [isStickerHidden, setIsStickerHidden] = useState(false);
+  const handleToggleHideSticker = useCallback(() => setIsStickerHidden((v) => !v), []);
+  const handlePreviewSticker = useCallback((badgeName) => {
+    setPreviewSticker((prev) => (prev === badgeName ? null : badgeName));
+  }, []);
+  const handleDismissPreviewSticker = useCallback(() => setPreviewSticker(null), []);
   const [showSafeZone, setShowSafeZone] = useState(false);
   const handleToggleSafeZone = useCallback(() => setShowSafeZone((v) => !v), []);
 
@@ -415,6 +442,17 @@ export default function EditorShell({
     return () => window.removeEventListener('pointerdown', handleGlobalClick, true);
   }, [previewTextTemplate]);
 
+  // Dismiss ephemeral sticker preview whenever clicking anywhere that isn't the sticker card
+  useEffect(() => {
+    if (!previewSticker) return;
+    const handleGlobalClick = (e) => {
+      if (e.target.closest('[data-sticker-card="true"]')) return;
+      setPreviewSticker(null);
+    };
+    window.addEventListener('pointerdown', handleGlobalClick, true);
+    return () => window.removeEventListener('pointerdown', handleGlobalClick, true);
+  }, [previewSticker]);
+
   const cuesDirty = useRef(false);
   const initialCuesRef = useRef([]);
   const isLoadedRef = useRef(false);
@@ -432,8 +470,9 @@ export default function EditorShell({
     cuesList,
     style,
     overlays,
+    stickers,
     trackMix,
-  }), [clipList, cuesList, overlays, style, trackMix]);
+  }), [clipList, cuesList, overlays, stickers, style, trackMix]);
   const {
     saveStatus,
     setSaveStatus,
@@ -454,6 +493,16 @@ export default function EditorShell({
 
   const applyLoadedProject = useCallback((name, loaded, manifest) => {
     setProjectName(name);
+    try {
+      if (name) {
+        localStorage.setItem('omnicut_active_project', name);
+        const url = new URL(window.location.href);
+        if (url.searchParams.get('project') !== name) {
+          url.searchParams.set('project', name);
+          window.history.replaceState(null, '', url.toString());
+        }
+      }
+    } catch {}
     setIsProjectPosted(Boolean(manifest?.is_posted || manifest?.angle_status === 'posted' || manifest?.posted_at));
     initialCuesRef.current = JSON.parse(JSON.stringify(loaded.cuesList || []));
     setMicroCuesList(loaded.microCuesList);
@@ -476,6 +525,7 @@ export default function EditorShell({
       clipList: loaded.clipList,
       cuesList: loaded.cuesList,
       overlays: loaded.overlays,
+      stickers: loaded.stickers || [],
       style: loaded.style,
     });
     setAudioDuration(loaded.audioDuration);
@@ -538,6 +588,12 @@ export default function EditorShell({
       if (projectName === pendingDelete) {
         setProjectName('');
         setSelection(null);
+        try {
+          localStorage.removeItem('omnicut_active_project');
+          const url = new URL(window.location.href);
+          url.searchParams.delete('project');
+          window.history.replaceState(null, '', url.toString());
+        } catch {}
       }
       setPendingDelete(null);
     } catch (err) {
@@ -593,14 +649,20 @@ export default function EditorShell({
       .catch((err) => console.warn('Hook templates fetch failed:', err));
   }, []);
 
-  // Load project handed down from script lab or flow
+  // Load project handed down from script lab or flow, or restored from storage/URL
   useEffect(() => {
     if (initialProjectName) {
       loadProject(initialProjectName);
-    } else if (!projectName) {
-      const angleProj = productContext?.angles?.[angleIndex]?.project_name;
-      if (angleProj) {
-        loadProject(angleProj);
+    } else {
+      const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const targetProj = projectName || urlParams?.get('project') || (typeof window !== 'undefined' ? localStorage.getItem('omnicut_active_project') : null);
+      if (targetProj) {
+        loadProject(targetProj);
+      } else {
+        const angleProj = productContext?.angles?.[angleIndex]?.project_name;
+        if (angleProj) {
+          loadProject(angleProj);
+        }
       }
     }
   }, [initialProjectName, productContext, angleIndex]);
@@ -786,6 +848,118 @@ export default function EditorShell({
     });
   }, [selection, overlays, handleReplaceOverlay]);
 
+  const handleAddSticker = useCallback((badgeName) => {
+    const dur = 3.0; // DEFAULT 3 SECONDS
+    const start = Math.round(playhead * 10) / 10;
+    const maxEnd = totalDuration > 0 ? totalDuration : (start + dur);
+    const end = Math.round(Math.min(maxEnd, start + dur) * 10) / 10;
+    const newSticker = {
+      id: `sticker-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+      badge: badgeName,
+      start,
+      end,
+      normX: 0.5,
+      normY: 0.35,
+      scale: 1.0,
+      hidden: false,
+    };
+    set((prev) => ({
+      ...prev,
+      stickers: [...(prev.stickers || []), newSticker],
+      style: {
+        ...prev.style,
+        stickerBadge: badgeName,
+        stickerStartTime: start,
+        stickerEndTime: end,
+      },
+    }));
+    setSelection({ type: 'sticker', id: newSticker.id });
+  }, [playhead, totalDuration, set]);
+
+  const handleUpdateSticker = useCallback((idOrPatch, maybePatch) => {
+    let id = null;
+    let patch = {};
+    if (typeof idOrPatch === 'string') {
+      id = idOrPatch;
+      patch = maybePatch || {};
+    } else if (typeof idOrPatch === 'object' && idOrPatch !== null) {
+      if (idOrPatch.id) {
+        id = idOrPatch.id;
+        patch = idOrPatch;
+      } else {
+        patch = idOrPatch;
+      }
+    }
+
+    set((prev) => {
+      const currentList = prev.stickers || [];
+      const targetId = id || selection?.id;
+      let nextList;
+      if (targetId && currentList.some((s) => s.id === targetId)) {
+        nextList = currentList.map((s) => (s.id === targetId ? { ...s, ...patch } : s));
+      } else if (currentList.length > 0) {
+        nextList = currentList.map((s, idx) => (idx === 0 ? { ...s, ...patch } : s));
+      } else {
+        nextList = [{
+          id: 'sticker-1',
+          badge: patch.badge || prev.style?.stickerBadge || '',
+          start: patch.start ?? patch.startTime ?? 0.5,
+          end: patch.end ?? patch.endTime ?? 3.5,
+          normX: patch.normX ?? 0.5,
+          normY: patch.normY ?? 0.35,
+          scale: patch.scale ?? 1.0,
+          hidden: false,
+          ...patch,
+        }];
+      }
+      return {
+        ...prev,
+        stickers: nextList,
+        style: {
+          ...prev.style,
+          ...(patch.scale != null ? { stickerScale: patch.scale } : {}),
+          ...(patch.normX != null ? { stickerNormX: patch.normX } : {}),
+          ...(patch.normY != null ? { stickerNormY: patch.normY } : {}),
+          ...(patch.start != null ? { stickerStartTime: patch.start } : (patch.startTime != null ? { stickerStartTime: patch.startTime } : {})),
+          ...(patch.end != null ? { stickerEndTime: patch.end } : (patch.endTime != null ? { stickerEndTime: patch.endTime } : {})),
+          ...(patch.badge ? { stickerBadge: patch.badge } : {}),
+        },
+      };
+    });
+  }, [set, selection]);
+
+  const handleDeleteSticker = useCallback((id) => {
+    set((prev) => {
+      const targetId = id || selection?.id;
+      const nextList = (prev.stickers || []).filter((s) => s.id !== targetId);
+      return {
+        ...prev,
+        stickers: nextList,
+        style: {
+          ...prev.style,
+          stickerBadge: nextList.length > 0 ? nextList[0].badge : '',
+        },
+      };
+    });
+    if (selection?.type === 'sticker' && (!id || selection.id === id)) {
+      setSelection(null);
+    }
+  }, [set, selection]);
+
+  const handleClearStickers = useCallback(() => {
+    set((prev) => ({
+      ...prev,
+      stickers: [],
+      style: {
+        ...prev.style,
+        stickerBadge: '',
+      },
+    }));
+    if (selection?.type === 'sticker') {
+      setSelection(null);
+    }
+  }, [set, selection]);
+
 
   const [toastMessage, setToastMessage] = useState(null);
   const toastTimeoutRef = useRef(null);
@@ -877,6 +1051,60 @@ export default function EditorShell({
     angle_id: angle?.angle_id,
   }), [projectName]);
 
+  // Shared by handleApply's render-blocking gate and the proactive
+  // coverStatus check below -- both need to resolve, by project_name
+  // against a FRESH product fetch (not the productContext/angleIndex props,
+  // which are null whenever the editor was reached via the header dropdown
+  // rather than the product-flow tab), which angle this project belongs to
+  // and whether it already has a cover.
+  const findMatchingAngle = useCallback(async (targetProjectName) => {
+    const fresh = await getProducts();
+    const freshList = Array.isArray(fresh) ? fresh : (fresh?.products || []);
+    for (const p of freshList) {
+      const a = (p.angles || []).find((ang) => ang.project_name === targetProjectName);
+      if (a) return { matchProduct: p, matchAngle: a };
+    }
+    return { matchProduct: null, matchAngle: null };
+  }, []);
+
+  // Lets the user check/create a cover proactively from the header's "ปก"
+  // button instead of only discovering whether one exists by hitting render
+  // and getting blocked. Unlike the render-gate's open (handleApply below),
+  // saving here must NOT auto-continue into a render the user didn't ask
+  // for -- coverGateAutoRenderRef flags that for handleCoverGateSaved.
+  const openCoverStudioManually = useCallback(async () => {
+    if (!projectName) return;
+    coverGateAutoRenderRef.current = false;
+    setCoverGateChecking(true);
+    try {
+      const { matchProduct, matchAngle } = await findMatchingAngle(projectName);
+      if (matchAngle) {
+        setCoverGateItem(buildCoverGateItem(matchAngle, matchProduct));
+      } else {
+        setApplyError('ไม่พบข้อมูลสินค้า/มุมของโปรเจกต์นี้ ไม่สามารถสร้างปกได้');
+      }
+    } catch (e) {
+      setApplyError('ตรวจสอบข้อมูลปกไม่สำเร็จ: ' + (e.response?.data?.detail || e.message));
+    }
+    setCoverGateChecking(false);
+  }, [projectName, findMatchingAngle, buildCoverGateItem]);
+
+  // Refreshed whenever the loaded project changes so the header's cover
+  // badge reflects this project's actual state instead of staying stuck on
+  // whatever the previously-loaded project showed.
+  useEffect(() => {
+    if (!projectName) { setCoverStatus(null); return; }
+    let cancelled = false;
+    findMatchingAngle(projectName)
+      .then(({ matchAngle }) => {
+        if (cancelled) return;
+        if (!matchAngle) { setCoverStatus(null); return; }
+        setCoverStatus(!!(matchAngle.cover_path || matchAngle.cover_3x4_path || matchAngle.cover_9x16_path));
+      })
+      .catch(() => { if (!cancelled) setCoverStatus(null); });
+    return () => { cancelled = true; };
+  }, [projectName, findMatchingAngle]);
+
   const handleApply = async () => {
     if (!projectName) { setApplyError('เลือกโปรเจกต์ก่อน'); return; }
     if (!clipList.length) { setApplyError('เพิ่มคลิปในไทม์ไลน์ก่อน'); return; }
@@ -885,22 +1113,10 @@ export default function EditorShell({
       return;
     }
 
-    // Cover is required before a render is allowed to start. Resolved by
-    // project_name against a fresh product fetch rather than trusting the
-    // productContext/angleIndex props -- those are null whenever the editor
-    // was reached by picking a project straight from the header dropdown
-    // instead of via the product-flow tab, which would otherwise skip this
-    // gate entirely for every render started that way.
+    // Cover is required before a render is allowed to start.
     setCoverGateChecking(true);
     try {
-      const fresh = await getProducts();
-      const freshList = Array.isArray(fresh) ? fresh : (fresh?.products || []);
-      let matchProduct = null;
-      let matchAngle = null;
-      for (const p of freshList) {
-        const a = (p.angles || []).find((ang) => ang.project_name === projectName);
-        if (a) { matchProduct = p; matchAngle = a; break; }
-      }
+      const { matchProduct, matchAngle } = await findMatchingAngle(projectName);
       if (matchAngle?.status === 'posted' || matchAngle?.posted_at) {
         setApplyError('คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้เรนเดอร์ซ้ำ เพื่อรักษาหลักฐานเดิม');
         setCoverGateChecking(false);
@@ -909,6 +1125,7 @@ export default function EditorShell({
       }
       const hasCover = !!(matchAngle?.cover_path || matchAngle?.cover_3x4_path || matchAngle?.cover_9x16_path);
       if (matchAngle && !hasCover) {
+        coverGateAutoRenderRef.current = true;
         setCoverGateItem(buildCoverGateItem(matchAngle, matchProduct));
         setCoverGateChecking(false);
         return;
@@ -972,6 +1189,7 @@ export default function EditorShell({
         caption_scale: style.captionScale ?? 1,
         sticker_position: style.stickerPosition || 'top_right',
         sticker_scale: style.stickerScale ?? 1,
+        stickers: (stickers && stickers.length > 0) ? stickers : undefined,
       });
       startJob(res.job_id);
       pollTasks?.();
@@ -992,9 +1210,12 @@ export default function EditorShell({
     }
   };
 
-  // Cover saved from the render-gate modal: persist it to the angle, then
-  // continue straight into the render the user originally asked for instead
-  // of making them press "เรนเดอร์" a second time.
+  // Cover saved from the modal: persist it to the angle. When opened by the
+  // render gate (coverGateAutoRenderRef true), continue straight into the
+  // render the user originally asked for instead of making them press
+  // "เรนเดอร์" a second time; when opened proactively via the header's "ปก"
+  // button, just close and update the badge -- the user only asked to
+  // check/create a cover, not to render.
   const handleCoverGateSaved = useCallback(async (res) => {
     const productId = coverGateItem?.parentProduct?.id;
     const angleId = coverGateItem?.angle_id;
@@ -1009,9 +1230,12 @@ export default function EditorShell({
         setApplyError('บันทึกภาพปกไม่สำเร็จ: ' + (e.response?.data?.detail || e.message));
         return;
       }
+      setCoverStatus(true);
     }
     setCoverGateItem(null);
-    handleApply();
+    if (coverGateAutoRenderRef.current) {
+      handleApply();
+    }
   }, [coverGateItem, handleApply]);
 
   // What the preview plays instead of a baked mix: the voice stem plus the
@@ -1178,6 +1402,9 @@ export default function EditorShell({
         setDeleteScope={setDeleteScope}
         setDeleteOrigin={setDeleteOrigin}
         setPendingDelete={setPendingDelete}
+        coverStatus={coverStatus}
+        coverChecking={coverGateChecking}
+        onOpenCoverStudio={openCoverStudioManually}
       />
 
       {loadError && (
@@ -1393,9 +1620,13 @@ export default function EditorShell({
                     badge: style.stickerBadge,
                     position: style.stickerPosition || 'top_right',
                     scale: style.stickerScale || 1.0,
-                    startTime: 0.5,
+                    startTime: style.stickerStartTime ?? 0.5,
+                    endTime: style.stickerEndTime ?? (totalDuration || 999999),
+                    normX: style.stickerNormX,
+                    normY: style.stickerNormY,
                     stickers: assets.stickers,
                   }}
+                  stickers={stickers}
                   compact
                   onPlayhead={setPlayhead}
                   onDurations={setDurations}
@@ -1407,7 +1638,10 @@ export default function EditorShell({
                   applyToAllCaptions={applyToAllCaptions}
                   onUpdateAllCaptions={patchAllCaptions}
                   onStyleChange={patchStyle}
-                  onUpdateSticker={(patch) => patchStyle(patch)}
+                  onUpdateSticker={handleUpdateSticker}
+                  isStickerHidden={isStickerHidden}
+                  previewSticker={previewSticker}
+                  onDismissPreviewSticker={handleDismissPreviewSticker}
                   previewTextTemplate={previewTextTemplate}
                   onCommitPreviewTextTemplate={handleAddTextTemplate}
                   onDismissPreviewTextTemplate={() => setPreviewTextTemplate(null)}
@@ -1614,6 +1848,20 @@ export default function EditorShell({
                     onSelectOverlay={(id, kind) => handleSelect({ type: kind === 'hook' ? 'hook' : 'text_overlay', id })}
                     onToggleOverlayKindHidden={handleToggleOverlayKindHidden}
                     onEnsureHookOverlay={handleEnsureHookOverlay}
+                    stickerStyle={{
+                      badge: style.stickerBadge,
+                      scale: style.stickerScale || 1.0,
+                      startTime: style.stickerStartTime ?? 0.5,
+                      endTime: style.stickerEndTime ?? (totalDuration || 15.0),
+                      normX: style.stickerNormX,
+                      normY: style.stickerNormY,
+                    }}
+                    stickers={stickers}
+                    stickerAssets={assets.stickers}
+                    isStickerHidden={isStickerHidden}
+                    onToggleHideSticker={handleToggleHideSticker}
+                    onUpdateSticker={handleUpdateSticker}
+                    onSelectSticker={(id) => handleSelect({ type: 'sticker', id })}
                   />
                 </div>
               </div>
@@ -1628,6 +1876,20 @@ export default function EditorShell({
                       durations={durations}
                       assets={assets}
                       style={style}
+                      stickers={stickers}
+                      selectedStickerId={selection?.type === 'sticker' ? selection.id : null}
+                      previewSticker={previewSticker}
+                      onPreviewSticker={handlePreviewSticker}
+                      onAddSticker={(badge) => {
+                        handleAddSticker(badge);
+                        setPreviewSticker(null);
+                      }}
+                      onUpdateSticker={handleUpdateSticker}
+                      onDeleteSticker={handleDeleteSticker}
+                      onClearStickers={handleClearStickers}
+                      onSelectSticker={(id) => handleSelect({ type: 'sticker', id })}
+                      playhead={playhead}
+                      totalDuration={totalDuration}
                       selectedCaption={selectedCaption}
                       onAddClip={addClip}
                       onAddTextAtPlayhead={handleAddTextOverlay}
@@ -1700,6 +1962,9 @@ export default function EditorShell({
                       onTrackMix={handleTrackMix}
                       onCloseAllCaptionGaps={handleCloseAllCaptionGaps}
                       onResetSubtitleTimings={handleResetSubtitleTimings}
+                      stickers={stickers}
+                      onUpdateSticker={handleUpdateSticker}
+                      onDeleteSticker={handleDeleteSticker}
                     />
                   </div>
                 )}
@@ -1744,6 +2009,20 @@ export default function EditorShell({
                         durations={durations}
                         assets={assets}
                         style={style}
+                        stickers={stickers}
+                        selectedStickerId={selection?.type === 'sticker' ? selection.id : null}
+                        previewSticker={previewSticker}
+                        onPreviewSticker={handlePreviewSticker}
+                        onAddSticker={(badge) => {
+                          handleAddSticker(badge);
+                          setPreviewSticker(null);
+                        }}
+                        onUpdateSticker={handleUpdateSticker}
+                        onDeleteSticker={handleDeleteSticker}
+                        onClearStickers={handleClearStickers}
+                        onSelectSticker={(id) => handleSelect({ type: 'sticker', id })}
+                        playhead={playhead}
+                        totalDuration={totalDuration}
                         selectedCaption={selectedCaption}
                         onAddClip={addClip}
                         onAddTextAtPlayhead={handleAddTextOverlay}
@@ -1816,9 +2095,13 @@ export default function EditorShell({
                       badge: style.stickerBadge,
                       position: style.stickerPosition || 'top_right',
                       scale: style.stickerScale || 1.0,
-                      startTime: 0.5,
+                      startTime: style.stickerStartTime ?? 0.5,
+                      endTime: style.stickerEndTime ?? (totalDuration || 999999),
+                      normX: style.stickerNormX,
+                      normY: style.stickerNormY,
                       stickers: assets.stickers,
                     }}
+                    stickers={stickers}
                     compact
                     onPlayhead={setPlayhead}
                     onDurations={setDurations}
@@ -1830,7 +2113,10 @@ export default function EditorShell({
                     applyToAllCaptions={applyToAllCaptions}
                     onUpdateAllCaptions={patchAllCaptions}
                     onStyleChange={patchStyle}
-                    onUpdateSticker={(patch) => patchStyle(patch)}
+                    onUpdateSticker={handleUpdateSticker}
+                    isStickerHidden={isStickerHidden}
+                    previewSticker={previewSticker}
+                    onDismissPreviewSticker={handleDismissPreviewSticker}
                     previewTextTemplate={previewTextTemplate}
                     onCommitPreviewTextTemplate={handleAddTextTemplate}
                     onDismissPreviewTextTemplate={() => setPreviewTextTemplate(null)}
@@ -1987,6 +2273,9 @@ export default function EditorShell({
                         onTrackMix={handleTrackMix}
                         onCloseAllCaptionGaps={handleCloseAllCaptionGaps}
                         onResetSubtitleTimings={handleResetSubtitleTimings}
+                        stickers={stickers}
+                        onUpdateSticker={handleUpdateSticker}
+                        onDeleteSticker={handleDeleteSticker}
                       />
                     </div>
                   </div>
@@ -2110,6 +2399,20 @@ export default function EditorShell({
                     onSelectOverlay={(id, kind) => handleSelect({ type: kind === 'hook' ? 'hook' : 'text_overlay', id })}
                     onToggleOverlayKindHidden={handleToggleOverlayKindHidden}
                     onEnsureHookOverlay={handleEnsureHookOverlay}
+                    stickerStyle={{
+                      badge: style.stickerBadge,
+                      scale: style.stickerScale || 1.0,
+                      startTime: style.stickerStartTime ?? 0.5,
+                      endTime: style.stickerEndTime ?? (totalDuration || 15.0),
+                      normX: style.stickerNormX,
+                      normY: style.stickerNormY,
+                    }}
+                    stickers={stickers}
+                    stickerAssets={assets.stickers}
+                    isStickerHidden={isStickerHidden}
+                    onToggleHideSticker={handleToggleHideSticker}
+                    onUpdateSticker={handleUpdateSticker}
+                    onSelectSticker={(id) => handleSelect({ type: 'sticker', id })}
                   />
                 </div>
               </div>
@@ -2192,8 +2495,10 @@ export default function EditorShell({
         onConfirm={(clipId, patch) => patchClip(clipId, patch)}
       />
 
-      {/* Blocks render until the angle has a cover -- opened from handleApply
-          when the pre-render cover check finds none. */}
+      {/* Opened either by handleApply's render gate (no cover found, blocks
+          the render until one is saved) or proactively via the header's
+          "ปก" button (openCoverStudioManually) -- coverGateAutoRenderRef
+          tells handleCoverGateSaved which case this is. */}
       <CoverStudioModal
         isOpen={!!coverGateItem}
         onClose={() => setCoverGateItem(null)}

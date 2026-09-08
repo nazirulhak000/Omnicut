@@ -82,10 +82,19 @@ def test_font_size_is_converted_between_the_two_text_engines():
     converted, and every constant-level "the ratios are equal" check is
     necessary but not sufficient.
 
-    The conversion lives on the ASS side, as a \\fscx/\\fscy boost rather than
-    a bigger Fontsize: libass takes line advance from Fontsize alone, so
-    touching Fontsize would have stretched every line gap by the same 1.65x.
-    The canvas keeps drawing the plain em number.
+    The conversion USED TO live purely on the ASS side, as a \\fscx/\\fscy
+    boost with Fontsize left at the plain em number -- but scaling a glyph up
+    via \\fscx/\\fscy after rasterization breaks libass's GPOS mark-to-mark
+    anchor delta ั+่ ("นั่ง") depends on, worse the more it scales, regardless
+    of Bold (empirically diagnosed 2026-09-08 -- see font_size_boosted's
+    comment in subtitle_engine.py). The fix boosts Fontsize itself (so the
+    glyph rasterizes fresh at its true final size) and divides \\fscx/\\fscy
+    by that same boost instead of multiplying by it -- the two numerically
+    cancel to the identical rendered size and line-gap as before (verified
+    pixel-identical against the old scheme for both a plain caption line and
+    the hook banner), but avoid the post-rasterization transform that broke
+    the anchor. The canvas keeps drawing the plain em number either way,
+    since canvas text has no such post-rasterization transform to begin with.
     """
     assert "usWinAscent + os2.usWinDescent" in PY_SRC
     assert "TEXT_SCALE_BOOST = 1.0 / ass_glyph_scale(resolved_font)" in PY_SRC
@@ -94,18 +103,24 @@ def test_font_size_is_converted_between_the_two_text_engines():
     # caption's number would size the banner by the wrong metrics.
     assert "HOOK_SCALE_BOOST = 1.0 / ass_glyph_scale(hook_font)" in PY_SRC
 
-    # every text scale that reaches \fscx carries the boost
-    for probe in [
-        "target = round(layout_pct * HOOK_SCALE_BOOST)",       # hook tiers, in the hook's own face
-        "settle_pct = int(round(settle_pct * TEXT_SCALE_BOOST))",  # caption pop
-        "en_pct = int(round(68 * TEXT_SCALE_BOOST))",          # english sub
-        "spec_from = int(round(110 * TEXT_SCALE_BOOST))",      # spec bar
-    ]:
-        assert probe in PY_SRC, f"missing text scale boost: {probe}"
+    # Fontsize fields carry the boost now (rasterize fresh at true size)
+    assert "font_size_boosted = int(round(font_size * TEXT_SCALE_BOOST))" in PY_SRC
+    assert "hook_fs_boosted = int(round(hook_fs * HOOK_SCALE_BOOST))" in PY_SRC
 
-    # Fontsize itself must stay the em number, or line advance drifts
+    # every \fscx/\fscy that used to carry the boost now stays at the plain
+    # (unboosted) percent, since Fontsize alone accounts for it
+    for probe in [
+        "target = layout_pct",                    # hook tiers
+        "snap_pct = int(round(settle_pct * 1.25))",  # caption pop (no boost multiply/divide)
+        "en_pct = 68",                             # english sub
+        "spec_from = 110",                         # spec bar
+        "spec_to = 100",                           # spec bar settle
+    ]:
+        assert probe in PY_SRC, f"missing plain (unboosted) fscx/fscy: {probe}"
+
+    # Fontsize itself must stay the em number in the canvas-facing formula;
+    # the boosted variant is a separate, explicitly-named value
     assert "hook_fs = int(round(video_width * 0.065))" in PY_SRC
-    assert "TEXT_SCALE_BOOST" not in PY_SRC.split("hook_fs = int(round(")[1].split("\n")[0]
 
     # \p drawings are already in PlayRes pixels and must NOT be boosted
     drawing_block = PY_SRC.split("def _hook_accent_events")[1].split("\ndef ")[0]
@@ -1792,7 +1807,9 @@ def test_the_banner_is_measured_in_its_own_face():
     or the wrap and the accent geometry are computed against the wrong glyphs.
     """
     assert "HOOK_SCALE_BOOST = 1.0 / ass_glyph_scale(hook_font)" in PY_SRC
-    assert "target = round(layout_pct * HOOK_SCALE_BOOST)" in PY_SRC
+    # Style Fontsize carries the boost now, so \fscx/\fscy divide by it
+    # instead of multiplying (see font_size_boosted's comment)
+    assert "target = layout_pct" in PY_SRC
     assert "Style: HookHeader,{hook_font}," in PY_SRC
     assert "Style: HookHeaderShadow,{hook_font}," in PY_SRC
     # A template naming a font that is not installed falls back rather than

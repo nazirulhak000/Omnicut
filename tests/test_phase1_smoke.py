@@ -620,24 +620,21 @@ def test_bilingual_highlight_leaves_both_plain_when_neither_matches():
 def _brand_pct(base=None, template=None):
     """
     What the brand tier's \\fscx actually ends up as. Sizes in subtitle_engine
-    are em intents; the number reaching \\fscx is boosted by 1/ass_glyph_scale
-    so libass's line-box sizing cancels out. Derived here rather than
-    hardcoded, so changing a template's font or its tier size cannot turn these
-    into magic numbers that quietly stop describing the code.
-
-    The banner has its own face now, separate from the captions, so the boost
-    comes from THAT face -- a font's line box against its em is exactly what
-    the boost cancels, and using the caption's number would describe a banner
-    nobody renders.
+    are em intents; the HookHeader Style's Fontsize now carries this face's
+    1/ass_glyph_scale boost directly (rather than leaving Fontsize unboosted
+    and pushing the boost onto \\fscx/\\fscy, which used to break the GPOS
+    mark-to-mark anchor ั+่ ("นั่ง") at scale -- see font_size_boosted's
+    comment in subtitle_engine.py), so \\fscx/\\fscy now carry the plain
+    (unboosted) percent -- Fontsize alone accounts for the boost. Derived
+    here rather than hardcoded, so changing a template's font or its tier
+    size cannot turn these into magic numbers that quietly stop describing
+    the code.
     """
     from scripts.hook_styles import resolve_hook_style
-    from scripts.subtitle_engine import ass_glyph_scale, _load_font_family_map
 
     style = resolve_hook_style(template)
-    hook_font = _load_font_family_map().get(style["font"], style["font"])
-    boost = 1.0 / ass_glyph_scale(hook_font)
     size_pct = style["tiers"]["brand"]["size_pct"] if base is None else base
-    return round(round(size_pct) * boost)
+    return round(size_pct)
 
 
 def _hook_events(content: str) -> str:
@@ -863,6 +860,7 @@ def test_preset_catalog_matches_the_builder_registries(client):
     from scripts.subtitle_engine import (
         HOOK_IN_BUILDERS, HOOK_LOOP_BUILDERS, HOOK_OUT_BUILDERS, DEFAULT_HOOK_MOTION,
     )
+    from scripts.hook_motion_presets import HOOK_ACCENT_PRESETS
 
     catalog = client.get("/api/hook-motion-presets").json()["catalog"]
     # typewriter is built inline (it needs resolved line geometry), so it is
@@ -870,7 +868,7 @@ def test_preset_catalog_matches_the_builder_registries(client):
     assert set(catalog["in"]) == set(HOOK_IN_BUILDERS) | {"typewriter"}
     assert set(catalog["loop"]) == set(HOOK_LOOP_BUILDERS)
     assert set(catalog["out"]) == set(HOOK_OUT_BUILDERS)
-    assert set(catalog["accent"]) == {"underline", "badge", "none"}
+    assert set(catalog["accent"]) == set(HOOK_ACCENT_PRESETS)
 
     for category, chosen in DEFAULT_HOOK_MOTION.items():
         if category == "stagger":
@@ -1524,20 +1522,28 @@ def test_caption_style_lands_in_the_ass_header(tmp_path):
     assert fields[21] == "260", "top margin"
     # Derived from the one tuned constant rather than a list of magic numbers:
     # base_fs = round(video_width * 0.0463) in subtitle_engine.py, times the
-    # 1.5 caption_scale above. Retuning that ratio must be a deliberate act
-    # that updates this line AND the canvas side (guarded by
-    # tests/test_preview_render_parity.py), never a silent drift.
-    assert int(fields[2]) == max(24, round(round(1080 * 0.0463) * 1.5)) == 75, "scaled font size"
+    # 1.5 caption_scale above, times the resolved font's own em-vs-line-box
+    # boost (Style Fontsize now carries that boost directly -- see
+    # font_size_boosted's comment in subtitle_engine.py -- rather than
+    # leaving Fontsize unboosted and pushing it onto \fscx/\fscy, which used
+    # to break the GPOS mark-to-mark anchor ั+่ ("นั่ง") at scale). Retuning
+    # the 0.0463 ratio must be a deliberate act that updates this line AND
+    # the canvas side (guarded by tests/test_preview_render_parity.py),
+    # never a silent drift.
+    from scripts.subtitle.font_metrics import ass_glyph_scale
+    ibm_plex_boost = 1.0 / ass_glyph_scale("IBM Plex Sans Thai")
+    unboosted = max(24, round(round(1080 * 0.0463) * 1.5))
+    assert int(fields[2]) == round(unboosted * ibm_plex_boost), "scaled font size"
 
 
 def test_sticker_geometry_corners_and_clamped_size():
     from scripts.video_editor import sticker_geometry
 
     w, x, y = sticker_geometry("top_right", 1.0)
-    assert (w, x, y) == (380, "(W-w-40)", "140")
+    assert (w, x, y) == (160, "(W-w-40)", "140")
     assert sticker_geometry("bottom_left", 1.0)[1:] == ("40", "(H-h-420)")
     assert sticker_geometry("junk", 1.0)[1:] == ("(W-w-40)", "140"), "unknown corner falls back"
-    assert sticker_geometry("top_left", 99)[0] == 760, "scale clamped to 2x"
+    assert sticker_geometry("top_left", 99)[0] == 560, "scale clamped to 3.5x"
     assert sticker_geometry("top_left", 1.0)[0] % 2 == 0, "even width or libx264 complains"
 
 
@@ -1550,7 +1556,7 @@ def test_sticker_position_reaches_the_overlay(monkeypatch, tmp_path):
         sticker_path=str(badge), sticker_position="bottom_left", sticker_scale=1.5,
     )
     filter_arg = cmd[cmd.index("-filter_complex") + 1]
-    assert "scale=570:-1" in filter_arg
+    assert "scale=240:-1" in filter_arg
     assert "overlay=x=40:y=(H-h-420)" in filter_arg
 
 

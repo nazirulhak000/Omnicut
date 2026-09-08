@@ -12,6 +12,9 @@
 ---
 
 ## สถานะรวม
+- [x] Round STK-3 - Sticker Baseline 100% Size, Track Eye Toggle, Deletion, and Preview-Before-Add (2026-09-08)
+- [x] Round STK-2 - Multi-Sticker Support, 3-Second Default Duration, and Smooth Canvas Resizing (2026-09-08)
+- [x] Round STK-1 - Interactive Sticker Timeline Track, Free Drag & Resize, and Parity Render Engine (2026-09-08)
 - [x] Round HOK-1 - Custom Hook Template Studio (สร้างและบันทึกแม่แบบฮุกด้วยตัวเอง) (2026-09-07)
 - [x] Round EDT-1 - Editor UX/UI Friction and Speed Optimization (2026-09-07)
 - [x] Round POST-3.27 - Consolidate TikTok Studio upload tab opener to single header button (2026-09-07)
@@ -48,7 +51,7 @@
 - [x] Round COV-1 — สตูดิโอสร้างปกคลิปด่วน 9:16 & 3:4 (Auto Highlight Crop, Interactive Pan & Zoom Subtitle-Free, Dual Export)
 
 **ปิดไปแล้ว** (บล็อกเต็มอยู่ใน [HISTORY.md](file:///d:/Winona/Programmer/Capcut/HISTORY.md)):
-Round 1 รวม overlay เป็นโมเดลเดียว · Round 2 วางกฎรอบงาน · Round 3 ซ่อมฐาน+easing · Round DOC-1 อัปเดตเอกสาร · Round BUG-1 ซ่อมปุ่มสร้างคลิป executeRender · Round 4 per-word layout static · Round 5 per-word animation (word_stagger_ms) · Round 6 ช่องใหม่ที่ mirror ได้เป๊ะ (loop/out/skew) · Round 7 template v2 + แกลเลอรีที่ขยับได้ (8 templates + motion presets + inspector animated gallery) · Round BUG-2 ซ่อมข้อความ/Hook Header ซ้อนทับกันใน SequencePlayer · Round BUG-3 ซ่อม angle ชนกัน + ปุ่มปักตะกร้า TikTok ใน Content Tracker Hub · Round PROD-1 เพิ่มช่อง TikTok Product ID + Fallback ค้นหาด้วยชื่อ + Click-to-Edit Cart ID ย้อนหลัง · Round TRK-1 เพิ่มปุ่มส่ง TikTok Studio + Modal ตรวจสอบ/ปักตะกร้า ในหน้า Tracker · Round TRK-2 ตารางจัดคิวโพสต์ประจำวัน (Daily Run Sheet) & จัดกลุ่มย่อการ์ด (Product Grouping / Quick Pills) · Round TRK-3 บอร์ดหลักคลีนไร้ความรก (Today-Only Posted, คลังสคริปต์หยิบทำวันนี้ & การ์ดตัดต่อเสร็จแนวนอนกะทัดรัด)
+Round 1 รวม overlay เป็นโมเดลเดียว · Round 2 วางกฎรอบงาน · Round 3 ซ่อมฐาน+easing · Round DOC-1 อัปเดตเอกสาร · Round BUG-1 ซ่อมปุ่มสร้างคลิป executeRender · Round 4 per-word layout static · Round 5 per-word animation (word_stagger_ms) · Round 6 ช่องใหม่ที่ mirror ได้เป๊ะ (loop/out/skew) · Round 7 template v2 + แกลเลอรีที่ขยับได้ (8 templates + motion presets + inspector animated gallery) · Round BUG-2 ซ่อมข้อความ/Hook Header ซ้อนทับกันใน SequencePlayer · Round BUG-3 ซ่อม angle ชนกัน + ปุ่มปักตะกร้า TikTok ใน Content Tracker Hub · Round PROD-1 เพิ่มช่อง TikTok Product ID + Fallback ค้นหาด้วยชื่อ + Click-to-Edit Cart ID ย้อนหลัง · Round TRK-1 เพิ่มปุ่มส่ง TikTok Studio + Modal ตรวจสอบ/ปักตะกร้า ในหน้า Tracker · Round TRK-2 ตารางจัดคิวโพสต์ประจำวัน (Daily Run Sheet) & จัดกลุ่มย่อการ์ด (Product Grouping / Quick Pills) · Round TRK-3 บอร์ดหลักคลีนไร้ความรก (Today-Only Posted, คลังสคริปต์หยิบทำวันนี้ & การ์ดตัดต่อเสร็จแนวนอนกะทัดรัด) · Round STK-1 Interactive Sticker Timeline Track & Free Canvas Drag/Resize Parity · Round STK-2 Multi-Sticker Support, 3-Second Default Duration & Smooth Canvas Resizing
 
 > คู่ขนาน: [REFACTOR_PLAN.md](file:///d:/Winona/Programmer/Capcut/REFACTOR_PLAN.md) Phase 0–10 + Final เสร็จครบแล้ว (ทำโดย Codex) ไฟล์นั้นปิดงานแล้ว เก็บไว้อ้างอิง
 
@@ -70,14 +73,44 @@ npm test
 
 ---
 
+- [x] Round STK-3 — ปรับขนาดสติกเกอร์ 100% เท่ากับขนาดจอที่ผู้ใช้ต้องการ, ซ่อมปุ่มปิดตาแทร็กสติกเกอร์, ลบสติกเกอร์ได้ทุกช่องทาง และระบบพรีวิวก่อนกดบวกเหมือนข้อความ (2026-09-08)
+- [x] Round ACCENT-REV-1 — คืนค่าตัวเลือกตกแต่ง (Accent) กลับเป็น 3 ตัวเลือกดั้งเดิมตามคำสั่งผู้ใช้ (2026-09-08)
 
+## Round HOOK-OPT-1 — ยกระดับฟอนต์ข้อความ, เทมเพลตคลีน, พรีวิวขยาย/ย้ายฮุกสมบูรณ์ และสปีดแอนิเมชัน
 
-- [x] Round POST-5 — ยกระดับความสมบูรณ์และเสถียรภาพของวงจรชีวิตคลิปที่โพสต์แล้ว (Full Posted Evidence & Lifecycle Integrity Lockdown) (2026-09-08)
-- [x] Round POST-4 — ป้องกันการลบวิดีโอที่โพสต์แล้วใน Gallery, ล็อกไม่ให้เรนเดอร์ซ้ำในหน้าตัดต่อ และแก้ปัญหาย้อนสถานะ (2026-09-08)
-- [x] Round BUG-4 — แก้ไขคลิปบวมสะสมทุกครั้งที่เรนเดอร์ (Transition Overlap Compounding Feedback Loop) (2026-09-08)
-- [x] Round RAW-1 - Raw Vault rename recovery and responsive clip layout (2026-09-07)
-- [x] Round EDT-1 - Editor UX/UI Friction and Speed Optimization (2026-09-07)
-- [x] Round HOK-1 - Custom Hook Template Studio (สร้างและบันทึกแม่แบบฮุกด้วยตัวเอง) (2026-09-07)
+วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: กำลังทำ
+
+**ปัญหาที่ตรวจพบและขอบเขตงาน:**
+1. **การขยายและย้ายตำแหน่ง Hook:** ลาก Resize Handle ในพรีวิวแล้วตัวหนังสือไม่ขยายตามสัดส่วน และเมื่อลากย้ายตำแหน่ง `x, y` ตอนเรนเดอร์จริงฮุกดีดกลับไปอยู่ข้างบนเพราะ Backend Hardcode ตำแหน่ง `cursor_y = 260` และไม่มีแท็ก `\pos(x, y)` นอกจากนี้ปุ่มดึงขอบ 4 ด้านถูกล็อก `pointer-events-none` และแถบไฮไลต์โมเดล (Badge Accent) เยื้องไม่พอดีคำ
+2. **ฟอนต์ข้อความของป้ายฮุก:** ใน Inspector ไม่มี Dropdown เลือกฟอนต์ของฮุก ถูกล็อกตายตัวตาม Template และไม่สามารถเลือกฟอนต์หลักหรือเลือกฟอนต์แยกเฉพาะแถวได้
+3. **Template & Clean UI Standard:** ใน AssetPanel ปุ่มเพิ่มข้อความมีเครื่องหมาย `+` ซ้ำกับไอคอน, มีช่องค้นหาซ้ำซ้อน 2 ชั้น, และมีอีโมจิรกหน้าชื่อหมวดหมู่ รวมถึงแม่แบบป้ายฮุก 3 แถวปนกับข้อความเดี่ยว
+4. **Animation:** ความเร็วแอนิเมชันปรับไม่ได้ และฮุกถูกล็อกไม่ให้มี Kinetic Word Stagger
+
+### Todo
+
+- [x] ใน `SequencePlayer.jsx`: ให้การย่อ/ขยาย Hook คำนวณ Master Scale คูณกับทุกแถวตามสัดส่วน, เปิดใช้งานปุ่มดึงขอบทั้ง 4 ทิศทาง, และปรับแก้ตำแหน่ง Badge Accent ให้กึ่งกลางพอดีคำ
+- [x] ใน `scripts/subtitle/overlay_events.py`: แก้ไขให้ Hook ใน ASS Render รองรับ Master Scale และพิกัด `\pos(x, y)` จริงตามที่ลากในหน้าพรีวิว 100% (Preview = Render Parity)
+- [x] ใน `OverlayInspector.jsx`: เพิ่มเมนูเลือกฟอนต์หลักของป้ายฮุก (Master Font) พร้อมตัวเลือกปรับฟอนต์เฉพาะแถว (Per-Tier Font Override)
+- [x] ใน `scripts/hook_styles.py`, `frontend/src/lib/hookStyles.js`, `overlay_model.py`, `overlayModel.js`: รองรับฟอนต์ระดับ Tier และรักษา Parity ระหว่างสองฝั่ง
+- [x] ใน `AssetPanel.jsx`: ปรับเลย์เอาต์ Sub-tabs แบ่งเป็น 'ป้ายฮุกแบรนด์ (3-Tier)' และ 'ข้อความเดี่ยว/เอฟเฟกต์ (Single)', ลบเครื่องหมาย `+` ซ้ำซ้อน, รวมช่องค้นหาเหลือจุดเดียว และตัดอีโมจิรกหน้าหมวดหมู่ทั้งหมดตามกฎเหล็กข้อ 8
+- [x] ใน `OverlayInspector.jsx` & `SequencePlayer.jsx`: เพิ่มตัวเลือกสปีดแอนิเมชัน (TikTok Fast 0.15s vs Standard vs Smooth 0.4s) และรองรับ Kinetic Word Stagger
+- [x] รันชุดทดสอบ Parity, Backend APIs, Frontend Build และทดสอบความเที่ยงตรง
+
+### Gate
+
+- [x] `python -m compileall -q scripts` (Pass)
+- [x] `python -m pytest tests/test_preview_render_parity.py -q -p no:cacheprovider` (149 passed in 3.43s)
+- [x] `python -m pytest tests/test_posted_protection.py tests/test_clip_compounding_render.py -q -p no:cacheprovider` (8 passed in 2.21s)
+- [x] `npm --prefix frontend run build` (Pass, 1962 modules transformed, built in 3.63s)
+- [x] Full Pytest Regression: `python -m pytest tests/ -q -p no:cacheprovider` (923 passed in 210.55s)
+
+### Notes
+
+- รักษา Preview = Render Parity 100%: Master scale และพิกัด `\pos(x, y)` ใน `scripts/subtitle/overlay_events.py` คำนวณตรงกับ Canvas preview ใน `SequencePlayer.jsx`
+- ปรับแต่ง Badge Accent ใน Canvas ให้โค้งมนสวยงามตรงกับ `_ass_rounded_pill_path` ใน backend
+- รวมช่องค้นหาใน `AssetPanel.jsx` เป็นจุดเดียวที่แผงบน และแบ่ง Sub-tabs: 'ป้ายฮุกแบรนด์ (3-Tier)' กับ 'ข้อความเดี่ยว (Single)' ชัดเจน ไม่ปะปนกัน
+- ตัดเครื่องหมาย `+` ซ้ำซ้อน และตัดอีโมจิรกหน้าปุ่มหมวดหมู่ทั้งหมดตาม Strict Rule 8 (UI Clean Standard)
+- รันชุดทดสอบทั้งหมด 923 tests ผ่านรวด 100% ไม่มีข้อผิดพลาด
 
 ## Round POST-3.16 — แก้การแนบปกข้อ 5 และแสดงภาพปก 3:4
 

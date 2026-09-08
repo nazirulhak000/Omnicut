@@ -45,6 +45,34 @@ export function packTextOverlays(textOverlays) {
 }
 
 /**
+ * Auto-stacking multi-layer calculation for overlapping stickers.
+ * Assigns each sticker to the first available lane that doesn't overlap.
+ */
+export function packStickers(stickers) {
+  if (!stickers || stickers.length === 0) {
+    return { packedStickers: [], stickerLaneCount: 0 };
+  }
+  const sorted = [...stickers].sort((a, b) => a.start - b.start);
+  const laneEndTimes = [];
+  const packed = sorted.map((item) => {
+    let assignedLane = -1;
+    for (let i = 0; i < laneEndTimes.length; i++) {
+      if (item.start >= laneEndTimes[i] - 0.05) {
+        assignedLane = i;
+        laneEndTimes[i] = item.end;
+        break;
+      }
+    }
+    if (assignedLane === -1) {
+      assignedLane = laneEndTimes.length;
+      laneEndTimes.push(item.end);
+    }
+    return { ...item, lane: assignedLane };
+  });
+  return { packedStickers: packed, stickerLaneCount: Math.max(1, laneEndTimes.length) };
+}
+
+/**
  * Computes deterministic magnetic ripple on cues when a cue is trimmed or dragged.
  * Extends -> pushes subsequent cues forward.
  * Shrinks -> magnetically pulls subsequent cues backward without leaving gaps.

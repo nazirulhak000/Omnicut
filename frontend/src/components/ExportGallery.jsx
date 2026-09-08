@@ -7,12 +7,11 @@ import {
   Columns, List, LayoutGrid, Clock, Calendar, Tag, DollarSign, Layers, ChevronDown, ChevronUp, Zap, ShieldCheck,
   Image as ImageIcon, FolderOpen, ExternalLink
 } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
 import {
   openFolder, deleteFile, getProducts, linkExportToAngle,
   revealFile, generateCover, markPosted, prepareTiktokAutopost, getExportMediaInfo,
 } from '../api';
-import { Modal, Toast, Button, Badge, ConfirmModal } from './ui';
+import { Modal, Toast, Button, Badge, ConfirmModal, SafeQRCode } from './ui';
 import { useDebounce, useToast } from '../hooks';
 import RawVaultPanel from './RawVaultPanel';
 import CoverStudioModal from './CoverStudioModal';
@@ -22,7 +21,16 @@ import CoverStudioModal from './CoverStudioModal';
 // /api/exports never returns (it returns `tiktok_caption`). A scanned QR
 // landed on a mobile page that could not call updateAngleStatus
 // (MobileQuickPostPage.jsx requires both ids) and showed an empty caption.
-// One builder now, matching ContentTrackerHub.jsx's URL shape exactly.
+// One builder now, matching ContentTrackerHub.jsx's URL shape.
+//
+// caption/hashtags are deliberately NOT embedded here -- MobileQuickPostPage
+// fetches the live product/angle via pid+aid and reads tiktok_caption/
+// tiktok_hashtags straight off that (see its effectiveCaption/
+// effectiveHashtags), so they're pure fallback data there, never the
+// primary source once pid+aid resolve. A long AI-written caption plus a
+// full hashtag list easily pushes the encoded URL past a QR code's payload
+// ceiling ("RangeError: Data too long" from QRCodeSVG) -- keep only the
+// short identifying fields here and let the mobile page fetch the rest.
 function buildQuickPostUrl(mobileBaseUrl, video) {
   const params = new URLSearchParams({
     quick_post: '1',
@@ -31,8 +39,6 @@ function buildQuickPostUrl(mobileBaseUrl, video) {
     video: video.rel_path || video.path || '',
     product: video.product_name || video.name || '',
     hook: video.hook_title || '',
-    caption: video.tiktok_caption || '',
-    hashtags: video.tiktok_hashtags || '',
   });
   return `${mobileBaseUrl}/?${params.toString()}`;
 }
@@ -936,7 +942,7 @@ function ExportActiveWorkbench({
               </div>
             </div>
             <div className="p-1.5 bg-white rounded-xl shadow-lg flex-shrink-0" title="สแกนเพื่อเปิดตัวช่วยโพสต์ Quick Post บนมือถือ">
-              <QRCodeSVG
+              <SafeQRCode
                 value={buildQuickPostUrl(mobileBaseUrl, video)}
                 size={68}
                 level="M"
@@ -2149,7 +2155,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                     <p className="text-xs text-slate-400 mt-0.5">เปิดกล้องมือถือสแกนเพื่อโหลดคลิป, ก็อปแคปชัน, ก็อปชื่อปักตะกร้า และเปิด TikTok ทันที</p>
                   </div>
                   <div className="p-3 bg-white rounded-2xl inline-block shadow-xl">
-                    <QRCodeSVG
+                    <SafeQRCode
                       value={buildQuickPostUrl(mobileBaseUrl, selectedDetailVideo)}
                       size={150}
                       level="M"

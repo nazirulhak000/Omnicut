@@ -74,6 +74,10 @@ export function manifestToEditorState(data, options = {}) {
     captionScale,
     stickerPosition: firstPresent(manifest.sticker_position, params.sticker_position, savedStyle.sticker_position, savedStyle.stickerPosition, 'top_right'),
     stickerScale: Number(firstPresent(manifest.sticker_scale, params.sticker_scale, savedStyle.sticker_scale, savedStyle.stickerScale, 1)),
+    stickerStartTime: firstPresent(manifest.sticker_start_time, params.sticker_start_time, savedStyle.sticker_start_time, savedStyle.stickerStartTime, null),
+    stickerEndTime: firstPresent(manifest.sticker_end_time, params.sticker_end_time, savedStyle.sticker_end_time, savedStyle.stickerEndTime, null),
+    stickerNormX: firstPresent(manifest.sticker_norm_x, params.sticker_norm_x, savedStyle.sticker_norm_x, savedStyle.stickerNormX, null),
+    stickerNormY: firstPresent(manifest.sticker_norm_y, params.sticker_norm_y, savedStyle.sticker_norm_y, savedStyle.stickerNormY, null),
   };
 
   const storedMix = firstPresent(manifest.track_mix, params.track_mix, EMPTY_TRACK_MIX) || EMPTY_TRACK_MIX;
@@ -84,11 +88,38 @@ export function manifestToEditorState(data, options = {}) {
     solo: { ...(storedMix.solo || {}) },
   };
 
+  const rawStickers = firstNonEmptyArray(manifest.stickers, params.stickers, savedStyle.stickers);
+  let stickers = [];
+  if (rawStickers.length > 0) {
+    stickers = rawStickers.map((stk, idx) => ({
+      id: stk.id || `sticker-${idx}-${Date.now()}`,
+      badge: stk.badge || stk.path || '',
+      start: Number(firstPresent(stk.start, stk.start_time, stk.startTime, 0.5)),
+      end: stk.end != null ? Number(stk.end) : (stk.end_time != null ? Number(stk.end_time) : (stk.endTime != null ? Number(stk.endTime) : 3.5)),
+      normX: Number(firstPresent(stk.normX, stk.norm_x, 0.8)),
+      normY: Number(firstPresent(stk.normY, stk.norm_y, 0.2)),
+      scale: Number(firstPresent(stk.scale, 1.0)),
+      hidden: !!stk.hidden,
+    }));
+  } else if (savedStyle.stickerBadge || manifest.sticker_badge) {
+    stickers = [{
+      id: 'sticker-legacy-1',
+      badge: savedStyle.stickerBadge || manifest.sticker_badge,
+      start: Number(firstPresent(savedStyle.stickerStartTime, manifest.sticker_start_time, 0.5)),
+      end: Number(firstPresent(savedStyle.stickerEndTime, manifest.sticker_end_time, 3.5)),
+      normX: Number(firstPresent(savedStyle.stickerNormX, manifest.sticker_norm_x, 0.8)),
+      normY: Number(firstPresent(savedStyle.stickerNormY, manifest.sticker_norm_y, 0.2)),
+      scale: Number(firstPresent(savedStyle.stickerScale, manifest.sticker_scale, 1.0)),
+      hidden: false,
+    }];
+  }
+
   return {
     clipList,
     cuesList,
     microCuesList: Array.isArray(manifest.micro_cues) ? manifest.micro_cues : [],
     overlays: migrateToOverlays(manifest),
+    stickers,
     style,
     trackMix,
     audioDuration: Number(manifest.audio_duration || manifest.total_duration) || 0,
@@ -128,6 +159,14 @@ export function serializeStyle(style = {}) {
     sticker_badge: style.stickerBadge || null,
     sticker_position: style.stickerPosition || 'top_right',
     sticker_scale: style.stickerScale ?? 1,
+    sticker_start_time: style.stickerStartTime ?? null,
+    sticker_end_time: style.stickerEndTime ?? null,
+    sticker_norm_x: style.stickerNormX ?? null,
+    sticker_norm_y: style.stickerNormY ?? null,
+    stickerStartTime: style.stickerStartTime ?? null,
+    stickerEndTime: style.stickerEndTime ?? null,
+    stickerNormX: style.stickerNormX ?? null,
+    stickerNormY: style.stickerNormY ?? null,
     captionScale: style.captionScale ?? 1,
     captionPosition: style.captionPosition || 'bottom',
     captionColor: style.captionColor || '#FFFFFF',
@@ -135,7 +174,7 @@ export function serializeStyle(style = {}) {
   };
 }
 
-export function editorStateToSavePayload({ clipList, cuesList, style, overlays, trackMix } = {}) {
+export function editorStateToSavePayload({ clipList, cuesList, style, overlays, trackMix, stickers } = {}) {
   const cues = serializeCues(cuesList);
   const mix = trackMix || EMPTY_TRACK_MIX;
   return {
@@ -144,6 +183,7 @@ export function editorStateToSavePayload({ clipList, cuesList, style, overlays, 
     clip_list: serializeClips(clipList),
     transitions: serializeTransitions(clipList),
     style: serializeStyle(style),
+    stickers: Array.isArray(stickers) ? stickers : [],
     overlays: Array.isArray(overlays) ? overlays : [],
     track_mix: mix,
     audio_mutes: mix.mute || {},

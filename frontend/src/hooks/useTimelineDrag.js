@@ -10,6 +10,8 @@ export function useTimelineDrag({
   segments,
   cues,
   hookOverlay,
+  stickerStyle,
+  onUpdateSticker,
   snapEnabled,
   snapPoints,
   snapFunction,
@@ -30,6 +32,8 @@ export function useTimelineDrag({
   const textDrag = useRef(null);
   const textTrim = useRef(null);
   const hookTrim = useRef(null);
+  const stickerTrim = useRef(null);
+  const stickerDrag = useRef(null);
   const bodyDrag = useRef(null);
 
   const timeFromEvent = (e) => {
@@ -295,6 +299,101 @@ export function useTimelineDrag({
     if (d?.moved) dragEnd?.();
   };
 
+  // Sticker duration trim
+  const startStickerTrim = (e, edgeOrItem, maybeEdge) => {
+    let edge = edgeOrItem;
+    let item = null;
+    if (typeof edgeOrItem === 'object' && edgeOrItem !== null) {
+      item = edgeOrItem;
+      edge = maybeEdge;
+    } else if (typeof maybeEdge === 'object' && maybeEdge !== null) {
+      item = maybeEdge;
+    }
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+    const start = item?.start ?? stickerStyle?.startTime ?? 0.5;
+    const end = item?.end ?? stickerStyle?.endTime ?? (totalDuration || 15);
+    stickerTrim.current = {
+      edge,
+      startX: e.clientX,
+      start,
+      end,
+      id: item?.id,
+      moved: false,
+    };
+  };
+
+  const moveStickerTrim = (e) => {
+    const d = stickerTrim.current;
+    if (!d) return;
+    const delta = (e.clientX - d.startX) / pxPerSec;
+    if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return;
+    if (!d.moved) { d.moved = true; dragBegin?.(); }
+
+    if (d.edge === 'left') {
+      const rawStart = Math.max(0, Math.min(d.end - 0.3, d.start + delta));
+      const snapped = snapFunction(rawStart, snapPoints);
+      const rounded = Math.round(snapped * 10) / 10;
+      onUpdateSticker?.({ id: d.id, start: rounded, startTime: rounded });
+    } else {
+      const maxEnd = Math.max(totalDuration, audioDuration || 0) || 999;
+      const rawEnd = Math.max(d.start + 0.3, Math.min(maxEnd, d.end + delta));
+      const snapped = snapFunction(rawEnd, snapPoints);
+      const rounded = Math.round(snapped * 10) / 10;
+      onUpdateSticker?.({ id: d.id, end: rounded, endTime: rounded });
+    }
+  };
+
+  const endStickerTrim = (e) => {
+    const d = stickerTrim.current;
+    stickerTrim.current = null;
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
+    if (d?.moved) dragEnd?.();
+  };
+
+  // Sticker time window body drag
+  const startStickerBodyDrag = (e, item) => {
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+    const start = item?.start ?? stickerStyle?.startTime ?? 0.5;
+    const end = item?.end ?? stickerStyle?.endTime ?? (totalDuration || 15);
+    stickerDrag.current = {
+      startX: e.clientX,
+      start,
+      end,
+      id: item?.id,
+      duration: Math.max(0.3, end - start),
+      moved: false,
+    };
+  };
+
+  const moveStickerBodyDrag = (e) => {
+    const d = stickerDrag.current;
+    if (!d) return;
+    const delta = (e.clientX - d.startX) / pxPerSec;
+    if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return;
+    if (!d.moved) { d.moved = true; dragBegin?.(); }
+    const maxT = Math.max(totalDuration, audioDuration || 0) || 999;
+    const minStart = 0;
+    const maxStart = Math.max(0, maxT - d.duration);
+    const rawStart = Math.max(minStart, Math.min(maxStart, d.start + delta));
+    const snappedStart = snapFunction(rawStart, snapPoints);
+    const finalStart = Math.round(snappedStart * 10) / 10;
+    const finalEnd = Math.round((finalStart + d.duration) * 10) / 10;
+    onUpdateSticker?.({
+      id: d.id,
+      start: finalStart,
+      end: finalEnd,
+      startTime: finalStart,
+      endTime: finalEnd,
+    });
+  };
+
+  const endStickerBodyDrag = (e) => {
+    const d = stickerDrag.current;
+    stickerDrag.current = null;
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
+    if (d?.moved) dragEnd?.();
+  };
+
   return {
     timeFromEvent,
     startScrub,
@@ -319,5 +418,11 @@ export function useTimelineDrag({
     startHookTrim,
     moveHookTrim,
     endHookTrim,
+    startStickerTrim,
+    moveStickerTrim,
+    endStickerTrim,
+    startStickerBodyDrag,
+    moveStickerBodyDrag,
+    endStickerBodyDrag,
   };
 }

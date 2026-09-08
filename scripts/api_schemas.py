@@ -47,7 +47,7 @@ class RenderRequest(BaseModel):
     font_name: str = "IBMPlex"
     bilingual_subtitles: bool = True
     use_ai_vision: bool = True
-    sticker_badge: Optional[str] = "badge_flash_sale_3d.png"
+    sticker_badge: Optional[str] = None
     bgm_name: Optional[str] = None
     bgm_volume: Optional[float] = None
     bgm_ducking: bool = False
@@ -61,6 +61,11 @@ class RenderRequest(BaseModel):
     caption_scale: Optional[float] = 1.0
     sticker_position: Optional[str] = "top_right"
     sticker_scale: Optional[float] = 1.0
+    sticker_start_time: Optional[float] = None
+    sticker_end_time: Optional[float] = None
+    sticker_norm_x: Optional[float] = None
+    sticker_norm_y: Optional[float] = None
+    stickers: Optional[List[Dict[str, Any]]] = None
     text_overlays: Optional[List[Dict[str, Any]]] = None
     overlays: Optional[List[Dict[str, Any]]] = None
 
