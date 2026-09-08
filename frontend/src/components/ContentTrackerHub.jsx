@@ -1417,6 +1417,14 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     try {
       const data = JSON.parse(e.dataTransfer.getData('text/plain'));
       if (data && data.productId && data.angleId && data.fromPhase !== targetPhaseId) {
+        if (data.fromPhase === 'posted') {
+          showToast('ไม่อนุญาตให้ย้ายคลิปที่โพสต์แล้วออกจากคอลัมน์นี้ (ต้องเก็บไว้เป็นหลักฐาน)', 'error');
+          return;
+        }
+        if (targetPhaseId === 'posted') {
+          showToast('การบันทึกสถานะโพสต์ต้องผ่านการส่ง TikTok หรือปุ่มมาร์กว่าโพสต์แล้วเท่านั้น', 'error');
+          return;
+        }
         handleAngleStatusChange(data.productId, data.angleId, targetPhaseId);
       }
     } catch (err) {

@@ -202,6 +202,7 @@ export default function EditorShell({
   // own narration tone asks for, and name the product without being told.
   const [projectAdTone, setProjectAdTone] = useState(null);
   const [projectProductName, setProjectProductName] = useState('');
+  const [isProjectPosted, setIsProjectPosted] = useState(false);
   const [hookMotionCatalog, setHookMotionCatalog] = useState(null);
   const [hookMotionDefault, setHookMotionDefault] = useState(null);
   const [customHookTemplates, setCustomHookTemplates] = useState({});
@@ -451,8 +452,9 @@ export default function EditorShell({
     createCueId: (index) => `cue-${index}-${Date.now().toString(36)}`,
   }), []);
 
-  const applyLoadedProject = useCallback((name, loaded) => {
+  const applyLoadedProject = useCallback((name, loaded, manifest) => {
     setProjectName(name);
+    setIsProjectPosted(Boolean(manifest?.is_posted || manifest?.angle_status === 'posted' || manifest?.posted_at));
     initialCuesRef.current = JSON.parse(JSON.stringify(loaded.cuesList || []));
     setMicroCuesList(loaded.microCuesList);
     setProjectAdTone(loaded.adTone);
@@ -495,6 +497,7 @@ export default function EditorShell({
     mapProject,
     onStart: () => {
       isLoadedRef.current = false;
+      setIsProjectPosted(false);
       setSelection(null);
       setApplyError(null);
       setApplyResult(null);
@@ -877,6 +880,10 @@ export default function EditorShell({
   const handleApply = async () => {
     if (!projectName) { setApplyError('เลือกโปรเจกต์ก่อน'); return; }
     if (!clipList.length) { setApplyError('เพิ่มคลิปในไทม์ไลน์ก่อน'); return; }
+    if (isProjectPosted) {
+      setApplyError('คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้เรนเดอร์ซ้ำ เพื่อรักษาหลักฐานเดิม');
+      return;
+    }
 
     // Cover is required before a render is allowed to start. Resolved by
     // project_name against a fresh product fetch rather than trusting the
@@ -893,6 +900,12 @@ export default function EditorShell({
       for (const p of freshList) {
         const a = (p.angles || []).find((ang) => ang.project_name === projectName);
         if (a) { matchProduct = p; matchAngle = a; break; }
+      }
+      if (matchAngle?.status === 'posted' || matchAngle?.posted_at) {
+        setApplyError('คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้เรนเดอร์ซ้ำ เพื่อรักษาหลักฐานเดิม');
+        setCoverGateChecking(false);
+        setIsProjectPosted(true);
+        return;
       }
       const hasCover = !!(matchAngle?.cover_path || matchAngle?.cover_3x4_path || matchAngle?.cover_9x16_path);
       if (matchAngle && !hasCover) {
@@ -1160,6 +1173,7 @@ export default function EditorShell({
         setExportPreset={setExportPreset}
         exportPresets={EXPORT_PRESETS}
         progress={progress}
+        isPosted={isProjectPosted}
         setDeleteError={setDeleteError}
         setDeleteScope={setDeleteScope}
         setDeleteOrigin={setDeleteOrigin}
@@ -1200,6 +1214,9 @@ export default function EditorShell({
                 const origin = deleteOrigin;
                 const product = origin?.product;
                 const angle = origin?.angle;
+                const isAnglePosted = angle?.status === 'posted' || !!angle?.posted_at || isProjectPosted;
+                const isProductPosted = isAnglePosted || (product?.angles || []).some((a) => a.status === 'posted' || a.posted_at);
+
                 const OPTIONS = [
                   {
                     id: 'project',
@@ -1210,23 +1227,32 @@ export default function EditorShell({
                   {
                     id: 'angle',
                     label: 'ลบมุม/สคริปต์ในเมนูสินค้าด้วย',
-                    detail: angle
+                    detail: isAnglePosted
+                      ? 'มุมนี้โพสต์ลง TikTok แล้ว — ล็อกเก็บเป็นหลักฐาน (ไม่อนุญาตให้ลบ)'
+                      : angle
                       ? `มุม “${angle.angle_name || angle.hook_title}” จะหายจากเมนูสินค้าและแทร็กเกอร์`
                       : 'หามุมที่ตรงกับโปรเจกต์นี้ไม่เจอ (คลิปเก่าที่ยังไม่ได้บันทึกที่มา)',
-                    enabled: !!angle,
+                    enabled: !!angle && !isAnglePosted,
                   },
                   {
                     id: 'product',
                     label: 'ลบสินค้านี้ทั้งหมด',
-                    detail: product
+                    detail: isProductPosted
+                      ? 'สินค้านี้มีคลิปที่โพสต์ลง TikTok แล้ว — ล็อกเก็บเป็นหลักฐาน (ไม่อนุญาตให้ลบ)'
+                      : product
                       ? `“${product.name}” พร้อมสคริปต์ทั้ง ${product.angle_count} มุม จะหายทั้งหมด`
                       : 'หาสินค้าที่ผูกกับโปรเจกต์นี้ไม่เจอ',
-                    enabled: !!product,
+                    enabled: !!product && !isProductPosted,
                   },
                 ];
                 return (
                   <div className="space-y-2">
                     {!origin && <p className="text-sm text-slate-400">กำลังตรวจว่าผูกกับอะไรอยู่...</p>}
+                    {isAnglePosted && (
+                      <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-xs text-emerald-300 leading-relaxed">
+                        🛡️ <strong>โปรเจกต์นี้โพสต์ลง TikTok แล้ว:</strong> สามารถลบเฉพาะไฟล์ตัดต่อเพื่อคืนพื้นที่ดิสก์ได้ โดยวิดีโอที่โพสต์แล้วใน Export และประวัติสคริปต์ใน Tracker จะยังคงอยู่ครบถ้วน 100%
+                      </div>
+                    )}
                     {OPTIONS.map((o) => (
                       <label
                         key={o.id}

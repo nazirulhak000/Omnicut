@@ -36,6 +36,7 @@ export default function EditorHeader({
   setExportPreset,
   exportPresets = [],
   progress = 0,
+  isPosted = false,
   setDeleteError,
   setDeleteScope,
   setDeleteOrigin,
@@ -198,7 +199,8 @@ export default function EditorHeader({
           onRender={handleApply}
           busy={applying}
           progress={progress}
-          disabled={!projectName}
+          disabled={!projectName || isPosted}
+          isPosted={isPosted}
         />
       </div>
     </div>

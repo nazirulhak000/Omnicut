@@ -346,6 +346,10 @@ class ProductStore:
                     for angle in angles:
                         current_aid = angle.get("angle_id") or angle.get("id")
                         if current_aid == angle_id:
+                            # Strict guard: An angle that has been posted is permanently sealed as proof/archive.
+                            # Never allow demoting status away from 'posted' under any circumstances.
+                            if (angle.get("status") == "posted" or angle.get("posted_at")) and status != "posted":
+                                return product
                             angle["status"] = status
                             # Dedicated "when did the status itself last
                             # change" stamp -- angle["updated_at"] below is
@@ -371,6 +375,37 @@ class ProductStore:
                                 angle["data_conflict_note"] = None
                             if status == "posted" and not angle.get("posted_at"):
                                 angle["posted_at"] = cls._now()
+                            angle["updated_at"] = cls._now()
+                            product["updated_at"] = cls._now()
+                            return product
+            raise ValueError(f"ไม่พบสินค้า id '{product_id}' หรือ angle '{angle_id}'")
+
+    @classmethod
+    def replace_angle_content(cls, product_id: str, angle_id: str, new_content: Dict[str, Any]) -> Dict[str, Any]:
+        """Overwrites an angle's script content (a rerolled script from the AI)
+        while preserving everything about where the angle currently stands:
+        angle_id, status, project_name, video_url, selected_videos/selected_video,
+        qc_note, data_conflict_note, posted_at, created_at. A reroll producing
+        a new script is not the same thing as the angle's production/render
+        lifecycle moving forward or backward -- those stay exactly as they
+        were, same as they would if the user had hand-edited the script text.
+        """
+        CONTENT_KEYS = (
+            "angle_name", "badge", "product_name", "hook_title", "pain_point",
+            "key_features", "price_deal", "ad_tone", "script_lines",
+            "tts_lines", "tiktok_caption", "tiktok_hashtags",
+            "duration", "extra_beats",
+        )
+        with cls._mutate() as products:
+            for product in products:
+                if product["id"] == product_id:
+                    angles = product.get("angles", [])
+                    for angle in angles:
+                        current_aid = angle.get("angle_id") or angle.get("id")
+                        if current_aid == angle_id:
+                            for key in CONTENT_KEYS:
+                                if key in new_content:
+                                    angle[key] = new_content[key]
                             angle["updated_at"] = cls._now()
                             product["updated_at"] = cls._now()
                             return product
@@ -687,10 +722,14 @@ class ProductStore:
             raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
 
         angles = product.get("angles") or []
-        remaining = [a for a in angles if a.get("angle_id") != angle_id]
-        if len(remaining) == len(angles):
+        target = next((a for a in angles if (a.get("angle_id") or a.get("id")) == angle_id), None)
+        if not target:
             raise ValueError(f"ไม่พบมุม '{angle_id}' ในสินค้านี้")
 
+        if target.get("status") == "posted" or target.get("posted_at"):
+            raise ValueError(f"ไม่อนุญาตให้ลบมุม '{target.get('angle_name') or angle_id}' เนื่องจากถูกโพสต์ลง TikTok แล้ว (ต้องเก็บไว้เป็นหลักฐาน)")
+
+        remaining = [a for a in angles if (a.get("angle_id") or a.get("id")) != angle_id]
         if not remaining:
             cls.delete(product_id)
             return {"angle_removed": angle_id, "product_removed": product_id, "angles_left": 0}
@@ -753,9 +792,18 @@ class ProductStore:
     @classmethod
     def delete(cls, product_id: str) -> None:
         with cls._mutate() as products:
-            remaining = [p for p in products if p["id"] != product_id]
-            if len(remaining) == len(products):
+            target = next((p for p in products if p["id"] == product_id), None)
+            if not target:
                 raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
+            posted_angles = [
+                a for a in target.get("angles", [])
+                if a.get("status") == "posted" or a.get("posted_at")
+            ]
+            if posted_angles:
+                raise ValueError(
+                    f"ไม่อนุญาตให้ลบสินค้า '{target.get('name')}' เนื่องจากมีคลิปที่โพสต์ลง TikTok แล้ว {len(posted_angles)} มุม (ต้องเก็บไว้เป็นหลักฐาน)"
+                )
+            remaining = [p for p in products if p["id"] != product_id]
             products[:] = remaining
 
     # ------------------------------------------------------------------
@@ -900,7 +948,15 @@ class ProductStore:
                         if angle.get("video_url") != mp4_path:
                             angle["video_url"] = mp4_path
                             changed = True
-                    elif angle.get("status") in ("mobile_ready", "posted"):
+                    elif angle.get("status") == "posted" or angle.get("posted_at"):
+                        # Preserve permanent posted status
+                        if angle.get("status") != "posted":
+                            angle["status"] = "posted"
+                            changed = True
+                        if angle.get("video_url") != mp4_path:
+                            angle["video_url"] = mp4_path
+                            changed = True
+                    elif angle.get("status") == "mobile_ready":
                         # Preserve advanced lifecycle status
                         if angle.get("video_url") != mp4_path:
                             angle["video_url"] = mp4_path
@@ -923,8 +979,11 @@ class ProductStore:
                             # back on a single disk-check miss.
                             angle["status_updated_at"] = cls._now()
                             changed = True
-                elif angle.get("status") in ("mobile_ready", "posted"):
-                    # No mp4 found by either path -- this scan's own
+                elif angle.get("status") in ("mobile_ready", "posted") or angle.get("posted_at"):
+                    if angle.get("posted_at") and angle.get("status") != "posted":
+                        angle["status"] = "posted"
+                        changed = True
+                    pass
                     # heuristic came up empty, which used to be read
                     # as "no export was ever made" and wiped the
                     # angle back to in_production. That is exactly
@@ -979,6 +1038,14 @@ class ProductStore:
         # Strict state validation: Clean up any angle whose project or video does not actually exist on disk
         for product in products:
             for angle in product.get("angles", []):
+                # An angle that has been posted is permanently sealed as proof/archive.
+                # Never revert or demote posted angles under any circumstances.
+                if angle.get("status") == "posted" or angle.get("posted_at"):
+                    if angle.get("status") != "posted":
+                        angle["status"] = "posted"
+                        changed = True
+                    continue
+
                 p_name = angle.get("project_name")
                 has_proj = False
                 if p_name:

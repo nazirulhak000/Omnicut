@@ -99,6 +99,13 @@ export default function App() {
   });
 
   const [selectedProductIdForFlow, setSelectedProductIdForFlow] = useState(null);
+  // Plain ref, not state: this is fire-and-forget data for ProductToClip's
+  // next mount, read exactly once. As state, clearing it after the child
+  // consumes it becomes a second prop change the child observes -- which
+  // collides with StrictMode's dev-only double-invoke of mount effects,
+  // where the second synthetic mount sees the already-cleared value and
+  // stomps the just-restored angle back to index 0.
+  const pendingFlowAngleIdRef = useRef(null);
   const [initialProjectNameToLoad, setInitialProjectNameToLoad] = useState(null);
 
 
@@ -292,7 +299,9 @@ export default function App() {
   const [highlightExportVideo, setHighlightExportVideo] = useState(null);
 
   const handleNavigateTab = (tab, extra = null) => {
-    if (tab === 'gallery') {
+    if (tab === 'flow') {
+      pendingFlowAngleIdRef.current = extra?.angleId || null;
+    } else if (tab === 'gallery') {
       const target = extra?.targetId || extra?.taskResult?.project_name || extra?.taskResult?.final_video_path || extra?.taskResult?.mp4 || extra?.task?.payload?.project_name;
       if (target) {
         setHighlightExportVideo(target);
@@ -388,6 +397,11 @@ export default function App() {
                       onApplyToStudio={handleApplyScriptFromLab}
                       onGoToGallery={() => setActiveTab('gallery')}
                       selectedProductId={selectedProductIdForFlow}
+                      consumePendingAngleId={() => {
+                        const id = pendingFlowAngleIdRef.current;
+                        pendingFlowAngleIdRef.current = null;
+                        return id;
+                      }}
                     />
                   </Suspense>
                 )}

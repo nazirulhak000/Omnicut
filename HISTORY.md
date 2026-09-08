@@ -39,6 +39,63 @@
 | Round RAW-1 | แก้ rename คลิปดิบที่ติด file lock และจัดเลย์เอาต์ Raw Vault แบบ responsive | 2026-09-07 | ถอด preview ก่อน rename, retry WinError 32 พร้อมข้อความกู้คืน, product groups แบบ responsive; pytest 896 passed, npm test 85 passed, build ผ่าน |
 | Round HOK-1 | ระบบ Custom Hook Template Studio (สร้างและบันทึกแม่แบบฮุกด้วยตัวเอง) | 2026-09-07 | CRUD API + 02_Assets/Templates/custom_hook_templates.json + UI บันทึกสไตล์ใน Inspector + AssetPanel + Toolbar optgroup; pytest 2 passed, parity 149 passed, npm test 85 passed, build passed, live browser verified |
 | Round EDT-1 | ตรวจสอบและปรับปรุง UX/UI หน้าตัดต่อ (Editor Friction & Speed Optimization) | 2026-09-07 | แก้ Safe Zone 420px overlay ถูกต้องตามสัดส่วน; เพิ่ม Quick Hook dropdown ใน Toolbar; เพิ่ม 1-Click Reset Zoom; ลดคลิกจาก 25 เหลือ 10; npm test 85 passed; build passed; live browser verified |
+| Round BUG-4 | แก้ไขคลิปบวมสะสมทุกครั้งที่เรนเดอร์ (Transition Overlap Compounding Feedback Loop) | 2026-09-08 | แก้ video_assembly_stage + video_editor acc_dur + normalized 5 swollen projects + pytest 159 passed + parity 149 passed |
+| Round POST-4 | ป้องกันการลบวิดีโอที่โพสต์แล้วใน Gallery, ล็อกไม่ให้เรนเดอร์ซ้ำในหน้าตัดต่อ และแก้ปัญหาย้อนสถานะ | 2026-09-08 | ProductStore rollback guard + Gallery disable delete + Editor lock render + tests passed 3/3 |
+| Round POST-5 | ยกระดับความสมบูรณ์และเสถียรภาพของวงจรชีวิตคลิปที่โพสต์แล้ว (Full Posted Evidence & Lifecycle Integrity Lockdown) | 2026-09-08 | DB immunity against demoting/deleting posted angles + Editor delete modal locked + ProductToClip read-only + Drag&Drop guard + Mobile mark-posted file move + tests passed 7/7 |
+
+## Round POST-5 — ยกระดับความสมบูรณ์และเสถียรภาพของวงจรชีวิตคลิปที่โพสต์แล้ว (Full Posted Evidence & Lifecycle Integrity Lockdown)
+
+วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+**ปัญหาที่ตรวจพบเพิ่มเติม:**
+1. ในหน้า Editor (`EditorShell.jsx` + `api_phase1.py`) ตัวเลือกการลบโปรเจกต์แบบ `angle` และ `product` ยังเปิดให้ลบมุมหรือสินค้าที่โพสต์แล้วได้ ทำให้ประวัติสคริปต์และข้อมูลปักตะกร้าหายไปจาก Tracker
+2. ในหน้าสินค้า (`ProductToClip.jsx` + `api_products.py`) ยังเปิดให้แก้ไขสคริปต์, แทนที่คำ, และกดรีสคริปต์ AI (Reroll) ในมุมที่โพสต์ไปแล้วได้ ซึ่งทำให้สคริปต์ไม่ตรงกับวิดีโอที่ออนไลน์บน TikTok
+3. ในหน้า Tracker (`ContentTrackerHub.jsx`) ฟังก์ชัน Drag & Drop ยังยอมให้ลากการ์ดที่โพสต์แล้วย้อนกลับไปคอลัมน์อื่นได้
+4. ใน `ProductStore.py` ฟังก์ชัน `update_angle_status()` และ `remove_angle()` ยังไม่มีการบล็อกการลดสถานะหรือลบมุมที่โพสต์แล้วที่ระดับฐานข้อมูล
+5. ในมือถือ (`MobileQuickPostPage.jsx`) การมาร์กโพสต์ยังไม่สั่งย้ายไฟล์จริงจาก `04_Exports/Ready_to_post/` ไป `04_Exports/Posted/`
+
+**ผลลัพธ์:**
+- `scripts/product_store.py`: ใน `update_angle_status()` ปฏิเสธการลดสถานะของมุมที่โพสต์แล้ว และใน `remove_angle()` / `delete()` ยกเลิกคำขอลบมุม/สินค้าที่โพสต์แล้ว
+- `scripts/api_products.py`: ใน `/api/products/{id}/angles/{aid}/reroll-script` ปฏิเสธการรีสคริปต์มุมที่โพสต์แล้วด้วย HTTP 400
+- `scripts/api_phase1.py` และ `frontend/src/components/editor/EditorShell.jsx`: บล็อกการลบแบบ `angle` และ `product` ในหน้าต่าง Delete Project หากมุมนั้นโพสต์แล้ว เหลือเฉพาะการลบไฟล์ตัดต่อดราฟต์ (`project`) คืนพื้นที่ดิสก์
+- `frontend/src/components/ProductToClip.jsx`: ล็อกมุมที่โพสต์แล้วเป็น Read-Only (ปิดการแก้ไขบทพูด, ซ่อนปุ่มแทนที่คำ/รีสคริปต์ AI/ตัดใหม่ และแสดงป้ายโพสต์แล้ว)
+- `frontend/src/components/ContentTrackerHub.jsx`: ป้องกัน Drag & Drop ไม่ให้ลากการ์ดออกจากคอลัมน์ "โพสต์แล้ว"
+- `frontend/src/components/MobileQuickPostPage.jsx` และ `scripts/api_exports.py`: ให้การมาร์กโพสต์ย้ายไฟล์ MP4 เข้า `04_Exports/Posted/` และรับรู้สถานะ `is_posted` ทั้งจากโฟลเดอร์และจากสถานะมุม
+- Gate: `python -m compileall -q scripts` ผ่าน, `python -m pytest tests/test_posted_protection.py` ผ่าน 7/7, `npm run build` ผ่าน 100%
+
+
+## Round POST-4 — ป้องกันการลบวิดีโอที่โพสต์แล้วใน Gallery, ล็อกไม่ให้เรนเดอร์ซ้ำในหน้าตัดต่อ และแก้ปัญหาย้อนสถานะ
+
+วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+**ปัญหา:**
+1. เมื่อลบวิดีโอหรือลบเวอร์ชันเก่าในหน้า Gallery ระบบเรียก `rollback_by_video_or_project` ทำให้คลิปที่โพสต์ไปแล้ว (`status == "posted"`) ถูกย้อนสถานะกลับมาเป็น `in_production` (กำลังตัดต่อ)
+2. หน้า Gallery ยังไม่มีการล็อกไม่ให้ลบคลิปที่โพสต์แล้ว (ต้องเก็บเป็นหลักฐาน)
+3. ในหน้าตัดต่อ (Editor) ยังเปิดให้กดเรนเดอร์ซ้ำได้ แม้คลิปนั้นจะโพสต์ไปแล้ว
+
+**ผลลัพธ์:**
+- แก้ไข `scripts/product_store.py`: `_roll()` และ `reconcile_existing_projects()` ป้องกันสถานะ `posted` อย่างเข้มงวด
+- แก้ไข `scripts/api_videos.py`: บล็อกการลบวิดีโอใน `04_Exports/Posted/` หรือคลิปที่โพสต์แล้ว โดยตอบกลับ HTTP 400
+- แก้ไข `scripts/api_render.py` และ `scripts/api_phase1.py`: บล็อกเรนเดอร์/reroll ซ้ำสำหรับโปรเจกต์ที่โพสต์แล้ว โดยตอบกลับ HTTP 400
+- ปรับปรุง `frontend/src/components/ExportGallery.jsx`: ซ่อน/disable ปุ่มลบสำหรับคลิปที่โพสต์แล้ว พร้อมแสดงป้าย `โพสต์แล้ว (ห้ามลบ)`
+- ปรับปรุง `frontend/src/components/editor/`: เพิ่ม prop `isPosted` ให้ปุ่มเรนเดอร์กลายเป็น `โพสต์แล้ว (ล็อก)` เมื่อคลิปถูกโพสต์แล้ว
+- Gate: `python -m compileall -q scripts` ผ่าน, `pytest tests/test_posted_protection.py` ผ่าน 3/3
+
+
+## Round BUG-4 — แก้ไขคลิปบวมสะสมทุกครั้งที่เรนเดอร์ (Transition Overlap Compounding Feedback Loop)
+
+วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+**ปัญหา:**
+ทุกครั้งที่กด Render ซ้ำหรือเข้าโปรเจกต์เดิมมาเรนเดอร์ใหม่ คลิปในไทม์ไลน์จะยาวขึ้นเรื่อยๆ เกินความยาวเสียงจริง (เช่น `LOG01-สเปก_1` เสียงจริง 27.24s แต่คลิปบวมไปถึง 44.28s) เกิดจาก `video_assembly_stage.py` ไปบวก transition overlap (+0.25s ต่อรอยต่อ) เข้ากับ `clip["duration"]` และ `clip["trim_end"]` ซ้ำทุกครั้งที่เรนเดอร์ แล้วเซฟกลับลง `project.json`
+
+**ผลลัพธ์:**
+- แยกระหว่างคลิปที่เจนใหม่สด (`is_newly_generated_clips = True`) กับคลิปที่ส่งมาจาก Editor ใน `shot_matching_stage.py` / `video_assembly_stage.py`
+- ป้องกันไม่ให้ `video_assembly_stage.py` ขยาย duration/trim_end ซ้ำกับคลิปที่มีอยู่แล้ว
+- แก้ไขการคำนวณ `video_span` ใน `scripts/video_editor.py` ให้ใช้ `acc_dur` เพื่อคำนวณ `tail_gap` และ `tpad` ให้ตรงกับความยาวจริงหลัง xfade
+- รัน `tools/repair_swollen_projects.py` เพื่อ normalize duration ของโปรเจกต์เดิมทั้งหมดใน `03_Projects/` กลับมาสอดคล้องกับ audio duration จริง
+- Gate: `pytest tests/test_preview_render_parity.py` ผ่าน 149, `pytest tests/test_clip_compounding_render.py` ผ่าน 2, `pytest tests/test_transition_single_clip.py tests/test_phase1_smoke.py` ผ่าน 159
+
 
 ## Round HOK-1 — ระบบ Custom Hook Template Studio (สร้างและบันทึกแม่แบบฮุกด้วยตัวเอง)
 

@@ -671,6 +671,33 @@ def delete_file(req: DeleteFileRequest):
     if not is_safe:
         raise HTTPException(status_code=403, detail="ไม่อนุญาตให้ลบไฟล์นอกพื้นที่โปรเจกต์")
 
+    # Guard: Posted videos must be preserved as proof/archive and CANNOT be deleted.
+    posted_dir = (BASE_DIR / "04_Exports" / "Posted").resolve()
+    if _is_contained(target, posted_dir):
+        raise HTTPException(status_code=400, detail="คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้ลบเพื่อเก็บไว้เป็นหลักฐาน")
+
+    try:
+        from scripts.product_store import ProductStore
+        for p in ProductStore._load():
+            for a in p.get("angles", []):
+                if a.get("status") == "posted" or a.get("posted_at"):
+                    v_url = a.get("video_url")
+                    if v_url and Path(v_url).name.lower() == target.name.lower():
+                        raise HTTPException(
+                            status_code=400,
+                            detail="คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้ลบเพื่อเก็บไว้เป็นหลักฐาน"
+                        )
+                    if req.product_id and req.angle_id:
+                        if p.get("id") == req.product_id and (a.get("angle_id") or a.get("id")) == req.angle_id:
+                            raise HTTPException(
+                                status_code=400,
+                                detail="คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้ลบเพื่อเก็บไว้เป็นหลักฐาน"
+                            )
+    except HTTPException:
+        raise
+    except Exception:
+        pass
+
     if not target.exists():
         return {"success": True, "message": "ไฟล์ถูกลบไปแล้ว", "filename": target.name}
 

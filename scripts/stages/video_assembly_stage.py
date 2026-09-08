@@ -57,7 +57,11 @@ class VideoAssemblyStage:
 
         # A transition overlaps its two clips, so the finished video is
         # shorter than the clips add up to -- by the sum of every transition.
-        if transitions and actual_clip_list and len(actual_clip_list) > 1:
+        # Overlap extension is ONLY applied ONCE when clips are freshly generated
+        # from cues (to compensate for transition shortening).
+        # Existing or editor-provided clips must NEVER be inflated repeatedly.
+        is_newly_generated = getattr(ctx, "is_newly_generated_clips", False)
+        if is_newly_generated and transitions and actual_clip_list and len(actual_clip_list) > 1:
             for i, boundary in enumerate(transitions[: len(actual_clip_list) - 1]):
                 kind = boundary.get("type") if isinstance(boundary, dict) else str(boundary)
                 if not kind or kind == "cut":
@@ -66,9 +70,12 @@ class VideoAssemblyStage:
                 if overlap <= 0:
                     continue
                 clip = actual_clip_list[i]
+                if clip.get("_overlap_compensated"):
+                    continue
                 clip["duration"] = round(float(clip.get("duration") or 0.0) + overlap, 3)
                 if clip.get("trim_end") is not None:
                     clip["trim_end"] = round(float(clip["trim_end"]) + overlap, 3)
+                clip["_overlap_compensated"] = True
 
         # Opt-in LUT styling
         resolved_lut = AssetRegistry.resolve_lut_path(ctx.lut_name) if ctx.lut_name else None

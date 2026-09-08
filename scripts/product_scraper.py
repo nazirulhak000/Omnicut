@@ -60,6 +60,24 @@ DURATION_SPECS = {
 }
 DEFAULT_DURATION = "30s"
 
+# The 10 content angles the matrix normally picks from, in order. Shared
+# between the "give me the full matrix" prompt (lists all of them) and a
+# single-angle reroll's prompt (looks up just the one requested here) so
+# the label/description text for a given angle_id can't drift between the
+# two call sites.
+ANGLE_CATALOG = {
+    "pain_point": {"label": "😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน", "description": "Problem / Agitation / Solution"},
+    "spec_review": {"label": "⚙️ รีวิวสเปกเจาะลึก / ฟังก์ชันจัดเต็ม", "description": "Deep Spec Review & Technical Features"},
+    "unboxing": {"label": "🛍️ แกะกล่องว้าว / ของมันต้องมี", "description": "Unboxing & First Impression"},
+    "fomo_deal": {"label": "🔥 FOMO โปรไฟลุก / คุ้มจนต้องแย่ง", "description": "Flash Deal & Urgency"},
+    "comparison": {"label": "🆚 เทียบของเดิม vs ของใหม่", "description": "Comparison Matrix"},
+    "life_hack": {"label": "🤫 ทริกลึก / รู้งี้ซื้อนานแล้ว", "description": "Secret Trick & Life Hack"},
+    "stop_scroll": {"label": "⚠️ เตือนภัยเชิงลบ / อย่าเพิ่งซื้อ!", "description": "Stop-Scroll Shock Hook"},
+    "niche_target": {"label": "🧑‍💼 เจาะกลุ่มเฉพาะ สายออฟฟิศ/เกมเมอร์", "description": "Target Audience Specific"},
+    "longterm_review": {"label": "⭐ รีวิวเพื่อนเตือนเพื่อน ใช้จริง 3 เดือน", "description": "Real Experience"},
+    "math_value": {"label": "💡 คำนวณความคุ้มค่าต่อวัน", "description": "Math & Value Breakdown"},
+}
+
 # Optional beats a caller can request (checkbox in the UI, or the default mix
 # for 60s/90s when the caller doesn't specify which ones). Each entry is
 # inserted as its own numbered beat between the core Product and CTA beats --
@@ -105,20 +123,21 @@ def _hostname_allowed(hostname: str) -> bool:
     return any(host == d or host.endswith("." + d) for d in ALLOWED_SCRAPE_DOMAINS)
 
 
-def _validate_scrape_url(url: str) -> None:
+def _validate_public_http_url(url: str, *, require_allowed_domain: bool) -> None:
     """
-    Rejects any URL that is not a plain http(s) request to an allowed
-    domain resolving to a public, non-internal IP address.
+    Rejects any URL that is not a plain http(s) request resolving to a
+    public, non-internal IP address. When require_allowed_domain is True,
+    the host must also be (a subdomain of) ALLOWED_SCRAPE_DOMAINS.
 
     This app has no authentication and CORS is wide open, so any web page
     the user has open can hit this backend's endpoints. Without this check
-    a "paste a product link" field is a full SSRF primitive: an attacker
-    supplies http://169.254.169.254/... (cloud metadata / IAM credential
-    theft once this is deployed), http://127.0.0.1:8000/... (the app's own
-    API), or http://10.x/192.168.x/172.16-31.x (internal network scanning,
-    with scraped title/price echoed back as an oracle). Raises ValueError
-    on rejection so existing callers' `except ValueError` handling surfaces
-    a clear message instead of the request silently going through.
+    a URL field is a full SSRF primitive: an attacker supplies
+    http://169.254.169.254/... (cloud metadata / IAM credential theft once
+    this is deployed), http://127.0.0.1:8000/... (the app's own API), or
+    http://10.x/192.168.x/172.16-31.x (internal network scanning, with the
+    fetched content echoed back as an oracle). Raises ValueError on
+    rejection so existing callers' `except ValueError` handling surfaces a
+    clear message instead of the request silently going through.
     """
     try:
         parsed = urllib.parse.urlparse(url)
@@ -132,7 +151,7 @@ def _validate_scrape_url(url: str) -> None:
     if not hostname:
         raise ValueError("URL is missing a hostname")
 
-    if not _hostname_allowed(hostname):
+    if require_allowed_domain and not _hostname_allowed(hostname):
         raise ValueError(f"Host '{hostname}' is not an allowed scrape target")
 
     try:
@@ -162,6 +181,18 @@ def _validate_scrape_url(url: str) -> None:
             )
 
 
+def _validate_scrape_url(url: str) -> None:
+    _validate_public_http_url(url, require_allowed_domain=True)
+
+
+def _validate_image_url(url: str) -> None:
+    """Same SSRF protections as _validate_scrape_url, minus the product-page
+    domain allowlist -- scraped product images legitimately live on CDN
+    hosts (e.g. *.ibyteimg.com, *.susercontent.com) distinct from the page
+    domain, so that allowlist doesn't apply here."""
+    _validate_public_http_url(url, require_allowed_domain=False)
+
+
 class _SafeRedirectHandler(urllib.request.HTTPRedirectHandler):
     """
     Validates every redirect hop before following it.
@@ -179,8 +210,59 @@ class _SafeRedirectHandler(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
+class _SafeImageRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Same purpose as _SafeRedirectHandler but for image CDN fetches, which
+    routinely redirect across hosts outside ALLOWED_SCRAPE_DOMAINS -- so each
+    hop is checked with _validate_image_url instead."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        _validate_image_url(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 def _build_safe_opener(*handlers):
     return urllib.request.build_opener(_SafeRedirectHandler(), *handlers)
+
+
+def _build_safe_image_opener(*handlers):
+    return urllib.request.build_opener(_SafeImageRedirectHandler(), *handlers)
+
+
+MAX_REFERENCE_IMAGE_BYTES = 8 * 1024 * 1024  # 8 MB cap per reference image
+
+
+def _download_image_bytes(url: str) -> "tuple[bytes, str]":
+    """Downloads a scraped product-image URL for Gemini vision input.
+
+    Returns (data, mime_type). Raises ValueError/OSError on any failure --
+    callers already wrap each reference image in try/except so one bad URL
+    is skipped rather than failing the whole generation call.
+    """
+    _validate_image_url(url)
+    req = urllib.request.Request(url, headers={
+        "User-Agent": BROWSER_UA,
+        "Accept": "image/avif,image/webp,image/*,*/*;q=0.8",
+    })
+    with _build_safe_image_opener().open(req, timeout=15) as resp:
+        content_type = (resp.headers.get_content_type() or "").lower()
+        data = resp.read(MAX_REFERENCE_IMAGE_BYTES + 1)
+    if len(data) > MAX_REFERENCE_IMAGE_BYTES:
+        raise ValueError(f"Image at {url} exceeds {MAX_REFERENCE_IMAGE_BYTES} byte cap")
+
+    mime_by_type = {
+        "image/jpeg": "image/jpeg", "image/jpg": "image/jpeg",
+        "image/png": "image/png", "image/webp": "image/webp",
+        "image/heic": "image/heic", "image/heif": "image/heif",
+    }
+    mime = mime_by_type.get(content_type)
+    if not mime:
+        ext = Path(urllib.parse.urlparse(url).path).suffix.lower().lstrip(".")
+        mime = {
+            "jpg": "image/jpeg", "jpeg": "image/jpeg",
+            "png": "image/png", "webp": "image/webp",
+            "heic": "image/heic", "heif": "image/heif",
+        }.get(ext, "image/jpeg")
+    return data, mime
 
 
 def _extract_meta(html: str, property_name: str) -> Optional[str]:
@@ -309,6 +391,7 @@ class ProductScraper:
         image_paths: Optional[List[str]] = None,
         duration: str = DEFAULT_DURATION,
         extra_beats: Optional[List[str]] = None,
+        angle_id_override: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Generates full 10-Angle Master Content Matrix in natural Thai spoken language.
 
@@ -326,6 +409,11 @@ class ProductScraper:
         (DURATION_SPECS[duration]["default_extra_beats"] beats, chosen in
         EXTRA_BEAT_BLOCKS order) -- pass an explicit list (including []) to
         override that, e.g. from a UI checkbox selection.
+
+        angle_id_override, when set to one of ANGLE_CATALOG's keys, asks for
+        exactly that one angle back (a script reroll) instead of the normal
+        "pick from the full 10-angle catalog" behavior -- count is ignored
+        in that case (always exactly 1 result).
         """
         title = product_data.get("title", "")
         desc = product_data.get("description", "")
@@ -383,6 +471,24 @@ class ProductScraper:
         else:
             extra_beat_rule = ""
             beat_structure_ref = "4"
+
+        if angle_id_override:
+            target = ANGLE_CATALOG.get(angle_id_override)
+            if target is None:
+                raise ValueError(f"ไม่รู้จัก angle_id '{angle_id_override}'")
+            angle_list_section = (
+                f'จงสร้างผลลัพธ์เป็น JSON Array ที่มี Object เดียวเท่านั้น '
+                f'สำหรับมุม "{angle_id_override}": {target["label"]} ({target["description"]}) '
+                f"เขียนสคริปต์ใหม่ทั้งหมดสำหรับมุมนี้โดยเฉพาะ ห้ามสร้างมุมอื่น"
+            )
+        else:
+            catalog_lines = "\n".join(
+                f'{i}. "{aid}": {a["label"]} ({a["description"]})'
+                for i, (aid, a) in enumerate(ANGLE_CATALOG.items(), 1)
+            )
+            angle_list_section = (
+                f"จงสร้างผลลัพธ์เป็น JSON Array ที่มี {count} Object ตาม 10 มุมมองนี้:\n{catalog_lines}"
+            )
 
         prompt = f"""
 # Role & Objective
@@ -444,22 +550,12 @@ class ProductScraper:
 7. **กฎพิเศษกรณีดึงข้อมูลจาก URL (Shopee / TikTok Shop / เว็บไซต์)**:
    - หากรายละเอียดมีสั้น ให้ดึงความรู้สเปกจริงอย่างเป็นทางการ (Official Hardware Specs) มาเขียนให้ตรงความจริง 100% ห้ามมั่วสเปก
 {image_rule}{extra_beat_rule}
-จงสร้างผลลัพธ์เป็น JSON Array ที่มี {count} Object ตาม 10 มุมมองนี้:
-1. "pain_point": 😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน (Problem / Agitation / Solution)
-2. "spec_review": ⚙️ รีวิวสเปกเจาะลึก / ฟังก์ชันจัดเต็ม (Deep Spec Review & Technical Features)
-3. "unboxing": 🛍️ แกะกล่องว้าว / ของมันต้องมี (Unboxing & First Impression)
-4. "fomo_deal": 🔥 FOMO โปรไฟลุก / คุ้มจนต้องแย่ง (Flash Deal & Urgency)
-5. "comparison": 🆚 เทียบของเดิม vs ของใหม่ (Comparison Matrix)
-6. "life_hack": 🤫 ทริกลึก / รู้งี้ซื้อนานแล้ว (Secret Trick & Life Hack)
-7. "stop_scroll": ⚠️ เตือนภัยเชิงลบ / อย่าเพิ่งซื้อ! (Stop-Scroll Shock Hook)
-8. "niche_target": 🧑‍💼 เจาะกลุ่มเฉพาะ สายออฟฟิศ/เกมเมอร์ (Target Audience Specific)
-9. "longterm_review": ⭐ รีวิวเพื่อนเตือนเพื่อน ใช้จริง 3 เดือน (Real Experience)
-10. "math_value": 💡 คำนวณความคุ้มค่าต่อวัน (Math & Value Breakdown)
+{angle_list_section}
 
 แต่ละ Object ใน JSON ต้องมีโครงสร้างดังนี้ (script_lines ต้องมีทั้งหมด {beat_count} ท่อนตามกฎข้อ {beat_structure_ref}, คุมความยาวให้พากย์จบใน {spec["seconds_range"]}พอดี และเว้นวรรคก้อนความคิดในแต่ละท่อน):
 {{
-  "angle_id": "pain_point",
-  "angle_name": "😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน",
+  "angle_id": "{angle_id_override or "pain_point"}",
+  "angle_name": "{ANGLE_CATALOG[angle_id_override]["label"] if angle_id_override else "😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน"}",
   "badge": "ขายดีอันดับ 1",
   "product_name": "ชื่อสินค้าที่กระชับ ไม่เกิน 30 ตัวอักษร",
   "hook_title": "พาดหัวเปิดคลิป 3 วินาทีแรก (มีอีโมจิและคำกระแทกใจ)",
@@ -503,6 +599,10 @@ class ProductScraper:
                 image_parts = []
                 for img_path in (image_paths or []):
                     try:
+                        if isinstance(img_path, str) and img_path.lower().startswith(("http://", "https://")):
+                            data, mime = _download_image_bytes(img_path)
+                            image_parts.append(types.Part.from_bytes(data=data, mime_type=mime))
+                            continue
                         p = Path(img_path)
                         if not p.is_absolute():
                             p = BASE_DIR / p

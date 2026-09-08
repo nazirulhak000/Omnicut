@@ -4,7 +4,7 @@ import {
   Smartphone, CheckCircle2, ArrowRight, Video, AlertCircle,
   Tag, Film, Play, RotateCcw, Home
 } from 'lucide-react';
-import { updateAngleStatus, getProducts } from '../api';
+import { updateAngleStatus, getProducts, markPosted } from '../api';
 
 export default function MobileQuickPostPage({ onExit }) {
   const [params, setParams] = useState(() => {
@@ -143,13 +143,25 @@ export default function MobileQuickPostPage({ onExit }) {
   const handleMarkAsPosted = async () => {
     if (params.productId && params.angleId) {
       try {
-        await updateAngleStatus(params.productId, params.angleId, 'posted', effectiveVideo, null, null, true);
+        if (effectiveVideo) {
+          try {
+            await markPosted(effectiveVideo, params.productId, params.angleId);
+          } catch {
+            // Fallback to direct status update if file already in Posted or moved
+            await updateAngleStatus(params.productId, params.angleId, 'posted', effectiveVideo, null, null, true);
+          }
+        } else {
+          await updateAngleStatus(params.productId, params.angleId, 'posted', null, null, null, true);
+        }
         setIsPosted(true);
         showToast('🎉 บันทึกสถานะ "โพสต์แล้ว" ส่งกลับไปที่คอมพิวเตอร์เรียบร้อย!');
       } catch (err) {
         showToast('ไม่สามารถอัปเดตสถานะได้: ' + err.message);
       }
     } else {
+      if (effectiveVideo) {
+        try { await markPosted(effectiveVideo); } catch {}
+      }
       setIsPosted(true);
       showToast('🎉 มาร์กว่าโพสต์เรียบร้อยแล้ว!');
     }

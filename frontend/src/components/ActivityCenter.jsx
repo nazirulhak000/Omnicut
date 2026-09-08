@@ -359,6 +359,28 @@ export function ActivityDrawer() {
                           );
                         }
 
+                        // For reroll_script: open the exact angle that was
+                        // just rerolled, not a blank editor timeline.
+                        const isRerollTask = Boolean(
+                          task.type === 'reroll_script' ||
+                          task.task_type === 'reroll_script'
+                        );
+
+                        if (isRerollTask) {
+                          return (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => jumpToTaskResult(task, 'flow')}
+                                className="px-3 py-1 rounded-lg bg-gradient-to-r from-[#25F4EE] to-blue-500 hover:brightness-110 text-slate-950 text-xs font-bold flex items-center gap-1 shadow-md shadow-[#25F4EE]/20 cursor-pointer active:scale-95 transition-all"
+                                title="เปิดสคริปต์ที่รีสคริปต์ใหม่"
+                              >
+                                <span>เปิดสคริปต์ที่รีแล้ว</span>
+                                <ArrowRight className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          );
+                        }
+
                         // For timeline cuts (edit_project / 1-click edit):
                         // Show ONLY "เปิดไทม์ไลน์" (Primary prominent button)
                         return (
@@ -485,6 +507,25 @@ export function GlobalTaskNotification() {
                   className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#25F4EE] to-blue-500 hover:brightness-110 text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-[#25F4EE]/20 cursor-pointer active:scale-95 transition-all"
                 >
                   <span>เปิดดูสคริปต์ทันที</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            );
+          }
+
+          const isRerollTask = Boolean(
+            task.type === 'reroll_script' ||
+            task.task_type === 'reroll_script'
+          );
+
+          if (isRerollTask) {
+            return (
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  onClick={() => jumpToTaskResult(task, 'flow')}
+                  className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#25F4EE] to-blue-500 hover:brightness-110 text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-[#25F4EE]/20 cursor-pointer active:scale-95 transition-all"
+                >
+                  <span>เปิดสคริปต์ที่รีแล้ว</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>

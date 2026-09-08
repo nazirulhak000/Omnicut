@@ -543,6 +543,9 @@ def project_origin(project_name: str):
             "angle_id": angle.get("angle_id"),
             "angle_name": angle.get("angle_name") or "",
             "hook_title": angle.get("hook_title") or "",
+            "status": angle.get("status") or "",
+            "posted_at": angle.get("posted_at"),
+            "is_posted": angle.get("status") == "posted" or bool(angle.get("posted_at")),
         },
     }
 
@@ -586,8 +589,19 @@ def delete_project(project_name: str, scope: str = "project"):
                     status_code=409,
                     detail="หามุม/สคริปต์ที่ตรงกับโปรเจกต์นี้ไม่เจอ — เลือกลบทั้งสินค้าหรือลบเฉพาะโปรเจกต์แทน",
                 )
+            if angle.get("status") == "posted" or angle.get("posted_at"):
+                raise HTTPException(
+                    status_code=400,
+                    detail="ไม่อนุญาตให้ลบมุมที่โพสต์แล้ว เนื่องจากต้องเก็บไว้เป็นหลักฐาน (สามารถเลือกลบเฉพาะโปรเจกต์ตัดต่อเพื่อคืนพื้นที่ดิสก์ได้)",
+                )
             extra = ProductStore.remove_angle(product["id"], angle["angle_id"])
         else:
+            posted_angles = [a for a in product.get("angles", []) if a.get("status") == "posted" or a.get("posted_at")]
+            if posted_angles:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"ไม่อนุญาตให้ลบสินค้า '{product.get('name')}' เนื่องจากมีคลิปที่โพสต์แล้ว {len(posted_angles)} มุม (ต้องเก็บไว้เป็นหลักฐาน)",
+                )
             ProductStore.delete(product["id"])
             extra = {"product_removed": product["id"], "angles_removed": len(product.get("angles") or [])}
 
@@ -623,6 +637,14 @@ def get_project(project_name: str):
     manifest = ProjectManifest.load(project_name)
     if not manifest:
         raise HTTPException(status_code=404, detail=f"ไม่พบโปรเจกต์ '{project_name}'")
+    try:
+        _, product, angle = _project_origin(project_name)
+        if angle:
+            manifest["angle_status"] = angle.get("status")
+            manifest["posted_at"] = angle.get("posted_at")
+            manifest["is_posted"] = angle.get("status") == "posted" or bool(angle.get("posted_at"))
+    except Exception:
+        pass
     return manifest
 
 
@@ -851,8 +873,24 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 if existing_angle:
                     prev_status = existing_angle.get("status")
                     prev_video_url = existing_angle.get("video_url")
+                    if prev_status == "posted" or existing_angle.get("posted_at"):
+                        raise HTTPException(
+                            status_code=400,
+                            detail="คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้เรนเดอร์ซ้ำ เพื่อรักษาหลักฐานเดิม"
+                        )
+            except HTTPException:
+                raise
             except Exception as snapshot_err:
                 print(f"Warning: could not snapshot pre-reroll angle state: {snapshot_err}")
+        elif project_name:
+            for prod in ProductStore._load():
+                for a in prod.get("angles", []):
+                    if a.get("project_name") == project_name:
+                        if a.get("status") == "posted" or a.get("posted_at"):
+                            raise HTTPException(
+                                status_code=400,
+                                detail="คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้เรนเดอร์ซ้ำ เพื่อรักษาหลักฐานเดิม"
+                            )
 
         if product_id and angle_id:
             try:

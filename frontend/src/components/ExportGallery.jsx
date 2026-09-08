@@ -291,13 +291,25 @@ const ExportCard = memo(function ExportCard({
           <Download className="w-3.5 h-3.5" />
         </a>
 
-        <button
-          onClick={() => onOpenDelete(item)}
-          className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs font-bold transition-colors cursor-pointer flex-shrink-0"
-          title="ลบวิดีโอ"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        {item.is_posted || item.status === 'posted' || item.posted_at ? (
+          <button
+            type="button"
+            disabled
+            className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold opacity-60 cursor-not-allowed flex-shrink-0"
+            title="โพสต์แล้ว (เก็บเป็นหลักฐาน ห้ามลบ)"
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onOpenDelete(item)}
+            className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs font-bold transition-colors cursor-pointer flex-shrink-0"
+            title="ลบวิดีโอ"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -942,14 +954,26 @@ function ExportActiveWorkbench({
               <Download className="w-4 h-4" />
               <span>ดาวน์โหลด MP4</span>
             </a>
-            <button
-              type="button"
-              onClick={() => onDelete(video)}
-              className="py-2.5 px-3.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all"
-            >
-              <Trash2 className="w-4 h-4" />
-              <span>ลบ</span>
-            </button>
+            {video.is_posted || video.status === 'posted' || video.posted_at ? (
+              <button
+                type="button"
+                disabled
+                className="py-2.5 px-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold flex items-center justify-center gap-1.5 opacity-60 cursor-not-allowed"
+                title="โพสต์แล้ว (เก็บเป็นหลักฐาน ห้ามลบ)"
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>โพสต์แล้ว (ห้ามลบ)</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onDelete(video)}
+                className="py-2.5 px-3.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>ลบ</span>
+              </button>
+            )}
           </div>
 
           {/* Post Studio: reveal-in-Explorer -> drag into TikTok Studio -> mark posted */}
@@ -1247,6 +1271,11 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
 
   const confirmDelete = useCallback(async () => {
     if (!deleteTarget) return;
+    if (deleteTarget.is_posted || deleteTarget.status === 'posted' || deleteTarget.posted_at) {
+      showToast('คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้ลบเพื่อเก็บไว้เป็นหลักฐาน', 'error');
+      setDeleteTarget(null);
+      return;
+    }
     setDeleting(true);
     try {
       await deleteFile(deleteTarget.path, deleteTarget.product_id, deleteTarget.angle_id);
@@ -1266,9 +1295,21 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
   const confirmBatchDelete = useCallback(async () => {
     if (selectedVideos.length === 0) return;
 
+    // Filter out posted videos
+    const deletablePaths = selectedVideos.filter((p) => {
+      const match = (exportsList || []).find(v => v.path === p || v.rel_path === p);
+      return !(match?.is_posted || match?.status === 'posted' || match?.posted_at);
+    });
+
+    if (deletablePaths.length === 0) {
+      showToast('คลิปที่เลือกทั้งหมดถูกโพสต์ไปแล้ว ไม่อนุญาตให้ลบเพื่อเก็บเป็นหลักฐาน', 'error');
+      setShowBatchDeleteModal(false);
+      return;
+    }
+
     setDeleting(true);
     try {
-      for (const p of selectedVideos) {
+      for (const p of deletablePaths) {
         try {
           const match = (exportsList || []).find(v => v.path === p || v.rel_path === p);
           await deleteFile(p, match?.product_id, match?.angle_id);
@@ -1276,7 +1317,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
           console.error(e);
         }
       }
-      showToast(`ลบวิดีโอ ${selectedVideos.length} คลิปเรียบร้อยแล้ว`);
+      showToast(`ลบวิดีโอ ${deletablePaths.length} คลิปเรียบร้อยแล้ว`);
       setSelectedVideos([]);
       setShowBatchDeleteModal(false);
       setActiveVideoPath(null);
@@ -2126,17 +2167,30 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                     <Download className="w-4 h-4" />
                     <span>ดาวน์โหลด MP4</span>
                   </a>
-                  <Button
-                    onClick={() => {
-                      setDeleteTarget(selectedDetailVideo);
-                      setSelectedDetailVideo(null);
-                    }}
-                    variant="danger"
-                    size="md"
-                    icon={Trash2}
-                  >
-                    {selectedDetailVideo.is_previous_version ? 'ลบไฟล์เวอร์ชันนี้' : 'ลบไฟล์'}
-                  </Button>
+                  {selectedDetailVideo.is_posted || selectedDetailVideo.status === 'posted' || selectedDetailVideo.posted_at ? (
+                    <Button
+                      disabled
+                      variant="secondary"
+                      size="md"
+                      icon={ShieldCheck}
+                      className="opacity-60 cursor-not-allowed text-emerald-400 border-emerald-500/30"
+                      title="โพสต์แล้ว (เก็บเป็นหลักฐาน ห้ามลบ)"
+                    >
+                      โพสต์แล้ว (ห้ามลบ)
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => {
+                        setDeleteTarget(selectedDetailVideo);
+                        setSelectedDetailVideo(null);
+                      }}
+                      variant="danger"
+                      size="md"
+                      icon={Trash2}
+                    >
+                      {selectedDetailVideo.is_previous_version ? 'ลบไฟล์เวอร์ชันนี้' : 'ลบไฟล์'}
+                    </Button>
+                  )}
                 </div>
               </div>
             )}
@@ -2219,10 +2273,10 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
             isOpen={!!deleteTarget}
             onClose={() => setDeleteTarget(null)}
             onConfirm={confirmDelete}
-            title="ลบคลิปวิดีโอนี้ถาวร?"
-            description="ไฟล์วิดีโอ MP4 ในโฟลเดอร์ Exports จะถูกลบออกจากเครื่อง"
+            title={deleteTarget?.is_previous_version ? "ลบวิดีโอเวอร์ชันเก่าถาวร?" : "ลบคลิปวิดีโอนี้ถาวร?"}
+            description={`ต้องการลบไฟล์ "${deleteTarget?.name}" ใช่หรือไม่? ไฟล์จะถูกลบออกจากเครื่องอย่างถาวร`}
             itemName={deleteTarget?.name}
-            dangerNote="การกระทำนี้ไม่สามารถย้อนกลับได้"
+            dangerNote="การกระทำนี้ไม่สามารถย้อนกลับได้ (วิดีโอที่โพสต์แล้วจะถูกล็อกไว้เป็นหลักฐานและไม่สามารถลบได้)"
             confirmText="ลบไฟล์ถาวร"
             loading={deleting}
             variant="danger"

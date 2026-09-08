@@ -788,7 +788,8 @@ class VideoEditor:
         # no picture at all -- measured once as a 13.6s video stream inside a
         # 28.3s file. Hold the last frame instead, before the grade/sticker/
         # subtitle passes so those still draw over the held tail.
-        video_span = sum(clip_durations) if clip_durations else 0.0
+        # When transitions are used, acc_dur is the actual video span after xfade reduction.
+        video_span = acc_dur if has_transition else (sum(clip_durations) if clip_durations else 0.0)
         tail_gap = float(total_duration) - video_span
         if used_clip_list and video_span > 0 and tail_gap > 0.05:
             filter_complex.append(

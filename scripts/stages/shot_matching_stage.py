@@ -53,8 +53,9 @@ class ShotMatchingStage:
             except Exception:
                 raw_duration = 60.0
 
-        has_manual_multi_clips = bool(ctx.clip_list and len(ctx.clip_list) > 1)
-        actual_clip_list = ctx.clip_list if has_manual_multi_clips else None
+        has_manual_clips = bool(ctx.clip_list and len(ctx.clip_list) > 0)
+        actual_clip_list = ctx.clip_list if has_manual_clips else None
+        is_newly_generated_clips = False
 
         ai_matched_shots = None
         if not actual_clip_list and raw_video and ctx.use_ai_vision and os.environ.get("GEMINI_API_KEY"):
@@ -356,6 +357,7 @@ class ShotMatchingStage:
                         clip_entry["transition_duration"] = float(t_dur)
                     generated_clips.append(clip_entry)
                 actual_clip_list = generated_clips
+                is_newly_generated_clips = True
             except Exception as shot_err:
                 # Same reasoning as the AI Vision handler above: a quota hit is
                 # the user's own daily cap, not a provider failure, and the
@@ -378,7 +380,9 @@ class ShotMatchingStage:
                     "speed": 1.0,
                     "transition_in": "cut"
                 }]
+                is_newly_generated_clips = True
 
         ctx.actual_clip_list = actual_clip_list
         ctx.ai_matched_shots = ai_matched_shots
         ctx.shot_scales = shot_scales
+        ctx.is_newly_generated_clips = is_newly_generated_clips

@@ -299,10 +299,11 @@ def scrape_and_plan(payload: Dict[str, Any]):
 
         angles = ProductScraper.generate_content_matrix(
             product_info, count=angle_count,
-            # Vision only reads local files -- a scraped product-page image is
-            # a remote URL with no local_path, so it's skipped here rather
-            # than attempted and failed.
-            image_paths=[img["local_path"] for img in product_info.get("images", []) if img.get("local_path")],
+            # Vision reads local files directly and downloads http(s) URLs
+            # on the fly (see generate_content_matrix's image-reading loop),
+            # so both user-uploaded (local_path) and scraped (url) images
+            # reach the model here.
+            image_paths=[img.get("local_path") or img.get("url") for img in product_info.get("images", []) if img.get("local_path") or img.get("url")],
             duration=duration,
             extra_beats=extra_beats,
         )
@@ -353,6 +354,8 @@ def _execute_scrape_and_plan_worker(task_id: str, payload: Dict[str, Any]):
         custom_keyword = payload.get("custom_keyword", "").strip()
         image_paths = payload.get("image_paths") or []
         angle_count = int(payload.get("angle_count", 7))
+        duration = str(payload.get("duration") or DEFAULT_DURATION)
+        extra_beats = payload.get("extra_beats")
 
         if url:
             TaskManager.update_progress(task_id, 0.30, f"กำลังดึงข้อมูลจากร้านค้า: {url[:35]}")
@@ -386,10 +389,13 @@ def _execute_scrape_and_plan_worker(task_id: str, payload: Dict[str, Any]):
         TaskManager.update_progress(task_id, 0.55, f"AI กำลังแต่ง {angle_count} สคริปต์ ({title_display}){vision_note}")
         angles = ProductScraper.generate_content_matrix(
             product_info, count=angle_count,
-            # Vision only reads local files -- a scraped product-page image is
-            # a remote URL with no local_path, so it's skipped here rather
-            # than attempted and failed.
-            image_paths=[img["local_path"] for img in product_info.get("images", []) if img.get("local_path")],
+            # Vision reads local files directly and downloads http(s) URLs
+            # on the fly (see generate_content_matrix's image-reading loop),
+            # so both user-uploaded (local_path) and scraped (url) images
+            # reach the model here.
+            image_paths=[img.get("local_path") or img.get("url") for img in product_info.get("images", []) if img.get("local_path") or img.get("url")],
+            duration=duration,
+            extra_beats=extra_beats,
         )
 
         TaskManager.update_progress(task_id, 0.85, "กำลังปรับแต่งบทพูดสำหรับเสียงพากย์ AI (TTS Sanitizer)")
@@ -497,4 +503,150 @@ def scrape_and_plan_async(payload: Dict[str, Any], background_tasks: BackgroundT
         "success": True,
         "task_id": task["id"],
         "task": task
+    }
+
+
+def _execute_reroll_script_worker(
+    task_id: str, product_id: str, angle_id: str, angle_count: int,
+    duration: str, extra_beats, angle_snapshot: Dict[str, Any],
+) -> None:
+    """Background worker: regenerate ONE angle's script content in place.
+
+    Reuses the product's own persisted description/raw_text/images as the
+    source material (the same ones the original scrape-and-plan used) rather
+    than re-scraping -- a reroll changes length/content emphasis, not what
+    the product actually is. angle_count is always 1: this call only ever
+    asks the AI for a single angle back, distinguished from the normal
+    content-matrix call by passing count=1 and the SAME angle_id already on
+    this angle, so the model reworks that one angle instead of inventing a
+    fresh matrix.
+    """
+    try:
+        TaskManager.update_progress(task_id, 0.10, "กำลังเตรียมข้อมูลสินค้า")
+        product = ProductStore.get(product_id)
+        if not product:
+            raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
+
+        product_info = {
+            "title": product.get("name", ""),
+            "description": product.get("description", ""),
+            "price_note": product.get("price_note", ""),
+            "raw_text": product.get("raw_text", ""),
+            "images": product.get("images", []),
+        }
+
+        img_count = len(product_info.get("images", []))
+        vision_note = f" (อ่านสรรพคุณจากภาพ {img_count} รูปด้วย)" if img_count else ""
+        TaskManager.update_progress(
+            task_id, 0.40,
+            f"AI กำลังเขียนสคริปต์ใหม่ ({DURATION_SPECS.get(duration, {}).get('label', duration)}){vision_note}",
+        )
+        angles = ProductScraper.generate_content_matrix(
+            product_info, count=1,
+            # Vision reads local files directly and downloads http(s) URLs
+            # on the fly, so both user-uploaded (local_path) and scraped
+            # (url) images reach the model on a reroll too.
+            image_paths=[img.get("local_path") or img.get("url") for img in product_info.get("images", []) if img.get("local_path") or img.get("url")],
+            duration=duration,
+            extra_beats=extra_beats,
+            # A reroll targets the specific angle already on this product
+            # (e.g. "pain_point") rather than letting the matrix generator
+            # pick from its full 10-angle list -- see generate_content_matrix's
+            # angle_id_override.
+            angle_id_override=angle_snapshot.get("angle_id"),
+        )
+        if not angles:
+            raise ValueError("AI ไม่ได้สร้างสคริปต์ใหม่กลับมา")
+
+        TaskManager.update_progress(task_id, 0.80, "กำลังปรับแต่งบทพูดสำหรับเสียงพากย์ AI (TTS Sanitizer)")
+        new_angle = TTSSanitizer.process_angles(angles)[0]
+        # generate_content_matrix always answers with its own angle_id
+        # (from its fixed 10-angle catalog); force it back to the angle_id
+        # this angle already has so replace_angle_content's identity match
+        # still finds it, and the timeline/render side (which keys off
+        # angle_id) doesn't see a different angle appear.
+        new_angle["angle_id"] = angle_snapshot.get("angle_id")
+        new_angle["duration"] = duration
+        new_angle["extra_beats"] = extra_beats or []
+
+        TaskManager.update_progress(task_id, 0.95, "กำลังบันทึกสคริปต์ใหม่")
+        updated_product = ProductStore.replace_angle_content(product_id, angle_id, new_angle)
+        # new_angle is the AI's raw output -- it has no idea about this
+        # angle's status/project_name/video_url (replace_angle_content
+        # deliberately never sends those to the AI, and preserves whatever
+        # was already on the angle). Read the angle back OUT of the just-
+        # persisted product instead of returning new_angle directly, so the
+        # frontend's completion handler sees the real, full, saved state
+        # (lifecycle fields included) rather than a partial AI-only object
+        # that looks like the reroll wiped them.
+        saved_angle = next(
+            (a for a in updated_product.get("angles", []) if (a.get("angle_id") or a.get("id")) == angle_id),
+            new_angle,
+        )
+
+        TaskManager.complete_task(
+            task_id,
+            result={"product": updated_product, "angle": saved_angle},
+            step_label="🎉 รีสคริปต์สำเร็จ!",
+            target_id=product_id,
+        )
+    except Exception as e:
+        import traceback
+        print(f"[API] Reroll script error: {type(e).__name__}: {e}")
+        traceback.print_exc()
+        if is_quota_error(e):
+            TaskManager.fail_task(task_id, e.suggestion_th, step_label="เกินโควต้า AI ต่อวันแล้ว")
+        else:
+            TaskManager.fail_task(task_id, str(e), step_label="รีสคริปต์ไม่สำเร็จ")
+
+
+@router.post("/api/products/{product_id}/angles/{angle_id}/reroll-script")
+def reroll_angle_script(product_id: str, angle_id: str, payload: Dict[str, Any], background_tasks: BackgroundTasks):
+    """Regenerates ONE angle's script with a new duration/content mix via AI,
+    as a background task (same pattern as scrape-and-plan-async). Overwrites
+    the angle's script content immediately on completion -- no version
+    history is kept, matching how a hand-edit to the script already works.
+    """
+    duration = str(payload.get("duration") or DEFAULT_DURATION)
+    if duration not in DURATION_SPECS:
+        raise HTTPException(status_code=400, detail=f"duration ต้องเป็นหนึ่งใน {', '.join(DURATION_SPECS)}")
+    extra_beats = payload.get("extra_beats")
+    if extra_beats is not None:
+        invalid = [b for b in extra_beats if b not in EXTRA_BEAT_BLOCKS]
+        if invalid:
+            raise HTTPException(status_code=400, detail=f"extra_beats ไม่รู้จัก: {', '.join(invalid)}")
+
+    product = ProductStore.get(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail=f"ไม่พบสินค้า id '{product_id}'")
+    angle_snapshot = next(
+        (a for a in product.get("angles", []) if (a.get("angle_id") or a.get("id")) == angle_id),
+        None,
+    )
+    if not angle_snapshot:
+        raise HTTPException(status_code=404, detail=f"ไม่พบมุม '{angle_id}' ในสินค้านี้")
+    if angle_snapshot.get("status") == "posted" or angle_snapshot.get("posted_at"):
+        raise HTTPException(
+            status_code=400,
+            detail="ไม่อนุญาตให้รีสคริปต์มุมที่โพสต์แล้ว เนื่องจากต้องเก็บไว้เป็นหลักฐาน",
+        )
+
+    task_title = f"รีสคริปต์: {angle_snapshot.get('angle_name', angle_id)} ({DURATION_SPECS[duration]['label']})"
+    task = TaskManager.create_task(
+        task_type="reroll_script",
+        title=task_title,
+        payload={"product_id": product_id, "angle_id": angle_id, "duration": duration, "extra_beats": extra_beats},
+        target_tab="flow",
+        target_id=product_id,
+    )
+
+    background_tasks.add_task(
+        _execute_reroll_script_worker,
+        task["id"], product_id, angle_id, 1, duration, extra_beats, angle_snapshot,
+    )
+
+    return {
+        "success": True,
+        "task_id": task["id"],
+        "task": task,
     }

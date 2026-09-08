@@ -56,6 +56,37 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
             elif (BASE_DIR / req_data.sticker_badge).exists():
                 sticker_file_path = str(BASE_DIR / req_data.sticker_badge)
 
+        # Block re-rendering if this angle or project has already been posted!
+        # Posted videos must remain permanent proof and cannot be overwritten.
+        is_already_posted = False
+        if req_data.product_id and req_data.angle_id:
+            try:
+                prod = ProductStore.get(req_data.product_id)
+                if prod:
+                    for a in prod.get("angles", []):
+                        if (a.get("angle_id") or a.get("id")) == req_data.angle_id:
+                            if a.get("status") == "posted" or a.get("posted_at"):
+                                is_already_posted = True
+                                break
+            except Exception:
+                pass
+        elif req_data.project_name:
+            try:
+                for prod in ProductStore._load():
+                    for a in prod.get("angles", []):
+                        if a.get("project_name") == req_data.project_name:
+                            if a.get("status") == "posted" or a.get("posted_at"):
+                                is_already_posted = True
+                                break
+            except Exception:
+                pass
+
+        if is_already_posted:
+            raise HTTPException(
+                status_code=400,
+                detail="คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้เรนเดอร์ซ้ำ เพื่อรักษาหลักฐานเดิม"
+            )
+
         if req_data.product_id and req_data.angle_id:
             try:
                 ProductStore.update_angle_status(
@@ -185,6 +216,37 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
 @router.post("/api/render")
 def trigger_render(req: RenderRequest, background_tasks: BackgroundTasks):
     """Triggers the video creation pipeline in the background."""
+    # Guard: Block re-rendering if this angle or project has already been posted!
+    if req.product_id and req.angle_id:
+        try:
+            prod = ProductStore.get(req.product_id)
+            if prod:
+                for a in prod.get("angles", []):
+                    if (a.get("angle_id") or a.get("id")) == req.angle_id:
+                        if a.get("status") == "posted" or a.get("posted_at"):
+                            raise HTTPException(
+                                status_code=400,
+                                detail="คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้เรนเดอร์ซ้ำ เพื่อรักษาหลักฐานเดิม"
+                            )
+        except HTTPException:
+            raise
+        except Exception:
+            pass
+    elif req.project_name:
+        try:
+            for prod in ProductStore._load():
+                for a in prod.get("angles", []):
+                    if a.get("project_name") == req.project_name:
+                        if a.get("status") == "posted" or a.get("posted_at"):
+                            raise HTTPException(
+                                status_code=400,
+                                detail="คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้เรนเดอร์ซ้ำ เพื่อรักษาหลักฐานเดิม"
+                            )
+        except HTTPException:
+            raise
+        except Exception:
+            pass
+
     job_id = str(uuid.uuid4())
     render_jobs.create_job(job_id)
 

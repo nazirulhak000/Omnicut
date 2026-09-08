@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Check, ChevronDown, Loader2, Rocket } from 'lucide-react';
+import { Check, ChevronDown, Loader2, Rocket, ShieldCheck } from 'lucide-react';
 
 /**
  * Render, plus the quality it renders at.
@@ -21,6 +21,7 @@ export default function RenderButton({
   busy = false,
   progress = 0,
   disabled = false,
+  isPosted = false,
 }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
@@ -43,6 +44,22 @@ export default function RenderButton({
       document.removeEventListener('keydown', onKey, true);
     };
   }, [open]);
+
+  if (isPosted) {
+    return (
+      <div className="relative flex flex-shrink-0">
+        <button
+          type="button"
+          disabled
+          title="คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้เรนเดอร์ซ้ำ เพื่อรักษาหลักฐานเดิม"
+          className="flex h-9 cursor-not-allowed items-center gap-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-3 text-sm font-bold text-emerald-400 opacity-80 sm:px-4"
+        >
+          <ShieldCheck className="h-4 w-4 text-emerald-400" />
+          <span>โพสต์แล้ว (ล็อก)</span>
+        </button>
+      </div>
+    );
+  }
 
   const current = presets.find((p) => p.id === value) || presets[0];
 

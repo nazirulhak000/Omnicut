@@ -264,6 +264,13 @@ export const scrapeAndPlanProductAsync = (payload) => {
   }).then(r => r.data);
 };
 
+// Round: per-angle AI script reroll (duration + extra_beats), independent of
+// the video-render reroll system (startReroll above) -- this one overwrites
+// an angle's script content before any video work happens, and is async like
+// scrape-and-plan-async (returns a task_id polled via the same TaskContext).
+export const rerollAngleScript = (productId, angleId, payload = {}) =>
+  api.post(`/products/${productId}/angles/${angleId}/reroll-script`, payload).then(r => r.data);
+
 export const getActiveTasks = () => api.get('/tasks/active').then(r => r.data);
 export const getTaskStatus = (taskId) => api.get(`/tasks/${taskId}`).then(r => r.data);
 export const cancelTaskApi = (taskId) => api.post(`/tasks/${taskId}/cancel`).then(r => r.data);

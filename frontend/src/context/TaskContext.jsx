@@ -225,16 +225,22 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
       (typeof task.title === 'string' && task.title.includes('วิเคราะห์สินค้า'))
     );
 
-    const projName = !isScrapeTask ? (task.result?.project_name || task.payload?.project_name) : null;
-    const productId = task.result?.saved_product?.id || task.result?.product?.id || task.payload?.product_id || (isScrapeTask ? task.target_id : null);
+    const isRerollTask = Boolean(
+      task.type === 'reroll_script' ||
+      task.task_type === 'reroll_script'
+    );
+
+    const projName = !isScrapeTask && !isRerollTask ? (task.result?.project_name || task.payload?.project_name) : null;
+    const productId = task.result?.saved_product?.id || task.result?.product?.id || task.payload?.product_id || ((isScrapeTask || isRerollTask) ? task.target_id : null);
+    const angleId = isRerollTask ? (task.result?.angle?.angle_id || task.payload?.angle_id) : null;
 
     // Determine targetTab if not explicitly provided:
-    // 1. Scrape & Plan tasks -> Product -> Clip ('flow')
+    // 1. Scrape & Plan / script reroll tasks -> Product -> Clip ('flow')
     // 2. Render tasks with video -> Gallery preview ('gallery')
     // 3. Newly cut projects (edit_project / 1-click edit) -> Editor timeline ('editor')
     let targetTab = destinationTab;
     if (!targetTab) {
-      if (isScrapeTask) {
+      if (isScrapeTask || isRerollTask) {
         targetTab = 'flow';
       } else if (hasVideo && isRenderTask) {
         targetTab = 'gallery';
@@ -245,7 +251,7 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
       }
     }
 
-    const targetId = isScrapeTask ? (productId || task.target_id) : (projName || task.target_id || productId);
+    const targetId = (isScrapeTask || isRerollTask) ? (productId || task.target_id) : (projName || task.target_id || productId);
 
     if (targetTab === 'flow' && (productId || targetId) && onSelectProductForFlow) {
       onSelectProductForFlow(productId || targetId);
@@ -255,6 +261,7 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
       onNavigateTab(targetTab, {
         targetId,
         projectName: projName,
+        angleId,
         taskResult: task.result,
         task,
       });

@@ -72,6 +72,9 @@ npm test
 
 
 
+- [x] Round POST-5 — ยกระดับความสมบูรณ์และเสถียรภาพของวงจรชีวิตคลิปที่โพสต์แล้ว (Full Posted Evidence & Lifecycle Integrity Lockdown) (2026-09-08)
+- [x] Round POST-4 — ป้องกันการลบวิดีโอที่โพสต์แล้วใน Gallery, ล็อกไม่ให้เรนเดอร์ซ้ำในหน้าตัดต่อ และแก้ปัญหาย้อนสถานะ (2026-09-08)
+- [x] Round BUG-4 — แก้ไขคลิปบวมสะสมทุกครั้งที่เรนเดอร์ (Transition Overlap Compounding Feedback Loop) (2026-09-08)
 - [x] Round RAW-1 - Raw Vault rename recovery and responsive clip layout (2026-09-07)
 - [x] Round EDT-1 - Editor UX/UI Friction and Speed Optimization (2026-09-07)
 - [x] Round HOK-1 - Custom Hook Template Studio (สร้างและบันทึกแม่แบบฮุกด้วยตัวเอง) (2026-09-07)

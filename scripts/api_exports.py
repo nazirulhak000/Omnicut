@@ -287,7 +287,10 @@ def list_exports():
         disk_proj = item["disk_proj"]
 
         info = get_file_info(f)
-        info["is_posted"] = f.parent.resolve() == POSTED_DIR.resolve()
+        info["is_posted"] = (
+            f.parent.resolve() == POSTED_DIR.resolve()
+            or bool(matched_angle and (matched_angle.get("status") == "posted" or matched_angle.get("posted_at")))
+        )
         if not info.get("cover_path"):
             project_name = (matched_angle or {}).get("project_name") or matched_proj_name
             project_cover = _find_project_cover(project_name)

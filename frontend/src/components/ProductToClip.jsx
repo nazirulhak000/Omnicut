@@ -4,12 +4,12 @@ import {
   AlertCircle, ArrowRight, Upload, Trash2, RefreshCw, Plus, Film, Video,
   ChevronDown, ChevronUp, ChevronRight, Package, Rocket, FolderOpen, X,
   Search, LayoutGrid, Filter, Play, Lock, Edit3, Replace, Columns, List,
-  ShoppingBag
+  ShoppingBag, ShieldCheck
 } from 'lucide-react';
 import {
   scrapeAndPlanProduct, scrapeAndPlanProductAsync, getProducts, updateProduct,
   updateAngleStatus, updateAngleVideos, setDefaultVideosForProduct, deleteProduct,
-  uploadFile, resolveTiktokProductId
+  uploadFile, resolveTiktokProductId, rerollAngleScript
 } from '../api';
 import { Modal, Toast, Button, Badge, Input, Textarea, ConfirmModal } from './ui';
 import MediaPickerModal from './MediaPickerModal';
@@ -23,6 +23,31 @@ import { guessBrandModel } from '../lib/overlayModel';
 // sheet, review screenshots) -- capped so a single analyze request stays a
 // handful of images, not an unbounded upload.
 const MAX_ANALYZE_IMAGES = 5;
+
+// Mirrors scripts/product_scraper.py's DURATION_SPECS -- keep these Thai
+// labels byte-for-byte identical to the backend constants so the UI never
+// promises a duration tier the backend doesn't recognize.
+const DURATION_OPTIONS = [
+  { val: '30s', label: '30 วินาที (สั้นกระชับ)' },
+  { val: '60s', label: '60 วินาที (มาตรฐาน)' },
+  { val: '90s', label: '90 วินาที (แอดวานซ์ ละเอียด)' },
+];
+
+// Mirrors scripts/product_scraper.py's EXTRA_BEAT_BLOCKS.
+const EXTRA_BEAT_OPTIONS = [
+  { val: 'spec_detail', label: 'สเปก/สรรพคุณละเอียด' },
+  { val: 'comparison', label: 'เปรียบเทียบของเดิม vs ของใหม่' },
+  { val: 'use_cases', label: 'การใช้งานจริง/เคสตัวอย่างหลายสถานการณ์' },
+  { val: 'faq', label: 'ตอบคำถามที่มักเจอ (FAQ) / ข้อกังวล' },
+];
+
+// Sensible default checkbox pre-check per duration tier, matching the
+// backend's own default extra-beat mix (30s -> none, 60s -> first 2, 90s -> all).
+function defaultExtraBeatsForDuration(duration) {
+  if (duration === '90s') return EXTRA_BEAT_OPTIONS.map(o => o.val);
+  if (duration === '60s') return EXTRA_BEAT_OPTIONS.slice(0, 2).map(o => o.val);
+  return [];
+}
 
 // ═══════════════════════════════════════════════════════════════════════
 // 📦 PRODUCT CARD (Horizontal Gallery Item)
@@ -228,7 +253,7 @@ function AngleMobilePill({ angle, index, isSelected, onSelect }) {
 function AngleActiveWorkbench({
   angle, index, onCopy, onSendToStudio, onOpenInTimeline, onPreviewExportVideo, copiedIndex,
   videos = [], onToggleVideoForAngle, onUploadVideo, uploadingImg = false,
-  onOpenMediaPicker, onSaveScript, onOpenFindReplace
+  onOpenMediaPicker, onSaveScript, onOpenFindReplace, onRerollScript
 }) {
   const lines = Array.isArray(angle.script_lines)
     ? angle.script_lines
@@ -351,6 +376,15 @@ function AngleActiveWorkbench({
                 {copiedIndex === index
                   ? <><Check className="w-3.5 h-3.5 text-emerald-400" /> <span className="hidden xs:inline sm:inline">คัดลอกแล้ว</span></>
                   : <><Copy className="w-3.5 h-3.5" /> <span>คัดลอก</span></>}
+              </button>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onRerollScript && onRerollScript(index); }}
+                className="px-2 sm:px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-fuchsia-300 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all"
+                title="ให้ AI เขียนสคริปต์ใหม่สำหรับมุมนี้"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span className="hidden xs:inline sm:inline">รีสคริปต์ด้วย AI</span>
               </button>
             </>
           )}
@@ -647,7 +681,7 @@ function ScriptAccordionItem({
   angle, index, isOpen, onToggle, onCopy, onSendToStudio, onOpenInTimeline, onPreviewExportVideo, copiedIndex,
   videos = [], onToggleVideoForAngle, onUploadVideo, uploadingImg = false,
   onOpenMediaPicker,
-  onSaveScript, onOpenFindReplace
+  onSaveScript, onOpenFindReplace, onRerollScript
 }) {
   const lines = Array.isArray(angle.script_lines)
     ? angle.script_lines
@@ -665,7 +699,14 @@ function ScriptAccordionItem({
     }
   }, [lines, angle.hook_title, isEditing]);
 
+  const curStatus = angle.status || 'scripted';
+  const isPosted = curStatus === 'posted' || !!angle.posted_at;
+  // ONLY rendered if an actual video export URL exists or status is posted!
+  const isRendered = (curStatus === 'rendered' || isPosted) && (!!angle.video_url);
+  const isInProduction = !isPosted && (curStatus === 'in_production' || (!!angle.project_name && !isRendered));
+
   const handleStartEdit = (e) => {
+    if (isPosted) return;
     e?.stopPropagation?.();
     setEditText(lines.join('\n'));
     setEditHook(angle.hook_title || '');
@@ -679,6 +720,7 @@ function ScriptAccordionItem({
   };
 
   const handleSave = () => {
+    if (isPosted) return;
     const newLines = editText
       .split('\n')
       .map(l => l.trim())
@@ -690,17 +732,12 @@ function ScriptAccordionItem({
     setIsEditing(false);
   };
 
-  const curStatus = angle.status || 'scripted';
-  // ONLY rendered if an actual video export URL exists or status is posted!
-  const isRendered = (curStatus === 'rendered' || curStatus === 'posted') && (!!angle.video_url);
-  const isInProduction = curStatus === 'in_production' || (!!angle.project_name && !isRendered);
-
-  const statusLabel = curStatus === 'posted' ? 'โพสต์แล้ว'
+  const statusLabel = isPosted ? 'โพสต์แล้ว'
     : isRendered ? 'ตัดเสร็จแล้ว'
     : isInProduction ? 'กำลังตัดต่อ'
     : 'สคริปต์พร้อม';
 
-  const statusColor = curStatus === 'posted' ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+  const statusColor = isPosted ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
     : isRendered ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
     : isInProduction ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
     : 'bg-white/[0.05] text-slate-400 border-white/[0.08]';
@@ -850,27 +887,36 @@ function ScriptAccordionItem({
               <div className="flex items-center justify-between text-sm text-slate-400 font-semibold">
                 <span>บทพูดพากย์ ({lines.length} ท่อน):</span>
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleStartEdit}
-                    className="text-amber-300 hover:text-amber-200 hover:underline flex items-center gap-1 cursor-pointer font-bold text-xs"
-                    title="แก้ไขบทพูดในกล่องนี้โดยตรง"
-                  >
-                    <Edit3 className="w-3.5 h-3.5" />
-                    <span>แก้ไข</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onOpenFindReplace && onOpenFindReplace(index);
-                    }}
-                    className="text-cyan-300 hover:text-cyan-200 hover:underline flex items-center gap-1 cursor-pointer font-bold text-xs"
-                    title="ค้นหาและแทนที่คำในสคริปต์ทั้งหมด"
-                  >
-                    <Replace className="w-3.5 h-3.5" />
-                    <span>แทนที่คำ</span>
-                  </button>
+                  {isPosted ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] font-bold">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>โพสต์แล้ว (ล็อกเนื้อหา)</span>
+                    </span>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleStartEdit}
+                        className="text-amber-300 hover:text-amber-200 hover:underline flex items-center gap-1 cursor-pointer font-bold text-xs"
+                        title="แก้ไขบทพูดในกล่องนี้โดยตรง"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        <span>แก้ไข</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenFindReplace && onOpenFindReplace(index);
+                        }}
+                        className="text-cyan-300 hover:text-cyan-200 hover:underline flex items-center gap-1 cursor-pointer font-bold text-xs"
+                        title="ค้นหาและแทนที่คำในสคริปต์ทั้งหมด"
+                      >
+                        <Replace className="w-3.5 h-3.5" />
+                        <span>แทนที่คำ</span>
+                      </button>
+                    </>
+                  )}
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); onCopy(lines.join('\n'), index); }}
@@ -880,12 +926,27 @@ function ScriptAccordionItem({
                       ? <><Check className="w-3 h-3 text-emerald-400" /> คัดลอกแล้ว</>
                       : <><Copy className="w-3 h-3" /> คัดลอก</>}
                   </button>
+                  {!isPosted && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onRerollScript && onRerollScript(index); }}
+                      className="text-fuchsia-300 hover:text-fuchsia-200 hover:underline flex items-center gap-1 cursor-pointer font-bold text-xs"
+                      title="ให้ AI เขียนสคริปต์ใหม่สำหรับมุมนี้"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>รีสคริปต์ด้วย AI</span>
+                    </button>
+                  )}
                 </div>
               </div>
               <div
                 onClick={handleStartEdit}
-                className="p-2.5 rounded-lg bg-black/40 hover:bg-black/60 border border-white/[0.06] hover:border-white/[0.18] space-y-1 max-h-44 overflow-y-auto font-mono text-xs text-slate-200 leading-relaxed cursor-pointer transition-colors group/box relative"
-                title="คลิกที่กล่องนี้เพื่อแก้ไขสคริปต์ได้ทันที"
+                className={`p-2.5 rounded-lg border space-y-1 max-h-44 overflow-y-auto font-mono text-xs leading-relaxed transition-colors group/box relative ${
+                  isPosted
+                    ? 'bg-black/20 border-white/[0.06] text-slate-300 cursor-default'
+                    : 'bg-black/40 hover:bg-black/60 border border-white/[0.06] hover:border-white/[0.18] text-slate-200 cursor-pointer'
+                }`}
+                title={isPosted ? "สคริปต์นี้ถูกโพสต์แล้ว ถูกล็อกเก็บไว้เป็นหลักฐาน" : "คลิกที่กล่องนี้เพื่อแก้ไขสคริปต์ได้ทันที"}
               >
                 {lines.map((line, lIdx) => (
                   <div key={lIdx} className="flex items-start gap-1.5">
@@ -913,7 +974,15 @@ function ScriptAccordionItem({
 
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
               {/* Media Picker Modal Trigger Button */}
-              {isInProduction ? (
+              {isPosted ? (
+                <div
+                  className="flex-shrink-0 flex items-center gap-1.5 py-1.5 px-3 rounded-lg border text-xs font-bold bg-emerald-500/10 border-emerald-500/30 text-emerald-300 select-none cursor-not-allowed"
+                  title="คลิปนี้โพสต์ลง TikTok แล้ว ล็อกรายการคลิปเก็บเป็นหลักฐาน"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>คลิปที่โพสต์แล้ว ({selectedVideos.length})</span>
+                </div>
+              ) : isInProduction ? (
                 <div
                   className="flex-shrink-0 flex items-center gap-1.5 py-1.5 px-3 rounded-lg border text-xs font-bold bg-amber-500/10 border-amber-500/30 text-amber-300 select-none cursor-not-allowed"
                   title="สคริปต์นี้กำลังตัดต่อจริงในไทม์ไลน์ ล็อครายการคลิปตามไทม์ไลน์จริง"
@@ -999,10 +1068,10 @@ function ScriptAccordionItem({
                       onPreviewExportVideo && onPreviewExportVideo(angle);
                     }}
                     className="py-2 px-3.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-400/40 text-cyan-300 hover:text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-cyan-500/10 cursor-pointer active:scale-95 transition-all"
-                    title="เปิดดูวิดีโอที่ตัดต่อและ Export เสร็จแล้ว (ตรวจ QC)"
+                    title={isPosted ? "เปิดดูวิดีโอที่โพสต์แล้วบน TikTok (หลักฐาน)" : "เปิดดูวิดีโอที่ตัดต่อและ Export เสร็จแล้ว (ตรวจ QC)"}
                   >
                     <Film className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>ดูคลิปที่ Export แล้ว</span>
+                    <span>{isPosted ? "ดูคลิปที่โพสต์แล้ว" : "ดูคลิปที่ Export แล้ว"}</span>
                   </button>
                 )}
                 <button
@@ -1016,21 +1085,23 @@ function ScriptAccordionItem({
                     }
                   }}
                   className="py-2 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-500/25 cursor-pointer active:scale-95 transition-all"
-                  title="เปิดดูวิดีโอที่ตัดเสร็จแล้วในไทม์ไลน์ทันที"
+                  title={isPosted ? "เปิดดูวิดีโอในไทม์ไลน์หน้าตัดต่อ (โหมดล็อกสำหรับคลิปที่โพสต์แล้ว)" : "เปิดดูวิดีโอที่ตัดเสร็จแล้วในไทม์ไลน์ทันที"}
                 >
                   <Play className="w-3.5 h-3.5 fill-white text-white" />
                   <span>เปิดดูในไทม์ไลน์</span>
                   <ArrowRight className="w-3 h-3 text-white/80" />
                 </button>
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); onSendToStudio(angle, index); }}
-                  className="py-2 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 text-xs font-medium flex items-center gap-1 border border-white/[0.1] cursor-pointer"
-                  title="ส่งไปปรับแต่งสคริปต์หรือตัดมุมนี้ใหม่"
-                >
-                  <RefreshCw className="w-3 h-3" />
-                  <span>ตัดใหม่</span>
-                </button>
+                {!isPosted && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onSendToStudio(angle, index); }}
+                    className="py-2 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 text-xs font-medium flex items-center gap-1 border border-white/[0.1] cursor-pointer"
+                    title="ส่งไปปรับแต่งสคริปต์หรือตัดมุมนี้ใหม่"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    <span>ตัดใหม่</span>
+                  </button>
+                )}
               </>
             ) : isInProduction ? (
               <>
@@ -1096,7 +1167,7 @@ function ScriptAccordionItem({
 // ═══════════════════════════════════════════════════════════════════════
 // 🌟 MAIN: ProductToClip Component (Redesigned Guided Workflow)
 // ═══════════════════════════════════════════════════════════════════════
-export default function ProductToClip({ status, videos = [], onRefresh, onApplyToStudio, onGoToGallery, selectedProductId }) {
+export default function ProductToClip({ status, videos = [], onRefresh, onApplyToStudio, onGoToGallery, selectedProductId, consumePendingAngleId }) {
   // Input Mode & Active View
   const [showAddModal, setShowAddModal] = useState(false);
   const [inputMode, setInputMode] = useState('link');
@@ -1160,6 +1231,18 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
   // Angle Count Selection
   const [angleCount, setAngleCount] = useState(7); // Default: 7 (Sweet Spot)
+  // Duration Selection (independent of angleCount -- both apply together)
+  const [duration, setDuration] = useState('30s'); // Default matches backend default
+
+  // Reroll-Script Modal State (per-angle AI script reroll, separate from video reroll)
+  const [rerollModalAngleIdx, setRerollModalAngleIdx] = useState(null); // null = closed
+  const [rerollDuration, setRerollDuration] = useState('30s');
+  const [rerollExtraBeats, setRerollExtraBeats] = useState([]);
+  const [rerollingScript, setRerollingScript] = useState(false);
+  // Tracks the angle_id of an in-flight reroll so the completion refresh
+  // (driven by refreshTrigger, same as the scrape-and-plan flow) can restore
+  // focus to that angle instead of resetting to angle 0 like a fresh product load.
+  const pendingRerollAngleIdRef = useRef(null);
 
   // Edit TikTok Product ID Modal State (Backlog & Post-creation support)
   const [showEditTiktokIdModal, setShowEditTiktokIdModal] = useState(false);
@@ -1240,10 +1323,18 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const fileInputRef = useRef(null);
 
   // Load History on Mount or when background task finishes
-  const loadHistory = async (targetId = null) => {
+  const loadHistory = async (targetId = null, isStale = () => false) => {
     setLoadingHistory(true);
     try {
       const res = await getProducts();
+      // React StrictMode's dev-only double-invoke of mount effects fires
+      // this effect (and its loadHistory call) twice in a row for the same
+      // mount; both calls' selectProduct() would otherwise race to consume
+      // pendingRerollAngleIdRef, with whichever resolves second always
+      // winning and resetting the just-restored angle back to index 0. The
+      // isStale() check lets the effect's own cleanup mark its first
+      // in-flight call obsolete once StrictMode's second invoke starts.
+      if (isStale()) return;
       if (res.products) {
         setHistoryList(res.products);
         if (res.products.length > 0) {
@@ -1260,10 +1351,33 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   };
 
   useEffect(() => {
-    loadHistory(selectedProductId);
+    // A reroll jump from the Activity Center's task list carries its angle
+    // id through App-level ref state (consumePendingAngleId), read-and-cleared
+    // once here. Because useRef persists across React StrictMode's dev-only
+    // double-invoke of this effect (same fiber, only effects/cleanups
+    // re-run), pendingRerollAngleIdRef.current -- set on the first invoke --
+    // is still there for the second invoke to see even though
+    // consumePendingAngleId() itself only returns non-null once.
+    const pendingId = consumePendingAngleId?.();
+    if (pendingId) {
+      pendingRerollAngleIdRef.current = pendingId;
+    }
+    // Both StrictMode invokes call loadHistory(), each racing to resolve and
+    // call selectProduct() (which reads-and-clears the ref above) -- without
+    // this guard, whichever resolves *second* always wins, and if that's the
+    // stale first invoke's call, it sees an already-cleared ref and stomps
+    // the just-restored angle back to index 0. Marking each invoke's own
+    // call stale from its own cleanup ensures only the surviving invoke's
+    // call is allowed to apply its result.
+    let stale = false;
+    loadHistory(selectedProductId, () => stale);
     const onFocus = () => loadHistory(selectedProductId);
     window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
+    return () => {
+      stale = true;
+      window.removeEventListener('focus', onFocus);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProductId, refreshTrigger]);
 
   const selectProduct = (item) => {
@@ -1280,8 +1394,20 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       tiktok_product_id: item.tiktok_product_id || '',
       product_code: item.product_code || '',
     });
-    setAngles(item.angles || []);
-    setOpenAngleIdx(0); // Reset accordion to first angle
+    const nextAngles = item.angles || [];
+    setAngles(nextAngles);
+    // Normally reset to the first angle on a fresh product load -- but if a
+    // script reroll just completed (pendingRerollAngleIdRef set right before
+    // this reload was triggered), restore focus to that same angle instead
+    // of yanking the user back to angle 0 right after they asked to reroll
+    // a specific one. Checked here (not a separate effect keyed on
+    // refreshTrigger) so there's no race with this same reload's own
+    // async completion -- by the time selectProduct runs, nextAngles is the
+    // authoritative freshly-loaded list.
+    const pendingId = pendingRerollAngleIdRef.current;
+    pendingRerollAngleIdRef.current = null;
+    const restoredIdx = pendingId ? nextAngles.findIndex(a => a.angle_id === pendingId) : -1;
+    setOpenAngleIdx(restoredIdx >= 0 ? restoredIdx : 0);
     setSelectedImages([]);
   };
 
@@ -1350,6 +1476,53 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     }
   };
 
+  // ── Per-Angle AI Script Reroll (separate from the video-render reroll system) ──
+  const handleOpenRerollScriptModal = (angleIdx) => {
+    const target = angles[angleIdx];
+    if (!target) return;
+    const existingDuration = target.duration || '30s';
+    setRerollDuration(existingDuration);
+    setRerollExtraBeats(
+      Array.isArray(target.extra_beats) ? target.extra_beats : defaultExtraBeatsForDuration(existingDuration)
+    );
+    setRerollModalAngleIdx(angleIdx);
+  };
+
+  const handleCloseRerollScriptModal = () => {
+    if (rerollingScript) return; // don't let a stray click drop an in-flight request's modal state
+    setRerollModalAngleIdx(null);
+  };
+
+  const handleToggleRerollExtraBeat = (val) => {
+    setRerollExtraBeats(prev => prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]);
+  };
+
+  const handleSubmitRerollScript = async () => {
+    if (!productData?.id || rerollModalAngleIdx === null) return;
+    const targetAngle = angles[rerollModalAngleIdx];
+    if (!targetAngle?.angle_id) return;
+
+    setRerollingScript(true);
+    try {
+      const res = await rerollAngleScript(productData.id, targetAngle.angle_id, {
+        duration: rerollDuration,
+        extra_beats: rerollExtraBeats,
+      });
+      if (res.success && res.task_id) {
+        pendingRerollAngleIdRef.current = targetAngle.angle_id;
+        setRerollModalAngleIdx(null);
+        showToast(`🚀 กำลังรีสคริปต์มุม "${targetAngle.angle_name || ''}" ด้วย AI ในเบื้องหลัง...`);
+      } else {
+        showToast('ไม่สามารถเริ่มรีสคริปต์ได้', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to reroll script:', err);
+      showToast('ไม่สามารถรีสคริปต์ได้: ' + (err.friendlyMessage || err.message), 'error');
+    } finally {
+      setRerollingScript(false);
+    }
+  };
+
   const handleDeleteHistory = (target) => {
     if (!target) return;
     setDeleteTargetProduct(target);
@@ -1402,6 +1575,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         custom_keyword: customKeyword || undefined,
         image_paths: inputMode === 'image' ? selectedImages.map((img) => img.path) : undefined,
         angle_count: angleCount,
+        duration,
         tiktok_product_id: tiktokProductId.trim() || undefined,
       };
 
@@ -1745,6 +1919,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const postedAngles = angles.filter(a => a.status === 'posted' || a.status === 'rendered').length;
   const progressPercent = totalAngles > 0 ? Math.round((postedAngles / totalAngles) * 100) : 0;
   const activeAngleIdx = openAngleIdx >= 0 && openAngleIdx < angles.length ? openAngleIdx : 0;
+  const rerollTargetAngle = rerollModalAngleIdx !== null ? angles[rerollModalAngleIdx] : null;
 
   // ═══════════════════════════════════════════════════════════════
   // RENDER
@@ -2195,6 +2370,27 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
             </div>
           </div>
 
+          {/* ── Duration Selector (independent of angle count -- both apply together) ── */}
+          <div className="flex items-center gap-3 py-2.5 -mt-1">
+            <span className="text-xs text-slate-400 font-semibold">ความยาวคลิป:</span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {DURATION_OPTIONS.map(opt => (
+                <button
+                  key={opt.val}
+                  type="button"
+                  onClick={() => setDuration(opt.val)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${
+                    duration === opt.val
+                      ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 ring-1 ring-[#25F4EE]/20'
+                      : 'bg-white/[0.05] text-slate-400 border border-white/[0.08] hover:border-white/[0.2] hover:text-white'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Angle breakdown preview hint */}
           <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.06] text-[11px] text-slate-400 space-y-1">
             <div className="flex items-center gap-1.5 font-semibold text-slate-300">
@@ -2223,7 +2419,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
               ยกเลิก
             </Button>
             <Button variant="primary" onClick={handleScrapeAndPlan} loading={fetching} icon={Sparkles}>
-              วิเคราะห์ & สร้าง {angleCount} สคริปต์
+              วิเคราะห์ & สร้าง {angleCount} สคริปต์ x {DURATION_OPTIONS.find(o => o.val === duration)?.label || duration}
             </Button>
           </div>
         </div>
@@ -2361,6 +2557,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         setFindReplaceAngleIdx(i);
                         setFindReplaceOpen(true);
                       }}
+                      onRerollScript={handleOpenRerollScriptModal}
                     />
                   )}
                 </div>
@@ -2390,6 +2587,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       setFindReplaceAngleIdx(i);
                       setFindReplaceOpen(true);
                     }}
+                    onRerollScript={handleOpenRerollScriptModal}
                   />
                 ))}
               </div>
@@ -2461,6 +2659,87 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         currentAngleIndex={findReplaceAngleIdx}
         onApplyReplace={handleApplyFindReplace}
       />
+
+      {/* ── Reroll Script with AI Modal (per-angle, overwrites script in place) ── */}
+      <Modal
+        isOpen={rerollModalAngleIdx !== null}
+        onClose={handleCloseRerollScriptModal}
+        title="รีสคริปต์ด้วย AI"
+        subtitle={rerollTargetAngle ? `มุม: ${rerollTargetAngle.angle_name || ''}` : ''}
+        maxWidth="max-w-lg"
+      >
+        <div className="space-y-4">
+          {/* Duration Selector */}
+          <div className="space-y-1.5">
+            <span className="text-xs text-slate-400 font-semibold">ความยาวคลิป:</span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {DURATION_OPTIONS.map(opt => (
+                <button
+                  key={opt.val}
+                  type="button"
+                  onClick={() => {
+                    setRerollDuration(opt.val);
+                    // Re-sync the extra-beat checkboxes to this tier's default
+                    // mix -- without this, switching duration inside the modal
+                    // left whatever checkboxes were showing from the PREVIOUS
+                    // tier (e.g. still 0 checked after switching 30s -> 60s),
+                    // silently mismatched from what the length selector implies.
+                    setRerollExtraBeats(defaultExtraBeatsForDuration(opt.val));
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${
+                    rerollDuration === opt.val
+                      ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 ring-1 ring-[#25F4EE]/20'
+                      : 'bg-white/[0.05] text-slate-400 border border-white/[0.08] hover:border-white/[0.2] hover:text-white'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Extra Beats Checkboxes */}
+          <div className="space-y-1.5">
+            <span className="text-xs text-slate-400 font-semibold">เนื้อหาเสริมที่ต้องการ (เลือกได้หลายข้อ):</span>
+            <div className="space-y-1.5">
+              {EXTRA_BEAT_OPTIONS.map(opt => (
+                <label
+                  key={opt.val}
+                  className="flex items-center gap-2 p-2.5 rounded-xl border border-white/[0.08] bg-white/[0.03] text-xs text-slate-300 hover:text-white hover:border-white/[0.15] cursor-pointer transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={rerollExtraBeats.includes(opt.val)}
+                    onChange={() => handleToggleRerollExtraBeat(opt.val)}
+                    className="accent-[#25F4EE] w-3.5 h-3.5 cursor-pointer flex-shrink-0"
+                  />
+                  <span>{opt.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Overwrite Warning (only when the angle already has production progress) */}
+          {rerollTargetAngle && (rerollTargetAngle.project_name || rerollTargetAngle.video_url) && (
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span>
+                มุมนี้มีการตัดต่อ/วิดีโอผูกอยู่แล้ว — การรีสคริปต์จะเขียนบทพูดใหม่ทับของเดิมทันที (กู้คืนสคริปต์เก่าไม่ได้)
+                แต่โปรเจกต์/วิดีโอที่ตัดไว้จะยังอยู่เหมือนเดิม ไม่ถูกลบหรือรีเซ็ต
+              </span>
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/[0.08]">
+            <Button variant="secondary" onClick={handleCloseRerollScriptModal} disabled={rerollingScript}>
+              ยกเลิก
+            </Button>
+            <Button variant="primary" onClick={handleSubmitRerollScript} loading={rerollingScript} icon={Sparkles}>
+              รีสคริปต์
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* ── Product Catalog Modal (Searchable Grid for 100+ items) ── */}
       <Modal

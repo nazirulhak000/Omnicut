@@ -66,7 +66,7 @@ def test_scrape_and_plan_accepts_tiktok_product_id(isolated_store, monkeypatch):
     monkeypatch.setattr(
         ProductScraper,
         "generate_content_matrix",
-        lambda info, count=10, image_paths=None: [{
+        lambda info, count=10, **kwargs: [{
             "angle_id": "ang1",
             "angle_name": "Review",
             "hook_title": "Hook",
@@ -107,7 +107,7 @@ def test_scrape_and_plan_auto_extracts_id_from_tiktok_url(isolated_store, monkey
     monkeypatch.setattr(
         ProductScraper,
         "generate_content_matrix",
-        lambda info, count=10, image_paths=None: []
+        lambda info, count=10, **kwargs: []
     )
 
     client = TestClient(app)
@@ -149,7 +149,7 @@ def test_scrape_and_plan_handles_url_string_images_from_scrape(isolated_store, m
     )
     seen_image_paths = []
 
-    def fake_generate_content_matrix(info, count=10, image_paths=None):
+    def fake_generate_content_matrix(info, count=10, image_paths=None, **kwargs):
         seen_image_paths.append(image_paths)
         return []
 
@@ -163,9 +163,13 @@ def test_scrape_and_plan_handles_url_string_images_from_scrape(isolated_store, m
     assert res.status_code == 200, res.text
     data = res.json()
     assert data["success"] is True
-    # A remote scraped image has no local file -- vision can't read it, so it
-    # must be excluded from image_paths rather than crashing the lookup.
-    assert seen_image_paths == [[]]
+    # A remote scraped image has no local file, but generate_content_matrix
+    # downloads http(s) URLs on the fly -- so the normalized {name, url}
+    # image dicts must still reach vision as their URL, not be dropped.
+    assert seen_image_paths == [[
+        "https://p16-oec-sg.ibyteimg.com/tos-alisg/example1.webp",
+        "https://p16-oec-sg.ibyteimg.com/tos-alisg/example2.webp",
+    ]]
     # The product-page thumbnail still gets set from the scraped URL directly.
     assert data["saved_product"]["thumbnail"].startswith("https://")
 
