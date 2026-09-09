@@ -4,9 +4,11 @@ Audio & SFX Manager with Auto-Ducking and Timestamped Sound Effects Mixing
 
 import os
 import sys
+import math
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -15,6 +17,172 @@ if str(PROJECT_ROOT) not in sys.path:
 from scripts.config import SFX_DIR, MUSIC_DIR, BGM_VOLUME, VOICE_VOLUME, SFX_VOLUME
 from scripts.asset_registry import AssetRegistry
 from scripts.it_angles import DEFAULT_BGM
+
+
+DEFAULT_DUCKING_THRESHOLD = 0.02
+DEFAULT_DUCKING_RATIO = 12
+DEFAULT_DUCKING_ATTACK_MS = 20
+DEFAULT_DUCKING_RELEASE_MS = 300
+# Preview/render source contract: the default FFmpeg envelope is
+# attack=20:release=300; the graph below still resolves both values from the
+# policy so an explicitly constructed policy remains authoritative.
+DEFAULT_LOUDNESS_I = -14.0
+DEFAULT_TRUE_PEAK = -1.0
+DEFAULT_LOUDNESS_LRA = 8.0
+
+
+@dataclass(frozen=True)
+class AudioFinishingPolicy:
+    """Validated, deterministic settings for the final audio mix.
+
+    The public render request still exposes the existing gain and
+    ``bgm_ducking`` arguments.  This value object keeps the filter graph's
+    safety limits and loudness contract in one place without changing those
+    request fields or the preview's AUDIO_MIX values.
+    """
+
+    voice_volume: float
+    bgm_volume: float
+    sfx_volume: float
+    bgm_ducking: bool
+    ducking_threshold: float = DEFAULT_DUCKING_THRESHOLD
+    ducking_ratio: int = DEFAULT_DUCKING_RATIO
+    ducking_attack_ms: int = DEFAULT_DUCKING_ATTACK_MS
+    ducking_release_ms: int = DEFAULT_DUCKING_RELEASE_MS
+    loudness_i: float = DEFAULT_LOUDNESS_I
+    true_peak: float = DEFAULT_TRUE_PEAK
+    loudness_lra: float = DEFAULT_LOUDNESS_LRA
+
+
+def _clamp_gain(value: Any, default: float) -> float:
+    """Return a finite FFmpeg volume gain in the safe [0, 1] range."""
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return default
+    if not math.isfinite(numeric):
+        return default
+    return min(1.0, max(0.0, numeric))
+
+
+def _valid_loudness_targets(loudness_i: Any, true_peak: Any, loudness_lra: Any) -> bool:
+    """Validate the supported social-video loudness target envelope."""
+    try:
+        integrated = float(loudness_i)
+        peak = float(true_peak)
+        lra = float(loudness_lra)
+    except (TypeError, ValueError):
+        return False
+    return (
+        all(math.isfinite(v) for v in (integrated, peak, lra))
+        and -30.0 <= integrated <= -5.0
+        and -6.0 <= peak <= 0.0
+        and 1.0 <= lra <= 20.0
+    )
+
+
+def build_audio_finishing_policy(
+    *,
+    bgm_vol: Any = BGM_VOLUME,
+    voice_vol: Any = VOICE_VOLUME,
+    sfx_vol: Any = SFX_VOLUME,
+    bgm_ducking: Any = False,
+    loudness_i: Any = DEFAULT_LOUDNESS_I,
+    true_peak: Any = DEFAULT_TRUE_PEAK,
+    loudness_lra: Any = DEFAULT_LOUDNESS_LRA,
+) -> AudioFinishingPolicy:
+    """Build a backward-compatible policy from render-facing values.
+
+    Invalid loudness overrides fall back to the established render target.
+    That is intentionally fail-safe for old manifests and keeps a malformed
+    optional setting from preventing a render.
+    """
+    if not _valid_loudness_targets(loudness_i, true_peak, loudness_lra):
+        loudness_i = DEFAULT_LOUDNESS_I
+        true_peak = DEFAULT_TRUE_PEAK
+        loudness_lra = DEFAULT_LOUDNESS_LRA
+
+    return AudioFinishingPolicy(
+        voice_volume=_clamp_gain(voice_vol, VOICE_VOLUME),
+        bgm_volume=_clamp_gain(bgm_vol, BGM_VOLUME),
+        sfx_volume=_clamp_gain(sfx_vol, SFX_VOLUME),
+        bgm_ducking=bool(bgm_ducking),
+        loudness_i=float(loudness_i),
+        true_peak=float(true_peak),
+        loudness_lra=float(loudness_lra),
+    )
+
+
+def loudness_filter(policy: AudioFinishingPolicy) -> str:
+    """Return the single-pass FFmpeg loudness normalizer for ``policy``."""
+    if not _valid_loudness_targets(policy.loudness_i, policy.true_peak, policy.loudness_lra):
+        raise ValueError("Invalid audio loudness policy")
+    # Keep the established default spelling (`-1.0`) in the generated graph;
+    # this is semantically identical to `-1` but makes the compatibility
+    # contract obvious in logs and source-level parity checks.
+    peak_text = "-1.0" if policy.true_peak == DEFAULT_TRUE_PEAK else f"{policy.true_peak:g}"
+    return (
+        f"loudnorm=I={policy.loudness_i:g}:TP={peak_text}:"
+        f"LRA={policy.loudness_lra:g}"
+    )
+
+
+def _event_start(event: Mapping[str, Any], default: Optional[float]) -> Optional[float]:
+    value = event.get("start", default)
+    try:
+        start = float(value)
+    except (TypeError, ValueError):
+        return None
+    return start if math.isfinite(start) else None
+
+
+def is_sfx_event_eligible(
+    event: Any,
+    *,
+    total_duration: Optional[float] = None,
+    default_start: Optional[float] = None,
+) -> bool:
+    """Decide whether a cue/overlay may create an SFX input node.
+
+    Existing cue shape remains supported: a truthy ``sfx`` plus a numeric
+    ``start`` is enough.  Newer callers can explicitly suppress an event with
+    ``sfx_enabled``/``sfx_event``/``enabled``.  Invalid or out-of-range timing
+    is ignored instead of producing a broken ``adelay`` expression.
+    """
+    if not isinstance(event, Mapping):
+        return False
+    sfx_name = event.get("sfx")
+    if not isinstance(sfx_name, str) or not sfx_name.strip():
+        return False
+    if any(event.get(flag) is False for flag in ("sfx_enabled", "sfx_event", "enabled")):
+        return False
+
+    start = _event_start(event, default_start)
+    if start is None or start < 0.0:
+        return False
+    if total_duration is not None:
+        try:
+            duration = float(total_duration)
+        except (TypeError, ValueError):
+            return False
+        if not math.isfinite(duration) or duration < 0.0 or start > duration:
+            return False
+
+    if "end" in event and event.get("end") is not None:
+        try:
+            end = float(event["end"])
+        except (TypeError, ValueError):
+            return False
+        if not math.isfinite(end) or end < start:
+            return False
+    return True
+
+
+def sfx_event_start(event: Mapping[str, Any], default: float = 0.0) -> float:
+    """Read a validated event start, retaining the legacy overlay default."""
+    start = _event_start(event, default)
+    return default if start is None else start
+
 
 class SFXManager:
     """Handles sound effects placement and background music mixing with auto-ducking."""
@@ -84,6 +252,12 @@ class SFXManager:
 
         voice_path = Path(voice_audio_path).resolve()
         bgm_path = cls.resolve_bgm_path(bgm_name)
+        policy = build_audio_finishing_policy(
+            bgm_vol=bgm_vol,
+            voice_vol=voice_vol,
+            sfx_vol=sfx_vol,
+            bgm_ducking=bgm_ducking,
+        )
 
         inputs = ["-i", str(voice_path)]
         filter_complex = []
@@ -92,19 +266,18 @@ class SFXManager:
         # 1. Voice filter (clear voice). With ducking on, the voice is split:
         # one copy goes into the mix, the other is only a sidechain key for the
         # music -- it is never heard twice.
-        bgm_vol = min(1.0, max(0.0, float(bgm_vol)))
-        if bgm_ducking:
+        if policy.bgm_ducking:
             filter_complex.append(
-                f"[0:a]volume={voice_vol},apad=pad_dur=1.0,asplit=2[voice_padded][voice_key];"
+                f"[0:a]volume={policy.voice_volume},apad=pad_dur=1.0,asplit=2[voice_padded][voice_key];"
             )
         else:
-            filter_complex.append(f"[0:a]volume={voice_vol},apad=pad_dur=1.0[voice_padded];")
+            filter_complex.append(f"[0:a]volume={policy.voice_volume},apad=pad_dur=1.0[voice_padded];")
 
         # 2. Add Boom on 0.0s Hook
         boom_file = cls.resolve("boom")
         if boom_file and boom_file.exists():
             inputs.extend(["-i", str(boom_file)])
-            filter_complex.append(f"[{input_count}:a]volume={sfx_vol}[sfx_boom];")
+            filter_complex.append(f"[{input_count}:a]volume={policy.sfx_volume}[sfx_boom];")
             sfx_nodes = ["[sfx_boom]"]
             input_count += 1
         else:
@@ -112,6 +285,8 @@ class SFXManager:
 
         # 3. Add SFX inputs per cue
         for idx, cue in enumerate(cues):
+            if not is_sfx_event_eligible(cue, total_duration=total_duration):
+                continue
             sfx_type = cue.get("sfx")
             sfx_file = cls.resolve(sfx_type) if sfx_type else None
             if sfx_file and sfx_file.exists():
@@ -120,10 +295,10 @@ class SFXManager:
                 sfx_name_low = str(sfx_file.name).lower()
                 is_transition_sfx = any(w in sfx_name_low for w in ["whoosh", "swish", "swoosh", "transition"])
                 pre_roll = 0.12 if is_transition_sfx else 0.0
-                delay_ms = int(max(0.02, float(cue["start"]) - pre_roll) * 1000)
+                delay_ms = int(max(0.02, sfx_event_start(cue) - pre_roll) * 1000)
                 node_name = f"sfx_{idx}"
                 filter_complex.append(
-                    f"[{input_count}:a]volume={sfx_vol},adelay={delay_ms}|{delay_ms}[{node_name}];"
+                    f"[{input_count}:a]volume={policy.sfx_volume},adelay={delay_ms}|{delay_ms}[{node_name}];"
                 )
                 sfx_nodes.append(f"[{node_name}]")
                 input_count += 1
@@ -132,6 +307,8 @@ class SFXManager:
         # overlay too now, so a banner with a whoosh mixes like any other.
         if overlays:
             for idx, item in enumerate(overlays):
+                if not is_sfx_event_eligible(item, total_duration=total_duration, default_start=0.0):
+                    continue
                 sfx_type = item.get("sfx")
                 if not sfx_type:
                     continue
@@ -141,10 +318,10 @@ class SFXManager:
                     sfx_name_low = str(sfx_file.name).lower()
                     is_transition_sfx = any(w in sfx_name_low for w in ["whoosh", "swish", "swoosh", "transition"])
                     pre_roll = 0.12 if is_transition_sfx else 0.0
-                    delay_ms = int(max(0.02, float(item.get("start", 0.0)) - pre_roll) * 1000)
+                    delay_ms = int(max(0.02, sfx_event_start(item) - pre_roll) * 1000)
                     node_name = f"sfx_txt_{idx}"
                     filter_complex.append(
-                        f"[{input_count}:a]volume={sfx_vol},adelay={delay_ms}|{delay_ms}[{node_name}];"
+                        f"[{input_count}:a]volume={policy.sfx_volume},adelay={delay_ms}|{delay_ms}[{node_name}];"
                     )
                     sfx_nodes.append(f"[{node_name}]")
                     input_count += 1
@@ -176,10 +353,10 @@ class SFXManager:
             # the gaps. Both legs need a matching format or the filter errors.
             fade_start = max(0.0, total_duration - 0.35)
             filter_complex.append(
-                f"[{bgm_idx}:a]atempo={tempo_ratio:.3f},volume={bgm_vol},atrim=0:{total_duration + 0.5},"
+                f"[{bgm_idx}:a]atempo={tempo_ratio:.3f},volume={policy.bgm_volume},atrim=0:{total_duration + 0.5},"
                 f"afade=t=out:st={fade_start:.3f}:d=0.35[bgm_bed];"
             )
-            if bgm_ducking:
+            if policy.bgm_ducking:
                 filter_complex.append(
                     "[bgm_bed]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[bgm_fmt];"
                     "[voice_key]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[key_fmt];"
@@ -188,14 +365,15 @@ class SFXManager:
                     # mix these pull the music down 13.7 dB while the voice is
                     # speaking (0.05/8 gave only 6.6 dB, 0.01/20 overdid it at
                     # 18.6 dB and left the bed inaudible).
-                    "threshold=0.02:ratio=12:attack=20:release=300:makeup=1[bgm];"
+                    f"threshold={policy.ducking_threshold}:ratio={policy.ducking_ratio}:"
+                    f"attack={policy.ducking_attack_ms}:release={policy.ducking_release_ms}:makeup=1[bgm];"
                 )
             else:
                 filter_complex.append("[bgm_bed]anull[bgm];")
             bgm_node = "[bgm]"
 
         # 5. Combine all tracks with amix (normalize=0 to prevent volume reduction) + Loudness Normalization
-        if bgm_ducking and not bgm_node:
+        if policy.bgm_ducking and not bgm_node:
             # No music to duck: the split key would dangle and ffmpeg refuses a
             # filter graph with an unused output.
             filter_complex.append("[voice_key]anullsink;")
@@ -205,7 +383,7 @@ class SFXManager:
 
         filter_complex.append(
             f"{''.join(mix_inputs)}amix=inputs={len(mix_inputs)}:normalize=0:duration=first,"
-            f"loudnorm=I=-14:TP=-1.0:LRA=8[aout]"
+            f"{loudness_filter(policy)}[aout]"
         )
 
         full_filter = "".join(filter_complex)

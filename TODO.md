@@ -9,6 +9,7 @@
 | [TEMPLATE_MOTION_PLAN.md](file:///d:/Winona/Programmer/Capcut/TEMPLATE_MOTION_PLAN.md) | แผนยาวของงาน motion ข้อความ (Round 3–7) — เหตุผลและตัวเลขที่วัดมา |
 | [SYSTEM_AUDIT_2026-09-09.md](file:///d:/Winona/Programmer/Capcut/SYSTEM_AUDIT_2026-09-09.md) | รายงาน DB/Infra/System audit เต็ม (4-agent, read-only) |
 | [SYSTEM_AUDIT_FIX_PLAN.md](file:///d:/Winona/Programmer/Capcut/SYSTEM_AUDIT_FIX_PLAN.md) | แผนแก้ตาม audit ข้างบน แบ่ง 10 stream ขนาน + phase สำหรับยิง agent พร้อมกัน |
+| [PRO_EDITOR_STYLE_PLAN.md](file:///d:/Winona/Programmer/Capcut/PRO_EDITOR_STYLE_PLAN.md) | แผนยกระดับคุณภาพการตัดต่ออัตโนมัติด้วย Editorial Style Preset กลาง |
 | [.agents/rules/work_loop.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/work_loop.md) | กติกาว่าหนึ่งรอบทำยังไง ติ๊กยังไง ปิดรอบยังไง |
 
 ---
@@ -17,6 +18,9 @@
 ---
 
 - [ ] Round SEC-AUDIT-1 — แก้ตาม DB/Infra/System audit: security config (API auth เปิดโล่ง, path traversal), sticker resurrection ฝั่ง render, data-store transaction hazard — 10 stream ขนาน ดู SYSTEM_AUDIT_FIX_PLAN.md (2026-09-09, รอ codex agent เสร็จก่อนยิง)
+- [x] Round PRO-STYLE-1 — Professional Editing Style System: Phase 1 Style Contract + Golden Master (2026-09-09)
+- [x] Round PRO-STYLE-2 — Editorial Beat Map + Pacing Core (Phase 2A, isolated module; 2026-09-09)
+- [x] Round PRO-STYLE-2B — Integrate editorial pacing plan into subtitle pipeline and project manifest (2026-09-09)
 - [x] Round SFX-DL-1 — โหลดเสียงเอฟเฟกต์ทั้งหมดจาก myinstants.com/en/index/th/ เข้า 02_Assets/SFX/ (2026-09-09)
 - [x] Round SFX-CAT-1 — จัดหมวดหมู่ไฟล์เสียง mi_xxx 1,775 ไฟล์ เป็น 10 หมวดใน 02_Assets/SFX/ (2026-09-09)
 - [x] Round BUG-STATUS-1 — คลิปที่เรนเดอร์แล้วติดสถานะ "กำลังตัดต่อ" (2026-09-08)
@@ -175,7 +179,7 @@
 
 - อย่าปิดรอบนี้หรือย้ายไป HISTORY จนกว่าจะมีเฟรมเรนเดอร์ที่ user ยืนยันว่าไม่ซ้อน
 
-**ปิดไปแล้ว** (บล็อกเต็มอยู่ใน [HISTORY.md](file:///d:/Winona/Programmer/Capcut/HISTORY.md)):
+**ปิดไปแล้ว** (บล็อกเต็มอยู่ใน [HISTORY.md](file:///d:/Winona/Programmer/Capcut/HISTORY.md)): Round PRO-STYLE-1 — Professional Editing Style System: Phase 1 Style Contract + Golden Master (2026-09-09) · Round PRO-STYLE-2 — Editorial Beat Map + Pacing Core (Phase 2A, 2026-09-09)
 Round 1 รวม overlay เป็นโมเดลเดียว · Round 2 วางกฎรอบงาน · Round 3 ซ่อมฐาน+easing · Round DOC-1 อัปเดตเอกสาร · Round BUG-1 ซ่อมปุ่มสร้างคลิป executeRender · Round 4 per-word layout static · Round 5 per-word animation (word_stagger_ms) · Round 6 ช่องใหม่ที่ mirror ได้เป๊ะ (loop/out/skew) · Round 7 template v2 + แกลเลอรีที่ขยับได้ (8 templates + motion presets + inspector animated gallery) · Round BUG-2 ซ่อมข้อความ/Hook Header ซ้อนทับกันใน SequencePlayer · Round BUG-3 ซ่อม angle ชนกัน + ปุ่มปักตะกร้า TikTok ใน Content Tracker Hub · Round PROD-1 เพิ่มช่อง TikTok Product ID + Fallback ค้นหาด้วยชื่อ + Click-to-Edit Cart ID ย้อนหลัง · Round TRK-1 เพิ่มปุ่มส่ง TikTok Studio + Modal ตรวจสอบ/ปักตะกร้า ในหน้า Tracker · Round TRK-2 ตารางจัดคิวโพสต์ประจำวัน (Daily Run Sheet) & จัดกลุ่มย่อการ์ด (Product Grouping / Quick Pills) · Round TRK-3 บอร์ดหลักคลีนไร้ความรก (Today-Only Posted, คลังสคริปต์หยิบทำวันนี้ & การ์ดตัดต่อเสร็จแนวนอนกะทัดรัด) · Round STK-1 Interactive Sticker Timeline Track & Free Canvas Drag/Resize Parity · Round STK-2 Multi-Sticker Support, 3-Second Default Duration & Smooth Canvas Resizing · Round STK-3 Baseline 100% Size, Eye Toggle, Deletion, Preview-Before-Add · Round SUB-THAI-1 แก้สระและวรรณยุกต์ไทยซ้อนกัน · Round STK-PRO-1 ชุดสติกเกอร์และป้ายรีวิวสายไอทีระดับโปร
 
 > คู่ขนาน: [REFACTOR_PLAN.md](file:///d:/Winona/Programmer/Capcut/REFACTOR_PLAN.md) Phase 0–10 + Final เสร็จครบแล้ว (ทำโดย Codex) ไฟล์นั้นปิดงานแล้ว เก็บไว้อ้างอิง
@@ -570,6 +574,37 @@ Notes: ปรับปรุงโค้ด Extension ให้ตรงกั�
 ---
 
 ## รอบงาน
+
+## Round PRO-STYLE-2B — Integrate editorial pacing plan into subtitle pipeline and project manifest
+
+วันที่: 2026-09-09 · สั่งโดย: user · สถานะ: เสร็จ
+
+### เป้าหมาย
+
+- เชื่อม deterministic pacing core เข้ากับ timing จริงจาก `cues[*].word_timings`
+- บันทึกแผน pacing ที่ตรวจสอบย้อนหลังได้ใน project manifest และ incremental-render metadata
+- รักษา backward compatibility: ไม่มี word timing หรือ manifest เก่า ต้อง render ได้เหมือนเดิม
+- ยังไม่เปลี่ยนจุดตัด/ภาพของ FFmpeg ในรอบนี้จนกว่าจะมี parity/render gate สำหรับการนำ beat ไปใช้จริง
+
+### Todo
+
+- [x] เพิ่ม adapter ที่รวม word timings และ scene boundaries จาก cues โดยไม่ทำให้ข้อมูลต้นฉบับเสีย
+- [x] เพิ่ม `editorial_pacing` ใน PipelineContext และ manifest serialization
+- [x] ทำให้ incremental-render fingerprint รับรู้ pacing input อย่าง deterministic
+- [x] เพิ่ม contract tests สำหรับมี/ไม่มี word timing, malformed timing และ legacy manifest
+
+### Gate
+
+- [x] `python -m pytest tests/test_editorial_pacing.py tests/test_editorial_pacing_integration.py -q -p no:cacheprovider --tb=short` (12 passed)
+- [x] `python -m compileall -q scripts` (Pass)
+- [x] `git diff --check` (Pass; line-ending warnings only)
+
+### Notes
+
+- 12 integration tests ผ่าน; parity regression subset 162 passed; pipeline/incremental subset 19 passed
+- Full compatibility subset มี failure เดิม `test_create_edit_save_reload_full_fidelity` ได้ HTTP 401 จาก auth guard จึงไม่ใช่ผลยืนยันว่า full suite ผ่าน
+- ยังไม่ติ๊กผลด้านภาพ/FFmpeg เพราะรอบนี้สร้างและ persist plan เท่านั้น ยังไม่ apply beat เป็น cut จริง
+- มี working-tree changes นอก scope โผล่ระหว่างรอบใน `scripts/api_exports.py` และ `tests/test_post_lifecycle.py`; ไม่ได้แก้หรือ stage
 
 รอบที่ยังไม่ปิด เรียงจากที่ทำอยู่ไปข้างหน้า
 
@@ -1383,3 +1418,58 @@ Notes: Schedule code and steps 1-3 remain frozen.
 
 Notes: Schedule selection logic itself remains frozen; only checklist styling and cover metadata resolution changed.
 - [x] Round POST-LIFECYCLE-1 closure verified: `export_id` is propagated through render, Gallery, queue, Extension, mark-posted, delete, rename, and cover metadata; current GOCHEK angle now points to Posted proof.
+- [x] Round PRO-STYLE-2C — Apply editorial beat boundaries to generated clip list with Preview = Render parity (2026-09-09)
+
+- [x] Round PRO-STYLE-3A — Style-driven transition budget and project style preset contract (2026-09-09)
+- [x] Round PRO-STYLE-3B — Live keyframe camera motion with Preview = Render parity (2026-09-09)
+- [ ] Round PRO-STYLE-PARALLEL-4-6 — Parallelize style finishing, preset orchestration, and golden-master validation (2026-09-09; 4 disjoint agent lanes)
+
+## Round PRO-STYLE-PARALLEL-4-6 — Parallel style roadmap execution
+
+วันที่: 2026-09-09 · ผู้สั่ง: user · สถานะ: กำลังดำเนินการ
+
+เป้าหมาย: เดินงาน Phase 4–6 พร้อมกันโดยล็อก ownership รายไฟล์ ลดเวลารอ และคง Preview = Render, deterministic/offline tests, และ Phase 3B camera-motion behavior เดิม
+
+### Ownership lock
+
+- Agent A / Color finishing: `scripts/video_editor.py`, `tests/test_color_finishing.py` เท่านั้น
+- Agent B / Audio finishing: `scripts/sfx_manager.py`, `tests/test_audio_finishing_policy.py` เท่านั้น
+- Agent C / Preset orchestration UI: `frontend/src/components/editor/EditorShell.jsx`, `frontend/src/components/editor/AssetPanel.jsx`, `frontend/src/lib/stylePresetCatalog.js`, `frontend/src/lib/stylePresetCatalog.test.js` เท่านั้น
+- Agent D / Golden-master validation: `tools/golden_master_probe.py`, `tests/test_golden_master_probe.py`, `STYLE_GOLDEN_MASTER_REPORT.md` เท่านั้น
+- Main agent reserved: `TODO.md`, `HISTORY.md`, `PRO_EDITOR_STYLE_PLAN.md`, shared pipeline/schema files, and merge/review/gates
+- Existing unrelated working-tree files (`scripts/api_exports.py`, `tests/test_post_lifecycle.py`, `tiktok_autopost_extension/*`) are out of scope and must remain untouched
+
+### Gates
+
+- [x] Read/review every agent diff and confirm no ownership collision; 4 lanes stayed within their locked write sets
+- [x] Run focused tests for each returned lane: color 6, audio 15, golden-master 6, frontend catalog 6
+- [x] Run backend compileall, full backend pytest (`1019 passed, 12 warnings`), frontend npm test (`134 passed`), frontend build (`1976 modules`), and `git diff --check`
+- [x] Run real ASS/libass FFmpeg style validation: `clean_tech_review` emitted `#FFE600` and entry/hold/exit renders all contained yellow accent pixels.
+- [ ] Run browser Canvas-vs-libass pixel sampling at 50/100/300 clips; deterministic source/renderer contracts and FFmpeg behavior pass, but browser benchmark remains a separate manual validation gate.
+- [x] Update this block with numeric results; the round remains open only for the browser Canvas-vs-libass benchmark.
+- [ ] Move the complete block to `HISTORY.md` after the remaining browser gate passes.
+
+### Notes
+
+- Parallel lanes may create independent contracts and implementations, but integration dependencies are merged only after review by the main agent.
+- No agent may edit TODO/HISTORY/plan documents or commit changes.
+- [x] Regression found during full backend gate: `tests/test_preview_render_parity.py::test_ducking_uses_the_measured_reduction_not_a_feel_value` expected literal ducking filter parameters; audio lane preserved the source-parity contract while keeping policy values centralized.
+- [x] Audio source-parity regression fixed by the audio owner; focused audio/parity checks passed and full backend rerun passed (`1015 passed`).
+- [ ] Phase 4 is not fully signed off: color palette still does not recolor baked sticker/effect media; real temporary audio mix measured 5.2s, 44.1kHz stereo, mean `-16.8 dB`, peak `-4.0 dB`.
+- [x] Phase 5 visual integration: EditorShell passes `style_preset` into both live SequencePlayer instances; the shared `clean_tech_review` palette drives semantic overlay accent in Canvas and ASS.
+- [x] Phase 6 real-artifact validation: LOG01 and GOC01 pass with 3 samples each, 0 signals, and paired comparison pass; probe samples against video duration when an audio tail is longer.
+- [x] Repo-wide frontend lint exits 0 but reports existing warnings, including pre-existing warnings in `EditorShell.jsx`, `AssetPanel.jsx`, and shared hooks/components.
+
+### Continuation plan — real validation and remaining style integration (2026-09-09)
+
+- [x] Run `tools/golden_master_probe.py` against two available real exports with expected 1080x1920/30fps and required audio; both returned `pass`, 3 samples, 0 signals, and the comparison returned `pass`.
+- [x] Run a real temporary FFmpeg audio mix using isolated temp inputs and verify the produced audio: 5.2s WAV, 44.1kHz stereo, mean `-16.8 dB`, peak `-4.0 dB`.
+- [x] Audit `SequencePlayer.jsx` ownership; its existing camera-motion changes were preserved, then the authorized live style adapter was integrated without touching unrelated overlay geometry.
+- [x] Added deterministic regression coverage for the probe duration edge case and reran affected gates: golden probe `6 passed`; real artifact probe `pass`.
+- [x] Record numeric real-artifact results: baseline LOG01 `24.6s`, mean `-17.1 dB`, peak `-4.0 dB`; candidate GOC01 `55.948s`, mean `-18.1 dB`, peak `-3.9 dB`, A/V delta `0.014672s`, dimensions `1080x1920`, `30fps`.
+- [x] Real-artifact validation found a probe edge case: exit sampling used container/audio duration and could seek past the final video frame when audio was slightly longer; fixed to sample against video duration and added regression coverage.
+- [x] Continuation full gates after probe fix: backend `1016 passed, 9 warnings`; frontend `133 passed`; build `1976 modules`; compileall and `git diff --check` passed.
+- [x] Real artifact probe after fix: LOG01 and GOC01 both `pass`, each with 3 frame samples and 0 signals; paired comparison `pass`.
+- [x] `SequencePlayer.jsx` ownership audit completed; existing working-tree camera changes were preserved and the live style adapter was integrated into the same file.
+- [x] Live style visual adapter [main]: `style_preset` now flows EditorShell → SequencePlayer → SubtitleEngine/overlay events; parity assertions pass and the multi-frame FFmpeg render gate passes.
+- [x] Final real-artifact recheck (2026-09-10): LOG01 `pass` (24.6s, 1080x1920, 30fps, 44.1kHz stereo, A/V delta `0.011995s`, 3 samples, 0 signals); GOC01 `pass` (55.948s, 1080x1920, 30fps, 44.1kHz stereo, A/V delta `0.014672s`, 3 samples, 0 signals).

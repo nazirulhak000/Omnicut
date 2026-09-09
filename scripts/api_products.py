@@ -170,8 +170,11 @@ def update_product_angle_status(product_id: str, angle_id: str, payload: Dict[st
     """Updates status (draft, scripted, in_production, rendered, posted) of a specific angle script.
 
     Optional payload fields:
-      qc_note       – free-text QC failure reason (stored on the angle for Studio reference)
-      clear_qc_note – boolean; set True to wipe a previous qc_note when the clip passes QC
+      qc_note         – free-text QC failure reason (stored on the angle for Studio reference)
+      clear_qc_note   – boolean; set True to wipe a previous qc_note when the clip passes QC
+      mark_qc_passed  – boolean; set True only when a human actually clicked "QC ผ่าน".
+                        A rendered clip with no qc_note is NOT the same thing as a
+                        reviewed-and-approved clip -- see ProductStore.update_angle_status.
     """
     status = payload.get("status")
     video_url = payload.get("video_url")
@@ -180,6 +183,7 @@ def update_product_angle_status(product_id: str, angle_id: str, payload: Dict[st
     qc_note = payload.get("qc_note")          # str | None
     clear_qc_note = bool(payload.get("clear_qc_note", False))
     clear_conflict_note = bool(payload.get("clear_conflict_note", False))
+    mark_qc_passed = bool(payload.get("mark_qc_passed", False))
     if not status:
         raise HTTPException(status_code=400, detail="Missing status")
     if status == "posted" and not export_id:
@@ -198,6 +202,7 @@ def update_product_angle_status(product_id: str, angle_id: str, payload: Dict[st
             qc_note=qc_note,
             clear_qc_note=clear_qc_note,
             clear_conflict_note=clear_conflict_note,
+            mark_qc_passed=mark_qc_passed,
         )
         return {"success": True, "product": updated}
     except ValueError as err:

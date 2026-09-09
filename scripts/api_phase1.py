@@ -484,6 +484,7 @@ class RerollRequest(BaseModel):
     voice_rate: Optional[str] = None
     voice_preset: Optional[str] = None
     ad_tone: Optional[str] = None
+    style_preset: Optional[str] = None
     sticker_path: Optional[str] = None
     # The editor picks a badge by file name (same shape as RenderRequest);
     # "" means "no badge" and must clear whatever the manifest already has.
@@ -746,6 +747,7 @@ class UpdateProjectStateRequest(BaseModel):
     micro_cues: Optional[List[Dict[str, Any]]] = None
     clip_list: Optional[List[Dict[str, Any]]] = None
     transitions: Optional[List[Any]] = None
+    style_preset: Optional[str] = None
     style: Optional[Dict[str, Any]] = None
     # EditorShell.jsx's autosave and manual-save both send these on every
     # edit -- omitted here before, Pydantic silently drops unknown fields
@@ -808,6 +810,9 @@ def update_project_state(project_name: str, req: UpdateProjectStateRequest):
         if req.transitions is not None:
             fields["transitions"] = req.transitions
             render_params["transitions"] = req.transitions
+        if req.style_preset is not None:
+            fields["style_preset"] = req.style_preset
+            render_params["style_preset"] = req.style_preset
         if req.style is not None:
             fields["style"] = dict(req.style)
             for k, v in req.style.items():
@@ -878,6 +883,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
             "raw_video_path", "product_name", "key_features", "pain_point", "price_deal",
             "custom_script", "script_overlays", "voice", "voice_rate", "voice_engine_type",
             "voice_preset", "ad_tone", "human_voice_audio_path",
+            "style_preset",
             "hook_brand", "hook_model", "hook_label", "hook_duration", "hook_motion", "hook_colors", "hook_style",
             "overlays",
             "font_name", "bilingual_subtitles", "sticker_path", "bgm_name", "bgm_volume",
@@ -1021,6 +1027,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 voice_engine_type=params.get("voice_engine_type", "edge_tts"),
                 voice_preset=params.get("voice_preset"),
                 ad_tone=params.get("ad_tone", "commercial_premium"),
+                style_preset=params.get("style_preset", "clean_tech_review"),
                 human_voice_audio_path=params.get("human_voice_audio_path"),
                 overlays=params.get("overlays"),
                 hook_brand=params.get("hook_brand"),

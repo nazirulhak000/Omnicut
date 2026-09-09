@@ -195,10 +195,14 @@ const KanbanCard = memo(function KanbanCard({
                   >
                     QC ไม่ผ่าน
                   </button>
-                ) : (
+                ) : ang.qc_reviewed ? (
                   <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 flex items-center gap-0.5">
                     <Check className="w-2.5 h-2.5 text-emerald-400" />
                     <span>QC ผ่าน</span>
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-500/15 border border-amber-500/30 text-amber-300" title="เรนเดอร์เสร็จแล้ว แต่ยังไม่มีใครกด QC ผ่าน">
+                    รอตรวจ QC
                   </span>
                 )}
                 <button
@@ -1125,7 +1129,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     await fetchProductsData();
   }, [coverStudioItem, tiktokModalItem, showToast, fetchProductsData]);
 
-  const handleAngleStatusChange = useCallback(async (productId, angleId, nextStatus, videoUrl = null, qcNote = null, clearQcNote = false, clearConflictNote = false, exportId = null) => {
+  const handleAngleStatusChange = useCallback(async (productId, angleId, nextStatus, videoUrl = null, qcNote = null, clearQcNote = false, clearConflictNote = false, exportId = null, markQcPassed = false) => {
     try {
       if (nextStatus === 'posted') {
         const sourceAngle = products
@@ -1142,7 +1146,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
         showToast('มาร์กว่าโพสต์แล้วสำเร็จ');
         return;
       }
-      await updateAngleStatus(productId, angleId, nextStatus, videoUrl, null, qcNote, clearQcNote, clearConflictNote, exportId);
+      await updateAngleStatus(productId, angleId, nextStatus, videoUrl, null, qcNote, clearQcNote, clearConflictNote, exportId, markQcPassed);
       // Invalidate any in-flight fetchProductsData (even one started before this
       // patch) so its response can't resolve afterwards and overwrite this patch.
       productsRequestSequence.current += 1;
@@ -1153,11 +1157,16 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
             return {
               ...a,
               status: nextStatus,
-              ...(videoUrl ? { video_url: videoUrl } : {}),
-              ...(qcNote !== null ? { qc_note: qcNote } : {}),
+              // Mirrors ProductStore.update_angle_status's qc_reviewed reset
+              // rules so the badge doesn't show stale "reviewed" until the
+              // next full fetch: a genuinely new video is unreviewed, and a
+              // fresh rejection note un-approves whatever was there before.
+              ...(videoUrl && videoUrl !== a.video_url ? { video_url: videoUrl, qc_reviewed: false } : {}),
+              ...(qcNote !== null ? { qc_note: qcNote, ...(qcNote ? { qc_reviewed: false } : {}) } : {}),
               ...(clearQcNote ? { qc_note: null } : {}),
               ...(clearConflictNote ? { data_conflict_note: null } : {}),
               ...(exportId ? { export_id: exportId } : {}),
+              ...(markQcPassed ? { qc_reviewed: true } : {}),
             };
           }) || [];
           return { ...p, angles: updatedAngles };
@@ -1169,11 +1178,12 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
         setInspectAngle(prev => prev ? {
           ...prev,
           status: nextStatus,
-          ...(videoUrl ? { video_url: videoUrl } : {}),
-          ...(qcNote !== null ? { qc_note: qcNote } : {}),
+          ...(videoUrl && videoUrl !== prev.video_url ? { video_url: videoUrl, qc_reviewed: false } : {}),
+          ...(qcNote !== null ? { qc_note: qcNote, ...(qcNote ? { qc_reviewed: false } : {}) } : {}),
           ...(clearQcNote ? { qc_note: null } : {}),
           ...(clearConflictNote ? { data_conflict_note: null } : {}),
           ...(exportId ? { export_id: exportId } : {}),
+          ...(markQcPassed ? { qc_reviewed: true } : {}),
         } : null);
       }
       showToast('อัปเดตสถานะสำเร็จ');
@@ -1307,6 +1317,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
       true,     // clearQcNote
       false,
       ang.export_id || null,
+      true,     // markQcPassed -- a human actually clicked this button
     );
     showToast('🎉 QC ผ่านเรียบร้อยแล้ว! ล้างข้อความไม่ผ่านออก และการ์ดเป็นสีฟ้าพร้อมใช้งาน');
     setPreviewVideoUrl(null);

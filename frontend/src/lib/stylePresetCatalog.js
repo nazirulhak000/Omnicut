@@ -1,0 +1,80 @@
+/**
+ * Frontend catalog for project-level editorial styles.
+ *
+ * The backend currently exposes one Golden Master style. Keeping the catalog
+ * intentionally small prevents the UI from advertising presets that the
+ * renderer would silently downgrade to its default.
+ */
+export const DEFAULT_STYLE_PRESET = 'clean_tech_review';
+
+const STYLE_PRESETS = [
+  {
+    id: DEFAULT_STYLE_PRESET,
+    label: 'Clean Tech Review',
+    labelTh: 'รีวิวเทคแบบคลีน',
+    description: 'ภาพชัด มีจังหวะ และใช้ motion เฉพาะช็อตที่ควรเด่น',
+    motion: 'Motion แบบพอดี',
+    transitions: 'Hard cut เป็นหลัก',
+    audio: 'Voice นำหน้า พร้อม SFX เฉพาะ event สำคัญ',
+    // Renderer-facing tokens mirror scripts/style_motion_policy.py. accent is
+    // the semantic hook/highlight colour; cyan remains the status colour.
+    accent: '#FFE600',
+    status: '#25F4EE',
+    neutral: '#FFFFFF',
+  },
+];
+
+export const STYLE_PRESET_CATALOG = Object.freeze(
+  STYLE_PRESETS.map((preset) => Object.freeze({ ...preset })),
+);
+
+const STYLE_PRESET_IDS = new Set(STYLE_PRESET_CATALOG.map((preset) => preset.id));
+
+/** Return a renderer-supported id, falling back safely for old/unknown data. */
+export function normalizeStylePreset(value) {
+  const key = String(value ?? '').trim().toLowerCase();
+  return STYLE_PRESET_IDS.has(key) ? key : DEFAULT_STYLE_PRESET;
+}
+
+export function getStylePreset(value) {
+  const id = normalizeStylePreset(value);
+  return STYLE_PRESET_CATALOG.find((preset) => preset.id === id) || STYLE_PRESET_CATALOG[0];
+}
+
+/**
+ * Read both current and legacy manifest locations used by the pipeline.
+ * `fallbackStyle` is accepted for callers that already have migrated state.
+ */
+export function stylePresetFromManifest(manifest = {}, fallbackStyle = {}) {
+  const candidates = [
+    manifest.style_preset,
+    manifest.stylePreset,
+    manifest.render_params?.style_preset,
+    manifest.render_params?.stylePreset,
+    manifest.style?.style_preset,
+    manifest.style?.stylePreset,
+    fallbackStyle?.style_preset,
+    fallbackStyle?.stylePreset,
+  ];
+  const value = candidates.find((candidate) => candidate !== null && candidate !== undefined && candidate !== '');
+  return normalizeStylePreset(value);
+}
+
+/** Attach the project-level style contract without changing other payload data. */
+export function withStylePresetPayload(payload = {}, value) {
+  return {
+    ...payload,
+    style_preset: normalizeStylePreset(value),
+  };
+}
+
+/** Keep custom/catalog options unique by id while preserving their first order. */
+export function uniqueStylePresets(options = STYLE_PRESET_CATALOG) {
+  const seen = new Set();
+  return options.filter((preset) => {
+    const id = String(preset?.id ?? '').trim().toLowerCase();
+    if (!id || seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}

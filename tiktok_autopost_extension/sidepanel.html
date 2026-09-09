@@ -663,6 +663,13 @@
     border-width: 0 2.2px 2.2px 0;
     transform: rotate(45deg);
   }
+  .switch-row:has(input:disabled) {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .switch-row input[type="checkbox"]:disabled {
+    cursor: not-allowed;
+  }
 
   /* Pipeline Progress Header */
   .pipeline-header {

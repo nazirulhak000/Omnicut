@@ -9,7 +9,15 @@ const {
 // and refreshed on storage change rather than re-read on every request,
 // since this panel is a long-lived page, not a service worker.
 let apiKey = '';
-getStoredApiKey().then((key) => { apiKey = key; });
+// The very first loadExports() call below (at startup) must wait for this
+// to resolve -- chrome.storage.local.get() is asynchronous, so without
+// this, the panel's initial auto-load always fires with apiKey still ''
+// (401, no header sent) regardless of what's actually saved; only a
+// manual refresh clicked later -- by which point this promise has long
+// since resolved -- would happen to work. Subsequent calls (manual
+// refresh, mark-posted's reload) don't need to wait on this since apiKey
+// is long since populated by the time a user can click anything.
+const apiKeyReady = getStoredApiKey().then((key) => { apiKey = key; });
 if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes[OMNICUT_API_KEY_STORAGE_KEY]) {
@@ -115,6 +123,14 @@ function setBusy(value) {
   document.querySelectorAll('#panelChecklist button, #list button, #refreshBtn, #panelChecklist input, #panelChecklist textarea')
     .forEach(el => { el.disabled = value; });
   markPostedBtn.disabled = value || !activeClip;
+  // The loop above just force-enabled prepareDetailsBtn and prepareSchedule
+  // along with every other checklist button/input when value is false --
+  // reapply their own separate gating rules so finishing an unrelated step
+  // doesn't un-grey either of them.
+  if (!value) {
+    syncPrepareDetailsBtnState();
+    syncPrepareScheduleCheckboxState();
+  }
 }
 
 function setStatus(text, kind) {
@@ -176,6 +192,12 @@ function updatePipelineProgress() {
   const count = [1, 2, 3, 4, 5, 6].filter(n => document.getElementById(`chk${n}`)?.checked).length;
   fill.style.width = `${Math.round((count / 6) * 100)}%`;
   text.textContent = `${count} / 6 สำเร็จ`;
+  // This runs on every real state change to the checklist (wireStep setting
+  // chk.checked = true on success, resetChecklist, a manual toggle) --
+  // piggyback the shortcut button's own "step 1 done?" re-check on it
+  // instead of chk1's 'change' event, which never fires for the `.checked =
+  // true` assignments above (only real clicks dispatch 'change').
+  syncPrepareDetailsBtnState();
 }
 
 function resetChecklist() {
@@ -185,6 +207,9 @@ function resetChecklist() {
     checkbox.closest('.step-row')?.classList.remove('completed');
   });
   updatePipelineProgress();
+  // Setting .checked via JS doesn't fire 'change', so chk1's own listener
+  // won't catch this reset -- re-grey the shortcut button explicitly.
+  syncPrepareDetailsBtnState();
 }
 
 function renderActiveClipBanner() {
@@ -464,8 +489,48 @@ wireStep('btn6', 'chk6', 'แนบภาพปก',
   },
   'ส่งภาพปกและบันทึกแล้ว ตรวจภาพตัวอย่างบน TikTok ก่อนโพสต์');
 
-document.getElementById('prepareDetailsBtn').addEventListener('click', async () => {
+const prepareDetailsBtn = document.getElementById('prepareDetailsBtn');
+const prepareDetailsBtnReadyLabel = prepareDetailsBtn.innerHTML;
+
+// Greyed out (see .hero-post-btn:disabled) until step 1 is done -- clicking
+// it before the clip is uploaded has nothing to fill in on the TikTok page
+// yet, so this heads that off instead of letting it run and fail partway.
+// Note: step 1 turning green only means the file was handed to TikTok's
+// page (see runUploadFileOnly in background.js) -- it does not wait for
+// TikTok to finish actually receiving/processing it, since holding the
+// debugger attached that long is exactly what caused the tab-crash issue
+// noted elsewhere in background.js. So this button becomes clickable as
+// soon as step 1 is done, which is not necessarily the same moment as the
+// upload reaching 100% in TikTok's own UI.
+function syncPrepareDetailsBtnState() {
+  const uploaded = document.getElementById('chk1')?.checked;
+  prepareDetailsBtn.disabled = !uploaded;
+  prepareDetailsBtn.title = uploaded ? '' : 'อัปโหลดก่อน';
+  prepareDetailsBtn.innerHTML = uploaded ? prepareDetailsBtnReadyLabel : 'อัปโหลดก่อน';
+}
+document.getElementById('chk1')?.addEventListener('change', syncPrepareDetailsBtnState);
+syncPrepareDetailsBtnState();
+
+// Same idea for the schedule checkbox -- ticking it with no date/time
+// chosen yet just carries empty strings into runScheduleModeOnly, which
+// then fails on TikTok's page instead of here where the problem is obvious.
+const prepareScheduleCheckbox = document.getElementById('prepareSchedule');
+function syncPrepareScheduleCheckboxState() {
+  const hasDateTime = Boolean(scheduleDateInput.value && scheduleTimeInput.value);
+  prepareScheduleCheckbox.disabled = !hasDateTime;
+  prepareScheduleCheckbox.title = hasDateTime ? '' : 'เลือกวันเวลาก่อน';
+  if (!hasDateTime) prepareScheduleCheckbox.checked = false;
+}
+scheduleDateInput.addEventListener('change', syncPrepareScheduleCheckboxState);
+scheduleTimeInput.addEventListener('change', syncPrepareScheduleCheckboxState);
+syncPrepareScheduleCheckboxState();
+
+prepareDetailsBtn.addEventListener('click', async () => {
   if (busy) return;
+  if (!document.getElementById('chk1')?.checked) {
+    setStatus('อัปโหลดก่อน', 'error');
+    return;
+  }
   if (!activeClip?.cover_path || !productIdInput.value.trim()) {
     setStatus('ต้องเตรียมคลิปที่มีปก และกรอก ID สินค้าก่อน', 'error');
     return;
@@ -626,5 +691,5 @@ document.getElementById('headerOpenTikTokBtn')?.addEventListener('click', openTi
 });
 
 renderActiveClipBanner();
-loadExports();
+apiKeyReady.then(loadExports);
 updatePipelineProgress();

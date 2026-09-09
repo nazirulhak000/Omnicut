@@ -6,6 +6,8 @@ import {
   buildSegments,
   totalDuration,
   localTimeAt,
+  motionTimeAt,
+  resolveClipTransforms,
   transitionOverlap,
   splitClipAt,
   shiftTrimWindow,
@@ -97,6 +99,33 @@ test('localTimeAt correctly maps sequence time into source clip time with freeze
   assert.equal(localTimeAt(seg, 8.0), 4.0);
   // during freeze tail (9.5s) -> still holds 4.0s (freeze last frame)
   assert.equal(localTimeAt(seg, 9.5), 4.0);
+});
+
+test('resolveClipTransforms applies linear camera keyframes with live clamps', () => {
+  const clip = {
+    zoom: 1.2,
+    keyframes: [
+      { time: 0, zoom: 0.2, pan_x: -4, pan_y: 0.25 },
+      { time: 2, zoom: 2.2, pan_x: 4, pan_y: 1.5 },
+    ],
+  };
+
+  assert.deepEqual(resolveClipTransforms(clip, 0), { zoom: 1.0, pan_x: -1.0, pan_y: 0.25 });
+  assert.deepEqual(resolveClipTransforms(clip, 1), { zoom: 1.2, pan_x: 0.0, pan_y: 0.875 });
+  assert.deepEqual(resolveClipTransforms(clip, 2), { zoom: 2.2, pan_x: 1.0, pan_y: 1.0 });
+  assert.deepEqual(resolveClipTransforms({}, 0), { zoom: 1.0, pan_x: 0.0, pan_y: 0.0 });
+});
+
+test('motionTimeAt uses played time and holds the last keyframe through freeze tail', () => {
+  const seg = {
+    clip: { trim_start: 4, trim_end: 8, speed: 2, freeze_tail: 1 },
+    srcDur: 10,
+    segStart: 3,
+  };
+  assert.equal(motionTimeAt(seg, 3), 0);
+  assert.equal(motionTimeAt(seg, 4), 1);
+  assert.equal(motionTimeAt(seg, 5), 2);
+  assert.equal(motionTimeAt(seg, 6), 2);
 });
 
 test('splitClipAt returns two valid clip pieces and reserves freeze tail for the right piece only', () => {

@@ -1,1 +1,24 @@
-[]
+[
+  {
+    "id": "781b83d078994605b6e6c38b9ff848a4",
+    "video_path": "04_Exports/Ready_to_post/LOG01-ปัญหาก่อนใช้_1_20260908_201928.mp4",
+    "video_key": "export:exp_3b4b54b9a4bf4a0ab56a2770a670437e",
+    "export_id": "exp_3b4b54b9a4bf4a0ab56a2770a670437e",
+    "scheduled_at": "2026-09-10T12:30+07:00",
+    "status": "planned",
+    "product_id": "20260904233315_1",
+    "angle_id": "pain_point",
+    "product_name": "Logitech Wave Keys",
+    "project_name": "LOG01-ปัญหาก่อนใช้_1",
+    "hook_title": "🛑 พิมพ์งานจนปวดข้อมือร้าวสะสม? เปลี่ยนมาใช้สิ่งนี้ชีวิตเปลี่ยนข้ามคืน!",
+    "cover_path": "05_Covers_Thumbnails/LOG01-ปัญหาก่อนใช้_1_cover.jpg",
+    "cover_url": "/api/media/05_Covers_Thumbnails/LOG01-%E0%B8%9B%E0%B8%B1%E0%B8%8D%E0%B8%AB%E0%B8%B2%E0%B8%81%E0%B9%88%E0%B8%AD%E0%B8%99%E0%B9%83%E0%B8%8A%E0%B9%89_1_cover.jpg",
+    "caption": "บอกลาอาการปวดข้อมือจากการพิมพ์งาน! อัปเกรดชีวิตด้วย Logitech Wave Keys ดีไซน์โค้งรับสรีระพร้อมเบาะนุ่มสบายที่สุด พิกัดในตะกร้าเลย 👇",
+    "hashtags": "#นายหน้าtiktok #รีวิวของดี #ของมันต้องมี #tiktokป้ายยา #พิกัดในตะกร้า",
+    "tiktok_product_id": "1737230577125983588",
+    "created_at": "2026-09-09T16:51:00+00:00",
+    "updated_at": "2026-09-09T16:51:00+00:00",
+    "extension_prepared_at": null,
+    "posted_at": null
+  }
+]

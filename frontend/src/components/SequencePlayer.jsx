@@ -17,8 +17,10 @@ import {
   resolveLook,
 } from '../lib/overlayModel';
 import {
-  buildSegments, totalDuration as totalDurationOf, getDrawPlan as planAt
+  buildSegments, totalDuration as totalDurationOf, getDrawPlan as planAt,
+  resolveClipTransforms,
 } from '../lib/timelineMath';
+import { DEFAULT_STYLE_PRESET, getStylePreset } from '../lib/stylePresetCatalog.js';
 import { requestOverlayLayout, getCachedOverlayLayout } from '../lib/overlayLayoutClient.js';
 import {
   projectOverlayScale,
@@ -260,10 +262,10 @@ function circleWeightAt(kind, p, dNorm) {
 }
 
 /** Draws one clip's frame with its grade, at `alpha`. */
-function drawClipInto(ctx, video, clip, alpha = 1) {
+function drawClipInto(ctx, video, clip, alpha = 1, motionTime = 0) {
   ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
   ctx.filter = clipFilter(clip);
-  const painted = drawVideoFrame(ctx, video, clip);
+  const painted = drawVideoFrame(ctx, video, clip, motionTime);
   ctx.globalAlpha = 1;
   ctx.filter = 'none';
   return painted;
@@ -285,13 +287,13 @@ function paintEntry(ctx, entry, video, offscreen) {
     const [dx, dy] = role === 'out' ? slide[0] : slide[1];
     ctx.save();
     ctx.translate(dx, dy);
-    const painted = drawClipInto(ctx, video, clip);
+    const painted = drawClipInto(ctx, video, clip, 1, entry.motionTime);
     ctx.restore();
     return painted;
   }
 
   if (role !== 'in') {
-    const painted = drawClipInto(ctx, video, clip);
+    const painted = drawClipInto(ctx, video, clip, 1, entry.motionTime);
     // The outgoing side of a bridge fade also lays down the colour it dips
     // through, so the incoming side only has to blend over it.
     if (painted && role === 'out' && (kind === 'fadeblack' || kind === 'fadewhite')) {
@@ -314,7 +316,7 @@ function paintEntry(ctx, entry, video, offscreen) {
     oc.setTransform(1, 0, 0, 1, 0, 0);
     oc.globalCompositeOperation = 'source-over';
     oc.clearRect(0, 0, CANVAS_W, CANVAS_H);
-    if (!drawClipInto(oc, video, clip)) return false;
+    if (!drawClipInto(oc, video, clip, 1, entry.motionTime)) return false;
     oc.globalCompositeOperation = 'destination-in';
     oc.drawImage(dissolveMaskFor(p), 0, 0);
     oc.globalCompositeOperation = 'source-over';
@@ -331,7 +333,7 @@ function paintEntry(ctx, entry, video, offscreen) {
     oc.setTransform(1, 0, 0, 1, 0, 0);
     oc.globalCompositeOperation = 'source-over';
     oc.clearRect(0, 0, CANVAS_W, CANVAS_H);
-    if (!drawClipInto(oc, video, clip)) return false;
+    if (!drawClipInto(oc, video, clip, 1, entry.motionTime)) return false;
     const cx = CANVAS_W / 2;
     const cy = CANVAS_H / 2;
     const z = Math.hypot(cx, cy);
@@ -353,18 +355,19 @@ function paintEntry(ctx, entry, video, offscreen) {
   ctx.beginPath();
   if (clipIncomingRegion(ctx, kind, p)) {
     ctx.clip();
-    const painted = drawClipInto(ctx, video, clip);
+    const painted = drawClipInto(ctx, video, clip, 1, entry.motionTime);
     ctx.restore();
     return painted;
   }
   ctx.restore();
 
   const blend = (kind === 'fadeblack' || kind === 'fadewhite') ? bridgeWeights(p).wB : alpha;
-  return drawClipInto(ctx, video, clip, blend);
+  return drawClipInto(ctx, video, clip, blend, entry.motionTime);
 }
 
-function drawVideoFrame(ctx, video, clip) {
+function drawVideoFrame(ctx, video, clip, motionTime = 0) {
   if (!video || !video.videoWidth || video.readyState < 2) return false;
+  const camera = resolveClipTransforms(clip, motionTime);
   const rotation = Number(clip?.rotation || 0) % 360;
   const isRotated90or270 = rotation === 90 || rotation === 270;
   const vw = isRotated90or270 ? video.videoHeight : video.videoWidth;
@@ -379,12 +382,12 @@ function drawVideoFrame(ctx, video, clip) {
 
   // Zoom crops into that cover-fit rect; pan slides it across the room the
   // zoom left, the same -1..1 mapping frame_geometry() uses in video_editor.py.
-  const zoom = Math.min(3, Math.max(1, clip?.zoom || 1));
+  const zoom = camera.zoom;
   if (zoom > 1.001) {
     const zw = sw / zoom, zh = sh / zoom;
     const roomX = sw - zw, roomY = sh - zh;
-    const panX = Math.min(1, Math.max(-1, clip?.pan_x || 0));
-    const panY = Math.min(1, Math.max(-1, clip?.pan_y || 0));
+    const panX = camera.pan_x;
+    const panY = camera.pan_y;
     sx += (roomX / 2) * (1 + panX);
     sy += (roomY / 2) * (1 + panY);
     sw = zw; sh = zh;
@@ -397,9 +400,9 @@ function drawVideoFrame(ctx, video, clip) {
   // showing whole.
   const useBgBlur = !!clip?.bg_blur || clip?.fit_mode === 'blur';
   if (useBgBlur && rotation === 0) {
-    const zoomK = Math.min(3, Math.max(1, clip?.zoom || 1));
-    const panX = Math.min(1, Math.max(-1, clip?.pan_x || 0));
-    const panY = Math.min(1, Math.max(-1, clip?.pan_y || 0));
+    const zoomK = camera.zoom;
+    const panX = camera.pan_x;
+    const panY = camera.pan_y;
     ctx.save();
     // zoom/pan act on the finished composite, so they are a transform here
     ctx.translate(CANVAS_W / 2, CANVAS_H / 2);
@@ -2156,6 +2159,7 @@ function SequencePlayer({
   audioUrl = null,
   audioStems = null,
   grade = null,
+  stylePreset = DEFAULT_STYLE_PRESET,
   trackMix = null,
   compact = false,
   onPlayhead,
@@ -2185,6 +2189,8 @@ function SequencePlayer({
   showSafeZone: externalShowSafeZone = undefined,
   onToggleSafeZone = null,
 }, ref) {
+  const visualStyle = useMemo(() => getStylePreset(stylePreset), [stylePreset]);
+  const previewAccentColor = visualStyle?.accent || '#FFE600';
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const boundsRef = useRef([]);
@@ -2270,14 +2276,14 @@ function SequencePlayer({
     setPlayhead(t);
   };
 
-  const captionKey = `${captionStyle.hidden}:${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}:${captionStyle.captionX ?? ''}:${captionStyle.captionY ?? ''}:${captionStyle.fontName}`;
+  const captionKey = `${captionStyle.hidden}:${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}:${captionStyle.captionX ?? ''}:${captionStyle.captionY ?? ''}:${captionStyle.fontName}:${visualStyle.id}`;
   const cuesKey = (cues || []).map(c => `${c._uid || c.id}:${c.start}:${c.end}:${c.text}:${c.translation}:${c.scale || 1}:${c.x ?? ''}:${c.y ?? ''}:${c.position ?? ''}`).join(';;');
   // An overlay carries a whole look per tier now, so anything short of the
   // real thing would miss a colour or an outline the user just changed.
   const overlaysKey = JSON.stringify(drawnOverlays);
   const stickerKey = `${stickerStyle.badge}:${stickerStyle.position}:${stickerStyle.scale}:${stickerStyle.startTime}:${stickerStyle.endTime}:${stickerStyle.normX}:${stickerStyle.normY}`;
   const stickersKey = (stickers || []).map(s => `${s.id}:${s.badge}:${s.start}:${s.end}:${s.scale}:${s.normX}:${s.normY}:${s.hidden}`).join('|');
-  const clipKey = clips.map(c => `${c.id}:${c.source_path}:${c.trim_start}:${c.trim_end}:${c.transition_in}:${c.transition_duration}:${c.brightness}:${c.contrast}:${c.saturation}:${c.zoom}:${c.pan_x}:${c.pan_y}:${c.mirror}:${c.rotation}`).join('|');
+  const clipKey = clips.map(c => `${c.id}:${c.source_path}:${c.trim_start}:${c.trim_end}:${c.transition_in}:${c.transition_duration}:${c.brightness}:${c.contrast}:${c.saturation}:${c.zoom}:${c.pan_x}:${c.pan_y}:${c.mirror}:${c.rotation}:${JSON.stringify(c.keyframes || [])}`).join('|');
 
 
   // Interactive Bounding Box calculations
@@ -3121,14 +3127,14 @@ function SequencePlayer({
     if (!captionStyle.hidden) {
       drawCaption(ctx, cues, t, captionStyle, bounds);
     }
-    drawOverlays(ctx, drawnOverlays, t, captionStyle.captionColor || '#FFE600', bounds);
+    drawOverlays(ctx, drawnOverlays, t, previewAccentColor, bounds);
     boundsRef.current = bounds;
   };
 
   useEffect(() => {
     renderAt(playheadRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [segments, captionKey, stickerKey, stickersKey, cuesKey, overlaysKey, lutReady, grade?.intensity]);
+  }, [segments, captionKey, stickerKey, stickersKey, cuesKey, overlaysKey, lutReady, grade?.intensity, previewAccentColor]);
 
   const lastNotifyRef = useRef(0);
 
@@ -3267,7 +3273,7 @@ function SequencePlayer({
         if (!captionStyle.hidden) {
           drawCaption(ctx, cues, t, captionStyle, bounds);
         }
-        drawOverlays(ctx, drawnOverlays, t, captionStyle.captionColor || '#FFE600', bounds);
+        drawOverlays(ctx, drawnOverlays, t, previewAccentColor, bounds);
         boundsRef.current = bounds;
       }
 

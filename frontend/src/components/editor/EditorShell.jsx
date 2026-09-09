@@ -23,6 +23,11 @@ import { useEditorCommands } from '../../hooks/useEditorCommands';
 import { useEditorShortcuts } from '../../hooks/useEditorShortcuts';
 import { toMediaUrl } from '../../lib/mediaUrl';
 import { editorStateToSavePayload, manifestToEditorState } from '../../lib/editorProjectState';
+import {
+  normalizeStylePreset,
+  stylePresetFromManifest,
+  withStylePresetPayload,
+} from '../../lib/stylePresetCatalog.js';
 import { removeItemById, updateItemById } from '../../lib/collectionOperations.js';
 import SequencePlayer from '../SequencePlayer';
 import AssetPanel from './AssetPanel';
@@ -113,7 +118,7 @@ const LEGACY_SFX_ALIASES = {
   boom: 'sfx_vine_boom',
 };
 
-const EMPTY = { clipList: [], cuesList: [], overlays: [], stickers: [], effects: [], trackMix: { mute: {}, solo: {} }, style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false, captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1, stickerPosition: 'top_right', stickerScale: 1 } };
+const EMPTY = { clipList: [], cuesList: [], overlays: [], stickers: [], effects: [], trackMix: { mute: {}, solo: {} }, style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false, captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1, stickerPosition: 'top_right', stickerScale: 1, style_preset: 'clean_tech_review' } };
 
 let idCounter = 0;
 const newId = () => `clip-${Date.now().toString(36)}-${++idCounter}`;
@@ -468,6 +473,7 @@ export default function EditorShell({
   // caption style change has to ask for the subtitles part instead.
   const loadedCaptionStyle = useRef({ captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1 });
 
+  const activeStylePreset = normalizeStylePreset(style?.style_preset);
   const savePayload = useMemo(() => editorStateToSavePayload({
     clipList,
     cuesList,
@@ -478,6 +484,10 @@ export default function EditorShell({
     trackMix,
     microCuesList,
   }), [clipList, cuesList, overlays, stickers, effects, style, trackMix, microCuesList]);
+  const projectSavePayload = useMemo(
+    () => withStylePresetPayload(savePayload, activeStylePreset),
+    [savePayload, activeStylePreset],
+  );
   const {
     saveStatus,
     setSaveStatus,
@@ -486,7 +496,7 @@ export default function EditorShell({
     setBaseline: setSaveBaseline,
   } = useProjectAutosave({
     projectName,
-    payload: savePayload,
+    payload: projectSavePayload,
     enabled: !!projectName && isLoadedRef.current,
     saveProject: updateProjectState,
   });
@@ -497,6 +507,11 @@ export default function EditorShell({
   }), []);
 
   const applyLoadedProject = useCallback((name, loaded, manifest) => {
+    const loadedStylePreset = stylePresetFromManifest(manifest, loaded.style);
+    const loadedEditorState = {
+      ...loaded,
+      style: { ...loaded.style, style_preset: loadedStylePreset },
+    };
     setProjectName(name);
     try {
       if (name) {
@@ -516,27 +531,30 @@ export default function EditorShell({
     setAudioUrl(loaded.mixedAudioPath ? toMediaUrl(loaded.mixedAudioPath) : null);
     setVoiceUrl(loaded.voiceAudioPath ? toMediaUrl(loaded.voiceAudioPath) : null);
     loadedCaptionStyle.current = {
-      captionPosition: loaded.style.captionPosition,
-      captionColor: loaded.style.captionColor,
-      captionScale: loaded.style.captionScale,
+      captionPosition: loadedEditorState.style.captionPosition,
+      captionColor: loadedEditorState.style.captionColor,
+      captionScale: loadedEditorState.style.captionScale,
     };
     loadedAudioStyle.current = {
-      bgmName: loaded.style.bgmName,
-      bgmVolume: loaded.style.bgmVolume,
-      bgmDucking: loaded.style.bgmDucking,
+      bgmName: loadedEditorState.style.bgmName,
+      bgmVolume: loadedEditorState.style.bgmVolume,
+      bgmDucking: loadedEditorState.style.bgmDucking,
     };
     reset({
-      clipList: loaded.clipList,
-      cuesList: loaded.cuesList,
-      overlays: loaded.overlays,
-      stickers: loaded.stickers || [],
-      effects: loaded.effects || [],
-      trackMix: loaded.trackMix || { mute: {}, solo: {} },
-      style: loaded.style,
+      clipList: loadedEditorState.clipList,
+      cuesList: loadedEditorState.cuesList,
+      overlays: loadedEditorState.overlays,
+      stickers: loadedEditorState.stickers || [],
+      effects: loadedEditorState.effects || [],
+      trackMix: loadedEditorState.trackMix || { mute: {}, solo: {} },
+      style: loadedEditorState.style,
     });
-    setAudioDuration(loaded.audioDuration);
+    setAudioDuration(loadedEditorState.audioDuration);
     cuesDirty.current = false;
-    setSaveBaseline(name, editorStateToSavePayload(loaded));
+    setSaveBaseline(
+      name,
+      withStylePresetPayload(editorStateToSavePayload(loadedEditorState), loadedStylePreset),
+    );
     isLoadedRef.current = true;
   }, [reset, setSaveBaseline]);
 
@@ -1091,6 +1109,10 @@ export default function EditorShell({
     set((prev) => ({ ...prev, style: { ...prev.style, ...patch } }));
   }, [set]);
 
+  const patchStylePreset = useCallback((presetId) => {
+    patchStyle({ style_preset: normalizeStylePreset(presetId) });
+  }, [patchStyle]);
+
 
   // Building the videoItem CoverStudioModal expects from whatever the editor
   // currently knows about this angle -- same shape ContentTrackerHub's
@@ -1221,7 +1243,7 @@ export default function EditorShell({
       } catch (e) {}
     }
     try {
-      await updateProjectState(projectName, savePayload).catch(() => {});
+      await updateProjectState(projectName, projectSavePayload).catch(() => {});
       const audioMutes = trackMix.mute || {};
 
       const res = await startReroll({
@@ -1244,6 +1266,7 @@ export default function EditorShell({
         bgm_ducking: !!style.bgmDucking,
         audio_mutes: audioMutes,
         export_preset: exportPreset,
+        style_preset: activeStylePreset,
         caption_position: style.captionPosition || 'bottom',
         caption_color: style.captionColor || '#FFFFFF',
         caption_scale: style.captionScale ?? 1,
@@ -1670,6 +1693,7 @@ export default function EditorShell({
                   audioUrl={audioUrl}
                   audioStems={audioStems}
                   grade={grade}
+                  stylePreset={activeStylePreset}
                   trackMix={trackMix}
                   captionStyle={{
                     captionPosition: style.captionPosition,
@@ -1946,6 +1970,8 @@ export default function EditorShell({
                       durations={durations}
                       assets={assets}
                       style={style}
+                      stylePreset={activeStylePreset}
+                      onStylePresetChange={patchStylePreset}
                       stickers={stickers}
                       selectedStickerId={selection?.type === 'sticker' ? selection.id : null}
                       previewSticker={previewSticker}
@@ -2084,6 +2110,8 @@ export default function EditorShell({
                         durations={durations}
                         assets={assets}
                         style={style}
+                        stylePreset={activeStylePreset}
+                        onStylePresetChange={patchStylePreset}
                         stickers={stickers}
                         selectedStickerId={selection?.type === 'sticker' ? selection.id : null}
                         previewSticker={previewSticker}
@@ -2159,6 +2187,7 @@ export default function EditorShell({
                     audioUrl={audioUrl}
                     audioStems={audioStems}
                     grade={grade}
+                    stylePreset={activeStylePreset}
                     trackMix={trackMix}
                     captionStyle={{
                       captionPosition: style.captionPosition,

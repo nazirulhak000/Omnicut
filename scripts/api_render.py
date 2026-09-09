@@ -123,6 +123,7 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                 voice_engine_type=voice_engine_type,
                 voice_preset=req_data.voice_preset,
                 ad_tone=req_data.ad_tone or "commercial_premium",
+                style_preset=req_data.style_preset,
                 human_voice_audio_path=human_voice_path,
                 overlays=req_data.overlays,
                 hook_brand=req_data.hook_brand,

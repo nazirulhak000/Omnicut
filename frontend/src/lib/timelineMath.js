@@ -61,6 +61,49 @@ export function interpolateKeyframes(keyframes, time, fallback) {
   return last.value;
 }
 
+// Camera motion is evaluated in the clip's played timeline (seconds after
+// speed has been applied), not in source-file time. These limits mirror the
+// live crop path in scripts/video_editor.py; keeping them here prevents a
+// keyframe from asking Canvas to show a frame FFmpeg would reject.
+export const CAMERA_MOTION_LIMITS = {
+  zoom: { min: 1.0, max: 3.0 },
+  pan_x: { min: -1.0, max: 1.0 },
+  pan_y: { min: -1.0, max: 1.0 },
+};
+
+function clampCameraValue(property, value, fallback) {
+  const numeric = Number.isFinite(Number(value)) ? Number(value) : fallback;
+  const bounds = CAMERA_MOTION_LIMITS[property];
+  return bounds
+    ? Math.min(bounds.max, Math.max(bounds.min, numeric))
+    : numeric;
+}
+
+/** Resolve the live camera transform at played local clip time. */
+export function resolveClipTransforms(clip = {}, localTime = 0) {
+  const keyframes = Array.isArray(clip.keyframes) ? clip.keyframes : [];
+  const extractTrack = (property) => keyframes
+    .filter((point) => point && typeof point === 'object'
+      && (point[property] !== undefined || point.property === property))
+    .map((point) => ({
+      time: point.time,
+      value: point[property] !== undefined ? point[property] : point.value,
+    }));
+
+  const base = {
+    zoom: clip.zoom ?? clip.scale ?? 1.0,
+    pan_x: clip.pan_x ?? clip.x ?? 0.0,
+    pan_y: clip.pan_y ?? clip.y ?? 0.0,
+  };
+  return Object.fromEntries(Object.keys(base).map((property) => {
+    const track = extractTrack(property);
+    const value = track.length
+      ? interpolateKeyframes(track, localTime, base[property])
+      : base[property];
+    return [property, clampCameraValue(property, value, base[property])];
+  }));
+}
+
 // Zoom steps in pixels-per-second of timeline.
 export const ZOOM_LEVELS = [10, 25, 50, 100, 200];
 export const DEFAULT_ZOOM_INDEX = 2;
@@ -125,6 +168,14 @@ export function localTimeAt(seg, t) {
   return start + elapsed * speed;
 }
 
+/** Played local time used by visual keyframes (freeze holds the final value). */
+export function motionTimeAt(seg, t) {
+  const clip = seg.clip;
+  const speed = clip.speed || 1;
+  const playedSpan = ((clip.trim_end ?? seg.srcDur ?? 0) - (clip.trim_start || 0)) / speed;
+  return Math.max(0, Math.min(playedSpan, t - seg.segStart));
+}
+
 /**
  * Which clip(s) to draw at global time `t`, and at what alpha: two entries
  * (outgoing + incoming) inside a fade's overlap window, one otherwise.
@@ -142,7 +193,13 @@ export function getDrawPlan(segments, t) {
   if (idx === -1) idx = t < 0 ? 0 : segments.length - 1;
 
   const seg = segments[idx];
-  const plan = [{ seg, localTime: localTimeAt(seg, t), alpha: 1, role: 'solo' }];
+  const plan = [{
+    seg,
+    localTime: localTimeAt(seg, t),
+    motionTime: motionTimeAt(seg, t),
+    alpha: 1,
+    role: 'solo',
+  }];
 
   // Inside an overlap the pair carries the boundary type and how far through it
   // is, so the canvas can wipe/slide/dissolve the way ffmpeg will instead of
@@ -158,8 +215,8 @@ export function getDrawPlan(segments, t) {
     // instead left the composite at a*B + (1-a)^2*A over a cleared canvas --
     // total coverage sagging to 0.75 mid-transition, i.e. a visible dip to
     // the background that ffmpeg's xfade never shows.
-    plan[0] = { seg: prevSeg, localTime: localTimeAt(prevSeg, t), alpha: 1, role: 'out', transition, progress: alpha };
-    plan.push({ seg, localTime: localTimeAt(seg, t), alpha, role: 'in', transition, progress: alpha });
+    plan[0] = { seg: prevSeg, localTime: localTimeAt(prevSeg, t), alpha: 1, role: 'out', transition, progress: alpha, motionTime: motionTimeAt(prevSeg, t) };
+    plan.push({ seg, localTime: localTimeAt(seg, t), alpha, role: 'in', transition, progress: alpha, motionTime: motionTimeAt(seg, t) });
   }
   return plan;
 }

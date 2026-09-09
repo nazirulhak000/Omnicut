@@ -1847,7 +1847,14 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       adTone: angle.ad_tone || 'commercial_premium',
       selectedVideo: primaryVideo,
       selectedVideos: chosenVideos,
-      openProjectName: angle.project_name || '',
+      // No openProjectName here on purpose -- this handler backs both
+      // "เลือกมุมนี้ & ส่งตัดต่อ" (first-time send) and "ตัดใหม่" (explicitly
+      // re-cut from scratch), so it must always open a fresh project.
+      // handleOpenInTimeline below is the one that intentionally reopens
+      // angle.project_name for "เปิดทำต่อในไทม์ไลน์" (continue an existing,
+      // already-rendered project) -- this function used to copy that same
+      // line, so any angle carrying a stale project_name from an earlier,
+      // since-discarded project silently reopened it instead of starting new.
       openVideoUrl: angle.video_url || '',
       fullProduct: {
         id: productData?.id,

@@ -3,6 +3,7 @@ import subprocess
 import json
 import math
 import os
+import re
 import sys
 import threading
 from pathlib import Path
@@ -92,19 +93,166 @@ EQ_LIMITS = {
 }
 
 
+ACCENT_PALETTES = {
+    # The existing Golden Master uses the same yellow accent as the hook
+    # template's ACCENT_COLOR. Cyan is reserved for status/secondary UI, and
+    # white remains the neutral text colour. Keeping the palette here makes
+    # the renderer's colour vocabulary deterministic without recolouring
+    # baked sticker/effect media.
+    "clean_tech_review": {
+        "primary": "#FFE600",
+        "status": "#25F4EE",
+        "neutral": "#FFFFFF",
+    },
+}
+DEFAULT_ACCENT_PALETTE = "clean_tech_review"
+_HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+def _finite_number(value: Any, fallback: float) -> float:
+    """Parse a numeric style value without allowing NaN/Infinity into ffmpeg."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return fallback
+    return number if math.isfinite(number) else fallback
+
+
+def _normalise_hex_color(value: Any, fallback: str) -> str:
+    """Return a canonical six-digit colour, or the supplied safe fallback."""
+    if isinstance(value, str):
+        value = value.strip()
+        if len(value) == 4 and value.startswith("#"):
+            value = "#" + "".join(char * 2 for char in value[1:])
+        if _HEX_COLOR_RE.fullmatch(value):
+            return value.upper()
+    return fallback
+
+
+def resolve_accent_palette(
+    palette: Any = None,
+    *,
+    style_preset: Optional[str] = None,
+) -> Dict[str, str]:
+    """Resolve the small accent vocabulary shared by renderer-facing data.
+
+    ``palette`` may be an existing palette id or an object containing
+    ``primary``, ``status`` and/or ``neutral`` colours. Unknown ids and invalid
+    colours fall back to the Golden Master palette. This is intentionally a
+    pure resolver: it does not mutate a project manifest or source media.
+    """
+    requested_style = str(style_preset or DEFAULT_ACCENT_PALETTE).strip().lower()
+    base_name = requested_style if requested_style in ACCENT_PALETTES else DEFAULT_ACCENT_PALETTE
+    base = ACCENT_PALETTES[base_name]
+    requested = {}
+    if isinstance(palette, str):
+        palette_name = palette.strip().lower()
+        if palette_name in ACCENT_PALETTES:
+            base_name = palette_name
+            base = ACCENT_PALETTES[base_name]
+    elif isinstance(palette, dict):
+        requested = palette
+
+    return {
+        "name": base_name,
+        "primary": _normalise_hex_color(requested.get("primary", requested.get("accent")), base["primary"]),
+        "status": _normalise_hex_color(requested.get("status", requested.get("status_color")), base["status"]),
+        "neutral": _normalise_hex_color(requested.get("neutral"), base["neutral"]),
+    }
+
+
+def resolve_color_finish(
+    clip: Any,
+    *,
+    style_preset: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Normalize a clip's look contract before it enters the filter graph.
+
+    Older editor manifests store colour values flat on a clip. Newer callers
+    may put them in ``look`` or ``color_grade``. Flat values win, while absent
+    values remain at neutral defaults so a legacy clip emits no extra filter.
+    The result also carries a validated accent palette for future overlay
+    emitters; the current renderer deliberately leaves baked PNG/WebM colours
+    untouched.
+    """
+    data = clip if isinstance(clip, dict) else {}
+    nested_sources = []
+    for key in ("color_grade", "colorGrade", "look"):
+        value = data.get(key)
+        if isinstance(value, dict):
+            nested_sources.append(value)
+
+    sources = [*nested_sources, data]
+    resolved_style = next(
+        (
+            value
+            for source in reversed(sources)
+            for key in ("style_preset", "stylePreset")
+            if (value := source.get(key)) is not None
+        ),
+        style_preset,
+    )
+    style_key = str(resolved_style or DEFAULT_ACCENT_PALETTE).strip().lower()
+    if style_key not in ACCENT_PALETTES:
+        style_key = DEFAULT_ACCENT_PALETTE
+
+    eq = {}
+    for key, (low, high, default) in EQ_LIMITS.items():
+        value = None
+        for source in reversed(sources):
+            if key not in source or source[key] is None:
+                continue
+            try:
+                candidate = float(source[key])
+            except (TypeError, ValueError):
+                continue
+            if not math.isfinite(candidate):
+                continue
+            value = min(high, max(low, candidate))
+            break
+        if value is None:
+            continue
+        if abs(value - default) > 1e-3:
+            eq[key] = value
+
+    palette_value = next(
+        (
+            source[key]
+            for source in reversed(sources)
+            for key in ("accent_palette", "accentPalette")
+            if key in source
+        ),
+        None,
+    )
+    palette = resolve_accent_palette(palette_value, style_preset=style_key)
+    # Individual colour aliases are useful to existing flat clip payloads and
+    # should override only their corresponding palette slot.
+    direct_accent = next(
+        (source[key] for source in reversed(sources) for key in ("accent_color", "accentColor") if key in source),
+        None,
+    )
+    direct_status = next(
+        (source[key] for source in reversed(sources) for key in ("status_color", "statusColor") if key in source),
+        None,
+    )
+    if direct_accent is not None:
+        palette["primary"] = _normalise_hex_color(direct_accent, palette["primary"])
+    if direct_status is not None:
+        palette["status"] = _normalise_hex_color(direct_status, palette["status"])
+
+    return {"style_preset": style_key, "eq": eq, "palette": palette}
+
+
+def normalize_lut_intensity(value: Any, default: float = 1.0) -> float:
+    """Keep LUT blend strength finite and within FFmpeg's opacity contract."""
+    return min(1.0, max(0.0, _finite_number(value, default)))
+
+
 def build_eq_filter(clip: Dict[str, Any]) -> str:
     """`eq=...,` for one clip, or "" when every value is still the default."""
     parts = []
-    for key, (low, high, default) in EQ_LIMITS.items():
-        raw = clip.get(key)
-        if raw is None:
-            continue
-        try:
-            value = min(high, max(low, float(raw)))
-        except (TypeError, ValueError):
-            continue
-        if abs(value - default) > 1e-3:
-            parts.append(f"{key}={value}")
+    for key, value in resolve_color_finish(clip)["eq"].items():
+        parts.append(f"{key}={value}")
     return f"eq={':'.join(parts)}," if parts else ""
 
 
@@ -399,6 +547,138 @@ def interpolate_keyframes(keyframes: Any, time: float, fallback: float) -> float
     return points[-1][1]
 
 
+CAMERA_MOTION_LIMITS = {
+    "zoom": (1.0, 3.0),
+    "pan_x": (-1.0, 1.0),
+    "pan_y": (-1.0, 1.0),
+}
+
+
+def _camera_track(clip: Dict[str, Any], prop: str) -> List[Dict[str, Any]]:
+    """Extract one camera property from the mixed keyframe vocabulary."""
+    out = []
+    for point in clip.get("keyframes") if isinstance(clip.get("keyframes"), list) else []:
+        if not isinstance(point, dict):
+            continue
+        if prop in point:
+            out.append({"time": point.get("time"), "value": point.get(prop)})
+        elif point.get("property") == prop:
+            out.append({"time": point.get("time"), "value": point.get("value")})
+    return out
+
+
+def _clamp_camera_value(prop: str, value: Any, fallback: float) -> float:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        number = fallback
+    low, high = CAMERA_MOTION_LIMITS[prop]
+    return min(high, max(low, number))
+
+
+def resolve_clip_transforms(clip: Dict[str, Any], local_time: float, default_zoom: float = 1.0) -> Dict[str, float]:
+    """Resolve the live camera contract at played local clip time."""
+    try:
+        base_zoom = float(clip.get("zoom") if clip.get("zoom") is not None else default_zoom)
+    except (TypeError, ValueError):
+        base_zoom = default_zoom
+    try:
+        base_pan_x = float(clip.get("pan_x") if clip.get("pan_x") is not None else 0.0)
+    except (TypeError, ValueError):
+        base_pan_x = 0.0
+    try:
+        base_pan_y = float(clip.get("pan_y") if clip.get("pan_y") is not None else 0.0)
+    except (TypeError, ValueError):
+        base_pan_y = 0.0
+    bases = {"zoom": base_zoom, "pan_x": base_pan_x, "pan_y": base_pan_y}
+    return {
+        prop: _clamp_camera_value(
+            prop,
+            interpolate_keyframes(_camera_track(clip, prop), local_time, bases[prop])
+            if _camera_track(clip, prop) else bases[prop],
+            bases[prop],
+        )
+        for prop in bases
+    }
+
+
+def has_camera_keyframes(clip: Dict[str, Any]) -> bool:
+    """Whether a clip asks for per-frame zoom or pan evaluation."""
+    return any(_camera_track(clip, prop) for prop in CAMERA_MOTION_LIMITS)
+
+
+def _ffmpeg_keyframe_expression(track: List[Dict[str, Any]], fallback: float, prop: str) -> str:
+    """Build a comma-escaped, piecewise-linear FFmpeg expression."""
+    points = []
+    low, high = CAMERA_MOTION_LIMITS[prop]
+    for point in track:
+        try:
+            points.append((float(point["time"]), min(high, max(low, float(point["value"])))))
+        except (KeyError, TypeError, ValueError):
+            continue
+    points.sort(key=lambda item: item[0])
+    if not points:
+        return f"{_clamp_camera_value(prop, fallback, fallback):.6f}"
+
+    expr = f"{points[-1][1]:.6f}"
+    for (left_t, left_v), (right_t, right_v) in reversed(list(zip(points, points[1:]))):
+        if right_t <= left_t:
+            continue
+        segment = (
+            f"{left_v:.6f}+({right_v - left_v:.6f})*"
+            f"(t-{left_t:.6f})/({right_t - left_t:.6f})"
+        )
+        expr = f"if(lt(t\\,{right_t:.6f})\\,{segment}\\,{expr})"
+    return f"if(lt(t\\,{points[0][0]:.6f})\\,{points[0][1]:.6f}\\,{expr})"
+
+
+def _ffmpeg_keyframe_expression_live(track: List[Dict[str, Any]], fallback: float, prop: str) -> str:
+    """Build the live expression, clamping only after interpolation."""
+    points = []
+    low, high = CAMERA_MOTION_LIMITS[prop]
+    for point in track:
+        try:
+            points.append((float(point["time"]), float(point["value"])))
+        except (KeyError, TypeError, ValueError):
+            continue
+    points.sort(key=lambda item: item[0])
+    if not points:
+        return f"{_clamp_camera_value(prop, fallback, fallback):.6f}"
+    expr = f"{points[-1][1]:.6f}"
+    for (left_t, left_v), (right_t, right_v) in reversed(list(zip(points, points[1:]))):
+        if right_t <= left_t:
+            continue
+        segment = (
+            f"{left_v:.6f}+({right_v - left_v:.6f})*"
+            f"(t-{left_t:.6f})/({right_t - left_t:.6f})"
+        )
+        expr = f"if(lt(t\\,{right_t:.6f})\\,{segment}\\,{expr})"
+    expr = f"if(lt(t\\,{points[0][0]:.6f})\\,{points[0][1]:.6f}\\,{expr})"
+    return f"min({high:.6f}\\,max({low:.6f}\\,{expr}))"
+
+
+def dynamic_camera_filter(clip: Dict[str, Any], fallback_zoom: float, *, input_is_canvas: bool = False) -> Optional[str]:
+    """Return the per-frame crop graph for a clip with camera keyframes."""
+    if not has_camera_keyframes(clip):
+        return None
+    transforms = resolve_clip_transforms(clip, 0.0, fallback_zoom)
+    zoom = _ffmpeg_keyframe_expression_live(_camera_track(clip, "zoom"), transforms["zoom"], "zoom")
+    pan_x = _ffmpeg_keyframe_expression_live(_camera_track(clip, "pan_x"), transforms["pan_x"], "pan_x")
+    pan_y = _ffmpeg_keyframe_expression_live(_camera_track(clip, "pan_y"), transforms["pan_y"], "pan_y")
+    prefix = "" if input_is_canvas else (
+        f"scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,"
+        f"crop={VIDEO_WIDTH}:{VIDEO_HEIGHT}:(iw-{VIDEO_WIDTH})/2:(ih-{VIDEO_HEIGHT})/2,"
+    )
+    return (
+        f"{prefix}"
+        f"scale=ceil({VIDEO_WIDTH}*({zoom})/2)*2:"
+        f"ceil({VIDEO_HEIGHT}*({zoom})/2)*2:eval=frame,"
+        f"crop={VIDEO_WIDTH}:{VIDEO_HEIGHT}:"
+        f"((iw-{VIDEO_WIDTH})/2)*(1+({pan_x})):"
+        f"((ih-{VIDEO_HEIGHT})/2)*(1+({pan_y})),setsar=1"
+    )
+
+
 def normalize_transitions(transitions: List[Any]) -> List[Dict[str, Any]]:
     """
     Accept both shapes a caller may send for one boundary:
@@ -646,6 +926,11 @@ class VideoEditor:
                 clip["zoom"] = round(scale, 3)
                 clip.setdefault("pan_x", 0.0)
                 clip.setdefault("pan_y", 0.0)
+                camera_filter = dynamic_camera_filter(
+                    clip,
+                    scale,
+                    input_is_canvas=False,
+                )
 
                 node_name = f"clip_{idx}"
                 use_bg_blur = bool(clip.get("bg_blur")) or (clip.get("fit_mode") == "blur")
@@ -661,15 +946,25 @@ class VideoEditor:
                         f"[{bg_node}]scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,crop={VIDEO_WIDTH}:{VIDEO_HEIGHT},boxblur=25:5[{bg_node}2];"
                         f"[{fg_node}]scale={VIDEO_WIDTH}:-1:force_original_aspect_ratio=decrease[{fg_node}2];"
                         f"[{bg_node}2][{fg_node}2]overlay=(W-w)/2:(H-h)/2,setsar=1[{base_node}];"
-                        f"[{base_node}]scale={scaled_w}:{scaled_h}:flags=lanczos,crop={VIDEO_WIDTH}:{VIDEO_HEIGHT}:{crop_x}:{crop_y},setsar=1[{node_name}];"
+                        f"[{base_node}]"
+                        f"{dynamic_camera_filter(clip, scale, input_is_canvas=True) or f'scale={scaled_w}:{scaled_h}:flags=lanczos,crop={VIDEO_WIDTH}:{VIDEO_HEIGHT}:{crop_x}:{crop_y},setsar=1'}"
+                        f"[{node_name}];"
                     )
                 else:
                     # Mirror/rotate change which source pixels end up where, so
                     # the composed window is only safe on the plain path.
                     one_pass = None
-                    if not rot_filter and not mirror_filter:
+                    if camera_filter:
+                        one_pass = None
+                    elif not rot_filter and not mirror_filter:
                         one_pass = framing_filters(media_info, scaled_w, scaled_h, crop_x, crop_y)
-                    if one_pass:
+                    if camera_filter:
+                        filter_complex.append(
+                            f"[{idx}:v]trim=start=0:duration={source_span},setpts=PTS-STARTPTS,"
+                            f"{speed_filter}{rot_filter}{mirror_filter}{eq_filter}{freeze_filter}"
+                            f"fps={FPS},{camera_filter}[{node_name}];"
+                        )
+                    elif one_pass:
                         filter_complex.append(
                             f"[{idx}:v]trim=duration={source_span},setpts=PTS-STARTPTS,"
                             f"{speed_filter}{eq_filter}{freeze_filter}fps={FPS},{one_pass}[{node_name}];"
@@ -910,7 +1205,7 @@ class VideoEditor:
         # re-graded along with the footage.
         if lut_path and Path(lut_path).exists():
             lut_path_str = str(Path(lut_path).resolve()).replace('\\', '/').replace(':', '\\:')
-            strength = min(1.0, max(0.0, float(lut_intensity if lut_intensity is not None else 1.0)))
+            strength = normalize_lut_intensity(lut_intensity if lut_intensity is not None else 1.0)
             if strength >= 0.999:
                 filter_complex.append(f"{current_v}lut3d='{lut_path_str}'[v_graded];")
             else:

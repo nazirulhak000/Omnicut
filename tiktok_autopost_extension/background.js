@@ -1630,12 +1630,36 @@ async function runTypeCaptionOnly({ caption, hashtags }) {
   }
 }
 
+// Step 1 turning green only means the file was handed to TikTok's page --
+// see waitForUploadStatusBadge's own comment in automation.js for why that
+// is not the same moment as the upload actually finishing. The "ทำต่อหลัง
+// อัปโหลด" shortcut (runPrepareDetails below) becomes clickable as soon as
+// step 1 does, so it can genuinely be invoked well before the real upload
+// is done -- confirmed live: the shortcut was clickable at 26% progress.
+// Waiting here, once, before any of caption/product/cover run, covers all
+// of them instead of just the cover step.
+async function runWaitForUploadOnly() {
+  const tab = await findUploadTab();
+  const send = cdp(tab.id);
+  await chrome.debugger.attach({ tabId: tab.id }, '1.3');
+  try {
+    await send('DOM.enable');
+    await send('Runtime.enable');
+    await OmniAutomation.waitForUploadStatusBadge(send);
+  } finally {
+    try {
+      await chrome.debugger.detach({ tabId: tab.id });
+    } catch (e) {}
+  }
+}
+
 // Automated preparation stops before publication. Each stage has its own session.
 async function runPrepareDetails(message) {
   const job = await fetchPendingJob();
   const completed = [];
   let step = 'caption';
   try {
+    await runWaitForUploadOnly();
     const caption = message.caption ?? job.caption ?? '';
     const hashtags = message.hashtags ?? job.hashtags ?? '';
     if (![caption, hashtags].some(value => value.trim())) throw new Error('กรุณากรอกคำอธิบายหรือแฮชแท็ก');

@@ -253,6 +253,7 @@ def _stage_payload_from_manifest(
                 "caption_position": _manifest_value(manifest, "caption_position"),
                 "caption_color": _manifest_value(manifest, "caption_color"),
                 "caption_scale": _manifest_value(manifest, "caption_scale"),
+                "editorial_pacing": _manifest_value(manifest, "editorial_pacing"),
             },
         }
 
@@ -294,6 +295,7 @@ def _stage_payload_from_manifest(
                 "lut_name": lut_name,
                 "lut_file": _resolved_lut_identity(lut_name),
                 "lut_intensity": _manifest_value(manifest, "lut_intensity"),
+                "style_preset": _manifest_value(manifest, "style_preset"),
                 "sticker_position": _manifest_value(manifest, "sticker_position"),
                 "sticker_scale": _manifest_value(manifest, "sticker_scale"),
                 "sticker_start_time": _manifest_value(manifest, "sticker_start_time"),
@@ -347,6 +349,7 @@ class PipelineContext:
     voice_engine_type: str = "edge_tts"
     voice_preset: Optional[str] = "gemini_puck_male_hype"
     ad_tone: str = "commercial_premium"
+    style_preset: str = "clean_tech_review"
     human_voice_audio_path: Optional[str] = None
     hook_brand: Optional[str] = None
     hook_model: Optional[str] = None
@@ -409,6 +412,7 @@ class PipelineContext:
     effective_overlays: List[Dict[str, Any]] = field(default_factory=list)
     effective_text_overlays: Optional[List[Dict[str, Any]]] = None
     scrim_spans: List[tuple] = field(default_factory=list)
+    editorial_pacing: Optional[Dict[str, Any]] = None
 
     effective_bgm_name: Optional[str] = None
     mixed_audio_path: Optional[Path] = None
@@ -501,7 +505,7 @@ class PipelineContext:
         input_names = (
             "product_name", "key_features", "pain_point", "price_deal",
             "custom_script", "script_overlays", "voice", "voice_rate",
-            "voice_engine_type", "voice_preset", "ad_tone",
+            "voice_engine_type", "voice_preset", "ad_tone", "style_preset",
             "human_voice_audio_path", "hook_brand", "hook_model", "hook_label",
             "hook_duration", "hook_motion", "hook_colors", "hook_style",
             "font_name", "bilingual_subtitles", "sticker_path", "bgm_name",
@@ -512,6 +516,7 @@ class PipelineContext:
             "sticker_norm_y", "stickers", "effects", "text_overlays", "overlays",
             "clip_list", "transitions",
         )
+        input_names = input_names + ('editorial_pacing',)
         for name in input_names:
             value = getattr(self, name, None)
             if value is not None:
@@ -539,6 +544,8 @@ class PipelineContext:
         if self.effective_text_overlays is not None:
             snapshot["text_overlays"] = self.effective_text_overlays
             params["text_overlays"] = self.effective_text_overlays
+        if self.editorial_pacing is not None:
+            snapshot['editorial_pacing'] = self.editorial_pacing
         if self.actual_clip_list is not None:
             snapshot["clip_list"] = self.actual_clip_list
             params["clip_list"] = self.actual_clip_list

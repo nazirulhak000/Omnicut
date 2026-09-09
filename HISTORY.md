@@ -13,6 +13,8 @@
 | Round SFX-HUB-1 | สแกน SFX แบบ Recursive เข้า AssetRegistry และเพิ่มตัวกรองหมวดหมู่ใน Media Assets Hub | 2026-09-09 | 1,822 ไฟล์ SFX แสดงผลครบถ้วนใน Media Assets Hub พร้อม Sub-category filter pills |
 | Round SFX-CAT-1 | จัดหมวดหมู่ไฟล์เสียง mi_xxx 1,775 ไฟล์ เป็น 10 หมวดใน 02_Assets/SFX/ | 2026-09-09 | 1,775 ไฟล์จัดเข้า 10 โฟลเดอร์ย่อย · เสียงเดิม 47 ไฟล์คงเดิม |
 | Round SFX-DL-1 | โหลดเสียงเอฟเฟกต์ทั้งหมดจาก myinstants.com/en/index/th/ | 2026-09-09 | 1,775 เสียงโหลดสำเร็จ · SFX/ รวม 1,822 ไฟล์ · เสียงเดิม 47 ครบ |
+| Round PRO-STYLE-1 | Professional Editing Style System: Phase 1 Style Contract + Golden Master | 2026-09-09 | สร้าง `PRO_EDITOR_STYLE_PLAN.md` พร้อม editorial contract, Golden Master `clean_tech_review`, acceptance rubric และแผน 6 phases; ไม่มี source-code behavior change |
+| Round PRO-STYLE-2 | Editorial Beat Map + Pacing Core (Phase 2A) | 2026-09-09 | เพิ่ม isolated `scripts/editorial_pacing.py` และ regression contract 6 เคส; targeted tests 6 passed, compileall และ diff check ผ่าน; ยังไม่ integrate เข้า render/timeline |
 | Round 1 | รวม hook banner กับ text overlay เป็นโมเดลเดียว | 2026-09-05 | ปิดบั๊ก 12 ตัว · commit `20e2cc5` |
 | Round 2 | วางกฎรอบงาน + ตั้ง Todo กลาง | 2026-09-05 | `work_loop.md` + `TODO.md` |
 | Round 3 | ซ่อมฐาน + รวม writer + easing | 2026-09-05 | ซ่อม drift 3 ตัว · `overlay_events.py` · accel |
@@ -1636,3 +1638,192 @@ Date: 2026-09-07; Requested by: user; Status: complete
 - ปุ่มมาร์กโพสต์ทุกจุดต้องผ่าน `/api/exports/mark-posted`; API ปฏิเสธการเปลี่ยนสถานะเป็น posted โดยไม่มี `export_id` และตรวจ ID ตรงกับ path
 - ข้อมูลจริงของ GOCHEK ถูก reconcile ให้ชี้ `04_Exports/Posted/..._20260908_190309.mp4` พร้อม `exp_982f701ea975462b87d0fc9dfb7cebf9`
 - Gate: `pytest tests/` 940 passed, 1 deselected, 6 warnings; Node Extension 17 passed; frontend 86 passed; build และ compileall ผ่าน
+
+## Round PRO-STYLE-1 — Professional Editing Style System: Phase 1 Style Contract + Golden Master
+
+วันที่: 2026-09-09 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** วางสัญญากลางสำหรับการตัดต่อแบบมืออาชีพ เพื่อให้โค้ดกลางรองรับ Style Preset ที่ควบคุม pacing, motion, transition, color, typography และ audio โดยไม่ hardcode รูปแบบลงทุกโปรเจกต์
+
+**ขอบเขตการกันชนกับงานขนาน:** ไฟล์ editor/backend ที่มี working-tree diff ของ Claude ไม่ถูกแตะในเฟสนี้; รอบนี้ทำเอกสารและ acceptance contract เท่านั้น จึงไม่มีการเปลี่ยนพฤติกรรม Preview/Render
+
+### Todo
+
+- [x] ตรวจ inventory ของ Hook/Text Template, motion preset, transition, effect, color และ audio contract ที่มีอยู่ แล้วบันทึกช่องว่างระหว่าง “template เฉพาะองค์ประกอบ” กับ “editorial style ทั้งคลิป” ใน `PRO_EDITOR_STYLE_PLAN.md`
+- [x] กำหนด Golden Master style แรก `clean_tech_review` สำหรับคลิปรีวิวสินค้าแนวตั้ง: Hook → Problem → Demo/Proof → Verdict → CTA
+- [x] กำหนด Style Contract ที่เป็นข้อมูล: pacing windows, motion budget, transition policy, typography hierarchy, color palette, audio mix และ safe-zone rules โดยแยก invariant ออกจากค่าที่ preset เปลี่ยนได้
+- [x] กำหนด acceptance rubric ก่อน/หลังสำหรับ one-click output โดยไม่อ้างว่า viral หรือ 10/10 เป็นสิ่งรับประกัน
+- [x] ล็อกแผน integration เฟสถัดไปให้ใช้ preset เป็นข้อมูลต่อโปรเจกต์ และรักษา Preview = Render parity
+
+### Gate
+
+- [x] ตรวจว่าเอกสารระบุไฟล์/โมดูลที่มีอยู่และไม่ขัดกับ `TEMPLATE_MOTION_PLAN.md`
+- [x] ตรวจว่า Golden Master มีเกณฑ์วัดได้ครบ pacing, motion, transition, color, typography และ audio
+- [x] `git diff --check` ผ่าน — exit 0; มีเฉพาะคำเตือน line-ending ของไฟล์เดิม
+- [x] ยืนยันว่าเฟสนี้ไม่มี source-code behavior change และไม่แตะไฟล์ที่มี diff ของ Claude; diff ของรอบนี้มีเฉพาะ `TODO.md`, `HISTORY.md` และ `PRO_EDITOR_STYLE_PLAN.md`
+
+### Notes
+
+- สร้าง `PRO_EDITOR_STYLE_PLAN.md` เป็นแผนหลักของงาน 6 phases
+- กำหนด `clean_tech_review` เป็น Golden Master แรกสำหรับคลิปรีวิวสินค้า/อุปกรณ์ไอที
+- ล็อกหลักการว่า Prompt ใช้จัดประเภทเนื้อหาได้ แต่ timing, clamp, z-order, audio mix และ Render ต้องเป็น deterministic rule
+- Phase 2 ต้องตรวจ ownership ใหม่ก่อนแตะ `Timeline.jsx`, `SequencePlayer.jsx`, `scripts/video_editor.py` หรือ `scripts/subtitle/*` เพราะมี working-tree diff ของ Claude อยู่ในขณะปิดเฟสนี้
+
+## Round PRO-STYLE-2 — Editorial Beat Map + Pacing Core (Phase 2A)
+
+วันที่: 2026-09-09 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** สร้าง pure module สำหรับ normalize transcript timing, ตรวจ gap/Dead Air และสร้าง candidate pacing beats จาก word timestamps กับ scene boundaries โดยไม่ตัดสินใจสร้างสรรค์แทนผู้ใช้และไม่เปลี่ยน render flow เดิม
+
+**ขอบเขตการกันชนกับงานขนาน:** เพิ่มเฉพาะ `scripts/editorial_pacing.py` และ `tests/test_editorial_pacing.py`; ไม่แตะ `api_render.py`, `video_editor.py`, `Timeline.jsx`, `SequencePlayer.jsx` หรือไฟล์อื่นที่มี working-tree diff ของ Claude
+
+### สิ่งที่ทำ
+
+- เพิ่ม `PacingPolicy` ที่กำหนด short pause, cut gap, target/min/max beat interval และ boundary tolerance
+- เพิ่ม deterministic word normalization ที่รองรับ `text`/`word`, `start`/`start_time`, `end`/`end_time`, ทิ้งเวลาผิดและไม่เลื่อน timestamp ที่ถูกต้อง
+- เพิ่ม silence gap classification เป็น `short_pause` หรือ `cut_candidate` โดยไม่ตัดกลางคำ
+- เพิ่ม scene/interval beat candidates ที่ snap ได้เฉพาะขอบเขต word-free และให้ scene beat มี priority เมื่อระยะเท่ากัน
+- เพิ่ม serializable `build_pacing_plan()` สำหรับจุดเชื่อมต่อ Phase 2B
+- เพิ่ม regression tests ครอบคลุม malformed records, clamping, silence, safe boundary, duplicate scene boundaries, deterministic output, empty input และ invalid policy
+
+### Gate
+
+- [x] `python -m pytest tests/test_editorial_pacing.py -q -p no:cacheprovider --tb=short` — `6 passed`
+- [x] `python -m compileall -q scripts` — ผ่าน
+- [x] `git diff --check` — exit 0; มีเฉพาะคำเตือน line-ending ของไฟล์เดิม
+- [x] ไฟล์ source/test ที่เพิ่มในรอบนี้มีเฉพาะ `scripts/editorial_pacing.py` และ `tests/test_editorial_pacing.py`; existing Claude diffs ไม่ถูกเขียนทับ
+- [x] Preview/Render parity ยังไม่ถูกติ๊ก เพราะ Phase 2A ยังไม่ถูกเรียกจาก render pipeline
+
+### Notes
+
+- Phase 2A เป็น isolated foundation เท่านั้น ยังไม่เปลี่ยน output ของโปรเจกต์เดิม
+- Phase 2B ต้องเลือก transcript source schema และ integration seam ก่อน และต้องรอ ownership ของไฟล์หลักให้ชัดเจน
+## Round PRO-STYLE-2B — Integrate editorial pacing plan into subtitle pipeline and project manifest
+
+วันที่: 2026-09-09 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
+
+### ผลงาน
+
+- เพิ่ม `build_pacing_plan_from_cues()` เพื่อรวม absolute `cues[*].word_timings` และ cue boundaries เป็น pacing plan แบบ deterministic
+- เชื่อม plan เข้า `SubtitleStage` ก่อน micro-cue mutation, `PipelineContext` และ project manifest
+- เพิ่ม plan ใน subtitle incremental-render fingerprint; โปรเจกต์เก่าที่ไม่มี word timing ยังคง no-op และใช้ flow เดิม
+- เพิ่ม integration contracts ครอบคลุม valid/malformed/legacy timing และ context/fingerprint persistence
+
+### Gate
+
+- [x] `python -m pytest tests/test_editorial_pacing.py tests/test_editorial_pacing_integration.py -q -p no:cacheprovider --tb=short` — 12 passed
+- [x] `python -m pytest tests/test_pipeline_stages.py tests/test_incremental_render_reuse.py -q -p no:cacheprovider --tb=short` — 19 passed
+- [x] `python -m pytest tests/test_preview_render_parity.py tests/test_editorial_pacing.py tests/test_editorial_pacing_integration.py -q -p no:cacheprovider --tb=short` — 162 passed
+- [x] `python -m compileall -q scripts` — Pass
+- [x] `git diff --check` — Pass; line-ending warnings only
+
+### ข้อจำกัด
+
+- รอบนี้ persist pacing plan เท่านั้น ยังไม่ apply beat เป็น FFmpeg cut จึงยังไม่มี visual/render gate สำหรับ behavior ใหม่นี้
+- compatibility subset พบ `test_create_edit_save_reload_full_fidelity` ได้ HTTP 401 จาก auth guard; ไม่ใช่ผลจาก pacing change และไม่สรุปว่า full suite ผ่าน
+- พบ working-tree changes นอก scope ใน `scripts/api_exports.py` และ `tests/test_post_lifecycle.py`; ไม่ได้แก้หรือ stage
+| Round PRO-STYLE-2B | Integrate editorial pacing plan into subtitle pipeline and project manifest | 2026-09-09 | `build_pacing_plan_from_cues()` + PipelineContext/manifest persistence + subtitle fingerprint; 12 integration tests, 19 pipeline/incremental tests, and 162 parity subset tests passed; no FFmpeg cut behavior change |
+## Round PRO-STYLE-2C — Apply editorial beat boundaries to generated clip list with Preview = Render parity
+
+วันที่: 2026-09-09 · สถานะ: เสร็จสมบูรณ์
+
+### ผลงาน
+
+- เพิ่ม `resolve_pacing_boundaries()` สำหรับ validate duration, กรอง beat ใกล้ขอบ, deduplicate และ fallback อย่าง conservative
+- เชื่อม resolver ที่ `ShotMatchingStage` เฉพาะ auto-generated clips; manual clip list และ legacy manifest ยังใช้ flow เดิม
+- ปิด legacy merge/motion/beat snapping เมื่อมี editorial pacing เพื่อให้ beat boundaries เป็น timing truth เดียว
+- รักษา AI shot anchoring โดยเลื่อน source offset ตาม segment ที่แบ่งภายใน cue เดียวกัน
+- เพิ่ม contract tests สำหรับ generated boundaries และ manual clip preservation
+
+### Gate
+
+- [x] `python -m pytest tests/test_editorial_pacing.py tests/test_editorial_pacing_integration.py tests/test_shot_matching_pacing.py -q -p no:cacheprovider --tb=short` — 15 passed
+- [x] `python -m pytest tests/test_preview_render_parity.py tests/test_preview_render_behavior.py -q -p no:cacheprovider --tb=short` — 161 passed, 2 deprecation warnings
+- [x] `python -m pytest tests/test_pipeline_stages.py tests/test_incremental_render_reuse.py tests/test_clip_compounding_render.py -q -p no:cacheprovider --tb=short` — 21 passed
+- [x] `python -m pytest ... -k "is_quota or shot_matching or script_stage or voice_stage"` — 10 passed
+- [x] `python -m pytest tests/ -q -p no:cacheprovider --tb=short` — 975 passed, 6 dependency/deprecation warnings
+- [x] `cd frontend; npm test` — 126 passed
+- [x] `cd frontend; npm run build` — 1,975 modules transformed; build passed
+- [x] `python -m compileall -q scripts` — passed
+- [x] `git diff --check` — exit 0; line-ending warnings only
+
+### ข้อจำกัด
+
+- การรัน API subset แยกครั้งแรกพบ 401 ใน auth cases แต่ backend suite ทั้งชุดรันตามลำดับปกติผ่านครบ 975 tests; จึงไม่มี unresolved test failure จากรอบนี้
+- ไม่ได้แตะหรือ stage งานภายนอกใน `scripts/api_exports.py` และ `tests/test_post_lifecycle.py`
+| Round PRO-STYLE-2C | Apply editorial beat boundaries to generated clip list with Preview = Render parity | 2026-09-09 | Resolver + generated clip-list integration + manual/legacy preservation; 15 contract tests, 161 render parity/behavior tests, 21 pipeline regression tests, and 975 full backend tests passed |
+## Round PRO-STYLE-3A — Style-driven transition budget and project style preset contract
+
+วันที่: 2026-09-09 · สถานะ: เสร็จสมบูรณ์
+
+### ผลงาน
+
+- เพิ่ม `style_motion_policy.py` เป็น pure policy กลางสำหรับ Golden Master `clean_tech_review`
+- เพิ่ม `style_preset` ผ่าน RenderRequest, reroll/state-save request, Pipeline, PipelineContext, manifest และ incremental-render fingerprint
+- ใช้ transition budget กับ auto-generated clip list เท่านั้น: hard cut เป็นฐาน 80%, movement transition ตามรอบที่กำหนด และ stylized transition ถูกลดความถี่/จำกัด duration
+- manual clip list และ manual transition list ยังคงเป็นข้อมูลที่ผู้ใช้ควบคุมเอง
+- Preview และ FFmpeg ยังคงใช้ transition/clip contract เดียวกัน จึงไม่สร้าง renderer path ใหม่ในเฟสนี้
+
+### Gate
+
+- [x] `python -m pytest tests/test_style_motion_policy.py tests/test_shot_matching_pacing.py -q -p no:cacheprovider --tb=short` — 7 passed
+- [x] `python -m pytest tests/test_preview_render_parity.py tests/test_preview_render_behavior.py -q -p no:cacheprovider --tb=short` — 161 passed, 2 deprecation warnings
+- [x] `python -m pytest tests/ -q -p no:cacheprovider --tb=short` — 980 passed, 6 warnings
+- [x] `python -m compileall -q scripts` — passed
+- [x] `cd frontend; npm test` — 126 passed
+- [x] `cd frontend; npm run build` — 1,975 modules transformed; passed
+- [x] `git diff --check` — exit 0; line-ending warnings only
+
+### ขอบเขต/ข้อควรทราบ
+
+- เฟสนี้จัดการ transition hierarchy และ project style contract ก่อน; active camera keyframe/pan motion จะอยู่ในเฟสถัดไป เพราะต้องเพิ่ม parity contract และ render หลายเฟรมแยกต่างหาก
+- ไม่ได้แตะหรือ stage งานภายนอกที่ตรวจพบใน `scripts/api_exports.py`, `tests/test_post_lifecycle.py` และ `tiktok_autopost_extension/sidepanel.js`
+| Round PRO-STYLE-3A | Style-driven transition budget and project style preset contract | 2026-09-09 | `clean_tech_review` policy + project manifest/fingerprint contract + auto-transition budget; 7 policy tests, 161 parity/behavior tests, 980 backend tests, 126 frontend tests, and build passed |
+## Round PRO-STYLE-3B — Live keyframe camera motion with Preview = Render parity
+
+วันที่: 2026-09-09 · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** ทำให้ `zoom`, `pan_x` และ `pan_y` ใน `clip.keyframes` มีผลจริงระหว่าง playback และ FFmpeg render โดยใช้ interpolation/clamp contract เดียวกัน และคงพฤติกรรมเดิมของคลิปที่ไม่มี keyframe
+
+### สิ่งที่ทำ
+
+- เพิ่ม live camera transform resolver ใน `frontend/src/lib/timelineMath.js` และใช้ `motionTimeAt` แยกจาก source seek time เพื่อประเมิน keyframe ตามเวลาที่เล่นจริงหลัง speed/freeze-tail
+- เชื่อม `SequencePlayer.jsx` ให้ทุก video draw path ใช้ `resolveClipTransforms` สำหรับ zoom/pan แบบ per-frame และรวม `keyframes` ใน clip invalidation key
+- เพิ่ม FFmpeg dynamic camera filter ใน `scripts/video_editor.py` สำหรับ clip-list ที่มี camera keyframe; clip ที่ไม่มี keyframe คง static fast path เดิม
+- เพิ่ม `camera_keyframes_for_clip` ใน `scripts/style_motion_policy.py` และให้ auto-generated clips มี push/pan แบบ restrained เฉพาะ clip สลับลำดับและยาวอย่างน้อย 0.8 วินาที; manual keyframes ยังคง user-owned
+- รักษาการทำงานของ speed, freeze tail, mirror, rotation, background blur, colour correction และ audio bus เดิม
+- ใช้ clamp contract เดียวกัน: zoom `1.0–3.0`, pan X/Y `-1.0–1.0`; interpolate ก่อน clamp เพื่อให้ค่ากลาง deterministic
+
+### ไฟล์ที่แตะ
+
+- `frontend/src/lib/timelineMath.js`
+- `frontend/src/lib/timelineMath.test.js`
+- `frontend/src/components/SequencePlayer.jsx`
+- `scripts/video_editor.py`
+- `scripts/style_motion_policy.py`
+- `scripts/stages/shot_matching_stage.py`
+- `tests/test_keyframe_interpolation.py`
+- `tests/test_camera_motion_parity.py`
+- `tests/test_preview_render_behavior.py`
+- `tests/test_style_motion_policy.py`
+- `tests/test_shot_matching_pacing.py`
+- `PRO_EDITOR_STYLE_PLAN.md`
+
+### Gate ผลจริง
+
+- `python -m pytest tests/test_keyframe_interpolation.py tests/test_camera_motion_parity.py tests/test_style_motion_policy.py tests/test_shot_matching_pacing.py -q -p no:cacheprovider --tb=short` → **17 passed**
+- `python -m pytest tests/test_preview_render_parity.py -q -p no:cacheprovider --tb=short` → **151 passed**
+- FFmpeg multi-frame behavioral render (เข้า/กลาง/ออก) → **1 passed**
+- `python -m pytest tests/ -q -p no:cacheprovider --tb=short` → **989 passed, 9 warnings** ใน 119.37 วินาที
+- `python -m compileall -q scripts` → ผ่าน
+- `npm test` → **128 passed**
+- `npm run build` → ผ่าน, **1,975 modules transformed**
+- `git diff --check` → ผ่าน; มีเฉพาะคำเตือน line-ending LF → CRLF ของ Git
+
+### Notes
+
+- warnings ที่เหลือเป็น deprecation/optional audio warnings ใน dependency หรือ test เดิม ไม่ใช่ failure ของ camera motion
+- การตรวจ FFmpeg วัดจำนวนพิกเซลของ marker ในเฟรมเข้า/กลาง/ออก เพื่อยืนยันว่า pan เปลี่ยนจริงและไม่หลุด crop bounds
+- ไม่ได้แตะหรือ stage งานภายนอกที่พบก่อนเริ่ม: `scripts/api_exports.py`, `tests/test_post_lifecycle.py`, `tiktok_autopost_extension/sidepanel.js`
+
+| Round PRO-STYLE-3B | Live keyframe camera motion with Preview = Render parity | 2026-09-09 | Live zoom/pan keyframes in Canvas + FFmpeg, restrained auto-generated camera motion, 17 focused tests, 151 parity tests, 989 full backend tests, 128 frontend tests, FFmpeg behavioral render, and build passed |

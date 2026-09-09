@@ -16,6 +16,8 @@ from scripts.script_tone_analyzer import ScriptToneAnalyzer
 from scripts.sfx_manager import SFXManager
 from scripts.it_angles import LOOK_PRESETS
 from scripts.pipeline_context import PipelineContext
+from scripts.editorial_pacing import resolve_pacing_boundaries
+from scripts.style_motion_policy import apply_transition_budget, camera_keyframes_for_clip
 from scripts.quota import is_quota_error
 
 
@@ -197,6 +199,11 @@ class ShotMatchingStage:
                 if active_cues:
                     from scripts.config import J_CUT_OFFSET_SECONDS, MIN_SHOT_DURATION, MAX_SHOT_DURATION
                     n_cues = len(active_cues)
+                    pacing_boundaries = resolve_pacing_boundaries(
+                        ctx.editorial_pacing,
+                        total_duration,
+                        min_segment_duration=MIN_SHOT_DURATION,
+                    )
                     cut_points = [0.0]
                     for i in range(1, n_cues):
                         c_curr_start = float(active_cues[i].get("start", 0.0))
@@ -207,50 +214,69 @@ class ShotMatchingStage:
                     cut_points.append(round(total_duration, 3))
 
                     groups: List[List[int]] = []
-                    current: List[int] = []
-                    group_start = cut_points[0]
-                    for i in range(n_cues):
-                        tentative_dur = cut_points[i + 1] - group_start
-                        if current and tentative_dur > MAX_SHOT_DURATION:
+                    if pacing_boundaries:
+                        # Beat boundaries are already word-safe. Choose the
+                        # cue covering each segment midpoint only for content
+                        # and AI-shot anchoring; the boundaries themselves are
+                        # the single source of timing truth.
+                        boundary_times = pacing_boundaries
+                        for segment_start, segment_end in zip(boundary_times, boundary_times[1:]):
+                            midpoint = (segment_start + segment_end) / 2.0
+                            anchor_idx = next(
+                                (
+                                    idx for idx, cue in enumerate(active_cues)
+                                    if float(cue.get("start", 0.0)) <= midpoint < float(cue.get("end", 0.0))
+                                ),
+                                n_cues - 1,
+                            )
+                            groups.append([anchor_idx])
+                    else:
+                        current: List[int] = []
+                        group_start = cut_points[0]
+                        for i in range(n_cues):
+                            tentative_dur = cut_points[i + 1] - group_start
+                            if current and tentative_dur > MAX_SHOT_DURATION:
+                                groups.append(current)
+                                current = []
+                                group_start = cut_points[i]
+                            current.append(i)
+                            held_dur = cut_points[i + 1] - group_start
+                            if held_dur >= MIN_SHOT_DURATION and i < n_cues - 1:
+                                groups.append(current)
+                                current = []
+                                group_start = cut_points[i + 1]
+                        if current:
                             groups.append(current)
-                            current = []
-                            group_start = cut_points[i]
-                        current.append(i)
-                        held_dur = cut_points[i + 1] - group_start
-                        if held_dur >= MIN_SHOT_DURATION and i < n_cues - 1:
-                            groups.append(current)
-                            current = []
-                            group_start = cut_points[i + 1]
-                    if current:
-                        groups.append(current)
 
-                    MERGE_TOLERANCE = 1.15
-                    changed = True
-                    while changed:
-                        changed = False
-                        for gi, g in enumerate(groups):
-                            dur = cut_points[g[-1] + 1] - cut_points[g[0]]
-                            if dur >= MIN_SHOT_DURATION:
-                                continue
-                            if gi > 0:
-                                prev = groups[gi - 1]
-                                merged_dur = cut_points[g[-1] + 1] - cut_points[prev[0]]
-                                if merged_dur <= MAX_SHOT_DURATION * MERGE_TOLERANCE:
-                                    groups[gi - 1] = prev + g
-                                    del groups[gi]
-                                    changed = True
-                                    break
-                            if gi < len(groups) - 1:
-                                nxt = groups[gi + 1]
-                                merged_dur = cut_points[nxt[-1] + 1] - cut_points[g[0]]
-                                if merged_dur <= MAX_SHOT_DURATION * MERGE_TOLERANCE:
-                                    groups[gi] = g + nxt
-                                    del groups[gi + 1]
-                                    changed = True
-                                    break
+                    if not pacing_boundaries:
+                        MERGE_TOLERANCE = 1.15
+                        changed = True
+                        while changed:
+                            changed = False
+                            for gi, g in enumerate(groups):
+                                dur = cut_points[g[-1] + 1] - cut_points[g[0]]
+                                if dur >= MIN_SHOT_DURATION:
+                                    continue
+                                if gi > 0:
+                                    prev = groups[gi - 1]
+                                    merged_dur = cut_points[g[-1] + 1] - cut_points[prev[0]]
+                                    if merged_dur <= MAX_SHOT_DURATION * MERGE_TOLERANCE:
+                                        groups[gi - 1] = prev + g
+                                        del groups[gi]
+                                        changed = True
+                                        break
+                                if gi < len(groups) - 1:
+                                    nxt = groups[gi + 1]
+                                    merged_dur = cut_points[nxt[-1] + 1] - cut_points[g[0]]
+                                    if merged_dur <= MAX_SHOT_DURATION * MERGE_TOLERANCE:
+                                        groups[gi] = g + nxt
+                                        del groups[gi + 1]
+                                        changed = True
+                                        break
 
-                    boundary_times = [cut_points[0]] + [cut_points[g[-1] + 1] for g in groups]
-                    if motion_times:
+                    if not pacing_boundaries:
+                        boundary_times = [cut_points[0]] + [cut_points[g[-1] + 1] for g in groups]
+                    if motion_times and not pacing_boundaries:
                         MOTION_SNAP_TOLERANCE = 0.15
                         for b_idx in range(1, len(boundary_times) - 1):
                             trough = MotionAnalyzer.nearest_trough(
@@ -261,7 +287,7 @@ class ShotMatchingStage:
                                 next_b = boundary_times[b_idx + 1]
                                 if (trough - prev_b) >= MIN_SHOT_DURATION * 0.8 and (next_b - trough) >= MIN_SHOT_DURATION * 0.8:
                                     boundary_times[b_idx] = round(trough, 3)
-                    if beat_times:
+                    if beat_times and not pacing_boundaries:
                         BEAT_SNAP_TOLERANCE = 0.15
                         for b_idx in range(1, len(boundary_times) - 1):
                             t = boundary_times[b_idx]
@@ -312,6 +338,9 @@ class ShotMatchingStage:
 
                         if ai_shot:
                             ai_start = float(ai_shot.get("start_time", 0.0))
+                            if pacing_boundaries:
+                                cue_start = float(active_cues[anchor_idx].get("start", 0.0))
+                                ai_start += max(0.0, v_start - cue_start)
                             ai_zoom = float(ai_shot.get("punch_zoom", base_scale))
                             scale = min(1.4, max(1.0, ai_zoom))
                             raw_offset = max(0.0, min(ai_start, max(0.0, raw_duration - c_dur - 0.2)))
@@ -367,6 +396,11 @@ class ShotMatchingStage:
                                 pick["duration"] = max(pick["duration"], 0.35)
                             elif tone != "major" and not (gap > 0.35 or sentence_end):
                                 pick["duration"] = min(pick["duration"], 0.25)
+                            pick = apply_transition_budget(
+                                pick,
+                                style_preset=ctx.style_preset,
+                                boundary_index=g_idx,
+                            )
                             auto_transitions.append(pick)
 
                     if not ctx.transitions and auto_transitions:
@@ -413,6 +447,14 @@ class ShotMatchingStage:
                     }
                     if t_dur is not None:
                         clip_entry["transition_duration"] = float(t_dur)
+                    camera_keyframes = camera_keyframes_for_clip(
+                        clip_entry["zoom"],
+                        s_dur,
+                        idx,
+                        style_preset=ctx.style_preset,
+                    )
+                    if camera_keyframes:
+                        clip_entry["keyframes"] = camera_keyframes
                     generated_clips.append(clip_entry)
                 actual_clip_list = generated_clips
                 is_newly_generated_clips = True

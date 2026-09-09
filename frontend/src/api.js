@@ -216,7 +216,7 @@ export const createProduct = (data) => api.post('/products', data).then(r => r.d
 export const updateProduct = (id, data) => api.patch(`/products/${id}`, data).then(r => r.data);
 export const resolveTiktokProductId = (urlOrId) =>
   api.post('/products/resolve-tiktok-id', { url_or_id: urlOrId }).then(r => r.data);
-export const updateAngleStatus = (productId, angleId, status, videoUrl = null, projectName = null, qcNote = null, clearQcNote = false, clearConflictNote = false, exportId = null) =>
+export const updateAngleStatus = (productId, angleId, status, videoUrl = null, projectName = null, qcNote = null, clearQcNote = false, clearConflictNote = false, exportId = null, markQcPassed = false) =>
   api.patch(`/products/${productId}/angles/${angleId}`, {
     status,
     video_url: videoUrl,
@@ -225,6 +225,7 @@ export const updateAngleStatus = (productId, angleId, status, videoUrl = null, p
     ...(qcNote !== null ? { qc_note: qcNote } : {}),
     ...(clearQcNote ? { clear_qc_note: true } : {}),
     ...(clearConflictNote ? { clear_conflict_note: true } : {}),
+    ...(markQcPassed ? { mark_qc_passed: true } : {}),
   }).then(r => r.data);
 
 export const updateAngleCover = (productId, angleId, cover) =>

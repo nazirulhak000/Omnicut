@@ -41,6 +41,7 @@ class RenderRequest(BaseModel):
     voice_rate: str = "+15%"
     voice_preset: Optional[str] = "gemini_puck_male_hype"
     ad_tone: Optional[str] = "commercial_premium"
+    style_preset: str = "clean_tech_review"
     human_voice_audio: Optional[str] = None
     product_id: Optional[str] = None
     angle_id: Optional[str] = None

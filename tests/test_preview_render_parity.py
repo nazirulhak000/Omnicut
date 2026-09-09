@@ -1800,6 +1800,27 @@ def test_the_ass_writer_emits_the_per_tier_edge_from_the_template():
     assert "if scale_pct == 130:" not in PY_SRC, "upper-casing should not key off a size"
 
 
+def test_style_preset_visual_palette_reaches_both_preview_and_ass():
+    """A selected style must be a live visual input, not manifest metadata only."""
+    sequence_src = (ROOT / "frontend" / "src" / "components" / "SequencePlayer.jsx").read_text(encoding="utf-8")
+    catalog_src = (ROOT / "frontend" / "src" / "lib" / "stylePresetCatalog.js").read_text(encoding="utf-8")
+    assert "getStylePreset(stylePreset)" in sequence_src
+    assert "drawOverlays(ctx, drawnOverlays, t, previewAccentColor" in sequence_src
+    assert "stylePreset={activeStylePreset}" in (
+        ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx"
+    ).read_text(encoding="utf-8")
+    assert "style_preset=ctx.style_preset" in (
+        ROOT / "scripts" / "stages" / "subtitle_stage.py"
+    ).read_text(encoding="utf-8")
+    assert "style_visual_palette(ctx.get(\"style_preset\"))" in (
+        ROOT / "scripts" / "subtitle" / "overlay_events.py"
+    ).read_text(encoding="utf-8")
+    assert "accent: '#FFE600'" in catalog_src
+    assert 'accent_color=\"#FFE600\"' in PY_SRC or 'accent_color=\"#FFE600\"' in (
+        ROOT / "scripts" / "style_motion_policy.py"
+    ).read_text(encoding="utf-8")
+
+
 def test_the_canvas_draws_the_same_per_tier_edge():
     # One resolveLook on each side, over the same TextLook fields.
     assert "resolveLook(overlay.look, tier.look)" in JS_SRC

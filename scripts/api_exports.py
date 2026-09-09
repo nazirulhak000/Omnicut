@@ -618,9 +618,27 @@ def _move_or_reuse_posted(source: Path, destination: Path) -> None:
                 status_code=409,
                 detail=f"มีไฟล์ชื่อเดียวกันใน Posted/ แต่เนื้อหาไม่ตรงกัน: {destination.name}",
             )
-        source.unlink()
+        source.unlink(missing_ok=True)
         return
-    shutil.move(str(source), str(destination))
+    try:
+        shutil.move(str(source), str(destination))
+    except FileNotFoundError:
+        # `source` vanished between our exists() check above and this move --
+        # a second "mark posted" request for the same clip fired while the
+        # first was still in flight (mark_posted's handlers are sync `def`,
+        # so FastAPI genuinely runs overlapping requests on separate threads;
+        # rapid double-clicks on the mark button reach this window in
+        # practice, not just in theory). If `destination` exists now, the
+        # other request already finished this exact move -- that's a
+        # successful idempotent outcome for THIS request too, not a failure.
+        # If it doesn't, something else removed the file; surface that
+        # plainly instead of a raw 500 from shutil.move.
+        if destination.exists():
+            return
+        raise HTTPException(
+            status_code=409,
+            detail=f"ไฟล์หายไประหว่างย้าย (อาจมีการมาร์คคลิปนี้ซ้อนกันอยู่): {source.name}",
+        )
 
 
 def _require_latest_export(export_record: Dict[str, Any], product_id: Optional[str], angle_id: Optional[str]) -> None:

@@ -114,8 +114,47 @@ globalThis.OmniAutomation = (() => {
     }
   }
 
+  // Waits for TikTok's own upload-status badge to say the video is fully
+  // received (e.g. "อัปโหลดแล้ว (34.12MB)" with an "info-status success"
+  // class and a CheckCircleFill icon under [data-e2e="upload_status_container"]
+  // -- confirmed against a real logged-in session, 2026-09).
+  //
+  // Step 1 (runUploadFileOnly, background.js) only confirms the file was
+  // handed to the page's <input type="file"> -- it deliberately does not
+  // wait for TikTok to actually finish receiving/processing it, since
+  // holding the debugger attached that long is what caused a tab-crash
+  // investigated elsewhere in this codebase. That means step 1 turning
+  // green (and therefore the "ทำต่อหลังอัปโหลด" shortcut becoming
+  // clickable) is NOT the same moment as the upload reaching 100% -- a
+  // real gap of tens of seconds on a normal-sized clip. Acting on the page
+  // during that gap is what caused two different real failures: Cover
+  // Studio's edit surface rendering its shell before the actual image
+  // <input> mounts inside it, and TikTok's own product-search endpoint
+  // refusing to return results ("การตรวจสอบจะเริ่มได้หลังจากอัปโหลดไฟล์
+  // แล้วเท่านั้น") when queried too early.
+  //
+  // Rather than changing what step 1 itself waits for (which would still
+  // require holding the debugger attached through that same window), each
+  // caller that actually needs the upload finished waits for it here, with
+  // its own short bounded poll -- the same low-risk pattern already used
+  // for "did the modal open" below, not the continuous-attach pattern that
+  // caused the crash.
+  async function waitForUploadStatusBadge(send) {
+    await wait(send, `(() => {
+      const status = document.querySelector('[data-e2e="upload_status_container"] [class*="info-status"]');
+      if (!status) return false;
+      const text = status.innerText || status.textContent || '';
+      return status.className.includes('success') && text.includes('อัปโหลดแล้ว');
+    })()`, 'TikTok ยังอัปโหลดวิดีโอไม่เสร็จ -- รอสักครู่แล้วลองใหม่', 90000);
+  }
+
   async function uploadCover(send, coverPath) {
     if (!coverPath) throw new Error('คลิปนี้ยังไม่มีปกที่บันทึกในโปรแกรม');
+
+    // 0. See waitForUploadStatusBadge's own comment -- Cover Studio's edit
+    // surface can render before the actual image <input> mounts inside it
+    // if opened while the upload is still in flight.
+    await waitForUploadStatusBadge(send);
 
     // 1. Check if cover editor modal is already open
     const isModalOpen = await evaluate(send, `(() => {
@@ -337,5 +376,5 @@ globalThis.OmniAutomation = (() => {
     return {success:true};
   }
 
-  return {evaluate, wait, page, buttonQuery, clickButton, uploadCover};
+  return {evaluate, wait, page, buttonQuery, clickButton, uploadCover, waitForUploadStatusBadge};
 })();

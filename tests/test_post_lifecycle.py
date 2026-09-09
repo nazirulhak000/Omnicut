@@ -330,3 +330,112 @@ def test_reconcile_binds_posted_copy_and_id_when_ready_copy_is_stale(monkeypatch
     assert angle["video_url"] == f"04_Exports/Posted/{filename}"
     assert angle["export_id"] == posted_record["id"]
     assert angle["export_id"] != ready_record["id"]
+
+
+def test_move_or_reuse_posted_treats_a_concurrent_winner_as_success(monkeypatch, tmp_path):
+    """Regression for a rapid-double-click 500 on the extension's mark-posted button.
+
+    api_exports.mark_posted's handlers are sync `def`, so FastAPI genuinely
+    runs two overlapping requests for the same clip on separate threads --
+    not just in theory, this is what a fast double-click on the side panel's
+    "mark posted" button produces in practice. Whichever request's
+    shutil.move() runs second finds `source` already gone (the other request
+    moved it) and used to raise a bare FileNotFoundError -- an unhandled
+    exception FastAPI turns into a 500, while the file itself was already
+    correctly posted by the winner. This reproduces that exact race
+    deterministically: shutil.move is stubbed to simulate a concurrent
+    winner completing the same move first, instead of relying on real OS
+    thread timing (which would make this test flaky).
+    """
+    ready, posted = _patch_export_roots(monkeypatch, tmp_path)
+    source = ready / "DEMO01-review_1_20260908_120000.mp4"
+    source.write_bytes(b"same export")
+    destination = posted / source.name
+
+    def fake_move(src, dst):
+        # Simulate a concurrent request's shutil.move() having already
+        # completed this exact move by the time this thread's own call runs.
+        source.unlink(missing_ok=True)
+        raise FileNotFoundError(src)
+
+    monkeypatch.setattr(api_exports.shutil, "move", fake_move)
+    destination.write_bytes(b"same export")  # what the "winning" request left behind
+
+    api_exports._move_or_reuse_posted(source, destination)  # must not raise
+
+    assert destination.read_bytes() == b"same export"
+
+
+def test_move_or_reuse_posted_still_errors_when_source_vanishes_for_another_reason(monkeypatch, tmp_path):
+    """The FileNotFoundError recovery above must not swallow a genuine problem.
+
+    If `source` disappears and `destination` was NEVER created by anyone,
+    that is not the "a concurrent request already finished this" case --
+    something else removed the file, and that should still surface as a
+    clear error instead of being silently treated as success.
+    """
+    ready, posted = _patch_export_roots(monkeypatch, tmp_path)
+    source = ready / "DEMO01-review_1_20260908_120000.mp4"
+    source.write_bytes(b"same export")
+    destination = posted / source.name
+
+    def fake_move(src, dst):
+        source.unlink(missing_ok=True)
+        raise FileNotFoundError(src)
+
+    monkeypatch.setattr(api_exports.shutil, "move", fake_move)
+
+    try:
+        api_exports._move_or_reuse_posted(source, destination)
+        assert False, "expected an HTTPException"
+    except Exception as exc:
+        assert getattr(exc, "status_code", None) == 409
+    assert not destination.exists()
+
+
+def test_mark_posted_concurrent_double_click_never_500s(monkeypatch, tmp_path):
+    """End-to-end version of the race above, through the real HTTP endpoint.
+
+    Fires two /api/exports/mark-posted requests for the same clip from two
+    threads with a barrier so they overlap as tightly as the GIL allows.
+    Whichever one loses the race must still resolve cleanly (200, treating
+    the other's completed move as success) -- never a 500 -- and the clip
+    must end up posted exactly once, not duplicated or left half-moved.
+    """
+    import threading
+
+    ready, posted = _patch_export_roots(monkeypatch, tmp_path)
+    source = ready / "DEMO01-review_1_20260908_120000.mp4"
+    source.write_bytes(b"same export")
+    record = export_registry.ExportRegistry.ensure(source, product_id="product-1", angle_id="review")
+    monkeypatch.setattr(api_exports.ProductStore, "update_angle_status", lambda **kwargs: {"id": "product-1"})
+    monkeypatch.setattr(api_exports, "_mark_scheduled_queue_item_posted", lambda *args: None)
+
+    client = TestClient(app)
+    payload = {
+        "file_path": f"04_Exports/Ready_to_post/{source.name}",
+        "export_id": record["id"],
+        "product_id": "product-1",
+        "angle_id": "review",
+    }
+    barrier = threading.Barrier(2)
+    responses = [None, None]
+
+    def fire(i):
+        barrier.wait(timeout=5)
+        responses[i] = client.post("/api/exports/mark-posted", json=payload)
+
+    threads = [threading.Thread(target=fire, args=(i,)) for i in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=10)
+
+    for res in responses:
+        assert res is not None, "a request thread did not complete"
+        assert res.status_code != 500, res.text
+
+    moved = export_registry.ExportRegistry.get(record["id"])
+    assert moved["status"] == "posted"
+    assert (posted / source.name).exists()
+    assert not source.exists()

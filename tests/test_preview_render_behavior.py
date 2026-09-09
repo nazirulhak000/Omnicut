@@ -76,6 +76,86 @@ def test_short_synthetic_video_exports_at_30_fps(tmp_path, monkeypatch):
 
 
 @pytest.mark.render_regression
+def test_keyframe_camera_motion_changes_real_render_frames_and_stays_in_bounds(tmp_path, monkeypatch):
+    """FFmpeg must evaluate zoom/pan keyframes over the clip, not just once."""
+    if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
+        pytest.skip("FFmpeg and FFprobe are required for the render regression fixture")
+
+    source = tmp_path / "camera_source.mp4"
+    audio = tmp_path / "camera_mix.wav"
+    subtitles = tmp_path / "camera_captions.ass"
+    output = tmp_path / "camera_render.mp4"
+    monkeypatch.setenv("OMNICUT_ENCODER", "cpu")
+
+    # A white marker sits at the far-left edge of a portrait source. A pan from
+    # -1 to +1 at 2x zoom must move it out of the final crop by the last frame.
+    _run([
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "lavfi", "-i", "color=c=black:s=540x960:r=30:d=1.5",
+        "-vf", "drawbox=x=20:y=360:w=100:h=240:color=white:t=fill",
+        "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(source),
+    ])
+    _run([
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000:duration=1.5",
+        "-c:a", "pcm_s16le", str(audio),
+    ])
+    subtitles.write_text(
+        "[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\n"
+        "[V4+ Styles]\n"
+        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, "
+        "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, "
+        "Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
+        "Style: Default,Arial,72,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,3,0,2,40,40,420,1\n"
+        "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n",
+        encoding="utf-8",
+    )
+
+    result = VideoEditor.assemble_tiktok_video(
+        raw_video_paths=[str(source)],
+        total_duration=1.5,
+        mixed_audio_path=str(audio),
+        ass_subtitle_path=str(subtitles),
+        output_mp4_path=str(output),
+        clip_list=[{
+            "source_path": str(source),
+            "trim_start": 0.0,
+            "trim_end": 1.5,
+            "duration": 1.5,
+            "zoom": 2.0,
+            "keyframes": [
+                {"time": 0.0, "zoom": 2.0, "pan_x": -1.0, "pan_y": 0.0},
+                {"time": 0.75, "zoom": 2.0, "pan_x": -0.4, "pan_y": 0.0},
+                {"time": 1.5, "zoom": 2.0, "pan_x": 1.0, "pan_y": 0.0},
+            ],
+        }],
+        export_preset="draft",
+    )
+
+    assert Path(result) == output.resolve()
+    frames_dir = tmp_path / "frames"
+    frames_dir.mkdir()
+    for label, timestamp in (("in", "0.10"), ("middle", "0.75"), ("out", "1.40")):
+        _run([
+            "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+            "-ss", timestamp, "-i", str(output), "-frames:v", "1",
+            str(frames_dir / f"{label}.png"),
+        ])
+
+    from PIL import Image
+
+    white_counts = []
+    for label in ("in", "middle", "out"):
+        pixels = Image.open(frames_dir / f"{label}.png").convert("RGB")
+        white_counts.append(sum(
+            1 for r, g, b in pixels.getdata()
+            if r > 220 and g > 220 and b > 220
+        ))
+    assert white_counts[0] > 1000, "the first motion frame must contain the marker"
+    assert white_counts[0] > white_counts[1] > white_counts[2], white_counts
+
+
+@pytest.mark.render_regression
 def test_per_word_vs_monolithic_render_parity(tmp_path):
     if not shutil.which("ffmpeg"):
         pytest.skip("FFmpeg is required for render regression testing")
@@ -949,3 +1029,56 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         bbox = im.getbbox()
         assert bbox is not None, f"{tpl} must burn visible text into frame at 0.5s"
         assert bbox[1] < 600, f"{tpl} banner should be located in top region, got y1={bbox[1]}"
+
+
+@pytest.mark.render_regression
+def test_style_preset_accent_burns_consistently_across_entry_hold_exit_frames(tmp_path):
+    """The selected style palette must survive the real ASS/libass render."""
+    if not shutil.which("ffmpeg"):
+        pytest.skip("FFmpeg is required for the render regression fixture")
+
+    from PIL import Image
+    from scripts.subtitle_engine import SubtitleEngine
+
+    ass_path = tmp_path / "style_hook.ass"
+    SubtitleEngine.generate_ass(
+        cues=[],
+        output_ass_path=str(ass_path),
+        bilingual=False,
+        style_preset="clean_tech_review",
+        overlays=[{
+            "kind": "hook",
+            "start": 0.0,
+            "end": 0.9,
+            "tiers": [
+                {"text": "BRAND"},
+                {"text": "MODEL", "look": {"color": "accent"}},
+                {"text": "LABEL"},
+            ],
+            "anim": {"in": "none", "loop": "none", "out": "none", "accent": "underline"},
+        }],
+    )
+    ass_text = ass_path.read_text(encoding="utf-8")
+    assert "\\c&H0000E6FF&" in ass_text, "clean_tech_review accent must resolve to ASS yellow"
+
+    fonts_p = str(Path("02_Assets/Fonts").resolve()).replace("\\", "/").replace(":", "\\:")
+    ass_p = str(ass_path.resolve()).replace("\\", "/").replace(":", "\\:")
+    frames_dir = tmp_path / "style_frames"
+    frames_dir.mkdir()
+    for label, timestamp in (("entry", "0.10"), ("hold", "0.45"), ("exit", "0.80")):
+        _run([
+            "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+            "-f", "lavfi", "-i", "color=c=black:s=1080x1920:d=0.9:r=30",
+            "-vf", f"ass='{ass_p}':fontsdir='{fonts_p}'",
+            "-ss", timestamp, "-frames:v", "1",
+            str(frames_dir / f"{label}.png"),
+        ])
+
+    yellow_counts = []
+    for label in ("entry", "hold", "exit"):
+        image = Image.open(frames_dir / f"{label}.png").convert("RGB")
+        yellow_counts.append(sum(
+            1 for red, green, blue in image.getdata()
+            if red > 150 and green > 120 and blue < 120
+        ))
+    assert all(count > 0 for count in yellow_counts), yellow_counts

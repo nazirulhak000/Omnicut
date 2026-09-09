@@ -444,6 +444,7 @@ class ProductStore:
         clear_qc_note: bool = False,
         clear_conflict_note: bool = False,
         export_id: Optional[str] = None,
+        mark_qc_passed: bool = False,
     ) -> Dict[str, Any]:
         """Updates the lifecycle status of a specific script angle in a product.
 
@@ -456,6 +457,17 @@ class ProductStore:
                                reconcile_existing_projects() sets when it
                                auto-unlinks this angle from another angle's
                                project/video (Round BUG-3).
+        mark_qc_passed – pass True only when a human actually clicked "QC
+                         ผ่าน". Sets angle["qc_reviewed"]. A freshly-rendered
+                         clip has no qc_note (nobody has rejected it yet),
+                         but that is NOT the same fact as "a human reviewed
+                         and approved it" -- qc_note alone used to be the
+                         only signal the UI had, so every new render showed
+                         as "QC ผ่าน" before anyone looked at it.
+                         qc_reviewed is reset to False whenever video_url
+                         actually changes (a new render is unreviewed by
+                         definition) or a qc_note is freshly set (a
+                         rejection un-approves it).
         """
         # Validated *before* entering _mutate() on purpose: ExportRegistry
         # shares this store's own store.db file, and on the same thread
@@ -503,7 +515,13 @@ class ProductStore:
                             # to miss the file a moment later.
                             angle["status_updated_at"] = cls._now()
                             if video_url is not None:
-                                angle["video_url"] = _to_relative(video_url) if video_url else None
+                                new_video_url = _to_relative(video_url) if video_url else None
+                                if new_video_url != angle.get("video_url"):
+                                    # A different rendered file is unreviewed by
+                                    # definition, regardless of what the angle's
+                                    # qc_reviewed flag said about the old one.
+                                    angle["qc_reviewed"] = False
+                                angle["video_url"] = new_video_url
                             if export_id is not None:
                                 angle["export_id"] = export_id
                             if project_name is not None:
@@ -511,8 +529,12 @@ class ProductStore:
                             # QC note handling
                             if qc_note is not None:
                                 angle["qc_note"] = qc_note.strip() or None
+                                if angle["qc_note"]:
+                                    angle["qc_reviewed"] = False
                             elif clear_qc_note:
                                 angle["qc_note"] = None
+                            if mark_qc_passed:
+                                angle["qc_reviewed"] = True
                             if clear_conflict_note:
                                 angle["data_conflict_note"] = None
                             if status == "posted" and not angle.get("posted_at"):
@@ -1178,12 +1200,19 @@ class ProductStore:
                         # finished -- promote to "rendered" exactly like the
                         # normal promotion path does.
                         if angle.get("status") != "rendered" or angle.get("video_url") != mp4_path:
+                            if angle.get("video_url") != mp4_path:
+                                # See update_angle_status()'s mark_qc_passed
+                                # doc: a different rendered file is
+                                # unreviewed by definition.
+                                angle["qc_reviewed"] = False
                             angle["status"] = "rendered"
                             angle["video_url"] = mp4_path
                             angle["status_updated_at"] = cls._now()
                             changed = True
                     else:
                         if angle.get("status") != "rendered" or angle.get("video_url") != mp4_path:
+                            if angle.get("video_url") != mp4_path:
+                                angle["qc_reviewed"] = False
                             angle["status"] = "rendered"
                             angle["video_url"] = mp4_path
                             # Same stamp update_angle_status() sets -- this

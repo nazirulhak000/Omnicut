@@ -7,6 +7,7 @@ Mirrored by SequencePlayer.jsx:drawOneOverlay() on the frontend.
 from typing import Any, Dict, List, Optional
 from scripts.asset_registry import AssetRegistry
 from scripts.overlay_model import ACCENT_COLOR, overlay_kind, resolve_look
+from scripts.style_motion_policy import style_visual_palette
 from scripts.subtitle.badge_plate_renderer import (
     ass_colour,
     _pill_fill_to_ass,
@@ -74,6 +75,8 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
     hook_fs = ctx.get("hook_fs", 75)
     hook_font = ctx.get("hook_font", "Kanit")
     caption_color = ctx.get("caption_color", "#0000E6FF")
+    palette = style_visual_palette(ctx.get("style_preset"))
+    accent_color = ctx.get("accent_color") or palette["accent_color"]
 
     hook_start = float(hook_overlay.get("start") or 0.0)
     hook_end = float(hook_overlay.get("end") or (hook_start + 3.0))
@@ -103,11 +106,14 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
     def tier_colour(idx: int, fallback: str) -> str:
         colour = tier_looks[idx]["color"]
         if colour == ACCENT_COLOR:
-            return fallback
+            return ass_colour(accent_color) or fallback
         return ass_colour(colour) or fallback
 
     brand_colour = tier_colour(0, "&H00FFFFFF")
-    model_colour = tier_colour(1, ass_colour(caption_color) or "&H0000E6FF")
+    # The semantic accent is a style token. Explicit tier colour still wins;
+    # caption colour is a separate caption contract and must not leak into a
+    # hook/text overlay when the selected preset supplies its accent.
+    model_colour = tier_colour(1, ass_colour(accent_color) or "&H0000E6FF")
     label_colour = tier_colour(2, "&H00E0E0E0")
     hook_tier_specs = [
         (hook_brand, int(tier_looks[0]["size_pct"]), brand_colour, 0),
@@ -315,6 +321,8 @@ def _text_overlay_events(item: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]
     resolved_font = ctx.get("resolved_font", "Kanit")
     font_map = ctx.get("font_map", {})
     caption_color = ctx.get("caption_color", "#0000E6FF")
+    palette = style_visual_palette(ctx.get("style_preset"))
+    accent_color = ctx.get("accent_color") or palette["accent_color"]
 
     look = resolve_look(item.get("look"), ((item.get("tiers") or [{}])[0] or {}).get("look"))
     txt = str(((item.get("tiers") or [{}])[0] or {}).get("text") or item.get("text") or "").strip()
@@ -355,7 +363,7 @@ def _text_overlay_events(item: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]
     scale = min(2.5, max(0.4, float(look["size_pct"]) / 100.0))
     colour_value = look["color"]
     if colour_value == ACCENT_COLOR:
-        colour_value = caption_color
+        colour_value = accent_color
     color_hex = ass_colour(colour_value) or "&H00FFFFFF"
     outline_hex = ass_colour(look["outline_color"]) or "&H00000000"
     outline_px = float(look["outline_px"])

@@ -451,7 +451,8 @@ class SubtitleEngine:
         caption_color: str = None,
         caption_scale: float = 1.0,
         text_overlays: Optional[List[Dict[str, Any]]] = None,
-        overlays: Optional[List[Dict[str, Any]]] = None
+        overlays: Optional[List[Dict[str, Any]]] = None,
+        style_preset: Optional[str] = None,
     ) -> Tuple[str, List[Dict]]:
         """
         Generate TikTok style ASS subtitle file with rapid-fire micro-bursts, 
@@ -656,6 +657,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 "hook_fs": hook_fs,
                 "hook_font": hook_font,
                 "caption_color": caption_color,
+                "style_preset": style_preset,
             }
             events.extend(overlay_events(hook_overlay, hook_ctx))
 
@@ -846,6 +848,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     "resolved_font": resolved_font,
                     "font_map": font_map,
                     "caption_color": caption_color,
+                    "style_preset": style_preset,
                 }
                 events.extend(overlay_events(item, text_ctx))
 

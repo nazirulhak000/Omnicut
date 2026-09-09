@@ -6,6 +6,7 @@ Generates animated Thai & bilingual subtitles (.ass), parses/migrates overlays, 
 from typing import List, Tuple
 
 from scripts.subtitle_engine import SubtitleEngine
+from scripts.editorial_pacing import build_pacing_plan_from_cues
 from scripts.overlay_model import migrate_to_overlays
 from scripts.pipeline_context import PipelineContext
 
@@ -56,6 +57,14 @@ class SubtitleStage:
                 if o.get("scrim") and not o.get("hidden")
             ]
 
+            # Capture the optional word-level timing contract before
+            # generate_ass replaces ctx.cues with micro-cues. Legacy cues
+            # without word_timings intentionally produce no plan.
+            ctx.editorial_pacing = build_pacing_plan_from_cues(
+                ctx.cues,
+                duration=ctx.total_duration,
+            )
+
             _, micro_cues = SubtitleEngine.generate_ass(
                 cues=ctx.cues,
                 output_ass_path=str(ass_path),
@@ -72,7 +81,8 @@ class SubtitleStage:
                 caption_position=ctx.caption_position,
                 caption_color=ctx.caption_color,
                 caption_scale=ctx.caption_scale,
-                text_overlays=effective_text_overlays
+                text_overlays=effective_text_overlays,
+                style_preset=ctx.style_preset,
             )
             # Sync micro_cues back
             ctx.cues = micro_cues
@@ -94,6 +104,7 @@ class SubtitleStage:
                 ctx.manifest.get("text_overlays") or saved_params.get("text_overlays")
             )
             ctx.micro_cues = micro_cues
+            ctx.editorial_pacing = (ctx.manifest or {}).get("editorial_pacing")
             print(f"♻️  [3/5] Reusing subtitles: {ass_path.name} ({len(micro_cues)} micro-bursts)")
 
         ctx.ass_sub_path = ass_path

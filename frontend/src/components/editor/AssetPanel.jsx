@@ -13,6 +13,7 @@ const TABS = [
   { id: 'sticker', label: 'สติกเกอร์', icon: Sticker },
   { id: 'effect', label: 'เอฟเฟกต์', icon: Sparkles },
   { id: 'filter', label: 'ฟิลเตอร์', icon: Palette },
+  { id: 'style', label: 'สไตล์', icon: Sparkles },
 ];
 
 // Drag payload type shared with Timeline's drop target.
@@ -20,6 +21,7 @@ export const CLIP_DRAG_TYPE = 'application/x-capcut-clip';
 export const TEXT_TEMPLATE_DRAG_TYPE = 'application/x-capcut-text-template';
 
 import { toMediaUrl } from '../../lib/mediaUrl';
+import { STYLE_PRESET_CATALOG, normalizeStylePreset } from '../../lib/stylePresetCatalog.js';
 import TextLookPreview from './TextLookPreview';
 import { HOOK_FS_RATIO, HOOK_SHADOW, overlayFromTextTemplate } from '../../lib/overlayModel';
 import { TIER_KEYS } from '../../lib/hookStyles';
@@ -525,6 +527,8 @@ export default function AssetPanel({
   durations = {},
   assets,             // { sfx, music, fonts, stickers, luts }
   style,              // { fontName, bgmName, lutName, stickerBadge }
+  stylePreset = null,
+  onStylePresetChange = null,
   selectedCaption,    // cue object or null
   onAddClip,
   onAddTextAtPlayhead,
@@ -561,6 +565,7 @@ export default function AssetPanel({
   const [textCategory, setTextCategory] = useState('all');
   const [textSearch, setTextSearch] = useState('');
   const [textSubTab, setTextSubTab] = useState('hook');
+  const activeStylePreset = normalizeStylePreset(stylePreset || style?.style_preset);
 
   // Live Preview SFX when clicking a text template
   const playSfxPreview = (sfxKey) => {
@@ -748,8 +753,8 @@ export default function AssetPanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col border-r border-white/[0.08] bg-[#0C1019]">
-      {/* tab rail - responsive 6 tabs fitting all screen widths without overflow */}
-      <div className="grid grid-cols-7 border-b border-white/[0.08] bg-black/30 p-1 gap-1 flex-shrink-0">
+      {/* tab rail - responsive tabs fitting all screen widths without overflow */}
+      <div className="grid grid-cols-4 sm:grid-cols-8 border-b border-white/[0.08] bg-black/30 p-1 gap-1 flex-shrink-0">
         {TABS.map(({ id, label, icon: Icon }) => {
           const isActive = tab === id;
           return (
@@ -832,6 +837,64 @@ export default function AssetPanel({
       )}
 
       <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
+        {/* TAB 8: PROJECT STYLE */}
+        {tab === 'style' && (
+          <div className="space-y-2">
+            <div className="rounded-xl border border-[#25F4EE]/20 bg-[#25F4EE]/[0.04] p-3">
+              <div className="flex items-start gap-2">
+                <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#25F4EE]" />
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-white">สไตล์การตัดต่อของโปรเจกต์</p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
+                    เลือกเพื่อเตรียม look และจังหวะของงาน ระบบจะยังไม่เริ่ม Render จนกว่าจะกดปุ่ม Render เอง
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {STYLE_PRESET_CATALOG.map((preset) => {
+              const isActive = activeStylePreset === preset.id;
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  data-style-preset={preset.id}
+                  aria-pressed={isActive}
+                  onClick={() => onStylePresetChange?.(preset.id)}
+                  className={`w-full rounded-xl border p-3 text-left transition-all focus:outline-none focus:ring-2 focus:ring-[#25F4EE]/60 cursor-pointer ${
+                    isActive
+                      ? 'border-[#25F4EE]/60 bg-[#25F4EE]/[0.08] shadow-[0_0_0_1px_rgba(37,244,238,0.12)]'
+                      : 'border-white/[0.08] bg-black/30 hover:border-white/[0.2] hover:bg-white/[0.04]'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-white">{preset.label}</p>
+                      <p className="mt-0.5 text-xs text-[#25F4EE]">{preset.labelTh}</p>
+                    </div>
+                    {isActive && <Check className="h-4 w-4 flex-shrink-0 text-[#25F4EE]" />}
+                  </div>
+                  <p className="mt-2 text-[11px] leading-relaxed text-slate-300">{preset.description}</p>
+                  <div className="mt-3 grid grid-cols-1 gap-1.5 text-[10px] text-slate-400">
+                    <span className="rounded-lg bg-black/25 px-2 py-1">{preset.motion}</span>
+                    <span className="rounded-lg bg-black/25 px-2 py-1">{preset.transitions}</span>
+                    <span className="rounded-lg bg-black/25 px-2 py-1">{preset.audio}</span>
+                  </div>
+                  {isActive && (
+                    <p className="mt-2 text-[10px] font-medium text-emerald-300">
+                      เลือกใช้อยู่ · พร้อมสำหรับพรีวิวและ Render ครั้งถัดไป
+                    </p>
+                  )}
+                </button>
+              );
+            })}
+
+            <p className="px-1 text-[10px] leading-relaxed text-slate-500">
+              การเลือก preset เป็นการแก้ไขระดับโปรเจกต์และย้อนกลับได้ด้วย Undo ก่อนเริ่ม Render
+            </p>
+          </div>
+        )}
+
         {/* TAB 1: CLIPS */}
         {tab === 'clips' && (
           <div className="space-y-1.5">

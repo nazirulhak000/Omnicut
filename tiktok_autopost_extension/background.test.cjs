@@ -41,6 +41,7 @@ test('preparation stops on product failure before cover and schedule', async () 
   const ctx = worker();
   const called = [];
   ctx.fetchPendingJob = async () => ({caption:'review', tiktok_product_id:'123'});
+  ctx.runWaitForUploadOnly = async () => {};
   ctx.runTypeCaptionOnly = async () => { called.push('caption'); };
   ctx.runAttachProductOnly = async () => ({success:false, reason:'product not found'});
   ctx.runUploadCoverOnly = async () => { called.push('cover'); };
@@ -56,6 +57,7 @@ test('preparation completes in order and never calls publication', async () => {
   const ctx = worker();
   const called = [];
   ctx.fetchPendingJob = async () => ({caption:'review', tiktok_product_id:'123'});
+  ctx.runWaitForUploadOnly = async () => {};
   ctx.runTypeCaptionOnly = async () => { called.push('caption'); };
   ctx.runAttachProductOnly = async () => { called.push('product'); return {success:true}; };
   ctx.runUploadCoverOnly = async () => { called.push('cover'); return {success:true}; };
@@ -64,6 +66,41 @@ test('preparation completes in order and never calls publication', async () => {
   const result = await ctx.runPrepareDetails({scheduleMode:true});
   assert.equal(result.success, true);
   assert.deepEqual(called, ['caption', 'product', 'cover', 'schedule']);
+});
+
+test('preparation waits for the real upload to finish before doing anything else', async () => {
+  // Regression: the "ทำต่อหลังอัปโหลด" shortcut becomes clickable as soon as
+  // step 1 hands the file to TikTok's page, which is well before the upload
+  // actually finishes -- confirmed live at 26% progress. Without this wait,
+  // caption/product/cover all raced the real upload and TikTok's own
+  // product-search endpoint refused results ("การตรวจสอบจะเริ่มได้หลังจาก
+  // อัปโหลดไฟล์แล้วเท่านั้น").
+  const ctx = worker();
+  const called = [];
+  ctx.fetchPendingJob = async () => ({caption:'review', tiktok_product_id:'123'});
+  ctx.runWaitForUploadOnly = async () => { called.push('wait-for-upload'); };
+  ctx.runTypeCaptionOnly = async () => { called.push('caption'); };
+  ctx.runAttachProductOnly = async () => { called.push('product'); return {success:true}; };
+  ctx.runUploadCoverOnly = async () => { called.push('cover'); return {success:true}; };
+  ctx.runScheduleModeOnly = async () => { called.push('schedule'); return {success:true}; };
+  const result = await ctx.runPrepareDetails({scheduleMode:true});
+  assert.equal(result.success, true);
+  assert.deepEqual(called, ['wait-for-upload', 'caption', 'product', 'cover', 'schedule']);
+});
+
+test('preparation stops immediately if the upload never finishes, before touching caption/product/cover', async () => {
+  const ctx = worker();
+  const called = [];
+  ctx.fetchPendingJob = async () => ({caption:'review', tiktok_product_id:'123'});
+  ctx.runWaitForUploadOnly = async () => { throw new Error('TikTok ยังอัปโหลดวิดีโอไม่เสร็จ -- รอสักครู่แล้วลองใหม่'); };
+  ctx.runTypeCaptionOnly = async () => { called.push('caption'); };
+  ctx.runAttachProductOnly = async () => { called.push('product'); return {success:true}; };
+  ctx.runUploadCoverOnly = async () => { called.push('cover'); return {success:true}; };
+  const result = await ctx.runPrepareDetails({scheduleMode:false});
+  assert.equal(result.success, false);
+  assert.match(result.error, /ยังอัปโหลดวิดีโอไม่เสร็จ/);
+  assert.deepEqual(called, []);
+  assert.deepEqual(Array.from(result.completed), []);
 });
 
 test('cover is rejected before any page interaction when missing', async () => {
