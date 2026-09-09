@@ -205,6 +205,7 @@ export default function MediaAssetsHub({ status }) {
     return (list || []).filter(item =>
       (item.name && item.name.toLowerCase().includes(q)) ||
       (item.label && item.label.toLowerCase().includes(q)) ||
+      (item.label_th && item.label_th.toLowerCase().includes(q)) ||
       (item.category && item.category.toLowerCase().includes(q)) ||
       (item.family && item.family.toLowerCase().includes(q))
     );

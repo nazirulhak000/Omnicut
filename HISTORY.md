@@ -9,6 +9,7 @@
 ## สารบัญ
 
 | รอบ | งาน | วันที่ | ผลลัพธ์ |
+| Round SFX-TITLES-1 | ดึงชื่อแสดงผลภาษาไทย/อังกฤษจริงจาก Myinstants ใส่ใน asset_metadata.json | 2026-09-09 | 1,774 ชื่อแสดงผลภาษาไทย/อังกฤษตรงปก · UI แสดงชื่ออ่านง่ายและค้นหาได้ทันที |
 | Round SFX-HUB-1 | สแกน SFX แบบ Recursive เข้า AssetRegistry และเพิ่มตัวกรองหมวดหมู่ใน Media Assets Hub | 2026-09-09 | 1,822 ไฟล์ SFX แสดงผลครบถ้วนใน Media Assets Hub พร้อม Sub-category filter pills |
 | Round SFX-CAT-1 | จัดหมวดหมู่ไฟล์เสียง mi_xxx 1,775 ไฟล์ เป็น 10 หมวดใน 02_Assets/SFX/ | 2026-09-09 | 1,775 ไฟล์จัดเข้า 10 โฟลเดอร์ย่อย · เสียงเดิม 47 ไฟล์คงเดิม |
 | Round SFX-DL-1 | โหลดเสียงเอฟเฟกต์ทั้งหมดจาก myinstants.com/en/index/th/ | 2026-09-09 | 1,775 เสียงโหลดสำเร็จ · SFX/ รวม 1,822 ไฟล์ · เสียงเดิม 47 ครบ |
@@ -53,7 +54,34 @@
 | Round SUB-THAI-1 | แก้สระและวรรณยุกต์ไทยซ้อนกันในคลิปเรนเดอร์ | 2026-09-08 | เปลี่ยน caption entrance จาก ASS `\\fscx/\\fscy` เป็น alpha fade 70ms และ mirror ใน Canvas; เพิ่ม FFmpeg multi-frame regression ด้วย `นั่งพิมพ์งานทั้งวัน`; pytest 926 passed · npm test 85 passed · build/compileall passed |
 | Round STK-PRO-1 | ชุดสติกเกอร์และป้ายรีวิวสายไอทีระดับโปร (Photorealistic Tech Review Badges) | 2026-09-08 | ออกแบบ Master Prompt 3 ชุด + เจนและสไลซ์ 18 ป้ายไอทีระดับโปร (Dark Glass, CNC Aluminum, Titanium, Micro-LED) + สำรองของเดิมลง _backup_cartoon/ + อัปเดต AssetPanel · parity/behavior 159 passed · npm test 85 passed · build passed · 18 RGBA verified |
 
+## Round SFX-TITLES-1 — ดึงชื่อภาษาไทย/ชื่อจริงที่แสดงบน Myinstants มาใส่เป็น label ใน asset_metadata.json
+
+วันที่: 2026-09-09 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+**เป้าหมาย:** ดึง Display Name จากหน้าเว็บ Myinstants ทั้งหมด 50 หน้า บันทึกลงใน `02_Assets/asset_metadata.json` เพื่อให้ชื่อเสียงที่แสดงบนหน้าเว็บ (UI) ทั้ง Media Assets Hub และ AssetPanel แสดงเป็นชื่อภาษาไทย/ชื่อจริงที่อ่านออกและตรงกับหน้าเว็บเป๊ะ
+
+### สิ่งที่ทำ
+
+1. **สร้างสคริปต์ `tools/scrape_myinstants_titles.py`:**
+   - ดึงคู่ `(sound_filename, display_title)` จาก 50 หน้าของ Myinstants Thailand
+   - รวมชื่อที่ได้ 1,774 รายการบันทึกลงใน `02_Assets/asset_metadata.json` ภายใต้คีย์ `label` และ `label_th` โดยไม่ลบ metadata เดิมของระบบ
+2. **อัปเกรด `scripts/asset_registry.py`:**
+   - Map ค่า `label` และ `label_th` เข้าสู่ entry ของ SFX และ BGM ทุกชิ้น
+3. **อัปเดต Frontend UI (`MediaAssetsHub.jsx` & `AssetPanel.jsx`):**
+   - แสดงผล `label` นำหน้าเสมอ และแสดงชื่อไฟล์เป็น secondary info
+   - รองรับการค้นหา (Search Query) ด้วยชื่อภาษาไทยและชื่อจริงบนเว็บ
+
+### Gate
+
+- [x] ดึง metadata สำเร็จครบ 50 หน้า (อัปเดต 1,774 รายการ)
+- [x] `AssetRegistry.rebuild()` โหลดชื่อ label เข้า sfx สำเร็จ
+- [x] `python -m compileall -q scripts tools` — ผ่าน
+- [x] `npm test` และ `npm run build` — 86 tests passed, build สำเร็จ
+
+---
+
 ## Round SFX-HUB-1 — สแกน SFX แบบ Recursive เข้า AssetRegistry และเพิ่มตัวกรองหมวดหมู่ SFX ใน Media Assets Hub
+
 
 วันที่: 2026-09-09 · สั่งโดย: user · สถานะ: เสร็จแล้ว
 

@@ -117,6 +117,7 @@ class AssetRegistry:
                 
             entry["category"] = meta.get("category") or subfolder_category
             entry["label_th"] = meta.get("label_th", "")
+            entry["label"] = meta.get("label") or meta.get("label_th") or path.stem
             entry["audio_url"] = f"/api/media/{entry['rel_path']}"
             entries.append(entry)
         return entries
@@ -131,6 +132,7 @@ class AssetRegistry:
             entry["id"] = asset_id
             entry["mood"] = meta.get("mood", "")
             entry["label_th"] = meta.get("label_th", "")
+            entry["label"] = meta.get("label") or meta.get("label_th") or path.stem
             entry["audio_url"] = f"/api/media/{entry['rel_path']}"
             entries.append(entry)
         return entries

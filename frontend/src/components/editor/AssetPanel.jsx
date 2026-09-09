@@ -705,7 +705,7 @@ export default function AssetPanel({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const match = (item) => !q || `${item.label_th || ''} ${item.name || ''}`.toLowerCase().includes(q);
+    const match = (item) => !q || `${item.label || ''} ${item.label_th || ''} ${item.name || ''}`.toLowerCase().includes(q);
     return {
       videos: (videos || []).filter((v) => !q || v.name.toLowerCase().includes(q)),
       sfx: (assets?.sfx || []).filter(match),
