@@ -299,8 +299,10 @@ const KanbanCard = memo(function KanbanCard({
       className={`p-2.5 rounded-xl border transition-all space-y-2 relative group shadow-sm ${
         ang.qc_note
           ? 'bg-[#120A06] border-red-500/40 hover:border-red-400/60 ring-1 ring-red-500/20'
-          : phaseId === 'rendered'
+          : phaseId === 'rendered' && ang.qc_reviewed
           ? 'bg-[#09111C] border-[#25F4EE]/30 hover:border-[#25F4EE]/60 shadow-[#25F4EE]/5'
+          : phaseId === 'rendered'
+          ? 'bg-[#0F0C05] border-amber-500/30 hover:border-amber-400/50'
           : 'bg-[#0B0F19] border-white/[0.08] hover:border-[#25F4EE]/40'
       }`}
     >
@@ -343,12 +345,29 @@ const KanbanCard = memo(function KanbanCard({
             </button>
           )}
         </div>
-      ) : (phaseId === 'rendered' && (
+      ) : phaseId === 'rendered' && ang.qc_reviewed ? (
         <div className="flex items-center justify-between py-0.5 px-2 rounded-lg bg-[#25F4EE]/10 border border-[#25F4EE]/25 text-[#25F4EE] text-xs font-bold">
           <span className="flex items-center gap-1.5">
             <Check className="w-3.5 h-3.5 text-[#25F4EE]" />
             <span>QC ผ่าน (พร้อมใช้งาน)</span>
           </span>
+        </div>
+      ) : (phaseId === 'rendered' && (
+        <div className="flex items-center justify-between gap-1.5 py-0.5 px-2 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs font-bold">
+          <span className="flex items-center gap-1.5 min-w-0">
+            <ShieldAlert className="w-3.5 h-3.5 flex-shrink-0 text-amber-400" />
+            <span className="truncate">รอตรวจ QC -- ยังไม่มีใครกดยืนยัน</span>
+          </span>
+          {onQcPass && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onQcPass(ang); }}
+              className="px-2 py-0.5 rounded-md bg-gradient-to-r from-[#25F4EE] to-cyan-400 hover:brightness-110 text-slate-950 font-black text-[10px] cursor-pointer shadow-sm shadow-[#25F4EE]/20 whitespace-nowrap active:scale-95 transition-all"
+              title="กดรับรอง QC ผ่าน"
+            >
+              QC ผ่าน
+            </button>
+          )}
         </div>
       ))}
       
