@@ -1,4 +1,4 @@
-﻿# 📜 OmniCut Pro Studio — History งานที่ทำเสร็จแล้ว
+# 📜 OmniCut Pro Studio — History งานที่ทำเสร็จแล้ว
 
 คลังประวัติรอบงานที่ปิดแล้ว **ห้ามแก้ย้อนหลัง** — เป็นบันทึกว่าตอนนั้นทำอะไร วัดได้เท่าไหร่ เจออะไร
 
@@ -9,7 +9,7 @@
 ## สารบัญ
 
 | รอบ | งาน | วันที่ | ผลลัพธ์ |
-| :--- | :--- | :--- | :--- |
+| Round SFX-CAT-1 | จัดหมวดหมู่ไฟล์เสียง mi_xxx 1,775 ไฟล์ เป็น 10 หมวดใน 02_Assets/SFX/ | 2026-09-09 | 1,775 ไฟล์จัดเข้า 10 โฟลเดอร์ย่อย · เสียงเดิม 47 ไฟล์คงเดิม |
 | Round SFX-DL-1 | โหลดเสียงเอฟเฟกต์ทั้งหมดจาก myinstants.com/en/index/th/ | 2026-09-09 | 1,775 เสียงโหลดสำเร็จ · SFX/ รวม 1,822 ไฟล์ · เสียงเดิม 47 ครบ |
 | Round 1 | รวม hook banner กับ text overlay เป็นโมเดลเดียว | 2026-09-05 | ปิดบั๊ก 12 ตัว · commit `20e2cc5` |
 | Round 2 | วางกฎรอบงาน + ตั้ง Todo กลาง | 2026-09-05 | `work_loop.md` + `TODO.md` |
@@ -52,7 +52,48 @@
 | Round SUB-THAI-1 | แก้สระและวรรณยุกต์ไทยซ้อนกันในคลิปเรนเดอร์ | 2026-09-08 | เปลี่ยน caption entrance จาก ASS `\\fscx/\\fscy` เป็น alpha fade 70ms และ mirror ใน Canvas; เพิ่ม FFmpeg multi-frame regression ด้วย `นั่งพิมพ์งานทั้งวัน`; pytest 926 passed · npm test 85 passed · build/compileall passed |
 | Round STK-PRO-1 | ชุดสติกเกอร์และป้ายรีวิวสายไอทีระดับโปร (Photorealistic Tech Review Badges) | 2026-09-08 | ออกแบบ Master Prompt 3 ชุด + เจนและสไลซ์ 18 ป้ายไอทีระดับโปร (Dark Glass, CNC Aluminum, Titanium, Micro-LED) + สำรองของเดิมลง _backup_cartoon/ + อัปเดต AssetPanel · parity/behavior 159 passed · npm test 85 passed · build passed · 18 RGBA verified |
 
+## Round SFX-CAT-1 — จัดหมวดหมู่ไฟล์เสียง mi_xxx 1,775 ไฟล์ เป็น 10 หมวดใน 02_Assets/SFX/
+
+วันที่: 2026-09-09 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+**เป้าหมาย:** จัดระเบียบไฟล์เสียงเอฟเฟกต์ที่โหลดจาก Myinstants (มีคำนำหน้า `mi_*.mp3`) จำนวน 1,775 ไฟล์ เข้า 10 โฟลเดอร์หมวดหมู่ย่อยใน `02_Assets/SFX/` ตามชื่อและคีย์เวิร์ด เพื่อให้ค้นหาและนำไปใช้งานง่าย โดยไม่กระทบกับไฟล์เสียงเดิม 47 ไฟล์ที่อยู่ในรูท
+
+### สิ่งที่ทำ
+
+1. **สร้างสคริปต์ `tools/categorize_myinstants_sfx.py`:**
+   - กำหนด 10 หมวดหมู่หลัก: `transition/`, `notification/`, `game/`, `anime/`, `music/`, `reaction/`, `horror/`, `meme/`, `thai/`, `other/`
+   - ใช้ Regex Patterns ครอบคลุมคีย์เวิร์ดภาษาอังกฤษ, ศัพท์เฉพาะวงการเกม/อนิเมะ/มีม และรูปแบบการถอดเสียงภาษาไทยเป็นอักษรโรมัน (Romanized Thai Patterns)
+   - ป้องกันไฟล์เสียงเดิม: เฉพาะไฟล์ `mi_*.mp3` เท่านั้นที่จะถูกจัดหมวด ไฟล์เสียงต้นฉบับ 47 ไฟล์คงอยู่ที่รูท `02_Assets/SFX/` เสมอ
+2. **รันจัดหมวดหมู่จริง:**
+   - ย้ายไฟล์ 1,775 ไฟล์เข้าโฟลเดอร์ย่อยครบ 100% ไม่มี error
+
+### ผลลัพธ์การจัดหมวดหมู่
+
+| หมวดหมู่ | โฟลเดอร์ | จำนวนไฟล์ |
+| :--- | :--- | :--- |
+| **Anime** | `02_Assets/SFX/anime/` | 65 ไฟล์ |
+| **Game** | `02_Assets/SFX/game/` | 114 ไฟล์ |
+| **Horror** | `02_Assets/SFX/horror/` | 71 ไฟล์ |
+| **Meme** | `02_Assets/SFX/meme/` | 114 ไฟล์ |
+| **Music** | `02_Assets/SFX/music/` | 90 ไฟล์ |
+| **Notification** | `02_Assets/SFX/notification/` | 80 ไฟล์ |
+| **Reaction** | `02_Assets/SFX/reaction/` | 79 ไฟล์ |
+| **Thai** | `02_Assets/SFX/thai/` | 179 ไฟล์ |
+| **Transition** | `02_Assets/SFX/transition/` | 26 ไฟล์ |
+| **Other** | `02_Assets/SFX/other/` | 957 ไฟล์ |
+| **Original SFX** | `02_Assets/SFX/` (Root) | 47 ไฟล์ (คงเดิม) |
+| **รวมทั้งหมด** | | **1,821 ไฟล์** |
+
+### Gate
+
+- [x] ย้ายไฟล์ครบ 1,775 ไฟล์ (`moved=1775, skipped=0, errors=0`)
+- [x] ไฟล์เดิม 47 ไฟล์ในรูทปลอดภัย ไม่ถูกย้ายหรือแก้ไข
+- [x] สร้างสคริปต์ `tools/categorize_myinstants_sfx.py` พร้อมโหมด `--report` และ `--dry-run`
+
+---
+
 ## Round STK-PRO-1 — ชุดสติกเกอร์และป้ายรีวิวสายไอทีระดับโปร (Photorealistic Tech Review Badges)
+
 
 วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: เสร็จแล้ว
 
