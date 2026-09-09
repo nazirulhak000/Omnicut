@@ -4,15 +4,15 @@ import {
   Search, Play, Pause, Download, Trash2, Upload, Sparkles, Image as ImageIcon,
   Film, Palette, AlertTriangle, X, Check, RefreshCw, Layers, Sliders,
   CheckCircle2, HardDrive, Cpu, Smartphone, Copy, ExternalLink,
-  Columns, LayoutGrid, List, ChevronRight, Eye, VolumeX, ShieldCheck, Tag, Info, RotateCcw
+  Columns, LayoutGrid, List, ChevronRight, Eye, VolumeX, ShieldCheck, Tag, Info, RotateCcw, Star
 } from 'lucide-react';
-import { openFolder, getAllAssets, uploadAsset, deleteFile } from '../api';
+import { openFolder, getAllAssets, uploadAsset, deleteFile, starAsset } from '../api';
 import { Modal, Toast, Button, Badge, Input, ConfirmModal } from './ui';
 import { useDebounce, useToast } from '../hooks';
 
 export default function MediaAssetsHub({ status }) {
   // ── Tab & View State ──
-  const [activeAssetTab, setActiveAssetTab] = useState('sfx'); // 'sfx' | 'music' | 'fonts' | 'stickers' | 'luts' | 'system'
+  const [activeAssetTab, setActiveAssetTab] = useState('sfx'); // 'sfx' | 'music' | 'fonts' | 'stickers' | 'luts' | 'effects' | 'system'
   const [viewMode, setViewMode] = useState(() => {
     try {
       return localStorage.getItem('omnicut_assets_view_mode') || 'grid';
@@ -26,7 +26,7 @@ export default function MediaAssetsHub({ status }) {
       localStorage.setItem('omnicut_assets_view_mode', viewMode);
     } catch {}
   }, [viewMode]);
-  const [assetData, setAssetData] = useState({ sfx: [], music: [], fonts: [], stickers: [], luts: [], counts: {} });
+  const [assetData, setAssetData] = useState({ sfx: [], music: [], fonts: [], stickers: [], luts: [], effects: [], counts: {} });
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sfxCategory, setSfxCategory] = useState('all'); // Sub-category filter for SFX
@@ -38,6 +38,7 @@ export default function MediaAssetsHub({ status }) {
   const [fontSizePreview, setFontSizePreview] = useState(32);
   const [customFontText, setCustomFontText] = useState('อย่าเพิ่งเลื่อนผ่าน! ซื้อ 1 แถม 1 เฉพาะวันนี้');
   const [copiedPath, setCopiedPath] = useState(false);
+  const [previewEffect, setPreviewEffect] = useState(null);
 
   // ── Audio Player State ──
   const [currentlyPlayingAudio, setCurrentlyPlayingAudio] = useState(null);
@@ -58,7 +59,7 @@ export default function MediaAssetsHub({ status }) {
     setLoading(true);
     try {
       const data = await getAllAssets();
-      setAssetData(data || { sfx: [], music: [], fonts: [], stickers: [], luts: [], counts: {} });
+      setAssetData(data || { sfx: [], music: [], fonts: [], stickers: [], luts: [], effects: [], counts: {} });
     } catch (err) {
       console.error('Failed to fetch assets:', err);
       showToast('ไม่สามารถดึงข้อมูล Assets ได้', 'error');
@@ -83,6 +84,26 @@ export default function MediaAssetsHub({ status }) {
     setCopiedPath(true);
     setTimeout(() => setCopiedPath(false), 2000);
   }, []);
+
+  // ── Star / Favorite Toggle (marks an asset as usable-in-editing) ──
+  const handleToggleStar = useCallback((item, e) => {
+    if (e) e.stopPropagation();
+    const nextStarred = !item.starred;
+    setAssetData((prev) => {
+      const patchList = (list) => (list || []).map((it) => (it.id === item.id ? { ...it, starred: nextStarred } : it));
+      return { ...prev, sfx: patchList(prev.sfx), music: patchList(prev.music), effects: patchList(prev.effects) };
+    });
+    setSelectedAsset((prev) => (prev && prev.id === item.id ? { ...prev, starred: nextStarred } : prev));
+    starAsset(item.id, nextStarred).catch((err) => {
+      console.error('Failed to toggle star:', err);
+      showToast('ติดดาวไม่สำเร็จ', 'error');
+      setAssetData((prev) => {
+        const revertList = (list) => (list || []).map((it) => (it.id === item.id ? { ...it, starred: item.starred } : it));
+        return { ...prev, sfx: revertList(prev.sfx), music: revertList(prev.music), effects: revertList(prev.effects) };
+      });
+      setSelectedAsset((prev) => (prev && prev.id === item.id ? { ...prev, starred: item.starred } : prev));
+    });
+  }, [showToast]);
 
   // ── Audio Controller ──
   const playAudio = useCallback((itemOrUrl, explicitName = null, durationSec = null) => {
@@ -219,8 +240,10 @@ export default function MediaAssetsHub({ status }) {
       const cat = item.category || 'misc';
       counts[cat] = (counts[cat] || 0) + 1;
     });
+    const starredCount = rawList.filter((item) => item.starred).length;
     return [
       { id: 'all', label: 'ทั้งหมด', count: rawList.length },
+      { id: 'starred', label: '⭐ ติดดาว', count: starredCount },
       { id: 'thai', label: 'เสียงไทย / ตลก', count: counts['thai'] || 0 },
       { id: 'game', label: 'เกม', count: counts['game'] || 0 },
       { id: 'meme', label: 'มีม', count: counts['meme'] || 0 },
@@ -237,7 +260,9 @@ export default function MediaAssetsHub({ status }) {
 
   const filteredSFX = useMemo(() => {
     let list = assetData.sfx || [];
-    if (sfxCategory !== 'all') {
+    if (sfxCategory === 'starred') {
+      list = list.filter((item) => item.starred);
+    } else if (sfxCategory !== 'all') {
       list = list.filter((item) => (item.category || 'misc') === sfxCategory);
     }
     return filterList(list);
@@ -247,6 +272,40 @@ export default function MediaAssetsHub({ status }) {
   const filteredStickers = useMemo(() => filterList(assetData.stickers), [assetData.stickers, filterList]);
   const filteredLuts = useMemo(() => filterList(assetData.luts), [assetData.luts, filterList]);
 
+  // Effects Sub-category counts & list (mirrors sfxCategoryList)
+  const effectsCategoryList = useMemo(() => {
+    const rawList = assetData.effects || [];
+    const counts = {};
+    rawList.forEach((item) => {
+      const cat = item.category || 'other';
+      counts[cat] = (counts[cat] || 0) + 1;
+    });
+    const starredCount = rawList.filter((item) => item.starred).length;
+    return [
+      { id: 'all', label: 'ทั้งหมด', count: rawList.length },
+      { id: 'starred', label: '⭐ ติดดาว', count: starredCount },
+      { id: 'checkmark', label: 'ถูกต้อง/ข้อดี', count: counts['checkmark'] || 0 },
+      { id: 'warning', label: 'ข้อเสีย/บั๊ก', count: counts['warning'] || 0 },
+      { id: 'notification', label: 'แจ้งเตือน/UI', count: counts['notification'] || 0 },
+      { id: 'money', label: 'ราคา/คุ้มราคา', count: counts['money'] || 0 },
+      { id: 'rating', label: 'รีวิว/ดาว', count: counts['rating'] || 0 },
+      { id: 'arrow', label: 'ชี้/คลิก UI', count: counts['arrow'] || 0 },
+      { id: 'celebration', label: 'ปิดคลิป/CTA', count: counts['celebration'] || 0 },
+      { id: 'other', label: 'อื่นๆ', count: counts['other'] || 0 },
+    ].filter(c => c.id === 'all' || c.count > 0);
+  }, [assetData.effects]);
+  const [effectsCategory, setEffectsCategory] = useState('all');
+
+  const filteredEffects = useMemo(() => {
+    let list = assetData.effects || [];
+    if (effectsCategory === 'starred') {
+      list = list.filter((item) => item.starred);
+    } else if (effectsCategory !== 'all') {
+      list = list.filter((item) => (item.category || 'other') === effectsCategory);
+    }
+    return filterList(list);
+  }, [assetData.effects, effectsCategory, filterList]);
+
   // Current list based on active tab
   const currentItems = useMemo(() => {
     switch (activeAssetTab) {
@@ -255,9 +314,10 @@ export default function MediaAssetsHub({ status }) {
       case 'fonts': return filteredFonts;
       case 'stickers': return filteredStickers;
       case 'luts': return filteredLuts;
+      case 'effects': return filteredEffects;
       default: return [];
     }
-  }, [activeAssetTab, filteredSFX, filteredMusic, filteredFonts, filteredStickers, filteredLuts]);
+  }, [activeAssetTab, filteredSFX, filteredMusic, filteredFonts, filteredStickers, filteredLuts, filteredEffects]);
 
   // Auto-select first item if none selected in split mode
   useEffect(() => {
@@ -317,6 +377,16 @@ export default function MediaAssetsHub({ status }) {
       color: 'text-emerald-400',
       borderColor: 'border-emerald-500/40',
       activeBg: 'bg-emerald-500/10'
+    },
+    {
+      id: 'effects',
+      label: 'วิดีโอเอฟเฟกต์',
+      sublabel: 'Checkmark, Arrow, CTA',
+      icon: Sparkles,
+      count: assetData.counts?.effects || assetData.effects?.length || 0,
+      color: 'text-fuchsia-400',
+      borderColor: 'border-fuchsia-500/40',
+      activeBg: 'bg-fuchsia-500/10'
     },
     {
       id: 'system',
@@ -582,6 +652,36 @@ export default function MediaAssetsHub({ status }) {
               })}
             </div>
           )}
+
+          {/* Sub-category Quick Filter Pills for Effects */}
+          {activeAssetTab === 'effects' && effectsCategoryList.length > 1 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 pt-0.5">
+              {effectsCategoryList.map((sc) => {
+                const isActive = effectsCategory === sc.id;
+                return (
+                  <button
+                    key={sc.id}
+                    type="button"
+                    onClick={() => setEffectsCategory(sc.id)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex-shrink-0 ${
+                      isActive
+                        ? 'bg-fuchsia-400 text-slate-950 shadow-md shadow-fuchsia-400/20'
+                        : 'bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 border border-white/[0.08]'
+                    }`}
+                  >
+                    <span>{sc.label}</span>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                        isActive ? 'bg-slate-950/20 text-slate-950' : 'bg-white/[0.08] text-slate-400'
+                      }`}
+                    >
+                      {sc.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -803,6 +903,18 @@ export default function MediaAssetsHub({ status }) {
                           <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-300 flex items-center justify-center font-bold text-xs flex-shrink-0">
                             Aa
                           </div>
+                        ) : activeAssetTab === 'effects' ? (
+                          <div className="w-10 h-10 rounded-lg bg-white border border-white/[0.08] flex items-center justify-center p-0.5 flex-shrink-0 overflow-hidden">
+                            <video
+                              src={item.video_url || (item.rel_path ? `/api/media/${item.rel_path}` : '')}
+                              className="max-w-full max-h-full object-contain"
+                              style={{ mixBlendMode: 'multiply' }}
+                              autoPlay
+                              loop
+                              muted
+                              playsInline
+                            />
+                          </div>
                         ) : (
                           <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 flex items-center justify-center flex-shrink-0">
                             <Film className="w-4 h-4" />
@@ -827,6 +939,20 @@ export default function MediaAssetsHub({ status }) {
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#25F4EE] opacity-75"></span>
                             <span className="relative inline-flex rounded-full h-2 w-2 bg-[#25F4EE]"></span>
                           </span>
+                        )}
+                        {(activeAssetTab === 'sfx' || activeAssetTab === 'music' || activeAssetTab === 'effects') && (
+                          <button
+                            type="button"
+                            onClick={(e) => handleToggleStar(item, e)}
+                            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                              item.starred
+                                ? 'text-amber-400 hover:text-amber-300'
+                                : 'text-slate-600 hover:text-amber-400 opacity-0 group-hover:opacity-100'
+                            }`}
+                            title={item.starred ? 'เอาดาวออก' : 'ติดดาว (ใช้ในตัดต่อ)'}
+                          >
+                            <Star className={`w-4 h-4 ${item.starred ? 'fill-current' : ''}`} />
+                          </button>
                         )}
                         <ChevronRight className={`w-4 h-4 transition-transform ${isSelected ? 'text-[#25F4EE] translate-x-0.5' : 'text-slate-600'}`} />
                       </div>
@@ -856,6 +982,20 @@ export default function MediaAssetsHub({ status }) {
                   </div>
 
                   <div className="flex items-center gap-2 flex-shrink-0">
+                    {(activeAssetTab === 'sfx' || activeAssetTab === 'music' || activeAssetTab === 'effects') && (
+                      <button
+                        type="button"
+                        onClick={(e) => handleToggleStar(selectedAsset, e)}
+                        className={`p-2 rounded-xl transition-colors cursor-pointer ${
+                          selectedAsset.starred
+                            ? 'text-amber-400 bg-amber-500/10 hover:bg-amber-500/20'
+                            : 'text-slate-400 hover:text-amber-400 hover:bg-amber-500/10'
+                        }`}
+                        title={selectedAsset.starred ? 'เอาดาวออก' : 'ติดดาว (ใช้ในตัดต่อ)'}
+                      >
+                        <Star className={`w-4 h-4 ${selectedAsset.starred ? 'fill-current' : ''}`} />
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setDeleteTarget(selectedAsset)}
@@ -1105,6 +1245,35 @@ export default function MediaAssetsHub({ status }) {
                   </div>
                 )}
 
+                {/* ── WORKBENCH VIEW: VIDEO EFFECTS (transparent overlay) ── */}
+                {activeAssetTab === 'effects' && (
+                  <div className="space-y-4">
+                    <div className="w-full h-56 rounded-2xl border border-white/[0.1] flex items-center justify-center p-6 shadow-inner relative bg-[linear-gradient(45deg,#e2e8f0_25%,transparent_25%),linear-gradient(-45deg,#e2e8f0_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#e2e8f0_75%),linear-gradient(-45deg,transparent_75%,#e2e8f0_75%)] bg-[size:20px_20px] bg-white">
+                      <video
+                        src={selectedAsset.video_url || (selectedAsset.rel_path ? `/api/media/${selectedAsset.rel_path}` : '')}
+                        className="max-w-full max-h-full object-contain drop-shadow-2xl"
+                        style={{ mixBlendMode: 'multiply' }}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        controls
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06]">
+                        <span className="text-[10px] text-slate-400 block font-kanit">หมวดหมู่</span>
+                        <span className="text-white font-bold truncate block mt-0.5">{selectedAsset.category || 'Effect'}</span>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06]">
+                        <span className="text-[10px] text-slate-400 block font-kanit">ชนิดไฟล์</span>
+                        <span className="text-fuchsia-300 font-mono font-bold block mt-0.5">WebM VP9 โปร่งใส (Alpha)</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Workbench Footer: Copy Path & Quick Action */}
                 <div className="flex items-center gap-2 pt-3 border-t border-white/[0.08]">
                   <button
@@ -1172,14 +1341,26 @@ export default function MediaAssetsHub({ status }) {
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => setDeleteTarget(sfx)}
-                      className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
-                      title="ลบไฟล์เสียง"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={(e) => handleToggleStar(sfx, e)}
+                        className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                          sfx.starred ? 'text-amber-400 hover:text-amber-300' : 'text-slate-500 opacity-0 group-hover:opacity-100 hover:text-amber-400'
+                        }`}
+                        title={sfx.starred ? 'เอาดาวออก' : 'ติดดาว (ใช้ในตัดต่อ)'}
+                      >
+                        <Star className={`w-3.5 h-3.5 ${sfx.starred ? 'fill-current' : ''}`} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget(sfx)}
+                        className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+                        title="ลบไฟล์เสียง"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -1222,13 +1403,25 @@ export default function MediaAssetsHub({ status }) {
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => setDeleteTarget(bgm)}
-                      className="opacity-0 group-hover:opacity-100 p-2 rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={(e) => handleToggleStar(bgm, e)}
+                        className={`p-2 rounded-xl transition-all cursor-pointer ${
+                          bgm.starred ? 'text-amber-400 hover:text-amber-300' : 'text-slate-500 opacity-0 group-hover:opacity-100 hover:text-amber-400'
+                        }`}
+                        title={bgm.starred ? 'เอาดาวออก' : 'ติดดาว (ใช้ในตัดต่อ)'}
+                      >
+                        <Star className={`w-4 h-4 ${bgm.starred ? 'fill-current' : ''}`} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget(bgm)}
+                        className="opacity-0 group-hover:opacity-100 p-2 rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -1302,8 +1495,96 @@ export default function MediaAssetsHub({ status }) {
               ))}
             </div>
           )}
+
+          {/* Effects Grid */}
+          {activeAssetTab === 'effects' && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {filteredEffects.map((fx) => (
+                <div key={fx.id} className="p-3 rounded-2xl border border-white/[0.06] glass-card flex flex-col items-center justify-center text-center group relative space-y-2">
+                  <div
+                    onClick={() => setPreviewEffect(fx)}
+                    className="w-20 h-20 flex items-center justify-center rounded-xl bg-[linear-gradient(45deg,#e2e8f0_25%,transparent_25%),linear-gradient(-45deg,#e2e8f0_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#e2e8f0_75%),linear-gradient(-45deg,transparent_75%,#e2e8f0_75%)] bg-[size:14px_14px] bg-white cursor-pointer"
+                    title="คลิกดูพรีวิวขนาดใหญ่"
+                  >
+                    <video
+                      src={fx.video_url || (fx.rel_path ? `/api/media/${fx.rel_path}` : '')}
+                      className="max-w-full max-h-full object-contain"
+                      style={{ mixBlendMode: 'multiply' }}
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                    />
+                  </div>
+                  <span className="text-xs font-bold text-slate-300 truncate w-full px-1">{fx.label || fx.name}</span>
+                  <button
+                    type="button"
+                    onClick={(e) => handleToggleStar(fx, e)}
+                    className={`absolute top-2 left-2 p-1.5 rounded-lg bg-black/60 transition-all cursor-pointer ${
+                      fx.starred ? 'text-amber-400' : 'text-slate-400 opacity-0 group-hover:opacity-100 hover:text-amber-400'
+                    }`}
+                    title={fx.starred ? 'เอาดาวออก' : 'ติดดาว (ใช้ในตัดต่อ)'}
+                  >
+                    <Star className={`w-3.5 h-3.5 ${fx.starred ? 'fill-current' : ''}`} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteTarget(fx)}
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-black/60 text-slate-400 hover:text-red-400 transition-all cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
+
+      {/* ── Effect Big Preview Modal ── */}
+      {(() => {
+        const livePreview = previewEffect
+          ? (assetData.effects || []).find((e) => e.id === previewEffect.id) || previewEffect
+          : null;
+        return (
+          <Modal
+            isOpen={!!livePreview}
+            onClose={() => setPreviewEffect(null)}
+            title={livePreview?.label || livePreview?.name}
+            subtitle={livePreview?.category}
+            maxWidth="max-w-lg"
+          >
+            {livePreview && (
+              <div className="space-y-3">
+                <div className="w-full aspect-square rounded-2xl border border-white/[0.1] flex items-center justify-center p-6 shadow-inner bg-[linear-gradient(45deg,#e2e8f0_25%,transparent_25%),linear-gradient(-45deg,#e2e8f0_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#e2e8f0_75%),linear-gradient(-45deg,transparent_75%,#e2e8f0_75%)] bg-[size:24px_24px] bg-white">
+                  <video
+                    src={livePreview.video_url || (livePreview.rel_path ? `/api/media/${livePreview.rel_path}` : '')}
+                    className="max-w-full max-h-full object-contain"
+                    style={{ mixBlendMode: 'multiply' }}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    controls
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => handleToggleStar(livePreview, e)}
+                  className={`w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+                    livePreview.starred
+                      ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                      : 'bg-white/[0.06] text-slate-200 hover:bg-white/[0.12]'
+                  }`}
+                >
+                  <Star className={`w-3.5 h-3.5 ${livePreview.starred ? 'fill-current' : ''}`} />
+                  <span>{livePreview.starred ? 'ติดดาวแล้ว (ใช้ในตัดต่อ)' : 'ติดดาว (ใช้ในตัดต่อ)'}</span>
+                </button>
+              </div>
+            )}
+          </Modal>
+        );
+      })()}
 
       {/* ── Asset Delete Confirmation Modal ── */}
       <ConfirmModal

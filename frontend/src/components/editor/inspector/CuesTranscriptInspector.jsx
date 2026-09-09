@@ -46,7 +46,13 @@ export default function CuesTranscriptInspector({
   const rowRefs = useRef({});
   const isTypingRef = useRef(false);
 
-  const sfxList = assets?.sfx || [];
+  // Only starred SFX show up here -- with 1800+ total SFX, rendering every
+  // one as an <option> per cue row (one <select> per row) froze the browser
+  // on transcripts with many lines. Falls back to the full list if nothing
+  // is starred yet, so the picker isn't empty before anyone has starred one.
+  const allSfx = assets?.sfx || [];
+  const starredSfx = allSfx.filter((s) => s.starred);
+  const sfxList = starredSfx.length > 0 ? starredSfx : allSfx;
 
   // Filter cues by search query
   const filteredCues = cuesList.filter((cue) => {

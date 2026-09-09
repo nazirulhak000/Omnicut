@@ -19,7 +19,7 @@ import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from scripts.config import ASSETS_DIR, FONTS_DIR, SFX_DIR, MUSIC_DIR, STICKERS_DIR, LUTS_DIR
+from scripts.config import ASSETS_DIR, FONTS_DIR, SFX_DIR, MUSIC_DIR, STICKERS_DIR, LUTS_DIR, EFFECTS_DIR
 
 REGISTRY_PATH = ASSETS_DIR / "asset_registry.json"
 METADATA_PATH = ASSETS_DIR / "asset_metadata.json"
@@ -119,6 +119,7 @@ class AssetRegistry:
             entry["label_th"] = meta.get("label_th", "")
             entry["label"] = meta.get("label") or meta.get("label_th") or path.stem
             entry["audio_url"] = f"/api/media/{entry['rel_path']}"
+            entry["starred"] = bool(meta.get("starred", False))
             entries.append(entry)
         return entries
 
@@ -134,6 +135,7 @@ class AssetRegistry:
             entry["label_th"] = meta.get("label_th", "")
             entry["label"] = meta.get("label") or meta.get("label_th") or path.stem
             entry["audio_url"] = f"/api/media/{entry['rel_path']}"
+            entry["starred"] = bool(meta.get("starred", False))
             entries.append(entry)
         return entries
 
@@ -175,6 +177,26 @@ class AssetRegistry:
             entries.append(entry)
         return entries
 
+    @classmethod
+    def _scan_effects(cls, metadata: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Video overlay effects (transparent .webm/.mov) -- checkmarks, warnings,
+        arrows etc, converted from free Lottie/GIF previews for use as cutaway
+        overlays in review clips."""
+        entries = []
+        raw_files = list(EFFECTS_DIR.glob("*.webm")) + list(EFFECTS_DIR.glob("*.mov"))
+        for path in sorted(raw_files):
+            asset_id = path.stem
+            meta = metadata.get(asset_id, {})
+            entry = cls._file_info(path)
+            entry["id"] = asset_id
+            entry["category"] = meta.get("category", "other")
+            entry["label_th"] = meta.get("label_th", "")
+            entry["label"] = meta.get("label") or meta.get("label_th") or path.stem
+            entry["video_url"] = f"/api/media/{entry['rel_path']}"
+            entry["starred"] = bool(meta.get("starred", False))
+            entries.append(entry)
+        return entries
+
     # ------------------------------------------------------------------
     # Build / cache
     # ------------------------------------------------------------------
@@ -189,6 +211,7 @@ class AssetRegistry:
             "fonts": cls._scan_fonts(),
             "stickers": cls._scan_stickers(),
             "luts": cls._scan_luts(),
+            "effects": cls._scan_effects(metadata),
         }
         registry["counts"] = {k: len(v) for k, v in registry.items() if isinstance(v, list)}
 
@@ -202,7 +225,7 @@ class AssetRegistry:
         if not REGISTRY_PATH.exists():
             return False
         cache_mtime = REGISTRY_PATH.stat().st_mtime
-        watched_dirs = [SFX_DIR, MUSIC_DIR, FONTS_DIR, STICKERS_DIR, ASSETS_DIR / "Stickers", LUTS_DIR]
+        watched_dirs = [SFX_DIR, MUSIC_DIR, FONTS_DIR, STICKERS_DIR, ASSETS_DIR / "Stickers", LUTS_DIR, EFFECTS_DIR]
         if METADATA_PATH.exists() and METADATA_PATH.stat().st_mtime > cache_mtime:
             return False
         for directory in watched_dirs:
@@ -248,6 +271,10 @@ class AssetRegistry:
     def luts(cls) -> List[Dict[str, Any]]:
         return cls.load()["luts"]
 
+    @classmethod
+    def effects(cls) -> List[Dict[str, Any]]:
+        return cls.load()["effects"]
+
     # ------------------------------------------------------------------
     # SFX name resolution (used by SFXManager)
     # ------------------------------------------------------------------
@@ -288,6 +315,17 @@ class AssetRegistry:
                 if path.exists():
                     return path
         return None
+
+    @classmethod
+    def set_starred(cls, asset_id: str, starred: bool) -> Dict[str, Any]:
+        """Toggle the starred flag for one asset id, persisted to asset_metadata.json."""
+        metadata = cls._load_metadata()
+        entry = metadata.setdefault(asset_id, {})
+        entry["starred"] = bool(starred)
+        tmp = METADATA_PATH.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp.replace(METADATA_PATH)
+        return cls.rebuild()
 
     @classmethod
     def sfx_name_list(cls) -> List[str]:

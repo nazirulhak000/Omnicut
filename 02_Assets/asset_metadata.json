@@ -4,21 +4,24 @@
     "source_url": "https://freesound.org/people/BerlinGameScene/sounds/267246/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
     "category": "celebratory",
-    "label_th": "เสียงคนเชียร์"
+    "label_th": "เสียงคนเชียร์",
+    "starred": true
   },
   "sfx_applause_in_church": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/eZZin/sounds/716568/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
     "category": "celebratory",
-    "label_th": "เสียงปรบมือ"
+    "label_th": "เสียงปรบมือ",
+    "starred": true
   },
   "sfx_wrong_answer": {
     "source": "freesound",
     "source_url": "https://freesound.org/people/-Andreas/sounds/648462/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
     "category": "error",
-    "label_th": "ตอบผิด (Buzzer)"
+    "label_th": "ตอบผิด (Buzzer)",
+    "starred": true
   },
   "sfx_buzzer_sounds_wrong_answer_error": {
     "source": "freesound",
@@ -39,7 +42,8 @@
     "source_url": "https://freesound.org/people/crunchymaniac/sounds/646114/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
     "category": "celebratory",
-    "label_th": "เลเวลอัพ"
+    "label_th": "เลเวลอัพ",
+    "starred": true
   },
   "sfx_beepc_mp3": {
     "source": "freesound",
@@ -67,7 +71,8 @@
     "source_url": "https://freesound.org/people/soundmary/sounds/117613/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
     "category": "ui",
-    "label_th": "รูดคีย์การ์ดประตู"
+    "label_th": "รูดคีย์การ์ดประตู",
+    "starred": true
   },
   "sfx_ui_interaction_error_beep_ghost_metro_ti": {
     "source": "freesound",
@@ -88,7 +93,8 @@
     "source_url": "https://freesound.org/people/Rob_Marion/sounds/541981/",
     "license": "http://creativecommons.org/publicdomain/zero/1.0/",
     "category": "celebratory",
-    "label_th": "ระฆังสำเร็จ"
+    "label_th": "ระฆังสำเร็จ",
+    "starred": true
   },
   "sfx_triple_ping_notification_sound_mobile_op": {
     "source": "freesound",
@@ -148,37 +154,47 @@
     "label_th": "วืด (เปลี่ยนฉาก)"
   },
   "sfx_bell_ding": {
-    "label_th": "กระดิ่งติ๊ง"
+    "label_th": "กระดิ่งติ๊ง",
+    "starred": true
   },
   "sfx_bell_notification": {
-    "label_th": "กระดิ่งแจ้งเตือน"
+    "label_th": "กระดิ่งแจ้งเตือน",
+    "starred": true
   },
   "sfx_camera_shutter": {
-    "label_th": "ชัตเตอร์กล้อง"
+    "label_th": "ชัตเตอร์กล้อง",
+    "starred": true
   },
   "sfx_cash_register": {
-    "label_th": "เครื่องคิดเงิน"
+    "label_th": "เครื่องคิดเงิน",
+    "starred": true
   },
   "sfx_coin_drop": {
-    "label_th": "เหรียญตก"
+    "label_th": "เหรียญตก",
+    "starred": true
   },
   "sfx_gasp_shock": {
-    "label_th": "เสียงอึ้ง/ช็อก"
+    "label_th": "เสียงอึ้ง/ช็อก",
+    "starred": true
   },
   "sfx_iphone_lock": {
-    "label_th": "ล็อกหน้าจอ iPhone"
+    "label_th": "ล็อกหน้าจอ iPhone",
+    "starred": true
   },
   "sfx_keyboard_tap": {
-    "label_th": "พิมพ์คีย์บอร์ด"
+    "label_th": "พิมพ์คีย์บอร์ด",
+    "starred": true
   },
   "sfx_magic_sparkle": {
-    "label_th": "ประกายเวทมนตร์"
+    "label_th": "ประกายเวทมนตร์",
+    "starred": true
   },
   "sfx_magnet_clack": {
     "label_th": "แม่เหล็กติดกัน"
   },
   "sfx_mouse_click": {
-    "label_th": "คลิกเมาส์"
+    "label_th": "คลิกเมาส์",
+    "starred": true
   },
   "sfx_pop_bubble": {
     "label_th": "ป็อปฟองสบู่"
@@ -187,19 +203,23 @@
     "label_th": "เปิดจุกขวด"
   },
   "sfx_record_scratch": {
-    "label_th": "สแครชแผ่นเสียง (หยุดกึก)"
+    "label_th": "สแครชแผ่นเสียง (หยุดกึก)",
+    "starred": true
   },
   "sfx_sub_drop": {
-    "label_th": "เบสหนักดรอป"
+    "label_th": "เบสหนักดรอป",
+    "starred": true
   },
   "sfx_swoosh_air": {
     "label_th": "วืดลม"
   },
   "sfx_tada_fanfare": {
-    "label_th": "ทาด้า! (สำเร็จ)"
+    "label_th": "ทาด้า! (สำเร็จ)",
+    "starred": true
   },
   "sfx_unboxing_tear": {
-    "label_th": "ฉีกกล่อง/เทป"
+    "label_th": "ฉีกกล่อง/เทป",
+    "starred": true
   },
   "sfx_vine_boom": {
     "label_th": "บูมไวรัล"
@@ -208,13 +228,16 @@
     "label_th": "น้ำกระเซ็น"
   },
   "sfx_whip_pan": {
-    "label_th": "หมุนกล้องเร็ว"
+    "label_th": "หมุนกล้องเร็ว",
+    "starred": true
   },
   "sfx_whoosh_fast": {
-    "label_th": "วืดเร็ว"
+    "label_th": "วืดเร็ว",
+    "starred": true
   },
   "sfx_whoosh_heavy": {
-    "label_th": "วืดหนัก"
+    "label_th": "วืดหนัก",
+    "starred": true
   },
   "bgm_hypetrance_wav": {
     "source": "freesound",
@@ -454,7 +477,8 @@
   },
   "mi_ding-sound-effect_2": {
     "label_th": "ding sound effect",
-    "label": "ding sound effect"
+    "label": "ding sound effect",
+    "starred": true
   },
   "mi_popular-riser-metallic-sound-effect": {
     "label_th": "Popular Riser metallic sound effect",
@@ -494,7 +518,8 @@
   },
   "mi_correct": {
     "label_th": "Correct Answer GameShow",
-    "label": "Correct Answer GameShow"
+    "label": "Correct Answer GameShow",
+    "starred": true
   },
   "mi_yaaaihmiikhrangthii1-4": {
     "label_th": "อย่าให้มีครั้งที่1-4",
@@ -678,7 +703,8 @@
   },
   "mi_discord-notification": {
     "label_th": "Discord Notification",
-    "label": "Discord Notification"
+    "label": "Discord Notification",
+    "starred": true
   },
   "mi_ephlngetn": {
     "label_th": "เพลงเต้น",
@@ -1802,7 +1828,8 @@
   },
   "mi_transition-whoosh": {
     "label_th": "Transition (whoosh)",
-    "label": "Transition (whoosh)"
+    "label": "Transition (whoosh)",
+    "starred": true
   },
   "mi_cchiib-naakh-maimaidaedkkuuhr-k": {
     "label_th": "จีบ น้าค่อมไม่ได้แดกกูหรอก",
@@ -1986,7 +2013,8 @@
   },
   "mi_fast-whoosh": {
     "label_th": "Fast whoosh",
-    "label": "Fast whoosh"
+    "label": "Fast whoosh",
+    "starred": true
   },
   "mi_epaabuncchin": {
     "label_th": "เปาบุ้นจิ้น",
@@ -2778,7 +2806,8 @@
   },
   "mi_confetti-pop-sound": {
     "label_th": "confetti pop sound",
-    "label": "confetti pop sound"
+    "label": "confetti pop sound",
+    "starred": true
   },
   "mi_thuyyy": {
     "label_th": "ถุยยย",
@@ -3350,7 +3379,8 @@
   },
   "mi_extremely-loud-incorrect-buzzer_0cDaG20": {
     "label_th": "Extremely loud incorrect buzzer",
-    "label": "Extremely loud incorrect buzzer"
+    "label": "Extremely loud incorrect buzzer",
+    "starred": true
   },
   "mi_fire-burning": {
     "label_th": "Fire Burning",
@@ -3390,7 +3420,8 @@
   },
   "mi_whoosh-clean": {
     "label_th": "whoosh clean",
-    "label": "whoosh clean"
+    "label": "whoosh clean",
+    "starred": true
   },
   "mi_cartoon-mr-krab-walking": {
     "label_th": "Cartoon Mr. Krab Walking",
@@ -4282,7 +4313,8 @@
   },
   "mi_samsung-notification-sound-bass-boosted": {
     "label_th": "samsung notification",
-    "label": "samsung notification"
+    "label": "samsung notification",
+    "starred": true
   },
   "mi_wait-a-minute-who-are-you": {
     "label_th": "Wait a minute who are you",
@@ -5222,7 +5254,8 @@
   },
   "mi_duolingo-correct": {
     "label_th": "Duolingo Correct",
-    "label": "Duolingo Correct"
+    "label": "Duolingo Correct",
+    "starred": true
   },
   "mi_fnaf-phone-ringing-sound": {
     "label_th": "fnaf phone ringing sound",
@@ -5266,7 +5299,8 @@
   },
   "mi_iphone-camera-shutter-fast": {
     "label_th": "iphone camera shutter fast",
-    "label": "iphone camera shutter fast"
+    "label": "iphone camera shutter fast",
+    "starred": true
   },
   "mi_creeper-explosion": {
     "label_th": "creeper explosion minecraft",
@@ -6458,7 +6492,8 @@
   },
   "mi_pop-sound-effect_AsEdnw2": {
     "label_th": "Pop Sound Effect",
-    "label": "Pop Sound Effect"
+    "label": "Pop Sound Effect",
+    "starred": true
   },
   "mi_saawbaangoph": {
     "label_th": "สาวบางโพ",
@@ -6678,7 +6713,8 @@
   },
   "mi_simple-whoosh": {
     "label_th": "Simple whoosh",
-    "label": "Simple whoosh"
+    "label": "Simple whoosh",
+    "starred": true
   },
   "mi_00000000000000000": {
     "label_th": "L theme death note",
@@ -7298,7 +7334,8 @@
   },
   "mi_swoosh-2": {
     "label_th": "Swoosh 2",
-    "label": "Swoosh 2"
+    "label": "Swoosh 2",
+    "starred": true
   },
   "mi_raebidkracchkaetk": {
     "label_th": "ระเบิดกระจกแตก",
@@ -7383,5 +7420,299 @@
   "mi_horrorscare": {
     "label_th": "HORROR SCARE",
     "label": "HORROR SCARE"
+  },
+  "fx_checkmark_01": {
+    "label": "Checkmark 1",
+    "label_th": "ถูกต้อง/ข้อดี 1",
+    "category": "checkmark",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_checkmark_02": {
+    "label": "Checkmark 2",
+    "label_th": "ถูกต้อง/ข้อดี 2",
+    "category": "checkmark",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_checkmark_03": {
+    "label": "Checkmark 3",
+    "label_th": "ถูกต้อง/ข้อดี 3",
+    "category": "checkmark",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_checkmark_04": {
+    "label": "Checkmark 4",
+    "label_th": "ถูกต้อง/ข้อดี 4",
+    "category": "checkmark",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_checkmark_05": {
+    "label": "Checkmark 5",
+    "label_th": "ถูกต้อง/ข้อดี 5",
+    "category": "checkmark",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_checkmark_06": {
+    "label": "Checkmark 6",
+    "label_th": "ถูกต้อง/ข้อดี 6",
+    "category": "checkmark",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_checkmark_07": {
+    "label": "Checkmark 7",
+    "label_th": "ถูกต้อง/ข้อดี 7",
+    "category": "checkmark",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_notification_01": {
+    "label": "Notification 1",
+    "label_th": "แจ้งเตือน/UI 1",
+    "category": "notification",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_notification_02": {
+    "label": "Notification 2",
+    "label_th": "แจ้งเตือน/UI 2",
+    "category": "notification",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_notification_03": {
+    "label": "Notification 3",
+    "label_th": "แจ้งเตือน/UI 3",
+    "category": "notification",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_notification_04": {
+    "label": "Notification 4",
+    "label_th": "แจ้งเตือน/UI 4",
+    "category": "notification",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_notification_05": {
+    "label": "Notification 5",
+    "label_th": "แจ้งเตือน/UI 5",
+    "category": "notification",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_notification_06": {
+    "label": "Notification 6",
+    "label_th": "แจ้งเตือน/UI 6",
+    "category": "notification",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_notification_07": {
+    "label": "Notification 7",
+    "label_th": "แจ้งเตือน/UI 7",
+    "category": "notification",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_warning_01": {
+    "label": "Warning 1",
+    "label_th": "ข้อเสีย/บั๊ก 1",
+    "category": "warning",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_warning_02": {
+    "label": "Warning 2",
+    "label_th": "ข้อเสีย/บั๊ก 2",
+    "category": "warning",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_warning_03": {
+    "label": "Warning 3",
+    "label_th": "ข้อเสีย/บั๊ก 3",
+    "category": "warning",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_warning_04": {
+    "label": "Warning 4",
+    "label_th": "ข้อเสีย/บั๊ก 4",
+    "category": "warning",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_warning_05": {
+    "label": "Warning 5",
+    "label_th": "ข้อเสีย/บั๊ก 5",
+    "category": "warning",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_warning_06": {
+    "label": "Warning 6",
+    "label_th": "ข้อเสีย/บั๊ก 6",
+    "category": "warning",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_warning_07": {
+    "label": "Warning 7",
+    "label_th": "ข้อเสีย/บั๊ก 7",
+    "category": "warning",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_money_01": {
+    "label": "Money 1",
+    "label_th": "ราคา/คุ้มราคา 1",
+    "category": "money",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_money_02": {
+    "label": "Money 2",
+    "label_th": "ราคา/คุ้มราคา 2",
+    "category": "money",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_money_03": {
+    "label": "Money 3",
+    "label_th": "ราคา/คุ้มราคา 3",
+    "category": "money",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_money_04": {
+    "label": "Money 4",
+    "label_th": "ราคา/คุ้มราคา 4",
+    "category": "money",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_money_05": {
+    "label": "Money 5",
+    "label_th": "ราคา/คุ้มราคา 5",
+    "category": "money",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_money_06": {
+    "label": "Money 6",
+    "label_th": "ราคา/คุ้มราคา 6",
+    "category": "money",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_money_07": {
+    "label": "Money 7",
+    "label_th": "ราคา/คุ้มราคา 7",
+    "category": "money",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_rating_01": {
+    "label": "Rating 1",
+    "label_th": "รีวิว/ดาว 1",
+    "category": "rating",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_rating_02": {
+    "label": "Rating 2",
+    "label_th": "รีวิว/ดาว 2",
+    "category": "rating",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_rating_03": {
+    "label": "Rating 3",
+    "label_th": "รีวิว/ดาว 3",
+    "category": "rating",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_rating_04": {
+    "label": "Rating 4",
+    "label_th": "รีวิว/ดาว 4",
+    "category": "rating",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_rating_05": {
+    "label": "Rating 5",
+    "label_th": "รีวิว/ดาว 5",
+    "category": "rating",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_rating_06": {
+    "label": "Rating 6",
+    "label_th": "รีวิว/ดาว 6",
+    "category": "rating",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_rating_07": {
+    "label": "Rating 7",
+    "label_th": "รีวิว/ดาว 7",
+    "category": "rating",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_arrow_01": {
+    "label": "Arrow 1",
+    "label_th": "ชี้/คลิก UI 1",
+    "category": "arrow",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_arrow_02": {
+    "label": "Arrow 2",
+    "label_th": "ชี้/คลิก UI 2",
+    "category": "arrow",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_arrow_03": {
+    "label": "Arrow 3",
+    "label_th": "ชี้/คลิก UI 3",
+    "category": "arrow",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_arrow_04": {
+    "label": "Arrow 4",
+    "label_th": "ชี้/คลิก UI 4",
+    "category": "arrow",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_arrow_05": {
+    "label": "Arrow 5",
+    "label_th": "ชี้/คลิก UI 5",
+    "category": "arrow",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_arrow_06": {
+    "label": "Arrow 6",
+    "label_th": "ชี้/คลิก UI 6",
+    "category": "arrow",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_arrow_07": {
+    "label": "Arrow 7",
+    "label_th": "ชี้/คลิก UI 7",
+    "category": "arrow",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_celebration_01": {
+    "label": "Celebration 1",
+    "label_th": "ปิดคลิป/CTA 1",
+    "category": "celebration",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_celebration_02": {
+    "label": "Celebration 2",
+    "label_th": "ปิดคลิป/CTA 2",
+    "category": "celebration",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_celebration_03": {
+    "label": "Celebration 3",
+    "label_th": "ปิดคลิป/CTA 3",
+    "category": "celebration",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_celebration_04": {
+    "label": "Celebration 4",
+    "label_th": "ปิดคลิป/CTA 4",
+    "category": "celebration",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_celebration_05": {
+    "label": "Celebration 5",
+    "label_th": "ปิดคลิป/CTA 5",
+    "category": "celebration",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_celebration_06": {
+    "label": "Celebration 6",
+    "label_th": "ปิดคลิป/CTA 6",
+    "category": "celebration",
+    "source": "lottiefiles-free-preview"
+  },
+  "fx_celebration_07": {
+    "label": "Celebration 7",
+    "label_th": "ปิดคลิป/CTA 7",
+    "category": "celebration",
+    "source": "lottiefiles-free-preview"
   }
 }

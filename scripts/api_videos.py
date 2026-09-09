@@ -535,12 +535,14 @@ def list_all_assets():
         "fonts": font_list,
         "stickers": registry["stickers"],
         "luts": registry["luts"],
+        "effects": registry["effects"],
         "counts": {
             "sfx": len(registry["sfx"]),
             "music": len(registry["bgm"]),
             "fonts": len(font_list),
             "stickers": len(registry["stickers"]),
-            "luts": len(registry["luts"])
+            "luts": len(registry["luts"]),
+            "effects": len(registry["effects"])
         }
     }
 
@@ -550,6 +552,18 @@ def rescan_assets():
     """Force a fresh scan of 02_Assets/*."""
     registry = AssetRegistry.rebuild()
     return {"success": True, "counts": registry["counts"]}
+
+
+class StarAssetRequest(BaseModel):
+    id: str
+    starred: bool
+
+
+@router.post("/api/assets/star")
+def star_asset(req: StarAssetRequest):
+    """Marks/unmarks an asset (SFX/BGM) as starred so it surfaces as usable-in-editing."""
+    AssetRegistry.set_starred(req.id, req.starred)
+    return {"success": True, "id": req.id, "starred": req.starred}
 
 
 @router.post("/api/assets/upload")

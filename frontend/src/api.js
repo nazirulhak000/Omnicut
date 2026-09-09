@@ -251,6 +251,7 @@ export const setPostMetrics = (id, metrics) => api.post(`/posts/${id}/metrics`, 
 export const getPerformance = () => api.get('/posts/performance').then(r => r.data);
 
 export const getAllAssets = () => api.get('/assets/all').then(r => r.data);
+export const starAsset = (id, starred) => api.post('/assets/star', { id, starred }).then(r => r.data);
 export const getHookMotionPresets = () => api.get('/hook-motion-presets').then(r => r.data);
 export const uploadAsset = (formData) => api.post('/assets/upload', formData, {
   headers: { 'Content-Type': 'multipart/form-data' },
