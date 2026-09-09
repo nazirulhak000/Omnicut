@@ -31,7 +31,7 @@ from typing import Any, Dict, List, Optional
 from scripts.config import BASE_DIR, COVERS_DIR
 from scripts.db import DocumentTable
 from scripts import path_utils
-from scripts.export_registry import ExportRegistry
+from scripts.export_registry import ExportRegistry, _normalise_path as _export_normalise_path
 
 STORE_PATH = BASE_DIR / "_Docs" / "products.json"
 
@@ -119,15 +119,63 @@ def _find_mp4_by_glob(folder_name: str, *scan_dirs: Path) -> Optional[str]:
     return None
 
 
-def _registry_record_for_path(raw_path: object) -> Optional[Dict[str, Any]]:
+def _export_registry_find_by_path(export_records: List[Dict[str, Any]], raw_path: object) -> Optional[Dict[str, Any]]:
+    """`ExportRegistry.find_by_path()`, but over a pre-fetched snapshot
+    instead of a live call. See `_preferred_registered_export` for why."""
+    key = _export_normalise_path(raw_path)
+    if not key:
+        return None
+    return next((row for row in export_records if _export_normalise_path(row.get("path")) == key), None)
+
+
+def _export_registry_latest_for_angle(
+    export_records: List[Dict[str, Any]],
+    product_id: Optional[str],
+    angle_id: Optional[str],
+) -> Optional[Dict[str, Any]]:
+    """`ExportRegistry.latest_for_angle()`, but over a pre-fetched snapshot
+    instead of a live call. See `_preferred_registered_export` for why."""
+    if not product_id or not angle_id:
+        return None
+    candidates = []
+    for row in export_records:
+        if str(row.get("product_id") or "") != str(product_id):
+            continue
+        if str(row.get("angle_id") or "") != str(angle_id):
+            continue
+        raw_path = row.get("path")
+        if not raw_path:
+            continue
+        path = Path(str(raw_path))
+        if not path.is_absolute():
+            path = BASE_DIR / path
+        try:
+            path = path.resolve()
+            if not path.is_file():
+                continue
+            candidates.append((row, path))
+        except OSError:
+            continue
+    if not candidates:
+        return None
+    posted = [item for item in candidates if item[0].get("status") == "posted"]
+    if posted:
+        posted.sort(key=lambda item: (item[1].stat().st_mtime, item[0].get("updated_at", "")), reverse=True)
+        return posted[0][0]
+    candidates.sort(key=lambda item: (item[1].stat().st_mtime, item[0].get("updated_at", "")), reverse=True)
+    return candidates[0][0]
+
+
+def _registry_record_for_path(export_records: List[Dict[str, Any]], raw_path: object) -> Optional[Dict[str, Any]]:
     """Read an existing per-file identity without creating one in reconcile."""
     try:
-        return ExportRegistry.find_by_path(_to_absolute(raw_path))
+        return _export_registry_find_by_path(export_records, _to_absolute(raw_path))
     except Exception:
         return None
 
 
 def _preferred_registered_export(
+    export_records: List[Dict[str, Any]],
     product_id: Optional[str],
     angle_id: Optional[str],
     candidate_path: Optional[str],
@@ -136,9 +184,17 @@ def _preferred_registered_export(
 
     The registry is authoritative once an export has an ID. In particular,
     a Posted record wins over a stale Ready copy left by the old move flow.
+
+    `export_records` is a plain-data snapshot (see `ExportRegistry.all()`)
+    fetched once *before* the products `_mutate()` transaction opened --
+    see `reconcile_existing_projects`. ExportRegistry shares this store's
+    own store.db connection (scripts/db.py), so calling its live
+    load-backed methods from inside an already-open products transaction
+    raises sqlite3.OperationalError: cannot start a transaction within a
+    transaction.
     """
     try:
-        record = ExportRegistry.latest_for_angle(product_id, angle_id)
+        record = _export_registry_latest_for_angle(export_records, product_id, angle_id)
         if record:
             path = _to_absolute(record.get("path"))
             if path and path.exists():
@@ -147,7 +203,7 @@ def _preferred_registered_export(
         pass
 
     if candidate_path:
-        record = _registry_record_for_path(candidate_path)
+        record = _registry_record_for_path(export_records, candidate_path)
         if record:
             return candidate_path, str(record.get("id"))
     return candidate_path, None
@@ -933,6 +989,20 @@ class ProductStore:
         cls._last_reconcile_scope = reconcile_scope
         cls._last_reconcile_at = now
 
+        # Fetched ONCE, here, *before* the products transaction opens below.
+        # ExportRegistry shares this store's own store.db connection (see
+        # scripts/db.py): _reconcile_into() used to call
+        # ExportRegistry.find_by_path()/latest_for_angle() live, from
+        # *inside* the open _mutate() transaction below -- since that's the
+        # same connection, a second nested `BEGIN IMMEDIATE` on an
+        # already-open transaction raises sqlite3.OperationalError: cannot
+        # start a transaction within a transaction (not caught by
+        # _retry_on_locked in db.py, which only retries "database is
+        # locked"). Snapshot everything the scan needs from ExportRegistry
+        # here instead, and hand it in as plain data -- see
+        # _preferred_registered_export / _registry_record_for_path.
+        export_records = ExportRegistry.all()
+
         changed = False
         # The scan below reads the disk and rewrites angle status/paths, so
         # it has to hold the same transaction the read happened in -- it used
@@ -945,14 +1015,32 @@ class ProductStore:
         with cls._mutate() as products:
             if not products:
                 return False
-            changed = cls._reconcile_into(products, projects_dir, exports_dir, posted_dir)
+            changed = cls._reconcile_into(products, projects_dir, exports_dir, posted_dir, export_records)
         return changed
 
     @classmethod
-    def _reconcile_into(cls, products, projects_dir, exports_dir, posted_dir) -> bool:
+    def _reconcile_into(
+        cls,
+        products,
+        projects_dir,
+        exports_dir,
+        posted_dir,
+        export_records: Optional[List[Dict[str, Any]]] = None,
+    ) -> bool:
         """The scan itself, mutating `products` in place. Returns True when
         anything changed. Split out so the transaction boundary above stays
-        readable; not meant to be called directly."""
+        readable; not meant to be called directly from inside a _mutate()
+        block other than reconcile_existing_projects()'s own.
+
+        `export_records` should be a pre-fetched `ExportRegistry.all()`
+        snapshot when the caller is already inside a products _mutate()
+        transaction (see reconcile_existing_projects). Defaults to a live
+        fetch so direct callers (tests, tooling) outside any open
+        transaction keep working unchanged.
+        """
+        if export_records is None:
+            export_records = ExportRegistry.all()
+
         changed = False
 
         for p_folder in projects_dir.iterdir():
@@ -1044,6 +1132,7 @@ class ProductStore:
                 # product/angle match. This prevents a stale Ready copy from
                 # winning over the Posted proof when both paths exist.
                 mp4_path, mp4_export_id = _preferred_registered_export(
+                    export_records,
                     product.get("id"),
                     angle.get("angle_id") or angle.get("id"),
                     mp4_path,
@@ -1147,7 +1236,7 @@ class ProductStore:
                     if angle.get("status") == "rendered":
                         retry_mp4 = _find_mp4_by_glob(p_folder.name, exports_dir, posted_dir)
                         if retry_mp4:
-                            retry_record = _registry_record_for_path(retry_mp4)
+                            retry_record = _registry_record_for_path(export_records, retry_mp4)
                             retry_export_id = retry_record.get("id") if retry_record else None
                             if angle.get("video_url") != retry_mp4 or (
                                 retry_export_id and angle.get("export_id") != retry_export_id

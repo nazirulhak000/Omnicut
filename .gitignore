@@ -27,6 +27,7 @@ Thumbs.db
 05_Covers_Thumbnails/*
 !05_Covers_Thumbnails/.gitkeep
 scratch/
+temp_ecc/
 tests/scratch*/
 tools/tiktok_browser_profile/
 # Test and tool generated outputs

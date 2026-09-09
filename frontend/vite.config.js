@@ -1,9 +1,23 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  // scripts/auth.py's api_key_gate requires X-API-Key on every request once
+  // OMNICUT_API_KEY is set. api.js's axios interceptor covers every JS-driven
+  // call, but a native <video>/<audio>/<img src> load -- used all over the
+  // app for /api/media/... streaming and thumbnails -- cannot attach a
+  // custom header at all, so those 401 the moment a key is configured.
+  // Injecting the header here, server-side in the dev proxy that every
+  // request (JS-driven or a bare browser tag) already passes through,
+  // fixes every such call site in one place instead of needing each of the
+  // ~10 components that build a raw /api/media/ URL to remember a query
+  // param. Covers mobile-LAN preview too, since that also goes through this
+  // same dev server rather than hitting :8000 directly.
+  const env = loadEnv(mode, process.cwd(), '')
+  const apiKey = env.VITE_API_KEY
+  return {
   plugins: [
     react(),
     tailwindcss()
@@ -17,6 +31,12 @@ export default defineConfig({
         changeOrigin: true,
         timeout: 600000,
         proxyTimeout: 600000,
+        configure: (proxy) => {
+          if (!apiKey) return
+          proxy.on('proxyReq', (proxyReq) => {
+            proxyReq.setHeader('X-API-Key', apiKey)
+          })
+        },
       }
     }
   },
@@ -43,5 +63,6 @@ export default defineConfig({
       }
     },
     chunkSizeWarningLimit: 600
+  }
   }
 })

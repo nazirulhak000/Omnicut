@@ -21,8 +21,16 @@ export function createProjectAutosaveController({
   schedule = setTimeout,
   cancel = clearTimeout,
   onStatusChange = () => {},
+  maxSaveRetries = 2,
+  saveRetryDelayMs = 4000,
 }) {
   let timer = null;
+  let retryTimer = null;
+  let retryCount = 0;
+  // Dedupes the retry bookkeeping when two flush() callers (e.g. the debounce
+  // timer and a manual saveNow) race against the same in-flight queue.flush()
+  // promise — both attach a handler, but only one should count as "the" failure.
+  const retriedFlushes = new WeakSet();
   let baseline = { projectName: '', key: '' };
   let queued = null;
   let keyCache = { hasValue: false, payload: null, key: '' };
@@ -40,6 +48,52 @@ export function createProjectAutosaveController({
       cancel(timer);
       timer = null;
     }
+  };
+
+  const clearRetryTimer = () => {
+    if (retryTimer !== null) {
+      cancel(retryTimer);
+      retryTimer = null;
+    }
+  };
+
+  // A failed save leaves its job in the queue's `pending` slot (see
+  // projectSaveQueue's error handling), but nothing else would ever flush it
+  // again until an unrelated edit happens to schedule a new debounce timer.
+  // Give it a small, bounded number of automatic follow-up attempts instead
+  // of leaving it stranded. Only once those are exhausted do we give up and
+  // let the caller surface an 'error' status.
+  const scheduleRetry = () => {
+    clearRetryTimer();
+    if (retryCount >= maxSaveRetries) {
+      retryCount = 0;
+      onStatusChange('error');
+      return;
+    }
+    retryCount += 1;
+    retryTimer = schedule(() => {
+      retryTimer = null;
+      runFlush().catch(() => {});
+    }, saveRetryDelayMs);
+  };
+
+  const runFlush = () => {
+    const attempt = queue.flush();
+    return attempt.then(
+      (result) => {
+        retryCount = 0;
+        clearRetryTimer();
+        return result;
+      },
+      (error) => {
+        if (!retriedFlushes.has(attempt)) {
+          retriedFlushes.add(attempt);
+          if (queue.hasPending()) scheduleRetry();
+          else retryCount = 0;
+        }
+        throw error;
+      },
+    );
   };
 
   const matches = (job, projectName, key) => (
@@ -100,17 +154,19 @@ export function createProjectAutosaveController({
     if (!queue.hasPending()) return;
     timer = schedule(() => {
       timer = null;
-      queue.flush().catch(() => {});
+      runFlush().catch(() => {});
     }, debounceMs);
   };
 
   const flush = () => {
     clearTimer();
-    return queue.flush();
+    return runFlush();
   };
 
   const setBaseline = (projectName, payload) => {
     clearTimer();
+    clearRetryTimer();
+    retryCount = 0;
     const active = queue.peekActive?.();
     queue.clearPending();
     const key = getKey(payload);

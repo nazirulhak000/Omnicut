@@ -1,10 +1,16 @@
 # OmniCut Pro Studio -- backend dependencies
 #
-# Generated from the actual imports in scripts/*.py, not a full `pip freeze`:
-# this machine has other projects' packages installed globally (torch,
-# appium, ...) that this app does not use. F5-TTS's torch/torchaudio stack
-# was dropped in phase 1 -- no CUDA on this machine, so it ran minutes per
-# clip on CPU -- see scripts/gemini_tts_engine.py for the replacement.
+# Generated from the actual imports in scripts/*.py, not a full `pip freeze`.
+# Install into the project's own virtual environment, not the global
+# interpreter -- this machine has other, unrelated projects' packages
+# installed globally (torch, appium, ...) that this app does not use, and
+# their installs/upgrades could silently break this one:
+#   python -m venv .venv
+#   .venv\Scripts\pip install -r requirements.txt   (Windows)
+# start_app.bat already invokes the backend via .venv\Scripts\python.exe.
+# F5-TTS's torch/torchaudio stack was dropped in phase 1 -- no CUDA on this
+# machine, so it ran minutes per clip on CPU -- see
+# scripts/gemini_tts_engine.py for the replacement.
 #
 # Also required, but not a pip package: ffmpeg + ffprobe on PATH
 # (used via subprocess by voice_engine.py, sfx_manager.py, video_editor.py,

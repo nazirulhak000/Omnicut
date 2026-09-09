@@ -11,9 +11,10 @@ const deferred = () => {
   return { promise, resolve };
 };
 
-const makeController = (save) => {
+const makeController = (save, { maxSaveRetries, saveRetryDelayMs } = {}) => {
   const queue = createLatestSaveQueue(save);
   const timers = new Set();
+  const statuses = [];
   const controller = createProjectAutosaveController({
     queue,
     schedule(callback) {
@@ -23,8 +24,24 @@ const makeController = (save) => {
     cancel(timer) {
       timers.delete(timer);
     },
+    onStatusChange(status) {
+      statuses.push(status);
+    },
+    ...(maxSaveRetries !== undefined ? { maxSaveRetries } : {}),
+    ...(saveRetryDelayMs !== undefined ? { saveRetryDelayMs } : {}),
   });
-  return { controller, queue, timers };
+  return {
+    controller, queue, timers, statuses,
+  };
+};
+
+// Fake `schedule` above hands back the callback itself as the "timer", so a
+// scheduled callback is fired by grabbing it from `timers` and calling it —
+// this stands in for the real delay elapsing.
+const fireNextTimer = (timers) => {
+  const callback = timers.values().next().value;
+  timers.delete(callback);
+  callback();
 };
 
 
@@ -136,4 +153,61 @@ test('resetting the baseline for the same project follows an active save in orde
 
   await flushing;
   assert.deepEqual(saved, [1, 0]);
+});
+
+
+test('a save that keeps failing retries a bounded number of times before surfacing an error status', async () => {
+  let attempts = 0;
+  const { controller, queue, timers, statuses } = makeController(
+    async () => {
+      attempts += 1;
+      throw new Error('boom');
+    },
+    { maxSaveRetries: 1, saveRetryDelayMs: 50 },
+  );
+
+  controller.observe({ projectName: 'demo', payload: { revision: 1 }, enabled: true, debounceMs: 10 });
+  assert.equal(timers.size, 1);
+  fireNextTimer(timers);
+
+  await assert.rejects(queue.flush(), /boom/);
+  await Promise.resolve();
+  assert.equal(attempts, 1);
+  assert.deepEqual(statuses, []); // a retry is scheduled, so it's not "given up" yet
+  assert.equal(timers.size, 1);
+
+  fireNextTimer(timers);
+  await assert.rejects(queue.flush(), /boom/);
+  await Promise.resolve();
+  assert.equal(attempts, 2);
+  assert.deepEqual(statuses, ['error']);
+  assert.equal(timers.size, 0); // retries exhausted, nothing else scheduled
+  assert.equal(queue.hasPending(), true); // the failed edit is not lost
+});
+
+
+test('a manual save after exhausted retries reuses the stranded edit and clears the error', async () => {
+  let attempts = 0;
+  const { controller, queue, timers, statuses } = makeController(
+    async () => {
+      attempts += 1;
+      if (attempts <= 2) throw new Error('offline');
+    },
+    { maxSaveRetries: 1, saveRetryDelayMs: 50 },
+  );
+
+  controller.observe({ projectName: 'demo', payload: { revision: 1 }, enabled: true, debounceMs: 10 });
+  fireNextTimer(timers); // initial attempt
+  await assert.rejects(queue.flush(), /offline/);
+  await Promise.resolve();
+  fireNextTimer(timers); // bounded retry, also fails
+  await assert.rejects(queue.flush(), /offline/);
+  await Promise.resolve();
+  assert.deepEqual(statuses, ['error']);
+
+  await controller.saveNow({ projectName: 'demo', payload: { revision: 1 }, enabled: true });
+
+  assert.equal(attempts, 3);
+  assert.equal(queue.hasPending(), false);
+  assert.deepEqual(statuses, ['error']); // no further error re-triggered by the success
 });

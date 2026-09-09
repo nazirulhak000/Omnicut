@@ -428,7 +428,29 @@ class ShotMatchingStage:
                     )
                     print(f"Warning: tone-shift analysis skipped: quota exceeded ({shot_err})")
                 else:
-                    print(f"Warning: Failed to generate shot clip_list: {shot_err}")
+                    # Anything else here is NOT an expected/recoverable
+                    # failure mode -- AI Vision matching and beat/motion/BGM
+                    # analysis each already have their own narrow try/except
+                    # further up this method and never reach this block, so
+                    # whatever lands here is a genuine bug in shot planning
+                    # (e.g. malformed cue data). The single-clip fallback
+                    # below still runs -- one static clip beats a hard-failed
+                    # render -- but it must not look like a normal render:
+                    # surface it the same way the quota branch does (visible
+                    # in the live progress log) and record it on the job
+                    # result so it's still visible after the render finishes,
+                    # instead of only existing in a server-side print no one
+                    # sees.
+                    warning_msg = (
+                        f"Unexpected error generating shot plan, fell back to a "
+                        f"single static clip for the whole render: {shot_err}"
+                    )
+                    ctx.notify(
+                        "⚠️ เกิดข้อผิดพลาดไม่คาดคิดระหว่างวางแผนช็อต — ใช้คลิปเดียวตลอดความยาวแทน",
+                        0.85,
+                    )
+                    print(f"Warning: {warning_msg}")
+                    ctx.result_paths["shot_matching_degraded"] = warning_msg
                 actual_clip_list = [{
                     "id": "clip_0",
                     "source_path": str(raw_video),

@@ -6,12 +6,27 @@
 // external URL with nothing on our own disk to serve -- routing it through
 // /api/media/ would try to encode the whole URL as a local path segment and
 // 404. Serve it directly from its own host instead.
+//
+// A native <video>/<audio>/<img src> load, unlike an axios call, cannot
+// attach the X-API-Key header api.js sends on every JS-driven request --
+// so when OMNICUT_API_KEY is configured, every one of those tags 401s.
+// scripts/api_server.py's api_key_gate accepts the same key as an
+// `api_key` query param for GET/HEAD specifically to cover this; append it
+// here so any consumer that drops a toMediaUrl() result straight into a
+// `src` attribute gets it for free.
+const API_KEY = typeof import.meta !== 'undefined' ? import.meta.env?.VITE_API_KEY : undefined;
+
 export function toMediaUrl(rawPath) {
   if (!rawPath) return '';
   if (rawPath.startsWith('http://') || rawPath.startsWith('https://')) return rawPath;
-  if (rawPath.startsWith('/api/media/')) return rawPath;
+  if (rawPath.startsWith('/api/media/')) return API_KEY ? withApiKey(rawPath) : rawPath;
   const normalized = rawPath.replace(/\\/g, '/');
-  return '/api/media/' + normalized.split('/').map(encodeURIComponent).join('/');
+  const url = '/api/media/' + normalized.split('/').map(encodeURIComponent).join('/');
+  return API_KEY ? withApiKey(url) : url;
+}
+
+function withApiKey(url) {
+  return url + (url.includes('?') ? '&' : '?') + 'api_key=' + encodeURIComponent(API_KEY);
 }
 
 /**

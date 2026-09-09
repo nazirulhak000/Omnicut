@@ -1,3 +1,4 @@
+import atexit
 import subprocess
 import json
 import math
@@ -18,6 +19,56 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
 from typing import Any, List, Dict, Tuple, Callable, Optional
 from scripts.config import VIDEO_WIDTH, VIDEO_HEIGHT, FPS, MIN_SHOT_DURATION, MAX_SHOT_DURATION, FONTS_DIR, STICKERS_DIR, EFFECTS_DIR
 from scripts.render_jobs import RenderCancelled
+
+# ffmpeg child processes spawned for the final render, tracked so a hard
+# external kill of this backend (task manager, a dev-server reload, an
+# uncaught exception unwinding to interpreter exit) doesn't leave one
+# orphaned and still holding a write handle on its output file -- which
+# makes the next render attempt hit a Windows file-lock error or produce a
+# corrupt .mp4. Each render registers itself here on spawn and unregisters
+# on its own normal cleanup; whatever is left when the interpreter exits
+# gets a best-effort terminate/kill below. This only covers exits the
+# interpreter gets to run code for (normal exit, unhandled exception,
+# Ctrl+C) -- a bare TerminateProcess/kill -9 on this process can't run any
+# Python code at all, atexit included.
+_active_ffmpeg_procs: set = set()
+_active_ffmpeg_procs_lock = threading.Lock()
+
+
+def _register_ffmpeg_proc(proc: "subprocess.Popen") -> None:
+    with _active_ffmpeg_procs_lock:
+        _active_ffmpeg_procs.add(proc)
+
+
+def _unregister_ffmpeg_proc(proc: "subprocess.Popen") -> None:
+    with _active_ffmpeg_procs_lock:
+        _active_ffmpeg_procs.discard(proc)
+
+
+def _kill_tracked_ffmpeg_procs() -> None:
+    """atexit hook: best-effort terminate/kill of any ffmpeg child still
+    tracked when the interpreter shuts down."""
+    with _active_ffmpeg_procs_lock:
+        procs = list(_active_ffmpeg_procs)
+    for proc in procs:
+        try:
+            if proc.poll() is None:
+                proc.terminate()
+        except Exception:
+            pass
+    for proc in procs:
+        try:
+            if proc.poll() is None:
+                proc.wait(timeout=3)
+        except Exception:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+
+
+atexit.register(_kill_tracked_ffmpeg_procs)
+
 
 # ffmpeg's xfade transitions we expose. Anything outside this set falls back to
 # "fade" rather than reaching the filter graph -- an unknown name there kills
@@ -388,8 +439,15 @@ class VideoEditor:
             "-print_format", "json",
             str(video_path)
         ]
-        res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore")
         try:
+            # timeout=60: an unreadable/hung source (unplugged drive, flaky
+            # network share, malformed container) must not block forever --
+            # callers of get_media_info may be holding _RENDER_SLOT while
+            # waiting on this call, so a hang here can wedge every render.
+            # subprocess.TimeoutExpired is a subclass of Exception, so it
+            # falls into the same fallback dict this function already
+            # returns for any other probing/parsing failure below.
+            res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=60)
             data = json.loads(res.stdout)
             video_stream = next((s for s in data.get("streams", []) if s.get("codec_type") == "video"), {})
             has_audio = any(s.get("codec_type") == "audio" for s in data.get("streams", []))
@@ -870,7 +928,7 @@ class VideoEditor:
 
         # Optional Promotional Sticker Overlays (Multiple Stickers or legacy single sticker)
         effective_stickers = []
-        if stickers and isinstance(stickers, list):
+        if isinstance(stickers, list):
             for stk in stickers:
                 if not isinstance(stk, dict) or stk.get("hidden"):
                     continue
@@ -1133,16 +1191,26 @@ class VideoEditor:
             cmd.insert(1, "-nostats")
             print(f"Executing video render with real-time progress to: {out_file}...")
             import time
-            proc = subprocess.Popen(
-                cmd,
+            popen_kwargs = dict(
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
                 encoding="utf-8",
                 errors="ignore"
             )
+            if os.name == "nt":
+                # Isolates ffmpeg into its own process group so it can be
+                # signalled/killed independently of this process -- part of
+                # the orphan-prevention cleanup below.
+                popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+            proc = subprocess.Popen(cmd, **popen_kwargs)
+            _register_ffmpeg_proc(proc)
 
             render_succeeded = False
+            # Defined before the try body so the finally block can always
+            # reference it, even if something raises before the watchdog
+            # thread itself gets set up below.
+            stop_watchdog = threading.Event()
             try:
                 stderr_chunks = []
                 def _drain_stderr():
@@ -1159,6 +1227,40 @@ class VideoEditor:
                 stderr_thread = threading.Thread(target=_drain_stderr, daemon=True)
                 stderr_thread.start()
 
+                # `proc.stdout.readline()` below blocks with no timeout of
+                # its own, and the cancel check only runs BETWEEN lines -- so
+                # an ffmpeg that stops producing progress output (a genuine
+                # hang, not just a slow encode segment) would block this loop
+                # forever with no way to notice a cancel request either. This
+                # watchdog runs on the side: it kills the process once no
+                # line has arrived for STALL_TIMEOUT seconds, which unblocks
+                # readline() with EOF (closing stdout) so the loop notices
+                # promptly instead of hanging indefinitely. 300s matches the
+                # timeout this same function already uses for proc.wait()
+                # below and for the non-progress render path -- ffmpeg's
+                # `-progress` stream normally writes many lines per second,
+                # so 5 minutes of total silence is unambiguously a stall,
+                # not a slow encode.
+                STALL_TIMEOUT = 300
+                last_activity = {"t": time.time()}
+                stalled = {"v": False}
+
+                def _watch_for_stall():
+                    while not stop_watchdog.is_set():
+                        if proc.poll() is not None:
+                            return
+                        if time.time() - last_activity["t"] > STALL_TIMEOUT:
+                            stalled["v"] = True
+                            try:
+                                proc.kill()
+                            except Exception:
+                                pass
+                            return
+                        stop_watchdog.wait(2.0)
+
+                stall_thread = threading.Thread(target=_watch_for_stall, daemon=True)
+                stall_thread.start()
+
                 last_reported = 0
                 cancelled = False
                 while True:
@@ -1172,6 +1274,7 @@ class VideoEditor:
                     line = proc.stdout.readline()
                     if not line:
                         break
+                    last_activity["t"] = time.time()
                     line = line.strip()
                     if line.startswith("out_time_us="):
                         try:
@@ -1194,6 +1297,17 @@ class VideoEditor:
                         except Exception:
                             pass
 
+                stop_watchdog.set()
+                if stalled["v"]:
+                    # The watchdog already killed the process; render_succeeded
+                    # stays False so the finally block below still runs its
+                    # normal terminate/kill + partial-file cleanup (a no-op on
+                    # the terminate/kill since it's already dead) before this
+                    # propagates.
+                    raise TimeoutError(
+                        f"FFmpeg render stalled (no progress output for over {STALL_TIMEOUT}s): {out_file.name}"
+                    )
+
                 if cancelled:
                     # render_succeeded stays False, so the finally block below
                     # runs the exact same terminate/kill + partial-file cleanup
@@ -1209,6 +1323,8 @@ class VideoEditor:
                     raise RuntimeError(f"FFmpeg render failed:\n{err[-500:]}")
                 render_succeeded = True
             finally:
+                stop_watchdog.set()
+                _unregister_ffmpeg_proc(proc)
                 if not render_succeeded:
                     # Whatever went wrong -- timeout, KeyboardInterrupt, a
                     # bad returncode raised above, anything unforeseen -- the
@@ -1238,13 +1354,30 @@ class VideoEditor:
                         pass
         else:
             print(f"Executing video render to: {out_file}...")
+            run_kwargs = dict(capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=300)
+            if os.name == "nt":
+                run_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+            render_succeeded = False
             try:
-                res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=300)
+                res = subprocess.run(cmd, **run_kwargs)
                 if res.returncode != 0:
                     print("FFmpeg Error details:", res.stderr[-500:])
                     raise RuntimeError(f"FFmpeg render failed:\n{res.stderr[-500:]}")
+                render_succeeded = True
             except subprocess.TimeoutExpired:
                 raise TimeoutError(f"FFmpeg render timed out after 300 seconds for: {out_file.name}")
+            finally:
+                if not render_succeeded:
+                    # Mirrors the progress-callback path's cleanup above: a
+                    # failed render here (bad returncode or a timeout, which
+                    # subprocess.run already kills the child for) must not
+                    # leave a half-encoded .mp4 at `out_file` for the next
+                    # attempt to trip over.
+                    try:
+                        if out_file.exists():
+                            out_file.unlink()
+                    except OSError:
+                        pass
 
         # Automatically generate ultra-lightweight WebP poster thumbnail for instant 0.05s gallery display
         cls.generate_poster_thumbnail(out_file)

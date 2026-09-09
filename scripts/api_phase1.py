@@ -25,6 +25,7 @@ from scripts.it_angles import ANGLES_BY_KEY, catalog_for_prompt, fallback_angles
 from scripts.subtitle_engine import DEFAULT_HOOK_MOTION
 from scripts.post_log import METRIC_FIELDS, PostLog
 from scripts.product_store import STATUSES, ProductStore
+from scripts.product_scraper import _build_safe_image_opener, _validate_public_http_url
 from scripts.config import BASE_DIR, COVERS_DIR, STICKERS_DIR
 from scripts.project_manifest import REROLL_STAGE, ProjectManifest
 from scripts import render_jobs
@@ -355,6 +356,19 @@ def fetch_product(req: ProductFetchRequest):
     if not url.startswith(("http://", "https://")):
         raise HTTPException(status_code=400, detail="ต้องเป็นลิงก์ที่ขึ้นต้นด้วย http:// หรือ https://")
 
+    # This endpoint fetches whatever URL the caller sends and reflects up to
+    # ~400KB of the response back as title/raw_text -- with no auth and CORS
+    # wide open, that's a full SSRF primitive (cloud metadata endpoints,
+    # 127.0.0.1, the internal network) unless the target is checked first.
+    # Same guard product_scraper.py already uses for /api/products/scrape,
+    # just without its Shopee/TikTok domain allowlist -- this endpoint is
+    # meant to accept any product page host (Lazada and others included),
+    # so only the public-IP check applies here.
+    try:
+        _validate_public_http_url(url, require_allowed_domain=False)
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail=str(err))
+
     platform = ProductStore.detect_platform(url)
 
     try:
@@ -373,8 +387,12 @@ def fetch_product(req: ProductFetchRequest):
                 "raw_text": data.get("title", ""),
             }
 
+        # _build_safe_image_opener() re-validates every redirect hop (still
+        # public-IP-only, no domain allowlist) before following it -- urllib
+        # follows redirects automatically and, unguarded, would fetch
+        # whatever a 3xx on an otherwise-legit URL points at next.
         request = urllib.request.Request(url, headers={"User-Agent": BROWSER_UA, "Accept-Language": "th,en"})
-        with urllib.request.urlopen(request, timeout=12) as response:
+        with _build_safe_image_opener().open(request, timeout=12) as response:
             page = response.read(400_000).decode("utf-8", errors="ignore")
 
         title = _meta_tag(page, "og:title") or _meta_tag(page, "twitter:title")
@@ -671,19 +689,23 @@ def update_project_cues(project_name: str, req: UpdateCuesRequest):
     this up with `POST /api/reroll` (`part: "subtitles"` or `"video"`) to
     actually regenerate the .ass / final MP4 from the edited cues.
     """
-    manifest = ProjectManifest.load(project_name)
-    if not manifest:
-        raise HTTPException(status_code=404, detail=f"ไม่พบโปรเจกต์ '{project_name}'")
-
-    fields: Dict[str, Any] = {}
-    if req.cues is not None:
-        fields["cues"] = req.cues
-    if req.micro_cues is not None:
-        fields["micro_cues"] = req.micro_cues
-    if not fields:
+    if req.cues is None and req.micro_cues is None:
         raise HTTPException(status_code=400, detail="ต้องส่ง cues หรือ micro_cues มาอย่างน้อยหนึ่งอย่าง")
 
-    updated = ProjectManifest.save(project_name, **fields)
+    # Existence check and field computation both happen inside save_merge's
+    # mutator (under ProjectManifest._SAVE_LOCK) rather than from an earlier,
+    # separate load() -- see update_project_state below for why that matters.
+    def _mutate(current: Dict[str, Any]) -> Dict[str, Any]:
+        if not current:
+            raise HTTPException(status_code=404, detail=f"ไม่พบโปรเจกต์ '{project_name}'")
+        fields: Dict[str, Any] = {}
+        if req.cues is not None:
+            fields["cues"] = req.cues
+        if req.micro_cues is not None:
+            fields["micro_cues"] = req.micro_cues
+        return fields
+
+    updated = ProjectManifest.save_merge(project_name, _mutate)
     return {"success": True, "cues": updated.get("cues"), "micro_cues": updated.get("micro_cues")}
 
 
@@ -697,21 +719,25 @@ def update_project_clips(project_name: str, req: UpdateClipsRequest):
     """
     Manual Editor clip/trim edits: persist edited clip_list into manifest.
     """
-    manifest = ProjectManifest.load(project_name)
-    if not manifest:
-        raise HTTPException(status_code=404, detail=f"ไม่พบโปรเจกต์ '{project_name}'")
+    # render_params is read-modify-written as a whole field below, so the
+    # read has to happen under the same lock as the write (save_merge) --
+    # see update_project_state's docstring note for the race this avoids.
+    def _mutate(current: Dict[str, Any]) -> Dict[str, Any]:
+        if not current:
+            raise HTTPException(status_code=404, detail=f"ไม่พบโปรเจกต์ '{project_name}'")
 
-    fields: Dict[str, Any] = {
-        "clip_list": req.clip_list,
-    }
-    render_params = dict(manifest.get("render_params") or {})
-    render_params["clip_list"] = req.clip_list
-    if req.transitions is not None:
-        fields["transitions"] = req.transitions
-        render_params["transitions"] = req.transitions
-    fields["render_params"] = render_params
+        fields: Dict[str, Any] = {
+            "clip_list": req.clip_list,
+        }
+        render_params = dict(current.get("render_params") or {})
+        render_params["clip_list"] = req.clip_list
+        if req.transitions is not None:
+            fields["transitions"] = req.transitions
+            render_params["transitions"] = req.transitions
+        fields["render_params"] = render_params
+        return fields
 
-    updated = ProjectManifest.save(project_name, **fields)
+    updated = ProjectManifest.save_merge(project_name, _mutate)
     return {"success": True, "clip_list": updated.get("clip_list")}
 
 
@@ -745,78 +771,92 @@ def update_project_state(project_name: str, req: UpdateProjectStateRequest):
     """
     Unified atomic save for manual Editor state (captions, clips, transitions, style).
     Saves everything in a single atomic manifest transaction.
+
+    Uses ProjectManifest.save_merge() rather than load()-then-save(): this
+    handler fires on every autosave tick, and it decides its new
+    render_params by reading the CURRENT manifest and patching a few keys
+    into a copy of it. If that read happens before save()'s own lock (as a
+    plain load()+save() would), a render pipeline finishing concurrently and
+    writing its own fresh render_params in between would get silently
+    reverted by this call's save() -- a real request X reads old
+    render_params, a render elsewhere saves new render_params from output it
+    just produced, then request X's save() (atomic by itself) overwrites that
+    with values computed from its own stale read. save_merge() runs the read
+    and the write under the same lock so nothing else can land in between.
     """
-    manifest = ProjectManifest.load(project_name)
-    if not manifest:
-        raise HTTPException(status_code=404, detail=f"ไม่พบโปรเจกต์ '{project_name}'")
+    def _mutate(current: Dict[str, Any]) -> Dict[str, Any]:
+        if not current:
+            raise HTTPException(status_code=404, detail=f"ไม่พบโปรเจกต์ '{project_name}'")
 
-    fields: Dict[str, Any] = {}
-    render_params = dict(manifest.get("render_params") or {})
+        fields: Dict[str, Any] = {}
+        render_params = dict(current.get("render_params") or {})
 
-    if req.track_mix is not None:
-        fields["track_mix"] = req.track_mix
-        render_params["track_mix"] = req.track_mix
-    if req.audio_mutes is not None:
-        fields["audio_mutes"] = req.audio_mutes
-        render_params["audio_mutes"] = req.audio_mutes
+        if req.track_mix is not None:
+            fields["track_mix"] = req.track_mix
+            render_params["track_mix"] = req.track_mix
+        if req.audio_mutes is not None:
+            fields["audio_mutes"] = req.audio_mutes
+            render_params["audio_mutes"] = req.audio_mutes
 
-    if req.cues is not None:
-        fields["cues"] = req.cues
-    if req.micro_cues is not None:
-        fields["micro_cues"] = req.micro_cues
-    if req.clip_list is not None:
-        fields["clip_list"] = req.clip_list
-        render_params["clip_list"] = req.clip_list
-    if req.transitions is not None:
-        fields["transitions"] = req.transitions
-        render_params["transitions"] = req.transitions
-    if req.style is not None:
-        fields["style"] = dict(req.style)
-        for k, v in req.style.items():
-            fields[k] = v
-            render_params[k] = v
-    # Top-level AND render_params, matching EditorShell.jsx's load priority
-    # (data.hook_brand first, data.render_params?.hook_brand as fallback) --
-    # writing only one of the two would leave the other stale.
-    if req.hook_brand is not None:
-        fields["hook_brand"] = req.hook_brand
-        render_params["hook_brand"] = req.hook_brand
-    if req.hook_model is not None:
-        fields["hook_model"] = req.hook_model
-        render_params["hook_model"] = req.hook_model
-    if req.hook_label is not None:
-        fields["hook_label"] = req.hook_label
-        render_params["hook_label"] = req.hook_label
-    if req.hook_duration is not None:
-        fields["hook_duration"] = req.hook_duration
-        render_params["hook_duration"] = req.hook_duration
-    if req.hook_motion is not None:
-        fields["hook_motion"] = req.hook_motion
-        render_params["hook_motion"] = req.hook_motion
-    if req.hook_colors is not None:
-        fields["hook_colors"] = req.hook_colors
-        render_params["hook_colors"] = req.hook_colors
-    if req.hook_style is not None:
-        fields["hook_style"] = req.hook_style
-        render_params["hook_style"] = req.hook_style
-    if req.text_overlays is not None:
-        fields["text_overlays"] = req.text_overlays
-        render_params["text_overlays"] = req.text_overlays
-    if req.overlays is not None:
-        # Written at both levels because the editor reads the top level first
-        # and the pipeline reads render_params; writing one left them
-        # disagreeing until the next save.
-        fields["overlays"] = req.overlays
-        render_params["overlays"] = req.overlays
-    if req.stickers is not None:
-        fields["stickers"] = req.stickers
-        render_params["stickers"] = req.stickers
-    if req.effects is not None:
-        fields["effects"] = req.effects
-        render_params["effects"] = req.effects
+        if req.cues is not None:
+            fields["cues"] = req.cues
+        if req.micro_cues is not None:
+            fields["micro_cues"] = req.micro_cues
+        if req.clip_list is not None:
+            fields["clip_list"] = req.clip_list
+            render_params["clip_list"] = req.clip_list
+        if req.transitions is not None:
+            fields["transitions"] = req.transitions
+            render_params["transitions"] = req.transitions
+        if req.style is not None:
+            fields["style"] = dict(req.style)
+            for k, v in req.style.items():
+                fields[k] = v
+                render_params[k] = v
+        # Top-level AND render_params, matching EditorShell.jsx's load priority
+        # (data.hook_brand first, data.render_params?.hook_brand as fallback) --
+        # writing only one of the two would leave the other stale.
+        if req.hook_brand is not None:
+            fields["hook_brand"] = req.hook_brand
+            render_params["hook_brand"] = req.hook_brand
+        if req.hook_model is not None:
+            fields["hook_model"] = req.hook_model
+            render_params["hook_model"] = req.hook_model
+        if req.hook_label is not None:
+            fields["hook_label"] = req.hook_label
+            render_params["hook_label"] = req.hook_label
+        if req.hook_duration is not None:
+            fields["hook_duration"] = req.hook_duration
+            render_params["hook_duration"] = req.hook_duration
+        if req.hook_motion is not None:
+            fields["hook_motion"] = req.hook_motion
+            render_params["hook_motion"] = req.hook_motion
+        if req.hook_colors is not None:
+            fields["hook_colors"] = req.hook_colors
+            render_params["hook_colors"] = req.hook_colors
+        if req.hook_style is not None:
+            fields["hook_style"] = req.hook_style
+            render_params["hook_style"] = req.hook_style
+        if req.text_overlays is not None:
+            fields["text_overlays"] = req.text_overlays
+            render_params["text_overlays"] = req.text_overlays
+        if req.overlays is not None:
+            # Written at both levels because the editor reads the top level first
+            # and the pipeline reads render_params; writing one left them
+            # disagreeing until the next save.
+            fields["overlays"] = req.overlays
+            render_params["overlays"] = req.overlays
+        if req.stickers is not None:
+            fields["stickers"] = req.stickers
+            render_params["stickers"] = req.stickers
+        if req.effects is not None:
+            fields["effects"] = req.effects
+            render_params["effects"] = req.effects
 
-    fields["render_params"] = render_params
-    updated = ProjectManifest.save(project_name, **fields)
+        fields["render_params"] = render_params
+        return fields
+
+    updated = ProjectManifest.save_merge(project_name, _mutate)
     return {
         "success": True,
         "cues": updated.get("cues"),

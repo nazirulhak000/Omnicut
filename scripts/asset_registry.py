@@ -16,6 +16,9 @@ project_manifest.py rather than inventing a new one.
 
 import json
 import datetime
+import os
+import threading
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -24,6 +27,16 @@ from scripts.config import ASSETS_DIR, FONTS_DIR, SFX_DIR, MUSIC_DIR, STICKERS_D
 REGISTRY_PATH = ASSETS_DIR / "asset_registry.json"
 METADATA_PATH = ASSETS_DIR / "asset_metadata.json"
 REGISTRY_VERSION = 1
+
+# Guards the read-modify-write cycles in rebuild() and set_starred() below.
+# Both write onto a shared target file (REGISTRY_PATH / METADATA_PATH); API
+# handlers in this app are all sync `def`, so FastAPI runs them on a shared
+# threadpool and two requests can genuinely race here.
+_registry_lock = threading.Lock()
+
+# How long a "fresh" verdict from _cache_is_fresh() is trusted before
+# re-checking disk. See _cache_is_fresh()'s docstring.
+_FRESHNESS_CHECK_INTERVAL_SECONDS = 3.0
 
 # Every SFX name that used to be the *entire* usable set. Kept as synonyms
 # pointing at their now-confirmed-identical canonical files, so a
@@ -44,6 +57,10 @@ _FALLBACK_SFX_CATEGORY = "misc"
 
 class AssetRegistry:
     """Discovers what's actually in 02_Assets/ and caches the result."""
+
+    # Memoized _cache_is_fresh() verdict -- see that method's docstring.
+    _freshness_cache: Optional[bool] = None
+    _freshness_checked_at: float = 0.0
 
     # ------------------------------------------------------------------
     # Metadata (the one hand-editable file)
@@ -215,13 +232,59 @@ class AssetRegistry:
         }
         registry["counts"] = {k: len(v) for k, v in registry.items() if isinstance(v, list)}
 
-        tmp = REGISTRY_PATH.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(registry, ensure_ascii=False, indent=2), encoding="utf-8")
-        tmp.replace(REGISTRY_PATH)
+        # Locked, and with a unique-per-call tmp name (pid + thread id): two
+        # threads racing to rebuild() (sync `def` handlers run on FastAPI's
+        # shared threadpool, so this genuinely happens) must never write the
+        # same fixed ".json.tmp" path -- that risks a corrupted/truncated
+        # write from interleaved I/O, or a Windows PermissionError when both
+        # threads call .replace() on the same source around the same time.
+        # The lock is the real fix (serializes the two writes); the unique
+        # name is defense in depth for whatever briefly overlaps before it.
+        # Same tmp-naming approach as scripts/db.py's JsonMirror (db.py:329).
+        with _registry_lock:
+            tmp = REGISTRY_PATH.parent / f"{REGISTRY_PATH.stem}.{os.getpid()}.{threading.get_ident()}.json.tmp"
+            try:
+                tmp.write_text(json.dumps(registry, ensure_ascii=False, indent=2), encoding="utf-8")
+                tmp.replace(REGISTRY_PATH)
+            finally:
+                tmp.unlink(missing_ok=True)
+            # We just wrote a fresh REGISTRY_PATH ourselves, so the next
+            # _cache_is_fresh() call can trust that without re-walking the
+            # tree -- otherwise a freshness verdict memoized as "stale" just
+            # before this rebuild() ran would still say "stale" for up to
+            # _FRESHNESS_CHECK_INTERVAL_SECONDS, triggering a second
+            # redundant rebuild() right behind this one.
+            cls._freshness_cache = True
+            cls._freshness_checked_at = time.time()
         return registry
 
     @classmethod
     def _cache_is_fresh(cls) -> bool:
+        """Whether REGISTRY_PATH is at least as new as every watched asset
+        file (and asset_metadata.json).
+
+        This used to run the full rglob()+stat() walk below on EVERY call --
+        and sfx()/bgm()/fonts()/stickers()/luts()/effects() each call load()
+        (hence this) independently, so a single request touching several
+        categories could trigger thousands of redundant stat syscalls across
+        02_Assets/'s ~1,950 files. Memoized here for a few seconds: a verdict
+        computed less than _FRESHNESS_CHECK_INTERVAL_SECONDS ago is reused
+        as-is. A genuine asset-directory change can now take up to that many
+        extra seconds to be picked up by load() -- acceptable, since assets
+        arrive via an upload or a download script, not something a caller is
+        watching resolve within a couple of seconds.
+        """
+        now = time.time()
+        if cls._freshness_cache is not None and (now - cls._freshness_checked_at) < _FRESHNESS_CHECK_INTERVAL_SECONDS:
+            return cls._freshness_cache
+
+        fresh = cls._compute_cache_is_fresh()
+        cls._freshness_cache = fresh
+        cls._freshness_checked_at = now
+        return fresh
+
+    @classmethod
+    def _compute_cache_is_fresh(cls) -> bool:
         if not REGISTRY_PATH.exists():
             return False
         cache_mtime = REGISTRY_PATH.stat().st_mtime
@@ -319,12 +382,25 @@ class AssetRegistry:
     @classmethod
     def set_starred(cls, asset_id: str, starred: bool) -> Dict[str, Any]:
         """Toggle the starred flag for one asset id, persisted to asset_metadata.json."""
-        metadata = cls._load_metadata()
-        entry = metadata.setdefault(asset_id, {})
-        entry["starred"] = bool(starred)
-        tmp = METADATA_PATH.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
-        tmp.replace(METADATA_PATH)
+        # The whole load-mutate-write cycle must be under the lock, not just
+        # the write: two concurrent set_starred() calls (different threads,
+        # same threadpool) that both load() before either writes would
+        # otherwise silently lose whichever one's write lands first (classic
+        # read-modify-write race), even though each call touches a different
+        # asset_id. Unique tmp name for the same reasons as rebuild() above.
+        with _registry_lock:
+            metadata = cls._load_metadata()
+            entry = metadata.setdefault(asset_id, {})
+            entry["starred"] = bool(starred)
+            tmp = METADATA_PATH.parent / f"{METADATA_PATH.stem}.{os.getpid()}.{threading.get_ident()}.json.tmp"
+            try:
+                tmp.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+                tmp.replace(METADATA_PATH)
+            finally:
+                tmp.unlink(missing_ok=True)
+        # Outside the lock: rebuild() takes _registry_lock itself (a plain
+        # Lock is not reentrant), and it does a full directory scan that
+        # shouldn't hold this lock for its whole duration.
         return cls.rebuild()
 
     @classmethod

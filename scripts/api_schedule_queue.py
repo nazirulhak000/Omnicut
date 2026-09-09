@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from scripts.api_tiktok_autopost import PrepareRequest, prepare
 from scripts.config import BASE_DIR, EXPORTS_DIR
-from scripts.export_registry import ExportRegistry
+from scripts.export_registry import ExportRegistry, _normalise_path as _export_normalise_path
 from scripts.schedule_store import ScheduleQueueStore, ScheduleTemplateStore, new_id, now_iso
 
 POSTED_DIR = EXPORTS_DIR.parent / "Posted"
@@ -590,15 +590,26 @@ def list_queue(status: Optional[str] = Query(default=None), date_from: Optional[
         records = [item for item in records if item.get("scheduled_at", "")[:10] >= date_from]
     if date_to:
         records = [item for item in records if item.get("scheduled_at", "")[:10] <= date_to]
+    # Load the export registry ONCE and index it by normalized path, instead
+    # of calling ExportRegistry.find_by_path() (an O(registry size) scan
+    # that itself calls Path.resolve() per row it checks) once per queue
+    # row below -- ~30 queue rows x ~40 registry rows was ~1,200 resolve()
+    # syscalls on every GET /schedule-queue.
+    export_id_by_path: Dict[str, str] = {}
+    for export_row in ExportRegistry.all():
+        path_key = _export_normalise_path(export_row.get("path"))
+        if path_key and path_key not in export_id_by_path:
+            export_id_by_path[path_key] = export_row.get("id")
     now = dt.datetime.now(PROJECT_TZ)
     enriched = []
     for row in sort_records(records):
         item = dict(row)
         if not item.get("export_id") and item.get("video_path"):
             try:
-                export_record = ExportRegistry.find_by_path(resolve_video(item["video_path"]))
-                if export_record:
-                    item["export_id"] = export_record.get("id")
+                path_key = _export_normalise_path(resolve_video(item["video_path"]))
+                export_id = export_id_by_path.get(path_key) if path_key else None
+                if export_id:
+                    item["export_id"] = export_id
             except Exception:
                 pass
         scheduled = _queue_timestamp(item.get("scheduled_at", ""))
@@ -659,29 +670,50 @@ def remove_queue(item_id: str):
 
 @router.post("/{item_id}/prepare")
 def prepare_queue_item(item_id: str):
+    # `prepare()` (scripts/api_tiktok_autopost.py) reads/writes ExportRegistry
+    # live -- ExportRegistry shares this process's one store.db connection
+    # (scripts/db.py) with ScheduleQueueStore, so calling it from inside an
+    # already-open `ScheduleQueueStore._mutate()` transaction raised
+    # `sqlite3.OperationalError: cannot start a transaction within a
+    # transaction` on every call, leaving the item stuck in "planned"
+    # forever. Fix: resolve/ensure the export (via `prepare()`) BEFORE
+    # opening the queue transaction, matching the snapshot-then-mutate
+    # pattern already used in product_store.py's `_reconcile_into`. The read
+    # of `item` here and the write of its new status below are two separate
+    # `ScheduleQueueStore` transactions rather than one atomic one -- a
+    # concurrent delete/edit of this exact item in that narrow window is a
+    # pre-existing, not newly introduced, race (the old code had the same
+    # exposure between its `autopost._pending` check and the `prepare()`
+    # call); a full cross-store saga is out of scope for this fix.
+    records = ScheduleQueueStore._load()
+    item = next((row for row in records if row.get("id") == item_id), None)
+    if item is None:
+        raise HTTPException(status_code=404, detail="ไม่พบรายการในคิว")
+    if item.get("status") not in {"planned", "failed"}:
+        raise HTTPException(status_code=409, detail="รายการนี้ถูกส่งให้ Extension แล้วหรือโพสต์ไปแล้ว")
+    from scripts import api_tiktok_autopost as autopost
+    if autopost._pending is not None:
+        raise HTTPException(status_code=409, detail="มีคลิปอื่นรอทำใน Extension อยู่ กรุณาทำให้เสร็จก่อน")
+    when = parse_scheduled_at(item["scheduled_at"])
+    prepare(PrepareRequest(
+        video_path=item["video_path"],
+        cover_path=item.get("cover_path"),
+        caption=item.get("caption") or "",
+        hashtags=item.get("hashtags") or "",
+        product_id=item.get("product_id"),
+        angle_id=item.get("angle_id"),
+        export_id=item.get("export_id"),
+        tiktok_product_id=item.get("tiktok_product_id"),
+        product_name=item.get("product_name"),
+        schedule_date=when.strftime("%Y-%m-%d"),
+        schedule_time=when.strftime("%H:%M"),
+    ))
     with ScheduleQueueStore._mutate() as records:
         item = next((row for row in records if row.get("id") == item_id), None)
         if item is None:
             raise HTTPException(status_code=404, detail="ไม่พบรายการในคิว")
         if item.get("status") not in {"planned", "failed"}:
             raise HTTPException(status_code=409, detail="รายการนี้ถูกส่งให้ Extension แล้วหรือโพสต์ไปแล้ว")
-        from scripts import api_tiktok_autopost as autopost
-        if autopost._pending is not None:
-            raise HTTPException(status_code=409, detail="มีคลิปอื่นรอทำใน Extension อยู่ กรุณาทำให้เสร็จก่อน")
-        when = parse_scheduled_at(item["scheduled_at"])
-        prepare(PrepareRequest(
-            video_path=item["video_path"],
-            cover_path=item.get("cover_path"),
-            caption=item.get("caption") or "",
-            hashtags=item.get("hashtags") or "",
-            product_id=item.get("product_id"),
-            angle_id=item.get("angle_id"),
-            export_id=item.get("export_id"),
-            tiktok_product_id=item.get("tiktok_product_id"),
-            product_name=item.get("product_name"),
-            schedule_date=when.strftime("%Y-%m-%d"),
-            schedule_time=when.strftime("%H:%M"),
-        ))
         item["status"] = "ready_for_extension"
         item["extension_prepared_at"] = now_iso()
         item["updated_at"] = now_iso()

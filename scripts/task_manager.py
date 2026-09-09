@@ -51,6 +51,23 @@ class TaskStatus:
 # (api_products.py) never touches angle status and is deliberately excluded.
 RENDER_TASK_TYPES = ("render_video", "edit_project")
 
+# Terminal (completed/failed/cancelled) tasks whose completed_at/updated_at
+# is older than this are pruned from cls._tasks automatically -- before
+# this, only the manual /api/tasks endpoints (delete_task, clear_completed)
+# ever evicted anything, so every task ever run stayed resident forever:
+# _save_to_disk_locked's full-dict JSON serialize and get_active_tasks'
+# full-dict sort both cost O(total task history) on every call, growing
+# without bound for the life of the process. Active/queued/processing tasks
+# are never pruned here regardless of age -- see _prune_old_tasks_locked().
+TASK_RETENTION_DAYS = 7
+
+# How often _save_to_disk_locked() re-checks for prunable tasks. Pruning is
+# one pass over cls._tasks -- no more expensive than the serialize/sort this
+# module already does on every save/list call -- so this throttle exists
+# only to avoid doing that extra pass on every single save when nothing is
+# likely to have aged out since the last check.
+_TASK_PRUNE_INTERVAL_SECONDS = 3600
+
 
 class TaskManager:
     """Thread-safe persistent task queue and activity tracker."""
@@ -92,6 +109,11 @@ class TaskManager:
                     task["step_label"] = "งานถูกขัดจังหวะจากการรีสตาร์ทระบบ"
                     task["updated_at"] = cls._now_iso()
                     changed = True
+
+            # Prune stale terminal tasks left over from previous sessions
+            # before marking initialized -- see TASK_RETENTION_DAYS above.
+            if cls._prune_old_tasks_locked():
+                changed = True
 
             cls._initialized = True
             if changed:
@@ -218,11 +240,50 @@ class TaskManager:
                 )
 
     _last_disk_save = 0.0
+    _last_prune_at = 0.0
+
+    @classmethod
+    def _prune_old_tasks_locked(cls) -> bool:
+        """Evicts terminal (completed/failed/cancelled) tasks older than
+        TASK_RETENTION_DAYS. Caller must already hold _TASK_LOCK.
+
+        Active/queued/processing tasks are never touched here, regardless
+        of age. A task with no usable completed_at/updated_at (e.g. a
+        hand-written or otherwise legacy record missing both) is left
+        alone rather than guessed at -- pruning is a cleanup, not something
+        that should risk dropping a record it can't actually date.
+
+        Returns True if anything was removed, so callers can decide
+        whether the removal itself warrants a disk save.
+        """
+        cutoff = datetime.datetime.now() - datetime.timedelta(days=TASK_RETENTION_DAYS)
+        terminal = (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED)
+        to_delete = []
+        for task_id, task in cls._tasks.items():
+            if task.get("status") not in terminal:
+                continue
+            ts = task.get("completed_at") or task.get("updated_at")
+            if not ts:
+                continue
+            try:
+                when = datetime.datetime.strptime(ts, "%Y-%m-%d %H:%M:%S")
+            except (ValueError, TypeError):
+                continue
+            if when < cutoff:
+                to_delete.append(task_id)
+
+        for task_id in to_delete:
+            del cls._tasks[task_id]
+        return bool(to_delete)
 
     @classmethod
     def _save_to_disk_locked(cls, force: bool = True) -> None:
         """Writes current tasks to disk atomically with throttling and Windows retry."""
         now = time.time()
+        if now - cls._last_prune_at > _TASK_PRUNE_INTERVAL_SECONDS:
+            cls._last_prune_at = now
+            cls._prune_old_tasks_locked()
+
         if not force and (now - cls._last_disk_save < 2.0):
             return
         cls._last_disk_save = now
@@ -235,8 +296,28 @@ class TaskManager:
                     return
                 except Exception:
                     time.sleep(0.05)
-            # Fallback direct write if atomic rename is blocked by momentary file locks
-            TASKS_FILE.write_text(json.dumps(cls._tasks, ensure_ascii=False, indent=2), encoding="utf-8")
+            # cls._tasks in memory is the authoritative source: initialize()
+            # only ever wholesale-replaces it from disk (see the file-load
+            # block above), it never merges disk into memory, so the file on
+            # disk is just a convenience snapshot for restart recovery. A
+            # truncating write_text() fallback used to run here -- but this
+            # branch is reached only after 3 atomic-rename attempts already
+            # failed (the contended case), which is also the case most
+            # likely to get interrupted mid-write, and unlike every other
+            # writer in this codebase, a half-written task_registry.json IS
+            # read straight back in as authoritative on the next startup.
+            # Skip the save instead: memory stays correct, and the next
+            # successful tick (2s later, or the next state-changing call)
+            # catches up.
+            #
+            # Cleanup before logging, deliberately: some consoles (cp874/
+            # cp1252 etc, seen on Windows) raise UnicodeEncodeError on the
+            # warning glyph below, which the outer bare `except` swallows --
+            # if that happened before the unlink, the tmp file would leak
+            # every time this branch is hit on such a console.
+            temp_file.unlink(missing_ok=True)
+            print("⚠️ [TaskManager] Failed to persist task registry after 3 atomic-rename "
+                  "attempts -- skipping this save, in-memory tasks remain authoritative.")
         except Exception:
             pass # Non-critical: tasks are safely held in memory in cls._tasks
 

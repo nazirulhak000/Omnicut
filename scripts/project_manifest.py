@@ -26,7 +26,7 @@ import threading
 import uuid
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from scripts.config import PROJECTS_DIR, BASE_DIR
 from scripts import path_utils
@@ -66,7 +66,19 @@ class ProjectManifest:
     # ------------------------------------------------------------------
     @classmethod
     def dir_for(cls, project_name: str) -> Path:
-        return PROJECTS_DIR / project_name
+        target = (PROJECTS_DIR / project_name).resolve()
+        root = PROJECTS_DIR.resolve()
+
+        # Same containment check delete() already uses (see below): a
+        # project_name containing ".." -- or, on Windows, a literal
+        # backslash smuggled past a forward-slash-only routing regex, e.g.
+        # via a %5C-encoded route parameter -- would otherwise resolve
+        # outside 03_Projects/. load()/save()/versioned_path() all fall
+        # through this one choke point, so guarding it here is what makes
+        # them safe too, not just delete().
+        if root not in target.parents:
+            raise ValueError(f"'{project_name}' อยู่นอกโฟลเดอร์โปรเจกต์")
+        return target
 
     @classmethod
     def path_for(cls, project_name: str) -> Path:
@@ -149,51 +161,92 @@ class ProjectManifest:
     def save(cls, project_name: str, **fields: Any) -> Dict[str, Any]:
         """Merge `fields` into the manifest and write it out safely with lock and retry."""
         with cls._SAVE_LOCK:
-            project_dir = cls.dir_for(project_name)
-            project_dir.mkdir(parents=True, exist_ok=True)
+            return cls._save_locked(project_name, **fields)
 
-            manifest = cls.load(project_name) or {
-                "manifest_version": MANIFEST_VERSION,
-                "project_name": project_name,
-                "created_at": cls._now(),
-                "artifacts": {},
-            }
+    @classmethod
+    def save_merge(cls, project_name: str, mutator: Callable[[Dict[str, Any]], Dict[str, Any]]) -> Dict[str, Any]:
+        """Read-decide-write as one atomic unit under `_SAVE_LOCK`.
 
-            artifacts = cls._normalize_artifacts(fields.pop("artifacts", None))
-            manifest.update(fields)
-            if artifacts:
-                manifest.setdefault("artifacts", {}).update(artifacts)
-            manifest["updated_at"] = cls._now()
+        `save()`'s own write is already atomic (it holds `_SAVE_LOCK` for its
+        load+merge+write), but a caller that reads the manifest *before*
+        calling `save()` -- to decide what new field values should be, based
+        on the current state -- is not protected: another `save()` (an
+        autosave, a render pipeline finishing, another reroll) can land in
+        the gap between that read and this call's write, and this call's
+        stale-derived fields then silently clobber it. `save_merge()` closes
+        that gap by doing the read inside the same lock the write uses, so
+        nothing else can interleave between them.
 
-            path = cls.path_for(project_name)
-            bak_path = path.with_suffix(".json.bak")
-            tmp = path.with_suffix(f".{uuid.uuid4().hex[:8]}.tmp")
-            tmp.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+        `mutator` is called with the freshly-loaded manifest (or `{}` if none
+        exists yet) and must return the `**fields` dict `save()` would have
+        received -- same shape/semantics, just computed from inside the lock
+        instead of before it.
+        """
+        with cls._SAVE_LOCK:
+            current = cls.load(project_name) or {}
+            fields = mutator(current)
+            return cls._save_locked(project_name, **fields)
 
-            if path.exists():
-                try:
-                    shutil.copy2(path, bak_path)
-                except Exception:
-                    pass
+    @classmethod
+    def _save_locked(cls, project_name: str, **fields: Any) -> Dict[str, Any]:
+        """The actual write. Callers must already hold `_SAVE_LOCK` --
+        `save()` acquires it itself and `save_merge()` holds it across its
+        read+decide+write, so the two never interleave. Split out only so
+        `save_merge()` has something to call without re-entering `_SAVE_LOCK`,
+        which is a plain (non-reentrant) `threading.Lock`."""
+        project_dir = cls.dir_for(project_name)
+        project_dir.mkdir(parents=True, exist_ok=True)
 
-            last_err = None
-            for attempt in range(5):
-                try:
-                    tmp.replace(path)
-                    last_err = None
-                    break
-                except PermissionError as e:
-                    last_err = e
-                    time.sleep(0.04 * (attempt + 1))
+        manifest = cls.load(project_name) or {
+            "manifest_version": MANIFEST_VERSION,
+            "project_name": project_name,
+            "created_at": cls._now(),
+            "artifacts": {},
+        }
 
-            if last_err is not None:
-                try:
-                    tmp.unlink(missing_ok=True)
-                except Exception:
-                    pass
-                raise last_err
+        artifacts = cls._normalize_artifacts(fields.pop("artifacts", None))
+        manifest.update(fields)
+        if artifacts:
+            manifest.setdefault("artifacts", {}).update(artifacts)
+        manifest["updated_at"] = cls._now()
 
-            return manifest
+        path = cls.path_for(project_name)
+        bak_path = path.with_suffix(".json.bak")
+        tmp = path.with_suffix(f".{uuid.uuid4().hex[:8]}.tmp")
+        tmp.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        if path.exists():
+            try:
+                shutil.copy2(path, bak_path)
+            except Exception as bak_err:
+                # Backup is best-effort but must never fail *silently* -- a
+                # swallowed backup failure right before a disk-full primary
+                # write would leave no good .bak to recover from, with no
+                # signal anything went wrong. Still proceed with the primary
+                # write: refusing to save here would turn a transient (and on
+                # Windows, common -- see the PermissionError retry loop right
+                # below) backup-copy failure into an autosave that fails
+                # outright even though the disk is fine.
+                print(f"[ProjectManifest.save] Warning: failed to back up '{project_name}' (.bak) before saving -- proceeding without a fresh backup: {bak_err}")
+
+        last_err = None
+        for attempt in range(5):
+            try:
+                tmp.replace(path)
+                last_err = None
+                break
+            except PermissionError as e:
+                last_err = e
+                time.sleep(0.04 * (attempt + 1))
+
+        if last_err is not None:
+            try:
+                tmp.unlink(missing_ok=True)
+            except Exception:
+                pass
+            raise last_err
+
+        return manifest
 
     @classmethod
     def record_artifact(cls, project_name: str, key: str, path: Any) -> None:

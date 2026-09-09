@@ -29,6 +29,22 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 router = APIRouter(tags=["Voice & Script"])
 
+
+def _is_contained(path: Path, root: Path) -> bool:
+    """
+    True if `path` is `root` or lives underneath it. Uses `Path.relative_to`
+    rather than a `str.startswith()` prefix check -- a prefix check treats
+    `D:\\...\\Capcut_evil\\` as "under" `D:\\...\\Capcut` because the string
+    happens to start with the same characters, which is not real path
+    containment. Both `path` and `root` are expected to already be resolved.
+    """
+    try:
+        path.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
 VOICE_CACHE_DIR = PROJECT_ROOT / "frontend" / "public" / "voice_cache"
 VOICE_CACHE_MANIFEST = VOICE_CACHE_DIR / "manifest.json"
 
@@ -297,6 +313,16 @@ def run_sub_srt_transcription(req: TranscribeRequest):
     media_path = Path(req.media_path)
     if not media_path.is_absolute():
         media_path = BASE_DIR / req.media_path
+    media_path = media_path.resolve()
+
+    # req.media_path is client-controlled and was previously joined/read with
+    # no containment check at all -- both an arbitrary-path read (whatever
+    # media file is passed gets fed to the transcription subprocess) and an
+    # arbitrary-path write (the -sub.srt/.vtt output lands in media_path's
+    # own parent directory). Reject anything that resolves outside the
+    # project tree before doing anything with it.
+    if not _is_contained(media_path, BASE_DIR.resolve()):
+        raise HTTPException(status_code=403, detail="Access denied")
 
     if not media_path.exists():
         raise HTTPException(status_code=404, detail=f"Media file not found: {media_path}")

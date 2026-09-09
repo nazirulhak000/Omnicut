@@ -15,11 +15,12 @@ read-modify-write cycle (fixing the lost-update race) and indexed lookups by
 id (fixing the O(n) full-file rewrite), without forcing a shape change on
 any caller.
 
-Two extra columns per table (`updated_at`, and for products `url`) are kept
-in sync with the blob purely as indexes for the handful of hot lookups
-(duplicate-URL detection in ProductStore.add, sort-by-updated_at). They are
-NOT a second source of truth -- the JSON blob column is authoritative, these
-are just indexed shadows of fields already inside it.
+One extra column per table (`updated_at`) is kept in sync with the blob
+purely as an index for the handful of hot lookups (sort-by-updated_at). It
+is NOT a second source of truth -- the JSON blob column is authoritative,
+this is just an indexed shadow of a field already inside it. There is no
+`url` column or index here: duplicate-URL detection (e.g. ProductStore.add)
+is done with a Python-side scan over the loaded records instead.
 
 JSON-file mirroring
 --------------------
@@ -205,6 +206,36 @@ class DocumentTable:
         Covers: (a) first run against a JSON file left over from before this
         migration, (b) tests/tools that write the JSON file directly and
         expect the store to pick it up on the next read.
+
+        Only the cheap "do we even need to import?" check -- a SELECT
+        against `_json_mirror_state` plus an mtime comparison -- runs under
+        `_setup_lock`. The import itself (JSON read + `BEGIN IMMEDIATE` +
+        DELETE + re-INSERT) runs WITHOUT that lock. It used to run the
+        *whole* check-and-import under `_setup_lock`, which is one
+        process-wide lock shared by every DocumentTable this module manages
+        (products, post_log, export_registry, schedule_queue,
+        schedule_templates -- all in the same store.db file, see the module
+        docstring). That meant any one table noticing its JSON mirror had
+        changed would block every other table's load()/mutate() for as long
+        as its own `BEGIN IMMEDIATE` took to acquire SQLite's write lock --
+        up to _BUSY_TIMEOUT_MS (5s). A burst of concurrent requests each
+        noticing a mirror change at once could stall the entire backend for
+        several seconds even though only one table's data was changing.
+
+        Safe without the lock: `BEGIN IMMEDIATE` below is itself a real
+        SQLite write-lock acquisition, and SQLite locks the whole database
+        file, not per table -- so two importers, whether for the same table
+        or two different ones, still cannot run their DELETE+re-INSERT at
+        the same time; the second one simply blocks (on busy_timeout) until
+        the first commits. The only thing the outer lock bought beyond that
+        was deciding *whether* to import without two threads duplicating the
+        same work, so that decision is re-checked once more right after
+        `BEGIN IMMEDIATE`, against a fresh stat/read done only once the
+        write lock is actually held -- if another thread's import (or an
+        unrelated writer's own commit) already landed while this call
+        waited for the lock, this one no-ops instead of blindly re-applying
+        whatever (possibly now-stale) file content it noticed before
+        acquiring it.
         """
         json_path: Path = self._json_path_fn()
         if not json_path.exists():
@@ -216,41 +247,61 @@ class DocumentTable:
             return
 
         source_key = str(json_path.resolve())
-        with _setup_lock:
+
+        def _already_imported(as_of_mtime_ns: int) -> bool:
             row = conn.execute(
                 "SELECT last_imported_mtime_ns FROM _json_mirror_state WHERE source_path = ?",
                 (source_key,),
             ).fetchone()
-            if row is not None and row[0] >= mtime_ns:
+            return row is not None and row[0] >= as_of_mtime_ns
+
+        with _setup_lock:
+            if _already_imported(mtime_ns):
                 return  # already imported this version (or a newer one)
+
+        # No lock held past this point. BEGIN IMMEDIATE below (SQLite's own
+        # whole-file write lock) is what serializes the actual import now.
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            # Re-stat and re-check now that the write lock is held -- both
+            # the file and the marker could have moved while this call was
+            # waiting to acquire it above.
+            try:
+                fresh_mtime_ns = json_path.stat().st_mtime_ns
+            except OSError:
+                conn.execute("COMMIT")
+                return
+            if _already_imported(fresh_mtime_ns):
+                conn.execute("COMMIT")
+                return
 
             try:
                 raw = json_path.read_text(encoding="utf-8")
                 records = json.loads(raw) if raw.strip() else []
             except (OSError, json.JSONDecodeError):
+                conn.execute("COMMIT")
                 return
             if not isinstance(records, list):
+                conn.execute("COMMIT")
                 return
 
-            conn.execute("BEGIN IMMEDIATE")
-            try:
-                conn.execute(f"DELETE FROM {self._table}")
-                for record in records:
-                    if not isinstance(record, dict) or "id" not in record:
-                        continue
-                    conn.execute(
-                        f"INSERT OR REPLACE INTO {self._table} (id, updated_at, data) VALUES (?, ?, ?)",
-                        (_id_of(record), _updated_at_of(record), json.dumps(record, ensure_ascii=False)),
-                    )
+            conn.execute(f"DELETE FROM {self._table}")
+            for record in records:
+                if not isinstance(record, dict) or "id" not in record:
+                    continue
                 conn.execute(
-                    "INSERT INTO _json_mirror_state (source_path, table_name, last_imported_mtime_ns) "
-                    "VALUES (?, ?, ?) ON CONFLICT(source_path) DO UPDATE SET last_imported_mtime_ns = excluded.last_imported_mtime_ns",
-                    (source_key, self._table, mtime_ns),
+                    f"INSERT OR REPLACE INTO {self._table} (id, updated_at, data) VALUES (?, ?, ?)",
+                    (_id_of(record), _updated_at_of(record), json.dumps(record, ensure_ascii=False)),
                 )
-                conn.execute("COMMIT")
-            except Exception:
-                conn.execute("ROLLBACK")
-                raise
+            conn.execute(
+                "INSERT INTO _json_mirror_state (source_path, table_name, last_imported_mtime_ns) "
+                "VALUES (?, ?, ?) ON CONFLICT(source_path) DO UPDATE SET last_imported_mtime_ns = excluded.last_imported_mtime_ns",
+                (source_key, self._table, fresh_mtime_ns),
+            )
+            conn.execute("COMMIT")
+        except Exception:
+            conn.execute("ROLLBACK")
+            raise
 
     # -- public: load/save (mirrors ProductStore/PostLog._load/_save) ----
     def load(self) -> List[Dict[str, Any]]:

@@ -700,26 +700,36 @@ def mark_posted(req: MarkPostedRequest):
         _move_or_reuse_posted(companion, companion_dest)
         moved.append(str(companion_dest.relative_to(BASE_DIR)).replace("\\", "/"))
 
-    _mark_scheduled_queue_item_posted(src, dest, export_record["id"])
-    export_record = ExportRegistry.move_and_mark_posted(export_record["id"], dest)
-
+    # These three status writes (product/angle, schedule queue, export
+    # registry) aren't cross-store transactional -- a crash partway through
+    # leaves them disagreeing regardless of order. Product/angle status is
+    # what the rest of the app (dashboards, reconcile) treats as the source
+    # of truth for "has this been posted", so it goes first: a crash right
+    # after this still leaves the single most user-visible signal correct,
+    # even if the queue/registry mirrors lag behind until the next
+    # reconcile. `export_record["id"]` is read before the registry's own
+    # move-and-mark call below, but the id itself doesn't change as a
+    # result of that call, so reading it early here is safe.
+    product_result: Dict[str, Any] = {}
     if req.product_id and req.angle_id:
         try:
-            updated = ProductStore.update_angle_status(
+            product_result["product"] = ProductStore.update_angle_status(
                 product_id=req.product_id,
                 angle_id=req.angle_id,
                 status="posted",
                 video_url=str(dest.relative_to(BASE_DIR)).replace("\\", "/"),
                 export_id=export_record["id"],
             )
-            return {"success": True, "moved": moved, "product": updated}
         except Exception as e:
             # The file already moved -- report the status-update failure
             # rather than rolling the move back; "it's in Posted/" stays true
             # either way, and the angle can be re-linked by hand afterward.
-            return {"success": True, "moved": moved, "status_warning": str(e)}
+            product_result["status_warning"] = str(e)
 
-    return {"success": True, "moved": moved}
+    _mark_scheduled_queue_item_posted(src, dest, export_record["id"])
+    ExportRegistry.move_and_mark_posted(export_record["id"], dest)
+
+    return {"success": True, "moved": moved, **product_result}
 
 
 @router.get("/api/exports/media-info")

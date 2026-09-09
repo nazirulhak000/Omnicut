@@ -4,6 +4,34 @@ const {
   getExtensionStatus,
 } = window.OmniCutClipState || {};
 
+// This panel talks to :8000 directly (no Vite proxy to inject the header
+// for it, unlike the app's own frontend -- see auth_key.js). Cached here
+// and refreshed on storage change rather than re-read on every request,
+// since this panel is a long-lived page, not a service worker.
+let apiKey = '';
+getStoredApiKey().then((key) => { apiKey = key; });
+if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes[OMNICUT_API_KEY_STORAGE_KEY]) {
+      apiKey = changes[OMNICUT_API_KEY_STORAGE_KEY].newValue || '';
+    }
+  });
+}
+
+const apiKeySettingsBtn = document.getElementById('apiKeySettingsBtn');
+const apiKeySettingsRow = document.getElementById('apiKeySettingsRow');
+const apiKeyInput = document.getElementById('apiKeyInput');
+const apiKeySaveBtn = document.getElementById('apiKeySaveBtn');
+apiKeySettingsBtn?.addEventListener('click', async () => {
+  apiKeySettingsRow.hidden = !apiKeySettingsRow.hidden;
+  if (!apiKeySettingsRow.hidden) apiKeyInput.value = await getStoredApiKey();
+});
+apiKeySaveBtn?.addEventListener('click', async () => {
+  await setStoredApiKey(apiKeyInput.value.trim());
+  apiKey = apiKeyInput.value.trim();
+  apiKeySettingsRow.hidden = true;
+});
+
 const listEl = document.getElementById('list');
 const statusEl = document.getElementById('status');
 const refreshBtn = document.getElementById('refreshBtn');
@@ -163,7 +191,7 @@ function renderActiveClipBanner() {
   markPostedBtn.disabled = busy || !activeClip;
   const cover = document.getElementById('activeCover');
   cover.hidden = !activeClip?.cover_url;
-  if (activeClip?.cover_url) cover.src = `${BACKEND}${activeClip.cover_url}`;
+  if (activeClip?.cover_url) cover.src = withApiKeyParam(`${BACKEND}${activeClip.cover_url}`, apiKey);
   else cover.removeAttribute('src');
   if (!activeClip) {
     activeClipBanner.className = 'empty-state';
@@ -199,7 +227,7 @@ async function loadExports() {
   listEl.innerHTML = '<div class="empty">กำลังโหลด...</div>';
   let items;
   try {
-    const res = await fetch(`${BACKEND}/api/exports`);
+    const res = await authedFetch(`${BACKEND}/api/exports`, apiKey);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     items = Array.isArray(data) ? data : (data.exports || data.items || []);
@@ -214,7 +242,7 @@ async function loadExports() {
   // list for backwards compatibility.
   let scheduled = [];
   try {
-    const queueRes = await fetch(`${BACKEND}/api/schedule-queue`);
+    const queueRes = await authedFetch(`${BACKEND}/api/schedule-queue`, apiKey);
     if (queueRes.ok) {
       const queueData = await queueRes.json();
       scheduled = (queueData.items || [])
@@ -258,7 +286,7 @@ async function loadExports() {
     card.className = 'card';
 
     const thumb = document.createElement('img');
-    thumb.src = item.thumbnail_url ? `${BACKEND}${item.thumbnail_url}` : '';
+    thumb.src = item.thumbnail_url ? withApiKeyParam(`${BACKEND}${item.thumbnail_url}`, apiKey) : '';
     thumb.alt = '';
 
     const body = document.createElement('div');
@@ -300,7 +328,7 @@ async function prepareClip(item) {
   setBusy(true);
   setStatus(`กำลังเตรียม "${item.hook_title || item.name}"...`);
   try {
-    const res = await fetch(`${BACKEND}/api/tiktok-autopost/prepare`, {
+    const res = await authedFetch(`${BACKEND}/api/tiktok-autopost/prepare`, apiKey, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -508,7 +536,7 @@ markPostedBtn.addEventListener('click', async () => {
   markPostedBtn.disabled = true;
   setStatus(`กำลังมาร์ค "${activeClip.hook_title || activeClip.name}" ว่าโพสต์แล้ว...`);
   try {
-    const res = await fetch(`${BACKEND}/api/exports/mark-posted`, {
+    const res = await authedFetch(`${BACKEND}/api/exports/mark-posted`, apiKey, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

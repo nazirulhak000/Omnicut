@@ -16,7 +16,7 @@
 // 2026-09-06: clicking the toolbar icon now opens the side panel directly
 // (the old popup.html/popup.js checklist was merged into sidepanel.html as
 // its own tab and deleted -- one UI surface instead of two).
-importScripts('automation.js');
+importScripts('automation.js', 'auth_key.js');
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((err) => {
   console.error('setPanelBehavior failed:', err);
@@ -53,7 +53,8 @@ function sleep(ms) {
 async function fetchPendingJob() {
   let res;
   try {
-    res = await fetch(`${BACKEND}/api/tiktok-autopost/pending`);
+    const apiKey = await getStoredApiKey();
+    res = await authedFetch(`${BACKEND}/api/tiktok-autopost/pending`, apiKey);
   } catch (err) {
     throw new Error('เชื่อมต่อ Backend (localhost:8000) ไม่สำเร็จ -- ตรวจสอบว่าเปิด start_app.bat ไว้หรือไม่');
   }
@@ -72,7 +73,8 @@ async function fetchPendingJob() {
 
 async function clearPendingJob() {
   try {
-    await fetch(`${BACKEND}/api/tiktok-autopost/clear`, { method: 'POST' });
+    const apiKey = await getStoredApiKey();
+    await authedFetch(`${BACKEND}/api/tiktok-autopost/clear`, apiKey, { method: 'POST' });
   } catch (e) {
     // Non-fatal -- the next prepare() overwrites it anyway.
   }
@@ -82,7 +84,8 @@ async function refreshPendingCover(coverPath) {
   if (!coverPath) return;
   let res;
   try {
-    res = await fetch(`${BACKEND}/api/tiktok-autopost/cover`, {
+    const apiKey = await getStoredApiKey();
+    res = await authedFetch(`${BACKEND}/api/tiktok-autopost/cover`, apiKey, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({cover_path: coverPath}),
@@ -1265,27 +1268,39 @@ async function setScheduleDateTimeLegacy(send, { date = '', time = '' } = {}) {
 async function dismissLeaveConfirmDialogIfPresent(send, timeoutMs = 8000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    const { result } = await send('Runtime.evaluate', {
-      expression: `(() => {
-        const heading = Array.from(document.querySelectorAll('h1, h2, h3, div, p')).find(el => {
-          const t = (el.innerText || el.textContent || '').trim();
-          return t.includes('แน่ใจหรือไม่ว่าต้องการออก') || t.includes('Are you sure you want to leave');
-        });
-        if (!heading) return false;
-        const dialog = heading.closest('[role="dialog"], [class*="modal"]') || document;
-        const buttons = Array.from(dialog.querySelectorAll('button'));
-        const leaveBtn = buttons.find(b => {
-          const t = (b.innerText || b.textContent || '').trim();
-          return t === 'ออก' || t === 'Leave' || t === 'leave';
-        });
-        if (leaveBtn) {
-          leaveBtn.click();
-          return true;
-        }
-        return false;
-      })()`,
-      returnByValue: true,
-    });
+    let result;
+    try {
+      ({ result } = await send('Runtime.evaluate', {
+        expression: `(() => {
+          const heading = Array.from(document.querySelectorAll('h1, h2, h3, div, p')).find(el => {
+            const t = (el.innerText || el.textContent || '').trim();
+            return t.includes('แน่ใจหรือไม่ว่าต้องการออก') || t.includes('Are you sure you want to leave');
+          });
+          if (!heading) return false;
+          const dialog = heading.closest('[role="dialog"], [class*="modal"]') || document;
+          const buttons = Array.from(dialog.querySelectorAll('button'));
+          const leaveBtn = buttons.find(b => {
+            const t = (b.innerText || b.textContent || '').trim();
+            return t === 'ออก' || t === 'Leave' || t === 'leave';
+          });
+          if (leaveBtn) {
+            leaveBtn.click();
+            return true;
+          }
+          return false;
+        })()`,
+        returnByValue: true,
+      }));
+    } catch (e) {
+      // Same reasoning as waitForPostConfirmation's identical guard: this
+      // fires right after clicking Post, where a FAST, genuinely-successful
+      // post navigates the tab away before we get here. Chrome auto-detaches
+      // chrome.debugger on that navigation, so send() throws "Debugger is
+      // not attached" -- which is success evidence, not a real failure.
+      // There's no leave-confirm dialog to dismiss on a page that already
+      // navigated away, so this is a clean no-op, not an error to surface.
+      return false;
+    }
     if (result?.value) return true;
     await sleep(300);
   }

@@ -77,8 +77,10 @@ export function resolveSelectedBox({
 
   if (selection.type === 'sticker') {
     if (isStickerHidden) return null;
-    const matchedSticker = (effectiveStickersList || []).find((s) => s.id === selection.id)
-      || (effectiveStickersList || [])[0];
+    // Do NOT fall back to index 0 when the selected id has no match (e.g. the
+    // selected sticker was just deleted) -- that silently substitutes a different
+    // sticker as "selected", so a drag/resize would move the wrong item.
+    const matchedSticker = (effectiveStickersList || []).find((s) => s.id === selection.id);
     if (!matchedSticker) return null;
     const scale = Math.min(3.5, Math.max(0.3, matchedSticker?.scale ?? stickerStyle?.scale ?? 1));
     const baseWidth = 160;

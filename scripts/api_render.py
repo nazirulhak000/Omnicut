@@ -50,11 +50,20 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
 
         sticker_file_path = None
         if req_data.sticker_badge:
-            candidate = STICKERS_DIR / req_data.sticker_badge
-            if candidate.exists():
-                sticker_file_path = str(candidate)
-            elif (BASE_DIR / req_data.sticker_badge).exists():
-                sticker_file_path = str(BASE_DIR / req_data.sticker_badge)
+            # req_data.sticker_badge is client-controlled -- strip to just the
+            # filename (drops any "../" traversal or absolute-path component)
+            # and resolve+verify containment within STICKERS_DIR before ever
+            # treating it as a real path, otherwise a caller could read any
+            # file the process has access to (e.g. "../../../../Users/x/private.png").
+            badge_name = Path(req_data.sticker_badge).name
+            if badge_name:
+                candidate = (STICKERS_DIR / badge_name).resolve()
+                try:
+                    candidate.relative_to(STICKERS_DIR.resolve())
+                    if candidate.exists():
+                        sticker_file_path = str(candidate)
+                except ValueError:
+                    pass
 
         # Block re-rendering if this angle or project has already been posted!
         # Posted videos must remain permanent proof and cannot be overwritten.
@@ -237,8 +246,17 @@ def trigger_render(req: RenderRequest, background_tasks: BackgroundTasks):
                             )
         except HTTPException:
             raise
-        except Exception:
-            pass
+        except Exception as guard_err:
+            # The guard's own HTTPException (a genuine "already posted" match)
+            # must keep surfacing as-is. But an unrelated failure here
+            # (ProductStore read error, etc.) must NOT be treated as "no
+            # posted match" -- that would silently let a re-render proceed
+            # over what might be a posted, proof-of-record export. Fail
+            # closed instead of falling through to the render.
+            raise HTTPException(
+                status_code=500,
+                detail=f"ตรวจสอบสถานะโพสต์ก่อนเรนเดอร์ไม่สำเร็จ จึงหยุดการเรนเดอร์เพื่อความปลอดภัย: {guard_err}",
+            )
     elif req.project_name:
         try:
             for prod in ProductStore._load():
@@ -251,8 +269,12 @@ def trigger_render(req: RenderRequest, background_tasks: BackgroundTasks):
                             )
         except HTTPException:
             raise
-        except Exception:
-            pass
+        except Exception as guard_err:
+            # Same fail-closed reasoning as the product_id/angle_id branch above.
+            raise HTTPException(
+                status_code=500,
+                detail=f"ตรวจสอบสถานะโพสต์ก่อนเรนเดอร์ไม่สำเร็จ จึงหยุดการเรนเดอร์เพื่อความปลอดภัย: {guard_err}",
+            )
 
     job_id = str(uuid.uuid4())
     render_jobs.create_job(job_id)

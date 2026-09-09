@@ -107,11 +107,20 @@ async def api_key_gate(request: Request, call_next):
       attaches Access-Control-Allow-Origin to a 401 from this gate so the
       frontend/extension see a readable error instead of an opaque CORS
       failure.
+    - GET/HEAD only: also accepts the key as an `?api_key=` query param,
+      falling back to it when the header is absent or wrong. Native
+      <video>/<audio>/<img> tags (used for /api/media/... streaming and
+      thumbnails) cannot attach a custom header at all -- the frontend's
+      toMediaUrl() appends the key as a query param for exactly this case.
+      Query params can end up in server access logs and browser history,
+      so this fallback is deliberately withheld from every mutating verb.
     """
     if not is_auth_enforced() or request.method == "OPTIONS":
         return await call_next(request)
 
     candidate = request.headers.get(API_KEY_HEADER, "")
+    if not key_matches(candidate) and request.method in ("GET", "HEAD"):
+        candidate = request.query_params.get("api_key", "")
     if not key_matches(candidate):
         return JSONResponse(
             status_code=401,

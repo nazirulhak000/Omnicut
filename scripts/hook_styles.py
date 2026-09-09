@@ -18,6 +18,8 @@ preview that lies about the render.
 """
 import json
 import logging
+import os
+import threading
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -25,6 +27,12 @@ logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 CUSTOM_HOOK_TEMPLATES_FILE = BASE_DIR / "02_Assets" / "Templates" / "custom_hook_templates.json"
+
+# Guards the read-modify-write cycles in save_custom_hook_template() and
+# delete_custom_hook_template() below. API handlers here are sync `def`, so
+# FastAPI runs them on a shared threadpool and two requests can genuinely
+# race on this file.
+_custom_templates_lock = threading.Lock()
 
 # Colour of `None` on the model tier means "use the caption accent colour",
 # which is what the banner did before any of this existed.
@@ -193,13 +201,25 @@ def save_custom_hook_template(template_id: str, data: Dict[str, Any]) -> Dict[st
     }
 
     CUSTOM_HOOK_TEMPLATES_FILE.parent.mkdir(parents=True, exist_ok=True)
-    current_templates = load_custom_hook_templates()
-    current_templates[clean_id] = entry
+    # The whole load-mutate-write cycle is under the lock, not just the
+    # write: two concurrent saves (different threads, same threadpool) that
+    # both load() before either writes would otherwise silently lose
+    # whichever one's write lands first, even for two different template
+    # ids. Unique tmp name (pid + thread id, matching scripts/db.py's
+    # JsonMirror pattern at db.py:329) so two threads never step on the same
+    # fixed ".tmp" path even in the brief window before the lock below
+    # actually serializes them.
+    with _custom_templates_lock:
+        current_templates = load_custom_hook_templates()
+        current_templates[clean_id] = entry
 
-    tmp_file = CUSTOM_HOOK_TEMPLATES_FILE.with_suffix(".tmp")
-    with open(tmp_file, "w", encoding="utf-8") as f:
-        json.dump({"version": "1.0", "templates": current_templates}, f, ensure_ascii=False, indent=2)
-    tmp_file.replace(CUSTOM_HOOK_TEMPLATES_FILE)
+        tmp_file = CUSTOM_HOOK_TEMPLATES_FILE.parent / f"{CUSTOM_HOOK_TEMPLATES_FILE.stem}.{os.getpid()}.{threading.get_ident()}.tmp"
+        try:
+            with open(tmp_file, "w", encoding="utf-8") as f:
+                json.dump({"version": "1.0", "templates": current_templates}, f, ensure_ascii=False, indent=2)
+            tmp_file.replace(CUSTOM_HOOK_TEMPLATES_FILE)
+        finally:
+            tmp_file.unlink(missing_ok=True)
 
     return entry
 
@@ -208,14 +228,20 @@ def delete_custom_hook_template(template_id: str) -> bool:
     """Delete a custom hook template. Cannot delete built-in templates."""
     if template_id in HOOK_TEMPLATES:
         return False
-    current_templates = load_custom_hook_templates()
-    if template_id not in current_templates:
-        return False
-    del current_templates[template_id]
-    tmp_file = CUSTOM_HOOK_TEMPLATES_FILE.with_suffix(".tmp")
-    with open(tmp_file, "w", encoding="utf-8") as f:
-        json.dump({"version": "1.0", "templates": current_templates}, f, ensure_ascii=False, indent=2)
-    tmp_file.replace(CUSTOM_HOOK_TEMPLATES_FILE)
+    # Same locked read-modify-write + unique tmp name as
+    # save_custom_hook_template() above, and for the same reason.
+    with _custom_templates_lock:
+        current_templates = load_custom_hook_templates()
+        if template_id not in current_templates:
+            return False
+        del current_templates[template_id]
+        tmp_file = CUSTOM_HOOK_TEMPLATES_FILE.parent / f"{CUSTOM_HOOK_TEMPLATES_FILE.stem}.{os.getpid()}.{threading.get_ident()}.tmp"
+        try:
+            with open(tmp_file, "w", encoding="utf-8") as f:
+                json.dump({"version": "1.0", "templates": current_templates}, f, ensure_ascii=False, indent=2)
+            tmp_file.replace(CUSTOM_HOOK_TEMPLATES_FILE)
+        finally:
+            tmp_file.unlink(missing_ok=True)
     return True
 
 

@@ -113,7 +113,7 @@ const LEGACY_SFX_ALIASES = {
   boom: 'sfx_vine_boom',
 };
 
-const EMPTY = { clipList: [], cuesList: [], overlays: [], stickers: [], effects: [], style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false, captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1, stickerPosition: 'top_right', stickerScale: 1 } };
+const EMPTY = { clipList: [], cuesList: [], overlays: [], stickers: [], effects: [], trackMix: { mute: {}, solo: {} }, style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false, captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1, stickerPosition: 'top_right', stickerScale: 1 } };
 
 let idCounter = 0;
 const newId = () => `clip-${Date.now().toString(36)}-${++idCounter}`;
@@ -128,7 +128,7 @@ export default function EditorShell({
   onVideoUploaded,
 }) {
   const { state, set, setSilent, beginDrag, endDrag, undo, redo, reset, canUndo, canRedo } = useEditorHistory(EMPTY);
-  const { clipList, cuesList, style, overlays, stickers = [], effects = [] } = state;
+  const { clipList, cuesList, style, overlays, stickers = [], effects = [], trackMix = { mute: {}, solo: {} } } = state;
 
   const [projectList, setProjectList] = useState([]);
   const [projectName, setProjectName] = useState(() => {
@@ -269,10 +269,12 @@ export default function EditorShell({
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   // Per-stem mute/solo for the preview. Mutes persist and reach the renderer;
   // solo remains a monitoring control and does not mute the exported mix.
-  const [trackMix, setTrackMix] = useState({ mute: {}, solo: {} });
+  // Lives in the undo history alongside the other editable state so
+  // Ctrl+Z/Ctrl+Y can take a mute/solo toggle back.
   const handleTrackMix = useCallback((track, kind) => {
-    setTrackMix((prev) => {
-      const next = { mute: { ...prev.mute }, solo: { ...prev.solo } };
+    set((prev) => {
+      const prevMix = prev.trackMix || { mute: {}, solo: {} };
+      const next = { mute: { ...prevMix.mute }, solo: { ...prevMix.solo } };
       // 'all' is the folded group's own control: it flips every stem together,
       // so a row labelled for the group actually acts on the group.
       const targets = track === 'all' ? AUDIO_TRACKS : [track];
@@ -283,9 +285,9 @@ export default function EditorShell({
         if (kind === 'mute' && turningOn) next.solo[k] = false;
         if (kind === 'solo' && turningOn) next.mute[k] = false;
       }
-      return next;
+      return { ...prev, trackMix: next };
     });
-  }, []);
+  }, [set]);
   const [isCaptionHidden, setIsCaptionHidden] = useState(false);
 
   // The banner and the text overlays are one array now, and it lives inside
@@ -474,7 +476,8 @@ export default function EditorShell({
     stickers,
     effects,
     trackMix,
-  }), [clipList, cuesList, overlays, stickers, effects, style, trackMix]);
+    microCuesList,
+  }), [clipList, cuesList, overlays, stickers, effects, style, trackMix, microCuesList]);
   const {
     saveStatus,
     setSaveStatus,
@@ -512,7 +515,6 @@ export default function EditorShell({
     setProjectProductName(loaded.productName);
     setAudioUrl(loaded.mixedAudioPath ? toMediaUrl(loaded.mixedAudioPath) : null);
     setVoiceUrl(loaded.voiceAudioPath ? toMediaUrl(loaded.voiceAudioPath) : null);
-    setTrackMix(loaded.trackMix);
     loadedCaptionStyle.current = {
       captionPosition: loaded.style.captionPosition,
       captionColor: loaded.style.captionColor,
@@ -529,6 +531,7 @@ export default function EditorShell({
       overlays: loaded.overlays,
       stickers: loaded.stickers || [],
       effects: loaded.effects || [],
+      trackMix: loaded.trackMix || { mute: {}, solo: {} },
       style: loaded.style,
     });
     setAudioDuration(loaded.audioDuration);
@@ -897,24 +900,10 @@ export default function EditorShell({
     set((prev) => {
       const currentList = prev.stickers || [];
       const targetId = id || selection?.id;
-      let nextList;
-      if (targetId && currentList.some((s) => s.id === targetId)) {
-        nextList = updateItemById(currentList, targetId, patch);
-      } else if (currentList.length > 0) {
-        nextList = updateItemById(currentList, currentList[0].id, patch);
-      } else {
-        nextList = [{
-          id: 'sticker-1',
-          badge: patch.badge || prev.style?.stickerBadge || '',
-          start: patch.start ?? patch.startTime ?? 0.5,
-          end: patch.end ?? patch.endTime ?? 3.5,
-          normX: patch.normX ?? 0.5,
-          normY: patch.normY ?? 0.35,
-          scale: patch.scale ?? 1.0,
-          hidden: false,
-          ...patch,
-        }];
+      if (!targetId || !currentList.some((s) => s.id === targetId)) {
+        return prev; // nothing to update — do not fabricate or misapply the patch
       }
+      const nextList = updateItemById(currentList, targetId, patch);
       return {
         ...prev,
         stickers: nextList,

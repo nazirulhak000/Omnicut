@@ -189,22 +189,23 @@ def rename_video_file(payload: RenameVideoPayload):
         print(f"Notice: Failed to update export registry on rename: {e}")
 
     try:
-        products = ProductStore._load()
-        updated_any = False
         old_rel = str(v_path.relative_to(BASE_DIR)).replace("\\", "/")
         old_abs = str(v_path)
-        for p in products:
-            if payload.product_id and p.get("id") != payload.product_id:
-                continue
-            v_list = p.get("videos", [])
-            for v in v_list:
-                if v.get("path") == old_abs or v.get("rel_path") == old_rel or v.get("name") == v_path.name:
-                    v["path"] = new_file_info["path"]
-                    v["rel_path"] = new_file_info["rel_path"]
-                    v["name"] = new_file_info["name"]
-                    updated_any = True
-        if updated_any:
-            ProductStore._save(products)
+        # Read-modify-write inside one SQLite transaction (ProductStore._mutate())
+        # instead of _load()/_save() -- the old pattern read+wrote outside any
+        # lock and could silently clobber a concurrent writer's changes to the
+        # same products table (e.g. a render finishing and calling
+        # update_angle_status while this rename was in flight).
+        with ProductStore._mutate() as products:
+            for p in products:
+                if payload.product_id and p.get("id") != payload.product_id:
+                    continue
+                v_list = p.get("videos", [])
+                for v in v_list:
+                    if v.get("path") == old_abs or v.get("rel_path") == old_rel or v.get("name") == v_path.name:
+                        v["path"] = new_file_info["path"]
+                        v["rel_path"] = new_file_info["rel_path"]
+                        v["name"] = new_file_info["name"]
     except Exception as e:
         print(f"Notice: Failed to update ProductStore on rename: {e}")
 
@@ -494,16 +495,15 @@ def batch_delete_raw_videos(payload: BatchDeleteVideosPayload):
                         else:
                             raise
 
-                products = ProductStore._load()
-                updated_any = False
-                for p in products:
-                    v_list = p.get("videos", [])
-                    new_v_list = [v for v in v_list if v.get("path") != str(v_path) and v.get("name") != v_path.name]
-                    if len(new_v_list) != len(v_list):
-                        p["videos"] = new_v_list
-                        updated_any = True
-                if updated_any:
-                    ProductStore._save(products)
+                # Read-modify-write inside one SQLite transaction (ProductStore._mutate())
+                # instead of _load()/_save() -- see rename handler above for why the
+                # old outside-any-lock pattern was unsafe under concurrent writers.
+                with ProductStore._mutate() as products:
+                    for p in products:
+                        v_list = p.get("videos", [])
+                        new_v_list = [v for v in v_list if v.get("path") != str(v_path) and v.get("name") != v_path.name]
+                        if len(new_v_list) != len(v_list):
+                            p["videos"] = new_v_list
         except PermissionError:
             errors.append(f"{v_str}: ไฟล์กำลังถูกเปิดใช้งานหรือเล่นอยู่ กรุณาปิดโปรแกรมที่เปิดไฟล์ก่อน")
         except Exception as e:
@@ -566,6 +566,16 @@ def star_asset(req: StarAssetRequest):
     return {"success": True, "id": req.id, "starred": req.starred}
 
 
+_ASSET_UPLOAD_EXTS = {
+    "sfx": {".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac"},
+    "music": {".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac"},
+    "fonts": {".ttf", ".otf", ".woff", ".woff2"},
+    "stickers": {".png", ".jpg", ".jpeg", ".gif", ".webp"},
+    "luts": {".cube", ".3dl"},
+    "branding": {".png", ".jpg", ".jpeg", ".webp", ".svg"},
+}
+
+
 @router.post("/api/assets/upload")
 async def upload_asset(file: UploadFile = File(...), asset_type: str = Form("sfx")):
     """Uploads an asset to the appropriate 02_Assets subfolder."""
@@ -577,18 +587,44 @@ async def upload_asset(file: UploadFile = File(...), asset_type: str = Form("sfx
         "luts": ASSETS_DIR / "LUTs_ColorPresets",
         "branding": ASSETS_DIR / "Branding"
     }
-    dest_dir = type_map.get(asset_type.lower(), SFX_DIR)
+    asset_key = asset_type.lower()
+    dest_dir = type_map.get(asset_key, SFX_DIR)
+
+    # `file.filename` is client-controlled and must never be joined into a
+    # path raw -- ".name" drops any directory components (relative traversal
+    # like "../../scripts/config.py", or an absolute path that would make
+    # pathlib discard dest_dir entirely), same as the /api/upload handler
+    # above. An extension allowlist per asset type additionally stops an
+    # upload from dropping an unexpected file type (e.g. a script) into
+    # 02_Assets even once it can no longer escape dest_dir.
+    orig_filename = Path(file.filename or "asset").name
+    orig_suffix = Path(orig_filename).suffix.lower()
+    allowed_exts = _ASSET_UPLOAD_EXTS.get(asset_key, _ASSET_UPLOAD_EXTS["sfx"])
+    if orig_suffix not in allowed_exts:
+        raise HTTPException(
+            status_code=400,
+            detail=f"ไม่รองรับไฟล์นามสกุล '{orig_suffix or '(ไม่ระบุ)'}' สำหรับหมวด {asset_type}",
+        )
+
     dest_dir.mkdir(parents=True, exist_ok=True)
 
-    save_path = dest_dir / file.filename
+    safe_filename = "".join(c for c in orig_filename if c.isalnum() or c in "._- ฀-๿")
+    if not safe_filename or not safe_filename.lower().endswith(orig_suffix):
+        safe_filename = f"asset_{int(time.time())}{orig_suffix}"
+
+    save_path = dest_dir / safe_filename
+    if save_path.exists():
+        stem = Path(safe_filename).stem
+        save_path = dest_dir / f"{stem}_{int(time.time())}{orig_suffix}"
+
     with open(save_path, "wb") as buffer:
-        content = await file.read()
-        buffer.write(content)
+        while chunk := await file.read(1024 * 1024):
+            buffer.write(chunk)
 
     AssetRegistry.rebuild()
 
     return {
-        "message": f"เพิ่มทรัพยากร {file.filename} เข้าสู่ {asset_type.upper()} เรียบร้อยแล้ว",
+        "message": f"เพิ่มทรัพยากร {save_path.name} เข้าสู่ {asset_type.upper()} เรียบร้อยแล้ว",
         "file": get_file_info(save_path)
     }
 
@@ -742,8 +778,18 @@ def delete_file(req: DeleteFileRequest):
                         )
     except HTTPException:
         raise
-    except Exception:
-        pass
+    except Exception as guard_err:
+        # The guard above deliberately raises HTTPException when it finds a
+        # posted export -- that must keep surfacing as-is. But an unrelated
+        # failure here (ProductStore read error, bad path, etc.) must NOT be
+        # treated as "no posted match found": that would silently let a
+        # destructive delete proceed as if the guard had passed. Fail closed
+        # instead -- refuse the delete rather than risk destroying proof of
+        # a posted export.
+        raise HTTPException(
+            status_code=500,
+            detail=f"ตรวจสอบสถานะโพสต์ก่อนลบไฟล์ไม่สำเร็จ จึงหยุดการลบเพื่อความปลอดภัย: {guard_err}",
+        )
 
     if not target.exists():
         # A missing file must not leave its old ID attached to a future file

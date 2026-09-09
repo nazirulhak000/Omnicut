@@ -24,9 +24,16 @@ export function manifestToEditorState(data, options = {}) {
     ? rawClips
     : (fallbackPath ? [{ source_path: fallbackPath, trim_start: 0, trim_end: null }] : []);
   const savedTransitions = firstNonEmptyArray(manifest.transitions, params.transitions);
+  // serializeTransitions appends clip 0's own entry transition (e.g. a fade-in) as a
+  // trailing extra element on top of the normal N-1 clip-boundary entries, but only
+  // when clip 0 actually carries one -- detect that shape here so it round-trips
+  // instead of silently defaulting clip 0 back to 'cut'.
+  const hasOpeningTransition = sourceClips.length > 0 && savedTransitions.length === sourceClips.length;
+  const openingBoundary = hasOpeningTransition ? savedTransitions[savedTransitions.length - 1] : null;
+  const clipBoundaries = hasOpeningTransition ? savedTransitions.slice(0, -1) : savedTransitions;
 
   const clipList = sourceClips.map((clip, index) => {
-    const rawBoundary = index > 0 ? savedTransitions[index - 1] : null;
+    const rawBoundary = index > 0 ? clipBoundaries[index - 1] : openingBoundary;
     const boundary = typeof rawBoundary === 'string'
       ? { type: rawBoundary }
       : (rawBoundary || {});
@@ -53,6 +60,10 @@ export function manifestToEditorState(data, options = {}) {
     text: cue.text || '',
     translation: cue.translation || '',
     sfx: cue.sfx || null,
+    scale: cue.scale !== null && cue.scale !== undefined ? Number(cue.scale) : null,
+    x: cue.x !== null && cue.x !== undefined ? Number(cue.x) : null,
+    y: cue.y !== null && cue.y !== undefined ? Number(cue.y) : null,
+    position: cue.position || null,
     _uid: createCueId(index, cue),
   }));
 
@@ -148,10 +159,22 @@ export function serializeClips(clipList = []) {
 }
 
 export function serializeTransitions(clipList = []) {
-  return clipList.slice(1).map((clip) => ({
+  const boundaries = clipList.slice(1).map((clip) => ({
     type: clip.transition_in || 'cut',
     duration: clip.transition_duration ?? FADE_DURATION,
   }));
+  // Clip 0 has no preceding clip, so it's never a "boundary" -- but it can still
+  // carry its own entry transition (e.g. a fade-in on the very start of the video).
+  // Append it as a trailing extra element only when it's meaningfully set, so files
+  // with no opening transition keep the exact N-1-length shape they always had.
+  const openingClip = clipList[0];
+  if (openingClip && openingClip.transition_in && openingClip.transition_in !== 'cut') {
+    boundaries.push({
+      type: openingClip.transition_in,
+      duration: openingClip.transition_duration ?? FADE_DURATION,
+    });
+  }
+  return boundaries;
 }
 
 export function serializeCues(cuesList = []) {
@@ -187,12 +210,15 @@ export function serializeStyle(style = {}) {
   };
 }
 
-export function editorStateToSavePayload({ clipList, cuesList, style, overlays, trackMix, stickers, effects } = {}) {
+export function editorStateToSavePayload({ clipList, cuesList, microCuesList, style, overlays, trackMix, stickers, effects } = {}) {
   const cues = serializeCues(cuesList);
+  // Fall back to `cues` when the caller hasn't been updated to pass microCuesList yet,
+  // so this stays backward compatible instead of breaking the save outright.
+  const microCues = Array.isArray(microCuesList) ? serializeCues(microCuesList) : cues;
   const mix = trackMix || EMPTY_TRACK_MIX;
   return {
     cues,
-    micro_cues: cues,
+    micro_cues: microCues,
     clip_list: serializeClips(clipList),
     transitions: serializeTransitions(clipList),
     style: serializeStyle(style),

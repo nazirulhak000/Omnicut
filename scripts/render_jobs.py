@@ -15,6 +15,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterator, Optional
 
+from fastapi import HTTPException
+
 from scripts.config import BASE_DIR
 
 class RenderCancelled(Exception):
@@ -60,11 +62,32 @@ def _owned_by(job: Dict[str, Any], owner_id: Optional[str]) -> bool:
 # ever being produced at a time; everything else waits its turn as "queued".
 _RENDER_SLOT = threading.Lock()
 
+# How many callers may be blocked waiting for _RENDER_SLOT before a new one
+# is refused outright instead of joining the wait. Most endpoints in this
+# app are synchronous `def`s that FastAPI runs on its threadpool -- render_
+# slot()'s wait used to be a bare, uncapped acquire(), so a burst of queued
+# render/reroll requests could alone exhaust that threadpool and take down
+# every OTHER endpoint (status polling included), not just rendering.
+MAX_QUEUED_RENDERS = 3
+
+# Guards _QUEUED_COUNT -- a separate, tiny lock rather than piggybacking on
+# _RENDER_SLOT itself, since the whole point is to check/reserve a queue
+# slot *before* touching _RENDER_SLOT.
+_QUEUE_COUNT_LOCK = threading.Lock()
+_QUEUED_COUNT = 0
+
 
 def is_busy() -> bool:
     """True while a render holds the slot -- callers use it to refuse work
     that would pull files out from under the running job."""
     return _RENDER_SLOT.locked()
+
+
+def queued_count() -> int:
+    """How many callers are currently blocked waiting for _RENDER_SLOT (not
+    counting whichever one holds it)."""
+    with _QUEUE_COUNT_LOCK:
+        return _QUEUED_COUNT
 
 
 def _prune_old_jobs(max_keep: int = 50) -> None:
@@ -120,17 +143,39 @@ def render_slot(job_id: str, owner_id: Optional[str] = None) -> Iterator[None]:
     Block until it is this job's turn to actually render, updating its status
     to "queued" with an explanatory message for as long as it has to wait.
 
+    Refuses outright (HTTP 429) instead of joining the wait once
+    MAX_QUEUED_RENDERS callers are already queued -- see that constant's
+    comment for why an uncapped wait here is dangerous for the whole API, not
+    just for rendering.
+
     Usage:
         with render_slot(job_id):
             TikTokAutoCutterPipeline.run(...)
     """
-    if _RENDER_SLOT.locked():
+    global _QUEUED_COUNT
+
+    must_wait = _RENDER_SLOT.locked()
+    if must_wait:
+        with _QUEUE_COUNT_LOCK:
+            if _QUEUED_COUNT >= MAX_QUEUED_RENDERS:
+                raise HTTPException(
+                    status_code=429,
+                    detail="คิวเรนเดอร์เต็ม — มีงานรออยู่หลายรายการแล้ว กรุณารอสักครู่แล้วลองใหม่",
+                )
+            _QUEUED_COUNT += 1
+
         job = get_job(job_id, owner_id=owner_id)
         if job:
             job["status"] = "queued"
             job["message"] = "รอคิว — เครื่องนี้ตัดต่อได้ทีละคลิป มีงานอื่นกำลังทำอยู่"
 
-    _RENDER_SLOT.acquire()
+    try:
+        _RENDER_SLOT.acquire()
+    finally:
+        if must_wait:
+            with _QUEUE_COUNT_LOCK:
+                _QUEUED_COUNT -= 1
+
     try:
         yield
     finally:
@@ -155,6 +200,14 @@ def progress_reporter(job_id: str, owner_id: Optional[str] = None) -> Callable[[
             "msg": msg,
             "progress": int(progress * 100),
         })
+        # ffmpeg progress ticks land here at ~2.5/sec -- a 5-minute render
+        # would otherwise grow this list to ~750 entries, and the status-
+        # polling endpoint returns the whole job dict (logs included) on
+        # every poll, so an uncapped list makes polling traffic grow with
+        # render duration. Keep only the most recent entries, same cap
+        # TaskManager.update_progress() already uses for the same reason.
+        if len(job["logs"]) > 50:
+            job["logs"] = job["logs"][-50:]
 
     return on_progress
 
@@ -174,6 +227,10 @@ def update_progress(job_id: str, progress: float, message: str = "", owner_id: O
         "msg": message or job.get("message", ""),
         "progress": int(job["progress"] * 100),
     })
+    # Same unbounded-growth concern as progress_reporter()'s on_progress()
+    # above -- this is the other call site the pipeline uses per-tick.
+    if len(job["logs"]) > 50:
+        job["logs"] = job["logs"][-50:]
 
 
 def request_cancel(job_id: str, owner_id: Optional[str] = None) -> bool:

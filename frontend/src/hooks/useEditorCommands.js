@@ -109,10 +109,27 @@ export function useEditorCommands({
     } else if (selection?.type === 'text_overlay' || selection?.type === 'hook') {
       handleDeleteOverlay(selection.id);
     } else if (selection?.type === 'sticker') {
-      set((prev) => ({
-        ...prev,
-        stickers: removeItemById(prev.stickers, selection.id),
-      }));
+      set((prev) => {
+        const nextStickers = removeItemById(prev.stickers, selection.id);
+        return {
+          ...prev,
+          stickers: nextStickers,
+          // Without this, the legacy mirror field outlives the sticker it
+          // came from: Timeline.jsx's effectiveStickers (and the matching
+          // fallback in overlayBoxGeometry.js) synthesize a fake sticker
+          // straight back out of style.stickerBadge whenever the real
+          // array is empty but this field is still set -- so a delete via
+          // this path silently "undid itself" on the very next render,
+          // while EditorShell.jsx's handleDeleteSticker (the Inspector's
+          // own delete button) already cleared it correctly. Confirmed via
+          // live debugging: prev.stickers filtered to [] correctly, but
+          // the sticker reappeared because this field was never cleared.
+          style: {
+            ...prev.style,
+            stickerBadge: nextStickers.length > 0 ? nextStickers[0].badge : '',
+          },
+        };
+      });
       setSelection(null);
     } else if (selection?.type === 'effect') {
       set((prev) => ({

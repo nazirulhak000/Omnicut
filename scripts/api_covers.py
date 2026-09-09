@@ -501,6 +501,15 @@ def render_pro_cover(
     temp_dir = COVERS_DIR / ".cache"
     temp_dir.mkdir(parents=True, exist_ok=True)
 
+    # export_stem is client-controlled (RenderProCoverRequest.export_filename)
+    # and flows straight through to COVERS_DIR / f"{base_clean}_cover.jpg"
+    # below. The substring stripping there only removes known suffixes, not
+    # path separators -- a value like "../../evil" would still escape
+    # COVERS_DIR. Strip to just the filename component here, at the point
+    # export_stem is derived, so every use of it below is already safe.
+    if export_stem:
+        export_stem = Path(export_stem).name or None
+
     # 1. Obtain base image
     base_img = None
     stem_name = export_stem or "cover"
@@ -705,7 +714,18 @@ def render_pro_cover(
 
     # 7. Stamp 3D Badge (if selected and enable_badge is True)
     if enable_badge and badge and badge != "none" and badge_position != "none":
-        badge_path = STICKERS_DIR / badge
+        # badge is client-controlled (RenderProCoverRequest.badge) and was
+        # joined straight into STICKERS_DIR / badge -- a value like
+        # "../../evil.png" would escape STICKERS_DIR. Strip to just the
+        # filename component and verify the resolved path still lives
+        # inside STICKERS_DIR before ever treating it as a real path (same
+        # pattern as the sticker_badge handling in api_render.py).
+        badge_name = Path(badge).name
+        badge_path = STICKERS_DIR / badge_name
+        try:
+            badge_path.resolve().relative_to(STICKERS_DIR.resolve())
+        except ValueError:
+            badge_path = STICKERS_DIR / "__unsafe_badge_path__"
         if not badge_path.exists():
             for bf in STICKERS_DIR.glob("*.png"):
                 if badge.lower() in bf.name.lower():

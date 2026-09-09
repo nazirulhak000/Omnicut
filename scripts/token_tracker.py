@@ -134,15 +134,43 @@ class TokenTracker:
 
     @classmethod
     def _save(cls, data: Dict[str, Any]) -> None:
+        """Write `data` to ANALYTICS_FILE atomically.
+
+        cls._lock (a threading.Lock, held by every caller of _save()) only
+        serializes writers *within this one process*. It does nothing for a
+        second OS process writing this same file (e.g. a CLI tool or a
+        separate worker script run alongside the API server) -- that
+        process has its own, separate cls._lock. A full fix needs an
+        OS-level file lock (e.g. msvcrt.locking on Windows) held across the
+        whole read-modify-write in record_event()/reset(), which is out of
+        scope for this pass (real cross-platform advisory locking, plus
+        stale-lock cleanup after a crash, is nontrivial to get right).
+        Flagging the gap here rather than risking a half-implemented lock.
+
+        What this DOES fix: the tmp filename used to be the fixed
+        ANALYTICS_FILE.with_suffix(".json.tmp"), so two writers (this
+        process's threads, or a second process) landing here at the same
+        time could interleave writes to that one shared tmp path, or race
+        each other's Path.replace() (a Windows PermissionError). Using a
+        unique per-process/per-thread tmp name instead -- same approach as
+        scripts/db.py's JsonMirror (db.py:329) -- makes that specific
+        corruption/crash impossible even though it doesn't (and can't,
+        without the OS-level lock above) fix the separate lost-update race
+        where a second process's concurrent update to `data` gets silently
+        overwritten.
+        """
         try:
             ANALYTICS_FILE.parent.mkdir(parents=True, exist_ok=True)
             data["updated_at"] = datetime.datetime.now().isoformat()
-            tmp_file = ANALYTICS_FILE.with_suffix(".json.tmp")
-            tmp_file.write_text(
-                json.dumps(data, ensure_ascii=False, indent=2),
-                encoding="utf-8"
-            )
-            tmp_file.replace(ANALYTICS_FILE)
+            tmp_file = ANALYTICS_FILE.parent / f"{ANALYTICS_FILE.stem}.{os.getpid()}.{threading.get_ident()}.json.tmp"
+            try:
+                tmp_file.write_text(
+                    json.dumps(data, ensure_ascii=False, indent=2),
+                    encoding="utf-8"
+                )
+                tmp_file.replace(ANALYTICS_FILE)
+            finally:
+                tmp_file.unlink(missing_ok=True)
             cls._cache = data
             cls._cache_stamp = cls._disk_stamp()
             cls._cache_mtime = cls._cache_stamp[0] / 1e9 if cls._cache_stamp[0] else time.time()

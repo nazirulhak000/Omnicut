@@ -82,6 +82,11 @@ export default function EditorHeader({
                   <Loader2 className="w-3 h-3 animate-spin" />
                   <span className="hidden md:inline">กำลังบันทึก...</span>
                 </span>
+              ) : saveStatus === 'error' ? (
+                <span className="text-red-400 flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3 text-red-400" />
+                  <span className="hidden md:inline">บันทึกไม่สำเร็จ — ลองอีกครั้ง</span>
+                </span>
               ) : saveStatus === 'dirty' ? (
                 <span className="flex items-center gap-1 text-slate-400">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
@@ -182,13 +187,20 @@ export default function EditorHeader({
         {projectName && (
           <button
             type="button"
-            onClick={handleManualSave}
+            // handleManualSave() returns a promise (it wraps the autosave
+            // hook's saveNow). Its rejection already flows into saveStatus
+            // ('dirty' then, after retries are exhausted, 'error') via the
+            // save queue's onError callback, so this catch only exists to
+            // stop it from surfacing as an unhandled promise rejection.
+            onClick={() => { handleManualSave?.()?.catch(() => {}); }}
             disabled={saveStatus === 'saving' || applying}
             title="บันทึกการแก้ไขลงโปรเจกต์ (Ctrl+S)"
             className="flex h-9 items-center gap-1.5 rounded-xl border border-white/[0.12] bg-white/[0.06] hover:bg-white/[0.12] px-2.5 text-xs font-bold text-slate-200 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
           >
             {saveStatus === 'saving' ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+            ) : saveStatus === 'error' ? (
+              <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
             ) : (
               <Save className="w-3.5 h-3.5 text-emerald-400" />
             )}
