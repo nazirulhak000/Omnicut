@@ -272,6 +272,49 @@ def complete_job(job_id: str, result: Dict[str, Any], message: str = "🎉 ก�
         "script": result.get("script"),
         "manifest": result.get("manifest"),
     }
+    project_name = result.get("project_name")
+    if project_name:
+        try:
+            metadata = finalize_incremental_render(project_name)
+            if metadata:
+                job["incremental_render"] = {
+                    "schema_version": metadata.get("schema_version"),
+                    "stages": sorted((metadata.get("stage_fingerprints") or {}).keys()),
+                    "artifacts": sorted((metadata.get("artifact_fingerprints") or {}).keys()),
+                }
+        except Exception as fingerprint_err:
+            # Fingerprints harden future reuse but are not part of the render
+            # output itself. Do not report a successful video as failed because
+            # a best-effort metadata stamp could not be written.
+            job.setdefault("logs", []).append({
+                "time": datetime.datetime.now().strftime("%H:%M:%S"),
+                "msg": f"Incremental reuse metadata unavailable: {fingerprint_err}",
+                "progress": 100,
+            })
+
+
+def finalize_incremental_render(project_name: Optional[str]) -> Optional[Dict[str, Any]]:
+    """Stamp fingerprints after the pipeline has atomically saved its manifest.
+
+    The pipeline's stage implementation owns the initial manifest write, while
+    this job seam owns the successful-render transition. Keeping the metadata
+    write here covers both `/api/render` and the shared reroll worker without
+    changing stage ordering or the render slot. Failure to stamp metadata never
+    turns a completed render into a failed job; legacy path validation remains
+    available until the next successful completion.
+    """
+    if not project_name:
+        return None
+
+    from scripts.pipeline_context import build_incremental_render_metadata
+    from scripts.project_manifest import ProjectManifest
+
+    manifest = ProjectManifest.load(project_name)
+    if not manifest:
+        return None
+    metadata = build_incremental_render_metadata(manifest)
+    updated = ProjectManifest.save(project_name, incremental_render=metadata)
+    return updated.get("incremental_render")
 
 
 def fail_job(job_id: str, error: Any, owner_id: Optional[str] = None) -> None:

@@ -60,3 +60,42 @@ test('a failed latest save remains pending for an explicit retry', async () => {
   assert.equal(attempts, 2);
   assert.equal(queue.hasPending(), false);
 });
+
+
+test('clearing pending work invalidates a failed in-flight job instead of requeueing stale state', async () => {
+  const first = deferred();
+  const queue = createLatestSaveQueue(async () => {
+    await first.promise;
+    throw new Error('project switched');
+  });
+  queue.enqueue('old-project', { revision: 1 });
+  const flushing = queue.flush();
+  await Promise.resolve();
+
+  queue.clearPending();
+  first.resolve();
+
+  await assert.rejects(flushing, /project switched/);
+  assert.equal(queue.hasPending(), false);
+});
+
+
+test('save callbacks identify whether the completed job is still the latest sequence', async () => {
+  const first = deferred();
+  const saved = [];
+  const queue = createLatestSaveQueue(async (_projectName, payload) => {
+    if (payload.revision === 1) await first.promise;
+  }, {
+    onSaved(job, isLatest) {
+      saved.push([job.payload.revision, isLatest]);
+    },
+  });
+  queue.enqueue('demo', { revision: 1 });
+  const flushing = queue.flush();
+  await Promise.resolve();
+  queue.enqueue('demo', { revision: 2 });
+  first.resolve();
+
+  await flushing;
+  assert.deepEqual(saved, [[1, false], [2, true]]);
+});

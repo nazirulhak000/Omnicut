@@ -32,6 +32,11 @@ import { bindWindowPointerLifecycle } from '../lib/pointerDragLifecycle.js';
 
 const CANVAS_W = 540;
 const CANVAS_H = 960;
+// Canvas playback remains frame-paced, but React only needs enough playhead
+// updates to keep the editor chrome and selection box visually current. The
+// preview/render contract is 30 FPS, so this caps React state publication at
+// that same rate without changing the audio master clock or Canvas drawing.
+const PLAYHEAD_UI_INTERVAL_MS = 1000 / 30;
 // How far a stream's decoded currentTime may drift from the master clock
 // before it is pulled back. Hidden <video> elements were measured decoding at
 // ~3-7x real time in this environment (Chromium doesn't pace paint/compositor
@@ -2254,7 +2259,16 @@ function SequencePlayer({
   const [isPlaying, setIsPlaying] = useState(false);
   const [playhead, setPlayhead] = useState(0);
   const playheadRef = useRef(0);
+  const lastPlayheadUiUpdateRef = useRef(null);
   const prevActiveClipIdRef = useRef(null);
+
+  const publishPlayhead = (t, force = false, now = performance.now()) => {
+    playheadRef.current = t;
+    const lastUpdate = lastPlayheadUiUpdateRef.current;
+    if (!force && lastUpdate != null && now - lastUpdate < PLAYHEAD_UI_INTERVAL_MS) return;
+    lastPlayheadUiUpdateRef.current = now;
+    setPlayhead(t);
+  };
 
   const captionKey = `${captionStyle.hidden}:${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}:${captionStyle.captionX ?? ''}:${captionStyle.captionY ?? ''}:${captionStyle.fontName}`;
   const cuesKey = (cues || []).map(c => `${c._uid || c.id}:${c.start}:${c.end}:${c.text}:${c.translation}:${c.scale || 1}:${c.x ?? ''}:${c.y ?? ''}:${c.position ?? ''}`).join(';;');
@@ -2604,7 +2618,7 @@ function SequencePlayer({
     if (!clips || clips.length === 0) {
       setMetadataReady(false);
       setIsPlaying(false);
-      setPlayhead(0);
+      publishPlayhead(0, true);
       setDurations({});
       return undefined;
     }
@@ -2684,8 +2698,18 @@ function SequencePlayer({
     [clipKey, metadataReady, durations]
   );
 
+  const segmentsByClipId = useMemo(() => {
+    const byId = new Map();
+    segments.forEach((segment) => {
+      const id = segment.clip?.id;
+      // Preserve the old `segments.find(...)` behavior if malformed input ever
+      // contains duplicate clip ids: the first segment wins.
+      if (id != null && !byId.has(id)) byId.set(id, segment);
+    });
+    return byId;
+  }, [segments]);
+
   const totalDuration = totalDurationOf(segments);
-  playheadRef.current = playhead;
 
   const getDrawPlan = (t) => planAt(segments, t);
 
@@ -3124,7 +3148,7 @@ function SequencePlayer({
       if (t >= totalDuration) {
         Object.values(videoElsRef.current).forEach(v => v?.pause());
         stopStems();
-        setPlayhead(totalDuration);
+        publishPlayhead(totalDuration, true);
         onPlayhead?.(totalDuration);
         renderAt(totalDuration);
         setIsPlaying(false);
@@ -3216,7 +3240,7 @@ function SequencePlayer({
           // hold the outgoing clip's frame to eliminate any flash or random frame stutter
           if (video.seeking && prevActiveClipIdRef.current && prevActiveClipIdRef.current !== seg.clip.id) {
             const prevV = videoElsRef.current[prevActiveClipIdRef.current];
-            const prevSeg = segments.find(s => s.clip.id === prevActiveClipIdRef.current);
+            const prevSeg = segmentsByClipId.get(prevActiveClipIdRef.current);
             if (prevV && prevSeg && prevV.readyState >= 2) {
               ctx.globalAlpha = 1;
               ctx.filter = clipFilter(prevSeg.clip);
@@ -3247,8 +3271,8 @@ function SequencePlayer({
         boundsRef.current = bounds;
       }
 
-      setPlayhead(t);
       const now = performance.now();
+      publishPlayhead(t, false, now);
       if (!lastNotifyRef.current || now - lastNotifyRef.current > 50) {
         lastNotifyRef.current = now;
         onPlayhead?.(t);
@@ -3265,7 +3289,7 @@ function SequencePlayer({
     // RAF loop kept drawing whatever array existed when isPlaying last
     // flipped true until some other dep (e.g. overlays) happened to change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlaying, segments, cues, overlays, totalDuration, effectiveStickersList, effects]);
+  }, [isPlaying, segments, segmentsByClipId, cues, overlays, totalDuration, effectiveStickersList, effects]);
 
   const togglePlay = () => {
     if (!segments.length) return;
@@ -3278,7 +3302,7 @@ function SequencePlayer({
       clockRef.current = { startWall: performance.now(), startT };
       cueStemsTo(startT);
       startStems();
-      setPlayhead(startT);
+      publishPlayhead(startT, true);
       onPlayhead?.(startT);
       setIsPlaying(true);
     }
@@ -3297,8 +3321,7 @@ function SequencePlayer({
     // way back over their cue.
     stopStems();
     cueStemsTo(clamped);
-    setPlayhead(clamped);
-    playheadRef.current = clamped;
+    publishPlayhead(clamped, true);
     onPlayhead?.(clamped);
     clockRef.current = { startWall: performance.now(), startT: clamped };
     if (isPlaying) startStems();

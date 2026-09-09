@@ -1,10 +1,17 @@
 export function createLatestSaveQueue(save, callbacks = {}) {
   let pending = null;
   let active = null;
+  let activeJob = null;
   let sequence = 0;
+  let invalidationGeneration = 0;
 
   const enqueue = (projectName, payload) => {
-    const job = { projectName, payload, sequence: ++sequence };
+    const job = {
+      projectName,
+      payload,
+      sequence: ++sequence,
+      invalidationGeneration,
+    };
     pending = job;
     callbacks.onQueued?.(job);
     return job;
@@ -19,16 +26,23 @@ export function createLatestSaveQueue(save, callbacks = {}) {
       while (pending) {
         const job = pending;
         pending = null;
+        activeJob = job;
         callbacks.onSaving?.(job);
         try {
           await save(job.projectName, job.payload);
         } catch (error) {
-          if (!pending || pending.sequence < job.sequence) pending = job;
+          // A baseline/project switch may intentionally discard all pending
+          // work while this request is in flight. Do not resurrect that stale
+          // job when its request fails after the discard.
+          if (
+            invalidationGeneration === job.invalidationGeneration
+            && (!pending || pending.sequence < job.sequence)
+          ) pending = job;
           callbacks.onError?.(job, error);
           throw error;
         }
         lastSaved = job;
-        callbacks.onSaved?.(job);
+        callbacks.onSaved?.(job, job.sequence === sequence);
       }
       return lastSaved;
     })();
@@ -37,6 +51,7 @@ export function createLatestSaveQueue(save, callbacks = {}) {
       return await active;
     } finally {
       active = null;
+      activeJob = null;
     }
   };
 
@@ -45,9 +60,13 @@ export function createLatestSaveQueue(save, callbacks = {}) {
     flush,
     clearPending() {
       pending = null;
+      invalidationGeneration += 1;
     },
     peekPending() {
       return pending;
+    },
+    peekActive() {
+      return activeJob;
     },
     hasPending() {
       return !!pending;

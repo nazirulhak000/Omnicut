@@ -24,6 +24,7 @@ import re
 import time
 import uuid
 import datetime
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -194,6 +195,7 @@ class ProductStore:
     # often than it needed to be).
     _RECONCILE_MIN_INTERVAL_S = 3.0
     _last_reconcile_at: float = 0.0
+    _last_reconcile_scope: Optional[tuple[str, str]] = None
 
     # Kept only so any external code that still references ProductStore._lock
     # (none found in this repo, but this was public-by-convention before)
@@ -213,6 +215,7 @@ class ProductStore:
         _TABLE.save(products)
 
     @classmethod
+    @contextmanager
     def _mutate(cls):
         """Context manager: read-modify-write the full product list as one
         SQLite transaction (fixes the lost-update race -- see class docs on
@@ -232,8 +235,17 @@ class ProductStore:
         exit, still inside the same transaction the load happened in, so
         two concurrent writers can no longer both read stale data and have
         one silently clobber the other's write.
+
+        ProductStore operations also share one process-local lock. SQLite
+        remains the cross-process coordination layer, while this lock keeps
+        ProductStore's own threaded callers from entering the JSON mirror
+        sync/transaction boundary at the same time. That matters because the
+        mirror sync path is a separate write transaction in the shared
+        database and cannot be retried safely from inside this context.
         """
-        return _TABLE.mutate()
+        with cls._lock:
+            with _TABLE.mutate() as products:
+                yield products
 
     # ------------------------------------------------------------------
     # Writing
@@ -912,8 +924,13 @@ class ProductStore:
             return False
 
         now = time.monotonic()
-        if now - cls._last_reconcile_at < cls._RECONCILE_MIN_INTERVAL_S:
+        reconcile_scope = (str(BASE_DIR), str(STORE_PATH))
+        if (
+            cls._last_reconcile_scope == reconcile_scope
+            and now - cls._last_reconcile_at < cls._RECONCILE_MIN_INTERVAL_S
+        ):
             return False
+        cls._last_reconcile_scope = reconcile_scope
         cls._last_reconcile_at = now
 
         changed = False

@@ -7,6 +7,8 @@
 | **TODO.md** (ไฟล์นี้) | งานที่ยังไม่เสร็จ + Backlog — เขียนแผนลงที่นี่ก่อนลงมือ |
 | [HISTORY.md](file:///d:/Winona/Programmer/Capcut/HISTORY.md) | รอบที่ปิดแล้ว ย้ายบล็อกเต็มไปเก็บไว้ที่นั่น ห้ามแก้ย้อนหลัง |
 | [TEMPLATE_MOTION_PLAN.md](file:///d:/Winona/Programmer/Capcut/TEMPLATE_MOTION_PLAN.md) | แผนยาวของงาน motion ข้อความ (Round 3–7) — เหตุผลและตัวเลขที่วัดมา |
+| [SYSTEM_AUDIT_2026-09-09.md](file:///d:/Winona/Programmer/Capcut/SYSTEM_AUDIT_2026-09-09.md) | รายงาน DB/Infra/System audit เต็ม (4-agent, read-only) |
+| [SYSTEM_AUDIT_FIX_PLAN.md](file:///d:/Winona/Programmer/Capcut/SYSTEM_AUDIT_FIX_PLAN.md) | แผนแก้ตาม audit ข้างบน แบ่ง 10 stream ขนาน + phase สำหรับยิง agent พร้อมกัน |
 | [.agents/rules/work_loop.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/work_loop.md) | กติกาว่าหนึ่งรอบทำยังไง ติ๊กยังไง ปิดรอบยังไง |
 
 ---
@@ -14,11 +16,13 @@
 ## สถานะรวม
 ---
 
+- [ ] Round SEC-AUDIT-1 — แก้ตาม DB/Infra/System audit: security config (API auth เปิดโล่ง, path traversal), sticker resurrection ฝั่ง render, data-store transaction hazard — 10 stream ขนาน ดู SYSTEM_AUDIT_FIX_PLAN.md (2026-09-09, รอ codex agent เสร็จก่อนยิง)
 - [x] Round SFX-DL-1 — โหลดเสียงเอฟเฟกต์ทั้งหมดจาก myinstants.com/en/index/th/ เข้า 02_Assets/SFX/ (2026-09-09)
 - [x] Round SFX-CAT-1 — จัดหมวดหมู่ไฟล์เสียง mi_xxx 1,775 ไฟล์ เป็น 10 หมวดใน 02_Assets/SFX/ (2026-09-09)
 - [x] Round BUG-STATUS-1 — คลิปที่เรนเดอร์แล้วติดสถานะ "กำลังตัดต่อ" (2026-09-08)
 - [x] Round BUG-EXT-1 — Extension ไม่แสดงคลิปตัดต่อเสร็จเพราะ schedule queue บัง (2026-09-08)
 - [ ] Round POST-LIFECYCLE-1 — แยกเวอร์ชันที่โพสต์จริง, คุมรายการใน Extension และซ่อมปุ่มมาร์กโพสต์ (2026-09-08)
+- [ ] Round PERF-UX-1 — ปรับ Reliability/Preview Performance/Autosave/Incremental Render/Timeline Scaling แบบแยก ownership ขนานกัน (2026-09-09)
 - [ ] Round SUB-THAI-2 — แก้การซ้อนของสระ `ั` กับวรรณยุกต์ `่` ในฟอนต์จริงของคลิป (พักไว้ตามคำขอ user · 2026-09-08)
 - [x] Round STK-PRO-1 — ชุดสติกเกอร์และป้ายรีวิวสายไอทีระดับโปร (Photorealistic Tech Review Badges) (2026-09-08)
 - [x] Round STK-3 - Sticker Baseline 100% Size, Track Eye Toggle, Deletion, and Preview-Before-Add (2026-09-08)
@@ -397,6 +401,64 @@ Date: 2026-09-07; Requested by: user; Status: in progress
 ## งานค้าง (Backlog)
 
 - [ ] Audit follow-up — แก้ reconciliation failures 9 รายการจาก full pytest (`test_reconcile_angle_collision.py`, `test_reconcile_grace_period.py`, `test_reconcile_preserves_posted.py`, `test_reconcile_transaction.py`, `test_relative_paths.py`) ในรอบ POST-LIFECYCLE โดยห้ามปนกับ Overlay Refactor (2026-09-09)
+
+## Round PERF-UX-1 — ปรับ Reliability/Preview Performance/Autosave/Incremental Render/Timeline Scaling แบบแยก ownership ขนานกัน
+
+วันที่: 2026-09-09 · สั่งโดย: user · สถานะ: implementation complete; evidence gates pending
+
+**เป้าหมาย:** ปรับความน่าเชื่อถือ, ความลื่นของ editor, ความเร็ว autosave/export และการรองรับ project ใหญ่ โดยแบ่ง write scope ไม่ให้ agent แก้ไฟล์เดียวกันพร้อมกัน และรักษา Preview = Render contract.
+
+**ข้อจำกัดก่อนเริ่ม (superseded by continuation takeover):** working tree มี diff เดิมใน `frontend/src/components/editor/Timeline.jsx` และ `frontend/src/hooks/useEditorCommands.js`; ห้าม reset, ลบ หรือเขียนทับ diff เดิม. หลัง user ยืนยันว่าไม่มี agent อื่นแก้ไฟล์แล้ว main agent รับช่วง Timeline เฉพาะ low-risk scaling slice และยังไม่ stage diff ที่ไม่เกี่ยวข้อง.
+
+### Continuation takeover (2026-09-09)
+
+- User confirmed that no other agent is editing now and authorized continuing all remaining PERF-UX-1 phases.
+- Main agent takes ownership of the previously blocked Timeline scaling scope. Existing `Timeline.jsx` and `useEditorCommands.js` working-tree changes are preserved verbatim unless a minimal change is required by this scope; no reset, checkout, clean, or destructive overwrite is allowed.
+- Timeline work is deliberately limited to low-risk derived-data/render-churn reductions with source-contract coverage. Full virtualization and browser FPS claims remain out of scope until a real 50/100/300-clip fixture measurement exists.
+- B browser profiler evidence and D real API/job repeated-rerender smoke remain explicit gates. They may be marked complete only with actual command/browser evidence.
+
+### Evidence update (2026-09-09)
+
+The entries below supersede the earlier tentative status in this round.
+
+- [x] E implementation: `Timeline.jsx` now memoizes transition/clip-audio collections and indexes sticker assets without changing lane geometry, lookup precedence, or interaction handlers.
+- [x] E regression probe: frontend suite now includes the Timeline render-performance contract; `npm test` = `124 passed, 0 failed`.
+- [x] E microbenchmark: synthetic 50/100/300-clip derived-work probe, 20,000 rounds each, produced equivalent results and reductions of `64.5%`, `77.0%`, and `86.7%` for the measured repeated derivation slice.
+- [x] E browser fixture inspection: the currently open local project rendered `54` timeline items, `16` transition triggers, and `1,367` total DOM elements; this is an observation baseline only, not a before/after FPS claim.
+- [x] D rerender-flow smoke: `complete_job` stamped real temp artifacts, a subsequent `PipelineContext` consumed the persisted fingerprints, and the targeted file now reports `14 passed, 0 failed`.
+- [ ] B browser/React Profiler before-after measurement: no supported profiler trace or deterministic playback fixture was available; static probe and browser DOM inspection do not prove FPS/audio-drift improvement.
+- [ ] D full API/job repeated-rerender smoke: deterministic job-to-context coverage is complete, but a real FFmpeg/API rerender with production artifacts remains pending.
+- [ ] E full 50/100/300 browser fixture benchmark: microbenchmark is complete, but DOM count/open latency/drag-scroll FPS at those sizes still needs a controlled fixture.
+
+### Workstreams / ownership
+
+- [x] **A — POST-LIFECYCLE reliability:** `scripts/product_store.py`, `scripts/api_exports.py`, `scripts/api_videos.py`, `scripts/api_schedule_queue.py`, และ `tests/test_reconcile_*.py` / `tests/test_relative_paths.py` ตาม failure ที่พบ; ปิด full pytest failures 9 รายการโดยไม่แตะ frontend files ที่ค้าง
+- [x] **B — Preview frame performance implementation/probe:** `frontend/src/components/SequencePlayer.jsx` และ `frontend/src/lib/sequencePlayerFrameScheduling.test.js`; ลด React playhead publication และ repeated previous-segment lookup โดยคง Canvas/audio clock เดิม
+- [x] **C — Autosave/history responsiveness:** `frontend/src/hooks/useProjectAutosave.js`, `frontend/src/hooks/useEditorHistory.js`, `frontend/src/lib/projectSaveQueue.js` และ tests ที่ตรง module; รักษา save/migration/undo-redo contract
+- [x] **D — Incremental render/artifact reuse implementation:** `scripts/pipeline_context.py`, `scripts/render_jobs.py` และ `tests/test_incremental_render_reuse.py`; audit reuse เดิมก่อนเพิ่ม fingerprint และ rerun policy โดยไม่แตะ renderer arguments
+- [ ] **E — Timeline/filmstrip scaling:** ห้ามแก้ `frontend/src/components/editor/Timeline.jsx` ระหว่างมีงานผู้ใช้ค้าง; ทำได้เฉพาะ read-only benchmark/audit และเตรียม test fixture/plan ที่ไม่แตะไฟล์ดังกล่าว
+- [ ] **Integration owner:** main agent review diff, ตรวจ file ownership, รวม test evidence และรัน gates แบบ serial หลัง agents หยุดแก้แล้ว
+
+### ลำดับและ gates
+
+- [x] A: แยก root cause ของ 9 failures, เพิ่ม/แก้ regression ทีละกลุ่ม, รัน targeted tests และ full pytest จน `0 failed`
+- [ ] B: เก็บ runtime baseline/after ด้วย React Profiler หรือ browser trace: p50/p95 frame time, dropped frames, React commits/sec และ audio drift; static probe ผ่านแล้ว แต่ยังไม่มี browser measurement จริง
+- [x] C: เพิ่ม save ordering/flush/undo-redo regression ก่อนปรับ implementation; frontend tests/build ผ่าน และ targeted Stream C = `13 passed, 0 failed`
+- [x] D: สร้าง change-class matrix และ fingerprint coverage ก่อนเปลี่ยน reuse; targeted incremental = `13 passed`, compatibility = `57 passed`, compileall ผ่าน
+- [ ] D follow-up: production API/FFmpeg repeated rerender smoke ยัง pending; deterministic `complete_job → fingerprint manifest → PipelineContext` flow ปิดแล้วที่ `14 passed`
+- [ ] E: controlled browser fixture 50/100/300 clips, DOM count/open latency และ drag/scroll FPS ยัง pending; low-risk implementation และ synthetic microbenchmark ปิดแล้ว
+- [x] Integration gates ปัจจุบัน: `git diff --check`, `python -m compileall -q scripts`, targeted tests ทุก stream, `npm test` = `124 passed`, `npm run lint` exit 0, `npm run build` = `1975 modules transformed`, full pytest = `957 passed, 0 failed, 6 warnings`; ยังไม่ stage งานใด
+
+### Notes
+
+- [x] Stream A root cause: `ProductStore._last_reconcile_at` เป็น global ข้าม temp storage ทำให้ debounce บล็อก test ถัดไป; แก้เป็น storage-scoped state และ serialize thread mutation; targeted reconciliation = `47 passed`, full pytest = `957 passed, 0 failed, 6 warnings`
+- [x] Stream B static evidence: `setPlayhead(t)` ใน RAF ลด `1 → 0`, previous `segments.find(...)` ลด `1 → 0`, เพิ่ม static probes `3 passed`; ยังห้ามสรุป FPS gain จนกว่าจะมี browser/Profiler before-after
+- [x] Stream C เพิ่ม controller/queue generation และ immutable history model; frontend ทั้งชุด = `124 passed`, build ผ่าน, lint exit 0 แต่ยังมี warning React refs 1 จุดใน autosave
+- [x] Stream D เพิ่ม stage/artifact SHA-256 fingerprints และ best-effort manifest stamp; deterministic rerender-flow = `14 passed`; ไม่แตะ `api_render.py`, renderer หรือ Preview = Render paths
+- [ ] ห้ามสรุป performance improvement จากการอ่านโค้ด ต้องมีตัวเลข before/after จาก fixture เดียวกัน
+- [ ] ห้าม genericize behavioral divergence ของ timeline/preview โดยไม่มี parity evidence; type-specific clamps, audio clock และ posted identity ต้องคง contract เดิม
+- [x] Timeline low-risk scaling slice รับช่วงต่อแล้ว: memoized transition/clip-audio collections และ indexed sticker assets ใน `Timeline.jsx`; existing `useEditorCommands.js` functional diff/debug line ถูกเก็บรักษา ไม่ได้เขียนทับ
+- [ ] ถ้า stream ใดพบ shared dependency หรือ file ownership ชนกัน ให้หยุด stream นั้น, บันทึก blocker ที่นี่ และให้ main agent integrate ตามลำดับแทนการเขียนทับ
 
 ### Round POST-3 — แผนก่อนลงมือ (2026-09-06 / อัปเดตแก้ขั้น 3)
 

@@ -7,6 +7,141 @@ function payloadKey(payload) {
   return JSON.stringify(payload || {});
 }
 
+function callSave(saveRef, name, body) {
+  return saveRef.current(name, body);
+}
+
+/**
+ * Imperative autosave coordinator used by the React hook and by deterministic
+ * tests. The editor passes immutable payload snapshots, so equivalent
+ * snapshots can be compared once and duplicate queue entries can be avoided.
+ */
+export function createProjectAutosaveController({
+  queue,
+  schedule = setTimeout,
+  cancel = clearTimeout,
+  onStatusChange = () => {},
+}) {
+  let timer = null;
+  let baseline = { projectName: '', key: '' };
+  let queued = null;
+  let keyCache = { hasValue: false, payload: null, key: '' };
+  const jobKeys = new WeakMap();
+
+  const getKey = (payload) => {
+    if (keyCache.hasValue && keyCache.payload === payload) return keyCache.key;
+    const key = payloadKey(payload);
+    keyCache = { hasValue: true, payload, key };
+    return key;
+  };
+
+  const clearTimer = () => {
+    if (timer !== null) {
+      cancel(timer);
+      timer = null;
+    }
+  };
+
+  const matches = (job, projectName, key) => (
+    !!job
+    && job.projectName === projectName
+    && (jobKeys.get(job) || getKey(job.payload)) === key
+  );
+
+  const enqueue = (projectName, payload, key) => {
+    const active = queue.peekActive?.();
+    const pending = queue.peekPending();
+    if (matches(active, projectName, key) || matches(pending, projectName, key)) {
+      queued = { projectName, key };
+      return pending || active;
+    }
+    const job = queue.enqueue(projectName, payload);
+    if (job) jobKeys.set(job, key);
+    queued = { projectName, key };
+    return job;
+  };
+
+  const observe = ({ projectName, payload, enabled, debounceMs = 500 }) => {
+    const key = getKey(payload);
+
+    if (!enabled || !projectName) {
+      clearTimer();
+      return;
+    }
+
+    const isBaseline = baseline.projectName === projectName && baseline.key === key;
+    if (isBaseline) {
+      clearTimer();
+      const active = queue.peekActive?.();
+      const pending = queue.peekPending();
+      if (active) {
+        // The in-flight request cannot be cancelled. Put the baseline behind
+        // it so a revert cannot be overwritten by the older edit.
+        if (!matches(active, projectName, key) || !matches(pending, projectName, key)) {
+          enqueue(projectName, payload, key);
+        }
+      } else {
+        queue.clearPending();
+        queued = null;
+        onStatusChange('saved');
+      }
+      return;
+    }
+
+    const active = queue.peekActive?.();
+    const pending = queue.peekPending();
+    if (!matches(active, projectName, key) || (pending && !matches(pending, projectName, key))) {
+      enqueue(projectName, payload, key);
+    } else if (!active && !pending && (!queued || queued.projectName !== projectName || queued.key !== key)) {
+      enqueue(projectName, payload, key);
+    }
+
+    clearTimer();
+    if (!queue.hasPending()) return;
+    timer = schedule(() => {
+      timer = null;
+      queue.flush().catch(() => {});
+    }, debounceMs);
+  };
+
+  const flush = () => {
+    clearTimer();
+    return queue.flush();
+  };
+
+  const setBaseline = (projectName, payload) => {
+    clearTimer();
+    const active = queue.peekActive?.();
+    queue.clearPending();
+    const key = getKey(payload);
+    baseline = { projectName, key };
+    queued = null;
+    onStatusChange('saved');
+    if (active?.projectName === projectName) enqueue(projectName, payload, key);
+  };
+
+  const saveNow = ({ projectName, payload, enabled }) => {
+    if (!projectName || !enabled) return null;
+    const key = getKey(payload);
+    enqueue(projectName, payload, key);
+    return flush();
+  };
+
+  return {
+    observe,
+    flush,
+    setBaseline,
+    saveNow,
+    clearTimer,
+    peekPending() {
+      return queue.peekPending();
+    },
+    peekActive() {
+      return queue.peekActive?.() || null;
+    },
+  };
+}
+
 export function useProjectAutosave({
   projectName,
   payload,
@@ -16,79 +151,62 @@ export function useProjectAutosave({
 }) {
   const [saveStatus, setSaveStatus] = useState('saved');
   const saveRef = useRef(saveProject);
-  const latestRef = useRef({ projectName: '', payload: null, key: '' });
-  const baselineRef = useRef({ projectName: '', key: '' });
-  const latestSequenceRef = useRef(0);
-  const timerRef = useRef(null);
-
-  saveRef.current = saveProject;
-  const queue = useMemo(() => createLatestSaveQueue(
-    (name, body) => saveRef.current(name, body),
+  useEffect(() => {
+    saveRef.current = saveProject;
+  }, [saveProject]);
+  const save = useCallback((name, body) => callSave(saveRef, name, body), []);
+  const [queue] = useState(() => createLatestSaveQueue(
+    save,
     {
-      onQueued(job) {
-        latestSequenceRef.current = job.sequence;
+      onQueued() {
         setSaveStatus('dirty');
       },
       onSaving() {
         setSaveStatus('saving');
       },
-      onSaved(job) {
-        if (job.sequence === latestSequenceRef.current) setSaveStatus('saved');
+      onSaved(_job, isLatest) {
+        if (isLatest) setSaveStatus('saved');
       },
       onError() {
         setSaveStatus('dirty');
       },
     },
-  ), []);
+  ));
+  const controller = useMemo(() => createProjectAutosaveController({
+    queue,
+    onStatusChange: setSaveStatus,
+  }), [queue]);
 
-  const clearTimer = useCallback(() => {
-    if (timerRef.current !== null) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-  }, []);
-
-  const flush = useCallback(async () => {
-    clearTimer();
-    return queue.flush();
-  }, [clearTimer, queue]);
-
+  const flush = useCallback(() => controller.flush(), [controller]);
   const setBaseline = useCallback((name, body) => {
-    clearTimer();
-    queue.clearPending();
-    const key = payloadKey(body);
-    baselineRef.current = { projectName: name, key };
-    latestRef.current = { projectName: name, payload: body, key };
-    setSaveStatus('saved');
-  }, [clearTimer, queue]);
+    controller.setBaseline(name, body);
+  }, [controller]);
 
   useEffect(() => {
-    if (!enabled || !projectName) return undefined;
-    const key = payloadKey(payload);
-    latestRef.current = { projectName, payload, key };
-    if (baselineRef.current.projectName === projectName && baselineRef.current.key === key) {
-      return undefined;
-    }
+    controller.observe({ projectName, payload, enabled, debounceMs });
+    return controller.clearTimer;
+  }, [controller, debounceMs, enabled, payload, projectName]);
 
-    queue.enqueue(projectName, payload);
-    clearTimer();
-    timerRef.current = setTimeout(() => {
-      timerRef.current = null;
-      queue.flush().catch(() => {});
-    }, debounceMs);
-    return clearTimer;
-  }, [clearTimer, debounceMs, enabled, payload, projectName, queue]);
-
-  const saveNow = useCallback(async () => {
-    if (!projectName || !enabled) return null;
-    const latest = latestRef.current;
-    if (!queue.hasPending()) queue.enqueue(projectName, latest.payload || payload);
-    return flush();
-  }, [enabled, flush, payload, projectName, queue]);
+  const saveNow = useCallback(async () => (
+    controller.saveNow({ projectName, payload, enabled })
+  ), [controller, enabled, payload, projectName]);
 
   useEffect(() => {
+    let lifecycleSaveStarted = false;
     const saveBeforeUnload = () => {
-      const job = queue.peekPending() || (queue.isSaving() ? latestRef.current : null);
+      // pagehide and beforeunload can both fire for one navigation. Sending
+      // twice creates a race and defeats latest-save-wins at the server.
+      if (lifecycleSaveStarted) return;
+      lifecycleSaveStarted = true;
+
+      if (queue.isSaving()) {
+        // Let the queue drain in its existing order. A second keepalive fetch
+        // for a newer pending payload could overtake the active request.
+        controller.flush().catch(() => {});
+        return;
+      }
+
+      const job = controller.peekPending();
       if (!job || typeof fetch !== 'function') return;
       fetch(`/api/projects/${encodeURIComponent(job.projectName)}/state`, {
         method: 'PATCH',
@@ -97,14 +215,23 @@ export function useProjectAutosave({
         keepalive: true,
       }).catch(() => {});
     };
+    const resetLifecycleGuard = () => {
+      lifecycleSaveStarted = false;
+    };
     window.addEventListener('pagehide', saveBeforeUnload);
     window.addEventListener('beforeunload', saveBeforeUnload);
+    window.addEventListener('pageshow', resetLifecycleGuard);
     return () => {
       window.removeEventListener('pagehide', saveBeforeUnload);
       window.removeEventListener('beforeunload', saveBeforeUnload);
-      clearTimer();
+      window.removeEventListener('pageshow', resetLifecycleGuard);
+      controller.clearTimer();
+      // Route changes/unmounts do not always emit a browser lifecycle event.
+      // Give a queued latest snapshot the same flush opportunity as a project
+      // switch before the hook disappears.
+      controller.flush().catch(() => {});
     };
-  }, [clearTimer, queue]);
+  }, [controller, queue]);
 
   return { saveStatus, setSaveStatus, flush, saveNow, setBaseline };
 }

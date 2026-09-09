@@ -319,6 +319,24 @@ export default function Timeline({
   );
   const hasEffects = effectiveEffects.length > 0;
 
+  // Keep repeated lane derivations out of the render maps. These collections
+  // are stable for a given segment list, while playhead/selection updates can
+  // re-render the timeline frequently.
+  const transitionSegments = useMemo(() => segments.slice(1), [segments]);
+  const clipAudioSegments = useMemo(
+    () => segments.filter((s) => Number(s.clip.volume) > 0),
+    [segments],
+  );
+  const stickerAssetIndex = useMemo(() => {
+    const byName = new Map();
+    const byPath = new Map();
+    (Array.isArray(stickerAssets) ? stickerAssets : []).forEach((asset) => {
+      if (asset?.name && !byName.has(asset.name)) byName.set(asset.name, asset);
+      if (asset?.path && !byPath.has(asset.path)) byPath.set(asset.path, asset);
+    });
+    return { byName, byPath };
+  }, [stickerAssets]);
+
   // Auto-stacking multi-layer calculation for overlapping text overlays
   const { packedTextOverlays, textLaneCount } = useMemo(
     () => packTextOverlays(textOverlays),
@@ -842,7 +860,7 @@ export default function Timeline({
                   />
                 ))}
 
-                {segments.slice(1).map((seg) => {
+                {transitionSegments.map((seg) => {
                   const currentTransition = seg.clip.transition_in || 'cut';
                   const isFade = currentTransition !== 'cut';
                   const isOpen = transitionMenuClipId === seg.clip.id;
@@ -1042,8 +1060,8 @@ export default function Timeline({
                     const dur = Math.max(0.2, end - start);
                     const isSelected = selection?.type === 'sticker' && (selection.id === item.id || (!selection.id && item.id === 'sticker_badge'));
                     const w = Math.max(24, dur * pxPerSec);
-                    const activeBadge = (stickerAssets || []).find((s) => s.name === item.badge)
-                      || (stickerAssets || []).find((s) => s.path === item.badge);
+                    const activeBadge = stickerAssetIndex.byName.get(item.badge)
+                      || stickerAssetIndex.byPath.get(item.badge);
                     const stickerName = activeBadge?.title || activeBadge?.name?.replace(/\.[^.]+$/, '') || item.badge || 'สติกเกอร์ 3D';
                     const topPx = (item.lane || 0) * STICKER_LANE_ROW_H + 2;
 
@@ -1251,12 +1269,12 @@ export default function Timeline({
                     {/* clip lane: a block wherever a clip contributes its own audio.
                         Clip volume defaults to 0, so this lane is empty for most
                         projects -- say so rather than leaving a blank strip. */}
-                    {key === 'clip' && !segments.some((s) => Number(s.clip.volume) > 0) && (
+                    {key === 'clip' && !clipAudioSegments.length && (
                       <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-[#6F6A64]">
                         ยังไม่ได้เปิดเสียงในคลิป — ตั้งระดับได้ที่แผงขวา
                       </span>
                     )}
-                    {key === 'clip' && segments.filter((s) => Number(s.clip.volume) > 0).map((s) => (
+                    {key === 'clip' && clipAudioSegments.map((s) => (
                       <div
                         key={`clipaud-${s.clip.id}`}
                         className="absolute inset-y-0 rounded bg-[#C79FD8]/30 ring-1 ring-inset ring-[#C79FD8]/60"
