@@ -1142,7 +1142,8 @@ export default function AssetPanel({
               เสียงเอฟเฟกต์ {selectedCaption ? '(ใส่ให้ท่อนที่เลือก)' : '(เลือกท่อนคำบรรยายก่อน)'}
             </p>
             {filtered.sfx.map((s) => {
-              const isPlayingThis = previewingAudio === `/api/media/${s.file?.rel_path}`;
+              const rel = s.rel_path || s.file?.rel_path;
+              const isPlayingThis = previewingAudio === `/api/media/${rel}`;
               return (
                 <Row
                   key={s.id}
@@ -1150,10 +1151,10 @@ export default function AssetPanel({
                   onClick={() => selectedCaption && onAssignSfx(s.id)}
                   title={selectedCaption ? `ใส่ ${s.name}` : 'เลือกท่อนคำบรรยายบนไทม์ไลน์ก่อน'}
                 >
-                  {s.file ? (
+                  {rel ? (
                     <button
                       type="button"
-                      onClick={(e) => toggleAudioPreview(e, s.file.rel_path)}
+                      onClick={(e) => toggleAudioPreview(e, rel)}
                       className={`p-1 rounded-md transition-colors cursor-pointer mr-1 ${
                         isPlayingThis ? 'bg-[#25F4EE] text-black animate-pulse' : 'bg-white/[0.08] text-slate-300 hover:text-white hover:bg-white/[0.15]'
                       }`}

@@ -518,14 +518,8 @@ def batch_delete_raw_videos(payload: BatchDeleteVideosPayload):
 
 @router.get("/api/sfx")
 def list_sfx():
-    """Lists available sound effects from 02_Assets/SFX."""
-    sfx_files = sorted(list(SFX_DIR.glob("*.wav")) + list(SFX_DIR.glob("*.mp3")))
-    results = []
-    for sf in sfx_files:
-        info = get_file_info(sf)
-        info["audio_url"] = f"/api/media/{info['rel_path']}"
-        results.append(info)
-    return {"sfx": results}
+    """Lists available sound effects from 02_Assets/SFX (including all subfolders)."""
+    return {"sfx": AssetRegistry.sfx()}
 
 
 @router.get("/api/assets/all")

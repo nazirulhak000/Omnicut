@@ -102,12 +102,20 @@ class AssetRegistry:
     @classmethod
     def _scan_sfx(cls, metadata: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:
         entries = []
-        for path in sorted(SFX_DIR.glob("*.wav")) + sorted(SFX_DIR.glob("*.mp3")):
+        raw_files = list(SFX_DIR.rglob("*.wav")) + list(SFX_DIR.rglob("*.mp3"))
+        for path in sorted(raw_files, key=lambda p: (p.parent != SFX_DIR, p.parent.name, p.name)):
             asset_id = path.stem
             meta = metadata.get(asset_id, {})
             entry = cls._file_info(path)
             entry["id"] = asset_id
-            entry["category"] = meta.get("category", _FALLBACK_SFX_CATEGORY)
+            
+            # If inside a subfolder under SFX_DIR, use subfolder name as category
+            if path.parent != SFX_DIR:
+                subfolder_category = path.parent.name
+            else:
+                subfolder_category = _FALLBACK_SFX_CATEGORY
+                
+            entry["category"] = meta.get("category") or subfolder_category
             entry["label_th"] = meta.get("label_th", "")
             entry["audio_url"] = f"/api/media/{entry['rel_path']}"
             entries.append(entry)
@@ -198,7 +206,7 @@ class AssetRegistry:
         for directory in watched_dirs:
             if not directory.exists():
                 continue
-            for entry in directory.iterdir():
+            for entry in directory.rglob("*"):
                 if entry.is_file() and entry.stat().st_mtime > cache_mtime:
                     return False
         return True

@@ -9,6 +9,7 @@
 ## สารบัญ
 
 | รอบ | งาน | วันที่ | ผลลัพธ์ |
+| Round SFX-HUB-1 | สแกน SFX แบบ Recursive เข้า AssetRegistry และเพิ่มตัวกรองหมวดหมู่ใน Media Assets Hub | 2026-09-09 | 1,822 ไฟล์ SFX แสดงผลครบถ้วนใน Media Assets Hub พร้อม Sub-category filter pills |
 | Round SFX-CAT-1 | จัดหมวดหมู่ไฟล์เสียง mi_xxx 1,775 ไฟล์ เป็น 10 หมวดใน 02_Assets/SFX/ | 2026-09-09 | 1,775 ไฟล์จัดเข้า 10 โฟลเดอร์ย่อย · เสียงเดิม 47 ไฟล์คงเดิม |
 | Round SFX-DL-1 | โหลดเสียงเอฟเฟกต์ทั้งหมดจาก myinstants.com/en/index/th/ | 2026-09-09 | 1,775 เสียงโหลดสำเร็จ · SFX/ รวม 1,822 ไฟล์ · เสียงเดิม 47 ครบ |
 | Round 1 | รวม hook banner กับ text overlay เป็นโมเดลเดียว | 2026-09-05 | ปิดบั๊ก 12 ตัว · commit `20e2cc5` |
@@ -52,7 +53,37 @@
 | Round SUB-THAI-1 | แก้สระและวรรณยุกต์ไทยซ้อนกันในคลิปเรนเดอร์ | 2026-09-08 | เปลี่ยน caption entrance จาก ASS `\\fscx/\\fscy` เป็น alpha fade 70ms และ mirror ใน Canvas; เพิ่ม FFmpeg multi-frame regression ด้วย `นั่งพิมพ์งานทั้งวัน`; pytest 926 passed · npm test 85 passed · build/compileall passed |
 | Round STK-PRO-1 | ชุดสติกเกอร์และป้ายรีวิวสายไอทีระดับโปร (Photorealistic Tech Review Badges) | 2026-09-08 | ออกแบบ Master Prompt 3 ชุด + เจนและสไลซ์ 18 ป้ายไอทีระดับโปร (Dark Glass, CNC Aluminum, Titanium, Micro-LED) + สำรองของเดิมลง _backup_cartoon/ + อัปเดต AssetPanel · parity/behavior 159 passed · npm test 85 passed · build passed · 18 RGBA verified |
 
+## Round SFX-HUB-1 — สแกน SFX แบบ Recursive เข้า AssetRegistry และเพิ่มตัวกรองหมวดหมู่ SFX ใน Media Assets Hub
+
+วันที่: 2026-09-09 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+**เป้าหมาย:** ให้ระบบ AssetRegistry และ Backend API สแกนไฟล์เสียง SFX ทุกโฟลเดอร์ย่อยใน `02_Assets/SFX/` แบบ recursive และแสดงผลใน Media Assets Hub พร้อมตัวกรองหมวดหมู่ย่อย (Sub-category Pills) ให้เปิดฟังและเลือกใช้ได้ครบทั้ง 1,822 ไฟล์
+
+### สิ่งที่ทำ
+
+1. **แก้ไข `scripts/asset_registry.py`:**
+   - ปรับ `_scan_sfx()` ให้ใช้ `rglob` สแกนทั้งโฟลเดอร์รูทและโฟลเดอร์ย่อยทั้งหมด
+   - ดึงชื่อโฟลเดอร์ย่อย (เช่น `thai/`, `game/`, `meme/`, `horror/` ฯลฯ) มาเป็น `category` ของไฟล์นั้นโดยอัตโนมัติ
+   - ปรับ `_cache_is_fresh()` ให้ตรวจสอบการเปลี่ยนแปลงของไฟล์ในโฟลเดอร์ย่อยแบบ recursive
+2. **แก้ไข `scripts/api_videos.py`:**
+   - ปรับ `/api/sfx` ให้ส่งรายการไฟล์ SFX ผ่าน `AssetRegistry.sfx()` เพื่อให้ได้ชุดข้อมูลที่ครบถ้วนตรงกันทั้งระบบ
+3. **อัปเกรด `frontend/src/components/MediaAssetsHub.jsx`:**
+   - เพิ่มตัวกรองหมวดหมู่ย่อย (Sub-category Pills: ทั้งหมด, เสียงไทย/ตลก, เกม, มีม, รีแอ็กชัน, แจ้งเตือน/UI, ท่อนเพลง, สยองขวัญ, อนิเมะ, เปลี่ยนฉาก/Whoosh, อื่นๆ)
+   - เชื่อมโยงตัวกรองเข้ากับช่องค้นหา (Search Query) ค้นหาได้ทั้งชื่อไฟล์และหมวดหมู่
+4. **อัปเดต `frontend/src/components/editor/AssetPanel.jsx`:**
+   - ปรับการระบุพาธเสียง preview ให้รองรับ `rel_path` จากโฟลเดอร์ย่อยได้โดยตรง
+
+### Gate
+
+- [x] `python -m compileall -q scripts` — ผ่าน
+- [x] pytest `test_preview_render_parity.py` — 150 passed
+- [x] `npm test` และ `npm run build` — 86 tests passed, build สำเร็จ
+- [x] ตรวจสอบ `AssetRegistry.rebuild()` — พบ SFX ทั้งหมด **1,822 ไฟล์** ตรงตามไฟล์จริงบนดิสก์
+
+---
+
 ## Round SFX-CAT-1 — จัดหมวดหมู่ไฟล์เสียง mi_xxx 1,775 ไฟล์ เป็น 10 หมวดใน 02_Assets/SFX/
+
 
 วันที่: 2026-09-09 · สั่งโดย: user · สถานะ: เสร็จแล้ว
 

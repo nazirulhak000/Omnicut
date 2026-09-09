@@ -29,6 +29,7 @@ export default function MediaAssetsHub({ status }) {
   const [assetData, setAssetData] = useState({ sfx: [], music: [], fonts: [], stickers: [], luts: [], counts: {} });
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sfxCategory, setSfxCategory] = useState('all'); // Sub-category filter for SFX
   const debouncedSearch = useDebounce(searchQuery, 250);
 
   // ── Selected Asset for Workbench Inspector ──
@@ -209,7 +210,37 @@ export default function MediaAssetsHub({ status }) {
     );
   }, [debouncedSearch]);
 
-  const filteredSFX = useMemo(() => filterList(assetData.sfx), [assetData.sfx, filterList]);
+  // SFX Sub-category counts & list
+  const sfxCategoryList = useMemo(() => {
+    const rawList = assetData.sfx || [];
+    const counts = {};
+    rawList.forEach((item) => {
+      const cat = item.category || 'misc';
+      counts[cat] = (counts[cat] || 0) + 1;
+    });
+    return [
+      { id: 'all', label: 'ทั้งหมด', count: rawList.length },
+      { id: 'thai', label: 'เสียงไทย / ตลก', count: counts['thai'] || 0 },
+      { id: 'game', label: 'เกม', count: counts['game'] || 0 },
+      { id: 'meme', label: 'มีม', count: counts['meme'] || 0 },
+      { id: 'reaction', label: 'รีแอ็กชัน', count: counts['reaction'] || 0 },
+      { id: 'notification', label: 'แจ้งเตือน / UI', count: counts['notification'] || 0 },
+      { id: 'music', label: 'ท่อนเพลง', count: counts['music'] || 0 },
+      { id: 'horror', label: 'สยองขวัญ', count: counts['horror'] || 0 },
+      { id: 'anime', label: 'อนิเมะ', count: counts['anime'] || 0 },
+      { id: 'transition', label: 'เปลี่ยนฉาก / Whoosh', count: counts['transition'] || 0 },
+      { id: 'other', label: 'อื่นๆ', count: counts['other'] || 0 },
+      { id: 'misc', label: 'เสียงระบบเดิม', count: counts['misc'] || 0 },
+    ].filter(c => c.id === 'all' || c.count > 0);
+  }, [assetData.sfx]);
+
+  const filteredSFX = useMemo(() => {
+    let list = assetData.sfx || [];
+    if (sfxCategory !== 'all') {
+      list = list.filter((item) => (item.category || 'misc') === sfxCategory);
+    }
+    return filterList(list);
+  }, [assetData.sfx, sfxCategory, filterList]);
   const filteredMusic = useMemo(() => filterList(assetData.music), [assetData.music, filterList]);
   const filteredFonts = useMemo(() => filterList(assetData.fonts), [assetData.fonts, filterList]);
   const filteredStickers = useMemo(() => filterList(assetData.stickers), [assetData.stickers, filterList]);
@@ -500,23 +531,55 @@ export default function MediaAssetsHub({ status }) {
 
       {/* ── 3. Search Bar for Assets ── */}
       {activeAssetTab !== 'system' && (
-        <div className="relative">
-          <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={`ค้นหาในหมวด ${activeAssetTab.toUpperCase()} (เช่น whoosh, upbeat, bold, sale, cube)...`}
-            className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-[#080B11] border border-white/[0.1] text-slate-100 text-xs sm:text-sm focus:outline-none focus:border-[#25F4EE]/50 transition-colors shadow-inner"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-white"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
+        <div className="space-y-3">
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={`ค้นหาในหมวด ${activeAssetTab.toUpperCase()} (เช่น whoosh, upbeat, bold, sale, cube)...`}
+              className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-[#080B11] border border-white/[0.1] text-slate-100 text-xs sm:text-sm focus:outline-none focus:border-[#25F4EE]/50 transition-colors shadow-inner"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-white"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Sub-category Quick Filter Pills for SFX */}
+          {activeAssetTab === 'sfx' && sfxCategoryList.length > 1 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 pt-0.5">
+              {sfxCategoryList.map((sc) => {
+                const isActive = sfxCategory === sc.id;
+                return (
+                  <button
+                    key={sc.id}
+                    type="button"
+                    onClick={() => setSfxCategory(sc.id)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex-shrink-0 ${
+                      isActive
+                        ? 'bg-[#25F4EE] text-slate-950 shadow-md shadow-[#25F4EE]/20'
+                        : 'bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 border border-white/[0.08]'
+                    }`}
+                  >
+                    <span>{sc.label}</span>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                        isActive ? 'bg-slate-950/20 text-slate-950' : 'bg-white/[0.08] text-slate-400'
+                      }`}
+                    >
+                      {sc.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           )}
         </div>
       )}
