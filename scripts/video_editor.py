@@ -16,7 +16,7 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
     except Exception:
         pass
 from typing import Any, List, Dict, Tuple, Callable, Optional
-from scripts.config import VIDEO_WIDTH, VIDEO_HEIGHT, FPS, MIN_SHOT_DURATION, MAX_SHOT_DURATION, FONTS_DIR
+from scripts.config import VIDEO_WIDTH, VIDEO_HEIGHT, FPS, MIN_SHOT_DURATION, MAX_SHOT_DURATION, FONTS_DIR, STICKERS_DIR, EFFECTS_DIR
 from scripts.render_jobs import RenderCancelled
 
 # ffmpeg's xfade transitions we expose. Anything outside this set falls back to
@@ -70,6 +70,12 @@ STICKER_POSITIONS = {
     "bottom_center": ("(W-w)/2", "(H-h-420)"),
 }
 STICKER_BASE_WIDTH = 160
+
+# Video overlay effects (checkmark/warning/arrow/etc) render into a square
+# region this many px wide at scale=1.0 before the user's per-instance scale
+# factor is applied -- bigger than a sticker badge since these read as a
+# momentary full graphic, not a small corner accent.
+EFFECT_BASE_SIZE = 360
 
 
 def sticker_geometry(
@@ -446,6 +452,7 @@ class VideoEditor:
         sticker_norm_x: float = None,
         sticker_norm_y: float = None,
         stickers: Optional[List[Dict[str, Any]]] = None,
+        effects: Optional[List[Dict[str, Any]]] = None,
         scrim_spans: list = None,
         auto_blur_landscape: bool = True,
         progress_callback: Optional[Callable[[float, float], None]] = None,
@@ -925,6 +932,94 @@ class VideoEditor:
             filter_complex.append(
                 f"[{st_idx}:v]scale={badge_w}:-1[{stk_node}];"
                 f"{current_v}[{stk_node}]overlay=x={badge_x}:y={badge_y}:enable='{enable_expr}':format=auto{out_label};"
+            )
+            current_v = out_label
+
+        # Optional Video Overlay Effects (checkmark/warning/arrow/etc, white-bg
+        # clips composited via "multiply" blend so the white vanishes -- these
+        # have no real alpha channel, unlike the sticker PNGs above which rely
+        # on `overlay`'s native alpha compositing. `overlay` has no blend-mode
+        # option, so each instance: split the current frame, crop out just the
+        # target region, multiply-blend the effect clip onto that crop, then
+        # overlay the (now fully-opaque, already-composited) result back at
+        # the same position. `-itsoffset` delays the whole input so its own
+        # t=0 lands at the requested global start time, no setpts needed.
+        effective_effects = []
+        if effects and isinstance(effects, list):
+            for fx in effects:
+                if not isinstance(fx, dict) or fx.get("hidden"):
+                    continue
+                fx_id = fx.get("effectId") or fx.get("effect_id")
+                if not fx_id:
+                    continue
+                fx_path = None
+                for ext in (".webm", ".mov"):
+                    candidate = EFFECTS_DIR / f"{fx_id}{ext}"
+                    if candidate.exists():
+                        fx_path = candidate
+                        break
+                if fx_path is None:
+                    continue
+                effective_effects.append({
+                    "path": fx_path,
+                    "scale": fx.get("scale", 1.0),
+                    "norm_x": fx.get("norm_x", fx.get("normX", 0.5)),
+                    "norm_y": fx.get("norm_y", fx.get("normY", 0.35)),
+                    "start": fx.get("start", fx.get("start_time", 0.5)),
+                    "end": fx.get("end", fx.get("end_time")),
+                })
+
+        for e_idx, fx_info in enumerate(effective_effects):
+            try:
+                factor = min(3.5, max(0.3, float(fx_info.get("scale") or 1.0)))
+            except (TypeError, ValueError):
+                factor = 1.0
+            fx_size = int(round(EFFECT_BASE_SIZE * factor))
+            fx_size = fx_size if fx_size % 2 == 0 else fx_size + 1
+
+            canvas_w, canvas_h = profile["width"], profile["height"]
+            # At max scale (3.5x) this is 1260px -- bigger than the "draft"
+            # preset's 720-wide canvas (and right at the edge of "post"'s
+            # 1080), which made `crop=` below request a region wider than the
+            # frame and fail the whole render. Clamp to the smaller canvas
+            # dimension minus a couple px of margin.
+            fx_size = min(fx_size, canvas_w - 2, canvas_h - 2)
+            fx_size = fx_size if fx_size % 2 == 0 else fx_size - 1
+            norm_x = float(fx_info.get("norm_x") if fx_info.get("norm_x") is not None else 0.5)
+            norm_y = float(fx_info.get("norm_y") if fx_info.get("norm_y") is not None else 0.35)
+            px_x = int(round(canvas_w * norm_x - fx_size / 2))
+            px_x = max(0, min(canvas_w - fx_size, px_x))
+            px_y = int(round(canvas_h * norm_y - fx_size / 2))
+            px_y = max(0, min(canvas_h - fx_size, px_y))
+
+            fx_start = max(0.0, float(fx_info.get("start") if fx_info.get("start") is not None else 0.5))
+            requested_end = fx_info.get("end")
+            natural_duration = 3.0
+            try:
+                info = cls.get_media_info(str(fx_info["path"]))
+                natural_duration = float(info.get("duration") or 3.0)
+            except Exception:
+                pass
+            window = (float(requested_end) - fx_start) if (requested_end is not None and float(requested_end) > fx_start) else natural_duration
+            fx_duration = max(0.1, min(natural_duration, window))
+            fx_end = fx_start + fx_duration
+
+            e_input_idx = audio_input_idx + 1 + len(effective_stickers) + e_idx
+            cmd_inputs.extend(["-itsoffset", f"{fx_start:.3f}", "-i", str(fx_info["path"].resolve())])
+
+            split_a, split_b = f"[fx_base_a_{e_idx}]", f"[fx_base_b_{e_idx}]"
+            bg_node = f"[fx_bg_{e_idx}]"
+            fx_scaled_node = f"[fx_scaled_{e_idx}]"
+            fx_blended_node = f"[fx_blended_{e_idx}]"
+            out_label = f"[v_fx_{e_idx}]"
+            enable_expr = f"between(t,{fx_start:.2f},{fx_end:.2f})"
+
+            filter_complex.append(
+                f"{current_v}split=2{split_a}{split_b};"
+                f"{split_a}crop={fx_size}:{fx_size}:{px_x}:{px_y}{bg_node};"
+                f"[{e_input_idx}:v]scale={fx_size}:{fx_size}{fx_scaled_node};"
+                f"{bg_node}{fx_scaled_node}blend=all_mode=multiply:shortest=1{fx_blended_node};"
+                f"{split_b}{fx_blended_node}overlay=x={px_x}:y={px_y}:enable='{enable_expr}':eof_action=pass{out_label};"
             )
             current_v = out_label
 

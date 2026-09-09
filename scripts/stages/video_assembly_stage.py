@@ -125,6 +125,7 @@ class VideoAssemblyStage:
                 sticker_norm_x=ctx.sticker_norm_x,
                 sticker_norm_y=ctx.sticker_norm_y,
                 stickers=ctx.stickers,
+                effects=ctx.effects,
                 scrim_spans=ctx.scrim_spans,
                 progress_callback=on_ffmpeg_progress,
                 cancel_event=ctx.cancel_event,

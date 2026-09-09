@@ -8,6 +8,7 @@ import TimelineClip from './TimelineClip';
 import TimelineRuler from './timeline/TimelineRuler';
 import TimelinePlayhead from './timeline/TimelinePlayhead';
 import TimelineContextMenu from './timeline/TimelineContextMenu';
+import { EffectTrackLabel, EffectTrackLane } from './timeline/EffectTrack';
 import { useTimelineKeyboard } from '../../hooks/useTimelineKeyboard';
 import { useTimelineDrag } from '../../hooks/useTimelineDrag';
 import {
@@ -35,6 +36,7 @@ export const HOOK_MAX_DURATION = 8.0;
 const VIDEO_H = 64;
 const HOOK_H = 28;
 const STICKER_H = 28;
+const EFFECT_H = 28;
 const CAPTION_H = 28;
 const TEXT_OVERLAY_H = 28;
 const STEM_H = 24;
@@ -65,6 +67,7 @@ const TRACK_ROWS = [
   { key: 'video', group: 'picture', height: VIDEO_H },
   { key: 'hook', group: 'overlay', height: HOOK_H },
   { key: 'sticker', group: 'overlay', height: STICKER_H, optional: true },
+  { key: 'effect', group: 'overlay', height: EFFECT_H, optional: true },
   { key: 'caption', group: 'overlay', height: CAPTION_H },
   { key: 'text', group: 'overlay', height: TEXT_OVERLAY_H, optional: true },
   ...STEMS.map((s) => ({ key: s.key, group: 'audio', height: STEM_H })),
@@ -97,9 +100,9 @@ function layoutRows({ heights = {}, present = {}, collapsed = {} } = {}) {
  * below the fold with vertical overflow hidden -- unreachable, with nothing on
  * screen to say it was there.
  */
-export function tracksFitHeight({ textOverlays = false, audioCollapsed = false, sticker = false } = {}) {
+export function tracksFitHeight({ textOverlays = false, audioCollapsed = false, sticker = false, effect = false } = {}) {
   const rows = layoutRows({
-    present: { text: textOverlays, sticker },
+    present: { text: textOverlays, sticker, effect },
     collapsed: { audio: audioCollapsed },
   });
   const tracks = rows.reduce((sum, r) => sum + r.height + r.marginTop, 0);
@@ -254,6 +257,10 @@ export default function Timeline({
   onSelectSticker,
   isStickerHidden = false,
   onToggleHideSticker,
+  effects = [],
+  effectAssets = [],
+  onSelectEffect,
+  onUpdateEffect,
 }) {
   // The banner and the text overlays are one array; the two lanes are a view
   // of it, so a trim on either takes the same clamp and the same handler.
@@ -351,6 +358,15 @@ export default function Timeline({
 
   const hasSticker = effectiveStickers.length > 0;
 
+  // Effects have no legacy single-slot fallback (unlike stickers' style.stickerBadge
+  // back-compat path above) -- this is a new feature with nothing to stay
+  // compatible with, so the array is used as-is.
+  const effectiveEffects = useMemo(
+    () => (Array.isArray(effects) ? effects.filter((fx) => fx && !fx.hidden) : []),
+    [effects],
+  );
+  const hasEffects = effectiveEffects.length > 0;
+
   // Auto-stacking multi-layer calculation for overlapping text overlays
   const { packedTextOverlays, textLaneCount } = useMemo(
     () => packTextOverlays(textOverlays),
@@ -362,10 +378,20 @@ export default function Timeline({
     [effectiveStickers],
   );
 
+  // packStickers is a generic start/end interval packer (see
+  // lib/timelineTrackModel.js) -- reused as-is rather than duplicating it
+  // under an "effect" name.
+  const { packedStickers: packedEffects, stickerLaneCount: effectLaneCount } = useMemo(
+    () => packStickers(effectiveEffects),
+    [effectiveEffects],
+  );
+
   const TEXT_LANE_ROW_H = 26;
   const STICKER_LANE_ROW_H = 26;
+  const EFFECT_LANE_ROW_H = 26;
   const textTrackHeight = Math.max(TEXT_OVERLAY_H, textLaneCount * TEXT_LANE_ROW_H + 4);
   const stickerTrackHeight = Math.max(STICKER_H, stickerLaneCount * STICKER_LANE_ROW_H + 4);
+  const effectTrackHeight = Math.max(EFFECT_H, effectLaneCount * EFFECT_LANE_ROW_H + 4);
 
   // Geometry for every row, resolved once. Both the label gutter and the lanes
   // spread the same object, so a row cannot be spaced differently on the two
@@ -374,11 +400,11 @@ export default function Timeline({
 
   const rows = useMemo(
     () => layoutRows({
-      heights: { text: textTrackHeight, sticker: stickerTrackHeight },
-      present: { text: hasTextOverlays, sticker: hasSticker },
+      heights: { text: textTrackHeight, sticker: stickerTrackHeight, effect: effectTrackHeight },
+      present: { text: hasTextOverlays, sticker: hasSticker, effect: hasEffects },
       collapsed: { audio: audioCollapsed },
     }),
-    [textTrackHeight, stickerTrackHeight, hasTextOverlays, hasSticker, audioCollapsed],
+    [textTrackHeight, stickerTrackHeight, effectTrackHeight, hasTextOverlays, hasSticker, hasEffects, audioCollapsed],
   );
   const visibleStems = audioCollapsed ? STEMS.slice(0, 1) : STEMS;
   const rowStyleOf = useMemo(() => {
@@ -510,6 +536,12 @@ export default function Timeline({
     startStickerBodyDrag,
     moveStickerBodyDrag,
     endStickerBodyDrag,
+    startEffectTrim,
+    moveEffectTrim,
+    endEffectTrim,
+    startEffectBodyDrag,
+    moveEffectBodyDrag,
+    endEffectBodyDrag,
   } = useTimelineDrag({
     laneRef,
     pxPerSec,
@@ -520,6 +552,7 @@ export default function Timeline({
     hookOverlay,
     stickerStyle,
     onUpdateSticker,
+    onUpdateEffect,
     snapEnabled,
     snapPoints,
     snapFunction,
@@ -671,6 +704,14 @@ export default function Timeline({
                     สติกเกอร์
                   </TrackLabel>
                 </div>
+              )}
+              {hasEffects && (
+                <EffectTrackLabel
+                  width={gutterW}
+                  slotWidth={dense ? 14 : 26}
+                  rowStyleProp={rowStyle('effect')}
+                  TrackLabel={TrackLabel}
+                />
               )}
               <div style={rowStyle('caption')} className="flex items-center">
                 <TrackLabel
@@ -1146,6 +1187,28 @@ export default function Timeline({
                     );
                   })}
                 </div>
+              )}
+
+              {/* effect track */}
+              {hasEffects && (
+                <EffectTrackLane
+                  rowStyleProp={rowStyle('effect')}
+                  packedEffects={packedEffects}
+                  effectAssets={effectAssets}
+                  selection={selection}
+                  playhead={playhead}
+                  totalDuration={totalDuration}
+                  pxPerSec={pxPerSec}
+                  timeFromEvent={timeFromEvent}
+                  onSelectEffect={onSelectEffect}
+                  onSeek={onSeek}
+                  startEffectTrim={startEffectTrim}
+                  moveEffectTrim={moveEffectTrim}
+                  endEffectTrim={endEffectTrim}
+                  startEffectBodyDrag={startEffectBodyDrag}
+                  moveEffectBodyDrag={moveEffectBodyDrag}
+                  endEffectBodyDrag={endEffectBodyDrag}
+                />
               )}
 
               {/* caption track */}

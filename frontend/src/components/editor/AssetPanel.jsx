@@ -11,6 +11,7 @@ const TABS = [
   { id: 'audio', label: 'เสียง', icon: Music },
   { id: 'text', label: 'ข้อความ', icon: Type },
   { id: 'sticker', label: 'สติกเกอร์', icon: Sticker },
+  { id: 'effect', label: 'เอฟเฟกต์', icon: Sparkles },
   { id: 'filter', label: 'ฟิลเตอร์', icon: Palette },
 ];
 
@@ -550,6 +551,8 @@ export default function AssetPanel({
   onDeleteSticker = null,
   onClearStickers = null,
   onSelectSticker = null,
+  effects = [],
+  onAddEffect = null,
   playhead = 0,
   totalDuration = 0,
 }) {
@@ -708,7 +711,15 @@ export default function AssetPanel({
     const match = (item) => !q || `${item.label || ''} ${item.label_th || ''} ${item.name || ''}`.toLowerCase().includes(q);
     return {
       videos: (videos || []).filter((v) => !q || v.name.toLowerCase().includes(q)),
-      sfx: (assets?.sfx || []).filter(match),
+      // Only starred SFX show by default -- rendering all 1800+ as plain
+      // rows (no virtualization) froze the panel. Typing a search still
+      // searches the full library, not just starred ones.
+      sfx: (() => {
+        const all = assets?.sfx || [];
+        if (q) return all.filter(match);
+        const starred = all.filter((s) => s.starred);
+        return starred.length > 0 ? starred : all;
+      })(),
       music: (assets?.music || []).filter(match),
       stickers: (assets?.stickers || [])
         .filter((s) => !s.name?.toLowerCase().endsWith('.jpg'))
@@ -719,6 +730,7 @@ export default function AssetPanel({
           return `${thTitle} ${s.name || ''}`.toLowerCase().includes(q);
         }),
       luts: (assets?.luts || []).filter(match),
+      effects: (assets?.effects || []).filter(match),
       fonts: FONTS
         .map((f) => {
           // Match the render engine's font id to a real file on disk so the
@@ -737,7 +749,7 @@ export default function AssetPanel({
   return (
     <div className="flex h-full min-h-0 flex-col border-r border-white/[0.08] bg-[#0C1019]">
       {/* tab rail - responsive 6 tabs fitting all screen widths without overflow */}
-      <div className="grid grid-cols-6 border-b border-white/[0.08] bg-black/30 p-1 gap-1 flex-shrink-0">
+      <div className="grid grid-cols-7 border-b border-white/[0.08] bg-black/30 p-1 gap-1 flex-shrink-0">
         {TABS.map(({ id, label, icon: Icon }) => {
           const isActive = tab === id;
           return (
@@ -1710,6 +1722,58 @@ export default function AssetPanel({
             </>
           );
         })()}
+
+        {/* TAB: VIDEO EFFECTS (transparent-preview overlay clips) */}
+        {tab === 'effect' && (
+          <>
+            {(!filtered.effects || filtered.effects.length === 0) && (
+              <p className="px-1 pt-2 text-[11px] leading-relaxed text-slate-500 text-center">
+                ไม่พบเอฟเฟกต์ — ไปติดดาวเอฟเฟกต์ที่ต้องการใน "คลังทรัพยากรสื่อ" ก่อน หรือค้นหาด้านบน
+              </p>
+            )}
+            <div className="grid grid-cols-3 gap-2.5 pt-1">
+              {filtered.effects.map((fx) => {
+                const displayName = fx.label_th || fx.label || fx.name;
+                return (
+                  <div
+                    key={fx.id}
+                    onClick={() => onAddEffect?.(fx.id)}
+                    title={`เพิ่ม ${displayName} ลงไทม์ไลน์ที่ ${playhead.toFixed(1)}s (ยาว 3.0s)`}
+                    className="group relative rounded-2xl border border-white/[0.08] bg-black/40 p-1.5 flex flex-col items-center gap-1 transition-all cursor-pointer overflow-hidden select-none hover:border-fuchsia-400/50"
+                  >
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAddEffect?.(fx.id);
+                      }}
+                      className="absolute top-1.5 right-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-black/50 text-white hover:bg-fuchsia-400 hover:text-black hover:scale-110 active:scale-95 transition-all cursor-pointer shadow-md"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </button>
+                    <div className="w-full aspect-square rounded-xl bg-white flex items-center justify-center overflow-hidden">
+                      <video
+                        src={fx.video_url}
+                        className="max-h-[82%] max-w-[88%] object-contain transition-transform duration-200 group-hover:scale-110"
+                        style={{ mixBlendMode: 'multiply' }}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                      />
+                    </div>
+                    <span className="w-full truncate text-[9.5px] font-medium text-slate-300 text-center">
+                      {displayName}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="px-1 pt-1.5 text-[11px] leading-relaxed text-slate-500 text-center">
+              คลิกที่การ์ดหรือกดปุ่ม + เพื่อเพิ่มลงไทม์ไลน์ (ยาว 3 วินาที) ปรับเวลา/ขนาดได้ในแผง Inspector ทางขวา
+            </p>
+          </>
+        )}
 
         {/* TAB 6: LUTS / FILTERS */}
         {tab === 'filter' && (

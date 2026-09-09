@@ -485,6 +485,15 @@ class RerollRequest(BaseModel):
     transitions: Optional[List[Any]] = None
     text_overlays: Optional[List[Dict[str, Any]]] = None
     overlays: Optional[List[Dict[str, Any]]] = None
+    # Both plural arrays were previously missing from this model entirely --
+    # FastAPI/Pydantic silently drops any field the frontend sends that isn't
+    # declared here, so the multi-sticker editor UI's "Apply"/reroll path
+    # never actually reached the renderer (only the singular legacy
+    # sticker_badge/_position/_scale fields above did). Declaring them here
+    # is what makes both the sticker array AND the new effects array actually
+    # take effect on reroll, not just on a from-scratch /api/render.
+    stickers: Optional[List[Dict[str, Any]]] = None
+    effects: Optional[List[Dict[str, Any]]] = None
 
 
 # What each button costs, so the UI can warn before a slow one.
@@ -725,6 +734,8 @@ class UpdateProjectStateRequest(BaseModel):
     hook_style: Optional[Dict[str, Any]] = None
     text_overlays: Optional[List[Dict[str, Any]]] = None
     overlays: Optional[List[Dict[str, Any]]] = None
+    stickers: Optional[List[Dict[str, Any]]] = None
+    effects: Optional[List[Dict[str, Any]]] = None
     track_mix: Optional[Dict[str, Any]] = None
     audio_mutes: Optional[Dict[str, bool]] = None
 
@@ -797,6 +808,12 @@ def update_project_state(project_name: str, req: UpdateProjectStateRequest):
         # disagreeing until the next save.
         fields["overlays"] = req.overlays
         render_params["overlays"] = req.overlays
+    if req.stickers is not None:
+        fields["stickers"] = req.stickers
+        render_params["stickers"] = req.stickers
+    if req.effects is not None:
+        fields["effects"] = req.effects
+        render_params["effects"] = req.effects
 
     fields["render_params"] = render_params
     updated = ProjectManifest.save(project_name, **fields)
@@ -827,7 +844,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
             "bgm_ducking", "lut_name", "lut_intensity", "caption_position", "caption_color",
             "audio_mutes",
             "caption_scale", "sticker_position", "sticker_scale", "clip_list", "transitions",
-            "text_overlays"
+            "text_overlays", "stickers", "effects"
         ]:
             if k not in params and k in manifest and manifest[k] is not None:
                 params[k] = manifest[k]
@@ -995,6 +1012,8 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 clip_list=params.get("clip_list"),
                 transitions=params.get("transitions"),
                 text_overlays=params.get("text_overlays"),
+                stickers=params.get("stickers"),
+                effects=params.get("effects"),
                 export_mp4=True,
                 resume_from=stage,
                 progress_callback=on_progress,

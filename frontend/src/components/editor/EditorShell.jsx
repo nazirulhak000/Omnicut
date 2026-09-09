@@ -112,7 +112,7 @@ const LEGACY_SFX_ALIASES = {
   boom: 'sfx_vine_boom',
 };
 
-const EMPTY = { clipList: [], cuesList: [], overlays: [], stickers: [], style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false, captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1, stickerPosition: 'top_right', stickerScale: 1 } };
+const EMPTY = { clipList: [], cuesList: [], overlays: [], stickers: [], effects: [], style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false, captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1, stickerPosition: 'top_right', stickerScale: 1 } };
 
 let idCounter = 0;
 const newId = () => `clip-${Date.now().toString(36)}-${++idCounter}`;
@@ -127,7 +127,7 @@ export default function EditorShell({
   onVideoUploaded,
 }) {
   const { state, set, setSilent, beginDrag, endDrag, undo, redo, reset, canUndo, canRedo } = useEditorHistory(EMPTY);
-  const { clipList, cuesList, style, overlays, stickers = [] } = state;
+  const { clipList, cuesList, style, overlays, stickers = [], effects = [] } = state;
 
   const [projectList, setProjectList] = useState([]);
   const [projectName, setProjectName] = useState(() => {
@@ -143,7 +143,7 @@ export default function EditorShell({
   // `default_bgm` comes from the server, which is where the render's own
   // default lives. Keeping a copy here is what let the timeline claim one
   // track while the file played another.
-  const [assets, setAssets] = useState({ sfx: [], music: [], fonts: [], stickers: [], luts: [], default_bgm: null });
+  const [assets, setAssets] = useState({ sfx: [], music: [], fonts: [], stickers: [], luts: [], effects: [], default_bgm: null });
   const { pollTasks } = useTaskManager();
 
   const [durations, setDurations] = useState({});
@@ -471,8 +471,9 @@ export default function EditorShell({
     style,
     overlays,
     stickers,
+    effects,
     trackMix,
-  }), [clipList, cuesList, overlays, stickers, style, trackMix]);
+  }), [clipList, cuesList, overlays, stickers, effects, style, trackMix]);
   const {
     saveStatus,
     setSaveStatus,
@@ -526,6 +527,7 @@ export default function EditorShell({
       cuesList: loaded.cuesList,
       overlays: loaded.overlays,
       stickers: loaded.stickers || [],
+      effects: loaded.effects || [],
       style: loaded.style,
     });
     setAudioDuration(loaded.audioDuration);
@@ -960,6 +962,74 @@ export default function EditorShell({
     }
   }, [set, selection]);
 
+  // Video overlay effects (transparent-preview via multiply blend) -- same
+  // instance shape/CRUD pattern as stickers, no legacy single-slot mirror
+  // since this is a new feature with nothing to stay back-compatible with.
+  const handleAddEffect = useCallback((effectId) => {
+    const dur = 3.0;
+    const start = Math.round(playhead * 10) / 10;
+    const maxEnd = totalDuration > 0 ? totalDuration : (start + dur);
+    const end = Math.round(Math.min(maxEnd, start + dur) * 10) / 10;
+    const newId = `effect-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+    set((prev) => {
+      const existing = prev.effects || [];
+      // Every effect defaults to dead center -- fine for one at a time, but
+      // stacking several that overlap in time (e.g. clicking + repeatedly)
+      // means every one of them multiply-blends onto the exact same pixels
+      // as the last, compounding into an unreadable dark smudge instead of
+      // showing any single icon cleanly. Spread same-instant adds across a
+      // small preset grid instead; effects that don't overlap in time reuse
+      // center since they're never composited together anyway.
+      const overlapCount = existing.filter((e) => e && !e.hidden && (e.start ?? 0) < end && (e.end ?? 0) > start).length;
+      const slots = [
+        { normX: 0.5, normY: 0.35 },
+        { normX: 0.25, normY: 0.2 },
+        { normX: 0.75, normY: 0.2 },
+        { normX: 0.25, normY: 0.55 },
+        { normX: 0.75, normY: 0.55 },
+      ];
+      const { normX, normY } = slots[overlapCount % slots.length];
+      const newEffect = { id: newId, effectId, start, end, normX, normY, scale: 1.0, hidden: false };
+      return { ...prev, effects: [...existing, newEffect] };
+    });
+    setSelection({ type: 'effect', id: newId });
+  }, [playhead, totalDuration, set]);
+
+  const handleUpdateEffect = useCallback((idOrPatch, maybePatch) => {
+    let id = null;
+    let patch = {};
+    if (typeof idOrPatch === 'string') {
+      id = idOrPatch;
+      patch = maybePatch || {};
+    } else if (typeof idOrPatch === 'object' && idOrPatch !== null) {
+      id = idOrPatch.id || null;
+      patch = idOrPatch;
+    }
+    set((prev) => {
+      const currentList = prev.effects || [];
+      const targetId = id || selection?.id;
+      const nextList = currentList.map((e) => (e.id === targetId ? { ...e, ...patch } : e));
+      return { ...prev, effects: nextList };
+    });
+  }, [set, selection]);
+
+  const handleDeleteEffect = useCallback((id) => {
+    set((prev) => {
+      const targetId = id || selection?.id;
+      return { ...prev, effects: (prev.effects || []).filter((e) => e.id !== targetId) };
+    });
+    if (selection?.type === 'effect' && (!id || selection.id === id)) {
+      setSelection(null);
+    }
+  }, [set, selection]);
+
+  const handleClearEffects = useCallback(() => {
+    set((prev) => ({ ...prev, effects: [] }));
+    if (selection?.type === 'effect') {
+      setSelection(null);
+    }
+  }, [set, selection]);
+
 
   const [toastMessage, setToastMessage] = useState(null);
   const toastTimeoutRef = useRef(null);
@@ -1190,6 +1260,7 @@ export default function EditorShell({
         sticker_position: style.stickerPosition || 'top_right',
         sticker_scale: style.stickerScale ?? 1,
         stickers: (stickers && stickers.length > 0) ? stickers : undefined,
+        effects: (effects && effects.length > 0) ? effects : undefined,
       });
       startJob(res.job_id);
       pollTasks?.();
@@ -1330,6 +1401,8 @@ export default function EditorShell({
   // show. Folded audio and no text overlays make it short; unfolding grows it.
   const mobileTimelineH = MOBILE_TOOLBAR_H + tracksFitHeight({
     textOverlays: (textOverlays?.length || 0) > 0,
+    sticker: (stickers?.length || 0) > 0,
+    effect: (effects?.length || 0) > 0,
     audioCollapsed,
   });
 
@@ -1627,6 +1700,9 @@ export default function EditorShell({
                     stickers: assets.stickers,
                   }}
                   stickers={stickers}
+                  effects={effects}
+                  effectAssets={assets.effects}
+                  onUpdateEffect={handleUpdateEffect}
                   compact
                   onPlayhead={setPlayhead}
                   onDurations={setDurations}
@@ -1862,6 +1938,10 @@ export default function EditorShell({
                     onToggleHideSticker={handleToggleHideSticker}
                     onUpdateSticker={handleUpdateSticker}
                     onSelectSticker={(id) => handleSelect({ type: 'sticker', id })}
+                    effects={effects}
+                    effectAssets={assets.effects}
+                    onSelectEffect={(id) => handleSelect({ type: 'effect', id })}
+                    onUpdateEffect={handleUpdateEffect}
                   />
                 </div>
               </div>
@@ -1888,6 +1968,8 @@ export default function EditorShell({
                       onDeleteSticker={handleDeleteSticker}
                       onClearStickers={handleClearStickers}
                       onSelectSticker={(id) => handleSelect({ type: 'sticker', id })}
+                      effects={effects}
+                      onAddEffect={handleAddEffect}
                       playhead={playhead}
                       totalDuration={totalDuration}
                       selectedCaption={selectedCaption}
@@ -1965,6 +2047,9 @@ export default function EditorShell({
                       stickers={stickers}
                       onUpdateSticker={handleUpdateSticker}
                       onDeleteSticker={handleDeleteSticker}
+                      effects={effects}
+                      onUpdateEffect={handleUpdateEffect}
+                      onDeleteEffect={handleDeleteEffect}
                     />
                   </div>
                 )}
@@ -2021,6 +2106,8 @@ export default function EditorShell({
                         onDeleteSticker={handleDeleteSticker}
                         onClearStickers={handleClearStickers}
                         onSelectSticker={(id) => handleSelect({ type: 'sticker', id })}
+                        effects={effects}
+                        onAddEffect={handleAddEffect}
                         playhead={playhead}
                         totalDuration={totalDuration}
                         selectedCaption={selectedCaption}
@@ -2102,6 +2189,9 @@ export default function EditorShell({
                       stickers: assets.stickers,
                     }}
                     stickers={stickers}
+                    effects={effects}
+                    effectAssets={assets.effects}
+                    onUpdateEffect={handleUpdateEffect}
                     compact
                     onPlayhead={setPlayhead}
                     onDurations={setDurations}
@@ -2276,6 +2366,9 @@ export default function EditorShell({
                         stickers={stickers}
                         onUpdateSticker={handleUpdateSticker}
                         onDeleteSticker={handleDeleteSticker}
+                        effects={effects}
+                        onUpdateEffect={handleUpdateEffect}
+                        onDeleteEffect={handleDeleteEffect}
                       />
                     </div>
                   </div>
@@ -2413,6 +2506,10 @@ export default function EditorShell({
                     onToggleHideSticker={handleToggleHideSticker}
                     onUpdateSticker={handleUpdateSticker}
                     onSelectSticker={(id) => handleSelect({ type: 'sticker', id })}
+                    effects={effects}
+                    effectAssets={assets.effects}
+                    onSelectEffect={(id) => handleSelect({ type: 'effect', id })}
+                    onUpdateEffect={handleUpdateEffect}
                   />
                 </div>
               </div>

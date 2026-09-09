@@ -113,6 +113,12 @@ export function useEditorCommands({
         stickers: (prev.stickers || []).filter((s) => s.id !== selection.id),
       }));
       setSelection(null);
+    } else if (selection?.type === 'effect') {
+      set((prev) => ({
+        ...prev,
+        effects: (prev.effects || []).filter((e) => e.id !== selection.id),
+      }));
+      setSelection(null);
     }
   }, [handleDeleteOverlay, markCuesDirty, selection, set, setSelection]);
 

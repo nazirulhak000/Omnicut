@@ -12,6 +12,7 @@ export function useTimelineDrag({
   hookOverlay,
   stickerStyle,
   onUpdateSticker,
+  onUpdateEffect,
   snapEnabled,
   snapPoints,
   snapFunction,
@@ -34,6 +35,8 @@ export function useTimelineDrag({
   const hookTrim = useRef(null);
   const stickerTrim = useRef(null);
   const stickerDrag = useRef(null);
+  const effectTrim = useRef(null);
+  const effectDrag = useRef(null);
   const bodyDrag = useRef(null);
 
   const timeFromEvent = (e) => {
@@ -394,6 +397,87 @@ export function useTimelineDrag({
     if (d?.moved) dragEnd?.();
   };
 
+  // Effect (video overlay) duration trim -- exact mirror of the sticker trim
+  // above, minus the stickerStyle legacy-single-slot fallback (effects have
+  // no such back-compat path to preserve).
+  const startEffectTrim = (e, edge, item) => {
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+    effectTrim.current = {
+      edge,
+      startX: e.clientX,
+      start: item?.start ?? 0.5,
+      end: item?.end ?? (totalDuration || 15),
+      id: item?.id,
+      moved: false,
+    };
+  };
+
+  const moveEffectTrim = (e) => {
+    const d = effectTrim.current;
+    if (!d) return;
+    const delta = (e.clientX - d.startX) / pxPerSec;
+    if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return;
+    if (!d.moved) { d.moved = true; dragBegin?.(); }
+
+    if (d.edge === 'left') {
+      const rawStart = Math.max(0, Math.min(d.end - 0.3, d.start + delta));
+      const snapped = snapFunction(rawStart, snapPoints);
+      const rounded = Math.round(snapped * 10) / 10;
+      onUpdateEffect?.({ id: d.id, start: rounded });
+    } else {
+      const maxEnd = Math.max(totalDuration, audioDuration || 0) || 999;
+      const rawEnd = Math.max(d.start + 0.3, Math.min(maxEnd, d.end + delta));
+      const snapped = snapFunction(rawEnd, snapPoints);
+      const rounded = Math.round(snapped * 10) / 10;
+      onUpdateEffect?.({ id: d.id, end: rounded });
+    }
+  };
+
+  const endEffectTrim = (e) => {
+    const d = effectTrim.current;
+    effectTrim.current = null;
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
+    if (d?.moved) dragEnd?.();
+  };
+
+  // Effect time window body drag
+  const startEffectBodyDrag = (e, item) => {
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+    const start = item?.start ?? 0.5;
+    const end = item?.end ?? (totalDuration || 15);
+    effectDrag.current = {
+      startX: e.clientX,
+      start,
+      end,
+      id: item?.id,
+      duration: Math.max(0.3, end - start),
+      moved: false,
+    };
+  };
+
+  const moveEffectBodyDrag = (e) => {
+    const d = effectDrag.current;
+    if (!d) return;
+    const delta = (e.clientX - d.startX) / pxPerSec;
+    if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return;
+    if (!d.moved) { d.moved = true; dragBegin?.(); }
+    const maxT = Math.max(totalDuration, audioDuration || 0) || 999;
+    const minStart = 0;
+    const maxStart = Math.max(0, maxT - d.duration);
+    const rawStart = Math.max(minStart, Math.min(maxStart, d.start + delta));
+    const snappedStart = snapFunction(rawStart, snapPoints);
+    const finalStart = Math.round(snappedStart * 10) / 10;
+    const finalEnd = Math.round((finalStart + d.duration) * 10) / 10;
+    onUpdateEffect?.({ id: d.id, start: finalStart, end: finalEnd });
+  };
+
+  const endEffectBodyDrag = (e) => {
+    const d = effectDrag.current;
+    effectDrag.current = null;
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
+    if (d?.moved) dragEnd?.();
+  };
+
   return {
     timeFromEvent,
     startScrub,
@@ -424,5 +508,11 @@ export function useTimelineDrag({
     startStickerBodyDrag,
     moveStickerBodyDrag,
     endStickerBodyDrag,
+    startEffectTrim,
+    moveEffectTrim,
+    endEffectTrim,
+    startEffectBodyDrag,
+    moveEffectBodyDrag,
+    endEffectBodyDrag,
   };
 }

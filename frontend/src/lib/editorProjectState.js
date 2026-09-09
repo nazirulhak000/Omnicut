@@ -114,12 +114,25 @@ export function manifestToEditorState(data, options = {}) {
     }];
   }
 
+  const rawEffects = firstNonEmptyArray(manifest.effects, params.effects, []);
+  const effects = rawEffects.map((fx, idx) => ({
+    id: fx.id || `effect-${idx}-${Date.now()}`,
+    effectId: fx.effectId || fx.effect_id || '',
+    start: Number(firstPresent(fx.start, fx.start_time, fx.startTime, 0.5)),
+    end: fx.end != null ? Number(fx.end) : (fx.end_time != null ? Number(fx.end_time) : (fx.endTime != null ? Number(fx.endTime) : 3.5)),
+    normX: Number(firstPresent(fx.normX, fx.norm_x, 0.5)),
+    normY: Number(firstPresent(fx.normY, fx.norm_y, 0.35)),
+    scale: Number(firstPresent(fx.scale, 1.0)),
+    hidden: !!fx.hidden,
+  }));
+
   return {
     clipList,
     cuesList,
     microCuesList: Array.isArray(manifest.micro_cues) ? manifest.micro_cues : [],
     overlays: migrateToOverlays(manifest),
     stickers,
+    effects,
     style,
     trackMix,
     audioDuration: Number(manifest.audio_duration || manifest.total_duration) || 0,
@@ -174,7 +187,7 @@ export function serializeStyle(style = {}) {
   };
 }
 
-export function editorStateToSavePayload({ clipList, cuesList, style, overlays, trackMix, stickers } = {}) {
+export function editorStateToSavePayload({ clipList, cuesList, style, overlays, trackMix, stickers, effects } = {}) {
   const cues = serializeCues(cuesList);
   const mix = trackMix || EMPTY_TRACK_MIX;
   return {
@@ -184,6 +197,7 @@ export function editorStateToSavePayload({ clipList, cuesList, style, overlays, 
     transitions: serializeTransitions(clipList),
     style: serializeStyle(style),
     stickers: Array.isArray(stickers) ? stickers : [],
+    effects: Array.isArray(effects) ? effects : [],
     overlays: Array.isArray(overlays) ? overlays : [],
     track_mix: mix,
     audio_mutes: mix.mute || {},

@@ -144,6 +144,7 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                 sticker_norm_x=req_data.sticker_norm_x,
                 sticker_norm_y=req_data.sticker_norm_y,
                 stickers=req_data.stickers,
+                effects=req_data.effects,
                 text_overlays=req_data.text_overlays,
                 product_id=req_data.product_id,
                 angle_id=req_data.angle_id,

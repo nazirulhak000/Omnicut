@@ -14,6 +14,7 @@ import ClipInspector from './inspector/ClipInspector';
 import CaptionInspector from './inspector/CaptionInspector';
 import OverlayInspector from './inspector/OverlayInspector';
 import StickerInspector from './inspector/StickerInspector';
+import EffectInspector from './inspector/EffectInspector';
 import CuesTranscriptInspector from './inspector/CuesTranscriptInspector';
 import ProjectInspector from './inspector/ProjectInspector';
 
@@ -79,11 +80,21 @@ export default function Inspector({
   stickers = [],
   onUpdateSticker = null,
   onDeleteSticker = null,
+  effects = [],
+  onUpdateEffect = null,
+  onDeleteEffect = null,
 }) {
   const textOverlays = (overlays || []).filter((o) => o.kind === 'text');
 
   const selectedSticker = selection?.type === 'sticker'
     ? (stickers || []).find((item) => item.id === selection.id) || (stickers?.[0] || null)
+    : null;
+
+  const selectedEffect = selection?.type === 'effect'
+    ? (effects || []).find((item) => item.id === selection.id) || null
+    : null;
+  const selectedEffectAsset = selectedEffect
+    ? (assets?.effects || []).find((a) => a.id === selectedEffect.effectId) || null
     : null;
 
   // Top tabs: 'properties' (Contextual Inspector) | 'cues' (Subtitle transcript) | 'overview' (Project settings)
@@ -303,6 +314,14 @@ export default function Inspector({
                 sticker={selectedSticker}
                 onUpdateSticker={onUpdateSticker}
                 onDeleteSticker={onDeleteSticker}
+                totalDuration={totalDuration}
+              />
+            ) : selection?.type === 'effect' && selectedEffect ? (
+              <EffectInspector
+                effect={selectedEffect}
+                effectAsset={selectedEffectAsset}
+                onUpdateEffect={onUpdateEffect}
+                onDeleteEffect={onDeleteEffect}
                 totalDuration={totalDuration}
               />
             ) : selectedSeg ? (

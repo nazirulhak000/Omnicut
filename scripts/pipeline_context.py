@@ -67,6 +67,7 @@ class PipelineContext:
     sticker_norm_x: Optional[float] = None
     sticker_norm_y: Optional[float] = None
     stickers: Optional[List[Dict[str, Any]]] = None
+    effects: Optional[List[Dict[str, Any]]] = None
     resume_from: Optional[str] = None
     product_meta: Optional[Dict[str, Any]] = None
     angle_meta: Optional[Dict[str, Any]] = None

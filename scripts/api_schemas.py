@@ -66,6 +66,7 @@ class RenderRequest(BaseModel):
     sticker_norm_x: Optional[float] = None
     sticker_norm_y: Optional[float] = None
     stickers: Optional[List[Dict[str, Any]]] = None
+    effects: Optional[List[Dict[str, Any]]] = None
     text_overlays: Optional[List[Dict[str, Any]]] = None
     overlays: Optional[List[Dict[str, Any]]] = None
 

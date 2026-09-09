@@ -1138,6 +1138,57 @@ function drawSticker(ctx, img, t, stkStyle, outBounds = null) {
   drawSingleSticker(ctx, img, t, stkStyle || {}, outBounds);
 }
 
+// Video overlay effects (checkmark/warning/arrow/etc). Their source clips are
+// white-bg, no real alpha -- drawn with globalCompositeOperation='multiply'
+// so the white blends into whatever's already painted on the canvas at that
+// spot (the actual video frame drawn earlier in renderAt), same trick as the
+// backend's crop+blend+overlay chain in video_editor.py. The <video> element
+// just autoplay-loops on its own free-running clock rather than being seeked
+// to match t exactly -- exact frame alignment only matters for the real
+// export, which ffmpeg does with -itsoffset; this is a rough live preview.
+function drawSingleEffect(ctx, videoEl, t, fx, outBounds = null) {
+  if (!videoEl || videoEl.readyState < 2) return;
+  const startTime = fx.start ?? 0.5;
+  const endTime = fx.end != null ? fx.end : 999999;
+  if (t < startTime || t > endTime) return;
+
+  const scale = Math.min(3.5, Math.max(0.3, fx.scale ?? 1));
+  const baseSize = 180; // half of the backend's EFFECT_BASE_SIZE=360, matching CANVAS_W/H being half render resolution
+  const w = Math.round(baseSize * scale);
+  const h = w;
+
+  const normX = typeof fx.normX === 'number' ? fx.normX : 0.5;
+  const normY = typeof fx.normY === 'number' ? fx.normY : 0.35;
+  const x = Math.round(normX * CANVAS_W - w / 2);
+  const y = Math.round(normY * CANVAS_H - h / 2);
+
+  if (outBounds) {
+    outBounds.push({
+      type: 'effect',
+      id: fx.id,
+      x, y, w, h,
+      normX: (x + w / 2) / CANVAS_W,
+      normY: (y + h / 2) / CANVAS_H,
+      scale,
+      label: fx.effectId || 'เอฟเฟกต์',
+      item: fx,
+    });
+  }
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.drawImage(videoEl, x, y, w, h);
+  ctx.restore();
+}
+
+function drawEffects(ctx, videosMap, t, effectsList, outBounds = null) {
+  (effectsList || []).forEach((fx) => {
+    if (!fx || fx.hidden) return;
+    const videoEl = videosMap?.get?.(fx.effectId);
+    if (videoEl) drawSingleEffect(ctx, videoEl, t, fx, outBounds);
+  });
+}
+
 // Where custom text overlays sit vertically as a fraction of canvas height.
 // Mirrors TEXT_OVERLAY_POSITIONS in subtitle_engine.py: top (0.20), middle (0.50), bottom (0.72).
 
@@ -2098,6 +2149,9 @@ function SequencePlayer({
   captionStyle = {},
   stickerStyle = {},
   stickers = [],
+  effects = [],
+  effectAssets = [],
+  onUpdateEffect = null,
   isMuted = false,
   selection = null,
   onSelect = null,
@@ -2150,6 +2204,7 @@ function SequencePlayer({
   const clockRef = useRef({ startWall: 0, startT: 0 });
   const stickerImgRef = useRef(null);
   const stickerImagesRef = useRef(new Map());
+  const effectVideosRef = useRef(new Map());
   const lutRef = useRef(null);          // parsed .cube for the chosen filter
   const lutRendererRef = useRef(null);  // WebGL2 pass, or null where unavailable
   const [lutReady, setLutReady] = useState(0);
@@ -2296,8 +2351,32 @@ function SequencePlayer({
         item: matchedSticker,
       };
     }
+
+    if (selection.type === 'effect') {
+      const matchedEffect = (effects || []).find((e) => e.id === selection.id);
+      if (!matchedEffect) return null;
+      const scale = Math.min(3.5, Math.max(0.3, matchedEffect.scale ?? 1));
+      const baseSize = 180; // matches drawSingleEffect's own baseSize
+      const w = Math.round(baseSize * scale);
+      const h = w; // every current effect clip is a square crop
+      const normX = typeof matchedEffect.normX === 'number' ? matchedEffect.normX : 0.5;
+      const normY = typeof matchedEffect.normY === 'number' ? matchedEffect.normY : 0.35;
+      return {
+        type: 'effect',
+        id: matchedEffect.id,
+        x: Math.round(CANVAS_W * normX - w / 2),
+        y: Math.round(CANVAS_H * normY - h / 2),
+        w,
+        h,
+        normX,
+        normY,
+        scale,
+        label: matchedEffect.effectId || 'เอฟเฟกต์',
+        item: matchedEffect,
+      };
+    }
     return null;
-  }, [selection, overlays, cues, playhead, effectiveStickersList, stickerStyle, isStickerHidden]);
+  }, [selection, overlays, cues, playhead, effectiveStickersList, stickerStyle, isStickerHidden, effects]);
 
   const handleBoxDragStart = (e) => {
     e.stopPropagation();
@@ -2347,6 +2426,8 @@ function SequencePlayer({
         });
       } else if (selectedBox.type === 'sticker') {
         onUpdateSticker?.(selectedBox.id, { normX: roundedX, normY: roundedY });
+      } else if (selectedBox.type === 'effect') {
+        onUpdateEffect?.(selectedBox.id, { normX: roundedX, normY: roundedY });
       } else if (selectedBox.type === 'caption') {
         if (applyToAllCaptions && onUpdateAllCaptions) {
           onUpdateAllCaptions({ x: roundedX, y: roundedY }, true);
@@ -2419,8 +2500,8 @@ function SequencePlayer({
       const projectedDelta = deltaX * dirX + deltaY * dirY;
       const scaleFactor = 1 + projectedDelta / initialDist;
       let newScale = initialScale * scaleFactor;
-      const minS = selectedBox.type === 'sticker' ? 0.3 : 0.4;
-      const maxS = selectedBox.type === 'sticker' ? 3.5 : 2.5;
+      const minS = (selectedBox.type === 'sticker' || selectedBox.type === 'effect') ? 0.3 : 0.4;
+      const maxS = (selectedBox.type === 'sticker' || selectedBox.type === 'effect') ? 3.5 : 2.5;
       newScale = Math.max(minS, Math.min(maxS, Math.round(newScale * 100) / 100));
 
       if (selectedBox.type === 'text_overlay' || selectedBox.type === 'hook') {
@@ -2429,6 +2510,8 @@ function SequencePlayer({
         });
       } else if (selectedBox.type === 'sticker') {
         onUpdateSticker?.(selectedBox.id, { scale: newScale });
+      } else if (selectedBox.type === 'effect') {
+        onUpdateEffect?.(selectedBox.id, { scale: newScale });
       } else if (selectedBox.type === 'caption') {
         if (applyToAllCaptions && onUpdateAllCaptions) {
           onUpdateAllCaptions({ scale: newScale }, true);
@@ -2601,6 +2684,48 @@ function SequencePlayer({
   useEffect(() => {
     renderAt(playheadRef.current);
   }, [isStickerHidden, previewSticker]);
+
+  // Video overlay effects -- one hidden, autoplay-looping <video> element per
+  // unique effectId in use, drawn from in drawEffects() above. A newly-added
+  // or newly-loaded element doesn't get picked up by anything else while
+  // paused (unlike the main clip <video>s, which have onLoadedData/onSeeked
+  // handlers -- see below), so both cases need an explicit renderAt() here,
+  // mirroring the sticker <img> preload's onload -> renderAt() pattern.
+  useEffect(() => {
+    const wantedIds = new Set((effects || []).filter((fx) => fx && !fx.hidden && fx.effectId).map((fx) => fx.effectId));
+    const map = effectVideosRef.current;
+    let changed = false;
+
+    for (const [id, el] of map.entries()) {
+      if (!wantedIds.has(id)) {
+        el.pause();
+        el.removeAttribute('src');
+        el.load();
+        map.delete(id);
+        changed = true;
+      }
+    }
+
+    wantedIds.forEach((id) => {
+      if (map.has(id)) return;
+      const asset = (effectAssets || []).find((a) => a.id === id);
+      const src = asset?.video_url || `/api/media/02_Assets/Effects/${id}.webm`;
+      const el = document.createElement('video');
+      el.crossOrigin = 'anonymous';
+      el.muted = true;
+      el.loop = true;
+      el.playsInline = true;
+      el.addEventListener('loadeddata', () => {
+        if (!isPlaying) renderAt(playheadRef.current);
+      });
+      el.src = src;
+      el.play().catch(() => {});
+      map.set(id, el);
+      changed = true;
+    });
+
+    if (changed && !isPlaying) renderAt(playheadRef.current);
+  }, [effects, effectAssets]);
 
   // Load real duration for every clip up front -- segment timing needs it
   // (a clip with trim_end === null trims to "the source's own end").
@@ -3096,6 +3221,7 @@ function SequencePlayer({
     // Same order the render burns in (video_editor.py): the badge, then the
     // scrim over it, then everything libass draws on top.
     drawStickers(ctx, stickerImagesRef.current, stickerImgRef.current, t, effectiveStickersList, bounds, isStickerHidden, previewSticker);
+    drawEffects(ctx, effectVideosRef.current, t, effects, bounds);
     drawOverlayScrims(ctx, drawnOverlays, t);
     if (!captionStyle.hidden) {
       drawCaption(ctx, cues, t, captionStyle, bounds);
@@ -3241,6 +3367,7 @@ function SequencePlayer({
         const bounds = [];
         if (framePainted) applyGrade(ctx, canvas);
         drawStickers(ctx, stickerImagesRef.current, stickerImgRef.current, t, effectiveStickersList, bounds, isStickerHidden, previewSticker);
+    drawEffects(ctx, effectVideosRef.current, t, effects, bounds);
         drawOverlayScrims(ctx, drawnOverlays, t);
         if (!captionStyle.hidden) {
           drawCaption(ctx, cues, t, captionStyle, bounds);
@@ -3262,8 +3389,12 @@ function SequencePlayer({
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
+    // effectiveStickersList/effects included so an add/edit mid-playback is
+    // picked up immediately -- tick() closes over them, and without this the
+    // RAF loop kept drawing whatever array existed when isPlaying last
+    // flipped true until some other dep (e.g. overlays) happened to change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlaying, segments, cues, overlays, totalDuration]);
+  }, [isPlaying, segments, cues, overlays, totalDuration, effectiveStickersList, effects]);
 
   const togglePlay = () => {
     if (!segments.length) return;
