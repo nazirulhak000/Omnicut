@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { FADE_DURATION, splitClipAt } from '../lib/timelineMath.js';
+import { removeItemById } from '../lib/collectionOperations.js';
 
 /**
  * Hook providing all timeline manipulation commands (Clips & Captions).
@@ -110,13 +111,13 @@ export function useEditorCommands({
     } else if (selection?.type === 'sticker') {
       set((prev) => ({
         ...prev,
-        stickers: (prev.stickers || []).filter((s) => s.id !== selection.id),
+        stickers: removeItemById(prev.stickers, selection.id),
       }));
       setSelection(null);
     } else if (selection?.type === 'effect') {
       set((prev) => ({
         ...prev,
-        effects: (prev.effects || []).filter((e) => e.id !== selection.id),
+        effects: removeItemById(prev.effects, selection.id),
       }));
       setSelection(null);
     }

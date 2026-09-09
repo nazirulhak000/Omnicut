@@ -170,6 +170,42 @@ export const HOOK_COMFORTABLE_LINES = 4;
 export const HOOK_LAYER = 2;
 export const TEXT_LAYER = 4;
 
+/**
+ * Renderer policy shared by the canonical hook/text overlay model.
+ *
+ * The drawing pass is one function, but these switches are intentional
+ * behavior differences: hooks use the banner motion defaults and layout
+ * shrink rule, while text overlays own word staggering and keep their size.
+ * Keeping the differences as data makes the dispatch auditable without
+ * pretending the two visual policies are identical.
+ */
+export const OVERLAY_RENDER_PROFILES = Object.freeze({
+  hook: Object.freeze({
+    kind: 'hook',
+    defaultAnim: HOOK_ANIM,
+    supportsWordStagger: false,
+    clearLayout: true,
+    boundsType: 'hook',
+  }),
+  text: Object.freeze({
+    kind: 'text',
+    defaultAnim: DEFAULT_ANIM,
+    supportsWordStagger: true,
+    clearLayout: false,
+    boundsType: 'text_overlay',
+  }),
+});
+
+/**
+ * Returns the Canvas renderer policy while preserving the old fallback:
+ * unknown frontend overlay kinds were rendered using the text path.
+ */
+export function overlayRenderProfile(overlay) {
+  return overlay?.kind === 'hook'
+    ? OVERLAY_RENDER_PROFILES.hook
+    : OVERLAY_RENDER_PROFILES.text;
+}
+
 // The model tier's colour is null in the template table, meaning "use the
 // caption accent colour". null also means "inherit" everywhere else here, so
 // the two are spelled apart: the accent is a value, not an absence.

@@ -61,6 +61,57 @@
 - [x] Round COV-1 — สตูดิโอสร้างปกคลิปด่วน 9:16 & 3:4 (Auto Highlight Crop, Interactive Pan & Zoom Subtitle-Free, Dual Export)
 - [x] Round SFX-HUB-1 — สแกน SFX แบบ Recursive เข้า AssetRegistry และเพิ่มตัวกรองหมวดหมู่ SFX ใน Media Assets Hub (2026-09-09)
 - [x] Round SFX-TITLES-1 — ดึงชื่อภาษาไทย/ชื่อจริงที่แสดงบน Myinstants มาใส่เป็น label ใน asset_metadata.json (2026-09-09)
+- [x] Round TLO-REFACTOR-1 — แยก abstraction ของ Overlay Timeline/Preview แบบรักษา behavior เดิม (2026-09-09)
+- [x] Round TLO-REFACTOR-2 — ลด duplication ฝั่ง renderer เฉพาะจุดที่พิสูจน์ parity ได้ (2026-09-09)
+- [x] Round TLO-REFACTOR-3 — แยก shared Timeline label-gutter primitive (2026-09-09)
+- [x] Round TLO-REFACTOR-4 — รองรับ optional trim handles ใน shared timeline shell (2026-09-09)
+- [x] Round TLO-REFACTOR-5 — ย้าย Caption chip เข้า shared timeline shell โดยคง magnetic-ripple policy (2026-09-09)
+- [x] Round TLO-REFACTOR-6 — รวม shared Inspector header สำหรับ Sticker/Effect (2026-09-09)
+- [x] Round TLO-REFACTOR-7 — รวม timeline pointer lifecycle โดยคง type-specific drag math (2026-09-09)
+- [ ] Round TLO-REFACTOR-FINAL-AUDIT — ตรวจ final gates และ inventory หลัง refactor ทั้งชุด (2026-09-09)
+
+## Round TLO-REFACTOR-FINAL-AUDIT — ตรวจ final gates และ inventory หลัง refactor ทั้งชุด
+
+วันที่: 2026-09-09 · สั่งโดย: user · สถานะ: เสร็จบางส่วน — overlay scope ผ่าน, repo-wide full pytest ยังติด blocker นอก scope
+
+**เป้าหมาย:** ตรวจหลักฐาน end-to-end ของ Overlay Timeline/Preview refactor หลังรอบ TLO-REFACTOR-1 ถึง 7 และยืนยัน duplication/behavioral divergence ที่เหลือก่อน sign-off
+
+### Todo
+
+- [x] ตรวจ `TODO.md`, `git status`, refactor plan และขอบเขตไฟล์ค้าง โดยไม่แตะงานของ agent อื่น
+- [x] รัน frontend `npm test`, `npm run lint`, `npm run build` และ `git diff --check`
+- [x] รัน `python -m compileall -q scripts`
+- [x] รัน preview/render parity, FFmpeg behavioral tests และ overlay dispatch tests
+- [ ] รัน full pytest ของทั้ง repo — `934 passed, 9 failed, 6 warnings`; fail ทั้งหมดอยู่ใน reconciliation/posted lifecycle นอก overlay scope
+- [x] ตรวจ source inventory ของ Timeline, drag hook, SequencePlayer, editor modules และ lib ว่าจุดซ้ำหลักถูกจัดการแล้วหรือมี divergence ที่ต้องคงไว้
+- [x] อัปเดต plan พร้อมตัวเลขจริง และรายงาน residual risks/งานที่ไม่รวม
+- [x] แก้ `TrackLabel` fallback `width ?? GUTTER` ที่หายไประหว่าง extraction และย้าย source-contract probes ให้ตรวจ module ใหม่
+
+### Notes
+
+- รอบนี้เป็น audit/sign-off; พบและแก้ production regression จริงที่ `TrackLabel.jsx` โดยคืน `width ?? GUTTER` และปรับ parity probes ให้ตาม source module ใหม่
+- Frontend: `npm test` = `109 passed, 0 failed`; `npm run lint` exit 0 (มี warnings เดิม); `npm run build` = `1975 modules transformed`; `git diff --check` ผ่าน
+- Overlay/backend scope: `compileall` ผ่าน; `test_preview_render_parity.py` = `150 passed`; `test_preview_render_behavior.py` = `11 passed, 2 Pillow deprecation warnings`; `test_overlay_render_dispatch.py` = `2 passed`
+- Full pytest fail 9 รายการใน `tests/test_reconcile_angle_collision.py`, `tests/test_reconcile_grace_period.py`, `tests/test_reconcile_preserves_posted.py`, `tests/test_reconcile_transaction.py` และ `tests/test_relative_paths.py`; แยกเป็น backlog แล้วและไม่แก้ปนกับรอบนี้
+- Working tree มี deleted sticker sample assets 3 ไฟล์และ `tools/test_scrape_titles.py` จากงานเดิม; audit ไม่แตะ ไม่ restore และไม่ stage ไฟล์เหล่านี้
+
+### Audit findings ที่ต้องติดตาม
+
+- `tests/test_preview_render_parity.py` เดิมมี 3 source-contract probes ที่ยังไม่รวม `TrackLabel.jsx`; แก้แล้วและ targeted parity กลับมา `150 passed`
+- Overlay scope sign-off ผ่าน: shared timeline shell/label/pointer lifecycle, selected-box geometry, inspector primitives และ render-kind profile ถูกตรวจแล้ว; type-specific policy branches ยังคงแยกตาม behavioral contract
+- Full pytest ยังไม่ผ่านจาก reconciliation failures 9 รายการใน `ProductStore`/posted lifecycle; เป็น scope ของ `POST-LIFECYCLE-1` และต้องสะสางแยกก่อน repo-wide release sign-off
+
+### Gate
+
+- [x] `npm test` — `109 passed, 0 failed`
+- [x] `npm run lint` — exit 0; มี warnings แต่ไม่มี error
+- [x] `npm run build` — `1975 modules transformed`, ผ่าน
+- [x] `git diff --check` — ผ่าน
+- [x] `python -m compileall -q scripts` — ผ่าน
+- [x] `python -m pytest tests/test_preview_render_parity.py -q -p no:cacheprovider --tb=short` — `150 passed`
+- [x] `python -m pytest tests/test_preview_render_behavior.py -q -p no:cacheprovider --tb=short` — `11 passed, 2 warnings`
+- [x] `python -m pytest tests/test_overlay_render_dispatch.py -q -p no:cacheprovider --tb=short` — `2 passed`
+- [ ] `python -m pytest tests/ -q -p no:cacheprovider --tb=short` — `934 passed, 9 failed, 6 warnings`; blocker อยู่นอก overlay scope
 
 ## Round POST-LIFECYCLE-1 — แยกเวอร์ชันที่โพสต์จริง, คุมรายการใน Extension และซ่อมปุ่มมาร์กโพสต์
 
@@ -344,6 +395,8 @@ Date: 2026-09-07; Requested by: user; Status: in progress
 - Existing uncommitted changes belong to another workstream: `frontend/src/components/editor/EditorShell.jsx`, `frontend/src/components/editor/Timeline.jsx`, `frontend/src/components/editor/TimelineClip.jsx`, `frontend/src/lib/timelineMath.js`, `frontend/src/lib/timelineMath.test.js`, and the untracked screenshots `alt-drag-left.png`, `alt-drag-mid.png`, `clip-selected.png`, `timeline-loaded.png`; do not modify, delete, or stage them.
 - Steps 1-4 and the extension upload implementation are frozen by the user.
 ## งานค้าง (Backlog)
+
+- [ ] Audit follow-up — แก้ reconciliation failures 9 รายการจาก full pytest (`test_reconcile_angle_collision.py`, `test_reconcile_grace_period.py`, `test_reconcile_preserves_posted.py`, `test_reconcile_transaction.py`, `test_relative_paths.py`) ในรอบ POST-LIFECYCLE โดยห้ามปนกับ Overlay Refactor (2026-09-09)
 
 ### Round POST-3 — แผนก่อนลงมือ (2026-09-06 / อัปเดตแก้ขั้น 3)
 

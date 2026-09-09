@@ -6,7 +6,6 @@ import {
   ACCENT_COLOR,
   ANCHOR_TOP,
   CANVAS_SCALE,
-  DEFAULT_ANIM,
   HOOK_ANIM,
   PILL_PAD_X_EM,
   PILL_PAD_Y_EM,
@@ -14,12 +13,22 @@ import {
   TEXT_FS_RATIO,
   TEXT_POSITIONS,
   fontWeight,
+  overlayRenderProfile,
   resolveLook,
 } from '../lib/overlayModel';
 import {
   buildSegments, totalDuration as totalDurationOf, getDrawPlan as planAt
 } from '../lib/timelineMath';
 import { requestOverlayLayout, getCachedOverlayLayout } from '../lib/overlayLayoutClient.js';
+import {
+  projectOverlayScale,
+  positionPatchForBox,
+  resolveSelectedBox,
+  roundNormalizedPoint,
+  scalePatchForBox,
+  snapNormalizedPoint,
+} from '../lib/overlayBoxGeometry.js';
+import { bindWindowPointerLifecycle } from '../lib/pointerDragLifecycle.js';
 
 const CANVAS_W = 540;
 const CANVAS_H = 960;
@@ -1473,8 +1482,8 @@ function drawOverlays(ctx, overlays = [], t, accentColor = '#FFE600', outBounds 
 }
 
 function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
-  const isHook = overlay.kind === 'hook';
-  const motion = { ...(isHook ? HOOK_ANIM : DEFAULT_ANIM), ...(overlay.anim || {}) };
+  const renderProfile = overlayRenderProfile(overlay);
+  const motion = { ...renderProfile.defaultAnim, ...(overlay.anim || {}) };
   const duration = Math.max(0.001, overlay.end - overlay.start);
   // Every animation clock is relative to the overlay's own start. The banner
   // used to assume it began at 0 because it always did; it can be dragged now.
@@ -1499,9 +1508,9 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
   const x = CANVAS_W * normX;
 
   const wordStaggerSec = (motion.word_stagger_ms || 0) / 1000;
-  const isWordStagger = !isHook && wordStaggerSec > 0;
+  const isWordStagger = renderProfile.supportsWordStagger && wordStaggerSec > 0;
 
-  if (isHook && overlay.layout) {
+  if (renderProfile.clearLayout && overlay.layout) {
     delete overlay.layout;
   }
 
@@ -1627,7 +1636,7 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
   if (outBounds) {
     const padX = Math.round(maxLineW * 0.04) + 8;
     outBounds.push({
-      type: isHook ? 'hook' : 'text_overlay',
+      type: renderProfile.boundsType,
       id: overlay.id,
       x: x - maxLineW / 2 - padX,
       y: blockTop - 6,
@@ -2259,123 +2268,24 @@ function SequencePlayer({
 
   // Interactive Bounding Box calculations
   const selectedBox = useMemo(() => {
-    if (!selection) return null;
-    const fromBounds = boundsRef.current.find(b => b.type === selection.type && b.id === selection.id);
-    if (fromBounds) return fromBounds;
-
-    if (selection.type === 'caption') {
-      const cue = (cues || []).find(c => c._uid === selection.id || c.id === selection.id);
-      if (cue) {
-        const normX = typeof cue.x === 'number' ? cue.x : 0.5;
-        const pos = cue.position || captionStyle.captionPosition || 'bottom';
-        const normY = typeof cue.y === 'number' ? cue.y : (CAPTION_Y[pos] ?? CAPTION_Y.bottom);
-        const scale = Number(cue.scale) || 1.0;
-        const estW = Math.min(CANVAS_W * 0.85, Math.max(120, (cue.text?.length || 10) * 20 * scale));
-        const estH = Math.max(48, 52 * scale);
-        return {
-          type: 'caption',
-          id: cue._uid || cue.id,
-          x: CANVAS_W * normX - estW / 2,
-          y: CANVAS_H * normY - estH / 2,
-          w: estW,
-          h: estH,
-          normX,
-          normY,
-          scale,
-          label: (cue.text || 'คำบรรยาย').slice(0, 15),
-          cue,
-        };
-      }
-    }
-
-    // A rough box for an overlay that is not on screen at the playhead, so
-    // selecting one from the timeline still shows where it will land.
-    if (selection.type === 'text_overlay' || selection.type === 'hook') {
-      const item = overlays.find((o) => o.id === selection.id)
-        || (selection.type === 'hook' ? overlays.find((o) => o.kind === 'hook') : null);
-      if (item) {
-        const look = resolveLook(item.look, null);
-        const firstText = String((item.tiers || [{}])[0].text || '');
-        const normX = typeof item.x === 'number' ? item.x : 0.5;
-        const normY = typeof item.y === 'number'
-          ? item.y
-          : (TEXT_POSITIONS[item.position || 'middle'] ?? 0.5);
-        const sizeScale = (look.size_pct || 100) / 100;
-        const estimatedW = Math.max(140, Math.min(CANVAS_W * 0.85, (firstText.length || 8) * 22 * sizeScale));
-        const estimatedH = Math.max(48, 52 * sizeScale * (item.tiers || []).length);
-        const anchoredTop = item.anchor === ANCHOR_TOP;
-        return {
-          type: selection.type,
-          id: item.id,
-          x: CANVAS_W * normX - estimatedW / 2,
-          y: anchoredTop ? CANVAS_H * normY : CANVAS_H * normY - estimatedH / 2,
-          w: estimatedW,
-          h: estimatedH,
-          normX,
-          normY,
-          sizePct: look.size_pct,
-          label: (firstText || 'ข้อความ').slice(0, 15),
-          item,
-        };
-      }
-    }
-
-    if (selection.type === 'sticker') {
-      if (isStickerHidden) return null;
-      const matchedSticker = effectiveStickersList.find(s => s.id === selection.id) || effectiveStickersList[0];
-      if (!matchedSticker) return null;
-      const scale = Math.min(3.5, Math.max(0.3, matchedSticker?.scale ?? stickerStyle?.scale ?? 1));
-      const baseW = 160;
-      const w = Math.round(baseW * scale);
-      const bKey = matchedSticker?.badge;
-      const img = bKey ? (stickerImagesRef.current?.get?.(bKey) || stickerImagesRef.current?.get?.(bKey.toLowerCase())) : null;
-      const aspect = (img && img.naturalWidth) ? (img.naturalHeight / img.naturalWidth) : 1.0;
-      const h = Math.round(w * aspect);
-      const normX = typeof matchedSticker?.normX === 'number'
-        ? matchedSticker.normX
-        : (typeof stickerStyle?.normX === 'number' ? stickerStyle.normX : 0.5);
-      const normY = typeof matchedSticker?.normY === 'number'
-        ? matchedSticker.normY
-        : (typeof stickerStyle?.normY === 'number' ? stickerStyle.normY : 0.35);
-      return {
-        type: 'sticker',
-        id: matchedSticker?.id || 'sticker_badge',
-        x: Math.round(CANVAS_W * normX - w / 2),
-        y: Math.round(CANVAS_H * normY - h / 2),
-        w,
-        h,
-        normX,
-        normY,
-        scale,
-        label: matchedSticker?.badge?.replace(/\.[^.]+$/, '') || 'สติกเกอร์ 3D',
-        item: matchedSticker,
-      };
-    }
-
-    if (selection.type === 'effect') {
-      const matchedEffect = (effects || []).find((e) => e.id === selection.id);
-      if (!matchedEffect) return null;
-      const scale = Math.min(3.5, Math.max(0.3, matchedEffect.scale ?? 1));
-      const baseSize = 180; // matches drawSingleEffect's own baseSize
-      const w = Math.round(baseSize * scale);
-      const h = w; // every current effect clip is a square crop
-      const normX = typeof matchedEffect.normX === 'number' ? matchedEffect.normX : 0.5;
-      const normY = typeof matchedEffect.normY === 'number' ? matchedEffect.normY : 0.35;
-      return {
-        type: 'effect',
-        id: matchedEffect.id,
-        x: Math.round(CANVAS_W * normX - w / 2),
-        y: Math.round(CANVAS_H * normY - h / 2),
-        w,
-        h,
-        normX,
-        normY,
-        scale,
-        label: matchedEffect.effectId || 'เอฟเฟกต์',
-        item: matchedEffect,
-      };
-    }
-    return null;
+    return resolveSelectedBox({
+      selection,
+      bounds: boundsRef.current,
+      cues,
+      captionStyle,
+      overlays,
+      effectiveStickersList,
+      stickerStyle,
+      isStickerHidden,
+      effects,
+      stickerImages: stickerImagesRef.current,
+      canvasWidth: CANVAS_W,
+      canvasHeight: CANVAS_H,
+      captionY: CAPTION_Y,
+      textPositions: TEXT_POSITIONS,
+      resolveLook,
+      anchorTop: ANCHOR_TOP,
+    });
   }, [selection, overlays, cues, playhead, effectiveStickersList, stickerStyle, isStickerHidden, effects]);
 
   const handleBoxDragStart = (e) => {
@@ -2391,71 +2301,44 @@ function SequencePlayer({
     const onPointerMove = (moveEvt) => {
       const deltaPxX = moveEvt.clientX - startMouseX;
       const deltaPxY = moveEvt.clientY - startMouseY;
-      let newNormX = initialNormX + deltaPxX / rect.width;
-      let newNormY = initialNormY + deltaPxY / rect.height;
+      const snappedPoint = snapNormalizedPoint(
+        initialNormX + deltaPxX / rect.width,
+        initialNormY + deltaPxY / rect.height,
+      );
+      setSnapGuide({ x: snappedPoint.snapX, y: snappedPoint.snapY });
 
-      newNormX = Math.max(0.05, Math.min(0.95, newNormX));
-      newNormY = Math.max(0.05, Math.min(0.95, newNormY));
-
-      // Smart Snapping (Center Guide at 50%, top/bottom guidelines)
-      let snapX = null;
-      let snapY = null;
-      if (Math.abs(newNormX - 0.5) < 0.025) {
-        newNormX = 0.5;
-        snapX = 0.5;
-      }
-      if (Math.abs(newNormY - 0.5) < 0.025) {
-        newNormY = 0.5;
-        snapY = 0.5;
-      } else if (Math.abs(newNormY - 0.20) < 0.025) {
-        newNormY = 0.20;
-        snapY = 0.20;
-      } else if (Math.abs(newNormY - 0.72) < 0.025) {
-        newNormY = 0.72;
-        snapY = 0.72;
-      }
-      setSnapGuide({ x: snapX, y: snapY });
-
-      const roundedX = Math.round(newNormX * 1000) / 1000;
-      const roundedY = Math.round(newNormY * 1000) / 1000;
+      const { x: roundedX, y: roundedY } = roundNormalizedPoint(snappedPoint.x, snappedPoint.y);
+      const positionPatch = positionPatchForBox(selectedBox.type, roundedX, roundedY);
 
       if (selectedBox.type === 'text_overlay' || selectedBox.type === 'hook') {
-        onUpdateOverlay?.(selectedBox.id, {
-          x: roundedX,
-          y: roundedY,
-        });
+        onUpdateOverlay?.(selectedBox.id, positionPatch);
       } else if (selectedBox.type === 'sticker') {
-        onUpdateSticker?.(selectedBox.id, { normX: roundedX, normY: roundedY });
+        onUpdateSticker?.(selectedBox.id, positionPatch);
       } else if (selectedBox.type === 'effect') {
-        onUpdateEffect?.(selectedBox.id, { normX: roundedX, normY: roundedY });
+        onUpdateEffect?.(selectedBox.id, positionPatch);
       } else if (selectedBox.type === 'caption') {
         if (applyToAllCaptions && onUpdateAllCaptions) {
-          onUpdateAllCaptions({ x: roundedX, y: roundedY }, true);
+          onUpdateAllCaptions(positionPatch, true);
           onStyleChange?.({ captionX: roundedX, captionY: roundedY });
         } else {
-          onUpdateCaption?.(selectedBox.id, {
-            x: roundedX,
-            y: roundedY,
-          }, true);
+          onUpdateCaption?.(selectedBox.id, positionPatch, true);
         }
       }
     };
 
     const onPointerUp = (upEvt) => {
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', onPointerUp);
-      window.removeEventListener('pointercancel', onPointerUp);
+      cleanupPointerLifecycle();
       setSnapGuide({ x: null, y: null });
 
       if (selectedBox.type === 'caption' && upEvt) {
         const deltaPxX = upEvt.clientX - startMouseX;
         const deltaPxY = upEvt.clientY - startMouseY;
-        let finalX = Math.max(0.05, Math.min(0.95, initialNormX + deltaPxX / rect.width));
-        let finalY = Math.max(0.05, Math.min(0.95, initialNormY + deltaPxY / rect.height));
-        if (Math.abs(finalX - 0.5) < 0.025) finalX = 0.5;
-        if (Math.abs(finalY - 0.5) < 0.025) finalY = 0.5;
-        const roundedX = Math.round(finalX * 1000) / 1000;
-        const roundedY = Math.round(finalY * 1000) / 1000;
+        const finalPoint = snapNormalizedPoint(
+          initialNormX + deltaPxX / rect.width,
+          initialNormY + deltaPxY / rect.height,
+          { yGuides: [0.5] },
+        );
+        const { x: roundedX, y: roundedY } = roundNormalizedPoint(finalPoint.x, finalPoint.y);
         if (applyToAllCaptions && onUpdateAllCaptions) {
           onUpdateAllCaptions({ x: roundedX, y: roundedY }, false);
           onStyleChange?.({ captionX: roundedX, captionY: roundedY });
@@ -2468,9 +2351,7 @@ function SequencePlayer({
       }
     };
 
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
-    window.addEventListener('pointercancel', onPointerUp);
+    const cleanupPointerLifecycle = bindWindowPointerLifecycle(onPointerMove, onPointerUp);
   };
 
   const handleResizeStart = (e, corner) => {
@@ -2498,41 +2379,33 @@ function SequencePlayer({
       const deltaX = moveEvt.clientX - startMouseX;
       const deltaY = moveEvt.clientY - startMouseY;
       const projectedDelta = deltaX * dirX + deltaY * dirY;
-      const scaleFactor = 1 + projectedDelta / initialDist;
-      let newScale = initialScale * scaleFactor;
-      const minS = (selectedBox.type === 'sticker' || selectedBox.type === 'effect') ? 0.3 : 0.4;
-      const maxS = (selectedBox.type === 'sticker' || selectedBox.type === 'effect') ? 3.5 : 2.5;
-      newScale = Math.max(minS, Math.min(maxS, Math.round(newScale * 100) / 100));
+      const newScale = projectOverlayScale(initialScale, projectedDelta, initialDist, selectedBox.type);
+      const scalePatch = scalePatchForBox(selectedBox.type, newScale, selectedBox.item?.look);
 
       if (selectedBox.type === 'text_overlay' || selectedBox.type === 'hook') {
-        onUpdateOverlay?.(selectedBox.id, {
-          look: { ...(selectedBox.item?.look || {}), size_pct: Math.round(newScale * 100) },
-        });
+        onUpdateOverlay?.(selectedBox.id, scalePatch);
       } else if (selectedBox.type === 'sticker') {
-        onUpdateSticker?.(selectedBox.id, { scale: newScale });
+        onUpdateSticker?.(selectedBox.id, scalePatch);
       } else if (selectedBox.type === 'effect') {
-        onUpdateEffect?.(selectedBox.id, { scale: newScale });
+        onUpdateEffect?.(selectedBox.id, scalePatch);
       } else if (selectedBox.type === 'caption') {
         if (applyToAllCaptions && onUpdateAllCaptions) {
-          onUpdateAllCaptions({ scale: newScale }, true);
+          onUpdateAllCaptions(scalePatch, true);
           onStyleChange?.({ captionScale: newScale });
         } else {
-          onUpdateCaption?.(selectedBox.id, { scale: newScale }, true);
+          onUpdateCaption?.(selectedBox.id, scalePatch, true);
         }
       }
     };
 
     const onPointerUp = (upEvt) => {
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', onPointerUp);
-      window.removeEventListener('pointercancel', onPointerUp);
+      cleanupPointerLifecycle();
 
       if (selectedBox.type === 'caption' && upEvt) {
         const deltaX = upEvt.clientX - startMouseX;
         const deltaY = upEvt.clientY - startMouseY;
         const projectedDelta = deltaX * dirX + deltaY * dirY;
-        const scaleFactor = 1 + projectedDelta / initialDist;
-        let newScale = Math.max(0.4, Math.min(2.5, Math.round(initialScale * scaleFactor * 100) / 100));
+        const newScale = projectOverlayScale(initialScale, projectedDelta, initialDist, selectedBox.type);
         if (applyToAllCaptions && onUpdateAllCaptions) {
           onUpdateAllCaptions({ scale: newScale }, false);
           onStyleChange?.({ captionScale: newScale });
@@ -2542,9 +2415,7 @@ function SequencePlayer({
       }
     };
 
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
-    window.addEventListener('pointercancel', onPointerUp);
+    const cleanupPointerLifecycle = bindWindowPointerLifecycle(onPointerMove, onPointerUp);
   };
 
   const handleContainerClick = (e) => {

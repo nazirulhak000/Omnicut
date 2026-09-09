@@ -27,6 +27,8 @@ for _sub in sorted((ROOT / "scripts" / "subtitle").glob("*.py")):
     PY_SRC += _sub.read_text(encoding="utf-8") + "\n"
 PY_SRC += (ROOT / "scripts" / "subtitle_engine.py").read_text(encoding="utf-8")
 JS_SRC = (ROOT / "frontend" / "src" / "components" / "SequencePlayer.jsx").read_text(encoding="utf-8")
+TIMELINE_SRC = (ROOT / "frontend" / "src" / "components" / "editor" / "Timeline.jsx").read_text(encoding="utf-8")
+TRACK_LABEL_SRC = (ROOT / "frontend" / "src" / "components" / "editor" / "timeline" / "TrackLabel.jsx").read_text(encoding="utf-8")
 
 
 def _grab(text, pattern, cast=float):
@@ -1160,7 +1162,6 @@ def test_timeline_draws_one_lane_per_stem_from_the_stems_own_file():
 # per-lane `mt-1` -- so any row that forgot its margin slid every label below it
 # out from under its lane. With four audio lanes the drift reached 12px and the
 # track names no longer sat beside their own waveforms.
-TIMELINE_SRC = (ROOT / "frontend" / "src" / "components" / "editor" / "Timeline.jsx").read_text(encoding="utf-8")
 SHELL_SRC = (ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx").read_text(encoding="utf-8")
 
 
@@ -1218,10 +1219,10 @@ def test_every_track_label_starts_at_the_same_x():
     the leading area is a fixed-width slot. Without it the audio labels sat 12px
     right of the others and the gutter's left edge read as ragged.
     """
-    assert 'style={{ width: slotWidth }}' in TIMELINE_SRC
-    assert 'slotWidth = 26' in TIMELINE_SRC, 'the slot needs a default for rows that pass none'
+    assert 'style={{ width: slotWidth }}' in TRACK_LABEL_SRC
+    assert 'slotWidth = 26' in TRACK_LABEL_SRC, 'the slot needs a default for rows that pass none'
     # Every caller hands the same width in, so no row can indent differently.
-    assert TIMELINE_SRC.count('slotWidth={dense ? 14 : 26}') == 6
+    assert TIMELINE_SRC.count('slotWidth={dense ? 14 : 26}') == 7
 
 
 def test_a_silent_track_says_so_without_relying_on_colour():
@@ -1251,7 +1252,7 @@ def test_the_folded_audio_group_can_be_unfolded_from_where_it_was_folded():
     """A group that folds away its own handle cannot be brought back."""
     assert "if (collapsed[row.group] && prevGroup === row.group) continue;" in TIMELINE_SRC
     assert "visibleStems = audioCollapsed ? STEMS.slice(0, 1) : STEMS" in TIMELINE_SRC
-    assert "aria-expanded={!fold.collapsed}" in TIMELINE_SRC
+    assert "aria-expanded={!fold.collapsed}" in TRACK_LABEL_SRC
 
 
 def test_the_clip_audio_lane_explains_itself_when_empty():
@@ -1271,10 +1272,10 @@ def test_the_gutter_gives_up_width_on_a_phone():
     wide = _grab(TIMELINE_SRC, r"const GUTTER = (\d+);")
     assert dense < wide
     assert "const gutterW = dense ? GUTTER_DENSE : GUTTER;" in TIMELINE_SRC
-    assert "style={{ width: width ?? GUTTER }}" in TIMELINE_SRC
+    assert "style={{ width: width ?? GUTTER }}" in TRACK_LABEL_SRC
     assert "dot={dense ? undefined : { colour, hollow: silent }}" in TIMELINE_SRC
     # ...and the leading slot narrows with it, so the names stay flush.
-    assert TIMELINE_SRC.count("slotWidth={dense ? 14 : 26}") == 6
+    assert TIMELINE_SRC.count("slotWidth={dense ? 14 : 26}") == 7
     assert "dense={isMobileView}" in SHELL_SRC
 
 
@@ -2260,8 +2261,8 @@ def test_hook_overlay_guarded_against_per_word_layout():
     overlay.layout, which would crush Thai words/kerning horizontally into clumps.
     Only text overlays with word_stagger_ms > 0 may run word layout.
     """
-    assert "const isWordStagger = !isHook && wordStaggerSec > 0;" in JS_SRC
-    assert "if (isHook && overlay.layout)" in JS_SRC
+    assert "const isWordStagger = renderProfile.supportsWordStagger && wordStaggerSec > 0;" in JS_SRC
+    assert "if (renderProfile.clearLayout && overlay.layout)" in JS_SRC
     assert "if (isWordStagger && !overlay.layout)" in JS_SRC
     assert "if (isWordStagger && lineWords && lineWords.length > 0)" in JS_SRC
 

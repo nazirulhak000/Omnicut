@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { applyCaptionMagneticRipple } from '../lib/timelineTrackModel';
+import { beginDragAfterThreshold, capturePointer, releasePointer } from '../lib/timelineDragLifecycle';
 import { HOOK_MIN_DURATION, HOOK_MAX_DURATION } from '../components/editor/Timeline';
 
 export function useTimelineDrag({
@@ -34,9 +35,9 @@ export function useTimelineDrag({
   const textTrim = useRef(null);
   const hookTrim = useRef(null);
   const stickerTrim = useRef(null);
-  const stickerDrag = useRef(null);
+  const stickerDragRef = useRef(null);
   const effectTrim = useRef(null);
-  const effectDrag = useRef(null);
+  const effectDragRef = useRef(null);
   const bodyDrag = useRef(null);
 
   const timeFromEvent = (e) => {
@@ -50,7 +51,7 @@ export function useTimelineDrag({
 
   const startScrub = (e) => {
     scrubbing.current = true;
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* scrub still works */ }
+    capturePointer(e);
     onSeek?.(timeFromEvent(e));
   };
 
@@ -60,7 +61,7 @@ export function useTimelineDrag({
 
   const endScrub = (e) => {
     scrubbing.current = false;
-    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
+    releasePointer(e);
   };
 
   const handleTrackAreaPointerDown = (e) => {
@@ -72,7 +73,7 @@ export function useTimelineDrag({
 
     deselectAll?.();
     scrubbing.current = true;
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* scrub still works */ }
+    capturePointer(e);
     onSeek?.(timeFromEvent(e));
   };
 
@@ -100,7 +101,7 @@ export function useTimelineDrag({
   // Caption trim
   const startTrim = (e, cue, edge) => {
     e.stopPropagation();
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+    capturePointer(e);
     captionTrim.current = {
       uid: cue._uid,
       edge,
@@ -116,8 +117,7 @@ export function useTimelineDrag({
     const d = captionTrim.current;
     if (!d) return;
     const delta = (e.clientX - d.startX) / pxPerSec;
-    if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return;
-    if (!d.moved) { d.moved = true; dragBegin?.(); }
+    if (!beginDragAfterThreshold(d, e.clientX, dragBegin)) return;
 
     if (d.edge === 'left') {
       const targetIdx = (d.initialCues || []).findIndex((c) => c._uid === d.uid || c.id === d.uid);
@@ -143,13 +143,13 @@ export function useTimelineDrag({
   const endTrim = (e) => {
     const d = captionTrim.current;
     captionTrim.current = null;
-    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
+    releasePointer(e);
     if (d?.moved) dragEnd?.();
   };
 
   // Caption body drag
   const startCaptionBodyDrag = (e, cue) => {
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+    capturePointer(e);
     captionDrag.current = {
       uid: cue._uid,
       startX: e.clientX,
@@ -164,8 +164,7 @@ export function useTimelineDrag({
     const d = captionDrag.current;
     if (!d || d.uid !== cue._uid) return;
     const delta = (e.clientX - d.startX) / pxPerSec;
-    if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return;
-    if (!d.moved) { d.moved = true; dragBegin?.(); }
+    if (!beginDragAfterThreshold(d, e.clientX, dragBegin)) return;
 
     const targetIdx = (d.initialCues || []).findIndex((c) => c._uid === d.uid || c.id === d.uid);
     const dur = Math.round((d.end - d.start) * 100) / 100;
@@ -190,14 +189,14 @@ export function useTimelineDrag({
   const endCaptionBodyDrag = (e) => {
     const d = captionDrag.current;
     captionDrag.current = null;
-    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
+    releasePointer(e);
     if (d?.moved) dragEnd?.();
   };
 
   // Text overlay trim
   const startTextTrim = (e, item, edge) => {
     e.stopPropagation();
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+    capturePointer(e);
     textTrim.current = {
       id: item.id,
       edge,
@@ -212,8 +211,7 @@ export function useTimelineDrag({
     const d = textTrim.current;
     if (!d) return;
     const delta = (e.clientX - d.startX) / pxPerSec;
-    if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return;
-    if (!d.moved) { d.moved = true; dragBegin?.(); }
+    if (!beginDragAfterThreshold(d, e.clientX, dragBegin)) return;
 
     if (d.edge === 'left') {
       const rawStart = Math.max(0, Math.min(d.end - 0.2, d.start + delta));
@@ -229,13 +227,13 @@ export function useTimelineDrag({
   const endTextTrim = (e) => {
     const d = textTrim.current;
     textTrim.current = null;
-    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
+    releasePointer(e);
     if (d?.moved) dragEnd?.();
   };
 
   // Text overlay body drag
   const startTextBodyDrag = (e, item) => {
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+    capturePointer(e);
     textDrag.current = {
       id: item.id,
       startX: e.clientX,
@@ -249,8 +247,7 @@ export function useTimelineDrag({
     const d = textDrag.current;
     if (!d || d.id !== item.id) return;
     const delta = (e.clientX - d.startX) / pxPerSec;
-    if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return;
-    if (!d.moved) { d.moved = true; dragBegin?.(); }
+    if (!beginDragAfterThreshold(d, e.clientX, dragBegin)) return;
     const shift = Math.max(-d.start, delta);
     const rawStart = d.start + shift;
     const snappedStart = snapFunction(rawStart, snapPoints);
@@ -264,7 +261,7 @@ export function useTimelineDrag({
   const endTextBodyDrag = (e) => {
     const d = textDrag.current;
     textDrag.current = null;
-    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
+    releasePointer(e);
     if (d?.moved) dragEnd?.();
   };
 
@@ -272,7 +269,7 @@ export function useTimelineDrag({
   const startHookTrim = (e) => {
     e.stopPropagation();
     if (!hookOverlay) return;
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+    capturePointer(e);
     hookTrim.current = {
       startX: e.clientX,
       startEnd: hookOverlay.end,
@@ -285,8 +282,7 @@ export function useTimelineDrag({
     const d = hookTrim.current;
     if (!d || !hookOverlay) return;
     const delta = (e.clientX - d.startX) / pxPerSec;
-    if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return;
-    if (!d.moved) { d.moved = true; dragBegin?.(); }
+    if (!beginDragAfterThreshold(d, e.clientX, dragBegin)) return;
     const rawEnd = d.startEnd + delta;
     const snapped = snapFunction(rawEnd, snapPoints);
     const minEnd = d.start + HOOK_MIN_DURATION;
@@ -298,11 +294,100 @@ export function useTimelineDrag({
   const endHookTrim = (e) => {
     const d = hookTrim.current;
     hookTrim.current = null;
-    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
+    releasePointer(e);
     if (d?.moved) dragEnd?.();
   };
 
-  // Sticker duration trim
+  // Sticker and Effect share one interval-drag lifecycle. Their adapters below
+  // retain the different persistence fields and the sticker legacy fallback.
+  const createTimedIntervalDrag = ({ trimRef, bodyRef, readWindow, onTrimUpdate, onBodyUpdate }) => {
+    const startTrim = (e, edge, item) => {
+      capturePointer(e);
+      const { start, end } = readWindow(item);
+      trimRef.current = { edge, startX: e.clientX, start, end, id: item?.id, moved: false };
+    };
+
+    const moveTrim = (e) => {
+      const d = trimRef.current;
+      if (!d) return;
+      const delta = (e.clientX - d.startX) / pxPerSec;
+      if (!beginDragAfterThreshold(d, e.clientX, dragBegin)) return;
+
+      if (d.edge === 'left') {
+        const rawStart = Math.max(0, Math.min(d.end - 0.3, d.start + delta));
+        const snapped = snapFunction(rawStart, snapPoints);
+        onTrimUpdate({ id: d.id, edge: 'left', value: Math.round(snapped * 10) / 10 });
+      } else {
+        const maxEnd = Math.max(totalDuration, audioDuration || 0) || 999;
+        const rawEnd = Math.max(d.start + 0.3, Math.min(maxEnd, d.end + delta));
+        const snapped = snapFunction(rawEnd, snapPoints);
+        onTrimUpdate({ id: d.id, edge: 'right', value: Math.round(snapped * 10) / 10 });
+      }
+    };
+
+    const endTrim = (e) => {
+      const d = trimRef.current;
+      trimRef.current = null;
+      releasePointer(e);
+      if (d?.moved) dragEnd?.();
+    };
+
+    const startBodyDrag = (e, item) => {
+      capturePointer(e);
+      const { start, end } = readWindow(item);
+      bodyRef.current = {
+        startX: e.clientX,
+        start,
+        end,
+        id: item?.id,
+        duration: Math.max(0.3, end - start),
+        moved: false,
+      };
+    };
+
+    const moveBodyDrag = (e) => {
+      const d = bodyRef.current;
+      if (!d) return;
+      const delta = (e.clientX - d.startX) / pxPerSec;
+      if (!beginDragAfterThreshold(d, e.clientX, dragBegin)) return;
+      const maxT = Math.max(totalDuration, audioDuration || 0) || 999;
+      const maxStart = Math.max(0, maxT - d.duration);
+      const rawStart = Math.max(0, Math.min(maxStart, d.start + delta));
+      const snappedStart = snapFunction(rawStart, snapPoints);
+      const finalStart = Math.round(snappedStart * 10) / 10;
+      const finalEnd = Math.round((finalStart + d.duration) * 10) / 10;
+      onBodyUpdate({ id: d.id, start: finalStart, end: finalEnd });
+    };
+
+    const endBodyDrag = (e) => {
+      const d = bodyRef.current;
+      bodyRef.current = null;
+      releasePointer(e);
+      if (d?.moved) dragEnd?.();
+    };
+
+    return { startTrim, moveTrim, endTrim, startBodyDrag, moveBodyDrag, endBodyDrag };
+  };
+
+  const stickerIntervalDrag = createTimedIntervalDrag({
+    trimRef: stickerTrim,
+    bodyRef: stickerDragRef,
+    readWindow: (item) => ({
+      start: item?.start ?? stickerStyle?.startTime ?? 0.5,
+      end: item?.end ?? stickerStyle?.endTime ?? (totalDuration || 15),
+    }),
+    onTrimUpdate: ({ id, edge, value }) => onUpdateSticker?.(
+      edge === 'left'
+        ? { id, start: value, startTime: value }
+        : { id, end: value, endTime: value }
+    ),
+    onBodyUpdate: ({ id, start, end }) => onUpdateSticker?.({
+      id, start, end, startTime: start, endTime: end,
+    }),
+  });
+
+  // Sticker keeps its historical `(event, edge, item)` and
+  // `(event, item, edge)` call forms for callers outside the current Timeline.
   const startStickerTrim = (e, edgeOrItem, maybeEdge) => {
     let edge = edgeOrItem;
     let item = null;
@@ -312,171 +397,33 @@ export function useTimelineDrag({
     } else if (typeof maybeEdge === 'object' && maybeEdge !== null) {
       item = maybeEdge;
     }
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
-    const start = item?.start ?? stickerStyle?.startTime ?? 0.5;
-    const end = item?.end ?? stickerStyle?.endTime ?? (totalDuration || 15);
-    stickerTrim.current = {
-      edge,
-      startX: e.clientX,
-      start,
-      end,
-      id: item?.id,
-      moved: false,
-    };
+    stickerIntervalDrag.startTrim(e, edge, item);
   };
+  const moveStickerTrim = stickerIntervalDrag.moveTrim;
+  const endStickerTrim = stickerIntervalDrag.endTrim;
+  const startStickerBodyDrag = stickerIntervalDrag.startBodyDrag;
+  const moveStickerBodyDrag = stickerIntervalDrag.moveBodyDrag;
+  const endStickerBodyDrag = stickerIntervalDrag.endBodyDrag;
 
-  const moveStickerTrim = (e) => {
-    const d = stickerTrim.current;
-    if (!d) return;
-    const delta = (e.clientX - d.startX) / pxPerSec;
-    if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return;
-    if (!d.moved) { d.moved = true; dragBegin?.(); }
-
-    if (d.edge === 'left') {
-      const rawStart = Math.max(0, Math.min(d.end - 0.3, d.start + delta));
-      const snapped = snapFunction(rawStart, snapPoints);
-      const rounded = Math.round(snapped * 10) / 10;
-      onUpdateSticker?.({ id: d.id, start: rounded, startTime: rounded });
-    } else {
-      const maxEnd = Math.max(totalDuration, audioDuration || 0) || 999;
-      const rawEnd = Math.max(d.start + 0.3, Math.min(maxEnd, d.end + delta));
-      const snapped = snapFunction(rawEnd, snapPoints);
-      const rounded = Math.round(snapped * 10) / 10;
-      onUpdateSticker?.({ id: d.id, end: rounded, endTime: rounded });
-    }
-  };
-
-  const endStickerTrim = (e) => {
-    const d = stickerTrim.current;
-    stickerTrim.current = null;
-    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
-    if (d?.moved) dragEnd?.();
-  };
-
-  // Sticker time window body drag
-  const startStickerBodyDrag = (e, item) => {
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
-    const start = item?.start ?? stickerStyle?.startTime ?? 0.5;
-    const end = item?.end ?? stickerStyle?.endTime ?? (totalDuration || 15);
-    stickerDrag.current = {
-      startX: e.clientX,
-      start,
-      end,
-      id: item?.id,
-      duration: Math.max(0.3, end - start),
-      moved: false,
-    };
-  };
-
-  const moveStickerBodyDrag = (e) => {
-    const d = stickerDrag.current;
-    if (!d) return;
-    const delta = (e.clientX - d.startX) / pxPerSec;
-    if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return;
-    if (!d.moved) { d.moved = true; dragBegin?.(); }
-    const maxT = Math.max(totalDuration, audioDuration || 0) || 999;
-    const minStart = 0;
-    const maxStart = Math.max(0, maxT - d.duration);
-    const rawStart = Math.max(minStart, Math.min(maxStart, d.start + delta));
-    const snappedStart = snapFunction(rawStart, snapPoints);
-    const finalStart = Math.round(snappedStart * 10) / 10;
-    const finalEnd = Math.round((finalStart + d.duration) * 10) / 10;
-    onUpdateSticker?.({
-      id: d.id,
-      start: finalStart,
-      end: finalEnd,
-      startTime: finalStart,
-      endTime: finalEnd,
-    });
-  };
-
-  const endStickerBodyDrag = (e) => {
-    const d = stickerDrag.current;
-    stickerDrag.current = null;
-    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
-    if (d?.moved) dragEnd?.();
-  };
-
-  // Effect (video overlay) duration trim -- exact mirror of the sticker trim
-  // above, minus the stickerStyle legacy-single-slot fallback (effects have
-  // no such back-compat path to preserve).
-  const startEffectTrim = (e, edge, item) => {
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
-    effectTrim.current = {
-      edge,
-      startX: e.clientX,
+  const effectIntervalDrag = createTimedIntervalDrag({
+    trimRef: effectTrim,
+    bodyRef: effectDragRef,
+    readWindow: (item) => ({
       start: item?.start ?? 0.5,
       end: item?.end ?? (totalDuration || 15),
-      id: item?.id,
-      moved: false,
-    };
-  };
+    }),
+    onTrimUpdate: ({ id, edge, value }) => onUpdateEffect?.(
+      edge === 'left' ? { id, start: value } : { id, end: value }
+    ),
+    onBodyUpdate: ({ id, start, end }) => onUpdateEffect?.({ id, start, end }),
+  });
 
-  const moveEffectTrim = (e) => {
-    const d = effectTrim.current;
-    if (!d) return;
-    const delta = (e.clientX - d.startX) / pxPerSec;
-    if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return;
-    if (!d.moved) { d.moved = true; dragBegin?.(); }
-
-    if (d.edge === 'left') {
-      const rawStart = Math.max(0, Math.min(d.end - 0.3, d.start + delta));
-      const snapped = snapFunction(rawStart, snapPoints);
-      const rounded = Math.round(snapped * 10) / 10;
-      onUpdateEffect?.({ id: d.id, start: rounded });
-    } else {
-      const maxEnd = Math.max(totalDuration, audioDuration || 0) || 999;
-      const rawEnd = Math.max(d.start + 0.3, Math.min(maxEnd, d.end + delta));
-      const snapped = snapFunction(rawEnd, snapPoints);
-      const rounded = Math.round(snapped * 10) / 10;
-      onUpdateEffect?.({ id: d.id, end: rounded });
-    }
-  };
-
-  const endEffectTrim = (e) => {
-    const d = effectTrim.current;
-    effectTrim.current = null;
-    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
-    if (d?.moved) dragEnd?.();
-  };
-
-  // Effect time window body drag
-  const startEffectBodyDrag = (e, item) => {
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
-    const start = item?.start ?? 0.5;
-    const end = item?.end ?? (totalDuration || 15);
-    effectDrag.current = {
-      startX: e.clientX,
-      start,
-      end,
-      id: item?.id,
-      duration: Math.max(0.3, end - start),
-      moved: false,
-    };
-  };
-
-  const moveEffectBodyDrag = (e) => {
-    const d = effectDrag.current;
-    if (!d) return;
-    const delta = (e.clientX - d.startX) / pxPerSec;
-    if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return;
-    if (!d.moved) { d.moved = true; dragBegin?.(); }
-    const maxT = Math.max(totalDuration, audioDuration || 0) || 999;
-    const minStart = 0;
-    const maxStart = Math.max(0, maxT - d.duration);
-    const rawStart = Math.max(minStart, Math.min(maxStart, d.start + delta));
-    const snappedStart = snapFunction(rawStart, snapPoints);
-    const finalStart = Math.round(snappedStart * 10) / 10;
-    const finalEnd = Math.round((finalStart + d.duration) * 10) / 10;
-    onUpdateEffect?.({ id: d.id, start: finalStart, end: finalEnd });
-  };
-
-  const endEffectBodyDrag = (e) => {
-    const d = effectDrag.current;
-    effectDrag.current = null;
-    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
-    if (d?.moved) dragEnd?.();
-  };
+  const startEffectTrim = (e, edge, item) => effectIntervalDrag.startTrim(e, edge, item);
+  const moveEffectTrim = effectIntervalDrag.moveTrim;
+  const endEffectTrim = effectIntervalDrag.endTrim;
+  const startEffectBodyDrag = effectIntervalDrag.startBodyDrag;
+  const moveEffectBodyDrag = effectIntervalDrag.moveBodyDrag;
+  const endEffectBodyDrag = effectIntervalDrag.endBodyDrag;
 
   return {
     timeFromEvent,

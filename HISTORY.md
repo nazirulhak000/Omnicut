@@ -39,6 +39,13 @@
 | Round POST-3.25 | Redesign Extension UX/UI (Cyber-Studio Dark, IBM Plex Sans Thai, Studio Monitor & Stepper Pipeline) | 2026-09-07 | Embedded IBM Plex Sans Thai fonts; Studio Monitor card; 2-column affiliate grid; Stepper Pipeline with progress meter; zero emoji pollution; 12/12 extension tests pass; live browser verified |
 | Round POST-3.26 | เพิ่มปุ่มเปิด/สลับแท็บ TikTok Studio ใน Extension (Tab 1, Tab 2, Header, Popup) | 2026-09-07 | Quick bar ใน Tab 1, Banner ใน Tab 2, Header button, Popup button; Auto-focus/activate tab; 13/13 tests pass; Clean UI standard |
 | Round POST-3.27 | ลดความซ้ำซ้อนปุ่มเปิด TikTok Studio ให้เหลือจุดเดียวใน Header ตามที่ User ร้องขอ | 2026-09-07 | รวมเหลือจุดเดียวใน Header bar (`#headerOpenTikTokBtn`); ลบปุ่มซ้ำซ้อนใน Tab 1 และ Tab 2 ออกทั้งหมด; 13/13 tests pass; Clean UI standard |
+| Round TLO-REFACTOR-1 | แยก abstraction ของ Overlay Timeline/Preview แบบรักษา behavior เดิม | 2026-09-09 | Phase 0–6 เสร็จ · frontend 100 tests · parity 150 tests · FFmpeg behavior 11 tests · build 1972 modules |
+| Round TLO-REFACTOR-2 | ลด duplication ฝั่ง renderer เฉพาะจุดที่พิสูจน์ parity ได้ | 2026-09-09 | policy/config dispatch สำหรับ hook/text · frontend 102 tests · parity 150 tests · FFmpeg behavior 11 tests · build 1972 modules |
+| Round TLO-REFACTOR-3 | แยก shared Timeline label-gutter primitive | 2026-09-09 | `TrackLabel.jsx` ใช้ร่วมกับ Timeline/EffectTrack · frontend 102 tests · lint/build/diff check ผ่าน |
+| Round TLO-REFACTOR-4 | รองรับ optional trim handles ใน shared timeline shell | 2026-09-09 | Hook ใช้ shared shell แบบ right-trim only · frontend 104 tests · lint/build/diff check ผ่าน |
+| Round TLO-REFACTOR-5 | ย้าย Caption chip เข้า shared timeline shell โดยคง magnetic-ripple policy | 2026-09-09 | Caption ใช้ shared shell แต่คง drag/ripple adapters เดิม · frontend 105 tests · lint/build/diff check ผ่าน |
+| Round TLO-REFACTOR-6 | รวม shared Inspector header สำหรับ Sticker/Effect | 2026-09-09 | `OverlayInspectorHeader` รับ layout ร่วมและ media/config เฉพาะชนิด · frontend 107 tests · lint/build/diff check ผ่าน |
+| Round TLO-REFACTOR-7 | รวม timeline pointer lifecycle โดยคง type-specific drag math | 2026-09-09 | `timelineDragLifecycle` ใช้ร่วมกับ Caption/Text/Hook/Sticker/Effect · frontend 109 tests · lint/build/diff check ผ่าน |
 | Round RAW-1 | แก้ rename คลิปดิบที่ติด file lock และจัดเลย์เอาต์ Raw Vault แบบ responsive | 2026-09-07 | ถอด preview ก่อน rename, retry WinError 32 พร้อมข้อความกู้คืน, product groups แบบ responsive; pytest 896 passed, npm test 85 passed, build ผ่าน |
 | Round HOK-1 | ระบบ Custom Hook Template Studio (สร้างและบันทึกแม่แบบฮุกด้วยตัวเอง) | 2026-09-07 | CRUD API + 02_Assets/Templates/custom_hook_templates.json + UI บันทึกสไตล์ใน Inspector + AssetPanel + Toolbar optgroup; pytest 2 passed, parity 149 passed, npm test 85 passed, build passed, live browser verified |
 | Round EDT-1 | ตรวจสอบและปรับปรุง UX/UI หน้าตัดต่อ (Editor Friction & Speed Optimization) | 2026-09-07 | แก้ Safe Zone 420px overlay ถูกต้องตามสัดส่วน; เพิ่ม Quick Hook dropdown ใน Toolbar; เพิ่ม 1-Click Reset Zoom; ลดคลิกจาก 25 เหลือ 10; npm test 85 passed; build passed; live browser verified |
@@ -53,6 +60,194 @@
 | Round STK-3 | Sticker Baseline 100% Size, Track Eye Toggle, Deletion, and Preview-Before-Add | 2026-09-08 | STICKER_BASE_WIDTH 160 + Eye toggle hides canvas + Delete key/Inspector + Preview then '+' add · pytest 299 passed · npm test 85 passed · build passed · live browser verified |
 | Round SUB-THAI-1 | แก้สระและวรรณยุกต์ไทยซ้อนกันในคลิปเรนเดอร์ | 2026-09-08 | เปลี่ยน caption entrance จาก ASS `\\fscx/\\fscy` เป็น alpha fade 70ms และ mirror ใน Canvas; เพิ่ม FFmpeg multi-frame regression ด้วย `นั่งพิมพ์งานทั้งวัน`; pytest 926 passed · npm test 85 passed · build/compileall passed |
 | Round STK-PRO-1 | ชุดสติกเกอร์และป้ายรีวิวสายไอทีระดับโปร (Photorealistic Tech Review Badges) | 2026-09-08 | ออกแบบ Master Prompt 3 ชุด + เจนและสไลซ์ 18 ป้ายไอทีระดับโปร (Dark Glass, CNC Aluminum, Titanium, Micro-LED) + สำรองของเดิมลง _backup_cartoon/ + อัปเดต AssetPanel · parity/behavior 159 passed · npm test 85 passed · build passed · 18 RGBA verified |
+
+## Round TLO-REFACTOR-4 — รองรับ optional trim handles ใน shared timeline shell
+
+วันที่: 2026-09-09 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+**ผลลัพธ์:** ขยาย `TimelineIntervalItem` ให้รองรับ trim handle แบบเลือกด้านได้ แล้ว migrate Hook chip ซึ่งมี right-trim เท่านั้น โดยคง behavior เดิม
+
+### สิ่งที่ทำ
+
+- เพิ่ม `showLeftHandle`/`showRightHandle` แบบ default เป็น `true` ที่ `TimelineIntervalItem.jsx`
+- ปรับ Hook track ใน `Timeline.jsx` ให้ใช้ shared shell โดยปิด left handle และคง right-trim callback/title/hover color เดิม
+- คง Caption แยกไว้ เพราะใช้ cue ripple/apply-to-all และไม่มี trim policy เดียวกับ interval tracks
+- เพิ่ม `timelineIntervalContract.test.js` กัน default two-handle regression และยืนยัน Hook single-sided contract
+
+### Gate
+
+- [x] `Set-Location frontend; npm test` — 104 passed
+- [x] `Set-Location frontend; npm run lint` — exit 0, มี warnings เดิมของ repo
+- [x] `Set-Location frontend; npm run build` — ผ่าน, 1973 modules transformed
+- [x] `git diff --check` — ผ่าน ไม่มี error
+
+### Notes
+
+- ไม่เปลี่ยน Hook duration clamp (`1.0–8.0s`), click-to-seek, selection หรือ Caption ripple
+- งานเดิมที่ค้างก่อนเริ่มยังคง untouched: sample sticker 3 ไฟล์ถูกลบ และ untracked `tools/test_scrape_titles.py`
+
+## Round TLO-REFACTOR-7 — รวม timeline pointer lifecycle โดยคง type-specific drag math
+
+วันที่: 2026-09-09 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+**ผลลัพธ์:** รวม pointer capture/release และ movement threshold 3px ของ timeline drag ไว้ใน `timelineDragLifecycle.js` โดยไม่รวม geometry หรือ type-specific policy
+
+### สิ่งที่ทำ
+
+- เพิ่ม `timelineDragLifecycle.js` สำหรับ `capturePointer`, `releasePointer` และ `beginDragAfterThreshold`
+- ปรับ `useTimelineDrag.js` ให้ใช้ lifecycle module เดียวกับ Caption, Text, Hook, Sticker และ Effect
+- คง state shape, callback order, 3px threshold, snap, clamp, rounding, field mapping และ Caption ripple เดิม
+- เพิ่ม deterministic unit tests ตรวจ threshold, เรียก `dragBegin` ครั้งเดียว และ pointer capture/release ที่ tolerate synthetic events
+
+### Gate
+
+- [x] `Set-Location frontend; npm test` — 109 passed
+- [x] `Set-Location frontend; npm run lint` — exit 0, มี warnings เดิมของ repo
+- [x] `Set-Location frontend; npm run build` — ผ่าน, 1975 modules transformed
+- [x] `git diff --check` — ผ่าน ไม่มี error
+
+### Notes
+
+- เป็น lifecycle extraction เท่านั้น ไม่เปลี่ยน timing/geometry behavior ของ overlay ใด
+- งานเดิมที่ค้างก่อนเริ่มยังคง untouched: sample sticker 3 ไฟล์ถูกลบ และ untracked `tools/test_scrape_titles.py`
+
+## Round TLO-REFACTOR-6 — รวม shared Inspector header สำหรับ Sticker/Effect
+
+วันที่: 2026-09-09 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+**ผลลัพธ์:** รวม layout ของ preview header, identity label และ timing metadata ของ Sticker/Effect ไว้ใน `OverlayInspectorHeader` โดยคง media preview และ visual config ที่ต่างกันไว้เป็น props
+
+### สิ่งที่ทำ
+
+- เพิ่ม `OverlayInspectorHeader.jsx` สำหรับ preview frame, icon/label, title และ duration metadata ร่วม
+- ปรับ `StickerInspector.jsx` ให้ส่ง image preview, `Smile`, cyan accent และ label เดิม
+- ปรับ `EffectInspector.jsx` ให้ส่ง video preview, multiply blend, `Sparkles`, fuchsia accent และ label เดิม
+- เพิ่ม `overlayInspectorHeaderContract.test.js` ยืนยัน shared layout และ media-specific config ของทั้งสอง Inspector
+- คง Position, timing/scale callbacks และ delete actions ตาม policy เดิมของแต่ละชนิด
+
+### Gate
+
+- [x] `Set-Location frontend; npm test` — 107 passed
+- [x] `Set-Location frontend; npm run lint` — exit 0, มี warnings เดิมของ repo
+- [x] `Set-Location frontend; npm run build` — ผ่าน, 1974 modules transformed
+- [x] `git diff --check` — ผ่าน ไม่มี error
+
+### Notes
+
+- เป็น structural extraction/config seam เท่านั้น ไม่เปลี่ยน renderer, preview canvas, timeline drag หรือ visual timing
+- งานเดิมที่ค้างก่อนเริ่มยังคง untouched: sample sticker 3 ไฟล์ถูกลบ และ untracked `tools/test_scrape_titles.py`
+
+## Round TLO-REFACTOR-5 — ย้าย Caption chip เข้า shared timeline shell โดยคง magnetic-ripple policy
+
+วันที่: 2026-09-09 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+**ผลลัพธ์:** ย้ายโครงสร้าง Caption chip, trim handles และ body drag เข้า `TimelineIntervalItem` โดยคง behavior-specific drag policy ของ Caption ไว้ใน `useTimelineDrag.js`
+
+### สิ่งที่ทำ
+
+- ปรับ Caption track ใน `Timeline.jsx:1123-1165` ให้ใช้ shared shell เดียวกับ Hook/Sticker/Effect/Text
+- ส่ง `startTrim`, `moveTrim`, `endTrim` และ `startCaptionBodyDrag`/`moveCaptionBodyDrag`/`endCaptionBodyDrag` ผ่าน adapter callbacks โดยไม่ย้ายหรือเปลี่ยน geometry math
+- คง previous-cue clamp, magnetic ripple/apply-to-all, click-to-select, titles และสีของ Caption เดิม
+- เพิ่ม contract test ใน `timelineIntervalContract.test.js` เพื่อยืนยันการใช้ shell และการคง caption-specific callbacks
+
+### Gate
+
+- [x] `Set-Location frontend; npm test` — 105 passed
+- [x] `Set-Location frontend; npm run lint` — exit 0, มี warnings เดิมของ repo
+- [x] `Set-Location frontend; npm run build` — ผ่าน, 1973 modules transformed
+- [x] `git diff --check` — ผ่าน ไม่มี error
+
+### Notes
+
+- ไม่รวม Caption drag math, previous-cue clamp หรือ magnetic ripple เข้า shared core เพราะเป็น behavioral divergence จริง
+- ไม่แตะ renderer, preview, timing constants หรือ audio lanes
+- งานเดิมที่ค้างก่อนเริ่มยังคง untouched: sample sticker 3 ไฟล์ถูกลบ และ untracked `tools/test_scrape_titles.py`
+
+## Round TLO-REFACTOR-3 — แยก shared Timeline label-gutter primitive
+
+วันที่: 2026-09-09 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+**ผลลัพธ์:** ย้าย `TrackLabel` ออกจาก `Timeline.jsx` ไปเป็น primitive กลาง เพื่อให้ label gutter ของ Timeline และ EffectTrack ใช้ implementation เดียวกัน โดยคง callback, icon slot, fold control, action slot, width/dense sizing และ event propagation เดิม
+
+### สิ่งที่ทำ
+
+- เพิ่ม [TrackLabel.jsx](frontend/src/components/editor/timeline/TrackLabel.jsx) เป็น shared label-gutter component
+- ปรับ `Timeline.jsx:1-10,142-191,662-664` ให้ import และใช้งาน primitive กลาง โดยลบ implementation inline เดิม
+- ปรับ `EffectTrack.jsx:1-30` ให้ import โดยตรง และลบ prop injection `TrackLabel`
+- ไม่รวม visibility action หรือ label text เพราะแต่ละ track มี callback/title/color และเงื่อนไขการแสดงผลต่างกัน
+
+### Gate
+
+- [x] `Set-Location frontend; npm test` — 102 passed
+- [x] `Set-Location frontend; npm run lint` — exit 0, มี warnings เดิมของ repo
+- [x] `Set-Location frontend; npm run build` — ผ่าน, 1973 modules transformed
+- [x] `git diff --check` — ผ่าน ไม่มี error
+
+### Notes
+
+- เป็น structural extraction เท่านั้น ไม่เปลี่ยน renderer output, timeline timing, drag handlers หรือ overlay geometry
+- งานเดิมที่ค้างก่อนเริ่มยังคง untouched: sample sticker 3 ไฟล์ถูกลบ และ untracked `tools/test_scrape_titles.py`
+
+## Round TLO-REFACTOR-2 — ลด duplication ฝั่ง renderer เฉพาะจุดที่พิสูจน์ parity ได้
+
+วันที่: 2026-09-09 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+**ผลลัพธ์:** ตรวจ duplication ที่เหลือใน Canvas/ASS renderer และรวมเฉพาะ policy/dispatch ที่มี contract ร่วมกันจริง โดยคง drawing policy ที่ต่างกันไว้แยก
+
+### สิ่งที่ทำ
+
+- เพิ่ม `OVERLAY_RENDER_PROFILES` และ `overlayRenderProfile()` ใน `frontend/src/lib/overlayModel.js` เพื่อเก็บความต่างของ hook/text เป็น data: default animation, word-stagger, layout clearing และ bounds type
+- เปลี่ยน `SequencePlayer.jsx:1486-1641` ให้ใช้ profile เดียว โดยรักษา fallback ของ unknown frontend kind ไป text path
+- เพิ่ม `overlay_kind()` ใน `scripts/overlay_model.py` และใช้ handler map ใน `scripts/subtitle/overlay_events.py:54-67` เพื่อ normalize `kind`/`type` และ legacy aliases โดยไม่แตะ geometry หรือ ASS drawing math
+- เพิ่ม frontend/Python dispatch tests และปรับ source parity assertion ให้ตรวจ policy contract ใหม่
+- ยืนยันจาก inventory ว่า Caption/Hook/Text/Sticker/Effect drawing, anchor, alpha, blend, legacy fields, font metrics และ motion timing ยังเป็น behavior-specific; ไม่ genericize ต่อในรอบนี้
+
+### Gate
+
+- [x] `Set-Location frontend; npm test` — 102 passed
+- [x] `Set-Location frontend; npm run build` — ผ่าน, 1972 modules transformed
+- [x] `python -m compileall -q scripts` — ผ่าน
+- [x] `python -m pytest tests/test_overlay_render_dispatch.py -q -p no:cacheprovider --tb=short` — 2 passed
+- [x] `python -m pytest tests/test_preview_render_parity.py -q -p no:cacheprovider --tb=short` — 150 passed
+- [x] `python -m pytest tests/test_preview_render_behavior.py -q -p no:cacheprovider --tb=short` — 11 passed, Pillow deprecation warnings 2 รายการเดิม
+- [x] `git diff --check` — ผ่าน ไม่มี error
+
+### Notes
+
+- ไม่แก้ `scripts/subtitle_engine.py`, drawing constants หรือ output geometry เพราะไม่มีการเปลี่ยนภาพที่พิสูจน์ว่าปลอดภัยในรอบนี้
+- งานเดิมที่ค้างก่อนเริ่มยังคง untouched: sample sticker 3 ไฟล์ถูกลบ และ untracked `tools/test_scrape_titles.py`
+
+## Round TLO-REFACTOR-1 — แยก abstraction ของ Overlay Timeline/Preview แบบรักษา behavior เดิม
+
+วันที่: 2026-09-09 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+**เป้าหมาย:** ลดโค้ดซ้ำของ Hook, Sticker, Effect, Caption และ Text Overlay ใน timeline/drag/preview โดยแยกเฉพาะ geometry และ lifecycle ที่เหมือนกันออกมาเป็น shared core/config พร้อมคง field names, legacy fallback, clamp, snap, ripple, anchor, audio/visual parity และ selection semantics เดิมทุกประการ
+
+### ผลลัพธ์ตามเฟส
+
+- [x] Phase 0 — สำรวจ contract และบันทึก behavior divergence ของ Timeline, drag hook, SequencePlayer, EditorShell, selection, commands, Inspector และ timeline model
+- [x] Phase 1 — เพิ่ม `packTimedLanes` และคง wrapper contract ของ `packTextOverlays`/`packStickers` ใน `timelineTrackModel.js`
+- [x] Phase 2 — เพิ่ม `TimelineIntervalItem.jsx` และย้าย Sticker, Effect, Text overlay ไปใช้ shell เดียวกัน โดยคง Hook/Caption ที่มี policy ต่างกันไว้แยก
+- [x] Phase 3 — เพิ่ม shared timed-interval drag core ใน `useTimelineDrag.js` สำหรับ Sticker/Effect พร้อม adapter ของ Sticker legacy aliases/signature และ Effect modern fields
+- [x] Phase 4 — เพิ่ม `overlayBoxGeometry.js` และ `pointerDragLifecycle.js` สำหรับ selected-box fallback, clamp/snap/resize, field mapping และ window pointer lifecycle โดยคง Caption-specific callbacks
+- [x] Phase 5 — เพิ่ม `selectionResolver.js`, `collectionOperations.js`, `OverlayTimingControls.jsx` และ `OverlayScaleControl.jsx`; คง Sticker style mirror/single-slot fallback, Effect overlap placement และ Position block ที่ต่างจริง
+- [x] Phase 6 — แก้ parity test baseline ที่ stale จาก 6 เป็น 7 occurrences หลังยืนยันว่า `HEAD` และ current source ตรงกัน และรัน render/behavior gates
+
+### Gate
+
+- [x] `Set-Location frontend; npm test` — 100 passed
+- [x] `Set-Location frontend; npm run build` — ผ่าน, 1972 modules transformed
+- [x] `python -m pytest tests/test_preview_render_parity.py -q -p no:cacheprovider` — 150 passed
+- [x] `python -m pytest tests/test_preview_render_behavior.py -q -p no:cacheprovider` — 11 passed, Pillow deprecation warnings 2 รายการ
+- [x] `git diff --check` — ผ่าน ไม่มี error
+- [x] ตรวจว่าไม่แตะ `01_Raw/`, `02_Assets/`, `03_Projects/` หรือ `_Docs/post_log.json`
+
+### Notes
+
+- การ genericize จงใจหยุดที่ pure math, lifecycle, selection lookup, collection operations และ Inspector controls ที่มี contract ร่วมกันจริง
+- Caption magnetic ripple/apply-to-all, Hook 1–8 second end-only trim, Text policy, Sticker legacy mirror/single-slot fallback, Effect overlap-slot placement และ Position UI ที่ต่างกันยังคงเป็น behavior-specific adapters
+- parity baseline drift ที่พบเป็น test expectation เดิม ไม่ใช่ production regression: `Timeline.jsx` มี `slotWidth` 7 occurrences ทั้งใน `HEAD` และ current source
+- งานเดิมที่มีอยู่ก่อนรอบนี้ยังคงไม่ถูกแตะ: sample sticker 3 ไฟล์ที่ถูกลบ และ untracked `tools/test_scrape_titles.py`
 
 ## Round SFX-TITLES-1 — ดึงชื่อภาษาไทย/ชื่อจริงที่แสดงบน Myinstants มาใส่เป็น label ใน asset_metadata.json
 

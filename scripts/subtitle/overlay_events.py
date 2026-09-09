@@ -6,7 +6,7 @@ Mirrored by SequencePlayer.jsx:drawOneOverlay() on the frontend.
 
 from typing import Any, Dict, List, Optional
 from scripts.asset_registry import AssetRegistry
-from scripts.overlay_model import resolve_look, ACCENT_COLOR
+from scripts.overlay_model import ACCENT_COLOR, overlay_kind, resolve_look
 from scripts.subtitle.badge_plate_renderer import (
     ass_colour,
     _pill_fill_to_ass,
@@ -59,12 +59,12 @@ def overlay_events(overlay: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]:
     if not overlay:
         return []
 
-    kind = overlay.get("kind") or overlay.get("type")
-    if kind in ("hook", "hook_header"):
-        return _hook_overlay_events(overlay, ctx)
-    elif kind in ("text", "text_overlay"):
-        return _text_overlay_events(overlay, ctx)
-    return []
+    handlers = {
+        "hook": _hook_overlay_events,
+        "text": _text_overlay_events,
+    }
+    handler = handlers.get(overlay_kind(overlay))
+    return handler(overlay, ctx) if handler else []
 
 
 def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]:

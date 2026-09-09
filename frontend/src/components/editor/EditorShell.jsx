@@ -23,6 +23,7 @@ import { useEditorCommands } from '../../hooks/useEditorCommands';
 import { useEditorShortcuts } from '../../hooks/useEditorShortcuts';
 import { toMediaUrl } from '../../lib/mediaUrl';
 import { editorStateToSavePayload, manifestToEditorState } from '../../lib/editorProjectState';
+import { removeItemById, updateItemById } from '../../lib/collectionOperations.js';
 import SequencePlayer from '../SequencePlayer';
 import AssetPanel from './AssetPanel';
 import Inspector from './Inspector';
@@ -898,9 +899,9 @@ export default function EditorShell({
       const targetId = id || selection?.id;
       let nextList;
       if (targetId && currentList.some((s) => s.id === targetId)) {
-        nextList = currentList.map((s) => (s.id === targetId ? { ...s, ...patch } : s));
+        nextList = updateItemById(currentList, targetId, patch);
       } else if (currentList.length > 0) {
-        nextList = currentList.map((s, idx) => (idx === 0 ? { ...s, ...patch } : s));
+        nextList = updateItemById(currentList, currentList[0].id, patch);
       } else {
         nextList = [{
           id: 'sticker-1',
@@ -933,7 +934,7 @@ export default function EditorShell({
   const handleDeleteSticker = useCallback((id) => {
     set((prev) => {
       const targetId = id || selection?.id;
-      const nextList = (prev.stickers || []).filter((s) => s.id !== targetId);
+      const nextList = removeItemById(prev.stickers, targetId);
       return {
         ...prev,
         stickers: nextList,
@@ -1008,7 +1009,7 @@ export default function EditorShell({
     set((prev) => {
       const currentList = prev.effects || [];
       const targetId = id || selection?.id;
-      const nextList = currentList.map((e) => (e.id === targetId ? { ...e, ...patch } : e));
+      const nextList = updateItemById(currentList, targetId, patch);
       return { ...prev, effects: nextList };
     });
   }, [set, selection]);
@@ -1016,7 +1017,7 @@ export default function EditorShell({
   const handleDeleteEffect = useCallback((id) => {
     set((prev) => {
       const targetId = id || selection?.id;
-      return { ...prev, effects: (prev.effects || []).filter((e) => e.id !== targetId) };
+      return { ...prev, effects: removeItemById(prev.effects, targetId) };
     });
     if (selection?.type === 'effect' && (!id || selection.id === id)) {
       setSelection(null);

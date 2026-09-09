@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
+import { resolveSelectedItem } from '../lib/selectionResolver.js';
 
 /**
  * Hook to manage item selection (clip, caption, overlay/hook)
@@ -15,19 +16,23 @@ export function useEditorSelection({
   const [selection, setSelection] = useState(null);
 
   const selectedSeg = useMemo(
-    () => (selection?.type === 'clip' ? segments.find((s) => s.clip.id === selection.id) || null : null),
+    () => resolveSelectedItem(selection, 'clip', segments, {
+      matches: (segment, id) => segment.clip?.id === id,
+    }),
     [selection, segments]
   );
 
   const selectedCaption = useMemo(
-    () => (selection?.type === 'caption' ? cuesList.find((c) => c._uid === selection.id || c.id === selection.id) || null : null),
+    () => resolveSelectedItem(selection, 'caption', cuesList, {
+      matches: (cue, id) => cue._uid === id || cue.id === id,
+    }),
     [selection, cuesList]
   );
 
   const selectedOverlay = useMemo(
-    () => ((selection?.type === 'text_overlay' || selection?.type === 'hook')
-      ? overlays.find((o) => o.id === selection.id) || (selection?.type === 'hook' ? hookOverlay : null)
-      : null),
+    () => resolveSelectedItem(selection, ['text_overlay', 'hook'], overlays, {
+      fallback: selection?.type === 'hook' ? hookOverlay : null,
+    }),
     [selection, overlays, hookOverlay]
   );
 
@@ -36,7 +41,9 @@ export function useEditorSelection({
     if (!sel || !autoSeek) return;
 
     if (sel.type === 'caption') {
-      const cue = cuesList.find((c) => c._uid === sel.id || c.id === sel.id);
+      const cue = resolveSelectedItem(sel, 'caption', cuesList, {
+        matches: (item, id) => item._uid === id || item.id === id,
+      });
       if (cue && typeof cue.start === 'number') {
         const cueEnd = typeof cue.end === 'number' ? cue.end : cue.start + 2.0;
         if (playhead < cue.start - 0.05 || playhead > cueEnd + 0.05) {
@@ -44,7 +51,9 @@ export function useEditorSelection({
         }
       }
     } else if (sel.type === 'clip') {
-      const seg = segments.find((s) => s.clip?.id === sel.id);
+      const seg = resolveSelectedItem(sel, 'clip', segments, {
+        matches: (item, id) => item.clip?.id === id,
+      });
       if (seg && typeof seg.segStart === 'number') {
         const segEnd = typeof seg.segEnd === 'number' ? seg.segEnd : seg.segStart + 2.0;
         if (playhead < seg.segStart - 0.05 || playhead > segEnd + 0.05) {
@@ -52,8 +61,9 @@ export function useEditorSelection({
         }
       }
     } else if (sel.type === 'text_overlay' || sel.type === 'hook') {
-      const item = overlays.find((o) => o.id === sel.id)
-        || (sel.type === 'hook' ? hookOverlay : null);
+      const item = resolveSelectedItem(sel, ['text_overlay', 'hook'], overlays, {
+        fallback: sel.type === 'hook' ? hookOverlay : null,
+      });
       if (item && typeof item.start === 'number') {
         const itemEnd = typeof item.end === 'number' ? item.end : item.start + 2.0;
         if (playhead < item.start - 0.05 || playhead > itemEnd + 0.05) {

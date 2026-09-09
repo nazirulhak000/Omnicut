@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { TransitionIcon } from '../../lib/transitionIcons';
 import {
-  ChevronDown, ChevronRight,
   Eye, EyeOff, Film, MessageSquare, Music, Plus, Scissors, Smile, Sparkles, Type, Volume2, VolumeX, Waves, X
 } from 'lucide-react';
 import TimelineClip from './TimelineClip';
@@ -9,6 +8,8 @@ import TimelineRuler from './timeline/TimelineRuler';
 import TimelinePlayhead from './timeline/TimelinePlayhead';
 import TimelineContextMenu from './timeline/TimelineContextMenu';
 import { EffectTrackLabel, EffectTrackLane } from './timeline/EffectTrack';
+import TimelineIntervalItem from './timeline/TimelineIntervalItem';
+import TrackLabel from './timeline/TrackLabel';
 import { useTimelineKeyboard } from '../../hooks/useTimelineKeyboard';
 import { useTimelineDrag } from '../../hooks/useTimelineDrag';
 import {
@@ -138,55 +139,6 @@ function MixButton({ active, pressed, activeClass, onClick, title, children }) {
     >
       {children}
     </button>
-  );
-}
-
-function TrackLabel({ icon: Icon, children, action, iconTitle, iconClass, onIconClick, dot, labelClass, fold, width, slotWidth = 26 }) {
-  return (
-    <div
-      className="flex items-center gap-1 px-2 text-xs font-medium text-[#9C968F]"
-      style={{ width: width ?? GUTTER }}
-    >
-      <div className="flex min-w-0 flex-1 items-center gap-1.5">
-        <span className="flex flex-shrink-0 items-center gap-1.5" style={{ width: slotWidth }}>
-        {fold && (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); fold.onToggle?.(); }}
-            title={fold.title}
-            aria-expanded={!fold.collapsed}
-            className="-m-0.5 flex-shrink-0 rounded p-0.5 text-[#6F6A64] transition-colors hover:bg-[#2C2B27] hover:text-[#EDE9E3]"
-          >
-            {fold.collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-          </button>
-        )}
-        {Icon && onIconClick ? (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onIconClick(); }}
-            title={iconTitle}
-            className="-m-0.5 flex-shrink-0 rounded p-0.5 transition-colors hover:bg-[#2C2B27] hover:text-[#EDE9E3]"
-          >
-            <Icon className={`h-3 w-3 ${iconClass || ''}`} />
-          </button>
-        ) : Icon ? (
-          <Icon className="h-3 w-3 flex-shrink-0" />
-        ) : null}
-        {dot && (
-          <span
-            className="h-[7px] w-[7px] flex-shrink-0 rounded-full"
-            style={dot.hollow
-              ? { boxShadow: `inset 0 0 0 1.5px ${dot.colour}`, opacity: 0.5 }
-              : { background: dot.colour }}
-          />
-        )}
-        </span>
-        <span className={`truncate ${labelClass || ''}`} title={typeof children === 'string' ? children : undefined}>
-          {children}
-        </span>
-      </div>
-      {action}
-    </div>
   );
 }
 
@@ -710,7 +662,6 @@ export default function Timeline({
                   width={gutterW}
                   slotWidth={dense ? 14 : 26}
                   rowStyleProp={rowStyle('effect')}
-                  TrackLabel={TrackLabel}
                 />
               )}
               <div style={rowStyle('caption')} className="flex items-center">
@@ -1038,8 +989,8 @@ export default function Timeline({
                   const w = Math.max(24, dur * pxPerSec);
 
                   return (
-                    <div
-                      data-timeline-item="hook"
+                    <TimelineIntervalItem
+                      dataType="hook"
                       onClick={(e) => {
                         e.stopPropagation();
                         const t = timeFromEvent(e);
@@ -1060,30 +1011,21 @@ export default function Timeline({
                             : 'bg-[#2A2415] text-[#E6C24A] ring-1 ring-[#594B22] hover:ring-[#8C7636]'
                       }`}
                       style={{ left: start * pxPerSec, width: w }}
+                      showLeftHandle={false}
+                      showRightHandle
+                      handleClassName="hover:bg-[#E6C24A]"
+                      rightHandleTitle={`ลากเพื่อปรับระยะเวลาแสดงผลป้ายฮุก (${HOOK_MIN_DURATION.toFixed(1)} - ${HOOK_MAX_DURATION.toFixed(1)} วิ)`}
+                      onTrimStart={(e) => startHookTrim(e)}
+                      onTrimMove={moveHookTrim}
+                      onTrimEnd={endHookTrim}
+                      bodyClassName="flex-1 min-w-0 h-full flex items-center px-2 gap-1.5 overflow-hidden cursor-pointer"
                     >
-                      {/* Body */}
-                      <div className="flex-1 min-w-0 h-full flex items-center px-2 gap-1.5 overflow-hidden cursor-pointer">
-                        <Sparkles className="h-3 w-3 flex-shrink-0 text-[#E6C24A]" />
-                        <span className="truncate font-semibold text-[11px] tracking-wide">
-                          {hookText}
-                        </span>
-                        <span className="font-mono text-[10px] text-[#E6C24A]/70 flex-shrink-0 ml-auto">
-                          {dur.toFixed(1)}s
-                        </span>
-                      </div>
-
-                      {/* Right Trim Handle for Hook Duration */}
-                      <div
-                        onPointerDown={startHookTrim}
-                        onPointerMove={moveHookTrim}
-                        onPointerUp={endHookTrim}
-                        onPointerCancel={endHookTrim}
-                        title={`ลากเพื่อปรับระยะเวลาแสดงผลป้ายฮุก (${HOOK_MIN_DURATION.toFixed(1)} - ${HOOK_MAX_DURATION.toFixed(1)} วิ)`}
-                        className="h-full w-2.5 flex-shrink-0 cursor-ew-resize rounded-r hover:bg-[#E6C24A] bg-white/[0.04] transition-colors flex items-center justify-center z-10 opacity-60 group-hover:opacity-100"
-                      >
-                        <div className="h-2.5 w-0.5 rounded-full bg-white/40" />
-                      </div>
-                    </div>
+                      <Sparkles className="h-3 w-3 flex-shrink-0 text-[#E6C24A]" />
+                      <span className="truncate font-semibold text-[11px] tracking-wide">{hookText}</span>
+                      <span className="font-mono text-[10px] text-[#E6C24A]/70 flex-shrink-0 ml-auto">
+                        {dur.toFixed(1)}s
+                      </span>
+                    </TimelineIntervalItem>
                   );
                 })()}
               </div>
@@ -1106,9 +1048,9 @@ export default function Timeline({
                     const topPx = (item.lane || 0) * STICKER_LANE_ROW_H + 2;
 
                     return (
-                      <div
+                      <TimelineIntervalItem
                         key={item.id}
-                        data-timeline-item="sticker"
+                        dataType="sticker"
                         onClick={(e) => {
                           e.stopPropagation();
                           const t = timeFromEvent(e);
@@ -1121,69 +1063,35 @@ export default function Timeline({
                           }
                         }}
                         title={`${stickerName} (${start.toFixed(1)}s - ${end.toFixed(1)}s)`}
-                        className={`group absolute touch-none select-none rounded text-left text-xs transition-colors duration-150 flex items-center ${
+                        className={
                           isStickerHidden || item.hidden
                             ? 'opacity-40 bg-[#282724] text-[#9C968F] ring-1 ring-white/10'
                             : isSelected
                               ? 'bg-[#14323B] text-[#25F4EE] ring-2 ring-[#25F4EE] shadow-[0_0_12px_rgba(37,244,238,0.3)] z-10'
                               : 'bg-[#13272D] text-[#64D8D2] ring-1 ring-[#1E4D54] hover:ring-[#2FA0A8]'
-                        }`}
-                        style={{
-                          left: start * pxPerSec,
-                          width: w,
-                          top: topPx,
-                          height: STICKER_LANE_ROW_H - 4,
-                        }}
+                        }
+                        style={{ left: start * pxPerSec, width: w, top: topPx, height: STICKER_LANE_ROW_H - 4 }}
+                        handleClassName="hover:bg-[#25F4EE]"
+                        leftHandleTitle="ลากเพื่อยืด/หดเวลาเริ่มต้นของสติกเกอร์"
+                        rightHandleTitle="ลากเพื่อยืด/หดเวลาสิ้นสุดของสติกเกอร์"
+                        onTrimStart={(e, edge) => startStickerTrim(e, edge, item)}
+                        onTrimMove={moveStickerTrim}
+                        onTrimEnd={endStickerTrim}
+                        onBodyStart={(e) => startStickerBodyDrag(e, item)}
+                        onBodyMove={moveStickerBodyDrag}
+                        onBodyEnd={endStickerBodyDrag}
+                        bodyClassName="flex-1 min-w-0 h-full flex items-center px-2 gap-1.5 overflow-hidden cursor-move"
                       >
-                        {/* Left Trim Handle */}
-                        <div
-                          onPointerDown={(e) => startStickerTrim(e, 'left', item)}
-                          onPointerMove={moveStickerTrim}
-                          onPointerUp={endStickerTrim}
-                          onPointerCancel={endStickerTrim}
-                          title="ลากเพื่อยืด/หดเวลาเริ่มต้นของสติกเกอร์"
-                          className="h-full w-2.5 flex-shrink-0 cursor-ew-resize rounded-l hover:bg-[#25F4EE] bg-white/[0.04] transition-colors flex items-center justify-center z-10 opacity-60 group-hover:opacity-100"
-                        >
-                          <div className="h-2.5 w-0.5 rounded-full bg-white/40" />
-                        </div>
-
-                        {/* Middle Body */}
-                        <div
-                          onPointerDown={(e) => startStickerBodyDrag(e, item)}
-                          onPointerMove={moveStickerBodyDrag}
-                          onPointerUp={endStickerBodyDrag}
-                          onPointerCancel={endStickerBodyDrag}
-                          className="flex-1 min-w-0 h-full flex items-center px-2 gap-1.5 overflow-hidden cursor-move"
-                        >
-                          {activeBadge?.url ? (
-                            <img
-                              src={activeBadge.url}
-                              alt=""
-                              className="h-4 w-4 object-contain flex-shrink-0"
-                            />
-                          ) : (
-                            <Smile className="h-3 w-3 flex-shrink-0 text-[#25F4EE]" />
-                          )}
-                          <span className="truncate font-semibold text-[11px] tracking-wide">
-                            {stickerName}
-                          </span>
-                          <span className="font-mono text-[10px] text-[#25F4EE]/70 flex-shrink-0 ml-auto">
-                            {dur.toFixed(1)}s
-                          </span>
-                        </div>
-
-                        {/* Right Trim Handle */}
-                        <div
-                          onPointerDown={(e) => startStickerTrim(e, 'right', item)}
-                          onPointerMove={moveStickerTrim}
-                          onPointerUp={endStickerTrim}
-                          onPointerCancel={endStickerTrim}
-                          title="ลากเพื่อยืด/หดเวลาสิ้นสุดของสติกเกอร์"
-                          className="h-full w-2.5 flex-shrink-0 cursor-ew-resize rounded-r hover:bg-[#25F4EE] bg-white/[0.04] transition-colors flex items-center justify-center z-10 opacity-60 group-hover:opacity-100"
-                        >
-                          <div className="h-2.5 w-0.5 rounded-full bg-white/40" />
-                        </div>
-                      </div>
+                        {activeBadge?.url ? (
+                          <img src={activeBadge.url} alt="" className="h-4 w-4 object-contain flex-shrink-0" />
+                        ) : (
+                          <Smile className="h-3 w-3 flex-shrink-0 text-[#25F4EE]" />
+                        )}
+                        <span className="truncate font-semibold text-[11px] tracking-wide">{stickerName}</span>
+                        <span className="font-mono text-[10px] text-[#25F4EE]/70 flex-shrink-0 ml-auto">
+                          {dur.toFixed(1)}s
+                        </span>
+                      </TimelineIntervalItem>
                     );
                   })}
                 </div>
@@ -1217,9 +1125,9 @@ export default function Timeline({
                   const selected = selection?.type === 'caption' && selection.id === cue._uid;
                   const w = Math.max(14, (cue.end - cue.start) * pxPerSec);
                   return (
-                    <div
+                    <TimelineIntervalItem
                       key={cue._uid}
-                      data-timeline-item="caption"
+                      dataType="caption"
                       onClick={(e) => {
                         e.stopPropagation();
                         selectCaption(cue._uid);
@@ -1227,46 +1135,23 @@ export default function Timeline({
                       title={`${cue.text} (${cue.start.toFixed(2)}s - ${cue.end.toFixed(2)}s)`}
                       className={`group absolute top-1 h-[calc(100%-8px)] touch-none select-none rounded text-left text-xs leading-[18px] transition-colors duration-150 flex items-center ${
                         selected
-                          ? 'bg-[#33251F] text-[#EDE9E3] ring-2 ring-[#D97757]'
-                          : 'bg-[#282724] text-[#C9C3BB] ring-1 ring-[#4A4742] hover:ring-[#6B6660]'
+                        ? 'bg-[#33251F] text-[#EDE9E3] ring-2 ring-[#D97757]'
+                        : 'bg-[#282724] text-[#C9C3BB] ring-1 ring-[#4A4742] hover:ring-[#6B6660]'
                       }`}
                       style={{ left: cue.start * pxPerSec, width: w }}
+                      handleClassName="hover:bg-[#D97757]"
+                      leftHandleTitle="ลากเพื่อยืด/หดเวลาเริ่มต้น"
+                      rightHandleTitle="ลากเพื่อยืด/หดเวลาสิ้นสุด"
+                      onTrimStart={(e, edge) => startTrim(e, cue, edge)}
+                      onTrimMove={moveTrim}
+                      onTrimEnd={endTrim}
+                      onBodyStart={(e) => startCaptionBodyDrag(e, cue)}
+                      onBodyMove={(e) => moveCaptionBodyDrag(e, cue)}
+                      onBodyEnd={endCaptionBodyDrag}
+                      bodyClassName="flex-1 min-w-0 h-full flex items-center px-1 overflow-hidden cursor-grab active:cursor-grabbing"
                     >
-                      {/* Left Trim Handle */}
-                      <div
-                        onPointerDown={(e) => startTrim(e, cue, 'left')}
-                        onPointerMove={moveTrim}
-                        onPointerUp={endTrim}
-                        onPointerCancel={endTrim}
-                        title="ลากเพื่อยืด/หดเวลาเริ่มต้น"
-                        className="h-full w-2.5 flex-shrink-0 cursor-ew-resize rounded-l hover:bg-[#D97757] bg-white/[0.04] transition-colors flex items-center justify-center z-10 opacity-60 group-hover:opacity-100"
-                      >
-                        <div className="h-2.5 w-0.5 rounded-full bg-white/40" />
-                      </div>
-
-                      {/* Middle Body (Drag to shift entire cue) */}
-                      <div
-                        onPointerDown={(e) => startCaptionBodyDrag(e, cue)}
-                        onPointerMove={(e) => moveCaptionBodyDrag(e, cue)}
-                        onPointerUp={endCaptionBodyDrag}
-                        onPointerCancel={endCaptionBodyDrag}
-                        className="flex-1 min-w-0 h-full flex items-center px-1 overflow-hidden cursor-grab active:cursor-grabbing"
-                      >
-                        <span className="truncate">{cue.text}</span>
-                      </div>
-
-                      {/* Right Trim Handle */}
-                      <div
-                        onPointerDown={(e) => startTrim(e, cue, 'right')}
-                        onPointerMove={moveTrim}
-                        onPointerUp={endTrim}
-                        onPointerCancel={endTrim}
-                        title="ลากเพื่อยืด/หดเวลาสิ้นสุด"
-                        className="h-full w-2.5 flex-shrink-0 cursor-ew-resize rounded-r hover:bg-[#D97757] bg-white/[0.04] transition-colors flex items-center justify-center z-10 opacity-60 group-hover:opacity-100"
-                      >
-                        <div className="h-2.5 w-0.5 rounded-full bg-white/40" />
-                      </div>
-                    </div>
+                      <span className="truncate">{cue.text}</span>
+                    </TimelineIntervalItem>
                   );
                 })}
               </div>
@@ -1282,59 +1167,29 @@ export default function Timeline({
                     const w = Math.max(16, (item.end - item.start) * pxPerSec);
                     const topPx = item.lane * TEXT_LANE_ROW_H + 2;
                     return (
-                      <div
+                      <TimelineIntervalItem
                         key={item.id}
-                        data-timeline-item="text_overlay"
+                        dataType="text_overlay"
                         onClick={(e) => { e.stopPropagation(); selectTextOverlay(item.id); }}
                         title={`${overlayLabel(item)} (${item.start.toFixed(2)}s - ${item.end.toFixed(2)}s)`}
-                        className={`group absolute touch-none select-none rounded text-left text-xs leading-[18px] transition-colors duration-150 flex items-center ${
-                          selected
-                            ? 'bg-[#153434] text-[#25F4EE] ring-2 ring-[#25F4EE] shadow-[0_0_10px_rgba(37,244,238,0.25)] z-10'
-                            : 'bg-[#1C2626] text-[#A2CCCC] ring-1 ring-[#2E4848] hover:ring-[#477070]'
-                        }`}
-                        style={{
-                          left: item.start * pxPerSec,
-                          width: w,
-                          top: topPx,
-                          height: TEXT_LANE_ROW_H - 4,
-                        }}
+                        className={`leading-[18px] ${selected
+                          ? 'bg-[#153434] text-[#25F4EE] ring-2 ring-[#25F4EE] shadow-[0_0_10px_rgba(37,244,238,0.25)] z-10'
+                          : 'bg-[#1C2626] text-[#A2CCCC] ring-1 ring-[#2E4848] hover:ring-[#477070]'}`}
+                        style={{ left: item.start * pxPerSec, width: w, top: topPx, height: TEXT_LANE_ROW_H - 4 }}
+                        handleClassName="hover:bg-[#25F4EE]"
+                        leftHandleTitle="ลากเพื่อยืด/หดเวลาเริ่มต้น"
+                        rightHandleTitle="ลากเพื่อยืด/หดเวลาสิ้นสุด"
+                        onTrimStart={(e, edge) => startTextTrim(e, item, edge)}
+                        onTrimMove={moveTextTrim}
+                        onTrimEnd={endTextTrim}
+                        onBodyStart={(e) => startTextBodyDrag(e, item)}
+                        onBodyMove={(e) => moveTextBodyDrag(e, item)}
+                        onBodyEnd={endTextBodyDrag}
+                        bodyClassName="flex-1 min-w-0 h-full flex items-center px-1.5 overflow-hidden cursor-grab active:cursor-grabbing gap-1"
                       >
-                        {/* Left Trim Handle */}
-                        <div
-                          onPointerDown={(e) => startTextTrim(e, item, 'left')}
-                          onPointerMove={moveTextTrim}
-                          onPointerUp={endTextTrim}
-                          onPointerCancel={endTextTrim}
-                          title="ลากเพื่อยืด/หดเวลาเริ่มต้น"
-                          className="h-full w-2.5 flex-shrink-0 cursor-ew-resize rounded-l hover:bg-[#25F4EE] bg-white/[0.04] transition-colors flex items-center justify-center z-10 opacity-60 group-hover:opacity-100"
-                        >
-                          <div className="h-2.5 w-0.5 rounded-full bg-white/40" />
-                        </div>
-
-                        {/* Middle Body (Drag to shift entire text overlay) */}
-                        <div
-                          onPointerDown={(e) => startTextBodyDrag(e, item)}
-                          onPointerMove={(e) => moveTextBodyDrag(e, item)}
-                          onPointerUp={endTextBodyDrag}
-                          onPointerCancel={endTextBodyDrag}
-                          className="flex-1 min-w-0 h-full flex items-center px-1.5 overflow-hidden cursor-grab active:cursor-grabbing gap-1"
-                        >
-                          <Type className="h-3 w-3 flex-shrink-0 text-[#25F4EE]" />
-                          <span className="truncate font-medium">{overlayLabel(item)}</span>
-                        </div>
-
-                        {/* Right Trim Handle */}
-                        <div
-                          onPointerDown={(e) => startTextTrim(e, item, 'right')}
-                          onPointerMove={moveTextTrim}
-                          onPointerUp={endTextTrim}
-                          onPointerCancel={endTextTrim}
-                          title="ลากเพื่อยืด/หดเวลาสิ้นสุด"
-                          className="h-full w-2.5 flex-shrink-0 cursor-ew-resize rounded-r hover:bg-[#25F4EE] bg-white/[0.04] transition-colors flex items-center justify-center z-10 opacity-60 group-hover:opacity-100"
-                        >
-                          <div className="h-2.5 w-0.5 rounded-full bg-white/40" />
-                        </div>
-                      </div>
+                        <Type className="h-3 w-3 flex-shrink-0 text-[#25F4EE]" />
+                        <span className="truncate font-medium">{overlayLabel(item)}</span>
+                      </TimelineIntervalItem>
                     );
                   })}
                 </div>

@@ -17,6 +17,7 @@ import StickerInspector from './inspector/StickerInspector';
 import EffectInspector from './inspector/EffectInspector';
 import CuesTranscriptInspector from './inspector/CuesTranscriptInspector';
 import ProjectInspector from './inspector/ProjectInspector';
+import { resolveSelectedItem } from '../../lib/selectionResolver.js';
 
 /**
  * Render clip fields exposed to Inspector/ClipInspector:
@@ -86,13 +87,11 @@ export default function Inspector({
 }) {
   const textOverlays = (overlays || []).filter((o) => o.kind === 'text');
 
-  const selectedSticker = selection?.type === 'sticker'
-    ? (stickers || []).find((item) => item.id === selection.id) || (stickers?.[0] || null)
-    : null;
+  const selectedSticker = resolveSelectedItem(selection, 'sticker', stickers, {
+    fallback: stickers?.[0] || null,
+  });
 
-  const selectedEffect = selection?.type === 'effect'
-    ? (effects || []).find((item) => item.id === selection.id) || null
-    : null;
+  const selectedEffect = resolveSelectedItem(selection, 'effect', effects);
   const selectedEffectAsset = selectedEffect
     ? (assets?.effects || []).find((a) => a.id === selectedEffect.effectId) || null
     : null;
@@ -121,9 +120,9 @@ export default function Inspector({
     prevSelectionIdRef.current = selection?.id;
   }, [selection, activeTab]);
 
-  const selectedTextOverlay = selection?.type === 'text_overlay'
-    ? (overlays || []).find((item) => item.id === selection.id && item.kind === 'text')
-    : null;
+  const selectedTextOverlay = resolveSelectedItem(selection, 'text_overlay', overlays, {
+    matches: (item, id) => item.id === id && item.kind === 'text',
+  });
 
   const isOverlaySelected = Boolean(selectedTextOverlay);
   const isCaptionSelected = Boolean(selectedCaption);

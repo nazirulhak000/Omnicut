@@ -17,19 +17,24 @@ export function overlayLabel(overlay) {
 }
 
 /**
- * Auto-stacking multi-layer calculation for overlapping text overlays.
- * Assigns each overlay to the first available lane that doesn't overlap.
+ * Packs timed items into the first lane whose previous item has finished.
+ *
+ * The timeline has several item kinds with the same interval-packing contract
+ * (text overlays, stickers, and effects) but different public result names.
+ * Keep the primitive concerned only with start/end and lane assignment so the
+ * kind-specific wrappers can preserve their existing APIs.
  */
-export function packTextOverlays(textOverlays) {
-  if (!textOverlays || textOverlays.length === 0) {
-    return { packedTextOverlays: [], textLaneCount: 0 };
+export function packTimedLanes(items, { epsilon = 0.05 } = {}) {
+  if (!items || items.length === 0) {
+    return { packedItems: [], laneCount: 0 };
   }
-  const sorted = [...textOverlays].sort((a, b) => a.start - b.start);
+
+  const sorted = [...items].sort((a, b) => a.start - b.start);
   const laneEndTimes = [];
-  const packed = sorted.map((item) => {
+  const packedItems = sorted.map((item) => {
     let assignedLane = -1;
     for (let i = 0; i < laneEndTimes.length; i++) {
-      if (item.start >= laneEndTimes[i] - 0.05) {
+      if (item.start >= laneEndTimes[i] - epsilon) {
         assignedLane = i;
         laneEndTimes[i] = item.end;
         break;
@@ -41,7 +46,17 @@ export function packTextOverlays(textOverlays) {
     }
     return { ...item, lane: assignedLane };
   });
-  return { packedTextOverlays: packed, textLaneCount: Math.max(1, laneEndTimes.length) };
+
+  return { packedItems, laneCount: Math.max(1, laneEndTimes.length) };
+}
+
+/**
+ * Auto-stacking multi-layer calculation for overlapping text overlays.
+ * Assigns each overlay to the first available lane that doesn't overlap.
+ */
+export function packTextOverlays(textOverlays) {
+  const { packedItems, laneCount } = packTimedLanes(textOverlays);
+  return { packedTextOverlays: packedItems, textLaneCount: laneCount };
 }
 
 /**
@@ -49,27 +64,8 @@ export function packTextOverlays(textOverlays) {
  * Assigns each sticker to the first available lane that doesn't overlap.
  */
 export function packStickers(stickers) {
-  if (!stickers || stickers.length === 0) {
-    return { packedStickers: [], stickerLaneCount: 0 };
-  }
-  const sorted = [...stickers].sort((a, b) => a.start - b.start);
-  const laneEndTimes = [];
-  const packed = sorted.map((item) => {
-    let assignedLane = -1;
-    for (let i = 0; i < laneEndTimes.length; i++) {
-      if (item.start >= laneEndTimes[i] - 0.05) {
-        assignedLane = i;
-        laneEndTimes[i] = item.end;
-        break;
-      }
-    }
-    if (assignedLane === -1) {
-      assignedLane = laneEndTimes.length;
-      laneEndTimes.push(item.end);
-    }
-    return { ...item, lane: assignedLane };
-  });
-  return { packedStickers: packed, stickerLaneCount: Math.max(1, laneEndTimes.length) };
+  const { packedItems, laneCount } = packTimedLanes(stickers);
+  return { packedStickers: packedItems, stickerLaneCount: laneCount };
 }
 
 /**

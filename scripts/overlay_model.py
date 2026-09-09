@@ -203,6 +203,22 @@ def base_fs_ratio(kind: str) -> float:
     return HOOK_FS_RATIO if kind == "hook" else TEXT_FS_RATIO
 
 
+OVERLAY_KIND_ALIASES = {
+    "hook": "hook",
+    "hook_header": "hook",
+    "text": "text",
+    "text_overlay": "text",
+}
+
+
+def overlay_kind(overlay: Optional[Dict[str, Any]]) -> Optional[str]:
+    """Resolve the persisted kind/type spelling used by the ASS dispatcher."""
+    if not isinstance(overlay, dict):
+        return None
+    raw_kind = overlay.get("kind") or overlay.get("type")
+    return OVERLAY_KIND_ALIASES.get(raw_kind)
+
+
 # ---------------------------------------------------------------- position
 # The banner's block is anchored to the top of the frame: ASS MarginV 260 of
 # 1920, canvas y 130 of 960 -- the same fraction, per parity rule 2.8.
