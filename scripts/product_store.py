@@ -21,6 +21,7 @@ old absolute ones already on disk keep working.
 
 import json
 import re
+import time
 import uuid
 import datetime
 from pathlib import Path
@@ -180,6 +181,19 @@ _TABLE = DocumentTable("products", _store_db_path, _store_json_path)
 
 class ProductStore:
     """The list of products in play, with what the AI worked out about each."""
+
+    # reconcile_existing_projects() opens a `_mutate()` transaction that holds
+    # store.db's one write lock for the whole disk scan, and get_all()/list()/
+    # get() all call it unconditionally -- meaning every UI poll re-scans and
+    # re-locks, even seconds apart. Debounced to once per this window; a poll
+    # inside it just reads whatever the last scan already reconciled, which is
+    # correct within the window and self-corrects on the next one past it.
+    # This is what actually failed under concurrent polling (see incident:
+    # requests queuing on this lock stacked into 90+ second hangs even after
+    # the busy_timeout fix, because the lock was being re-acquired far more
+    # often than it needed to be).
+    _RECONCILE_MIN_INTERVAL_S = 3.0
+    _last_reconcile_at: float = 0.0
 
     # Kept only so any external code that still references ProductStore._lock
     # (none found in this repo, but this was public-by-convention before)
@@ -375,6 +389,28 @@ class ProductStore:
                                auto-unlinks this angle from another angle's
                                project/video (Round BUG-3).
         """
+        # Validated *before* entering _mutate() on purpose: ExportRegistry
+        # shares this store's own store.db file, and on the same thread
+        # _connection_for() hands back that exact same cached connection
+        # (keyed by resolved db path, not by table). Calling into it from
+        # inside _mutate()'s `with` block -- which holds one SQLite write
+        # transaction open for the block's whole body, by design (see
+        # _mutate()'s docstring) -- meant a second nested write transaction
+        # could be attempted on a connection already mid-transaction,
+        # hanging that request (and, since it's the same file-level write
+        # lock, every other request touching products/exports/post_log/
+        # schedule) for up to busy_timeout x retry-attempts. Doing this
+        # lookup first keeps _mutate()'s block to pure in-memory dict
+        # mutation, no nested DB calls.
+        export_record = ExportRegistry.get(export_id) if export_id else None
+        if export_id and export_record is None:
+            raise ValueError(f"ไม่พบ export_id '{export_id}'")
+        if export_id and video_url is not None:
+            stored_path = _to_absolute(export_record.get("path"))
+            requested_path = _to_absolute(video_url)
+            if stored_path != requested_path:
+                raise ValueError("export_id ไม่ตรงกับ video_url ของไฟล์ที่เลือก")
+
         with cls._mutate() as products:
             for product in products:
                 if product["id"] == product_id:
@@ -382,15 +418,6 @@ class ProductStore:
                     for angle in angles:
                         current_aid = angle.get("angle_id") or angle.get("id")
                         if current_aid == angle_id:
-                            if export_id:
-                                export_record = ExportRegistry.get(export_id)
-                                if export_record is None:
-                                    raise ValueError(f"ไม่พบ export_id '{export_id}'")
-                                if video_url is not None:
-                                    stored_path = _to_absolute(export_record.get("path"))
-                                    requested_path = _to_absolute(video_url)
-                                    if stored_path != requested_path:
-                                        raise ValueError("export_id ไม่ตรงกับ video_url ของไฟล์ที่เลือก")
                             # Strict guard: An angle that has been posted is permanently sealed as proof/archive.
                             # Never allow demoting status away from 'posted' under any circumstances.
                             if (angle.get("status") == "posted" or angle.get("posted_at")) and status != "posted":
@@ -883,6 +910,11 @@ class ProductStore:
         # write lock.
         if not projects_dir.exists():
             return False
+
+        now = time.monotonic()
+        if now - cls._last_reconcile_at < cls._RECONCILE_MIN_INTERVAL_S:
+            return False
+        cls._last_reconcile_at = now
 
         changed = False
         # The scan below reads the disk and rewrites angle status/paths, so

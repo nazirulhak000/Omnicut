@@ -41,8 +41,11 @@ from __future__ import annotations
 import json
 import sqlite3
 import threading
+import time
 from pathlib import Path
-from typing import Any, Dict, Iterable, List
+from typing import Any, Callable, Dict, Iterable, List, TypeVar
+
+_T = TypeVar("_T")
 
 # One SQLite connection per (thread, db path). sqlite3 connections are not
 # safe to share across threads; FastAPI's threadpool means every request can
@@ -65,7 +68,42 @@ _setup_lock = threading.Lock()
 # re-issued by every new per-thread connection.
 _wal_enabled_paths: set = set()
 
-_BUSY_TIMEOUT_MS = 30_000
+# Was 30_000. Found a real deadlock risk: DocumentTable.mutate() (see below)
+# holds one SQLite write transaction open across its ENTIRE `with` block body
+# -- by design, per its own docstring, that transaction IS the mutual-
+# exclusion mechanism. ProductStore.update_angle_status() calls
+# ExportRegistry.get(export_id) *inside* that block; ExportRegistry shares
+# the same store.db file, and on the same thread `_connection_for()` hands
+# back the SAME cached connection (keyed by resolved db path, not by table).
+# If that nested call's own _sync_from_json_if_newer() decides a re-import is
+# due, it tries to open a second write transaction on a connection that's
+# already mid-transaction -- at 30s busy_timeout x 3 retries, a stall there
+# hung every request touching this file for ~90-110s and read as the whole
+# backend being offline. Shortening this doesn't fix the nesting (that needs
+# its own fix -- tracked separately), but it turns a 100s silent hang into a
+# ~5s failure the caller can see and retry, which is the more urgent half.
+_BUSY_TIMEOUT_MS = 5_000
+
+# `PRAGMA busy_timeout` already makes SQLite itself retry a blocked
+# BEGIN IMMEDIATE for up to _BUSY_TIMEOUT_MS before giving up -- but under a
+# burst of concurrent requests (several threads' DocumentTable.load() calls
+# noticing the JSON mirror changed at once, see _sync_from_json_if_newer's
+# docstring) that window can still be exhausted, and the caller sees a raw
+# "database is locked" OperationalError. Retrying the whole operation a
+# couple more times, each after its own fresh busy_timeout wait, absorbs
+# that without ever needing to touch the locking design itself.
+_LOCK_RETRY_ATTEMPTS = 3
+
+
+def _retry_on_locked(fn: Callable[[], _T]) -> _T:
+    for attempt in range(_LOCK_RETRY_ATTEMPTS):
+        try:
+            return fn()
+        except sqlite3.OperationalError as err:
+            if "database is locked" not in str(err) or attempt == _LOCK_RETRY_ATTEMPTS - 1:
+                raise
+            time.sleep(0.2 * (attempt + 1))
+    raise AssertionError("unreachable")  # pragma: no cover
 
 
 def _ensure_wal_mode(db_path: Path, key: str) -> None:
@@ -217,9 +255,13 @@ class DocumentTable:
     # -- public: load/save (mirrors ProductStore/PostLog._load/_save) ----
     def load(self) -> List[Dict[str, Any]]:
         conn = self._conn()
-        self._sync_from_json_if_newer(conn)
-        rows = conn.execute(f"SELECT data FROM {self._table}").fetchall()
-        return [json.loads(r[0]) for r in rows]
+
+        def _do():
+            self._sync_from_json_if_newer(conn)
+            rows = conn.execute(f"SELECT data FROM {self._table}").fetchall()
+            return [json.loads(r[0]) for r in rows]
+
+        return _retry_on_locked(_do)
 
     def save(self, records: Iterable[Dict[str, Any]]) -> None:
         records = list(records)
@@ -227,19 +269,21 @@ class DocumentTable:
         with _setup_lock:
             _ensure_table(conn, self._table)
 
-        conn.execute("BEGIN IMMEDIATE")
-        try:
-            conn.execute(f"DELETE FROM {self._table}")
-            for record in records:
-                conn.execute(
-                    f"INSERT OR REPLACE INTO {self._table} (id, updated_at, data) VALUES (?, ?, ?)",
-                    (_id_of(record), _updated_at_of(record), json.dumps(record, ensure_ascii=False)),
-                )
-            conn.execute("COMMIT")
-        except Exception:
-            conn.execute("ROLLBACK")
-            raise
+        def _do():
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                conn.execute(f"DELETE FROM {self._table}")
+                for record in records:
+                    conn.execute(
+                        f"INSERT OR REPLACE INTO {self._table} (id, updated_at, data) VALUES (?, ?, ?)",
+                        (_id_of(record), _updated_at_of(record), json.dumps(record, ensure_ascii=False)),
+                    )
+                conn.execute("COMMIT")
+            except Exception:
+                conn.execute("ROLLBACK")
+                raise
 
+        _retry_on_locked(_do)
         self._write_json_mirror(conn)
 
     def _write_json_mirror(self, conn: sqlite3.Connection) -> None:
@@ -296,11 +340,11 @@ class DocumentTable:
             try:
                 mtime_ns = json_path.stat().st_mtime_ns
                 source_key = str(json_path.resolve())
-                conn.execute(
+                _retry_on_locked(lambda: conn.execute(
                     "INSERT INTO _json_mirror_state (source_path, table_name, last_imported_mtime_ns) "
                     "VALUES (?, ?, ?) ON CONFLICT(source_path) DO UPDATE SET last_imported_mtime_ns = excluded.last_imported_mtime_ns",
                     (source_key, self._table, mtime_ns),
-                )
+                ))
             except OSError:
                 pass
 
