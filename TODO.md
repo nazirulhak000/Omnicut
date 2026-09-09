@@ -14,6 +14,7 @@
 ## สถานะรวม
 ---
 
+- [x] Round SFX-DL-1 — โหลดเสียงเอฟเฟกต์ทั้งหมดจาก myinstants.com/en/index/th/ เข้า 02_Assets/SFX/ (2026-09-09)
 - [x] Round BUG-STATUS-1 — คลิปที่เรนเดอร์แล้วติดสถานะ "กำลังตัดต่อ" (2026-09-08)
 - [x] Round BUG-EXT-1 — Extension ไม่แสดงคลิปตัดต่อเสร็จเพราะ schedule queue บัง (2026-09-08)
 - [ ] Round POST-LIFECYCLE-1 — แยกเวอร์ชันที่โพสต์จริง, คุมรายการใน Extension และซ่อมปุ่มมาร์กโพสต์ (2026-09-08)
@@ -57,6 +58,31 @@
 - [x] Round TRK-2 — ตารางจัดคิวโพสต์ประจำวัน (Daily Run Sheet) & จัดกลุ่มย่อการ์ด (Product Grouping / Quick Pills)
 - [x] Round TRK-3 — บอร์ดหลักคลีนไร้ความรก (Today-Only Posted, คลังสคริปต์หยิบทำวันนี้ & การ์ดตัดต่อเสร็จแนวนอนกะทัดรัด)
 - [x] Round COV-1 — สตูดิโอสร้างปกคลิปด่วน 9:16 & 3:4 (Auto Highlight Crop, Interactive Pan & Zoom Subtitle-Free, Dual Export)
+
+## Round SFX-DL-1 — โหลดเสียงเอฟเฟกต์ทั้งหมดจาก myinstants.com เข้า 02_Assets/SFX/
+
+วันที่: 2026-09-09 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** ดึงเสียงเอฟเฟกต์ทั้งหมดจาก https://www.myinstants.com/en/index/th/ (~1,800 เสียง ทุกหน้า 50 หน้า) ลงใน `02_Assets/SFX/` รวมกับเสียงเดิม ไม่ลบเสียงเก่า ใช้ script Python ที่ดึงจาก API ของเว็บ
+
+### Todo
+
+- [x] เขียน `tools/download_myinstants_sfx.py` — script ดึงเสียงจาก myinstants.com หน้า th/ ทุกหน้า
+- [x] รัน script และตรวจสอบว่าไฟล์โหลดครบ ไม่มี error
+- [x] ตรวจว่าเสียงเก่าใน 02_Assets/SFX/ ยังครบ ไม่ถูกเขียนทับ
+
+### Gate
+
+- [x] รัน script จนครบทุกหน้า — ผ่าน 50 หน้า (404 หน้า 51+ = สิ้นสุดข้อมูล)
+- [x] นับไฟล์ใน 02_Assets/SFX/ หลังโหลด — **1,822 ไฟล์** (เดิม 47)
+- [x] เสียงเก่า 47 ไฟล์ครบทุกไฟล์ (ไม่ถูกลบ/เขียนทับ) — ✅ ผ่าน
+
+### Notes
+
+- พบเสียงทั้งหมด: **1,800** | โหลดสำเร็จ: **1,775** | ข้าม (ซ้ำ): **25**
+- ไฟล์ใหม่ทั้งหมดมี prefix `mi_` เช่น `mi_vine-boom.mp3`, `mi_7-11-sound-thailand.mp3`
+- script อยู่ที่ `tools/download_myinstants_sfx.py` ใช้โหลดซ้ำได้เมื่อต้องการอัปเดต
+- 25 ไฟล์ที่ข้ามเป็นเพราะมีชื่อซ้ำในโฟลเดอร์ (ไม่ใช่ error)
 
 ## Round POST-LIFECYCLE-1 — แยกเวอร์ชันที่โพสต์จริง, คุมรายการใน Extension และซ่อมปุ่มมาร์กโพสต์
 
