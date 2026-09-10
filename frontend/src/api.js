@@ -216,6 +216,8 @@ export const createProduct = (data) => api.post('/products', data).then(r => r.d
 export const updateProduct = (id, data) => api.patch(`/products/${id}`, data).then(r => r.data);
 export const previewProductSource = (id, data = {}) =>
   api.post(`/products/${id}/preview-source`, data, { timeout: 120000 }).then(r => r.data);
+export const previewProductImageMetadata = (id) =>
+  api.post(`/products/${id}/preview-image-metadata`, {}, { timeout: 120000 }).then(r => r.data);
 export const refreshProductSource = (id, data = {}) =>
   api.post(`/products/${id}/refresh-source`, data, { timeout: 120000 }).then(r => r.data);
 export const resolveTiktokProductId = (urlOrId) =>

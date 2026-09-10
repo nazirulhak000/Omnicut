@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import {
   scrapeAndPlanProduct, scrapeAndPlanProductAsync, getProducts, updateProduct,
-  previewProductSource, refreshProductSource, updateAngleStatus, updateAngleVideos, setDefaultVideosForProduct, deleteProduct,
+  previewProductSource, previewProductImageMetadata, refreshProductSource, updateAngleStatus, updateAngleVideos, setDefaultVideosForProduct, deleteProduct,
   uploadFile, resolveTiktokProductId, rerollAngleScript
 } from '../api';
 import { Modal, Toast, Button, Badge, Input, Textarea, ConfirmModal } from './ui';
@@ -19,6 +19,7 @@ import { toMediaUrl } from '../lib/mediaUrl';
 import { useToast } from '../hooks';
 import { useTaskManager } from '../context/TaskContext';
 import { guessBrandModel } from '../lib/overlayModel';
+import { resolveHistoryTargetId, resolveSelectedProduct } from '../lib/productSelection';
 
 // One Gemini vision call reads all of these together (product photo, spec
 // sheet, review screenshots) -- capped so a single analyze request stays a
@@ -1197,6 +1198,9 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const [historyList, setHistoryList] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [selectedHistoryId, setSelectedHistoryId] = useState(selectedProductId || null);
+  const selectedHistoryIdRef = useRef(selectedProductId || null);
+  const previousExternalProductIdRef = useRef(null);
+  const historyRequestRef = useRef(0);
   const [productSearch, setProductSearch] = useState('');
   const [productFilter, setProductFilter] = useState('all'); // 'all' | 'in_progress' | 'completed'
   const [showCatalogModal, setShowCatalogModal] = useState(false);
@@ -1333,6 +1337,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
   // Load History on Mount or when background task finishes
   const loadHistory = async (targetId = null, isStale = () => false) => {
+    const requestId = ++historyRequestRef.current;
     setLoadingHistory(true);
     try {
       const res = await getProducts();
@@ -1343,19 +1348,19 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       // winning and resetting the just-restored angle back to index 0. The
       // isStale() check lets the effect's own cleanup mark its first
       // in-flight call obsolete once StrictMode's second invoke starts.
-      if (isStale()) return;
+      if (isStale() || requestId !== historyRequestRef.current) return;
       if (res.products) {
         setHistoryList(res.products);
         if (res.products.length > 0) {
-          const effectiveId = targetId || selectedProductId || selectedHistoryId;
-          const current = res.products.find(p => p.id === effectiveId) || res.products[0];
-          selectProduct(current);
+          const effectiveId = targetId || selectedHistoryIdRef.current;
+          const current = resolveSelectedProduct(res.products, effectiveId);
+          if (current) selectProduct(current);
         }
       }
     } catch (e) {
       console.error(e);
     } finally {
-      setLoadingHistory(false);
+      if (requestId === historyRequestRef.current) setLoadingHistory(false);
     }
   };
 
@@ -1379,8 +1384,17 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     // call stale from its own cleanup ensures only the surviving invoke's
     // call is allowed to apply its result.
     let stale = false;
-    loadHistory(selectedProductId, () => stale);
-    const onFocus = () => loadHistory(selectedProductId);
+    const targetId = resolveHistoryTargetId(
+      selectedProductId,
+      previousExternalProductIdRef.current,
+      selectedHistoryIdRef.current,
+    );
+    if (selectedProductId && selectedProductId !== previousExternalProductIdRef.current) {
+      selectedHistoryIdRef.current = selectedProductId;
+    }
+    previousExternalProductIdRef.current = selectedProductId || null;
+    loadHistory(targetId, () => stale);
+    const onFocus = () => loadHistory();
     window.addEventListener('focus', onFocus);
     return () => {
       stale = true;
@@ -1391,6 +1405,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
   const selectProduct = (item) => {
     if (!item) return;
+    selectedHistoryIdRef.current = item.id;
     setSelectedHistoryId(item.id);
     setProductData({
       id: item.id,
@@ -1805,12 +1820,43 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     }
   };
 
-  const handleApplyProductSource = async ({ url, fields }) => {
+  const handlePreviewProductImages = async () => {
+    if (!productData?.id) return;
+
+    setRefreshingProductSource(true);
+    setProductSourcePreview(null);
+    try {
+      const response = await previewProductImageMetadata(productData.id);
+      setProductSourcePreview(response);
+      showToast('อ่านข้อมูลจากรูปเรียบร้อยแล้ว ตรวจและเลือก field ที่ต้องการบันทึกได้เลย');
+    } catch (err) {
+      showToast('อ่าน metadata จากรูปไม่สำเร็จ: ' + (err.response?.data?.detail || err.message), 'error');
+    } finally {
+      setRefreshingProductSource(false);
+    }
+  };
+
+  const handleApplyProductSource = async ({ url, fields, overrides }) => {
     if (!productData?.id || !url || !fields?.length) return;
 
     setRefreshingProductSource(true);
     try {
-      const response = await refreshProductSource(productData.id, { url, fields });
+      let response;
+      if (productSourcePreview?.source_type === 'vision_image') {
+        const incoming = productSourcePreview.incoming || {};
+        const imagePatch = Object.fromEntries(
+          fields
+            .filter((field) => !['url', 'images'].includes(field))
+            .map((field) => [field, overrides?.[field] ?? incoming[field]])
+        );
+        response = await updateProduct(productData.id, {
+          ...imagePatch,
+          metadata_source: 'vision_image',
+          source_warning: productSourcePreview.source_warning || '',
+        });
+      } else {
+        response = await refreshProductSource(productData.id, { url, fields, overrides });
+      }
       if (response.product) {
         const refreshed = response.product;
         setProductData(prev => ({ ...prev, ...refreshed }));
@@ -2141,8 +2187,15 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   )
                 )}
               </div>
-              <h1 className="text-sm sm:text-base md:text-lg font-bold text-white font-kanit truncate tracking-tight">
-                {productData?.title || productData?.name || (historyList.length > 0 ? 'เลือกสินค้าจากรายการด้านล่าง' : 'ยังไม่มีสินค้า — เริ่มวิเคราะห์สินค้าใหม่')}
+              <h1 className="flex items-center gap-1.5 text-sm sm:text-base md:text-lg font-bold text-white font-kanit tracking-tight">
+                {productData?.product_code && (
+                  <span className="px-1.5 py-0.2 rounded bg-fuchsia-500/15 border border-fuchsia-500/30 text-fuchsia-300 font-mono text-[10px] flex-shrink-0">
+                    {productData.product_code}
+                  </span>
+                )}
+                <span className="truncate">
+                  {productData?.title || productData?.name || (historyList.length > 0 ? 'เลือกสินค้าจากรายการด้านล่าง' : 'ยังไม่มีสินค้า — เริ่มวิเคราะห์สินค้าใหม่')}
+                </span>
               </h1>
             </div>
 
@@ -2160,7 +2213,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                 >
                   {historyList.map(p => (
                     <option key={p.id} value={p.id} className="bg-[#080B11] text-white">
-                      {p.name} ({p.angles?.length || 0} สคริปต์)
+                      {p.product_code ? `${p.product_code} · ${p.name}` : p.name} ({p.angles?.length || 0} สคริปต์)
                     </option>
                   ))}
                 </select>
@@ -2307,6 +2360,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         onAddImages={handleProductReferenceUpload}
         onRemoveImage={handleRemoveProductImage}
         onPreviewSource={handlePreviewProductSource}
+        onPreviewImages={handlePreviewProductImages}
         onApplySource={handleApplyProductSource}
         onSaveMetadata={handleSaveProductMetadata}
         sourcePreview={productSourcePreview}

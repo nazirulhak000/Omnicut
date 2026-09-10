@@ -327,6 +327,55 @@ def _normalise_rendered_text(value: str) -> str:
     return "\n".join(lines)[:MAX_RENDERED_SOURCE_CHARS]
 
 
+def _source_text_without_duplicate(description: str, raw_text: str) -> str:
+    """Keep raw-source lines that are not already represented by description.
+
+    Product pages often expose the same description once as a dedicated field
+    and once inside the full page text (sometimes preceded by the title). The
+    full raw text remains persisted for inspection, but prompts and summaries
+    should not feed the same paragraph to the model twice.
+    """
+    description_lines = [
+        re.sub(r"\s+", " ", line).strip()
+        for line in (description or "").splitlines()
+        if line.strip()
+    ]
+    duplicate_lines = {line.casefold() for line in description_lines}
+    raw_lines = []
+    for line in (raw_text or "").splitlines():
+        compact = re.sub(r"\s+", " ", line).strip()
+        if compact and compact.casefold() not in duplicate_lines:
+            raw_lines.append(compact)
+    return "\n".join(raw_lines)
+
+
+def _normalise_image_metadata(value: Any) -> Dict[str, Any]:
+    """Keep the image extractor's response inside the product metadata shape."""
+    if not isinstance(value, dict):
+        raise ValueError("ผลอ่านจากรูปต้องเป็น JSON object")
+
+    def text(key: str) -> str:
+        raw = value.get(key, "")
+        return str(raw).strip() if isinstance(raw, (str, int, float)) else ""
+
+    def items(key: str) -> list:
+        raw = value.get(key, [])
+        if not isinstance(raw, list):
+            return []
+        return [item.strip() if isinstance(item, str) else item for item in raw if item not in (None, "")]
+
+    return {
+        "name": text("name"),
+        "description": text("description"),
+        "raw_text": text("raw_text"),
+        "specs": items("specs"),
+        "selling_points": items("selling_points"),
+        "pain_points": items("pain_points"),
+        "source_warning": text("source_warning"),
+        "metadata_source": "vision_image",
+    }
+
+
 class _VisibleHTMLTextParser(HTMLParser):
     """Extract server-rendered text while ignoring scripts and style payloads."""
 
@@ -636,6 +685,100 @@ class ProductScraper:
         }
 
     @classmethod
+    def extract_metadata_from_images(
+        cls,
+        image_paths: Optional[List[str]] = None,
+        product_name: str = "",
+    ) -> Dict[str, Any]:
+        """Extract product facts from reference images without inventing claims."""
+        paths = [path for path in (image_paths or []) if path][:8]
+        if not paths:
+            raise ValueError("ยังไม่มีรูปอ้างอิงให้อ่าน")
+
+        api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+        if not api_key:
+            env_file = BASE_DIR / ".env"
+            if env_file.exists():
+                for line in env_file.read_text(encoding="utf-8").splitlines():
+                    if line.startswith("GEMINI_API_KEY="):
+                        api_key = line.split("=", 1)[1].strip()
+                        break
+        if not api_key:
+            raise RuntimeError("ยังไม่ได้ตั้งค่า GEMINI_API_KEY สำหรับอ่านข้อมูลจากรูป")
+
+        from scripts.quota import check_budget
+        check_budget(task="content_matrix")
+        prompt = f"""
+คุณคือผู้ตรวจสอบข้อมูลสินค้าแบบระมัดระวัง อ่านเฉพาะสิ่งที่มองเห็นได้จริงจากรูปอ้างอิง
+สินค้าเดิม (ถ้ามี): {product_name or 'ไม่ทราบชื่อ'}
+
+ตอบเป็น JSON object เท่านั้น ห้ามใส่ markdown โดยมีโครงสร้าง:
+{{
+  "name": "ชื่อสินค้า/ซีรีส์ที่อ่านได้ ถ้าไม่ชัดให้ใช้ค่าว่าง",
+  "description": "สรุปคำอธิบายและสรรพคุณจากข้อมูลที่อ่านได้จริง 1 ย่อหน้า",
+  "raw_text": "ข้อความสำคัญที่อ่านได้จากรูป เรียงเป็นบรรทัด",
+  "specs": ["สเปกพร้อมตัวเลขและหน่วยที่อ่านได้จริง"],
+  "selling_points": ["จุดขายหรือคุณสมบัติที่เห็นชัดในรูป"],
+  "pain_points": ["ปัญหาหรือกลุ่มผู้ใช้ที่รูปกล่าวถึง ถ้าไม่มีให้เป็น []"],
+  "source_warning": "ระบุเฉพาะส่วนที่ตัวเล็ก/เบลอ/อ่านไม่แน่ใจ ถ้าไม่มีให้เป็นค่าว่าง"
+}}
+
+กฎความถูกต้อง:
+- ห้ามเดาตัวเลข รุ่น วัสดุ หรือคุณสมบัติที่อ่านไม่ชัด
+- ถ้ารูปมีหลายรุ่น ให้แยกเป็นรายการใน specs/selling_points และระบุชื่อรุ่นให้ชัด
+- คงชื่อแบรนด์ รุ่น และศัพท์เทคนิคภาษาอังกฤษตามที่ปรากฏในรูป
+- ห้ามใส่ข้อมูลจากความรู้ทั่วไปนอกภาพ
+""".strip()
+
+        from google import genai
+        from google.genai import types
+        image_parts = []
+        for image_path in paths:
+            try:
+                if isinstance(image_path, str) and image_path.lower().startswith(("http://", "https://")):
+                    data, mime = _download_image_bytes(image_path)
+                else:
+                    path = Path(image_path)
+                    if not path.is_absolute():
+                        path = BASE_DIR / path
+                    data = path.read_bytes()
+                    mime = {
+                        ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+                        ".png": "image/png", ".webp": "image/webp",
+                        ".heic": "image/heic", ".heif": "image/heif",
+                    }.get(path.suffix.lower(), "image/jpeg")
+                image_parts.append(types.Part.from_bytes(data=data, mime_type=mime))
+            except Exception as image_error:
+                print(
+                    f"[ProductScraper] Skipping unreadable metadata image {image_path}: "
+                    f"{ascii(image_error)}"
+                )
+
+        if not image_parts:
+            raise ValueError("อ่านไฟล์รูปอ้างอิงไม่ได้")
+
+        client = genai.Client(api_key=api_key)
+        response = None
+        for model_name in ["gemini-3.5-flash", "gemini-flash-latest", "gemini-2.5-flash", "gemini-3.5-flash-lite"]:
+            try:
+                response = client.models.generate_content(model=model_name, contents=[prompt, *image_parts])
+                if response and response.text:
+                    break
+            except Exception as model_error:
+                print(
+                    f"[ProductScraper] Image metadata model {model_name} note: "
+                    f"{ascii(model_error)}"
+                )
+                if "429" in str(model_error) or "RESOURCE_EXHAUSTED" in str(model_error):
+                    raise
+
+        if not response or not response.text:
+            raise RuntimeError("AI ไม่ส่งผลลัพธ์จากรูปกลับมา")
+        cleaned = re.sub(r'^```(?:json)?\s*', '', response.text.strip())
+        cleaned = re.sub(r'\s*```$', '', cleaned).strip()
+        return _normalise_image_metadata(json.loads(cleaned))
+
+    @classmethod
     def generate_content_matrix(
         cls,
         product_data: Dict[str, Any],
@@ -671,6 +814,7 @@ class ProductScraper:
         desc = product_data.get("description", "")
         price = product_data.get("price_note", "")
         raw = product_data.get("raw_text", "")
+        raw_without_duplicate = _source_text_without_duplicate(desc, raw)
         specs = product_data.get("specs", [])
         selling_points = product_data.get("selling_points", [])
         pain_points = product_data.get("pain_points", [])
@@ -762,7 +906,7 @@ class ProductScraper:
 - รายละเอียด: {desc}
 - ราคา/โปรโมชั่น: {price}
 - ข้อมูลสกัดเพิ่มเติม: {structured_source}
-- ข้อมูลต้นฉบับจากแหล่งข้อมูล: {raw[:MAX_PROMPT_SOURCE_CHARS]}
+- ข้อมูลต้นฉบับจากแหล่งข้อมูล (เฉพาะส่วนที่ไม่ซ้ำกับรายละเอียด): {raw_without_duplicate[:MAX_PROMPT_SOURCE_CHARS]}
 
 # กฎเหล็กด้านจังหวะการพูด การเว้นวรรค และความไวรัล (Viral Cadence & Breath Pacing Standards):
 1. **การเคาะเว้นวรรคแบ่งก้อนความคิดสร้างจังหวะหายใจ (Natural Thought Chunking & Breath Pacing - กฎสำคัญที่สุด)**:

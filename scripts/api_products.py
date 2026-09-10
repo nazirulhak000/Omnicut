@@ -285,6 +285,7 @@ def preview_product_source(product_id: str, payload: Optional[Dict[str, Any]] = 
     merged_images = _merge_product_source_images(current.get("images"), incoming.get("images"))
     return {
         "success": True,
+        "source_type": "url",
         "url": incoming["url"] or url,
         "metadata_source": source_method,
         "source_warning": scraped.get("source_warning", ""),
@@ -296,6 +297,74 @@ def preview_product_source(product_id: str, payload: Optional[Dict[str, Any]] = 
             "existing": len(current.get("images") or []),
             "incoming": len(incoming.get("images") or []),
             "merged": len(merged_images),
+        },
+    }
+
+
+@router.post("/api/products/{product_id}/preview-image-metadata")
+def preview_product_image_metadata(product_id: str):
+    """Read product reference images with Vision and return an editable diff."""
+    product = ProductStore.get(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail=f"ไม่พบสินค้า id '{product_id}'")
+
+    image_paths = []
+    for image in product.get("images") or []:
+        if isinstance(image, str):
+            reference = image
+        elif isinstance(image, dict):
+            reference = image.get("local_path") or image.get("rel_path") or image.get("path") or image.get("url") or image.get("src")
+        else:
+            reference = ""
+        if reference:
+            image_paths.append(reference)
+    if not image_paths:
+        raise HTTPException(status_code=400, detail="สินค้านี้ยังไม่มีรูปอ้างอิงให้อ่าน")
+
+    try:
+        extracted = ProductScraper.extract_metadata_from_images(
+            image_paths=image_paths,
+            product_name=product.get("name") or product.get("title") or "",
+        )
+    except Exception as err:
+        if is_quota_error(err):
+            raise HTTPException(status_code=429, detail=getattr(err, "suggestion_th", str(err)))
+        if isinstance(err, (ValueError, RuntimeError, OSError)):
+            raise HTTPException(status_code=422, detail=f"อ่าน metadata จากรูปไม่สำเร็จ: {err}")
+        raise
+
+    current = _source_preview_current(product)
+    incoming = {
+        "name": extracted.get("name") or product.get("name") or "",
+        "url": product.get("url") or "",
+        "description": extracted.get("description") or "",
+        "raw_text": extracted.get("raw_text") or "",
+        "price_note": product.get("price_note") or "",
+        "specs": extracted.get("specs") or [],
+        "selling_points": extracted.get("selling_points") or [],
+        "pain_points": extracted.get("pain_points") or [],
+        "images": [],
+    }
+    changed_fields = [
+        field for field in SOURCE_PREVIEW_FIELDS
+        if field not in {"url", "price_note", "images"}
+        and _source_values_differ(current.get(field), incoming.get(field))
+    ]
+    return {
+        "success": True,
+        "source_type": "vision_image",
+        "url": product.get("url") or "",
+        "metadata_source": "vision_image",
+        "source_warning": extracted.get("source_warning", ""),
+        "source_images": image_paths[:8],
+        "current": current,
+        "incoming": incoming,
+        "merged_images": current.get("images") or [],
+        "changed_fields": changed_fields,
+        "image_summary": {
+            "existing": len(current.get("images") or []),
+            "incoming": len(image_paths[:8]),
+            "merged": len(current.get("images") or []),
         },
     }
 
@@ -323,6 +392,9 @@ def refresh_product_source(product_id: str, payload: Optional[Dict[str, Any]] = 
 
     selected_fields = set(payload.get("fields") or SOURCE_PREVIEW_FIELDS)
     selected_fields &= set(SOURCE_PREVIEW_FIELDS)
+    overrides = payload.get("overrides") or {}
+    if not isinstance(overrides, dict):
+        raise HTTPException(status_code=400, detail="ข้อมูลที่แก้จาก preview ต้องเป็น object")
     scraped_images = scraped.get("images") or []
     fields = {
         "platform": scraped.get("platform") or product.get("platform", ""),
@@ -330,17 +402,21 @@ def refresh_product_source(product_id: str, payload: Optional[Dict[str, Any]] = 
     }
     incoming = _source_preview_candidate(scraped)
     for field in selected_fields - {"images"}:
-        if incoming.get(field):
+        if field in overrides:
+            value = overrides[field]
+            if field in {"specs", "selling_points", "pain_points"}:
+                if not isinstance(value, list):
+                    raise HTTPException(status_code=400, detail=f"ฟิลด์ {field} ต้องเป็นรายการ")
+                fields[field] = value
+            elif not isinstance(value, str):
+                raise HTTPException(status_code=400, detail=f"ฟิลด์ {field} ต้องเป็นข้อความ")
+            else:
+                fields[field] = value.strip()
+        elif incoming.get(field):
             fields[field] = incoming[field]
     if "images" in selected_fields:
         fields["images"] = _merge_product_source_images(product.get("images"), scraped_images)
-    # Persist structured source fields as well as the raw copy. Without this,
-    # the scraper can find product benefits/specs but the metadata inspector
-    # and the next AI prompt still see the old empty arrays.
-    for field in ("specs", "selling_points", "pain_points"):
-        if scraped.get(field):
-            fields[field] = scraped[field]
-    if scraped.get("price_note") and scraped["price_note"] != "ราคาพิเศษในตะกร้า":
+    if "price_note" in selected_fields and scraped.get("price_note") and scraped["price_note"] != "ราคาพิเศษในตะกร้า":
         fields["price_note"] = scraped["price_note"]
     if not product.get("thumbnail") and scraped_images:
         first_image = scraped_images[0]

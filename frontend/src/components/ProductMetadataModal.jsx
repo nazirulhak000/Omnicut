@@ -37,6 +37,20 @@ function displayValue(value) {
   return String(value);
 }
 
+function sourceTextWithoutDuplicate(description, rawText) {
+  const duplicateLines = new Set(
+    String(description || '')
+      .split(/\r?\n/)
+      .map((line) => line.replace(/\s+/g, ' ').trim().toLocaleLowerCase())
+      .filter(Boolean)
+  );
+  return String(rawText || '')
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\s+/g, ' ').trim())
+    .filter((line) => line && !duplicateLines.has(line.toLocaleLowerCase()))
+    .join('\n');
+}
+
 function DataRow({ label, value, multiline = false }) {
   const rendered = displayValue(value);
   return (
@@ -71,6 +85,7 @@ export default function ProductMetadataModal({
   onAddImages,
   onRemoveImage,
   onPreviewSource,
+  onPreviewImages,
   onApplySource,
   onSaveMetadata,
   sourcePreview,
@@ -84,6 +99,7 @@ export default function ProductMetadataModal({
 }) {
   const images = Array.isArray(product?.images) ? product.images : [];
   const [draft, setDraft] = useState({});
+  const [previewDraft, setPreviewDraft] = useState({});
   const [selectedPreviewFields, setSelectedPreviewFields] = useState({});
 
   useEffect(() => {
@@ -103,6 +119,10 @@ export default function ProductMetadataModal({
   useEffect(() => {
     const changed = sourcePreview?.changed_fields || [];
     setSelectedPreviewFields(Object.fromEntries(changed.map((field) => [field, true])));
+    setPreviewDraft({
+      description: sourcePreview?.incoming?.description || '',
+      raw_text: sourcePreview?.incoming?.raw_text || '',
+    });
   }, [sourcePreview]);
 
   const updateDraft = (field, value) => setDraft((current) => ({ ...current, [field]: value }));
@@ -129,8 +149,10 @@ export default function ProductMetadataModal({
   }, [product]);
 
   const sourceMethod = product?.metadata_source === 'derived_from_angles'
-    ? 'ข้อมูลชุดนี้สรุปย้อนกลับจาก key features และ pain points ในสคริปต์เดิม ไม่ใช่ raw data จากหน้าเว็บ'
-    : product?.metadata_source === 'html_body'
+      ? 'ข้อมูลชุดนี้สรุปย้อนกลับจาก key features และ pain points ในสคริปต์เดิม ไม่ใช่ raw data จากหน้าเว็บ'
+    : product?.metadata_source === 'vision_image'
+      ? 'อ่านจากรูปอ้างอิงสินค้าด้วย Vision — ตรวจสอบตัวเลขและรุ่นใน preview ก่อนบันทึก'
+      : product?.metadata_source === 'html_body'
       ? 'อ่านจากรายละเอียดสินค้าที่อยู่ใน HTML โดยตรง'
       : product?.metadata_source === 'browser_dom'
       ? 'ดึงจากข้อความที่มองเห็นจริงหลังหน้าเว็บ render ด้วย JavaScript'
@@ -228,6 +250,18 @@ export default function ProductMetadataModal({
                             })}
                           </div>
                         </div>
+                      ) : (field === 'description' || field === 'raw_text') ? (
+                        <label className="mt-2 block">
+                          <span className="mb-1 block text-[10px] font-bold text-cyan-300">
+                            ใหม่ · แก้ไขได้ก่อนบันทึก
+                          </span>
+                          <textarea
+                            value={previewDraft[field] || ''}
+                            onChange={(event) => setPreviewDraft((current) => ({ ...current, [field]: event.target.value }))}
+                            rows={field === 'description' ? 6 : 8}
+                            className="w-full resize-y rounded-lg border border-cyan-300/20 bg-cyan-300/[0.06] p-2 text-[11px] leading-relaxed text-cyan-50 outline-none transition focus:border-cyan-300/60"
+                          />
+                        </label>
                       ) : (
                         <div className="mt-2 grid gap-2 sm:grid-cols-2">
                           <div className="min-w-0"><div className="mb-1 text-[10px] font-bold text-slate-500">เดิม</div><pre className="max-h-32 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-black/25 p-2 text-[11px] leading-relaxed text-slate-400">{previewValue(sourcePreview.current?.[field])}</pre></div>
@@ -240,7 +274,15 @@ export default function ProductMetadataModal({
                 {(sourcePreview.changed_fields || []).length === 0 && <p className="rounded-xl bg-black/20 p-3 text-xs text-slate-400">ไม่พบข้อมูลที่ต่างจากเดิม</p>}
                 <div className="flex flex-wrap justify-end gap-2 pt-2">
                   <button type="button" onClick={onCancelPreview} className="rounded-xl border border-white/[0.12] px-3 py-2 text-xs font-bold text-slate-300 transition hover:bg-white/[0.06]">ยกเลิก preview</button>
-                  <button type="button" onClick={() => onApplySource({ url: sourcePreview.url, fields: Object.keys(selectedPreviewFields).filter((field) => selectedPreviewFields[field]) })} disabled={refreshingSource || !Object.values(selectedPreviewFields).some(Boolean)} className="rounded-xl bg-amber-300 px-4 py-2 text-xs font-bold text-[#1b1304] transition hover:bg-amber-200 disabled:cursor-wait disabled:opacity-50">{refreshingSource ? 'กำลังบันทึกข้อมูล' : 'ยืนยันและบันทึกข้อมูลที่เลือก'}</button>
+                  <button type="button" onClick={() => {
+                    const fields = Object.keys(selectedPreviewFields).filter((field) => selectedPreviewFields[field]);
+                    const overrides = Object.fromEntries(
+                      ['description', 'raw_text']
+                        .filter((field) => fields.includes(field))
+                        .map((field) => [field, String(previewDraft[field] || '').trim()])
+                    );
+                    onApplySource({ url: sourcePreview.url, fields, overrides });
+                  }} disabled={refreshingSource || !Object.values(selectedPreviewFields).some(Boolean)} className="rounded-xl bg-amber-300 px-4 py-2 text-xs font-bold text-[#1b1304] transition hover:bg-amber-200 disabled:cursor-wait disabled:opacity-50">{refreshingSource ? 'กำลังบันทึกข้อมูล' : 'ยืนยันและบันทึกข้อมูลที่เลือก'}</button>
                 </div>
               </div>
             </section>
@@ -263,6 +305,17 @@ export default function ProductMetadataModal({
                   >
                     <RefreshCw className={`h-3.5 w-3.5 ${refreshingSource ? 'animate-spin' : ''}`} />
                     {refreshingSource ? 'กำลังอ่านหน้าเว็บจริง' : 'ดึงรายละเอียดจาก URL ใหม่'}
+                  </button>
+                )}
+                {images.length > 0 && onPreviewImages && (
+                  <button
+                    type="button"
+                    onClick={onPreviewImages}
+                    disabled={refreshingSource}
+                    className="mt-3 ml-2 inline-flex items-center gap-1.5 rounded-xl border border-violet-300/30 bg-violet-300/10 px-3 py-2 text-xs font-bold text-violet-200 transition hover:bg-violet-300/20 disabled:cursor-wait disabled:opacity-60"
+                  >
+                    <ImagePlus className="h-3.5 w-3.5" />
+                    {refreshingSource ? 'กำลังอ่านรูปอ้างอิง' : 'อ่านสรรพคุณจากรูป'}
                   </button>
                 )}
                 {product.source_warning && (
@@ -288,8 +341,8 @@ export default function ProductMetadataModal({
 
           <Section icon={FileText} title="ข้อความที่ดึงมาและข้อมูลสกัด" hint="ส่งต่อเป็นบริบทให้ AI">
             <dl>
-              <DataRow label="คำอธิบาย" value={product.description} multiline />
-              <DataRow label="ข้อความต้นฉบับ" value={product.raw_text} multiline />
+              <DataRow label="คำอธิบาย / สรรพคุณ (แก้ไขได้ด้านบน)" value={product.description} multiline />
+              <DataRow label="ข้อความต้นฉบับที่ไม่ซ้ำ" value={sourceTextWithoutDuplicate(product.description, product.raw_text)} multiline />
               <DataRow label="สเปก" value={product.specs} multiline />
               <DataRow label="จุดขาย" value={product.selling_points} multiline />
               <DataRow label="Pain points" value={product.pain_points} multiline />
@@ -358,7 +411,7 @@ export default function ProductMetadataModal({
             <div className="grid gap-2 sm:grid-cols-2">
               {[
                 ['ชื่อสินค้า', product.name || product.title],
-                ['คำอธิบาย / raw text', [product.description, product.raw_text].filter(Boolean).join('\n')],
+                ['คำอธิบาย / raw text', [product.description, sourceTextWithoutDuplicate(product.description, product.raw_text)].filter(Boolean).join('\n')],
                 ['ราคา', product.price_note],
                 ['สเปกและจุดขาย', [product.specs, product.selling_points, product.pain_points].filter(Boolean).map(displayValue).join('\n')],
                 ['รูปอ้างอิง', `${images.length} รูป (${images.map(imageOrigin).join(', ') || 'ไม่มี'})`],

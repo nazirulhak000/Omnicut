@@ -7,6 +7,7 @@ and changing images must not discard the rest of the product source material.
 import sys
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -19,6 +20,8 @@ from scripts.product_scraper import (
     _extract_html_product_text,
     _looks_like_browser_challenge,
     _normalise_rendered_text,
+    _normalise_image_metadata,
+    _source_text_without_duplicate,
     ProductScraper,
 )
 from scripts.api_server import app
@@ -440,4 +443,103 @@ def test_product_metadata_patch_rejects_non_marketplace_url(tmp_path, monkeypatc
     )
 
     assert response.status_code == 400
+
+
+def test_normalise_image_metadata_rejects_unstructured_or_keeps_visible_facts():
+    assert _normalise_image_metadata({
+        "name": "BlueWow X300 Pro Max",
+        "description": "พัดลมระบายความร้อน",
+        "raw_text": "27W",
+        "specs": ["27W", {"label": "รุ่น", "value": "X300"}],
+        "selling_points": ["Suction cooling"],
+        "pain_points": [],
+        "source_warning": "ตัวเลขบางจุดเล็ก",
+    })["metadata_source"] == "vision_image"
+
+    with pytest.raises(ValueError):
+        _normalise_image_metadata(["not", "an", "object"])
+
+
+def test_preview_image_metadata_is_read_only_and_returns_source_diff(tmp_path, monkeypatch):
+    monkeypatch.setattr(ps, "STORE_PATH", tmp_path / "_Docs" / "products.json")
+    image_path = tmp_path / "reference.png"
+    image_path.write_bytes(b"fake-image")
+    product = ps.ProductStore.add(
+        name="BlueWow",
+        images=[{"rel_path": "reference.png", "name": "reference.png"}],
+        description="เดิม",
+    )
+    monkeypatch.setattr(
+        ProductScraper,
+        "extract_metadata_from_images",
+        classmethod(lambda cls, image_paths, product_name: {
+            "name": "BlueWow X300 Pro Max",
+            "description": "พัดลมระบายความร้อน 27W",
+            "raw_text": "AI GAMING COOLING SERIES",
+            "specs": ["27W"],
+            "selling_points": ["Suction cooling"],
+            "pain_points": [],
+            "source_warning": "ตัวเลขบางจุดเล็ก",
+            "metadata_source": "vision_image",
+        }),
+    )
+
+    response = TestClient(app).post(f"/api/products/{product['id']}/preview-image-metadata")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["source_type"] == "vision_image"
+    assert "description" in body["changed_fields"]
+    assert ps.ProductStore.get(product["id"])["description"] == "เดิม"
+
+
+def test_source_text_without_duplicate_keeps_only_raw_lines_not_already_in_description():
+    assert _source_text_without_duplicate(
+        "รับประกัน 12 เดือน\nมีหัวต่อ Type-C และ Lightning",
+        "GoChek GC-ULTRA S24\nรับประกัน 12 เดือน\nมีหัวต่อ Type-C และ Lightning\nข้อมูลจากร้าน",
+    ) == "GoChek GC-ULTRA S24\nข้อมูลจากร้าน"
+
+
+def test_refresh_source_applies_edited_preview_values_and_respects_selected_fields(tmp_path, monkeypatch):
+    monkeypatch.setattr(ps, "STORE_PATH", tmp_path / "_Docs" / "products.json")
+    product = ps.ProductStore.add(
+        name="ชื่อเดิม",
+        url="https://shop.tiktok.com/th/pdp/1111111111111111111",
+        description="คำอธิบายเดิม",
+        specs=["สเปกเดิม"],
+    )
+    monkeypatch.setattr(
+        ProductScraper,
+        "scrape_url",
+        lambda url: {
+            "title": "ชื่อใหม่",
+            "url": url,
+            "platform": "tiktok",
+            "description": "คำอธิบายจากเว็บ",
+            "raw_text": "ข้อความจากเว็บ",
+            "specs": ["สเปกใหม่"],
+            "selling_points": ["จุดขายใหม่"],
+            "images": [],
+            "metadata_source": "html_body",
+        },
+    )
+
+    response = TestClient(app).post(
+        f"/api/products/{product['id']}/refresh-source",
+        json={
+            "url": "https://shop.tiktok.com/th/pdp/2222222222222222222",
+            "fields": ["description", "raw_text"],
+            "overrides": {
+                "description": "คำอธิบายสรรพคุณที่แก้แล้ว",
+                "raw_text": "ข้อความต้นฉบับที่แก้แล้ว",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    saved = response.json()["product"]
+    assert saved["description"] == "คำอธิบายสรรพคุณที่แก้แล้ว"
+    assert saved["raw_text"] == "ข้อความต้นฉบับที่แก้แล้ว"
+    assert saved["specs"] == ["สเปกเดิม"]
+    assert saved["selling_points"] == []
     assert ps.ProductStore.get(product["id"])["url"].endswith("1111111111111111111")
