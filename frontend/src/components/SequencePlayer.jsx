@@ -31,6 +31,7 @@ import {
   snapNormalizedPoint,
 } from '../lib/overlayBoxGeometry.js';
 import { bindWindowPointerLifecycle } from '../lib/pointerDragLifecycle.js';
+import { drawMediaWithAccentRecolor } from '../lib/overlayRecolor.js';
 
 const CANVAS_W = 540;
 const CANVAS_H = 960;
@@ -1049,7 +1050,7 @@ function drawCaption(ctx, cues = [], t, style = {}, outBounds = null) {
   });
 }
 
-function drawSingleSticker(ctx, img, t, stk, outBounds = null) {
+function drawSingleSticker(ctx, img, t, stk, outBounds = null, accentColor = '#FFE600') {
   if (!img || !img.complete || !img.naturalWidth) return;
   const startTime = stk.start ?? stk.startTime ?? 0.5;
   const endTime = stk.end != null ? stk.end : (stk.endTime != null ? stk.endTime : 999999);
@@ -1102,21 +1103,21 @@ function drawSingleSticker(ctx, img, t, stk, outBounds = null) {
   const alpha = Math.min(1, Math.max(0, elapsed / 0.3));
   ctx.save();
   ctx.globalAlpha = alpha;
-  ctx.drawImage(img, x, y, w, h);
+  drawMediaWithAccentRecolor(ctx, img, x, y, w, h, stk, accentColor, 'sticker', stk.badge);
   ctx.restore();
 }
 
-function drawStickers(ctx, imagesMap, singleImg, t, stickersList, outBounds = null, isStickerHidden = false, previewSticker = null) {
+function drawStickers(ctx, imagesMap, singleImg, t, stickersList, outBounds = null, isStickerHidden = false, previewSticker = null, accentColor = '#FFE600') {
   if (isStickerHidden) return;
   if (stickersList && stickersList.length > 0) {
     stickersList.forEach((stk) => {
       if (stk.hidden) return;
       const bKey = stk.badge || '';
       const img = imagesMap?.get?.(bKey) || imagesMap?.get?.(bKey.toLowerCase()) || singleImg;
-      if (img) drawSingleSticker(ctx, img, t, stk, outBounds);
+      if (img) drawSingleSticker(ctx, img, t, stk, outBounds, accentColor);
     });
   } else if (singleImg) {
-    drawSingleSticker(ctx, singleImg, t, {}, outBounds);
+    drawSingleSticker(ctx, singleImg, t, {}, outBounds, accentColor);
   }
 
   // Ephemeral preview sticker on canvas (centered)
@@ -1145,14 +1146,14 @@ function drawStickers(ctx, imagesMap, singleImg, t, stickersList, outBounds = nu
         });
       }
       ctx.save();
-      ctx.drawImage(img, x, y, w, h);
+      drawMediaWithAccentRecolor(ctx, img, x, y, w, h, { recolor: 'accent' }, accentColor, 'sticker', pKey);
       ctx.restore();
     }
   }
 }
 
-function drawSticker(ctx, img, t, stkStyle, outBounds = null) {
-  drawSingleSticker(ctx, img, t, stkStyle || {}, outBounds);
+function drawSticker(ctx, img, t, stkStyle, outBounds = null, accentColor = '#FFE600') {
+  drawSingleSticker(ctx, img, t, stkStyle || {}, outBounds, accentColor);
 }
 
 // Video overlay effects (checkmark/warning/arrow/etc). Their source clips are
@@ -1163,7 +1164,7 @@ function drawSticker(ctx, img, t, stkStyle, outBounds = null) {
 // just autoplay-loops on its own free-running clock rather than being seeked
 // to match t exactly -- exact frame alignment only matters for the real
 // export, which ffmpeg does with -itsoffset; this is a rough live preview.
-function drawSingleEffect(ctx, videoEl, t, fx, outBounds = null) {
+function drawSingleEffect(ctx, videoEl, t, fx, outBounds = null, accentColor = '#FFE600') {
   if (!videoEl || videoEl.readyState < 2) return;
   const startTime = fx.start ?? 0.5;
   const endTime = fx.end != null ? fx.end : 999999;
@@ -1194,15 +1195,15 @@ function drawSingleEffect(ctx, videoEl, t, fx, outBounds = null) {
 
   ctx.save();
   ctx.globalCompositeOperation = 'multiply';
-  ctx.drawImage(videoEl, x, y, w, h);
+  drawMediaWithAccentRecolor(ctx, videoEl, x, y, w, h, fx, accentColor, 'effect', fx.effectId);
   ctx.restore();
 }
 
-function drawEffects(ctx, videosMap, t, effectsList, outBounds = null) {
+function drawEffects(ctx, videosMap, t, effectsList, outBounds = null, accentColor = '#FFE600') {
   (effectsList || []).forEach((fx) => {
     if (!fx || fx.hidden) return;
     const videoEl = videosMap?.get?.(fx.effectId);
-    if (videoEl) drawSingleEffect(ctx, videoEl, t, fx, outBounds);
+    if (videoEl) drawSingleEffect(ctx, videoEl, t, fx, outBounds, accentColor);
   });
 }
 
@@ -3121,8 +3122,8 @@ function SequencePlayer({
     applyGrade(ctx, canvas);
     // Same order the render burns in (video_editor.py): the badge, then the
     // scrim over it, then everything libass draws on top.
-    drawStickers(ctx, stickerImagesRef.current, stickerImgRef.current, t, effectiveStickersList, bounds, isStickerHidden, previewSticker);
-    drawEffects(ctx, effectVideosRef.current, t, effects, bounds);
+    drawStickers(ctx, stickerImagesRef.current, stickerImgRef.current, t, effectiveStickersList, bounds, isStickerHidden, previewSticker, previewAccentColor);
+    drawEffects(ctx, effectVideosRef.current, t, effects, bounds, previewAccentColor);
     drawOverlayScrims(ctx, drawnOverlays, t);
     if (!captionStyle.hidden) {
       drawCaption(ctx, cues, t, captionStyle, bounds);
@@ -3267,8 +3268,8 @@ function SequencePlayer({
         ctx.filter = 'none';
         const bounds = [];
         if (framePainted) applyGrade(ctx, canvas);
-        drawStickers(ctx, stickerImagesRef.current, stickerImgRef.current, t, effectiveStickersList, bounds, isStickerHidden, previewSticker);
-    drawEffects(ctx, effectVideosRef.current, t, effects, bounds);
+        drawStickers(ctx, stickerImagesRef.current, stickerImgRef.current, t, effectiveStickersList, bounds, isStickerHidden, previewSticker, previewAccentColor);
+    drawEffects(ctx, effectVideosRef.current, t, effects, bounds, previewAccentColor);
         drawOverlayScrims(ctx, drawnOverlays, t);
         if (!captionStyle.hidden) {
           drawCaption(ctx, cues, t, captionStyle, bounds);

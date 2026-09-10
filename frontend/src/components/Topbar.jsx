@@ -15,8 +15,8 @@ const TAB_CONFIG = {
   },
   tracker: {
     icon: Layers,
-    title: 'แทร็กเกอร์ 5 เฟส',
-    badge: '2. Pipeline 5 Phases',
+    title: 'แทร็กเกอร์ 4 เฟส',
+    badge: '2. Pipeline 4 Phases',
     badgeColor: 'bg-[#25F4EE]/10 text-[#25F4EE] border-[#25F4EE]/30',
     description: 'ติดตามสถานะคลิปตั้งแต่สคริปต์จนโพสต์เสร็จ'
   },

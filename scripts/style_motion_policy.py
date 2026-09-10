@@ -18,6 +18,7 @@ class StyleMotionPolicy:
     transition_stride: int
     stylized_stride: int
     max_transition_duration: float
+    transition_family: str
     camera_motion_stride: int
     camera_zoom_delta: float
     camera_pan_extent: float
@@ -39,6 +40,7 @@ STYLE_MOTION_POLICIES = {
         # transition slots are demoted to a restrained dissolve/fade.
         stylized_stride=10,
         max_transition_duration=0.35,
+        transition_family="adaptive",
         # Animate only alternating, reasonably long shots. The quiet shots
         # remain still so motion has hierarchy instead of becoming wallpaper.
         camera_motion_stride=2,
@@ -47,6 +49,48 @@ STYLE_MOTION_POLICIES = {
         camera_min_duration=0.8,
         accent_color="#FFE600",
         status_color="#25F4EE",
+        neutral_color="#FFFFFF",
+    ),
+    "viral_punch": StyleMotionPolicy(
+        key="viral_punch",
+        transition_stride=2,
+        stylized_stride=6,
+        max_transition_duration=0.28,
+        transition_family="energetic",
+        camera_motion_stride=1,
+        camera_zoom_delta=0.12,
+        camera_pan_extent=0.18,
+        camera_min_duration=0.65,
+        accent_color="#FE2C55",
+        status_color="#25F4EE",
+        neutral_color="#FFFFFF",
+    ),
+    "smooth_showcase": StyleMotionPolicy(
+        key="smooth_showcase",
+        transition_stride=3,
+        stylized_stride=0,
+        max_transition_duration=0.35,
+        transition_family="smooth",
+        camera_motion_stride=1,
+        camera_zoom_delta=0.05,
+        camera_pan_extent=0.08,
+        camera_min_duration=1.0,
+        accent_color="#25F4EE",
+        status_color="#FFE600",
+        neutral_color="#FFFFFF",
+    ),
+    "premium_minimal": StyleMotionPolicy(
+        key="premium_minimal",
+        transition_stride=6,
+        stylized_stride=0,
+        max_transition_duration=0.3,
+        transition_family="minimal",
+        camera_motion_stride=3,
+        camera_zoom_delta=0.04,
+        camera_pan_extent=0.06,
+        camera_min_duration=1.2,
+        accent_color="#E6C24A",
+        status_color="#D8C58A",
         neutral_color="#FFFFFF",
     ),
 }
@@ -90,17 +134,28 @@ def apply_transition_budget(
         return {"type": "cut", "duration": 0.0}
 
     kind = str(candidate.get("type") or "cut")
-    if kind in _STYLIZED_TRANSITIONS and (
+    if profile.transition_family == "smooth":
+        candidate["type"] = "dissolve"
+    elif profile.transition_family == "minimal":
+        candidate["type"] = "fade"
+    elif profile.transition_family == "energetic":
+        if profile.stylized_stride > 0 and boundary_index % profile.stylized_stride == 0:
+            candidate["type"] = "circleopen"
+        else:
+            slot = boundary_index // max(1, profile.transition_stride)
+            candidate["type"] = "slideleft" if slot % 2 else "slideright"
+    elif kind in _STYLIZED_TRANSITIONS and (
         profile.stylized_stride <= 0 or boundary_index % profile.stylized_stride
     ):
         candidate["type"] = "dissolve"
         candidate["duration"] = min(0.25, profile.max_transition_duration)
-    else:
-        try:
-            duration = float(candidate.get("duration", profile.max_transition_duration))
-        except (TypeError, ValueError):
-            duration = profile.max_transition_duration
-        candidate["duration"] = min(profile.max_transition_duration, max(0.1, duration))
+        return candidate
+
+    try:
+        duration = float(candidate.get("duration", profile.max_transition_duration))
+    except (TypeError, ValueError):
+        duration = profile.max_transition_duration
+    candidate["duration"] = min(profile.max_transition_duration, max(0.1, duration))
     return candidate
 
 
@@ -153,13 +208,14 @@ def camera_keyframes_for_clip(
 
 
 def style_motion_catalog() -> Dict[str, Dict[str, Any]]:
-    """Return a JSON-safe catalog for a future style picker."""
+    """Return the JSON-safe policies mirrored by the frontend style picker."""
     return {
         key: {
             "key": policy.key,
             "transition_stride": policy.transition_stride,
             "stylized_stride": policy.stylized_stride,
             "max_transition_duration": policy.max_transition_duration,
+            "transition_family": policy.transition_family,
             "camera_motion_stride": policy.camera_motion_stride,
             "camera_zoom_delta": policy.camera_zoom_delta,
             "camera_pan_extent": policy.camera_pan_extent,

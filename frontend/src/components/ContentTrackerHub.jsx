@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import {
   Layers, Clapperboard, Check, Trash2, ArrowRight, Play,
-  Smartphone, RefreshCw, Search, QrCode, ArrowLeft, Copy,
+  RefreshCw, Search, QrCode, ArrowLeft, Copy,
   Kanban, Table, Sparkles, CheckCircle2, Clock,
   ExternalLink, ChevronRight, ChevronLeft, Filter, AlertCircle,
   Video, Eye, Flame, TrendingUp, Plus, X, FileText, Scissors,
@@ -18,17 +18,17 @@ import { Modal, Toast, Button, Badge, Input, Textarea, SafeQRCode } from './ui';
 import { useDebounce, useToast } from '../hooks';
 import { guessBrandModel } from '../lib/overlayModel';
 import { applyCoverResult, getCoverVariant, mergeCoverMetadata } from '../lib/coverVariant';
+import { withEditorProjectAction } from '../lib/editorEntry';
 
-// 5 Granular Pipeline Phases (Original Vibrant & Readable Palette)
+// 4 Granular Pipeline Phases (Original Vibrant & Readable Palette)
 const PIPELINE_PHASES = [
   { id: 'scripted', label: 'สคริปต์พร้อม', short: 'สคริปต์', icon: FileText, color: 'text-cyan-400 border-cyan-500/30 bg-cyan-500/10 active:bg-cyan-500/20', dot: 'bg-cyan-400' },
   { id: 'in_production', label: 'กำลังตัดต่อ', short: 'ตัดต่อ', icon: Clapperboard, color: 'text-amber-400 border-amber-500/30 bg-amber-500/10 active:bg-amber-500/20', dot: 'bg-amber-400' },
   { id: 'rendered', label: 'ตัดต่อเสร็จ', short: 'ตรวจ QC', icon: Video, color: 'text-blue-400 border-blue-500/30 bg-blue-500/10 active:bg-blue-500/20', dot: 'bg-blue-400' },
-  { id: 'mobile_ready', label: 'ส่งเข้ามือถือ', short: 'ส่งมือถือ', icon: Smartphone, color: 'text-purple-400 border-purple-500/30 bg-purple-500/10 active:bg-purple-500/20', dot: 'bg-purple-400' },
   { id: 'posted', label: 'โพสต์แล้ว', short: 'โพสต์แล้ว', icon: CheckCircle2, color: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10 active:bg-emerald-500/20', dot: 'bg-emerald-400' },
 ];
 
-const PHASE_ORDER = ['scripted', 'in_production', 'rendered', 'mobile_ready', 'posted'];
+const PHASE_ORDER = ['scripted', 'in_production', 'rendered', 'posted'];
 
 // ═══════════════════════════════════════════════════════════════════════
 // 🎬 HOVER VIDEO PREVIEW THUMBNAIL (Memory Safe & Fast)
@@ -510,7 +510,7 @@ const KanbanCard = memo(function KanbanCard({
 
               {phaseId === 'in_production' && (
                 <button
-                  onClick={() => onSendToStudio(ang.parentProduct, ang)}
+                  onClick={() => onSendToStudio(ang.parentProduct, ang, -1, { openExisting: true })}
                   className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-95 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-sm flex-shrink-0"
                   title={ang.project_name ? `เปิดไทม์ไลน์ของมุมนี้ (${ang.project_name})` : "เปิดทำต่อในหน้าตัดต่อ"}
                 >
@@ -520,35 +520,6 @@ const KanbanCard = memo(function KanbanCard({
                 </button>
               )}
 
-              {phaseId === 'mobile_ready' && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => onOpenTiktokModal && onOpenTiktokModal(ang)}
-                    className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:brightness-110 text-white text-xs font-bold flex items-center gap-1 shadow-sm cursor-pointer transition-all active:scale-95"
-                    title="ส่งคลิปไป TikTok Studio"
-                  >
-                    <Rocket className="w-3 h-3" />
-                    <span>ส่ง TikTok</span>
-                  </button>
-                  <button
-                    onClick={() => onOpenQrModal(ang)}
-                    className="px-2 py-1.5 rounded-lg bg-purple-500/15 border border-purple-500/30 text-purple-300 hover:bg-purple-500/25 text-xs font-bold flex items-center gap-1 cursor-pointer"
-                    title="เปิด QR Code"
-                  >
-                    <QrCode className="w-3 h-3" />
-                    <span>QR</span>
-                  </button>
-                  <button
-                    onClick={() => onStatusChange(ang.parentProduct.id, ang.angle_id, 'posted', null, null, true)}
-                    className="px-2 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30 text-xs font-bold flex items-center gap-1 cursor-pointer"
-                    title="มาร์กว่าโพสต์แล้ว"
-                  >
-                    <Check className="w-3 h-3" />
-                    <span>โพสต์แล้ว</span>
-                  </button>
-                </>
-              )}
 
           {phaseId === 'posted' && (
             <div
@@ -563,7 +534,7 @@ const KanbanCard = memo(function KanbanCard({
 
         {/* Right: Caption Quick Copy Only (เฉพาะเมื่อคลิปพร้อมส่งเข้ามือถือ หรือ โพสต์แล้ว) */}
         <div className="flex items-center gap-1 flex-shrink-0">
-          {captionText && (phaseId === 'mobile_ready' || phaseId === 'posted') && (
+          {captionText && (phaseId === 'rendered' || phaseId === 'posted') && (
             <button
               onClick={() => onCopyCaption(captionText, ang.angle_id)}
               className="p-1.5 rounded-lg bg-black/40 hover:bg-white/[0.08] border border-white/[0.08] text-slate-400 hover:text-white cursor-pointer transition-colors"
@@ -642,7 +613,7 @@ const MobileTableRowCard = memo(function MobileTableRowCard({
         )}
 
         <div className="flex-1 min-w-0">
-          {(ang.status === 'mobile_ready' || ang.status === 'posted') ? (
+          {(ang.status === 'rendered' || ang.status === 'posted') ? (
             <button
               onClick={() => onCopyCaption(captionText, ang.angle_id)}
               className="w-full text-left p-1.5 rounded-xl bg-black/40 hover:bg-black/60 border border-white/[0.06] text-slate-300 text-xs flex items-center justify-between gap-1.5 cursor-pointer transition-colors"
@@ -786,7 +757,7 @@ const TableRow = memo(function TableRow({
 
       {/* 4. Caption Preview & Copy (Natural Flex Column) */}
       <td className="py-2.5 px-3 min-w-[220px]">
-        {(ang.status === 'mobile_ready' || ang.status === 'posted') ? (
+        {(ang.status === 'rendered' || ang.status === 'posted') ? (
           <button
             onClick={() => onCopyCaption(`${ang.tiktok_caption || ''}\n\n${ang.tiktok_hashtags || ''}`, ang.angle_id)}
             className="text-left py-1.5 px-2.5 rounded-lg bg-black/40 hover:bg-black/60 border border-white/[0.06] text-slate-300 text-xs flex items-center justify-between gap-2 w-full max-w-md cursor-pointer transition-colors group"
@@ -1324,13 +1295,16 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     setInspectAngle(null); // close inspect modal if open
   }, [qcFailTarget, qcFailNote, handleAngleStatusChange, showToast]);
 
-  const handleQcPass = useCallback(async (ang, moveToNext = false) => {
+  const handleQcPass = useCallback(async (ang) => {
     if (!ang || !ang.parentProduct) return;
-    const nextStatus = moveToNext ? 'mobile_ready' : (ang.status || 'rendered');
+    // QC passing no longer advances `status` -- the mobile-handoff phase it
+    // used to move toward is gone, and posting itself happens through the
+    // schedule-queue/extension flow, a separate concern from this pipeline.
+    // qc_reviewed (set via markQcPassed below) is what now marks "ready".
     await handleAngleStatusChange(
       ang.parentProduct.id,
       ang.angle_id,
-      nextStatus,
+      ang.status || 'rendered',
       ang.video_url || null,
       null,     // clear qc_note
       true,     // clearQcNote
@@ -1343,7 +1317,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     setPreviewVideoAngle(null);
   }, [handleAngleStatusChange, showToast]);
 
-  const handleSendToStudio = useCallback((product, angle, angleIdx = -1) => {
+  const handleSendToStudio = useCallback((product, angle, angleIdx = -1, { openExisting = false } = {}) => {
     if (!onApplyToStudio) return;
 
     const scriptLines = Array.isArray(angle.script_lines)
@@ -1380,7 +1354,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
       return;
     }
 
-    onApplyToStudio({
+    onApplyToStudio(withEditorProjectAction({
       productId: product.id,
       angleId: angle.angle_id,
       productName: angle.product_name || product.name || 'สินค้า',
@@ -1398,7 +1372,6 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
       adTone: angle.ad_tone || 'commercial_premium',
       selectedVideo: chosenVideos[0] || '',
       selectedVideos: chosenVideos,
-      openProjectName: angle.project_name || '',
       openVideoUrl: angle.video_url || '',
       isRendered: angle.status === 'rendered' || !!angle.video_url,
       fullProduct: {
@@ -1411,8 +1384,11 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
         angles: product.angles || [angle]
       },
       angleIndex: resolvedIdx
-    });
-  }, [onApplyToStudio, handleAngleStatusChange]);
+    }, {
+      openExisting,
+      existingProjectName: angle.project_name,
+    }));
+  }, [onApplyToStudio, showToast]);
 
   const handleCopyCaption = useCallback((text, angleId) => {
     navigator.clipboard.writeText(text);
@@ -1441,7 +1417,6 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     scripted: allAnglesList.filter(a => a.status === 'scripted').length,
     in_production: allAnglesList.filter(a => a.status === 'in_production').length,
     rendered: allAnglesList.filter(a => a.status === 'rendered').length,
-    mobile_ready: allAnglesList.filter(a => a.status === 'mobile_ready').length,
     posted: allAnglesList.filter(a => a.status === 'posted').length,
   }), [allAnglesList]);
 
@@ -1516,7 +1491,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
               return p.endsWith('.mp4') || p.endsWith('.mov') || p.endsWith('.webm');
             })?.local_path || null;
 
-          const isRenderedOrBeyond = inspectAngle.status === 'rendered' || inspectAngle.status === 'mobile_ready' || inspectAngle.status === 'posted';
+          const isRenderedOrBeyond = inspectAngle.status === 'rendered' || inspectAngle.status === 'posted';
 
           const attachedVideos = (inspectAngle.selected_videos && inspectAngle.selected_videos.length > 0)
             ? inspectAngle.selected_videos
@@ -1818,8 +1793,8 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                   <span>ส่งไปตัดต่อ</span>
                 </button>
 
-                {/* Button 3: QC Fail (only when rendered or mobile_ready) */}
-                {(inspectAngle.status === 'rendered' || inspectAngle.status === 'mobile_ready') && (
+                {/* Button 3: QC Fail (only when rendered) */}
+                {inspectAngle.status === 'rendered' && (
                   <button
                     onClick={() => handleQcFail(inspectAngle)}
                     className="py-2.5 px-3 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all flex-shrink-0 whitespace-nowrap"
@@ -2052,20 +2027,6 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
               </div>
 
               <div className="space-y-2 pt-1">
-                <Button
-                  onClick={() => {
-                    handleAngleStatusChange(qrModalItem.parentProduct.id, qrModalItem.angle_id, 'mobile_ready');
-                    setQrModalItem(null);
-                    showToast('อัปเดตสถานะเป็น "ส่งเข้ามือถือแล้ว"');
-                  }}
-                  variant="tiktok"
-                  size="md"
-                  icon={Check}
-                  className="w-full"
-                >
-                  มาร์กว่า "ส่งเข้ามือถือแล้ว"
-                </Button>
-
                 <a
                   href={quickPostUrl}
                   target="_blank"
@@ -2627,14 +2588,14 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 min-w-0">
               <h2 className="text-base sm:text-lg lg:text-xl font-bold font-kanit text-white tracking-wide truncate">
-                แทร็กเกอร์ 5 เฟส
+                แทร็กเกอร์ 4 เฟส
               </h2>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/30 whitespace-nowrap flex-shrink-0">
                 Content Tracker Hub
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-1 line-clamp-1 sm:line-clamp-2 leading-relaxed break-words">
-              ระบบติดตามสถานะคลิปตลอด Pipeline 5 ขั้นตอน (สคริปต์พร้อม → กำลังตัดต่อ → ตัดต่อเสร็จ / ตรวจ QC → ส่งเข้ามือถือ → โพสต์แล้ว)
+              ระบบติดตามสถานะคลิปตลอด Pipeline 4 ขั้นตอน (สคริปต์พร้อม → กำลังตัดต่อ → ตัดต่อเสร็จ / ตรวจ QC → โพสต์แล้ว)
             </p>
           </div>
         </div>
@@ -2651,10 +2612,10 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                   ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
                   : 'text-slate-400 hover:text-white'
               }`}
-              title="มุมมองบอร์ด 5 เฟส (Kanban)"
+              title="มุมมองบอร์ด 4 เฟส (Kanban)"
             >
               <Kanban className="w-3.5 h-3.5" />
-              <span>บอร์ด 5 เฟส</span>
+              <span>บอร์ด 4 เฟส</span>
             </button>
             <button
               type="button"
@@ -2696,8 +2657,8 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
         </div>
       </div>
 
-      {/* ── 2. Responsive 5-Phase Metric Cards (iPhone 15 PM Touch Snap + Tablet/Desktop Adaptive Grid) ── */}
-      <div className="w-full max-w-full overflow-x-auto no-scrollbar snap-x flex gap-2 pb-1 sm:grid sm:grid-cols-3 xl:grid-cols-6 sm:overflow-visible">
+      {/* ── 2. Responsive 4-Phase Metric Cards (iPhone 15 PM Touch Snap + Tablet/Desktop Adaptive Grid) ── */}
+      <div className="w-full max-w-full overflow-x-auto no-scrollbar snap-x flex gap-2 pb-1 sm:grid sm:grid-cols-5 sm:overflow-visible">
         {/* All Card */}
         <button
           type="button"
@@ -2729,7 +2690,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
           }`} />
         </button>
 
-        {/* 5 Phase Cards */}
+        {/* 4 Phase Cards */}
         {PIPELINE_PHASES.map((p) => {
           const count = phaseCounts[p.id] || 0;
           const isActive = activePhase === p.id;
@@ -2866,11 +2827,11 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
               <span>เลื่อนซ้าย-ขวาเพื่อดูหัวข้อถัดไป</span>
               <ChevronRight className="w-3 h-3 text-[#25F4EE]" />
             </span>
-            <span className="text-[#25F4EE] font-bold font-mono">5 คอลัมน์</span>
+            <span className="text-[#25F4EE] font-bold font-mono">4 คอลัมน์</span>
           </div>
 
           {/* Real Horizontal Kanban Board with Snap-Scroll */}
-          <div className="flex overflow-x-auto snap-x snap-mandatory gap-2.5 pb-3 no-scrollbar scroll-smooth items-start xl:grid xl:grid-cols-5 xl:overflow-x-visible xl:snap-none">
+          <div className="flex overflow-x-auto snap-x snap-mandatory gap-2.5 pb-3 no-scrollbar scroll-smooth items-start xl:grid xl:grid-cols-4 xl:overflow-x-visible xl:snap-none">
             {PIPELINE_PHASES.map((phase) => {
               const rawPhaseAngles = filteredAngles.filter(a => a.status === phase.id);
               const isScripted = phase.id === 'scripted';
@@ -3116,7 +3077,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
          ══════════════════════════════════════════════════════════ */}
       {viewMode === 'schedule' && (
         <ScheduleAgenda
-          readyClips={allAnglesList.filter((a) => (a.status === 'rendered' || a.status === 'mobile_ready') && a.video_url)}
+          readyClips={allAnglesList.filter((a) => a.status === 'rendered' && a.video_url)}
           onPreviewVideo={handlePreviewVideo}
           onOpenCoverStudio={handleOpenCoverStudio}
             showToast={showToast}

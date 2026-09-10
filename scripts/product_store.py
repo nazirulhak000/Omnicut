@@ -213,9 +213,8 @@ def _preferred_registered_export(
 # scripted       → angles picked and a script exists
 # in_production  → currently editing in Studio
 # rendered       → clip rendered & QC checked
-# mobile_ready   → clip transferred to mobile phone
 # posted         → clip is live on TikTok
-STATUSES = ("candidate", "scripted", "in_production", "rendered", "mobile_ready", "posted")
+STATUSES = ("candidate", "scripted", "in_production", "rendered", "posted")
 
 
 import threading
@@ -758,7 +757,7 @@ class ProductStore:
                     "Pass product_id/angle_id explicitly to avoid this ambiguity."
                 )
 
-            # Round BUG-3: used to skip mobile_ready/posted angles entirely --
+            # Round BUG-3: used to skip posted angles entirely --
             # deleting the file behind an already-posted clip left its card
             # showing as if the video still existed. A user-triggered delete
             # (unlike reconcile's passive best-effort scan) should always
@@ -1183,11 +1182,6 @@ class ProductStore:
                         if angle.get("video_url") != mp4_path:
                             angle["video_url"] = mp4_path
                             changed = True
-                    elif angle.get("status") == "mobile_ready":
-                        # Preserve advanced lifecycle status
-                        if angle.get("video_url") != mp4_path:
-                            angle["video_url"] = mp4_path
-                            changed = True
                     elif angle.get("status") == "in_production":
                         # An MP4 was found on disk even though the angle is
                         # still flagged in_production.  This happens when the
@@ -1228,7 +1222,7 @@ class ProductStore:
                     if mp4_export_id and angle.get("export_id") != mp4_export_id:
                         angle["export_id"] = mp4_export_id
                         changed = True
-                elif angle.get("status") in ("mobile_ready", "posted") or angle.get("posted_at"):
+                elif angle.get("status") == "posted" or angle.get("posted_at"):
                     if angle.get("posted_at") and angle.get("status") != "posted":
                         angle["status"] = "posted"
                         changed = True

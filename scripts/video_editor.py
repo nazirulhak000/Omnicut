@@ -19,7 +19,13 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
         pass
 from typing import Any, List, Dict, Tuple, Callable, Optional
 from scripts.config import VIDEO_WIDTH, VIDEO_HEIGHT, FPS, MIN_SHOT_DURATION, MAX_SHOT_DURATION, FONTS_DIR, STICKERS_DIR, EFFECTS_DIR
+from scripts.overlay_recolor import (
+    build_overlay_hue_filter,
+    overlay_asset_recolor_metadata,
+    resolve_overlay_recolor,
+)
 from scripts.render_jobs import RenderCancelled
+from scripts.style_motion_policy import STYLE_MOTION_POLICIES
 
 # ffmpeg child processes spawned for the final render, tracked so a hard
 # external kill of this backend (task manager, a dev-server reload, an
@@ -94,16 +100,12 @@ EQ_LIMITS = {
 
 
 ACCENT_PALETTES = {
-    # The existing Golden Master uses the same yellow accent as the hook
-    # template's ACCENT_COLOR. Cyan is reserved for status/secondary UI, and
-    # white remains the neutral text colour. Keeping the palette here makes
-    # the renderer's colour vocabulary deterministic without recolouring
-    # baked sticker/effect media.
-    "clean_tech_review": {
-        "primary": "#FFE600",
-        "status": "#25F4EE",
-        "neutral": "#FFFFFF",
-    },
+    key: {
+        "primary": policy.accent_color,
+        "status": policy.status_color,
+        "neutral": policy.neutral_color,
+    }
+    for key, policy in STYLE_MOTION_POLICIES.items()
 }
 DEFAULT_ACCENT_PALETTE = "clean_tech_review"
 _HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
@@ -791,6 +793,7 @@ class VideoEditor:
         sticker_norm_y: float = None,
         stickers: Optional[List[Dict[str, Any]]] = None,
         effects: Optional[List[Dict[str, Any]]] = None,
+        style_preset: Optional[str] = None,
         scrim_spans: list = None,
         auto_blur_landscape: bool = True,
         progress_callback: Optional[Callable[[float, float], None]] = None,
@@ -836,6 +839,7 @@ class VideoEditor:
         target_fps = FPS
 
         filter_complex = []
+        accent_palette = resolve_accent_palette(style_preset=style_preset)
         concat_inputs = []
         video_input_paths: List[str] = []
         clip_durations: List[float] = []
@@ -1238,24 +1242,34 @@ class VideoEditor:
                     elif not stk_badge.endswith(".png") and (STICKERS_DIR / f"{stk_badge}.png").exists():
                         p = STICKERS_DIR / f"{stk_badge}.png"
                 if p and p.exists():
+                    asset_id = p.stem
+                    recolor_meta = overlay_asset_recolor_metadata("sticker", asset_id)
                     effective_stickers.append({
                         "path": p,
+                        "asset_id": asset_id,
                         "scale": stk.get("scale", 1.0),
                         "norm_x": stk.get("norm_x", stk.get("normX")),
                         "norm_y": stk.get("norm_y", stk.get("normY")),
                         "start": stk.get("start", stk.get("start_time")),
                         "end": stk.get("end", stk.get("end_time")),
                         "position": stk.get("position", "top_right"),
+                        "recolor": stk.get("recolor", stk.get("tint")),
+                        "recolor_source_hue": stk.get(
+                            "recolor_source_hue",
+                            stk.get("recolorSourceHue", recolor_meta.get("recolor_source_hue")),
+                        ),
                     })
         elif sticker_path and Path(sticker_path).exists():
             effective_stickers.append({
                 "path": Path(sticker_path),
+                "asset_id": Path(sticker_path).stem,
                 "scale": sticker_scale,
                 "norm_x": sticker_norm_x,
                 "norm_y": sticker_norm_y,
                 "start": sticker_start_time,
                 "end": sticker_end_time,
                 "position": sticker_position,
+                "recolor": None,
             })
 
         for s_idx, stk_info in enumerate(effective_stickers):
@@ -1281,9 +1295,29 @@ class VideoEditor:
             else:
                 enable_expr = "gte(t,0.5)"
             stk_node = "sticker_scaled" if s_idx == 0 else f"sticker_scaled_{s_idx}"
+            stk_source = f"[{st_idx}:v]"
+            recolor_node = f"[sticker_recolored_{s_idx}]"
+            recolor = resolve_overlay_recolor(
+                stk_info,
+                accent_palette,
+                kind="sticker",
+                asset_id=stk_info.get("asset_id"),
+            )
+            if recolor:
+                filter_complex.append(
+                    build_overlay_hue_filter(
+                        stk_source,
+                        recolor_node,
+                        stk_info,
+                        accent_palette,
+                        kind="sticker",
+                        asset_id=stk_info.get("asset_id"),
+                    )
+                )
+                stk_source = recolor_node
             out_label = f"[v_stickered_{s_idx}]"
             filter_complex.append(
-                f"[{st_idx}:v]scale={badge_w}:-1[{stk_node}];"
+                f"{stk_source}scale={badge_w}:-1[{stk_node}];"
                 f"{current_v}[{stk_node}]overlay=x={badge_x}:y={badge_y}:enable='{enable_expr}':format=auto{out_label};"
             )
             current_v = out_label
@@ -1313,13 +1347,20 @@ class VideoEditor:
                         break
                 if fx_path is None:
                     continue
+                recolor_meta = overlay_asset_recolor_metadata("effect", fx_id)
                 effective_effects.append({
                     "path": fx_path,
+                    "asset_id": fx_id,
                     "scale": fx.get("scale", 1.0),
                     "norm_x": fx.get("norm_x", fx.get("normX", 0.5)),
                     "norm_y": fx.get("norm_y", fx.get("normY", 0.35)),
                     "start": fx.get("start", fx.get("start_time", 0.5)),
                     "end": fx.get("end", fx.get("end_time")),
+                    "recolor": fx.get("recolor", fx.get("tint")),
+                    "recolor_source_hue": fx.get(
+                        "recolor_source_hue",
+                        fx.get("recolorSourceHue", recolor_meta.get("recolor_source_hue")),
+                    ),
                 })
 
         for e_idx, fx_info in enumerate(effective_effects):
@@ -1370,7 +1411,28 @@ class VideoEditor:
             filter_complex.append(
                 f"{current_v}split=2{split_a}{split_b};"
                 f"{split_a}crop={fx_size}:{fx_size}:{px_x}:{px_y}{bg_node};"
-                f"[{e_input_idx}:v]scale={fx_size}:{fx_size}{fx_scaled_node};"
+            )
+            fx_source = f"[{e_input_idx}:v]"
+            recolor_node = f"[effect_recolored_{e_idx}]"
+            recolor = resolve_overlay_recolor(
+                fx_info,
+                accent_palette,
+                kind="effect",
+                asset_id=fx_info.get("asset_id"),
+            )
+            if recolor:
+                recolor_filter = build_overlay_hue_filter(
+                    fx_source,
+                    recolor_node,
+                    fx_info,
+                    accent_palette,
+                    kind="effect",
+                    asset_id=fx_info.get("asset_id"),
+                )
+                filter_complex.append(recolor_filter)
+                fx_source = recolor_node
+            filter_complex.append(
+                f"{fx_source}scale={fx_size}:{fx_size}{fx_scaled_node};"
                 f"{bg_node}{fx_scaled_node}blend=all_mode=multiply:shortest=1{fx_blended_node};"
                 f"{split_b}{fx_blended_node}overlay=x={px_x}:y={px_y}:enable='{enable_expr}':eof_action=pass{out_label};"
             )

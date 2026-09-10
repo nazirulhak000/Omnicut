@@ -61,9 +61,46 @@ def test_clean_tech_review_camera_motion_is_subtle_and_budgeted():
 def test_unknown_style_falls_back_to_golden_master_and_catalog_is_json_safe():
     assert resolve_style_motion_policy("not-a-style").key == "clean_tech_review"
     catalog = style_motion_catalog()
-    assert set(catalog) == {"clean_tech_review"}
+    assert set(catalog) == {
+        "clean_tech_review",
+        "viral_punch",
+        "smooth_showcase",
+        "premium_minimal",
+    }
     assert catalog["clean_tech_review"]["transition_stride"] == 5
     assert catalog["clean_tech_review"]["camera_motion_stride"] == 2
+
+
+def test_viral_punch_uses_frequent_directional_motion_without_transition_spam():
+    picks = [
+        apply_transition_budget(
+            {"type": "circleopen", "duration": 0.8},
+            style_preset="viral_punch",
+            boundary_index=index,
+        )
+        for index in range(1, 7)
+    ]
+
+    assert [pick["type"] for pick in picks] == [
+        "cut", "slideleft", "cut", "slideright", "cut", "circleopen",
+    ]
+    assert all(pick.get("duration", 0.0) <= 0.28 for pick in picks)
+
+
+def test_smooth_and_premium_styles_apply_their_own_transition_families():
+    smooth = apply_transition_budget(
+        {"type": "wipeleft", "duration": 0.9},
+        style_preset="smooth_showcase",
+        boundary_index=3,
+    )
+    premium = apply_transition_budget(
+        {"type": "circleopen", "duration": 0.9},
+        style_preset="premium_minimal",
+        boundary_index=6,
+    )
+
+    assert smooth == {"type": "dissolve", "duration": 0.35}
+    assert premium == {"type": "fade", "duration": 0.3}
 
 
 def test_style_preset_is_part_of_project_snapshot_contract():

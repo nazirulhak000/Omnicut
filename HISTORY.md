@@ -9,6 +9,7 @@
 ## สารบัญ
 
 | รอบ | งาน | วันที่ | ผลลัพธ์ |
+| Round STYLE-ONECLICK-1 | เพิ่ม 4 Style Presets ใน One Click และแยก fresh-create ออกจาก open-existing | 2026-09-10 | Viral/Clean/Smooth/Premium ใช้ motion, transition และ accent จริง; แก้ปุ่มส่งตัดต่อไม่เปิดโปรเจกต์เก่า; backend 1,034 และ frontend 144 tests ผ่าน พร้อม FFmpeg multi-frame/build |
 | Round SFX-TITLES-1 | ดึงชื่อแสดงผลภาษาไทย/อังกฤษจริงจาก Myinstants ใส่ใน asset_metadata.json | 2026-09-09 | 1,774 ชื่อแสดงผลภาษาไทย/อังกฤษตรงปก · UI แสดงชื่ออ่านง่ายและค้นหาได้ทันที |
 | Round SFX-HUB-1 | สแกน SFX แบบ Recursive เข้า AssetRegistry และเพิ่มตัวกรองหมวดหมู่ใน Media Assets Hub | 2026-09-09 | 1,822 ไฟล์ SFX แสดงผลครบถ้วนใน Media Assets Hub พร้อม Sub-category filter pills |
 | Round SFX-CAT-1 | จัดหมวดหมู่ไฟล์เสียง mi_xxx 1,775 ไฟล์ เป็น 10 หมวดใน 02_Assets/SFX/ | 2026-09-09 | 1,775 ไฟล์จัดเข้า 10 โฟลเดอร์ย่อย · เสียงเดิม 47 ไฟล์คงเดิม |
@@ -1827,3 +1828,35 @@ Date: 2026-09-07; Requested by: user; Status: complete
 - ไม่ได้แตะหรือ stage งานภายนอกที่พบก่อนเริ่ม: `scripts/api_exports.py`, `tests/test_post_lifecycle.py`, `tiktok_autopost_extension/sidepanel.js`
 
 | Round PRO-STYLE-3B | Live keyframe camera motion with Preview = Render parity | 2026-09-09 | Live zoom/pan keyframes in Canvas + FFmpeg, restrained auto-generated camera motion, 17 focused tests, 151 parity tests, 989 full backend tests, 128 frontend tests, FFmpeg behavioral render, and build passed |
+
+## Round STYLE-ONECLICK-1 — Style Presets + Fresh One Click routing
+
+วันที่: 2026-09-10 · ผู้สั่ง: user · สถานะ: เสร็จแล้ว
+
+**ผลลัพธ์:** ผู้ใช้เลือกสไตล์การตัดต่อได้ตั้งแต่หน้า One Click และปุ่ม “ส่งตัดต่อ” เปิดฟอร์มสร้างคลิปใหม่เสมอ แม้มีโปรเจกต์เก่าค้างใน URL, localStorage หรือข้อมูลมุม ส่วนปุ่ม “เปิดไทม์ไลน์” ยังเปิดโปรเจกต์เดิมตามเจตนา
+
+### สิ่งที่ทำ
+
+- เพิ่ม preset ที่ renderer รองรับจริง 4 แบบ: `viral_punch`, `clean_tech_review`, `smooth_showcase`, `premium_minimal`
+- กำหนด transition family/budget, camera-motion cadence และ accent palette แยกตาม preset; One Click ใหม่เริ่มที่ `viral_punch` แต่คง fallback เดิมเป็น `clean_tech_review` สำหรับข้อมูลเก่า/ค่าที่ไม่รู้จัก
+- เพิ่ม `StylePresetPicker` กลาง ใช้ร่วมกันในหน้า One Click และแท็บ Style ของ Editor
+- ส่ง `style_preset` จาก One Click ถึง RenderRequest, shot matching, subtitle/overlay และ video assembly
+- เพิ่ม fresh-editor intent กลางซึ่งชนะ URL/localStorage/angle fallback; Tracker ส่งชื่อโปรเจกต์เฉพาะ action “เปิดไทม์ไลน์”
+- เพิ่ม regression tests สำหรับ routing intent, catalog/payload, motion/transition policy, pipeline integration และ Preview = Render palette
+
+### Gate ผลจริง
+
+- `python -m compileall -q scripts` → ผ่าน
+- `python -m pytest tests/ -q -p no:cacheprovider --tb=short` → **1,034 passed, 24 warnings** ใน 135.26 วินาที
+- FFmpeg style render → **4 presets × 3 เฟรม (เข้า/ค้าง/ออก) ผ่านครบ 12 เฟรม**
+- `npm test` → **144 passed**
+- `npm run lint` → exit 0; มี warnings เดิมของ repo ไม่มี error
+- `npm run build` → ผ่าน, **1,979 modules transformed**
+- Impeccable detector → ส่วน Style Picker ใหม่ไม่พบ antipattern; พบ warning เดิม `gray-on-color` ใน AssetPanel import button 1 จุดนอก scope
+- `git diff --check` → ผ่าน; มีเฉพาะคำเตือน line-ending LF → CRLF ของ Git
+
+### Notes
+
+- ไม่แตะไฟล์สื่อหรือโปรเจกต์จริงใน `01_Raw/`, `02_Assets/`, `03_Projects/`
+- รักษา working-tree changes เดิมใน `ContentTrackerHub.jsx`, `EditorShell.jsx`, `AssetPanel.jsx` และไฟล์ renderer/tests ที่มีงานค้างอยู่
+- ระหว่างรอบพบการแก้ไฟล์อื่นเพิ่มจากงานคู่ขนาน เช่น Sidebar/Topbar และ status tests; ไม่ได้แก้หรือตีความงานเหล่านั้นเป็นส่วนของรอบนี้

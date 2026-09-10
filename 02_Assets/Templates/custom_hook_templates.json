@@ -116,45 +116,6 @@
       },
       "is_custom": true
     },
-    "custom_1788839082": {
-      "id": "custom_1788839082",
-      "label_th": "test",
-      "font": "Kanit",
-      "tiers": {
-        "brand": {
-          "size_pct": 174,
-          "color": "#f7f7f7",
-          "outline_color": "#FFFFFF",
-          "outline_px": 14,
-          "upper": false,
-          "pill": null
-        },
-        "model": {
-          "size_pct": 113,
-          "color": "#f47171",
-          "outline_color": "#FFFFFF",
-          "outline_px": 17,
-          "upper": false,
-          "pill": null
-        },
-        "label": {
-          "size_pct": 78,
-          "color": "#4CE0FF",
-          "outline_color": "#FFFFFF",
-          "outline_px": 9,
-          "upper": false,
-          "pill": null
-        }
-      },
-      "motion": {
-        "in": "pop",
-        "loop": "shake",
-        "out": "zoom",
-        "accent": "badge",
-        "stagger": true
-      },
-      "is_custom": true
-    },
     "custom_1788841263": {
       "id": "custom_1788841263",
       "label_th": "big",

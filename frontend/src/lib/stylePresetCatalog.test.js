@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  DEFAULT_ONE_CLICK_STYLE_PRESET,
   DEFAULT_STYLE_PRESET,
   STYLE_PRESET_CATALOG,
   getStylePreset,
@@ -10,11 +11,25 @@ import {
   uniqueStylePresets,
   withStylePresetPayload,
 } from './stylePresetCatalog.js';
+import { DEFAULT_STUDIO_FORM } from './studioDefaults.js';
 
 test('catalog has a unique renderer-supported default', () => {
-  assert.ok(STYLE_PRESET_CATALOG.length > 0);
+  assert.equal(STYLE_PRESET_CATALOG.length, 4);
   assert.equal(normalizeStylePreset(DEFAULT_STYLE_PRESET), DEFAULT_STYLE_PRESET);
   assert.equal(new Set(STYLE_PRESET_CATALOG.map((preset) => preset.id)).size, STYLE_PRESET_CATALOG.length);
+  assert.deepEqual(STYLE_PRESET_CATALOG.map((preset) => preset.id), [
+    'viral_punch',
+    'clean_tech_review',
+    'smooth_showcase',
+    'premium_minimal',
+  ]);
+  assert.equal(STYLE_PRESET_CATALOG.filter((preset) => preset.recommended).length, 1);
+});
+
+test('new One Click sessions default to the recommended motion-rich style', () => {
+  assert.equal(DEFAULT_ONE_CLICK_STYLE_PRESET, 'viral_punch');
+  assert.equal(DEFAULT_STUDIO_FORM.stylePreset, DEFAULT_ONE_CLICK_STYLE_PRESET);
+  assert.equal(getStylePreset(DEFAULT_STUDIO_FORM.stylePreset).recommended, true);
 });
 
 test('unknown and legacy casing safely resolve to the Golden Master', () => {
@@ -28,6 +43,16 @@ test('visual tokens match the renderer-facing Golden Master palette', () => {
   assert.equal(preset.accent, '#FFE600');
   assert.equal(preset.status, '#25F4EE');
   assert.equal(preset.neutral, '#FFFFFF');
+});
+
+test('each selectable style carries a distinct renderer-facing accent', () => {
+  const accents = STYLE_PRESET_CATALOG.map((preset) => preset.accent);
+  assert.equal(new Set(accents).size, STYLE_PRESET_CATALOG.length);
+  for (const preset of STYLE_PRESET_CATALOG) {
+    assert.match(preset.accent, /^#[0-9A-F]{6}$/);
+    assert.match(preset.status, /^#[0-9A-F]{6}$/);
+    assert.match(preset.neutral, /^#[0-9A-F]{6}$/);
+  }
 });
 
 test('manifest compatibility reads top-level, render params, and style aliases', () => {

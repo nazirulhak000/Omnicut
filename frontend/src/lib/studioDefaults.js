@@ -4,6 +4,8 @@
 // defaults would drift and the render would quietly change behaviour
 // depending on which screen started it.
 
+import { DEFAULT_ONE_CLICK_STYLE_PRESET } from './stylePresetCatalog.js';
+
 export const DEFAULT_STUDIO_FORM = {
   selectedVideo: '',
   productName: 'Esseger สายชาร์จแม่เหล็ก',
@@ -25,6 +27,7 @@ export const DEFAULT_STUDIO_FORM = {
   voiceSpeed: '+15%',
   voicePreset: 'gemini_puck_male_hype',
   adTone: 'commercial_premium',
+  stylePreset: DEFAULT_ONE_CLICK_STYLE_PRESET,
   fontName: 'IBMPlex',
   bilingualSubtitles: true,
   stickerBadge: null,

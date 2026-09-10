@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import LoadingSpinner from './components/LoadingSpinner';
@@ -19,6 +19,7 @@ const MobileQuickPostPage = lazy(() => import('./components/MobileQuickPostPage'
 
 import { angleToForm } from './lib/angleToForm';
 import { applyUiScale, initUiScale } from './lib/uiScale';
+import { editorProjectIntentFromPayload } from './lib/editorEntry';
 import { TaskProvider } from './context/TaskContext';
 import { ActivityDrawer, GlobalTaskNotification, ActivityIndicatorButton, GlobalLiveRenderWidget } from './components/ActivityCenter';
 
@@ -108,6 +109,14 @@ export default function App() {
   const pendingFlowAngleIdRef = useRef(null);
   const [initialProjectNameToLoad, setInitialProjectNameToLoad] = useState(null);
 
+  const handlePrimaryTabChange = useCallback((tab) => {
+    // A direct Editor navigation means "resume normally". One Click entry is
+    // set separately by handleApplyScriptFromLab and must remain an explicit
+    // fresh-project intent instead of being inferred from a missing name.
+    if (tab === 'editor') setInitialProjectNameToLoad(null);
+    setActiveTab(tab);
+  }, []);
+
 
   // Auto-save Context Objects to localStorage
   useEffect(() => {
@@ -134,7 +143,7 @@ export default function App() {
 
   useKeyboardShortcuts({
     onTabChange: (tab) => {
-      setActiveTab(tab);
+      handlePrimaryTabChange(tab);
     },
     onSave: () => {
       // The create panel persists its form on every change, so there is
@@ -246,11 +255,7 @@ export default function App() {
       setActiveAngleContext({ productId: data.productId, angleId: data.angleId });
     }
 
-    if (data.openProjectName) {
-      setInitialProjectNameToLoad(data.openProjectName);
-    } else {
-      setInitialProjectNameToLoad(null);
-    }
+    setInitialProjectNameToLoad(editorProjectIntentFromPayload(data));
 
     if (data.fullProduct) {
       setActiveProductContext(data.fullProduct);
@@ -309,9 +314,7 @@ export default function App() {
       refreshData();
     } else if (tab === 'editor') {
       const projName = extra?.projectName || extra?.targetId || extra?.taskResult?.project_name || extra?.task?.payload?.project_name || extra?.task?.target_id;
-      if (projName) {
-        setInitialProjectNameToLoad(projName);
-      }
+      setInitialProjectNameToLoad(projName || null);
       if (extra?.taskResult?.saved_product) {
         setActiveProductContext(extra.taskResult.saved_product);
       }
@@ -339,7 +342,7 @@ export default function App() {
         {/* ── Sidebar (desktop: left, mobile: bottom) ── */}
         <Sidebar
           activeTab={activeTab}
-          setActiveTab={setActiveTab}
+          setActiveTab={handlePrimaryTabChange}
           status={status}
         />
 
@@ -352,7 +355,7 @@ export default function App() {
           {activeTab !== 'editor' && (
             <Topbar
               activeTab={activeTab}
-              setActiveTab={setActiveTab}
+              setActiveTab={handlePrimaryTabChange}
               status={status}
               uiFont={uiFont}
               setUiFont={handleUiFontChange}
@@ -372,7 +375,7 @@ export default function App() {
               <main className="min-h-0 flex-1 overflow-hidden p-0 md:p-1.5 pb-16 md:pb-1.5">
                 <Suspense fallback={<LoadingSpinner message="กำลังโหลด Video Editor..." />}>
                   <EditorShell
-                    key={initialProjectNameToLoad || 'editor-shell'}
+                    key={initialProjectNameToLoad === '' ? 'editor-fresh' : (initialProjectNameToLoad || 'editor-shell')}
                     videos={videos}
                     productContext={activeProductContext}
                     angleIndex={selectedAngleIndex}
@@ -413,7 +416,7 @@ export default function App() {
                       status={status}
                       onApplyToStudio={handleApplyScriptFromLab}
                       onRefresh={refreshData}
-                      onGoToEditor={() => setActiveTab('editor')}
+                      onGoToEditor={() => handlePrimaryTabChange('editor')}
                       onGoToFlow={(productId) => {
                         if (productId) setSelectedProductIdForFlow(productId);
                         setActiveTab('flow');

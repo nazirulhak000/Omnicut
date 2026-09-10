@@ -57,7 +57,7 @@ def _seed(tmp_path, *, angle_status, with_project_dir):
     return video_path.name
 
 
-@pytest.mark.parametrize("angle_status", ["rendered", "in_production", "mobile_ready"])
+@pytest.mark.parametrize("angle_status", ["rendered", "in_production"])
 def test_rollback_fires_for_every_status_when_project_dir_still_exists(isolated_store, angle_status):
     tmp_path = isolated_store
     filename = _seed(tmp_path, angle_status=angle_status, with_project_dir=True)
@@ -71,7 +71,7 @@ def test_rollback_fires_for_every_status_when_project_dir_still_exists(isolated_
     assert angle["video_url"] is None
 
 
-@pytest.mark.parametrize("angle_status", ["mobile_ready"])
+@pytest.mark.parametrize("angle_status", ["rendered"])
 def test_rollback_fires_even_when_project_dir_is_also_gone(isolated_store, angle_status):
     tmp_path = isolated_store
     filename = _seed(tmp_path, angle_status=angle_status, with_project_dir=False)

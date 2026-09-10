@@ -1,13 +1,26 @@
 /**
  * Frontend catalog for project-level editorial styles.
  *
- * The backend currently exposes one Golden Master style. Keeping the catalog
- * intentionally small prevents the UI from advertising presets that the
- * renderer would silently downgrade to its default.
+ * Every entry mirrors a real renderer policy in scripts/style_motion_policy.py.
+ * Unknown or legacy values still fall back to the Golden Master preset.
  */
 export const DEFAULT_STYLE_PRESET = 'clean_tech_review';
+export const DEFAULT_ONE_CLICK_STYLE_PRESET = 'viral_punch';
 
 const STYLE_PRESETS = [
+  {
+    id: 'viral_punch',
+    label: 'Viral Punch',
+    labelTh: 'ไวรัล กระชับ มีพลัง',
+    description: 'ตัดเร็วขึ้น เพิ่มกล้องเคลื่อนและ Slide แบบคุมจังหวะ เหมาะกับ Hook และคลิปขายสินค้า',
+    motion: 'Motion ทุกช็อตที่ยาวพอ',
+    transitions: 'สลับ Hard cut กับ Slide · Stylized เฉพาะจังหวะ',
+    audio: 'Voice นำหน้า พร้อม SFX เฉพาะ event สำคัญ',
+    accent: '#FE2C55',
+    status: '#25F4EE',
+    neutral: '#FFFFFF',
+    recommended: true,
+  },
   {
     id: DEFAULT_STYLE_PRESET,
     label: 'Clean Tech Review',
@@ -20,6 +33,30 @@ const STYLE_PRESETS = [
     // the semantic hook/highlight colour; cyan remains the status colour.
     accent: '#FFE600',
     status: '#25F4EE',
+    neutral: '#FFFFFF',
+  },
+  {
+    id: 'smooth_showcase',
+    label: 'Smooth Showcase',
+    labelTh: 'โชว์สินค้าไหลลื่น',
+    description: 'กล้องเคลื่อนนุ่มและใช้ Dissolve เป็นช่วง เหมาะกับ Demo, Detail และภาพสินค้าที่ต้องดูต่อเนื่อง',
+    motion: 'Push และ Pan ช้าแบบต่อเนื่อง',
+    transitions: 'Dissolve ทุกประมาณ 3 รอยต่อ',
+    audio: 'Voice นำหน้า พร้อม SFX เฉพาะ event สำคัญ',
+    accent: '#25F4EE',
+    status: '#FFE600',
+    neutral: '#FFFFFF',
+  },
+  {
+    id: 'premium_minimal',
+    label: 'Premium Minimal',
+    labelTh: 'เรียบหรู จังหวะนิ่ง',
+    description: 'ลดการเคลื่อนไหว ใช้ Fade เฉพาะจุดสำคัญ และคุมสีทองสำหรับสินค้าพรีเมียม',
+    motion: 'Motion เบา เว้นพื้นที่ให้สินค้า',
+    transitions: 'Hard cut เป็นหลัก · Fade เฉพาะ Section',
+    audio: 'Voice นำหน้า พร้อม SFX เฉพาะ event สำคัญ',
+    accent: '#E6C24A',
+    status: '#D8C58A',
     neutral: '#FFFFFF',
   },
 ];

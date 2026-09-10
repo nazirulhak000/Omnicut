@@ -96,3 +96,19 @@ def test_style_motion_adds_keyframes_to_auto_generated_restraint_slots():
     assert ctx.actual_clip_list[0]["keyframes"]
     assert "keyframes" not in ctx.actual_clip_list[1]
     assert ctx.actual_clip_list[2]["keyframes"]
+
+
+def test_selected_viral_style_reaches_generated_transitions_and_camera_motion():
+    ctx = _context(cue_count=6, total_duration=12.0)
+    ctx.style_preset = "viral_punch"
+
+    with patch("scripts.stages.shot_matching_stage.VideoEditor.get_media_info", return_value={"duration": 10.0}), \
+         patch("scripts.stages.shot_matching_stage.SFXManager.resolve_bgm_path", return_value=None), \
+         patch("scripts.stages.shot_matching_stage.MotionAnalyzer.get_motion_scores", return_value=([], [])), \
+         patch("scripts.stages.shot_matching_stage.ScriptToneAnalyzer.classify_tone_shifts", return_value=[]):
+        ShotMatchingStage.run(ctx)
+
+    assert [transition["type"] for transition in ctx.transitions] == [
+        "cut", "slideleft", "cut", "slideright", "cut",
+    ]
+    assert all(clip.get("keyframes") for clip in ctx.actual_clip_list)

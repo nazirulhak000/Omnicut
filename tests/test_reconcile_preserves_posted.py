@@ -101,22 +101,6 @@ def test_posted_status_survives_when_mp4_moved_to_posted_dir(isolated_store):
     assert angle["video_url"] is not None
 
 
-def test_mobile_ready_status_also_survives(isolated_store):
-    tmp_path = isolated_store
-    project_name = "demo_product_angle1_1"
-    ready_path = tmp_path / "04_Exports" / "Ready_to_post" / f"{project_name}_20260101_000000.mp4"
-
-    _seed(tmp_path, angle_status="mobile_ready", video_url=str(ready_path))
-    # Nothing on disk at all this time -- not in Ready_to_post, not in
-    # Posted/, and the manifest path is stale. The most adversarial case:
-    # reconcile truly cannot find the file anywhere.
-    ps.ProductStore.reconcile_existing_projects()
-
-    products = json.loads((tmp_path / "_Docs" / "products.json").read_text(encoding="utf-8"))
-    angle = products[0]["angles"][0]
-    assert angle["status"] == "mobile_ready"
-
-
 def test_reconcile_still_promotes_a_genuinely_unrendered_project(isolated_store):
     """The fix must not swallow the real case it existed to catch: a project
     with no export anywhere and no advanced status stays in_production."""

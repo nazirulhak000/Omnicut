@@ -13,6 +13,8 @@ import { useRenderJob } from '../../hooks/useRenderJob';
 import MediaPickerModal from '../MediaPickerModal';
 import VoicePickerModal from '../VoicePickerModal';
 import { guessBrandModel, newHookOverlay, templateForAdTone } from '../../lib/overlayModel';
+import { normalizeStylePreset } from '../../lib/stylePresetCatalog.js';
+import StylePresetPicker from './StylePresetPicker';
 
 function formatTime(seconds) {
   if (seconds == null || isNaN(seconds)) return '00:00';
@@ -356,6 +358,7 @@ export default function NewClipPanel({
       voice_preset: form.voicePreset,
       voice_rate: form.voiceSpeed,
       ad_tone: form.adTone || 'commercial_premium',
+      style_preset: normalizeStylePreset(form.stylePreset),
       human_voice_audio: null,
       product_id: productContext?.id || null,
       angle_id: (currentAngle?.angle_id || angles[angleIndex]?.angle_id) || null,
@@ -570,6 +573,14 @@ export default function NewClipPanel({
 
                 </div>
 
+                <div className="border-t border-white/[0.06] pt-3">
+                  <StylePresetPicker
+                    value={form.stylePreset}
+                    onChange={(stylePreset) => patch({ stylePreset })}
+                    layout="grid"
+                    helpText="เลือกก่อนสร้างคลิป ระบบจะใช้ค่านี้จัด Motion, Transition และสี Accent อัตโนมัติ"
+                  />
+                </div>
 
                 {/* Toggles */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-white/[0.06]">

@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from scripts.config import ASSETS_DIR, FONTS_DIR, SFX_DIR, MUSIC_DIR, STICKERS_DIR, LUTS_DIR, EFFECTS_DIR
+from scripts.overlay_recolor import overlay_asset_recolor_metadata
 
 REGISTRY_PATH = ASSETS_DIR / "asset_registry.json"
 METADATA_PATH = ASSETS_DIR / "asset_metadata.json"
@@ -182,6 +183,7 @@ class AssetRegistry:
                 entry = cls._file_info(path)
                 entry["id"] = path.stem
                 entry["img_url"] = f"/api/media/{entry['rel_path']}"
+                entry.update(overlay_asset_recolor_metadata("sticker", path.stem))
                 entries.append(entry)
         return entries
 
@@ -211,6 +213,7 @@ class AssetRegistry:
             entry["label"] = meta.get("label") or meta.get("label_th") or path.stem
             entry["video_url"] = f"/api/media/{entry['rel_path']}"
             entry["starred"] = bool(meta.get("starred", False))
+            entry.update(overlay_asset_recolor_metadata("effect", asset_id))
             entries.append(entry)
         return entries
 

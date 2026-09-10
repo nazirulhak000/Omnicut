@@ -76,6 +76,96 @@ def test_short_synthetic_video_exports_at_30_fps(tmp_path, monkeypatch):
 
 
 @pytest.mark.render_regression
+def test_baked_decorative_sticker_and_effect_recolor_across_multiple_frames(tmp_path, monkeypatch):
+    """Opted-in baked media must follow the accent palette in the real render."""
+    if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
+        pytest.skip("FFmpeg and FFprobe are required for the render regression fixture")
+
+    source = tmp_path / "baked_source.mp4"
+    audio = tmp_path / "baked_mix.wav"
+    subtitles = tmp_path / "baked_captions.ass"
+    output = tmp_path / "baked_recolored.mp4"
+    frames_dir = tmp_path / "frames"
+    frames_dir.mkdir()
+    monkeypatch.setenv("OMNICUT_ENCODER", "cpu")
+
+    _run([
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "lavfi", "-i", "color=c=black:s=540x960:r=30:d=1.4",
+        "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(source),
+    ])
+    _run([
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000:duration=1.4",
+        "-c:a", "pcm_s16le", str(audio),
+    ])
+    subtitles.write_text(
+        "[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\n"
+        "[V4+ Styles]\n"
+        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, "
+        "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, "
+        "Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
+        "Style: Default,Arial,72,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,3,0,2,40,40,420,1\n"
+        "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n",
+        encoding="utf-8",
+    )
+
+    result = VideoEditor.assemble_tiktok_video(
+        raw_video_paths=[str(source)],
+        total_duration=1.4,
+        mixed_audio_path=str(audio),
+        ass_subtitle_path=str(subtitles),
+        output_mp4_path=str(output),
+        clip_list=[{
+            "source_path": str(source),
+            "trim_start": 0.0,
+            "trim_end": 1.4,
+            "duration": 1.4,
+        }],
+        stickers=[{
+            "id": "tint-sticker",
+            "badge": "arrow_pointer_cyan_3d.png",
+            "start": 0.1,
+            "end": 1.3,
+            "normX": 0.25,
+            "normY": 0.25,
+            "scale": 1.0,
+            "recolor": "accent",
+            "recolorSourceHue": 180,
+        }],
+        effects=[{
+            "id": "tint-effect",
+            "effectId": "fx_arrow_01",
+            "start": 0.1,
+            "end": 1.3,
+            "normX": 0.75,
+            "normY": 0.55,
+            "scale": 1.0,
+            "recolor": "accent",
+            "recolorSourceHue": 205,
+        }],
+        style_preset="clean_tech_review",
+        export_preset="draft",
+    )
+
+    assert Path(result) == output.resolve()
+    from PIL import Image
+
+    for label, timestamp in (("in", "0.20"), ("hold", "0.70"), ("out", "1.10")):
+        _run([
+            "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+            "-ss", timestamp, "-i", str(output), "-frames:v", "1",
+            str(frames_dir / f"{label}.png"),
+        ])
+        image = Image.open(frames_dir / f"{label}.png").convert("RGB")
+        yellow_pixels = sum(
+            1 for red, green, blue in image.getdata()
+            if red > 90 and green > 55 and red > blue * 1.8 and green > blue * 1.4
+        )
+        assert yellow_pixels > 500, f"{label} frame lost the accent-recoloured baked media"
+
+
+@pytest.mark.render_regression
 def test_keyframe_camera_motion_changes_real_render_frames_and_stays_in_bounds(tmp_path, monkeypatch):
     """FFmpeg must evaluate zoom/pan keyframes over the clip, not just once."""
     if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
@@ -1032,8 +1122,19 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
 
 @pytest.mark.render_regression
-def test_style_preset_accent_burns_consistently_across_entry_hold_exit_frames(tmp_path):
-    """The selected style palette must survive the real ASS/libass render."""
+@pytest.mark.parametrize(
+    ("style_preset", "accent_hex"),
+    [
+        ("viral_punch", "#FE2C55"),
+        ("clean_tech_review", "#FFE600"),
+        ("smooth_showcase", "#25F4EE"),
+        ("premium_minimal", "#E6C24A"),
+    ],
+)
+def test_style_preset_accent_burns_consistently_across_entry_hold_exit_frames(
+    tmp_path, style_preset, accent_hex
+):
+    """Every selectable style palette must survive the real ASS/libass render."""
     if not shutil.which("ffmpeg"):
         pytest.skip("FFmpeg is required for the render regression fixture")
 
@@ -1045,7 +1146,7 @@ def test_style_preset_accent_burns_consistently_across_entry_hold_exit_frames(tm
         cues=[],
         output_ass_path=str(ass_path),
         bilingual=False,
-        style_preset="clean_tech_review",
+        style_preset=style_preset,
         overlays=[{
             "kind": "hook",
             "start": 0.0,
@@ -1059,7 +1160,15 @@ def test_style_preset_accent_burns_consistently_across_entry_hold_exit_frames(tm
         }],
     )
     ass_text = ass_path.read_text(encoding="utf-8")
-    assert "\\c&H0000E6FF&" in ass_text, "clean_tech_review accent must resolve to ASS yellow"
+    red, green, blue = (
+        int(accent_hex[1:3], 16),
+        int(accent_hex[3:5], 16),
+        int(accent_hex[5:7], 16),
+    )
+    expected_ass_colour = f"\\c&H00{blue:02X}{green:02X}{red:02X}&"
+    assert expected_ass_colour in ass_text, (
+        f"{style_preset} accent must resolve to {expected_ass_colour} in ASS"
+    )
 
     fonts_p = str(Path("02_Assets/Fonts").resolve()).replace("\\", "/").replace(":", "\\:")
     ass_p = str(ass_path.resolve()).replace("\\", "/").replace(":", "\\:")
@@ -1074,11 +1183,15 @@ def test_style_preset_accent_burns_consistently_across_entry_hold_exit_frames(tm
             str(frames_dir / f"{label}.png"),
         ])
 
-    yellow_counts = []
+    accent_counts = []
     for label in ("entry", "hold", "exit"):
         image = Image.open(frames_dir / f"{label}.png").convert("RGB")
-        yellow_counts.append(sum(
-            1 for red, green, blue in image.getdata()
-            if red > 150 and green > 120 and blue < 120
+        accent_counts.append(sum(
+            1 for pixel_red, pixel_green, pixel_blue in image.getdata()
+            if max(
+                abs(pixel_red - red),
+                abs(pixel_green - green),
+                abs(pixel_blue - blue),
+            ) <= 70
         ))
-    assert all(count > 0 for count in yellow_counts), yellow_counts
+    assert all(count > 0 for count in accent_counts), accent_counts

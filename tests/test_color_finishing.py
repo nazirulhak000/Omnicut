@@ -9,6 +9,11 @@ from scripts.video_editor import (
     resolve_accent_palette,
     resolve_color_finish,
 )
+from scripts.overlay_recolor import (
+    build_overlay_hue_filter,
+    overlay_asset_recolor_metadata,
+    resolve_overlay_recolor,
+)
 
 
 def test_legacy_empty_clip_keeps_the_zero_cost_colour_path():
@@ -70,6 +75,20 @@ def test_unknown_palette_and_bad_colours_use_the_style_safe_fallback():
     }
 
 
+def test_every_selectable_style_resolves_to_its_own_render_palette():
+    expected = {
+        "clean_tech_review": "#FFE600",
+        "viral_punch": "#FE2C55",
+        "smooth_showcase": "#25F4EE",
+        "premium_minimal": "#E6C24A",
+    }
+
+    for style_preset, accent in expected.items():
+        palette = resolve_accent_palette(style_preset=style_preset)
+        assert palette["name"] == style_preset
+        assert palette["primary"] == accent
+
+
 def test_lut_strength_is_finite_and_bounded():
     assert normalize_lut_intensity(None) == 1.0
     assert normalize_lut_intensity("junk") == 1.0
@@ -91,3 +110,27 @@ def test_palette_is_pure_and_does_not_mutate_clip_payload():
 
     assert result["palette"]["primary"] == "#123456"
     assert clip == before
+
+
+def test_overlay_recolor_is_explicit_and_does_not_touch_semantic_badges():
+    palette = resolve_accent_palette()
+    assert overlay_asset_recolor_metadata("sticker", "arrow_pointer_cyan_3d.png")["recolorable"] is True
+    assert overlay_asset_recolor_metadata("sticker", "badge_pros_review.png")["recolorable"] is False
+    assert resolve_overlay_recolor(
+        {"recolor": "accent"}, palette, kind="sticker", asset_id="arrow_pointer_cyan_3d.png"
+    )["delta"] < -120
+    assert resolve_overlay_recolor(
+        {"recolor": "accent"}, palette, kind="sticker", asset_id="badge_pros_review.png"
+    ) is None
+
+
+def test_overlay_hue_filter_mirrors_canvas_contract_and_preserves_neutral_path():
+    palette = resolve_accent_palette()
+    tinted = build_overlay_hue_filter(
+        "[2:v]", "[tinted]", {"recolor": "accent", "recolorSourceHue": 180}, palette,
+        kind="sticker", asset_id="arrow_pointer_cyan_3d.png",
+    )
+    assert tinted == "[2:v]hue=h=-125.882[tinted];"
+    assert build_overlay_hue_filter(
+        "[2:v]", "[plain]", {}, palette, kind="sticker", asset_id="badge_pros_review.png"
+    ) == ""

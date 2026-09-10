@@ -17,6 +17,7 @@
 ## สถานะรวม
 ---
 
+- [x] Round STYLE-ONECLICK-1 — เพิ่ม Style Preset หลายแบบใน One Click และแยก “ส่งตัดต่อใหม่” ออกจาก “เปิดโปรเจกต์เดิม” (2026-09-10)
 - [ ] Round SEC-AUDIT-1 — แก้ตาม DB/Infra/System audit: security config (API auth เปิดโล่ง, path traversal), sticker resurrection ฝั่ง render, data-store transaction hazard — 10 stream ขนาน ดู SYSTEM_AUDIT_FIX_PLAN.md (2026-09-09, รอ codex agent เสร็จก่อนยิง)
 - [x] Round PRO-STYLE-1 — Professional Editing Style System: Phase 1 Style Contract + Golden Master (2026-09-09)
 - [x] Round PRO-STYLE-2 — Editorial Beat Map + Pacing Core (Phase 2A, isolated module; 2026-09-09)
@@ -1455,12 +1456,15 @@ Notes: Schedule selection logic itself remains frozen; only checklist styling an
 - No agent may edit TODO/HISTORY/plan documents or commit changes.
 - [x] Regression found during full backend gate: `tests/test_preview_render_parity.py::test_ducking_uses_the_measured_reduction_not_a_feel_value` expected literal ducking filter parameters; audio lane preserved the source-parity contract while keeping policy values centralized.
 - [x] Audio source-parity regression fixed by the audio owner; focused audio/parity checks passed and full backend rerun passed (`1015 passed`).
-- [ ] Phase 4 is not fully signed off: color palette still does not recolor baked sticker/effect media; real temporary audio mix measured 5.2s, 44.1kHz stereo, mean `-16.8 dB`, peak `-4.0 dB`.
+- [x] Phase 4 baked-media recolor signed off: accent hue rotation is opt-in for decorative stickers/effects and is mirrored by Canvas `hue-rotate` plus FFmpeg `hue`; product/semantic baked artwork remains neutral by default. Real multi-frame render gate passed.
 - [x] Phase 5 visual integration: EditorShell passes `style_preset` into both live SequencePlayer instances; the shared `clean_tech_review` palette drives semantic overlay accent in Canvas and ASS.
 - [x] Phase 6 real-artifact validation: LOG01 and GOC01 pass with 3 samples each, 0 signals, and paired comparison pass; probe samples against video duration when an audio tail is longer.
 - [x] Repo-wide frontend lint exits 0 but reports existing warnings, including pre-existing warnings in `EditorShell.jsx`, `AssetPanel.jsx`, and shared hooks/components.
 
 ### Continuation plan — real validation and remaining style integration (2026-09-09)
+
+- [x] Phase 4 baked-media tint integration [main] (2026-09-10): explicit accent recolor contract is wired through editor state, Canvas preview, and FFmpeg render; safe decorative sticker/effect assets recolor, while semantic/product-color media remains unchanged by default. Focused gates: backend 10 passed; frontend 138 passed; real FFmpeg render checked entry/hold/exit frames.
+- [x] Phase 4 final gates (2026-09-10): full backend `1029 passed, 15 warnings`; frontend `138 passed`; build `1977 modules`; lint exit `0` with existing warnings; compileall and `git diff --check` passed.
 
 - [x] Run `tools/golden_master_probe.py` against two available real exports with expected 1080x1920/30fps and required audio; both returned `pass`, 3 samples, 0 signals, and the comparison returned `pass`.
 - [x] Run a real temporary FFmpeg audio mix using isolated temp inputs and verify the produced audio: 5.2s WAV, 44.1kHz stereo, mean `-16.8 dB`, peak `-4.0 dB`.

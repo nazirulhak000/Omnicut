@@ -1,4 +1,5 @@
 import { migrateToOverlays } from './overlayModel.js';
+import { getOverlayRecolorMetadata } from './overlayRecolor.js';
 import { FADE_DURATION } from './timelineMath.js';
 
 export const EMPTY_TRACK_MIX = Object.freeze({ mute: {}, solo: {} });
@@ -102,16 +103,30 @@ export function manifestToEditorState(data, options = {}) {
   const rawStickers = firstNonEmptyArray(manifest.stickers, params.stickers, savedStyle.stickers);
   let stickers = [];
   if (rawStickers.length > 0) {
-    stickers = rawStickers.map((stk, idx) => ({
-      id: stk.id || `sticker-${idx}-${Date.now()}`,
-      badge: stk.badge || stk.path || '',
-      start: Number(firstPresent(stk.start, stk.start_time, stk.startTime, 0.5)),
-      end: stk.end != null ? Number(stk.end) : (stk.end_time != null ? Number(stk.end_time) : (stk.endTime != null ? Number(stk.endTime) : 3.5)),
-      normX: Number(firstPresent(stk.normX, stk.norm_x, 0.8)),
-      normY: Number(firstPresent(stk.normY, stk.norm_y, 0.2)),
-      scale: Number(firstPresent(stk.scale, 1.0)),
-      hidden: !!stk.hidden,
-    }));
+    stickers = rawStickers.map((stk, idx) => {
+      const badge = stk.badge || stk.path || '';
+      const recolorMeta = getOverlayRecolorMetadata('sticker', badge);
+      const requestedRecolor = stk.recolor ?? stk.tint;
+      return {
+        id: stk.id || `sticker-${idx}-${Date.now()}`,
+        badge,
+        start: Number(firstPresent(stk.start, stk.start_time, stk.startTime, 0.5)),
+        end: stk.end != null ? Number(stk.end) : (stk.end_time != null ? Number(stk.end_time) : (stk.endTime != null ? Number(stk.endTime) : 3.5)),
+        normX: Number(firstPresent(stk.normX, stk.norm_x, 0.8)),
+        normY: Number(firstPresent(stk.normY, stk.norm_y, 0.2)),
+        scale: Number(firstPresent(stk.scale, 1.0)),
+        hidden: !!stk.hidden,
+        ...(requestedRecolor !== undefined ? {
+          recolor: requestedRecolor,
+          ...(stk.recolorSourceHue != null || stk.recolor_source_hue != null ? {
+            recolorSourceHue: Number(firstPresent(stk.recolorSourceHue, stk.recolor_source_hue)),
+          } : {}),
+        } : recolorMeta.recolorable ? {
+          recolor: 'accent',
+          recolorSourceHue: recolorMeta.recolor_source_hue,
+        } : {}),
+      };
+    });
   } else if (savedStyle.stickerBadge || manifest.sticker_badge) {
     stickers = [{
       id: 'sticker-legacy-1',
@@ -126,16 +141,30 @@ export function manifestToEditorState(data, options = {}) {
   }
 
   const rawEffects = firstNonEmptyArray(manifest.effects, params.effects, []);
-  const effects = rawEffects.map((fx, idx) => ({
-    id: fx.id || `effect-${idx}-${Date.now()}`,
-    effectId: fx.effectId || fx.effect_id || '',
-    start: Number(firstPresent(fx.start, fx.start_time, fx.startTime, 0.5)),
-    end: fx.end != null ? Number(fx.end) : (fx.end_time != null ? Number(fx.end_time) : (fx.endTime != null ? Number(fx.endTime) : 3.5)),
-    normX: Number(firstPresent(fx.normX, fx.norm_x, 0.5)),
-    normY: Number(firstPresent(fx.normY, fx.norm_y, 0.35)),
-    scale: Number(firstPresent(fx.scale, 1.0)),
-    hidden: !!fx.hidden,
-  }));
+  const effects = rawEffects.map((fx, idx) => {
+    const effectId = fx.effectId || fx.effect_id || '';
+    const recolorMeta = getOverlayRecolorMetadata('effect', effectId);
+    const requestedRecolor = fx.recolor ?? fx.tint;
+    return {
+      id: fx.id || `effect-${idx}-${Date.now()}`,
+      effectId,
+      start: Number(firstPresent(fx.start, fx.start_time, fx.startTime, 0.5)),
+      end: fx.end != null ? Number(fx.end) : (fx.end_time != null ? Number(fx.end_time) : (fx.endTime != null ? Number(fx.endTime) : 3.5)),
+      normX: Number(firstPresent(fx.normX, fx.norm_x, 0.5)),
+      normY: Number(firstPresent(fx.normY, fx.norm_y, 0.35)),
+      scale: Number(firstPresent(fx.scale, 1.0)),
+      hidden: !!fx.hidden,
+      ...(requestedRecolor !== undefined ? {
+        recolor: requestedRecolor,
+        ...(fx.recolorSourceHue != null || fx.recolor_source_hue != null ? {
+          recolorSourceHue: Number(firstPresent(fx.recolorSourceHue, fx.recolor_source_hue)),
+        } : {}),
+      } : recolorMeta.recolorable ? {
+        recolor: 'accent',
+        recolorSourceHue: recolorMeta.recolor_source_hue,
+      } : {}),
+    };
+  });
 
   return {
     clipList,

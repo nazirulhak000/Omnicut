@@ -29,6 +29,8 @@ import {
   withStylePresetPayload,
 } from '../../lib/stylePresetCatalog.js';
 import { removeItemById, updateItemById } from '../../lib/collectionOperations.js';
+import { getOverlayRecolorMetadata } from '../../lib/overlayRecolor.js';
+import { resolveEditorProjectName } from '../../lib/editorEntry.js';
 import SequencePlayer from '../SequencePlayer';
 import AssetPanel from './AssetPanel';
 import Inspector from './Inspector';
@@ -137,14 +139,18 @@ export default function EditorShell({
 
   const [projectList, setProjectList] = useState([]);
   const [projectName, setProjectName] = useState(() => {
-    if (initialProjectName) return initialProjectName;
-    if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      const fromUrl = urlParams.get('project');
-      if (fromUrl) return fromUrl;
-      return localStorage.getItem('omnicut_active_project') || '';
-    }
-    return '';
+    const urlProject = typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('project')
+      : '';
+    const storedProject = typeof window !== 'undefined'
+      ? localStorage.getItem('omnicut_active_project')
+      : '';
+    return resolveEditorProjectName({
+      intent: initialProjectName,
+      urlProject,
+      storedProject,
+      angleProject: productContext?.angles?.[angleIndex]?.project_name,
+    });
   });
   // `default_bgm` comes from the server, which is where the render's own
   // default lives. Keeping a copy here is what let the timeline claim one
@@ -675,20 +681,19 @@ export default function EditorShell({
 
   // Load project handed down from script lab or flow, or restored from storage/URL
   useEffect(() => {
-    if (initialProjectName) {
-      loadProject(initialProjectName);
-    } else {
-      const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-      const targetProj = projectName || urlParams?.get('project') || (typeof window !== 'undefined' ? localStorage.getItem('omnicut_active_project') : null);
-      if (targetProj) {
-        loadProject(targetProj);
-      } else {
-        const angleProj = productContext?.angles?.[angleIndex]?.project_name;
-        if (angleProj) {
-          loadProject(angleProj);
-        }
-      }
-    }
+    const urlProject = typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('project')
+      : '';
+    const storedProject = typeof window !== 'undefined'
+      ? localStorage.getItem('omnicut_active_project')
+      : '';
+    const targetProject = resolveEditorProjectName({
+      intent: initialProjectName,
+      urlProject,
+      storedProject,
+      angleProject: productContext?.angles?.[angleIndex]?.project_name,
+    });
+    if (targetProject) loadProject(targetProject);
   }, [initialProjectName, productContext, angleIndex]);
 
   // Filmstrip thumbnails -- one real sprite per unique source file, from the
@@ -872,11 +877,14 @@ export default function EditorShell({
     });
   }, [selection, overlays, handleReplaceOverlay]);
 
-  const handleAddSticker = useCallback((badgeName) => {
+  const handleAddSticker = useCallback((badgeName, asset = null) => {
     const dur = 3.0; // DEFAULT 3 SECONDS
     const start = Math.round(playhead * 10) / 10;
     const maxEnd = totalDuration > 0 ? totalDuration : (start + dur);
     const end = Math.round(Math.min(maxEnd, start + dur) * 10) / 10;
+    const recolorMeta = asset?.recolorable
+      ? asset
+      : getOverlayRecolorMetadata('sticker', badgeName);
     const newSticker = {
       id: `sticker-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
       badge: badgeName,
@@ -886,6 +894,10 @@ export default function EditorShell({
       normY: 0.35,
       scale: 1.0,
       hidden: false,
+      ...(recolorMeta.recolorable ? {
+        recolor: 'accent',
+        recolorSourceHue: Number(recolorMeta.recolor_source_hue),
+      } : {}),
     };
     set((prev) => ({
       ...prev,
@@ -973,7 +985,7 @@ export default function EditorShell({
   // Video overlay effects (transparent-preview via multiply blend) -- same
   // instance shape/CRUD pattern as stickers, no legacy single-slot mirror
   // since this is a new feature with nothing to stay back-compatible with.
-  const handleAddEffect = useCallback((effectId) => {
+  const handleAddEffect = useCallback((effectId, asset = null) => {
     const dur = 3.0;
     const start = Math.round(playhead * 10) / 10;
     const maxEnd = totalDuration > 0 ? totalDuration : (start + dur);
@@ -997,7 +1009,16 @@ export default function EditorShell({
         { normX: 0.75, normY: 0.55 },
       ];
       const { normX, normY } = slots[overlapCount % slots.length];
-      const newEffect = { id: newId, effectId, start, end, normX, normY, scale: 1.0, hidden: false };
+      const recolorMeta = asset?.recolorable
+        ? asset
+        : getOverlayRecolorMetadata('effect', effectId);
+      const newEffect = {
+        id: newId, effectId, start, end, normX, normY, scale: 1.0, hidden: false,
+        ...(recolorMeta.recolorable ? {
+          recolor: 'accent',
+          recolorSourceHue: Number(recolorMeta.recolor_source_hue),
+        } : {}),
+      };
       return { ...prev, effects: [...existing, newEffect] };
     });
     setSelection({ type: 'effect', id: newId });
@@ -1976,8 +1997,8 @@ export default function EditorShell({
                       selectedStickerId={selection?.type === 'sticker' ? selection.id : null}
                       previewSticker={previewSticker}
                       onPreviewSticker={handlePreviewSticker}
-                      onAddSticker={(badge) => {
-                        handleAddSticker(badge);
+                      onAddSticker={(badge, asset) => {
+                        handleAddSticker(badge, asset);
                         setPreviewSticker(null);
                       }}
                       onUpdateSticker={handleUpdateSticker}
@@ -2116,8 +2137,8 @@ export default function EditorShell({
                         selectedStickerId={selection?.type === 'sticker' ? selection.id : null}
                         previewSticker={previewSticker}
                         onPreviewSticker={handlePreviewSticker}
-                        onAddSticker={(badge) => {
-                          handleAddSticker(badge);
+                        onAddSticker={(badge, asset) => {
+                          handleAddSticker(badge, asset);
                           setPreviewSticker(null);
                         }}
                         onUpdateSticker={handleUpdateSticker}

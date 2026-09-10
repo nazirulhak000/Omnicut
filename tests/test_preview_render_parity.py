@@ -29,6 +29,8 @@ PY_SRC += (ROOT / "scripts" / "subtitle_engine.py").read_text(encoding="utf-8")
 JS_SRC = (ROOT / "frontend" / "src" / "components" / "SequencePlayer.jsx").read_text(encoding="utf-8")
 TIMELINE_SRC = (ROOT / "frontend" / "src" / "components" / "editor" / "Timeline.jsx").read_text(encoding="utf-8")
 TRACK_LABEL_SRC = (ROOT / "frontend" / "src" / "components" / "editor" / "timeline" / "TrackLabel.jsx").read_text(encoding="utf-8")
+RECOLOR_PY_SRC = (ROOT / "scripts" / "overlay_recolor.py").read_text(encoding="utf-8")
+RECOLOR_JS_SRC = (ROOT / "frontend" / "src" / "lib" / "overlayRecolor.js").read_text(encoding="utf-8")
 
 
 def _grab(text, pattern, cast=float):
@@ -1804,6 +1806,7 @@ def test_style_preset_visual_palette_reaches_both_preview_and_ass():
     """A selected style must be a live visual input, not manifest metadata only."""
     sequence_src = (ROOT / "frontend" / "src" / "components" / "SequencePlayer.jsx").read_text(encoding="utf-8")
     catalog_src = (ROOT / "frontend" / "src" / "lib" / "stylePresetCatalog.js").read_text(encoding="utf-8")
+    policy_src = (ROOT / "scripts" / "style_motion_policy.py").read_text(encoding="utf-8")
     assert "getStylePreset(stylePreset)" in sequence_src
     assert "drawOverlays(ctx, drawnOverlays, t, previewAccentColor" in sequence_src
     assert "stylePreset={activeStylePreset}" in (
@@ -1815,10 +1818,29 @@ def test_style_preset_visual_palette_reaches_both_preview_and_ass():
     assert "style_visual_palette(ctx.get(\"style_preset\"))" in (
         ROOT / "scripts" / "subtitle" / "overlay_events.py"
     ).read_text(encoding="utf-8")
-    assert "accent: '#FFE600'" in catalog_src
-    assert 'accent_color=\"#FFE600\"' in PY_SRC or 'accent_color=\"#FFE600\"' in (
-        ROOT / "scripts" / "style_motion_policy.py"
-    ).read_text(encoding="utf-8")
+    expected_accents = {
+        "viral_punch": "#FE2C55",
+        "clean_tech_review": "#FFE600",
+        "smooth_showcase": "#25F4EE",
+        "premium_minimal": "#E6C24A",
+    }
+    for preset_id, accent in expected_accents.items():
+        assert f"'{preset_id}'" in catalog_src
+        assert f"accent: '{accent}'" in catalog_src
+        assert f'"{preset_id}": StyleMotionPolicy(' in policy_src
+        assert f'accent_color="{accent}"' in policy_src
+
+
+def test_baked_overlay_recolor_uses_the_same_explicit_hue_contract():
+    """Canvas and FFmpeg must tint only opted-in media with the same source hue."""
+    assert "drawMediaWithAccentRecolor" in JS_SRC
+    assert "hue-rotate(" in RECOLOR_JS_SRC
+    assert "build_overlay_hue_filter" in (ROOT / "scripts" / "video_editor.py").read_text(encoding="utf-8")
+    assert "hue=h=" in RECOLOR_PY_SRC
+    assert "DEFAULT_EFFECT_SOURCE_HUE = 205" in RECOLOR_PY_SRC
+    assert "DEFAULT_EFFECT_SOURCE_HUE = 205" in RECOLOR_JS_SRC
+    assert "recolor: 'accent'" in (ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx").read_text(encoding="utf-8")
+    assert '"recolor": fx.get("recolor", fx.get("tint"))' in (ROOT / "scripts" / "video_editor.py").read_text(encoding="utf-8")
 
 
 def test_the_canvas_draws_the_same_per_tier_edge():

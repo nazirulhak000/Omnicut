@@ -659,9 +659,9 @@ def mark_posted(req: MarkPostedRequest):
     Moves a clip (+ its poster/cover) from Ready_to_post/ into Posted/, and
     when the angle is known, sets its status to 'posted' with the new path.
 
-    ProductStore.reconcile() preserves 'posted'/'mobile_ready' status
+    ProductStore.reconcile() preserves 'posted' status
     regardless of where the manifest's video_url points (product_store.py's
-    "Preserve advanced lifecycle status" branch), so moving the file here
+    "Preserve permanent posted status" branch), so moving the file here
     does not fight the background reconciler.
     """
     src = Path(req.file_path)

@@ -9,7 +9,7 @@ import { QRCodeSVG } from 'qrcode.react';
 // ── Desktop Navigation Items (6 items) ──
 const DESKTOP_NAV_ITEMS = [
   { id: 'flow',     icon: Rocket,     label: '1. สินค้า → คลิป',     shortLabel: 'สินค้า' },
-  { id: 'tracker',  icon: Layers,     label: '2. แทร็กเกอร์ 5 เฟส',    shortLabel: 'Tracker' },
+  { id: 'tracker',  icon: Layers,     label: '2. แทร็กเกอร์ 4 เฟส',    shortLabel: 'Tracker' },
   { id: 'editor',   icon: Scissors,   label: '3. ตัดต่อ & สร้างคลิป', shortLabel: 'Editor' },
   { id: 'gallery',  icon: FolderDown, label: '4. Export Gallery',    shortLabel: 'Gallery' },
   { id: 'assets',   icon: Palette,    label: '5. Media Assets Hub',   shortLabel: 'Assets' },

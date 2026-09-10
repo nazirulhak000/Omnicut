@@ -85,3 +85,22 @@ test('one save serializer carries overlays, keyframes, and audio controls', () =
   assert.deepEqual(first.audio_mutes, { bgm: true });
   assert.equal(first.cues[0]._uid, undefined);
 });
+
+
+test('overlay migration opts decorative baked media into accent recolour only', () => {
+  const state = manifestToEditorState({
+    stickers: [
+      { id: 'arrow', badge: 'arrow_pointer_cyan_3d.png' },
+      { id: 'badge', badge: 'badge_pros_review.png' },
+      { id: 'off', badge: 'arrow_pointer_cyan_3d.png', recolor: false },
+    ],
+    effects: [{ id: 'fx', effectId: 'fx_arrow_01' }],
+  });
+
+  assert.equal(state.stickers[0].recolor, 'accent');
+  assert.equal(state.stickers[0].recolorSourceHue, 180);
+  assert.equal(state.stickers[1].recolor, undefined);
+  assert.equal(state.stickers[2].recolor, false);
+  assert.equal(state.effects[0].recolor, 'accent');
+  assert.equal(state.effects[0].recolorSourceHue, 205);
+});

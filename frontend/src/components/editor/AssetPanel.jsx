@@ -21,8 +21,9 @@ export const CLIP_DRAG_TYPE = 'application/x-capcut-clip';
 export const TEXT_TEMPLATE_DRAG_TYPE = 'application/x-capcut-text-template';
 
 import { toMediaUrl } from '../../lib/mediaUrl';
-import { STYLE_PRESET_CATALOG, normalizeStylePreset } from '../../lib/stylePresetCatalog.js';
+import { normalizeStylePreset } from '../../lib/stylePresetCatalog.js';
 import TextLookPreview from './TextLookPreview';
+import StylePresetPicker from './StylePresetPicker';
 import { HOOK_FS_RATIO, HOOK_SHADOW, overlayFromTextTemplate } from '../../lib/overlayModel';
 import { TIER_KEYS } from '../../lib/hookStyles';
 
@@ -840,54 +841,11 @@ export default function AssetPanel({
         {/* TAB 8: PROJECT STYLE */}
         {tab === 'style' && (
           <div className="space-y-2">
-            <div className="rounded-xl border border-[#25F4EE]/20 bg-[#25F4EE]/[0.04] p-3">
-              <div className="flex items-start gap-2">
-                <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#25F4EE]" />
-                <div className="min-w-0">
-                  <p className="text-sm font-bold text-white">สไตล์การตัดต่อของโปรเจกต์</p>
-                  <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
-                    เลือกเพื่อเตรียม look และจังหวะของงาน ระบบจะยังไม่เริ่ม Render จนกว่าจะกดปุ่ม Render เอง
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {STYLE_PRESET_CATALOG.map((preset) => {
-              const isActive = activeStylePreset === preset.id;
-              return (
-                <button
-                  key={preset.id}
-                  type="button"
-                  data-style-preset={preset.id}
-                  aria-pressed={isActive}
-                  onClick={() => onStylePresetChange?.(preset.id)}
-                  className={`w-full rounded-xl border p-3 text-left transition-all focus:outline-none focus:ring-2 focus:ring-[#25F4EE]/60 cursor-pointer ${
-                    isActive
-                      ? 'border-[#25F4EE]/60 bg-[#25F4EE]/[0.08] shadow-[0_0_0_1px_rgba(37,244,238,0.12)]'
-                      : 'border-white/[0.08] bg-black/30 hover:border-white/[0.2] hover:bg-white/[0.04]'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-white">{preset.label}</p>
-                      <p className="mt-0.5 text-xs text-[#25F4EE]">{preset.labelTh}</p>
-                    </div>
-                    {isActive && <Check className="h-4 w-4 flex-shrink-0 text-[#25F4EE]" />}
-                  </div>
-                  <p className="mt-2 text-[11px] leading-relaxed text-slate-300">{preset.description}</p>
-                  <div className="mt-3 grid grid-cols-1 gap-1.5 text-[10px] text-slate-400">
-                    <span className="rounded-lg bg-black/25 px-2 py-1">{preset.motion}</span>
-                    <span className="rounded-lg bg-black/25 px-2 py-1">{preset.transitions}</span>
-                    <span className="rounded-lg bg-black/25 px-2 py-1">{preset.audio}</span>
-                  </div>
-                  {isActive && (
-                    <p className="mt-2 text-[10px] font-medium text-emerald-300">
-                      เลือกใช้อยู่ · พร้อมสำหรับพรีวิวและ Render ครั้งถัดไป
-                    </p>
-                  )}
-                </button>
-              );
-            })}
+            <StylePresetPicker
+              value={activeStylePreset}
+              onChange={onStylePresetChange}
+              helpText="เปลี่ยน look และจังหวะของโปรเจกต์ ระบบจะใช้กับ Preview และ Render ครั้งถัดไป"
+            />
 
             <p className="px-1 text-[10px] leading-relaxed text-slate-500">
               การเลือก preset เป็นการแก้ไขระดับโปรเจกต์และย้อนกลับได้ด้วย Undo ก่อนเริ่ม Render
@@ -1705,7 +1663,7 @@ export default function AssetPanel({
                         if (onPreviewSticker) {
                           onPreviewSticker(s.name);
                         } else if (onAddSticker) {
-                          onAddSticker(s.name);
+                          onAddSticker(s.name, s);
                         }
                       }}
                       title={`${displayName} — คลิกเพื่อดูตัวอย่าง (กด + เพื่อเพิ่มลงไทม์ไลน์)`}
@@ -1732,7 +1690,7 @@ export default function AssetPanel({
                         onClick={(e) => {
                           e.stopPropagation();
                           if (onAddSticker) {
-                            onAddSticker(s.name);
+                            onAddSticker(s.name, s);
                           } else {
                             onStyleChange?.({ stickerBadge: s.name, stickerStartTime: playhead, stickerEndTime: playhead + 3.0 });
                           }
@@ -1766,7 +1724,7 @@ export default function AssetPanel({
                     type="button"
                     onClick={() => {
                       if (onAddSticker) {
-                        onAddSticker(previewSticker);
+                        onAddSticker(previewSticker, filtered.stickers.find((s) => s.name === previewSticker || s.id === previewSticker));
                       } else {
                         onStyleChange?.({ stickerBadge: previewSticker, stickerStartTime: playhead, stickerEndTime: playhead + 3.0 });
                       }
@@ -1800,7 +1758,7 @@ export default function AssetPanel({
                 return (
                   <div
                     key={fx.id}
-                    onClick={() => onAddEffect?.(fx.id)}
+                    onClick={() => onAddEffect?.(fx.id, fx)}
                     title={`เพิ่ม ${displayName} ลงไทม์ไลน์ที่ ${playhead.toFixed(1)}s (ยาว 3.0s)`}
                     className="group relative rounded-2xl border border-white/[0.08] bg-black/40 p-1.5 flex flex-col items-center gap-1 transition-all cursor-pointer overflow-hidden select-none hover:border-fuchsia-400/50"
                   >
@@ -1808,7 +1766,7 @@ export default function AssetPanel({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onAddEffect?.(fx.id);
+                        onAddEffect?.(fx.id, fx);
                       }}
                       className="absolute top-1.5 right-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-black/50 text-white hover:bg-fuchsia-400 hover:text-black hover:scale-110 active:scale-95 transition-all cursor-pointer shadow-md"
                     >
