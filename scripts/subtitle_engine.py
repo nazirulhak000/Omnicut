@@ -81,6 +81,22 @@ from scripts.subtitle import (
     _force_highlight,
 )
 
+SUBTITLE_RENDER_CONTRACT_VERSION = "v4"
+SUBTITLE_RENDER_CONTRACT_MARKER = (
+    f"; OmniCutSubtitleContract: {SUBTITLE_RENDER_CONTRACT_VERSION}"
+)
+
+
+def subtitle_artifact_is_current(path: Path) -> bool:
+    """Return whether an existing ASS file uses the current subtitle contract."""
+    try:
+        return SUBTITLE_RENDER_CONTRACT_MARKER in path.read_text(
+            encoding="utf-8", errors="replace"
+        )[:4096]
+    except (OSError, TypeError, ValueError):
+        return False
+
+
 LINE_HEIGHT_FACTOR = 1.0
 
 # Where the caption block sits: (ASS alignment, vertical margin).
@@ -618,6 +634,7 @@ class SubtitleEngine:
         header = f"""[Script Info]
 Title: TikTok Aesthetic Subtitles
 ScriptType: v4.00+
+{SUBTITLE_RENDER_CONTRACT_MARKER}
 WrapStyle: 0
 ScaledBorderAndShadow: yes
 PlayResX: {video_width}

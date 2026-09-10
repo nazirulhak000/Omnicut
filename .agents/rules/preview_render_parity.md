@@ -3,6 +3,9 @@
 กฎบังคับสำหรับ**ทุกฟีเจอร์ในหน้า Editor ที่มีผลต่อภาพในวิดีโอที่เรนเดอร์ออกมา**
 (ข้อความ, ขนาด, สี, ตำแหน่ง, motion, เอฟเฟกต์, รูปทรงตกแต่ง, เงา, ซับไตเติล, สติกเกอร์)
 
+งานที่แตะฟอนต์ ข้อความ ซับ Hook, font metrics, style/default, manifest หรือ dependency ที่มีผลต่อภาพ
+ต้องอ่านและผ่าน [.agents/rules/font_text_visual_contract.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/font_text_visual_contract.md) เพิ่มด้วย
+
 ---
 
 ## 1. ทำไมต้องมีกฎนี้
@@ -55,6 +58,18 @@ factor = unitsPerEm / (usWinAscent + usWinDescent)
 ```
 -vf "subtitles=x.ass:fontsdir=02_Assets/Fonts"
 ```
+
+### 2.0.2 ⚠️ ห้ามรับรอง font metrics ด้วย Python คนละ environment
+
+Backend จริงรันด้วย `.venv\Scripts\python.exe` ดังนั้น probe/test ต้องใช้ interpreter เดียวกัน
+เคยเกิด regression จริง: system Python มี `fontTools` และคำนวณ IBM Plex ได้ `0.6060606`
+จึงสร้าง ASS `Fontsize=82` แต่ `.venv` ไม่มี package แล้ว fallback เงียบเป็น `1.0`
+ทำให้ live render ยังออก `Fontsize=50`
+
+- metric ที่กำหนดภาพต้องอ่านจากไฟล์ฟอนต์จริงได้โดยไม่พึ่ง optional dependency แบบเงียบ
+- dependency ที่ใช้ resolve font family ต้องประกาศใน `requirements.txt`
+- ถ้า metric/physical face resolve ไม่ได้ ต้อง fail หรือแจ้งผู้ใช้ ห้าม render ต่อด้วยค่า `1.0`
+- หลังแก้ backend visual contract ต้อง restart server แล้ว render artifact จริงใหม่ก่อนปิดงาน
 
 ### 2.3 หน่วยและระบบพิกัดต้องแปลง ไม่ใช่ก็อป
 Canvas = **540×960**, Render = **1080×1920** (ต่างกัน 2 เท่าพอดี)

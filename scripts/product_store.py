@@ -528,6 +528,40 @@ class ProductStore:
                                     # definition, regardless of what the angle's
                                     # qc_reviewed flag said about the old one.
                                     angle["qc_reviewed"] = False
+                                    # Round BUG-4: whatever upstream caller
+                                    # resolved product_id/angle_id for this
+                                    # write, enforce "at most one angle owns a
+                                    # given rendered file" as an invariant
+                                    # right here -- reconcile_existing_projects()
+                                    # only catches this on its own next pass,
+                                    # which left a stale duplicate claim
+                                    # visible (same clip/thumbnail under two
+                                    # different products' cards, no warning)
+                                    # for however long until that pass ran.
+                                    # Posted angles are permanently sealed
+                                    # proof (see the guard above) and are
+                                    # never touched here even if they
+                                    # collide -- that would mean a deeper bug
+                                    # than this check is meant to paper over.
+                                    if new_video_url:
+                                        for other_product in products:
+                                            for other_angle in other_product.get("angles", []):
+                                                if other_angle is angle:
+                                                    continue
+                                                if other_angle.get("video_url") != new_video_url:
+                                                    continue
+                                                if other_angle.get("status") == "posted" or other_angle.get("posted_at"):
+                                                    continue
+                                                other_angle["project_name"] = None
+                                                other_angle["video_url"] = None
+                                                other_angle["export_id"] = None
+                                                other_angle["status"] = "scripted"
+                                                other_angle["qc_reviewed"] = False
+                                                other_angle["data_conflict_note"] = (
+                                                    f"ปลดออกจาก '{project_name or new_video_url}' อัตโนมัติ "
+                                                    f"— ชนกับ angle อื่นที่เพิ่งผูกคลิปนี้ ({cls._now()})"
+                                                )
+                                                other_angle["updated_at"] = cls._now()
                                 angle["video_url"] = new_video_url
                             if export_id is not None:
                                 angle["export_id"] = export_id
@@ -562,7 +596,7 @@ class ProductStore:
         were, same as they would if the user had hand-edited the script text.
         """
         CONTENT_KEYS = (
-            "angle_name", "badge", "product_name", "hook_title", "pain_point",
+            "angle_name", "angle_description", "content_types", "badge", "product_name", "hook_title", "pain_point",
             "key_features", "price_deal", "ad_tone", "script_lines",
             "tts_lines", "tiktok_caption", "tiktok_hashtags",
             "duration", "extra_beats",

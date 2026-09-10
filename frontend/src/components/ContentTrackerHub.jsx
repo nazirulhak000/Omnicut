@@ -14,7 +14,7 @@ import {
 } from '../api';
 import CoverStudioModal from './CoverStudioModal';
 import ScheduleAgenda from './ScheduleAgenda';
-import { Modal, Toast, Button, Badge, Input, Textarea, SafeQRCode } from './ui';
+import { Modal, Toast, Button, Badge, Input, Textarea, SafeQRCode, PageHeader } from './ui';
 import { useDebounce, useToast } from '../hooks';
 import { guessBrandModel } from '../lib/overlayModel';
 import { applyCoverResult, getCoverVariant, mergeCoverMetadata } from '../lib/coverVariant';
@@ -128,7 +128,9 @@ const KanbanCard = memo(function KanbanCard({
   if (phaseId === 'rendered') {
     return (
       <div className={`p-2 rounded-xl border transition-all relative group shadow-sm flex gap-2.5 items-stretch ${
-        ang.qc_note
+        ang.data_conflict_note
+          ? 'bg-[#120C05] border-amber-500/50 hover:border-amber-400/70 ring-1 ring-amber-500/25'
+          : ang.qc_note
           ? 'bg-[#120A06] border-red-500/40 hover:border-red-400/60 ring-1 ring-red-500/20'
           : 'bg-[#09111C] border-[#25F4EE]/30 hover:border-[#25F4EE]/60 shadow-[#25F4EE]/5'
       }`}>
@@ -186,7 +188,17 @@ const KanbanCard = memo(function KanbanCard({
                 <span className="truncate">{ang.project_name || ang.parentProduct?.name}</span>
               </span>
               <div className="flex items-center gap-1 flex-shrink-0">
-                {ang.qc_note ? (
+                {ang.data_conflict_note ? (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onDismissConflict ? onDismissConflict(ang) : onInspectAngle(ang); }}
+                    className="px-1.5 py-0.2 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold text-[10px] cursor-pointer flex items-center gap-0.5"
+                    title={ang.data_conflict_note}
+                  >
+                    <AlertTriangle className="w-2.5 h-2.5" />
+                    <span>ชนข้อมูล</span>
+                  </button>
+                ) : ang.qc_note ? (
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); onQcPass && onQcPass(ang); }}
@@ -201,9 +213,14 @@ const KanbanCard = memo(function KanbanCard({
                     <span>QC ผ่าน</span>
                   </span>
                 ) : (
-                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-500/15 border border-amber-500/30 text-amber-300" title="เรนเดอร์เสร็จแล้ว แต่ยังไม่มีใครกด QC ผ่าน">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onQcPass && onQcPass(ang); }}
+                    className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 cursor-pointer transition-colors"
+                    title="เรนเดอร์เสร็จแล้ว แต่ยังไม่มีใครกด QC ผ่าน -- กดตรงนี้เพื่อยืนยัน QC ผ่าน"
+                  >
                     รอตรวจ QC
-                  </span>
+                  </button>
                 )}
                 <button
                   type="button"
@@ -2569,82 +2586,72 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
       </Modal>
 
       {/* ── 1. Top Header Banner ── */}
-      <div className="w-full max-w-full min-w-0 bg-[#0B0F19] border border-white/[0.08] p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3 sm:gap-4 overflow-hidden">
-        <div className="flex items-start sm:items-center gap-3 sm:gap-3.5 w-full min-w-0 flex-1">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-[#FE2C55] to-[#25F4EE] flex items-center justify-center text-white shadow-lg shadow-[#FE2C55]/20 flex-shrink-0 mt-0.5 sm:mt-0">
-            <Layers className="w-5 h-5 sm:w-6 sm:h-6" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 min-w-0">
-              <h2 className="text-base sm:text-lg lg:text-xl font-bold font-kanit text-white tracking-wide truncate">
-                แทร็กเกอร์ 4 เฟส
-              </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/30 whitespace-nowrap flex-shrink-0">
-                Content Tracker Hub
-              </span>
+      <PageHeader
+        icon={Layers}
+        eyebrow="Content Tracker Hub"
+        title="แทร็กเกอร์ 4 เฟส"
+        actions={
+          <>
+            {/* View Mode Toggle Switcher */}
+            <div className="flex items-center p-0.5 rounded-xl bg-black/40 border border-white/[0.08]">
+              <button
+                type="button"
+                onClick={() => handleSwitchViewMode('kanban')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  viewMode === 'kanban'
+                    ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="มุมมองบอร์ด 4 เฟส (Kanban)"
+              >
+                <Kanban className="w-3.5 h-3.5" />
+                <span>บอร์ด 4 เฟส</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSwitchViewMode('schedule')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  viewMode === 'schedule'
+                    ? 'bg-gradient-to-r from-[#FE2C55]/20 to-[#25F4EE]/20 text-white border border-[#25F4EE]/40 shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="ตารางจัดคิวโพสต์ประจำวัน (Daily Run Sheet)"
+              >
+                <Calendar className="w-3.5 h-3.5 text-[#25F4EE]" />
+                <span>คิวประจำวัน</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSwitchViewMode('table')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  viewMode === 'table'
+                    ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="มุมมองตารางข้อมูล (Table)"
+              >
+                <Table className="w-3.5 h-3.5" />
+                <span>ตารางข้อมูล</span>
+              </button>
             </div>
-            <p className="text-xs text-slate-400 mt-1 line-clamp-1 sm:line-clamp-2 leading-relaxed break-words">
-              ระบบติดตามสถานะคลิปตลอด Pipeline 4 ขั้นตอน (สคริปต์พร้อม → กำลังตัดต่อ → ตัดต่อเสร็จ / ตรวจ QC → โพสต์แล้ว)
-            </p>
-          </div>
-        </div>
 
-        {/* Global Action Toolbar */}
-        <div className="flex items-center gap-2 w-full md:w-auto justify-start sm:justify-end flex-wrap pt-0.5 md:pt-0 min-w-0 flex-shrink-0">
-          {/* View Mode Toggle Switcher */}
-          <div className="flex items-center p-0.5 rounded-xl bg-black/40 border border-white/[0.08]">
+            {/* Refresh Button */}
             <button
               type="button"
-              onClick={() => handleSwitchViewMode('kanban')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                viewMode === 'kanban'
-                  ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-              title="มุมมองบอร์ด 4 เฟส (Kanban)"
+              onClick={() => { fetchProductsData(); onRefresh?.(); }}
+              className="p-2 min-w-[36px] min-h-[36px] rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-400 hover:text-white border border-white/[0.08] transition-colors cursor-pointer flex items-center justify-center active:scale-95 flex-shrink-0"
+              title="รีเฟรชข้อมูล"
             >
-              <Kanban className="w-3.5 h-3.5" />
-              <span>บอร์ด 4 เฟส</span>
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-[#25F4EE]' : ''}`} />
             </button>
-            <button
-              type="button"
-              onClick={() => handleSwitchViewMode('schedule')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                viewMode === 'schedule'
-                  ? 'bg-gradient-to-r from-[#FE2C55]/20 to-[#25F4EE]/20 text-white border border-[#25F4EE]/40 shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-              title="ตารางจัดคิวโพสต์ประจำวัน (Daily Run Sheet)"
-            >
-              <Calendar className="w-3.5 h-3.5 text-[#25F4EE]" />
-              <span>คิวประจำวัน</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSwitchViewMode('table')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                viewMode === 'table'
-                  ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-              title="มุมมองตารางข้อมูล (Table)"
-            >
-              <Table className="w-3.5 h-3.5" />
-              <span>ตารางข้อมูล</span>
-            </button>
-          </div>
-
-          {/* Refresh Button */}
-          <button
-            type="button"
-            onClick={() => { fetchProductsData(); onRefresh?.(); }}
-            className="p-2 min-w-[36px] min-h-[36px] rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-400 hover:text-white border border-white/[0.08] transition-colors cursor-pointer flex items-center justify-center active:scale-95 flex-shrink-0"
-            title="รีเฟรชข้อมูล"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-[#25F4EE]' : ''}`} />
-          </button>
-        </div>
-      </div>
+          </>
+        }
+        secondRow={
+          <p className="text-xs text-slate-400 line-clamp-1 sm:line-clamp-2 leading-relaxed break-words">
+            ระบบติดตามสถานะคลิปตลอด Pipeline 4 ขั้นตอน (สคริปต์พร้อม → กำลังตัดต่อ → ตัดต่อเสร็จ / ตรวจ QC → โพสต์แล้ว)
+          </p>
+        }
+      />
 
       {/* ── 2. Responsive 4-Phase Metric Cards (iPhone 15 PM Touch Snap + Tablet/Desktop Adaptive Grid) ── */}
       <div className="w-full max-w-full overflow-x-auto no-scrollbar snap-x flex gap-2 pb-1 sm:grid sm:grid-cols-5 sm:overflow-visible">

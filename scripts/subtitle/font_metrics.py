@@ -1,11 +1,12 @@
 """
 Font Metrics and Font Family Mapping for Subtitle Engine.
-Handles fontTools-based vertical glyph scaling, PIL-based pixel text measurement,
+Handles SFNT vertical glyph scaling, PIL-based pixel text measurement,
 and font family resolution against AssetRegistry and typography presets.
 """
 
 import json
 import re
+import struct
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -122,6 +123,52 @@ def prefix_advances(text_tokens: List[str], resolved_font: str, font_size_px: in
 _ASS_GLYPH_SCALE_CACHE: Dict[str, float] = {}
 
 
+def _sfnt_ass_glyph_scale(path: Path) -> Optional[float]:
+    """Read the two ASS sizing metrics directly from a TTF/OTF file.
+
+    This intentionally uses the standard library instead of fontTools.  The
+    scale is part of the render contract, so an optional package disappearing
+    must not silently turn a 50px em intent into a 50px libass line box.
+    """
+    try:
+        data = path.read_bytes()
+        directory_offset = 0
+        if data[:4] == b"ttcf":
+            if len(data) < 16:
+                return None
+            directory_offset = struct.unpack_from(">I", data, 12)[0]
+        if directory_offset + 12 > len(data):
+            return None
+
+        table_count = struct.unpack_from(">H", data, directory_offset + 4)[0]
+        tables: Dict[bytes, Tuple[int, int]] = {}
+        records_offset = directory_offset + 12
+        for index in range(table_count):
+            record_offset = records_offset + index * 16
+            if record_offset + 16 > len(data):
+                return None
+            tag, _, table_offset, table_length = struct.unpack_from(
+                ">4sIII", data, record_offset
+            )
+            if table_offset + table_length > len(data):
+                return None
+            tables[tag] = (table_offset, table_length)
+
+        head_offset, head_length = tables.get(b"head", (0, 0))
+        os2_offset, os2_length = tables.get(b"OS/2", (0, 0))
+        if head_length < 20 or os2_length < 78:
+            return None
+
+        units_per_em = struct.unpack_from(">H", data, head_offset + 18)[0]
+        win_ascent, win_descent = struct.unpack_from(">HH", data, os2_offset + 74)
+        line_box = win_ascent + win_descent
+        if not units_per_em or not line_box:
+            return None
+        return units_per_em / line_box
+    except (OSError, KeyError, struct.error, TypeError, ValueError):
+        return None
+
+
 def ass_glyph_scale(resolved_font: str) -> float:
     """
     How much smaller libass draws a glyph than its Fontsize number suggests.
@@ -131,16 +178,11 @@ def ass_glyph_scale(resolved_font: str) -> float:
         return _ASS_GLYPH_SCALE_CACHE[resolved_font]
     scale = 1.0
     try:
-        from fontTools.ttLib import TTFont
-
         path = {f["family"]: f["path"] for f in AssetRegistry.fonts()}.get(resolved_font)
         if path:
-            face = TTFont(path, lazy=True)
-            upem = face["head"].unitsPerEm
-            os2 = face["OS/2"]
-            line_box = os2.usWinAscent + os2.usWinDescent
-            if upem and line_box:
-                scale = upem / line_box
+            parsed_scale = _sfnt_ass_glyph_scale(Path(path))
+            if parsed_scale is not None:
+                scale = parsed_scale
     except Exception:
         scale = 1.0
     _ASS_GLYPH_SCALE_CACHE[resolved_font] = scale

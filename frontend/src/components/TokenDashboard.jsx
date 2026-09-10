@@ -1,13 +1,17 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import {
-  Zap, Coins, Cpu, Clock, RefreshCw, Trash2, ArrowUpRight,
+  Zap, Coins, Cpu, Clock, ArrowUpRight,
   Sparkles, CheckCircle2, AlertCircle, BarChart3, Layers, Filter,
   Search, ShieldCheck, Eye, Mic, FileText, ChevronRight
 } from 'lucide-react';
 import { getTokenSummary, resetTokenAnalytics } from '../api';
-import { Button, Badge, ConfirmModal, Toast } from './ui';
+import { Badge, ConfirmModal, Toast } from './ui';
 
-export default function TokenDashboard() {
+// Title/refresh/reset live in SystemSettings' own command bar now (this
+// panel used to carry a second, duplicate header) -- refresh() and
+// openReset() are exposed via ref so that bar can drive this panel's state
+// without lifting all of it up.
+const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }, ref) {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -35,6 +39,15 @@ export default function TokenDashboard() {
   useEffect(() => {
     fetchSummary();
   }, [fetchSummary]);
+
+  useEffect(() => {
+    onRefreshingChange?.(refreshing);
+  }, [refreshing, onRefreshingChange]);
+
+  useImperativeHandle(ref, () => ({
+    refresh: () => fetchSummary(true),
+    openReset: () => setShowResetModal(true),
+  }), [fetchSummary]);
 
   const handleReset = async () => {
     setResetting(true);
@@ -111,54 +124,6 @@ export default function TokenDashboard() {
 
   return (
     <div className="space-y-6 animate-fadeIn pb-12">
-      {/* ── Page Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-panel p-5 sm:p-6 rounded-3xl border border-white/[0.08] relative overflow-hidden">
-        {/* Ambient Glow */}
-        <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-gradient-to-br from-[#25F4EE]/10 to-[#FE2C55]/10 blur-3xl pointer-events-none" />
-
-        <div className="space-y-1 relative z-10">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#25F4EE]/20 to-blue-500/20 border border-[#25F4EE]/30 flex items-center justify-center text-[#25F4EE] shadow-md shadow-[#25F4EE]/10">
-              <BarChart3 className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white font-kanit flex items-center gap-2">
-                AI Token Analytics Dashboard
-                <span className="text-xs px-2.5 py-0.5 rounded-full font-sans font-bold bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/20">
-                  LIVE
-                </span>
-              </h1>
-              <p className="text-xs sm:text-sm text-slate-400">
-                ติดตามสถิติการใช้งานโทเคน สัดส่วนโมเดล และมูลค่าที่ประหยัดได้จากแพ็กเกจ Antigravity Pro
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2.5 relative z-10">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => fetchSummary(true)}
-            disabled={refreshing}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-200 border border-white/[0.08]"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-[#25F4EE]' : ''}`} />
-            <span>รีเฟรช</span>
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowResetModal(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>ล้างสถิติ</span>
-          </Button>
-        </div>
-      </div>
-
       {/* ── 4 Hero KPI Cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Tokens */}
@@ -514,4 +479,6 @@ export default function TokenDashboard() {
       )}
     </div>
   );
-}
+});
+
+export default TokenDashboard;

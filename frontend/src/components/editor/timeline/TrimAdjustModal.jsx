@@ -1,16 +1,40 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Play, Pause } from 'lucide-react';
+import { Play, Pause, Loader2 } from 'lucide-react';
 import { Modal } from '../../ui/Modal';
 import { Button } from '../../ui/Button';
 import { toMediaUrl } from '../../../lib/mediaUrl';
+import { getMediaInfo, filmstripUrlFor } from '../../../api';
 import { shiftTrimWindow, resizeTrimWindow } from '../../../lib/timelineMath';
 
+const DETAIL_FRAMES = 24;
+const OVERVIEW_FRAMES = 40;
+
+// How much source-time the detail bar shows on either side of the current
+// trim window -- a multiple of the window's own span, floored at a fixed
+// number of seconds so a very short (near-zero) clip still gets a browsable
+// amount of context. Sized to keep the green box a comfortable fraction of
+// the bar (roughly 1/5th) rather than either filling it (old bug: box ==
+// whole bar, nothing to grab) or shrinking to a near-invisible sliver (using
+// the true full source length verbatim -- a 300s file would put a 3s clip
+// at ~1% width).
+const ZOOM_PAD_MULTIPLIER = 2;
+const ZOOM_PAD_FLOOR_SECONDS = 8;
+
 /**
- * Right-click a clip -> "ปรับช่วงตัด" -> this modal. Replaces the old
- * Alt+drag-on-the-timeline gesture: that was undiscoverable and its ghost
- * overlay was too small to read anything from. Here the preview is full
- * size and the filmstrip scrub bar spans the whole modal width, mirroring
- * CapCut mobile's own trim UI.
+ * Right-click a clip (or double-click it) -> "ปรับช่วงตัด" -> this modal.
+ * Replaces the old Alt+drag-on-the-timeline gesture: that was undiscoverable
+ * and its ghost overlay was too small to read anything from.
+ *
+ * Two scrub bars, because "see the whole raw file" and "nudge a cut point by
+ * 0.1s" fight each other on one fixed-width strip:
+ *  - Overview (thin, top): the *entire* source file, always. Tap anywhere to
+ *    re-center the detail bar there -- pure navigation, does not move the
+ *    actual trim range. Shows both where the detail bar is currently zoomed
+ *    (dim outline) and where the real trim range sits (bright box), which
+ *    can be two different places once you've panned away to look around.
+ *  - Detail (tall, below): a zoomed-in window around wherever the overview
+ *    last pointed it. This is where trim_start/trim_end actually get
+ *    dragged/resized/jumped -- same interactions as before.
  *
  * All dragging operates on local draft state only -- the real clip is
  * never touched until "ยืนยัน" (Confirm) commits it as a single patch.
@@ -21,12 +45,17 @@ export default function TrimAdjustModal({
   onClose,
   onConfirm,   // (clipId, patch) => void
   clip,        // real clip object: { id, trim_start, trim_end, source_path, ... }
-  srcDur,      // full source-file duration in seconds
-  filmstripUrl,
 }) {
   const [draft, setDraft] = useState(null);
   const [barWidth, setBarWidth] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  // True ffprobe duration of the raw source file, and the zoomed sub-range
+  // (in absolute source seconds) the detail bar currently shows -- both null
+  // until the media-info fetch below resolves.
+  const [trueDuration, setTrueDuration] = useState(null);
+  const [zoomWindow, setZoomWindow] = useState(null);
+  const [detailUrl, setDetailUrl] = useState(null);
+  const [overviewUrl, setOverviewUrl] = useState(null);
   const dragRef = useRef(null);
   const barRef = useRef(null);
   const videoRef = useRef(null);
@@ -38,8 +67,8 @@ export default function TrimAdjustModal({
 
   // Minimum on-screen width for the green box, in px -- wide enough to fit
   // both edge handles (10px each) plus a real grabbable middle area. Without
-  // this a short clip inside a long source file renders a box so thin the
-  // two edge handles cover it entirely, making "drag the whole box to shift"
+  // this a short clip inside the zoomed window renders a box so thin the two
+  // edge handles cover it entirely, making "drag the whole box to shift"
   // physically impossible to hit (found via manual browser testing).
   const MIN_BOX_PX = 32;
 
@@ -50,26 +79,59 @@ export default function TrimAdjustModal({
     if (isOpen && clip) {
       setDraft({
         trim_start: clip.trim_start || 0,
-        trim_end: clip.trim_end ?? srcDur ?? 0,
+        trim_end: clip.trim_end ?? 0,
       });
     } else if (!isOpen) {
       setDraft(null);
+      setTrueDuration(null);
+      setZoomWindow(null);
+      setDetailUrl(null);
+      setOverviewUrl(null);
     }
-  }, [isOpen, clip?.id, srcDur]);
+  }, [isOpen, clip?.id]);
 
   useEffect(() => {
     if (isOpen) videoRef.current?.pause();
     setIsPlaying(false);
   }, [isOpen]);
 
-  // Measure the scrub bar's real pixel width once it's mounted and visible,
-  // so the green box's minimum-width clamp (MIN_BOX_PX) can be applied in
-  // the same pixel space the drag math already uses. Depends on `draft` too
-  // (not just `isOpen`): the component early-returns a bar-less <Modal>
-  // shell until `draft` is set (see the render guard below), so barRef isn't
-  // mounted yet on the same tick `isOpen` first flips true.
+  // Fetch the real source duration and the full-file overview strip once;
+  // compute the initial detail zoom window around the clip's current trim
+  // range and fetch its scoped filmstrip. Runs once per clip, keyed off
+  // clip.id -- re-navigating the overview afterward is handled by
+  // navigateOverview() below, not by this effect re-running.
   useEffect(() => {
-    if (!isOpen || !draft) return;
+    if (!isOpen || !clip?.source_path) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const info = await getMediaInfo(clip.source_path);
+        const duration = Number(info?.duration) || 0;
+        if (cancelled || !duration) return;
+        const start = clip.trim_start || 0;
+        const end = clip.trim_end ?? duration;
+        const span = Math.max(0, end - start);
+        const pad = Math.max(span * ZOOM_PAD_MULTIPLIER, ZOOM_PAD_FLOOR_SECONDS);
+        const zStart = Math.max(0, start - pad);
+        const zEnd = Math.min(duration, end + pad);
+        setTrueDuration(duration);
+        setZoomWindow({ start: zStart, end: zEnd });
+        setDraft((prev) => (prev ? { trim_start: prev.trim_start, trim_end: prev.trim_end ?? duration } : prev));
+        setDetailUrl(filmstripUrlFor(clip.source_path, DETAIL_FRAMES, zStart, zEnd));
+        setOverviewUrl(filmstripUrlFor(clip.source_path, OVERVIEW_FRAMES));
+      } catch (err) {
+        // No zoom data -- the bar below just stays in its loading state
+        // rather than rendering with bogus math.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isOpen, clip?.id, clip?.source_path]);
+
+  // Measure the detail bar's real pixel width once it's mounted and visible,
+  // so the green box's minimum-width clamp (MIN_BOX_PX) can be applied in
+  // the same pixel space the drag math already uses.
+  useEffect(() => {
+    if (!isOpen || !draft || !zoomWindow) return;
     const el = barRef.current;
     if (!el) return;
     setBarWidth(el.getBoundingClientRect().width);
@@ -78,7 +140,7 @@ export default function TrimAdjustModal({
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, [isOpen, draft === null]);
+  }, [isOpen, draft === null, zoomWindow === null]);
 
   useEffect(() => {
     if (!draft || !videoRef.current) return;
@@ -86,9 +148,48 @@ export default function TrimAdjustModal({
     videoRef.current.currentTime = mode === 'end' ? draft.trim_end : draft.trim_start;
   }, [draft]);
 
+  const zoomReady = isOpen && !!clip && !!draft && !!zoomWindow && !!trueDuration && barWidth > 0;
+
   if (!isOpen || !clip || !draft) return <Modal isOpen={isOpen} onClose={onClose} title="ปรับช่วงตัด" />;
 
-  const pxPerSourceSecond = (barWidth || 1) / (srcDur || 1);
+  const zoomSpan = zoomWindow ? (zoomWindow.end - zoomWindow.start) || 1 : 1;
+  const pxPerSourceSecond = (barWidth || 1) / zoomSpan;
+
+  // Pure navigation for the overview strip: re-center the detail bar's zoom
+  // window on `centerTime`, keeping the same span it already has (panning,
+  // not re-zooming). Does not touch trim_start/trim_end -- the detail bar's
+  // own drag/jump interactions are what actually move the trim range.
+  const navigateOverview = (centerTime) => {
+    if (!trueDuration || !clip?.source_path) return;
+    const half = zoomSpan / 2;
+    const zStart = Math.max(0, Math.min(trueDuration - zoomSpan, centerTime - half));
+    const zEnd = Math.min(trueDuration, zStart + zoomSpan);
+    setZoomWindow({ start: zStart, end: zEnd });
+    setDetailUrl(filmstripUrlFor(clip.source_path, DETAIL_FRAMES, zStart, zEnd));
+  };
+
+  const handleOverviewClick = (e) => {
+    if (!trueDuration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const t = ((e.clientX - rect.left) / rect.width) * trueDuration;
+    navigateOverview(t);
+  };
+
+  // Keep the resulting trim range inside the fetched zoom window -- past
+  // that edge there is no filmstrip data and the box would render outside
+  // the visible bar with nothing backing it. Panning the overview reaches
+  // any point in the file without this limit; this only bounds one drag.
+  const clampToZoom = (patch) => {
+    if (!zoomWindow) return patch;
+    const span = patch.trim_end - patch.trim_start;
+    if (patch.trim_start < zoomWindow.start) {
+      return { trim_start: zoomWindow.start, trim_end: Math.round((zoomWindow.start + span) * 100) / 100 };
+    }
+    if (patch.trim_end > zoomWindow.end) {
+      return { trim_start: Math.round((zoomWindow.end - span) * 100) / 100, trim_end: zoomWindow.end };
+    }
+    return patch;
+  };
 
   const startDrag = (mode) => (e) => {
     e.preventDefault();
@@ -101,18 +202,34 @@ export default function TrimAdjustModal({
 
   const moveDrag = (e) => {
     const d = dragRef.current;
-    if (!d) return;
+    if (!d || !zoomReady) return;
     const deltaSource = (e.clientX - d.startX) / pxPerSourceSecond;
     const patch = d.mode === 'shift'
-      ? shiftTrimWindow(d.startDraft, deltaSource, srcDur)
-      : resizeTrimWindow(d.mode, d.startDraft, deltaSource, srcDur);
-    setDraft(patch);
+      ? shiftTrimWindow(d.startDraft, deltaSource, trueDuration)
+      : resizeTrimWindow(d.mode, d.startDraft, deltaSource, trueDuration);
+    setDraft(clampToZoom(patch));
   };
 
   const endDrag = (e) => {
     if (!dragRef.current) return;
     dragRef.current = null;
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* already released */ }
+  };
+
+  // Tap anywhere on the detail filmstrip (outside the green box, which stops
+  // this click via startDrag's stopPropagation) to jump the whole selection
+  // window there, centered on the tap -- same span, just recentered. Without
+  // this the only way to move the window was dragging it from inside itself,
+  // which is invisible as an affordance on a bar that looks like a scrubber.
+  const jumpTo = (e) => {
+    if (!barRef.current || !barWidth || !zoomReady) return;
+    const rect = barRef.current.getBoundingClientRect();
+    const clickSourceTime = zoomWindow.start + ((e.clientX - rect.left) / barWidth) * zoomSpan;
+    const span = draft.trim_end - draft.trim_start;
+    videoRef.current?.pause();
+    setIsPlaying(false);
+    const patch = shiftTrimWindow(draft, clickSourceTime - span / 2 - draft.trim_start, trueDuration);
+    setDraft(clampToZoom(patch));
   };
 
   const handleConfirm = () => {
@@ -148,15 +265,20 @@ export default function TrimAdjustModal({
     }
   };
 
-  // Pixel-space, not percent: the box needs a real MIN_BOX_PX floor so its
-  // two edge handles (10px each) never cover the entire box, leaving no
-  // grabbable middle area to shift with. Widening from its own center keeps
-  // the box's true position on the filmstrip visually honest rather than
-  // just growing off one side.
-  const rawLeftPx = (draft.trim_start / (srcDur || 1)) * barWidth;
-  const rawWidthPx = ((draft.trim_end - draft.trim_start) / (srcDur || 1)) * barWidth;
+  // Pixel-space, not percent, relative to the zoomed window's own start --
+  // the box needs a real MIN_BOX_PX floor so its two edge handles (10px
+  // each) never cover the entire box, leaving no grabbable middle area to
+  // shift with. Widening from its own center keeps the box's true position
+  // on the filmstrip visually honest rather than just growing off one side.
+  const rawLeftPx = zoomReady ? ((draft.trim_start - zoomWindow.start) / zoomSpan) * barWidth : 0;
+  const rawWidthPx = zoomReady ? ((draft.trim_end - draft.trim_start) / zoomSpan) * barWidth : 0;
   const windowWidthPx = Math.max(MIN_BOX_PX, rawWidthPx);
   const windowLeftPx = Math.max(0, Math.min(barWidth - windowWidthPx, rawLeftPx - (windowWidthPx - rawWidthPx) / 2));
+
+  // The actual trim range can fall entirely outside the current zoom window
+  // after panning the overview elsewhere -- render no box in that case (it
+  // has nothing to sit on) rather than pin it to a misleading edge.
+  const trimInView = zoomReady && draft.trim_end > zoomWindow.start && draft.trim_start < zoomWindow.end;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="ปรับช่วงตัด" maxWidth="max-w-2xl">
@@ -183,44 +305,116 @@ export default function TrimAdjustModal({
           </button>
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-2">
+          {/* Overview -- whole file, always. Tap to pan the detail bar. */}
+          <div
+            className="relative h-7 rounded-md bg-black overflow-hidden select-none touch-none cursor-pointer"
+            style={trueDuration && overviewUrl ? {
+              backgroundImage: `url("${overviewUrl}")`,
+              backgroundSize: '100% 100%',
+              backgroundRepeat: 'no-repeat',
+            } : undefined}
+            onClick={handleOverviewClick}
+            title="แตะเพื่อเลื่อนกล้องซูมด้านล่างไปตรงนี้"
+          >
+            {!trueDuration && (
+              <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-600">
+                กำลังโหลด...
+              </div>
+            )}
+            {trueDuration && zoomWindow && (
+              <div
+                className="pointer-events-none absolute inset-y-0 border border-white/50"
+                style={{
+                  left: `${(zoomWindow.start / trueDuration) * 100}%`,
+                  width: `${Math.max(1.5, ((zoomWindow.end - zoomWindow.start) / trueDuration) * 100)}%`,
+                }}
+              />
+            )}
+            {trueDuration && (
+              <div
+                className="pointer-events-none absolute inset-y-0 ring-2 ring-emerald-400"
+                style={{
+                  left: `${Math.max(0, (draft.trim_start / trueDuration) * 100)}%`,
+                  width: `${Math.max(0.6, ((draft.trim_end - draft.trim_start) / trueDuration) * 100)}%`,
+                }}
+              />
+            )}
+          </div>
+
           <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
             <span>{draft.trim_start.toFixed(2)}s</span>
             <span>{draft.trim_end.toFixed(2)}s</span>
           </div>
           <div
             ref={barRef}
-            className="relative h-16 rounded-lg bg-black overflow-hidden select-none touch-none"
-            style={filmstripUrl ? {
-              backgroundImage: `url("${filmstripUrl}")`,
+            className="relative h-16 rounded-lg bg-black overflow-hidden select-none touch-none cursor-pointer"
+            style={zoomReady && detailUrl ? {
+              backgroundImage: `url("${detailUrl}")`,
               backgroundSize: '100% 100%',
               backgroundRepeat: 'no-repeat',
             } : undefined}
+            onClick={jumpTo}
           >
-            <div
-              className="absolute top-0 h-full ring-2 ring-emerald-400 bg-white/10 cursor-grab active:cursor-grabbing touch-none"
-              style={{ left: windowLeftPx, width: windowWidthPx }}
-              onPointerDown={startDrag('shift')}
-              onPointerMove={moveDrag}
-              onPointerUp={endDrag}
-              onPointerCancel={endDrag}
-            >
-              <div
-                className="absolute top-0 left-0 h-full w-2.5 cursor-ew-resize touch-none bg-emerald-400"
-                onPointerDown={startDrag('start')}
-                onPointerMove={moveDrag}
-                onPointerUp={endDrag}
-                onPointerCancel={endDrag}
-              />
-              <div
-                className="absolute top-0 right-0 h-full w-2.5 cursor-ew-resize touch-none bg-emerald-400"
-                onPointerDown={startDrag('end')}
-                onPointerMove={moveDrag}
-                onPointerUp={endDrag}
-                onPointerCancel={endDrag}
-              />
-            </div>
+            {!zoomReady && (
+              <div className="absolute inset-0 flex items-center justify-center gap-2 text-xs text-slate-500">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                กำลังโหลดฟิล์มสตริป...
+              </div>
+            )}
+            {zoomReady && trimInView && (
+              <>
+                {/* Dim everything outside the selected window instead of
+                    relying on a faint fill inside it -- against a busy
+                    filmstrip a tinted middle was unreadable as "this whole
+                    span is selected", and it read as two disconnected edge
+                    markers instead of one box. */}
+                <div className="pointer-events-none absolute inset-y-0 left-0 bg-black/60" style={{ width: windowLeftPx }} />
+                <div className="pointer-events-none absolute inset-y-0 right-0 bg-black/60" style={{ width: barWidth - windowLeftPx - windowWidthPx }} />
+                <div
+                  className="absolute top-0 h-full border-2 border-emerald-400 cursor-grab active:cursor-grabbing touch-none flex items-center justify-center"
+                  style={{ left: windowLeftPx, width: windowWidthPx }}
+                  onPointerDown={startDrag('shift')}
+                  onPointerMove={moveDrag}
+                  onPointerUp={endDrag}
+                  onPointerCancel={endDrag}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {windowWidthPx > 40 && (
+                    <div className="pointer-events-none flex gap-0.5 opacity-70">
+                      <span className="h-4 w-0.5 rounded-full bg-emerald-400" />
+                      <span className="h-4 w-0.5 rounded-full bg-emerald-400" />
+                    </div>
+                  )}
+                  <div
+                    className="absolute top-0 left-0 h-full w-2.5 cursor-ew-resize touch-none bg-emerald-400"
+                    onPointerDown={startDrag('start')}
+                    onPointerMove={moveDrag}
+                    onPointerUp={endDrag}
+                    onPointerCancel={endDrag}
+                  />
+                  <div
+                    className="absolute top-0 right-0 h-full w-2.5 cursor-ew-resize touch-none bg-emerald-400"
+                    onPointerDown={startDrag('end')}
+                    onPointerMove={moveDrag}
+                    onPointerUp={endDrag}
+                    onPointerCancel={endDrag}
+                  />
+                </div>
+              </>
+            )}
+            {zoomReady && !trimInView && (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-[11px] text-slate-500 bg-black/40">
+                ช่วงที่เลือกอยู่นอกมุมมองนี้ — แตะแถบด้านบนเพื่อเลื่อนมาดู
+              </div>
+            )}
           </div>
+          <p className="text-[11px] text-slate-500">
+            {zoomReady && zoomWindow
+              ? `ซูมช่วง ${zoomWindow.start.toFixed(1)}s–${zoomWindow.end.toFixed(1)}s จากทั้งไฟล์ ${trueDuration.toFixed(1)}s (แถบบน) · `
+              : ''}
+            ลากกลางกรอบเพื่อเลื่อนทั้งช่วง · ลากขอบซ้าย/ขวาเพื่อยืดหด · แตะจุดอื่นบนแถบเพื่อกระโดดมาที่นั่น
+          </p>
         </div>
 
         <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-white/[0.08]">

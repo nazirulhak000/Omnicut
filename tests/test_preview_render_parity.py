@@ -100,7 +100,8 @@ def test_font_size_is_converted_between_the_two_text_engines():
     the anchor. The canvas keeps drawing the plain em number either way,
     since canvas text has no such post-rasterization transform to begin with.
     """
-    assert "usWinAscent + os2.usWinDescent" in PY_SRC
+    assert "_sfnt_ass_glyph_scale" in PY_SRC
+    assert "units_per_em / line_box" in PY_SRC
     assert "TEXT_SCALE_BOOST = 1.0 / ass_glyph_scale(resolved_font)" in PY_SRC
     # The banner has its own face now, so it needs the boost of THAT face: a
     # font's line box against its em is what the boost cancels, and reusing the

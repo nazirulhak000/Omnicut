@@ -13,7 +13,10 @@ from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 
 from scripts.config import BASE_DIR, RAW_DIR
-from scripts.product_scraper import ProductScraper, DURATION_SPECS, DEFAULT_DURATION, EXTRA_BEAT_BLOCKS
+from scripts.product_scraper import (
+    ProductScraper, DURATION_SPECS, DEFAULT_DURATION, EXTRA_BEAT_BLOCKS,
+    apply_angle_content_metadata,
+)
 from scripts.product_store import ProductStore
 from scripts.task_manager import TaskManager
 from scripts.media_service import get_file_info
@@ -301,9 +304,8 @@ def preview_product_source(product_id: str, payload: Optional[Dict[str, Any]] = 
     }
 
 
-@router.post("/api/products/{product_id}/preview-image-metadata")
-def preview_product_image_metadata(product_id: str):
-    """Read product reference images with Vision and return an editable diff."""
+def _get_product_image_paths(product_id: str):
+    """Return a product and its usable reference image paths for Vision."""
     product = ProductStore.get(product_id)
     if not product:
         raise HTTPException(status_code=404, detail=f"ไม่พบสินค้า id '{product_id}'")
@@ -320,6 +322,12 @@ def preview_product_image_metadata(product_id: str):
             image_paths.append(reference)
     if not image_paths:
         raise HTTPException(status_code=400, detail="สินค้านี้ยังไม่มีรูปอ้างอิงให้อ่าน")
+    return product, image_paths
+
+
+def _build_image_metadata_preview(product_id: str):
+    """Read product reference images with Vision and return an editable diff."""
+    product, image_paths = _get_product_image_paths(product_id)
 
     try:
         extracted = ProductScraper.extract_metadata_from_images(
@@ -367,6 +375,54 @@ def preview_product_image_metadata(product_id: str):
             "merged": len(current.get("images") or []),
         },
     }
+
+
+@router.post("/api/products/{product_id}/preview-image-metadata")
+def preview_product_image_metadata(product_id: str):
+    """Synchronous compatibility endpoint for callers that still need the result inline."""
+    return _build_image_metadata_preview(product_id)
+
+
+def _execute_preview_image_metadata_worker(task_id: str, product_id: str):
+    """Background worker for Vision image metadata preview."""
+    try:
+        TaskManager.update_progress(task_id, 0.1, "กำลังเตรียมรูปอ้างอิงสินค้า")
+        TaskManager.update_progress(task_id, 0.35, "กำลังอ่านรายละเอียดจากรูปด้วย Vision")
+        preview = _build_image_metadata_preview(product_id)
+        TaskManager.complete_task(
+            task_id,
+            result={"product_id": product_id, "preview": preview},
+            step_label="อ่านข้อมูลจากรูปเรียบร้อยแล้ว — ตรวจผลก่อนบันทึก",
+            target_id=product_id,
+        )
+    except Exception as err:
+        import traceback
+        print(f"[TaskManager] Image metadata task failed ({task_id}): {type(err).__name__}: {err}")
+        traceback.print_exc()
+        if is_quota_error(err):
+            TaskManager.fail_task(task_id, err.suggestion_th, step_label="โควต้า AI ไม่พอสำหรับการอ่านรูป")
+        else:
+            TaskManager.fail_task(
+                task_id,
+                str(err),
+                step_label="อ่าน metadata จากรูปไม่สำเร็จ",
+            )
+
+
+@router.post("/api/products/{product_id}/preview-image-metadata-async")
+def preview_product_image_metadata_async(product_id: str, background_tasks: BackgroundTasks):
+    """Start Vision image metadata preview as a persistent background task."""
+    product, image_paths = _get_product_image_paths(product_id)
+    product_name = product.get("name") or product.get("title") or product_id
+    task = TaskManager.create_task(
+        task_type="image_metadata",
+        title=f"อ่านข้อมูลจากรูป: {product_name}",
+        payload={"product_id": product_id, "image_count": len(image_paths)},
+        target_tab="flow",
+        target_id=product_id,
+    )
+    background_tasks.add_task(_execute_preview_image_metadata_worker, task["id"], product_id)
+    return {"success": True, "task_id": task["id"], "task": task}
 
 
 @router.post("/api/products/{product_id}/refresh-source")
@@ -890,7 +946,12 @@ def _execute_reroll_script_worker(
         # this angle already has so replace_angle_content's identity match
         # still finds it, and the timeline/render side (which keys off
         # angle_id) doesn't see a different angle appear.
-        new_angle["angle_id"] = angle_snapshot.get("angle_id")
+        apply_angle_content_metadata(
+            new_angle,
+            angle_id=angle_snapshot.get("angle_id"),
+            extra_beats=extra_beats,
+            preserve_name=angle_snapshot.get("angle_name"),
+        )
         new_angle["duration"] = duration
         new_angle["extra_beats"] = extra_beats or []
 
@@ -940,6 +1001,11 @@ def reroll_angle_script(product_id: str, angle_id: str, payload: Dict[str, Any],
         invalid = [b for b in extra_beats if b not in EXTRA_BEAT_BLOCKS]
         if invalid:
             raise HTTPException(status_code=400, detail=f"extra_beats ไม่รู้จัก: {', '.join(invalid)}")
+    else:
+        # Keep the API default identical to the generator/UI default, and pass
+        # the resolved list to the worker so persisted content_types matches
+        # the actual extra beats in the generated script.
+        extra_beats = list(EXTRA_BEAT_BLOCKS.keys())[:DURATION_SPECS[duration]["default_extra_beats"]]
 
     product = ProductStore.get(product_id)
     if not product:

@@ -67,16 +67,20 @@ def _resolve_media(raw_path: str) -> Path:
     return target
 
 
-def build_filmstrip(source: Path, count: int) -> Path:
+def build_filmstrip(source: Path, count: int, start: Optional[float] = None, end: Optional[float] = None) -> Path:
     """
     Render (or reuse) one horizontal sprite of `count` frames sampled evenly
-    across `source`. Cache key includes the file's mtime+size so replacing a
-    clip with a different file of the same name can't serve a stale strip.
+    across `source` -- or, when `start`/`end` are given, evenly across just
+    that sub-range (TrimAdjustModal's zoomed-in view around the current trim
+    window, where sampling the whole file would put only a handful of frames
+    anywhere near the part the user is actually looking at). Cache key
+    includes the file's mtime+size so replacing a clip with a different file
+    of the same name can't serve a stale strip.
     """
     FILMSTRIP_DIR.mkdir(parents=True, exist_ok=True)
 
     stat = source.stat()
-    key = f"{source}|{stat.st_mtime_ns}|{stat.st_size}|{count}|{FRAME_WIDTH}"
+    key = f"{source}|{stat.st_mtime_ns}|{stat.st_size}|{count}|{FRAME_WIDTH}|{start}|{end}"
     digest = hashlib.md5(key.encode("utf-8")).hexdigest()
     out_path = FILMSTRIP_DIR / f"{digest}.jpg"
     if out_path.exists():
@@ -85,6 +89,10 @@ def build_filmstrip(source: Path, count: int) -> Path:
     duration = VideoEditor.get_media_info(str(source)).get("duration") or 0.0
     if duration <= 0:
         raise HTTPException(status_code=422, detail="อ่านความยาววิดีโอไม่ได้")
+
+    range_start = max(0.0, min(start, duration)) if start is not None else 0.0
+    range_end = max(range_start, min(end, duration)) if end is not None else duration
+    range_span = range_end - range_start or duration
 
     # One ffmpeg pass with a `fps=` filter has to decode the whole file to
     # sample N frames -- measured 13.6s on the 115MB HEVC test clip. Input
@@ -97,7 +105,7 @@ def build_filmstrip(source: Path, count: int) -> Path:
         for i in range(count):
             # Sample mid-slice of each of `count` equal spans, never the very
             # last frame (often black on phone recordings).
-            t = duration * (i + 0.5) / count
+            t = range_start + range_span * (i + 0.5) / count
             frame_path = tmp_dir / f"{i:03d}.jpg"
             grab = subprocess.run(
                 ["ffmpeg", "-y", "-ss", f"{t:.3f}", "-i", str(source),
@@ -139,9 +147,11 @@ def build_filmstrip(source: Path, count: int) -> Path:
 
 
 @router.get("/filmstrip")
-def get_filmstrip(path: str, count: int = 10):
+def get_filmstrip(path: str, count: int = 10, start: Optional[float] = None, end: Optional[float] = None):
     """
-    Horizontal sprite of evenly-spaced frames for a timeline clip.
+    Horizontal sprite of evenly-spaced frames for a timeline clip -- across
+    the whole source by default, or across just `start`..`end` seconds of it
+    (TrimAdjustModal's zoomed-in scrub bar).
 
     Deliberately outside render_jobs.render_slot(): this is a sub-second
     single-frame tile job, and blocking it behind a full 9:16 render (minutes,
@@ -149,12 +159,25 @@ def get_filmstrip(path: str, count: int = 10):
     """
     count = max(MIN_FRAMES, min(MAX_FRAMES, count))
     source = _resolve_media(path)
-    sprite = build_filmstrip(source, count)
+    sprite = build_filmstrip(source, count, start=start, end=end)
     return FileResponse(
         sprite,
         media_type="image/jpeg",
         headers={"Cache-Control": "public, max-age=86400"},
     )
+
+
+@router.get("/media-info")
+def get_media_info_route(path: str):
+    """
+    True duration (plus resolution/rotation) of a raw source file, straight
+    from ffprobe -- what TrimAdjustModal needs to compute a real px-per-second
+    scale and a sensible zoom window, as opposed to `durations` on the editor
+    side, which is keyed by *timeline clip* and reports the clip's own played
+    span rather than the underlying file's full length.
+    """
+    source = _resolve_media(path)
+    return VideoEditor.get_media_info(str(source))
 
 
 @router.post("/overlay/layout")

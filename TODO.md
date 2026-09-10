@@ -24,6 +24,65 @@
 - [x] Round PRODUCT-METADATA-2 — เติม source fallback สำหรับสินค้า legacy ที่มีข้อมูลอยู่ใน angle แต่ product metadata ว่าง (2026-09-10; backend 1,040 passed, frontend 144 passed)
 - [ ] Round PRODUCT-METADATA-3 — ตรวจ/แก้การดึงข้อความจาก TikTok product page ที่เป็น client-rendered: GOC01 มี URL + รูป 9 รูป แต่ description/raw_text/specs/selling_points/pain_points ระดับสินค้าไม่ถูกบันทึก; เพิ่ม hybrid browser extraction + refresh source แล้ว เหลือ live verification ผ่าน Security Check (2026-09-10)
 - [x] Round COMMIT-SPLIT-1 — จัดกลุ่ม commit งานค้าง working tree แยก 5 commits + สร้าง LIVE_VALIDATION_CHECKLIST.md (รายละเอียดเต็มใน HISTORY.md; pytest 1,050 passed + 2 pre-existing failures ที่ HEAD แยกเป็นงานรอแก้ · 2026-09-10)
+- [ ] Round RENDER-BEHAVIOR-FIX-1 — แก้ 2 pre-existing failures ใน test_preview_render_behavior.py: (1) test_per_word_vs_monolithic_render_parity คลาด 284px (489 vs 773) (2) test_ibm_thai_marks_have_separate_vertical_bands tone mark หลุดจาก base glyph — พบระหว่าง COMMIT-SPLIT-1, deterministic ที่ HEAD, ไฟล์ subtitle ไม่อยู่ใน diff รอบนั้น (2026-09-10)
+- [x] Round PRODUCT-METADATA-8 — ย้ายการอ่านข้อมูลจากรูปอ้างอิงเป็น background task ปิดโมดัลได้ แจ้งเตือนเมื่อเสร็จ และเปิดผล preview ย้อนหลังจาก Activity Center (2026-09-10; backend 1,055 passed, frontend 149 passed, build/lint ผ่าน)
+- [x] Round SCRIPT-ANGLE-METADATA-1 — ล็อกหัวข้อเดิมตอนเจนใหม่ และแสดงประเภทเนื้อหาเป็นหลาย badge (2026-09-10; backend 1,057 passed, frontend 149 passed, build/lint ผ่าน)
+- [x] Round RENDER-REGRESSION-2 — ตรวจ forensic commit ของ render/style และคืน Preview = Render ให้เหมือน baseline (2026-09-10; culprit `3a35723` 08:06:23, backend 1,057 passed, frontend 150 passed, build/lint ผ่าน)
+- [x] Round FONT-SIZE-REGRESSION-1 — ตรวจและคืนขนาดฟอนต์บทพูด/ซับให้เท่า baseline (2026-09-10; stale ASS invalidation, backend 1,059 passed, frontend 150 passed, build/lint ผ่าน)
+- [x] Round FONT-SIZE-REGRESSION-2 — แก้ backend `.venv` ขาด `fontTools` แล้ว fallback เงียบเป็น scale `1.0`; เปลี่ยนเป็นอ่าน SFNT metrics โดยตรง, bump contract `v4`, และเรนเดอร์งานจริงใหม่ (2026-09-10; backend 1,061, frontend 150, focused 174 passed)
+- [ ] Round FONT-TEXT-RULE-1 — ถอดบทเรียนและล็อกกฎห้ามงานอื่นกระทบฟอนต์/ข้อความ/ซับ/Preview=Render โดยไม่ได้รับคำสั่งชัดเจน (2026-09-10)
+
+
+## Round FONT-TEXT-RULE-1 — กฎเหล็กฟอนต์และข้อความ
+
+วันที่: 2026-09-10 · สั่งโดย: user · สถานะ: กำลังทำ
+
+**เป้าหมาย:** สร้าง project-level contract ที่บังคับทุกเอเจนว่างานไม่เกี่ยวข้องห้ามเปลี่ยนฟอนต์ ขนาด ข้อความ การตัดบรรทัด ตำแหน่ง หรือภาพจริงของซับโดยเด็ดขาด
+
+### Todo
+
+- [ ] เพิ่ม `.agents/rules/font_text_visual_contract.md` เป็นแหล่งกฎกลางสำหรับ content identity, font metrics, Preview=Render, ASS versioning และ environment parity
+- [ ] ผูกกฎใหม่เข้า `AGENTS.md` ทั้ง STRICT DON'T และ STRICT DO เพื่อให้ทุกเอเจนต้องอ่านก่อแตะเส้นทางนี้
+- [ ] เชื่อมกฎเข้า `preview_render_parity.md` และระบุ baseline ตัวเลข/บทเรียน environment mismatch ที่ทำให้ `82` ตกเป็น `50`
+- [ ] ตรวจ link/path, Markdown structure และ `git diff --check` ก่อปิดรอบ
+
+### Gate
+
+- [ ] กฎมีคำห้ามและขั้นหยุดงานที่ชัดเจนเมื่อไม่มีอำนาจเปลี่ยน visual/text contract
+- [ ] กฎระบุว่า Save ไม่เท่ากับ Render และ `.ass` เวอร์ชันใหม่เกิดเมื่อ subtitle stage ถูกรันหลัง input/contract เปลี่ยน
+- [ ] `git diff --check` ผ่าน และเอกสารที่อ้างถึงมีอยู่จริง
+
+### Notes
+
+- จะไม่แก้ source/render behavior ในรอบนี้; เป็น documentation guardrail เท่านั้น
+- ไฟล์ค้างของ product metadata/UI/subtitle fix ใน working tree เป็นงานก่อหน้า; รอบนี้จะแตะเฉพาเอกสารกฎและ TODO/HISTORY
+
+
+## Round RENDER-BEHAVIOR-FIX-1 — แก้ 2 pre-existing render-behavior failures
+
+วันที่: 2026-09-10 · สั่งโดย: user (ผ่านคำถาม "ต่อไปเรื่องไหนต่อ") · สถานะ: กำลังทำ
+
+**เป้าหมาย:** ทำให้ full backend suite กลับมา 0 failed — บั๊ก 2 ตัวนี้บ่งชี้ว่าภาพเรนเดอร์จริงเบี่ยงจาก parity contract (per-word vs monolithic ต่างกัน 284px คือใหญ่มาก) กระทบคุณภาพคลิปจริง
+
+### Todo
+
+- [x] ยืนยัน reproduce: รันซ้ำเฉพาะ 2 เทส — 2 failed คงเดิม (deterministic)
+- [ ] อ่านเทส 2 ตัวเข้าใจ assertion จริง + fixture ที่ใช้
+- [ ] แยกว่า regression มาจาก commit ไหน (git log ไฟล์ที่เกี่ยว: subtitle_engine/overlay_events/font_metrics/video_editor)
+- [ ] แก้ root cause โดยไม่ทำลาย parity contract อื่น
+- [ ] รัน focused + full suite จน 0 failed
+
+### Gate
+
+- [ ] `python -m pytest tests/test_preview_render_behavior.py -q -p no:cacheprovider --tb=short` — 0 failed
+- [ ] `python -m pytest tests/test_preview_render_parity.py -q -p no:cacheprovider --tb=short` — 0 failed
+- [ ] `python -m pytest tests/ -q -p no:cacheprovider --tb=short` — 0 failed (ตัวเลขจริงบันทึกที่นี่)
+- [ ] `python -m compileall -q scripts` และ `git diff --check` — ผ่าน
+
+### Notes
+
+- ข้อควรระวัง: test_ibm_thai_marks เกี่ยวกับ glyph ไทย (ตระกูล SUB-THAI-2 ที่พักไว้) แต่ SUB-THAI-2 คือปัญหา "ฟอนต์ Kanit/Prompt ขาด GPOS" ที่ยืนยันแล้วว่า IBM Plex **ถูก** — เทสนี้ใช้ IBM และพังตอนนี้ แปลว่ามี regression ใหม่แยกต่างหาก ไม่ใช่ปัญหาฟอนต์เดิม
+- ห้ามแก้โดย "ผ่อน assertion" ให้ผ่านเฉย ๆ — ต้องหา root cause ของภาพจริง
 
 ## Round PRODUCT-METADATA-7 — อ่านสรรพคุณ/สเปกจากรูปอ้างอิงด้วย Vision
 
@@ -44,6 +103,7 @@
 - รูปตัวอย่างมีข้อมูลซีรีส์ รุ่น กำลังไฟ และคุณสมบัติ cooling อยู่ในภาพ แต่ไม่ได้รับประกันว่าตัวเลขเล็กทุกจุดจะอ่านได้ชัด
 - ต้องให้ผู้ใช้ตรวจ preview ก่อนบันทึก และแยกข้อมูลที่อ่านไม่แน่ใจออกเป็น warning ไม่ส่งเป็นข้อเท็จจริง
 - ทดสอบ live กับรูป BlueWow แล้ว แต่ Gemini free tier ตอบ `429 RESOURCE_EXHAUSTED` (โควตา 20 requests/day) จึงยังไม่มีผลลัพธ์ถูกบันทึก และต้อง retry หลัง quota reset
+- พบ live backend process เก่าก่อน commit feature ทำให้ OpenAPI ไม่มี route `preview-image-metadata` และหน้าเว็บได้ `404 Not Found`; ต้อง restart backend ด้วย `start_app.bat` ก่อนทดสอบซ้ำ
 
 ### Gate
 

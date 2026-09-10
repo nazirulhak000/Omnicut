@@ -218,6 +218,8 @@ export const previewProductSource = (id, data = {}) =>
   api.post(`/products/${id}/preview-source`, data, { timeout: 120000 }).then(r => r.data);
 export const previewProductImageMetadata = (id) =>
   api.post(`/products/${id}/preview-image-metadata`, {}, { timeout: 120000 }).then(r => r.data);
+export const previewProductImageMetadataAsync = (id) =>
+  api.post(`/products/${id}/preview-image-metadata-async`).then(r => r.data);
 export const refreshProductSource = (id, data = {}) =>
   api.post(`/products/${id}/refresh-source`, data, { timeout: 120000 }).then(r => r.data);
 export const resolveTiktokProductId = (urlOrId) =>
@@ -298,6 +300,18 @@ export const getTokenHistory = (limit = 50) => api.get('/tokens/history', { para
 export const resetTokenAnalytics = () => api.post('/tokens/reset').then(r => r.data);
 
 export const fetchOverlayLayout = (payload) => api.post('/editor/overlay/layout', payload).then(r => r.data);
+
+// True ffprobe duration of a raw source file -- see api_editor.py's
+// /media-info docstring for why TrimAdjustModal needs this instead of the
+// per-clip `durations` state the rest of the editor uses.
+export const getMediaInfo = (path) => api.get('/editor/media-info', { params: { path } }).then(r => r.data);
+
+export const filmstripUrlFor = (path, count, start, end) => {
+  const params = new URLSearchParams({ path, count: String(count) });
+  if (start != null) params.set('start', start.toFixed(2));
+  if (end != null) params.set('end', end.toFixed(2));
+  return `/api/editor/filmstrip?${params.toString()}`;
+};
 
 export const getHookTemplates = () => api.get('/editor/hook-templates').then(r => r.data);
 export const saveCustomHookTemplate = (payload) => api.post('/editor/hook-templates', payload).then(r => r.data);

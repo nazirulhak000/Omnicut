@@ -16,6 +16,11 @@
 | Round BUG-MARK-POSTED-1 | แก้ mark-posted สำเร็จแต่การ์ดยังอยู่ rendered | 2026-09-10 | แก้ลำดับ registry/product update; regression 15 passed; full pytest 1,035 passed |
 | Round PRODUCT-METADATA-1 | แนบรูปอ้างอิงย้อนหลัง + Metadata Inspector สำหรับตรวจข้อมูลที่ AI ใช้ | 2026-09-10 | เพิ่ม PATCH images แบบรองรับ legacy URL/local upload, modal แสดง source metadata/AI input/JSON เต็ม, frontend 144 passed, backend 1,037 passed |
 | Round PRODUCT-METADATA-2 | เติม source fallback สำหรับสินค้า legacy ที่มีข้อมูลอยู่ใน angle แต่ product metadata ว่าง | 2026-09-10 | list/reroll ใช้ fallback จาก key_features/pain_point โดยติดป้าย provenance, backend 1,040 passed, frontend 144 passed |
+| Round PRODUCT-METADATA-8 | ย้ายการอ่าน metadata จากรูปอ้างอิงเป็น background task พร้อม notification และเปิดผล preview ย้อนหลัง | 2026-09-10 | async persistent task `image_metadata`, ปิดโมดัล/เปลี่ยนหน้าได้, Activity Center และ toast มีปุ่มตรวจผล, backend 1,055 passed, frontend 149 passed, build/lint ผ่าน |
+| Round SCRIPT-ANGLE-METADATA-1 | ล็อกหัวข้อเดิมตอนเจนใหม่ และแสดงประเภทเนื้อหาเป็นหลาย badge | 2026-09-10 | reroll คง `angle_id`/ชื่อหัวข้อเดิม, derive `content_types` หลายค่า, รองรับข้อมูลเก่า, backend 1,057 passed, frontend 149 passed, build/lint ผ่าน |
+| Round RENDER-REGRESSION-2 | Forensic และคืน default render/style ให้กลับ Golden Master | 2026-09-10 | ระบุ `3a35723` เวลา 08:06:23 เป็นจุดที่ One Click เปลี่ยน implicit default เป็น `viral_punch`; คืนเป็น `clean_tech_review`, migrate saved form รุ่นเก่า, focused FFmpeg/parity 181 passed, full backend 1,057 passed, frontend 150 passed, build/lint ผ่าน |
+| Round FONT-SIZE-REGRESSION-1 | ตรวจและคืนขนาดฟอนต์บทพูด/ซับให้เท่า baseline | 2026-09-10 | พบ pipeline reuse `subtitles_v2.ass` เก่าโดยไม่มี font contract marker; บังคับ regenerate ASS เก่า, fresh output `Fontsize=82`, focused FFmpeg/parity 172 passed, full backend 1,059 passed, frontend 150 passed, build/lint ผ่าน |
+| Round FONT-SIZE-REGRESSION-2 | แก้ซับยังเล็กใน backend `.venv` และเรนเดอร์งานจริงใหม่ | 2026-09-10 | พบ optional `fontTools` หายแล้ว scale fallback เป็น `1.0`; อ่าน SFNT metrics โดยตรง, contract `v4`, ASS `Fontsize=82`, pixel bands ตรง baseline, backend 1,061/frontend 150 passed |
 | Round COMMIT-SPLIT-1 | จัดกลุ่ม commit working tree ค้าง + สร้าง LIVE_VALIDATION_CHECKLIST.md | 2026-09-10 | commit แยก 5 กลุ่ม (products metadata / exports-videos fix / editor cover / ui polish / docs) + checklist รวม live gate ที่รอ user; gates: pytest 1,050 passed (2 failures pre-existing ที่ HEAD ใน test_preview_render_behavior), frontend 149 passed, build/lint ผ่าน |
 | Round SFX-TITLES-1 | ดึงชื่อแสดงผลภาษาไทย/อังกฤษจริงจาก Myinstants ใส่ใน asset_metadata.json | 2026-09-09 | 1,774 ชื่อแสดงผลภาษาไทย/อังกฤษตรงปก · UI แสดงชื่ออ่านง่ายและค้นหาได้ทันที |
 | Round SFX-HUB-1 | สแกน SFX แบบ Recursive เข้า AssetRegistry และเพิ่มตัวกรองหมวดหมู่ใน Media Assets Hub | 2026-09-09 | 1,822 ไฟล์ SFX แสดงผลครบถ้วนใน Media Assets Hub พร้อม Sub-category filter pills |
@@ -38,6 +43,37 @@
 | Round TRK-2 | ตารางจัดคิวโพสต์ประจำวัน (Daily Run Sheet) & จัดกลุ่มย่อการ์ด (Product Grouping / Quick Pills) | 2026-09-06 | Daily Run Sheet tab (4 slots + auto-rotate + schedule time) + Quick Pills + Accordion · pytest 373 pass · npm test 54 pass · build pass |
 | Round TRK-1 | เพิ่มปุ่มส่งคลิปไป TikTok Studio พร้อม Modal ตรวจสอบ/ปักตะกร้า ในหน้า Tracker | 2026-09-06 | ContentTrackerHub 2-row buttons + Post Modal + Inspect toolbar · pytest 372 pass · npm test 54 pass · build pass |
 | Round PROD-1 | เพิ่มช่อง TikTok Product ID ตอนสร้างสคริปต์ + Fallback ค้นหาด้วยชื่อ + Click-to-Edit Cart ID ย้อนหลัง | 2026-09-06 | ProductToClip modal + Header badge edit + auto-resolve shortlinks · pytest 372 pass · npm test 54 pass · build pass |
+
+## Round PRODUCT-METADATA-8 — อ่าน metadata จากรูปแบบเบื้องหลัง
+
+วันที่: 2026-09-10 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+**เป้าหมาย:** ผู้ใช้เริ่มอ่านข้อมูลจากรูปอ้างอิงแล้วปิดโมดัลหรือเปลี่ยนหน้าได้ งานต้องทำต่อใน background ผ่าน TaskManager, มี progress/notification แบบงานอื่น และเมื่อเสร็จสามารถเปิดผล preview เดิมกลับมาตรวจ/เลือก field/บันทึกได้ โดยไม่บันทึกทับอัตโนมัติ
+
+### สิ่งที่ทำ
+
+1. แยก logic อ่านรูปเป็น helper และเพิ่ม `preview-image-metadata-async` ที่สร้าง persistent `image_metadata` task ผ่าน `TaskManager`; worker เก็บผล preview ไว้ใน task result และไม่เขียน product อัตโนมัติ
+2. เปลี่ยนปุ่มอ่านรูปใน ProductToClip ให้ enqueue งานแล้วปิดโมดัลได้ทันที พร้อมบอกให้ติดตามจาก Activity Center
+3. เพิ่มไอคอน/ปุ่ม `ตรวจผลอ่านรูป` ใน Activity Center และ Global Task Notification; เมื่อตรวจผล ระบบเลือกสินค้าเดิม เปิด Metadata Inspector และคืน preview เพื่อเลือก field/แก้ไข/ยืนยันบันทึกตาม flow เดิม
+4. คง synchronous endpoint เดิมไว้เพื่อ compatibility กับ caller เก่า
+5. เพิ่ม backend async lifecycle regression และ route contract coverage
+
+### Gate
+
+- [x] focused image metadata tests + route contract — 22 passed, 1 warning
+- [x] `python -m compileall -q scripts` — ผ่าน
+- [x] `python -m pytest tests/ -q -p no:cacheprovider --tb=short` — 1,055 passed, 24 warnings, 0 failed (ใช้เวลา 130.44 วินาที)
+- [x] `Set-Location frontend; npm test` — 149 passed
+- [x] `npm run lint` — 0 errors; warnings เดิมของโปรเจกต์
+- [x] `npm run build` — ผ่าน, Vite transformed 1,981 modules
+- [x] `git diff --check` — ผ่าน
+- [x] Impeccable detector — พบ 1 warning เดิม `gray-on-color` ที่ ActivityCenter.jsx บรรทัด 292; ไม่ใช่โค้ดที่เพิ่มในรอบนี้
+
+### Notes
+
+- ผล Vision ยังเป็น read-only preview ใน task registry จนกว่าผู้ใช้จะกดตรวจ เลือก field และยืนยัน จึงไม่เสี่ยงทับ metadata เดิมระหว่างทำงานเบื้องหลัง
+- การทดสอบ full suite รอบแรกหมดเวลา 124 วินาทีเพราะ gate เดิมใช้เวลาประมาณ 130 วินาที; รันซ้ำด้วย timeout สูงขึ้นและผ่านครบ
+- ยังเหลือ manual live verification กับรูป BlueWow/โควตา Gemini ตามงาน PRODUCT-METADATA-7 เดิม
 
 ## Round COMMIT-SPLIT-1 — จัดกลุ่ม commit working tree ค้าง + LIVE_VALIDATION_CHECKLIST
 
@@ -2094,3 +2130,148 @@ Date: 2026-09-07; Requested by: user; Status: complete
 
 - Fallback นี้ช่วยให้ legacy product ใช้บริบทจากสคริปต์เดิมได้ทันที แต่ไม่ควรตีความเป็นคำอธิบายที่ scraper ยืนยันจากหน้าร้าน
 - หากต้องการข้อมูลหน้าร้านจริงของ Logitech รายการนี้ ให้แนบ screenshot/spec sheet ผ่าน `ข้อมูล AI` หรือสร้าง/เติม source URL ใหม่
+
+## Round SCRIPT-ANGLE-METADATA-1 — ล็อกหัวข้อเดิมและแสดงประเภทเนื้อหา
+
+วันที่: 2026-09-10 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+**เป้าหมาย:** ให้การเจนสคริปต์ใหม่ยังอยู่ในหัวข้อ/มุมเดิมอย่างตรวจสอบได้ และให้ผู้ใช้เห็นว่าเนื้อหาเป็นสเปก เปรียบเทียบ การใช้งานจริง หรือ FAQ ได้หลายประเภทในหัวข้อเดียว
+
+### สิ่งที่ทำ
+
+1. เพิ่ม catalog กลางของประเภทเนื้อหาและ derive `content_types` จาก `angle_id` กับ `extra_beats` แบบ stable/deduplicated จึงไม่พึ่งชื่อที่ AI ตอบกลับมา
+2. บังคับ reroll ให้คง `angle_id`, ชื่อหัวข้อเดิม และคำอธิบายหัวข้อ แม้ AI จะส่งชื่อใหม่กลับมา
+3. แก้ fallback ให้เลือก template ของ angle ที่ถูกขอโดยตรง ไม่ใช้สคริปต์ของ angle แรกแล้วเปลี่ยนเพียง ID
+4. เพิ่มการบันทึก `angle_description`/`content_types` ใน `replace_angle_content` และแสดง badges หลายค่าใน sidebar, mobile pill และ reroll modal
+5. รองรับ angle รุ่นเก่าที่ไม่มี metadata โดย derive badge ฝั่ง UI จาก `angle_id`/`extra_beats` โดยไม่ต้องเจนใหม่
+6. เพิ่ม regression tests สำหรับ identity, default extra beats, deduplication และ fallback template
+
+### Gate
+
+- [x] `python -m pytest tests/test_reroll_script.py -q -p no:cacheprovider --tb=short` — `12 passed, 2 warnings`
+- [x] `python -m compileall -q scripts` — ผ่าน
+- [x] `python -m pytest tests/ -q -p no:cacheprovider --tb=short` — `1,057 passed, 24 warnings, 0 failed` ใน `141.34 วินาที`
+- [x] `npm test` — `149 passed, 0 failed`
+- [x] `npm run build` — ผ่าน, Vite transformed `1,981 modules`
+- [x] `npm run lint` — exit 0; warnings เดิมของโปรเจกต์
+- [x] `git diff --check` — ผ่าน
+- [x] Impeccable detector — `[]` สำหรับ `frontend/src/components/ProductToClip.jsx`
+
+### Notes
+
+- Reroll ยังเขียนทับบทพูดในหัวข้อเดิมตามพฤติกรรมเดิม แต่ไม่เปลี่ยน lifecycle ของงาน เช่น status/project/video
+- งานนี้ไม่แตะ preview/render engine จึงไม่มี FFmpeg parity gate เพิ่ม
+- รักษา diff ที่มีอยู่ก่อนหน้าใน `SystemSettings.jsx`, `TokenDashboard.jsx` และ `tools/probe_ass_scale.py` ไม่ได้แก้หรือลบ
+
+## Round RENDER-REGRESSION-2 — ตรวจและคืน render ให้ตรง baseline
+
+วันที่: 2026-09-10 · สั่งโดย: user · สถานะ: เสร็จสิ้น
+
+**เป้าหมาย:** ระบุ commit/เวลา/ไฟล์ที่ทำให้ภาพ Export เปลี่ยนจาก baseline และแก้เฉพาะ regression ที่ยืนยันได้ โดยไม่ทับงานค้างของเอเจนอื่น
+
+### ผลการตรวจ forensic
+
+- `f44db69` (`2026-09-10 00:07:50 +0700`) เพิ่ม style/renderer infrastructure และยังคง fallback เป็น `clean_tech_review`
+- `3a35723` (`2026-09-10 08:06:23 +0700`) เปลี่ยน One Click flow ให้ส่ง `style_preset` ทุกครั้ง และตั้ง `DEFAULT_ONE_CLICK_STYLE_PRESET = 'viral_punch'`
+- commit metadata ระบุผู้เขียนเป็น `wni-nasirulhak` ทั้งสอง commit; Git ไม่มีข้อมูลที่เชื่อถือได้ว่าเป็นเอเจนตัวใด จึงระบุได้ถึง commit/เวลา/ผู้เขียนเท่านั้น
+- artifact ที่สร้างช่วง `15:42–15:44` มี `viral_punch`/`smooth_showcase` ใน `project.json` และสี/การเคลื่อนไหวสอดคล้องกับ preset ใหม่ในภาพที่ผู้ใช้แนบ
+- differential policy probe วัดได้ว่า implicit baseline คือ `clean_tech_review` (`transition_stride=5`, `camera_motion_stride=2`, `zoom=0.08`, `pan=0.14`, accent `#FFE600`) ขณะที่ `viral_punch` คือ (`2`, `1`, `0.12`, `0.18`, `#FE2C55`)
+
+### การแก้ไข
+
+- `frontend/src/lib/stylePresetCatalog.js`: คืน One Click default ไปที่ `clean_tech_review`; preset อื่นยังเลือกใช้แบบ explicit ได้
+- `frontend/src/lib/studioDefaults.js`: เพิ่ม `STYLE_PRESET_STORAGE_VERSION` และ migration สำหรับ browser form เก่าที่ถูกบันทึกโดย implicit `viral_punch`; ไม่ทับ choice ที่ผู้ใช้เลือก explicit หลัง migration
+- `frontend/src/components/editor/NewClipPanel.jsx`: เมื่อเลือก presetจะบันทึก version marker พร้อมค่าที่ normalize แล้ว
+- `frontend/src/lib/stylePresetCatalog.test.js`: เพิ่ม regression test สำหรับ default และ saved-form migration
+- ไม่แก้ไข export/project artifact เดิม และไม่แตะ diff ของ `SystemSettings.jsx`, `TokenDashboard.jsx`, product metadata flow หรือ `tools/probe_ass_scale.py`
+
+### Gate
+
+- [x] differential policy/render evidence: มี policy probe และ artifact timestamp/project manifest ที่อธิบายความต่างได้
+- [x] `python -m pytest tests/test_style_motion_policy.py tests/test_camera_motion_parity.py tests/test_preview_render_parity.py tests/test_preview_render_behavior.py -q -p no:cacheprovider --tb=short` — 181 passed; รวม FFmpeg multi-frame behavior
+- [x] `python -m pytest tests/ -q -p no:cacheprovider --tb=short` — 1,057 passed, 24 warnings
+- [x] `python -m compileall -q scripts` — ผ่าน
+- [x] `npm test` — 150 passed
+- [x] `npm run build` — ผ่าน, Vite transform 1,981 modules
+- [x] `npm run lint` — ผ่าน, มี warnings เดิมของ codebase ไม่มี error
+- [x] `git diff --check` — ผ่าน
+
+### Notes
+
+- โปรเจกต์เดิมที่มี `style_preset` explicit เป็น `viral_punch` หรือ `smooth_showcase` จะไม่ถูกเขียนทับอัตโนมัติ เพื่อรักษาการเลือกของผู้ใช้; หากต้องการเรนเดอร์ซ้ำให้เหมือน Golden Master ให้เลือก `Clean Tech Review` ก่อน render
+
+## Round FONT-SIZE-REGRESSION-1 — ตรวจและคืนขนาดฟอนต์บทพูด/ซับ
+
+วันที่: 2026-09-10 · สั่งโดย: user · สถานะ: เสร็จสิ้น
+
+**เป้าหมาย:** ระบุจุดที่ทำให้ฟอนต์ใน Render เล็กกว่าภาพเดิม และคืนค่า Preview = Render โดยไม่ทับงานค้างของเอเจนอื่น
+
+### ผลการตรวจ forensic
+
+- ภาพ baseline เดิมมี caption ASS แบบ `Fontsize=50` พร้อม `\fscx165/\fscy165` ที่ settle แล้ว จึงมีขนาดกายภาพเทียบเท่า ~82px
+- artifact ที่ผู้ใช้เห็น (`03_Projects/ESS01-แกะกล่องว้าว_1/subtitles_v2.ass`) มี `Fontsize=50`, ใช้ `IBM Plex Sans Thai SemiBold`, ไม่มี scale boost และไม่มี contract marker จึงเล็กกว่า baseline อย่างวัดได้
+- generator ปัจจุบันสร้าง `Style: TikTokWhite,IBM Plex Sans Thai SemiBold,82,...` และใช้ขนาดเทียบเท่า baseline โดยไม่ต้อง scale glyph หลัง rasterize ซึ่งรักษา Thai mark parity ได้
+- สาเหตุคือ incremental pipeline ตรวจ fingerprint ของไฟล์ได้ แต่ไม่มี version ของ subtitle renderer จึง reuse ASS เก่าหลังมีการเปลี่ยน font-size/GPOS contract
+
+### การแก้ไข
+
+- `scripts/subtitle_engine.py`: เพิ่ม `SUBTITLE_RENDER_CONTRACT_VERSION = "v3"`, marker ใน ASS header และ `subtitle_artifact_is_current()`; ASS ใหม่จะมี marker และ font size contract ปัจจุบัน
+- `scripts/stages/subtitle_stage.py`: ก่อน reuse ตรวจ marker ผ่าน `ProjectManifest.artifact_path()`; ASS เก่าหรือไม่มี marker จะ regenerate stage subtitles อัตโนมัติ แล้วส่งต่อให้ video assembly
+- `tests/test_subtitle_artifact_contract.py`: เพิ่ม regression tests ว่า ASS ใหม่มี marker และ legacy ASS ถูกปฏิเสธการ reuse
+- restart API server ที่ค้างจากก่อน patch แล้ว: process ใหม่สร้างเวลา `16:28:47` จำนวน 2 process
+- ไม่แก้ไข project/export artifact จริงของผู้ใช้ และไม่แตะ diff งาน product metadata/UI ที่มีอยู่ก่อนรอบนี้
+
+### Gate
+
+- [x] baseline/candidate font measurement: baseline physical size ~82px (`50 × 1.65`) เทียบ fresh ASS `Fontsize=82`; legacy artifact ตรวจได้ `current=False`, fresh `current=True`
+- [x] `python -m pytest tests/test_subtitle_artifact_contract.py tests/test_preview_render_parity.py tests/test_preview_render_behavior.py -q -p no:cacheprovider --tb=short` — 172 passed, รวม FFmpeg multi-frame
+- [x] `python -m pytest tests/ -q -p no:cacheprovider --tb=short` — 1,059 passed, 24 warnings
+- [x] `python -m compileall -q scripts` — ผ่าน
+- [x] `npm test` — 150 passed
+- [x] `npm run build` — ผ่าน, Vite transform 1,981 modules
+- [x] `npm run lint` — exit 0, warnings เดิมของ codebase ไม่มี error
+- [x] `git diff --check` — ผ่าน
+
+### Notes
+
+- คลิปที่ export ไปแล้วจะยังคงไฟล์เดิมเพื่อไม่ลบ/เขียนทับข้อมูล; ให้กด Render ใหม่จากโปรเจกต์เดิมหนึ่งครั้ง ระบบจะสร้าง ASS ใหม่และฟอนต์กลับขนาดเดิม
+- รอบนี้ไม่ต้องเปลี่ยน `SequencePlayer.jsx` เพราะ Canvas ใช้สัดส่วน 25px ที่เทียบกับ fresh ASS 82px แล้ว; ปัญหาอยู่ที่ stale ASS reuse ใน backend
+
+## Round FONT-SIZE-REGRESSION-2 — แก้ซับยังเล็กใน backend environment จริง
+
+วันที่: 2026-09-10 · สั่งโดย: user · สถานะ: เสร็จสิ้น
+
+**เป้าหมาย:** ไล่ MP4/ASS/manifest ของงาน `ESS01-แกะกล่องว้าว_1` เวลา 16:31 ที่ผู้ใช้ยืนยันว่าซับยังเล็ก แก้ให้ขนาดกลับเท่า baseline ใน environment เดียวกับ backend จริง
+
+### ผลการวินิจฉัย
+
+- `subtitles_v3.ass` ถูกสร้างใหม่เวลา 16:30:58 และ MP4 16:31:04 อ้าง artifact นี้จริง จึงตัดสมมติฐาน reuse/cache/หยิบผิดไฟล์ออก
+- ASS ที่สร้างใหม่ยังมี `TikTokWhite Fontsize=50` ทั้งที่ source คำนวณ `font_size_boosted`
+- backend รันผ่าน `.venv\Scripts\python.exe` ซึ่งไม่มี `fontTools`; `ass_glyph_scale()` จับ exception แล้วคืน `1.0` เงียบๆ ทำให้ `50 × 1.0 = 50`
+- probe ก่อนหน้าที่ได้ `82` รันด้วย system Python ซึ่งมี `fontTools` จึงเป็น environment mismatch และให้ false confidence
+- ค่าจริงจาก IBM Plex Sans Thai คือ `unitsPerEm=1000`, `usWinAscent=1116`, `usWinDescent=534` → scale `1000/1650 = 0.6060606` → boost `1.65` → `Fontsize=82`
+
+### การแก้ไข
+
+- `scripts/subtitle/font_metrics.py`: เพิ่ม SFNT table reader ด้วย standard library (`struct`) อ่าน `head.unitsPerEm` และ `OS/2.usWinAscent/usWinDescent` โดยตรง เพื่อให้ visual contract ไม่พึ่ง optional package
+- `requirements.txt`: เพิ่ม `fonttools==4.63.0` สำหรับ embedded font-family metadata ของ AssetRegistry และติดตั้งใน `.venv` แล้ว
+- `scripts/subtitle_engine.py`: bump subtitle render contract จาก `v3` เป็น `v4` เพื่อ invalidate ASS v3 ที่อาจถูกสร้างด้วย fallback `1.0`
+- `tests/test_subtitle_artifact_contract.py`: ล็อก generated IBM ASS ต้องเป็น `82`, จำลอง `fontTools` หายแล้วยังได้ `0.6060606`, และยืนยัน v3 ถูก invalidate
+- `tests/test_preview_render_parity.py`: ปรับ source-contract assertion ให้ล็อก direct SFNT metric path แทน implementation เก่า
+- restart backend ด้วย project `.venv` เวลา 16:45:53 และ reroll `subtitles` ของงานจริงสำเร็จเป็น `subtitles_v4.ass` + `ESS01-แกะกล่องว้าว_1_20260910_164654.mp4`
+
+### Gate
+
+- [x] red phase — regression file ล้ม 3 เคสตามอาการ: generated `50 != 82`, scale `1.0 != 0.6060606`, v3 ยังถูกมองว่า current
+- [x] focused subtitle artifact/parity/FFmpeg behavior — `174 passed, 20 warnings, 0 failed`
+- [x] full backend — `1,061 passed, 25 warnings, 0 failed` ใน `189.66 วินาที`
+- [x] frontend — `150 passed, 0 failed`; build ผ่าน; lint exit 0 มี warnings เดิมของ codebase
+- [x] `python -m compileall -q scripts`, `pip check`, `git diff --check` — ผ่าน
+- [x] live artifact — `subtitles_v4.ass` มี marker v4 และ `TikTokWhite/TikTokSoftShadow Fontsize=82`
+- [x] live FFmpeg frame เวลา 1.2s — caption pixel bands ใหม่ตรง baseline: ไทย `1390–1417`, อังกฤษ `1457–1481`
+
+### Notes
+
+- รอบนี้ reroll project/export จริงตามคำสั่งแก้บั๊ก; ไฟล์ล่าสุดใน Ready to post คือ timestamp `164654`
+- ไม่แก้ `SequencePlayer.jsx` เพราะภาพปัญหามาจาก backend-only environment fallback; parity เดิมกลับมาตรงหลังใช้ scale ที่ถูกต้อง
+- รักษา diff ค้างของ product metadata/UI/style migration และ `tools/probe_ass_scale.py`; ไม่ลบหรือเขียนทับ

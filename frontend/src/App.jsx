@@ -107,6 +107,8 @@ export default function App() {
   // where the second synthetic mount sees the already-cleared value and
   // stomps the just-restored angle back to index 0.
   const pendingFlowAngleIdRef = useRef(null);
+  const pendingFlowImageMetadataRef = useRef(null);
+  const [flowTaskNavigationVersion, setFlowTaskNavigationVersion] = useState(0);
   const [initialProjectNameToLoad, setInitialProjectNameToLoad] = useState(null);
 
   const handlePrimaryTabChange = useCallback((tab) => {
@@ -306,6 +308,9 @@ export default function App() {
   const handleNavigateTab = (tab, extra = null) => {
     if (tab === 'flow') {
       pendingFlowAngleIdRef.current = extra?.angleId || null;
+      const isImageMetadataTask = extra?.task?.type === 'image_metadata' || extra?.task?.task_type === 'image_metadata';
+      pendingFlowImageMetadataRef.current = isImageMetadataTask ? extra?.taskResult || null : null;
+      if (isImageMetadataTask) setFlowTaskNavigationVersion(prev => prev + 1);
     } else if (tab === 'gallery') {
       const target = extra?.targetId || extra?.taskResult?.project_name || extra?.taskResult?.final_video_path || extra?.taskResult?.mp4 || extra?.task?.payload?.project_name;
       if (target) {
@@ -400,10 +405,16 @@ export default function App() {
                       onApplyToStudio={handleApplyScriptFromLab}
                       onGoToGallery={() => setActiveTab('gallery')}
                       selectedProductId={selectedProductIdForFlow}
+                      pendingFlowTaskVersion={flowTaskNavigationVersion}
                       consumePendingAngleId={() => {
                         const id = pendingFlowAngleIdRef.current;
                         pendingFlowAngleIdRef.current = null;
                         return id;
+                      }}
+                      consumePendingImageMetadataPreview={() => {
+                        const preview = pendingFlowImageMetadataRef.current;
+                        pendingFlowImageMetadataRef.current = null;
+                        return preview;
                       }}
                     />
                   </Suspense>

@@ -126,6 +126,73 @@ EXTRA_BEAT_BLOCKS = {
     },
 }
 
+# Stable content labels shown as badges in the studio. These are derived by
+# the app from the selected angle and extra beats rather than trusted from AI
+# output, so a reroll cannot silently change what kind of content it is.
+CONTENT_TYPE_CATALOG = {
+    "problem_solution": {"label": "ปัญหา → ทางออก", "description": "เล่าปัญหาของผู้ชมและวิธีที่สินค้าช่วยแก้"},
+    "specs": {"label": "สเปก/สรรพคุณ", "description": "บอกข้อมูลจำเพาะ ฟังก์ชัน และประโยชน์ของสินค้า"},
+    "unboxing": {"label": "แกะกล่อง / First Impression", "description": "เปิดกล่องและเล่าความรู้สึกแรกที่เห็นหรือได้ลอง"},
+    "promotion": {"label": "โปรโมชัน / ความคุ้มค่า", "description": "เน้นข้อเสนอ ราคา และเหตุผลที่ควรตัดสินใจตอนนี้"},
+    "comparison": {"label": "เปรียบเทียบ", "description": "เทียบของเดิมกับของใหม่ให้เห็นความต่าง"},
+    "tips": {"label": "ทริก / How-to", "description": "สอนวิธีใช้หรือทริกที่ทำให้ชีวิตสะดวกขึ้น"},
+    "warning": {"label": "ข้อควรระวัง", "description": "ชี้จุดต้องเช็กและความเสี่ยงก่อนซื้อ"},
+    "target_audience": {"label": "เจาะกลุ่มผู้ใช้", "description": "สื่อสารกับกลุ่มคนที่มีบริบทการใช้งานเฉพาะ"},
+    "experience": {"label": "ประสบการณ์ใช้งานจริง", "description": "เล่าผลจากการใช้จริงและความคุ้มค่าในระยะยาว"},
+    "use_cases": {"label": "การใช้งานจริง", "description": "ยกตัวอย่างการใช้ในหลายสถานการณ์"},
+    "faq": {"label": "FAQ / ข้อกังวล", "description": "ตอบคำถามที่ผู้ชมมักสงสัยก่อนซื้อ"},
+    "value": {"label": "คำนวณความคุ้มค่า", "description": "แจกแจงความคุ้มค่าเมื่อเทียบกับราคาและอายุการใช้งาน"},
+}
+
+ANGLE_CONTENT_TYPES = {
+    "pain_point": ["problem_solution"],
+    "spec_review": ["specs"],
+    "unboxing": ["unboxing"],
+    "fomo_deal": ["promotion"],
+    "comparison": ["comparison"],
+    "life_hack": ["tips"],
+    "stop_scroll": ["warning"],
+    "niche_target": ["target_audience"],
+    "longterm_review": ["experience"],
+    "math_value": ["value"],
+}
+
+EXTRA_BEAT_CONTENT_TYPES = {
+    "spec_detail": "specs",
+    "comparison": "comparison",
+    "use_cases": "use_cases",
+    "faq": "faq",
+}
+
+
+def content_types_for_angle(angle_id: Optional[str], extra_beats: Optional[List[str]] = None) -> List[str]:
+    """Return stable, deduplicated content-type keys for an angle."""
+    result = list(ANGLE_CONTENT_TYPES.get(angle_id or "", []))
+    for beat in extra_beats or []:
+        content_type = EXTRA_BEAT_CONTENT_TYPES.get(beat)
+        if content_type and content_type not in result:
+            result.append(content_type)
+    return result
+
+
+def apply_angle_content_metadata(
+    angle: Dict[str, Any],
+    *,
+    angle_id: Optional[str] = None,
+    extra_beats: Optional[List[str]] = None,
+    preserve_name: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Attach canonical topic identity and deterministic content badges."""
+    resolved_id = angle_id or angle.get("angle_id")
+    target = ANGLE_CATALOG.get(resolved_id or "")
+    if resolved_id:
+        angle["angle_id"] = resolved_id
+    if target:
+        angle["angle_name"] = preserve_name or target["label"]
+        angle["angle_description"] = target["description"]
+    angle["content_types"] = content_types_for_angle(resolved_id, extra_beats)
+    return angle
+
 
 def _hostname_allowed(hostname: str) -> bool:
     """True if `hostname` is, or is a subdomain of, an allowed scrape domain."""
@@ -885,7 +952,8 @@ class ProductScraper:
             angle_list_section = (
                 f'จงสร้างผลลัพธ์เป็น JSON Array ที่มี Object เดียวเท่านั้น '
                 f'สำหรับมุม "{angle_id_override}": {target["label"]} ({target["description"]}) '
-                f"เขียนสคริปต์ใหม่ทั้งหมดสำหรับมุมนี้โดยเฉพาะ ห้ามสร้างมุมอื่น"
+                f"เขียนสคริปต์ใหม่ทั้งหมดสำหรับมุมนี้โดยเฉพาะ ห้ามสร้างมุมอื่น "
+                f"ห้ามเปลี่ยน angle_id หรือ angle_name เพราะเป็นหัวข้อเดิมของผู้ใช้"
             )
         else:
             catalog_lines = "\n".join(
@@ -959,10 +1027,17 @@ class ProductScraper:
 {image_rule}{extra_beat_rule}
 {angle_list_section}
 
+กฎการคงหัวข้อและประเภทเนื้อหา:
+- ถ้าเป็นการสร้างใหม่เฉพาะมุม (มี angle_id ระบุไว้) ให้คง angle_id และ angle_name ตามที่ระบบกำหนดไว้ทุกประการ
+- ท่อนเสริมเป็นเนื้อหาย่อยภายในหัวข้อเดิม ไม่ใช่หัวข้อใหม่ และห้ามเปลี่ยนมุมเพราะเลือกท่อนเสริม
+- ระบบจะคำนวณ angle_description และ content_types จากหัวข้อกับท่อนเสริมหลัง AI ตอบกลับ ให้ส่งคีย์เดิมกลับมาได้แต่ห้ามใช้เพื่อเปลี่ยนความหมายของหัวข้อ
+
 แต่ละ Object ใน JSON ต้องมีโครงสร้างดังนี้ (script_lines ต้องมีทั้งหมด {beat_count} ท่อนตามกฎข้อ {beat_structure_ref}, คุมความยาวให้พากย์จบใน {spec["seconds_range"]}พอดี และเว้นวรรคก้อนความคิดในแต่ละท่อน):
 {{
   "angle_id": "{angle_id_override or "pain_point"}",
   "angle_name": "{ANGLE_CATALOG[angle_id_override]["label"] if angle_id_override else "😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน"}",
+  "angle_description": "คำอธิบายประเภทของมุมมองเนื้อหา",
+  "content_types": [],
   "badge": "ขายดีอันดับ 1",
   "product_name": "ชื่อสินค้าที่กระชับ ไม่เกิน 30 ตัวอักษร",
   "hook_title": "พาดหัวเปิดคลิป 3 วินาทีแรก (มีอีโมจิและคำกระแทกใจ)",
@@ -1059,6 +1134,12 @@ class ProductScraper:
                     # Add TTS-ready lines via sanitizer
                     from scripts.tts_sanitizer import TTSSanitizer
                     angles = TTSSanitizer.process_angles(angles[:count])
+                    for angle in angles:
+                        apply_angle_content_metadata(
+                            angle,
+                            angle_id=angle_id_override or angle.get("angle_id"),
+                            extra_beats=extra_beats,
+                        )
                     return angles
             except Exception as e:
                 print(f"[ProductScraper] Gemini call failed ({e}), using fallback 10 matrix...")
@@ -1268,4 +1349,17 @@ class ProductScraper:
                 "tiktok_hashtags": "#คุ้มค่า #ประหยัดเงิน #ของดีราคาถูก #tiktokป้ายยา"
             }
         ]
-        return TTSSanitizer.process_angles(fallback_angles[:count])
+        fallback_selection = fallback_angles
+        if angle_id_override:
+            fallback_selection = [
+                angle for angle in fallback_angles
+                if angle.get("angle_id") == angle_id_override
+            ]
+        angles = TTSSanitizer.process_angles(fallback_selection[:count])
+        for angle in angles:
+            apply_angle_content_metadata(
+                angle,
+                angle_id=angle_id_override or angle.get("angle_id"),
+                extra_beats=extra_beats,
+            )
+        return angles

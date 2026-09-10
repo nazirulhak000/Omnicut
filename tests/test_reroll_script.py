@@ -23,7 +23,12 @@ if str(ROOT) not in sys.path:
 from scripts import product_store as ps
 from scripts.product_store import ProductStore
 from scripts.api_server import app
-from scripts.product_scraper import ProductScraper, DURATION_SPECS, EXTRA_BEAT_BLOCKS
+from scripts.product_scraper import (
+    ProductScraper,
+    DURATION_SPECS,
+    EXTRA_BEAT_BLOCKS,
+    content_types_for_angle,
+)
 
 
 @pytest.fixture
@@ -175,12 +180,41 @@ def test_reroll_task_result_angle_has_lifecycle_fields_from_saved_product(isolat
     assert task["status"] == "completed", task.get("error")
 
     result_angle = task["result"]["angle"]
-    assert result_angle["angle_name"] == "New name"
+    # The model is allowed to rewrite the script, but not the topic identity.
+    assert result_angle["angle_name"] == "Old name"
     assert result_angle["hook_title"] == "New hook"
+    assert result_angle["angle_id"] == "pain_point"
+    assert result_angle["content_types"] == ["problem_solution", "specs", "comparison"]
+    assert result_angle["angle_description"] == "Problem / Agitation / Solution"
     # The whole point of this test: lifecycle fields must survive.
     assert result_angle["status"] == "rendered"
     assert result_angle["project_name"] == "widget_proj_1"
     assert result_angle["video_url"] == "04_Exports/widget.mp4"
+
+
+def test_content_types_support_multiple_extra_beats_without_duplicates():
+    assert content_types_for_angle(
+        "niche_target", ["spec_detail", "comparison", "use_cases", "faq", "comparison"]
+    ) == ["target_audience", "specs", "comparison", "use_cases", "faq"]
+
+
+def test_fallback_reroll_uses_the_requested_angle_template(tmp_path, monkeypatch):
+    import scripts.product_scraper as scraper
+
+    monkeypatch.setattr(scraper, "BASE_DIR", tmp_path)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+
+    angles = ProductScraper.generate_content_matrix(
+        {"title": "Widget", "description": "D", "price_note": "P", "raw_text": "R"},
+        count=1,
+        angle_id_override="comparison",
+        extra_beats=[],
+    )
+
+    assert len(angles) == 1
+    assert angles[0]["angle_id"] == "comparison"
+    assert angles[0]["angle_name"] == "🆚 เทียบของเดิม vs ของใหม่"
+    assert angles[0]["content_types"] == ["comparison"]
 
 
 def test_generate_content_matrix_duration_changes_beat_count_and_word_range():

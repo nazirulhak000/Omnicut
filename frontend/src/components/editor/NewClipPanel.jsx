@@ -5,7 +5,12 @@ import {
   FileText, Sliders, Mic2
 } from 'lucide-react';
 import { previewVoice, startRender, uploadFile, updateAngleVideos, updateAngleStatus } from '../../api';
-import { DEFAULT_STUDIO_FORM, STUDIO_FORM_KEY, getSavedStudioForm } from '../../lib/studioDefaults';
+import {
+  DEFAULT_STUDIO_FORM,
+  STUDIO_FORM_KEY,
+  STYLE_PRESET_STORAGE_VERSION,
+  getSavedStudioForm,
+} from '../../lib/studioDefaults';
 import { angleToForm, angleLabel } from '../../lib/angleToForm';
 import { isSameVideo, getMediaName } from '../../lib/mediaUrl';
 import { buildProjectName, extractShortProductName, cleanAngleSlug } from '../../lib/projectName';
@@ -576,7 +581,10 @@ export default function NewClipPanel({
                 <div className="border-t border-white/[0.06] pt-3">
                   <StylePresetPicker
                     value={form.stylePreset}
-                    onChange={(stylePreset) => patch({ stylePreset })}
+                    onChange={(stylePreset) => patch({
+                      stylePreset: normalizeStylePreset(stylePreset),
+                      stylePresetVersion: STYLE_PRESET_STORAGE_VERSION,
+                    })}
                     layout="grid"
                     helpText="เลือกก่อนสร้างคลิป ระบบจะใช้ค่านี้จัด Motion, Transition และสี Accent อัตโนมัติ"
                   />

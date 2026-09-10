@@ -7,7 +7,7 @@ import {
   Columns, LayoutGrid, List, ChevronRight, Eye, VolumeX, ShieldCheck, Tag, Info, RotateCcw, Star
 } from 'lucide-react';
 import { openFolder, getAllAssets, uploadAsset, deleteFile, starAsset } from '../api';
-import { Modal, Toast, Button, Badge, Input, ConfirmModal } from './ui';
+import { Modal, Toast, Button, Badge, Input, ConfirmModal, PageHeader } from './ui';
 import { useDebounce, useToast } from '../hooks';
 
 export default function MediaAssetsHub({ status }) {
@@ -462,228 +462,221 @@ export default function MediaAssetsHub({ status }) {
 
   return (
     <div className="space-y-4 sm:space-y-5 animate-fadeIn pb-24 md:pb-12 max-w-[2200px] mx-auto">
-      {/* ── 1. Top Header Banner (Constrained with overflow-hidden & min-w-0) ── */}
-      <div className="w-full max-w-full min-w-0 bg-[#0B0F19] border border-white/[0.08] p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3 sm:gap-4 overflow-hidden">
-        <div className="flex items-start sm:items-center gap-3 sm:gap-3.5 w-full min-w-0 flex-1">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-[#FE2C55] to-[#25F4EE] flex items-center justify-center text-white shadow-lg shadow-[#FE2C55]/20 flex-shrink-0 mt-0.5 sm:mt-0">
-            <Layers className="w-5 h-5 sm:w-6 sm:h-6" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 min-w-0">
-              <h2 className="text-base sm:text-lg lg:text-xl font-bold font-kanit text-white tracking-wide truncate">
-                คลังทรัพยากรสื่อ & ระบบตัดต่อ
-              </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/30 whitespace-nowrap flex-shrink-0">
-                Media Assets & System Hub
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 mt-1 line-clamp-1 sm:line-clamp-2 leading-relaxed break-words">
-              ศูนย์รวมเสียงเอฟเฟกต์ SFX • เพลง BGM • ฟอนต์สไตล์ TikTok • ป้าย 3D Badges • โทนสี LUTs และโฟลเดอร์ CapCut
-            </p>
-          </div>
-        </div>
-
-        {/* Global Action Toolbar */}
-        <div className="flex items-center gap-2 w-full md:w-auto justify-start sm:justify-end flex-wrap pt-0.5 md:pt-0 min-w-0 flex-shrink-0">
-          {/* View Mode Toggle (Desktop) */}
-          <div className="hidden lg:flex items-center p-0.5 rounded-xl bg-black/40 border border-white/[0.08]">
-            <button
-              type="button"
-              onClick={() => setViewMode('split')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                viewMode === 'split'
-                  ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-              title="โหมดสตูดิโอผ่าครึ่ง (Split Workbench)"
-            >
-              <Columns className="w-3.5 h-3.5" />
-              <span>Studio Split</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('grid')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                viewMode === 'grid'
-                  ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-              title="โหมดแกลเลอรีเต็มจอ (Full Grid)"
-            >
-              <LayoutGrid className="w-3.5 h-3.5" />
-              <span>Grid Gallery</span>
-            </button>
-          </div>
-
-          {/* Upload Button */}
-          {activeAssetTab !== 'system' && (
-            <label
-              className={`relative flex items-center justify-center gap-2 flex-1 sm:flex-initial px-3.5 sm:px-4 py-2 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold shadow-lg shadow-[#FE2C55]/20 transition-all cursor-pointer active:scale-95 ${
-                uploadingAsset ? 'opacity-50 pointer-events-none' : ''
-              }`}
-            >
-              <input
-                ref={fileUploadRef}
-                type="file"
-                accept="video/*,audio/*,image/*,image/heic,image/heif,.heic,.HEIC,.heif,.HEIF,.mov,.MOV,.mp4,.MP4,.ttf,.otf,.cube"
-                onChange={handleAssetUpload}
-                disabled={uploadingAsset}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-              />
-              <Upload className="w-4 h-4 text-white pointer-events-none flex-shrink-0" />
-              <span className="pointer-events-none whitespace-nowrap">{uploadingAsset ? 'กำลังเพิ่มไฟล์...' : 'เพิ่มทรัพยากรใหม่'}</span>
-            </label>
-          )}
-
-          {/* Open Folder Button */}
-          <button
-            type="button"
-            onClick={() => handleOpen(activeAssetTab === 'system' ? 'root' : 'assets')}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-200 text-xs font-bold border border-white/[0.08] transition-all cursor-pointer active:scale-95 flex-shrink-0"
-            title="เปิดโฟลเดอร์ Assets"
-          >
-            <Folder className="w-3.5 h-3.5 text-[#25F4EE]" />
-            <span className="hidden xs:inline">เปิดโฟลเดอร์</span>
-          </button>
-
-          {/* Refresh Button */}
-          <button
-            type="button"
-            onClick={fetchAssets}
-            className="p-2 min-w-[36px] min-h-[36px] rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-400 hover:text-white border border-white/[0.08] transition-colors cursor-pointer flex items-center justify-center active:scale-95 flex-shrink-0"
-            title="รีเฟรชข้อมูล"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-[#25F4EE]' : ''}`} />
-          </button>
-        </div>
-      </div>
-
-      {/* ── 2. Responsive Category Nav Pills (iPhone 15 PM Touch Snap + Desktop Grid) ── */}
-      <div className="w-full max-w-full overflow-x-auto no-scrollbar snap-x flex gap-2 pb-1 sm:grid sm:grid-cols-3 lg:grid-cols-6 sm:overflow-visible">
-        {assetCategories.map((cat) => {
-          const Icon = cat.icon;
-          const isActive = activeAssetTab === cat.id;
-          return (
-            <button
-              key={cat.id}
-              type="button"
-              onClick={() => setActiveAssetTab(cat.id)}
-              className={`flex-shrink-0 snap-start min-w-[150px] sm:min-w-0 p-3 sm:p-3.5 rounded-2xl border text-left transition-all relative cursor-pointer active:scale-95 ${
-                isActive
-                  ? `${cat.activeBg} ${cat.borderColor} shadow-lg ring-1 ${cat.borderColor}`
-                  : 'bg-[#080B11]/80 border-white/[0.06] hover:border-white/[0.15] hover:bg-white/[0.02]'
-              }`}
-            >
-              <div className="flex items-center justify-between gap-1.5">
-                <div className="flex items-center gap-2 min-w-0">
-                  <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? cat.color : 'text-slate-400'}`} />
-                  <span className={`text-xs font-bold truncate ${isActive ? 'text-white' : 'text-slate-300'}`}>
-                    {cat.label}
-                  </span>
-                </div>
-                <span className={`text-[11px] px-2 py-0.5 rounded-full font-mono font-bold flex-shrink-0 ${
-                  isActive
-                    ? 'bg-white text-slate-950 shadow-sm'
-                    : 'bg-white/[0.06] text-slate-400 border border-white/[0.08]'
-                }`}>
-                  {cat.count}
-                </span>
-              </div>
-              <div className="text-[10px] text-slate-400 truncate mt-1">
-                {cat.sublabel}
-              </div>
-              <div className={`h-1 w-full mt-2 rounded-full transition-all ${
-                isActive ? 'bg-gradient-to-r from-[#FE2C55] to-[#25F4EE]' : 'bg-white/[0.04]'
-              }`} />
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ── 3. Search Bar for Assets ── */}
-      {activeAssetTab !== 'system' && (
-        <div className="space-y-3">
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={`ค้นหาในหมวด ${activeAssetTab.toUpperCase()} (เช่น whoosh, upbeat, bold, sale, cube)...`}
-              className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-[#080B11] border border-white/[0.1] text-slate-100 text-xs sm:text-sm focus:outline-none focus:border-[#25F4EE]/50 transition-colors shadow-inner"
-            />
-            {searchQuery && (
+      {/* ── 1. Command Bar Header (shared PageHeader) ── */}
+      <PageHeader
+        icon={Layers}
+        eyebrow="Media Assets & System Hub"
+        title="คลังทรัพยากรสื่อ & ระบบตัดต่อ"
+        actions={
+          <>
+            {/* View Mode Toggle (Desktop) */}
+            <div className="hidden lg:flex items-center p-0.5 rounded-xl bg-black/40 border border-white/[0.08]">
               <button
                 type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-white"
+                onClick={() => setViewMode('split')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  viewMode === 'split'
+                    ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="โหมดสตูดิโอผ่าครึ่ง (Split Workbench)"
               >
-                <X className="w-3.5 h-3.5" />
+                <Columns className="w-3.5 h-3.5" />
+                <span>Studio Split</span>
               </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  viewMode === 'grid'
+                    ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="โหมดแกลเลอรีเต็มจอ (Full Grid)"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span>Grid Gallery</span>
+              </button>
+            </div>
+
+            {/* Upload Button */}
+            {activeAssetTab !== 'system' && (
+              <label
+                className={`relative flex items-center justify-center gap-2 flex-1 sm:flex-initial px-3.5 sm:px-4 py-2 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold shadow-lg shadow-[#FE2C55]/20 transition-all cursor-pointer active:scale-95 ${
+                  uploadingAsset ? 'opacity-50 pointer-events-none' : ''
+                }`}
+              >
+                <input
+                  ref={fileUploadRef}
+                  type="file"
+                  accept="video/*,audio/*,image/*,image/heic,image/heif,.heic,.HEIC,.heif,.HEIF,.mov,.MOV,.mp4,.MP4,.ttf,.otf,.cube"
+                  onChange={handleAssetUpload}
+                  disabled={uploadingAsset}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                />
+                <Upload className="w-4 h-4 text-white pointer-events-none flex-shrink-0" />
+                <span className="pointer-events-none whitespace-nowrap">{uploadingAsset ? 'กำลังเพิ่มไฟล์...' : 'เพิ่มทรัพยากรใหม่'}</span>
+              </label>
             )}
-          </div>
 
-          {/* Sub-category Quick Filter Pills for SFX */}
-          {activeAssetTab === 'sfx' && sfxCategoryList.length > 1 && (
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 pt-0.5">
-              {sfxCategoryList.map((sc) => {
-                const isActive = sfxCategory === sc.id;
+            {/* Open Folder Button */}
+            <button
+              type="button"
+              onClick={() => handleOpen(activeAssetTab === 'system' ? 'root' : 'assets')}
+              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-200 text-xs font-bold border border-white/[0.08] transition-all cursor-pointer active:scale-95 flex-shrink-0"
+              title="เปิดโฟลเดอร์ Assets"
+            >
+              <Folder className="w-3.5 h-3.5 text-[#25F4EE]" />
+              <span className="hidden xs:inline">เปิดโฟลเดอร์</span>
+            </button>
+
+            {/* Refresh Button */}
+            <button
+              type="button"
+              onClick={fetchAssets}
+              className="p-2 min-w-[36px] min-h-[36px] rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-400 hover:text-white border border-white/[0.08] transition-colors cursor-pointer flex items-center justify-center active:scale-95 flex-shrink-0"
+              title="รีเฟรชข้อมูล"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-[#25F4EE]' : ''}`} />
+            </button>
+          </>
+        }
+        secondRow={
+          <>
+            {/* Description */}
+            <p className="text-xs text-slate-400 leading-relaxed break-words pt-2 border-t border-white/[0.06]">
+              ศูนย์รวมเสียงเอฟเฟกต์ SFX • เพลง BGM • ฟอนต์สไตล์ TikTok • ป้าย 3D Badges • โทนสี LUTs และโฟลเดอร์ CapCut
+            </p>
+
+            {/* Responsive Category Nav Pills (iPhone 15 PM Touch Snap + Desktop Grid) */}
+            <div className="w-full max-w-full overflow-x-auto no-scrollbar snap-x flex gap-2 pb-1 sm:grid sm:grid-cols-3 lg:grid-cols-6 sm:overflow-visible pt-2 border-t border-white/[0.06]">
+              {assetCategories.map((cat) => {
+                const Icon = cat.icon;
+                const isActive = activeAssetTab === cat.id;
                 return (
                   <button
-                    key={sc.id}
+                    key={cat.id}
                     type="button"
-                    onClick={() => setSfxCategory(sc.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex-shrink-0 ${
+                    onClick={() => setActiveAssetTab(cat.id)}
+                    className={`flex-shrink-0 snap-start min-w-[150px] sm:min-w-0 p-3 sm:p-3.5 rounded-2xl border text-left transition-all relative cursor-pointer active:scale-95 ${
                       isActive
-                        ? 'bg-[#25F4EE] text-slate-950 shadow-md shadow-[#25F4EE]/20'
-                        : 'bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 border border-white/[0.08]'
+                        ? `${cat.activeBg} ${cat.borderColor} shadow-lg ring-1 ${cat.borderColor}`
+                        : 'bg-[#080B11]/80 border-white/[0.06] hover:border-white/[0.15] hover:bg-white/[0.02]'
                     }`}
                   >
-                    <span>{sc.label}</span>
-                    <span
-                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                        isActive ? 'bg-slate-950/20 text-slate-950' : 'bg-white/[0.08] text-slate-400'
-                      }`}
-                    >
-                      {sc.count}
-                    </span>
+                    <div className="flex items-center justify-between gap-1.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? cat.color : 'text-slate-400'}`} />
+                        <span className={`text-xs font-bold truncate ${isActive ? 'text-white' : 'text-slate-300'}`}>
+                          {cat.label}
+                        </span>
+                      </div>
+                      <span className={`text-[11px] px-2 py-0.5 rounded-full font-mono font-bold flex-shrink-0 ${
+                        isActive
+                          ? 'bg-white text-slate-950 shadow-sm'
+                          : 'bg-white/[0.06] text-slate-400 border border-white/[0.08]'
+                      }`}>
+                        {cat.count}
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-slate-400 truncate mt-1">
+                      {cat.sublabel}
+                    </div>
+                    <div className={`h-1 w-full mt-2 rounded-full transition-all ${
+                      isActive ? 'bg-gradient-to-r from-[#FE2C55] to-[#25F4EE]' : 'bg-white/[0.04]'
+                    }`} />
                   </button>
                 );
               })}
             </div>
-          )}
 
-          {/* Sub-category Quick Filter Pills for Effects */}
-          {activeAssetTab === 'effects' && effectsCategoryList.length > 1 && (
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 pt-0.5">
-              {effectsCategoryList.map((sc) => {
-                const isActive = effectsCategory === sc.id;
-                return (
-                  <button
-                    key={sc.id}
-                    type="button"
-                    onClick={() => setEffectsCategory(sc.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex-shrink-0 ${
-                      isActive
-                        ? 'bg-fuchsia-400 text-slate-950 shadow-md shadow-fuchsia-400/20'
-                        : 'bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 border border-white/[0.08]'
-                    }`}
-                  >
-                    <span>{sc.label}</span>
-                    <span
-                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                        isActive ? 'bg-slate-950/20 text-slate-950' : 'bg-white/[0.08] text-slate-400'
-                      }`}
+            {/* Search Bar for Assets */}
+            {activeAssetTab !== 'system' && (
+              <div className="space-y-3 pt-2 border-t border-white/[0.06]">
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder={`ค้นหาในหมวด ${activeAssetTab.toUpperCase()} (เช่น whoosh, upbeat, bold, sale, cube)...`}
+                    className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-[#080B11] border border-white/[0.1] text-slate-100 text-xs sm:text-sm focus:outline-none focus:border-[#25F4EE]/50 transition-colors shadow-inner"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-white"
                     >
-                      {sc.count}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Sub-category Quick Filter Pills for SFX */}
+                {activeAssetTab === 'sfx' && sfxCategoryList.length > 1 && (
+                  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 pt-0.5">
+                    {sfxCategoryList.map((sc) => {
+                      const isActive = sfxCategory === sc.id;
+                      return (
+                        <button
+                          key={sc.id}
+                          type="button"
+                          onClick={() => setSfxCategory(sc.id)}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex-shrink-0 ${
+                            isActive
+                              ? 'bg-[#25F4EE] text-slate-950 shadow-md shadow-[#25F4EE]/20'
+                              : 'bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 border border-white/[0.08]'
+                          }`}
+                        >
+                          <span>{sc.label}</span>
+                          <span
+                            className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                              isActive ? 'bg-slate-950/20 text-slate-950' : 'bg-white/[0.08] text-slate-400'
+                            }`}
+                          >
+                            {sc.count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Sub-category Quick Filter Pills for Effects */}
+                {activeAssetTab === 'effects' && effectsCategoryList.length > 1 && (
+                  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 pt-0.5">
+                    {effectsCategoryList.map((sc) => {
+                      const isActive = effectsCategory === sc.id;
+                      return (
+                        <button
+                          key={sc.id}
+                          type="button"
+                          onClick={() => setEffectsCategory(sc.id)}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex-shrink-0 ${
+                            isActive
+                              ? 'bg-fuchsia-400 text-slate-950 shadow-md shadow-fuchsia-400/20'
+                              : 'bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 border border-white/[0.08]'
+                          }`}
+                        >
+                          <span>{sc.label}</span>
+                          <span
+                            className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                              isActive ? 'bg-slate-950/20 text-slate-950' : 'bg-white/[0.08] text-slate-400'
+                            }`}
+                          >
+                            {sc.count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        }
+      />
 
       {/* ── 4. MAIN CONTENT AREA (Split Studio Workbench vs Classic Grid) ── */}
 

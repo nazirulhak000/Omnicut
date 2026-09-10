@@ -4,7 +4,9 @@
 // defaults would drift and the render would quietly change behaviour
 // depending on which screen started it.
 
-import { DEFAULT_ONE_CLICK_STYLE_PRESET } from './stylePresetCatalog.js';
+import { DEFAULT_ONE_CLICK_STYLE_PRESET, DEFAULT_STYLE_PRESET } from './stylePresetCatalog.js';
+
+export const STYLE_PRESET_STORAGE_VERSION = 2;
 
 export const DEFAULT_STUDIO_FORM = {
   selectedVideo: '',
@@ -28,6 +30,7 @@ export const DEFAULT_STUDIO_FORM = {
   voicePreset: 'gemini_puck_male_hype',
   adTone: 'commercial_premium',
   stylePreset: DEFAULT_ONE_CLICK_STYLE_PRESET,
+  stylePresetVersion: STYLE_PRESET_STORAGE_VERSION,
   fontName: 'IBMPlex',
   bilingualSubtitles: true,
   stickerBadge: null,
@@ -44,11 +47,26 @@ export const DEFAULT_STUDIO_FORM = {
 
 export const STUDIO_FORM_KEY = 'capcut_studio_form';
 
+/** Migrate a saved form without depending on browser storage. */
+export function migrateSavedStudioForm(saved) {
+  const form = { ...DEFAULT_STUDIO_FORM, ...saved };
+  // The style picker was introduced with viral_punch as the implicit
+  // default. Reset only pre-versioned saved forms to the old baseline;
+  // explicit choices made after this migration remain untouched.
+  if (saved?.stylePresetVersion !== STYLE_PRESET_STORAGE_VERSION) {
+    form.stylePreset = DEFAULT_STYLE_PRESET;
+    form.stylePresetVersion = STYLE_PRESET_STORAGE_VERSION;
+  }
+  return form;
+}
+
 /** Saved form merged over the defaults; defaults alone if nothing is stored. */
 export function getSavedStudioForm() {
   try {
     const raw = localStorage.getItem(STUDIO_FORM_KEY);
-    if (raw) return { ...DEFAULT_STUDIO_FORM, ...JSON.parse(raw) };
+    if (raw) {
+      return migrateSavedStudioForm(JSON.parse(raw));
+    }
   } catch (err) {
     console.error('Failed to parse saved studio form:', err);
   }

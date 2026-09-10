@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarDays, ChevronDown, ChevronUp, Clock, Copy, GripVertical, Image as ImageIcon, Layers, Plus, RefreshCw, Rocket, RotateCcw, Settings2, Shuffle, Trash2 } from 'lucide-react';
+import { Archive, CalendarDays, ChevronDown, ChevronUp, Clock, Copy, GripVertical, Image as ImageIcon, Layers, Plus, RefreshCw, Rocket, RotateCcw, Settings2, Shuffle, Trash2 } from 'lucide-react';
 import { Modal, Badge } from './ui';
 import { commitScheduleAutofill, copyScheduleTemplate, createScheduleQueue, getScheduleQueue, getScheduleTemplate, prepareScheduleQueue, previewScheduleAutofill, removeScheduleQueue, resetScheduleTemplate, saveScheduleTemplate, updateScheduleQueue } from '../api';
 import { addDays, buildScheduleIso, dateOnly, DEFAULT_PRIMARY_TIMES, groupScheduleItems, localParts, mergeScheduleDraft, nextTemplateSlotAfterLatest, primaryTimeOptions, PROJECT_TIME_ZONE, scheduleTimeOptions, templateForWeek, toLocalDateTime, weekStartForDate } from '../lib/scheduleQueue';
@@ -137,6 +137,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   const [requeueTarget, setRequeueTarget] = useState(null);
   const [requeueDraft, setRequeueDraft] = useState({ date: '', time: '' });
   const [requeueLoading, setRequeueLoading] = useState(false);
+  const [postedOpen, setPostedOpen] = useState(false);
   const scheduleDrafts = useRef(new Map());
   const scheduleRequestIds = useRef(new Map());
   const requeueRequestId = useRef(0);
@@ -177,7 +178,19 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
     });
     return [...values.entries()].sort((a, b) => a[1].localeCompare(b[1]));
   }, [availableClips]);
-  const grouped = useMemo(() => groupScheduleItems(queue), [queue]);
+  // Posted items are a permanent record (matches how the rest of this app
+  // treats "posted" as sealed proof, never demoted or deleted), but they
+  // don't belong mixed into the active daily run sheet -- once a clip is
+  // actually posted there's nothing left to schedule, so it just clutters
+  // "today's queue" instead of reading as done. Split them into their own
+  // collapsed history list instead of showing them (un-removable) alongside
+  // clips still waiting to go out.
+  const activeQueue = useMemo(() => queue.filter((item) => item.status !== 'posted'), [queue]);
+  const postedQueue = useMemo(
+    () => queue.filter((item) => item.status === 'posted').sort((a, b) => new Date(b.scheduled_at) - new Date(a.scheduled_at)),
+    [queue],
+  );
+  const grouped = useMemo(() => groupScheduleItems(activeQueue), [activeQueue]);
   const dates = Object.keys(grouped);
 
   const saveSingle = async () => {
@@ -429,7 +442,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
               <div className="p-2.5 rounded-2xl bg-cyan-400/10 text-cyan-300"><CalendarDays className="w-5 h-5" /></div>
               <div>
                 <h2 className="text-base sm:text-lg font-black text-white font-kanit">คิวโพสต์หลายวัน</h2>
-                <p className="text-xs text-slate-400 mt-1">เรียงตามวันที่และเวลาในเขต Asia/Bangkok · รอบละ 5 นาที · {queue.length} คลิปในคิว</p>
+                <p className="text-xs text-slate-400 mt-1">เรียงตามวันที่และเวลาในเขต Asia/Bangkok · รอบละ 5 นาที · {activeQueue.length} คลิปในคิว</p>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -437,6 +450,9 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
               <button type="button" onClick={openTemplate} className="px-3.5 py-2 rounded-xl border border-cyan-400/20 bg-cyan-400/[0.05] text-cyan-100 text-xs font-bold flex items-center gap-1.5 hover:bg-cyan-400/[0.12]"><Settings2 className="w-4 h-4" />ตั้งค่าเวลารายสัปดาห์</button>
               <button type="button" onClick={openSingle} className="px-3.5 py-2 rounded-xl border border-white/[0.12] bg-white/[0.05] text-white text-xs font-bold flex items-center gap-1.5 hover:bg-white/[0.1]"><Plus className="w-4 h-4" />เพิ่มคลิป</button>
               <button type="button" onClick={openBulk} className="px-3.5 py-2 rounded-xl border border-white/[0.12] bg-white/[0.05] text-white text-xs font-bold flex items-center gap-1.5 hover:bg-white/[0.1]"><Layers className="w-4 h-4" />เพิ่มเป็นชุด</button>
+              {postedQueue.length > 0 && (
+                <button type="button" onClick={() => setPostedOpen(true)} className="px-3.5 py-2 rounded-xl border border-emerald-400/30 bg-emerald-400/[0.08] text-emerald-200 text-xs font-bold flex items-center gap-1.5 hover:bg-emerald-400/[0.15]" title="เปิดดูคลิปที่โพสต์แล้วทั้งหมดในคิวนี้"><Archive className="w-4 h-4" />โพสต์แล้ว ({postedQueue.length})</button>
+              )}
               <button type="button" onClick={loadQueue} className="p-2 rounded-xl border border-white/[0.1] text-slate-300 hover:text-white" aria-label="รีเฟรชคิว"><RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /></button>
             </div>
           </div>
@@ -528,6 +544,25 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
 
       <Modal isOpen={requeueOpen} onClose={() => setRequeueOpen(false)} title="จัดคิวคลิปที่เลยกำหนดใหม่" subtitle="ระบบจะอัปเดตรายการเดิมและไม่สร้างคลิปซ้ำ" maxWidth="max-w-xl">
         <div className="space-y-4"><div className="rounded-xl border border-red-400/20 bg-red-500/[0.06] p-3 text-xs text-red-100">{requeueTarget?.product_name || 'คลิป'} · {requeueTarget?.hook_title || requeueTarget?.video_path}</div>{requeueLoading && <p className="text-xs text-cyan-200">กำลังหาช่องว่างถัดไปตามเทมเพลต...</p>}<div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><label className="space-y-1 text-xs font-bold text-slate-300">วันที่<input type="date" value={requeueDraft.date || ''} disabled={requeueLoading} onChange={(event) => setRequeueDraft((prev) => ({ ...prev, date: event.target.value }))} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white disabled:opacity-50" /></label><label className="space-y-1 text-xs font-bold text-slate-300">เวลา<input type="time" step="300" value={requeueDraft.time || ''} disabled={requeueLoading} onChange={(event) => setRequeueDraft((prev) => ({ ...prev, time: event.target.value }))} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white font-mono disabled:opacity-50" /></label></div><div className="flex justify-end gap-2"><button type="button" onClick={() => setRequeueOpen(false)} className="px-3 py-2 rounded-xl text-xs text-slate-300">ยกเลิก</button><button type="button" disabled={saving || requeueLoading || !requeueDraft.date || !requeueDraft.time} onClick={saveRequeue} className="px-4 py-2 rounded-xl bg-cyan-400 text-slate-950 text-xs font-black disabled:opacity-50">บันทึกคิวใหม่</button></div></div>
+      </Modal>
+
+      <Modal isOpen={postedOpen} onClose={() => setPostedOpen(false)} title="คลิปที่โพสต์แล้ว" subtitle="เก็บไว้เป็นประวัติ ไม่นับรวมในคิวที่ต้องจัดการต่อ" maxWidth="max-w-2xl">
+        <div className="space-y-1 max-h-[60vh] overflow-y-auto">
+          {postedQueue.length === 0 ? (
+            <p className="py-8 text-center text-xs text-slate-500">ยังไม่มีคลิปที่โพสต์แล้วในคิวนี้</p>
+          ) : postedQueue.map((item) => (
+            <div key={item.id} className="flex items-center gap-3 py-2.5 border-b border-white/[0.06] last:border-0">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-white truncate">{item.product_name || 'ไม่ระบุสินค้า'}</span>
+                  <Badge className={STATUS_STYLES.posted}>{STATUS_LABELS.posted}</Badge>
+                </div>
+                <p className="text-[11px] text-cyan-200 truncate mt-0.5">{item.hook_title || item.project_name || item.video_path}</p>
+              </div>
+              <span className="text-[11px] font-mono text-slate-500 whitespace-nowrap">{item.scheduled_at?.slice(0, 16).replace('T', ' ')}</span>
+            </div>
+          ))}
+        </div>
       </Modal>
     </div>
   );

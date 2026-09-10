@@ -5,10 +5,11 @@ Generates animated Thai & bilingual subtitles (.ass), parses/migrates overlays, 
 
 from typing import List, Tuple
 
-from scripts.subtitle_engine import SubtitleEngine
+from scripts.subtitle_engine import SubtitleEngine, subtitle_artifact_is_current
 from scripts.editorial_pacing import build_pacing_plan_from_cues
 from scripts.overlay_model import migrate_to_overlays
 from scripts.pipeline_context import PipelineContext
+from scripts.project_manifest import ProjectManifest
 
 
 class SubtitleStage:
@@ -18,7 +19,13 @@ class SubtitleStage:
     def run(cls, ctx: PipelineContext) -> None:
         scrim_spans: List[Tuple[float, float]] = []
 
-        if ctx.should_run("subtitles"):
+        should_generate = ctx.should_run("subtitles")
+        if not should_generate and ctx.manifest:
+            existing_ass_path = ProjectManifest.artifact_path(ctx.manifest, "subtitles_ass")
+            if existing_ass_path and not subtitle_artifact_is_current(existing_ass_path):
+                should_generate = True
+
+        if should_generate:
             ctx.notify("💬 [3/5] กำลังสร้างซับไตเติล TikTok เคลื่อนไหว (Kanit-Black 86pt)...", 0.50)
             print(f"\n💬 [3/5] Generating TikTok Animated Subtitles (.ass with {ctx.font_name} font & 3-word bursts)...")
             ass_path = ctx.out_path("subtitles", ".ass")

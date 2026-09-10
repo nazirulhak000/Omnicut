@@ -19,6 +19,7 @@ gives them; this module is the one place that funnels every artifact write,
 so the normalization lives here rather than at each caller.
 """
 
+import gc
 import json
 import shutil
 import datetime
@@ -366,7 +367,19 @@ class ProjectManifest:
 
         size = cls.folder_size_mb(target)
         files = sum(1 for f in target.rglob("*") if f.is_file())
-        shutil.rmtree(target)
+        # A file inside this folder can still be briefly held open by the
+        # media server (a <video>/<audio> range read that hasn't finished
+        # closing yet) -- retry a couple times before surfacing WinError 32
+        # to the caller, same shape as _move_with_retry in api_videos.py.
+        for attempt in range(3):
+            try:
+                shutil.rmtree(target)
+                break
+            except OSError as err:
+                if getattr(err, "winerror", None) != 32 or attempt == 2:
+                    raise
+                gc.collect()
+                time.sleep(0.3)
         return {"project_name": target.name, "size_mb": size, "files_removed": files}
 
     # ------------------------------------------------------------------

@@ -493,6 +493,42 @@ def test_preview_image_metadata_is_read_only_and_returns_source_diff(tmp_path, m
     assert ps.ProductStore.get(product["id"])["description"] == "เดิม"
 
 
+def test_async_preview_image_metadata_returns_persistent_task_with_preview_result(tmp_path, monkeypatch):
+    monkeypatch.setattr(ps, "STORE_PATH", tmp_path / "_Docs" / "products.json")
+    product = ps.ProductStore.add(
+        name="BlueWow",
+        images=[{"rel_path": "reference.png", "name": "reference.png"}],
+        description="เดิม",
+    )
+    monkeypatch.setattr(
+        ProductScraper,
+        "extract_metadata_from_images",
+        classmethod(lambda cls, image_paths, product_name: {
+            "name": "BlueWow X300 Pro Max",
+            "description": "พัดลมระบายความร้อน 27W",
+            "raw_text": "AI GAMING COOLING SERIES",
+            "specs": ["27W"],
+            "selling_points": ["Suction cooling"],
+            "pain_points": [],
+            "source_warning": "",
+            "metadata_source": "vision_image",
+        }),
+    )
+
+    client = TestClient(app)
+    response = client.post(f"/api/products/{product['id']}/preview-image-metadata-async")
+
+    assert response.status_code == 200, response.text
+    task_id = response.json()["task_id"]
+    task = client.get(f"/api/tasks/{task_id}").json()
+    assert task["type"] == "image_metadata"
+    assert task["status"] == "completed", task.get("error")
+    assert task["target_id"] == product["id"]
+    assert task["result"]["product_id"] == product["id"]
+    assert task["result"]["preview"]["source_type"] == "vision_image"
+    assert ps.ProductStore.get(product["id"])["description"] == "เดิม"
+
+
 def test_source_text_without_duplicate_keeps_only_raw_lines_not_already_in_description():
     assert _source_text_without_duplicate(
         "รับประกัน 12 เดือน\nมีหัวต่อ Type-C และ Lightning",

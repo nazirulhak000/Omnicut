@@ -576,19 +576,35 @@ def _mark_scheduled_queue_item_posted(source: Path, destination: Path, export_id
         from scripts.schedule_store import ScheduleQueueStore, now_iso
         key = video_key(source)
         with ScheduleQueueStore._mutate() as records:
-            for row in records:
-                exact_id = export_id and row.get("export_id") == export_id
-                legacy_match = not export_id and (
-                    row.get("video_key") == key
-                    or Path(str(row.get("video_path", ""))).name.casefold() == source.name.casefold()
+            # An exact export_id match is preferred, but a queue row's
+            # export_id goes stale the moment the angle is re-rendered after
+            # being queued: a fresh render mints a new export_id while the
+            # queue row still holds whatever it was queued under. Matching
+            # export_id only used to mean that case silently updated nothing
+            # -- the row for this exact physical file still exists (under its
+            # old export_id/video_key), so fall back to matching the file
+            # itself rather than leaving a genuinely-posted clip stuck
+            # showing as pending in the queue and the Extension forever.
+            target_row = None
+            if export_id:
+                target_row = next((row for row in records if row.get("export_id") == export_id), None)
+            if target_row is None:
+                target_row = next(
+                    (
+                        row for row in records
+                        if row.get("video_key") == key
+                        or Path(str(row.get("video_path", ""))).name.casefold() == source.name.casefold()
+                    ),
+                    None,
                 )
-                if exact_id or legacy_match:
-                    row["video_path"] = str(destination.relative_to(BASE_DIR)).replace("\\", "/")
-                    row["status"] = "posted"
-                    row["posted_at"] = now_iso()
-                    row["updated_at"] = now_iso()
-                    if exact_id:
-                        break
+            if target_row is not None:
+                target_row["video_path"] = str(destination.relative_to(BASE_DIR)).replace("\\", "/")
+                target_row["video_key"] = key
+                if export_id:
+                    target_row["export_id"] = export_id
+                target_row["status"] = "posted"
+                target_row["posted_at"] = now_iso()
+                target_row["updated_at"] = now_iso()
     except Exception:
         # Never turn a successful file move into a failed post because the
         # optional queue mirror is unavailable.

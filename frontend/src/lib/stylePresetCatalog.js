@@ -5,7 +5,10 @@
  * Unknown or legacy values still fall back to the Golden Master preset.
  */
 export const DEFAULT_STYLE_PRESET = 'clean_tech_review';
-export const DEFAULT_ONE_CLICK_STYLE_PRESET = 'viral_punch';
+// Keep One Click on the original Golden Master contract. The richer presets
+// remain available as explicit user choices, but must never silently alter a
+// render just because the UI was updated.
+export const DEFAULT_ONE_CLICK_STYLE_PRESET = DEFAULT_STYLE_PRESET;
 
 const STYLE_PRESETS = [
   {

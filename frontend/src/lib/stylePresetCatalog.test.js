@@ -11,7 +11,7 @@ import {
   uniqueStylePresets,
   withStylePresetPayload,
 } from './stylePresetCatalog.js';
-import { DEFAULT_STUDIO_FORM } from './studioDefaults.js';
+import { DEFAULT_STUDIO_FORM, STYLE_PRESET_STORAGE_VERSION, migrateSavedStudioForm } from './studioDefaults.js';
 
 test('catalog has a unique renderer-supported default', () => {
   assert.equal(STYLE_PRESET_CATALOG.length, 4);
@@ -26,10 +26,18 @@ test('catalog has a unique renderer-supported default', () => {
   assert.equal(STYLE_PRESET_CATALOG.filter((preset) => preset.recommended).length, 1);
 });
 
-test('new One Click sessions default to the recommended motion-rich style', () => {
-  assert.equal(DEFAULT_ONE_CLICK_STYLE_PRESET, 'viral_punch');
+test('new One Click sessions default to the Golden Master style', () => {
+  assert.equal(DEFAULT_ONE_CLICK_STYLE_PRESET, DEFAULT_STYLE_PRESET);
   assert.equal(DEFAULT_STUDIO_FORM.stylePreset, DEFAULT_ONE_CLICK_STYLE_PRESET);
-  assert.equal(getStylePreset(DEFAULT_STUDIO_FORM.stylePreset).recommended, true);
+  assert.equal(getStylePreset(DEFAULT_STUDIO_FORM.stylePreset).id, DEFAULT_STYLE_PRESET);
+});
+
+test('legacy saved forms migrate the implicit style without overwriting an explicit choice', () => {
+  assert.equal(migrateSavedStudioForm({ stylePreset: 'viral_punch' }).stylePreset, DEFAULT_STYLE_PRESET);
+  assert.equal(
+    migrateSavedStudioForm({ stylePreset: 'viral_punch', stylePresetVersion: STYLE_PRESET_STORAGE_VERSION }).stylePreset,
+    'viral_punch',
+  );
 });
 
 test('unknown and legacy casing safely resolve to the Golden Master', () => {

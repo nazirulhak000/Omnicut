@@ -200,7 +200,15 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
         # terminal "cancelled" state instead of "failed".
         if req_data.product_id and req_data.angle_id:
             try:
-                ProductStore.update_angle_status(req_data.product_id, req_data.angle_id, "scripted")
+                # project_name="" clears the stale pointer to the abandoned,
+                # manifest-less folder this attempt was writing into -- left
+                # set, it makes ProductToClip's `isInProduction` heuristic
+                # (status !== 'in_production' but project_name truthy) show
+                # "กำลังตัดต่อ" forever on an angle that is actually free to
+                # regenerate, and GET /api/projects/<name> 404s if anything
+                # tries to open it (there is nothing to resume: this function
+                # only ever runs a from-scratch render, never a reroll).
+                ProductStore.update_angle_status(req_data.product_id, req_data.angle_id, "scripted", project_name="")
             except Exception as angle_err:
                 print(f"Warning: Could not revert angle status after cancel: {angle_err}")
 
@@ -217,7 +225,8 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
         app_err = classify_exception(e, project_name=failed_project, job_id=job_id)
         if req_data.product_id and req_data.angle_id:
             try:
-                ProductStore.update_angle_status(req_data.product_id, req_data.angle_id, "scripted")
+                # Same project_name clear as the RenderCancelled branch above.
+                ProductStore.update_angle_status(req_data.product_id, req_data.angle_id, "scripted", project_name="")
             except Exception as angle_err:
                 print(f"Warning: Could not revert angle status: {angle_err}")
 

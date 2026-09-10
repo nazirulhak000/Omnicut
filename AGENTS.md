@@ -58,6 +58,7 @@ AI ทุกตัว**ต้องเคารพโครงสร้างโ
 7. ❌ **ห้ามใส่จุดไข่ปลา หรือ "..." หรือ "…" ในบทพูดสคริปต์เด็ดขาด** ให้ใช้การเว้นวรรคตามธรรมชาติ เพราะจุดไข่ปลาจะหลุดไปติดในซับไตเติลบนหน้าจอ ทำให้ดูรกและผู้ใช้ต้องมานั่งลบเอง
 8. ❌ **ห้ามใส่สัญลักษณ์หรือตัวอักษรซ้ำซ้อนในปุ่มหรือ UI เด็ดขาด (Strict No-Redundant Symbols in UI):** ห้ามใส่เครื่องหมายบวก `+` นำหน้าข้อความเมื่อมีไอคอน `<Upload />` หรือ `<Plus />` อยู่แล้ว และห้ามใส่อีโมจิซ้อนหน้าข้อความเมื่อมีไอคอน Lucide แสดงอยู่แล้ว (เช่น ห้ามทำ `<Upload /> + แนบคลิป` หรือ `<Play /> ▶️ เปิดดู`) ต้องปฏิบัติตาม [.agents/rules/ui_clean_standard.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/ui_clean_standard.md) เสมอ ทั้งระบบต้องเป็นมาตรฐานเดียวกัน 100% ห้ามมีซ้ำซ้อน
 9. ❌ **ห้ามทับศัพท์ชื่อแบรนด์ ชื่อรุ่น หรือศัพท์เทคนิคเฉพาะทางที่เป็นภาษาอังกฤษให้เป็นภาษาไทยเด็ดขาด (Strict English Retention for Brands & Tech Specs):** ในบทพูดสคริปต์ ซับไตเติล และข้อความพากย์ ห้ามแปลงชื่อแบรนด์ ชื่อรุ่น หรือศัพท์เฉพาะเป็นภาษาไทยทับศัพท์เพี้ยนๆ (เช่น ห้ามเขียน "โลจิเทค เวฟ คีย์ส", "โลจิ โบลต์", "บลูทูธ", "ยูเอสบีซี") ต้องคงรูปภาษาอังกฤษทางการไว้เสมอ (เช่น "Logitech Wave Keys", "Logi Bolt", "Bluetooth", "USB-C", "iPad", "Mac") เพื่อความน่าเชื่อถือ ตรงปก และแสดงผลบนหน้าจอได้อย่างมืออาชีพ
+10. ❌ **ห้ามงานอื่นกระทบฟอนต์หรือข้อความโดยไม่ได้รับคำสั่งเด็ดขาด (Strict Font/Text Non-Regression):** งาน UI, style, renderer, refactor, dependency, performance หรือ infrastructure ที่ผู้ใช้ไม่ได้สั่งให้เปลี่ยน typography/copy ต้องไม่เปลี่ยนข้อความไทย/อังกฤษ, font family/face, ขนาด, scale, weight, outline, การตัดบรรทัด, ตำแหน่ง, safe zone หรือภาพจริงของซับ หากรักษาไม่ได้ต้องหยุดถาม User ห้ามเลือก baseline ใหม่ ลด assertion หรือปล่อย fallback เงียบ ต้องปฏิบัติตาม [.agents/rules/font_text_visual_contract.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/font_text_visual_contract.md)
 
 ---
 
@@ -113,6 +114,12 @@ AI ทุกตัว**ต้องเคารพโครงสร้างโ
    - Test ต้อง deterministic/offline และใช้ temp storage ห้ามแก้ข้อมูลจริงใน `01_Raw/`, `02_Assets/`, `03_Projects/` หรือ `_Docs/post_log.json`
    - ห้ามเพิ่ม manual script ที่มี side effect เป็น `tests/test_*.py`; ให้ย้ายไป `tools/`
    - การแก้ visual contract ต้องมีทั้ง parity test และ FFmpeg behavioral render พร้อมตรวจหลายเฟรม
+12. ✔️ **รักษา Font/Text Golden Master และใช้ environment เดียวกับ Backend:**
+   - ต้องอ่าน [.agents/rules/font_text_visual_contract.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/font_text_visual_contract.md) ก่อนแตะข้อความ ซับ Hook, font metrics, style/default, manifest/payload หรือ dependency ที่มีผลต่อภาพ
+   - ค่า baseline caption ที่ `1080x1920` คือ em intent `50px` (`0.0463 × width`) ซึ่ง IBM Plex Sans Thai ต้องเขียน ASS `Fontsize=82`; ภาษาอังกฤษ `68%`, line factor `1.0`, bottom margin `420px` ห้าม drift โดยไม่มีคำสั่ง User
+   - Save บันทึก state/manifest; `.ass` รุ่นใหม่เกิดเมื่อ subtitle stage รันตอน Render หลัง input หรือ render contract เปลี่ยน ห้ามให้ Save แก้ข้อความหรือสร้างคำใหม่เอง
+   - Probe/test ต้องใช้ `.venv\Scripts\python.exe` เหมือนเซิร์ฟเวอร์จริง ห้ามรับรองด้วย system Python คนละ environment และ dependency ที่มีผลต่อภาพต้องอยู่ใน `requirements.txt`
+   - ถ้าแก้ output contract ต้อง bump subtitle contract, invalidate artifact เก่า, รัน parity + FFmpeg multi-frame + pixel measurement และยืนยันข้อความก่อน/หลังไม่เปลี่ยน
 
 ---
 

@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Settings, Folder, HardDrive, CheckCircle2, Sliders, Type,
   Sparkles, RefreshCw, Smartphone, ShieldCheck, Cpu, Layers,
-  BarChart3, Columns, List, ChevronRight, AlertTriangle, Bug
+  BarChart3, Columns, List, ChevronRight, AlertTriangle, Bug, Trash2
 } from 'lucide-react';
 import { openFolder } from '../api';
 import TokenDashboard from './TokenDashboard';
+import { PageHeader } from './ui';
 
 export default function SystemSettings({
   status,
@@ -17,6 +18,11 @@ export default function SystemSettings({
 }) {
   const [activeTab, setActiveTab] = useState(initialSubTab); // 'tokens' | 'appearance' | 'paths' | 'engine'
   const [viewMode, setViewMode] = useState('split'); // 'split' | 'classic'
+
+  // Refresh/reset for the tokens tab live in TokenDashboard itself; this bar
+  // only triggers them (see the header-dedup note by renderWorkbenchContent).
+  const tokenDashboardRef = useRef(null);
+  const [tokenRefreshing, setTokenRefreshing] = useState(false);
 
   // Round POST-2: TikTok auto-post extension toggle -- off by default, per
   // TIKTOK_AUTOPOST_PLAN.md Gate §4 ("ปิดไว้เป็นค่าเริ่มต้น เปิดผ่าน toggle นี้เท่านั้น").
@@ -97,7 +103,7 @@ export default function SystemSettings({
       case 'tokens':
         return (
           <div className="animate-fadeIn">
-            <TokenDashboard />
+            <TokenDashboard ref={tokenDashboardRef} onRefreshingChange={setTokenRefreshing} />
           </div>
         );
 
@@ -440,49 +446,57 @@ export default function SystemSettings({
 
   return (
     <div className="space-y-4 animate-fadeIn pb-16">
-      {/* ══════════════════════════════════════════════════════════
-          1. UNIFIED SETTINGS COMMAND BAR
-         ══════════════════════════════════════════════════════════ */}
-      <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-3 sm:p-3.5 shadow-lg space-y-2.5 sm:space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
-          {/* Left: Section Identity & Mobile Switcher */}
-          <div className="flex items-center gap-2.5 min-w-0 flex-1">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-[#25F4EE]/20 to-[#FE2C55]/20 border border-white/[0.1] flex items-center justify-center flex-shrink-0">
-              <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-[#25F4EE]" />
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  ตั้งค่าระบบ & สถิติ AI
-                </span>
-                <span className={`text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full border ${currentSection?.badgeColor}`}>
-                  {currentSection?.name}
-                </span>
-              </div>
-              <h1 className="text-sm sm:text-base md:text-lg font-bold text-white font-kanit truncate tracking-tight">
-                {currentSection?.name} — {currentSection?.desc}
-              </h1>
-            </div>
-
-            {/* Quick Switcher dropdown for small screens */}
-            <div className="sm:hidden relative flex-shrink-0">
-              <select
-                value={activeTab}
-                onChange={(e) => setActiveTab(e.target.value)}
-                className="bg-black/50 border border-white/[0.1] text-slate-200 text-xs font-bold py-1.5 px-2 rounded-xl focus:outline-none focus:border-[#25F4EE] cursor-pointer max-w-[125px] truncate"
-              >
-                {settingSections.map((s) => (
-                  <option key={s.id} value={s.id} className="bg-[#080B11] text-white">
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+      <PageHeader
+        icon={Settings}
+        eyebrow="ตั้งค่าระบบ & สถิติ AI"
+        title={`${currentSection?.name} — ${currentSection?.desc}`}
+        badges={
+          <span className={`text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full border ${currentSection?.badgeColor}`}>
+            {currentSection?.name}
+          </span>
+        }
+        quickSwitcher={
+          <div className="sm:hidden relative flex-shrink-0">
+            <select
+              value={activeTab}
+              onChange={(e) => setActiveTab(e.target.value)}
+              className="bg-black/50 border border-white/[0.1] text-slate-200 text-xs font-bold py-1.5 px-2 rounded-xl focus:outline-none focus:border-[#25F4EE] cursor-pointer max-w-[125px] truncate"
+            >
+              {settingSections.map((s) => (
+                <option key={s.id} value={s.id} className="bg-[#080B11] text-white">
+                  {s.name}
+                </option>
+              ))}
+            </select>
           </div>
+        }
+        actions={
+          <>
+            {/* Tokens tab actions -- TokenDashboard's own header (title +
+                these same buttons) was cut to avoid duplicating this bar;
+                this triggers it via tokenDashboardRef instead. */}
+            {activeTab === 'tokens' && (
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => tokenDashboardRef.current?.refresh()}
+                  disabled={tokenRefreshing}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-200 text-xs font-semibold border border-white/[0.08] transition-all cursor-pointer disabled:opacity-60"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${tokenRefreshing ? 'animate-spin text-[#25F4EE]' : ''}`} />
+                  <span className="hidden xs:inline">รีเฟรช</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => tokenDashboardRef.current?.openReset()}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold border border-red-500/20 transition-all cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span className="hidden xs:inline">ล้างสถิติ</span>
+                </button>
+              </div>
+            )}
 
-          {/* Right: Quick Status & View Mode Toggle */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5 flex-wrap justify-between sm:justify-end flex-shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/[0.06]">
             {/* System Status Pill */}
             <div className="flex items-center gap-1.5 bg-black/40 px-2.5 py-1.5 rounded-xl border border-white/[0.08] text-xs">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -521,9 +535,9 @@ export default function SystemSettings({
                 <span className="hidden xs:inline">แถบเดี่ยว</span>
               </button>
             </div>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* ══════════════════════════════════════════════════════════
           2. MOBILE HORIZONTAL SWIPEABLE CAROUSEL (iPhone 15 PM)
@@ -574,7 +588,38 @@ export default function SystemSettings({
       {/* ══════════════════════════════════════════════════════════
           3. MAIN WORKBENCH: MASTER-DETAIL STUDIO vs CLASSIC
          ══════════════════════════════════════════════════════════ */}
-      {viewMode === 'split' ? (
+      {viewMode === 'split' && activeTab === 'tokens' ? (
+        /* The tokens tab is a dense analytics dashboard in its own right
+           (KPI grid, two breakdown panels, a daily chart, an 8-column audit
+           table) -- squeezing it into the master-detail's 8/12 content
+           column left it cramped while the 4/12 playlist sat mostly empty.
+           It gets the full row here; a horizontal strip (borrowed from the
+           classic view below) keeps every category reachable without the
+           vertical playlist. */
+        <div className="space-y-4">
+          <div className="hidden lg:flex items-center gap-1.5 p-1 rounded-2xl bg-[#0B0F19] border border-white/[0.08]">
+            {settingSections.map((s) => {
+              const Icon = s.icon;
+              const isActive = activeTab === s.id;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => setActiveTab(s.id)}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex-1 justify-center ${
+                    isActive
+                      ? 'bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-white shadow-md'
+                      : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  <span>{s.name}</span>
+                </button>
+              );
+            })}
+          </div>
+          {renderWorkbenchContent()}
+        </div>
+      ) : viewMode === 'split' ? (
         <div className="space-y-4 lg:space-y-0 lg:grid lg:grid-cols-12 lg:gap-4 items-start">
           {/* DESKTOP (lg+): Left Column Settings Playlist (4 cols) */}
           <div className="hidden lg:block lg:col-span-4 space-y-2 lg:sticky lg:top-4">

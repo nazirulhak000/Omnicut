@@ -848,6 +848,7 @@ export default function Timeline({
                     isSelected={selection?.type === 'clip' && selection.id === seg.clip.id}
                     onSelect={selectClip}
                     onContextMenu={handleClipContextMenu}
+                    onAdjustTrim={onAdjustTrim}
                     onTrim={trimClip}
                     onTrimBegin={dragBegin}
                     onTrimEnd={dragEnd}

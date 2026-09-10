@@ -2611,8 +2611,6 @@ export default function EditorShell({
         isOpen={!!trimAdjustSeg}
         onClose={() => setTrimAdjustSeg(null)}
         clip={trimAdjustSeg?.clip}
-        srcDur={trimAdjustSeg?.srcDur}
-        filmstripUrl={filmstrips?.[trimAdjustSeg?.clip?.source_path]?.url}
         onConfirm={(clipId, patch) => patchClip(clipId, patch)}
       />
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Zap, CheckCircle2, AlertCircle, Clock, X, Trash2, ArrowRight,
-  Loader2, Sparkles, Film, Rocket, Mic, RefreshCw, Layers, ExternalLink, Play, Scissors
+  Loader2, Sparkles, Film, Rocket, Mic, RefreshCw, Layers, ExternalLink, Play, Scissors, ImagePlus
 } from 'lucide-react';
 import { useTaskManager } from '../context/TaskContext';
 
@@ -16,9 +16,15 @@ function getTaskIcon(type) {
       return <Scissors className="w-4 h-4 text-[#25F4EE]" />;
     case 'voice_gen':
       return <Mic className="w-4 h-4 text-amber-400" />;
+    case 'image_metadata':
+      return <ImagePlus className="w-4 h-4 text-violet-300" />;
     default:
       return <Zap className="w-4 h-4 text-[#25F4EE]" />;
   }
+}
+
+function isImageMetadataTask(task) {
+  return task?.type === 'image_metadata' || task?.task_type === 'image_metadata';
 }
 
 function getStatusBadge(status) {
@@ -336,6 +342,21 @@ export function ActivityDrawer() {
                           );
                         }
 
+                        if (isImageMetadataTask(task)) {
+                          return (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => jumpToTaskResult(task, 'flow')}
+                                className="px-3 py-1 rounded-lg bg-gradient-to-r from-[#25F4EE] to-blue-500 hover:brightness-110 text-slate-950 text-xs font-bold flex items-center gap-1 shadow-md shadow-[#25F4EE]/20 cursor-pointer active:scale-95 transition-all"
+                                title="เปิดผลอ่านข้อมูลจากรูปเพื่อตรวจสอบก่อนบันทึก"
+                              >
+                                <span>ตรวจผลอ่านรูป</span>
+                                <ArrowRight className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          );
+                        }
+
                         // For scrape_and_plan (วิเคราะห์สินค้า / เขียนสคริปต์):
                         // Show "เปิดดูสคริปต์" routing to Product -> Clip ('flow')
                         const isScrapeOrPlan = Boolean(
@@ -488,6 +509,21 @@ export function GlobalTaskNotification() {
                 >
                   <Play className="w-3.5 h-3.5 fill-current" />
                   <span>พรีวิวคลิปที่เสร็จทันที</span>
+                </button>
+              </div>
+            );
+          }
+
+          if (isImageMetadataTask(task)) {
+            return (
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  onClick={() => jumpToTaskResult(task, 'flow')}
+                  className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#25F4EE] to-blue-500 hover:brightness-110 text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-[#25F4EE]/20 cursor-pointer active:scale-95 transition-all"
+                  title="เปิดผลอ่านข้อมูลจากรูปเพื่อตรวจสอบก่อนบันทึก"
+                >
+                  <span>ตรวจผลอ่านรูป</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             );

@@ -230,8 +230,13 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
       task.task_type === 'reroll_script'
     );
 
+    const isImageMetadataTask = Boolean(
+      task.type === 'image_metadata' ||
+      task.task_type === 'image_metadata'
+    );
+
     const projName = !isScrapeTask && !isRerollTask ? (task.result?.project_name || task.payload?.project_name) : null;
-    const productId = task.result?.saved_product?.id || task.result?.product?.id || task.payload?.product_id || ((isScrapeTask || isRerollTask) ? task.target_id : null);
+    const productId = task.result?.saved_product?.id || task.result?.product?.id || task.payload?.product_id || ((isScrapeTask || isRerollTask || isImageMetadataTask) ? task.target_id : null);
     const angleId = isRerollTask ? (task.result?.angle?.angle_id || task.payload?.angle_id) : null;
 
     // Determine targetTab if not explicitly provided:
@@ -240,7 +245,7 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
     // 3. Newly cut projects (edit_project / 1-click edit) -> Editor timeline ('editor')
     let targetTab = destinationTab;
     if (!targetTab) {
-      if (isScrapeTask || isRerollTask) {
+      if (isScrapeTask || isRerollTask || isImageMetadataTask) {
         targetTab = 'flow';
       } else if (hasVideo && isRenderTask) {
         targetTab = 'gallery';
@@ -251,7 +256,7 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
       }
     }
 
-    const targetId = (isScrapeTask || isRerollTask) ? (productId || task.target_id) : (projName || task.target_id || productId);
+    const targetId = (isScrapeTask || isRerollTask || isImageMetadataTask) ? (productId || task.target_id) : (projName || task.target_id || productId);
 
     if (targetTab === 'flow' && (productId || targetId) && onSelectProductForFlow) {
       onSelectProductForFlow(productId || targetId);

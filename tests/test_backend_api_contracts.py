@@ -37,6 +37,7 @@ EXPECTED_API_ROUTES = {
     ("POST", "/api/products/{product_id}/refresh-source"),
     ("POST", "/api/products/{product_id}/preview-source"),
     ("POST", "/api/products/{product_id}/preview-image-metadata"),
+    ("POST", "/api/products/{product_id}/preview-image-metadata-async"),
     ("DELETE", "/api/products/{product_id}"),
     ("PATCH", "/api/products/{product_id}"),
     ("PATCH", "/api/products/{product_id}/angles/{angle_id}"),

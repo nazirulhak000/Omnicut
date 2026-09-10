@@ -16,6 +16,7 @@ export default function TimelineClip({
   isSelected,
   onSelect,
   onContextMenu,
+  onAdjustTrim,       // double-click shortcut for the same modal the right-click menu opens
   onTrim,             // (clipId, patch) during drag -- no undo step
   onTrimBegin,
   onTrimEnd,
@@ -165,6 +166,11 @@ export default function TimelineClip({
       aria-label={`คลิป ${fileName}`}
       aria-pressed={isSelected}
       onClick={(e) => { e.stopPropagation(); if (!dragging) onSelect(clip.id); }}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        onSelect(clip.id);
+        onAdjustTrim?.(seg);
+      }}
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -180,7 +186,7 @@ export default function TimelineClip({
         if (e.key === '[' || e.key === 'ArrowUp') { e.preventDefault(); onReorder?.(clip.id, -1); }
         if (e.key === ']' || e.key === 'ArrowDown') { e.preventDefault(); onReorder?.(clip.id, 1); }
       }}
-      title="ลากตัวคลิปเพื่อสลับลำดับ · ลากขอบเพื่อตัด"
+      title="ลากตัวคลิปเพื่อสลับลำดับ · ลากขอบเพื่อตัด · ดับเบิลคลิกเพื่อปรับช่วงตัด"
       className={`absolute top-0 h-full touch-none overflow-hidden transition-shadow duration-150
         focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
         dragging ? 'cursor-grabbing' : 'cursor-grab'
