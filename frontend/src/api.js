@@ -214,6 +214,10 @@ export const scrapeAndPlanProduct = (payload) => {
 export const getProducts = (status) => api.get('/products', { params: status ? { status } : {} }).then(r => r.data);
 export const createProduct = (data) => api.post('/products', data).then(r => r.data);
 export const updateProduct = (id, data) => api.patch(`/products/${id}`, data).then(r => r.data);
+export const previewProductSource = (id, data = {}) =>
+  api.post(`/products/${id}/preview-source`, data, { timeout: 120000 }).then(r => r.data);
+export const refreshProductSource = (id, data = {}) =>
+  api.post(`/products/${id}/refresh-source`, data, { timeout: 120000 }).then(r => r.data);
 export const resolveTiktokProductId = (urlOrId) =>
   api.post('/products/resolve-tiktok-id', { url_or_id: urlOrId }).then(r => r.data);
 export const updateAngleStatus = (productId, angleId, status, videoUrl = null, projectName = null, qcNote = null, clearQcNote = false, clearConflictNote = false, exportId = null, markQcPassed = false) =>

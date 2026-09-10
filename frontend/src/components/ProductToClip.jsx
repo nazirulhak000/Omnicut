@@ -4,16 +4,17 @@ import {
   AlertCircle, ArrowRight, Upload, Trash2, RefreshCw, Plus, Film, Video,
   ChevronDown, ChevronUp, ChevronRight, Package, Rocket, FolderOpen, X,
   Search, LayoutGrid, Filter, Play, Lock, Edit3, Replace, Columns, List,
-  ShoppingBag, ShieldCheck
+  ShoppingBag, ShieldCheck, Database
 } from 'lucide-react';
 import {
   scrapeAndPlanProduct, scrapeAndPlanProductAsync, getProducts, updateProduct,
-  updateAngleStatus, updateAngleVideos, setDefaultVideosForProduct, deleteProduct,
+  previewProductSource, refreshProductSource, updateAngleStatus, updateAngleVideos, setDefaultVideosForProduct, deleteProduct,
   uploadFile, resolveTiktokProductId, rerollAngleScript
 } from '../api';
 import { Modal, Toast, Button, Badge, Input, Textarea, ConfirmModal } from './ui';
 import MediaPickerModal from './MediaPickerModal';
 import FindReplaceModal from './FindReplaceModal';
+import ProductMetadataModal from './ProductMetadataModal';
 import { toMediaUrl } from '../lib/mediaUrl';
 import { useToast } from '../hooks';
 import { useTaskManager } from '../context/TaskContext';
@@ -23,6 +24,7 @@ import { guessBrandModel } from '../lib/overlayModel';
 // sheet, review screenshots) -- capped so a single analyze request stays a
 // handful of images, not an unbounded upload.
 const MAX_ANALYZE_IMAGES = 5;
+const MAX_PRODUCT_REFERENCE_IMAGES = 20;
 
 // Mirrors scripts/product_scraper.py's DURATION_SPECS -- keep these Thai
 // labels byte-for-byte identical to the backend constants so the UI never
@@ -1198,6 +1200,13 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const [productSearch, setProductSearch] = useState('');
   const [productFilter, setProductFilter] = useState('all'); // 'all' | 'in_progress' | 'completed'
   const [showCatalogModal, setShowCatalogModal] = useState(false);
+  const [showMetadataModal, setShowMetadataModal] = useState(false);
+  const [savingProductImages, setSavingProductImages] = useState(false);
+  const [refreshingProductSource, setRefreshingProductSource] = useState(false);
+  const [productSourcePreview, setProductSourcePreview] = useState(null);
+  const [savingProductMetadata, setSavingProductMetadata] = useState(false);
+  const [removingProductImageIndex, setRemovingProductImageIndex] = useState(null);
+  const productImageInputRef = useRef(null);
   const [isStep1Collapsed, setIsStep1Collapsed] = useState(false);
   const [deleteTargetProduct, setDeleteTargetProduct] = useState(null);
   const [isDeletingProduct, setIsDeletingProduct] = useState(false);
@@ -1385,14 +1394,27 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     setSelectedHistoryId(item.id);
     setProductData({
       id: item.id,
+      name: item.name,
       title: item.name,
       url: item.url,
-      description: item.selling_points?.length ? item.selling_points.join(', ') : '',
+      platform: item.platform || '',
+      category: item.category || '',
+      specs: item.specs || [],
+      pain_points: item.pain_points || [],
+      selling_points: item.selling_points || [],
+      target_buyer: item.target_buyer || '',
+      description: item.description || '',
+      raw_text: item.raw_text || '',
       price_note: item.price_note || '',
       status: item.status || 'scripted',
       images: item.images || (item.thumbnail ? [{ rel_path: item.thumbnail, name: 'thumb' }] : []),
+      thumbnail: item.thumbnail || '',
       tiktok_product_id: item.tiktok_product_id || '',
       product_code: item.product_code || '',
+      metadata_source: item.metadata_source || '',
+      source_warning: item.source_warning || '',
+      created_at: item.created_at || '',
+      updated_at: item.updated_at || '',
     });
     const nextAngles = item.angles || [];
     setAngles(nextAngles);
@@ -1685,6 +1707,138 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     } finally {
       setUploadingImg(false);
       if (e.target) e.target.value = '';
+    }
+  };
+
+  const handleProductReferenceUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length || !productData?.id) return;
+
+    const isImageFile = (file) => file.type.startsWith('image/') || /\.(heic|heif|jpe?g|png|webp|gif|avif)$/i.test(file.name);
+    const existingImages = Array.isArray(productData.images) ? productData.images : [];
+    const room = MAX_PRODUCT_REFERENCE_IMAGES - existingImages.length;
+    if (room <= 0) {
+      showToast(`เก็บรูปอ้างอิงได้สูงสุด ${MAX_PRODUCT_REFERENCE_IMAGES} รูปต่อสินค้า`, 'warning');
+      if (e.target) e.target.value = '';
+      return;
+    }
+
+    const toUpload = files.filter(isImageFile).slice(0, room);
+    if (!toUpload.length) {
+      showToast('กรุณาเลือกไฟล์รูปภาพเท่านั้น', 'warning');
+      if (e.target) e.target.value = '';
+      return;
+    }
+    if (files.length > toUpload.length) {
+      showToast(`แนบได้สูงสุด ${MAX_PRODUCT_REFERENCE_IMAGES} รูปต่อสินค้า — เก็บเฉพาะไฟล์รูปที่ยังมีพื้นที่`, 'warning');
+    }
+
+    setSavingProductImages(true);
+    try {
+      const uploaded = [];
+      for (const file of toUpload) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('target_dir', 'inbox');
+        const res = await uploadFile(formData);
+        if (res.file) {
+          const path = res.file.rel_path || res.file.path;
+          uploaded.push({
+            path,
+            rel_path: res.file.rel_path || path,
+            previewUrl: toMediaUrl(path),
+            name: file.name,
+            source: 'user_upload',
+          });
+        }
+      }
+
+      if (uploaded.length) {
+        const nextImages = [...existingImages, ...uploaded];
+        const updateRes = await updateProduct(productData.id, { images: nextImages });
+        const savedProduct = updateRes.product || { ...productData, images: nextImages };
+        setProductData(prev => ({ ...prev, ...savedProduct, images: savedProduct.images || nextImages }));
+        setHistoryList(prev => prev.map(p => p.id === productData.id ? { ...p, ...savedProduct, images: savedProduct.images || nextImages } : p));
+        showToast(uploaded.length > 1 ? `บันทึกรูปอ้างอิง ${uploaded.length} รูปให้สินค้าแล้ว` : 'บันทึกรูปอ้างอิงให้สินค้าแล้ว');
+      }
+    } catch (err) {
+      showToast('บันทึกรูปอ้างอิงไม่สำเร็จ: ' + (err.friendlyMessage || err.message), 'error');
+    } finally {
+      setSavingProductImages(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  const handleRemoveProductImage = async (imageIndex) => {
+    if (!productData?.id) return;
+    const existingImages = Array.isArray(productData.images) ? productData.images : [];
+    if (!existingImages[imageIndex]) return;
+
+    setRemovingProductImageIndex(imageIndex);
+    try {
+      const nextImages = existingImages.filter((_, index) => index !== imageIndex);
+      const updateRes = await updateProduct(productData.id, { images: nextImages });
+      const savedProduct = updateRes.product || { ...productData, images: nextImages };
+      setProductData(prev => ({ ...prev, ...savedProduct, images: savedProduct.images || nextImages }));
+      setHistoryList(prev => prev.map(p => p.id === productData.id ? { ...p, ...savedProduct, images: savedProduct.images || nextImages } : p));
+      showToast('เอารูปออกจากข้อมูลสินค้าแล้ว (ไฟล์ต้นฉบับยังอยู่ในคลังไฟล์)');
+    } catch (err) {
+      showToast('เอารูปออกไม่สำเร็จ: ' + (err.friendlyMessage || err.message), 'error');
+    } finally {
+      setRemovingProductImageIndex(null);
+    }
+  };
+
+  const handlePreviewProductSource = async ({ url } = {}) => {
+    if (!productData?.id || !url?.trim()) return;
+
+    setRefreshingProductSource(true);
+    setProductSourcePreview(null);
+    try {
+      const response = await previewProductSource(productData.id, { url: url.trim() });
+      setProductSourcePreview(response);
+      showToast('ตรวจข้อมูลใหม่เรียบร้อยแล้ว เลือกฟิลด์ที่ต้องการบันทึกได้เลย');
+    } catch (err) {
+      showToast('อ่านรายละเอียดจาก URL ไม่สำเร็จ: ' + (err.response?.data?.detail || err.message), 'error');
+    } finally {
+      setRefreshingProductSource(false);
+    }
+  };
+
+  const handleApplyProductSource = async ({ url, fields }) => {
+    if (!productData?.id || !url || !fields?.length) return;
+
+    setRefreshingProductSource(true);
+    try {
+      const response = await refreshProductSource(productData.id, { url, fields });
+      if (response.product) {
+        const refreshed = response.product;
+        setProductData(prev => ({ ...prev, ...refreshed }));
+        setAngles(refreshed.angles || angles);
+        setHistoryList(prev => prev.map(item => item.id === refreshed.id ? refreshed : item));
+      }
+      setProductSourcePreview(null);
+    } catch (err) {
+      showToast('บันทึกข้อมูลใหม่ไม่สำเร็จ: ' + (err.response?.data?.detail || err.message), 'error');
+    } finally {
+      setRefreshingProductSource(false);
+    }
+  };
+
+  const handleSaveProductMetadata = async (changes) => {
+    if (!productData?.id) return;
+
+    setSavingProductMetadata(true);
+    try {
+      const response = await updateProduct(productData.id, changes);
+      const saved = response.product || { ...productData, ...changes };
+      setProductData(prev => ({ ...prev, ...saved }));
+      setHistoryList(prev => prev.map(item => item.id === saved.id ? { ...item, ...saved } : item));
+    } catch (err) {
+      showToast('บันทึก metadata ไม่สำเร็จ: ' + (err.response?.data?.detail || err.message), 'error');
+      throw err;
+    } finally {
+      setSavingProductMetadata(false);
     }
   };
 
@@ -2051,6 +2205,18 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
               )}
             </div>
 
+            {productData && (
+              <button
+                type="button"
+                onClick={() => setShowMetadataModal(true)}
+                className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/25 text-xs font-bold cursor-pointer transition-colors"
+                title="ดู metadata และรูปที่ AI ใช้"
+              >
+                <Database className="w-3.5 h-3.5" />
+                <span className="hidden xs:inline sm:inline">ข้อมูล AI</span>
+              </button>
+            )}
+
             {/* Catalog Modal Button */}
             <button
               onClick={() => setShowCatalogModal(true)}
@@ -2132,6 +2298,26 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
           </div>
         )}
       </div>
+
+      {/* ── Product Metadata Inspector ── */}
+      <ProductMetadataModal
+        product={productData}
+        isOpen={showMetadataModal}
+        onClose={() => { setShowMetadataModal(false); setProductSourcePreview(null); }}
+        onAddImages={handleProductReferenceUpload}
+        onRemoveImage={handleRemoveProductImage}
+        onPreviewSource={handlePreviewProductSource}
+        onApplySource={handleApplyProductSource}
+        onSaveMetadata={handleSaveProductMetadata}
+        sourcePreview={productSourcePreview}
+        onCancelPreview={() => setProductSourcePreview(null)}
+        imageInputRef={productImageInputRef}
+        uploading={savingProductImages}
+        refreshingSource={refreshingProductSource}
+        savingMetadata={savingProductMetadata}
+        removingIndex={removingProductImageIndex}
+        maxImages={MAX_PRODUCT_REFERENCE_IMAGES}
+      />
 
       {/* ══════════════════════════════════════════════════════════
           ADD PRODUCT MODAL

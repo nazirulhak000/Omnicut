@@ -6,8 +6,9 @@ import re
 import time
 import shutil
 import urllib.request
+import urllib.parse
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 
@@ -83,6 +84,137 @@ def _normalize_scraped_images(product_info: Dict[str, Any]) -> None:
         ]
 
 
+def _merge_product_source_images(existing_images, scraped_images):
+    """Keep existing references and append newly discovered source images."""
+    merged = []
+    seen = set()
+
+    def canonical_reference(reference: str) -> str:
+        parsed = urllib.parse.urlsplit(reference)
+        if parsed.scheme and parsed.netloc:
+            # CDN query strings commonly contain only size/signature variants
+            # of the same image. Keep the first URL, but compare by origin and
+            # path so repeated refreshes do not create visual duplicates.
+            return f"{parsed.scheme.lower()}://{parsed.netloc.lower()}{parsed.path}".rstrip("/").lower()
+        return re.sub(r"[\\/]+", "/", reference).rstrip("/").lower()
+
+    for image in [*(existing_images or []), *(scraped_images or [])]:
+        if isinstance(image, str):
+            image = {
+                "name": image.rsplit("/", 1)[-1].split("?", 1)[0] or "image",
+                "url": image,
+            }
+        if not isinstance(image, dict):
+            continue
+        reference = (
+            image.get("rel_path") or image.get("path") or image.get("local_path")
+            or image.get("url") or image.get("src") or ""
+        )
+        canonical = canonical_reference(reference)
+        if not reference or not canonical or canonical in seen:
+            continue
+        seen.add(canonical)
+        merged.append(image)
+        if len(merged) >= 20:
+            break
+    return merged
+
+
+SOURCE_PREVIEW_FIELDS = (
+    "name", "url", "description", "raw_text", "price_note",
+    "specs", "selling_points", "pain_points", "images",
+)
+
+
+def _source_preview_candidate(scraped: Dict[str, Any]) -> Dict[str, Any]:
+    """Map scraper output to the stable field names used by preview UI."""
+    return {
+        "name": scraped.get("title", ""),
+        "url": scraped.get("url", ""),
+        "description": scraped.get("description", ""),
+        "raw_text": scraped.get("raw_text", ""),
+        "price_note": scraped.get("price_note", ""),
+        "specs": scraped.get("specs") or [],
+        "selling_points": scraped.get("selling_points") or [],
+        "pain_points": scraped.get("pain_points") or [],
+        "images": scraped.get("images") or [],
+    }
+
+
+def _source_preview_current(product: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        field: product.get(field, "" if field not in {"specs", "selling_points", "pain_points", "images"} else [])
+        for field in SOURCE_PREVIEW_FIELDS
+    }
+
+
+def _source_values_differ(left: Any, right: Any) -> bool:
+    if isinstance(left, list) or isinstance(right, list):
+        return (left or []) != (right or [])
+    return str(left or "").strip() != str(right or "").strip()
+
+
+def _with_product_source_fallback(product: Dict[str, Any]) -> Dict[str, Any]:
+    """Expose source context for legacy products without inventing a scrape.
+
+    Older products may have been created from a title-only/manual flow. Their
+    generated angles still contain useful, already-approved context such as
+    key features and pain points, but the product-level description/raw_text
+    fields are empty. Return a copy enriched from those angle fields so the
+    UI and reroll prompt have the same fallback, while leaving the persisted
+    product untouched and clearly labelling the provenance.
+    """
+    source = product or {}
+    enriched = dict(source)
+    product_name = str(source.get("name") or "").strip()
+    angles = source.get("angles") or []
+
+    # Some legacy records contain angles copied from another product. When an
+    # angle carries product_name, only use it if it belongs to this product;
+    # nameless legacy angles remain eligible because there is no identity to
+    # compare.
+    relevant_angles = [
+        angle for angle in angles
+        if not angle.get("product_name")
+        or not product_name
+        or str(angle.get("product_name")).strip() == product_name
+    ]
+
+    def unique_text(field: str) -> list:
+        values = []
+        for angle in relevant_angles:
+            value = str(angle.get(field) or "").strip()
+            if value and value not in values:
+                values.append(value)
+        return values
+
+    features = unique_text("key_features")
+    pains = unique_text("pain_point")
+    has_fallback = False
+
+    if not enriched.get("description") and features:
+        enriched["description"] = " · ".join(features)
+        has_fallback = True
+    if not enriched.get("selling_points") and features:
+        enriched["selling_points"] = features
+        has_fallback = True
+    if not enriched.get("pain_points") and pains:
+        enriched["pain_points"] = pains
+        has_fallback = True
+    if not enriched.get("raw_text") and (features or pains):
+        source_lines = [enriched.get("name", "สินค้า")]
+        if features:
+            source_lines.append("จุดเด่นจากสคริปต์เดิม: " + " · ".join(features))
+        if pains:
+            source_lines.append("ปัญหาที่สคริปต์เดิมอ้างถึง: " + " · ".join(pains))
+        enriched["raw_text"] = "\n".join(source_lines)
+        has_fallback = True
+
+    if has_fallback:
+        enriched["metadata_source"] = "derived_from_angles"
+    return enriched
+
+
 def _apply_images_to_product_info(product_info: Dict[str, Any], image_paths: list, custom_keyword: str, raw_text: str) -> None:
     """Attach up to MAX user-uploaded reference images to product_info in place.
 
@@ -122,6 +254,107 @@ def resolve_tiktok_id_endpoint(payload: Dict[str, Any]):
     """Resolves a raw string, direct ID, full URL, or shortlink to a numeric TikTok Product ID."""
     url_or_id = payload.get("url_or_id", "")
     return resolve_tiktok_product_id(url_or_id)
+
+
+@router.post("/api/products/{product_id}/preview-source")
+def preview_product_source(product_id: str, payload: Optional[Dict[str, Any]] = None):
+    """Read a URL and return a diff without changing the saved product."""
+    product = ProductStore.get(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail=f"ไม่พบสินค้า id '{product_id}'")
+    url = str((payload or {}).get("url") or product.get("url") or "").strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="ต้องระบุ URL สินค้าก่อนดูตัวอย่างข้อมูลใหม่")
+
+    try:
+        scraped = ProductScraper.scrape_url(url)
+    except (ValueError, OSError) as err:
+        raise HTTPException(status_code=400, detail=f"อ่านข้อมูลจาก URL ไม่สำเร็จ: {err}")
+
+    source_method = scraped.get("metadata_source") or "slug_fallback"
+    if source_method == "slug_fallback":
+        warning = scraped.get("source_warning") or "หน้าเว็บไม่ส่งรายละเอียดสินค้าออกมา"
+        raise HTTPException(status_code=422, detail=f"ยังไม่มีรายละเอียดจากหน้าเว็บ: {warning}")
+
+    current = _source_preview_current(product)
+    incoming = _source_preview_candidate(scraped)
+    changed_fields = [
+        field for field in SOURCE_PREVIEW_FIELDS
+        if _source_values_differ(current.get(field), incoming.get(field))
+    ]
+    merged_images = _merge_product_source_images(current.get("images"), incoming.get("images"))
+    return {
+        "success": True,
+        "url": incoming["url"] or url,
+        "metadata_source": source_method,
+        "source_warning": scraped.get("source_warning", ""),
+        "current": current,
+        "incoming": incoming,
+        "merged_images": merged_images,
+        "changed_fields": changed_fields,
+        "image_summary": {
+            "existing": len(current.get("images") or []),
+            "incoming": len(incoming.get("images") or []),
+            "merged": len(merged_images),
+        },
+    }
+
+
+@router.post("/api/products/{product_id}/refresh-source")
+def refresh_product_source(product_id: str, payload: Optional[Dict[str, Any]] = None):
+    """Apply explicitly selected fields from a previously previewed source."""
+    product = ProductStore.get(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail=f"ไม่พบสินค้า id '{product_id}'")
+    payload = payload or {}
+    url = str(payload.get("url") or product.get("url") or "").strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="สินค้านี้ยังไม่มี URL ต้นทางให้ดึงข้อมูลใหม่")
+
+    try:
+        scraped = ProductScraper.scrape_url(url)
+    except (ValueError, OSError) as err:
+        raise HTTPException(status_code=400, detail=f"ดึงข้อมูลจาก URL ไม่สำเร็จ: {err}")
+
+    source_method = scraped.get("metadata_source") or "slug_fallback"
+    if source_method == "slug_fallback":
+        warning = scraped.get("source_warning") or "หน้าเว็บไม่ส่งรายละเอียดสินค้าออกมา"
+        raise HTTPException(status_code=422, detail=f"ยังไม่ได้รายละเอียดจากหน้าเว็บ: {warning}")
+
+    selected_fields = set(payload.get("fields") or SOURCE_PREVIEW_FIELDS)
+    selected_fields &= set(SOURCE_PREVIEW_FIELDS)
+    scraped_images = scraped.get("images") or []
+    fields = {
+        "platform": scraped.get("platform") or product.get("platform", ""),
+        "metadata_source": source_method,
+    }
+    incoming = _source_preview_candidate(scraped)
+    for field in selected_fields - {"images"}:
+        if incoming.get(field):
+            fields[field] = incoming[field]
+    if "images" in selected_fields:
+        fields["images"] = _merge_product_source_images(product.get("images"), scraped_images)
+    # Persist structured source fields as well as the raw copy. Without this,
+    # the scraper can find product benefits/specs but the metadata inspector
+    # and the next AI prompt still see the old empty arrays.
+    for field in ("specs", "selling_points", "pain_points"):
+        if scraped.get(field):
+            fields[field] = scraped[field]
+    if scraped.get("price_note") and scraped["price_note"] != "ราคาพิเศษในตะกร้า":
+        fields["price_note"] = scraped["price_note"]
+    if not product.get("thumbnail") and scraped_images:
+        first_image = scraped_images[0]
+        fields["thumbnail"] = first_image if isinstance(first_image, str) else (
+            first_image.get("rel_path") or first_image.get("url") or ""
+        )
+
+    updated = ProductStore.update(product_id, **fields)
+    return {
+        "success": True,
+        "product": updated,
+        "metadata_source": source_method,
+        "source_warning": scraped.get("source_warning", ""),
+    }
 
 
 @router.post("/api/products/{product_id}/videos")
@@ -336,6 +569,8 @@ def scrape_and_plan(payload: Dict[str, Any]):
             tiktok_product_id=tiktok_product_id or None,
             description=product_info.get("description", ""),
             raw_text=product_info.get("raw_text", ""),
+            metadata_source=product_info.get("metadata_source", ""),
+            source_warning=product_info.get("source_warning", ""),
         )
         product_info["id"] = saved_prod["id"]
         product_info["tiktok_product_id"] = saved_prod.get("tiktok_product_id")
@@ -440,6 +675,8 @@ def _execute_scrape_and_plan_worker(task_id: str, payload: Dict[str, Any]):
             tiktok_product_id=tiktok_product_id or None,
             description=product_info.get("description", ""),
             raw_text=product_info.get("raw_text", ""),
+            metadata_source=product_info.get("metadata_source", ""),
+            source_warning=product_info.get("source_warning", ""),
         )
         product_info["id"] = saved_prod["id"]
         product_info["tiktok_product_id"] = saved_prod.get("tiktok_product_id")
@@ -535,7 +772,7 @@ def _execute_reroll_script_worker(
     """
     try:
         TaskManager.update_progress(task_id, 0.10, "กำลังเตรียมข้อมูลสินค้า")
-        product = ProductStore.get(product_id)
+        product = _with_product_source_fallback(ProductStore.get(product_id) or {})
         if not product:
             raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
 

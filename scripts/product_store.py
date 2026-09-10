@@ -324,6 +324,8 @@ class ProductStore:
         product_code: Optional[str] = None,
         description: str = "",
         raw_text: str = "",
+        metadata_source: str = "",
+        source_warning: str = "",
     ) -> Dict[str, Any]:
         """Add a product, or return the existing one when the URL is already queued.
 
@@ -357,6 +359,10 @@ class ProductStore:
                             existing["description"] = description
                         if raw_text:
                             existing["raw_text"] = raw_text
+                        if metadata_source:
+                            existing["metadata_source"] = metadata_source
+                        if source_warning:
+                            existing["source_warning"] = source_warning
                         if not existing.get("product_code"):
                             existing["product_code"] = (
                                 product_code.strip().upper()
@@ -381,6 +387,8 @@ class ProductStore:
                 "thumbnail": thumbnail,
                 "description": description,
                 "raw_text": raw_text,
+                "metadata_source": metadata_source,
+                "source_warning": source_warning,
                 "tiktok_product_id": tiktok_product_id.strip() if (tiktok_product_id and tiktok_product_id.strip()) else None,
                 "product_code": (product_code.strip().upper() if (product_code and product_code.strip()) else cls._generate_product_code(name, products)),
                 "status": "scripted" if angles else "candidate",

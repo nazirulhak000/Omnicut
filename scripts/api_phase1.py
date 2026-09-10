@@ -31,6 +31,7 @@ from scripts.project_manifest import REROLL_STAGE, ProjectManifest
 from scripts import render_jobs
 from scripts.render_jobs import RenderCancelled
 from scripts.task_manager import TaskManager
+from scripts.api_products import _with_product_source_fallback
 
 router = APIRouter(prefix="/api", tags=["phase1"])
 
@@ -317,16 +318,25 @@ class ProductCreateRequest(BaseModel):
 
 class ProductUpdateRequest(BaseModel):
     name: Optional[str] = None
+    url: Optional[str] = None
     category: Optional[str] = None
-    specs: Optional[List[Dict[str, str]]] = None
+    specs: Optional[List[Any]] = None
     pain_points: Optional[List[str]] = None
     selling_points: Optional[List[str]] = None
     price_note: Optional[str] = None
     target_buyer: Optional[str] = None
+    description: Optional[str] = None
+    raw_text: Optional[str] = None
+    metadata_source: Optional[str] = None
+    source_warning: Optional[str] = None
     status: Optional[str] = None
     angles: Optional[List[Dict[str, Any]]] = None
     tiktok_product_id: Optional[str] = None
     product_code: Optional[str] = None
+    # Product images can be either scraped URL strings or local upload
+    # records. Keep this permissive so attaching images later does not reject
+    # products created by older scraper versions.
+    images: Optional[List[Any]] = None
 
 
 def _meta_tag(html_text: str, prop: str) -> str:
@@ -432,7 +442,8 @@ def fetch_product(req: ProductFetchRequest):
 def list_products(status: Optional[str] = None):
     if status and status not in STATUSES:
         raise HTTPException(status_code=400, detail=f"status ต้องเป็นหนึ่งใน {', '.join(STATUSES)}")
-    products = _hydrate_product_covers(ProductStore.list(status))
+    products = [_with_product_source_fallback(product) for product in ProductStore.list(status)]
+    products = _hydrate_product_covers(products)
     return {"products": products, "summary": ProductStore.summary()}
 
 
@@ -447,6 +458,15 @@ def create_product(req: ProductCreateRequest):
 
 @router.patch("/products/{product_id}")
 def update_product(product_id: str, req: ProductUpdateRequest):
+    if req.url:
+        parsed_url = urllib.parse.urlparse(req.url.strip())
+        hostname = (parsed_url.hostname or "").lower().rstrip(".")
+        allowed_domains = ("tiktok.com", "shopee.co.th", "shp.ee")
+        if parsed_url.scheme not in ("http", "https") or not hostname or not any(
+            hostname == domain or hostname.endswith("." + domain)
+            for domain in allowed_domains
+        ):
+            raise HTTPException(status_code=400, detail="URL สินค้าต้องเป็นลิงก์ http(s) จาก TikTok หรือ Shopee")
     try:
         product = ProductStore.update(product_id, **req.model_dump(exclude_none=True))
     except ValueError as err:

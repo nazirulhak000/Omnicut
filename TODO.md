@@ -17,7 +17,76 @@
 ## สถานะรวม
 ---
 
+- [x] Round DOC-SYNC-1 — sync สถานะเอกสารจากผลทดสอบล่าสุด และแยกงานที่รอ user/live validation (2026-09-10)
+- [x] Round BUG-MARK-POSTED-1 — แก้ปุ่ม “มาร์กว่าลงโพสต์แล้ว” แจ้งสำเร็จแต่การ์ดยังไม่ย้ายสถานะ (2026-09-10; full backend 1,035 passed)
+- [x] Round PRODUCT-METADATA-1 — แนบรูปอ้างอิงย้อนหลัง + Metadata Inspector สำหรับตรวจข้อมูลที่ AI ใช้ (2026-09-10; backend 1,037 passed, frontend 144 passed)
+- [x] Round PRODUCT-METADATA-2 — เติม source fallback สำหรับสินค้า legacy ที่มีข้อมูลอยู่ใน angle แต่ product metadata ว่าง (2026-09-10; backend 1,040 passed, frontend 144 passed)
+- [ ] Round PRODUCT-METADATA-3 — ตรวจ/แก้การดึงข้อความจาก TikTok product page ที่เป็น client-rendered: GOC01 มี URL + รูป 9 รูป แต่ description/raw_text/specs/selling_points/pain_points ระดับสินค้าไม่ถูกบันทึก; เพิ่ม hybrid browser extraction + refresh source แล้ว เหลือ live verification ผ่าน Security Check (2026-09-10)
+
+## Round PRODUCT-METADATA-4 — แก้ไข/preview metadata ก่อนบันทึก และจัดการ URL/ชื่อสินค้า
+
+วันที่: 2026-09-10 · สั่งโดย: user · สถานะ: กำลังทำ
+
+**เป้าหมาย:** ให้การดึงข้อมูลซ้ำไม่ทับข้อมูลทันที, กันรูปและข้อความซ้ำ, เปิด preview/diff ก่อนยืนยัน, แก้ชื่อ/หัวข้อ/คำอธิบายได้, และเปลี่ยน URL ของรายการเดิมได้อย่างปลอดภัย
+
+### Todo
+
+- [x] เพิ่ม endpoint preview ที่อ่าน URL ใหม่แบบไม่เขียนฐานข้อมูล และคืน diff ของ metadata/images
+- [x] เพิ่ม UI preview เปรียบเทียบข้อมูลเดิม/ข้อมูลใหม่ พร้อมเลือก field ที่จะรับเข้า
+- [x] เพิ่ม form แก้ชื่อ หัวข้อ คำอธิบาย ราคา และ URL พร้อม validation/retry
+- [x] ทำให้การบันทึกเป็น explicit confirm, dedupe รูป/ข้อความ และไม่กระทบ angles/scripts/assets เดิม
+- [x] เพิ่ม deterministic regression tests สำหรับ preview, selective overwrite, dedupe, edit และ invalid URL
+- [x] รัน compile/backend/frontend gates; manual UI verification ยังรอผู้ใช้ยืนยัน
+
+### Notes
+
+- Preview ใช้ `POST /api/products/{product_id}/preview-source` และไม่เขียนข้อมูลจนกว่าจะกดยืนยัน
+- Confirm รับเฉพาะ field ที่เลือก, เปลี่ยน URL ของรายการเดิมได้, และ merge รูปโดยตัด query variant ของ CDN ที่เป็นรูปเดียวกัน
+- Full deterministic evidence: backend 1,050 passed / 24 warnings, frontend 144 passed, build ผ่าน, lint exit 0, UI detector ผ่าน
+- Manual UI verification ยังรอผู้ใช้ตรวจ flow จริง: preview → แก้ไข → เลือกทับบางฟิลด์ → save → reopen
+
+### Gate
+
+- [x] `python -m compileall -q scripts`
+- [x] focused product metadata/API tests — 17 passed, 1 warning
+- [x] full backend pytest — 1,050 passed, 24 warnings
+- [x] frontend test/build/lint — 144 passed, build ผ่าน, lint exit 0 with existing warnings
+- [x] `git diff --check`
+- [ ] manual: preview → edit → เลือกทับบางฟิลด์ → save → reopen ตรวจข้อมูลและรูปไม่ซ้ำ
+
+## Round PRODUCT-METADATA-3 — ดึงรายละเอียดสินค้าจากหน้า TikTok ที่ render ด้วย JavaScript
+
+วันที่: 2026-09-10 · สั่งโดย: user · สถานะ: กำลังทำ
+
+**เป้าหมาย:** ให้การแปะลิงก์ TikTok ที่มีคำอธิบาย/สรรพคุณอยู่ในหน้าเว็บจริง ได้ source text ที่เฉพาะเจาะจงเข้า metadata และ prompt ของ AI; ห้ามอ้างว่าเป็นข้อมูลจากหน้าเว็บถ้าได้เพียง fallback จาก angle เดิม
+
+### Todo
+
+- [x] เพิ่ม hybrid extraction ที่ลอง HTML/meta ก่อน และใช้ browser-rendered DOM เมื่อข้อความไม่พอ
+- [x] ทำให้รายการเดิมที่มี URL สามารถ refresh source metadata ได้ โดยไม่ลบรูป/สคริปต์/ข้อมูลที่ผู้ใช้แก้เอง
+- [x] ส่ง visible source text ที่มีรายละเอียดจริงเข้า Content Matrix และ reroll prompt โดยจำกัดขนาดอย่างปลอดภัย
+- [x] แสดง provenance/สถานะว่าได้ข้อมูลจาก meta, browser DOM, รูปภาพ หรือ fallback เพื่อไม่ให้ผู้ใช้เข้าใจผิด
+- [x] เพิ่ม deterministic offline tests สำหรับ dynamic extraction, fallback และการบันทึก metadata
+
+### Gate
+
+- [x] `python -m compileall -q scripts`
+- [x] focused product metadata/scraper tests — 12 passed, 1 warning
+- [x] `python -m pytest tests/ -q -p no:cacheprovider --tb=short` — 1,045 passed, 24 warnings
+- [x] `npm test` และ `npm run build` หากแตะ frontend — 144 passed, build ผ่าน
+- [x] `git diff --check`
+- [ ] Live GOC01: กด “ดึงรายละเอียดจาก URL ใหม่” ใน Chrome profile, ผ่าน Security Check หากถูกถาม และยืนยันว่าข้อความคำอธิบาย/สรรพคุณเข้า metadata จริง
+
+### Notes
+
+- หลักฐานตั้งต้น: `_Docs/products.json` รายการ GOC01 มี URL และรูป 9 รูป แต่ไม่มี description/raw_text/specs/selling_points/pain_points ระดับสินค้า
+- หลักฐานหลังแก้แบบ read-only จาก URL จริง: `metadata_source=html_body`, description 2,046 ตัวอักษร, raw text 2,221 ตัวอักษร, selling points 17 รายการ, specs 16 รายการ, พบ Smart CSC 2.0 และแบตเตอรี่ 35 ชั่วโมง; ไม่ได้เขียนทับ `_Docs/products.json`
+- ความเสี่ยง: browser extraction ต้องมี timeout, optional dependency fallback และต้องไม่ bypass login/anti-bot หรือ SSRF validation
+- ผล deterministic gate: compile ผ่าน, focused product metadata/scraper 12 passed, full backend 1,045 passed / 24 warnings, frontend 144 passed, build/lint ผ่าน, diff check ผ่าน
+- Live gate ยังไม่ผ่าน: headless Chrome ได้หน้า `Security Check`; ต้องให้ผู้ใช้ยืนยันผ่าน persistent Chrome profile ก่อนจึงจะยืนยันข้อความจากหน้า TikTok จริงได้
+- Environment: ติดตั้ง `playwright==1.58.0` ใน `.venv` และตรวจพบ Chromium executable ของ Playwright แล้ว; ไม่ได้แก้ `_Docs/products.json`
 - [x] Round STYLE-ONECLICK-1 — เพิ่ม Style Preset หลายแบบใน One Click และแยก “ส่งตัดต่อใหม่” ออกจาก “เปิดโปรเจกต์เดิม” (2026-09-10)
+- [x] Round HOOK-OPT-1 — ยกระดับฟอนต์/เทมเพลต/พรีวิว/สปีดฮุก (รายละเอียดใน HISTORY.md; implementation และ deterministic gates ผ่าน)
 - [ ] Round SEC-AUDIT-1 — แก้ตาม DB/Infra/System audit: security config (API auth เปิดโล่ง, path traversal), sticker resurrection ฝั่ง render, data-store transaction hazard — 10 stream ขนาน ดู SYSTEM_AUDIT_FIX_PLAN.md (2026-09-09, รอ codex agent เสร็จก่อนยิง)
 - [x] Round PRO-STYLE-1 — Professional Editing Style System: Phase 1 Style Contract + Golden Master (2026-09-09)
 - [x] Round PRO-STYLE-2 — Editorial Beat Map + Pacing Core (Phase 2A, isolated module; 2026-09-09)
@@ -26,8 +95,8 @@
 - [x] Round SFX-CAT-1 — จัดหมวดหมู่ไฟล์เสียง mi_xxx 1,775 ไฟล์ เป็น 10 หมวดใน 02_Assets/SFX/ (2026-09-09)
 - [x] Round BUG-STATUS-1 — คลิปที่เรนเดอร์แล้วติดสถานะ "กำลังตัดต่อ" (2026-09-08)
 - [x] Round BUG-EXT-1 — Extension ไม่แสดงคลิปตัดต่อเสร็จเพราะ schedule queue บัง (2026-09-08)
-- [ ] Round POST-LIFECYCLE-1 — แยกเวอร์ชันที่โพสต์จริง, คุมรายการใน Extension และซ่อมปุ่มมาร์กโพสต์ (2026-09-08)
-- [ ] Round PERF-UX-1 — ปรับ Reliability/Preview Performance/Autosave/Incremental Render/Timeline Scaling แบบแยก ownership ขนานกัน (2026-09-09)
+- [x] Round POST-LIFECYCLE-1 — แยกเวอร์ชันที่โพสต์จริง, คุมรายการใน Extension และซ่อมปุ่มมาร์กโพสต์ (2026-09-08; implementation ปิดแล้ว, live TikTok แยกค้าง)
+- [x] Round PERF-UX-1 — ปรับ Reliability/Preview Performance/Autosave/Incremental Render/Timeline Scaling แบบแยก ownership ขนานกัน (2026-09-09; implementation ปิด, empirical browser evidence deferred)
 - [ ] Round SUB-THAI-2 — แก้การซ้อนของสระ `ั` กับวรรณยุกต์ `่` ในฟอนต์จริงของคลิป (พักไว้ตามคำขอ user · 2026-09-08)
 - [x] Round STK-PRO-1 — ชุดสติกเกอร์และป้ายรีวิวสายไอทีระดับโปร (Photorealistic Tech Review Badges) (2026-09-08)
 - [x] Round STK-3 - Sticker Baseline 100% Size, Track Eye Toggle, Deletion, and Preview-Before-Add (2026-09-08)
@@ -77,89 +146,13 @@
 - [x] Round TLO-REFACTOR-5 — ย้าย Caption chip เข้า shared timeline shell โดยคง magnetic-ripple policy (2026-09-09)
 - [x] Round TLO-REFACTOR-6 — รวม shared Inspector header สำหรับ Sticker/Effect (2026-09-09)
 - [x] Round TLO-REFACTOR-7 — รวม timeline pointer lifecycle โดยคง type-specific drag math (2026-09-09)
-- [ ] Round TLO-REFACTOR-FINAL-AUDIT — ตรวจ final gates และ inventory หลัง refactor ทั้งชุด (2026-09-09)
+- [x] Round TLO-REFACTOR-FINAL-AUDIT — ตรวจ final gates และ inventory หลัง refactor ทั้งชุด (2026-09-09; overlay/repo validation ปิดแล้ว)
 
-## Round TLO-REFACTOR-FINAL-AUDIT — ตรวจ final gates และ inventory หลัง refactor ทั้งชุด
-
-วันที่: 2026-09-09 · สั่งโดย: user · สถานะ: เสร็จบางส่วน — overlay scope ผ่าน, repo-wide full pytest ยังติด blocker นอก scope
-
-**เป้าหมาย:** ตรวจหลักฐาน end-to-end ของ Overlay Timeline/Preview refactor หลังรอบ TLO-REFACTOR-1 ถึง 7 และยืนยัน duplication/behavioral divergence ที่เหลือก่อน sign-off
-
-### Todo
-
-- [x] ตรวจ `TODO.md`, `git status`, refactor plan และขอบเขตไฟล์ค้าง โดยไม่แตะงานของ agent อื่น
-- [x] รัน frontend `npm test`, `npm run lint`, `npm run build` และ `git diff --check`
-- [x] รัน `python -m compileall -q scripts`
-- [x] รัน preview/render parity, FFmpeg behavioral tests และ overlay dispatch tests
-- [ ] รัน full pytest ของทั้ง repo — `934 passed, 9 failed, 6 warnings`; fail ทั้งหมดอยู่ใน reconciliation/posted lifecycle นอก overlay scope
-- [x] ตรวจ source inventory ของ Timeline, drag hook, SequencePlayer, editor modules และ lib ว่าจุดซ้ำหลักถูกจัดการแล้วหรือมี divergence ที่ต้องคงไว้
-- [x] อัปเดต plan พร้อมตัวเลขจริง และรายงาน residual risks/งานที่ไม่รวม
-- [x] แก้ `TrackLabel` fallback `width ?? GUTTER` ที่หายไประหว่าง extraction และย้าย source-contract probes ให้ตรวจ module ใหม่
-
-### Notes
-
-- รอบนี้เป็น audit/sign-off; พบและแก้ production regression จริงที่ `TrackLabel.jsx` โดยคืน `width ?? GUTTER` และปรับ parity probes ให้ตาม source module ใหม่
-- Frontend: `npm test` = `109 passed, 0 failed`; `npm run lint` exit 0 (มี warnings เดิม); `npm run build` = `1975 modules transformed`; `git diff --check` ผ่าน
-- Overlay/backend scope: `compileall` ผ่าน; `test_preview_render_parity.py` = `150 passed`; `test_preview_render_behavior.py` = `11 passed, 2 Pillow deprecation warnings`; `test_overlay_render_dispatch.py` = `2 passed`
-- Full pytest fail 9 รายการใน `tests/test_reconcile_angle_collision.py`, `tests/test_reconcile_grace_period.py`, `tests/test_reconcile_preserves_posted.py`, `tests/test_reconcile_transaction.py` และ `tests/test_relative_paths.py`; แยกเป็น backlog แล้วและไม่แก้ปนกับรอบนี้
-- Working tree มี deleted sticker sample assets 3 ไฟล์และ `tools/test_scrape_titles.py` จากงานเดิม; audit ไม่แตะ ไม่ restore และไม่ stage ไฟล์เหล่านี้
-
-### Audit findings ที่ต้องติดตาม
-
-- `tests/test_preview_render_parity.py` เดิมมี 3 source-contract probes ที่ยังไม่รวม `TrackLabel.jsx`; แก้แล้วและ targeted parity กลับมา `150 passed`
-- Overlay scope sign-off ผ่าน: shared timeline shell/label/pointer lifecycle, selected-box geometry, inspector primitives และ render-kind profile ถูกตรวจแล้ว; type-specific policy branches ยังคงแยกตาม behavioral contract
-- Full pytest ยังไม่ผ่านจาก reconciliation failures 9 รายการใน `ProductStore`/posted lifecycle; เป็น scope ของ `POST-LIFECYCLE-1` และต้องสะสางแยกก่อน repo-wide release sign-off
-
-### Gate
-
-- [x] `npm test` — `109 passed, 0 failed`
-- [x] `npm run lint` — exit 0; มี warnings แต่ไม่มี error
-- [x] `npm run build` — `1975 modules transformed`, ผ่าน
-- [x] `git diff --check` — ผ่าน
-- [x] `python -m compileall -q scripts` — ผ่าน
-- [x] `python -m pytest tests/test_preview_render_parity.py -q -p no:cacheprovider --tb=short` — `150 passed`
-- [x] `python -m pytest tests/test_preview_render_behavior.py -q -p no:cacheprovider --tb=short` — `11 passed, 2 warnings`
-- [x] `python -m pytest tests/test_overlay_render_dispatch.py -q -p no:cacheprovider --tb=short` — `2 passed`
-- [ ] `python -m pytest tests/ -q -p no:cacheprovider --tb=short` — `934 passed, 9 failed, 6 warnings`; blocker อยู่นอก overlay scope
-
-## Round POST-LIFECYCLE-1 — แยกเวอร์ชันที่โพสต์จริง, คุมรายการใน Extension และซ่อมปุ่มมาร์กโพสต์
-
-วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: กำลังทำ
-
-**เป้าหมาย:** ให้ lifecycle ของไฟล์ export ยึดตาม MP4 เวอร์ชันจริงที่โพสต์ลง TikTok โดยเวอร์ชันเก่าลบได้, คลิปตัดต่อเสร็จที่ยังไม่จัดเวลาเข้า Extension ได้, คลิปโพสต์แล้วไม่แสดง และปุ่มมาร์กโพสต์ทำงานครบวงจร
-
-### Todo
-
-- [ ] Audit ID end-to-end: render → gallery → schedule queue → Extension prepare/post → mark-posted → delete/rename; ระบุจุดที่ยังใช้ชื่อไฟล์/พาธหรือ `product_id + angle_id` เป็น identity และเพิ่ม regression ก่อนแก้
-- [x] แก้ backend delete guard ให้ล็อกเฉพาะไฟล์ MP4 ที่มีหลักฐานว่าโพสต์แล้ว ไม่ล็อกทั้ง product/angle จนกระทบเวอร์ชันเก่า
-- [x] ทำ response/filter กลางของ export และ schedule queue ให้ Extension เห็นเฉพาะคลิป `rendered` ที่ยังไม่โพสต์ พร้อมป้าย “ตัดต่อเสร็จแล้ว แต่ยังไม่ได้จัดเวลา” เมื่อไม่มีเวลาในคิว
-- [x] ซ่อม flow ปุ่ม “มาร์กโพสต์แล้ว” ให้ส่ง identifier ของไฟล์จริง, ย้าย MP4/ไฟล์ประกอบ, อัปเดต angle/queue และเอารายการออกจาก Extension หลังสำเร็จ
-- [x] เพิ่ม regression tests ครบ 4 พฤติกรรม และตรวจ UI label/disabled state ให้สื่อความจริง
-- [x] เปลี่ยนการระบุ export จากชื่อไฟล์/พาธเป็น `export_id` ต่อเวอร์ชัน และส่ง ID เดียวกันผ่าน Gallery, delete, mark-posted และ Extension; migrate ไฟล์เก่าครั้งเดียว
-- [x] ผูก ID ให้ตามไฟล์เมื่อ rename และล้าง registry เมื่อไฟล์ถูกลบไปก่อนแล้ว เพื่อไม่ให้ path เก่าชนกับ export ใหม่
-
-### Gate
-
-- [x] `python -m compileall -q scripts` — ผ่าน
-- [x] เทส backend/extension ที่เกี่ยวข้อง และ full pytest — Python `939 passed, 1 deselected, 6 warnings` (deselect เทส reroll ที่ค้าง background task); Node Extension `17 passed`
-- [x] `npm test` และ `npm run build` — `85 passed`; build ผ่าน
-- [ ] `git diff --check` — พบ blank line ที่ปลายไฟล์เดิมใน `tests/test_reconcile_preserves_posted.py` ซึ่งเป็น diff ของ agent อื่น จึงไม่แก้ทับ
-
-### Notes
-
-- ก่อนเริ่มมีงานค้างจาก session/agent อื่นใน `scripts/product_store.py`, `tests/test_reconcile_preserves_posted.py`, `tiktok_autopost_extension/sidepanel.js`, `_Docs/schedule_queue.json` และงาน subtitle ที่พักไว้; ห้ามเขียนทับส่วนที่ไม่เกี่ยวข้อง
-- แก้ `api_videos.delete_file` ให้ป้องกันเฉพาะ MP4 ที่ path ตรงกับตัวโพสต์จริง; การลบเวอร์ชันเก่าของ angle เดียวกันไม่ demote angle ที่ posted แล้ว
-- แก้ `api_exports.list_exports` ให้ `is_posted` เป็น per-file และทำ mark-posted แบบ retry ได้เมื่อมีไฟล์ชื่อเดียวกันใน `Posted/`; กรณีเนื้อหาขัดกันตอบ `409` แทน `500`
-- แก้เคสชื่อไฟล์ซ้ำใน Ready/Posted ตามภาพจริง: สำเนา Ready ไม่ติดธง posted และลบได้ ส่วนไฟล์ใน Posted เท่านั้นที่ล็อก; เพิ่ม regression tests เคสนี้โดยตรง
-- เพิ่ม `tiktok_autopost_extension/clip_state.js`: รวม scheduled + rendered unscheduled, ตัด posted ด้วย filename identity และแสดงป้ายสถานะตามจริง; หลังมาร์กสำเร็จ refresh แล้วกลับแท็บรายการคลิป
-- `git diff --check` ยังติด whitespace จาก `tests/test_reconcile_preserves_posted.py` ของ agent อื่น; functional gates ของรอบนี้ผ่านครบ
-- ตรวจจากภาพจริงพบเคสไฟล์ชื่อเดียวกันอยู่ทั้ง `Ready_to_post/` และ `Posted/`; ต้องให้สำเนาใน Ready เป็นเวอร์ชันเก่าที่ลบได้ ไม่ล็อกตามชื่อไฟล์ซ้ำ
-- เพิ่ม `_Docs/export_registry.json` เป็น registry ถาวรของ `export_id` ราย MP4; `product_id + angle_id` ใช้ระบุมุมเนื้อหา ส่วน `export_id` ใช้ระบุเวอร์ชันไฟล์จริง
-- Gallery, render manifest, schedule queue, delete, mark-posted และ Extension ส่งต่อ `export_id` เดียวกัน; ชื่อไฟล์/พาธใช้เฉพาะ migration ของ export เก่า และ ID ตามไฟล์เมื่อ rename
+- รายละเอียดเต็มของ `TLO-REFACTOR-FINAL-AUDIT` และ `POST-LIFECYCLE-1` ย้ายไปเก็บใน [HISTORY.md](file:///d:/Winona/Programmer/Capcut/HISTORY.md) แล้ว; สถานะที่ยังรอ live TikTok อยู่ใน `POST-3.16`–`POST-3.18` และ `POST-2`
 
 ## Round SUB-THAI-2 — แก้สระ `ั` กับวรรณยุกต์ `่` ซ้อนในฟอนต์จริง
 
-วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: พักไว้ ยังไม่สำเร็จ
+วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: พักไว้ ยังไม่สำเร็จ — แก้ไม่ได้จากหลักฐานปัจจุบัน รอ user verification
 
 **Repro และสถานะ:**
 
@@ -205,42 +198,6 @@ npm test
 
 - [x] Round STK-3 — ปรับขนาดสติกเกอร์ 100% เท่ากับขนาดจอที่ผู้ใช้ต้องการ, ซ่อมปุ่มปิดตาแทร็กสติกเกอร์, ลบสติกเกอร์ได้ทุกช่องทาง และระบบพรีวิวก่อนกดบวกเหมือนข้อความ (2026-09-08)
 - [x] Round ACCENT-REV-1 — คืนค่าตัวเลือกตกแต่ง (Accent) กลับเป็น 3 ตัวเลือกดั้งเดิมตามคำสั่งผู้ใช้ (2026-09-08)
-
-## Round HOOK-OPT-1 — ยกระดับฟอนต์ข้อความ, เทมเพลตคลีน, พรีวิวขยาย/ย้ายฮุกสมบูรณ์ และสปีดแอนิเมชัน
-
-วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: กำลังทำ
-
-**ปัญหาที่ตรวจพบและขอบเขตงาน:**
-1. **การขยายและย้ายตำแหน่ง Hook:** ลาก Resize Handle ในพรีวิวแล้วตัวหนังสือไม่ขยายตามสัดส่วน และเมื่อลากย้ายตำแหน่ง `x, y` ตอนเรนเดอร์จริงฮุกดีดกลับไปอยู่ข้างบนเพราะ Backend Hardcode ตำแหน่ง `cursor_y = 260` และไม่มีแท็ก `\pos(x, y)` นอกจากนี้ปุ่มดึงขอบ 4 ด้านถูกล็อก `pointer-events-none` และแถบไฮไลต์โมเดล (Badge Accent) เยื้องไม่พอดีคำ
-2. **ฟอนต์ข้อความของป้ายฮุก:** ใน Inspector ไม่มี Dropdown เลือกฟอนต์ของฮุก ถูกล็อกตายตัวตาม Template และไม่สามารถเลือกฟอนต์หลักหรือเลือกฟอนต์แยกเฉพาะแถวได้
-3. **Template & Clean UI Standard:** ใน AssetPanel ปุ่มเพิ่มข้อความมีเครื่องหมาย `+` ซ้ำกับไอคอน, มีช่องค้นหาซ้ำซ้อน 2 ชั้น, และมีอีโมจิรกหน้าชื่อหมวดหมู่ รวมถึงแม่แบบป้ายฮุก 3 แถวปนกับข้อความเดี่ยว
-4. **Animation:** ความเร็วแอนิเมชันปรับไม่ได้ และฮุกถูกล็อกไม่ให้มี Kinetic Word Stagger
-
-### Todo
-
-- [x] ใน `SequencePlayer.jsx`: ให้การย่อ/ขยาย Hook คำนวณ Master Scale คูณกับทุกแถวตามสัดส่วน, เปิดใช้งานปุ่มดึงขอบทั้ง 4 ทิศทาง, และปรับแก้ตำแหน่ง Badge Accent ให้กึ่งกลางพอดีคำ
-- [x] ใน `scripts/subtitle/overlay_events.py`: แก้ไขให้ Hook ใน ASS Render รองรับ Master Scale และพิกัด `\pos(x, y)` จริงตามที่ลากในหน้าพรีวิว 100% (Preview = Render Parity)
-- [x] ใน `OverlayInspector.jsx`: เพิ่มเมนูเลือกฟอนต์หลักของป้ายฮุก (Master Font) พร้อมตัวเลือกปรับฟอนต์เฉพาะแถว (Per-Tier Font Override)
-- [x] ใน `scripts/hook_styles.py`, `frontend/src/lib/hookStyles.js`, `overlay_model.py`, `overlayModel.js`: รองรับฟอนต์ระดับ Tier และรักษา Parity ระหว่างสองฝั่ง
-- [x] ใน `AssetPanel.jsx`: ปรับเลย์เอาต์ Sub-tabs แบ่งเป็น 'ป้ายฮุกแบรนด์ (3-Tier)' และ 'ข้อความเดี่ยว/เอฟเฟกต์ (Single)', ลบเครื่องหมาย `+` ซ้ำซ้อน, รวมช่องค้นหาเหลือจุดเดียว และตัดอีโมจิรกหน้าหมวดหมู่ทั้งหมดตามกฎเหล็กข้อ 8
-- [x] ใน `OverlayInspector.jsx` & `SequencePlayer.jsx`: เพิ่มตัวเลือกสปีดแอนิเมชัน (TikTok Fast 0.15s vs Standard vs Smooth 0.4s) และรองรับ Kinetic Word Stagger
-- [x] รันชุดทดสอบ Parity, Backend APIs, Frontend Build และทดสอบความเที่ยงตรง
-
-### Gate
-
-- [x] `python -m compileall -q scripts` (Pass)
-- [x] `python -m pytest tests/test_preview_render_parity.py -q -p no:cacheprovider` (149 passed in 3.43s)
-- [x] `python -m pytest tests/test_posted_protection.py tests/test_clip_compounding_render.py -q -p no:cacheprovider` (8 passed in 2.21s)
-- [x] `npm --prefix frontend run build` (Pass, 1962 modules transformed, built in 3.63s)
-- [x] Full Pytest Regression: `python -m pytest tests/ -q -p no:cacheprovider` (923 passed in 210.55s)
-
-### Notes
-
-- รักษา Preview = Render Parity 100%: Master scale และพิกัด `\pos(x, y)` ใน `scripts/subtitle/overlay_events.py` คำนวณตรงกับ Canvas preview ใน `SequencePlayer.jsx`
-- ปรับแต่ง Badge Accent ใน Canvas ให้โค้งมนสวยงามตรงกับ `_ass_rounded_pill_path` ใน backend
-- รวมช่องค้นหาใน `AssetPanel.jsx` เป็นจุดเดียวที่แผงบน และแบ่ง Sub-tabs: 'ป้ายฮุกแบรนด์ (3-Tier)' กับ 'ข้อความเดี่ยว (Single)' ชัดเจน ไม่ปะปนกัน
-- ตัดเครื่องหมาย `+` ซ้ำซ้อน และตัดอีโมจิรกหน้าปุ่มหมวดหมู่ทั้งหมดตาม Strict Rule 8 (UI Clean Standard)
-- รันชุดทดสอบทั้งหมด 923 tests ผ่านรวด 100% ไม่มีข้อผิดพลาด
 
 ## Round POST-3.16 — แก้การแนบปกข้อ 5 และแสดงภาพปก 3:4
 
@@ -409,7 +366,7 @@ Date: 2026-09-07; Requested by: user; Status: in progress
 
 ## Round PERF-UX-1 — ปรับ Reliability/Preview Performance/Autosave/Incremental Render/Timeline Scaling แบบแยก ownership ขนานกัน
 
-วันที่: 2026-09-09 · สั่งโดย: user · สถานะ: implementation complete; evidence gates pending
+วันที่: 2026-09-09 · สั่งโดย: user · สถานะ: implementation และ deterministic evidence เสร็จ; empirical browser evidence deferred ตามคำสั่ง user
 
 **เป้าหมาย:** ปรับความน่าเชื่อถือ, ความลื่นของ editor, ความเร็ว autosave/export และการรองรับ project ใหญ่ โดยแบ่ง write scope ไม่ให้ agent แก้ไฟล์เดียวกันพร้อมกัน และรักษา Preview = Render contract.
 
@@ -427,7 +384,7 @@ Date: 2026-09-07; Requested by: user; Status: in progress
 The entries below supersede the earlier tentative status in this round.
 
 - [x] E implementation: `Timeline.jsx` now memoizes transition/clip-audio collections and indexes sticker assets without changing lane geometry, lookup precedence, or interaction handlers.
-- [x] E regression probe: frontend suite now includes the Timeline render-performance contract; `npm test` = `124 passed, 0 failed`.
+- [x] E regression probe: frontend suite now includes the Timeline render-performance contract; latest `npm test` = `144 passed, 0 failed`.
 - [x] E microbenchmark: synthetic 50/100/300-clip derived-work probe, 20,000 rounds each, produced equivalent results and reductions of `64.5%`, `77.0%`, and `86.7%` for the measured repeated derivation slice.
 - [x] E browser fixture inspection: the currently open local project rendered `54` timeline items, `16` transition triggers, and `1,367` total DOM elements; this is an observation baseline only, not a before/after FPS claim.
 - [x] D rerender-flow smoke: `complete_job` stamped real temp artifacts, a subsequent `PipelineContext` consumed the persisted fingerprints, and the targeted file now reports `14 passed, 0 failed`.
@@ -441,8 +398,8 @@ The entries below supersede the earlier tentative status in this round.
 - [x] **B — Preview frame performance implementation/probe:** `frontend/src/components/SequencePlayer.jsx` และ `frontend/src/lib/sequencePlayerFrameScheduling.test.js`; ลด React playhead publication และ repeated previous-segment lookup โดยคง Canvas/audio clock เดิม
 - [x] **C — Autosave/history responsiveness:** `frontend/src/hooks/useProjectAutosave.js`, `frontend/src/hooks/useEditorHistory.js`, `frontend/src/lib/projectSaveQueue.js` และ tests ที่ตรง module; รักษา save/migration/undo-redo contract
 - [x] **D — Incremental render/artifact reuse implementation:** `scripts/pipeline_context.py`, `scripts/render_jobs.py` และ `tests/test_incremental_render_reuse.py`; audit reuse เดิมก่อนเพิ่ม fingerprint และ rerun policy โดยไม่แตะ renderer arguments
-- [ ] **E — Timeline/filmstrip scaling:** ห้ามแก้ `frontend/src/components/editor/Timeline.jsx` ระหว่างมีงานผู้ใช้ค้าง; ทำได้เฉพาะ read-only benchmark/audit และเตรียม test fixture/plan ที่ไม่แตะไฟล์ดังกล่าว
-- [ ] **Integration owner:** main agent review diff, ตรวจ file ownership, รวม test evidence และรัน gates แบบ serial หลัง agents หยุดแก้แล้ว
+- [x] **E — Timeline/filmstrip scaling:** ปิด low-risk implementation ที่พิสูจน์ได้ด้วย source contract และ synthetic benchmark; full virtualization/FPS benchmark ยังเป็น external validation แยกต่างหาก
+- [x] **Integration owner:** main agent review diff, ตรวจ file ownership, รวม test evidence และรัน gates แบบ serial แล้ว
 
 ### ลำดับและ gates
 
@@ -452,7 +409,7 @@ The entries below supersede the earlier tentative status in this round.
 - [x] D: สร้าง change-class matrix และ fingerprint coverage ก่อนเปลี่ยน reuse; targeted incremental = `13 passed`, compatibility = `57 passed`, compileall ผ่าน
 - [ ] D follow-up: production API/FFmpeg repeated rerender smoke ยัง pending; deterministic `complete_job → fingerprint manifest → PipelineContext` flow ปิดแล้วที่ `14 passed`
 - [ ] E: controlled browser fixture 50/100/300 clips, DOM count/open latency และ drag/scroll FPS ยัง pending; low-risk implementation และ synthetic microbenchmark ปิดแล้ว
-- [x] Integration gates ปัจจุบัน: `git diff --check`, `python -m compileall -q scripts`, targeted tests ทุก stream, `npm test` = `124 passed`, `npm run lint` exit 0, `npm run build` = `1975 modules transformed`, full pytest = `957 passed, 0 failed, 6 warnings`; ยังไม่ stage งานใด
+- [x] Integration gates ปัจจุบัน: `git diff --check`, `python -m compileall -q scripts`, targeted tests ทุก stream, `npm test` = `144 passed`, `npm run lint` exit 0, `npm run build` = `1,979 modules transformed`, full pytest = `1,034 passed, 0 failed, 24 warnings`
 
 ### Notes
 
@@ -1423,11 +1380,11 @@ Notes: Schedule selection logic itself remains frozen; only checklist styling an
 
 - [x] Round PRO-STYLE-3A — Style-driven transition budget and project style preset contract (2026-09-09)
 - [x] Round PRO-STYLE-3B — Live keyframe camera motion with Preview = Render parity (2026-09-09)
-- [ ] Round PRO-STYLE-PARALLEL-4-6 — Parallelize style finishing, preset orchestration, and golden-master validation (2026-09-09; 4 disjoint agent lanes)
+- [x] Round PRO-STYLE-PARALLEL-4-6 — Parallelize style finishing, preset orchestration, and golden-master validation (2026-09-09; implementation ปิด, browser benchmark deferred)
 
 ## Round PRO-STYLE-PARALLEL-4-6 — Parallel style roadmap execution
 
-วันที่: 2026-09-09 · ผู้สั่ง: user · สถานะ: กำลังดำเนินการ
+วันที่: 2026-09-09 · ผู้สั่ง: user · สถานะ: implementation เสร็จแล้ว; browser benchmark deferred ตามคำสั่ง user
 
 เป้าหมาย: เดินงาน Phase 4–6 พร้อมกันโดยล็อก ownership รายไฟล์ ลดเวลารอ และคง Preview = Render, deterministic/offline tests, และ Phase 3B camera-motion behavior เดิม
 
@@ -1446,9 +1403,9 @@ Notes: Schedule selection logic itself remains frozen; only checklist styling an
 - [x] Run focused tests for each returned lane: color 6, audio 15, golden-master 6, frontend catalog 6
 - [x] Run backend compileall, full backend pytest (`1019 passed, 12 warnings`), frontend npm test (`134 passed`), frontend build (`1976 modules`), and `git diff --check`
 - [x] Run real ASS/libass FFmpeg style validation: `clean_tech_review` emitted `#FFE600` and entry/hold/exit renders all contained yellow accent pixels.
-- [ ] Run browser Canvas-vs-libass pixel sampling at 50/100/300 clips; deterministic source/renderer contracts and FFmpeg behavior pass, but browser benchmark remains a separate manual validation gate.
-- [x] Update this block with numeric results; the round remains open only for the browser Canvas-vs-libass benchmark.
-- [ ] Move the complete block to `HISTORY.md` after the remaining browser gate passes.
+- [ ] Deferred user validation: browser Canvas-vs-libass pixel sampling at 50/100/300 clips; ไม่อ้าง FPS/performance improvement จนกว่าจะมี measurement จริง
+- [x] Update this block with numeric results; implementation closure is recorded, while the browser Canvas-vs-libass benchmark remains deferred external validation.
+- [x] บันทึก implementation และ deterministic gates แล้ว; browser benchmark ถูกแยกเป็น deferred validation ตามคำสั่ง user
 
 ### Notes
 

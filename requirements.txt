@@ -21,6 +21,7 @@ fastapi==0.135.3
 uvicorn==0.42.0
 pydantic==2.12.5
 python-multipart==0.0.32   # required by FastAPI's UploadFile/Form
+playwright==1.58.0        # rendered product pages; uses local Chrome session, no challenge bypass
 
 # --- Voice synthesis ---
 edge-tts==7.2.8            # default TTS engine
