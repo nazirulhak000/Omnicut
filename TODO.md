@@ -15,6 +15,7 @@
 ---
 
 ## สถานะรวม
+
 ---
 
 - [x] Round DOC-SYNC-1 — sync สถานะเอกสารจากผลทดสอบล่าสุด และแยกงานที่รอ user/live validation (2026-09-10)
@@ -22,6 +23,111 @@
 - [x] Round PRODUCT-METADATA-1 — แนบรูปอ้างอิงย้อนหลัง + Metadata Inspector สำหรับตรวจข้อมูลที่ AI ใช้ (2026-09-10; backend 1,037 passed, frontend 144 passed)
 - [x] Round PRODUCT-METADATA-2 — เติม source fallback สำหรับสินค้า legacy ที่มีข้อมูลอยู่ใน angle แต่ product metadata ว่าง (2026-09-10; backend 1,040 passed, frontend 144 passed)
 - [ ] Round PRODUCT-METADATA-3 — ตรวจ/แก้การดึงข้อความจาก TikTok product page ที่เป็น client-rendered: GOC01 มี URL + รูป 9 รูป แต่ description/raw_text/specs/selling_points/pain_points ระดับสินค้าไม่ถูกบันทึก; เพิ่ม hybrid browser extraction + refresh source แล้ว เหลือ live verification ผ่าน Security Check (2026-09-10)
+- [ ] Round COMMIT-SPLIT-1 — จัดกลุ่ม commit งานค้างใน working tree + สร้าง LIVE_VALIDATION_CHECKLIST.md สำหรับ batch ทดสอบ live รอบเดียว (2026-09-10)
+
+## Round COMMIT-SPLIT-1 — จัดกลุ่ม commit working tree + checklist live validation
+
+วันที่: 2026-09-10 · สั่งโดย: user · สถานะ: กำลังทำ
+
+**เป้าหมาย:** (1) รวม gate "รอ user ทดสอบจริง" ทั้งหมดเป็น checklist เดียวทำต่อเนื่องใน 1 ชุด (2) รัน deterministic gates ให้ผ่านก่อน แล้ว commit งานใน working tree แยกตาม workstream ลดความเสี่ยง diff ปนกันข้ามรอบ
+
+### Todo
+
+- [x] ตรวจ `git status` จำแนกไฟล์ต่อ workstream
+- [ ] ตรวจ diff รายไฟล์ของไฟล์กลุ่มกำกวม (ContentTrackerHub, RawVaultPanel, CoverStudioModal, EditorShell, schedule_queue.json) เพื่อเลือกกลุ่ม commit ที่ถูกต้อง
+- [ ] รัน gates: compileall + full pytest + frontend test/build/lint + `git diff --check`
+- [ ] สร้าง `LIVE_VALIDATION_CHECKLIST.md` รวม live gate ที่รอ user (PM-3/4/5/6, POST-1, POST-3.16–3.20)
+- [ ] Commit แยกกลุ่ม: (a) product metadata (b) post/export lifecycle (c) editor (d) docs/checklist (e) assets+runtime data
+- [ ] หมายเหตุ `header-toggle-test-1.png` (untracked, รอ user ตัดสินใจ ลบ/เก็บ) — ไม่ commit
+
+### Gate
+
+- [ ] `python -m compileall -q scripts`
+- [ ] `python -m pytest tests/ -q -p no:cacheprovider --tb=short` (ต้อง 0 failed)
+- [ ] `npm test` + `npm run build` + `npm run lint` ใน frontend/
+- [ ] `git diff --check`
+- [ ] commits แยกกลุ่มครบทุกไฟล์ที่แก้ (ยกเว้น header-toggle-test-1.png)
+
+### Notes
+
+- สถานะก่อนเริ่ม: ไฟล์แก้ 17 ไฟล์ + untracked 3 (productSelection.js/.test.js, header-toggle-test-1.png); `custom_hook_templates.json` ถูก stage ค้างจากรอบก่อน — ต้อง unstage ก่อนจัดกลุ่มใหม่
+- ห้ามลบ/เขียนทับ diff ใด ๆ — commit อย่างเดียว
+
+## Round PRODUCT-METADATA-7 — อ่านสรรพคุณ/สเปกจากรูปอ้างอิงด้วย Vision
+
+วันที่: 2026-09-10 · สั่งโดย: user · สถานะ: กำลังทำ
+
+**เป้าหมาย:** ให้สินค้าใหม่ที่มีข้อมูลอยู่ในภาพอินโฟกราฟิกหรือภาพสเปกสามารถสกัดคำอธิบาย สรรพคุณ จุดขาย และสเปกเข้า metadata ได้ โดยมี preview/edit/เลือก field ก่อนบันทึก และไม่ให้โมเดลแต่งข้อมูลที่อ่านจากรูปไม่ชัด
+
+### Todo
+
+- [x] เพิ่ม backend Vision extraction แบบ read-only สำหรับรูปอ้างอิงสินค้า
+- [x] เพิ่ม UI ปุ่มอ่านจากรูปและนำผลเข้า preview/edit flow เดิม
+- [x] บันทึก provenance ว่าข้อมูลมาจาก Vision รูปใด และรักษาข้อมูลเดิมเมื่อไม่เลือกทับ
+- [x] เพิ่ม offline regression tests สำหรับ schema/validation/selected overwrite
+- [x] รัน backend/frontend gates; เหลือทดสอบสินค้าชุด BlueWow จริงด้วยรูปที่แนบ
+
+### Notes
+
+- รูปตัวอย่างมีข้อมูลซีรีส์ รุ่น กำลังไฟ และคุณสมบัติ cooling อยู่ในภาพ แต่ไม่ได้รับประกันว่าตัวเลขเล็กทุกจุดจะอ่านได้ชัด
+- ต้องให้ผู้ใช้ตรวจ preview ก่อนบันทึก และแยกข้อมูลที่อ่านไม่แน่ใจออกเป็น warning ไม่ส่งเป็นข้อเท็จจริง
+
+### Gate
+
+- [x] focused image metadata tests — 21 passed, 1 warning
+- [x] full backend/frontend tests/build — backend 1,054 passed, frontend 149 passed, build/lint ผ่าน
+- [ ] manual: BlueWow images → extract → preview/edit → select → save → reopen
+
+## Round PRODUCT-METADATA-6 — กัน selected product เปลี่ยนเองระหว่าง refresh/load history
+
+วันที่: 2026-09-10 · สั่งโดย: user · สถานะ: กำลังทำ
+
+**เป้าหมาย:** เมื่อผู้ใช้เปิด metadata หรือทำงานกับสินค้าใดอยู่ การ refresh/focus/background response ต้องไม่สลับ `productData` ไปเป็นสินค้ารายการแรกหรือ response เก่าโดยไม่มีการเลือกจากผู้ใช้
+
+### Todo
+
+- [x] สร้าง regression test สำหรับการ resolve สินค้าที่เลือกและ response race
+- [x] แก้ stale selection closure และ fallback ไปสินค้ารายการแรกที่เกิดระหว่าง reload
+- [x] กัน async history response เก่าเขียนทับ selection ล่าสุด
+- [x] รัน frontend gate; backend ไม่ได้แก้ในรอบนี้และ full backend ล่าสุดยังผ่าน 1,052 tests
+
+### Notes
+
+- สมมติฐานปัจจุบัน: `loadHistory` ที่ผูกกับ `focus` ปิดทับ `selectedHistoryId` ค่าเก่า และ `find(...) || res.products[0]` ทำให้เลือกสินค้าตัวแรกแทน
+- เพิ่ม `selectedHistoryIdRef`, request sequence guard และเลือก parent ID เฉพาะเมื่อ prop เปลี่ยนจริง; focus/refresh จึงยึด local selection ล่าสุด
+
+### Gate
+
+- [x] focused selection regression tests — 5 passed
+- [x] frontend tests/build/lint — 149 passed, build/lint ผ่าน
+- [x] backend tests — ไม่ได้แก้ backend รอบนี้; latest full suite 1,052 passed
+- [ ] manual: สลับสินค้าแล้ว refresh/focus หลายครั้ง ต้องอยู่สินค้าตัวเดิม
+
+## Round PRODUCT-METADATA-5 — แก้ metadata description/raw text ซ้ำ และเปิดแก้คำอธิบายสรรพคุณ
+
+วันที่: 2026-09-10 · สั่งโดย: user · สถานะ: กำลังทำ
+
+**เป้าหมาย:** แยกความหมายของ “คำอธิบายสินค้า/สรรพคุณ” กับ “ข้อความต้นฉบับ” ให้ชัดเจน ไม่แสดงเนื้อหาซ้ำ และเปิดให้ผู้ใช้แก้คำอธิบายจากหน้าข้อมูลที่ AI จะได้รับได้จริง
+
+### Todo
+
+- [x] สร้าง regression test ที่ยืนยันว่าหน้า metadata ไม่รวม description กับ raw_text ซ้ำโดยไม่จำเป็น
+- [x] ตรวจและแก้ source normalization/scraper ให้ description และ raw_text มีขอบเขตข้อมูลที่ชัดเจน
+- [x] เปิดช่องแก้ไข description/raw_text ในจุดที่ผู้ใช้กำลังตรวจข้อมูล พร้อมบันทึกกลับ product เดิม
+- [x] รัน focused/backend/frontend gates และตรวจ flow reload หลังบันทึก
+
+### Notes
+
+- อาการจากผู้ใช้: inspector แสดงหัวข้อ “คำอธิบาย / raw text” แล้วพิมพ์คำอธิบายชุดเดียวกันสองรอบ
+- ต้องรักษา source text ที่ละเอียดสำหรับ AI แต่ไม่ควรเอา field ที่มีความสัมพันธ์ซ้อนกันมาแสดงต่อกันแบบ blind concatenation
+- แก้โดยตัดบรรทัดที่ซ้ำกันออกจาก raw source ตอนประกอบ prompt/สรุป AI และยังเก็บ raw_text เต็มไว้ใน JSON metadata
+- preview มี textarea แก้ “คำอธิบายสินค้า” และ “ข้อความต้นฉบับ” ก่อนเลือก field และยืนยันบันทึกผ่าน `overrides`
+
+### Gate
+
+- [x] focused metadata regression tests — 17 passed, 1 warning
+- [x] full backend/frontend tests/build — backend 1,052 passed, frontend 144 passed, build/lint ผ่าน (lint มี warnings เดิม)
+- [ ] manual: แก้คำอธิบาย → บันทึก → เปิดใหม่ → ตรวจว่าไม่ซ้ำและข้อมูลส่งให้ AI ครบ
 
 ## Round PRODUCT-METADATA-4 — แก้ไข/preview metadata ก่อนบันทึก และจัดการ URL/ชื่อสินค้า
 
@@ -226,7 +332,6 @@ npm test
 - Full regression: `pytest tests/` ผ่าน 864 tests และไม่มีไฟล์ขั้นตอน 1–4 ถูกแก้ในรอบนี้
 - Live page navigation เคยยืนยันการเปิด Cover Studio ได้ แต่ยังไม่มี TikTok tab ที่เชื่อมผ่าน CDP สำหรับกด Extension ข้อ 5 จริง จึงยังไม่ติ๊ก gate live นี้จนกว่าจะทดสอบบน Chrome session ของผู้ใช้
 
-
 ## Round POST-3.17 — ซ่อม path ปกที่หายก่อนข้อ 5
 
 วันที่: 2026-09-07 · สั่งโดย: user · สถานะ: กำลังทำ
@@ -255,7 +360,6 @@ npm test
 - หลักฐาน live ก่อนแก้: `/api/tiktok-autopost/pending` คืน `cover_path: null`; helper ใหม่ resolve ได้เป็น `05_Covers_Thumbnails/Logitech Wave Keys_cover_3x4.jpg` จาก `product_id=20260904233315_1`
 - ตรวจ DOM TikTok จริงแล้วพบปุ่ม `แก้ไขหน้าปก` 1 จุด, `cover-editor-container` 1 จุด และ `input[type=file]` แบบซ่อน 1 จุด; การอัปโหลดไฟล์ผ่าน browser controller ถูกระบบควบคุมไฟล์บล็อก จึงยังไม่ติ๊ก live gate
 - Full regression หลังแก้: `866 passed, 6 warnings`; ขั้นตอน 1–4 และปุ่มโพสต์ไม่ได้ถูกแก้
-
 
 ??????: 2026-09-07 ? ???????: user ? ?????: ???????
 
@@ -360,6 +464,7 @@ Date: 2026-09-07; Requested by: user; Status: in progress
 - Browser check: clicking the saved 3:4 thumbnail opens a large preview, and `เปลี่ยนภาพปก` closes it and opens Cover Studio with the current cover loaded.
 - Existing uncommitted changes belong to another workstream: `frontend/src/components/editor/EditorShell.jsx`, `frontend/src/components/editor/Timeline.jsx`, `frontend/src/components/editor/TimelineClip.jsx`, `frontend/src/lib/timelineMath.js`, `frontend/src/lib/timelineMath.test.js`, and the untracked screenshots `alt-drag-left.png`, `alt-drag-mid.png`, `clip-selected.png`, `timeline-loaded.png`; do not modify, delete, or stage them.
 - Steps 1-4 and the extension upload implementation are frozen by the user.
+
 ## งานค้าง (Backlog)
 
 - [ ] Audit follow-up — แก้ reconciliation failures 9 รายการจาก full pytest (`test_reconcile_angle_collision.py`, `test_reconcile_grace_period.py`, `test_reconcile_preserves_posted.py`, `test_reconcile_transaction.py`, `test_relative_paths.py`) ในรอบ POST-LIFECYCLE โดยห้ามปนกับ Overlay Refactor (2026-09-09)
@@ -484,6 +589,7 @@ role=`button`; การทดสอบ live ยังไม่ปิดจน�
 - [ ] ทดสอบ TikTok จริง: caption, สินค้าตรง ID, ปก, schedule
 
 Notes: ปรับปรุงโค้ด Extension ให้ตรงกับ Element จริงจาก DevTools และพฤติกรรม TikTok Studio:
+
 1. ใส่คำอธิบายก่อน แล้วเคาะเว้นวรรค 2 บรรทัด ตามด้วยแฮชแท็ก
 2. สลับไปแท็บ "นำเสนอสินค้า" (Showcase) ให้สำเร็จก่อนค้นหา ป้องกันพิมพ์ในแท็บ "ร้านของฉัน"
 3. เลือกสินค้าด้วย radio element: เลิกเซ็ต input.checked=true ล่วงหน้าเพื่อไม่ให้ขัด React SyntheticEvent พร้อมเรียก React fiber props, DOM clicks และ CDP native clicks ทั้งที่ปุ่มและแถวสินค้า
@@ -1201,7 +1307,7 @@ Notes: ปรับปรุงโค้ด Extension ให้ตรงกั�
 ---
 
 ## Round TRK-3 — บอร์ดหลักคลีนไร้ความรก (Today-Only Posted, คลังสคริปต์หยิบทำวันนี้ & การ์ดตัดต่อเสร็จแนวนอนกะทัดรัด) — ย้ายบล็อกเต็มไป [HISTORY.md](file:///d:/Winona/Programmer/Capcut/HISTORY.md) แล้ว
- 
+
 ---
 
 ## Round COV-1 — สตูดิโอสร้างปกคลิปด่วน 9:16 (Auto Highlight Crop, AI Hook & 4 TikTok Templates)
@@ -1253,9 +1359,6 @@ Notes: ปรับปรุงโค้ด Extension ให้ตรงกั�
       - ทดสอบ endpoint ด้วย python script / pytest → ยืนยัน parity ครบ
       - ตรวจสอบความถูกต้องด้วย `browser_subagent` → บันทึกวิดีโอ `cover_studio_zoom_drag_demo_1788705513755.webp` ยืนยันการลากเลื่อนพรีวิว, ปรับซูม 1.5x ดันซับหลุดเฟรม, และบันทึกสำเร็จจริงทั้ง 9:16 และ 3:4
 
-
-
-
 #### POST-3.4 implementation update (2026-09-07)
 
 - [x] ส่ง `cover_path` ล่าสุดจาก Side Panel ไปอัปเดต pending job ก่อนเปิด Cover Studio
@@ -1264,13 +1367,13 @@ Notes: ปรับปรุงโค้ด Extension ให้ตรงกั�
 - [x] รัน syntax check, Node regression และ backend tests: Node 7 passed, backend 5 passed
 - [ ] ทดสอบกับแท็บ TikTok ที่ล็อกอินจริงเพื่อยืนยันวันเวลาและการอัปโหลดปก (ต้องทำหลัง reload extension)
 
-
 #### POST-3.5 — แก้ regression ขั้น 3 หลังทดสอบจริง (2026-09-07)
 
 - [x] จำกัดช่องค้นหา Product ID และไอคอนค้นหาให้อยู่ใน dialog ของ Product Selector ล่าสุด
 - [x] เพิ่ม regression assertion ป้องกันการย้อนกลับไปใช้ `document.querySelector` ช่องแรกทั้งหน้า
 - [x] รัน syntax check, Node regression และ backend tests
 - [ ] ยืนยันกับ TikTok Studio จริงหลัง Reload extension
+
 #### POST-3.6 — แก้เฉพาะข้อ 4–5 โดยล็อกข้อ 1–3 (2026-09-07)
 
 - [x] ตรวจและแก้ schedule picker ให้เลือกวัน/เวลาใน TikTok จริง พร้อมยืนยันค่าที่แสดง
@@ -1278,6 +1381,7 @@ Notes: ปรับปรุงโค้ด Extension ให้ตรงกั�
 - [x] ห้ามแก้ฟังก์ชันค้นหา/เลือกสินค้าในข้อ 1–3
 - [x] รัน syntax, Node regression และ backend tests
 - [ ] ทดสอบกับแท็บ TikTok Studio ที่ล็อกอินจริงหลัง reload extension
+
 #### POST-3.6 implementation update (2026-09-07)
 
 - [x] จำกัดการเลือก schedule ให้คลิกเฉพาะ `input[type="radio"][value="schedule"]` ป้องกันชนปุ่มโพสต์ข้อความเดียวกัน
@@ -1297,6 +1401,7 @@ Notes: ปรับปรุงโค้ด Extension ให้ตรงกั�
 - [x] เพิ่ม regression test สำหรับ flow แนบปก
 - [x] รัน syntax และ Node regression
 - [ ] ทดสอบแนบปกกับแท็บ TikTok จริงหลัง Reload extension
+
 #### POST-3.7 implementation update (2026-09-07)
 
 - [x] ตรวจพบ root จริงของ Cover Studio (`CoverEditor__root`) ที่ไม่มี `role="dialog"`
@@ -1347,7 +1452,6 @@ Notes: Only `tiktok_autopost_extension/background.js` and its regression contrac
 - [ ] Run syntax check and Node regression without changing schedule, steps 1-3, or publishing.
 - [ ] Verify modal -> local cover file -> Save through the reloaded extension when direct file injection is available.
 
-
 #### POST-3.12 implementation update (2026-09-07)
 
 - [x] Include `cover-editor-container` in Cover Studio save-button discovery.
@@ -1366,7 +1470,6 @@ Notes: Schedule code and steps 1-3 remain frozen.
 - [ ] Run focused frontend/backend tests and build checks without changing schedule behavior or steps 1-3.
 - [ ] Verify the extension receives `cover_path` and can start Cover Studio after reloading.
 
-
 #### POST-3.13 implementation update (2026-09-07)
 
 - [x] Add `.completed` styling when `prepare-details` marks any checklist checkbox, including schedule step 4.
@@ -1375,6 +1478,7 @@ Notes: Schedule code and steps 1-3 remain frozen.
 - [ ] Verify the reloaded extension receives the fallback `cover_path` and completes Cover Studio upload.
 
 Notes: Schedule selection logic itself remains frozen; only checklist styling and cover metadata resolution changed.
+
 - [x] Round POST-LIFECYCLE-1 closure verified: `export_id` is propagated through render, Gallery, queue, Extension, mark-posted, delete, rename, and cover metadata; current GOCHEK angle now points to Posted proof.
 - [x] Round PRO-STYLE-2C — Apply editorial beat boundaries to generated clip list with Preview = Render parity (2026-09-09)
 

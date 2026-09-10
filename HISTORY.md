@@ -10,6 +10,12 @@
 
 | รอบ | งาน | วันที่ | ผลลัพธ์ |
 | Round STYLE-ONECLICK-1 | เพิ่ม 4 Style Presets ใน One Click และแยก fresh-create ออกจาก open-existing | 2026-09-10 | Viral/Clean/Smooth/Premium ใช้ motion, transition และ accent จริง; แก้ปุ่มส่งตัดต่อไม่เปิดโปรเจกต์เก่า; backend 1,034 และ frontend 144 tests ผ่าน พร้อม FFmpeg multi-frame/build |
+| Round DOC-SYNC-1 | Sync สถานะเอกสารจากผลทดสอบล่าสุด | 2026-09-10 | ปิดเอกสารของรอบที่ implementation เสร็จ; แยก live TikTok, Thai glyph verification และ empirical performance เป็นงานรอหลักฐานจริง |
+| Round TLO-REFACTOR-FINAL-AUDIT | Final audit ของ Overlay Timeline/Preview refactor | 2026-09-09 | Overlay scope sign-off; full pytest ล่าสุด 1,034 passed, frontend 144 passed, build 1,979 modules |
+| Round HOOK-OPT-1 | ฟอนต์/เทมเพลต/พรีวิว/สปีดฮุก | 2026-09-08 | Implementation และ deterministic parity gates ผ่าน; รายละเอียดเต็มอยู่ด้านล่าง |
+| Round BUG-MARK-POSTED-1 | แก้ mark-posted สำเร็จแต่การ์ดยังอยู่ rendered | 2026-09-10 | แก้ลำดับ registry/product update; regression 15 passed; full pytest 1,035 passed |
+| Round PRODUCT-METADATA-1 | แนบรูปอ้างอิงย้อนหลัง + Metadata Inspector สำหรับตรวจข้อมูลที่ AI ใช้ | 2026-09-10 | เพิ่ม PATCH images แบบรองรับ legacy URL/local upload, modal แสดง source metadata/AI input/JSON เต็ม, frontend 144 passed, backend 1,037 passed |
+| Round PRODUCT-METADATA-2 | เติม source fallback สำหรับสินค้า legacy ที่มีข้อมูลอยู่ใน angle แต่ product metadata ว่าง | 2026-09-10 | list/reroll ใช้ fallback จาก key_features/pain_point โดยติดป้าย provenance, backend 1,040 passed, frontend 144 passed |
 | Round SFX-TITLES-1 | ดึงชื่อแสดงผลภาษาไทย/อังกฤษจริงจาก Myinstants ใส่ใน asset_metadata.json | 2026-09-09 | 1,774 ชื่อแสดงผลภาษาไทย/อังกฤษตรงปก · UI แสดงชื่ออ่านง่ายและค้นหาได้ทันที |
 | Round SFX-HUB-1 | สแกน SFX แบบ Recursive เข้า AssetRegistry และเพิ่มตัวกรองหมวดหมู่ใน Media Assets Hub | 2026-09-09 | 1,822 ไฟล์ SFX แสดงผลครบถ้วนใน Media Assets Hub พร้อม Sub-category filter pills |
 | Round SFX-CAT-1 | จัดหมวดหมู่ไฟล์เสียง mi_xxx 1,775 ไฟล์ เป็น 10 หมวดใน 02_Assets/SFX/ | 2026-09-09 | 1,775 ไฟล์จัดเข้า 10 โฟลเดอร์ย่อย · เสียงเดิม 47 ไฟล์คงเดิม |
@@ -1860,3 +1866,178 @@ Date: 2026-09-07; Requested by: user; Status: complete
 - ไม่แตะไฟล์สื่อหรือโปรเจกต์จริงใน `01_Raw/`, `02_Assets/`, `03_Projects/`
 - รักษา working-tree changes เดิมใน `ContentTrackerHub.jsx`, `EditorShell.jsx`, `AssetPanel.jsx` และไฟล์ renderer/tests ที่มีงานค้างอยู่
 - ระหว่างรอบพบการแก้ไฟล์อื่นเพิ่มจากงานคู่ขนาน เช่น Sidebar/Topbar และ status tests; ไม่ได้แก้หรือตีความงานเหล่านั้นเป็นส่วนของรอบนี้
+
+## Round DOC-SYNC-1 — Sync สถานะเอกสารจากผลทดสอบล่าสุด
+
+วันที่: 2026-09-10 · ผู้สั่ง: user · สถานะ: เสร็จแล้ว
+
+### ผลลัพธ์
+
+- ปิดสถานะเอกสารของ `TLO-REFACTOR-FINAL-AUDIT`, `POST-LIFECYCLE-1`, `HOOK-OPT-1` และ `PRO-STYLE-PARALLEL-4-6` ตามหลักฐาน implementation/test ล่าสุด
+- อัปเดต full pytest จากค่าประวัติเดิมที่เคย fail เป็นค่าปัจจุบัน `1,034 passed, 24 warnings`
+- ปิด `PERF-UX-1` เฉพาะระดับ implementation และ deterministic evidence; React Profiler, production rerender และ browser FPS 50/100/300 ถูกระบุเป็น deferred validation อย่างชัดเจน และไม่มีการอ้าง performance improvement
+- คงงานที่ต้องใช้ user/live environment ไว้: TikTok/Chrome Cover Studio ขั้นตอน 5 และปัญหาสระไทยที่ยังตรวจภาพจริงไม่ผ่าน
+- คง `SEC-AUDIT-1` เป็นงานเปิด เพราะ SYSTEM_AUDIT_FIX_PLAN ยังมี Phase 0 และ Phase 2 ที่ไม่ได้มีหลักฐานปิดครบ
+
+### Gate
+
+- ตรวจ `TODO.md`, `HISTORY.md`, plan files และสถานะ Git แล้ว
+- ไม่แก้ source code หรือไฟล์สื่อในรอบนี้
+- `git diff --check` ผ่านก่อนบันทึกเอกสาร
+
+## Round TLO-REFACTOR-FINAL-AUDIT — ตรวจ final gates และ inventory หลัง refactor ทั้งชุด
+
+วันที่: 2026-09-09 · สั่งโดย: user · สถานะ: เสร็จแล้ว — overlay scope และ repo-wide validation ปัจจุบันผ่าน
+
+**เป้าหมาย:** ตรวจหลักฐาน end-to-end ของ Overlay Timeline/Preview refactor หลังรอบ TLO-REFACTOR-1 ถึง 7 และยืนยัน duplication/behavioral divergence ที่เหลือก่อน sign-off
+
+### Todo
+
+- [x] ตรวจ `TODO.md`, `git status`, refactor plan และขอบเขตไฟล์ค้าง โดยไม่แตะงานของ agent อื่น
+- [x] รัน frontend `npm test`, `npm run lint`, `npm run build` และ `git diff --check`
+- [x] รัน `python -m compileall -q scripts`
+- [x] รัน preview/render parity, FFmpeg behavioral tests และ overlay dispatch tests
+- [x] รัน full pytest ของทั้ง repo — ล่าสุด `1,034 passed, 24 warnings`; ไม่พบ failure
+- [x] ตรวจ source inventory ของ Timeline, drag hook, SequencePlayer, editor modules และ lib ว่าจุดซ้ำหลักถูกจัดการแล้วหรือมี divergence ที่ต้องคงไว้
+- [x] อัปเดต plan พร้อมตัวเลขจริง และรายงาน residual risks/งานที่ไม่รวม
+- [x] แก้ `TrackLabel` fallback `width ?? GUTTER` ที่หายไประหว่าง extraction และย้าย source-contract probes ให้ตรวจ module ใหม่
+
+### Notes
+
+- รอบนี้เป็น audit/sign-off; พบและแก้ production regression จริงที่ `TrackLabel.jsx` โดยคืน `width ?? GUTTER` และปรับ parity probes ให้ตาม source module ใหม่
+- Latest frontend working-tree gate: `npm test` = `144 passed, 0 failed`; `npm run lint` exit 0 (มี warnings เดิม); `npm run build` = `1,979 modules transformed`; `git diff --check` ผ่าน
+- Overlay/backend scope: `compileall` ผ่าน; `test_preview_render_parity.py` = `150 passed`; `test_preview_render_behavior.py` = `11 passed, 2 warnings`; `test_overlay_render_dispatch.py` = `2 passed`
+- Full pytest ชุดปัจจุบันผ่าน `1,034 passed, 24 warnings`; live TikTok validation แยกเป็นงานรอ user
+- Overlay scope sign-off ผ่าน: shared timeline shell/label/pointer lifecycle, selected-box geometry, inspector primitives และ render-kind profile ถูกตรวจแล้ว; type-specific policy branches ยังคงแยกตาม behavioral contract
+
+### Gate
+
+- [x] `npm test` — `144 passed, 0 failed`
+- [x] `npm run lint` — exit 0; มี warnings แต่ไม่มี error
+- [x] `npm run build` — `1,979 modules transformed`, ผ่าน
+- [x] `git diff --check` — ผ่าน
+- [x] `python -m compileall -q scripts` — ผ่าน
+- [x] `python -m pytest tests/test_preview_render_parity.py -q -p no:cacheprovider --tb=short` — `150 passed`
+- [x] `python -m pytest tests/test_preview_render_behavior.py -q -p no:cacheprovider --tb=short` — `11 passed, 2 warnings`
+- [x] `python -m pytest tests/test_overlay_render_dispatch.py -q -p no:cacheprovider --tb=short` — `2 passed`
+- [x] `python -m pytest tests/ -q -p no:cacheprovider --tb=short` — `1,034 passed, 24 warnings`
+
+## Round HOOK-OPT-1 — ยกระดับฟอนต์ข้อความ, เทมเพลตคลีน, พรีวิวขยาย/ย้ายฮุกสมบูรณ์ และสปีดแอนิเมชัน
+
+วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: เสร็จแล้วตามขอบเขตโค้ดและ deterministic gates
+
+### ขอบเขตและผลลัพธ์
+
+- รองรับ Master Scale, พิกัด `x/y` จริง และ resize/move ของ Hook ให้ Preview = Render parity
+- เพิ่ม Master Font และ Per-Tier Font Override ผ่าน frontend/backend hook style contracts
+- แยก AssetPanel เป็นป้ายฮุก 3-Tier กับข้อความเดี่ยว/เอฟเฟกต์, รวมช่องค้นหา, และลบสัญลักษณ์ UI ซ้ำซ้อน
+- เพิ่มตัวเลือก animation speed และ Kinetic Word Stagger
+
+### Gate
+
+- [x] `python -m compileall -q scripts` — ผ่าน
+- [x] `python -m pytest tests/test_preview_render_parity.py -q -p no:cacheprovider` — `149 passed`
+- [x] `python -m pytest tests/test_posted_protection.py tests/test_clip_compounding_render.py -q -p no:cacheprovider` — `8 passed`
+- [x] `npm --prefix frontend run build` — ผ่าน, `1,962 modules transformed`
+- [x] Full Pytest Regression — `923 passed`
+
+### Notes
+
+- Master scale, `\\pos(x, y)`, Badge Accent geometry และ Canvas/ASS mapping ถูกตรวจตาม parity contract
+- การปิดรอบนี้ครอบคลุม implementation และ deterministic gates; visual/live validation ที่ต้องใช้ environment ภายนอกไม่ถูกตีความเกินหลักฐาน
+
+## Round BUG-MARK-POSTED-1 — แก้ปุ่ม “มาร์กว่าลงโพสต์แล้ว” แจ้งสำเร็จแต่การ์ดยังไม่ย้ายสถานะ
+
+วันที่: 2026-09-10 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+### อาการและ root cause
+
+- ผู้ใช้กด “มาร์กว่าโพสต์แล้ว” แล้วได้รับ toast สำเร็จ แต่การ์ดยังค้างในคอลัมน์ `rendered`
+- `/api/exports/mark-posted` ย้าย MP4 ไป `Posted/` ก่อนอัปเดต `ProductStore`
+- `ProductStore.update_angle_status()` ตรวจว่า `export_id` ต้องตรงกับพาธใน `ExportRegistry`; registry ยังชี้ `Ready_to_post/` จึงเกิด `export_id ไม่ตรงกับ video_url ของไฟล์ที่เลือก`
+- endpoint เดิมจับ exception เป็น `status_warning` แต่ยังตอบ `success: true` ทำให้ UI แจ้งสำเร็จทั้งที่ angle ไม่ถูกบันทึก
+
+### การแก้
+
+- ย้าย `ExportRegistry.move_and_mark_posted()` ให้ทำงานหลังย้ายไฟล์และก่อน `ProductStore.update_angle_status()` เพื่อให้ registry ชี้ `Posted/` ก่อน path validation
+- คง `export_id`, `posted_at`, `video_url` และไฟล์จริงให้เป็น identity เดียวกันตลอด flow
+- ไม่แตะ diff ของ `ContentTrackerHub.jsx`, `CoverStudioModal.jsx`, `EditorShell.jsx` หรือไฟล์งานอื่นของ agent อื่น
+
+### Gate
+
+- [x] ก่อนแก้ regression reproduce ได้: HTTP `200` พร้อม `status_warning` และ angle ไม่เปลี่ยนสถานะ
+- [x] `tests/test_post_lifecycle.py` — `15 passed`
+- [x] Full backend suite — `1,035 passed, 24 warnings`
+- [x] `python -m compileall -q scripts` — ผ่าน
+- [x] `git diff --check` — ผ่าน
+
+## Round PRODUCT-METADATA-1 — แนบรูปย้อนหลังและเปิดดู Metadata ที่ AI ใช้
+
+วันที่: 2026-09-10 · สั่งโดย: user · สถานะ: เสร็จแล้วตามขอบเขตโค้ดและ deterministic gates
+
+### ผลลัพธ์
+
+- เพิ่มปุ่ม `ข้อมูล AI` ในแถบเครื่องมือของสินค้าเดิม เพื่อเปิด `ProductMetadataModal`
+- แสดง metadata ต้นทางครบในระดับสินค้า: ชื่อ, รหัส, platform, category, URL, ราคา, กลุ่มเป้าหมาย, timestamps, description, raw text, specs, selling points, pain points, thumbnail และรูปอ้างอิง
+- เพิ่มส่วน “ข้อมูลที่ AI จะได้รับ” และ JSON source snapshot เต็ม เพื่อให้ตรวจได้ว่าข้อมูลใดถูกเก็บไว้สำหรับ Content Matrix และ per-angle reroll
+- แก้ `selectProduct()` ให้รักษา source fields ที่เดิมถูกย่อเหลือเฉพาะ `selling_points` จึงไม่ทำให้คำอธิบาย/raw text หายจากหน้าตรวจสอบ
+- เพิ่มแนบรูปย้อนหลังได้สูงสุด 20 รูปต่อสินค้า รูปถูกอัปโหลดเข้า `inbox` แล้วบันทึกที่ `product.images`; รองรับทั้ง URL รูปจาก scraper และ object path จาก upload รุ่นใหม่
+- เพิ่มเอารูปออกจาก reference list โดยไม่ลบไฟล์ต้นฉบับจริง เพื่อป้องกันการลบข้อมูลโดยไม่ตั้งใจ
+- เพิ่ม `ProductUpdateRequest.images` แบบ permissive เพื่อรักษาความเข้ากันได้กับ product records รุ่นเก่าที่เก็บรูปเป็น URL string
+
+### ไฟล์ที่เกี่ยวข้อง
+
+- `frontend/src/components/ProductToClip.jsx`
+- `frontend/src/components/ProductMetadataModal.jsx`
+- `scripts/api_phase1.py`
+- `tests/test_product_metadata.py`
+
+### Gate
+
+- [x] `python -m pytest tests/test_product_metadata.py -q -p no:cacheprovider --tb=short` — `2 passed, 1 warning`
+- [x] `python -m pytest tests/ -q -p no:cacheprovider --tb=short --durations=20` — `1,037 passed, 24 warnings` ใน `128.13s`
+- [x] `python -m compileall -q scripts` — ผ่าน
+- [x] `npm run lint` — exit 0; warnings เดิมของโปรเจกต์ ไม่มี error ใหม่
+- [x] `npm test` — `144 passed, 0 failed`
+- [x] `npm run build` — `1,980 modules transformed`, ผ่าน
+- [x] Impeccable UI detector — ไม่พบ violation ใหม่ (`[]`)
+- [x] `git diff --check` — ผ่าน
+
+### Notes
+
+- ยังไม่ได้ทำ browser live click-through ด้วยบัญชีจริง; รอบนี้ยืนยันจาก API contract, component build และ automated gates เท่านั้น
+- ยังไม่ได้ commit ตามคำขอรอบนี้; working tree ยังมี diff ของรอบก่อน/agent อื่นอยู่ จึงไม่รวม commit ให้โดยอัตโนมัติ
+
+## Round PRODUCT-METADATA-2 — เติม source fallback ให้สินค้า legacy
+
+วันที่: 2026-09-10 · สั่งโดย: user · สถานะ: เสร็จแล้วตามขอบเขตโค้ดและ deterministic gates
+
+### Root cause ที่ยืนยันแล้ว
+
+- Product `20260904233315_1` (`Logitech Wave Keys`) ใน `_Docs/products.json` มี `url` ว่าง, `description`/`raw_text` ไม่มีค่า, `specs`/`pain_points`/`selling_points` เป็นรายการว่าง และ `images` ว่าง
+- ข้อมูลที่ใช้สร้างสคริปต์เดิมยังอยู่ในแต่ละ angle เช่น `key_features`, `pain_point`, `price_deal` แต่ไม่ได้ถูกเก็บเป็น product-level source metadata
+- ผลคือ Metadata Inspector แสดง “ไม่มีข้อมูล” และ per-angle reroll ที่อ่าน `product.description`, `product.raw_text`, `product.images` ได้บริบทน้อยกว่าที่สคริปต์เดิมมี
+
+### การแก้
+
+- เพิ่ม `_with_product_source_fallback()` ใน `scripts/api_products.py` ให้สรุป `key_features` เป็น description/selling points และ `pain_point` เป็น pain points เฉพาะเมื่อ product-level field ว่าง
+- เติม `raw_text` จากชื่อสินค้าและข้อมูล angle เดิมเฉพาะกรณีที่ raw source ว่าง
+- ติด `metadata_source: derived_from_angles` เพื่อให้ UI ระบุชัดว่าเป็นข้อมูลย้อนกลับจากสคริปต์เดิม ไม่ใช่การ scrape หน้าเว็บใหม่
+- ใช้ helper เดียวกันกับ `/api/products` และ per-angle reroll ทำให้สิ่งที่ Metadata Inspector แสดงตรงกับ source ที่ AI reroll ได้รับ
+- ไม่เขียนทับ `_Docs/products.json` และไม่แปลงข้อมูล derived ให้กลายเป็น raw source ถาวร
+
+### Gate
+
+- [x] ก่อนแก้ regression test ล้มตามอาการ: import fallback seam ยังไม่มี (`ImportError`)
+- [x] `python -m pytest tests/test_product_metadata.py -q -p no:cacheprovider --tb=short` — `4 passed, 1 warning`
+- [x] `python -m pytest tests/ -q -p no:cacheprovider --tb=short --durations=5` — `1,040 passed, 24 warnings` ใน `137.94s`
+- [x] `python -m compileall -q scripts` — ผ่าน
+- [x] `npm run lint` — exit 0; warnings เดิมของโปรเจกต์ ไม่มี error ใหม่
+- [x] `npm test` — `144 passed, 0 failed`
+- [x] `npm run build` — `1,980 modules transformed`, ผ่าน
+- [x] `git diff --check` — ผ่าน
+
+### Notes
+
+- Fallback นี้ช่วยให้ legacy product ใช้บริบทจากสคริปต์เดิมได้ทันที แต่ไม่ควรตีความเป็นคำอธิบายที่ scraper ยืนยันจากหน้าร้าน
+- หากต้องการข้อมูลหน้าร้านจริงของ Logitech รายการนี้ ให้แนบ screenshot/spec sheet ผ่าน `ข้อมูล AI` หรือสร้าง/เติม source URL ใหม่

@@ -2,7 +2,7 @@
 
 แผนยกระดับคุณภาพคลิปแบบ one-click สำหรับ OmniCut Pro Studio โดยแยก “ความสามารถของ Editing Engine” ออกจาก “รสนิยมของแต่ละ Style Preset”
 
-สถานะ: Phase 1 เสร็จ — Style Contract + Golden Master; Phase 2A และ 2B เสร็จ — pacing core ถูกเชื่อมกับ subtitle pipeline และ manifest แบบไม่เปลี่ยน FFmpeg cut behavior
+สถานะ: Phase 1–3B และ Phase 4–6 implementation เสร็จ — pacing/style/color/audio/orchestration/golden-master gates ผ่าน; browser empirical benchmark ถูก defer และห้ามใช้เป็นหลักฐานยืนยัน FPS
 วันที่เริ่ม: 2026-09-09
 
 ## เป้าหมาย
@@ -139,11 +139,11 @@ Style Preset เป็นข้อมูลที่เลือกต่อโ�
 
 ### Phase 2 — Editorial beat map และ pacing
 
-สถานะ: Phase 2A เสร็จ — core ถูกแยกเป็น `scripts/editorial_pacing.py` พร้อม deterministic contract/test; Phase 2B รอ ownership เพื่อ integrate เข้า render/timeline
+สถานะ: Phase 2A, 2B และ 2C เสร็จ — core ถูกแยกเป็น `scripts/editorial_pacing.py` พร้อม deterministic contract/test และ integrate เข้า render/timeline แล้ว
 
 Phase 2A ทำหน้าที่ normalize word timestamps, classify silence gaps และสร้าง scene/interval beat candidates โดย snap ได้เฉพาะ word-free boundaries
 
-Phase 2B จะเชื่อมผลลัพธ์เข้ากับ Editorial analysis, Timeline Document และ render orchestration โดยต้องมี decision เรื่อง source transcript schema, existing project migration และ Preview = Render parity ก่อนแก้ไฟล์หลัก
+Phase 2B เชื่อมผลลัพธ์เข้ากับ Editorial analysis, Timeline Document และ render orchestration แล้ว โดยรองรับ source transcript schema แบบเดิม, existing project migration และ Preview = Render parity; Phase 2C นำ beat boundaries ไปใช้กับ generated clip list โดยไม่เปลี่ยน manual clip path
 
 ### Phase 3 — Style-driven motion composition
 
@@ -172,6 +172,6 @@ Phase 2B จะเชื่อมผลลัพธ์เข้ากับ Edit
 
 Phase 2A, Phase 2B, and Phase 2C are complete. The pacing core now adapts real optional `cues[*].word_timings`, persists `editorial_pacing` through `SubtitleStage` and `PipelineContext`, participates in the subtitle incremental-render fingerprint, and safely drives generated clip boundaries. Manual clip lists and legacy manifests without a pacing plan retain their existing path.
 
-Phase 3A is complete. `style_preset` now travels through the render request, pipeline context, manifest, and incremental-render fingerprint. The `clean_tech_review` policy applies a deterministic transition budget at the auto-generated clip seam: hard cuts remain the default, restrained movement is periodic, and stylized transitions are rarer and duration-capped. Since both Preview and FFmpeg consume the same generated clip list, this slice preserves their shared timing contract. Manual transitions remain user-owned.
+Phase 3A is complete. `style_preset` now travels through the render request, pipeline context, manifest, and incremental-render fingerprint. The renderer supports four selectable policies: `viral_punch`, `clean_tech_review`, `smooth_showcase`, and `premium_minimal`; each owns a deterministic transition budget, camera-motion cadence, and accent palette. Since both Preview and FFmpeg consume the same generated clip list, this slice preserves their shared timing contract. Manual transitions remain user-owned.
 
 Phase 3B is complete. Live clip camera motion now evaluates `zoom`, `pan_x`, and `pan_y` keyframes on the played local timeline in both Canvas Preview and FFmpeg. Auto-generated clips receive subtle push/pan keyframes only on alternating sufficiently long shots; manual clips retain authored keyframes. Clips without camera keyframes keep the existing static fast path, while speed, freeze-tail, rotation, mirror, blur, and audio handling remain unchanged. The contract clamps the evaluated result to zoom `1.0–3.0` and pan `-1.0–1.0`, and was verified with unit, source-parity, and multi-frame FFmpeg tests.
