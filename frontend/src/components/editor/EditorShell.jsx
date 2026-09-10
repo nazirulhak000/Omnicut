@@ -262,16 +262,10 @@ export default function EditorShell({
   const [deleteScope, setDeleteScope] = useState('project');
   const [deleteOrigin, setDeleteOrigin] = useState(null);
   const [trimAdjustSeg, setTrimAdjustSeg] = useState(null); // seg being edited in TrimAdjustModal, or null when closed
-  // Render is blocked until the angle has a cover -- gated in handleApply.
+  // Opened from the header's "ปก" button (openCoverStudioManually).
   // null when closed; otherwise the videoItem shape CoverStudioModal expects.
   const [coverGateItem, setCoverGateItem] = useState(null);
   const [coverGateChecking, setCoverGateChecking] = useState(false);
-  // Whether opening the modal should auto-continue into a render once the
-  // cover is saved (handleCoverGateSaved's original behavior, for the
-  // render-blocked case) -- false when the user opened it proactively via
-  // the header's "ปก" button just to check/create a cover, where jumping
-  // straight into a render they didn't ask for would be a surprise.
-  const coverGateAutoRenderRef = useRef(true);
   // Surfaced in the header as a status badge so the user can tell whether
   // this project's angle already has a cover without having to hit render
   // and get blocked to find out. null = not yet resolved (no matching
@@ -1170,21 +1164,20 @@ export default function EditorShell({
     return { matchProduct: null, matchAngle: null };
   }, []);
 
-  // Lets the user check/create a cover proactively from the header's "ปก"
-  // button instead of only discovering whether one exists by hitting render
-  // and getting blocked. Unlike the render-gate's open (handleApply below),
-  // saving here must NOT auto-continue into a render the user didn't ask
-  // for -- coverGateAutoRenderRef flags that for handleCoverGateSaved.
+  // Lets the user check/create a cover from the header's "ปก" button once
+  // the angle has a rendered export -- Cover Studio can only pull a frame
+  // from an actual export file, so this stays blocked pre-render too.
   const openCoverStudioManually = useCallback(async () => {
     if (!projectName) return;
-    coverGateAutoRenderRef.current = false;
     setCoverGateChecking(true);
     try {
       const { matchProduct, matchAngle } = await findMatchingAngle(projectName);
-      if (matchAngle) {
-        setCoverGateItem(buildCoverGateItem(matchAngle, matchProduct));
-      } else {
+      if (!matchAngle) {
         setApplyError('ไม่พบข้อมูลสินค้า/มุมของโปรเจกต์นี้ ไม่สามารถสร้างปกได้');
+      } else if (!matchAngle.video_url) {
+        setApplyError('คลิปนี้ยังไม่ได้เรนเดอร์ กรุณาเรนเดอร์คลิปให้เสร็จก่อน แล้วค่อยสร้างปก');
+      } else {
+        setCoverGateItem(buildCoverGateItem(matchAngle, matchProduct));
       }
     } catch (e) {
       setApplyError('ตรวจสอบข้อมูลปกไม่สำเร็จ: ' + (e.response?.data?.detail || e.message));
@@ -1216,27 +1209,24 @@ export default function EditorShell({
       return;
     }
 
-    // Cover is required before a render is allowed to start.
+    // Re-check posted status fresh (not just the isProjectPosted prop, which
+    // is null whenever the editor was reached via the header dropdown rather
+    // than the product-flow tab) before letting a render start. Cover is no
+    // longer required up front -- Cover Studio can only pull a frame from an
+    // already-rendered export, so gating render behind a cover made a first
+    // render impossible. Covers are created after render instead (see the
+    // Tracker's "rendered" phase card, and the header's "ปก" button here).
     setCoverGateChecking(true);
     try {
-      const { matchProduct, matchAngle } = await findMatchingAngle(projectName);
+      const { matchAngle } = await findMatchingAngle(projectName);
       if (matchAngle?.status === 'posted' || matchAngle?.posted_at) {
         setApplyError('คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้เรนเดอร์ซ้ำ เพื่อรักษาหลักฐานเดิม');
         setCoverGateChecking(false);
         setIsProjectPosted(true);
         return;
       }
-      const hasCover = !!(matchAngle?.cover_path || matchAngle?.cover_3x4_path || matchAngle?.cover_9x16_path);
-      if (matchAngle && !hasCover) {
-        coverGateAutoRenderRef.current = true;
-        setCoverGateItem(buildCoverGateItem(matchAngle, matchProduct));
-        setCoverGateChecking(false);
-        return;
-      }
-      // No matching angle found at all (e.g. a manually-created project with
-      // no product/angle record) -- nothing to gate on, let the render proceed.
     } catch (e) {
-      // Cover-check itself failing (network hiccup) shouldn't block a
+      // Posted-check itself failing (network hiccup) shouldn't block a
       // render the user can otherwise legitimately make -- fail open here,
       // the render's own error handling covers a genuinely broken backend.
     }
@@ -1315,12 +1305,9 @@ export default function EditorShell({
     }
   };
 
-  // Cover saved from the modal: persist it to the angle. When opened by the
-  // render gate (coverGateAutoRenderRef true), continue straight into the
-  // render the user originally asked for instead of making them press
-  // "เรนเดอร์" a second time; when opened proactively via the header's "ปก"
-  // button, just close and update the badge -- the user only asked to
-  // check/create a cover, not to render.
+  // Cover saved from the modal: persist it to the angle, then just close and
+  // update the badge -- the user opened this proactively to check/create a
+  // cover, not to render.
   const handleCoverGateSaved = useCallback(async (res) => {
     const productId = coverGateItem?.parentProduct?.id;
     const angleId = coverGateItem?.angle_id;
@@ -1338,10 +1325,7 @@ export default function EditorShell({
       setCoverStatus(true);
     }
     setCoverGateItem(null);
-    if (coverGateAutoRenderRef.current) {
-      handleApply();
-    }
-  }, [coverGateItem, handleApply]);
+  }, [coverGateItem]);
 
   // What the preview plays instead of a baked mix: the voice stem plus the
   // same BGM and per-cue SFX files the renderer will mix, resolved to media
@@ -2632,10 +2616,7 @@ export default function EditorShell({
         onConfirm={(clipId, patch) => patchClip(clipId, patch)}
       />
 
-      {/* Opened either by handleApply's render gate (no cover found, blocks
-          the render until one is saved) or proactively via the header's
-          "ปก" button (openCoverStudioManually) -- coverGateAutoRenderRef
-          tells handleCoverGateSaved which case this is. */}
+      {/* Opened from the header's "ปก" button (openCoverStudioManually). */}
       <CoverStudioModal
         isOpen={!!coverGateItem}
         onClose={() => setCoverGateItem(null)}

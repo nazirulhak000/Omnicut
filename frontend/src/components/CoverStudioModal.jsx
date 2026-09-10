@@ -367,6 +367,10 @@ export default function CoverStudioModal({
   const savedPreviewImageSrc = getSavedPreviewImageSrc();
   const previewImageSrc = savedPreviewImageSrc || getPreviewImageSrc();
   const showingSavedPreview = Boolean(savedPreviewImageSrc);
+  // videoPath empty means the angle has no rendered export at all -- there is
+  // no frame to ever load, so the "loading" spinner would spin forever.
+  // Distinguish that from a genuinely in-flight fetch.
+  const noVideoSource = !loading && !previewImageSrc && !videoPath;
 
   return createPortal(
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-3 bg-black/80 backdrop-blur-md animate-fadeIn">
@@ -455,6 +459,12 @@ export default function CoverStudioModal({
                     }}
                     draggable={false}
                   />
+                ) : noVideoSource ? (
+                  <div className="flex flex-col items-center gap-2 px-6 text-center text-slate-400">
+                    <ShieldAlert className="w-8 h-8 text-amber-400" />
+                    <span className="text-xs font-semibold text-slate-300">ยังไม่มีคลิปที่เรนเดอร์</span>
+                    <span className="text-[11px] text-slate-500">เรนเดอร์คลิปให้เสร็จก่อน แล้วค่อยสร้างปก</span>
+                  </div>
                 ) : (
                   <div className="flex flex-col items-center gap-2 text-slate-500">
                     <Film className="w-8 h-8 opacity-40 animate-pulse" />
@@ -642,6 +652,12 @@ export default function CoverStudioModal({
                     }}
                     draggable={false}
                   />
+                ) : noVideoSource ? (
+                  <div className="flex flex-col items-center gap-2 px-6 text-center text-slate-400">
+                    <ShieldAlert className="w-8 h-8 text-amber-400" />
+                    <span className="text-xs font-semibold text-slate-300">ยังไม่มีคลิปที่เรนเดอร์</span>
+                    <span className="text-[11px] text-slate-500">เรนเดอร์คลิปให้เสร็จก่อน แล้วค่อยสร้างปก</span>
+                  </div>
                 ) : (
                   <div className="flex flex-col items-center gap-2 text-slate-500">
                     <Film className="w-8 h-8 opacity-40 animate-pulse" />
