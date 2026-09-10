@@ -124,7 +124,7 @@ const KanbanCard = memo(function KanbanCard({
     : (ang.selected_video ? [ang.selected_video] : []);
   const hasVideos = chosenVideos.length > 0;
 
-  // ── Round TRK-3: Compact Horizontal Mini Video Card for 'rendered' phase (~95px height) ──
+  // ── Round TRK-3: Compact Horizontal Mini Video Card for 'rendered' phase ──
   if (phaseId === 'rendered') {
     return (
       <div className={`p-2 rounded-xl border transition-all relative group shadow-sm flex gap-2.5 items-stretch ${
@@ -226,68 +226,57 @@ const KanbanCard = memo(function KanbanCard({
             </div>
           </div>
 
-          {/* Row 3: Compact Actions Toolbar */}
-          <div className="flex items-center gap-1 pt-1 border-t border-white/[0.06] overflow-x-auto no-scrollbar">
+          {/* Row 3: one primary CTA (send onward) + a peer strip of secondary
+              actions below it. Used to be 6 same-weight buttons fighting for
+              one line, wrapping badly at kanban-column width -- "QC" (preview)
+              was redundant with clicking the thumbnail itself (identical
+              onPreviewVideo call), so it's gone as a button, not as a
+              capability: the thumbnail is still the review entry point. */}
+          <div className="pt-1.5 mt-1 border-t border-white/[0.06] space-y-1">
             <button
               type="button"
               onClick={() => onOpenTiktokModal && onOpenTiktokModal(ang)}
-              className="py-1 px-2 rounded-lg bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:brightness-110 text-white text-[11px] font-bold flex items-center gap-1 shadow-sm cursor-pointer active:scale-95 whitespace-nowrap"
+              className="w-full py-1.5 px-2 rounded-lg bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:brightness-110 text-white text-[11px] font-bold flex items-center justify-center gap-1.5 shadow-sm cursor-pointer active:scale-95 transition-all"
               title="ส่งคลิปไป TikTok Studio"
             >
-              <Rocket className="w-3 h-3 flex-shrink-0" />
+              <Rocket className="w-3.5 h-3.5 flex-shrink-0" />
               <span>ส่ง TikTok</span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => onOpenCoverStudio && onOpenCoverStudio(ang)}
-              className="py-1 px-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-[11px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap active:scale-95"
-              title="สตูดิโอสร้างปกคลิป 9:16 (Auto Crop + AI Hook + 3D Badge)"
-            >
-              <ImageIcon className="w-3 h-3 flex-shrink-0" />
-              <span>{ang.cover_url ? 'แก้ปก' : 'สร้างปก'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onOpenQrModal(ang)}
-              className="py-1 px-1.5 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-300 text-[11px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap active:scale-95"
-              title="ส่งเข้ามือถือ"
-            >
-              <QrCode className="w-3 h-3 flex-shrink-0" />
-              <span>มือถือ</span>
-            </button>
-
-            {ang.video_url && (
+            <div className="flex items-center gap-1">
               <button
                 type="button"
-                onClick={() => onPreviewVideo(ang.video_url, ang)}
-                className="py-1 px-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] text-slate-200 text-[11px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap"
-                title="พรีวิวตรวจคลิปเต็มจอ"
+                onClick={() => onOpenCoverStudio && onOpenCoverStudio(ang)}
+                className="flex-1 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 flex items-center justify-center cursor-pointer transition-colors active:scale-95"
+                title={ang.cover_url ? 'แก้ปก' : 'สร้างปก'}
               >
-                <Play className="w-2.5 h-2.5 fill-current text-[#25F4EE]" />
-                <span>QC</span>
+                <ImageIcon className="w-3.5 h-3.5" />
               </button>
-            )}
-
-            <button
-              type="button"
-              onClick={() => onQcFail(ang)}
-              className="py-1 px-1.5 rounded-lg bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-[11px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap"
-              title="QC ไม่ผ่าน ส่งตัดใหม่"
-            >
-              <RotateCcw className="w-2.5 h-2.5" />
-              <span>ตัดใหม่</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onStatusChange(ang.parentProduct?.id, ang.angle_id, 'posted', null, null, true)}
-              className="p-1 rounded-lg bg-white/[0.03] hover:bg-emerald-500/20 hover:border-emerald-500/40 border border-white/[0.06] text-slate-400 hover:text-emerald-300 text-[11px] cursor-pointer ml-auto flex-shrink-0"
-              title="มาร์กว่าโพสต์แล้ว"
-            >
-              <Check className="w-3 h-3 text-emerald-400" />
-            </button>
+              <button
+                type="button"
+                onClick={() => onOpenQrModal(ang)}
+                className="flex-1 py-1.5 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-300 flex items-center justify-center cursor-pointer transition-colors active:scale-95"
+                title="ดูตัวอย่างบนมือถือ (QR Code)"
+              >
+                <QrCode className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onQcFail(ang)}
+                className="flex-1 py-1.5 rounded-lg bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 flex items-center justify-center cursor-pointer transition-colors active:scale-95"
+                title="QC ไม่ผ่าน -- ส่งตัดใหม่"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onStatusChange(ang.parentProduct?.id, ang.angle_id, 'posted', null, null, true)}
+                className="flex-1 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 text-emerald-300 flex items-center justify-center cursor-pointer transition-colors active:scale-95"
+                title="มาร์กว่าโพสต์แล้ว"
+              >
+                <Check className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       </div>

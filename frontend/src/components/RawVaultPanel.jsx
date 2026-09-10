@@ -1,13 +1,23 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Film, Search, RefreshCw, Upload, Folder, Trash2, Edit3, Link2,
-  Unlink, Play, Pause, ChevronDown, ChevronRight, HardDrive,
-  Sparkles, Check, AlertCircle, Eye, Box, Tag, Layers, CheckSquare, Square
+  Film, Search, RefreshCw, Upload, Trash2, Edit3, Link2,
+  Play, HardDrive, Check, Box, Layers, CheckSquare, Square
 } from 'lucide-react';
 import { getRawVault, reassignRawVideo, renameVideo, deleteFile, batchDeleteRawVideos, getProducts } from '../api';
-import { Button, ConfirmModal, Modal, Toast } from './ui';
+import { Button, ConfirmModal, Modal, Toast, Badge } from './ui';
 import { useToast } from '../hooks';
 import MediaPickerModal from './MediaPickerModal';
+
+// Consistent, brand-agnostic badge color per product so the same product
+// always reads as the same color across the flat grid without hardcoding
+// specific brand names.
+const PRODUCT_BADGE_VARIANTS = ['slate', 'cyan', 'purple', 'emerald', 'rose'];
+function productBadgeVariant(productId) {
+  const s = String(productId || '');
+  let hash = 0;
+  for (let i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
+  return PRODUCT_BADGE_VARIANTS[hash % PRODUCT_BADGE_VARIANTS.length];
+}
 
 export default function RawVaultPanel() {
   const { toastMessage, toastType, showToast, hideToast } = useToast();
@@ -16,15 +26,13 @@ export default function RawVaultPanel() {
   const [productList, setProductList] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all'); // 'all', 'products', 'unassigned', 'large'
-  const [collapsedGroups, setCollapsedGroups] = useState({});
 
   // Video Preview Player
   const [activePreviewPath, setActivePreviewPath] = useState(null);
 
-  // Modals
+  // Modals -- upload always lands in the general pool; bind it to a product
+  // afterward via the same "ผูกสินค้า" flow every other clip uses.
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [uploadTargetProductId, setUploadTargetProductId] = useState(null);
-  const [uploadTargetProductName, setUploadTargetProductName] = useState(null);
 
   // Rename State
   const [pendingRenameVideo, setPendingRenameVideo] = useState(null);
@@ -66,50 +74,62 @@ export default function RawVaultPanel() {
     fetchVault();
   }, []);
 
-  const toggleGroup = (groupId) => {
-    setCollapsedGroups(prev => ({
-      ...prev,
-      [groupId]: !prev[groupId]
-    }));
-  };
-
-  // Filtered Products and Unassigned Clips
-  const filteredProducts = useMemo(() => {
-    if (activeFilter === 'unassigned') return [];
+  // Every raw clip -- product-bound and unassigned alike -- as one flat,
+  // newest-first list. Product identity rides along as per-card badges
+  // instead of a wrapping group container (matches the "คลิปตัดเสร็จ" tab's
+  // flat gallery, which is what this was redesigned to look like).
+  const flatVideos = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
+    // vaultData.products[].product_title is unreliable (the raw-vault
+    // endpoint mirrors it from the id for some entries) -- productList comes
+    // from getProducts() and carries the real name + short product_code.
+    const productById = new Map((productList || []).map(p => [p.id, p]));
 
-    return (vaultData.products || []).map(p => {
-      let vids = p.videos || [];
-      if (activeFilter === 'large') {
-        vids = vids.filter(v => (v.size_mb || 0) >= 50);
+    // The backend's raw-vault scan can legitimately return the same physical
+    // file once per product it matches (a stale reference left behind by an
+    // incomplete move/delete, directory-containment plus a differing
+    // videos[] entry, etc. -- see get_raw_vault's own comment on this). Merge
+    // those back into one card carrying every linked product_id, rather than
+    // rendering the same clip as several look-alike cards.
+    const byKey = new Map();
+    for (const v of [
+      ...(vaultData.products || []).flatMap(p => p.videos || []),
+      ...(vaultData.unassigned || []),
+    ]) {
+      const key = v.rel_path || v.path;
+      const existing = byKey.get(key);
+      if (existing) {
+        if (v.product_id && !existing.product_ids.includes(v.product_id)) {
+          existing.product_ids.push(v.product_id);
+        }
+      } else {
+        byKey.set(key, { ...v, product_ids: v.product_id ? [v.product_id] : [] });
       }
-      if (q) {
-        vids = vids.filter(v =>
-          (v.name || '').toLowerCase().includes(q) ||
-          (p.product_title || '').toLowerCase().includes(q) ||
-          (v.rel_path || '').toLowerCase().includes(q)
-        );
-      }
-      return { ...p, filteredVideos: vids };
-    }).filter(p => p.filteredVideos.length > 0 || (searchQuery && (p.product_title || '').toLowerCase().includes(q)));
-  }, [vaultData.products, searchQuery, activeFilter]);
-
-  const filteredUnassigned = useMemo(() => {
-    if (activeFilter === 'products') return [];
-    let list = vaultData.unassigned || [];
-    const q = searchQuery.trim().toLowerCase();
-
-    if (activeFilter === 'large') {
-      list = list.filter(v => (v.size_mb || 0) >= 50);
     }
+    let all = Array.from(byKey.values());
+
+    if (activeFilter === 'products') all = all.filter(v => v.product_ids.length > 0);
+    else if (activeFilter === 'unassigned') all = all.filter(v => v.product_ids.length === 0);
+    else if (activeFilter === 'large') all = all.filter(v => (v.size_mb || 0) >= 50);
+
     if (q) {
-      list = list.filter(v =>
+      all = all.filter(v =>
         (v.name || '').toLowerCase().includes(q) ||
-        (v.rel_path || '').toLowerCase().includes(q)
+        (v.rel_path || '').toLowerCase().includes(q) ||
+        v.product_ids.some(pid =>
+          (productById.get(pid)?.name || '').toLowerCase().includes(q) ||
+          (productById.get(pid)?.product_code || '').toLowerCase().includes(q)
+        )
       );
     }
-    return list;
-  }, [vaultData.unassigned, searchQuery, activeFilter]);
+
+    return all
+      .map(v => ({
+        ...v,
+        products: v.product_ids.map(pid => productById.get(pid)).filter(Boolean),
+      }))
+      .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  }, [vaultData.products, vaultData.unassigned, productList, searchQuery, activeFilter]);
 
   // Rename Actions
   const handleStartRename = (video) => {
@@ -130,7 +150,7 @@ export default function RawVaultPanel() {
     try {
       const vPath = pendingRenameVideo.path || pendingRenameVideo.rel_path;
       setActivePreviewPath(null);
-      await renameVideo(vPath, renameInputText.trim(), pendingRenameVideo.product_id);
+      await renameVideo(vPath, renameInputText.trim(), pendingRenameVideo.product_ids?.[0] || null);
       showToast('เปลี่ยนชื่อคลิปสำเร็จ', 'success');
       setPendingRenameVideo(null);
       await fetchVault();
@@ -145,7 +165,7 @@ export default function RawVaultPanel() {
   // Reassign / Move Actions
   const handleStartReassign = (video) => {
     setPendingReassignVideo(video);
-    setTargetProductId(video.product_id || '');
+    setTargetProductId(video.product_ids?.[0] || '');
   };
 
   const handleConfirmReassign = async (e) => {
@@ -157,7 +177,7 @@ export default function RawVaultPanel() {
       await reassignRawVideo({
         video_path: vPath,
         target_product_id: targetProductId || null,
-        source_product_id: pendingReassignVideo.product_id || null
+        source_product_id: pendingReassignVideo.product_ids?.[0] || null
       });
       showToast(targetProductId ? 'ผูกคลิปเข้ากับสินค้าเรียบร้อย' : 'ปลดคลิปออกเป็นคลิปอิสระแล้ว', 'success');
       setPendingReassignVideo(null);
@@ -212,11 +232,17 @@ export default function RawVaultPanel() {
     );
   };
 
-  const renderVideoCard = (video, sourceProductId) => {
+  const renderVideoCard = (video) => {
     const videoPath = video.path || video.rel_path;
     const isSelected = selectedPaths.includes(videoPath);
     const isPlaying = activePreviewPath === videoPath;
     const videoUrl = `/api/media/${video.rel_path || video.path}`;
+    // A clip normally links to zero or one product; more than one only
+    // happens from a stale/duplicate reference (see flatVideos above). The
+    // reassign modal can only target/clear one source at a time, so it acts
+    // on the first linked product -- the badges row still shows all of them
+    // so a conflict like that stays visible instead of silently picking one.
+    const sourceProductId = video.product_ids[0] || null;
 
     return (
       <div
@@ -227,8 +253,11 @@ export default function RawVaultPanel() {
             : 'bg-black/40 border-white/[0.08] hover:border-white/[0.25] hover:bg-white/[0.02]'
         }`}
       >
-        {/* Video Player Preview Area */}
-        <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black border border-white/[0.06] flex items-center justify-center">
+        {/* Video Player Preview Area -- raw footage is vertical 9:16, same
+            shape as a rendered export, so the card mirrors ExportGallery's
+            aspect-[9/16] + real-frame-thumbnail treatment instead of a
+            16:9 box with a generic icon. */}
+        <div className="relative w-full aspect-[9/16] rounded-xl overflow-hidden bg-black border border-white/[0.06] flex items-center justify-center">
           {isPlaying ? (
             <video
               src={videoUrl}
@@ -240,8 +269,27 @@ export default function RawVaultPanel() {
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-tr from-slate-950 to-slate-900 relative">
-              <Film className="w-8 h-8 text-slate-700 group-hover:text-[#25F4EE] transition-colors" />
+            <div className="w-full h-full relative">
+              {video.thumbnail_url ? (
+                <img
+                  src={video.thumbnail_url}
+                  alt={video.name}
+                  loading="lazy"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <video
+                  src={`${videoUrl}#t=1.0`}
+                  preload="metadata"
+                  muted
+                  loop
+                  playsInline
+                  className="w-full h-full object-cover"
+                  onLoadedMetadata={(e) => { try { e.target.currentTime = 1.0; } catch {} }}
+                  onMouseOver={(e) => e.target.play().catch(() => {})}
+                  onMouseOut={(e) => { e.target.pause(); try { e.target.currentTime = 1.0; } catch {} }}
+                />
+              )}
 
               {/* Play Button Overlay (Visible on mobile touch & hover on desktop) */}
               <button
@@ -259,7 +307,7 @@ export default function RawVaultPanel() {
           <button
             type="button"
             onClick={() => toggleSelectVideo(videoPath)}
-            className="absolute top-1.5 right-1.5 w-11 h-11 flex items-center justify-center z-10 cursor-pointer group/chk"
+            className="absolute top-1.5 left-1.5 w-11 h-11 flex items-center justify-center z-10 cursor-pointer group/chk"
             title={isSelected ? 'ยกเลิกการเลือก' : 'เลือกคลิปนี้'}
           >
             <div
@@ -272,6 +320,30 @@ export default function RawVaultPanel() {
               <Check className="w-3.5 h-3.5 stroke-[3]" />
             </div>
           </button>
+
+          {/* Product Badge(s) (Top Right) -- which product(s) this clip
+              belongs to, or that it's still unbound. Normally exactly one;
+              more than one means a stale/duplicate link (see flatVideos) and
+              is shown as multiple badges rather than picked silently, so the
+              conflict stays visible instead of hidden. Color is a stable
+              hash of the product id, not tied to any specific brand. */}
+          <div className="absolute top-2 right-2 z-10 flex flex-col items-end gap-1 max-w-[calc(100%-2.5rem)]">
+            {video.products.length > 0 ? (
+              video.products.map((p) => (
+                <Badge
+                  key={p.id}
+                  variant={productBadgeVariant(p.id)}
+                  size="sm"
+                  className="shadow-sm max-w-full"
+                  title={p.name || p.id}
+                >
+                  <span className="truncate">{p.product_code || p.name || p.id}</span>
+                </Badge>
+              ))
+            ) : (
+              <Badge variant="amber" size="sm" className="shadow-sm">ยังไม่ผูก</Badge>
+            )}
+          </div>
 
           {/* Size Badge Bottom-Left */}
           {video.size_mb && (
@@ -375,11 +447,7 @@ export default function RawVaultPanel() {
             <Button
               variant="primary"
               icon={Upload}
-              onClick={() => {
-                setUploadTargetProductId(null);
-                setUploadTargetProductName(null);
-                setUploadModalOpen(true);
-              }}
+              onClick={() => setUploadModalOpen(true)}
               className="w-full sm:w-auto shadow-lg shadow-[#25F4EE]/20 justify-center"
             >
               อัปโหลดคลิปใหม่
@@ -499,13 +567,16 @@ export default function RawVaultPanel() {
         )}
       </div>
 
-      {/* ── Products & Unassigned Footage Accordion ── */}
+      {/* ── Flat Clip Gallery -- one continuous grid across every raw clip,
+          newest first, product identity carried as a per-card badge instead
+          of a wrapping group container. Mirrors the "คลิปตัดเสร็จ" tab's
+          gallery exactly (same grid + gap scale) for visual consistency. ── */}
       {loading ? (
         <div className="h-64 flex flex-col items-center justify-center text-slate-400 space-y-3">
           <RefreshCw className="w-8 h-8 animate-spin text-[#25F4EE]" />
           <p className="text-sm font-medium">กำลังโหลดคลังคลิปดิบ...</p>
         </div>
-      ) : filteredProducts.length === 0 && filteredUnassigned.length === 0 ? (
+      ) : flatVideos.length === 0 ? (
         <div className="p-12 rounded-3xl border border-white/[0.08] bg-[#0B0F19]/60 text-center space-y-4">
           <Film className="w-12 h-12 text-slate-600 mx-auto" />
           <div className="space-y-1">
@@ -521,149 +592,8 @@ export default function RawVaultPanel() {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-4 items-start">
-          {/* Product-Scoped Video Groups */}
-          {filteredProducts.map((product) => {
-            const isCollapsed = collapsedGroups[product.product_id];
-            const videos = product.filteredVideos || [];
-
-            return (
-              <div
-                key={product.product_id}
-                className="rounded-2xl border border-white/[0.08] bg-[#0B0F19]/70 backdrop-blur-md overflow-hidden transition-all shadow-xl hover:border-white/[0.15]"
-              >
-                {/* Group Header */}
-                <div
-                  onClick={() => toggleGroup(product.product_id)}
-                  className="p-4 sm:p-5 flex items-center justify-between gap-4 cursor-pointer hover:bg-white/[0.02] transition-colors select-none"
-                >
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <button
-                      type="button"
-                      className="w-7 h-7 rounded-lg bg-white/[0.04] text-slate-400 hover:text-white flex items-center justify-center transition-colors flex-shrink-0"
-                    >
-                      {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                    </button>
-
-                    {product.product_cover ? (
-                      <img
-                        src={product.product_cover}
-                        alt={product.product_title}
-                        className="w-10 h-10 rounded-xl object-cover border border-white/[0.1] flex-shrink-0"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 flex-shrink-0">
-                        <Box className="w-5 h-5" />
-                      </div>
-                    )}
-
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="text-sm sm:text-base font-black text-white truncate font-kanit">
-                          {product.product_title}
-                        </h3>
-                        {product.category && (
-                          <span className="px-2 py-0.5 rounded-md bg-white/[0.06] text-[10px] text-slate-300 font-medium">
-                            {product.category}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-400 font-mono mt-0.5">
-                        ID: {product.product_id}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                    <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400">
-                      <span className="px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.06] font-mono font-bold text-white">
-                        {videos.length} คลิป
-                      </span>
-                      <span className="px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.06] font-mono text-cyan-300">
-                        {product.total_size_mb} MB
-                      </span>
-                    </div>
-
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      icon={Upload}
-                      onClick={() => {
-                        setUploadTargetProductId(product.product_id);
-                        setUploadTargetProductName(product.product_title);
-                        setUploadModalOpen(true);
-                      }}
-                      className="px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs"
-                    >
-                      <span className="hidden xs:inline sm:inline">เพิ่มคลิป</span>
-                      <span className="inline xs:hidden sm:hidden">เพิ่ม</span>
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Group Body (Video Grid) */}
-                {!isCollapsed && (
-                  <div className="p-4 sm:p-5 pt-0 border-t border-white/[0.04]">
-                    {videos.length === 0 ? (
-                      <div className="py-8 text-center text-slate-500 text-xs">
-                        ยังไม่มีคลิปดิบในสินค้านี้ — กดปุ่ม "เพิ่มคลิป" เพื่ออัปโหลด
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-                        {videos.map((video) => renderVideoCard(video, product.product_id))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-
-          {/* Unassigned / B-Roll Footage Shelf */}
-          {filteredUnassigned.length > 0 && (
-            <div className="xl:col-span-2 2xl:col-span-3 rounded-2xl border border-amber-500/20 bg-[#0B0F19]/70 backdrop-blur-md overflow-hidden transition-all shadow-xl">
-              <div
-                onClick={() => toggleGroup('unassigned_group')}
-                className="p-4 sm:p-5 flex items-center justify-between gap-4 cursor-pointer hover:bg-white/[0.02] transition-colors select-none"
-              >
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <button
-                    type="button"
-                    className="w-7 h-7 rounded-lg bg-white/[0.04] text-slate-400 hover:text-white flex items-center justify-center transition-colors flex-shrink-0"
-                  >
-                    {collapsedGroups['unassigned_group'] ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  </button>
-
-                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 flex-shrink-0">
-                    <Layers className="w-5 h-5" />
-                  </div>
-
-                  <div className="min-w-0">
-                    <h3 className="text-sm sm:text-base font-black text-amber-300 truncate font-kanit flex items-center gap-2">
-                      <span>คลิปอิสระ (ยังไม่ผูกสินค้า)</span>
-                    </h3>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      คลิปที่ยังไม่ได้ผูกกับสินค้า สามารถเลือกผูกเข้าสินค้าใดก็ได้ทันที
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                  <span className="px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 font-mono font-bold text-amber-300 text-xs">
-                    {filteredUnassigned.length} คลิป
-                  </span>
-                </div>
-              </div>
-
-              {!collapsedGroups['unassigned_group'] && (
-                <div className="p-4 sm:p-5 pt-0 border-t border-white/[0.04]">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
-                    {filteredUnassigned.map((video) => renderVideoCard(video, null))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
+          {flatVideos.map((video) => renderVideoCard(video))}
         </div>
       )}
 
@@ -744,7 +674,7 @@ export default function RawVaultPanel() {
                 <option value="">-- ปลดเป็นคลิปอิสระ --</option>
                 {productList.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.title} (ID: {p.id})
+                    {p.product_code ? `${p.product_code} · ${p.name || p.id}` : (p.name || p.id)}
                   </option>
                 ))}
               </select>
@@ -810,9 +740,7 @@ export default function RawVaultPanel() {
           setUploadModalOpen(false);
           fetchVault();
         }}
-        productId={uploadTargetProductId}
-        productName={uploadTargetProductName}
-        title={uploadTargetProductName ? `อัปโหลดคลิปเข้า: ${uploadTargetProductName}` : 'อัปโหลดคลิปดิบเข้าคลัง'}
+        title="อัปโหลดคลิปดิบเข้าคลัง"
         onConfirm={() => {
           setUploadModalOpen(false);
           fetchVault();
