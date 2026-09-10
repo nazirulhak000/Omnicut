@@ -16,6 +16,7 @@
 | Round BUG-MARK-POSTED-1 | แก้ mark-posted สำเร็จแต่การ์ดยังอยู่ rendered | 2026-09-10 | แก้ลำดับ registry/product update; regression 15 passed; full pytest 1,035 passed |
 | Round PRODUCT-METADATA-1 | แนบรูปอ้างอิงย้อนหลัง + Metadata Inspector สำหรับตรวจข้อมูลที่ AI ใช้ | 2026-09-10 | เพิ่ม PATCH images แบบรองรับ legacy URL/local upload, modal แสดง source metadata/AI input/JSON เต็ม, frontend 144 passed, backend 1,037 passed |
 | Round PRODUCT-METADATA-2 | เติม source fallback สำหรับสินค้า legacy ที่มีข้อมูลอยู่ใน angle แต่ product metadata ว่าง | 2026-09-10 | list/reroll ใช้ fallback จาก key_features/pain_point โดยติดป้าย provenance, backend 1,040 passed, frontend 144 passed |
+| Round COMMIT-SPLIT-1 | จัดกลุ่ม commit working tree ค้าง + สร้าง LIVE_VALIDATION_CHECKLIST.md | 2026-09-10 | commit แยก 5 กลุ่ม (products metadata / exports-videos fix / editor cover / ui polish / docs) + checklist รวม live gate ที่รอ user; gates: pytest 1,050 passed (2 failures pre-existing ที่ HEAD ใน test_preview_render_behavior), frontend 149 passed, build/lint ผ่าน |
 | Round SFX-TITLES-1 | ดึงชื่อแสดงผลภาษาไทย/อังกฤษจริงจาก Myinstants ใส่ใน asset_metadata.json | 2026-09-09 | 1,774 ชื่อแสดงผลภาษาไทย/อังกฤษตรงปก · UI แสดงชื่ออ่านง่ายและค้นหาได้ทันที |
 | Round SFX-HUB-1 | สแกน SFX แบบ Recursive เข้า AssetRegistry และเพิ่มตัวกรองหมวดหมู่ใน Media Assets Hub | 2026-09-09 | 1,822 ไฟล์ SFX แสดงผลครบถ้วนใน Media Assets Hub พร้อม Sub-category filter pills |
 | Round SFX-CAT-1 | จัดหมวดหมู่ไฟล์เสียง mi_xxx 1,775 ไฟล์ เป็น 10 หมวดใน 02_Assets/SFX/ | 2026-09-09 | 1,775 ไฟล์จัดเข้า 10 โฟลเดอร์ย่อย · เสียงเดิม 47 ไฟล์คงเดิม |
@@ -37,6 +38,37 @@
 | Round TRK-2 | ตารางจัดคิวโพสต์ประจำวัน (Daily Run Sheet) & จัดกลุ่มย่อการ์ด (Product Grouping / Quick Pills) | 2026-09-06 | Daily Run Sheet tab (4 slots + auto-rotate + schedule time) + Quick Pills + Accordion · pytest 373 pass · npm test 54 pass · build pass |
 | Round TRK-1 | เพิ่มปุ่มส่งคลิปไป TikTok Studio พร้อม Modal ตรวจสอบ/ปักตะกร้า ในหน้า Tracker | 2026-09-06 | ContentTrackerHub 2-row buttons + Post Modal + Inspect toolbar · pytest 372 pass · npm test 54 pass · build pass |
 | Round PROD-1 | เพิ่มช่อง TikTok Product ID ตอนสร้างสคริปต์ + Fallback ค้นหาด้วยชื่อ + Click-to-Edit Cart ID ย้อนหลัง | 2026-09-06 | ProductToClip modal + Header badge edit + auto-resolve shortlinks · pytest 372 pass · npm test 54 pass · build pass |
+
+## Round COMMIT-SPLIT-1 — จัดกลุ่ม commit working tree ค้าง + LIVE_VALIDATION_CHECKLIST
+
+วันที่: 2026-09-10 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+**เป้าหมาย:** จัดการงานค้างใน working tree ข้าม 2 workstream (product metadata PM-4/5/6 และ post/export lifecycle) ให้เป็นระเบียบ และรวม live gate ที่รอ user ทั้งหมดเป็น checklist เดียว
+
+### สิ่งที่ทำ
+
+1. ตรวจ `git status` + diff รายไฟล์ จำแนก 17+ ไฟล์แก้ค้างเข้า 5 workstream
+2. รัน deterministic gates ทั้งหมดก่อน commit
+3. Commit แยก 5 กลุ่ม:
+   - `7ed1fbb` feat(products): metadata edit/dedupe preview, raw-text boundary, stable selection (PM-4/5/6) — ProductMetadataModal, ProductToClip, productSelection.js+test, api_products, product_scraper, test_product_metadata, api.js
+   - `b3ca2f7` fix(exports/videos): move-retry on Windows file lock, registry-before-store mark-posted order — api_videos, api_exports, test_post_lifecycle, test_backend_api_contracts
+   - `9ce784f` fix(editor): cover gate simplification and no-video-source preview state — CoverStudioModal, EditorShell, schedule_queue.json
+   - `31086f3` chore(ui): raw vault polish and tracker card cleanup — ContentTrackerHub, RawVaultPanel, custom_hook_templates.json
+   - `c7626bb` docs: live validation checklist and round bookkeeping — TODO/HISTORY/PRO_EDITOR_STYLE_PLAN + LIVE_VALIDATION_CHECKLIST.md
+4. สร้าง `LIVE_VALIDATION_CHECKLIST.md` รวม live gate ที่รอ user: PM-3/4/5/6 (กลุ่ม A), POST-1 + POST-3.20 (กลุ่ม B), POST-3.16–3.18 (กลุ่ม C) + optional (full render loop, SUB-THAI-2)
+
+### Gate
+
+- [x] `python -m compileall -q scripts` — ผ่าน
+- [x] `python -m pytest tests/ -q -p no:cacheprovider --tb=short` — 1,050 passed, 2 failed (pre-existing ที่ HEAD: `test_per_word_vs_monolithic_render_parity` 284px divergence และ `test_ibm_thai_marks_have_separate_vertical_bands` — ทดลองรันซ้ำ 2 failed คงเดิม deterministic, ไฟล์ subtitle ไม่ได้อยู่ใน working diff จึงไม่เกี่ยวกับงานที่ commit)
+- [x] `npm test` — 149 passed / `npm run build` — ผ่าน / `npm run lint` — 0 errors (390 warnings เดิม)
+- [x] `git diff --check` — ผ่าน
+- [x] commits ครบทุกไฟล์ที่แก้ เหลือเพียง untracked `header-toggle-test-1.png` (ตั้งใจไม่ commit รอ user ตัดสินใจ)
+
+### Notes
+
+- ระหว่างรอบมี commit `27e8441` (metadata preview) และ `aa1f5b8` (security audit fixes) จาก agent อื่นเข้าก่อน — ทำให้ไฟล์ `frontend/src/api.js`, `tests/test_backend_api_contracts.py` โผล่ใน diff ทีหลัง ตรวจแล้วรวมในกลุ่มที่เกี่ยวข้องถูกต้อง
+- 2 pytest failures ข้างบนเป็นบั๊ก subtitle render ที่มีอยู่แล้วใน HEAD — ควรเปิดรอบแยกแก้ (เกี่ยวกับ SUB-THAI-2 ที่พักไว้)
 
 | Round POST-3.14 | Cover Studio portal entry, project-based cover naming, and LOG01 legacy project migration | 2026-09-07 | commit 2a1e395 -> frontend 63 tests pass -> build pass -> backend compile/tests pass |
 | Round POST-3.15 | Prefer project-named covers in export metadata before the legacy product fallback | 2026-09-07 | focused backend tests 8 passed -> compileall passed |
@@ -286,7 +318,6 @@
 
 ## Round SFX-HUB-1 — สแกน SFX แบบ Recursive เข้า AssetRegistry และเพิ่มตัวกรองหมวดหมู่ SFX ใน Media Assets Hub
 
-
 วันที่: 2026-09-09 · สั่งโดย: user · สถานะ: เสร็จแล้ว
 
 **เป้าหมาย:** ให้ระบบ AssetRegistry และ Backend API สแกนไฟล์เสียง SFX ทุกโฟลเดอร์ย่อยใน `02_Assets/SFX/` แบบ recursive และแสดงผลใน Media Assets Hub พร้อมตัวกรองหมวดหมู่ย่อย (Sub-category Pills) ให้เปิดฟังและเลือกใช้ได้ครบทั้ง 1,822 ไฟล์
@@ -315,7 +346,6 @@
 ---
 
 ## Round SFX-CAT-1 — จัดหมวดหมู่ไฟล์เสียง mi_xxx 1,775 ไฟล์ เป็น 10 หมวดใน 02_Assets/SFX/
-
 
 วันที่: 2026-09-09 · สั่งโดย: user · สถานะ: เสร็จแล้ว
 
@@ -357,10 +387,10 @@
 
 ## Round STK-PRO-1 — ชุดสติกเกอร์และป้ายรีวิวสายไอทีระดับโปร (Photorealistic Tech Review Badges)
 
-
 วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: เสร็จแล้ว
 
 **ปัญหาและสิ่งที่ทำ:**
+
 1. **ออกแบบ Master Prompts สาย Tech ฮาร์ดแวร์จริง 3 ชุด (18 ป้าย):**
    - ผู้ใช้แจ้งว่าสติกเกอร์ชุดก่อนหน้าดูเป็นการ์ตูน/ของเล่นพลาสติก ไม่เข้ากับคลิปรีวิวสินค้าไอที จึงออกแบบ Master Prompts ใหม่ทั้งหมด โดยเน้นวัสดุระดับสูง (Photorealistic Industrial Design): Smoked Tempered Glass, CNC-machined Space Gray Aluminum, Brushed Titanium, Laser-etched typography, Micro-LED telemetry lights, Multi-layer circuit traces และ Cyber HUD callouts ปราศจากตัวการ์ตูนหรือกราฟิกคอมิกส์ 100%
    - **Sheet 1 (Core Review Badges):** PROS (Matte obsidian pill, neon green LED), CONS (Space gray aluminum, crimson LED), WARNING (Titanium hex plate, amber hazard stripes), PRO TIP (Dark glassmorphism, cyan cyber circuit trace), PERFORMANCE (PCB chip plate, neon speedometer gauge), VERDICT (Matte black ceramic plaque, gold rating bars)
@@ -415,6 +445,7 @@ Notes: ไม่แตะ `01_Raw/` หรือ `02_Assets/`; ใช้ synthet
 วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: เสร็จแล้ว
 
 **ปัญหาและสิ่งที่ทำ (4 ข้อตามคำสั่ง User):**
+
 1. **ไอคอนขนาดนี้อยากให้เป็น 100% (Baseline 100% Scale):**
    - ขนาดที่ผู้ใช้ชี้ในภาพหน้าจอเดิมมี Scale 40% (~152-160px) ถูกตั้งเป็นขนาดมาตรฐาน 100% (`scale = 1.0`)
    - แก้ไข `STICKER_BASE_WIDTH = 160` ใน `scripts/video_editor.py` และ `baseW = 160` ใน `frontend/src/components/SequencePlayer.jsx`
@@ -435,6 +466,7 @@ Notes: ไม่แตะ `01_Raw/` หรือ `02_Assets/`; ใช้ synthet
    - เพิ่มปุ่มกดด้านล่าง `เพิ่ม [ชื่อสติกเกอร์] ลงไทม์ไลน์` ให้กดเพิ่มได้สะดวกอีกทางหนึ่ง
 
 ### Gate
+
 - [x] `python -m compileall -q scripts` (Pass)
 - [x] `python -m pytest tests/test_preview_render_parity.py tests/test_multi_stickers.py tests/test_phase1_smoke.py -q -p no:cacheprovider` (299 passed in 41.66s)
 - [x] `npm test` ใน `frontend/` (85 passed in 1.78s)
@@ -451,6 +483,7 @@ Notes: ไม่แตะ `01_Raw/` หรือ `02_Assets/`; ใช้ synthet
 วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: เสร็จแล้ว
 
 **ปัญหาและสิ่งที่ทำ:**
+
 1. **Default 3 sec:** กำหนดเวลาเริ่มต้นของสติกเกอร์ที่เพิ่มใหม่เป็น 3.0 วินาทีเสมอ (`start = playhead`, `end = min(totalDuration, playhead + 3.0)`)
 2. **การยืดขยายให้สมูท (Smooth Linear Resizing):** แก้ไขจาก Euclidean radial distance (`Math.hypot`) ที่กระตุกและสะบัดขยายผิดธรรมชาติเมื่อข้ามแกน มาเป็น Linear Vector Projection (`projectedDelta = deltaX * dirX + deltaY * dirY`, `scaleFactor = 1 + projectedDelta / initialDist`) ทำให้การลากย่อขยายลื่นไหล ติดนิ้ว 1:1 ทุก Handle
 3. **รองรับสติกเกอร์หลายตัวพร้อมกัน (Multi-Stickers Array):** เปลี่ยนโมเดลเป็น `stickers: [...]` แสดงบนไทม์ไลน์พร้อมกัน และสามารถทับซ้อนเวลาเดียวกันได้ (Overlapping Stickers) โดยมีอัลกอริทึม `packStickers(stickers)` จัดเรียงแยก sub-lanes อัตโนมัติ
@@ -460,6 +493,7 @@ Notes: ไม่แตะ `01_Raw/` หรือ `02_Assets/`; ใช้ synthet
 5. **UI คลีนตาม Rule 8:** ใน `AssetPanel.jsx` แสดงตัวควบคุมสติกเกอร์ที่ถูกเลือก (Inspect Duration, Scale, Center Reset, Delete), รายการชิปสติกเกอร์ทั้งหมดในวิดีโอ, และปุ่มล้างสติกเกอร์ทั้งหมด
 
 ### Gate
+
 - [x] `python -m compileall -q scripts` (Pass)
 - [x] `pytest tests/test_preview_render_parity.py` (149 passed in 4.74s)
 - [x] `pytest tests/test_phase1_smoke.py -k sticker` (3 passed in 1.02s)
@@ -468,10 +502,10 @@ Notes: ไม่แตะ `01_Raw/` หรือ `02_Assets/`; ใช้ synthet
 - [x] `npm --prefix frontend test` (85 passed in 1.76s)
 - [x] Browser Subagent live visual verification on `LOG01-ปัญหาก่อนใช้_1` (Added 2 overlapping stickers: 3.0s alert badge + 2.3s arrow pointer, verified simultaneous canvas rendering on video, auto-stacked timeline sub-lanes, and smooth resize handles).
 
-
 วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: เสร็จแล้ว
 
 **ปัญหาและสิ่งที่ทำ:**
+
 - ผู้ใช้สั่ง: "ถ้าแค่เพิ่มข้อความมา ซ้าย ขวา บน ล่าง แล้วเรียกตกแต่งแล้ว ก็พอเถอะ เหมือนเดิม"
 - คืนค่าตัวเลือกการตกแต่งป้ายฮุก (Accent) ให้กลับมาสะอาด กระชับ คลีน เหมือนเดิม โดยมีเพียง 3 ตัวเลือกหลักดั้งเดิม:
   1. `underline` ("เส้นใต้เรืองแสง" / Accent Bar)
@@ -492,10 +526,12 @@ Notes: ไม่แตะ `01_Raw/` หรือ `02_Assets/`; ใช้ synthet
 วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: เสร็จแล้ว
 
 **ปัญหาและสาเหตุ:**
+
 1. **ภาพวิดีโอดำ (Black Screen):** ใน `renderAt(t)` มีการสั่ง `video.currentTime = entry.localTime` เมื่อตรวจพบความคลาดเคลื่อนเกิน 0.08s แต่ `renderAt` ถูกผูกเป็น listener ของ `onSeeked` ทำให้เกิด **Infinite Seek Loop** (seeked -> renderAt -> seek -> seeked) ส่งผลให้ `<video>` ติดสถานะ `seeking = true` ตลอดเวลา ไม่ยอมส่งเฟรมภาพที่ถอดรหัสแล้วออกมายัง Canvas
 2. **ข้อความฮุกและซับไตเติลค้าง/ซ้อนทับเป็นภาพซ้อน (Ghosting / Overlay Echo):** ใน `tick()` การสั่ง `ctx.clearRect(0, 0, CANVAS_W, CANVAS_H)` ถูกครอบไว้ใต้เงื่อนไข `if (video.readyState >= 2 && !video.seeking) { if (!framePainted) ctx.clearRect(...) }` เมื่อวิดีโอติด seeking หรือยังไม่มีเฟรมใหม่ `ctx.clearRect` จะไม่ถูกเรียกเลย ทำให้ภาพข้อความของวินาทีก่อนหน้า (เช่น ป้ายฮุกช่วง 0-3s) ค้างอยู่บน Canvas ถาวร ไม่หายไปแม้วินาทีที่เล่นอยู่จะเกิน 3s แล้วก็ตาม
 
 **ผลลัพธ์:**
+
 - `frontend/src/components/SequencePlayer.jsx`:
   - นำ `video.currentTime = ...` ออกจาก `renderAt(t)` 100% ทำให้ `renderAt` ทำหน้าที่วาดเฟรมบริสุทธิ์ หยุดการเกิด Infinite Seek Loop โดยสิ้นเชิง
   - ย้าย `ctx.clearRect(0, 0, CANVAS_W, CANVAS_H)` ขึ้นมาทำงานที่จุดเริ่มต้นของรอบวาดใน `tick()` แบบ Unconditional ทุกเฟรม ลบล้างข้อความ/ซับไตเติลของวินาทีก่อนหน้าที่หมดอายุไปแล้ว ไม่ให้หลงเหลือ ghosting หรือภาพซ้อนบนจอ
@@ -503,12 +539,12 @@ Notes: ไม่แตะ `01_Raw/` หรือ `02_Assets/`; ใช้ synthet
   - ลดความซ้ำซ้อนของ event listeners บน `<video>` ให้เหลือเฉพาะ `onLoadedData` และ `onSeeked`
 - ตรวจสอบ Gate ผ่านทั้งหมด: Parity 149/149 passed, Smoke 147/147 passed, npm run build passed
 
-
 ## Round ACCENT-PRO-1 — เพิ่มสไตล์ตกแต่งป้ายฮุกให้หลากหลาย 11+ รูปแบบระดับโปร (Adaptive Framing, Hybrid Color, Motion Sync, 100% Parity)
 
 วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: เสร็จแล้ว
 
 **ปัญหาและขอบเขตงาน:**
+
 1. เมนูตกแต่ง ("ตกแต่ง" ใน Inspector) มีเพียง 2-3 แบบ และในบางครั้งไม่โหลดบนหน้าเว็บ ผู้ใช้ต้องการความหลากหลายที่สวยงามระดับมืออาชีพสำหรับคลิป TikTok/Shorts
 2. เพิ่มชุดสไตล์ตกแต่ง 11+ รูปแบบ:
    - `bracket` (กรอบมุมไซเบอร์ Tech Brackets `[ ]`), `glow_box` (กล่องนีออนเรืองแสง), `double_bar` (เส้นคู่บนล่าง)
@@ -521,6 +557,7 @@ Notes: ไม่แตะ `01_Raw/` หรือ `02_Assets/`; ใช้ synthet
 6. Preview = Render Parity 100%: วาดรูปทรงเรขาคณิตตรงกันทั้ง Canvas 2D และ ASS Vector Drawing (`\p1`)
 
 **ผลลัพธ์:**
+
 - `scripts/hook_motion_presets.py`: ลงทะเบียนครบ 12 สไตล์ใน `HOOK_ACCENT_PRESETS`
 - `scripts/overlay_model.py` & `frontend/src/lib/overlayModel.js`: เพิ่มฟิลด์ `accent_color` ใน Overlay Look
 - `frontend/src/components/editor/inspector/OverlayInspector.jsx`: เพิ่ม `FALLBACK_ACCENT_OPTIONS` และ Accent Color Picker UI พร้อมสวอทช์สียอดนิยม
@@ -529,12 +566,12 @@ Notes: ไม่แตะ `01_Raw/` หรือ `02_Assets/`; ใช้ synthet
 - `frontend/src/components/SequencePlayer.jsx`: รองรับการวาด Canvas 2D ครบทุกสไตล์ตรงกับ ASS 100%
 - ผ่าน Gate ตรวจสอบครบทุกตัว: `compileall` ผ่าน, `pytest test_preview_render_parity.py` ผ่าน 149/149 ข้อ, `npm run build` ผ่านสมบูรณ์, `test_phase1_smoke.py` ผ่าน 147/147 ข้อ
 
-
 ## Round POST-5 — ยกระดับความสมบูรณ์และเสถียรภาพของวงจรชีวิตคลิปที่โพสต์แล้ว (Full Posted Evidence & Lifecycle Integrity Lockdown)
 
 วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: เสร็จแล้ว
 
 **ปัญหาที่ตรวจพบเพิ่มเติม:**
+
 1. ในหน้า Editor (`EditorShell.jsx` + `api_phase1.py`) ตัวเลือกการลบโปรเจกต์แบบ `angle` และ `product` ยังเปิดให้ลบมุมหรือสินค้าที่โพสต์แล้วได้ ทำให้ประวัติสคริปต์และข้อมูลปักตะกร้าหายไปจาก Tracker
 2. ในหน้าสินค้า (`ProductToClip.jsx` + `api_products.py`) ยังเปิดให้แก้ไขสคริปต์, แทนที่คำ, และกดรีสคริปต์ AI (Reroll) ในมุมที่โพสต์ไปแล้วได้ ซึ่งทำให้สคริปต์ไม่ตรงกับวิดีโอที่ออนไลน์บน TikTok
 3. ในหน้า Tracker (`ContentTrackerHub.jsx`) ฟังก์ชัน Drag & Drop ยังยอมให้ลากการ์ดที่โพสต์แล้วย้อนกลับไปคอลัมน์อื่นได้
@@ -542,6 +579,7 @@ Notes: ไม่แตะ `01_Raw/` หรือ `02_Assets/`; ใช้ synthet
 5. ในมือถือ (`MobileQuickPostPage.jsx`) การมาร์กโพสต์ยังไม่สั่งย้ายไฟล์จริงจาก `04_Exports/Ready_to_post/` ไป `04_Exports/Posted/`
 
 **ผลลัพธ์:**
+
 - `scripts/product_store.py`: ใน `update_angle_status()` ปฏิเสธการลดสถานะของมุมที่โพสต์แล้ว และใน `remove_angle()` / `delete()` ยกเลิกคำขอลบมุม/สินค้าที่โพสต์แล้ว
 - `scripts/api_products.py`: ใน `/api/products/{id}/angles/{aid}/reroll-script` ปฏิเสธการรีสคริปต์มุมที่โพสต์แล้วด้วย HTTP 400
 - `scripts/api_phase1.py` และ `frontend/src/components/editor/EditorShell.jsx`: บล็อกการลบแบบ `angle` และ `product` ในหน้าต่าง Delete Project หากมุมนั้นโพสต์แล้ว เหลือเฉพาะการลบไฟล์ตัดต่อดราฟต์ (`project`) คืนพื้นที่ดิสก์
@@ -550,24 +588,24 @@ Notes: ไม่แตะ `01_Raw/` หรือ `02_Assets/`; ใช้ synthet
 - `frontend/src/components/MobileQuickPostPage.jsx` และ `scripts/api_exports.py`: ให้การมาร์กโพสต์ย้ายไฟล์ MP4 เข้า `04_Exports/Posted/` และรับรู้สถานะ `is_posted` ทั้งจากโฟลเดอร์และจากสถานะมุม
 - Gate: `python -m compileall -q scripts` ผ่าน, `python -m pytest tests/test_posted_protection.py` ผ่าน 7/7, `npm run build` ผ่าน 100%
 
-
 ## Round POST-4 — ป้องกันการลบวิดีโอที่โพสต์แล้วใน Gallery, ล็อกไม่ให้เรนเดอร์ซ้ำในหน้าตัดต่อ และแก้ปัญหาย้อนสถานะ
 
 วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: เสร็จแล้ว
 
 **ปัญหา:**
+
 1. เมื่อลบวิดีโอหรือลบเวอร์ชันเก่าในหน้า Gallery ระบบเรียก `rollback_by_video_or_project` ทำให้คลิปที่โพสต์ไปแล้ว (`status == "posted"`) ถูกย้อนสถานะกลับมาเป็น `in_production` (กำลังตัดต่อ)
 2. หน้า Gallery ยังไม่มีการล็อกไม่ให้ลบคลิปที่โพสต์แล้ว (ต้องเก็บเป็นหลักฐาน)
 3. ในหน้าตัดต่อ (Editor) ยังเปิดให้กดเรนเดอร์ซ้ำได้ แม้คลิปนั้นจะโพสต์ไปแล้ว
 
 **ผลลัพธ์:**
+
 - แก้ไข `scripts/product_store.py`: `_roll()` และ `reconcile_existing_projects()` ป้องกันสถานะ `posted` อย่างเข้มงวด
 - แก้ไข `scripts/api_videos.py`: บล็อกการลบวิดีโอใน `04_Exports/Posted/` หรือคลิปที่โพสต์แล้ว โดยตอบกลับ HTTP 400
 - แก้ไข `scripts/api_render.py` และ `scripts/api_phase1.py`: บล็อกเรนเดอร์/reroll ซ้ำสำหรับโปรเจกต์ที่โพสต์แล้ว โดยตอบกลับ HTTP 400
 - ปรับปรุง `frontend/src/components/ExportGallery.jsx`: ซ่อน/disable ปุ่มลบสำหรับคลิปที่โพสต์แล้ว พร้อมแสดงป้าย `โพสต์แล้ว (ห้ามลบ)`
 - ปรับปรุง `frontend/src/components/editor/`: เพิ่ม prop `isPosted` ให้ปุ่มเรนเดอร์กลายเป็น `โพสต์แล้ว (ล็อก)` เมื่อคลิปถูกโพสต์แล้ว
 - Gate: `python -m compileall -q scripts` ผ่าน, `pytest tests/test_posted_protection.py` ผ่าน 3/3
-
 
 ## Round BUG-4 — แก้ไขคลิปบวมสะสมทุกครั้งที่เรนเดอร์ (Transition Overlap Compounding Feedback Loop)
 
@@ -577,18 +615,19 @@ Notes: ไม่แตะ `01_Raw/` หรือ `02_Assets/`; ใช้ synthet
 ทุกครั้งที่กด Render ซ้ำหรือเข้าโปรเจกต์เดิมมาเรนเดอร์ใหม่ คลิปในไทม์ไลน์จะยาวขึ้นเรื่อยๆ เกินความยาวเสียงจริง (เช่น `LOG01-สเปก_1` เสียงจริง 27.24s แต่คลิปบวมไปถึง 44.28s) เกิดจาก `video_assembly_stage.py` ไปบวก transition overlap (+0.25s ต่อรอยต่อ) เข้ากับ `clip["duration"]` และ `clip["trim_end"]` ซ้ำทุกครั้งที่เรนเดอร์ แล้วเซฟกลับลง `project.json`
 
 **ผลลัพธ์:**
+
 - แยกระหว่างคลิปที่เจนใหม่สด (`is_newly_generated_clips = True`) กับคลิปที่ส่งมาจาก Editor ใน `shot_matching_stage.py` / `video_assembly_stage.py`
 - ป้องกันไม่ให้ `video_assembly_stage.py` ขยาย duration/trim_end ซ้ำกับคลิปที่มีอยู่แล้ว
 - แก้ไขการคำนวณ `video_span` ใน `scripts/video_editor.py` ให้ใช้ `acc_dur` เพื่อคำนวณ `tail_gap` และ `tpad` ให้ตรงกับความยาวจริงหลัง xfade
 - รัน `tools/repair_swollen_projects.py` เพื่อ normalize duration ของโปรเจกต์เดิมทั้งหมดใน `03_Projects/` กลับมาสอดคล้องกับ audio duration จริง
 - Gate: `pytest tests/test_preview_render_parity.py` ผ่าน 149, `pytest tests/test_clip_compounding_render.py` ผ่าน 2, `pytest tests/test_transition_single_clip.py tests/test_phase1_smoke.py` ผ่าน 159
 
-
 ## Round HOK-1 — ระบบ Custom Hook Template Studio (สร้างและบันทึกแม่แบบฮุกด้วยตัวเอง)
 
 วันที่: 2026-09-07 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
 
 **ผลลัพธ์:**
+
 - **Custom Template Storage & CRUD Backend:**
   - สร้างไฟล์เก็บข้อมูล `02_Assets/Templates/custom_hook_templates.json` รองรับการเก็บสไตล์ฮุกส่วนตัว (font, size, colors, motion, layout, text tiers)
   - พัฒนาโมดูล `scripts/hook_styles.py` ให้มีฟังก์ชัน `load_custom_hook_templates()`, `save_custom_hook_template()`, `delete_custom_hook_template()` พร้อม atomic write
@@ -615,6 +654,7 @@ Notes: ไม่แตะ `01_Raw/` หรือ `02_Assets/`; ใช้ synthet
 วันที่: 2026-09-07 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
 
 **ผลลัพธ์:**
+
 - **Friction Audit:** ตรวจสอบหน้าตัดต่อบนเบราว์เซอร์จริงกับโปรเจกต์ `LOG01-ปัญหาหลังใช้_1` พบว่ากระบวนการตัดต่อ 1 คลิปเดิมใช้ 22–28 คลิก ปรับปรุงลดลงเหลือ 9–12 คลิก (ลดลงกว่า 55%)
 - **Safe Zone 420px Parity & Guide:**
   - แก้ไขการคำนวณและเลย์เอาต์ Safe Zone ใน `SequencePlayer.jsx` จากเดิมที่ใช้ `top-[56.25%]` (ทำให้เส้นแดงพาดกลางสินค้า/จอ) เปลี่ยนเป็น:
@@ -663,6 +703,7 @@ Notes: ไม่แตะ `01_Raw/` หรือ `02_Assets/`; ใช้ synthet
 **หลักฐานและคำสั่ง:** User แจ้งว่า "ซ้ำซ้อนมากมีหลายจุดมา ขอจุดเดียวพอครับ" พร้อมภาพถ่ายหน้าจอที่ชี้ให้เห็นปุ่มเปิด TikTok 3 จุดพร้อมกัน (Header, Tab 1 quick bar, Tab 2 launcher banner)
 
 **ผลลัพธ์:**
+
 1. รวมเหลือจุดเดียวใน **Header bar** (`#headerOpenTikTokBtn` "เปิด TikTok Studio") สไตล์ Cyber-Studio Pill พร้อมไอคอน External Link สะอาดตา มองเห็นและเข้าถึงได้ตลอดเวลาไม่ว่าจะอยู่แท็บใด
 2. นำปุ่ม `#listOpenTikTokBtn` ออกจาก Tab 1 คืนค่าปุ่ม `#refreshBtn` เป็นปุ่มเต็มกว้าง (`.btn-refresh-full`) เรียบหรู ไม่เกะกะรายการคลิป
 3. นำ `.tiktok-launcher-banner` และ `#openTikTokBtn` ออกจาก Tab 2 ให้เข้าสู่แผงคำสั่งหลักโดยตรง
@@ -689,6 +730,7 @@ Notes: ไม่แตะ `01_Raw/` หรือ `02_Assets/`; ใช้ synthet
 วันที่: 2026-09-07 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
 
 **เป้าหมาย:** เพิ่มปุ่มเปิด/สลับแท็บอัปโหลด TikTok Studio (`https://www.tiktok.com/tiktokstudio/upload`) ที่เด่นชัดและกดใช้งานได้ทันทีใน Chrome Extension:
+
 - มีปุ่ม Quick Launch ที่หัวตาราง Tab 1 (รายการคลิป) เคียงข้างปุ่มรีเฟรช ให้ผู้ใช้เปิดแท็บ TikTok Studio ได้ทันทีตั้งแต่เปิด Extension
 - มีปุ่มเปิดหน้าอัปโหลดที่ชัดเจนใน Tab 2 (ขั้นตอนโพสต์) และ Header
 - เพิ่มปุ่มใน `popup.html` ด้วย
@@ -769,7 +811,6 @@ Date: 2026-09-07; Requested by: user; Status: complete
 - No backend, queue identity, schedule timestamp, Extension step, or frozen posting step was changed.
 - Unrelated editor files and local schedule JSON artifacts remained unstaged.
 
-
 ## Round POST-3.23 - reduce default publishing slots to three
 
 Date: 2026-09-07; Requested by: user; Status: complete (browser gate deferred)
@@ -839,6 +880,7 @@ Date: 2026-09-07; Requested by: user; Status: complete (browser gate deferred; b
 - Auto-fill uses only ready, unqueued, unposted exports, preserves the one-MP4-once rule, and requires explicit confirmation after preview.
 - If a selected range has no future primary slot, the preview continues after the latest queue item into the next enabled day.
 - Existing editor files remain another workstream and must not be modified or staged.
+
 ---
 
 ## Round TRK-3 — บอร์ดหลักคลีนไร้ความรก (Today-Only Posted, คลังสคริปต์หยิบทำวันนี้ & การ์ดตัดต่อเสร็จแนวนอนกะทัดรัด)
@@ -846,11 +888,13 @@ Date: 2026-09-07; Requested by: user; Status: complete (browser gate deferred; b
 วันที่: 2026-09-06 · สั่งโดย: user (ผ่าน /grill-me) · สถานะ: เสร็จสิ้น
 
 **เป้าหมาย:** แก้ปัญหาบอร์ดหลักยืดยาวและรกเมื่อมีคลิปและสคริปต์สะสม 20-30+ รายการ ตามมติการสัมภาษณ์ `/grill-me` (3 ข้อ):
+
 1. คอลัมน์ "โพสต์แล้ว (Posted)": แสดงเฉพาะคลิปที่โพสต์วันนี้ (Today Only) เพื่อไม่ให้รกบอร์ด ส่วนคลิปเก่าในอดีตย้ายเข้าคลังประวัติอัตโนมัติ พร้อมปุ่มเปิดดูคลังประวัติ (Archive Modal)
 2. คอลัมน์ "สคริปต์พร้อม (Scripted)": คลังสคริปต์ (Script Library Modal) เก็บไว้ด้านหลัง บนบอร์ดหลักแสดงเฉพาะ 3-5 สคริปต์ที่เราหยิบมาทำวันนี้ พร้อมปุ่มหยิบเข้า/ปลดออก
 3. คอลัมน์ "ตัดต่อเสร็จ / ตรวจ QC (Rendered)": ปรับการ์ดเป็นการ์ดแนวนอนกะทัดรัด (Compact Horizontal Card สูง ~95px) ซ้ายเป็นมินิพรีวิว 9:16 ขวาเป็นชื่อสินค้า + QC ผ่าน + Hook 1 บรรทัด + แถบปุ่มแอ็กชันครบครัน (`ส่ง TikTok`, `มือถือ`, `QC`, `ตัดใหม่`)
 
 **สิ่งที่แก้ไข:**
+
 1. **TRK-3.1 คอลัมน์โพสต์แล้ว: Today-Only + Archive Modal**:
    - กรองรายการคลิปในคอลัมน์ `posted` ให้แสดงเฉพาะคลิปที่มี `posted_at` หรือ `updated_at` เป็นวันปัจจุบัน (Local Time `YYYY-MM-DD`)
    - คลิปที่โพสต์ก่อนหน้านี้ย้ายเข้าคลังประวัติอัตโนมัติ ไม่เปลืองพื้นที่บนบอร์ด
@@ -981,6 +1025,7 @@ Date: 2026-09-07; Requested by: user; Status: complete (browser gate deferred; b
    - ในฟอร์มสร้างสินค้าใหม่: รองรับการวางลิงก์แชร์ลงในช่อง TikTok Product ID หรือช่องลิงก์สินค้า แล้ว auto-resolve ผ่าน `resolveTiktokProductId`
 
 **ผลการทดสอบ (Gate):**
+
 - `npm run build` ผ่าน (3.26s)
 - `npm test` ผ่าน 54 tests (0 failures)
 - `python -m compileall -q scripts` ผ่าน
@@ -996,6 +1041,7 @@ Date: 2026-09-07; Requested by: user; Status: complete (browser gate deferred; b
 ปิดช่องโหว่ที่ลบคลิปจาก gallery แล้ว Tracker ไม่รู้ตัว, และเพิ่มปุ่มส่ง TikTok ปักตะกร้าตรงจากหน้านี้
 
 **สืบสวนแล้ว (/scrutinize, ยืนยันด้วยข้อมูลจริงใน `_Docs/products.json` ไม่ใช่เดา):**
+
 - ContentTrackerHub ทั้ง 3 จุดที่โชว์วิดีโอ (kanban card, compact card, inspect modal) อ่าน `ang.video_url`
   ตรงๆ ไม่มี matching logic ฝั่ง frontend เลย → บั๊กร้อยเปอร์เซ็นต์อยู่ backend/data
 - **หลักฐานจริง:** `pain_point` กับ `unboxing` (Logitech Wave Keys) มี `project_name` + `video_url` **ตรงกันเป๊ะ**
@@ -1042,6 +1088,7 @@ Date: 2026-09-07; Requested by: user; Status: complete (browser gate deferred; b
    - เทส `tests/test_bug3_tiktok_product_id_and_conflict_clear.py` — ยิงผ่าน `TestClient` จริง — 2 passed
 
 **Gate:**
+
 - `pytest tests/ -q -p no:cacheprovider` → 367 passed (รวมเทสใหม่ 10 เคส)
 - `npx vite build` → ผ่าน · `python -m compileall -q scripts` → ผ่าน · routes = 84
 - ข้อมูลจริง: `unboxing` ไม่ชนกับ `pain_point` อีกต่อไป — ยืนยันด้วยสคริปต์อ่าน `_Docs/products.json` จริงหลัง
@@ -1056,11 +1103,13 @@ Date: 2026-09-07; Requested by: user; Status: complete (browser gate deferred; b
 วันที่: 2026-09-05 · สั่งโดย: user (แนบรูปภาพบั๊กตัวอักษรซ้อนกัน) · สถานะ: เสร็จสิ้น
 
 **สาเหตุรากเหง้า (Root Cause):**
+
 1. `SequencePlayer.jsx` ยิงขอ `overlay.layout` ให้ Hook Header (`overlay.kind === 'hook'`) รวม 3 tiers เป็นสตริงเดียวด้วยขนาดฟอนต์ของ Brand
 2. `lineWords && lineWords.length > 0` ทำงานแบบ unconditional แม้ `wordStaggerSec == 0` หรือเป็น Hook Header ทำให้บายพาสการวาด monolithic ปกติ
 3. `word_layout.py` ใช้ `scaled_fs = font_size_px * ass_glyph_scale` ทำให้คำนวณตำแหน่ง `x` บีบแคบลง 37% (สำหรับ Kanit) แต่ฝั่ง Canvas วาดด้วยฟอนต์ 100% ตัวอักษรเลยชนและซ้อนทับกันเละ
 
 **สิ่งที่แก้ไข:**
+
 1. ใน `frontend/src/components/SequencePlayer.jsx`:
    - ป้องกัน Hook Header (`overlay.kind === 'hook'`) ไม่ให้ขอหรือใช้ `overlay.layout` โดยเด็ดขาด
    - สั่งล้าง `overlay.layout` เก่าทันทีถ้าเป็น Hook Header
@@ -1071,6 +1120,7 @@ Date: 2026-09-07; Requested by: user; Status: complete (browser gate deferred; b
    - เพิ่ม contract test `test_hook_overlay_guarded_against_per_word_layout` เพื่อการันตีว่า Hook Header จะไม่ถูกแบ่งคำหรือขอ word layout อีกต่อไป
 
 **Gate:**
+
 - `python -m compileall -q scripts` → ผ่าน
 - `python -c "import scripts.api_server as app; print(len(app.app.routes))"` → 84 routes
 - `pytest tests/test_preview_render_parity.py -q` → 149 passed
@@ -1331,11 +1381,13 @@ hook อยู่ใต้ sticker ในพรีวิวแต่อยู่
 ลากการ์ดลง timeline ไม่ทำงาน
 
 **พฤติกรรมที่เปลี่ยนไปจากเดิม (แจ้ง user แล้ว):**
+
 1. ขอบ text overlay ในพรีวิวหนาขึ้น 3px → 5.0 (ยึดเลขของ render เป็นจริง ไฟล์ที่ออกไม่เปลี่ยน)
 2. pill ของป้ายฮุกโตตามขนาด tier (12px คงที่ → 0.342em) — ที่ 100% เท่าเดิมเป๊ะ
 3. `badge_cyan` ในไฟล์ที่เรนเดอร์จะโปร่งขึ้น (0.65 → 0.2) และมีขอบ cyan ตามที่พรีวิวเคยวาด
 
 **เรื่องที่ต้องรู้:**
+
 - commit `20e2cc5` **มีงานสองชุดปนกัน** — งานนี้ + editor refactor ของ Codex (REFACTOR_PLAN Phase 0–2 ตอนนั้น)
   แยกไม่ได้เพราะ `EditorShell.jsx` มีทั้งสองในไฟล์เดียว → บันทึกไว้ท้าย commit message แล้ว
   **บทเรียน: ครั้งหน้าเช็ค `git status` ก่อนเริ่ม** (เข้ากฎข้อ 6 ของ work_loop.md แล้ว)
@@ -1484,10 +1536,12 @@ hook อยู่ใต้ sticker ในพรีวิวแต่อยู่
 - Round 3 subtitle/writer/easing เสร็จสมบูรณ์แล้ว ผ่าน gates ทุกข้อ (pytest 336, npm test 51, build ผ่าน, Spacing render 0 vs 0.5 ยืนยัน drift หายไป 24px, overlay motion render ผ่าน 3 เฟรม)
 
 ---
+
 ## Round POST-3.4 — แก้การส่งกำหนดเวลาและภาพปกจาก Side Panel ไป TikTok
 
 วันที่: 2026-09-07  
 ผลลัพธ์: commit `bfeb7e6`; เพิ่ม endpoint refresh cover, จำกัด modal/file input ล่าสุด, รองรับเวลาแบบมีหรือไม่มีศูนย์นำหน้า; Node 7 passed, backend 5 passed
+
 ## Round POST-3.5 - Fix product search scoping
 
 Date: 2026-09-07
@@ -1512,30 +1566,26 @@ Result: Cover upload now scopes file input and save button to TikTok's visible `
 
 Date: 2026-09-07
 Result: Side Panel time selection now offers five-minute increments only, enforces a 15-minute lead time for today, and displays a durable completed style on successful steps. Product attachment and publication flows were unchanged; Node regression suite passed 8/8.
+
 ## Round POST-3.10 - Keep open TikTok pickers stable and expose cover-step failures
 
 Date: 2026-09-07
 Result: `setScheduleDateTime` now detects an already-open date/time picker and avoids toggling it closed before choosing the requested value. Cover automation errors now identify the failing step, while existing Cover Studio targeting remains scoped to the latest modal. Live inspection confirmed TikTok supports five-minute values and the edit-cover control opens `CoverEditor__root`; file transmission still requires a direct extension test because the browser controller blocks local file injection. Node regression suite passed 8/8.
-
-
 
 ## Round POST-3.11 - Scroll TikTok time options before selecting
 
 Date: 2026-09-07
 Result: Time selection now searches all TikTok hour/minute options and scrolls the requested option into view before clicking. This fixes the recorded case where Side Panel selected `10:00` but TikTok stayed at `10:40` because `00` was outside the visible virtual-scroll window. Node regression suite passed 8/8.
 
-
 ## Round POST-3.12 - Find Cover Studio Save outside the editor root
 
 Date: 2026-09-07
 Result: Cover automation now includes TikTok's `cover-editor-container` and prefers that outer container when locating the Save button. The live DOM showed Save is a sibling of `CoverEditor__root`, which explained why the modal opened but the automation could not finish. Node regression suite passed 8/8; local file injection remains pending a direct extension test.
 
-
 ## Round POST-3.13 - Persist schedule completion and resolve saved product covers
 
 Date: 2026-09-07
 Result: The prepare-details flow now applies the green completed row class when it marks step 4. Export metadata now falls back to a product-named cover such as `Logitech Wave Keys_cover.jpg`, allowing the extension to receive a cover path even when the cover filename does not match the video stem. Backend focused tests passed 6/6, extension tests passed 8/8, and Python compileall passed.
-
 
 ## Round POST-3.14 - Cover Studio entry and project-based cover names
 
@@ -1543,7 +1593,6 @@ Date: 2026-09-07
 Result: Fixed the CoverStudioModal hook-order crash and rendered it through a top-level portal so the editor appears above the TikTok posting modal. Cover exports now use the canonical project name, with a video-stem fallback for legacy items. The remaining Logitech unboxing project was backed up and migrated to the LOG01 naming convention; schedule logic and steps 1-4 were left unchanged.
 
 Evidence: backup archive created under D:/Winona/Programmer/Capcut_backups/; frontend tests 63 passed; Vite build passed; python compileall passed; focused TikTok backend tests 6 passed.
-
 
 ## Round POST-3.15 - Project-named cover lookup
 
@@ -1553,6 +1602,7 @@ Result: /api/exports now checks <project_name>_cover.jpg (and the 3:4 variant) b
 Evidence: focused TikTok backend tests 8 passed with one existing Starlette/httpx deprecation warning; python -m compileall -q scripts passed.
 
 ---
+
 ## Round POST-3.19 - restore generated cover in TikTok post modal
 
 Date: 2026-09-07; Requested by: user; Status: complete
@@ -1581,7 +1631,6 @@ Date: 2026-09-07; Requested by: user; Status: complete
 
 - The live API returned null cover fields while an older backend process was still running; the current source-level API hydration resolves the saved project-named 3:4 file correctly.
 - No code change was made in this verification round. Existing cover persistence/mapping code remains the source of truth, and steps 1-4 stay locked.
-
 
 ## Round POST-3.21 - Multi-day TikTok publishing queue
 
@@ -1617,12 +1666,12 @@ Date: 2026-09-07; Requested by: user; Status: complete
 - Removing a planned item never deletes the MP4. Items handed to the Extension must be reset before moving, and posted items are locked.
 - Existing uncommitted editor work was intentionally left unstaged. Steps 1-4 and the extension upload implementation remain frozen by the user.
 
-
 ## Round STK-1 — Interactive Sticker Timeline Track, Free Canvas Drag/Resize, and Parity Render Engine
 
 วันที่: 2026-09-08 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
 
 **ปัญหาและสิ่งที่ทำ:**
+
 1. **ไทม์ไลน์สติกเกอร์ไม่มี:** เพิ่มแทร็กสติกเกอร์ (Sticker Track) บนไทม์ไลน์ อยู่ใต้ป้ายฮุกและเหนือคำบรรยาย พร้อมไอคอน Smile, ชื่อสติกเกอร์, เวลาแสดงผลกี่วินาที `(start - end)`, Left Trim Handle, Right Trim Handle, และ Body Drag สำหรับเลื่อนเวลาทั้งก้อน
 2. **ปรับย่อ/ขยายสติกเกอร์ได้อย่างอิสระ:** เพิ่มการคำนวณ `selectedBox.type === 'sticker'` ใน `handleBoxDragStart` และ `handleResizeStart` บน `SequencePlayer.jsx` ทำให้ผู้ใช้สามารถลากปุ่มกลม 4 มุมและปุ่มแคปซูล 4 ด้านเพื่อย่อขยายขนาดได้ตั้งแต่ 0.4× ถึง 2.0×
 3. **เอาตัวเลือกตำแหน่งการวางสติกเกอร์ 6 จุดเดิมออก:** ลบปุ่ม 6 ตำแหน่ง (บนซ้าย, กึ่งกลางบน, ฯลฯ) ใน `AssetPanel.jsx` ออกตามคำขอของผู้ใช้ โดยเปลี่ยนเป็นการแสดงช่วงเวลาแสดงผล `(start - end)` พร้อมปุ่ม "จัดกึ่งกลาง" (Center Reset) และแถบสไลเดอร์ขนาด
@@ -1705,6 +1754,7 @@ Date: 2026-09-07; Requested by: user; Status: complete
 
 - Phase 2A เป็น isolated foundation เท่านั้น ยังไม่เปลี่ยน output ของโปรเจกต์เดิม
 - Phase 2B ต้องเลือก transcript source schema และ integration seam ก่อน และต้องรอ ownership ของไฟล์หลักให้ชัดเจน
+
 ## Round PRO-STYLE-2B — Integrate editorial pacing plan into subtitle pipeline and project manifest
 
 วันที่: 2026-09-09 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
@@ -1730,6 +1780,7 @@ Date: 2026-09-07; Requested by: user; Status: complete
 - compatibility subset พบ `test_create_edit_save_reload_full_fidelity` ได้ HTTP 401 จาก auth guard; ไม่ใช่ผลจาก pacing change และไม่สรุปว่า full suite ผ่าน
 - พบ working-tree changes นอก scope ใน `scripts/api_exports.py` และ `tests/test_post_lifecycle.py`; ไม่ได้แก้หรือ stage
 | Round PRO-STYLE-2B | Integrate editorial pacing plan into subtitle pipeline and project manifest | 2026-09-09 | `build_pacing_plan_from_cues()` + PipelineContext/manifest persistence + subtitle fingerprint; 12 integration tests, 19 pipeline/incremental tests, and 162 parity subset tests passed; no FFmpeg cut behavior change |
+
 ## Round PRO-STYLE-2C — Apply editorial beat boundaries to generated clip list with Preview = Render parity
 
 วันที่: 2026-09-09 · สถานะ: เสร็จสมบูรณ์
@@ -1759,6 +1810,7 @@ Date: 2026-09-07; Requested by: user; Status: complete
 - การรัน API subset แยกครั้งแรกพบ 401 ใน auth cases แต่ backend suite ทั้งชุดรันตามลำดับปกติผ่านครบ 975 tests; จึงไม่มี unresolved test failure จากรอบนี้
 - ไม่ได้แตะหรือ stage งานภายนอกใน `scripts/api_exports.py` และ `tests/test_post_lifecycle.py`
 | Round PRO-STYLE-2C | Apply editorial beat boundaries to generated clip list with Preview = Render parity | 2026-09-09 | Resolver + generated clip-list integration + manual/legacy preservation; 15 contract tests, 161 render parity/behavior tests, 21 pipeline regression tests, and 975 full backend tests passed |
+
 ## Round PRO-STYLE-3A — Style-driven transition budget and project style preset contract
 
 วันที่: 2026-09-09 · สถานะ: เสร็จสมบูรณ์
@@ -1786,6 +1838,7 @@ Date: 2026-09-07; Requested by: user; Status: complete
 - เฟสนี้จัดการ transition hierarchy และ project style contract ก่อน; active camera keyframe/pan motion จะอยู่ในเฟสถัดไป เพราะต้องเพิ่ม parity contract และ render หลายเฟรมแยกต่างหาก
 - ไม่ได้แตะหรือ stage งานภายนอกที่ตรวจพบใน `scripts/api_exports.py`, `tests/test_post_lifecycle.py` และ `tiktok_autopost_extension/sidepanel.js`
 | Round PRO-STYLE-3A | Style-driven transition budget and project style preset contract | 2026-09-09 | `clean_tech_review` policy + project manifest/fingerprint contract + auto-transition budget; 7 policy tests, 161 parity/behavior tests, 980 backend tests, 126 frontend tests, and build passed |
+
 ## Round PRO-STYLE-3B — Live keyframe camera motion with Preview = Render parity
 
 วันที่: 2026-09-09 · สถานะ: เสร็จสมบูรณ์

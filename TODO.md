@@ -23,35 +23,7 @@
 - [x] Round PRODUCT-METADATA-1 — แนบรูปอ้างอิงย้อนหลัง + Metadata Inspector สำหรับตรวจข้อมูลที่ AI ใช้ (2026-09-10; backend 1,037 passed, frontend 144 passed)
 - [x] Round PRODUCT-METADATA-2 — เติม source fallback สำหรับสินค้า legacy ที่มีข้อมูลอยู่ใน angle แต่ product metadata ว่าง (2026-09-10; backend 1,040 passed, frontend 144 passed)
 - [ ] Round PRODUCT-METADATA-3 — ตรวจ/แก้การดึงข้อความจาก TikTok product page ที่เป็น client-rendered: GOC01 มี URL + รูป 9 รูป แต่ description/raw_text/specs/selling_points/pain_points ระดับสินค้าไม่ถูกบันทึก; เพิ่ม hybrid browser extraction + refresh source แล้ว เหลือ live verification ผ่าน Security Check (2026-09-10)
-- [ ] Round COMMIT-SPLIT-1 — จัดกลุ่ม commit งานค้างใน working tree + สร้าง LIVE_VALIDATION_CHECKLIST.md สำหรับ batch ทดสอบ live รอบเดียว (2026-09-10)
-
-## Round COMMIT-SPLIT-1 — จัดกลุ่ม commit working tree + checklist live validation
-
-วันที่: 2026-09-10 · สั่งโดย: user · สถานะ: กำลังทำ
-
-**เป้าหมาย:** (1) รวม gate "รอ user ทดสอบจริง" ทั้งหมดเป็น checklist เดียวทำต่อเนื่องใน 1 ชุด (2) รัน deterministic gates ให้ผ่านก่อน แล้ว commit งานใน working tree แยกตาม workstream ลดความเสี่ยง diff ปนกันข้ามรอบ
-
-### Todo
-
-- [x] ตรวจ `git status` จำแนกไฟล์ต่อ workstream
-- [ ] ตรวจ diff รายไฟล์ของไฟล์กลุ่มกำกวม (ContentTrackerHub, RawVaultPanel, CoverStudioModal, EditorShell, schedule_queue.json) เพื่อเลือกกลุ่ม commit ที่ถูกต้อง
-- [ ] รัน gates: compileall + full pytest + frontend test/build/lint + `git diff --check`
-- [ ] สร้าง `LIVE_VALIDATION_CHECKLIST.md` รวม live gate ที่รอ user (PM-3/4/5/6, POST-1, POST-3.16–3.20)
-- [ ] Commit แยกกลุ่ม: (a) product metadata (b) post/export lifecycle (c) editor (d) docs/checklist (e) assets+runtime data
-- [ ] หมายเหตุ `header-toggle-test-1.png` (untracked, รอ user ตัดสินใจ ลบ/เก็บ) — ไม่ commit
-
-### Gate
-
-- [ ] `python -m compileall -q scripts`
-- [ ] `python -m pytest tests/ -q -p no:cacheprovider --tb=short` (ต้อง 0 failed)
-- [ ] `npm test` + `npm run build` + `npm run lint` ใน frontend/
-- [ ] `git diff --check`
-- [ ] commits แยกกลุ่มครบทุกไฟล์ที่แก้ (ยกเว้น header-toggle-test-1.png)
-
-### Notes
-
-- สถานะก่อนเริ่ม: ไฟล์แก้ 17 ไฟล์ + untracked 3 (productSelection.js/.test.js, header-toggle-test-1.png); `custom_hook_templates.json` ถูก stage ค้างจากรอบก่อน — ต้อง unstage ก่อนจัดกลุ่มใหม่
-- ห้ามลบ/เขียนทับ diff ใด ๆ — commit อย่างเดียว
+- [x] Round COMMIT-SPLIT-1 — จัดกลุ่ม commit งานค้าง working tree แยก 5 commits + สร้าง LIVE_VALIDATION_CHECKLIST.md (รายละเอียดเต็มใน HISTORY.md; pytest 1,050 passed + 2 pre-existing failures ที่ HEAD แยกเป็นงานรอแก้ · 2026-09-10)
 
 ## Round PRODUCT-METADATA-7 — อ่านสรรพคุณ/สเปกจากรูปอ้างอิงด้วย Vision
 
@@ -71,12 +43,13 @@
 
 - รูปตัวอย่างมีข้อมูลซีรีส์ รุ่น กำลังไฟ และคุณสมบัติ cooling อยู่ในภาพ แต่ไม่ได้รับประกันว่าตัวเลขเล็กทุกจุดจะอ่านได้ชัด
 - ต้องให้ผู้ใช้ตรวจ preview ก่อนบันทึก และแยกข้อมูลที่อ่านไม่แน่ใจออกเป็น warning ไม่ส่งเป็นข้อเท็จจริง
+- ทดสอบ live กับรูป BlueWow แล้ว แต่ Gemini free tier ตอบ `429 RESOURCE_EXHAUSTED` (โควตา 20 requests/day) จึงยังไม่มีผลลัพธ์ถูกบันทึก และต้อง retry หลัง quota reset
 
 ### Gate
 
 - [x] focused image metadata tests — 21 passed, 1 warning
 - [x] full backend/frontend tests/build — backend 1,054 passed, frontend 149 passed, build/lint ผ่าน
-- [ ] manual: BlueWow images → extract → preview/edit → select → save → reopen
+- [ ] manual: BlueWow images → extract → preview/edit → select → save → reopen (รอ quota Gemini reset)
 
 ## Round PRODUCT-METADATA-6 — กัน selected product เปลี่ยนเองระหว่าง refresh/load history
 
