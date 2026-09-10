@@ -49,6 +49,24 @@ def _is_contained(path: Path, root: Path) -> bool:
         return False
 
 
+def _move_with_retry(src: str, dst: str, attempts: int = 3) -> None:
+    """shutil.move() that survives a transient Windows file lock (the media
+    server briefly holding the file open for a stream/thumbnail read, an AV
+    scan, etc.) -- same retry shape already used by batch_delete_raw_videos.
+    Raises the last PermissionError if the file is still locked after all
+    attempts, which the caller turns into a user-facing HTTPException."""
+    for attempt in range(attempts):
+        try:
+            shutil.move(src, dst)
+            return
+        except PermissionError:
+            if attempt < attempts - 1:
+                gc.collect()
+                time.sleep(0.2)
+            else:
+                raise
+
+
 def _safe_product_dir(base_dir: Path, product_id: str) -> Path:
     """
     Resolves `base_dir / product_id` and enforces the result stays contained
@@ -437,7 +455,10 @@ def reassign_raw_video(payload: ReassignVideoPayload):
         if dest_path.resolve() != v_path.resolve():
             if dest_path.exists():
                 dest_path = target_dir / f"{v_path.stem}_{int(time.time())}{v_path.suffix}"
-            shutil.move(str(v_path), str(dest_path))
+            try:
+                _move_with_retry(str(v_path), str(dest_path))
+            except PermissionError:
+                raise HTTPException(status_code=409, detail="ไฟล์กำลังถูกเปิดใช้งานอยู่ (เช่น กำลังเล่นตัวอย่าง) กรุณาปิดแล้วลองใหม่")
             v_path = dest_path
 
         file_info = get_file_info(v_path)
@@ -452,7 +473,10 @@ def reassign_raw_video(payload: ReassignVideoPayload):
             dest_path = RAW_DIR / v_path.name
             if dest_path.exists():
                 dest_path = RAW_DIR / f"{v_path.stem}_{int(time.time())}{v_path.suffix}"
-            shutil.move(str(v_path), str(dest_path))
+            try:
+                _move_with_retry(str(v_path), str(dest_path))
+            except PermissionError:
+                raise HTTPException(status_code=409, detail="ไฟล์กำลังถูกเปิดใช้งานอยู่ (เช่น กำลังเล่นตัวอย่าง) กรุณาปิดแล้วลองใหม่")
             v_path = dest_path
 
         file_info = get_file_info(v_path)

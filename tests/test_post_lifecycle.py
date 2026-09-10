@@ -289,6 +289,52 @@ def test_mark_posted_updates_the_same_export_id(monkeypatch, tmp_path):
     assert (posted / source.name).exists()
 
 
+def test_mark_posted_persists_angle_status_after_moving_export(monkeypatch, tmp_path):
+    """The real endpoint must update the angle, not only move the file.
+
+    This deliberately does not stub ProductStore.update_angle_status.  The
+    endpoint moves the export before writing the product record, so the
+    regression catches a path-validation mismatch between the moved Posted
+    path and the registry snapshot that still points at Ready_to_post.
+    """
+    ready, posted = _patch_export_roots(monkeypatch, tmp_path)
+    source = ready / "DEMO01-review_1_20260908_120000.mp4"
+    source.write_bytes(b"same export")
+    record = export_registry.ExportRegistry.ensure(
+        source, product_id="product-1", angle_id="review", status="rendered",
+    )
+    products_path = tmp_path / "_Docs" / "products.json"
+    products_path.parent.mkdir(parents=True, exist_ok=True)
+    products_path.write_text(json.dumps([{
+        "id": "product-1",
+        "name": "Demo Product",
+        "angles": [{
+            "angle_id": "review",
+            "status": "rendered",
+            "video_url": f"04_Exports/Ready_to_post/{source.name}",
+            "export_id": record["id"],
+        }],
+    }]), encoding="utf-8")
+    monkeypatch.setattr(api_exports, "_mark_scheduled_queue_item_posted", lambda *args: None)
+
+    response = TestClient(app).post("/api/exports/mark-posted", json={
+        "file_path": f"04_Exports/Ready_to_post/{source.name}",
+        "export_id": record["id"],
+        "product_id": "product-1",
+        "angle_id": "review",
+    })
+
+    assert response.status_code == 200, response.text
+    assert response.json().get("status_warning") is None, response.text
+    saved = ProductStore._load()
+    angle = saved[0]["angles"][0]
+    assert angle["status"] == "posted"
+    assert angle["video_url"] == f"04_Exports/Posted/{source.name}"
+    assert angle["export_id"] == record["id"]
+    assert angle.get("posted_at")
+    assert (posted / source.name).exists()
+
+
 def test_reconcile_binds_posted_copy_and_id_when_ready_copy_is_stale(monkeypatch, tmp_path):
     """A legacy Ready/Posted duplicate must resolve to the Posted proof."""
     ready, posted = _patch_export_roots(monkeypatch, tmp_path)

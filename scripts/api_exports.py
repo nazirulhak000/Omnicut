@@ -720,14 +720,13 @@ def mark_posted(req: MarkPostedRequest):
 
     # These three status writes (product/angle, schedule queue, export
     # registry) aren't cross-store transactional -- a crash partway through
-    # leaves them disagreeing regardless of order. Product/angle status is
-    # what the rest of the app (dashboards, reconcile) treats as the source
-    # of truth for "has this been posted", so it goes first: a crash right
-    # after this still leaves the single most user-visible signal correct,
-    # even if the queue/registry mirrors lag behind until the next
-    # reconcile. `export_record["id"]` is read before the registry's own
-    # move-and-mark call below, but the id itself doesn't change as a
-    # result of that call, so reading it early here is safe.
+    # leaves them disagreeing regardless of order. Mark the registry before
+    # updating ProductStore because ProductStore validates that an export_id's
+    # stored path matches the video_url it is asked to persist. Once the file
+    # has moved, the registry must already point at Posted/ or that validation
+    # rejects the otherwise-correct status update.
+    ExportRegistry.move_and_mark_posted(export_record["id"], dest)
+
     product_result: Dict[str, Any] = {}
     if req.product_id and req.angle_id:
         try:
@@ -745,7 +744,6 @@ def mark_posted(req: MarkPostedRequest):
             product_result["status_warning"] = str(e)
 
     _mark_scheduled_queue_item_posted(src, dest, export_record["id"])
-    ExportRegistry.move_and_mark_posted(export_record["id"], dest)
 
     return {"success": True, "moved": moved, **product_result}
 
