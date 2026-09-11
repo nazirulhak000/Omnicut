@@ -367,7 +367,14 @@ function AngleActiveWorkbench({
     }
   }, [angle.angle_id, index, scriptText, angle.hook_title]);
 
+  const curStatus = angle.status || 'scripted';
+  const isPosted = curStatus === 'posted' || !!angle.posted_at;
+  const isRendered = (curStatus === 'rendered' || isPosted) && !!angle.video_url;
+  const isInProduction = !isPosted && (curStatus === 'in_production' || (!!angle.project_name && !isRendered));
+  const isLocked = isPosted || isInProduction;
+
   const handleStartEdit = (e) => {
+    if (isLocked) return;
     e && e.stopPropagation();
     setEditText(lines.join('\n'));
     setEditHook(angle.hook_title || '');
@@ -382,6 +389,7 @@ function AngleActiveWorkbench({
   };
 
   const handleSave = (e) => {
+    if (isLocked) return;
     e && e.stopPropagation();
     const newLines = editText
       .split('\n')
@@ -394,16 +402,12 @@ function AngleActiveWorkbench({
     setIsEditing(false);
   };
 
-  const curStatus = angle.status || 'scripted';
-  const isRendered = (curStatus === 'rendered' || curStatus === 'posted') && !!angle.video_url;
-  const isInProduction = curStatus === 'in_production' || (!!angle.project_name && !isRendered);
-
-  const statusLabel = curStatus === 'posted' ? 'โพสต์แล้ว'
+  const statusLabel = isPosted ? 'โพสต์แล้ว'
     : isRendered ? 'ตัดเสร็จแล้ว'
     : isInProduction ? 'กำลังตัดต่อ'
     : 'สคริปต์พร้อม';
 
-  const statusColor = curStatus === 'posted' ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+  const statusColor = isPosted ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
     : isRendered ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
     : isInProduction ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
     : 'bg-white/[0.05] text-slate-400 border-white/[0.08]';
@@ -411,14 +415,24 @@ function AngleActiveWorkbench({
   const selectedVideos = angle.selected_videos || (angle.selected_video ? [angle.selected_video] : []);
 
   return (
-    <div className="bg-[#0B0F19] border border-white/[0.1] rounded-2xl p-3.5 sm:p-5 shadow-xl space-y-3.5 sm:space-y-4 animate-fadeIn">
+    <div className={`border rounded-2xl p-3.5 sm:p-5 shadow-xl space-y-3.5 sm:space-y-4 animate-fadeIn transition-colors ${
+      isLocked
+        ? 'bg-[#090C14]/90 border-white/[0.06]'
+        : 'bg-[#0B0F19] border-white/[0.1]'
+    }`}>
       {/* 1. Header Bar */}
       <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2.5 pb-3 border-b border-white/[0.08]">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="w-6 h-6 sm:w-7 sm:h-7 rounded-xl bg-gradient-to-tr from-[#25F4EE] to-blue-500 text-slate-950 font-bold text-xs flex items-center justify-center shadow-sm flex-shrink-0">
+          <span className={`w-6 h-6 sm:w-7 sm:h-7 rounded-xl font-bold text-xs flex items-center justify-center shadow-sm flex-shrink-0 ${
+            isLocked
+              ? 'bg-slate-800 text-slate-400 border border-white/[0.08]'
+              : 'bg-gradient-to-tr from-[#25F4EE] to-blue-500 text-slate-950'
+          }`}>
             {index + 1}
           </span>
-          <h2 className="text-xs sm:text-sm md:text-base font-bold text-white truncate font-kanit">
+          <h2 className={`text-xs sm:text-sm md:text-base font-bold truncate font-kanit ${
+            isLocked ? 'text-slate-300' : 'text-white'
+          }`}>
             {angle.angle_name}
           </h2>
           <span className={`text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full border flex-shrink-0 ${statusColor}`}>
@@ -430,27 +444,36 @@ function AngleActiveWorkbench({
         <div className="flex items-center gap-1.5 self-end xs:self-auto flex-shrink-0">
           {!isEditing && (
             <>
-              <button
-                type="button"
-                onClick={handleStartEdit}
-                className="px-2 sm:px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-amber-300 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all"
-                title="แก้ไขบทพูดในกล่องนี้โดยตรง"
-              >
-                <Edit3 className="w-3.5 h-3.5" />
-                <span>แก้ไข</span>
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenFindReplace && onOpenFindReplace(index);
-                }}
-                className="px-2 sm:px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-cyan-300 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all"
-                title="ค้นหาและแทนที่คำในสคริปต์"
-              >
-                <Replace className="w-3.5 h-3.5" />
-                <span className="hidden xs:inline sm:inline">แทนที่คำ</span>
-              </button>
+              {!isLocked ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleStartEdit}
+                    className="px-2 sm:px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-amber-300 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all"
+                    title="แก้ไขบทพูดในกล่องนี้โดยตรง"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>แก้ไข</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenFindReplace && onOpenFindReplace(index);
+                    }}
+                    className="px-2 sm:px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-cyan-300 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all"
+                    title="ค้นหาและแทนที่คำในสคริปต์"
+                  >
+                    <Replace className="w-3.5 h-3.5" />
+                    <span className="hidden xs:inline sm:inline">แทนที่คำ</span>
+                  </button>
+                </>
+              ) : (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.03] border border-white/[0.06] text-slate-400 text-xs font-bold select-none">
+                  <Lock className="w-3.5 h-3.5 text-slate-500" />
+                  <span>ล็อกเนื้อหาแล้ว</span>
+                </div>
+              )}
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onCopy(lines.join('\n'), index); }}
@@ -460,31 +483,47 @@ function AngleActiveWorkbench({
                   ? <><Check className="w-3.5 h-3.5 text-emerald-400" /> <span className="hidden xs:inline sm:inline">คัดลอกแล้ว</span></>
                   : <><Copy className="w-3.5 h-3.5" /> <span>คัดลอก</span></>}
               </button>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); onRerollScript && onRerollScript(index); }}
-                className="px-2 sm:px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-fuchsia-300 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all"
-                title="ให้ AI เขียนสคริปต์ใหม่สำหรับมุมนี้"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span className="hidden xs:inline sm:inline">รีสคริปต์ด้วย AI</span>
-              </button>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); onGenerateShotList && onGenerateShotList(index); }}
-                disabled={isGeneratingShotList}
-                className="px-2 sm:px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-amber-300 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all disabled:opacity-50 disabled:cursor-wait"
-                title="สร้างแผนถ่าย (Shot List) จากจังหวะเสียงพากย์จริง"
-              >
-                {isGeneratingShotList
-                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  : <Clapperboard className="w-3.5 h-3.5" />}
-                <span className="hidden xs:inline sm:inline">แผนถ่าย</span>
-              </button>
+              {!isLocked && (
+                <>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onRerollScript && onRerollScript(index); }}
+                    className="px-2 sm:px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-fuchsia-300 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all"
+                    title="ให้ AI เขียนสคริปต์ใหม่สำหรับมุมนี้"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span className="hidden xs:inline sm:inline">รีสคริปต์ด้วย AI</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onGenerateShotList && onGenerateShotList(index); }}
+                    disabled={isGeneratingShotList}
+                    className="px-2 sm:px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-amber-300 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all disabled:opacity-50 disabled:cursor-wait"
+                    title="สร้างแผนถ่าย (Shot List) จากจังหวะเสียงพากย์จริง"
+                  >
+                    {isGeneratingShotList
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : <Clapperboard className="w-3.5 h-3.5" />}
+                    <span className="hidden xs:inline sm:inline">แผนถ่าย</span>
+                  </button>
+                </>
+              )}
             </>
           )}
         </div>
       </div>
+
+      {/* Locked Notice Banner */}
+      {isLocked && (
+        <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.08] flex items-center gap-2 text-xs text-slate-400">
+          <Lock className="w-4 h-4 text-slate-500 flex-shrink-0" />
+          <span>
+            {isPosted
+              ? 'สคริปต์นี้โพสต์ลง TikTok แล้ว ระบบล็อกเนื้อหาและคลิปทั้งหมดเพื่อเก็บเป็นประวัติ'
+              : 'สคริปต์นี้กำลังตัดต่อในไทม์ไลน์ ล็อกเนื้อหาและคลิปเพื่อความสอดคล้องกับไทม์ไลน์'}
+          </span>
+        </div>
+      )}
 
       {/* 2. Hook Callout */}
       {angle.hook_title && !isEditing && (
@@ -572,17 +611,23 @@ function AngleActiveWorkbench({
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
             <span>บทพูดพากย์ ({lines.length} ท่อน):</span>
-            <span className="text-[11px] text-slate-500 italic">คลิกที่กล่องเพื่อแก้ไข</span>
+            {!isLocked && <span className="text-[11px] text-slate-500 italic">คลิกที่กล่องเพื่อแก้ไข</span>}
           </div>
 
           <div
             onClick={handleStartEdit}
-            className="p-3.5 rounded-xl bg-black/40 hover:bg-black/60 border border-white/[0.06] hover:border-[#25F4EE]/30 space-y-2.5 max-h-64 overflow-y-auto text-xs sm:text-sm text-slate-200 leading-relaxed cursor-pointer transition-all group/box"
-            title="คลิกเพื่อแก้ไขสคริปต์"
+            className={`p-3.5 rounded-xl border space-y-2.5 max-h-64 overflow-y-auto text-xs sm:text-sm leading-relaxed transition-all group/box ${
+              isLocked
+                ? 'bg-black/20 border-white/[0.06] text-slate-300 cursor-default'
+                : 'bg-black/40 hover:bg-black/60 border-white/[0.06] hover:border-[#25F4EE]/30 text-slate-200 cursor-pointer'
+            }`}
+            title={isLocked ? 'ล็อกเนื้อหาแล้ว' : 'คลิกเพื่อแก้ไขสคริปต์'}
           >
             {lines.map((line, lIdx) => (
               <div key={lIdx} className="flex items-start gap-2.5 p-1.5 rounded-lg hover:bg-white/[0.03] transition-colors">
-                <span className="w-5 h-5 rounded-md bg-white/[0.05] text-[#25F4EE] font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className={`w-5 h-5 rounded-md font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                  isLocked ? 'bg-white/[0.03] text-slate-400' : 'bg-white/[0.05] text-[#25F4EE]'
+                }`}>
                   {lIdx + 1}
                 </span>
                 <span className="flex-1 text-slate-200 leading-relaxed font-kanit">{line}</span>
@@ -607,7 +652,15 @@ function AngleActiveWorkbench({
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-          {isInProduction ? (
+          {isPosted ? (
+            <div
+              className="flex-shrink-0 flex items-center gap-1.5 py-1.5 px-3 rounded-lg border text-xs font-bold bg-emerald-500/10 border-emerald-500/30 text-emerald-300 select-none cursor-not-allowed"
+              title="คลิปนี้โพสต์ลง TikTok แล้ว ล็อกรายการคลิปเก็บเป็นหลักฐาน"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <span>คลิปที่โพสต์แล้ว ({selectedVideos.length})</span>
+            </div>
+          ) : isInProduction ? (
             <div
               className="flex-shrink-0 flex items-center gap-1.5 py-1.5 px-3 rounded-lg border text-xs font-bold bg-amber-500/10 border-amber-500/30 text-amber-300 select-none cursor-not-allowed"
               title="สคริปต์นี้กำลังตัดต่อจริงในไทม์ไลน์"
@@ -639,15 +692,17 @@ function AngleActiveWorkbench({
               <div
                 key={path}
                 className={`flex-shrink-0 flex items-center gap-1.5 py-1 px-2.5 rounded-lg border text-xs font-bold shadow-sm animate-fadeIn ${
-                  isInProduction
+                  isPosted
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                    : isInProduction
                     ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
                     : 'bg-[#25F4EE]/15 border-[#25F4EE]/40 text-[#25F4EE]'
                 }`}
               >
-                <Film className={`w-3.5 h-3.5 ${isInProduction ? 'text-amber-400' : 'text-[#25F4EE]'}`} />
+                <Film className={`w-3.5 h-3.5 ${isPosted ? 'text-emerald-400' : isInProduction ? 'text-amber-400' : 'text-[#25F4EE]'}`} />
                 <span className="truncate max-w-[160px]">{fileName}</span>
-                {isInProduction ? (
-                  <span className="p-0.5 text-amber-400/70 ml-0.5">
+                {isLocked ? (
+                  <span className="p-0.5 text-slate-400/70 ml-0.5">
                     <Lock className="w-3 h-3" />
                   </span>
                 ) : (
@@ -800,9 +855,10 @@ function ScriptAccordionItem({
   // ONLY rendered if an actual video export URL exists or status is posted!
   const isRendered = (curStatus === 'rendered' || isPosted) && (!!angle.video_url);
   const isInProduction = !isPosted && (curStatus === 'in_production' || (!!angle.project_name && !isRendered));
+  const isLocked = isPosted || isInProduction;
 
   const handleStartEdit = (e) => {
-    if (isPosted) return;
+    if (isLocked) return;
     e?.stopPropagation?.();
     setEditText(lines.join('\n'));
     setEditHook(angle.hook_title || '');
@@ -816,7 +872,7 @@ function ScriptAccordionItem({
   };
 
   const handleSave = () => {
-    if (isPosted) return;
+    if (isLocked) return;
     const newLines = editText
       .split('\n')
       .map(l => l.trim())
@@ -843,7 +899,7 @@ function ScriptAccordionItem({
   return (
     <div className={`rounded-xl border transition-all ${
       isOpen
-        ? 'bg-[#0B0F19] border-[#25F4EE]/30 shadow-md'
+        ? isLocked ? 'bg-[#090C14] border-white/[0.12] shadow-md' : 'bg-[#0B0F19] border-[#25F4EE]/30 shadow-md'
         : 'bg-[#080B11] border-white/[0.06] hover:border-white/[0.15]'
     }`}>
       {/* Collapsed Header Row */}
@@ -854,7 +910,7 @@ function ScriptAccordionItem({
         {/* Number Badge */}
         <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${
           isOpen
-            ? 'bg-gradient-to-tr from-[#25F4EE] to-blue-500 text-slate-950 shadow-sm'
+            ? isLocked ? 'bg-slate-800 text-slate-400 border border-white/[0.08]' : 'bg-gradient-to-tr from-[#25F4EE] to-blue-500 text-slate-950 shadow-sm'
             : 'bg-white/[0.06] text-slate-400 border border-white/[0.08]'
         }`}>
           {index + 1}
@@ -912,9 +968,25 @@ function ScriptAccordionItem({
       {/* Expanded Content */}
       {isOpen && (
         <div className="px-3 pb-3 space-y-3 border-t border-white/[0.06] pt-3 animate-fadeIn">
+          {/* Locked Notice Banner */}
+          {isLocked && (
+            <div className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.08] flex items-center gap-2 text-xs text-slate-400">
+              <Lock className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+              <span>
+                {isPosted
+                  ? 'สคริปต์นี้โพสต์ลง TikTok แล้ว ระบบล็อกเนื้อหาและคลิปทั้งหมดเพื่อเก็บเป็นประวัติ'
+                  : 'สคริปต์นี้กำลังตัดต่อในไทม์ไลน์ ล็อกเนื้อหาและคลิปเพื่อความสอดคล้องกับไทม์ไลน์'}
+              </span>
+            </div>
+          )}
+
           {/* Hook Highlight / Editor */}
           {angle.hook_title && !isEditing && (
-            <div className="p-2.5 rounded-lg bg-black/50 border-l-[3px] border-[#25F4EE] text-xs sm:text-sm font-bold text-cyan-200 leading-snug">
+            <div className={`p-2.5 rounded-lg border-l-[3px] text-xs sm:text-sm font-bold leading-snug ${
+              isLocked
+                ? 'bg-black/30 border-slate-600 text-slate-300'
+                : 'bg-black/50 border-[#25F4EE] text-cyan-200'
+            }`}>
               {angle.hook_title}
             </div>
           )}
@@ -983,10 +1055,10 @@ function ScriptAccordionItem({
               <div className="flex items-center justify-between text-sm text-slate-400 font-semibold">
                 <span>บทพูดพากย์ ({lines.length} ท่อน):</span>
                 <div className="flex items-center gap-2">
-                  {isPosted ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] font-bold">
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>โพสต์แล้ว (ล็อกเนื้อหา)</span>
+                  {isLocked ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.08] text-slate-400 text-[11px] font-bold">
+                      <Lock className="w-3.5 h-3.5 text-slate-500" />
+                      <span>{isPosted ? 'โพสต์แล้ว (ล็อกเนื้อหา)' : 'กำลังตัดต่อ (ล็อกเนื้อหา)'}</span>
                     </span>
                   ) : (
                     <>
@@ -1022,43 +1094,45 @@ function ScriptAccordionItem({
                       ? <><Check className="w-3 h-3 text-emerald-400" /> คัดลอกแล้ว</>
                       : <><Copy className="w-3 h-3" /> คัดลอก</>}
                   </button>
-                  {!isPosted && (
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); onRerollScript && onRerollScript(index); }}
-                      className="text-fuchsia-300 hover:text-fuchsia-200 hover:underline flex items-center gap-1 cursor-pointer font-bold text-xs"
-                      title="ให้ AI เขียนสคริปต์ใหม่สำหรับมุมนี้"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>รีสคริปต์ด้วย AI</span>
-                    </button>
+                  {!isLocked && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onRerollScript && onRerollScript(index); }}
+                        className="text-fuchsia-300 hover:text-fuchsia-200 hover:underline flex items-center gap-1 cursor-pointer font-bold text-xs"
+                        title="ให้ AI เขียนสคริปต์ใหม่สำหรับมุมนี้"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>รีสคริปต์ด้วย AI</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onGenerateShotList && onGenerateShotList(index); }}
+                        disabled={isGeneratingShotList}
+                        className="text-amber-300 hover:text-amber-200 hover:underline flex items-center gap-1 cursor-pointer font-bold text-xs disabled:opacity-50 disabled:cursor-wait"
+                        title="สร้างแผนถ่าย (Shot List) จากจังหวะเสียงพากย์จริง"
+                      >
+                        {isGeneratingShotList
+                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          : <Clapperboard className="w-3.5 h-3.5" />}
+                        <span>แผนถ่าย</span>
+                      </button>
+                    </>
                   )}
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); onGenerateShotList && onGenerateShotList(index); }}
-                    disabled={isGeneratingShotList}
-                    className="text-amber-300 hover:text-amber-200 hover:underline flex items-center gap-1 cursor-pointer font-bold text-xs disabled:opacity-50 disabled:cursor-wait"
-                    title="สร้างแผนถ่าย (Shot List) จากจังหวะเสียงพากย์จริง"
-                  >
-                    {isGeneratingShotList
-                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      : <Clapperboard className="w-3.5 h-3.5" />}
-                    <span>แผนถ่าย</span>
-                  </button>
                 </div>
               </div>
               <div
                 onClick={handleStartEdit}
                 className={`p-2.5 rounded-lg border space-y-1 max-h-44 overflow-y-auto font-mono text-xs leading-relaxed transition-colors group/box relative ${
-                  isPosted
+                  isLocked
                     ? 'bg-black/20 border-white/[0.06] text-slate-300 cursor-default'
                     : 'bg-black/40 hover:bg-black/60 border border-white/[0.06] hover:border-white/[0.18] text-slate-200 cursor-pointer'
                 }`}
-                title={isPosted ? "สคริปต์นี้ถูกโพสต์แล้ว ถูกล็อกเก็บไว้เป็นหลักฐาน" : "คลิกที่กล่องนี้เพื่อแก้ไขสคริปต์ได้ทันที"}
+                title={isLocked ? 'สคริปต์นี้ถูกล็อกเนื้อหาแล้ว' : 'คลิกที่กล่องนี้เพื่อแก้ไขสคริปต์ได้ทันที'}
               >
                 {lines.map((line, lIdx) => (
                   <div key={lIdx} className="flex items-start gap-1.5">
-                    <span className="text-[#25F4EE] font-bold flex-shrink-0">{lIdx + 1}.</span>
+                    <span className={`font-bold flex-shrink-0 ${isLocked ? 'text-slate-500' : 'text-[#25F4EE]'}`}>{lIdx + 1}.</span>
                     <span>{line}</span>
                   </div>
                 ))}
@@ -1124,17 +1198,19 @@ function ScriptAccordionItem({
                   <div
                     key={path}
                     className={`flex-shrink-0 flex items-center gap-1.5 py-1 px-2.5 rounded-lg border text-xs font-bold shadow-sm animate-fadeIn ${
-                      isInProduction
+                      isPosted
+                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                        : isInProduction
                         ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
                         : 'bg-[#25F4EE]/15 border-[#25F4EE]/40 text-[#25F4EE]'
                     }`}
                   >
-                    <Film className={`w-3.5 h-3.5 ${isInProduction ? 'text-amber-400' : 'text-[#25F4EE]'}`} />
+                    <Film className={`w-3.5 h-3.5 ${isPosted ? 'text-emerald-400' : isInProduction ? 'text-amber-400' : 'text-[#25F4EE]'}`} />
                     <span className="truncate max-w-[130px]">{fileName}</span>
-                    {isInProduction ? (
+                    {isLocked ? (
                       <span
-                        className="p-0.5 text-amber-400/70 ml-0.5"
-                        title="คลิปนี้กำลังใช้งานจริงในไทม์ไลน์ (ล็อคไม่ให้ลบ จนกว่าจะตัดออกในไทม์ไลน์)"
+                        className="p-0.5 text-slate-400/70 ml-0.5"
+                        title={isPosted ? "คลิปนี้ถูกโพสต์แล้ว (ล็อก)" : "คลิปนี้กำลังใช้งานจริงในไทม์ไลน์ (ล็อก)"}
                       >
                         <Lock className="w-3 h-3" />
                       </span>

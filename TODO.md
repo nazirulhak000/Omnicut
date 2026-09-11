@@ -18,6 +18,10 @@
 
 ---
 
+- [ ] Round READONLY-SCRIPT-STATUS-1 — ล็อกการแก้ไขสคริปต์และคลิปดิบเป็นสีเทาทั้งหมดเมื่อสถานะเป็น 'โพสต์แล้ว' หรือ 'กำลังตัดต่อ' และให้ปลดล็อกได้เฉพาะเมื่อย้อนสถานะเท่านั้น (2026-09-11)
+- [x] Round SHOT-LIST-ENHANCE-2 — ปรับคำแนะนำมุมกล้องและการถ่ายทำในแผนถ่ายให้เจาะลึกเฉพาะซีนตามบทพูดจริง (Semantic Action Guidance) (2026-09-11; backend 5 passed, frontend 151 passed)
+- [x] Round SHOT-LIST-ENHANCE-1 — ยกระดับโฟลว์แผนถ่าย (Phase 1): Invalidate แผนถ่ายเมื่อสคริปต์เปลี่ยน + เพิ่มปุ่มเปิดแผนถ่ายใน ContentTrackerHub (2026-09-11; backend 4 passed, frontend 151 passed, build pass)
+- [x] Round PERSIST-LAYOUT-FIX-1 — แก้ Product selection ไม่จำค่าหลังรีเฟรชหน้า + จัดระเบียบ Toolbar action buttons ใน ProductToClip และ ContentTrackerHub ให้เรียบตรงบรรทัดเดียวไม่ตกขอบ (2026-09-11; frontend 151 passed, build pass)
 - [x] Round RESPONSIVE-LAYOUT-1 — ปรับแต่ง Responsive Layout ทั้งหมดรองรับ 2 หน้าจอ Desktop (1440x900) และ Mobile (iPhone 15 Pro Max 430x932) (2026-09-11; frontend 150 passed, build pass, parity 153 passed)
 - [x] Round DOC-SYNC-1 — sync สถานะเอกสารจากผลทดสอบล่าสุด และแยกงานที่รอ user/live validation (2026-09-10)
 - [x] Round BUG-MARK-POSTED-1 — แก้ปุ่ม “มาร์กว่าลงโพสต์แล้ว” แจ้งสำเร็จแต่การ์ดยังไม่ย้ายสถานะ (2026-09-10; full backend 1,035 passed)
@@ -31,8 +35,40 @@
 - [x] Round RENDER-REGRESSION-2 — ตรวจ forensic commit ของ render/style และคืน Preview = Render ให้เหมือน baseline (2026-09-10; culprit `3a35723` 08:06:23, backend 1,057 passed, frontend 150 passed, build/lint ผ่าน)
 - [x] Round FONT-SIZE-REGRESSION-1 — ตรวจและคืนขนาดฟอนต์บทพูด/ซับให้เท่า baseline (2026-09-10; stale ASS invalidation, backend 1,059 passed, frontend 150 passed, build/lint ผ่าน)
 - [x] Round FONT-SIZE-REGRESSION-2 — แก้ backend `.venv` ขาด `fontTools` แล้ว fallback เงียบเป็น scale `1.0`; เปลี่ยนเป็นอ่าน SFNT metrics โดยตรง, bump contract `v4`, และเรนเดอร์งานจริงใหม่ (2026-09-10; backend 1,061, frontend 150, focused 174 passed)
+- [x] Round DELETED-TIMELINE-SYNC-1 — ซิงค์สถานะโปรเจกต์ที่ถูกลบออกจาก NewClipPanel, ล็อกปุ่มแผนถ่ายเมื่อถูกล็อก, และนำปุ่มย้อนสถานะออก (2026-09-11; Vitest 151 pass, build pass)
 - [ ] Round FONT-TEXT-RULE-1 — ถอดบทเรียนและล็อกกฎห้ามงานอื่นกระทบฟอนต์/ข้อความ/ซับ/Preview=Render โดยไม่ได้รับคำสั่งชัดเจน (2026-09-10)
 
+
+
+## Round READONLY-SCRIPT-STATUS-1 — ล็อกการแก้ไขสคริปต์และคลิปดิบเป็นสีเทาทั้งหมดเมื่อสถานะเป็น 'โพสต์แล้ว' หรือ 'กำลังตัดต่อ' และให้ปลดล็อกได้เฉพาะเมื่อย้อนสถานะเท่านั้น
+
+วันที่: 2026-09-11 · สั่งโดย: user · สถานะ: ปิดรอบแล้ว
+
+**เป้าหมาย:** สคริปต์ที่สถานะเป็น 'โพสต์แล้ว' หรือ 'กำลังตัดต่อ' ต้องล็อกส่วนแก้ไขและคลิปดิบด้านขวา (AngleActiveWorkbench) เป็นสีเทาทั้งหมด ห้ามแก้ไข/รีสคริปต์/สลับคลิปดิบ มีปุ่มย้อนสถานะ (Revert to Scripted) เพื่อปลดล็อกให้แก้ไขได้ตามโฟลว์
+
+### Todo
+
+- [x] ปรับ `AngleActiveWorkbench` และ `ScriptAccordionItem` ใน `ProductToClip.jsx`:
+  - ตรวจสอบ `isPosted` และ `isInProduction` -> กำหนด `isLocked`
+  - หาก `isLocked`: แสดงแถบสถานะล็อกชัดเจน, สคริปต์และ Hook แสดงผลเป็นโทนเทา (read-only), ซ่อน/ปิดปุ่มแก้ไข, แทนที่คำ, รีสคริปต์ด้วย AI
+  - ในส่วนคลิปดิบ: ล็อกปุ่มเลือกคลิปเป็นสีเทา ห้ามลบหรือสลับคลิป
+  - เพิ่มปุ่ม "ย้อนสถานะเพื่อตัด/แก้ไขใหม่" (Revert to Scripted) ส่ง `handleAngleStatusChange(angle.angle_id, 'scripted')` เพื่อปลดล็อกตามโฟลว์
+- [x] อัปเดต `AngleActiveWorkbench` และ `ScriptAccordionItem` ให้รับ callback `onRevertStatus` (ต่อสายกับ `handleAngleStatusChange`)
+- [x] รันการทดสอบ Vitest frontend และ build ให้ผ่าน 100%
+
+### Gate
+
+- [x] สคริปต์ที่โพสต์แล้ว (`posted`) และกำลังตัดต่อ (`in_production`) มี UI ฝั่งขวาเป็นโทนสีเทาชัดเจน ไม่สามารถกดแก้ไขสคริปต์หรือเปลี่ยนคลิปได้
+- [x] มีปุ่มย้อนสถานะเพื่อกลับมาเป็น 'สคริปต์พร้อม' (`scripted`) เพื่อแก้ไขได้ตามโฟลว์
+- [x] Vitest frontend passed (151/151 tests) & build passed (vite build exited 0)
+
+### Notes
+
+- เพิ่ม props `onRevertStatus` เข้าไปที่ทั้ง `AngleActiveWorkbench` และ `ScriptAccordionItem`
+- ผูกปุ่ม "ย้อนสถานะเพื่อตัด/แก้ไขใหม่" เข้ากับ `handleAngleStatusChange(angle.angle_id, 'scripted')` ซึ่งจะทำการเรียก backend API `updateAngleStatus` บันทึกสถานะ และอัปเดต state ของหน้าเว็บทันที
+- สไตล์ฝั่งขวาเมื่อ `isLocked` เป็นโทนสีเทาเข้มขรึม (`bg-[#090C14]/90 border-white/[0.06] text-slate-400`), สคริปต์คลิกแล้วไม่เปิดโหมดแก้ไข, ป้าย Hook เป็นสีเทา, แท็กคลิปดิบมีไอคอน Lock กำกับ และซ่อนปุ่มลบคลิป ป้องกันการแก้ไขเนื้อหาที่โพสต์แล้วหรืออยู่ในสายการผลิตไทม์ไลน์จริง
+
+---
 
 ## Round FONT-TEXT-RULE-1 — กฎเหล็กฟอนต์และข้อความ
 

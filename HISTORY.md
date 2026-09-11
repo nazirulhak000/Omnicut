@@ -9,6 +9,10 @@
 ## สารบัญ
 
 | รอบ | งาน | วันที่ | ผลลัพธ์ |
+| Round DELETED-TIMELINE-SYNC-1 | ซิงค์สถานะโปรเจกต์ที่ถูกลบออกจาก NewClipPanel, ล็อกปุ่มแผนถ่ายเมื่อถูกล็อก, และนำปุ่มย้อนสถานะออก | 2026-09-11 | ลบปุ่มย้อนสถานะแปลกปลอมตาม Clean UI standard, ล็อกปุ่มแผนถ่าย/แก้ไข/รีสคริปต์เมื่อ isLocked, ตรวจเช็ค existingProjects ใน NewClipPanel ลบคำเตือนค้าง, อัปเดตสินค้าหลังลบโปรเจกต์; Vitest 151 passed, build pass |
+| Round SHOT-LIST-ENHANCE-2 | ปรับคำแนะนำมุมกล้องและการถ่ายทำในแผนถ่ายให้เจาะลึกเฉพาะซีนตามบทพูดจริง (Semantic Action Guidance) | 2026-09-11 | วิเคราะห์คีย์เวิร์ดบทพูดรายซีน (Ergonomic/Click/Smooth/Value/Price/Durability/Bluetooth), จับหมวดสินค้าจาก product_name อัตโนมัติ, หลีกเลี่ยงคำแนะนำซ้ำ; backend 5 passed, frontend 151 passed |
+| Round SHOT-LIST-ENHANCE-1 | ยกระดับโฟลว์แผนถ่าย (Phase 1): Invalidate แผนถ่ายเมื่อสคริปต์เปลี่ยน + เพิ่มปุ่มเปิดแผนถ่ายใน ContentTrackerHub | 2026-09-11 | ลบ shot list เก่าอัตโนมัติเมื่อแก้บท/สุ่มใหม่, แจ้งเตือน stale script ใน modal, คำแนะนำกล้องฉลาดตาม category, ปุ่มเปิดแผนถ่ายใน Tracker Hub; backend 4 passed, frontend 151 passed, build pass |
+| Round PERSIST-LAYOUT-FIX-1 | แก้ Product selection ไม่จำค่าหลังรีเฟรชหน้า + จัดระเบียบ Toolbar action buttons | 2026-09-11 | จำ active product และ angle index ล่าสุดใน localStorage, คลีน Header เอาป้ายราคา/ID ออก ย้าย ID ไปไว้ใน ข้อมูล AI modal, จัด Toolbar เป็น single-row scrollable; frontend 151 passed, build pass |
 | Round RESPONSIVE-LAYOUT-1 | ปรับแต่ง Responsive Layout ทั้งหมดรองรับ 2 หน้าจอ Desktop (1440x900) และ Mobile (iPhone 15 Pro Max 430x932) | 2026-09-11 | Shell/Editor/Hubs/Modals ปรับ touch target >= 44px, ป้องกัน header/button wrap, layout สองขนาดสมบูรณ์; frontend 150 passed, build pass, parity 153 passed |
 | Round STYLE-ONECLICK-1 | เพิ่ม 4 Style Presets ใน One Click และแยก fresh-create ออกจาก open-existing | 2026-09-10 | Viral/Clean/Smooth/Premium ใช้ motion, transition และ accent จริง; แก้ปุ่มส่งตัดต่อไม่เปิดโปรเจกต์เก่า; backend 1,034 และ frontend 144 tests ผ่าน พร้อม FFmpeg multi-frame/build |
 | Round DOC-SYNC-1 | Sync สถานะเอกสารจากผลทดสอบล่าสุด | 2026-09-10 | ปิดเอกสารของรอบที่ implementation เสร็จ; แยก live TikTok, Thai glyph verification และ empirical performance เป็นงานรอหลักฐานจริง |
@@ -44,6 +48,116 @@
 | Round TRK-2 | ตารางจัดคิวโพสต์ประจำวัน (Daily Run Sheet) & จัดกลุ่มย่อการ์ด (Product Grouping / Quick Pills) | 2026-09-06 | Daily Run Sheet tab (4 slots + auto-rotate + schedule time) + Quick Pills + Accordion · pytest 373 pass · npm test 54 pass · build pass |
 | Round TRK-1 | เพิ่มปุ่มส่งคลิปไป TikTok Studio พร้อม Modal ตรวจสอบ/ปักตะกร้า ในหน้า Tracker | 2026-09-06 | ContentTrackerHub 2-row buttons + Post Modal + Inspect toolbar · pytest 372 pass · npm test 54 pass · build pass |
 | Round PROD-1 | เพิ่มช่อง TikTok Product ID ตอนสร้างสคริปต์ + Fallback ค้นหาด้วยชื่อ + Click-to-Edit Cart ID ย้อนหลัง | 2026-09-06 | ProductToClip modal + Header badge edit + auto-resolve shortlinks · pytest 372 pass · npm test 54 pass · build pass |
+
+## Round DELETED-TIMELINE-SYNC-1 — ซิงค์สถานะโปรเจกต์ที่ถูกลบออกจาก NewClipPanel, ล็อกปุ่มแผนถ่ายเมื่อถูกล็อก, และนำปุ่มย้อนสถานะออก
+
+วันที่: 2026-09-11 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+**เป้าหมาย:**
+1. **นำปุ่ม "ย้อนสถานะ" ออกทั้งหมด (Unified UI Standard):** ถอดปุ่มย้อนสถานะออกจากทั้ง Locked Notice Banner และ Action Bar ใน `ProductToClip.jsx` เพื่อให้สถานะของมุมเป็นไปตามโฟลว์จริงของระบบ (เมื่อลบโปรเจกต์ไทม์ไลน์ สถานะจะ Reconcile กลับเป็น scripted ให้ตัดใหม่ได้อัตโนมัติ)
+2. **ล็อกปุ่ม "แผนถ่าย" เมื่อมุมถูกล็อก (`isLocked`):** ล็อกและซ่อนปุ่ม "แผนถ่าย" ร่วมกับปุ่ม "รีสคริปต์ด้วย AI" และ "แก้ไขสคริปต์" ทั้งใน `AngleActiveWorkbench` และ `ScriptAccordionItem` เมื่อมุมมีสถานะ `โพสต์แล้ว` หรือ `กำลังตัดต่อ`
+3. **แก้ไขข้อความเตือนโปรเจกต์ค้างใน `NewClipPanel.jsx`:** เพิ่มการตรวจเช็ค `angleSpecificProject` กับรายชื่อโปรเจกต์จริงใน `existingProjects` ถ้าโปรเจกต์ถูกลบไปแล้ว จะไม่ดึงชื่อเดิมที่ค้างอยู่ใน metadata มาแสดง ทำให้กล่องเตือนสีเหลืองหายไปทันที และใน `EditorShell.jsx` เมื่อกดยืนยันลบโปรเจกต์สำเร็จ ให้เรียกอัปเดต state สินค้าล่าสุดกลับมายัง `App.jsx` ทันที
+
+### Todo
+- [x] ใน `ProductToClip.jsx`: ลบปุ่ม "ย้อนสถานะเพื่อตัด/แก้ไขใหม่" ออกจาก Locked Notice Banner และ Action Bar
+- [x] ใน `ProductToClip.jsx`: ซ่อน/ปิดปุ่ม "แผนถ่าย" เมื่อ `isLocked` (แสดงเฉพาะเมื่อ `!isLocked`)
+- [x] ใน `NewClipPanel.jsx`: ปรับการคำนวณ `angleSpecificProject` ให้ตรวจเช็คว่าโปรเจกต์มีอยู่จริงใน `existingProjects`
+- [x] ใน `EditorShell.jsx`: เมื่อ `confirmDelete` สำเร็จ ดึงข้อมูลสินค้าล่าสุดและส่ง `onProductContextChange` กลับไปยัง `App.jsx`
+- [x] รันการทดสอบและ build ผ่านสมบูรณ์
+
+### Gate
+- [x] ไม่มีปุ่มย้อนสถานะแปลกปลอมใน ProductToClip
+- [x] ปุ่มแผนถ่ายไม่สามารถกดได้เมื่อมุมอยู่ในสถานะโพสต์แล้วหรือกำลังตัดต่อ
+- [x] เมื่อลบโปรเจกต์แล้ว หน้า NewClipPanel ไม่แสดงกล่องเตือนสีเหลืองว่ามีโปรเจกต์ค้างอยู่
+- [x] Vitest pass (151 tests) & vite build pass
+
+---
+
+## Round SHOT-LIST-ENHANCE-2 — ปรับคำแนะนำมุมกล้องและการถ่ายทำในแผนถ่ายให้เจาะลึกเฉพาะซีนตามบทพูดจริง (Semantic Action Guidance)
+
+วันที่: 2026-09-11 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+**เป้าหมาย:** 
+1. **Semantic Script Analysis:** ปรับ `camera_direction_for_beat()` ให้แยกแยะการกระทำตามคำสำคัญ (Keywords) ในแต่ละประโยคบทพูดจริง เช่น คลิก/ปุ่ม/เงียบ/ลื่นไหล, ปวดเมื่อย/สุขภาพ/องศา/สรีระ, ราคา/คุ้ม/วันละ, บลูทูธ/สลับเครื่อง/ถ่าน ไม่ให้ขึ้นคำแนะนำซ้ำซากจำเจ
+2. **Auto Product Name & Model Detection:** หาก `category` ว่างเปล่า ให้นำ `product_name` มาวิเคราะห์หมวดสินค้าอัตโนมัติ (เช่น Logitech Lift -> Desk Tech / Ergonomic Mouse ทันที)
+3. **Multi-scene Differentiation:** แต่ละซีนของ Feature Beats ต้องมีคำแนะนำแอคชั่นการถือ/จับ/หมุน/กด/วางที่ไม่ซ้ำกัน ทำให้คนถ่ายรู้ว่าในแต่ละวินาทีต้องทำท่าทางอะไรกับสินค้า
+
+### สิ่งที่ทำ
+
+1. ปรับปรุง `camera_direction_for_beat()` ใน [scripts/shot_list_builder.py](file:///d:/Winona/Programmer/Capcut/scripts/shot_list_builder.py) ให้รวม `product_name` เข้ากับการตรวจจับหมวดหมู่ (เช่น เจอ mouse, lift, keyboard, cable, beauty)
+2. เพิ่มระบบ Semantic Context วิเคราะห์ประโยคบทพูดและคำบนหน้าจอ:
+   - เสียงคลิก/ปุ่ม/SmartWheel: แนะนำใช้นิ้วกดคลิกและหมุน SmartWheel ให้เห็นความนุ่มลื่นเงียบกริบ
+   - สุขภาพ/ปวดเมื่อย/ข้อมือ/สรีระ/องศา: แนะนำทาบมือลงบนเมาส์ ยกให้เห็นมุมเอียง 57° ที่กระชับพอดีฝ่ามือ ไม่เกร็งข้อมือ
+   - ความคุ้มค่า/ราคา/วันละ/ลงทุน: แนะนำยกเมาส์ขึ้นมาถือหรือหมุนช้าๆ 360° โชว์ความพรีเมียมและวัสดุ
+   - บลูทูธ/ไร้สาย/สวิตช์: แนะนำพลิกด้านใต้เมาส์ให้เห็นสวิตช์เปิด-ปิด หรือปุ่มสลับเครื่อง Easy-Switch
+3. เพิ่มการสลับ Default actions กรณีไม่มีคำเจาะจง เพื่อไม่ให้ช็อตที่ติดกันแสดงข้อความซ้ำกัน
+4. เพิ่มชุดทดสอบใน `tests/test_shot_list_enhancements.py` ครอบคลุมเคสสคริปต์จริงของ Logitech Lift ผ่านครบ 100%
+
+### Gate
+
+- [x] Backend test สำหรับ semantic camera directions ผ่านครบ (`tests/test_shot_list_enhancements.py`, 5 passed)
+- [x] `npm test -- --run` ใน frontend ผ่านครบ 100% (151 tests passed)
+
+---
+
+## Round SHOT-LIST-ENHANCE-1 — ยกระดับโฟลว์แผนถ่าย (Shot List Enhancement - Phase 1)
+
+วันที่: 2026-09-11 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+**เป้าหมาย:** 
+1. **Invalidate & Detect Stale Shot List:** เมื่อสคริปต์ (`script_lines`) มีการแก้ไข (ผ่าน hand-edit หรือ AI reroll) ให้ระบบตรวจจับได้ และลบ/แจ้งเตือนว่าแผนถ่ายเก่าหมดอายุ (Stale) ต้องกดสร้างใหม่เพื่อไม่ให้เวลาและบทพูดเพี้ยน
+2. **Shot List Navigation ใน ContentTrackerHub:** เพิ่มปุ่ม "แผนถ่าย" ในหน้า Content Tracker Hub (ทั้งในแถบ Action ของ `InspectAngleModal` และปุ่มด่วน) พร้อมเปิด `ShotListModal` ดูคำแนะนำ/สแกน QR ได้ทันที
+3. **Smart Framing by Category:** ปรับคำแนะนำกล้องใน `shot_list_builder.py` ให้ฉลาดขึ้นตามหมวดสินค้า (`category`) เช่น IT/เมาส์คีย์บอร์ด แนะนำ Top-down/45°, แฟชั่น แนะนำ Close-up Texture
+4. **Resilient UX:** ปรับปรุง State ให้มั่นคง ไม่หมุนค้าง และมี fallback error ชัดเจน
+
+### สิ่งที่ทำ
+
+1. **Backend / Data Store:**
+   - เพิ่มเมธอด `ShotListsStore.delete(product_id, angle_id)` และ `ShotListsStore.is_stale(product_id, angle_id, current_script)` ใน `scripts/shot_lists_store.py`
+   - ปรับ `ProductStore.replace_angle_content` และ `ProductStore.update` เมื่อสคริปต์เปลี่ยน ให้ลบ Shot List เดิมของมุมนั้นโดยอัตโนมัติ เพื่อป้องกันเวลาเสียงพากย์คลาดเคลื่อน
+   - ปรับ `GET /api/products/{id}/angles/{id}/shot-list` ให้คืนค่า `is_stale: true/false` หากพบว่าสคริปต์ปัจจุบันไม่ตรงกับที่แคชไว้
+2. **Smart Category Framing (`scripts/shot_list_builder.py`):**
+   - ปรับ `camera_direction_for_beat()` และ `build_shot_list()` ให้รองรับ `category`
+   - แนะนำมุมตั้งกล้องเฉพาะหมวด:
+     - Desk Tech (เมาส์/คีย์บอร์ด): แนะนำมุมเฉียง 45° หรือ Top-Down ส่องบนโต๊ะทำงาน
+     - Cables/Chargers: แนะนำมุม Close-up โชว์การม้วนเก็บ สายถัก และความทนทาน
+     - Beauty/Skincare: แนะนำมุมสว่าง Medium Close-up ถือใกล้ใบหน้าและโชว์เนื้อสัมผัส
+3. **Frontend Integration:**
+   - ปรับ `frontend/src/components/ShotListModal.jsx` เพิ่มแถบเตือนสีแดงกะพริบแจ้งเตือนเมื่อ `result.is_stale === true` พร้อมปุ่ม "อัปเดตแผนถ่าย" 1-คลิก
+   - ปรับ `frontend/src/components/ContentTrackerHub.jsx` เชื่อมต่อ `ShotListModal` เต็มรูปแบบ:
+     - เพิ่มปุ่ม "แผนถ่าย" ในแถบ Action ของ `InspectAngleModal`
+     - รองรับการสร้าง/เปิดดูแผนถ่ายและการสแกน QR Code ถ่ายทำผ่านมือถือจากหน้า Content Tracker Hub ได้โดยตรง
+4. **Testing & Verification:**
+   - เพิ่มชุดทดสอบ `tests/test_shot_list_enhancements.py` ทดสอบ CRUD, Stale detection และ Category framing ผ่านครบ 4/4 tests
+   - Frontend test ผ่าน 151/151 tests, `npm run build` สำเร็จเรียบร้อย
+
+### Gate
+
+- [x] Backend test สำหรับ `ShotListsStore.delete`, `is_stale` และ `camera_direction_for_beat` ผ่านครบ (`tests/test_shot_list_enhancements.py`, 4 passed)
+- [x] `npm test -- --run` ใน frontend ผ่านครบ 100% (151 tests passed)
+- [x] `npm run build` ใน frontend ผ่านไร้ error (1,984 modules transformed)
+
+---
+
+## Round PERSIST-LAYOUT-FIX-1 — Product Selection Persistence & Toolbar Alignment Fix
+
+วันที่: 2026-09-11 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+**เป้าหมาย:** 
+1. แก้ปัญหารีเฟรชแล้วไม่จำสินค้าที่เลือก (เลือก Logitech Lift แต่พอนึกรีเฟรชกลับเด้งไปสินค้าตัวแรก): เพิ่ม local storage fallback และ sync active product context ทั้งสองทาง
+2. จำสคริปต์/มุมขายที่เปิดค้างไว้ (`openAngleIdx`): บันทึกและ restore ทั้งระดับ product (`capcut_active_angle_idx_${id}`) และ global เมื่อรีเฟรชหน้า ไม่เด้งกลับไปมุม 0
+3. คลีน Header ใน `ProductToClip.jsx`: ตัดป้าย "ราคาพิเศษในตะกร้า" และป้าย ID ที่รกออก เพื่อให้หัวเรื่องสินค้าเด่นชัดบรรทัดเดียว
+4. ย้าย TikTok Product ID (`tiktok_product_id`) เข้าไปแก้ไขและจัดการในหน้าต่าง "ข้อมูล AI" ([ProductMetadataModal.jsx](file:///d:/Winona/Programmer/Capcut/frontend/src/components/ProductMetadataModal.jsx)) ไม่กินพื้นที่แถบหัวบน
+5. ขยายขนาดชื่อสินค้าและปรับ Typography ให้คมชัด ใหญ่ ชัดเจน ในบรรทัดเดียว (`titleClassName` ใน `PageHeader.jsx`)
+6. จัดการ Layout Toolbar ใน `ProductToClip.jsx` แถว 2 ที่ปุ่มแอ็กชัน wrap ตกบรรทัดลงมาไม่สวยงามบนจอมือถือ (430px) ให้เรียงเป็น 1 แถวอย่างเป็นระเบียบ (scrollable flex-nowrap) ไม่แตกแถว
+7. ตรวจสอบและปรับปรุง Modal action buttons ใน `ContentTrackerHub.jsx` (InspectAngleModal) ให้จัดเรียงแบบ grid สมมาตร 2 คอลัมน์บนมือถือ ไม่ wrap กระจัดกระจาย
+
+### Gate
+
+- `npm test -- --run` ใน frontend ผ่านครบ (151 passed)
+- `npm run build` ใน frontend ผ่านไร้ error (built in 3.23s)
+
+---
 
 ## Round RESPONSIVE-LAYOUT-1 — ปรับแต่ง Responsive Layout (1440×900 vs 430×932)
 

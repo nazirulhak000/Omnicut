@@ -410,6 +410,7 @@ export default function App() {
                     onAngleChange={handleSelectAngle}
                     onGoToProductFlow={() => setActiveTab('flow')}
                     onVideoUploaded={handleVideoUploaded}
+                    onProductContextChange={setActiveProductContext}
                   />
                 </Suspense>
               </main>

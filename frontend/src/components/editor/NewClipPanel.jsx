@@ -276,7 +276,17 @@ export default function NewClipPanel({
   //
   // The angle carries its own project once one has been created for it (the
   // same `project_name` ContentTrackerHub and EditorShell read).
-  const angleSpecificProject = (currentAngle || angles[angleIndex])?.project_name || '';
+  // IMPORTANT: Verify that the project actually exists on disk in existingProjects!
+  // If the user deleted the project from timeline/disk, it must not display as existing.
+  const rawAngleProject = (currentAngle || angles[angleIndex])?.project_name || '';
+  const angleSpecificProject = useMemo(() => {
+    if (!rawAngleProject) return '';
+    const exists = (existingProjects || []).some((p) => {
+      const name = typeof p === 'string' ? p : (p && p.project_name) || '';
+      return name.trim().toLowerCase() === rawAngleProject.trim().toLowerCase();
+    });
+    return exists ? rawAngleProject : '';
+  }, [rawAngleProject, existingProjects]);
   // Whether creating now would spawn a new variant (_2, _3, ...) rather than
   // the first-ever project for this product+angle: checked directly against
   // existingProjects (does the "_1" entry already exist?) instead of

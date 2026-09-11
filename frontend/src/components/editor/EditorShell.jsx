@@ -133,6 +133,7 @@ export default function EditorShell({
   onAngleChange,
   onGoToProductFlow,
   onVideoUploaded,
+  onProductContextChange,
 }) {
   const { state, set, setSilent, beginDrag, endDrag, undo, redo, reset, canUndo, canRedo } = useEditorHistory(EMPTY);
   const { clipList, cuesList, style, overlays, stickers = [], effects = [], trackMix = { mute: {}, solo: {} } } = state;
@@ -609,6 +610,18 @@ export default function EditorShell({
       await deleteProject(pendingDelete, deleteScope);
       const data = await getProjects().catch(() => null);
       setProjectList(data?.projects || []);
+
+      // Refresh product context so any deleted project links are cleared immediately
+      if (productContext?.id) {
+        getProducts().then((freshRes) => {
+          const list = Array.isArray(freshRes) ? freshRes : (freshRes?.products || []);
+          const updated = list.find((p) => p.id === productContext.id);
+          if (updated && onProductContextChange) {
+            onProductContextChange(updated);
+          }
+        }).catch(() => {});
+      }
+
       if (projectName === pendingDelete) {
         setProjectName('');
         setSelection(null);
