@@ -475,14 +475,14 @@ export default function TrimAdjustModal({
                     </div>
                   )}
                   <div
-                    className="absolute top-0 left-0 h-full w-2.5 cursor-ew-resize touch-none bg-emerald-400"
+                    className="absolute top-0 left-0 h-full w-3 sm:w-2.5 cursor-ew-resize touch-none bg-emerald-400 before:absolute before:-inset-x-2.5 before:inset-y-0 before:content-['']"
                     onPointerDown={startDrag('start')}
                     onPointerMove={moveDrag}
                     onPointerUp={endDrag}
                     onPointerCancel={endDrag}
                   />
                   <div
-                    className="absolute top-0 right-0 h-full w-2.5 cursor-ew-resize touch-none bg-emerald-400"
+                    className="absolute top-0 right-0 h-full w-3 sm:w-2.5 cursor-ew-resize touch-none bg-emerald-400 before:absolute before:-inset-x-2.5 before:inset-y-0 before:content-['']"
                     onPointerDown={startDrag('end')}
                     onPointerMove={moveDrag}
                     onPointerUp={endDrag}

@@ -18,6 +18,7 @@
 
 ---
 
+- [x] Round RESPONSIVE-LAYOUT-1 — ปรับแต่ง Responsive Layout ทั้งหมดรองรับ 2 หน้าจอ Desktop (1440x900) และ Mobile (iPhone 15 Pro Max 430x932) (2026-09-11; frontend 150 passed, build pass, parity 153 passed)
 - [x] Round DOC-SYNC-1 — sync สถานะเอกสารจากผลทดสอบล่าสุด และแยกงานที่รอ user/live validation (2026-09-10)
 - [x] Round BUG-MARK-POSTED-1 — แก้ปุ่ม “มาร์กว่าลงโพสต์แล้ว” แจ้งสำเร็จแต่การ์ดยังไม่ย้ายสถานะ (2026-09-10; full backend 1,035 passed)
 - [x] Round PRODUCT-METADATA-1 — แนบรูปอ้างอิงย้อนหลัง + Metadata Inspector สำหรับตรวจข้อมูลที่ AI ใช้ (2026-09-10; backend 1,037 passed, frontend 144 passed)

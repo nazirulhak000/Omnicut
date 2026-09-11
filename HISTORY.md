@@ -9,6 +9,7 @@
 ## สารบัญ
 
 | รอบ | งาน | วันที่ | ผลลัพธ์ |
+| Round RESPONSIVE-LAYOUT-1 | ปรับแต่ง Responsive Layout ทั้งหมดรองรับ 2 หน้าจอ Desktop (1440x900) และ Mobile (iPhone 15 Pro Max 430x932) | 2026-09-11 | Shell/Editor/Hubs/Modals ปรับ touch target >= 44px, ป้องกัน header/button wrap, layout สองขนาดสมบูรณ์; frontend 150 passed, build pass, parity 153 passed |
 | Round STYLE-ONECLICK-1 | เพิ่ม 4 Style Presets ใน One Click และแยก fresh-create ออกจาก open-existing | 2026-09-10 | Viral/Clean/Smooth/Premium ใช้ motion, transition และ accent จริง; แก้ปุ่มส่งตัดต่อไม่เปิดโปรเจกต์เก่า; backend 1,034 และ frontend 144 tests ผ่าน พร้อม FFmpeg multi-frame/build |
 | Round DOC-SYNC-1 | Sync สถานะเอกสารจากผลทดสอบล่าสุด | 2026-09-10 | ปิดเอกสารของรอบที่ implementation เสร็จ; แยก live TikTok, Thai glyph verification และ empirical performance เป็นงานรอหลักฐานจริง |
 | Round TLO-REFACTOR-FINAL-AUDIT | Final audit ของ Overlay Timeline/Preview refactor | 2026-09-09 | Overlay scope sign-off; full pytest ล่าสุด 1,034 passed, frontend 144 passed, build 1,979 modules |
@@ -43,6 +44,40 @@
 | Round TRK-2 | ตารางจัดคิวโพสต์ประจำวัน (Daily Run Sheet) & จัดกลุ่มย่อการ์ด (Product Grouping / Quick Pills) | 2026-09-06 | Daily Run Sheet tab (4 slots + auto-rotate + schedule time) + Quick Pills + Accordion · pytest 373 pass · npm test 54 pass · build pass |
 | Round TRK-1 | เพิ่มปุ่มส่งคลิปไป TikTok Studio พร้อม Modal ตรวจสอบ/ปักตะกร้า ในหน้า Tracker | 2026-09-06 | ContentTrackerHub 2-row buttons + Post Modal + Inspect toolbar · pytest 372 pass · npm test 54 pass · build pass |
 | Round PROD-1 | เพิ่มช่อง TikTok Product ID ตอนสร้างสคริปต์ + Fallback ค้นหาด้วยชื่อ + Click-to-Edit Cart ID ย้อนหลัง | 2026-09-06 | ProductToClip modal + Header badge edit + auto-resolve shortlinks · pytest 372 pass · npm test 54 pass · build pass |
+
+## Round RESPONSIVE-LAYOUT-1 — ปรับแต่ง Responsive Layout (1440×900 vs 430×932)
+
+วันที่: 2026-09-11 · สั่งโดย: user · สถานะ: เสร็จแล้ว
+
+**เป้าหมาย:** ปรับแต่ง Responsive Layout ทั้งหมดใน `frontend/src` รองรับ 2 ขนาดเป้าหมาย: Desktop 1440×900 (baseline Tailwind lg/xl) และ Mobile 430×932 (iPhone 15 Pro Max portrait Tailwind base/no-prefix) โดยใช้เฉพาะ default Tailwind breakpoints, ขจัด overflow, ขยาย touch target $\ge 44\text{px}$, และจัดระเบียบปุ่ม/modal ไม่ให้ตกขอบ
+
+### สิ่งที่ทำ
+
+1. **Phase 1: Shared Shell & Global Drawers**
+   - `Sidebar.jsx`: ปรับ Touch Target ของแถบ Bottom Tab Bar มือถือเป็น `min-h-[48px]`, `py-1 px-2` พร้อม active:scale-95
+   - `Topbar.jsx`: จัด layout ชื่อหน้าและปุ่ม header ด้วย `min-w-0 flex-1 mr-2` ยุบข้อความยาวคงเหลือไอคอน touch target $\ge 36\text{px}$ ป้องกัน header truncation บนจอ 430px
+   - `ActivityCenter.jsx`: ปรับ Slide-over Drawer เป็น `w-full max-w-full sm:max-w-md` และปรับ Filter Tabs 3 ปุ่มไม่ให้ตกบรรทัดหรือล้นขอบจอ
+2. **Phase 2: Core Creation & Editing Flow**
+   - `ProductToClip.jsx`: ปรับ Action Tools Group ไม่ให้ตัดตกบรรทัด
+   - `ContentTrackerHub.jsx`: ปรับปุ่ม Action ใน `InspectAngleModal` บนมือถือให้ wrap 2 คอลัมน์ได้พอดี
+   - `TrimAdjustModal.jsx`: ขยายจุดจับดึงตัดหัวท้ายคลิป (Start/End trim drag handles) ด้วย touch hitbox พิเศษ (`before:-inset-x-2.5`) ให้นิ้วแตะลากได้แม่นยำ
+3. **Phase 3: Support Hubs & Modals**
+   - `ExportGallery.jsx`: ขยาย Touch Target แถบฟิลเตอร์สถานะคลิปเป็น `min-h-[36px]` พร้อม `touch-pan-x` และปรับแถบ Floating Batch Action Bar ให้ลอยขึ้น (`bottom-20 sm:bottom-6`) ไม่บัง Bottom Tab Bar ของมือถือ
+   - `MediaAssetsHub.jsx`: ขยายปุ่ม Play/Pause ของ SFX และ BGM เป็น `w-11 h-11` ($\ge 44\text{px}$) แตะง่ายไม่วืด
+   - `TokenDashboard.jsx`: เพิ่ม `touch-pan-x` และ `min-w-[700px]` ให้ตาราง Ledger สถิติเลื่อนด้วยนิ้วบนจอ 430px ได้นุ่มนวล
+4. **Phase 4: Verification & Gate**
+   - `npm test -- --run` ผ่านครบ 150/150 tests
+   - `npm run build` ผ่านสมบูรณ์ (Vite production bundle สำเร็จใน 3.43s)
+   - `pytest tests/test_preview_render_parity.py` ผ่านครบ 153/153 tests
+
+### Gate
+
+- [x] ทุกหน้าแสดงผลถูกต้อง ไม่พังทั้ง 1440x900 และ 430x932
+- [x] ไม่มี touch target หลักที่ผู้ใช้ต้องแตะ < 44px บน mobile
+- [x] ไม่มี horizontal overflow หรือ scrollbar แนวนอนหลุดบน body
+- [x] `npm run build` (3.43s) และ `npm test` (150 passed), pytest parity (153 passed) ผ่านครบถ้วน
+
+---
 
 ## Round PRODUCT-METADATA-8 — อ่าน metadata จากรูปแบบเบื้องหลัง
 

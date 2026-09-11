@@ -389,8 +389,8 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
         </div>
 
         {/* Table Container */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-300">
+        <div className="overflow-x-auto touch-pan-x pb-2 no-scrollbar">
+          <table className="w-full text-left text-xs text-slate-300 min-w-[700px]">
             <thead className="bg-white/[0.03] text-slate-400 uppercase font-mono text-[10px] border-b border-white/[0.06]">
               <tr>
                 <th className="py-3 px-4">เวลา</th>

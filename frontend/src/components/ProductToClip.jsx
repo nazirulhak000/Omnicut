@@ -2420,7 +2420,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
               )}
 
               {/* Action Tools Group */}
-              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap flex-1 justify-end">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap flex-1 justify-end">
                 {/* Instant Search Bar */}
                 <div className="relative flex items-center">
                   <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" />

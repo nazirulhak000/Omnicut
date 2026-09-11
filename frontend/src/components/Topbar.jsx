@@ -83,16 +83,16 @@ export default memo(function Topbar({
   const Icon = currentTab.icon;
 
   return (
-    <header className="h-[52px] sm:h-[56px] flex-shrink-0 bg-[#080B11]/95 backdrop-blur-xl border-b border-white/[0.08] flex items-center justify-between px-3 sm:px-6 z-20 sticky top-0 w-full min-w-0 transition-colors">
+    <header className="h-[52px] sm:h-[56px] flex-shrink-0 bg-[#080B11]/95 backdrop-blur-xl border-b border-white/[0.08] flex items-center justify-between px-2.5 sm:px-6 z-20 sticky top-0 w-full min-w-0 transition-colors">
       {/* ── Left: Context-Aware Section Title & Badges ── */}
-      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-shrink-0">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 mr-2">
         {/* Menu Icon with Cyan Glow Pill */}
         <div className="w-8 h-8 rounded-xl bg-white/[0.04] border border-white/[0.1] text-[#25F4EE] flex items-center justify-center shadow-sm flex-shrink-0">
           <Icon className="w-4 h-4" />
         </div>
 
         {/* Menu Title & Dynamic Sub-Badge */}
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
           <h1 className="text-sm sm:text-base font-bold tracking-tight text-white font-kanit truncate">
             {currentTab.title}
           </h1>
@@ -113,7 +113,7 @@ export default memo(function Topbar({
       </div>
 
       {/* ── Right: Quick Actions, Global Font Selector & System Status ── */}
-      <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 flex-shrink-0">
+      <div className="flex items-center gap-1 sm:gap-2.5 min-w-0 flex-shrink-0">
         {/* Global Activity Center Button (Pulsing badge when active) */}
         <ActivityIndicatorButton />
 
@@ -121,7 +121,7 @@ export default memo(function Topbar({
         {onRefresh && (
           <button
             onClick={onRefresh}
-            className="p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-black/40 hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/[0.08] text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+            className="min-h-[36px] min-w-[36px] sm:min-h-0 sm:min-w-0 p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-black/40 hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/[0.08] text-slate-300 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
             title="รีเฟรชข้อมูลทั้งระบบ"
           >
             <RefreshCw className="w-3.5 h-3.5 text-[#25F4EE]" />
@@ -140,7 +140,7 @@ export default memo(function Topbar({
         </button>
 
         {/* Server Connection Status Badge */}
-        <div className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-xl text-xs font-medium border ${
+        <div className={`flex items-center justify-center gap-1.5 min-h-[36px] px-2 sm:px-2.5 py-1 rounded-xl text-xs font-medium border ${
           isOnline
             ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
             : 'bg-rose-500/15 text-rose-300 border-rose-500/30'

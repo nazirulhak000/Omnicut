@@ -114,7 +114,7 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
       </aside>
 
       {/* ── Mobile Bottom Tab Bar (Strict 5 items limit) ── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#080B11]/95 backdrop-blur-2xl border-t border-white/[0.08] flex items-center justify-around px-2 py-1.5 safe-bottom shadow-2xl">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#080B11]/95 backdrop-blur-2xl border-t border-white/[0.08] flex items-center justify-around px-1.5 py-1 safe-bottom shadow-2xl">
         {MOBILE_PRIMARY_TABS.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -122,14 +122,14 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`flex flex-col items-center gap-0.5 py-1 px-3 rounded-xl transition-all cursor-pointer flex-1
-                ${isActive
+              className={`flex flex-col items-center justify-center min-h-[48px] py-1 px-2 rounded-xl transition-all cursor-pointer flex-1 select-none active:scale-95 ${
+                isActive
                   ? 'text-[#25F4EE] font-bold'
                   : 'text-slate-400 hover:text-slate-200'
-                }`}
+              }`}
             >
               <Icon className="w-5 h-5" strokeWidth={isActive ? 2.3 : 1.7} />
-              <span className="text-[11px] font-kanit tracking-tight">{item.label}</span>
+              <span className="text-[11px] font-kanit tracking-tight mt-0.5">{item.label}</span>
             </button>
           );
         })}
@@ -137,14 +137,14 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
         {/* 5th Tab: 'อื่นๆ' (More Drawer Button) */}
         <button
           onClick={() => setShowMoreDrawer(true)}
-          className={`flex flex-col items-center gap-0.5 py-1 px-3 rounded-xl transition-all cursor-pointer flex-1
-            ${isMoreActive || showMoreDrawer
+          className={`flex flex-col items-center justify-center min-h-[48px] py-1 px-2 rounded-xl transition-all cursor-pointer flex-1 select-none active:scale-95 ${
+            isMoreActive || showMoreDrawer
               ? 'text-[#25F4EE] font-bold'
               : 'text-slate-400 hover:text-slate-200'
-            }`}
+          }`}
         >
           <MoreHorizontal className="w-5 h-5" strokeWidth={isMoreActive ? 2.5 : 1.8} />
-          <span className="text-[11px] font-kanit tracking-tight">อื่นๆ</span>
+          <span className="text-[11px] font-kanit tracking-tight mt-0.5">อื่นๆ</span>
         </button>
       </nav>
 

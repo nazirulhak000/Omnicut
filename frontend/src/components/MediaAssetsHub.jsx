@@ -1316,7 +1316,7 @@ export default function MediaAssetsHub({ status }) {
                       <button
                         type="button"
                         onClick={() => playAudio(sfx, sfx.name)}
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer flex-shrink-0 ${
+                        className={`w-11 h-11 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer flex-shrink-0 active:scale-95 ${
                           isPlaying
                             ? 'bg-[#25F4EE] text-slate-950 scale-95 shadow-md shadow-[#25F4EE]/30'
                             : 'bg-white/[0.06] text-slate-300 hover:bg-[#25F4EE]/20 hover:text-[#25F4EE]'
@@ -1378,7 +1378,7 @@ export default function MediaAssetsHub({ status }) {
                       <button
                         type="button"
                         onClick={() => playAudio(bgm, bgm.name)}
-                        className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all cursor-pointer flex-shrink-0 ${
+                        className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all cursor-pointer flex-shrink-0 active:scale-95 ${
                           isPlaying
                             ? 'bg-[#FE2C55] text-white scale-95 shadow-md shadow-[#FE2C55]/30'
                             : 'bg-white/[0.06] text-slate-300 hover:bg-[#FE2C55]/20 hover:text-[#FE2C55]'

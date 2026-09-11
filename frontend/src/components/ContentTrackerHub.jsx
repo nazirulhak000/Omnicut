@@ -1796,7 +1796,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
               )}
 
               {/* 6. True Deep-Dive Navigation Action Bar */}
-              <div className="pt-2 border-t border-white/[0.08] flex items-center gap-2">
+              <div className="pt-2 border-t border-white/[0.08] flex items-center gap-2 flex-wrap sm:flex-nowrap">
                 {/* Button 1: Go to Script Lab */}
                 <button
                   onClick={() => {

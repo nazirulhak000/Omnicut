@@ -142,31 +142,31 @@ export function ActivityDrawer() {
       />
 
       {/* Slide-over Panel */}
-      <aside className="relative w-full max-w-md bg-[#080B11]/95 backdrop-blur-2xl border-l border-white/[0.12] shadow-2xl flex flex-col h-[100dvh] max-h-[100dvh] z-10 animate-slideLeft overflow-hidden">
+      <aside className="relative w-full max-w-full sm:max-w-md bg-[#080B11]/95 backdrop-blur-2xl border-l border-white/[0.12] shadow-2xl flex flex-col h-[100dvh] max-h-[100dvh] z-10 animate-slideLeft overflow-hidden">
         {/* Header */}
-        <div className="p-4 border-b border-white/[0.08] flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#25F4EE]/10 border border-[#25F4EE]/30 flex items-center justify-center text-[#25F4EE]">
+        <div className="p-3.5 sm:p-4 border-b border-white/[0.08] flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <div className="w-8 h-8 rounded-xl bg-[#25F4EE]/10 border border-[#25F4EE]/30 flex items-center justify-center text-[#25F4EE] flex-shrink-0">
               <Sparkles className="w-4 h-4" />
             </div>
-            <div>
-              <h2 className="text-sm font-bold text-white font-kanit flex items-center gap-2">
+            <div className="min-w-0">
+              <h2 className="text-sm font-bold text-white font-kanit flex items-center gap-1.5 truncate">
                 <span>ศูนย์ติดตามกิจกรรม</span>
                 {activeCount > 0 && (
-                  <span className="px-2 py-0.5 rounded-full bg-[#25F4EE]/20 text-[#25F4EE] text-[10px] font-mono font-bold animate-pulse">
+                  <span className="px-1.5 py-0.5 rounded-full bg-[#25F4EE]/20 text-[#25F4EE] text-[10px] font-mono font-bold animate-pulse flex-shrink-0">
                     {activeCount} กำลังทำ
                   </span>
                 )}
               </h2>
-              <p className="text-[11px] text-slate-400">งานเบื้องหลังทั้งหมดไม่สูญหายแม้กดรีเฟรช</p>
+              <p className="text-[11px] text-slate-400 truncate">งานเบื้องหลังทั้งหมดไม่สูญหายแม้กดรีเฟรช</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1 flex-shrink-0">
             {tasks.some(t => t.status === 'completed' || t.status === 'failed') && (
               <button
                 onClick={clearCompleted}
-                className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-white/[0.06] rounded-lg text-xs transition-colors cursor-pointer"
+                className="min-h-[36px] min-w-[36px] flex items-center justify-center p-2 text-slate-400 hover:text-slate-200 hover:bg-white/[0.06] rounded-xl text-xs transition-colors cursor-pointer"
                 title="ล้างงานที่เสร็จสิ้นแล้ว"
               >
                 <Trash2 className="w-4 h-4" />
@@ -174,7 +174,7 @@ export function ActivityDrawer() {
             )}
             <button
               onClick={() => setIsActivityDrawerOpen(false)}
-              className="p-1.5 text-slate-400 hover:text-white hover:bg-white/[0.06] rounded-lg transition-colors cursor-pointer"
+              className="min-h-[36px] min-w-[36px] flex items-center justify-center p-2 text-slate-400 hover:text-white hover:bg-white/[0.06] rounded-xl transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -182,7 +182,7 @@ export function ActivityDrawer() {
         </div>
 
         {/* Filter Tabs */}
-        <div className="px-4 py-2 border-b border-white/[0.06] flex items-center gap-1.5 bg-black/20">
+        <div className="px-3 sm:px-4 py-2 border-b border-white/[0.06] flex items-center justify-between gap-1 bg-black/20 overflow-x-auto no-scrollbar">
           {[
             { id: 'all', label: `ทั้งหมด (${tasks.length})` },
             { id: 'active', label: `กำลังทำ (${activeCount})` },
@@ -191,9 +191,9 @@ export function ActivityDrawer() {
             <button
               key={tab.id}
               onClick={() => setTabFilter(tab.id)}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold cursor-pointer transition-all ${
+              className={`flex-1 min-h-[36px] py-1.5 px-2 rounded-xl text-xs font-bold cursor-pointer transition-all whitespace-nowrap text-center ${
                 tabFilter === tab.id
-                  ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30'
+                  ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
               }`}
             >

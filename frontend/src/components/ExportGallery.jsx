@@ -1626,7 +1626,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                     key={chip.id}
                     type="button"
                     onClick={() => setStatusFilter(chip.id)}
-                    className={`py-1 px-2.5 rounded-lg text-xs font-bold border flex items-center gap-1.5 transition-all cursor-pointer flex-shrink-0 ${
+                    className={`py-1.5 px-2.5 sm:px-3 min-h-[36px] rounded-lg text-xs font-bold border flex items-center gap-1.5 transition-all cursor-pointer flex-shrink-0 active:scale-95 ${
                       statusFilter === chip.id ? chip.active : chip.color
                     }`}
                   >
@@ -1780,7 +1780,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
 
           {/* ── Floating Batch Action Bar (Mobile & Desktop) ── */}
           {selectedVideos.length > 0 && (
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-md w-[calc(100%-2rem)] p-3 rounded-2xl bg-[#0B0F19]/95 border border-[#25F4EE]/40 backdrop-blur-2xl shadow-2xl flex items-center justify-between gap-3 animate-fadeIn">
+            <div className="fixed bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-md w-[calc(100%-2rem)] p-3 rounded-2xl bg-[#0B0F19]/95 border border-[#25F4EE]/40 backdrop-blur-2xl shadow-2xl flex items-center justify-between gap-3 animate-fadeIn">
               <div className="flex items-center gap-2.5 text-xs font-bold text-white">
                 <span className="w-6 h-6 rounded-lg bg-[#25F4EE]/20 text-[#25F4EE] flex items-center justify-center font-mono text-xs">
                   {selectedVideos.length}
