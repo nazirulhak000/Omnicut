@@ -166,6 +166,7 @@ class VideoAssemblyStage:
             "script_data": ctx.script_data,
             "cues": ctx.cues,
             "micro_cues": ctx.micro_cues,
+            "beat_cues": ctx.beat_cues,
             "editorial_pacing": ctx.editorial_pacing,
             "style_preset": ctx.style_preset,
             "total_duration": ctx.total_duration,

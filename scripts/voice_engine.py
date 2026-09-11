@@ -152,7 +152,7 @@ class VoiceEngine:
         except ImportError:
             from subtitle_engine import SubtitleEngine
 
-        for line in raw_lines:
+        for line_idx, line in enumerate(raw_lines):
             clean_line = re.sub(r"\s+", " ", line).strip()
             if not clean_line:
                 continue
@@ -161,7 +161,14 @@ class VoiceEngine:
             for idx, cl in enumerate(clauses):
                 final_clauses.append({
                     "text": cl.strip(),
-                    "sfx": "whoosh" if len(final_clauses) == 0 else ("cash" if "บาท" in cl or "พิกัด" in cl else None)
+                    "sfx": "whoosh" if len(final_clauses) == 0 else ("cash" if "บาท" in cl or "พิกัด" in cl else None),
+                    # Which original script-line this clause came from -- lets
+                    # a caller (scripts/stages/voice_stage.py's beat_cues
+                    # folding) group clause-level cues back into one cue per
+                    # script line, since this method's own splitting produces
+                    # more clauses than lines whenever a line exceeds
+                    # max_chars.
+                    "line_idx": line_idx,
                 })
 
         return final_clauses
@@ -278,6 +285,7 @@ class VoiceEngine:
                         "sfx": None,
                         "word_timings": [],
                         "substituted": True,
+                        "line_idx": item.get("line_idx"),
                     })
                     audio_segments.append(np.zeros(int(fallback_dur * sample_rate), dtype=np.float32))
                     current_time += fallback_dur
@@ -393,6 +401,7 @@ class VoiceEngine:
                         "sfx": sfx_tag,
                         "word_timings": word_timings,
                         "substituted": False,
+                        "line_idx": item.get("line_idx"),
                     })
 
                     # Guarantee 1-D float32 before appending (guards against edge-cases
@@ -432,6 +441,7 @@ class VoiceEngine:
                         "sfx": None,
                         "word_timings": [],
                         "substituted": True,
+                        "line_idx": item.get("line_idx"),
                     })
                     audio_segments.append(np.zeros(int(fallback_dur * sample_rate), dtype=np.float32))
 

@@ -70,6 +70,10 @@ class RenderRequest(BaseModel):
     effects: Optional[List[Dict[str, Any]]] = None
     text_overlays: Optional[List[Dict[str, Any]]] = None
     overlays: Optional[List[Dict[str, Any]]] = None
+    # "Map to this shot list" proportional-fallback trigger for a manually
+    # uploaded raw video (no guided-take sidecar) -- see
+    # scripts/stages/shot_matching_stage.py's _build_proportional_clip_list.
+    shot_list_id: Optional[str] = None
 
 
 class DeleteFileRequest(BaseModel):

@@ -4,7 +4,7 @@ import {
   Rocket, Sparkles, Upload, Volume2, FolderOpen, ArrowRight, Clock, Hourglass, CheckCircle2, Play,
   FileText, Sliders, Mic2
 } from 'lucide-react';
-import { previewVoice, startRender, uploadFile, updateAngleVideos, updateAngleStatus } from '../../api';
+import { previewVoice, startRender, uploadFile, updateAngleVideos, updateAngleStatus, getShotList } from '../../api';
 import {
   DEFAULT_STUDIO_FORM,
   STUDIO_FORM_KEY,
@@ -170,6 +170,25 @@ export default function NewClipPanel({
   // user switches angle, so the panel always reflects the current pick.
   const angles = productContext?.angles || [];
   const currentAngle = angles[angleIndex];
+
+  // "Map to this shot list" fallback (scripts/stages/shot_matching_stage.py's
+  // proportional branch) -- only offered when a shot list actually exists
+  // for this product+angle (scripts/shot_list_builder.py's output). The
+  // checkbox just flips a boolean trigger server-side (`shot_list_id` is
+  // never dereferenced to fetch anything -- the render's own fresh voice
+  // cues drive the proportional split), so no need to hold onto the fetched
+  // shot list content here, only whether one exists.
+  const [shotListAvailable, setShotListAvailable] = useState(false);
+  useEffect(() => {
+    const pid = productContext?.id;
+    const aid = currentAngle?.angle_id;
+    if (!pid || !aid) { setShotListAvailable(false); return; }
+    let mounted = true;
+    getShotList(pid, aid)
+      .then(() => { if (mounted) setShotListAvailable(true); })
+      .catch(() => { if (mounted) setShotListAvailable(false); });
+    return () => { mounted = false; };
+  }, [productContext?.id, currentAngle?.angle_id]);
 
   useEffect(() => {
     const next = angleToForm(angles[angleIndex], productContext || {});
@@ -367,6 +386,9 @@ export default function NewClipPanel({
       human_voice_audio: null,
       product_id: productContext?.id || null,
       angle_id: (currentAngle?.angle_id || angles[angleIndex]?.angle_id) || null,
+      shot_list_id: (shotListAvailable && form.useShotListMapping)
+        ? `${productContext?.id}:${(currentAngle?.angle_id || angles[angleIndex]?.angle_id)}`
+        : null,
       font_name: form.fontName || 'IBMPlex',
       bilingual_subtitles: form.bilingualSubtitles !== false,
       use_ai_vision: form.useAiVision !== false,
@@ -611,6 +633,18 @@ export default function NewClipPanel({
                     />
                     <span>ซับสองภาษา (ไทย + อังกฤษ)</span>
                   </label>
+
+                  {shotListAvailable && (
+                    <label className="flex items-center gap-2.5 p-2.5 rounded-xl border border-amber-500/20 bg-amber-500/5 text-xs text-amber-200 hover:text-amber-100 cursor-pointer transition-colors sm:col-span-2">
+                      <input
+                        type="checkbox"
+                        checked={!!form.useShotListMapping}
+                        onChange={(e) => patch({ useShotListMapping: e.target.checked })}
+                        className="h-4 w-4 rounded accent-amber-400 cursor-pointer"
+                      />
+                      <span>แมปช็อตตามแผนถ่าย (Shot List) แทน AI Vision — ใช้เมื่อถ่ายตามลำดับ beat ในสคริปต์จริง</span>
+                    </label>
+                  )}
                 </div>
 
                 <p className="text-[11px] leading-relaxed text-slate-500 pt-1">

@@ -130,6 +130,19 @@ class SourceResolutionStage:
         ctx.is_image_source = is_image_source
         ctx.image_files = image_files
 
+        # Guided-take detection is filesystem-only (a sidecar next to the raw
+        # video, written by scripts/recording_sessions.py's finalize()) --
+        # no DB lookup here, so this keeps working even if the recording
+        # session's own DB row is later pruned/expired. See
+        # C:\Users\Winon\.claude\plans\cheeky-cooking-quokka.md (Phase D).
+        if raw_video and not is_image_source:
+            sidecar_path = raw_video.with_name(raw_video.name + ".guided_take.json")
+            if sidecar_path.exists():
+                try:
+                    ctx.guided_take_meta = json.loads(sidecar_path.read_text(encoding="utf-8"))
+                except (OSError, json.JSONDecodeError) as e:
+                    print(f"   ⚠️ อ่านไฟล์ guided_take sidecar ไม่สำเร็จ ({sidecar_path.name}): {e} -- ใช้การจับคู่ฉากแบบปกติแทน")
+
         print(f"\n=======================================================")
         print(f"🎬 Starting OmniCut Pro Studio for: {ctx.product_name}")
         print(f"📁 Project Folder: {project_dir}")

@@ -19,6 +19,7 @@ from scripts.pipeline_context import PipelineContext
 from scripts.editorial_pacing import resolve_pacing_boundaries
 from scripts.style_motion_policy import apply_transition_budget, camera_keyframes_for_clip
 from scripts.quota import is_quota_error
+from scripts.error_handler import AppError, ErrorCategory
 
 
 class ShotMatchingStage:
@@ -71,6 +72,104 @@ class ShotMatchingStage:
             return list(matched_shots[:n_cues]) + [None] * max(0, n_cues - len(matched_shots))
         return expanded
 
+    @staticmethod
+    def _effective_shot_scales(ctx: PipelineContext) -> List[float]:
+        shot_scales = LOOK_PRESETS.get(ctx.angle_meta.get("angle_key", "")) if ctx.angle_meta else None
+        return shot_scales or [1.25, 1.0, 1.35, 1.05, 1.3, 1.0]
+
+    @classmethod
+    def _build_guided_take_clip_list(cls, ctx: PipelineContext, raw_video) -> List[dict]:
+        """Exact mapping for a video recorded through the guided-filming flow
+        (scripts/recording_sessions.py): each beat's raw footage span
+        (`clip_map[i]`, from the concatenated segments) is time-stretched via
+        the existing `speed` mechanism (scripts/video_editor.py) to exactly
+        fill that beat's real voice-track slot (`ctx.beat_cues[i]`), so the
+        final video's timing always matches the fixed narration track.
+        """
+        clip_map = (ctx.guided_take_meta or {}).get("clip_map") or []
+        beat_cues = ctx.beat_cues or []
+        if len(beat_cues) != len(clip_map):
+            raise AppError(
+                category=ErrorCategory.USER_CORRECTABLE,
+                code="GUIDED_TAKE_BEAT_MISMATCH",
+                message_th="สคริปต์หรือเสียงพากย์เปลี่ยนไปหลังจากสร้างแผนถ่ายและถ่ายทำแล้ว ไม่สามารถแมปช็อตให้ตรงได้อีกต่อไป",
+                suggestion_th="กรุณาสร้างแผนถ่าย (Shot List) ใหม่ แล้วถ่ายทำใหม่ให้ตรงกับสคริปต์ปัจจุบัน",
+                details=f"beat_cues={len(beat_cues)} beats, clip_map={len(clip_map)} segments",
+            )
+
+        effective_shot_scales = cls._effective_shot_scales(ctx)
+        clips = []
+        for i, (cue, seg) in enumerate(zip(beat_cues, clip_map)):
+            target_duration = max(0.1, float(cue.get("end", 0.0)) - float(cue.get("start", 0.0)))
+            actual_duration = max(0.1, float(seg.get("actual_duration", target_duration)))
+            speed = min(4.0, max(0.25, actual_duration / target_duration))
+            zoom = round(float(effective_shot_scales[i % len(effective_shot_scales)]), 2)
+
+            clip_entry = {
+                "id": f"clip_{i}",
+                "source_path": str(raw_video),
+                "trim_start": round(float(seg.get("trim_start", 0.0)), 3),
+                "trim_end": round(float(seg.get("trim_end", 0.0)), 3),
+                "duration": round(target_duration, 3),
+                "speed": round(speed, 4),
+                "zoom": zoom,
+                "shot_index": i,
+                "transition_in": "cut",
+            }
+            camera_keyframes = camera_keyframes_for_clip(zoom, target_duration, i, style_preset=ctx.style_preset)
+            if camera_keyframes:
+                clip_entry["keyframes"] = camera_keyframes
+            clips.append(clip_entry)
+        return clips
+
+    @classmethod
+    def _build_proportional_clip_list(cls, ctx: PipelineContext, raw_video, raw_duration: float) -> List[dict]:
+        """Fallback mapping for a video uploaded the normal way (not through
+        the guided-filming flow) but explicitly attached to a shot list via
+        "map to this shot list" -- there is no per-segment tag, so each
+        beat's slice of the raw footage is only a PROPORTIONAL share (by
+        planned-duration ratio) rather than an exact position. This makes
+        every beat's speed factor come out to the same constant
+        (raw_duration / total_planned_duration) by construction -- the whole
+        clip is uniformly time-stretched to match the fixed voice track
+        while each beat's raw-footage slice is proportional to its planned
+        share. That's intentional, not a bug: this mode makes no frame-exact
+        claim, unlike `_build_guided_take_clip_list` above.
+        """
+        beat_cues = ctx.beat_cues or []
+        total_planned = sum(
+            max(0.0, float(c.get("end", 0.0)) - float(c.get("start", 0.0))) for c in beat_cues
+        ) or ctx.total_duration or raw_duration
+        global_speed = min(4.0, max(0.25, raw_duration / total_planned)) if total_planned > 0 else 1.0
+
+        effective_shot_scales = cls._effective_shot_scales(ctx)
+        clips = []
+        cursor = 0.0
+        for i, cue in enumerate(beat_cues):
+            target_duration = max(0.1, float(cue.get("end", 0.0)) - float(cue.get("start", 0.0)))
+            ratio = (target_duration / total_planned) if total_planned > 0 else (1.0 / len(beat_cues))
+            trim_start = cursor
+            trim_end = min(raw_duration, cursor + ratio * raw_duration)
+            cursor = trim_end
+            zoom = round(float(effective_shot_scales[i % len(effective_shot_scales)]), 2)
+
+            clip_entry = {
+                "id": f"clip_{i}",
+                "source_path": str(raw_video),
+                "trim_start": round(trim_start, 3),
+                "trim_end": round(trim_end, 3),
+                "duration": round(target_duration, 3),
+                "speed": round(global_speed, 4),
+                "zoom": zoom,
+                "shot_index": i,
+                "transition_in": "cut",
+            }
+            camera_keyframes = camera_keyframes_for_clip(zoom, target_duration, i, style_preset=ctx.style_preset)
+            if camera_keyframes:
+                clip_entry["keyframes"] = camera_keyframes
+            clips.append(clip_entry)
+        return clips
+
     @classmethod
     def run(cls, ctx: PipelineContext) -> None:
         raw_video = ctx.raw_video
@@ -105,6 +204,18 @@ class ShotMatchingStage:
         has_manual_clips = bool(ctx.clip_list and len(ctx.clip_list) > 0)
         actual_clip_list = ctx.clip_list if has_manual_clips else None
         is_newly_generated_clips = False
+
+        # Guided-take / proportional mapping (scripts/recording_sessions.py,
+        # scripts/shot_list_builder.py) -- takes priority over AI Vision and
+        # rhythmic-fallback matching below, since it maps beats onto footage
+        # deterministically instead of guessing. See
+        # C:\Users\Winon\.claude\plans\cheeky-cooking-quokka.md (Phase D).
+        if not actual_clip_list and raw_video and ctx.guided_take_meta:
+            actual_clip_list = cls._build_guided_take_clip_list(ctx, raw_video)
+            is_newly_generated_clips = True
+        elif not actual_clip_list and raw_video and ctx.shot_list_id and ctx.beat_cues:
+            actual_clip_list = cls._build_proportional_clip_list(ctx, raw_video, raw_duration)
+            is_newly_generated_clips = True
 
         ai_matched_shots = None
         if not actual_clip_list and raw_video and ctx.use_ai_vision and os.environ.get("GEMINI_API_KEY"):

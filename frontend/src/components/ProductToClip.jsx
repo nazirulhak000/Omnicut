@@ -9,12 +9,14 @@ import {
 import {
   scrapeAndPlanProduct, scrapeAndPlanProductAsync, getProducts, updateProduct,
   previewProductSource, previewProductImageMetadataAsync, refreshProductSource, updateAngleStatus, updateAngleVideos, setDefaultVideosForProduct, deleteProduct,
-  uploadFile, resolveTiktokProductId, rerollAngleScript
+  uploadFile, resolveTiktokProductId, rerollAngleScript,
+  generateShotList, getTaskStatus
 } from '../api';
 import { Modal, Toast, Button, Badge, Input, Textarea, ConfirmModal, PageHeader } from './ui';
 import MediaPickerModal from './MediaPickerModal';
 import FindReplaceModal from './FindReplaceModal';
 import ProductMetadataModal from './ProductMetadataModal';
+import ShotListModal from './ShotListModal';
 import { toMediaUrl } from '../lib/mediaUrl';
 import { useToast } from '../hooks';
 import { useTaskManager } from '../context/TaskContext';
@@ -333,7 +335,8 @@ function AngleMobilePill({ angle, index, isSelected, onSelect }) {
 function AngleActiveWorkbench({
   angle, index, onCopy, onSendToStudio, onOpenInTimeline, onPreviewExportVideo, copiedIndex,
   videos = [], onToggleVideoForAngle, onUploadVideo, uploadingImg = false,
-  onOpenMediaPicker, onSaveScript, onOpenFindReplace, onRerollScript
+  onOpenMediaPicker, onSaveScript, onOpenFindReplace, onRerollScript, onGenerateShotList,
+  isGeneratingShotList = false
 }) {
   const lines = Array.isArray(angle.script_lines)
     ? angle.script_lines
@@ -465,6 +468,18 @@ function AngleActiveWorkbench({
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 <span className="hidden xs:inline sm:inline">รีสคริปต์ด้วย AI</span>
+              </button>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onGenerateShotList && onGenerateShotList(index); }}
+                disabled={isGeneratingShotList}
+                className="px-2 sm:px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-amber-300 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all disabled:opacity-50 disabled:cursor-wait"
+                title="สร้างแผนถ่าย (Shot List) จากจังหวะเสียงพากย์จริง"
+              >
+                {isGeneratingShotList
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <Clapperboard className="w-3.5 h-3.5" />}
+                <span className="hidden xs:inline sm:inline">แผนถ่าย</span>
               </button>
             </>
           )}
@@ -761,7 +776,8 @@ function ScriptAccordionItem({
   angle, index, isOpen, onToggle, onCopy, onSendToStudio, onOpenInTimeline, onPreviewExportVideo, copiedIndex,
   videos = [], onToggleVideoForAngle, onUploadVideo, uploadingImg = false,
   onOpenMediaPicker,
-  onSaveScript, onOpenFindReplace, onRerollScript
+  onSaveScript, onOpenFindReplace, onRerollScript, onGenerateShotList,
+  isGeneratingShotList = false
 }) {
   const lines = Array.isArray(angle.script_lines)
     ? angle.script_lines
@@ -1017,6 +1033,18 @@ function ScriptAccordionItem({
                       <span>รีสคริปต์ด้วย AI</span>
                     </button>
                   )}
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onGenerateShotList && onGenerateShotList(index); }}
+                    disabled={isGeneratingShotList}
+                    className="text-amber-300 hover:text-amber-200 hover:underline flex items-center gap-1 cursor-pointer font-bold text-xs disabled:opacity-50 disabled:cursor-wait"
+                    title="สร้างแผนถ่าย (Shot List) จากจังหวะเสียงพากย์จริง"
+                  >
+                    {isGeneratingShotList
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : <Clapperboard className="w-3.5 h-3.5" />}
+                    <span>แผนถ่าย</span>
+                  </button>
                 </div>
               </div>
               <div
@@ -1248,6 +1276,10 @@ function ScriptAccordionItem({
 // 🌟 MAIN: ProductToClip Component (Redesigned Guided Workflow)
 // ═══════════════════════════════════════════════════════════════════════
 export default function ProductToClip({ status, videos = [], onRefresh, onApplyToStudio, onGoToGallery, selectedProductId, pendingFlowTaskVersion, consumePendingAngleId, consumePendingImageMetadataPreview }) {
+  // Mirrors ExportGallery.jsx's mobileBaseUrl computation -- the LAN IP of
+  // the Vite dev server a phone scanning a QR code needs to reach.
+  const mobileBaseUrl = status?.mobile_url || (typeof window !== 'undefined' ? `http://${window.location.hostname}:5173` : '');
+
   // Input Mode & Active View
   const [showAddModal, setShowAddModal] = useState(false);
   const [inputMode, setInputMode] = useState('link');
@@ -1334,6 +1366,14 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   // (driven by refreshTrigger, same as the scrape-and-plan flow) can restore
   // focus to that angle instead of resetting to angle 0 like a fresh product load.
   const pendingRerollAngleIdRef = useRef(null);
+
+  // Shot-list generation: self-contained (polls its own task_id directly via
+  // getTaskStatus) rather than piggybacking on the reroll-script /
+  // refreshTrigger flow above, since it doesn't rewrite the angle's script --
+  // it only produces a new, separate record for the modal below to display.
+  const [shotListAngleIdx, setShotListAngleIdx] = useState(null); // angle this modal is open for
+  const [generatingShotListIdx, setGeneratingShotListIdx] = useState(null); // angle currently generating
+  const [shotListResult, setShotListResult] = useState(null);
 
   // Edit TikTok Product ID Modal State (Backlog & Post-creation support)
   const [showEditTiktokIdModal, setShowEditTiktokIdModal] = useState(false);
@@ -1645,6 +1685,49 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       showToast('ไม่สามารถรีสคริปต์ได้: ' + (err.friendlyMessage || err.message), 'error');
     } finally {
       setRerollingScript(false);
+    }
+  };
+
+  // ── Shot-list generation (per-beat filming plan from real TTS timing) ──
+  const handleGenerateShotList = async (angleIdx) => {
+    if (!productData?.id) return;
+    const targetAngle = angles[angleIdx];
+    if (!targetAngle?.angle_id) return;
+
+    setGeneratingShotListIdx(angleIdx);
+    try {
+      const res = await generateShotList(productData.id, targetAngle.angle_id);
+      if (!res.success || !res.task_id) {
+        showToast('ไม่สามารถเริ่มสร้างแผนถ่ายได้', 'error');
+        return;
+      }
+      // Self-poll rather than waiting on TaskContext's global refreshTrigger
+      // -- this task never changes the angle/product record, so nothing
+      // outside this modal needs to know about it.
+      let result = null;
+      for (let attempt = 0; attempt < 60; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        const task = await getTaskStatus(res.task_id);
+        if (task.status === 'completed') {
+          result = task.result;
+          break;
+        }
+        if (task.status === 'failed') {
+          showToast('สร้างแผนถ่ายไม่สำเร็จ: ' + (task.error || ''), 'error');
+          return;
+        }
+      }
+      if (!result) {
+        showToast('สร้างแผนถ่ายใช้เวลานานเกินไป กรุณาลองใหม่', 'error');
+        return;
+      }
+      setShotListResult({ angle: targetAngle, ...result });
+      setShotListAngleIdx(angleIdx);
+    } catch (err) {
+      console.error('Failed to generate shot list:', err);
+      showToast('ไม่สามารถสร้างแผนถ่ายได้: ' + (err.friendlyMessage || err.message), 'error');
+    } finally {
+      setGeneratingShotListIdx(null);
     }
   };
 
@@ -2880,6 +2963,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         setFindReplaceOpen(true);
                       }}
                       onRerollScript={handleOpenRerollScriptModal}
+                      onGenerateShotList={handleGenerateShotList}
+                      isGeneratingShotList={generatingShotListIdx === activeAngleIdx}
                     />
                   )}
                 </div>
@@ -2910,6 +2995,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       setFindReplaceOpen(true);
                     }}
                     onRerollScript={handleOpenRerollScriptModal}
+                    onGenerateShotList={handleGenerateShotList}
+                    isGeneratingShotList={generatingShotListIdx === idx}
                   />
                 ))}
               </div>
@@ -3074,6 +3161,15 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
           </div>
         </div>
       </Modal>
+
+      {/* ── Shot List Modal (per-beat filming plan from real TTS timing) ── */}
+      <ShotListModal
+        isOpen={shotListAngleIdx !== null}
+        onClose={() => { setShotListAngleIdx(null); setShotListResult(null); }}
+        productId={productData?.id}
+        mobileBaseUrl={mobileBaseUrl}
+        result={shotListResult}
+      />
 
       {/* ── Product Catalog Modal (Searchable Grid for 100+ items) ── */}
       <Modal

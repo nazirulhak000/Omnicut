@@ -158,6 +158,7 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                 text_overlays=req_data.text_overlays,
                 product_id=req_data.product_id,
                 angle_id=req_data.angle_id,
+                shot_list_id=req_data.shot_list_id,
                 progress_callback=on_progress
             )
 

@@ -405,6 +405,12 @@ class PipelineContext:
     script_data: Optional[Dict[str, Any]] = None
     cues: List[Dict[str, Any]] = field(default_factory=list)
     micro_cues: List[Dict[str, Any]] = field(default_factory=list)
+    # One cue per script LINE (hook/feature/cta), set by VoiceStage before
+    # SubtitleStage overwrites `cues` with subtitle-burst-level `micro_cues`.
+    # This is the granularity scripts/shot_list_builder.py's shot list and
+    # the guided-take mapping in ShotMatchingStage need -- see
+    # C:\Users\Winon\.claude\plans\cheeky-cooking-quokka.md.
+    beat_cues: List[Dict[str, Any]] = field(default_factory=list)
     total_duration: float = 0.0
     voice_audio_path: Optional[Path] = None
 
@@ -420,6 +426,19 @@ class PipelineContext:
     actual_clip_list: Optional[List[Dict[str, Any]]] = None
     ai_matched_shots: Optional[List[Dict[str, Any]]] = None
     shot_scales: Optional[List[float]] = None
+
+    # Guided-take filming feature (scripts/recording_sessions.py,
+    # scripts/shot_list_builder.py) -- see
+    # C:\Users\Winon\.claude\plans\cheeky-cooking-quokka.md (Phase D).
+    # `guided_take_meta` is populated by SourceResolutionStage from a raw
+    # video's `.guided_take.json` sidecar when present, and lets
+    # ShotMatchingStage map footage onto script beats exactly, skipping AI
+    # vision entirely. `shot_list_id` is the manual-upload fallback trigger
+    # ("map to this shot list"): with no sidecar present, ShotMatchingStage
+    # instead divides the raw video proportionally by each beat's planned
+    # duration ratio.
+    guided_take_meta: Optional[Dict[str, Any]] = None
+    shot_list_id: Optional[str] = None
 
     out_mp4: Optional[Path] = None
     result_paths: Dict[str, Any] = field(default_factory=dict)

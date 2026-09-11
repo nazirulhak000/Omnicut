@@ -16,6 +16,7 @@ const ExportGallery = lazy(() => import('./components/ExportGallery'));
 const MediaAssetsHub = lazy(() => import('./components/MediaAssetsHub'));
 const SystemSettings = lazy(() => import('./components/SystemSettings'));
 const MobileQuickPostPage = lazy(() => import('./components/MobileQuickPostPage'));
+const MobileFilmingPage = lazy(() => import('./components/MobileFilmingPage'));
 
 import { angleToForm } from './lib/angleToForm';
 import { applyUiScale, initUiScale } from './lib/uiScale';
@@ -31,6 +32,17 @@ export default function App() {
       return p.get('quick_post') === '1' || p.get('mobile_post') === '1';
     } catch {
       return false;
+    }
+  });
+
+  // Check if opened via the guided-take filming QR code (mobile companion
+  // for scripts/recording_sessions.py's session flow)
+  const [filmingSessionId] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      return p.get('film') === '1' ? (p.get('session') || '') : '';
+    } catch {
+      return '';
     }
   });
 
@@ -333,6 +345,16 @@ export default function App() {
       <div className={`h-screen w-screen overflow-y-auto bg-[#070A12] ${uiFont}`}>
         <Suspense fallback={<LoadingSpinner message="กำลังเปิดตัวช่วยโพสต์ Quick Post..." />}>
           <MobileQuickPostPage onExit={() => { window.location.href = window.location.pathname; }} />
+        </Suspense>
+      </div>
+    );
+  }
+
+  if (filmingSessionId) {
+    return (
+      <div className={`h-screen w-screen overflow-y-auto bg-[#070A12] ${uiFont}`}>
+        <Suspense fallback={<LoadingSpinner message="กำลังเปิดหน้าถ่ายทำ..." />}>
+          <MobileFilmingPage sessionId={filmingSessionId} onExit={() => { window.location.href = window.location.pathname; }} />
         </Suspense>
       </div>
     );

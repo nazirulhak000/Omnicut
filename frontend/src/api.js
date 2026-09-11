@@ -286,6 +286,45 @@ export const scrapeAndPlanProductAsync = (payload) => {
 export const rerollAngleScript = (productId, angleId, payload = {}) =>
   api.post(`/products/${productId}/angles/${angleId}/reroll-script`, payload).then(r => r.data);
 
+// Shot-list generation: per-beat filming plan built from the angle's real
+// TTS voice timing (not a text-length estimate), so footage can later be
+// mapped onto the script without AI vision matching. Async like
+// reroll-script above (task_id polled via TaskContext's refreshTrigger).
+export const generateShotList = (productId, angleId, voiceOverrides = {}) =>
+  api.post(`/products/${productId}/angles/${angleId}/shot-list`, voiceOverrides).then(r => r.data);
+
+export const getShotList = (productId, angleId) =>
+  api.get(`/products/${productId}/angles/${angleId}/shot-list`).then(r => r.data);
+
+// Guided-take recording sessions (scripts/api_recording.py): pairs the
+// mobile filming page (MobileFilmingPage.jsx) with a product/angle's shot
+// list, one uploaded segment per beat, strict order + retake-last-only
+// enforced server-side.
+export const createRecordingSession = (productId, angleId) =>
+  api.post('/recording-sessions', { product_id: productId, angle_id: angleId }).then(r => r.data);
+
+export const getRecordingSession = (sessionId) =>
+  api.get(`/recording-sessions/${sessionId}`).then(r => r.data);
+
+export const uploadRecordingSegment = (sessionId, beatIndex, blob, filename, onProgress) => {
+  const formData = new FormData();
+  formData.append('beat_index', String(beatIndex));
+  formData.append('file', blob, filename);
+  return api.post(`/recording-sessions/${sessionId}/segments`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 300000,
+    onUploadProgress: onProgress
+      ? (e) => onProgress(e.total ? Math.round((e.loaded / e.total) * 100) : 0)
+      : undefined,
+  }).then(r => r.data);
+};
+
+export const deleteRecordingSegment = (sessionId, beatIndex) =>
+  api.delete(`/recording-sessions/${sessionId}/segments/${beatIndex}`).then(r => r.data);
+
+export const finalizeRecordingSession = (sessionId) =>
+  api.post(`/recording-sessions/${sessionId}/finalize`).then(r => r.data);
+
 export const getActiveTasks = () => api.get('/tasks/active').then(r => r.data);
 export const getTaskStatus = (taskId) => api.get(`/tasks/${taskId}`).then(r => r.data);
 export const cancelTaskApi = (taskId) => api.post(`/tasks/${taskId}/cancel`).then(r => r.data);

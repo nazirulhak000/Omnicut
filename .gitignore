@@ -73,3 +73,10 @@ _Docs/store.db
 _Docs/store.db-wal
 _Docs/store.db-shm
 _Docs/export_registry.json
+
+# Runtime-generated shot lists (scripts/shot_lists_store.py, rebuilt any
+# time a shot list is (re)generated for an angle)
+_Docs/shot_lists.json
+
+# Runtime-generated guided-take recording sessions (scripts/recording_sessions.py)
+_Docs/recording_sessions.json

@@ -224,12 +224,83 @@ def _rms_aligned_cues(
         return _proportional_fallback_cues(split_items, total_duration)
 
 
+def _fold_cues_by_line_idx(
+    cues: List[Dict[str, Any]],
+    original_lines: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """
+    Folds a clause-level cue list back into one cue per script line, using
+    the `line_idx` tag `VoiceEngine.segment_into_clauses` stamps on every
+    clause (`scripts/voice_engine.py`) -- the plain edge_tts path
+    (`VoiceEngine.generate_voiceover`) splits each script line into several
+    smart-clause cues internally, so its raw `cues` list is NOT 1:1 with
+    script lines despite being built from `script_data["lines"]`. Dict
+    insertion order (Python 3.7+) keeps groups in the order their line_idx
+    first appears, so a line's clauses stay contiguous even though nothing
+    here assumes line_idx values are a dense 0..n-1 range.
+    """
+    groups: Dict[int, List[Dict[str, Any]]] = {}
+    for cue in cues:
+        key = cue.get("line_idx")
+        if key is None:
+            continue
+        groups.setdefault(key, []).append(cue)
+
+    folded: List[Dict[str, Any]] = []
+    for line_idx, group in groups.items():
+        line = original_lines[line_idx] if 0 <= line_idx < len(original_lines) else {}
+        folded.append({
+            "id": line_idx + 1,
+            "start": group[0]["start"],
+            "end": group[-1]["end"],
+            "text": line.get("text", "") or group[0].get("text", ""),
+            "sfx": line.get("sfx"),
+            "on_screen": line.get("on_screen", ""),
+        })
+    return folded
+
+
+def _fold_cues_to_lines(
+    cues: List[Dict[str, Any]],
+    items_per_line: List[int],
+    original_lines: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """
+    Folds a clause-level cue list (possibly several cues per script line --
+    e.g. gemini_tts's smart-clause splitting, `items_per_line[i] > 1`) back
+    into exactly one cue per original script line. Each folded cue spans its
+    first clause's start to its last clause's end, so the resulting
+    line-level boundary is pixel-identical to the clause-level cues it's
+    derived from rather than a re-estimate. This is what
+    `scripts/shot_list_builder.py`'s per-beat shot list needs: one entry per
+    script line, not per subtitle-burst clause.
+    """
+    folded: List[Dict[str, Any]] = []
+    pos = 0
+    for line_idx, count in enumerate(items_per_line):
+        group = cues[pos:pos + count]
+        pos += count
+        if not group:
+            continue
+        line = original_lines[line_idx] if line_idx < len(original_lines) else {}
+        folded.append({
+            "id": line_idx + 1,
+            "start": group[0]["start"],
+            "end": group[-1]["end"],
+            "text": line.get("text", "") or " ".join(c.get("text", "") for c in group),
+            "sfx": line.get("sfx"),
+            "on_screen": line.get("on_screen", ""),
+        })
+    return folded
+
+
 class VoiceStage:
     """Synthesizes or processes voiceover audio and derives timing cues."""
 
     @classmethod
     def run(cls, ctx: PipelineContext) -> None:
         cues: List[Dict[str, Any]] = []
+        beat_cues: List[Dict[str, Any]] = []
         voice_engine_used = ctx.voice_engine_type
         script_data = ctx.script_data or {"lines": []}
 
@@ -238,6 +309,7 @@ class VoiceStage:
                 raise ValueError("Cannot reuse voice without manifest")
             voice_audio_path = ctx.reuse("voice_audio", "เสียงพากย์")
             cues = ctx.manifest["cues"]
+            beat_cues = ctx.manifest.get("beat_cues", cues)
             total_duration = ctx.manifest["total_duration"]
             voice_engine_used = (ctx.manifest.get("render_params") or {}).get("voice_engine_used", voice_engine_used)
             print(f"♻️  [2/5] Reusing voiceover: {voice_audio_path.name} ({total_duration:.2f}s)")
@@ -271,6 +343,7 @@ class VoiceStage:
                 total_duration=total_duration,
                 log_prefix="[Human Voice]",
             )
+            beat_cues = cues  # split_items above is already 1:1 with script lines
             print(f"   Human voice loaded! Duration: {total_duration:.2f}s, Cues synced: {len(cues)}")
 
         elif ctx.voice_engine_type == "gemini_tts":
@@ -321,8 +394,10 @@ class VoiceStage:
 
                 lines_list = script_data["lines"]
                 split_items = []
+                items_per_line: List[int] = []
                 for item in lines_list:
-                    cl_texts = SubtitleEngine.split_into_smart_clauses(item.get("text", ""))
+                    cl_texts = SubtitleEngine.split_into_smart_clauses(item.get("text", "")) or [item.get("text", "")]
+                    items_per_line.append(len(cl_texts))
                     for ci, cl in enumerate(cl_texts):
                         split_items.append({
                             "text": cl,
@@ -336,6 +411,11 @@ class VoiceStage:
                     total_duration=total_duration,
                     log_prefix="[Gemini Flash TTS]",
                 )
+                # cues here is clause-level (gemini_tts split each line into
+                # smart clauses above) -- fold back to one cue per script
+                # line for beat_cues, since that's the granularity a shot
+                # list is built at, not the subtitle-burst clause level.
+                beat_cues = _fold_cues_to_lines(cues, items_per_line, lines_list)
                 print(f"   Gemini Flash TTS voice generated! Duration: {total_duration:.2f}s, Cues: {len(cues)}")
             except Exception as gemini_err:
                 voice_engine_used = "edge_tts"
@@ -359,6 +439,11 @@ class VoiceStage:
                     rate=ctx.voice_rate
                 )
                 cues = voice_res["cues"]
+                # VoiceEngine internally splits each line into smart-clause
+                # cues (scripts/voice_engine.py's segment_into_clauses) -- not
+                # 1:1 with script lines -- so fold back via each cue's
+                # line_idx tag.
+                beat_cues = _fold_cues_by_line_idx(cues, script_data["lines"])
                 total_duration = voice_res["duration"]
         else:
             voice_audio_path = ctx.out_path("voiceover", ".wav")
@@ -371,10 +456,12 @@ class VoiceStage:
                 rate=ctx.voice_rate
             )
             cues = voice_res["cues"]
+            beat_cues = _fold_cues_by_line_idx(cues, script_data["lines"])
             total_duration = voice_res["duration"]
             print(f"   Voice generated! Duration: {total_duration:.2f}s, Cues: {len(cues)}")
 
         ctx.voice_audio_path = voice_audio_path
         ctx.cues = cues
+        ctx.beat_cues = beat_cues
         ctx.total_duration = total_duration
         ctx.voice_engine_used = voice_engine_used
