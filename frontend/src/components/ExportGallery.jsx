@@ -1269,7 +1269,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
         video.product_id || null,
         video.angle_id || null,
         video.tiktok_product_id || null,
-        null,
+        null, null,
         video.export_id || null,
       );
       showToast('เตรียมข้อมูลคลิปเข้า Extension สำเร็จ! ให้เปิด Extension บนแท็บ TikTok เพื่อเริ่มเติมข้อมูล');
@@ -1444,7 +1444,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
   // status.mobile_url (from /api/status) survives a production build served
   // from a different port than the Vite dev server's 5173; ContentTrackerHub
   // already does the same fallback chain.
-  const mobileBaseUrl = status?.mobile_url || (typeof window !== 'undefined' ? `http://${window.location.hostname}:5173` : '');
+  const mobileBaseUrl = status?.mobile_url || (typeof window !== 'undefined' ? `https://${window.location.hostname}:5173` : '');
 
   return (
     <div className="space-y-4 relative animate-fadeIn pb-16">

@@ -230,14 +230,29 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
       task.task_type === 'reroll_script'
     );
 
+    // scripts/api_shot_lists.py's generate_shot_list task -- like reroll,
+    // this never touches the timeline/editor, so it must not fall through
+    // to the generic "newly cut project" -> editor default below.
+    const isShotListTask = Boolean(
+      task.type === 'generate_shot_list' ||
+      task.task_type === 'generate_shot_list'
+    );
+
     const isImageMetadataTask = Boolean(
       task.type === 'image_metadata' ||
       task.task_type === 'image_metadata'
     );
 
-    const projName = !isScrapeTask && !isRerollTask ? (task.result?.project_name || task.payload?.project_name) : null;
-    const productId = task.result?.saved_product?.id || task.result?.product?.id || task.payload?.product_id || ((isScrapeTask || isRerollTask || isImageMetadataTask) ? task.target_id : null);
-    const angleId = isRerollTask ? (task.result?.angle?.angle_id || task.payload?.angle_id) : null;
+    // scripts/api_recording.py's finalize_recording_session task -- also
+    // belongs on the same script's flow page, not the editor/timeline.
+    const isFinalizeRecordingTask = Boolean(
+      task.type === 'finalize_recording_session' ||
+      task.task_type === 'finalize_recording_session'
+    );
+
+    const projName = !isScrapeTask && !isRerollTask && !isShotListTask && !isFinalizeRecordingTask ? (task.result?.project_name || task.payload?.project_name) : null;
+    const productId = task.result?.saved_product?.id || task.result?.product?.id || task.payload?.product_id || ((isScrapeTask || isRerollTask || isImageMetadataTask || isShotListTask || isFinalizeRecordingTask) ? task.target_id : null);
+    const angleId = (isRerollTask || isShotListTask) ? (task.result?.angle?.angle_id || task.payload?.angle_id) : (isFinalizeRecordingTask ? task.payload?.angle_id : null);
 
     // Determine targetTab if not explicitly provided:
     // 1. Scrape & Plan / script reroll tasks -> Product -> Clip ('flow')

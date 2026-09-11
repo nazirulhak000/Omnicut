@@ -311,6 +311,18 @@ class RecordingSessionStore:
                 # to fail a render-ready file that's already safely on disk.
                 print(f"Warning: Failed to attach guided-take video to product {product_id}: {e}")
 
+            try:
+                # This footage was shot beat-for-beat against this exact
+                # angle's shot list -- auto-select it as the angle's clip
+                # (replacing any prior selection) so the user isn't left
+                # having to dig it out of the raw-footage picker manually,
+                # and so source_resolution.py resolves to THIS file (the one
+                # with the matching .guided_take.json sidecar) rather than
+                # some other clip that happens to also be selected.
+                ProductStore.update_angle_videos(product_id, session["angle_id"], [str(out_path)])
+            except Exception as e:
+                print(f"Warning: Failed to auto-select guided-take video for angle {session['angle_id']}: {e}")
+
             with _TABLE.mutate() as records:
                 rec = next((r for r in records if r.get("id") == session_id), None)
                 if rec:
@@ -318,6 +330,14 @@ class RecordingSessionStore:
                     rec["raw_video_path"] = str(out_path)
                     rec["clip_map"] = clip_map
                     rec["updated_at"] = cls._now()
+
+            # The per-beat raw segments are now fully consumed into out_path
+            # -- keeping them around served no purpose except leaving stray
+            # working files behind (they all share one session-scoped
+            # directory, scripts/api_recording.py's _SEGMENTS_DIR / session_id).
+            first_raw_path = segments[0].get("raw_file_path")
+            if first_raw_path:
+                shutil.rmtree(Path(first_raw_path).parent, ignore_errors=True)
 
             return {"raw_video_path": str(out_path), "clip_map": clip_map}
         finally:

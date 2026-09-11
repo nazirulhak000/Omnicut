@@ -10,7 +10,7 @@ import {
   Archive, Image as ImageIcon
 } from 'lucide-react';
 import {
-  getProducts, getExports, updateAngleStatus, updateAngleCover, deleteProduct, updateProduct, prepareTiktokAutopost, markPosted
+  getProducts, getExports, getScheduleQueue, updateAngleStatus, updateAngleCover, deleteProduct, updateProduct, prepareTiktokAutopost, markPosted
 } from '../api';
 import CoverStudioModal from './CoverStudioModal';
 import ScheduleAgenda from './ScheduleAgenda';
@@ -19,6 +19,7 @@ import { useDebounce, useToast } from '../hooks';
 import { guessBrandModel } from '../lib/overlayModel';
 import { applyCoverResult, getCoverVariant, mergeCoverMetadata } from '../lib/coverVariant';
 import { withEditorProjectAction } from '../lib/editorEntry';
+import { localParts } from '../lib/scheduleQueue';
 
 // 4 Granular Pipeline Phases (Original Vibrant & Readable Palette)
 const PIPELINE_PHASES = [
@@ -845,7 +846,7 @@ const TableRow = memo(function TableRow({
 // 🌟 MAIN CONTENT TRACKER HUB COMPONENT (True Deep-Dive Tracking)
 // ═══════════════════════════════════════════════════════════════════════
 export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, onGoToGallery, onGoToEditor, onGoToFlow }) {
-  const mobileBaseUrl = status?.mobile_url || (typeof window !== 'undefined' ? `http://${window.location.hostname}:5173` : '');
+  const mobileBaseUrl = status?.mobile_url || (typeof window !== 'undefined' ? `https://${window.location.hostname}:5173` : '');
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   // Round P1.5: request-sequence guard so an older, slower fetchProductsData()
@@ -876,7 +877,12 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
   const [tiktokCaption, setTiktokCaption] = useState('');
   const [tiktokHashtags, setTiktokHashtags] = useState('');
   const [tiktokProductId, setTiktokProductId] = useState('');
+  const [tiktokScheduleDate, setTiktokScheduleDate] = useState('');
   const [tiktokScheduleTime, setTiktokScheduleTime] = useState('');
+  // Cross-referenced against by export_id when opening the TikTok Studio
+  // modal, so a clip that's already sitting in ScheduleAgenda's queue shows
+  // that date/time here instead of a blank field the user has to re-enter.
+  const [scheduleQueueItems, setScheduleQueueItems] = useState([]);
   const [isSubmittingTiktok, setIsSubmittingTiktok] = useState(false);
   const [inspectAngle, setInspectAngle] = useState(null); // Deep-Dive Inspection state
   const colRefs = useRef({});
@@ -993,7 +999,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
 
   const [coverStudioItem, setCoverStudioItem] = useState(null);
 
-  const handleOpenTiktokModal = useCallback((ang, scheduleTime = '') => {
+  const handleOpenTiktokModal = useCallback((ang, scheduleDate = '', scheduleTime = '') => {
     if (!ang) return;
     const targetPid = ang?.parentProduct?.tiktok_product_id || ang?.parentProduct?.name || '';
     const cover = getCoverVariant(ang);
@@ -1005,8 +1011,29 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     setTiktokCaption(ang.tiktok_caption || ang.hook_title || '');
     setTiktokHashtags(ang.tiktok_hashtags || '#รีวิว #ของดีบอกต่อ');
     setTiktokProductId(targetPid);
-    setTiktokScheduleTime(scheduleTime || '');
-  }, []);
+
+    // Caller didn't pin a date/time explicitly -- if this exact clip is
+    // already sitting in ScheduleAgenda's queue (matched by export_id, or
+    // by video path when there's no export_id yet), show that instead of
+    // making the user retype a schedule they already picked. Prefer a
+    // still-pending match over a posted one.
+    let date = scheduleDate;
+    let time = scheduleTime;
+    if (!date && !time) {
+      const matches = scheduleQueueItems.filter((item) => (
+        (ang.export_id && item.export_id === ang.export_id)
+        || (!ang.export_id && ang.video_url && item.video_path === ang.video_url)
+      ));
+      const match = matches.find((item) => item.status !== 'posted') || matches[0];
+      if (match?.scheduled_at) {
+        const parts = localParts(match.scheduled_at);
+        date = parts.date;
+        time = parts.time;
+      }
+    }
+    setTiktokScheduleDate(date || '');
+    setTiktokScheduleTime(time || '');
+  }, [scheduleQueueItems]);
 
   const handleConfirmTiktokAutopost = useCallback(async () => {
     if (!tiktokModalItem) return;
@@ -1024,6 +1051,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
         tiktokModalItem.parentProduct?.id,
         tiktokModalItem.angle_id,
         tiktokProductId.trim() || undefined,
+        tiktokScheduleDate.trim() || undefined,
         tiktokScheduleTime.trim() || undefined,
         tiktokModalItem.export_id || null,
       );
@@ -1034,7 +1062,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     } finally {
       setIsSubmittingTiktok(false);
     }
-  }, [tiktokModalItem, tiktokCaption, tiktokHashtags, tiktokProductId, tiktokScheduleTime, showToast]);
+  }, [tiktokModalItem, tiktokCaption, tiktokHashtags, tiktokProductId, tiktokScheduleDate, tiktokScheduleTime, showToast]);
 
   const handlePreviewVideo = useCallback((url, ang = null) => {
     setPreviewVideoUrl(url);
@@ -1061,14 +1089,16 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     const sequence = ++productsRequestSequence.current;
     setLoading(true);
     try {
-      const [res, exportsRes] = await Promise.all([
+      const [res, exportsRes, queueRes] = await Promise.all([
         getProducts(),
         getExports().catch(() => ({ exports: [] })),
+        getScheduleQueue().catch(() => ({ items: [] })),
       ]);
       if (sequence !== productsRequestSequence.current) return;
       if (res.products) {
         setProducts(mergeCoverMetadata(res.products, exportsRes));
       }
+      setScheduleQueueItems(queueRes.items || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -1266,7 +1296,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
         ang.tiktok_caption || '', ang.tiktok_hashtags || '',
         ang.parentProduct.id, ang.angle_id,
         targetPid,
-        null,
+        null, null,
         ang.export_id || null,
       );
       showToast('เตรียมคลิปให้ extension แล้ว -- ไปคลิกไอคอน extension บนแท็บ TikTok Studio ที่เปิดไว้');
@@ -1442,7 +1472,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     });
   }, [allAnglesList, debouncedSearch, selectedProductFilter, activePhase]);
 
-  const mobileUrl = typeof window !== 'undefined' ? `http://${window.location.hostname}:5173` : '';
+  const mobileUrl = typeof window !== 'undefined' ? `https://${window.location.hostname}:5173` : '';
 
   // Drag & Drop Handler (Desktop)
   const handleDropOnColumn = (targetPhaseId, e) => {
@@ -2183,16 +2213,24 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                 <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
                     <Clock className="w-3.5 h-3.5 text-[#25F4EE]" />
-                    <span>เวลาตั้งเวลาโพสต์ล่วงหน้า (Schedule Time):</span>
+                    <span>วันและเวลาตั้งโพสต์ล่วงหน้า (Schedule Date/Time):</span>
                   </span>
                   <span className="text-[10px] text-slate-400">เว้นว่างไว้หากต้องการโพสต์ทันที</span>
                 </label>
-                <input
-                  type="time"
-                  value={tiktokScheduleTime}
-                  onChange={(e) => setTiktokScheduleTime(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/[0.1] text-xs font-mono text-white focus:outline-none focus:border-[#25F4EE]/50"
-                />
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="date"
+                    value={tiktokScheduleDate}
+                    onChange={(e) => setTiktokScheduleDate(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/[0.1] text-xs font-mono text-white focus:outline-none focus:border-[#25F4EE]/50"
+                  />
+                  <input
+                    type="time"
+                    value={tiktokScheduleTime}
+                    onChange={(e) => setTiktokScheduleTime(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/[0.1] text-xs font-mono text-white focus:outline-none focus:border-[#25F4EE]/50"
+                  />
+                </div>
               </div>
             </div>
 

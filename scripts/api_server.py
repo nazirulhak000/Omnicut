@@ -86,7 +86,7 @@ warn_if_permissive()
 # browsers reject that combination outright -- so this must stay an
 # explicit list now that allow_credentials=True is kept for cookie-based
 # auth headroom.
-_default_cors_origins = "http://localhost:5173,http://127.0.0.1:5173"
+_default_cors_origins = "http://localhost:5173,http://127.0.0.1:5173,https://localhost:5173,https://127.0.0.1:5173"
 CORS_ORIGINS = [
     o.strip() for o in os.environ.get("CORS_ORIGINS", _default_cors_origins).split(",")
     if o.strip()

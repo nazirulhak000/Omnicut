@@ -19,16 +19,16 @@ for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8501" ^| findstr "LISTENING
 echo [2/3] Launching FastAPI Backend on http://localhost:8000 (WatchFiles reload=OFF for stable renders) ...
 start "OmniCut Pro Studio Backend (FastAPI)" cmd /k "set FASTAPI_RELOAD=false && .venv\Scripts\python.exe scripts/api_server.py"
 
-echo [3/3] Launching React Vite Frontend on http://localhost:5173 ...
+echo [3/3] Launching React Vite Frontend on https://localhost:5173 ...
 cd /d "%~dp0frontend"
 start "OmniCut Pro Studio Frontend (Vite)" cmd /k "npm run dev"
 
 echo.
 echo ========================================================
 echo   System Started Successfully!
-echo   Frontend URL: http://localhost:5173
+echo   Frontend URL: https://localhost:5173
 echo   Backend API:  http://localhost:8000/docs
 echo ========================================================
 echo.
 ping -n 3 127.0.0.1 >nul
-start http://localhost:5173
+start https://localhost:5173

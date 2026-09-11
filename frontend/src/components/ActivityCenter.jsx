@@ -402,6 +402,54 @@ export function ActivityDrawer() {
                           );
                         }
 
+                        // For generate_shot_list (scripts/api_shot_lists.py):
+                        // opens the product -> clip script page, same as
+                        // reroll_script above -- this task never touches the
+                        // timeline/editor at all.
+                        const isShotListTask = Boolean(
+                          task.type === 'generate_shot_list' ||
+                          task.task_type === 'generate_shot_list'
+                        );
+
+                        if (isShotListTask) {
+                          return (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => jumpToTaskResult(task, 'flow')}
+                                className="px-3 py-1 rounded-lg bg-gradient-to-r from-[#25F4EE] to-blue-500 hover:brightness-110 text-slate-950 text-xs font-bold flex items-center gap-1 shadow-md shadow-[#25F4EE]/20 cursor-pointer active:scale-95 transition-all"
+                                title="เปิดหน้าสคริปต์เพื่อดูแผนถ่าย"
+                              >
+                                <span>เปิดหน้าสคริปต์</span>
+                                <ArrowRight className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          );
+                        }
+
+                        // For finalize_recording_session (scripts/api_recording.py):
+                        // the guided-take video was just attached to a
+                        // specific script's angle -- same "flow" page as
+                        // shot-list generation, never the editor/timeline.
+                        const isFinalizeRecordingTask = Boolean(
+                          task.type === 'finalize_recording_session' ||
+                          task.task_type === 'finalize_recording_session'
+                        );
+
+                        if (isFinalizeRecordingTask) {
+                          return (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => jumpToTaskResult(task, 'flow')}
+                                className="px-3 py-1 rounded-lg bg-gradient-to-r from-[#25F4EE] to-blue-500 hover:brightness-110 text-slate-950 text-xs font-bold flex items-center gap-1 shadow-md shadow-[#25F4EE]/20 cursor-pointer active:scale-95 transition-all"
+                                title="เปิดหน้าสคริปต์ที่เพิ่งถ่ายทำเสร็จ"
+                              >
+                                <span>เปิดหน้าสคริปต์</span>
+                                <ArrowRight className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          );
+                        }
+
                         // For timeline cuts (edit_project / 1-click edit):
                         // Show ONLY "เปิดไทม์ไลน์" (Primary prominent button)
                         return (
@@ -562,6 +610,44 @@ export function GlobalTaskNotification() {
                   className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#25F4EE] to-blue-500 hover:brightness-110 text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-[#25F4EE]/20 cursor-pointer active:scale-95 transition-all"
                 >
                   <span>เปิดสคริปต์ที่รีแล้ว</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            );
+          }
+
+          const isShotListTask = Boolean(
+            task.type === 'generate_shot_list' ||
+            task.task_type === 'generate_shot_list'
+          );
+
+          if (isShotListTask) {
+            return (
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  onClick={() => jumpToTaskResult(task, 'flow')}
+                  className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#25F4EE] to-blue-500 hover:brightness-110 text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-[#25F4EE]/20 cursor-pointer active:scale-95 transition-all"
+                >
+                  <span>เปิดหน้าสคริปต์</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            );
+          }
+
+          const isFinalizeRecordingTask = Boolean(
+            task.type === 'finalize_recording_session' ||
+            task.task_type === 'finalize_recording_session'
+          );
+
+          if (isFinalizeRecordingTask) {
+            return (
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  onClick={() => jumpToTaskResult(task, 'flow')}
+                  className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#25F4EE] to-blue-500 hover:brightness-110 text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-[#25F4EE]/20 cursor-pointer active:scale-95 transition-all"
+                >
+                  <span>เปิดหน้าสคริปต์</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>

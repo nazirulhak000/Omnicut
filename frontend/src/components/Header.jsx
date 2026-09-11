@@ -31,7 +31,7 @@ export default function Header({ status, activeTab, setActiveTab }) {
     }
   };
 
-  const mobileUrl = status?.mobile_url || `http://${window.location.hostname}:5173`;
+  const mobileUrl = status?.mobile_url || `https://${window.location.hostname}:5173`;
 
   const copyMobileLink = () => {
     navigator.clipboard.writeText(mobileUrl);

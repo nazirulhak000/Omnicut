@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import basicSsl from '@vitejs/plugin-basic-ssl'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -20,7 +21,16 @@ export default defineConfig(({ mode }) => {
   return {
   plugins: [
     react(),
-    tailwindcss()
+    tailwindcss(),
+    // Self-signed HTTPS for the dev server -- MobileFilmingPage.jsx's
+    // navigator.mediaDevices.getUserMedia() is undefined on a plain http://
+    // origin on a phone (browsers only expose it in a "secure context":
+    // https://, or localhost -- a LAN IP over http never qualifies). The
+    // phone shows a one-time untrusted-certificate warning to click through
+    // (Safari: "Show Details" -> "visit this website"); after that the
+    // camera works normally. See
+    // C:\Users\Winon\.claude\plans\cheeky-cooking-quokka.md (Phase C).
+    basicSsl(),
   ],
   server: {
     host: true,

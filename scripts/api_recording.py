@@ -12,14 +12,21 @@ from typing import Any, Dict
 
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
 
-from scripts.config import RAW_DIR
+from scripts.config import PROJECTS_DIR
 from scripts.recording_sessions import RecordingSessionStore
 from scripts.task_manager import TaskManager
 from scripts.video_editor import VideoEditor
 
 router = APIRouter(tags=["Recording Sessions"])
 
-_SEGMENTS_DIR = RAW_DIR / "_recording_sessions"
+# Deliberately NOT under RAW_DIR: scripts/media_service.py's scan_video_files
+# recursively globs RAW_DIR for the raw-footage vault / media picker, so raw
+# per-beat segments living there showed up as separate selectable clips next
+# to the real (already-concatenated) guided-take video. These are working
+# files, never meant to be picked individually -- see finalize()'s cleanup
+# in scripts/recording_sessions.py, which also removes this directory once
+# they're consumed into the final video.
+_SEGMENTS_DIR = PROJECTS_DIR / "_RecordingSegments"
 
 
 @router.post("/api/recording-sessions")
@@ -112,7 +119,11 @@ def finalize_recording_session(session_id: str, background_tasks: BackgroundTask
     task = TaskManager.create_task(
         task_type="finalize_recording_session",
         title="รวมคลิปถ่ายทำ (Guided Take)",
-        payload={"session_id": session_id},
+        payload={
+            "session_id": session_id,
+            "product_id": session.get("product_id"),
+            "angle_id": session.get("angle_id"),
+        },
         target_tab="flow",
         target_id=session.get("product_id"),
     )

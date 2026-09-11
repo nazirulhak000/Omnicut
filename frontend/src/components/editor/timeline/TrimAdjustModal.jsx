@@ -64,6 +64,8 @@ export default function TrimAdjustModal({
   // the latest bound without recreating the <video> element's handler.
   const draftRef = useRef(null);
   draftRef.current = draft;
+  // Last edge-pan timestamp -- see maybePanZoom below.
+  const panThrottleRef = useRef(0);
 
   // Minimum on-screen width for the green box, in px -- wide enough to fit
   // both edge handles (10px each) plus a real grabbable middle area. Without
@@ -142,10 +144,46 @@ export default function TrimAdjustModal({
     return () => observer.disconnect();
   }, [isOpen, draft === null, zoomWindow === null]);
 
+  // Throttled with a trailing edge, not a straight assignment on every
+  // `draft` change: dragging fires this effect at raw pointermove frequency
+  // (60+/s), and each `<video>.currentTime =` is a real network seek on a
+  // streamed multi-minute source file -- doing that dozens of times a
+  // second is what made the drag feel slow/stuttery, not the drag math
+  // itself (the box's own CSS position updates every event, uncapped, and
+  // stays smooth on their own). Capping actual seeks to ~11/s keeps the
+  // preview visibly tracking the drag while leaving the video pipeline room
+  // to keep up; the trailing timeout guarantees the final position (after
+  // the pointer stops) always lands on the exact value, never a skipped one.
+  const seekThrottleRef = useRef({ last: 0, timer: null });
   useEffect(() => {
     if (!draft || !videoRef.current) return;
     const mode = dragRef.current?.mode;
-    videoRef.current.currentTime = mode === 'end' ? draft.trim_end : draft.trim_start;
+    const target = mode === 'end' ? draft.trim_end : draft.trim_start;
+    const v = videoRef.current;
+    const state = seekThrottleRef.current;
+    const SEEK_THROTTLE_MS = 90;
+
+    if (state.timer) {
+      clearTimeout(state.timer);
+      state.timer = null;
+    }
+    const elapsed = performance.now() - state.last;
+    if (elapsed >= SEEK_THROTTLE_MS) {
+      v.currentTime = target;
+      state.last = performance.now();
+    } else {
+      state.timer = setTimeout(() => {
+        v.currentTime = target;
+        state.last = performance.now();
+        state.timer = null;
+      }, SEEK_THROTTLE_MS - elapsed);
+    }
+    return () => {
+      if (state.timer) {
+        clearTimeout(state.timer);
+        state.timer = null;
+      }
+    };
   }, [draft]);
 
   const zoomReady = isOpen && !!clip && !!draft && !!zoomWindow && !!trueDuration && barWidth > 0;
@@ -175,10 +213,9 @@ export default function TrimAdjustModal({
     navigateOverview(t);
   };
 
-  // Keep the resulting trim range inside the fetched zoom window -- past
-  // that edge there is no filmstrip data and the box would render outside
-  // the visible bar with nothing backing it. Panning the overview reaches
-  // any point in the file without this limit; this only bounds one drag.
+  // Clamp for a one-off jump (tap on the detail bar): the click coordinate
+  // is itself always inside the bar, so the resulting window is already
+  // within zoomWindow -- this is just a safety net.
   const clampToZoom = (patch) => {
     if (!zoomWindow) return patch;
     const span = patch.trim_end - patch.trim_start;
@@ -189,6 +226,47 @@ export default function TrimAdjustModal({
       return { trim_start: Math.round((zoomWindow.end - span) * 100) / 100, trim_end: zoomWindow.end };
     }
     return patch;
+  };
+
+  // While actively dragging (shift or either edge), once the target value
+  // crosses EDGE_FRACTION into the current zoom window's edge, re-pin the
+  // window so that point sits exactly back at the margin line -- "drag to
+  // the edge and it keeps sliding" instead of hard-stopping there.
+  //
+  // This re-pin runs on every qualifying drag tick, not throttled: it moves
+  // the window by *exactly* however far the drag has crossed the margin, so
+  // the box's on-screen position (relative to the window) never overshoots
+  // and snaps backward -- a fixed step tried first here did overshoot
+  // whenever the drag moved less than the step within one throttle tick,
+  // which read as "the box jumped the opposite way" even though the trim
+  // value only ever moved forward. What IS throttled is the filmstrip
+  // image refetch below: panning the window is free (just re-centers where
+  // existing state points), but a new image is a real backend ffmpeg call,
+  // so that keeps its own cadence and briefly shows the previous frame
+  // strip while the window keeps tracking the drag underneath it.
+  const EDGE_FRACTION = 0.15;
+  const FILMSTRIP_REFETCH_MS = 220;
+
+  const maybePanZoom = (patch) => {
+    if (!zoomWindow || !trueDuration || !clip?.source_path) return;
+    const margin = zoomSpan * EDGE_FRACTION;
+    let zStart = zoomWindow.start;
+    let zEnd = zoomWindow.end;
+    if (patch.trim_start < zoomWindow.start + margin && zoomWindow.start > 0) {
+      zStart = Math.max(0, patch.trim_start - margin);
+      zEnd = zStart + zoomSpan;
+    } else if (patch.trim_end > zoomWindow.end - margin && zoomWindow.end < trueDuration) {
+      zEnd = Math.min(trueDuration, patch.trim_end + margin);
+      zStart = zEnd - zoomSpan;
+    } else {
+      return;
+    }
+    setZoomWindow({ start: zStart, end: zEnd });
+    const now = performance.now();
+    if (now - panThrottleRef.current >= FILMSTRIP_REFETCH_MS) {
+      panThrottleRef.current = now;
+      setDetailUrl(filmstripUrlFor(clip.source_path, DETAIL_FRAMES, zStart, zEnd));
+    }
   };
 
   const startDrag = (mode) => (e) => {
@@ -207,7 +285,11 @@ export default function TrimAdjustModal({
     const patch = d.mode === 'shift'
       ? shiftTrimWindow(d.startDraft, deltaSource, trueDuration)
       : resizeTrimWindow(d.mode, d.startDraft, deltaSource, trueDuration);
-    setDraft(clampToZoom(patch));
+    // Not clamped to zoomWindow here -- the drag target is free to go
+    // anywhere in the source file; maybePanZoom keeps the visible window
+    // chasing it instead of capping the drag at the window's edge.
+    setDraft(patch);
+    maybePanZoom(patch);
   };
 
   const endDrag = (e) => {
@@ -278,7 +360,13 @@ export default function TrimAdjustModal({
   // The actual trim range can fall entirely outside the current zoom window
   // after panning the overview elsewhere -- render no box in that case (it
   // has nothing to sit on) rather than pin it to a misleading edge.
-  const trimInView = zoomReady && draft.trim_end > zoomWindow.start && draft.trim_start < zoomWindow.end;
+  // While a drag is in progress the box must keep rendering (pinned to the
+  // bar's edge by windowLeftPx's own clamp) even on the few throttled ticks
+  // where the pan hasn't caught up yet -- if this div unmounted mid-drag,
+  // the pointer capture and its move/up handlers would go with it.
+  const trimInView = zoomReady && (
+    !!dragRef.current || (draft.trim_end > zoomWindow.start && draft.trim_start < zoomWindow.end)
+  );
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="ปรับช่วงตัด" maxWidth="max-w-2xl">
@@ -369,10 +457,10 @@ export default function TrimAdjustModal({
                     filmstrip a tinted middle was unreadable as "this whole
                     span is selected", and it read as two disconnected edge
                     markers instead of one box. */}
-                <div className="pointer-events-none absolute inset-y-0 left-0 bg-black/60" style={{ width: windowLeftPx }} />
-                <div className="pointer-events-none absolute inset-y-0 right-0 bg-black/60" style={{ width: barWidth - windowLeftPx - windowWidthPx }} />
+                <div className="pointer-events-none absolute inset-y-0 left-0 bg-black/60 transition-[width] duration-100 ease-out" style={{ width: windowLeftPx }} />
+                <div className="pointer-events-none absolute inset-y-0 right-0 bg-black/60 transition-[width] duration-100 ease-out" style={{ width: barWidth - windowLeftPx - windowWidthPx }} />
                 <div
-                  className="absolute top-0 h-full border-2 border-emerald-400 cursor-grab active:cursor-grabbing touch-none flex items-center justify-center"
+                  className="absolute top-0 h-full border-2 border-emerald-400 cursor-grab active:cursor-grabbing touch-none flex items-center justify-center transition-[left,width] duration-100 ease-out"
                   style={{ left: windowLeftPx, width: windowWidthPx }}
                   onPointerDown={startDrag('shift')}
                   onPointerMove={moveDrag}

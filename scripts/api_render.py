@@ -349,7 +349,11 @@ def get_system_status(refresh_ip: bool = False):
         "total_raw_videos": len(raw_files),
         "total_exports": len(export_files),
         "local_ip": local_ip,
-        "mobile_url": f"http://{local_ip}:5173",
+        # https, not http: MobileFilmingPage.jsx's getUserMedia() is only
+        # exposed by phone browsers in a secure context (https:// or
+        # localhost) -- frontend/vite.config.js's basicSsl() plugin serves
+        # the dev server over self-signed https to match.
+        "mobile_url": f"https://{local_ip}:5173",
         "directories": {
             "base": str(BASE_DIR),
             "inbox": str(INBOX_DIR),

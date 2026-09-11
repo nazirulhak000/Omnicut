@@ -366,11 +366,12 @@ def _slot_stream(
     if count <= 0:
         return []
     slots: List[dt.datetime] = []
-    occupied = {
-        str(row.get("scheduled_at"))
-        for row in ScheduleQueueStore._load()
-        if row.get("status") != "posted"
-    }
+    # Posted rows stay in this set on purpose: once a slot has been used --
+    # posted or not -- auto-fill must never offer it again. Excluding posted
+    # rows here used to free up today's already-posted times for reuse, so a
+    # fresh auto-fill run silently overwrote them with new clips at the same
+    # times instead of moving on to slots that were never used.
+    occupied = {str(row.get("scheduled_at")) for row in ScheduleQueueStore._load()}
     day = start
     last_day = end
     # Auto-fill may spill after the requested range. A year is ample for the
@@ -573,7 +574,10 @@ def commit_auto_fill(req: AutoFillCommitRequest):
     # silently overwrite a manual row added while the modal was open.
     with ScheduleQueueStore._mutate() as records:
         existing_keys = _existing_queue_keys(records)
-        existing_times = {str(item.get("scheduled_at")) for item in records if item.get("status") != "posted"}
+        # Include posted rows -- see _slot_stream's comment: a used slot stays
+        # used even after the clip in it posts, so a race against a manual
+        # add (or a second preview) can't double-book that time either.
+        existing_times = {str(item.get("scheduled_at")) for item in records}
         created = [_payload_to_record(item, existing_keys, existing_times) for item in req.items]
         records.extend(created)
     return {"items": sort_records(created), "count": len(created)}
@@ -623,7 +627,10 @@ def create_queue(req: QueueCreateRequest):
     items = _request_items(req)
     with ScheduleQueueStore._mutate() as records:
         existing_keys = _existing_queue_keys(records)
-        existing_times = {str(item.get("scheduled_at")) for item in records if item.get("status") != "posted"}
+        # See _slot_stream's comment: a posted row still counts as occupying
+        # its time slot, otherwise manually re-adding a clip at a time that
+        # already posted something silently overwrites that slot's history.
+        existing_times = {str(item.get("scheduled_at")) for item in records}
         created = [_payload_to_record(item, existing_keys, existing_times) for item in items]
         records.extend(created)
     return {"items": sort_records(created), "count": len(created)}

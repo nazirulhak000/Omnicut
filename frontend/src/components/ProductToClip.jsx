@@ -10,7 +10,7 @@ import {
   scrapeAndPlanProduct, scrapeAndPlanProductAsync, getProducts, updateProduct,
   previewProductSource, previewProductImageMetadataAsync, refreshProductSource, updateAngleStatus, updateAngleVideos, setDefaultVideosForProduct, deleteProduct,
   uploadFile, resolveTiktokProductId, rerollAngleScript,
-  generateShotList, getTaskStatus
+  generateShotList, getShotList, getTaskStatus
 } from '../api';
 import { Modal, Toast, Button, Badge, Input, Textarea, ConfirmModal, PageHeader } from './ui';
 import MediaPickerModal from './MediaPickerModal';
@@ -1278,7 +1278,7 @@ function ScriptAccordionItem({
 export default function ProductToClip({ status, videos = [], onRefresh, onApplyToStudio, onGoToGallery, selectedProductId, pendingFlowTaskVersion, consumePendingAngleId, consumePendingImageMetadataPreview }) {
   // Mirrors ExportGallery.jsx's mobileBaseUrl computation -- the LAN IP of
   // the Vite dev server a phone scanning a QR code needs to reach.
-  const mobileBaseUrl = status?.mobile_url || (typeof window !== 'undefined' ? `http://${window.location.hostname}:5173` : '');
+  const mobileBaseUrl = status?.mobile_url || (typeof window !== 'undefined' ? `https://${window.location.hostname}:5173` : '');
 
   // Input Mode & Active View
   const [showAddModal, setShowAddModal] = useState(false);
@@ -1689,11 +1689,12 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   };
 
   // ── Shot-list generation (per-beat filming plan from real TTS timing) ──
-  const handleGenerateShotList = async (angleIdx) => {
-    if (!productData?.id) return;
-    const targetAngle = angles[angleIdx];
-    if (!targetAngle?.angle_id) return;
-
+  // Runs the actual generate-task + poll cycle. Only called when there's no
+  // existing shot list yet, or the user explicitly asks to regenerate one
+  // (via the modal's "สร้างใหม่" action) -- never as the default click
+  // behavior, since re-running this re-synthesizes the voiceover from
+  // scratch every time.
+  const runShotListGeneration = async (angleIdx, targetAngle) => {
     setGeneratingShotListIdx(angleIdx);
     try {
       const res = await generateShotList(productData.id, targetAngle.angle_id);
@@ -1729,6 +1730,33 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     } finally {
       setGeneratingShotListIdx(null);
     }
+  };
+
+  // Default click: reopen the already-generated shot list instantly if one
+  // exists (no re-run) -- only falls through to a fresh generation the
+  // first time, when none exists yet.
+  const handleGenerateShotList = async (angleIdx) => {
+    if (!productData?.id) return;
+    const targetAngle = angles[angleIdx];
+    if (!targetAngle?.angle_id) return;
+
+    setGeneratingShotListIdx(angleIdx);
+    try {
+      const existing = await getShotList(productData.id, targetAngle.angle_id);
+      setShotListResult({ angle: targetAngle, ...existing });
+      setShotListAngleIdx(angleIdx);
+      setGeneratingShotListIdx(null);
+    } catch {
+      // 404 (or any other lookup failure) -- no shot list yet, generate one.
+      await runShotListGeneration(angleIdx, targetAngle);
+    }
+  };
+
+  const handleRegenerateShotList = () => {
+    if (shotListAngleIdx === null) return;
+    const targetAngle = angles[shotListAngleIdx];
+    if (!targetAngle?.angle_id) return;
+    runShotListGeneration(shotListAngleIdx, targetAngle);
   };
 
   const handleDeleteHistory = (target) => {
@@ -3169,6 +3197,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         productId={productData?.id}
         mobileBaseUrl={mobileBaseUrl}
         result={shotListResult}
+        onRegenerate={handleRegenerateShotList}
+        regenerating={shotListAngleIdx !== null && generatingShotListIdx === shotListAngleIdx}
       />
 
       {/* ── Product Catalog Modal (Searchable Grid for 100+ items) ── */}

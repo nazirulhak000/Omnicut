@@ -30,7 +30,7 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const mobileUrl = status?.mobile_url || `http://${window.location.hostname}:5173`;
+  const mobileUrl = status?.mobile_url || `https://${window.location.hostname}:5173`;
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
