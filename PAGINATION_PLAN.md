@@ -78,12 +78,14 @@
 
 ---
 
-## Phase 3 (Low) — ยังไม่ต้องรีบ บันทึกไว้เฉยๆ
+## Phase 3 (Low) — เช็คแล้ว ไม่ต้องแก้โค้ดสักจุด
 
-- [ ] `GET /api/posts`, `GET /api/posts/performance` (`scripts/api_phase1.py:169,211`) — **ไม่มี frontend เรียกใช้จริงตอนนี้** (`getPosts` เป็น dead code) — ข้ามได้จนกว่าจะมีคนเรียกใช้จริง
-- [ ] `GET /api/tiktok-stats/pending` — เป็นคิวชั่วคราว เคลียร์ทันทีที่จับคู่เสร็จ ไม่สะสมยาว ไม่รีบ
-- [ ] `GET /backup/list` (`scripts/api_backup.py:21`) — โตช้าตามความถี่ backup manual/cron ไม่รีบ
-- [ ] `GET /api/tasks/active` (`scripts/api_tasks.py:12`) — ปลอดภัยแล้วด้วย hardcoded `limit=50` ฝั่ง `TaskManager` — แค่เสนอให้เปิดเป็น query param แทนการ hardcode เผื่ออนาคตอยากปรับ ไม่ใช่บั๊ก
+- [x] `GET /api/posts`, `GET /api/posts/performance` (`scripts/api_phase1.py:169,211`) — ยืนยันแล้วว่า `getPosts` ไม่มีที่ไหนใน `frontend/src/` เรียกใช้เลย (grep ทั้ง repo เจอแค่ definition ใน `api.js`) → dead code จริง ข้ามได้
+- [x] `GET /api/tiktok-stats/pending` — ยืนยันแล้วว่าเป็นคิวชั่วคราวจริง (`PerformanceAnalyticsTab.jsx`) เคลียร์ทันทีที่ attach/ignore ผ่าน UI ที่มีอยู่แล้ว ("แถวที่ยังไม่ได้จับคู่ (N)") ไม่สะสม
+- [x] `GET /backup/list` (`scripts/api_backup.py:21`) — consumer: `SystemSettings.jsx` โตช้าจริง (backup เป็น manual/cron action ไม่ใช่ per-clip) และมี `max-h-60 overflow-y-auto` จำกัดความสูงอยู่แล้วเหมือน dedup scan → **ไม่ต้องแก้**
+- [x] `GET /api/tasks/active` (`scripts/api_tasks.py:12`, `TaskManager.get_active_tasks`) — ยืนยันแล้วว่า `limit: int = 50` เป็นค่าจริงใน signature (`scripts/task_manager.py:530`) ปลอดภัยอยู่แล้ว 100%
+
+**สรุป Phase 3:** ทั้ง 4 จุดเช็คแล้วไม่มีจุดไหนต้องแก้โค้ดจริง — เป็น dead code, self-clearing, หรือปลอดภัยอยู่แล้วโดยธรรมชาติ ปิด Phase 3 แบบไม่มี code change
 
 **ไม่ต้องแตะ:** `GET /hooks/styles`, `GET /angles` (catalog คงที่ ไม่ใช่ user data ที่โต), `GET /render/batch/{batch_id}` (self-prune 50 อยู่แล้ว, ไม่มี "list all" endpoint ให้แก้)
 

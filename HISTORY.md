@@ -8,6 +8,7 @@
 
 ## สารบัญ
 
+| Round PAGINATION-1 | เพิ่ม client-side windowing ให้ 9 list endpoint ทั่วระบบ กัน UI ช้าเมื่อข้อมูลถึงหลักร้อย (แผนใน `PAGINATION_PLAN.md`) | 2026-09-13 | สำเร็จสมบูรณ์ (Phase 1: exports/products/videos/raw-vault/schedule-queue/tiktok-stats windowed ทั้ง 6, Phase 2: assets/all + dedup-scan windowed, clip-candidates ไม่ต้องแก้ (native select), Phase 3: 4 endpoint เช็คแล้วปลอดภัยอยู่แล้วทั้งหมด ไม่ต้องแก้โค้ด; pytest เต็มระบบ 1126 passed, vitest 158 passed ทุกรอบ, build ผ่านทุกจุด; browser verify ยังไม่ได้ทำ (dev server ไม่ตอบ HTTP ตลอด session) ย้ายเข้า Backlog, ดำเนินการโดย: Claude Code (Claude Sonnet 5)) |
 | Round EXPORT-ARCHIVE-POLICY-1 | แจ้งเตือนเมื่อ export/project ที่โพสต์แล้วค้างเกิน 30 วัน หรือดิสก์ใช้เกิน 80% — banner ใน Storage tab ไม่ auto-move ไฟล์ | 2026-09-12 | สำเร็จสมบูรณ์ (เพิ่ม `archive_recommendation` ใน `/api/analytics/storage`, banner ใน StorageAnalyticsTab.jsx, pytest 4 passed, build 3.12s, live API verified, ดำเนินการโดย: Claude Code (Claude Sonnet 5)) |
 | Round SCRIPT-BATCH-EXPAND-1 | ระบบเจนสคริปต์ล็อตใหม่ 10 มุมมอง & ปรับระบบ Dev Server HTTP (Multi-Batch Generation & Filtering Flow) | 2026-09-12 | สำเร็จสมบูรณ์ (ปลดล็อก Privacy Error ถาวร รัน HTTP localhost:5173, SSOT 1 สินค้าหลายล็อต, Multi-Batch sub-bar, Quick filter ซ่อนที่โพสต์แล้ว, API generate-batch & add angle, pytest 171 passed, vitest 158 passed, build 3.25s, browser verified, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round POSTED-CLIP-LIFECYCLE-1 | ระบบจัดการคลิปที่โพสต์แล้ว (Zero-Risk Archive & Timeline Lockout Flow) | 2026-09-12 | สำเร็จสมบูรณ์ (ตัดสิทธิ์เปิดไทม์ไลน์ 100%, กรองออกจาก Dropdown โปรเจกต์, Action Bar สคริปต์ [ดูคลิปที่โพสต์แล้ว] + [ทำซ้ำเพื่อตัดคลิปใหม่], ย้ายโฟลเดอร์โปรเจกต์เข้า 06_Archive/Projects/ อัตโนมัติ, vitest 158 passed, pytest 156 passed, build 3.45s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
@@ -105,6 +106,30 @@ pytest tests/ -q --tb=short -x   → 1126 passed, 26 warnings in 275.52s
 | Round USER-GUIDE-4 | คู่มือ interactive 6 ฟีเจอร์ (sticky TOC, เช็กลิสต์ติ๊กได้, accordion, ปุ่มลัด, FAQ ค้นหา) | 2026-09-12 | ไม่เปลี่ยนข้อความ/สี/ลำดับ; frontend 151 passed, build 4.22s |
 | Round ANALYTICS-CHARTS-1 | พัฒนาระบบกราฟเส้น กราฟโดนัท Funnel Chart และเกจวัดแบบ Pure SVG สไตล์ Dark Modern Glassmorphism สำหรับแดชบอร์ดทั้ง 4 แท็บ | 2026-09-12 | สร้าง 4 Pure SVG charts (AreaLine, Donut, Funnel, ProgressRing/Concentric) ฝังครบ 4 แท็บ; vitest 151 passed, backend 4 passed, build 3.44s, browser verified |
 | Round SHOTLIST-GEMINI-TTS-SSOT-1 | ระบบรวมศูนย์เสียง TTS (Gemini Flash Audio SSOT): แผนถ่าย & ตัดต่อจริงใช้เสียงเดียวกัน 100% ไม่เจนซ้ำ | 2026-09-12 | สังเคราะห์ด้วย Gemini Flash TTS เป็นค่าเริ่มต้น + Dropdown เลือก 5 เสียงใน Modal + VoiceStage reuse อัตโนมัติ; pytest 1,125 passed, vitest 158 passed, build 3.40s, browser verified |
+
+## Round PAGINATION-1 (แผนอยู่ใน [PAGINATION_PLAN.md](file:///d:/Winona/Programmer/Capcut/PAGINATION_PLAN.md)) — เพิ่ม limit/pagination ให้ list endpoint ทั่วระบบ
+
+วันที่: 2026-09-12 ถึง 2026-09-13 · สั่งโดย: user · ดำเนินการโดย: Claude Code (Claude Sonnet 5) · สถานะ: เสร็จสมบูรณ์
+
+**ที่มา:** ผู้ใช้สังเกตว่า Export Gallery มี 10 คลิปยังโอเค แต่ถามว่าจะช้าไหมเมื่อถึงหลักร้อย — สั่งให้สำรวจทั้งระบบก่อนแล้วค่อยลงมือ
+
+- [x] Phase 1 item 1: `/api/exports` + `ExportGallery.jsx` — **client-side windowed rendering แทน backend limit/offset** (พบว่า `exportsList` ถูก merge/aggregate ข้ามคอมโพเนนต์ ตัด limit ที่ backend จะพังข้อมูล ดูเหตุผลเต็มใน `PAGINATION_PLAN.md`) (2026-09-12; vitest 158 passed, build 3.27s)
+- [x] Phase 1 item 2: `/api/products` (ผ่าน `ContentTrackerHub.jsx`) — **client-side windowed rendering** เหมือนกัน (kanban เป็นบอร์ดจัดการงาน ต้องเห็นทุกใบเพื่อทำงาน ตัด limit ที่ backend จะทำให้หาการ์ดเก่าไม่เจอ) — เพิ่ม windowing 2 จุด: kanban "Flat Cards List" (คอลัมน์ candidate/in_production/rendered ที่ไม่มี today-filter/accordion มาก่อน) ทีละ 20 การ์ดต่อคอลัมน์ + Table view (mobile card feed + desktop table) ทีละ 40 แถว ทั้งคู่มีปุ่ม "โหลดเพิ่ม" (2026-09-12; vitest 158 passed, build 7.25s)
+- [x] Phase 1 item 3: `/api/videos` (`MediaPickerModal.jsx`) — audit เดิมชี้ผิดว่า consumer คือ `MediaAssetsHub.jsx` (จริงๆ นั่นคือ `/api/assets/all`) — เป็น picker modal เลือกคลิปเดียว ไม่มี aggregate ข้ามจุด → **client-side windowed rendering** ทีละ 40 การ์ด + ปุ่มโหลดเพิ่ม, reset เมื่อ search/tab เปลี่ยน (2026-09-12; vitest 158 passed, build 6.14s)
+- [x] Phase 1 item 4: `/api/raw-vault` (`RawVaultPanel.jsx`) — เช็ค docstring endpoint พบว่า O(products×files) ที่ audit เดิมเตือนไว้ **แก้เป็น O(products+files) ไปแล้วในโค้ดจริง** (ไม่ใช่ปัญหาเปิดอยู่) เหลือแค่ประเด็น pagination — คลัง raw footage มี aggregate count ข้ามจุด (ผูกสินค้า/คลิปอิสระ) เหมือนกัน → **client-side windowed rendering** ทีละ 40 การ์ด + ปุ่มโหลดเพิ่ม (2026-09-12; vitest 158 passed, build 6.14s)
+- [x] Phase 1 item 5: schedule-queue (`ScheduleAgenda.jsx`) — calendar view สัปดาห์อยู่แล้วโดยธรรมชาติ (7 วัน bounded), list view ผูกกับ `activeQueue` (ยังไม่โพสต์ ไม่โตมาก) ความเสี่ยงจริงอยู่ที่ modal "คลิปที่โพสต์แล้ว" (`postedQueue`, ไม่เคย prune) → windowed ทีละ 50 แถว + ปุ่มโหลดเพิ่ม, reset ทุกครั้งที่เปิด modal (2026-09-12; vitest 158 passed, build 4.23s)
+- [x] Phase 1 item 6: `/api/tiktok-stats/latest` (`PerformanceAnalyticsTab.jsx`) — KPI การ์ด (totalViews, avgEngagement) อ่านจาก `richPosts` เต็มเหมือนเดิม, windowed เฉพาะตารางแสดงผลทีละ 50 แถว + ปุ่มโหลดเพิ่ม, reset เมื่อ sync ข้อมูลใหม่ (2026-09-12; vitest 158 passed, build 4.23s)
+- [x] Phase 2 item 1: `/api/tiktok-stats/clip-candidates` — populate native `<select>` dropdown ไม่ใช่ custom card list → **ไม่ต้องแก้โค้ด** (native select scale ได้เป็นพันตัวเลือกไม่กระทบ perf)
+- [x] Phase 2 item 2: `/api/assets/all` (`MediaAssetsHub.jsx`) — 7 จุด render (1 split-view + 6 grid-view ต่อประเภท) แต่โชว์ทีละจุดตาม tab เดียว → windowed ร่วมกันทีละ 40 รายการ + ปุ่มโหลดเพิ่ม (2026-09-13; vitest 158 passed, build 4.11s)
+- [x] Phase 2 item 3: `/assets/duplicates/scan` (`SystemSettings.jsx`) — เสี่ยงต่ำกว่าอันอื่น (on-demand action, container จำกัดความสูงอยู่แล้ว) แต่แก้ให้สอดคล้องกัน windowed ทีละ 30 กลุ่ม + ปุ่มโหลดเพิ่ม, reset ทุก scan ใหม่ (2026-09-13; vitest 158 passed, build 3.22s)
+- [x] Phase 3: เช็คครบ 4 จุด (`/api/posts*` dead code ยืนยันแล้ว, `/api/tiktok-stats/pending` self-clearing, `/backup/list` โตช้า+มี scroll container จำกัดอยู่แล้ว, `/api/tasks/active` ปลอดภัยด้วย hardcoded `limit=50`) — **ไม่ต้องแก้โค้ดสักจุด**
+
+**Gate รวม:** pytest เต็มระบบ 1126 passed, vitest 158 passed ทุกรอบที่แก้, `npm run build` ผ่านทุกจุด
+
+**Notes:**
+- เลือก client-side windowing (ไม่ใช่ backend limit/offset) ทุก endpoint ที่แก้จริง เพราะทุกตัวมี aggregate/cross-component dependency (merge cover metadata, kanban board ต้องเห็นทุกใบ, KPI การ์ดต้องอ่านข้อมูลเต็ม ฯลฯ) — ต่างจาก Contract เดิมที่ตั้งใจไว้ตอนแรก (ดูหัวข้อ "ข้อค้นพบระหว่างลงมือจริง" ใน `PAGINATION_PLAN.md`)
+- ระหว่างทำ commit `33aefcc` (แก้ shot-matching, git identity ผู้ใช้เอง) sweep เอา `MediaAssetsHub.jsx`/`SystemSettings.jsx` ที่ยังไม่ commit เข้าไปรวมด้วยโดยไม่ตั้งใจ — โค้ดถูกต้อง เทสผ่านหมด ไม่มีอะไรพัง แค่ attribution ปนกัน แจ้ง user แล้ว ไม่ได้แก้คืน
+- **ยังไม่ได้ browser-verify เลยทั้งรอบ** — dev server (localhost:5173) ไม่ตอบ HTTP request ตลอด session (ดูเหมือน terminal ค้าง QuickEdit ไม่ใช่โค้ดพัง) → ย้ายเป็น Backlog item ให้เปิดแอปเช็คจริงทีหลัง
 
 ## Round EXPORT-ARCHIVE-POLICY-1 — แจ้งเตือน export ค้างนาน/ดิสก์ใกล้เต็ม (Combined Time + Disk Threshold)
 

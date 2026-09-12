@@ -63,6 +63,7 @@
 
 - [x] Round POSTED-CLIP-LIFECYCLE-1 — ระบบจัดการคลิปที่โพสต์แล้ว (Zero-Risk Archive & Timeline Lockout Flow) (2026-09-12; vitest 158 passed, pytest 156 passed, build 3.45s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 - [x] Round EXPORT-ARCHIVE-POLICY-1 — แจ้งเตือน export ค้างนาน/ดิสก์ใกล้เต็ม (Combined Time + Disk Threshold) (2026-09-12; pytest 4 passed, build 3.12s, live API verified, ดำเนินการโดย: Claude Code (Claude Sonnet 5))
+- [x] Round PAGINATION-1 — เพิ่ม client-side windowing ให้ 9 list endpoint ทั่วระบบ กัน UI ช้าเมื่อข้อมูลถึงหลักร้อย (2026-09-13; pytest 1126 passed, vitest 158 passed, build ผ่านทุกจุด, ดำเนินการโดย: Claude Code (Claude Sonnet 5); browser verify ยังไม่ได้ทำ ดู Backlog)
 
 - [x] Round SCRIPT-BATCH-EXPAND-1 — ระบบเจนสคริปต์ล็อตใหม่ 10 มุมมอง & ปรับระบบ Dev Server HTTP (Multi-Batch Generation & Filtering Flow) (2026-09-12; vitest 158 passed, pytest 171 passed, build 3.25s, browser verified, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 
@@ -76,24 +77,10 @@
 - [ ] Tests: pytest (pending/attach/ignore + attach อัปเดต metrics จริง) + frontend vitest + build
 - [ ] Gate: python -m compileall -q scripts + pytest เต็ม + npm test + npm run build
 
-## Round PAGINATION-1 (แผนอยู่ใน [PAGINATION_PLAN.md](file:///d:/Winona/Programmer/Capcut/PAGINATION_PLAN.md)) — เพิ่ม limit/pagination ให้ list endpoint ทั่วระบบ
-
-วันที่: 2026-09-12 · สั่งโดย: user · สถานะ: วางแผนแล้ว ยังไม่ลงมือ (user สั่งให้ทำแผนก่อน ยังไม่ให้แก้โค้ด)
-
-**เป้าหมาย:** กัน Export Gallery และหน้าอื่นๆ ที่ list โต (products, raw vault, schedule queue, tiktok-stats) ช้าลงเมื่อข้อมูลถึงหลักร้อย — ดูรายละเอียด phase/priority/endpoint ทั้งหมดใน `PAGINATION_PLAN.md`
-
-- [x] Phase 1 item 1: `/api/exports` + `ExportGallery.jsx` — **client-side windowed rendering แทน backend limit/offset** (พบว่า `exportsList` ถูก merge/aggregate ข้ามคอมโพเนนต์ ตัด limit ที่ backend จะพังข้อมูล ดูเหตุผลเต็มใน `PAGINATION_PLAN.md`) (2026-09-12; vitest 158 passed, build 3.27s, ดำเนินการโดย: Claude Code (Claude Sonnet 5))
-- [x] Phase 1 item 2: `/api/products` (ผ่าน `ContentTrackerHub.jsx`) — **client-side windowed rendering** เหมือนกัน (kanban เป็นบอร์ดจัดการงาน ต้องเห็นทุกใบเพื่อทำงาน ตัด limit ที่ backend จะทำให้หาการ์ดเก่าไม่เจอ) — เพิ่ม windowing 2 จุด: kanban "Flat Cards List" (คอลัมน์ candidate/in_production/rendered ที่ไม่มี today-filter/accordion มาก่อน) ทีละ 20 การ์ดต่อคอลัมน์ + Table view (mobile card feed + desktop table) ทีละ 40 แถว ทั้งคู่มีปุ่ม "โหลดเพิ่ม" (2026-09-12; vitest 158 passed, build 7.25s, ดำเนินการโดย: Claude Code (Claude Sonnet 5); หมายเหตุ: ยังไม่ได้ browser-verify เพราะ dev server ไม่ตอบ HTTP request ตอนเช็ค — คาดว่า terminal ค้าง ไม่ใช่โค้ดพัง)
-- [x] Phase 1 item 3: `/api/videos` (`MediaPickerModal.jsx`) — audit เดิมชี้ผิดว่า consumer คือ `MediaAssetsHub.jsx` (จริงๆ นั่นคือ `/api/assets/all`) แก้ไว้ในเกณฑ์แล้ว — เป็น picker modal เลือกคลิปเดียว ไม่มี aggregate ข้ามจุด → **client-side windowed rendering** ทีละ 40 การ์ด + ปุ่มโหลดเพิ่ม, reset เมื่อ search/tab เปลี่ยน (2026-09-12; vitest 158 passed, build 6.14s, ดำเนินการโดย: Claude Code (Claude Sonnet 5))
-- [x] Phase 1 item 4: `/api/raw-vault` (`RawVaultPanel.jsx`) — เช็ค docstring endpoint พบว่า O(products×files) ที่ audit เดิมเตือนไว้ **แก้เป็น O(products+files) ไปแล้วในโค้ดจริง** (ไม่ใช่ปัญหาเปิดอยู่) เหลือแค่ประเด็น pagination — คลัง raw footage มี aggregate count ข้ามจุด (ผูกสินค้า/คลิปอิสระ) เหมือนกัน → **client-side windowed rendering** ทีละ 40 การ์ด + ปุ่มโหลดเพิ่ม (2026-09-12; vitest 158 passed, build 6.14s, ดำเนินการโดย: Claude Code (Claude Sonnet 5))
-- [x] Phase 1 item 5: schedule-queue (`ScheduleAgenda.jsx`) — calendar view สัปดาห์อยู่แล้วโดยธรรมชาติ (7 วัน bounded), list view ผูกกับ `activeQueue` (ยังไม่โพสต์ ไม่โตมาก) ความเสี่ยงจริงอยู่ที่ modal "คลิปที่โพสต์แล้ว" (`postedQueue`, ไม่เคย prune) → windowed ทีละ 50 แถว + ปุ่มโหลดเพิ่ม, reset ทุกครั้งที่เปิด modal (2026-09-12; vitest 158 passed, build 4.23s, ดำเนินการโดย: Claude Code (Claude Sonnet 5))
-- [x] Phase 1 item 6: `/api/tiktok-stats/latest` (`PerformanceAnalyticsTab.jsx`) — KPI การ์ด (totalViews, avgEngagement) อ่านจาก `richPosts` เต็มเหมือนเดิม, windowed เฉพาะตารางแสดงผลทีละ 50 แถว + ปุ่มโหลดเพิ่ม, reset เมื่อ sync ข้อมูลใหม่ (2026-09-12; vitest 158 passed, build 4.23s, ดำเนินการโดย: Claude Code (Claude Sonnet 5))
-- [x] **Phase 1 ครบ 6/6 endpoint แล้ว** — ยังไม่ได้ browser-verify item 2-6 เลย (dev server ไม่ตอบ HTTP ตลอดรอบนี้ ดูเหมือน terminal ค้าง ไม่ใช่โค้ดพัง) — ต้องเปิดแอปจริงเช็คก่อนถือว่าปิดสนิท 100%
-- [x] Phase 2 item 1: `/api/tiktok-stats/clip-candidates` — เช็คแล้วพบว่า populate native `<select>` dropdown ไม่ใช่ custom card list → **ไม่ต้องแก้โค้ด** (native select scale ได้เป็นพันตัวเลือกไม่กระทบ perf)
-- [x] Phase 2 item 2: `/api/assets/all` (`MediaAssetsHub.jsx`) — 7 จุด render (1 split-view + 6 grid-view ต่อประเภท) แต่โชว์ทีละจุดตาม tab เดียว → windowed ร่วมกันทีละ 40 รายการ + ปุ่มโหลดเพิ่ม (2026-09-13; vitest 158 passed, build 4.11s, ดำเนินการโดย: Claude Code (Claude Sonnet 5))
-- [x] Phase 2 item 3: `/assets/duplicates/scan` (`SystemSettings.jsx`) — เสี่ยงต่ำกว่าอันอื่น (on-demand action, container จำกัดความสูงอยู่แล้ว) แต่แก้ให้สอดคล้องกัน windowed ทีละ 30 กลุ่ม + ปุ่มโหลดเพิ่ม, reset ทุก scan ใหม่ (2026-09-13; vitest 158 passed, build 3.22s, ดำเนินการโดย: Claude Code (Claude Sonnet 5))
-- [x] **Phase 2 เสร็จหมด** — ยังไม่ได้ browser-verify (เหตุผลเดียวกับ Phase 1)
-- [ ] Phase 3 (Low, ไม่รีบ ยังไม่เริ่ม): `/api/posts*` (dead code ตอนนี้), `/api/tiktok-stats/pending`, `/backup/list`, `/api/tasks/active` (ปลอดภัยแล้ว)
+## Round PAGINATION-1-VERIFY (backlog) — browser-verify การ windowing 9 endpoint ที่ Round PAGINATION-1 แก้ไว้
+- [ ] เปิดแอปจริง (localhost:5173) เช็คทีละหน้า: Export Gallery, ContentTrackerHub (kanban+table), MediaPickerModal, RawVaultPanel, ScheduleAgenda (modal โพสต์แล้ว), PerformanceAnalyticsTab, MediaAssetsHub (6 แท็บ), SystemSettings (dedup scan)
+- [ ] กดปุ่ม "โหลดเพิ่ม" ทุกจุด ยืนยันว่าโหลดแถวใหม่จริง ไม่ซ้ำ ไม่หาย และ reset กลับหน้าแรกถูกต้องเมื่อเปลี่ยน filter/tab/scan ใหม่
+- [ ] เหตุผลที่ยังไม่ได้ทำตอนแก้: dev server (localhost:5173) ไม่ตอบ HTTP request มาตลอด session (ดูเหมือน terminal ค้าง ไม่ใช่โค้ดพัง)
 
 ## Round TIKTOK-STATS-SCRAPE-2 (backlog)
 ## Round TIKTOK-STATS-SCRAPE-2 (backlog) — แท็บ Performance เพิ่มลิงก์ คลิปปัง threshold + แมพ manual สำหรับ unmatched rows
