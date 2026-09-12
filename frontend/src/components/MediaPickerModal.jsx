@@ -115,6 +115,20 @@ export default function MediaPickerModal({
     );
   }, [currentSourceList, searchQuery]);
 
+  // Raw footage grows every filming session -- window the picker grid so
+  // opening it with hundreds of clips on disk doesn't mount them all at
+  // once. "Select all" below still acts on the full filteredVideos, not
+  // just what's currently rendered.
+  const PICKER_PAGE_SIZE = 40;
+  const [visiblePickerCount, setVisiblePickerCount] = useState(PICKER_PAGE_SIZE);
+  useEffect(() => {
+    setVisiblePickerCount(PICKER_PAGE_SIZE);
+  }, [searchQuery, activeTab]);
+  const visiblePickerVideos = useMemo(
+    () => filteredVideos.slice(0, visiblePickerCount),
+    [filteredVideos, visiblePickerCount]
+  );
+
   const toggleSelect = (videoPath) => {
     if (!isMultiSelect) {
       setSelectedList([videoPath]);
@@ -529,8 +543,9 @@ export default function MediaPickerModal({
             </div>
           ) : (
             /* Video Grid Cards */
+            <div className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-              {filteredVideos.map((video) => {
+              {visiblePickerVideos.map((video) => {
                 const videoPath = video.path || video.rel_path;
                 const isSelected = selectedList.some(p => isSameVideo(p, video));
                 const isPlaying = previewVideoPath === videoPath;
@@ -652,6 +667,18 @@ export default function MediaPickerModal({
                   </div>
                 );
               })}
+            </div>
+            {visiblePickerVideos.length < filteredVideos.length && (
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setVisiblePickerCount(c => c + PICKER_PAGE_SIZE)}
+                  className="px-4 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-xs font-bold text-slate-200 transition-all cursor-pointer"
+                >
+                  โหลดเพิ่ม ({filteredVideos.length - visiblePickerVideos.length} คลิปที่เหลือ)
+                </button>
+              </div>
+            )}
             </div>
           )}
         </div>

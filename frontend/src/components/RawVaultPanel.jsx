@@ -131,6 +131,20 @@ export default function RawVaultPanel() {
       .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
   }, [vaultData.products, vaultData.unassigned, productList, searchQuery, activeFilter]);
 
+  // Raw footage grows every filming session -- window the grid so the vault
+  // doesn't mount hundreds of video cards at once. Aggregate counts above
+  // ("ผูกสินค้า (N)", "คลิปอิสระ (N)") stay driven by the full vaultData,
+  // only the rendered cards are windowed.
+  const VAULT_PAGE_SIZE = 40;
+  const [visibleVaultCount, setVisibleVaultCount] = useState(VAULT_PAGE_SIZE);
+  useEffect(() => {
+    setVisibleVaultCount(VAULT_PAGE_SIZE);
+  }, [searchQuery, activeFilter]);
+  const visibleFlatVideos = useMemo(
+    () => flatVideos.slice(0, visibleVaultCount),
+    [flatVideos, visibleVaultCount]
+  );
+
   // Rename Actions
   const handleStartRename = (video) => {
     const videoPath = video.path || video.rel_path;
@@ -592,8 +606,21 @@ export default function RawVaultPanel() {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
-          {flatVideos.map((video) => renderVideoCard(video))}
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
+            {visibleFlatVideos.map((video) => renderVideoCard(video))}
+          </div>
+          {visibleFlatVideos.length < flatVideos.length && (
+            <div className="flex justify-center">
+              <button
+                type="button"
+                onClick={() => setVisibleVaultCount(c => c + VAULT_PAGE_SIZE)}
+                className="px-4 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-xs font-bold text-slate-200 transition-all cursor-pointer"
+              >
+                โหลดเพิ่ม ({flatVideos.length - visibleFlatVideos.length} คลิปที่เหลือ)
+              </button>
+            </div>
+          )}
         </div>
       )}
 
