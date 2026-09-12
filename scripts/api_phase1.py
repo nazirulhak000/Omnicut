@@ -696,6 +696,29 @@ def get_project(project_name: str):
     return manifest
 
 
+@router.get("/projects/{project_name}/snapshots")
+def list_project_snapshots(project_name: str):
+    """Returns list of rolling snapshots (.bak1, .bak2, .bak3) available for this project."""
+    try:
+        snapshots = ProjectManifest.get_snapshots(project_name)
+        return {"project_name": project_name, "snapshots": snapshots}
+    except Exception as err:
+        raise HTTPException(status_code=500, detail=str(err))
+
+
+@router.post("/projects/{project_name}/snapshots/{snapshot_id}/restore")
+def restore_project_snapshot(project_name: str, snapshot_id: str):
+    """Restores the project manifest from a rolling backup snapshot."""
+    try:
+        restored = ProjectManifest.restore_snapshot(project_name, snapshot_id)
+        return {"success": True, "project_name": project_name, "snapshot_id": snapshot_id, "manifest": restored}
+    except ValueError as err:
+        raise HTTPException(status_code=404, detail=str(err))
+    except Exception as err:
+        raise HTTPException(status_code=500, detail=str(err))
+
+
+
 class UpdateCuesRequest(BaseModel):
     cues: Optional[List[Dict[str, Any]]] = None
     micro_cues: Optional[List[Dict[str, Any]]] = None

@@ -108,17 +108,24 @@ class ProjectManifest:
                 last_err = err
                 time.sleep(0.04 * (attempt + 1))
 
-        # Fallback to .bak if primary file is corrupted or empty
-        if bak_path.exists():
-            try:
-                bak_content = bak_path.read_text(encoding="utf-8")
-                if bak_content.strip():
-                    data = json.loads(bak_content)
-                    if isinstance(data, dict):
-                        print(f"🛡️ [ProjectManifest.load] Recovered valid manifest for '{project_name}' from backup (.bak) file.")
-                        return data
-            except Exception as bak_err:
-                last_err = bak_err
+        # Fallback to .bak sequence (.bak1, .bak, .bak2, .bak3) if primary file is corrupted or empty
+        candidate_baks = [
+            path.with_suffix(".json.bak1"),
+            path.with_suffix(".json.bak"),
+            path.with_suffix(".json.bak2"),
+            path.with_suffix(".json.bak3"),
+        ]
+        for b_path in candidate_baks:
+            if b_path.exists():
+                try:
+                    bak_content = b_path.read_text(encoding="utf-8")
+                    if bak_content.strip():
+                        data = json.loads(bak_content)
+                        if isinstance(data, dict):
+                            print(f"🛡️ [ProjectManifest.load] Recovered valid manifest for '{project_name}' from backup ({b_path.name}).")
+                            return data
+                except Exception as bak_err:
+                    last_err = bak_err
 
         if last_err:
             print(f"[ProjectManifest.load] Warning: Failed to read manifest at {path} after retries: {last_err}")
@@ -213,22 +220,30 @@ class ProjectManifest:
 
         path = cls.path_for(project_name)
         bak_path = path.with_suffix(".json.bak")
+        bak1 = path.with_suffix(".json.bak1")
+        bak2 = path.with_suffix(".json.bak2")
+        bak3 = path.with_suffix(".json.bak3")
         tmp = path.with_suffix(f".{uuid.uuid4().hex[:8]}.tmp")
         tmp.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 
         if path.exists():
             try:
+                # Rolling 3-version snapshot: .bak2 -> .bak3, .bak1 -> .bak2, path -> .bak1 (and .bak for compat)
+                if bak2.exists():
+                    try:
+                        shutil.copy2(bak2, bak3)
+                    except Exception:
+                        pass
+                if bak1.exists():
+                    try:
+                        shutil.copy2(bak1, bak2)
+                    except Exception:
+                        pass
+                shutil.copy2(path, bak1)
                 shutil.copy2(path, bak_path)
             except Exception as bak_err:
-                # Backup is best-effort but must never fail *silently* -- a
-                # swallowed backup failure right before a disk-full primary
-                # write would leave no good .bak to recover from, with no
-                # signal anything went wrong. Still proceed with the primary
-                # write: refusing to save here would turn a transient (and on
-                # Windows, common -- see the PermissionError retry loop right
-                # below) backup-copy failure into an autosave that fails
-                # outright even though the disk is fine.
-                print(f"[ProjectManifest.save] Warning: failed to back up '{project_name}' (.bak) before saving -- proceeding without a fresh backup: {bak_err}")
+                # Backup is best-effort but must never fail *silently*
+                print(f"[ProjectManifest.save] Warning: failed to back up '{project_name}' before saving: {bak_err}")
 
         last_err = None
         for attempt in range(5):
@@ -381,6 +396,76 @@ class ProjectManifest:
                 gc.collect()
                 time.sleep(0.3)
         return {"project_name": target.name, "size_mb": size, "files_removed": files}
+
+    # ------------------------------------------------------------------
+    # Snapshot / Backup Management
+    # ------------------------------------------------------------------
+    @classmethod
+    def get_snapshots(cls, project_name: str) -> List[Dict[str, Any]]:
+        """Returns list of available snapshot files (.bak1, .bak2, .bak3) for project."""
+        path = cls.path_for(project_name)
+        candidates = [
+            ("bak1", path.with_suffix(".json.bak1")),
+            ("bak2", path.with_suffix(".json.bak2")),
+            ("bak3", path.with_suffix(".json.bak3")),
+            ("bak", path.with_suffix(".json.bak")),
+        ]
+        snapshots = []
+        seen_paths = set()
+        for snap_id, s_path in candidates:
+            if s_path.exists() and str(s_path) not in seen_paths:
+                seen_paths.add(str(s_path))
+                stat = s_path.stat()
+                is_valid = False
+                title = ""
+                try:
+                    data = json.loads(s_path.read_text(encoding="utf-8"))
+                    if isinstance(data, dict):
+                        is_valid = True
+                        title = data.get("title") or data.get("project_name", "")
+                except Exception:
+                    pass
+                snapshots.append({
+                    "id": snap_id,
+                    "filename": s_path.name,
+                    "size_bytes": stat.st_size,
+                    "updated_at": datetime.datetime.fromtimestamp(stat.st_mtime).isoformat(timespec="seconds"),
+                    "is_valid": is_valid,
+                    "title": title
+                })
+        return snapshots
+
+    @classmethod
+    def restore_snapshot(cls, project_name: str, snapshot_id: str) -> Dict[str, Any]:
+        """Restores manifest from a specified snapshot (bak1, bak2, bak3, bak)."""
+        with cls._SAVE_LOCK:
+            path = cls.path_for(project_name)
+            s_map = {
+                "bak1": path.with_suffix(".json.bak1"),
+                "bak2": path.with_suffix(".json.bak2"),
+                "bak3": path.with_suffix(".json.bak3"),
+                "bak": path.with_suffix(".json.bak"),
+            }
+            target_snap = s_map.get(snapshot_id.lower())
+            if not target_snap or not target_snap.exists():
+                raise ValueError(f"ไม่พบไฟล์สำรอง '{snapshot_id}' สำหรับโปรเจกต์ '{project_name}'")
+
+            content = target_snap.read_text(encoding="utf-8")
+            data = json.loads(content)
+            if not isinstance(data, dict):
+                raise ValueError(f"ไฟล์สำรอง '{snapshot_id}' ข้อมูลไม่ถูกต้อง")
+
+            # Backup current broken/existing file before restoring
+            if path.exists():
+                corrupt_bak = path.with_suffix(f".json.corrupted_{int(time.time())}")
+                try:
+                    shutil.copy2(path, corrupt_bak)
+                except Exception:
+                    pass
+
+            shutil.copy2(target_snap, path)
+            print(f"🛡️ [ProjectManifest.restore_snapshot] Restored '{project_name}' from {snapshot_id}")
+            return data
 
     # ------------------------------------------------------------------
     @staticmethod

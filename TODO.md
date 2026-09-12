@@ -29,22 +29,25 @@
 - [x] Round USER-GUIDE-2 — ปรับการ์ดเมนู 1-7 เป็น grid หลายคอลัมน์บนจอกว้าง กล่องกระชับตามข้อความ (2026-09-12; frontend 151 passed, build 3.87s)
 - [x] Round USER-GUIDE-3 — กระชับทุกกล่องในคู่มือ (โฟลว์ 7 ขั้น, คลิปแรก, 4 เฟส, โฟลเดอร์, เช็กลิสต์, ปัญหา, FAQ) (2026-09-12; frontend 151 passed, build 3.69s)
 - [x] Round USER-GUIDE-4 — ยกระดับคู่มือเป็น interactive (sticky TOC + scrollspy, เช็กลิสต์ติ๊กได้, การ์ดเมนู accordion, โฟลว์กดไปเมนูได้, ปัญหามีปุ่มลัด, FAQ ค้นหาได้) (2026-09-12; frontend 151 passed, build 4.22s)
+- [x] Round SAFE-1 — Disk Guard ก่อน Render & Auto-Snapshot CapCut Manifest 3 Versions (2026-09-12; backend 8+4 passed, frontend 151 passed, build pass)
 
 ---
 
-## รอบงานถัดไป (Next Sprint: P0 Safety & UX Boosters)
+## รอบงานถัดไป (Next Sprint: High-ROI Video Creation Boosters)
 
-### Round SAFE-1 — Disk Guard ก่อน Render & Auto-Snapshot CapCut Manifest 3 Versions
+### Round HOOK-VAR-1 — AI Hook Variation & A/B Generator (สร้างทางเลือกท่อนเปิดคลิป 3-5 แบบ)
 
-วันที่: 2026-09-12 · สั่งโดย: user · สถานะ: รอดำเนินการ
+วันที่: 2026-09-12 · สั่งโดย: user · สถานะ: วางแผน
 
 **เป้าหมาย:**
-1. **Disk Guard ก่อน Render:** ตรวจสอบพื้นที่ว่างบนดิสก์ (`shutil.disk_usage`) ก่อนเริ่ม Render งานวิดีโอ 1080x1920 หากพื้นที่เหลือน้อยกว่า 3GB ให้แจ้งเตือนและระงับการเรนเดอร์ทันที ป้องกัน FFmpeg ค้างและไฟล์เสียหาย
-2. **Auto-Snapshot CapCut Manifest:** ทำระบบ Rolling Backup สำรองไฟล์ `project.json` อัตโนมัติ 3 เวอร์ชั่น (`.bak1`, `.bak2`, `.bak3`) ทุกครั้งก่อนเซฟ ป้องกันไฟล์ Draft เสียหายจนกู้คืนไม่ได้
+1. ให้ผู้ใช้สามารถสร้างทางเลือกประโยคฮุกเปิดคลิป (Hook Variations) ได้ 3-5 สไตล์ทันที (สไตล์กระตุ้นความสงสัย, สไตล์เตือนภัย/ห้ามทำ, สไตล์สถิติ/ผลลัพธ์, สไตล์บอกโปรแรง) จากสินค้าตัวเดิม
+2. สามารถกดเลือกสลับ Hook Banner และประโยคเปิดของคลิปได้ในคลิกเดียวโดยไม่ต้องเขียนใหม่ทั้งสคริปต์
+3. รองรับการพรีวิวข้อความป้ายฮุกและ Safe Zone 9:16 ทันที
 
 ### Todo
-- [ ] เขียน Disk Space Checker ใน `scripts/api_render.py` (ขั้นต่ำ 3GB)
-- [ ] ทำ rolling 3-version snapshot ใน `ProjectManifest.save()`
-- [ ] รัน Gate และทดสอบ unit test
+- [ ] เพิ่ม Generator ฟังก์ชันสำหรับสร้าง Hook 3-5 สไตล์ใน `scripts/`
+- [ ] เพิ่ม API endpoint สำหรับ generate hook variants และ apply ไปยัง project manifest
+- [ ] ทำ UI เลือก Hook Variant ในหน้า ProductToClip หรือ EditorShell (กระชับ คลีน ไม่มี icon ซ้ำซ้อน)
+- [ ] รัน Gate และเทส Parity/Contract
 
 ---

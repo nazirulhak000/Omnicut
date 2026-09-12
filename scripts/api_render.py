@@ -5,6 +5,7 @@ API Router for Video Rendering pipeline and system status.
 import os
 import sys
 import uuid
+import shutil
 from pathlib import Path
 from typing import Dict, Any, Optional
 
@@ -23,6 +24,44 @@ from scripts.media_service import scan_video_files, get_local_ip
 from scripts.api_schemas import RenderRequest
 
 router = APIRouter(tags=["Render & System"])
+
+MIN_FREE_DISK_GB = 3.0
+MIN_FREE_DISK_BYTES = int(MIN_FREE_DISK_GB * 1024 * 1024 * 1024)
+
+
+def check_disk_space(path: Optional[Path] = None, min_bytes: int = MIN_FREE_DISK_BYTES) -> Dict[str, Any]:
+    """Checks free disk space where video rendering and exports take place."""
+    target = path or EXPORTS_DIR or BASE_DIR
+    try:
+        usage = shutil.disk_usage(str(target))
+        free_gb = round(usage.free / (1024 ** 3), 2)
+        total_gb = round(usage.total / (1024 ** 3), 2)
+        min_required_gb = round(min_bytes / (1024 ** 3), 1)
+        return {
+            "free_bytes": usage.free,
+            "total_bytes": usage.total,
+            "free_gb": free_gb,
+            "total_gb": total_gb,
+            "min_required_gb": min_required_gb,
+            "is_sufficient": usage.free >= min_bytes
+        }
+    except Exception as e:
+        return {
+            "free_bytes": None,
+            "total_bytes": None,
+            "free_gb": None,
+            "total_gb": None,
+            "min_required_gb": round(min_bytes / (1024 ** 3), 1),
+            "is_sufficient": True,
+            "error": str(e)
+        }
+
+
+@router.get("/api/render/disk-check")
+def get_render_disk_check():
+    """Returns disk space status for render storage and exports."""
+    return check_disk_space()
+
 
 
 def execute_render_job(job_id: str, req_data: RenderRequest):
@@ -94,6 +133,15 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
             raise HTTPException(
                 status_code=400,
                 detail="คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้เรนเดอร์ซ้ำ เพื่อรักษาหลักฐานเดิม"
+            )
+
+        # Guard: Re-verify disk space at execution time before heavy processing
+        disk = check_disk_space(EXPORTS_DIR)
+        if not disk.get("is_sufficient", True):
+            free_gb = disk.get("free_gb", 0)
+            min_gb = disk.get("min_required_gb", 3.0)
+            raise RuntimeError(
+                f"พื้นที่ว่างบนดิสก์เหลือน้อยเกินไป ({free_gb} GB เหลืออยู่, ต้องการขั้นต่ำ {min_gb} GB) ระงับการเรนเดอร์เพื่อป้องกันคลิปเสียหาย"
             )
 
         if req_data.product_id and req_data.angle_id:
@@ -286,6 +334,16 @@ def trigger_render(req: RenderRequest, background_tasks: BackgroundTasks):
                 status_code=500,
                 detail=f"ตรวจสอบสถานะโพสต์ก่อนเรนเดอร์ไม่สำเร็จ จึงหยุดการเรนเดอร์เพื่อความปลอดภัย: {guard_err}",
             )
+
+    # Guard: Disk space check before queuing heavy render (minimum 3.0 GB required)
+    disk = check_disk_space(EXPORTS_DIR)
+    if not disk.get("is_sufficient", True):
+        free_gb = disk.get("free_gb", 0)
+        min_gb = disk.get("min_required_gb", 3.0)
+        raise HTTPException(
+            status_code=507,
+            detail=f"พื้นที่ว่างบนดิสก์เหลือน้อยเกินไป ({free_gb} GB เหลืออยู่, ต้องการขั้นต่ำ {min_gb} GB) กรุณาเคลียร์พื้นที่จัดเก็บก่อนเริ่มเรนเดอร์เพื่อป้องกันคลิปเสียหาย"
+        )
 
     job_id = str(uuid.uuid4())
     render_jobs.create_job(job_id)

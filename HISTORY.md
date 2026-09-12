@@ -9,6 +9,7 @@
 ## สารบัญ
 
 | รอบ | งาน | วันที่ | ผลลัพธ์ |
+| Round SAFE-1 — Disk Guard ก่อน Render & Auto-Snapshot CapCut Manifest 3 Versions | ป้องกันเรนเดอร์ล้มเหลวด้วย Disk Guard (>3GB) และทำ Rolling Backup 3 versions สำหรับ project.json | 2026-09-12 | สำเร็จสมบูรณ์ (8 backend unit tests passed, 4 baseline tests passed, vitest 151 passed, build pass) |
 | Round ANALYTICS-HUB-1 — พัฒนาเมนูใหม่ "ศูนย์วิเคราะห์ข้อมูลและสถิติรวม" (Analytics & Operations Hub) | สร้างศูนย์รวมการวิเคราะห์ข้อมูลและสถิติการใช้งานทุกมิติของ OmniCut Pro Studio ในหน้าเดียว แยกเป็น 4  | 2026-09-11 | สำเร็จสมบูรณ์ |
 | Round HOOK-DEFAULT-5S-1 — ปรับค่าเริ่มต้น (default) ของป้ายฮุกพาดหัว (Hook Banner) เป็น 5.0 วินาทีตั้งแต่ตอนสร้างโปรเจกต์ | ให้ป้ายฮุกพาดหัว (Hook Header Banner) ทั้งตอนสร้างโปรเจกต์ใหม่ (First Render / One Click / Apply to  | 2026-09-11 | สำเร็จสมบูรณ์ |
 | Round SIDEBAR-PHASE-UI-1 — ออกแบบ sidebar ซ้ายใหม่ด้วย 4-Phase Pipeline Stepper Dots + Shot List Badge + Smart Camera Direction Clarity | 1. แก้ปัญหาแผนถ่ายที่คำแนะนำมุมกล้องยังดูเหมือนเดิมหรือยังไม่แบ่งมุม/แอคชั่นชัดเจน: | 2026-09-11 | สำเร็จสมบูรณ์ |
@@ -32,6 +33,40 @@
 | Round ANALYTICS-CHARTS-POLISH-1 | ปรับขนาดและจัดระเบียบเลย์เอาท์กราฟใน Analytics Hub ให้กระชับ สวยงาม พอดีสายตา ไม่ใหญ่เกินจำเป็น | 2026-09-12 | กราฟเส้น 800x130 widescreen, โดนัท top 4 + อื่นๆ พร้อม label ไม่หาย, TokenDashboard models/tasks จัดแบบ side-by-side; frontend 151 passed, build 3.25s, browser verified |
 | Round USER-GUIDE-4 | คู่มือ interactive 6 ฟีเจอร์ (sticky TOC, เช็กลิสต์ติ๊กได้, accordion, ปุ่มลัด, FAQ ค้นหา) | 2026-09-12 | ไม่เปลี่ยนข้อความ/สี/ลำดับ; frontend 151 passed, build 4.22s |
 | Round ANALYTICS-CHARTS-1 | พัฒนาระบบกราฟเส้น กราฟโดนัท Funnel Chart และเกจวัดแบบ Pure SVG สไตล์ Dark Modern Glassmorphism สำหรับแดชบอร์ดทั้ง 4 แท็บ | 2026-09-12 | สร้าง 4 Pure SVG charts (AreaLine, Donut, Funnel, ProgressRing/Concentric) ฝังครบ 4 แท็บ; vitest 151 passed, backend 4 passed, build 3.44s, browser verified |
+
+## Round SAFE-1 — Disk Guard ก่อน Render & Auto-Snapshot CapCut Manifest 3 Versions
+
+วันที่: 2026-09-12 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:**
+1. **Disk Guard ก่อน Render:** ตรวจสอบพื้นที่ว่างบนดิสก์ (`shutil.disk_usage`) ก่อนเริ่ม Render งานวิดีโอ 1080x1920 หากพื้นที่เหลือน้อยกว่า 3GB ให้แจ้งเตือนและระงับการเรนเดอร์ทันที ป้องกัน FFmpeg ค้างและไฟล์เสียหาย
+2. **Auto-Snapshot CapCut Manifest:** ทำระบบ Rolling Backup สำรองไฟล์ `project.json` อัตโนมัติ 3 เวอร์ชั่น (`.bak1`, `.bak2`, `.bak3`) ทุกครั้งก่อนเซฟ พร้อมระบบ Cascaded Fallback Recovery เมื่อไฟล์หลักเสียหาย และเพิ่ม Endpoint สำหรับตรวจสอบ Snapshot และ Restore
+
+**การเปลี่ยนแปลง:**
+- `scripts/api_render.py`:
+  - เพิ่มฟังก์ชัน `check_disk_space(path, min_bytes=3GB)`
+  - เพิ่ม Endpoint `GET /api/render/disk-check` แสดง `free_gb`, `total_gb`, `is_sufficient`, `min_required_gb`
+  - ตรวจเช็คดิสก์ใน `trigger_render` (ยกเลิกคิวและคืน `HTTP 507 Insufficient Storage` พร้อมข้อความแจ้งเตือนภาษาไทย)
+  - ตรวจเช็คดิสก์ใน `execute_render_job` ซ้ำก่อนเริ่ม FFmpeg ป้องกันระหว่างรัน
+- `scripts/project_manifest.py`:
+  - ปรับ `_save_locked`: ทำ Rolling 3-Version Backup หมุนเวียนไฟล์ `.bak2` -> `.bak3`, `.bak1` -> `.bak2`, `project.json` -> `.bak1` (และ `.bak` เพื่อ backwards compatibility)
+  - ปรับ `load()`: ทำ Cascaded fallback recovery ตรวจสอบ `.bak1` -> `.bak` -> `.bak2` -> `.bak3` อัตโนมัติหากไฟล์หลักว่างเปล่าหรือ JSON เสียหาย
+  - เพิ่ม `ProjectManifest.get_snapshots(project_name)` แสดงประวัติเวอร์ชันสำรองพร้อมเวลาและขนาด
+  - เพิ่ม `ProjectManifest.restore_snapshot(project_name, snapshot_id)` กู้คืนเวอร์ชันที่ต้องการอย่างปลอดภัย
+- `scripts/api_phase1.py`:
+  - เพิ่ม `GET /api/projects/{project_name}/snapshots`
+  - เพิ่ม `POST /api/projects/{project_name}/snapshots/{snapshot_id}/restore`
+- `tests/test_safe1_disk_guard_and_snapshots.py`:
+  - สร้างชุดทดสอบ 8 ข้อ ครอบคลุมการเช็คดิสก์จริง/จำลอง, การปฏิเสธด้วย HTTP 507, การหมุน 3 snapshot, การ recovery จาก corruption และการ restore ผ่าน API
+
+**ผลการทดสอบ & Gate:**
+- Pytest `tests/test_safe1_disk_guard_and_snapshots.py`: 8 passed ใน 2.17 วินาที
+- Pytest `tests/test_refactor_baseline_contracts.py`: 4 passed ใน 0.71 วินาที
+- Python syntax compileall `scripts`: 0 errors
+- Frontend vitest: 151 passed
+- Frontend build: ผ่านใน 3.28 วินาที
+
+---
 
 ## Round ANALYTICS-HUB-1 — พัฒนาเมนูใหม่ "ศูนย์วิเคราะห์ข้อมูลและสถิติรวม" (Analytics & Operations Hub)
 
