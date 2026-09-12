@@ -897,6 +897,20 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
   const [collapsedGroups, setCollapsedGroups] = useState({});
   const [hideOldPosted, setHideOldPosted] = useState(true);
 
+  // "Flat Cards List" phases (candidate/in_production/rendered -- anything
+  // not grouped-by-product or filtered to today) have no cap on how many
+  // KanbanCard components mount at once. Window it per-column like the
+  // product-group accordions already do, keyed by phase.id.
+  const FLAT_PAGE_SIZE = 20;
+  const [flatVisibleCounts, setFlatVisibleCounts] = useState({});
+  const getFlatVisibleCount = (phaseId) => flatVisibleCounts[phaseId] || FLAT_PAGE_SIZE;
+  const showMoreFlatCards = (phaseId) => {
+    setFlatVisibleCounts(prev => ({
+      ...prev,
+      [phaseId]: getFlatVisibleCount(phaseId) + FLAT_PAGE_SIZE
+    }));
+  };
+
   // ── Round TRK-3: Decluttering Board States (Archive & Script Library) ──
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [archiveSearchQuery, setArchiveSearchQuery] = useState('');
@@ -1541,6 +1555,19 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
       return matchesSearch && matchesProduct && matchesPhase;
     });
   }, [allAnglesList, debouncedSearch, selectedProductFilter, activePhase]);
+
+  // Table view renders every filtered angle as a full row (mobile card feed
+  // + desktop table) with no cap -- window it the same way the kanban flat
+  // list is windowed above, resetting to page 1 whenever the filter changes.
+  const TABLE_PAGE_SIZE = 40;
+  const [tableVisibleCount, setTableVisibleCount] = useState(TABLE_PAGE_SIZE);
+  useEffect(() => {
+    setTableVisibleCount(TABLE_PAGE_SIZE);
+  }, [debouncedSearch, selectedProductFilter, activePhase]);
+  const visibleTableAngles = useMemo(
+    () => filteredAngles.slice(0, tableVisibleCount),
+    [filteredAngles, tableVisibleCount]
+  );
 
   const mobileUrl = typeof window !== 'undefined' ? `https://${window.location.hostname}:5173` : '';
 
@@ -3132,26 +3159,37 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                       })
                     ) : (
                       /* Flat Cards List */
-                      phaseAngles.map((ang, idx) => (
-                        <KanbanCard
-                          key={`${ang.parentProduct?.id}_${ang.angle_id || idx}`}
-                          ang={ang}
-                          phaseId={phase.id}
-                          onSendToStudio={handleSendToStudio}
-                          onStatusChange={handleAngleStatusChange}
-                          onPreviewVideo={handlePreviewVideo}
-                          onOpenQrModal={setQrModalItem}
-                          onOpenTiktokModal={handleOpenTiktokModal}
-                          onOpenCoverStudio={handleOpenCoverStudio}
-                          onInspectAngle={setInspectAngle}
-                          onCopyCaption={handleCopyCaption}
-                          onQcFail={handleQcFail}
-                          onQcPass={handleQcPass}
-                          onDismissConflict={handleDismissConflict}
-                          onUnpickScript={handleTogglePickScript}
-                          copiedAngleId={copiedAngleId}
-                        />
-                      ))
+                      <>
+                        {phaseAngles.slice(0, getFlatVisibleCount(phase.id)).map((ang, idx) => (
+                          <KanbanCard
+                            key={`${ang.parentProduct?.id}_${ang.angle_id || idx}`}
+                            ang={ang}
+                            phaseId={phase.id}
+                            onSendToStudio={handleSendToStudio}
+                            onStatusChange={handleAngleStatusChange}
+                            onPreviewVideo={handlePreviewVideo}
+                            onOpenQrModal={setQrModalItem}
+                            onOpenTiktokModal={handleOpenTiktokModal}
+                            onOpenCoverStudio={handleOpenCoverStudio}
+                            onInspectAngle={setInspectAngle}
+                            onCopyCaption={handleCopyCaption}
+                            onQcFail={handleQcFail}
+                            onQcPass={handleQcPass}
+                            onDismissConflict={handleDismissConflict}
+                            onUnpickScript={handleTogglePickScript}
+                            copiedAngleId={copiedAngleId}
+                          />
+                        ))}
+                        {phaseAngles.length > getFlatVisibleCount(phase.id) && (
+                          <button
+                            type="button"
+                            onClick={() => showMoreFlatCards(phase.id)}
+                            className="w-full py-2 px-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-dashed border-white/[0.12] text-slate-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                          >
+                            <span>โหลดเพิ่ม ({phaseAngles.length - getFlatVisibleCount(phase.id)} เหลืออยู่)</span>
+                          </button>
+                        )}
+                      </>
                     )}
 
                     {/* Bottom Quick Action for Scripted Column */}
@@ -3211,7 +3249,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                 ไม่พบข้อมูลคลิปตามเงื่อนไขที่ค้นหา
               </div>
             ) : (
-              filteredAngles.map((ang, idx) => (
+              visibleTableAngles.map((ang, idx) => (
                 <MobileTableRowCard
                   key={`${ang.parentProduct?.id}_${ang.angle_id || idx}`}
                   ang={ang}
@@ -3250,7 +3288,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                       </td>
                     </tr>
                   ) : (
-                    filteredAngles.map((ang, idx) => (
+                    visibleTableAngles.map((ang, idx) => (
                       <TableRow
                         key={`${ang.parentProduct?.id}_${ang.angle_id || idx}`}
                         ang={ang}
@@ -3270,6 +3308,18 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
               </table>
             </div>
           </div>
+
+          {filteredAngles.length > visibleTableAngles.length && (
+            <div className="flex justify-center pt-1">
+              <button
+                type="button"
+                onClick={() => setTableVisibleCount(c => c + TABLE_PAGE_SIZE)}
+                className="px-4 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-xs font-bold text-slate-200 transition-all cursor-pointer"
+              >
+                โหลดเพิ่ม ({filteredAngles.length - visibleTableAngles.length} รายการที่เหลือ)
+              </button>
+            </div>
+          )}
         </div>
       )}
 

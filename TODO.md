@@ -44,6 +44,19 @@
 - [x] Round TIKTOK-DASH-DATA-1 — ล้างโพสต์ทดสอบ Test Serum 163 รายการออกจาก post_log (backup ครบ 167) + claim guard กัน merge ยอดซ้ำข้ามแถวในรอบซิงก์เดียว (2026-09-12; pytest 1114 passed (tiktok 9), extension 32 passed, ข้อมูล 167→4 โพสต์จริง 895 views, ดำเนินการโดย: Cline)
 
 - [x] Round UI-POLISH-HEADER-1 — แก้ฟอนต์กล่องแดง Topbar (ถอด font-mono) + ตัด 2 Badge สินค้า + ขยายหัวข้อสินค้าเน้นๆ ใหญ่ๆ (2026-09-12; vitest 152 passed, build 3.49s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
+
+## Round SHOT-GAP-FIX-1 — แก้ช่องว่าง (Gap) ระหว่างช็อตใน Shot Matching Stage
+
+**วันที่:** 2026-09-12 · **Agent:** Antigravity (Claude Sonnet 4.6) · **สถานะ:** กำลังดำเนินการ
+
+**Root Cause ที่ค้นพบ:**
+1. `cut_points[0] = 0.0` (hardcoded) แทนที่จะเป็น `active_cues[0].start` — ทำให้ shot แรกเริ่มเร็วกว่าเสียงจริง (เช่น 0.23s) ส่งผลให้ clip แรกมีช่วงเงียบ
+2. MERGE_TOLERANCE 1.15 × MAX_SHOT_DURATION=2.5 = 2.875s ใช้ไม่ได้จริง — กลุ่มสั้นมาก (เช่น `นะครับ` 0.491s) ถูกขนาบด้วยกลุ่มยาว 2.5+ วิ ทำให้ไม่สามารถ merge ได้ และกลายเป็น shot 0.491s ที่ไม่ควรเกิด
+
+**แผนแก้ไข:**
+- [ ] แก้ `cut_points = [0.0]` → `cut_points = [float(active_cues[0].get("start", 0.0))]` ใน `scripts/stages/shot_matching_stage.py` line 318
+- [ ] แก้ MERGE_TOLERANCE ให้ force-merge กลุ่มที่สั้นมาก (< MIN_SHOT_DURATION * 0.5 = 0.75s) แม้ผลรวมจะเกิน MAX_SHOT_DURATION — เพราะดีกว่ามีช็อตที่สั้นกว่า MIN
+- [ ] Gate: python -m compileall -q scripts + pytest (ไม่แตะ vitest/build เพราะเป็น backend pure)
 - [x] Round UI-FONT-HARMONY-1 — ปรับความสอดคล้องของฟอนต์ UI ทั้งระบบตาม Global UI Font (ปราศจาก Encoding Mojibake) (2026-09-12; vitest 152 passed, build 4.57s, pytest parity 153 passed, browser verified, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 
 - [x] Round UI-FONT-MONO-CLEAN-1 — กวาดล้าง font-mono ที่ครอบข้อความภาษาไทย/การ์ด KPI ทั่วทั้งระบบให้เป็นฟอนต์กลาง 100% (2026-09-12; vitest 152 passed, build 3.31s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
@@ -70,7 +83,8 @@
 **เป้าหมาย:** กัน Export Gallery และหน้าอื่นๆ ที่ list โต (products, raw vault, schedule queue, tiktok-stats) ช้าลงเมื่อข้อมูลถึงหลักร้อย — ดูรายละเอียด phase/priority/endpoint ทั้งหมดใน `PAGINATION_PLAN.md`
 
 - [x] Phase 1 item 1: `/api/exports` + `ExportGallery.jsx` — **client-side windowed rendering แทน backend limit/offset** (พบว่า `exportsList` ถูก merge/aggregate ข้ามคอมโพเนนต์ ตัด limit ที่ backend จะพังข้อมูล ดูเหตุผลเต็มใน `PAGINATION_PLAN.md`) (2026-09-12; vitest 158 passed, build 3.27s, ดำเนินการโดย: Claude Code (Claude Sonnet 5))
-- [ ] Phase 1 เหลือ: `/api/products`, `/api/videos`, `/api/raw-vault`, schedule-queue root, `/api/tiktok-stats/latest` — ต้องเช็ค consumer แต่ละตัวก่อนเลือกวิธี (backend limit/offset vs client-side windowing) ตามเกณฑ์ใหม่ใน `PAGINATION_PLAN.md`
+- [x] Phase 1 item 2: `/api/products` (ผ่าน `ContentTrackerHub.jsx`) — **client-side windowed rendering** เหมือนกัน (kanban เป็นบอร์ดจัดการงาน ต้องเห็นทุกใบเพื่อทำงาน ตัด limit ที่ backend จะทำให้หาการ์ดเก่าไม่เจอ) — เพิ่ม windowing 2 จุด: kanban "Flat Cards List" (คอลัมน์ candidate/in_production/rendered ที่ไม่มี today-filter/accordion มาก่อน) ทีละ 20 การ์ดต่อคอลัมน์ + Table view (mobile card feed + desktop table) ทีละ 40 แถว ทั้งคู่มีปุ่ม "โหลดเพิ่ม" (2026-09-12; vitest 158 passed, build 7.25s, ดำเนินการโดย: Claude Code (Claude Sonnet 5); หมายเหตุ: ยังไม่ได้ browser-verify เพราะ dev server ไม่ตอบ HTTP request ตอนเช็ค — คาดว่า terminal ค้าง ไม่ใช่โค้ดพัง)
+- [ ] Phase 1 เหลือ: `/api/videos`, `/api/raw-vault`, schedule-queue root, `/api/tiktok-stats/latest` — ต้องเช็ค consumer แต่ละตัวก่อนเลือกวิธี (backend limit/offset vs client-side windowing) ตามเกณฑ์ใหม่ใน `PAGINATION_PLAN.md`
 - [ ] Phase 2 (Medium): `/api/tiktok-stats/clip-candidates`, `/api/assets/all`, `/assets/duplicates/scan`
 - [ ] Phase 3 (Low, ไม่รีบ): `/api/posts*` (dead code ตอนนี้), `/api/tiktok-stats/pending`, `/backup/list`, `/api/tasks/active` (ปลอดภัยแล้ว)
 
