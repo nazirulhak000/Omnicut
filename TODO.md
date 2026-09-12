@@ -63,6 +63,17 @@
 - [ ] Tests: pytest (pending/attach/ignore + attach อัปเดต metrics จริง) + frontend vitest + build
 - [ ] Gate: python -m compileall -q scripts + pytest เต็ม + npm test + npm run build
 
+## Round PAGINATION-1 (แผนอยู่ใน [PAGINATION_PLAN.md](file:///d:/Winona/Programmer/Capcut/PAGINATION_PLAN.md)) — เพิ่ม limit/pagination ให้ list endpoint ทั่วระบบ
+
+วันที่: 2026-09-12 · สั่งโดย: user · สถานะ: วางแผนแล้ว ยังไม่ลงมือ (user สั่งให้ทำแผนก่อน ยังไม่ให้แก้โค้ด)
+
+**เป้าหมาย:** กัน Export Gallery และหน้าอื่นๆ ที่ list โต (products, raw vault, schedule queue, tiktok-stats) ช้าลงเมื่อข้อมูลถึงหลักร้อย — ดูรายละเอียด phase/priority/endpoint ทั้งหมดใน `PAGINATION_PLAN.md`
+
+- [x] Phase 1 item 1: `/api/exports` + `ExportGallery.jsx` — **client-side windowed rendering แทน backend limit/offset** (พบว่า `exportsList` ถูก merge/aggregate ข้ามคอมโพเนนต์ ตัด limit ที่ backend จะพังข้อมูล ดูเหตุผลเต็มใน `PAGINATION_PLAN.md`) (2026-09-12; vitest 158 passed, build 3.27s, ดำเนินการโดย: Claude Code (Claude Sonnet 5))
+- [ ] Phase 1 เหลือ: `/api/products`, `/api/videos`, `/api/raw-vault`, schedule-queue root, `/api/tiktok-stats/latest` — ต้องเช็ค consumer แต่ละตัวก่อนเลือกวิธี (backend limit/offset vs client-side windowing) ตามเกณฑ์ใหม่ใน `PAGINATION_PLAN.md`
+- [ ] Phase 2 (Medium): `/api/tiktok-stats/clip-candidates`, `/api/assets/all`, `/assets/duplicates/scan`
+- [ ] Phase 3 (Low, ไม่รีบ): `/api/posts*` (dead code ตอนนี้), `/api/tiktok-stats/pending`, `/backup/list`, `/api/tasks/active` (ปลอดภัยแล้ว)
+
 ## Round TIKTOK-STATS-SCRAPE-2 (backlog)
 ## Round TIKTOK-STATS-SCRAPE-2 (backlog) — แท็บ Performance เพิ่มลิงก์ คลิปปัง threshold + แมพ manual สำหรับ unmatched rows
 - [ ] หลังใช้งานจริง: ปุ่มจับคู่ manual ในแท็บ Performance สำหรับแถวที่ fuzzy match ไม่เจอ

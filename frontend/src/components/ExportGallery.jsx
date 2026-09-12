@@ -1412,6 +1412,21 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
     return list;
   }, [exportsList, debouncedSearch, selectedProductFilter, statusFilter, sortBy]);
 
+  // Grid view renders hundreds of clips as heavy DOM cards (thumbnail/video +
+  // hover preview + action buttons) -- mounting all of them at once gets
+  // slow once the library grows past a couple dozen. Render only a window
+  // of `filteredExports` and let the user reveal more with a button, same
+  // data already fetched -- no extra network round-trip.
+  const GRID_PAGE_SIZE = 24;
+  const [visibleCount, setVisibleCount] = useState(GRID_PAGE_SIZE);
+  useEffect(() => {
+    setVisibleCount(GRID_PAGE_SIZE);
+  }, [debouncedSearch, selectedProductFilter, statusFilter, sortBy]);
+  const visibleExports = useMemo(
+    () => filteredExports.slice(0, visibleCount),
+    [filteredExports, visibleCount]
+  );
+
   // Active Video computed for Split Studio view
   const activeVideo = useMemo(() => {
     if (activeVideoPath) {
@@ -1764,17 +1779,31 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
             </div>
           ) : (
             /* Grid View: 9:16 Card Showcase */
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
-              {filteredExports.map((item, idx) => (
-                <ExportCard
-                  key={item.export_id || item.rel_path || item.path || idx}
-                  item={item}
-                  isSelected={selectedVideos.includes(item.path)}
-                  onToggleSelect={toggleSelectVideo}
-                  onOpenDetail={setSelectedDetailVideo}
-                  onOpenDelete={setDeleteTarget}
-                />
-              ))}
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
+                {visibleExports.map((item, idx) => (
+                  <ExportCard
+                    key={item.export_id || item.rel_path || item.path || idx}
+                    item={item}
+                    isSelected={selectedVideos.includes(item.path)}
+                    onToggleSelect={toggleSelectVideo}
+                    onOpenDetail={setSelectedDetailVideo}
+                    onOpenDelete={setDeleteTarget}
+                  />
+                ))}
+              </div>
+
+              {visibleExports.length < filteredExports.length && (
+                <div className="flex justify-center pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setVisibleCount(c => c + GRID_PAGE_SIZE)}
+                    className="px-4 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-xs font-bold text-slate-200 transition-all cursor-pointer"
+                  >
+                    โหลดเพิ่ม ({filteredExports.length - visibleExports.length} คลิปที่เหลือ)
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
