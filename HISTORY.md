@@ -8,9 +8,12 @@
 
 ## สารบัญ
 
+| Round SCRIPT-BATCH-EXPAND-1 | ระบบเจนสคริปต์ล็อตใหม่ 10 มุมมอง & ปรับระบบ Dev Server HTTP (Multi-Batch Generation & Filtering Flow) | 2026-09-12 | สำเร็จสมบูรณ์ (ปลดล็อก Privacy Error ถาวร รัน HTTP localhost:5173, SSOT 1 สินค้าหลายล็อต, Multi-Batch sub-bar, Quick filter ซ่อนที่โพสต์แล้ว, API generate-batch & add angle, pytest 171 passed, vitest 158 passed, build 3.25s, browser verified, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round POSTED-CLIP-LIFECYCLE-1 | ระบบจัดการคลิปที่โพสต์แล้ว (Zero-Risk Archive & Timeline Lockout Flow) | 2026-09-12 | สำเร็จสมบูรณ์ (ตัดสิทธิ์เปิดไทม์ไลน์ 100%, กรองออกจาก Dropdown โปรเจกต์, Action Bar สคริปต์ [ดูคลิปที่โพสต์แล้ว] + [ทำซ้ำเพื่อตัดคลิปใหม่], ย้ายโฟลเดอร์โปรเจกต์เข้า 06_Archive/Projects/ อัตโนมัติ, vitest 158 passed, pytest 156 passed, build 3.45s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round UI-FONT-MONO-CLEAN-1 | กวาดล้าง font-mono ที่ครอบข้อความภาษาไทย/การ์ด KPI ทั่วทั้งระบบให้เป็นฟอนต์กลาง 100% | 2026-09-12 | สำเร็จสมบูรณ์ (ถอด font-mono จาก MetricKpiCard, Badge.jsx, ContentTrackerHub, MediaAssetsHub, SystemSettings และ inspector ให้หน่วยนับและภาษาไทยใช้ฟอนต์กลาง, vitest 152 passed, build 3.31s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round UI-POLISH-HEADER-1 | แก้ฟอนต์กล่องแดง Topbar (ถอด font-mono) + ตัด 2 Badge สินค้า + ขยายหัวข้อสินค้าเน้นๆ ใหญ่ๆ | 2026-09-12 | สำเร็จสมบูรณ์ (ถอด font-mono จากป้ายแท็บ Topbar ให้สืบทอด Global UI Font, ตัด price_note และ tiktok_id ออกจาก PageHeader สินค้า, ขยายชื่อสินค้าเป็น text-2xl font-black, vitest 152 passed, build 3.49s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round UI-FONT-HARMONY-1 | ปรับความสอดคล้องของฟอนต์ UI ทั้งระบบตาม Global UI Font (ปราศจาก Encoding Mojibake) | 2026-09-12 | สำเร็จสมบูรณ์ (ปลดล็อคคลาส font-kanit ที่ฝังใน 35 คอมโพเนนต์ UI เพื่อสืบทอด Global UI Font, อนุรักษ์ preview card ใน Settings/Assets, รับประกัน Thai UTF-8 byte-for-byte 100%, vitest 152 passed, build 4.57s, pytest parity 153 passed, browser verified, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round TIKTOK-DASH-DATA-1 | ล้างโพสต์ทดสอบ 163 รายการ (Test Serum) ออกจาก post_log พร้อม backup + กัน merge ยอดซ้ำข้ามแถวในรอบซิงก์เดียว | 2026-09-12 | สำเร็จสมบูรณ์ (backup 167 entries → เหลือ 4 โพสต์จริง 895 views, claim guard แก้ยอด Lift โดนแถวอื่นทับ, pytest 1114 passed, extension 32 passed, ดำเนินการโดย: Cline (โมเดลฐานไม่ได้ระบุ)) |
 | Round TIKTOK-STATS-MATCH-1 | แมพ 0/10 เพราะไม่มีโพสต์ให้จับคู่ → จับคู่กับคลังผลงาน + ลงทะเบียนโพสต์อัตโนมัติ + fuzzy normalize ตัดแฮชแท็ก | 2026-09-12 | สำเร็จสมบูรณ์ (score-based match, auto-register จาก ProductStore candidates, parse วันที่ไทย → posted_at, pytest 8 passed, extension 32 passed, ดำเนินการโดย: Cline (โมเดลฐานไม่ได้ระบุ)) |
 | Round TIKTOK-STATS-DOM-2 | รีเขียน parser อ่าน div-grid จริงของ Studio (data-tt) จาก DOM ที่ user เซฟมา + จับคู่คอลัมน์ตามหัว + dedupe | 2026-09-12 | สำเร็จสมบูรณ์ (locateDivGrid/parseDivRows, หัวคอลัมน์จริง "ยอดการดู" แก้ความเข้าใจ "ยอดวิว", extension tests 32 passed, ดำเนินการโดย: Cline (โมเดลฐานไม่ได้ระบุ)) |
 | Round TIKTOK-STATS-DOMAIN-1 | แก้ซิงก์สถิติตาราง Studio + คอลัมน์ 'ยอดวิว' + Manifest 0.2.0 + แข็งการตรวจจับแท็บ | 2026-09-12 | สำเร็จสมบูรณ์ (alias ยอดวิว, regex เดือน ส.ค./เม.ย., build tag 0.2.0, extension tests 28 passed, ดำเนินการโดย: Cline / Antigravity) |
@@ -46,6 +49,40 @@
 | Round ANALYTICS-CHARTS-POLISH-1 | ปรับขนาดและจัดระเบียบเลย์เอาท์กราฟใน Analytics Hub ให้กระชับ สวยงาม พอดีสายตา ไม่ใหญ่เกินจำเป็น | 2026-09-12 | กราฟเส้น 800x130 widescreen, โดนัท top 4 + อื่นๆ พร้อม label ไม่หาย, TokenDashboard models/tasks จัดแบบ side-by-side; frontend 151 passed, build 3.25s, browser verified |
 | Round USER-GUIDE-4 | คู่มือ interactive 6 ฟีเจอร์ (sticky TOC, เช็กลิสต์ติ๊กได้, accordion, ปุ่มลัด, FAQ ค้นหา) | 2026-09-12 | ไม่เปลี่ยนข้อความ/สี/ลำดับ; frontend 151 passed, build 4.22s |
 | Round ANALYTICS-CHARTS-1 | พัฒนาระบบกราฟเส้น กราฟโดนัท Funnel Chart และเกจวัดแบบ Pure SVG สไตล์ Dark Modern Glassmorphism สำหรับแดชบอร์ดทั้ง 4 แท็บ | 2026-09-12 | สร้าง 4 Pure SVG charts (AreaLine, Donut, Funnel, ProgressRing/Concentric) ฝังครบ 4 แท็บ; vitest 151 passed, backend 4 passed, build 3.44s, browser verified |
+
+## Round SCRIPT-BATCH-EXPAND-1 — ระบบเจนสคริปต์ล็อตใหม่ 10 มุมมอง & ปรับระบบ Dev Server HTTP (Multi-Batch Generation & Filtering Flow)
+
+วันที่: 2026-09-12 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์
+
+**ปัญหาเดิมและที่มา:**
+1. เมื่อถ่ายคลิปและตัดต่อครบทุกมุมมองเดิม (เช่น 10 มุม) แล้ว เกิดคำถามเชิงสถาปัตยกรรมว่าควรสร้างการ์ดสินค้าตัวเดิมใหม่ ("BlueWow 1", "BlueWow 2") หรือใช้การ์ดสินค้าเดิมแล้วต่อยอดสคริปต์ล็อตถัดไปเรื่อยๆ
+   - การแตกการ์ดใหม่ทำให้สถิติยอดวิว, รายได้ TikTok Shop, LTV สินค้า และการตั้งค่าแตกกระจาย ต้องมากรอกชื่อ สเปก และลิงก์ซ้ำ
+   - ข้อตกลงสถาปัตยกรรมที่ถูกต้องตาม Single Source of Truth (SSOT): **1 สินค้าจริง = 1 การ์ดสินค้าคงที่** โดยรองรับระบบ Multi-Batch ล็อตสคริปต์ (ล็อต 1, ล็อต 2...) ภายใต้การ์ดเดียวกัน
+2. Dev Server ของ Vite รัน HTTPS (`basicSsl()`) บน `localhost:5173` ทำให้ Chrome ฟ้อง Privacy Error (`NET::ERR_CERT_AUTHORITY_INVALID`) และ Playwright ของ AI subagent ถูกตัดการเชื่อมต่อทันที (`net::ERR_ABORTED`) ผู้ใช้ต้องคอยกด allow ซ้ำๆ ทุกครั้ง
+
+**สิ่งที่ทำ:**
+1. **Dev Server SSL Fix (`frontend/vite.config.js` & `package.json`):**
+   - ปรับ `basicSsl()` ให้เป็น conditional: `...(enableSsl ? [basicSsl()] : [])` โดยเปิด HTTPS เฉพาะเมื่อรัน `mode === 'mobile'` หรือตั้ง `VITE_HTTPS === 'true'`
+   - ค่าเริ่มต้นของ `npm run dev` รันบน HTTP `http://localhost:5173` ซึ่ง W3C/Chromium ยอมรับเป็น Secure Context ทันที 100% ปลดล็อก Privacy Error ถาวร และทำให้เบราว์เซอร์ subagent ของ AI เข้าถึงหน้าเว็บได้อัตโนมัติ
+2. **Backend Multi-Batch Architecture:**
+   - `scripts/product_store.py`: เพิ่ม `append_angles` (ต่อท้ายมุมมองใหม่พร้อมแท็ก `batch` ถัดไปแบบ atomic) และ `add_single_angle`
+   - `scripts/product_scraper.py`: ปรับ `generate_content_matrix` ให้รับ `avoid_angles` และ `batch_label` เพื่อฉีด prompt สั่ง AI ไม่ให้คิดมุมมองและฮุกซ้ำกับที่เคยทำมาในล็อตก่อนๆ
+   - `scripts/api_products.py`: เพิ่ม background task worker และ endpoint `POST /api/products/{product_id}/generate-batch` และ `POST /api/products/{product_id}/angles`
+3. **Frontend Multi-Batch Script Lab (`frontend/src/components/ProductToClip.jsx`):**
+   - แสดง Progress Header: `Step 2 — เลือกมุมขาย & คลิปประกอบ (X สคริปต์ • Y ล็อต) • โพสต์แล้ว M/N คลิป`
+   - แถบ Sub-bar:
+     - แท็บเลือกล็อต: `[ทุกล็อต]`, `[ล็อต 1]`, `[ล็อต 2]` พร้อมระบุจำนวนมุมของแต่ละล็อต
+     - ตัวกรองด่วน: `[ซ่อนที่โพสต์แล้ว (N)]` toggle ดูเฉพาะมุมที่ยังไม่ได้ตัด/ยังไม่โพสต์
+     - ปุ่มแอ็กชัน: ตัดปุ่ม "เพิ่มสคริปต์" (manual single angle) ออกทั้งหมดตามคำสั่งผู้ใช้ เพื่อไม่ให้เกิดล็อตลอยๆ เหลือเฉพาะปุ่ม `[เจนล็อตใหม่]` ให้ AI วิเคราะห์มุมเดิมและคิดเพิ่มเป็นชุดล็อตจริง 4/7/10 มุม
+     - ปฏิบัติตาม Rule 8 (UI Clean Standard) ไม่มีเครื่องหมาย `+` นำหน้าข้อความปุ่มเมื่อมีไอคอน
+     - เคลียร์สคริปต์ขยะที่เกิดจากการกดเพิ่มสคริปต์เดี่ยวๆ ออกจากสินค้า BlueWow และจัดระเบียบล็อตเหลือ ล็อต 1 (13 มุม) และ ล็อต 2 (10 มุม) รวม 23 มุม สะอาดเรียบร้อย 100%
+   - Modal เจนล็อตใหม่: แสดงรายชื่อมุมเดิมที่จะหลีกเลี่ยงเป็น tag badges, เลือกจำนวนมุมและเวลา, ปุ่มสร้างล็อตถัดไป
+4. **Automated & Visual Verification:**
+   - Unit tests backend: `tests/test_product_batch_angles.py` ครอบคลุมการต่อยอดล็อต, batch index, และ API endpoints (3/3 passed)
+   - Backend full pytest: 171 passed (0 failed)
+   - Frontend vitest: 158 passed (0 failed)
+   - Production build: `vite build` สำเร็จ 3.25s
+   - Browser Subagent: ตรวจสอบหน้าเว็บ `http://localhost:5173/` โหลดคลีน 100% ปราศจาก SSL error, เข้าหน้าห้องสคริปต์, ตรวจแท็กล็อต, ปุ่มฟิลเตอร์, และคลิกเปิด Modal เจนล็อตใหม่พร้อมจับภาพหน้าจอ
 
 ## Round UI-FONT-MONO-CLEAN-1 — กวาดล้าง font-mono ที่ครอบข้อความภาษาไทย/การ์ด KPI ทั่วทั้งระบบให้เป็นฟอนต์กลาง 100%
 
@@ -127,6 +164,25 @@
 - Vite Build: ผ่าน 100% สะอาด ไร้ error (4.57s)
 - Backend Preview-Render Parity Tests: 153/153 passed (10.36s)
 - Browser Live Test: เปิดหน้าจอจริงผ่าน Browser Subagent ทดสอบสลับฟอนต์ในหน้าตั้งค่า (Prompt -> IBM Plex Sans Thai -> Kanit) ตรวจสอบหน้าสคริปต์แล็บและหน้าสถิติ พบว่าตัวอักษรภาษาไทยคมชัด สวยงาม ไม่มีตัวหนังสือต่างดาว และทั้งหน้าจอเปลี่ยนตามฟอนต์ที่เลือกอย่างสอดคล้องกัน
+
+---
+
+## Round TIKTOK-DASH-DATA-1 — ล้างโพสต์ทดสอบ 163 รายการใน post_log + กัน merge ยอดซ้ำข้ามแถวในรอบซิงก์เดียว
+
+วันที่: 2026-09-12 · สั่งโดย: user · ดำเนินการโดย: Cline (โมเดลฐานไม่ได้ระบุในเซสชันนี้) · สถานะ: เสร็จสมบูรณ์
+
+**หลักฐาน:** user ซิงก์สำเร็จ 8/10 แต่ Dashboard "สถานะ TikTok" ยังโชว์ 2.5M views / คลิปยอดนิยม "Test Serum Anti-Aging 15.2K" — ตรวจ `_Docs/post_log.json` พบ 167 โพสต์ = **163 โพสต์ทดสอบ Serum** (ยิง POST /api/posts ทดสอบซ้ำช่วง 3-4 ก.ย. ติดยอดวิวจำลองรวม ~2.5M) + โพสต์จริงจากซิงก์ 4 รายการ (รวม ~895 views) — ยืนยันว่า Dashboard อ่านข้อมูลจริงจาก `/api/tiktok-stats/latest` ทั้งหมด ไม่มี mock ในโค้ด แต่ข้อมูล mock ในไฟล์จมของจริง และพบเพิ่มว่ายอดวิวคลิป Logitech Lift โดนแถว Studio อื่น fuzzy match ซ้ำเข้ามาทับ (จอโชว์ 59 → ไฟล์เก็บ 370)
+
+**การเปลี่ยนแปลง:**
+1. **ล้างข้อมูลทดสอบ (user ยืนยันผ่าน ask_question):** backup ครบ 167 รายการ → `_Docs/post_log_backup_mock_20260912.json` แล้วล้าง 163 โพสต์ Serum เหลือ 4 โพสต์จริง (Logitech Lift 370 / GoChek GC-ULTRA S24 239 / BlueWow X110 271 / Logitech Wave Keys 15) — ทำผ่านชั้น `PostLog._save` (SQLite `_Docs/store.db` + JSON mirror สอดคล้องกัน) พร้อม assert จำนวนก่อนเขียนทุกขั้น (163/4 และหลังเขียน = 4)
+2. **กัน merge ยอดซ้ำข้ามแถว (`scripts/post_log.py` upsert_tiktok_stats):** เพิ่ม claim guard — 1 โพสต์ถูก claim ได้จาก 1 แถวต่อรอบซิงก์ และแถวที่ video id ไม่ตรงกับ `tiktok_video_id` ที่เก็บไว้ห้าม fuzzy match เข้าโพสต์นั้น (แก้กรณี 370 ทับ 59) — แถวที่โดนปฏิเสธจะไปลงทะเบียนโพสต์ของตัวเองจาก candidates หรือขึ้น unmatched แทน การกดซิงก์ครั้งถัดไปจะเขียนยอด Lift กลับเป็น 59 ให้เอง (จับคู่ด้วย video id แบบ exact)
+3. **Regression test:** `test_import_never_merges_two_similar_rows_into_one_post` — แถวคล้ายกัน 2 แถวต่าง video id ต้องได้ 2 โพสต์ ยอด {59, 370} ครบ ไม่ทับกัน
+
+**ผลการทดสอบ (Verification Gate):**
+- pytest เต็ม: 1114 passed (test_tiktok_stats_import 9 passed รวมเคสใหม่)
+- Extension node --test (3 ไฟล์): 32 pass / 0 fail
+- python -m compileall -q scripts: ผ่าน
+- ข้อมูลหลังล้าง: 4 โพสต์จริง ยอดรวม 895 views — Dashboard โชว์ตัวเลขจริงทันทีหลัง restart backend
 
 ---
 
@@ -4608,3 +4664,50 @@ Date: 2026-09-07; Requested by: user; Status: complete
 - รอบนี้ reroll project/export จริงตามคำสั่งแก้บั๊ก; ไฟล์ล่าสุดใน Ready to post คือ timestamp `164654`
 - ไม่แก้ `SequencePlayer.jsx` เพราะภาพปัญหามาจาก backend-only environment fallback; parity เดิมกลับมาตรงหลังใช้ scale ที่ถูกต้อง
 - รักษา diff ค้างของ product metadata/UI/style migration และ `tools/probe_ass_scale.py`; ไม่ลบหรือเขียนทับ
+
+## Round POSTED-CLIP-LIFECYCLE-1 — ระบบจัดการคลิปที่โพสต์แล้ว (Zero-Risk Archive & Timeline Lockout Flow)
+
+วันที่: 2026-09-12 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์
+
+**ปัญหาและข้อวิเคราะห์ทางสถาปัตยกรรม (Architecture & UX Flow Analysis):**
+- เดิมคลิปที่โพสต์แล้วยังสามารถถูกโหลดเข้าไทม์ไลน์ในหน้า Editor ได้ ซึ่งเสี่ยงต่อการที่ผู้ใช้เผลอขยับคัต, ลบช็อต, แก้สคริปต์ หรือกดเรนเดอร์ทับประวัติเดิมของวิดีโอที่เผยแพร่จริงบนโซเชียลมีเดียไปแล้ว
+- การให้คลิปที่โพสต์แล้วค้างอยู่ในรายการโปรเจกต์ของไทม์ไลน์ ทำให้ Dropdown สับสน รกตา และไม่สะท้อนสถานะที่เป็นจริง (Active WIP vs Published History)
+- ข้อมูลที่เก็บในดิสก์: วิดีโอ MP4 ใน `04_Exports/Posted/` ต้องเก็บไว้ถาวรสำหรับ QC ตรวจสอบลิขสิทธิ์ และมอนิเตอร์ยอดวิว/วิเคราะห์ผลงาน แต่โฟลเดอร์โปรเจกต์ชั่วคราว (`03_Projects/`) ไม่จำเป็นต้องอยู่ใน working directory ของโปรเจกต์ปัจจุบัน ควรย้ายไปเก็บที่ `06_Archive/Projects/`
+
+**สถาปัตยกรรมและการแก้ไขที่ดำเนินการ:**
+1. **Zero-Risk Timeline Access Guard:**
+   - เพิ่มฟังก์ชัน `filterActiveProjects(projects, statusByProject)` ใน `frontend/src/lib/editorEntry.js` พร้อม unit test ตรวจจับและคัดกรองโปรเจกต์ที่โพสต์แล้ว (`is_posted === true` หรือ `posted_at`) ออกจาก Dropdown ใน `ProjectSelector.jsx` 100%
+   - เพิ่ม Security Guard ใน `frontend/src/components/editor/EditorShell.jsx` (`useProjectLoader.fetchProject`) เพื่อปฏิเสธการโหลดโปรเจกต์ที่โพสต์แล้วเข้าสู่ไทม์ไลน์ แม้จะมีการเรียกผ่าน URL query params หรือ cached state พร้อมแจ้งเตือนผู้ใช้อย่างชัดเจน
+2. **Action Bar ออกแบบใหม่ใน Script Lab (ProductToClip.jsx):**
+   - ในการ์ดสคริปต์ของมุมมองที่โพสต์แล้ว ทั้งใน `AngleActiveWorkbench` (split view) และ `ScriptAccordionItem` (accordion view):
+     - ถอดปุ่ม `[เปิดดูในไทม์ไลน์]` และ `[ตัดใหม่]` ออก 100%
+     - แทนที่ด้วยปุ่มหลัก `[ดูคลิปที่โพสต์แล้ว]` (เปิด Modal เล่นไฟล์ MP4 จริงแบบ 9:16)
+     - เพิ่มปุ่มเสริม `[ทำซ้ำเพื่อตัดคลิปใหม่]` (`handleCloneAngle`) สำหรับคัดลอกบทสคริปต์ จุดขาย และมุมมองไปสร้างเป็นร่างคลิปใหม่ (`status: 'scripted'`) ให้ผู้ใช้ตัดต่อต่อยอดได้ทันทีโดยไม่แตะต้องหรือเสี่ยงทับคลิปเดิม
+   - ใน Modal พรีวิวส่งออก (`previewExportAngle`) หากเป็นคลิปที่โพสต์แล้ว ปุ่ม Action จะเปลี่ยนเป็น `[ทำซ้ำเพื่อตัดคลิปใหม่]` แทนการเปิดไทม์ไลน์
+3. **Automated Project Folder Archival Engine:**
+   - เพิ่มเมธอด `ProjectManifest.archive(project_name)` ใน `scripts/project_manifest.py` พร้อมการจัดการข้อผิดพลาดและ file locks บน Windows เพื่อย้ายโฟลเดอร์จาก `03_Projects/{project_name}` ไปยัง `06_Archive/Projects/{project_name}` อย่างปลอดภัย
+   - เชื่อมระบบใน `scripts/api_exports.py` (`mark_posted`) ให้เรียก `ProjectManifest.archive()` อัตโนมัติเมื่อผู้ใช้มาร์กสถานะเป็นโพสต์แล้ว
+   - เพิ่ม API endpoint `POST /api/projects/{project_name}/archive` ใน `scripts/api_phase1.py` พร้อมตัวป้องกันการย้ายหากโปรเจกต์กำลังอยู่ในสถานะ Render (`render_jobs.is_busy()`)
+4. **ความสะอาดของ UI ตาม Rule 8 (UI Clean Standard):**
+   - ทุกปุ่มใช้ Action Verb ชัดเจน ไม่มีเครื่องหมาย `+` หรือไอคอนซ้ำซ้อน
+
+**ไฟล์ที่แตะ:**
+- `scripts/project_manifest.py`
+- `scripts/api_phase1.py`
+- `scripts/api_exports.py`
+- `frontend/src/lib/editorEntry.js`
+- `frontend/src/lib/editorEntry.test.js`
+- `frontend/src/components/editor/ProjectSelector.jsx`
+- `frontend/src/components/editor/EditorShell.jsx`
+- `frontend/src/components/ProductToClip.jsx`
+- `tests/test_project_archive.py` (ไฟล์ทดสอบใหม่)
+- `TODO.md`
+- `HISTORY.md`
+
+### Gate & Verification Results:
+- [x] Backend Unit Tests: `tests/test_project_archive.py` — 3/3 passed
+- [x] Backend Parity Suite: `tests/test_preview_render_parity.py` — 153/153 passed
+- [x] Frontend Vitest Suite: 158/158 passed (รวม test cases ใหม่ของ `filterActiveProjects`)
+- [x] Frontend Production Build: `npm run build` สำเร็จ 100% ใน 3.45 วินาที
+- [x] Python Compilation: `python -m compileall -q scripts` ผ่าน 100% ปราศจาก syntax error
+

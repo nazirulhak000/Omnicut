@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, CircleDot, FileEdit, Rocket, Trash2 } from 'lucide-react';
 import { getProducts } from '../../api';
+import { filterActiveProjects } from '../../lib/editorEntry';
 
 const STATUS_LABEL = {
   scripted: 'ร่างสคริปต์',
@@ -55,7 +56,6 @@ const STATUS_STYLE = {
  */
 export default function ProjectSelector({ projectName, projectList = [], loadProject, onRequestDelete }) {
   const [open, setOpen] = useState(false);
-  const [showAll, setShowAll] = useState(false);
   const [statusByProject, setStatusByProject] = useState({});
   const wrapRef = useRef(null);
   const buttonRef = useRef(null);
@@ -101,8 +101,11 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
     () => projectList.map((p) => ({ ...p, status: statusByProject[p.project_name] })),
     [projectList, statusByProject]
   );
-  const postedCount = decorated.filter((p) => p.status === 'posted').length;
-  const visible = showAll ? decorated : decorated.filter((p) => p.status !== 'posted');
+  // Zero-Risk Studio Lockout: Exclude posted projects completely from editor dropdown
+  const visible = useMemo(
+    () => filterActiveProjects(decorated, statusByProject),
+    [decorated, statusByProject]
+  );
 
   const current = projectList.find((p) => p.project_name === projectName);
 
@@ -126,19 +129,8 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
           role="listbox"
           className="absolute left-0 top-full z-40 mt-1.5 max-h-96 w-full min-w-[320px] overflow-y-auto rounded-xl border border-white/[0.1] bg-[#0F1420] p-1.5 shadow-2xl"
         >
-          {postedCount > 0 && (
-            <button
-              type="button"
-              onClick={() => setShowAll((v) => !v)}
-              className="mb-1 flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs text-slate-500 hover:bg-white/[0.05] hover:text-slate-300"
-            >
-              <span>{showAll ? 'ซ่อนโปรเจกต์ที่โพสต์แล้ว' : `ซ่อนอยู่: โพสต์แล้ว ${postedCount} รายการ`}</span>
-              <span className="font-bold text-[#D97757]">{showAll ? 'ซ่อน' : 'แสดงทั้งหมด'}</span>
-            </button>
-          )}
-
           {visible.length === 0 && (
-            <p className="px-2.5 py-3 text-center text-sm text-slate-500">ไม่มีโปรเจกต์ในหมวดนี้</p>
+            <p className="px-2.5 py-3 text-center text-sm text-slate-500">ไม่มีโปรเจกต์ที่กำลังตัดต่อ</p>
           )}
 
           {visible.map((p) => {

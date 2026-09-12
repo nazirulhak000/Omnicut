@@ -680,6 +680,28 @@ def delete_project(project_name: str, scope: str = "project"):
         raise HTTPException(status_code=500, detail=f"ลบไม่สำเร็จ: {err}")
 
 
+@router.post("/projects/{project_name}/archive")
+def archive_project(project_name: str):
+    """
+    Move a project folder from 03_Projects/ to 06_Archive/Projects/.
+    Keeps exported videos in 04_Exports/ intact.
+    """
+    if render_jobs.is_busy():
+        raise HTTPException(
+            status_code=409,
+            detail="กำลังเรนเดอร์งานอยู่ ไม่สามารถย้ายโปรเจกต์เข้าคลังประวัติได้ในขณะนี้",
+        )
+    try:
+        res = ProjectManifest.archive(project_name)
+        return {"success": True, **res}
+    except FileNotFoundError as err:
+        raise HTTPException(status_code=404, detail=str(err))
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail=str(err))
+    except Exception as err:
+        raise HTTPException(status_code=500, detail=f"เกิดข้อผิดพลาดในการย้ายเข้าคลัง: {err}")
+
+
 @router.get("/projects/{project_name}")
 def get_project(project_name: str):
     manifest = ProjectManifest.load(project_name)

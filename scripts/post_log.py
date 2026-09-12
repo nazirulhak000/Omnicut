@@ -12,6 +12,7 @@ lives at LOG_PATH, same path as before.
 """
 
 import json
+import re
 import uuid
 import datetime
 from pathlib import Path
@@ -130,30 +131,86 @@ class PostLog:
             raise ValueError(f"ไม่พบโพสต์ id '{post_id}'")
 
     @classmethod
-    def upsert_tiktok_stats(cls, rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def upsert_tiktok_stats(
+        cls,
+        rows: List[Dict[str, Any]],
+        register_missing: bool = False,
+        clip_candidates: Optional[List[Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
         """Merge scraped TikTok Studio rows into the post log.
 
         Match priority: tiktok_video_id exact > clip title+duration fuzzy.
-        Never creates duplicates when a video_id is already stored. Rows that
-        match nothing are returned as `unmatched` for manual review instead
+        With register_missing=True, a row that matches nothing is checked
+        against `clip_candidates` (exported clips from the product store)
+        and, on a hit, a NEW post is registered automatically -- the numbers
+        were real, the clip was just never marked posted in OmniCut. Rows
+        that match nothing at all stay `unmatched` for manual review instead
         of inventing new posts silently.
         """
-        matched, updated, unmatched = 0, 0, []
+        matched, updated, registered = 0, 0, 0
+        unmatched = []
         now = datetime.datetime.now().isoformat(timespec="seconds")
         with cls._mutate() as posts:
             by_video_id = {p.get("tiktok_video_id"): p for p in posts if p.get("tiktok_video_id")}
-            for row in rows:
+            # One post may be claimed by ONE Studio row per run: two rows with
+            # similar captions (same product, different clips) used to
+            # fuzzy-match the same target and the later row's metrics silently
+            # overwrote the first row's real numbers (Lift 59 -> 370 bug).
+            claimed: Dict[str, str] = {}
+            for row_idx, row in enumerate(rows):
                 video_id = (row.get("video_id") or "").strip() if isinstance(row.get("video_id"), str) else row.get("video_id")
+                claim = str(video_id or f"row#{row_idx}")
                 metrics = {k: row.get(k) for k in ("views", "likes", "comments", "shares") if isinstance(row.get(k), int)}
                 target = by_video_id.get(video_id) if video_id else None
                 if target is None and row.get("title"):
-                    target = cls._fuzzy_match(posts, row)
+                    fuzzy = cls._fuzzy_match(posts, row)
+                    if fuzzy is not None:
+                        stored_vid = str(fuzzy.get("tiktok_video_id") or "")
+                        owner = claimed.get(str(fuzzy.get("id")))
+                        if (not stored_vid or not video_id or stored_vid == str(video_id)) and owner in (None, claim):
+                            target = fuzzy
+                        # else: this post already belongs to another Studio
+                        # video (stored video id or claimed earlier this run) --
+                        # fall through to candidate registration / unmatched
+                        # instead of overwriting that video's metrics.
+                if target is None and register_missing and clip_candidates:
+                    for cand in clip_candidates:
+                        if not cls._match_candidate(row, cand):
+                            continue
+                        posted_at = cls._parse_studio_posted_at(row.get("posted_text")) or now
+                        # Append here -- never call add_post() inside this
+                        # mutate (nested _mutate on the same table would fight
+                        # the open SQLite transaction).
+                        new_post = {
+                            "id": uuid.uuid4().hex,
+                            "product_name": str(cand.get("product_name") or ""),
+                            "product_url": "",
+                            "angle_key": str(cand.get("angle_key") or ""),
+                            "angle_title": str(cand.get("angle_title") or ""),
+                            "hook": str(cand.get("hook_title") or ""),
+                            "clip_file": str(cand.get("clip_file") or ""),
+                            "platform": "tiktok",
+                            "caption": str(row.get("title") or "")[:200],
+                            "hashtags": [],
+                            "posted_at": posted_at,
+                            "metrics": None,
+                            "metrics_filled_at": None,
+                            "source": "tiktok_stats_auto",
+                        }
+                        posts.append(new_post)
+                        target = new_post
+                        registered += 1
+                        break
                 if target is None:
-                    unmatched.append({"title": row.get("title", ""), "video_id": video_id, "video_url": row.get("video_url")})
+                    unmatched_row = dict(row)
+                    unmatched_row["video_id"] = video_id
+                    unmatched.append(unmatched_row)
                     continue
                 matched += 1
+                claimed[str(target.get("id"))] = claim
                 if video_id and not target.get("tiktok_video_id"):
                     target["tiktok_video_id"] = video_id
+                    by_video_id[video_id] = target
                 if row.get("video_url") and not target.get("tiktok_url"):
                     target["tiktok_url"] = row.get("video_url")
                 target["tiktok_synced_at"] = now
@@ -163,32 +220,189 @@ class PostLog:
                     target["metrics"] = merged
                     target["metrics_filled_at"] = now
                     updated += 1
-        return {"matched": matched, "updated": updated, "unmatched": unmatched, "total": len(rows)}
+        return {"matched": matched, "updated": updated, "registered": registered, "unmatched": unmatched, "total": len(rows)}
+
+    @classmethod
+    def attach_manual(
+        cls,
+        row: Dict[str, Any],
+        post_id: Optional[str] = None,
+        candidate: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Attach a hand-matched Studio row (from TikTokPending) to a post.
+
+        Either post_id targets an existing post, or candidate (a library
+        clip from _export_clip_candidates) attaches to the post already
+        holding that clip_file/hook or registers a new post -- exactly the
+        auto-register path but chosen by a human, so no score threshold
+        applies.
+        """
+        if post_id is None and candidate is None:
+            raise ValueError("ต้องระบุ post_id หรือ candidate อย่างใดอย่างหนึ่ง")
+        now = datetime.datetime.now().isoformat(timespec="seconds")
+        metrics = {k: row.get(k) for k in ("views", "likes", "comments", "shares") if isinstance(row.get(k), int)}
+        video_id = (row.get("video_id") or "").strip() if isinstance(row.get("video_id"), str) else row.get("video_id")
+        with cls._mutate() as posts:
+            target = None
+            if post_id is not None:
+                for post in posts:
+                    if post.get("id") == post_id:
+                        target = post
+                        break
+                if target is None:
+                    raise ValueError(f"ไม่พบโพสต์ id '{post_id}'")
+            else:
+                cand_clip = str(candidate.get("clip_file") or "")
+                cand_hook = str(candidate.get("hook_title") or "").lower()
+                for post in posts:
+                    if cand_clip and str(post.get("clip_file") or "") == cand_clip:
+                        target = post
+                        break
+                    if cand_hook and str(post.get("hook") or "").lower() == cand_hook:
+                        target = post
+                        break
+                if target is None:
+                    target = {
+                        "id": uuid.uuid4().hex,
+                        "product_name": str(candidate.get("product_name") or ""),
+                        "product_url": "",
+                        "angle_key": str(candidate.get("angle_key") or ""),
+                        "angle_title": str(candidate.get("angle_title") or candidate.get("hook_title") or ""),
+                        "hook": str(candidate.get("hook_title") or ""),
+                        "clip_file": cand_clip or "clip.mp4",
+                        "platform": "tiktok",
+                        "caption": str(row.get("title") or "")[:200],
+                        "hashtags": [],
+                        "posted_at": cls._parse_studio_posted_at(row.get("posted_text")) or now,
+                        "metrics": None,
+                        "metrics_filled_at": None,
+                        "source": "tiktok_stats_manual",
+                    }
+                    posts.append(target)
+            if video_id and not target.get("tiktok_video_id"):
+                target["tiktok_video_id"] = video_id
+            if row.get("video_url") and not target.get("tiktok_url"):
+                target["tiktok_url"] = row.get("video_url")
+            target["tiktok_synced_at"] = now
+            parsed = cls._parse_studio_posted_at(row.get("posted_text"))
+            if parsed and not target.get("posted_at"):
+                target["posted_at"] = parsed
+            if metrics:
+                merged = dict(target.get("metrics") or {})
+                merged.update(metrics)
+                target["metrics"] = merged
+                target["metrics_filled_at"] = now
+            return target
+
+    _THAI_MONTHS = {
+        "ม.ค.": 1, "ก.พ.": 2, "มี.ค.": 3, "เม.ย.": 4, "พ.ค.": 5, "มิ.ย.": 6,
+        "ก.ค.": 7, "ส.ค.": 8, "ก.ย.": 9, "ต.ค.": 10, "พ.ย.": 11, "ธ.ค.": 12,
+    }
+
+    @staticmethod
+    def _normalize_title(text: Any) -> str:
+        """Lowercase + strip #hashtags/emoji/symbols -- words and spaces only.
+
+        Studio captions carry tags/emoji the OmniCut side never stores, so
+        both sides must be normalized before any title comparison.
+        """
+        s = str(text or "").lower()
+        s = re.sub(r"#\S+", " ", s)
+        s = re.sub(r"[^\w\s\u0E00-\u0E7F]+", " ", s, flags=re.UNICODE)
+        return re.sub(r"\s+", " ", s).strip()
+
+    @classmethod
+    def _title_tokens(cls, text: Any) -> set:
+        return {t for t in cls._normalize_title(text).split() if len(t) >= 2}
+
+    @classmethod
+    def _parse_studio_posted_at(cls, text: Any) -> Optional[str]:
+        """'11 ส.ค. 9:30 PM' -> '2026-08-11T21:30:00' (Thai abbreviated month)."""
+        s = str(text or "").strip()
+        if not s:
+            return None
+        m = re.match(r"(\d{1,2})\s+([^\s\d]+)\s+(\d{1,2}):(\d{2})\s*(AM|PM)?", s, re.IGNORECASE)
+        if not m:
+            return None
+        day = int(m.group(1))
+        month = cls._THAI_MONTHS.get(m.group(2))
+        if month is None:
+            for abbr, num in cls._THAI_MONTHS.items():
+                if m.group(2).startswith(abbr[:2]):
+                    month = num
+                    break
+        if month is None:
+            return None
+        hour = int(m.group(3))
+        minute = int(m.group(4))
+        ampm = (m.group(5) or "").upper()
+        if ampm == "PM" and hour < 12:
+            hour += 12
+        elif ampm == "AM" and hour == 12:
+            hour = 0
+        now = datetime.datetime.now()
+        year = now.year
+        if month - now.month > 1:
+            # Studio shows no year: a month far ahead of "now" belongs to
+            # last year (e.g. ธ.ค. rows synced in ม.ค.).
+            year -= 1
+        try:
+            return datetime.datetime(year, month, day, hour, minute).isoformat(timespec="seconds")
+        except ValueError:
+            return None
+
+    @classmethod
+    def _score_against_haystack(cls, title: str, haystack: str) -> int:
+        """Normalized token-overlap score: shared words + brand-word bonus +
+        12-char prefix containment bonus. Zero means "no relation at all"."""
+        row_tokens = cls._title_tokens(title)
+        if not row_tokens:
+            return 0
+        hay_tokens = cls._title_tokens(haystack)
+        shared = row_tokens & hay_tokens
+        if not shared:
+            return 0
+        score = len(shared) + sum(2 for t in shared if len(t) >= 4)
+        prefix = cls._normalize_title(title)[:12]
+        if prefix and prefix in cls._normalize_title(haystack):
+            score += 3
+        return score
 
     @staticmethod
     def _fuzzy_match(posts: List[Dict[str, Any]], row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Best-scoring title match on normalized text (tags/emoji stripped).
+
+        Duration filters only when BOTH sides have it (post_log posts never
+        store duration), widened to ±5s for encode padding differences.
+        """
         title = str(row.get("title") or "").strip()
         if len(title) < 4:
             return None
         dur = row.get("duration_sec")
-        best = None
+        best: Optional[Dict[str, Any]] = None
+        best_score = 0
         for post in posts:
             haystack = " ".join(str(post.get(k) or "") for k in ("angle_title", "hook", "caption", "clip_file", "product_name"))
-            if title[:12] not in haystack and haystack[:200].find(title[:8]) < 0:
-                # Fall back to token overlap: need at least 2 shared tokens.
-                row_tokens = {t for t in title.split() if len(t) > 1}
-                hay_tokens = set(haystack.split())
-                if len(row_tokens & hay_tokens) < 2:
-                    continue
+            score = PostLog._score_against_haystack(title, haystack)
+            if score < 4:
+                continue
             if dur is not None and post.get("duration_sec") is not None:
                 try:
-                    if abs(float(post["duration_sec"]) - float(dur)) > 3:
+                    if abs(float(post["duration_sec"]) - float(dur)) > 5:
                         continue
                 except (TypeError, ValueError):
                     pass
-            best = post
-            break
+            if score > best_score or (score == best_score and best is not None and str(post.get("posted_at") or "") > str(best.get("posted_at") or "")):
+                best, best_score = post, score
         return best
+
+    @classmethod
+    def _match_candidate(cls, row: Dict[str, Any], cand: Dict[str, Any]) -> bool:
+        title = str(row.get("title") or "").strip()
+        if len(title) < 4:
+            return False
+        haystack = " ".join(str(cand.get(k) or "") for k in ("angle_title", "hook_title", "product_name", "clip_file"))
+        return cls._score_against_haystack(title, haystack) >= 4
 
     # ------------------------------------------------------------------
     # Reading

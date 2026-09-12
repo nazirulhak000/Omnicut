@@ -111,11 +111,11 @@
   },
   {
     "id": "677569c2ab1544c8a732ff632927fbbb",
-    "video_path": "04_Exports/Ready_to_post/BLU01-แกะกล่องว้าว_1_20260910_165830.mp4",
-    "video_key": "export:exp_5527a6aba66345c4865db9c56f83a79e",
+    "video_path": "04_Exports/Posted/BLU01-แกะกล่องว้าว_1_20260910_165830.mp4",
+    "video_key": "04_exports/blu01-แกะกล่องว้าว_1_20260910_165830.mp4",
     "export_id": "exp_5527a6aba66345c4865db9c56f83a79e",
-    "scheduled_at": "2026-09-12T12:30+07:00",
-    "status": "planned",
+    "scheduled_at": "2026-09-12T19:00+07:00",
+    "status": "posted",
     "product_id": "b29140664441426ca00294388013fee8",
     "angle_id": "unboxing",
     "product_name": "พัดลมระบายความร้อนโทรศัพท์ BlueWow",
@@ -127,8 +127,8 @@
     "hashtags": "#นายหน้าtiktok #รีวิวของดี #ของมันต้องมี #tiktokป้ายยา #พิกัดในตะกร้า",
     "tiktok_product_id": "1730029570641267012",
     "created_at": "2026-09-11T11:51:23+00:00",
-    "updated_at": "2026-09-11T11:51:23+00:00",
-    "extension_prepared_at": null,
-    "posted_at": null
+    "updated_at": "2026-09-12T11:37:25+00:00",
+    "extension_prepared_at": "2026-09-12T18:34:51.581165",
+    "posted_at": "2026-09-12T11:37:25+00:00"
   }
 ]

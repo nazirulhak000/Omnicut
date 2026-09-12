@@ -91,9 +91,7 @@
     return null;
   }
 
-  function parsePostsTable(doc) {
-    const found = locatePostsTable(doc);
-    if (!found) return { rows: [], error: 'ไม่พบตารางโพสต์ในหน้านี้ — เปิดหน้า TikTok Studio แท็บ โพสต์ ก่อนกดซิงก์' };
+  function parseTableRows(found) {
     const { table, colIndex } = found;
     const bodyRows = Array.from(table.querySelectorAll('tbody tr'));
     const rows = [];
@@ -124,8 +122,99 @@
         video_id: videoIdFromUrl(url),
       });
     }
-    return { rows, error: null };
+    return rows;
   }
 
-  return { headerKind, parseCount, parseDuration, cleanTitle, videoIdFromUrl, locatePostsTable, parsePostsTable, HEADER_ALIASES };
+  // ── Div-grid layout (the REAL Studio posts page, per the user's saved DOM):
+  // there is no <table> at all. Every row is a
+  //   div[data-tt="components_RowLayout_FlexRow"]
+  // (header rows carry PostTableHeader_TUXText labels, data rows carry a
+  // PostInfoCell_a link). Numeric columns are div[width="100px"] cells in DOM
+  // order -- which field each one holds comes from the header labels' order,
+  // never from a fixed index, so a column reshuffle degrades safely.
+  function locateDivGrid(doc) {
+    let labels;
+    try {
+      labels = Array.from(doc.querySelectorAll('[data-tt="components_PostTableHeader_TUXText"]'));
+    } catch (_) {
+      return null;
+    }
+    if (!labels.length) return null;
+    const kinds = labels.map((h) => headerKind(h.textContent));
+    if (!kinds.includes('views') || !(kinds.includes('likes') || kinds.includes('comments'))) return null;
+    return { kinds };
+  }
+
+  function parseDivRows(doc, grid) {
+    const numericKinds = grid.kinds.filter((k) => k === 'views' || k === 'likes' || k === 'comments');
+    const out = [];
+    let rowRoots = [];
+    try {
+      rowRoots = Array.from(doc.querySelectorAll('[data-tt="components_RowLayout_FlexRow"]'));
+    } catch (_) {
+      return out;
+    }
+    const seen = new Set();
+    for (const row of rowRoots) {
+      const link = row.querySelector('a[data-tt="components_PostInfoCell_a"]') || row.querySelector('a[href*="/video/"]');
+      if (!link) continue; // header row or unrelated layout
+      let url = '';
+      try {
+        url = link.href || link.getAttribute('href') || '';
+      } catch (_) {
+        url = '';
+      }
+      if (url && url.charAt(0) === '/') url = 'https://www.tiktok.com' + url;
+      const vid = videoIdFromUrl(url);
+      if (vid) {
+        if (seen.has(vid)) continue; // overlay/divider copies duplicate rows
+        seen.add(vid);
+      }
+      const durEl = row.querySelector('[data-tt="VideoCover_index_TUXText"]');
+      const dateEl = row.querySelector('[data-tt="components_PublishStageLabel_TUXText"]');
+      const privacyBtn = row.querySelector('[data-tt="components_PrivacyCell_TUXButton"]');
+      const privacyLabel = privacyBtn ? (privacyBtn.querySelector('.TUXButton-label') || privacyBtn) : null;
+      const thumb = row.querySelector('[data-tt="VideoCover_index_Image"]');
+      let numCells = [];
+      try {
+        numCells = Array.from(row.querySelectorAll('[data-tt^="components_RowLayout_FlexRow_"][width="100px"]'));
+      } catch (_) {
+        numCells = [];
+      }
+      const values = {};
+      numericKinds.forEach((k, i) => {
+        values[k] = numCells[i] ? parseCount(numCells[i].textContent) : null;
+      });
+      out.push({
+        title: cleanTitle(link.textContent),
+        posted_text: dateEl ? dateEl.textContent.trim() : '',
+        privacy: privacyLabel ? privacyLabel.textContent.trim() : '',
+        views: 'views' in values ? values.views : null,
+        likes: 'likes' in values ? values.likes : null,
+        comments: 'comments' in values ? values.comments : null,
+        shares: 'shares' in values ? values.shares : null,
+        duration_sec: parseDuration(durEl ? durEl.textContent : link.textContent),
+        thumbnail: thumb ? thumb.src : null,
+        video_url: url,
+        video_id: vid,
+      });
+    }
+    return out;
+  }
+
+  function parsePostsTable(doc) {
+    const found = locatePostsTable(doc);
+    if (found) return { rows: parseTableRows(found), error: null };
+    const grid = locateDivGrid(doc);
+    if (grid) {
+      const rows = parseDivRows(doc, grid);
+      if (rows.length) return { rows, error: null };
+      // Studio virtualizes the list: the header can exist while no data row is
+      // rendered yet (page just loaded / list scrolled out).
+      return { rows: [], error: 'เจอหัวคอลัมน์โพสต์แต่ยังไม่มีแถวในหน้า — เลื่อนหน้า Studio ให้รายการโพสต์โหลดขึ้นมาก่อนแล้วกดซิงก์ใหม่' };
+    }
+    return { rows: [], error: 'ไม่พบตารางโพสต์ในหน้านี้ — เปิดหน้า TikTok Studio แท็บ โพสต์ ก่อนกดซิงก์' };
+  }
+
+  return { headerKind, parseCount, parseDuration, cleanTitle, videoIdFromUrl, locatePostsTable, locateDivGrid, parseDivRows, parsePostsTable, HEADER_ALIASES };
 });

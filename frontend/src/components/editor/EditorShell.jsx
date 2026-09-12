@@ -565,7 +565,14 @@ export default function EditorShell({
     loadError,
     setLoadError,
   } = useProjectLoader({
-    fetchProject: getProject,
+    fetchProject: async (name) => {
+      const manifest = await getProject(name);
+      const isPosted = Boolean(manifest?.is_posted || manifest?.angle_status === 'posted' || manifest?.posted_at);
+      if (isPosted) {
+        throw new Error(`คลิป '${name}' โพสต์ลง TikTok แล้ว ระบบล็อกไม่ให้เปิดเข้าไทม์ไลน์ เพื่อป้องกันประวัติไฟล์เดิมเสียหาย`);
+      }
+      return manifest;
+    },
     beforeLoad: async () => {
       if (projectName && isLoadedRef.current) await flushAutosave();
     },

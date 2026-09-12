@@ -634,6 +634,64 @@ class ProductStore:
             raise ValueError(f"ไม่พบสินค้า id '{product_id}' หรือ angle '{angle_id}'")
 
     @classmethod
+    def append_angles(
+        cls,
+        product_id: str,
+        new_angles: List[Dict[str, Any]],
+        batch_index: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Appends a list of new angles (e.g. Batch 2, 3...) to an existing product.
+        Preserves all existing angles and their statuses.
+        """
+        if not new_angles:
+            product = cls.get(product_id)
+            if not product:
+                raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
+            return product
+
+        with cls._mutate() as products:
+            for product in products:
+                if product["id"] == product_id:
+                    existing = product.get("angles", [])
+                    max_batch = 1
+                    for a in existing:
+                        b = a.get("batch")
+                        if isinstance(b, int) and b > max_batch:
+                            max_batch = b
+                        elif not b:
+                            a["batch"] = 1
+
+                    assigned_batch = batch_index if batch_index is not None else (max_batch + 1 if existing else 1)
+                    now = cls._now()
+                    for angle in new_angles:
+                        angle_copy = dict(angle)
+                        aid = angle_copy.get("angle_id") or angle_copy.get("id")
+                        if not aid:
+                            aid = f"ang_{uuid.uuid4().hex[:8]}"
+                        angle_copy["angle_id"] = aid
+                        angle_copy["batch"] = assigned_batch
+                        angle_copy["status"] = angle_copy.get("status") or "scripted"
+                        angle_copy["created_at"] = angle_copy.get("created_at") or now
+                        angle_copy["updated_at"] = now
+                        existing.append(angle_copy)
+
+                    product["angles"] = existing
+                    product["updated_at"] = now
+                    return product
+            raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
+
+    @classmethod
+    def add_single_angle(
+        cls,
+        product_id: str,
+        angle_data: Dict[str, Any],
+        batch_index: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Appends a single custom or cloned angle to an existing product."""
+        return cls.append_angles(product_id, [angle_data], batch_index=batch_index)
+
+
+    @classmethod
     def update_angle_cover(
         cls,
         product_id: str,

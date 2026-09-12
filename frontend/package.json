@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:mobile": "vite --mode mobile",
     "build": "vite build",
     "test": "node --test src/lib/*.test.js",
     "lint": "oxlint",

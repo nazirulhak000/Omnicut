@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  Link2, Sparkles, Clapperboard, Loader2, Check, Copy,
+  Link2, Sparkles, Clapperboard, Loader2, Check, Copy, CopyPlus,
   AlertCircle, ArrowRight, Upload, Trash2, RefreshCw, Plus, Film, Video,
   ChevronDown, ChevronUp, ChevronRight, Package, Rocket, FolderOpen, X,
   Search, LayoutGrid, Filter, Play, Lock, Edit3, Replace, Columns, List,
-  ShoppingBag, ShieldCheck, Database, Zap
+  ShoppingBag, ShieldCheck, Database, Zap, Layers, Eye, EyeOff, CheckCircle2
 } from 'lucide-react';
 import {
   scrapeAndPlanProduct, scrapeAndPlanProductAsync, getProducts, updateProduct,
   previewProductSource, previewProductImageMetadataAsync, refreshProductSource, updateAngleStatus, updateAngleVideos, setDefaultVideosForProduct, deleteProduct,
   uploadFile, resolveTiktokProductId, rerollAngleScript,
-  generateShotList, getShotList, getShotListStatus, getTaskStatus
+  generateShotList, getShotList, getShotListStatus, getTaskStatus,
+  generateProductBatch
 } from '../api';
 import { Modal, Toast, Button, Badge, Input, Textarea, ConfirmModal, PageHeader } from './ui';
 import MediaPickerModal from './MediaPickerModal';
@@ -463,7 +464,7 @@ function AngleMobilePill({ angle, index, isSelected, onSelect, shotListInfo }) {
 // 🎬 ANGLE ACTIVE WORKBENCH (Right Column Studio in Split View)
 // ═══════════════════════════════════════════════════════════════════════
 function AngleActiveWorkbench({
-  angle, index, onCopy, onSendToStudio, onOpenInTimeline, onPreviewExportVideo, copiedIndex,
+  angle, index, onCopy, onSendToStudio, onOpenInTimeline, onPreviewExportVideo, onCloneAngle, copiedIndex,
   videos = [], onToggleVideoForAngle, onUploadVideo, uploadingImg = false,
   onOpenMediaPicker, onSaveScript, onOpenFindReplace, onRerollScript, onGenerateShotList,
   isGeneratingShotList = false, onOpenHookVariants
@@ -881,7 +882,36 @@ function AngleActiveWorkbench({
 
       {/* 5. Production Action Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-white/[0.08]">
-        {isRendered ? (
+        {isPosted ? (
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+            {angle.video_url && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPreviewExportVideo && onPreviewExportVideo(angle);
+                }}
+                className="flex-1 sm:flex-initial py-3 sm:py-2.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-400/40 text-cyan-300 hover:text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 shadow-md cursor-pointer active:scale-95 transition-all"
+                title="เปิดดูวิดีโอที่โพสต์แล้วบน TikTok"
+              >
+                <Film className="w-4 h-4 text-cyan-400" />
+                <span>ดูคลิปที่โพสต์แล้ว</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCloneAngle && onCloneAngle(angle, index);
+              }}
+              className="flex-1 sm:flex-initial py-3 sm:py-2.5 px-4 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.12] text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+              title="คัดลอกสคริปต์นี้เป็นฉบับใหม่เพื่อตัดต่อใหม่โดยไม่กระทบคลิปเดิม"
+            >
+              <CopyPlus className="w-4 h-4 text-[#25F4EE]" />
+              <span>ทำซ้ำเพื่อตัดคลิปใหม่</span>
+            </button>
+          </div>
+        ) : isRendered ? (
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
             {angle.video_url && (
               <button
@@ -983,7 +1013,7 @@ function AngleActiveWorkbench({
 // 📝 ACCORDION SCRIPT ITEM (with Angle-Specific Footage Selector)
 // ═══════════════════════════════════════════════════════════════════════
 function ScriptAccordionItem({
-  angle, index, isOpen, onToggle, onCopy, onSendToStudio, onOpenInTimeline, onPreviewExportVideo, copiedIndex,
+  angle, index, isOpen, onToggle, onCopy, onSendToStudio, onOpenInTimeline, onPreviewExportVideo, onCloneAngle, copiedIndex,
   videos = [], onToggleVideoForAngle, onUploadVideo, uploadingImg = false,
   onOpenMediaPicker,
   onSaveScript, onOpenFindReplace, onRerollScript, onGenerateShotList,
@@ -1420,7 +1450,7 @@ function ScriptAccordionItem({
 
           {/* Action Row */}
           <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/[0.06]">
-            {isRendered ? (
+            {isPosted ? (
               <>
                 {angle.video_url && (
                   <button
@@ -1430,10 +1460,39 @@ function ScriptAccordionItem({
                       onPreviewExportVideo && onPreviewExportVideo(angle);
                     }}
                     className="py-2 px-3.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-400/40 text-cyan-300 hover:text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-cyan-500/10 cursor-pointer active:scale-95 transition-all"
-                    title={isPosted ? "เปิดดูวิดีโอที่โพสต์แล้วบน TikTok (หลักฐาน)" : "เปิดดูวิดีโอที่ตัดต่อและ Export เสร็จแล้ว (ตรวจ QC)"}
+                    title="เปิดดูวิดีโอที่โพสต์แล้วบน TikTok (หลักฐาน)"
                   >
                     <Film className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>{isPosted ? "ดูคลิปที่โพสต์แล้ว" : "ดูคลิปที่ Export แล้ว"}</span>
+                    <span>ดูคลิปที่โพสต์แล้ว</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCloneAngle && onCloneAngle(angle, index);
+                  }}
+                  className="py-2 px-3.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.12] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+                  title="คัดลอกสคริปต์นี้เป็นฉบับใหม่เพื่อตัดต่อใหม่โดยไม่กระทบคลิปเดิม"
+                >
+                  <CopyPlus className="w-3.5 h-3.5 text-[#25F4EE]" />
+                  <span>ทำซ้ำเพื่อตัดคลิปใหม่</span>
+                </button>
+              </>
+            ) : isRendered ? (
+              <>
+                {angle.video_url && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onPreviewExportVideo && onPreviewExportVideo(angle);
+                    }}
+                    className="py-2 px-3.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-400/40 text-cyan-300 hover:text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-cyan-500/10 cursor-pointer active:scale-95 transition-all"
+                    title="เปิดดูวิดีโอที่ตัดต่อและ Export เสร็จแล้ว (ตรวจ QC)"
+                  >
+                    <Film className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>ดูคลิปที่ Export แล้ว</span>
                   </button>
                 )}
                 <button
@@ -1447,23 +1506,21 @@ function ScriptAccordionItem({
                     }
                   }}
                   className="py-2 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-500/25 cursor-pointer active:scale-95 transition-all"
-                  title={isPosted ? "เปิดดูวิดีโอในไทม์ไลน์หน้าตัดต่อ (โหมดล็อกสำหรับคลิปที่โพสต์แล้ว)" : "เปิดดูวิดีโอที่ตัดเสร็จแล้วในไทม์ไลน์ทันที"}
+                  title="เปิดดูวิดีโอที่ตัดเสร็จแล้วในไทม์ไลน์ทันที"
                 >
                   <Play className="w-3.5 h-3.5 fill-white text-white" />
                   <span>เปิดดูในไทม์ไลน์</span>
                   <ArrowRight className="w-3 h-3 text-white/80" />
                 </button>
-                {!isPosted && (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); onSendToStudio(angle, index); }}
-                    className="py-2 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 text-xs font-medium flex items-center gap-1 border border-white/[0.1] cursor-pointer"
-                    title="ส่งไปปรับแต่งสคริปต์หรือตัดมุมนี้ใหม่"
-                  >
-                    <RefreshCw className="w-3 h-3" />
-                    <span>ตัดใหม่</span>
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onSendToStudio(angle, index); }}
+                  className="py-2 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 text-xs font-medium flex items-center gap-1 border border-white/[0.1] cursor-pointer"
+                  title="ส่งไปปรับแต่งสคริปต์หรือตัดมุมนี้ใหม่"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  <span>ตัดใหม่</span>
+                </button>
               </>
             ) : isInProduction ? (
               <>
@@ -2621,11 +2678,89 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     });
   };
 
+  const handleCloneAngle = async (angle, index) => {
+    if (!productData?.id) return;
+    const baseAngle = angle || (typeof index === 'number' ? angles[index] : null);
+    if (!baseAngle) return;
+
+    const clonedAngleId = `angle_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const clonedAngle = {
+      ...baseAngle,
+      angle_id: clonedAngleId,
+      hook_title: baseAngle.hook_title ? `${baseAngle.hook_title} (ฉบับใหม่)` : 'สคริปต์ฉบับใหม่',
+      status: 'scripted',
+      project_name: null,
+      video_url: null,
+      posted_at: null,
+      is_posted: false,
+    };
+
+    const nextAngles = [...angles, clonedAngle];
+    setAngles(nextAngles);
+    setOpenAngleIdx(nextAngles.length - 1);
+
+    try {
+      const res = await updateProduct(productData.id, { angles: nextAngles });
+      if (res?.product) {
+        setProductData(prev => ({ ...prev, ...res.product, angles: res.product.angles }));
+      }
+      showToast('คัดลอกเป็นสคริปต์ฉบับใหม่เรียบร้อย พร้อมสำหรับตัดต่อใหม่!');
+    } catch (e) {
+      console.error('Clone angle failed:', e);
+      showToast('เกิดข้อผิดพลาดในการคัดลอกสคริปต์');
+    }
+  };
+
+  const [selectedBatch, setSelectedBatch] = useState('all');
+  const [hidePosted, setHidePosted] = useState(false);
+  const [showBatchModal, setShowBatchModal] = useState(false);
+  const [batchAngleCount, setBatchAngleCount] = useState(10);
+  const [batchDuration, setBatchDuration] = useState('60s');
+  const [isGeneratingBatch, setIsGeneratingBatch] = useState(false);
+
   const totalAngles = angles.length;
-  const postedAngles = angles.filter(a => a.status === 'posted' || a.status === 'rendered').length;
+  const postedAngles = angles.filter(a => a.status === 'posted' || !!a.posted_at).length;
   const progressPercent = totalAngles > 0 ? Math.round((postedAngles / totalAngles) * 100) : 0;
   const activeAngleIdx = openAngleIdx >= 0 && openAngleIdx < angles.length ? openAngleIdx : 0;
   const rerollTargetAngle = rerollModalAngleIdx !== null ? angles[rerollModalAngleIdx] : null;
+
+  const batches = useMemo(() => {
+    const set = new Set();
+    angles.forEach(a => {
+      set.add(a.batch || 1);
+    });
+    return Array.from(set).sort((a, b) => a - b);
+  }, [angles]);
+
+  const displayedAngles = useMemo(() => {
+    return angles
+      .map((ang, originalIndex) => ({ ...ang, originalIndex }))
+      .filter(ang => {
+        if (selectedBatch !== 'all' && (ang.batch || 1) !== selectedBatch) return false;
+        if (hidePosted && (ang.status === 'posted' || !!ang.posted_at)) return false;
+        return true;
+      });
+  }, [angles, selectedBatch, hidePosted]);
+
+  const handleGenerateBatch = async () => {
+    if (!productData?.id) return;
+    setIsGeneratingBatch(true);
+    try {
+      const res = await generateProductBatch(productData.id, {
+        angle_count: batchAngleCount,
+        duration: batchDuration,
+      });
+      if (res.success && res.task_id) {
+        setShowBatchModal(false);
+        showToast(`🚀 เริ่มสร้างสคริปต์ล็อตใหม่ ${batchAngleCount} มุมในเบื้องหลังแล้ว`);
+      }
+    } catch (err) {
+      console.error('Generate batch failed:', err);
+      showToast('ไม่สามารถเริ่มเจนสคริปต์ล็อตใหม่ได้: ' + (err.response?.data?.detail || err.message), 'error');
+    } finally {
+      setIsGeneratingBatch(false);
+    }
+  };
 
   // ═══════════════════════════════════════════════════════════════
   // RENDER
@@ -3130,11 +3265,15 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
           {/* ──── STEP 2: Script Lab & Footage Selection ──── */}
           <div className="space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 px-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-[#FE2C55]" />
-                  <span>Step 2 — เลือกมุมขาย & คลิปประกอบ ({totalAngles} สคริปต์)</span>
+                  <span>Step 2 — เลือกมุมขาย & คลิปประกอบ ({totalAngles} สคริปต์{batches.length > 1 ? ` • ${batches.length} ล็อต` : ''})</span>
                 </h2>
+                <span className="text-xs text-slate-600 hidden sm:inline">•</span>
+                <span className="text-xs font-semibold text-slate-400">
+                  โพสต์แล้ว <strong className="text-emerald-400 font-mono">{postedAngles}</strong>/{totalAngles} คลิป
+                </span>
               </div>
 
               <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
@@ -3203,6 +3342,73 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
               </div>
             </div>
 
+            {/* ── Sub-bar: Batch Selector & Filters & Actions ── */}
+            <div className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {/* Batch Selector Pills */}
+                <div className="flex items-center gap-1 bg-black/30 p-1 rounded-xl border border-white/[0.06]">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBatch('all')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      selectedBatch === 'all'
+                        ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30'
+                        : 'text-slate-400 hover:text-white border border-transparent'
+                    }`}
+                  >
+                    ทุกล็อต ({angles.length})
+                  </button>
+                  {batches.map((b) => {
+                    const bCount = angles.filter(a => (a.batch || 1) === b).length;
+                    return (
+                      <button
+                        key={b}
+                        type="button"
+                        onClick={() => setSelectedBatch(b)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          selectedBatch === b
+                            ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30'
+                            : 'text-slate-400 hover:text-white border border-transparent'
+                        }`}
+                      >
+                        ล็อต {b} ({bCount})
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Quick Filter: Hide Posted */}
+                {postedAngles > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setHidePosted(!hidePosted)}
+                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                      hidePosted
+                        ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                        : 'bg-white/[0.04] text-slate-400 border-white/[0.08] hover:text-white'
+                    }`}
+                    title={hidePosted ? 'กำลังซ่อนคลิปที่โพสต์แล้ว แตะเพื่อแสดงทั้งหมด' : 'แตะเพื่อซ่อนคลิปที่โพสต์แล้ว'}
+                  >
+                    {hidePosted ? <EyeOff className="w-3 h-3 text-amber-400" /> : <Eye className="w-3 h-3" />}
+                    <span>ซ่อนที่โพสต์แล้ว ({postedAngles})</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Action Button: Generate New Batch with AI */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowBatchModal(true)}
+                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#FE2C55]/20 to-[#25F4EE]/20 hover:from-[#FE2C55]/30 hover:to-[#25F4EE]/30 border border-[#25F4EE]/40 text-xs font-bold text-[#25F4EE] cursor-pointer flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
+                  title="ให้ AI ศึกษาประวัติมุมเดิม แล้วคิดมุมขายใหม่เพิ่มอีก 4-10 มุมโดยไม่ซ้ำเดิม"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-[#FE2C55]" />
+                  <span>เจนล็อตใหม่</span>
+                </button>
+              </div>
+            </div>
+
             {/* Master-Detail Split View (Default Studio Mode) */}
             {viewMode === 'split' ? (
               <div className="space-y-3 lg:space-y-0 lg:grid lg:grid-cols-12 lg:gap-4 items-start">
@@ -3210,47 +3416,77 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                 <div className="lg:hidden space-y-1.5">
                   <div className="flex items-center justify-between px-1">
                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                      แตะสลับมุมขาย ({angles.length} มุม):
+                      แตะสลับมุมขาย ({displayedAngles.length}/{angles.length} มุม):
                     </span>
                     <span className="text-[11px] font-mono text-[#25F4EE] font-bold">
                       มุมที่ {activeAngleIdx + 1}/{angles.length}
                     </span>
                   </div>
-                  <div className="flex items-stretch gap-2 overflow-x-auto pb-2 pt-0.5 no-scrollbar snap-x snap-mandatory pr-2 scroll-smooth">
-                    {angles.map((ang, idx) => (
-                      <AngleMobilePill
-                        key={ang.angle_id || idx}
-                        angle={ang}
-                        index={idx}
-                        isSelected={activeAngleIdx === idx}
-                        onSelect={() => setOpenAngleIdx(idx)}
-                        shotListInfo={shotListStatusMap[ang.angle_id]}
-                      />
-                    ))}
-                  </div>
+                  {displayedAngles.length === 0 ? (
+                    <div className="p-4 text-center rounded-xl bg-white/[0.02] border border-white/[0.06] text-slate-400 text-xs space-y-1">
+                      <p>ไม่มีสคริปต์ที่ตรงกับตัวกรองปัจจุบัน</p>
+                      {hidePosted && (
+                        <button
+                          type="button"
+                          onClick={() => setHidePosted(false)}
+                          className="text-[#25F4EE] underline text-xs cursor-pointer"
+                        >
+                          แสดงคลิปที่โพสต์แล้ว
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-stretch gap-2 overflow-x-auto pb-2 pt-0.5 no-scrollbar snap-x snap-mandatory pr-2 scroll-smooth">
+                      {displayedAngles.map((ang) => (
+                        <AngleMobilePill
+                          key={ang.angle_id || ang.originalIndex}
+                          angle={ang}
+                          index={ang.originalIndex}
+                          isSelected={activeAngleIdx === ang.originalIndex}
+                          onSelect={() => setOpenAngleIdx(ang.originalIndex)}
+                          shotListInfo={shotListStatusMap[ang.angle_id]}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* DESKTOP (lg+): Left Column Vertical Playlist (5 cols) */}
                 <div className="hidden lg:block lg:col-span-5 space-y-2 lg:max-h-[calc(100vh-210px)] lg:overflow-y-auto pr-1 no-scrollbar">
-                  {angles.map((ang, idx) => (
-                    <AngleSidebarItem
-                      key={ang.angle_id || idx}
-                      angle={ang}
-                      index={idx}
-                      isSelected={activeAngleIdx === idx}
-                      onSelect={() => setOpenAngleIdx(idx)}
-                      onPreviewExportVideo={(a) => setPreviewExportAngle(a)}
-                      shotListInfo={shotListStatusMap[ang.angle_id]}
-                      onGenerateShotList={handleGenerateShotList}
-                      onOpenShotList={handleGenerateShotList}
-                      isGeneratingShotList={generatingShotListIdx === idx}
-                    />
-                  ))}
+                  {displayedAngles.length === 0 ? (
+                    <div className="p-6 text-center rounded-2xl bg-white/[0.02] border border-white/[0.06] text-slate-400 text-xs space-y-2">
+                      <p>ไม่มีสคริปต์ที่ตรงกับตัวกรองปัจจุบัน</p>
+                      {hidePosted && (
+                        <button
+                          type="button"
+                          onClick={() => setHidePosted(false)}
+                          className="text-[#25F4EE] underline cursor-pointer"
+                        >
+                          แสดงคลิปที่โพสต์แล้ว
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    displayedAngles.map((ang) => (
+                      <AngleSidebarItem
+                        key={ang.angle_id || ang.originalIndex}
+                        angle={ang}
+                        index={ang.originalIndex}
+                        isSelected={activeAngleIdx === ang.originalIndex}
+                        onSelect={() => setOpenAngleIdx(ang.originalIndex)}
+                        onPreviewExportVideo={(a) => setPreviewExportAngle(a)}
+                        shotListInfo={shotListStatusMap[ang.angle_id]}
+                        onGenerateShotList={handleGenerateShotList}
+                        onOpenShotList={handleGenerateShotList}
+                        isGeneratingShotList={generatingShotListIdx === ang.originalIndex}
+                      />
+                    ))
+                  )}
                 </div>
 
                 {/* Right Column (Active Workbench / 7 cols sticky) */}
                 <div className="lg:col-span-7 lg:sticky lg:top-4">
-                  {angles[activeAngleIdx] && (
+                  {angles[activeAngleIdx] ? (
                     <AngleActiveWorkbench
                       angle={angles[activeAngleIdx]}
                       index={activeAngleIdx}
@@ -3258,6 +3494,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       onSendToStudio={handleSendToStudio}
                       onOpenInTimeline={handleOpenInTimeline}
                       onPreviewExportVideo={(ang) => setPreviewExportAngle(ang)}
+                      onCloneAngle={handleCloneAngle}
                       copiedIndex={copiedIndex}
                       videos={videos}
                       onToggleVideoForAngle={handleToggleVideoForAngle}
@@ -3274,40 +3511,81 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       onGenerateShotList={handleGenerateShotList}
                       isGeneratingShotList={generatingShotListIdx === activeAngleIdx}
                     />
-                  )}
+                  ) : displayedAngles[0] ? (
+                    <AngleActiveWorkbench
+                      angle={angles[displayedAngles[0].originalIndex]}
+                      index={displayedAngles[0].originalIndex}
+                      onCopy={copyScriptText}
+                      onSendToStudio={handleSendToStudio}
+                      onOpenInTimeline={handleOpenInTimeline}
+                      onPreviewExportVideo={(ang) => setPreviewExportAngle(ang)}
+                      onCloneAngle={handleCloneAngle}
+                      copiedIndex={copiedIndex}
+                      videos={videos}
+                      onToggleVideoForAngle={handleToggleVideoForAngle}
+                      onUploadVideo={handleImageUpload}
+                      uploadingImg={uploadingImg}
+                      onOpenMediaPicker={handleOpenMediaPicker}
+                      onSaveScript={handleSaveScript}
+                      onOpenFindReplace={(i) => {
+                        setFindReplaceAngleIdx(i);
+                        setFindReplaceOpen(true);
+                      }}
+                      onOpenHookVariants={(ang) => setHookModalAngle(ang)}
+                      onRerollScript={handleOpenRerollScriptModal}
+                      onGenerateShotList={handleGenerateShotList}
+                      isGeneratingShotList={generatingShotListIdx === displayedAngles[0].originalIndex}
+                    />
+                  ) : null}
                 </div>
               </div>
             ) : (
               /* Classic Accordion View */
               <div className="space-y-1.5">
-                {angles.map((ang, idx) => (
-                  <ScriptAccordionItem
-                    key={ang.angle_id || idx}
-                    angle={ang}
-                    index={idx}
-                    isOpen={openAngleIdx === idx}
-                    onToggle={() => setOpenAngleIdx(openAngleIdx === idx ? -1 : idx)}
-                    onCopy={copyScriptText}
-                    onSendToStudio={handleSendToStudio}
-                    onOpenInTimeline={handleOpenInTimeline}
-                    onPreviewExportVideo={(ang) => setPreviewExportAngle(ang)}
-                    copiedIndex={copiedIndex}
-                    videos={videos}
-                    onToggleVideoForAngle={handleToggleVideoForAngle}
-                    onUploadVideo={handleImageUpload}
-                    uploadingImg={uploadingImg}
-                    onOpenMediaPicker={handleOpenMediaPicker}
-                    onSaveScript={handleSaveScript}
-                    onOpenFindReplace={(i) => {
-                      setFindReplaceAngleIdx(i);
-                      setFindReplaceOpen(true);
-                    }}
-                    onOpenHookVariants={(ang) => setHookModalAngle(ang)}
-                    onRerollScript={handleOpenRerollScriptModal}
-                    onGenerateShotList={handleGenerateShotList}
-                    isGeneratingShotList={generatingShotListIdx === idx}
-                  />
-                ))}
+                {displayedAngles.length === 0 ? (
+                  <div className="p-6 text-center rounded-2xl bg-white/[0.02] border border-white/[0.06] text-slate-400 text-xs space-y-2">
+                    <p>ไม่มีสคริปต์ที่ตรงกับตัวกรองปัจจุบัน</p>
+                    {hidePosted && (
+                      <button
+                        type="button"
+                        onClick={() => setHidePosted(false)}
+                        className="text-[#25F4EE] underline cursor-pointer"
+                      >
+                        แสดงคลิปที่โพสต์แล้ว
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  displayedAngles.map((ang) => (
+                    <ScriptAccordionItem
+                      key={ang.angle_id || ang.originalIndex}
+                      angle={ang}
+                      index={ang.originalIndex}
+                      isOpen={openAngleIdx === ang.originalIndex}
+                      onToggle={() => setOpenAngleIdx(openAngleIdx === ang.originalIndex ? -1 : ang.originalIndex)}
+                      onCopy={copyScriptText}
+                      onSendToStudio={handleSendToStudio}
+                      onOpenInTimeline={handleOpenInTimeline}
+                      onPreviewExportVideo={(ang) => setPreviewExportAngle(ang)}
+                      onCloneAngle={handleCloneAngle}
+                      copiedIndex={copiedIndex}
+                      videos={videos}
+                      onToggleVideoForAngle={handleToggleVideoForAngle}
+                      onUploadVideo={handleImageUpload}
+                      uploadingImg={uploadingImg}
+                      onOpenMediaPicker={handleOpenMediaPicker}
+                      onSaveScript={handleSaveScript}
+                      onOpenFindReplace={(i) => {
+                        setFindReplaceAngleIdx(i);
+                        setFindReplaceOpen(true);
+                      }}
+                      onOpenHookVariants={(ang) => setHookModalAngle(ang)}
+                      onRerollScript={handleOpenRerollScriptModal}
+                      onGenerateShotList={handleGenerateShotList}
+                      isGeneratingShotList={generatingShotListIdx === ang.originalIndex}
+                    />
+                  ))
+                )}
               </div>
             )}
           </div>
@@ -3704,19 +3982,35 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   <span>เปิดใน Gallery</span>
                 </button>
               )}
-              <button
-                type="button"
-                onClick={() => {
-                  const ang = previewExportAngle;
-                  setPreviewExportAngle(null);
-                  handleOpenInTimeline(ang, openAngleIdx >= 0 ? openAngleIdx : 0);
-                }}
-                className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-emerald-500/20 active:scale-95 transition-all"
-                title="เปิดดูในไทม์ไลน์"
-              >
-                <Play className="w-3.5 h-3.5 fill-white text-white" />
-                <span>เปิดดูในไทม์ไลน์</span>
-              </button>
+              {Boolean(previewExportAngle?.status === 'posted' || previewExportAngle?.posted_at) ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ang = previewExportAngle;
+                    setPreviewExportAngle(null);
+                    handleCloneAngle(ang, openAngleIdx >= 0 ? openAngleIdx : 0);
+                  }}
+                  className="flex-1 py-2.5 px-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/[0.12] text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-md active:scale-95 transition-all"
+                  title="คัดลอกสคริปต์นี้เพื่อตัดต่อใหม่"
+                >
+                  <CopyPlus className="w-3.5 h-3.5 text-[#25F4EE]" />
+                  <span>ทำซ้ำเพื่อตัดคลิปใหม่</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ang = previewExportAngle;
+                    setPreviewExportAngle(null);
+                    handleOpenInTimeline(ang, openAngleIdx >= 0 ? openAngleIdx : 0);
+                  }}
+                  className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-emerald-500/20 active:scale-95 transition-all"
+                  title="เปิดดูในไทม์ไลน์"
+                >
+                  <Play className="w-3.5 h-3.5 fill-white text-white" />
+                  <span>เปิดดูในไทม์ไลน์</span>
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -3897,6 +4191,103 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         onBatchCompleted={handleBatchCompleted}
         showToast={showToast}
       />
+
+      {/* ── Generate New Batch Modal ── */}
+      <Modal
+        isOpen={showBatchModal}
+        onClose={() => !isGeneratingBatch && setShowBatchModal(false)}
+        title="เจนสคริปต์ล็อตใหม่ด้วย AI (ไม่ซ้ำมุมเดิม)"
+        size="md"
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-slate-400 leading-relaxed">
+            AI จะนำชื่อมุมมองเดิมทั้งหมด <strong className="text-white">({angles.length} มุม)</strong> มาเป็นบริบทเพื่อหลีกเลี่ยงการสร้างมุมซ้ำ และคิดค้นแกนการขายใหม่ๆ พร้อมฮุกที่สดใหม่สำหรับสินค้านี้
+          </p>
+
+          <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] space-y-1.5 text-xs">
+            <span className="text-slate-400 font-semibold block">มุมเดิมที่จะหลีกเลี่ยง ({angles.length} มุม):</span>
+            <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto pr-1">
+              {angles.map((a, i) => (
+                <span key={i} className="px-2 py-0.5 rounded-md bg-white/[0.05] text-slate-300 text-[11px] truncate max-w-[200px]">
+                  {a.angle_name}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs text-slate-300 font-semibold block">จำนวนมุมที่จะสร้างเพิ่มในล็อตนี้:</label>
+            <div className="flex items-center gap-2">
+              {[
+                { val: 4, label: '4 มุม' },
+                { val: 7, label: '7 มุม' },
+                { val: 10, label: '10 มุม (แนะนำ)' },
+              ].map(opt => (
+                <button
+                  key={opt.val}
+                  type="button"
+                  onClick={() => setBatchAngleCount(opt.val)}
+                  className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    batchAngleCount === opt.val
+                      ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 ring-1 ring-[#25F4EE]/20'
+                      : 'bg-white/[0.04] text-slate-400 border border-white/[0.08] hover:text-white'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs text-slate-300 font-semibold block">ความยาวคลิป:</label>
+            <div className="flex items-center gap-2">
+              {DURATION_OPTIONS.map(opt => (
+                <button
+                  key={opt.val}
+                  type="button"
+                  onClick={() => setBatchDuration(opt.val)}
+                  className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    batchDuration === opt.val
+                      ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 ring-1 ring-[#25F4EE]/20'
+                      : 'bg-white/[0.04] text-slate-400 border border-white/[0.08] hover:text-white'
+                  }`}
+                >
+                  {opt.val}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/[0.08]">
+            <Button
+              variant="ghost"
+              onClick={() => setShowBatchModal(false)}
+              disabled={isGeneratingBatch}
+            >
+              ยกเลิก
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleGenerateBatch}
+              disabled={isGeneratingBatch}
+              className="bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-white font-bold"
+            >
+              {isGeneratingBatch ? (
+                <span className="flex items-center gap-1.5">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  กำลังสั่งการ AI...
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  เริ่มสร้างล็อต {batches.length + 1} ({batchAngleCount} มุม)
+                </span>
+              )}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

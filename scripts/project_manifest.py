@@ -29,7 +29,7 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-from scripts.config import PROJECTS_DIR, BASE_DIR
+from scripts.config import PROJECTS_DIR, BASE_DIR, ARCHIVE_DIR
 from scripts import path_utils
 
 MANIFEST_NAME = "project.json"
@@ -396,6 +396,48 @@ class ProjectManifest:
                 gc.collect()
                 time.sleep(0.3)
         return {"project_name": target.name, "size_mb": size, "files_removed": files}
+
+    @classmethod
+    def archive(cls, project_name: str) -> Dict[str, Any]:
+        """
+        Move a project folder from 03_Projects to 06_Archive/Projects.
+        Leaves exported MP4s in 04_Exports intact.
+        """
+        target = (PROJECTS_DIR / project_name).resolve()
+        root = PROJECTS_DIR.resolve()
+
+        if root not in target.parents:
+            raise ValueError(f"'{project_name}' อยู่นอกโฟลเดอร์โปรเจกต์")
+        if not target.exists() or not target.is_dir():
+            raise FileNotFoundError(f"ไม่พบโปรเจกต์ '{project_name}'")
+        if target.name.startswith("_"):
+            raise ValueError(f"'{target.name}' เป็นโฟลเดอร์ระบบ ย้ายไม่ได้")
+
+        archive_projects_dir = (ARCHIVE_DIR / "Projects").resolve()
+        archive_projects_dir.mkdir(parents=True, exist_ok=True)
+        dest = archive_projects_dir / target.name
+
+        size = cls.folder_size_mb(target)
+        files = sum(1 for f in target.rglob("*") if f.is_file())
+
+        for attempt in range(3):
+            try:
+                if dest.exists():
+                    shutil.rmtree(dest)
+                shutil.move(str(target), str(dest))
+                break
+            except OSError as err:
+                if getattr(err, "winerror", None) != 32 or attempt == 2:
+                    raise
+                gc.collect()
+                time.sleep(0.3)
+
+        return {
+            "project_name": target.name,
+            "archived_to": str(dest.relative_to(BASE_DIR)).replace("\\", "/"),
+            "size_mb": size,
+            "files_moved": files,
+        }
 
     # ------------------------------------------------------------------
     # Snapshot / Backup Management

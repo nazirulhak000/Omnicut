@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Eye, ThumbsUp, TrendingUp, Trophy, ExternalLink,
-  AlertTriangle, RefreshCw, BarChart3, Siren
+  AlertTriangle, RefreshCw, BarChart3, Siren, Link2, X
 } from 'lucide-react';
-import { getTiktokStatsLatest } from '../../../api';
+import {
+  getTiktokStatsLatest, getTiktokPending, getTiktokClipCandidates,
+  attachTiktokPending, ignoreTiktokPending
+} from '../../../api';
+import { buildCandidateOptions, buildAttachPayload, metricSummary } from '../../../lib/manualMatch';
 import MetricKpiCard from '../components/MetricKpiCard';
 import LoadingSpinner from '../../LoadingSpinner';
 import AreaLineChart from '../charts/AreaLineChart';
@@ -35,6 +39,52 @@ export default function PerformanceAnalyticsTab() {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // ── Manual matching state (แถวที่ยังไม่ได้จับคู่) ──
+  const [pendingRows, setPendingRows] = useState([]);
+  const [candidateOptions, setCandidateOptions] = useState([]);
+  const [chosenKeys, setChosenKeys] = useState({});
+  const [matchBusy, setMatchBusy] = useState(false);
+
+  const loadPending = useCallback(async () => {
+    try {
+      const [pend, cands] = await Promise.all([
+        getTiktokPending(),
+        getTiktokClipCandidates(),
+      ]);
+      setPendingRows(Array.isArray(pend?.rows) ? pend.rows : []);
+      setCandidateOptions(buildCandidateOptions(cands?.candidates));
+    } catch {
+      setPendingRows([]);
+      setCandidateOptions([]);
+    }
+  }, []);
+
+  useEffect(() => { loadPending(); }, [loadPending]);
+
+  const handleAttach = useCallback(async (row) => {
+    const option = candidateOptions.find((o) => o.key === chosenKeys[row.id]);
+    const payload = buildAttachPayload(row, option);
+    if (!payload) return;
+    setMatchBusy(true);
+    try {
+      await attachTiktokPending(payload);
+      setPendingRows((prev) => prev.filter((r) => r.id !== row.id));
+      await fetchData();
+    } finally {
+      setMatchBusy(false);
+    }
+  }, [candidateOptions, chosenKeys, fetchData]);
+
+  const handleIgnore = useCallback(async (row) => {
+    setMatchBusy(true);
+    try {
+      await ignoreTiktokPending(row.id);
+      setPendingRows((prev) => prev.filter((r) => r.id !== row.id));
+    } finally {
+      setMatchBusy(false);
+    }
+  }, []);
 
   const posts = useMemo(() => (Array.isArray(data?.posts) ? data.posts : []), [data]);
   const summary = data?.summary || {};
@@ -161,6 +211,59 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
                 <div className="text-[11px] text-slate-300 mt-0.5">{loser.angle} — {fmt(loser.views)} วิว · {loser.engagement}%</div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {/* ── Manual matching (แถวที่ยังไม่ได้จับคู่) ── */}
+      {pendingRows.length > 0 && (
+        <div className="bg-[#0B0F19] border border-amber-500/25 rounded-2xl p-4 sm:p-5 shadow-lg">
+          <div className="flex items-center gap-2.5 mb-3">
+            <Link2 className="w-4 h-4 text-amber-400" />
+            <h3 className="text-sm font-black text-white">แถวที่ยังไม่ได้จับคู่ ({pendingRows.length})</h3>
+          </div>
+          <p className="text-[11px] text-slate-400 mb-3">
+            แถวเหล่านี้มาจาก TikTok Studio แต่ระบบจับคู่กับคลิปในคลังไม่ได้อัตโนมัติ เลือกคลิปที่ตรงกันแล้วกดจับคู่ได้เลย
+          </p>
+          <div className="space-y-2">
+            {pendingRows.map((row) => (
+              <div key={row.id} className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] flex flex-col lg:flex-row lg:items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-bold text-slate-200 truncate">{row.title || row.video_id || 'แถวไม่มีชื่อ'}</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">
+                    {metricSummary(row)}{row.posted_text ? ` · ${row.posted_text}` : ''}
+                  </div>
+                </div>
+                <select
+                  value={chosenKeys[row.id] || ''}
+                  onChange={(e) => setChosenKeys((prev) => ({ ...prev, [row.id]: e.target.value }))}
+                  className="lg:w-72 flex-shrink-0 px-2.5 py-1.5 rounded-lg bg-[#111827] border border-white/[0.12] text-xs text-slate-200 focus:outline-none focus:border-cyan-400/50"
+                >
+                  <option value="">เลือกคลิปในคลัง…</option>
+                  {candidateOptions.map((o) => (
+                    <option key={o.key} value={o.key}>{o.label}</option>
+                  ))}
+                </select>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <button
+                    onClick={() => handleAttach(row)}
+                    disabled={matchBusy || !chosenKeys[row.id]}
+                    className="px-3 py-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-[11px] font-bold text-cyan-300 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer inline-flex items-center gap-1.5"
+                  >
+                    <Link2 className="w-3.5 h-3.5" />
+                    <span>จับคู่</span>
+                  </button>
+                  <button
+                    onClick={() => handleIgnore(row)}
+                    disabled={matchBusy}
+                    title="คลิปนี้ไม่ใช่ของเรา ตัดออกจากรายการ"
+                    className="px-2.5 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] text-[11px] font-bold text-slate-300 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer inline-flex items-center gap-1.5"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>ไม่ใช่คลิปของเรา</span>
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

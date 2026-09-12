@@ -735,8 +735,9 @@ async function runStatsSync() {
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body.detail || `HTTP ${res.status}`);
     const unmatched = (body.unmatched || []).length;
+    const registered = body.registered || 0;
     setStatus(
-      `ซิงก์สำเร็จ ${body.matched}/${body.total} คลิป อัปเดตตัวเลข ${body.updated} คลิป${unmatched ? ` (ไม่เจอคู่ ${unmatched} คลิป ดูในแท็บผลงาน)` : ''}`,
+      `ซิงก์สำเร็จ ${body.matched}/${body.total} คลิป อัปเดตตัวเลข ${body.updated} คลิป${registered ? ` ลงทะเบียนโพสต์ใหม่ ${registered} รายการ` : ''}${unmatched ? ` (ไม่เจอคู่ ${unmatched} คลิป ดูในแท็บผลงาน)` : ''}`,
       'success',
     );
   } catch (err) {

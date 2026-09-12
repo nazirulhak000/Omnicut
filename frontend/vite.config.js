@@ -22,14 +22,10 @@ export default defineConfig(({ mode }) => {
   plugins: [
     react(),
     tailwindcss(),
-    // Self-signed HTTPS for the dev server -- MobileFilmingPage.jsx's
+    // Self-signed HTTPS for dev server -- MobileFilmingPage.jsx's
     // navigator.mediaDevices.getUserMedia() is undefined on a plain http://
     // origin on a phone (browsers only expose it in a "secure context":
-    // https://, or localhost -- a LAN IP over http never qualifies). The
-    // phone shows a one-time untrusted-certificate warning to click through
-    // (Safari: "Show Details" -> "visit this website"); after that the
-    // camera works normally. See
-    // C:\Users\Winon\.claude\plans\cheeky-cooking-quokka.md (Phase C).
+    // https://, or localhost -- a LAN IP over http never qualifies).
     basicSsl(),
   ],
   server: {

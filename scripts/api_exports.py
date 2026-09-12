@@ -761,6 +761,28 @@ def mark_posted(req: MarkPostedRequest):
 
     _mark_scheduled_queue_item_posted(src, dest, export_record["id"])
 
+    # Auto-archive project folder from 03_Projects to 06_Archive/Projects
+    target_project_name = None
+    if req.product_id and req.angle_id:
+        try:
+            prod = ProductStore.get(req.product_id)
+            for a in (prod or {}).get("angles", []):
+                if (a.get("angle_id") == req.angle_id or a.get("id") == req.angle_id) and a.get("project_name"):
+                    target_project_name = a.get("project_name")
+                    break
+        except Exception:
+            pass
+
+    if target_project_name:
+        try:
+            from scripts.project_manifest import ProjectManifest
+            from scripts.config import PROJECTS_DIR
+            p_folder = PROJECTS_DIR / target_project_name
+            if p_folder.exists() and p_folder.is_dir():
+                ProjectManifest.archive(target_project_name)
+        except Exception as arc_err:
+            print(f"[mark_posted] Auto-archive notice: {arc_err}")
+
     return {"success": True, "moved": moved, **product_result}
 
 

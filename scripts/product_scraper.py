@@ -854,6 +854,8 @@ class ProductScraper:
         duration: str = DEFAULT_DURATION,
         extra_beats: Optional[List[str]] = None,
         angle_id_override: Optional[str] = None,
+        avoid_angles: Optional[List[str]] = None,
+        batch_label: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Generates full 10-Angle Master Content Matrix in natural Thai spoken language.
 
@@ -964,6 +966,17 @@ class ProductScraper:
                 f"จงสร้างผลลัพธ์เป็น JSON Array ที่มี {count} Object ตาม 10 มุมมองนี้:\n{catalog_lines}"
             )
 
+        avoid_section = ""
+        if avoid_angles:
+            clean_avoids = [a.strip() for a in avoid_angles if a and a.strip()]
+            if clean_avoids:
+                avoid_list_str = "\n".join(f"   - {item}" for item in clean_avoids)
+                avoid_section = (
+                    f"\n# ข้อกำหนดพิเศษสำหรับ {batch_label or 'ล็อตใหม่'} (ต้องคิดมุมใหม่ไม่ซ้ำเดิม):\n"
+                    f"สินค้านี้เคยสร้างสคริปต์ในมุมมองและประเด็นเหล่านี้ไปแล้ว:\n{avoid_list_str}\n"
+                    f"- **ห้ามคิดมุมและประเด็นซ้ำกับรายการด้านบน**: กรุณาคิดมุมมองการขายใหม่ แง่มุมการใช้งานใหม่ หรือข้อกังวลใหม่ที่ไม่ซ้ำ เพื่อให้ได้เนื้อหาที่สดใหม่ 100%\n"
+                )
+
         prompt = f"""
 # Role & Objective
 คุณคือ "ยอดนักขาย TikTok และครีเอเตอร์สายรีวิวมือโปรระดับท็อปของไทย" ที่เชี่ยวชาญด้านจิตวิทยาการโน้มน้าวใจ (Persuasive Copywriting & Neuromarketing) และการแต่งบทพูดสำหรับ AI Voice Engine ให้พากย์ได้เป็นธรรมชาติ มีจังหวะหายใจเหมือนมนุษย์พูดจริง 100%
@@ -975,7 +988,7 @@ class ProductScraper:
 - ราคา/โปรโมชั่น: {price}
 - ข้อมูลสกัดเพิ่มเติม: {structured_source}
 - ข้อมูลต้นฉบับจากแหล่งข้อมูล (เฉพาะส่วนที่ไม่ซ้ำกับรายละเอียด): {raw_without_duplicate[:MAX_PROMPT_SOURCE_CHARS]}
-
+{avoid_section}
 # กฎเหล็กด้านจังหวะการพูด การเว้นวรรค และความไวรัล (Viral Cadence & Breath Pacing Standards):
 1. **การเคาะเว้นวรรคแบ่งก้อนความคิดสร้างจังหวะหายใจ (Natural Thought Chunking & Breath Pacing - กฎสำคัญที่สุด)**:
    - ในแต่ละบรรทัด **ห้ามเขียนข้อความเป็นก้อนยาวติดกันเด็ดขาด!** เพราะจะทำให้เสียงพากย์ AI อ่านรวดเดียวโดยไม่หายใจ

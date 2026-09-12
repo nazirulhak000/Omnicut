@@ -32,3 +32,11 @@ export function withEditorProjectAction(payload = {}, {
   if (openExisting && existing) next.openProjectName = existing;
   return next;
 }
+
+export function filterActiveProjects(projects = [], statusByProject = {}) {
+  return (projects || []).filter((p) => {
+    const status = statusByProject[p?.project_name] || (p?.is_posted ? 'posted' : p?.status);
+    return status !== 'posted';
+  });
+}
+

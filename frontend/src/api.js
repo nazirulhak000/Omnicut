@@ -245,6 +245,8 @@ export const updateAngleCover = (productId, angleId, cover) =>
 
 export const updateAngleVideos = (productId, angleId, selectedVideos) => api.post(`/products/${productId}/angles/${angleId}/videos`, { selected_videos: selectedVideos }).then(r => r.data);
 export const setDefaultVideosForProduct = (productId, selectedVideos) => api.post(`/products/${productId}/default-videos`, { selected_videos: selectedVideos }).then(r => r.data);
+export const generateProductBatch = (productId, payload) => api.post(`/products/${productId}/generate-batch`, payload).then(r => r.data);
+export const addProductAngle = (productId, payload) => api.post(`/products/${productId}/angles`, payload).then(r => r.data);
 export const deleteProduct = (id) => api.delete(`/products/${id}`).then(r => r.data);
 
 export const getProjects = () => api.get('/projects').then(r => r.data);
@@ -350,6 +352,10 @@ export const getStorageAnalytics = (forceScan = false) => api.get('/analytics/st
 export const purgeSafeStorageCache = () => api.post('/analytics/storage/purge-safe-cache').then(r => r.data);
 export const getInventoryHealth = () => api.get('/analytics/inventory').then(r => r.data);
 export const getTiktokStatsLatest = () => api.get('/tiktok-stats/latest').then(r => r.data);
+export const getTiktokPending = () => api.get('/tiktok-stats/pending').then(r => r.data);
+export const getTiktokClipCandidates = () => api.get('/tiktok-stats/clip-candidates').then(r => r.data);
+export const attachTiktokPending = (payload) => api.post('/tiktok-stats/attach', payload).then(r => r.data);
+export const ignoreTiktokPending = (pendingId) => api.post('/tiktok-stats/pending/ignore', { pending_id: pendingId }).then(r => r.data);
 
 export const fetchOverlayLayout = (payload) => api.post('/editor/overlay/layout', payload).then(r => r.data);
 

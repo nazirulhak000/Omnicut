@@ -1041,3 +1041,140 @@ def reroll_angle_script(product_id: str, angle_id: str, payload: Dict[str, Any],
         "task_id": task["id"],
         "task": task,
     }
+
+
+def _execute_generate_batch_worker(
+    task_id: str, product_id: str, angle_count: int,
+    duration: str, extra_beats,
+) -> None:
+    try:
+        TaskManager.update_progress(task_id, 0.10, "กำลังเตรียมข้อมูลสินค้า")
+        product = _with_product_source_fallback(ProductStore.get(product_id) or {})
+        if not product:
+            raise ValueError(f"ไม่พบสินค้า id '{product_id}'")
+
+        existing_angles = product.get("angles", [])
+        avoid_angles = [a.get("angle_name") for a in existing_angles if a.get("angle_name")]
+
+        max_batch = 1
+        for a in existing_angles:
+            b = a.get("batch")
+            if isinstance(b, int) and b > max_batch:
+                max_batch = b
+        next_batch = max_batch + 1 if existing_angles else 1
+        batch_label = f"ล็อตที่ {next_batch}"
+
+        product_info = {
+            "title": product.get("name", ""),
+            "description": product.get("description", ""),
+            "price_note": product.get("price_note", ""),
+            "raw_text": product.get("raw_text", ""),
+            "images": product.get("images", []),
+            "specs": product.get("specs", []),
+            "selling_points": product.get("selling_points", []),
+            "pain_points": product.get("pain_points", []),
+        }
+
+        TaskManager.update_progress(task_id, 0.40, f"AI กำลังแต่ง {angle_count} สคริปต์ใหม่ ({batch_label})")
+        image_paths = [
+            img.get("local_path") or img.get("url")
+            for img in product_info.get("images", [])
+            if img.get("local_path") or img.get("url")
+        ]
+
+        new_angles = ProductScraper.generate_content_matrix(
+            product_info,
+            count=angle_count,
+            image_paths=image_paths,
+            duration=duration,
+            extra_beats=extra_beats,
+            avoid_angles=avoid_angles,
+            batch_label=batch_label,
+        )
+
+        TaskManager.update_progress(task_id, 0.80, "กำลังปรับแต่งบทพูดสำหรับเสียงพากย์ AI (TTS Sanitizer)")
+        new_angles = TTSSanitizer.process_angles(new_angles)
+
+        TaskManager.update_progress(task_id, 0.95, f"กำลังบันทึกสคริปต์ {batch_label} ลงสินค้า")
+        updated_product = ProductStore.append_angles(product_id, new_angles, batch_index=next_batch)
+
+        result_data = {
+            "product": updated_product,
+            "new_angles": new_angles,
+            "batch_index": next_batch,
+        }
+
+        TaskManager.complete_task(
+            task_id,
+            result=result_data,
+            step_label=f"🎉 สำเร็จ! สร้างสคริปต์ {batch_label} ({len(new_angles)} มุม) เรียบร้อย",
+            target_id=product_id,
+        )
+    except Exception as e:
+        import traceback
+        print(f"[API] Generate batch error: {type(e).__name__}: {e}")
+        traceback.print_exc()
+        if is_quota_error(e):
+            TaskManager.fail_task(task_id, e.suggestion_th, step_label="เกินโควต้า AI ต่อวันแล้ว")
+        else:
+            TaskManager.fail_task(task_id, str(e), step_label="เจนสคริปต์ล็อตใหม่ไม่สำเร็จ")
+
+
+@router.post("/api/products/{product_id}/generate-batch")
+def generate_product_batch(product_id: str, payload: Dict[str, Any], background_tasks: BackgroundTasks):
+    """Generates a new batch (e.g. 10 angles) for an existing product without duplicating previous angles."""
+    product = ProductStore.get(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail=f"ไม่พบสินค้า id '{product_id}'")
+
+    angle_count = int(payload.get("angle_count", 10))
+    duration = str(payload.get("duration") or DEFAULT_DURATION)
+    if duration not in DURATION_SPECS:
+        raise HTTPException(status_code=400, detail=f"duration ต้องเป็นหนึ่งใน {', '.join(DURATION_SPECS)}")
+    extra_beats = payload.get("extra_beats")
+    if extra_beats is not None:
+        invalid = [b for b in extra_beats if b not in EXTRA_BEAT_BLOCKS]
+        if invalid:
+            raise HTTPException(status_code=400, detail=f"extra_beats ไม่รู้จัก: {', '.join(invalid)}")
+    else:
+        extra_beats = list(EXTRA_BEAT_BLOCKS.keys())[:DURATION_SPECS[duration]["default_extra_beats"]]
+
+    task_title = f"เจนสคริปต์ล็อตใหม่: {product.get('name', product_id)} ({angle_count} สคริปต์)"
+    task = TaskManager.create_task(
+        task_type="generate_batch",
+        title=task_title,
+        payload={"product_id": product_id, "angle_count": angle_count, "duration": duration, "extra_beats": extra_beats},
+        target_tab="flow",
+        target_id=product_id,
+    )
+
+    background_tasks.add_task(
+        _execute_generate_batch_worker,
+        task["id"], product_id, angle_count, duration, extra_beats,
+    )
+
+    return {
+        "success": True,
+        "task_id": task["id"],
+        "task": task,
+    }
+
+
+@router.post("/api/products/{product_id}/angles")
+def add_product_angle(product_id: str, payload: Dict[str, Any]):
+    """Adds a single angle (custom or cloned) to an existing product."""
+    product = ProductStore.get(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail=f"ไม่พบสินค้า id '{product_id}'")
+
+    angle_data = payload.get("angle") if "angle" in payload else payload
+    if not angle_data or not isinstance(angle_data, dict):
+        raise HTTPException(status_code=400, detail="ต้องระบุข้อมูล angle ใน payload")
+
+    batch_index = payload.get("batch_index") if "batch_index" in payload else None
+    try:
+        updated = ProductStore.add_single_angle(product_id, angle_data, batch_index=batch_index)
+        return {"success": True, "product": updated}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+

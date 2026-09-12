@@ -6,6 +6,7 @@ import {
   editorProjectIntentFromPayload,
   resolveEditorProjectName,
   withEditorProjectAction,
+  filterActiveProjects,
 } from './editorEntry.js';
 
 test('send-to-edit payload opens a fresh One Click project even when stale project fallbacks exist', () => {
@@ -64,4 +65,35 @@ test('ordinary editor navigation restores URL, storage, then angle project in pr
     intent: null,
     angleProject: 'angle-project',
   }), 'angle-project');
+});
+
+test('filterActiveProjects filters out posted projects and keeps active ones', () => {
+  const projects = [
+    { project_name: 'LOG01-ปัญหาก่อนใช้_1', status: 'posted' },
+    { project_name: 'LOG02-รีวิวสเปก_1', status: 'in_production' },
+    { project_name: 'GOC01-เทียบของเดิม_1', status: 'rendered' },
+    { project_name: 'BLU01-โปรไฟลุก_1', status: 'scripted' },
+    { project_name: 'ESS01-โปรไฟลุก_1', is_posted: true },
+  ];
+  const active = filterActiveProjects(projects, {});
+  assert.equal(active.length, 3);
+  assert.deepEqual(active.map(p => p.project_name), [
+    'LOG02-รีวิวสเปก_1',
+    'GOC01-เทียบของเดิม_1',
+    'BLU01-โปรไฟลุก_1',
+  ]);
+});
+
+test('filterActiveProjects accounts for statusByProject map correctly', () => {
+  const projects = [
+    { project_name: 'PROJ-1' },
+    { project_name: 'PROJ-2' },
+  ];
+  const statusByProject = {
+    'PROJ-1': 'posted',
+    'PROJ-2': 'in_production',
+  };
+  const active = filterActiveProjects(projects, statusByProject);
+  assert.equal(active.length, 1);
+  assert.equal(active[0].project_name, 'PROJ-2');
 });
