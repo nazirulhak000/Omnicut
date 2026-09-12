@@ -321,6 +321,25 @@ test('extension sidepanel exposes the stats-sync button in its own Tools tab', (
   assert.ok(manifest.permissions.includes('scripting'));
 });
 
+test('stats sync accepts the real Studio posts page and stamps a visible build tag', () => {
+  const sideHtml = fs.readFileSync(path.join(__dirname, 'sidepanel.html'), 'utf8');
+  const sideJs = fs.readFileSync(path.join(__dirname, 'sidepanel.js'), 'utf8');
+  const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, 'manifest.json'), 'utf8'));
+  // Build identity: chrome://extensions + the Tools tab both prove the fresh
+  // code is running, so stale cached sidepanel.js (the ghost "จำกัดโดเมน"
+  // banner that never existed in this repo) can be caught by the user's eyes.
+  assert.equal(manifest.version, '0.2.0');
+  assert.match(sideHtml, /id="buildTag"/);
+  assert.match(sideJs, /getManifest/);
+  // The strict domain banner must never come back: resolution is a loose
+  // tiktok.com check with a page-side location.href fallback and an error
+  // that reports the URL actually seen.
+  assert.doesNotMatch(sideJs, /จำกัดโดเมน/);
+  assert.match(sideJs, /resolveTikTokTab/);
+  assert.match(sideJs, /tiktokHrefOf/);
+  assert.match(sideJs, /func: \(\) => location\.href/);
+});
+
 test('extension UI exposes single consolidated TikTok upload opener and complies with clean UI standard', () => {
   const sideHtml = fs.readFileSync(path.join(__dirname, 'sidepanel.html'), 'utf8');
   const sideJs = fs.readFileSync(path.join(__dirname, 'sidepanel.js'), 'utf8');

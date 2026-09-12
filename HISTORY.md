@@ -8,6 +8,7 @@
 
 ## สารบัญ
 
+| Round TIKTOK-STATS-DOMAIN-1 | แก้ซิงก์สถิติตาราง Studio + คอลัมน์ 'ยอดวิว' + Manifest 0.2.0 + แข็งการตรวจจับแท็บ | 2026-09-12 | สำเร็จสมบูรณ์ (alias ยอดวิว, regex เดือน ส.ค./เม.ย., build tag 0.2.0, extension tests 25 passed, ดำเนินการโดย: Cline / Antigravity) |
 | Round BATCH-RENDER-1 | One-Click Batch Angle Video Render Queue (Background FIFO Worker + Live Overall Progress + Concurrency Lock) | 2026-09-12 | สำเร็จสมบูรณ์ (คิวเรนเดอร์หลายมุมมอง background worker, auto-retry, TaskManager progress, pytest 4 passed, vitest 152 passed, build 4.46s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round HOOK-VAR-1 | AI Hook Variation & A/B Generator (5 marketing styles + 9:16 Safe Zone Preview + 1-Click Apply) | 2026-09-12 | สำเร็จสมบูรณ์ (5 สไตล์ curiosity, warning, social_proof, deal_promo, pain_point + offline fallback + safe-zone preview + pytest 8 passed, vitest 152 passed, build 4.08s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round AGENT-ATTRIB-1 | บังคับระบุ Agent Tooling & AI Model ในประวัติงาน (Rule 14 ใน AGENTS.md และ work_loop.md) | 2026-09-12 | สำเร็จสมบูรณ์ (กำหนดมาตรฐานความรับผิดชอบในการติดตามงาน) |

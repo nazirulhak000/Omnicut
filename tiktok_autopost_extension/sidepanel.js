@@ -638,10 +638,69 @@ markPostedBtn.addEventListener('click', async () => {
 // ── Stats Sync: read Studio Posts table, POST rows to backend ──────────────
 const syncStatsBtn = document.getElementById('syncStatsBtn');
 
+// Build tag: proves which build this side panel is actually running. If this
+// line is missing from the Tools tab, Chrome is running stale cached code
+// (the exact cause of the ghost "จำกัดโดเมน" banner that no longer exists
+// anywhere in the source).
+const buildTag = document.getElementById('buildTag');
+if (buildTag) {
+  buildTag.textContent = 'build ' + (chrome?.runtime?.getManifest?.().version || 'unknown');
+}
+
 async function ensureStatsParser(tabId) {
   // executeScript runs func in an isolated world without the sidepanel's own
   // scripts, so inject the pure parser file first, then call it.
   await chrome.scripting.executeScript({ target: { tabId }, files: ['stats_parser.js'] });
+}
+
+const TIKTOK_URL_RE = /tiktok\.com/i;
+
+// Read the page's own URL as the source of truth -- tab.url can come back
+// undefined in some permission edge cases even with the "tabs" permission,
+// and then a URL-string check silently rejects a perfectly good Studio page.
+async function tiktokHrefOf(tabId, tabUrl) {
+  if (tabUrl && TIKTOK_URL_RE.test(tabUrl)) return tabUrl;
+  try {
+    const [probe] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => location.href,
+    });
+    if (probe?.result && TIKTOK_URL_RE.test(probe.result)) return probe.result;
+  } catch (_) { /* not injectable (e.g. a chrome:// page) */ }
+  return null;
+}
+
+// Active tab first (focused window, then current), then any open TikTok tab --
+// the Studio tab often lives in another window while the side panel is docked
+// elsewhere. Never throws: resolves to { tabId, href } or { blocked: reason }.
+async function resolveTikTokTab() {
+  const seen = [];
+  for (const q of [
+    { active: true, lastFocusedWindow: true },
+    { active: true, currentWindow: true },
+  ]) {
+    try {
+      const [tab] = await chrome.tabs.query(q);
+      if (!tab?.id) continue;
+      seen.push(tab.url || '(แท็บที่ active อ่าน URL ไม่ได้)');
+      const href = await tiktokHrefOf(tab.id, tab.url);
+      if (href) return { tabId: tab.id, href };
+    } catch (_) { /* window/tab vanished mid-query */ }
+  }
+  try {
+    const tabs = await chrome.tabs.query({ url: ['*://*.tiktok.com/*', '*://tiktok.com/*'] });
+    for (const tab of tabs) {
+      const href = await tiktokHrefOf(tab.id, tab.url);
+      if (href) {
+        try { await chrome.tabs.update(tab.id, { active: true }); } catch (_) { /* background window */ }
+        return { tabId: tab.id, href };
+      }
+    }
+  } catch (_) { /* query unsupported */ }
+  if (seen.length) {
+    return { blocked: `แท็บที่ active ตอนนี้ไม่ใช่ TikTok (${seen[0]}) — สลับไปหน้า TikTok Studio แท็บ โพสต์ แล้วกดซิงก์อีกครั้ง` };
+  }
+  return { blocked: 'ไม่พบแท็บ TikTok ที่เปิดอยู่ — เปิดหน้า TikTok Studio แท็บ โพสต์ แล้วกดซิงก์อีกครั้ง' };
 }
 
 async function runStatsSync() {
@@ -656,13 +715,11 @@ async function runStatsSync() {
   syncStatsBtn.disabled = true;
   setStatus('กำลังอ่านตารางโพสต์จากหน้านี้...');
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.id || !/tiktok\.com/.test(tab.url || '')) {
-      throw new Error('หน้านี้ไม่ใช่ TikTok — เปิดหน้า TikTok Studio แท็บ โพสต์ ก่อนกดซิงก์');
-    }
-    await ensureStatsParser(tab.id);
+    const found = await resolveTikTokTab();
+    if (found.blocked) throw new Error(found.blocked);
+    await ensureStatsParser(found.tabId);
     const injected = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
+      target: { tabId: found.tabId },
       func: () => window.OmniCutStatsParser.parsePostsTable(document),
     });
     const result = injected?.[0]?.result;

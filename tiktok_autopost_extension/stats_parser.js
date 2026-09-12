@@ -14,7 +14,7 @@
   const HEADER_ALIASES = {
     title: ['เนื้อหา', 'content', 'video', 'โพสต์'],
     privacy: ['ความเป็นส่วนตัว', 'privacy'],
-    views: ['ยอดการดู', 'ยอดดู', 'views', 'view'],
+    views: ['ยอดวิว', 'ยอดการดู', 'ยอดดู', 'views', 'view'],
     likes: ['ถูกใจ', 'likes', 'like'],
     comments: ['ความคิดเห็น', 'comments', 'comment'],
     shares: ['แชร์', 'การแชร์', 'shares', 'share'],
@@ -58,6 +58,22 @@
     return m ? m[1] : null;
   }
 
+  // Studio title cells end with "00:25 11 ส.ค. 9:30 PM" (duration + day +
+  // Thai abbreviated month + clock). Month abbreviations may start with any
+  // Thai letter incl. leading vowels ("เม.ย.", "มี.ค."), so the token class is
+  // [ก-๙] -- the old [ก-ฮ]-only pattern silently left "ส.ค." fragments inside
+  // the title and polluted clip matching.
+  function cleanTitle(raw) {
+    let s = String(raw || '').replace(/\s+/g, ' ').trim();
+    // Full suffix: "<duration> <day> <thai-month> <clock> <AM|PM>"
+    s = s.replace(/\s*\d{1,3}:\d{2}\s+\d{1,2}\s+[ก-๙][^\s]*\s+\d{1,2}:\d{2}(?:\s*(?:AM|PM))?$/i, '');
+    // Date + clock only (layouts that skip the duration)
+    s = s.replace(/\s*\d{1,2}\s+[ก-๙][^\s]*\s+\d{1,2}:\d{2}(?:\s*(?:AM|PM))?$/i, '');
+    // Trailing duration only
+    s = s.replace(/\s*\d{1,3}:\d{2}$/, '');
+    return s.trim().slice(0, 200);
+  }
+
   // Locate the posts table: the table whose header row mentions views/likes
   // in any supported language. Returns { table, colIndex } or null.
   function locatePostsTable(doc) {
@@ -91,7 +107,7 @@
       const titleCell = colIndex.title != null ? cells[colIndex.title] : cells[0];
       const link = titleCell ? titleCell.querySelector('a[href*="/video/"]') : null;
       const url = link ? link.href : null;
-      const title = titleCell ? titleCell.textContent.replace(/\d{1,3}:\d{2}\s*$/, '').replace(/\d{1,2}\s*ก\.\S*\s*\d{1,2}:\d{2}.*$/, '').trim().slice(0, 200) : '';
+      const title = cleanTitle(titleCell ? titleCell.textContent : '');
       if (!title && !url) continue;
       const thumb = titleCell ? titleCell.querySelector('img') : null;
       rows.push({
@@ -111,5 +127,5 @@
     return { rows, error: null };
   }
 
-  return { headerKind, parseCount, parseDuration, videoIdFromUrl, locatePostsTable, parsePostsTable, HEADER_ALIASES };
+  return { headerKind, parseCount, parseDuration, cleanTitle, videoIdFromUrl, locatePostsTable, parsePostsTable, HEADER_ALIASES };
 });

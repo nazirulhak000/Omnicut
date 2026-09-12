@@ -127,3 +127,39 @@ test('video id extraction only accepts real /video/ links', () => {
   assert.equal(parser.videoIdFromUrl('https://www.tiktok.com/upload'), null);
   assert.equal(parser.videoIdFromUrl(''), null);
 });
+
+test('real Thai Studio header "ยอดวิว" is recognized as the views column', () => {
+  // Exact header row from the live tiktok.com/tiktokstudio/content page.
+  const table = buildTable(
+    ['เนื้อหา (สถานะ)', 'ความเป็นส่วนตัว', 'ยอดวิว', 'ถูกใจ', 'ความคิดเห็น', 'การอ้างอิงการซื้อ'],
+    [[
+      { text: 'แท็กติดตัวไว้ ESSEAGER ครอบจักรแม่เหล็กเหนียวดึงสุด 00:25 11 ส.ค. 9:30 PM', link: 'https://www.tiktok.com/@u/video/7684239800701816081' },
+      { text: 'ทุกคน' },
+      { text: '2' },
+      { text: '1' },
+      { text: '0' },
+      { text: '-' },
+    ]],
+  );
+  const found = parser.locatePostsTable(fakeDoc(table));
+  assert.ok(found, 'posts table must be located by the real Thai header row');
+  assert.equal(found.colIndex.views, 2);
+  const res = parser.parsePostsTable(fakeDoc(table));
+  assert.equal(res.error, null);
+  assert.equal(res.rows.length, 1);
+  assert.equal(res.rows[0].views, 2);
+  assert.equal(res.rows[0].likes, 1);
+  assert.equal(res.rows[0].comments, 0);
+  assert.equal(res.rows[0].title, 'แท็กติดตัวไว้ ESSEAGER ครอบจักรแม่เหล็กเหนียวดึงสุด');
+});
+
+test('title cleanup strips duration + Thai abbreviated dates incl. ส.ค./เม.ย. (old regex missed them)', () => {
+  assert.equal(parser.cleanTitle('หนมชูชั้น BlueWow X110 Ultra 27W บางเฉียบ 00:29 10 ส.ค. 7:00 PM'), 'หนมชูชั้น BlueWow X110 Ultra 27W บางเฉียบ');
+  assert.equal(parser.cleanTitle('คีย์บอร์ด Logitech Wave Keys 00:24 10 เม.ย. 12:30 PM'), 'คีย์บอร์ด Logitech Wave Keys');
+  assert.equal(parser.cleanTitle('สเปกเทพ Logitech Lift 00:26 11 ก.ย. 7:00 PM'), 'สเปกเทพ Logitech Lift');
+  assert.equal(parser.cleanTitle('สเปกเทพ Logitech Lift 00:26 11 ก.ย. 7:00'), 'สเปกเทพ Logitech Lift');
+  assert.equal(parser.cleanTitle('คลิปจบ 01:05'), 'คลิปจบ');
+  assert.equal(parser.cleanTitle(''), '');
+  // "27W"/"X110" model names must survive: no colon, so never treated as time.
+  assert.equal(parser.cleanTitle('แอมป์ 27W รุ่น X110 12:30 2 ส.ค. 8:00 PM'), 'แอมป์ 27W รุ่น X110');
+});

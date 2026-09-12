@@ -38,6 +38,7 @@
 - [x] Round CALENDAR-1 — Interactive Drag-and-Drop Weekly Content Calendar (สลับมุมมอง รายการ/ปฏิทินสัปดาห์ 7 วัน + เลื่อนวันด้วย Drag-and-Drop) (2026-09-12; vitest 152 passed, build 3.14s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 - [x] Round HOOK-VAR-1 — AI Hook Variation & A/B Generator (5 สไตล์ curiosity, warning, social_proof, deal_promo, pain_point + 9:16 safe-zone preview + 1-click apply) (2026-09-12; pytest 8 passed, vitest 152 passed, build 4.08s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 - [x] Round BATCH-RENDER-1 — One-Click Batch Angle Video Render Queue (Background FIFO Worker + Live Progress + Concurrency Lock) (2026-09-12; pytest 4 passed, vitest 152 passed, build 4.46s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
+- [x] Round TIKTOK-STATS-DOMAIN-1 — แก้ซิงก์สถิติบนหน้า Studio Content + Alias 'ยอดวิว' + Manifest 0.2.0 + แข็งการจับแท็บ (2026-09-12; extension 25 passed, ดำเนินการโดย: Cline / Antigravity)
 
 ## Round TIKTOK-STATS-SCRAPE-2 (backlog) — แท็บ Performance เพิ่มลิงก์ คลิปปัง threshold + แมพ manual สำหรับ unmatched rows
 - [ ] หลังใช้งานจริง: ปุ่มจับคู่ manual ในแท็บ Performance สำหรับแถวที่ fuzzy match ไม่เจอ
