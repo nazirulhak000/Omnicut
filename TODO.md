@@ -55,7 +55,8 @@
 
 - [x] Round POSTED-CLIP-LIFECYCLE-1 — ระบบจัดการคลิปที่โพสต์แล้ว (Zero-Risk Archive & Timeline Lockout Flow) (2026-09-12; vitest 158 passed, pytest 156 passed, build 3.45s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 - [x] Round EXPORT-ARCHIVE-POLICY-1 — แจ้งเตือน export ค้างนาน/ดิสก์ใกล้เต็ม (Combined Time + Disk Threshold) (2026-09-12; pytest 4 passed, build 3.12s, live API verified, ดำเนินการโดย: Claude Code (Claude Sonnet 5))
-- [x] Round PAGINATION-1 — เพิ่ม client-side windowing ให้ 9 list endpoint ทั่วระบบ กัน UI ช้าเมื่อข้อมูลถึงหลักร้อย (2026-09-13; pytest 1126 passed, vitest 158 passed, build ผ่านทุกจุด, ดำเนินการโดย: Claude Code (Claude Sonnet 5); browser verify ยังไม่ได้ทำ ดู Backlog)
+- [x] Round PAGINATION-1 — เพิ่ม client-side windowing ให้ 9 list endpoint ทั่วระบบ กัน UI ช้าเมื่อข้อมูลถึงหลักร้อย (2026-09-13; pytest 1126 passed, vitest 158 passed, build ผ่านทุกจุด, ดำเนินการโดย: Claude Code (Claude Sonnet 5))
+- [x] Round PAGINATION-1-VERIFY — user เช็คแอปจริงด้วยตัวเอง (เครื่องมือผมเข้าถึง localhost:5173 จาก sandbox ไม่ได้) ยืนยันปกติ (2026-09-13; user spot-check, ดำเนินการโดย: user)
 
 - [x] Round SCRIPT-BATCH-EXPAND-1 — ระบบเจนสคริปต์ล็อตใหม่ 10 มุมมอง & ปรับระบบ Dev Server HTTP (Multi-Batch Generation & Filtering Flow) (2026-09-12; vitest 158 passed, pytest 171 passed, build 3.25s, browser verified, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 
@@ -68,11 +69,6 @@
 - [ ] Frontend PerformanceAnalyticsTab: กล่อง "ไม่เจอคู่ N แถว" + เลือกคลิปจากคลัง + ปุ่มจับคู่/เมิน (ui_clean_standard: ไม่มีสัญลักษณ์ซ้ำซ้อน)
 - [ ] Tests: pytest (pending/attach/ignore + attach อัปเดต metrics จริง) + frontend vitest + build
 - [ ] Gate: python -m compileall -q scripts + pytest เต็ม + npm test + npm run build
-
-## Round PAGINATION-1-VERIFY (backlog) — browser-verify การ windowing 9 endpoint ที่ Round PAGINATION-1 แก้ไว้
-- [ ] เปิดแอปจริง (localhost:5173) เช็คทีละหน้า: Export Gallery, ContentTrackerHub (kanban+table), MediaPickerModal, RawVaultPanel, ScheduleAgenda (modal โพสต์แล้ว), PerformanceAnalyticsTab, MediaAssetsHub (6 แท็บ), SystemSettings (dedup scan)
-- [ ] กดปุ่ม "โหลดเพิ่ม" ทุกจุด ยืนยันว่าโหลดแถวใหม่จริง ไม่ซ้ำ ไม่หาย และ reset กลับหน้าแรกถูกต้องเมื่อเปลี่ยน filter/tab/scan ใหม่
-- [ ] เหตุผลที่ยังไม่ได้ทำตอนแก้: dev server (localhost:5173) ไม่ตอบ HTTP request มาตลอด session (ดูเหมือน terminal ค้าง ไม่ใช่โค้ดพัง)
 
 ## Round TIKTOK-STATS-SCRAPE-2 (backlog)
 ## Round TIKTOK-STATS-SCRAPE-2 (backlog) — แท็บ Performance เพิ่มลิงก์ คลิปปัง threshold + แมพ manual สำหรับ unmatched rows

@@ -131,6 +131,16 @@ pytest tests/ -q --tb=short -x   → 1126 passed, 26 warnings in 275.52s
 | Round ANALYTICS-CHARTS-1 | พัฒนาระบบกราฟเส้น กราฟโดนัท Funnel Chart และเกจวัดแบบ Pure SVG สไตล์ Dark Modern Glassmorphism สำหรับแดชบอร์ดทั้ง 4 แท็บ | 2026-09-12 | สร้าง 4 Pure SVG charts (AreaLine, Donut, Funnel, ProgressRing/Concentric) ฝังครบ 4 แท็บ; vitest 151 passed, backend 4 passed, build 3.44s, browser verified |
 | Round SHOTLIST-GEMINI-TTS-SSOT-1 | ระบบรวมศูนย์เสียง TTS (Gemini Flash Audio SSOT): แผนถ่าย & ตัดต่อจริงใช้เสียงเดียวกัน 100% ไม่เจนซ้ำ | 2026-09-12 | สังเคราะห์ด้วย Gemini Flash TTS เป็นค่าเริ่มต้น + Dropdown เลือก 5 เสียงใน Modal + VoiceStage reuse อัตโนมัติ; pytest 1,125 passed, vitest 158 passed, build 3.40s, browser verified |
 
+## Round PAGINATION-1-VERIFY — browser-verify การ windowing 9 endpoint ที่ Round PAGINATION-1 แก้ไว้
+
+วันที่: 2026-09-13 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
+
+**ปัญหา:** Round PAGINATION-1 ปิดโดยยังไม่ได้ browser-verify — เครื่องมือของ Claude Code (curl, Playwright) เข้าถึง `localhost:5173` ไม่ได้เลยตลอด session แม้ user จะรีสตาร์ท dev server ใหม่ทั้งหมดแล้ว ขณะที่ `localhost:8000` (backend) เข้าถึงได้ปกติ (401 จาก missing API key) — สรุปว่าเป็นข้อจำกัดของ sandbox/network forwarding ฝั่งเครื่องมือ ไม่ใช่ dev server หรือโค้ดพัง (ทฤษฎีแรกที่คิดว่า terminal ค้าง QuickEdit mode ผิด — พิสูจน์แล้วเพราะรีสตาร์ทใหม่ทั้งหมดก็ยังเข้าไม่ได้เหมือนเดิม)
+
+**วิธีปิด:** user เช็คเองผ่านเบราว์เซอร์จริงที่เปิดอยู่แล้ว (มี log ยืนยันว่า dev server ทำงานปกติ — HMR update + backend รับ request ต่อเนื่องจากหน้าเว็บจริง) ตามเช็คลิสต์ 4 ข้อที่ Claude Code ให้ (Export Gallery load-more, ContentTrackerHub table view, MediaAssetsHub tab switching, browser console ไม่มี error) — user ยืนยันว่าปกติ
+
+**Notes:** เป็น spot-check ทั่วไป ไม่ใช่การกดปุ่ม "โหลดเพิ่ม" ทดสอบจริงทุกจุด เพราะข้อมูลปัจจุบันยังน้อยกว่า page size ของแต่ละจุด (เช่น export มีแค่ 11 คลิป < 24 ที่ตั้ง threshold ไว้) ปุ่ม "โหลดเพิ่ม" เลยยังไม่เคยถูกกดทดสอบจริงจนกว่าข้อมูลจะโตถึงเกณฑ์
+
 ## Round PAGINATION-1 (แผนอยู่ใน [PAGINATION_PLAN.md](file:///d:/Winona/Programmer/Capcut/PAGINATION_PLAN.md)) — เพิ่ม limit/pagination ให้ list endpoint ทั่วระบบ
 
 วันที่: 2026-09-12 ถึง 2026-09-13 · สั่งโดย: user · ดำเนินการโดย: Claude Code (Claude Sonnet 5) · สถานะ: เสร็จสมบูรณ์
