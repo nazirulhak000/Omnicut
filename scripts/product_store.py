@@ -901,6 +901,32 @@ class ProductStore:
             raise ValueError(f"ไม่พบสินค้า id '{product_id}' หรือ angle '{angle_id}'")
 
     @classmethod
+    def update_angle_voice(
+        cls,
+        product_id: str,
+        angle_id: str,
+        voice_preset: Optional[str] = None,
+        voice_engine_type: Optional[str] = None,
+        ad_tone: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Persists voice configuration for a specific script angle in a product."""
+        with cls._mutate() as products:
+            for product in products:
+                if product["id"] == product_id:
+                    for angle in product.get("angles", []):
+                        if angle.get("angle_id") == angle_id:
+                            if voice_preset is not None:
+                                angle["voice_preset"] = voice_preset
+                            if voice_engine_type is not None:
+                                angle["voice_engine_type"] = voice_engine_type
+                            if ad_tone is not None:
+                                angle["ad_tone"] = ad_tone
+                            angle["updated_at"] = cls._now()
+                            product["updated_at"] = cls._now()
+                            return product
+            raise ValueError(f"ไม่พบสินค้า id '{product_id}' หรือ angle '{angle_id}'")
+
+    @classmethod
     def set_default_videos_for_all_angles(cls, product_id: str, selected_videos: List[str]) -> Dict[str, Any]:
         """Sets default raw footage attachments for all script angles belonging to this product."""
         rel_videos = [_to_relative(v) for v in selected_videos]

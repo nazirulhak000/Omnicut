@@ -1083,11 +1083,18 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     }
   };
 
-  const runShotListGeneration = async (targetProduct, targetAngle) => {
+  const runShotListGeneration = async (targetProduct, targetAngle, voiceOverrides = {}) => {
     if (!targetProduct?.id || !targetAngle?.angle_id) return;
     setIsGeneratingShotList(true);
     try {
-      const res = await generateShotList(targetProduct.id, targetAngle.angle_id);
+      const overrides = {
+        voice_engine_type: 'gemini_tts',
+        voice_preset: targetAngle.voice_preset || 'gemini_kore_female_bright',
+        voice_rate: '+15%',
+        ad_tone: targetAngle.ad_tone || 'commercial_premium',
+        ...voiceOverrides,
+      };
+      const res = await generateShotList(targetProduct.id, targetAngle.angle_id, overrides);
       if (!res.success || !res.task_id) {
         showToast('ไม่สามารถเริ่มสร้างแผนถ่ายได้', 'error');
         return;
@@ -1109,8 +1116,9 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
         showToast('สร้างแผนถ่ายใช้เวลานานเกินไป กรุณาลองใหม่', 'error');
         return;
       }
-      setShotListResult({ angle: targetAngle, ...result });
-      setShotListModalAngle({ product: targetProduct, angle: targetAngle });
+      const updatedAngle = { ...targetAngle, voice_preset: overrides.voice_preset };
+      setShotListResult({ angle: updatedAngle, ...result });
+      setShotListModalAngle({ product: targetProduct, angle: updatedAngle });
     } catch (err) {
       console.error('Failed to generate shot list:', err);
       showToast('ไม่สามารถสร้างแผนถ่ายได้: ' + (err.friendlyMessage || err.message), 'error');
@@ -1135,9 +1143,9 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     }
   };
 
-  const handleRegenerateShotList = () => {
+  const handleRegenerateShotList = (overrides = {}) => {
     if (!shotListModalAngle?.product || !shotListModalAngle?.angle) return;
-    runShotListGeneration(shotListModalAngle.product, shotListModalAngle.angle);
+    runShotListGeneration(shotListModalAngle.product, shotListModalAngle.angle, overrides);
   };
 
   const scrollToPhaseColumn = (phaseId) => {

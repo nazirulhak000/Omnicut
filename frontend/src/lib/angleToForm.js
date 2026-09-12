@@ -51,6 +51,8 @@ export function angleToForm(angle, context = {}) {
     priceDeal: angle.price_deal || context.price_note || '',
   };
   if (angle.ad_tone) patch.adTone = angle.ad_tone;
+  if (angle.voice_preset) patch.voicePreset = angle.voice_preset;
+  if (angle.voice_mode) patch.voiceMode = angle.voice_mode;
 
   const angleVideos = angle.selected_videos || (angle.selected_video ? [angle.selected_video] : []);
   if (angleVideos.length > 0) {

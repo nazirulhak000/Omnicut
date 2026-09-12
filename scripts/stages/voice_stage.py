@@ -5,6 +5,7 @@ Edge-TTS synthesis, acoustic waveform alignment, and cue timing generation.
 """
 
 import time
+import shutil
 import subprocess
 from pathlib import Path
 from typing import List, Dict, Any, Tuple
@@ -304,6 +305,42 @@ class VoiceStage:
         voice_engine_used = ctx.voice_engine_type
         script_data = ctx.script_data or {"lines": []}
 
+        # Check for Shot List audio reuse (SSOT) -- only for real video projects,
+        # not when shot_list_builder itself is running.
+        is_shot_list_job = (ctx.project_name or "").startswith("_ShotLists_")
+        shot_list_record = None
+        if not is_shot_list_job and not ctx.human_voice_audio_path:
+            p_id = ctx.product_id
+            a_id = ctx.angle_id
+            if not (p_id and a_id) and ctx.shot_list_id and ":" in ctx.shot_list_id:
+                parts = ctx.shot_list_id.split(":", 1)
+                p_id, a_id = parts[0], parts[1]
+            if p_id and a_id:
+                try:
+                    from scripts.shot_lists_store import ShotListsStore
+                    rec = ShotListsStore.get(p_id, a_id)
+                    if rec and rec.get("voice_audio_path"):
+                        audio_p = Path(rec["voice_audio_path"])
+                        if audio_p.exists() and audio_p.stat().st_size > 0:
+                            recorded_preset = (rec.get("voice_params") or {}).get("voice_preset")
+                            recorded_engine = (rec.get("voice_params") or {}).get("voice_engine_type")
+                            # If the caller explicitly requested a different voice preset in Studio,
+                            # synthesize the newly requested voice instead of forcing the old one.
+                            # When voice_preset matches (or both are default/omitted), reuse the shot list audio.
+                            preset_matches = not ctx.voice_preset or not recorded_preset or (ctx.voice_preset == recorded_preset)
+                            engine_matches = (
+                                not ctx.voice_engine_type
+                                or not recorded_engine
+                                or (ctx.voice_engine_type == recorded_engine)
+                                or (preset_matches and bool(recorded_preset))
+                            )
+                            if preset_matches and engine_matches:
+                                shot_list_record = rec
+                            else:
+                                print(f"[VoiceStage] Voice preset requested ({ctx.voice_preset}) differs from shot list ({recorded_preset}) -- will synthesize newly chosen voice.")
+                except Exception as e:
+                    print(f"[VoiceStage] Note: Could not check shot list store: {e}")
+
         if not ctx.should_run("voice"):
             if not ctx.manifest:
                 raise ValueError("Cannot reuse voice without manifest")
@@ -345,6 +382,17 @@ class VoiceStage:
             )
             beat_cues = cues  # split_items above is already 1:1 with script lines
             print(f"   Human voice loaded! Duration: {total_duration:.2f}s, Cues synced: {len(cues)}")
+
+        elif shot_list_record:
+            voice_audio_path = ctx.out_path("voiceover", ".wav")
+            ctx.notify("♻️ [2/5] ใช้เสียงพากย์จริงจากแผนถ่าย (ประหยัดเวลาและโควต้า)...", 0.25)
+            src_audio = Path(shot_list_record["voice_audio_path"])
+            shutil.copy2(str(src_audio), str(voice_audio_path))
+            total_duration = shot_list_record.get("total_duration") or _probe_audio_duration(voice_audio_path)
+            cues = shot_list_record.get("cues") or shot_list_record.get("beat_cues") or []
+            beat_cues = shot_list_record.get("beat_cues") or cues
+            voice_engine_used = (shot_list_record.get("voice_params") or {}).get("voice_engine_type") or "gemini_tts"
+            print(f"\n♻️  [2/5] Reusing voiceover from Shot List: {src_audio.name} ({total_duration:.2f}s) - zero re-synthesis needed!")
 
         elif ctx.voice_engine_type == "gemini_tts":
             ctx.notify("⚡ [2/5] กำลังสังเคราะห์เสียงพากย์ด้วย Google Gemini Flash TTS...", 0.25)

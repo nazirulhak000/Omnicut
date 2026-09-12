@@ -1,8 +1,16 @@
-import { useState } from 'react';
-import { AlertTriangle, Camera, Clapperboard, Clock, ExternalLink, Film, Loader2, QrCode, RotateCw } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { AlertTriangle, Camera, Clapperboard, Clock, ExternalLink, Film, Loader2, Mic, QrCode, RotateCw, Sparkles } from 'lucide-react';
 import { Modal, Badge, SafeQRCode } from './ui';
 import { toMediaUrl } from '../lib/mediaUrl';
 import { createRecordingSession } from '../api';
+
+const GEMINI_VOICE_OPTIONS = [
+  { id: 'gemini_kore_female_bright', label: 'Kore — หญิงสดใส ป้ายยาเก่ง' },
+  { id: 'gemini_puck_male_hype', label: 'Puck — ชายพลังสูง สไตล์ TikTok' },
+  { id: 'gemini_charon_male_pro', label: 'Charon — ชายทุ้มลึก น่าเชื่อถือ' },
+  { id: 'gemini_aoede_female_pro', label: 'Aoede — หญิงพรีเมียม นุ่มนวล' },
+  { id: 'gemini_fenrir_male_strong', label: 'Fenrir — ชายสตรอง คมเข้ม' },
+];
 
 const ROLE_LABELS = {
   hook: { label: 'Hook', variant: 'rose' },
@@ -34,8 +42,28 @@ export default function ShotListModal({
   const [filmingUrl, setFilmingUrl] = useState(null);
   const [sessionError, setSessionError] = useState(null);
 
+  const activeVoicePreset = result?.voice_params?.voice_preset || result?.angle?.voice_preset || 'gemini_kore_female_bright';
+  const [selectedVoice, setSelectedVoice] = useState(activeVoicePreset);
+
+  useEffect(() => {
+    if (result?.voice_params?.voice_preset) {
+      setSelectedVoice(result.voice_params.voice_preset);
+    } else if (result?.angle?.voice_preset) {
+      setSelectedVoice(result.angle.voice_preset);
+    }
+  }, [result?.voice_params?.voice_preset, result?.angle?.voice_preset]);
+
   if (!result) return null;
   const { angle, shot_list: shotList = [], voice_audio_path: voiceAudioPath, total_duration: totalDuration } = result;
+
+  const handleTriggerRegenerate = () => {
+    onRegenerate?.({
+      voice_engine_type: 'gemini_tts',
+      voice_preset: selectedVoice,
+      voice_rate: '+15%',
+      ad_tone: 'commercial_premium',
+    });
+  };
 
   const handleStartSession = async () => {
     if (!productId || !angle?.angle_id) return;
@@ -57,29 +85,44 @@ export default function ShotListModal({
     onClose?.();
   };
 
+  const currentVoiceOption = GEMINI_VOICE_OPTIONS.find((v) => v.id === selectedVoice) || GEMINI_VOICE_OPTIONS[0];
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
       title={`แผนถ่าย: ${angle?.angle_name || ''}`}
-      subtitle={`${shotList.length} ช็อต · ยาวรวม ${formatSeconds(totalDuration)} (จากจังหวะเสียงพากย์จริง)`}
+      subtitle={`${shotList.length} ช็อต · ยาวรวม ${formatSeconds(totalDuration)} (จากจังหวะเสียง Gemini TTS จริง)`}
       maxWidth="max-w-3xl"
     >
       <div className="space-y-4">
         {onRegenerate && (
-          <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08]">
-            <span className="text-xs text-slate-400">
-              ต้องการคำนวณจังหวะและคำแนะนำการถ่ายตามบทล่าสุดใหม่?
-            </span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.08]">
+            <div className="flex items-center gap-2">
+              <Mic className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+              <span className="text-xs text-slate-300 font-medium">เสียงพากย์ Gemini TTS:</span>
+              <select
+                value={selectedVoice}
+                onChange={(e) => setSelectedVoice(e.target.value)}
+                disabled={regenerating}
+                className="bg-[#0f172a] border border-white/10 rounded-lg px-2.5 py-1 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+              >
+                {GEMINI_VOICE_OPTIONS.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             <button
               type="button"
-              onClick={onRegenerate}
+              onClick={handleTriggerRegenerate}
               disabled={regenerating}
-              title="สังเคราะห์เสียงพากย์และคำนวณจังหวะ beat ใหม่ทั้งหมด"
-              className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/30 text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-wait transition-all"
+              title="สังเคราะห์เสียงพากย์ Gemini Flash และคำนวณจังหวะ beat ใหม่"
+              className="px-3 py-1.5 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-500/30 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-wait transition-all whitespace-nowrap"
             >
               {regenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCw className="w-3.5 h-3.5" />}
-              <span>{regenerating ? 'กำลังสร้าง...' : 'สร้างแผนถ่ายใหม่'}</span>
+              <span>{regenerating ? 'กำลังสร้าง...' : 'สร้างใหม่ด้วยเสียงนี้'}</span>
             </button>
           </div>
         )}
@@ -95,7 +138,7 @@ export default function ShotListModal({
             {onRegenerate && (
               <button
                 type="button"
-                onClick={onRegenerate}
+                onClick={handleTriggerRegenerate}
                 disabled={regenerating}
                 className="px-2.5 py-1 rounded-lg bg-rose-500/30 hover:bg-rose-500/40 text-rose-100 text-xs font-bold whitespace-nowrap cursor-pointer transition-all border border-rose-400/40"
               >
@@ -107,9 +150,14 @@ export default function ShotListModal({
 
         {voiceAudioPath && (
           <div className="p-3 rounded-xl bg-white/[0.05] border border-white/[0.08] space-y-1.5">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5" /> เสียงนำถ่าย (guide track) — เปิดฟังคลอตอนถ่ายได้เลย
-            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5" /> เสียงนำถ่าย (GUIDE TRACK) — เปิดฟังคลอตอนถ่ายได้เลย
+              </span>
+              <span className="text-[10px] text-indigo-300 font-medium bg-indigo-500/15 px-2 py-0.5 rounded-full border border-indigo-500/20">
+                Gemini: {currentVoiceOption.label.split('—')[0].trim()}
+              </span>
+            </div>
             <audio controls className="w-full h-9" src={toMediaUrl(voiceAudioPath)} />
           </div>
         )}

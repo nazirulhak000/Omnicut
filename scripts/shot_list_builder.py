@@ -227,6 +227,11 @@ def generate_shot_list_for_angle(
     project_dir = PROJECTS_DIR / "_ShotLists" / f"{product_id}_{angle_id}"
     project_dir.mkdir(parents=True, exist_ok=True)
 
+    voice_engine_type = voice_overrides.get("voice_engine_type") or angle.get("voice_engine_type") or "gemini_tts"
+    voice_preset = voice_overrides.get("voice_preset") or angle.get("voice_preset") or "gemini_kore_female_bright"
+    voice_rate = voice_overrides.get("voice_rate") or angle.get("voice_rate") or "+15%"
+    ad_tone = voice_overrides.get("ad_tone") or angle.get("ad_tone") or "commercial_premium"
+
     ctx = PipelineContext(
         product_name=product_name,
         raw_video_path="",
@@ -234,10 +239,10 @@ def generate_shot_list_for_angle(
         custom_script=custom_script,
         script_overlays=None,
         voice=voice_overrides.get("voice") or DEFAULT_VOICE,
-        voice_rate=voice_overrides.get("voice_rate") or DEFAULT_VOICE_RATE,
-        voice_engine_type=voice_overrides.get("voice_engine_type") or "edge_tts",
-        voice_preset=voice_overrides.get("voice_preset"),
-        ad_tone=voice_overrides.get("ad_tone") or "commercial_premium",
+        voice_rate=voice_rate,
+        voice_engine_type=voice_engine_type,
+        voice_preset=voice_preset,
+        ad_tone=ad_tone,
         angle_meta=angle,
         product_meta=product,
         product_id=product_id,
@@ -262,12 +267,24 @@ def generate_shot_list_for_angle(
         "product_name": product_name,
         "shot_list": shot_list,
         "voice_audio_path": str(ctx.voice_audio_path),
+        "cues": ctx.cues,
         "beat_cues": ctx.beat_cues,
         "custom_script": custom_script,
         "voice_params": {key: getattr(ctx, key) for key in _VOICE_OVERRIDE_KEYS},
         "total_duration": ctx.total_duration,
     }
     ShotListsStore.upsert(record)
+
+    try:
+        ProductStore.update_angle_voice(
+            product_id,
+            angle_id,
+            voice_preset=voice_preset,
+            voice_engine_type=voice_engine_type,
+            ad_tone=ad_tone,
+        )
+    except Exception as update_err:
+        print(f"[ShotList] Note: Could not update angle with voice settings: {update_err}")
 
     return {
         "shot_list": shot_list,

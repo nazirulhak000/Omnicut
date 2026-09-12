@@ -2046,10 +2046,17 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   // (via the modal's "สร้างใหม่" action) -- never as the default click
   // behavior, since re-running this re-synthesizes the voiceover from
   // scratch every time.
-  const runShotListGeneration = async (angleIdx, targetAngle) => {
+  const runShotListGeneration = async (angleIdx, targetAngle, voiceOverrides = {}) => {
     setGeneratingShotListIdx(angleIdx);
     try {
-      const res = await generateShotList(productData.id, targetAngle.angle_id);
+      const overrides = {
+        voice_engine_type: 'gemini_tts',
+        voice_preset: targetAngle.voice_preset || 'gemini_kore_female_bright',
+        voice_rate: '+15%',
+        ad_tone: targetAngle.ad_tone || 'commercial_premium',
+        ...voiceOverrides,
+      };
+      const res = await generateShotList(productData.id, targetAngle.angle_id, overrides);
       if (!res.success || !res.task_id) {
         showToast('ไม่สามารถเริ่มสร้างแผนถ่ายได้', 'error');
         return;
@@ -2074,7 +2081,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         showToast('สร้างแผนถ่ายใช้เวลานานเกินไป กรุณาลองใหม่', 'error');
         return;
       }
-      setShotListResult({ angle: targetAngle, ...result });
+      const updatedAngle = { ...targetAngle, voice_preset: overrides.voice_preset };
+      setShotListResult({ angle: updatedAngle, ...result });
       setShotListAngleIdx(angleIdx);
       // Refresh sidebar shot-list badges after generation
       if (productData?.id) getShotListStatus(productData.id).then(res => setShotListStatusMap(res.status || {})).catch(() => {});
@@ -2106,11 +2114,11 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     }
   };
 
-  const handleRegenerateShotList = () => {
+  const handleRegenerateShotList = (overrides = {}) => {
     if (shotListAngleIdx === null) return;
     const targetAngle = angles[shotListAngleIdx];
     if (!targetAngle?.angle_id) return;
-    runShotListGeneration(shotListAngleIdx, targetAngle);
+    runShotListGeneration(shotListAngleIdx, targetAngle, overrides);
   };
 
   const handleDeleteHistory = (target) => {
@@ -2601,6 +2609,10 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       painPoint: angle.pain_point || '',
       priceDeal: angle.price_deal || productData?.price_note || '',
       adTone: angle.ad_tone || 'commercial_premium',
+      voicePreset: angle.voice_preset || 'gemini_kore_female_bright',
+      voiceMode: 'gemini_tts',
+      voiceSpeed: '+15%',
+      shotListId: `${productData?.id}:${angle.angle_id}`,
       selectedVideo: primaryVideo,
       selectedVideos: chosenVideos,
       // No openProjectName here on purpose -- this handler backs both

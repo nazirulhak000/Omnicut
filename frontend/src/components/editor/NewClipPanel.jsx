@@ -179,16 +179,31 @@ export default function NewClipPanel({
   // cues drive the proportional split), so no need to hold onto the fetched
   // shot list content here, only whether one exists.
   const [shotListAvailable, setShotListAvailable] = useState(false);
+  const [shotListRecord, setShotListRecord] = useState(null);
   useEffect(() => {
     const pid = productContext?.id;
     const aid = currentAngle?.angle_id;
-    if (!pid || !aid) { setShotListAvailable(false); return; }
+    if (!pid || !aid) { setShotListAvailable(false); setShotListRecord(null); return; }
     let mounted = true;
     getShotList(pid, aid)
-      .then(() => { if (mounted) setShotListAvailable(true); })
-      .catch(() => { if (mounted) setShotListAvailable(false); });
+      .then((res) => {
+        if (mounted) {
+          setShotListAvailable(true);
+          setShotListRecord(res);
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setShotListAvailable(false);
+          setShotListRecord(null);
+        }
+      });
     return () => { mounted = false; };
   }, [productContext?.id, currentAngle?.angle_id]);
+
+  const hasShotListAudio = shotListAvailable && !!shotListRecord?.voice_audio_path;
+  const shotListVoicePreset = shotListRecord?.voice_params?.voice_preset;
+  const isVoiceReused = hasShotListAudio && (!shotListVoicePreset || shotListVoicePreset === form.voicePreset);
 
   useEffect(() => {
     const next = angleToForm(angles[angleIndex], productContext || {});
@@ -593,7 +608,19 @@ export default function NewClipPanel({
                       </span>
                       <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/[0.06] border border-white/[0.08] text-slate-400 flex-shrink-0">เลือก</span>
                     </button>
-                    <p className="mt-1 text-[10px] text-slate-500">โทน: {AD_TONES.find(t => t.id === (form.adTone || 'commercial_premium'))?.label || '—'}</p>
+                    {isVoiceReused ? (
+                      <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-emerald-300 font-medium bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
+                        <Check className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                        <span>มีไฟล์เสียงพร้อมใช้จากแผนถ่าย (จะไม่เจนซ้ำ)</span>
+                      </div>
+                    ) : hasShotListAudio ? (
+                      <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-amber-300 font-medium bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                        <span>เลือกเสียงต่างจากแผนถ่าย: จะสังเคราะห์เสียงใหม่</span>
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-[10px] text-slate-500">โทน: {AD_TONES.find(t => t.id === (form.adTone || 'commercial_premium'))?.label || '—'}</p>
+                    )}
                   </label>
 
                   {/* Subtitle Font */}
@@ -866,6 +893,19 @@ export default function NewClipPanel({
                   <span className="text-slate-400">3. สคริปต์บทพากย์:</span>
                   <span className={form.customScript ? 'text-emerald-400 font-medium' : 'text-amber-400 font-medium'}>
                     {form.customScript ? `${form.customScript.length} ตัวอักษร` : 'ยังไม่มีบท'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between p-2 rounded-lg bg-black/40 border border-white/[0.04]">
+                  <span className="text-slate-400">4. เสียงพากย์ AI:</span>
+                  <span className={isVoiceReused ? 'text-emerald-400 font-medium flex items-center gap-1' : 'text-slate-300 font-medium'}>
+                    {isVoiceReused ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>พร้อมใช้ (ไม่เจนซ้ำ)</span>
+                      </>
+                    ) : (
+                      <span>จะสังเคราะห์ใหม่ ({VOICE_PRESETS.find(v => v.id === form.voicePreset)?.label?.split('—')[0]?.trim() || 'Gemini'})</span>
+                    )}
                   </span>
                 </div>
               </div>

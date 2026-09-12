@@ -49,6 +49,32 @@
 | Round ANALYTICS-CHARTS-POLISH-1 | ปรับขนาดและจัดระเบียบเลย์เอาท์กราฟใน Analytics Hub ให้กระชับ สวยงาม พอดีสายตา ไม่ใหญ่เกินจำเป็น | 2026-09-12 | กราฟเส้น 800x130 widescreen, โดนัท top 4 + อื่นๆ พร้อม label ไม่หาย, TokenDashboard models/tasks จัดแบบ side-by-side; frontend 151 passed, build 3.25s, browser verified |
 | Round USER-GUIDE-4 | คู่มือ interactive 6 ฟีเจอร์ (sticky TOC, เช็กลิสต์ติ๊กได้, accordion, ปุ่มลัด, FAQ ค้นหา) | 2026-09-12 | ไม่เปลี่ยนข้อความ/สี/ลำดับ; frontend 151 passed, build 4.22s |
 | Round ANALYTICS-CHARTS-1 | พัฒนาระบบกราฟเส้น กราฟโดนัท Funnel Chart และเกจวัดแบบ Pure SVG สไตล์ Dark Modern Glassmorphism สำหรับแดชบอร์ดทั้ง 4 แท็บ | 2026-09-12 | สร้าง 4 Pure SVG charts (AreaLine, Donut, Funnel, ProgressRing/Concentric) ฝังครบ 4 แท็บ; vitest 151 passed, backend 4 passed, build 3.44s, browser verified |
+| Round SHOTLIST-GEMINI-TTS-SSOT-1 | ระบบรวมศูนย์เสียง TTS (Gemini Flash Audio SSOT): แผนถ่าย & ตัดต่อจริงใช้เสียงเดียวกัน 100% ไม่เจนซ้ำ | 2026-09-12 | สังเคราะห์ด้วย Gemini Flash TTS เป็นค่าเริ่มต้น + Dropdown เลือก 5 เสียงใน Modal + VoiceStage reuse อัตโนมัติ; pytest 1,125 passed, vitest 158 passed, build 3.40s, browser verified |
+
+## Round SHOTLIST-GEMINI-TTS-SSOT-1 — ระบบรวมศูนย์เสียง TTS (Gemini Flash Audio SSOT): แผนถ่าย & ตัดต่อจริงใช้เสียงเดียวกัน 100% ไม่เจนซ้ำ
+
+วันที่: 2026-09-12 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** รวมศูนย์ระบบสังเคราะห์เสียงพากย์ด้วย Google Gemini Flash TTS ระหว่างหน้าแผนถ่าย (Shot List) และหน้าตัดต่อ (Studio Editor / Render Pipeline) ให้เป็นไฟล์เสียงเดียวกันแบบ Single Source of Truth (SSOT) ลดขั้นตอนการเจนเสียงซ้ำซ้อน ประหยัดโควต้าโทเคนและเวลาเรนเดอร์ พร้อมให้ผู้ใช้สามารถเลือกเสียงพากย์ Gemini ได้จากใน Modal แผนถ่ายทันที
+
+### สิ่งที่ทำ
+1. **Backend SSOT Audio Reuse:**
+   - ปรับ `scripts/shot_list_builder.py` ให้ใช้ `gemini_tts` เป็นค่าเริ่มต้น (+15% rate, commercial_premium, voice_preset: `gemini_kore_female_bright`)
+   - บันทึกทั้ง `cues` และ `beat_cues` ลง `ShotListsStore`
+   - เพิ่มเมธอด `ProductStore.update_angle_voice` ใน `scripts/product_store.py` เพื่อจำค่าเสียงพากย์ที่เลือกไว้ลงในการ์ดมุมสคริปต์
+   - ใน `scripts/stages/voice_stage.py`: เพิ่มระบบตรวจจับไฟล์เสียงจากแผนถ่าย (`ShotListsStore`) หากมีอยู่แล้ว จะคัดลอกไฟล์เสียงเข้าโปรเจกต์ Studio และนำ `beat_cues` มาใช้งานทันที พร้อมข้ามการเรียก API สังเคราะห์เสียงซ้ำ (Zero redundant API calls)
+2. **Frontend Gemini Voice Selector:**
+   - ใน `frontend/src/components/ShotListModal.jsx`: เพิ่ม Dropdown เลือกเสียง Gemini TTS (Kore, Puck, Charon, Aoede, Fenrir) พร้อมปุ่ม "สร้างใหม่ด้วยเสียงนี้" ที่สวยงาม คลีน ตามกฎ Rule 8 (UI Clean Standard)
+   - ปรับปรุงการเชื่อมโยงใน `frontend/src/components/ProductToClip.jsx` และ `frontend/src/components/ContentTrackerHub.jsx` ให้ส่ง voice overrides และส่งต่อ `voice_preset` ไปยัง Studio
+   - ใน `frontend/src/lib/angleToForm.js`: ส่งต่อ `voice_preset` และ `voice_mode` เข้าฟอร์มของ NewClipPanel อัตโนมัติ
+
+### Gate & Verification Results:
+- [x] Backend Unit Tests: `tests/test_shot_list_enhancements.py` — 7/7 passed (รวม test cases ใหม่ของ Gemini TTS defaults และ VoiceStage reuse)
+- [x] Full Backend Pytest Suite: 1,125 passed, 0 failed
+- [x] Frontend Vitest Suite: 158/158 passed
+- [x] Frontend Production Build: `npm run build` สำเร็จ 100% ใน 3.40 วินาที
+- [x] Python Compilation: `python -m compileall -q scripts` ผ่าน 100% ปราศจากข้อผิดพลาด
+- [x] Browser UI Verification: ตรวจสอบผ่าน Browser Subagent ยืนยันการแสดงผล Dropdown เสียง Gemini, ปุ่มแอ็กชัน และ Guide Track Audio Player ถูกต้องสวยงาม 100%
 
 ## Round SCRIPT-BATCH-EXPAND-1 — ระบบเจนสคริปต์ล็อตใหม่ 10 มุมมอง & ปรับระบบ Dev Server HTTP (Multi-Batch Generation & Filtering Flow)
 
