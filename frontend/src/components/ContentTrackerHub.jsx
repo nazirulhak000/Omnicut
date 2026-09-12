@@ -22,6 +22,7 @@ import { guessBrandModel } from '../lib/overlayModel';
 import { applyCoverResult, getCoverVariant, mergeCoverMetadata } from '../lib/coverVariant';
 import { withEditorProjectAction } from '../lib/editorEntry';
 import { localParts } from '../lib/scheduleQueue';
+import { getRelativeTime, formatFullDateTime } from '../lib/dateUtils';
 
 // 4 Granular Pipeline Phases (Original Vibrant & Readable Palette)
 const PIPELINE_PHASES = [
@@ -518,15 +519,32 @@ const KanbanCard = memo(function KanbanCard({
               )}
 
               {phaseId === 'in_production' && (
-                <button
-                  onClick={() => onSendToStudio(ang.parentProduct, ang, -1, { openExisting: true })}
-                  className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-95 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-sm flex-shrink-0"
-                  title={ang.project_name ? `เปิดไทม์ไลน์ของมุมนี้ (${ang.project_name})` : "เปิดทำต่อในหน้าตัดต่อ"}
-                >
-                  <Clapperboard className="w-3.5 h-3.5" />
-                  <span>{ang.project_name ? 'เปิดไทม์ไลน์' : 'ไปหน้าตัดต่อ'}</span>
-                  <ArrowRight className="w-3 h-3" />
-                </button>
+                <>
+                  <button
+                    onClick={() => onSendToStudio(ang.parentProduct, ang, -1, { openExisting: true })}
+                    className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-95 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-sm flex-shrink-0"
+                    title={ang.project_name ? `เปิดไทม์ไลน์ของมุมนี้ (${ang.project_name})` : "เปิดทำต่อในหน้าตัดต่อ"}
+                  >
+                    <Clapperboard className="w-3.5 h-3.5" />
+                    <span>{ang.project_name ? 'เปิดไทม์ไลน์' : 'ไปหน้าตัดต่อ'}</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </button>
+                  {(() => {
+                    const updatedAt = ang.status_updated_at || ang.updated_at || ang.parentProduct?.updated_at;
+                    if (!updatedAt) return null;
+                    const rel = getRelativeTime(updatedAt);
+                    if (!rel) return null;
+                    return (
+                      <span
+                        className="text-[11px] text-slate-400 flex items-center gap-1 font-normal truncate ml-1 select-none"
+                        title={formatFullDateTime(updatedAt)}
+                      >
+                        <Clock className="w-3 h-3 text-slate-500 flex-shrink-0" />
+                        <span className="truncate">{rel}</span>
+                      </span>
+                    );
+                  })()}
+                </>
               )}
 
 

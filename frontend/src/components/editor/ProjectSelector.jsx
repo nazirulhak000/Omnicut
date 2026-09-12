@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, CircleDot, FileEdit, Rocket, Trash2 } from 'lucide-react';
 import { getProducts } from '../../api';
 import { filterActiveProjects } from '../../lib/editorEntry';
+import { getRelativeTime, formatFullDateTime } from '../../lib/dateUtils';
 
 const STATUS_LABEL = {
   scripted: 'ร่างสคริปต์',
@@ -154,9 +155,19 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
                 <StatusIcon className={`h-4 w-4 flex-shrink-0 ${style.icon_color}`} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-bold text-white">{p.project_name}</span>
-                  {p.status && (
-                    <span className={`block text-xs font-semibold ${style.label_color}`}>{STATUS_LABEL[p.status] || p.status}</span>
-                  )}
+                  <span className="flex items-center gap-1.5 text-xs">
+                    {p.status && (
+                      <span className={`font-semibold ${style.label_color}`}>{STATUS_LABEL[p.status] || p.status}</span>
+                    )}
+                    {p.updated_at && (
+                      <span
+                        className="text-slate-400 font-normal truncate"
+                        title={formatFullDateTime(p.updated_at)}
+                      >
+                        {p.status ? `· ${getRelativeTime(p.updated_at)}` : getRelativeTime(p.updated_at)}
+                      </span>
+                    )}
+                  </span>
                 </span>
               </button>
               <button

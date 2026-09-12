@@ -45,18 +45,10 @@
 
 - [x] Round UI-POLISH-HEADER-1 — แก้ฟอนต์กล่องแดง Topbar (ถอด font-mono) + ตัด 2 Badge สินค้า + ขยายหัวข้อสินค้าเน้นๆ ใหญ่ๆ (2026-09-12; vitest 152 passed, build 3.49s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 
-## Round SHOT-GAP-FIX-1 — แก้ช่องว่าง (Gap) ระหว่างช็อตใน Shot Matching Stage
+- [x] Round SHOT-GAP-FIX-1 — แก้ช่องว่าง (Gap) ระหว่างช็อตใน Shot Matching Stage + 2-pass merge ป้องกันคลิปสั้นกระตุก (2026-09-13; pytest 1126 passed, ดำเนินการโดย: Antigravity (Claude Sonnet 4.6))
 
-**วันที่:** 2026-09-12 · **Agent:** Antigravity (Claude Sonnet 4.6) · **สถานะ:** กำลังดำเนินการ
+- [x] Round UI-LAST-UPDATED-TIMESTAMP-1 — แสดงวันที่และเวลาอัปเดตล่าสุด (Relative + Full Tooltip) ใน Dropdown ไทม์ไลน์ และบนการ์ด Tracker (2026-09-13; npm test 170 passed, build 3.92s, browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 
-**Root Cause ที่ค้นพบ:**
-1. `cut_points[0] = 0.0` (hardcoded) แทนที่จะเป็น `active_cues[0].start` — ทำให้ shot แรกเริ่มเร็วกว่าเสียงจริง (เช่น 0.23s) ส่งผลให้ clip แรกมีช่วงเงียบ
-2. MERGE_TOLERANCE 1.15 × MAX_SHOT_DURATION=2.5 = 2.875s ใช้ไม่ได้จริง — กลุ่มสั้นมาก (เช่น `นะครับ` 0.491s) ถูกขนาบด้วยกลุ่มยาว 2.5+ วิ ทำให้ไม่สามารถ merge ได้ และกลายเป็น shot 0.491s ที่ไม่ควรเกิด
-
-**แผนแก้ไข:**
-- [ ] แก้ `cut_points = [0.0]` → `cut_points = [float(active_cues[0].get("start", 0.0))]` ใน `scripts/stages/shot_matching_stage.py` line 318
-- [ ] แก้ MERGE_TOLERANCE ให้ force-merge กลุ่มที่สั้นมาก (< MIN_SHOT_DURATION * 0.5 = 0.75s) แม้ผลรวมจะเกิน MAX_SHOT_DURATION — เพราะดีกว่ามีช็อตที่สั้นกว่า MIN
-- [ ] Gate: python -m compileall -q scripts + pytest (ไม่แตะ vitest/build เพราะเป็น backend pure)
 - [x] Round UI-FONT-HARMONY-1 — ปรับความสอดคล้องของฟอนต์ UI ทั้งระบบตาม Global UI Font (ปราศจาก Encoding Mojibake) (2026-09-12; vitest 152 passed, build 4.57s, pytest parity 153 passed, browser verified, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 
 - [x] Round UI-FONT-MONO-CLEAN-1 — กวาดล้าง font-mono ที่ครอบข้อความภาษาไทย/การ์ด KPI ทั่วทั้งระบบให้เป็นฟอนต์กลาง 100% (2026-09-12; vitest 152 passed, build 3.31s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
