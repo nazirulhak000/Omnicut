@@ -8,7 +8,7 @@
 
 ## สารบัญ
 
-| Round TIKTOK-STATS-DOMAIN-1 | แก้ซิงก์สถิติตาราง Studio + คอลัมน์ 'ยอดวิว' + Manifest 0.2.0 + แข็งการตรวจจับแท็บ | 2026-09-12 | สำเร็จสมบูรณ์ (alias ยอดวิว, regex เดือน ส.ค./เม.ย., build tag 0.2.0, extension tests 25 passed, ดำเนินการโดย: Cline / Antigravity) |
+| Round TIKTOK-STATS-DOMAIN-1 | แก้ซิงก์สถิติตาราง Studio + คอลัมน์ 'ยอดวิว' + Manifest 0.2.0 + แข็งการตรวจจับแท็บ | 2026-09-12 | สำเร็จสมบูรณ์ (alias ยอดวิว, regex เดือน ส.ค./เม.ย., build tag 0.2.0, extension tests 28 passed, ดำเนินการโดย: Cline / Antigravity) |
 | Round BATCH-RENDER-1 | One-Click Batch Angle Video Render Queue (Background FIFO Worker + Live Overall Progress + Concurrency Lock) | 2026-09-12 | สำเร็จสมบูรณ์ (คิวเรนเดอร์หลายมุมมอง background worker, auto-retry, TaskManager progress, pytest 4 passed, vitest 152 passed, build 4.46s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round HOOK-VAR-1 | AI Hook Variation & A/B Generator (5 marketing styles + 9:16 Safe Zone Preview + 1-Click Apply) | 2026-09-12 | สำเร็จสมบูรณ์ (5 สไตล์ curiosity, warning, social_proof, deal_promo, pain_point + offline fallback + safe-zone preview + pytest 8 passed, vitest 152 passed, build 4.08s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round AGENT-ATTRIB-1 | บังคับระบุ Agent Tooling & AI Model ในประวัติงาน (Rule 14 ใน AGENTS.md และ work_loop.md) | 2026-09-12 | สำเร็จสมบูรณ์ (กำหนดมาตรฐานความรับผิดชอบในการติดตามงาน) |
@@ -41,6 +41,30 @@
 | Round ANALYTICS-CHARTS-POLISH-1 | ปรับขนาดและจัดระเบียบเลย์เอาท์กราฟใน Analytics Hub ให้กระชับ สวยงาม พอดีสายตา ไม่ใหญ่เกินจำเป็น | 2026-09-12 | กราฟเส้น 800x130 widescreen, โดนัท top 4 + อื่นๆ พร้อม label ไม่หาย, TokenDashboard models/tasks จัดแบบ side-by-side; frontend 151 passed, build 3.25s, browser verified |
 | Round USER-GUIDE-4 | คู่มือ interactive 6 ฟีเจอร์ (sticky TOC, เช็กลิสต์ติ๊กได้, accordion, ปุ่มลัด, FAQ ค้นหา) | 2026-09-12 | ไม่เปลี่ยนข้อความ/สี/ลำดับ; frontend 151 passed, build 4.22s |
 | Round ANALYTICS-CHARTS-1 | พัฒนาระบบกราฟเส้น กราฟโดนัท Funnel Chart และเกจวัดแบบ Pure SVG สไตล์ Dark Modern Glassmorphism สำหรับแดชบอร์ดทั้ง 4 แท็บ | 2026-09-12 | สร้าง 4 Pure SVG charts (AreaLine, Donut, Funnel, ProgressRing/Concentric) ฝังครบ 4 แท็บ; vitest 151 passed, backend 4 passed, build 3.44s, browser verified |
+
+## Round TIKTOK-STATS-DOMAIN-1 — แก้ซิงก์สถิติล้มบนหน้า /tiktokstudio/content + ตรวจจับโค้ดเก่าค้างใน Chrome
+
+วันที่: 2026-09-12 · สั่งโดย: user · ดำเนินการโดย: Cline (โมเดลฐานไม่ได้ระบุในเซสชันนี้; ปิดรอบร่วมกับ Antigravity) · สถานะ: เสร็จสมบูรณ์
+
+**อาการ:**
+- กดปุ่ม "ซิงก์สถิติจากหน้านี้" บนหน้า `tiktok.com/tiktokstudio/content` แล้วแถบข้างขึ้นแดง "จำกัดโดเมน: ปุ่มนี้ทำงานเฉพาะหน้าโพสต์เท่านั้น..."
+- ยืนยันด้วย `git log -S` ว่าข้อความนี้ไม่มีในซอร์สปัจจุบันและไม่เคยมีใน history ทุก commit → Chrome กำลังรัน sidepanel.js เวอร์ชันเก่าค้าง/สำเนาอื่น (โค้ดจริงตรวจแบบ regex `/tiktok\.com/` ซึ่งผ่านหน้า content อยู่แล้ว)
+- บั๊กแฝงที่จะโดนต่อทันที: parser หาคอลัมน์ด้วย alias `ยอดดู/ยอดการดู` แต่หน้า Studio ไทยจริงใช้หัวคอลัมน์ "ยอดวิว" → จะ error "ไม่พบตารางโพสต์" แม้ reload ถูกแล้ว
+
+**การเปลี่ยนแปลง:**
+- `stats_parser.js`: เพิ่ม alias `ยอดวิว` ให้คอลัมน์ views + เพิ่ม `cleanTitle()` ตัดท้าย "00:25 11 ส.ค. 9:30 PM" ออกจากชื่อคลิป (regex เดิมจับเดือนแบบ ก.-ฮ. ตัวเดียว เลยหลุด ส.ค./เม.ย./มี.ค.) + export cleanTitle ให้เทสใช้
+- `sidepanel.js`: เพิ่ม `resolveTikTokTab()` + `tiktokHrefOf()` — ถ้า `tab.url` ว่างจะ fallback อ่าน `location.href` จากหน้าจริง, ถ้าแท็บ active ไม่ใช่ TikTok จะค้นทุกหน้าต่างที่เปิด tiktok.com ไว้แล้วสลับให้เอง, error บอก URL ที่เห็นจริง + แปะ "build 0.2.0" จาก `chrome.runtime.getManifest()` ในแท็บเครื่องมือ
+- `sidepanel.html`: เพิ่ม `<p id="buildTag">` ใต้ปุ่มซิงก์ — ถ้าไม่เห็น build tag แปลว่า Chrome รันโค้ดเก่าค้าง (จบปัญหาวินิจฉัยไม่ได้)
+- `manifest.json`: bump version 0.1.0 → 0.2.0
+- `stats_parser.test.cjs`: +2 เทส (หัวคอลัมน์ "ยอดวิว" จับได้ตรงหน้าจอจริง / cleanTitle ตัด ส.ค., เม.ย., ก.ย. และไม่ช้ำชื่อรุ่น 27W/X110)
+- `background.test.cjs`: +1 เทส (manifest ต้อง 0.2.0, buildTag ต้องมี, ห้ามมีข้อความ strict-domain ย้อนกลับมา, ต้องมี resolveTikTokTab + location.href fallback)
+
+**ผลลัพธ์ / Gate:**
+- `node --test` (background + stats_parser + clip_state): **28 passed / 0 failed**
+- `node --check sidepanel.js` + `node --check stats_parser.js`: ผ่านทั้งคู่
+- หมายเหตุ: รันครั้งแรก fail 1 จุด เพราะคอมเมนต์อธิบายใน sidepanel.js พิมพ์ข้อความนั้นเองไว้ (regression test จับได้ตามดีไซน์) — แก้คอมเมนต์เป็นภาษาอังกฤษแล้วผ่าน; การแก้คอมเมนต์นี้อยู่หลัง commit adb3fed ต้อง commit ตามเพื่อให้ HEAD สะอาดผ่านเทส
+
+---
 
 ## Round BATCH-RENDER-1 — One-Click Batch Angle Video Render Queue (เรนเดอร์หลายมุมมองพร้อมกันในคลิกเดียว)
 

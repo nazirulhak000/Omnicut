@@ -639,9 +639,9 @@ markPostedBtn.addEventListener('click', async () => {
 const syncStatsBtn = document.getElementById('syncStatsBtn');
 
 // Build tag: proves which build this side panel is actually running. If this
-// line is missing from the Tools tab, Chrome is running stale cached code
-// (the exact cause of the ghost "จำกัดโดเมน" banner that no longer exists
-// anywhere in the source).
+// line is missing from the Tools tab, Chrome is running stale cached code --
+// the exact cause of the ghost domain-restricted banner that no longer exists
+// anywhere in this source.
 const buildTag = document.getElementById('buildTag');
 if (buildTag) {
   buildTag.textContent = 'build ' + (chrome?.runtime?.getManifest?.().version || 'unknown');
