@@ -628,7 +628,7 @@ const MobileTableRowCard = memo(function MobileTableRowCard({
               className="w-full text-left p-1.5 rounded-xl bg-black/40 hover:bg-black/60 border border-white/[0.06] text-slate-300 text-xs flex items-center justify-between gap-1.5 cursor-pointer transition-colors"
               title="คลิกเพื่อคัดลอกแคปชัน & แฮชแท็ก"
             >
-              <span className="line-clamp-2 text-xs font-mono">{ang.tiktok_caption || 'คัดลอกแคปชัน'}</span>
+              <span className="line-clamp-2 text-xs">{ang.tiktok_caption || 'คัดลอกแคปชัน'}</span>
               <span className="text-[#25F4EE] flex-shrink-0">
                 {copiedAngleId === ang.angle_id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
               </span>
@@ -772,7 +772,7 @@ const TableRow = memo(function TableRow({
             className="text-left py-1.5 px-2.5 rounded-lg bg-black/40 hover:bg-black/60 border border-white/[0.06] text-slate-300 text-xs flex items-center justify-between gap-2 w-full max-w-md cursor-pointer transition-colors group"
             title="คลิกเพื่อคัดลอกแคปชัน & แฮชแท็ก"
           >
-            <span className="line-clamp-2 text-xs font-mono group-hover:text-white leading-relaxed">{ang.tiktok_caption || 'คัดลอกแคปชัน'}</span>
+            <span className="line-clamp-2 text-xs group-hover:text-white leading-relaxed">{ang.tiktok_caption || 'คัดลอกแคปชัน'}</span>
             <span className="text-[#25F4EE] flex-shrink-0">
               {copiedAngleId === ang.angle_id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
             </span>
@@ -1732,9 +1732,9 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                     <span>คลิปดิบที่ใช้สำหรับสคริปต์นี้ ({attachedVideos.length} คลิป)</span>
                   </span>
                   {hasAttachedVideos ? (
-                    <span className="text-xs text-emerald-400 font-mono font-bold">● พร้อมตัดต่อ</span>
+                    <span className="text-xs text-emerald-400 ">● พร้อมตัดต่อ</span>
                   ) : (
-                    <span className="text-xs text-amber-400 font-mono font-bold">● ยังไม่ได้เลือกคลิป</span>
+                    <span className="text-xs text-amber-400 ">● ยังไม่ได้เลือกคลิป</span>
                   )}
                 </div>
 
@@ -1771,7 +1771,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                       <span>พรีวิววิดีโอที่ตัดต่อเสร็จ (QC Player)</span>
                     </span>
                     {effectiveVideoUrl && (
-                      <span className="text-sm text-emerald-400 font-mono font-bold">● พร้อมเล่น</span>
+                      <span className="text-sm text-emerald-400 ">● พร้อมเล่น</span>
                     )}
                   </div>
 
@@ -2934,7 +2934,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
               <span>เลื่อนซ้าย-ขวาเพื่อดูหัวข้อถัดไป</span>
               <ChevronRight className="w-3 h-3 text-[#25F4EE]" />
             </span>
-            <span className="text-[#25F4EE] font-bold font-mono">4 คอลัมน์</span>
+            <span className="text-[#25F4EE] ">4 คอลัมน์</span>
           </div>
 
           {/* Real Horizontal Kanban Board with Snap-Scroll */}

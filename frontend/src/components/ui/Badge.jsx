@@ -24,7 +24,7 @@ export function Badge({
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border font-bold font-mono select-none ${
+      className={`inline-flex items-center gap-1.5 rounded-full border font-bold select-none ${
         sizeStyles[size] || sizeStyles.md
       } ${variantStyles[variant] || variantStyles.cyan} ${className}`}
       {...props}

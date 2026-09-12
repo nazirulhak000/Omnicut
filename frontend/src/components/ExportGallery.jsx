@@ -890,7 +890,7 @@ function ExportActiveWorkbench({
                     className="w-full accent-[#25F4EE] cursor-pointer"
                   />
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] text-slate-400 font-mono">วินาทีที่ {atSeconds.toFixed(1)}s</span>
+                    <span className="text-[10px] text-slate-400">วินาทีที่ {atSeconds.toFixed(1)}s</span>
                     <div className="flex items-center gap-1.5">
                       <button
                         type="button"
@@ -1841,7 +1841,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                         <div className="text-xs font-bold text-amber-300 mb-0.5">คลิปนี้เป็นเวอร์ชันก่อนหน้า (มีเวอร์ชันใหม่กว่าแทนที่แล้ว)</div>
                         {selectedDetailVideo.latest_video_name && (
                           <div className="text-[11px] text-amber-200/80">
-                            เวอร์ชันล่าสุด: <span className="font-mono text-white">{selectedDetailVideo.latest_video_name}</span>
+                            เวอร์ชันล่าสุด: <span className="text-white">{selectedDetailVideo.latest_video_name}</span>
                           </div>
                         )}
                         <div className="text-[10px] text-slate-400 mt-0.5">สามารถสลับไปดูตัวล่าสุด หรือลบไฟล์นี้เพื่อประหยัดพื้นที่ดิสก์</div>

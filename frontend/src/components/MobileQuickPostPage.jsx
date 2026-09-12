@@ -267,7 +267,7 @@ export default function MobileQuickPostPage({ onExit }) {
               <span className="w-5 h-5 rounded-full bg-[#FE2C55]/20 border border-[#FE2C55]/40 flex items-center justify-center text-[#FE2C55] text-[10px] font-mono">2</span>
               <span>แคปชัน & แฮชแท็กไวรัล</span>
             </span>
-            <span className="text-[10px] text-slate-500 font-mono">{fullPostText.length} อักษร</span>
+            <span className="text-[10px] text-slate-500">{fullPostText.length} อักษร</span>
           </div>
 
           <div className="p-3 rounded-xl bg-black/50 border border-white/[0.06] text-xs text-slate-200 font-mono leading-relaxed line-clamp-4 select-all">

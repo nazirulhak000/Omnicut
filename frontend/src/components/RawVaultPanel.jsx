@@ -430,7 +430,7 @@ export default function RawVaultPanel() {
               </div>
               <div>
                 <div className="text-[11px] text-slate-400 font-medium">คลิปดิบทั้งหมด</div>
-                <div className="text-base font-black text-white font-mono">{vaultData.total_clips || 0} <span className="text-xs font-normal text-slate-400">ไฟล์</span></div>
+                <div className="text-base font-black text-white">{vaultData.total_clips || 0} <span className="text-xs font-normal text-slate-400">ไฟล์</span></div>
               </div>
             </div>
 
@@ -543,7 +543,7 @@ export default function RawVaultPanel() {
           <div className="mt-4 p-3.5 rounded-2xl bg-[#FE2C55]/10 border border-[#FE2C55]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
             <span className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
               <CheckSquare className="w-4 h-4 text-[#FE2C55] flex-shrink-0" />
-              <span>เลือกคลิปดิบอยู่ <strong className="font-mono text-[#25F4EE]">{selectedPaths.length}</strong> คลิป</span>
+              <span>เลือกคลิปดิบอยู่ <strong className="text-[#25F4EE]">{selectedPaths.length}</strong> คลิป</span>
             </span>
             <div className="flex items-center gap-2">
               <button

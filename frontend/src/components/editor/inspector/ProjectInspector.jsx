@@ -51,7 +51,7 @@ export default function ProjectInspector({
         </div>
         <div className="flex justify-between text-slate-300">
           <span>เพลงประกอบ BGM:</span>
-          <span className="font-mono text-slate-200">{style.bgmName || 'เสียงหลักของช่อง'}</span>
+          <span className="text-slate-200">{style.bgmName || 'เสียงหลักของช่อง'}</span>
         </div>
         <div className="flex justify-between text-slate-300 border-t border-white/[0.06] pt-2">
           <span>ความยาววิดีโอรวม:</span>

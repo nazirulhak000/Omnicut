@@ -8,8 +8,10 @@
 
 ## สารบัญ
 
+| Round UI-FONT-MONO-CLEAN-1 | กวาดล้าง font-mono ที่ครอบข้อความภาษาไทย/การ์ด KPI ทั่วทั้งระบบให้เป็นฟอนต์กลาง 100% | 2026-09-12 | สำเร็จสมบูรณ์ (ถอด font-mono จาก MetricKpiCard, Badge.jsx, ContentTrackerHub, MediaAssetsHub, SystemSettings และ inspector ให้หน่วยนับและภาษาไทยใช้ฟอนต์กลาง, vitest 152 passed, build 3.31s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round UI-POLISH-HEADER-1 | แก้ฟอนต์กล่องแดง Topbar (ถอด font-mono) + ตัด 2 Badge สินค้า + ขยายหัวข้อสินค้าเน้นๆ ใหญ่ๆ | 2026-09-12 | สำเร็จสมบูรณ์ (ถอด font-mono จากป้ายแท็บ Topbar ให้สืบทอด Global UI Font, ตัด price_note และ tiktok_id ออกจาก PageHeader สินค้า, ขยายชื่อสินค้าเป็น text-2xl font-black, vitest 152 passed, build 3.49s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round UI-FONT-HARMONY-1 | ปรับความสอดคล้องของฟอนต์ UI ทั้งระบบตาม Global UI Font (ปราศจาก Encoding Mojibake) | 2026-09-12 | สำเร็จสมบูรณ์ (ปลดล็อคคลาส font-kanit ที่ฝังใน 35 คอมโพเนนต์ UI เพื่อสืบทอด Global UI Font, อนุรักษ์ preview card ใน Settings/Assets, รับประกัน Thai UTF-8 byte-for-byte 100%, vitest 152 passed, build 4.57s, pytest parity 153 passed, browser verified, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round TIKTOK-STATS-MATCH-1 | แมพ 0/10 เพราะไม่มีโพสต์ให้จับคู่ → จับคู่กับคลังผลงาน + ลงทะเบียนโพสต์อัตโนมัติ + fuzzy normalize ตัดแฮชแท็ก | 2026-09-12 | สำเร็จสมบูรณ์ (score-based match, auto-register จาก ProductStore candidates, parse วันที่ไทย → posted_at, pytest 8 passed, extension 32 passed, ดำเนินการโดย: Cline (โมเดลฐานไม่ได้ระบุ)) |
 | Round TIKTOK-STATS-DOM-2 | รีเขียน parser อ่าน div-grid จริงของ Studio (data-tt) จาก DOM ที่ user เซฟมา + จับคู่คอลัมน์ตามหัว + dedupe | 2026-09-12 | สำเร็จสมบูรณ์ (locateDivGrid/parseDivRows, หัวคอลัมน์จริง "ยอดการดู" แก้ความเข้าใจ "ยอดวิว", extension tests 32 passed, ดำเนินการโดย: Cline (โมเดลฐานไม่ได้ระบุ)) |
 | Round TIKTOK-STATS-DOMAIN-1 | แก้ซิงก์สถิติตาราง Studio + คอลัมน์ 'ยอดวิว' + Manifest 0.2.0 + แข็งการตรวจจับแท็บ | 2026-09-12 | สำเร็จสมบูรณ์ (alias ยอดวิว, regex เดือน ส.ค./เม.ย., build tag 0.2.0, extension tests 28 passed, ดำเนินการโดย: Cline / Antigravity) |
 | Round BATCH-RENDER-1 | One-Click Batch Angle Video Render Queue (Background FIFO Worker + Live Overall Progress + Concurrency Lock) | 2026-09-12 | สำเร็จสมบูรณ์ (คิวเรนเดอร์หลายมุมมอง background worker, auto-retry, TaskManager progress, pytest 4 passed, vitest 152 passed, build 4.46s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
@@ -44,6 +46,40 @@
 | Round ANALYTICS-CHARTS-POLISH-1 | ปรับขนาดและจัดระเบียบเลย์เอาท์กราฟใน Analytics Hub ให้กระชับ สวยงาม พอดีสายตา ไม่ใหญ่เกินจำเป็น | 2026-09-12 | กราฟเส้น 800x130 widescreen, โดนัท top 4 + อื่นๆ พร้อม label ไม่หาย, TokenDashboard models/tasks จัดแบบ side-by-side; frontend 151 passed, build 3.25s, browser verified |
 | Round USER-GUIDE-4 | คู่มือ interactive 6 ฟีเจอร์ (sticky TOC, เช็กลิสต์ติ๊กได้, accordion, ปุ่มลัด, FAQ ค้นหา) | 2026-09-12 | ไม่เปลี่ยนข้อความ/สี/ลำดับ; frontend 151 passed, build 4.22s |
 | Round ANALYTICS-CHARTS-1 | พัฒนาระบบกราฟเส้น กราฟโดนัท Funnel Chart และเกจวัดแบบ Pure SVG สไตล์ Dark Modern Glassmorphism สำหรับแดชบอร์ดทั้ง 4 แท็บ | 2026-09-12 | สร้าง 4 Pure SVG charts (AreaLine, Donut, Funnel, ProgressRing/Concentric) ฝังครบ 4 แท็บ; vitest 151 passed, backend 4 passed, build 3.44s, browser verified |
+
+## Round UI-FONT-MONO-CLEAN-1 — กวาดล้าง font-mono ที่ครอบข้อความภาษาไทย/การ์ด KPI ทั่วทั้งระบบให้เป็นฟอนต์กลาง 100%
+
+วันที่: 2026-09-12 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์
+
+**ปัญหาเดิมและที่มา:**
+- ผู้ใช้ตรวจพบว่าในการ์ด KPI "ลงโพสต์แล้ว (Published)" คำว่า "คลิป 25%" มีฟอนต์ที่แปลกแยกอย่างเห็นได้ชัด
+- **Root Cause Analysis:**
+  1. ใน `MetricKpiCard.jsx` มีการใส่คลาส `font-mono` ครอบทั้งตัวเลข หน่วยนับ และ badge ทำให้คำว่า "คลิป" และ "25%" ถูกเรนเดอร์ด้วยฟอนต์ Monospace ซึ่งไม่มีชุดอักษรภาษาไทยแท้ จึงถูก fallback ไปใช้ฟอนต์ monospace ประจำระบบที่ตัวอักษรไม่กลมกลืนกับฟอนต์ระบบ
+  2. ใน `Badge.jsx` (คอมโพเนนต์ป้ายส่วนกลาง) มีการใส่ `font-mono` ไว้ที่ตัวป้าย ทำให้ทุกจุดที่เรียกใช้ `<Badge>` แสดงผลภาษาไทยเป็น monospace
+  3. พบการใส่ `font-mono` ครอบข้อความภาษาไทยและหน่วยนับในอีกหลายคอมโพเนนต์ (เช่น แคปชันและสถานะใน ContentTrackerHub, MediaAssetsHub, SystemSettings, ExportGallery ฯลฯ)
+
+**สิ่งที่ดำเนินการ:**
+1. **`MetricKpiCard.jsx`:** ถอด `font-mono` ออกจาก container ของค่าตัวเลข/หน่วยนับ/badge เพื่อให้ค่าตัวเลขและคำอธิบายสืบทอดฟอนต์ระบบ (Global UI Font) ได้อย่างสวยงาม
+2. **`ProductionAnalyticsTab.jsx`:** แยกตัวเลขและหน่วยนับ `คลิป` ออกเป็น `<>{summary.posted} <span className="text-sm font-semibold text-slate-300 ml-1">คลิป</span></>` ให้ขนาดและสัดส่วนกลมกลืนกับการ์ดอื่นๆ
+3. **`Badge.jsx`:** ถอด `font-mono` ออกจากตัวป้าย Badge ส่วนกลาง เพื่อให้ป้ายทั่วทั้งระบบแสดงผลภาษาไทยด้วยฟอนต์ระบบ
+4. **ล้าง `font-mono` ออกจากข้อความภาษาไทยและหน่วยนับในคอมโพเนนต์อื่นๆ:**
+   - `ContentTrackerHub.jsx`: แคปชันคลิป (`ang.tiktok_caption`), สถานะ (`● พร้อมตัดต่อ`, `● ยังไม่ได้เลือกคลิป`, `● พร้อมเล่น`), หัวคอลัมน์ (`4 คอลัมน์`)
+   - `MediaAssetsHub.jsx`: ข้อความคำแนะนำ (`แตะเพื่อดูรายละเอียด`), ขนาดพรีวิว, ป้ายฟอร์แมต (`PNG โปร่งใส`, `WebM VP9 โปร่งใส`)
+   - `MediaPickerModal.jsx`: ป้ายแจ้งเตือนการเลือกคลิป (`{selectedList.length} คลิป`)
+   - `MobileQuickPostPage.jsx`: จำนวนตัวอักษร (`{fullPostText.length} อักษร`)
+   - `RawVaultPanel.jsx`: จำนวนคลิปดิบ (`{vaultData.total_clips} ไฟล์`, `{selectedPaths.length} คลิป`)
+   - `ScriptLab.jsx`: ข้อความคำแนะนำ (`ปรับแก้ข้อมูลได้ตลอดเวลา`)
+   - `SubSrtTool.jsx`: ข้อความคำแนะนำ (`ลากไฟล์เข้า CapCut ได้ทันที`)
+   - `ExportGallery.jsx`: เวลา (`วินาทีที่ {atSeconds.toFixed(1)}s`)
+   - `SystemSettings.jsx`: หน่วยนับของไฟล์สแกนซ้ำ (`{dedupResult.total_scanned_files} ไฟล์`, `กลุ่ม`, `ไฟล์`)
+   - `OverlayInspector.jsx` & `ProjectInspector.jsx`: หน่วยนับเวลาและชื่อ BGM เริ่มต้น
+5. **Strict UTF-8 Integrity:** ตรวจสอบอักขระภาษาไทยทุกตัวคงเดิม 100% ไม่มีการแปลงเป็น ANSI
+
+**ผลการทดสอบ (Verification Gate):**
+- Frontend Vitest: 152/152 passed
+- Vite Build: 3.31s ผ่าน 100% สะอาด ไร้ error
+
+---
 
 ## Round UI-POLISH-HEADER-1 — แก้ฟอนต์กล่องแดง Topbar (ถอด font-mono) + ตัด 2 Badge สินค้า + ขยายหัวข้อสินค้าเน้นๆ ใหญ่ๆ
 
@@ -91,6 +127,28 @@
 - Vite Build: ผ่าน 100% สะอาด ไร้ error (4.57s)
 - Backend Preview-Render Parity Tests: 153/153 passed (10.36s)
 - Browser Live Test: เปิดหน้าจอจริงผ่าน Browser Subagent ทดสอบสลับฟอนต์ในหน้าตั้งค่า (Prompt -> IBM Plex Sans Thai -> Kanit) ตรวจสอบหน้าสคริปต์แล็บและหน้าสถิติ พบว่าตัวอักษรภาษาไทยคมชัด สวยงาม ไม่มีตัวหนังสือต่างดาว และทั้งหน้าจอเปลี่ยนตามฟอนต์ที่เลือกอย่างสอดคล้องกัน
+
+---
+
+## Round TIKTOK-STATS-MATCH-1 — แมพสำเร็จ 0/10 เพราะไม่มีโพสต์ให้จับคู่ → จับคู่กับคลังผลงานแล้วลงทะเบียนโพสต์อัตโนมัติ
+
+วันที่: 2026-09-12 · สั่งโดย: user · ดำเนินการโดย: Cline (โมเดลฐานไม่ได้ระบุในเซสชันนี้) · สถานะ: เสร็จสมบูรณ์
+
+**หลักฐาน:** user กดซิงก์สำเร็จ (build 0.2.0 ขึ้น, อ่านตารางได้ 10 แถว) แต่ได้ผล "ซิงก์สำเร็จ 0/10 คลิป ... ไม่เจอคู่ 10 คลิป" — ตรวจ `_Docs/post_log.json` (163 โพสต์) พบว่า**ไม่มีสักโพสต์ของ ESSAGER/Logitech/GoChek/BlueWow (0 รายการ)** — ทั้งไฟล์เป็นข้อมูลทดสอบ Test Serum เก่า แปลว่าคลิปจริงไม่เคยถูกบันทึกว่าโพสต์แล้วใน OmniCut (user โพสต์ผ่าน Studio ตรงๆ โดยไม่กดมาร์ค) จึงไม่มีอะไรให้จับคู่ตั้งแต่ต้น — ไม่ใช่บั๊กการจับคู่
+
+**การเปลี่ยนแปลง:**
+- `scripts/post_log.py`: รีไรต์ `_fuzzy_match` เป็นระบบคะแนน (`_score_against_haystack`) บนชื่อที่ normalize แล้ว (`_normalize_title`: ตัด #แฮชแท็ก/อีโมจิ/สัญลักษณ์, lowercase) — token ซ้อน +1, คำยาว ≥4 (แบรนด์/รุ่น) +2, prefix 12 ตัวบน normalize +3, เกณฑ์ผ่าน ≥4; ประตูความยาวคลิปใช้เมื่อทั้งคู่มีข้อมูลเท่านั้น (±5s); เลือก best-score แทน first-match (tie → โพสต์ใหม่กว่า)
+- `scripts/post_log.py`: `upsert_tiktok_stats(rows, register_missing, clip_candidates)` — แถวที่ไม่เจอโพสต์ จับคู่กับ candidate คลิปจากคลังผลงาน (`_match_candidate`) แล้ว**สร้างโพสต์ใหม่อัตโนมัติ** (posted_at parse จากวันที่ไทยของ Studio เช่น "11 ส.ค. 9:30 PM" → ISO, `source=tiktok_stats_auto`) + แนบ metrics/video_id/url ทันที — append ภายใน mutate เดียว (กัน nested SQLite transaction)
+- `scripts/post_log.py`: เพิ่ม `_parse_studio_posted_at` (ตารางเดือนไทยย่อ 12 เดือน, AM/PM, ปีปัจจุบัน + rollover ธ.ค.→ปีก่อน)
+- `scripts/api_tiktok_stats.py`: `_export_clip_candidates()` ดึง hook_title/product_name/clip_file จาก ProductStore (ทน store พังด้วย try/except + warning) แล้วส่งเข้า upsert; response เพิ่ม `registered`
+- `tiktok_autopost_extension/sidepanel.js`: ข้อความสำเร็จเพิ่ม "ลงทะเบียนโพสต์ใหม่ N รายการ"
+- `tests/test_tiktok_stats_import.py`: +4 เทส (auto-register จาก candidate + วันที่ไทย, ไม่สร้างเมื่อไม่ตรงเลย, โพสต์เดิมมาก่อนเสมอ, parse วันที่ไทยหลายรูปแบบ) + เทสเดิม 3 ตัว monkeypatch `_export_clip_candidates` → [] เพื่อ deterministic/offline (ไม่แตะ store จริง)
+
+**ผลลัพธ์ / Gate:**
+- `python -m compileall -q scripts`: ผ่าน
+- `.venv\Scripts\python.exe -m pytest tests/test_tiktok_stats_import.py`: **8 passed** (เดิม 4 + ใหม่ 4)
+- `node --test` (extension ทั้งชุด): **32 passed / 0 failed**
+- หมายเหตุ: รอบแรกที่ user กด sync หลังรอบนี้ โพสต์จะถูก "ลงทะเบียนใหม่" อัตโนมัติจากคลังผลงาน (ต้องมี hook_title คลิปใน OmniCut ตรงคำในแคปชั่น Studio) — ครั้งถัดไปจะจับคู่ด้วย tiktok_video_id ตรงทันที
 
 ---
 

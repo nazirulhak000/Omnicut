@@ -661,15 +661,15 @@ export default function SystemSettings({
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06]">
                       <span className="text-[10px] text-slate-500 block">สแกนทั้งหมด</span>
-                      <span className="text-sm font-bold font-mono text-white">{dedupResult.total_scanned_files} ไฟล์</span>
+                      <span className="text-sm font-bold text-white"><span className="font-mono">{dedupResult.total_scanned_files}</span> ไฟล์</span>
                     </div>
                     <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06]">
                       <span className="text-[10px] text-slate-500 block">กลุ่มที่ซ้ำ</span>
-                      <span className="text-sm font-bold font-mono text-amber-300">{dedupResult.duplicate_groups_count} กลุ่ม</span>
+                      <span className="text-sm font-bold text-amber-300"><span className="font-mono">{dedupResult.duplicate_groups_count}</span> กลุ่ม</span>
                     </div>
                     <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06]">
                       <span className="text-[10px] text-slate-500 block">ไฟล์ซ้ำส่วนเกิน</span>
-                      <span className="text-sm font-bold font-mono text-red-300">{dedupResult.total_duplicate_files} ไฟล์</span>
+                      <span className="text-sm font-bold text-red-300"><span className="font-mono">{dedupResult.total_duplicate_files}</span> ไฟล์</span>
                     </div>
                     <div className="p-2.5 rounded-xl bg-black/40 border border-emerald-500/20 bg-emerald-500/5">
                       <span className="text-[10px] text-emerald-400 block">คืนพื้นที่ได้</span>

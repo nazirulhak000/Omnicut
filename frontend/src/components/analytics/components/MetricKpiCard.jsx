@@ -24,7 +24,7 @@ export default function MetricKpiCard({
       </div>
 
       <div className="my-2 flex items-center justify-between gap-2">
-        <div className="text-2xl font-black tracking-tight text-white font-mono flex items-baseline gap-2">
+        <div className="text-2xl font-black tracking-tight text-white flex items-baseline gap-2">
           <span>{value}</span>
           {badge && (
             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${badgeColor}`}>

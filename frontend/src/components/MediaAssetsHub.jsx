@@ -830,7 +830,7 @@ export default function MediaAssetsHub({ status }) {
           <div className="lg:col-span-5 space-y-2.5 bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-3 sm:p-4 shadow-xl">
             <div className="flex items-center justify-between px-1 pb-2 border-b border-white/[0.08] text-xs font-bold text-slate-300">
               <span>รายการในหมวด ({currentItems.length} ไฟล์)</span>
-              <span className="text-[11px] text-slate-400 font-mono">แตะเพื่อดูรายละเอียด</span>
+              <span className="text-[11px] text-slate-400">แตะเพื่อดูรายละเอียด</span>
             </div>
 
             {currentItems.length === 0 ? (
@@ -1095,7 +1095,7 @@ export default function MediaAssetsHub({ status }) {
                     <div className="p-4 rounded-2xl bg-black/50 border border-white/[0.08] space-y-3">
                       <div className="flex items-center justify-between text-xs font-bold text-slate-300">
                         <span className="">ทดสอบพิมพ์ข้อความสด</span>
-                        <span className="text-slate-500 font-mono text-[11px]">ขนาด: {fontSizePreview}px</span>
+                        <span className="text-slate-500 text-[11px]">ขนาด: {fontSizePreview}px</span>
                       </div>
                       <input
                         type="text"
@@ -1196,7 +1196,7 @@ export default function MediaAssetsHub({ status }) {
                       </div>
                       <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06]">
                         <span className="text-[10px] text-slate-400 block">ชนิดไฟล์</span>
-                        <span className="text-emerald-300 font-mono font-bold block mt-0.5">PNG โปร่งใส (Transparent)</span>
+                        <span className="text-emerald-300  block mt-0.5">PNG โปร่งใส (Transparent)</span>
                       </div>
                     </div>
                   </div>
@@ -1261,7 +1261,7 @@ export default function MediaAssetsHub({ status }) {
                       </div>
                       <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06]">
                         <span className="text-[10px] text-slate-400 block">ชนิดไฟล์</span>
-                        <span className="text-fuchsia-300 font-mono font-bold block mt-0.5">WebM VP9 โปร่งใส (Alpha)</span>
+                        <span className="text-fuchsia-300  block mt-0.5">WebM VP9 โปร่งใส (Alpha)</span>
                       </div>
                     </div>
                   </div>

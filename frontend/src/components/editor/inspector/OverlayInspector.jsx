@@ -454,7 +454,7 @@ export default function OverlayInspector({
             <div className="space-y-1">
               <div className="flex items-center justify-between text-[11px]">
                 <span className="font-medium text-slate-400">ระยะเวลาแสดง</span>
-                <span className="font-mono font-bold text-[#E6C24A]">{hookDuration.toFixed(1)} วิ</span>
+                <span className="font-bold text-[#E6C24A]"><span className="font-mono">{hookDuration.toFixed(1)}</span> วิ</span>
               </div>
               <input
                 type="range"

@@ -660,7 +660,7 @@ export default function MediaPickerModal({
         <div className="flex-shrink-0 p-3.5 sm:px-5 border-t border-white/[0.08] bg-[#0B0F19]/95 backdrop-blur-xl flex items-center justify-between gap-3 z-20">
           <div className="text-xs text-slate-400 truncate">
             {selectedList.length > 0 ? (
-              <span>เลือกแล้ว <strong className="text-[#25F4EE] font-mono font-bold">{selectedList.length}</strong> คลิป</span>
+              <span>เลือกแล้ว <strong className="text-[#25F4EE] ">{selectedList.length}</strong> คลิป</span>
             ) : (
               <span className="text-slate-500">ยังไม่ได้เลือกคลิป</span>
             )}

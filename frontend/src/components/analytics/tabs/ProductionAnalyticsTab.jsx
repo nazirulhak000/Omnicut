@@ -115,7 +115,7 @@ export default function ProductionAnalyticsTab({ onNavigateToEditor, onNavigateT
         />
         <MetricKpiCard
           title="ลงโพสต์แล้ว (Published)"
-          value={`${summary.posted} คลิป`}
+          value={<>{summary.posted} <span className="text-sm font-semibold text-slate-300 ml-1">คลิป</span></>}
           subtitle={`คิดเป็น ${summary.published_percentage}% ของคลิปทั้งหมด`}
           icon={CheckCircle2}
           accentColor="text-emerald-400"
