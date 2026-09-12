@@ -8,6 +8,7 @@
 
 ## สารบัญ
 
+| Round UI-POLISH-HEADER-1 | แก้ฟอนต์กล่องแดง Topbar (ถอด font-mono) + ตัด 2 Badge สินค้า + ขยายหัวข้อสินค้าเน้นๆ ใหญ่ๆ | 2026-09-12 | สำเร็จสมบูรณ์ (ถอด font-mono จากป้ายแท็บ Topbar ให้สืบทอด Global UI Font, ตัด price_note และ tiktok_id ออกจาก PageHeader สินค้า, ขยายชื่อสินค้าเป็น text-2xl font-black, vitest 152 passed, build 3.49s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round UI-FONT-HARMONY-1 | ปรับความสอดคล้องของฟอนต์ UI ทั้งระบบตาม Global UI Font (ปราศจาก Encoding Mojibake) | 2026-09-12 | สำเร็จสมบูรณ์ (ปลดล็อคคลาส font-kanit ที่ฝังใน 35 คอมโพเนนต์ UI เพื่อสืบทอด Global UI Font, อนุรักษ์ preview card ใน Settings/Assets, รับประกัน Thai UTF-8 byte-for-byte 100%, vitest 152 passed, build 4.57s, pytest parity 153 passed, browser verified, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round TIKTOK-STATS-DOM-2 | รีเขียน parser อ่าน div-grid จริงของ Studio (data-tt) จาก DOM ที่ user เซฟมา + จับคู่คอลัมน์ตามหัว + dedupe | 2026-09-12 | สำเร็จสมบูรณ์ (locateDivGrid/parseDivRows, หัวคอลัมน์จริง "ยอดการดู" แก้ความเข้าใจ "ยอดวิว", extension tests 32 passed, ดำเนินการโดย: Cline (โมเดลฐานไม่ได้ระบุ)) |
 | Round TIKTOK-STATS-DOMAIN-1 | แก้ซิงก์สถิติตาราง Studio + คอลัมน์ 'ยอดวิว' + Manifest 0.2.0 + แข็งการตรวจจับแท็บ | 2026-09-12 | สำเร็จสมบูรณ์ (alias ยอดวิว, regex เดือน ส.ค./เม.ย., build tag 0.2.0, extension tests 28 passed, ดำเนินการโดย: Cline / Antigravity) |
@@ -43,6 +44,27 @@
 | Round ANALYTICS-CHARTS-POLISH-1 | ปรับขนาดและจัดระเบียบเลย์เอาท์กราฟใน Analytics Hub ให้กระชับ สวยงาม พอดีสายตา ไม่ใหญ่เกินจำเป็น | 2026-09-12 | กราฟเส้น 800x130 widescreen, โดนัท top 4 + อื่นๆ พร้อม label ไม่หาย, TokenDashboard models/tasks จัดแบบ side-by-side; frontend 151 passed, build 3.25s, browser verified |
 | Round USER-GUIDE-4 | คู่มือ interactive 6 ฟีเจอร์ (sticky TOC, เช็กลิสต์ติ๊กได้, accordion, ปุ่มลัด, FAQ ค้นหา) | 2026-09-12 | ไม่เปลี่ยนข้อความ/สี/ลำดับ; frontend 151 passed, build 4.22s |
 | Round ANALYTICS-CHARTS-1 | พัฒนาระบบกราฟเส้น กราฟโดนัท Funnel Chart และเกจวัดแบบ Pure SVG สไตล์ Dark Modern Glassmorphism สำหรับแดชบอร์ดทั้ง 4 แท็บ | 2026-09-12 | สร้าง 4 Pure SVG charts (AreaLine, Donut, Funnel, ProgressRing/Concentric) ฝังครบ 4 แท็บ; vitest 151 passed, backend 4 passed, build 3.44s, browser verified |
+
+## Round UI-POLISH-HEADER-1 — แก้ฟอนต์กล่องแดง Topbar (ถอด font-mono) + ตัด 2 Badge สินค้า + ขยายหัวข้อสินค้าเน้นๆ ใหญ่ๆ
+
+วันที่: 2026-09-12 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์
+
+**ที่มาและปัญหาที่ได้รับแจ้ง:**
+1. **กล่องแดง (ป้ายแท็บ Topbar):** ป้ายแท็บ เช่น `1. AI Script Lab` ฟอนต์ดูแปลกแยกจากข้อความอื่น ตรวจสอบพบว่ามีคลาส `font-mono` ตกค้างอยู่ ทำให้แสดงผลเป็น Monospace แทนที่จะเป็น Global UI Font
+2. **กล่องเหลือง (2 Badge ใน PageHeader สินค้า):** มี Badge `ราคาพิเศษในตะกร้า` และ `ID: ...` บดบังและแย่งสายตา ทำให้ชื่อสินค้าดูเล็ก
+3. ผู้ใช้ต้องการให้ตัด 2 Badge นั้นออก และปรับหัวข้อชื่อสินค้า (`Logitech Lift`) ให้ "เน้นๆ ใหญ่ๆ" โดดเด่น
+
+**สิ่งที่ดำเนินการ:**
+1. **`frontend/src/components/Topbar.jsx`:** ถอดคลาส `font-mono` ออกจากป้ายแท็บ `currentTab.badge` เพื่อให้แสดงผลด้วย Global UI Font (Prompt, IBM Plex Sans Thai ฯลฯ) ที่สวยงาม สอดคล้องกันทั้งแถบ
+2. **`frontend/src/components/ProductToClip.jsx`:** 
+   - นำ 2 Badge (`price_note` และ `tiktok_product_id`) ออกจาก `PageHeader`
+   - ปรับหัวข้อสินค้า `titleClassName` ให้เป็น `text-lg sm:text-xl md:text-2xl font-black text-white tracking-tight` และปรับ `titlePrefix` ให้ชัดเจน สมดุลกับขนาดชื่อสินค้าใหม่
+
+**ผลการทดสอบ (Verification Gate):**
+- Frontend Vitest: 152/152 passed
+- Vite Build: 3.49s ผ่าน 100% ไร้ข้อผิดพลาด
+
+---
 
 ## Round UI-FONT-HARMONY-1 — ปรับความสอดคล้องของฟอนต์ UI ทั้งระบบตาม Global UI Font (ปราศจาก Encoding Mojibake)
 

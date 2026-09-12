@@ -2638,48 +2638,15 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       <PageHeader
         icon={Package}
         eyebrow={productData ? 'สินค้าปัจจุบัน' : 'Step 1 — เลือกสินค้า'}
-        badges={
-          <>
-            {productData?.price_note && (
-              <span className="text-[10px] sm:text-xs font-bold font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                {productData.price_note}
-              </span>
-            )}
-            {productData && (
-              productData.tiktok_product_id ? (
-                <button
-                  type="button"
-                  onClick={handleOpenEditTiktokIdModal}
-                  className="inline-flex items-center gap-1.5 text-[10px] sm:text-xs font-bold font-mono text-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20 px-2.5 py-0.5 rounded-full border border-cyan-500/20 hover:border-cyan-500/40 transition-colors cursor-pointer group"
-                  title="คลิกเพื่อแก้ไขหรือล้างไอดีสินค้า (มีผลกับทุกสคริปต์ในชุดนี้)"
-                >
-                  <ShoppingBag className="w-3 h-3 text-cyan-400" />
-                  <span>ID: {productData.tiktok_product_id}</span>
-                  <Edit3 className="w-2.5 h-2.5 opacity-60 group-hover:opacity-100 transition-opacity" />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleOpenEditTiktokIdModal}
-                  className="inline-flex items-center gap-1.5 text-[10px] sm:text-xs text-slate-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] px-2.5 py-0.5 rounded-full border border-white/[0.08] hover:border-white/[0.2] transition-colors cursor-pointer group"
-                  title="ไม่มี ID ระบบจะค้นหาด้วยชื่อสินค้า — คลิกเพื่อใส่ไอดีหรือลิงก์แชร์ย้อนหลัง"
-                >
-                  <ShoppingBag className="w-3 h-3 text-slate-400 group-hover:text-cyan-400 transition-colors" />
-                  <span>ปักตะกร้าด้วยชื่อ</span>
-                  <span className="text-[10px] text-cyan-400 font-medium group-hover:underline">ใส่ไอดี</span>
-                </button>
-              )
-            )}
-          </>
-        }
         titlePrefix={
           productData?.product_code && (
-            <span className="px-1.5 py-0.2 rounded bg-fuchsia-500/15 border border-fuchsia-500/30 text-fuchsia-300 font-mono text-[10px] flex-shrink-0">
+            <span className="px-2 py-0.5 rounded-lg bg-fuchsia-500/20 border border-fuchsia-500/35 text-fuchsia-300 font-bold text-xs sm:text-sm flex-shrink-0">
               {productData.product_code}
             </span>
           )
         }
         title={productData?.title || productData?.name || (historyList.length > 0 ? 'เลือกสินค้าจากรายการด้านล่าง' : 'ยังไม่มีสินค้า — เริ่มวิเคราะห์สินค้าใหม่')}
+        titleClassName="text-lg sm:text-xl md:text-2xl font-black text-white tracking-tight"
         quickSwitcher={
           historyList.length > 1 && (
             <div className="relative flex-shrink-0">

@@ -112,7 +112,7 @@ export default memo(function Topbar({
           </h1>
 
           {/* Tab Number Badge */}
-          <span className={`hidden sm:inline-flex items-center text-sm font-bold px-2 py-0.5 rounded-full border font-mono flex-shrink-0 ${currentTab.badgeColor}`}>
+          <span className={`hidden sm:inline-flex items-center text-xs sm:text-sm font-bold px-2.5 py-0.5 rounded-full border flex-shrink-0 ${currentTab.badgeColor}`}>
             {currentTab.badge}
           </span>
 
