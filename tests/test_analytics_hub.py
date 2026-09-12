@@ -45,6 +45,13 @@ def test_storage_analytics_endpoint():
     assert "total_reclaimable_mb" in archive
     assert "items" in archive
 
+    recommendation = data["archive_recommendation"]
+    assert "ready_count" in recommendation
+    assert "ready_mb" in recommendation
+    assert "ready_items" in recommendation
+    assert isinstance(recommendation["disk_alert"], bool)
+    assert isinstance(recommendation["should_notify"], bool)
+
 
 def test_inventory_health_endpoint():
     resp = client.get("/api/analytics/inventory")

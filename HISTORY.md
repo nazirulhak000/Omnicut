@@ -8,6 +8,7 @@
 
 ## สารบัญ
 
+| Round EXPORT-ARCHIVE-POLICY-1 | แจ้งเตือนเมื่อ export/project ที่โพสต์แล้วค้างเกิน 30 วัน หรือดิสก์ใช้เกิน 80% — banner ใน Storage tab ไม่ auto-move ไฟล์ | 2026-09-12 | สำเร็จสมบูรณ์ (เพิ่ม `archive_recommendation` ใน `/api/analytics/storage`, banner ใน StorageAnalyticsTab.jsx, pytest 4 passed, build 3.12s, live API verified, ดำเนินการโดย: Claude Code (Claude Sonnet 5)) |
 | Round SCRIPT-BATCH-EXPAND-1 | ระบบเจนสคริปต์ล็อตใหม่ 10 มุมมอง & ปรับระบบ Dev Server HTTP (Multi-Batch Generation & Filtering Flow) | 2026-09-12 | สำเร็จสมบูรณ์ (ปลดล็อก Privacy Error ถาวร รัน HTTP localhost:5173, SSOT 1 สินค้าหลายล็อต, Multi-Batch sub-bar, Quick filter ซ่อนที่โพสต์แล้ว, API generate-batch & add angle, pytest 171 passed, vitest 158 passed, build 3.25s, browser verified, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round POSTED-CLIP-LIFECYCLE-1 | ระบบจัดการคลิปที่โพสต์แล้ว (Zero-Risk Archive & Timeline Lockout Flow) | 2026-09-12 | สำเร็จสมบูรณ์ (ตัดสิทธิ์เปิดไทม์ไลน์ 100%, กรองออกจาก Dropdown โปรเจกต์, Action Bar สคริปต์ [ดูคลิปที่โพสต์แล้ว] + [ทำซ้ำเพื่อตัดคลิปใหม่], ย้ายโฟลเดอร์โปรเจกต์เข้า 06_Archive/Projects/ อัตโนมัติ, vitest 158 passed, pytest 156 passed, build 3.45s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round UI-FONT-MONO-CLEAN-1 | กวาดล้าง font-mono ที่ครอบข้อความภาษาไทย/การ์ด KPI ทั่วทั้งระบบให้เป็นฟอนต์กลาง 100% | 2026-09-12 | สำเร็จสมบูรณ์ (ถอด font-mono จาก MetricKpiCard, Badge.jsx, ContentTrackerHub, MediaAssetsHub, SystemSettings และ inspector ให้หน่วยนับและภาษาไทยใช้ฟอนต์กลาง, vitest 152 passed, build 3.31s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
@@ -50,6 +51,23 @@
 | Round USER-GUIDE-4 | คู่มือ interactive 6 ฟีเจอร์ (sticky TOC, เช็กลิสต์ติ๊กได้, accordion, ปุ่มลัด, FAQ ค้นหา) | 2026-09-12 | ไม่เปลี่ยนข้อความ/สี/ลำดับ; frontend 151 passed, build 4.22s |
 | Round ANALYTICS-CHARTS-1 | พัฒนาระบบกราฟเส้น กราฟโดนัท Funnel Chart และเกจวัดแบบ Pure SVG สไตล์ Dark Modern Glassmorphism สำหรับแดชบอร์ดทั้ง 4 แท็บ | 2026-09-12 | สร้าง 4 Pure SVG charts (AreaLine, Donut, Funnel, ProgressRing/Concentric) ฝังครบ 4 แท็บ; vitest 151 passed, backend 4 passed, build 3.44s, browser verified |
 | Round SHOTLIST-GEMINI-TTS-SSOT-1 | ระบบรวมศูนย์เสียง TTS (Gemini Flash Audio SSOT): แผนถ่าย & ตัดต่อจริงใช้เสียงเดียวกัน 100% ไม่เจนซ้ำ | 2026-09-12 | สังเคราะห์ด้วย Gemini Flash TTS เป็นค่าเริ่มต้น + Dropdown เลือก 5 เสียงใน Modal + VoiceStage reuse อัตโนมัติ; pytest 1,125 passed, vitest 158 passed, build 3.40s, browser verified |
+
+## Round EXPORT-ARCHIVE-POLICY-1 — แจ้งเตือน export ค้างนาน/ดิสก์ใกล้เต็ม (Combined Time + Disk Threshold)
+
+วันที่: 2026-09-12 · สั่งโดย: user · ดำเนินการโดย: Claude Code (Claude Sonnet 5) · สถานะ: เสร็จสมบูรณ์
+
+**ปัญหาเดิมและที่มา:** ผู้ใช้ถามว่าคลิปที่โพสต์แล้วถูกย้ายไฟล์ให้อัตโนมัติหรือไม่ ตรวจโค้ดพบว่า `03_Projects` ถูก auto-archive เข้า `06_Archive/Projects` จริงเมื่อกด "โพสต์แล้ว" (มีมาตั้งแต่ Round POSTED-CLIP-LIFECYCLE-1) แต่ `04_Exports` (วิดีโอ MP4) ตั้งใจไม่ย้ายเพื่อให้เปิดดูง่าย และไม่มี logic ใดๆ แจ้งเตือนว่าเมื่อไหร่ควรย้ายออกไป external drive — ผู้ใช้เลือกให้รวม 3 เงื่อนไข (อายุไฟล์ 30 วัน + disk threshold 80% + แจ้งเตือนแบบ manual ไม่ auto-move)
+
+**สิ่งที่ทำ:**
+1. `scripts/api_analytics.py`: เพิ่มค่าคงที่ `EXPORT_ARCHIVE_AGE_DAYS = 30`, `DISK_ALERT_PERCENTAGE = 80.0` + ฟังก์ชัน `_age_days_from_iso()` คำนวณอายุจาก ISO timestamp
+2. เพิ่ม `posted_at`/`age_days` ให้ทุกรายการใน `posted_items_list` ของ `get_storage_analytics()` — project ใช้ `angle.posted_at` จริงจาก ProductStore, mp4 export ใช้ file mtime เป็น proxy (ไฟล์ไม่มี timestamp ของตัวเองตอน move เข้า `Posted/`)
+3. เพิ่มฟิลด์ใหม่ `archive_recommendation` ใน response: `{ready_count, ready_mb, ready_items, disk_alert, should_notify, message}` — เงื่อนไข: อายุ >= 30 วัน **หรือ** ดิสก์ใช้ >= 80%
+4. `frontend/.../StorageAnalyticsTab.jsx`: เพิ่ม banner สีเหลืองอำพันแสดงข้อความรวมเมื่อ `should_notify` true วางไว้บนการ์ด "Posted Clips Archive" เดิม — ไม่มีปุ่ม auto-move ใหม่ ยังคงเป็น manual (ผู้ใช้ย้ายไฟล์ไป external drive เอง)
+5. Tests: ขยาย `tests/test_analytics_hub.py::test_storage_analytics_endpoint` เช็คคีย์ `archive_recommendation` และชนิดข้อมูล boolean ของ `disk_alert`/`should_notify`
+
+**Gate:** pytest `tests/test_analytics_hub.py` 4 passed, `npm run build` 3.12s, live API verified (`archive_recommendation` คืนค่าถูกต้องจาก backend ที่ auto-reload แล้ว: `should_notify: false` เพราะยังไม่มีไฟล์อายุเกิน 30 วันและดิสก์ใช้แค่ 42.5%)
+
+**Notes:** ไม่มี dedicated vitest สำหรับ StorageAnalyticsTab.jsx มาก่อน (ไม่มี convention เดิมให้ตาม) — ยืนยันด้วย pytest + build + live API แทน
 
 ## Round SHOTLIST-GEMINI-TTS-SSOT-1 — ระบบรวมศูนย์เสียง TTS (Gemini Flash Audio SSOT): แผนถ่าย & ตัดต่อจริงใช้เสียงเดียวกัน 100% ไม่เจนซ้ำ
 

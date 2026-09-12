@@ -33,6 +33,9 @@ _STORAGE_CACHE: Dict[str, Any] = {
 }
 STORAGE_CACHE_TTL_SECONDS = 300.0  # 5 minutes
 
+EXPORT_ARCHIVE_AGE_DAYS = 30  # Flag posted exports/projects older than this
+DISK_ALERT_PERCENTAGE = 80.0  # Flag when drive usage crosses this
+
 
 def _dir_size(path: Path) -> int:
     """Calculate total byte size of a directory safely."""
@@ -51,6 +54,18 @@ def _dir_size(path: Path) -> int:
     except (OSError, PermissionError):
         pass
     return total
+
+
+def _age_days_from_iso(iso_str: Optional[str]) -> Optional[int]:
+    """Days elapsed since an ISO timestamp; None if missing/unparseable."""
+    if not iso_str:
+        return None
+    try:
+        then = datetime.datetime.fromisoformat(iso_str)
+        now = datetime.datetime.now(then.tzinfo) if then.tzinfo else datetime.datetime.now()
+        return max(0, (now - then).days)
+    except (ValueError, TypeError):
+        return None
 
 
 @router.get("/production")
@@ -272,21 +287,30 @@ def get_storage_analytics(force_scan: bool = False) -> Dict[str, Any]:
                     if pdir.exists():
                         psize = _dir_size(pdir)
                         posted_projects_bytes += psize
+                        posted_at_str = a.get("posted_at")
                         posted_items_list.append({
                             "type": "project",
                             "name": proj_name,
                             "product_name": p.get("name") or "สินค้า",
                             "size_bytes": psize,
-                            "size_mb": round(psize / (1024 * 1024), 1)
+                            "size_mb": round(psize / (1024 * 1024), 1),
+                            "posted_at": posted_at_str,
+                            "age_days": _age_days_from_iso(posted_at_str)
                         })
 
         for f in posted_mp4s:
             fsize = f.stat().st_size
+            # Files carry no posted_at of their own -- mtime is set when the
+            # export lands in Posted/, so it's a reasonable proxy for "how
+            # long has this been sitting here since it was posted".
+            mtime_iso = datetime.datetime.fromtimestamp(f.stat().st_mtime).isoformat()
             posted_items_list.append({
                 "type": "export_mp4",
                 "name": f.name,
                 "size_bytes": fsize,
-                "size_mb": round(fsize / (1024 * 1024), 1)
+                "size_mb": round(fsize / (1024 * 1024), 1),
+                "posted_at": mtime_iso,
+                "age_days": _age_days_from_iso(mtime_iso)
             })
 
         total_reclaimable_bytes = posted_exports_bytes + posted_projects_bytes + completed_products_raw_bytes
@@ -307,12 +331,40 @@ def get_storage_analytics(force_scan: bool = False) -> Dict[str, Any]:
             "items": sorted(posted_items_list, key=lambda x: x["size_bytes"], reverse=True)
         }
 
+        used_percentage = round(used_disk_bytes / total_disk_bytes * 100, 1) if total_disk_bytes else 0.0
+
+        ready_items = [
+            item for item in posted_items_list
+            if (item.get("age_days") or 0) >= EXPORT_ARCHIVE_AGE_DAYS
+        ]
+        ready_bytes = sum(item["size_bytes"] for item in ready_items)
+        disk_alert = used_percentage >= DISK_ALERT_PERCENTAGE
+        should_notify = bool(ready_items) or disk_alert
+
+        message_parts = []
+        if ready_items:
+            message_parts.append(
+                f"มีไฟล์ที่โพสต์แล้วค้างเกิน {EXPORT_ARCHIVE_AGE_DAYS} วัน {len(ready_items)} รายการ "
+                f"({round(ready_bytes / (1024 * 1024), 1)} MB) แนะนำย้ายไป External Drive/Cloud"
+            )
+        if disk_alert:
+            message_parts.append(f"ดิสก์ใช้งานไปแล้ว {used_percentage}% (เกิน {DISK_ALERT_PERCENTAGE}%)")
+
+        archive_recommendation = {
+            "ready_count": len(ready_items),
+            "ready_mb": round(ready_bytes / (1024 * 1024), 1),
+            "ready_items": sorted(ready_items, key=lambda x: x.get("age_days") or 0, reverse=True)[:20],
+            "disk_alert": disk_alert,
+            "should_notify": should_notify,
+            "message": " · ".join(message_parts) if message_parts else None
+        }
+
         data = {
             "drive": {
                 "total_bytes": total_disk_bytes,
                 "used_bytes": used_disk_bytes,
                 "free_bytes": free_disk_bytes,
-                "used_percentage": round(used_disk_bytes / total_disk_bytes * 100, 1) if total_disk_bytes else 0.0
+                "used_percentage": used_percentage
             },
             "directories": [
                 {"name": "01_Raw (ฟุตเทจดิบ)", "folder": "01_Raw", "size_bytes": raw_size, "size_mb": round(raw_size / (1024 * 1024), 1), "size_gb": round(raw_size / (1024**3), 2)},
@@ -328,6 +380,7 @@ def get_storage_analytics(force_scan: bool = False) -> Dict[str, Any]:
             "safe_purge_mb": round(safe_purge_bytes / (1024 * 1024), 1),
             "heavy_products": heavy_products,
             "posted_archive_potential": posted_archive_potential,
+            "archive_recommendation": archive_recommendation,
             "last_scanned_at": datetime.datetime.now().isoformat()
         }
 

@@ -47,7 +47,8 @@ export default function StorageAnalyticsTab() {
     capcut_draft_gb = 0,
     safe_purge_mb = 0,
     heavy_products = [],
-    posted_archive_potential = {}
+    posted_archive_potential = {},
+    archive_recommendation = {}
   } = data || {};
   const totalFolderBytes = directories.reduce((acc, d) => acc + (d.size_bytes || 0), 0);
   const totalFolderGb = (totalFolderBytes / (1024 ** 3)).toFixed(2);
@@ -197,6 +198,17 @@ export default function StorageAnalyticsTab() {
           )}
         </div>
       </div>
+
+      {/* ── Archive Recommendation Banner (age-based + disk threshold) ── */}
+      {archive_recommendation.should_notify && (
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3 text-amber-100">
+          <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+          <div className="text-xs space-y-0.5">
+            <p className="font-bold text-amber-200">แนะนำย้ายไฟล์ออกไปสำรอง</p>
+            <p className="text-amber-100/90">{archive_recommendation.message}</p>
+          </div>
+        </div>
+      )}
 
       {/* ── Posted Clips Archive & Backup Potential ── */}
       <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-[#0B0F19]/90 via-[#071324]/80 to-[#0F1424]/90 border border-cyan-500/25 shadow-xl shadow-cyan-950/20 backdrop-blur-xl space-y-4">
