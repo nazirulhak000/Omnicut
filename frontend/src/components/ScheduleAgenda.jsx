@@ -140,6 +140,14 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   const [requeueDraft, setRequeueDraft] = useState({ date: '', time: '' });
   const [requeueLoading, setRequeueLoading] = useState(false);
   const [postedOpen, setPostedOpen] = useState(false);
+  // Posted history never gets pruned server-side -- window it here so
+  // opening this modal after a year of daily posts doesn't mount hundreds
+  // of rows at once.
+  const POSTED_MODAL_PAGE_SIZE = 50;
+  const [postedVisibleCount, setPostedVisibleCount] = useState(POSTED_MODAL_PAGE_SIZE);
+  useEffect(() => {
+    if (postedOpen) setPostedVisibleCount(POSTED_MODAL_PAGE_SIZE);
+  }, [postedOpen]);
   const scheduleDrafts = useRef(new Map());
   const scheduleRequestIds = useRef(new Map());
   const requeueRequestId = useRef(0);
@@ -786,22 +794,41 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
         <div className="space-y-4"><div className="rounded-xl border border-red-400/20 bg-red-500/[0.06] p-3 text-xs text-red-100">{requeueTarget?.product_name || 'คลิป'} · {requeueTarget?.hook_title || requeueTarget?.video_path}</div>{requeueLoading && <p className="text-xs text-cyan-200">กำลังหาช่องว่างถัดไปตามเทมเพลต...</p>}<div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><label className="space-y-1 text-xs font-bold text-slate-300">วันที่<input type="date" value={requeueDraft.date || ''} disabled={requeueLoading} onChange={(event) => setRequeueDraft((prev) => ({ ...prev, date: event.target.value }))} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white disabled:opacity-50" /></label><label className="space-y-1 text-xs font-bold text-slate-300">เวลา<input type="time" step="300" value={requeueDraft.time || ''} disabled={requeueLoading} onChange={(event) => setRequeueDraft((prev) => ({ ...prev, time: event.target.value }))} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white font-mono disabled:opacity-50" /></label></div><div className="flex justify-end gap-2"><button type="button" onClick={() => setRequeueOpen(false)} className="px-3 py-2 rounded-xl text-xs text-slate-300">ยกเลิก</button><button type="button" disabled={saving || requeueLoading || !requeueDraft.date || !requeueDraft.time} onClick={saveRequeue} className="px-4 py-2 rounded-xl bg-cyan-400 text-slate-950 text-xs font-black disabled:opacity-50">บันทึกคิวใหม่</button></div></div>
       </Modal>
 
-      <Modal isOpen={postedOpen} onClose={() => setPostedOpen(false)} title="คลิปที่โพสต์แล้ว" subtitle="เก็บไว้เป็นประวัติ ไม่นับรวมในคิวที่ต้องจัดการต่อ" maxWidth="max-w-2xl">
+      <Modal
+        isOpen={postedOpen}
+        onClose={() => setPostedOpen(false)}
+        title="คลิปที่โพสต์แล้ว"
+        subtitle="เก็บไว้เป็นประวัติ ไม่นับรวมในคิวที่ต้องจัดการต่อ"
+        maxWidth="max-w-2xl"
+      >
         <div className="space-y-1 max-h-[60vh] overflow-y-auto">
           {postedQueue.length === 0 ? (
             <p className="py-8 text-center text-xs text-slate-500">ยังไม่มีคลิปที่โพสต์แล้วในคิวนี้</p>
-          ) : postedQueue.map((item) => (
-            <div key={item.id} className="flex items-center gap-3 py-2.5 border-b border-white/[0.06] last:border-0">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-white truncate">{item.product_name || 'ไม่ระบุสินค้า'}</span>
-                  <Badge className={STATUS_STYLES.posted}>{STATUS_LABELS.posted}</Badge>
+          ) : (
+            <>
+              {postedQueue.slice(0, postedVisibleCount).map((item) => (
+                <div key={item.id} className="flex items-center gap-3 py-2.5 border-b border-white/[0.06] last:border-0">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-white truncate">{item.product_name || 'ไม่ระบุสินค้า'}</span>
+                      <Badge className={STATUS_STYLES.posted}>{STATUS_LABELS.posted}</Badge>
+                    </div>
+                    <p className="text-[11px] text-cyan-200 truncate mt-0.5">{item.hook_title || item.project_name || item.video_path}</p>
+                  </div>
+                  <span className="text-[11px] font-mono text-slate-500 whitespace-nowrap">{item.scheduled_at?.slice(0, 16).replace('T', ' ')}</span>
                 </div>
-                <p className="text-[11px] text-cyan-200 truncate mt-0.5">{item.hook_title || item.project_name || item.video_path}</p>
-              </div>
-              <span className="text-[11px] font-mono text-slate-500 whitespace-nowrap">{item.scheduled_at?.slice(0, 16).replace('T', ' ')}</span>
-            </div>
-          ))}
+              ))}
+              {postedVisibleCount < postedQueue.length && (
+                <button
+                  type="button"
+                  onClick={() => setPostedVisibleCount(c => c + POSTED_MODAL_PAGE_SIZE)}
+                  className="w-full py-2.5 text-xs font-bold text-cyan-300 hover:text-cyan-200 cursor-pointer"
+                >
+                  โหลดเพิ่ม ({postedQueue.length - postedVisibleCount} รายการที่เหลือ)
+                </button>
+              )}
+            </>
+          )}
         </div>
       </Modal>
     </div>

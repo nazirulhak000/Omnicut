@@ -111,6 +111,16 @@ export default function PerformanceAnalyticsTab() {
     .filter((p) => p.views > 0 || p.likes > 0), [posts]);
 
   const sorted = useMemo(() => [...richPosts].sort((a, b) => b.views - a.views), [richPosts]);
+
+  // PostLog is never pruned server-side -- window the table so a year of
+  // daily posts doesn't mount hundreds of rows at once. KPI cards above
+  // (totalViews, avgEngagement, etc.) still read the full richPosts.
+  const PERF_TABLE_PAGE_SIZE = 50;
+  const [perfVisibleCount, setPerfVisibleCount] = useState(PERF_TABLE_PAGE_SIZE);
+  useEffect(() => {
+    setPerfVisibleCount(PERF_TABLE_PAGE_SIZE);
+  }, [data]);
+  const visibleSorted = useMemo(() => sorted.slice(0, perfVisibleCount), [sorted, perfVisibleCount]);
   const winner = sorted[0] || null;
   const loser = sorted.length > 1 ? sorted[sorted.length - 1] : null;
 
@@ -300,7 +310,7 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.04]">
-                {sorted.map((p, idx) => (
+                {visibleSorted.map((p, idx) => (
                   <tr key={p.id || idx} className="hover:bg-white/[0.02] transition-colors">
                     <td className="py-2.5 px-3">
                       <div className="flex items-center gap-2.5 min-w-0">
@@ -341,6 +351,17 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
                 ))}
               </tbody>
             </table>
+            {perfVisibleCount < sorted.length && (
+              <div className="flex justify-center pt-3">
+                <button
+                  type="button"
+                  onClick={() => setPerfVisibleCount(c => c + PERF_TABLE_PAGE_SIZE)}
+                  className="px-4 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-xs font-bold text-slate-200 transition-all cursor-pointer"
+                >
+                  โหลดเพิ่ม ({sorted.length - perfVisibleCount} คลิปที่เหลือ)
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
