@@ -10,7 +10,7 @@ import {
   scrapeAndPlanProduct, scrapeAndPlanProductAsync, getProducts, updateProduct,
   previewProductSource, previewProductImageMetadataAsync, refreshProductSource, updateAngleStatus, updateAngleVideos, setDefaultVideosForProduct, deleteProduct,
   uploadFile, resolveTiktokProductId, rerollAngleScript,
-  generateShotList, getShotList, getTaskStatus
+  generateShotList, getShotList, getShotListStatus, getTaskStatus
 } from '../api';
 import { Modal, Toast, Button, Badge, Input, Textarea, ConfirmModal, PageHeader } from './ui';
 import MediaPickerModal from './MediaPickerModal';
@@ -184,22 +184,103 @@ function ProductCard({ product, isSelected, onSelect }) {
 // ═══════════════════════════════════════════════════════════════════════
 // 📑 ANGLE SIDEBAR ITEM (Left Column in Split Studio View)
 // ═══════════════════════════════════════════════════════════════════════
-function AngleSidebarItem({ angle, index, isSelected, onSelect, onPreviewExportVideo }) {
+// 4-phase pipeline definition for sidebar dot indicators
+// 4-phase pipeline definition for sidebar dot indicators
+const PIPELINE_PHASES = [
+  { key: 'scripted', label: 'สคริปต์พร้อม', short: 'สคริปต์' },
+  { key: 'in_production', label: 'กำลังตัดต่อ', short: 'ตัดต่อ' },
+  { key: 'rendered', label: 'ตัดต่อเสร็จ', short: 'เสร็จ' },
+  { key: 'posted', label: 'โพสต์แล้ว', short: 'โพสต์' },
+];
+
+function resolvePhaseIndex(angle) {
   const curStatus = angle.status || 'scripted';
   const isRendered = (curStatus === 'rendered' || curStatus === 'posted') && !!angle.video_url;
   const isInProduction = curStatus === 'in_production' || (!!angle.project_name && !isRendered);
+  if (curStatus === 'posted') return 3;
+  if (isRendered) return 2;
+  if (isInProduction) return 1;
+  return 0;
+}
 
-  const statusLabel = curStatus === 'posted' ? 'โพสต์แล้ว'
-    : isRendered ? 'ตัดเสร็จแล้ว'
-    : isInProduction ? 'กำลังตัดต่อ'
-    : 'สคริปต์พร้อม';
+function PhaseDots({ angle, compact = false }) {
+  const activeIdx = resolvePhaseIndex(angle);
+  const currentPhase = PIPELINE_PHASES[activeIdx];
 
-  const statusColor = curStatus === 'posted' ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-    : isRendered ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-    : isInProduction ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-    : 'bg-white/[0.05] text-slate-400 border-white/[0.08]';
+  return (
+    <div
+      className="inline-flex items-center gap-1.5 py-0.5 px-1.5 rounded-full bg-black/40 border border-white/[0.06]"
+      title={`สถานะกระบวนการ: ${currentPhase.label} (สเต็ป ${activeIdx + 1}/4)`}
+    >
+      <div className="flex items-center gap-1">
+        {PIPELINE_PHASES.map((phase, i) => {
+          const isCurrent = i === activeIdx;
+          const isPassed = i < activeIdx;
+
+          return (
+            <div key={phase.key} className="flex items-center">
+              {/* Connector line between dots */}
+              {i > 0 && (
+                <div
+                  className={`h-0.5 w-1.5 sm:w-2 transition-colors duration-300 ${
+                    isPassed || isCurrent ? 'bg-emerald-500/70' : 'bg-white/[0.08]'
+                  }`}
+                />
+              )}
+              {/* Dot */}
+              <div className="relative flex items-center justify-center">
+                {isCurrent && (
+                  <span className="absolute w-3.5 h-3.5 rounded-full bg-emerald-400/30 animate-ping opacity-75" />
+                )}
+                <span
+                  className={`rounded-full transition-all duration-300 ${
+                    isCurrent
+                      ? 'w-2 h-2 bg-emerald-400 ring-2 ring-emerald-400/40 shadow-sm shadow-emerald-400/60 scale-110 z-10'
+                      : isPassed
+                      ? 'w-1.5 h-1.5 bg-emerald-500/80'
+                      : 'w-1.5 h-1.5 bg-white/[0.12]'
+                  }`}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {!compact && (
+        <span className={`text-[9px] font-bold ml-0.5 font-kanit ${
+          activeIdx === 3 ? 'text-emerald-300'
+          : activeIdx === 2 ? 'text-cyan-300'
+          : activeIdx === 1 ? 'text-amber-300'
+          : 'text-slate-400'
+        }`}>
+          {currentPhase.short}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function AngleSidebarItem({
+  angle,
+  index,
+  isSelected,
+  onSelect,
+  onPreviewExportVideo,
+  shotListInfo,
+  onGenerateShotList,
+  onOpenShotList,
+  isGeneratingShotList = false
+}) {
+  const curStatus = angle.status || 'scripted';
+  const isRendered = (curStatus === 'rendered' || curStatus === 'posted') && !!angle.video_url;
+  const isInProduction = curStatus === 'in_production' || (!!angle.project_name && !isRendered);
+  const isLocked = curStatus === 'posted' || isInProduction;
+
+  const phaseIdx = resolvePhaseIndex(angle);
 
   const selectedVideos = angle.selected_videos || (angle.selected_video ? [angle.selected_video] : []);
+  const hasShotList = shotListInfo?.has_shot_list;
+  const isStaleShotList = shotListInfo?.is_stale;
 
   return (
     <div
@@ -225,35 +306,82 @@ function AngleSidebarItem({ angle, index, isSelected, onSelect, onPreviewExportV
           {index + 1}
         </span>
 
-        {/* Title + Hook Preview */}
-        <div className="min-w-0 flex-1 space-y-1">
+        {/* Title + Phase Dots + Badges */}
+        <div className="min-w-0 flex-1 space-y-1.5">
+          {/* Row 1: Name + 4-Phase Stepper */}
           <div className="flex items-center justify-between gap-1.5">
             <span className={`text-xs font-bold truncate ${isSelected ? 'text-white' : 'text-slate-200'}`}>
               {angle.angle_name}
             </span>
-            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border flex-shrink-0 ${statusColor}`}>
-              {statusLabel}
-            </span>
+            <div className="flex-shrink-0">
+              <PhaseDots angle={angle} />
+            </div>
           </div>
 
-          <ContentTypeBadges angle={angle} compact />
+          {/* Row 2: Content Type Badges + Shot List Badge */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <ContentTypeBadges angle={angle} compact />
 
+            {/* Shot List Status Badge */}
+            {hasShotList ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenShotList ? onOpenShotList(index) : (onGenerateShotList && onGenerateShotList(index));
+                }}
+                className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border transition-all cursor-pointer ${
+                  isStaleShotList
+                    ? 'bg-orange-500/15 hover:bg-orange-500/25 text-orange-300 border-orange-400/40 ring-1 ring-orange-400/20'
+                    : 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border-emerald-400/40 ring-1 ring-emerald-400/20 shadow-xs'
+                }`}
+                title={isStaleShotList ? 'บทเปลี่ยนหลังจากสร้างแผนถ่าย — คลิกเพื่อตรวจหรืออัปเดต' : 'มีแผนถ่ายพร้อมแล้ว — คลิกเพื่อเปิดดูแผนถ่าย'}
+              >
+                <Clapperboard className="w-2.5 h-2.5 flex-shrink-0" />
+                <span>{isStaleShotList ? 'แผนถ่ายเก่า' : 'แผนถ่ายพร้อม'}</span>
+              </button>
+            ) : (
+              !isLocked && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onGenerateShotList && onGenerateShotList(index);
+                  }}
+                  disabled={isGeneratingShotList}
+                  className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-white/[0.04] hover:bg-amber-500/15 text-slate-400 hover:text-amber-200 border border-white/[0.08] hover:border-amber-500/30 transition-all cursor-pointer disabled:opacity-50"
+                  title="ยังไม่มีแผนถ่าย — คลิกเพื่อสร้างแผนถ่ายสำหรับมุมนี้"
+                >
+                  {isGeneratingShotList ? (
+                    <Loader2 className="w-2.5 h-2.5 animate-spin text-amber-400" />
+                  ) : (
+                    <Clapperboard className="w-2.5 h-2.5 text-amber-400/70" />
+                  )}
+                  <span>+ แผนถ่าย</span>
+                </button>
+              )
+            )}
+          </div>
+
+          {/* Row 3: Hook preview */}
           {angle.hook_title && (
             <p className="text-[11px] text-slate-400 truncate font-kanit">
               "{angle.hook_title}"
             </p>
           )}
 
-          {/* Footer of item: footage tag + preview button */}
+          {/* Row 4: Footer — footage tag + preview button */}
           <div className="flex items-center justify-between pt-0.5 text-[10px]">
-            {selectedVideos.length > 0 ? (
-              <span className="inline-flex items-center gap-1 text-[#25F4EE] font-medium">
-                <Film className="w-2.5 h-2.5" />
-                <span>{selectedVideos.length} คลิป</span>
-              </span>
-            ) : (
-              <span className="text-slate-500 italic">ยังไม่ได้เลือกคลิป</span>
-            )}
+            <div className="flex items-center gap-2">
+              {selectedVideos.length > 0 ? (
+                <span className="inline-flex items-center gap-1 text-[#25F4EE] font-medium">
+                  <Film className="w-2.5 h-2.5" />
+                  <span>{selectedVideos.length} คลิป</span>
+                </span>
+              ) : (
+                <span className="text-slate-500 italic">ยังไม่ได้เลือกคลิป</span>
+              )}
+            </div>
 
             {isRendered && angle.video_url && (
               <button
@@ -262,7 +390,7 @@ function AngleSidebarItem({ angle, index, isSelected, onSelect, onPreviewExportV
                   e.stopPropagation();
                   onPreviewExportVideo && onPreviewExportVideo(angle);
                 }}
-                className="p-1 rounded bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/30 flex items-center gap-1 transition-colors"
+                className="p-1 px-1.5 rounded bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/30 flex items-center gap-1 transition-colors"
                 title="ดูคลิปที่ Export แล้ว"
               >
                 <Play className="w-2.5 h-2.5 fill-cyan-300" />
@@ -279,17 +407,9 @@ function AngleSidebarItem({ angle, index, isSelected, onSelect, onPreviewExportV
 // ═══════════════════════════════════════════════════════════════════════
 // 📱 ANGLE MOBILE PILL (Horizontal Swipeable Tab for iPhone 15 PM)
 // ═══════════════════════════════════════════════════════════════════════
-function AngleMobilePill({ angle, index, isSelected, onSelect }) {
-  const curStatus = angle.status || 'scripted';
-  const isRendered = (curStatus === 'rendered' || curStatus === 'posted') && !!angle.video_url;
-  const isInProduction = curStatus === 'in_production' || (!!angle.project_name && !isRendered);
+function AngleMobilePill({ angle, index, isSelected, onSelect, shotListInfo }) {
   const selectedVideos = angle.selected_videos || (angle.selected_video ? [angle.selected_video] : []);
-
-  const statusDot = curStatus === 'posted' || isRendered
-    ? 'bg-emerald-400'
-    : isInProduction
-    ? 'bg-amber-400 animate-pulse'
-    : 'bg-slate-500';
+  const hasShotList = shotListInfo?.has_shot_list;
 
   return (
     <button
@@ -311,12 +431,20 @@ function AngleMobilePill({ angle, index, isSelected, onSelect }) {
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${statusDot}`} />
+          <PhaseDots angle={angle} compact={true} />
           <span className={`text-xs font-bold truncate ${isSelected ? 'text-white' : 'text-slate-300'}`}>
             {angle.angle_name}
           </span>
         </div>
-        <ContentTypeBadges angle={angle} compact />
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <ContentTypeBadges angle={angle} compact />
+          {hasShotList && (
+            <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-1 py-0.2 rounded border border-emerald-500/20">
+              <Clapperboard className="w-2.5 h-2.5" />
+              <span>แผน</span>
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5">
           {selectedVideos.length > 0 ? (
             <span className="text-[#25F4EE] font-medium">{selectedVideos.length} คลิป</span>
@@ -1450,6 +1578,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const [shotListAngleIdx, setShotListAngleIdx] = useState(null); // angle this modal is open for
   const [generatingShotListIdx, setGeneratingShotListIdx] = useState(null); // angle currently generating
   const [shotListResult, setShotListResult] = useState(null);
+  const [shotListStatusMap, setShotListStatusMap] = useState({}); // {angle_id: {has_shot_list, is_stale}}
 
   // Edit TikTok Product ID Modal State (Backlog & Post-creation support)
   const [showEditTiktokIdModal, setShowEditTiktokIdModal] = useState(false);
@@ -1631,6 +1760,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     });
     const nextAngles = item.angles || [];
     setAngles(nextAngles);
+    // Fetch shot-list status for sidebar badges (fire-and-forget)
+    getShotListStatus(item.id).then(res => setShotListStatusMap(res.status || {})).catch(() => setShotListStatusMap({}));
     const pendingImagePreview = pendingImageMetadataPreviewRef.current;
     if (pendingImagePreview?.product_id === item.id) {
       setProductSourcePreview(pendingImagePreview.preview || pendingImagePreview);
@@ -1800,6 +1931,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       }
       setShotListResult({ angle: targetAngle, ...result });
       setShotListAngleIdx(angleIdx);
+      // Refresh sidebar shot-list badges after generation
+      if (productData?.id) getShotListStatus(productData.id).then(res => setShotListStatusMap(res.status || {})).catch(() => {});
     } catch (err) {
       console.error('Failed to generate shot list:', err);
       showToast('ไม่สามารถสร้างแผนถ่ายได้: ' + (err.friendlyMessage || err.message), 'error');
@@ -3026,6 +3159,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         index={idx}
                         isSelected={activeAngleIdx === idx}
                         onSelect={() => setOpenAngleIdx(idx)}
+                        shotListInfo={shotListStatusMap[ang.angle_id]}
                       />
                     ))}
                   </div>
@@ -3041,6 +3175,10 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       isSelected={activeAngleIdx === idx}
                       onSelect={() => setOpenAngleIdx(idx)}
                       onPreviewExportVideo={(a) => setPreviewExportAngle(a)}
+                      shotListInfo={shotListStatusMap[ang.angle_id]}
+                      onGenerateShotList={handleGenerateShotList}
+                      onOpenShotList={handleGenerateShotList}
+                      isGeneratingShotList={generatingShotListIdx === idx}
                     />
                   ))}
                 </div>
@@ -3658,6 +3796,20 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         confirmText="ลบข้อมูลถาวร"
         loading={isDeletingProduct}
         variant="danger"
+      />
+
+      {/* ── Shot List Modal (แผนถ่ายทำตามสคริปต์) ── */}
+      <ShotListModal
+        isOpen={shotListAngleIdx !== null && !!shotListResult}
+        onClose={() => {
+          setShotListAngleIdx(null);
+          setShotListResult(null);
+        }}
+        productId={productData?.id}
+        mobileBaseUrl={mobileBaseUrl}
+        result={shotListResult}
+        onRegenerate={handleRegenerateShotList}
+        regenerating={generatingShotListIdx !== null}
       />
     </div>
   );

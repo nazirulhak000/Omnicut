@@ -9,45 +9,87 @@
 ## สารบัญ
 
 | รอบ | งาน | วันที่ | ผลลัพธ์ |
-| Round DELETED-TIMELINE-SYNC-1 | ซิงค์สถานะโปรเจกต์ที่ถูกลบออกจาก NewClipPanel, ล็อกปุ่มแผนถ่ายเมื่อถูกล็อก, และนำปุ่มย้อนสถานะออก | 2026-09-11 | ลบปุ่มย้อนสถานะแปลกปลอมตาม Clean UI standard, ล็อกปุ่มแผนถ่าย/แก้ไข/รีสคริปต์เมื่อ isLocked, ตรวจเช็ค existingProjects ใน NewClipPanel ลบคำเตือนค้าง, อัปเดตสินค้าหลังลบโปรเจกต์; Vitest 151 passed, build pass |
-| Round SHOT-LIST-ENHANCE-2 | ปรับคำแนะนำมุมกล้องและการถ่ายทำในแผนถ่ายให้เจาะลึกเฉพาะซีนตามบทพูดจริง (Semantic Action Guidance) | 2026-09-11 | วิเคราะห์คีย์เวิร์ดบทพูดรายซีน (Ergonomic/Click/Smooth/Value/Price/Durability/Bluetooth), จับหมวดสินค้าจาก product_name อัตโนมัติ, หลีกเลี่ยงคำแนะนำซ้ำ; backend 5 passed, frontend 151 passed |
-| Round SHOT-LIST-ENHANCE-1 | ยกระดับโฟลว์แผนถ่าย (Phase 1): Invalidate แผนถ่ายเมื่อสคริปต์เปลี่ยน + เพิ่มปุ่มเปิดแผนถ่ายใน ContentTrackerHub | 2026-09-11 | ลบ shot list เก่าอัตโนมัติเมื่อแก้บท/สุ่มใหม่, แจ้งเตือน stale script ใน modal, คำแนะนำกล้องฉลาดตาม category, ปุ่มเปิดแผนถ่ายใน Tracker Hub; backend 4 passed, frontend 151 passed, build pass |
-| Round PERSIST-LAYOUT-FIX-1 | แก้ Product selection ไม่จำค่าหลังรีเฟรชหน้า + จัดระเบียบ Toolbar action buttons | 2026-09-11 | จำ active product และ angle index ล่าสุดใน localStorage, คลีน Header เอาป้ายราคา/ID ออก ย้าย ID ไปไว้ใน ข้อมูล AI modal, จัด Toolbar เป็น single-row scrollable; frontend 151 passed, build pass |
-| Round RESPONSIVE-LAYOUT-1 | ปรับแต่ง Responsive Layout ทั้งหมดรองรับ 2 หน้าจอ Desktop (1440x900) และ Mobile (iPhone 15 Pro Max 430x932) | 2026-09-11 | Shell/Editor/Hubs/Modals ปรับ touch target >= 44px, ป้องกัน header/button wrap, layout สองขนาดสมบูรณ์; frontend 150 passed, build pass, parity 153 passed |
-| Round STYLE-ONECLICK-1 | เพิ่ม 4 Style Presets ใน One Click และแยก fresh-create ออกจาก open-existing | 2026-09-10 | Viral/Clean/Smooth/Premium ใช้ motion, transition และ accent จริง; แก้ปุ่มส่งตัดต่อไม่เปิดโปรเจกต์เก่า; backend 1,034 และ frontend 144 tests ผ่าน พร้อม FFmpeg multi-frame/build |
-| Round DOC-SYNC-1 | Sync สถานะเอกสารจากผลทดสอบล่าสุด | 2026-09-10 | ปิดเอกสารของรอบที่ implementation เสร็จ; แยก live TikTok, Thai glyph verification และ empirical performance เป็นงานรอหลักฐานจริง |
-| Round TLO-REFACTOR-FINAL-AUDIT | Final audit ของ Overlay Timeline/Preview refactor | 2026-09-09 | Overlay scope sign-off; full pytest ล่าสุด 1,034 passed, frontend 144 passed, build 1,979 modules |
-| Round HOOK-OPT-1 | ฟอนต์/เทมเพลต/พรีวิว/สปีดฮุก | 2026-09-08 | Implementation และ deterministic parity gates ผ่าน; รายละเอียดเต็มอยู่ด้านล่าง |
-| Round BUG-MARK-POSTED-1 | แก้ mark-posted สำเร็จแต่การ์ดยังอยู่ rendered | 2026-09-10 | แก้ลำดับ registry/product update; regression 15 passed; full pytest 1,035 passed |
-| Round PRODUCT-METADATA-1 | แนบรูปอ้างอิงย้อนหลัง + Metadata Inspector สำหรับตรวจข้อมูลที่ AI ใช้ | 2026-09-10 | เพิ่ม PATCH images แบบรองรับ legacy URL/local upload, modal แสดง source metadata/AI input/JSON เต็ม, frontend 144 passed, backend 1,037 passed |
-| Round PRODUCT-METADATA-2 | เติม source fallback สำหรับสินค้า legacy ที่มีข้อมูลอยู่ใน angle แต่ product metadata ว่าง | 2026-09-10 | list/reroll ใช้ fallback จาก key_features/pain_point โดยติดป้าย provenance, backend 1,040 passed, frontend 144 passed |
-| Round PRODUCT-METADATA-8 | ย้ายการอ่าน metadata จากรูปอ้างอิงเป็น background task พร้อม notification และเปิดผล preview ย้อนหลัง | 2026-09-10 | async persistent task `image_metadata`, ปิดโมดัล/เปลี่ยนหน้าได้, Activity Center และ toast มีปุ่มตรวจผล, backend 1,055 passed, frontend 149 passed, build/lint ผ่าน |
-| Round SCRIPT-ANGLE-METADATA-1 | ล็อกหัวข้อเดิมตอนเจนใหม่ และแสดงประเภทเนื้อหาเป็นหลาย badge | 2026-09-10 | reroll คง `angle_id`/ชื่อหัวข้อเดิม, derive `content_types` หลายค่า, รองรับข้อมูลเก่า, backend 1,057 passed, frontend 149 passed, build/lint ผ่าน |
-| Round RENDER-REGRESSION-2 | Forensic และคืน default render/style ให้กลับ Golden Master | 2026-09-10 | ระบุ `3a35723` เวลา 08:06:23 เป็นจุดที่ One Click เปลี่ยน implicit default เป็น `viral_punch`; คืนเป็น `clean_tech_review`, migrate saved form รุ่นเก่า, focused FFmpeg/parity 181 passed, full backend 1,057 passed, frontend 150 passed, build/lint ผ่าน |
-| Round FONT-SIZE-REGRESSION-1 | ตรวจและคืนขนาดฟอนต์บทพูด/ซับให้เท่า baseline | 2026-09-10 | พบ pipeline reuse `subtitles_v2.ass` เก่าโดยไม่มี font contract marker; บังคับ regenerate ASS เก่า, fresh output `Fontsize=82`, focused FFmpeg/parity 172 passed, full backend 1,059 passed, frontend 150 passed, build/lint ผ่าน |
-| Round FONT-SIZE-REGRESSION-2 | แก้ซับยังเล็กใน backend `.venv` และเรนเดอร์งานจริงใหม่ | 2026-09-10 | พบ optional `fontTools` หายแล้ว scale fallback เป็น `1.0`; อ่าน SFNT metrics โดยตรง, contract `v4`, ASS `Fontsize=82`, pixel bands ตรง baseline, backend 1,061/frontend 150 passed |
-| Round COMMIT-SPLIT-1 | จัดกลุ่ม commit working tree ค้าง + สร้าง LIVE_VALIDATION_CHECKLIST.md | 2026-09-10 | commit แยก 5 กลุ่ม (products metadata / exports-videos fix / editor cover / ui polish / docs) + checklist รวม live gate ที่รอ user; gates: pytest 1,050 passed (2 failures pre-existing ที่ HEAD ใน test_preview_render_behavior), frontend 149 passed, build/lint ผ่าน |
-| Round SFX-TITLES-1 | ดึงชื่อแสดงผลภาษาไทย/อังกฤษจริงจาก Myinstants ใส่ใน asset_metadata.json | 2026-09-09 | 1,774 ชื่อแสดงผลภาษาไทย/อังกฤษตรงปก · UI แสดงชื่ออ่านง่ายและค้นหาได้ทันที |
-| Round SFX-HUB-1 | สแกน SFX แบบ Recursive เข้า AssetRegistry และเพิ่มตัวกรองหมวดหมู่ใน Media Assets Hub | 2026-09-09 | 1,822 ไฟล์ SFX แสดงผลครบถ้วนใน Media Assets Hub พร้อม Sub-category filter pills |
-| Round SFX-CAT-1 | จัดหมวดหมู่ไฟล์เสียง mi_xxx 1,775 ไฟล์ เป็น 10 หมวดใน 02_Assets/SFX/ | 2026-09-09 | 1,775 ไฟล์จัดเข้า 10 โฟลเดอร์ย่อย · เสียงเดิม 47 ไฟล์คงเดิม |
-| Round SFX-DL-1 | โหลดเสียงเอฟเฟกต์ทั้งหมดจาก myinstants.com/en/index/th/ | 2026-09-09 | 1,775 เสียงโหลดสำเร็จ · SFX/ รวม 1,822 ไฟล์ · เสียงเดิม 47 ครบ |
-| Round PRO-STYLE-1 | Professional Editing Style System: Phase 1 Style Contract + Golden Master | 2026-09-09 | สร้าง `PRO_EDITOR_STYLE_PLAN.md` พร้อม editorial contract, Golden Master `clean_tech_review`, acceptance rubric และแผน 6 phases; ไม่มี source-code behavior change |
-| Round PRO-STYLE-2 | Editorial Beat Map + Pacing Core (Phase 2A) | 2026-09-09 | เพิ่ม isolated `scripts/editorial_pacing.py` และ regression contract 6 เคส; targeted tests 6 passed, compileall และ diff check ผ่าน; ยังไม่ integrate เข้า render/timeline |
-| Round 1 | รวม hook banner กับ text overlay เป็นโมเดลเดียว | 2026-09-05 | ปิดบั๊ก 12 ตัว · commit `20e2cc5` |
-| Round 2 | วางกฎรอบงาน + ตั้ง Todo กลาง | 2026-09-05 | `work_loop.md` + `TODO.md` |
-| Round 3 | ซ่อมฐาน + รวม writer + easing | 2026-09-05 | ซ่อม drift 3 ตัว · `overlay_events.py` · accel |
-| Round DOC-1 | ตรวจโค้ดและอัปเดตเอกสารหลัง Refactor | 2026-09-05 | `ARCHITECTURE.md` + `testing_standard.md` |
-| Round BUG-1 | แก้ปุ่มสร้างคลิปใหม่กดไม่ได้ (executeRender ใน useRenderJob) | 2026-09-05 | คืนชีพ executeRender & telemetry · npm test 52 pass · build pass |
-| Round 4 | per-word layout (static, พิสูจน์ว่าเหมือนเดิมเป๊ะ) | 2026-09-05 | word_layout.py + overlayLayoutClient.js · pytest 344 pass · npm test 54 pass · render parity pass |
-| Round 5 | per-word animation (คำทยอยเข้าทีละคำ) | 2026-09-05 | word_stagger_ms · ASS \org & \t · Canvas 2D mirror · pytest 347 pass · npm test 54 pass · build pass |
-| Round 6 | ช่องใหม่ที่ mirror ได้เป๊ะ (Loop/Out + Tier A Skew) | 2026-09-05 | Full motion pipeline + Skew \fax / Canvas transform · pytest 351 pass · npm test 54 pass · build pass |
-| Round 7 | template v2 + แกลเลอรีที่ขยับได้ | 2026-09-05 | 8 templates + motion presets · Animated gallery · pytest 356 pass · npm test 54 pass · build pass |
-| Round BUG-2 | แก้ข้อความซ้อนทับกันเป็นก้อนใน SequencePlayer (Hook / Text clumping) | 2026-09-05 | Guard Hook header & non-staggered overlays to monolithic · Contract test · pytest 356 pass · npm test 54 pass · build pass |
-| Round BUG-3 | angle ชนกัน (คลิปผิดสคริปต์) ใน Content Tracker Hub + ปุ่มปักตะกร้า TikTok | 2026-09-06 | reconcile collision guard + data_conflict_note · rollback ครอบทุก status · tiktok_product_id UI · pytest 367 pass · build pass |
-| Round TRK-3 | บอร์ดหลักคลีนไร้ความรก (Today-Only Posted, คลังสคริปต์ & การ์ดตัดต่อเสร็จแนวนอน) | 2026-09-06 | Today-Only posted + Archive Modal · Script Library Modal (หยิบทำวันนี้) · Compact Rendered Cards ~95px · pytest 373 pass · build pass |
-| Round TRK-2 | ตารางจัดคิวโพสต์ประจำวัน (Daily Run Sheet) & จัดกลุ่มย่อการ์ด (Product Grouping / Quick Pills) | 2026-09-06 | Daily Run Sheet tab (4 slots + auto-rotate + schedule time) + Quick Pills + Accordion · pytest 373 pass · npm test 54 pass · build pass |
-| Round TRK-1 | เพิ่มปุ่มส่งคลิปไป TikTok Studio พร้อม Modal ตรวจสอบ/ปักตะกร้า ในหน้า Tracker | 2026-09-06 | ContentTrackerHub 2-row buttons + Post Modal + Inspect toolbar · pytest 372 pass · npm test 54 pass · build pass |
-| Round PROD-1 | เพิ่มช่อง TikTok Product ID ตอนสร้างสคริปต์ + Fallback ค้นหาด้วยชื่อ + Click-to-Edit Cart ID ย้อนหลัง | 2026-09-06 | ProductToClip modal + Header badge edit + auto-resolve shortlinks · pytest 372 pass · npm test 54 pass · build pass |
+| Round ANALYTICS-CHARTS-POLISH-1 | ปรับขนาดและจัดระเบียบเลย์เอาท์กราฟใน Analytics Hub ให้กระชับ สวยงาม พอดีสายตา ไม่ใหญ่เกินจำเป็น | 2026-09-12 | กราฟเส้น 800x130 widescreen, โดนัท top 4 + อื่นๆ พร้อม label ไม่หาย, TokenDashboard models/tasks จัดแบบ side-by-side; frontend 151 passed, build 3.25s, browser verified |
+| Round USER-GUIDE-4 | คู่มือ interactive 6 ฟีเจอร์ (sticky TOC, เช็กลิสต์ติ๊กได้, accordion, ปุ่มลัด, FAQ ค้นหา) | 2026-09-12 | ไม่เปลี่ยนข้อความ/สี/ลำดับ; frontend 151 passed, build 4.22s |
+| Round ANALYTICS-CHARTS-1 | พัฒนาระบบกราฟเส้น กราฟโดนัท Funnel Chart และเกจวัดแบบ Pure SVG สไตล์ Dark Modern Glassmorphism สำหรับแดชบอร์ดทั้ง 4 แท็บ | 2026-09-12 | สร้าง 4 Pure SVG charts (AreaLine, Donut, Funnel, ProgressRing/Concentric) ฝังครบ 4 แท็บ; vitest 151 passed, backend 4 passed, build 3.44s, browser verified |
+
+## Round ANALYTICS-CHARTS-POLISH-1 — ปรับขนาดและจัดระเบียบเลย์เอาท์กราฟใน Analytics Hub ให้กระชับ สวยงาม พอดีสายตา ไม่ใหญ่เกินจำเป็น
+
+วันที่: 2026-09-12 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
+
+**ปัญหา:**
+1. **กราฟเส้น Daily Token Volume ใหญ่เกินความจำเป็น:** viewBox แคบทำให้บนจอกว้างกราฟยืดสูงเกือบ 400px กลายเป็นคลื่นยักษ์ที่มีพื้นที่โล่งสีดำว่างเปล่า และตัวเลขแกน X ด้านล่างถูกตัดขอบ
+2. **กราฟโดนัท Content Angles พังเมื่อมีหลายมุม:** มี 20+ มุมมอง ทำให้สร้างชิ้นพายซอยย่อย 20 ชิ้น และ legend เรียงเดี่ยวยาวเฟื้อยลงมาเป็น 700px ดันโดนัทจมลงไปข้างล่าง แถมชื่อมุมมองไม่แสดง (แสดงแค่จุดและเลข 9 (20%), 1 (2%)) เพราะบั๊ก `slice.name` vs `slice.label`
+3. **การ์ด Models & Tasks ใน TokenDashboard สูงเกินไป:** โดนัทถูกวางไว้ตรงกลางข้างบนแล้ว progress bar อยู่ข้างล่าง ทำให้การ์ดยืดสูงและมีพื้นที่ว่างมากเกินไป
+
+**เป้าหมาย:**
+1. แก้ `DonutChart.jsx`: แก้บั๊ก `slice.label || slice.name` + เพิ่มฟีเจอร์จำกัด `maxSlices` (รวมชิ้นที่เกินเป็น 'อื่นๆ' อัตโนมัติ ป้องกันชิ้นพายฝอย) + ปรับขนาด default ให้กะทัดรัด (130-140px)
+2. แก้ `AreaLineChart.jsx`: ปรับ viewBox เป็น Widescreen (800x130) สัดส่วนกระชับ ป้องกันการยืดสูงบนจอกว้าง + ปรับ padding ล่างไม่ให้ตัวเลขตัดขอบ
+3. แก้ `ProductionAnalyticsTab.jsx`: Content Angles จำกัด Top 4 + อื่นๆ จัดวางโดนัทคู่กับรายการอย่างกะทัดรัด ความสูงบาลานซ์กับตารางข้างๆ
+4. แก้ `TokenDashboard.jsx`: จัดวางโดนัทไว้ด้านซ้าย (ขนาด 125px) และรายการบาร์อยู่ด้านขวา ลดความสูงการ์ดลง 50% พอดีสายตา + Daily Volume ปรับเป็นความสูงกระชับ (130px)
+5. ปรับ `StorageAnalyticsTab.jsx` และ `InventoryAnalyticsTab.jsx` ให้ขนาดชาร์ตและสัดส่วนพอดีกันทั้งระบบ
+
+### Todo
+
+- [x] แก้ `frontend/src/components/analytics/charts/DonutChart.jsx` (แก้ label name, maxSlices grouping, compact sizing)
+- [x] แก้ `frontend/src/components/analytics/charts/AreaLineChart.jsx` (widescreen viewBox 800x130, fix cut-off labels)
+- [x] แก้ `frontend/src/components/analytics/tabs/ProductionAnalyticsTab.jsx` (Top 4 + อื่นๆ, compact layout)
+- [x] แก้ `frontend/src/components/TokenDashboard.jsx` (จัดวาง side-by-side ในการ์ด Models & Tasks, Daily Chart 130px)
+- [x] ปรับความกระชับใน `StorageAnalyticsTab.jsx` และ `InventoryAnalyticsTab.jsx`
+- [x] รันการทดสอบ Vitest, Pytest, Build และตรวจสอบความสวยงามผ่าน Browser Subagent
+
+### Gate
+
+- [x] กราฟทุกตัวมีขนาดพอดีสายตา ไม่ยืดใหญ่เทอะทะ
+- [x] Content Angles แสดงชื่อมุมมองถูกต้อง และชิ้นพายจำกัดไม่เกิน 5 ชิ้น (Top 4 + อื่นๆ) ไม่ยืดยาว
+- [x] TokenDashboard Models & Tasks จัดวางแบบ Side-by-Side กระชับพอดี
+- [x] Frontend Vitest 151 passed, Backend Pytest 4 passed, Build ผ่าน 100%
+
+### Notes
+
+- ปรับ `DonutChart.jsx` แก้บั๊กชื่อหายด้วย `slice.label || slice.name` และเพิ่ม automatic slice grouping ด้วย `maxSlices = 5` (รวมมุมมองที่เกินเป็น 'อื่นๆ' สี Slate)
+- ปรับ `AreaLineChart.jsx` เป็น panoramic widescreen 800x130, ปรับ padding ล่าง 28px ทำให้ตัวเลขวันที่ 09-07 ถึง 09-11 แสดงชัดเจน ไม่ถูกตัดขอบ
+- ปรับ `TokenDashboard.jsx` นำ Donut Chart (ขนาด 125px) วางชิดซ้ายคู่กับ Progress Bars ฝั่งขวา ลดความสูงการ์ดลง 45% กะทัดรัดระดับ Pro Dashboard
+- ปรับ `ProductionAnalyticsTab.jsx` จัดวาง Donut Content Angles ขนาด 130px พร้อมรายการ 5 หมวดบน-ล่างให้กระชับ สมดุลกับตาราง Recent Productions ข้างเคียง
+- ผลทดสอบ: Vitest 151 tests passed, Vite build ผ่านใน 3.25s, Pytest analytics hub 4 passed, ภาพบันทึก browser subagent ยืนยันความสวยงามลงตัว
+
+## Round ANALYTICS-CHARTS-1 — พัฒนาระบบกราฟเส้น กราฟโดนัท Funnel Chart และเกจวัดแบบ Pure SVG สไตล์ Dark Modern Glassmorphism สำหรับแดชบอร์ดทั้ง 4 แท็บ
+
+วันที่: 2026-09-12 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:**
+ยกระดับศูนย์วิเคราะห์ข้อมูลและสถิติรวม (Analytics & Operations Hub) ให้แสดงผลด้วยแผนภาพและกราฟอันสวยงาม มีมิติ ไม่เป็นตัวเลขหรือกล่องสี่เหลี่ยมธรรมดา:
+1. `AreaLineChart.jsx`: กราฟเส้นโค้ง Bezier + Gradient Glow + Interactive Hover Tooltip สำหรับ Daily Token Volume
+2. `DonutChart.jsx`: กราฟวงแหวนโดนัทหลายมิติ พร้อมไฮไลต์ชิ้นพายและตัวเลขตรงกลาง สำหรับ Content Angles, AI Models, Tasks, Storage Folders, และ Inventory Readiness
+3. `FunnelPipelineChart.jsx`: แผนภาพกรวยการผลิต 4 เฟสเชื่อมโยงด้วยแสงนีออน พร้อมอัตรา Conversion Rate และ Drop-off
+4. `ProgressRing.jsx`: เกจวัดวงแหวนนีออนเดี่ยว และ Triple Concentric Rings (3 ชั้น) สำหรับความสมบูรณ์ของคลังสื่อ
+
+### Todo
+
+- [x] สร้าง `frontend/src/components/analytics/charts/AreaLineChart.jsx`
+- [x] สร้าง `frontend/src/components/analytics/charts/DonutChart.jsx`
+- [x] สร้าง `frontend/src/components/analytics/charts/FunnelPipelineChart.jsx`
+- [x] สร้าง `frontend/src/components/analytics/charts/ProgressRing.jsx`
+- [x] อัปเกรด `frontend/src/components/analytics/tabs/ProductionAnalyticsTab.jsx` ฝัง FunnelPipelineChart และ DonutChart
+- [x] อัปเกรด `frontend/src/components/TokenDashboard.jsx` ฝัง AreaLineChart และ DonutCharts
+- [x] อัปเกรด `frontend/src/components/analytics/tabs/StorageAnalyticsTab.jsx` ฝัง DonutChart และ ProgressRing
+- [x] อัปเกรด `frontend/src/components/analytics/tabs/InventoryAnalyticsTab.jsx` ฝัง DonutChart และ Concentric Rings
+- [x] ตรวจสอบตามกฎ UI Clean Standard
+- [x] รันการทดสอบ Unit Tests และ Build
+
+### Gate
+
+- [x] ทุกชาร์ตเป็น Pure SVG + CSS Render คมชัด ลื่นไหล ไม่พึ่งพา Library ภายนอก (React 19 Zero-conflict)
+- [x] แสดงผลสวยงามสไตล์ Dark Modern Glassmorphism มีเอฟเฟกต์ Glow และ Tooltip ตอบสนองฉับไว
+- [x] Frontend Vitest (151/151 passed) และ Vite Build สำเร็จ 100% ใน 3.44s
+- [x] Backend Pytest (4/4 tests passed) สำเร็จ 100%
+- [x] Browser verification ผ่านฉลุยทั้ง 4 แท็บบนเบราว์เซอร์จริง
+
+### Notes
+
+- พัฒนา 4 คอมโพเนนต์กราฟและเกจวัด Pure SVG ระดับพรีเมียมใน `frontend/src/components/analytics/charts/`
+- ฝังลงใน 4 แท็บของ Analytics & Operations Hub ครบถ้วนทุกมิติ
+- ตรวจสอบผ่าน Browser Subagent บน `https://localhost:5173/` ยืนยันการแสดงผลคมชัด ไม่มี JavaScript runtime errors และสอดคล้องตามมาตรฐาน UI Clean Standard 100%
 
 ## Round DELETED-TIMELINE-SYNC-1 — ซิงค์สถานะโปรเจกต์ที่ถูกลบออกจาก NewClipPanel, ล็อกปุ่มแผนถ่ายเมื่อถูกล็อก, และนำปุ่มย้อนสถานะออก
 
@@ -1768,6 +1810,95 @@ Date: 2026-09-07
 Result: Cover automation now includes TikTok's `cover-editor-container` and prefers that outer container when locating the Save button. The live DOM showed Save is a sibling of `CoverEditor__root`, which explained why the modal opened but the automation could not finish. Node regression suite passed 8/8; local file injection remains pending a direct extension test.
 
 ## Round POST-3.13 - Persist schedule completion and resolve saved product covers
+
+
+## Round USER-GUIDE-1 — เมนูใหม่ "คู่มือใช้งาน" ในโปรแกรม + โฟลว์หลักครบ 7 เมนู
+
+วันที่: 2026-09-12 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:**
+
+## Round USER-GUIDE-2 — การ์ดเมนูกระชับ วางหลายใบต่อแถว
+
+วันที่: 2026-09-12 · สั่งโดย: user (feedback จากภาพ: การ์ดข้อความสั้นแต่กล่องกว้างเต็มแถว) · สถานะ: เสร็จสมบูรณ์
+
+**สิ่งที่ทำ:**
+- `frontend/src/components/UserGuide.jsx` ส่วน `#ug-menus`: จาก `space-y` 1 คอลัมน์เต็มความกว้าง → `grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-2.5 items-start` การ์ดสูงตามข้อความจริง ไม่ยืดตามเพื่อนร่วมแถว
+- ลด padding การ์ด `p-4 sm:p-5` → `p-4` กล่องกระชับขึ้น
+
+**ผล:** จอกว้างเห็นเมนู 1+2 ข้างกัน เมนู 3+4 ข้างกัน ไม่ต้องเลื่อนจอยาว มือถือยัง 1 คอลัมน์เหมือนเดิม
+
+
+## Round USER-GUIDE-3 — กระชับทุกกล่องในคู่มือ
+
+วันที่: 2026-09-12 · สั่งโดย: user (feedback: กล่องอื่นก็โล่งเหมือนกัน + /impeccable /ux-ui-promax) · สถานะ: เสร็จสมบูรณ์
+
+**แนวทาง (impeccable refinement):** เก็บ rhythm เดิมทั้งหมด (PageHeader, การ์ด #0B0F19, chip สี, ลำดับ section, ข้อความ) แล้วลดความสูงด้วย multi-column grids + items-start + padding กระชับเท่านั้น
+
+
+## Round USER-GUIDE-4 — คู่มือ interactive ใช้งานได้จริง
+
+วันที่: 2026-09-12 · สั่งโดย: user (จัดการแบบละเอียด) · สถานะ: เสร็จสมบูรณ์
+
+**แนวทาง:** impeccable refinement — ไม่เปลี่ยนข้อความ สี ลำดับ section ใดๆ เพิ่มแค่ interaction 6 ฟีเจอร์ใน `frontend/src/components/UserGuide.jsx` (160 → 257 บรรทัด)
+
+**สิ่งที่ทำ:**
+1. Sticky TOC ลอยติดบน (`sticky top-52/56px` ตรงความสูง Topbar) + scrollspy ด้วย IntersectionObserver ไฮไลต์หัวข้อที่อ่านอยู่เป็นสี cyan
+2. เช็กลิสต์กดติ๊กได้จริง: ปุ่ม toggle ต่อข้อ + แถบความคืบหน้า gradient + ป้าย n/6 + ข้อความพร้อมโพสต์เมื่อครบ + จำค่า localStorage (`omnicut_guide_checklist_v1`) + ปุ่มล้าง
+3. การ์ดเมนู 1-7: โชว์ 3 ข้อแรก + ปุ่มดูเพิ่มอีก N ข้อย่อลงได้ ต่อใบอิสระ
+4. การ์ดโฟลว์ 7 ขั้น: ป้ายเมนูกดได้ กระโดดไป tab จริง (tab mapping ใหม่ใน FLOW_STEPS)
+5. การ์ดแก้ปัญหา 4 อาการ: แยกเป็น TROUBLES constant + ปุ่มลัดเปิดเมนูที่เกี่ยวข้อง
+6. FAQ: ช่องค้นหา (includes ไม่ใช้ regex) + ปุ่มเปิดทั้งหมด/ปิดทั้งหมด + จำนวนผล + empty state พร้อมปุ่มล้างคำค้น + เปิดหลายข้อพร้อมกันได้ (state number → array)
+
+### Gate
+
+- `npm test` — 151 passed
+- `npm run build` — ผ่าน 4.22s
+- `python -m compileall -q scripts` — ผ่าน
+- `git diff --check` — สะอาด
+
+**สิ่งที่ทำใน `frontend/src/components/UserGuide.jsx`:**
+- โฟลว์ 7 ขั้น: `grid-cols-1/sm:2/xl:7` → `grid-cols-2/md:4/2xl:7` การ์ด `p-3.5/min-h-132` → `p-3/min-h-108` มือถือเห็น 2 ใบต่อแถว จอกว้าง 7 ใบรวดเดียว
+- คลิปแรก 5 ข้อ: `space-y` → `grid lg:2` (3+2 วางข้างกัน)
+- สถานะ 4 เฟส: `lg:4` → `xl:4` + items-start + padding 3→2.5
+- โฟลเดอร์ 8 รายการ: `sm:2` → `sm:2/xl:4` (แถวละ 4 ใบ)
+- เช็กลิสต์ 6 ข้อ: `space-y` → `grid lg:2` พร้อมกรอบการ์ดต่อข้อ
+- แก้ปัญหา 4 อาการ: `sm:2` → `sm:2/xl:4` แถวเดียวจบ
+- FAQ 6 ข้อ: `space-y` → `grid lg:2` accordion ยังกดขยายได้เหมือนเดิม
+- ลด padding ทุก section `p-4 sm:p-5` → `p-4`, gap `2.5/3` → `1.5/2`
+
+### Gate
+
+- `npm test` — 151 passed
+- `npm run build` — ผ่าน 3.69s
+- `python -m compileall -q scripts` — ผ่าน
+- `git diff --check` — สะอาด
+
+### Gate
+
+- `npm test` — 151 passed
+- `npm run build` — ผ่าน 3.87s
+- `python -m compileall -q scripts` — ผ่าน
+- `git diff --check` — สะอาด
+
+เพิ่มเมนูที่ 8 คู่มือใช้งาน (User Guide) แนบในโปรแกรม อธิบายโฟลว์หลักและวิธีใช้ละเอียดทุกเมนู 1-7 สวย อ่านง่าย ผู้ใช้ใหม่เข้าใจในหน้าเดียว
+
+### สิ่งที่ทำ
+
+- สร้าง `frontend/src/components/UserGuide.jsx`: PageHeader + สารบัญ 8 หัวข้อ + การ์ดโฟลว์ 7 ขั้น + รายละเอียดเมนู 1-7 พร้อมปุ่มกระโดดไปเมนูจริง + คลิปแรกใน 10 นาที + สถานะ 4 เฟส + โฟลเดอร์ 00-06 + เช็กลิสต์ก่อนโพสต์ + แก้ปัญหา 4 อาการ + FAQ 6 ข้อแบบ accordion
+- ลงทะเบียนเมนู: `Sidebar.jsx` Desktop 8 items + More Drawer Option 4 + isMoreActive รวม guide, `Topbar.jsx` TAB_CONFIG guide (8. User Guide), `App.jsx` lazy import + section guide
+- Clean UI: ปุ่มมีไอคอน Lucide ตัวเดียว ไม่มีสัญลักษณ์ซ้ำซ้อน ฟอนต์ไทยเดิม Responsive 1/2/7 คอลัมน์ตามจอ
+
+### Gate
+
+- `npm test` — 151 passed
+- `npm run build` — ผ่าน 3.47s
+- `python -m compileall -q scripts` — ผ่าน
+
+### Notes
+
+- แตะเฉพาะส่วนเมนูใหม่แบบ additive ไม่แก้ logic เดิมของไฟล์ที่มี working-tree changes ค้าง
+- ลบ import ที่ไม่ใช้ (Smartphone, Keyboard) ให้ build ไม่มี warning
 
 Date: 2026-09-07
 Result: The prepare-details flow now applies the green completed row class when it marks step 4. Export metadata now falls back to a product-named cover such as `Logitech Wave Keys_cover.jpg`, allowing the extension to receive a cover path even when the cover filename does not match the video stem. Backend focused tests passed 6/6, extension tests passed 8/8, and Python compileall passed.

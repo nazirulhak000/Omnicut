@@ -107,6 +107,7 @@ export default function ProductMetadataModal({
     setDraft({
       name: product.name || product.title || '',
       url: product.url || '',
+      tiktok_product_id: product.tiktok_product_id || '',
       price_note: product.price_note || '',
       description: product.description || '',
       raw_text: product.raw_text || '',
@@ -191,10 +192,15 @@ export default function ProductMetadataModal({
                   ราคา / โปรโมชั่น
                   <input value={draft.price_note || ''} onChange={(event) => updateDraft('price_note', event.target.value)} maxLength={240} className="mt-1 w-full rounded-xl border border-white/[0.1] bg-black/30 px-3 py-2.5 text-sm text-white outline-none transition focus:border-cyan-300/60" />
                 </label>
-                <div className="flex items-end justify-end">
+                <label className="text-xs font-semibold text-slate-300">
+                  รหัสสินค้าสำหรับปักตะกร้า (TikTok Product ID)
+                  <input value={draft.tiktok_product_id || ''} onChange={(event) => updateDraft('tiktok_product_id', event.target.value)} maxLength={60} className="mt-1 w-full rounded-xl border border-white/[0.1] bg-black/30 px-3 py-2.5 text-sm text-white font-mono outline-none transition focus:border-cyan-300/60" placeholder="เช่น 1737230577125983588" />
+                </label>
+                <div className="sm:col-span-2 flex items-end justify-end">
                   <button type="button" onClick={() => onSaveMetadata({
                     name: String(draft.name || '').trim(),
                     url: String(draft.url || '').trim(),
+                    tiktok_product_id: String(draft.tiktok_product_id || '').trim() || null,
                     price_note: String(draft.price_note || '').trim(),
                     description: String(draft.description || '').trim(),
                     raw_text: String(draft.raw_text || '').trim(),

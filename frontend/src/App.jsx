@@ -14,7 +14,9 @@ const ContentTrackerHub = lazy(() => import('./components/ContentTrackerHub'));
 const EditorShell = lazy(() => import('./components/editor/EditorShell'));
 const ExportGallery = lazy(() => import('./components/ExportGallery'));
 const MediaAssetsHub = lazy(() => import('./components/MediaAssetsHub'));
+const AnalyticsHub = lazy(() => import('./components/analytics/AnalyticsHub'));
 const SystemSettings = lazy(() => import('./components/SystemSettings'));
+const UserGuide = lazy(() => import('./components/UserGuide'));
 const MobileQuickPostPage = lazy(() => import('./components/MobileQuickPostPage'));
 const MobileFilmingPage = lazy(() => import('./components/MobileFilmingPage'));
 
@@ -483,17 +485,41 @@ export default function App() {
                   </Suspense>
                 )}
 
-                {/* SECTION: System Settings & Token Analytics */}
+                {/* SECTION: Analytics & Operations Hub */}
+                {activeTab === 'analytics' && (
+                  <Suspense fallback={<LoadingSpinner message="กำลังโหลดศูนย์วิเคราะห์และสถิติรวม..." />}>
+                    <AnalyticsHub
+                      onNavigateToEditor={(projName) => {
+                        setInitialProjectNameToLoad(projName || null);
+                        setActiveTab('editor');
+                      }}
+                      onNavigateToTracker={() => setActiveTab('tracker')}
+                      onNavigateToFlow={(productId) => {
+                        if (productId) setSelectedProductIdForFlow(productId);
+                        setActiveTab('flow');
+                      }}
+                    />
+                  </Suspense>
+                )}
+
+                {/* SECTION: System Settings */}
                 {(activeTab === 'settings' || activeTab === 'dashboard') && (
-                  <Suspense fallback={<LoadingSpinner message="กำลังโหลด System Settings & Analytics..." />}>
+                  <Suspense fallback={<LoadingSpinner message="กำลังโหลด System Settings..." />}>
                     <SystemSettings
                       status={status}
                       uiFont={uiFont}
                       setUiFont={handleUiFontChange}
                       uiScale={uiScale}
                       setUiScale={handleUiScaleChange}
-                      initialSubTab="tokens"
+                      initialSubTab="appearance"
                     />
+                  </Suspense>
+                )}
+
+                {/* SECTION: User Guide */}
+                {activeTab === 'guide' && (
+                  <Suspense fallback={<LoadingSpinner message="กำลังโหลดคู่มือใช้งาน..." />}>
+                    <UserGuide onNavigate={(tab) => handlePrimaryTabChange(tab)} />
                   </Suspense>
                 )}
               </div>

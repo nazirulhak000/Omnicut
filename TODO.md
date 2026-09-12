@@ -1,6 +1,9 @@
 # 📋 OmniCut Pro Studio — Todo กลาง
 
 สมุดบันทึกรอบงานที่ **ยังไม่เสร็จ** ของโปรเจกต์นี้ — ทุกงานต้องผ่านไฟล์นี้ก่อนแตะโค้ด
+# 📋 OmniCut Pro Studio — Todo กลาง
+
+สมุดบันทึกรอบงานที่ **ยังไม่เสร็จ** ของโปรเจกต์นี้ — ทุกงานต้องผ่านไฟล์นี้ก่อนแตะโค้ด
 
 | ไฟล์ | ใช้ทำอะไร |
 | :--- | :--- |
@@ -18,7 +21,185 @@
 
 ---
 
-- [ ] Round READONLY-SCRIPT-STATUS-1 — ล็อกการแก้ไขสคริปต์และคลิปดิบเป็นสีเทาทั้งหมดเมื่อสถานะเป็น 'โพสต์แล้ว' หรือ 'กำลังตัดต่อ' และให้ปลดล็อกได้เฉพาะเมื่อย้อนสถานะเท่านั้น (2026-09-11)
+- [x] Round HOOK-DEFAULT-5S-1 — ปรับค่าเริ่มต้น (default) ของป้ายฮุกพาดหัว (Hook Banner) เป็น 5.0 วินาทีตั้งแต่ตอนสร้างโปรเจกต์ (2026-09-11; frontend 151 passed, backend 157 passed, build pass)
+- [x] Round ANALYTICS-HUB-1 — พัฒนาเมนูใหม่ "ศูนย์วิเคราะห์ข้อมูลและสถิติรวม" (Analytics & Operations Hub) รวมแดชบอร์ด 4 มิติ (Production, Tokens, Storage, Inventory) (2026-09-11; backend 4 passed, frontend 151 passed, build pass)
+- [x] Round SETTINGS-TOKEN-REMOVAL-1 — ถอดแท็บและสถิติโทเคนออกจากหน้าตั้งค่าระบบ (System Settings) ปรับ Eyebrow และเมนูเป็น 'ตั้งค่าระบบ' เต็มรูปแบบ (2026-09-11; frontend 151 passed, build pass)
+- [x] Round ANALYTICS-HEADER-DATA-FIX-1 — ตัด Header ซ้ำซ้อนใน AnalyticsHub + ปลดล็อกพอร์ต 8000 จาก process ค้าง ทำให้โหลดข้อมูลสถิติได้สมบูรณ์ 100% (2026-09-11; backend 4 passed, frontend 151 passed, build pass)
+- [x] Round POSTED-ARCHIVE-STORAGE-1 — วิดเจ็ตสรุปจำนวนคลิปที่โพสต์แล้วและพื้นที่ประหยัดได้หากย้ายสำรอง (Archive & Storage Reclamation) บน Analytics Hub (2026-09-12; backend 4 passed, frontend 151 passed, build pass)
+- [x] Round USER-GUIDE-1 — เมนูใหม่ "คู่มือใช้งาน" แนบในโปรแกรม + อธิบายโฟลว์หลักครบ 7 เมนู (2026-09-12; frontend 151 passed, build 3.47s)
+- [x] Round ANALYTICS-CHARTS-1 — พัฒนาระบบกราฟเส้น กราฟโดนัท Funnel Chart และเกจวัดแบบ Pure SVG สไตล์ Dark Modern Glassmorphism สำหรับแดชบอร์ดทั้ง 4 แท็บ (2026-09-12; frontend 151 passed, backend 4 passed, build 3.44s, browser verified)
+- [x] Round ANALYTICS-CHARTS-POLISH-1 — ปรับขนาดและจัดระเบียบเลย์เอาท์กราฟใน Analytics Hub ให้กระชับ สวยงาม พอดีสายตา ไม่ใหญ่เกินจำเป็น (2026-09-12; frontend 151 passed, build 3.25s, browser verified)
+- [x] Round USER-GUIDE-2 — ปรับการ์ดเมนู 1-7 เป็น grid หลายคอลัมน์บนจอกว้าง กล่องกระชับตามข้อความ (2026-09-12; frontend 151 passed, build 3.87s)
+- [x] Round USER-GUIDE-3 — กระชับทุกกล่องในคู่มือ (โฟลว์ 7 ขั้น, คลิปแรก, 4 เฟส, โฟลเดอร์, เช็กลิสต์, ปัญหา, FAQ) (2026-09-12; frontend 151 passed, build 3.69s)
+- [x] Round USER-GUIDE-4 — ยกระดับคู่มือเป็น interactive (sticky TOC + scrollspy, เช็กลิสต์ติ๊กได้, การ์ดเมนู accordion, โฟลว์กดไปเมนูได้, ปัญหามีปุ่มลัด, FAQ ค้นหาได้) (2026-09-12; frontend 151 passed, build 4.22s)
+
+## Round USER-GUIDE-4 — คู่มือ interactive ใช้งานได้จริง
+
+วันที่: 2026-09-12 · สั่งโดย: user (จัดการแบบละเอียด) · สถานะ: กำลังทำ
+
+**เป้าหมาย:** ยกระดับ `UserGuide.jsx` จากหน้าอ่านอย่างเดียวเป็นเครื่องมือใช้งานจริง 6 ฟีเจอร์ โดยไม่เปลี่ยนข้อความ สี ลำดับ section (impeccable refinement)
+
+### Todo
+
+- [x] Sticky TOC ลอยติดบน + scrollspy ไฮไลต์หัวข้อที่อ่านอยู่ (IntersectionObserver)
+- [x] เช็กลิสต์กดติ๊กได้จริง + แถบความคืบหน้า n/6 + จำค่า localStorage + ปุ่มล้าง
+- [x] การ์ดเมนู 1-7: โชว์ 3 ข้อแรก + ปุ่มดูเพิ่ม/y่อลง ต่อใบ
+- [x] การ์ดโฟลว์ 7 ขั้น: กดแล้วกระโดดไปเมนูนั้นได้เลย (tab mapping)
+- [x] การ์ดแก้ปัญหา 4 อาการ: ปุ่มลัดเปิดเมนูที่เกี่ยวข้อง
+- [x] FAQ: ช่องค้นหา + ปุ่มเปิดทั้งหมด/ปิดทั้งหมด + จำนวนผล + empty state
+- [x] รัน Gate: frontend `npm test` + `npm run build`, `python -m compileall -q scripts`
+
+### Gate
+
+- [x] `Set-Location frontend; npm test` — 151 passed
+- [x] `Set-Location frontend; npm run build` — ผ่าน 4.22s
+- [x] `python -m compileall -q scripts` — ผ่าน
+
+### Notes
+
+- ไม่เปลี่ยนข้อความ สี ลำดับ section ใดๆ (impeccable refinement)
+- เช็กลิสต์จำค่าด้วย `omnicut_guide_checklist_v1` ติ๊กครบ 6 ข้อขึ้นข้อความพร้อมโพสต์
+- FAQ เปิดหลายข้อพร้อมกันได้ (state array) ค้นหาด้วย includes ธรรมดา ไม่ใช้ regex
+- สารบัญ sticky top 52/56px ตรงกับความสูง Topbar มือถือ/Desktop
+
+## Round USER-GUIDE-3 — กระชับทุกกล่องในคู่มือ
+
+วันที่: 2026-09-12 · สั่งโดย: user · สถานะ: กำลังทำ
+
+**ปัญหา:** หลาย section ใน `UserGuide.jsx` ยังเป็นกล่องเดี่ยวเต็มความกว้าง (คลิปแรก 5 ข้อ, เช็กลิสต์, โฟลเดอร์ยาว, FAQ) การ์ดข้อความสั้นแต่ยืดเต็มแถว ต้องเลื่อนจอนาน
+
+**เป้าหมาย (impeccable/layout):** เกาะ rhythm เดิม (PageHeader, การ์ด #0B0F19, chip สีเดิม) แล้วลดความสูงทุกกล่องที่กระชับได้ — multi-column grids + items-start + padding/margin กระชับ โดยไม่เปลี่ยนข้อความ ไม่เปลี่ยนสี ไม่ย้ายลำดับ section
+
+### Todo
+
+- [x] โฟลว์ 7 ขั้น: `xl:grid-cols-7` → `md:2/lg:4/2xl:7` การ์ด `min-h` 132 → 108 + padding กระชับ
+- [x] คลิปแรก 5 ข้อ + เช็กลิสต์ 6 ข้อ + แก้ปัญหา 4 อาการ + โฟลเดอร์ 8 รายการ: 1 คอลัมน์ → grid 2 คอลัมน์บนจอกว้าง + items-start
+- [x] สถานะ 4 เฟส: `lg:4` → `sm:2/xl:4` อยู่แล้ว ตรวจ padding กระชับ
+- [x] FAQ + TOC คงเดิม (FAQ ยาวตามธรรมชาติ, TOC เป็นแถวเลื่อนอยู่แล้ว)
+- [x] รัน Gate: frontend `npm test` + `npm run build`, `python -m compileall -q scripts`
+
+### Gate
+
+- [x] `Set-Location frontend; npm test` — 151 passed
+- [x] `Set-Location frontend; npm run build` — ผ่าน 3.69s
+- [x] `python -m compileall -q scripts` — ผ่าน
+
+### Notes
+
+- โฟลว์ 7 ขั้น: มือถือ 2 ใบต่อแถว, md 4 ใบ, 2xl 7 ใบรวดเดียวจบ การ์ด min-h 132→108
+- คลิปแรก 5 ข้อ + เช็กลิสต์ 6 ข้อ + FAQ 6 ข้อ: lg ขึ้นไป 2 คอลัมน์
+- โฟลเดอร์ 8 รายการ: sm 2 / xl 4 คอลัมน์, แก้ปัญหา 4 อาการ: sm 2 / xl 4 คอลัมน์
+- ทุก grid ใช้ items-start กล่องสูงตามข้อความจริง + ลด padding section p-4 sm:p-5 → p-4
+- ไม่เปลี่ยนข้อความ ไม่เปลี่ยนสี ไม่ย้ายลำดับ section (impeccable refinement)
+
+## Round ANALYTICS-CHARTS-POLISH-1 — ปรับขนาดและจัดระเบียบเลย์เอาท์กราฟใน Analytics Hub ให้กระชับ สวยงาม พอดีสายตา ไม่ใหญ่เกินจำเป็น
+
+วันที่: 2026-09-12 · สั่งโดย: user · สถานะ: กำลังทำ
+
+**ปัญหา:**
+1. **กราฟเส้น Daily Token Volume ใหญ่เกินความจำเป็น:** viewBox แคบทำให้บนจอกว้างกราฟยืดสูงเกือบ 400px กลายเป็นคลื่นยักษ์ที่มีพื้นที่โล่งสีดำว่างเปล่า และตัวเลขแกน X ด้านล่างถูกตัดขอบ
+2. **กราฟโดนัท Content Angles พังเมื่อมีหลายมุม:** มี 20+ มุมมอง ทำให้สร้างชิ้นพายซอยย่อย 20 ชิ้น และ legend เรียงเดี่ยวยาวเฟื้อยลงมาเป็น 700px ดันโดนัทจมลงไปข้างล่าง แถมชื่อมุมมองไม่แสดง (แสดงแค่จุดและเลข 9 (20%), 1 (2%)) เพราะบั๊ก `slice.name` vs `slice.label`
+3. **การ์ด Models & Tasks ใน TokenDashboard สูงเกินไป:** โดนัทถูกวางไว้ตรงกลางข้างบนแล้ว progress bar อยู่ข้างล่าง ทำให้การ์ดยืดสูงและมีพื้นที่ว่างมากเกินไป
+
+**เป้าหมาย:**
+1. แก้ `DonutChart.jsx`: แก้บั๊ก `slice.label || slice.name` + เพิ่มฟีเจอร์จำกัด `maxSlices` (รวมชิ้นที่เกินเป็น 'อื่นๆ' อัตโนมัติ ป้องกันชิ้นพายฝอย) + ปรับขนาด default ให้กะทัดรัด (130-140px)
+2. แก้ `AreaLineChart.jsx`: ปรับ viewBox เป็น Widescreen (800x140) สัดส่วนกระชับ ป้องกันการยืดสูงบนจอกว้าง + ปรับ padding ล่างไม่ให้ตัวเลขตัดขอบ
+3. แก้ `ProductionAnalyticsTab.jsx`: Content Angles จำกัด Top 4 + อื่นๆ จัดวางโดนัทคู่กับรายการอย่างกะทัดรัด ความสูงบาลานซ์กับตารางข้างๆ
+4. แก้ `TokenDashboard.jsx`: จัดวางโดนัทไว้ด้านซ้าย (ขนาด 120-130px) และรายการบาร์อยู่ด้านขวา ลดความสูงการ์ดลง 50% พอดีสายตา + Daily Volume ปรับเป็นความสูงกระชับ
+5. ปรับ `StorageAnalyticsTab.jsx` และ `InventoryAnalyticsTab.jsx` ให้ขนาดชาร์ตและสัดส่วนพอดีกันทั้งระบบ
+
+### Todo
+
+- [ ] แก้ `frontend/src/components/analytics/charts/DonutChart.jsx` (แก้ label name, maxSlices grouping, compact sizing)
+- [ ] แก้ `frontend/src/components/analytics/charts/AreaLineChart.jsx` (widescreen viewBox 800x140, fix cut-off labels)
+- [ ] แก้ `frontend/src/components/analytics/tabs/ProductionAnalyticsTab.jsx` (Top 4 + อื่นๆ, compact layout)
+- [ ] แก้ `frontend/src/components/TokenDashboard.jsx` (จัดวาง side-by-side ในการ์ด Models & Tasks, Daily Chart 140px)
+- [ ] ปรับความกระชับใน `StorageAnalyticsTab.jsx` และ `InventoryAnalyticsTab.jsx`
+- [ ] รันการทดสอบ Vitest, Pytest, Build และตรวจสอบความสวยงามผ่าน Browser Subagent
+
+### Gate
+
+- [ ] กราฟทุกตัวมีขนาดพอดีสายตา ไม่ยืดใหญ่เทอะทะ
+- [ ] Content Angles แสดงชื่อมุมมองถูกต้อง และชิ้นพายจำกัดไม่เกิน 5 ชิ้น (Top 4 + อื่นๆ) ไม่ยืดยาว
+- [ ] TokenDashboard Models & Tasks จัดวางแบบ Side-by-Side กระชับพอดี
+- [ ] Frontend Vitest 151 passed, Backend Pytest 4 passed, Build ผ่าน 100%
+
+### Notes
+
+-
+
+## Round USER-GUIDE-2 — การ์ดเมนูกระชับ วางหลายใบต่อแถว
+
+วันที่: 2026-09-12 · สั่งโดย: user · สถานะ: กำลังทำ
+
+**ปัญหา:** การ์ดรายละเอียดเมนู 1-7 ใน `UserGuide.jsx` วางแบบ 1 คอลัมน์เต็มความกว้าง การ์ดที่ข้อความสั้นก็ยืดเต็มแถว ดูโล่ง ต้องเลื่อนจอนาน (ตามภาพที่ user แนบ)
+
+**เป้าหมาย:** เปลี่ยน `#ug-menus` เป็น responsive grid (มือถือ 1 คอลัมน์ / Desktop 2 / จอกว้าง 3) การ์ดสูงเท่ากันต่อแถว กล่องเคล็ดลับกระชับ ไม่ยืดเกินข้อความ
+
+### Todo
+
+- [x] แก้ `frontend/src/components/UserGuide.jsx` ส่วน `#ug-menus`: `space-y` → `grid gap` responsive + การ์ด `h-full flex flex-col` + tip `mt-auto line-clamp-2`
+- [x] รัน Gate: frontend `npm test` + `npm run build`, `python -m compileall -q scripts`
+
+### Gate
+
+- [x] `Set-Location frontend; npm test` — 151 passed
+- [x] `Set-Location frontend; npm run build` — ผ่าน 3.87s
+- [x] `python -m compileall -q scripts` — ผ่าน
+
+### Notes
+
+- ใช้ grid `1 คอลัมน์ (มือถือ) / 2 (lg) / 3 (2xl)` + `items-start` การ์ดสูงตามข้อความจริง ไม่ยืดเต็มแถวแล้ว
+- ลด padding การ์ด `p-4 sm:p-5` → `p-4` ให้กล่องกระชับขึ้น
+
+## Round ANALYTICS-HUB-1 — พัฒนาเมนูใหม่ "ศูนย์วิเคราะห์ข้อมูลและสถิติรวม" (Analytics & Operations Hub)
+
+วันที่: 2026-09-11 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:**
+สร้างศูนย์รวมการวิเคราะห์ข้อมูลและสถิติการใช้งานทุกมิติของ OmniCut Pro Studio ในหน้าเดียว แยกเป็น 4 แท็บหลัก:
+1. `การผลิต & ภาพรวมคลิป (Production Analytics)`: Funnel 4 สเต็ป, คอขวด, ประเภทยอดนิยม, เวลาเฉลี่ย
+2. `โทเคน & คำสั่ง AI (Tokens & AI Performance)`: ยกระดับ TokenDashboard, สถิติ In/Out/Think, Daily Trend, Audit Log
+3. `พื้นที่จัดเก็บ & ระบบ (Storage & Disk Quota)`: สรุปความจุไดรฟ์, ขนาดโฟลเดอร์ 01-06, แคช CapCut และเครื่องมือ Safe Purge
+4. `คลังเนื้อหา & วัตถุดิบ (Content & Inventory Health)`: สุขภาพข้อมูลสินค้า, ความสมบูรณ์ของรูป/คลิป, โอกาสในการสร้างคลิป
+
+### Todo
+
+- [x] สร้าง Backend Router `scripts/api_analytics.py`:
+  - `GET /api/analytics/production`: สรุป Funnel 4 เฟส (scripted, in_production, rendered, posted), cycle time, angle categories
+  - `GET /api/analytics/storage`: สแกนขนาดโฟลเดอร์ `01_Raw`, `02_Assets`, `03_Projects`, `04_Exports`, `.cloud_cache` แบบ async พร้อม in-memory caching (TTL 5 นาที)
+  - `GET /api/analytics/inventory`: วิเคราะห์ความพร้อมของสินค้า, จำนวนรูป, คลิป, สคริปต์, แผนถ่าย
+  - `POST /api/analytics/storage/purge-safe-cache`: ล้างเฉพาะแคชชั่วคราวอย่างปลอดภัย (Safe Purge) โดยไม่แตะ `01_Raw` และ `02_Assets`
+  - เมานต์ router ที่ `scripts/api_server.py`
+- [x] อัปเดต API client ใน `frontend/src/api.js` สำหรับเรียก endpoint สถิติ
+- [x] อัปเดต Navigation ใน `frontend/src/components/Sidebar.jsx` และ `frontend/src/App.jsx`:
+  - เพิ่มแท็บ `analytics` (ไอคอน BarChart3, label: `6. สถิติ & วิเคราะห์รวม`)
+  - ขยับ Settings เป็นเมนู 7
+- [x] สร้างโมดูล UI `frontend/src/components/analytics/`:
+  - `AnalyticsHub.jsx`: Glassmorphism header, tab selector (4 tabs), refresh trigger
+  - `tabs/ProductionAnalyticsTab.jsx`: Funnel, WIP, Bottlenecks, Content Types
+  - `tabs/TokensAnalyticsTab.jsx`: สถิติโทเคน, Daily Volume, Audit Logs (ดัดแปลงจาก TokenDashboard)
+  - `tabs/StorageAnalyticsTab.jsx`: ไดรฟ์บาร์, แจกแจงโฟลเดอร์, Safe Purge Modal
+  - `tabs/InventoryAnalyticsTab.jsx`: ตารางสุขภาพสินค้า, ความพร้อมรูป/วิดีโอ, ปุ่มสร้างคลิป
+- [x] ตรวจสอบความถูกต้องตามกฎ UI Clean Standard (ห้ามมีสัญลักษณ์ซ้ำซ้อน)
+- [x] เขียนและรัน Unit Tests (pytest & vitest) พร้อมตรวจสอบ build
+
+### Gate
+
+- [x] เมนู "6. สถิติ & วิเคราะห์รวม" ปรากฏบน Sidebar และสลับแท็บทั้ง 4 ได้อย่างลื่นไหล
+- [x] ข้อมูลทั้ง 4 แท็บดึงจาก Backend API จริง พร้อมระบบ In-memory Cache ไม่หน่วงระบบ
+- [x] Safe Purge ทำงานได้ปลอดภัย ไม่แตะไฟล์ใน 01_Raw และ 02_Assets
+- [x] Unit tests (pytest 4/4 passed & vitest 151/151 passed) และ `npm run build` ผ่าน 100%
+
+### Notes
+
+- สร้าง `scripts/api_analytics.py` รองรับ Endpoint: `/production`, `/storage`, `/inventory`, และ `/storage/purge-safe-cache`
+- ติดตั้ง In-memory Storage Caching TTL 300s เพื่อลด Disk I/O จากการคำนวณขนาดโฟลเดอร์ซ้ำ
+- ฝั่ง Frontend สร้าง `AnalyticsHub.jsx` สไตล์ Modern Glassmorphism แบ่ง 4 แท็บคมชัด ไร้สัญลักษณ์ซ้ำซ้อน
+- เพิ่มเมนู `6. สถิติ & วิเคราะห์รวม` (ไอคอน `<BarChart3 />`) บน Desktop Sidebar และ Mobile More Drawer
+- ผลทดสอบ: Pytest `tests/test_analytics_hub.py` ผ่าน 4/4 tests, Vitest ผ่าน 151/151 tests, Vite build สำเร็จสมบูรณ์ใน 2.94s
+- [x] Round SIDEBAR-PHASE-UI-1 — ออกแบบ sidebar ใหม่ด้วย 4-Phase Pipeline Stepper Dots (Scripted→In Production→Rendered→Posted) + Shot List Badge + Smart Camera Direction Clarity (2026-09-11; backend 5 passed, frontend 151 passed, build pass)
+- [x] Round READONLY-SCRIPT-STATUS-1 — ล็อกการแก้ไขสคริปต์และคลิปดิบเป็นสีเทาทั้งหมดเมื่อสถานะเป็น 'โพสต์แล้ว' หรือ 'กำลังตัดต่อ' และให้ปลดล็อกได้เฉพาะเมื่อย้อนสถานะเท่านั้น (2026-09-11)
 - [x] Round SHOT-LIST-ENHANCE-2 — ปรับคำแนะนำมุมกล้องและการถ่ายทำในแผนถ่ายให้เจาะลึกเฉพาะซีนตามบทพูดจริง (Semantic Action Guidance) (2026-09-11; backend 5 passed, frontend 151 passed)
 - [x] Round SHOT-LIST-ENHANCE-1 — ยกระดับโฟลว์แผนถ่าย (Phase 1): Invalidate แผนถ่ายเมื่อสคริปต์เปลี่ยน + เพิ่มปุ่มเปิดแผนถ่ายใน ContentTrackerHub (2026-09-11; backend 4 passed, frontend 151 passed, build pass)
 - [x] Round PERSIST-LAYOUT-FIX-1 — แก้ Product selection ไม่จำค่าหลังรีเฟรชหน้า + จัดระเบียบ Toolbar action buttons ใน ProductToClip และ ContentTrackerHub ให้เรียบตรงบรรทัดเดียวไม่ตกขอบ (2026-09-11; frontend 151 passed, build pass)
@@ -40,35 +221,89 @@
 
 
 
-## Round READONLY-SCRIPT-STATUS-1 — ล็อกการแก้ไขสคริปต์และคลิปดิบเป็นสีเทาทั้งหมดเมื่อสถานะเป็น 'โพสต์แล้ว' หรือ 'กำลังตัดต่อ' และให้ปลดล็อกได้เฉพาะเมื่อย้อนสถานะเท่านั้น
+- [x] Round HOOK-DEFAULT-5S-1 — ปรับค่าเริ่มต้น (default) ของป้ายฮุกพาดหัว (Hook Banner) เป็น 5.0 วินาทีตั้งแต่ตอนสร้างโปรเจกต์ (2026-09-11; frontend 151 passed, backend 157 passed, build pass)
 
-วันที่: 2026-09-11 · สั่งโดย: user · สถานะ: ปิดรอบแล้ว
+## Round HOOK-DEFAULT-5S-1 — ปรับค่าเริ่มต้น (default) ของป้ายฮุกพาดหัว (Hook Banner) เป็น 5.0 วินาทีตั้งแต่ตอนสร้างโปรเจกต์
 
-**เป้าหมาย:** สคริปต์ที่สถานะเป็น 'โพสต์แล้ว' หรือ 'กำลังตัดต่อ' ต้องล็อกส่วนแก้ไขและคลิปดิบด้านขวา (AngleActiveWorkbench) เป็นสีเทาทั้งหมด ห้ามแก้ไข/รีสคริปต์/สลับคลิปดิบ มีปุ่มย้อนสถานะ (Revert to Scripted) เพื่อปลดล็อกให้แก้ไขได้ตามโฟลว์
+วันที่: 2026-09-11 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** ให้ป้ายฮุกพาดหัว (Hook Header Banner) ทั้งตอนสร้างโปรเจกต์ใหม่ (First Render / One Click / Apply to Studio) และตอนกดเพิ่มป้ายฮุกใหม่ในไทม์ไลน์ มีความยาวเริ่มต้นเป็น 5.0 วินาที (จากเดิม 3.0 วินาที) ตามที่ผู้ใช้ต้องการ
 
 ### Todo
 
-- [x] ปรับ `AngleActiveWorkbench` และ `ScriptAccordionItem` ใน `ProductToClip.jsx`:
-  - ตรวจสอบ `isPosted` และ `isInProduction` -> กำหนด `isLocked`
-  - หาก `isLocked`: แสดงแถบสถานะล็อกชัดเจน, สคริปต์และ Hook แสดงผลเป็นโทนเทา (read-only), ซ่อน/ปิดปุ่มแก้ไข, แทนที่คำ, รีสคริปต์ด้วย AI
-  - ในส่วนคลิปดิบ: ล็อกปุ่มเลือกคลิปเป็นสีเทา ห้ามลบหรือสลับคลิป
-  - เพิ่มปุ่ม "ย้อนสถานะเพื่อตัด/แก้ไขใหม่" (Revert to Scripted) ส่ง `handleAngleStatusChange(angle.angle_id, 'scripted')` เพื่อปลดล็อกตามโฟลว์
-- [x] อัปเดต `AngleActiveWorkbench` และ `ScriptAccordionItem` ให้รับ callback `onRevertStatus` (ต่อสายกับ `handleAngleStatusChange`)
-- [x] รันการทดสอบ Vitest frontend และ build ให้ผ่าน 100%
+- [x] ปรับค่าเริ่มต้น `hook_duration` ในโมเดลและฟังก์ชันสร้าง Hook:
+  - `frontend/src/lib/overlayModel.js`: `hookOverlayFromLegacy` และ `newHookOverlay` ปรับ duration fallback เป็น 5.0
+  - `frontend/src/lib/inspectorModel.js`: `clampHookDuration` default fallback ปรับเป็น 5.0
+  - `frontend/src/components/editor/EditorShell.jsx`: `handleApplyHookTemplate` และ `handleEnsureHookOverlay` ใช้ duration 5.0
+  - `frontend/src/components/editor/Timeline.jsx`: fallback duration ของ hookOverlay ปรับเป็น 5.0
+  - `frontend/src/components/editor/inspector/OverlayInspector.jsx`: fallback hookDuration ปรับเป็น 5.0
+  - `scripts/overlay_model.py`: `hook_overlay_from_legacy` ปรับ duration fallback เป็น 5.0
+  - `scripts/pipeline_context.py`: dataclass `hook_duration: float = 5.0`
+  - `scripts/pipeline.py`: `generate_video` signature `hook_duration: float = 5.0`
+  - `scripts/api_phase1.py`: `params.get("hook_duration", 5.0) or 5.0`
+- [x] ตรวจสอบและรันการทดสอบ Unit Tests ของ Frontend และ Backend
+- [x] รัน build ตรวจสอบความถูกต้อง 100%
 
 ### Gate
 
-- [x] สคริปต์ที่โพสต์แล้ว (`posted`) และกำลังตัดต่อ (`in_production`) มี UI ฝั่งขวาเป็นโทนสีเทาชัดเจน ไม่สามารถกดแก้ไขสคริปต์หรือเปลี่ยนคลิปได้
-- [x] มีปุ่มย้อนสถานะเพื่อกลับมาเป็น 'สคริปต์พร้อม' (`scripted`) เพื่อแก้ไขได้ตามโฟลว์
-- [x] Vitest frontend passed (151/151 tests) & build passed (vite build exited 0)
+- [x] เมื่อสร้างคลิปใหม่หรือเปิดดูในไทม์ไลน์ แทร็กป้ายฮุกพาดหัวเริ่มต้นที่ 0.0s ถึง 5.0s (ยาว 5.0s)
+- [x] Unit tests (vitest 151 passed & pytest 157 passed) ผ่าน 100%
+- [x] `npm run build` ผ่าน 100%
 
 ### Notes
 
-- เพิ่ม props `onRevertStatus` เข้าไปที่ทั้ง `AngleActiveWorkbench` และ `ScriptAccordionItem`
-- ผูกปุ่ม "ย้อนสถานะเพื่อตัด/แก้ไขใหม่" เข้ากับ `handleAngleStatusChange(angle.angle_id, 'scripted')` ซึ่งจะทำการเรียก backend API `updateAngleStatus` บันทึกสถานะ และอัปเดต state ของหน้าเว็บทันที
-- สไตล์ฝั่งขวาเมื่อ `isLocked` เป็นโทนสีเทาเข้มขรึม (`bg-[#090C14]/90 border-white/[0.06] text-slate-400`), สคริปต์คลิกแล้วไม่เปิดโหมดแก้ไข, ป้าย Hook เป็นสีเทา, แท็กคลิปดิบมีไอคอน Lock กำกับ และซ่อนปุ่มลบคลิป ป้องกันการแก้ไขเนื้อหาที่โพสต์แล้วหรืออยู่ในสายการผลิตไทม์ไลน์จริง
+- ปรับ default hook duration ทั้งฝั่ง Frontend (`overlayModel.js`, `EditorShell.jsx`, `Timeline.jsx`, `OverlayInspector.jsx`, `inspectorModel.js`) และฝั่ง Backend (`overlay_model.py`, `pipeline_context.py`, `pipeline.py`, `api_phase1.py`)
+- ผลทดสอบ: Vitest 151 passed, Vite build passed ใน 2.85s, Pytest baseline contracts & smoke 157 passed ใน 36.36s
 
 ---
+
+## Round SIDEBAR-PHASE-UI-1 — ออกแบบ sidebar ซ้ายใหม่ด้วย 4-Phase Pipeline Stepper Dots + Shot List Badge + Smart Camera Direction Clarity
+
+วันที่: 2026-09-11 · สั่งโดย: user · สถานะ: กำลังทำ
+
+**เป้าหมาย:**
+1. แก้ปัญหาแผนถ่ายที่คำแนะนำมุมกล้องยังดูเหมือนเดิมหรือยังไม่แบ่งมุม/แอคชั่นชัดเจน:
+   - ปรับการแสดงผลใน `ShotListModal.jsx` และ `MobileFilmingPage.jsx` ให้แยก 📷 **มุมกล้อง** และ 🎬 **แอคชั่นการถ่าย** ออกจากกันอย่างเป็นระบบและเห็นชัดเจน ไม่กลืนเป็นบรรทัดเดียว
+   - ใส่ปุ่ม "สร้างแผนถ่ายใหม่ (Regenerate)" ชัดเจนใน Modal เผื่อเป็นแคชของเดิมที่เคยสร้างไว้ก่อนอัปเกรด
+2. ออกแบบแถบด้านซ้าย (Sidebar Angles List) ใหม่ตามคำขอของผู้ใช้:
+   - ระบบ 4-Phase Pipeline Stepper Dots: `สคริปต์` → `กำลังตัดต่อ` → `ตัดต่อเสร็จ` → `โพสต์แล้ว`
+   - จุดเฟสปัจจุบันแสดงผลเป็น **จุดสีเขียวมรกตเรืองแสง (Emerald Active Pulse/Glow)** โดดเด่นตามที่ผู้ใช้ร้องขอ ("ทำเป็น dot 4 เฟส แล้ว แสดง .เขียว เฟสที่เป็นอยู่ตอนนี้") พร้อมเส้นเชื่อม progression
+   - ป้ายบอกสถานะแผนถ่าย (Shot List Badge): ดูจากการ์ดซ้ายรู้ได้ทันทีว่าสคริปต์นี้สร้างแผนถ่ายแล้วหรือยัง
+     - หากมีแผนถ่ายแล้ว: แสดง Badge `🎬 แผนถ่ายพร้อม` (กดเปิด Modal แผนถ่ายได้ทันที)
+     - หากสคริปต์เปลี่ยนจนแผนถ่ายเก่า: แสดง Badge `⚠️ แผนถ่ายเก่า`
+     - หากยังไม่มีแผนถ่าย: แสดงปุ่มคลิก `+ แผนถ่าย` เพื่อสร้างทันที
+3. ปรับให้แสดงผลทั้งบน Desktop (`AngleSidebarItem`) และ Mobile Carousel (`AngleMobilePill`)
+
+### Todo
+
+- [x] ปรับปรุงการแยกมุมกล้องและแอคชั่นใน `ShotListModal.jsx` และ `MobileFilmingPage.jsx` ให้แยกกล่อง/ป้าย 📷 **มุมกล้อง** กับ 🎬 **แอคชั่นการถ่าย** ชัดเจน
+- [x] เพิ่มปุ่ม "สร้างแผนถ่ายใหม่ (Regenerate)" ให้เด่นชัดใน `ShotListModal.jsx` พร้อมอธิบายการคำนวณใหม่ตามบทล่าสุด
+- [x] นำ `ShotListModal` ไป mount แสดงผลใน `ProductToClip.jsx` และผูก state ให้เปิดดู/สร้างใหม่ได้ถูกต้อง
+- [x] ออกแบบ `PhaseDots` ใน `ProductToClip.jsx` ใหม่:
+  - 4 dots เชื่อมต่อกันแบบ stepper line
+  - dot เฟสปัจจุบันใช้สีเขียวมรกตเรืองแสง (`bg-emerald-400 ring-2 ring-emerald-400/40 shadow-sm shadow-emerald-400/60 animate-ping pulse`)
+  - dot ที่ผ่านแล้วใช้สีเขียวเข้มคมชัด, dot อนาคตใช้สีโปร่งบาง
+- [x] อัปเดต `AngleSidebarItem` และ `AngleMobilePill`:
+  - แสดงป้ายแผนถ่ายที่คลิกเปิดดูได้ทันที (`🎬 แผนถ่ายพร้อม` / `⚠️ แผนถ่ายเก่า` / `+ แผนถ่าย`)
+  - จัดระเบียบการ์ดให้เรียบหรู คมชัด ไม่รก
+- [x] รันการทดสอบ Unit Tests ทั้งหมด (Backend + Frontend) และตรวจสอบ build
+
+### Gate
+
+- [x] แผนถ่ายแสดงผลแยกมุมกล้องและแอคชั่นชัดเจน
+- [x] การ์ดฝั่งซ้ายมี Shot List Badge บอกชัดเจนว่าสคริปต์ไหนสร้างแผนถ่ายแล้ว และกดเปิดดูได้ทันที
+- [x] PhaseDots แสดงผล 4 สเต็ปโดยมีจุดเขียวเรืองแสงที่สถานะปัจจุบัน
+- [x] Unit tests (pytest 5/5 & vitest 151/151) ผ่าน 100% พร้อม build pass
+
+### Notes
+
+- ใน `scripts/shot_list_builder.py` ปรับรูปแบบคำแนะนำให้เป็นโครงสร้างมาตรฐาน `[มุมกล้อง] — [แอคชั่นการถ่าย]` อย่างสม่ำเสมอทุก role (hook, feature, cta)
+- ใน `ShotListModal.jsx` และ `MobileFilmingPage.jsx` ทำการแยกสตริง `—` และแสดงผลออกเป็นการ์ด 2 คอลัมน์/2 บล็อก: **📷 มุมกล้อง** (กรอบ Cyan) และ **🎬 แอคชั่นการถ่าย** (กรอบ Amber) สื่อสารชัดเจนตรงประเด็นตามที่ผู้ใช้ต้องการ
+- เพิ่มปุ่ม "สร้างแผนถ่ายใหม่" โดดเด่นในหัว Modal เพื่อให้ผู้ใช้สามารถกดคำนวณแผนถ่ายใหม่ด้วยระบบ Semantic Action Engine ได้ทันที แทนที่จะติดแคชเก่า
+- ปรับปรุง `PhaseDots` ใน `ProductToClip.jsx` ให้เป็น Stepper 4 สเต็ปที่มีเส้นเชื่อมต่อกัน จุดเฟสปัจจุบันแสดงผลเป็นจุดสีเขียวเรืองแสง พร้อมเอฟเฟกต์ pulse/ping ให้เห็นเด่นชัดว่าตอนนี้อยู่ขั้นตอนไหน (สคริปต์พร้อม -> กำลังตัดต่อ -> ตัดต่อเสร็จ -> โพสต์แล้ว)
+- เพิ่ม Badge `🎬 แผนถ่ายพร้อม` (สีเขียวมรกต) และ `⚠️ แผนถ่ายเก่า` (สีส้ม) พร้อมปุ่ม `+ แผนถ่าย` ในรายการสคริปต์ฝั่งซ้าย สามารถคลิกเปิดดูแผนถ่ายได้โดยตรง
+
+
 
 ## Round FONT-TEXT-RULE-1 — กฎเหล็กฟอนต์และข้อความ
 

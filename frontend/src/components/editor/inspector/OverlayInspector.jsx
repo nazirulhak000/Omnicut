@@ -155,7 +155,7 @@ export default function OverlayInspector({
     const showHookHeader = !!hookOverlay && !hookOverlay.hidden;
     const hookOverrides = hookOverlay ? overriddenTierFields(hookOverlay) : [];
     const hasHookOverrides = hookOverrides.some((fields) => fields.length > 0);
-    const hookDuration = hookOverlay ? clampHookDuration(hookOverlay.end - hookOverlay.start) : 3.0;
+    const hookDuration = hookOverlay ? clampHookDuration(hookOverlay.end - hookOverlay.start) : 5.0;
     const hookMotion = hookOverlay?.anim || {};
 
     const patchHookTier = (tierIdx, patch) => {

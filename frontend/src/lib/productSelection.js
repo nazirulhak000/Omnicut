@@ -4,7 +4,7 @@ export function resolveSelectedProduct(products, requestedId) {
   return products[0] || null;
 }
 
-export function resolveHistoryTargetId(externalId, previousExternalId, localId) {
+export function resolveHistoryTargetId(externalId, previousExternalId, localId, fallbackId = null) {
   if (externalId && externalId !== previousExternalId) return externalId;
-  return localId || null;
+  return localId || fallbackId || null;
 }

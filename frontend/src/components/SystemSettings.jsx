@@ -5,7 +5,6 @@ import {
   BarChart3, Columns, List, ChevronRight, AlertTriangle, Bug, Trash2
 } from 'lucide-react';
 import { openFolder } from '../api';
-import TokenDashboard from './TokenDashboard';
 import { PageHeader } from './ui';
 
 export default function SystemSettings({
@@ -14,15 +13,10 @@ export default function SystemSettings({
   setUiFont,
   uiScale = 'normal',
   setUiScale,
-  initialSubTab = 'tokens'
+  initialSubTab = 'appearance'
 }) {
-  const [activeTab, setActiveTab] = useState(initialSubTab); // 'tokens' | 'appearance' | 'paths' | 'engine'
+  const [activeTab, setActiveTab] = useState(initialSubTab); // 'appearance' | 'paths' | 'engine'
   const [viewMode, setViewMode] = useState('split'); // 'split' | 'classic'
-
-  // Refresh/reset for the tokens tab live in TokenDashboard itself; this bar
-  // only triggers them (see the header-dedup note by renderWorkbenchContent).
-  const tokenDashboardRef = useRef(null);
-  const [tokenRefreshing, setTokenRefreshing] = useState(false);
 
   // Round POST-2: TikTok auto-post extension toggle -- off by default, per
   // TIKTOK_AUTOPOST_PLAN.md Gate §4 ("ปิดไว้เป็นค่าเริ่มต้น เปิดผ่าน toggle นี้เท่านั้น").
@@ -48,15 +42,6 @@ export default function SystemSettings({
   };
 
   const settingSections = [
-    {
-      id: 'tokens',
-      name: 'สถิติ & โทเคน AI',
-      desc: 'สรุปการใช้งานโทเคน, ประเมินค่าใช้จ่าย และสถิติคำสั่ง AI',
-      icon: BarChart3,
-      color: 'text-[#25F4EE]',
-      badge: 'Analytics',
-      badgeColor: 'bg-[#25F4EE]/10 text-[#25F4EE] border-[#25F4EE]/30',
-    },
     {
       id: 'appearance',
       name: 'การแสดงผล & ฟอนต์',
@@ -100,13 +85,6 @@ export default function SystemSettings({
   // ── Render Specific Section Workbench Content ──
   const renderWorkbenchContent = () => {
     switch (activeTab) {
-      case 'tokens':
-        return (
-          <div className="animate-fadeIn">
-            <TokenDashboard ref={tokenDashboardRef} onRefreshingChange={setTokenRefreshing} />
-          </div>
-        );
-
       case 'appearance':
         return (
           <div className="space-y-4 sm:space-y-5 animate-fadeIn">
@@ -448,7 +426,7 @@ export default function SystemSettings({
     <div className="space-y-4 animate-fadeIn pb-16">
       <PageHeader
         icon={Settings}
-        eyebrow="ตั้งค่าระบบ & สถิติ AI"
+        eyebrow="ตั้งค่าระบบ"
         title={`${currentSection?.name} — ${currentSection?.desc}`}
         badges={
           <span className={`text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full border ${currentSection?.badgeColor}`}>
@@ -472,31 +450,6 @@ export default function SystemSettings({
         }
         actions={
           <>
-            {/* Tokens tab actions -- TokenDashboard's own header (title +
-                these same buttons) was cut to avoid duplicating this bar;
-                this triggers it via tokenDashboardRef instead. */}
-            {activeTab === 'tokens' && (
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => tokenDashboardRef.current?.refresh()}
-                  disabled={tokenRefreshing}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-200 text-xs font-semibold border border-white/[0.08] transition-all cursor-pointer disabled:opacity-60"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${tokenRefreshing ? 'animate-spin text-[#25F4EE]' : ''}`} />
-                  <span className="hidden xs:inline">รีเฟรช</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => tokenDashboardRef.current?.openReset()}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold border border-red-500/20 transition-all cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span className="hidden xs:inline">ล้างสถิติ</span>
-                </button>
-              </div>
-            )}
-
             {/* System Status Pill */}
             <div className="flex items-center gap-1.5 bg-black/40 px-2.5 py-1.5 rounded-xl border border-white/[0.08] text-xs">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -588,38 +541,7 @@ export default function SystemSettings({
       {/* ══════════════════════════════════════════════════════════
           3. MAIN WORKBENCH: MASTER-DETAIL STUDIO vs CLASSIC
          ══════════════════════════════════════════════════════════ */}
-      {viewMode === 'split' && activeTab === 'tokens' ? (
-        /* The tokens tab is a dense analytics dashboard in its own right
-           (KPI grid, two breakdown panels, a daily chart, an 8-column audit
-           table) -- squeezing it into the master-detail's 8/12 content
-           column left it cramped while the 4/12 playlist sat mostly empty.
-           It gets the full row here; a horizontal strip (borrowed from the
-           classic view below) keeps every category reachable without the
-           vertical playlist. */
-        <div className="space-y-4">
-          <div className="hidden lg:flex items-center gap-1.5 p-1 rounded-2xl bg-[#0B0F19] border border-white/[0.08]">
-            {settingSections.map((s) => {
-              const Icon = s.icon;
-              const isActive = activeTab === s.id;
-              return (
-                <button
-                  key={s.id}
-                  onClick={() => setActiveTab(s.id)}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex-1 justify-center ${
-                    isActive
-                      ? 'bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] text-white shadow-md'
-                      : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  <span>{s.name}</span>
-                </button>
-              );
-            })}
-          </div>
-          {renderWorkbenchContent()}
-        </div>
-      ) : viewMode === 'split' ? (
+      {viewMode === 'split' ? (
         <div className="space-y-4 lg:space-y-0 lg:grid lg:grid-cols-12 lg:gap-4 items-start">
           {/* DESKTOP (lg+): Left Column Settings Playlist (4 cols) */}
           <div className="hidden lg:block lg:col-span-4 space-y-2 lg:sticky lg:top-4">

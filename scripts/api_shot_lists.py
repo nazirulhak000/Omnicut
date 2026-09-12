@@ -14,6 +14,8 @@ from scripts.shot_list_builder import generate_shot_list_for_angle
 from scripts.shot_lists_store import ShotListsStore
 from scripts.quota import is_quota_error
 
+from scripts.product_store import ProductStore
+
 router = APIRouter(tags=["Shot Lists"])
 
 _VOICE_OVERRIDE_KEYS = ("voice", "voice_rate", "voice_engine_type", "voice_preset", "ad_tone")
@@ -73,4 +75,49 @@ def get_shot_list(product_id: str, angle_id: str):
     record = ShotListsStore.get(product_id, angle_id)
     if not record:
         raise HTTPException(status_code=404, detail="ยังไม่มีแผนถ่ายสำหรับมุมนี้")
-    return record
+
+    # Check if script has changed since this shot list was created
+    is_stale = False
+    product = ProductStore.get(product_id)
+    if product:
+        angle = next(
+            (a for a in product.get("angles", []) if (a.get("angle_id") or a.get("id")) == angle_id),
+            None,
+        )
+        if angle:
+            lines = angle.get("tts_lines") or angle.get("script_lines") or []
+            current_script = "\n".join(str(l).strip() for l in lines if str(l).strip())
+            cached_script = str(record.get("custom_script") or "").strip()
+            if current_script and cached_script and current_script != cached_script:
+                is_stale = True
+
+    res = dict(record)
+    res["is_stale"] = is_stale
+    return res
+
+
+@router.get("/api/products/{product_id}/shot-list-status")
+def get_shot_list_status(product_id: str):
+    """Returns a map of angle_id → {has_shot_list, is_stale} for all angles
+    of a product, so the sidebar can show badges in a single request instead
+    of N+1 per-angle calls."""
+    product = ProductStore.get(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="ไม่พบสินค้า")
+
+    result = {}
+    for angle in product.get("angles", []):
+        angle_id = angle.get("angle_id") or angle.get("id")
+        if not angle_id:
+            continue
+        record = ShotListsStore.get(product_id, angle_id)
+        if record:
+            lines = angle.get("tts_lines") or angle.get("script_lines") or []
+            current_script = "\n".join(str(l).strip() for l in lines if str(l).strip())
+            cached_script = str(record.get("custom_script") or "").strip()
+            is_stale = bool(current_script and cached_script and current_script != cached_script)
+            result[angle_id] = {"has_shot_list": True, "is_stale": is_stale}
+        else:
+            result[angle_id] = {"has_shot_list": False, "is_stale": False}
+
+    return {"product_id": product_id, "status": result}

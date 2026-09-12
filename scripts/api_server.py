@@ -57,6 +57,7 @@ from scripts.api_render import router as render_router
 from scripts.api_posts import router as posts_router
 from scripts.api_shot_lists import router as shot_lists_router
 from scripts.api_recording import router as recording_router
+from scripts.api_analytics import router as analytics_router
 
 app = FastAPI(
     title="OmniCut Pro Studio API",
@@ -164,6 +165,7 @@ app.include_router(render_router)
 app.include_router(posts_router)
 app.include_router(shot_lists_router)
 app.include_router(recording_router)
+app.include_router(analytics_router)
 
 # ----------------------------------------------------------------------
 # Run Server directly if executed

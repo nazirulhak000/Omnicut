@@ -49,28 +49,126 @@ def camera_direction_for_beat(
     beat_text: str,
     on_screen: str,
     product_name: str,
+    category: str = "",
 ) -> str:
-    """Deterministic templated Thai filming direction -- no AI call, so
-    generating a shot list never costs AI quota or depends on network
-    availability, matching the whole feature's premise of removing AI
-    dependency from the footage-matching step."""
+    """Smart templated Thai filming direction aware of product category, product name,
+    and semantic context of the specific beat line.
+    Deterministic with zero AI calls or quota costs."""
+    combined_context = f"{category} {product_name}".lower()
+    text_lower = f"{beat_text} {on_screen}".lower()
+
+    # Category detection (from category field OR product name)
+    is_mouse = any(k in combined_context for k in ("mouse", "เมาส์", "lift", "mx master", "trackball"))
+    is_keyboard = any(k in combined_context for k in ("keyboard", "คีย์บอร์ด", "keys", "mechanical"))
+    is_desk_tech = is_mouse or is_keyboard or any(k in combined_context for k in ("คอมพิวเตอร์", "ไอที", "it", "gadget", "โต๊ะ", "desk", "monitor", "stand"))
+    is_cable = any(k in combined_context for k in ("cable", "charger", "สายชาร์จ", "ชาร์จ", "หัวชาร์จ", "essager", "ugreen", "baseus", "anker"))
+    is_beauty = any(k in combined_context for k in ("beauty", "skincare", "ลิป", "ครีม", "เซรั่ม", "สำอาง", "ผิว", "โลชั่น", "กันแดด"))
+
     if role == "hook":
+        if is_mouse:
+            return (
+                f"ตั้งกล้องมุมเฉียง 45° ส่องบนโต๊ะทำงาน — "
+                f"วาง {product_name} บนแผ่นรองเมาส์ มือจับเข้าท่าทรงสรีรศาสตร์ 57° หรือเลื่อนเมาส์เข้าเฟรมเพื่อเปิดคลิป"
+            )
+        if is_desk_tech:
+            return (
+                f"ตั้งกล้องมุมเฉียง 45° หรือ Top-Down ส่องบนโต๊ะทำงาน — "
+                f"วาง {product_name} กลางโต๊ะ มือจับหรือเริ่มใช้งานให้เห็นสรีระ/ฟังก์ชันชัดเจน"
+            )
+        if is_cable:
+            return (
+                f"ตั้งกล้องมุม Close-up ระดับอกหรือบนโต๊ะ — "
+                f"ถือ {product_name} โชว์การม้วนเก็บ/ดูดของแม่เหล็ก หรือดึงสายให้เห็นความทนทานชัดๆ"
+            )
+        if is_beauty:
+            return (
+                f"ตั้งกล้องระยะ Medium Close-up สว่างชัดเจน — "
+                f"ถือ {product_name} ใกล้ใบหน้าหรือท่อนบน ยิ้มพร้อมโชว์บรรจุภัณฑ์หน้ากล้อง"
+            )
         return (
             f"ตั้งกล้อง/มือถือมุมเดียว ระยะ Medium shot ระดับอก ห้ามขยับกล้องตลอดคลิป — "
             f"ถือหรือวาง {product_name} ให้เห็นชัดกลางเฟรม พูดพร้อมแอคชั่นแนะนำตัวสินค้า"
         )
+
     if role == "cta":
-        base = (
+        if is_mouse or is_desk_tech:
+            return (
+                "ชี้/แตะราคาหรือพิกัดตะกร้าสินค้าในเฟรม — "
+                "อาจขยับกล้องเข้าใกล้ (Close-up) เพื่อโชว์เมาส์คู่กับหน้าจอคอมหรือวางมือผ่อนคลายข้างสินค้า"
+            )
+        return (
             "ชี้/แตะราคาหรือตะกร้าสินค้าให้เห็นชัดในเฟรม — "
             "อาจถ่ายแยกเป็นคลิปโคลสอัพต่างหากจากเทกหลักได้ (กล้องขยับเข้าใกล้ได้เฉพาะช็อตนี้)"
         )
-        return base
+
+    # ── Feature / Body beats: Semantic Context Analysis ──
+    # Note: Structure as 'มุมกล้อง — แอคชั่นการถ่าย' so the UI separates them cleanly
+    angle_base = "กล้องมุมเดิมบนขาตั้ง (ไม่ขยับกล้อง)"
+
+    # 1. Clicking / Buttons / Wheel / Sound / Smoothness
+    if any(k in text_lower for k in ("คลิก", "ปุ่ม", "เสียง", "เงียบ", "ลื่น", "สมูท", "wheel", "click", "silent")):
+        if is_mouse:
+            return f"{angle_base} — ใช้นิ้วชี้-กลางกดคลิกปุ่มซ้ายขวา และหมุน SmartWheel ให้เห็นความนุ่มลื่นเงียบกริบ"
+        if is_keyboard:
+            return f"{angle_base} — พิมพ์นิ้วรัวๆ ลงบนปุ่มคีย์บอร์ด โชว์สัมผัสการกดที่นุ่มและเสียงพิมพ์ที่ฟินมือ"
+        return f"{angle_base} — กดปุ่มหรือขยับฟังก์ชันเด่นของ {product_name} ให้เห็นการทำงานที่ลื่นไหล"
+
+    # 2. Daily cost comparison / Savings / Math value (e.g. ตกวันละกี่บาท vs ยาแก้ปวด)
+    if any(k in text_lower for k in ("วันละ", "สตางค์", "บาท", "ยาแก้ปวด", "ถูกกว่า", "ประหยัด")):
+        if is_mouse or is_desk_tech:
+            return f"{angle_base} — ยก {product_name} ขึ้นมาถือเทียบกับมือ หรือหมุนช้าๆ 360° โชว์ความพรีเมียมและวัสดุที่คุ้มค่าน่าใช้"
+        return f"{angle_base} — ยก {product_name} ขึ้นมาถือหรือหมุนช้าๆ 360° โชว์ความพรีเมียมและวัสดุที่คุ้มค่าน่าใช้"
+
+    # 3. Ergonomics / Wrist pain / Health / Comfort / Posture / Investment for body
+    if any(k in text_lower for k in ("สุขภาพ", "สรีระ", "ปวด", "เมื่อย", "ข้อ", "มือ", "สบาย", "ถนอม", "เอียง", "องศา", "ธรรมชาติ", "ergo", "ลงทุนครั้งเดียว")):
+        if is_mouse:
+            return f"{angle_base} — วางมือทาบลงบนเมาส์ ยกให้เห็นมุมเอียง 57° ที่กระชับพอดีฝ่ามือ ไม่เกร็งข้อมือ"
+        if is_desk_tech:
+            return f"{angle_base} — จัดท่าทางการนั่งหรือวางมือคู่กับ {product_name} ให้เห็นความสบายตามหลักสรีรศาสตร์"
+        return f"{angle_base} — ถือหรือสัมผัส {product_name} ในท่าที่ผ่อนคลายและใช้งานสบายที่สุด"
+
+    # 4. Value / General Cost / Durability
+    if any(k in text_lower for k in ("คุ้ม", "ราคา", "ลงทุน", "ทน", "ปี", "ยาวนาน")):
+        return f"{angle_base} — จับถือ {product_name} พลิกโชว์งานประกอบเนี๊ยบๆ เน้นความทนทานใช้งานได้หลายปี"
+
+    # 5. Connection / Bluetooth / Wireless / Battery / Multi-device
+    if any(k in text_lower for k in ("บลูทูธ", "bluetooth", "ไร้สาย", "wireless", "ต่อ", "เชื่อม", "สลับ", "เครื่อง", "แบต", "ถ่าน", "ชาร์จ")):
+        if is_mouse:
+            return f"{angle_base} — พลิกด้านใต้เมาส์ให้เห็นสวิตช์เปิด-ปิด หรือปุ่มสลับเครื่อง Easy-Switch / ฝาปิดถ่าน"
+        return f"{angle_base} — โชว์พอร์ตเชื่อมต่อหรืออุปกรณ์ที่ทำงานร่วมกับ {product_name}"
+
+    # 6. Cable specific
+    if is_cable:
+        if any(k in text_lower for k in ("ม้วน", "เก็บ", "แม่เหล็ก", "พัน")):
+            return f"{angle_base} — ม้วนสายเข้าหากัน โชว์แม่เหล็กดูดติดเก็บเป็นระเบียบใน 1 วินาที"
+        if any(k in text_lower for k in ("เหนียว", "ขาด", "ทน", "ดึง", "หัก")):
+            return f"{angle_base} — จับปลายสายทั้งสองข้างดึงยืด หรืองอข้อต่อโชว์ความทนทานไม่หักงอง่าย"
+        if on_screen:
+            return f"{angle_base} — ทำแอคชั่นม้วน/เสียบชาร์จจริง พร้อมเน้น '{on_screen}' ให้เห็นในเฟรม"
+        return f"{angle_base} — เสียบชาร์จใช้งานกับมือถือหรืออุปกรณ์จริงให้เห็นสถานะไฟเข้า"
+
+    # 7. Beauty specific
+    if is_beauty:
+        if any(k in text_lower for k in ("ทา", "เนื้อ", "สัมผัส", "ซึม", "เกลี่ย", "ปาก", "ชุ่ม", "ฉ่ำ")):
+            return f"{angle_base} — ปาด/แตะเนื้อผลิตภัณฑ์ลงบนหลังมือหรือริมฝีปาก โชว์ความฉ่ำวาวและความเนียนนุ่ม"
+        if on_screen:
+            return f"{angle_base} — แตะ/ทาเนื้อสัมผัส หรือโชว์ '{on_screen}' กับผิวให้เห็นความเรียบเนียน"
+        return f"{angle_base} — เปิดฝา ปั๊มเนื้อครีม หรือถือคู่กับใบหน้ายิ้มอย่างมั่นใจ"
+
+    # Fallback with on_screen or index-based varied action
     if on_screen:
-        return f"ทำแอคชั่นตามบทพูด พร้อมโชว์ '{on_screen}' ให้เห็นในเฟรม — กล้องมุมเดิมไม่ขยับ"
-    return "ทำแอคชั่นมือกับสินค้าให้ตรงกับบทพูดช่วงนี้ — กล้องมุมเดิมไม่ขยับ"
+        return f"{angle_base} — ทำแอคชั่นใช้งานจริง พร้อมชี้หรือโชว์ '{on_screen}' ให้เห็นชัดในเฟรม"
+
+    # Alternating natural actions so consecutive beats never repeat identical text
+    default_actions = [
+        f"{angle_base} — จับถือ {product_name} หมุนโชว์ดีไซน์รอบตัวเครื่องอย่างเป็นธรรมชาติ",
+        f"{angle_base} — ใช้งาน {product_name} จริงบนโต๊ะให้สอดคล้องกับจังหวะเสียงพากย์",
+        f"{angle_base} — วางมือทาบหรือขยับ {product_name} เพื่อเน้นจุดเด่นตามบทพูด",
+    ]
+    return default_actions[index % len(default_actions)]
 
 
-def build_shot_list(beat_cues: List[Dict[str, Any]], product_name: str) -> List[Dict[str, Any]]:
+def build_shot_list(beat_cues: List[Dict[str, Any]], product_name: str, category: str = "") -> List[Dict[str, Any]]:
     total = len(beat_cues)
     shot_list: List[Dict[str, Any]] = []
     for index, cue in enumerate(beat_cues):
@@ -85,7 +183,7 @@ def build_shot_list(beat_cues: List[Dict[str, Any]], product_name: str) -> List[
             "end": round(end, 3),
             "planned_duration": round(max(0.0, end - start), 3),
             "camera_direction": camera_direction_for_beat(
-                role, index, cue.get("text", ""), cue.get("on_screen", ""), product_name
+                role, index, cue.get("text", ""), cue.get("on_screen", ""), product_name, category
             ),
             "on_screen": cue.get("on_screen", ""),
             "is_separate_clip": index == total - 1 and total > 1,
@@ -154,7 +252,8 @@ def generate_shot_list_for_angle(
     if not ctx.beat_cues:
         raise ValueError("สร้างเสียงพากย์สำเร็จ แต่ไม่พบ beat_cues -- กรุณาลองใหม่")
 
-    shot_list = build_shot_list(ctx.beat_cues, product_name)
+    category = product.get("category") or product.get("product_category") or ""
+    shot_list = build_shot_list(ctx.beat_cues, product_name, category=category)
 
     record = {
         "id": f"{product_id}:{angle_id}",

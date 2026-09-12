@@ -297,6 +297,9 @@ export const generateShotList = (productId, angleId, voiceOverrides = {}) =>
 export const getShotList = (productId, angleId) =>
   api.get(`/products/${productId}/angles/${angleId}/shot-list`).then(r => r.data);
 
+export const getShotListStatus = (productId) =>
+  api.get(`/products/${productId}/shot-list-status`).then(r => r.data);
+
 // Guided-take recording sessions (scripts/api_recording.py): pairs the
 // mobile filming page (MobileFilmingPage.jsx) with a product/angle's shot
 // list, one uploaded segment per beat, strict order + retake-last-only
@@ -333,11 +336,16 @@ export const deleteTaskApi = (taskId) => api.delete(`/tasks/${taskId}`).then(r =
 export const clearCompletedTasksApi = () => api.post('/tasks/clear-completed').then(r => r.data);
 
 // ═══════════════════════════════════════════════════════════════════════
-// 📊 AI TOKEN ANALYTICS APIS
+// 📊 AI TOKEN & ANALYTICS HUB APIS
 // ═══════════════════════════════════════════════════════════════════════
 export const getTokenSummary = () => api.get('/tokens/summary').then(r => r.data);
 export const getTokenHistory = (limit = 50) => api.get('/tokens/history', { params: { limit } }).then(r => r.data);
 export const resetTokenAnalytics = () => api.post('/tokens/reset').then(r => r.data);
+
+export const getProductionAnalytics = () => api.get('/analytics/production').then(r => r.data);
+export const getStorageAnalytics = (forceScan = false) => api.get('/analytics/storage', { params: forceScan ? { force_scan: true } : {} }).then(r => r.data);
+export const purgeSafeStorageCache = () => api.post('/analytics/storage/purge-safe-cache').then(r => r.data);
+export const getInventoryHealth = () => api.get('/analytics/inventory').then(r => r.data);
 
 export const fetchOverlayLayout = (payload) => api.post('/editor/overlay/layout', payload).then(r => r.data);
 

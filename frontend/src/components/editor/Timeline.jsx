@@ -1004,7 +1004,7 @@ export default function Timeline({
                   const hookText = tierTexts.join(' · ') || 'ป้ายฮุกพาดหัว (Hook Header)';
                   const isSelected = selection?.type === 'hook';
                   const start = hookOverlay?.start || 0;
-                  const dur = hookOverlay ? Math.max(0.1, hookOverlay.end - hookOverlay.start) : 3.0;
+                  const dur = hookOverlay ? Math.max(0.1, hookOverlay.end - hookOverlay.start) : 5.0;
                   const w = Math.max(24, dur * pxPerSec);
 
                   return (

@@ -120,6 +120,11 @@ AI ทุกตัว**ต้องเคารพโครงสร้างโ
    - Save บันทึก state/manifest; `.ass` รุ่นใหม่เกิดเมื่อ subtitle stage รันตอน Render หลัง input หรือ render contract เปลี่ยน ห้ามให้ Save แก้ข้อความหรือสร้างคำใหม่เอง
    - Probe/test ต้องใช้ `.venv\Scripts\python.exe` เหมือนเซิร์ฟเวอร์จริง ห้ามรับรองด้วย system Python คนละ environment และ dependency ที่มีผลต่อภาพต้องอยู่ใน `requirements.txt`
    - ถ้าแก้ output contract ต้อง bump subtitle contract, invalidate artifact เก่า, รัน parity + FFmpeg multi-frame + pixel measurement และยืนยันข้อความก่อน/หลังไม่เปลี่ยน
+13. ✔️ **ประหยัดโทเคนสูงสุดและรักษาวินัยบริบท (Strict Token Efficiency & Resource Discipline):**
+   - ต้องปฏิบัติตาม [.agents/skills/token-efficiency-guardian/SKILL.md](file:///d:/Winona/Programmer/Capcut/.agents/skills/token-efficiency-guardian/SKILL.md) เสมอ
+   - ห้ามเปิดอ่านไฟล์ใหญ่ (เช่น `ContentTrackerHub.jsx`, `ProductToClip.jsx`) ทั้งไฟล์เด็ดขาด ให้ใช้ `grep_search` หาตำแหน่งแล้วใช้ `view_file` ส่องเฉพาะช่วงที่จำเป็น ($\le 100$ บรรทัด)
+   - ห้ามโหลดหรือเรียกใช้สกิลที่ไม่เกี่ยวข้องกับงานตัดต่อ (ห้ามแตะสกิล BigQuery, Cloud, dbt)
+   - สรุปและตอบตรงประเด็น ไม่เกริ่นอารัมภบทยาวเกินจำเป็นเพื่อลด Output Tokens
 
 ---
 

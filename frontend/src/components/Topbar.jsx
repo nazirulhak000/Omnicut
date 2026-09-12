@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import {
   Rocket, Layers, Scissors, FolderDown, Palette, Settings,
-  Keyboard, Wifi, WifiOff, RefreshCw, Package
+  Keyboard, Wifi, WifiOff, RefreshCw, Package, BarChart3, BookOpen
 } from 'lucide-react';
 import { ActivityIndicatorButton } from './ActivityCenter';
 
@@ -48,19 +48,33 @@ const TAB_CONFIG = {
     badgeColor: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
     description: 'ระบบหลังบ้าน ฟอนต์ เสียง AI และสติกเกอร์ 3D'
   },
+  analytics: {
+    icon: BarChart3,
+    title: 'ศูนย์วิเคราะห์ & สถิติรวม',
+    badge: '6. Analytics Hub',
+    badgeColor: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30',
+    description: 'วิเคราะห์การผลิตคลิป โทเคน AI พื้นที่จัดเก็บ และสุขภาพสินค้า'
+  },
   settings: {
     icon: Settings,
-    title: 'ตั้งค่าระบบ & สถิติ AI',
-    badge: '6. Settings & Tokens',
-    badgeColor: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30',
-    description: 'ตั้งค่าระบบ สถิติการใช้งานโทเคน AI และฟอนต์แสดงผล'
+    title: 'ตั้งค่าระบบ',
+    badge: '7. Settings',
+    badgeColor: 'bg-slate-500/10 text-slate-300 border-slate-500/30',
+    description: 'ปรับขนาดหน้าจอ ฟอนต์ระบบ โฟลเดอร์จัดเก็บ และความปลอดภัย'
   },
   dashboard: {
     icon: Settings,
-    title: 'ตั้งค่าระบบ & สถิติ AI',
-    badge: '6. Settings & Tokens',
-    badgeColor: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30',
-    description: 'ตั้งค่าระบบ สถิติการใช้งานโทเคน AI และฟอนต์แสดงผล'
+    title: 'ตั้งค่าระบบ',
+    badge: '7. Settings',
+    badgeColor: 'bg-slate-500/10 text-slate-300 border-slate-500/30',
+    description: 'ปรับขนาดหน้าจอ ฟอนต์ระบบ โฟลเดอร์จัดเก็บ และความปลอดภัย'
+  },
+  guide: {
+    icon: BookOpen,
+    title: 'คู่มือใช้งาน',
+    badge: '8. User Guide',
+    badgeColor: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
+    description: 'โฟลว์หลัก 7 ขั้น วิธีใช้ทุกเมนู และคำถามพบบ่อย'
   }
 };
 

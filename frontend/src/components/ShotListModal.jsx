@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Clapperboard, Clock, ExternalLink, Film, Loader2, QrCode, RotateCw } from 'lucide-react';
+import { AlertTriangle, Camera, Clapperboard, Clock, ExternalLink, Film, Loader2, QrCode, RotateCw } from 'lucide-react';
 import { Modal, Badge, SafeQRCode } from './ui';
 import { toMediaUrl } from '../lib/mediaUrl';
 import { createRecordingSession } from '../api';
@@ -67,17 +67,41 @@ export default function ShotListModal({
     >
       <div className="space-y-4">
         {onRegenerate && (
-          <div className="flex justify-end -mt-1 -mb-1">
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08]">
+            <span className="text-xs text-slate-400">
+              ต้องการคำนวณจังหวะและคำแนะนำการถ่ายตามบทล่าสุดใหม่?
+            </span>
             <button
               type="button"
               onClick={onRegenerate}
               disabled={regenerating}
               title="สังเคราะห์เสียงพากย์และคำนวณจังหวะ beat ใหม่ทั้งหมด"
-              className="text-[11px] text-slate-500 hover:text-slate-300 flex items-center gap-1 cursor-pointer disabled:opacity-50 disabled:cursor-wait transition-colors"
+              className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/30 text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-wait transition-all"
             >
-              {regenerating ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCw className="w-3 h-3" />}
-              สร้างแผนถ่ายใหม่
+              {regenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCw className="w-3.5 h-3.5" />}
+              <span>{regenerating ? 'กำลังสร้าง...' : 'สร้างแผนถ่ายใหม่'}</span>
             </button>
+          </div>
+        )}
+
+        {result.is_stale && (
+          <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-200 text-xs flex items-center justify-between gap-3 shadow-lg animate-pulse">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+              <span>
+                <strong className="font-bold">สคริปต์มีการแก้ไขหลังจากสร้างแผนถ่ายนี้:</strong> จังหวะเวลาเสียงพากย์อาจไม่ตรงกับสคริปต์ล่าสุด
+              </span>
+            </div>
+            {onRegenerate && (
+              <button
+                type="button"
+                onClick={onRegenerate}
+                disabled={regenerating}
+                className="px-2.5 py-1 rounded-lg bg-rose-500/30 hover:bg-rose-500/40 text-rose-100 text-xs font-bold whitespace-nowrap cursor-pointer transition-all border border-rose-400/40"
+              >
+                {regenerating ? 'กำลังสร้างใหม่...' : 'อัปเดตแผนถ่าย'}
+              </button>
+            )}
           </div>
         )}
 
@@ -96,13 +120,17 @@ export default function ShotListModal({
           ระบบจะใส่ให้อัตโนมัติตอนตัดต่อ
         </div>
 
-        <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
+        <div className="space-y-2.5 max-h-[50vh] overflow-y-auto pr-1">
           {shotList.map((beat) => {
             const roleMeta = ROLE_LABELS[beat.role] || { label: beat.role, variant: 'slate' };
+            const parts = (beat.camera_direction || '').split('—').map((s) => s.trim());
+            const cameraAngle = parts[0] || '';
+            const actionText = parts.length > 1 ? parts.slice(1).join(' — ') : '';
+
             return (
               <div
                 key={beat.beat_index}
-                className="p-3 rounded-xl bg-[#0B0F19] border border-white/[0.08] space-y-1.5"
+                className="p-3.5 rounded-xl bg-[#0B0F19] border border-white/[0.08] space-y-2 hover:border-white/[0.15] transition-colors"
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
@@ -116,11 +144,31 @@ export default function ShotListModal({
                     {formatSeconds(beat.start)} – {formatSeconds(beat.end)} ({formatSeconds(beat.planned_duration)})
                   </span>
                 </div>
-                <p className="text-xs text-slate-300 font-kanit leading-snug">{beat.text}</p>
-                <p className="text-xs text-amber-200/90 flex items-start gap-1.5">
-                  <Clapperboard className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                  <span>{beat.camera_direction}</span>
-                </p>
+
+                <div className="p-2 rounded-lg bg-white/[0.03] border border-white/[0.05]">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">บทพูด / เสียงพากย์</span>
+                  <p className="text-xs text-slate-200 font-kanit leading-snug">{beat.text}</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-xs">
+                  {cameraAngle && (
+                    <div className="p-2 rounded-lg bg-cyan-950/20 border border-cyan-500/20 text-cyan-200/95 space-y-0.5">
+                      <div className="flex items-center gap-1 text-[10px] font-bold text-cyan-400 uppercase tracking-wider">
+                        <Camera className="w-3 h-3" />
+                        <span>มุมกล้อง</span>
+                      </div>
+                      <p className="text-xs leading-relaxed">{cameraAngle}</p>
+                    </div>
+                  )}
+
+                  <div className="p-2 rounded-lg bg-amber-950/20 border border-amber-500/20 text-amber-200/95 space-y-0.5">
+                    <div className="flex items-center gap-1 text-[10px] font-bold text-amber-400 uppercase tracking-wider">
+                      <Clapperboard className="w-3 h-3" />
+                      <span>แอคชั่นการถ่าย</span>
+                    </div>
+                    <p className="text-xs leading-relaxed">{actionText || beat.camera_direction}</p>
+                  </div>
+                </div>
               </div>
             );
           })}

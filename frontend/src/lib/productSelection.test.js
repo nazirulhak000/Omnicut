@@ -25,3 +25,7 @@ test('keeps the local selection when the parent prop is an unchanged stale id', 
 test('honours a newly changed parent selection', () => {
   assert.equal(resolveHistoryTargetId('parent-new', 'parent-old', 'local-selected'), 'parent-new');
 });
+
+test('uses fallback id when both external and local ids are null', () => {
+  assert.equal(resolveHistoryTargetId(null, null, null, 'persisted-fallback'), 'persisted-fallback');
+});

@@ -59,7 +59,7 @@ export function clampPan(pan) {
 
 /** Hook duration clamp [min, max] */
 export function clampHookDuration(dur, min = 1.0, max = 8.0) {
-  return clampValue(dur, min, max, 3.0);
+  return clampValue(dur, min, max, 5.0);
 }
 
 /**

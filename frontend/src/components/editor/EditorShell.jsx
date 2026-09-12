@@ -356,7 +356,7 @@ export default function EditorShell({
     if (!hookOverlay) {
       const guess = guessBrandModel(projectProductName || productContext?.title || '');
       const fresh = newHookOverlay({
-        brand: guess.brand, model: guess.model, template, duration: 3.0,
+        brand: guess.brand, model: guess.model, template, duration: 5.0,
       });
       if (fresh) handleAddOverlay(fresh);
       return;
@@ -405,7 +405,7 @@ export default function EditorShell({
       brand: guess.brand,
       model: guess.model,
       template: templateForAdTone(projectAdTone),
-      duration: 3.0,
+      duration: 5.0,
     });
     if (fresh) handleAddOverlay(fresh);
   }, [hookOverlay, handleUpdateOverlay, handleAddOverlay, productContext,

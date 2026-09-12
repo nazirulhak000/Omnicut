@@ -537,10 +537,31 @@ export default function MobileFilmingPage({ sessionId, onExit }) {
                 <span className="text-xs font-mono text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.9)]">{formatSeconds(currentBeat.planned_duration)}</span>
               </div>
               <p className="text-sm text-white font-kanit leading-snug [text-shadow:0_1px_4px_rgba(0,0,0,0.9)]">{currentBeat.text}</p>
-              <p className="text-xs text-amber-200 flex items-start gap-1.5 [text-shadow:0_1px_4px_rgba(0,0,0,0.9)]">
-                <Clapperboard className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                <span>{currentBeat.camera_direction}</span>
-              </p>
+              {(() => {
+                const parts = (currentBeat.camera_direction || '').split('—').map((s) => s.trim());
+                const cameraAngle = parts[0] || '';
+                const actionText = parts.length > 1 ? parts.slice(1).join(' — ') : '';
+                return (
+                  <div className="space-y-1 pt-0.5">
+                    {cameraAngle && (
+                      <div className="p-1.5 rounded-lg bg-cyan-950/40 border border-cyan-500/30 text-cyan-200 text-xs flex items-start gap-1.5 [text-shadow:0_1px_4px_rgba(0,0,0,0.9)]">
+                        <Camera className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-bold text-cyan-400 text-[10px] block uppercase">มุมกล้อง:</span>
+                          <span>{cameraAngle}</span>
+                        </div>
+                      </div>
+                    )}
+                    <div className="p-1.5 rounded-lg bg-amber-950/40 border border-amber-500/30 text-amber-200 text-xs flex items-start gap-1.5 [text-shadow:0_1px_4px_rgba(0,0,0,0.9)]">
+                      <Clapperboard className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold text-amber-400 text-[10px] block uppercase">แอคชั่นการถ่าย:</span>
+                        <span>{actionText || currentBeat.camera_direction}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
               {voiceAudioPath && phase === 'ready' && (
                 <button
                   type="button"

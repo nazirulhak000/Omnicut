@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { getTokenSummary, resetTokenAnalytics } from '../api';
 import { Badge, ConfirmModal, Toast } from './ui';
+import AreaLineChart from './analytics/charts/AreaLineChart';
+import DonutChart from './analytics/charts/DonutChart';
 
 // Title/refresh/reset live in SystemSettings' own command bar now (this
 // panel used to carry a second, duplicate header) -- refresh() and
@@ -104,6 +106,20 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
         return { label: task, icon: Cpu, color: 'bg-slate-700/40 text-slate-300 border-slate-600' };
     }
   };
+
+  const modelChartData = useMemo(() => {
+    return Object.entries(summary?.tokens_by_model || {}).map(([modelName, tokens]) => ({
+      label: modelName,
+      value: tokens,
+    }));
+  }, [summary?.tokens_by_model]);
+
+  const taskChartData = useMemo(() => {
+    return Object.entries(summary?.tokens_by_task || {}).map(([taskKey, tokens]) => ({
+      label: getTaskBadge(taskKey).label,
+      value: tokens,
+    }));
+  }, [summary?.tokens_by_task]);
 
   const getProviderBadge = (provider) => {
     if (provider === 'antigravity_pro') {
@@ -212,7 +228,7 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
       {/* ── Breakdown Sections (Model Share & Tasks) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Section A: Models Distribution */}
-        <div className="glass-panel p-5 sm:p-6 rounded-2xl border border-white/[0.08] space-y-4">
+        <div className="glass-panel p-5 sm:p-6 rounded-2xl border border-white/[0.08] space-y-4 flex flex-col justify-between">
           <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
             <div className="flex items-center gap-2">
               <Cpu className="w-4 h-4 text-[#25F4EE]" />
@@ -221,56 +237,67 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
             <span className="text-xs text-slate-400">{Object.keys(summary?.tokens_by_model || {}).length} โมเดล</span>
           </div>
 
-          <div className="space-y-3.5 pt-1">
-            {Object.entries(summary?.tokens_by_model || {}).length === 0 ? (
-              <p className="text-xs text-slate-500 text-center py-6">ยังไม่มีประวัติการเรียกใช้โมเดล</p>
-            ) : (
-              Object.entries(summary.tokens_by_model).map(([modelName, tokens]) => {
-                const total = totals.total_tokens || 1;
-                const percent = Math.round((tokens / total) * 100);
-                const calls = summary?.calls_by_model?.[modelName] || 0;
+          {modelChartData.length === 0 ? (
+            <p className="text-xs text-slate-500 text-center py-6">ยังไม่มีประวัติการเรียกใช้โมเดล</p>
+          ) : (
+            <div className="flex flex-col sm:flex-row items-center gap-5 pt-1">
+              <div className="flex-shrink-0 flex justify-center">
+                <DonutChart
+                  data={modelChartData}
+                  size={125}
+                  strokeWidth={17}
+                  centerLabel="โมเดลรวม"
+                  centerValue={totals.total_tokens >= 1000 ? `${(totals.total_tokens / 1000).toFixed(0)}k` : totals.total_tokens}
+                  unit="tok"
+                  showLegend={false}
+                />
+              </div>
+              <div className="flex-1 w-full space-y-2.5">
+                {Object.entries(summary.tokens_by_model).map(([modelName, tokens]) => {
+                  const total = totals.total_tokens || 1;
+                  const percent = Math.round((tokens / total) * 100);
+                  const calls = summary?.calls_by_model?.[modelName] || 0;
+                  const isPro = modelName.includes('3.8') || modelName.includes('pro') || modelName.includes('claude');
 
-                const isPro = modelName.includes('3.8') || modelName.includes('pro') || modelName.includes('claude');
-
-                return (
-                  <div key={modelName} className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-semibold text-slate-200">{modelName}</span>
-                        {isPro ? (
-                          <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-[#FE2C55]/20 text-[#25F4EE] border border-[#25F4EE]/30">
-                            PRO
-                          </span>
-                        ) : (
-                          <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                            FREE
-                          </span>
-                        )}
+                  return (
+                    <div key={modelName} className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-semibold text-slate-200">{modelName}</span>
+                          {isPro ? (
+                            <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-[#FE2C55]/20 text-[#25F4EE] border border-[#25F4EE]/30">
+                              PRO
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                              FREE
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-slate-400 font-mono text-[11px]">
+                          <span className="text-white font-bold">{tokens.toLocaleString()}</span> tok ({percent}%) • {calls} ครั้ง
+                        </div>
                       </div>
-                      <div className="text-slate-400 font-mono">
-                        <span className="text-white font-bold">{tokens.toLocaleString()}</span> tok ({percent}%) • {calls} ครั้ง
+                      <div className="h-1.5 w-full bg-white/[0.05] rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            isPro
+                              ? 'bg-gradient-to-r from-[#FE2C55] to-[#25F4EE]'
+                              : 'bg-gradient-to-r from-emerald-500 to-teal-400'
+                          }`}
+                          style={{ width: `${Math.max(percent, 3)}%` }}
+                        />
                       </div>
                     </div>
-                    {/* Visual Bar */}
-                    <div className="h-2 w-full bg-white/[0.05] rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          isPro
-                            ? 'bg-gradient-to-r from-[#FE2C55] to-[#25F4EE]'
-                            : 'bg-gradient-to-r from-emerald-500 to-teal-400'
-                        }`}
-                        style={{ width: `${Math.max(percent, 3)}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Section B: Tasks Breakdown */}
-        <div className="glass-panel p-5 sm:p-6 rounded-2xl border border-white/[0.08] space-y-4">
+        <div className="glass-panel p-5 sm:p-6 rounded-2xl border border-white/[0.08] space-y-4 flex flex-col justify-between">
           <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
             <div className="flex items-center gap-2">
               <Layers className="w-4 h-4 text-purple-400" />
@@ -279,52 +306,83 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
             <span className="text-xs text-slate-400">{Object.keys(summary?.tokens_by_task || {}).length} หมวดหมู่งาน</span>
           </div>
 
-          <div className="space-y-3.5 pt-1">
-            {Object.entries(summary?.tokens_by_task || {}).length === 0 ? (
-              <p className="text-xs text-slate-500 text-center py-6">ยังไม่มีประวัติการทำ Task</p>
-            ) : (
-              Object.entries(summary.tokens_by_task).map(([taskKey, tokens]) => {
-                const total = totals.total_tokens || 1;
-                const percent = Math.round((tokens / total) * 100);
-                const calls = summary?.calls_by_task?.[taskKey] || 0;
-                const badge = getTaskBadge(taskKey);
-                const Icon = badge.icon;
+          {taskChartData.length === 0 ? (
+            <p className="text-xs text-slate-500 text-center py-6">ยังไม่มีประวัติการทำ Task</p>
+          ) : (
+            <div className="flex flex-col sm:flex-row items-center gap-5 pt-1">
+              <div className="flex-shrink-0 flex justify-center">
+                <DonutChart
+                  data={taskChartData}
+                  size={125}
+                  strokeWidth={17}
+                  centerLabel="งานทั้งหมด"
+                  centerValue={totals.total_calls}
+                  unit="ครั้ง"
+                  showLegend={false}
+                />
+              </div>
+              <div className="flex-1 w-full space-y-2.5">
+                {Object.entries(summary.tokens_by_task).map(([taskKey, tokens]) => {
+                  const total = totals.total_tokens || 1;
+                  const percent = Math.round((tokens / total) * 100);
+                  const calls = summary?.calls_by_task?.[taskKey] || 0;
+                  const badge = getTaskBadge(taskKey);
+                  const Icon = badge.icon;
 
-                return (
-                  <div key={taskKey} className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2">
-                        <Icon className="w-3.5 h-3.5 text-slate-400" />
-                        <span className="font-semibold text-slate-200 font-kanit">{badge.label}</span>
+                  return (
+                    <div key={taskKey} className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <Icon className="w-3.5 h-3.5 text-slate-400" />
+                          <span className="font-semibold text-slate-200 font-kanit">{badge.label}</span>
+                        </div>
+                        <div className="text-slate-400 font-mono text-[11px]">
+                          <span className="text-white font-bold">{tokens.toLocaleString()}</span> tok ({percent}%) • {calls} ครั้ง
+                        </div>
                       </div>
-                      <div className="text-slate-400 font-mono">
-                        <span className="text-white font-bold">{tokens.toLocaleString()}</span> tok ({percent}%) • {calls} ครั้ง
+                      <div className="h-1.5 w-full bg-white/[0.05] rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-500"
+                          style={{ width: `${Math.max(percent, 3)}%` }}
+                        />
                       </div>
                     </div>
-                    {/* Visual Bar */}
-                    <div className="h-2 w-full bg-white/[0.05] rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-500"
-                        style={{ width: `${Math.max(percent, 3)}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* ── Daily Activity Chart ── */}
       {summary?.daily_stats && summary.daily_stats.length > 0 && (
-        <div className="glass-panel p-5 sm:p-6 rounded-2xl border border-white/[0.08] space-y-4">
+        <div className="glass-panel p-5 sm:p-6 rounded-2xl border border-white/[0.08] space-y-4 shadow-xl">
           <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
-            <div className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-cyan-400" />
-              <h3 className="text-sm font-bold text-white font-kanit">ประวัติการใช้งานย้อนหลัง (Daily Token Volume)</h3>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-cyan-400" />
+                <h3 className="text-sm font-bold text-white font-kanit">ประวัติการใช้งานย้อนหลัง (Daily Token Volume)</h3>
+              </div>
+              <p className="text-xs text-slate-400">กราฟแนวโน้มปริมาณโทเคนและมูลค่าที่ประหยัดได้ในแต่ละวัน</p>
             </div>
-            <span className="text-xs text-slate-400">{summary.daily_stats.length} วันล่าสุด</span>
+            <span className="text-xs font-mono text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-1 rounded-lg">
+              {summary.daily_stats.length} วันล่าสุด
+            </span>
+          </div>
+
+          {/* Pure SVG Area & Line Chart */}
+          <div className="pt-1">
+            <AreaLineChart
+              data={summary.daily_stats}
+              height={130}
+              valueKey="tokens"
+              dateKey="date"
+              secondaryKey="cost_saved_thb"
+              lineColor="#25F4EE"
+              gradientFrom="#25F4EE"
+              gradientTo="#3B82F6"
+            />
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5 pt-2">

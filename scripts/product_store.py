@@ -415,11 +415,23 @@ class ProductStore:
                     if status and status not in STATUSES:
                         raise ValueError(f"status '{status}' ไม่ถูกต้อง — ต้องเป็นหนึ่งใน {', '.join(STATUSES)}")
 
-                    # Uppercase product_code the same way add() does, so a
-                    # code's casing does not drift depending on whether it was
-                    # set at creation or edited later via PATCH.
                     if "product_code" in fields and fields["product_code"]:
                         fields["product_code"] = fields["product_code"].strip().upper()
+
+                    # If angles are updated, invalidate shot lists for angles whose scripts changed
+                    if "angles" in fields and isinstance(fields["angles"], list):
+                        try:
+                            from scripts.shot_lists_store import ShotListsStore
+                            old_angles = {a.get("angle_id") or a.get("id"): a for a in product.get("angles", [])}
+                            for new_a in fields["angles"]:
+                                aid = new_a.get("angle_id") or new_a.get("id")
+                                if aid and aid in old_angles:
+                                    old_script = old_angles[aid].get("script_lines") or []
+                                    new_script = new_a.get("script_lines") or []
+                                    if old_script != new_script:
+                                        ShotListsStore.delete(product_id, aid)
+                        except Exception:
+                            pass
 
                     product.update(fields)
                     product["updated_at"] = cls._now()
@@ -613,6 +625,11 @@ class ProductStore:
                                     angle[key] = new_content[key]
                             angle["updated_at"] = cls._now()
                             product["updated_at"] = cls._now()
+                            try:
+                                from scripts.shot_lists_store import ShotListsStore
+                                ShotListsStore.delete(product_id, angle_id)
+                            except Exception:
+                                pass
                             return product
             raise ValueError(f"ไม่พบสินค้า id '{product_id}' หรือ angle '{angle_id}'")
 

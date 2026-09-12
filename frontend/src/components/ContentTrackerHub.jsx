@@ -10,9 +10,11 @@ import {
   Archive, Image as ImageIcon
 } from 'lucide-react';
 import {
-  getProducts, getExports, getScheduleQueue, updateAngleStatus, updateAngleCover, deleteProduct, updateProduct, prepareTiktokAutopost, markPosted
+  getProducts, getExports, getScheduleQueue, updateAngleStatus, updateAngleCover, deleteProduct, updateProduct, prepareTiktokAutopost, markPosted,
+  generateShotList, getShotList, getTaskStatus
 } from '../api';
 import CoverStudioModal from './CoverStudioModal';
+import ShotListModal from './ShotListModal';
 import ScheduleAgenda from './ScheduleAgenda';
 import { Modal, Toast, Button, Badge, Input, Textarea, SafeQRCode, PageHeader } from './ui';
 import { useDebounce, useToast } from '../hooks';
@@ -885,6 +887,9 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
   const [scheduleQueueItems, setScheduleQueueItems] = useState([]);
   const [isSubmittingTiktok, setIsSubmittingTiktok] = useState(false);
   const [inspectAngle, setInspectAngle] = useState(null); // Deep-Dive Inspection state
+  const [shotListModalAngle, setShotListModalAngle] = useState(null);
+  const [shotListResult, setShotListResult] = useState(null);
+  const [isGeneratingShotList, setIsGeneratingShotList] = useState(false);
   const colRefs = useRef({});
   const { toastMessage, showToast, hideToast } = useToast();
 
@@ -1076,6 +1081,63 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     } catch {
       // ignore
     }
+  };
+
+  const runShotListGeneration = async (targetProduct, targetAngle) => {
+    if (!targetProduct?.id || !targetAngle?.angle_id) return;
+    setIsGeneratingShotList(true);
+    try {
+      const res = await generateShotList(targetProduct.id, targetAngle.angle_id);
+      if (!res.success || !res.task_id) {
+        showToast('ไม่สามารถเริ่มสร้างแผนถ่ายได้', 'error');
+        return;
+      }
+      let result = null;
+      for (let attempt = 0; attempt < 60; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        const task = await getTaskStatus(res.task_id);
+        if (task.status === 'completed') {
+          result = task.result;
+          break;
+        }
+        if (task.status === 'failed') {
+          showToast('สร้างแผนถ่ายไม่สำเร็จ: ' + (task.error || ''), 'error');
+          return;
+        }
+      }
+      if (!result) {
+        showToast('สร้างแผนถ่ายใช้เวลานานเกินไป กรุณาลองใหม่', 'error');
+        return;
+      }
+      setShotListResult({ angle: targetAngle, ...result });
+      setShotListModalAngle({ product: targetProduct, angle: targetAngle });
+    } catch (err) {
+      console.error('Failed to generate shot list:', err);
+      showToast('ไม่สามารถสร้างแผนถ่ายได้: ' + (err.friendlyMessage || err.message), 'error');
+    } finally {
+      setIsGeneratingShotList(false);
+    }
+  };
+
+  const handleOpenShotList = async (ang) => {
+    const targetProduct = ang?.parentProduct || products.find(p => p.id === ang?.product_id);
+    if (!targetProduct?.id || !ang?.angle_id) return;
+
+    setIsGeneratingShotList(true);
+    try {
+      const existing = await getShotList(targetProduct.id, ang.angle_id);
+      setShotListResult({ angle: ang, ...existing });
+      setShotListModalAngle({ product: targetProduct, angle: ang });
+      setIsGeneratingShotList(false);
+    } catch {
+      // 404 or missing -- generate fresh
+      await runShotListGeneration(targetProduct, ang);
+    }
+  };
+
+  const handleRegenerateShotList = () => {
+    if (!shotListModalAngle?.product || !shotListModalAngle?.angle) return;
+    runShotListGeneration(shotListModalAngle.product, shotListModalAngle.angle);
   };
 
   const scrollToPhaseColumn = (phaseId) => {
@@ -1796,14 +1858,25 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
               )}
 
               {/* 6. True Deep-Dive Navigation Action Bar */}
-              <div className="pt-2 border-t border-white/[0.08] flex items-center gap-2 flex-wrap sm:flex-nowrap">
-                {/* Button 1: Go to Script Lab */}
+              <div className="pt-2 border-t border-white/[0.08] grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-2">
+                {/* Button 1: Shot List / Filming Plan */}
+                <button
+                  onClick={() => handleOpenShotList(inspectAngle)}
+                  disabled={isGeneratingShotList}
+                  className="py-2.5 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all disabled:opacity-50"
+                  title="ดูแผนถ่าย (Shot List) ไกด์จัดเฟรม และจังหวะเสียงพากย์จริง"
+                >
+                  <Clapperboard className="w-3.5 h-3.5 text-amber-400" />
+                  <span>{isGeneratingShotList ? 'กำลังโหลดแผน...' : 'แผนถ่าย'}</span>
+                </button>
+
+                {/* Button 2: Go to Script Lab */}
                 <button
                   onClick={() => {
                     setInspectAngle(null);
                     onGoToFlow?.(inspectAngle.parentProduct?.id);
                   }}
-                  className="flex-1 py-2.5 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                  className="py-2.5 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
                   title="ดูและปรับแต่งสคริปต์ในหน้าสินค้า"
                 >
                   <FileText className="w-3.5 h-3.5 text-indigo-400" />
@@ -1818,7 +1891,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                     handleSendToStudio(inspectAngle.parentProduct, inspectAngle);
                   }}
                   disabled={!hasAttachedVideos}
-                  className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${
+                  className={`py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${
                     hasAttachedVideos
                       ? 'bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white cursor-pointer shadow-md shadow-[#FE2C55]/20 active:scale-95'
                       : 'bg-white/[0.05] border border-white/[0.08] text-slate-500 cursor-not-allowed opacity-50'
@@ -1833,7 +1906,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                 {inspectAngle.status === 'rendered' && (
                   <button
                     onClick={() => handleQcFail(inspectAngle)}
-                    className="py-2.5 px-3 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all flex-shrink-0 whitespace-nowrap"
+                    className="py-2.5 px-3 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all whitespace-nowrap"
                     title="QC ไม่ผ่าน — reset สถานะกลับไปตัดใหม่"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
@@ -1845,7 +1918,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                 {(inspectAngle.status === 'rendered' || inspectAngle.qc_note) && (
                   <button
                     onClick={() => handleQcPass(inspectAngle)}
-                    className="py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-[#25F4EE] to-cyan-400 hover:brightness-110 text-slate-950 text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-md shadow-[#25F4EE]/20 flex-shrink-0 active:scale-95 whitespace-nowrap"
+                    className="py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-[#25F4EE] to-cyan-400 hover:brightness-110 text-slate-950 text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-md shadow-[#25F4EE]/20 active:scale-95 whitespace-nowrap"
                     title="กดเพื่อรับรอง QC ผ่านทันที (ล้างป้ายแดงออก)"
                   >
                     <Check className="w-3.5 h-3.5 text-slate-950 stroke-[3]" />
@@ -1861,7 +1934,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                       setInspectAngle(null);
                       handleOpenTiktokModal(ang);
                     }}
-                    className="py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all flex-shrink-0 whitespace-nowrap shadow-md shadow-[#FE2C55]/20 active:scale-95"
+                    className="py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all whitespace-nowrap shadow-md shadow-[#FE2C55]/20 active:scale-95"
                     title="ส่งคลิปไป TikTok Studio พร้อมปักตะกร้า"
                   >
                     <Rocket className="w-3.5 h-3.5" />
@@ -1877,7 +1950,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                       const ang = inspectAngle;
                       handleOpenCoverStudio(ang);
                     }}
-                    className="py-2.5 px-3.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all flex-shrink-0 whitespace-nowrap active:scale-95"
+                    className="py-2.5 px-3.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all whitespace-nowrap active:scale-95"
                     title="สตูดิโอสร้างปกคลิป 9:16 (Auto Highlight Crop + AI Hook + 3D Badge)"
                   >
                     <ImageIcon className="w-3.5 h-3.5" />
@@ -1891,7 +1964,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                     setInspectAngle(null);
                     setQrModalItem(inspectAngle);
                   }}
-                  className="py-2.5 px-3.5 rounded-xl bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all flex-shrink-0 whitespace-nowrap"
+                  className="py-2.5 px-3.5 rounded-xl bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all whitespace-nowrap"
                   title="สแกน QR โหลดเข้ามือถือ"
                 >
                   <QrCode className="w-3.5 h-3.5 text-[#25F4EE]" />
@@ -3198,6 +3271,17 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
         onClose={() => setCoverStudioItem(null)}
         videoItem={coverStudioItem}
         onCoverSaved={handleCoverSaved}
+      />
+
+      {/* ── Shot List Modal (Guided Filming / Per-Beat Plan) ── */}
+      <ShotListModal
+        isOpen={!!shotListModalAngle}
+        onClose={() => { setShotListModalAngle(null); setShotListResult(null); }}
+        productId={shotListModalAngle?.product?.id}
+        mobileBaseUrl={mobileBaseUrl}
+        result={shotListResult}
+        onRegenerate={handleRegenerateShotList}
+        regenerating={isGeneratingShotList}
       />
     </div>
   );

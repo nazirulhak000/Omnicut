@@ -62,3 +62,25 @@ class ShotListsStore:
             else:
                 records.append(record)
         return record
+
+    @classmethod
+    def delete(cls, product_id: str, angle_id: str) -> bool:
+        """Deletes shot list record for a product angle."""
+        row_id = f"{product_id}:{angle_id}"
+        found = False
+        with _TABLE.mutate() as records:
+            filtered = [r for r in records if r.get("id") != row_id]
+            if len(filtered) != len(records):
+                found = True
+                records.clear()
+                records.extend(filtered)
+        return found
+
+    @classmethod
+    def is_stale(cls, product_id: str, angle_id: str, current_script: str) -> bool:
+        """Checks whether the cached shot list matches the angle's current script."""
+        record = cls.get(product_id, angle_id)
+        if not record:
+            return False
+        cached_script = record.get("custom_script", "").strip()
+        return cached_script != current_script.strip()

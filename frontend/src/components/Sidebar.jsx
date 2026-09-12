@@ -2,18 +2,20 @@ import React, { useState } from 'react';
 import {
   Rocket, Sparkles, FolderDown, Settings, Layers,
   Smartphone, Maximize, Minimize, X, Copy, Check, Wifi, Scissors,
-  Palette, MoreHorizontal, BarChart3, ChevronRight
+  Palette, MoreHorizontal, BarChart3, ChevronRight, BookOpen
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
-// ── Desktop Navigation Items (6 items) ──
+// ── Desktop Navigation Items (8 items) ──
 const DESKTOP_NAV_ITEMS = [
-  { id: 'flow',     icon: Rocket,     label: '1. สินค้า → คลิป',     shortLabel: 'สินค้า' },
-  { id: 'tracker',  icon: Layers,     label: '2. แทร็กเกอร์ 4 เฟส',    shortLabel: 'Tracker' },
-  { id: 'editor',   icon: Scissors,   label: '3. ตัดต่อ & สร้างคลิป', shortLabel: 'Editor' },
-  { id: 'gallery',  icon: FolderDown, label: '4. Export Gallery',    shortLabel: 'Gallery' },
-  { id: 'assets',   icon: Palette,    label: '5. Media Assets Hub',   shortLabel: 'Assets' },
-  { id: 'settings', icon: Settings,   label: '6. ตั้งค่า & โทเคน AI',  shortLabel: 'Settings' },
+  { id: 'flow',      icon: Rocket,     label: '1. สินค้า → คลิป',     shortLabel: 'สินค้า' },
+  { id: 'tracker',   icon: Layers,     label: '2. แทร็กเกอร์ 4 เฟส',    shortLabel: 'Tracker' },
+  { id: 'editor',    icon: Scissors,   label: '3. ตัดต่อ & สร้างคลิป', shortLabel: 'Editor' },
+  { id: 'gallery',   icon: FolderDown, label: '4. Export Gallery',    shortLabel: 'Gallery' },
+  { id: 'assets',    icon: Palette,    label: '5. Media Assets Hub',   shortLabel: 'Assets' },
+  { id: 'analytics', icon: BarChart3,  label: '6. สถิติ & วิเคราะห์รวม', shortLabel: 'สถิติ' },
+  { id: 'settings',  icon: Settings,   label: '7. ตั้งค่าระบบ',        shortLabel: 'Settings' },
+  { id: 'guide',     icon: BookOpen,   label: '8. คู่มือใช้งาน',       shortLabel: 'คู่มือ' },
 ];
 
 // ── Mobile Primary Tabs (4 items + 1 'More' button) ──
@@ -47,7 +49,7 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const isMoreActive = activeTab === 'assets' || activeTab === 'settings' || activeTab === 'dashboard';
+  const isMoreActive = activeTab === 'assets' || activeTab === 'analytics' || activeTab === 'settings' || activeTab === 'dashboard' || activeTab === 'guide';
 
   return (
     <>
@@ -197,30 +199,85 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
                 <ChevronRight className="w-4 h-4 text-slate-500" />
               </button>
 
-              {/* Option 2: Settings & Token Analytics */}
+              {/* Option 2: Analytics Hub */}
               <button
                 onClick={() => {
-                  setActiveTab('settings');
+                  setActiveTab('analytics');
                   setShowMoreDrawer(false);
                 }}
                 className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all cursor-pointer ${
-                  activeTab === 'settings' || activeTab === 'dashboard'
+                  activeTab === 'analytics'
                     ? 'bg-[#25F4EE]/10 border-[#25F4EE]/40 text-[#25F4EE]'
                     : 'bg-white/[0.03] border-white/[0.06] text-slate-200 hover:bg-white/[0.06]'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl bg-[#25F4EE]/10 border border-[#25F4EE]/20 flex items-center justify-center text-[#25F4EE]">
+                    <BarChart3 className="w-4 h-4" />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-xs font-bold text-white font-kanit flex items-center gap-1.5">
+                      ศูนย์วิเคราะห์ & สถิติรวม
+                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-[#25F4EE] border border-cyan-500/30">
+                        Analytics
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-slate-400">สถิติการผลิตคลิป, โทเคน AI, พื้นที่จัดเก็บ, สุขภาพสินค้า</div>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-500" />
+              </button>
+
+              {/* Option 3: Settings */}
+              <button
+                onClick={() => {
+                  setActiveTab('settings');
+                  setShowMoreDrawer(false);
+                }}
+                className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                  activeTab === 'settings'
+                    ? 'bg-[#25F4EE]/10 border-[#25F4EE]/40 text-[#25F4EE]'
+                    : 'bg-white/[0.03] border-white/[0.06] text-slate-200 hover:bg-white/[0.06]'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-slate-800 border border-white/[0.1] flex items-center justify-center text-slate-300">
                     <Settings className="w-4 h-4" />
                   </div>
                   <div className="text-left">
                     <div className="text-xs font-bold text-white font-kanit flex items-center gap-1.5">
-                      ตั้งค่าระบบ & สถิติโทเคน AI
-                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-[#25F4EE] border border-cyan-500/30">
-                        Tokens
+                      ตั้งค่าระบบ
+                    </div>
+                    <div className="text-[10px] text-slate-400">ขนาดจอ, ฟอนต์ระบบ, โฟลเดอร์จัดเก็บ, ความปลอดภัย</div>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-500" />
+              </button>
+
+              {/* Option 4: User Guide */}
+              <button
+                onClick={() => {
+                  setActiveTab('guide');
+                  setShowMoreDrawer(false);
+                }}
+                className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                  activeTab === 'guide'
+                    ? 'bg-[#25F4EE]/10 border-[#25F4EE]/40 text-[#25F4EE]'
+                    : 'bg-white/[0.03] border-white/[0.06] text-slate-200 hover:bg-white/[0.06]'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                    <BookOpen className="w-4 h-4" />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-xs font-bold text-white font-kanit flex items-center gap-1.5">
+                      คู่มือใช้งาน
+                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        Guide
                       </span>
                     </div>
-                    <div className="text-[10px] text-slate-400">สถิติโทเคน AI, ปรับขนาดจอ, ฟอนต์ระบบ, โฟลเดอร์</div>
+                    <div className="text-[10px] text-slate-400">โฟลว์หลัก 7 ขั้น วิธีใช้ทุกเมนู คำถามพบบ่อย</div>
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-slate-500" />
