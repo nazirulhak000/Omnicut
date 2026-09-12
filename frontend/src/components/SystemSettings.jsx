@@ -50,6 +50,11 @@ export default function SystemSettings({
   const [backupMessage, setBackupMessage] = useState(null);
   const [dedupLoading, setDedupLoading] = useState(false);
   const [dedupResult, setDedupResult] = useState(null);
+  // A raw-footage-heavy library can turn up hundreds of duplicate groups --
+  // window the results list the same way the other galleries in this round
+  // were, resetting on every fresh scan.
+  const DEDUP_PAGE_SIZE = 30;
+  const [dedupVisibleCount, setDedupVisibleCount] = useState(DEDUP_PAGE_SIZE);
   const [cleanLoading, setCleanLoading] = useState(false);
   const [cleanMessage, setCleanMessage] = useState(null);
 
@@ -101,6 +106,7 @@ export default function SystemSettings({
       const res = await scanAssetDuplicates();
       if (res.status === 'ok') {
         setDedupResult(res);
+        setDedupVisibleCount(DEDUP_PAGE_SIZE);
       }
     } catch (err) {
       setCleanMessage({ type: 'error', text: `สแกนล้มเหลว: ${err?.response?.data?.detail || err.message}` });
@@ -693,7 +699,7 @@ export default function SystemSettings({
                       </div>
 
                       <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                        {dedupResult.groups.map((g, idx) => (
+                        {dedupResult.groups.slice(0, dedupVisibleCount).map((g, idx) => (
                           <div key={idx} className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06] text-xs space-y-1.5">
                             <div className="flex items-center justify-between text-[11px]">
                               <span className="text-slate-400 font-mono truncate max-w-[70%]">
@@ -710,6 +716,15 @@ export default function SystemSettings({
                             </div>
                           </div>
                         ))}
+                        {dedupVisibleCount < dedupResult.groups.length && (
+                          <button
+                            type="button"
+                            onClick={() => setDedupVisibleCount(c => c + DEDUP_PAGE_SIZE)}
+                            className="w-full py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-dashed border-white/[0.12] text-slate-300 text-[11px] font-bold cursor-pointer transition-all"
+                          >
+                            โหลดเพิ่ม ({dedupResult.groups.length - dedupVisibleCount} กลุ่มที่เหลือ)
+                          </button>
+                        )}
                       </div>
                     </div>
                   ) : (

@@ -315,7 +315,16 @@ class ShotMatchingStage:
                         total_duration,
                         min_segment_duration=MIN_SHOT_DURATION,
                     )
-                    cut_points = [0.0]
+                    # Start at the first cue's actual start time (not 0.0).
+                    # Gemini TTS generates ~0.1–0.4s of silence at the very
+                    # beginning of the WAV before the first word; the cue
+                    # timestamps already reflect that offset because they come
+                    # from the real per-cue start times written by the TTS stage.
+                    # Hardcoding 0.0 here made the first shot longer than the
+                    # audio it covers and created a visible silent gap at the
+                    # start of every render.
+                    first_cue_start = float(active_cues[0].get("start", 0.0))
+                    cut_points = [first_cue_start]
                     for i in range(1, n_cues):
                         c_curr_start = float(active_cues[i].get("start", 0.0))
                         prev_dur = float(active_cues[i - 1].get("end", 0.0)) - float(active_cues[i - 1].get("start", 0.0))
@@ -360,7 +369,30 @@ class ShotMatchingStage:
                             groups.append(current)
 
                     if not pacing_boundaries:
-                        MERGE_TOLERANCE = 1.15
+                        # Two-pass merge to eliminate under-MIN_SHOT_DURATION groups.
+                        #
+                        # Pass 1 (greedy, tolerant): merge any group below MIN
+                        # into a neighbour if the combined duration stays within
+                        # MAX * MERGE_TOLERANCE.  This covers most cases cleanly.
+                        #
+                        # Pass 2 (force-merge ultra-short): any group that is still
+                        # below MIN / 2 after pass 1 is force-merged into its
+                        # *shorter* neighbour regardless of the MAX ceiling.
+                        # Example: `นะครับ` (0.49 s) sandwiched between two 2.5 s
+                        # shots would previously stay as a 0.49 s clip because
+                        # merging with either neighbour would land at ~3.0 s,
+                        # slightly above MAX * 1.15 = 2.875 s.  A 3.0 s clip is
+                        # far less damaging than a 0.49 s clip, so we force it.
+                        # MERGE_TOLERANCE = 1.5 (up from the original 1.15):
+                        # TikTok content often has very short phrase clips (~1.2 s)
+                        # flanked by ~2.2 s clips, giving combined ~3.4 s.
+                        # At 1.15× MAX (= 2.875 s) those could never merge; 1.5×
+                        # MAX (= 3.75 s) covers those real-world pairs while still
+                        # preventing truly excessively long shots (>3.75 s).
+                        MERGE_TOLERANCE = 1.5
+                        FORCE_MERGE_THRESHOLD = MIN_SHOT_DURATION * 0.5
+
+                        # Pass 1 – standard tolerance merge
                         changed = True
                         while changed:
                             changed = False
@@ -384,6 +416,35 @@ class ShotMatchingStage:
                                         del groups[gi + 1]
                                         changed = True
                                         break
+
+                        # Pass 2 – force-merge ultra-short clips (< MIN/2)
+                        changed = True
+                        while changed:
+                            changed = False
+                            for gi, g in enumerate(groups):
+                                dur = cut_points[g[-1] + 1] - cut_points[g[0]]
+                                if dur >= FORCE_MERGE_THRESHOLD:
+                                    continue
+                                # Pick the neighbour with the shorter duration
+                                # so the combined result stays as balanced as possible.
+                                prev_dur_val = (
+                                    cut_points[groups[gi - 1][-1] + 1] - cut_points[groups[gi - 1][0]]
+                                    if gi > 0 else float("inf")
+                                )
+                                next_dur_val = (
+                                    cut_points[groups[gi + 1][-1] + 1] - cut_points[groups[gi + 1][0]]
+                                    if gi < len(groups) - 1 else float("inf")
+                                )
+                                if prev_dur_val <= next_dur_val and gi > 0:
+                                    groups[gi - 1] = groups[gi - 1] + g
+                                    del groups[gi]
+                                    changed = True
+                                    break
+                                elif gi < len(groups) - 1:
+                                    groups[gi] = g + groups[gi + 1]
+                                    del groups[gi + 1]
+                                    changed = True
+                                    break
 
                     if not pacing_boundaries:
                         boundary_times = [cut_points[0]] + [cut_points[g[-1] + 1] for g in groups]

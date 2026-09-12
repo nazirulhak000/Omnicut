@@ -13,6 +13,60 @@
 | Round POSTED-CLIP-LIFECYCLE-1 | ระบบจัดการคลิปที่โพสต์แล้ว (Zero-Risk Archive & Timeline Lockout Flow) | 2026-09-12 | สำเร็จสมบูรณ์ (ตัดสิทธิ์เปิดไทม์ไลน์ 100%, กรองออกจาก Dropdown โปรเจกต์, Action Bar สคริปต์ [ดูคลิปที่โพสต์แล้ว] + [ทำซ้ำเพื่อตัดคลิปใหม่], ย้ายโฟลเดอร์โปรเจกต์เข้า 06_Archive/Projects/ อัตโนมัติ, vitest 158 passed, pytest 156 passed, build 3.45s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round UI-FONT-MONO-CLEAN-1 | กวาดล้าง font-mono ที่ครอบข้อความภาษาไทย/การ์ด KPI ทั่วทั้งระบบให้เป็นฟอนต์กลาง 100% | 2026-09-12 | สำเร็จสมบูรณ์ (ถอด font-mono จาก MetricKpiCard, Badge.jsx, ContentTrackerHub, MediaAssetsHub, SystemSettings และ inspector ให้หน่วยนับและภาษาไทยใช้ฟอนต์กลาง, vitest 152 passed, build 3.31s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round UI-POLISH-HEADER-1 | แก้ฟอนต์กล่องแดง Topbar (ถอด font-mono) + ตัด 2 Badge สินค้า + ขยายหัวข้อสินค้าเน้นๆ ใหญ่ๆ | 2026-09-12 | สำเร็จสมบูรณ์ (ถอด font-mono จากป้ายแท็บ Topbar ให้สืบทอด Global UI Font, ตัด price_note และ tiktok_id ออกจาก PageHeader สินค้า, ขยายชื่อสินค้าเป็น text-2xl font-black, vitest 152 passed, build 3.49s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round SHOTLIST-GEMINI-TTS-SSOT-1 | ระบบรวมศูนย์เสียง TTS (Gemini Flash Audio SSOT): แผนถ่าย & ตัดต่อจริงใช้เสียงเดียวกัน 100% ไม่เจนซ้ำ | 2026-09-12 | สำเร็จสมบูรณ์ (pytest 1,125 passed, vitest 158 passed, build 3.40s, browser verified, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round SHOT-GAP-FIX-1 | แก้ช่องว่าง (Gap) ระหว่างช็อตใน Shot Matching Stage — 2 bugs: cut_points เริ่มที่ 0.0 แทน first-cue start, MERGE_TOLERANCE แคบเกิน | 2026-09-12 | สำเร็จสมบูรณ์ (compileall pass, pytest 1126 passed, ดำเนินการโดย: Antigravity (Claude Sonnet 4.6)) |
+
+---
+
+## Round SHOT-GAP-FIX-1 — แก้ช่องว่าง (Gap) ระหว่างช็อตใน Shot Matching Stage
+
+**วันที่:** 2026-09-12 · **Agent:** Antigravity (Claude Sonnet 4.6 Thinking)
+
+### เป้าหมาย
+
+แก้ปัญหาช่องว่างที่มองเห็นได้ในวิดีโอที่เรนเดอร์ออกมาจากระบบ Shot Matching อัตโนมัติ เมื่อใช้ร่วมกับ Gemini TTS SSOT (เสียงพากย์เริ่มต้นที่ 0.23s ไม่ใช่ 0.0s)
+
+### Root Cause วิเคราะห์
+
+**Bug 1 — Leading Gap (ช่องว่างต้นคลิป):**
+- `cut_points = [0.0]` hardcoded → ทำให้ shot แรกเริ่มที่วินาที 0.0
+- แต่ Gemini TTS มีช่วงเงียบ ~0.1–0.4s ก่อนเริ่มพูด → `micro_cues[0].start` = 0.23s
+- ผลลัพธ์: clip แรกยาวกว่าเสียงที่ครอบอยู่ 0.23s → ช่วงเงียบต้นวิดีโอ
+
+**Bug 2 — Ultra-Short Clips ไม่ถูก Merge:**
+- `MERGE_TOLERANCE = 1.15` × `MAX_SHOT_DURATION = 2.5s` = เพดาน 2.875s
+- คลิปสั้นมากอย่าง "นะครับ" (0.491s) ถูกขนาบด้วยคลิปยาว 2.6s + 2.5s
+- Merge ทางซ้าย: 0.491 + 2.6 = 3.09s > 2.875s → ไม่ merge
+- Merge ทางขวา: 0.491 + 2.5 = 2.99s > 2.875s → ไม่ merge
+- ผลลัพธ์: คลิป 0.491s ถูกทิ้งไว้เดี่ยว → เห็นเป็นกระตุกในวิดีโอ
+
+### การแก้ไข — `scripts/stages/shot_matching_stage.py`
+
+1. **แก้ Bug 1:** `cut_points = [0.0]` → `cut_points = [float(active_cues[0].get("start", 0.0))]`
+   - First shot boundary ตรงกับ first cue start เสมอ ไม่มี leading gap อีกต่อไป
+
+2. **แก้ Bug 2:** เพิ่ม 2-pass merge strategy:
+   - **Pass 1** (standard): `MERGE_TOLERANCE = 1.5` (ขึ้นจาก 1.15) → เพดาน 3.75s ครอบคลุมคู่ ~1.2s + ~2.2s = 3.4s ที่เกิดจริงในคอนเทนต์ TikTok
+   - **Pass 2** (force-merge ultra-short): clips ที่ยังสั้นกว่า `MIN / 2 = 0.75s` หลัง pass 1 → force merge เข้า neighbor ที่สั้นกว่า โดยไม่ตรวจ MAX เลย (คลิป 3.0s ดีกว่าคลิป 0.5s เสมอ)
+
+### ผลการจำลองก่อน/หลัง (โปรเจกต์จริง BLU01)
+
+| เมตริก | ก่อนแก้ | หลังแก้ |
+|---|---|---|
+| คลิปที่สั้นกว่า MIN (1.5s) | 8 คลิป | 0 คลิป |
+| คลิปที่สั้นกว่า 0.75s | 1 คลิป (0.491s) | 0 คลิป |
+| จำนวนช็อตสุดท้าย | 25 shots | 18 shots |
+| Leading gap | 0.23s | 0s |
+| Boundary[0] | 0.000s | 0.230s (= cue start) |
+
+### Gate Results
+
+```
+python -m compileall -q scripts   → exit 0 (0 errors)
+pytest tests/ -q --tb=short -x   → 1126 passed, 26 warnings in 275.52s
+```
+
+
 | Round UI-FONT-HARMONY-1 | ปรับความสอดคล้องของฟอนต์ UI ทั้งระบบตาม Global UI Font (ปราศจาก Encoding Mojibake) | 2026-09-12 | สำเร็จสมบูรณ์ (ปลดล็อคคลาส font-kanit ที่ฝังใน 35 คอมโพเนนต์ UI เพื่อสืบทอด Global UI Font, อนุรักษ์ preview card ใน Settings/Assets, รับประกัน Thai UTF-8 byte-for-byte 100%, vitest 152 passed, build 4.57s, pytest parity 153 passed, browser verified, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round TIKTOK-DASH-DATA-1 | ล้างโพสต์ทดสอบ 163 รายการ (Test Serum) ออกจาก post_log พร้อม backup + กัน merge ยอดซ้ำข้ามแถวในรอบซิงก์เดียว | 2026-09-12 | สำเร็จสมบูรณ์ (backup 167 entries → เหลือ 4 โพสต์จริง 895 views, claim guard แก้ยอด Lift โดนแถวอื่นทับ, pytest 1114 passed, extension 32 passed, ดำเนินการโดย: Cline (โมเดลฐานไม่ได้ระบุ)) |
 | Round TIKTOK-STATS-MATCH-1 | แมพ 0/10 เพราะไม่มีโพสต์ให้จับคู่ → จับคู่กับคลังผลงาน + ลงทะเบียนโพสต์อัตโนมัติ + fuzzy normalize ตัดแฮชแท็ก | 2026-09-12 | สำเร็จสมบูรณ์ (score-based match, auto-register จาก ProductStore candidates, parse วันที่ไทย → posted_at, pytest 8 passed, extension 32 passed, ดำเนินการโดย: Cline (โมเดลฐานไม่ได้ระบุ)) |

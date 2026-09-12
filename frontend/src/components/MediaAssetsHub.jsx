@@ -319,6 +319,20 @@ export default function MediaAssetsHub({ status }) {
     }
   }, [activeAssetTab, filteredSFX, filteredMusic, filteredFonts, filteredStickers, filteredLuts, filteredEffects]);
 
+  // Stock asset libraries (SFX/music/fonts/stickers/LUTs/effects) can each
+  // grow into the hundreds. Only one tab's list is ever on screen at a time,
+  // so one shared window works for all of them -- reset to page 1 whenever
+  // the tab or search changes.
+  const ASSET_PAGE_SIZE = 40;
+  const [visibleAssetCount, setVisibleAssetCount] = useState(ASSET_PAGE_SIZE);
+  useEffect(() => {
+    setVisibleAssetCount(ASSET_PAGE_SIZE);
+  }, [activeAssetTab, debouncedSearch]);
+  const visibleCurrentItems = useMemo(
+    () => currentItems.slice(0, visibleAssetCount),
+    [currentItems, visibleAssetCount]
+  );
+
   // Auto-select first item if none selected in split mode
   useEffect(() => {
     if (viewMode === 'split' && currentItems.length > 0 && !selectedAsset) {
@@ -849,7 +863,7 @@ export default function MediaAssetsHub({ status }) {
               </div>
             ) : (
               <div className="space-y-2 max-h-[650px] overflow-y-auto pr-1 no-scrollbar">
-                {currentItems.map((item, idx) => {
+                {visibleCurrentItems.map((item, idx) => {
                   const isSelected = selectedAsset?.name === item.name;
                   const isPlaying = currentlyPlayingAudio === item.name;
 
@@ -952,6 +966,15 @@ export default function MediaAssetsHub({ status }) {
                     </div>
                   );
                 })}
+                {visibleCurrentItems.length < currentItems.length && (
+                  <button
+                    type="button"
+                    onClick={() => setVisibleAssetCount(c => c + ASSET_PAGE_SIZE)}
+                    className="w-full py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-dashed border-white/[0.12] text-slate-300 text-xs font-bold cursor-pointer transition-all"
+                  >
+                    โหลดเพิ่ม ({currentItems.length - visibleCurrentItems.length} เหลืออยู่)
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -1301,7 +1324,7 @@ export default function MediaAssetsHub({ status }) {
           {/* SFX Grid */}
           {activeAssetTab === 'sfx' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-              {filteredSFX.map((sfx) => {
+              {visibleCurrentItems.map((sfx) => {
                 const isPlaying = currentlyPlayingAudio === sfx.name;
                 return (
                   <div
@@ -1363,7 +1386,7 @@ export default function MediaAssetsHub({ status }) {
           {/* Music Grid */}
           {activeAssetTab === 'music' && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {filteredMusic.map((bgm) => {
+              {visibleCurrentItems.map((bgm) => {
                 const isPlaying = currentlyPlayingAudio === bgm.name;
                 return (
                   <div
@@ -1424,7 +1447,7 @@ export default function MediaAssetsHub({ status }) {
           {/* Fonts Grid */}
           {activeAssetTab === 'fonts' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredFonts.map((font) => (
+              {visibleCurrentItems.map((font) => (
                 <div key={font.name} className="p-4 rounded-2xl border border-white/[0.06] glass-card space-y-3">
                   <div className="flex items-center justify-between text-xs text-slate-400">
                     <span className="font-bold text-white text-sm">{font.name}</span>
@@ -1441,7 +1464,7 @@ export default function MediaAssetsHub({ status }) {
           {/* Stickers Grid */}
           {activeAssetTab === 'stickers' && (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-              {filteredStickers.map((sticker) => (
+              {visibleCurrentItems.map((sticker) => (
                 <div key={sticker.name} className="p-3 rounded-2xl border border-white/[0.06] glass-card flex flex-col items-center justify-center text-center group relative space-y-2">
                   <div className="w-20 h-20 flex items-center justify-center p-2 rounded-xl bg-black/40">
                     <img
@@ -1466,7 +1489,7 @@ export default function MediaAssetsHub({ status }) {
           {/* LUTs Grid */}
           {activeAssetTab === 'luts' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {filteredLuts.map((lut) => (
+              {visibleCurrentItems.map((lut) => (
                 <div key={lut.name} className="p-4 rounded-2xl border border-white/[0.06] glass-card flex items-center justify-between group">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500/20 to-pink-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
@@ -1492,7 +1515,7 @@ export default function MediaAssetsHub({ status }) {
           {/* Effects Grid */}
           {activeAssetTab === 'effects' && (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-              {filteredEffects.map((fx) => (
+              {visibleCurrentItems.map((fx) => (
                 <div key={fx.id} className="p-3 rounded-2xl border border-white/[0.06] glass-card flex flex-col items-center justify-center text-center group relative space-y-2">
                   <div
                     onClick={() => setPreviewEffect(fx)}
@@ -1529,6 +1552,18 @@ export default function MediaAssetsHub({ status }) {
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+
+          {visibleCurrentItems.length < currentItems.length && (
+            <div className="flex justify-center pt-1">
+              <button
+                type="button"
+                onClick={() => setVisibleAssetCount(c => c + ASSET_PAGE_SIZE)}
+                className="px-4 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-xs font-bold text-slate-200 transition-all cursor-pointer"
+              >
+                โหลดเพิ่ม ({currentItems.length - visibleCurrentItems.length} ไฟล์ที่เหลือ)
+              </button>
             </div>
           )}
         </div>
