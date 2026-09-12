@@ -1,10 +1,18 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Settings, Folder, HardDrive, CheckCircle2, Sliders, Type,
   Sparkles, RefreshCw, Smartphone, ShieldCheck, Cpu, Layers,
-  BarChart3, Columns, List, ChevronRight, AlertTriangle, Bug, Trash2
+  BarChart3, Columns, List, ChevronRight, AlertTriangle, Bug, Trash2,
+  Download, Archive, Copy, Loader2, Database
 } from 'lucide-react';
-import { openFolder } from '../api';
+import {
+  openFolder,
+  createSystemBackup,
+  getSystemBackups,
+  deleteSystemBackup,
+  scanAssetDuplicates,
+  cleanAssetDuplicates,
+} from '../api';
 import { PageHeader } from './ui';
 
 export default function SystemSettings({
@@ -35,6 +43,86 @@ export default function SystemSettings({
       } catch {}
       return next;
     });
+  };
+
+  const [backups, setBackups] = useState([]);
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [backupMessage, setBackupMessage] = useState(null);
+  const [dedupLoading, setDedupLoading] = useState(false);
+  const [dedupResult, setDedupResult] = useState(null);
+  const [cleanLoading, setCleanLoading] = useState(false);
+  const [cleanMessage, setCleanMessage] = useState(null);
+
+  const fetchBackups = async () => {
+    try {
+      const res = await getSystemBackups();
+      if (res.status === 'ok') setBackups(res.backups || []);
+    } catch (err) {
+      console.error('Failed to load backups', err);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'maintenance') {
+      fetchBackups();
+    }
+  }, [activeTab]);
+
+  const handleCreateBackup = async () => {
+    setBackupLoading(true);
+    setBackupMessage(null);
+    try {
+      const res = await createSystemBackup();
+      if (res.status === 'ok') {
+        setBackupMessage({ type: 'success', text: `สำรองข้อมูลสำเร็จ: ${res.backup.backup_name} (${res.backup.size_mb} MB)` });
+        fetchBackups();
+      }
+    } catch (err) {
+      setBackupMessage({ type: 'error', text: `สำรองข้อมูลล้มเหลว: ${err?.response?.data?.detail || err.message}` });
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
+  const handleDeleteBackup = async (filename) => {
+    if (!window.confirm(`ยืนยันการลบไฟล์สำรอง ${filename}?`)) return;
+    try {
+      await deleteSystemBackup(filename);
+      fetchBackups();
+    } catch (err) {
+      alert(`ลบล้มเหลว: ${err?.response?.data?.detail || err.message}`);
+    }
+  };
+
+  const handleScanDedup = async () => {
+    setDedupLoading(true);
+    setCleanMessage(null);
+    try {
+      const res = await scanAssetDuplicates();
+      if (res.status === 'ok') {
+        setDedupResult(res);
+      }
+    } catch (err) {
+      setCleanMessage({ type: 'error', text: `สแกนล้มเหลว: ${err?.response?.data?.detail || err.message}` });
+    } finally {
+      setDedupLoading(false);
+    }
+  };
+
+  const handleCleanDedup = async () => {
+    if (!dedupResult || !dedupResult.groups?.length) return;
+    const allDups = dedupResult.groups.flatMap(g => g.duplicates.map(d => d.full_path));
+    if (!window.confirm(`ยืนยันย้ายไฟล์ซ้ำ ${allDups.length} ไฟล์ เข้าถังขยะ (.trash) เพื่อคืนพื้นที่ ${dedupResult.reclaimable_mb} MB?`)) return;
+    setCleanLoading(true);
+    try {
+      const res = await cleanAssetDuplicates(allDups, true);
+      setCleanMessage({ type: 'success', text: `ย้ายไฟล์ซ้ำสำเร็จ ${res.cleaned_count} ไฟล์ (คืนพื้นที่ ${res.freed_mb} MB)` });
+      handleScanDedup();
+    } catch (err) {
+      setCleanMessage({ type: 'error', text: `ทำความสะอาดล้มเหลว: ${err?.response?.data?.detail || err.message}` });
+    } finally {
+      setCleanLoading(false);
+    }
   };
 
   const handleOpen = (target) => {
@@ -68,6 +156,15 @@ export default function SystemSettings({
       color: 'text-emerald-400',
       badge: 'System Core',
       badgeColor: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
+    },
+    {
+      id: 'maintenance',
+      name: 'สำรองข้อมูล & ไฟล์ซ้ำ',
+      desc: 'One-Click Backup สำรองฐานข้อมูล และสแกนลบไฟล์ซ้ำ (Asset Dedup) คืนพื้นที่ดิสก์',
+      icon: HardDrive,
+      color: 'text-cyan-400',
+      badge: 'Maintenance',
+      badgeColor: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30',
     },
   ];
 
@@ -411,6 +508,215 @@ export default function SystemSettings({
                     <li>เปิดแท็บ <span className="font-mono text-slate-300">tiktok.com/tiktokstudio/upload</span> ที่ล็อกอินไว้แล้ว</li>
                     <li>ในแอปนี้ กด "โพสต์ TikTok อัตโนมัติ" ใน Post Studio แล้วคลิกไอคอน extension เพื่อเริ่ม</li>
                   </ol>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'maintenance':
+        return (
+          <div className="space-y-4 animate-fadeIn">
+            {/* Box 1: One-Click System Backup */}
+            <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-lg space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/[0.08]">
+                <div>
+                  <h3 className="text-xs sm:text-sm font-bold text-white font-kanit flex items-center gap-2">
+                    <Database className="w-4 h-4 text-cyan-400" />
+                    สำรองข้อมูลทั้งระบบ (One-Click System Backup)
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1 font-kanit">
+                    สำรองข้อมูลโปรเจกต์ 03_Projects ทั้งหมด และฐานข้อมูล JSON / SQLite ใน _Docs เป็นไฟล์ Zip พร้อมกู้คืน
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCreateBackup}
+                  disabled={backupLoading}
+                  className="px-3.5 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 text-xs font-bold font-kanit flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50 flex-shrink-0"
+                >
+                  {backupLoading ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      กำลังบีบอัดไฟล์...
+                    </>
+                  ) : (
+                    <>
+                      <Archive className="w-3.5 h-3.5" />
+                      สร้างไฟล์สำรองทันที
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {backupMessage && (
+                <div className={`p-3 rounded-xl border text-xs font-kanit ${
+                  backupMessage.type === 'success'
+                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
+                    : 'bg-red-500/10 border-red-500/20 text-red-300'
+                }`}>
+                  {backupMessage.text}
+                </div>
+              )}
+
+              {/* Backups List */}
+              <div className="space-y-2">
+                <span className="text-xs font-bold text-slate-300 font-kanit block">
+                  ประวัติไฟล์สำรอง ({backups.length} ชุด)
+                </span>
+                {backups.length === 0 ? (
+                  <div className="p-4 rounded-xl bg-black/40 border border-white/[0.06] text-center text-xs text-slate-500 font-kanit">
+                    ยังไม่มีไฟล์สำรอง กดปุ่ม "สร้างไฟล์สำรองทันที" เพื่อสำรองข้อมูล
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto pr-1">
+                    {backups.map((b) => (
+                      <div
+                        key={b.backup_name}
+                        className="p-3 rounded-xl bg-black/40 border border-white/[0.06] flex items-center justify-between gap-3 text-xs"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="font-mono font-bold text-slate-200 truncate">{b.backup_name}</div>
+                          <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-2">
+                            <span>{b.created_at}</span>
+                            <span>•</span>
+                            <span className="text-cyan-400 font-bold">{b.size_mb} MB</span>
+                            {b.file_count > 0 && (
+                              <>
+                                <span>•</span>
+                                <span>{b.file_count} ไฟล์</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <a
+                            href={`/api/backup/download/${encodeURIComponent(b.backup_name)}`}
+                            download={b.backup_name}
+                            className="px-2.5 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-cyan-300 font-bold text-xs border border-white/[0.08] flex items-center gap-1.5 transition-all"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            ดาวน์โหลด
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteBackup(b.backup_name)}
+                            className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all cursor-pointer"
+                            title="ลบไฟล์สำรองนี้"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Box 2: Asset Deduplication Engine */}
+            <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-lg space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/[0.08]">
+                <div>
+                  <h3 className="text-xs sm:text-sm font-bold text-white font-kanit flex items-center gap-2">
+                    <Copy className="w-4 h-4 text-amber-400" />
+                    สแกนและคืนพื้นที่ดิสก์จากไฟล์ซ้ำ (Asset Deduplication)
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1 font-kanit">
+                    ตรวจหาไฟล์วิดีโอ/ภาพที่ซ้ำกันใน 00_Inbox และ 01_Raw ด้วย SHA-256 เพื่อคืนพื้นที่ดิสก์อย่างปลอดภัย
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleScanDedup}
+                  disabled={dedupLoading}
+                  className="px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-xs font-bold font-kanit flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50 flex-shrink-0"
+                >
+                  {dedupLoading ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      กำลังสแกนไฟล์...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      เริ่มสแกนไฟล์ซ้ำ
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {cleanMessage && (
+                <div className={`p-3 rounded-xl border text-xs font-kanit ${
+                  cleanMessage.type === 'success'
+                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
+                    : 'bg-red-500/10 border-red-500/20 text-red-300'
+                }`}>
+                  {cleanMessage.text}
+                </div>
+              )}
+
+              {dedupResult && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06]">
+                      <span className="text-[10px] text-slate-500 block">สแกนทั้งหมด</span>
+                      <span className="text-sm font-bold font-mono text-white">{dedupResult.total_scanned_files} ไฟล์</span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06]">
+                      <span className="text-[10px] text-slate-500 block">กลุ่มที่ซ้ำ</span>
+                      <span className="text-sm font-bold font-mono text-amber-300">{dedupResult.duplicate_groups_count} กลุ่ม</span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06]">
+                      <span className="text-[10px] text-slate-500 block">ไฟล์ซ้ำส่วนเกิน</span>
+                      <span className="text-sm font-bold font-mono text-red-300">{dedupResult.total_duplicate_files} ไฟล์</span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-black/40 border border-emerald-500/20 bg-emerald-500/5">
+                      <span className="text-[10px] text-emerald-400 block">คืนพื้นที่ได้</span>
+                      <span className="text-sm font-bold font-mono text-emerald-300">{dedupResult.reclaimable_mb} MB</span>
+                    </div>
+                  </div>
+
+                  {dedupResult.total_duplicate_files > 0 ? (
+                    <div className="space-y-2 pt-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-300 font-kanit">รายการไฟล์ที่ซ้ำกัน</span>
+                        <button
+                          type="button"
+                          onClick={handleCleanDedup}
+                          disabled={cleanLoading}
+                          className="px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 text-xs font-bold font-kanit flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          {cleanLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                          ย้ายไฟล์ซ้ำเข้าถังขยะ ({dedupResult.reclaimable_mb} MB)
+                        </button>
+                      </div>
+
+                      <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                        {dedupResult.groups.map((g, idx) => (
+                          <div key={idx} className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06] text-xs space-y-1.5">
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span className="text-slate-400 font-mono truncate max-w-[70%]">
+                                ต้นฉบับ: <span className="text-emerald-400 font-bold">{g.original.relative_path}</span>
+                              </span>
+                              <span className="text-slate-500 font-mono">{g.size_mb} MB</span>
+                            </div>
+                            <div className="pl-3 border-l-2 border-amber-500/30 space-y-1 text-[11px] text-slate-400">
+                              {g.duplicates.map((d, dIdx) => (
+                                <div key={dIdx} className="truncate text-red-400/90 font-mono">
+                                  ซ้ำ: {d.relative_path}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center text-xs text-emerald-300 font-kanit">
+                      ไม่พบไฟล์มีเดียซ้ำซ้อนในโฟลเดอร์ ระบบสะอาด 100%
+                    </div>
+                  )}
                 </div>
               )}
             </div>

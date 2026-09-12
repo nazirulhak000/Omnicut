@@ -1,19 +1,20 @@
 import React, { useState } from 'react';
 import {
   BarChart3, Clapperboard, Zap, HardDrive, Package,
-  Layers, ChevronRight, Activity, ShieldCheck
+  Layers, ChevronRight, Activity, ShieldCheck, Eye
 } from 'lucide-react';
 import ProductionAnalyticsTab from './tabs/ProductionAnalyticsTab';
 import TokensAnalyticsTab from './tabs/TokensAnalyticsTab';
 import StorageAnalyticsTab from './tabs/StorageAnalyticsTab';
 import InventoryAnalyticsTab from './tabs/InventoryAnalyticsTab';
+import PerformanceAnalyticsTab from './tabs/PerformanceAnalyticsTab';
 export default function AnalyticsHub({
   initialTab = 'production',
   onNavigateToEditor,
   onNavigateToTracker,
   onNavigateToFlow
 }) {
-  const [activeTab, setActiveTab] = useState(initialTab); // 'production' | 'tokens' | 'storage' | 'inventory'
+  const [activeTab, setActiveTab] = useState(initialTab); // 'production' | 'tokens' | 'storage' | 'inventory' | 'performance'
 
   const tabs = [
     {
@@ -24,6 +25,15 @@ export default function AnalyticsHub({
       color: 'text-cyan-400',
       activeBg: 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400',
       badge: 'Funnel'
+    },
+    {
+      id: 'performance',
+      label: 'ผลงาน TikTok',
+      shortLabel: 'ผลงาน TikTok',
+      icon: Eye,
+      color: 'text-rose-400',
+      activeBg: 'bg-rose-500/10 border-rose-500/30 text-rose-400',
+      badge: 'Stats'
     },
     {
       id: 'tokens',
@@ -100,6 +110,9 @@ export default function AnalyticsHub({
           <InventoryAnalyticsTab
             onNavigateToFlow={onNavigateToFlow}
           />
+        )}
+        {activeTab === 'performance' && (
+          <PerformanceAnalyticsTab />
         )}
       </div>
     </div>

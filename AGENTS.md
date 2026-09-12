@@ -125,6 +125,13 @@ AI ทุกตัว**ต้องเคารพโครงสร้างโ
    - ห้ามเปิดอ่านไฟล์ใหญ่ (เช่น `ContentTrackerHub.jsx`, `ProductToClip.jsx`) ทั้งไฟล์เด็ดขาด ให้ใช้ `grep_search` หาตำแหน่งแล้วใช้ `view_file` ส่องเฉพาะช่วงที่จำเป็น ($\le 100$ บรรทัด)
    - ห้ามโหลดหรือเรียกใช้สกิลที่ไม่เกี่ยวข้องกับงานตัดต่อ (ห้ามแตะสกิล BigQuery, Cloud, dbt)
    - สรุปและตอบตรงประเด็น ไม่เกริ่นอารัมภบทยาวเกินจำเป็นเพื่อลด Output Tokens
+14. ✔️ **ระบุตัวตน AI Agent และโมเดลที่ทำงานทุกรอบเสมอ (Strict Agent & Model Attribution):**
+   - ในโปรเจกต์นี้มี AI หลายตัวและหลายโมเดลร่วมกันทำงาน (เช่น Claude Code, Antigravity, Cursor, Gemini CLI)
+   - **ทุกครั้งที่บันทึกรอบงานลง [TODO.md](file:///d:/Winona/Programmer/Capcut/TODO.md) และปิดรอบย้ายเข้า [HISTORY.md](file:///d:/Winona/Programmer/Capcut/HISTORY.md)** ทั้งในหัวบล็อกรอบและในตารางสารบัญ **ต้องระบุชื่อเครื่องมือเอเจนและชื่อโมเดล AI ที่ลงมือทำรอบนั้นเสมอ** เช่น:
+     - `ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)`
+     - `ดำเนินการโดย: Claude Code (Claude 3.7 Sonnet)`
+     - `ดำเนินการโดย: Cursor (Claude 3.5 Sonnet)`
+   - **วัตถุประสงค์:** เพื่อความโปร่งใส ตรวจสอบย้อนหลังได้ 100% (Accountability & Traceability) หากเกิดข้อผิดพลาด บั๊กหลุด หรือ regression จะได้ตรวจสอบได้ชัดเจนทันทีว่าเกิดจากเอเจนและโมเดลตัวใดทำ
 
 ---
 

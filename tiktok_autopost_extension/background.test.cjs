@@ -301,6 +301,26 @@ test('live DOM contracts for the reported TikTok screens stay in the worker', ()
   assert.match(searchStep, /productContainers\.at\(-1\)/);
 });
 
+test('extension sidepanel exposes the stats-sync button in its own Tools tab', () => {
+  const sideHtml = fs.readFileSync(path.join(__dirname, 'sidepanel.html'), 'utf8');
+  const sideJs = fs.readFileSync(path.join(__dirname, 'sidepanel.js'), 'utf8');
+  // Stats sync lives in its own tab, not buried in the post checklist.
+  assert.match(sideHtml, /id="tabBtnTools"/);
+  assert.match(sideHtml, /id="panelTools"/);
+  assert.match(sideHtml, /id="syncStatsBtn"/);
+  assert.match(sideHtml, /ซิงก์สถิติ/);
+  assert.match(sideHtml, /src="stats_parser\.js"/);
+  const checklistSection = sideHtml.slice(sideHtml.indexOf('id="panelChecklist"'), sideHtml.indexOf('id="panelTools"'));
+  assert.doesNotMatch(checklistSection, /syncStatsBtn/);
+  // Wiring: tab switch + result is read from the injected execution.
+  assert.match(sideJs, /const result = injected\?\.\[0\]\?\.result;/);
+  assert.match(sideJs, /tabBtnTools\.addEventListener/);
+  assert.match(sideJs, /\/api\/tiktok-stats\/import/);
+  assert.match(sideJs, /parsePostsTable/);
+  const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, 'manifest.json'), 'utf8'));
+  assert.ok(manifest.permissions.includes('scripting'));
+});
+
 test('extension UI exposes single consolidated TikTok upload opener and complies with clean UI standard', () => {
   const sideHtml = fs.readFileSync(path.join(__dirname, 'sidepanel.html'), 'utf8');
   const sideJs = fs.readFileSync(path.join(__dirname, 'sidepanel.js'), 'utf8');

@@ -4,7 +4,7 @@ import {
   AlertCircle, ArrowRight, Upload, Trash2, RefreshCw, Plus, Film, Video,
   ChevronDown, ChevronUp, ChevronRight, Package, Rocket, FolderOpen, X,
   Search, LayoutGrid, Filter, Play, Lock, Edit3, Replace, Columns, List,
-  ShoppingBag, ShieldCheck, Database
+  ShoppingBag, ShieldCheck, Database, Zap
 } from 'lucide-react';
 import {
   scrapeAndPlanProduct, scrapeAndPlanProductAsync, getProducts, updateProduct,
@@ -17,6 +17,8 @@ import MediaPickerModal from './MediaPickerModal';
 import FindReplaceModal from './FindReplaceModal';
 import ProductMetadataModal from './ProductMetadataModal';
 import ShotListModal from './ShotListModal';
+import HookVariationModal from './HookVariationModal';
+import BatchRenderModal from './BatchRenderModal';
 import { toMediaUrl } from '../lib/mediaUrl';
 import { useToast } from '../hooks';
 import { useTaskManager } from '../context/TaskContext';
@@ -464,7 +466,7 @@ function AngleActiveWorkbench({
   angle, index, onCopy, onSendToStudio, onOpenInTimeline, onPreviewExportVideo, copiedIndex,
   videos = [], onToggleVideoForAngle, onUploadVideo, uploadingImg = false,
   onOpenMediaPicker, onSaveScript, onOpenFindReplace, onRerollScript, onGenerateShotList,
-  isGeneratingShotList = false
+  isGeneratingShotList = false, onOpenHookVariants
 }) {
   const lines = Array.isArray(angle.script_lines)
     ? angle.script_lines
@@ -655,12 +657,25 @@ function AngleActiveWorkbench({
 
       {/* 2. Hook Callout */}
       {angle.hook_title && !isEditing && (
-        <div className="p-3 rounded-xl bg-gradient-to-r from-[#FE2C55]/15 via-black/40 to-[#25F4EE]/10 border border-[#FE2C55]/30 flex items-center gap-2.5 text-xs sm:text-sm font-bold text-white shadow-sm">
-          <span className="text-lg">🎯</span>
-          <div className="min-w-0 flex-1 font-kanit leading-snug">
-            <span className="text-xs text-rose-400 font-semibold block">Hook พาดหัวเปิดคลิป:</span>
-            <span>"{angle.hook_title}"</span>
+        <div className="p-3 rounded-xl bg-gradient-to-r from-[#FE2C55]/15 via-black/40 to-[#25F4EE]/10 border border-[#FE2C55]/30 flex items-center justify-between gap-2.5 text-xs sm:text-sm font-bold text-white shadow-sm">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <span className="text-lg">🎯</span>
+            <div className="min-w-0 flex-1 font-kanit leading-snug">
+              <span className="text-xs text-rose-400 font-semibold block">Hook พาดหัวเปิดคลิป:</span>
+              <span className="truncate block">"{angle.hook_title}"</span>
+            </div>
           </div>
+          {!isLocked && onOpenHookVariants && (
+            <button
+              type="button"
+              onClick={() => onOpenHookVariants(angle, index)}
+              className="px-2.5 py-1 rounded-lg bg-cyan-400/[0.1] hover:bg-cyan-400/[0.2] border border-cyan-400/30 text-cyan-300 text-xs font-bold flex items-center gap-1.5 flex-shrink-0 transition-colors"
+              title="สร้าง Hook ทางเลือก 5 สไตล์ด้วย AI"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>สร้าง Hook</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -682,7 +697,7 @@ function AngleActiveWorkbench({
                   }
                   onOpenFindReplace && onOpenFindReplace(index);
                 }}
-                className="px-2 py-0.5 rounded-md bg-white/[0.08] hover:bg-white/[0.15] text-cyan-300 text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer"
+                className="px-2.5 py-0.5 rounded-md bg-white/[0.08] hover:bg-white/[0.15] text-cyan-300 text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer"
                 title="ค้นหาและแทนที่คำในสคริปต์นี้"
               >
                 <Replace className="w-3 h-3" />
@@ -695,7 +710,19 @@ function AngleActiveWorkbench({
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-300">Hook พาดหัวคลิป:</label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-300">Hook พาดหัวคลิป:</label>
+              {onOpenHookVariants && (
+                <button
+                  type="button"
+                  onClick={() => onOpenHookVariants(angle, index)}
+                  className="text-cyan-300 hover:text-cyan-200 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  <span>AI เจน Hook 5 สไตล์</span>
+                </button>
+              )}
+            </div>
             <input
               type="text"
               value={editHook}
@@ -960,7 +987,7 @@ function ScriptAccordionItem({
   videos = [], onToggleVideoForAngle, onUploadVideo, uploadingImg = false,
   onOpenMediaPicker,
   onSaveScript, onOpenFindReplace, onRerollScript, onGenerateShotList,
-  isGeneratingShotList = false
+  isGeneratingShotList = false, onOpenHookVariants
 }) {
   const lines = Array.isArray(angle.script_lines)
     ? angle.script_lines
@@ -1110,12 +1137,23 @@ function ScriptAccordionItem({
 
           {/* Hook Highlight / Editor */}
           {angle.hook_title && !isEditing && (
-            <div className={`p-2.5 rounded-lg border-l-[3px] text-xs sm:text-sm font-bold leading-snug ${
+            <div className={`p-2.5 rounded-lg border-l-[3px] text-xs sm:text-sm font-bold leading-snug flex items-center justify-between gap-2 ${
               isLocked
                 ? 'bg-black/30 border-slate-600 text-slate-300'
                 : 'bg-black/50 border-[#25F4EE] text-cyan-200'
             }`}>
-              {angle.hook_title}
+              <span className="truncate flex-1">{angle.hook_title}</span>
+              {!isLocked && onOpenHookVariants && (
+                <button
+                  type="button"
+                  onClick={() => onOpenHookVariants(angle, index)}
+                  className="px-2 py-0.5 rounded-md bg-cyan-400/[0.1] hover:bg-cyan-400/[0.2] border border-cyan-400/30 text-cyan-300 text-[11px] font-bold flex items-center gap-1 flex-shrink-0 transition-colors"
+                  title="สร้าง Hook ทางเลือก 5 สไตล์ด้วย AI"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  <span>สร้าง Hook</span>
+                </button>
+              )}
             </div>
           )}
 
@@ -1134,7 +1172,19 @@ function ScriptAccordionItem({
 
               {/* Hook Input */}
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-400">Hook พาดหัวคลิป:</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-slate-400">Hook พาดหัวคลิป:</label>
+                  {onOpenHookVariants && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenHookVariants(angle, index)}
+                      className="text-cyan-300 hover:text-cyan-200 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      <span>AI เจน Hook 5 สไตล์</span>
+                    </button>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={editHook}
@@ -1580,6 +1630,12 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const [shotListResult, setShotListResult] = useState(null);
   const [shotListStatusMap, setShotListStatusMap] = useState({}); // {angle_id: {has_shot_list, is_stale}}
 
+  // AI Hook Variation & A/B Modal State
+  const [hookModalAngle, setHookModalAngle] = useState(null);
+
+  // Batch Render Modal State
+  const [batchRenderOpen, setBatchRenderOpen] = useState(false);
+
   // Edit TikTok Product ID Modal State (Backlog & Post-creation support)
   const [showEditTiktokIdModal, setShowEditTiktokIdModal] = useState(false);
   const [editTiktokIdInput, setEditTiktokIdInput] = useState('');
@@ -1892,6 +1948,38 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       showToast('ไม่สามารถรีสคริปต์ได้: ' + (err.friendlyMessage || err.message), 'error');
     } finally {
       setRerollingScript(false);
+    }
+  };
+
+  const handleHookApplied = (updatedAngle) => {
+    if (!updatedAngle) return;
+    setAngles(prev => prev.map(a => a.angle_id === updatedAngle.angle_id ? { ...a, ...updatedAngle } : a));
+    if (productData?.id) {
+      setProductData(prev => prev ? {
+        ...prev,
+        angles: (prev.angles || []).map(a => a.angle_id === updatedAngle.angle_id ? { ...a, ...updatedAngle } : a)
+      } : prev);
+      setHistoryList(prev => prev.map(p => p.id === productData.id ? {
+        ...p,
+        angles: (p.angles || []).map(a => a.angle_id === updatedAngle.angle_id ? { ...a, ...updatedAngle } : a)
+      } : p));
+    }
+  };
+
+  const handleBatchCompleted = async () => {
+    if (productData?.id) {
+      try {
+        const res = await getProducts();
+        const updated = res.products || [];
+        setHistoryList(updated);
+        const current = updated.find(p => p.id === productData.id);
+        if (current) {
+          setProductData(current);
+          setAngles(current.angles || []);
+        }
+      } catch (err) {
+        console.error('Failed to reload products after batch render:', err);
+      }
     }
   };
 
@@ -3135,6 +3223,16 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   <FolderOpen className="w-3.5 h-3.5" />
                   <span className="hidden xs:inline sm:inline">คลิปให้ทุกมุม</span>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => setBatchRenderOpen(true)}
+                  className="px-2.5 py-1 rounded-xl bg-gradient-to-r from-cyan-500/20 to-emerald-500/20 hover:from-cyan-500/30 hover:to-emerald-500/30 border border-cyan-500/40 text-xs font-bold text-cyan-200 cursor-pointer flex items-center gap-1.5 transition-all shadow-sm"
+                  title="เปิดหน้าต่างเรนเดอร์หลายมุมมองพร้อมกันในคิวเบื้องหลัง"
+                >
+                  <Zap className="w-3.5 h-3.5 text-cyan-400" />
+                  <span className="hidden xs:inline sm:inline">เรนเดอร์หลายมุม</span>
+                </button>
               </div>
             </div>
 
@@ -3204,6 +3302,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         setFindReplaceAngleIdx(i);
                         setFindReplaceOpen(true);
                       }}
+                      onOpenHookVariants={(ang) => setHookModalAngle(ang)}
                       onRerollScript={handleOpenRerollScriptModal}
                       onGenerateShotList={handleGenerateShotList}
                       isGeneratingShotList={generatingShotListIdx === activeAngleIdx}
@@ -3236,6 +3335,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       setFindReplaceAngleIdx(i);
                       setFindReplaceOpen(true);
                     }}
+                    onOpenHookVariants={(ang) => setHookModalAngle(ang)}
                     onRerollScript={handleOpenRerollScriptModal}
                     onGenerateShotList={handleGenerateShotList}
                     isGeneratingShotList={generatingShotListIdx === idx}
@@ -3810,6 +3910,25 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         result={shotListResult}
         onRegenerate={handleRegenerateShotList}
         regenerating={generatingShotListIdx !== null}
+      />
+
+      {/* ── AI Hook Variation & A/B Modal ── */}
+      <HookVariationModal
+        isOpen={!!hookModalAngle}
+        onClose={() => setHookModalAngle(null)}
+        product={productData}
+        angle={hookModalAngle}
+        onHookApplied={handleHookApplied}
+        showToast={showToast}
+      />
+
+      {/* ── Batch Angle Render Queue Modal ── */}
+      <BatchRenderModal
+        isOpen={batchRenderOpen}
+        onClose={() => setBatchRenderOpen(false)}
+        product={productData}
+        onBatchCompleted={handleBatchCompleted}
+        showToast={showToast}
       />
     </div>
   );

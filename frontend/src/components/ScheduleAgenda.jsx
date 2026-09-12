@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Archive, CalendarDays, ChevronDown, ChevronUp, Clock, Copy, GripVertical, Image as ImageIcon, Layers, Plus, RefreshCw, Rocket, RotateCcw, Settings2, Shuffle, Trash2 } from 'lucide-react';
+import { Archive, Calendar, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clock, Copy, GripVertical, Image as ImageIcon, Layers, List, Plus, RefreshCw, Rocket, RotateCcw, Settings2, Shuffle, Trash2 } from 'lucide-react';
 import { Modal, Badge } from './ui';
 import { commitScheduleAutofill, copyScheduleTemplate, createScheduleQueue, getScheduleQueue, getScheduleTemplate, prepareScheduleQueue, previewScheduleAutofill, removeScheduleQueue, resetScheduleTemplate, saveScheduleTemplate, updateScheduleQueue } from '../api';
-import { addDays, buildScheduleIso, dateOnly, DEFAULT_PRIMARY_TIMES, groupScheduleItems, localParts, mergeScheduleDraft, nextTemplateSlotAfterLatest, primaryTimeOptions, PROJECT_TIME_ZONE, scheduleTimeOptions, templateForWeek, toLocalDateTime, weekStartForDate } from '../lib/scheduleQueue';
+import { addDays, buildScheduleIso, dateOnly, DEFAULT_PRIMARY_TIMES, groupScheduleItems, localParts, mergeScheduleDraft, nextTemplateSlotAfterLatest, parseDateOnly, primaryTimeOptions, PROJECT_TIME_ZONE, scheduleTimeOptions, templateForWeek, toLocalDateTime, WEEKDAY_LABELS, weekStartForDate } from '../lib/scheduleQueue';
 
 const STATUS_LABELS = {
   planned: 'รอจัดส่ง',
@@ -120,6 +120,8 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   const [bulkDraft, setBulkDraft] = useState({ ...nextSlot(), interval: 5 });
   const [saving, setSaving] = useState(false);
   const [draggedId, setDraggedId] = useState(null);
+  const [viewMode, setViewMode] = useState('list');
+  const [calendarWeekStart, setCalendarWeekStart] = useState(() => weekStartForDate(dateOnly()));
   const timeOptions = useMemo(() => scheduleTimeOptions(), []);
   const [templateOpen, setTemplateOpen] = useState(false);
   const [templateWeek, setTemplateWeek] = useState(weekStartForDate(dateOnly()));
@@ -192,6 +194,20 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   );
   const grouped = useMemo(() => groupScheduleItems(activeQueue), [activeQueue]);
   const dates = Object.keys(grouped);
+  const calendarDays = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = addDays(calendarWeekStart, i);
+      const dayDateObj = parseDateOnly(d);
+      return {
+        date: d,
+        dayName: WEEKDAY_LABELS[i],
+        dayNumber: dayDateObj.getUTCDate(),
+        monthLabel: new Intl.DateTimeFormat('th-TH', { month: 'short' }).format(dayDateObj),
+        isToday: d === dateOnly(),
+        items: grouped[d] || [],
+      };
+    });
+  }, [calendarWeekStart, grouped]);
 
   const saveSingle = async () => {
     if (!singleDraft.clip || !singleDraft.date || !singleDraft.time) return;
@@ -445,7 +461,33 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                 <p className="text-xs text-slate-400 mt-1">เรียงตามวันที่และเวลาในเขต Asia/Bangkok · รอบละ 5 นาที · {activeQueue.length} คลิปในคิว</p>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center rounded-xl bg-white/[0.04] p-1 border border-white/[0.08] mr-1">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('list')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors ${
+                    viewMode === 'list'
+                      ? 'bg-cyan-400 text-slate-950 shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <List className="w-3.5 h-3.5" />
+                  รายการ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('calendar')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors ${
+                    viewMode === 'calendar'
+                      ? 'bg-cyan-400 text-slate-950 shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Calendar className="w-3.5 h-3.5" />
+                  ปฏิทินสัปดาห์
+                </button>
+              </div>
               <button type="button" onClick={openAutofill} className="px-3.5 py-2 rounded-xl bg-cyan-400 text-slate-950 text-xs font-black flex items-center gap-1.5 hover:brightness-110"><Shuffle className="w-4 h-4" />จัดคิวอัตโนมัติ</button>
               <button type="button" onClick={openTemplate} className="px-3.5 py-2 rounded-xl border border-cyan-400/20 bg-cyan-400/[0.05] text-cyan-100 text-xs font-bold flex items-center gap-1.5 hover:bg-cyan-400/[0.12]"><Settings2 className="w-4 h-4" />ตั้งค่าเวลารายสัปดาห์</button>
               <button type="button" onClick={openSingle} className="px-3.5 py-2 rounded-xl border border-white/[0.12] bg-white/[0.05] text-white text-xs font-bold flex items-center gap-1.5 hover:bg-white/[0.1]"><Plus className="w-4 h-4" />เพิ่มคลิป</button>
@@ -458,7 +500,205 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
           </div>
         </div>
 
-        {loading ? <div className="p-10 text-center text-sm text-slate-500">กำลังโหลดคิวโพสต์...</div> : dates.length === 0 ? (
+        {loading ? <div className="p-10 text-center text-sm text-slate-500">กำลังโหลดคิวโพสต์...</div> : viewMode === 'calendar' ? (
+          <div className="space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3 border-b border-white/[0.06] bg-black/25">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCalendarWeekStart((prev) => addDays(prev, -7))}
+                  className="p-1.5 rounded-xl border border-white/[0.1] text-slate-400 hover:text-white hover:bg-white/[0.05]"
+                  title="สัปดาห์ก่อนหน้า"
+                  aria-label="สัปดาห์ก่อนหน้า"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCalendarWeekStart(weekStartForDate(dateOnly()))}
+                  className="px-2.5 py-1 rounded-xl border border-cyan-400/25 bg-cyan-400/[0.05] text-cyan-200 text-xs font-bold hover:bg-cyan-400/[0.12]"
+                >
+                  สัปดาห์นี้
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCalendarWeekStart((prev) => addDays(prev, 7))}
+                  className="p-1.5 rounded-xl border border-white/[0.1] text-slate-400 hover:text-white hover:bg-white/[0.05]"
+                  title="สัปดาห์ถัดไป"
+                  aria-label="สัปดาห์ถัดไป"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+                <span className="text-xs font-black text-white ml-2">
+                  {calendarDays[0]?.dayNumber} {calendarDays[0]?.monthLabel} – {calendarDays[6]?.dayNumber} {calendarDays[6]?.monthLabel} ({calendarWeekStart})
+                </span>
+              </div>
+              <span className="text-[11px] text-cyan-300/80 bg-cyan-400/[0.06] border border-cyan-400/15 rounded-full px-3 py-1 w-fit">
+                ลากการ์ดคลิปเพื่อเลื่อนข้ามวัน หรือกดเพิ่มคลิปในแต่ละวันได้ทันที
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3 p-4 sm:p-5">
+              {calendarDays.map((day) => (
+                <div
+                  key={day.date}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={() => onDropDate(day.date)}
+                  className={`rounded-2xl border transition-all flex flex-col min-h-[340px] overflow-hidden ${
+                    day.isToday
+                      ? 'border-cyan-400/40 bg-cyan-500/[0.03] shadow-[0_0_20px_rgba(37,244,238,0.04)]'
+                      : 'border-white/[0.08] bg-black/20'
+                  }`}
+                >
+                  <div className={`p-3 border-b flex items-center justify-between ${
+                    day.isToday ? 'border-cyan-400/25 bg-cyan-400/[0.08]' : 'border-white/[0.06] bg-white/[0.02]'
+                  }`}>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-black text-white">{day.dayName}</span>
+                        {day.isToday && (
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-cyan-400 text-slate-950">
+                            วันนี้
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-slate-400">{day.dayNumber} {day.monthLabel}</span>
+                    </div>
+                    <span className="text-[10px] font-mono text-cyan-300 font-bold bg-white/[0.05] px-1.5 py-0.5 rounded-md">
+                      {day.items.length}
+                    </span>
+                  </div>
+
+                  <div className="p-2 space-y-2 flex-1 overflow-y-auto max-h-[520px]">
+                    {day.items.map((item) => {
+                      const parts = localParts(item.scheduled_at);
+                      const clip = readyClips.find((candidate) => clipKey(candidate) === queueKey(item));
+                      const coverPath = coverValue(item, clip);
+                      const hasCover = Boolean(coverPath);
+                      const overdue = item.is_overdue || (item.status === 'planned' && new Date(item.scheduled_at).getTime() < Date.now());
+
+                      return (
+                        <div
+                          key={item.id}
+                          draggable={item.status === 'planned'}
+                          onDragStart={() => setDraggedId(item.id)}
+                          className={`p-2.5 rounded-xl border bg-slate-900/90 shadow-sm transition-all text-left group ${
+                            item.status === 'planned' ? 'cursor-grab hover:border-cyan-400/40 hover:bg-slate-900' : 'cursor-default'
+                          } ${overdue ? 'border-red-500/40' : 'border-white/[0.08]'}`}
+                        >
+                          <div className="flex items-center justify-between gap-1 mb-1.5">
+                            <span className="text-[10px] font-mono font-bold text-cyan-300 flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-cyan-400" />
+                              {parts.time}
+                            </span>
+                            <Badge className={`text-[9px] px-1.5 py-0 ${STATUS_STYLES[item.status] || STATUS_STYLES.planned}`}>
+                              {STATUS_LABELS[item.status] || item.status}
+                            </Badge>
+                          </div>
+
+                          <div className="flex items-start gap-2 mb-2">
+                            <button
+                              type="button"
+                              onClick={() => clip?.video_url && onPreviewVideo?.(clip.video_url, clip)}
+                              className="w-10 h-14 rounded-lg overflow-hidden bg-black border border-white/[0.1] flex-shrink-0 relative group/thumb"
+                            >
+                              {coverSrc(coverPath) ? (
+                                <img src={coverSrc(coverPath)} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <video src={`/api/media/${item.video_path}`} muted className="w-full h-full object-cover" />
+                              )}
+                              <span className="absolute inset-0 bg-black/60 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center text-[8px] text-white">
+                                ดู
+                              </span>
+                            </button>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[11px] font-bold text-slate-200 line-clamp-2 leading-snug">
+                                {item.hook_title || item.product_name || item.video_path}
+                              </p>
+                              <p className="text-[9px] text-slate-500 truncate mt-0.5">
+                                {item.product_name || 'ไม่ระบุสินค้า'}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-1 border-t border-white/[0.06] text-[10px]">
+                            <div className="flex items-center gap-1">
+                              {item.status === 'planned' || item.status === 'failed' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => prepareItem(item)}
+                                  className="p-1 rounded bg-cyan-400/15 hover:bg-cyan-400/25 text-cyan-300"
+                                  title="เตรียมให้ Extension"
+                                  aria-label="เตรียมให้ Extension"
+                                >
+                                  <Rocket className="w-3 h-3" />
+                                </button>
+                              ) : item.status === 'ready_for_extension' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => resetForMove(item)}
+                                  className="px-1.5 py-0.5 rounded border border-amber-400/25 text-amber-200 text-[9px]"
+                                  title="รีเซ็ตเพื่อย้าย"
+                                >
+                                  รีเซ็ต
+                                </button>
+                              ) : null}
+                              {clip && onOpenCoverStudio && (
+                                <button
+                                  type="button"
+                                  onClick={() => onOpenCoverStudio(clip)}
+                                  className={`p-1 rounded border ${
+                                    hasCover ? 'border-emerald-400/40 text-emerald-300' : 'border-white/[0.1] text-slate-600'
+                                  }`}
+                                  title="ปกคลิป"
+                                  aria-label="ปกคลิป"
+                                >
+                                  <ImageIcon className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
+                            {item.status === 'planned' && (
+                              <button
+                                type="button"
+                                onClick={() => removeItem(item)}
+                                className="p-1 text-slate-600 hover:text-red-400"
+                                title="นำออกจากคิว"
+                                aria-label="นำออกจากคิว"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {day.items.length === 0 && (
+                      <div className="h-full min-h-[140px] flex flex-col items-center justify-center rounded-xl border border-dashed border-white/[0.08] p-3 text-center">
+                        <span className="text-[10px] text-slate-600">ไม่มีคลิป</span>
+                        <span className="text-[9px] text-slate-600 mt-0.5">ลากคลิปมาวางได้</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-2 pt-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSingleDraft({ clip: null, date: day.date, time: '12:30' });
+                        setSingleOpen(true);
+                      }}
+                      className="w-full py-1.5 rounded-xl border border-white/[0.08] hover:border-cyan-400/30 hover:bg-cyan-400/[0.05] text-[10px] text-slate-400 hover:text-cyan-200 font-bold flex items-center justify-center gap-1 transition-colors"
+                    >
+                      <Plus className="w-3 h-3" />
+                      เพิ่มคลิป
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : dates.length === 0 ? (
           <div className="p-12 text-center"><CalendarDays className="w-8 h-8 mx-auto text-slate-600 mb-3" /><p className="text-sm text-slate-300 font-bold">ยังไม่มีคลิปในคิว</p><p className="text-xs text-slate-500 mt-1">เพิ่มคลิปเดี่ยวหรือเลือกหลายคลิปเพื่อวางแผนล่วงหน้าได้เลย</p></div>
         ) : (
           <div className="p-4 sm:p-5 space-y-4">

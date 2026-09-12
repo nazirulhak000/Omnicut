@@ -103,6 +103,9 @@ export const startRender = (data) => api.post('/render', {
 }, { timeout: 120000 }).then(r => r.data);
 
 export const getRenderStatus = (jobId) => api.get(`/render/status/${jobId}`, { timeout: 15000 }).then(r => r.data);
+export const startBatchRender = (payload) => api.post('/render/batch', payload).then(r => r.data);
+export const getBatchRenderStatus = (batchId) => api.get(`/render/batch/${batchId}`).then(r => r.data);
+export const cancelBatchRender = (batchId) => api.post(`/render/batch/${batchId}/cancel`).then(r => r.data);
 export const openFolder = (target) => api.post('/open-folder', { target }).then(r => r.data);
 
 // Round POST-1: desktop "post to TikTok" flow -- reveal a single file
@@ -346,6 +349,7 @@ export const getProductionAnalytics = () => api.get('/analytics/production').the
 export const getStorageAnalytics = (forceScan = false) => api.get('/analytics/storage', { params: forceScan ? { force_scan: true } : {} }).then(r => r.data);
 export const purgeSafeStorageCache = () => api.post('/analytics/storage/purge-safe-cache').then(r => r.data);
 export const getInventoryHealth = () => api.get('/analytics/inventory').then(r => r.data);
+export const getTiktokStatsLatest = () => api.get('/tiktok-stats/latest').then(r => r.data);
 
 export const fetchOverlayLayout = (payload) => api.post('/editor/overlay/layout', payload).then(r => r.data);
 
@@ -364,5 +368,25 @@ export const filmstripUrlFor = (path, count, start, end) => {
 export const getHookTemplates = () => api.get('/editor/hook-templates').then(r => r.data);
 export const saveCustomHookTemplate = (payload) => api.post('/editor/hook-templates', payload).then(r => r.data);
 export const deleteCustomHookTemplate = (id) => api.delete(`/editor/hook-templates/${encodeURIComponent(id)}`).then(r => r.data);
+
+// ═══════════════════════════════════════════════════════════════════════
+// 💾 ONE-CLICK BACKUP & ASSET DEDUPLICATION APIS
+// ═══════════════════════════════════════════════════════════════════════
+export const createSystemBackup = () => api.post('/backup/create').then(r => r.data);
+export const getSystemBackups = () => api.get('/backup/list').then(r => r.data);
+export const verifySystemBackup = (filename) => api.get(`/backup/verify/${encodeURIComponent(filename)}`).then(r => r.data);
+export const deleteSystemBackup = (filename) => api.delete(`/backup/${encodeURIComponent(filename)}`).then(r => r.data);
+
+export const scanAssetDuplicates = (minSizeKb = 10) =>
+  api.get('/assets/duplicates/scan', { params: { min_size_kb: minSizeKb } }).then(r => r.data);
+export const cleanAssetDuplicates = (duplicatePaths, moveToTrash = true) =>
+  api.post('/assets/duplicates/clean', { duplicate_paths: duplicatePaths, move_to_trash: moveToTrash }).then(r => r.data);
+// ═══════════════════════════════════════════════════════════════════════
+// 🎯 AI HOOK VARIATION & A/B APIS
+// ═══════════════════════════════════════════════════════════════════════
+export const getHookStyles = () => api.get('/hooks/styles').then(r => r.data);
+export const generateHookVariations = (payload) => api.post('/hooks/generate', payload).then(r => r.data);
+export const applyAngleHook = (payload) => api.post('/hooks/apply-angle', payload).then(r => r.data);
+export const applyProjectHook = (payload) => api.post('/hooks/apply-project', payload).then(r => r.data);
 
 export default api;

@@ -46,3 +46,15 @@ test('requeue defaults to the next empty slot from the weekly template', () => {
   assert.deepEqual(nextTemplateSlotAfterLatest(queue, { '2026-09-07': template }, new Date('2026-09-07T10:00:00+07:00')), { date: '2026-09-09', time: '12:00' });
   assert.equal(nextTemplateSlotAfterLatest(queue, {}, new Date('2026-09-07T10:00:00+07:00')), null);
 });
+
+test('weekly calendar generates 7 consecutive days starting from Monday', () => {
+  const monday = weekStartForDate('2026-09-12');
+  assert.equal(monday, '2026-09-07');
+  const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+  assert.equal(days.length, 7);
+  assert.equal(days[0], '2026-09-07');
+  assert.equal(days[6], '2026-09-13');
+  assert.equal(addDays(monday, -7), '2026-08-31');
+  assert.equal(addDays(monday, 7), '2026-09-14');
+});
+

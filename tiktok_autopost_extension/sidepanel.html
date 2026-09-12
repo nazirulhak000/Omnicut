@@ -314,6 +314,50 @@
     padding: 2px 6px;
     border-radius: 4px;
   }
+  .monitor-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--cyan-bright);
+    background: var(--cyan-wash);
+    border: 1px solid rgba(34, 211, 238, 0.3);
+    flex-shrink: 0;
+    margin-right: 10px;
+  }
+  .monitor-avatar + div {
+    min-width: 0;
+  }
+  .monitor-name {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text-pure);
+    font-family: "IBM Plex Sans Thai", "Leelawadee UI", sans-serif;
+  }
+  .monitor-sub {
+    font-size: 10.5px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+    line-height: 1.45;
+  }
+  .tools-placeholder {
+    border: 1px dashed rgba(148, 163, 184, 0.25);
+    border-radius: var(--radius-lg);
+    padding: 10px 12px;
+    margin-top: 10px;
+  }
+  .tools-placeholder-text {
+    font-size: 10.5px;
+    color: var(--text-tertiary);
+    margin: 0;
+    line-height: 1.5;
+    text-align: center;
+  }
+  .monitor-header-row:has(> .monitor-avatar) {
+    justify-content: flex-start;
+  }
 
   .monitor-stage {
     display: flex;
@@ -1227,6 +1271,10 @@
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
       ขั้นตอนโพสต์
     </button>
+    <button type="button" id="tabBtnTools" class="switch-btn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+      เครื่องมือ
+    </button>
   </div>
 
   <!-- Tab 1: Clip List -->
@@ -1456,6 +1504,39 @@
     </div>
   </div>
 
+  <!-- Tab 3: Tools (ดึงข้อมูล/scrape ต่างๆ แยกจากการขั้นตอนโพสต์ ─ เพิ่มการ์ดใหม่ๆ ต่อได้) -->
+  <div id="panelTools" class="tab-panel">
+    <div class="studio-monitor">
+      <div class="monitor-header-row">
+        <div class="monitor-avatar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
+        </div>
+        <div>
+          <div class="monitor-name">เครื่องมือซิงก์ข้อมูล</div>
+          <div class="monitor-sub">อ่านข้อมูลจาก TikTok มาเก็บใน OmniCut — เครื่องมือใหม่จะมาเพิ่มในแท็บนี้</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats Sync Card -->
+    <div class="mark-posted-card">
+      <div class="label-row">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M7 13l3 3 7-7"/></svg>
+        ซิงก์สถิติ TikTok
+      </div>
+      <p>เปิดหน้า TikTok Studio แท็บ โพสต์ แล้วกดปุ่มนี้ — extension จะอ่านยอดดู/ถูกใจ/คอมเมนต์ส่งเข้า OmniCut เอง</p>
+      <button id="syncStatsBtn" type="button" class="btn-mark-posted">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+        ซิงก์สถิติจากหน้านี้
+      </button>
+    </div>
+
+    <!-- Placeholder: ช่องสำหรับเครื่องมือ scrape ตัวถัดไป (เช่น TikTok Shop ยอดขาย) -->
+    <div class="tools-placeholder">
+      <p class="tools-placeholder-text">มีเครื่องมือดึงข้อมูลตัวใหม่ จะเพิ่มการ์ดในแท็บนี้ (เช่น ยอดขาย/ค่าคอมมิชชัน TikTok Shop)</p>
+    </div>
+  </div>
+
   <div id="status"></div>
 
   <!-- Confirm Modal -->
@@ -1474,6 +1555,7 @@
 
   <script src="clip_state.js"></script>
   <script src="auth_key.js"></script>
+  <script src="stats_parser.js"></script>
   <script src="sidepanel.js"></script>
 </body>
 </html>

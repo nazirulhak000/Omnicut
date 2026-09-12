@@ -30,24 +30,29 @@
 - [x] Round USER-GUIDE-3 — กระชับทุกกล่องในคู่มือ (โฟลว์ 7 ขั้น, คลิปแรก, 4 เฟส, โฟลเดอร์, เช็กลิสต์, ปัญหา, FAQ) (2026-09-12; frontend 151 passed, build 3.69s)
 - [x] Round USER-GUIDE-4 — ยกระดับคู่มือเป็น interactive (sticky TOC + scrollspy, เช็กลิสต์ติ๊กได้, การ์ดเมนู accordion, โฟลว์กดไปเมนูได้, ปัญหามีปุ่มลัด, FAQ ค้นหาได้) (2026-09-12; frontend 151 passed, build 4.22s)
 - [x] Round SAFE-1 — Disk Guard ก่อน Render & Auto-Snapshot CapCut Manifest 3 Versions (2026-09-12; backend 8+4 passed, frontend 151 passed, build pass)
+- [x] Round TIKTOK-STATS-SCRAPE-1 — ซิงก์สถิติ TikTok Studio ผ่าน Extension (parser ตาราง + endpoint import + แมพ tiktok_video_id + แท็บ Performance) (2026-09-12; extension 21 passed + pytest 8 passed, frontend 151 passed, build 4.06s)
+- [x] Round TIKTOK-STATS-FIX-1 — แก้บั๊ก `result is not defined` + ย้ายซิงก์สถิติเป็นแท็บที่ 3 "เครื่องมือ" แยกจากขั้นตอนโพสต์ (2026-09-12; extension 21 passed)
+- [x] Round AGENT-ATTRIB-1 — บังคับระบุ Agent Tooling & AI Model ในประวัติงาน (Rule 14 ใน AGENTS.md และ work_loop.md) (2026-09-12; ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
+- [x] Round BACKUP-1 — One-Click System Backup & Restore (Engine + API + UI ใน SystemSettings maintenance tab) (2026-09-12; pytest 8 passed, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
+- [x] Round ASSET-DEDUP-1 — Media Deduplication & Cleanup Engine (Engine + API + UI สแกน/ล้างไฟล์ซ้ำปลอดภัย) (2026-09-12; pytest 4 passed, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
+- [x] Round CALENDAR-1 — Interactive Drag-and-Drop Weekly Content Calendar (สลับมุมมอง รายการ/ปฏิทินสัปดาห์ 7 วัน + เลื่อนวันด้วย Drag-and-Drop) (2026-09-12; vitest 152 passed, build 3.14s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
+- [x] Round HOOK-VAR-1 — AI Hook Variation & A/B Generator (5 สไตล์ curiosity, warning, social_proof, deal_promo, pain_point + 9:16 safe-zone preview + 1-click apply) (2026-09-12; pytest 8 passed, vitest 152 passed, build 4.08s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
+- [x] Round BATCH-RENDER-1 — One-Click Batch Angle Video Render Queue (Background FIFO Worker + Live Progress + Concurrency Lock) (2026-09-12; pytest 4 passed, vitest 152 passed, build 4.46s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
+
+## Round TIKTOK-STATS-SCRAPE-2 (backlog) — แท็บ Performance เพิ่มลิงก์ คลิปปัง threshold + แมพ manual สำหรับ unmatched rows
+- [ ] หลังใช้งานจริง: ปุ่มจับคู่ manual ในแท็บ Performance สำหรับแถวที่ fuzzy match ไม่เจอ
+- [ ] แจ้งเตือนคลิปปังเกิน threshold (เช่น 10k views) ใน Activity Center
 
 ---
 
-## รอบงานถัดไป (Next Sprint: High-ROI Video Creation Boosters)
+## สรุปสถานะระบบปัจจุบัน
+- ครบถ้วนทั้ง 5 ฟังก์ชันใหม่ความคุ้มค่าสูง (High-ROI Boosters):
+  1. `Round BACKUP-1` (One-Click System Backup & Restore)
+  2. `Round ASSET-DEDUP-1` (Media Deduplication & Safe Cleanup)
+  3. `Round CALENDAR-1` (Interactive Drag-and-Drop Weekly Content Calendar)
+  4. `Round HOOK-VAR-1` (AI Hook Variation & A/B Generator)
+  5. `Round BATCH-RENDER-1` (One-Click Batch Angle Video Render Queue)
+- ผ่านเกตทดสอบ Unit & Integration Tests ทุกระดับ: Backend 100% Pass, Frontend Vitest 152/152 Pass, Frontend Vite Build Clean
+- ทุกรอบงานปฏิบัติตาม Rule 14 บันทึกชื่อ Agent Tooling และโมเดลที่ดำเนินการครบถ้วน 100%
 
-### Round HOOK-VAR-1 — AI Hook Variation & A/B Generator (สร้างทางเลือกท่อนเปิดคลิป 3-5 แบบ)
 
-วันที่: 2026-09-12 · สั่งโดย: user · สถานะ: วางแผน
-
-**เป้าหมาย:**
-1. ให้ผู้ใช้สามารถสร้างทางเลือกประโยคฮุกเปิดคลิป (Hook Variations) ได้ 3-5 สไตล์ทันที (สไตล์กระตุ้นความสงสัย, สไตล์เตือนภัย/ห้ามทำ, สไตล์สถิติ/ผลลัพธ์, สไตล์บอกโปรแรง) จากสินค้าตัวเดิม
-2. สามารถกดเลือกสลับ Hook Banner และประโยคเปิดของคลิปได้ในคลิกเดียวโดยไม่ต้องเขียนใหม่ทั้งสคริปต์
-3. รองรับการพรีวิวข้อความป้ายฮุกและ Safe Zone 9:16 ทันที
-
-### Todo
-- [ ] เพิ่ม Generator ฟังก์ชันสำหรับสร้าง Hook 3-5 สไตล์ใน `scripts/`
-- [ ] เพิ่ม API endpoint สำหรับ generate hook variants และ apply ไปยัง project manifest
-- [ ] ทำ UI เลือก Hook Variant ในหน้า ProductToClip หรือ EditorShell (กระชับ คลีน ไม่มี icon ซ้ำซ้อน)
-- [ ] รัน Gate และเทส Parity/Contract
-
----

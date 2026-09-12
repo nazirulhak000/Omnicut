@@ -55,8 +55,10 @@ const copyAllBtn = document.getElementById('copyAllBtn');
 
 const tabBtnList = document.getElementById('tabBtnList');
 const tabBtnChecklist = document.getElementById('tabBtnChecklist');
+const tabBtnTools = document.getElementById('tabBtnTools');
 const panelList = document.getElementById('panelList');
 const panelChecklist = document.getElementById('panelChecklist');
+const panelTools = document.getElementById('panelTools');
 
 const confirmOverlay = document.getElementById('confirmOverlay');
 const confirmText = document.getElementById('confirmText');
@@ -120,7 +122,7 @@ syncScheduleConstraints();
 
 function setBusy(value) {
   busy = value;
-  document.querySelectorAll('#panelChecklist button, #list button, #refreshBtn, #panelChecklist input, #panelChecklist textarea')
+  document.querySelectorAll('#panelChecklist button, #panelTools button, #list button, #refreshBtn, #panelChecklist input, #panelChecklist textarea')
     .forEach(el => { el.disabled = value; });
   markPostedBtn.disabled = value || !activeClip;
   // The loop above just force-enabled prepareDetailsBtn and prepareSchedule
@@ -154,14 +156,19 @@ function escapeHtml(s) {
 
 // ── Tabs ──────────────────────────────────────────────────────────────────
 function showTab(name) {
-  const listActive = name === 'list';
-  tabBtnList.classList.toggle('active', listActive);
-  tabBtnChecklist.classList.toggle('active', !listActive);
-  panelList.classList.toggle('active', listActive);
-  panelChecklist.classList.toggle('active', !listActive);
+  const isList = name === 'list';
+  const isChecklist = name === 'checklist';
+  const isTools = name === 'tools';
+  tabBtnList.classList.toggle('active', isList);
+  tabBtnChecklist.classList.toggle('active', isChecklist);
+  tabBtnTools.classList.toggle('active', isTools);
+  panelList.classList.toggle('active', isList);
+  panelChecklist.classList.toggle('active', isChecklist);
+  panelTools.classList.toggle('active', isTools);
 }
 tabBtnList.addEventListener('click', () => showTab('list'));
 tabBtnChecklist.addEventListener('click', () => showTab('checklist'));
+tabBtnTools.addEventListener('click', () => showTab('tools'));
 
 // ── Confirm dialog (only shown when switching clips mid-checklist) ────────
 function anyStepChecked() {
@@ -627,6 +634,62 @@ markPostedBtn.addEventListener('click', async () => {
     markPostedBtn.disabled = !activeClip;
   }
 });
+
+// ── Stats Sync: read Studio Posts table, POST rows to backend ──────────────
+const syncStatsBtn = document.getElementById('syncStatsBtn');
+
+async function ensureStatsParser(tabId) {
+  // executeScript runs func in an isolated world without the sidepanel's own
+  // scripts, so inject the pure parser file first, then call it.
+  await chrome.scripting.executeScript({ target: { tabId }, files: ['stats_parser.js'] });
+}
+
+async function runStatsSync() {
+  if (!window.OmniCutStatsParser) {
+    setStatus('โหลดตัวอ่านตารางไม่สำเร็จ — ลองปิดแล้วเปิดแถบข้างใหม่', 'error');
+    return;
+  }
+  if (typeof chrome === 'undefined' || !chrome.scripting?.executeScript) {
+    setStatus('extension เวอร์ชันนี้ยังไม่มีสิทธิ์อ่านหน้าเว็บ — โหลด extension ใหม่จาก chrome://extensions', 'error');
+    return;
+  }
+  syncStatsBtn.disabled = true;
+  setStatus('กำลังอ่านตารางโพสต์จากหน้านี้...');
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id || !/tiktok\.com/.test(tab.url || '')) {
+      throw new Error('หน้านี้ไม่ใช่ TikTok — เปิดหน้า TikTok Studio แท็บ โพสต์ ก่อนกดซิงก์');
+    }
+    await ensureStatsParser(tab.id);
+    const injected = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => window.OmniCutStatsParser.parsePostsTable(document),
+    });
+    const result = injected?.[0]?.result;
+    if (!result) throw new Error('อ่านหน้า TikTok ไม่ได้ — รีเฟรชหน้า Studio แล้วลองใหม่');
+    if (result.error) throw new Error(result.error);
+    if (!result.rows.length) throw new Error('ไม่พบแถวโพสต์ในตาราง — เลื่อนลงให้ตารางโหลดก่อนกดซิงก์');
+    setStatus(`พบ ${result.rows.length} โพสต์ กำลังส่งเข้า OmniCut...`);
+    const res = await authedFetch(`${BACKEND}/api/tiktok-stats/import`, apiKey, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rows: result.rows }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.detail || `HTTP ${res.status}`);
+    const unmatched = (body.unmatched || []).length;
+    setStatus(
+      `ซิงก์สำเร็จ ${body.matched}/${body.total} คลิป อัปเดตตัวเลข ${body.updated} คลิป${unmatched ? ` (ไม่เจอคู่ ${unmatched} คลิป ดูในแท็บผลงาน)` : ''}`,
+      'success',
+    );
+  } catch (err) {
+    setStatus('ซิงก์ไม่สำเร็จ: ' + err.message, 'error');
+  } finally {
+    syncStatsBtn.disabled = false;
+  }
+}
+
+syncStatsBtn?.addEventListener('click', runStatsSync);
 
 // ── Open TikTok Studio Upload Tab ─────────────────────────────────────────
 const TIKTOK_UPLOAD_URL = 'https://www.tiktok.com/tiktokstudio/upload';

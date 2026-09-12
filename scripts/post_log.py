@@ -129,6 +129,67 @@ class PostLog:
 
             raise ValueError(f"ไม่พบโพสต์ id '{post_id}'")
 
+    @classmethod
+    def upsert_tiktok_stats(cls, rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Merge scraped TikTok Studio rows into the post log.
+
+        Match priority: tiktok_video_id exact > clip title+duration fuzzy.
+        Never creates duplicates when a video_id is already stored. Rows that
+        match nothing are returned as `unmatched` for manual review instead
+        of inventing new posts silently.
+        """
+        matched, updated, unmatched = 0, 0, []
+        now = datetime.datetime.now().isoformat(timespec="seconds")
+        with cls._mutate() as posts:
+            by_video_id = {p.get("tiktok_video_id"): p for p in posts if p.get("tiktok_video_id")}
+            for row in rows:
+                video_id = (row.get("video_id") or "").strip() if isinstance(row.get("video_id"), str) else row.get("video_id")
+                metrics = {k: row.get(k) for k in ("views", "likes", "comments", "shares") if isinstance(row.get(k), int)}
+                target = by_video_id.get(video_id) if video_id else None
+                if target is None and row.get("title"):
+                    target = cls._fuzzy_match(posts, row)
+                if target is None:
+                    unmatched.append({"title": row.get("title", ""), "video_id": video_id, "video_url": row.get("video_url")})
+                    continue
+                matched += 1
+                if video_id and not target.get("tiktok_video_id"):
+                    target["tiktok_video_id"] = video_id
+                if row.get("video_url") and not target.get("tiktok_url"):
+                    target["tiktok_url"] = row.get("video_url")
+                target["tiktok_synced_at"] = now
+                if metrics:
+                    merged = dict(target.get("metrics") or {})
+                    merged.update(metrics)
+                    target["metrics"] = merged
+                    target["metrics_filled_at"] = now
+                    updated += 1
+        return {"matched": matched, "updated": updated, "unmatched": unmatched, "total": len(rows)}
+
+    @staticmethod
+    def _fuzzy_match(posts: List[Dict[str, Any]], row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        title = str(row.get("title") or "").strip()
+        if len(title) < 4:
+            return None
+        dur = row.get("duration_sec")
+        best = None
+        for post in posts:
+            haystack = " ".join(str(post.get(k) or "") for k in ("angle_title", "hook", "caption", "clip_file", "product_name"))
+            if title[:12] not in haystack and haystack[:200].find(title[:8]) < 0:
+                # Fall back to token overlap: need at least 2 shared tokens.
+                row_tokens = {t for t in title.split() if len(t) > 1}
+                hay_tokens = set(haystack.split())
+                if len(row_tokens & hay_tokens) < 2:
+                    continue
+            if dur is not None and post.get("duration_sec") is not None:
+                try:
+                    if abs(float(post["duration_sec"]) - float(dur)) > 3:
+                        continue
+                except (TypeError, ValueError):
+                    pass
+            best = post
+            break
+        return best
+
     # ------------------------------------------------------------------
     # Reading
     # ------------------------------------------------------------------

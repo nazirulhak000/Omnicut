@@ -8,8 +8,15 @@
 
 ## สารบัญ
 
-| รอบ | งาน | วันที่ | ผลลัพธ์ |
+| Round BATCH-RENDER-1 | One-Click Batch Angle Video Render Queue (Background FIFO Worker + Live Overall Progress + Concurrency Lock) | 2026-09-12 | สำเร็จสมบูรณ์ (คิวเรนเดอร์หลายมุมมอง background worker, auto-retry, TaskManager progress, pytest 4 passed, vitest 152 passed, build 4.46s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round HOOK-VAR-1 | AI Hook Variation & A/B Generator (5 marketing styles + 9:16 Safe Zone Preview + 1-Click Apply) | 2026-09-12 | สำเร็จสมบูรณ์ (5 สไตล์ curiosity, warning, social_proof, deal_promo, pain_point + offline fallback + safe-zone preview + pytest 8 passed, vitest 152 passed, build 4.08s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round AGENT-ATTRIB-1 | บังคับระบุ Agent Tooling & AI Model ในประวัติงาน (Rule 14 ใน AGENTS.md และ work_loop.md) | 2026-09-12 | สำเร็จสมบูรณ์ (กำหนดมาตรฐานความรับผิดชอบในการติดตามงาน) |
+| Round BACKUP-1 | One-Click System Backup & Restore (Engine + API + UI Maintenance Tab) | 2026-09-12 | สำเร็จสมบูรณ์ (สำรองข้อมูลปลอดภัย zip + manifest + SHA-256 + SQLite online backup, pytest 8 passed) |
+| Round ASSET-DEDUP-1 | Media Deduplication & Cleanup Engine (Engine + API + UI Scan & Safe Move) | 2026-09-12 | สำเร็จสมบูรณ์ (Multi-tier detection size -> head+tail hash -> sha256, ย้ายไป .trash ปลอดภัย, pytest 4 passed) |
+| Round CALENDAR-1 | Interactive Drag-and-Drop Weekly Content Calendar (ScheduleAgenda view toggle + 7-day grid) | 2026-09-12 | สำเร็จสมบูรณ์ (สลับมุมมอง รายการ/ปฏิทินสัปดาห์ 7 วัน + เลื่อนวันด้วย Drag-and-Drop, vitest 152 passed, build 3.14s) |
 | Round SAFE-1 — Disk Guard ก่อน Render & Auto-Snapshot CapCut Manifest 3 Versions | ป้องกันเรนเดอร์ล้มเหลวด้วย Disk Guard (>3GB) และทำ Rolling Backup 3 versions สำหรับ project.json | 2026-09-12 | สำเร็จสมบูรณ์ (8 backend unit tests passed, 4 baseline tests passed, vitest 151 passed, build pass) |
+| Round TIKTOK-STATS-FIX-1 | แก้บั๊ก result is not defined + ย้ายซิงก์สถิติเป็นแท็บที่ 3 "เครื่องมือ" ใน Extension | 2026-09-12 | สำเร็จสมบูรณ์ (extension 21 passed) |
+| Round TIKTOK-STATS-SCRAPE-1 | ซิงก์สถิติ TikTok Studio ผ่าน Extension (parser + import API + แท็บ Performance) | 2026-09-12 | ไม่ใช้ TikTok API (เลี่ยง review); ignores DOM แบบ tolerant; fuzzy match video_id > ชื่อ+ความยาว; extension 21 tests, pytest 8, frontend 151, build 4.06s |
 | Round ANALYTICS-HUB-1 — พัฒนาเมนูใหม่ "ศูนย์วิเคราะห์ข้อมูลและสถิติรวม" (Analytics & Operations Hub) | สร้างศูนย์รวมการวิเคราะห์ข้อมูลและสถิติการใช้งานทุกมิติของ OmniCut Pro Studio ในหน้าเดียว แยกเป็น 4  | 2026-09-11 | สำเร็จสมบูรณ์ |
 | Round HOOK-DEFAULT-5S-1 — ปรับค่าเริ่มต้น (default) ของป้ายฮุกพาดหัว (Hook Banner) เป็น 5.0 วินาทีตั้งแต่ตอนสร้างโปรเจกต์ | ให้ป้ายฮุกพาดหัว (Hook Header Banner) ทั้งตอนสร้างโปรเจกต์ใหม่ (First Render / One Click / Apply to  | 2026-09-11 | สำเร็จสมบูรณ์ |
 | Round SIDEBAR-PHASE-UI-1 — ออกแบบ sidebar ซ้ายใหม่ด้วย 4-Phase Pipeline Stepper Dots + Shot List Badge + Smart Camera Direction Clarity | 1. แก้ปัญหาแผนถ่ายที่คำแนะนำมุมกล้องยังดูเหมือนเดิมหรือยังไม่แบ่งมุม/แอคชั่นชัดเจน: | 2026-09-11 | สำเร็จสมบูรณ์ |
@@ -33,6 +40,157 @@
 | Round ANALYTICS-CHARTS-POLISH-1 | ปรับขนาดและจัดระเบียบเลย์เอาท์กราฟใน Analytics Hub ให้กระชับ สวยงาม พอดีสายตา ไม่ใหญ่เกินจำเป็น | 2026-09-12 | กราฟเส้น 800x130 widescreen, โดนัท top 4 + อื่นๆ พร้อม label ไม่หาย, TokenDashboard models/tasks จัดแบบ side-by-side; frontend 151 passed, build 3.25s, browser verified |
 | Round USER-GUIDE-4 | คู่มือ interactive 6 ฟีเจอร์ (sticky TOC, เช็กลิสต์ติ๊กได้, accordion, ปุ่มลัด, FAQ ค้นหา) | 2026-09-12 | ไม่เปลี่ยนข้อความ/สี/ลำดับ; frontend 151 passed, build 4.22s |
 | Round ANALYTICS-CHARTS-1 | พัฒนาระบบกราฟเส้น กราฟโดนัท Funnel Chart และเกจวัดแบบ Pure SVG สไตล์ Dark Modern Glassmorphism สำหรับแดชบอร์ดทั้ง 4 แท็บ | 2026-09-12 | สร้าง 4 Pure SVG charts (AreaLine, Donut, Funnel, ProgressRing/Concentric) ฝังครบ 4 แท็บ; vitest 151 passed, backend 4 passed, build 3.44s, browser verified |
+
+## Round BATCH-RENDER-1 — One-Click Batch Angle Video Render Queue (เรนเดอร์หลายมุมมองพร้อมกันในคลิกเดียว)
+
+วันที่: 2026-09-12 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:**
+1. ให้ผู้ใช้สามารถติ๊กเลือกหลายมุมมองขาย (Angles) ของสินค้า แล้วสั่งเรนเดอร์เป็นวิดีโอ MP4 สำเร็จรูปพร้อมกันในคลิกเดียว (Batch Render Queue)
+2. มีคิวประมวลผลเบื้องหลัง (Background FIFO Task Worker) แสดงสถานะและแถบความคืบหน้ารวมบน Activity Drawer และในหน้าจอ `ProductToClip`
+3. ป้องกันปัญหา CPU/Memory Peak ด้วย Concurrency Lock (เรนเดอร์ทีละ 1 มุมมองตามลำดับ) พร้อม Auto-Retry 1 ครั้งเมื่อเรนเดอร์ติดขัด และถ้ามีมุมมองใดผิดพลาด จะไม่ทำให้มุมมองอื่นในคิวหยุดชะงัก
+4. ปฏิบัติตาม Rule 7, Rule 8, Rule 9 และ Rule 14
+
+**การเปลี่ยนแปลง:**
+- `scripts/batch_render.py`: พัฒนา `BatchRenderManager` จัดการคิวงานเรนเดอร์แบบ FIFO ในเธรดเบื้องหลัง, คัดกรองมุมมองที่ยังไม่ได้โพสต์/ตัดต่อ, เชื่อมต่อ `TaskManager` อัปเดตความคืบหน้ารวม (`progress`, `step_label`), และอัปเดตสถานะมุมมองใน `ProductStore` เป็น `in_production` -> `rendered`
+- `scripts/api_batch_render.py`: สร้าง FastAPI Router พร้อม endpoints:
+  - `POST /api/render/batch`: รับคำสั่งเริ่มคิวเรนเดอร์ชุด
+  - `GET /api/render/batch/{batch_id}`: ดึงสถานะและความคืบหน้ารายการในคิว
+  - `POST /api/render/batch/{batch_id}/cancel`: สั่งยกเลิกคิว
+- `scripts/api_server.py`: เมานต์ `batch_render_router` เข้ากับ FastAPI Server
+- `frontend/src/api.js`: เพิ่ม API wrappers `startBatchRender`, `getBatchRenderStatus`, `cancelBatchRender`
+- `frontend/src/components/BatchRenderModal.jsx`: สร้างคอมโพเนนต์โมดอล Dark Glassmorphism ให้เลือกมุมมองด้วย Checkbox, ตรวจสอบสถานะคลิปดิบ, ตั้งค่าเสียงพากย์และสไตล์, แสดงแถบ Progress Bar รวมแบบเรียลไทม์ และปุ่มยกเลิกคิว
+- `frontend/src/components/ProductToClip.jsx`: เพิ่มปุ่ม "เรนเดอร์หลายมุม" บนแถบเครื่องมือมุมมองขาย, เชื่อม state `batchRenderOpen`, ตัวจัดการ `handleBatchCompleted`, และฝัง `BatchRenderModal`
+- `tests/test_batch_render.py`: Unit and Integration tests สำหรับ Batch Render Queue และ FastAPI Endpoints ผ่าน 100% (4/4 passed)
+
+**ผลการทดสอบ:**
+- Backend tests: `pytest tests/test_batch_render.py` — 4 passed (100%)
+- Frontend unit tests: `npm test` — 152 passed, 0 failed
+- Frontend build: `npm run build` — ผ่านสมบูรณ์ (built in 4.46s)
+
+---
+
+
+## Round HOOK-VAR-1 — AI Hook Variation & A/B Generator (สร้างทางเลือกท่อนเปิดคลิป 5 สไตล์)
+
+วันที่: 2026-09-12 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:**
+1. ให้ผู้ใช้สร้างทางเลือกประโยคฮุกเปิดคลิป (Hook Variations) ได้ 5 สไตล์การตลาด (`curiosity`, `warning`, `social_proof`, `deal_promo`, `pain_point`) พร้อมป้ายแบนเนอร์ 3 ชั้น (Brand / Model / Label) และประโยคเปิดคลิป
+2. กดเลือกสลับ Hook Banner และประโยคเปิดคลิปได้ในคลิกเดียว อัปเดตลง SQLite Product Store (`store.db`) หรือ Project Manifest ทันที
+3. ปฏิบัติตาม Rule 7 (ห้ามจุดไข่ปลา `...`/`…` ในบทพูด), Rule 8 (UI คลีน ไร้ `+` นำหน้าหรืออีโมจิซ้อนไอคอน), Rule 9 (คงชื่อแบรนด์/สเปกภาษาอังกฤษ), และ Rule 14 (ระบุตัวตนและโมเดลผู้ทำ)
+4. มี Offline Fallback Generator คุณภาพสูง ทำงานได้ทันทีแม้ไม่มีเน็ตหรือไม่มี AI Quota พร้อมโมดอลพรีวิว Safe Zone 9:16 เสมือนจริง
+
+**การเปลี่ยนแปลง:**
+- `scripts/hook_generator.py`: พัฒนา `HookVariationEngine` รองรับ 5 สไตล์การตลาด, ระบบกำจัดจุดไข่ปลา (`clean_text`), กรองคำพูด TTS (`TTSSanitizer.clean`), และระบบ Offline Deterministic Generator
+- `scripts/api_hooks.py`: เพิ่ม API endpoints:
+  - `GET /api/hooks/styles`: รายการสไตล์และสีประจำสไตล์
+  - `POST /api/hooks/generate`: สร้าง Hook 5 สไตล์ด้วย AI หรือ Offline
+  - `POST /api/hooks/apply-angle`: ปรับใช้ Hook กับมุมมองและสคริปต์ใน Product Store
+  - `POST /api/hooks/apply-project`: ปรับใช้ Hook กับ Project Manifest สำหรับตัดต่อ
+- `scripts/api_server.py`: เชื่อมโยง `hooks_router` เข้ากับ FastAPI Server หลัก
+- `frontend/src/api.js`: เพิ่มฟังก์ชันเชื่อมต่อ `getHookStyles`, `generateHookVariations`, `applyAngleHook`, `applyProjectHook` พร้อมซ่อม syntax ของ `cleanAssetDuplicates`
+- `frontend/src/components/HookVariationModal.jsx`: สร้างคอมโพเนนต์โมดอล Dark Glassmorphism แสดงการ์ด 5 สไตล์, พรีวิว 9:16 Safe Zone (Overlay Banner + Subtitle Safe Zone), ป้ายแจ้งสไตล์, ปุ่มคัดลอก และปุ่มปรับใช้ Hook
+- `frontend/src/components/ProductToClip.jsx`: เชื่อมต่อปุ่มเปิดโมดอล Hook Variations บน `AngleActiveWorkbench` และ `ScriptAccordionItem`, เพิ่ม state `hookModalAngle`, ตัวจัดการ `handleHookApplied`, และฝัง `HookVariationModal`
+- `tests/test_hook_generator.py`: Unit tests สำหรับ Hook Engine 3 ข้อ ผ่าน 100%
+- `tests/test_api_hooks.py`: Integration tests สำหรับ FastAPI Hooks Router 5 ข้อ ผ่าน 100%
+
+**ผลการทดสอบ:**
+- Backend tests: `pytest tests/test_hook_generator.py tests/test_api_hooks.py` — 8 passed (100%)
+- Frontend unit tests: `npm test` — 152 passed, 0 failed
+- Frontend build: `npm run build` — ผ่านสมบูรณ์ (built in 4.08s)
+
+---
+
+
+## Round AGENT-ATTRIB-1 — บังคับระบุ Agent Tooling & AI Model ในประวัติงาน
+
+วันที่: 2026-09-12 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:**
+1. กำหนดกฎเหล็ก Rule 14 ใน `AGENTS.md` และ `.agents/rules/work_loop.md` ให้ทุก AI Agent ที่ทำงานในระบบต้องลงบันทึกชื่อโปรแกรมและโมเดลที่ใช้ เช่น `ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)` หรือ `Claude Code (Claude 3.7 Sonnet)` ในทุกบล็อกของ `HISTORY.md` และ `TODO.md`
+2. ช่วยให้เจ้าของโปรเจกต์ตรวจสอบย้อนหลังได้ชัดเจน 100% ว่างานหรือบั๊กใดเกิดขึ้นจากใครและโมเดลรุ่นใด
+
+**การเปลี่ยนแปลง:**
+- `AGENTS.md`: เพิ่มข้อ 14 "มาตรฐานการระบุตัวตนและโมเดลของเอเจน (Strict Agent & Model Attribution)"
+- `.agents/rules/work_loop.md`: เพิ่มข้อ 2.7 และอัปเดต Checklist สรุปงานพร้อมตัวอย่างรูปแบบที่ถูกต้อง
+
+---
+
+## Round BACKUP-1 — One-Click System Backup & Restore
+
+วันที่: 2026-09-12 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:**
+1. สร้างระบบสำรองข้อมูลระบบแบบคลิกเดียว (One-Click Backup) ครอบคลุมโปรเจกต์ใน `03_Projects/`, ฐานข้อมูล `store.db` (ด้วย `sqlite3.Connection.backup` ป้องกัน lock contention), และเอกสารการตั้งค่าใน `_Docs/*.json`
+2. สร้าง Backup Manifest พร้อมคำนวณ SHA-256 checksum และระบบตรวจสอบความสมบูรณ์ (Verify)
+3. มี Endpoint ดาวน์โหลดไฟล์ zip และลบไฟล์สำรองเก่าอย่างปลอดภัย ป้องกัน Path Traversal
+4. มีหน้าจอจัดการ Backup ใน `SystemSettings.jsx` แท็บ "สำรองข้อมูล & ไฟล์ซ้ำ"
+
+**การเปลี่ยนแปลง:**
+- `scripts/backup_engine.py`: `BackupEngine` รองรับ create, list, verify, download, delete
+- `scripts/api_backup.py`: REST endpoints `/api/backup/create`, `/api/backup/list`, `/api/backup/verify/{filename}`, `/api/backup/download/{filename}`, `/api/backup/{filename}`
+- `scripts/api_server.py`: Mount `backup_router`
+- `frontend/src/api.js`: เพิ่มฟังก์ชันเชื่อมโยง API การสำรองข้อมูล
+- `frontend/src/components/SystemSettings.jsx`: เพิ่มแท็บ Maintenance ("สำรองข้อมูล & ไฟล์ซ้ำ") พร้อมปุ่มสร้างสำรองทันที รายการไฟล์ ขนาด วันที่ และปุ่มดาวน์โหลด/ลบ
+- `tests/test_backup_engine.py` & `tests/test_api_backup.py`: 8 unit tests ผ่าน 100%
+
+---
+
+## Round ASSET-DEDUP-1 — Media Deduplication & Cleanup Engine
+
+วันที่: 2026-09-12 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:**
+1. ตรวจสอบและค้นหาไฟล์วิดีโอ/ภาพที่ซ้ำกันใน `00_Inbox` และ `01_Raw` โดยไม่กินทรัพยากรเครื่อง
+2. ใช้อัลกอริทึม Multi-tier (Filter ตามขนาดไฟล์ -> Quick Hash 64KB หัว+ท้าย -> Full SHA-256 เฉพาะกลุ่มที่ตรงกัน)
+3. ลบอย่างปลอดภัย: ไม่ลบถาวรทันที แต่ย้ายเข้า `06_Archive/.trash/` เพื่อให้กู้คืนได้
+4. มีหน้า UI สแกน แสดงรายการไฟล์ซ้ำ พื้นที่ที่สามารถกู้คืนได้ และปุ่มล้างไฟล์ซ้ำที่เลือก
+
+**การเปลี่ยนแปลง:**
+- `scripts/asset_dedup.py`: `AssetDedupEngine` สแกนและจัดกลุ่มไฟล์ซ้ำ พร้อมย้ายไปถังขยะอย่างปลอดภัย
+- `scripts/api_asset_dedup.py`: REST endpoints `/api/asset-dedup/scan`, `/api/asset-dedup/clean`
+- `scripts/api_server.py`: Mount `asset_dedup_router`
+- `frontend/src/api.js`: เพิ่มฟังก์ชัน `scanAssetDuplicates`, `cleanAssetDuplicates`
+- `frontend/src/components/SystemSettings.jsx`: ฝังเครื่องมือสแกนไฟล์ซ้ำและรายงานพื้นที่ในแท็บ Maintenance
+- `tests/test_asset_dedup.py` & `tests/test_api_asset_dedup.py`: 4 unit tests ผ่าน 100%
+
+---
+
+## Round CALENDAR-1 — Interactive Drag-and-Drop Weekly Content Calendar
+
+วันที่: 2026-09-12 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:**
+1. ยกระดับหน้า Schedule Agenda ด้วยการเพิ่มโหมดสลับมุมมอง: "รายการ" (List) และ "ปฏิทินสัปดาห์" (Weekly Calendar)
+2. ปฏิทินแสดง 7 วัน (จันทร์ – อาทิตย์) ตามโซนเวลา `Asia/Bangkok` พร้อมระบบนำทางสัปดาห์ก่อนหน้า/สัปดาห์นี้/สัปดาห์ถัดไป
+3. แต่ละวันแสดงการ์ดคลิปที่จัดคิวไว้ สามารถกดดูพรีวิว, สถานะ, เวลา, ภาพปก และปุ่มแอ็กชันส่งให้ Extension
+4. รองรับการลากการ์ดคลิป (Drag and Drop) ข้ามวันเพื่อเปลี่ยนกำหนดการโพสต์อัตโนมัติทันที
+5. มีปุ่มเพิ่มคลิปด่วนสำหรับวันนั้นๆ ในทุกคอลัมน์
+
+**การเปลี่ยนแปลง:**
+- `frontend/src/components/ScheduleAgenda.jsx`: เพิ่ม `viewMode` toggle, แถบนำทางสัปดาห์, เรนเดอร์ 7-column grid พร้อม drag-and-drop targets
+- `frontend/src/lib/scheduleQueue.test.js`: เพิ่มเทสครอบคลุมการคำนวณ 7 วันสัปดาห์
+- Vitest: 152 passed
+- Vite Build: ผ่านสมบูรณ์ (3.14s)
+
+---
+
+## Round TIKTOK-STATS-FIX-1 — แก้บั๊ก result is not defined + ย้ายซิงก์สถิติเป็นแท็บที่ 3 "เครื่องมือ" ใน Extension
+
+วันที่: 2026-09-12 · สั่งโดย: user · ดำเนินการโดย: Claude Code / Gemini CLI · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:**
+1. แก้บั๊ก `result is not defined` ที่เกิดขึ้นขณะเรียกซิงก์สถิติใน `sidepanel.js`
+2. ย้ายปุ่มซิงก์สถิติแยกออกมาเป็นแท็บที่ 3 "เครื่องมือ" ให้ชัดเจน ไม่ปะปนกับขั้นตอนการโพสต์ตาม UI Clean Standard
+3. รันเทสฝั่ง extension ครบ 21 ข้อ
+
+**การเปลี่ยนแปลง:**
+- `tiktok_autopost_extension/sidepanel.js`: แก้ scope ตัวแปร `result` และผูก event กับแท็บเครื่องมือ
+- `tiktok_autopost_extension/sidepanel.html`: เพิ่มแท็บเครื่องมือ (Tools) และจัดเลย์เอาต์ปุ่มซิงก์สถิติ
+- `tiktok_autopost_extension/background.test.cjs`: เพิ่มเทสตรวจสอบแท็บเครื่องมือ (21 passed)
+
+---
 
 ## Round SAFE-1 — Disk Guard ก่อน Render & Auto-Snapshot CapCut Manifest 3 Versions
 
@@ -3241,6 +3399,37 @@ Date: 2026-09-07; Requested by: user; Status: complete (browser gate deferred; b
 - [x] `python -c "import scripts.api_server as app; print(len(app.app.routes))"` — 77 routes
 - [x] `python -m pytest tests/ -q -p no:cacheprovider` — 344 passed, 0 failed
 - [x] `npm test` ใน frontend — 54 passed, 0 failed
+## Round TIKTOK-STATS-SCRAPE-1 — ซิงก์สถิติ TikTok Studio ผ่าน Extension
+
+วันที่: 2026-09-12 · สั่งโดย: user (เลือกวิธี extension ไม่ใช้ API เพราะไม่ deploy cloud) · สถานะ: เสร็จสมบูรณ์
+
+**แนวทาง:** ไม่ง้อ TikTok API (เลี่ยง Developer review + Terms/Privacy URL) ใช้ session login จริงของ user ในเบราว์เซอร์ตัวเอง Extension อ่านตารางหน้า Studio Posts แล้ว POST กลับ backend local-only ทั้งหมด
+
+### สิ่งที่ทำ
+
+1. `tiktok_autopost_extension/stats_parser.js`: parse แถวตาราง Studio Posts (ชื่อคลิป, ยอดดู/ถูกใจ/คอมเมนต์/แชร์, thumbnail, video_url/id, ความยาว) แบบ tolerant — หา column ด้วย header text (ไทย/อังกฤษ) ไม่ใช้ index ตายตัว รองรับ comma/K/M suffix + dash กันเลขเพี้ยนเมื่อ TikTok เปลี่ยน DOM
+2. `stats_parser.test.cjs`: 5 tests ด้วย fake DOM (ไม่มี dependency) — header lookup เจอ order ใดก็ตาม, missing table คืน error ไทย, row parse ครบทุก field, count suffix, video id regex
+3. `sidepanel.html/js`: การ์ด ซิงก์สถิติ ที่ท้าย panel — ปุ่มตรวจ active tab เป็น TikTok ก่อน, inject parser ผ่าน `chrome.scripting.executeScript(files:)`, POST `/api/tiktok-stats/import`, แสดงผล matched/updated/unmatched; manifest เพิ่ม permission `scripting`
+4. `scripts/api_tiktok_stats.py`: `POST /api/tiktok-stats/import` (validate ≤200 rows, clean count, upsert) + `GET /api/tiktok-stats/latest`; เมานต์ใน api_server
+5. `scripts/post_log.py`: method `upsert_tiktok_stats` + `_fuzzy_match` — match ลำดับ video_id ตรง > ชื่อ+คำซ้อน+ความยาวคลิป (±3s); เก็บ `tiktok_video_id/tiktok_url/tiktok_synced_at`; merge metrics ไม่เขียนทับ orders/commission ที่กรอกมือ
+6. `tests/test_tiktok_stats_import.py`: 4 tests offline (tmp storage, monkeypatch) — exact video id, fuzzy match + skip unknown, reject empty/oversized, latest sorted
+7. `frontend/src/components/analytics/tabs/PerformanceAnalyticsTab.jsx` + แท็บที่ 5 ใน AnalyticsHub: 4 KPI (วิวรวม, engagement เฉลี่ย, ถูกใจรวม, คลิปปังที่สุด), AreaLineChart ยอดวิวต่อคลิป, Winner/Loser banner พร้อมคำแนะนำมุมขาย, ตารางผลงานแบบเดียวกับในภาพ + คอลัมน์สินค้า/มุมขาย/Engagement + ลิงก์เปิดคลิป TikTok + empty state บอกวิธีซิงก์
+
+### Gate
+
+- `node --check stats_parser.js` + `sidepanel.js` — ผ่าน
+- `node --test background.test.cjs + stats_parser.test.cjs` — 21 passed
+- `pytest tests/test_tiktok_stats_import.py + test_analytics_hub.py` — 8 passed
+- `npm test` — 151 passed · `npm run build` — 4.06s
+- `git diff --check` — สะอาด
+- ไม่แตะ automation.js steps 1-6 และปุ่ม Post เดิม
+
+### Notes
+
+- `chrome.scripting` จะรัน func ใน isolated world ที่ไม่มี parser จาก sidepanel → ต้อง inject `files:['stats_parser.js']` ก่อนทุกครั้ง
+- ต้องโหลด extension ใหม่จาก chrome://extensions หลังเพิ่ม permission `scripting`
+- ตัวเลขที่กรอกมือ (orders/commission) ยังอยู่ ไม่ถูกทับ — merge เฉพาะ views/likes/comments/shares ที่เป็น int
+- รอบหน้ากรณี unmatched: ปุ่มจับคู่ manual + แจ้งเตือนคลิปปังใน Activity Center (บันทึกเป็น TIKTOK-STATS-SCRAPE-2 backlog ใน TODO.md)
 - [x] `npm run build` ใน frontend — ผ่านฉลุย 0 warning
 
 ### Notes
