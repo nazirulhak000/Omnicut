@@ -147,7 +147,7 @@ export default function ShotListModal({
 
                 <div className="p-2 rounded-lg bg-white/[0.03] border border-white/[0.05]">
                   <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">บทพูด / เสียงพากย์</span>
-                  <p className="text-xs text-slate-200 font-kanit leading-snug">{beat.text}</p>
+                  <p className="text-xs text-slate-200 leading-snug">{beat.text}</p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-xs">

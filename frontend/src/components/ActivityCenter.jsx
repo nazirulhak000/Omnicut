@@ -150,7 +150,7 @@ export function ActivityDrawer() {
               <Sparkles className="w-4 h-4" />
             </div>
             <div className="min-w-0">
-              <h2 className="text-sm font-bold text-white font-kanit flex items-center gap-1.5 truncate">
+              <h2 className="text-sm font-bold text-white flex items-center gap-1.5 truncate">
                 <span>ศูนย์ติดตามกิจกรรม</span>
                 {activeCount > 0 && (
                   <span className="px-1.5 py-0.5 rounded-full bg-[#25F4EE]/20 text-[#25F4EE] text-[10px] font-mono font-bold animate-pulse flex-shrink-0">
@@ -508,7 +508,7 @@ export function GlobalTaskNotification() {
             }`}>
               {isSuccess ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
             </div>
-            <h4 className="text-xs font-bold text-white font-kanit">
+            <h4 className="text-xs font-bold text-white">
               {notificationToast.title}
             </h4>
           </div>

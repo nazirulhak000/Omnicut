@@ -15,7 +15,7 @@ export default function LoadingSpinner({ message = 'กำลังโหลด�
       </div>
 
       <div className="text-center space-y-1 z-10">
-        <p className="text-xs sm:text-sm font-bold text-white font-kanit tracking-wide">
+        <p className="text-xs sm:text-sm font-bold text-white tracking-wide">
           {message}
         </p>
         <p className="text-sm text-slate-500 font-mono">

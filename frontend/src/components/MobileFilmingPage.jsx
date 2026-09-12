@@ -536,7 +536,7 @@ export default function MobileFilmingPage({ sessionId, onExit }) {
                 </span>
                 <span className="text-xs font-mono text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.9)]">{formatSeconds(currentBeat.planned_duration)}</span>
               </div>
-              <p className="text-sm text-white font-kanit leading-snug [text-shadow:0_1px_4px_rgba(0,0,0,0.9)]">{currentBeat.text}</p>
+              <p className="text-sm text-white leading-snug [text-shadow:0_1px_4px_rgba(0,0,0,0.9)]">{currentBeat.text}</p>
               {(() => {
                 const parts = (currentBeat.camera_direction || '').split('—').map((s) => s.trim());
                 const cameraAngle = parts[0] || '';

@@ -951,7 +951,7 @@ export default function AssetPanel({
         {tab === 'srt' && (
           <div className="space-y-3 text-left">
             <div className="p-2.5 rounded-xl bg-gradient-to-r from-[#25F4EE]/10 to-blue-500/10 border border-[#25F4EE]/20 space-y-1">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-[#25F4EE] font-kanit">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-[#25F4EE]">
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>AI Auto-SRT (ถอดซับแม่นยำ)</span>
               </div>

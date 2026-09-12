@@ -60,7 +60,7 @@ export default function SubSrtTool({ videos = [], selectedVideo }) {
             <FileText className="w-6 h-6 text-slate-950 font-bold" />
           </div>
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-white font-kanit flex items-center gap-2">
+            <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
               AI Auto-SRT Generator (ถอดซับแม่นยำ 100% สไตล์ CapCut)
             </h2>
             <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
@@ -73,7 +73,7 @@ export default function SubSrtTool({ videos = [], selectedVideo }) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Settings Column */}
         <div className="glass-card p-5 sm:p-6 space-y-4">
-          <h3 className="text-xs font-bold text-white flex items-center gap-2 pb-2 border-b border-white/[0.08] font-kanit">
+          <h3 className="text-xs font-bold text-white flex items-center gap-2 pb-2 border-b border-white/[0.08]">
             <Video className="w-4 h-4 text-[#25F4EE]" />
             เลือกคลิปและตั้งค่าการถอดซับ
           </h3>
@@ -188,7 +188,7 @@ export default function SubSrtTool({ videos = [], selectedVideo }) {
         {/* Results Column */}
         <div className="glass-card p-5 sm:p-6 space-y-4">
           <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
-            <h3 className="text-xs font-bold text-white flex items-center gap-2 font-kanit">
+            <h3 className="text-xs font-bold text-white flex items-center gap-2">
               <FileText className="w-4 h-4 text-[#FE2C55]" />
               ผลลัพธ์ไฟล์ซับไตเติล (.SRT / .VTT)
             </h3>

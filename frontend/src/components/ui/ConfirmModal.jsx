@@ -53,7 +53,7 @@ export function ConfirmModal({
             <IconComponent className="w-5 h-5 stroke-[2.2]" />
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="text-base sm:text-lg font-bold text-white font-kanit leading-snug">
+            <h3 className="text-base sm:text-lg font-bold text-white leading-snug">
               {title}
             </h3>
             {description && (

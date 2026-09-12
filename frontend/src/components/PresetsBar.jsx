@@ -89,7 +89,7 @@ export default function PresetsBar({
                   (เลือกสลับสคริปต์ได้ 4 สไตล์)
                 </span>
               </div>
-              <h4 className="text-xs sm:text-sm font-bold text-white font-kanit truncate max-w-xs sm:max-w-md md:max-w-xl mt-0.5">
+              <h4 className="text-xs sm:text-sm font-bold text-white truncate max-w-xs sm:max-w-md md:max-w-xl mt-0.5">
                 {title || 'สินค้าปัจจุบัน'}
               </h4>
             </div>

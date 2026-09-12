@@ -688,7 +688,7 @@ export default function MediaAssetsHub({ status }) {
             <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
               <div className="flex items-center gap-2">
                 <Folder className="w-4 h-4 text-[#25F4EE]" />
-                <h3 className="text-sm sm:text-base font-bold text-white font-kanit">
+                <h3 className="text-sm sm:text-base font-bold text-white">
                   ไดเรกทอรีจัดเก็บไฟล์ในเครื่องคอมพิวเตอร์
                 </h3>
               </div>
@@ -748,7 +748,7 @@ export default function MediaAssetsHub({ status }) {
             <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-xl space-y-3">
               <div className="flex items-center gap-2 pb-2 border-b border-white/[0.08]">
                 <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <h3 className="text-sm font-bold text-white font-kanit">
+                <h3 className="text-sm font-bold text-white">
                   มาตรฐานระดับเสียงวิดีโอ (Audio Mix Standard)
                 </h3>
               </div>
@@ -757,17 +757,17 @@ export default function MediaAssetsHub({ status }) {
               </p>
               <div className="grid grid-cols-3 gap-2 text-center text-xs">
                 <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06]">
-                  <span className="text-[10px] text-slate-400 block font-kanit">เสียงพากย์หลัก (Voice)</span>
+                  <span className="text-[10px] text-slate-400 block">เสียงพากย์หลัก (Voice)</span>
                   <span className="text-sm font-bold font-mono text-[#25F4EE] mt-0.5 block">100% (1.0)</span>
                   <span className="text-[10px] text-slate-500">Edge-TTS +15%</span>
                 </div>
                 <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06]">
-                  <span className="text-[10px] text-slate-400 block font-kanit">เสียงเอฟเฟกต์ (SFX)</span>
+                  <span className="text-[10px] text-slate-400 block">เสียงเอฟเฟกต์ (SFX)</span>
                   <span className="text-sm font-bold font-mono text-amber-300 mt-0.5 block">28% (0.28)</span>
                   <span className="text-[10px] text-slate-500">Whoosh / Ding</span>
                 </div>
                 <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06]">
-                  <span className="text-[10px] text-slate-400 block font-kanit">เพลงประกอบ (BGM)</span>
+                  <span className="text-[10px] text-slate-400 block">เพลงประกอบ (BGM)</span>
                   <span className="text-sm font-bold font-mono text-[#FE2C55] mt-0.5 block">12% (0.12)</span>
                   <span className="text-[10px] text-slate-500">ไม่กลบเสียงพูด</span>
                 </div>
@@ -778,7 +778,7 @@ export default function MediaAssetsHub({ status }) {
             <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-xl space-y-3">
               <div className="flex items-center gap-2 pb-2 border-b border-white/[0.08]">
                 <Cpu className="w-4 h-4 text-[#25F4EE]" />
-                <h3 className="text-sm font-bold text-white font-kanit">
+                <h3 className="text-sm font-bold text-white">
                   สถานะ Video Engine & Subprocess
                 </h3>
               </div>
@@ -966,7 +966,7 @@ export default function MediaAssetsHub({ status }) {
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/[0.08] text-[#25F4EE] border border-white/[0.1] font-mono">
                       {activeAssetTab.toUpperCase()} INSPECTOR
                     </span>
-                    <h3 className="text-base sm:text-lg font-bold text-white font-kanit truncate mt-1">
+                    <h3 className="text-base sm:text-lg font-bold text-white truncate mt-1">
                       {selectedAsset.label || selectedAsset.name}
                     </h3>
                     <p className="text-xs text-slate-400 font-mono truncate mt-0.5">
@@ -1007,7 +1007,7 @@ export default function MediaAssetsHub({ status }) {
                     <div className="p-4 sm:p-5 rounded-2xl bg-black/60 border border-white/[0.08] text-center space-y-4 relative overflow-hidden">
                       <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
                         <span>{formatSec(audioCurrentTime)}</span>
-                        <span className="text-[11px] text-[#25F4EE] font-bold font-kanit">
+                        <span className="text-[11px] text-[#25F4EE] font-bold">
                           {activeAssetTab === 'sfx' ? 'มาตรฐาน SFX: 28%' : 'มาตรฐาน BGM: 12%'}
                         </span>
                         <span>{formatSec(audioDuration)}</span>
@@ -1067,19 +1067,19 @@ export default function MediaAssetsHub({ status }) {
                     {/* Audio Technical Details Grid */}
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
                       <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06]">
-                        <span className="text-[10px] text-slate-400 block font-kanit">หมวดหมู่</span>
+                        <span className="text-[10px] text-slate-400 block">หมวดหมู่</span>
                         <span className="text-white font-bold truncate block mt-0.5">
                           {selectedAsset.category || (activeAssetTab === 'sfx' ? 'Sound Effect' : 'Background Music')}
                         </span>
                       </div>
                       <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06]">
-                        <span className="text-[10px] text-slate-400 block font-kanit">ขนาดไฟล์</span>
+                        <span className="text-[10px] text-slate-400 block">ขนาดไฟล์</span>
                         <span className="text-cyan-300 font-mono font-bold block mt-0.5">
                           {selectedAsset.size || (selectedAsset.size_mb ? `${selectedAsset.size_mb} MB` : 'Audio Track')}
                         </span>
                       </div>
                       <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06]">
-                        <span className="text-[10px] text-slate-400 block font-kanit">อัตราเสียงมาตรฐาน</span>
+                        <span className="text-[10px] text-slate-400 block">อัตราเสียงมาตรฐาน</span>
                         <span className="text-amber-300 font-mono font-bold block mt-0.5">
                           {activeAssetTab === 'sfx' ? '0.28 (28%)' : '0.12 (12%)'}
                         </span>
@@ -1094,7 +1094,7 @@ export default function MediaAssetsHub({ status }) {
                     {/* Live Font Tester Box */}
                     <div className="p-4 rounded-2xl bg-black/50 border border-white/[0.08] space-y-3">
                       <div className="flex items-center justify-between text-xs font-bold text-slate-300">
-                        <span className="font-kanit">ทดสอบพิมพ์ข้อความสด</span>
+                        <span className="">ทดสอบพิมพ์ข้อความสด</span>
                         <span className="text-slate-500 font-mono text-[11px]">ขนาด: {fontSizePreview}px</span>
                       </div>
                       <input
@@ -1102,7 +1102,7 @@ export default function MediaAssetsHub({ status }) {
                         value={customFontText}
                         onChange={(e) => setCustomFontText(e.target.value)}
                         placeholder="พิมพ์ข้อความทดสอบฟอนต์..."
-                        className="w-full p-2.5 rounded-xl bg-black/60 border border-white/[0.12] text-white text-xs sm:text-sm font-kanit focus:outline-none focus:border-[#25F4EE]"
+                        className="w-full p-2.5 rounded-xl bg-black/60 border border-white/[0.12] text-white text-xs sm:text-sm focus:outline-none focus:border-[#25F4EE]"
                       />
 
                       {/* Font Size Slider */}
@@ -1140,11 +1140,11 @@ export default function MediaAssetsHub({ status }) {
                     {/* Font Specs */}
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06]">
-                        <span className="text-[10px] text-slate-400 block font-kanit">Font Family</span>
+                        <span className="text-[10px] text-slate-400 block">Font Family</span>
                         <span className="text-white font-mono font-bold block mt-0.5">{selectedAsset.family || selectedAsset.name}</span>
                       </div>
                       <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06]">
-                        <span className="text-[10px] text-slate-400 block font-kanit">ฟอร์แมตไฟล์</span>
+                        <span className="text-[10px] text-slate-400 block">ฟอร์แมตไฟล์</span>
                         <span className="text-[#25F4EE] font-mono font-bold block mt-0.5">TrueType / OpenType (.ttf/.otf)</span>
                       </div>
                     </div>
@@ -1156,7 +1156,7 @@ export default function MediaAssetsHub({ status }) {
                   <div className="space-y-4">
                     {/* Background Toggle (Checkerboard vs Dark) */}
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-400 font-kanit">ตรวจสอบพื้นหลังโปร่งใส (Alpha Transparency)</span>
+                      <span className="text-slate-400">ตรวจสอบพื้นหลังโปร่งใส (Alpha Transparency)</span>
                       <button
                         type="button"
                         onClick={() => setCheckerboardBg(!checkerboardBg)}
@@ -1182,7 +1182,7 @@ export default function MediaAssetsHub({ status }) {
                     </div>
 
                     {/* Rule 4 Compliance Banner */}
-                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200/90 leading-relaxed font-kanit">
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200/90 leading-relaxed">
                       <span className="font-bold block text-amber-300 mb-0.5">
                         มาตรฐานป้าย 3D Universal Badges (กฎเหล็กข้อ 4 & 6)
                       </span>
@@ -1191,11 +1191,11 @@ export default function MediaAssetsHub({ status }) {
 
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06]">
-                        <span className="text-[10px] text-slate-400 block font-kanit">ชื่อไฟล์</span>
+                        <span className="text-[10px] text-slate-400 block">ชื่อไฟล์</span>
                         <span className="text-white font-mono font-bold block truncate mt-0.5">{selectedAsset.name}</span>
                       </div>
                       <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06]">
-                        <span className="text-[10px] text-slate-400 block font-kanit">ชนิดไฟล์</span>
+                        <span className="text-[10px] text-slate-400 block">ชนิดไฟล์</span>
                         <span className="text-emerald-300 font-mono font-bold block mt-0.5">PNG โปร่งใส (Transparent)</span>
                       </div>
                     </div>
@@ -1208,7 +1208,7 @@ export default function MediaAssetsHub({ status }) {
                     {/* Color Swatch Card */}
                     <div className="p-6 rounded-2xl bg-gradient-to-r from-amber-600 via-rose-600 to-indigo-700 border border-white/[0.1] shadow-2xl text-center space-y-2">
                       <Palette className="w-8 h-8 mx-auto text-white drop-shadow" />
-                      <h4 className="text-lg font-bold text-white drop-shadow font-kanit">
+                      <h4 className="text-lg font-bold text-white drop-shadow">
                         {selectedAsset.name.replace('.cube', '')}
                       </h4>
                       <p className="text-xs text-white/80 font-mono">
@@ -1216,7 +1216,7 @@ export default function MediaAssetsHub({ status }) {
                       </p>
                     </div>
 
-                    <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06] text-xs text-slate-300 space-y-1.5 font-kanit leading-relaxed">
+                    <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06] text-xs text-slate-300 space-y-1.5 leading-relaxed">
                       <span className="font-bold text-[#25F4EE] block">การใช้งานในขั้นตอนตัดต่อ:</span>
                       <p>
                         LUTs จะถูกโหลดผ่าน FFmpeg `lut3d` filter ในระหว่างกระบวนการเรนเดอร์ สามารถเลือกใช้เพื่อยกระดับโทนสีให้คลิปดูพรีเมียม สไตล์ภาพยนตร์ (Cinematic Grade)
@@ -1225,13 +1225,13 @@ export default function MediaAssetsHub({ status }) {
 
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06]">
-                        <span className="text-[10px] text-slate-400 block font-kanit">ขนาดไฟล์ LUT</span>
+                        <span className="text-[10px] text-slate-400 block">ขนาดไฟล์ LUT</span>
                         <span className="text-cyan-300 font-mono font-bold block mt-0.5">
                           {selectedAsset.size_mb ? `${selectedAsset.size_mb} MB` : 'Standard 33x33x33'}
                         </span>
                       </div>
                       <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06]">
-                        <span className="text-[10px] text-slate-400 block font-kanit">ความเข้ากันได้</span>
+                        <span className="text-[10px] text-slate-400 block">ความเข้ากันได้</span>
                         <span className="text-emerald-300 font-mono font-bold block mt-0.5">FFmpeg / CapCut PC</span>
                       </div>
                     </div>
@@ -1256,11 +1256,11 @@ export default function MediaAssetsHub({ status }) {
 
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06]">
-                        <span className="text-[10px] text-slate-400 block font-kanit">หมวดหมู่</span>
+                        <span className="text-[10px] text-slate-400 block">หมวดหมู่</span>
                         <span className="text-white font-bold truncate block mt-0.5">{selectedAsset.category || 'Effect'}</span>
                       </div>
                       <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06]">
-                        <span className="text-[10px] text-slate-400 block font-kanit">ชนิดไฟล์</span>
+                        <span className="text-[10px] text-slate-400 block">ชนิดไฟล์</span>
                         <span className="text-fuchsia-300 font-mono font-bold block mt-0.5">WebM VP9 โปร่งใส (Alpha)</span>
                       </div>
                     </div>

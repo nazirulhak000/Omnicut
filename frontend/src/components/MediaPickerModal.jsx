@@ -282,7 +282,7 @@ export default function MediaPickerModal({
               <Film className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white font-kanit flex items-center gap-2">
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
                 <span>{title}</span>
                 {productName && (
                   <span className="text-xs font-normal text-slate-400 truncate max-w-[200px]">
@@ -454,7 +454,7 @@ export default function MediaPickerModal({
                   <Upload className="w-7 h-7 stroke-[2.2]" />
                 </div>
                 <div>
-                  <h4 className="text-base font-bold text-white font-kanit">เลือกวิดีโอจากอุปกรณ์</h4>
+                  <h4 className="text-base font-bold text-white">เลือกวิดีโอจากอุปกรณ์</h4>
                   <p className="text-xs text-slate-400 mt-1">เปิดคลังรูปภาพหรือไฟล์ในเครื่อง รองรับ MOV, MP4, 4K HDR</p>
                 </div>
                 <div className="inline-flex items-center justify-center font-bold px-4 py-2 rounded-xl text-xs gap-2 bg-[#25F4EE] text-slate-950 shadow-md">

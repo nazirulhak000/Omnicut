@@ -16,7 +16,7 @@ export function PageHeader({
   quickSwitcher,
   actions,
   secondRow,
-  titleClassName = 'text-base sm:text-lg md:text-xl font-black text-white font-kanit tracking-tight',
+  titleClassName = 'text-base sm:text-lg md:text-xl font-black text-white tracking-tight',
 }) {
   return (
     <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-3 sm:p-3.5 shadow-lg space-y-2.5 sm:space-y-3">

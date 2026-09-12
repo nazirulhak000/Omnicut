@@ -180,7 +180,7 @@ const KanbanCard = memo(function KanbanCard({
             <div className="flex items-center justify-between gap-1 text-xs">
               <span
                 onClick={() => onInspectAngle(ang)}
-                className="font-bold text-white truncate text-xs font-kanit hover:text-[#25F4EE] cursor-pointer flex items-center gap-1 min-w-0"
+                className="font-bold text-white truncate text-xs hover:text-[#25F4EE] cursor-pointer flex items-center gap-1 min-w-0"
                 title={`คลิกเพื่อดูรายละเอียดเชิงลึกของ: ${ang.project_name || ang.parentProduct?.name}`}
               >
                 {ang.parentProduct?.product_code && (
@@ -384,7 +384,7 @@ const KanbanCard = memo(function KanbanCard({
       <div className="flex items-center justify-between gap-1.5 text-xs">
         <span
           onClick={() => onInspectAngle(ang)}
-          className="font-bold text-white truncate flex-1 min-w-0 font-kanit text-sm hover:text-[#25F4EE] cursor-pointer flex items-center gap-1.5"
+          className="font-bold text-white truncate flex-1 min-w-0 text-sm hover:text-[#25F4EE] cursor-pointer flex items-center gap-1.5"
           title={`คลิกเพื่อดูรายละเอียดเชิงลึกของ: ${ang.project_name || ang.parentProduct?.name}`}
         >
           {ang.parentProduct?.product_code && (
@@ -589,7 +589,7 @@ const MobileTableRowCard = memo(function MobileTableRowCard({
         <div className="flex items-center gap-1.5 min-w-0 flex-1">
           <span
             onClick={() => onInspectAngle(ang)}
-            className="font-bold text-white text-xs sm:text-sm font-kanit truncate hover:text-[#25F4EE] cursor-pointer"
+            className="font-bold text-white text-xs sm:text-sm truncate hover:text-[#25F4EE] cursor-pointer"
           >
             {ang.project_name || ang.parentProduct?.name}
           </span>
@@ -737,7 +737,7 @@ const TableRow = memo(function TableRow({
           <div className="flex items-center gap-1.5 flex-wrap">
             <span
               onClick={() => onInspectAngle(ang)}
-              className="font-bold text-white text-xs font-kanit hover:text-[#25F4EE] cursor-pointer"
+              className="font-bold text-white text-xs hover:text-[#25F4EE] cursor-pointer"
             >
               {ang.parentProduct?.name}
             </span>
@@ -2174,7 +2174,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
               ) : null}
               <div className="min-w-0 flex-1 space-y-1">
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-xs font-bold text-white truncate font-kanit">
+                  <span className="text-xs font-bold text-white truncate">
                     {tiktokModalItem.parentProduct?.name}
                   </span>
                   {tiktokModalItem.badge && (
@@ -2488,7 +2488,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                     >
                       <div className="min-w-0 flex-1 space-y-1">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-xs font-bold text-white font-kanit">
+                          <span className="text-xs font-bold text-white">
                             {ang.parentProduct?.name}
                           </span>
                           {ang.badge && (
@@ -2635,7 +2635,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                       {/* Middle: Details */}
                       <div className="min-w-0 flex-1 space-y-1">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-xs font-bold text-white font-kanit truncate">
+                          <span className="text-xs font-bold text-white truncate">
                             {ang.parentProduct?.name}
                           </span>
                           {ang.badge && (
@@ -2988,7 +2988,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                 >
                   {/* Column Header */}
                   <div className="flex items-center justify-between pb-1.5 border-b border-white/[0.08]">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-white font-kanit">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-white">
                       <phase.icon className="w-3.5 h-3.5 text-[#25F4EE]" />
                       <span>{phase.label}</span>
                     </div>
@@ -3087,7 +3087,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                                 ) : (
                                   <ChevronDown className="w-3.5 h-3.5 text-[#25F4EE] flex-shrink-0" />
                                 )}
-                                <span className="text-xs font-bold text-slate-200 truncate font-kanit">
+                                <span className="text-xs font-bold text-slate-200 truncate">
                                   {grp.product?.name || 'สินค้า'}
                                 </span>
                               </div>

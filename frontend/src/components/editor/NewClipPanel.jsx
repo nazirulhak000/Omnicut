@@ -86,7 +86,7 @@ function Section({ icon: Icon, title, hint, badgeText, children, done, className
               {done ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
             </div>
           )}
-          <h3 className="text-base sm:text-lg font-bold text-white tracking-wide truncate font-kanit">{title}</h3>
+          <h3 className="text-base sm:text-lg font-bold text-white tracking-wide truncate">{title}</h3>
         </div>
         {badgeText ? (
           <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-white/[0.06] text-slate-300 border border-white/[0.08] truncate max-w-[200px]">
@@ -513,7 +513,7 @@ export default function NewClipPanel({
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-xl sm:text-2xl font-black text-white font-kanit tracking-tight">สร้างคลิปใหม่</h2>
+              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">สร้างคลิปใหม่</h2>
               <p className="text-xs text-slate-400">ตรวจสอบบทพากย์ จัดการวัตถุดิบ และเริ่มตัดต่อเข้าสู่ไทม์ไลน์</p>
             </div>
           </div>
@@ -840,7 +840,7 @@ export default function NewClipPanel({
             {/* 5. Summary & Action Dock */}
             <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-[#0F1420]/95 to-[#090C12]/95 p-4 sm:p-5 shadow-2xl backdrop-blur-xl space-y-3.5 ring-1 ring-white/[0.04]">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider font-kanit">ความพร้อมก่อนสร้าง</span>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">ความพร้อมก่อนสร้าง</span>
                 <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
                   !missing ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
                 }`}>

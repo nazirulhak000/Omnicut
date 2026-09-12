@@ -131,7 +131,7 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
               }`}
             >
               <Icon className="w-5 h-5" strokeWidth={isActive ? 2.3 : 1.7} />
-              <span className="text-[11px] font-kanit tracking-tight mt-0.5">{item.label}</span>
+              <span className="text-[11px] tracking-tight mt-0.5">{item.label}</span>
             </button>
           );
         })}
@@ -146,7 +146,7 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
           }`}
         >
           <MoreHorizontal className="w-5 h-5" strokeWidth={isMoreActive ? 2.5 : 1.8} />
-          <span className="text-[11px] font-kanit tracking-tight mt-0.5">อื่นๆ</span>
+          <span className="text-[11px] tracking-tight mt-0.5">อื่นๆ</span>
         </button>
       </nav>
 
@@ -162,7 +162,7 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
             <div className="w-12 h-1.5 rounded-full bg-white/[0.2] mx-auto mb-2" />
 
             <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
-              <h3 className="text-sm font-bold text-white font-kanit flex items-center gap-2">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-[#25F4EE]" />
                 เมนูเพิ่มเติม (More Options)
               </h3>
@@ -192,7 +192,7 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
                     <Palette className="w-4 h-4" />
                   </div>
                   <div className="text-left">
-                    <div className="text-xs font-bold text-white font-kanit">Media Assets Hub</div>
+                    <div className="text-xs font-bold text-white">Media Assets Hub</div>
                     <div className="text-[10px] text-slate-400">คลังเสียง SFX, เพลง BGM, ฟอนต์ และสติกเกอร์ 3D</div>
                   </div>
                 </div>
@@ -216,7 +216,7 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
                     <BarChart3 className="w-4 h-4" />
                   </div>
                   <div className="text-left">
-                    <div className="text-xs font-bold text-white font-kanit flex items-center gap-1.5">
+                    <div className="text-xs font-bold text-white flex items-center gap-1.5">
                       ศูนย์วิเคราะห์ & สถิติรวม
                       <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-[#25F4EE] border border-cyan-500/30">
                         Analytics
@@ -245,7 +245,7 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
                     <Settings className="w-4 h-4" />
                   </div>
                   <div className="text-left">
-                    <div className="text-xs font-bold text-white font-kanit flex items-center gap-1.5">
+                    <div className="text-xs font-bold text-white flex items-center gap-1.5">
                       ตั้งค่าระบบ
                     </div>
                     <div className="text-[10px] text-slate-400">ขนาดจอ, ฟอนต์ระบบ, โฟลเดอร์จัดเก็บ, ความปลอดภัย</div>
@@ -271,7 +271,7 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
                     <BookOpen className="w-4 h-4" />
                   </div>
                   <div className="text-left">
-                    <div className="text-xs font-bold text-white font-kanit flex items-center gap-1.5">
+                    <div className="text-xs font-bold text-white flex items-center gap-1.5">
                       คู่มือใช้งาน
                       <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                         Guide
@@ -327,7 +327,7 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#25F4EE]/20 to-blue-500/20 border border-[#25F4EE]/30 flex items-center justify-center mx-auto text-[#25F4EE] shadow-md shadow-[#25F4EE]/10">
                 <Smartphone className="w-6 h-6" />
               </div>
-              <h3 className="text-base font-bold text-white font-kanit">สแกน QR เปิดบนมือถือ</h3>
+              <h3 className="text-base font-bold text-white">สแกน QR เปิดบนมือถือ</h3>
               <p className="text-xs text-slate-400">อัปโหลดวิดีโอจากมือถือเข้าเครื่องผ่าน Wi-Fi</p>
             </div>
 

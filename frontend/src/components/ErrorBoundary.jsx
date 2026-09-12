@@ -34,7 +34,7 @@ export default class ErrorBoundary extends React.Component {
             </div>
 
             <div className="space-y-2">
-              <h2 className="text-xl font-bold text-white font-kanit">
+              <h2 className="text-xl font-bold text-white">
                 เกิดข้อผิดพลาดที่ไม่คาดคิดในระบบ
               </h2>
               <p className="text-xs text-slate-400 leading-relaxed">

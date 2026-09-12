@@ -133,7 +133,7 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
         <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-lg">
           <div className="flex items-center gap-2.5 mb-3">
             <BarChart3 className="w-4 h-4 text-cyan-400" />
-            <h3 className="text-sm font-black text-white font-kanit">ยอดวิวต่อคลิป (เรียงตามวันที่โพสต์)</h3>
+            <h3 className="text-sm font-black text-white">ยอดวิวต่อคลิป (เรียงตามวันที่โพสต์)</h3>
           </div>
           <AreaLineChart data={trendData} height={130} />
         </div>
@@ -144,7 +144,7 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
         <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-lg">
           <div className="flex items-center gap-2.5 mb-3">
             <Siren className="w-4 h-4 text-amber-400" />
-            <h3 className="text-sm font-black text-white font-kanit">เรียนรู้อะไรจากข้อมูล</h3>
+            <h3 className="text-sm font-black text-white">เรียนรู้อะไรจากข้อมูล</h3>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
             {winner && (
@@ -168,7 +168,7 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
       <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-lg">
         <div className="flex items-center gap-2.5 mb-3">
           <Eye className="w-4 h-4 text-cyan-400" />
-          <h3 className="text-sm font-black text-white font-kanit">ผลงานแต่ละคลิป</h3>
+          <h3 className="text-sm font-black text-white">ผลงานแต่ละคลิป</h3>
           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-cyan-500/10 text-cyan-300 border-cyan-500/30">
             {richPosts.length} คลิป
           </span>

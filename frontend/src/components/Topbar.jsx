@@ -107,7 +107,7 @@ export default memo(function Topbar({
 
         {/* Menu Title & Dynamic Sub-Badge */}
         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-          <h1 className="text-sm sm:text-base font-bold tracking-tight text-white font-kanit truncate">
+          <h1 className="text-sm sm:text-base font-bold tracking-tight text-white truncate">
             {currentTab.title}
           </h1>
 

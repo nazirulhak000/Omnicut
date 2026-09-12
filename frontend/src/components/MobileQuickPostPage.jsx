@@ -209,7 +209,7 @@ export default function MobileQuickPostPage({ onExit }) {
         {/* Product & Hook Banner */}
         <div className="p-3.5 rounded-2xl bg-[#0B0F19] border border-white/[0.08] space-y-1.5 shadow-lg">
           <div className="flex items-center justify-between text-xs">
-            <span className="font-bold text-white text-sm font-kanit truncate">{effectiveProduct}</span>
+            <span className="font-bold text-white text-sm truncate">{effectiveProduct}</span>
             {isPosted ? (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
                 <Check className="w-3 h-3" /> โพสต์แล้ว

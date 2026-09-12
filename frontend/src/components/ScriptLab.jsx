@@ -170,7 +170,7 @@ Esseger สายชาร์จแม่เหล็ก 3-in-1 จัดโป�
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#FE2C55] to-[#25F4EE] flex items-center justify-center text-white shadow-md flex-shrink-0">
               <Wand2 className="w-5 h-5" />
             </div>
-            <h2 className="text-lg sm:text-xl font-bold font-kanit text-white">
+            <h2 className="text-lg sm:text-xl font-bold text-white">
               AI Script Lab (ห้องแล็บแต่งสคริปต์ไวรัล TikTok)
             </h2>
             <Badge variant="cyan" size="sm">
@@ -244,7 +244,7 @@ Esseger สายชาร์จแม่เหล็ก 3-in-1 จัดโป�
       {/* Generated Scripts Section */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 font-bold text-white text-sm md:text-base font-kanit">
+          <div className="flex items-center gap-2 font-bold text-white text-sm md:text-base">
             <MessageSquareText className="w-5 h-5 text-[#25F4EE]" />
             <span>2. สคริปต์ที่ AI แต่งให้ (เลือกสไตล์ที่ชอบไปใช้ตัดต่อได้เลย):</span>
           </div>

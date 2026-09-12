@@ -457,7 +457,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
             <div className="flex items-start gap-3">
               <div className="p-2.5 rounded-2xl bg-cyan-400/10 text-cyan-300"><CalendarDays className="w-5 h-5" /></div>
               <div>
-                <h2 className="text-base sm:text-lg font-black text-white font-kanit">คิวโพสต์หลายวัน</h2>
+                <h2 className="text-base sm:text-lg font-black text-white">คิวโพสต์หลายวัน</h2>
                 <p className="text-xs text-slate-400 mt-1">เรียงตามวันที่และเวลาในเขต Asia/Bangkok · รอบละ 5 นาที · {activeQueue.length} คลิปในคิว</p>
               </div>
             </div>

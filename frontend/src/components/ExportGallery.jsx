@@ -581,7 +581,7 @@ function ExportActiveWorkbench({
               </span>
             )}
           </div>
-          <h2 className="text-sm sm:text-base font-bold text-white font-kanit truncate mt-1">
+          <h2 className="text-sm sm:text-base font-bold text-white truncate mt-1">
             {video.hook_title || video.name}
           </h2>
           <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono mt-0.5 truncate">
@@ -621,7 +621,7 @@ function ExportActiveWorkbench({
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
               <div className="flex items-start gap-2.5">
                 <History className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-                <div className="text-[11px] text-amber-300 font-kanit">
+                <div className="text-[11px] text-amber-300">
                   <span className="font-bold block">เวอร์ชันก่อนหน้า (มีเวอร์ชันใหม่กว่าแทนที่แล้ว)</span>
                   {video.latest_video_name && (
                     <span className="text-amber-200/80 font-mono text-[10px] block truncate">
@@ -644,7 +644,7 @@ function ExportActiveWorkbench({
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 rounded-xl bg-slate-800/60 border border-slate-700/60">
               <div className="flex items-start gap-2.5">
                 <FileQuestion className="w-4 h-4 text-slate-300 flex-shrink-0 mt-0.5" />
-                <div className="text-[11px] text-slate-300 font-kanit">
+                <div className="text-[11px] text-slate-300">
                   <span className="font-bold block">คลิปภายนอก (ยังไม่ได้ผูกกับสคริปต์สินค้า)</span>
                   <span className="text-slate-400 text-[10px] block">สามารถผูกเพื่อดึงแคปชันและข้อมูลสินค้าได้</span>
                 </div>
@@ -663,21 +663,21 @@ function ExportActiveWorkbench({
           <div className="grid grid-cols-2 gap-2 text-xs">
             {/* Box 1: เวลาที่เจนเสร็จ */}
             <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.08] space-y-1">
-              <div className="text-[10px] text-slate-400 flex items-center gap-1 font-kanit">
+              <div className="text-[10px] text-slate-400 flex items-center gap-1">
                 <Clock className="w-3 h-3 text-[#25F4EE]" />
                 <span>เวลาที่ตัดต่อเสร็จ</span>
               </div>
               <div className="font-mono text-white text-[11px] font-bold truncate">
                 {formatDateTimeFull(renderedTime)}
               </div>
-              <div className="text-[10px] text-[#25F4EE] font-kanit">
+              <div className="text-[10px] text-[#25F4EE]">
                 {relativeTime}
               </div>
             </div>
 
             {/* Box 2: ความยาวคลิป & FPS */}
             <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.08] space-y-1">
-              <div className="text-[10px] text-slate-400 flex items-center gap-1 font-kanit">
+              <div className="text-[10px] text-slate-400 flex items-center gap-1">
                 <Film className="w-3 h-3 text-emerald-400" />
                 <span>ความยาว & เฟรมเรต</span>
               </div>
@@ -691,7 +691,7 @@ function ExportActiveWorkbench({
 
             {/* Box 3: ขนาด & สเปกหน้าจอ */}
             <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.08] space-y-1">
-              <div className="text-[10px] text-slate-400 flex items-center gap-1 font-kanit">
+              <div className="text-[10px] text-slate-400 flex items-center gap-1">
                 <HardDrive className="w-3 h-3 text-cyan-400" />
                 <span>ขนาดไฟล์ & สัดส่วน</span>
               </div>
@@ -705,7 +705,7 @@ function ExportActiveWorkbench({
 
             {/* Box 4: Safe Zone & ระดับเสียง */}
             <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.08] space-y-1">
-              <div className="text-[10px] text-slate-400 flex items-center gap-1 font-kanit">
+              <div className="text-[10px] text-slate-400 flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3 text-purple-400" />
                 <span>Safe Zone & อัตราเสียง</span>
               </div>
@@ -722,7 +722,7 @@ function ExportActiveWorkbench({
           {(video.product_name || video.angle_name || video.price_deal || video.key_features) && (
             <div className="p-3 rounded-xl bg-gradient-to-br from-white/[0.04] to-black/40 border border-white/[0.08] space-y-2">
               <div className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
-                <span className="flex items-center gap-1.5 font-kanit">
+                <span className="flex items-center gap-1.5">
                   <Tag className="w-3.5 h-3.5 text-[#FE2C55]" />
                   <span>ข้อมูลสินค้าและแคมเปญ</span>
                 </span>
@@ -732,7 +732,7 @@ function ExportActiveWorkbench({
                   </span>
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-2 text-[11px] font-kanit">
+              <div className="grid grid-cols-2 gap-2 text-[11px]">
                 <div>
                   <span className="text-slate-500 block text-[10px]">สินค้า:</span>
                   <span className="text-white font-medium truncate block">{video.product_name || '-'}</span>
@@ -765,7 +765,7 @@ function ExportActiveWorkbench({
                 onClick={() => setShowFullScript(!showFullScript)}
                 className="w-full p-2.5 flex items-center justify-between text-xs font-bold text-slate-300 hover:text-white transition-colors cursor-pointer"
               >
-                <span className="flex items-center gap-1.5 font-kanit">
+                <span className="flex items-center gap-1.5">
                   <Layers className="w-3.5 h-3.5 text-[#25F4EE]" />
                   <span>บทพูดสคริปต์ในคลิป ({scriptLines.length} ท่อน • J-Cut)</span>
                 </span>
@@ -792,7 +792,7 @@ function ExportActiveWorkbench({
           {/* Caption & Hashtag Box */}
           <div className="p-3 rounded-xl bg-black/50 border border-white/[0.08] space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5 font-kanit">
+              <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-[#25F4EE]" />
                 <span>แคปชัน & แฮชแท็กสำหรับโพสต์</span>
               </span>
@@ -833,14 +833,14 @@ function ExportActiveWorkbench({
           {!video.is_posted && (
             <div className="p-3 rounded-xl bg-black/50 border border-white/[0.08] space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5 font-kanit">
+                <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
                   <ImageIcon className="w-3.5 h-3.5 text-[#25F4EE]" />
                   <span>ปกโพสต์ (Cover)</span>
                 </span>
                 <button
                   type="button"
                   onClick={() => setShowTierInputs(!showTierInputs)}
-                  className="text-[10px] text-slate-500 hover:text-slate-300 font-kanit cursor-pointer"
+                  className="text-[10px] text-slate-500 hover:text-slate-300 cursor-pointer"
                 >
                   {showTierInputs ? 'ซ่อนช่องแต่งข้อความ' : 'ใส่ข้อความบนปก (ไม่บังคับ)'}
                 </button>
@@ -925,7 +925,7 @@ function ExportActiveWorkbench({
           {/* File Path and QR Transfer */}
           <div className="p-3 rounded-xl bg-black/40 border border-white/[0.08] flex items-center justify-between gap-3">
             <div className="space-y-1 min-w-0 flex-1">
-              <div className="text-xs font-bold text-white flex items-center gap-1.5 font-kanit">
+              <div className="text-xs font-bold text-white flex items-center gap-1.5">
                 <Smartphone className="w-3.5 h-3.5 text-[#25F4EE]" />
                 <span>สแกน QR โหลดคลิปเข้ามือถือ</span>
               </div>
@@ -1698,7 +1698,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
               {/* Mobile (< lg): iPhone 15 Pro Max Touch-friendly Horizontal Snap Carousel */}
               <div className="lg:hidden space-y-2">
                 <div className="flex items-center justify-between px-1">
-                  <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5 font-kanit">
+                  <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
                     <Film className="w-3.5 h-3.5 text-[#25F4EE]" />
                     <span>เลือกคลิปตรวจ QC ({filteredExports.length})</span>
                   </span>
@@ -1721,7 +1721,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                 {/* Left Column (5 Cols): Playlist (Desktop only) */}
                 <div className="hidden lg:block lg:col-span-5 space-y-2.5">
                   <div className="flex items-center justify-between px-2 py-1">
-                    <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5 font-kanit">
+                    <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
                       <List className="w-3.5 h-3.5 text-[#25F4EE]" />
                       <span>รายการคลิป ({filteredExports.length})</span>
                     </span>
@@ -1910,21 +1910,21 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   {/* Box 1: เวลาที่เจนเสร็จ */}
                   <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.08] space-y-1">
-                    <div className="text-[10px] text-slate-400 flex items-center gap-1 font-kanit">
+                    <div className="text-[10px] text-slate-400 flex items-center gap-1">
                       <Clock className="w-3 h-3 text-[#25F4EE]" />
                       <span>เวลาที่ตัดต่อเสร็จ</span>
                     </div>
                     <div className="font-mono text-white text-[11px] font-bold truncate">
                       {formatDateTimeFull(selectedDetailVideo.modified_time || selectedDetailVideo.modified)}
                     </div>
-                    <div className="text-[10px] text-[#25F4EE] font-kanit">
+                    <div className="text-[10px] text-[#25F4EE]">
                       {getRelativeTimeDesc(selectedDetailVideo.timestamp, selectedDetailVideo.modified_time || selectedDetailVideo.modified)}
                     </div>
                   </div>
 
                   {/* Box 2: ความยาวคลิป & FPS */}
                   <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.08] space-y-1">
-                    <div className="text-[10px] text-slate-400 flex items-center gap-1 font-kanit">
+                    <div className="text-[10px] text-slate-400 flex items-center gap-1">
                       <Film className="w-3 h-3 text-emerald-400" />
                       <span>ความยาว & เฟรมเรต</span>
                     </div>
@@ -1938,7 +1938,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
 
                   {/* Box 3: ขนาด & สเปกหน้าจอ */}
                   <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.08] space-y-1">
-                    <div className="text-[10px] text-slate-400 flex items-center gap-1 font-kanit">
+                    <div className="text-[10px] text-slate-400 flex items-center gap-1">
                       <HardDrive className="w-3 h-3 text-cyan-400" />
                       <span>ขนาดไฟล์ & สัดส่วน</span>
                     </div>
@@ -1952,7 +1952,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
 
                   {/* Box 4: Safe Zone & ระดับเสียง */}
                   <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.08] space-y-1">
-                    <div className="text-[10px] text-slate-400 flex items-center gap-1 font-kanit">
+                    <div className="text-[10px] text-slate-400 flex items-center gap-1">
                       <ShieldCheck className="w-3 h-3 text-purple-400" />
                       <span>Safe Zone & อัตราเสียง</span>
                     </div>
@@ -1969,7 +1969,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                 {(selectedDetailVideo.product_name || selectedDetailVideo.angle_name || selectedDetailVideo.price_deal || selectedDetailVideo.key_features) && (
                   <div className="p-3 rounded-xl bg-gradient-to-br from-white/[0.04] to-black/40 border border-white/[0.08] space-y-2">
                     <div className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
-                      <span className="flex items-center gap-1.5 font-kanit">
+                      <span className="flex items-center gap-1.5">
                         <Tag className="w-3.5 h-3.5 text-[#FE2C55]" />
                         <span>ข้อมูลสินค้าและแคมเปญ</span>
                       </span>
@@ -1979,7 +1979,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                         </span>
                       )}
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-[11px] font-kanit">
+                    <div className="grid grid-cols-2 gap-2 text-[11px]">
                       <div>
                         <span className="text-slate-500 block text-[10px]">สินค้า:</span>
                         <span className="text-white font-medium truncate block">{selectedDetailVideo.product_name || '-'}</span>
@@ -2012,7 +2012,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                       onClick={() => setModalShowScript(!modalShowScript)}
                       className="w-full p-2.5 flex items-center justify-between text-xs font-bold text-slate-300 hover:text-white transition-colors cursor-pointer"
                     >
-                      <span className="flex items-center gap-1.5 font-kanit">
+                      <span className="flex items-center gap-1.5">
                         <Layers className="w-3.5 h-3.5 text-[#25F4EE]" />
                         <span>บทพูดสคริปต์ในคลิป ({selectedDetailVideo.script_lines.length} ท่อน • J-Cut)</span>
                       </span>
@@ -2039,7 +2039,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                 {/* 2. Caption & Hashtag Box */}
                 <div className="p-3.5 rounded-2xl bg-black/50 border border-white/[0.08] space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5 font-kanit">
+                    <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
                       <FileText className="w-3.5 h-3.5 text-[#25F4EE]" />
                       <span>แคปชัน & แฮชแท็กสำหรับโพสต์</span>
                     </span>
@@ -2077,7 +2077,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                 {/* 3. File Path with copy button */}
                 <div className="p-3 rounded-2xl bg-black/40 border border-white/[0.08] flex items-center justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <span className="text-[10px] text-slate-400 block font-kanit">ที่อยู่ไฟล์บนเครื่อง</span>
+                    <span className="text-[10px] text-slate-400 block">ที่อยู่ไฟล์บนเครื่อง</span>
                     <span className="text-xs font-mono text-slate-300 truncate block">
                       {selectedDetailVideo.rel_path || selectedDetailVideo.name}
                     </span>
@@ -2098,7 +2098,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
 
                 {/* 3.5 Post Studio Quick Actions (Desktop & TikTok Helper) */}
                 <div className="p-3.5 rounded-2xl bg-[#0B0F19] border border-amber-500/20 space-y-2.5">
-                  <div className="text-xs font-bold text-amber-300 flex items-center justify-between font-kanit">
+                  <div className="text-xs font-bold text-amber-300 flex items-center justify-between">
                     <span className="flex items-center gap-1.5">
                       <Zap className="w-3.5 h-3.5 text-amber-400" />
                       <span>โพสต์คลิปผ่านคอม (Post Studio)</span>
@@ -2155,7 +2155,7 @@ export default function ExportGallery({ exportsList, onRefresh, initialHighlight
                     <Smartphone className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-white font-kanit">สแกน QR เปิดตัวช่วยโพสต์บนมือถือ</h4>
+                    <h4 className="text-sm font-bold text-white">สแกน QR เปิดตัวช่วยโพสต์บนมือถือ</h4>
                     <p className="text-xs text-slate-400 mt-0.5">เปิดกล้องมือถือสแกนเพื่อโหลดคลิป, ก็อปแคปชัน, ก็อปชื่อปักตะกร้า และเปิด TikTok ทันที</p>
                   </div>
                   <div className="p-3 bg-white rounded-2xl inline-block shadow-xl">

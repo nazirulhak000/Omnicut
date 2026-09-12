@@ -153,7 +153,7 @@ export default function SystemAssets({
             <Layers className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold font-kanit text-white flex items-center gap-2">
+            <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
               คลังทรัพยากร & ระบบตัดต่อ (System & Assets Hub)
             </h2>
             <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
@@ -591,7 +591,7 @@ export default function SystemAssets({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           {/* Storage Directory Explorer */}
           <div className="p-5 space-y-4 glass-card">
-            <h3 className="text-sm font-bold text-white font-kanit flex items-center gap-2 pb-2 border-b border-white/[0.08]">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2 pb-2 border-b border-white/[0.08]">
               <Folder className="w-4 h-4 text-[#25F4EE]" />
               ไดเรกทอรีจัดเก็บไฟล์ในเครื่องคอมพิวเตอร์
             </h3>
@@ -632,7 +632,7 @@ export default function SystemAssets({
           {/* System Health & CapCut Integration Info */}
           <div className="p-5 space-y-4 flex flex-col justify-between glass-card">
             <div>
-              <h3 className="text-sm font-bold text-white font-kanit flex items-center gap-2 pb-2 border-b border-white/[0.08]">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2 pb-2 border-b border-white/[0.08]">
                 <Settings className="w-4 h-4 text-[#25F4EE]" />
                 สถานะระบบและการเชื่อมต่อ CapCut
               </h3>
@@ -674,7 +674,7 @@ export default function SystemAssets({
             </div>
 
             <div className="p-4 rounded-xl bg-black/40 border border-white/[0.06] space-y-2 text-xs text-slate-200">
-              <div className="font-bold text-white flex items-center gap-2 font-kanit">
+              <div className="font-bold text-white flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-[#25F4EE]" />
                 สเปกวิดีโอมาตรฐาน OmniCut Pro Studio:
               </div>
@@ -699,7 +699,7 @@ export default function SystemAssets({
                 <Sliders className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base sm:text-lg font-bold font-kanit text-white">
+                <h3 className="text-base sm:text-lg font-bold text-white">
                   ขนาดการแสดงผล
                 </h3>
                 <p className="text-xs text-slate-400">
@@ -748,7 +748,7 @@ export default function SystemAssets({
                   <Type className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base sm:text-lg font-bold font-kanit text-white">
+                  <h3 className="text-base sm:text-lg font-bold text-white">
                     ฟอนต์ระบบ
                   </h3>
                   <p className="text-xs text-slate-400">

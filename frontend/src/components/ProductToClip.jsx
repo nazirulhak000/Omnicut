@@ -249,7 +249,7 @@ function PhaseDots({ angle, compact = false }) {
         })}
       </div>
       {!compact && (
-        <span className={`text-[9px] font-bold ml-0.5 font-kanit ${
+        <span className={`text-[9px] font-bold ml-0.5 ${
           activeIdx === 3 ? 'text-emerald-300'
           : activeIdx === 2 ? 'text-cyan-300'
           : activeIdx === 1 ? 'text-amber-300'
@@ -367,7 +367,7 @@ function AngleSidebarItem({
 
           {/* Row 3: Hook preview */}
           {angle.hook_title && (
-            <p className="text-[11px] text-slate-400 truncate font-kanit">
+            <p className="text-[11px] text-slate-400 truncate">
               "{angle.hook_title}"
             </p>
           )}
@@ -560,7 +560,7 @@ function AngleActiveWorkbench({
           }`}>
             {index + 1}
           </span>
-          <h2 className={`text-xs sm:text-sm md:text-base font-bold truncate font-kanit ${
+          <h2 className={`text-xs sm:text-sm md:text-base font-bold truncate ${
             isLocked ? 'text-slate-300' : 'text-white'
           }`}>
             {angle.angle_name}
@@ -660,7 +660,7 @@ function AngleActiveWorkbench({
         <div className="p-3 rounded-xl bg-gradient-to-r from-[#FE2C55]/15 via-black/40 to-[#25F4EE]/10 border border-[#FE2C55]/30 flex items-center justify-between gap-2.5 text-xs sm:text-sm font-bold text-white shadow-sm">
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <span className="text-lg">🎯</span>
-            <div className="min-w-0 flex-1 font-kanit leading-snug">
+            <div className="min-w-0 flex-1 leading-snug">
               <span className="text-xs text-rose-400 font-semibold block">Hook พาดหัวเปิดคลิป:</span>
               <span className="truncate block">"{angle.hook_title}"</span>
             </div>
@@ -785,7 +785,7 @@ function AngleActiveWorkbench({
                 }`}>
                   {lIdx + 1}
                 </span>
-                <span className="flex-1 text-slate-200 leading-relaxed font-kanit">{line}</span>
+                <span className="flex-1 text-slate-200 leading-relaxed">{line}</span>
               </div>
             ))}
           </div>
@@ -1079,7 +1079,7 @@ function ScriptAccordionItem({
             </span>
           </div>
           {!isOpen && angle.hook_title && (
-            <p className="text-sm text-slate-500 truncate mt-0.5 font-kanit">
+            <p className="text-sm text-slate-500 truncate mt-0.5">
               "{angle.hook_title}"
             </p>
           )}
@@ -3356,7 +3356,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
           </div>
 
           <div>
-            <h3 className="text-lg font-bold text-white font-kanit">เริ่มต้นสร้างคลิปขายจากสินค้าได้เลย!</h3>
+            <h3 className="text-lg font-bold text-white">เริ่มต้นสร้างคลิปขายจากสินค้าได้เลย!</h3>
             <p className="text-xs sm:text-sm text-slate-400 mt-2 max-w-md mx-auto leading-relaxed">
               วางลิงก์สินค้าจาก Shopee หรือ TikTok Shop → AI จะวิเคราะห์สเปกและสร้าง <strong className="text-white">4 สคริปต์ป้ายยา</strong> จาก 4 มุมขายให้ทันที → เลือกมุมที่ชอบแล้วกด "ส่งตัดต่อ"
             </p>

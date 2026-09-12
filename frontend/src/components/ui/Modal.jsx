@@ -57,7 +57,7 @@ export function Modal({
           <div className="flex-shrink-0 flex items-center justify-between gap-3 px-4 sm:px-6 py-3.5 sm:py-4 border-b border-white/[0.08] bg-[#0B0F19]/95 backdrop-blur-xl z-20">
             <div className="min-w-0 flex-1">
               {title && (
-                <h3 className="text-sm sm:text-base md:text-lg font-bold font-kanit text-white truncate">
+                <h3 className="text-sm sm:text-base md:text-lg font-bold text-white truncate">
                   {title}
                 </h3>
               )}

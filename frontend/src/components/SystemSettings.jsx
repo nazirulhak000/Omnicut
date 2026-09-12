@@ -192,7 +192,7 @@ export default function SystemSettings({
                   <Sliders className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm sm:text-base font-bold font-kanit text-white">
+                  <h3 className="text-sm sm:text-base font-bold text-white">
                     ขนาดการแสดงผล (UI Scale)
                   </h3>
                   <p className="text-xs text-slate-400">
@@ -240,7 +240,7 @@ export default function SystemSettings({
                   <Type className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm sm:text-base font-bold font-kanit text-white">
+                  <h3 className="text-sm sm:text-base font-bold text-white">
                     ฟอนต์ระบบ (Global UI Font)
                   </h3>
                   <p className="text-xs text-slate-400">
@@ -312,7 +312,7 @@ export default function SystemSettings({
         return (
           <div className="space-y-4 animate-fadeIn">
             <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-lg space-y-3.5">
-              <h3 className="text-xs sm:text-sm font-bold text-white font-kanit flex items-center gap-2 pb-2.5 border-b border-white/[0.08]">
+              <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2 pb-2.5 border-b border-white/[0.08]">
                 <Folder className="w-4 h-4 text-[#25F4EE]" />
                 ไดเรกทอรีโปรเจกต์มาตรฐาน (Project Workspace Directories)
               </h3>
@@ -366,13 +366,13 @@ export default function SystemSettings({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <ShieldCheck className="w-5 h-5 text-[#25F4EE]" />
-                    <h4 className="font-bold text-white text-xs sm:text-sm font-kanit">Antigravity Pro Engine</h4>
+                    <h4 className="font-bold text-white text-xs sm:text-sm">Antigravity Pro Engine</h4>
                   </div>
                   <span className="px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/30">
                     เชื่อมต่อแล้ว
                   </span>
                 </div>
-                <p className="text-xs text-slate-300 leading-relaxed font-kanit">
+                <p className="text-xs text-slate-300 leading-relaxed">
                   ใช้งาน <b>Gemini 3.8 Flash (High)</b> สำหรับคิดบท Hook หยุดนิ้ว และแปลภาษาอังกฤษ ผ่านบัญชี Pro โดยตรง ไม่เสียเงินค่า API เพิ่มเติม
                 </p>
                 <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06] text-[11px] font-mono text-slate-400 space-y-1">
@@ -387,13 +387,13 @@ export default function SystemSettings({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                    <h4 className="font-bold text-white text-xs sm:text-sm font-kanit">Gemini 2.5 Flash Vision</h4>
+                    <h4 className="font-bold text-white text-xs sm:text-sm">Gemini 2.5 Flash Vision</h4>
                   </div>
                   <span className="px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
                     Free Tier
                   </span>
                 </div>
-                <p className="text-xs text-slate-300 leading-relaxed font-kanit">
+                <p className="text-xs text-slate-300 leading-relaxed">
                   วิเคราะห์ฟุตเทจวิดีโอดิบแบบ 1 FPS ผ่าน Google File API ด้วยความเร็วสูง (4-7 วินาที) มาร์กจุดตัดอัตโนมัติ
                 </p>
                 <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06] text-[11px] font-mono text-slate-400 space-y-1">
@@ -406,7 +406,7 @@ export default function SystemSettings({
 
             {/* System Environment Info */}
             <div className="p-4 sm:p-5 space-y-3.5 bg-[#0B0F19] rounded-2xl border border-white/[0.08] shadow-lg">
-              <h3 className="text-xs sm:text-sm font-bold text-white font-kanit flex items-center gap-2 pb-2 border-b border-white/[0.08]">
+              <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2 pb-2 border-b border-white/[0.08]">
                 <Settings className="w-4 h-4 text-[#25F4EE]" />
                 สถานะการเรนเดอร์และ CapCut PC Integration
               </h3>
@@ -445,11 +445,11 @@ export default function SystemSettings({
 
               {/* Standard Specs Notice */}
               <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06] space-y-1.5 text-xs text-slate-200">
-                <div className="font-bold text-white flex items-center gap-1.5 font-kanit">
+                <div className="font-bold text-white flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-[#25F4EE]" />
                   สเปกวิดีโอมาตรฐาน OmniCut Pro Studio:
                 </div>
-                <ul className="space-y-1 text-slate-400 text-xs list-disc list-inside font-kanit">
+                <ul className="space-y-1 text-slate-400 text-xs list-disc list-inside">
                   <li>ขนาดหน้าจอ: <b>1080 x 1920 (9:16 Vertical Video)</b></li>
                   <li>เฟรมเรต: <b>30 FPS H.264 High Profile</b></li>
                   <li>จังหวะการตัดต่อ: <b>1.5 - 2.5 วินาทีต่อ 1 ช็อต</b></li>
@@ -461,7 +461,7 @@ export default function SystemSettings({
             {/* Round POST-2: TikTok Auto-Post Extension (experimental, risky) */}
             <div className="p-4 sm:p-5 space-y-3.5 bg-[#0B0F19] rounded-2xl border border-amber-500/20 shadow-lg">
               <div className="flex items-center justify-between gap-3 pb-2 border-b border-white/[0.08]">
-                <h3 className="text-xs sm:text-sm font-bold text-white font-kanit flex items-center gap-2">
+                <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
                   <Bug className="w-4 h-4 text-amber-400" />
                   TikTok Auto-Post Extension (ทดลอง — มีความเสี่ยง)
                 </h3>
@@ -481,7 +481,7 @@ export default function SystemSettings({
                 </button>
               </div>
 
-              <p className="text-xs text-slate-300 leading-relaxed font-kanit">
+              <p className="text-xs text-slate-300 leading-relaxed">
                 ให้ Chrome extension เติม mp4 + ปก + แคปชั่นลงหน้า TikTok Studio ที่ล็อกอินอยู่แล้วให้อัตโนมัติ
                 ผ่าน <code className="text-[10px] bg-black/40 px-1 py-0.5 rounded">chrome.debugger</code> —
                 กลไกเดียวกับที่ Playwright/Puppeteer ใช้ทดสอบเว็บ ไม่ใช่บอทปลอมตัว แต่ Chrome จะโชว์แถบ
@@ -492,7 +492,7 @@ export default function SystemSettings({
 
               <div className="p-3 rounded-xl bg-amber-950/20 border border-amber-500/20 flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-                <p className="text-[11px] text-amber-200/90 font-kanit leading-relaxed">
+                <p className="text-[11px] text-amber-200/90 leading-relaxed">
                   ยังไม่ผ่านการทดสอบกับหน้า TikTok Studio จริง (โครงสร้างหน้าเว็บอาจเปลี่ยนได้ทุกเมื่อ) —
                   ทดสอบกับคลิปทดลอง 3-5 คลิปก่อน แล้วสังเกตอาการบัญชี ก่อนใช้เป็นประจำ
                   ปุ่ม "เปิด TikTok Studio" แบบลากเองใน Post Studio ยังอยู่คู่กันเสมอ ปิดฟีเจอร์นี้ได้ทุกเมื่อ
@@ -500,7 +500,7 @@ export default function SystemSettings({
               </div>
 
               {autopostEnabled && (
-                <div className="p-3 rounded-xl bg-black/40 border border-white/[0.06] text-[11px] text-slate-300 font-kanit space-y-1.5">
+                <div className="p-3 rounded-xl bg-black/40 border border-white/[0.06] text-[11px] text-slate-300 space-y-1.5">
                   <div className="font-bold text-white">วิธีติดตั้ง extension (ครั้งแรกครั้งเดียว):</div>
                   <ol className="list-decimal list-inside space-y-1 text-slate-400">
                     <li>เปิด <span className="font-mono text-slate-300">chrome://extensions</span> แล้วเปิด "Developer mode"</li>
@@ -521,11 +521,11 @@ export default function SystemSettings({
             <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-lg space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/[0.08]">
                 <div>
-                  <h3 className="text-xs sm:text-sm font-bold text-white font-kanit flex items-center gap-2">
+                  <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
                     <Database className="w-4 h-4 text-cyan-400" />
                     สำรองข้อมูลทั้งระบบ (One-Click System Backup)
                   </h3>
-                  <p className="text-xs text-slate-400 mt-1 font-kanit">
+                  <p className="text-xs text-slate-400 mt-1">
                     สำรองข้อมูลโปรเจกต์ 03_Projects ทั้งหมด และฐานข้อมูล JSON / SQLite ใน _Docs เป็นไฟล์ Zip พร้อมกู้คืน
                   </p>
                 </div>
@@ -533,7 +533,7 @@ export default function SystemSettings({
                   type="button"
                   onClick={handleCreateBackup}
                   disabled={backupLoading}
-                  className="px-3.5 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 text-xs font-bold font-kanit flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50 flex-shrink-0"
+                  className="px-3.5 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50 flex-shrink-0"
                 >
                   {backupLoading ? (
                     <>
@@ -550,7 +550,7 @@ export default function SystemSettings({
               </div>
 
               {backupMessage && (
-                <div className={`p-3 rounded-xl border text-xs font-kanit ${
+                <div className={`p-3 rounded-xl border text-xs ${
                   backupMessage.type === 'success'
                     ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
                     : 'bg-red-500/10 border-red-500/20 text-red-300'
@@ -561,11 +561,11 @@ export default function SystemSettings({
 
               {/* Backups List */}
               <div className="space-y-2">
-                <span className="text-xs font-bold text-slate-300 font-kanit block">
+                <span className="text-xs font-bold text-slate-300 block">
                   ประวัติไฟล์สำรอง ({backups.length} ชุด)
                 </span>
                 {backups.length === 0 ? (
-                  <div className="p-4 rounded-xl bg-black/40 border border-white/[0.06] text-center text-xs text-slate-500 font-kanit">
+                  <div className="p-4 rounded-xl bg-black/40 border border-white/[0.06] text-center text-xs text-slate-500">
                     ยังไม่มีไฟล์สำรอง กดปุ่ม "สร้างไฟล์สำรองทันที" เพื่อสำรองข้อมูล
                   </div>
                 ) : (
@@ -618,11 +618,11 @@ export default function SystemSettings({
             <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-lg space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/[0.08]">
                 <div>
-                  <h3 className="text-xs sm:text-sm font-bold text-white font-kanit flex items-center gap-2">
+                  <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
                     <Copy className="w-4 h-4 text-amber-400" />
                     สแกนและคืนพื้นที่ดิสก์จากไฟล์ซ้ำ (Asset Deduplication)
                   </h3>
-                  <p className="text-xs text-slate-400 mt-1 font-kanit">
+                  <p className="text-xs text-slate-400 mt-1">
                     ตรวจหาไฟล์วิดีโอ/ภาพที่ซ้ำกันใน 00_Inbox และ 01_Raw ด้วย SHA-256 เพื่อคืนพื้นที่ดิสก์อย่างปลอดภัย
                   </p>
                 </div>
@@ -630,7 +630,7 @@ export default function SystemSettings({
                   type="button"
                   onClick={handleScanDedup}
                   disabled={dedupLoading}
-                  className="px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-xs font-bold font-kanit flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50 flex-shrink-0"
+                  className="px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50 flex-shrink-0"
                 >
                   {dedupLoading ? (
                     <>
@@ -647,7 +647,7 @@ export default function SystemSettings({
               </div>
 
               {cleanMessage && (
-                <div className={`p-3 rounded-xl border text-xs font-kanit ${
+                <div className={`p-3 rounded-xl border text-xs ${
                   cleanMessage.type === 'success'
                     ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
                     : 'bg-red-500/10 border-red-500/20 text-red-300'
@@ -680,12 +680,12 @@ export default function SystemSettings({
                   {dedupResult.total_duplicate_files > 0 ? (
                     <div className="space-y-2 pt-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-300 font-kanit">รายการไฟล์ที่ซ้ำกัน</span>
+                        <span className="text-xs font-bold text-slate-300">รายการไฟล์ที่ซ้ำกัน</span>
                         <button
                           type="button"
                           onClick={handleCleanDedup}
                           disabled={cleanLoading}
-                          className="px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 text-xs font-bold font-kanit flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                          className="px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
                         >
                           {cleanLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                           ย้ายไฟล์ซ้ำเข้าถังขยะ ({dedupResult.reclaimable_mb} MB)
@@ -713,7 +713,7 @@ export default function SystemSettings({
                       </div>
                     </div>
                   ) : (
-                    <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center text-xs text-emerald-300 font-kanit">
+                    <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center text-xs text-emerald-300">
                       ไม่พบไฟล์มีเดียซ้ำซ้อนในโฟลเดอร์ ระบบสะอาด 100%
                     </div>
                   )}

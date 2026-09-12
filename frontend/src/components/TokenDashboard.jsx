@@ -232,7 +232,7 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
           <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
             <div className="flex items-center gap-2">
               <Cpu className="w-4 h-4 text-[#25F4EE]" />
-              <h3 className="text-sm font-bold text-white font-kanit">สัดส่วนการใช้งานตามโมเดล (Models)</h3>
+              <h3 className="text-sm font-bold text-white">สัดส่วนการใช้งานตามโมเดล (Models)</h3>
             </div>
             <span className="text-xs text-slate-400">{Object.keys(summary?.tokens_by_model || {}).length} โมเดล</span>
           </div>
@@ -301,7 +301,7 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
           <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
             <div className="flex items-center gap-2">
               <Layers className="w-4 h-4 text-purple-400" />
-              <h3 className="text-sm font-bold text-white font-kanit">สัดส่วนตามประเภทงาน (Tasks)</h3>
+              <h3 className="text-sm font-bold text-white">สัดส่วนตามประเภทงาน (Tasks)</h3>
             </div>
             <span className="text-xs text-slate-400">{Object.keys(summary?.tokens_by_task || {}).length} หมวดหมู่งาน</span>
           </div>
@@ -334,7 +334,7 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2">
                           <Icon className="w-3.5 h-3.5 text-slate-400" />
-                          <span className="font-semibold text-slate-200 font-kanit">{badge.label}</span>
+                          <span className="font-semibold text-slate-200">{badge.label}</span>
                         </div>
                         <div className="text-slate-400 font-mono text-[11px]">
                           <span className="text-white font-bold">{tokens.toLocaleString()}</span> tok ({percent}%) • {calls} ครั้ง
@@ -362,7 +362,7 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-cyan-400" />
-                <h3 className="text-sm font-bold text-white font-kanit">ประวัติการใช้งานย้อนหลัง (Daily Token Volume)</h3>
+                <h3 className="text-sm font-bold text-white">ประวัติการใช้งานย้อนหลัง (Daily Token Volume)</h3>
               </div>
               <p className="text-xs text-slate-400">กราฟแนวโน้มปริมาณโทเคนและมูลค่าที่ประหยัดได้ในแต่ละวัน</p>
             </div>
@@ -413,7 +413,7 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
         <div className="p-4 sm:p-5 border-b border-white/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/[0.02]">
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-[#25F4EE]" />
-            <h3 className="text-sm font-bold text-white font-kanit">ประวัติการเรียกใช้งาน AI ล่าสุด (Audit Log)</h3>
+            <h3 className="text-sm font-bold text-white">ประวัติการเรียกใช้งาน AI ล่าสุด (Audit Log)</h3>
             <span className="text-xs px-2 py-0.5 rounded-full bg-white/[0.08] text-slate-300 font-mono">
               {filteredEvents.length} รายการ
             </span>
@@ -480,7 +480,7 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
                         {timeFormatted}
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-semibold font-kanit ${badge.color}`}>
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-semibold ${badge.color}`}>
                           <Icon className="w-3 h-3" />
                           {badge.label}
                         </span>

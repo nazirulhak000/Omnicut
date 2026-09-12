@@ -8,6 +8,8 @@
 
 ## สารบัญ
 
+| Round UI-FONT-HARMONY-1 | ปรับความสอดคล้องของฟอนต์ UI ทั้งระบบตาม Global UI Font (ปราศจาก Encoding Mojibake) | 2026-09-12 | สำเร็จสมบูรณ์ (ปลดล็อคคลาส font-kanit ที่ฝังใน 35 คอมโพเนนต์ UI เพื่อสืบทอด Global UI Font, อนุรักษ์ preview card ใน Settings/Assets, รับประกัน Thai UTF-8 byte-for-byte 100%, vitest 152 passed, build 4.57s, pytest parity 153 passed, browser verified, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round TIKTOK-STATS-DOM-2 | รีเขียน parser อ่าน div-grid จริงของ Studio (data-tt) จาก DOM ที่ user เซฟมา + จับคู่คอลัมน์ตามหัว + dedupe | 2026-09-12 | สำเร็จสมบูรณ์ (locateDivGrid/parseDivRows, หัวคอลัมน์จริง "ยอดการดู" แก้ความเข้าใจ "ยอดวิว", extension tests 32 passed, ดำเนินการโดย: Cline (โมเดลฐานไม่ได้ระบุ)) |
 | Round TIKTOK-STATS-DOMAIN-1 | แก้ซิงก์สถิติตาราง Studio + คอลัมน์ 'ยอดวิว' + Manifest 0.2.0 + แข็งการตรวจจับแท็บ | 2026-09-12 | สำเร็จสมบูรณ์ (alias ยอดวิว, regex เดือน ส.ค./เม.ย., build tag 0.2.0, extension tests 28 passed, ดำเนินการโดย: Cline / Antigravity) |
 | Round BATCH-RENDER-1 | One-Click Batch Angle Video Render Queue (Background FIFO Worker + Live Overall Progress + Concurrency Lock) | 2026-09-12 | สำเร็จสมบูรณ์ (คิวเรนเดอร์หลายมุมมอง background worker, auto-retry, TaskManager progress, pytest 4 passed, vitest 152 passed, build 4.46s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round HOOK-VAR-1 | AI Hook Variation & A/B Generator (5 marketing styles + 9:16 Safe Zone Preview + 1-Click Apply) | 2026-09-12 | สำเร็จสมบูรณ์ (5 สไตล์ curiosity, warning, social_proof, deal_promo, pain_point + offline fallback + safe-zone preview + pytest 8 passed, vitest 152 passed, build 4.08s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
@@ -41,6 +43,56 @@
 | Round ANALYTICS-CHARTS-POLISH-1 | ปรับขนาดและจัดระเบียบเลย์เอาท์กราฟใน Analytics Hub ให้กระชับ สวยงาม พอดีสายตา ไม่ใหญ่เกินจำเป็น | 2026-09-12 | กราฟเส้น 800x130 widescreen, โดนัท top 4 + อื่นๆ พร้อม label ไม่หาย, TokenDashboard models/tasks จัดแบบ side-by-side; frontend 151 passed, build 3.25s, browser verified |
 | Round USER-GUIDE-4 | คู่มือ interactive 6 ฟีเจอร์ (sticky TOC, เช็กลิสต์ติ๊กได้, accordion, ปุ่มลัด, FAQ ค้นหา) | 2026-09-12 | ไม่เปลี่ยนข้อความ/สี/ลำดับ; frontend 151 passed, build 4.22s |
 | Round ANALYTICS-CHARTS-1 | พัฒนาระบบกราฟเส้น กราฟโดนัท Funnel Chart และเกจวัดแบบ Pure SVG สไตล์ Dark Modern Glassmorphism สำหรับแดชบอร์ดทั้ง 4 แท็บ | 2026-09-12 | สร้าง 4 Pure SVG charts (AreaLine, Donut, Funnel, ProgressRing/Concentric) ฝังครบ 4 แท็บ; vitest 151 passed, backend 4 passed, build 3.44s, browser verified |
+
+## Round UI-FONT-HARMONY-1 — ปรับความสอดคล้องของฟอนต์ UI ทั้งระบบตาม Global UI Font (ปราศจาก Encoding Mojibake)
+
+วันที่: 2026-09-12 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์
+
+**ปัญหาเดิมและที่มา:**
+1. ผู้ใช้พบว่าฟอนต์ในหน้า UI มีจุดที่ไม่เป็นฟอนต์เดียวกัน เมื่อเปลี่ยนฟอนต์ระบบ (Global UI Font) ในหน้าตั้งค่าเป็น Prompt, IBM Plex Sans Thai ฯลฯ พบว่าหัวข้อ ปุ่ม และการ์ดหลายจุดไม่ยอมเปลี่ยนตาม
+2. สาเหตุเกิดจากคอมโพเนนต์ UI จำนวน 35 ไฟล์มีการ hardcode คลาส `font-kanit` ไว้ที่ elements ทำให้ specificity ของ CSS เหนือกว่าฟอนต์ระบบที่ตั้งไว้ที่ root (`uiFont`)
+3. ในรอบก่อนหน้ามีความพยายามแก้ด้วย PowerShell ซึ่งอ่าน/เขียนไฟล์ด้วย ANSI ทำให้เกิดตัวอักษรต่างดาว (Mojibake) รอบนี้จึงย้อนคืนและใช้แนวทางใหม่ที่รับประกันความถูกต้อง 100%
+
+**สิ่งที่ดำเนินการ:**
+1. **ปลดล็อคคลาส `font-kanit` ใน 35 คอมโพเนนต์ UI:**
+   - ปลดล็อคคลาส `font-kanit` ออกจากคอมโพเนนต์ UI เพื่อให้สืบทอดฟอนต์ระบบ (Global UI Font: Prompt, IBM Plex Sans Thai, Kanit, Anuphan ฯลฯ) ที่ผู้ใช้เลือกจาก Settings ได้อย่างสมบูรณ์แบบ
+   - รายชื่อคอมโพเนนต์ที่อัปเดต: `ActivityCenter`, `ContentTrackerHub`, `ErrorBoundary`, `ExportGallery`, `Header`, `LoadingSpinner`, `MediaAssetsHub`, `MediaPickerModal`, `MobileFilmingPage`, `MobileQuickPostPage`, `PresetsBar`, `ProductToClip`, `RawVaultPanel`, `ScheduleAgenda`, `ScriptLab`, `ShortcutsModal`, `ShotListModal`, `Sidebar`, `SubSrtTool`, `SystemAssets`, `SystemSettings`, `TokenDashboard`, `Topbar`, `UserGuide`, `MetricKpiCard`, `InventoryAnalyticsTab`, `PerformanceAnalyticsTab`, `ProductionAnalyticsTab`, `StorageAnalyticsTab`, `AssetPanel`, `EditorShell`, `NewClipPanel`, `ConfirmModal`, `Modal`, `PageHeader`
+2. **คงไว้ซึ่งตัวอย่างฟอนต์ (Preserved Font Picker Previews):**
+   - อนุรักษ์ `id: 'font-kanit'` และ `bgClass: 'font-kanit'` ใน `SystemSettings.jsx` และ `SystemAssets.jsx` เพื่อให้การ์ดแสดงตัวอย่างฟอนต์ Kanit ยังคงแสดงผลสไตล์ Kanit ได้ถูกต้อง 100%
+3. **การันตีเรื่อง Encoding (Zero Mojibake Guarantee):**
+   - ใช้ Python UTF-8 พร้อม Strict Assertion ตรวจสอบว่าอักขระที่ไม่ใช่ ASCII (สระ พยัญชนะ วรรณยุกต์ภาษาไทย) ทุกตัวต้องเหมือนเดิมแบบ byte-for-byte 100%
+4. **Strict Non-Regression:**
+   - ไม่แตะต้อง `subtitle_engine.py`, `SequencePlayer.jsx` หรือโค้ดเรนเดอร์วิดีโอใดๆ (ผ่าน 153/153 Parity Tests)
+
+**ผลการทดสอบ (Verification Gate):**
+- Frontend Vitest: 152/152 passed (7.55s)
+- Vite Build: ผ่าน 100% สะอาด ไร้ error (4.57s)
+- Backend Preview-Render Parity Tests: 153/153 passed (10.36s)
+- Browser Live Test: เปิดหน้าจอจริงผ่าน Browser Subagent ทดสอบสลับฟอนต์ในหน้าตั้งค่า (Prompt -> IBM Plex Sans Thai -> Kanit) ตรวจสอบหน้าสคริปต์แล็บและหน้าสถิติ พบว่าตัวอักษรภาษาไทยคมชัด สวยงาม ไม่มีตัวหนังสือต่างดาว และทั้งหน้าจอเปลี่ยนตามฟอนต์ที่เลือกอย่างสอดคล้องกัน
+
+---
+
+## Round TIKTOK-STATS-DOM-2 — รีเขียน parser ให้อ่าน div-grid จริงของ Studio (จากไฟล์ DOM ที่ user เซฟมาเอง)
+
+วันที่: 2026-09-12 · สั่งโดย: user · ดำเนินการโดย: Cline (โมเดลฐานไม่ได้ระบุในเซสชันนี้) · สถานะ: เสร็จสมบูรณ์
+
+**หลักฐาน:** ผู้ใช้ส่งไฟล์ DOM จริง `C:\Users\Winon\Downloads\html lang=th-TH dir=ltr style=--rw.txt` (หน้า tiktok.com/tiktokstudio/content) — กดซิงก์แล้วยังขึ้นแถบแดง "จำกัดโดเมน" เหมือนเดิม และใต้ปุ่มซิงก์ไม่มีบรรทัด "build 0.2.0"
+
+**สิ่งที่ตรวจพบจากไฟล์:**
+1. ตารางโพสต์ของ Studio จริง**ไม่ใช่ `<table>` เลย** — parser เดิม (อิง thead/tbody) อ่านไม่ได้ตั้งแต่โครงสร้าง ของจริงเป็น div-grid: แถวราก = `div[data-tt="components_RowLayout_FlexRow"]`, ชื่อ+ลิงก์ = `PostInfoCell_a`, วันที่ = `PublishStageLabel_TUXText`, ความยาว = `VideoCover_index_TUXText`, ความเป็นส่วนตัว = `PrivacyCell_TUXButton` > `.TUXButton-label`, ช่องตัวเลข = `div[width="100px"][data-tt^="components_RowLayout_FlexRow_"]` เรียงตามลำดับคอลัมน์
+2. **แก้ความเข้าใจของรอบ DOMAIN-1:** หัวคอลัมน์จริงจาก DOM คือ **"ยอดการดู"** (มีใน alias เดิมอยู่แล้ว) — รอบก่อนสรุปว่าเป็น "ยอดวิว" จากการอ่านภาพหน้าจอเล็กซึ่งคลาดเคลื่อน; คง alias ยอดวิว ไว้เชิงป้องกัน
+3. ไม่มีสำเนา extension อื่นในเครื่อง (ค้น Capcut_backups / Claude-video-editing-studio / Downloads / Desktop / Documents แล้วว่าง) → แถบแดงเดิม = Chrome ยังไม่ได้ reload โค้ดใหม่
+
+**การเปลี่ยนแปลง:**
+- `stats_parser.js`: แยกเส้นทางเดิมเป็น `parseTableRows()` (fallback) + เพิ่ม `locateDivGrid()` + `parseDivRows()` — จับคู่ช่องตัวเลขกับหัวคอลัมน์**ตามลำดับหัว** ไม่ใช่ index ตายตัว, resolve href ญาติเป็น absolute, dedupe ด้วย video_id กันแถวซ้ำจาก overlay, error แยกกรณี "เจอ header แต่ 0 แถว (virtual list) → ให้เลื่อนหน้าก่อน"
+- `stats_parser.test.cjs`: รีไรต์ fake DOM เป็น generic engine (tag/.class/`[data-tt=..]`/`[data-tt^=..]`/`[width=..]`/`[href*=..]`) + fixture `buildDivGrid` จำลองโครงจริง + เทสใหม่ 4 ตัว (อ่านครบทุก field / จับคู่ตามลำดับหัวแบบสลับถูกใจ-คอมเมนต์ / header เจอแต่ 0 แถว / dedupe แถวซ้ำ) + เปลี่ยนชื่อเทส alias เป็น "ยอดการดู (real DOM wording) + ยอดวิว"
+
+**ผลลัพธ์ / Gate:**
+- `node --test` (background + stats_parser + clip_state): **32 passed / 0 failed** (เดิม 28 → +4 เทส div-grid)
+- `node --check stats_parser.js` + `node --check sidepanel.js`: ผ่านทั้งคู่
+- หมายเหตุ: รันครั้งแรก fail 1 จุดเพราะ fixture ลืมห่อปุ่ม `components_PrivacyCell_TUXButton` (parser ถูกต้องตาม DOM จริง) — แก้ fixture แล้วผ่าน
+
+---
 
 ## Round TIKTOK-STATS-DOMAIN-1 — แก้ซิงก์สถิติล้มบนหน้า /tiktokstudio/content + ตรวจจับโค้ดเก่าค้างใน Chrome
 

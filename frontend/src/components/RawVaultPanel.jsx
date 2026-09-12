@@ -414,7 +414,7 @@ export default function RawVaultPanel() {
               <Film className="w-3.5 h-3.5" />
               <span>คลังคลิปดิบ</span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight font-kanit">
+            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
               คลังคลิปดิบ
             </h2>
             <p className="text-xs sm:text-sm text-slate-400 max-w-2xl leading-relaxed">

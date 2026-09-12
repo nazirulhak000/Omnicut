@@ -15,7 +15,7 @@ export default function MetricKpiCard({
   return (
     <div className={`relative p-4 rounded-2xl border ${borderColor} ${bgColor} backdrop-blur-xl shadow-lg flex flex-col justify-between transition-all hover:border-white/[0.15]`}>
       <div className="flex items-start justify-between gap-2">
-        <span className="text-xs font-semibold text-slate-400 font-kanit">{title}</span>
+        <span className="text-xs font-semibold text-slate-400">{title}</span>
         {Icon && (
           <div className={`p-2 rounded-xl bg-white/[0.05] border border-white/[0.08] ${accentColor}`}>
             <Icon className="w-4 h-4" />

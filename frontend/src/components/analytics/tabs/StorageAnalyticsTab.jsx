@@ -206,7 +206,7 @@ export default function StorageAnalyticsTab() {
               <div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-[#25F4EE]">
                 <Archive className="w-4 h-4" />
               </div>
-              <h3 className="text-sm sm:text-base font-bold text-white font-kanit">
+              <h3 className="text-sm sm:text-base font-bold text-white">
                 คลิปที่โพสต์แล้ว & โอกาสประหยัดพื้นที่คอม (Posted Clips Archive)
               </h3>
             </div>
@@ -289,7 +289,7 @@ export default function StorageAnalyticsTab() {
         {showArchiveDetail && (
           <div className="pt-3 border-t border-white/[0.08] space-y-3 animate-fadeIn">
             <div className="flex items-center justify-between">
-              <div className="text-xs font-bold text-slate-200 font-kanit">
+              <div className="text-xs font-bold text-slate-200">
                 รายการไฟล์และโปรเจกต์ที่พร้อมย้ายสำรอง ({archiveItems.length} รายการ)
               </div>
               <div className="text-[11px] text-slate-400">
@@ -355,7 +355,7 @@ export default function StorageAnalyticsTab() {
         {/* Left Col: Donut Chart of storage distribution */}
         <div className="p-5 sm:p-6 rounded-3xl bg-[#0D111A]/80 border border-white/[0.08] backdrop-blur-xl space-y-4 flex flex-col justify-between">
           <div className="space-y-1">
-            <h3 className="text-sm font-bold text-white font-kanit">แผนภาพสัดส่วนพื้นที่ (Storage Share)</h3>
+            <h3 className="text-sm font-bold text-white">แผนภาพสัดส่วนพื้นที่ (Storage Share)</h3>
             <p className="text-xs text-slate-400">การกระจายขนาดพื้นที่ตามโครงสร้างโฟลเดอร์</p>
           </div>
 
@@ -381,7 +381,7 @@ export default function StorageAnalyticsTab() {
         <div className="lg:col-span-2 p-5 sm:p-6 rounded-3xl bg-[#0D111A]/80 border border-white/[0.08] backdrop-blur-xl space-y-4">
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <h3 className="text-sm font-bold text-white font-kanit">รายละเอียดโฟลเดอร์ระบบ (00_Inbox - 06_Archive)</h3>
+              <h3 className="text-sm font-bold text-white">รายละเอียดโฟลเดอร์ระบบ (00_Inbox - 06_Archive)</h3>
               <p className="text-xs text-slate-400">ขนาดความจุและทางลัดเปิดโฟลเดอร์ใน Windows Explorer</p>
             </div>
           </div>
@@ -424,7 +424,7 @@ export default function StorageAnalyticsTab() {
       <div className="p-5 rounded-3xl bg-[#0D111A]/80 border border-white/[0.08] backdrop-blur-xl space-y-4">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-            <h3 className="text-sm font-bold text-white font-kanit">โฟลเดอร์วัตถุดิบสินค้าที่ใช้พื้นที่มากที่สุด (Top Heavy Raw)</h3>
+            <h3 className="text-sm font-bold text-white">โฟลเดอร์วัตถุดิบสินค้าที่ใช้พื้นที่มากที่สุด (Top Heavy Raw)</h3>
             <p className="text-xs text-slate-400">10 อันดับโฟลเดอร์ใน 01_Raw ที่มีไฟล์วิดีโอและรูปภาพขนาดใหญ่</p>
           </div>
           <button

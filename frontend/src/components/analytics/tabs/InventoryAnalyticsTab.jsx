@@ -162,7 +162,7 @@ export default function InventoryAnalyticsTab({ onNavigateToFlow }) {
         <div className="p-5 sm:p-6 rounded-3xl bg-[#0D111A]/80 border border-white/[0.08] backdrop-blur-xl space-y-4 flex flex-col justify-between shadow-xl">
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <h3 className="text-sm sm:text-base font-bold text-white font-kanit">มาตรวัดความพร้อมวัตถุดิบ (Media Completeness)</h3>
+              <h3 className="text-sm sm:text-base font-bold text-white">มาตรวัดความพร้อมวัตถุดิบ (Media Completeness)</h3>
               <p className="text-xs text-slate-400">อัตราความพร้อมของรูปภาพ ฟุตเทจวิดีโอ และสคริปต์ในคลัง</p>
             </div>
             <button
@@ -182,7 +182,7 @@ export default function InventoryAnalyticsTab({ onNavigateToFlow }) {
         {/* Right: Readiness Donut Chart */}
         <div className="p-5 sm:p-6 rounded-3xl bg-[#0D111A]/80 border border-white/[0.08] backdrop-blur-xl space-y-4 flex flex-col justify-between shadow-xl">
           <div className="space-y-1">
-            <h3 className="text-sm sm:text-base font-bold text-white font-kanit">สัดส่วนความพร้อมสินค้า (Readiness Ratio)</h3>
+            <h3 className="text-sm sm:text-base font-bold text-white">สัดส่วนความพร้อมสินค้า (Readiness Ratio)</h3>
             <p className="text-xs text-slate-400">จำแนกตามความพร้อมในการกดผลิตคลิปได้ทันที</p>
           </div>
 
@@ -204,7 +204,7 @@ export default function InventoryAnalyticsTab({ onNavigateToFlow }) {
       <div className="p-5 rounded-3xl bg-[#0D111A]/80 border border-white/[0.08] backdrop-blur-xl space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-1">
-            <h3 className="text-sm font-bold text-white font-kanit">ตารางความสมบูรณ์และสถานะสินค้า (Catalog Health Grid)</h3>
+            <h3 className="text-sm font-bold text-white">ตารางความสมบูรณ์และสถานะสินค้า (Catalog Health Grid)</h3>
             <p className="text-xs text-slate-400">ตรวจสอบวัตถุดิบและเริ่มตัดต่อคลิปได้ทันที</p>
           </div>
 

@@ -1651,7 +1651,7 @@ export default function EditorShell({
         <div className="flex-1 flex items-center justify-center p-8 bg-[#07090E]">
           <div className="flex flex-col items-center gap-3 text-slate-300">
             <Loader2 className="w-8 h-8 animate-spin text-[#25F4EE]" />
-            <span className="text-sm font-bold font-kanit">กำลังโหลดข้อมูลไทม์ไลน์...</span>
+            <span className="text-sm font-bold">กำลังโหลดข้อมูลไทม์ไลน์...</span>
           </div>
         </div>
       ) : !projectName ? (

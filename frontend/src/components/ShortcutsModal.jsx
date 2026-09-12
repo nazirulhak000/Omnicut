@@ -50,7 +50,7 @@ export default function ShortcutsModal({ isOpen, onClose }) {
       <div className="space-y-5">
         {shortcutGroups.map((group, gIdx) => (
           <div key={gIdx} className="space-y-2.5">
-            <h4 className="text-xs font-bold font-kanit text-[#25F4EE] uppercase tracking-wider flex items-center gap-1.5">
+            <h4 className="text-xs font-bold text-[#25F4EE] uppercase tracking-wider flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5" />
               <span>{group.category}</span>
             </h4>

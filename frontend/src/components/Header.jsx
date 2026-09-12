@@ -57,7 +57,7 @@ export default function Header({ status, activeTab, setActiveTab }) {
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold font-kanit text-white tracking-tight truncate">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white tracking-tight truncate">
                 CapCut Studio Pro
               </h1>
               <span className="text-sm sm:text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/30">
@@ -155,7 +155,7 @@ export default function Header({ status, activeTab, setActiveTab }) {
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#FE2C55] to-[#25F4EE] flex items-center justify-center mx-auto text-white shadow-lg">
                 <Smartphone className="w-6 h-6" />
               </div>
-              <h3 className="text-xl font-bold text-white font-kanit">
+              <h3 className="text-xl font-bold text-white">
                 ส่งวิดีโอจากมือถือเข้าเครื่อง
               </h3>
               <p className="text-xs text-slate-400">
