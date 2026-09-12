@@ -50,28 +50,31 @@
 โตทุกครั้งที่ถ่าย/โพสต์คลิป มีโอกาสถึงหลักร้อยภายในปีเดียวตามการใช้งานจริง
 
 ### Todo
-- [ ] `GET /api/exports` (`scripts/api_exports.py:180`) — จุดที่คุยกันตอนแรก, consumer: `ExportGallery.jsx`
-- [ ] `GET /api/products` (`scripts/api_phase1.py:441`) — คืน products พร้อม nested `angles[]`, consumer: `ContentTrackerHub.jsx`, `ProductToClip.jsx`, `RawVaultPanel.jsx` (dropdown)
-- [ ] `GET /api/videos` (`scripts/api_videos.py:111`) — สแกน raw footage ทุกไฟล์ทุกครั้ง, consumer: `MediaAssetsHub.jsx`, `MediaPickerModal.jsx`
-- [ ] `GET /api/raw-vault` (`scripts/api_videos.py:298`) — ⚠️ docstring เดิมเตือนเองว่า join logic เป็น O(products×files) แล้ว ที่สเกล SaaS จะช้าจาก **อัลกอริทึม** ไม่ใช่แค่ payload ใหญ่ — ต้องดู query pattern ควบคู่กับ pagination ไม่ใช่แค่ตัด limit ท้าย, consumer: `RawVaultPanel.jsx`
-- [ ] Schedule-queue root (`scripts/api_schedule_queue.py:586`) — ไม่เคย prune ใน `schedule_store.py`, โตวันละแถวไม่มีลบ, consumer: `ScheduleAgenda.jsx`
-- [ ] `GET /api/tiktok-stats/latest` (`scripts/api_tiktok_stats.py:120`) — ผูกกับ `PostLog` ที่ไม่เคย prune เช่นกัน, consumer: `PerformanceAnalyticsTab.jsx`
+- [x] `GET /api/exports` (`scripts/api_exports.py:180`) — จุดที่คุยกันตอนแรก, consumer: `ExportGallery.jsx` → client-side windowed (24/page)
+- [x] `GET /api/products` (`scripts/api_phase1.py:441`) — คืน products พร้อม nested `angles[]`, consumer: `ContentTrackerHub.jsx` (kanban 20/col + table 40/page), `ProductToClip.jsx`, `RawVaultPanel.jsx` (dropdown, ไม่แตะ — แค่ dropdown เลือกสินค้า ไม่ใช่ list render)
+- [x] `GET /api/videos` (`scripts/api_videos.py:111`) — consumer จริงคือ `MediaPickerModal.jsx` (audit เดิมชี้ผิดว่าเป็น `MediaAssetsHub.jsx`) → client-side windowed (40/page)
+- [x] `GET /api/raw-vault` (`scripts/api_videos.py:298`) — เช็คโค้ดจริงแล้วพบว่า O(products×files) ที่กังวลไว้ **ถูกแก้เป็น O(products+files) ไปแล้ว** ในรอบก่อนหน้า (docstring เป็นบันทึกการแก้ ไม่ใช่คำเตือนเปิดอยู่) — เหลือแค่ pagination, consumer: `RawVaultPanel.jsx` → client-side windowed (40/page)
+- [x] Schedule-queue root (`scripts/api_schedule_queue.py:586`) — calendar view (7 วัน) และ list view (`activeQueue`, เฉพาะยังไม่โพสต์) ปลอดภัยโดยธรรมชาติ ความเสี่ยงจริงอยู่ที่ modal "โพสต์แล้ว" (`postedQueue`, ไม่เคย prune), consumer: `ScheduleAgenda.jsx` → client-side windowed เฉพาะ modal นั้น (50/page)
+- [x] `GET /api/tiktok-stats/latest` (`scripts/api_tiktok_stats.py:120`) — KPI การ์ดยังอ่านข้อมูลเต็ม ตารางแสดงผล windowed (50/page), consumer: `PerformanceAnalyticsTab.jsx`
 
-### Gate
-- [ ] pytest ของแต่ละ endpoint ที่แก้ (มี test เดิมอยู่แล้วต้องอัปเดต ไม่ใช่เขียนใหม่ทั้งหมด)
-- [ ] `npm run build`
-- [ ] Browser verify: เปิดแต่ละหน้า กด "โหลดเพิ่ม" แล้วเห็นแถวใหม่มาจริง ไม่ซ้ำ ไม่หาย
+**สรุป Phase 1:** ทุก endpoint เลือก **client-side windowing** ไม่มี endpoint ไหนใช้ backend limit/offset เลย — เพราะทุกตัวมี aggregate/cross-component dependency (ดูหัวข้อ "ข้อค้นพบระหว่างลงมือจริง" ด้านบน) กลายเป็นมาตรฐานจริงของรอบนี้ ต่างจาก Contract เดิมที่ตั้งใจไว้
+
+### Gate (Phase 1 — เสร็จหมด)
+- [x] pytest เต็มระบบ 1126 passed (ไม่กระทบ เพราะไม่แตะ backend เลยทั้ง Phase 1)
+- [x] `npm run build` ผ่านทุกจุดที่แก้ (vitest 158 passed ทุกรอบ)
+- [ ] Browser verify: ยังไม่ได้ทำ — dev server ไม่ตอบ HTTP ตลอด session นี้ ต้องเปิดแอปเช็คจริงทีหลัง
 
 ---
 
 ## Phase 2 (Medium) — โตช้ากว่า แต่ยังเป็นความเสี่ยงในระยะยาว
 
-- [ ] `GET /api/tiktok-stats/clip-candidates` (`scripts/api_tiktok_stats.py:146`) — โตตาม products+angles เหมือน Phase 1 ข้อ 2 (ผูกกันอยู่แล้ว อาจ fix พร้อมกันได้เลย)
-- [ ] `GET /api/assets/all` (`scripts/api_videos.py:549`) — คลัง SFX/เพลง/ฟอนต์/สติกเกอร์/LUT/เอฟเฟกต์ โตช้ากว่าเพราะเพิ่มมือ แต่ไลบรารีสำเร็จรูปมีเป็นร้อยได้, consumer: `MediaAssetsHub.jsx` (6 จุด `.map`), `SystemAssets.jsx`
-- [ ] `GET /assets/duplicates/scan` (`scripts/api_asset_dedup.py:16`) —ผลลัพธ์สเกลตามปริมาณ raw footage, consumer: `SystemSettings.jsx`
+- [x] `GET /api/tiktok-stats/clip-candidates` (`scripts/api_tiktok_stats.py:146`) — consumer: `PerformanceAnalyticsTab.jsx` ใช้ populate native `<select>` dropdown สำหรับจับคู่ manual **ไม่ใช่ custom card list** — native select ของเบราว์เซอร์ scale ได้เป็นพันตัวเลือกโดยไม่กระทบ perf หน้าเว็บ (ต่างจาก div-based grid) → **ตัดสินใจไม่แก้โค้ด** ของจริงไม่ได้เสี่ยงแบบที่ audit ตอนแรกกังวล
+- [x] `GET /api/assets/all` (`scripts/api_videos.py:549`) — consumer: `MediaAssetsHub.jsx` มี 7 จุด render (1 split-view list + 6 grid-view ต่อประเภท) แต่มีแค่จุดเดียวโชว์พร้อมกันเสมอ (ผูกกับ `activeAssetTab`) → windowing เดียวใช้ร่วมกันได้ทั้งหมด (`visibleCurrentItems`, 40/page, reset เมื่อเปลี่ยนแท็บ/ค้นหา)
+- [x] `GET /assets/duplicates/scan` (`scripts/api_asset_dedup.py:16`) — consumer: `SystemSettings.jsx` เป็น on-demand admin action (กด scan เอง ไม่ใช่ default-visible) อยู่ใน container ที่จำกัดความสูงอยู่แล้ว (`max-h-60`) — เสี่ยงต่ำกว่าอันอื่น แต่แก้ไว้ให้สอดคล้องกัน (30 กลุ่ม/page, reset ทุกครั้งที่ scan ใหม่)
 
-### Gate
-- [ ] pytest + `npm run build` + browser verify (เหมือน Phase 1)
+### Gate (Phase 2 — เสร็จหมด)
+- [x] `npm run build` ผ่าน, vitest 158 passed ทุกจุดที่แก้
+- [ ] Browser verify: ยังไม่ได้ทำ (เหตุผลเดียวกับ Phase 1)
 
 ---
 

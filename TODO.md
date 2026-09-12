@@ -89,9 +89,11 @@
 - [x] Phase 1 item 5: schedule-queue (`ScheduleAgenda.jsx`) — calendar view สัปดาห์อยู่แล้วโดยธรรมชาติ (7 วัน bounded), list view ผูกกับ `activeQueue` (ยังไม่โพสต์ ไม่โตมาก) ความเสี่ยงจริงอยู่ที่ modal "คลิปที่โพสต์แล้ว" (`postedQueue`, ไม่เคย prune) → windowed ทีละ 50 แถว + ปุ่มโหลดเพิ่ม, reset ทุกครั้งที่เปิด modal (2026-09-12; vitest 158 passed, build 4.23s, ดำเนินการโดย: Claude Code (Claude Sonnet 5))
 - [x] Phase 1 item 6: `/api/tiktok-stats/latest` (`PerformanceAnalyticsTab.jsx`) — KPI การ์ด (totalViews, avgEngagement) อ่านจาก `richPosts` เต็มเหมือนเดิม, windowed เฉพาะตารางแสดงผลทีละ 50 แถว + ปุ่มโหลดเพิ่ม, reset เมื่อ sync ข้อมูลใหม่ (2026-09-12; vitest 158 passed, build 4.23s, ดำเนินการโดย: Claude Code (Claude Sonnet 5))
 - [x] **Phase 1 ครบ 6/6 endpoint แล้ว** — ยังไม่ได้ browser-verify item 2-6 เลย (dev server ไม่ตอบ HTTP ตลอดรอบนี้ ดูเหมือน terminal ค้าง ไม่ใช่โค้ดพัง) — ต้องเปิดแอปจริงเช็คก่อนถือว่าปิดสนิท 100%
-- [ ] Phase 2 (ยังไม่เริ่ม)
-- [ ] Phase 2 (Medium): `/api/tiktok-stats/clip-candidates`, `/api/assets/all`, `/assets/duplicates/scan`
-- [ ] Phase 3 (Low, ไม่รีบ): `/api/posts*` (dead code ตอนนี้), `/api/tiktok-stats/pending`, `/backup/list`, `/api/tasks/active` (ปลอดภัยแล้ว)
+- [x] Phase 2 item 1: `/api/tiktok-stats/clip-candidates` — เช็คแล้วพบว่า populate native `<select>` dropdown ไม่ใช่ custom card list → **ไม่ต้องแก้โค้ด** (native select scale ได้เป็นพันตัวเลือกไม่กระทบ perf)
+- [x] Phase 2 item 2: `/api/assets/all` (`MediaAssetsHub.jsx`) — 7 จุด render (1 split-view + 6 grid-view ต่อประเภท) แต่โชว์ทีละจุดตาม tab เดียว → windowed ร่วมกันทีละ 40 รายการ + ปุ่มโหลดเพิ่ม (2026-09-13; vitest 158 passed, build 4.11s, ดำเนินการโดย: Claude Code (Claude Sonnet 5))
+- [x] Phase 2 item 3: `/assets/duplicates/scan` (`SystemSettings.jsx`) — เสี่ยงต่ำกว่าอันอื่น (on-demand action, container จำกัดความสูงอยู่แล้ว) แต่แก้ให้สอดคล้องกัน windowed ทีละ 30 กลุ่ม + ปุ่มโหลดเพิ่ม, reset ทุก scan ใหม่ (2026-09-13; vitest 158 passed, build 3.22s, ดำเนินการโดย: Claude Code (Claude Sonnet 5))
+- [x] **Phase 2 เสร็จหมด** — ยังไม่ได้ browser-verify (เหตุผลเดียวกับ Phase 1)
+- [ ] Phase 3 (Low, ไม่รีบ ยังไม่เริ่ม): `/api/posts*` (dead code ตอนนี้), `/api/tiktok-stats/pending`, `/backup/list`, `/api/tasks/active` (ปลอดภัยแล้ว)
 
 ## Round TIKTOK-STATS-SCRAPE-2 (backlog)
 ## Round TIKTOK-STATS-SCRAPE-2 (backlog) — แท็บ Performance เพิ่มลิงก์ คลิปปัง threshold + แมพ manual สำหรับ unmatched rows
