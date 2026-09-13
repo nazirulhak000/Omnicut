@@ -57,6 +57,7 @@
 - [x] Round QUICK-REF-POLISH-1 — Redesign Impeccable Quick Ref Vault & Fix iOS Mobile Zoom (2026-09-13; npm test 180 passed, build 3.31s, desktop & mobile browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 
 - [x] Round CLIPBOARD-IMAGE-PASTE-1 — Direct Clipboard Image Paste (Ctrl+V / Paste into Textarea & Form) (2026-09-13; npm test 180 passed, build 3.35s, browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
+- [x] Round MOBILE-IMAGE-PASTE-FIX-1 — Fix Mobile Image Paste (iOS Safari files detection, ContentEditable Paste Target, Native Photo Picker Auto-Fallback, and HEIC auto-conversion) (2026-09-13; npm test 180 passed, build 3.58s, desktop & mobile browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 
 
 

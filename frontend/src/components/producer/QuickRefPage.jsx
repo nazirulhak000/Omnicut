@@ -34,6 +34,7 @@ export default function QuickRefPage({ onExit }) {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [pasteSuccess, setPasteSuccess] = useState(false);
   const [pastedImageToast, setPastedImageToast] = useState(false);
+  const [clipboardHelpToast, setClipboardHelpToast] = useState(false);
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -109,21 +110,87 @@ export default function QuickRefPage({ onExit }) {
     if (file) processImageFile(file);
   };
 
-  // Intercept Ctrl+V or right-click Paste in textarea or card
+  // Intercept Ctrl+V or right-click Paste in textarea, contenteditable, or card
   const handlePasteAnywhere = (e) => {
-    const items = e.clipboardData?.items;
-    if (!items) return;
+    const cd = e.clipboardData;
+    if (!cd) return;
 
-    for (let i = 0; i < items.length; i++) {
-      if (items[i].type.startsWith('image/')) {
-        const file = items[i].getAsFile();
-        if (file) {
+    // 1. Check cd.files FIRST (This is where iOS Safari and desktop file pastes put copied photos!)
+    if (cd.files && cd.files.length > 0) {
+      for (let i = 0; i < cd.files.length; i++) {
+        const file = cd.files[i];
+        if (file && (file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|heic|heif|bmp)$/i.test(file.name || ''))) {
           e.preventDefault();
           processImageFile(file);
           return;
         }
       }
     }
+
+    // 2. Check cd.items (Chrome / Android / Chromium-based browsers)
+    if (cd.items && cd.items.length > 0) {
+      for (let i = 0; i < cd.items.length; i++) {
+        const item = cd.items[i];
+        if (item.type && item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) {
+            e.preventDefault();
+            processImageFile(file);
+            return;
+          }
+        }
+      }
+    }
+
+    // 3. Check HTML content for <img> tag (when user copies image from Pinterest or web page)
+    try {
+      const html = cd.getData('text/html');
+      if (html) {
+        const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+        if (match && match[1] && !match[1].startsWith('webkit-fake-url:')) {
+          e.preventDefault();
+          setPreviewImage(match[1]);
+          setPastedImageToast(true);
+          setTimeout(() => setPastedImageToast(false), 2500);
+          return;
+        }
+      }
+    } catch (_) {}
+
+    // 4. Check plain text for direct image link or base64 data URL
+    try {
+      const text = cd.getData('text/plain');
+      if (text) {
+        const trimmed = text.trim();
+        if (trimmed.startsWith('data:image/') || /\.(png|jpe?g|webp|gif|heic)(\?.*)?$/i.test(trimmed)) {
+          e.preventDefault();
+          setPreviewImage(trimmed);
+          setPastedImageToast(true);
+          setTimeout(() => setPastedImageToast(false), 2500);
+          return;
+        }
+      }
+    } catch (_) {}
+  };
+
+  // ContentEditable input catcher (Failsafe for iOS Safari native image insertion)
+  const handleContentEditableInput = (e) => {
+    const container = e.currentTarget;
+    const img = container.querySelector('img');
+    if (img && img.src) {
+      if (!img.src.startsWith('webkit-fake-url:')) {
+        setPreviewImage(img.src);
+        setPastedImageToast(true);
+        setTimeout(() => setPastedImageToast(false), 2500);
+      }
+    }
+    const text = container.innerText?.trim();
+    if (text && (text.startsWith('data:image/') || /\.(png|jpe?g|webp|gif|heic)(\?.*)?$/i.test(text))) {
+      setPreviewImage(text);
+      setPastedImageToast(true);
+      setTimeout(() => setPastedImageToast(false), 2500);
+    }
+    container.innerHTML = '';
   };
 
   // Drag & drop image support
@@ -135,13 +202,16 @@ export default function QuickRefPage({ onExit }) {
     }
   };
 
-  // 1-Tap Read Image directly from Clipboard (navigator.clipboard.read)
+  // 1-Tap Read Image from Clipboard with seamless guidance
   const handlePasteImageFromClipboard = async () => {
+    // If clipboard.read is not supported (e.g. mobile Safari default or non-HTTPS),
+    // trigger file picker immediately & synchronously so Safari does not block it!
+    if (!navigator.clipboard?.read) {
+      fileInputRef.current?.click();
+      return;
+    }
+
     try {
-      if (!navigator.clipboard?.read) {
-        alert('เบราว์เซอร์นี้ไม่อนุญาตให้อ่านรูปภาพผ่านปุ่มโดยตรง\nทริก: เจ้านายสามารถกดในช่องข้อความแล้วกด Ctrl+V เพื่อวางรูปภาพได้ทันทีครับ!');
-        return;
-      }
       setUploadingImage(true);
       const items = await navigator.clipboard.read();
       for (const item of items) {
@@ -152,12 +222,25 @@ export default function QuickRefPage({ onExit }) {
             processImageFile(file);
             return;
           }
+          if (type === 'text/plain') {
+            const blob = await item.getType(type);
+            const text = await blob.text();
+            const trimmed = text.trim();
+            if (trimmed.startsWith('data:image/') || /\.(png|jpe?g|webp|gif|heic)(\?.*)?$/i.test(trimmed)) {
+              setPreviewImage(trimmed);
+              setPastedImageToast(true);
+              setTimeout(() => setPastedImageToast(false), 2500);
+              return;
+            }
+          }
         }
       }
-      alert('ไม่พบรูปภาพในคลิปบอร์ด\n(กรุณากดแคปหน้าจอ เช่น Win+Shift+S หรือคัดลอกรูปภาพมาก่อน แล้วกดใหม่อีกครั้งครับ)');
+      setClipboardHelpToast(true);
+      setTimeout(() => setClipboardHelpToast(false), 4000);
     } catch (err) {
-      console.warn('Clipboard read error:', err);
-      alert('ไม่สามารถอ่านรูปจากคลิปบอร์ดได้: ' + (err.message || 'Permission denied') + '\nทริก: เจ้านายสามารถกดในช่องข้อความแล้วกด Ctrl+V ได้ทันทีครับ!');
+      console.warn('Clipboard read error (iOS Safari permission):', err);
+      setClipboardHelpToast(true);
+      setTimeout(() => setClipboardHelpToast(false), 4000);
     } finally {
       setUploadingImage(false);
     }
@@ -550,37 +633,87 @@ export default function QuickRefPage({ onExit }) {
                     </div>
                   </div>
                 ) : (
-                  <div
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={handleDrop}
-                    className="w-full p-3 rounded-2xl border border-dashed border-white/15 bg-slate-950/40 hover:bg-slate-950/80 hover:border-amber-500/40 flex flex-col sm:flex-row items-center justify-between gap-2.5 transition-all"
-                  >
-                    <div className="flex items-center gap-2 text-slate-300">
-                      <ImageIcon className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-                      <span className="text-xs font-medium text-slate-300">
-                        {uploadingImage ? 'กำลังอัปโหลดรูป...' : 'วางรูปด้วย Ctrl+V ในช่อง หรือ'}
+                  <div className="space-y-2.5">
+                    {/* Rich ContentEditable Paste Target for Mobile (iOS Safari & Android) & Desktop */}
+                    <div
+                      contentEditable
+                      suppressContentEditableWarning
+                      onPaste={handlePasteAnywhere}
+                      onInput={handleContentEditableInput}
+                      onKeyDown={(e) => {
+                        if (!e.ctrlKey && !e.metaKey && e.key !== 'v') {
+                          e.preventDefault();
+                        }
+                      }}
+                      tabIndex={0}
+                      className="w-full py-3 px-3.5 rounded-2xl border-2 border-dashed border-amber-500/40 bg-amber-500/[0.04] hover:bg-amber-500/[0.08] focus:border-amber-400 focus:bg-amber-500/[0.08] focus:outline-none flex items-center justify-between cursor-pointer transition-all active:scale-[0.99]"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="p-1.5 rounded-xl bg-amber-500/20 text-amber-400 flex-shrink-0">
+                          <Clipboard className="w-4 h-4" />
+                        </div>
+                        <div className="text-left min-w-0">
+                          <p className="text-xs font-bold text-amber-200 truncate">
+                            แตะที่นี่แล้วกด วาง (Paste)
+                          </p>
+                          <p className="text-[10px] text-slate-400 truncate">
+                            สำหรับมือถือ แตะ 1 ที แล้วเลือก "วาง" ในเมนูด้านบน
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-bold text-amber-300 bg-amber-500/20 border border-amber-500/30 px-2 py-1 rounded-lg pointer-events-none whitespace-nowrap flex-shrink-0">
+                        แตะค้างแล้วกดวาง
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
-                      <button
-                        type="button"
-                        onClick={handlePasteImageFromClipboard}
-                        disabled={uploadingImage}
-                        className="flex-1 sm:flex-none px-3 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
-                        title="อ่านรูปภาพจากคลิปบอร์ดที่เพิ่งแคปหน้าจอมา"
-                      >
-                        <Clipboard className="w-3.5 h-3.5" />
-                        <span>วางรูปภาพ</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploadingImage}
-                        className="flex-1 sm:flex-none px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs font-semibold cursor-pointer active:scale-95 transition-all"
-                      >
-                        แนบไฟล์
-                      </button>
+
+                    {/* Secondary Action Bar: Direct 1-Tap Photo Library & Paste Button */}
+                    <div
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={handleDrop}
+                      className="w-full p-2.5 rounded-2xl border border-white/10 bg-slate-950/40 flex items-center justify-between gap-2 transition-all"
+                    >
+                      <div className="flex items-center gap-2 text-slate-400 min-w-0">
+                        <ImageIcon className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                        <span className="text-xs truncate">
+                          {uploadingImage ? 'กำลังอัปโหลดรูป...' : 'หรือเลือกจากมือถือ:'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={uploadingImage}
+                          className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+                          title="เปิดคลังภาพเพื่อเลือกรูปที่เพิ่งแคปหน้าจอไว้ได้ทันที"
+                        >
+                          <ImageIcon className="w-3.5 h-3.5" />
+                          <span>เลือกจากคลังภาพ</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handlePasteImageFromClipboard}
+                          disabled={uploadingImage}
+                          className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10 text-xs font-semibold flex items-center gap-1 cursor-pointer active:scale-95 transition-all"
+                          title="อ่านภาพจากคลิปบอร์ดเครื่อง"
+                        >
+                          <Clipboard className="w-3.5 h-3.5" />
+                          <span>วางรูปภาพ</span>
+                        </button>
+                      </div>
                     </div>
+
+                    {clipboardHelpToast && (
+                      <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-300 flex items-center justify-between animate-fadeIn">
+                        <span>มือถือจำกัดการเข้าถึงคลิปบอร์ด กรุณาแตะกล่องด้านบนเพื่อกดวาง หรือแตะ "เลือกจากคลังภาพ"</span>
+                        <button
+                          type="button"
+                          onClick={() => setClipboardHelpToast(false)}
+                          className="text-amber-400 hover:text-white ml-2"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

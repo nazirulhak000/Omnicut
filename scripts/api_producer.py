@@ -40,8 +40,21 @@ async def upload_ref_media(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="ไม่พบชื่อไฟล์")
 
     ext = Path(file.filename).suffix.lower()
-    if ext not in [".jpg", ".jpeg", ".png", ".webp", ".gif", ".mp4", ".mov"]:
-        raise HTTPException(status_code=400, detail="รองรับเฉพาะไฟล์ภาพ (.jpg, .png, .webp) หรือวิดีโอสั้น")
+    if not ext and file.content_type:
+        content_type_map = {
+            "image/jpeg": ".jpg",
+            "image/png": ".png",
+            "image/webp": ".webp",
+            "image/gif": ".gif",
+            "image/heic": ".heic",
+            "image/heif": ".heif",
+            "video/mp4": ".mp4",
+            "video/quicktime": ".mov",
+        }
+        ext = content_type_map.get(file.content_type.lower(), ".png")
+
+    if ext not in [".jpg", ".jpeg", ".png", ".webp", ".gif", ".mp4", ".mov", ".heic", ".heif"]:
+        raise HTTPException(status_code=400, detail="รองรับเฉพาะไฟล์ภาพ (.jpg, .png, .webp, .heic) หรือวิดีโอสั้น")
 
     safe_name = f"ref_{uuid.uuid4().hex[:12]}{ext}"
     dest_path = REFS_DIR / safe_name
@@ -49,6 +62,23 @@ async def upload_ref_media(file: UploadFile = File(...)):
     contents = await file.read()
     with open(dest_path, "wb") as f:
         f.write(contents)
+
+    # If iPhone HEIC/HEIF, convert to JPG with ffmpeg so browsers can render immediately
+    if ext in [".heic", ".heif"]:
+        jpg_name = f"{dest_path.stem}.jpg"
+        jpg_path = REFS_DIR / jpg_name
+        try:
+            import subprocess
+            res = subprocess.run(
+                ["ffmpeg", "-y", "-i", str(dest_path), str(jpg_path)],
+                capture_output=True,
+                timeout=10,
+            )
+            if res.returncode == 0 and jpg_path.exists():
+                safe_name = jpg_name
+                dest_path = jpg_path
+        except Exception:
+            pass
 
     return {
         "success": True,

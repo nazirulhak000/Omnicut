@@ -8,8 +8,34 @@
 
 ## สารบัญ
 
+| Round MOBILE-IMAGE-PASTE-FIX-1 | Fix Mobile Image Paste (iOS Safari files detection, ContentEditable Paste Target, Native Photo Picker Auto-Fallback, and HEIC auto-conversion) | 2026-09-13 | สำเร็จสมบูรณ์ (ตรวจจับ `clipboardData.files` + `items` + `html` + `text` ทุกมิติ, เพิ่มกล่อง Rich ContentEditable Paste Target สำหรับ iOS Safari & Android, ปุ่ม 1-Tap 'เลือกจากคลังภาพ' ดึงรูปล่าสุดใน 1 วินาที, รองรับภาพ HEIC จาก iPhone แปลงเป็น JPG อัตโนมัติด้วย ffmpeg, npm test 180 passed, build 3.58s, desktop & mobile browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round CLIPBOARD-IMAGE-PASTE-1 | Direct Clipboard Image Paste (Ctrl+V / Paste into Textarea & Form) | 2026-09-13 | สำเร็จสมบูรณ์ (ตรวจจับภาพจาก clipboardData อัตโนมัติเมื่อกด Ctrl+V ในช่องข้อความหรือฟอร์ม, เพิ่มปุ่ม 1-Tap 'วางรูปภาพ' ดึงรูปจาก clipboard, อัปโหลดเข้า 02_Assets/Refs/ ทันที, รองรับทั้ง QuickRefPage และ ProducerHub, npm test 180 passed, build 3.35s, browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round QUICK-REF-POLISH-1 | Redesign Impeccable Quick Ref Vault & Fix iOS Mobile Zoom | 2026-09-13 | สำเร็จสมบูรณ์ (ป้องกัน iOS auto-zoom ด้วย 16px inputs + CSS media query + viewport config, Redesign เต็มจอ edge-to-edge + Responsive 2-column desktop, 1-Tap Paste จากคลิปบอร์ด, Segmented Category Pills, Tag filter & search, AI Idea-to-Script on mobile, npm test 180 passed, build 3.31s, desktop & mobile browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+---
+
+## Round MOBILE-IMAGE-PASTE-FIX-1 — Fix Mobile Image Paste (iOS Safari files detection, ContentEditable Paste Target, and Native Photo Picker Auto-Fallback)
+
+วันที่: 2026-09-13 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
+ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+**เป้าหมาย:**
+1. **แก้ปัญหาคัดลอกรูปบนมือถือแล้วกดวางไม่ขึ้นรูป:**
+   - ใน iOS Safari เมื่อผู้ใช้คัดลอกภาพจาก Photos หรือ Safari ภาพจะถูกส่งผ่าน `e.clipboardData.files` หรือ `text/html` / `text/plain` (Image URL) ปรับปรุงตัวดักจับ paste ให้ตรวจสอบ `files`, `items`, `html (<img>)` และ `text (URL/base64)` ครบทุกมิติ
+   - บน iOS Safari ช่อง `<textarea>` ธรรมดาจะไม่แสดงเมนู Paste สำหรับรูปภาพ (เพราะ Safari มองเป็น plain text) จึงเพิ่ม **"กล่องแตะเพื่อวางรูปภาพ (Rich Paste Target with contenteditable="true")"** เพื่อให้ iOS แสดงเมนู "Paste" สำหรับภาพได้อย่างถูกต้อง และดักจับ native insertion ด้วย `handleContentEditableInput`
+2. **เพิ่มปุ่ม 1-Tap "เลือกจากคลังภาพ" (Native Photo Picker):**
+   - แตะเพียงครั้งเดียวเพื่อเปิดคลังภาพ iOS/Android โดยตรง ภาพแคปหน้าจอหรือภาพที่เพิ่งเซฟไว้จะอยู่บนสุดซ้ายมือ แตะเลือกได้ใน 1 วินาทีแบบ Zero-Latency
+3. **ปรับปรุงปุ่ม "วางรูปภาพ" บนมือถือ:**
+   - ตรวจสอบ `navigator.clipboard.read()` รองรับทั้ง `image/*` และ `text/plain` (URL)
+   - หาก iOS บล็อก permission ให้แจ้งเตือนด้วย Toast นุ่มนวลแนะนำให้แตะกล่องวาง หรือแตะ "เลือกจากคลังภาพ"
+4. **รองรับไฟล์ภาพ iPhone (HEIC/HEIF) ที่หลังบ้าน:**
+   - อัปเดต `scripts/api_producer.py` ตรวจจับ content_type เมื่อไฟล์ไม่มีนามสกุล และแปลง HEIC เป็น JPG ผ่าน ffmpeg อัตโนมัติ เพื่อให้เบราว์เซอร์ทุกตัวแสดงผลได้ 100%
+
+### Gate & Verification Results:
+- [x] Node / Vitest Tests: `npm test` — 180/180 passed 100%
+- [x] Frontend Build: `npm run build` — 2003 modules transformed, build clean ใน 3.58s
+- [x] Python Compilation: `.venv\Scripts\python.exe -m compileall -q scripts tests` — 0 errors
+- [x] Visual Verification: Browser subagent จำลองการวางรูปภาพจาก clipboardData ลงใน Rich ContentEditable box และตรวจพบ preview ภาพในโหมด Desktop และ iPhone 15 Pro Max (430x932) อย่างสมบูรณ์แบบ
 
 ---
 

@@ -215,19 +215,65 @@ export default function ProducerHub({
 
   // Intercept Ctrl+V or right-click Paste of images
   const handlePasteImageAnywhere = (e) => {
-    const items = e.clipboardData?.items;
-    if (!items) return;
+    const cd = e.clipboardData;
+    if (!cd) return;
 
-    for (let i = 0; i < items.length; i++) {
-      if (items[i].type.startsWith('image/')) {
-        const file = items[i].getAsFile();
-        if (file) {
+    // 1. Check cd.files first (iOS Safari & desktop copied images)
+    if (cd.files && cd.files.length > 0) {
+      for (let i = 0; i < cd.files.length; i++) {
+        const file = cd.files[i];
+        if (file && (file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|heic|heif|bmp)$/i.test(file.name || ''))) {
           e.preventDefault();
           processRefImageFile(file);
           return;
         }
       }
     }
+
+    // 2. Check cd.items
+    const items = cd.items;
+    if (items && items.length > 0) {
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type && items[i].type.startsWith('image/')) {
+          const file = items[i].getAsFile();
+          if (file) {
+            e.preventDefault();
+            processRefImageFile(file);
+            return;
+          }
+        }
+      }
+    }
+
+    // 3. Check HTML content for <img> tag
+    try {
+      const html = cd.getData('text/html');
+      if (html) {
+        const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+        if (match && match[1] && !match[1].startsWith('webkit-fake-url:')) {
+          e.preventDefault();
+          setIdeaImage(match[1]);
+          setPastedImageToast(true);
+          setTimeout(() => setPastedImageToast(false), 2500);
+          return;
+        }
+      }
+    } catch (_) {}
+
+    // 4. Check text/plain for direct image URL or base64
+    try {
+      const text = cd.getData('text/plain');
+      if (text) {
+        const trimmed = text.trim();
+        if (trimmed.startsWith('data:image/') || /\.(png|jpe?g|webp|gif|heic)(\?.*)?$/i.test(trimmed)) {
+          e.preventDefault();
+          setIdeaImage(trimmed);
+          setPastedImageToast(true);
+          setTimeout(() => setPastedImageToast(false), 2500);
+          return;
+        }
+      }
+    } catch (_) {}
   };
 
   // Drag & drop image support
@@ -239,13 +285,16 @@ export default function ProducerHub({
     }
   };
 
-  // 1-Tap Read Image directly from Clipboard
+  // 1-Tap Read Image directly from Clipboard with Photo Picker fallback
   const handlePasteImageFromClipboard = async () => {
+    // If navigator.clipboard.read is not supported (e.g. mobile Safari default or non-HTTPS),
+    // trigger file picker immediately & synchronously so Safari does not block it!
+    if (!navigator.clipboard?.read) {
+      fileInputRef.current?.click();
+      return;
+    }
+
     try {
-      if (!navigator.clipboard?.read) {
-        alert('เบราว์เซอร์นี้ไม่อนุญาตให้อ่านรูปภาพผ่านปุ่มโดยตรง\nทริก: เจ้านายสามารถกดในช่องข้อความแล้วกด Ctrl+V เพื่อวางรูปภาพได้ทันทีครับ!');
-        return;
-      }
       setUploadingRefImage(true);
       const items = await navigator.clipboard.read();
       for (const item of items) {
@@ -256,12 +305,23 @@ export default function ProducerHub({
             processRefImageFile(file);
             return;
           }
+          if (type === 'text/plain') {
+            const blob = await item.getType(type);
+            const text = await blob.text();
+            const trimmed = text.trim();
+            if (trimmed.startsWith('data:image/') || /\.(png|jpe?g|webp|gif|heic)(\?.*)?$/i.test(trimmed)) {
+              setIdeaImage(trimmed);
+              setPastedImageToast(true);
+              setTimeout(() => setPastedImageToast(false), 2500);
+              return;
+            }
+          }
         }
       }
-      alert('ไม่พบรูปภาพในคลิปบอร์ด\n(กรุณากดแคปหน้าจอ เช่น Win+Shift+S หรือคัดลอกรูปภาพมาก่อน แล้วกดใหม่อีกครั้งครับ)');
+      fileInputRef.current?.click();
     } catch (err) {
-      console.warn('Clipboard read error:', err);
-      alert('ไม่สามารถอ่านรูปจากคลิปบอร์ดได้: ' + (err.message || 'Permission denied') + '\nทริก: เจ้านายสามารถกดในช่องข้อความแล้วกด Ctrl+V ได้ทันทีครับ!');
+      console.warn('Clipboard read error (iOS Safari permission):', err);
+      fileInputRef.current?.click();
     } finally {
       setUploadingRefImage(false);
     }
