@@ -110,7 +110,9 @@ LINE_HEIGHT_FACTOR = 1.0
 WATERMARK_TEXT = "สงวนลิขสิทธิ์ช่อง rizantry ห้ามคัดลอก/ดัดแปลง"
 WATERMARK_X_RATIO = 0.945   # centre of the 11.1%-wide right safe-zone column
 WATERMARK_Y_RATIO = 0.4375  # vertical centre of that column's 9.4%-78.1% span
-WATERMARK_FS_RATIO = 0.052  # small corner mark -- independent of the 0.0463 caption ratio
+WATERMARK_FS_RATIO = 0.038  # small corner mark -- independent of the 0.0463 caption ratio
+WATERMARK_COLOR = "&H000000FF"  # ASS &HAABBGGRR: opaque red
+WATERMARK_ALPHA = "&H30&"       # \alpha override -- slight fade, not fully opaque
 
 # Where the caption block sits: (ASS alignment, vertical margin).
 # 2 = bottom centre, 5 = middle centre, 8 = top centre.
@@ -668,7 +670,7 @@ Style: HookHeaderPill,{hook_font},{hook_fs_boosted},&H00FFFFFF,&H000000FF,&H0000
 Style: SpecBar,{resolved_font},{int(round((font_size - 12) * TEXT_SCALE_BOOST))},&H00000000,&H000000FF,&H00000000,&H0000E6FF,{resolved_bold},0,0,0,100,100,0,0,3,10,0,9,50,50,380,1
 Style: TextOverlayMain,{resolved_font},{base_fs_boosted},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,{resolved_bold},0,0,0,100,100,0,0,1,5.0,2,5,60,60,0,1
 Style: TextOverlayPill,{resolved_font},{base_fs_boosted},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,{resolved_bold},0,0,0,100,100,0,0,1,5.0,2,5,60,60,0,1
-Style: Watermark,{caption_font},{watermark_fs_boosted},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1.2,0,5,0,0,0,1
+Style: Watermark,{caption_font},{watermark_fs_boosted},{WATERMARK_COLOR},&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1.2,0,5,0,0,0,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -689,7 +691,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         wm_y = int(round(video_height * WATERMARK_Y_RATIO))
         events.append(
             f"Dialogue: 0,{cls._format_ass_time(0)},{cls._format_ass_time(10800)},Watermark,,0,0,0,,"
-            f"{{\\an5\\pos({wm_x},{wm_y})\\frz-90}}{ass_escape_text(WATERMARK_TEXT)}"
+            f"{{\\an5\\pos({wm_x},{wm_y})\\frz-90\\alpha{WATERMARK_ALPHA}}}{ass_escape_text(WATERMARK_TEXT)}"
         )
 
         # 1. Top Hook Banner -- 3-tier product-poster composition (brand

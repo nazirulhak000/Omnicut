@@ -44,7 +44,9 @@ const CANVAS_H = 960;
 const WATERMARK_TEXT = 'สงวนลิขสิทธิ์ช่อง rizantry ห้ามคัดลอก/ดัดแปลง';
 const WATERMARK_X_RATIO = 0.945;
 const WATERMARK_Y_RATIO = 0.4375;
-const WATERMARK_FS_RATIO = 0.052;
+const WATERMARK_FS_RATIO = 0.038;
+const WATERMARK_COLOR = '#FF0000';
+const WATERMARK_ALPHA = 0.8;
 // Canvas playback remains frame-paced, but React only needs enough playhead
 // updates to keep the editor chrome and selection box visually current. The
 // preview/render contract is 30 FPS, so this caps React state publication at
@@ -1512,8 +1514,9 @@ function drawWatermark(ctx) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.lineWidth = Math.max(1, fontSize * 0.06);
+  ctx.globalAlpha = WATERMARK_ALPHA;
   ctx.strokeStyle = '#000000';
-  ctx.fillStyle = '#FFFFFF';
+  ctx.fillStyle = WATERMARK_COLOR;
   ctx.strokeText(WATERMARK_TEXT, 0, 0);
   ctx.fillText(WATERMARK_TEXT, 0, 0);
   ctx.restore();
