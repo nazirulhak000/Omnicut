@@ -16,6 +16,7 @@ from scripts.config import (
 )
 from scripts.project_manifest import ProjectManifest, REROLL_STAGE
 from scripts.color_theme import extract_explicit_theme, is_color_theme, normalize_hex, resolve_color_theme
+from scripts.spotlight_effect import normalize_spotlight
 
 
 INCREMENTAL_RENDER_SCHEMA_VERSION = 1
@@ -298,6 +299,7 @@ def _stage_payload_from_manifest(
                 "sticker_path": _asset_identity(_manifest_value(manifest, "sticker_path")),
                 "stickers": _manifest_value(manifest, "stickers"),
                 "effects": _manifest_value(manifest, "effects"),
+                "spotlight": normalize_spotlight(_manifest_value(manifest, "spotlight")),
                 "overlays": overlays,
                 "product": manifest.get("product") or {},
                 "color_theme": _manifest_value(manifest, "color_theme"),
@@ -403,6 +405,9 @@ class PipelineContext:
     # separately so a manifest can persist the effective theme without
     # confusing it with the caller's override.
     color_theme: Optional[Dict[str, Any]] = None
+    # Optional Product SpotlightV1 input.  The canonical value is resolved
+    # lazily so old manifests and omitted requests stay a true no-op.
+    spotlight: Optional[Dict[str, Any]] = None
     angle_meta: Optional[Dict[str, Any]] = None
     progress_callback: Optional[Callable[[str, float], None]] = None
     overlays: Optional[List[Dict[str, Any]]] = None
@@ -435,6 +440,7 @@ class PipelineContext:
     scrim_spans: List[tuple] = field(default_factory=list)
     editorial_pacing: Optional[Dict[str, Any]] = None
     resolved_color_theme: Optional[Dict[str, Any]] = None
+    resolved_spotlight: Optional[Dict[str, Any]] = None
 
     effective_bgm_name: Optional[str] = None
     mixed_audio_path: Optional[Path] = None
@@ -495,6 +501,46 @@ class PipelineContext:
                 style_preset=self.style_preset,
             )
         self.resolved_color_theme = copy.deepcopy(resolved)
+        return copy.deepcopy(resolved)
+
+    def resolve_spotlight_contract(self) -> Dict[str, Any]:
+        """Resolve the optional SpotlightV1 contract from input or manifest.
+
+        Normalisation is the only boundary that can produce a value consumed
+        by a renderer.  This prevents invalid/raw filter strings from
+        crossing the pipeline and makes manifest reuse deterministic.
+        """
+        if self.resolved_spotlight is not None:
+            return copy.deepcopy(self.resolved_spotlight)
+
+        manifest = self.manifest if isinstance(self.manifest, dict) else {}
+        candidate = self.spotlight
+        if candidate is None:
+            candidate = _manifest_value(manifest, "spotlight")
+        if candidate is None and isinstance(self.effects, list):
+            # Keep the legacy effects array usable as a transport for the
+            # optional editor effect. This mirrors SequencePlayer's fallback
+            # while preserving ordinary decorative effects unchanged.
+            for item in self.effects:
+                if not isinstance(item, dict):
+                    continue
+                kind = str(
+                    item.get("kind")
+                    or item.get("type")
+                    or item.get("effect_type")
+                    or ""
+                ).strip().lower()
+                if kind not in {"spotlight", "spotlightv1"}:
+                    continue
+                if "config" in item:
+                    candidate = item["config"]
+                elif "spotlight" in item:
+                    candidate = item["spotlight"]
+                else:
+                    candidate = item
+                break
+        resolved = normalize_spotlight(candidate)
+        self.resolved_spotlight = copy.deepcopy(resolved)
         return copy.deepcopy(resolved)
 
     def notify(self, msg: str, progress: float) -> None:
@@ -585,7 +631,7 @@ class PipelineContext:
             "caption_color", "caption_scale", "sticker_position", "sticker_scale",
             "sticker_start_time", "sticker_end_time", "sticker_norm_x",
             "sticker_norm_y", "stickers", "effects", "text_overlays", "overlays",
-            "clip_list", "transitions",
+            "clip_list", "transitions", "spotlight",
         )
         input_names = input_names + ('editorial_pacing',)
         for name in input_names:
@@ -606,6 +652,9 @@ class PipelineContext:
         if self.resolved_color_theme is not None:
             snapshot["color_theme"] = self.resolved_color_theme
             params["color_theme"] = self.resolved_color_theme
+        if self.resolved_spotlight is not None:
+            snapshot["spotlight"] = self.resolved_spotlight
+            params["spotlight"] = self.resolved_spotlight
         if self.script_data is not None:
             snapshot["script_data"] = self.script_data
         if self.cues:

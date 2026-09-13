@@ -46,6 +46,10 @@ class RenderRequest(BaseModel):
     product_id: Optional[str] = None
     angle_id: Optional[str] = None
     color_theme: Optional[Dict[str, Any]] = None
+    # Optional normalized by the pipeline into SpotlightV1.  Keep this loose
+    # at the request boundary so old clients and legacy manifests remain
+    # readable; invalid values become a disabled no-op downstream.
+    spotlight: Optional[Dict[str, Any]] = None
     font_name: str = "IBMPlex"
     bilingual_subtitles: bool = True
     show_watermark: bool = True

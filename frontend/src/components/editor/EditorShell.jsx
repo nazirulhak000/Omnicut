@@ -120,7 +120,7 @@ const LEGACY_SFX_ALIASES = {
   boom: 'sfx_vine_boom',
 };
 
-const EMPTY = { clipList: [], cuesList: [], overlays: [], stickers: [], effects: [], trackMix: { mute: {}, solo: {} }, style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false, captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1, stickerPosition: 'top_right', stickerScale: 1, style_preset: 'clean_tech_review', showWatermark: true } };
+const EMPTY = { clipList: [], cuesList: [], overlays: [], stickers: [], effects: [], spotlight: null, trackMix: { mute: {}, solo: {} }, style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false, captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1, stickerPosition: 'top_right', stickerScale: 1, style_preset: 'clean_tech_review', showWatermark: true } };
 
 let idCounter = 0;
 const newId = () => `clip-${Date.now().toString(36)}-${++idCounter}`;
@@ -136,7 +136,7 @@ export default function EditorShell({
   onProductContextChange,
 }) {
   const { state, set, setSilent, beginDrag, endDrag, undo, redo, reset, canUndo, canRedo } = useEditorHistory(EMPTY);
-  const { clipList, cuesList, style, overlays, stickers = [], effects = [], trackMix = { mute: {}, solo: {} } } = state;
+  const { clipList, cuesList, style, overlays, stickers = [], effects = [], spotlight = null, trackMix = { mute: {}, solo: {} } } = state;
 
   const [projectList, setProjectList] = useState([]);
   const [projectName, setProjectName] = useState(() => {
@@ -482,9 +482,10 @@ export default function EditorShell({
     overlays,
     stickers,
     effects,
+    spotlight,
     trackMix,
     microCuesList,
-  }), [clipList, cuesList, overlays, stickers, effects, style, trackMix, microCuesList]);
+  }), [clipList, cuesList, overlays, stickers, effects, spotlight, style, trackMix, microCuesList]);
   const projectSavePayload = useMemo(
     () => withStylePresetPayload(savePayload, activeStylePreset),
     [savePayload, activeStylePreset],
@@ -547,6 +548,7 @@ export default function EditorShell({
       overlays: loadedEditorState.overlays,
       stickers: loadedEditorState.stickers || [],
       effects: loadedEditorState.effects || [],
+      spotlight: loadedEditorState.spotlight || null,
       trackMix: loadedEditorState.trackMix || { mute: {}, solo: {} },
       style: loadedEditorState.style,
     });
@@ -1743,6 +1745,7 @@ export default function EditorShell({
                   }}
                   stickers={stickers}
                   effects={effects}
+                  spotlight={spotlight}
                   effectAssets={assets.effects}
                   onUpdateEffect={handleUpdateEffect}
                   compact
@@ -2238,6 +2241,7 @@ export default function EditorShell({
                     }}
                     stickers={stickers}
                     effects={effects}
+                    spotlight={spotlight}
                     effectAssets={assets.effects}
                     onUpdateEffect={handleUpdateEffect}
                     compact

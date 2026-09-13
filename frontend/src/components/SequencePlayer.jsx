@@ -36,6 +36,197 @@ import { drawMediaWithAccentRecolor } from '../lib/overlayRecolor.js';
 const CANVAS_W = 540;
 const CANVAS_H = 960;
 
+// SpotlightV1 is an opt-in footage treatment. These values mirror
+// scripts/spotlight_effect.py exactly; the preview normalises here because it
+// can also receive an editor-era manifest before the backend has rendered it.
+const SPOTLIGHT_SCHEMA_VERSION = 1;
+const SPOTLIGHT_SHAPES = new Set(['ellipse', 'rectangle', 'rounded_rect']);
+const SPOTLIGHT_DEFAULT_SHAPE = 'ellipse';
+const SPOTLIGHT_DEFAULT_FOCUS = Object.freeze({ x: 0.5, y: 0.5, width: 0.62, height: 0.42 });
+const SPOTLIGHT_DEFAULT_DIM_OPACITY = 0.42;
+const SPOTLIGHT_DEFAULT_FEATHER = 0.035;
+const SPOTLIGHT_DEFAULT_CORNER_RADIUS = 0.08;
+const SPOTLIGHT_MAX_DIM_OPACITY = 0.95;
+const SPOTLIGHT_MAX_FEATHER = 0.25;
+
+const finiteSpotlightNumber = (value) => (
+  typeof value === 'number' && Number.isFinite(value) ? value : null
+);
+const clampSpotlight = (value, min, max) => Math.max(min, Math.min(max, value));
+const roundSpotlight = (value) => Math.round(value * 1000000) / 1000000;
+
+/**
+ * Canvas-side normalisation for the backend's SpotlightV1 contract.
+ * Missing, disabled, malformed, or unsupported configs are a strict no-op.
+ */
+export function normalizeSpotlightPreview(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const hasSchemaVersion = Object.prototype.hasOwnProperty.call(value, 'schema_version');
+  if ((hasSchemaVersion ? value.schema_version : SPOTLIGHT_SCHEMA_VERSION) !== SPOTLIGHT_SCHEMA_VERSION) return null;
+  if (value.enabled !== true) return null;
+
+  const shapeAliases = { rect: 'rectangle', 'rounded-rect': 'rounded_rect', 'rounded-rectangle': 'rounded_rect' };
+  const hasShape = Object.prototype.hasOwnProperty.call(value, 'shape');
+  if (hasShape && typeof value.shape !== 'string') return null;
+  const shapeValue = hasShape ? value.shape.trim().toLowerCase() : SPOTLIGHT_DEFAULT_SHAPE;
+  const shape = shapeAliases[shapeValue] || shapeValue;
+  if (!SPOTLIGHT_SHAPES.has(shape)) return null;
+
+  const rawFocus = value.focus == null ? SPOTLIGHT_DEFAULT_FOCUS : value.focus;
+  if (!rawFocus || typeof rawFocus !== 'object' || Array.isArray(rawFocus)) return null;
+  const focusNumber = (key, fallback) => finiteSpotlightNumber(rawFocus[key]) ?? fallback;
+  const width = clampSpotlight(focusNumber('width', SPOTLIGHT_DEFAULT_FOCUS.width), 0.02, 1);
+  const height = clampSpotlight(focusNumber('height', SPOTLIGHT_DEFAULT_FOCUS.height), 0.02, 1);
+  const x = clampSpotlight(focusNumber('x', SPOTLIGHT_DEFAULT_FOCUS.x), width / 2, 1 - width / 2);
+  const y = clampSpotlight(focusNumber('y', SPOTLIGHT_DEFAULT_FOCUS.y), height / 2, 1 - height / 2);
+  const dimOpacity = clampSpotlight(
+    finiteSpotlightNumber(value.dim_opacity) ?? SPOTLIGHT_DEFAULT_DIM_OPACITY,
+    0,
+    SPOTLIGHT_MAX_DIM_OPACITY,
+  );
+  const feather = clampSpotlight(
+    finiteSpotlightNumber(value.feather) ?? SPOTLIGHT_DEFAULT_FEATHER,
+    0,
+    SPOTLIGHT_MAX_FEATHER,
+  );
+  const cornerRadius = Math.min(
+    clampSpotlight(
+      finiteSpotlightNumber(value.corner_radius) ?? SPOTLIGHT_DEFAULT_CORNER_RADIUS,
+      0,
+      0.5,
+    ),
+    Math.min(width, height) / 2,
+  );
+
+  return {
+    schema_version: SPOTLIGHT_SCHEMA_VERSION,
+    enabled: true,
+    shape,
+    focus: { x: roundSpotlight(x), y: roundSpotlight(y), width: roundSpotlight(width), height: roundSpotlight(height) },
+    dim_opacity: roundSpotlight(dimOpacity),
+    feather: roundSpotlight(feather),
+    corner_radius: roundSpotlight(cornerRadius),
+  };
+}
+
+function spotlightFromEffects(effects) {
+  if (!Array.isArray(effects)) return undefined;
+  const item = effects.find((entry) => {
+    const kind = String(entry?.kind || entry?.type || entry?.effect_type || '').trim().toLowerCase();
+    return kind === 'spotlight' || kind === 'spotlightv1';
+  });
+  if (!item) return undefined;
+  return item.config ?? item.spotlight ?? item;
+}
+
+function resolveSpotlightPreview(spotlight, effects) {
+  // `undefined` means the caller did not expose the new prop yet, so accept a
+  // SpotlightV1 item carried by the existing effects manifest. Explicit null
+  // remains a deliberate no-op.
+  return normalizeSpotlightPreview(spotlight === undefined ? spotlightFromEffects(effects) : spotlight);
+}
+
+function drawSpotlightShape(ctx, effect, width, height) {
+  const focus = effect.focus;
+  const cx = focus.x * width;
+  const cy = focus.y * height;
+  const halfWidth = focus.width * width / 2;
+  const halfHeight = focus.height * height / 2;
+  const left = cx - halfWidth;
+  const top = cy - halfHeight;
+  const shapeWidth = halfWidth * 2;
+  const shapeHeight = halfHeight * 2;
+
+  ctx.beginPath();
+  if (effect.shape === 'ellipse') {
+    ctx.ellipse(cx, cy, halfWidth, halfHeight, 0, 0, Math.PI * 2);
+  } else if (effect.shape === 'rounded_rect') {
+    const radius = Math.min(effect.corner_radius * Math.min(width, height), halfWidth, halfHeight);
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(left, top, shapeWidth, shapeHeight, radius);
+    } else {
+      const r = Math.max(0, radius);
+      ctx.moveTo(left + r, top);
+      ctx.lineTo(left + shapeWidth - r, top);
+      ctx.quadraticCurveTo(left + shapeWidth, top, left + shapeWidth, top + r);
+      ctx.lineTo(left + shapeWidth, top + shapeHeight - r);
+      ctx.quadraticCurveTo(left + shapeWidth, top + shapeHeight, left + shapeWidth - r, top + shapeHeight);
+      ctx.lineTo(left + r, top + shapeHeight);
+      ctx.quadraticCurveTo(left, top + shapeHeight, left, top + shapeHeight - r);
+      ctx.lineTo(left, top + r);
+      ctx.quadraticCurveTo(left, top, left + r, top);
+      ctx.closePath();
+    }
+  } else {
+    ctx.rect(left, top, shapeWidth, shapeHeight);
+  }
+}
+
+function drawSpotlightHardCutout(ctx, effect, width, height) {
+  // Fallback for browsers without a usable offscreen canvas/filter. The
+  // contract remains safe and deterministic; feather degrades to a clean hard
+  // edge rather than dimming the product window or throwing during playback.
+  ctx.save();
+  ctx.globalAlpha = effect.dim_opacity;
+  ctx.fillStyle = '#000000';
+  ctx.beginPath();
+  ctx.rect(0, 0, width, height);
+  drawSpotlightShape(ctx, effect, width, height);
+  try {
+    ctx.clip('evenodd');
+    ctx.fillRect(0, 0, width, height);
+  } catch {
+    // An old canvas implementation without even-odd clipping cannot safely
+    // invert the focus path, so this frame is a strict no-op.
+  }
+  ctx.restore();
+}
+
+/** Draw dimmed footage with the configured focus window; never draws text. */
+export function drawSpotlight(ctx, value, width = CANVAS_W, height = CANVAS_H) {
+  const effect = normalizeSpotlightPreview(value);
+  if (!ctx || !effect || effect.dim_opacity <= 0) return false;
+
+  const canCreateCanvas = typeof document !== 'undefined' && typeof document.createElement === 'function';
+  if (!canCreateCanvas) {
+    drawSpotlightHardCutout(ctx, effect, width, height);
+    return true;
+  }
+
+  try {
+    const source = document.createElement('canvas');
+    const mask = document.createElement('canvas');
+    const focus = document.createElement('canvas');
+    [source, mask, focus].forEach((canvas) => { canvas.width = width; canvas.height = height; });
+    const sourceCtx = source.getContext('2d');
+    const maskCtx = mask.getContext('2d');
+    const focusCtx = focus.getContext('2d');
+    if (!sourceCtx || !maskCtx || !focusCtx) throw new Error('spotlight canvas unavailable');
+
+    sourceCtx.drawImage(ctx.canvas, 0, 0, width, height);
+    maskCtx.fillStyle = '#FFFFFF';
+    if (effect.feather > 0) maskCtx.filter = `blur(${effect.feather * Math.min(width, height)}px)`;
+    drawSpotlightShape(maskCtx, effect, width, height);
+    maskCtx.fill();
+    maskCtx.filter = 'none';
+
+    ctx.save();
+    ctx.globalAlpha = effect.dim_opacity;
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+
+    focusCtx.drawImage(source, 0, 0);
+    focusCtx.globalCompositeOperation = 'destination-in';
+    focusCtx.drawImage(mask, 0, 0);
+    ctx.drawImage(focus, 0, 0);
+    return true;
+  } catch {
+    drawSpotlightHardCutout(ctx, effect, width, height);
+    return true;
+  }
+}
+
 // Permanent copyright watermark -- mirrors the always-on Dialogue event
 // scripts/subtitle_engine.py burns into every export (WATERMARK_TEXT /
 // WATERMARK_X_RATIO / WATERMARK_Y_RATIO / WATERMARK_FS_RATIO there). Keep
@@ -2305,6 +2496,7 @@ function SequencePlayer({
   audioUrl = null,
   audioStems = null,
   grade = null,
+  spotlight = undefined,
   stylePreset = DEFAULT_STYLE_PRESET,
   trackMix = null,
   compact = false,
@@ -2338,6 +2530,10 @@ function SequencePlayer({
 }, ref) {
   const visualStyle = useMemo(() => getStylePreset(stylePreset), [stylePreset]);
   const previewAccentColor = visualStyle?.accent || '#FFE600';
+  const previewSpotlight = useMemo(
+    () => resolveSpotlightPreview(spotlight, effects),
+    [spotlight, effects],
+  );
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const boundsRef = useRef([]);
@@ -2428,6 +2624,7 @@ function SequencePlayer({
   // An overlay carries a whole look per tier now, so anything short of the
   // real thing would miss a colour or an outline the user just changed.
   const overlaysKey = JSON.stringify(drawnOverlays);
+  const spotlightKey = JSON.stringify(previewSpotlight);
   const stickerKey = `${stickerStyle.badge}:${stickerStyle.position}:${stickerStyle.scale}:${stickerStyle.startTime}:${stickerStyle.endTime}:${stickerStyle.normX}:${stickerStyle.normY}`;
   const stickersKey = (stickers || []).map(s => `${s.id}:${s.badge}:${s.start}:${s.end}:${s.scale}:${s.normX}:${s.normY}:${s.hidden}`).join('|');
   const clipKey = clips.map(c => `${c.id}:${c.source_path}:${c.trim_start}:${c.trim_end}:${c.transition_in}:${c.transition_duration}:${c.brightness}:${c.contrast}:${c.saturation}:${c.zoom}:${c.pan_x}:${c.pan_y}:${c.mirror}:${c.rotation}:${JSON.stringify(c.keyframes || [])}`).join('|');
@@ -3266,6 +3463,9 @@ function SequencePlayer({
     ctx.filter = 'none';
     const bounds = [];
     applyGrade(ctx, canvas);
+    // Spotlight is a footage-only pass: above the graded video, below every
+    // sticker, effect, subtitle, and product overlay.
+    drawSpotlight(ctx, previewSpotlight);
     // Same order the render burns in (video_editor.py): the badge, then the
     // scrim over it, then everything libass draws on top.
     drawStickers(ctx, stickerImagesRef.current, stickerImgRef.current, t, effectiveStickersList, bounds, isStickerHidden, previewSticker, previewAccentColor);
@@ -3284,7 +3484,7 @@ function SequencePlayer({
   useEffect(() => {
     renderAt(playheadRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [segments, captionKey, stickerKey, stickersKey, cuesKey, overlaysKey, lutReady, grade?.intensity, previewAccentColor, showWatermark]);
+  }, [segments, captionKey, stickerKey, stickersKey, cuesKey, overlaysKey, spotlightKey, lutReady, grade?.intensity, previewAccentColor, showWatermark]);
 
   const lastNotifyRef = useRef(0);
 
@@ -3417,8 +3617,9 @@ function SequencePlayer({
         ctx.filter = 'none';
         const bounds = [];
         if (framePainted) applyGrade(ctx, canvas);
+        drawSpotlight(ctx, previewSpotlight);
         drawStickers(ctx, stickerImagesRef.current, stickerImgRef.current, t, effectiveStickersList, bounds, isStickerHidden, previewSticker, previewAccentColor);
-    drawEffects(ctx, effectVideosRef.current, t, effects, bounds, previewAccentColor);
+        drawEffects(ctx, effectVideosRef.current, t, effects, bounds, previewAccentColor);
         drawOverlayScrims(ctx, drawnOverlays, t);
         if (!captionStyle.hidden) {
           drawCaption(ctx, cues, t, captionStyle, bounds);
@@ -3448,7 +3649,7 @@ function SequencePlayer({
     // RAF loop kept drawing whatever array existed when isPlaying last
     // flipped true until some other dep (e.g. overlays) happened to change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlaying, segments, segmentsByClipId, cues, overlays, totalDuration, effectiveStickersList, effects]);
+  }, [isPlaying, segments, segmentsByClipId, cues, overlays, totalDuration, effectiveStickersList, effects, spotlightKey]);
 
   const togglePlay = () => {
     if (!segments.length) return;

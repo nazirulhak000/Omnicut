@@ -165,3 +165,21 @@ test('showWatermark parses from manifest and serializes to save payload', () => 
   assert.equal(payloadDefault.style.show_watermark, true);
   assert.equal(payloadDefault.style.showWatermark, true);
 });
+
+
+test('SpotlightV1 round-trips through editor state and save payload', () => {
+  const spotlight = {
+    schema_version: 1,
+    enabled: true,
+    shape: 'ellipse',
+    focus: { x: 0.5, y: 0.48, width: 0.42, height: 0.36 },
+    dim_opacity: 0.4,
+    feather: 0.03,
+  };
+
+  const loaded = manifestToEditorState({ render_params: { spotlight } });
+  const payload = editorStateToSavePayload({ spotlight: loaded.spotlight });
+
+  assert.deepEqual(loaded.spotlight, spotlight);
+  assert.deepEqual(payload.spotlight, spotlight);
+});

@@ -24,6 +24,7 @@ from scripts.overlay_recolor import (
     overlay_asset_recolor_metadata,
     resolve_overlay_recolor,
 )
+from scripts.spotlight_effect import build_ffmpeg_filter
 from scripts.render_jobs import RenderCancelled
 from scripts.style_motion_policy import STYLE_MOTION_POLICIES
 
@@ -88,6 +89,57 @@ XFADE_TRANSITIONS = (
 )
 DEFAULT_TRANSITION_DURATION = 0.4
 MAX_TRANSITION_DURATION = 2.0
+
+
+_SPOTLIGHT_INTERNAL_LABELS = (
+    "spot_src",
+    "spot_focus",
+    "spot_dim",
+    "spot_mask_raw",
+    "spot_mask",
+    "spot_fg",
+    "spot_cut",
+)
+
+
+def _append_spotlight_filter(
+    filter_complex: List[str],
+    current_v: str,
+    spotlight: Any,
+) -> str:
+    """Append an opt-in SpotlightV1 graph and return its output label.
+
+    ``build_ffmpeg_filter`` is deliberately independent of the editor and
+    emits a fragment rooted at ``[0:v]``.  The assembled video may already be
+    behind several filter nodes by this point, so re-root that one input and
+    namespace every internal label before appending a single labelled output.
+    A disabled/invalid/missing effect returns the original label without
+    adding anything to the graph.
+    """
+
+    fragment = build_ffmpeg_filter(spotlight, VIDEO_WIDTH, VIDEO_HEIGHT)
+    if not fragment:
+        return current_v
+
+    namespace = f"spotlight_{len(filter_complex)}"
+    for label in _SPOTLIGHT_INTERNAL_LABELS:
+        fragment = fragment.replace(f"[{label}]", f"[{namespace}_{label}]")
+    fragment = fragment.replace("[0:v]", current_v, 1)
+    # FFmpeg's filter-option parser treats the commas in geq's if() as
+    # option separators unless the expression is quoted. The pure builder
+    # intentionally returns a shell-independent fragment, so quote only this
+    # graph-local expression at the composition boundary.
+    fragment = fragment.replace("geq=lum=if(", "geq=lum='if(", 1)
+    fragment = fragment.replace(")[spotlight_", ")'[spotlight_", 1)
+    # The ellipse contract uses the readable ``<=`` operator. FFmpeg's
+    # expression evaluator accepts the equivalent ``lte(a,b)`` form here;
+    # convert only this generated comparison so the reusable contract stays
+    # unchanged for callers that inspect or serialise it.
+    fragment = fragment.replace("geq=lum='if((", "geq=lum='if(lte(", 1)
+    fragment = fragment.replace("<=1)\\,255", ",1)\\,255", 1)
+    output_label = f"[{namespace}_out]"
+    filter_complex.append(f"{fragment}{output_label};")
+    return output_label
 
 
 # Per-clip colour ranges. Wider than this and a review clip stops looking like
@@ -798,6 +850,7 @@ class VideoEditor:
         auto_blur_landscape: bool = True,
         progress_callback: Optional[Callable[[float, float], None]] = None,
         cancel_event: Optional[threading.Event] = None,
+        spotlight: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
         Takes raw footage, creates fast-paced punch-in cuts synced to audio duration and Gemini Vision scenes,
@@ -1222,6 +1275,12 @@ class VideoEditor:
                     f"[lut_src][lut_out]blend=all_mode=normal:all_opacity={strength}[v_graded];"
                 )
             current_v = "[v_graded]"
+
+        # Optional SpotlightV1 focus grade. Keep this immediately after the
+        # footage grade and before stickers/effects/scrims, matching the
+        # Canvas preview order. Product callouts and subtitles remain bright
+        # and readable above the focus treatment.
+        current_v = _append_spotlight_filter(filter_complex, current_v, spotlight)
 
         profile = EXPORT_PRESETS.get(export_preset, EXPORT_PRESETS["post"])
 

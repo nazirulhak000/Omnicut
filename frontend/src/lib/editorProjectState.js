@@ -212,6 +212,11 @@ export function manifestToEditorState(data, options = {}) {
     };
   });
 
+  // Spotlight is an optional render treatment. Keep the raw contract in the
+  // editor state so Preview, autosave, and rerender all use the same value;
+  // the backend remains the authority for normalization.
+  const spotlight = firstPresent(manifest.spotlight, params.spotlight, null);
+
   return {
     clipList,
     cuesList,
@@ -219,6 +224,7 @@ export function manifestToEditorState(data, options = {}) {
     overlays: serializeOverlays(migrateToOverlays(manifest)),
     stickers,
     effects,
+    spotlight: spotlight == null ? null : cloneValue(spotlight),
     style,
     trackMix,
     audioDuration: Number(manifest.audio_duration || manifest.total_duration) || 0,
@@ -287,7 +293,7 @@ export function serializeStyle(style = {}) {
   };
 }
 
-export function editorStateToSavePayload({ clipList, cuesList, microCuesList, style, overlays, trackMix, stickers, effects } = {}) {
+export function editorStateToSavePayload({ clipList, cuesList, microCuesList, style, overlays, trackMix, stickers, effects, spotlight } = {}) {
   const cues = serializeCues(cuesList);
   // Fall back to `cues` when the caller hasn't been updated to pass microCuesList yet,
   // so this stays backward compatible instead of breaking the save outright.
@@ -301,6 +307,7 @@ export function editorStateToSavePayload({ clipList, cuesList, microCuesList, st
     style: serializeStyle(style),
     stickers: Array.isArray(stickers) ? stickers : [],
     effects: Array.isArray(effects) ? effects : [],
+    spotlight: spotlight ?? null,
     overlays: serializeOverlays(overlays),
     track_mix: mix,
     audio_mutes: mix.mute || {},

@@ -1001,9 +1001,18 @@ def test_preview_grades_at_the_same_point_in_the_chain_as_the_render():
     so a brand-coloured badge and the caption colours are never re-graded. The
     preview has to grade in the same place or those colours shift.
     """
-    tick = re.search(r"if \(framePainted\) applyGrade\(ctx, canvas\);\s*\n\s*drawSticker", JS_SRC)
+    tick = re.search(
+        r"if \(framePainted\) applyGrade\(ctx, canvas\);\s*\n"
+        r"\s*(?:drawSpotlight\(ctx, previewSpotlight\);\s*\n\s*)?drawSticker",
+        JS_SRC,
+    )
     assert tick, "the grade must run after the video layers and before the badge"
-    still = re.search(r"applyGrade\(ctx, canvas\);\s*\n(?:\s*//[^\n]*\n)*\s*drawSticker", JS_SRC)
+    still = re.search(
+        r"applyGrade\(ctx, canvas\);\s*\n"
+        r"(?:\s*//[^\n]*\n)*\s*"
+        r"(?:drawSpotlight\(ctx, previewSpotlight\);\s*\n\s*)?drawSticker",
+        JS_SRC,
+    )
     assert still, "the paused frame must grade too, at the same point"
 
     editor = (ROOT / "scripts" / "video_editor.py").read_text(encoding="utf-8")

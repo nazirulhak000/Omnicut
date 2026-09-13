@@ -5,6 +5,7 @@ FFmpeg video assembly, and project manifest persistence.
 """
 
 import datetime
+import inspect
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -32,6 +33,7 @@ class VideoAssemblyStage:
     @classmethod
     def run(cls, ctx: PipelineContext) -> None:
         color_theme = ctx.resolve_color_theme_contract()
+        spotlight = ctx.resolve_spotlight_contract()
         actual_clip_list = ctx.actual_clip_list
         transitions = ctx.transitions
         from scripts.pipeline import choose_transition
@@ -104,7 +106,7 @@ class VideoAssemblyStage:
 
             # Use pipeline module reference so unittest.mock.patch('scripts.pipeline.VideoEditor.assemble_tiktok_video') works
             import scripts.pipeline as pipeline_mod
-            pipeline_mod.VideoEditor.assemble_tiktok_video(
+            assemble_kwargs = dict(
                 raw_video_paths=[str(ctx.raw_video)] if ctx.raw_video else [],
                 total_duration=ctx.total_duration,
                 mixed_audio_path=str(ctx.mixed_audio_path),
@@ -132,6 +134,27 @@ class VideoAssemblyStage:
                 progress_callback=on_ffmpeg_progress,
                 cancel_event=ctx.cancel_event,
             )
+            # The renderer seam is intentionally capability-detected.  This
+            # round may run beside an older VideoEditor that cannot consume
+            # SpotlightV1 yet; disabled/default requests therefore preserve
+            # the exact legacy call, while a future renderer receives only the
+            # normalized contract (never a raw filter string).
+            try:
+                signature = inspect.signature(pipeline_mod.VideoEditor.assemble_tiktok_video)
+                accepts_spotlight = (
+                    "spotlight" in signature.parameters
+                    or any(
+                        parameter.kind is inspect.Parameter.VAR_KEYWORD
+                        for parameter in signature.parameters.values()
+                    )
+                )
+            except (TypeError, ValueError):
+                accepts_spotlight = False
+            if accepts_spotlight and spotlight.get("enabled"):
+                assemble_kwargs["spotlight"] = spotlight
+            elif spotlight.get("enabled"):
+                print("   ⚠️ VideoEditor รุ่นปัจจุบันยังไม่รองรับ SpotlightV1 — ข้ามเอฟเฟกต์อย่างปลอดภัย")
+            pipeline_mod.VideoEditor.assemble_tiktok_video(**assemble_kwargs)
             ctx.result_paths["mp4_video"] = str(out_mp4)
             ctx.result_paths["ai_matched_shots"] = ctx.ai_matched_shots
             ctx.notify("🎉 การตัดต่อและเรนเดอร์เสร็จสมบูรณ์ 100%!", 1.0)
@@ -171,6 +194,7 @@ class VideoAssemblyStage:
             "editorial_pacing": ctx.editorial_pacing,
             "style_preset": ctx.style_preset,
             "color_theme": color_theme,
+            "spotlight": spotlight,
             "total_duration": ctx.total_duration,
             "clip_list": actual_clip_list,
             "transitions": transitions,
@@ -180,6 +204,7 @@ class VideoAssemblyStage:
                 "style_preset": ctx.style_preset,
                 "color_theme": color_theme,
                 "color_theme_input": ctx.color_theme,
+                "spotlight": spotlight,
                 "raw_video_path": str(ctx.raw_video),
                 "key_features": ctx.key_features,
                 "pain_point": ctx.pain_point,
