@@ -8,6 +8,7 @@
 
 ## สารบัญ
 
+| Round AI-PRODUCER-ELEVATION-1 | ยกระดับ Producer Hub: Spotlight Next Mission, Pacing Calculator, 1-Click Playbook Add, และ Pre-flight Editor Tips | 2026-09-13 | สำเร็จสมบูรณ์ (Next Action Spotlight Hero card, Weekly Pacing Calculator badge, 1-Click Playbook Suggestion Sync, Quick Script Preview modal, Pre-flight Editor Playbook Tips modal, npm test 178 passed, build 3.34s, browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round AI-PRODUCER-HUB-1 | พัฒนาเมนูใหม่ "ผู้ช่วยโปรดิวเซอร์ส่วนตัว" (AI Producer Hub & Daily Mission Center) | 2026-09-13 | สำเร็จสมบูรณ์ (แบนเนอร์เรียกเจ้านาย, คุมโควตา 35 คลิป, Daily Action Queue 3 ระดับ, AI Retrospective, Boss Playbook, npm test 176 passed, build 3.36s, browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round UI-LAST-UPDATED-TIMESTAMP-1 | แสดงวันที่และเวลาอัปเดตล่าสุด (Relative + Full Tooltip) ใน Dropdown ไทม์ไลน์ และบนการ์ด Tracker | 2026-09-13 | สำเร็จสมบูรณ์ (แสดงเวลาสัมพัทธ์ไทย + tooltip เวลาเต็ม ทั้งใน ProjectSelector และ Tracker cards, npm test 170 passed, build 3.92s, browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round PAGINATION-1 | เพิ่ม client-side windowing ให้ 9 list endpoint ทั่วระบบ กัน UI ช้าเมื่อข้อมูลถึงหลักร้อย (แผนใน `PAGINATION_PLAN.md`) | 2026-09-13 | สำเร็จสมบูรณ์ (Phase 1: exports/products/videos/raw-vault/schedule-queue/tiktok-stats windowed ทั้ง 6, Phase 2: assets/all + dedup-scan windowed, clip-candidates ไม่ต้องแก้ (native select), Phase 3: 4 endpoint เช็คแล้วปลอดภัยอยู่แล้วทั้งหมด ไม่ต้องแก้โค้ด; pytest เต็มระบบ 1126 passed, vitest 158 passed ทุกรอบ, build ผ่านทุกจุด; browser verify ยังไม่ได้ทำ (dev server ไม่ตอบ HTTP ตลอด session) ย้ายเข้า Backlog, ดำเนินการโดย: Claude Code (Claude Sonnet 5)) |
@@ -18,6 +19,44 @@
 | Round UI-POLISH-HEADER-1 | แก้ฟอนต์กล่องแดง Topbar (ถอด font-mono) + ตัด 2 Badge สินค้า + ขยายหัวข้อสินค้าเน้นๆ ใหญ่ๆ | 2026-09-12 | สำเร็จสมบูรณ์ (ถอด font-mono จากป้ายแท็บ Topbar ให้สืบทอด Global UI Font, ตัด price_note และ tiktok_id ออกจาก PageHeader สินค้า, ขยายชื่อสินค้าเป็น text-2xl font-black, vitest 152 passed, build 3.49s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round SHOTLIST-GEMINI-TTS-SSOT-1 | ระบบรวมศูนย์เสียง TTS (Gemini Flash Audio SSOT): แผนถ่าย & ตัดต่อจริงใช้เสียงเดียวกัน 100% ไม่เจนซ้ำ | 2026-09-12 | สำเร็จสมบูรณ์ (pytest 1,125 passed, vitest 158 passed, build 3.40s, browser verified, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round SHOT-GAP-FIX-1 | แก้ช่องว่าง (Gap) ระหว่างช็อตใน Shot Matching Stage — 2 bugs: cut_points เริ่มที่ 0.0 แทน first-cue start, MERGE_TOLERANCE แคบเกิน | 2026-09-12 | สำเร็จสมบูรณ์ (compileall pass, pytest 1126 passed, ดำเนินการโดย: Antigravity (Claude Sonnet 4.6)) |
+
+---
+
+## Round AI-PRODUCER-ELEVATION-1 — ยกระดับ Producer Hub: Spotlight Next Mission, Pacing Calculator, 1-Click Playbook Add, และ Pre-flight Editor Tips
+
+วันที่: 2026-09-13 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
+ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+**เป้าหมาย:**
+ยกระดับหน้าผู้ช่วยโปรดิวเซอร์และระบบคุมวินัยสำหรับคนขี้เกียจ/ความจำสั้นตามผลการสแกน 5 มิติ:
+1. **Next Action Spotlight:** การ์ดชี้เป้าภารกิจอันดับ 1 ที่ต้องทำตอนนี้ (มอง 3 วิรู้เรื่อง ไม่ต้องเลือก) พร้อมปุ่มเริ่มทันที
+2. **Weekly Pacing Calculator:** คำนวณความเร็วสู่เป้า 35 คลิปตามวันที่เหลือในสัปดาห์ (ต้องตัดอีกวันละกี่คลิป พร้อมคำแนะนำแบบตรงจุด)
+3. **1-Click Auto-Suggest Playbook:** ปุ่มบันทึกข้อคิดจาก AI Retrospective ลง Playbook ได้ในคลิกเดียว
+4. **Pre-flight Editor Playbook Tips:** นำโน้ตบทเรียนของเจ้านายไปแสดงเตือนความจำบน Editor ก่อนเริ่มตัดต่อ
+5. **Quick Script Preview:** ดูบทและสเปกสินค้าได้ทันทีจาก Producer Hub โดยไม่ต้องคลิกสลับหน้า
+
+**สิ่งที่ทำ:**
+1. อัปเดต `frontend/src/lib/producerInsights.js`:
+   - เพิ่มฟังก์ชัน `calculateWeeklyPacing(stats, now = new Date())` คำนวณจำนวนวันที่เหลือในสัปดาห์ อัตราเฉลี่ยที่ต้องตัดต่อวันเพื่อจบเป้าหมาย 35 คลิป และสถานะการทำงาน (ahead, on_track, behind, completed)
+   - เพิ่มฟังก์ชัน `autoSuggestPlaybookNotes(retrospective, currentNotes)` ดึงข้อคิดเด่นจากสถิติมาเป็นปุ่มกดจดโน้ตใน 1 คลิก พร้อมตรวจเช็คว่าบันทึกไปแล้วหรือยัง
+2. เขียน Unit Tests `frontend/src/lib/producerInsights.test.js`:
+   - เพิ่ม test suite ครอบคลุม pacing calculator (ปกติ, เร่งสปีด, ครบเป้า) และการแนะนำโน้ตลง playbook
+   - ทดสอบรวมทั้งหมด **178/178 tests passed**
+3. อัปเดต `frontend/src/components/producer/ProducerHub.jsx`:
+   - เพิ่ม Next Action Spotlight Hero Card เด่นชัดด้านบนสุด ชี้เป้างานเร่งด่วนที่สุดพร้อมปุ่มเริ่มทันที
+   - เพิ่ม Pacing Badge ในการ์ด Weekly Quota (แสดงคำเตือนและจำนวนคลิปที่ต้องทำต่อวัน)
+   - เพิ่มปุ่ม "ดูบท" ใน Daily Action Queue เปิด Quick Preview Modal
+   - เพิ่มปุ่ม "จดบทเรียน" / "จดแล้ว" ซิงก์ข้อคิดจาก AI Retrospective เข้าสู่ Boss's Playbook ทันที
+4. อัปเดต `frontend/src/components/editor/EditorHeader.jsx`:
+   - เพิ่มปุ่ม "ข้อเตือนใจ" (Boss Playbook Tips) สีเหลืองอำพันพร้อมจุดแสดงสถานะ
+   - เพิ่ม Pre-flight Playbook Tips Modal สไตล์ Glassmorphism แสดงโน้ตและกฎเหล็กที่จดไว้ให้เห็นก่อนเริ่มตัดต่อ
+5. ยืนยัน UI จริงผ่าน Browser Subagent ทั้งหมด 5 มิติ: Next Action Hero, Pacing Badge, Quick Preview Modal, 1-Click Playbook Sync (บันทึกกันลืม 3 -> 4), และ EditorHeader ข้อเตือนใจ Modal
+
+### Gate & Verification Results:
+- [x] Node / Vitest Tests: `npm test` — 178/178 passed 100%
+- [x] Frontend Build: `npm run build` — 2002 modules transformed, build clean ใน 3.34s
+- [x] Python Compilation: `.venv\Scripts\python.exe -m compileall -q scripts tests` — 0 errors
+- [x] Browser Visual Verification: ตรวจสอบภาพจริงทั้ง 5 จุดผ่านสมบูรณ์ 100% (บันทึกวิดีโอ WebP + ภาพ screenshot 2 ภาพ)
 
 ---
 

@@ -3,7 +3,8 @@ import {
   Sparkles, Flame, CheckCircle2, Clock, Play, ArrowRight,
   TrendingUp, AlertTriangle, Lightbulb, Target, Settings,
   Copy, Check, Plus, Trash2, Video, Film, Eye, Share2, ThumbsUp,
-  RefreshCw, Clapperboard, ChevronRight, Zap, Scissors
+  RefreshCw, Clapperboard, ChevronRight, Zap, Scissors, Compass,
+  BookOpen, FileText, ExternalLink, X
 } from 'lucide-react';
 import { getProducts, getExports, getTiktokStatsLatest } from '../../api';
 import {
@@ -15,6 +16,8 @@ import {
   getDailyActionQueue,
   generateBossGreeting,
   analyzeContentPerformance,
+  calculateWeeklyPacing,
+  autoSuggestPlaybookNotes,
   DEFAULT_TARGETS,
 } from '../../lib/producerInsights';
 
@@ -47,6 +50,9 @@ export default function ProducerHub({
 
   // Clipboard copy state
   const [copiedId, setCopiedId] = useState(null);
+
+  // Quick Preview Modal state
+  const [previewItem, setPreviewItem] = useState(null);
 
   // Load data from APIs
   const fetchData = useCallback(async () => {
@@ -92,6 +98,10 @@ export default function ProducerHub({
     return getDailyActionQueue(products, exportsList);
   }, [products, exportsList]);
 
+  const weeklyPacing = useMemo(() => {
+    return calculateWeeklyPacing(stats);
+  }, [stats]);
+
   const bossGreeting = useMemo(() => {
     return generateBossGreeting({ stats, actionQueue });
   }, [stats, actionQueue]);
@@ -99,6 +109,42 @@ export default function ProducerHub({
   const retrospective = useMemo(() => {
     return analyzeContentPerformance(tiktokStats, products);
   }, [tiktokStats, products]);
+
+  const playbookSuggestions = useMemo(() => {
+    return autoSuggestPlaybookNotes(retrospective, playbookNotes);
+  }, [retrospective, playbookNotes]);
+
+  // Next Mission Spotlight: pick the single most urgent task
+  const nextMission = useMemo(() => {
+    if (actionQueue.readyToPost.length > 0) {
+      return {
+        type: 'post',
+        item: actionQueue.readyToPost[0],
+        badge: '🚨 เร่งด่วนอันดับ 1',
+        title: 'ปล่อยคลิปนี้ลง TikTok ด่วนเพื่อดันยอดขาย!',
+        description: 'วิดีโอเรนเดอร์เสร็จแล้ว รอโพสต์ลง TikTok',
+      };
+    }
+    if (actionQueue.readyToCut.length > 0) {
+      return {
+        type: 'cut',
+        item: actionQueue.readyToCut[0],
+        badge: '🎬 ภารกิจถัดไป',
+        title: 'ตัดต่อคลิปนี้ทันที วัตถุดิบพร้อมแล้ว!',
+        description: actionQueue.readyToCut[0].projectName ? `ไทม์ไลน์: ${actionQueue.readyToCut[0].projectName}` : 'วัตถุดิบและสคริปต์พร้อมตัดต่อทันที',
+      };
+    }
+    if (actionQueue.needsFootage.length > 0) {
+      return {
+        type: 'footage',
+        item: actionQueue.needsFootage[0],
+        badge: '📝 ถ่ายคลิปเพิ่ม',
+        title: 'เตรียมวัตถุดิบและดู Shot List สินค้านี้',
+        description: 'สคริปต์พร้อมแล้ว ขาดคลิปถ่ายจริง',
+      };
+    }
+    return null;
+  }, [actionQueue]);
 
   // Handle Save Targets
   const handleSaveTargets = () => {
@@ -263,9 +309,15 @@ export default function ProducerHub({
             />
           </div>
 
-          <div className="flex items-center justify-between text-xs text-slate-400">
+          <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
             <span>เหลืออีก <strong className="text-white font-bold">{stats.weeklyCuts.remaining}</strong> คลิป</span>
             <span>จันทร์ - อาทิตย์นี้</span>
+          </div>
+
+          {/* Weekly Pacing Advice Badge */}
+          <div className={`mt-2 pt-2 border-t border-white/5 text-[11px] font-semibold flex items-center gap-1.5 ${weeklyPacing.badgeColor} px-2 py-1 rounded-lg`}>
+            <Clock className="w-3.5 h-3.5 flex-shrink-0" />
+            <span className="truncate">{weeklyPacing.paceAdvice}</span>
           </div>
         </div>
 
@@ -331,6 +383,110 @@ export default function ProducerHub({
           </div>
         </div>
       </div>
+
+      {/* ── 2.5 Spotlight: ภารกิจอันดับ 1 ที่ต้องทำตอนนี้ (Next Action Spotlight) ── */}
+      {nextMission && (
+        <div className={`relative overflow-hidden rounded-2xl p-5 border shadow-2xl backdrop-blur-md transition-all ${
+          nextMission.type === 'post'
+            ? 'bg-gradient-to-r from-rose-950/70 via-slate-900/90 to-slate-900/90 border-rose-500/30'
+            : nextMission.type === 'cut'
+            ? 'bg-gradient-to-r from-amber-950/70 via-slate-900/90 to-slate-900/90 border-amber-500/30'
+            : 'bg-gradient-to-r from-cyan-950/70 via-slate-900/90 to-slate-900/90 border-cyan-500/30'
+        }`}>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5 min-w-0">
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                nextMission.type === 'post' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' :
+                nextMission.type === 'cut' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+              }`}>
+                <Compass className="w-6 h-6 animate-pulse" />
+              </div>
+
+              <div className="space-y-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-black tracking-wider uppercase ${
+                    nextMission.type === 'post' ? 'bg-rose-500 text-white' :
+                    nextMission.type === 'cut' ? 'bg-amber-500 text-slate-950' :
+                    'bg-cyan-500 text-slate-950'
+                  }`}>
+                    {nextMission.badge}
+                  </span>
+                  <span className="text-xs text-slate-400 font-semibold">สิ่งที่เจ้านายควรทำตอนนี้ (ลดภาระสมอง มองแวบเดียวลุยเลย)</span>
+                </div>
+
+                <h3 className="text-base font-bold text-white tracking-tight truncate">
+                  {nextMission.item.title}
+                </h3>
+
+                <p className="text-xs text-slate-300 truncate">
+                  สินค้า: <strong className="text-white">{nextMission.item.productName}</strong>
+                  {nextMission.item.productCode && ` [${nextMission.item.productCode}]`}
+                  <span className="text-slate-400 ml-1.5">· {nextMission.description}</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Spotlight Action Buttons */}
+            <div className="flex items-center gap-2.5 flex-shrink-0 self-end md:self-center">
+              <button
+                onClick={() => setPreviewItem(nextMission.item)}
+                className="px-3.5 py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700/90 border border-white/10 text-xs font-bold text-slate-300 hover:text-white flex items-center gap-1.5 cursor-pointer transition-all"
+              >
+                <FileText className="w-4 h-4" />
+                <span>ดูบท & สเปก</span>
+              </button>
+
+              {nextMission.type === 'post' && (
+                <button
+                  onClick={onGoToGallery}
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 hover:brightness-110 active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-lg shadow-rose-500/25 transition-all"
+                >
+                  <Flame className="w-4 h-4" />
+                  <span>ส่ง TikTok ตอนนี้เลย</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              )}
+
+              {nextMission.type === 'cut' && (
+                <button
+                  onClick={() => {
+                    if (nextMission.item.parentProduct && nextMission.item.angle) {
+                      onApplyToStudio?.({
+                        fullProduct: nextMission.item.parentProduct,
+                        angleIndex: nextMission.item.parentProduct.angles?.findIndex(a => a.angle_id === nextMission.item.angle.angle_id) || 0,
+                        openExisting: !!nextMission.item.projectName,
+                        openProjectName: nextMission.item.projectName,
+                      });
+                    } else {
+                      onGoToEditor?.();
+                    }
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-95 text-slate-950 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-lg shadow-amber-500/25 transition-all"
+                >
+                  <Clapperboard className="w-4 h-4" />
+                  <span>เริ่มตัดต่อคลิปนี้ทันที</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              )}
+
+              {nextMission.type === 'footage' && (
+                <button
+                  onClick={() => {
+                    if (nextMission.item.parentProduct?.id) onGoToFlow?.(nextMission.item.parentProduct.id);
+                    else onGoToFlow?.();
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 hover:brightness-110 active:scale-95 text-slate-950 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-lg shadow-cyan-500/25 transition-all"
+                >
+                  <Video className="w-4 h-4" />
+                  <span>ดูแผนถ่ายทำ Shot List</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── 3. Daily Action Queue (สิ่งที่ต้องทำวันนี้) ── */}
       <div className="rounded-2xl bg-slate-900/70 border border-white/[0.08] p-6 shadow-xl backdrop-blur-md">
@@ -446,8 +602,16 @@ export default function ProducerHub({
                     </div>
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 flex-shrink-0 self-end sm:self-center">
+                  <div className="flex items-center gap-2 flex-shrink-0 self-end sm:self-auto">
+                    <button
+                      onClick={() => setPreviewItem(item)}
+                      className="px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1 cursor-pointer transition-all"
+                      title="ดูบทและรายละเอียด"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      <span className="hidden md:inline">ดูบท</span>
+                    </button>
+
                     {isPost && (
                       <>
                         {item.caption && (
@@ -545,11 +709,40 @@ export default function ProducerHub({
             )}
 
             <div className="space-y-2.5 mb-4">
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">💡 จุดเด่นที่ทำให้ยอดพุ่ง</h4>
-              {retrospective.topTakeaways.map((point, i) => (
-                <div key={i} className="flex items-start gap-2 text-xs text-slate-300 bg-slate-800/30 p-2.5 rounded-lg border border-white/5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 flex-shrink-0" />
-                  <span className="leading-relaxed">{point}</span>
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                <span>💡 จุดเด่นที่ทำให้ยอดพุ่ง</span>
+                <span className="text-[10px] text-amber-400 lowercase font-normal">คลิกเพื่อจดลง Playbook ได้ทันที</span>
+              </h4>
+              {playbookSuggestions.map((item, i) => (
+                <div key={item.id || i} className="flex items-center justify-between gap-3 text-xs text-slate-300 bg-slate-800/30 p-2.5 rounded-lg border border-white/5 group hover:border-amber-500/30 transition-all">
+                  <div className="flex items-start gap-2 min-w-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 flex-shrink-0" />
+                    <span className="leading-relaxed">{item.text}</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (!item.alreadySaved) {
+                        const newNote = {
+                          id: `note-${Date.now()}-${i}`,
+                          text: item.text,
+                          createdAt: new Date().toISOString(),
+                          tag: item.tag,
+                        };
+                        const updated = [newNote, ...playbookNotes];
+                        setPlaybookNotes(updated);
+                        savePlaybookNotes(updated);
+                      }
+                    }}
+                    disabled={item.alreadySaved}
+                    className={`px-2 py-1 rounded text-[11px] font-bold flex items-center gap-1 flex-shrink-0 transition-all ${
+                      item.alreadySaved
+                        ? 'text-emerald-400 bg-emerald-500/10 cursor-default'
+                        : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 cursor-pointer active:scale-95'
+                    }`}
+                  >
+                    {item.alreadySaved ? <Check className="w-3 h-3 text-emerald-400" /> : <Plus className="w-3 h-3" />}
+                    <span>{item.alreadySaved ? 'จดแล้ว' : 'จดบทเรียน'}</span>
+                  </button>
                 </div>
               ))}
             </div>
@@ -715,6 +908,101 @@ export default function ProducerHub({
               >
                 บันทึกเป้าหมาย
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 6. Quick Preview Modal (ดูสคริปต์และสเปกก่อนตัด) ── */}
+      {previewItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-lg bg-slate-900 border border-white/15 rounded-2xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <FileText className="w-5 h-5 text-amber-400 flex-shrink-0" />
+                <h3 className="text-base font-bold text-white truncate">
+                  รายละเอียด: {previewItem.title}
+                </h3>
+              </div>
+              <button
+                onClick={() => setPreviewItem(null)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5 space-y-1.5">
+                <div className="text-slate-400 font-medium">ชื่อสินค้า:</div>
+                <div className="text-white font-bold text-sm">{previewItem.productName}</div>
+                {previewItem.productCode && (
+                  <span className="inline-block px-2 py-0.5 rounded bg-slate-800 border border-white/10 text-slate-300 text-[10px] font-bold">
+                    รหัส: {previewItem.productCode}
+                  </span>
+                )}
+              </div>
+
+              {previewItem.angle?.hook_title && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-1">
+                  <div className="text-amber-400 font-bold">Hook Title (หัวข้อเปิดคลิป):</div>
+                  <div className="text-white font-semibold text-sm leading-relaxed">{previewItem.angle.hook_title}</div>
+                </div>
+              )}
+
+              {previewItem.angle?.script_text && (
+                <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5 space-y-1.5">
+                  <div className="text-slate-400 font-medium">บทพูดสคริปต์ (Script):</div>
+                  <div className="text-slate-200 leading-relaxed max-h-40 overflow-y-auto p-2 rounded bg-black/40 whitespace-pre-wrap font-sans">
+                    {previewItem.angle.script_text}
+                  </div>
+                </div>
+              )}
+
+              {previewItem.angle?.key_features && (
+                <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5 space-y-1">
+                  <div className="text-slate-400 font-medium">จุดเด่นสินค้า:</div>
+                  <div className="text-slate-200">{previewItem.angle.key_features}</div>
+                </div>
+              )}
+
+              {previewItem.caption && (
+                <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5 space-y-1">
+                  <div className="text-slate-400 font-medium">แคปชัน & แฮชแท็ก:</div>
+                  <div className="text-slate-200 font-sans">{previewItem.caption}</div>
+                  {previewItem.hashtags && <div className="text-cyan-400 mt-1">{previewItem.hashtags}</div>}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => setPreviewItem(null)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 cursor-pointer"
+              >
+                ปิดหน้าต่าง
+              </button>
+
+              {previewItem.parentProduct && previewItem.angle && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const itemToOpen = previewItem;
+                    setPreviewItem(null);
+                    onApplyToStudio?.({
+                      fullProduct: itemToOpen.parentProduct,
+                      angleIndex: itemToOpen.parentProduct.angles?.findIndex(a => a.angle_id === itemToOpen.angle.angle_id) || 0,
+                      openExisting: !!itemToOpen.projectName,
+                      openProjectName: itemToOpen.projectName,
+                    });
+                  }}
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-95 text-slate-950 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-amber-500/25"
+                >
+                  <Clapperboard className="w-3.5 h-3.5" />
+                  <span>เริ่มตัดต่อคลิปนี้ทันที</span>
+                </button>
+              )}
             </div>
           </div>
         </div>

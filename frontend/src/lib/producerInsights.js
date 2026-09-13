@@ -456,3 +456,70 @@ export function analyzeContentPerformance(tiktokStats = [], products = []) {
     improvementAdvice: improvement,
   };
 }
+
+/**
+ * Calculate pacing towards weekly quota based on days remaining.
+ */
+export function calculateWeeklyPacing(stats, now = new Date()) {
+  const day = now.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+  // Days remaining in this week including today (Mon = 7, Tue = 6, ..., Sun = 1)
+  const daysRemaining = 7 - ((day + 6) % 7);
+  const remainingCuts = stats?.weeklyCuts?.remaining ?? 0;
+  const targetDaily = stats?.dailyCuts?.target ?? 5;
+
+  if (remainingCuts <= 0) {
+    return {
+      daysRemaining,
+      dailyRequired: 0,
+      paceStatus: 'completed',
+      badgeColor: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
+      paceAdvice: '🎉 เจ้านายพิชิตเป้าหมายรายสัปดาห์เรียบร้อยแล้ว!',
+    };
+  }
+
+  const dailyRequired = Math.ceil(remainingCuts / daysRemaining);
+
+  if (dailyRequired <= targetDaily) {
+    return {
+      daysRemaining,
+      dailyRequired,
+      paceStatus: 'on_track',
+      badgeColor: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30',
+      paceAdvice: `ตามแผนสบายๆ: ตัดต่อเฉลี่ยวันละ ~${dailyRequired} คลิป (เหลืออีก ${daysRemaining} วัน)`,
+    };
+  }
+
+  return {
+    daysRemaining,
+    dailyRequired,
+    paceStatus: 'behind',
+    badgeColor: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
+    paceAdvice: `ต้องเร่งสปีด: ตัดเฉลี่ยวันละ ~${dailyRequired} คลิป (เหลืออีก ${daysRemaining} วันในสัปดาห์นี้)`,
+  };
+}
+
+/**
+ * Automatically extract actionable notes from retrospective insights.
+ */
+export function autoSuggestPlaybookNotes(retrospective, currentNotes = []) {
+  if (!retrospective) return [];
+  const suggestions = [];
+  const existingTexts = new Set((currentNotes || []).map(n => n.text?.trim()));
+
+  (retrospective.topTakeaways || []).forEach((text, idx) => {
+    let tag = 'Hook';
+    if (text.includes('เสียง') || text.includes('SFX') || text.includes('เพลง')) tag = 'Audio';
+    else if (text.includes('ภาพ') || text.includes('เดโม') || text.includes('Demo')) tag = 'Visual';
+    else if (text.includes('ราคา') || text.includes('โปร') || text.includes('สเปก')) tag = 'Product';
+
+    suggestions.push({
+      id: `suggest-${idx}`,
+      text: text,
+      tag: tag,
+      alreadySaved: existingTexts.has(text?.trim()),
+    });
+  });
+
+  return suggestions;
+}
+

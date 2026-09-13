@@ -9,6 +9,8 @@ import {
   getDailyActionQueue,
   generateBossGreeting,
   analyzeContentPerformance,
+  calculateWeeklyPacing,
+  autoSuggestPlaybookNotes,
 } from './producerInsights.js';
 
 test('getMondayOfWeek and getSundayOfWeek calculate Monday to Sunday interval correctly', () => {
@@ -138,3 +140,56 @@ test('analyzeContentPerformance identifies top video and actionable insights', (
   assert.equal(result.topPerformer.views, 4500);
   assert.ok(result.topTakeaways.length >= 2);
 });
+
+test('calculateWeeklyPacing calculates remaining pace accurately', () => {
+  // Wednesday (2026-09-09) -> 5 days remaining (Wed, Thu, Fri, Sat, Sun)
+  const wed = new Date('2026-09-09T10:00:00Z');
+  const statsOnTrack = {
+    weeklyCuts: { remaining: 15, target: 35 },
+    dailyCuts: { target: 5 },
+  };
+  const pacingOnTrack = calculateWeeklyPacing(statsOnTrack, wed);
+  assert.equal(pacingOnTrack.daysRemaining, 5);
+  assert.equal(pacingOnTrack.dailyRequired, 3);
+  assert.equal(pacingOnTrack.paceStatus, 'on_track');
+
+  // Behind pace: 25 cuts remaining with 3 days left (Fri, Sat, Sun)
+  const fri = new Date('2026-09-11T10:00:00Z');
+  const statsBehind = {
+    weeklyCuts: { remaining: 25, target: 35 },
+    dailyCuts: { target: 5 },
+  };
+  const pacingBehind = calculateWeeklyPacing(statsBehind, fri);
+  assert.equal(pacingBehind.daysRemaining, 3);
+  assert.equal(pacingBehind.dailyRequired, 9); // Math.ceil(25/3) = 9
+  assert.equal(pacingBehind.paceStatus, 'behind');
+
+  // Completed
+  const statsDone = {
+    weeklyCuts: { remaining: 0, target: 35 },
+    dailyCuts: { target: 5 },
+  };
+  const pacingDone = calculateWeeklyPacing(statsDone, wed);
+  assert.equal(pacingDone.paceStatus, 'completed');
+});
+
+test('autoSuggestPlaybookNotes suggests notes and checks duplicates', () => {
+  const retrospective = {
+    topTakeaways: [
+      'คลิปที่เปิดด้วย Hook ปัญหาหรือคำเตือน มักดึงยอดวิวช่วง 3 วินาทีแรกได้ดี',
+      'การเปิดเสียง SFX ชัดเจนช่วยเพิ่มความน่าสนใจ',
+    ],
+  };
+
+  const currentNotes = [
+    { id: '1', text: 'การเปิดเสียง SFX ชัดเจนช่วยเพิ่มความน่าสนใจ' },
+  ];
+
+  const suggestions = autoSuggestPlaybookNotes(retrospective, currentNotes);
+  assert.equal(suggestions.length, 2);
+  assert.equal(suggestions[0].tag, 'Hook');
+  assert.equal(suggestions[0].alreadySaved, false);
+  assert.equal(suggestions[1].tag, 'Audio');
+  assert.equal(suggestions[1].alreadySaved, true);
+});
+
