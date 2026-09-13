@@ -33,6 +33,7 @@ export default function QuickRefPage({ onExit }) {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [pasteSuccess, setPasteSuccess] = useState(false);
+  const [pastedImageToast, setPastedImageToast] = useState(false);
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -58,7 +59,7 @@ export default function QuickRefPage({ onExit }) {
       .catch(() => {});
   }, []);
 
-  // 1-Tap Paste from Clipboard
+  // 1-Tap Paste URL from Clipboard
   const handlePasteClipboard = async () => {
     try {
       if (!navigator.clipboard?.readText) {
@@ -76,18 +77,20 @@ export default function QuickRefPage({ onExit }) {
     }
   };
 
-  const handleImageSelect = async (e) => {
-    const file = e.target.files?.[0];
+  // Reusable Image Processor (Used by File Picker, Ctrl+V Paste, and Clipboard Button)
+  const processImageFile = async (file) => {
     if (!file) return;
 
-    // Local instant preview
+    // Instant local preview
     const reader = new FileReader();
     reader.onload = () => {
       setPreviewImage(reader.result);
+      setPastedImageToast(true);
+      setTimeout(() => setPastedImageToast(false), 2500);
     };
     reader.readAsDataURL(file);
 
-    // Optional server upload
+    // Upload to server 02_Assets/Refs/
     try {
       setUploadingImage(true);
       const uploadRes = await uploadRefMedia(file);
@@ -95,7 +98,66 @@ export default function QuickRefPage({ onExit }) {
         setPreviewImage(uploadRes.url);
       }
     } catch (err) {
-      console.warn('Server image upload failed, using local data URL instead:', err);
+      console.warn('Server image upload failed, using local preview:', err);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleImageSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) processImageFile(file);
+  };
+
+  // Intercept Ctrl+V or right-click Paste in textarea or card
+  const handlePasteAnywhere = (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        const file = items[i].getAsFile();
+        if (file) {
+          e.preventDefault();
+          processImageFile(file);
+          return;
+        }
+      }
+    }
+  };
+
+  // Drag & drop image support
+  const handleDrop = (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer?.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      processImageFile(file);
+    }
+  };
+
+  // 1-Tap Read Image directly from Clipboard (navigator.clipboard.read)
+  const handlePasteImageFromClipboard = async () => {
+    try {
+      if (!navigator.clipboard?.read) {
+        alert('เบราว์เซอร์นี้ไม่อนุญาตให้อ่านรูปภาพผ่านปุ่มโดยตรง\nทริก: เจ้านายสามารถกดในช่องข้อความแล้วกด Ctrl+V เพื่อวางรูปภาพได้ทันทีครับ!');
+        return;
+      }
+      setUploadingImage(true);
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        for (const type of item.types) {
+          if (type.startsWith('image/')) {
+            const blob = await item.getType(type);
+            const file = new File([blob], `pasted_ref_${Date.now()}.png`, { type });
+            processImageFile(file);
+            return;
+          }
+        }
+      }
+      alert('ไม่พบรูปภาพในคลิปบอร์ด\n(กรุณากดแคปหน้าจอ เช่น Win+Shift+S หรือคัดลอกรูปภาพมาก่อน แล้วกดใหม่อีกครั้งครับ)');
+    } catch (err) {
+      console.warn('Clipboard read error:', err);
+      alert('ไม่สามารถอ่านรูปจากคลิปบอร์ดได้: ' + (err.message || 'Permission denied') + '\nทริก: เจ้านายสามารถกดในช่องข้อความแล้วกด Ctrl+V ได้ทันทีครับ!');
     } finally {
       setUploadingImage(false);
     }
@@ -338,15 +400,23 @@ export default function QuickRefPage({ onExit }) {
                 </div>
               </div>
 
-              {/* 2. Idea / Notes Textarea */}
+              {/* 2. Idea / Notes Textarea with Direct Image Paste & Drag-Drop */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300">
-                  ไอเดีย / จุดเด่นที่ชอบ / สิ่งที่ต้องทำตาม
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-300">
+                    ไอเดีย / จุดเด่นที่ชอบ / สิ่งที่ต้องทำตาม
+                  </label>
+                  <span className="text-[10px] text-amber-400/90 font-medium">
+                    กด Ctrl+V วางรูปในช่องนี้ได้เลย
+                  </span>
+                </div>
                 <textarea
                   value={ideaText}
                   onChange={(e) => setIdeaText(e.target.value)}
-                  placeholder="เช่น ฮุกเปิดคลิปเทน้ำแข็งใส่พัดลม, ขยี้เรื่องเล่นเกมแล้วกระตุก, ใช้ดนตรีจังหวะเร็ว..."
+                  onPaste={handlePasteAnywhere}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={handleDrop}
+                  placeholder="เช่น ฮุกเปิดคลิปเทน้ำแข็งใส่พัดลม, ขยี้เรื่องเล่นเกมแล้วกระตุก... (แคปหน้าจอแล้วกด Ctrl+V วางรูปภาพในช่องนี้ได้ทันที)"
                   rows={3}
                   /* text-base (16px) is critical to prevent iOS Safari auto-zoom */
                   className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-950/80 border border-white/10 text-base text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 resize-none transition-all"
@@ -429,6 +499,18 @@ export default function QuickRefPage({ onExit }) {
 
               {/* 5. Image Drop / Pick Zone */}
               <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-300 flex items-center gap-1">
+                    <ImageIcon className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>ภาพเรฟ / แคปหน้าจอ</span>
+                  </label>
+                  {pastedImageToast && (
+                    <span className="text-[10px] font-bold text-emerald-400 animate-pulse">
+                      วางรูปภาพเรียบร้อย!
+                    </span>
+                  )}
+                </div>
+
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -468,15 +550,38 @@ export default function QuickRefPage({ onExit }) {
                     </div>
                   </div>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploadingImage}
-                    className="w-full py-3 px-4 rounded-2xl border border-dashed border-white/15 bg-slate-950/40 hover:bg-slate-950/80 hover:border-amber-500/40 flex items-center justify-center gap-2 text-xs font-semibold text-slate-300 hover:text-white cursor-pointer transition-all active:scale-[0.99]"
+                  <div
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={handleDrop}
+                    className="w-full p-3 rounded-2xl border border-dashed border-white/15 bg-slate-950/40 hover:bg-slate-950/80 hover:border-amber-500/40 flex flex-col sm:flex-row items-center justify-between gap-2.5 transition-all"
                   >
-                    <ImageIcon className="w-4 h-4 text-cyan-400" />
-                    <span>{uploadingImage ? 'กำลังอัปโหลดรูป...' : 'แนบรูปภาพหรือแคปหน้าจอเรฟ'}</span>
-                  </button>
+                    <div className="flex items-center gap-2 text-slate-300">
+                      <ImageIcon className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                      <span className="text-xs font-medium text-slate-300">
+                        {uploadingImage ? 'กำลังอัปโหลดรูป...' : 'วางรูปด้วย Ctrl+V ในช่อง หรือ'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <button
+                        type="button"
+                        onClick={handlePasteImageFromClipboard}
+                        disabled={uploadingImage}
+                        className="flex-1 sm:flex-none px-3 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
+                        title="อ่านรูปภาพจากคลิปบอร์ดที่เพิ่งแคปหน้าจอมา"
+                      >
+                        <Clipboard className="w-3.5 h-3.5" />
+                        <span>วางรูปภาพ</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadingImage}
+                        className="flex-1 sm:flex-none px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs font-semibold cursor-pointer active:scale-95 transition-all"
+                      >
+                        แนบไฟล์
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
 

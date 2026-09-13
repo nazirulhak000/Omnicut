@@ -8,7 +8,39 @@
 
 ## สารบัญ
 
+| Round CLIPBOARD-IMAGE-PASTE-1 | Direct Clipboard Image Paste (Ctrl+V / Paste into Textarea & Form) | 2026-09-13 | สำเร็จสมบูรณ์ (ตรวจจับภาพจาก clipboardData อัตโนมัติเมื่อกด Ctrl+V ในช่องข้อความหรือฟอร์ม, เพิ่มปุ่ม 1-Tap 'วางรูปภาพ' ดึงรูปจาก clipboard, อัปโหลดเข้า 02_Assets/Refs/ ทันที, รองรับทั้ง QuickRefPage และ ProducerHub, npm test 180 passed, build 3.35s, browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round QUICK-REF-POLISH-1 | Redesign Impeccable Quick Ref Vault & Fix iOS Mobile Zoom | 2026-09-13 | สำเร็จสมบูรณ์ (ป้องกัน iOS auto-zoom ด้วย 16px inputs + CSS media query + viewport config, Redesign เต็มจอ edge-to-edge + Responsive 2-column desktop, 1-Tap Paste จากคลิปบอร์ด, Segmented Category Pills, Tag filter & search, AI Idea-to-Script on mobile, npm test 180 passed, build 3.31s, desktop & mobile browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+---
+
+## Round CLIPBOARD-IMAGE-PASTE-1 — Direct Clipboard Image Paste (Ctrl+V / Paste into Textarea & Form)
+
+วันที่: 2026-09-13 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
+ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+**เป้าหมาย:**
+1. **รองรับการกดวาง (Ctrl+V / Paste) รูปภาพลงในช่องไอเดียและฟอร์มโดยตรง:** เมื่อผู้ใช้แคปหน้าจอ (Win+Shift+S หรือ Screenshot บนมือถือ) แล้วกด Ctrl+V ในช่อง textarea หรือบริเวณกล่องแบบฟอร์ม ระบบจะตรวจจับภาพจาก clipboardData โดยอัตโนมัติ และนำภาพเข้าสู่ช่องแนบภาพเรฟทันที พร้อมอัปโหลดเข้า `02_Assets/Refs/`
+2. **เพิ่มปุ่ม 1-Tap "วางรูปภาพ":** บริเวณกล่องรูปภาพ เพื่อให้แตะกดวางรูปภาพจาก clipboard ได้ทันทีโดยไม่ต้องเปิด file picker
+3. **รองรับทั้งสองจุด:** ทั้งใน `QuickRefPage.jsx` (โหมดมือถือ/Quick Ref) และ `ProducerHub.jsx` (หน้าโปรดิวเซอร์หลัก)
+4. **รักษา UI Clean Standard (Rule 8):** ป้ายและปุ่มกระชับ ไม่มีสัญลักษณ์ `+` หรืออีโมจิซ้อน
+
+**สิ่งที่ทำ:**
+1. อัปเดต `frontend/src/components/producer/QuickRefPage.jsx`:
+   - พัฒนาฟังก์ชัน `processImageFile` จัดการไฟล์ภาพทั้งพรีวิวและอัปโหลดเข้าเซิร์ฟเวอร์
+   - เพิ่ม `onPaste={handlePasteAnywhere}` ดักจับภาพจาก clipboard เมื่อกด Ctrl+V ในช่องข้อความหรือคลิกวางในฟอร์ม ป้องกันไม่ให้ข้อความ binary เสียหาย
+   - เพิ่ม `onDrop={handleDrop}` ลากรูปมาวางในช่องได้ทันที
+   - เพิ่มปุ่ม "วางรูปภาพ" ดึงรูปจาก `navigator.clipboard.read()`
+2. อัปเดต `frontend/src/components/producer/ProducerHub.jsx`:
+   - พัฒนา `processRefImageFile` และ `handlePasteImageAnywhere` ดักจับ Ctrl+V ในช่องพิมพ์ไอเดียและแบบฟอร์ม
+   - เพิ่มปุ่ม "วางรูปภาพ" ดึงรูปจากคลิปบอร์ดในคลิกเดียว
+   - เพิ่มสถานะแจ้งเตือน "วางรูปภาพเรียบร้อย!"
+
+### Gate & Verification Results:
+- [x] Node / Vitest Tests: `npm test` — 180/180 passed 100%
+- [x] Frontend Build: `npm run build` — 2003 modules transformed, build clean ใน 3.35s
+- [x] Python Compilation: `.venv\Scripts\python.exe -m compileall -q scripts tests` — 0 errors
+- [x] Visual Verification: Browser subagent จำลองการวางรูปภาพจาก clipboardData ลงในช่อง textarea และยืนยันว่าภาพปรากฏในกล่องพรีวิวเรฟพร้อมอัปโหลดเรียบร้อย 100%
+
 | Round IDEA-REF-VAULT-1 | คลังไอเดียและเรฟ (Idea & Ref Vault), Round-Robin Diversified Queue, และ Mobile View (iPhone 15 Pro Max) | 2026-09-13 | สำเร็จสมบูรณ์ (คลังไอเดีย & เรฟด้านบนสุด, รองรับแนบลิงก์ TikTok/Pinterest + รูปแคปหน้าจอ, จัดคิว Round-Robin กระจายสินค้าไม่ผูกขาด, ฟิลเตอร์สินค้าในคิว, AI Idea-to-Script ต่อมุมมองสินค้า 1-click, มุมมองมือถือ iPhone 15 Pro Max `?view=quick-ref`, npm test 180 passed, backend pytest parity 153 passed, build 4.10s, desktop & mobile browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round AI-PRODUCER-ELEVATION-1 | ยกระดับ Producer Hub: Spotlight Next Mission, Pacing Calculator, 1-Click Playbook Add, และ Pre-flight Editor Tips | 2026-09-13 | สำเร็จสมบูรณ์ (Next Action Spotlight Hero card, Weekly Pacing Calculator badge, 1-Click Playbook Suggestion Sync, Quick Script Preview modal, Pre-flight Editor Playbook Tips modal, npm test 178 passed, build 3.34s, browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 
