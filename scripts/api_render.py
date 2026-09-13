@@ -182,6 +182,7 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                 hook_style=req_data.hook_style,
                 font_name=req_data.font_name,
                 bilingual_subtitles=req_data.bilingual_subtitles,
+                show_watermark=req_data.show_watermark,
                 use_ai_vision=req_data.use_ai_vision,
                 sticker_path=sticker_file_path,
                 bgm_name=req_data.bgm_name,

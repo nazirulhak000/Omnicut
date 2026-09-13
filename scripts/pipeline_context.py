@@ -241,6 +241,7 @@ def _stage_payload_from_manifest(
                 "total_duration": manifest.get("total_duration"),
                 "font_name": _manifest_value(manifest, "font_name"),
                 "bilingual_subtitles": _manifest_value(manifest, "bilingual_subtitles"),
+                "show_watermark": _manifest_value(manifest, "show_watermark", True),
                 "hook_brand": _manifest_value(manifest, "hook_brand"),
                 "hook_model": _manifest_value(manifest, "hook_model"),
                 "hook_label": _manifest_value(manifest, "hook_label"),
@@ -360,6 +361,7 @@ class PipelineContext:
     hook_style: Optional[Dict[str, object]] = None
     font_name: str = "IBMPlex"
     bilingual_subtitles: bool = True
+    show_watermark: Optional[bool] = None
     use_ai_vision: bool = True
     sticker_path: Optional[str] = None
     bgm_name: Optional[str] = None
@@ -527,7 +529,7 @@ class PipelineContext:
             "voice_engine_type", "voice_preset", "ad_tone", "style_preset",
             "human_voice_audio_path", "hook_brand", "hook_model", "hook_label",
             "hook_duration", "hook_motion", "hook_colors", "hook_style",
-            "font_name", "bilingual_subtitles", "sticker_path", "bgm_name",
+            "font_name", "bilingual_subtitles", "show_watermark", "sticker_path", "bgm_name",
             "bgm_volume", "bgm_ducking", "audio_mutes", "lut_name",
             "lut_intensity", "product_id", "angle_id", "caption_position",
             "caption_color", "caption_scale", "sticker_position", "sticker_scale",

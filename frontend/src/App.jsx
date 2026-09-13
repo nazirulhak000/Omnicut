@@ -377,9 +377,11 @@ export default function App() {
   if (isQuickRefMode) {
     return (
       <div className={`h-screen w-screen overflow-y-auto bg-[#070A12] ${uiFont}`}>
-        <Suspense fallback={<LoadingSpinner message="กำลังเปิดคลังไอเดีย Quick-Capture..." />}>
-          <QuickRefPage onExit={() => { window.location.href = window.location.pathname; }} />
-        </Suspense>
+        <ErrorBoundary>
+          <Suspense fallback={<LoadingSpinner message="กำลังเปิดคลังไอเดีย Quick-Capture..." />}>
+            <QuickRefPage onExit={() => { window.location.href = window.location.pathname; }} />
+          </Suspense>
+        </ErrorBoundary>
       </div>
     );
   }

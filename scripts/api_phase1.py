@@ -500,6 +500,7 @@ class RerollRequest(BaseModel):
     script_overlays: Optional[List[str]] = None
     font_name: Optional[str] = None
     bilingual_subtitles: Optional[bool] = None
+    show_watermark: Optional[bool] = None
     voice_gender: Optional[str] = None
     voice_rate: Optional[str] = None
     voice_preset: Optional[str] = None
@@ -951,7 +952,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
             "style_preset",
             "hook_brand", "hook_model", "hook_label", "hook_duration", "hook_motion", "hook_colors", "hook_style",
             "overlays",
-            "font_name", "bilingual_subtitles", "sticker_path", "bgm_name", "bgm_volume",
+            "font_name", "bilingual_subtitles", "show_watermark", "sticker_path", "bgm_name", "bgm_volume",
             "bgm_ducking", "lut_name", "lut_intensity", "caption_position", "caption_color",
             "audio_mutes",
             "caption_scale", "sticker_position", "sticker_scale", "clip_list", "transitions",
@@ -1104,6 +1105,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 hook_style=params.get("hook_style"),
                 font_name=params.get("font_name", "IBMPlex"),
                 bilingual_subtitles=params.get("bilingual_subtitles", True),
+                show_watermark=params.get("show_watermark", True),
                 sticker_path=params.get("sticker_path"),
                 bgm_name=params.get("bgm_name"),
                 bgm_volume=params.get("bgm_volume"),

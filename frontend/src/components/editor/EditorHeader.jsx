@@ -46,6 +46,8 @@ export default function EditorHeader({
   coverStatus = null,
   coverChecking = false,
   onOpenCoverStudio,
+  showWatermark = true,
+  onToggleWatermark,
 }) {
   const [showPlaybookModal, setShowPlaybookModal] = React.useState(false);
   const playbookNotes = React.useMemo(() => loadPlaybookNotes(), [showPlaybookModal]);
@@ -258,6 +260,19 @@ export default function EditorHeader({
               <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
             )}
           </button>
+        )}
+
+        {projectName && (
+          <label className="hidden sm:flex items-center gap-1.5 px-2.5 h-9 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] text-xs text-slate-300 hover:text-white cursor-pointer transition-colors" title="เปิด/ปิดลายน้ำช่อง (@rizanntry) บนวิดีโอ">
+            <input
+              type="checkbox"
+              checked={showWatermark !== false}
+              onChange={(e) => onToggleWatermark?.(e.target.checked)}
+              disabled={applying}
+              className="h-3.5 w-3.5 rounded accent-[#D97757] cursor-pointer"
+            />
+            <span className="font-medium">ลายน้ำ</span>
+          </label>
         )}
 
         <RenderButton

@@ -9,7 +9,8 @@ import {
 } from 'lucide-react';
 import {
   getProducts, getExports, getTiktokStatsLatest,
-  uploadRefMedia, aiIdeaToAngle, addProductAngle
+  uploadRefMedia, aiIdeaToAngle, addProductAngle,
+  getProducerNotes, saveProducerNotes, deleteProducerNote
 } from '../../api';
 import {
   loadTargets,
@@ -18,6 +19,7 @@ import {
   savePlaybookNotes,
   addPlaybookNote,
   deletePlaybookNote,
+  formatNoteForSharing,
   detectRefPlatform,
   calculateProductionStats,
   getDailyActionQueue,
@@ -51,11 +53,12 @@ export default function ProducerHub({
   const [playbookNotes, setPlaybookNotes] = useState(() => loadPlaybookNotes());
   const [ideaText, setIdeaText] = useState('');
   const [ideaUrl, setIdeaUrl] = useState('');
-  const [ideaImage, setIdeaImage] = useState(null);
+  const [ideaImages, setIdeaImages] = useState([]);
   const [ideaTag, setIdeaTag] = useState('Hook');
   const [ideaProduct, setIdeaProduct] = useState('');
   const [uploadingRefImage, setUploadingRefImage] = useState(false);
   const [refSaveSuccess, setRefSaveSuccess] = useState(false);
+  const [activeZoomImage, setActiveZoomImage] = useState(null);
   const fileInputRef = useRef(null);
 
   // AI Idea-to-Script state
@@ -78,10 +81,11 @@ export default function ProducerHub({
   const fetchData = useCallback(async () => {
     try {
       setRefreshing(true);
-      const [prodRes, expRes, statsRes] = await Promise.allSettled([
+      const [prodRes, expRes, statsRes, notesRes] = await Promise.allSettled([
         getProducts(),
         getExports(),
         getTiktokStatsLatest(),
+        getProducerNotes(),
       ]);
 
       if (prodRes.status === 'fulfilled') {
@@ -96,6 +100,11 @@ export default function ProducerHub({
 
       if (statsRes.status === 'fulfilled') {
         setTiktokStats(statsRes.value);
+      }
+
+      if (notesRes.status === 'fulfilled' && notesRes.value?.success && Array.isArray(notesRes.value?.notes)) {
+        setPlaybookNotes(notesRes.value.notes);
+        savePlaybookNotes(notesRes.value.notes);
       }
     } catch (err) {
       console.error('Failed to load producer hub data:', err);
@@ -180,37 +189,56 @@ export default function ProducerHub({
 
   const [pastedImageToast, setPastedImageToast] = useState(false);
 
-  // Reusable Image Processor for Producer Hub
-  const processRefImageFile = async (file) => {
-    if (!file) return;
+  // Append single image URL to ideaImages
+  const appendIdeaImageUrl = (url) => {
+    if (!url) return;
+    setIdeaImages(prev => {
+      if (prev.includes(url)) return prev;
+      return [...prev, url];
+    });
+    setPastedImageToast(true);
+    setTimeout(() => setPastedImageToast(false), 2500);
+  };
 
-    // Instant local preview
-    const reader = new FileReader();
-    reader.onload = () => {
-      setIdeaImage(reader.result);
-      setPastedImageToast(true);
-      setTimeout(() => setPastedImageToast(false), 2500);
-    };
-    reader.readAsDataURL(file);
+  // Reusable Multi-Image Processor for Producer Hub
+  const processRefImageFiles = async (files) => {
+    if (!files || files.length === 0) return;
+    const fileList = Array.from(files);
 
-    // Upload to server if available
-    try {
-      setUploadingRefImage(true);
-      const res = await uploadRefMedia(file);
-      if (res?.url) {
-        setIdeaImage(res.url);
+    for (const file of fileList) {
+      // Instant local preview
+      const reader = new FileReader();
+      reader.onload = () => {
+        const localData = reader.result;
+        setIdeaImages(prev => [...prev, localData]);
+        setPastedImageToast(true);
+        setTimeout(() => setPastedImageToast(false), 2500);
+      };
+      reader.readAsDataURL(file);
+
+      // Upload to server
+      try {
+        setUploadingRefImage(true);
+        const res = await uploadRefMedia(file);
+        if (res?.url) {
+          setIdeaImages(prev => prev.map(img => (img.startsWith('data:') ? res.url : img)));
+        }
+      } catch (err) {
+        console.warn('Upload ref media to server failed, using local preview:', err);
+      } finally {
+        setUploadingRefImage(false);
       }
-    } catch (err) {
-      console.warn('Upload ref media to server failed, using local base64:', err);
-    } finally {
-      setUploadingRefImage(false);
     }
   };
 
-  // Handle Image Selection from File Picker
+  const removeIdeaImage = (indexToRemove) => {
+    setIdeaImages(prev => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  // Handle Image Selection from File Picker (Supports multiple files)
   const handleImageSelect = (e) => {
-    const file = e.target.files?.[0];
-    if (file) processRefImageFile(file);
+    const files = e.target.files;
+    if (files && files.length > 0) processRefImageFiles(files);
   };
 
   // Intercept Ctrl+V or right-click Paste of images
@@ -220,28 +248,34 @@ export default function ProducerHub({
 
     // 1. Check cd.files first (iOS Safari & desktop copied images)
     if (cd.files && cd.files.length > 0) {
+      const validFiles = [];
       for (let i = 0; i < cd.files.length; i++) {
         const file = cd.files[i];
         if (file && (file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|heic|heif|bmp)$/i.test(file.name || ''))) {
-          e.preventDefault();
-          processRefImageFile(file);
-          return;
+          validFiles.push(file);
         }
+      }
+      if (validFiles.length > 0) {
+        e.preventDefault();
+        processRefImageFiles(validFiles);
+        return;
       }
     }
 
     // 2. Check cd.items
     const items = cd.items;
     if (items && items.length > 0) {
+      const validFiles = [];
       for (let i = 0; i < items.length; i++) {
         if (items[i].type && items[i].type.startsWith('image/')) {
           const file = items[i].getAsFile();
-          if (file) {
-            e.preventDefault();
-            processRefImageFile(file);
-            return;
-          }
+          if (file) validFiles.push(file);
         }
+      }
+      if (validFiles.length > 0) {
+        e.preventDefault();
+        processRefImageFiles(validFiles);
+        return;
       }
     }
 
@@ -249,12 +283,11 @@ export default function ProducerHub({
     try {
       const html = cd.getData('text/html');
       if (html) {
-        const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
-        if (match && match[1] && !match[1].startsWith('webkit-fake-url:')) {
+        const matches = [...html.matchAll(/<img[^>]+src=["']([^"']+)["']/gi)];
+        const urls = matches.map(m => m[1]).filter(src => src && !src.startsWith('webkit-fake-url:'));
+        if (urls.length > 0) {
           e.preventDefault();
-          setIdeaImage(match[1]);
-          setPastedImageToast(true);
-          setTimeout(() => setPastedImageToast(false), 2500);
+          urls.forEach(appendIdeaImageUrl);
           return;
         }
       }
@@ -267,9 +300,7 @@ export default function ProducerHub({
         const trimmed = text.trim();
         if (trimmed.startsWith('data:image/') || /\.(png|jpe?g|webp|gif|heic)(\?.*)?$/i.test(trimmed)) {
           e.preventDefault();
-          setIdeaImage(trimmed);
-          setPastedImageToast(true);
-          setTimeout(() => setPastedImageToast(false), 2500);
+          appendIdeaImageUrl(trimmed);
           return;
         }
       }
@@ -279,16 +310,14 @@ export default function ProducerHub({
   // Drag & drop image support
   const handleDropImage = (e) => {
     e.preventDefault();
-    const file = e.dataTransfer?.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      processRefImageFile(file);
+    const files = e.dataTransfer?.files;
+    if (files && files.length > 0) {
+      processRefImageFiles(files);
     }
   };
 
   // 1-Tap Read Image directly from Clipboard with Photo Picker fallback
   const handlePasteImageFromClipboard = async () => {
-    // If navigator.clipboard.read is not supported (e.g. mobile Safari default or non-HTTPS),
-    // trigger file picker immediately & synchronously so Safari does not block it!
     if (!navigator.clipboard?.read) {
       fileInputRef.current?.click();
       return;
@@ -302,7 +331,7 @@ export default function ProducerHub({
           if (type.startsWith('image/')) {
             const blob = await item.getType(type);
             const file = new File([blob], `pasted_ref_${Date.now()}.png`, { type });
-            processRefImageFile(file);
+            processRefImageFiles([file]);
             return;
           }
           if (type === 'text/plain') {
@@ -310,9 +339,7 @@ export default function ProducerHub({
             const text = await blob.text();
             const trimmed = text.trim();
             if (trimmed.startsWith('data:image/') || /\.(png|jpe?g|webp|gif|heic)(\?.*)?$/i.test(trimmed)) {
-              setIdeaImage(trimmed);
-              setPastedImageToast(true);
-              setTimeout(() => setPastedImageToast(false), 2500);
+              appendIdeaImageUrl(trimmed);
               return;
             }
           }
@@ -320,7 +347,7 @@ export default function ProducerHub({
       }
       fileInputRef.current?.click();
     } catch (err) {
-      console.warn('Clipboard read error (iOS Safari permission):', err);
+      console.warn('Clipboard read error:', err);
       fileInputRef.current?.click();
     } finally {
       setUploadingRefImage(false);
@@ -328,44 +355,75 @@ export default function ProducerHub({
   };
 
   // Handle Add Idea / Ref Note
-  const handleSaveIdea = (e) => {
+  const handleSaveIdea = async (e) => {
     if (e) e.preventDefault();
-    if (!ideaText.trim() && !ideaUrl.trim() && !ideaImage) return;
+    if (!ideaText.trim() && !ideaUrl.trim() && ideaImages.length === 0) return;
 
     const matchedProd = products.find(p => p.id === ideaProduct);
     const newNote = {
       text: ideaText.trim(),
       url: ideaUrl.trim() || undefined,
-      imageUrl: ideaImage || undefined,
+      images: ideaImages,
+      imageUrl: ideaImages[0] || undefined,
       tag: ideaTag || 'Hook',
       productId: ideaProduct || undefined,
       productName: matchedProd?.name || undefined,
       productCode: matchedProd?.product_code || undefined,
+      createdAt: new Date().toISOString(),
     };
 
     const updated = addPlaybookNote(newNote, playbookNotes);
     setPlaybookNotes(updated);
     setIdeaText('');
     setIdeaUrl('');
-    setIdeaImage(null);
+    setIdeaImages([]);
     setRefSaveSuccess(true);
     setTimeout(() => setRefSaveSuccess(false), 2500);
+
+    // Sync to backend so mobile and other clients receive it
+    try {
+      await saveProducerNotes(updated);
+    } catch (err) {
+      console.warn('Failed to sync note to server:', err);
+    }
   };
 
   // Handle Delete Note
-  const handleDeleteNote = (id) => {
+  const handleDeleteNote = async (id) => {
     const updated = deletePlaybookNote(id, playbookNotes);
     setPlaybookNotes(updated);
+    try {
+      await deleteProducerNote(id);
+    } catch (err) {
+      console.warn('Failed to delete note on server:', err);
+    }
+  };
+
+  // One-click Copy/Share note for Boss or Team
+  const handleCopyNoteForBoss = (item) => {
+    const text = formatNoteForSharing(item);
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+      setToastMessage('คัดลอกสรุปไอเดียและรูปภาพทั้งหมดลงคลิปบอร์ดแล้ว พร้อมส่งต่อ!');
+      setTimeout(() => setToastMessage(null), 3000);
+    } else {
+      alert(text);
+    }
   };
 
   // Handle Trigger AI Idea-to-Script
   const handleRunAiIdeaToScript = async (note) => {
     try {
       setAiSynthesizingId(note.id);
+      const itemImages = Array.isArray(note.images) && note.images.length > 0
+        ? note.images
+        : (note.imageUrl ? [note.imageUrl] : []);
+
       const res = await aiIdeaToAngle({
         idea_text: note.text,
         ref_url: note.url,
-        ref_image: note.imageUrl,
+        ref_image: itemImages[0] || '',
+        ref_images: itemImages,
         product_id: note.productId || (products[0]?.id || null),
       });
 
@@ -834,6 +892,7 @@ export default function ProducerHub({
                 ref={fileInputRef}
                 type="file"
                 accept="image/*,video/*"
+                multiple
                 onChange={handleImageSelect}
                 className="hidden"
               />
@@ -843,7 +902,7 @@ export default function ProducerHub({
                 onClick={handlePasteImageFromClipboard}
                 disabled={uploadingRefImage}
                 className="px-2.5 py-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
-                title="อ่านรูปภาพจากคลิปบอร์ดที่เพิ่งแคปหน้าจอมา"
+                title="อ่านรูปภาพจากคลิปบอร์ดที่เพิ่งแคปหน้าจอมา (กด Ctrl+V หรือคลิกวางได้เรื่อยๆ หลายรูป)"
               >
                 <Clipboard className="w-3.5 h-3.5" />
                 <span>วางรูปภาพ</span>
@@ -854,9 +913,10 @@ export default function ProducerHub({
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadingRefImage}
                 className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 hover:text-white border border-white/10 flex items-center gap-1.5 cursor-pointer transition-all"
+                title="เลือกรูปภาพจากเครื่อง (เลือกพร้อมกันได้หลายรูป)"
               >
                 <ImageIcon className="w-3.5 h-3.5 text-cyan-400" />
-                <span>{ideaImage ? 'เปลี่ยนรูปเรฟ' : 'แนบไฟล์ภาพ'}</span>
+                <span>{ideaImages.length > 0 ? `แนบเพิ่ม (${ideaImages.length} รูป)` : 'แนบไฟล์ภาพ'}</span>
               </button>
 
               {pastedImageToast && (
@@ -891,38 +951,56 @@ export default function ProducerHub({
                   ))}
                 </select>
               )}
-
-              {ideaImage && (
-                <div className="relative inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 border border-white/10 text-[11px] text-cyan-300">
-                  <span>มีรูปเรฟแนบอยู่</span>
-                  <button
-                    type="button"
-                    onClick={() => setIdeaImage(null)}
-                    className="text-slate-400 hover:text-rose-400 cursor-pointer"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              )}
             </div>
 
             <button
               type="submit"
-              disabled={!ideaText.trim() && !ideaUrl.trim() && !ideaImage}
+              disabled={!ideaText.trim() && !ideaUrl.trim() && ideaImages.length === 0}
               className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-95 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md shadow-amber-500/20 disabled:opacity-40 transition-all"
             >
               {refSaveSuccess ? <Check className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
               <span>{refSaveSuccess ? 'บันทึกเรียบร้อย' : 'บันทึกไอเดีย'}</span>
             </button>
           </div>
+
+          {/* Multi-Image Preview Strip in Form */}
+          {ideaImages.length > 0 && (
+            <div className="pt-2 border-t border-white/5 space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] text-slate-400">
+                <span className="font-bold text-amber-300">รูปภาพที่แนบ ({ideaImages.length} รูป)</span>
+                <span className="text-[10px]">กดปุ่ม X เพื่อลบรูปที่ไม่ต้องการ</span>
+              </div>
+              <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                {ideaImages.map((img, idx) => (
+                  <div key={idx} className="relative group/thumb flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border border-white/15 bg-black/50">
+                    <img src={img} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeIdeaImage(idx)}
+                      className="absolute top-1 right-1 p-0.5 rounded-md bg-rose-600/90 text-white opacity-90 group-hover/thumb:opacity-100 hover:bg-rose-700 transition-all cursor-pointer"
+                      title="ลบรูปนี้"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                    <span className="absolute bottom-1 left-1 px-1 py-0.2 rounded bg-black/60 text-[9px] text-slate-300 font-bold">
+                      #{idx + 1}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </form>
 
         {/* Saved Ideas / Refs List */}
         {playbookNotes.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[360px] overflow-y-auto pr-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[380px] overflow-y-auto pr-1">
             {playbookNotes.map((item) => {
               const platform = detectRefPlatform(item.url);
               const isSynthesizing = aiSynthesizingId === item.id;
+              const itemImages = Array.isArray(item.images) && item.images.length > 0
+                ? item.images
+                : (item.imageUrl ? [item.imageUrl] : []);
 
               return (
                 <div
@@ -949,11 +1027,16 @@ export default function ProducerHub({
                       </div>
 
                       <button
-                        onClick={() => handleDeleteNote(item.id)}
-                        className="text-slate-500 hover:text-rose-400 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteNote(item.id);
+                        }}
+                        className="px-2 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs font-semibold flex items-center gap-1 cursor-pointer active:scale-95 transition-all shadow-sm"
                         title="ลบรายการนี้"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3 h-3 text-rose-400" />
+                        <span>ลบ</span>
                       </button>
                     </div>
 
@@ -963,13 +1046,53 @@ export default function ProducerHub({
                       </p>
                     )}
 
-                    {item.imageUrl && (
-                      <div className="relative rounded-lg overflow-hidden border border-white/10 max-h-28 bg-black/40">
+                    {/* Multi-Image Gallery */}
+                    {itemImages.length === 1 && (
+                      <div
+                        onClick={() => setActiveZoomImage(itemImages[0])}
+                        className="relative rounded-lg overflow-hidden border border-white/10 max-h-28 bg-black/40 cursor-zoom-in group/img"
+                        title="คลิกเพื่อดูรูปขยายใหญ่"
+                      >
                         <img
-                          src={item.imageUrl}
+                          src={itemImages[0]}
                           alt="Ref media"
-                          className="w-full h-28 object-cover group-hover:scale-105 transition-transform"
+                          className="w-full h-28 object-cover group-hover/img:scale-105 transition-transform"
                         />
+                      </div>
+                    )}
+
+                    {itemImages.length > 1 && (
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-[10px] text-amber-300 font-bold">
+                          <span className="flex items-center gap-1">
+                            <ImageIcon className="w-3 h-3" />
+                            <span>{itemImages.length} รูป</span>
+                          </span>
+                          <span className="text-[9px] text-slate-500 font-normal">คลิกเพื่อดูรูป</span>
+                        </div>
+                        <div className={`grid gap-1 ${itemImages.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                          {itemImages.slice(0, 3).map((imgUrl, imgIdx) => {
+                            const isLastAndMore = imgIdx === 2 && itemImages.length > 3;
+                            return (
+                              <div
+                                key={imgIdx}
+                                onClick={() => setActiveZoomImage(imgUrl)}
+                                className="relative h-16 rounded-lg overflow-hidden border border-white/10 bg-black/40 cursor-pointer group/thumb hover:border-amber-500/40 transition-all"
+                              >
+                                <img
+                                  src={imgUrl}
+                                  alt={`Ref ${imgIdx + 1}`}
+                                  className="w-full h-full object-cover group-hover/thumb:scale-110 transition-transform"
+                                />
+                                {isLastAndMore && (
+                                  <div className="absolute inset-0 bg-black/70 flex items-center justify-center font-bold text-white text-[10px]">
+                                    +{itemImages.length - 2}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
 
@@ -987,11 +1110,17 @@ export default function ProducerHub({
                     )}
                   </div>
 
-                  {/* AI Idea-to-Script Button */}
-                  <div className="pt-2 border-t border-white/5 flex items-center justify-between">
-                    <span className="text-[10px] text-slate-500">
-                      {item.createdAt ? new Date(item.createdAt).toLocaleDateString('th-TH') : ''}
-                    </span>
+                  {/* Actions: Copy for Boss + AI Idea-to-Script Button */}
+                  <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleCopyNoteForBoss(item)}
+                      className="px-2 py-1 rounded-lg bg-slate-700/70 hover:bg-slate-700 text-slate-200 hover:text-white border border-white/5 text-[11px] font-semibold flex items-center gap-1 cursor-pointer active:scale-95 transition-all"
+                      title="คัดลอกสรุปไอเดียและรูปภาพทั้งหมดสำหรับส่งไลน์ให้นายหรือทีมงาน"
+                    >
+                      <Copy className="w-3 h-3 text-cyan-400" />
+                      <span>คัดลอกส่งงาน</span>
+                    </button>
 
                     <button
                       onClick={() => handleRunAiIdeaToScript(item)}
@@ -1643,6 +1772,58 @@ export default function ProducerHub({
               >
                 {addingAngle ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                 <span>{addingAngle ? 'กำลังบันทึก...' : 'เพิ่มเป็นมุมมองสินค้า (Add to Angles)'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Lightbox Image Modal ── */}
+      {activeZoomImage && (
+        <div
+          onClick={() => setActiveZoomImage(null)}
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out animate-fadeIn"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative max-w-4xl max-h-[90vh] flex flex-col items-center gap-3 cursor-default"
+          >
+            <button
+              type="button"
+              onClick={() => setActiveZoomImage(null)}
+              className="absolute -top-11 right-0 p-2 rounded-full bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white cursor-pointer transition-colors shadow-lg"
+              title="ปิดรูปขยาย"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <img
+              src={activeZoomImage}
+              alt="Zoomed Reference"
+              className="max-h-[80vh] max-w-full rounded-2xl object-contain shadow-2xl border border-white/10"
+            />
+            <div className="flex items-center gap-3">
+              <a
+                href={activeZoomImage}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3.5 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-xs font-semibold text-cyan-300 border border-white/10 flex items-center gap-1.5 transition-colors"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>เปิดรูปขนาดเต็มในแท็บใหม่</span>
+              </a>
+              <button
+                type="button"
+                onClick={() => {
+                  if (navigator.clipboard?.writeText) {
+                    navigator.clipboard.writeText(activeZoomImage);
+                    setToastMessage('คัดลอกลิงก์รูปภาพแล้ว!');
+                    setTimeout(() => setToastMessage(null), 2000);
+                  }
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-white/10 flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Copy className="w-3.5 h-3.5 text-amber-400" />
+                <span>คัดลอกลิงก์รูป</span>
               </button>
             </div>
           </div>

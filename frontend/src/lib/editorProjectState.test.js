@@ -104,3 +104,21 @@ test('overlay migration opts decorative baked media into accent recolour only', 
   assert.equal(state.effects[0].recolor, 'accent');
   assert.equal(state.effects[0].recolorSourceHue, 205);
 });
+
+
+test('showWatermark parses from manifest and serializes to save payload', () => {
+  const defaultState = manifestToEditorState({});
+  assert.equal(defaultState.style.showWatermark, true);
+
+  const disabledState = manifestToEditorState({ show_watermark: false });
+  assert.equal(disabledState.style.showWatermark, false);
+
+  const payload = editorStateToSavePayload({ style: { showWatermark: false } });
+  assert.equal(payload.style.show_watermark, false);
+  assert.equal(payload.style.showWatermark, false);
+
+  const payloadDefault = editorStateToSavePayload({ style: { showWatermark: true } });
+  assert.equal(payloadDefault.style.show_watermark, true);
+  assert.equal(payloadDefault.style.showWatermark, true);
+});
+

@@ -19,11 +19,21 @@ class SubtitleStage:
     def run(cls, ctx: PipelineContext) -> None:
         scrim_spans: List[Tuple[float, float]] = []
 
+        saved_params = (ctx.manifest.get("render_params") or {}) if ctx.manifest else {}
+        effective_show_watermark = (
+            ctx.show_watermark
+            if ctx.show_watermark is not None
+            else saved_params.get("show_watermark", True)
+        )
+
         should_generate = ctx.should_run("subtitles")
         if not should_generate and ctx.manifest:
             existing_ass_path = ProjectManifest.artifact_path(ctx.manifest, "subtitles_ass")
-            if existing_ass_path and not subtitle_artifact_is_current(existing_ass_path):
-                should_generate = True
+            if existing_ass_path:
+                if not subtitle_artifact_is_current(existing_ass_path):
+                    should_generate = True
+                elif saved_params.get("show_watermark") is not None and saved_params.get("show_watermark") != effective_show_watermark:
+                    should_generate = True
 
         if should_generate:
             ctx.notify("💬 [3/5] กำลังสร้างซับไตเติล TikTok เคลื่อนไหว (Kanit-Black 86pt)...", 0.50)
@@ -90,6 +100,7 @@ class SubtitleStage:
                 caption_scale=ctx.caption_scale,
                 text_overlays=effective_text_overlays,
                 style_preset=ctx.style_preset,
+                show_watermark=effective_show_watermark,
             )
             # Sync micro_cues back
             ctx.cues = micro_cues

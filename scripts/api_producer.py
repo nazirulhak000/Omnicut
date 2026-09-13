@@ -10,11 +10,14 @@ import os
 import re
 import uuid
 import base64
+import json
+import datetime
+from datetime import timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from scripts.config import ASSETS_DIR
 from scripts.product_store import ProductStore
@@ -24,13 +27,69 @@ router = APIRouter(prefix="/api/producer", tags=["Producer"])
 
 REFS_DIR = ASSETS_DIR / "Refs"
 REFS_DIR.mkdir(parents=True, exist_ok=True)
+NOTES_FILE = REFS_DIR / "playbook_notes.json"
+
+DEFAULT_STARTER_NOTES = [
+    {
+        "id": "note-starter-1",
+        "text": "ฮุกเปิดคลิปอย่าเกริ่นเวิ่นเว้อ 0.5 วินาทีแรกต้องมีภาพสินค้าและปัญหากระแทกตาคนดูทันที",
+        "createdAt": "2026-09-12T10:00:00.000Z",
+        "tag": "Hook",
+        "images": [],
+    },
+    {
+        "id": "note-starter-2",
+        "text": "คลิปรีวิวอุปกรณ์อิเล็กทรอนิกส์ คนดูชอบฟังเสียงคลิกปุ่ม / เสียงพัดลมจริง อย่าลืมเปิดเสียง SFX ให้ชัด",
+        "createdAt": "2026-09-12T14:30:00.000Z",
+        "tag": "Audio",
+        "images": [],
+    },
+]
+
+
+def load_notes_from_disk() -> List[Dict[str, Any]]:
+    if not NOTES_FILE.exists():
+        return list(DEFAULT_STARTER_NOTES)
+    try:
+        with open(NOTES_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, list):
+                for note in data:
+                    if "images" not in note:
+                        if note.get("imageUrl"):
+                            note["images"] = [note["imageUrl"]]
+                        else:
+                            note["images"] = []
+                    elif note["images"] and not note.get("imageUrl"):
+                        note["imageUrl"] = note["images"][0]
+                return data
+    except Exception:
+        pass
+    return list(DEFAULT_STARTER_NOTES)
+
+
+def save_notes_to_disk(notes: List[Dict[str, Any]]) -> None:
+    temp_file = NOTES_FILE.with_suffix(".tmp")
+    with open(temp_file, "w", encoding="utf-8") as f:
+        json.dump(notes, f, ensure_ascii=False, indent=2)
+    temp_file.replace(NOTES_FILE)
 
 
 class IdeaToAngleRequest(BaseModel):
     idea_text: str = ""
     ref_url: Optional[str] = ""
     ref_image: Optional[str] = ""
+    ref_images: Optional[List[str]] = None
     product_id: Optional[str] = None
+
+
+class NotesPayload(BaseModel):
+    notes: List[Dict[str, Any]]
+
+
+class SingleNotePayload(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    note: Optional[Dict[str, Any]] = None
 
 
 @router.post("/upload-ref-media")
@@ -96,6 +155,79 @@ def get_ref_media(filename: str):
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="ไม่พบไฟล์สื่อเรฟ")
     return FileResponse(file_path)
+
+
+@router.get("/notes")
+def get_notes():
+    """Get all saved idea and ref notes from server."""
+    return {
+        "success": True,
+        "notes": load_notes_from_disk(),
+    }
+
+
+@router.post("/notes")
+def save_notes(payload: NotesPayload):
+    """Save/overwrite full list of notes."""
+    notes = payload.notes
+    for note in notes:
+        if "images" not in note:
+            if note.get("imageUrl"):
+                note["images"] = [note["imageUrl"]]
+            else:
+                note["images"] = []
+        elif note["images"] and not note.get("imageUrl"):
+            note["imageUrl"] = note["images"][0]
+    save_notes_to_disk(notes)
+    return {
+        "success": True,
+        "notes": notes,
+    }
+
+
+@router.post("/notes/add")
+def add_note(payload: SingleNotePayload):
+    """Add a single note to the server."""
+    if payload.note is not None:
+        note = dict(payload.note)
+    else:
+        note = payload.model_dump(exclude_unset=True)
+    if "note" in note and isinstance(note["note"], dict):
+        note = note["note"]
+
+    if "images" not in note:
+        if note.get("imageUrl"):
+            note["images"] = [note["imageUrl"]]
+        else:
+            note["images"] = []
+    elif note["images"] and not note.get("imageUrl"):
+        note["imageUrl"] = note["images"][0]
+
+    if "id" not in note or not note["id"]:
+        note["id"] = f"note-{uuid.uuid4().hex[:8]}"
+    if "createdAt" not in note or not note["createdAt"]:
+        note["createdAt"] = datetime.datetime.now(timezone.utc).isoformat()
+
+    existing = load_notes_from_disk()
+    updated = [note] + [n for n in existing if n.get("id") != note.get("id")]
+    save_notes_to_disk(updated)
+    return {
+        "success": True,
+        "note": note,
+        "notes": updated,
+    }
+
+
+@router.delete("/notes/{note_id}")
+def delete_note(note_id: str):
+    """Delete a note by ID."""
+    existing = load_notes_from_disk()
+    updated = [n for n in existing if n.get("id") != note_id]
+    save_notes_to_disk(updated)
+    return {
+        "success": True,
+        "notes": updated,
+    }
 
 
 @router.post("/ai-idea-to-angle")

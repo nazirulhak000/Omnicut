@@ -81,7 +81,7 @@ from scripts.subtitle import (
     _force_highlight,
 )
 
-SUBTITLE_RENDER_CONTRACT_VERSION = "v5"
+SUBTITLE_RENDER_CONTRACT_VERSION = "v6"
 SUBTITLE_RENDER_CONTRACT_MARKER = (
     f"; OmniCutSubtitleContract: {SUBTITLE_RENDER_CONTRACT_VERSION}"
 )
@@ -107,12 +107,12 @@ LINE_HEIGHT_FACTOR = 1.0
 # like/comment/share buttons (see SequencePlayer.jsx's showSafeZone guide,
 # right column: 11.1% width, vertical span ~9.4%-78.1% of frame height) so
 # it never covers the clip itself.
-WATERMARK_TEXT = "สงวนลิขสิทธิ์ช่อง rizantry ห้ามคัดลอก/ดัดแปลง"
+WATERMARK_TEXT = "สงวนลิขสิทธิ์ช่อง rizanntry ห้ามคัดลอก/ดัดแปลง"
 WATERMARK_X_RATIO = 0.945   # centre of the 11.1%-wide right safe-zone column
 WATERMARK_Y_RATIO = 0.4375  # vertical centre of that column's 9.4%-78.1% span
 WATERMARK_FS_RATIO = 0.038  # small corner mark -- independent of the 0.0463 caption ratio
 WATERMARK_COLOR = "&H000000FF"  # ASS &HAABBGGRR: opaque red
-WATERMARK_ALPHA = "&H30&"       # \alpha override -- slight fade, not fully opaque
+WATERMARK_ALPHA = "&HA0&"       # \alpha override -- faded watermark (~37% opaque, 0xA0/255 ≈ 63% transparent)
 
 # Where the caption block sits: (ASS alignment, vertical margin).
 # 2 = bottom centre, 5 = middle centre, 8 = top centre.
@@ -484,6 +484,7 @@ class SubtitleEngine:
         text_overlays: Optional[List[Dict[str, Any]]] = None,
         overlays: Optional[List[Dict[str, Any]]] = None,
         style_preset: Optional[str] = None,
+        show_watermark: bool = True,
     ) -> Tuple[str, List[Dict]]:
         """
         Generate TikTok style ASS subtitle file with rapid-fire micro-bursts, 
@@ -632,6 +633,12 @@ class SubtitleEngine:
         def repair_caption_text(value: str) -> Tuple[str, List[Tuple[int, int]]]:
             if resolved_font != "IBM Plex Sans Thai":
                 return value, []
+            # When text contains emojis (e.g. 🛒, ⚠️, ✨, etc.), fallback emoji font
+            # advances diverge significantly from single-font metrics, throwing off
+            # manual mark alignment and causing detached tones to drift onto previous words.
+            # Keep marks naturally attached on any line containing emojis.
+            if any(ord(c) > 0x2000 for c in value):
+                return value, []
             return repair_thai_mark_pair(
                 value,
                 resolved_font,
@@ -682,21 +689,15 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
         events = []
 
-        # 0. Permanent copyright watermark -- always emitted, independent of
-        # hook_overlay/text_items/overlays above, so no editor action can
-        # remove it from a render. Positioned in the right safe-zone column
-        # and rotated -90 deg (reading top-to-bottom) via \frz, the same ASS
-        # override tag motion_effects.py already uses for animated wobble --
-        # here with no \t() keyframe, so the rotation is constant for the
-        # whole dialogue span. End time is a generous fixed ceiling (3h);
-        # the actual video simply ends first, same as any other overlay
-        # whose stated end outruns the clip.
-        wm_x = int(round(video_width * WATERMARK_X_RATIO))
-        wm_y = int(round(video_height * WATERMARK_Y_RATIO))
-        events.append(
-            f"Dialogue: 0,{cls._format_ass_time(0)},{cls._format_ass_time(10800)},Watermark,,0,0,0,,"
-            f"{{\\an5\\pos({wm_x},{wm_y})\\frz-90\\alpha{WATERMARK_ALPHA}}}{ass_escape_text(WATERMARK_TEXT)}"
-        )
+        # 0. Copyright watermark -- configurable, burned into right safe-zone
+        # column and rotated -90 deg via \frz.
+        if show_watermark:
+            wm_x = int(round(video_width * WATERMARK_X_RATIO))
+            wm_y = int(round(video_height * WATERMARK_Y_RATIO))
+            events.append(
+                f"Dialogue: 0,{cls._format_ass_time(0)},{cls._format_ass_time(10800)},Watermark,,0,0,0,,"
+                f"{{\\an5\\pos({wm_x},{wm_y})\\frz-90\\alpha{WATERMARK_ALPHA}}}{ass_escape_text(WATERMARK_TEXT)}"
+            )
 
         # 1. Top Hook Banner -- 3-tier product-poster composition (brand
         # largest / model mid / label smallest), replacing the old single

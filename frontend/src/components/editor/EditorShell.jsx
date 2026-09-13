@@ -120,7 +120,7 @@ const LEGACY_SFX_ALIASES = {
   boom: 'sfx_vine_boom',
 };
 
-const EMPTY = { clipList: [], cuesList: [], overlays: [], stickers: [], effects: [], trackMix: { mute: {}, solo: {} }, style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false, captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1, stickerPosition: 'top_right', stickerScale: 1, style_preset: 'clean_tech_review' } };
+const EMPTY = { clipList: [], cuesList: [], overlays: [], stickers: [], effects: [], trackMix: { mute: {}, solo: {} }, style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false, captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1, stickerPosition: 'top_right', stickerScale: 1, style_preset: 'clean_tech_review', showWatermark: true } };
 
 let idCounter = 0;
 const newId = () => `clip-${Date.now().toString(36)}-${++idCounter}`;
@@ -1284,6 +1284,7 @@ export default function EditorShell({
         transitions: savePayload.transitions,
         overlays,
         bilingual_subtitles: true,
+        show_watermark: style.showWatermark !== false,
         font_name: style.fontName,
         bgm_name: style.bgmName,
         lut_name: style.lutName,
@@ -1516,6 +1517,8 @@ export default function EditorShell({
         coverStatus={coverStatus}
         coverChecking={coverGateChecking}
         onOpenCoverStudio={openCoverStudioManually}
+        showWatermark={style.showWatermark !== false}
+        onToggleWatermark={(val) => patchStyle({ showWatermark: val })}
       />
 
       {loadError && (
@@ -1762,6 +1765,7 @@ export default function EditorShell({
                   onDismissPreviewTextTemplate={() => setPreviewTextTemplate(null)}
                   showSafeZone={showSafeZone}
                   onToggleSafeZone={handleToggleSafeZone}
+                  showWatermark={style.showWatermark !== false}
                 />
               )}
               {applying && (
@@ -2256,6 +2260,7 @@ export default function EditorShell({
                     onDismissPreviewTextTemplate={() => setPreviewTextTemplate(null)}
                     showSafeZone={showSafeZone}
                     onToggleSafeZone={handleToggleSafeZone}
+                    showWatermark={style.showWatermark !== false}
                   />
                 )}
                 {applying && (

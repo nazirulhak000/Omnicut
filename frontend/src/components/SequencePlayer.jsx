@@ -41,12 +41,12 @@ const CANVAS_H = 960;
 // WATERMARK_X_RATIO / WATERMARK_Y_RATIO / WATERMARK_FS_RATIO there). Keep
 // these four values identical on both sides; this is the preview half of
 // that render/preview parity, not an independent design choice.
-const WATERMARK_TEXT = 'สงวนลิขสิทธิ์ช่อง rizantry ห้ามคัดลอก/ดัดแปลง';
+const WATERMARK_TEXT = 'สงวนลิขสิทธิ์ช่อง rizanntry ห้ามคัดลอก/ดัดแปลง';
 const WATERMARK_X_RATIO = 0.945;
 const WATERMARK_Y_RATIO = 0.4375;
 const WATERMARK_FS_RATIO = 0.038;
 const WATERMARK_COLOR = '#FF0000';
-const WATERMARK_ALPHA = 0.8;
+const WATERMARK_ALPHA = 0.4;
 // Canvas playback remains frame-paced, but React only needs enough playhead
 // updates to keep the editor chrome and selection box visually current. The
 // preview/render contract is 30 FPS, so this caps React state publication at
@@ -985,7 +985,18 @@ function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
     const segments = parsedThaiLines[idx] || [{ text: line, color: primaryColor }];
 
     ctx.font = `${fontWeight} ${fontSize}px ${fontFam}`;
-    const segmentWidths = segments.map(seg => ctx.measureText(seg.text).width);
+    // When repairThaiMarks is active, drawCaptionText strips the tone from
+    // the ั่ pair and draws it as a separate glyph.  The advance of the body
+    // (without the tone) differs from the original, so segmentWidths must
+    // measure the repaired body text -- otherwise the next segment is offset
+    // by the advance gap and Thai vowels/tones appear to float.
+    const REPAIR_PAIR = '\u0E31\u0E48';
+    const segmentWidths = segments.map(seg => {
+      const txt = repairThaiMarks && seg.text.includes(REPAIR_PAIR)
+        ? seg.text.replaceAll(REPAIR_PAIR, '\u0E31')
+        : seg.text;
+      return ctx.measureText(txt).width;
+    });
     const totalLineW = segmentWidths.reduce((sum, w) => sum + w, 0);
 
     // Pass 1: Outline / Stroke with crisp shadow
@@ -2230,6 +2241,7 @@ function SequencePlayer({
   onDismissPreviewTextTemplate = null,
   showSafeZone: externalShowSafeZone = undefined,
   onToggleSafeZone = null,
+  showWatermark = true,
 }, ref) {
   const visualStyle = useMemo(() => getStylePreset(stylePreset), [stylePreset]);
   const previewAccentColor = visualStyle?.accent || '#FFE600';
@@ -3170,14 +3182,16 @@ function SequencePlayer({
       drawCaption(ctx, cues, t, captionStyle, bounds);
     }
     drawOverlays(ctx, drawnOverlays, t, previewAccentColor, bounds);
-    drawWatermark(ctx);
+    if (showWatermark !== false) {
+      drawWatermark(ctx);
+    }
     boundsRef.current = bounds;
   };
 
   useEffect(() => {
     renderAt(playheadRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [segments, captionKey, stickerKey, stickersKey, cuesKey, overlaysKey, lutReady, grade?.intensity, previewAccentColor]);
+  }, [segments, captionKey, stickerKey, stickersKey, cuesKey, overlaysKey, lutReady, grade?.intensity, previewAccentColor, showWatermark]);
 
   const lastNotifyRef = useRef(0);
 
@@ -3317,7 +3331,9 @@ function SequencePlayer({
           drawCaption(ctx, cues, t, captionStyle, bounds);
         }
         drawOverlays(ctx, drawnOverlays, t, previewAccentColor, bounds);
-        drawWatermark(ctx);
+        if (showWatermark !== false) {
+          drawWatermark(ctx);
+        }
         boundsRef.current = bounds;
       }
 

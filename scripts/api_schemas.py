@@ -47,6 +47,7 @@ class RenderRequest(BaseModel):
     angle_id: Optional[str] = None
     font_name: str = "IBMPlex"
     bilingual_subtitles: bool = True
+    show_watermark: bool = True
     use_ai_vision: bool = True
     sticker_badge: Optional[str] = None
     bgm_name: Optional[str] = None

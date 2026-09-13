@@ -47,6 +47,7 @@ export function saveTargets(targets) {
 }
 
 /**
+/**
  * Load playbook notes.
  */
 export function loadPlaybookNotes() {
@@ -54,7 +55,13 @@ export function loadPlaybookNotes() {
     const raw = typeof window !== 'undefined' ? localStorage.getItem(PLAYBOOK_STORAGE_KEY) : null;
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) {
+        return parsed.map(note => ({
+          ...note,
+          images: Array.isArray(note.images) ? note.images : (note.imageUrl ? [note.imageUrl] : []),
+          imageUrl: note.imageUrl || (note.images && note.images[0]) || undefined,
+        }));
+      }
     }
   } catch (e) {
     // Ignore error
@@ -65,13 +72,15 @@ export function loadPlaybookNotes() {
       id: 'note-starter-1',
       text: 'ฮุกเปิดคลิปอย่าเกริ่นเวิ่นเว้อ 0.5 วินาทีแรกต้องมีภาพสินค้าและปัญหากระแทกตาคนดูทันที',
       createdAt: '2026-09-12T10:00:00.000Z',
-      tag: 'Hook'
+      tag: 'Hook',
+      images: [],
     },
     {
       id: 'note-starter-2',
       text: 'คลิปรีวิวอุปกรณ์อิเล็กทรอนิกส์ คนดูชอบฟังเสียงคลิกปุ่ม / เสียงพัดลมจริง อย่าลืมเปิดเสียง SFX ให้ชัด',
       createdAt: '2026-09-12T14:30:00.000Z',
-      tag: 'Audio'
+      tag: 'Audio',
+      images: [],
     }
   ];
 }
@@ -93,11 +102,16 @@ export function savePlaybookNotes(notes) {
  * Add a new idea or ref note to the collection.
  */
 export function addPlaybookNote(note, currentNotes = []) {
+  const images = Array.isArray(note.images)
+    ? note.images
+    : (note.imageUrl ? [note.imageUrl] : []);
+
   const newNote = {
     id: note.id || `idea-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     text: note.text || '',
     url: note.url ? note.url.trim() : undefined,
-    imageUrl: note.imageUrl || undefined,
+    imageUrl: images[0] || undefined,
+    images: images,
     tag: note.tag || 'Hook',
     productId: note.productId || undefined,
     productName: note.productName || undefined,
@@ -105,7 +119,7 @@ export function addPlaybookNote(note, currentNotes = []) {
     createdAt: note.createdAt || new Date().toISOString(),
     aiAnalysis: note.aiAnalysis || undefined,
   };
-  const updated = [newNote, ...currentNotes];
+  const updated = [newNote, ...currentNotes.filter(n => n.id !== newNote.id)];
   savePlaybookNotes(updated);
   return updated;
 }
@@ -120,12 +134,50 @@ export function deletePlaybookNote(noteId, currentNotes = []) {
 }
 
 /**
+ * Format a note into a clean, professional summary text to share with team or boss.
+ */
+export function formatNoteForSharing(note) {
+  if (!note) return '';
+  const lines = [];
+  const prod = note.productName ? `${note.productName} ${note.productCode ? `[${note.productCode}]` : ''}` : 'ทั่วไป (ไม่ระบุสินค้า)';
+  lines.push(`📌 [ไอเดีย & เรฟวิดีโอ] สินค้า: ${prod}`);
+  if (note.tag) lines.push(`🏷️ หมวดหมู่: ${note.tag}`);
+  if (note.text) lines.push(`📝 ไอเดีย/จุดเด่น: ${note.text}`);
+  if (note.url) lines.push(`🔗 ลิงก์เรฟ: ${note.url}`);
+
+  const imgs = Array.isArray(note.images) && note.images.length > 0
+    ? note.images
+    : (note.imageUrl ? [note.imageUrl] : []);
+
+  if (imgs.length > 0) {
+    lines.push(`🖼️ ภาพประกอบ (${imgs.length} รูป):`);
+    imgs.forEach((img, idx) => {
+      // If relative URL from server, create full link
+      const fullUrl = img.startsWith('http') || img.startsWith('data:')
+        ? img
+        : (typeof window !== 'undefined' ? `${window.location.origin}${img}` : img);
+      lines.push(`   - ภาพที่ ${idx + 1}: ${fullUrl}`);
+    });
+  }
+  return lines.join('\n');
+}
+
+/**
  * Update an existing idea or ref note.
  */
 export function updatePlaybookNote(noteId, updates = {}, currentNotes = []) {
   const updated = currentNotes.map(n => {
     if (n.id === noteId) {
-      return { ...n, ...updates, updatedAt: new Date().toISOString() };
+      const mergedImages = Array.isArray(updates.images)
+        ? updates.images
+        : (updates.imageUrl ? [updates.imageUrl] : n.images || (n.imageUrl ? [n.imageUrl] : []));
+      return {
+        ...n,
+        ...updates,
+        images: mergedImages,
+        imageUrl: mergedImages[0] || updates.imageUrl || n.imageUrl,
+        updatedAt: new Date().toISOString()
+      };
     }
     return n;
   });

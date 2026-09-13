@@ -56,8 +56,16 @@
 
 - [x] Round QUICK-REF-POLISH-1 — Redesign Impeccable Quick Ref Vault & Fix iOS Mobile Zoom (2026-09-13; npm test 180 passed, build 3.31s, desktop & mobile browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 
-- [x] Round CLIPBOARD-IMAGE-PASTE-1 — Direct Clipboard Image Paste (Ctrl+V / Paste into Textarea & Form) (2026-09-13; npm test 180 passed, build 3.35s, browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [x] Round MOBILE-IMAGE-PASTE-FIX-1 — Fix Mobile Image Paste (iOS Safari files detection, ContentEditable Paste Target, Native Photo Picker Auto-Fallback, and HEIC auto-conversion) (2026-09-13; npm test 180 passed, build 3.58s, desktop & mobile browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
+
+- [x] Round MULTI-IMAGE-CLOUD-SYNC-1 — Multi-Image Support per Note + Mobile-to-PC Server Sync + 1-Click Copy/Share Summary for Team (2026-09-13; pytest 1 passed, npm test 180 passed, build 4.29s, desktop & mobile browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
+- [x] Round IOS-SAFARI-CLIPBOARD-PERFECTION-1 — iOS Safari HTTP Clipboard Fallback & 1-Tap Photo Library UX (แก้ปัญหา iOS Safari บน HTTP บล็อก clipboard read โดยเพิ่ม auto-fallback เปิดคลังภาพทันที, ใส่ pointer-events-none กัน text selection ดักปุ่มวาง, และยกปุ่ม 'เลือกจากคลังภาพ' เป็น Hero Action) (2026-09-13; npm test 180 passed, build 8.59s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
+- [x] Round PRODUCER-NOTE-DELETE-PERFECTION-1 — Make Note Delete Function Obvious & 1-Tap on Mobile & Desktop (แก้ปุ่มลบซ่อนตัว opacity-0 บนจอสัมผัส, ปรับปุ่มลบสีแดงพร้อมป้ายชัดเจน, และเพิ่มโน้ตล่าสุดพร้อมปุ่มลบใต้ฟอร์มมือถือ) (2026-09-13; npm test 180 passed, build 4.13s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
+- [x] Round GLOBAL-PASTE-AND-DROPZONE-REWRITE-1 — Global Window Paste + Elimination of ContentEditable Text Highlight (เปลี่ยนกล่องวางเป็น Dropzone ปลอดไฮไลต์ 100%, เพิ่มระบบกด Ctrl+V วางรูปได้ทุกที่บนหน้าจอ, และปรับปรุงปุ่มวางรูปภาพให้ตรงไปตรงมา) (2026-09-13; npm test 180 passed, build 3.38s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
+- [x] Round IOS-DIRECT-PASTE-SURFACE-PERFECTION-1 — 2-Layer Zero-Highlight iOS Native Paste Box (คืนชีพกล่องแตะวางรูปตรงๆ บน iPhone ด้วย empty contentEditable surface + non-selectable overlay) (2026-09-13; npm test 180 passed, build 3.42s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
+- [x] Round IOS-PASTE-DEDUP-1 — แก้ปัญหาวางรูปแล้วได้รูปเบิ้ล 2 รูปบน iOS Safari (Deduplicate & Debounce Lock กัน onPaste ซ้อนกับ window listener และ onInput DOM insertion) (2026-09-13; npm test 180 passed, build 3.36s, browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
+- [x] Round IOS-PASTE-CRASH-PREVENTION-1 — แก้ปัญหาจอดำเวลาวางรูป (React 19 reconciliation removeChild exception จาก synchronous innerHTML wipe + หุ้ม ErrorBoundary รอบ QuickRefPage + ป้องกัน Type error ใน isDuplicateImage) (2026-09-13; vitest 181 passed, build 7.89s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
+- [x] Round WATERMARK-CONFIG-V6 — ตั้งค่าเปิด/ปิดลายน้ำ (One Click & Editor) + แก้สระ/วรรณยุกต์ลอย + บังคับตัดแคช v6 (2026-09-13; pytest 176 passed, vitest 181 passed, build 3.26s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 
 
 
@@ -95,6 +103,24 @@
 - [ ] **ยังไม่ได้เช็คพรีวิว SequencePlayer.jsx ในเบราว์เซอร์จริง** — ทิศทางการหมุน (`ctx.rotate(Math.PI/2)`) ให้เหตุผลไว้ในโค้ดว่าตรงกับ `\frz-90` ฝั่งเรนเดอร์ แต่ยังไม่เห็นภาพจริงในอีดิเตอร์ ต้องให้ user เปิดโปรเจกต์แล้วดูว่าพรีวิวตรงกับที่เรนเดอร์จริงไหม
 
 **Notes:** Gate ข้อ "motion ต้องดึงอย่างน้อย 3 เฟรม (เข้า/ค้าง/ออก)" ไม่ apply เพราะลายน้ำนี้หมุนคงที่ ไม่มี motion/animation ให้ดึงหลายเฟรม — ดูรูปเดียวก็พอสำหรับ static element
+
+## Round WATERMARK-FIX-1 — แก้ชื่อช่อง rizantry → rizanntry + ทำลายน้ำจางลง + แก้สระลอย Preview
+
+วันที่: 2026-09-13 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Claude Opus 4.6) · สถานะ: เสร็จ ✅
+
+**เป้าหมาย:**
+1. แก้ชื่อช่อง `rizantry` → `rizanntry` (n สองตัว) ทั้ง backend ASS และ frontend Canvas preview
+2. ปรับ alpha ลายน้ำให้จางลงเป็นลายน้ำ (เดิม ASS `&H30&` ≈ 81% opaque, Canvas 0.8) → จาง ~40% opaque เหมือนลายน้ำจริง
+3. แก้สระลอยใน Preview: `drawCaptionText` ใช้ `segmentWidths` ที่วัดจากข้อความรวม pair `ั่` แต่ body ที่วาดจริงลบ tone แล้ว → advance ไม่ตรง → segment ถัดไปถูกวางผิด
+
+**สิ่งที่แก้:**
+- `scripts/subtitle_engine.py`: WATERMARK_TEXT rizantry→rizanntry, WATERMARK_ALPHA `&H30&`→`&H99&`
+- `frontend/src/components/SequencePlayer.jsx`: WATERMARK_TEXT, WATERMARK_ALPHA 0.8→0.4, segmentWidths วัดจาก repaired body text
+
+**Gate:**
+- [x] pytest (subtitle_artifact_contract + preview_render_parity + preview_render_behavior): 176 passed
+- [x] npm test: 180 passed
+- [x] npm run build: ✓ built in 11.65s
 
 ## Round TIKTOK-MANUAL-MATCH-1 — ปุ่มจับคู่ manual ในแท็บ Performance สำหรับแถว Studio ที่ fuzzy match ไม่เจอ
 - [ ] Import ที่ unmatched เก็บลง pending store ใหม่ (_Docs/store.db ตาราง tiktok_pending) กันแถวหายหลังปิดแถบข้าง

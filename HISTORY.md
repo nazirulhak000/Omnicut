@@ -8,9 +8,63 @@
 
 ## สารบัญ
 
+| Round WATERMARK-CONFIG-V6 | ตั้งค่าเปิด/ปิดลายน้ำ (One Click & Editor) + แก้สระ/วรรณยุกต์ลอย + บังคับตัดแคช v6 | 2026-09-13 | สำเร็จสมบูรณ์ (ตั้งค่าเปิด/ปิดลายน้ำได้ทั้งหน้าสร้างคลิปและหน้า Editor, ค่าเริ่มต้นเปิดแสดงลายน้ำ @rizanntry สีจางลงเหลือ ~37% Opacity (&HA0&), แก้ปัญหาสระ/วรรณยุกต์ลอยถอยหลังในคำว่า 'โปรโมชั่น' และ 'รีบกดสั่ง' เมื่อมี emoji นำหน้า, bump SUBTITLE_RENDER_CONTRACT_VERSION = 'v6' เพื่อตัดแคชเก่า, pytest 176 passed, npm test 181 passed, build 3.26s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round MULTI-IMAGE-CLOUD-SYNC-1 | Multi-Image Support per Note + Mobile-to-PC Server Sync + 1-Click Copy/Share Summary for Team | 2026-09-13 | สำเร็จสมบูรณ์ (รองรับแนบภาพหลายรูปต่อโน้ต `images: []` พร้อม thumbnail strip และปุ่มลบ X ทีละรูป, Mini-Gallery บนการ์ดโน้ต, Lightbox Modal ดูภาพขยายเต็มจอ, เซิร์ฟเวอร์ API ซิงก์โน้ตระหว่างมือถือและคอมพิวเตอร์ผ่าน `02_Assets/Refs/playbook_notes.json`, ปุ่ม 1-Click 'คัดลอกส่งงาน' สรุปข้อความและรูปภาพทั้งหมดลงคลิปบอร์ดสำหรับส่งไลน์ให้นาย, pytest 1 passed, npm test 180 passed, build 4.29s, desktop & mobile browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round MOBILE-IMAGE-PASTE-FIX-1 | Fix Mobile Image Paste (iOS Safari files detection, ContentEditable Paste Target, Native Photo Picker Auto-Fallback, and HEIC auto-conversion) | 2026-09-13 | สำเร็จสมบูรณ์ (ตรวจจับ `clipboardData.files` + `items` + `html` + `text` ทุกมิติ, เพิ่มกล่อง Rich ContentEditable Paste Target สำหรับ iOS Safari & Android, ปุ่ม 1-Tap 'เลือกจากคลังภาพ' ดึงรูปล่าสุดใน 1 วินาที, รองรับภาพ HEIC จาก iPhone แปลงเป็น JPG อัตโนมัติด้วย ffmpeg, npm test 180 passed, build 3.58s, desktop & mobile browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round CLIPBOARD-IMAGE-PASTE-1 | Direct Clipboard Image Paste (Ctrl+V / Paste into Textarea & Form) | 2026-09-13 | สำเร็จสมบูรณ์ (ตรวจจับภาพจาก clipboardData อัตโนมัติเมื่อกด Ctrl+V ในช่องข้อความหรือฟอร์ม, เพิ่มปุ่ม 1-Tap 'วางรูปภาพ' ดึงรูปจาก clipboard, อัปโหลดเข้า 02_Assets/Refs/ ทันที, รองรับทั้ง QuickRefPage และ ProducerHub, npm test 180 passed, build 3.35s, browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round QUICK-REF-POLISH-1 | Redesign Impeccable Quick Ref Vault & Fix iOS Mobile Zoom | 2026-09-13 | สำเร็จสมบูรณ์ (ป้องกัน iOS auto-zoom ด้วย 16px inputs + CSS media query + viewport config, Redesign เต็มจอ edge-to-edge + Responsive 2-column desktop, 1-Tap Paste จากคลิปบอร์ด, Segmented Category Pills, Tag filter & search, AI Idea-to-Script on mobile, npm test 180 passed, build 3.31s, desktop & mobile browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+---
+
+## Round WATERMARK-CONFIG-V6 — ตั้งค่าเปิด/ปิดลายน้ำ (One Click & Editor) + แก้สระ/วรรณยุกต์ลอย + บังคับตัดแคช v6
+
+วันที่: 2026-09-13 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
+ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+**เป้าหมาย:**
+1. **ตั้งค่าลายน้ำได้ (Configurable Watermark):** ไม่ฮาร์ดโค้ด ให้ติ๊กเข้า/ติ๊กออกได้ (default: เปิด/แสดง) ทั้งหน้า One Click (`NewClipPanel.jsx`) และหน้าตัดต่อ (`EditorHeader.jsx`, `EditorShell.jsx`, `SequencePlayer.jsx`) ส่งผ่านเข้า API `/api/render` และ `/reroll`
+2. **แก้สระ/วรรณยุกต์ลอย (Floating Thai Tone Mark):** ปัญหาวรรณยุกต์เอกลอยถอยหลังไปทับตัวอักษรอื่น (`โปรโม ่ ชั่น`, `รีบกด ่ สั่ง`) เกิดจาก `repair_thai_mark_pair` พยายามคำนวณพิกัด `\pos` ของ `่` แยกออกมา แต่เมื่อมี emoji นำหน้า (เช่น `🛒 `) Pillow วัดความกว้าง emoji ต่ำกว่า libass ทำให้ตำแหน่ง `่` เคลื่อนไปทางซ้าย ~90px → ป้องกันโดยไม่ detach `่` ในแคปชันที่มี emoji
+3. **ลายน้ำจางใน Render จริง (Fade Parity & Cache Invalidation):** ปรับ `SUBTITLE_RENDER_CONTRACT_VERSION = "v6"` เพื่อบังคับ invalidate แคช `.ass` เก่าของ v5 ทุกตัว และตั้ง `WATERMARK_ALPHA = "&HA0&"` (ASS) คู่ขนานกับ Canvas 0.38
+4. **Parity & Tests:** ทดสอบ pytest (subtitle artifact, parity, behavior) และ frontend vitest + build
+
+### สรุปผลการทดสอบ (Gate Verification):
+- [x] Backend Tests: `tests/test_subtitle_artifact_contract.py`, `tests/test_preview_render_parity.py`, `tests/test_preview_render_behavior.py` — 176/176 passed 100% (24.12s)
+- [x] Node / Vitest Tests: `npm test` — 181/181 passed 100%
+- [x] Frontend Build: `npm run build` — 2003 modules transformed, build clean ใน 3.26s
+- [x] Verified SubtitleEngine.generate_ass on real project: Watermark spelling 'rizanntry', Alpha '&HA0&', and text 'โปรโมชั่น' / 'รีบกดสั่ง' remain intact without floating tone marks.
+
+---
+
+## Round MULTI-IMAGE-CLOUD-SYNC-1 — Multi-Image Support per Note + Mobile-to-PC Server Sync + 1-Click Copy/Share Summary for Team
+
+วันที่: 2026-09-13 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
+ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+**เป้าหมาย:**
+1. **รองรับการแนบภาพได้หลายๆ รูปต่อ 1 โน้ตไอเดีย (Multi-Image Support per Note):**
+   - แก้ไขโครงสร้างโน้ตให้รองรับอาร์เรย์ของภาพ `images: string[]` (พร้อม backward compatibility กับ `imageUrl` เดิม)
+   - ปรับปรุงฟอร์มใน `QuickRefPage.jsx` และ `ProducerHub.jsx` ให้สามารถกดวาง (Paste) ภาพเพิ่มทีละรูป หรือเลือกหลายไฟล์พร้อมกันจากคลังภาพ (`<input multiple />`) ได้
+   - แสดงแถบ Thumbnail พรีวิวรูปภาพทั้งหมดที่แนบ พร้อมปุ่มลบ `✕` ทีละรูปได้อย่างอิสระ
+   - บนการ์ดโน้ตที่บันทึกแล้ว แสดงเป็น Mini-Gallery พร้อมปุ่มคลิกดูภาพขยายเต็มจอ (Lightbox modal)
+2. **ซิงก์ข้อมูลระหว่างมือถือและคอมพิวเตอร์ผ่านเซิร์ฟเวอร์ (Server-Backed Cloud Sync):**
+   - สาเหตุที่เปิดบนคอมไม่เจอก่อนหน้านี้เพราะโน้ตบันทึกอยู่ใน `localStorage` ของมือถือเครื่องนั้น
+   - สร้าง API endpoints ใน `scripts/api_producer.py`:
+     - `GET /api/producer/notes`: ดึงรายการโน้ตทั้งหมดที่บันทึกบนเซิร์ฟเวอร์ (`02_Assets/Refs/playbook_notes.json`)
+     - `POST /api/producer/notes`: บันทึก/อัปเดตโน้ตลงเซิร์ฟเวอร์แบบ Atomic Write
+     - `POST /api/producer/notes/add`: เพิ่มโน้ตใหม่ลงเซิร์ฟเวอร์
+     - `DELETE /api/producer/notes/{note_id}`: ลบโน้ตออกจากเซิร์ฟเวอร์
+   - อัปเดต `producerInsights.js` และหน้า UI ทั้งสองหน้า (`QuickRefPage` และ `ProducerHub`) ให้โหลดจากเซิร์ฟเวอร์อัตโนมัติ (พร้อม local cache) ทำให้บันทึกจากมือถือแล้วเปิดดูบนคอมพิวเตอร์ได้ทันที 100%
+   - เพิ่มปุ่ม "ซิงก์ข้อมูล" เพื่อดึงข้อมูลล่าสุดได้ใน 1 คลิก
+3. **ปุ่ม 1-Click "คัดลอกส่งงาน" (Copy/Share for Team & Boss):**
+   - เพิ่มปุ่มบนการ์ดโน้ต ให้ผู้ใช้คลิกเดียวเพื่อก็อปปี้สรุปข้อความไอเดีย ลิงก์เรฟ และ URL ภาพทั้งหมดในรูปแบบสวยงาม นำไปแปะส่งใน LINE / Discord / Chat ให้นายหรือทีมงานนำไปทำต่อได้ทันที
+4. **รักษา UI Clean Standard (Rule 8):** ไม่มีสัญลักษณ์ `+` หรืออีโมจิซ้ำซ้อนในปุ่ม
+
+### Gate & Verification Results:
+- [x] Backend Tests: `tests/test_producer_notes_api.py` — 1/1 passed 100%
+- [x] Node / Vitest Tests: `npm test` — 180/180 passed 100%
+- [x] Frontend Build: `npm run build` — 2003 modules transformed, build clean ใน 4.29s
+- [x] Python Compilation: `python -m compileall -q scripts tests` — 0 errors
+- [x] Visual Verification: Browser subagent ตรวจสอบการแนบ 2 รูปพร้อมกันในหน้า QuickRefPage, บันทึกสำเร็จ, เรนเดอร์ Mini-Gallery, เปิด Lightbox ซูมรูป, กด "คัดลอกส่งงาน" สำเร็จพร้อม Toast, และเปิดหน้าผู้ช่วยโปรดิวเซอร์บนคอมพิวเตอร์พบโน้ตและรูปทั้งหมดซิงก์ตรงกัน 100%
 
 ---
 

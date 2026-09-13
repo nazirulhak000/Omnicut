@@ -416,6 +416,7 @@ export default function NewClipPanel({
         : null,
       font_name: form.fontName || 'IBMPlex',
       bilingual_subtitles: form.bilingualSubtitles !== false,
+      show_watermark: form.showWatermark !== false,
       use_ai_vision: form.useAiVision !== false,
       sticker_badge: form.stickerBadge || null,
       bgm_name: form.bgmName || null,
@@ -669,6 +670,16 @@ export default function NewClipPanel({
                       className="h-4 w-4 rounded accent-[#D97757] cursor-pointer"
                     />
                     <span>ซับสองภาษา (ไทย + อังกฤษ)</span>
+                  </label>
+
+                  <label className="flex items-center gap-2.5 p-2.5 rounded-xl border border-white/[0.06] bg-black/30 text-xs text-slate-300 hover:text-white cursor-pointer transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={form.showWatermark !== false}
+                      onChange={(e) => patch({ showWatermark: e.target.checked })}
+                      className="h-4 w-4 rounded accent-[#D97757] cursor-pointer"
+                    />
+                    <span>แสดงลายน้ำช่อง (@rizanntry)</span>
                   </label>
 
                   {shotListAvailable && (

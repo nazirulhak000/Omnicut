@@ -33,6 +33,7 @@ export const DEFAULT_STUDIO_FORM = {
   stylePresetVersion: STYLE_PRESET_STORAGE_VERSION,
   fontName: 'IBMPlex',
   bilingualSubtitles: true,
+  showWatermark: true,
   stickerBadge: null,
   stickerScale: 1,
   stickerStartTime: null,

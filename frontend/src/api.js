@@ -409,4 +409,17 @@ export const uploadRefMedia = (file) => {
 export const aiIdeaToAngle = (payload) =>
   api.post('/producer/ai-idea-to-angle', payload).then(r => r.data);
 
+export const getProducerNotes = () =>
+  api.get('/producer/notes').then(r => r.data);
+
+export const saveProducerNotes = (notes) =>
+  api.post('/producer/notes', { notes }).then(r => r.data);
+
+export const addProducerNote = (note) =>
+  api.post('/producer/notes/add', { note }).then(r => r.data);
+
+export const deleteProducerNote = (noteId) =>
+  api.delete(`/producer/notes/${encodeURIComponent(noteId)}`).then(r => r.data);
+
 export default api;
+

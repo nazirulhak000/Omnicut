@@ -90,6 +90,7 @@ export function manifestToEditorState(data, options = {}) {
     stickerEndTime: firstPresent(manifest.sticker_end_time, params.sticker_end_time, savedStyle.sticker_end_time, savedStyle.stickerEndTime, null),
     stickerNormX: firstPresent(manifest.sticker_norm_x, params.sticker_norm_x, savedStyle.sticker_norm_x, savedStyle.stickerNormX, null),
     stickerNormY: firstPresent(manifest.sticker_norm_y, params.sticker_norm_y, savedStyle.sticker_norm_y, savedStyle.stickerNormY, null),
+    showWatermark: firstPresent(manifest.show_watermark, params.show_watermark, savedStyle.show_watermark, savedStyle.showWatermark, true),
   };
 
   const storedMix = firstPresent(manifest.track_mix, params.track_mix, EMPTY_TRACK_MIX) || EMPTY_TRACK_MIX;
@@ -236,6 +237,8 @@ export function serializeStyle(style = {}) {
     captionPosition: style.captionPosition || 'bottom',
     captionColor: style.captionColor || '#FFFFFF',
     fontName: style.fontName || 'IBMPlex',
+    show_watermark: style.showWatermark !== false,
+    showWatermark: style.showWatermark !== false,
   };
 }
 
