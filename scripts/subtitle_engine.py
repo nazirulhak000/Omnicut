@@ -670,7 +670,7 @@ Style: HookHeaderPill,{hook_font},{hook_fs_boosted},&H00FFFFFF,&H000000FF,&H0000
 Style: SpecBar,{resolved_font},{int(round((font_size - 12) * TEXT_SCALE_BOOST))},&H00000000,&H000000FF,&H00000000,&H0000E6FF,{resolved_bold},0,0,0,100,100,0,0,3,10,0,9,50,50,380,1
 Style: TextOverlayMain,{resolved_font},{base_fs_boosted},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,{resolved_bold},0,0,0,100,100,0,0,1,5.0,2,5,60,60,0,1
 Style: TextOverlayPill,{resolved_font},{base_fs_boosted},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,{resolved_bold},0,0,0,100,100,0,0,1,5.0,2,5,60,60,0,1
-Style: Watermark,{caption_font},{watermark_fs_boosted},{WATERMARK_COLOR},&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1.2,0,5,0,0,0,1
+Style: Watermark,{caption_font},{watermark_fs_boosted},{WATERMARK_COLOR},&H000000FF,&H00FFFFFF,&H00000000,0,0,0,0,100,100,0,0,1,1.2,0,5,0,0,0,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text

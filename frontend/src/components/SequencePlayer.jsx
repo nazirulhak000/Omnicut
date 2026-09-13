@@ -1515,7 +1515,7 @@ function drawWatermark(ctx) {
   ctx.textBaseline = 'middle';
   ctx.lineWidth = Math.max(1, fontSize * 0.06);
   ctx.globalAlpha = WATERMARK_ALPHA;
-  ctx.strokeStyle = '#000000';
+  ctx.strokeStyle = '#FFFFFF';
   ctx.fillStyle = WATERMARK_COLOR;
   ctx.strokeText(WATERMARK_TEXT, 0, 0);
   ctx.fillText(WATERMARK_TEXT, 0, 0);
