@@ -31,6 +31,7 @@ class VideoAssemblyStage:
 
     @classmethod
     def run(cls, ctx: PipelineContext) -> None:
+        color_theme = ctx.resolve_color_theme_contract()
         actual_clip_list = ctx.actual_clip_list
         transitions = ctx.transitions
         from scripts.pipeline import choose_transition
@@ -169,6 +170,7 @@ class VideoAssemblyStage:
             "beat_cues": ctx.beat_cues,
             "editorial_pacing": ctx.editorial_pacing,
             "style_preset": ctx.style_preset,
+            "color_theme": color_theme,
             "total_duration": ctx.total_duration,
             "clip_list": actual_clip_list,
             "transitions": transitions,
@@ -176,6 +178,8 @@ class VideoAssemblyStage:
             "render_params": {
                 "product_name": ctx.product_name,
                 "style_preset": ctx.style_preset,
+                "color_theme": color_theme,
+                "color_theme_input": ctx.color_theme,
                 "raw_video_path": str(ctx.raw_video),
                 "key_features": ctx.key_features,
                 "pain_point": ctx.pain_point,

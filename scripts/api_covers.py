@@ -40,6 +40,7 @@ from scripts.config import (
     RAW_DIR,
 )
 from scripts.asset_registry import AssetRegistry
+from scripts.cover_scene import CoverSceneValidationError, normalize_scene
 from scripts.hook_styles import resolve_hook_style, TIER_KEYS
 
 # TikTok's own upload cover requirement: 1080x1920, 9:16.
@@ -468,6 +469,142 @@ def _wrap_thai_text(text: str, max_chars_per_line: int = 16) -> List[str]:
     return lines
 
 
+def _cover_scene_requested(scene: Optional[Dict[str, Any]], layers: Optional[List[Dict[str, Any]]], template: Optional[str]) -> bool:
+    return scene is not None or layers is not None or (template or "").strip().lower() == "product_front_text_under"
+
+
+def _normalise_requested_cover_scene(
+    *, scene: Optional[Dict[str, Any]], layers: Optional[List[Dict[str, Any]]], aspect_ratio: str,
+    template: Optional[str], hook_text: str, sub_text: Optional[str], hook_position: str,
+    custom_image_path: Optional[str], video_path: Optional[str],
+) -> Optional[Dict[str, Any]]:
+    """Build the opt-in scene without changing the legacy render path."""
+    if not _cover_scene_requested(scene, layers, template):
+        return None
+    raw: Dict[str, Any] = dict(scene or {})
+    if layers is not None:
+        raw["layers"] = layers
+    raw.setdefault("aspect_ratio", aspect_ratio)
+    if scene is None and layers is None:
+        raw.update({
+            "hook_text": hook_text, "sub_text": sub_text, "hook_position": hook_position,
+            "custom_image_path": custom_image_path, "video_path": video_path,
+        })
+    return normalize_scene(raw)
+
+
+def _scene_layer_bounds(layer: Dict[str, Any], width: int, height: int) -> Tuple[int, int, int, int]:
+    bounds = layer["bounds"]
+    left = round(float(bounds["x"]) * width)
+    top = round(float(bounds["y"]) * height)
+    right = round((float(bounds["x"]) + float(bounds["width"])) * width)
+    bottom = round((float(bounds["y"]) + float(bounds["height"])) * height)
+    return left, top, max(left + 1, right), max(top + 1, bottom)
+
+
+def _scene_colour(layer: Dict[str, Any], theme: Dict[str, Any]) -> Tuple[int, int, int]:
+    role = layer.get("color_role") or "neutral"
+    value = theme.get(role) or {
+        "primary": "#FFE600", "secondary": "#35E6FF", "neutral": "#FFFFFF", "ink": "#111111",
+    }.get(role, "#FFFFFF")
+    return _ass_hex_to_rgb(value)
+
+
+def _scene_source_path(layer: Dict[str, Any]) -> Optional[str]:
+    source = layer.get("source")
+    if isinstance(source, dict):
+        value = source.get("asset_path") or source.get("path")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    value = layer.get("asset_path")
+    return value.strip() if isinstance(value, str) and value.strip() else None
+
+
+def _fit_scene_image(image: Any, box_w: int, box_h: int, fit: str) -> Any:
+    from PIL import Image
+    if fit == "stretch":
+        return image.resize((box_w, box_h), Image.Resampling.LANCZOS)
+    scale = max(box_w / image.width, box_h / image.height) if fit == "cover" else min(box_w / image.width, box_h / image.height)
+    resized = image.resize((max(1, round(image.width * scale)), max(1, round(image.height * scale))), Image.Resampling.LANCZOS)
+    if fit == "cover":
+        x = max(0, (resized.width - box_w) // 2)
+        y = max(0, (resized.height - box_h) // 2)
+        return resized.crop((x, y, x + box_w, y + box_h))
+    return resized
+
+
+def _render_cover_scene(canvas: Any, scene: Dict[str, Any], font_path: Optional[str]) -> Any:
+    """Render canonical layers bottom-to-top onto a detached cover canvas."""
+    from PIL import Image, ImageDraw, ImageFont
+    work = canvas.convert("RGBA")
+    base_snapshot = work.copy()
+    width, height = work.size
+    theme = scene.get("theme") or {}
+
+    for layer in scene["layers"]:
+        if not layer.get("visible", True):
+            continue
+        layer_type = layer["type"]
+        left, top, right, bottom = _scene_layer_bounds(layer, width, height)
+        box_w, box_h = right - left, bottom - top
+        opacity = max(0.0, min(1.0, float(layer.get("opacity", 1.0))))
+
+        if layer_type in {"product", "image", "product_image", "badge"}:
+            source = layer.get("source") if isinstance(layer.get("source"), dict) else {}
+            source_path = _scene_source_path(layer)
+            if source_path:
+                source_img = Image.open(_resolve_media(source_path)).convert("RGBA")
+            elif source.get("kind") == "base_frame":
+                source_img = base_snapshot.copy()
+            else:
+                # A product without a source reserves layout only; never
+                # duplicate or modify an original image asset implicitly.
+                continue
+            fitted = _fit_scene_image(source_img, box_w, box_h, str(layer.get("fit") or "contain").lower())
+            if opacity < 1.0:
+                fitted.putalpha(fitted.getchannel("A").point(lambda value: round(value * opacity)))
+            paste_x = left + max(0, (box_w - fitted.width) // 2)
+            paste_y = top + max(0, (box_h - fitted.height) // 2)
+            work.alpha_composite(fitted, (paste_x, paste_y))
+            continue
+
+        overlay = Image.new("RGBA", work.size, (0, 0, 0, 0))
+        draw = ImageDraw.Draw(overlay)
+        colour = _scene_colour(layer, theme)
+        alpha = round(opacity * 255)
+        if layer_type == "shape":
+            draw.rounded_rectangle(
+                (left, top, right, bottom), radius=max(0, round(min(box_w, box_h) * 0.12)),
+                fill=(*colour, alpha),
+            )
+        elif layer_type in {"text", "callout"}:
+            text = layer.get("text")
+            if not isinstance(text, str) or not text.strip():
+                continue
+            role = layer.get("role") or ""
+            default_size = 46 if role in {"feature", "proof", "price", "cta"} else 76
+            font_size = max(20, min(default_size, round(box_h * 0.72)))
+            try:
+                font = ImageFont.truetype(font_path, font_size) if font_path else ImageFont.load_default()
+            except Exception:
+                font = ImageFont.load_default()
+            max_chars = max(1, round(box_w / max(1, font_size * 0.58)))
+            lines = _wrap_thai_text(text, max_chars_per_line=max_chars)
+            line_height = max(font_size, round(font_size * 1.12))
+            y = top + max(0, (box_h - len(lines) * line_height) // 2)
+            for line in lines:
+                bbox = draw.textbbox((0, 0), line, font=font, stroke_width=5)
+                text_w = bbox[2] - bbox[0]
+                x = left + max(0, (box_w - text_w) // 2) - bbox[0]
+                draw.text(
+                    (x, y - bbox[1]), line, font=font, fill=(*colour, alpha),
+                    stroke_width=5, stroke_fill=(0, 0, 0, round(alpha * 0.9)),
+                )
+                y += line_height
+        work.alpha_composite(overlay)
+    return work.convert("RGB")
+
+
 def render_pro_cover(
     video_path_str: Optional[str] = None,
     at_seconds: float = 1.0,
@@ -486,6 +623,8 @@ def render_pro_cover(
     badge: Optional[str] = None,
     badge_position: str = "top_left",
     export_stem: Optional[str] = None,
+    scene: Optional[Dict[str, Any]] = None,
+    layers: Optional[List[Dict[str, Any]]] = None,
 ) -> Tuple[Path, Optional[Path]]:
     """
     Renders official TikTok cover JPG(s) (9:16 1080x1920 and/or 3:4 1080x1440):
@@ -571,8 +710,24 @@ def render_pro_cover(
         font_main = ImageFont.load_default()
         font_sub = ImageFont.load_default()
 
+    template_name = (template or "neon").lower()
+    scene_model = _normalise_requested_cover_scene(
+        scene=scene,
+        layers=layers,
+        aspect_ratio=aspect_ratio,
+        template=template_name,
+        hook_text=hook_text,
+        sub_text=sub_text,
+        hook_position=hook_position,
+        custom_image_path=custom_image_str,
+        video_path=video_path_str,
+    )
+    if scene_model is not None:
+        canvas = _render_cover_scene(canvas, scene_model, font_path)
+        draw = ImageDraw.Draw(canvas)
+
     # 4. Prepare Lines (if enable_hook_text is True)
-    if enable_hook_text:
+    if enable_hook_text and scene_model is None:
         hook_lines = _wrap_thai_text(hook_text, max_chars_per_line=15) if hook_text else []
         sub_clean = _clean_cover_text(sub_text) if sub_text else ""
         sub_lines = [sub_clean] if sub_clean else []
@@ -594,9 +749,9 @@ def render_pro_cover(
     start_y = max(120, round(y_anchor - total_height / 2.0))
 
     # 6. Render selected template if text is enabled and present
-    tmpl = (template or "neon").lower()
+    tmpl = template_name
 
-    if all_lines:
+    if all_lines and scene_model is None:
         if tmpl == "yellow_bar":
             cur_y = start_y
             for line in hook_lines:
@@ -818,6 +973,8 @@ class RenderProCoverRequest(BaseModel):
     badge: Optional[str] = None
     badge_position: str = "top_left"  # "top_left" | "top_right" | "none"
     export_filename: Optional[str] = None
+    scene: Optional[Dict[str, Any]] = None
+    layers: Optional[List[Dict[str, Any]]] = None
 
 
 @router.get("/badges")
@@ -856,24 +1013,30 @@ def generate_hooks_endpoint(req: GenerateHooksRequest):
 @router.post("/render-pro")
 def render_pro_cover_endpoint(req: RenderProCoverRequest):
     """Renders high-converting cover images (9:16, 3:4, or both) with chosen template, position, and badge."""
+    try:
+        scene_model = _normalise_requested_cover_scene(
+            scene=req.scene,
+            layers=req.layers,
+            aspect_ratio=req.aspect_ratio,
+            template=req.template,
+            hook_text=req.hook_text,
+            sub_text=req.sub_text,
+            hook_position=req.hook_position,
+            custom_image_path=req.custom_image_path,
+            video_path=req.video_path,
+        )
+    except CoverSceneValidationError as exc:
+        raise HTTPException(status_code=422, detail={"scene_errors": list(exc.errors)}) from exc
+
     primary_path, path_3x4 = render_pro_cover(
-        video_path_str=req.video_path,
-        at_seconds=req.at_seconds,
-        custom_image_str=req.custom_image_path,
-        raw_video_path_str=req.raw_video_path,
-        pan_y_pct=req.pan_y_pct,
-        pan_x_pct=req.pan_x_pct,
-        zoom_scale=req.zoom_scale,
-        aspect_ratio=req.aspect_ratio,
-        enable_hook_text=req.enable_hook_text,
-        enable_badge=req.enable_badge,
-        template=req.template,
-        hook_text=req.hook_text,
-        sub_text=req.sub_text,
-        hook_position=req.hook_position,
-        badge=req.badge,
-        badge_position=req.badge_position,
-        export_stem=req.export_filename,
+        video_path_str=req.video_path, at_seconds=req.at_seconds,
+        custom_image_str=req.custom_image_path, raw_video_path_str=req.raw_video_path,
+        pan_y_pct=req.pan_y_pct, pan_x_pct=req.pan_x_pct, zoom_scale=req.zoom_scale,
+        aspect_ratio=req.aspect_ratio, enable_hook_text=req.enable_hook_text,
+        enable_badge=req.enable_badge, template=req.template, hook_text=req.hook_text,
+        sub_text=req.sub_text, hook_position=req.hook_position, badge=req.badge,
+        badge_position=req.badge_position, export_stem=req.export_filename,
+        scene=scene_model, layers=None,
     )
     rel = primary_path.relative_to(BASE_DIR)
     media_url = f"/api/media/{urllib.parse.quote(str(rel).replace(chr(92), '/'))}"
@@ -886,6 +1049,8 @@ def render_pro_cover_endpoint(req: RenderProCoverRequest):
         rel_3x4 = path_3x4.relative_to(BASE_DIR)
         res["cover_3x4_path"] = str(rel_3x4).replace("\\", "/")
         res["media_url_3x4"] = f"/api/media/{urllib.parse.quote(str(rel_3x4).replace(chr(92), '/'))}"
+    if scene_model is not None:
+        res["scene"] = scene_model
     return res
 
 

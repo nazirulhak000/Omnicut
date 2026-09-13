@@ -14,12 +14,22 @@ import json
 import re
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
+from scripts.color_theme import normalize_hex
 from scripts.overlay_model import new_text_overlay
 
 
 CALLOUT_TYPES = ("brand", "model", "feature", "spec", "price", "proof", "cta")
 _CALLOUT_TYPE_SET = set(CALLOUT_TYPES)
 _TYPE_PRIORITY = {name: index for index, name in enumerate(CALLOUT_TYPES)}
+CALLOUT_THEME_ROLES = {
+    "brand": "primary",
+    "model": "secondary",
+    "feature": "primary",
+    "spec": "secondary",
+    "price": "primary",
+    "proof": "secondary",
+    "cta": "primary",
+}
 _TEXT_FIELDS = ("text", "value", "label", "content")
 _EMPTY_TEXT_RE = re.compile(r"\s+")
 
@@ -28,6 +38,7 @@ def build_product_callouts(
     beat_cues: Optional[Sequence[Mapping[str, Any]]] = None,
     product_metadata: Optional[Mapping[str, Any]] = None,
     manual_overlays: Optional[Sequence[Mapping[str, Any]]] = None,
+    color_theme: Optional[Mapping[str, Any]] = None,
 ) -> List[Dict[str, Any]]:
     """Return auto product callouts merged with manual callouts.
 
@@ -49,7 +60,7 @@ def build_product_callouts(
     candidates = list(_metadata_candidates(metadata))
     candidates.extend(_cue_candidates(cues))
     for candidate in candidates:
-        overlay = _candidate_to_overlay(candidate, cues, origin="auto")
+        overlay = _candidate_to_overlay(candidate, cues, origin="auto", color_theme=color_theme)
         if overlay is not None:
             generated.append(overlay)
 
@@ -62,9 +73,10 @@ def build_callouts(
     beat_cues: Optional[Sequence[Mapping[str, Any]]] = None,
     product_metadata: Optional[Mapping[str, Any]] = None,
     manual_overlays: Optional[Sequence[Mapping[str, Any]]] = None,
+    color_theme: Optional[Mapping[str, Any]] = None,
 ) -> List[Dict[str, Any]]:
     """Backward-friendly short alias for :func:`build_product_callouts`."""
-    return build_product_callouts(beat_cues, product_metadata, manual_overlays)
+    return build_product_callouts(beat_cues, product_metadata, manual_overlays, color_theme)
 
 
 def _valid_cues(cues: Sequence[Mapping[str, Any]]) -> List[Dict[str, Any]]:
@@ -161,6 +173,7 @@ def _candidate_to_overlay(
     cues: Sequence[Mapping[str, Any]],
     *,
     origin: str,
+    color_theme: Optional[Mapping[str, Any]] = None,
 ) -> Optional[Dict[str, Any]]:
     text = _candidate_text(candidate)
     callout_type = _normalize_callout_type(candidate.get("callout_type") or candidate.get("type"))
@@ -178,17 +191,40 @@ def _candidate_to_overlay(
         text=text,
         start=start,
         end=end,
+        look=_generated_look(callout_type, color_theme),
         template_id="product_callout",
     )
     overlay.update(
         {
             "role": "product_callout",
             "callout_type": callout_type,
+            "theme_role": CALLOUT_THEME_ROLES.get(callout_type, "primary"),
             "origin": origin,
             "source": source,
         }
     )
     return overlay
+
+
+def _generated_look(
+    callout_type: str,
+    color_theme: Optional[Mapping[str, Any]],
+) -> Dict[str, Any]:
+    """Return only the auto colour overrides; manual looks stay untouched."""
+
+    if not isinstance(color_theme, Mapping):
+        return {}
+    role = CALLOUT_THEME_ROLES.get(callout_type, "primary")
+    color = normalize_hex(color_theme.get(role))
+    if color is None:
+        color = normalize_hex(color_theme.get("neutral")) or "#FFFFFF"
+    outline = normalize_hex(color_theme.get("ink")) or "#000000"
+    secondary = normalize_hex(color_theme.get("secondary")) or color
+    return {
+        "color": color,
+        "outline_color": outline,
+        "accent_color": secondary,
+    }
 
 
 def _normalize_manual_overlay(item: Any) -> Optional[Dict[str, Any]]:
@@ -338,4 +374,4 @@ def _is_list_like(value: Any) -> bool:
     return isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray))
 
 
-__all__ = ["CALLOUT_TYPES", "build_callouts", "build_product_callouts"]
+__all__ = ["CALLOUT_THEME_ROLES", "CALLOUT_TYPES", "build_callouts", "build_product_callouts"]

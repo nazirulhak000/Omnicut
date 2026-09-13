@@ -159,8 +159,37 @@ def _source_colour(source: Any) -> Any:
         "primary",
     ):
         if key in source:
-            return source[key]
+            value = source[key]
+            return _source_colour(value) if isinstance(value, Mapping) else value
     return None
+
+
+def extract_explicit_theme(source: Any) -> dict[str, Any] | None:
+    """Read an explicit theme nested in product metadata, if present.
+
+    Product records have used both ``color_theme`` and ``theme`` in different
+    API paths.  Only mappings containing at least one ColorTheme field count;
+    an unrelated product ``theme`` value must not accidentally become a
+    colour override.
+    """
+
+    if not isinstance(source, Mapping):
+        return None
+    for key in ("color_theme", "colorTheme", "editorial_color_theme", "theme"):
+        value = source.get(key)
+        if isinstance(value, Mapping) and any(
+            field in value for field in ("primary", "secondary", "neutral", "ink")
+        ):
+            return dict(value)
+    return None
+
+
+def is_color_theme(value: Any) -> bool:
+    """Return whether a persisted value is a complete usable ColorThemeV1."""
+
+    if not isinstance(value, Mapping) or value.get("contract") != "ColorThemeV1":
+        return False
+    return all(normalize_hex(value.get(field)) for field in ("primary", "secondary", "neutral", "ink"))
 
 
 def _fallback_style(style_preset: Any) -> tuple[str, dict[str, str]]:
@@ -280,6 +309,8 @@ __all__ = [
     "STYLE_FALLBACKS",
     "ColorThemeV1",
     "contrast_ratio",
+    "extract_explicit_theme",
+    "is_color_theme",
     "normalize_hex",
     "resolve_color_theme",
 ]

@@ -3,6 +3,7 @@ Pipeline Context for OmniCut Pro Studio Pipeline.
 Encapsulates parameters, mutable stage state, and helper methods across all pipeline stages.
 """
 
+import copy
 import hashlib
 import json
 import threading
@@ -14,6 +15,7 @@ from scripts.config import (
     BASE_DIR, DEFAULT_VOICE, DEFAULT_VOICE_RATE
 )
 from scripts.project_manifest import ProjectManifest, REROLL_STAGE
+from scripts.color_theme import extract_explicit_theme, is_color_theme, normalize_hex, resolve_color_theme
 
 
 INCREMENTAL_RENDER_SCHEMA_VERSION = 1
@@ -242,6 +244,7 @@ def _stage_payload_from_manifest(
                 "font_name": _manifest_value(manifest, "font_name"),
                 "bilingual_subtitles": _manifest_value(manifest, "bilingual_subtitles"),
                 "show_watermark": _manifest_value(manifest, "show_watermark", True),
+                "style_preset": _manifest_value(manifest, "style_preset"),
                 "hook_brand": _manifest_value(manifest, "hook_brand"),
                 "hook_model": _manifest_value(manifest, "hook_model"),
                 "hook_label": _manifest_value(manifest, "hook_label"),
@@ -250,6 +253,9 @@ def _stage_payload_from_manifest(
                 "hook_colors": _manifest_value(manifest, "hook_colors"),
                 "hook_style": _manifest_value(manifest, "hook_style"),
                 "overlays": overlays,
+                "product": manifest.get("product") or {},
+                "color_theme": _manifest_value(manifest, "color_theme"),
+                "color_theme_input": _manifest_value(manifest, "color_theme_input"),
                 "text_overlays": text_overlays,
                 "caption_position": _manifest_value(manifest, "caption_position"),
                 "caption_color": _manifest_value(manifest, "caption_color"),
@@ -293,6 +299,9 @@ def _stage_payload_from_manifest(
                 "stickers": _manifest_value(manifest, "stickers"),
                 "effects": _manifest_value(manifest, "effects"),
                 "overlays": overlays,
+                "product": manifest.get("product") or {},
+                "color_theme": _manifest_value(manifest, "color_theme"),
+                "color_theme_input": _manifest_value(manifest, "color_theme_input"),
                 "lut_name": lut_name,
                 "lut_file": _resolved_lut_identity(lut_name),
                 "lut_intensity": _manifest_value(manifest, "lut_intensity"),
@@ -390,6 +399,10 @@ class PipelineContext:
     effects: Optional[List[Dict[str, Any]]] = None
     resume_from: Optional[str] = None
     product_meta: Optional[Dict[str, Any]] = None
+    # Optional explicit ColorThemeV1 input. The resolved contract is kept
+    # separately so a manifest can persist the effective theme without
+    # confusing it with the caller's override.
+    color_theme: Optional[Dict[str, Any]] = None
     angle_meta: Optional[Dict[str, Any]] = None
     progress_callback: Optional[Callable[[str, float], None]] = None
     overlays: Optional[List[Dict[str, Any]]] = None
@@ -421,6 +434,7 @@ class PipelineContext:
     effective_text_overlays: Optional[List[Dict[str, Any]]] = None
     scrim_spans: List[tuple] = field(default_factory=list)
     editorial_pacing: Optional[Dict[str, Any]] = None
+    resolved_color_theme: Optional[Dict[str, Any]] = None
 
     effective_bgm_name: Optional[str] = None
     mixed_audio_path: Optional[Path] = None
@@ -446,6 +460,42 @@ class PipelineContext:
     result_paths: Dict[str, Any] = field(default_factory=dict)
     artifacts: Dict[str, Any] = field(default_factory=dict)
     _fingerprint_cache: Dict[str, Dict[str, Any]] = field(default_factory=dict, init=False, repr=False)
+
+    def resolve_color_theme_contract(self) -> Dict[str, Any]:
+        """Resolve and cache the one colour contract shared by pipeline stages."""
+        if self.resolved_color_theme is not None:
+            return copy.deepcopy(self.resolved_color_theme)
+
+        manifest = self.manifest if isinstance(self.manifest, dict) else {}
+        params = manifest.get("render_params") or {}
+        product: Dict[str, Any] = {}
+        saved_product = manifest.get("product")
+        if isinstance(saved_product, dict):
+            product.update(copy.deepcopy(saved_product))
+        if isinstance(self.product_meta, dict):
+            product.update(copy.deepcopy(self.product_meta))
+
+        explicit = self.color_theme if isinstance(self.color_theme, dict) else None
+        if explicit is None:
+            explicit = extract_explicit_theme(product)
+
+        persisted = manifest.get("color_theme") or params.get("color_theme")
+        preview = resolve_color_theme(product, style_preset=self.style_preset)
+        product_colour = ((preview.get("source_metadata") or {}).get("product_color"))
+
+        # A successful prior render is authoritative when there is no new
+        # product colour/theme input. This keeps rerenders byte-for-byte stable
+        # even if a future style fallback palette is edited.
+        if explicit is None and not normalize_hex(product_colour) and is_color_theme(persisted):
+            resolved = copy.deepcopy(dict(persisted))
+        else:
+            resolved = resolve_color_theme(
+                product,
+                explicit_theme=explicit,
+                style_preset=self.style_preset,
+            )
+        self.resolved_color_theme = copy.deepcopy(resolved)
+        return copy.deepcopy(resolved)
 
     def notify(self, msg: str, progress: float) -> None:
         """Invokes the progress callback safely if one was registered."""
@@ -551,6 +601,11 @@ class PipelineContext:
             snapshot["angle"] = self.angle_meta
         if self.product_meta is not None:
             snapshot["product"] = self.product_meta
+        if self.color_theme is not None:
+            params["color_theme_input"] = self.color_theme
+        if self.resolved_color_theme is not None:
+            snapshot["color_theme"] = self.resolved_color_theme
+            params["color_theme"] = self.resolved_color_theme
         if self.script_data is not None:
             snapshot["script_data"] = self.script_data
         if self.cues:

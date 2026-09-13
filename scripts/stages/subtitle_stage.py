@@ -63,6 +63,7 @@ def _materialize_product_callouts(
         beat_cues=timing_cues,
         product_metadata=product_metadata,
         manual_overlays=manual_callouts,
+        color_theme=ctx.resolve_color_theme_contract(),
     )
     auto_callouts = [item for item in built if item.get("origin") == "auto"]
 
