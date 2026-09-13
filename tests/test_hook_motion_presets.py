@@ -18,6 +18,7 @@ import pytest
 
 from scripts.hook_motion_presets import (
     HOOK_IN_PRESETS,
+    HOOK_REVEAL_PRESETS,
     HOOK_LOOP_PRESETS,
     HOOK_OUT_PRESETS,
     HOOK_ACCENT_PRESETS,
@@ -26,6 +27,7 @@ from scripts.hook_motion_presets import (
 
 ALL_CATEGORY_TABLES = {
     "in": HOOK_IN_PRESETS,
+    "reveal": HOOK_REVEAL_PRESETS,
     "loop": HOOK_LOOP_PRESETS,
     "out": HOOK_OUT_PRESETS,
     "accent": HOOK_ACCENT_PRESETS,
@@ -60,10 +62,11 @@ def test_every_category_has_a_none_fallback(category, table):
     assert "none" in table, f"{category} preset table has no 'none' fallback entry"
 
 
-def test_hook_motion_catalog_shape_matches_the_four_pickers():
+def test_hook_motion_catalog_shape_matches_the_pickers():
     catalog = hook_motion_catalog()
-    assert set(catalog.keys()) == {"in", "loop", "out", "accent"}
+    assert set(catalog.keys()) == {"in", "reveal", "loop", "out", "accent"}
     assert catalog["in"] is HOOK_IN_PRESETS
+    assert catalog["reveal"] is HOOK_REVEAL_PRESETS
     assert catalog["loop"] is HOOK_LOOP_PRESETS
     assert catalog["out"] is HOOK_OUT_PRESETS
     assert catalog["accent"] is HOOK_ACCENT_PRESETS

@@ -59,7 +59,10 @@ def product_file(tmp_path, monkeypatch):
 @pytest.fixture
 def client():
     from scripts.api_server import app
-    return TestClient(app)
+    from scripts.auth import get_configured_api_key, API_KEY_HEADER
+    key = get_configured_api_key()
+    headers = {API_KEY_HEADER: key} if key else {}
+    return TestClient(app, headers=headers)
 
 
 # ----------------------------------------------------------------------
@@ -681,6 +684,8 @@ def test_hook_motion_legacy_boolean_dict_falls_back_to_the_default_preset(tmp_pa
     [
         ("bounce", lambda: f"\\fscx{round(_brand_pct() * 1.25)}"),   # overshoot
         ("pop", lambda: f"\\fscx{round(_brand_pct() * 1.18)}"),      # overshoot
+        ("slam", lambda: f"\\fscx{round(_brand_pct() * 2.2)}"),      # slam impact start
+        ("elastic_bounce", lambda: f"\\fscx{round(_brand_pct() * 1.28)}"),  # elastic overshoot
         ("fade", "\\alpha&HFF&\\t(0,250,\\alpha&H00&)"),
         ("zoom", lambda: f"\\fscx{round(_brand_pct() * 1.8)}"),      # zoom-in start
         ("slide_up", "\\move(540,320,540,260,0,300)"),

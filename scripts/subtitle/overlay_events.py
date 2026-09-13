@@ -150,6 +150,10 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
     HOOK_COMFORTABLE_LINES = 4
     shrink = max(0.7, min(1.0, HOOK_COMFORTABLE_LINES / len(tier_lines)))
 
+    reveal_mode = str(motion.get("reveal") or "simultaneous").strip().lower()
+    is_cumulative = reveal_mode in ("cumulative", "tier_step")
+    step_delay_ms = int(motion.get("step_delay_ms") or 350)
+
     STAGGER_STEP_MS = 150
     anim_speed = (hook_overlay.get("anim") or {}).get("speed", "normal")
     speed_factor = 0.6 if anim_speed == "fast" else (1.5 if anim_speed == "smooth" else 1.0)
@@ -195,7 +199,10 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
         # boost -- see that file's font_size_boosted comment.
         target = layout_pct
         line_fs = max(16, int(round(hook_fs * layout_pct / 100)))
-        t0_ms = tier_idx * effective_stagger_ms if motion["stagger"] else 0
+        if is_cumulative:
+            t0_ms = tier_idx * step_delay_ms
+        else:
+            t0_ms = tier_idx * effective_stagger_ms if motion["stagger"] else 0
         if is_typewriter:
             in_tag, entry_end_ms, move_dy_in = None, t0_ms + 400, None
         else:
@@ -235,8 +242,12 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
                 f"\\t({rec['t0_ms']},{rec['entry_end_ms']},"
                 f"\\clip({x_from:.0f},{top},{x_to:.0f},{bot}))"
             )
+            if is_cumulative and rec["t0_ms"] > 0:
+                in_tag = f"\\alpha&HFF&\\t({rec['t0_ms']},{rec['t0_ms']},\\alpha&H00&)" + in_tag
         else:
             in_tag = rec["in_tag"]
+            if is_cumulative and rec["t0_ms"] > 0 and "\\alpha&HFF&" not in in_tag:
+                in_tag = f"\\alpha&HFF&\\t({rec['t0_ms']},{rec['t0_ms']},\\alpha&H00&)" + in_tag
 
         if rec["move_dy_in"] is not None:
             pos_tag = (
@@ -266,6 +277,8 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
             f"\\bord{float(tier_style['outline_px']):.1f}"
         )
         pill = tier_style["pill"] or {}
+        if isinstance(pill, str):
+            pill = {"fill": pill, "border": None, "pad_x_em": 0.342, "pad_y_em": 0.171}
         pill_colour = ass_colour(pill.get("fill"))
         if pill_colour:
             pill_pad = int(round(hook_fs * float(pill.get("pad_x_em") or 0.342)))
@@ -283,9 +296,14 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
                 f"{{{common}{edge_tag}\\c{rec['colour']}&}}{ass_escape_text(rec['line'])}"
             )
 
+        shadow_alpha = (
+            f"\\alpha&HFF&\\t({rec['t0_ms']},{rec['t0_ms']},\\alpha&H40&)"
+            if (is_cumulative and rec["t0_ms"] > 0)
+            else "\\alpha&H40&"
+        )
         events.append(
             f"Dialogue: 1,{start_t},{end_t},HookHeaderShadow,,0,0,0,,"
-            f"{{{common}\\blur5\\alpha&H40&}}{ass_escape_text(rec['line'])}"
+            f"{{{common}\\blur5{shadow_alpha}}}{ass_escape_text(rec['line'])}"
         )
         events.append(
             f"Dialogue: 2,{start_t},{end_t},HookHeader,,0,0,0,,"
@@ -304,10 +322,12 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
     if motion["accent"] != "none" and model_last_line and model_line_fs:
         accent_color_override = (hook_overlay.get("look") or {}).get("accent_color") or (tier_looks[1] or {}).get("accent_color") or (motion or {}).get("accent_color")
         resolved_accent_colour = ass_colour(accent_color_override) if accent_color_override else model_colour
+        model_reveal_start = (1 * step_delay_ms) if is_cumulative else None
         events.extend(_hook_accent_events(
             motion["accent"], model_last_line, model_line_fs, model_y, resolved_accent_colour,
             x_center, hook_font, start_t, end_t,
             exit_start_ms, exit_end_ms, motion["stagger"],
+            reveal_start=model_reveal_start,
         ))
 
     return events

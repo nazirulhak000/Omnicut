@@ -110,7 +110,7 @@ export const DEFAULT_ANIM = {
   in: 'snap', loop: 'none', out: 'fade', accent: 'none', stagger: false, word_stagger_ms: 0,
 };
 export const HOOK_ANIM = {
-  in: 'bounce', loop: 'pulse', out: 'fade', accent: 'underline', stagger: true,
+  in: 'bounce', loop: 'pulse', out: 'fade', accent: 'underline', stagger: true, reveal: 'simultaneous',
 };
 
 // Three entrance names meant different animations on the two sides -- a text

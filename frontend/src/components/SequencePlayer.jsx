@@ -1248,7 +1248,8 @@ function drawEffects(ctx, videosMap, t, effectsList, outBounds = null, accentCol
 // here reproduces the keyframes its Python builder emits, so what plays in
 // this preview is what libass will draw -- the two are meant to be read side
 // by side; changing one without the other is a bug.
-const HOOK_MOTION_DEFAULTS = { in: 'bounce', stagger: true, loop: 'pulse', out: 'fade', accent: 'underline' };
+const HOOK_MOTION_DEFAULTS = { in: 'bounce', stagger: true, loop: 'pulse', out: 'fade', accent: 'underline', reveal: 'simultaneous' };
+const DEFAULT_HOOK_STEP_DELAY_MS = 350;
 const HOOK_STAGGER_STEP = 0.15; // seconds; mirrors STAGGER_STEP_MS
 const HOOK_DIM_OPACITY = 1 - 0x25 / 255; // mirrors ASS \alpha&H25&
 const HOOK_SWEEP_OPACITY = 1 - 0x20 / 255; // mirrors ASS \alpha&H20&
@@ -1322,6 +1323,36 @@ const OVERLAY_IN_TRANSFORMS = {
         [0, 0.55],
         [120, 1.18, ACCEL_SOFT_OUT],
         [200, 1.0, ACCEL_SNAP_IN],
+      ]),
+    }),
+  },
+  slam: {
+    durSec: 0.18,
+    at: (ms) => ({
+      scale: hookKeyframeAt(ms, [
+        [0, 2.2],
+        [180, 1.0, ACCEL_SNAP_IN],
+      ]),
+      alpha: hookKeyframeAt(ms, [
+        [0, 0],
+        [50, 1],
+      ]),
+    }),
+  },
+  elastic_bounce: {
+    durSec: 0.52,
+    at: (ms) => ({
+      scale: hookKeyframeAt(ms, [
+        [0, 0.4],
+        [160, 1.28, ACCEL_SOFT_OUT],
+        [290, 0.88, 1.0],
+        [390, 1.08, 1.0],
+        [460, 0.98, 1.0],
+        [520, 1.0, ACCEL_SOFT_OUT],
+      ]),
+      alpha: hookKeyframeAt(ms, [
+        [0, 0],
+        [40, 1],
       ]),
     }),
   },
@@ -1629,6 +1660,10 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
   const loopFn = OVERLAY_LOOP_TRANSFORMS[motion.loop] || OVERLAY_LOOP_TRANSFORMS.none;
   const outFn = OVERLAY_OUT_TRANSFORMS[motion.out] || OVERLAY_OUT_TRANSFORMS.fade;
 
+  const revealMode = motion.reveal || 'simultaneous';
+  const isCumulative = revealMode === 'cumulative' || revealMode === 'tier_step';
+  const stepDelaySec = (motion.step_delay_ms || DEFAULT_HOOK_STEP_DELAY_MS) / 1000;
+
   // The loop phase cannot start until every tier's own entry has settled.
   let maxEntryEndSec = 0;
   if (wordStaggerSec > 0 && overlay.layout?.lines) {
@@ -1641,7 +1676,7 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
     }
   }
   for (const { tierIdx } of wrapped) {
-    const t0 = motion.stagger ? tierIdx * HOOK_STAGGER_STEP : 0;
+    const t0 = isCumulative ? tierIdx * stepDelaySec : (motion.stagger ? tierIdx * HOOK_STAGGER_STEP : 0);
     maxEntryEndSec = Math.max(maxEntryEndSec, t0 + inPreset.durSec);
   }
   const exitStartSec = Math.max(0.12, duration - 0.15);
@@ -1684,7 +1719,7 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
     // overlay's two lines get the single badge they always had.
     const box = tierBoxes.get(w.tierIdx);
     if (!box) {
-      tierBoxes.set(w.tierIdx, { look: w.look, top: w.y, bottom: w.y + w.settledFs, width: w.width, fs: w.settledFs });
+      tierBoxes.set(w.tierIdx, { tierIdx: w.tierIdx, look: w.look, top: w.y, bottom: w.y + w.settledFs, width: w.width, fs: w.settledFs });
     } else {
       box.bottom = w.y + w.settledFs;
       box.width = Math.max(box.width, w.width);
@@ -1721,6 +1756,8 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
   for (const box of tierBoxes.values()) {
     const pill = box.look.pill;
     if (!pill) continue;
+    const boxT0 = isCumulative ? box.tierIdx * stepDelaySec : (motion.stagger ? box.tierIdx * HOOK_STAGGER_STEP : 0);
+    if (isCumulative && tRel < boxT0) continue;
     const padX = Math.round(box.fs * (pill.pad_x_em ?? PILL_PAD_X_EM));
     const padY = Math.round(box.fs * (pill.pad_y_em ?? PILL_PAD_Y_EM));
     const pw = box.width + padX * 2;
@@ -1746,7 +1783,7 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
   // envelope but not the loop -- matching the backend, which never threads
   // loop keyframes into the accent events.
   if (motion.accent !== 'none' && modelLine) {
-    const revealStart = motion.stagger ? HOOK_STAGGER_STEP * 2 : 0;
+    const revealStart = isCumulative ? 1 * stepDelaySec : (motion.stagger ? HOOK_STAGGER_STEP * 2 : 0);
     const revealFrac = tRel <= revealStart ? 0 : Math.min(1, (tRel - revealStart) / 0.3);
     const modelFontSize = modelLine.settledFs;
     const accentColor = overlay.look?.accent_color || modelLine.look?.accent_color || modelLine.color;
@@ -1958,7 +1995,10 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
     // currently-animating scale -- an ASS \t transform (and this mirror of it)
     // animates glyph rendering, not layout reflow, so other lines must not
     // jitter as this one animates.
-    const t0 = motion.stagger ? w.tierIdx * HOOK_STAGGER_STEP : 0;
+    const t0 = isCumulative ? w.tierIdx * stepDelaySec : (motion.stagger ? w.tierIdx * HOOK_STAGGER_STEP : 0);
+    if (isCumulative && tRel < t0) {
+      continue;
+    }
     const inFx = inPreset.at((tRel - t0) * 1000) || {};
 
     const scale = (inFx.scale ?? 1) * (outFx.scale ?? 1);

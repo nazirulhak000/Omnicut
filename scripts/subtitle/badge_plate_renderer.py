@@ -107,12 +107,14 @@ def _hook_accent_events(
     accent_id: str, model_line: str, model_line_fs: int, model_y: int, model_colour: str,
     x_center: int, resolved_font: str, start_t: str, end_t: str,
     exit_start_ms: int, exit_end_ms: int, stagger: bool,
+    reveal_start: Optional[int] = None,
 ) -> List[str]:
     """
     Decorative shape tied to the model tier: an accent bar under it, or a filled badge behind it.
     """
     half_w = _hook_line_width_px(model_line, resolved_font, model_line_fs)
-    reveal_start = 300 if stagger else 0
+    if reveal_start is None:
+        reveal_start = 300 if stagger else 0
     reveal_end = reveal_start + 300
     exit_tag = f"\\t({exit_start_ms},{exit_end_ms},\\alpha&HFF&)"
 

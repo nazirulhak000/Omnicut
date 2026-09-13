@@ -14,13 +14,22 @@ registries (guarded by a test).
 HOOK_IN_PRESETS = {
     "bounce": {"label_th": "เด้งเข้า", "label_en": "Bounce"},
     "bounce_soft": {"label_th": "เด้งนุ่ม", "label_en": "Soft Bounce"},
+    "elastic_bounce": {"label_th": "เด้งดึ๋ง", "label_en": "Elastic Bounce"},
     "pop": {"label_th": "ป็อป", "label_en": "Pop"},
     "pop_soft": {"label_th": "ป็อปนุ่ม", "label_en": "Soft Pop"},
+    "slam": {"label_th": "กระแทกจอ", "label_en": "3D Slam"},
     "fade": {"label_th": "จางเข้า", "label_en": "Fade"},
     "zoom": {"label_th": "ซูมเข้า", "label_en": "Zoom"},
     "slide_up": {"label_th": "เลื่อนขึ้น", "label_en": "Slide Up"},
     "typewriter": {"label_th": "พิมพ์ดีด", "label_en": "Typewriter"},
     "blur": {"label_th": "เบลอเข้าโฟกัส", "label_en": "Blur In"},
+    "none": {"label_th": "ไม่มี", "label_en": "None"},
+}
+
+HOOK_REVEAL_PRESETS = {
+    "simultaneous": {"label_th": "ขึ้นพร้อมกัน", "label_en": "Simultaneous"},
+    "cumulative": {"label_th": "สะสมทีละบรรทัด", "label_en": "Cumulative Lines"},
+    "tier_step": {"label_th": "ทยอยทีละบรรทัด", "label_en": "Step-by-Step"},
     "none": {"label_th": "ไม่มี", "label_en": "None"},
 }
 
@@ -49,9 +58,10 @@ HOOK_ACCENT_PRESETS = {
 
 
 def hook_motion_catalog():
-    """All four pickers in one payload, in the order the UI shows them."""
+    """All pickers in one payload, in the order the UI shows them."""
     return {
         "in": HOOK_IN_PRESETS,
+        "reveal": HOOK_REVEAL_PRESETS,
         "loop": HOOK_LOOP_PRESETS,
         "out": HOOK_OUT_PRESETS,
         "accent": HOOK_ACCENT_PRESETS,

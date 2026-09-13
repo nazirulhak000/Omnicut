@@ -145,7 +145,7 @@ DEFAULT_ANIM: Dict[str, Any] = {
 }
 # The banner's defaults, previously DEFAULT_HOOK_MOTION in subtitle_engine.py.
 HOOK_ANIM: Dict[str, Any] = {
-    "in": "bounce", "loop": "pulse", "out": "fade", "accent": "underline", "stagger": True,
+    "in": "bounce", "loop": "pulse", "out": "fade", "accent": "underline", "stagger": True, "reveal": "simultaneous",
 }
 
 # Three entrance names meant different animations on the two sides -- a text

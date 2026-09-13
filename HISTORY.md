@@ -8,8 +8,45 @@
 
 ## สารบัญ
 
+| Round HOOK-KINETIC-MOTION-1 | Step-by-Step Cumulative Hook Reveal & High-Impact Animation System (slam, elastic_bounce) | 2026-09-13 | สำเร็จสมบูรณ์ (backend parity 177 passed, behavior render 18 passed, smoke 150 passed, frontend 185 passed, build 3.79s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round THAI-STACKED-MARK-GENERALIZE-1 | ขยายการจัดชั้นสระบน + วรรณยุกต์ไทยจากคู่เดียวเป็น 20 คู่ พร้อม Preview/Render parity | 2026-09-13 | สำเร็จสมบูรณ์ (backend 1,135 passed, visual/contract 180 passed, frontend 185 passed, FFmpeg 20-pair pixel matrix + browser verified, ดำเนินการโดย: Codex (GPT-5)) |
 | Round THAI-STACKED-MARK-RENDER-FIX-1 | แก้ `ั` + `่` ซ้อนทับใน Render ให้สูงโปร่งตรง Preview โดยรักษา layout ของ emoji/ข้อความทั้งบรรทัด | 2026-09-13 | สำเร็จสมบูรณ์ (backend 1,133 passed, visual/contract 178 passed, frontend 185 passed, build 2,003 modules/4.59s, FFmpeg pixel geometry + browser verified, ดำเนินการโดย: Codex (GPT-5)) |
+
+---
+
+## Round HOOK-KINETIC-MOTION-1 — Step-by-Step Cumulative Hook Reveal & High-Impact Animation System
+
+วันที่: 2026-09-13 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** เพิ่มระบบอนิเมชั่น Hook Banner ที่ดึงดูดสายตาตามสไตล์ไวรัล โดยเฉพาะการทยอยสะสมทีละคำ/ทีละบรรทัด (Cumulative Word & Tier Reveal: เช่น `LOGITECH` -> `LOGITECH WAVE KEYS` -> `KEYBOARD`) และอนิเมชั่นกระแทกสายตา (Slam / Elastic Bounce) โดยคงความเข้ากันได้ย้อนหลัง 100% ไม่กระทบโฟลว์เดิม และรักษา Preview = Render Parity
+
+### Todo
+
+- [x] เพิ่ม In-motion preset ใหม่ (`slam`, `elastic_bounce`) ใน `scripts/subtitle/motion_effects.py` และ `scripts/hook_motion_presets.py`
+- [x] เพิ่มการรองรับ `reveal_mode` (`simultaneous`, `cumulative`, `tier_step`) ใน `scripts/subtitle/overlay_events.py` และคำนวณ timing จังหวะสะสม
+- [x] ซิงก์ Catalog และ Motion Transform ใน Frontend: `overlayModel.js`, และ `SequencePlayer.jsx` (Canvas preview)
+- [x] เพิ่มตัวเลือกรูปแบบการแสดงผล (Reveal Mode) ในหน้า UI Hook Banner Editor (`OverlayInspector.jsx`)
+- [x] เขียนและรัน Parity Tests, Multi-Frame Render Tests, และ Node Unit Tests ตรวจสอบความถูกต้อง
+
+### Gate
+
+- [x] `.venv\Scripts\python.exe -m pytest tests/test_preview_render_parity.py -q` (153 passed in 3.17s)
+- [x] `.venv\Scripts\python.exe -m pytest tests/test_preview_render_behavior.py -q` (18 passed in 19.92s)
+- [x] `.venv\Scripts\python.exe -m pytest tests/test_hook_reveal_and_kinetic.py tests/test_hook_motion_presets.py -v` (24 passed)
+- [x] Full backend smoke pytest: `tests/test_phase1_smoke.py` (150 passed in 75.82s) + compileall passed
+- [x] Frontend test `npm test` (185 passed) + `npm run build` (built in 3.79s without errors)
+
+### Notes
+- **Zero Regression:** โครงสร้างข้อมูลเดิมทุกตัวยังทำงานเหมือนเดิม 100% ถ้าไม่มีการเลือก reveal mode ระบบจะใช้ค่าเริ่มต้น `simultaneous` (ขึ้นพร้อมกัน) เหมือนเดิมทุกประการ
+- **Cumulative Reveal (สะสมทีละบรรทัด):** แถวที่ยังไม่ถึงเวลา (เช่น บรรทัด 2 และ 3) จะถูกซ่อนไว้อย่างสมบูรณ์ (`\alpha&HFF&` ใน ASS render และข้ามการวาดใน Canvas preview) จนกว่าจะถึง `t0_ms = tier_idx * step_delay_ms` จึงจะเล่น In-animation เข้ามา สะสมต่อท้ายบรรทัดก่อนหน้าตามโจทย์ไวรัล TikTok
+- **High-Impact Presets:**
+  - `slam`: กระแทกลงจากขนาด 220% ใน 180ms พร้อม rapid alpha fade-in และ snap-in curve
+  - `elastic_bounce`: เด้งดึ๋งสไตล์สปริงพร้อมโอเวอร์ชูตและอันเดอร์ชูต 520ms
+- **Preview = Render Parity:** ทั้ง Canvas 2D (`SequencePlayer.jsx`) และ libass renderer (`overlay_events.py` / `motion_effects.py`) ทำงานสอดคล้องกันตรงกันทุกมิลลิวินาทีและองศา / สเกล
+
+---
+
+## Round THAI-STACKED-MARK-GENERALIZE-1 — ครอบคลุมสระบนและวรรณยุกต์ไทยทุกคู่
 | Round AI-PRODUCER-ACCESS-1 | Phase 5 Accessibility & Responsive Polish: modal semantics, Escape close, aria-live และ keyboard labels | 2026-09-13 | สำเร็จสมบูรณ์ (frontend 185 passed, build 2003 modules/3.85s, browser AX + Escape verified, diff check ผ่าน, ไม่เปลี่ยน font/text contract, ดำเนินการโดย: Codex (GPT-5)) |
 | Round AI-PRODUCER-EVIDENCE-1 | Phase 4 Evidence-first Retrospective: metrics model, measured takeaways, source provenance และ metric snapshot | 2026-09-13 | สำเร็จสมบูรณ์ (frontend 185 passed, backend 3 passed, build 2003 modules/3.58s, browser evidence cards verified, fixture distribution test ผ่าน, ดำเนินการโดย: Codex (GPT-5)) |
 | Round AI-PRODUCER-SYNC-1 | Phase 3 Capture & Sync Reliability: deterministic media upload, single-item notes, revision guard และ payload validation | 2026-09-13 | สำเร็จสมบูรณ์ (backend notes 3 passed, frontend 184 passed, build 2003 modules/5.74s, compileall ผ่าน, Producer Hub + Quick Ref browser verified, ไม่แตะ 02_Assets/Refs, ดำเนินการโดย: Codex (GPT-5)) |

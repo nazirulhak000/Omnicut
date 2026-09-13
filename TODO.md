@@ -18,6 +18,8 @@
 
 ---
 
+- [x] Round HOOK-KINETIC-MOTION-1 — Step-by-Step Cumulative Hook Reveal & High-Impact Animation System (2026-09-13; backend parity 177 passed, behavior render 18 passed, smoke 150 passed, frontend 185 passed, build 3.79s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
+
 - [x] Round THAI-STACKED-MARK-GENERALIZE-1 — ครอบคลุมสระบน `ัิีึื` × วรรณยุกต์ `่้๊๋` ทั้ง 20 คู่ใน Preview/Render (2026-09-13; backend 1,135 passed, visual/contract 180 passed, frontend 185 passed, build/browser verified, ดำเนินการโดย: Codex (GPT-5))
 
 - [x] Round THAI-STACKED-MARK-RENDER-FIX-1 — แก้ `ั` + `่` ซ้อนทับใน Render ด้วย layout-preserving ASS companion event (2026-09-13; backend 1,133 passed, visual/contract 178 passed, frontend 185 passed, build ผ่าน, ดำเนินการโดย: Codex (GPT-5))

@@ -41,4 +41,4 @@ def _no_real_api_key_gate(monkeypatch):
     promotes the same isolation to the whole suite so passing locally never
     depends on whether OMNICUT_API_KEY happens to be unset in .env.
     """
-    monkeypatch.delenv("OMNICUT_API_KEY", raising=False)
+    monkeypatch.setenv("OMNICUT_API_KEY", "")

@@ -5,16 +5,30 @@ Constructs ASS override tags for In (entrance), Loop (hold period), and Out (exi
 
 from typing import Dict, List, Optional, Tuple
 
-DEFAULT_HOOK_MOTION = {"in": "bounce", "stagger": True, "loop": "pulse", "out": "fade", "accent": "underline"}
+DEFAULT_HOOK_MOTION = {
+    "in": "bounce",
+    "stagger": True,
+    "loop": "pulse",
+    "out": "fade",
+    "accent": "underline",
+    "reveal": "simultaneous",
+}
+DEFAULT_HOOK_STEP_DELAY_MS = 350
 
 
 def _resolve_hook_motion(hook_motion: Optional[Dict[str, object]]) -> Dict[str, object]:
     resolved = dict(DEFAULT_HOOK_MOTION)
+    resolved["step_delay_ms"] = DEFAULT_HOOK_STEP_DELAY_MS
     if hook_motion:
         for k in DEFAULT_HOOK_MOTION:
             v = hook_motion.get(k)
             if v is not None:
                 resolved[k] = v
+        if "step_delay_ms" in hook_motion and hook_motion["step_delay_ms"] is not None:
+            try:
+                resolved["step_delay_ms"] = int(hook_motion["step_delay_ms"])
+            except (TypeError, ValueError):
+                resolved["step_delay_ms"] = DEFAULT_HOOK_STEP_DELAY_MS
     resolved["stagger"] = bool(resolved["stagger"])
     return resolved
 
@@ -174,9 +188,45 @@ def _in_none(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[in
     return f"\\fscx{target}\\fscy{target}", t0_ms, None
 
 
+def _in_slam(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
+    """Heavy 3D impact from 220% scale with rapid alpha fade-in."""
+    target = round(target_scale_pct)
+    entry_from = round(target * 2.2)
+    end_ms = t0_ms + 180
+    tag = (
+        f"\\fscx{entry_from}\\fscy{entry_from}\\alpha&HFF&"
+        f"\\t({t0_ms},{t0_ms + 50},\\alpha&H00&)"
+        f"\\t({t0_ms},{end_ms},{ACCEL_SNAP_IN},\\fscx{target}\\fscy{target})"
+    )
+    return tag, end_ms, None
+
+
+def _in_elastic_bounce(target_scale_pct: float, t0_ms: int) -> Tuple[str, int, Optional[int]]:
+    """Elastic spring overshoot/undershoot settling."""
+    target = round(target_scale_pct)
+    entry_from = round(target * 0.4)
+    over1 = round(target * 1.28)
+    under1 = round(target * 0.88)
+    over2 = round(target * 1.08)
+    under2 = round(target * 0.98)
+    end_ms = t0_ms + 520
+    kfs = [
+        (t0_ms, {"fscx": entry_from, "fscy": entry_from, "alpha": "&HFF&"}, 1.0),
+        (t0_ms + 40, {"alpha": "&H00&"}, 1.0),
+        (t0_ms + 160, {"fscx": over1, "fscy": over1}, ACCEL_SOFT_OUT),
+        (t0_ms + 290, {"fscx": under1, "fscy": under1}, 1.0),
+        (t0_ms + 390, {"fscx": over2, "fscy": over2}, 1.0),
+        (t0_ms + 460, {"fscx": under2, "fscy": under2}, 1.0),
+        (end_ms, {"fscx": target, "fscy": target}, ACCEL_SOFT_OUT),
+    ]
+    return serialize_keyframes(kfs), end_ms, None
+
+
 HOOK_IN_BUILDERS = {
     "bounce": _in_bounce, "bounce_soft": _in_bounce_soft,
+    "elastic_bounce": _in_elastic_bounce,
     "pop": _in_pop, "pop_soft": _in_pop_soft,
+    "slam": _in_slam,
     "fade": _in_fade, "zoom": _in_zoom,
     "slide_up": _in_slide_up, "blur": _in_blur, "none": _in_none,
 }

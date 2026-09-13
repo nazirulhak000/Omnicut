@@ -49,6 +49,13 @@ export const FALLBACK_ACCENT_OPTIONS = {
   none: { label_th: 'ไม่มี', label_en: 'None' },
 };
 
+export const FALLBACK_REVEAL_OPTIONS = {
+  simultaneous: { label_th: 'ขึ้นพร้อมกัน (ปกติ)', label_en: 'Simultaneous' },
+  cumulative: { label_th: 'สะสมทีละบรรทัด (ไวรัล)', label_en: 'Cumulative Reveal' },
+  tier_step: { label_th: 'ทยอยทีละบรรทัด', label_en: 'Step-by-Step' },
+  none: { label_th: 'ทันที', label_en: 'None' },
+};
+
 function hookCardLook(tpl, tierKey) {
   const tier = (tpl.tiers || {})[tierKey] || {};
   return {
@@ -685,12 +692,15 @@ export default function OverlayInspector({
               <span className="text-xs font-bold text-slate-400">แอนิเมชันพาดหัว:</span>
               {[
                 { cat: 'in', label: 'เข้า' },
+                { cat: 'reveal', label: 'การขึ้น' },
                 { cat: 'loop', label: 'ค้าง' },
                 { cat: 'out', label: 'ออก' },
                 { cat: 'accent', label: 'ตกแต่ง' },
               ].map(({ cat, label }) => {
                 const options = cat === 'accent'
                   ? { ...FALLBACK_ACCENT_OPTIONS, ...(hookMotionCatalog?.[cat] || {}) }
+                  : cat === 'reveal'
+                  ? { ...FALLBACK_REVEAL_OPTIONS, ...(hookMotionCatalog?.[cat] || {}) }
                   : hookMotionCatalog?.[cat];
                 if (!options) return null;
                 return (
