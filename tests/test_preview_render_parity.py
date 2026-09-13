@@ -1930,7 +1930,7 @@ def test_the_overlay_look_survives_the_round_trip_to_a_render():
     assert '"overlays": effective_overlays,' in pipeline
     shell = (ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx").read_text(encoding="utf-8")
     # Saved, and handed to both players plus both inspectors and timelines.
-    assert "overlays," in shell and "overlays: Array.isArray(overlays)" in PROJECT_STATE_SRC
+    assert "overlays," in shell and "serializeOverlays(overlays)" in PROJECT_STATE_SRC
     assert shell.count("overlays={overlays}") == 6, \
         "both players, both timelines and both inspectors need them"
 

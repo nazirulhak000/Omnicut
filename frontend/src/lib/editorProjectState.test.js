@@ -5,6 +5,7 @@ import {
   editorStateToSavePayload,
   manifestToEditorState,
   serializeClips,
+  serializeOverlays,
   serializeTransitions,
 } from './editorProjectState.js';
 
@@ -87,6 +88,49 @@ test('one save serializer carries overlays, keyframes, and audio controls', () =
 });
 
 
+test('Product Callout metadata survives load, save, and autosave-equivalent serialization', () => {
+  const callout = {
+    id: 'callout-model-1',
+    kind: 'text',
+    role: 'product_callout',
+    callout_type: 'model',
+    origin: 'auto',
+    source_beat_id: 'beat-02',
+    template_id: 'product-model-v1',
+    theme_role: 'primary',
+    timing: { start: 1.25, end: 3.75 },
+    tiers: [{ text: 'Soundcore Boom Go 3i', look: {} }],
+    metadata: { future_field: 'keep-me' },
+  };
+
+  const loaded = manifestToEditorState({ overlays: [callout] });
+  const payload = editorStateToSavePayload({ overlays: loaded.overlays });
+  const autosavePayload = editorStateToSavePayload({ overlays: loaded.overlays });
+
+  assert.deepEqual(payload.overlays, autosavePayload.overlays);
+  assert.equal(payload.overlays[0].kind, 'text');
+  assert.equal(payload.overlays[0].role, 'product_callout');
+  assert.equal(payload.overlays[0].callout_type, 'model');
+  assert.equal(payload.overlays[0].origin, 'auto');
+  assert.equal(payload.overlays[0].source_beat_id, 'beat-02');
+  assert.equal(payload.overlays[0].template_id, 'product-model-v1');
+  assert.equal(payload.overlays[0].theme_role, 'primary');
+  assert.deepEqual(payload.overlays[0].metadata, { future_field: 'keep-me' });
+  assert.deepEqual(payload.overlays[0].timing, { start: 1.25, end: 3.75 });
+});
+
+
+test('overlay persistence keeps unknown metadata and legacy overlay shape safe', () => {
+  const legacy = { id: 'legacy-text', kind: 'text', text: 'เดิม', custom_flag: true };
+  const unknown = { id: 'future-overlay', kind: 'sticker', asset: 'badge.png', future: { version: 2 } };
+  const overlays = serializeOverlays([legacy, unknown]);
+
+  assert.deepEqual(overlays, [legacy, unknown]);
+  assert.notEqual(overlays[0], legacy);
+  assert.notEqual(overlays[1], unknown);
+});
+
+
 test('overlay migration opts decorative baked media into accent recolour only', () => {
   const state = manifestToEditorState({
     stickers: [
@@ -121,4 +165,3 @@ test('showWatermark parses from manifest and serializes to save payload', () => 
   assert.equal(payloadDefault.style.show_watermark, true);
   assert.equal(payloadDefault.style.showWatermark, true);
 });
-

@@ -3,13 +3,120 @@ Subtitle Stage for OmniCut Pro Studio.
 Generates animated Thai & bilingual subtitles (.ass), parses/migrates overlays, and extracts scrim spans.
 """
 
-from typing import List, Tuple
+import copy
+from typing import Any, Dict, List, Mapping, Sequence, Tuple
 
 from scripts.subtitle_engine import SubtitleEngine, subtitle_artifact_is_current
 from scripts.editorial_pacing import build_pacing_plan_from_cues
-from scripts.overlay_model import migrate_to_overlays
+from scripts.overlay_model import guess_brand_model, migrate_to_overlays
 from scripts.pipeline_context import PipelineContext
+from scripts.product_callout_builder import build_product_callouts
 from scripts.project_manifest import ProjectManifest
+
+
+def _materialize_product_callouts(
+    ctx: PipelineContext,
+    effective_overlays: Sequence[Mapping[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Add editable product callouts without changing subtitles or inputs.
+
+    Beat cues are the preferred timing source.  On a subtitle rerun/reuse the
+    live context may not contain them, so the persisted manifest is consulted
+    before falling back to clause-level cues.  Existing overlays are copied,
+    then only genuinely new auto callouts are appended; this keeps manual
+    product callouts authoritative by both id and semantic identity.
+    """
+    manifest = ctx.manifest if isinstance(ctx.manifest, Mapping) else {}
+    base = [copy.deepcopy(dict(item)) for item in (effective_overlays or []) if isinstance(item, Mapping)]
+
+    live_beats = getattr(ctx, "beat_cues", None)
+    persisted_beats = manifest.get("beat_cues")
+    beat_cues = _first_sequence(live_beats) or _first_sequence(persisted_beats)
+
+    live_cues = getattr(ctx, "cues", None)
+    persisted_cues = manifest.get("cues")
+    cues = _first_sequence(live_cues) or _first_sequence(persisted_cues)
+
+    # If beat cues exist but carry no on_screen value, use cue timing for the
+    # visual values.  Metadata-only callouts still use beat timing first.
+    timing_cues = beat_cues
+    if not _contains_on_screen(timing_cues) and _contains_on_screen(cues):
+        timing_cues = cues
+    if not timing_cues:
+        timing_cues = cues
+
+    product_metadata: Dict[str, Any] = {}
+    persisted_product = manifest.get("product")
+    if isinstance(persisted_product, Mapping):
+        product_metadata.update(copy.deepcopy(dict(persisted_product)))
+    if isinstance(getattr(ctx, "product_meta", None), Mapping):
+        product_metadata.update(copy.deepcopy(dict(ctx.product_meta)))
+    # RenderRequest does not always carry the richer product record.  Keep the
+    # automatic Brand/Model callout useful on that path, while explicit
+    # metadata remains authoritative and is never overwritten.
+    inferred_brand, inferred_model = guess_brand_model(ctx.product_name)
+    product_metadata.setdefault("brand", inferred_brand)
+    product_metadata.setdefault("model", inferred_model)
+
+    manual_callouts = [item for item in base if _is_product_callout(item)]
+    built = build_product_callouts(
+        beat_cues=timing_cues,
+        product_metadata=product_metadata,
+        manual_overlays=manual_callouts,
+    )
+    auto_callouts = [item for item in built if item.get("origin") == "auto"]
+
+    existing_ids = {str(item.get("id")) for item in base if item.get("id")}
+    existing_semantics = {
+        _callout_semantic(item)
+        for item in base
+        if _is_product_callout(item) and _callout_semantic(item) is not None
+    }
+    for callout in auto_callouts:
+        callout_id = str(callout.get("id")) if callout.get("id") else None
+        semantic = _callout_semantic(callout)
+        if (callout_id and callout_id in existing_ids) or (
+            semantic is not None and semantic in existing_semantics
+        ):
+            continue
+        copied = copy.deepcopy(dict(callout))
+        base.append(copied)
+        if callout_id:
+            existing_ids.add(callout_id)
+        if semantic is not None:
+            existing_semantics.add(semantic)
+
+    return base
+
+
+def _first_sequence(value: Any) -> List[Mapping[str, Any]]:
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes, bytearray)):
+        return []
+    return [item for item in value if isinstance(item, Mapping)]
+
+
+def _contains_on_screen(cues: Sequence[Mapping[str, Any]]) -> bool:
+    return any(str(cue.get("on_screen") or "").strip() for cue in cues)
+
+
+def _is_product_callout(item: Mapping[str, Any]) -> bool:
+    return item.get("role") == "product_callout" and item.get("kind") == "text"
+
+
+def _callout_semantic(item: Mapping[str, Any]) -> Tuple[str, str] | None:
+    if not _is_product_callout(item):
+        return None
+    tiers = item.get("tiers")
+    text = ""
+    if isinstance(tiers, Sequence) and not isinstance(tiers, (str, bytes, bytearray)):
+        first = tiers[0] if tiers else None
+        if isinstance(first, Mapping):
+            text = str(first.get("text") or "")
+    if not text:
+        text = str(item.get("text") or item.get("value") or "")
+    callout_type = str(item.get("callout_type") or "feature").strip().casefold()
+    normalized_text = " ".join(text.split()).strip().casefold()
+    return (callout_type, normalized_text) if normalized_text else None
 
 
 class SubtitleStage:
@@ -68,6 +175,8 @@ class SubtitleStage:
                     "text_overlays": effective_text_overlays,
                 })
 
+            effective_overlays = _materialize_product_callouts(ctx, effective_overlays)
+
             scrim_spans = [
                 (float(o.get("start") or 0.0), float(o.get("end") or 0.0))
                 for o in effective_overlays
@@ -113,6 +222,7 @@ class SubtitleStage:
             micro_cues = ctx.manifest["micro_cues"]
             saved_params = (ctx.manifest.get("render_params") or {}) if ctx.manifest else {}
             effective_overlays = ctx.overlays if ctx.overlays is not None else migrate_to_overlays(ctx.manifest or {})
+            effective_overlays = _materialize_product_callouts(ctx, effective_overlays)
             scrim_spans = [
                 (float(o.get("start") or 0.0), float(o.get("end") or 0.0))
                 for o in effective_overlays

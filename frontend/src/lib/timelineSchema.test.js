@@ -84,6 +84,36 @@ test('serializeTimelineV2ToManifest roundtrips back to legacy cuts, overlays, an
   assert.equal(serialized.audioStems.bgm_volume, 0.15);
 });
 
+test('timeline v2 preserves Product Callout semantic metadata and unknown fields', () => {
+  const callout = {
+    id: 'callout-feature-1',
+    kind: 'text',
+    role: 'product_callout',
+    callout_type: 'feature',
+    origin: 'manual',
+    source_beat_id: 'beat-07',
+    template_id: 'feature-pop-v2',
+    theme_role: 'secondary',
+    tiers: [{ text: 'กันน้ำ IPX7', look: {} }],
+    future_metadata: { owner: 'editorial' },
+  };
+  const v2 = migrateToTimelineV2({ overlays: [callout] });
+  const serialized = serializeTimelineV2ToManifest(v2);
+
+  assert.equal(v2.overlays[0].track_id, 'track-o1');
+  assert.equal(v2.overlays[0].role, 'product_callout');
+  assert.equal(v2.overlays[0].source_beat_id, 'beat-07');
+  assert.equal(v2.overlays[0].template_id, 'feature-pop-v2');
+  assert.equal(v2.overlays[0].theme_role, 'secondary');
+  assert.deepEqual(v2.overlays[0].future_metadata, { owner: 'editorial' });
+  assert.equal(serialized.overlays[0].role, 'product_callout');
+  assert.equal(serialized.overlays[0].callout_type, 'feature');
+  assert.equal(serialized.overlays[0].source_beat_id, 'beat-07');
+  assert.equal(serialized.overlays[0].template_id, 'feature-pop-v2');
+  assert.equal(serialized.overlays[0].theme_role, 'secondary');
+  assert.deepEqual(serialized.overlays[0].future_metadata, { owner: 'editorial' });
+});
+
 test('updateTrackProperty immutably updates single track without side effects', () => {
   const tracks = createDefaultTracks();
   const updated = updateTrackProperty(tracks, 'track-v1', 'locked', true);

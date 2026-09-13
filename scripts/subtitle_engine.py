@@ -550,6 +550,22 @@ class SubtitleEngine:
         hook_overlay = next((o for o in live_overlays if o.get("kind") == "hook"), None)
         text_items = [o for o in live_overlays if o.get("kind") != "hook"]
 
+        # Product callouts are the editable replacement for the legacy
+        # sentence-level SpecBar.  Keep the legacy SpecBar fallback for old
+        # callers, but suppress it when the same value already exists as a
+        # live product-callout overlay so one `on_screen` value cannot be
+        # rendered twice.
+        product_callout_texts = set()
+        for item in text_items:
+            if item.get("role") != "product_callout":
+                continue
+            tiers = item.get("tiers") or []
+            first = tiers[0] if tiers and isinstance(tiers[0], dict) else {}
+            callout_text = first.get("text") or item.get("text") or item.get("value") or ""
+            normalized = " ".join(str(callout_text).split()).strip().casefold()
+            if normalized:
+                product_callout_texts.add(normalized)
+
         _hook_look = resolve_look((hook_overlay or {}).get("look"), None)
         hook_font = font_map.get(_hook_look["font"], _hook_look["font"])
         if hook_font not in {f["family"] for f in AssetRegistry.fonts()}:
@@ -864,6 +880,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         for cue in cues:
             on_screen = (cue.get("on_screen") or "").strip()
             if not on_screen:
+                continue
+            if " ".join(on_screen.split()).strip().casefold() in product_callout_texts:
                 continue
             spec_start = cls._format_ass_time(cue["start"])
             spec_end = cls._format_ass_time(cue["end"])

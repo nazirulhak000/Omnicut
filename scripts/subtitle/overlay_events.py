@@ -4,7 +4,7 @@ Unifies ASS event emission for both Hook Banner (3-tier) and Freeform Text Overl
 Mirrored by SequencePlayer.jsx:drawOneOverlay() on the frontend.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from scripts.asset_registry import AssetRegistry
 from scripts.overlay_model import ACCENT_COLOR, overlay_kind, resolve_look
 from scripts.style_motion_policy import style_visual_palette
@@ -19,6 +19,8 @@ from scripts.subtitle.font_metrics import (
     _measure_text_width_px,
     _hook_line_width_px,
     ass_glyph_scale,
+    repair_thai_stacked_marks,
+    THAI_STACKED_MARK_RAISE_EM,
 )
 from scripts.subtitle.motion_effects import (
     _resolve_hook_motion,
@@ -50,6 +52,68 @@ def _format_ass_time(seconds: float) -> str:
     if cs >= 100:
         cs = 99
     return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
+
+
+def _is_product_callout(item: Dict[str, Any]) -> bool:
+    """Opt into the callout-only Thai mark adapter without changing legacy text."""
+    return str(item.get("role") or "").strip().lower() == "product_callout"
+
+
+def _repair_callout_text(text: str, enabled: bool) -> Tuple[str, List[Tuple[str, str, str]]]:
+    """Return layout-preserving body text plus detached tone companions."""
+    if not enabled:
+        return text, []
+    return repair_thai_stacked_marks(text)
+
+
+def _hidden_callout_mark_text(parts: Tuple[str, str, str]) -> str:
+    """Keep the original run's advances while exposing only its tone mark."""
+    before, tone, after = parts
+    hidden = r"{\1a&HFF&\3a&HFF&\4a&HFF&}"
+    visible = r"{\bord1\shad1\1a&HFF&\3a&HFF&\4a&HFF&\t(0,70,\1a&H00&\3a&H00&\4a&H00&)}"
+    return f"{hidden}{ass_escape_text(before)}{visible}{ass_escape_text(tone)}{hidden}{ass_escape_text(after)}"
+
+
+def _callout_center_position(
+    x: float,
+    y: float,
+    tone_raise: int,
+    anim_in: str,
+    move_dy_out: Optional[float],
+    exit_start_ms: int,
+    exit_end_ms: int,
+) -> str:
+    """Mirror the parent text event's motion with the detached tone raised."""
+    raised_y = y - tone_raise
+    if anim_in == "rise":
+        return f"\\an5\\move({x},{y + 40 - tone_raise},{x},{raised_y},0,200)"
+    if move_dy_out is not None:
+        return f"\\an5\\move({x},{raised_y},{x},{raised_y + move_dy_out},{exit_start_ms},{exit_end_ms})"
+    return f"\\an5\\pos({x},{raised_y})"
+
+
+def _callout_word_position(
+    x: float,
+    y: float,
+    tone_raise: int,
+    anim_in: str,
+    move_dy_out: Optional[float],
+    exit_start_ms: int,
+    exit_end_ms: int,
+    word_t0: int,
+    word_t1: int,
+    dx: float,
+    dy: float,
+) -> str:
+    """Word-level equivalent of ``_callout_center_position`` for \an7."""
+    x += dx
+    y += dy
+    raised_y = y - tone_raise
+    if anim_in == "rise":
+        return f"\\q2\\an7\\move({x:.1f},{y + 40 - tone_raise:.1f},{x:.1f},{raised_y:.1f},{word_t0},{word_t1})"
+    if move_dy_out is not None:
+        return f"\\q2\\an7\\move({x:.1f},{raised_y:.1f},{x:.1f},{raised_y + move_dy_out:.1f},{exit_start_ms},{exit_end_ms})"
+    return f"\\q2\\an7\\pos({x:.1f},{raised_y:.1f})"
 
 
 def overlay_events(overlay: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]:
@@ -335,6 +399,7 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
 
 def _text_overlay_events(item: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]:
     events = []
+    is_product_callout = _is_product_callout(item)
     video_width = ctx.get("video_width", 1080)
     video_height = ctx.get("video_height", 1920)
     base_fs = ctx.get("base_fs", 50)
@@ -449,6 +514,11 @@ def _text_overlay_events(item: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]
     render_fs = int(round(base_fs * scale))
     line_list = [l.strip() for l in txt.split("\n") if l.strip()]
     clean_lines = "\\N".join(line_list)
+    # The canvas uses the em-sized render mirror (25px at 1080p); this is the
+    # corresponding PlayRes-sized optical raise for the detached tone event.
+    # Do not apply this to legacy text overlays: their existing glyph output is
+    # part of the compatibility contract.
+    tone_raise = max(6, int(round(render_fs * THAI_STACKED_MARK_RAISE_EM)))
 
     from scripts.subtitle.word_layout import layout_overlay
     overlay_layout = item.get("layout")
@@ -605,7 +675,8 @@ def _text_overlay_events(item: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]
                 # were already measured against the unescaped word by
                 # layout_overlay(), so escaping only here -- at the final embed
                 # -- doesn't disturb that positioning math).
-                w_text_safe = ass_escape_text(w_text)
+                repaired_word, word_companions = _repair_callout_text(w_text, is_product_callout)
+                w_text_safe = ass_escape_text(repaired_word)
                 if shadow and shad_color:
                     if anim_in == "rise":
                         s_pos = f"\\q2\\an7\\move({w_x + shad_dx:.1f},{line_y + shad_dy + 40:.1f},{w_x + shad_dx:.1f},{line_y + shad_dy:.1f},{word_t0},{t1})"
@@ -615,9 +686,31 @@ def _text_overlay_events(item: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]
                         s_pos = f"\\q2\\an7\\pos({w_x + shad_dx:.1f},{line_y + shad_dy:.1f})"
                     s_tag = f"{s_pos}{font_tag}{skew_tag}{w_anim}{loop_tag}\\c{shad_color}&\\blur{shad_blur:.1f}{out_tag}"
                     events.append(f"Dialogue: 3,{start_t},{end_t},TextOverlayShadow,,0,0,0,,{{{s_tag}}}{w_text_safe}")
+                    for parts in word_companions:
+                        tone_s_pos = _callout_word_position(
+                            w_x, line_y, tone_raise, anim_in, move_dy_out,
+                            exit_start_ms, exit_end_ms, word_t0, word_t0 + in_dur,
+                            shad_dx, shad_dy,
+                        )
+                        tone_s_tag = f"{tone_s_pos}{font_tag}{skew_tag}{w_anim}{loop_tag}\\c{shad_color}&\\blur{shad_blur:.1f}{out_tag}"
+                        events.append(
+                            f"Dialogue: 3,{start_t},{end_t},TextOverlayShadow,,0,0,0,,"
+                            f"{{{tone_s_tag}}}{_hidden_callout_mark_text(parts)}"
+                        )
 
                 w_content_tag = f"{w_pos}{font_tag}{skew_tag}{w_anim}{loop_tag}\\c{color_hex}&{outline_tag}{out_tag}"
                 events.append(f"Dialogue: 4,{start_t},{end_t},TextOverlayMain,,0,0,0,,{{{w_content_tag}}}{w_text_safe}")
+                for parts in word_companions:
+                    tone_pos = _callout_word_position(
+                        w_x, line_y, tone_raise, anim_in, move_dy_out,
+                        exit_start_ms, exit_end_ms, word_t0, word_t0 + in_dur,
+                        0.0, 0.0,
+                    )
+                    tone_tag = f"{tone_pos}{font_tag}{skew_tag}{w_anim}{loop_tag}\\c{color_hex}&{outline_tag}{out_tag}"
+                    events.append(
+                        f"Dialogue: 4,{start_t},{end_t},TextOverlayMain,,0,0,0,,"
+                        f"{{{tone_tag}}}{_hidden_callout_mark_text(parts)}"
+                    )
 
         if anim_loop == "lightsweep":
             for line_info in lines_data:
@@ -639,7 +732,31 @@ def _text_overlay_events(item: Dict[str, Any], ctx: Dict[str, Any]) -> List[str]
             pos_tag = f"\\an5\\pos({x_pos},{y_pos})"
 
         content_tag = f"{pos_tag}{font_tag}{skew_tag}{anim_tag}{loop_tag}\\c{color_hex}&{outline_tag}{out_tag}"
+        repaired_lines = []
+        line_companions = []
+        for line_index, raw_line in enumerate(line_list):
+            repaired_line, companions = _repair_callout_text(raw_line, is_product_callout)
+            repaired_lines.append(repaired_line)
+            line_companions.append((line_index, companions))
+        clean_lines = "\\N".join(repaired_lines)
         events.append(f"Dialogue: 4,{start_t},{end_t},TextOverlayMain,,0,0,0,,{{{content_tag}}}{ass_escape_text(clean_lines)}")
+
+        if is_product_callout and any(companions for _, companions in line_companions):
+            line_h = round(render_fs * LINE_HEIGHT_FACTOR)
+            total_h = len(line_list) * line_h
+            block_top = y_pos - total_h / 2
+            for line_index, companions in line_companions:
+                line_y = block_top + line_index * line_h + line_h / 2
+                for parts in companions:
+                    tone_pos = _callout_center_position(
+                        x_pos, line_y, tone_raise, anim_in, move_dy_out,
+                        exit_start_ms, exit_end_ms,
+                    )
+                    tone_tag = f"{tone_pos}{font_tag}{skew_tag}{anim_tag}{loop_tag}\\c{color_hex}&{outline_tag}{out_tag}"
+                    events.append(
+                        f"Dialogue: 4,{start_t},{end_t},TextOverlayMain,,0,0,0,,"
+                        f"{{{tone_tag}}}{_hidden_callout_mark_text(parts)}"
+                    )
 
         if anim_loop == "lightsweep":
             line_h = round(render_fs * LINE_HEIGHT_FACTOR)

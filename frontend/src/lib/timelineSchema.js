@@ -6,7 +6,47 @@
  * serialization back to legacy manifest schema.
  */
 
+import {
+  normalizeProductCallout,
+  PRODUCT_CALLOUT_ROLE,
+} from './productCallout.js';
+
 export const TIMELINE_SCHEMA_VERSION = 2;
+
+/**
+ * Normalize only canonical Product Callouts. Spreading the source overlay
+ * first keeps forward-compatible/unknown metadata lossless across v1 <-> v2.
+ */
+function normalizeOverlayForTimeline(overlay) {
+  if (!overlay || typeof overlay !== 'object' || Array.isArray(overlay)) return overlay;
+  if (overlay.role !== PRODUCT_CALLOUT_ROLE) return { ...overlay };
+  return mergeLossless(overlay, normalizeProductCallout(overlay));
+}
+
+function isRecord(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function cloneValue(value) {
+  if (Array.isArray(value)) return value.map(cloneValue);
+  if (isRecord(value)) return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, cloneValue(item)]));
+  return value;
+}
+
+function mergeLossless(raw, normalized) {
+  if (Array.isArray(normalized)) {
+    return normalized.map((item, index) => mergeLossless(Array.isArray(raw) ? raw[index] : undefined, item));
+  }
+  if (isRecord(normalized)) {
+    const source = isRecord(raw) ? raw : {};
+    const merged = Object.fromEntries(Object.entries(source).map(([key, value]) => [key, cloneValue(value)]));
+    for (const [key, value] of Object.entries(normalized)) {
+      merged[key] = mergeLossless(source[key], value);
+    }
+    return merged;
+  }
+  return cloneValue(normalized);
+}
 
 /**
  * Creates default multi-track descriptor for a project.
@@ -107,7 +147,7 @@ export function migrateToTimelineV2(manifest = {}) {
       schema_version: TIMELINE_SCHEMA_VERSION,
       tracks: manifest.tracks.map((t) => ({ ...t })),
       clips: Array.isArray(manifest.cuts || manifest.clipList) ? (manifest.cuts || manifest.clipList).map((c) => ({ ...c })) : [],
-      overlays: Array.isArray(manifest.overlays) ? manifest.overlays.map((o) => ({ ...o })) : [],
+      overlays: Array.isArray(manifest.overlays) ? manifest.overlays.map(normalizeOverlayForTimeline) : [],
       cues: Array.isArray(manifest.cues) ? manifest.cues.map((c) => ({ ...c })) : [],
       audioStems: { ...(manifest.audioStems || {}) },
     };
@@ -139,7 +179,7 @@ export function migrateToTimelineV2(manifest = {}) {
 
   // Normalize overlays onto track-o1
   const overlays = (Array.isArray(manifest.overlays) ? manifest.overlays : []).map((ov, idx) => ({
-    ...ov,
+    ...normalizeOverlayForTimeline(ov),
     id: ov.id || `overlay-${idx + 1}`,
     track_id: ov.track_id || 'track-o1',
     keyframes: Array.isArray(ov.keyframes) ? ov.keyframes : [],
@@ -246,7 +286,7 @@ export function serializeTimelineV2ToManifest(timelineV2, baseManifest = {}) {
       track_id: c.track_id || 'track-v1',
       keyframes: Array.isArray(c.keyframes) ? c.keyframes : [],
     })),
-    overlays: overlays.map((o) => ({ ...o })),
+    overlays: overlays.map(normalizeOverlayForTimeline),
     cues: cues.map((c) => ({ ...c })),
     audioStems: updatedAudioStems,
   };

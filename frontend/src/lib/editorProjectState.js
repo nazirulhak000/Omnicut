@@ -1,5 +1,9 @@
 import { migrateToOverlays } from './overlayModel.js';
 import { getOverlayRecolorMetadata } from './overlayRecolor.js';
+import {
+  normalizeProductCallout,
+  PRODUCT_CALLOUT_ROLE,
+} from './productCallout.js';
 import { FADE_DURATION } from './timelineMath.js';
 
 export const EMPTY_TRACK_MIX = Object.freeze({ mute: {}, solo: {} });
@@ -10,6 +14,47 @@ function firstPresent(...values) {
 
 function firstNonEmptyArray(...values) {
   return values.find((value) => Array.isArray(value) && value.length > 0) || [];
+}
+
+function isRecord(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function cloneValue(value) {
+  if (Array.isArray(value)) return value.map(cloneValue);
+  if (isRecord(value)) return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, cloneValue(item)]));
+  return value;
+}
+
+/** Merge normalized fields while retaining unknown nested metadata for future schema versions. */
+function mergeLossless(raw, normalized) {
+  if (Array.isArray(normalized)) {
+    return normalized.map((item, index) => mergeLossless(Array.isArray(raw) ? raw[index] : undefined, item));
+  }
+  if (isRecord(normalized)) {
+    const source = isRecord(raw) ? raw : {};
+    const merged = Object.fromEntries(Object.entries(source).map(([key, value]) => [key, cloneValue(value)]));
+    for (const [key, value] of Object.entries(normalized)) {
+      merged[key] = mergeLossless(source[key], value);
+    }
+    return merged;
+  }
+  return cloneValue(normalized);
+}
+
+/**
+ * Keep the editor's overlay contract lossless while adding defaults only to
+ * canonical Product Callouts. Legacy overlays must remain byte-for-byte
+ * compatible at the field level, including unknown metadata.
+ */
+function normalizeOverlayForPersistence(overlay) {
+  if (!overlay || typeof overlay !== 'object' || Array.isArray(overlay)) return overlay;
+  if (overlay.role !== PRODUCT_CALLOUT_ROLE) return { ...overlay };
+  return mergeLossless(overlay, normalizeProductCallout(overlay));
+}
+
+export function serializeOverlays(overlays = []) {
+  return Array.isArray(overlays) ? overlays.map(normalizeOverlayForPersistence) : [];
 }
 
 export function manifestToEditorState(data, options = {}) {
@@ -171,7 +216,7 @@ export function manifestToEditorState(data, options = {}) {
     clipList,
     cuesList,
     microCuesList: Array.isArray(manifest.micro_cues) ? manifest.micro_cues : [],
-    overlays: migrateToOverlays(manifest),
+    overlays: serializeOverlays(migrateToOverlays(manifest)),
     stickers,
     effects,
     style,
@@ -256,7 +301,7 @@ export function editorStateToSavePayload({ clipList, cuesList, microCuesList, st
     style: serializeStyle(style),
     stickers: Array.isArray(stickers) ? stickers : [],
     effects: Array.isArray(effects) ? effects : [],
-    overlays: Array.isArray(overlays) ? overlays : [],
+    overlays: serializeOverlays(overlays),
     track_mix: mix,
     audio_mutes: mix.mute || {},
   };

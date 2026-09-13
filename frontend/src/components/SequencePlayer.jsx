@@ -845,6 +845,39 @@ function drawCaptionText(ctx, text, x, y, fontSize, drawText, repairThaiMarks = 
   }
 }
 
+// Product callouts are editorial overlays, but Thai shaping still needs the
+// same two-level repair as captions. Keep the opt-in flag local to callouts so
+// legacy text overlays retain their exact historical glyph output.
+function drawProductCalloutText(ctx, text, x, y, fontSize, drawText, repairThaiMarks = false) {
+  if (!repairThaiMarks) {
+    drawText(text, x, y);
+    return;
+  }
+  const matches = [...String(text).matchAll(THAI_STACKED_MARK_RE)];
+  if (matches.length === 0) {
+    drawText(text, x, y);
+    return;
+  }
+
+  const body = String(text).replace(THAI_STACKED_MARK_RE, '$1');
+  drawText(body, x, y);
+  for (const match of matches) {
+    const pairAt = match.index;
+    if (pairAt < 1) continue;
+    const baseAt = pairAt - 1;
+    const prefix = String(text).slice(0, baseAt).replace(THAI_STACKED_MARK_RE, '$1');
+    const base = String(text)[baseAt];
+    const toneX = x + ctx.measureText(prefix).width + ctx.measureText(base).width;
+    const oldLineWidth = ctx.lineWidth;
+    // ASS companion events use a one-pixel render outline. This is the
+    // half-resolution Canvas equivalent, preventing a narrow tone from
+    // becoming a dark block above the callout.
+    ctx.lineWidth = Math.max(1, Math.round(fontSize * 2 * 0.02));
+    drawText(match[2], toneX, y - Math.max(4, Math.round(fontSize * THAI_STACKED_MARK_RAISE_EM)));
+    ctx.lineWidth = oldLineWidth;
+  }
+}
+
 function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
   if (!cue || !cue.text) return;
   const globalScale = Math.min(2.5, Math.max(0.5, style.captionScale ?? 1.0));
@@ -1578,6 +1611,7 @@ function drawOverlays(ctx, overlays = [], t, accentColor = '#FFE600', outBounds 
 
 function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
   const renderProfile = overlayRenderProfile(overlay);
+  const repairThaiMarks = overlay.role === 'product_callout';
   const motion = { ...renderProfile.defaultAnim, ...(overlay.anim || {}) };
   const duration = Math.max(0.001, overlay.end - overlay.start);
   // Every animation clock is relative to the overlay's own start. The banner
@@ -2068,7 +2102,11 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
             if (hasSkew) ctx.transform(1, 0, w.look.skew, 1, 0, 0);
             ctx.translate(-wordCx, -wordCy);
           }
-          ctx.strokeText(wordItem.text, wx, targetY);
+          drawProductCalloutText(
+            ctx, wordItem.text, wx, targetY, w.settledFs,
+            (value, px, py) => ctx.strokeText(value, px, py),
+            repairThaiMarks,
+          );
           ctx.restore();
         }
       }
@@ -2117,7 +2155,11 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
           if (hasSkew) ctx.transform(1, 0, w.look.skew, 1, 0, 0);
           ctx.translate(-wordCx, -wordCy);
         }
-        drawTextWithMonoEmoji(ctx, wordItem.text, wx, targetY);
+        drawProductCalloutText(
+          ctx, wordItem.text, wx, targetY, w.settledFs,
+          (value, px, py) => drawTextWithMonoEmoji(ctx, value, px, py),
+          repairThaiMarks,
+        );
         if (w.look.underline) {
           ctx.save();
           ctx.strokeStyle = w.color;
@@ -2175,11 +2217,19 @@ function drawOneOverlay(ctx, overlay, t, accentColor, outBounds) {
         ctx.lineWidth = w.look.outline_px;
         ctx.lineJoin = 'round';
         ctx.miterLimit = 2;
-        ctx.strokeText(w.line, lineX, lineY, maxW);
+        drawProductCalloutText(
+          ctx, w.line, lineX, lineY, renderFs,
+          (value, px, py) => ctx.strokeText(value, px, py, maxW),
+          repairThaiMarks,
+        );
       }
       ctx.shadowColor = 'transparent';
       ctx.fillStyle = w.color;
-      drawTextWithMonoEmoji(ctx, w.line, lineX, lineY);
+      drawProductCalloutText(
+        ctx, w.line, lineX, lineY, renderFs,
+        (value, px, py) => drawTextWithMonoEmoji(ctx, value, px, py),
+        repairThaiMarks,
+      );
       if (w.look.underline) {
         ctx.save();
         ctx.strokeStyle = w.color;
