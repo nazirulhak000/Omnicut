@@ -90,6 +90,64 @@ export function savePlaybookNotes(notes) {
 }
 
 /**
+ * Add a new idea or ref note to the collection.
+ */
+export function addPlaybookNote(note, currentNotes = []) {
+  const newNote = {
+    id: note.id || `idea-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    text: note.text || '',
+    url: note.url ? note.url.trim() : undefined,
+    imageUrl: note.imageUrl || undefined,
+    tag: note.tag || 'Hook',
+    productId: note.productId || undefined,
+    productName: note.productName || undefined,
+    productCode: note.productCode || undefined,
+    createdAt: note.createdAt || new Date().toISOString(),
+    aiAnalysis: note.aiAnalysis || undefined,
+  };
+  const updated = [newNote, ...currentNotes];
+  savePlaybookNotes(updated);
+  return updated;
+}
+
+/**
+ * Delete an idea or ref note.
+ */
+export function deletePlaybookNote(noteId, currentNotes = []) {
+  const updated = currentNotes.filter(n => n.id !== noteId);
+  savePlaybookNotes(updated);
+  return updated;
+}
+
+/**
+ * Update an existing idea or ref note.
+ */
+export function updatePlaybookNote(noteId, updates = {}, currentNotes = []) {
+  const updated = currentNotes.map(n => {
+    if (n.id === noteId) {
+      return { ...n, ...updates, updatedAt: new Date().toISOString() };
+    }
+    return n;
+  });
+  savePlaybookNotes(updated);
+  return updated;
+}
+
+/**
+ * Detect social / video platform from URL.
+ */
+export function detectRefPlatform(url = '') {
+  if (!url || typeof url !== 'string') return null;
+  const lower = url.toLowerCase();
+  if (lower.includes('tiktok.com') || lower.includes('vt.tiktok')) return 'tiktok';
+  if (lower.includes('pinterest.com') || lower.includes('pin.it')) return 'pinterest';
+  if (lower.includes('youtube.com') || lower.includes('youtu.be')) return 'youtube';
+  if (lower.includes('instagram.com')) return 'instagram';
+  if (lower.startsWith('http://') || lower.startsWith('https://')) return 'web';
+  return null;
+}
+
+/**
  * Helper to get Monday 00:00:00 of the week for a given date.
  */
 export function getMondayOfWeek(d = new Date()) {
@@ -335,11 +393,71 @@ export function getDailyActionQueue(products = [], exports = []) {
     });
   });
 
+  // Apply round-robin product diversification:
+  // Split readyToCut into in_production (urgent) and scripted, diversify each, then combine
+  const inProd = readyToCut.filter(i => i.status === 'in_production');
+  const scripted = readyToCut.filter(i => i.status !== 'in_production');
+  const diversifiedCut = [
+    ...diversifyByProduct(inProd),
+    ...diversifyByProduct(scripted),
+  ];
+  const diversifiedFootage = diversifyByProduct(needsFootage);
+
+  // Calculate unique products across the action queue for filtering
+  const allActionItems = [...readyToPost, ...diversifiedCut, ...diversifiedFootage];
+  const productCountMap = new Map();
+  allActionItems.forEach(item => {
+    const key = item.parentProduct?.id || item.productCode || item.productName;
+    if (!key) return;
+    if (!productCountMap.has(key)) {
+      productCountMap.set(key, {
+        id: item.parentProduct?.id || key,
+        code: item.productCode || '',
+        name: item.productName || key,
+        count: 0,
+      });
+    }
+    productCountMap.get(key).count++;
+  });
+
   return {
     readyToPost,
-    readyToCut,
-    needsFootage,
+    readyToCut: diversifiedCut,
+    needsFootage: diversifiedFootage,
+    productsInQueue: Array.from(productCountMap.values()),
   };
+}
+
+/**
+ * Distributes queue items across products in a balanced round-robin fashion
+ * so no single product with many angles dominates the daily feed.
+ */
+export function diversifyByProduct(items = []) {
+  if (!items || items.length <= 1) return items || [];
+
+  const groups = new Map();
+  items.forEach(item => {
+    const key = item.parentProduct?.id || item.productCode || item.productName || 'misc';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(item);
+  });
+
+  const result = [];
+  let addedInRound = true;
+  let round = 0;
+
+  while (addedInRound) {
+    addedInRound = false;
+    for (const list of groups.values()) {
+      if (round < list.length) {
+        result.push(list[round]);
+        addedInRound = true;
+      }
+    }
+    round++;
+  }
+
+  return result;
 }
 
 /**

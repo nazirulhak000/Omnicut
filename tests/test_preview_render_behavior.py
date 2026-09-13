@@ -394,7 +394,7 @@ def test_thai_stacked_marks_keep_settled_geometry_during_caption_entrance(tmp_pa
         # unrelated to this test's caption-entrance timing, so blank that
         # column out before measuring ink. Matches the column the editor's
         # own safe-zone guide reserves (SequencePlayer.jsx: right 11.1%).
-        watermark_column_left = int(round(image.width * 0.88))
+        watermark_column_left = int(round(image.width * 0.82))
         mask.paste(0, (watermark_column_left, 0, image.width, image.height))
         return mask.getbbox()
 

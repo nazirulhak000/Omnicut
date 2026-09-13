@@ -110,7 +110,7 @@ LINE_HEIGHT_FACTOR = 1.0
 WATERMARK_TEXT = "สงวนลิขสิทธิ์ช่อง rizantry ห้ามคัดลอก/ดัดแปลง"
 WATERMARK_X_RATIO = 0.945   # centre of the 11.1%-wide right safe-zone column
 WATERMARK_Y_RATIO = 0.4375  # vertical centre of that column's 9.4%-78.1% span
-WATERMARK_FS_RATIO = 0.026  # small corner mark -- independent of the 0.0463 caption ratio
+WATERMARK_FS_RATIO = 0.052  # small corner mark -- independent of the 0.0463 caption ratio
 
 # Where the caption block sits: (ASS alignment, vertical margin).
 # 2 = bottom centre, 5 = middle centre, 8 = top centre.

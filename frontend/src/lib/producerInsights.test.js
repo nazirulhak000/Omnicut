@@ -11,6 +11,8 @@ import {
   analyzeContentPerformance,
   calculateWeeklyPacing,
   autoSuggestPlaybookNotes,
+  diversifyByProduct,
+  detectRefPlatform,
 } from './producerInsights.js';
 
 test('getMondayOfWeek and getSundayOfWeek calculate Monday to Sunday interval correctly', () => {
@@ -191,5 +193,37 @@ test('autoSuggestPlaybookNotes suggests notes and checks duplicates', () => {
   assert.equal(suggestions[0].alreadySaved, false);
   assert.equal(suggestions[1].tag, 'Audio');
   assert.equal(suggestions[1].alreadySaved, true);
+});
+
+test('diversifyByProduct round-robins items across products fairly', () => {
+  const items = [
+    { id: '1', productCode: 'PROD_A', title: 'A1' },
+    { id: '2', productCode: 'PROD_A', title: 'A2' },
+    { id: '3', productCode: 'PROD_A', title: 'A3' },
+    { id: '4', productCode: 'PROD_B', title: 'B1' },
+    { id: '5', productCode: 'PROD_B', title: 'B2' },
+    { id: '6', productCode: 'PROD_C', title: 'C1' },
+  ];
+
+  const diversified = diversifyByProduct(items);
+  // Round 0: A1, B1, C1
+  // Round 1: A2, B2
+  // Round 2: A3
+  assert.equal(diversified[0].id, '1');
+  assert.equal(diversified[1].id, '4');
+  assert.equal(diversified[2].id, '6');
+  assert.equal(diversified[3].id, '2');
+  assert.equal(diversified[4].id, '5');
+  assert.equal(diversified[5].id, '3');
+});
+
+test('detectRefPlatform recognizes social URLs accurately', () => {
+  assert.equal(detectRefPlatform('https://www.tiktok.com/@user/video/123456789'), 'tiktok');
+  assert.equal(detectRefPlatform('https://vt.tiktok.com/ZS99999/'), 'tiktok');
+  assert.equal(detectRefPlatform('https://pin.it/7xK9m'), 'pinterest');
+  assert.equal(detectRefPlatform('https://www.pinterest.com/pin/12345/'), 'pinterest');
+  assert.equal(detectRefPlatform('https://www.youtube.com/watch?v=abc'), 'youtube');
+  assert.equal(detectRefPlatform('https://example.com/blog'), 'web');
+  assert.equal(detectRefPlatform('just some random note'), null);
 });
 

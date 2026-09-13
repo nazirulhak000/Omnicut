@@ -8,6 +8,7 @@
 
 ## สารบัญ
 
+| Round IDEA-REF-VAULT-1 | คลังไอเดียและเรฟ (Idea & Ref Vault), Round-Robin Diversified Queue, และ Mobile View (iPhone 15 Pro Max) | 2026-09-13 | สำเร็จสมบูรณ์ (คลังไอเดีย & เรฟด้านบนสุด, รองรับแนบลิงก์ TikTok/Pinterest + รูปแคปหน้าจอ, จัดคิว Round-Robin กระจายสินค้าไม่ผูกขาด, ฟิลเตอร์สินค้าในคิว, AI Idea-to-Script ต่อมุมมองสินค้า 1-click, มุมมองมือถือ iPhone 15 Pro Max `?view=quick-ref`, npm test 180 passed, backend pytest parity 153 passed, build 4.10s, desktop & mobile browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round AI-PRODUCER-ELEVATION-1 | ยกระดับ Producer Hub: Spotlight Next Mission, Pacing Calculator, 1-Click Playbook Add, และ Pre-flight Editor Tips | 2026-09-13 | สำเร็จสมบูรณ์ (Next Action Spotlight Hero card, Weekly Pacing Calculator badge, 1-Click Playbook Suggestion Sync, Quick Script Preview modal, Pre-flight Editor Playbook Tips modal, npm test 178 passed, build 3.34s, browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round AI-PRODUCER-HUB-1 | พัฒนาเมนูใหม่ "ผู้ช่วยโปรดิวเซอร์ส่วนตัว" (AI Producer Hub & Daily Mission Center) | 2026-09-13 | สำเร็จสมบูรณ์ (แบนเนอร์เรียกเจ้านาย, คุมโควตา 35 คลิป, Daily Action Queue 3 ระดับ, AI Retrospective, Boss Playbook, npm test 176 passed, build 3.36s, browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round UI-LAST-UPDATED-TIMESTAMP-1 | แสดงวันที่และเวลาอัปเดตล่าสุด (Relative + Full Tooltip) ใน Dropdown ไทม์ไลน์ และบนการ์ด Tracker | 2026-09-13 | สำเร็จสมบูรณ์ (แสดงเวลาสัมพัทธ์ไทย + tooltip เวลาเต็ม ทั้งใน ProjectSelector และ Tracker cards, npm test 170 passed, build 3.92s, browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
@@ -19,6 +20,55 @@
 | Round UI-POLISH-HEADER-1 | แก้ฟอนต์กล่องแดง Topbar (ถอด font-mono) + ตัด 2 Badge สินค้า + ขยายหัวข้อสินค้าเน้นๆ ใหญ่ๆ | 2026-09-12 | สำเร็จสมบูรณ์ (ถอด font-mono จากป้ายแท็บ Topbar ให้สืบทอด Global UI Font, ตัด price_note และ tiktok_id ออกจาก PageHeader สินค้า, ขยายชื่อสินค้าเป็น text-2xl font-black, vitest 152 passed, build 3.49s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round SHOTLIST-GEMINI-TTS-SSOT-1 | ระบบรวมศูนย์เสียง TTS (Gemini Flash Audio SSOT): แผนถ่าย & ตัดต่อจริงใช้เสียงเดียวกัน 100% ไม่เจนซ้ำ | 2026-09-12 | สำเร็จสมบูรณ์ (pytest 1,125 passed, vitest 158 passed, build 3.40s, browser verified, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round SHOT-GAP-FIX-1 | แก้ช่องว่าง (Gap) ระหว่างช็อตใน Shot Matching Stage — 2 bugs: cut_points เริ่มที่ 0.0 แทน first-cue start, MERGE_TOLERANCE แคบเกิน | 2026-09-12 | สำเร็จสมบูรณ์ (compileall pass, pytest 1126 passed, ดำเนินการโดย: Antigravity (Claude Sonnet 4.6)) |
+
+---
+
+## Round IDEA-REF-VAULT-1 — คลังไอเดียและเรฟ (Idea & Ref Vault), Round-Robin Diversified Queue, และ Mobile View (iPhone 15 Pro Max)
+
+วันที่: 2026-09-13 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
+ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+**เป้าหมาย:**
+1. **แก้ปัญหา Daily Action Queue แสดงแต่สินค้าเดียว:** ปรับอัลกอริทึมเป็น Round-Robin / Diversified Product Distribution ดึงมุมมองสลับระหว่างสินค้า ไม่ให้สินค้าตัวใดตัวหนึ่งกินโควตาทั้งวัน พร้อมปุ่มฟิลเตอร์สินค้า
+2. **ยกระดับสมุดจดเป็น Idea & Ref Vault:** ย้ายขึ้นมาด้านบนเด่นชัด รองรับการแปะลิงก์ TikTok/Pinterest, อัปโหลดรูปภาพเรฟ, ผูกสินค้า และถอดสัญลักษณ์ซ้ำซ้อน (`+ จด` -> `บันทึกไอเดีย`) ตาม `ui_clean_standard.md`
+3. **Mobile Quick-Capture (iPhone 15 Pro Max):** ออกแบบเลย์เอาท์ให้ responsive พอดีจอ 430px และรองรับ URL `?view=quick-ref` ให้กด Add to Home Screen เพื่อเปิดบันทึกไอเดียได้ใน 2 วินาที
+4. **AI Idea-to-Script:** ปุ่มส่งไอเดีย/เรฟให้ AI วิเคราะห์สกัดเป็น Hook + มุมมองถ่าย + สคริปต์ย่อ พร้อมปุ่ม 1-click เพิ่มเป็นมุมมองสินค้า (Add to Angles) เข้าสู่กระบวนการผลิต
+
+**สิ่งที่ทำ:**
+1. อัปเดต `frontend/src/lib/producerInsights.js`:
+   - พัฒนาฟังก์ชัน `diversifyByProduct(items)` กระจายสินค้าแบบ Round-Robin Interleaving ป้องกันไม่ให้สินค้าตัวแรกยึดคิวทั้งวัน
+   - ปรับปรุง `getDailyActionQueue(products, projects, quotaToday)` ให้ใช้ `diversifyByProduct` กับรายการรอตัดต่อและรอถ่าย พร้อมส่งออก `productsInQueue` เพื่อทำแท็บฟิลเตอร์
+   - เพิ่มฟังก์ชันจัดการบันทึก: `addPlaybookNote`, `deletePlaybookNote`, `updatePlaybookNote`, และ `detectRefPlatform` (ตรวจจับ TikTok, Pinterest, YouTube, Instagram)
+2. เขียน Unit Tests `frontend/src/lib/producerInsights.test.js`:
+   - เพิ่มการทดสอบ `diversifyByProduct` แบบ Round-Robin กระจายสินค้าหลายตัวสลับกัน
+   - เพิ่มการทดสอบ `detectRefPlatform` ตรวจจับ URL โซเชียลมีเดีย
+   - ทดสอบรวมทั้งหมด **180/180 tests passed**
+3. พัฒนา Backend API:
+   - สร้าง `scripts/api_producer.py`:
+     - `POST /api/producer/upload-ref-media`: บันทึกรูปภาพหรือ screenshot เรฟลงใน `02_Assets/Refs/` อย่างปลอดภัย
+     - `GET /api/producer/ref-media/{filename}`: เสิร์ฟไฟล์มีเดียเรฟ
+     - `POST /api/producer/ai-idea-to-angle`: สังเคราะห์ไอเดีย/ลิงก์เรฟเป็น Hook + แผนถ่าย + สคริปต์ย่อ พร้อม Fallback หากไม่มี Gemini API Key
+   - เชื่อม `producer_router` ใน `scripts/api_server.py`
+4. อัปเดต Frontend API (`frontend/src/api.js`):
+   - เพิ่ม `uploadRefMedia` และ `aiIdeaToAngle`
+5. พัฒนา Mobile Quick-Capture Page (`frontend/src/components/producer/QuickRefPage.jsx`):
+   - ออกแบบ UI เฉพาะสำหรับ iPhone 15 Pro Max (390-430px) คลีน ไร้สัญลักษณ์ซ้ำซ้อน
+   - รองรับการแปะลิงก์ (ตรวจจับ badge แพลตฟอร์มอัตโนมัติ), แนบภาพถ่าย/แคปหน้าจอ, เลือกหมวดหมู่ และผูกสินค้า
+   - เชื่อมโยงใน `frontend/src/App.jsx` เมื่อเปิดผ่าน `?view=quick-ref` หรือ `?quick_ref=1`
+6. อัปเดต `frontend/src/components/producer/ProducerHub.jsx`:
+   - ย้ายคลังไอเดียและเรฟ (Idea & Ref Vault) ขึ้นมาไว้ใต้ Next Action Spotlight ด้านบนสุด
+   - Quick-Capture bar ใช้งานง่าย มีปุ่มเปิดโหมดมือถือ และพรีวิวรูปภาพเรฟ
+   - เพิ่มแท็บฟิลเตอร์สินค้าใน Daily Action Queue (`ทั้งหมด`, `[BLU01]`, `[LOG02]`, `[ESS01]`)
+   - เพิ่มปุ่ม "คิดสคริปต์จากเรฟ" และโมดอล `AiAngleProposalModal` ให้พรีวิวและกด "เพิ่มเป็นมุมมองสินค้า" ลงในสินค้าเป้าหมายได้ในคลิกเดียว
+   - เปลี่ยนคอลัมน์ล่างเดิมที่ซ้ำซ้อนเป็นการ์ด Studio Rules & Quality Standards
+
+### Gate & Verification Results:
+- [x] Node / Vitest Tests: `npm test` — 180/180 passed 100%
+- [x] Frontend Build: `npm run build` — 2003 modules transformed, build clean ใน 4.10s (แยก chunk QuickRefPage สมบูรณ์)
+- [x] Python Compilation: `.venv\Scripts\python.exe -m compileall -q scripts tests` — 0 errors
+- [x] Pytest Parity: `pytest tests/test_preview_render_parity.py` — 153/153 passed
+- [x] Visual Verification: Browser subagent ตรวจสอบทั้ง Desktop (Idea Vault ด้านบน, คิว Round-Robin หลากสินค้าพร้อมฟิลเตอร์) และ Mobile iPhone 15 Pro Max View (`?view=quick-ref` ขนาด 430x932) ผ่านสมบูรณ์ 100%
+
 
 ---
 

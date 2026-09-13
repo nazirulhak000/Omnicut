@@ -20,6 +20,7 @@ const SystemSettings = lazy(() => import('./components/SystemSettings'));
 const UserGuide = lazy(() => import('./components/UserGuide'));
 const MobileQuickPostPage = lazy(() => import('./components/MobileQuickPostPage'));
 const MobileFilmingPage = lazy(() => import('./components/MobileFilmingPage'));
+const QuickRefPage = lazy(() => import('./components/producer/QuickRefPage'));
 
 import { angleToForm } from './lib/angleToForm';
 import { applyUiScale, initUiScale } from './lib/uiScale';
@@ -33,6 +34,16 @@ export default function App() {
     try {
       const p = new URLSearchParams(window.location.search);
       return p.get('quick_post') === '1' || p.get('mobile_post') === '1';
+    } catch {
+      return false;
+    }
+  });
+
+  // Check if opened via Quick Ref Capture mode (?view=quick-ref or ?quick_ref=1)
+  const [isQuickRefMode] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      return p.get('view') === 'quick-ref' || p.get('quick_ref') === '1';
     } catch {
       return false;
     }
@@ -358,6 +369,16 @@ export default function App() {
       <div className={`h-screen w-screen overflow-y-auto bg-[#070A12] ${uiFont}`}>
         <Suspense fallback={<LoadingSpinner message="กำลังเปิดหน้าถ่ายทำ..." />}>
           <MobileFilmingPage sessionId={filmingSessionId} onExit={() => { window.location.href = window.location.pathname; }} />
+        </Suspense>
+      </div>
+    );
+  }
+
+  if (isQuickRefMode) {
+    return (
+      <div className={`h-screen w-screen overflow-y-auto bg-[#070A12] ${uiFont}`}>
+        <Suspense fallback={<LoadingSpinner message="กำลังเปิดคลังไอเดีย Quick-Capture..." />}>
+          <QuickRefPage onExit={() => { window.location.href = window.location.pathname; }} />
         </Suspense>
       </div>
     );

@@ -395,4 +395,18 @@ export const generateHookVariations = (payload) => api.post('/hooks/generate', p
 export const applyAngleHook = (payload) => api.post('/hooks/apply-angle', payload).then(r => r.data);
 export const applyProjectHook = (payload) => api.post('/hooks/apply-project', payload).then(r => r.data);
 
+// ═══════════════════════════════════════════════════════════════════════
+// 💡 AI PRODUCER HUB — IDEA & REF VAULT APIS
+// ═══════════════════════════════════════════════════════════════════════
+export const uploadRefMedia = (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return api.post('/producer/upload-ref-media', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then(r => r.data);
+};
+
+export const aiIdeaToAngle = (payload) =>
+  api.post('/producer/ai-idea-to-angle', payload).then(r => r.data);
+
 export default api;
