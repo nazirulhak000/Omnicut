@@ -1513,7 +1513,7 @@ function drawWatermark(ctx) {
   ctx.font = `600 ${fontSize}px 'IBM Plex Sans Thai', sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.lineWidth = Math.max(1, fontSize * 0.06);
+  ctx.lineWidth = Math.max(1.5, fontSize * 0.1);
   ctx.globalAlpha = WATERMARK_ALPHA;
   ctx.strokeStyle = '#FFFFFF';
   ctx.fillStyle = WATERMARK_COLOR;
