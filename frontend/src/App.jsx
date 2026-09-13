@@ -9,6 +9,7 @@ import { useKeyboardShortcuts } from './hooks';
 import { getSystemStatus, getRawVideos, getExports, updateAngleStatus, getProducts } from './api';
 
 // ── Lazy-loaded view chunks for Code Splitting ──
+const ProducerHub = lazy(() => import('./components/producer/ProducerHub'));
 const ProductToClip = lazy(() => import('./components/ProductToClip'));
 const ContentTrackerHub = lazy(() => import('./components/ContentTrackerHub'));
 const EditorShell = lazy(() => import('./components/editor/EditorShell'));
@@ -419,6 +420,22 @@ export default function App() {
             ) : (
             <main className="flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-5 lg:px-6 py-5 pb-20 md:pb-8 w-full min-w-0">
               <div className="mx-auto w-full min-w-0 max-w-[2200px] animate-fadeIn space-y-5">
+                {/* SECTION: ผู้ช่วยโปรดิวเซอร์ (Menu 0) */}
+                {activeTab === 'producer' && (
+                  <Suspense fallback={<LoadingSpinner message="กำลังโหลดผู้ช่วยโปรดิวเซอร์..." />}>
+                    <ProducerHub
+                      onApplyToStudio={handleApplyScriptFromLab}
+                      onGoToEditor={() => handlePrimaryTabChange('editor')}
+                      onGoToGallery={() => handlePrimaryTabChange('gallery')}
+                      onGoToFlow={(productId) => {
+                        if (productId) setSelectedProductIdForFlow(productId);
+                        handlePrimaryTabChange('flow');
+                      }}
+                      onGoToTracker={() => handlePrimaryTabChange('tracker')}
+                      onRefreshAll={refreshData}
+                    />
+                  </Suspense>
+                )}
 
                 {/* SECTION: สินค้า → คลิป (Menu 1) */}
                 {activeTab === 'flow' && (

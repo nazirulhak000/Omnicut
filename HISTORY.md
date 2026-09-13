@@ -8,6 +8,7 @@
 
 ## สารบัญ
 
+| Round AI-PRODUCER-HUB-1 | พัฒนาเมนูใหม่ "ผู้ช่วยโปรดิวเซอร์ส่วนตัว" (AI Producer Hub & Daily Mission Center) | 2026-09-13 | สำเร็จสมบูรณ์ (แบนเนอร์เรียกเจ้านาย, คุมโควตา 35 คลิป, Daily Action Queue 3 ระดับ, AI Retrospective, Boss Playbook, npm test 176 passed, build 3.36s, browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round UI-LAST-UPDATED-TIMESTAMP-1 | แสดงวันที่และเวลาอัปเดตล่าสุด (Relative + Full Tooltip) ใน Dropdown ไทม์ไลน์ และบนการ์ด Tracker | 2026-09-13 | สำเร็จสมบูรณ์ (แสดงเวลาสัมพัทธ์ไทย + tooltip เวลาเต็ม ทั้งใน ProjectSelector และ Tracker cards, npm test 170 passed, build 3.92s, browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round PAGINATION-1 | เพิ่ม client-side windowing ให้ 9 list endpoint ทั่วระบบ กัน UI ช้าเมื่อข้อมูลถึงหลักร้อย (แผนใน `PAGINATION_PLAN.md`) | 2026-09-13 | สำเร็จสมบูรณ์ (Phase 1: exports/products/videos/raw-vault/schedule-queue/tiktok-stats windowed ทั้ง 6, Phase 2: assets/all + dedup-scan windowed, clip-candidates ไม่ต้องแก้ (native select), Phase 3: 4 endpoint เช็คแล้วปลอดภัยอยู่แล้วทั้งหมด ไม่ต้องแก้โค้ด; pytest เต็มระบบ 1126 passed, vitest 158 passed ทุกรอบ, build ผ่านทุกจุด; browser verify ยังไม่ได้ทำ (dev server ไม่ตอบ HTTP ตลอด session) ย้ายเข้า Backlog, ดำเนินการโดย: Claude Code (Claude Sonnet 5)) |
 | Round EXPORT-ARCHIVE-POLICY-1 | แจ้งเตือนเมื่อ export/project ที่โพสต์แล้วค้างเกิน 30 วัน หรือดิสก์ใช้เกิน 80% — banner ใน Storage tab ไม่ auto-move ไฟล์ | 2026-09-12 | สำเร็จสมบูรณ์ (เพิ่ม `archive_recommendation` ใน `/api/analytics/storage`, banner ใน StorageAnalyticsTab.jsx, pytest 4 passed, build 3.12s, live API verified, ดำเนินการโดย: Claude Code (Claude Sonnet 5)) |
@@ -17,6 +18,33 @@
 | Round UI-POLISH-HEADER-1 | แก้ฟอนต์กล่องแดง Topbar (ถอด font-mono) + ตัด 2 Badge สินค้า + ขยายหัวข้อสินค้าเน้นๆ ใหญ่ๆ | 2026-09-12 | สำเร็จสมบูรณ์ (ถอด font-mono จากป้ายแท็บ Topbar ให้สืบทอด Global UI Font, ตัด price_note และ tiktok_id ออกจาก PageHeader สินค้า, ขยายชื่อสินค้าเป็น text-2xl font-black, vitest 152 passed, build 3.49s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round SHOTLIST-GEMINI-TTS-SSOT-1 | ระบบรวมศูนย์เสียง TTS (Gemini Flash Audio SSOT): แผนถ่าย & ตัดต่อจริงใช้เสียงเดียวกัน 100% ไม่เจนซ้ำ | 2026-09-12 | สำเร็จสมบูรณ์ (pytest 1,125 passed, vitest 158 passed, build 3.40s, browser verified, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round SHOT-GAP-FIX-1 | แก้ช่องว่าง (Gap) ระหว่างช็อตใน Shot Matching Stage — 2 bugs: cut_points เริ่มที่ 0.0 แทน first-cue start, MERGE_TOLERANCE แคบเกิน | 2026-09-12 | สำเร็จสมบูรณ์ (compileall pass, pytest 1126 passed, ดำเนินการโดย: Antigravity (Claude Sonnet 4.6)) |
+
+---
+
+## Round AI-PRODUCER-HUB-1 — พัฒนาเมนูใหม่ "ผู้ช่วยโปรดิวเซอร์ส่วนตัว" (AI Producer Hub & Daily Mission Center)
+
+วันที่: 2026-09-13 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
+ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+**เป้าหมาย:**
+สร้างศูนย์บัญชาการอัจฉริยะประจำวันสำหรับคอนเทนต์ครีเอเตอร์และสายแอฟฟิลิเอต เพื่อแก้ปัญหาความจำสั้น ขี้เกียจลืมคิว ไม่รู้ว่าวันนี้ต้องทำอะไรต่อ:
+1. แบนเนอร์ผู้ช่วยรู้ใจเรียก "เจ้านาย" ทักทายตามช่วงเวลาและสถานะงานค้างจริง
+2. ระบบคุมเป้าหมายการผลิตรายวัน/รายสัปดาห์ (Quota Gauges & Progress Bars) พร้อมปุ่มปรับเปลี่ยนเป้าหมาย
+3. สิ่งที่ต้องทำวันนี้ (Daily Action Queue 3 ระดับ) พร้อมปุ่มลัด 1-click พุ่งไปทำทันที
+4. AI ถอดรหัสคลิปปังจากสถิติ TikTok จริง + สมุดจดบทเรียนของเจ้านาย (Boss Playbook)
+
+**สิ่งที่ทำ:**
+1. สร้างโมดูลคำนวณและวิเคราะห์ `frontend/src/lib/producerInsights.js`: คำนวณโควตารายวันและรายสัปดาห์ (35 คลิป), คัดแยก Daily Action Queue 3 ระดับ (รอโพสต์, รอตัด, รอถ่าย), เจนข้อความเรียก "เจ้านาย" และ AI Retrospective
+2. เขียน Unit Tests `frontend/src/lib/producerInsights.test.js` (6 tests ครอบคลุม parsing, day matching, quotas, action queues, boss greeting; tests รวม 176/176 passed 100%)
+3. สร้างคอมโพเนนต์ `frontend/src/components/producer/ProducerHub.jsx`: ดีไซน์ Dark Modern Glassmorphism สมบูรณ์แบบ พร้อม Quota modal และ Boss's Playbook notepad
+4. อัปเดต `Sidebar.jsx`, `Topbar.jsx`, และ `App.jsx` เพิ่มเมนู "0. ผู้ช่วยโปรดิวเซอร์" บนสุดของ Sidebar พร้อมระบบนำทาง
+5. ยืนยัน UI จริงผ่าน Browser Subagent ทั้งแบนเนอร์เจ้านาย, เกจเป้าหมาย, Action Queue, Modal ปรับ Quota และทดสอบพิมพ์จดโน้ตใน Playbook สำเร็จ
+
+### Gate & Verification Results:
+- [x] Node / Vitest Tests: `npm test` — 176/176 passed 100%
+- [x] Frontend Build: `npm run build` — 2002 modules transformed, build clean ใน 3.36s (ProducerHub chunk: 36.90 kB)
+- [x] Python Compilation: `python -m compileall -q scripts` — 0 errors
+- [x] Browser Visual Verification: ตรวจสอบภาพจริงทั้งแดชบอร์ด, Quota modal, และการจดโน้ต Playbook ผ่านสวยงาม
 
 ---
 

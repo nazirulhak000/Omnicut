@@ -1,11 +1,18 @@
 import React, { memo } from 'react';
 import {
   Rocket, Layers, Scissors, FolderDown, Palette, Settings,
-  Keyboard, Wifi, WifiOff, RefreshCw, Package, BarChart3, BookOpen
+  Keyboard, Wifi, WifiOff, RefreshCw, Package, BarChart3, BookOpen, Bot
 } from 'lucide-react';
 import { ActivityIndicatorButton } from './ActivityCenter';
 
 const TAB_CONFIG = {
+  producer: {
+    icon: Bot,
+    title: 'ผู้ช่วยโปรดิวเซอร์',
+    badge: '0. AI Producer Hub',
+    badgeColor: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
+    description: 'ศูนย์บัญชาการภารกิจประจำวัน เตือนงาน คุมโควตา และวิเคราะห์คลิปปัง'
+  },
   flow: {
     icon: Rocket,
     title: 'สินค้า → คลิป',

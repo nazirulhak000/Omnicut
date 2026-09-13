@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import {
   Rocket, Sparkles, FolderDown, Settings, Layers,
   Smartphone, Maximize, Minimize, X, Copy, Check, Wifi, Scissors,
-  Palette, MoreHorizontal, BarChart3, ChevronRight, BookOpen
+  Palette, MoreHorizontal, BarChart3, ChevronRight, BookOpen, Bot
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
-// ── Desktop Navigation Items (8 items) ──
+// ── Desktop Navigation Items (9 items) ──
 const DESKTOP_NAV_ITEMS = [
+  { id: 'producer',  icon: Bot,        label: '0. ผู้ช่วยโปรดิวเซอร์',   shortLabel: 'ผู้ช่วย' },
   { id: 'flow',      icon: Rocket,     label: '1. สินค้า → คลิป',     shortLabel: 'สินค้า' },
   { id: 'tracker',   icon: Layers,     label: '2. แทร็กเกอร์ 4 เฟส',    shortLabel: 'Tracker' },
   { id: 'editor',    icon: Scissors,   label: '3. ตัดต่อ & สร้างคลิป', shortLabel: 'Editor' },
@@ -49,7 +50,7 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const isMoreActive = activeTab === 'assets' || activeTab === 'analytics' || activeTab === 'settings' || activeTab === 'dashboard' || activeTab === 'guide';
+  const isMoreActive = activeTab === 'producer' || activeTab === 'assets' || activeTab === 'analytics' || activeTab === 'settings' || activeTab === 'dashboard' || activeTab === 'guide';
 
   return (
     <>
@@ -140,41 +141,76 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
         <button
           onClick={() => setShowMoreDrawer(true)}
           className={`flex flex-col items-center justify-center min-h-[48px] py-1 px-2 rounded-xl transition-all cursor-pointer flex-1 select-none active:scale-95 ${
-            isMoreActive || showMoreDrawer
+            isMoreActive
               ? 'text-[#25F4EE] font-bold'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          <MoreHorizontal className="w-5 h-5" strokeWidth={isMoreActive ? 2.5 : 1.8} />
+          <div className="relative">
+            <MoreHorizontal className="w-5 h-5" strokeWidth={isMoreActive ? 2.3 : 1.7} />
+            {isMoreActive && (
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#25F4EE] ring-2 ring-[#080B11]" />
+            )}
+          </div>
           <span className="text-[11px] tracking-tight mt-0.5">อื่นๆ</span>
         </button>
       </nav>
 
-      {/* ── Mobile 'More' Action Drawer (Bottom Sheet) ── */}
+      {/* ── Mobile More Bottom Sheet / Drawer ── */}
       {showMoreDrawer && (
-        <div className="md:hidden fixed inset-0 z-[90] flex flex-col justify-end bg-black/80 backdrop-blur-md animate-fadeIn">
-          {/* Backdrop click to dismiss */}
-          <div className="flex-1" onClick={() => setShowMoreDrawer(false)} />
-
-          {/* Drawer Card */}
-          <div className="w-full bg-[#0D111A] border-t border-white/[0.12] rounded-t-3xl p-5 pb-8 space-y-4 shadow-2xl animate-slideUp safe-bottom">
-            {/* Drawer Handle */}
-            <div className="w-12 h-1.5 rounded-full bg-white/[0.2] mx-auto mb-2" />
-
+        <div
+          className="md:hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex flex-col justify-end animate-fadeIn"
+          onClick={() => setShowMoreDrawer(false)}
+        >
+          <div
+            className="bg-[#0D111A] border-t border-white/[0.12] rounded-t-3xl p-5 pb-8 space-y-4 max-h-[85vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
             <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-[#25F4EE]" />
-                เมนูเพิ่มเติม (More Options)
-              </h3>
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-[#25F4EE]" />
+                <h3 className="text-sm font-bold text-white">เมนูเพิ่มเติม</h3>
+              </div>
               <button
                 onClick={() => setShowMoreDrawer(false)}
-                className="p-1.5 rounded-xl bg-white/[0.05] text-slate-400 hover:text-white"
+                className="p-1 rounded-lg text-slate-400 hover:text-white"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-2.5">
+            {/* Menu List */}
+            <div className="space-y-2">
+              {/* Option 0: AI Producer Hub */}
+              <button
+                onClick={() => {
+                  setActiveTab('producer');
+                  setShowMoreDrawer(false);
+                }}
+                className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                  activeTab === 'producer'
+                    ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
+                    : 'bg-white/[0.03] border-white/[0.06] text-slate-200 hover:bg-white/[0.06]'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                    <Bot className="w-4 h-4" />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                      ผู้ช่วยโปรดิวเซอร์
+                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                        AI Coach
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-slate-400">เตือนคิววันนี้, คุมโควตา 35 คลิป, สรุปคลิปปัง</div>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-500" />
+              </button>
+
               {/* Option 1: Media Assets Hub */}
               <button
                 onClick={() => {
