@@ -1,6 +1,7 @@
 """Black-box render checks kept separate from source-level parity probes."""
 
 import json
+import re
 import shutil
 import subprocess
 from fractions import Fraction
@@ -342,14 +343,28 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
 
 @pytest.mark.render_regression
-def test_thai_stacked_marks_keep_settled_geometry_during_caption_entrance(tmp_path):
+@pytest.mark.parametrize(
+    ("font_name", "expected_face", "source_text", "body_text", "stacked_pairs"),
+    [
+        ("IBMPlex", "IBM Plex Sans Thai SemiBold", "นั่ง", "นัง", ("ั่",)),
+        (
+            "Prompt",
+            "Prompt",
+            "⚡ ปกติซื้อตามช็อปราคาแรงเอาเรื่อง",
+            "⚡ ปกติซือตามช็อปราคาแรงเอาเรือง",
+            ("ื้", "ื่"),
+        ),
+    ],
+)
+def test_thai_stacked_marks_keep_settled_geometry_during_caption_entrance(
+    tmp_path, font_name, expected_face, source_text, body_text, stacked_pairs
+):
     """The first visible caption frame must not geometrically scale Thai marks.
 
-    ``นั่ง`` contains the stacked mark pair ั + ่. A libass ``\\fscx`` pop can
-    shape that pair correctly and then enlarge the raster, which makes the
-    marks collide. The caption entrance is therefore an alpha fade; this
-    behavioral check renders the first visible frame and the settled frame and
-    requires their ink bounding boxes to have the same geometry.
+    A libass ``\\fscx`` pop can shape a stack correctly and then enlarge the
+    raster, making its marks collide. The caption entrance is therefore an
+    alpha fade; this renders both the original ``นั่ง`` regression and the
+    reported Prompt sentence containing ``ื้``/``ื่`` across multiple frames.
     """
     if not shutil.which("ffmpeg"):
         pytest.skip("FFmpeg is required for the Thai render regression")
@@ -362,20 +377,21 @@ def test_thai_stacked_marks_keep_settled_geometry_during_caption_entrance(tmp_pa
         cues=[{
             "start": 0.0,
             "end": 0.6,
-            "text": "\u0e19\u0e31\u0e48\u0e07",
+            "text": source_text,
             "translation": "unused",
         }],
         output_ass_path=str(ass_path),
-        font_name="IBMPlex",
+        font_name=font_name,
         bilingual=False,
         caption_position="middle",
     )
     generated = ass_path.read_text(encoding="utf-8")
-    assert "Style: TikTokWhite,IBM Plex Sans Thai SemiBold" in generated
-    assert "TikTokWhite,,0,0,0,,{\\alpha&HFF&\\t(0,70,\\alpha&H00&)}นัง" in generated
+    assert f"Style: TikTokWhite,{expected_face}" in generated
+    main_lines = [line for line in generated.splitlines() if ",TikTokWhite,," in line]
+    assert any(body_text in re.sub(r"\{[^{}]*\}", "", line) for line in main_lines)
     assert "TikTokWhite,,0,0,0,,{\\an5\\pos(" in generated
     assert "\\1a&HFF&\\3a&HFF&\\4a&HFF&" in generated
-    assert "นั่ง" not in generated
+    assert all(pair not in generated for pair in stacked_pairs)
 
     ass_filter_path = str(ass_path.resolve()).replace("\\", "/").replace(":", "\\:")
     frames_pattern = str(tmp_path / "frame-%02d.png")
@@ -415,8 +431,8 @@ def test_thai_stacked_marks_keep_settled_geometry_during_caption_entrance(tmp_pa
 
 
 @pytest.mark.render_regression
-def test_prompt_emoji_thai_marks_have_separate_vertical_bands(tmp_path):
-    """Prompt + emoji fallback must keep ``ั`` and ``่`` in separate bands."""
+def test_prompt_emoji_thai_mark_matrix_has_separate_vertical_bands(tmp_path):
+    """All 20 upper-vowel/tone combinations must form two clean levels."""
     if not shutil.which("ffmpeg"):
         pytest.skip("FFmpeg is required for the Thai render regression")
 
@@ -426,22 +442,37 @@ def test_prompt_emoji_thai_marks_have_separate_vertical_bands(tmp_path):
     # first mark is blue and the detached tone mark is green.  No
     # outline/shadow is used: the measurement is of glyph fills, not
     # decoration.
-    from scripts.subtitle.font_metrics import repair_thai_mark_pair
-
-    from scripts.subtitle.font_metrics import THAI_STACKED_MARK_RAISE_EM
-
-    pair = "🛒 ใครที่นั่ง"
-    repaired, companions = repair_thai_mark_pair(pair)
-    assert repaired == "🛒 ใครที่นัง"
-    assert len(companions) == 1
-    before, after = companions[0]
-    coloured_body = repaired.replace(
-        "\u0e31", "{\\1c&HFF0000&}\u0e31{\\1c&HFFFFFF&}", 1
+    from scripts.subtitle.font_metrics import (
+        THAI_STACKED_MARK_RAISE_EM,
+        repair_thai_stacked_marks,
     )
+
     hidden = "{\\1a&HFF&\\3a&HFF&\\4a&HFF&}"
     shown = "{\\1a&H00&\\3a&H00&\\4a&H00&\\1c&H00FF00&}"
-    coloured_tone = f"{hidden}{before}{shown}\u0e48{hidden}{after}"
     tone_raise = max(6, int(round(76 * THAI_STACKED_MARK_RAISE_EM)))
+    upper_vowels = "ัิีึื"
+    tone_marks = "่้๊๋"
+    cells = []
+    events = []
+    for row, upper in enumerate(upper_vowels):
+        for col, tone in enumerate(tone_marks):
+            text = f"🛒 ก{upper}{tone}ก"
+            repaired, companions = repair_thai_stacked_marks(text)
+            assert repaired == f"🛒 ก{upper}ก"
+            assert len(companions) == 1
+            before, detached_tone, after = companions[0]
+            assert detached_tone == tone
+            coloured_body = repaired.replace(
+                upper, f"{{\\1c&HFF0000&}}{upper}{{\\1c&HFFFFFF&}}", 1
+            )
+            coloured_tone = f"{hidden}{before}{shown}{tone}{hidden}{after}"
+            x = 135 + col * 270
+            y = 260 + row * 320
+            cells.append((upper + tone, x, y))
+            events.extend([
+                f"Dialogue: 0,0:00:00.00,0:00:01.00,Default,,0,0,0,,{{\\an5\\pos({x},{y})}}{coloured_body}",
+                f"Dialogue: 1,0:00:00.00,0:00:01.00,Default,,0,0,0,,{{\\an5\\pos({x},{y - tone_raise})}}{coloured_tone}",
+            ])
     ass = tmp_path / "thai_mark_bands.ass"
     ass.write_text(
         "[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\n"
@@ -451,8 +482,7 @@ def test_prompt_emoji_thai_marks_have_separate_vertical_bands(tmp_path):
         "Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
         "Style: Default,Prompt,76,&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,0,0,5,0,0,0,1\n"
         "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
-        f"Dialogue: 0,0:00:00.00,0:00:01.00,Default,,0,0,0,,{{\\an5\\pos(540,960)}}{coloured_body}\n"
-        f"Dialogue: 1,0:00:00.00,0:00:01.00,Default,,0,0,0,,{{\\an5\\pos(540,{960 - tone_raise})}}{coloured_tone}\n",
+        + "\n".join(events) + "\n",
         encoding="utf-8",
     )
 
@@ -468,10 +498,11 @@ def test_prompt_emoji_thai_marks_have_separate_vertical_bands(tmp_path):
     image = Image.open(output).convert("RGB")
     pixels = image.load()
 
-    def colour_bbox(kind):
+    def colour_bbox(kind, crop):
+        left, top, right, bottom = crop
         points = []
-        for y in range(image.height):
-            for x in range(image.width):
+        for y in range(top, bottom):
+            for x in range(left, right):
                 red, green, blue = pixels[x, y]
                 if kind == "blue" and blue > 150 and blue > red + 40 and blue > green + 40:
                     points.append((x, y))
@@ -481,17 +512,16 @@ def test_prompt_emoji_thai_marks_have_separate_vertical_bands(tmp_path):
         xs, ys = zip(*points)
         return min(xs), min(ys), max(xs) + 1, max(ys) + 1
 
-    first_mark = colour_bbox("blue")
-    tone_mark = colour_bbox("green")
-    # Mai han-akat is below the mai ek tone mark.  A shared/overlapping band
-    # is the regression: the fill bands must have a visible gap.
-    assert first_mark[1] > tone_mark[1]
-    assert tone_mark[3] <= first_mark[1], (
-        f"Thai marks overlap vertically: first={first_mark}, tone={tone_mark}"
-    )
-    assert tone_mark[0] < first_mark[2] and first_mark[0] < tone_mark[2], (
-        f"Detached tone drifted away from its base glyph: first={first_mark}, tone={tone_mark}"
-    )
+    for pair, x, y in cells:
+        crop = (x - 120, y - 120, x + 120, y + 100)
+        upper_mark = colour_bbox("blue", crop)
+        tone_mark = colour_bbox("green", crop)
+        assert tone_mark[3] <= upper_mark[1], (
+            f"Thai marks {pair} overlap vertically: upper={upper_mark}, tone={tone_mark}"
+        )
+        assert tone_mark[0] < upper_mark[2] and upper_mark[0] < tone_mark[2], (
+            f"Detached tone {pair} drifted horizontally: upper={upper_mark}, tone={tone_mark}"
+        )
 
 
 @pytest.mark.render_regression

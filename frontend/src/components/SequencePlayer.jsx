@@ -781,9 +781,11 @@ const EMOJI_RUN_RE = /(\p{Extended_Pictographic}(?:️|‍\p{Extended_Pictograph
 
 // Thai-safe caption entrance, mirroring `caption_anim` in subtitle_engine.py.
 // Fade changes visibility only; scaling a shaped Thai run can collapse the
-// stacked mark pair ั + ่ (for example, นั่ง) in libass during the first frames.
+// stacked Thai upper-vowel/tone marks in libass during the first frames.
 const CAPTION_FADE_MS = 70;
-const THAI_STACKED_MARK_PAIR = '\u0E31\u0E48';
+const THAI_UPPER_VOWELS = '\u0E31\u0E34\u0E35\u0E36\u0E37';
+const THAI_TONE_MARKS = '\u0E48\u0E49\u0E4A\u0E4B';
+const THAI_STACKED_MARK_RE = new RegExp(`([${THAI_UPPER_VOWELS}])([${THAI_TONE_MARKS}])`, 'g');
 const THAI_STACKED_MARK_RAISE_EM = 0.13;
 
 function drawTextWithMonoEmoji(ctx, text, x, y) {
@@ -809,39 +811,37 @@ function drawTextWithMonoEmoji(ctx, text, x, y) {
   }
 }
 
-// Several bundled Thai faces rasterise `ั่` into one crowded vertical band
-// through ASS/libass. Keep the same repair in Canvas so Preview and Render
-// use one deterministic two-level stack.
+// Several bundled Thai faces rasterise upper-vowel/tone pairs into one
+// crowded vertical band through ASS/libass. Keep the same 20-pair repair in
+// Canvas so Preview and Render use one deterministic two-level stack.
 function drawCaptionText(ctx, text, x, y, fontSize, drawText, repairThaiMarks = true) {
-  const pair = THAI_STACKED_MARK_PAIR;
-  if (!repairThaiMarks || !text.includes(pair)) {
+  const matches = repairThaiMarks ? [...text.matchAll(THAI_STACKED_MARK_RE)] : [];
+  if (matches.length === 0) {
     drawText(text, x, y);
     return;
   }
 
-  const body = text.replaceAll(pair, '\u0E31');
+  const body = text.replace(THAI_STACKED_MARK_RE, '$1');
   drawText(body, x, y);
 
-  let searchFrom = 0;
-  while (true) {
-    const pairAt = text.indexOf(pair, searchFrom);
-    if (pairAt < 1) break;
+  for (const match of matches) {
+    const pairAt = match.index;
+    if (pairAt < 1) continue;
     const baseAt = pairAt - 1;
-    const prefix = text.slice(0, baseAt).replaceAll(pair, '\u0E31');
+    const prefix = text.slice(0, baseAt).replace(THAI_STACKED_MARK_RE, '$1');
     const base = text[baseAt];
     // The IBM Thai mark-to-base anchor is at the far side of the consonant's
     // advance, so using its midpoint leaves the detached tone a few pixels
     // left of the base glyph on centred lines.
     const toneX = x + ctx.measureText(prefix).width + ctx.measureText(base).width;
-    // The body uses the full caption outline, but a detached 0E48 is only a
-    // one-pixel ASS border at render scale.  A full-width stroke would turn
-    // the narrow tone glyph into a square.
+    // The body uses the full caption outline, but a detached tone uses only
+    // a one-pixel ASS border at render scale. A full-width stroke would turn
+    // narrow tone glyphs into blocks.
     const oldLineWidth = ctx.lineWidth;
     ctx.lineWidth = Math.max(1, Math.round(fontSize * 2 * 0.02));
     // Keep the same font-relative optical raise as the ASS/libass renderer.
-    drawText('\u0E48', toneX, y - Math.max(4, Math.round(fontSize * THAI_STACKED_MARK_RAISE_EM)));
+    drawText(match[2], toneX, y - Math.max(4, Math.round(fontSize * THAI_STACKED_MARK_RAISE_EM)));
     ctx.lineWidth = oldLineWidth;
-    searchFrom = pairAt + pair.length;
   }
 }
 
@@ -995,8 +995,8 @@ function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
     // measure the repaired body text -- otherwise the next segment is offset
     // by the advance gap and Thai vowels/tones appear to float.
     const segmentWidths = segments.map(seg => {
-      const txt = repairThaiMarks && seg.text.includes(THAI_STACKED_MARK_PAIR)
-        ? seg.text.replaceAll(THAI_STACKED_MARK_PAIR, '\u0E31')
+      const txt = repairThaiMarks
+        ? seg.text.replace(THAI_STACKED_MARK_RE, '$1')
         : seg.text;
       return ctx.measureText(txt).width;
     });

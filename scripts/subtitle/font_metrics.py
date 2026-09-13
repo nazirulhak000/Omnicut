@@ -253,34 +253,45 @@ def ass_caption_face(resolved_font: str) -> Tuple[str, int]:
     )
 
 
-THAI_STACKED_MARK_PAIR = "\u0e31\u0e48"
+THAI_UPPER_VOWELS = "\u0e31\u0e34\u0e35\u0e36\u0e37"
+THAI_TONE_MARKS = "\u0e48\u0e49\u0e4a\u0e4b"
+THAI_STACKED_MARK_RE = re.compile(
+    f"([{re.escape(THAI_UPPER_VOWELS)}])([{re.escape(THAI_TONE_MARKS)}])"
+)
 THAI_STACKED_MARK_RAISE_EM = 0.13
 
 
-def repair_thai_mark_pair(ass_text: str) -> Tuple[str, List[Tuple[str, str]]]:
-    """Detach ``่`` from ``ั`` while preserving libass's complete line layout.
+def repair_thai_stacked_marks(ass_text: str) -> Tuple[str, List[Tuple[str, str, str]]]:
+    """Detach tones from Thai upper vowels while preserving full line layout.
 
-    Several bundled Thai faces collapse this two-level stack under libass.
-    The body keeps ``ั`` and removes ``่``.  Each companion keeps the complete
-    ASS line but removes the target ``ั`` and exposes only its ``่``; callers
+    Covers all 20 combinations of ``ัิีึื`` + ``่้๊๋``.  The body keeps the
+    upper vowel and removes its tone.  Each companion keeps the complete ASS
+    line but removes the target upper vowel and exposes only its tone; callers
     hide the surrounding glyphs and raise the companion event.
 
     Keeping the full line lets libass measure emoji fallback and mixed-font
     runs itself.  The old Pillow-based absolute x estimate drifted by about
     90 PlayRes pixels when a Segoe UI Emoji glyph preceded the Thai word.
     """
-    pair = THAI_STACKED_MARK_PAIR
-    matches = list(re.finditer(pair, ass_text))
+    matches = list(THAI_STACKED_MARK_RE.finditer(ass_text))
     if not matches:
         return ass_text, []
 
-    repaired = ass_text.replace(pair, pair[0])
-    companions: List[Tuple[str, str]] = []
+    def without_stacked_tones(value: str) -> str:
+        return THAI_STACKED_MARK_RE.sub(r"\1", value)
+
+    repaired = without_stacked_tones(ass_text)
+    companions: List[Tuple[str, str, str]] = []
     for target in matches:
-        before = ass_text[: target.start()].replace(pair, pair[0])
-        after = ass_text[target.end() :].replace(pair, pair[0])
-        companions.append((before, after))
+        before = without_stacked_tones(ass_text[: target.start()])
+        tone = target.group(2)
+        after = without_stacked_tones(ass_text[target.end() :])
+        companions.append((before, tone, after))
     return repaired, companions
+
+
+# Compatibility alias for callers introduced with subtitle contract v7.
+repair_thai_mark_pair = repair_thai_stacked_marks
 
 
 def _hook_line_width_px(line: str, resolved_font: str, line_fs: int) -> float:

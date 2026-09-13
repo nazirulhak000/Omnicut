@@ -18,6 +18,8 @@
 
 ---
 
+- [x] Round THAI-STACKED-MARK-GENERALIZE-1 — ครอบคลุมสระบน `ัิีึื` × วรรณยุกต์ `่้๊๋` ทั้ง 20 คู่ใน Preview/Render (2026-09-13; backend 1,135 passed, visual/contract 180 passed, frontend 185 passed, build/browser verified, ดำเนินการโดย: Codex (GPT-5))
+
 - [x] Round THAI-STACKED-MARK-RENDER-FIX-1 — แก้ `ั` + `่` ซ้อนทับใน Render ด้วย layout-preserving ASS companion event (2026-09-13; backend 1,133 passed, visual/contract 178 passed, frontend 185 passed, build ผ่าน, ดำเนินการโดย: Codex (GPT-5))
 
 - [ ] Round AI-PRODUCER-HUB-AUDIT-PLAN-1 — ตรวจสอบการใช้งาน AI Producer Hub และจัดทำแผนยกระดับแบบ evidence-first (2026-09-13; วิเคราะห์โค้ด + browser snapshot แล้ว, รออนุมัติ scope, ดำเนินการโดย: Codex (GPT-5))

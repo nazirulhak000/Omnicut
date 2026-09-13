@@ -8,6 +8,7 @@
 
 ## สารบัญ
 
+| Round THAI-STACKED-MARK-GENERALIZE-1 | ขยายการจัดชั้นสระบน + วรรณยุกต์ไทยจากคู่เดียวเป็น 20 คู่ พร้อม Preview/Render parity | 2026-09-13 | สำเร็จสมบูรณ์ (backend 1,135 passed, visual/contract 180 passed, frontend 185 passed, FFmpeg 20-pair pixel matrix + browser verified, ดำเนินการโดย: Codex (GPT-5)) |
 | Round THAI-STACKED-MARK-RENDER-FIX-1 | แก้ `ั` + `่` ซ้อนทับใน Render ให้สูงโปร่งตรง Preview โดยรักษา layout ของ emoji/ข้อความทั้งบรรทัด | 2026-09-13 | สำเร็จสมบูรณ์ (backend 1,133 passed, visual/contract 178 passed, frontend 185 passed, build 2,003 modules/4.59s, FFmpeg pixel geometry + browser verified, ดำเนินการโดย: Codex (GPT-5)) |
 | Round AI-PRODUCER-ACCESS-1 | Phase 5 Accessibility & Responsive Polish: modal semantics, Escape close, aria-live และ keyboard labels | 2026-09-13 | สำเร็จสมบูรณ์ (frontend 185 passed, build 2003 modules/3.85s, browser AX + Escape verified, diff check ผ่าน, ไม่เปลี่ยน font/text contract, ดำเนินการโดย: Codex (GPT-5)) |
 | Round AI-PRODUCER-EVIDENCE-1 | Phase 4 Evidence-first Retrospective: metrics model, measured takeaways, source provenance และ metric snapshot | 2026-09-13 | สำเร็จสมบูรณ์ (frontend 185 passed, backend 3 passed, build 2003 modules/3.58s, browser evidence cards verified, fixture distribution test ผ่าน, ดำเนินการโดย: Codex (GPT-5)) |
@@ -19,6 +20,39 @@
 | Round MOBILE-IMAGE-PASTE-FIX-1 | Fix Mobile Image Paste (iOS Safari files detection, ContentEditable Paste Target, Native Photo Picker Auto-Fallback, and HEIC auto-conversion) | 2026-09-13 | สำเร็จสมบูรณ์ (ตรวจจับ `clipboardData.files` + `items` + `html` + `text` ทุกมิติ, เพิ่มกล่อง Rich ContentEditable Paste Target สำหรับ iOS Safari & Android, ปุ่ม 1-Tap 'เลือกจากคลังภาพ' ดึงรูปล่าสุดใน 1 วินาที, รองรับภาพ HEIC จาก iPhone แปลงเป็น JPG อัตโนมัติด้วย ffmpeg, npm test 180 passed, build 3.58s, desktop & mobile browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round CLIPBOARD-IMAGE-PASTE-1 | Direct Clipboard Image Paste (Ctrl+V / Paste into Textarea & Form) | 2026-09-13 | สำเร็จสมบูรณ์ (ตรวจจับภาพจาก clipboardData อัตโนมัติเมื่อกด Ctrl+V ในช่องข้อความหรือฟอร์ม, เพิ่มปุ่ม 1-Tap 'วางรูปภาพ' ดึงรูปจาก clipboard, อัปโหลดเข้า 02_Assets/Refs/ ทันที, รองรับทั้ง QuickRefPage และ ProducerHub, npm test 180 passed, build 3.35s, browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round QUICK-REF-POLISH-1 | Redesign Impeccable Quick Ref Vault & Fix iOS Mobile Zoom | 2026-09-13 | สำเร็จสมบูรณ์ (ป้องกัน iOS auto-zoom ด้วย 16px inputs + CSS media query + viewport config, Redesign เต็มจอ edge-to-edge + Responsive 2-column desktop, 1-Tap Paste จากคลิปบอร์ด, Segmented Category Pills, Tag filter & search, AI Idea-to-Script on mobile, npm test 180 passed, build 3.31s, desktop & mobile browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+---
+
+## Round THAI-STACKED-MARK-GENERALIZE-1 — ครอบคลุมสระบนและวรรณยุกต์ไทยทุกคู่
+
+วันที่: 2026-09-13 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** ทำให้ Preview และ Render จัดชั้นวรรณยุกต์เหนือสระบนได้สะอาดทุกคู่ที่ใช้จริง โดยเฉพาะ `ซื้อ` (`ื้`) และ `เรื่อง` (`ื่`) ไม่จำกัดเฉพาะ `ั่` และไม่เปลี่ยนข้อความ ฟอนต์ ขนาด wrapping หรือ safe zone
+
+### Todo
+
+- [x] สร้าง failing regression จากข้อความจริง `ปกติซื้อตามช็อปราคาแรงเอาเรื่อง` และ inventory คู่ Unicode สระบน + เครื่องหมายชั้นบน
+- [x] วัด FFmpeg/libass แยกตามชนิดสระ (`ัิีึื`) และวรรณยุกต์ (`่้๊๋`) เพื่อกำหนดกฎ geometry ที่พิสูจน์ได้
+- [x] Generalize repair ฝั่ง ASS และ Canvas ด้วย contract/constants ที่ mirror กัน โดยรักษา layout ทั้งบรรทัดและสี highlight
+- [x] Bump subtitle render contract และทดสอบ invalidation/reuse
+
+### Gate
+
+- [x] Visual/contract pytest ที่เกี่ยวข้อง รวม pixel-band matrix และหลายเฟรมเข้า/ค้าง/ออก — 180 passed, 20 warnings, 75.94s
+- [x] ตรวจ Unicode content identity และ FFmpeg render คำจริงด้วย `fontsdir=02_Assets/Fonts` — 20/20 คู่ผ่าน; vertical gap 0–4px, horizontal overlap ต่ำสุด 8px
+- [x] Full backend pytest + compileall + pip check — 1,135 passed, 25 warnings, 258.27s; compile/dependencies ผ่าน
+- [x] Frontend `npm test` + `npm run build` + `git diff --check` — 185 passed; 2,003 modules/3.70s; diff check ผ่าน
+
+### Notes
+
+- Working tree ก่อนเริ่มมีเฉพาะงานผู้ใช้ใน `02_Assets/Refs/playbook_notes.json` และรูป ref untracked 6 ไฟล์; รอบนี้ไม่แตะและไม่ stage
+- ขอบเขตเป็น geometry ของ combining marks เท่านั้น ไม่เปลี่ยน font family/face, font size, English ratio, line spacing, wrapping หรือ safe zone
+- Root cause ยืนยันแล้ว: contract v7 ระบุ `THAI_STACKED_MARK_PAIR = "\u0e31\u0e48"` เพียงคู่เดียว จึงไม่จับ `ื้`, `ื่` และคู่อื่น
+- Fix ครอบคลุม 5 สระบน `ัิีึื` × 4 วรรณยุกต์ `่้๊๋` รวม 20 คู่; companion event เก็บ tone จริงของแต่ละ match และใช้ layout เต็มบรรทัดเดิม
+- ระยะยก `0.13em` ค่าเดียวผ่าน pixel matrix ครบทุกคู่ จึงไม่ต้องเพิ่ม magic number แยกตามอักขระ
+- Bump `SUBTITLE_RENDER_CONTRACT_VERSION` จาก `v7` เป็น `v8`; artifact v7 ถูก invalidate และ artifact v8 ผ่าน current-contract test
+- FFmpeg multi-frame ตรวจทั้ง `นั่ง` (IBM Plex Sans Thai) และประโยคจริง `⚡ ปกติซื้อตามช็อปราคาแรงเอาเรื่อง` (Prompt); geometry ช่วงเข้า/ค้างคงที่
+- Browser QA ที่ cue 5.1s ยืนยัน Canvas Preview แสดง `ซื้อ`/`เรื่อง` สูงโปร่ง และคืนแผงซ้าย/ขวากลับสถานะเดิมแล้ว
 
 ---
 

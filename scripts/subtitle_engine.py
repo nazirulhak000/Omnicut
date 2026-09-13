@@ -36,7 +36,7 @@ from scripts.subtitle import (
     has_true_bold_face,
     ass_caption_face,
     THAI_STACKED_MARK_RAISE_EM,
-    repair_thai_mark_pair,
+    repair_thai_stacked_marks,
     _hook_line_width_px,
     DEFAULT_HOOK_MOTION,
     _resolve_hook_motion,
@@ -82,7 +82,7 @@ from scripts.subtitle import (
     _force_highlight,
 )
 
-SUBTITLE_RENDER_CONTRACT_VERSION = "v7"
+SUBTITLE_RENDER_CONTRACT_VERSION = "v8"
 SUBTITLE_RENDER_CONTRACT_MARKER = (
     f"; OmniCutSubtitleContract: {SUBTITLE_RENDER_CONTRACT_VERSION}"
 )
@@ -595,12 +595,12 @@ class SubtitleEngine:
         # front_outline does, instead of a flat constant.
         watermark_outline = round(max(2.0, watermark_fs_boosted * 0.05), 1)
 
-        def repair_caption_text(value: str) -> Tuple[str, List[Tuple[str, str]]]:
-            # This pair is repaired for every face.  Prompt/Kanit/Mitr/Itim
-            # need it because their bundled outlines collapse the stack;
+        def repair_caption_text(value: str) -> Tuple[str, List[Tuple[str, str, str]]]:
+            # Every upper-vowel/tone pair is repaired for every face.
+            # Prompt/Kanit/Mitr/Itim need it because their bundled outlines collapse the stack;
             # applying the same deterministic geometry to the other faces
             # keeps Canvas and ASS output identical.
-            return repair_thai_mark_pair(value)
+            return repair_thai_stacked_marks(value)
 
         # Dynamic Soft Shadow & Outline metrics (Zero hardcoding: scales with any font, scale, and resolution)
         front_outline = round(max(1.8, font_size * 0.040), 1)
@@ -631,9 +631,9 @@ class SubtitleEngine:
                 anchor_y = int(round(video_height / 2 + (shadow_dy if shadow else 0)))
             return f"\\an{alignment}\\pos({anchor_x},{anchor_y - tone_raise})"
 
-        def caption_mark_overlay(parts: Tuple[str, str], *, shadow: bool) -> str:
+        def caption_mark_overlay(parts: Tuple[str, str, str], *, shadow: bool) -> str:
             """Expose one detached tone while all layout-preserving text stays hidden."""
-            before, after = parts
+            before, tone, after = parts
             settled_alpha = "38" if shadow else "00"
             blur_tag = f"\\blur{shadow_blur}" if shadow else ""
             visible = (
@@ -642,7 +642,7 @@ class SubtitleEngine:
                 + rf"\t(0,70,\1a&H{settled_alpha}&\3a&H{settled_alpha}&\4a&H{settled_alpha}&)"
                 + "}"
             )
-            return f"{hidden_mark_components}{before}{visible}่{hidden_mark_components}{after}"
+            return f"{hidden_mark_components}{before}{visible}{tone}{hidden_mark_components}{after}"
 
         header = f"""[Script Info]
 Title: TikTok Aesthetic Subtitles

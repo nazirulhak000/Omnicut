@@ -87,12 +87,12 @@ def test_previous_v4_contract_is_invalidated_by_watermark_bump(tmp_path):
     assert not subtitle_artifact_is_current(ass_path)
 
 
-def test_previous_v6_contract_is_invalidated_by_thai_mark_layout_bump(tmp_path):
+def test_previous_v7_contract_is_invalidated_by_stacked_mark_matrix_bump(tmp_path):
     from scripts.subtitle_engine import subtitle_artifact_is_current
 
-    ass_path = Path(tmp_path) / "v6.ass"
+    ass_path = Path(tmp_path) / "v7.ass"
     ass_path.write_text(
-        "[Script Info]\n; OmniCutSubtitleContract: v6\n"
+        "[Script Info]\n; OmniCutSubtitleContract: v7\n"
         "Style: TikTokWhite,Prompt,76\n",
         encoding="utf-8",
     )
@@ -149,6 +149,7 @@ def test_prompt_caption_with_emoji_detaches_stacked_thai_tone_mark(tmp_path):
     face collapses the pair under libass, while the leading shopping-cart
     emoji previously caused the repair path to return early.
     """
+    from scripts.subtitle.font_metrics import repair_thai_stacked_marks
     from scripts.subtitle_engine import SubtitleEngine
 
     ass_path = tmp_path / "prompt-emoji.ass"
@@ -171,5 +172,35 @@ def test_prompt_caption_with_emoji_detaches_stacked_thai_tone_mark(tmp_path):
         if ",TikTokWhite,," in line
     ]
     assert len(caption_lines) >= 2
-    assert any("โปรโมชั่นนี้".replace("ั่", "ั") in line for line in caption_lines)
-    assert all("ั่" not in line for line in caption_lines)
+    repaired_word, companions = repair_thai_stacked_marks("โปรโมชั่นนี้")
+    assert len(companions) == 2
+    assert any(repaired_word in line for line in caption_lines)
+    assert all(pair not in line for line in caption_lines for pair in ("ั่", "ี้"))
+
+
+def test_prompt_caption_detaches_all_upper_vowel_tone_pairs_from_reported_text(tmp_path):
+    """The repair must cover ``ื้``/``ื่`` and every Thai upper-vowel/tone pair."""
+    from scripts.subtitle_engine import SubtitleEngine
+
+    source_text = "⚡ ปกติซื้อตามช็อปราคาแรงเอาเรื่อง"
+    ass_path = tmp_path / "all-stacked-marks.ass"
+    SubtitleEngine.generate_ass(
+        cues=[{
+            "id": 1,
+            "start": 0.0,
+            "end": 1.0,
+            "text": source_text,
+        }],
+        output_ass_path=str(ass_path),
+        font_name="Prompt",
+        bilingual=False,
+        caption_position="middle",
+        show_watermark=False,
+    )
+
+    caption_lines = [
+        line for line in ass_path.read_text(encoding="utf-8").splitlines()
+        if ",TikTokWhite,," in line
+    ]
+    assert len(caption_lines) >= 3
+    assert all(pair not in line for line in caption_lines for pair in ("ื้", "ื่"))
