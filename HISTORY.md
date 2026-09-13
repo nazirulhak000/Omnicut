@@ -11,6 +11,7 @@
 | Round HOOK-KINETIC-MOTION-1 | Step-by-Step Cumulative Hook Reveal & High-Impact Animation System (slam, elastic_bounce) | 2026-09-13 | สำเร็จสมบูรณ์ (backend parity 177 passed, behavior render 18 passed, smoke 150 passed, frontend 185 passed, build 3.79s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round THAI-STACKED-MARK-GENERALIZE-1 | ขยายการจัดชั้นสระบน + วรรณยุกต์ไทยจากคู่เดียวเป็น 20 คู่ พร้อม Preview/Render parity | 2026-09-13 | สำเร็จสมบูรณ์ (backend 1,135 passed, visual/contract 180 passed, frontend 185 passed, FFmpeg 20-pair pixel matrix + browser verified, ดำเนินการโดย: Codex (GPT-5)) |
 | Round THAI-STACKED-MARK-RENDER-FIX-1 | แก้ `ั` + `่` ซ้อนทับใน Render ให้สูงโปร่งตรง Preview โดยรักษา layout ของ emoji/ข้อความทั้งบรรทัด | 2026-09-13 | สำเร็จสมบูรณ์ (backend 1,133 passed, visual/contract 178 passed, frontend 185 passed, build 2,003 modules/4.59s, FFmpeg pixel geometry + browser verified, ดำเนินการโดย: Codex (GPT-5)) |
+| Round TECH-PRODUCT-SHOWCASE-1 | เพิ่ม preset Tech Product Showcase สำหรับคลิปรีวิวสินค้า โดยใช้ motion/palette contract เดียวกับ Preview/Render | 2026-09-13 | สำเร็จสมบูรณ์ในขอบเขต foundation (backend 181 focused passed, frontend 185 passed, build/compile/pip check/diff check passed, FFmpeg 5-style multi-frame render + Browser verified, ดำเนินการโดย: Codex (GPT-5)) |
 
 ---
 
@@ -5391,4 +5392,36 @@ Date: 2026-09-07; Requested by: user; Status: complete
 - [x] Frontend Vitest Suite: 158/158 passed (รวม test cases ใหม่ของ `filterActiveProjects`)
 - [x] Frontend Production Build: `npm run build` สำเร็จ 100% ใน 3.45 วินาที
 - [x] Python Compilation: `python -m compileall -q scripts` ผ่าน 100% ปราศจาก syntax error
+
+---
+
+## Round TECH-PRODUCT-SHOWCASE-1 — Tech Product Showcase foundation
+
+วันที่: 2026-09-13 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: เสร็จสมบูรณ์ในขอบเขต foundation
+
+**เป้าหมาย:** รวมจังหวะภาพแบบรีวิวสินค้า Tech ที่เห็นจาก Bangreview ให้เป็น preset ของเราเอง โดยไม่ลอกแบรนด์หรือชิ้นงานตรง ๆ และรักษา Preview = Render ทุกจุดที่มีผลต่อภาพ
+
+### Todo
+
+- [x] เพิ่ม `tech_product_showcase` ใน frontend และ backend ให้เป็น style contract เดียวกัน
+- [x] เชื่อม preset กับ camera push/pan, transition budget และ accent palette ที่มีอยู่ โดยไม่เปลี่ยน Golden Master/default เดิม
+- [x] ใช้ asset/motion infrastructure เดิม ไม่เขียนทับ `01_Raw/` หรือ `02_Assets/Refs/`
+- [x] เพิ่ม parity/regression coverage และทดสอบ palette ผ่าน ASS/libass จริงครบช่วงเข้า–ค้าง–ออก
+- [x] ตรวจ Browser ว่าตัวเลือกแสดงจริงในหน้าสร้างคลิปใหม่ พร้อมรายละเอียด Motion/Cut/Sound
+
+### Gate & Verification Results
+
+- [x] Backend focused tests: 181 passed
+- [x] Frontend `npm test`: 185 passed
+- [x] Frontend `npm run build`: สำเร็จ, 2,003 modules, 4.73 วินาที
+- [x] `.venv\Scripts\python.exe -m compileall -q scripts`: ผ่าน
+- [x] `.venv\Scripts\python.exe -m pip check`: No broken requirements found
+- [x] `git diff --check`: ผ่าน
+- [x] FFmpeg/libass render regression: 5 styles × 3 frames (entry/hold/exit) ผ่าน พร้อมตรวจภาพจริงและ accent pixel counts
+
+### Notes
+
+- Preset ใหม่ใช้ accent `#FFCC33`, status `#25F4EE`, hard cut เป็นหลัก, Slide/Circle เฉพาะจังหวะ และ hero push/pan ทุกช็อตที่ยาวพอ
+- ค่าเริ่มต้นยังเป็น `clean_tech_review`; ไม่เปลี่ยนข้อความ ฟอนต์ ขนาด subtitle, safe zone หรือ Golden Master เดิม
+- พื้นหลัง Grid/Studio แบบเฉพาะสไตล์และ callout graphic ที่สร้างจาก asset โดยอัตโนมัติยังเป็นเฟสถัดไป เพราะรอบนี้ส่งมอบ foundation ที่ปลอดภัยก่อน
 

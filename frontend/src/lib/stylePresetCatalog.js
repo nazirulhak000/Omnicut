@@ -39,6 +39,18 @@ const STYLE_PRESETS = [
     neutral: '#FFFFFF',
   },
   {
+    id: 'tech_product_showcase',
+    label: 'Tech Product Showcase',
+    labelTh: 'รีวิวสินค้าไอทีแบบภาพเด่น',
+    description: 'โชว์สินค้าเต็มเฟรม ใช้ Title ใหญ่สีขาวตัดเหลือง Motion พอดี และเปลี่ยนช็อตเฉพาะจังหวะสำคัญ',
+    motion: 'Hero push/pan ทุกช็อตที่เหมาะสม',
+    transitions: 'Hard cut เป็นหลัก + Slide/Circle เฉพาะจุด',
+    audio: 'Voice นำหน้า พร้อม SFX ตอนเปิดกล่อง/ชี้จุดเด่น/CTA',
+    accent: '#FFCC33',
+    status: '#25F4EE',
+    neutral: '#FFFFFF',
+  },
+  {
     id: 'smooth_showcase',
     label: 'Smooth Showcase',
     labelTh: 'โชว์สินค้าไหลลื่น',

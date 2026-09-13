@@ -1166,6 +1166,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     [
         ("viral_punch", "#FE2C55"),
         ("clean_tech_review", "#FFE600"),
+        ("tech_product_showcase", "#FFCC33"),
         ("smooth_showcase", "#25F4EE"),
         ("premium_minimal", "#E6C24A"),
     ],

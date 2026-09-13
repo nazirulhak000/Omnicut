@@ -65,6 +65,25 @@ STYLE_MOTION_POLICIES = {
         status_color="#25F4EE",
         neutral_color="#FFFFFF",
     ),
+    "tech_product_showcase": StyleMotionPolicy(
+        key="tech_product_showcase",
+        # Product cards get a visible but deliberate movement rhythm: two
+        # clean cuts, then one directional transition for the next detail.
+        transition_stride=3,
+        # Reserve the stronger circle reveal for every second movement slot.
+        stylized_stride=6,
+        max_transition_duration=0.30,
+        transition_family="energetic",
+        # Every usable product shot gets a restrained hero push/pan. The
+        # smaller delta leaves room for large product titles and callouts.
+        camera_motion_stride=1,
+        camera_zoom_delta=0.10,
+        camera_pan_extent=0.16,
+        camera_min_duration=0.75,
+        accent_color="#FFCC33",
+        status_color="#25F4EE",
+        neutral_color="#FFFFFF",
+    ),
     "smooth_showcase": StyleMotionPolicy(
         key="smooth_showcase",
         transition_stride=3,

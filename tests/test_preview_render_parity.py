@@ -1835,6 +1835,7 @@ def test_style_preset_visual_palette_reaches_both_preview_and_ass():
     expected_accents = {
         "viral_punch": "#FE2C55",
         "clean_tech_review": "#FFE600",
+        "tech_product_showcase": "#FFCC33",
         "smooth_showcase": "#25F4EE",
         "premium_minimal": "#E6C24A",
     }

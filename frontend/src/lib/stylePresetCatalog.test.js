@@ -14,12 +14,13 @@ import {
 import { DEFAULT_STUDIO_FORM, STYLE_PRESET_STORAGE_VERSION, migrateSavedStudioForm } from './studioDefaults.js';
 
 test('catalog has a unique renderer-supported default', () => {
-  assert.equal(STYLE_PRESET_CATALOG.length, 4);
+  assert.equal(STYLE_PRESET_CATALOG.length, 5);
   assert.equal(normalizeStylePreset(DEFAULT_STYLE_PRESET), DEFAULT_STYLE_PRESET);
   assert.equal(new Set(STYLE_PRESET_CATALOG.map((preset) => preset.id)).size, STYLE_PRESET_CATALOG.length);
   assert.deepEqual(STYLE_PRESET_CATALOG.map((preset) => preset.id), [
     'viral_punch',
     'clean_tech_review',
+    'tech_product_showcase',
     'smooth_showcase',
     'premium_minimal',
   ]);

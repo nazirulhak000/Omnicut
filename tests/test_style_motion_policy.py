@@ -64,6 +64,7 @@ def test_unknown_style_falls_back_to_golden_master_and_catalog_is_json_safe():
     assert set(catalog) == {
         "clean_tech_review",
         "viral_punch",
+        "tech_product_showcase",
         "smooth_showcase",
         "premium_minimal",
     }
@@ -85,6 +86,28 @@ def test_viral_punch_uses_frequent_directional_motion_without_transition_spam():
         "cut", "slideleft", "cut", "slideright", "cut", "circleopen",
     ]
     assert all(pick.get("duration", 0.0) <= 0.28 for pick in picks)
+
+
+def test_tech_product_showcase_keeps_product_motion_visible_but_budgeted():
+    picks = [
+        apply_transition_budget(
+            {"type": "circleopen", "duration": 0.8},
+            style_preset="tech_product_showcase",
+            boundary_index=index,
+        )
+        for index in range(1, 7)
+    ]
+
+    assert [pick["type"] for pick in picks] == [
+        "cut", "cut", "slideleft", "cut", "cut", "circleopen",
+    ]
+    assert all(pick.get("duration", 0.0) <= 0.30 for pick in picks)
+    assert camera_keyframes_for_clip(
+        1.2, 1.0, 0, style_preset="tech_product_showcase"
+    ) == [
+        {"time": 0.0, "zoom": 1.15, "pan_x": -0.16, "pan_y": 0.0},
+        {"time": 1.0, "zoom": 1.25, "pan_x": 0.16, "pan_y": 0.0},
+    ]
 
 
 def test_smooth_and_premium_styles_apply_their_own_transition_families():
