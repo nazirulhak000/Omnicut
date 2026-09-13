@@ -783,6 +783,8 @@ const EMOJI_RUN_RE = /(\p{Extended_Pictographic}(?:️|‍\p{Extended_Pictograph
 // Fade changes visibility only; scaling a shaped Thai run can collapse the
 // stacked mark pair ั + ่ (for example, นั่ง) in libass during the first frames.
 const CAPTION_FADE_MS = 70;
+const THAI_STACKED_MARK_PAIR = '\u0E31\u0E48';
+const THAI_STACKED_MARK_RAISE_EM = 0.13;
 
 function drawTextWithMonoEmoji(ctx, text, x, y) {
   if (!EMOJI_RUN_RE.test(text)) {
@@ -807,11 +809,11 @@ function drawTextWithMonoEmoji(ctx, text, x, y) {
   }
 }
 
-// IBM Plex Sans Thai's `ั่` pair is rasterised into one crowded vertical band
-// by the ASS/libass path.  Keep the same repair in Canvas so the preview does
-// not show a different glyph geometry from the exported clip.
+// Several bundled Thai faces rasterise `ั่` into one crowded vertical band
+// through ASS/libass. Keep the same repair in Canvas so Preview and Render
+// use one deterministic two-level stack.
 function drawCaptionText(ctx, text, x, y, fontSize, drawText, repairThaiMarks = true) {
-  const pair = '\u0E31\u0E48';
+  const pair = THAI_STACKED_MARK_PAIR;
   if (!repairThaiMarks || !text.includes(pair)) {
     drawText(text, x, y);
     return;
@@ -836,8 +838,8 @@ function drawCaptionText(ctx, text, x, y, fontSize, drawText, repairThaiMarks = 
     // the narrow tone glyph into a square.
     const oldLineWidth = ctx.lineWidth;
     ctx.lineWidth = Math.max(1, Math.round(fontSize * 2 * 0.02));
-    // Keep the same 0.13em optical raise as the ASS/libass renderer.
-    drawText('\u0E48', toneX, y - Math.max(4, Math.round(fontSize * 0.13)));
+    // Keep the same font-relative optical raise as the ASS/libass renderer.
+    drawText('\u0E48', toneX, y - Math.max(4, Math.round(fontSize * THAI_STACKED_MARK_RAISE_EM)));
     ctx.lineWidth = oldLineWidth;
     searchFrom = pairAt + pair.length;
   }
@@ -867,7 +869,9 @@ function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
     fontFam = "'Prompt', sans-serif";
     fontWeight = '800';
   }
-  const repairThaiMarks = fontFamName === 'IBMPlex' || fontFamName === 'IBM Plex Sans Thai';
+  // Use one deterministic stack for every face. Prompt/Kanit/Mitr/Itim need
+  // the repair in libass, and mirroring it here prevents Preview/Render drift.
+  const repairThaiMarks = true;
 
   ctx.save();
   const fadeElapsedMs = (t - cue.start) * 1000;
@@ -990,10 +994,9 @@ function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
     // (without the tone) differs from the original, so segmentWidths must
     // measure the repaired body text -- otherwise the next segment is offset
     // by the advance gap and Thai vowels/tones appear to float.
-    const REPAIR_PAIR = '\u0E31\u0E48';
     const segmentWidths = segments.map(seg => {
-      const txt = repairThaiMarks && seg.text.includes(REPAIR_PAIR)
-        ? seg.text.replaceAll(REPAIR_PAIR, '\u0E31')
+      const txt = repairThaiMarks && seg.text.includes(THAI_STACKED_MARK_PAIR)
+        ? seg.text.replaceAll(THAI_STACKED_MARK_PAIR, '\u0E31')
         : seg.text;
       return ctx.measureText(txt).width;
     });

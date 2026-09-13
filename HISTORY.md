@@ -8,6 +8,7 @@
 
 ## สารบัญ
 
+| Round THAI-STACKED-MARK-RENDER-FIX-1 | แก้ `ั` + `่` ซ้อนทับใน Render ให้สูงโปร่งตรง Preview โดยรักษา layout ของ emoji/ข้อความทั้งบรรทัด | 2026-09-13 | สำเร็จสมบูรณ์ (backend 1,133 passed, visual/contract 178 passed, frontend 185 passed, build 2,003 modules/4.59s, FFmpeg pixel geometry + browser verified, ดำเนินการโดย: Codex (GPT-5)) |
 | Round AI-PRODUCER-ACCESS-1 | Phase 5 Accessibility & Responsive Polish: modal semantics, Escape close, aria-live และ keyboard labels | 2026-09-13 | สำเร็จสมบูรณ์ (frontend 185 passed, build 2003 modules/3.85s, browser AX + Escape verified, diff check ผ่าน, ไม่เปลี่ยน font/text contract, ดำเนินการโดย: Codex (GPT-5)) |
 | Round AI-PRODUCER-EVIDENCE-1 | Phase 4 Evidence-first Retrospective: metrics model, measured takeaways, source provenance และ metric snapshot | 2026-09-13 | สำเร็จสมบูรณ์ (frontend 185 passed, backend 3 passed, build 2003 modules/3.58s, browser evidence cards verified, fixture distribution test ผ่าน, ดำเนินการโดย: Codex (GPT-5)) |
 | Round AI-PRODUCER-SYNC-1 | Phase 3 Capture & Sync Reliability: deterministic media upload, single-item notes, revision guard และ payload validation | 2026-09-13 | สำเร็จสมบูรณ์ (backend notes 3 passed, frontend 184 passed, build 2003 modules/5.74s, compileall ผ่าน, Producer Hub + Quick Ref browser verified, ไม่แตะ 02_Assets/Refs, ดำเนินการโดย: Codex (GPT-5)) |
@@ -18,6 +19,39 @@
 | Round MOBILE-IMAGE-PASTE-FIX-1 | Fix Mobile Image Paste (iOS Safari files detection, ContentEditable Paste Target, Native Photo Picker Auto-Fallback, and HEIC auto-conversion) | 2026-09-13 | สำเร็จสมบูรณ์ (ตรวจจับ `clipboardData.files` + `items` + `html` + `text` ทุกมิติ, เพิ่มกล่อง Rich ContentEditable Paste Target สำหรับ iOS Safari & Android, ปุ่ม 1-Tap 'เลือกจากคลังภาพ' ดึงรูปล่าสุดใน 1 วินาที, รองรับภาพ HEIC จาก iPhone แปลงเป็น JPG อัตโนมัติด้วย ffmpeg, npm test 180 passed, build 3.58s, desktop & mobile browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round CLIPBOARD-IMAGE-PASTE-1 | Direct Clipboard Image Paste (Ctrl+V / Paste into Textarea & Form) | 2026-09-13 | สำเร็จสมบูรณ์ (ตรวจจับภาพจาก clipboardData อัตโนมัติเมื่อกด Ctrl+V ในช่องข้อความหรือฟอร์ม, เพิ่มปุ่ม 1-Tap 'วางรูปภาพ' ดึงรูปจาก clipboard, อัปโหลดเข้า 02_Assets/Refs/ ทันที, รองรับทั้ง QuickRefPage และ ProducerHub, npm test 180 passed, build 3.35s, browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round QUICK-REF-POLISH-1 | Redesign Impeccable Quick Ref Vault & Fix iOS Mobile Zoom | 2026-09-13 | สำเร็จสมบูรณ์ (ป้องกัน iOS auto-zoom ด้วย 16px inputs + CSS media query + viewport config, Redesign เต็มจอ edge-to-edge + Responsive 2-column desktop, 1-Tap Paste จากคลิปบอร์ด, Segmented Category Pills, Tag filter & search, AI Idea-to-Script on mobile, npm test 180 passed, build 3.31s, desktop & mobile browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+---
+
+## Round THAI-STACKED-MARK-RENDER-FIX-1 — แก้วรรณยุกต์ซ้อนใน Render
+
+วันที่: 2026-09-13 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** ทำให้ Render วาง `่` เหนือ `ั` ในพยางค์ไทย เช่น `ชั่` แบบสูงโปร่ง สะอาดตา และตรงกับ Preview โดยไม่เปลี่ยนข้อความ ฟอนต์ ขนาด การตัดบรรทัด หรือตำแหน่ง Golden Master อื่น
+
+### Todo
+
+- [x] สร้าง feedback loop ที่ reproduce ปัญหาจากข้อความจริงและ FFmpeg/libass พร้อมตรวจ Unicode, ฟอนต์จริง และ glyph shaping
+- [x] จัดอันดับสมมติฐานที่พิสูจน์/หักล้างได้ แล้ว instrument ทีละตัวแปรเพื่อหาสาเหตุราก
+- [x] เพิ่ม regression test ที่ล้มกับพฤติกรรมเดิม ณ seam ของ ASS render ก่อนแก้ production code
+- [x] แก้ Render และ Preview เป็นคู่ พร้อม parity assertion โดยคง content identity และ Golden Master เดิม
+- [x] Bump subtitle render contract และพิสูจน์ artifact เก่าถูก invalidate/รุ่นใหม่ reuse ได้ หาก output contract เปลี่ยน
+
+### Gate
+
+- [x] `\.venv\Scripts\python.exe -m pytest tests/test_subtitle_artifact_contract.py tests/test_preview_render_parity.py tests/test_preview_render_behavior.py -q -p no:cacheprovider --tb=short` — 178 passed
+- [x] FFmpeg+libass ส่ง `fontsdir=02_Assets/Fonts` และวัด pixel geometry หลายเฟรมช่วงเข้า/ค้าง/ออก — `ั` bbox y=940–950, `่` bbox y=930–940, ไม่ทับแนวตั้งและยังเกาะกันแนวนอน
+- [x] ตรวจข้อความไทย/อังกฤษก่อน-หลังแบบ Unicode ว่าไม่เปลี่ยน — cue ต้นฉบับคงเดิม; แยกเฉพาะ glyph ตอนสร้าง ASS companion event
+- [x] `\.venv\Scripts\python.exe -m compileall -q scripts` + full backend pytest + `pip check` — compile ผ่าน, 1,133 passed/25 warnings/235.04s, dependencies สมบูรณ์
+- [x] frontend `npm test` + `npm run build` และ `git diff --check` — 185 passed, 2,003 modules/4.59s, diff check ผ่าน
+
+### Notes
+
+- Working tree ก่อนเริ่มมีงานผู้ใช้ใน `02_Assets/Refs/playbook_notes.json` และรูป ref untracked 6 ไฟล์; รอบนี้ไม่แตะและไม่ stage ไฟล์เหล่านี้
+- การแก้จำกัดเฉพาะ geometry ของ Thai combining marks; ไม่เปลี่ยนข้อความ, font family/face, base font size, English ratio, wrapping หรือ safe zone
+- Root cause: backend เดิมอนุญาต repair เฉพาะ `IBM Plex Sans Thai` และ return ทันทีเมื่อบรรทัดมี emoji ทำให้ข้อความจริง `🛒 บอกเลยว่าโปรโมชั่นนี้` ที่ใช้ Prompt ไม่ถูกแก้ ขณะที่ Preview วาดเครื่องหมายแยกอยู่แล้ว
+- Fix: เปลี่ยนจากการเดาตำแหน่ง X ด้วย Pillow เป็น ASS companion event ที่เก็บ layout เต็มบรรทัดให้ libass คำนวณ emoji fallback เอง แล้วเปิดเฉพาะ `่` พร้อมยกขึ้น `0.13em`; mirror ค่ากับ Canvas และ bump contract `v6` → `v7`
+- Browser QA เปิดโปรเจกต์ `ESS01-โปรไฟลุก_1` ที่เวลา 0.9s ตรวจ cue จริงและสถานะ Preview; generated ASS v7 วัดกรอบ caption กว้างเท่าเดิม 604px (ความสูง 125→126px จากวรรณยุกต์ที่ยกขึ้น)
+- ระหว่าง browser QA คลิกพลาดลบ `demo_20260913_183642.mp4` (ประมาณ 0.19 MB) จาก Export Gallery; endpoint ใช้ `Path.unlink()` จึงไม่เข้า Recycle Bin และตรวจไม่พบสำเนาชื่อเดียวกันใน workspace/ไดรฟ์ D: ไฟล์จริงของโปรเจกต์ ESS01, `01_Raw/` และ `02_Assets/` ไม่ได้รับผลกระทบ
 
 ---
 

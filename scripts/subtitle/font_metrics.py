@@ -253,85 +253,34 @@ def ass_caption_face(resolved_font: str) -> Tuple[str, int]:
     )
 
 
-def repair_thai_mark_pair(
-    ass_text: str,
-    resolved_font: str,
-    font_size_px: int,
-    video_width: int,
-    line_anchor_ys: List[float],
-    line_center_x: Optional[float] = None,
-) -> Tuple[str, List[Tuple[int, int]]]:
-    """Remove the fused mai han-akat/tone pair and return tone placements.
+THAI_STACKED_MARK_PAIR = "\u0e31\u0e48"
+THAI_STACKED_MARK_RAISE_EM = 0.13
 
-    The IBM Plex Thai face currently bundled with the app rasterises
-    ``ั่`` in one shared vertical band under libass, even when its real
-    SemiBold face and GPOS tables are selected.  ASS has no per-glyph y
-    offset, so the stable workaround is to leave ``ั`` in the normal run and
-    draw ``่`` as a zero-advance companion event at the same base x, raised by
-    a font-relative amount.  The returned coordinates are PlayRes pixels;
-    callers can reuse the same style and animation tags for the companion.
 
-    Only the raw adjacent pair is changed.  ASS override blocks and line
-    breaks remain untouched, and text without the pair is returned byte-for-
-    byte unchanged.
+def repair_thai_mark_pair(ass_text: str) -> Tuple[str, List[Tuple[str, str]]]:
+    """Detach ``่`` from ``ั`` while preserving libass's complete line layout.
+
+    Several bundled Thai faces collapse this two-level stack under libass.
+    The body keeps ``ั`` and removes ``่``.  Each companion keeps the complete
+    ASS line but removes the target ``ั`` and exposes only its ``่``; callers
+    hide the surrounding glyphs and raise the companion event.
+
+    Keeping the full line lets libass measure emoji fallback and mixed-font
+    runs itself.  The old Pillow-based absolute x estimate drifted by about
+    90 PlayRes pixels when a Segoe UI Emoji glyph preceded the Thai word.
     """
-    pair = "\u0e31\u0e48"
-    if pair not in ass_text:
+    pair = THAI_STACKED_MARK_PAIR
+    matches = list(re.finditer(pair, ass_text))
+    if not matches:
         return ass_text, []
 
-    def visible(value: str) -> str:
-        return re.sub(r"\{[^{}]*\}", "", value)
-
-    def width(value: str) -> float:
-        if not value:
-            return 0.0
-        measured = _measure_text_width_px(value, resolved_font, font_size_px)
-        if measured is not None:
-            # Pillow measures the font in its em square, while libass sizes
-            # the same face from the OS/2 win ascent+descent line box.  The
-            # scale difference is especially visible here: without it the
-            # companion tone is placed as if the Thai line were ~1.65x wider
-            # than the pixels libass actually draws.
-            return float(measured) * ass_glyph_scale(resolved_font)
-        return float(len(value) * font_size_px * 0.55) * ass_glyph_scale(resolved_font)
-
-    repaired_lines: List[str] = []
-    tone_positions: List[Tuple[int, int]] = []
-    for line_idx, segment in enumerate(ass_text.split(r"\N")):
-        raw_indices = [match.start() for match in re.finditer(pair, segment)]
-        if not raw_indices:
-            repaired_lines.append(segment)
-            continue
-
-        plain_line = visible(segment)
-        line_width = width(plain_line)
-        line_center = video_width / 2.0 if line_center_x is None else line_center_x
-        line_left = line_center - line_width / 2.0
-        for raw_idx in raw_indices:
-            plain_before = visible(segment[:raw_idx])
-            if not plain_before:
-                continue
-            base = plain_before[-1]
-            prefix = plain_before[:-1]
-            # Thai's mark-to-base anchor for this face is at the far side of
-            # the base advance, not at its visual midpoint.  Using half the
-            # advance leaves the detached tone just left of the consonant
-            # (and is particularly obvious after a long centred line).
-            base_x = line_left + width(prefix) + width(base)
-            anchor_y = line_anchor_ys[min(line_idx, len(line_anchor_ys) - 1)]
-            # The detached ASS tone glyph's ink sits ~0.33em above its
-            # `\an5` anchor.  Raising the anchor by 0.13em leaves a small
-            # optical gap above mai han-akat; 0.23em made it float too far
-            # above bilingual captions.
-            tone_raise = max(6, int(round(font_size_px * 0.13)))
-            tone_positions.append((int(round(base_x)), int(round(anchor_y - tone_raise))))
-
-        repaired = segment
-        for raw_idx in reversed(raw_indices):
-            repaired = repaired[: raw_idx + 1] + repaired[raw_idx + 2 :]
-        repaired_lines.append(repaired)
-
-    return r"\N".join(repaired_lines), tone_positions
+    repaired = ass_text.replace(pair, pair[0])
+    companions: List[Tuple[str, str]] = []
+    for target in matches:
+        before = ass_text[: target.start()].replace(pair, pair[0])
+        after = ass_text[target.end() :].replace(pair, pair[0])
+        companions.append((before, after))
+    return repaired, companions
 
 
 def _hook_line_width_px(line: str, resolved_font: str, line_fs: int) -> float:

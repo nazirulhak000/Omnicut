@@ -87,6 +87,19 @@ def test_previous_v4_contract_is_invalidated_by_watermark_bump(tmp_path):
     assert not subtitle_artifact_is_current(ass_path)
 
 
+def test_previous_v6_contract_is_invalidated_by_thai_mark_layout_bump(tmp_path):
+    from scripts.subtitle_engine import subtitle_artifact_is_current
+
+    ass_path = Path(tmp_path) / "v6.ass"
+    ass_path.write_text(
+        "[Script Info]\n; OmniCutSubtitleContract: v6\n"
+        "Style: TikTokWhite,Prompt,76\n",
+        encoding="utf-8",
+    )
+
+    assert not subtitle_artifact_is_current(ass_path)
+
+
 def test_generated_ass_always_includes_copyright_watermark(tmp_path):
     """The watermark is a fixed brand-protection mark, not a user overlay --
     it must appear on every render regardless of hook/overlay content, be
@@ -127,3 +140,36 @@ def test_generated_ass_always_includes_copyright_watermark(tmp_path):
     # -- just assert it produced a sane positive size, not a specific number.
     style_fontsize = int(style_line.split(",")[2])
     assert style_fontsize > 0
+
+
+def test_prompt_caption_with_emoji_detaches_stacked_thai_tone_mark(tmp_path):
+    """Emoji fallback must not disable the `ั` + `่` render repair.
+
+    This is the production shape from the reported clip. Prompt's bundled
+    face collapses the pair under libass, while the leading shopping-cart
+    emoji previously caused the repair path to return early.
+    """
+    from scripts.subtitle_engine import SubtitleEngine
+
+    ass_path = tmp_path / "prompt-emoji.ass"
+    SubtitleEngine.generate_ass(
+        cues=[{
+            "id": 1,
+            "start": 0.0,
+            "end": 1.0,
+            "text": "🛒 บอกเลยว่าโปรโมชั่นนี้",
+        }],
+        output_ass_path=str(ass_path),
+        font_name="Prompt",
+        bilingual=False,
+        caption_position="middle",
+        show_watermark=False,
+    )
+
+    caption_lines = [
+        line for line in ass_path.read_text(encoding="utf-8").splitlines()
+        if ",TikTokWhite,," in line
+    ]
+    assert len(caption_lines) >= 2
+    assert any("โปรโมชั่นนี้".replace("ั่", "ั") in line for line in caption_lines)
+    assert all("ั่" not in line for line in caption_lines)

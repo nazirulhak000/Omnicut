@@ -35,6 +35,7 @@ from scripts.subtitle import (
     ass_glyph_scale,
     has_true_bold_face,
     ass_caption_face,
+    THAI_STACKED_MARK_RAISE_EM,
     repair_thai_mark_pair,
     _hook_line_width_px,
     DEFAULT_HOOK_MOTION,
@@ -81,7 +82,7 @@ from scripts.subtitle import (
     _force_highlight,
 )
 
-SUBTITLE_RENDER_CONTRACT_VERSION = "v6"
+SUBTITLE_RENDER_CONTRACT_VERSION = "v7"
 SUBTITLE_RENDER_CONTRACT_MARKER = (
     f"; OmniCutSubtitleContract: {SUBTITLE_RENDER_CONTRACT_VERSION}"
 )
@@ -594,59 +595,12 @@ class SubtitleEngine:
         # front_outline does, instead of a flat constant.
         watermark_outline = round(max(2.0, watermark_fs_boosted * 0.05), 1)
 
-        def caption_line_anchors(line_count: int, value_lines: Optional[List[str]] = None) -> List[float]:
-            """Return the ASS line centres for a caption block."""
-            count = max(1, int(line_count))
-            # The English line carries a 68% vertical scale override, and
-            # libass uses that scaled line box for the distance from the Thai
-            # line above it.  Walking those per-line steps keeps a detached
-            # tone mark on the same Thai baseline in bilingual captions.
-            value_scales = [
-                0.68 if r"\fscx68" in line else 1.0
-                for line in (value_lines or [])
-            ]
-            if len(value_scales) != count:
-                value_scales = [1.0] * count
-            line_heights = [font_size_boosted * scale for scale in value_scales]
-            offsets = [0.0]
-            for idx in range(1, count):
-                offsets.append(offsets[-1] + line_heights[idx])
-            total_span = offsets[-1] if offsets else 0.0
-
-            def centred_anchors(block_center: float) -> List[float]:
-                first = block_center - total_span / 2.0
-                return [first + offset for offset in offsets]
-
-            if pos_override:
-                return centred_anchors(float(px_y))
-            if alignment == 5:
-                return centred_anchors(video_height / 2.0)
-            if alignment == 2:
-                bottom_line_center = video_height - margin_v - font_size_boosted / 2
-                return [
-                    bottom_line_center - (total_span - offsets[idx])
-                    for idx in range(count)
-                ]
-            top_line_center = margin_v + font_size_boosted / 2
-            return [top_line_center + offset for offset in offsets]
-
-        def repair_caption_text(value: str) -> Tuple[str, List[Tuple[int, int]]]:
-            if resolved_font != "IBM Plex Sans Thai":
-                return value, []
-            # When text contains emojis (e.g. 🛒, ⚠️, ✨, etc.), fallback emoji font
-            # advances diverge significantly from single-font metrics, throwing off
-            # manual mark alignment and causing detached tones to drift onto previous words.
-            # Keep marks naturally attached on any line containing emojis.
-            if any(ord(c) > 0x2000 for c in value):
-                return value, []
-            return repair_thai_mark_pair(
-                value,
-                resolved_font,
-                font_size_boosted,
-                video_width,
-                caption_line_anchors(value.count(r"\N") + 1, value.split(r"\N")),
-                float(px_x) if pos_override else None,
-            )
+        def repair_caption_text(value: str) -> Tuple[str, List[Tuple[str, str]]]:
+            # This pair is repaired for every face.  Prompt/Kanit/Mitr/Itim
+            # need it because their bundled outlines collapse the stack;
+            # applying the same deterministic geometry to the other faces
+            # keeps Canvas and ASS output identical.
+            return repair_thai_mark_pair(value)
 
         # Dynamic Soft Shadow & Outline metrics (Zero hardcoding: scales with any font, scale, and resolution)
         front_outline = round(max(1.8, font_size * 0.040), 1)
@@ -658,6 +612,37 @@ class SubtitleEngine:
         shadow_margin_l = 60 + shadow_dx
         shadow_margin_r = 60 - shadow_dx
         shadow_margin_v = margin_v - shadow_dy if alignment in (1, 2, 3) else margin_v + shadow_dy
+
+        tone_raise = max(6, int(round(font_size_boosted * THAI_STACKED_MARK_RAISE_EM)))
+        hidden_mark_components = r"{\1a&HFF&\3a&HFF&\4a&HFF&}"
+
+        def caption_mark_position(*, shadow: bool) -> str:
+            """Anchor a full-layout companion line, raised from its body."""
+            if pos_override:
+                return f"\\an5\\pos({px_x},{px_y - tone_raise})"
+
+            anchor_x = int(round(video_width / 2 + (shadow_dx if shadow else 0)))
+            active_margin = shadow_margin_v if shadow else margin_v
+            if alignment == 2:
+                anchor_y = video_height - active_margin
+            elif alignment == 8:
+                anchor_y = active_margin
+            else:
+                anchor_y = int(round(video_height / 2 + (shadow_dy if shadow else 0)))
+            return f"\\an{alignment}\\pos({anchor_x},{anchor_y - tone_raise})"
+
+        def caption_mark_overlay(parts: Tuple[str, str], *, shadow: bool) -> str:
+            """Expose one detached tone while all layout-preserving text stays hidden."""
+            before, after = parts
+            settled_alpha = "38" if shadow else "00"
+            blur_tag = f"\\blur{shadow_blur}" if shadow else ""
+            visible = (
+                "{" + blur_tag + r"\bord1\shad1"
+                + r"\1a&HFF&\3a&HFF&\4a&HFF&"
+                + rf"\t(0,70,\1a&H{settled_alpha}&\3a&H{settled_alpha}&\4a&H{settled_alpha}&)"
+                + "}"
+            )
+            return f"{hidden_mark_components}{before}{visible}่{hidden_mark_components}{after}"
 
         header = f"""[Script Info]
 Title: TikTok Aesthetic Subtitles
@@ -846,10 +831,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 shadow_text, shadow_marks = repair_caption_text(text + en_sub_shadow)
                 shadow_entry = f"Dialogue: 0,{start_t},{end_t},TikTokSoftShadow,,0,0,0,,{shadow_pos}{shadow_tag}{caption_anim}{shadow_text}"
                 events.append(shadow_entry)
-                for mark_x, mark_y in shadow_marks:
+                for mark_parts in shadow_marks:
                     events.append(
                         f"Dialogue: 0,{start_t},{end_t},TikTokSoftShadow,,0,0,0,,"
-                        f"{shadow_tag}{caption_anim}{{\\bord1\\shad1\\an5\\pos({mark_x},{mark_y})}}่"
+                        f"{{{caption_mark_position(shadow=True)}}}"
+                        f"{caption_mark_overlay(mark_parts, shadow=True)}"
                     )
 
             # Layer 1: Crisp Foreground Text with dynamic kinetic highlights
@@ -857,18 +843,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             main_text, main_marks = repair_caption_text(highlighted_text + en_sub)
             line_entry = f"Dialogue: 1,{start_t},{end_t},{style},,0,0,0,,{main_pos}{caption_anim}{main_text}"
             events.append(line_entry)
-            for mark_x, mark_y in main_marks:
-                mark_colour = ""
-                # Keep the active kinetic colour on the detached tone mark.
-                # The final reset is deliberately not copied: this event ends
-                # at the tone glyph, so no following text can inherit it.
-                before_mark = highlighted_text.split(r"\N", 1)[0]
-                colour_tags = re.findall(r"\{\\c(&H[0-9A-Fa-f]+&)\}", before_mark)
-                if colour_tags:
-                    mark_colour = f"{{\\c{colour_tags[-1]}}}"
+            for mark_parts in main_marks:
                 events.append(
                     f"Dialogue: 1,{start_t},{end_t},{style},,0,0,0,,"
-                    f"{main_pos}{caption_anim}{{\\bord1\\shad1\\an5\\pos({mark_x},{mark_y})}}{mark_colour}่"
+                    f"{{{caption_mark_position(shadow=False)}}}"
+                    f"{caption_mark_overlay(mark_parts, shadow=False)}"
                 )
 
         # 3. Spec-Bar Overlays (IT vertical: the number goes on screen, not

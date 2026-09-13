@@ -13,6 +13,8 @@ from scripts.subtitle.font_metrics import (
     ass_glyph_scale,
     has_true_bold_face,
     ass_caption_face,
+    THAI_STACKED_MARK_PAIR,
+    THAI_STACKED_MARK_RAISE_EM,
     repair_thai_mark_pair,
     _hook_line_width_px,
 )
@@ -76,6 +78,8 @@ __all__ = [
     "ass_glyph_scale",
     "has_true_bold_face",
     "ass_caption_face",
+    "THAI_STACKED_MARK_PAIR",
+    "THAI_STACKED_MARK_RAISE_EM",
     "repair_thai_mark_pair",
     "_hook_line_width_px",
     "DEFAULT_HOOK_MOTION",

@@ -372,8 +372,10 @@ def test_thai_stacked_marks_keep_settled_geometry_during_caption_entrance(tmp_pa
     )
     generated = ass_path.read_text(encoding="utf-8")
     assert "Style: TikTokWhite,IBM Plex Sans Thai SemiBold" in generated
-    assert "TikTokWhite,,0,0,0,,{\\alpha&HFF&\\t(0,70,\\alpha&H00&)}{\\bord1\\shad1\\an5\\pos(" in generated
     assert "TikTokWhite,,0,0,0,,{\\alpha&HFF&\\t(0,70,\\alpha&H00&)}นัง" in generated
+    assert "TikTokWhite,,0,0,0,,{\\an5\\pos(" in generated
+    assert "\\1a&HFF&\\3a&HFF&\\4a&HFF&" in generated
+    assert "นั่ง" not in generated
 
     ass_filter_path = str(ass_path.resolve()).replace("\\", "/").replace(":", "\\:")
     frames_pattern = str(tmp_path / "frame-%02d.png")
@@ -413,8 +415,8 @@ def test_thai_stacked_marks_keep_settled_geometry_during_caption_entrance(tmp_pa
 
 
 @pytest.mark.render_regression
-def test_ibm_thai_marks_have_separate_vertical_bands(tmp_path):
-    """The two marks in ``นั่ง`` must not rasterise into one vertical band."""
+def test_prompt_emoji_thai_marks_have_separate_vertical_bands(tmp_path):
+    """Prompt + emoji fallback must keep ``ั`` and ``่`` in separate bands."""
     if not shutil.which("ffmpeg"):
         pytest.skip("FFmpeg is required for the Thai render regression")
 
@@ -426,21 +428,20 @@ def test_ibm_thai_marks_have_separate_vertical_bands(tmp_path):
     # decoration.
     from scripts.subtitle.font_metrics import repair_thai_mark_pair
 
-    pair = "ใครที่นั่ง"
-    repaired, placements = repair_thai_mark_pair(
-        pair, "IBM Plex Sans Thai", 82, 1080, [960]
+    from scripts.subtitle.font_metrics import THAI_STACKED_MARK_RAISE_EM
+
+    pair = "🛒 ใครที่นั่ง"
+    repaired, companions = repair_thai_mark_pair(pair)
+    assert repaired == "🛒 ใครที่นัง"
+    assert len(companions) == 1
+    before, after = companions[0]
+    coloured_body = repaired.replace(
+        "\u0e31", "{\\1c&HFF0000&}\u0e31{\\1c&HFFFFFF&}", 1
     )
-    assert repaired == "ใครที่นัง"
-    assert len(placements) == 1
-    mark_x, mark_y = placements[0]
-    _, custom_placements = repair_thai_mark_pair(
-        pair, "IBM Plex Sans Thai", 82, 1080, [960], line_center_x=700
-    )
-    assert custom_placements[0][0] == mark_x + 160
-    coloured_body = (
-        "ใครที่น{\\1c&HFF0000&}\u0e31{\\1c&HFFFFFF&}ง"
-    )
-    coloured_tone = f"{{\\an5\\pos({mark_x},{mark_y})\\1c&H00FF00&}}\u0e48"
+    hidden = "{\\1a&HFF&\\3a&HFF&\\4a&HFF&}"
+    shown = "{\\1a&H00&\\3a&H00&\\4a&H00&\\1c&H00FF00&}"
+    coloured_tone = f"{hidden}{before}{shown}\u0e48{hidden}{after}"
+    tone_raise = max(6, int(round(76 * THAI_STACKED_MARK_RAISE_EM)))
     ass = tmp_path / "thai_mark_bands.ass"
     ass.write_text(
         "[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\n"
@@ -448,10 +449,10 @@ def test_ibm_thai_marks_have_separate_vertical_bands(tmp_path):
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, "
         "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, "
         "Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
-        "Style: Default,IBM Plex Sans Thai SemiBold,82,&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,5,0,0,0,1\n"
+        "Style: Default,Prompt,76,&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,0,0,5,0,0,0,1\n"
         "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
         f"Dialogue: 0,0:00:00.00,0:00:01.00,Default,,0,0,0,,{{\\an5\\pos(540,960)}}{coloured_body}\n"
-        f"Dialogue: 1,0:00:00.00,0:00:01.00,Default,,0,0,0,,{coloured_tone}\n",
+        f"Dialogue: 1,0:00:00.00,0:00:01.00,Default,,0,0,0,,{{\\an5\\pos(540,{960 - tone_raise})}}{coloured_tone}\n",
         encoding="utf-8",
     )
 

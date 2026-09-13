@@ -152,8 +152,14 @@ def test_thai_caption_face_is_explicit_and_mirrored():
     assert "function drawCaptionText(ctx, text, x, y, fontSize, drawText, repairThaiMarks = true)" in JS_SRC
     assert "drawText('\\u0E48', toneX" in JS_SRC
     assert "ctx.measureText(base).width;" in JS_SRC
-    assert "fontSize * 0.13" in JS_SRC
-    assert r"{{\\bord1\\shad1\\an5\\pos({mark_x},{mark_y})}}" in PY_SRC
+    assert _grab(PY_SRC, r"THAI_STACKED_MARK_RAISE_EM = ([\d.]+)") == _grab(
+        JS_SRC, r"const THAI_STACKED_MARK_RAISE_EM = ([\d.]+);"
+    )
+    assert "fontSize * THAI_STACKED_MARK_RAISE_EM" in JS_SRC
+    assert "return repair_thai_mark_pair(value)" in PY_SRC
+    assert "const repairThaiMarks = true;" in JS_SRC
+    assert "hidden_mark_components" in PY_SRC
+    assert "caption_mark_overlay(mark_parts" in PY_SRC
 
 
 def test_transition_defaults_match():
