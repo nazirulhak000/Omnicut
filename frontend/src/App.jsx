@@ -448,8 +448,8 @@ export default function App() {
                   <Suspense fallback={<LoadingSpinner message="กำลังโหลดผู้ช่วยโปรดิวเซอร์..." />}>
                     <ProducerHub
                       onApplyToStudio={handleApplyScriptFromLab}
-                      onGoToEditor={() => handlePrimaryTabChange('editor')}
-                      onGoToGallery={() => handlePrimaryTabChange('gallery')}
+                      onGoToEditor={(payload) => handleNavigateTab('editor', payload)}
+                      onGoToGallery={(payload) => handleNavigateTab('gallery', payload)}
                       onGoToFlow={(productId) => {
                         if (productId) setSelectedProductIdForFlow(productId);
                         handlePrimaryTabChange('flow');

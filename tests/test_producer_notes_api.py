@@ -22,6 +22,7 @@ def test_producer_notes_roundtrip(client, monkeypatch, tmp_path):
     data = res.json()
     assert data["success"] is True
     assert len(data["notes"]) >= 2
+    assert data["revision"]
 
     # 2. Add a new note with multi-images
     sample_note = {
@@ -76,3 +77,35 @@ def test_producer_notes_roundtrip(client, monkeypatch, tmp_path):
     # Verify deleted
     res_get3 = client.get("/api/producer/notes")
     assert res_get3.json()["notes"] == []
+
+
+def test_producer_notes_reject_stale_bulk_revision(client, monkeypatch, tmp_path):
+    monkeypatch.setattr(api_producer, "NOTES_FILE", tmp_path / "playbook_notes.json")
+
+    initial = client.get("/api/producer/notes").json()
+    note = {"text": "fresh note", "tag": "Hook"}
+    added = client.post("/api/producer/notes/add", json=note)
+    assert added.status_code == 200
+    current = client.get("/api/producer/notes").json()
+    assert current["revision"] != initial["revision"]
+
+    stale = client.post(
+        "/api/producer/notes",
+        json={"notes": [], "base_revision": initial["revision"]},
+    )
+    assert stale.status_code == 409
+    assert stale.json()["detail"]["revision"] == current["revision"]
+    assert stale.json()["detail"]["notes"] == current["notes"]
+
+
+def test_producer_notes_reject_oversized_unuploaded_image(client, monkeypatch, tmp_path):
+    monkeypatch.setattr(api_producer, "NOTES_FILE", tmp_path / "playbook_notes.json")
+    oversized_data_url = "data:image/png;base64," + ("a" * 2_000_001)
+
+    res = client.post(
+        "/api/producer/notes/add",
+        json={"text": "pending image", "images": [oversized_data_url]},
+    )
+
+    assert res.status_code == 400
+    assert "อัปโหลดไม่เสร็จ" in res.json()["detail"]

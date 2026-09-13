@@ -12,6 +12,68 @@ export const DEFAULT_TARGETS = {
 
 export const TARGETS_STORAGE_KEY = 'omnicut_producer_targets';
 export const PLAYBOOK_STORAGE_KEY = 'omnicut_boss_playbook';
+export const PRODUCER_INSIGHTS_CONTRACT = '1.1.0';
+
+/**
+ * Normalize a path or external identity so equivalent media can be compared.
+ * This intentionally keeps the value local and deterministic; it never exposes
+ * the full filesystem path to the UI.
+ */
+function normalizeIdentityToken(value) {
+  if (!value || typeof value !== 'string') return '';
+  return value
+    .trim()
+    .replace(/\\/g, '/')
+    .split('/')
+    .pop()
+    .replace(/\.(mp4|mov|m4v|webm|avi)$/i, '')
+    .toLowerCase();
+}
+
+/**
+ * Return every stable identity available on an angle/export record.
+ * Shared aliases let stats deduplicate an angle and its rendered export even
+ * when the API gives them different primary ids.
+ */
+export function getClipIdentityAliases(item = {}) {
+  const aliases = new Set();
+  const add = (prefix, value) => {
+    const normalized = normalizeIdentityToken(String(value || ''));
+    if (normalized) aliases.add(`${prefix}:${normalized}`);
+  };
+
+  if (item.clip_id) add('clip', item.clip_id);
+  if (item.angle_id) add('angle', item.angle_id);
+  if (item.project_name) add('project', item.project_name);
+  if (item.projectName) add('project', item.projectName);
+  if (item.export_id) add('export', item.export_id);
+  if (item.path) add('media', item.path);
+  if (item.video_url) add('media', item.video_url);
+  if (item.export_path) add('media', item.export_path);
+  if (item.rendered_video) add('media', item.rendered_video);
+  if (item.name) add('name', item.name);
+
+  return Array.from(aliases);
+}
+
+function hasKnownClipIdentity(item, knownAliases) {
+  return getClipIdentityAliases(item).some(alias => knownAliases.has(alias));
+}
+
+function addClipAliases(item, knownAliases) {
+  getClipIdentityAliases(item).forEach(alias => knownAliases.add(alias));
+}
+
+function findProductForExport(exp, products = []) {
+  const productId = exp?.product_id || exp?.productId;
+  const productCode = exp?.product_code || exp?.productCode;
+  const productName = exp?.product_name || exp?.productName;
+  return (products || []).find(product => (
+    (productId && product.id === productId) ||
+    (productCode && product.product_code === productCode) ||
+    (productName && product.name === productName)
+  )) || null;
+}
 
 /**
  * Load targets from localStorage or fallback to defaults.
@@ -251,7 +313,6 @@ function extractEntityDate(item) {
  * Calculate production statistics for today and this week.
  */
 export function calculateProductionStats(products = [], exports = [], targets = DEFAULT_TARGETS, now = new Date()) {
-  const nowMs = now.getTime();
   const monday = getMondayOfWeek(now);
   const sunday = getSundayOfWeek(now);
   const monMs = monday.getTime();
@@ -262,8 +323,11 @@ export function calculateProductionStats(products = [], exports = [], targets = 
   let dailyPostsCount = 0;
 
   // Track unique exported clips / rendered angles
-  const countedCutKeys = new Set();
-  const countedPostKeys = new Set();
+  const countedCutAliases = new Set();
+  const countedPostAliases = new Set();
+  const dailyCutSources = new Set();
+  const weeklyCutSources = new Set();
+  const dailyPostSources = new Set();
 
   // 1. Process Exports
   (exports || []).forEach(exp => {
@@ -271,25 +335,30 @@ export function calculateProductionStats(products = [], exports = [], targets = 
     if (!d) return;
     const t = d.getTime();
 
-    // Check Cuts
-    const expKey = exp.export_id || exp.path || exp.name;
-    if (expKey && !countedCutKeys.has(expKey)) {
+    // Check Cuts. Use all known aliases so an export and its angle count once.
+    const expAliases = getClipIdentityAliases(exp);
+    const expSource = expAliases[0];
+    if (expAliases.length > 0 && !hasKnownClipIdentity(exp, countedCutAliases)) {
       if (isSameDay(d, now)) {
         dailyCutsCount++;
-        countedCutKeys.add(expKey);
+        addClipAliases(exp, countedCutAliases);
+        if (expSource) dailyCutSources.add(expSource);
       }
       if (t >= monMs && t <= sunMs) {
         weeklyCutsCount++;
-        countedCutKeys.add(expKey);
+        addClipAliases(exp, countedCutAliases);
+        if (expSource) weeklyCutSources.add(expSource);
       }
     }
 
     // Check Posts
-    if (exp.is_posted && expKey && !countedPostKeys.has(expKey)) {
+    if (exp.is_posted && expAliases.length > 0 && !hasKnownClipIdentity(exp, countedPostAliases)) {
       const postDate = exp.posted_at ? new Date(exp.posted_at) : d;
+      if (isNaN(postDate.getTime())) return;
       if (isSameDay(postDate, now)) {
         dailyPostsCount++;
-        countedPostKeys.add(expKey);
+        addClipAliases(exp, countedPostAliases);
+        if (expSource) dailyPostSources.add(expSource);
       }
     }
   });
@@ -298,8 +367,13 @@ export function calculateProductionStats(products = [], exports = [], targets = 
   (products || []).forEach(prod => {
     (prod.angles || []).forEach(ang => {
       const d = extractEntityDate(ang);
-      const angKey = ang.angle_id || (prod.id + '_' + (ang.angle_name || ang.hook_title));
-      if (!d || countedCutKeys.has(angKey)) return;
+      const normalizedAngle = {
+        ...ang,
+        angle_id: ang.angle_id || `${prod.id}_${ang.angle_name || ang.hook_title || 'untitled'}`,
+      };
+      const angleAliases = getClipIdentityAliases(normalizedAngle);
+      const angleSource = angleAliases[0];
+      if (!d || angleAliases.length === 0 || hasKnownClipIdentity(normalizedAngle, countedCutAliases)) return;
 
       const t = d.getTime();
       const isRendered = ang.status === 'rendered' || ang.status === 'posted' || ang.is_posted;
@@ -307,19 +381,23 @@ export function calculateProductionStats(products = [], exports = [], targets = 
       if (isRendered) {
         if (isSameDay(d, now)) {
           dailyCutsCount++;
-          countedCutKeys.add(angKey);
+          addClipAliases(normalizedAngle, countedCutAliases);
+          if (angleSource) dailyCutSources.add(angleSource);
         }
         if (t >= monMs && t <= sunMs) {
           weeklyCutsCount++;
-          countedCutKeys.add(angKey);
+          addClipAliases(normalizedAngle, countedCutAliases);
+          if (angleSource) weeklyCutSources.add(angleSource);
         }
       }
 
-      if ((ang.is_posted || ang.status === 'posted') && !countedPostKeys.has(angKey)) {
+      if ((ang.is_posted || ang.status === 'posted') && !hasKnownClipIdentity(normalizedAngle, countedPostAliases)) {
         const postDate = ang.posted_at ? new Date(ang.posted_at) : d;
+        if (isNaN(postDate.getTime())) return;
         if (isSameDay(postDate, now)) {
           dailyPostsCount++;
-          countedPostKeys.add(angKey);
+          addClipAliases(normalizedAngle, countedPostAliases);
+          if (angleSource) dailyPostSources.add(angleSource);
         }
       }
     });
@@ -335,6 +413,7 @@ export function calculateProductionStats(products = [], exports = [], targets = 
       target: dailyCutsTarget,
       pct: Math.min(100, Math.round((dailyCutsCount / dailyCutsTarget) * 100)),
       remaining: Math.max(0, dailyCutsTarget - dailyCutsCount),
+      sourceIds: Array.from(dailyCutSources),
     },
     weeklyCuts: {
       current: weeklyCutsCount,
@@ -343,13 +422,17 @@ export function calculateProductionStats(products = [], exports = [], targets = 
       remaining: Math.max(0, weeklyCutsTarget - weeklyCutsCount),
       monday,
       sunday,
+      sourceIds: Array.from(weeklyCutSources),
     },
     dailyPosts: {
       current: dailyPostsCount,
       target: dailyPostsTarget,
       pct: Math.min(100, Math.round((dailyPostsCount / dailyPostsTarget) * 100)),
       remaining: Math.max(0, dailyPostsTarget - dailyPostsCount),
+      sourceIds: Array.from(dailyPostSources),
     },
+    contract: PRODUCER_INSIGHTS_CONTRACT,
+    source: 'product_store_and_exports',
   };
 }
 
@@ -369,6 +452,8 @@ export function getDailyActionQueue(products = [], exports = []) {
         readyToPost.push({
           type: 'angle_rendered',
           id: ang.angle_id,
+          productId: prod.id,
+          updatedAt: ang.status_updated_at || ang.updated_at || ang.created_at,
           title: ang.hook_title || ang.angle_name || prod.name,
           productName: prod.name,
           productCode: prod.product_code,
@@ -385,13 +470,26 @@ export function getDailyActionQueue(products = [], exports = []) {
   // Also include standalone exports that are not posted
   (exports || []).forEach(exp => {
     if (!exp.is_posted) {
-      const alreadyInList = readyToPost.some(item => item.exportPath && item.exportPath.includes(exp.name));
+      const alreadyInList = readyToPost.some(item => {
+        const itemIdentity = {
+          ...(item.angle || {}),
+          export_id: item.id,
+          export_path: item.exportPath,
+          name: item.title,
+        };
+        return hasKnownClipIdentity(exp, new Set(getClipIdentityAliases(itemIdentity)));
+      });
       if (!alreadyInList) {
+        const parentProduct = findProductForExport(exp, products);
         readyToPost.push({
           type: 'export_file',
           id: exp.export_id || exp.name,
+          productId: parentProduct?.id || exp.product_id || exp.productId,
           title: exp.name.replace(/\.mp4$/i, ''),
-          productName: exp.product_name || 'คลิปตัดเสร็จ',
+          productName: parentProduct?.name || exp.product_name || 'คลิปตัดเสร็จ',
+          productCode: parentProduct?.product_code || exp.product_code || exp.productCode,
+          parentProduct,
+          updatedAt: exp.modified_time || exp.modified || exp.created_at || exp.timestamp,
           exportPath: exp.path,
           caption: '',
           hashtags: '',
@@ -410,6 +508,8 @@ export function getDailyActionQueue(products = [], exports = []) {
         readyToCut.push({
           id: ang.angle_id,
           status: 'in_production',
+          productId: prod.id,
+          updatedAt: ang.status_updated_at || ang.updated_at || ang.created_at,
           title: ang.hook_title || ang.angle_name || prod.name,
           productName: prod.name,
           productCode: prod.product_code,
@@ -422,6 +522,8 @@ export function getDailyActionQueue(products = [], exports = []) {
         readyToCut.push({
           id: ang.angle_id,
           status: 'scripted',
+          productId: prod.id,
+          updatedAt: ang.status_updated_at || ang.updated_at || ang.created_at,
           title: ang.hook_title || ang.angle_name || prod.name,
           productName: prod.name,
           productCode: prod.product_code,
@@ -434,6 +536,8 @@ export function getDailyActionQueue(products = [], exports = []) {
         needsFootage.push({
           id: ang.angle_id,
           status: 'scripted',
+          productId: prod.id,
+          updatedAt: ang.status_updated_at || ang.updated_at || ang.created_at,
           title: ang.hook_title || ang.angle_name || prod.name,
           productName: prod.name,
           productCode: prod.product_code,
@@ -459,13 +563,14 @@ export function getDailyActionQueue(products = [], exports = []) {
   const allActionItems = [...readyToPost, ...diversifiedCut, ...diversifiedFootage];
   const productCountMap = new Map();
   allActionItems.forEach(item => {
-    const key = item.parentProduct?.id || item.productCode || item.productName;
+    const matchedProduct = item.parentProduct || findProductForExport(item, products);
+    const key = matchedProduct?.id || item.productId || item.productCode || item.productName;
     if (!key) return;
     if (!productCountMap.has(key)) {
       productCountMap.set(key, {
-        id: item.parentProduct?.id || key,
-        code: item.productCode || '',
-        name: item.productName || key,
+        id: matchedProduct?.id || item.productId || key,
+        code: matchedProduct?.product_code || item.productCode || '',
+        name: matchedProduct?.name || item.productName || key,
         count: 0,
       });
     }
@@ -477,6 +582,77 @@ export function getDailyActionQueue(products = [], exports = []) {
     readyToCut: diversifiedCut,
     needsFootage: diversifiedFootage,
     productsInQueue: Array.from(productCountMap.values()),
+    summary: {
+      total: allActionItems.length,
+      readyToPost: readyToPost.length,
+      readyToCut: diversifiedCut.length,
+      needsFootage: diversifiedFootage.length,
+    },
+  };
+}
+
+/**
+ * Select one actionable item using an explicit priority policy.
+ * Posting a rendered clip outranks editing, while blocked footage remains
+ * visible but never displaces work that can ship now.
+ */
+export function getNextAction(actionQueue = {}, now = new Date()) {
+  const groups = [
+    ['post', actionQueue.readyToPost || [], 300, 'เรนเดอร์เสร็จแล้วและยังไม่โพสต์'],
+    ['cut', actionQueue.readyToCut || [], 200, 'วัตถุดิบพร้อมสำหรับตัดต่อ'],
+    ['footage', actionQueue.needsFootage || [], 100, 'สคริปต์พร้อม แต่ยังขาดวัตถุดิบ'],
+  ];
+
+  const candidates = groups.flatMap(([type, items, baseScore, reason]) => items.map((item, index) => {
+    const updatedAt = item.updatedAt || item.angle?.status_updated_at || item.angle?.created_at;
+    const updatedDate = extractEntityDate({ updated_at: updatedAt });
+    const ageHours = updatedDate
+      ? Math.max(0, (now.getTime() - updatedDate.getTime()) / 3600000)
+      : 0;
+    const urgencyBonus = Math.min(72, Math.round(ageHours));
+    return {
+      type,
+      item,
+      priorityScore: baseScore + urgencyBonus,
+      priorityReason: reason,
+      updatedAt,
+      sourceIndex: index,
+    };
+  }));
+
+  candidates.sort((a, b) => (
+    b.priorityScore - a.priorityScore ||
+    (new Date(a.updatedAt || 0).getTime() || 0) - (new Date(b.updatedAt || 0).getTime() || 0) ||
+    a.sourceIndex - b.sourceIndex
+  ));
+
+  const selected = candidates[0];
+  if (!selected) return null;
+
+  const labels = {
+    post: {
+      badge: '🚨 เร่งด่วนอันดับ 1',
+      title: 'ปล่อยคลิปนี้ลง TikTok ด่วนเพื่อดันยอดขาย!',
+      description: 'วิดีโอเรนเดอร์เสร็จแล้ว รอโพสต์ลง TikTok',
+    },
+    cut: {
+      badge: '🎬 ภารกิจถัดไป',
+      title: 'ตัดต่อคลิปนี้ทันที วัตถุดิบพร้อมแล้ว!',
+      description: selected.item.projectName
+        ? `ไทม์ไลน์: ${selected.item.projectName}`
+        : 'วัตถุดิบและสคริปต์พร้อมตัดต่อทันที',
+    },
+    footage: {
+      badge: '📝 ถ่ายคลิปเพิ่ม',
+      title: 'เตรียมวัตถุดิบและดู Shot List สินค้านี้',
+      description: 'สคริปต์พร้อมแล้ว ขาดคลิปถ่ายจริง',
+    },
+  };
+
+  return {
+    ...selected,
+    ...labels[selected.type],
+    contract: PRODUCER_INSIGHTS_CONTRACT,
   };
 }
 
@@ -580,14 +756,32 @@ export function generateBossGreeting({ stats, actionQueue, now = new Date() }) {
 }
 
 /**
- * Analyze content performance and generate AI retrospective insights.
+ * Analyze content performance with an evidence contract.
+ * The recommendation text is heuristic, but every measured claim carries
+ * the sample, period, baseline and source row used to derive it.
  */
 export function analyzeContentPerformance(tiktokStats = [], products = []) {
-  const rows = Array.isArray(tiktokStats) ? tiktokStats : (tiktokStats?.rows || []);
+  const rows = (Array.isArray(tiktokStats) ? tiktokStats : (tiktokStats?.rows || []))
+    .filter(row => row && typeof row === 'object');
+  const metricRows = rows.map((row, index) => ({
+    row,
+    index,
+    views: Math.max(0, Number(row.views) || 0),
+    likes: Math.max(0, Number(row.likes) || 0),
+    shares: Math.max(0, Number(row.shares) || 0),
+    comments: Math.max(0, Number(row.comments) || 0),
+    postedAt: row.posted_at || row.postedAt || row.created_at || '',
+  }));
 
-  if (!rows || rows.length === 0) {
+  if (metricRows.length === 0) {
     return {
       hasData: false,
+      method: 'heuristic',
+      source: 'tiktok_stats_unavailable',
+      sampleSize: 0,
+      confidence: 'none',
+      period: { from: null, to: null },
+      metrics: { averageViews: 0, medianViews: 0, engagementRate: 0 },
       topPerformer: null,
       topTakeaways: [
         'คลิปที่เปิดด้วย Hook ปัญหาหรือคำเตือน มักดึงยอดวิวช่วง 3 วินาทีแรกได้ดีกว่าการเปิดด้วยชื่อแบรนด์',
@@ -598,30 +792,72 @@ export function analyzeContentPerformance(tiktokStats = [], products = []) {
     };
   }
 
-  // Find top performer by view count
-  const sorted = [...rows].sort((a, b) => (Number(b.views) || 0) - (Number(a.views) || 0));
+  const sorted = [...metricRows].sort((a, b) => b.views - a.views);
   const top = sorted[0];
+  const viewValues = metricRows.map(item => item.views).sort((a, b) => a - b);
+  const totalViews = viewValues.reduce((sum, value) => sum + value, 0);
+  const totalEngagement = metricRows.reduce((sum, item) => sum + item.likes + item.shares + item.comments, 0);
+  const medianViews = viewValues.length % 2
+    ? viewValues[Math.floor(viewValues.length / 2)]
+    : (viewValues[viewValues.length / 2 - 1] + viewValues[viewValues.length / 2]) / 2;
+  const averageViews = totalViews / metricRows.length;
+  const engagementRate = totalViews > 0 ? (totalEngagement / totalViews) * 100 : 0;
+  const datedRows = metricRows
+    .map(item => ({ ...item, date: item.postedAt ? new Date(item.postedAt) : null }))
+    .filter(item => item.date && !Number.isNaN(item.date.getTime()))
+    .sort((a, b) => a.date - b.date);
+  const period = {
+    from: datedRows[0]?.date.toISOString() || null,
+    to: datedRows[datedRows.length - 1]?.date.toISOString() || null,
+  };
+  const topVsAverage = averageViews > 0 ? Math.round((top.views / averageViews) * 100) : 0;
+  const topVsMedian = medianViews > 0 ? Math.round((top.views / medianViews) * 100) : 0;
+  const sourceId = top.row.id || top.row.video_id || top.row.export_id || top.row.video_title || `row-${top.index}`;
+  const topPerformer = {
+    id: sourceId,
+    title: top.row.video_title || 'คลิปท็อป',
+    views: top.views,
+    likes: top.likes,
+    shares: top.shares,
+    comments: top.comments,
+    postedAt: top.postedAt,
+    sourceId,
+    metricSnapshot: { views: top.views, likes: top.likes, shares: top.shares, comments: top.comments },
+  };
 
   const takeaways = [
-    `คลิป "${top.video_title || 'คลิปยอดนิยม'}" ทำยอดวิวสูงสุดที่ ${(Number(top.views) || 0).toLocaleString()} วิว เพราะฮุกเข้าประเด็นทันที`,
-    'คลิปที่มีการเน้นป้ายราคาโปรและจุดคุ้มค่าช่วงท้าย ช่วยดันยอดแชร์และคอมเมนต์สอบถามพิกัดได้สูง',
-    'ระยะเวลาคลิปที่กำลังดีสำหรับสินค้ารีวิวแอฟฟิลิเอตอยู่ที่ 35–45 วินาที กระชับ ไม่ยืดยาว',
+    topVsAverage >= 150
+      ? `คลิป "${topPerformer.title}" ทำ ${top.views.toLocaleString()} วิว หรือ ${topVsAverage}% ของค่าเฉลี่ยจาก ${metricRows.length} คลิป จึงควรถอด Hook/มุมเปิดไปทดลองซ้ำ`
+      : `คลิป "${topPerformer.title}" เป็นอันดับหนึ่งที่ ${top.views.toLocaleString()} วิว แต่ยังไม่เกิน 1.5 เท่าของค่าเฉลี่ย ควรทดสอบ Hook เพิ่มก่อนสรุปเป็นสูตรหลัก`,
+    engagementRate >= 5
+      ? `อัตรา engagement รวมอยู่ที่ ${engagementRate.toFixed(2)}% จากยอดวิวทั้งหมด สัญญาณการมีส่วนร่วมอยู่ในระดับที่ควรรักษาไว้`
+      : `อัตรา engagement รวมอยู่ที่ ${engagementRate.toFixed(2)}% ยังมีพื้นที่ให้ปรับ CTA, ราคา หรือจุดชวนคอมเมนต์ให้ชัดขึ้น`,
+    averageViews > medianViews * 1.25
+      ? `ค่าเฉลี่ย ${Math.round(averageViews).toLocaleString()} สูงกว่าค่ากลาง ${Math.round(medianViews).toLocaleString()} แปลว่าผลลัพธ์มีคลิปเด่นดันค่าเฉลี่ย ควรดูการกระจายรายคลิปด้วย`
+      : `ค่าเฉลี่ย ${Math.round(averageViews).toLocaleString()} ใกล้ค่ากลาง ${Math.round(medianViews).toLocaleString()} ผลลัพธ์ค่อนข้างสม่ำเสมอ เหมาะกับการทำซ้ำ format ที่ชนะ`,
   ];
 
-  const improvement = (Number(top.views) || 0) > 1000
-    ? 'สังเกตเห็นว่าคลิปที่มียอดวิวนำ มักใช้แคปชันที่ชวนให้คนหยุดดูและมีแฮชแท็กตรงกลุ่มเป้าหมาย 3-5 แท็ก แนะนำให้ใช้สูตรนี้กับคลิปถัดไปครับ'
-    : 'ยอดวิวเฉลี่ยยังอยู่ในช่วงเริ่มต้น แนะนำให้ทดลองใช้ Hook สไตล์ "เตือนภัย/ข้อควรระวัง" หรือ "โปรไฟลุก" เพื่อเพิ่มหยุดนิ้วช่วง 3 วินาทีแรกครับ';
+  const improvement = topVsMedian >= 200
+    ? `เริ่มจากถอดองค์ประกอบของคลิปท็อปที่ทำได้ ${topVsMedian}% ของค่ากลาง แล้วทำ A/B Hook อย่างน้อย 2 แบบ โดยวัดผลจากชุดข้อมูลรอบถัดไปครับ`
+    : engagementRate < 2
+      ? 'รอบถัดไปให้เพิ่ม CTA ที่ชัดเจนและคำถามปลายเปิด แล้วติดตาม likes, shares และ comments แยกจากยอดวิวครับ'
+      : 'รอบถัดไปให้คง format ที่ทำผลงานสม่ำเสมอ แล้วทดสอบ Hook หรือข้อเสนอสินค้าเพิ่มทีละตัวแปรครับ';
 
   return {
     hasData: true,
-    topPerformer: {
-      title: top.video_title || 'คลิปท็อป',
-      views: Number(top.views) || 0,
-      likes: Number(top.likes) || 0,
-      shares: Number(top.shares) || 0,
-      comments: Number(top.comments) || 0,
-      postedAt: top.posted_at || '',
+    method: 'heuristic',
+    source: 'tiktok_stats_latest',
+    sampleSize: metricRows.length,
+    confidence: metricRows.length >= 10 ? 'medium' : 'low',
+    period,
+    metrics: {
+      averageViews: Math.round(averageViews),
+      medianViews: Math.round(medianViews),
+      engagementRate: Number(engagementRate.toFixed(2)),
+      topVsAverage,
+      topVsMedian,
     },
+    topPerformer,
     topTakeaways: takeaways,
     improvementAdvice: improvement,
   };
@@ -692,4 +928,3 @@ export function autoSuggestPlaybookNotes(retrospective, currentNotes = []) {
 
   return suggestions;
 }
-

@@ -5,12 +5,12 @@ import {
   Copy, Check, Plus, Trash2, Video, Film, Eye, Share2, ThumbsUp,
   RefreshCw, Clapperboard, ChevronRight, Zap, Scissors, Compass,
   BookOpen, FileText, ExternalLink, X, Bookmark, Image as ImageIcon,
-  Link as LinkIcon, Smartphone, Filter, Tag, Loader2, Clipboard
+  Link as LinkIcon, Smartphone, Filter, Tag, Loader2, Clipboard, Search
 } from 'lucide-react';
 import {
   getProducts, getExports, getTiktokStatsLatest,
   uploadRefMedia, aiIdeaToAngle, addProductAngle,
-  getProducerNotes, saveProducerNotes, deleteProducerNote
+  getProducerNotes, addProducerNote, deleteProducerNote
 } from '../../api';
 import {
   loadTargets,
@@ -23,6 +23,7 @@ import {
   detectRefPlatform,
   calculateProductionStats,
   getDailyActionQueue,
+  getNextAction,
   generateBossGreeting,
   analyzeContentPerformance,
   calculateWeeklyPacing,
@@ -43,6 +44,8 @@ export default function ProducerHub({
   const [tiktokStats, setTiktokStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState(null);
+  const [partialFailures, setPartialFailures] = useState([]);
 
   // Targets state
   const [targets, setTargets] = useState(() => loadTargets());
@@ -57,6 +60,7 @@ export default function ProducerHub({
   const [ideaTag, setIdeaTag] = useState('Hook');
   const [ideaProduct, setIdeaProduct] = useState('');
   const [uploadingRefImage, setUploadingRefImage] = useState(false);
+  const [failedRefUploads, setFailedRefUploads] = useState(0);
   const [refSaveSuccess, setRefSaveSuccess] = useState(false);
   const [activeZoomImage, setActiveZoomImage] = useState(null);
   const fileInputRef = useRef(null);
@@ -70,12 +74,28 @@ export default function ProducerHub({
   // Queue filter
   const [queueFilter, setQueueFilter] = useState('all'); // 'all' | 'post' | 'cut' | 'footage'
   const [productFilter, setProductFilter] = useState('all'); // 'all' | productId
+  const [queueSearch, setQueueSearch] = useState('');
+  const [queueSort, setQueueSort] = useState('priority'); // 'priority' | 'oldest' | 'product'
+  const [queueLimit, setQueueLimit] = useState(10);
 
   // Clipboard copy state
   const [copiedId, setCopiedId] = useState(null);
 
   // Quick Preview Modal state
   const [previewItem, setPreviewItem] = useState(null);
+
+  useEffect(() => {
+    if (!showTargetsModal && !previewItem && !aiProposal && !activeZoomImage) return undefined;
+    const handleModalKeyDown = (event) => {
+      if (event.key !== 'Escape') return;
+      if (activeZoomImage) setActiveZoomImage(null);
+      else if (aiProposal) setAiProposal(null);
+      else if (previewItem) setPreviewItem(null);
+      else setShowTargetsModal(false);
+    };
+    document.addEventListener('keydown', handleModalKeyDown);
+    return () => document.removeEventListener('keydown', handleModalKeyDown);
+  }, [activeZoomImage, aiProposal, previewItem, showTargetsModal]);
 
   // Load data from APIs
   const fetchData = useCallback(async () => {
@@ -87,6 +107,17 @@ export default function ProducerHub({
         getTiktokStatsLatest(),
         getProducerNotes(),
       ]);
+
+      const sourceResults = [
+        ['สินค้า', prodRes],
+        ['ไฟล์ Export', expRes],
+        ['สถิติ TikTok', statsRes],
+        ['Playbook', notesRes],
+      ];
+      setPartialFailures(sourceResults
+        .filter(([, result]) => result.status === 'rejected')
+        .map(([label]) => label));
+      setLastSyncedAt(new Date().toISOString());
 
       if (prodRes.status === 'fulfilled') {
         const prodData = prodRes.value;
@@ -139,41 +170,89 @@ export default function ProducerHub({
     return analyzeContentPerformance(tiktokStats, products);
   }, [tiktokStats, products]);
 
+  const syncLabel = lastSyncedAt
+    ? `ซิงก์ล่าสุด ${new Intl.DateTimeFormat('th-TH', { hour: '2-digit', minute: '2-digit' }).format(new Date(lastSyncedAt))}`
+    : 'ยังไม่ได้ซิงก์ข้อมูล';
+
   const playbookSuggestions = useMemo(() => {
     return autoSuggestPlaybookNotes(retrospective, playbookNotes);
   }, [retrospective, playbookNotes]);
 
+  const handleSaveRetrospective = useCallback(async (item) => {
+    if (!item || item.alreadySaved) return;
+    const top = retrospective.topPerformer;
+    const newNote = {
+      id: `note-retro-${Date.now()}`,
+      text: item.text,
+      createdAt: new Date().toISOString(),
+      tag: item.tag,
+      provenance: {
+        type: 'retrospective',
+        source: retrospective.source,
+        sourceClipId: top?.sourceId || null,
+        sampleSize: retrospective.sampleSize,
+        period: retrospective.period,
+        confidence: retrospective.confidence,
+        metricSnapshot: top?.metricSnapshot || retrospective.metrics,
+      },
+    };
+    const previousNotes = playbookNotes;
+    const updated = [newNote, ...previousNotes];
+    setPlaybookNotes(updated);
+    savePlaybookNotes(updated);
+    try {
+      const res = await addProducerNote(newNote);
+      if (res?.success && Array.isArray(res.notes)) {
+        setPlaybookNotes(res.notes);
+        savePlaybookNotes(res.notes);
+      }
+    } catch (err) {
+      setPlaybookNotes(previousNotes);
+      savePlaybookNotes(previousNotes);
+      setToastMessage('จดบทเรียนในเครื่องแล้ว แต่ซิงก์เซิร์ฟเวอร์ไม่สำเร็จ');
+      setTimeout(() => setToastMessage(null), 3500);
+      console.warn('Failed to sync retrospective note:', err);
+    }
+  }, [playbookNotes, retrospective]);
+
   // Next Mission Spotlight: pick the single most urgent task
   const nextMission = useMemo(() => {
-    if (actionQueue.readyToPost.length > 0) {
-      return {
-        type: 'post',
-        item: actionQueue.readyToPost[0],
-        badge: '🚨 เร่งด่วนอันดับ 1',
-        title: 'ปล่อยคลิปนี้ลง TikTok ด่วนเพื่อดันยอดขาย!',
-        description: 'วิดีโอเรนเดอร์เสร็จแล้ว รอโพสต์ลง TikTok',
-      };
-    }
-    if (actionQueue.readyToCut.length > 0) {
-      return {
-        type: 'cut',
-        item: actionQueue.readyToCut[0],
-        badge: '🎬 ภารกิจถัดไป',
-        title: 'ตัดต่อคลิปนี้ทันที วัตถุดิบพร้อมแล้ว!',
-        description: actionQueue.readyToCut[0].projectName ? `ไทม์ไลน์: ${actionQueue.readyToCut[0].projectName}` : 'วัตถุดิบและสคริปต์พร้อมตัดต่อทันที',
-      };
-    }
-    if (actionQueue.needsFootage.length > 0) {
-      return {
-        type: 'footage',
-        item: actionQueue.needsFootage[0],
-        badge: '📝 ถ่ายคลิปเพิ่ม',
-        title: 'เตรียมวัตถุดิบและดู Shot List สินค้านี้',
-        description: 'สคริปต์พร้อมแล้ว ขาดคลิปถ่ายจริง',
-      };
-    }
-    return null;
+    return getNextAction(actionQueue);
   }, [actionQueue]);
+
+  const handleNextMission = useCallback(() => {
+    if (!nextMission) {
+      onGoToFlow?.();
+      return;
+    }
+
+    if (nextMission.type === 'post') {
+      onGoToGallery?.({
+        targetId: nextMission.item.exportPath || nextMission.item.id,
+        exportId: nextMission.item.id,
+      });
+      return;
+    }
+
+    if (nextMission.type === 'cut' && nextMission.item.parentProduct && nextMission.item.angle) {
+      onApplyToStudio?.({
+        fullProduct: nextMission.item.parentProduct,
+        productId: nextMission.item.productId,
+        angleId: nextMission.item.angle.angle_id,
+        angleIndex: nextMission.item.parentProduct.angles?.findIndex(a => a.angle_id === nextMission.item.angle.angle_id) || 0,
+        openExisting: !!nextMission.item.projectName,
+        openProjectName: nextMission.item.projectName,
+      });
+      return;
+    }
+
+    if (nextMission.type === 'footage') {
+      onGoToFlow?.(nextMission.item.productId || nextMission.item.parentProduct?.id);
+      return;
+    }
+
+    onGoToEditor?.();
+  }, [nextMission, onApplyToStudio, onGoToEditor, onGoToFlow, onGoToGallery]);
 
   // Handle Save Targets
   const handleSaveTargets = () => {
@@ -205,30 +284,42 @@ export default function ProducerHub({
     if (!files || files.length === 0) return;
     const fileList = Array.from(files);
 
+    const pendingEntries = [];
     for (const file of fileList) {
-      // Instant local preview
-      const reader = new FileReader();
-      reader.onload = () => {
-        const localData = reader.result;
-        setIdeaImages(prev => [...prev, localData]);
-        setPastedImageToast(true);
-        setTimeout(() => setPastedImageToast(false), 2500);
-      };
-      reader.readAsDataURL(file);
-
-      // Upload to server
+      if (!file?.type?.startsWith('image/')) continue;
       try {
-        setUploadingRefImage(true);
-        const res = await uploadRefMedia(file);
-        if (res?.url) {
-          setIdeaImages(prev => prev.map(img => (img.startsWith('data:') ? res.url : img)));
-        }
+        const localData = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(new Error('อ่านไฟล์ภาพไม่สำเร็จ'));
+          reader.readAsDataURL(file);
+        });
+        const pendingUrl = `${localData}#omnicut-pending-${Date.now()}-${pendingEntries.length}`;
+        pendingEntries.push({ file, pendingUrl });
+        setIdeaImages(prev => [...prev, pendingUrl]);
       } catch (err) {
-        console.warn('Upload ref media to server failed, using local preview:', err);
-      } finally {
-        setUploadingRefImage(false);
+        console.warn('Failed to prepare reference image:', err);
+        setFailedRefUploads(count => count + 1);
       }
     }
+
+    if (pendingEntries.length === 0) return;
+    setUploadingRefImage(true);
+    setPastedImageToast(true);
+    setTimeout(() => setPastedImageToast(false), 2500);
+
+    for (const { file, pendingUrl } of pendingEntries) {
+      try {
+        const res = await uploadRefMedia(file);
+        if (!res?.url) throw new Error('เซิร์ฟเวอร์ไม่คืนลิงก์รูปภาพ');
+        setIdeaImages(prev => prev.map(img => (img === pendingUrl ? res.url : img)));
+      } catch (err) {
+        console.warn('Upload ref media to server failed:', err);
+        setIdeaImages(prev => prev.filter(img => img !== pendingUrl));
+        setFailedRefUploads(count => count + 1);
+      }
+    }
+    setUploadingRefImage(false);
   };
 
   const removeIdeaImage = (indexToRemove) => {
@@ -324,7 +415,6 @@ export default function ProducerHub({
     }
 
     try {
-      setUploadingRefImage(true);
       const items = await navigator.clipboard.read();
       for (const item of items) {
         for (const type of item.types) {
@@ -349,8 +439,6 @@ export default function ProducerHub({
     } catch (err) {
       console.warn('Clipboard read error:', err);
       fileInputRef.current?.click();
-    } finally {
-      setUploadingRefImage(false);
     }
   };
 
@@ -360,6 +448,7 @@ export default function ProducerHub({
     if (!ideaText.trim() && !ideaUrl.trim() && ideaImages.length === 0) return;
 
     const matchedProd = products.find(p => p.id === ideaProduct);
+    if (ideaImages.some(img => img.includes('#omnicut-pending-'))) return;
     const newNote = {
       text: ideaText.trim(),
       url: ideaUrl.trim() || undefined,
@@ -373,6 +462,7 @@ export default function ProducerHub({
     };
 
     const updated = addPlaybookNote(newNote, playbookNotes);
+    const localNote = updated[0];
     setPlaybookNotes(updated);
     setIdeaText('');
     setIdeaUrl('');
@@ -380,10 +470,18 @@ export default function ProducerHub({
     setRefSaveSuccess(true);
     setTimeout(() => setRefSaveSuccess(false), 2500);
 
-    // Sync to backend so mobile and other clients receive it
+    // Sync one item so another device cannot be overwritten by a stale list.
     try {
-      await saveProducerNotes(updated);
+      const res = await addProducerNote(localNote);
+      if (res?.success && Array.isArray(res.notes)) {
+        setPlaybookNotes(res.notes);
+        savePlaybookNotes(res.notes);
+      }
     } catch (err) {
+      setPlaybookNotes(playbookNotes);
+      savePlaybookNotes(playbookNotes);
+      setToastMessage('บันทึกในเครื่องแล้ว แต่ซิงก์เซิร์ฟเวอร์ไม่สำเร็จ กรุณาลองใหม่');
+      setTimeout(() => setToastMessage(null), 3500);
       console.warn('Failed to sync note to server:', err);
     }
   };
@@ -393,8 +491,16 @@ export default function ProducerHub({
     const updated = deletePlaybookNote(id, playbookNotes);
     setPlaybookNotes(updated);
     try {
-      await deleteProducerNote(id);
+      const res = await deleteProducerNote(id);
+      if (res?.success && Array.isArray(res.notes)) {
+        setPlaybookNotes(res.notes);
+        savePlaybookNotes(res.notes);
+      }
     } catch (err) {
+      setPlaybookNotes(playbookNotes);
+      savePlaybookNotes(playbookNotes);
+      setToastMessage('ลบในเครื่องแล้ว แต่ซิงก์เซิร์ฟเวอร์ไม่สำเร็จ รายการถูกคืนกลับ');
+      setTimeout(() => setToastMessage(null), 3500);
       console.warn('Failed to delete note on server:', err);
     }
   };
@@ -505,14 +611,37 @@ export default function ProducerHub({
 
     if (productFilter !== 'all') {
       base = base.filter(i => (
+        i.productId === productFilter ||
         i.parentProduct?.id === productFilter ||
         i.productCode === productFilter ||
         i.productName === productFilter
       ));
     }
 
+    const normalizedQuery = queueSearch.trim().toLowerCase();
+    if (normalizedQuery) {
+      base = base.filter(item => [item.title, item.productName, item.productCode, item.projectName]
+        .filter(Boolean)
+        .some(value => String(value).toLowerCase().includes(normalizedQuery)));
+    }
+
+    const categoryRank = { post: 0, cut: 1, footage: 2 };
+    base.sort((a, b) => {
+      if (queueSort === 'product') {
+        return String(a.productName || '').localeCompare(String(b.productName || ''), 'th') || String(a.title || '').localeCompare(String(b.title || ''), 'th');
+      }
+      const aDate = new Date(a.updatedAt || 0).getTime() || 0;
+      const bDate = new Date(b.updatedAt || 0).getTime() || 0;
+      if (queueSort === 'oldest') return aDate - bDate;
+      return (categoryRank[a.queueCategory] ?? 9) - (categoryRank[b.queueCategory] ?? 9) || aDate - bDate;
+    });
+
     return base;
-  }, [actionQueue, queueFilter, productFilter]);
+  }, [actionQueue, queueFilter, productFilter, queueSearch, queueSort]);
+
+  useEffect(() => {
+    setQueueLimit(10);
+  }, [queueFilter, productFilter, queueSearch, queueSort]);
 
   if (loading) {
     return (
@@ -543,7 +672,7 @@ export default function ProducerHub({
                 </span>
                 <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
                   <Clock className="w-3.5 h-3.5 text-slate-500" />
-                  สัปดาห์นี้เป้า {targets.weeklyCuts} คลิป
+                  {syncLabel} · เป้าสัปดาห์นี้ {targets.weeklyCuts} คลิป
                 </span>
               </div>
 
@@ -560,12 +689,7 @@ export default function ProducerHub({
           {/* Quick Action & Settings Button */}
           <div className="flex items-center gap-2.5 self-start md:self-auto flex-shrink-0">
             <button
-              onClick={() => {
-                if (bossGreeting.actionTab === 'post') onGoToGallery?.();
-                else if (bossGreeting.actionTab === 'cut') onGoToEditor?.();
-                else if (bossGreeting.actionTab === 'gallery') onGoToGallery?.();
-                else onGoToFlow?.();
-              }}
+              onClick={handleNextMission}
               className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-95 text-slate-950 font-bold text-sm flex items-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer transition-all"
             >
               <span>{bossGreeting.actionPrompt}</span>
@@ -593,7 +717,18 @@ export default function ProducerHub({
             </button>
           </div>
         </div>
+
       </div>
+
+      {partialFailures.length > 0 && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-100 flex items-start gap-2" role="status" aria-live="polite">
+          <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <strong className="text-amber-300">ข้อมูลบางส่วนยังไม่พร้อม</strong>
+            <p className="mt-0.5 text-amber-100/80">{partialFailures.join(', ')} โหลดไม่สำเร็จ กดรีเฟรชเพื่อลองใหม่ได้</p>
+          </div>
+        </div>
+      )}
 
       {/* ── 2. Production Quota Gauges (KPI Cards) ── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -735,7 +870,7 @@ export default function ProducerHub({
                 <p className="text-xs text-slate-300 truncate">
                   สินค้า: <strong className="text-white">{nextMission.item.productName}</strong>
                   {nextMission.item.productCode && ` [${nextMission.item.productCode}]`}
-                  <span className="text-slate-400 ml-1.5">· {nextMission.description}</span>
+                  <span className="text-slate-400 ml-1.5">· {nextMission.description} · {nextMission.priorityReason}</span>
                 </p>
               </div>
             </div>
@@ -752,7 +887,7 @@ export default function ProducerHub({
 
               {nextMission.type === 'post' && (
                 <button
-                  onClick={onGoToGallery}
+                  onClick={handleNextMission}
                   className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 hover:brightness-110 active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-lg shadow-rose-500/25 transition-all"
                 >
                   <Flame className="w-4 h-4" />
@@ -763,18 +898,7 @@ export default function ProducerHub({
 
               {nextMission.type === 'cut' && (
                 <button
-                  onClick={() => {
-                    if (nextMission.item.parentProduct && nextMission.item.angle) {
-                      onApplyToStudio?.({
-                        fullProduct: nextMission.item.parentProduct,
-                        angleIndex: nextMission.item.parentProduct.angles?.findIndex(a => a.angle_id === nextMission.item.angle.angle_id) || 0,
-                        openExisting: !!nextMission.item.projectName,
-                        openProjectName: nextMission.item.projectName,
-                      });
-                    } else {
-                      onGoToEditor?.();
-                    }
-                  }}
+                  onClick={handleNextMission}
                   className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-95 text-slate-950 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-lg shadow-amber-500/25 transition-all"
                 >
                   <Clapperboard className="w-4 h-4" />
@@ -785,10 +909,7 @@ export default function ProducerHub({
 
               {nextMission.type === 'footage' && (
                 <button
-                  onClick={() => {
-                    if (nextMission.item.parentProduct?.id) onGoToFlow?.(nextMission.item.parentProduct.id);
-                    else onGoToFlow?.();
-                  }}
+                  onClick={handleNextMission}
                   className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 hover:brightness-110 active:scale-95 text-slate-950 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-lg shadow-cyan-500/25 transition-all"
                 >
                   <Video className="w-4 h-4" />
@@ -900,7 +1021,7 @@ export default function ProducerHub({
               <button
                 type="button"
                 onClick={handlePasteImageFromClipboard}
-                disabled={uploadingRefImage}
+                disabled={uploadingRefImage || ideaImages.some(img => img.includes('#omnicut-pending-'))}
                 className="px-2.5 py-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
                 title="อ่านรูปภาพจากคลิปบอร์ดที่เพิ่งแคปหน้าจอมา (กด Ctrl+V หรือคลิกวางได้เรื่อยๆ หลายรูป)"
               >
@@ -911,7 +1032,7 @@ export default function ProducerHub({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={uploadingRefImage}
+                disabled={uploadingRefImage || ideaImages.some(img => img.includes('#omnicut-pending-'))}
                 className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 hover:text-white border border-white/10 flex items-center gap-1.5 cursor-pointer transition-all"
                 title="เลือกรูปภาพจากเครื่อง (เลือกพร้อมกันได้หลายรูป)"
               >
@@ -922,6 +1043,11 @@ export default function ProducerHub({
               {pastedImageToast && (
                 <span className="text-[11px] font-bold text-emerald-400 animate-pulse">
                   วางรูปภาพเรียบร้อย!
+                </span>
+              )}
+              {failedRefUploads > 0 && (
+                <span className="text-[11px] font-semibold text-rose-300">
+                  อัปโหลดภาพไม่สำเร็จ {failedRefUploads} ไฟล์
                 </span>
               )}
 
@@ -955,7 +1081,7 @@ export default function ProducerHub({
 
             <button
               type="submit"
-              disabled={!ideaText.trim() && !ideaUrl.trim() && ideaImages.length === 0}
+              disabled={uploadingRefImage || ideaImages.some(img => img.includes('#omnicut-pending-')) || (!ideaText.trim() && !ideaUrl.trim() && ideaImages.length === 0)}
               className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-95 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md shadow-amber-500/20 disabled:opacity-40 transition-all"
             >
               {refSaveSuccess ? <Check className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
@@ -1197,6 +1323,35 @@ export default function ProducerHub({
           </div>
         </div>
 
+        <div className="flex flex-col sm:flex-row gap-2.5">
+          <label className="relative flex-1 min-w-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+            <span className="sr-only">ค้นหางานในคิว</span>
+            <input
+              type="search"
+              value={queueSearch}
+              onChange={(e) => setQueueSearch(e.target.value)}
+              placeholder="ค้นหาชื่อฮุก สินค้า รหัส หรือไทม์ไลน์"
+              className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-950/70 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors"
+            />
+          </label>
+          <label className="flex items-center gap-2 text-xs text-slate-400">
+            <span className="sr-only">เรียงลำดับคิว</span>
+            <select
+              value={queueSort}
+              onChange={(e) => setQueueSort(e.target.value)}
+              className="px-3 py-2 rounded-xl bg-slate-950/70 border border-white/10 text-xs text-slate-200 focus:outline-none focus:border-amber-500 cursor-pointer"
+            >
+              <option value="priority">เรียงตามความเร่งด่วน</option>
+              <option value="oldest">งานเก่าที่สุดก่อน</option>
+              <option value="product">เรียงตามสินค้า</option>
+            </select>
+          </label>
+          <span className="flex items-center text-[11px] text-slate-500 whitespace-nowrap">
+            แสดง {Math.min(queueLimit, displayQueue.length)} จาก {displayQueue.length} งาน
+          </span>
+        </div>
+
         {/* Product Filter Chips */}
         {actionQueue.productsInQueue && actionQueue.productsInQueue.length > 1 && (
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
@@ -1238,7 +1393,7 @@ export default function ProducerHub({
           </div>
         ) : (
           <div className="space-y-2.5">
-            {displayQueue.slice(0, 10).map((item, idx) => {
+            {displayQueue.slice(0, queueLimit).map((item, idx) => {
               const isPost = item.queueCategory === 'post' || queueFilter === 'post';
               const isCut = item.queueCategory === 'cut' || queueFilter === 'cut';
               const isFootage = item.queueCategory === 'footage' || queueFilter === 'footage';
@@ -1308,7 +1463,10 @@ export default function ProducerHub({
                           </button>
                         )}
                         <button
-                          onClick={onGoToGallery}
+                          onClick={() => onGoToGallery?.({
+                            targetId: item.exportPath || item.id,
+                            exportId: item.id,
+                          })}
                           className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-rose-500 to-pink-500 hover:brightness-110 active:scale-95 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-sm transition-all"
                         >
                           <span>ส่ง TikTok</span>
@@ -1355,6 +1513,15 @@ export default function ProducerHub({
                 </div>
               );
             })}
+            {displayQueue.length > queueLimit && (
+              <button
+                type="button"
+                onClick={() => setQueueLimit(limit => limit + 10)}
+                className="w-full py-2.5 rounded-xl bg-slate-800/70 hover:bg-slate-700/80 border border-white/10 text-xs font-bold text-slate-300 hover:text-white cursor-pointer transition-colors"
+              >
+                แสดงงานเพิ่มอีก {Math.min(10, displayQueue.length - queueLimit)} งาน
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -1366,7 +1533,32 @@ export default function ProducerHub({
           <div>
             <div className="flex items-center gap-2 mb-4">
               <TrendingUp className="w-5 h-5 text-emerald-400" />
-              <h2 className="text-base font-bold text-white">ถอดรหัสคลิปปัง & สถิติ (AI Retrospective)</h2>
+              <h2 className="text-base font-bold text-white">ถอดรหัสคลิปปัง & สถิติ (Automatic Retrospective)</h2>
+              <span className="text-[10px] font-semibold text-slate-500 border border-white/10 rounded px-1.5 py-0.5">
+                {retrospective.method === 'heuristic' ? 'ข้อเสนอจาก heuristic' : 'จากข้อมูลจริง'}
+              </span>
+            </div>
+
+            <div className="mb-3 text-[11px] text-slate-500">
+              แหล่งข้อมูล: {retrospective.source === 'tiktok_stats_latest' ? 'TikTok Studio ล่าสุด' : 'ยังไม่มีสถิติ TikTok Studio'} · ตัวอย่าง {retrospective.sampleSize} คลิป · ความมั่นใจ {retrospective.confidence}
+            </div>
+            <div className="mb-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px] text-slate-400">
+              <div className="rounded-lg bg-slate-800/50 border border-white/5 px-2.5 py-2">
+                <span className="block text-slate-500">ค่าเฉลี่ยวิว</span>
+                <strong className="text-white">{retrospective.metrics.averageViews.toLocaleString()}</strong>
+              </div>
+              <div className="rounded-lg bg-slate-800/50 border border-white/5 px-2.5 py-2">
+                <span className="block text-slate-500">ค่ากลางวิว</span>
+                <strong className="text-white">{retrospective.metrics.medianViews.toLocaleString()}</strong>
+              </div>
+              <div className="rounded-lg bg-slate-800/50 border border-white/5 px-2.5 py-2">
+                <span className="block text-slate-500">Engagement</span>
+                <strong className="text-white">{retrospective.metrics.engagementRate.toFixed(2)}%</strong>
+              </div>
+              <div className="rounded-lg bg-slate-800/50 border border-white/5 px-2.5 py-2">
+                <span className="block text-slate-500">ช่วงข้อมูล</span>
+                <strong className="text-white">{retrospective.period.from ? new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short' }).format(new Date(retrospective.period.from)) : 'ไม่มีวันที่'}</strong>
+              </div>
             </div>
 
             {retrospective.topPerformer && (
@@ -1388,6 +1580,7 @@ export default function ProducerHub({
                   </div>
                 </div>
                 <h4 className="text-sm font-bold text-white truncate">{retrospective.topPerformer.title}</h4>
+                <p className="mt-1 text-[10px] text-slate-500 truncate">Source clip: {retrospective.topPerformer.sourceId}</p>
               </div>
             )}
 
@@ -1396,26 +1589,14 @@ export default function ProducerHub({
                 <span>💡 จุดเด่นที่ทำให้ยอดพุ่ง</span>
                 <span className="text-[10px] text-amber-400 lowercase font-normal">คลิกเพื่อจดลง Playbook ได้ทันที</span>
               </h4>
-              {playbookSuggestions.map((item, i) => (
+              {playbookSuggestions.map((item) => (
                 <div key={item.id || i} className="flex items-center justify-between gap-3 text-xs text-slate-300 bg-slate-800/30 p-2.5 rounded-lg border border-white/5 group hover:border-amber-500/30 transition-all">
                   <div className="flex items-start gap-2 min-w-0">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 flex-shrink-0" />
                     <span className="leading-relaxed">{item.text}</span>
                   </div>
                   <button
-                    onClick={() => {
-                      if (!item.alreadySaved) {
-                        const newNote = {
-                          id: `note-${Date.now()}-${i}`,
-                          text: item.text,
-                          createdAt: new Date().toISOString(),
-                          tag: item.tag,
-                        };
-                        const updated = [newNote, ...playbookNotes];
-                        setPlaybookNotes(updated);
-                        savePlaybookNotes(updated);
-                      }
-                    }}
+                    onClick={() => handleSaveRetrospective(item)}
                     disabled={item.alreadySaved}
                     className={`px-2 py-1 rounded text-[11px] font-bold flex items-center gap-1 flex-shrink-0 transition-all ${
                       item.alreadySaved
@@ -1487,17 +1668,19 @@ export default function ProducerHub({
       {/* ── 5. Targets Modal ── */}
       {showTargetsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
-          <div className="w-full max-w-md bg-slate-900 border border-white/15 rounded-2xl p-6 shadow-2xl space-y-5">
+          <div role="dialog" aria-modal="true" aria-labelledby="producer-targets-title" className="w-full max-w-md bg-slate-900 border border-white/15 rounded-2xl p-6 shadow-2xl space-y-5">
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <div className="flex items-center gap-2">
                 <Target className="w-5 h-5 text-amber-400" />
-                <h3 className="text-base font-bold text-white">ตั้งเป้าหมายการผลิต (Quotas)</h3>
+                <h3 id="producer-targets-title" className="text-base font-bold text-white">ตั้งเป้าหมายการผลิต (Quotas)</h3>
               </div>
               <button
+                type="button"
                 onClick={() => setShowTargetsModal(false)}
                 className="text-slate-400 hover:text-white p-1 rounded-lg cursor-pointer"
+                aria-label="ปิดหน้าต่างตั้งเป้าหมาย"
               >
-                ✕
+                <X className="w-5 h-5" />
               </button>
             </div>
 
@@ -1569,17 +1752,18 @@ export default function ProducerHub({
       {/* ── 6. Quick Preview Modal (ดูสคริปต์และสเปกก่อนตัด) ── */}
       {previewItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
-          <div className="w-full max-w-lg bg-slate-900 border border-white/15 rounded-2xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+          <div role="dialog" aria-modal="true" aria-labelledby="producer-preview-title" className="w-full max-w-lg bg-slate-900 border border-white/15 rounded-2xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <div className="flex items-center gap-2 min-w-0">
                 <FileText className="w-5 h-5 text-amber-400 flex-shrink-0" />
-                <h3 className="text-base font-bold text-white truncate">
+                <h3 id="producer-preview-title" className="text-base font-bold text-white truncate">
                   รายละเอียด: {previewItem.title}
                 </h3>
               </div>
               <button
                 onClick={() => setPreviewItem(null)}
                 className="text-slate-400 hover:text-white p-1 rounded-lg cursor-pointer"
+                aria-label="ปิดรายละเอียด"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1668,6 +1852,9 @@ export default function ProducerHub({
           onClick={() => setAiProposal(null)}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="producer-ai-proposal-title"
             className="w-full max-w-lg rounded-2xl bg-[#0F1420] border border-amber-500/30 p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
@@ -1677,13 +1864,14 @@ export default function ProducerHub({
                   <Sparkles className="w-5 h-5" />
                 </span>
                 <div>
-                  <h3 className="text-base font-bold text-white">AI สังเคราะห์สคริปต์จากเรฟ</h3>
+                  <h3 id="producer-ai-proposal-title" className="text-base font-bold text-white">AI สังเคราะห์สคริปต์จากเรฟ</h3>
                   <p className="text-xs text-slate-400">แปลงไอเดียเป็นมุมมองวิดีโอขายดีพร้อมนำไปตัดต่อ</p>
                 </div>
               </div>
               <button
                 onClick={() => setAiProposal(null)}
                 className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                aria-label="ปิดข้อเสนอจาก AI"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1785,7 +1973,13 @@ export default function ProducerHub({
           className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out animate-fadeIn"
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="ดูภาพเรฟขนาดใหญ่"
             onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="ดูภาพเรฟขนาดใหญ่"
             className="relative max-w-4xl max-h-[90vh] flex flex-col items-center gap-3 cursor-default"
           >
             <button
@@ -1793,6 +1987,8 @@ export default function ProducerHub({
               onClick={() => setActiveZoomImage(null)}
               className="absolute -top-11 right-0 p-2 rounded-full bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white cursor-pointer transition-colors shadow-lg"
               title="ปิดรูปขยาย"
+              aria-label="ปิดรูปขยาย"
+              aria-label="ปิดรูปขยาย"
             >
               <X className="w-5 h-5" />
             </button>
@@ -1832,7 +2028,7 @@ export default function ProducerHub({
 
       {/* ── Toast Notification ── */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 px-4 py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs shadow-2xl flex items-center gap-2 animate-bounce">
+        <div className="fixed bottom-6 right-6 z-50 px-4 py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs shadow-2xl flex items-center gap-2 animate-bounce" role="status" aria-live="polite">
           <CheckCircle2 className="w-4 h-4" />
           <span>{toastMessage}</span>
         </div>

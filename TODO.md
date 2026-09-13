@@ -18,6 +18,8 @@
 
 ---
 
+- [ ] Round AI-PRODUCER-HUB-AUDIT-PLAN-1 — ตรวจสอบการใช้งาน AI Producer Hub และจัดทำแผนยกระดับแบบ evidence-first (2026-09-13; วิเคราะห์โค้ด + browser snapshot แล้ว, รออนุมัติ scope, ดำเนินการโดย: Codex (GPT-5))
+
 - [x] Round HOOK-DEFAULT-5S-1 — ปรับค่าเริ่มต้น (default) ของป้ายฮุกพาดหัว (Hook Banner) เป็น 5.0 วินาทีตั้งแต่ตอนสร้างโปรเจกต์ (2026-09-11; frontend 151 passed, backend 157 passed, build pass)
 - [x] Round ANALYTICS-HUB-1 — พัฒนาเมนูใหม่ "ศูนย์วิเคราะห์ข้อมูลและสถิติรวม" (Analytics & Operations Hub) รวมแดชบอร์ด 4 มิติ (Production, Tokens, Storage, Inventory) (2026-09-11; backend 4 passed, frontend 151 passed, build pass)
 - [x] Round SETTINGS-TOKEN-REMOVAL-1 — ถอดแท็บและสถิติโทเคนออกจากหน้าตั้งค่าระบบ (System Settings) ปรับ Eyebrow และเมนูเป็น 'ตั้งค่าระบบ' เต็มรูปแบบ (2026-09-11; frontend 151 passed, build pass)
@@ -134,6 +136,23 @@
 ## Round TIKTOK-STATS-SCRAPE-2 (backlog) — แท็บ Performance เพิ่มลิงก์ คลิปปัง threshold + แมพ manual สำหรับ unmatched rows
 - [ ] หลังใช้งานจริง: ปุ่มจับคู่ manual ในแท็บ Performance สำหรับแถวที่ fuzzy match ไม่เจอ
 - [ ] แจ้งเตือนคลิปปังเกิน threshold (เช่น 10k views) ใน Activity Center
+
+---
+
+ - [x] Round AI-PRODUCER-TRUST-1 — Phase 1 Trust Layer เสร็จสมบูรณ์ (2026-09-13; frontend 183 passed, build 2003 modules/4.05s, compileall + browser verified, ดำเนินการโดย: Codex (GPT-5))
+
+---
+
+ - [x] Round AI-PRODUCER-ACTION-1 — Phase 2 Action Loop เสร็จใน production path; component-flow React mount test deferred (2026-09-13; frontend 184 passed, build 2003 modules/8.52s, browser deep-link verified, ดำเนินการโดย: Codex (GPT-5))
+
+---
+
+ - [x] Round AI-PRODUCER-SYNC-1 — Phase 3 Capture & Sync Reliability เสร็จสมบูรณ์ (2026-09-13; backend 3 passed, frontend 184 passed, build 2003 modules/5.74s, compileall + diff check ผ่าน, browser verified, ไม่แตะ 02_Assets/Refs, ดำเนินการโดย: Codex (GPT-5))
+
+---
+
+ - [x] Round AI-PRODUCER-EVIDENCE-1 — Phase 4 Evidence-first Retrospective เสร็จสมบูรณ์ (2026-09-13; frontend 185 passed, backend 3 passed, build 2003 modules/3.58s, browser evidence cards verified, ดำเนินการโดย: Codex (GPT-5))
+ - [x] Round AI-PRODUCER-ACCESS-1 — Phase 5 Accessibility & Responsive Polish เสร็จสมบูรณ์ (2026-09-13; frontend 185 passed, build 2003 modules/3.85s, browser AX + Escape verified, diff check ผ่าน, ไม่เปลี่ยน font/text contract, ดำเนินการโดย: Codex (GPT-5))
 
 ---
 

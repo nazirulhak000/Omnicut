@@ -8,6 +8,11 @@
 
 ## สารบัญ
 
+| Round AI-PRODUCER-ACCESS-1 | Phase 5 Accessibility & Responsive Polish: modal semantics, Escape close, aria-live และ keyboard labels | 2026-09-13 | สำเร็จสมบูรณ์ (frontend 185 passed, build 2003 modules/3.85s, browser AX + Escape verified, diff check ผ่าน, ไม่เปลี่ยน font/text contract, ดำเนินการโดย: Codex (GPT-5)) |
+| Round AI-PRODUCER-EVIDENCE-1 | Phase 4 Evidence-first Retrospective: metrics model, measured takeaways, source provenance และ metric snapshot | 2026-09-13 | สำเร็จสมบูรณ์ (frontend 185 passed, backend 3 passed, build 2003 modules/3.58s, browser evidence cards verified, fixture distribution test ผ่าน, ดำเนินการโดย: Codex (GPT-5)) |
+| Round AI-PRODUCER-SYNC-1 | Phase 3 Capture & Sync Reliability: deterministic media upload, single-item notes, revision guard และ payload validation | 2026-09-13 | สำเร็จสมบูรณ์ (backend notes 3 passed, frontend 184 passed, build 2003 modules/5.74s, compileall ผ่าน, Producer Hub + Quick Ref browser verified, ไม่แตะ 02_Assets/Refs, ดำเนินการโดย: Codex (GPT-5)) |
+| Round AI-PRODUCER-ACTION-1 | Phase 2 Action Loop: ranked Next Mission, deep-link payload และ queue search/sort/empty state | 2026-09-13 | สำเร็จใน production path (frontend 184 passed, build 2003 modules/8.52s, browser deep-link verified; component-flow React mount test deferred, ดำเนินการโดย: Codex (GPT-5)) |
+| Round AI-PRODUCER-TRUST-1 | Phase 1 Trust Layer ของ AI Producer Hub: canonical identity, queue dedupe, source tracing และ heuristic transparency | 2026-09-13 | สำเร็จสมบูรณ์ (insight contract 1.1.0, queue 19→18 จาก duplicate media, product filter ไม่ซ้ำ, sourceIds/summary/priority metadata, npm test 183 passed, build 4.05s, compileall ผ่าน, browser verified, ดำเนินการโดย: Codex (GPT-5)) |
 | Round WATERMARK-CONFIG-V6 | ตั้งค่าเปิด/ปิดลายน้ำ (One Click & Editor) + แก้สระ/วรรณยุกต์ลอย + บังคับตัดแคช v6 | 2026-09-13 | สำเร็จสมบูรณ์ (ตั้งค่าเปิด/ปิดลายน้ำได้ทั้งหน้าสร้างคลิปและหน้า Editor, ค่าเริ่มต้นเปิดแสดงลายน้ำ @rizanntry สีจางลงเหลือ ~37% Opacity (&HA0&), แก้ปัญหาสระ/วรรณยุกต์ลอยถอยหลังในคำว่า 'โปรโมชั่น' และ 'รีบกดสั่ง' เมื่อมี emoji นำหน้า, bump SUBTITLE_RENDER_CONTRACT_VERSION = 'v6' เพื่อตัดแคชเก่า, pytest 176 passed, npm test 181 passed, build 3.26s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round MULTI-IMAGE-CLOUD-SYNC-1 | Multi-Image Support per Note + Mobile-to-PC Server Sync + 1-Click Copy/Share Summary for Team | 2026-09-13 | สำเร็จสมบูรณ์ (รองรับแนบภาพหลายรูปต่อโน้ต `images: []` พร้อม thumbnail strip และปุ่มลบ X ทีละรูป, Mini-Gallery บนการ์ดโน้ต, Lightbox Modal ดูภาพขยายเต็มจอ, เซิร์ฟเวอร์ API ซิงก์โน้ตระหว่างมือถือและคอมพิวเตอร์ผ่าน `02_Assets/Refs/playbook_notes.json`, ปุ่ม 1-Click 'คัดลอกส่งงาน' สรุปข้อความและรูปภาพทั้งหมดลงคลิปบอร์ดสำหรับส่งไลน์ให้นาย, pytest 1 passed, npm test 180 passed, build 4.29s, desktop & mobile browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round MOBILE-IMAGE-PASTE-FIX-1 | Fix Mobile Image Paste (iOS Safari files detection, ContentEditable Paste Target, Native Photo Picker Auto-Fallback, and HEIC auto-conversion) | 2026-09-13 | สำเร็จสมบูรณ์ (ตรวจจับ `clipboardData.files` + `items` + `html` + `text` ทุกมิติ, เพิ่มกล่อง Rich ContentEditable Paste Target สำหรับ iOS Safari & Android, ปุ่ม 1-Tap 'เลือกจากคลังภาพ' ดึงรูปล่าสุดใน 1 วินาที, รองรับภาพ HEIC จาก iPhone แปลงเป็น JPG อัตโนมัติด้วย ffmpeg, npm test 180 passed, build 3.58s, desktop & mobile browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
@@ -15,6 +20,148 @@
 | Round QUICK-REF-POLISH-1 | Redesign Impeccable Quick Ref Vault & Fix iOS Mobile Zoom | 2026-09-13 | สำเร็จสมบูรณ์ (ป้องกัน iOS auto-zoom ด้วย 16px inputs + CSS media query + viewport config, Redesign เต็มจอ edge-to-edge + Responsive 2-column desktop, 1-Tap Paste จากคลิปบอร์ด, Segmented Category Pills, Tag filter & search, AI Idea-to-Script on mobile, npm test 180 passed, build 3.31s, desktop & mobile browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 
 ---
+
+## Round AI-PRODUCER-ACCESS-1 — Phase 5 Accessibility & Responsive Polish ของ AI Producer Hub
+
+วันที่: 2026-09-13 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: เสร็จสมบูรณ์
+
+### สิ่งที่ทำ
+
+- เพิ่ม `role="dialog"`, `aria-modal`, accessible label และ heading linkage ให้ modal หลักของ Producer Hub/Quick Ref
+- เพิ่มปุ่มปิดที่มีชื่อสำหรับ screen reader และรองรับ Escape ปิด modal
+- เพิ่ม `aria-live`/`role=status`/`role=alert` ให้ partial failure, toast, clipboard error และ save/delete feedback
+- ตรวจ core flow บน Producer Hub และ Quick Ref โดยไม่แตะ font/text visual contract; reduced-motion path เดิมของ global CSS ยังทำงาน
+
+### Gate
+
+- [x] `cd frontend; npm test` — 185 passed
+- [x] `npm run build` — 2003 modules, 3.85s
+- [x] browser AX + keyboard — quota dialog แสดง semantic heading/label และ Escape ปิดได้; Quick Ref เปิดและฟอร์มทำงาน
+- [x] `git diff --check` — ผ่าน
+
+### Notes
+
+- ไม่แตะหรือลบไฟล์ user ใน `02_Assets/Refs/`
+- ไม่เปลี่ยนฟอนต์ ข้อความบทพูด หรือ renderer visual contract
+
+---
+
+## Round AI-PRODUCER-EVIDENCE-1 — Phase 4 Evidence-first Retrospective ของ AI Producer Hub
+
+วันที่: 2026-09-13 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: เสร็จสมบูรณ์
+
+### สิ่งที่ทำ
+
+- เพิ่ม evidence metrics: sample size, period, average views, median views, engagement rate และ top-vs-baseline ratios
+- เปลี่ยนข้อความ takeaways/improvement ให้ derive จาก distribution จริง พร้อมแสดงว่าการตีความเป็น heuristic
+- ผูก top performer กับ `sourceId` และ metric snapshot; บันทึกบทเรียนพร้อม provenance, period, confidence และ source clip
+- เพิ่ม fixture test ยืนยันข้อมูล skewed กับ consistent ให้ insight ต่างกัน
+
+### Gate
+
+- [x] `.venv\\Scripts\\python.exe -m pytest tests/test_producer_notes_api.py -q -p no:cacheprovider --tb=short` — 3 passed
+- [x] `cd frontend; npm test` — 185 passed
+- [x] `npm run build` — 2003 modules, 3.58s
+- [x] browser — evidence cards แสดงค่าเฉลี่ย/ค่ากลาง/engagement/ช่วงข้อมูล และปุ่มจดบทเรียนทำงานใน flow
+
+### Notes
+
+- ไม่แตะหรือลบไฟล์ user ใน `02_Assets/Refs/`
+- ข้อมูล TikTok ที่มีอยู่ยังถูกติดป้าย `heuristic`; ยังไม่มีการอ้างว่าเป็น AI model จริง
+
+---
+
+## Round AI-PRODUCER-SYNC-1 — Phase 3 Capture & Sync Reliability ของ AI Producer Hub
+
+วันที่: 2026-09-13 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** ทำให้การเก็บเรฟและโน้ตจาก Producer Hub/Quick Ref ปลอดภัยต่อการใช้งานข้ามอุปกรณ์และไม่ปล่อยข้อมูลอัปโหลดค้าง
+
+### สิ่งที่ทำ
+
+- เปลี่ยนการบันทึก/ลบโน้ตจาก full-list overwrite เป็น single-item API mutation พร้อม optimistic update และ rollback เมื่อ sync ไม่สำเร็จ
+- เพิ่ม deterministic pending key ต่อไฟล์ เพื่อไม่ให้ upload หลายไฟล์แทนที่ preview ผิดรายการ
+- บล็อกการบันทึกเมื่อมี upload pending และนำ preview ที่ upload ไม่สำเร็จออกจากรายการที่จะบันทึก
+- เพิ่ม `base_revision` guard สำหรับ bulk note save พร้อม HTTP 409 และส่ง revision ล่าสุดกลับไปให้ client
+- เพิ่ม validation ความยาวข้อความ, จำนวนภาพ และขนาด data URL; จำกัด upload ref media ไม่เกิน 10 MB
+- ปรับ upload response ไม่คืน absolute filesystem path
+
+### Gate
+
+- [x] `.venv\\Scripts\\python.exe -m pytest tests/test_producer_notes_api.py -q -p no:cacheprovider --tb=short` — 3 passed, 2 warnings
+- [x] `cd frontend; npm test -- --run src/lib/producerInsights.test.js` — 184 passed
+- [x] `npm run build` — 2003 modules, 5.74s
+- [x] `.venv\\Scripts\\python.exe -m compileall -q scripts` — ผ่าน
+- [x] browser — Producer Hub โหลดครบและแสดง queue/action controls; Quick Ref เปิดได้, save disabled เมื่อไม่มีข้อมูลและรองรับฟอร์มพร้อม sync
+- [x] `git diff --check` — ผ่าน
+
+### Notes
+
+- ไม่แตะหรือลบไฟล์ user ใน `02_Assets/Refs/`
+- Component-flow test ที่ต้อง mount React โดยตรงยังเป็นรายการ deferred ของ Phase 2; production navigation seam ถูกตรวจผ่าน browser แล้ว
+
+---
+
+## Round AI-PRODUCER-ACTION-1 — Phase 2 Action Loop ของ AI Producer Hub
+
+วันที่: 2026-09-13 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: เสร็จใน production path
+
+### สิ่งที่ทำ
+
+- ใช้ ranked `getNextAction` ให้ post/cut/footage มี priority score, reason และ stable tie-break
+- ส่ง `targetId`/`exportId`/`productId`/`angleId` ผ่าน navigation seam เพื่อเปิด object เดิมที่ปลายทาง
+- เพิ่ม search, sort, result count, progressive reveal และ empty state ให้ Action Queue
+- ตรวจ browser แล้ว: CTA ส่ง TikTok เปิด Gallery พร้อม export เป้าหมายที่เลือกจริง
+
+### Gate
+
+- [x] `cd frontend; npm test -- --run src/lib/producerInsights.test.js` — 184 passed
+- [x] `npm run build` — 2003 modules, 8.52s
+- [x] browser deep-link — verified
+
+### Notes
+
+- ไม่เปลี่ยน status ใน Hub เองโดยไม่มี operation จากปลายทาง
+- Component-flow test ที่ต้องใช้ React mount harness โดยตรง deferred; unit contract + browser flow ผ่าน
+
+---
+
+## Round AI-PRODUCER-TRUST-1 — Phase 1 Trust Layer ของ AI Producer Hub
+
+วันที่: 2026-09-13 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** ทำให้ identity, queue, quota และคำอธิบายความสามารถของ Producer Hub เชื่อถือได้ก่อนเพิ่ม action flow
+
+### สิ่งที่ทำ
+
+- เพิ่ม `PRODUCER_INSIGHTS_CONTRACT = 1.1.0`
+- เพิ่ม canonical clip identity aliases สำหรับ `angle`, `project`, `export`, `media` และ `name`
+- กันการนับซ้ำระหว่าง angle กับ export ที่ชี้ media เดียวกัน
+- เพิ่ม `sourceIds` ให้ daily/weekly cuts และ daily posts เพื่อ trace ที่มาของตัวเลข
+- เพิ่ม `source` และ `contract` metadata ใน production stats
+- แก้ standalone export matching ให้ใช้ identity aliases และผูก product context กลับเข้าคิว
+- แก้ product filter ให้รวมรายการด้วย `productId` เดียว ลดปุ่มสินค้าซ้ำ
+- เพิ่ม `summary` counts ใน action queue
+- เพิ่ม `lastSyncedAt` และ partial failure banner ใน Producer Hub
+- เปลี่ยน Retrospective เป็น `Automatic Retrospective` พร้อม method/source/sampleSize/confidence
+- เพิ่ม metadata ใน AI proposal response เพื่อบอกว่าเป็น `heuristic` และระบุ input ที่ถูกใช้
+
+### Gate & Verification Results
+
+- [x] Frontend tests: `npm test -- --run src/lib/producerInsights.test.js` — 183/183 passed
+- [x] Frontend build: `npm run build` — 2003 modules transformed, 4.05s
+- [x] Python compilation: `python -m compileall -q scripts` — passed
+- [x] Browser: queue ลดจาก 19 เป็น 18 จาก duplicate media, product filter ไม่ซ้ำ, แสดง sync timestamp และ heuristic label
+
+### ไฟล์ที่แตะ
+
+- `frontend/src/lib/producerInsights.js`
+- `frontend/src/lib/producerInsights.test.js`
+- `frontend/src/components/producer/ProducerHub.jsx`
+- `frontend/src/App.jsx`
+- `scripts/api_producer.py`
+- `TODO.md`
+- `HISTORY.md`
 
 ## Round WATERMARK-CONFIG-V6 — ตั้งค่าเปิด/ปิดลายน้ำ (One Click & Editor) + แก้สระ/วรรณยุกต์ลอย + บังคับตัดแคช v6
 

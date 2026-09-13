@@ -11,6 +11,7 @@ import re
 import uuid
 import base64
 import json
+import hashlib
 import datetime
 from datetime import timezone
 from pathlib import Path
@@ -28,6 +29,9 @@ router = APIRouter(prefix="/api/producer", tags=["Producer"])
 REFS_DIR = ASSETS_DIR / "Refs"
 REFS_DIR.mkdir(parents=True, exist_ok=True)
 NOTES_FILE = REFS_DIR / "playbook_notes.json"
+MAX_REF_MEDIA_BYTES = 10 * 1024 * 1024
+MAX_NOTE_TEXT_LENGTH = 12000
+MAX_NOTE_IMAGES = 12
 
 DEFAULT_STARTER_NOTES = [
     {
@@ -75,6 +79,43 @@ def save_notes_to_disk(notes: List[Dict[str, Any]]) -> None:
     temp_file.replace(NOTES_FILE)
 
 
+def notes_revision(notes: List[Dict[str, Any]]) -> str:
+    canonical = json.dumps(notes, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
+
+
+def normalize_note(note: Dict[str, Any]) -> Dict[str, Any]:
+    if not isinstance(note, dict):
+        raise HTTPException(status_code=400, detail="รูปแบบโน้ตไม่ถูกต้อง")
+    normalized = dict(note)
+    text = normalized.get("text") or ""
+    if not isinstance(text, str) or len(text) > MAX_NOTE_TEXT_LENGTH:
+        raise HTTPException(status_code=400, detail=f"ข้อความโน้ตยาวเกิน {MAX_NOTE_TEXT_LENGTH:,} ตัวอักษร")
+    normalized["text"] = text
+    images = normalized.get("images")
+    if images is None:
+        images = [normalized["imageUrl"]] if normalized.get("imageUrl") else []
+    if not isinstance(images, list) or len(images) > MAX_NOTE_IMAGES:
+        raise HTTPException(status_code=400, detail=f"แนบรูปได้ไม่เกิน {MAX_NOTE_IMAGES} รูปต่อโน้ต")
+    if any(not isinstance(image, str) for image in images):
+        raise HTTPException(status_code=400, detail="ลิงก์รูปภาพในโน้ตไม่ถูกต้อง")
+    if any(image.startswith("data:") and len(image) > 2_000_000 for image in images):
+        raise HTTPException(status_code=400, detail="รูปภาพยังอัปโหลดไม่เสร็จ กรุณารอแล้วลองบันทึกใหม่")
+    normalized["images"] = images
+    if images and not normalized.get("imageUrl"):
+        normalized["imageUrl"] = images[0]
+    return normalized
+
+
+def notes_response(notes: List[Dict[str, Any]]) -> Dict[str, Any]:
+    return {
+        "success": True,
+        "notes": notes,
+        "revision": notes_revision(notes),
+        "updatedAt": datetime.datetime.now(timezone.utc).isoformat(),
+    }
+
+
 class IdeaToAngleRequest(BaseModel):
     idea_text: str = ""
     ref_url: Optional[str] = ""
@@ -85,6 +126,7 @@ class IdeaToAngleRequest(BaseModel):
 
 class NotesPayload(BaseModel):
     notes: List[Dict[str, Any]]
+    base_revision: Optional[str] = None
 
 
 class SingleNotePayload(BaseModel):
@@ -119,6 +161,8 @@ async def upload_ref_media(file: UploadFile = File(...)):
     dest_path = REFS_DIR / safe_name
 
     contents = await file.read()
+    if len(contents) > MAX_REF_MEDIA_BYTES:
+        raise HTTPException(status_code=413, detail="ไฟล์เรฟใหญ่เกิน 10 MB")
     with open(dest_path, "wb") as f:
         f.write(contents)
 
@@ -143,7 +187,7 @@ async def upload_ref_media(file: UploadFile = File(...)):
         "success": True,
         "filename": safe_name,
         "url": f"/api/producer/ref-media/{safe_name}",
-        "path": str(dest_path),
+        "sizeBytes": len(contents),
     }
 
 
@@ -160,29 +204,26 @@ def get_ref_media(filename: str):
 @router.get("/notes")
 def get_notes():
     """Get all saved idea and ref notes from server."""
-    return {
-        "success": True,
-        "notes": load_notes_from_disk(),
-    }
+    return notes_response(load_notes_from_disk())
 
 
 @router.post("/notes")
 def save_notes(payload: NotesPayload):
     """Save/overwrite full list of notes."""
-    notes = payload.notes
-    for note in notes:
-        if "images" not in note:
-            if note.get("imageUrl"):
-                note["images"] = [note["imageUrl"]]
-            else:
-                note["images"] = []
-        elif note["images"] and not note.get("imageUrl"):
-            note["imageUrl"] = note["images"][0]
+    current = load_notes_from_disk()
+    current_revision = notes_revision(current)
+    if payload.base_revision and payload.base_revision != current_revision:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "ข้อมูลโน้ตถูกแก้จากอีกอุปกรณ์แล้ว กรุณาซิงก์ใหม่ก่อนบันทึก",
+                "revision": current_revision,
+                "notes": current,
+            },
+        )
+    notes = [normalize_note(note) for note in payload.notes]
     save_notes_to_disk(notes)
-    return {
-        "success": True,
-        "notes": notes,
-    }
+    return notes_response(notes)
 
 
 @router.post("/notes/add")
@@ -195,13 +236,7 @@ def add_note(payload: SingleNotePayload):
     if "note" in note and isinstance(note["note"], dict):
         note = note["note"]
 
-    if "images" not in note:
-        if note.get("imageUrl"):
-            note["images"] = [note["imageUrl"]]
-        else:
-            note["images"] = []
-    elif note["images"] and not note.get("imageUrl"):
-        note["imageUrl"] = note["images"][0]
+    note = normalize_note(note)
 
     if "id" not in note or not note["id"]:
         note["id"] = f"note-{uuid.uuid4().hex[:8]}"
@@ -211,11 +246,7 @@ def add_note(payload: SingleNotePayload):
     existing = load_notes_from_disk()
     updated = [note] + [n for n in existing if n.get("id") != note.get("id")]
     save_notes_to_disk(updated)
-    return {
-        "success": True,
-        "note": note,
-        "notes": updated,
-    }
+    return {**notes_response(updated), "note": note}
 
 
 @router.delete("/notes/{note_id}")
@@ -224,10 +255,7 @@ def delete_note(note_id: str):
     existing = load_notes_from_disk()
     updated = [n for n in existing if n.get("id") != note_id]
     save_notes_to_disk(updated)
-    return {
-        "success": True,
-        "notes": updated,
-    }
+    return notes_response(updated)
 
 
 @router.post("/ai-idea-to-angle")
@@ -310,5 +338,12 @@ def ai_idea_to_angle(req: IdeaToAngleRequest):
 
     return {
         "success": True,
+        "analysis": {
+            "method": "heuristic",
+            "source": "idea_text_and_product_catalog",
+            "used_ref_url": bool(url),
+            "used_ref_images": bool(req.ref_image or req.ref_images),
+            "confidence": "low",
+        },
         "proposal": proposal,
     }

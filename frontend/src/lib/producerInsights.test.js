@@ -7,12 +7,14 @@ import {
   isSameDay,
   calculateProductionStats,
   getDailyActionQueue,
+  getNextAction,
   generateBossGreeting,
   analyzeContentPerformance,
   calculateWeeklyPacing,
   autoSuggestPlaybookNotes,
   diversifyByProduct,
   detectRefPlatform,
+  getClipIdentityAliases,
 } from './producerInsights.js';
 
 test('getMondayOfWeek and getSundayOfWeek calculate Monday to Sunday interval correctly', () => {
@@ -71,6 +73,39 @@ test('calculateProductionStats tracks daily and weekly cuts and posts accurately
   assert.equal(stats.dailyPosts.remaining, 2);
 });
 
+test('calculateProductionStats deduplicates an angle and its matching export media', () => {
+  const now = new Date('2026-09-13T12:00:00.000Z');
+  const products = [{
+    id: 'p1',
+    angles: [{
+      angle_id: 'ang1',
+      status: 'rendered',
+      status_updated_at: '2026-09-13T09:00:00.000Z',
+      rendered_video: 'D:/exports/clip-one.mp4',
+    }],
+  }];
+  const exports = [{
+    export_id: 'exp1',
+    path: 'D:/exports/clip-one.mp4',
+    created_at: '2026-09-13T08:00:00.000Z',
+    is_posted: false,
+  }];
+
+  const stats = calculateProductionStats(products, exports, DEFAULT_TARGETS, now);
+
+  assert.equal(stats.dailyCuts.current, 1);
+  assert.equal(stats.weeklyCuts.current, 1);
+  assert.equal(stats.dailyCuts.sourceIds.length, 1);
+  assert.equal(stats.contract, '1.1.0');
+});
+
+test('clip identity aliases normalize equivalent media paths', () => {
+  assert.deepEqual(
+    getClipIdentityAliases({ path: 'D:\\Exports\\CLIP-ONE.MP4' }),
+    ['media:clip-one'],
+  );
+});
+
 test('getDailyActionQueue categorizes 3 priority queues properly', () => {
   const products = [
     {
@@ -113,6 +148,20 @@ test('getDailyActionQueue categorizes 3 priority queues properly', () => {
   assert.equal(queue.needsFootage[0].id, 'ang4');
 });
 
+test('getNextAction returns a traceable priority reason and prefers shippable work', () => {
+  const now = new Date('2026-09-13T12:00:00.000Z');
+  const next = getNextAction({
+    readyToPost: [{ id: 'export-1', productName: 'Product 1', updatedAt: '2026-09-12T10:00:00.000Z' }],
+    readyToCut: [{ id: 'angle-1', productName: 'Product 2', updatedAt: '2026-09-01T10:00:00.000Z' }],
+    needsFootage: [{ id: 'angle-2', productName: 'Product 3' }],
+  }, now);
+
+  assert.equal(next.type, 'post');
+  assert.equal(next.item.id, 'export-1');
+  assert.equal(next.priorityReason, 'เรนเดอร์เสร็จแล้วและยังไม่โพสต์');
+  assert.equal(next.contract, '1.1.0');
+});
+
 test('generateBossGreeting calls user เจ้านาย and adapts to status', () => {
   const stats = {
     dailyCuts: { current: 1, target: 5, remaining: 4 },
@@ -141,6 +190,25 @@ test('analyzeContentPerformance identifies top video and actionable insights', (
   assert.equal(result.topPerformer.title, 'พัดลมมือถือไฟลุก');
   assert.equal(result.topPerformer.views, 4500);
   assert.ok(result.topTakeaways.length >= 2);
+  assert.equal(result.method, 'heuristic');
+  assert.equal(result.sampleSize, 2);
+});
+
+test('analyzeContentPerformance changes evidence when metric distribution changes', () => {
+  const skewed = analyzeContentPerformance([
+    { id: 'clip-top', video_title: 'ตัวชนะ', views: 10000, likes: 700, shares: 200, comments: 100, posted_at: '2026-09-01T00:00:00Z' },
+    { id: 'clip-low', video_title: 'คลิปทั่วไป', views: 500, likes: 5, shares: 1, comments: 1, posted_at: '2026-09-02T00:00:00Z' },
+  ]);
+  const consistent = analyzeContentPerformance([
+    { id: 'clip-a', video_title: 'คลิป A', views: 2000, likes: 100, shares: 40, comments: 20, posted_at: '2026-09-01T00:00:00Z' },
+    { id: 'clip-b', video_title: 'คลิป B', views: 2100, likes: 105, shares: 42, comments: 21, posted_at: '2026-09-02T00:00:00Z' },
+  ]);
+
+  assert.equal(skewed.topPerformer.sourceId, 'clip-top');
+  assert.ok(skewed.metrics.topVsMedian > consistent.metrics.topVsMedian);
+  assert.notEqual(skewed.topTakeaways[0], consistent.topTakeaways[0]);
+  assert.equal(skewed.period.from, '2026-09-01T00:00:00.000Z');
+  assert.equal(skewed.period.to, '2026-09-02T00:00:00.000Z');
 });
 
 test('calculateWeeklyPacing calculates remaining pace accurately', () => {
@@ -226,4 +294,3 @@ test('detectRefPlatform recognizes social URLs accurately', () => {
   assert.equal(detectRefPlatform('https://example.com/blog'), 'web');
   assert.equal(detectRefPlatform('just some random note'), null);
 });
-

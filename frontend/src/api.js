@@ -412,8 +412,8 @@ export const aiIdeaToAngle = (payload) =>
 export const getProducerNotes = () =>
   api.get('/producer/notes').then(r => r.data);
 
-export const saveProducerNotes = (notes) =>
-  api.post('/producer/notes', { notes }).then(r => r.data);
+export const saveProducerNotes = (notes, baseRevision = null) =>
+  api.post('/producer/notes', { notes, ...(baseRevision ? { base_revision: baseRevision } : {}) }).then(r => r.data);
 
 export const addProducerNote = (note) =>
   api.post('/producer/notes/add', { note }).then(r => r.data);
@@ -422,4 +422,3 @@ export const deleteProducerNote = (noteId) =>
   api.delete(`/producer/notes/${encodeURIComponent(noteId)}`).then(r => r.data);
 
 export default api;
-

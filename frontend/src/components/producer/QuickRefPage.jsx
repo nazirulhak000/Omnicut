@@ -20,7 +20,7 @@ import {
   aiIdeaToAngle,
   addProductAngle,
   getProducerNotes,
-  saveProducerNotes,
+  addProducerNote,
   deleteProducerNote
 } from '../../api';
 
@@ -42,6 +42,7 @@ export default function QuickRefPage({ onExit }) {
   const [selectedProductId, setSelectedProductId] = useState('');
   const [previewImages, setPreviewImages] = useState([]);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [failedImageUploads, setFailedImageUploads] = useState(0);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [pasteSuccess, setPasteSuccess] = useState(false);
   const [pastedImageToast, setPastedImageToast] = useState(false);
@@ -68,6 +69,17 @@ export default function QuickRefPage({ onExit }) {
 
   const fileInputRef = useRef(null);
   const lastPasteTimeRef = useRef(0);
+
+  useEffect(() => {
+    if (!aiProposal && !activeZoomImage) return undefined;
+    const handleModalKeyDown = (event) => {
+      if (event.key !== 'Escape') return;
+      if (activeZoomImage) setActiveZoomImage(null);
+      else setAiProposal(null);
+    };
+    document.addEventListener('keydown', handleModalKeyDown);
+    return () => document.removeEventListener('keydown', handleModalKeyDown);
+  }, [activeZoomImage, aiProposal]);
 
   // Sync Notes with Server (Makes notes accessible on PC & Mobile simultaneously)
   const fetchNotes = useCallback(async () => {
@@ -209,70 +221,47 @@ export default function QuickRefPage({ onExit }) {
     }
   };
 
-  // Multi-Image Processor with Deduplication and Safe Exception Isolation
+  // Multi-Image Processor: every local preview gets a unique pending key so
+  // concurrent uploads cannot replace the wrong image.
   const processImageFiles = async (files) => {
-    try {
-      if (!files || files.length === 0) return;
-      const fileList = Array.from(files);
+    if (!files || files.length === 0) return;
+    const pendingEntries = [];
 
-      for (const file of fileList) {
-        if (!file) continue;
-
-        // Local preview reader
-        const reader = new FileReader();
-        reader.onload = () => {
-          try {
-            const localData = reader.result;
-            if (!localData || typeof localData !== 'string') return;
-            setPreviewImages(prev => {
-              try {
-                if (isDuplicateImage(prev, localData)) return prev;
-                return [...prev, localData];
-              } catch (_) {
-                return prev;
-              }
-            });
-            setPastedImageToast(true);
-            setTimeout(() => setPastedImageToast(false), 2500);
-          } catch (err) {
-            console.warn('Error displaying image preview:', err);
-          }
-        };
-        reader.onerror = () => {
-          console.warn('FileReader error');
-        };
-
-        try {
+    for (const file of Array.from(files)) {
+      if (!file?.type?.startsWith('image/')) continue;
+      try {
+        const localData = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(new Error('อ่านไฟล์ภาพไม่สำเร็จ'));
           reader.readAsDataURL(file);
-        } catch (readErr) {
-          console.warn('Failed to read file as DataURL:', readErr);
-        }
-
-        // Upload to server in background
-        try {
-          setUploadingImage(true);
-          const uploadRes = await uploadRefMedia(file);
-          if (uploadRes?.url && typeof uploadRes.url === 'string') {
-            setPreviewImages(prev => {
-              try {
-                if (isDuplicateImage(prev, uploadRes.url)) {
-                  return prev.filter(img => img !== reader.result);
-                }
-                return prev.map(img => (img === reader.result ? uploadRes.url : img));
-              } catch (_) {
-                return prev;
-              }
-            });
-          }
-        } catch (err) {
-          console.warn('Server image upload failed, using local preview:', err);
-        } finally {
-          setUploadingImage(false);
-        }
+        });
+        const pendingUrl = `${localData}#omnicut-pending-${Date.now()}-${pendingEntries.length}`;
+        pendingEntries.push({ file, pendingUrl });
+        setPreviewImages(prev => [...prev, pendingUrl]);
+      } catch (err) {
+        setFailedImageUploads(count => count + 1);
+        console.warn('Failed to prepare reference image:', err);
       }
-    } catch (err) {
-      console.warn('processImageFiles error:', err);
     }
+
+    if (pendingEntries.length === 0) return;
+    setUploadingImage(true);
+    setPastedImageToast(true);
+    setTimeout(() => setPastedImageToast(false), 2500);
+
+    for (const { file, pendingUrl } of pendingEntries) {
+      try {
+        const uploadRes = await uploadRefMedia(file);
+        if (!uploadRes?.url) throw new Error('เซิร์ฟเวอร์ไม่คืนลิงก์รูปภาพ');
+        setPreviewImages(prev => prev.map(img => (img === pendingUrl ? uploadRes.url : img)));
+      } catch (err) {
+        setPreviewImages(prev => prev.filter(img => img !== pendingUrl));
+        setFailedImageUploads(count => count + 1);
+        console.warn('Server image upload failed:', err);
+      }
+    }
+    setUploadingImage(false);
   };
 
   const handleImageSelect = (e) => {
@@ -447,7 +436,6 @@ export default function QuickRefPage({ onExit }) {
     }
 
     try {
-      setUploadingImage(true);
       const items = await navigator.clipboard.read();
       const filesToAdd = [];
       let foundAnyImage = false;
@@ -510,8 +498,6 @@ export default function QuickRefPage({ onExit }) {
       console.warn('Clipboard read error:', err);
       setClipboardErrorMsg('เบราว์เซอร์จำกัดสิทธิ์เข้าถึงคลิปบอร์ดผ่านปุ่มนี้ กรุณากด Ctrl+V บนคีย์บอร์ด หรือเลือกจากคลังภาพ');
       setTimeout(() => setClipboardErrorMsg(''), 5000);
-    } finally {
-      setUploadingImage(false);
     }
   };
 
@@ -532,6 +518,7 @@ export default function QuickRefPage({ onExit }) {
     };
 
     const updated = addPlaybookNote(newNote, notes);
+    const localNote = updated[0];
     setNotes(updated);
     setIdeaText('');
     setRefUrl('');
@@ -541,8 +528,16 @@ export default function QuickRefPage({ onExit }) {
 
     // Sync to backend so PC and other clients have it immediately
     try {
-      await saveProducerNotes(updated);
+      const res = await addProducerNote(localNote);
+      if (res?.success && Array.isArray(res.notes)) {
+        setNotes(res.notes);
+        savePlaybookNotes(res.notes);
+      }
     } catch (err) {
+      setNotes(notes);
+      savePlaybookNotes(notes);
+      setClipboardErrorMsg('บันทึกในเครื่องแล้ว แต่ซิงก์เซิร์ฟเวอร์ไม่สำเร็จ กรุณาลองใหม่');
+      setTimeout(() => setClipboardErrorMsg(''), 3500);
       console.warn('Failed to save to server:', err);
     }
   };
@@ -553,8 +548,16 @@ export default function QuickRefPage({ onExit }) {
     setDeleteToast(true);
     setTimeout(() => setDeleteToast(false), 3000);
     try {
-      await deleteProducerNote(id);
+      const res = await deleteProducerNote(id);
+      if (res?.success && Array.isArray(res.notes)) {
+        setNotes(res.notes);
+        savePlaybookNotes(res.notes);
+      }
     } catch (err) {
+      setNotes(notes);
+      savePlaybookNotes(notes);
+      setClipboardErrorMsg('ลบในเครื่องแล้ว แต่ซิงก์เซิร์ฟเวอร์ไม่สำเร็จ รายการถูกคืนกลับ');
+      setTimeout(() => setClipboardErrorMsg(''), 3500);
       console.warn('Failed to delete on server:', err);
     }
   };
@@ -1040,7 +1043,7 @@ export default function QuickRefPage({ onExit }) {
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        disabled={uploadingImage}
+                        disabled={uploadingImage || previewImages.some(img => img.includes('#omnicut-pending-'))}
                         className="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/10 hover:from-amber-500/30 hover:to-orange-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all shadow-md shadow-amber-500/10"
                         title="เปิดคลังภาพ (รูปที่เพิ่งแคปหน้าจอจะอยู่มุมบนสุดซ้ายมือ)"
                       >
@@ -1051,7 +1054,7 @@ export default function QuickRefPage({ onExit }) {
                       <button
                         type="button"
                         onClick={handlePasteImageFromClipboard}
-                        disabled={uploadingImage}
+                        disabled={uploadingImage || previewImages.some(img => img.includes('#omnicut-pending-'))}
                         className="w-full py-2.5 px-3 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-white/10 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all"
                         title="อ่านรูปภาพจากคลิปบอร์ดเครื่อง"
                       >
@@ -1061,7 +1064,7 @@ export default function QuickRefPage({ onExit }) {
                     </div>
 
                     {clipboardErrorMsg && (
-                      <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-[11px] text-amber-300 flex items-center justify-between animate-fadeIn">
+                      <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-[11px] text-amber-300 flex items-center justify-between animate-fadeIn" role="alert" aria-live="assertive">
                         <span>{clipboardErrorMsg}</span>
                         <button
                           type="button"
@@ -1072,6 +1075,11 @@ export default function QuickRefPage({ onExit }) {
                         </button>
                       </div>
                     )}
+                    {failedImageUploads > 0 && (
+                      <p className="text-[11px] text-rose-300">
+                        อัปโหลดภาพไม่สำเร็จ {failedImageUploads} ไฟล์ — ระบบไม่นำภาพที่ยังไม่ซิงก์ไปบันทึก
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -1080,7 +1088,8 @@ export default function QuickRefPage({ onExit }) {
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={!ideaText.trim() && !refUrl.trim() && previewImages.length === 0}
+                aria-live="polite"
+                disabled={uploadingImage || previewImages.some(img => img.includes('#omnicut-pending-')) || (!ideaText.trim() && !refUrl.trim() && previewImages.length === 0)}
                 className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-orange-500 hover:brightness-110 active:scale-[0.98] text-slate-950 font-black text-sm flex items-center justify-center gap-2 cursor-pointer shadow-xl shadow-amber-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 {saveSuccess ? <Check className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
@@ -1088,7 +1097,7 @@ export default function QuickRefPage({ onExit }) {
               </button>
 
               {deleteToast && (
-                <div className="p-2.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-xs font-bold text-rose-300 text-center animate-fadeIn">
+                <div className="p-2.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-xs font-bold text-rose-300 text-center animate-fadeIn" role="status" aria-live="polite">
                   ลบโน้ตออกจากคลังเรียบร้อยแล้ว
                 </div>
               )}
@@ -1184,6 +1193,7 @@ export default function QuickRefPage({ onExit }) {
                     type="button"
                     onClick={fetchNotes}
                     disabled={isSyncing}
+                    aria-label={isSyncing ? 'กำลังซิงก์ข้อมูล' : 'ซิงก์ข้อมูลจากเซิร์ฟเวอร์'}
                     className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-white/10 text-xs font-semibold flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all flex-shrink-0"
                     title="ซิงก์ข้อมูลล่าสุดจากเซิร์ฟเวอร์ (คอมพิวเตอร์/มือถือ)"
                   >
@@ -1444,20 +1454,21 @@ export default function QuickRefPage({ onExit }) {
       {/* ── AI Idea-to-Script Modal ── */}
       {aiProposal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="w-full max-w-lg rounded-3xl bg-slate-900 border border-amber-500/30 p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+          <div role="dialog" aria-modal="true" aria-labelledby="quick-ref-ai-title" className="w-full max-w-lg rounded-3xl bg-slate-900 border border-amber-500/30 p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
               <div className="flex items-center gap-2">
                 <span className="p-2 rounded-xl bg-amber-500/20 text-amber-400">
                   <Sparkles className="w-5 h-5" />
                 </span>
                 <div>
-                  <h3 className="text-base font-bold text-white">AI สกัดไอเดียเป็นมุมมองสินค้า</h3>
+                  <h3 id="quick-ref-ai-title" className="text-base font-bold text-white">AI สกัดไอเดียเป็นมุมมองสินค้า</h3>
                   <p className="text-xs text-slate-400">Hook + แผนถ่าย + สคริปต์ย่อ พร้อมเริ่มผลิต</p>
                 </div>
               </div>
               <button
                 onClick={() => setAiProposal(null)}
                 className="p-1.5 rounded-xl text-slate-400 hover:text-white bg-slate-800"
+                aria-label="ปิดข้อเสนอจาก AI"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1548,7 +1559,7 @@ export default function QuickRefPage({ onExit }) {
       )}
       {/* ── 1-Click Copy Toast Notification ── */}
       {copyShareToast && (
-        <div className="fixed bottom-6 right-6 z-50 p-3.5 px-4 rounded-2xl bg-emerald-950/95 border border-emerald-500/40 text-emerald-200 text-xs font-bold shadow-2xl backdrop-blur-xl flex items-center gap-2.5 animate-bounce">
+        <div className="fixed bottom-6 right-6 z-50 p-3.5 px-4 rounded-2xl bg-emerald-950/95 border border-emerald-500/40 text-emerald-200 text-xs font-bold shadow-2xl backdrop-blur-xl flex items-center gap-2.5 animate-bounce" role="status" aria-live="polite">
           <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />
           <span>คัดลอกข้อความและรูปภาพทั้งหมดลงคลิปบอร์ดแล้ว พร้อมส่งต่อให้นายหรือทีมงาน!</span>
         </div>
@@ -1562,6 +1573,9 @@ export default function QuickRefPage({ onExit }) {
         >
           <div
             onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="ดูภาพเรฟขนาดใหญ่"
             className="relative max-w-4xl max-h-[90vh] flex flex-col items-center gap-3 cursor-default"
           >
             <button
@@ -1569,6 +1583,7 @@ export default function QuickRefPage({ onExit }) {
               onClick={() => setActiveZoomImage(null)}
               className="absolute -top-11 right-0 p-2 rounded-full bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white cursor-pointer transition-colors shadow-lg"
               title="ปิดรูปขยาย"
+              aria-label="ปิดรูปขยาย"
             >
               <X className="w-5 h-5" />
             </button>
