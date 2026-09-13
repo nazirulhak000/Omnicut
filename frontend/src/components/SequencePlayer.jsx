@@ -35,6 +35,16 @@ import { drawMediaWithAccentRecolor } from '../lib/overlayRecolor.js';
 
 const CANVAS_W = 540;
 const CANVAS_H = 960;
+
+// Permanent copyright watermark -- mirrors the always-on Dialogue event
+// scripts/subtitle_engine.py burns into every export (WATERMARK_TEXT /
+// WATERMARK_X_RATIO / WATERMARK_Y_RATIO / WATERMARK_FS_RATIO there). Keep
+// these four values identical on both sides; this is the preview half of
+// that render/preview parity, not an independent design choice.
+const WATERMARK_TEXT = 'สงวนลิขสิทธิ์ช่อง rizantry ห้ามคัดลอก/ดัดแปลง';
+const WATERMARK_X_RATIO = 0.945;
+const WATERMARK_Y_RATIO = 0.4375;
+const WATERMARK_FS_RATIO = 0.0148;
 // Canvas playback remains frame-paced, but React only needs enough playhead
 // updates to keep the editor chrome and selection box visually current. The
 // preview/render contract is 30 FPS, so this caps React state publication at
@@ -1479,6 +1489,34 @@ function drawOverlayScrims(ctx, overlays = [], t) {
     ctx.fillRect(0, 0, CANVAS_W, gradH);
     ctx.restore();
   }
+}
+
+/**
+ * Burned-in on every export regardless of the project's overlay list -- see
+ * scripts/subtitle_engine.py's unconditional Watermark Dialogue event. Drawn
+ * separately from drawOverlays() (which returns early on an empty list) so
+ * it still shows with zero overlays, same as the render.
+ */
+function drawWatermark(ctx) {
+  const x = CANVAS_W * WATERMARK_X_RATIO;
+  const y = CANVAS_H * WATERMARK_Y_RATIO;
+  const fontSize = Math.max(7, Math.round(CANVAS_W * WATERMARK_FS_RATIO));
+  ctx.save();
+  ctx.translate(x, y);
+  // \frz-90 in the ASS render reads top-to-bottom. Canvas rotate() turns
+  // clockwise for a positive angle (y-down screen space), which carries
+  // local +x (the text's normal left-to-right direction) to point screen-
+  // down -- the same top-to-bottom reading -- so this is +90 deg, not -90.
+  ctx.rotate(Math.PI / 2);
+  ctx.font = `600 ${fontSize}px 'IBM Plex Sans Thai', sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineWidth = Math.max(1, fontSize * 0.06);
+  ctx.strokeStyle = '#000000';
+  ctx.fillStyle = '#FFFFFF';
+  ctx.strokeText(WATERMARK_TEXT, 0, 0);
+  ctx.fillText(WATERMARK_TEXT, 0, 0);
+  ctx.restore();
 }
 
 function drawOverlays(ctx, overlays = [], t, accentColor = '#FFE600', outBounds = null) {
@@ -3129,6 +3167,7 @@ function SequencePlayer({
       drawCaption(ctx, cues, t, captionStyle, bounds);
     }
     drawOverlays(ctx, drawnOverlays, t, previewAccentColor, bounds);
+    drawWatermark(ctx);
     boundsRef.current = bounds;
   };
 
@@ -3275,6 +3314,7 @@ function SequencePlayer({
           drawCaption(ctx, cues, t, captionStyle, bounds);
         }
         drawOverlays(ctx, drawnOverlays, t, previewAccentColor, bounds);
+        drawWatermark(ctx);
         boundsRef.current = bounds;
       }
 

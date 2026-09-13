@@ -66,6 +66,28 @@
 
 - [x] Round SHOTLIST-GEMINI-TTS-SSOT-1 — ระบบรวมศูนย์เสียง TTS (Gemini Flash Audio SSOT): แผนถ่าย & ตัดต่อจริงใช้เสียงเดียวกัน 100% ไม่เจนซ้ำ (2026-09-12; pytest 1,125 passed, vitest 158 passed, build 3.40s, browser verified, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 
+## Round WATERMARK-1 — ลายน้ำลิขสิทธิ์แนวตั้งถาวร (ทุกคลิปที่เรนเดอร์)
+
+วันที่: 2026-09-13 · สั่งโดย: user · ดำเนินการโดย: Claude Code (Claude Sonnet 5) · สถานะ: กำลังทำ (รอ user เช็คเบราว์เซอร์จริง)
+
+**เป้าหมาย:** เพิ่มข้อความ "สงวนลิขสิทธิ์ช่อง rizantry ห้ามคัดลอก/ดัดแปลง" แนวตั้ง (หมุน 90° อ่านบนลงล่าง) ตรงคอลัมน์ safe zone ขวา (ที่กันไว้สำหรับปุ่มไลค์/แชร์ของ TikTok อยู่แล้ว) ให้ **ทุกคลิปที่เรนเดอร์อัตโนมัติ** ไม่ต้องเปิด/ปิดเอง ไม่ใช่ overlay ที่แก้ไข/ลบได้จากอีดิเตอร์
+
+**สิ่งที่ทำ:**
+1. `scripts/subtitle_engine.py`: เพิ่ม constants `WATERMARK_TEXT/X_RATIO/Y_RATIO/FS_RATIO` + ASS Style `Watermark` + Dialogue event ที่ยิงแบบไม่มีเงื่อนไข (ไม่ผูกกับ hook/overlays ที่ผู้ใช้แก้ได้) ใช้ `\frz-90` หมุนคงที่ (ไม่มี `\t()` keyframe ต่างจาก wobble animation เดิม) ที่ตำแหน่ง x=94.5%, y=43.75% ของเฟรม
+2. Bump `SUBTITLE_RENDER_CONTRACT_VERSION` v4→v5 (เปลี่ยน output contract จริง ต้อง invalidate `.ass` เก่า ตามกฎ `.agents/rules/font_text_visual_contract.md` section 4)
+3. `frontend/src/components/SequencePlayer.jsx`: เพิ่ม `drawWatermark(ctx)` วาดลายน้ำเดียวกันในพรีวิว canvas (พรีวิว/เรนเดอร์ parity ตามกฎ font/text contract) เรียกจากทั้ง 2 จุดที่ `drawOverlays` ถูกเรียก
+4. เจอ regression test เดิมพัง (`test_thai_stacked_marks_keep_settled_geometry_during_caption_entrance` เช็คว่าเฟรมแรกต้องไม่มี ink เลย ซึ่งลายน้ำถาวรทำให้เป็นเท็จเสมอ) — **หยุดถาม user ก่อนแก้ตามกฎ section 7** user เลือกให้ mask เฉพาะคอลัมน์ลายน้ำออกก่อนเช็ค ink_bbox แทนการลดมาตรฐานเทส
+5. เขียน regression test ใหม่ 2 ตัวใน `tests/test_subtitle_artifact_contract.py` (ยืนยันลายน้ำโผล่ทุกครั้งแม้ไม่มี overlay, ยืนยัน v4 ถูก invalidate)
+
+**Gate:**
+- [x] `.venv\Scripts\python.exe -m pytest tests/test_subtitle_artifact_contract.py tests/test_preview_render_parity.py tests/test_preview_render_behavior.py -q` → 176 passed
+- [x] Render จริงด้วย FFmpeg+libass (`fontsdir=02_Assets/Fonts`) + ดูเฟรมจริง → ตำแหน่ง/การหมุนตรงกับภาพตัวอย่างที่ user ส่งมา (อ่านบนลงล่าง ไม่ทับคลิป/แคปชัน)
+- [x] Full backend pytest 1128 passed, `python -m compileall -q scripts` pass, `pip check` pass, `git diff --check` pass (แค่ LF/CRLF warning ไม่ใช่ error)
+- [x] Frontend: vitest 178 passed, `npm run build` pass
+- [ ] **ยังไม่ได้เช็คพรีวิว SequencePlayer.jsx ในเบราว์เซอร์จริง** — ทิศทางการหมุน (`ctx.rotate(Math.PI/2)`) ให้เหตุผลไว้ในโค้ดว่าตรงกับ `\frz-90` ฝั่งเรนเดอร์ แต่ยังไม่เห็นภาพจริงในอีดิเตอร์ ต้องให้ user เปิดโปรเจกต์แล้วดูว่าพรีวิวตรงกับที่เรนเดอร์จริงไหม
+
+**Notes:** Gate ข้อ "motion ต้องดึงอย่างน้อย 3 เฟรม (เข้า/ค้าง/ออก)" ไม่ apply เพราะลายน้ำนี้หมุนคงที่ ไม่มี motion/animation ให้ดึงหลายเฟรม — ดูรูปเดียวก็พอสำหรับ static element
+
 ## Round TIKTOK-MANUAL-MATCH-1 — ปุ่มจับคู่ manual ในแท็บ Performance สำหรับแถว Studio ที่ fuzzy match ไม่เจอ
 - [ ] Import ที่ unmatched เก็บลง pending store ใหม่ (_Docs/store.db ตาราง tiktok_pending) กันแถวหายหลังปิดแถบข้าง
 - [ ] API ใหม่: GET /api/tiktok-stats/pending + POST /api/tiktok-stats/attach (post_id + pending row → เก็บ video_id/url/metrics/posted_at แล้วลบ pending) + POST /ignore

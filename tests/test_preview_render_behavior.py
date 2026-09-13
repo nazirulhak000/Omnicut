@@ -388,7 +388,15 @@ def test_thai_stacked_marks_keep_settled_geometry_during_caption_entrance(tmp_pa
         image = Image.open(path).convert("RGB")
         background = Image.new("RGB", image.size, image.getpixel((0, 0)))
         diff = ImageChops.difference(image, background).convert("L")
-        return diff.point(lambda value: 255 if value > 8 else 0).getbbox()
+        mask = diff.point(lambda value: 255 if value > 8 else 0)
+        # The always-on copyright watermark (subtitle_engine.WATERMARK_*)
+        # lives in the right-edge safe-zone column for the entire clip --
+        # unrelated to this test's caption-entrance timing, so blank that
+        # column out before measuring ink. Matches the column the editor's
+        # own safe-zone guide reserves (SequencePlayer.jsx: right 11.1%).
+        watermark_column_left = int(round(image.width * 0.88))
+        mask.paste(0, (watermark_column_left, 0, image.width, image.height))
+        return mask.getbbox()
 
     first_hidden = ink_bbox(tmp_path / "frame-01.png")
     first_visible = ink_bbox(tmp_path / "frame-02.png")

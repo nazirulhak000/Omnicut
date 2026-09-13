@@ -81,7 +81,7 @@ from scripts.subtitle import (
     _force_highlight,
 )
 
-SUBTITLE_RENDER_CONTRACT_VERSION = "v4"
+SUBTITLE_RENDER_CONTRACT_VERSION = "v5"
 SUBTITLE_RENDER_CONTRACT_MARKER = (
     f"; OmniCutSubtitleContract: {SUBTITLE_RENDER_CONTRACT_VERSION}"
 )
@@ -98,6 +98,19 @@ def subtitle_artifact_is_current(path: Path) -> bool:
 
 
 LINE_HEIGHT_FACTOR = 1.0
+
+# Permanent copyright watermark -- burned into every rendered clip, always
+# on, not part of the user's editable overlay list (unlike kind="text"/
+# "hook" overlays above, which live in the project manifest and can be
+# moved/deleted from the editor). Runs vertically in the right-edge "safe
+# zone" column the editor's preview already reserves for TikTok's own
+# like/comment/share buttons (see SequencePlayer.jsx's showSafeZone guide,
+# right column: 11.1% width, vertical span ~9.4%-78.1% of frame height) so
+# it never covers the clip itself.
+WATERMARK_TEXT = "สงวนลิขสิทธิ์ช่อง rizantry ห้ามคัดลอก/ดัดแปลง"
+WATERMARK_X_RATIO = 0.945   # centre of the 11.1%-wide right safe-zone column
+WATERMARK_Y_RATIO = 0.4375  # vertical centre of that column's 9.4%-78.1% span
+WATERMARK_FS_RATIO = 0.0148  # small corner mark -- independent of the 0.0463 caption ratio
 
 # Where the caption block sits: (ASS alignment, vertical margin).
 # 2 = bottom centre, 5 = middle centre, 8 = top centre.
@@ -571,6 +584,8 @@ class SubtitleEngine:
         font_size_boosted = int(round(font_size * TEXT_SCALE_BOOST))
         base_fs_boosted = int(round(base_fs * TEXT_SCALE_BOOST))
         hook_fs_boosted = int(round(hook_fs * HOOK_SCALE_BOOST))
+        watermark_fs = max(14, int(round(video_width * WATERMARK_FS_RATIO)))
+        watermark_fs_boosted = int(round(watermark_fs * TEXT_SCALE_BOOST))
 
         def caption_line_anchors(line_count: int, value_lines: Optional[List[str]] = None) -> List[float]:
             """Return the ASS line centres for a caption block."""
@@ -653,12 +668,29 @@ Style: HookHeaderPill,{hook_font},{hook_fs_boosted},&H00FFFFFF,&H000000FF,&H0000
 Style: SpecBar,{resolved_font},{int(round((font_size - 12) * TEXT_SCALE_BOOST))},&H00000000,&H000000FF,&H00000000,&H0000E6FF,{resolved_bold},0,0,0,100,100,0,0,3,10,0,9,50,50,380,1
 Style: TextOverlayMain,{resolved_font},{base_fs_boosted},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,{resolved_bold},0,0,0,100,100,0,0,1,5.0,2,5,60,60,0,1
 Style: TextOverlayPill,{resolved_font},{base_fs_boosted},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,{resolved_bold},0,0,0,100,100,0,0,1,5.0,2,5,60,60,0,1
+Style: Watermark,{caption_font},{watermark_fs_boosted},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1.2,0,5,0,0,0,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
 
         events = []
+
+        # 0. Permanent copyright watermark -- always emitted, independent of
+        # hook_overlay/text_items/overlays above, so no editor action can
+        # remove it from a render. Positioned in the right safe-zone column
+        # and rotated -90 deg (reading top-to-bottom) via \frz, the same ASS
+        # override tag motion_effects.py already uses for animated wobble --
+        # here with no \t() keyframe, so the rotation is constant for the
+        # whole dialogue span. End time is a generous fixed ceiling (3h);
+        # the actual video simply ends first, same as any other overlay
+        # whose stated end outruns the clip.
+        wm_x = int(round(video_width * WATERMARK_X_RATIO))
+        wm_y = int(round(video_height * WATERMARK_Y_RATIO))
+        events.append(
+            f"Dialogue: 0,{cls._format_ass_time(0)},{cls._format_ass_time(10800)},Watermark,,0,0,0,,"
+            f"{{\\an5\\pos({wm_x},{wm_y})\\frz-90}}{ass_escape_text(WATERMARK_TEXT)}"
+        )
 
         # 1. Top Hook Banner -- 3-tier product-poster composition (brand
         # largest / model mid / label smallest), replacing the old single
