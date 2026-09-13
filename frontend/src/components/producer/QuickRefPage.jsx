@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Bookmark, Link as LinkIcon, Image as ImageIcon, Sparkles,
-  ArrowLeft, Check, Trash2, ExternalLink, X, Smartphone, Tag
+  ArrowLeft, Check, Trash2, ExternalLink, X, Smartphone, Tag,
+  Clipboard, Search, Loader2, PlayCircle, Eye, Volume2, Flame,
+  Share2, Copy, Filter, Film, PlusCircle
 } from 'lucide-react';
 import {
   loadPlaybookNotes,
@@ -9,7 +11,16 @@ import {
   deletePlaybookNote,
   detectRefPlatform
 } from '../../lib/producerInsights';
-import { getProducts, uploadRefMedia } from '../../api';
+import { getProducts, uploadRefMedia, aiIdeaToAngle, addProductAngle } from '../../api';
+
+// Predefined Ref Categories with ergonomic pills
+const CATEGORIES = [
+  { id: 'Ref Clip', label: 'เรฟคลิป', icon: Film, desc: 'ตัวอย่างสไตล์การตัดต่อหรือมู้ดคลิป' },
+  { id: 'Hook', label: 'Hook เปิดคลิป', icon: Flame, desc: 'ประเด็นสะดุดตา 3 วินาทีแรก' },
+  { id: 'Visual', label: 'มุมกล้อง / Visual', icon: Eye, desc: 'มุมถ่ายสวยๆ หรือเทคนิคโชว์สินค้า' },
+  { id: 'Audio', label: 'เสียง / เพลง', icon: Volume2, desc: 'ซาวด์แทร็ก เพลงฮิต หรือแนวเสียงพากย์' },
+  { id: 'Promo', label: 'โปรโมชั่น', icon: Tag, desc: 'เทคนิคปิดการขาย การแจกโค้ด' },
+];
 
 export default function QuickRefPage({ onExit }) {
   const [notes, setNotes] = useState(() => loadPlaybookNotes());
@@ -20,7 +31,21 @@ export default function QuickRefPage({ onExit }) {
   const [selectedProductId, setSelectedProductId] = useState('');
   const [previewImage, setPreviewImage] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [copiedSuccess, setCopiedSuccess] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [pasteSuccess, setPasteSuccess] = useState(false);
+
+  // Search & Filter State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterTag, setFilterTag] = useState('all');
+
+  // AI Idea-to-Script State
+  const [aiSynthesizingId, setAiSynthesizingId] = useState(null);
+  const [aiProposal, setAiProposal] = useState(null);
+  const [addingAngle, setAddingAngle] = useState(false);
+  const [angleAddedSuccess, setAngleAddedSuccess] = useState(false);
+
+  // Mobile Tab State: 'capture' (จดใหม่) or 'vault' (คลังที่เซฟ)
+  const [mobileTab, setMobileTab] = useState('capture');
 
   const fileInputRef = useRef(null);
 
@@ -32,6 +57,24 @@ export default function QuickRefPage({ onExit }) {
       })
       .catch(() => {});
   }, []);
+
+  // 1-Tap Paste from Clipboard
+  const handlePasteClipboard = async () => {
+    try {
+      if (!navigator.clipboard?.readText) {
+        alert('เบราว์เซอร์ไม่อนุญาตให้อ่านคลิปบอร์ดอัตโนมัติ กรุณากดแปะในช่องด้วยตัวเอง');
+        return;
+      }
+      const text = await navigator.clipboard.readText();
+      if (text && text.trim()) {
+        setRefUrl(text.trim());
+        setPasteSuccess(true);
+        setTimeout(() => setPasteSuccess(false), 1500);
+      }
+    } catch (err) {
+      console.warn('Clipboard read error:', err);
+    }
+  };
 
   const handleImageSelect = async (e) => {
     const file = e.target.files?.[0];
@@ -77,9 +120,8 @@ export default function QuickRefPage({ onExit }) {
     setIdeaText('');
     setRefUrl('');
     setPreviewImage(null);
-    setSelectedProductId('');
-    setCopiedSuccess(true);
-    setTimeout(() => setCopiedSuccess(false), 2000);
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 2000);
   };
 
   const handleDelete = (id) => {
@@ -87,221 +129,660 @@ export default function QuickRefPage({ onExit }) {
     setNotes(updated);
   };
 
+  // Run AI Idea-to-Script on saved note
+  const handleRunAi = async (item) => {
+    try {
+      setAiSynthesizingId(item.id);
+      const res = await aiIdeaToAngle({
+        idea_text: item.text,
+        ref_url: item.url,
+        ref_image: item.imageUrl,
+        product_id: item.productId || (products[0]?.id || null),
+      });
+
+      if (res?.success && res.proposal) {
+        setAiProposal({
+          ...res.proposal,
+          product_id: item.productId || (products[0]?.id || ''),
+          originNoteId: item.id,
+        });
+      }
+    } catch (err) {
+      alert('ไม่สามารถประมวลผลด้วย AI ได้: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setAiSynthesizingId(null);
+    }
+  };
+
+  // Confirm adding proposed angle to target product
+  const handleConfirmAddAngle = async () => {
+    if (!aiProposal) return;
+    try {
+      setAddingAngle(true);
+      const targetProdId = aiProposal.product_id || products[0]?.id;
+      if (!targetProdId) {
+        alert('กรุณาเลือกสินค้าที่ต้องการเพิ่มมุมมอง');
+        return;
+      }
+
+      const newAngleData = {
+        name: aiProposal.name,
+        hook: aiProposal.hook,
+        hook_category: aiProposal.hook_category || 'curiosity',
+        shoot_brief: aiProposal.shoot_brief,
+        script: aiProposal.script,
+        tags: [aiProposal.hook_category, 'ref-inspired'].filter(Boolean),
+      };
+
+      await addProductAngle(targetProdId, newAngleData);
+      setAngleAddedSuccess(true);
+      setTimeout(() => {
+        setAngleAddedSuccess(false);
+        setAiProposal(null);
+      }, 1500);
+    } catch (err) {
+      alert('เพิ่มมุมมองไม่สำเร็จ: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setAddingAngle(false);
+    }
+  };
+
   const detectedPlatform = detectRefPlatform(refUrl);
 
+  // Filtered notes
+  const filteredNotes = notes.filter(n => {
+    const matchTag = filterTag === 'all' || n.tag === filterTag;
+    const q = searchQuery.trim().toLowerCase();
+    const matchSearch = !q ||
+      (n.text && n.text.toLowerCase().includes(q)) ||
+      (n.url && n.url.toLowerCase().includes(q)) ||
+      (n.productName && n.productName.toLowerCase().includes(q)) ||
+      (n.productCode && n.productCode.toLowerCase().includes(q));
+    return matchTag && matchSearch;
+  });
+
   return (
-    <div className="min-h-screen bg-[#07090E] text-slate-100 flex flex-col max-w-md mx-auto p-4 space-y-4">
-      {/* ── Top App Bar (iPhone 15 Pro Max Header) ── */}
-      <header className="flex items-center justify-between pt-2 pb-3 border-b border-white/[0.08]">
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={onExit || (() => { window.location.href = window.location.pathname; })}
-            className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-slate-300 hover:text-white cursor-pointer transition-colors"
-            title="กลับหน้าหลัก"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
-          <div>
-            <h1 className="text-base font-bold text-white flex items-center gap-1.5">
-              <Smartphone className="w-4 h-4 text-amber-400" />
-              <span>จดไอเดีย & เซฟเรฟด่วน</span>
-            </h1>
-            <p className="text-[11px] text-slate-400">TikTok · Pinterest · ไอเดียตัดคลิป</p>
-          </div>
-        </div>
+    <div className="min-h-screen bg-[#07090E] text-slate-100 flex flex-col relative selection:bg-amber-500/30 selection:text-amber-200">
+      {/* ── Ambient Background Glows ── */}
+      <div className="fixed top-0 left-1/4 w-96 h-96 bg-amber-500/10 rounded-full blur-[120px] pointer-events-none -z-10" />
+      <div className="fixed bottom-0 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-[120px] pointer-events-none -z-10" />
 
-        <button
-          onClick={onExit || (() => { window.location.href = window.location.pathname; })}
-          className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 hover:text-white transition-colors cursor-pointer"
-        >
-          เปิดหน้าเต็ม
-        </button>
-      </header>
-
-      {/* ── Quick Input Card ── */}
-      <div className="p-4 rounded-2xl bg-slate-900/90 border border-amber-500/20 shadow-xl space-y-3">
-        <div>
-          <label className="block text-[11px] font-bold text-slate-300 mb-1">
-            ลิงก์คลิปเรฟ (TikTok / Pinterest / YouTube)
-          </label>
-          <div className="relative">
-            <input
-              type="url"
-              value={refUrl}
-              onChange={(e) => setRefUrl(e.target.value)}
-              placeholder="แปะลิงก์คลิปต้นฉบับที่นี่..."
-              className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500/50 pr-20"
-            />
-            {detectedPlatform && (
-              <span className="absolute right-2.5 top-2.5 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                {detectedPlatform}
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-[11px] font-bold text-slate-300 mb-1">
-            ไอเดีย / จุดเด่นที่ชอบ / สิ่งที่ต้องทำตาม
-          </label>
-          <textarea
-            value={ideaText}
-            onChange={(e) => setIdeaText(e.target.value)}
-            placeholder="เช่น ฮุกเปิดคลิปเทน้ำแข็งใส่พัดลม, ทำตามจังหวะเพลงนี้, ขยี้เรื่องมือถือกระตุก..."
-            rows={2}
-            className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-white/10 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500/50 resize-none"
-          />
-        </div>
-
-        {/* Media & Tag Selection */}
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,video/*"
-            onChange={handleImageSelect}
-            className="hidden"
-          />
-
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadingImage}
-            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 hover:text-white flex items-center gap-1.5 cursor-pointer transition-colors"
-          >
-            <ImageIcon className="w-3.5 h-3.5 text-cyan-400" />
-            <span>{previewImage ? 'เปลี่ยนรูปเรฟ' : 'แนบภาพ/แคปหน้าจอ'}</span>
-          </button>
-
-          <select
-            value={selectedTag}
-            onChange={(e) => setSelectedTag(e.target.value)}
-            className="px-2.5 py-1.5 rounded-lg bg-slate-800 border border-white/10 text-xs text-slate-200 focus:outline-none cursor-pointer"
-          >
-            <option value="Ref Clip">เรฟคลิป (Ref Clip)</option>
-            <option value="Hook">ฮุกเปิดคลิป (Hook)</option>
-            <option value="Visual">มุมภาพ (Visual)</option>
-            <option value="Audio">เสียง / เพลง (Audio)</option>
-            <option value="Promo">โปรโมชั่น (Promo)</option>
-          </select>
-
-          {products.length > 0 && (
-            <select
-              value={selectedProductId}
-              onChange={(e) => setSelectedProductId(e.target.value)}
-              className="px-2.5 py-1.5 rounded-lg bg-slate-800 border border-white/10 text-xs text-slate-200 focus:outline-none cursor-pointer max-w-[140px] truncate"
-            >
-              <option value="">ผูกสินค้า (ไม่บังคับ)</option>
-              {products.map(p => (
-                <option key={p.id} value={p.id}>{p.product_code || ''} {p.name}</option>
-              ))}
-            </select>
-          )}
-        </div>
-
-        {/* Preview image if attached */}
-        {previewImage && (
-          <div className="relative inline-block mt-2">
-            <img
-              src={previewImage}
-              alt="Ref preview"
-              className="h-20 w-auto rounded-lg border border-white/10 object-cover"
-            />
+      {/* ── Sticky Top Header ── */}
+      <header className="sticky top-0 z-30 bg-[#07090E]/90 backdrop-blur-xl border-b border-white/[0.08] px-4 py-3 sm:px-6">
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setPreviewImage(null)}
-              className="absolute -top-1.5 -right-1.5 p-0.5 rounded-full bg-red-600 text-white cursor-pointer"
+              onClick={onExit || (() => { window.location.href = window.location.pathname; })}
+              className="w-10 h-10 rounded-xl bg-slate-800/80 hover:bg-slate-700 active:scale-95 flex items-center justify-center text-slate-300 hover:text-white cursor-pointer transition-all border border-white/5"
+              title="กลับหน้าหลัก"
             >
-              <X className="w-3 h-3" />
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-base sm:text-lg font-bold text-white tracking-tight flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-xs font-black">✦</span>
+                  <span>คลังไอเดีย & เซฟเรฟด่วน</span>
+                </h1>
+                <span className="hidden sm:inline-flex px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                  {notes.length} รายการ
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 hidden sm:block">
+                TikTok · Pinterest · YouTube · เก็บไอเดียสดพร้อมส่ง AI แตกสคริปต์
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Mobile View Switcher (Visible on small screens) */}
+            <div className="flex lg:hidden bg-slate-900/90 p-1 rounded-xl border border-white/10">
+              <button
+                onClick={() => setMobileTab('capture')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  mobileTab === 'capture'
+                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                จดไอเดีย
+              </button>
+              <button
+                onClick={() => setMobileTab('vault')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  mobileTab === 'vault'
+                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <span>คลังเรฟ</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                  mobileTab === 'vault' ? 'bg-slate-950/30 text-slate-950 font-black' : 'bg-slate-800 text-slate-300'
+                }`}>
+                  {notes.length}
+                </span>
+              </button>
+            </div>
+
+            <button
+              onClick={onExit || (() => { window.location.href = window.location.pathname; })}
+              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 hover:text-white transition-all border border-white/10 hidden sm:flex items-center gap-1.5"
+            >
+              <span>เปิดหน้าเต็มในแอป</span>
+              <ExternalLink className="w-3.5 h-3.5" />
             </button>
           </div>
-        )}
-
-        {/* Save button */}
-        <button
-          onClick={handleSave}
-          disabled={!ideaText.trim() && !refUrl.trim() && !previewImage}
-          className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-[0.98] text-slate-950 font-bold text-sm flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-amber-500/20 disabled:opacity-40 transition-all"
-        >
-          {copiedSuccess ? <Check className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
-          <span>{copiedSuccess ? 'บันทึกเรียบร้อย!' : 'บันทึกเข้าคลังไอเดีย'}</span>
-        </button>
-      </div>
-
-      {/* ── Saved Ideas & Refs List ── */}
-      <div className="flex-1 overflow-y-auto space-y-2.5 pb-8">
-        <div className="flex items-center justify-between text-xs text-slate-400 font-bold px-1">
-          <span>ไอเดียและเรฟที่บันทึกไว้ ({notes.length})</span>
         </div>
+      </header>
 
-        {notes.length === 0 ? (
-          <div className="text-center py-10 text-slate-500 text-xs">
-            ยังไม่มีไอเดียที่บันทึกไว้ — แปะลิงก์ TikTok หรือรูปเรฟด้านบนได้เลย!
-          </div>
-        ) : (
-          notes.map((item) => {
-            const platform = detectRefPlatform(item.url);
-            return (
-              <div
-                key={item.id}
-                className="p-3.5 rounded-xl bg-slate-900/70 border border-white/5 space-y-2 group hover:border-amber-500/30 transition-all"
-              >
+      {/* ── Main Content Area ── */}
+      <main className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+          {/* ══════════════════════════════════════════════════════════════
+              LEFT / TOP: QUICK CAPTURE STUDIO
+              ══════════════════════════════════════════════════════════════ */}
+          <div className={`lg:col-span-5 space-y-4 ${
+            mobileTab === 'vault' ? 'hidden lg:block' : 'block'
+          }`}>
+            <div className="p-4 sm:p-5 rounded-3xl bg-slate-900/80 border border-amber-500/20 shadow-2xl backdrop-blur-xl space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 rounded-lg bg-amber-500/15 text-amber-400">
+                    <Bookmark className="w-4 h-4" />
+                  </span>
+                  <h2 className="text-sm font-bold text-white">บันทึกไอเดียใหม่</h2>
+                </div>
+                <span className="text-[11px] text-slate-400">พิมพ์หรือแปะลิงก์</span>
+              </div>
+
+              {/* 1. URL Input with 1-Tap Paste Button */}
+              <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1">
-                      <Tag className="w-2.5 h-2.5" />
-                      {item.tag || 'Idea'}
-                    </span>
-                    {item.productName && (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-300 border border-white/10 truncate max-w-[120px]">
-                        {item.productCode || item.productName}
-                      </span>
-                    )}
-                    {platform && (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
-                        {platform}
-                      </span>
-                    )}
-                  </div>
+                  <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                    <LinkIcon className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>ลิงก์คลิปเรฟ (TikTok / Pinterest / YouTube)</span>
+                  </label>
                   <button
-                    onClick={() => handleDelete(item.id)}
-                    className="p-1 rounded text-slate-500 hover:text-red-400 cursor-pointer transition-colors"
-                    title="ลบ"
+                    type="button"
+                    onClick={handlePasteClipboard}
+                    className="text-[11px] font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 cursor-pointer bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20 active:scale-95 transition-all"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    {pasteSuccess ? <Check className="w-3 h-3" /> : <Clipboard className="w-3 h-3" />}
+                    <span>{pasteSuccess ? 'วางเรียบร้อย!' : 'วางลิงก์ล่าสุด'}</span>
                   </button>
                 </div>
 
-                {item.text && (
-                  <p className="text-xs text-slate-200 leading-relaxed font-medium">
-                    {item.text}
-                  </p>
-                )}
-
-                {item.imageUrl && (
-                  <img
-                    src={item.imageUrl}
-                    alt="Ref attachment"
-                    className="max-h-32 w-auto rounded-lg border border-white/10 object-cover mt-1"
+                <div className="relative">
+                  <input
+                    type="url"
+                    value={refUrl}
+                    onChange={(e) => setRefUrl(e.target.value)}
+                    placeholder="https://vt.tiktok.com/... หรือ pin.it/..."
+                    /* text-base (16px) is critical to prevent iOS Safari auto-zoom */
+                    className="w-full px-3.5 py-3 rounded-2xl bg-slate-950/80 border border-white/10 text-base text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 pr-24 transition-all min-h-[48px]"
                   />
-                )}
+                  {detectedPlatform ? (
+                    <span className="absolute right-3 top-2.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                      {detectedPlatform}
+                    </span>
+                  ) : refUrl ? (
+                    <button
+                      type="button"
+                      onClick={() => setRefUrl('')}
+                      className="absolute right-3 top-3 text-slate-500 hover:text-slate-300"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  ) : null}
+                </div>
+              </div>
 
-                {item.url && (
-                  <a
-                    href={item.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-[11px] text-cyan-400 hover:text-cyan-300 font-semibold underline truncate max-w-full"
+              {/* 2. Idea / Notes Textarea */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-300">
+                  ไอเดีย / จุดเด่นที่ชอบ / สิ่งที่ต้องทำตาม
+                </label>
+                <textarea
+                  value={ideaText}
+                  onChange={(e) => setIdeaText(e.target.value)}
+                  placeholder="เช่น ฮุกเปิดคลิปเทน้ำแข็งใส่พัดลม, ขยี้เรื่องเล่นเกมแล้วกระตุก, ใช้ดนตรีจังหวะเร็ว..."
+                  rows={3}
+                  /* text-base (16px) is critical to prevent iOS Safari auto-zoom */
+                  className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-950/80 border border-white/10 text-base text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 resize-none transition-all"
+                />
+              </div>
+
+              {/* 3. Category Segmented Pills */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-300">ประเภทเรฟ</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {CATEGORIES.map((cat) => {
+                    const Icon = cat.icon;
+                    const active = selectedTag === cat.id;
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setSelectedTag(cat.id)}
+                        className={`p-2 rounded-xl text-xs font-bold flex items-center gap-2 border transition-all cursor-pointer text-left ${
+                          active
+                            ? 'bg-amber-500/20 border-amber-500 text-amber-300 shadow-md shadow-amber-500/10'
+                            : 'bg-slate-950/60 border-white/5 text-slate-400 hover:text-slate-200 hover:border-white/15'
+                        }`}
+                      >
+                        <Icon className={`w-3.5 h-3.5 flex-shrink-0 ${active ? 'text-amber-400' : 'text-slate-400'}`} />
+                        <span className="truncate">{cat.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 4. Product Link Selector */}
+              {products.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-300">ผูกสินค้า (ไม่บังคับ)</label>
+                    {selectedProductId && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedProductId('')}
+                        className="text-[11px] text-slate-400 hover:text-rose-400"
+                      >
+                        ล้างค่า
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full scrollbar-none">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedProductId('')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap border cursor-pointer transition-all ${
+                        !selectedProductId
+                          ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300'
+                          : 'bg-slate-950/60 border-white/5 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      ทั่วไป (ไม่ระบุ)
+                    </button>
+                    {products.map((p) => {
+                      const active = selectedProductId === p.id;
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => setSelectedProductId(p.id)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap border cursor-pointer transition-all ${
+                            active
+                              ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300 shadow-sm'
+                              : 'bg-slate-950/60 border-white/5 text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          {p.product_code ? `[${p.product_code}] ` : ''}{p.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* 5. Image Drop / Pick Zone */}
+              <div className="space-y-1.5">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                />
+
+                {previewImage ? (
+                  <div className="relative rounded-2xl overflow-hidden border border-amber-500/30 bg-slate-950 p-2 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={previewImage}
+                        alt="Ref preview"
+                        className="h-14 w-14 rounded-xl object-cover border border-white/10"
+                      />
+                      <div>
+                        <p className="text-xs font-bold text-slate-200">แนบภาพเรฟเรียบร้อย</p>
+                        <p className="text-[10px] text-slate-400">พร้อมวิเคราะห์ด้วย AI</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-2.5 py-1 rounded-lg bg-slate-800 text-[11px] font-semibold text-slate-300 hover:text-white"
+                      >
+                        เปลี่ยนรูป
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewImage(null)}
+                        className="p-1.5 rounded-lg bg-rose-500/20 text-rose-300 hover:bg-rose-500/30"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingImage}
+                    className="w-full py-3 px-4 rounded-2xl border border-dashed border-white/15 bg-slate-950/40 hover:bg-slate-950/80 hover:border-amber-500/40 flex items-center justify-center gap-2 text-xs font-semibold text-slate-300 hover:text-white cursor-pointer transition-all active:scale-[0.99]"
                   >
-                    <LinkIcon className="w-3 h-3 flex-shrink-0" />
-                    <span className="truncate">{item.url}</span>
-                    <ExternalLink className="w-2.5 h-2.5 flex-shrink-0" />
-                  </a>
+                    <ImageIcon className="w-4 h-4 text-cyan-400" />
+                    <span>{uploadingImage ? 'กำลังอัปโหลดรูป...' : 'แนบรูปภาพหรือแคปหน้าจอเรฟ'}</span>
+                  </button>
                 )}
               </div>
-            );
-          })
-        )}
-      </div>
+
+              {/* 6. Big Thumb-Friendly Save Button */}
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={!ideaText.trim() && !refUrl.trim() && !previewImage}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-orange-500 hover:brightness-110 active:scale-[0.98] text-slate-950 font-black text-sm flex items-center justify-center gap-2 cursor-pointer shadow-xl shadow-amber-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                {saveSuccess ? <Check className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
+                <span>{saveSuccess ? 'บันทึกเข้าคลังเรียบร้อย!' : 'บันทึกเข้าคลังไอเดีย'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* ══════════════════════════════════════════════════════════════
+              RIGHT / BOTTOM: INTERACTIVE IDEA VAULT & REFS LIST
+              ══════════════════════════════════════════════════════════════ */}
+          <div className={`lg:col-span-7 space-y-4 ${
+            mobileTab === 'capture' ? 'hidden lg:block' : 'block'
+          }`}>
+            <div className="p-4 sm:p-5 rounded-3xl bg-slate-900/80 border border-white/[0.08] shadow-2xl backdrop-blur-xl space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/[0.06]">
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 rounded-lg bg-cyan-500/15 text-cyan-400">
+                    <Film className="w-4 h-4" />
+                  </span>
+                  <div>
+                    <h2 className="text-sm font-bold text-white">คลังไอเดียทั้งหมด</h2>
+                    <p className="text-[11px] text-slate-400">รวม {notes.length} รายการที่บันทึกไว้</p>
+                  </div>
+                </div>
+
+                {/* Search Bar */}
+                <div className="relative w-full sm:w-56">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-500" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="ค้นหาไอเดีย / สินค้า..."
+                    className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-950/80 border border-white/10 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-400 transition-all"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-2.5 top-2 text-slate-500 hover:text-slate-300"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Tag Filter Tabs */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                <button
+                  onClick={() => setFilterTag('all')}
+                  className={`px-3 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                    filterTag === 'all'
+                      ? 'bg-amber-500 text-slate-950 shadow-sm'
+                      : 'bg-slate-950/60 text-slate-400 hover:text-slate-200 border border-white/5'
+                  }`}
+                >
+                  ทั้งหมด ({notes.length})
+                </button>
+                {CATEGORIES.map((cat) => {
+                  const count = notes.filter(n => n.tag === cat.id).length;
+                  const active = filterTag === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => setFilterTag(cat.id)}
+                      className={`px-3 py-1 rounded-xl text-xs font-semibold whitespace-nowrap border transition-all ${
+                        active
+                          ? 'bg-amber-500/20 border-amber-500 text-amber-300'
+                          : 'bg-slate-950/60 border-white/5 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      {cat.label} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Cards Grid */}
+              {filteredNotes.length === 0 ? (
+                <div className="py-12 text-center space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-800/80 border border-white/10 flex items-center justify-center mx-auto text-slate-500">
+                    <Bookmark className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-300">ยังไม่พบไอเดียในหมวดนี้</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {searchQuery ? 'ลองเปลี่ยนคำค้นหา หรือล้างตัวกรอง' : 'บันทึกไอเดียแรกจากแบบฟอร์มด้านซ้ายได้เลย'}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[640px] overflow-y-auto pr-1">
+                  {filteredNotes.map((item) => {
+                    const platform = detectRefPlatform(item.url);
+                    const isSynthesizing = aiSynthesizingId === item.id;
+                    return (
+                      <div
+                        key={item.id}
+                        className="p-4 rounded-2xl bg-slate-950/70 border border-white/[0.08] hover:border-amber-500/40 space-y-3 transition-all flex flex-col justify-between group"
+                      >
+                        <div className="space-y-2.5">
+                          {/* Tags & Product Header */}
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                                {item.tag || 'Idea'}
+                              </span>
+                              {platform && (
+                                <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                                  {platform}
+                                </span>
+                              )}
+                              {item.productName && (
+                                <span className="px-2 py-0.5 rounded-lg text-[10px] font-medium bg-slate-800 text-slate-300 border border-white/10 truncate max-w-[130px]">
+                                  {item.productCode ? `[${item.productCode}] ` : ''}{item.productName}
+                                </span>
+                              )}
+                            </div>
+
+                            <button
+                              onClick={() => handleDelete(item.id)}
+                              className="p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                              title="ลบโน้ตนี้"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+
+                          {/* Note Text */}
+                          {item.text && (
+                            <p className="text-xs text-slate-200 leading-relaxed font-medium">
+                              {item.text}
+                            </p>
+                          )}
+
+                          {/* Image Attachment */}
+                          {item.imageUrl && (
+                            <div className="rounded-xl overflow-hidden border border-white/10 max-h-40 bg-black/40">
+                              <img
+                                src={item.imageUrl}
+                                alt="Ref attachment"
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          )}
+
+                          {/* URL Link */}
+                          {item.url && (
+                            <a
+                              href={item.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300 font-semibold bg-cyan-950/40 border border-cyan-500/20 px-2.5 py-1 rounded-xl truncate max-w-full"
+                            >
+                              <LinkIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                              <span className="truncate">{item.url}</span>
+                              <ExternalLink className="w-3 h-3 flex-shrink-0 ml-auto" />
+                            </a>
+                          )}
+                        </div>
+
+                        {/* Bottom Actions: AI Button */}
+                        <div className="pt-2 border-t border-white/5 flex items-center justify-between">
+                          <span className="text-[10px] text-slate-500">
+                            {item.createdAt ? new Date(item.createdAt).toLocaleDateString('th-TH') : ''}
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={() => handleRunAi(item)}
+                            disabled={isSynthesizing}
+                            className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
+                            title="วิเคราะห์ไอเดียนี้ด้วย AI"
+                          >
+                            {isSynthesizing ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                            ) : (
+                              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                            )}
+                            <span>{isSynthesizing ? 'กำลังคิดสคริปต์...' : 'คิดสคริปต์จากเรฟ'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* ── AI Idea-to-Script Modal ── */}
+      {aiProposal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-3xl bg-slate-900 border border-amber-500/30 p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <span className="p-2 rounded-xl bg-amber-500/20 text-amber-400">
+                  <Sparkles className="w-5 h-5" />
+                </span>
+                <div>
+                  <h3 className="text-base font-bold text-white">AI สกัดไอเดียเป็นมุมมองสินค้า</h3>
+                  <p className="text-xs text-slate-400">Hook + แผนถ่าย + สคริปต์ย่อ พร้อมเริ่มผลิต</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setAiProposal(null)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-white bg-slate-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Target Product Selection */}
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-300">ผูกกับสินค้า</label>
+              <select
+                value={aiProposal.product_id || ''}
+                onChange={(e) => setAiProposal({ ...aiProposal, product_id: e.target.value })}
+                className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-400"
+              >
+                {products.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.product_code ? `[${p.product_code}] ` : ''}{p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Hook Proposed */}
+            <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-amber-500/20 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-wider text-amber-300">
+                  HOOK เปิดคลิป 3 วินาทีแรก
+                </span>
+                <span className="text-[10px] text-slate-400">
+                  หมวด: {aiProposal.hook_category || 'curiosity'}
+                </span>
+              </div>
+              <p className="text-sm font-bold text-amber-200 leading-snug">
+                "{aiProposal.hook}"
+              </p>
+            </div>
+
+            {/* Shoot Brief */}
+            {aiProposal.shoot_brief && (
+              <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-white/5 space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-300">
+                  แผนถ่ายทำ (Shoot Brief)
+                </span>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  {aiProposal.shoot_brief}
+                </p>
+              </div>
+            )}
+
+            {/* Script */}
+            {aiProposal.script && (
+              <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-white/5 space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  บทพากย์ย่อ (Voiceover Script)
+                </span>
+                <p className="text-xs text-slate-200 leading-relaxed">
+                  {aiProposal.script}
+                </p>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="pt-2 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setAiProposal(null)}
+                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmAddAngle}
+                disabled={addingAngle || angleAddedSuccess}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-95 text-slate-950 font-black text-xs flex items-center gap-2 cursor-pointer shadow-lg shadow-amber-500/20 disabled:opacity-50 transition-all"
+              >
+                {addingAngle ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : angleAddedSuccess ? (
+                  <Check className="w-4 h-4" />
+                ) : (
+                  <PlusCircle className="w-4 h-4" />
+                )}
+                <span>{angleAddedSuccess ? 'เพิ่มสำเร็จแล้ว!' : 'เพิ่มเป็นมุมมองสินค้า'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

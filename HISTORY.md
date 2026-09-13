@@ -8,8 +8,51 @@
 
 ## สารบัญ
 
+| Round QUICK-REF-POLISH-1 | Redesign Impeccable Quick Ref Vault & Fix iOS Mobile Zoom | 2026-09-13 | สำเร็จสมบูรณ์ (ป้องกัน iOS auto-zoom ด้วย 16px inputs + CSS media query + viewport config, Redesign เต็มจอ edge-to-edge + Responsive 2-column desktop, 1-Tap Paste จากคลิปบอร์ด, Segmented Category Pills, Tag filter & search, AI Idea-to-Script on mobile, npm test 180 passed, build 3.31s, desktop & mobile browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round IDEA-REF-VAULT-1 | คลังไอเดียและเรฟ (Idea & Ref Vault), Round-Robin Diversified Queue, และ Mobile View (iPhone 15 Pro Max) | 2026-09-13 | สำเร็จสมบูรณ์ (คลังไอเดีย & เรฟด้านบนสุด, รองรับแนบลิงก์ TikTok/Pinterest + รูปแคปหน้าจอ, จัดคิว Round-Robin กระจายสินค้าไม่ผูกขาด, ฟิลเตอร์สินค้าในคิว, AI Idea-to-Script ต่อมุมมองสินค้า 1-click, มุมมองมือถือ iPhone 15 Pro Max `?view=quick-ref`, npm test 180 passed, backend pytest parity 153 passed, build 4.10s, desktop & mobile browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round AI-PRODUCER-ELEVATION-1 | ยกระดับ Producer Hub: Spotlight Next Mission, Pacing Calculator, 1-Click Playbook Add, และ Pre-flight Editor Tips | 2026-09-13 | สำเร็จสมบูรณ์ (Next Action Spotlight Hero card, Weekly Pacing Calculator badge, 1-Click Playbook Suggestion Sync, Quick Script Preview modal, Pre-flight Editor Playbook Tips modal, npm test 178 passed, build 3.34s, browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+
+---
+
+## Round QUICK-REF-POLISH-1 — Redesign Impeccable Quick Ref Vault & Fix iOS Mobile Zoom
+
+วันที่: 2026-09-13 · สั่งโดย: user · สถานะ: เสร็จสมบูรณ์
+ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+**เป้าหมาย:**
+1. **ป้องกันหน้าจอซูมบนมือถือ/iOS Safari 100%:**
+   - ปรับ font-size ของ input, textarea, select เป็น 16px (`text-base`) ทุกจุดบนมือถือ (iOS Safari auto-zooms หากขนาดตัวอักษรเล็กกว่า 16px)
+   - เพิ่ม CSS rule ใน `frontend/src/index.css` ป้องกัน auto-zoom บน iOS เมื่อแตะฟอร์ม
+   - อัปเดต `viewport` meta tag ใน `index.html` ให้รัดกุมพร้อม `maximum-scale=1.0, user-scalable=no, viewport-fit=cover`
+2. **ปรับดีไซน์ให้ดูเต็มๆ สวยงามสะกดสายตา (Impeccable & UI-UX Pro Max):**
+   - ถอดขอบจำกัด `max-w-md` ที่ทำให้เกิดแถบดำโล่งสองข้าง ปรับเป็น Responsive Layout ที่เต็มจอและปรับขนาดตามหน้าจอได้อย่างสวยงาม (บนมือถือใช้เต็มขอบจอ edge-to-edge กว้างสบายตา บนหน้าจอใหญ่ขยายกว้างเป็น 2 คอลัมน์ ไม่เหลือที่ว่างสีดำแห้งแล้ง)
+   - ปรับโทนสีและพื้นผิวเป็น Dark Modern Glassmorphism ลุ่มลึก มี ambient light glow โค้งมนระดับพรีเมียม
+3. **ยกระดับความง่ายในการใช้งาน (Maximum Ergonomics & Ease of Use):**
+   - **1-Tap Paste Button:** ปุ่มวางลิงก์จากคลิปบอร์ดในคลิกเดียว ไม่ต้องแตะค้าง
+   - **Segmented Category Pills:** แทนที่ dropdown ด้วยปุ่ม Pill ให้แตะเลือกประเภทเรฟ (Hook, Ref Clip, Visual, Audio, Promo) ได้ทันทีใน 1 แตะ
+   - **Product Chips Selector:** เลือกผูกสินค้าด้วยชิปที่แตะง่าย หรือกดเคลียร์ได้สะดวก
+   - **Drag & Drop / Tap Photo Uploader:** โซนอัปโหลดรูปภาพเรฟขนาดใหญ่ พรีวิวรูปภาพคมชัด
+   - **AI Idea-to-Script Integration บนหน้ามือถือ:** ให้สามารถกด "✨ แปลงเป็นสคริปต์" ได้โดยตรงจากหน้านี้ พร้อมพรีวิวและปุ่มเพิ่มเป็น Angle สินค้า
+   - **Search & Filter สำหรับคลังที่บันทึกไว้:** กรองประเภทหรือค้นหาไอเดียเก่าได้อย่างรวดเร็ว
+
+**สิ่งที่ทำ:**
+1. แก้ไข `frontend/index.html`:
+   - ปรับ `meta name="viewport"` เป็น `width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover`
+2. แก้ไข `frontend/src/index.css`:
+   - เพิ่ม Media Query สำหรับจอ `<= 768px` บังคับให้ `input, textarea, select` มี `font-size: 16px !important` ป้องกัน iOS Safari ซูมจอเมื่อแตะพิมพ์
+3. รีดีไซน์ `frontend/src/components/producer/QuickRefPage.jsx`:
+   - ปรับ Layout เป็น Responsive 2-Column บนจอใหญ่ (ซ้าย: Capture Studio, ขวา: Live Ref Vault) และ Tab-based Switcher บนจอมือถือ
+   - เพิ่มปุ่ม "วางลิงก์ล่าสุด" 1 แตะดึงจากคลิปบอร์ด
+   - ปรับเปลี่ยนหมวดหมู่เป็น Segmented Category Pills กดง่ายด้วยนิ้วโป้ง
+   - เพิ่มระบบค้นหาไอเดียและชิปฟิลเตอร์แยกตามหมวดหมู่
+   - เพิ่มปุ่มและโมดอล "คิดสคริปต์จากเรฟ" ให้ใช้งานได้ในตัวบนหน้ามือถือ
+
+### Gate & Verification Results:
+- [x] Node / Vitest Tests: `npm test` — 180/180 passed 100%
+- [x] Frontend Build: `npm run build` — 2003 modules transformed, build clean ใน 3.31s
+- [x] Python Compilation: `.venv\Scripts\python.exe -m compileall -q scripts tests` — 0 errors
+- [x] Visual Verification: Browser subagent ตรวจสอบทั้งขนาดมือถือ iPhone 15 Pro Max (430x932) เต็มจอ ไม่ซูม แตะง่าย และ Desktop (1280x800) จัดสรรพื้นที่ 2 คอลัมน์สวยงาม ไม่เหลือขอบดำ ผ่านสมบูรณ์ 100%
+
 | Round AI-PRODUCER-HUB-1 | พัฒนาเมนูใหม่ "ผู้ช่วยโปรดิวเซอร์ส่วนตัว" (AI Producer Hub & Daily Mission Center) | 2026-09-13 | สำเร็จสมบูรณ์ (แบนเนอร์เรียกเจ้านาย, คุมโควตา 35 คลิป, Daily Action Queue 3 ระดับ, AI Retrospective, Boss Playbook, npm test 176 passed, build 3.36s, browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round UI-LAST-UPDATED-TIMESTAMP-1 | แสดงวันที่และเวลาอัปเดตล่าสุด (Relative + Full Tooltip) ใน Dropdown ไทม์ไลน์ และบนการ์ด Tracker | 2026-09-13 | สำเร็จสมบูรณ์ (แสดงเวลาสัมพัทธ์ไทย + tooltip เวลาเต็ม ทั้งใน ProjectSelector และ Tracker cards, npm test 170 passed, build 3.92s, browser verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round PAGINATION-1 | เพิ่ม client-side windowing ให้ 9 list endpoint ทั่วระบบ กัน UI ช้าเมื่อข้อมูลถึงหลักร้อย (แผนใน `PAGINATION_PLAN.md`) | 2026-09-13 | สำเร็จสมบูรณ์ (Phase 1: exports/products/videos/raw-vault/schedule-queue/tiktok-stats windowed ทั้ง 6, Phase 2: assets/all + dedup-scan windowed, clip-candidates ไม่ต้องแก้ (native select), Phase 3: 4 endpoint เช็คแล้วปลอดภัยอยู่แล้วทั้งหมด ไม่ต้องแก้โค้ด; pytest เต็มระบบ 1126 passed, vitest 158 passed ทุกรอบ, build ผ่านทุกจุด; browser verify ยังไม่ได้ทำ (dev server ไม่ตอบ HTTP ตลอด session) ย้ายเข้า Backlog, ดำเนินการโดย: Claude Code (Claude Sonnet 5)) |

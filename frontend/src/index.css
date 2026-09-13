@@ -33,6 +33,13 @@
     overflow: hidden;
     background-color: #07090E;
   }
+
+  /* Prevent iOS Safari auto-zoom when tapping inputs */
+  @media screen and (max-width: 768px) {
+    input, textarea, select {
+      font-size: 16px !important;
+    }
+  }
 }
 
 /* ── Typography Utilities ── */
