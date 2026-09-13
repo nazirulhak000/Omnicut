@@ -44,7 +44,7 @@ const CANVAS_H = 960;
 const WATERMARK_TEXT = 'สงวนลิขสิทธิ์ช่อง rizantry ห้ามคัดลอก/ดัดแปลง';
 const WATERMARK_X_RATIO = 0.945;
 const WATERMARK_Y_RATIO = 0.4375;
-const WATERMARK_FS_RATIO = 0.0148;
+const WATERMARK_FS_RATIO = 0.026;
 // Canvas playback remains frame-paced, but React only needs enough playhead
 // updates to keep the editor chrome and selection box visually current. The
 // preview/render contract is 30 FPS, so this caps React state publication at
