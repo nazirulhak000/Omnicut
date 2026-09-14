@@ -122,6 +122,16 @@ const LEGACY_SFX_ALIASES = {
 
 const EMPTY = { clipList: [], cuesList: [], overlays: [], stickers: [], effects: [], spotlight: null, trackMix: { mute: {}, solo: {} }, style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false, captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1, stickerPosition: 'top_right', stickerScale: 1, style_preset: 'clean_tech_review', showWatermark: true } };
 
+const DEFAULT_EDITOR_SPOTLIGHT = Object.freeze({
+  schema_version: 1,
+  enabled: false,
+  shape: 'ellipse',
+  focus: { x: 0.5, y: 0.5, width: 0.62, height: 0.42 },
+  dim_opacity: 0.42,
+  feather: 0.035,
+  corner_radius: 0.08,
+});
+
 let idCounter = 0;
 const newId = () => `clip-${Date.now().toString(36)}-${++idCounter}`;
 
@@ -1146,6 +1156,20 @@ export default function EditorShell({
     set((prev) => ({ ...prev, style: { ...prev.style, ...patch } }));
   }, [set]);
 
+  const patchSpotlight = useCallback((patch) => {
+    set((prev) => {
+      const base = prev.spotlight || DEFAULT_EDITOR_SPOTLIGHT;
+      return {
+        ...prev,
+        spotlight: {
+          ...base,
+          ...patch,
+          focus: { ...base.focus, ...(patch.focus || {}) },
+        },
+      };
+    });
+  }, [set]);
+
   const patchStylePreset = useCallback((presetId) => {
     patchStyle({ style_preset: normalizeStylePreset(presetId) });
   }, [patchStyle]);
@@ -2017,6 +2041,8 @@ export default function EditorShell({
                       onClearStickers={handleClearStickers}
                       onSelectSticker={(id) => handleSelect({ type: 'sticker', id })}
                       effects={effects}
+                      spotlight={spotlight}
+                      onSpotlightChange={patchSpotlight}
                       onAddEffect={handleAddEffect}
                       playhead={playhead}
                       totalDuration={totalDuration}
@@ -2157,6 +2183,8 @@ export default function EditorShell({
                         onClearStickers={handleClearStickers}
                         onSelectSticker={(id) => handleSelect({ type: 'sticker', id })}
                         effects={effects}
+                        spotlight={spotlight}
+                        onSpotlightChange={patchSpotlight}
                         onAddEffect={handleAddEffect}
                         playhead={playhead}
                         totalDuration={totalDuration}

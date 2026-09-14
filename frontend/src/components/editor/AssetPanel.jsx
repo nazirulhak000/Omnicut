@@ -75,6 +75,99 @@ export function templateLook(tpl) {
   return overlayFromTextTemplate(tpl, { id: '__card__', start: 0, end: 1 }).look;
 }
 
+const DEFAULT_SPOTLIGHT = Object.freeze({
+  schema_version: 1,
+  enabled: false,
+  shape: 'ellipse',
+  focus: { x: 0.5, y: 0.5, width: 0.62, height: 0.42 },
+  dim_opacity: 0.42,
+  feather: 0.035,
+  corner_radius: 0.08,
+});
+
+function SpotlightRange({ label, value, min, max, step, onChange }) {
+  return (
+    <label className="block space-y-1">
+      <span className="flex items-center justify-between text-[10px] text-slate-400">
+        <span>{label}</span>
+        <span className="font-mono text-slate-300">{Math.round(value * 100)}%</span>
+      </span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="w-full accent-[#25F4EE]"
+      />
+    </label>
+  );
+}
+
+function SpotlightControls({ spotlight, onChange }) {
+  const enabled = spotlight?.enabled === true;
+  const config = { ...DEFAULT_SPOTLIGHT, ...(spotlight || {}) };
+  const focus = { ...DEFAULT_SPOTLIGHT.focus, ...(config.focus || {}) };
+  const update = (patch) => onChange({
+    ...config,
+    ...patch,
+    enabled: patch.enabled ?? enabled,
+    focus: { ...focus, ...(patch.focus || {}) },
+  });
+
+  return (
+    <section className="rounded-2xl border border-[#25F4EE]/20 bg-[#25F4EE]/[0.04] p-3 space-y-3" aria-label="Product Spotlight">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-2 min-w-0">
+          <div className="mt-0.5 rounded-lg bg-[#25F4EE]/10 p-1.5 text-[#25F4EE]"><Eye className="h-3.5 w-3.5" /></div>
+          <div className="min-w-0">
+            <h3 className="text-xs font-bold text-slate-100">Product Spotlight</h3>
+            <p className="mt-0.5 text-[10px] leading-relaxed text-slate-500">ลดแสงรอบสินค้าให้จุดสำคัญเด่นขึ้น โดยไม่ตัดพื้นหลังวิดีโอ</p>
+          </div>
+        </div>
+        <label className="flex flex-shrink-0 items-center gap-1.5 text-[10px] font-semibold text-slate-300">
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={(event) => update({ enabled: event.target.checked })}
+            aria-label="เปิดใช้งาน Product Spotlight"
+            className="h-3.5 w-3.5 accent-[#25F4EE]"
+          />
+          เปิดใช้
+        </label>
+      </div>
+
+      {enabled && (
+        <div className="space-y-3 border-t border-white/[0.08] pt-3">
+          <label className="block space-y-1">
+            <span className="text-[10px] text-slate-400">รูปทรงกรอบโฟกัส</span>
+            <select
+              value={config.shape || DEFAULT_SPOTLIGHT.shape}
+              onChange={(event) => update({ shape: event.target.value })}
+              className="w-full rounded-lg border border-white/[0.1] bg-black/40 px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-[#25F4EE]"
+              aria-label="รูปทรงกรอบโฟกัส"
+            >
+              <option value="ellipse">วงรี</option>
+              <option value="rectangle">สี่เหลี่ยม</option>
+              <option value="rounded_rect">สี่เหลี่ยมมุมมน</option>
+            </select>
+          </label>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+            <SpotlightRange label="ตำแหน่งซ้าย–ขวา" value={Number(focus.x)} min={0.05} max={0.95} step={0.01} onChange={(value) => update({ focus: { x: value } })} />
+            <SpotlightRange label="ตำแหน่งบน–ล่าง" value={Number(focus.y)} min={0.05} max={0.95} step={0.01} onChange={(value) => update({ focus: { y: value } })} />
+            <SpotlightRange label="ความกว้าง" value={Number(focus.width)} min={0.02} max={1} step={0.01} onChange={(value) => update({ focus: { width: value } })} />
+            <SpotlightRange label="ความสูง" value={Number(focus.height)} min={0.02} max={1} step={0.01} onChange={(value) => update({ focus: { height: value } })} />
+          </div>
+          <SpotlightRange label="ความเข้มการลดแสง" value={Number(config.dim_opacity ?? DEFAULT_SPOTLIGHT.dim_opacity)} min={0} max={0.95} step={0.01} onChange={(value) => update({ dim_opacity: value })} />
+          <SpotlightRange label="ความฟุ้งขอบโฟกัส" value={Number(config.feather ?? DEFAULT_SPOTLIGHT.feather)} min={0} max={0.25} step={0.005} onChange={(value) => update({ feather: value })} />
+          <p className="text-[10px] leading-relaxed text-slate-500">ปรับกรอบให้คลุมสินค้า จุดโฟกัสจะสว่าง ส่วนข้อความยังคงชัดอยู่ด้านบน</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export const TEXT_TEMPLATES = [
   // ─── 1. Hook พาดหัวเปิดคลิป (0 - 3.5s ตรึงสายตาทันที) ───
   {
@@ -557,6 +650,8 @@ export default function AssetPanel({
   onClearStickers = null,
   onSelectSticker = null,
   effects = [],
+  spotlight = null,
+  onSpotlightChange = null,
   onAddEffect = null,
   playhead = 0,
   totalDuration = 0,
@@ -851,6 +946,13 @@ export default function AssetPanel({
               การเลือก preset เป็นการแก้ไขระดับโปรเจกต์และย้อนกลับได้ด้วย Undo ก่อนเริ่ม Render
             </p>
           </div>
+        )}
+
+        {tab === 'style' && onSpotlightChange && (
+          <SpotlightControls
+            spotlight={spotlight}
+            onChange={onSpotlightChange}
+          />
         )}
 
         {/* TAB 1: CLIPS */}

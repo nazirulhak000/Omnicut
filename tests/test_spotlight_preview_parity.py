@@ -7,6 +7,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 JS_SRC = (ROOT / "frontend" / "src" / "components" / "SequencePlayer.jsx").read_text(encoding="utf-8")
 PY_SRC = (ROOT / "scripts" / "spotlight_effect.py").read_text(encoding="utf-8")
+ASSET_PANEL_SRC = (ROOT / "frontend" / "src" / "components" / "editor" / "AssetPanel.jsx").read_text(encoding="utf-8")
+EDITOR_SHELL_SRC = (ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx").read_text(encoding="utf-8")
 
 
 def _number(source: str, pattern: str) -> float:
@@ -70,3 +72,19 @@ def test_spotlight_is_footage_pass_before_stickers_subtitles_and_overlays():
     assert tick.index("drawEffects(") < tick.index("drawCaption(")
     assert tick.index("drawCaption(") < tick.index("drawOverlays(")
     assert "spotlightKey" in JS_SRC
+
+
+def test_editor_exposes_spotlight_controls_and_wires_the_same_state():
+    assert "function SpotlightControls({ spotlight, onChange })" in ASSET_PANEL_SRC
+    assert 'aria-label="Product Spotlight"' in ASSET_PANEL_SRC
+    assert 'type="checkbox"' in ASSET_PANEL_SRC
+    assert "shape: 'ellipse'" in ASSET_PANEL_SRC
+    assert "value={Number(focus.x)}" in ASSET_PANEL_SRC
+    assert "value={Number(focus.y)}" in ASSET_PANEL_SRC
+    assert "value={Number(focus.width)}" in ASSET_PANEL_SRC
+    assert "value={Number(focus.height)}" in ASSET_PANEL_SRC
+    assert "dim_opacity" in ASSET_PANEL_SRC
+    assert "feather" in ASSET_PANEL_SRC
+    assert "const patchSpotlight = useCallback" in EDITOR_SHELL_SRC
+    assert EDITOR_SHELL_SRC.count("onSpotlightChange={patchSpotlight}") == 2
+    assert EDITOR_SHELL_SRC.count("spotlight={spotlight}") >= 4
