@@ -6,7 +6,10 @@ import os
 import re
 import sys
 import threading
+from collections.abc import Mapping
 from pathlib import Path
+
+from PIL import Image
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -18,7 +21,17 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
     except Exception:
         pass
 from typing import Any, List, Dict, Tuple, Callable, Optional
-from scripts.config import VIDEO_WIDTH, VIDEO_HEIGHT, FPS, MIN_SHOT_DURATION, MAX_SHOT_DURATION, FONTS_DIR, STICKERS_DIR, EFFECTS_DIR
+from scripts.config import (
+    VIDEO_WIDTH,
+    VIDEO_HEIGHT,
+    FPS,
+    MIN_SHOT_DURATION,
+    MAX_SHOT_DURATION,
+    FONTS_DIR,
+    STICKERS_DIR,
+    EFFECTS_DIR,
+    PROJECTS_DIR,
+)
 from scripts.overlay_recolor import (
     build_overlay_hue_filter,
     overlay_asset_recolor_metadata,
@@ -27,6 +40,10 @@ from scripts.overlay_recolor import (
 from scripts.spotlight_effect import build_ffmpeg_filter
 from scripts.render_jobs import RenderCancelled
 from scripts.style_motion_policy import STYLE_MOTION_POLICIES
+from scripts.background_isolation_compositor import (
+    build_compositing_plan,
+    normalize_compositor_config,
+)
 
 # ffmpeg child processes spawned for the final render, tracked so a hard
 # external kill of this backend (task manager, a dev-server reload, an
@@ -41,6 +58,165 @@ from scripts.style_motion_policy import STYLE_MOTION_POLICIES
 # Python code at all, atexit included.
 _active_ffmpeg_procs: set = set()
 _active_ffmpeg_procs_lock = threading.Lock()
+
+_BACKGROUND_SEQUENCE_NAMESPACE = "background-isolation-foreground-sequences"
+_BACKGROUND_SEQUENCE_ID_RE = re.compile(r"^bgseq1-[0-9a-f]{16}$")
+_BACKGROUND_FRAME_RE = re.compile(r"^frame_([0-9]{6})\.png$")
+_BACKGROUND_ISOLATION_KEY = "background_" + "isolation"
+
+
+def _background_sequence_root() -> Path:
+    """Return the only cache root accepted by the renderer.
+
+    The renderer intentionally derives this path from the project root and
+    sequence id.  A render payload can select an artifact, but can never
+    redirect FFmpeg to an arbitrary absolute path.
+    """
+
+    return (PROJECTS_DIR / ".cache" / _BACKGROUND_SEQUENCE_NAMESPACE).resolve()
+
+
+def _path_is_under(path: Path, root: Path) -> bool:
+    try:
+        path.resolve(strict=False).relative_to(root.resolve(strict=False))
+        return True
+    except ValueError:
+        return False
+
+
+def _read_ready_background_sequence(
+    config: Any,
+    trim_start: float,
+    source_span: float,
+) -> Optional[Dict[str, Any]]:
+    """Validate a derived RGBA sequence and return render-only metadata.
+
+    This is deliberately fail-closed.  Invalid config, stale/missing
+    manifests, symlinks, incomplete frame ranges, non-RGBA frames, and a
+    sequence too short for the requested source span all return ``None`` so
+    the caller remains on the original graph.
+    """
+
+    if not isinstance(config, Mapping):
+        return None
+    artifact = config.get("artifact")
+    artifact_id = artifact.get("sequence_id", artifact.get("id")) if isinstance(artifact, Mapping) else None
+    if (
+        not isinstance(artifact_id, str)
+        or not _BACKGROUND_SEQUENCE_ID_RE.fullmatch(artifact_id)
+    ):
+        return None
+
+    root = _background_sequence_root()
+    artifact_dir = (root / artifact_id).resolve(strict=False)
+    frames_dir = (artifact_dir / "frames").resolve(strict=False)
+    manifest_path = (artifact_dir / "manifest.json").resolve(strict=False)
+    # Older/informal callers sometimes included a concrete frames path in
+    # their payload.  Accept it only as an exact, derived-path assertion; it
+    # must never become the path FFmpeg actually opens.
+    for path_value in (
+        config.get("frames_path"),
+        config.get("foreground_path"),
+        (config.get("sequence") or {}).get("frames_path")
+        if isinstance(config.get("sequence"), Mapping)
+        else None,
+        (config.get("sequence") or {}).get("frames_dir")
+        if isinstance(config.get("sequence"), Mapping)
+        else None,
+        (config.get("artifact") or {}).get("frames_path")
+        if isinstance(config.get("artifact"), Mapping)
+        else None,
+    ):
+        if path_value is None:
+            continue
+        try:
+            if Path(path_value).expanduser().resolve(strict=False) != frames_dir:
+                return None
+        except (TypeError, ValueError, OSError):
+            return None
+    if not (_path_is_under(artifact_dir, root) and _path_is_under(frames_dir, root)):
+        return None
+    if any(path.is_symlink() for path in (root, artifact_dir, frames_dir, manifest_path)):
+        return None
+    if not manifest_path.is_file() or not frames_dir.is_dir():
+        return None
+
+    try:
+        disk_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        disk_config = normalize_compositor_config(config, disk_manifest)
+    except Exception:
+        return None
+    if not disk_config.get("enabled") or not disk_config.get("ready"):
+        return None
+    disk_sequence = disk_config.get("sequence")
+    if not isinstance(disk_sequence, Mapping) or disk_sequence.get("artifact_id") != artifact_id:
+        return None
+
+    try:
+        frame_count = int(disk_sequence["frame_count"])
+        width = int(disk_sequence["width"])
+        height = int(disk_sequence["height"])
+        fps_ratio = str(disk_sequence["fps_ratio"])
+        fps = float(disk_sequence["fps"])
+        start = max(0.0, float(trim_start))
+        span = max(0.2, float(source_span))
+    except (KeyError, TypeError, ValueError, OverflowError):
+        return None
+    if frame_count <= 0 or width <= 0 or height <= 0 or fps <= 0:
+        return None
+
+    try:
+        plan = build_compositing_plan(config, disk_manifest, start)
+    except Exception:
+        return None
+    if not plan.get("enabled") or plan.get("artifact_id") != artifact_id:
+        return None
+    start_frame = plan.get("frame_index")
+    if isinstance(start_frame, bool) or not isinstance(start_frame, int) or start_frame < 0:
+        return None
+    needed_frames = max(1, math.ceil(span * fps - 1e-9))
+    if start_frame + needed_frames > frame_count:
+        return None
+
+    expected_names = {f"frame_{index:06d}.png" for index in range(frame_count)}
+    try:
+        entries = list(frames_dir.iterdir())
+    except OSError:
+        return None
+    actual_names = {entry.name for entry in entries if _BACKGROUND_FRAME_RE.fullmatch(entry.name)}
+    if actual_names != expected_names:
+        return None
+    for name in sorted(expected_names):
+        frame_path = frames_dir / name
+        if (
+            frame_path.is_symlink()
+            or not frame_path.is_file()
+            or not _path_is_under(frame_path, frames_dir)
+        ):
+            return None
+        try:
+            with Image.open(frame_path) as image:
+                image.verify()
+            with Image.open(frame_path) as image:
+                if image.mode != "RGBA" or image.size != (width, height):
+                    return None
+        except Exception:
+            return None
+
+    return {
+        "artifact_id": artifact_id,
+        "frames_dir": frames_dir,
+        "frame_pattern": str(frames_dir / "frame_%06d.png"),
+        "frame_index": start_frame,
+        "fps_ratio": fps_ratio,
+        "fps": fps,
+        "frame_count": frame_count,
+        "width": width,
+        "height": height,
+        "rotation": int(disk_sequence.get("rotation", 0)),
+        "manifest": dict(disk_manifest),
+        "plan": plan,
+    }
 
 
 def _register_ffmpeg_proc(proc: "subprocess.Popen") -> None:
@@ -851,6 +1027,7 @@ class VideoEditor:
         progress_callback: Optional[Callable[[float, float], None]] = None,
         cancel_event: Optional[threading.Event] = None,
         spotlight: Optional[Dict[str, Any]] = None,
+        background_isolation: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
         Takes raw footage, creates fast-paced punch-in cuts synced to audio duration and Gemini Vision scenes,
@@ -907,6 +1084,7 @@ class VideoEditor:
         # PSNR infinite).
         input_seeks: List[Optional[Tuple[float, float]]] = []
         raw_audio_nodes: List[Tuple[str, float, int]] = []
+        foreground_inputs: List[Dict[str, Any]] = []
         used_clip_list = bool(clip_list)
 
         if clip_list:
@@ -991,7 +1169,88 @@ class VideoEditor:
 
                 node_name = f"clip_{idx}"
                 use_bg_blur = bool(clip.get("bg_blur")) or (clip.get("fit_mode") == "blur")
-                if use_bg_blur:
+                # A blurred canvas has its own contain/overlay geometry.  Do
+                # not guess at a second geometry for the RGBA sequence: an
+                # isolation artifact is therefore fail-closed for this one
+                # clip and the proven legacy blur graph remains untouched.
+                bg_info = None if use_bg_blur else _read_ready_background_sequence(
+                    clip.get(_BACKGROUND_ISOLATION_KEY, clip.get("backgroundIsolation", background_isolation)),
+                    trim_start,
+                    source_span,
+                )
+                if bg_info:
+                    clip_trim = f"trim=duration={source_span}"
+                    fg_input_idx = len(clip_list) + 1 + len(foreground_inputs)
+                    bg_info["input_index"] = fg_input_idx
+                    foreground_inputs.append(bg_info)
+
+                    transformed_node = f"{node_name}_transformed"
+                    if camera_filter:
+                        source_transform = (
+                            f"[{idx}:v]trim=start=0:duration={source_span},setpts=PTS-STARTPTS,"
+                            f"{speed_filter}{rot_filter}{mirror_filter}{eq_filter}{freeze_filter}"
+                            f"fps={FPS},{camera_filter},drawbox=x=0:y=0:w=iw:h=ih:color=0x0B1220:t=fill[{transformed_node}];"
+                        )
+                        foreground_transform = (
+                            f"[{fg_input_idx}:v]{clip_trim},setpts=PTS-STARTPTS,"
+                            f"format=rgba,{speed_filter}{rot_filter}{mirror_filter}{eq_filter}{freeze_filter}"
+                            f"fps={FPS},{camera_filter}[bg_fg_transformed_{idx}];"
+                        )
+                    else:
+                        one_pass = None if rot_filter or mirror_filter else framing_filters(
+                            media_info, scaled_w, scaled_h, crop_x, crop_y
+                        )
+                        if one_pass:
+                            source_transform = (
+                                f"[{idx}:v]{clip_trim},setpts=PTS-STARTPTS,"
+                                f"{speed_filter}{eq_filter}{freeze_filter}fps={FPS},{one_pass},"
+                                f"drawbox=x=0:y=0:w=iw:h=ih:color=0x0B1220:t=fill[{transformed_node}];"
+                            )
+                            foreground_transform = (
+                                f"[{fg_input_idx}:v]{clip_trim},setpts=PTS-STARTPTS,"
+                                f"format=rgba,{speed_filter}{eq_filter}{freeze_filter}fps={FPS},{one_pass}[bg_fg_transformed_{idx}];"
+                            )
+                        else:
+                            common_transform = (
+                                f"{speed_filter}{rot_filter}{mirror_filter}{eq_filter}{freeze_filter}"
+                                f"scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,"
+                                f"crop={VIDEO_WIDTH}:{VIDEO_HEIGHT},setsar=1,fps={FPS},"
+                                f"scale={scaled_w}:{scaled_h}:flags=lanczos,crop={VIDEO_WIDTH}:{VIDEO_HEIGHT}:{crop_x}:{crop_y},setsar=1"
+                            )
+                            source_transform = (
+                                f"[{idx}:v]{clip_trim},setpts=PTS-STARTPTS,"
+                                f"{common_transform},drawbox=x=0:y=0:w=iw:h=ih:color=0x0B1220:t=fill[{transformed_node}];"
+                            )
+                            foreground_transform = (
+                                f"[{fg_input_idx}:v]{clip_trim},setpts=PTS-STARTPTS,"
+                                f"format=rgba,{common_transform}[bg_fg_transformed_{idx}];"
+                            )
+
+                    fg_rgba = f"[bg_fg_transformed_{idx}]"
+                    fg_rgb = f"[bg_fg_rgb_{idx}]"
+                    fg_rgb_output = f"[bg_fg_rgb_{idx}_rgb]"
+                    fg_alpha_source = f"[bg_fg_alpha_source_{idx}]"
+                    fg_alpha = f"[bg_fg_alpha_{idx}]"
+                    subject = f"[bg_subject_{idx}]"
+                    compositor_plan = bg_info["plan"]
+                    compositor_fragment = compositor_plan["filter_fragment"]
+                    compositor_fragment = compositor_fragment.replace(
+                        "[clip_transformed]", f"[{transformed_node}]", 1
+                    ).replace("[foreground_frame]", fg_rgb_output, 1).replace(
+                        "[alpha_frame]", fg_alpha, 1
+                    ).replace("[clip_composited]", f"[{node_name}]", 1).replace(
+                        "[subject_rgba]", subject
+                    )
+                    filter_complex.append(
+                        source_transform
+                        + foreground_transform
+                        + f"{fg_rgba}format=rgba,split=2{fg_rgb}{fg_alpha_source};"
+                        + f"{fg_rgb}format=rgb24{fg_rgb_output};"
+                        + f"{fg_alpha_source}alphaextract{fg_alpha};"
+                        + compositor_fragment
+                        + ";"
+                    )
+                elif use_bg_blur:
                     pre_node = f"c_{idx}_pre"
                     bg_node = f"c_{idx}_bg"
                     fg_node = f"c_{idx}_fg"
@@ -1256,6 +1515,15 @@ class VideoEditor:
             else:
                 cmd_inputs.extend(["-i", video_path])
         cmd_inputs.extend(["-i", str(Path(mixed_audio_path).resolve())])
+        # Foreground sequences are appended after the mixed-audio input so the
+        # legacy audio index remains unchanged.  Each input is derived from a
+        # validated artifact id and is cadence-controlled by its manifest.
+        for bg_info in foreground_inputs:
+            cmd_inputs.extend([
+                "-framerate", bg_info["fps_ratio"],
+                "-start_number", str(bg_info["frame_index"]),
+                "-i", f"{bg_info['frame_pattern']}",
+            ])
 
         # Optional 3D LUT color grade -- applied before the sticker overlay and
         # subtitle burn so a brand-colored badge and caption colors are never
@@ -1341,7 +1609,7 @@ class VideoEditor:
                 canvas_h=profile["height"],
             )
             # The stickers are appended right after the mixed audio and preceding stickers
-            st_idx = audio_input_idx + 1 + s_idx
+            st_idx = audio_input_idx + 1 + len(foreground_inputs) + s_idx
             cmd_inputs.extend(["-i", str(stk_info["path"].resolve())])
             st_start = stk_info.get("start")
             st_end = stk_info.get("end")
@@ -1457,7 +1725,7 @@ class VideoEditor:
             fx_duration = max(0.1, min(natural_duration, window))
             fx_end = fx_start + fx_duration
 
-            e_input_idx = audio_input_idx + 1 + len(effective_stickers) + e_idx
+            e_input_idx = audio_input_idx + 1 + len(foreground_inputs) + len(effective_stickers) + e_idx
             cmd_inputs.extend(["-itsoffset", f"{fx_start:.3f}", "-i", str(fx_info["path"].resolve())])
 
             split_a, split_b = f"[fx_base_a_{e_idx}]", f"[fx_base_b_{e_idx}]"

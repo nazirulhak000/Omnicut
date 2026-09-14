@@ -105,6 +105,8 @@ export const startRender = (data) => api.post('/render', {
 export const getRenderStatus = (jobId) => api.get(`/render/status/${jobId}`, { timeout: 15000 }).then(r => r.data);
 export const startBatchRender = (payload) => api.post('/render/batch', payload).then(r => r.data);
 export const getBatchRenderStatus = (batchId) => api.get(`/render/batch/${batchId}`).then(r => r.data);
+export const startBackgroundIsolation = (payload) =>
+  api.post('/background-isolation/process', payload, { timeout: 120000 }).then(r => r.data);
 export const cancelBatchRender = (batchId) => api.post(`/render/batch/${batchId}/cancel`).then(r => r.data);
 export const openFolder = (target) => api.post('/open-folder', { target }).then(r => r.data);
 
@@ -417,6 +419,9 @@ export const saveProducerNotes = (notes, baseRevision = null) =>
 
 export const addProducerNote = (note) =>
   api.post('/producer/notes/add', { note }).then(r => r.data);
+
+export const updateProducerNote = (noteId, patch, baseRevision = null) =>
+  api.put(`/producer/notes/${encodeURIComponent(noteId)}`, { ...patch, ...(baseRevision ? { base_revision: baseRevision } : {}) }).then(r => r.data);
 
 export const deleteProducerNote = (noteId) =>
   api.delete(`/producer/notes/${encodeURIComponent(noteId)}`).then(r => r.data);

@@ -64,6 +64,7 @@ from scripts.api_asset_dedup import router as asset_dedup_router
 from scripts.api_hooks import router as hooks_router
 from scripts.api_batch_render import router as batch_render_router
 from scripts.api_producer import router as producer_router
+from scripts.api_background_isolation import router as background_isolation_router
 
 app = FastAPI(
     title="OmniCut Pro Studio API",
@@ -178,6 +179,7 @@ app.include_router(asset_dedup_router)
 app.include_router(hooks_router)
 app.include_router(batch_render_router)
 app.include_router(producer_router)
+app.include_router(background_isolation_router)
 
 # ----------------------------------------------------------------------
 # Run Server directly if executed

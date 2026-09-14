@@ -33,6 +33,74 @@ function cloneValue(value) {
   return value;
 }
 
+const BACKGROUND_ISOLATION_SCHEMA_VERSION = 1;
+const BACKGROUND_ISOLATION_OPTIONS = {
+  mode: new Set(['cutout']),
+  engine: new Set(['rembg']),
+  model: new Set(['u2netp', 'u2net', 'isnet-general-use']),
+  quality: new Set(['draft', 'balanced', 'quality']),
+  fallback: new Set(['spotlight', 'original', 'skip']),
+};
+const BACKGROUND_ISOLATION_STATUSES = new Set([
+  'missing',
+  'processing',
+  'ready',
+  'stale',
+  'error',
+  'cancelled',
+]);
+
+/** Optional, inert editor metadata. Keep it lossless and fail closed. */
+function normalizeBackgroundIsolation(value) {
+  if (value === null || value === undefined) return null;
+  if (!isRecord(value)) return null;
+  if (value.schema_version !== undefined && value.schema_version !== BACKGROUND_ISOLATION_SCHEMA_VERSION) return null;
+  if (value.enabled !== undefined && typeof value.enabled !== 'boolean') return null;
+
+  // An explicitly disabled feature is inert. Preserve its metadata without
+  // validating options that no consumer will read in this state.
+  if (value.enabled !== true) return cloneValue(value);
+
+  for (const [key, choices] of Object.entries(BACKGROUND_ISOLATION_OPTIONS)) {
+    if (value[key] !== undefined && (typeof value[key] !== 'string' || !choices.has(value[key]))) return null;
+  }
+
+  if (value.artifact !== undefined && value.artifact !== null && !isRecord(value.artifact)) return null;
+  if (isRecord(value.artifact)) {
+    const artifact = value.artifact;
+    if (artifact.schema_version !== undefined && artifact.schema_version !== 1) return null;
+    if (artifact.status !== undefined && !BACKGROUND_ISOLATION_STATUSES.has(artifact.status)) return null;
+    if (artifact.status === 'ready' && (typeof artifact.id !== 'string' || artifact.id.length === 0)) return null;
+  }
+
+  return cloneValue(value);
+}
+
+const TIMELINE_CORE_FIELDS = new Set([
+  'schema_version',
+  'tracks',
+  'cuts',
+  'clipList',
+  'clips',
+  'overlays',
+  'cues',
+  'audioStems',
+  'background_isolation',
+  'backgroundIsolation',
+]);
+
+function preserveUnknownManifestFields(manifest) {
+  return Object.fromEntries(
+    Object.entries(manifest || {})
+      .filter(([key]) => !TIMELINE_CORE_FIELDS.has(key))
+      .map(([key, value]) => [key, cloneValue(value)]),
+  );
+}
+
+function readBackgroundIsolation(value) {
+  return normalizeBackgroundIsolation(value?.background_isolation ?? value?.backgroundIsolation);
+}
+
 function mergeLossless(raw, normalized) {
   if (Array.isArray(normalized)) {
     return normalized.map((item, index) => mergeLossless(Array.isArray(raw) ? raw[index] : undefined, item));
@@ -141,15 +209,21 @@ export function createDefaultTracks() {
 export function migrateToTimelineV2(manifest = {}) {
   if (!manifest) return { schema_version: TIMELINE_SCHEMA_VERSION, tracks: createDefaultTracks(), clips: [], overlays: [], cues: [] };
 
+  const preservedFields = preserveUnknownManifestFields(manifest);
+  const backgroundIsolation = readBackgroundIsolation(manifest);
+  const optionalBackgroundIsolation = backgroundIsolation === null ? {} : { backgroundIsolation };
+
   // If already v2, return normalized copy
   if (manifest.schema_version === TIMELINE_SCHEMA_VERSION && Array.isArray(manifest.tracks)) {
     return {
+      ...preservedFields,
       schema_version: TIMELINE_SCHEMA_VERSION,
       tracks: manifest.tracks.map((t) => ({ ...t })),
       clips: Array.isArray(manifest.cuts || manifest.clipList) ? (manifest.cuts || manifest.clipList).map((c) => ({ ...c })) : [],
       overlays: Array.isArray(manifest.overlays) ? manifest.overlays.map(normalizeOverlayForTimeline) : [],
       cues: Array.isArray(manifest.cues) ? manifest.cues.map((c) => ({ ...c })) : [],
       audioStems: { ...(manifest.audioStems || {}) },
+      ...optionalBackgroundIsolation,
     };
   }
 
@@ -220,12 +294,14 @@ export function migrateToTimelineV2(manifest = {}) {
   }
 
   return {
+    ...preservedFields,
     schema_version: TIMELINE_SCHEMA_VERSION,
     tracks,
     clips,
     overlays,
     cues,
     audioStems: { ...audioStems },
+    ...optionalBackgroundIsolation,
   };
 }
 
@@ -267,8 +343,9 @@ export function serializeTimelineV2ToManifest(timelineV2, baseManifest = {}) {
     bgm_volume: bgmTrack ? bgmTrack.volume : 0.12,
   };
 
-  return {
+  const serialized = {
     ...baseManifest,
+    ...preserveUnknownManifestFields(timelineV2),
     schema_version: TIMELINE_SCHEMA_VERSION,
     tracks,
     cuts: visibleClips.map((c) => ({
@@ -290,6 +367,14 @@ export function serializeTimelineV2ToManifest(timelineV2, baseManifest = {}) {
     cues: cues.map((c) => ({ ...c })),
     audioStems: updatedAudioStems,
   };
+  const normalizedBackgroundIsolation = normalizeBackgroundIsolation(
+    timelineV2.backgroundIsolation ?? timelineV2.background_isolation,
+  );
+  if (normalizedBackgroundIsolation !== null) {
+    serialized.background_isolation = normalizedBackgroundIsolation;
+    delete serialized.backgroundIsolation;
+  }
+  return serialized;
 }
 
 /**

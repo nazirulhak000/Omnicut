@@ -50,6 +50,9 @@ class RenderRequest(BaseModel):
     # at the request boundary so old clients and legacy manifests remain
     # readable; invalid values become a disabled no-op downstream.
     spotlight: Optional[Dict[str, Any]] = None
+    # Optional subject-isolation sequence contract. Omitted requests remain
+    # on the legacy no-op path; the renderer validates ready artifacts.
+    background_isolation: Optional[Dict[str, Any]] = None
     font_name: str = "IBMPlex"
     bilingual_subtitles: bool = True
     show_watermark: bool = True

@@ -120,3 +120,76 @@ test('updateTrackProperty immutably updates single track without side effects', 
   assert.equal(updated.find((t) => t.id === 'track-v1').locked, true);
   assert.equal(tracks.find((t) => t.id === 'track-v1').locked, false, 'original must be unchanged');
 });
+
+test('legacy timeline omits background isolation when the field is absent', () => {
+  const v2 = migrateToTimelineV2({ cuts: [{ id: 'c1', source_path: 'legacy.mp4', duration: 1 }] });
+  const serialized = serializeTimelineV2ToManifest(v2);
+
+  assert.equal(Object.hasOwn(v2, 'backgroundIsolation'), false);
+  assert.equal(Object.hasOwn(serialized, 'background_isolation'), false);
+  assert.equal(Object.hasOwn(serialized, 'backgroundIsolation'), false);
+});
+
+test('timeline preserves unknown root metadata and round-trips a ready background config', () => {
+  const backgroundIsolation = {
+    schema_version: 1,
+    enabled: true,
+    mode: 'cutout',
+    engine: 'rembg',
+    model: 'u2netp',
+    quality: 'quality',
+    fallback: 'spotlight',
+    artifact: {
+      schema_version: 1,
+      id: 'bgseq1-0123456789abcdef',
+      status: 'ready',
+      source_fingerprint: 'source-hash',
+      future_metadata: { algorithm_revision: 3 },
+    },
+    future_config: { owner: 'editorial' },
+  };
+  const manifest = {
+    title: 'Project',
+    future_manifest_metadata: { preserve: true },
+    background_isolation: backgroundIsolation,
+  };
+
+  const v2 = migrateToTimelineV2(manifest);
+  const serialized = serializeTimelineV2ToManifest(v2);
+
+  assert.deepEqual(v2.backgroundIsolation, backgroundIsolation);
+  assert.deepEqual(v2.future_manifest_metadata, manifest.future_manifest_metadata);
+  assert.deepEqual(serialized.background_isolation, backgroundIsolation);
+  assert.deepEqual(serialized.future_manifest_metadata, manifest.future_manifest_metadata);
+  assert.equal(serialized.backgroundIsolation, undefined);
+});
+
+test('malformed timeline background isolation falls back without emitting a new field', () => {
+  const malformed = { schema_version: 1, enabled: true, artifact: { status: 'ready' } };
+  const v2 = migrateToTimelineV2({ background_isolation: malformed });
+  assert.equal(Object.hasOwn(v2, 'backgroundIsolation'), false);
+
+  const serialized = serializeTimelineV2ToManifest({
+    schema_version: 2,
+    tracks: createDefaultTracks(),
+    clips: [],
+    overlays: [],
+    cues: [],
+    backgroundIsolation: malformed,
+  });
+  assert.equal(Object.hasOwn(serialized, 'background_isolation'), false);
+});
+
+test('timeline background isolation round-trip does not mutate source objects', () => {
+  const backgroundIsolation = {
+    enabled: true,
+    artifact: { id: 'bgseq1-fedcba9876543210', status: 'ready', future: { keep: true } },
+  };
+  const manifest = { background_isolation: backgroundIsolation, future: { keep: true } };
+  const v2 = migrateToTimelineV2(manifest);
+  v2.backgroundIsolation.artifact.future.keep = false;
+
+  assert.equal(backgroundIsolation.artifact.future.keep, true);
+  assert.equal(manifest.background_isolation.artifact.future.keep, true);
+  assert.equal(manifest.future.keep, true);
+});

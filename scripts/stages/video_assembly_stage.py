@@ -34,6 +34,7 @@ class VideoAssemblyStage:
     def run(cls, ctx: PipelineContext) -> None:
         color_theme = ctx.resolve_color_theme_contract()
         spotlight = ctx.resolve_spotlight_contract()
+        background_isolation = ctx.resolve_background_isolation_contract()
         actual_clip_list = ctx.actual_clip_list
         transitions = ctx.transitions
         from scripts.pipeline import choose_transition
@@ -154,6 +155,8 @@ class VideoAssemblyStage:
                 assemble_kwargs["spotlight"] = spotlight
             elif spotlight.get("enabled"):
                 print("   ⚠️ VideoEditor รุ่นปัจจุบันยังไม่รองรับ SpotlightV1 — ข้ามเอฟเฟกต์อย่างปลอดภัย")
+            if background_isolation is not None:
+                assemble_kwargs["background_isolation"] = background_isolation
             pipeline_mod.VideoEditor.assemble_tiktok_video(**assemble_kwargs)
             ctx.result_paths["mp4_video"] = str(out_mp4)
             ctx.result_paths["ai_matched_shots"] = ctx.ai_matched_shots
@@ -251,6 +254,9 @@ class VideoAssemblyStage:
             manifest_fields["product"] = ctx.product_meta
         if ctx.angle_meta:
             manifest_fields["angle"] = ctx.angle_meta
+        if background_isolation is not None:
+            manifest_fields["background_isolation"] = background_isolation
+            manifest_fields["render_params"]["background_isolation"] = background_isolation
 
         if ctx.project_name:
             ProjectManifest.save(ctx.project_name, **manifest_fields)

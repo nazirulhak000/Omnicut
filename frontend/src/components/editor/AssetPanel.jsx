@@ -168,6 +168,61 @@ function SpotlightControls({ spotlight, onChange }) {
   );
 }
 
+function BackgroundIsolationControls({ backgroundIsolation, onChange, onPrepare, preparing = false }) {
+  const enabled = backgroundIsolation?.enabled === true;
+  const status = backgroundIsolation?.artifact?.status || 'missing';
+  const toggle = (nextEnabled) => {
+    if (!nextEnabled) {
+      onChange?.({ ...(backgroundIsolation || {}), schema_version: 1, enabled: false });
+      return;
+    }
+    onChange?.({
+      schema_version: 1,
+      enabled: true,
+      mode: 'cutout',
+      engine: 'rembg',
+      model: backgroundIsolation?.model || 'u2netp',
+      quality: backgroundIsolation?.quality || 'balanced',
+      fallback: backgroundIsolation?.fallback || 'spotlight',
+      artifact: { ...(backgroundIsolation?.artifact || {}), status: status === 'ready' ? 'ready' : 'missing' },
+    });
+  };
+  return (
+    <section className="rounded-2xl border border-violet-400/20 bg-violet-400/[0.04] p-3 space-y-2" aria-label="Background Isolation">
+      {onPrepare && enabled && (
+        <button
+          type="button"
+          onClick={onPrepare}
+          disabled={preparing}
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-violet-300/30 bg-violet-400/10 px-2 py-1.5 text-[10px] font-bold text-violet-200 transition hover:bg-violet-400/20 disabled:cursor-wait disabled:opacity-60"
+        >
+          {preparing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Layers className="h-3 w-3" />}
+          {preparing ? 'กำลังตัดพื้นหลังจากคลิปใน Timeline' : 'เตรียม cutout จากคลิปใน Timeline'}
+        </button>
+      )}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-2 min-w-0">
+          <div className="mt-0.5 rounded-lg bg-violet-400/10 p-1.5 text-violet-300"><Layers className="h-3.5 w-3.5" /></div>
+          <div className="min-w-0">
+            <h3 className="text-xs font-bold text-slate-100">ตัดพื้นหลังสินค้า</h3>
+            <p className="mt-0.5 text-[10px] leading-relaxed text-slate-500">แยกสินค้าด้วย rembg แล้ววางบน Mood Background เดียวกันทั้งคลิป</p>
+          </div>
+        </div>
+        <label className="flex flex-shrink-0 items-center gap-1.5 text-[10px] font-semibold text-slate-300">
+          <input type="checkbox" checked={enabled} onChange={(event) => toggle(event.target.checked)} aria-label="เปิดใช้งานการตัดพื้นหลังสินค้า" className="h-3.5 w-3.5 accent-violet-400" />
+          เปิดใช้
+        </label>
+      </div>
+      {enabled && (
+        <div className="border-t border-white/[0.08] pt-2 text-[10px] leading-relaxed text-slate-400">
+          สถานะ artifact: <span className={status === 'ready' ? 'text-emerald-300' : 'text-amber-300'}>{status}</span>
+          {status !== 'ready' && <p className="mt-1 text-slate-500">ต้องประมวลผล sequence ให้เสร็จก่อน Render จึงจะใช้ cutout ได้ หาก artifact ไม่พร้อม ระบบจะกลับไปใช้ภาพเดิมอัตโนมัติ</p>}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export const TEXT_TEMPLATES = [
   // ─── 1. Hook พาดหัวเปิดคลิป (0 - 3.5s ตรึงสายตาทันที) ───
   {
@@ -651,7 +706,11 @@ export default function AssetPanel({
   onSelectSticker = null,
   effects = [],
   spotlight = null,
+  backgroundIsolation = null,
   onSpotlightChange = null,
+  onBackgroundIsolationChange = null,
+  onPrepareBackgroundIsolation = null,
+  backgroundIsolationPreparing = false,
   onAddEffect = null,
   playhead = 0,
   totalDuration = 0,
@@ -952,6 +1011,15 @@ export default function AssetPanel({
           <SpotlightControls
             spotlight={spotlight}
             onChange={onSpotlightChange}
+          />
+        )}
+
+        {tab === 'style' && onBackgroundIsolationChange && (
+          <BackgroundIsolationControls
+            backgroundIsolation={backgroundIsolation}
+            onChange={onBackgroundIsolationChange}
+            onPrepare={onPrepareBackgroundIsolation}
+            preparing={backgroundIsolationPreparing}
           />
         )}
 

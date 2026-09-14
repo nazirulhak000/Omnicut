@@ -209,6 +209,7 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
                 angle_id=req_data.angle_id,
                 color_theme=req_data.color_theme,
                 spotlight=req_data.spotlight,
+                background_isolation=req_data.background_isolation,
                 shot_list_id=req_data.shot_list_id,
                 progress_callback=on_progress
             )

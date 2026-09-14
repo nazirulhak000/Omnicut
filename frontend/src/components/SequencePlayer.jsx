@@ -1,6 +1,7 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Play, Pause, Eye, Shield, Trash2, Move, RotateCcw, Plus } from 'lucide-react';
 import { toMediaUrl } from '../lib/mediaUrl';
+import api from '../api';
 import { createLutRenderer, loadCube } from '../lib/lut3d';
 import {
   ACCENT_COLOR,
@@ -18,7 +19,7 @@ import {
 } from '../lib/overlayModel';
 import {
   buildSegments, totalDuration as totalDurationOf, getDrawPlan as planAt,
-  resolveClipTransforms,
+  resolveClipTransforms, localTimeAt, motionTimeAt,
 } from '../lib/timelineMath';
 import { DEFAULT_STYLE_PRESET, getStylePreset } from '../lib/stylePresetCatalog.js';
 import { requestOverlayLayout, getCachedOverlayLayout } from '../lib/overlayLayoutClient.js';
@@ -32,9 +33,11 @@ import {
 } from '../lib/overlayBoxGeometry.js';
 import { bindWindowPointerLifecycle } from '../lib/pointerDragLifecycle.js';
 import { drawMediaWithAccentRecolor } from '../lib/overlayRecolor.js';
+import { resolveBackgroundIsolationPreview } from '../lib/backgroundIsolationPreview.js';
 
 const CANVAS_W = 540;
 const CANVAS_H = 960;
+const BACKGROUND_ISOLATION_BG = '#0B1220';
 
 // SpotlightV1 is an opt-in footage treatment. These values mirror
 // scripts/spotlight_effect.py exactly; the preview normalises here because it
@@ -466,10 +469,12 @@ function circleWeightAt(kind, p, dNorm) {
 }
 
 /** Draws one clip's frame with its grade, at `alpha`. */
-function drawClipInto(ctx, video, clip, alpha = 1, motionTime = 0) {
+function drawClipInto(ctx, video, clip, alpha = 1, motionTime = 0, isolatedImage = null) {
   ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
   ctx.filter = clipFilter(clip);
-  const painted = drawVideoFrame(ctx, video, clip, motionTime);
+  const painted = isolatedImage
+    ? drawIsolatedFrame(ctx, isolatedImage, clip, motionTime)
+    : drawVideoFrame(ctx, video, clip, motionTime);
   ctx.globalAlpha = 1;
   ctx.filter = 'none';
   return painted;
@@ -481,7 +486,7 @@ function drawClipInto(ctx, video, clip, alpha = 1, motionTime = 0) {
  * radial alpha ramp for the circles, a solid bridge colour for fadeblack and
  * fadewhite, and a plain crossfade only for `fade` itself.
  */
-function paintEntry(ctx, entry, video, offscreen) {
+function paintEntry(ctx, entry, video, offscreen, isolatedImage = null) {
   const { seg, transition: kind, progress: p, role, alpha } = entry;
   const clip = seg.clip;
 
@@ -491,13 +496,13 @@ function paintEntry(ctx, entry, video, offscreen) {
     const [dx, dy] = role === 'out' ? slide[0] : slide[1];
     ctx.save();
     ctx.translate(dx, dy);
-    const painted = drawClipInto(ctx, video, clip, 1, entry.motionTime);
+    const painted = drawClipInto(ctx, video, clip, 1, entry.motionTime, isolatedImage);
     ctx.restore();
     return painted;
   }
 
   if (role !== 'in') {
-    const painted = drawClipInto(ctx, video, clip, 1, entry.motionTime);
+    const painted = drawClipInto(ctx, video, clip, 1, entry.motionTime, isolatedImage);
     // The outgoing side of a bridge fade also lays down the colour it dips
     // through, so the incoming side only has to blend over it.
     if (painted && role === 'out' && (kind === 'fadeblack' || kind === 'fadewhite')) {
@@ -520,7 +525,7 @@ function paintEntry(ctx, entry, video, offscreen) {
     oc.setTransform(1, 0, 0, 1, 0, 0);
     oc.globalCompositeOperation = 'source-over';
     oc.clearRect(0, 0, CANVAS_W, CANVAS_H);
-    if (!drawClipInto(oc, video, clip, 1, entry.motionTime)) return false;
+    if (!drawClipInto(oc, video, clip, 1, entry.motionTime, isolatedImage)) return false;
     oc.globalCompositeOperation = 'destination-in';
     oc.drawImage(dissolveMaskFor(p), 0, 0);
     oc.globalCompositeOperation = 'source-over';
@@ -537,7 +542,7 @@ function paintEntry(ctx, entry, video, offscreen) {
     oc.setTransform(1, 0, 0, 1, 0, 0);
     oc.globalCompositeOperation = 'source-over';
     oc.clearRect(0, 0, CANVAS_W, CANVAS_H);
-    if (!drawClipInto(oc, video, clip, 1, entry.motionTime)) return false;
+    if (!drawClipInto(oc, video, clip, 1, entry.motionTime, isolatedImage)) return false;
     const cx = CANVAS_W / 2;
     const cy = CANVAS_H / 2;
     const z = Math.hypot(cx, cy);
@@ -559,14 +564,14 @@ function paintEntry(ctx, entry, video, offscreen) {
   ctx.beginPath();
   if (clipIncomingRegion(ctx, kind, p)) {
     ctx.clip();
-    const painted = drawClipInto(ctx, video, clip, 1, entry.motionTime);
+    const painted = drawClipInto(ctx, video, clip, 1, entry.motionTime, isolatedImage);
     ctx.restore();
     return painted;
   }
   ctx.restore();
 
   const blend = (kind === 'fadeblack' || kind === 'fadewhite') ? bridgeWeights(p).wB : alpha;
-  return drawClipInto(ctx, video, clip, blend, entry.motionTime);
+  return drawClipInto(ctx, video, clip, blend, entry.motionTime, isolatedImage);
 }
 
 function drawVideoFrame(ctx, video, clip, motionTime = 0) {
@@ -656,6 +661,68 @@ function drawVideoFrame(ctx, video, clip, motionTime = 0) {
     ctx.drawImage(video, sx, sy, sw, sh, 0, 0, CANVAS_W, CANVAS_H);
   }
   return true;
+}
+
+/** Draw a ready RGBA cutout over the same deterministic mood background used
+ * by the FFmpeg renderer. The cutout is a full source frame, so crop/zoom,
+ * mirror, and rotation must follow the ordinary video path exactly. */
+function drawIsolatedFrame(ctx, image, clip, motionTime = 0) {
+  if (!image || !image.naturalWidth || !image.naturalHeight || !image.complete) return false;
+  const camera = resolveClipTransforms(clip, motionTime);
+  const rotation = Number(clip?.rotation || 0) % 360;
+  const isRotated90or270 = rotation === 90 || rotation === 270;
+  const sourceWidth = image.naturalWidth;
+  const sourceHeight = image.naturalHeight;
+  const vw = isRotated90or270 ? sourceHeight : sourceWidth;
+  const vh = isRotated90or270 ? sourceWidth : sourceHeight;
+  const vRatio = vw / vh;
+  const cRatio = CANVAS_W / CANVAS_H;
+  let sx; let sy; let sw; let sh;
+  if (vRatio > cRatio) {
+    sh = vh; sw = vh * cRatio; sy = 0; sx = (vw - sw) / 2;
+  } else {
+    sw = vw; sh = vw / cRatio; sx = 0; sy = (vh - sh) / 2;
+  }
+  const zoom = camera.zoom;
+  if (zoom > 1.001) {
+    const zw = sw / zoom; const zh = sh / zoom;
+    sx += ((sw - zw) / 2) * (1 + camera.pan_x);
+    sy += ((sh - zh) / 2) * (1 + camera.pan_y);
+    sw = zw; sh = zh;
+  }
+
+  const frameFilter = ctx.filter;
+  ctx.filter = 'none';
+  ctx.fillStyle = BACKGROUND_ISOLATION_BG;
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  ctx.filter = frameFilter;
+  const mirror = !!clip?.mirror;
+  if (mirror || rotation !== 0) {
+    ctx.save();
+    ctx.translate(CANVAS_W / 2, CANVAS_H / 2);
+    if (mirror) ctx.scale(-1, 1);
+    if (rotation !== 0) ctx.rotate((rotation * Math.PI) / 180);
+    if (rotation === 90) {
+      ctx.drawImage(image, Math.max(0, sy), Math.max(0, sourceHeight - (sx + sw)), Math.min(sourceWidth, sh), Math.min(sourceHeight, sw), -CANVAS_H / 2, -CANVAS_W / 2, CANVAS_H, CANVAS_W);
+    } else if (rotation === 270) {
+      ctx.drawImage(image, Math.max(0, sourceWidth - (sy + sh)), Math.max(0, sx), Math.min(sourceWidth, sh), Math.min(sourceHeight, sw), -CANVAS_H / 2, -CANVAS_W / 2, CANVAS_H, CANVAS_W);
+    } else if (rotation === 180) {
+      ctx.drawImage(image, sourceWidth - (sx + sw), sourceHeight - (sy + sh), sw, sh, -CANVAS_W / 2, -CANVAS_H / 2, CANVAS_W, CANVAS_H);
+    } else {
+      ctx.drawImage(image, sx, sy, sw, sh, -CANVAS_W / 2, -CANVAS_H / 2, CANVAS_W, CANVAS_H);
+    }
+    ctx.restore();
+  } else {
+    ctx.drawImage(image, sx, sy, sw, sh, 0, 0, CANVAS_W, CANVAS_H);
+  }
+  return true;
+}
+
+function backgroundArtifactId(config) {
+  if (!config || typeof config !== 'object' || Array.isArray(config)) return null;
+  const artifact = config.artifact;
+  if (!artifact || typeof artifact !== 'object' || Array.isArray(artifact)) return null;
+  return artifact.sequence_id || artifact.sequenceId || artifact.id || null;
 }
 
 // Mirrors the .ass style the renderer burns: CAPTION_POSITIONS in
@@ -2497,6 +2564,7 @@ function SequencePlayer({
   audioStems = null,
   grade = null,
   spotlight = undefined,
+  backgroundIsolation = null,
   stylePreset = DEFAULT_STYLE_PRESET,
   trackMix = null,
   compact = false,
@@ -2614,6 +2682,87 @@ function SequencePlayer({
   const playheadRef = useRef(0);
   const lastPlayheadUiUpdateRef = useRef(null);
   const prevActiveClipIdRef = useRef(null);
+  const backgroundIsolationImagesRef = useRef(new Map());
+  const [backgroundIsolationManifests, setBackgroundIsolationManifests] = useState({});
+  const [backgroundIsolationTick, setBackgroundIsolationTick] = useState(0);
+
+  const backgroundIsolationArtifactIds = useMemo(() => {
+    const ids = new Set();
+    [backgroundIsolation, ...(clips || []).map((clip) => clip?.background_isolation ?? clip?.backgroundIsolation)].forEach((config) => {
+      const id = backgroundArtifactId(config);
+      if (id) ids.add(id);
+    });
+    return [...ids];
+  }, [backgroundIsolation, clips]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!backgroundIsolationArtifactIds.length) {
+      setBackgroundIsolationManifests({});
+      return undefined;
+    }
+    Promise.all(backgroundIsolationArtifactIds.map(async (artifactId) => {
+      try {
+        const response = await api.get(`/background-isolation/sequences/${encodeURIComponent(artifactId)}/manifest`);
+        return [artifactId, response.data];
+      } catch {
+        return [artifactId, null];
+      }
+    })).then((entries) => {
+      if (!cancelled) setBackgroundIsolationManifests(Object.fromEntries(entries));
+    });
+    return () => { cancelled = true; };
+  }, [backgroundIsolationArtifactIds.join('|')]);
+
+  const loadedBackgroundIsolationFrame = useCallback((clip, sourceTime) => {
+    // The legacy blurred-canvas path has different geometry and filter order
+    // from subject isolation.  Keep Preview on the same fail-closed branch as
+    // the renderer for these clips.
+    if (clip?.bg_blur || clip?.fit_mode === 'blur') return null;
+    const config = clip?.background_isolation ?? clip?.backgroundIsolation ?? backgroundIsolation;
+    const artifactId = backgroundArtifactId(config);
+    const manifest = artifactId ? backgroundIsolationManifests[artifactId] : null;
+    const resolution = resolveBackgroundIsolationPreview({
+      config,
+      manifest,
+      artifactBaseUrl: '/api/background-isolation/sequences',
+      sourceTime: Math.max(0, Number(sourceTime) || 0),
+    });
+    if (!resolution.useArtifact || !resolution.frameUrl) return null;
+    const cache = backgroundIsolationImagesRef.current;
+    const cached = cache.get(resolution.frameUrl);
+    if (cached) return cached.status === 'ready' ? cached.image : null;
+
+    const entry = { image: new Image(), status: 'loading', objectUrl: null };
+    cache.set(resolution.frameUrl, entry);
+    const apiPath = resolution.frameUrl.startsWith('/api/')
+      ? resolution.frameUrl.slice(4)
+      : resolution.frameUrl;
+    api.get(apiPath, { responseType: 'blob' }).then((response) => {
+      if (!response?.data) throw new Error('empty background isolation frame');
+      entry.objectUrl = URL.createObjectURL(response.data);
+      entry.image.onload = () => {
+        entry.status = 'ready';
+        setBackgroundIsolationTick((value) => value + 1);
+      };
+      entry.image.onerror = () => {
+        entry.status = 'error';
+        setBackgroundIsolationTick((value) => value + 1);
+      };
+      entry.image.src = entry.objectUrl;
+    }).catch(() => {
+      entry.status = 'error';
+      setBackgroundIsolationTick((value) => value + 1);
+    });
+    return null;
+  }, [backgroundIsolation, backgroundIsolationManifests]);
+
+  useEffect(() => () => {
+    backgroundIsolationImagesRef.current.forEach((entry) => {
+      if (entry?.objectUrl) URL.revokeObjectURL(entry.objectUrl);
+    });
+    backgroundIsolationImagesRef.current.clear();
+  }, []);
 
   const publishPlayhead = (t, force = false, now = performance.now()) => {
     playheadRef.current = t;
@@ -3514,7 +3663,10 @@ function SequencePlayer({
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
     plan.forEach((entry) => {
       const video = videoElsRef.current[entry.seg.clip.id];
-      if (video) paintEntry(ctx, entry, video, getOffscreen());
+      if (video) {
+        const isolatedImage = loadedBackgroundIsolationFrame(entry.seg.clip, entry.localTime);
+        paintEntry(ctx, entry, video, getOffscreen(), isolatedImage);
+      }
     });
     ctx.globalAlpha = 1;
     ctx.filter = 'none';
@@ -3541,7 +3693,7 @@ function SequencePlayer({
   useEffect(() => {
     renderAt(playheadRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [segments, captionKey, stickerKey, stickersKey, cuesKey, overlaysKey, spotlightKey, lutReady, grade?.intensity, previewAccentColor, showWatermark]);
+  }, [segments, captionKey, stickerKey, stickersKey, cuesKey, overlaysKey, spotlightKey, backgroundIsolationManifests, backgroundIsolationTick, lutReady, grade?.intensity, previewAccentColor, showWatermark]);
 
   const lastNotifyRef = useRef(0);
 
@@ -3657,14 +3809,20 @@ function SequencePlayer({
             if (prevV && prevSeg && prevV.readyState >= 2) {
               ctx.globalAlpha = 1;
               ctx.filter = clipFilter(prevSeg.clip);
-              drawVideoFrame(ctx, prevV, prevSeg.clip);
+              const prevImage = loadedBackgroundIsolationFrame(prevSeg.clip, localTimeAt(prevSeg, t));
+              if (prevImage) {
+                drawIsolatedFrame(ctx, prevImage, prevSeg.clip, motionTimeAt(prevSeg, t));
+              } else {
+                drawVideoFrame(ctx, prevV, prevSeg.clip);
+              }
               framePainted = true;
               return;
             }
           }
 
-          if (video.readyState >= 2) {
-            paintEntry(ctx, entry, video, getOffscreen());
+          const isolatedImage = loadedBackgroundIsolationFrame(entry.seg.clip, entry.localTime);
+          if (video.readyState >= 2 || isolatedImage) {
+            paintEntry(ctx, entry, video, getOffscreen(), isolatedImage);
             framePainted = true;
             prevActiveClipIdRef.current = seg.clip.id;
           }
@@ -3706,7 +3864,7 @@ function SequencePlayer({
     // RAF loop kept drawing whatever array existed when isPlaying last
     // flipped true until some other dep (e.g. overlays) happened to change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlaying, segments, segmentsByClipId, cues, overlays, totalDuration, effectiveStickersList, effects, spotlightKey]);
+  }, [isPlaying, segments, segmentsByClipId, cues, overlays, totalDuration, effectiveStickersList, effects, spotlightKey, backgroundIsolationManifests, backgroundIsolationTick]);
 
   const togglePlay = () => {
     if (!segments.length) return;

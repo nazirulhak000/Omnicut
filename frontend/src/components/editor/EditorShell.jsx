@@ -6,7 +6,7 @@ import {
   ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Columns3,
 } from 'lucide-react';
 import {
-  deleteProject, getAllAssets, getHookMotionPresets, getProducts, getProject, getProjectOrigin, getProjects, getRenderStatus, startReroll, updateProjectCues, updateProjectClips, updateProjectState, openFolder, updateAngleStatus, updateAngleCover,
+  deleteProject, getAllAssets, getHookMotionPresets, getProducts, getProject, getProjectOrigin, getProjects, getRenderStatus, getTaskStatus, startBackgroundIsolation, startReroll, updateProjectCues, updateProjectClips, updateProjectState, openFolder, updateAngleStatus, updateAngleCover,
   getHookTemplates, saveCustomHookTemplate, deleteCustomHookTemplate,
 } from '../../api';
 import {
@@ -120,7 +120,7 @@ const LEGACY_SFX_ALIASES = {
   boom: 'sfx_vine_boom',
 };
 
-const EMPTY = { clipList: [], cuesList: [], overlays: [], stickers: [], effects: [], spotlight: null, trackMix: { mute: {}, solo: {} }, style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false, captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1, stickerPosition: 'top_right', stickerScale: 1, style_preset: 'clean_tech_review', showWatermark: true } };
+const EMPTY = { clipList: [], cuesList: [], overlays: [], stickers: [], effects: [], spotlight: null, backgroundIsolation: null, trackMix: { mute: {}, solo: {} }, style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false, captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1, stickerPosition: 'top_right', stickerScale: 1, style_preset: 'clean_tech_review', showWatermark: true } };
 
 const DEFAULT_EDITOR_SPOTLIGHT = Object.freeze({
   schema_version: 1,
@@ -146,7 +146,7 @@ export default function EditorShell({
   onProductContextChange,
 }) {
   const { state, set, setSilent, beginDrag, endDrag, undo, redo, reset, canUndo, canRedo } = useEditorHistory(EMPTY);
-  const { clipList, cuesList, style, overlays, stickers = [], effects = [], spotlight = null, trackMix = { mute: {}, solo: {} } } = state;
+  const { clipList, cuesList, style, overlays, stickers = [], effects = [], spotlight = null, backgroundIsolation = null, trackMix = { mute: {}, solo: {} } } = state;
 
   const [projectList, setProjectList] = useState([]);
   const [projectName, setProjectName] = useState(() => {
@@ -175,6 +175,7 @@ export default function EditorShell({
   const [zoomIndex, setZoomIndex] = useState(2);
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [applyToAllCaptions, setApplyToAllCaptions] = useState(true);
+  const [backgroundIsolationPreparing, setBackgroundIsolationPreparing] = useState(false);
 
   // Mobile Mode Switcher: 'timeline' | 'assets' | 'inspector'
   const [mobileTab, setMobileTab] = useState('timeline');
@@ -493,9 +494,10 @@ export default function EditorShell({
     stickers,
     effects,
     spotlight,
+    backgroundIsolation,
     trackMix,
     microCuesList,
-  }), [clipList, cuesList, overlays, stickers, effects, spotlight, style, trackMix, microCuesList]);
+  }), [clipList, cuesList, overlays, stickers, effects, spotlight, backgroundIsolation, style, trackMix, microCuesList]);
   const projectSavePayload = useMemo(
     () => withStylePresetPayload(savePayload, activeStylePreset),
     [savePayload, activeStylePreset],
@@ -559,6 +561,7 @@ export default function EditorShell({
       stickers: loadedEditorState.stickers || [],
       effects: loadedEditorState.effects || [],
       spotlight: loadedEditorState.spotlight || null,
+      backgroundIsolation: loadedEditorState.backgroundIsolation || null,
       trackMix: loadedEditorState.trackMix || { mute: {}, solo: {} },
       style: loadedEditorState.style,
     });
@@ -1170,6 +1173,95 @@ export default function EditorShell({
     });
   }, [setSilent]);
 
+  const patchBackgroundIsolation = useCallback((next) => {
+    set((prev) => ({ ...prev, backgroundIsolation: next || null }));
+  }, [set]);
+
+  const prepareBackgroundIsolation = useCallback(async () => {
+    const sourceClips = (clipList || []).filter((clip) => clip?.source_path);
+    if (!sourceClips.length) {
+      showToast('ยังไม่มีคลิปใน Timeline สำหรับตัดพื้นหลัง');
+      return;
+    }
+    const baseConfig = backgroundIsolation?.enabled === true
+      ? backgroundIsolation
+      : {
+        schema_version: 1,
+        enabled: true,
+        mode: 'cutout',
+        engine: 'rembg',
+        model: 'u2netp',
+        quality: 'balanced',
+        fallback: 'spotlight',
+        artifact: { schema_version: 1, id: null, status: 'missing' },
+      };
+    patchBackgroundIsolation({
+      ...baseConfig,
+      enabled: true,
+      artifact: { ...(baseConfig.artifact || {}), id: null, status: 'processing' },
+    });
+    setBackgroundIsolationPreparing(true);
+    const unique = [];
+    const seen = new Set();
+    sourceClips.forEach((clip) => {
+      const start = Math.max(0, Number(clip.trim_start) || 0);
+      const trimEnd = Number(clip.trim_end);
+      const duration = Number.isFinite(trimEnd) && trimEnd > start ? trimEnd - start : null;
+      const key = `${clip.source_path}|${start.toFixed(6)}|${duration == null ? 'end' : duration.toFixed(6)}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push({ clip, start, duration });
+      }
+    });
+    try {
+      for (const item of unique) {
+        const response = await startBackgroundIsolation({
+          source_path: item.clip.source_path,
+          config: baseConfig,
+          start: item.start,
+          ...(item.duration == null ? {} : { duration: item.duration }),
+          fps: 30,
+          width: 1080,
+          height: 1920,
+          rotation: Number(item.clip.rotation) || 0,
+        });
+        let task = null;
+        for (let attempt = 0; attempt < 900; attempt += 1) {
+          task = await getTaskStatus(response.task_id);
+          if (['completed', 'failed', 'cancelled'].includes(task?.status)) break;
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+        if (task?.status !== 'completed' || !task.result?.artifact?.id) {
+          throw new Error(task?.error || 'background isolation task did not complete');
+        }
+        const completedConfig = task.result;
+        set((prev) => ({
+          ...prev,
+          clipList: (prev.clipList || []).map((clip) => {
+            const clipStart = Math.max(0, Number(clip.trim_start) || 0);
+            const clipEnd = Number(clip.trim_end);
+            const clipDuration = Number.isFinite(clipEnd) && clipEnd > clipStart ? clipEnd - clipStart : null;
+            const sameRange = clip.source_path === item.clip.source_path
+              && Math.abs(clipStart - item.start) < 0.0001
+              && (clipDuration == null ? item.duration == null : Math.abs(clipDuration - (item.duration || 0)) < 0.0001);
+            return sameRange ? { ...clip, background_isolation: completedConfig } : clip;
+          }),
+        }));
+      }
+      // Ready artifacts are stored per clip because each trim range has its
+      // own extracted sequence.  Keep the project-level marker honest: it is
+      // only a default/fallback config and has no single artifact id.
+      patchBackgroundIsolation({ ...baseConfig, enabled: true, artifact: { ...(baseConfig.artifact || {}), id: null, status: 'missing' } });
+      showToast(`เตรียม cutout สำเร็จ ${unique.length} คลิป`);
+    } catch (error) {
+      patchBackgroundIsolation({ ...baseConfig, enabled: true, artifact: { ...(baseConfig.artifact || {}), id: null, status: 'error' } });
+      showToast(error?.friendlyMessage || error?.message || 'เตรียม cutout ไม่สำเร็จ');
+    } finally {
+      setBackgroundIsolationPreparing(false);
+      pollTasks?.();
+    }
+  }, [backgroundIsolation, clipList, getTaskStatus, patchBackgroundIsolation, pollTasks, set, showToast, startBackgroundIsolation]);
+
   const patchStylePreset = useCallback((presetId) => {
     patchStyle({ style_preset: normalizeStylePreset(presetId) });
   }, [patchStyle]);
@@ -1332,6 +1424,7 @@ export default function EditorShell({
         sticker_scale: style.stickerScale ?? 1,
         stickers: (stickers && stickers.length > 0) ? stickers : undefined,
         effects: (effects && effects.length > 0) ? effects : undefined,
+        background_isolation: backgroundIsolation || undefined,
       });
       startJob(res.job_id);
       pollTasks?.();
@@ -1770,6 +1863,7 @@ export default function EditorShell({
                   stickers={stickers}
                   effects={effects}
                   spotlight={spotlight}
+                  backgroundIsolation={backgroundIsolation}
                   onSpotlightChange={patchSpotlight}
                   onSpotlightChangeLive={patchSpotlightLive}
                   onBeginDrag={beginDrag}
@@ -2046,7 +2140,11 @@ export default function EditorShell({
                       onSelectSticker={(id) => handleSelect({ type: 'sticker', id })}
                       effects={effects}
                       spotlight={spotlight}
+                      backgroundIsolation={backgroundIsolation}
                       onSpotlightChange={patchSpotlight}
+                      onBackgroundIsolationChange={patchBackgroundIsolation}
+                      onPrepareBackgroundIsolation={prepareBackgroundIsolation}
+                      backgroundIsolationPreparing={backgroundIsolationPreparing}
                       onAddEffect={handleAddEffect}
                       playhead={playhead}
                       totalDuration={totalDuration}
@@ -2188,7 +2286,11 @@ export default function EditorShell({
                         onSelectSticker={(id) => handleSelect({ type: 'sticker', id })}
                         effects={effects}
                         spotlight={spotlight}
+                        backgroundIsolation={backgroundIsolation}
                         onSpotlightChange={patchSpotlight}
+                        onBackgroundIsolationChange={patchBackgroundIsolation}
+                        onPrepareBackgroundIsolation={prepareBackgroundIsolation}
+                        backgroundIsolationPreparing={backgroundIsolationPreparing}
                         onAddEffect={handleAddEffect}
                         playhead={playhead}
                         totalDuration={totalDuration}
@@ -2274,6 +2376,7 @@ export default function EditorShell({
                     stickers={stickers}
                     effects={effects}
                     spotlight={spotlight}
+                    backgroundIsolation={backgroundIsolation}
                     onSpotlightChange={patchSpotlight}
                     onSpotlightChangeLive={patchSpotlightLive}
                     onBeginDrag={beginDrag}

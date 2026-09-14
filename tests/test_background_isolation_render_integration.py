@@ -1,0 +1,273 @@
+"""Round BG-SUBJECT-ISOLATION-3 renderer integration contract tests.
+
+These tests capture the real FFmpeg argv assembled by ``VideoEditor``.  They
+do not invoke rembg or encode media, but they do create valid RGBA PNG frames
+so the renderer's fail-closed cache validation is exercised end to end.
+"""
+
+from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
+from PIL import Image
+
+import scripts.video_editor as video_editor
+from scripts.background_isolation_sequence_artifacts import (
+    build_sequence_artifact_id,
+    build_sequence_manifest,
+)
+
+
+def _stub_editor(monkeypatch, *, duration=4.0):
+    calls = []
+
+    monkeypatch.setattr(
+        video_editor.VideoEditor,
+        "get_media_info",
+        classmethod(
+            lambda cls, path: {
+                "duration": duration,
+                "width": 64,
+                "height": 64,
+                "rotation": 0,
+                "fps": 30.0,
+                "has_audio": False,
+            }
+        ),
+    )
+
+    def fake_run(command, *args, **kwargs):
+        if command and str(command[0]).lower().endswith("ffmpeg"):
+            calls.append(list(command))
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(video_editor.subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        video_editor.VideoEditor,
+        "generate_poster_thumbnail",
+        classmethod(lambda cls, video_path, poster_path=None: None),
+    )
+    return calls
+
+
+def _make_sequence(monkeypatch, tmp_path, *, frame_count=8, fps=2, width=64, height=64, rotation=90):
+    projects_dir = tmp_path / "03_Projects"
+    monkeypatch.setattr(video_editor, "PROJECTS_DIR", projects_dir)
+
+    artifact_id = build_sequence_artifact_id(
+        "source-fingerprint-1",
+        fps=fps,
+        timebase=f"1/{fps}",
+        width=width,
+        height=height,
+        rotation=rotation,
+    )
+    manifest = build_sequence_manifest(
+        artifact_id,
+        source_fingerprint="source-fingerprint-1",
+        algorithm="background-isolation-v1",
+        engine="rembg",
+        model="u2netp",
+        quality="balanced",
+        worker_version="sequence-rembg-worker-v1",
+        frame_count=frame_count,
+        fps=fps,
+        timebase=f"1/{fps}",
+        width=width,
+        height=height,
+        rotation=rotation,
+        status="ready",
+    )
+    sequence_dir = projects_dir / ".cache" / "background-isolation-foreground-sequences" / artifact_id
+    frames_dir = sequence_dir / "frames"
+    frames_dir.mkdir(parents=True)
+    for index in range(frame_count):
+        image = Image.new("RGBA", (width, height), (20 + index, 30, 40, 255))
+        image.save(frames_dir / f"frame_{index:06d}.png")
+    (sequence_dir / "manifest.json").write_text(
+        __import__("json").dumps(manifest),
+        encoding="utf-8",
+    )
+    config = {
+        "enabled": True,
+        "mode": "cutout",
+        "engine": "rembg",
+        "model": "u2netp",
+        "quality": "balanced",
+        "fallback": "spotlight",
+        "artifact": {
+            "sequence_id": artifact_id,
+            "status": "ready",
+            "source_fingerprint": "source-fingerprint-1",
+        },
+        "sequence": manifest,
+    }
+    return config, artifact_id, sequence_dir
+
+
+def _assemble(monkeypatch, tmp_path, *, clip_list, background_isolation=None, transitions=None):
+    calls = _stub_editor(monkeypatch)
+    source_bytes = b"source-must-not-be-mutated"
+    sources = []
+    for index, clip in enumerate(clip_list):
+        source = Path(clip["source_path"])
+        source.write_bytes(source_bytes + bytes([index]))
+        sources.append(source)
+    audio = tmp_path / "mix.wav"
+    subtitles = tmp_path / "subs.ass"
+    audio.write_bytes(b"audio")
+    subtitles.write_text("[Script Info]\n", encoding="utf-8")
+
+    video_editor.VideoEditor.assemble_tiktok_video(
+        raw_video_paths=[],
+        total_duration=4.0,
+        mixed_audio_path=str(audio),
+        ass_subtitle_path=str(subtitles),
+        output_mp4_path=str(tmp_path / "out.mp4"),
+        clip_list=clip_list,
+        transitions=transitions,
+        background_isolation=background_isolation,
+    )
+    assert calls
+    return calls[-1], sources
+
+
+def _filter(command):
+    return command[command.index("-filter_complex") + 1]
+
+
+def test_disabled_background_keeps_legacy_graph_and_source_untouched(monkeypatch, tmp_path):
+    command, sources = _assemble(
+        monkeypatch,
+        tmp_path,
+        clip_list=[{"source_path": str(tmp_path / "source.mp4"), "trim_start": 0.0, "trim_end": 2.0}],
+        background_isolation=None,
+    )
+
+    graph = _filter(command)
+    assert "alphamerge" not in graph
+    assert "bg_subject" not in graph
+    assert "background-isolation-foreground-sequences" not in command
+    assert "-framerate" not in command
+    assert sources[0].read_bytes() == b"source-must-not-be-mutated\x00"
+
+
+@pytest.mark.parametrize(
+    "override",
+    [
+        {"enabled": False},
+        {"enabled": True, "artifact": {"status": "missing", "sequence_id": "bgseq1-0123456789abcdef"}},
+        {"enabled": True, "artifact": {"status": "processing", "sequence_id": "bgseq1-0123456789abcdef"}},
+        {"enabled": True, "artifact": {"status": "stale", "sequence_id": "bgseq1-0123456789abcdef"}},
+        {"enabled": True, "artifact": {"status": "error", "sequence_id": "bgseq1-0123456789abcdef"}},
+    ],
+)
+def test_invalid_or_not_ready_background_falls_back_without_background_nodes(monkeypatch, tmp_path, override):
+    command, _ = _assemble(
+        monkeypatch,
+        tmp_path,
+        clip_list=[{"source_path": str(tmp_path / "source.mp4"), "trim_start": 0.0, "trim_end": 2.0}],
+        background_isolation=override,
+    )
+    graph = _filter(command)
+    assert "alphamerge" not in graph
+    assert "bg_subject" not in graph
+    assert "-framerate" not in command
+
+
+def test_arbitrary_foreground_path_is_rejected_even_with_ready_metadata(monkeypatch, tmp_path):
+    config, _, _ = _make_sequence(monkeypatch, tmp_path)
+    config["frames_path"] = str(tmp_path / "outside" / "frames")
+    command, _ = _assemble(
+        monkeypatch,
+        tmp_path,
+        clip_list=[{"source_path": str(tmp_path / "source.mp4"), "trim_start": 0.0, "trim_end": 2.0}],
+        background_isolation=config,
+    )
+    assert "alphamerge" not in _filter(command)
+    assert "-framerate" not in command
+
+
+def test_ready_rgba_sequence_is_composited_per_clip_before_concat(monkeypatch, tmp_path):
+    config, artifact_id, sequence_dir = _make_sequence(monkeypatch, tmp_path)
+    command, sources = _assemble(
+        monkeypatch,
+        tmp_path,
+        clip_list=[
+            {
+                "source_path": str(tmp_path / "source.mp4"),
+                "trim_start": 1.0,
+                "trim_end": 3.0,
+                "rotation": 90,
+                "mirror": True,
+            }
+        ],
+        background_isolation=config,
+    )
+
+    graph = _filter(command)
+    assert artifact_id in " ".join(command)
+    assert str(sequence_dir / "frames" / "frame_%06d.png") in command
+    assert command[command.index("-framerate") + 1] == "2/1"
+    assert command[command.index("-start_number") + 1] == "2"
+    assert "[2:v]" in graph
+    assert graph.count("transpose=1") == 2
+    assert "alphamerge" in graph
+    assert "drawbox=x=0:y=0:w=iw:h=ih:color=0x0B1220:t=fill" in graph
+    assert graph.index("clip_0_transformed") < graph.index("alphamerge") < graph.index("concat")
+    assert graph.index("concat") < graph.index("subtitles=")
+    assert sources[0].read_bytes() == b"source-must-not-be-mutated\x00"
+
+
+def test_non_rgba_frame_fails_closed(monkeypatch, tmp_path):
+    config, _, sequence_dir = _make_sequence(monkeypatch, tmp_path)
+    Image.new("RGB", (64, 64), (255, 0, 0)).save(sequence_dir / "frames" / "frame_000003.png")
+    command, _ = _assemble(
+        monkeypatch,
+        tmp_path,
+        clip_list=[{"source_path": str(tmp_path / "source.mp4"), "trim_start": 0.0, "trim_end": 2.0}],
+        background_isolation=config,
+    )
+    assert "alphamerge" not in _filter(command)
+    assert "-framerate" not in command
+
+
+def test_each_ready_clip_gets_own_sequence_input_and_transition_stays_above_composite(monkeypatch, tmp_path):
+    config, _, _ = _make_sequence(monkeypatch, tmp_path, frame_count=12)
+    command, _ = _assemble(
+        monkeypatch,
+        tmp_path,
+        clip_list=[
+            {"source_path": str(tmp_path / "a.mp4"), "trim_start": 0.0, "trim_end": 2.0},
+            {"source_path": str(tmp_path / "b.mp4"), "trim_start": 0.0, "trim_end": 2.0},
+        ],
+        transitions=[{"type": "fade", "duration": 0.4}],
+        background_isolation=config,
+    )
+    graph = _filter(command)
+    assert graph.count("alphamerge") == 2
+    assert graph.count("[3:v]") > 0 and graph.count("[4:v]") > 0
+    assert graph.rfind("alphamerge") < graph.index("xfade")
+    assert graph.index("xfade") < graph.index("subtitles=")
+    assert command.count("-framerate") == 2
+
+
+def test_background_config_can_be_selected_per_clip(monkeypatch, tmp_path):
+    config, _, _ = _make_sequence(monkeypatch, tmp_path, frame_count=12)
+    command, _ = _assemble(
+        monkeypatch,
+        tmp_path,
+        clip_list=[
+            {
+                "source_path": str(tmp_path / "a.mp4"),
+                "trim_start": 0.0,
+                "trim_end": 2.0,
+                "background_isolation": config,
+            },
+            {"source_path": str(tmp_path / "b.mp4"), "trim_start": 0.0, "trim_end": 2.0},
+        ],
+    )
+    graph = _filter(command)
+    assert graph.count("alphamerge") == 1
+    assert command.count("-framerate") == 1
+    assert "concat=n=2" in graph

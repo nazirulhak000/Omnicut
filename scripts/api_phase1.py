@@ -535,6 +535,7 @@ class RerollRequest(BaseModel):
     stickers: Optional[List[Dict[str, Any]]] = None
     effects: Optional[List[Dict[str, Any]]] = None
     spotlight: Optional[Dict[str, Any]] = None
+    background_isolation: Optional[Dict[str, Any]] = None
 
 
 # What each button costs, so the UI can warn before a slow one.
@@ -832,6 +833,7 @@ class UpdateProjectStateRequest(BaseModel):
     stickers: Optional[List[Dict[str, Any]]] = None
     effects: Optional[List[Dict[str, Any]]] = None
     spotlight: Optional[Dict[str, Any]] = None
+    background_isolation: Optional[Dict[str, Any]] = None
     track_mix: Optional[Dict[str, Any]] = None
     audio_mutes: Optional[Dict[str, bool]] = None
 
@@ -928,6 +930,9 @@ def update_project_state(project_name: str, req: UpdateProjectStateRequest):
         if req.spotlight is not None:
             fields["spotlight"] = req.spotlight
             render_params["spotlight"] = req.spotlight
+        if req.background_isolation is not None:
+            fields["background_isolation"] = req.background_isolation
+            render_params["background_isolation"] = req.background_isolation
 
         fields["render_params"] = render_params
         return fields
@@ -1134,6 +1139,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 stickers=params.get("stickers"),
                 effects=params.get("effects"),
                 spotlight=params.get("spotlight"),
+                background_isolation=params.get("background_isolation"),
                 export_mp4=True,
                 resume_from=stage,
                 progress_callback=on_progress,

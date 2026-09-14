@@ -26,6 +26,53 @@ function cloneValue(value) {
   return value;
 }
 
+const BACKGROUND_ISOLATION_SCHEMA_VERSION = 1;
+const BACKGROUND_ISOLATION_OPTIONS = {
+  mode: new Set(['cutout']),
+  engine: new Set(['rembg']),
+  model: new Set(['u2netp', 'u2net', 'isnet-general-use']),
+  quality: new Set(['draft', 'balanced', 'quality']),
+  fallback: new Set(['spotlight', 'original', 'skip']),
+};
+const BACKGROUND_ISOLATION_STATUSES = new Set([
+  'missing',
+  'processing',
+  'ready',
+  'stale',
+  'error',
+  'cancelled',
+]);
+
+/**
+ * Keep the optional isolation contract inert in the editor until a later
+ * phase consumes it.  Valid objects are cloned losslessly so new backend
+ * metadata survives a save/load round-trip; malformed values fail closed.
+ */
+export function normalizeBackgroundIsolation(value) {
+  if (value === null || value === undefined) return null;
+  if (!isRecord(value)) return null;
+  if (value.schema_version !== undefined && value.schema_version !== BACKGROUND_ISOLATION_SCHEMA_VERSION) return null;
+  if (value.enabled !== undefined && typeof value.enabled !== 'boolean') return null;
+
+  // An explicitly disabled feature is inert. Preserve its metadata without
+  // validating options that no consumer will read in this state.
+  if (value.enabled !== true) return cloneValue(value);
+
+  for (const [key, choices] of Object.entries(BACKGROUND_ISOLATION_OPTIONS)) {
+    if (value[key] !== undefined && (typeof value[key] !== 'string' || !choices.has(value[key]))) return null;
+  }
+
+  if (value.artifact !== undefined && value.artifact !== null && !isRecord(value.artifact)) return null;
+  if (isRecord(value.artifact)) {
+    const artifact = value.artifact;
+    if (artifact.schema_version !== undefined && artifact.schema_version !== 1) return null;
+    if (artifact.status !== undefined && !BACKGROUND_ISOLATION_STATUSES.has(artifact.status)) return null;
+    if (artifact.status === 'ready' && (typeof artifact.id !== 'string' || artifact.id.length === 0)) return null;
+  }
+
+  return cloneValue(value);
+}
+
 /** Merge normalized fields while retaining unknown nested metadata for future schema versions. */
 function mergeLossless(raw, normalized) {
   if (Array.isArray(normalized)) {
@@ -216,6 +263,13 @@ export function manifestToEditorState(data, options = {}) {
   // editor state so Preview, autosave, and rerender all use the same value;
   // the backend remains the authority for normalization.
   const spotlight = firstPresent(manifest.spotlight, params.spotlight, null);
+  const backgroundIsolation = normalizeBackgroundIsolation(firstPresent(
+    manifest.background_isolation,
+    manifest.backgroundIsolation,
+    params.background_isolation,
+    params.backgroundIsolation,
+    null,
+  ));
 
   return {
     clipList,
@@ -225,6 +279,7 @@ export function manifestToEditorState(data, options = {}) {
     stickers,
     effects,
     spotlight: spotlight == null ? null : cloneValue(spotlight),
+    backgroundIsolation,
     style,
     trackMix,
     audioDuration: Number(manifest.audio_duration || manifest.total_duration) || 0,
@@ -293,13 +348,13 @@ export function serializeStyle(style = {}) {
   };
 }
 
-export function editorStateToSavePayload({ clipList, cuesList, microCuesList, style, overlays, trackMix, stickers, effects, spotlight } = {}) {
+export function editorStateToSavePayload({ clipList, cuesList, microCuesList, style, overlays, trackMix, stickers, effects, spotlight, backgroundIsolation } = {}) {
   const cues = serializeCues(cuesList);
   // Fall back to `cues` when the caller hasn't been updated to pass microCuesList yet,
   // so this stays backward compatible instead of breaking the save outright.
   const microCues = Array.isArray(microCuesList) ? serializeCues(microCuesList) : cues;
   const mix = trackMix || EMPTY_TRACK_MIX;
-  return {
+  const payload = {
     cues,
     micro_cues: microCues,
     clip_list: serializeClips(clipList),
@@ -312,4 +367,9 @@ export function editorStateToSavePayload({ clipList, cuesList, microCuesList, st
     track_mix: mix,
     audio_mutes: mix.mute || {},
   };
+  const normalizedBackgroundIsolation = normalizeBackgroundIsolation(backgroundIsolation);
+  if (normalizedBackgroundIsolation !== null) {
+    payload.background_isolation = normalizedBackgroundIsolation;
+  }
+  return payload;
 }

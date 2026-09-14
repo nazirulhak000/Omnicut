@@ -183,3 +183,83 @@ test('SpotlightV1 round-trips through editor state and save payload', () => {
   assert.deepEqual(loaded.spotlight, spotlight);
   assert.deepEqual(payload.spotlight, spotlight);
 });
+
+
+test('legacy state keeps background isolation absent without changing the save payload shape', () => {
+  const state = manifestToEditorState({ raw_video_path: 'legacy.mp4' });
+  const payload = editorStateToSavePayload(state);
+
+  assert.equal(state.backgroundIsolation, null);
+  assert.equal(Object.hasOwn(payload, 'background_isolation'), false);
+  assert.equal(Object.hasOwn(payload, 'backgroundIsolation'), false);
+});
+
+
+test('BackgroundIsolationV1 ready config round-trips losslessly through editor state', () => {
+  const backgroundIsolation = {
+    schema_version: 1,
+    enabled: true,
+    mode: 'cutout',
+    engine: 'rembg',
+    model: 'u2netp',
+    quality: 'balanced',
+    fallback: 'original',
+    artifact: {
+      schema_version: 1,
+      id: 'bgseq1-0123456789abcdef',
+      status: 'ready',
+      source_fingerprint: 'product.mp4:123:456',
+      future_metadata: { worker: 'sequence-v2' },
+    },
+    future_config: { owner: 'editorial' },
+  };
+
+  const loaded = manifestToEditorState({ background_isolation: backgroundIsolation });
+  const payload = editorStateToSavePayload(loaded);
+
+  assert.deepEqual(loaded.backgroundIsolation, backgroundIsolation);
+  assert.deepEqual(payload.background_isolation, backgroundIsolation);
+  assert.equal(payload.backgroundIsolation, undefined);
+});
+
+
+test('malformed background isolation config fails closed while disabled config remains safe', () => {
+  for (const malformed of [
+    [],
+    { schema_version: 99, enabled: true },
+    { enabled: 'true' },
+    { enabled: true, mode: 'unknown' },
+    { enabled: true, artifact: { status: 'ready' } },
+  ]) {
+    assert.equal(manifestToEditorState({ background_isolation: malformed }).backgroundIsolation, null);
+  }
+
+  const disabled = { enabled: false, reason: 'user_disabled', future: { keep: true } };
+  assert.deepEqual(
+    manifestToEditorState({ background_isolation: disabled }).backgroundIsolation,
+    disabled,
+  );
+});
+
+
+test('background isolation persistence clones nested config and does not mutate input', () => {
+  const backgroundIsolation = {
+    schema_version: 1,
+    enabled: true,
+    artifact: {
+      id: 'bgseq1-fedcba9876543210',
+      status: 'ready',
+      future: { keep: true },
+    },
+  };
+  const manifest = { background_isolation: backgroundIsolation };
+  const loaded = manifestToEditorState(manifest);
+  loaded.backgroundIsolation.artifact.future.keep = false;
+
+  assert.equal(backgroundIsolation.artifact.future.keep, true);
+  assert.equal(manifest.background_isolation.artifact.future.keep, true);
+
+  const payload = editorStateToSavePayload({ backgroundIsolation });
+  payload.background_isolation.artifact.future.keep = false;
+  assert.equal(backgroundIsolation.artifact.future.keep, true);
+});

@@ -408,6 +408,7 @@ class PipelineContext:
     # Optional Product SpotlightV1 input.  The canonical value is resolved
     # lazily so old manifests and omitted requests stay a true no-op.
     spotlight: Optional[Dict[str, Any]] = None
+    background_isolation: Optional[Dict[str, Any]] = None
     angle_meta: Optional[Dict[str, Any]] = None
     progress_callback: Optional[Callable[[str, float], None]] = None
     overlays: Optional[List[Dict[str, Any]]] = None
@@ -543,6 +544,22 @@ class PipelineContext:
         self.resolved_spotlight = copy.deepcopy(resolved)
         return copy.deepcopy(resolved)
 
+    def resolve_background_isolation_contract(self) -> Optional[Dict[str, Any]]:
+        """Return subject-isolation metadata without activating unsafe paths.
+
+        Artifact readiness and filesystem containment are checked by the
+        renderer against the published cache manifest. This resolver only
+        carries the optional contract across project save/load boundaries.
+        """
+        candidate = self.background_isolation
+        if candidate is None and isinstance(self.manifest, dict):
+            candidate = _manifest_value(self.manifest, "background_isolation")
+            if candidate is None:
+                candidate = _manifest_value(self.manifest, "backgroundIsolation")
+        if not isinstance(candidate, dict):
+            return None
+        return copy.deepcopy(candidate)
+
     def notify(self, msg: str, progress: float) -> None:
         """Invokes the progress callback safely if one was registered."""
         if self.progress_callback:
@@ -631,7 +648,7 @@ class PipelineContext:
             "caption_color", "caption_scale", "sticker_position", "sticker_scale",
             "sticker_start_time", "sticker_end_time", "sticker_norm_x",
             "sticker_norm_y", "stickers", "effects", "text_overlays", "overlays",
-            "clip_list", "transitions", "spotlight",
+            "clip_list", "transitions", "spotlight", "background_isolation",
         )
         input_names = input_names + ('editorial_pacing',)
         for name in input_names:
