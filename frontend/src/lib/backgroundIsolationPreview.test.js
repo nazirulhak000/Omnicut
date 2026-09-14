@@ -7,10 +7,22 @@ import {
   buildBackgroundIsolationFrameUrl,
   mapSourceTimeToFrameIndex,
   resolveBackgroundIsolationPreview,
+  splitBackgroundIsolationOverlays,
 } from './backgroundIsolationPreview.js';
 
 const ARTIFACT_ID = 'bgseq1-0123456789abcdef';
 const BASE_URL = '/api/background-isolation/sequences';
+
+test('splits Hook overlays behind the isolated Subject while keeping captions foregrounded', () => {
+  const result = splitBackgroundIsolationOverlays([
+    { id: 'hook', kind: 'hook' },
+    { id: 'caption', kind: 'text' },
+    { id: 'legacy-hook', type: 'hook_header' },
+  ]);
+
+  assert.deepEqual(result.behindSubject.map((item) => item.id), ['hook', 'legacy-hook']);
+  assert.deepEqual(result.foreground.map((item) => item.id), ['caption']);
+});
 
 function readyConfig(overrides = {}) {
   return {

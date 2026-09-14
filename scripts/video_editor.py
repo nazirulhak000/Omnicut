@@ -43,6 +43,7 @@ from scripts.style_motion_policy import STYLE_MOTION_POLICIES
 from scripts.background_isolation_compositor import (
     build_compositing_plan,
     normalize_compositor_config,
+    split_ass_layers_for_subject,
 )
 
 # ffmpeg child processes spawned for the final render, tracked so a hard
@@ -63,6 +64,19 @@ _BACKGROUND_SEQUENCE_NAMESPACE = "background-isolation-foreground-sequences"
 _BACKGROUND_SEQUENCE_ID_RE = re.compile(r"^bgseq1-[0-9a-f]{16}$")
 _BACKGROUND_FRAME_RE = re.compile(r"^frame_([0-9]{6})\.png$")
 _BACKGROUND_ISOLATION_KEY = "background_" + "isolation"
+
+
+def _write_subject_ass_layers(ass_subtitle_path: str) -> tuple[Path, Path]:
+    """Create temporary ASS passes so Hook text can sit behind the Subject."""
+
+    source = Path(ass_subtitle_path).resolve()
+    lines = source.read_text(encoding="utf-8-sig").splitlines()
+    hook_lines, foreground_lines = split_ass_layers_for_subject(lines)
+    hook_path = source.with_name(f"{source.stem}_subject_hook.ass")
+    foreground_path = source.with_name(f"{source.stem}_subject_foreground.ass")
+    for path, payload in ((hook_path, hook_lines), (foreground_path, foreground_lines)):
+        path.write_text("\n".join(payload) + "\n", encoding="utf-8")
+    return hook_path, foreground_path
 
 
 def _background_sequence_root() -> Path:
@@ -1085,6 +1099,7 @@ class VideoEditor:
         input_seeks: List[Optional[Tuple[float, float]]] = []
         raw_audio_nodes: List[Tuple[str, float, int]] = []
         foreground_inputs: List[Dict[str, Any]] = []
+        isolated_subject_nodes: List[Tuple[int, str]] = []
         used_clip_list = bool(clip_list)
 
         if clip_list:
@@ -1231,7 +1246,9 @@ class VideoEditor:
                     fg_rgb_output = f"[bg_fg_rgb_{idx}_rgb]"
                     fg_alpha_source = f"[bg_fg_alpha_source_{idx}]"
                     fg_alpha = f"[bg_fg_alpha_{idx}]"
-                    subject = f"[bg_subject_{idx}]"
+                    subject_for_clip = f"[bg_subject_clip_{idx}]"
+                    subject_for_base = f"[bg_subject_base_{idx}]"
+                    subject_for_overlay = f"[bg_subject_overlay_{idx}]"
                     compositor_plan = bg_info["plan"]
                     compositor_fragment = compositor_plan["filter_fragment"]
                     compositor_fragment = compositor_fragment.replace(
@@ -1239,7 +1256,17 @@ class VideoEditor:
                     ).replace("[foreground_frame]", fg_rgb_output, 1).replace(
                         "[alpha_frame]", fg_alpha, 1
                     ).replace("[clip_composited]", f"[{node_name}]", 1).replace(
-                        "[subject_rgba]", subject
+                        "[subject_rgba]", subject_for_clip
+                    )
+                    compositor_fragment = compositor_fragment.replace(
+                        f"alphamerge{subject_for_clip};",
+                        f"alphamerge{subject_for_clip};"
+                        f"{subject_for_clip}split=2{subject_for_base}{subject_for_overlay};",
+                        1,
+                    ).replace(
+                        f"[{transformed_node}]{subject_for_clip}overlay",
+                        f"[{transformed_node}]{subject_for_base}overlay",
+                        1,
                     )
                     filter_complex.append(
                         source_transform
@@ -1250,6 +1277,7 @@ class VideoEditor:
                         + compositor_fragment
                         + ";"
                     )
+                    isolated_subject_nodes.append((idx, subject_for_overlay))
                 elif use_bg_blur:
                     pre_node = f"c_{idx}_pre"
                     bg_node = f"c_{idx}_bg"
@@ -1800,9 +1828,31 @@ class VideoEditor:
             )
             current_v = out
 
-        # Escape path for subtitles filter in FFmpeg Windows
-        ass_path_str = str(Path(ass_subtitle_path).resolve()).replace('\\', '/').replace(':', '\\:')
+        # A ready isolation sequence exposes the Subject separately so the
+        # Hook can be burned onto the mood background first, then covered by
+        # the product. Captions and all other ASS events remain foreground.
+        foreground_ass_path = Path(ass_subtitle_path).resolve()
         fonts_dir_str = str(FONTS_DIR.resolve()).replace('\\', '/').replace(':', '\\:')
+        if isolated_subject_nodes:
+            hook_ass_path, foreground_ass_path = _write_subject_ass_layers(ass_subtitle_path)
+            hook_ass_path_str = str(hook_ass_path).replace('\\', '/').replace(':', '\\:')
+            hook_out = "[v_hook_subbed]"
+            filter_complex.append(
+                f"{current_v}subtitles='{hook_ass_path_str}':fontsdir='{fonts_dir_str}'{hook_out};"
+            )
+            current_v = hook_out
+            for clip_idx, subject_node in isolated_subject_nodes:
+                start = clip_starts[clip_idx] if clip_idx < len(clip_starts) else 0.0
+                shifted = f"[bg_subject_at_{clip_idx}]"
+                subject_out = f"[v_subject_{clip_idx}]"
+                filter_complex.append(
+                    f"{subject_node}setpts=PTS-STARTPTS+{max(0.0, start):.6f}/TB{shifted};"
+                    f"{current_v}{shifted}overlay=x=0:y=0:eof_action=pass:repeatlast=0:format=auto{subject_out};"
+                )
+                current_v = subject_out
+
+        # Escape path for subtitles filter in FFmpeg Windows
+        ass_path_str = str(foreground_ass_path).replace('\\', '/').replace(':', '\\:')
         
         # Draft renders answer "did my cut work" in less wall clock; they are
         # not for posting. Subtitles still burn at full resolution -- the .ass

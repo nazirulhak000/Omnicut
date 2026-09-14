@@ -177,6 +177,32 @@ export default function EditorShell({
   const [applyToAllCaptions, setApplyToAllCaptions] = useState(true);
   const [backgroundIsolationPreparing, setBackgroundIsolationPreparing] = useState(false);
 
+  // Isolation artifacts belong to individual timeline clips. The old panel
+  // displayed only the project-level fallback marker, which stayed at
+  // `processing` after a completed task and hid partial coverage. Derive the
+  // visible status from the actual clip artifacts instead.
+  const backgroundIsolationStatus = useMemo(() => {
+    const sourceClips = (clipList || []).filter((clip) => clip?.source_path);
+    const readyCount = sourceClips.filter((clip) => (
+      clip?.background_isolation?.artifact?.status === 'ready'
+      || clip?.backgroundIsolation?.artifact?.status === 'ready'
+    )).length;
+    const processingCount = sourceClips.filter((clip) => (
+      clip?.background_isolation?.artifact?.status === 'processing'
+      || clip?.backgroundIsolation?.artifact?.status === 'processing'
+    )).length;
+    if (sourceClips.length > 0 && readyCount === sourceClips.length) {
+      return { state: 'ready', label: `ready (${readyCount}/${sourceClips.length})` };
+    }
+    if (readyCount > 0) {
+      return { state: 'partial', label: `พร้อมบางส่วน (${readyCount}/${sourceClips.length})` };
+    }
+    if (backgroundIsolationPreparing || processingCount > 0 || backgroundIsolation?.artifact?.status === 'processing') {
+      return { state: 'processing', label: 'processing' };
+    }
+    return { state: backgroundIsolation?.artifact?.status || 'missing', label: backgroundIsolation?.artifact?.status || 'missing' };
+  }, [backgroundIsolation, backgroundIsolationPreparing, clipList]);
+
   // Mobile Mode Switcher: 'timeline' | 'assets' | 'inspector'
   const [mobileTab, setMobileTab] = useState('timeline');
 
@@ -1864,6 +1890,7 @@ export default function EditorShell({
                   effects={effects}
                   spotlight={spotlight}
                   backgroundIsolation={backgroundIsolation}
+                  backgroundIsolationStatus={backgroundIsolationStatus}
                   onSpotlightChange={patchSpotlight}
                   onSpotlightChangeLive={patchSpotlightLive}
                   onBeginDrag={beginDrag}
@@ -2141,6 +2168,7 @@ export default function EditorShell({
                       effects={effects}
                       spotlight={spotlight}
                       backgroundIsolation={backgroundIsolation}
+                      backgroundIsolationStatus={backgroundIsolationStatus}
                       onSpotlightChange={patchSpotlight}
                       onBackgroundIsolationChange={patchBackgroundIsolation}
                       onPrepareBackgroundIsolation={prepareBackgroundIsolation}
@@ -2287,6 +2315,7 @@ export default function EditorShell({
                         effects={effects}
                         spotlight={spotlight}
                         backgroundIsolation={backgroundIsolation}
+                        backgroundIsolationStatus={backgroundIsolationStatus}
                         onSpotlightChange={patchSpotlight}
                         onBackgroundIsolationChange={patchBackgroundIsolation}
                         onPrepareBackgroundIsolation={prepareBackgroundIsolation}
@@ -2377,6 +2406,7 @@ export default function EditorShell({
                     effects={effects}
                     spotlight={spotlight}
                     backgroundIsolation={backgroundIsolation}
+                    backgroundIsolationStatus={backgroundIsolationStatus}
                     onSpotlightChange={patchSpotlight}
                     onSpotlightChangeLive={patchSpotlightLive}
                     onBeginDrag={beginDrag}

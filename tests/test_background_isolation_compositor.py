@@ -14,6 +14,7 @@ from scripts.background_isolation_compositor import (
     map_source_time_to_frame_index,
     normalize_compositor_config,
     serialize_compositor_config,
+    split_ass_layers_for_subject,
 )
 
 
@@ -45,6 +46,28 @@ BASE_MANIFEST = {
     "rotation": 0,
     "frame_pattern": SEQUENCE_FRAME_PATTERN,
 }
+
+
+def test_ass_layers_put_hook_events_before_subject_and_keep_captions_foreground():
+    lines = [
+        "[Script Info]",
+        "[Events]",
+        "Dialogue: 0,0:00:00.00,0:00:03.00,HookHeader,,0,0,0,,Hook",
+        "Dialogue: 1,0:00:00.00,0:00:03.00,TikTokSoftShadow,,0,0,0,,Caption",
+    ]
+
+    hook_lines, foreground_lines = split_ass_layers_for_subject(lines)
+
+    assert hook_lines == [
+        "[Script Info]",
+        "[Events]",
+        "Dialogue: 0,0:00:00.00,0:00:03.00,HookHeader,,0,0,0,,Hook",
+    ]
+    assert foreground_lines == [
+        "[Script Info]",
+        "[Events]",
+        "Dialogue: 1,0:00:00.00,0:00:03.00,TikTokSoftShadow,,0,0,0,,Caption",
+    ]
 
 
 def ready_config(**changes):
@@ -193,6 +216,8 @@ def test_plan_exposes_frame_and_ordering_for_preview_render_parity():
     assert plan["stage_order"].index("alpha_composite") > plan["stage_order"].index("source_transform")
     assert plan["stage_order"].index("alpha_composite") < plan["stage_order"].index("transition")
     assert plan["stage_order"].index("alpha_composite") < plan["stage_order"].index("concat")
+    assert plan["stage_order"].index("hook_overlays") < plan["stage_order"].index("subject_overlay")
+    assert plan["stage_order"].index("subject_overlay") < plan["stage_order"].index("subtitle_callout_overlays")
     assert plan["alpha_applied_after"] == ["source_trim", "source_transform"]
     assert plan["alpha_applied_before"] == ["transition", "concat"]
     assert plan["operations"][0]["stage"] == "source_trim"

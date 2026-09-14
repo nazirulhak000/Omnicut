@@ -65,13 +65,13 @@ def test_spotlight_is_footage_pass_before_stickers_subtitles_and_overlays():
     assert render_at.index("drawSpotlight(ctx, previewSpotlight);") < render_at.index("drawStickers(")
     assert render_at.index("drawStickers(") < render_at.index("drawEffects(")
     assert render_at.index("drawEffects(") < render_at.index("drawCaption(")
-    assert render_at.index("drawCaption(") < render_at.index("drawOverlays(")
+    assert render_at.index("drawCaption(") < render_at.index("drawOverlays(ctx, overlaysInFront")
 
     tick = JS_SRC.split("const tick = () =>", 1)[1].split("const now = performance.now();", 1)[0]
     assert tick.index("drawSpotlight(ctx, previewSpotlight);") < tick.index("drawStickers(")
     assert tick.index("drawStickers(") < tick.index("drawEffects(")
     assert tick.index("drawEffects(") < tick.index("drawCaption(")
-    assert tick.index("drawCaption(") < tick.index("drawOverlays(")
+    assert tick.index("drawCaption(") < tick.index("drawOverlays(ctx, overlaysInFront")
     assert "spotlightKey" in JS_SRC
 
 

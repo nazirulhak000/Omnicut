@@ -213,9 +213,12 @@ def test_ready_rgba_sequence_is_composited_per_clip_before_concat(monkeypatch, t
     assert "[2:v]" in graph
     assert graph.count("transpose=1") == 2
     assert "alphamerge" in graph
+    assert "split=2[bg_subject_base_0][bg_subject_overlay_0]" in graph
     assert "drawbox=x=0:y=0:w=iw:h=ih:color=0x0B1220:t=fill" in graph
     assert graph.index("clip_0_transformed") < graph.index("alphamerge") < graph.index("concat")
-    assert graph.index("concat") < graph.index("subtitles=")
+    assert graph.index("concat") < graph.index("_subject_hook.ass")
+    assert graph.index("_subject_hook.ass") < graph.index("bg_subject_at_0")
+    assert graph.index("bg_subject_at_0") < graph.rindex("subtitles=")
     assert sources[0].read_bytes() == b"source-must-not-be-mutated\x00"
 
 

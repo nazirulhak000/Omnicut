@@ -367,4 +367,21 @@ export function resolveBackgroundIsolationPreview({
   };
 }
 
+/**
+ * Subject isolation adds one intentional z-order exception: the product Hook
+ * is painted before the isolated subject, while captions and other overlays
+ * remain in the foreground.  Keep this classification pure so Preview and
+ * any editor surface can share the same rule.
+ */
+export function splitBackgroundIsolationOverlays(overlays = []) {
+  const list = Array.isArray(overlays) ? overlays : [];
+  const behindSubject = [];
+  const foreground = [];
+  list.forEach((overlay) => {
+    const isHook = overlay?.kind === 'hook' || overlay?.type === 'hook_header';
+    (isHook ? behindSubject : foreground).push(overlay);
+  });
+  return { behindSubject, foreground };
+}
+
 export default resolveBackgroundIsolationPreview;

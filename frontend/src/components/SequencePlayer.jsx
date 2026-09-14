@@ -33,7 +33,10 @@ import {
 } from '../lib/overlayBoxGeometry.js';
 import { bindWindowPointerLifecycle } from '../lib/pointerDragLifecycle.js';
 import { drawMediaWithAccentRecolor } from '../lib/overlayRecolor.js';
-import { resolveBackgroundIsolationPreview } from '../lib/backgroundIsolationPreview.js';
+import {
+  resolveBackgroundIsolationPreview,
+  splitBackgroundIsolationOverlays,
+} from '../lib/backgroundIsolationPreview.js';
 
 const CANVAS_W = 540;
 const CANVAS_H = 960;
@@ -666,7 +669,7 @@ function drawVideoFrame(ctx, video, clip, motionTime = 0) {
 /** Draw a ready RGBA cutout over the same deterministic mood background used
  * by the FFmpeg renderer. The cutout is a full source frame, so crop/zoom,
  * mirror, and rotation must follow the ordinary video path exactly. */
-function drawIsolatedFrame(ctx, image, clip, motionTime = 0) {
+function drawIsolatedFrame(ctx, image, clip, motionTime = 0, { includeBackground = true } = {}) {
   if (!image || !image.naturalWidth || !image.naturalHeight || !image.complete) return false;
   const camera = resolveClipTransforms(clip, motionTime);
   const rotation = Number(clip?.rotation || 0) % 360;
@@ -693,8 +696,10 @@ function drawIsolatedFrame(ctx, image, clip, motionTime = 0) {
 
   const frameFilter = ctx.filter;
   ctx.filter = 'none';
-  ctx.fillStyle = BACKGROUND_ISOLATION_BG;
-  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  if (includeBackground) {
+    ctx.fillStyle = BACKGROUND_ISOLATION_BG;
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  }
   ctx.filter = frameFilter;
   const mirror = !!clip?.mirror;
   if (mirror || rotation !== 0) {
@@ -1807,9 +1812,9 @@ function overlayIsLive(overlay, t) {
  * paint it first of all, so the badge stayed bright in the editor and came
  * back dimmed in the file.
  */
-function drawOverlayScrims(ctx, overlays = [], t) {
+function drawOverlayScrims(ctx, overlays = [], t, predicate = () => true) {
   for (const overlay of overlays) {
-    if (!overlayIsLive(overlay, t) || !overlay.scrim) continue;
+    if (!predicate(overlay) || !overlayIsLive(overlay, t) || !overlay.scrim) continue;
     const duration = Math.max(0.001, overlay.end - overlay.start);
     const tRel = t - overlay.start;
     const exitStartSec = Math.max(0.12, duration - 0.15);
@@ -1858,11 +1863,11 @@ function drawWatermark(ctx) {
   ctx.restore();
 }
 
-function drawOverlays(ctx, overlays = [], t, accentColor = '#FFE600', outBounds = null) {
+function drawOverlays(ctx, overlays = [], t, accentColor = '#FFE600', outBounds = null, predicate = () => true) {
   if (!overlays || !overlays.length) return;
   // Painted in ASS Layer order, which is the z-order the render burns: the
   // banner (2) under the text overlays (4).
-  const live = overlays.filter((o) => overlayIsLive(o, t));
+  const live = overlays.filter((o) => predicate(o) && overlayIsLive(o, t));
   live.sort((a, b) => (a.layer ?? 0) - (b.layer ?? 0));
   for (const overlay of live) drawOneOverlay(ctx, overlay, t, accentColor, outBounds);
 }
@@ -2615,6 +2620,10 @@ function SequencePlayer({
   const drawnOverlays = useMemo(
     () => (previewTextTemplate ? [...overlays, previewTextTemplate] : overlays),
     [overlays, previewTextTemplate],
+  );
+  const { behindSubject: overlaysBehindSubject, foreground: overlaysInFront } = useMemo(
+    () => splitBackgroundIsolationOverlays(drawnOverlays),
+    [drawnOverlays],
   );
   const [internalShowSafeZone, setInternalShowSafeZone] = useState(false);
   const showSafeZone = externalShowSafeZone !== undefined ? externalShowSafeZone : internalShowSafeZone;
@@ -3679,11 +3688,22 @@ function SequencePlayer({
     // scrim over it, then everything libass draws on top.
     drawStickers(ctx, stickerImagesRef.current, stickerImgRef.current, t, effectiveStickersList, bounds, isStickerHidden, previewSticker, previewAccentColor);
     drawEffects(ctx, effectVideosRef.current, t, effects, bounds, previewAccentColor);
-    drawOverlayScrims(ctx, drawnOverlays, t);
+    drawOverlayScrims(ctx, overlaysBehindSubject, t);
+    drawOverlays(ctx, overlaysBehindSubject, t, previewAccentColor, bounds);
+    // Repaint only the RGBA subject after the Hook.  The isolated frame's
+    // opaque mood background must not be repainted here or it would erase the
+    // Hook we intentionally placed behind the product.
+    plan.forEach((entry) => {
+      const isolatedImage = loadedBackgroundIsolationFrame(entry.seg.clip, entry.localTime);
+      if (isolatedImage) {
+        drawIsolatedFrame(ctx, isolatedImage, entry.seg.clip, entry.motionTime, { includeBackground: false });
+      }
+    });
+    drawOverlayScrims(ctx, overlaysInFront, t);
     if (!captionStyle.hidden) {
       drawCaption(ctx, cues, t, captionStyle, bounds);
     }
-    drawOverlays(ctx, drawnOverlays, t, previewAccentColor, bounds);
+    drawOverlays(ctx, overlaysInFront, t, previewAccentColor, bounds);
     if (showWatermark !== false) {
       drawWatermark(ctx);
     }
@@ -3835,11 +3855,19 @@ function SequencePlayer({
         drawSpotlight(ctx, previewSpotlight);
         drawStickers(ctx, stickerImagesRef.current, stickerImgRef.current, t, effectiveStickersList, bounds, isStickerHidden, previewSticker, previewAccentColor);
         drawEffects(ctx, effectVideosRef.current, t, effects, bounds, previewAccentColor);
-        drawOverlayScrims(ctx, drawnOverlays, t);
+        drawOverlayScrims(ctx, overlaysBehindSubject, t);
+        drawOverlays(ctx, overlaysBehindSubject, t, previewAccentColor, bounds);
+        plan.forEach((entry) => {
+          const isolatedImage = loadedBackgroundIsolationFrame(entry.seg.clip, entry.localTime);
+          if (isolatedImage) {
+            drawIsolatedFrame(ctx, isolatedImage, entry.seg.clip, entry.motionTime, { includeBackground: false });
+          }
+        });
+        drawOverlayScrims(ctx, overlaysInFront, t);
         if (!captionStyle.hidden) {
           drawCaption(ctx, cues, t, captionStyle, bounds);
         }
-        drawOverlays(ctx, drawnOverlays, t, previewAccentColor, bounds);
+        drawOverlays(ctx, overlaysInFront, t, previewAccentColor, bounds);
         if (showWatermark !== false) {
           drawWatermark(ctx);
         }

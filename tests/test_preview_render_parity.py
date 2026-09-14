@@ -1831,7 +1831,8 @@ def test_style_preset_visual_palette_reaches_both_preview_and_ass():
     catalog_src = (ROOT / "frontend" / "src" / "lib" / "stylePresetCatalog.js").read_text(encoding="utf-8")
     policy_src = (ROOT / "scripts" / "style_motion_policy.py").read_text(encoding="utf-8")
     assert "getStylePreset(stylePreset)" in sequence_src
-    assert "drawOverlays(ctx, drawnOverlays, t, previewAccentColor" in sequence_src
+    assert "drawOverlays(ctx, overlaysBehindSubject, t, previewAccentColor" in sequence_src
+    assert "drawOverlays(ctx, overlaysInFront, t, previewAccentColor" in sequence_src
     assert "stylePreset={activeStylePreset}" in (
         ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx"
     ).read_text(encoding="utf-8")

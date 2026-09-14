@@ -168,9 +168,10 @@ function SpotlightControls({ spotlight, onChange }) {
   );
 }
 
-function BackgroundIsolationControls({ backgroundIsolation, onChange, onPrepare, preparing = false }) {
+function BackgroundIsolationControls({ backgroundIsolation, statusOverride = null, onChange, onPrepare, preparing = false }) {
   const enabled = backgroundIsolation?.enabled === true;
-  const status = backgroundIsolation?.artifact?.status || 'missing';
+  const status = statusOverride?.state || backgroundIsolation?.artifact?.status || 'missing';
+  const statusLabel = statusOverride?.label || status;
   const toggle = (nextEnabled) => {
     if (!nextEnabled) {
       onChange?.({ ...(backgroundIsolation || {}), schema_version: 1, enabled: false });
@@ -215,7 +216,7 @@ function BackgroundIsolationControls({ backgroundIsolation, onChange, onPrepare,
       </div>
       {enabled && (
         <div className="border-t border-white/[0.08] pt-2 text-[10px] leading-relaxed text-slate-400">
-          สถานะ artifact: <span className={status === 'ready' ? 'text-emerald-300' : 'text-amber-300'}>{status}</span>
+          สถานะ artifact: <span className={status === 'ready' ? 'text-emerald-300' : 'text-amber-300'}>{statusLabel}</span>
           {status !== 'ready' && <p className="mt-1 text-slate-500">ต้องประมวลผล sequence ให้เสร็จก่อน Render จึงจะใช้ cutout ได้ หาก artifact ไม่พร้อม ระบบจะกลับไปใช้ภาพเดิมอัตโนมัติ</p>}
         </div>
       )}
@@ -707,6 +708,7 @@ export default function AssetPanel({
   effects = [],
   spotlight = null,
   backgroundIsolation = null,
+  backgroundIsolationStatus = null,
   onSpotlightChange = null,
   onBackgroundIsolationChange = null,
   onPrepareBackgroundIsolation = null,
@@ -1017,6 +1019,7 @@ export default function AssetPanel({
         {tab === 'style' && onBackgroundIsolationChange && (
           <BackgroundIsolationControls
             backgroundIsolation={backgroundIsolation}
+            statusOverride={backgroundIsolationStatus}
             onChange={onBackgroundIsolationChange}
             onPrepare={onPrepareBackgroundIsolation}
             preparing={backgroundIsolationPreparing}

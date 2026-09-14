@@ -6,7 +6,7 @@ per-clip plan.  The future Preview and Render callers can consume the same
 plan, which keeps the important ordering explicit:
 
     source trim -> source transform -> alpha composite -> transition/concat
-    -> subtitle and callout overlays
+    -> Hook overlay -> Subject overlay -> subtitle and callout overlays
 
 An unavailable sequence never becomes an active compositor.  It resolves to
 the configured legacy fallback (``spotlight`` by default), preserving the
@@ -63,6 +63,33 @@ _FALLBACK_REASONS = frozenset(
         "artifact_mismatch",
     }
 )
+
+# ASS hook events are rendered in a separate pass when a subject sequence is
+# available.  That lets the product cover the Hook while captions and other
+# overlays stay in the foreground.
+HOOK_ASS_STYLES = frozenset({"HookHeader", "HookHeaderShadow", "HookHeaderPill"})
+
+
+def split_ass_layers_for_subject(lines: list[str]) -> tuple[list[str], list[str]]:
+    """Split an ASS document into Hook and foreground event layers.
+
+    The ASS header is retained in both documents because libass needs the
+    styles and script metadata in either pass.  Only known Hook styles are
+    moved to the behind-subject document; captions, callouts, specs, and the
+    watermark remain in the foreground document.
+    """
+
+    hook_lines: list[str] = []
+    foreground_lines: list[str] = []
+    for line in lines:
+        if not line.startswith("Dialogue:"):
+            hook_lines.append(line)
+            foreground_lines.append(line)
+            continue
+        fields = line.split(",", 9)
+        style = fields[3].strip() if len(fields) > 3 else ""
+        (hook_lines if style in HOOK_ASS_STYLES else foreground_lines).append(line)
+    return hook_lines, foreground_lines
 
 
 class CompositorValidationError(ValueError):
@@ -431,6 +458,8 @@ def build_compositing_plan(
         "alpha_composite",
         "transition",
         "concat",
+        "hook_overlays",
+        "subject_overlay",
         "subtitle_callout_overlays",
     ]
     return {
@@ -458,7 +487,9 @@ def build_compositing_plan(
             },
             {"stage": "transition", "input": output_stream},
             {"stage": "concat", "input": "[transition]"},
-            {"stage": "subtitle_callout_overlays", "input": "[concat]"},
+            {"stage": "hook_overlays", "input": "[concat]", "output": "[hook_burned]"},
+            {"stage": "subject_overlay", "input": ["[hook_burned]", "[subject_sequence]"], "output": "[subject_burned]"},
+            {"stage": "subtitle_callout_overlays", "input": "[subject_burned]"},
         ],
         "config": normalized,
     }
