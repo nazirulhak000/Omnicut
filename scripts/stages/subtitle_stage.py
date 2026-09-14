@@ -18,76 +18,12 @@ def _materialize_product_callouts(
     ctx: PipelineContext,
     effective_overlays: Sequence[Mapping[str, Any]],
 ) -> List[Dict[str, Any]]:
-    """Add editable product callouts without changing subtitles or inputs.
-
-    Beat cues are the preferred timing source.  On a subtitle rerun/reuse the
-    live context may not contain them, so the persisted manifest is consulted
-    before falling back to clause-level cues.  Existing overlays are copied,
-    then only genuinely new auto callouts are appended; this keeps manual
-    product callouts authoritative by both id and semantic identity.
+    """Return overlays without auto-injecting unwanted callouts.
+    
+    Automatic product callouts (brand/model overlays in the center of the video)
+    have been disabled per user request. Overlays remain strictly user-authored.
     """
-    manifest = ctx.manifest if isinstance(ctx.manifest, Mapping) else {}
-    base = [copy.deepcopy(dict(item)) for item in (effective_overlays or []) if isinstance(item, Mapping)]
-
-    live_beats = getattr(ctx, "beat_cues", None)
-    persisted_beats = manifest.get("beat_cues")
-    beat_cues = _first_sequence(live_beats) or _first_sequence(persisted_beats)
-
-    live_cues = getattr(ctx, "cues", None)
-    persisted_cues = manifest.get("cues")
-    cues = _first_sequence(live_cues) or _first_sequence(persisted_cues)
-
-    # If beat cues exist but carry no on_screen value, use cue timing for the
-    # visual values.  Metadata-only callouts still use beat timing first.
-    timing_cues = beat_cues
-    if not _contains_on_screen(timing_cues) and _contains_on_screen(cues):
-        timing_cues = cues
-    if not timing_cues:
-        timing_cues = cues
-
-    product_metadata: Dict[str, Any] = {}
-    persisted_product = manifest.get("product")
-    if isinstance(persisted_product, Mapping):
-        product_metadata.update(copy.deepcopy(dict(persisted_product)))
-    if isinstance(getattr(ctx, "product_meta", None), Mapping):
-        product_metadata.update(copy.deepcopy(dict(ctx.product_meta)))
-    # RenderRequest does not always carry the richer product record.  Keep the
-    # automatic Brand/Model callout useful on that path, while explicit
-    # metadata remains authoritative and is never overwritten.
-    inferred_brand, inferred_model = guess_brand_model(ctx.product_name)
-    product_metadata.setdefault("brand", inferred_brand)
-    product_metadata.setdefault("model", inferred_model)
-
-    manual_callouts = [item for item in base if _is_product_callout(item)]
-    built = build_product_callouts(
-        beat_cues=timing_cues,
-        product_metadata=product_metadata,
-        manual_overlays=manual_callouts,
-        color_theme=ctx.resolve_color_theme_contract(),
-    )
-    auto_callouts = [item for item in built if item.get("origin") == "auto"]
-
-    existing_ids = {str(item.get("id")) for item in base if item.get("id")}
-    existing_semantics = {
-        _callout_semantic(item)
-        for item in base
-        if _is_product_callout(item) and _callout_semantic(item) is not None
-    }
-    for callout in auto_callouts:
-        callout_id = str(callout.get("id")) if callout.get("id") else None
-        semantic = _callout_semantic(callout)
-        if (callout_id and callout_id in existing_ids) or (
-            semantic is not None and semantic in existing_semantics
-        ):
-            continue
-        copied = copy.deepcopy(dict(callout))
-        base.append(copied)
-        if callout_id:
-            existing_ids.add(callout_id)
-        if semantic is not None:
-            existing_semantics.add(semantic)
-
-    return base
+    return [copy.deepcopy(dict(item)) for item in (effective_overlays or []) if isinstance(item, Mapping)]
 
 
 def _first_sequence(value: Any) -> List[Mapping[str, Any]]:
@@ -240,3 +176,4 @@ class SubtitleStage:
         ctx.effective_overlays = effective_overlays
         ctx.effective_text_overlays = effective_text_overlays
         ctx.scrim_spans = scrim_spans
+        ctx.callouts_materialized = True

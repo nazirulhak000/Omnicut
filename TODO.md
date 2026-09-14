@@ -31,11 +31,12 @@
 
 - [x] Round COVER-REALTIME-SCRUB-STUDIO-1 — เรียลไทม์ Frame Scrubber ใน Cover Studio (Scrub ทุกวินาทีแสดงเฟรมจริงทันที) + AI Studio Cutout นำช็อตสินค้าจริงผสานฉากสตูดิโอ 9:16 (2026-09-14; pytest 2 passed, vitest 223 passed, build 2.94s ผ่าน 100%, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [x] Round COVER-AI-PERSISTENCE-1 — จดจำและกู้คืนภาพปก AI อัตโนมัติ (In-App Cover Memory) สลับไปดูวิดีโอปกติแล้วกลับมาแท็บ AI รูปเดิมไม่หาย ไม่ต้องกดเจนใหม่ + ไฟล์บันทึกถาวรใน 05_Covers_Thumbnails (2026-09-14; pytest 3 passed, vitest 225 passed, build 4.12s ผ่าน, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
+- [x] Round COVER-MINIMAL-IT-PROMPT-1 — ยกระดับ Prompt ฉากหลัง Minimal IT คมชัดสมจริง (แผ่นรองตัด Grid/ผนังระแนง Rim Light/มือจับเทค) + เทมเพลต Hook สไตล์ Tech Reviewer (Brand ขาว + Model นีออน) + แก้ UnicodeDecodeError ใน Subprocess (2026-09-14; pytest 7 passed, vitest 230 passed, build ผ่าน, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [x] Round COVER-MULTI-GEN-HANDHELD-1 — AI Cover History Gallery (เก็บทุกรูปที่เจนไม่ถูกทับ) + ปลดล็อกคำสั่ง Handheld มือถือสินค้าจริง + Auto-enable Brand/Model Title Overlay (2026-09-14; pytest 6 passed, vitest 230 passed, build 3.19s ผ่าน, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [ ] Round AI-PRODUCER-HUB-AUDIT-PLAN-1 — ตรวจสอบการใช้งาน AI Producer Hub และจัดทำแผนยกระดับแบบ evidence-first (2026-09-13; วิเคราะห์โค้ด + browser snapshot แล้ว, รออนุมัติ scope, ดำเนินการโดย: Codex (GPT-5))
 - [ ] Round BG-SUBJECT-ISOLATION-4 — แก้ artifact ติด processing และตรวจลำดับเลเยอร์ให้ Hook อยู่หลัง Subject (2026-09-14; ดำเนินการโดย: Codex (GPT-5))
 - [x] Round BG-SUBJECT-ISOLATION-RESUME-1 — ทำงานตัดพื้นหลังแบบ resumable เมื่อเน็ต/หน้าเว็บ/Server หลุด (2026-09-14; backend 45+41 passed, frontend 230 passed, build 2005 modules, compileall ผ่าน; ดำเนินการโดย: Codex (GPT-5))
-
+- [x] Round CALLOUT-RESURRECT-FIX-1 — แก้บั๊ก Text Overlays ถูกปลุกขึ้นมาทับกลางจอ (LOCSmartband) เมื่อลบแล้วใน Editor + ป้องกัน Auto Brand/Model Callout ซ้อนทับ Hook Banner (2026-09-14; pytest backend 8+5+153 passed, vitest 230 passed, build ผ่าน, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 - [x] Round HOOK-DEFAULT-5S-1 — ปรับค่าเริ่มต้น (default) ของป้ายฮุกพาดหัว (Hook Banner) เป็น 5.0 วินาทีตั้งแต่ตอนสร้างโปรเจกต์ (2026-09-11; frontend 151 passed, backend 157 passed, build pass)
 - [x] Round ANALYTICS-HUB-1 — พัฒนาเมนูใหม่ "ศูนย์วิเคราะห์ข้อมูลและสถิติรวม" (Analytics & Operations Hub) รวมแดชบอร์ด 4 มิติ (Production, Tokens, Storage, Inventory) (2026-09-11; backend 4 passed, frontend 151 passed, build pass)
 - [x] Round SETTINGS-TOKEN-REMOVAL-1 — ถอดแท็บและสถิติโทเคนออกจากหน้าตั้งค่าระบบ (System Settings) ปรับ Eyebrow และเมนูเป็น 'ตั้งค่าระบบ' เต็มรูปแบบ (2026-09-11; frontend 151 passed, build pass)
@@ -267,3 +268,54 @@ Gate: backend 1386 passed / 3 skipped, BG focused 151 passed / 3 skipped, fronte
 - แก้ `scripts/background_isolation_sequence_worker.py` ให้ publish แบบ no-clobber: ถ้า target artifact มีอยู่แล้วจะ fail closed และไม่ย้าย/ลบ/แก้ target เดิม; manifest ถูก publish เป็นขั้นสุดท้ายเพื่อให้ consumer เห็นเฉพาะ ready artifact
 - เพิ่ม regression tests ใน `tests/test_background_isolation_sequence_worker.py` สำหรับ target เดิมไม่ถูกแทนที่ และ quality rerun ที่ได้ ID ใหม่พร้อมคง bytes เดิม; gate: 78 passed, 3 skipped, 1 warning, compileall ผ่าน, scoped diff check ผ่าน
 - ไม่แตะ `frontend/`, `scripts/api_covers.py` หรือ `tests/test_api_covers_ai.py`; full repository diff check ยังติด blank line ที่ EOF ใน `tests/test_api_covers_ai.py` ซึ่งเป็นงานค้างนอกขอบเขต
+
+---
+
+## Round COVER-MINIMAL-IT-PROMPT-1 — ยกระดับ Prompt ฉากหลัง Minimal IT คมชัดสมจริง (แผ่นรองตัด Grid/ผนังระแนง Rim Light/มือจับเทค) + เทมเพลต Hook สไตล์ Tech Reviewer (Brand ขาว + Model นีออน) + แก้ UnicodeDecodeError ใน Subprocess
+
+วันที่: 2026-09-14 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์ ✅
+
+**เป้าหมาย & ปัญหาที่แก้ไข:**
+1. **แก้บั๊ก UnicodeDecodeError (Image 1):** ใน `scripts/api_covers.py` สายเรียก subprocess CLI สำหรับสร้างภาพ AI ติด `UnicodeDecodeError: 'charmap' codec can't decode byte 0x9e` บนระบบ Windows ภาษาไทย (cp874) ต้องเพิ่ม `encoding="utf-8", errors="replace"` ให้ปลอดภัย 100%
+2. **ชุด Prompt สไตล์ Minimal IT ระดับโปร (Image 3):** ปรับปรุง Preset Prompt ใน `CoverStudioModal.jsx` และ Backend ให้ตรงกับเรฟช่องไอที TikTok สวย คลีน ไม่เวอร์วัง เหมาะกับทุกสินค้า:
+   - `🎯 แผ่นรองตัดโมเดล (Dark Cutting Mat Grid)`: แผ่นรองตัดสีเทาเข้มตารางกริดและสเกลไม้บรรทัดขาว มุมมอง 45 องศา คมชัดสไตล์รีวิวเกดเจ็ต
+   - `⚡ ผนังระแนงเทค + ไฟสตูดิโอคู่ (Tech Slat Wall + Dual Rim Lights)`: ผนังระแนงไม้/แผงซับเสียงสีดำ พร้อมไฟ LED สตูดิโอขอบสีส้ม Amber และฟ้า Cyan
+   - `🖐️ มือโปรจับสินค้าจริง (Handheld Tech Review Grip)`: มือจับสินค้าจริงแบบโปร ไม่บังปุ่ม/หน้าจอ แสงขอบสตูดิโอ คมชัด
+   - `🏆 แท่นโชว์ดาร์กมินิมอล (Dark Minimalist Pedestal)`: แท่นวางสินค้าสีเทาเข้ม ดาร์กสปอตไลต์นุ่มนวล
+   - `✨ คลีนมินิมอลสตูดิโอ (Clean Minimal Studio)`: ฉากหลังสตูดิโอโค้งสีเทาอ่อน สว่าง คมชัดระดับแคตตาล็อก
+3. **รูปสินค้าจริงไม่เพี้ยน (Real Product Composite):** ระบบนำภาพสินค้าจริง (จากเฟรมวิดีโอ หรือรูป TikTok Shop) มาตัดฉากหลัง (Cutout) แล้วนำมาวางบนฉาก AI ด้วย Ambient/Contact Shadow ให้ภาพสินค้าจริงคงความคมชัด ตัวหนังสือ/ปุ่ม/โลโก้ไม่บิดเบี้ยว 100%
+4. **เทมเพลต Hook สไตล์ Tech Reviewer (`tech_neon`):**
+   - เพิ่มเทมเพลตข้อความ `tech_neon` ให้เลือกทั้งใน Frontend และ Backend Canvas/Pillow Renderer
+   - บรรทัด 1: ชื่อแบรนด์สีขาว ตัวหนาใหญ่ ขอบดำสนิท
+   - บรรทัด 2: ชื่อรุ่น/จุดเด่น สีเขียวนีออน (`#39FF14`) / ฟ้าไซแอน (`#00E5FF`) / ส้มนีออน (`#FF6B00`) / ชมพูนีออน (`#FF2A85`) เอียงสไตล์ไดนามิก
+   - บรรทัด 3: หมวดหมู่/สเปกภาษาไทย (เช่น `พัดลมมือถือระบายความร้อน`, `เพาเวอร์แบงค์ 20000 mAh`, `สมาร์ทวอทช์สายลุย`)
+   - ปุ่มลัด 1-Click จัดฟอร์แมต Brand / Model / Spec อัตโนมัติตามชื่อสินค้า
+
+### Todo:
+- [x] Backend (`scripts/api_covers.py`): แก้ไข `subprocess.run` ใน `_generate_image_cli` และ `_grab_frame_fallback` ให้ใส่ `encoding="utf-8", errors="replace"` ป้องกัน UnicodeDecodeError บน Windows
+- [x] Backend (`scripts/api_covers.py`): เพิ่มการรองรับเทมเพลต `tech_neon` ใน `render_pro_cover` (วาดแบรนด์ขาว + รุ่นนีออน + ป้ายสเปกไทย พร้อมขอบดำคมชัด)
+- [x] Frontend (`frontend/src/components/CoverStudioModal.jsx`): อัปเดตชุด Prompt Preset สำหรับ Minimal IT ทั้ง 5 สไตล์ที่แม่นยำ ละเอียด ใช้ได้กับสินค้าทุกชนิด
+- [x] Frontend (`frontend/src/components/CoverStudioModal.jsx`): เพิ่มตัวเลือกเทมเพลต `tech_neon` ในระบบพรีวิว 9:16 และ 3:4
+- [x] Frontend (`frontend/src/components/CoverStudioModal.jsx`): ปรับปรุงปุ่มลัดสร้างชื่อแบรนด์ + รุ่นนีออน + จุดเด่นภาษาไทย ให้กรอกข้อมูลได้ในคลิกเดียว
+---
+
+## Round CALLOUT-RESURRECT-FIX-1 — ถอดระบบ Auto-Materialize Text Overlays (แบรนด์/รุ่น โผล่กลางจอ) ออกถาวร & คืนสิทธิ์การควบคุมข้อความให้ User 100%
+
+วันที่: 2026-09-14 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์ ✅
+
+**ที่มาและผู้ที่ทำไว้:**
+- ค้นพบจากประวัติ Git commit `71b93c5` (วันที่ 13 ก.ย. 2026) โดยโมเดล **Codex (GPT-5)** ภายใต้รอบ Editorial Contracts / Tech Product Showcase
+- ปัญหา: โค้ดเดิมใส่ฟังก์ชัน `_materialize_product_callouts` ใน `scripts/stages/subtitle_stage.py` ซึ่งจะดึงชื่อ Brand และ Model มาแยกคำ แล้วยัดเข้าเป็น Text Overlays พิกัดกึ่งกลางจอ (`50%, 50%`) ให้อัตโนมัติทุกครั้งที่มีการรัน Subtitle Stage หรือ Render ทำให้เมื่อผู้ใช้กดลบใน Editor UI แล้ว ข้อความ `BCD` และ `LOOP Smartband` ก็ยังถูกปลุกฟื้นคืนชีพกลับมาใหม่ซ้ำๆ
+
+**การแก้ไขที่ทำ:**
+1. **ปิดระบบ Auto-Materialize ใน Pipeline:** ปรับฟังก์ชัน `_materialize_product_callouts` ใน `scripts/stages/subtitle_stage.py` ให้เป็น pure pass-through คืนเฉพาะ overlays ที่ผู้ใช้สร้าง/กำหนดเองเท่านั้น ไม่มีการเจาะจง auto-inject Brand/Model เข้าแทร็กข้อความอีกต่อไป
+2. **ปรับปรุง Test Suite:** ปรับ `tests/test_product_callout_pipeline.py` ให้ยืนยันว่าไม่มีการ auto-materialize callouts เมื่อ overlays ว่างเปล่า และรักษา overlays เดิมของผู้ใช้ไว้โดยไม่เปลี่ยนแปลง
+3. **คลีนโปรเจกต์ BCD01-โปรไฟลุก_1:**
+   - นำ phantom overlays ออกจาก `03_Projects/BCD01-โปรไฟลุก_1/project.json`
+   - ล้างบล็อก `TextOverlayMain`, `TextOverlayShadow`, `TextOverlayPill` ออกจาก `subtitles.ass` และ `subtitles_v1.ass`
+4. **การทดสอบ:**
+   - `pytest tests/test_product_callout_pipeline.py` (3 passed)
+   - `pytest tests/test_product_callout_render.py` (5 passed)
+   - `pytest tests/test_preview_render_parity.py` (153 passed)
+   - `npm test -- --run` (230 passed)
+   - `npm run build` (ผ่าน 100%)

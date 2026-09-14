@@ -8,6 +8,7 @@
 
 ## สารบัญ
 
+| Round CALLOUT-RESURRECT-FIX-1 | แก้บั๊ก Text Overlays ถูกปลุกขึ้นมาทับกลางจอ (LOCSmartband) เมื่อลบแล้วใน Editor + ป้องกัน Auto Brand/Model Callout ซ้อนทับ Hook Banner | 2026-09-14 | สำเร็จสมบูรณ์ (backend 8+5+153 passed, frontend 230 passed, build 2005 modules/3.60s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round BG-SUBJECT-ISOLATION-RESUME-1 | Durable per-frame checkpoint, startup recovery, reconnect polling, completed-result rebinding, and duplicate scheduler guard | 2026-09-14 | สำเร็จสมบูรณ์ (backend 45+41 passed, frontend 230 passed, build 2,005 modules, compileall ผ่าน, ดำเนินการโดย: Codex (GPT-5)) |
 
 | Round COVER-MULTI-GEN-HANDHELD-1 | AI Cover History Gallery (เก็บทุกรูปที่เจนไม่ถูกทับ) + ปลดล็อกคำสั่ง Handheld มือถือสินค้าจริง + Auto-enable Brand/Model Title Overlay | 2026-09-14 | สำเร็จสมบูรณ์ (pytest 6 passed, vitest 230 passed, build 2.95s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
@@ -20,6 +21,25 @@
 | Round AGENTS-SLIM-1 | ย่อ AGENTS.md 170→62 บรรทัด (30.9→11.3 KB) กฎ 24 ข้อครบ + link ไฟล์กฎ | 2026-09-13 | เสร็จ (ดำเนินการโดย: Muse Spark (Muse Spark)) |
 | Round TEST-TWO-TIER-1 | กติกาเทส 2 ชั้น: ตอนแก้รันเฉพาะจุด ก่อนปิดรอบค่อยรันเต็ม | 2026-09-13 | เสร็จ (testing_standard.md, Gate เต็มเท่าเดิม, ดำเนินการโดย: Muse Spark (Muse Spark)) |
 | Round HOUSEKEEP-1 | จัดระเบียบราก: ไฟล์เทส 8 ไฟล์ลง .tmp (gitignore) + ยกเลิกย้าย PLAN หลังเจอ 06_Archive โดน ignore | 2026-09-13 | เสร็จบางส่วน (ดำเนินการโดย: Muse Spark (Muse Spark)) |
+
+---
+
+## Round CALLOUT-RESURRECT-FIX-1 — แก้บั๊ก Text Overlays ถูกปลุกขึ้นมาทับกลางจอ (LOCSmartband) เมื่อลบแล้วใน Editor + ป้องกัน Auto Brand/Model Callout ซ้อนทับ Hook Banner
+
+วันที่: 2026-09-14 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์ ✅
+
+**เป้าหมาย & ปัญหาที่แก้ไข:**
+1. **แก้บั๊กลบข้อความแล้วยังถูกปลุกขึ้นมาแสดง (Resurrected Callouts):** ใน `scripts/stages/subtitle_stage.py` มีฟังก์ชัน `_materialize_product_callouts` ที่คอยจับชื่อสินค้ามาแยกเป็น brand/model แล้วสร้าง `callout-brand` กับ `callout-model` เพิ่มเข้ามาใน `effective_overlays` ทุกครั้งที่สร้างซับหรือเรนเดอร์ แม้ผู้ใช้จะลบข้อความเสริมทิ้งใน Editor (`ข้อความเสริม (0)`) ทำให้เกิดบั๊กตัวอักษรผีโผล่มาทุกครั้งที่กด Render
+2. **แก้บั๊กตัวอักษรทับกันเละกลางจอ (LOCSmartband):** ฟังก์ชัน `new_text_overlay` วางตำแหน่งเริ่มต้นที่ `(0.5, 0.5)` กลางจอพอดี (540, 960) และทั้ง brand กับ model ดึงเวลาจาก Beat cue แรกเหมือนกัน ทำให้ข้อความทั้งสองถูกเขียนทับกันที่พิกัดเดียวกันกลางจอพอดี
+3. **ตัดความซ้ำซ้อนกับ Hook Banner:** หากโปรเจกต์มีป้ายฮุก (`ovl_hook` หรือมี `hook_brand`/`hook_model`) แสดงอยู่ด้านบนอยู่แล้ว การสร้าง auto callout ซ้ำสำหรับ brand/model เป็นเรื่องซ้ำซ้อนและไร้ประโยชน์ ต้องไม่สร้าง auto brand/model callouts เด็ดขาดเมื่อมี Hook Banner
+4. **บันทึกสถานะการ materialize callouts:** ใส่ `callouts_materialized: True` ลงใน manifest เพื่อบันทึกว่าผ่านการสร้าง callout รอบแรกแล้ว เมื่อผู้ใช้ลบทิ้งใน Editor จะไม่มีการสร้างซ้ำอีก
+
+### ผลการทดสอบ (Quality Gate):
+- `pytest tests/test_product_callout_pipeline.py` (8 passed - รวม 2 regression tests ใหม่)
+- `pytest tests/test_product_callout_render.py` (5 passed)
+- `pytest tests/test_preview_render_parity.py` (153 passed)
+- `npm test -- --run` (230 passed)
+- `npm run build` (2,005 modules, 3.60s ผ่าน 100%)
 
 ---
 

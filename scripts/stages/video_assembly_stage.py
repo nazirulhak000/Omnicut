@@ -246,9 +246,11 @@ class VideoAssemblyStage:
                 "clip_list": actual_clip_list,
                 "transitions": transitions,
                 "text_overlays": ctx.effective_text_overlays,
+                "callouts_materialized": getattr(ctx, "callouts_materialized", False),
             },
             "artifacts": artifacts,
             "text_overlays": ctx.effective_text_overlays,
+            "callouts_materialized": getattr(ctx, "callouts_materialized", False),
         }
         if ctx.product_meta:
             manifest_fields["product"] = ctx.product_meta
