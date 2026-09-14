@@ -39,6 +39,7 @@ from scripts.overlay_recolor import (
 )
 from scripts.spotlight_effect import build_ffmpeg_filter
 from scripts.render_jobs import RenderCancelled
+from scripts.media_probe_cache import MediaProbeCache
 from scripts.style_motion_policy import STYLE_MOTION_POLICIES
 from scripts.background_isolation_compositor import (
     build_compositing_plan,
@@ -1102,6 +1103,7 @@ class VideoEditor:
         foreground_inputs: List[Dict[str, Any]] = []
         isolated_subject_nodes: List[Tuple[int, str]] = []
         used_clip_list = bool(clip_list)
+        media_probe = MediaProbeCache(cls.get_media_info)
 
         if clip_list:
             # Manual Editor: one real ffmpeg input per clip, each independently
@@ -1113,7 +1115,7 @@ class VideoEditor:
                 source_path = Path(clip["source_path"]).resolve()
                 video_input_paths.append(str(source_path))
 
-                media_info = cls.get_media_info(str(source_path))
+                media_info = media_probe.get(source_path)
                 trim_start = float(clip.get("trim_start", 0.0))
                 trim_end = clip.get("trim_end")
                 if trim_end is None:
@@ -1352,7 +1354,7 @@ class VideoEditor:
 
             raw_path = Path(raw_video_paths[0]).resolve()
             video_input_paths.append(str(raw_path))
-            info = cls.get_media_info(raw_path)
+            info = media_probe.get(raw_path)
             raw_duration = info["duration"]
 
             # Calculate shot segments based on cues and AI-matched Vision shots
@@ -1746,7 +1748,7 @@ class VideoEditor:
             requested_end = fx_info.get("end")
             natural_duration = 3.0
             try:
-                info = cls.get_media_info(str(fx_info["path"]))
+                info = media_probe.get(fx_info["path"])
                 natural_duration = float(info.get("duration") or 3.0)
             except Exception:
                 pass
@@ -1906,6 +1908,10 @@ class VideoEditor:
         cmd = [
             "ffmpeg", "-y",
             "-threads", "0",
+            # Complex filter graphs (scale/crop/transitions/ASS/overlays) are
+            # still CPU work even when AMF encodes on the GPU. Let FFmpeg size
+            # that graph's worker pool to the machine instead of serialising it.
+            "-filter_complex_threads", "0",
             *cmd_inputs,
             "-filter_complex", full_filter,
             "-map", "[v_final]",

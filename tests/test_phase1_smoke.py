@@ -10,6 +10,7 @@ _Docs/post_log.json, _Docs/products.json, or a real project folder.
 
 import json
 import hashlib
+import os
 import re
 import threading
 import time
@@ -1298,6 +1299,26 @@ def test_assemble_video_with_clip_list_opens_one_input_per_clip(monkeypatch, tmp
     assert "clip_0" in filter_arg and "clip_1" in filter_arg and "clip_2" in filter_arg
     assert "[base_v]" not in filter_arg, "clip_list path must not use the single-source base stream"
     assert "concat=n=3" in filter_arg
+
+
+def test_assemble_video_probes_a_shared_source_once(monkeypatch, tmp_path):
+    from scripts.video_editor import VideoEditor
+
+    source = tmp_path / "shared.mp4"
+    clip_list = [
+        {"source_path": str(source), "trim_start": float(index), "trim_end": float(index + 1)}
+        for index in range(4)
+    ]
+    probes = []
+    monkeypatch.setattr(
+        VideoEditor,
+        "get_media_info",
+        staticmethod(lambda path: probes.append(path) or {"duration": 9.0, "width": 1080, "height": 1920, "has_audio": False}),
+    )
+
+    _capture_ffmpeg_cmd(monkeypatch, tmp_path, raw_video_paths=[], clip_list=clip_list)
+
+    assert probes == [os.path.normcase(str(source.resolve()))]
 
 
 def test_assemble_video_clip_list_with_all_cuts_keeps_single_concat(monkeypatch, tmp_path):

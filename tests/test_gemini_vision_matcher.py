@@ -111,6 +111,28 @@ def test_compute_file_hash_differs_for_different_content_same_size(tmp_path):
     assert gvm.GeminiVisionMatcher._compute_file_hash(f1) != gvm.GeminiVisionMatcher._compute_file_hash(f2)
 
 
+def test_prepared_request_context_returns_cached_match_without_a_second_lookup(monkeypatch, tmp_path):
+    raw = tmp_path / "raw.mp4"
+    raw.write_bytes(b"data")
+    cached = [{"cue_id": 1, "start_time": 0.0, "end_time": 2.0}]
+    file_hash = gvm.GeminiVisionMatcher._compute_file_hash(raw)
+    cue_text = "|".join(cue["text"] for cue in _CUES)
+    gvm.GeminiVisionMatcher._save_cache({
+        "matches": {f"{file_hash}_{hashlib.md5(cue_text.encode('utf-8')).hexdigest()}": cached}
+    })
+
+    context = gvm.GeminiVisionMatcher.prepare_request_context(str(raw), _CUES)
+    monkeypatch.setattr(
+        gvm.GeminiVisionMatcher,
+        "get_cached_matches",
+        classmethod(lambda *_args: pytest.fail("prepared context must skip a second cache lookup")),
+    )
+
+    assert gvm.GeminiVisionMatcher.match_script_to_video(
+        str(raw), _CUES, request_context=context
+    ) == cached
+
+
 # --------------------------------------------------------------- cache load/save
 
 def test_load_cache_missing_file_returns_empty_dict():

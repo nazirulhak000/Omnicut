@@ -10,6 +10,7 @@ import json
 import time
 import hashlib
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
@@ -54,6 +55,18 @@ PROXY_WIDTH = 640
 PROXY_FPS = 6
 PROXY_CRF = 32
 
+
+@dataclass
+class VisionRequestContext:
+    """One source/cache decision shared by the shot-matching and Vision seams."""
+
+    video_file: Path
+    file_hash: str
+    cache: Dict[str, Any]
+    match_cache_key: Optional[str] = None
+    cached_matches: Optional[List[Dict]] = None
+
+
 class GeminiVisionMatcher:
     """Matches script cues to raw video scene timestamps using Gemini 2.5 Flash Multimodal Vision."""
 
@@ -88,6 +101,33 @@ class GeminiVisionMatcher:
             VISION_CACHE_FILE.write_text(json.dumps(cache_data, ensure_ascii=False, indent=2), encoding="utf-8")
         except Exception:
             pass
+
+    @classmethod
+    def prepare_request_context(
+        cls, raw_video_path: str, cues: Optional[List[Dict]] = None
+    ) -> Optional[VisionRequestContext]:
+        """Read source identity and the local Vision cache once for one job."""
+        try:
+            video_file = Path(raw_video_path).resolve()
+            if not video_file.exists():
+                return None
+            file_hash = cls._compute_file_hash(video_file)
+            cache = cls._load_cache()
+            match_cache_key = None
+            cached_matches = None
+            if cues is not None:
+                cues_summary = "|".join(str(cue.get("text", "")) for cue in cues)
+                match_cache_key = f"{file_hash}_{hashlib.md5(cues_summary.encode('utf-8')).hexdigest()}"
+                cached_matches = cls._exact_cached_match(cache, match_cache_key)
+            return VisionRequestContext(
+                video_file=video_file,
+                file_hash=file_hash,
+                cache=cache,
+                match_cache_key=match_cache_key,
+                cached_matches=cached_matches,
+            )
+        except Exception:
+            return None
 
     @classmethod
     def _vision_proxy(cls, video_file: Path, file_hash: str) -> Optional[Path]:
@@ -140,12 +180,18 @@ class GeminiVisionMatcher:
     @classmethod
     def get_or_upload_video(cls, client: Any, raw_video_path: str) -> Optional[Any]:
         """Uploads raw video to Google AI Studio Files API with local caching."""
-        video_file = Path(raw_video_path).resolve()
-        if not video_file.exists():
+        context = cls.prepare_request_context(raw_video_path)
+        if context is None:
             return None
 
-        file_hash = cls._compute_file_hash(video_file)
-        cache = cls._load_cache()
+        return cls._get_or_upload_context(client, context)
+
+    @classmethod
+    def _get_or_upload_context(cls, client: Any, context: VisionRequestContext) -> Optional[Any]:
+        """Upload using an already-prepared request context; never rehash/reload."""
+        video_file = context.video_file
+        file_hash = context.file_hash
+        cache = context.cache
 
         cached_file_name = cache.get(file_hash, {}).get("remote_file_name")
         if cached_file_name:
@@ -194,21 +240,8 @@ class GeminiVisionMatcher:
     @classmethod
     def get_cached_matches(cls, raw_video_path: str, cues: List[Dict]) -> Optional[List[Dict]]:
         """Checks if scene matches exist in the local cache without calling any API or printing warnings."""
-        # (see _exact_cached_match below for why the fallbacks match on the
-        # full key rather than the file hash alone)
-        try:
-            file_hash = cls._compute_file_hash(Path(raw_video_path).resolve())
-            cues_summary = "|".join([f"{c.get('text', '')}" for c in cues])
-            match_cache_key = f"{file_hash}_{hashlib.md5(cues_summary.encode('utf-8')).hexdigest()}"
-            cache = cls._load_cache()
-            if "matches" in cache:
-                if match_cache_key in cache["matches"]:
-                    cached_matched = cache["matches"][match_cache_key]
-                    if cached_matched and len(cached_matched) > 0:
-                        return cached_matched
-        except Exception:
-            pass
-        return None
+        context = cls.prepare_request_context(raw_video_path, cues)
+        return context.cached_matches if context else None
 
     @staticmethod
     def _exact_cached_match(cache: Dict, match_cache_key: str) -> Optional[List[Dict]]:
@@ -228,7 +261,8 @@ class GeminiVisionMatcher:
         cls,
         raw_video_path: str,
         cues: List[Dict],
-        raw_duration: float = 60.0
+        raw_duration: float = 60.0,
+        request_context: Optional[VisionRequestContext] = None,
     ) -> List[Dict]:
         """
         Uses Gemini 2.5 Flash with Native Video Understanding to map each script cue
@@ -237,7 +271,11 @@ class GeminiVisionMatcher:
         # Fast local cache check before calling API -- a cache hit costs
         # nothing and must never consume quota, so the budget check below
         # sits AFTER this, not before it.
-        cached_matched = cls.get_cached_matches(raw_video_path, cues)
+        cached_matched = (
+            request_context.cached_matches
+            if request_context is not None
+            else cls.get_cached_matches(raw_video_path, cues)
+        )
         if cached_matched:
             print(f"   ⚡ Reusing {len(cached_matched)} AI Vision matched shots from local cache!")
             return cached_matched
@@ -255,18 +293,24 @@ class GeminiVisionMatcher:
         from scripts.quota import check_budget
         check_budget(task="vision_match")
 
-        file_hash = cls._compute_file_hash(Path(raw_video_path).resolve())
-        cache = cls._load_cache()
-        # Same derivation as get_cached_matches() above -- needed again here
-        # (not just returned from that call) so a successful match can be
-        # saved back into the persistent cache under the same key.
-        cues_summary = "|".join([f"{c.get('text', '')}" for c in cues])
-        match_cache_key = f"{file_hash}_{hashlib.md5(cues_summary.encode('utf-8')).hexdigest()}"
+        if request_context is not None:
+            file_hash = request_context.file_hash
+            cache = request_context.cache
+            match_cache_key = request_context.match_cache_key
+        else:
+            file_hash = cls._compute_file_hash(Path(raw_video_path).resolve())
+            cache = cls._load_cache()
+            cues_summary = "|".join([f"{c.get('text', '')}" for c in cues])
+            match_cache_key = f"{file_hash}_{hashlib.md5(cues_summary.encode('utf-8')).hexdigest()}"
 
         try:
             from google import genai
             client = genai.Client(api_key=api_key)
-            remote_video = cls.get_or_upload_video(client, raw_video_path)
+            remote_video = (
+                cls._get_or_upload_context(client, request_context)
+                if request_context is not None
+                else cls.get_or_upload_video(client, raw_video_path)
+            )
             if not remote_video:
                 print("   ⚠️ Could not process video file for Vision — checking cached shots or using beat cuts.")
                 cached = cls._exact_cached_match(cache, match_cache_key)

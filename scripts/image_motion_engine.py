@@ -9,6 +9,7 @@ import sys
 import subprocess
 import json
 import math
+import hashlib
 from pathlib import Path
 from typing import List, Dict, Optional
 
@@ -20,6 +21,69 @@ from scripts.config import VIDEO_WIDTH, VIDEO_HEIGHT, FPS, PROJECTS_DIR
 
 class ImageMotionEngine:
     """Creates rhythmic, vertical 9:16 motion slideshows from product photos."""
+
+    @staticmethod
+    def _valid_images(image_paths: List[str]) -> List[str]:
+        return [str(Path(path).resolve()) for path in image_paths if Path(path).exists()]
+
+    @classmethod
+    def _artifact_fingerprint(
+        cls, image_paths: List[str], cues: List[Dict], total_duration: float
+    ) -> str:
+        """Only visual inputs and timing affect a reusable motion artifact."""
+        images = []
+        for value in cls._valid_images(image_paths):
+            path = Path(value)
+            stat = path.stat()
+            images.append({"path": str(path), "size": stat.st_size, "mtime_ns": stat.st_mtime_ns})
+        cue_timing = [
+            {"start": float(cue.get("start", 0.0)), "end": float(cue.get("end", 0.0))}
+            for cue in (cues or [])
+        ]
+        payload = {
+            "schema_version": 1,
+            "images": images,
+            "cue_timing": cue_timing,
+            "total_duration": float(total_duration),
+            "fps": FPS,
+            "canvas": [VIDEO_WIDTH, VIDEO_HEIGHT],
+        }
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
+
+    @classmethod
+    def ensure_motion_video_from_images(
+        cls,
+        image_paths: List[str],
+        cues: List[Dict],
+        total_duration: float,
+        output_video_path: str,
+        project_dir: Optional[Path] = None,
+    ) -> str:
+        """Return a current motion artifact, rendering only when visual inputs changed."""
+        out_file = Path(output_video_path).resolve()
+        metadata_path = out_file.with_suffix(out_file.suffix + ".motion.json")
+        fingerprint = cls._artifact_fingerprint(image_paths, cues, total_duration)
+        try:
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8")) if metadata_path.exists() else {}
+            if out_file.exists() and out_file.stat().st_size > 0 and metadata.get("fingerprint") == fingerprint:
+                print(f"[ImageMotionEngine] Reusing motion video: {out_file}")
+                return str(out_file)
+        except (OSError, json.JSONDecodeError):
+            pass
+
+        result = cls.generate_motion_video_from_images(
+            image_paths=image_paths,
+            cues=cues,
+            total_duration=total_duration,
+            output_video_path=str(out_file),
+            project_dir=project_dir,
+        )
+        metadata_path.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = metadata_path.with_suffix(metadata_path.suffix + ".tmp")
+        temp_path.write_text(json.dumps({"schema_version": 1, "fingerprint": fingerprint}), encoding="utf-8")
+        temp_path.replace(metadata_path)
+        return result
 
     @classmethod
     def generate_motion_video_from_images(
@@ -37,7 +101,7 @@ class ImageMotionEngine:
             raise ValueError("No images provided for motion video generation.")
 
         # Clean existing valid image paths
-        valid_images = [str(Path(p).resolve()) for p in image_paths if Path(p).exists()]
+        valid_images = cls._valid_images(image_paths)
         if not valid_images:
             raise FileNotFoundError(f"None of the provided image paths exist: {image_paths}")
 

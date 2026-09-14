@@ -28,6 +28,7 @@ Images are tiny synthetic PNGs written to tmp_path via Pillow.
 import math
 import re
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -140,6 +141,44 @@ def test_skips_missing_images_but_uses_valid_ones(tmp_path, monkeypatch):
     assert out_path.exists()
     # At least one per-segment ffmpeg call plus the final concat call.
     assert len(fake_run.calls) >= 2
+
+
+def test_ensure_motion_video_reuses_unchanged_visual_artifact(tmp_path, monkeypatch):
+    image = _make_image(tmp_path / "product.png")
+    output = tmp_path / "motion.mp4"
+    calls = []
+
+    def generate(cls, **kwargs):
+        calls.append(kwargs)
+        Path(kwargs["output_video_path"]).write_bytes(b"motion")
+        return str(Path(kwargs["output_video_path"]).resolve())
+
+    monkeypatch.setattr(ImageMotionEngine, "generate_motion_video_from_images", classmethod(generate))
+    cues = [{"start": 0.0, "end": 2.0, "text": "first"}]
+
+    first = ImageMotionEngine.ensure_motion_video_from_images([str(image)], cues, 2.0, str(output))
+    second = ImageMotionEngine.ensure_motion_video_from_images([str(image)], cues, 2.0, str(output))
+
+    assert first == second == str(output.resolve())
+    assert len(calls) == 1
+
+
+def test_ensure_motion_video_invalidates_when_cue_timing_changes(tmp_path, monkeypatch):
+    image = _make_image(tmp_path / "product.png")
+    output = tmp_path / "motion.mp4"
+    calls = []
+
+    def generate(cls, **kwargs):
+        calls.append(kwargs)
+        Path(kwargs["output_video_path"]).write_bytes(b"motion")
+        return str(Path(kwargs["output_video_path"]).resolve())
+
+    monkeypatch.setattr(ImageMotionEngine, "generate_motion_video_from_images", classmethod(generate))
+
+    ImageMotionEngine.ensure_motion_video_from_images([str(image)], [{"start": 0.0, "end": 2.0}], 2.0, str(output))
+    ImageMotionEngine.ensure_motion_video_from_images([str(image)], [{"start": 0.0, "end": 2.5}], 2.5, str(output))
+
+    assert len(calls) == 2
 
 
 # ---------------------------------------------------------------------------

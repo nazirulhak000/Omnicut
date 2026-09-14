@@ -76,6 +76,12 @@ def test_short_synthetic_video_exports_at_30_fps(tmp_path, monkeypatch):
     assert Fraction(probe["avg_frame_rate"]) == 30
 
 
+def test_renderer_enables_auto_filter_threading_for_complex_graphs():
+    """The CPU filter graph may scale independently of the chosen encoder."""
+    source = (Path(__file__).parents[1] / "scripts" / "video_editor.py").read_text(encoding="utf-8")
+    assert '"-filter_complex_threads", "0"' in source
+
+
 @pytest.mark.render_regression
 def test_baked_decorative_sticker_and_effect_recolor_across_multiple_frames(tmp_path, monkeypatch):
     """Opted-in baked media must follow the accent palette in the real render."""

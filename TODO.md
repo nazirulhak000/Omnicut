@@ -261,27 +261,29 @@
 
 ## Round RENDER-DEDUPE-1 — รวมงานซ้ำใน render pipeline
 
-วันที่: 2026-09-15 | สั่งโดย: user | ดำเนินการโดย: Codex (GPT-5) | สถานะ: กำลังทำ
+วันที่: 2026-09-15 | สั่งโดย: user | ดำเนินการโดย: Codex (GPT-5) | สถานะ: implementation เสร็จ; รอแก้ regression นอกขอบเขตเพื่อให้ full gate ผ่าน
 
 **เป้าหมาย:** ลดงานอ่าน metadata/hash/encode ที่ทำซ้ำ โดยรักษา output, cache invalidation และ interface ของ UI/API เดิม
 
 ### Todo
 
-- [ ] เพิ่ม `MediaProbeCache` ต่อหนึ่ง render: 32 clips จาก source เดียวต้อง probe เพียงครั้งเดียว
-- [ ] รวม Vision hash + local cache decision เป็น `VisionRequestContext` ที่ส่งข้าม seam จาก ShotMatching ไป Matcher โดยไม่เปลี่ยน public fallback behavior
-- [ ] ทำ Image Motion artifact reusable ตาม fingerprint ของภาพและ cue timing; reroll subtitle ที่ไม่เปลี่ยนภาพ/เวลาไม่ encode ซ้ำ
-- [ ] เพิ่ม deterministic regression tests, compileall, targeted tests, full pytest และ diff check
+- [x] เพิ่ม `MediaProbeCache` ต่อหนึ่ง render: 32 clips จาก source เดียวต้อง probe เพียงครั้งเดียว
+- [x] รวม Vision hash + local cache decision เป็น `VisionRequestContext` ที่ส่งข้าม seam จาก ShotMatching ไป Matcher โดยไม่เปลี่ยน public fallback behavior
+- [x] ทำ Image Motion artifact reusable ตาม fingerprint ของภาพและ cue timing; reroll subtitle ที่ไม่เปลี่ยนภาพ/เวลาไม่ encode ซ้ำ
+- [x] เพิ่ม deterministic regression tests, compileall, targeted tests และ diff check
 
 ### Gate
 
-- [ ] `python -m compileall -q scripts`
-- [ ] pytest media probe / Vision / image motion / pipeline และ `python -m pytest tests/ -q -p no:cacheprovider --tb=short`
-- [ ] `git diff --check`; ไม่แตะไฟล์ TTS/Token Dashboard ที่ทำงานร่วมกัน
+- [x] `python -m compileall -q scripts`
+- [x] pytest media probe / Vision / image motion / pipeline: 199 passed, 6 warnings
+- [ ] full `python -m pytest tests/ -q -p no:cacheprovider --tb=short`: 1428 passed, 3 skipped, 1 failed ที่ `tests/test_gemini_tts_retry.py::test_all_keys_and_models_failed_raises_runtime_error` จาก TTS multi-key flow นอกขอบเขตรอบนี้
+- [x] `git diff --check`; ไม่แตะไฟล์ TTS/Token Dashboard ที่ทำงานร่วมกัน
 
 ### Notes
 
 - Evidence: `GOC01-แกะกล่องว้าว_1` มี 32 clips / 1 source, จึงมี ffprobe ซ้ำได้ 31 ครั้งต่อ render ก่อนแก้.
 - Image Motion ยังไม่พบ artifact จริงใน `03_Projects`; ทำ cache contract + test ก่อนเพื่อให้พร้อมใช้โดยไม่เดา performance gain.
+- Media probe / Vision / Image Motion targeted suite ผ่าน; full suite failure เกิดหลังการเปลี่ยน TTS ของงานร่วมกันและไม่อยู่ในไฟล์ของรอบนี้ จึงไม่แก้ทับเพื่อรักษา ownership.
 
 ## Round AI-PRODUCER-HUB-AUDIT-PLAN-1 — ปิด audit และ hardening Producer Hub (2026-09-14; ดำเนินการโดย: Codex (GPT-5))
 

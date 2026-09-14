@@ -6,6 +6,7 @@ Main orchestrator that runs automated video production via modular pipeline stag
 import sys
 import argparse
 import threading
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -231,6 +232,16 @@ class TikTokAutoCutterPipeline:
             overlays=overlays,
             cancel_event=cancel_event,
         )
+        ctx.pipeline_started_at = time.perf_counter()
+
+        def _run_stage(stage_name: str, stage_runner) -> None:
+            started_at = time.perf_counter()
+            try:
+                stage_runner(ctx)
+            finally:
+                elapsed = round(max(0.0, time.perf_counter() - started_at), 3)
+                ctx.stage_timings[stage_name] = elapsed
+                print(f"   [PERF] {stage_name}: {elapsed:.3f}s")
 
         def _raise_if_cancelled() -> None:
             if cancel_event is not None and cancel_event.is_set():
@@ -243,32 +254,32 @@ class TikTokAutoCutterPipeline:
         # partial work -- so stamp it onto the exception on the way out.
         try:
             # Stage 1: Source Resolution
-            SourceResolutionStage.run(ctx)
+            _run_stage("source", SourceResolutionStage.run)
             _raise_if_cancelled()
 
             # Stage 2: Script Setup
-            ScriptStage.run(ctx)
+            _run_stage("script", ScriptStage.run)
             _raise_if_cancelled()
 
             # Stage 3: Voiceover & Timing
-            VoiceStage.run(ctx)
+            _run_stage("voice", VoiceStage.run)
             _raise_if_cancelled()
 
             # Stage 4: Subtitles & Overlays
-            SubtitleStage.run(ctx)
+            _run_stage("subtitles", SubtitleStage.run)
             _raise_if_cancelled()
 
             # Stage 5: Audio Mix (SFX + BGM)
-            AudioMixStage.run(ctx)
+            _run_stage("mix", AudioMixStage.run)
             _raise_if_cancelled()
 
             # Stage 6: Shot Matching & Visual Motion
-            ShotMatchingStage.run(ctx)
+            _run_stage("shot_matching", ShotMatchingStage.run)
             _raise_if_cancelled()
 
             # Stage 7: Video Assembly & Manifest Persistence (also checks
             # cancel_event itself, mid-encode, via ctx.cancel_event)
-            VideoAssemblyStage.run(ctx)
+            _run_stage("video_assembly", VideoAssemblyStage.run)
         except RenderCancelled as cancel_err:
             if getattr(ctx, "project_name", None):
                 setattr(cancel_err, "pipeline_project_name", ctx.project_name)

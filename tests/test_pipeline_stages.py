@@ -32,6 +32,68 @@ def test_pipeline_context_initialization():
     assert ctx.project_name == "test_proj"
     assert ctx.should_run("script") is True
     assert ctx.should_run("voice") is True
+    assert ctx.stage_timings == {}
+
+
+def test_pipeline_records_monotonic_stage_timings(monkeypatch):
+    """Every stage is timed without changing the orchestration contract."""
+    observed = {}
+
+    def capture(ctx):
+        observed["ctx"] = ctx
+
+    for stage in (
+        SourceResolutionStage,
+        ScriptStage,
+        VoiceStage,
+        SubtitleStage,
+        AudioMixStage,
+        ShotMatchingStage,
+        VideoAssemblyStage,
+    ):
+        monkeypatch.setattr(stage, "run", capture)
+
+    ticks = iter(range(16))
+    monkeypatch.setattr("scripts.pipeline.time.perf_counter", lambda: next(ticks))
+
+    TikTokAutoCutterPipeline.run(
+        product_name="Timed Product",
+        raw_video_path="dummy.mp4",
+        export_mp4=False,
+    )
+
+    assert observed["ctx"].stage_timings == {
+        "source": 1.0,
+        "script": 1.0,
+        "voice": 1.0,
+        "subtitles": 1.0,
+        "mix": 1.0,
+        "shot_matching": 1.0,
+        "video_assembly": 1.0,
+    }
+
+
+def test_video_assembly_persists_render_performance_snapshot(monkeypatch):
+    """Completed manifests retain timings for a real render bottleneck audit."""
+    ctx = PipelineContext(
+        product_name="Timed Product",
+        raw_video_path="dummy.mp4",
+        project_name="timed-project",
+        export_mp4=False,
+    )
+    ctx.stage_timings = {"source": 0.125, "ffmpeg_assembly": 1.5}
+    ctx.pipeline_started_at = 10.0
+
+    monkeypatch.setattr("scripts.stages.video_assembly_stage.time.perf_counter", lambda: 12.345)
+    with patch("scripts.stages.video_assembly_stage.ProjectManifest.save") as save:
+        VideoAssemblyStage.run(ctx)
+
+    performance = save.call_args.kwargs["render_performance"]
+    assert performance == {
+        "schema_version": 1,
+        "stage_seconds": {"source": 0.125, "ffmpeg_assembly": 1.5},
+        "pipeline_elapsed_s": 2.345,
+    }
 
 
 def test_pipeline_context_reroll_stages():

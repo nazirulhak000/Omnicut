@@ -466,6 +466,11 @@ class PipelineContext:
     out_mp4: Optional[Path] = None
     result_paths: Dict[str, Any] = field(default_factory=dict)
     artifacts: Dict[str, Any] = field(default_factory=dict)
+    # Monotonic measurements are runtime diagnostics only. They are persisted
+    # by VideoAssemblyStage as an inspectable render-performance snapshot, but
+    # never participate in reuse fingerprints or render inputs.
+    pipeline_started_at: Optional[float] = None
+    stage_timings: Dict[str, float] = field(default_factory=dict)
     _fingerprint_cache: Dict[str, Dict[str, Any]] = field(default_factory=dict, init=False, repr=False)
 
     def resolve_color_theme_contract(self) -> Dict[str, Any]:

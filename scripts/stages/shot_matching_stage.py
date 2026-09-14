@@ -182,7 +182,7 @@ class ShotMatchingStage:
             ctx.notify("🖼️ [Image Motion] สร้างวิดีโอ 9:16 Motion Slideshow จากรูปภาพสินค้า...", 0.70)
             print(f"\n🖼️ [Image Motion] Generating 9:16 Motion Slideshow from {len(ctx.image_files)} product images...")
             motion_raw_path = ctx.project_dir / "image_motion_footage.mp4"
-            ImageMotionEngine.generate_motion_video_from_images(
+            ImageMotionEngine.ensure_motion_video_from_images(
                 image_paths=ctx.image_files,
                 cues=cues,
                 total_duration=total_duration,
@@ -219,7 +219,12 @@ class ShotMatchingStage:
 
         ai_matched_shots = None
         if not actual_clip_list and raw_video and ctx.use_ai_vision and os.environ.get("GEMINI_API_KEY"):
-            cached_shots = GeminiVisionMatcher.get_cached_matches(str(raw_video), micro_cues)
+            vision_request = GeminiVisionMatcher.prepare_request_context(str(raw_video), micro_cues)
+            cached_shots = (
+                vision_request.cached_matches
+                if vision_request is not None
+                else GeminiVisionMatcher.get_cached_matches(str(raw_video), micro_cues)
+            )
             if cached_shots:
                 print(f"   ⚡ [AI Vision] Reusing {len(cached_shots)} cached scene matches (Instant 0s)")
                 ai_matched_shots = cls._expand_ai_shots_to_cues(cached_shots, len(micro_cues))
@@ -230,7 +235,8 @@ class ShotMatchingStage:
                     raw_matched_shots = GeminiVisionMatcher.match_script_to_video(
                         raw_video_path=str(raw_video),
                         cues=micro_cues,
-                        raw_duration=raw_duration
+                        raw_duration=raw_duration,
+                        request_context=vision_request,
                     )
                     # Gemini now merges consecutive micro-cues that belong to
                     # the same sentence/idea into one shot (cue_ids: [5,6,7]
