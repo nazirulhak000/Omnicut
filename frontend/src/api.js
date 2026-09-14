@@ -357,6 +357,7 @@ export const clearCompletedTasksApi = () => api.post('/tasks/clear-completed').t
 export const getTokenSummary = () => api.get('/tokens/summary').then(r => r.data);
 export const getTokenHistory = (limit = 50) => api.get('/tokens/history', { params: { limit } }).then(r => r.data);
 export const resetTokenAnalytics = () => api.post('/tokens/reset').then(r => r.data);
+export const clearTokenAlerts = () => api.post('/tokens/alerts/clear').then(r => r.data);
 
 export const getProductionAnalytics = () => api.get('/analytics/production').then(r => r.data);
 export const getStorageAnalytics = (forceScan = false) => api.get('/analytics/storage', { params: forceScan ? { force_scan: true } : {} }).then(r => r.data);

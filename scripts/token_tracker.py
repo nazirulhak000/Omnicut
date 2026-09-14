@@ -51,6 +51,7 @@ class TokenTracker:
             "created_at": datetime.datetime.now().isoformat(),
             "updated_at": datetime.datetime.now().isoformat(),
             "events": [],
+            "alerts": [],
             "totals": {
                 # Lifetime totals -- must always equal
                 # trimmed_aggregate[<field>] + sum(e[<field>] for e in events).
@@ -317,6 +318,34 @@ class TokenTracker:
             # Keep last 14 days for clean chart
             sorted_daily = sorted_daily[-14:]
 
+            alerts = data.get("alerts", [])
+            recent_alerts = list(reversed(alerts[-20:]))
+
+            # Compute Key Status from configured keys and recent alerts
+            key_status = {}
+            from scripts.gemini_tts_engine import GeminiFlashTTSEngine
+            keys = GeminiFlashTTSEngine.get_api_keys()
+            now_dt = datetime.datetime.now()
+            for idx, k in enumerate(keys, 1):
+                ktag = f"Key #{idx} (..{k[-6:]})"
+                status = "healthy"
+                last_msg = "พร้อมใช้งานปกติ"
+                # Check alerts in last 1 hour
+                for alt in recent_alerts:
+                    if alt.get("key_tag") == ktag:
+                        try:
+                            alt_dt = datetime.datetime.fromisoformat(alt.get("timestamp", ""))
+                            if (now_dt - alt_dt).total_seconds() < 3600:
+                                if alt.get("error_type") == "RATE_LIMIT_429":
+                                    status = "rate_limited"
+                                    last_msg = alt.get("message", "ติด Rate-Limit 429 ชั่วคราว")
+                                elif alt.get("error_type") == "KEY_FAILOVER_SUCCESS" and status != "rate_limited":
+                                    status = "healthy"
+                                    last_msg = alt.get("message", "พร้อมใช้งานปกติ")
+                        except Exception:
+                            pass
+                key_status[ktag] = {"status": status, "message": last_msg}
+
             return {
                 "totals": {
                     # Lifetime figures. Reconstructable as
@@ -342,8 +371,59 @@ class TokenTracker:
                 "calls_by_task": calls_by_task,
                 "calls_by_provider": calls_by_provider,
                 "daily_stats": sorted_daily,
-                "recent_events": list(reversed(events[-50:]))  # Latest 50 events
+                "recent_events": list(reversed(events[-50:])),  # Latest 50 events
+                "alerts": recent_alerts,
+                "key_status": key_status
             }
+
+    @classmethod
+    def record_alert(
+        cls,
+        task: str,
+        model: str,
+        key_tag: str,
+        error_type: str,
+        message: str,
+        level: str = "warning",
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Record an alert (e.g. 429 Rate-limit, failover, quota warning)."""
+        with cls._lock:
+            data = cls._load()
+            now = datetime.datetime.now()
+            alert = {
+                "id": f"alt_{now.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}",
+                "timestamp": now.isoformat(),
+                "task": task,
+                "model": model,
+                "key_tag": key_tag,
+                "error_type": error_type,
+                "level": level,
+                "message": message,
+                "metadata": metadata or {}
+            }
+            alerts = data.setdefault("alerts", [])
+            alerts.append(alert)
+            if len(alerts) > 50:
+                data["alerts"] = alerts[-50:]
+            cls._save(data)
+            return alert
+
+    @classmethod
+    def get_alerts(cls, limit: int = 20) -> List[Dict[str, Any]]:
+        """Return chronological alerts (newest first)."""
+        with cls._lock:
+            data = cls._load()
+            alerts = data.get("alerts", [])
+            return list(reversed(alerts[-limit:]))
+
+    @classmethod
+    def clear_alerts(cls) -> None:
+        """Clear all alerts."""
+        with cls._lock:
+            data = cls._load()
+            data["alerts"] = []
+            cls._save(data)
 
     @classmethod
     def get_history(cls, limit: int = 50) -> List[Dict[str, Any]]:

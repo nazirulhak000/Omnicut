@@ -28,6 +28,25 @@ def get_token_history(limit: int = Query(50, ge=1, le=500)):
         raise HTTPException(status_code=500, detail=f"Failed to fetch token history: {e}")
 
 
+@router.get("/alerts")
+def get_token_alerts(limit: int = Query(20, ge=1, le=100)):
+    """Returns recent AI quota / rate-limit alerts."""
+    try:
+        return {"alerts": TokenTracker.get_alerts(limit=limit)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch alerts: {e}")
+
+
+@router.post("/alerts/clear")
+def clear_token_alerts():
+    """Clears all token/quota alerts."""
+    try:
+        TokenTracker.clear_alerts()
+        return {"message": "ล้างประวัติแจ้งเตือนเรียบร้อยแล้ว", "success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to clear alerts: {e}")
+
+
 @router.post("/reset")
 def reset_token_analytics():
     """Resets all token analytics history."""

@@ -207,10 +207,17 @@ class GeminiFlashTTSEngine:
         RATE_LIMIT_MAX_BACKOFF = 30.0
         TRANSIENT_BACKOFF = 2.0
 
-        # Multi-key & Multi-model fallback matrix
-        for key_idx, cur_key in enumerate(api_keys, 1):
-            key_tag = f"Key #{key_idx} (..{cur_key[-6:]})"
-            for model_name in model_candidates:
+        # Multi-model & Multi-key fallback matrix (Model-First Strategy)
+        # We try the best quality model across ALL keys first (Key 1 -> Key 2 -> ...)
+        # If all keys hit rate-limit / quota on the primary model, we then fallback to the next model across all keys.
+        from scripts.token_tracker import TokenTracker
+
+        success_key_tag = None
+        success_model_name = None
+
+        for model_name in model_candidates:
+            for key_idx, cur_key in enumerate(api_keys, 1):
+                key_tag = f"Key #{key_idx} (..{cur_key[-6:]})"
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={cur_key}"
                 for attempt in range(2):
                     req = urllib.request.Request(
@@ -222,20 +229,39 @@ class GeminiFlashTTSEngine:
                         with urllib.request.urlopen(req, timeout=75) as resp:
                             data = json.loads(resp.read().decode("utf-8"))
                             print(f"✨ [Gemini Flash TTS] Used model '{model_name}' on {key_tag} with voice '{target_voice}'")
+                            success_key_tag = key_tag
+                            success_model_name = model_name
                             break
                     except urllib.error.HTTPError as he:
                         last_error = he
-                        if he.code == 429 and attempt == 0:
-                            backoff = RATE_LIMIT_DEFAULT_BACKOFF
+                        if he.code == 429:
+                            # Record alert to TokenTracker
                             try:
-                                retry_after = he.headers.get("Retry-After") if he.headers else None
-                                if retry_after:
-                                    backoff = min(float(retry_after), RATE_LIMIT_MAX_BACKOFF)
-                            except (TypeError, ValueError):
+                                TokenTracker.record_alert(
+                                    task="tts",
+                                    model=model_name,
+                                    key_tag=key_tag,
+                                    error_type="RATE_LIMIT_429",
+                                    message=f"{key_tag} ติดขีดจำกัด Rate-Limit / Quota (HTTP 429) สำหรับโมเดล '{model_name}' — ระบบกำลังสลับไป Key หรือโมเดลถัดไป...",
+                                    level="warning"
+                                )
+                            except Exception:
                                 pass
-                            print(f"⚠️ [Gemini Flash TTS] {key_tag} with '{model_name}' rate-limited (429) — retrying same key/model in {backoff:.0f}s...")
-                            time.sleep(backoff)
-                            continue
+
+                            if attempt == 0 and len(api_keys) == 1:
+                                backoff = RATE_LIMIT_DEFAULT_BACKOFF
+                                try:
+                                    retry_after = he.headers.get("Retry-After") if he.headers else None
+                                    if retry_after:
+                                        backoff = min(float(retry_after), RATE_LIMIT_MAX_BACKOFF)
+                                except (TypeError, ValueError):
+                                    pass
+                                print(f"⚠️ [Gemini Flash TTS] {key_tag} with '{model_name}' rate-limited (429) — retrying same key/model in {backoff:.0f}s...")
+                                time.sleep(backoff)
+                                continue
+                            else:
+                                print(f"⚠️ [Gemini Flash TTS] {key_tag} with '{model_name}' rate-limited (HTTP 429) — jumping to next key/fallback immediately...")
+                                break
                         print(f"⚠️ [Gemini Flash TTS] {key_tag} with '{model_name}' returned HTTP {he.code} — checking next fallback...")
                         break
                     except Exception as e:
@@ -253,6 +279,19 @@ class GeminiFlashTTSEngine:
 
         if not data:
             raise RuntimeError(f"All Gemini Flash TTS keys and models failed. Last error: {last_error}")
+
+        if success_key_tag and len(api_keys) > 1 and success_key_tag != f"Key #1 (..{api_keys[0][-6:]})":
+            try:
+                TokenTracker.record_alert(
+                    task="tts",
+                    model=success_model_name,
+                    key_tag=success_key_tag,
+                    error_type="KEY_FAILOVER_SUCCESS",
+                    message=f"สลับมาใช้ {success_key_tag} สำหรับโมเดล '{success_model_name}' สำเร็จเรียบร้อย",
+                    level="info"
+                )
+            except Exception:
+                pass
 
         try:
                 

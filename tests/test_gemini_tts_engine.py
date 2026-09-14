@@ -327,3 +327,39 @@ def test_voice_name_argument_overrides_preset(monkeypatch, tmp_path):
 
     voice_cfg = captured["body"]["generationConfig"]["speechConfig"]["voiceConfig"]["prebuiltVoiceConfig"]
     assert voice_cfg["voiceName"] == "Fenrir"
+
+
+def test_multikey_failover_tries_primary_model_on_key2_when_key1_rate_limited(monkeypatch, tmp_path):
+    """When Key 1 hits 429 on primary model, it jumps to Key 2 with primary model before downgrading."""
+    monkeypatch.setattr(GeminiFlashTTSEngine, "get_api_keys", classmethod(lambda cls: ["key-alpha", "key-beta"]))
+    from scripts import token_tracker
+    recorded_alerts = []
+    monkeypatch.setattr(token_tracker.TokenTracker, "record_alert", classmethod(lambda cls, **kw: recorded_alerts.append(kw)))
+    monkeypatch.setattr(token_tracker.TokenTracker, "record_event", classmethod(lambda cls, **kw: None))
+
+    called_urls = []
+
+    import urllib.error
+    def fake_urlopen(req, timeout=None):
+        url = req.full_url
+        called_urls.append(url)
+        if "key=key-alpha" in url:
+            # Key 1 hits 429 Rate-limit
+            raise urllib.error.HTTPError(url, 429, "Too Many Requests", hdrs=None, fp=None)
+        # Key 2 succeeds
+        return _fake_urlopen(_ok_payload_bytes())
+
+    with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+        out = GeminiFlashTTSEngine.generate_speech(
+            text="test multikey", output_path=_out_path(tmp_path), speed=1.0,
+        )
+
+    # Verify Key 1 on 3.1 was attempted first
+    assert any("gemini-3.1-flash-tts-preview" in u and "key=key-alpha" in u for u in called_urls)
+    # Verify Key 2 on 3.1 was attempted immediately next (before falling back to 2.5)
+    assert any("gemini-3.1-flash-tts-preview" in u and "key=key-beta" in u for u in called_urls)
+    # Verify alert was recorded
+    assert any(a.get("error_type") == "RATE_LIMIT_429" and "-alpha" in a.get("key_tag", "") for a in recorded_alerts)
+    assert any(a.get("error_type") == "KEY_FAILOVER_SUCCESS" and "-beta" in a.get("key_tag", "") for a in recorded_alerts)
+    assert Path(out).exists()
+

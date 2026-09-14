@@ -16,6 +16,7 @@
 
 ## สถานะรวม
 
+- [x] Round GEMINI-TTS-MULTIKEY-ALERT-1 — ปรับระบบ Multi-Key Failover (ลอง 3.1 ทุก Key ก่อนลดเป็น 2.5) + แจ้งเตือน AI Rate-Limit/Quota บน Token Dashboard (2026-09-15; backend 20 passed, frontend 232 passed, build 2,007 modules/2.68s, compileall ผ่าน, live synthesis verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [x] Round SCHEDULE-FLEXIBLE-SLOTS-1 — ตั้งเวลาโพสต์เริ่มต้น 5 ช่วง และเพิ่ม/ลบช่วงรายวัน (2026-09-14; backend schedule 10 passed, frontend 230 passed, compileall ผ่าน, build 2,005 modules/3.25s, ดำเนินการโดย: Codex (GPT-5))
 - [x] Round SCHEDULE-DEFAULT-RESET-1 — ปรับเทมเพลตเวลาที่บันทึกไว้ทั้งหมดเป็นชุดแนะนำ 5 ช่วง (2026-09-14; อัปเดต 2 สัปดาห์ × 7 วันครบ, API/UI verified, ไม่กระทบคิวคลิป, ดำเนินการโดย: Codex (GPT-5))
 - [x] Round COVER-TIMELINE-PRE-RENDER-1 — สร้างหน้าปกจากเฟรมจริงใน Timeline ก่อน Render (2026-09-14; backend cover 8 passed, frontend 230 passed, build 2,006 modules, detector พบเฉพาะคำเตือนเดิม, browser unavailable, ดำเนินการโดย: Codex (GPT-5))
@@ -25,6 +26,7 @@
 - [x] Round TRACKER-LARGE-DATA-PERF-1 — ลดเวลาเปิด Content Tracker เมื่อมีคลิปจำนวนมาก (2026-09-14; `/api/exports` 2.6s → 0.28–0.37s ที่ 27 ไฟล์, tracker product+queue 0.15–0.22s, backend 1,417 passed/3 skipped, frontend 230 passed, build 2,006 modules, ดำเนินการโดย: Codex (GPT-5))
 
 - [ ] Round MAIN-FLOW-SCALE-1 — ทำคิว Render ที่ทน restart และลด read-path ที่โตตามจำนวนคลิป (2026-09-14; ดำเนินการโดย: Codex (GPT-5))
+- [ ] Round RENDER-DEDUPE-1 — ตัดงาน probe, Vision cache และ Image Motion ที่ทำซ้ำ (2026-09-15; ดำเนินการโดย: Codex (GPT-5))
 
 - [x] Round HOOK-TIER-SYNC-1 — จัดการป้าย Hook Header (แบรนด์ · รุ่น · หมวด) แบบเลือกขอบเขต (เฉพาะคลิปนี้ vs ทั้งสินค้า) ในหน้าสินค้าและสร้างคลิป (2026-09-14; backend 21 passed, frontend 230 passed, build 2,006 modules/3.08s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 
@@ -256,6 +258,30 @@
 
 - Audit วัดเมื่อ 2026-09-14: status 6.8 ms, raw videos 9.1 ms, products 18.4 ms / 878 KB, exports 277 ms median (profiler 474 ms), schedule 136 ms median. Render slot ปัจจุบัน 1 active + 3 waiting และต้องคงไว้เพราะ RAM ว่างประมาณ 3.9 GB.
 - Working tree มีงานค้างจำนวนมาก โดยเฉพาะ `scripts/api_exports.py`, `scripts/api_render.py`, `scripts/batch_render.py`, `scripts/product_store.py`, `frontend/src/components/ContentTrackerHub.jsx`, `frontend/src/components/editor/EditorShell.jsx`; ทุก track ต้องใช้ patch แบบ hunk-preserving และไม่ revert/format ทั้งไฟล์.
+
+## Round RENDER-DEDUPE-1 — รวมงานซ้ำใน render pipeline
+
+วันที่: 2026-09-15 | สั่งโดย: user | ดำเนินการโดย: Codex (GPT-5) | สถานะ: กำลังทำ
+
+**เป้าหมาย:** ลดงานอ่าน metadata/hash/encode ที่ทำซ้ำ โดยรักษา output, cache invalidation และ interface ของ UI/API เดิม
+
+### Todo
+
+- [ ] เพิ่ม `MediaProbeCache` ต่อหนึ่ง render: 32 clips จาก source เดียวต้อง probe เพียงครั้งเดียว
+- [ ] รวม Vision hash + local cache decision เป็น `VisionRequestContext` ที่ส่งข้าม seam จาก ShotMatching ไป Matcher โดยไม่เปลี่ยน public fallback behavior
+- [ ] ทำ Image Motion artifact reusable ตาม fingerprint ของภาพและ cue timing; reroll subtitle ที่ไม่เปลี่ยนภาพ/เวลาไม่ encode ซ้ำ
+- [ ] เพิ่ม deterministic regression tests, compileall, targeted tests, full pytest และ diff check
+
+### Gate
+
+- [ ] `python -m compileall -q scripts`
+- [ ] pytest media probe / Vision / image motion / pipeline และ `python -m pytest tests/ -q -p no:cacheprovider --tb=short`
+- [ ] `git diff --check`; ไม่แตะไฟล์ TTS/Token Dashboard ที่ทำงานร่วมกัน
+
+### Notes
+
+- Evidence: `GOC01-แกะกล่องว้าว_1` มี 32 clips / 1 source, จึงมี ffprobe ซ้ำได้ 31 ครั้งต่อ render ก่อนแก้.
+- Image Motion ยังไม่พบ artifact จริงใน `03_Projects`; ทำ cache contract + test ก่อนเพื่อให้พร้อมใช้โดยไม่เดา performance gain.
 
 ## Round AI-PRODUCER-HUB-AUDIT-PLAN-1 — ปิด audit และ hardening Producer Hub (2026-09-14; ดำเนินการโดย: Codex (GPT-5))
 

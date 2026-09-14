@@ -8,6 +8,7 @@
 
 ## สารบัญ
 
+| Round GEMINI-TTS-MULTIKEY-ALERT-1 | ปรับระบบ Multi-Key Failover (ลอง 3.1 ทุก Key ก่อนลดเป็น 2.5) + แจ้งเตือน AI Rate-Limit/Quota บน Token Dashboard | 2026-09-15 | สำเร็จสมบูรณ์ (backend 20 passed, frontend 232 passed, build 2,007 modules/2.68s, compileall ผ่าน, live synthesis verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round VOICE-DEFAULT-PUCK-HYPE-1 | ปรับค่าเริ่มต้นเสียงพากย์ทุกสไตล์เป็น Puck (ชายพลังสูง TikTok) + โทนป้ายยาไวรัล ทั่วทั้งระบบ | 2026-09-14 | สำเร็จสมบูรณ์ (backend 1,415 passed, frontend 230 passed, build 2,006 modules/3.17s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round HOOK-TIER-SYNC-1 | จัดการป้าย Hook Header (แบรนด์ · รุ่น · หมวด) แบบเลือกขอบเขต (เฉพาะคลิปนี้ vs ทั้งสินค้า) ในหน้าสินค้าและสร้างคลิป | 2026-09-14 | สำเร็จสมบูรณ์ (backend 21 passed, frontend 230 passed, build 2,006 modules/3.08s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round SCHEDULE-FLEXIBLE-SLOTS-1 | ตั้งเวลาโพสต์ default 5 ช่วง และเพิ่ม/ลบช่วงพิเศษแยกเป็นรายวัน | 2026-09-14 | สำเร็จสมบูรณ์ (backend schedule 10 passed, frontend 230 passed, compileall ผ่าน, build 2,005 modules/3.25s, detector มีคำเตือนสไตล์เดิมของไฟล์, ดำเนินการโดย: Codex (GPT-5)) |
@@ -28,6 +29,38 @@
 | Round AGENTS-SLIM-1 | ย่อ AGENTS.md 170→62 บรรทัด (30.9→11.3 KB) กฎ 24 ข้อครบ + link ไฟล์กฎ | 2026-09-13 | เสร็จ (ดำเนินการโดย: Muse Spark (Muse Spark)) |
 | Round TEST-TWO-TIER-1 | กติกาเทส 2 ชั้น: ตอนแก้รันเฉพาะจุด ก่อนปิดรอบค่อยรันเต็ม | 2026-09-13 | เสร็จ (testing_standard.md, Gate เต็มเท่าเดิม, ดำเนินการโดย: Muse Spark (Muse Spark)) |
 | Round HOUSEKEEP-1 | จัดระเบียบราก: ไฟล์เทส 8 ไฟล์ลง .tmp (gitignore) + ยกเลิกย้าย PLAN หลังเจอ 06_Archive โดน ignore | 2026-09-13 | เสร็จบางส่วน (ดำเนินการโดย: Muse Spark (Muse Spark)) |
+
+## Round GEMINI-TTS-MULTIKEY-ALERT-1 — ปรับระบบ Multi-Key Failover และระบบแจ้งเตือน AI Rate-Limit / โควต้าบน Token Dashboard
+
+วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์ ✅
+
+**เป้าหมาย:**
+1. ปรับระบบ Fallback ของ Gemini Flash TTS ให้ลองโมเดลตัวท็อป (`gemini-3.1-flash-tts-preview`) ข้ามทุก API Key ก่อน (Key 1 → Key 2) เมื่อติด 429 ไม่ให้ลดระดับเป็น 2.5 บน Key เดิมทันที
+2. ระบบบันทึกและส่งต่อการแจ้งเตือน AI Rate-Limit / Quota Exceeded (429) ไปยัง Token Analytics
+3. แสดงผลแถบแจ้งเตือนเตือนภัยโควต้าชั่วคราว พร้อมสถานะของ Key แต่ละตัวบนหน้า Token Dashboard ใน Analytics Hub
+
+**สิ่งที่ทำ:**
+1. `scripts/gemini_tts_engine.py`:
+   - ปรับลูปเป็น Model-First Matrix: ลองโมเดลหลัก `gemini-3.1-flash-tts-preview` บน Key 1 → Key 2 ก่อน
+   - เมื่อ Key 1 ติด HTTP 429 ให้บันทึกเหตุการณ์ลง `TokenTracker.record_alert(...)` แล้วสลับไป Key 2 ทันทีโดยไม่ต้อง sleep backoff คอยนาน
+   - เมื่อ Key 2 สำเร็จ บันทึก alert แจ้งว่าสลับไปใช้ Key 2 สำเร็จ
+2. `scripts/token_tracker.py`:
+   - เพิ่ม `alerts` ใน data structure
+   - เพิ่ม methods `record_alert`, `get_alerts`, `clear_alerts`
+   - เพิ่ม `key_status` ใน `get_summary()` เพื่อตรวจจับว่า Key ใดติด Rate-Limit ในรอบ 1 ชั่วโมง
+3. `scripts/api_tokens.py`:
+   - เพิ่ม endpoint `GET /api/tokens/alerts` และ `POST /api/tokens/alerts/clear`
+4. `frontend/src/components/TokenDashboard.jsx` & `frontend/src/api.js`:
+   - เพิ่ม `clearTokenAlerts` API
+   - เพิ่มการ์ด "สถานะ AI API Keys & ระบบสลับคีย์อัตโนมัติ (Multi-Key Failover)" แสดงสถานะ Key #1, Key #2 (🟢 ปกติ พร้อมใช้งาน / ⚠️ ติด Rate-Limit 429 ชั่วคราว)
+   - แสดงกล่องบันทึกเหตุการณ์แจ้งเตือนพร้อมเวลา และปุ่ม "ล้างประวัติแจ้งเตือน"
+
+**ผลการตรวจสอบ (Gate):**
+- [x] ทดสอบการยิงสังเคราะห์สด: Key 1 ติด 429 → สลับไป Key 2 บน 3.1 สำเร็จ ได้ไฟล์ WAV ใช้งานได้ทันที
+- [x] Backend tests: `pytest tests/test_gemini_tts_engine.py` ผ่านครบ 20 ข้อ (100%)
+- [x] Backend syntax: `python -m compileall -q scripts` ผ่าน 100%
+- [x] Frontend tests: vitest ผ่านครบ 232 ข้อ (100%)
+- [x] Frontend build: `npm run build` ผ่านใน 2.68s (2,007 modules)
 
 ---
 
