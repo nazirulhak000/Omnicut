@@ -21,6 +21,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from scripts.config import BASE_DIR, RAW_DIR, INBOX_DIR, EXPORTS_DIR, STICKERS_DIR
 from scripts.product_store import ProductStore
 from scripts.task_manager import TaskManager
+from scripts.batch_queue_store import BatchQueueStore
 from scripts import render_jobs
 from scripts.render_jobs import RenderCancelled
 from scripts.pipeline import TikTokAutoCutterPipeline
@@ -30,10 +31,88 @@ logger = logging.getLogger("batch_render")
 
 _BATCH_LOCK = threading.RLock()
 BATCH_REGISTRY: Dict[str, Dict[str, Any]] = {}
+_DISPATCHER_LOCK = threading.Lock()
+_DISPATCHER_THREAD: Optional[threading.Thread] = None
 
 
 class BatchRenderManager:
     """Manages batch video rendering jobs and background execution queues."""
+
+    @classmethod
+    def _persist_batch(cls, batch: Dict[str, Any]) -> None:
+        """Checkpoint state transitions; live progress stays in memory."""
+        snapshot = dict(batch)
+        # DocumentTable's durable identity is named ``id``. Keep the public
+        # batch_id contract unchanged while mirroring that same value here.
+        snapshot["id"] = str(snapshot["batch_id"])
+        snapshot["items"] = [dict(item) for item in batch.get("items", [])]
+        with BatchQueueStore.mutate() as records:
+            for index, row in enumerate(records):
+                if row.get("batch_id") == snapshot.get("batch_id"):
+                    records[index] = snapshot
+                    break
+            else:
+                records.append(snapshot)
+
+    @classmethod
+    def _load_persisted_batch(cls, batch_id: str) -> Optional[Dict[str, Any]]:
+        for row in BatchQueueStore.load():
+            if row.get("batch_id") == batch_id:
+                return row
+        return None
+
+    @classmethod
+    def _next_queued_batch_id(cls) -> Optional[str]:
+        candidates = [
+            row for row in BatchQueueStore.load()
+            if row.get("status") == "queued" and not row.get("cancelled")
+        ]
+        if not candidates:
+            return None
+        candidates.sort(key=lambda row: (row.get("created_at", 0), row.get("batch_id", "")))
+        return str(candidates[0]["batch_id"])
+
+    @classmethod
+    def _ensure_dispatcher(cls) -> None:
+        """Start at most one FIFO dispatcher, regardless of batch count."""
+        global _DISPATCHER_THREAD
+        with _DISPATCHER_LOCK:
+            if _DISPATCHER_THREAD and _DISPATCHER_THREAD.is_alive():
+                return
+            _DISPATCHER_THREAD = threading.Thread(
+                target=cls._dispatch_pending_batches,
+                daemon=True,
+                name="batch_render_dispatcher",
+            )
+            _DISPATCHER_THREAD.start()
+
+    @classmethod
+    def _dispatch_pending_batches(cls) -> None:
+        while True:
+            batch_id = cls._next_queued_batch_id()
+            if not batch_id:
+                return
+            cls._run_batch_worker(batch_id)
+
+    @classmethod
+    def recover_pending_batches(cls) -> int:
+        """Requeue interrupted work after a restart without redoing completed items."""
+        recovered = 0
+        for batch in BatchQueueStore.load():
+            if batch.get("status") not in ("queued", "processing") or batch.get("cancelled"):
+                continue
+            batch["status"] = "queued"
+            for item in batch.get("items", []):
+                if item.get("status") == "in_production":
+                    item["status"] = "queued"
+                    item["error"] = "เซิร์ฟเวอร์รีสตาร์ท — นำกลับเข้าคิวเพื่อทำใหม่"
+            with _BATCH_LOCK:
+                BATCH_REGISTRY[batch["batch_id"]] = batch
+            cls._persist_batch(batch)
+            recovered += 1
+        if recovered:
+            cls._ensure_dispatcher()
+        return recovered
 
     @classmethod
     def create_batch(
@@ -114,6 +193,7 @@ class BatchRenderManager:
 
         with _BATCH_LOCK:
             BATCH_REGISTRY[batch_id] = batch_data
+        cls._persist_batch(batch_data)
 
         # Register in TaskManager for global activity center tracking
         TaskManager.create_task(
@@ -130,14 +210,9 @@ class BatchRenderManager:
             task_id=batch_id,
         )
 
-        # Launch worker in background thread
-        worker_thread = threading.Thread(
-            target=cls._run_batch_worker,
-            args=(batch_id,),
-            daemon=True,
-            name=f"batch_render_{batch_id[:8]}"
-        )
-        worker_thread.start()
+        # A single dispatcher owns admission. Do not create one blocked
+        # thread per batch: 220 queued clips must remain a durable FIFO list.
+        cls._ensure_dispatcher()
 
         return {
             "batch_id": batch_id,
@@ -152,29 +227,42 @@ class BatchRenderManager:
     def get_batch(cls, batch_id: str) -> Optional[Dict[str, Any]]:
         """Returns the current state and progress of a batch job."""
         with _BATCH_LOCK:
-            return BATCH_REGISTRY.get(batch_id)
+            batch = BATCH_REGISTRY.get(batch_id)
+        if batch is not None:
+            return batch
+        batch = cls._load_persisted_batch(batch_id)
+        if batch is not None:
+            with _BATCH_LOCK:
+                BATCH_REGISTRY[batch_id] = batch
+        return batch
 
     @classmethod
     def cancel_batch(cls, batch_id: str) -> bool:
         """Flags a batch job for cancellation."""
+        batch = cls.get_batch(batch_id)
+        if not batch:
+            return False
         with _BATCH_LOCK:
-            batch = BATCH_REGISTRY.get(batch_id)
-            if not batch:
-                return False
             batch["cancelled"] = True
             if batch["status"] in ("queued", "processing"):
                 batch["status"] = "cancelled"
+            cls._persist_batch(batch)
             TaskManager.cancel_task(batch_id)
             return True
 
     @classmethod
     def _run_batch_worker(cls, batch_id: str) -> None:
         """Sequential FIFO worker that renders each angle one by one."""
+        batch = cls.get_batch(batch_id)
+        if not batch:
+            return
         with _BATCH_LOCK:
-            batch = BATCH_REGISTRY.get(batch_id)
-            if not batch:
+            # Cancellation can land between dispatcher selection and worker
+            # start; never resurrect a cancelled checkpoint as processing.
+            if batch.get("cancelled") or batch.get("status") == "cancelled":
                 return
             batch["status"] = "processing"
+            cls._persist_batch(batch)
 
         product_id = batch["product_id"]
         product_title = batch["product_title"]
@@ -188,14 +276,17 @@ class BatchRenderManager:
             step_label=f"เริ่มเรนเดอร์คิว 0/{total_items} มุมมอง..."
         )
 
-        completed_count = 0
-        failed_count = 0
+        completed_count = sum(1 for item in items if item.get("status") == "rendered")
+        failed_count = sum(1 for item in items if item.get("status") == "failed")
 
         for idx, item in enumerate(items):
+            if item.get("status") in ("rendered", "failed", "skipped", "cancelled"):
+                continue
             # Check for cancellation before starting next angle
             if batch.get("cancelled"):
                 logger.info("Batch %s cancelled by user before item %d", batch_id, idx)
                 item["status"] = "cancelled"
+                cls._persist_batch(batch)
                 continue
 
             angle_id = item["angle_id"]
@@ -205,6 +296,7 @@ class BatchRenderManager:
                 batch["current_index"] = idx
                 batch["current_angle_name"] = angle_name
                 item["status"] = "in_production"
+                cls._persist_batch(batch)
 
             # Re-fetch latest product state from DB to get up-to-date angle data
             try:
@@ -223,12 +315,14 @@ class BatchRenderManager:
                 item["status"] = "failed"
                 item["error"] = "ไม่พบข้อมูลมุมมองในฐานข้อมูล"
                 failed_count += 1
+                cls._persist_batch(batch)
                 continue
 
             # Check if posted
             if angle_data.get("status") == "posted" or angle_data.get("posted_at"):
                 item["status"] = "skipped"
                 item["error"] = "คลิปนี้ถูกโพสต์แล้ว ข้ามการเรนเดอร์ซ้ำ"
+                cls._persist_batch(batch)
                 continue
 
             # Resolve footage
@@ -248,6 +342,7 @@ class BatchRenderManager:
                 item["status"] = "failed"
                 item["error"] = "ไม่มีไฟล์คลิปวิดีโอสำหรับมุมมองนี้ กรุณาแนบคลิปก่อนเรนเดอร์"
                 failed_count += 1
+                cls._persist_batch(batch)
                 continue
 
             primary_video = chosen_videos[0]
@@ -259,6 +354,7 @@ class BatchRenderManager:
                 item["status"] = "failed"
                 item["error"] = f"ไม่พบไฟล์วิดีโอที่ระบุ: {primary_video}"
                 failed_count += 1
+                cls._persist_batch(batch)
                 continue
 
             # Update angle to in_production in ProductStore
@@ -315,11 +411,11 @@ class BatchRenderManager:
                             hook_brand=angle_data.get("hook_brand"),
                             hook_model=angle_data.get("hook_model"),
                             hook_label=angle_data.get("hook_label"),
-                            voice=options.get("voice_gender", "female"),
+                            voice=options.get("voice_gender", "male"),
                             voice_rate=options.get("voice_rate", "+15%"),
                             voice_engine_type="gemini_tts" if options.get("voice_mode") == "gemini_tts" else "edge_tts",
                             voice_preset=options.get("voice_preset", "gemini_puck_male_hype"),
-                            ad_tone=angle_data.get("ad_tone") or "commercial_premium",
+                            ad_tone=angle_data.get("ad_tone") or options.get("ad_tone") or "commercial_hype",
                             style_preset=options.get("style_preset", "clean_tech_review"),
                             font_name=options.get("font_name", "IBMPlex"),
                             bilingual_subtitles=options.get("bilingual_subtitles", True),
@@ -392,6 +488,7 @@ class BatchRenderManager:
             with _BATCH_LOCK:
                 batch["completed_items"] = completed_count
                 batch["failed_items"] = failed_count
+                cls._persist_batch(batch)
 
         # Final batch state
         with _BATCH_LOCK:
@@ -416,3 +513,4 @@ class BatchRenderManager:
                     batch_id,
                     error=f"เรนเดอร์ไม่สำเร็จทั้ง {total_items} มุมมอง กรุณาตรวจเช็กไฟล์วิดีโอต้นฉบับ"
                 )
+            cls._persist_batch(batch)

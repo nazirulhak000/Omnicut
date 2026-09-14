@@ -418,6 +418,11 @@ class ProductStore:
                     if "product_code" in fields and fields["product_code"]:
                         fields["product_code"] = fields["product_code"].strip().upper()
 
+                    apply_to_angles = bool(fields.pop("apply_to_angles", False))
+                    hook_brand = fields.get("hook_brand")
+                    hook_model = fields.get("hook_model")
+                    hook_label = fields.get("hook_label")
+
                     # If angles are updated, invalidate shot lists for angles whose scripts changed
                     if "angles" in fields and isinstance(fields["angles"], list):
                         try:
@@ -432,6 +437,16 @@ class ProductStore:
                                         ShotListsStore.delete(product_id, aid)
                         except Exception:
                             pass
+
+                    if apply_to_angles:
+                        target_angles = fields.get("angles") if ("angles" in fields and isinstance(fields["angles"], list)) else product.get("angles", [])
+                        for angle in target_angles:
+                            if hook_brand is not None:
+                                angle["hook_brand"] = hook_brand
+                            if hook_model is not None:
+                                angle["hook_model"] = hook_model
+                            if hook_label is not None:
+                                angle["hook_label"] = hook_label
 
                     product.update(fields)
                     product["updated_at"] = cls._now()

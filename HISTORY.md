@@ -8,6 +8,13 @@
 
 ## สารบัญ
 
+| Round VOICE-DEFAULT-PUCK-HYPE-1 | ปรับค่าเริ่มต้นเสียงพากย์ทุกสไตล์เป็น Puck (ชายพลังสูง TikTok) + โทนป้ายยาไวรัล ทั่วทั้งระบบ | 2026-09-14 | สำเร็จสมบูรณ์ (backend 1,415 passed, frontend 230 passed, build 2,006 modules/3.17s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round HOOK-TIER-SYNC-1 | จัดการป้าย Hook Header (แบรนด์ · รุ่น · หมวด) แบบเลือกขอบเขต (เฉพาะคลิปนี้ vs ทั้งสินค้า) ในหน้าสินค้าและสร้างคลิป | 2026-09-14 | สำเร็จสมบูรณ์ (backend 21 passed, frontend 230 passed, build 2,006 modules/3.08s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round SCHEDULE-FLEXIBLE-SLOTS-1 | ตั้งเวลาโพสต์ default 5 ช่วง และเพิ่ม/ลบช่วงพิเศษแยกเป็นรายวัน | 2026-09-14 | สำเร็จสมบูรณ์ (backend schedule 10 passed, frontend 230 passed, compileall ผ่าน, build 2,005 modules/3.25s, detector มีคำเตือนสไตล์เดิมของไฟล์, ดำเนินการโดย: Codex (GPT-5)) |
+| Round SCHEDULE-DEFAULT-RESET-1 | ปรับเทมเพลตเวลาที่บันทึกไว้ทั้งหมดเป็น 09:00 / 12:30 / 16:00 / 19:00 / 21:30 | 2026-09-14 | สำเร็จสมบูรณ์ (2 สัปดาห์ × 7 วันอัปเดต, storage/API/UI verified, ไม่กระทบคิวคลิป, ดำเนินการโดย: Codex (GPT-5)) |
+| Round COVER-RENDER-REQUIRES-COVER-1 | บังคับสร้างและบันทึกหน้าปกก่อน Render | 2026-09-14 | สำเร็จสมบูรณ์ (frontend 230 passed, build 2,006 modules/3.13s, diff check ผ่าน, ดำเนินการโดย: Codex (GPT-5)) |
+| Round TRACKER-LARGE-DATA-PERF-1 | ลดเวลาเปิด Content Tracker เมื่อมีคลิปจำนวนมาก | 2026-09-14 | สำเร็จสมบูรณ์ (`/api/exports` 2.6s → 0.28–0.37s ที่ 27 ไฟล์, tracker product+queue 0.15–0.22s, backend 1,417 passed/3 skipped, frontend 230 passed, build 2,006 modules, ดำเนินการโดย: Codex (GPT-5)) |
+| Round COVER-TIMELINE-PRE-RENDER-1 | สร้างหน้าปกจากเฟรมจริงใน Timeline ก่อน Render | 2026-09-14 | สำเร็จสมบูรณ์ (backend cover 8 passed, frontend 230 passed, build 2,006 modules, detector พบเฉพาะคำเตือนเดิม, browser unavailable, ดำเนินการโดย: Codex (GPT-5)) |
 | Round CALLOUT-RESURRECT-FIX-1 | แก้บั๊ก Text Overlays ถูกปลุกขึ้นมาทับกลางจอ (LOCSmartband) เมื่อลบแล้วใน Editor + ป้องกัน Auto Brand/Model Callout ซ้อนทับ Hook Banner | 2026-09-14 | สำเร็จสมบูรณ์ (backend 8+5+153 passed, frontend 230 passed, build 2005 modules/3.60s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round BG-SUBJECT-ISOLATION-RESUME-1 | Durable per-frame checkpoint, startup recovery, reconnect polling, completed-result rebinding, and duplicate scheduler guard | 2026-09-14 | สำเร็จสมบูรณ์ (backend 45+41 passed, frontend 230 passed, build 2,005 modules, compileall ผ่าน, ดำเนินการโดย: Codex (GPT-5)) |
 
@@ -23,6 +30,196 @@
 | Round HOUSEKEEP-1 | จัดระเบียบราก: ไฟล์เทส 8 ไฟล์ลง .tmp (gitignore) + ยกเลิกย้าย PLAN หลังเจอ 06_Archive โดน ignore | 2026-09-13 | เสร็จบางส่วน (ดำเนินการโดย: Muse Spark (Muse Spark)) |
 
 ---
+
+## Round VOICE-DEFAULT-PUCK-HYPE-1 — ตั้งค่าเสียงเริ่มต้นทุกสไตล์เป็น Puck ชายพลังสูง TikTok + โทนป้ายยาไวรัล ทั่วทั้งระบบ
+
+วันที่: 2026-09-14 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์ ✅
+
+**เป้าหมาย:** ปรับค่าเริ่มต้นของระบบเสียงพากย์สำหรับทุกสไตล์ มุมมองสคริปต์ และทุกหน้าจอ ให้ใช้เสียง Puck (ชายพลังสูง สไตล์ TikTok, `gemini_puck_male_hype`) และโทน "ป้ายยาไวรัล" (`commercial_hype`) เหมือนกันทั้งระบบ
+
+### Todo
+
+- [x] Backend (`product_scraper.py`): อัปเดต prompt AI และ fallback ทั้ง 9 มุมของสคริปต์ให้ใช้ `ad_tone = "commercial_hype"`
+- [x] Backend Core (`gemini_tts_engine.py`, `shot_list_builder.py`, `pipeline.py`, `pipeline_context.py`): ปรับค่าเริ่มต้น voice preset เป็น `gemini_puck_male_hype` และ tone เป็น `commercial_hype`
+- [x] Backend APIs (`api_schemas.py`, `api_voice.py`, `api_phase1.py`, `api_render.py`, `batch_render.py`, `voice_stage.py`): ปรับ fallback default voice & tone ให้ตรงกัน
+- [x] Frontend Defaults (`studioDefaults.js`, `NewClipPanel.jsx`, `ProductToClip.jsx`, `ContentTrackerHub.jsx`, `ShotListModal.jsx`): ปรับ default/fallback เป็น Puck + commercial_hype
+- [x] Verification: รัน pytest backend (1,415 passed), npm test (230 passed), npm run build (2,006 modules ผ่าน 0 errors)
+
+### Gate
+
+- [x] Backend tests: `pytest` 1,415 passed
+- [x] Frontend tests: `npm test -- --run` 230 passed
+- [x] Frontend build: `npm run build` สำเร็จ 0 errors
+
+## Round TRACKER-LARGE-DATA-PERF-1 — ลดเวลาเปิด Content Tracker เมื่อมีคลิปจำนวนมาก
+
+วันที่: 2026-09-14 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: เสร็จสมบูรณ์ ✅
+
+**อาการที่วัดได้:** ข้อมูลจริงมี 24 สินค้า / 247 มุม / 27 export files. ก่อนแก้ `GET /api/exports` ใช้ 2.6–2.7 วินาทีต่อครั้ง เพราะเรียก `ExportRegistry.ensure()` แยกทีละไฟล์ และหน้า Content Tracker เรียก endpoint นี้ซ้ำทั้งที่ต้องการเพียงข้อมูลสินค้า/คิว
+
+### Todo
+
+- [x] เพิ่ม `ExportRegistry.ensure_many()` ให้สร้าง/เติม identity หลายไฟล์ใน transaction เดียว โดยคง ID เดิมและห้าม downgrade สถานะ posted
+- [x] เปลี่ยน `GET /api/exports` เป็น bulk registry hydration พร้อม fallback เดิมสำหรับ installation ที่เขียน registry ไม่ได้
+- [x] ตัด request `getExports()` ที่ซ้ำจาก `ContentTrackerHub` เพราะ `/api/products` hydrate cover metadata ให้แล้ว
+- [x] เพิ่ม regression tests ครอบคลุม bulk identity, export matching และ lifecycle เดิม
+
+### ผลหลังแก้
+
+- `GET /api/exports`: 2.6–2.7s → 0.28–0.37s ที่ 27 ไฟล์
+- Content Tracker product + schedule queue: 0.15–0.22s ที่ข้อมูลชุดเดียวกัน
+- Registry transaction: จาก 27 ครั้งต่อ request เหลือ 1 ครั้งต่อ request
+
+### Gate
+
+- [x] Targeted backend tests — 26 passed, 1 known Starlette warning
+- [x] Full backend tests — 1,417 passed, 3 skipped, 27 known warnings
+- [x] Frontend tests — 230 passed
+- [x] Frontend build — 2,006 modules สำเร็จ 3.68s
+- [x] Python compileall — ผ่าน
+- [x] Git diff check — ผ่าน ไม่มี whitespace error
+
+### Notes
+
+- การลด request ใน Tracker ไม่กระทบ Export Gallery และ Producer Hub ที่ยังเรียก `/api/exports` เพื่อข้อมูล metadata เต็ม
+- การวัดเป็น deterministic direct endpoint benchmark จากข้อมูลใน workspace และ regression tests ใช้ `tmp_path` ไม่แตะข้อมูลจริง
+
+---
+
+## Round COVER-RENDER-REQUIRES-COVER-1 — บังคับสร้างและบันทึกหน้าปกก่อน Render
+
+วันที่: 2026-09-14 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: เสร็จสมบูรณ์ ✅
+
+**เป้าหมาย:** บังคับให้ผู้ใช้สร้างและบันทึกหน้าปกก่อนกด Render เพื่อให้ทุกไฟล์ที่เรนเดอร์มีหน้าปกพร้อมใช้งาน
+
+### Todo
+
+- [x] ตรวจหน้าปกจากข้อมูลล่าสุดของ angle ก่อนเริ่ม Render โดยยอมรับ path ของปก 9:16, 3:4 หรือ path เดิม
+- [x] ปิดปุ่ม Render เมื่อยังไม่มีหน้าปกที่บันทึกแล้ว พร้อม tooltip บอกวิธีแก้
+- [x] ไม่ fail open เมื่อการตรวจสอบปกหรือโปรเจกต์ล้มเหลว เพื่อไม่ให้ข้ามเงื่อนไขบังคับ
+- [x] รักษา flow สร้างปกจากเฟรมจริงใน Timeline ก่อน Render ให้ใช้งานต่อได้
+
+### Gate
+
+- [x] Frontend tests — `npm test -- --run` ผ่าน 230 tests
+- [x] Frontend build — `npm run build` สำเร็จ 2,006 modules / 3.13s
+- [x] Git diff check — ผ่าน ไม่มี whitespace error
+- [x] Impeccable detector — ไม่พบปัญหาเพิ่มเติมในไฟล์ UI ที่แก้
+
+### Notes
+
+- เมื่อยังไม่มีปก ผู้ใช้กดปุ่ม “ปก” เพื่อสร้างจากเฟรมปัจจุบันใน Timeline แล้วบันทึกหน้าปกก่อน
+- หลังบันทึกปกสำเร็จ สถานะจะถูก refresh และปลดล็อกปุ่ม Render
+- หากเรียก `handleApply` โดยตรง ระบบจะตรวจซ้ำจากข้อมูลล่าสุดและหยุดก่อนเริ่มงาน Render
+
+---
+
+## Round COVER-TIMELINE-PRE-RENDER-1 — สร้างหน้าปกจากเฟรมจริงใน Timeline ก่อน Render
+
+วันที่: 2026-09-14 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: เสร็จสมบูรณ์ ✅
+
+**เป้าหมาย:** ให้ผู้ใช้กดปุ่มปกจากหน้า Editor แล้วสร้างหน้าปกจากเฟรมที่กำลังแสดงใน Timeline ได้ก่อนมีไฟล์ MP4 Render
+
+### Todo
+
+- [x] เพิ่ม `captureFrame()` ใน `SequencePlayer` เพื่อจับ Canvas Preview ณ playhead ปัจจุบัน รวม clip, overlay, caption, sticker และ grade
+- [x] เพิ่มแหล่งภาพ “เฟรมจากไทม์ไลน์” ใน `CoverStudioModal` พร้อมแสดงเวลาที่จับภาพ
+- [x] เพิ่ม `custom_image_data` ใน `POST /api/covers/render-pro` เพื่อรับ Snapshot และสร้างไฟล์ปก 9:16/3:4 ตาม flow เดิม
+- [x] ล็อก Scrubber เมื่อใช้ Snapshot จาก Timeline เพื่อป้องกันเวลาที่เลือกไม่ตรงกับภาพที่จับมา
+- [x] รักษา flow เดิมสำหรับคลิปที่ Render แล้ว และไม่บังคับให้สร้างปกก่อน Render
+
+### Gate
+
+- [x] Backend cover tests — 8 passed รวม endpoint รับ Timeline Snapshot
+- [x] Frontend tests — 230 passed
+- [x] Frontend build — 2,006 modules สำเร็จ
+- [x] Python compileall และ git diff check ผ่านสำหรับไฟล์รอบนี้
+- [x] Impeccable detector — พบเฉพาะคำเตือนสไตล์เดิมใน Cover Studio/SequencePlayer
+- [ ] Browser verification — environment รอบนี้ไม่มี browser ให้เปิดทดสอบจริง
+
+### Notes
+
+- ปุ่ม “ปก” เดิมใน Header จะเปิด Cover Studio จาก Timeline ได้เมื่อมุมนี้ยังไม่มีไฟล์ Render
+- ภาพที่จับเป็น Preview Canvas ขนาด 540×960 แล้ว backend upscale/crop เป็นไฟล์ปก 1080×1920 และ 1080×1440
+- การสร้างปกยังบันทึกลง `05_Covers_Thumbnails/` และส่งผลกลับไปผูกกับ angle เดิมเหมือน flow หลัง Render
+
+---
+
+## Round HOOK-TIER-SYNC-1 — จัดการป้าย Hook Header (แบรนด์ · รุ่น · หมวด) แบบเลือกขอบเขต (เฉพาะคลิปนี้ vs ทั้งสินค้า) ในหน้าสินค้าและสร้างคลิป
+
+วันที่: 2026-09-14 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์ ✅
+
+**เป้าหมาย:** ออกแบบและพัฒนาระบบแก้ไข Hook Header (แบรนด์, รุ่น, หมวดหมู่) ให้เลือกได้ว่าจะใช้กับทั้งสินค้า (ทุกสคริปต์/มุม) หรือเฉพาะสคริปต์ปัจจุบัน พร้อมเพิ่มปุ่มและโมดอลจัดการที่หน้าแรก (ProductToClip) และในตัวสร้างคลิป (NewClipPanel)
+
+### Todo
+
+- [x] Backend: รองรับ `hook_brand`, `hook_model`, `hook_label` ใน `ProductUpdateRequest` & `ProductStore.update` พร้อมรองรับ `apply_to_angles: bool` (อัปเดตทุกมุมพร้อมกัน)
+- [x] Frontend (`HookHeaderModal.jsx`): สร้างโมดอลแก้ไข Hook Header แบบเห็นตัวอย่าง 9:16 จริง มีตัวเลือกว่าจะใช้กับทุกมุมหรือเฉพาะมุมนี้ พร้อมตัวเลือกค้นหา/แทนที่ในบทพูด
+- [x] Frontend (`ProductToClip.jsx`): เพิ่มปุ่ม `[🏷️ ป้าย Hook]` ที่แถบเครื่องมือด้านบนข้างปุ่ม `[ข้อมูล AI]` และเพิ่มการ์ด Hook Header เหนือกล่องสคริปต์ในหน้ามุมที่เลือก
+- [x] Frontend (`NewClipPanel.jsx`): เพิ่มตัวเลือก `[✓] นำไปอัปเดตกับทุกสคริปต์ของสินค้านี้ด้วย (บันทึกเป็นค่าหลัก)` ใต้ช่องกรอก Header ทั้ง 3 ช่อง
+- [x] Frontend (`angleToForm.js`): ดึงค่าและตกทอด fallback จากระดับ Product ลงมาระดับ Angle อย่างถูกต้อง
+- [x] Tests & Verification: pytest 21 passed, frontend tests 230 passed, build 2,006 modules ผ่าน 100%
+
+### Gate
+
+- [x] Backend test `tests/test_product_metadata.py` 21 passed (รวม `test_product_hook_header_sync_to_angles`)
+- [x] Frontend test `npm test -- --run` 230 passed
+- [x] Frontend production bundle `npm run build` สำเร็จ 0 errors
+
+## Round SCHEDULE-DEFAULT-RESET-1 — ปรับเทมเพลตเวลาที่บันทึกไว้ทั้งหมดเป็นชุดแนะนำ 5 ช่วง
+
+วันที่: 2026-09-14 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: เสร็จสมบูรณ์ ✅
+
+**เป้าหมาย:** ตั้งค่าเทมเพลตที่บันทึกอยู่ทั้งหมดให้ใช้ช่วงแนะนำ 5 ช่วง โดยไม่เปลี่ยนคิวคลิปที่มีอยู่
+
+### Todo
+
+- [x] อัปเดตเทมเพลต `week:2026-09-07` และ `week:2026-09-14` ครบ 7 วันต่อสัปดาห์เป็น `09:00, 12:30, 16:00, 19:00, 21:30`
+- [x] ตรวจ storage, API และหน้าจอตั้งค่าเวลา
+- [x] ตรวจว่าไม่ได้แก้ไขคิวคลิปที่จองไว้แล้ว
+
+### Gate
+
+- [x] Storage verify — 2 records × 7 days, ทุกวันมี 5 ช่วงตรงกัน
+- [x] API verify — GET ทั้ง 2 สัปดาห์คืนค่าชุดเดียวกัน
+- [x] UI verify — modal แสดงค่าครบทุกวันของสัปดาห์ 2026-09-14
+
+### Notes
+
+- เพิ่ม `09:00` และ `16:00` ตามชุดแนะนำเดิม; ไม่แตะ schedule queue items
+- รีสตาร์ตเฉพาะ backend โปรเจกต์เพื่อโหลดโค้ดใหม่; frontend และคิวคลิปไม่ได้ถูกล้างหรือแก้
+- ไฟล์นอก scope ที่คงไว้: `02_Assets/Templates/custom_hook_templates.json`, `scripts/api_phase1.py`, `.tmp/`
+
+---
+
+## Round SCHEDULE-FLEXIBLE-SLOTS-1 — ตั้งเวลาโพสต์เริ่มต้น 5 ช่วง และเพิ่ม/ลบช่วงรายวัน
+
+วันที่: 2026-09-14 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: เสร็จสมบูรณ์ ✅
+
+**เป้าหมาย:** เปลี่ยนเทมเพลตเวลาโพสต์จาก 3 ช่วงตายตัวให้เป็น 5 ช่วงเริ่มต้น และให้ผู้ใช้ปรับจำนวนช่วงรายวันได้เอง
+
+### Todo
+
+- [x] เปลี่ยนค่าเริ่มต้นเป็น `09:00, 12:30, 16:00, 19:00, 21:30` พร้อม migration ค่าเก่า
+- [x] รองรับจำนวนช่วงเวลา 1–24 ช่วงต่อวันใน backend/frontend พร้อมกันเวลาซ้ำและรูปแบบไม่ถูกต้อง
+- [x] ปรับ modal ตั้งค่าเวลาให้เพิ่ม/ลบช่วงพิเศษแยกเป็นรายวันได้ พร้อม validation และปุ่มที่เข้าถึงได้
+- [x] อัปเดตคู่มือผู้ใช้และ regression tests
+
+### Gate
+
+- [x] `python -m pytest tests/test_schedule_queue.py -q -p no:cacheprovider --tb=short` — 10 passed, 1 warning
+- [x] `python -m compileall -q scripts` — ผ่าน
+- [x] `npm test` — 230 passed
+- [x] `npm run build` — 2,005 modules, 3.25s
+- [x] `git diff --check` — ผ่าน
+
+### Notes
+
+- เพิ่มช่วง default เป็น 5 ช่วง โดยเลือก `09:00` และ `16:00` เพื่อเติมช่วงเช้าและช่วงบ่ายระหว่าง lunch/evening slots เดิม
+- เทมเพลตเก่าที่เป็น default 3 ช่วงหรือ legacy 5 ช่วงถูก promote เป็น default 5 ช่วง; custom times ที่ไม่ใช่ชุดเดิมยังคงอยู่
+- ปุ่ม `เพิ่มช่วง` เพิ่มเวลาเริ่มต้นที่ `08:00` เมื่อว่าง แล้วผู้ใช้เลือกแก้เป็นเวลาอื่นได้; ปุ่มลบเหลืออย่างน้อย 1 ช่วงต่อวัน
+- mechanical detector พบเฉพาะคำเตือนสไตล์เดิมของ `ScheduleAgenda.jsx`/`UserGuide.jsx` (สีข้อความบนปุ่ม/พื้นสี) ไม่พบปัญหาใหม่ที่ต้องแก้ในรอบนี้
+- พบไฟล์นอก scope ใน working tree และคงไว้ไม่แก้ไข: `02_Assets/Templates/custom_hook_templates.json`, `.tmp/`
 
 ## Round CALLOUT-RESURRECT-FIX-1 — แก้บั๊ก Text Overlays ถูกปลุกขึ้นมาทับกลางจอ (LOCSmartband) เมื่อลบแล้วใน Editor + ป้องกัน Auto Brand/Model Callout ซ้อนทับ Hook Banner
 

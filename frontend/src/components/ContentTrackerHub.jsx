@@ -10,7 +10,7 @@ import {
   Archive, Image as ImageIcon
 } from 'lucide-react';
 import {
-  getProducts, getExports, getScheduleQueue, updateAngleStatus, updateAngleCover, deleteProduct, updateProduct, prepareTiktokAutopost, markPosted,
+  getProducts, getScheduleQueue, updateAngleStatus, updateAngleCover, deleteProduct, updateProduct, prepareTiktokAutopost, markPosted,
   generateShotList, getShotList, getTaskStatus
 } from '../api';
 import CoverStudioModal from './CoverStudioModal';
@@ -19,7 +19,7 @@ import ScheduleAgenda from './ScheduleAgenda';
 import { Modal, Toast, Button, Badge, Input, Textarea, SafeQRCode, PageHeader } from './ui';
 import { useDebounce, useToast } from '../hooks';
 import { guessBrandModel } from '../lib/overlayModel';
-import { applyCoverResult, getCoverVariant, mergeCoverMetadata } from '../lib/coverVariant';
+import { applyCoverResult, getCoverVariant } from '../lib/coverVariant';
 import { withEditorProjectAction } from '../lib/editorEntry';
 import { localParts } from '../lib/scheduleQueue';
 import { getRelativeTime, formatFullDateTime } from '../lib/dateUtils';
@@ -1121,9 +1121,9 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     try {
       const overrides = {
         voice_engine_type: 'gemini_tts',
-        voice_preset: targetAngle.voice_preset || 'gemini_kore_female_bright',
+        voice_preset: targetAngle.voice_preset || 'gemini_puck_male_hype',
         voice_rate: '+15%',
-        ad_tone: targetAngle.ad_tone || 'commercial_premium',
+        ad_tone: targetAngle.ad_tone || 'commercial_hype',
         ...voiceOverrides,
       };
       const res = await generateShotList(targetProduct.id, targetAngle.angle_id, overrides);
@@ -1191,14 +1191,17 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     const sequence = ++productsRequestSequence.current;
     setLoading(true);
     try {
-      const [res, exportsRes, queueRes] = await Promise.all([
+      const [res, queueRes] = await Promise.all([
         getProducts(),
-        getExports().catch(() => ({ exports: [] })),
         getScheduleQueue().catch(() => ({ items: [] })),
       ]);
       if (sequence !== productsRequestSequence.current) return;
       if (res.products) {
-        setProducts(mergeCoverMetadata(res.products, exportsRes));
+        // /products already hydrates persisted and legacy cover paths. Avoid
+        // fetching the full export catalog here: /exports performs registry
+        // hydration for every MP4 and is needed by Export Gallery, not by
+        // this tracker board.
+        setProducts(res.products);
       }
       setScheduleQueueItems(queueRes.items || []);
     } catch (err) {
@@ -1507,7 +1510,9 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
       keyFeatures: angle.key_features || product.description || '',
       painPoint: angle.pain_point || '',
       priceDeal: angle.price_deal || product.price_note || '',
-      adTone: angle.ad_tone || 'commercial_premium',
+      adTone: angle.ad_tone || 'commercial_hype',
+      voicePreset: angle.voice_preset || 'gemini_puck_male_hype',
+      voiceGender: 'male',
       selectedVideo: chosenVideos[0] || '',
       selectedVideos: chosenVideos,
       openVideoUrl: angle.video_url || '',

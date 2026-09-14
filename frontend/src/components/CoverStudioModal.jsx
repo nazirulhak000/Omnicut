@@ -44,6 +44,9 @@ export default function CoverStudioModal({
   const videoPath = videoItem?.path || videoItem?.rel_path || '';
   const productName = videoItem?.product_name || videoItem?.name || 'สินค้า';
   const angleTitle = videoItem?.hook_title || videoItem?.angle_name || '';
+  const timelineSnapshot = videoItem?.timeline_snapshot || null;
+  const timelineSnapshotDataUrl = timelineSnapshot?.data_url || '';
+  const timelineSnapshotSeconds = Number(timelineSnapshot?.seconds || 0);
 
   // State
   const [loading, setLoading] = useState(false);
@@ -54,7 +57,9 @@ export default function CoverStudioModal({
   const savedPreviewSignatureRef = useRef('');
 
   // Source selection: 'exported' | 'raw' | 'upload'
-  const [activeSourceType, setActiveSourceType] = useState('exported');
+  const [activeSourceType, setActiveSourceType] = useState(
+    timelineSnapshotDataUrl ? 'timeline' : 'exported',
+  );
   const [rawSources, setRawSources] = useState([]);
   const [selectedRawPath, setSelectedRawPath] = useState('');
 
@@ -119,6 +124,11 @@ export default function CoverStudioModal({
     if (!isOpen || !videoItem) return undefined;
     setLoading(true);
     setError(null);
+    setActiveSourceType(timelineSnapshotDataUrl ? 'timeline' : 'exported');
+    setCustomImage(timelineSnapshotDataUrl || null);
+    setCustomImageFile(null);
+    setCurrentSeconds(timelineSnapshotDataUrl ? timelineSnapshotSeconds : 0.5);
+    setLiveFrameUrl(null);
 
     Promise.all([
       getCoverBadges().catch(() => ({ badges: [] })),
@@ -167,7 +177,7 @@ export default function CoverStudioModal({
     return () => {
       mounted = false;
     };
-  }, [isOpen, videoPath, productName, angleTitle, videoItem]);
+  }, [isOpen, videoPath, productName, angleTitle, videoItem, timelineSnapshotDataUrl, timelineSnapshotSeconds]);
 
   // Live real-time frame fetching when scrubbing across any arbitrary seconds
   useEffect(() => {
@@ -243,6 +253,15 @@ export default function CoverStudioModal({
         setLoading(false);
       }
     }
+  };
+
+  const handleSwitchToTimeline = () => {
+    if (!timelineSnapshotDataUrl) return;
+    setActiveSourceType('timeline');
+    setCustomImage(timelineSnapshotDataUrl);
+    setCustomImageFile(null);
+    setCurrentSeconds(timelineSnapshotSeconds);
+    setLiveFrameUrl(null);
   };
 
   // Handle custom image upload
@@ -446,10 +465,12 @@ export default function CoverStudioModal({
 
       const activeVideoTarget = activeSourceType === 'raw' ? selectedRawPath : videoPath;
       const exportStem = resolveCoverExportStem(videoItem);
+      const isTimelineSnapshot = activeSourceType === 'timeline' && customImage?.startsWith('data:image/');
 
       const payload = {
-        video_path: activeVideoTarget,
+        video_path: isTimelineSnapshot ? null : activeVideoTarget,
         raw_video_path: activeSourceType === 'raw' ? selectedRawPath : null,
+        custom_image_data: isTimelineSnapshot ? customImage : null,
         export_filename: exportStem,
         at_seconds: Number(currentSeconds),
         pan_y_pct: Number(panY),
@@ -997,9 +1018,23 @@ export default function CoverStudioModal({
 
               {/* Source Type Selector Tabs */}
               <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+                {timelineSnapshotDataUrl && (
+                  <button
+                    type="button"
+                    onClick={handleSwitchToTimeline}
+                    className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition-all text-center cursor-pointer ${
+                      activeSourceType === 'timeline'
+                        ? 'bg-cyan-500/20 text-cyan-300 shadow border border-cyan-500/40'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    เฟรมจากไทม์ไลน์ ({timelineSnapshotSeconds.toFixed(1)}s)
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={handleSwitchToExported}
+                  disabled={!videoPath}
                   className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition-all text-center cursor-pointer ${
                     activeSourceType === 'exported'
                       ? 'bg-slate-800 text-white shadow border border-slate-700'
@@ -1064,6 +1099,13 @@ export default function CoverStudioModal({
                   AI สร้างรูป 9:16
                 </button>
               </div>
+
+              {activeSourceType === 'timeline' && timelineSnapshotDataUrl && (
+                <div className="flex items-start gap-2 rounded-lg border border-cyan-400/20 bg-cyan-400/[0.06] px-3 py-2 text-[11px] leading-relaxed text-cyan-100/80">
+                  <Film className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-cyan-300" />
+                  <span>ใช้ภาพจาก Timeline ณ {timelineSnapshotSeconds.toFixed(1)} วินาที รวม Overlay, ซับ และสีที่กำลังแสดงใน Preview แล้ว สร้างปกได้ทันทีโดยไม่ต้องรอ Render</span>
+                </div>
+              )}
 
               {/* TikTok Shop Scraped Reference Images Panel */}
               {activeSourceType === 'product_ref' && (
@@ -1513,6 +1555,7 @@ export default function CoverStudioModal({
                     max={duration}
                     step="0.2"
                     value={currentSeconds}
+                    disabled={activeSourceType === 'timeline'}
                     onChange={(e) => {
                       setCurrentSeconds(parseFloat(e.target.value));
                       setCustomImage(null);

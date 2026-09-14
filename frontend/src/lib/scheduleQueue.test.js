@@ -20,13 +20,16 @@ test('agenda groups and sorts by scheduled timestamp', () => {
   assert.deepEqual(grouped['2026-09-10'].map((item) => item.id), ['c', 'a']);
 });
 
-test('weekly template helpers use Monday boundaries and preserve three slots', () => {
+test('weekly template helpers use Monday boundaries and preserve flexible slots', () => {
   assert.equal(weekStartForDate('2026-09-10'), '2026-09-07');
   assert.equal(addDays('2026-09-07', 6), '2026-09-13');
   const template = templateForWeek({ days: { '0': { enabled: false, times: ['20:00', '07:00', '16:00', '12:00', '10:00'] } } }, '2026-09-07');
   assert.equal(template.days['0'].enabled, false);
-  assert.deepEqual(template.days['0'].times, ['12:30', '19:00', '21:30']);
-  assert.deepEqual(template.days['1'].times, ['12:30', '19:00', '21:30']);
+  assert.deepEqual(template.days['0'].times, ['07:00', '10:00', '12:00', '16:00', '20:00']);
+  assert.deepEqual(template.days['1'].times, ['09:00', '12:30', '16:00', '19:00', '21:30']);
+
+  const custom = templateForWeek({ days: { '0': { enabled: true, times: ['08:00', '18:00'] } } }, '2026-09-07');
+  assert.deepEqual(custom.days['0'].times, ['08:00', '18:00']);
 });
 
 test('schedule field edits retain the latest date and time together', () => {
@@ -57,4 +60,3 @@ test('weekly calendar generates 7 consecutive days starting from Monday', () => 
   assert.equal(addDays(monday, -7), '2026-08-31');
   assert.equal(addDays(monday, 7), '2026-09-14');
 });
-

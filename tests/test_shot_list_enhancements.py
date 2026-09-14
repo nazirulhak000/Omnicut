@@ -165,11 +165,11 @@ def test_shot_list_builder_gemini_defaults(tmp_path):
         assert len(captured_ctx) == 1
         ctx = captured_ctx[0]
 
-        # Must default to Gemini Flash TTS and Kore
+        # Must default to Gemini Flash TTS and Puck
         assert ctx.voice_engine_type == "gemini_tts"
-        assert ctx.voice_preset == "gemini_kore_female_bright"
+        assert ctx.voice_preset == "gemini_puck_male_hype"
         assert ctx.voice_rate == "+15%"
-        assert ctx.ad_tone == "commercial_premium"
+        assert ctx.ad_tone == "commercial_hype"
 
         # Check that cues and beat_cues were stored
         mock_upsert.assert_called_once()
@@ -182,9 +182,9 @@ def test_shot_list_builder_gemini_defaults(tmp_path):
         mock_update_voice.assert_called_once_with(
             "prod_gemini_1",
             "ang_1",
-            voice_preset="gemini_kore_female_bright",
+            voice_preset="gemini_puck_male_hype",
             voice_engine_type="gemini_tts",
-            ad_tone="commercial_premium",
+            ad_tone="commercial_hype",
         )
 
 

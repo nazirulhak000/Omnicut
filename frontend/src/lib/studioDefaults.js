@@ -28,7 +28,7 @@ export const DEFAULT_STUDIO_FORM = {
   voiceGender: 'male',
   voiceSpeed: '+15%',
   voicePreset: 'gemini_puck_male_hype',
-  adTone: 'commercial_premium',
+  adTone: 'commercial_hype',
   stylePreset: DEFAULT_ONE_CLICK_STYLE_PRESET,
   stylePresetVersion: STYLE_PRESET_STORAGE_VERSION,
   fontName: 'IBMPlex',

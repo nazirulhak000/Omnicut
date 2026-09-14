@@ -16,7 +16,19 @@
 
 ## สถานะรวม
 
----
+- [x] Round SCHEDULE-FLEXIBLE-SLOTS-1 — ตั้งเวลาโพสต์เริ่มต้น 5 ช่วง และเพิ่ม/ลบช่วงรายวัน (2026-09-14; backend schedule 10 passed, frontend 230 passed, compileall ผ่าน, build 2,005 modules/3.25s, ดำเนินการโดย: Codex (GPT-5))
+- [x] Round SCHEDULE-DEFAULT-RESET-1 — ปรับเทมเพลตเวลาที่บันทึกไว้ทั้งหมดเป็นชุดแนะนำ 5 ช่วง (2026-09-14; อัปเดต 2 สัปดาห์ × 7 วันครบ, API/UI verified, ไม่กระทบคิวคลิป, ดำเนินการโดย: Codex (GPT-5))
+- [x] Round COVER-TIMELINE-PRE-RENDER-1 — สร้างหน้าปกจากเฟรมจริงใน Timeline ก่อน Render (2026-09-14; backend cover 8 passed, frontend 230 passed, build 2,006 modules, detector พบเฉพาะคำเตือนเดิม, browser unavailable, ดำเนินการโดย: Codex (GPT-5))
+
+- [x] Round COVER-RENDER-REQUIRES-COVER-1 — บังคับสร้างและบันทึกหน้าปกก่อน Render (2026-09-14; frontend 230 passed, build 2,006 modules/3.13s, diff check ผ่าน, ดำเนินการโดย: Codex (GPT-5))
+
+- [x] Round TRACKER-LARGE-DATA-PERF-1 — ลดเวลาเปิด Content Tracker เมื่อมีคลิปจำนวนมาก (2026-09-14; `/api/exports` 2.6s → 0.28–0.37s ที่ 27 ไฟล์, tracker product+queue 0.15–0.22s, backend 1,417 passed/3 skipped, frontend 230 passed, build 2,006 modules, ดำเนินการโดย: Codex (GPT-5))
+
+- [ ] Round MAIN-FLOW-SCALE-1 — ทำคิว Render ที่ทน restart และลด read-path ที่โตตามจำนวนคลิป (2026-09-14; ดำเนินการโดย: Codex (GPT-5))
+
+- [x] Round HOOK-TIER-SYNC-1 — จัดการป้าย Hook Header (แบรนด์ · รุ่น · หมวด) แบบเลือกขอบเขต (เฉพาะคลิปนี้ vs ทั้งสินค้า) ในหน้าสินค้าและสร้างคลิป (2026-09-14; backend 21 passed, frontend 230 passed, build 2,006 modules/3.08s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
+
+- [x] Round VOICE-DEFAULT-PUCK-HYPE-1 — ตั้งค่าเสียงเริ่มต้นทุกสไตล์เป็น Puck ชายพลังสูง TikTok + โทนป้ายยาไวรัล ทั่วทั้งระบบ (2026-09-14; backend 1,415 passed, frontend 230 passed, build 2,006 modules/3.17s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 
 - [x] Round HOOK-KINETIC-MOTION-1 — Step-by-Step Cumulative Hook Reveal & High-Impact Animation System (2026-09-13; backend parity 177 passed, behavior render 18 passed, smoke 150 passed, frontend 185 passed, build 3.79s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 
@@ -219,6 +231,31 @@
 
 
 # ๐“‹ OmniCut Pro Studio โ€” Todo เธเธฅเธฒเธ
+
+## Round MAIN-FLOW-SCALE-1 — Render queue, export snapshot และ workspace data flow สำหรับ 220+ คลิป
+
+วันที่: 2026-09-14 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: กำลังทำ
+
+**เป้าหมาย:** รองรับการสั่งงาน 220+ คลิปเป็นคิวที่ทน server restart โดยไม่เพิ่ม render concurrency เกิน 1 และตัดงานอ่าน/ส่งข้อมูลซ้ำที่โตตามประวัติคลิป.
+
+### Todo
+
+- [ ] Track A — เพิ่ม durable Render Dispatcher ในโมดูลใหม่: persist batch/item checkpoint, FIFO admission, restart recovery และไม่เปิด daemon worker ต่อ batch; แตะ `scripts/batch_render.py`, `scripts/api_batch_render.py`, `scripts/render_jobs.py`, `scripts/task_manager.py` เฉพาะ hunk ที่ตรวจว่าทับงานค้างไม่ได้
+- [ ] Track B — แยก Export Catalog snapshot/canonical path identity จาก read path: GET exports และ schedule queue อ่าน index ที่พร้อมใช้ แทนการ resolve path/synchronize ทุก request; แตะ `scripts/api_exports.py`, `scripts/export_registry.py`, `scripts/api_schedule_queue.py`, `scripts/product_store.py` อย่างรักษา diff งานค้าง
+- [ ] Track C — เพิ่ม client-side Workspace Data Coordinator แบบ single-flight/cache และใช้ projection ที่เหมาะกับ App/Tracker/Editor เพื่อลด full Products payload และการเรียกซ้ำ; แตะ `frontend/src/` โดยไม่ทับ pending UI ของผู้อื่น
+- [ ] เพิ่ม deterministic regression tests แบบ temp storage สำหรับ queue persistence/admission, export snapshot invalidation และ data coordinator contract
+
+### Gate
+
+- [ ] `python -m compileall -q scripts`
+- [ ] pytest เฉพาะจุดของ Track A/B และ `python -m pytest tests/ -q -p no:cacheprovider --tb=short`
+- [ ] frontend targeted test, `npm test`, `npm run build`
+- [ ] `git diff --check` และตรวจว่าไม่แก้/ลบไฟล์ผู้ร่วมงานนอกขอบเขต
+
+### Notes
+
+- Audit วัดเมื่อ 2026-09-14: status 6.8 ms, raw videos 9.1 ms, products 18.4 ms / 878 KB, exports 277 ms median (profiler 474 ms), schedule 136 ms median. Render slot ปัจจุบัน 1 active + 3 waiting และต้องคงไว้เพราะ RAM ว่างประมาณ 3.9 GB.
+- Working tree มีงานค้างจำนวนมาก โดยเฉพาะ `scripts/api_exports.py`, `scripts/api_render.py`, `scripts/batch_render.py`, `scripts/product_store.py`, `frontend/src/components/ContentTrackerHub.jsx`, `frontend/src/components/editor/EditorShell.jsx`; ทุก track ต้องใช้ patch แบบ hunk-preserving และไม่ revert/format ทั้งไฟล์.
 
 ## Round AI-PRODUCER-HUB-AUDIT-PLAN-1 — ปิด audit และ hardening Producer Hub (2026-09-14; ดำเนินการโดย: Codex (GPT-5))
 

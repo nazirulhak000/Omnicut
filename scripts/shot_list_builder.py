@@ -228,9 +228,9 @@ def generate_shot_list_for_angle(
     project_dir.mkdir(parents=True, exist_ok=True)
 
     voice_engine_type = voice_overrides.get("voice_engine_type") or angle.get("voice_engine_type") or "gemini_tts"
-    voice_preset = voice_overrides.get("voice_preset") or angle.get("voice_preset") or "gemini_kore_female_bright"
+    voice_preset = voice_overrides.get("voice_preset") or angle.get("voice_preset") or "gemini_puck_male_hype"
     voice_rate = voice_overrides.get("voice_rate") or angle.get("voice_rate") or "+15%"
-    ad_tone = voice_overrides.get("ad_tone") or angle.get("ad_tone") or "commercial_premium"
+    ad_tone = voice_overrides.get("ad_tone") or angle.get("ad_tone") or "commercial_hype"
 
     ctx = PipelineContext(
         product_name=product_name,

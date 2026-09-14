@@ -4,7 +4,7 @@ import {
   AlertCircle, ArrowRight, Upload, Trash2, RefreshCw, Plus, Film, Video,
   ChevronDown, ChevronUp, ChevronRight, Package, Rocket, FolderOpen, X,
   Search, LayoutGrid, Filter, Play, Lock, Edit3, Replace, Columns, List,
-  ShoppingBag, ShieldCheck, Database, Zap, Layers, Eye, EyeOff, CheckCircle2
+  ShoppingBag, ShieldCheck, Database, Zap, Layers, Eye, EyeOff, CheckCircle2, Tag
 } from 'lucide-react';
 import {
   scrapeAndPlanProduct, scrapeAndPlanProductAsync, getProducts, updateProduct,
@@ -20,6 +20,7 @@ import ProductMetadataModal from './ProductMetadataModal';
 import ShotListModal from './ShotListModal';
 import HookVariationModal from './HookVariationModal';
 import BatchRenderModal from './BatchRenderModal';
+import HookHeaderModal from './HookHeaderModal';
 import { toMediaUrl } from '../lib/mediaUrl';
 import { useToast } from '../hooks';
 import { useTaskManager } from '../context/TaskContext';
@@ -467,8 +468,12 @@ function AngleActiveWorkbench({
   angle, index, onCopy, onSendToStudio, onOpenInTimeline, onPreviewExportVideo, onCloneAngle, copiedIndex,
   videos = [], onToggleVideoForAngle, onUploadVideo, uploadingImg = false,
   onOpenMediaPicker, onSaveScript, onOpenFindReplace, onRerollScript, onGenerateShotList,
-  isGeneratingShotList = false, onOpenHookVariants
+  isGeneratingShotList = false, onOpenHookVariants,
+  productData, onOpenEditHookHeader
 }) {
+  const effectiveBrand = angle.hook_brand ?? productData?.hook_brand ?? guessBrandModel(angle.product_name || productData?.name || productData?.title || '').brand;
+  const effectiveModel = angle.hook_model ?? productData?.hook_model ?? guessBrandModel(angle.product_name || productData?.name || productData?.title || '').model;
+  const effectiveLabel = angle.hook_label ?? productData?.hook_label ?? '';
   const lines = Array.isArray(angle.script_lines)
     ? angle.script_lines
     : (angle.script_text ? angle.script_text.split('\n') : []);
@@ -656,7 +661,44 @@ function AngleActiveWorkbench({
         </div>
       )}
 
-      {/* 2. Hook Callout */}
+      {/* 2. Hook Header (3-tier Banner) */}
+      <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.08] space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
+            <Tag className="w-3.5 h-3.5 text-[#25F4EE]" />
+            <span>ป้าย Hook Header (3 บรรทัดบนวิดีโอ):</span>
+          </div>
+          {!isLocked && onOpenEditHookHeader && (
+            <button
+              type="button"
+              onClick={() => onOpenEditHookHeader(index)}
+              className="text-xs font-bold text-[#25F4EE] hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+              title="แก้ไขแบรนด์, รุ่น และหมวดสินค้าสำหรับป้าย Hook"
+            >
+              <Edit3 className="w-3 h-3" />
+              <span>แก้ไขป้าย Hook</span>
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="px-2.5 py-1 rounded-lg bg-black/50 border border-white/[0.1] text-xs text-white flex items-center gap-1">
+            <span className="text-slate-500 font-semibold">แบรนด์:</span>
+            <strong className="text-cyan-300">{effectiveBrand || '—'}</strong>
+          </span>
+          <span className="px-2.5 py-1 rounded-lg bg-black/50 border border-white/[0.1] text-xs text-white flex items-center gap-1">
+            <span className="text-slate-500 font-semibold">รุ่น:</span>
+            <strong className="text-amber-300">{effectiveModel || '—'}</strong>
+          </span>
+          {effectiveLabel && (
+            <span className="px-2.5 py-1 rounded-lg bg-black/50 border border-white/[0.1] text-xs text-white flex items-center gap-1">
+              <span className="text-slate-500 font-semibold">หมวด:</span>
+              <strong className="text-emerald-300">{effectiveLabel}</strong>
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* 3. Hook Callout */}
       {angle.hook_title && !isEditing && (
         <div className="p-3 rounded-xl bg-gradient-to-r from-[#FE2C55]/15 via-black/40 to-[#25F4EE]/10 border border-[#FE2C55]/30 flex items-center justify-between gap-2.5 text-xs sm:text-sm font-bold text-white shadow-sm">
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
@@ -1017,8 +1059,12 @@ function ScriptAccordionItem({
   videos = [], onToggleVideoForAngle, onUploadVideo, uploadingImg = false,
   onOpenMediaPicker,
   onSaveScript, onOpenFindReplace, onRerollScript, onGenerateShotList,
-  isGeneratingShotList = false, onOpenHookVariants
+  isGeneratingShotList = false, onOpenHookVariants,
+  productData, onOpenEditHookHeader
 }) {
+  const effectiveBrand = angle.hook_brand ?? productData?.hook_brand ?? guessBrandModel(angle.product_name || productData?.name || productData?.title || '').brand;
+  const effectiveModel = angle.hook_model ?? productData?.hook_model ?? guessBrandModel(angle.product_name || productData?.name || productData?.title || '').model;
+  const effectiveLabel = angle.hook_label ?? productData?.hook_label ?? '';
   const lines = Array.isArray(angle.script_lines)
     ? angle.script_lines
     : (angle.script_text ? angle.script_text.split('\n') : []);
@@ -1164,6 +1210,43 @@ function ScriptAccordionItem({
               </span>
             </div>
           )}
+
+          {/* Hook Header (3-tier Banner) */}
+          <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08] space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
+                <Tag className="w-3.5 h-3.5 text-[#25F4EE]" />
+                <span>ป้าย Hook Header (3 บรรทัดบนวิดีโอ):</span>
+              </div>
+              {!isLocked && onOpenEditHookHeader && (
+                <button
+                  type="button"
+                  onClick={() => onOpenEditHookHeader(index)}
+                  className="text-xs font-bold text-[#25F4EE] hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+                  title="แก้ไขแบรนด์, รุ่น และหมวดสินค้าสำหรับป้าย Hook"
+                >
+                  <Edit3 className="w-3 h-3" />
+                  <span>แก้ไขป้าย Hook</span>
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="px-2 py-0.5 rounded-lg bg-black/50 border border-white/[0.1] text-xs text-white flex items-center gap-1">
+                <span className="text-slate-500 font-semibold">แบรนด์:</span>
+                <strong className="text-cyan-300">{effectiveBrand || '—'}</strong>
+              </span>
+              <span className="px-2 py-0.5 rounded-lg bg-black/50 border border-white/[0.1] text-xs text-white flex items-center gap-1">
+                <span className="text-slate-500 font-semibold">รุ่น:</span>
+                <strong className="text-amber-300">{effectiveModel || '—'}</strong>
+              </span>
+              {effectiveLabel && (
+                <span className="px-2 py-0.5 rounded-lg bg-black/50 border border-white/[0.1] text-xs text-white flex items-center gap-1">
+                  <span className="text-slate-500 font-semibold">หมวด:</span>
+                  <strong className="text-emerald-300">{effectiveLabel}</strong>
+                </span>
+              )}
+            </div>
+          </div>
 
           {/* Hook Highlight / Editor */}
           {angle.hook_title && !isEditing && (
@@ -1767,6 +1850,10 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const [findReplaceOpen, setFindReplaceOpen] = useState(false);
   const [findReplaceAngleIdx, setFindReplaceAngleIdx] = useState(0);
 
+  // Hook Header Modal State
+  const [hookHeaderModalOpen, setHookHeaderModalOpen] = useState(false);
+  const [hookHeaderAngleIdx, setHookHeaderAngleIdx] = useState(0);
+
   // Uploading Screenshot/Image
   const [uploadingImg, setUploadingImg] = useState(false);
   const fileInputRef = useRef(null);
@@ -1961,6 +2048,92 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     }
   };
 
+  const handleSaveHookHeader = async ({ hookBrand, hookModel, hookLabel, scope, syncScriptText, angleIndex }) => {
+    if (!productData?.id) return;
+
+    let updatedAngles = [...angles];
+    const targetAngle = angles[angleIndex] || {};
+    const oldBrand = targetAngle.hook_brand || productData.hook_brand || '';
+    const oldModel = targetAngle.hook_model || productData.hook_model || '';
+
+    if (scope === 'all') {
+      updatedAngles = angles.map((ang) => {
+        const nextAng = {
+          ...ang,
+          hook_brand: hookBrand,
+          hook_model: hookModel,
+          hook_label: hookLabel,
+        };
+        if (syncScriptText && (oldBrand || oldModel)) {
+          let lines = ang.script_lines || [];
+          if (oldBrand && hookBrand && oldBrand !== hookBrand) {
+            lines = lines.map(l => l.replaceAll(oldBrand, hookBrand));
+          }
+          if (oldModel && hookModel && oldModel !== hookModel) {
+            lines = lines.map(l => l.replaceAll(oldModel, hookModel));
+          }
+          nextAng.script_lines = lines;
+          nextAng.script_text = lines.join('\n');
+        }
+        return nextAng;
+      });
+      setAngles(updatedAngles);
+
+      try {
+        const res = await updateProduct(productData.id, {
+          hook_brand: hookBrand,
+          hook_model: hookModel,
+          hook_label: hookLabel,
+          angles: updatedAngles,
+          apply_to_angles: true,
+        });
+        if (res.product) {
+          setProductData(prev => ({ ...prev, ...res.product, angles: res.product.angles || updatedAngles }));
+          setHistoryList(prev => prev.map(p => p.id === res.product.id ? res.product : p));
+        }
+        showToast(`อัปเดตป้าย Hook ไปยังทั้ง ${angles.length} สคริปต์ เรียบร้อยแล้ว!`);
+      } catch (err) {
+        console.error('Failed to update hook header:', err);
+        showToast('ไม่สามารถอัปเดตป้าย Hook ได้: ' + err.message, 'error');
+      }
+    } else {
+      updatedAngles = angles.map((ang, idx) => {
+        if (idx !== angleIndex) return ang;
+        const nextAng = {
+          ...ang,
+          hook_brand: hookBrand,
+          hook_model: hookModel,
+          hook_label: hookLabel,
+        };
+        if (syncScriptText && (oldBrand || oldModel)) {
+          let lines = ang.script_lines || [];
+          if (oldBrand && hookBrand && oldBrand !== hookBrand) {
+            lines = lines.map(l => l.replaceAll(oldBrand, hookBrand));
+          }
+          if (oldModel && hookModel && oldModel !== hookModel) {
+            lines = lines.map(l => l.replaceAll(oldModel, hookModel));
+          }
+          nextAng.script_lines = lines;
+          nextAng.script_text = lines.join('\n');
+        }
+        return nextAng;
+      });
+      setAngles(updatedAngles);
+
+      try {
+        const res = await updateProduct(productData.id, { angles: updatedAngles });
+        if (res.product) {
+          setProductData(prev => ({ ...prev, ...res.product, angles: res.product.angles || updatedAngles }));
+          setHistoryList(prev => prev.map(p => p.id === res.product.id ? res.product : p));
+        }
+        showToast(`อัปเดตป้าย Hook เฉพาะมุมที่ ${angleIndex + 1} เรียบร้อยแล้ว!`);
+      } catch (err) {
+        console.error('Failed to update hook header:', err);
+        showToast('ไม่สามารถอัปเดตป้าย Hook ได้: ' + err.message, 'error');
+      }
+    }
+  };
+
   // ── Per-Angle AI Script Reroll (separate from the video-render reroll system) ──
   const handleOpenRerollScriptModal = (angleIdx) => {
     const target = angles[angleIdx];
@@ -2044,6 +2217,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   // Runs the actual generate-task + poll cycle. Only called when there's no
   // existing shot list yet, or the user explicitly asks to regenerate one
   // (via the modal's "สร้างใหม่" action) -- never as the default click
+  const resolveAdTone = (tone) => (tone && tone !== 'commercial_premium' && ['commercial_hype', 'commercial_aesthetic', 'commercial_expert'].includes(tone)) ? tone : 'commercial_hype';
+
   // behavior, since re-running this re-synthesizes the voiceover from
   // scratch every time.
   const runShotListGeneration = async (angleIdx, targetAngle, voiceOverrides = {}) => {
@@ -2051,9 +2226,9 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     try {
       const overrides = {
         voice_engine_type: 'gemini_tts',
-        voice_preset: targetAngle.voice_preset || 'gemini_kore_female_bright',
+        voice_preset: targetAngle.voice_preset || 'gemini_puck_male_hype',
         voice_rate: '+15%',
-        ad_tone: targetAngle.ad_tone || 'commercial_premium',
+        ad_tone: resolveAdTone(targetAngle.ad_tone),
         ...voiceOverrides,
       };
       const res = await generateShotList(productData.id, targetAngle.angle_id, overrides);
@@ -2601,15 +2776,16 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       // the product name) and fall back to a whitespace split. They used to
       // be left blank here on purpose, which meant the first render burned
       // the whole product name into the brand tier and nothing into the rest.
-      hookBrand: angle.hook_brand || guessBrandModel(angle.product_name || '').brand,
-      hookModel: angle.hook_model || guessBrandModel(angle.product_name || '').model,
-      hookLabel: angle.hook_label || '',
+      hookBrand: angle.hook_brand || productData?.hook_brand || guessBrandModel(angle.product_name || productData?.title || '').brand,
+      hookModel: angle.hook_model || productData?.hook_model || guessBrandModel(angle.product_name || productData?.title || '').model,
+      hookLabel: angle.hook_label || productData?.hook_label || '',
       customScript: scriptText,
       keyFeatures: angle.key_features || productData?.description || '',
       painPoint: angle.pain_point || '',
       priceDeal: angle.price_deal || productData?.price_note || '',
-      adTone: angle.ad_tone || 'commercial_premium',
-      voicePreset: angle.voice_preset || 'gemini_kore_female_bright',
+      adTone: resolveAdTone(angle.ad_tone),
+      voicePreset: angle.voice_preset || 'gemini_puck_male_hype',
+      voiceGender: 'male',
       voiceMode: 'gemini_tts',
       voiceSpeed: '+15%',
       shotListId: `${productData?.id}:${angle.angle_id}`,
@@ -2662,14 +2838,16 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       // the product name) and fall back to a whitespace split. They used to
       // be left blank here on purpose, which meant the first render burned
       // the whole product name into the brand tier and nothing into the rest.
-      hookBrand: angle.hook_brand || guessBrandModel(angle.product_name || '').brand,
-      hookModel: angle.hook_model || guessBrandModel(angle.product_name || '').model,
-      hookLabel: angle.hook_label || '',
+      hookBrand: angle.hook_brand || productData?.hook_brand || guessBrandModel(angle.product_name || productData?.title || '').brand,
+      hookModel: angle.hook_model || productData?.hook_model || guessBrandModel(angle.product_name || productData?.title || '').model,
+      hookLabel: angle.hook_label || productData?.hook_label || '',
       customScript: scriptText,
       keyFeatures: angle.key_features || productData?.description || '',
       painPoint: angle.pain_point || '',
       priceDeal: angle.price_deal || productData?.price_note || '',
-      adTone: angle.ad_tone || 'commercial_premium',
+      adTone: resolveAdTone(angle.ad_tone),
+      voicePreset: angle.voice_preset || 'gemini_puck_male_hype',
+      voiceGender: 'male',
       selectedVideo: primaryVideo,
       selectedVideos: chosenVideos,
       openProjectName: angle.project_name || '',
@@ -2854,15 +3032,29 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                 </div>
 
                 {productData && (
-                  <button
-                    type="button"
-                    onClick={() => setShowMetadataModal(true)}
-                    className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/25 text-xs font-bold cursor-pointer transition-colors"
-                    title="ดู metadata และรูปที่ AI ใช้"
-                  >
-                    <Database className="w-3.5 h-3.5" />
-                    <span className="hidden xs:inline sm:inline">ข้อมูล AI</span>
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setShowMetadataModal(true)}
+                      className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/25 text-xs font-bold cursor-pointer transition-colors"
+                      title="ดู metadata และรูปที่ AI ใช้"
+                    >
+                      <Database className="w-3.5 h-3.5" />
+                      <span className="hidden xs:inline sm:inline">ข้อมูล AI</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHookHeaderAngleIdx(openAngleIdx >= 0 ? openAngleIdx : 0);
+                        setHookHeaderModalOpen(true);
+                      }}
+                      className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/25 text-xs font-bold cursor-pointer transition-colors"
+                      title="ตั้งค่าป้าย Hook Header (แบรนด์, รุ่น, หมวดสินค้า) ของสินค้านี้"
+                    >
+                      <Tag className="w-3.5 h-3.5" />
+                      <span className="hidden xs:inline sm:inline">ป้าย Hook</span>
+                    </button>
+                  </>
                 )}
 
                 {/* Catalog Modal Button */}
@@ -3522,6 +3714,11 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       onRerollScript={handleOpenRerollScriptModal}
                       onGenerateShotList={handleGenerateShotList}
                       isGeneratingShotList={generatingShotListIdx === activeAngleIdx}
+                      productData={productData}
+                      onOpenEditHookHeader={(idx) => {
+                        setHookHeaderAngleIdx(idx);
+                        setHookHeaderModalOpen(true);
+                      }}
                     />
                   ) : displayedAngles[0] ? (
                     <AngleActiveWorkbench
@@ -3547,6 +3744,11 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       onRerollScript={handleOpenRerollScriptModal}
                       onGenerateShotList={handleGenerateShotList}
                       isGeneratingShotList={generatingShotListIdx === displayedAngles[0].originalIndex}
+                      productData={productData}
+                      onOpenEditHookHeader={(idx) => {
+                        setHookHeaderAngleIdx(idx);
+                        setHookHeaderModalOpen(true);
+                      }}
                     />
                   ) : null}
                 </div>
@@ -3595,6 +3797,11 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       onRerollScript={handleOpenRerollScriptModal}
                       onGenerateShotList={handleGenerateShotList}
                       isGeneratingShotList={generatingShotListIdx === ang.originalIndex}
+                      productData={productData}
+                      onOpenEditHookHeader={(idx) => {
+                        setHookHeaderAngleIdx(idx);
+                        setHookHeaderModalOpen(true);
+                      }}
                     />
                   ))
                 )}
@@ -3666,6 +3873,16 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         angles={angles}
         currentAngleIndex={findReplaceAngleIdx}
         onApplyReplace={handleApplyFindReplace}
+      />
+
+      {/* ── Hook Header Modal ── */}
+      <HookHeaderModal
+        isOpen={hookHeaderModalOpen}
+        onClose={() => setHookHeaderModalOpen(false)}
+        product={productData}
+        angles={angles}
+        currentAngleIndex={hookHeaderAngleIdx}
+        onSaveHookHeader={handleSaveHookHeader}
       />
 
       {/* ── Reroll Script with AI Modal (per-angle, overwrites script in place) ── */}

@@ -109,10 +109,10 @@ def test_weekly_template_upsert_copy_and_reset(queue_workspace):
     reset = client.delete("/api/schedule-queue/template/2030-01-14")
     assert reset.status_code == 200
     assert reset.json()["id"] == "default"
-    assert reset.json()["days"]["0"]["times"] == ["12:30", "19:00", "21:30"]
+    assert reset.json()["days"]["0"]["times"] == ["09:00", "12:30", "16:00", "19:00", "21:30"]
 
 
-def test_legacy_five_slot_template_migrates_to_three_defaults(queue_workspace):
+def test_legacy_slot_templates_migrate_to_five_defaults(queue_workspace):
     queue_store.ScheduleTemplateStore._save([{
         "id": "default",
         "week_start": None,
@@ -120,7 +120,23 @@ def test_legacy_five_slot_template_migrates_to_three_defaults(queue_workspace):
     }])
     response = client.get("/api/schedule-queue/template")
     assert response.status_code == 200
-    assert response.json()["days"]["0"]["times"] == ["12:30", "19:00", "21:30"]
+    assert response.json()["days"]["0"]["times"] == ["09:00", "12:30", "16:00", "19:00", "21:30"]
+
+
+def test_template_supports_variable_slot_counts_and_rejects_duplicates(queue_workspace):
+    custom = {"enabled": True, "times": ["08:00", "13:00", "18:00", "22:00"]}
+    saved = client.put(
+        "/api/schedule-queue/template",
+        json={"week_start": "2030-01-07", "days": {"0": custom}},
+    )
+    assert saved.status_code == 200
+    assert saved.json()["days"]["0"]["times"] == custom["times"]
+
+    duplicate = client.put(
+        "/api/schedule-queue/template",
+        json={"week_start": "2030-01-07", "days": {"0": {"enabled": True, "times": ["08:00", "08:00"]}}},
+    )
+    assert duplicate.status_code == 422
 
 
 def test_autofill_preview_rotates_products_and_commit_is_atomic(queue_workspace):
@@ -180,5 +196,5 @@ def test_autofill_starts_after_latest_queue_timestamp_and_skips_past_slots(queue
     assert preview.status_code == 200
     assert [row["scheduled_at"] for row in preview.json()["items"]] == [
         "2030-01-07T12:30+07:00",
-        "2030-01-07T19:00+07:00",
+        "2030-01-07T16:00+07:00",
     ]

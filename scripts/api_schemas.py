@@ -16,9 +16,9 @@ class ScriptGenerateRequest(BaseModel):
 
 class VoicePreviewRequest(BaseModel):
     text: Optional[str] = None
-    voice_gender: Optional[str] = "female"
+    voice_gender: Optional[str] = "male"
     speed: Optional[float] = 1.20
-    ad_tone: Optional[str] = "commercial_premium"
+    ad_tone: Optional[str] = "commercial_hype"
 
 
 class RenderRequest(BaseModel):
@@ -37,10 +37,10 @@ class RenderRequest(BaseModel):
     custom_script: Optional[str] = None
     script_overlays: Optional[List[str]] = None
     voice_mode: str = "gemini_tts"
-    voice_gender: str = "female"
+    voice_gender: str = "male"
     voice_rate: str = "+15%"
     voice_preset: Optional[str] = "gemini_puck_male_hype"
-    ad_tone: Optional[str] = "commercial_premium"
+    ad_tone: Optional[str] = "commercial_hype"
     style_preset: str = "clean_tech_review"
     human_voice_audio: Optional[str] = None
     product_id: Optional[str] = None

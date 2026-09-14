@@ -25,6 +25,7 @@ const QuickRefPage = lazy(() => import('./components/producer/QuickRefPage'));
 import { angleToForm } from './lib/angleToForm';
 import { applyUiScale, initUiScale } from './lib/uiScale';
 import { editorProjectIntentFromPayload } from './lib/editorEntry';
+import { createWorkspaceDataCoordinator } from './lib/workspaceData';
 import { TaskProvider } from './context/TaskContext';
 import { ActivityDrawer, GlobalTaskNotification, ActivityIndicatorButton, GlobalLiveRenderWidget } from './components/ActivityCenter';
 
@@ -78,6 +79,14 @@ export default function App() {
   const [status, setStatus] = useState(null);
   const [videos, setVideos] = useState([]);
   const [exportsList, setExportsList] = useState([]);
+  const workspaceDataRef = useRef(null);
+  if (!workspaceDataRef.current) {
+    workspaceDataRef.current = createWorkspaceDataCoordinator({
+      getSystemStatus,
+      getRawVideos,
+      getExports,
+    });
+  }
 
   // 2. Global UI Font of the Application (Saved in localStorage)
   const [uiFont, setUiFont] = useState(() => localStorage.getItem('capcut_ui_font') || 'font-prompt');
@@ -187,25 +196,31 @@ export default function App() {
     }
   });
 
-  const refreshData = async () => {
+  const refreshData = useCallback(async ({ includeExports = false, force = false } = {}) => {
     try {
-      const [sRes, vRes, eRes] = await Promise.all([
-        getSystemStatus(),
-        getRawVideos(),
-        getExports()
-      ]);
-      setStatus(sRes);
-      setVideos(vRes.videos || []);
-      setExportsList(eRes.exports || []);
+      const shell = await workspaceDataRef.current.loadShell({ force });
+      setStatus(shell.status);
+      setVideos(shell.videos.videos || []);
+      if (includeExports) {
+        const exportsData = await workspaceDataRef.current.loadExports({ force });
+        setExportsList(exportsData.exports || []);
+      }
 
     } catch (err) {
       console.error('Failed to load initial data:', err);
     }
-  };
+  }, []);
 
   useEffect(() => {
     refreshData();
-  }, []);
+  }, [refreshData]);
+
+  // Gallery is the only shell route that needs the full Export Catalog.
+  // Sidebar navigation sets activeTab directly, so load it here as well as
+  // through task-driven handleNavigateTab below.
+  useEffect(() => {
+    if (activeTab === 'gallery') refreshData({ includeExports: true });
+  }, [activeTab, refreshData]);
 
   // Revalidate a product/angle context that was hydrated from localStorage
   // on mount against the backend's current product list. Cached data can go
@@ -326,7 +341,7 @@ export default function App() {
         console.error('Failed to auto-update angle status on render:', err);
       }
     }
-    refreshData();
+    refreshData({ includeExports: true, force: true });
   };
 
   const [highlightExportVideo, setHighlightExportVideo] = useState(null);
@@ -342,7 +357,7 @@ export default function App() {
       if (target) {
         setHighlightExportVideo(target);
       }
-      refreshData();
+      refreshData({ includeExports: true });
     } else if (tab === 'editor') {
       const projName = extra?.projectName || extra?.targetId || extra?.taskResult?.project_name || extra?.task?.payload?.project_name || extra?.task?.target_id;
       setInitialProjectNameToLoad(projName || null);

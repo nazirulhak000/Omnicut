@@ -9,6 +9,7 @@ identity used to decide whether two versions are the same export.
 from __future__ import annotations
 
 import datetime as dt
+import threading
 import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -56,6 +57,9 @@ def _normalise_path(raw_path: Any) -> str:
 class ExportRegistry:
     """Transactional store for per-file export identities."""
 
+    _path_index_lock = threading.Lock()
+    _path_index: Optional[Dict[str, str]] = None
+
     @classmethod
     def _load(cls) -> List[Dict[str, Any]]:
         return _TABLE.load()
@@ -64,6 +68,24 @@ class ExportRegistry:
     def all(cls) -> List[Dict[str, Any]]:
         """Return a snapshot for callers that need to audit identities."""
         return [dict(row) for row in cls._load()]
+
+    @classmethod
+    def path_index(cls) -> Dict[str, str]:
+        """Return canonical-path → export-id lookup, built once per change.
+
+        Windows ``Path.resolve`` is expensive. Schedule reads only need the
+        identity lookup, not a fresh normalization of every historic export.
+        """
+        with cls._path_index_lock:
+            if cls._path_index is None:
+                index: Dict[str, str] = {}
+                for row in cls._load():
+                    key = row.get("path_key") or _normalise_path(row.get("path"))
+                    export_id = row.get("id")
+                    if key and export_id and key not in index:
+                        index[key] = str(export_id)
+                cls._path_index = index
+            return dict(cls._path_index)
 
     @classmethod
     def _mutate(cls):
@@ -140,6 +162,82 @@ class ExportRegistry:
         return rows[0][0]
 
     @classmethod
+    def ensure_many(cls, entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Ensure many file identities inside one read-modify-write transaction.
+
+        Export listings can contain hundreds of MP4s. Calling ``ensure`` once
+        per file opens and commits a SQLite transaction for every row, which
+        turns a harmless read into a linear series of database writes. Keep
+        the returned order aligned with ``entries`` so callers can attach the
+        stable identity to the matching file without another path scan.
+        """
+        prepared = []
+        for entry in entries:
+            path_key = _normalise_path(entry.get("path"))
+            if not path_key:
+                raise ValueError("export path is required")
+            prepared.append((path_key, entry))
+
+        if not prepared:
+            return []
+
+        now = _now()
+        with cls._mutate() as records:
+            by_path = {}
+            for row in records:
+                row_key = _normalise_path(row.get("path"))
+                if row_key and row_key not in by_path:
+                    by_path[row_key] = row
+
+            result = []
+            for path_key, entry in prepared:
+                product_id = entry.get("product_id")
+                angle_id = entry.get("angle_id")
+                project_name = entry.get("project_name")
+                status = entry.get("status") or "rendered"
+                posted_at = entry.get("posted_at")
+                record = by_path.get(path_key)
+                if record is None:
+                    record = {
+                        "id": f"exp_{uuid.uuid4().hex}",
+                        "path": path_key,
+                        "path_key": path_key,
+                        "product_id": product_id,
+                        "angle_id": angle_id,
+                        "project_name": project_name,
+                        "status": status,
+                        "created_at": now,
+                        "updated_at": now,
+                        "posted_at": posted_at,
+                    }
+                    records.append(record)
+                    by_path[path_key] = record
+                else:
+                    changed = False
+                    if record.get("path_key") != path_key:
+                        record["path_key"] = path_key
+                        changed = True
+                    if product_id and not record.get("product_id"):
+                        record["product_id"] = product_id
+                        changed = True
+                    if angle_id and not record.get("angle_id"):
+                        record["angle_id"] = angle_id
+                        changed = True
+                    if project_name and not record.get("project_name"):
+                        record["project_name"] = project_name
+                        changed = True
+                    # Never downgrade a posted export during a later legacy scan.
+                    if record.get("status") != "posted" and status == "posted":
+                        record["status"] = "posted"
+                        record["posted_at"] = posted_at or record.get("posted_at") or now
+                        changed = True
+                    if changed:
+                        record["updated_at"] = now
+                result.append(dict(record))
+            cls._path_index = None
+            return result
+
+    @classmethod
     def ensure(
         cls,
         path: Any,
@@ -156,38 +254,14 @@ class ExportRegistry:
         registry existed.  A later call can enrich a legacy record without
         changing its ID.
         """
-        path_key = _normalise_path(path)
-        if not path_key:
-            raise ValueError("export path is required")
-        now = _now()
-        with cls._mutate() as records:
-            record = next((row for row in records if _normalise_path(row.get("path")) == path_key), None)
-            if record is None:
-                record = {
-                    "id": f"exp_{uuid.uuid4().hex}",
-                    "path": path_key,
-                    "product_id": product_id,
-                    "angle_id": angle_id,
-                    "project_name": project_name,
-                    "status": status,
-                    "created_at": now,
-                    "updated_at": now,
-                    "posted_at": posted_at,
-                }
-                records.append(record)
-            else:
-                if product_id and not record.get("product_id"):
-                    record["product_id"] = product_id
-                if angle_id and not record.get("angle_id"):
-                    record["angle_id"] = angle_id
-                if project_name and not record.get("project_name"):
-                    record["project_name"] = project_name
-                # Never downgrade a posted export during a later legacy scan.
-                if record.get("status") != "posted" and status == "posted":
-                    record["status"] = "posted"
-                    record["posted_at"] = posted_at or record.get("posted_at") or now
-                record["updated_at"] = now
-            return dict(record)
+        return cls.ensure_many([{
+            "path": path,
+            "product_id": product_id,
+            "angle_id": angle_id,
+            "project_name": project_name,
+            "status": status,
+            "posted_at": posted_at,
+        }])[0]
 
     @classmethod
     def move_and_mark_posted(

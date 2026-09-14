@@ -25,6 +25,7 @@ import os
 import time
 import uuid
 import json
+import base64
 import subprocess
 import urllib.parse
 import urllib.request
@@ -682,6 +683,7 @@ def render_pro_cover(
     video_path_str: Optional[str] = None,
     at_seconds: float = 1.0,
     custom_image_str: Optional[str] = None,
+    custom_image_data_str: Optional[str] = None,
     raw_video_path_str: Optional[str] = None,
     pan_y_pct: float = 50.0,
     pan_x_pct: float = 50.0,
@@ -726,7 +728,24 @@ def render_pro_cover(
     base_img = None
     stem_name = export_stem or "cover"
 
-    if custom_image_str:
+    if custom_image_data_str:
+        if not custom_image_data_str.startswith("data:image/") or "," not in custom_image_data_str:
+            raise HTTPException(status_code=400, detail="ภาพจาก Timeline ต้องเป็น data URL ของรูปภาพ")
+        try:
+            header, encoded = custom_image_data_str.split(",", 1)
+            if ";base64" not in header:
+                raise ValueError("not base64")
+            image_bytes = base64.b64decode(encoded, validate=True)
+            if len(image_bytes) > 8 * 1024 * 1024:
+                raise ValueError("image too large")
+            from PIL import ImageFile
+            parser = ImageFile.Parser()
+            parser.feed(image_bytes)
+            parsed = parser.close()
+            base_img = parsed.convert("RGB")
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail="อ่านภาพจาก Timeline ไม่สำเร็จ") from exc
+    elif custom_image_str:
         img_path = _resolve_media(custom_image_str)
         stem_name = export_stem or img_path.stem
         base_img = Image.open(img_path).convert("RGB")
@@ -1066,6 +1085,7 @@ class RenderProCoverRequest(BaseModel):
     video_path: Optional[str] = None
     at_seconds: float = 1.0
     custom_image_path: Optional[str] = None
+    custom_image_data: Optional[str] = None
     raw_video_path: Optional[str] = None
     pan_y_pct: float = 50.0
     pan_x_pct: float = 50.0
@@ -1148,7 +1168,8 @@ def render_pro_cover_endpoint(req: RenderProCoverRequest):
 
     primary_path, path_3x4 = render_pro_cover(
         video_path_str=req.video_path, at_seconds=req.at_seconds,
-        custom_image_str=req.custom_image_path, raw_video_path_str=req.raw_video_path,
+        custom_image_str=req.custom_image_path, custom_image_data_str=req.custom_image_data,
+        raw_video_path_str=req.raw_video_path,
         pan_y_pct=req.pan_y_pct, pan_x_pct=req.pan_x_pct, zoom_scale=req.zoom_scale,
         aspect_ratio=req.aspect_ratio, enable_hook_text=req.enable_hook_text,
         enable_badge=req.enable_badge, template=req.template, hook_text=req.hook_text,

@@ -105,10 +105,14 @@ class TaskManager:
             orphaned_render_tasks = []
             for task_id, task in cls._tasks.items():
                 if task.get("status") in [TaskStatus.QUEUED, TaskStatus.PROCESSING]:
-                    if task.get("type") == "background_isolation":
+                    if task.get("type") in ("background_isolation", "batch_render"):
                         task["status"] = TaskStatus.QUEUED
                         task["error"] = None
-                        task["step_label"] = "กำลังกู้คืนงานตัดพื้นหลังจาก checkpoint เดิม"
+                        task["step_label"] = (
+                            "กำลังกู้คืนงานตัดพื้นหลังจาก checkpoint เดิม"
+                            if task.get("type") == "background_isolation"
+                            else "กำลังกู้คืนคิวเรนเดอร์จาก checkpoint เดิม"
+                        )
                         task["updated_at"] = cls._now_iso()
                         changed = True
                         continue

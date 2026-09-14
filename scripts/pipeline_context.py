@@ -360,7 +360,7 @@ class PipelineContext:
     voice_rate: str = DEFAULT_VOICE_RATE
     voice_engine_type: str = "edge_tts"
     voice_preset: Optional[str] = "gemini_puck_male_hype"
-    ad_tone: str = "commercial_premium"
+    ad_tone: str = "commercial_hype"
     style_preset: str = "clean_tech_review"
     human_voice_audio_path: Optional[str] = None
     hook_brand: Optional[str] = None

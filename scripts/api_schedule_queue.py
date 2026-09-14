@@ -19,8 +19,10 @@ from scripts.schedule_store import ScheduleQueueStore, ScheduleTemplateStore, ne
 
 POSTED_DIR = EXPORTS_DIR.parent / "Posted"
 PROJECT_TZ = ZoneInfo("Asia/Bangkok")
-DEFAULT_PRIMARY_TIMES = ("12:30", "19:00", "21:30")
+DEFAULT_PRIMARY_TIMES = ("09:00", "12:30", "16:00", "19:00", "21:30")
+OLD_DEFAULT_PRIMARY_TIMES = ("12:30", "19:00", "21:30")
 LEGACY_PRIMARY_TIMES = ("07:00", "10:00", "12:00", "16:00", "20:00")
+MAX_TEMPLATE_TIMES = 24
 DAY_INDICES = tuple(range(7))
 ACTIVE_STATUSES = {"planned", "ready_for_extension", "awaiting_post", "failed"}
 ALL_STATUSES = ACTIVE_STATUSES | {"posted"}
@@ -162,13 +164,19 @@ def _normalise_days(days: Dict[str, ScheduleDayPayload] | Dict[str, Any]) -> Dic
         else:
             raw = raw if isinstance(raw, dict) else {}
             enabled, times = bool(raw.get("enabled", True)), raw.get("times", DEFAULT_PRIMARY_TIMES)
+        if not isinstance(times, (list, tuple)):
+            raise HTTPException(status_code=422, detail="ช่วงเวลาต้องเป็นรายการเวลา")
         values = [_valid_time(value) for value in times]
-        if len(values) == len(LEGACY_PRIMARY_TIMES):
+        if set(values) == set(LEGACY_PRIMARY_TIMES) and len(values) == len(LEGACY_PRIMARY_TIMES):
             # Keep templates saved before the three-slot schedule readable while
-            # moving them to the new defaults on the next template read/save.
+            # moving them to the new five-slot defaults on the next template read/save.
             values = list(DEFAULT_PRIMARY_TIMES)
-        if len(values) != len(DEFAULT_PRIMARY_TIMES) or len(set(values)) != len(DEFAULT_PRIMARY_TIMES):
-            raise HTTPException(status_code=422, detail=f"แต่ละวันต้องมีเวลาไม่ซ้ำกัน {len(DEFAULT_PRIMARY_TIMES)} เวลา")
+        elif set(values) == set(OLD_DEFAULT_PRIMARY_TIMES) and len(values) == len(OLD_DEFAULT_PRIMARY_TIMES):
+            # The old built-in three-slot default was never a meaningful custom
+            # override, so promote it to the new default when it is encountered.
+            values = list(DEFAULT_PRIMARY_TIMES)
+        if not values or len(values) > MAX_TEMPLATE_TIMES or len(values) != len(set(values)):
+            raise HTTPException(status_code=422, detail=f"แต่ละวันต้องมีเวลาไม่ซ้ำกัน 1–{MAX_TEMPLATE_TIMES} ช่วง")
         output[str(index)] = {"enabled": enabled, "times": sorted(values)}
     return output
 
@@ -599,11 +607,7 @@ def list_queue(status: Optional[str] = Query(default=None), date_from: Optional[
     # that itself calls Path.resolve() per row it checks) once per queue
     # row below -- ~30 queue rows x ~40 registry rows was ~1,200 resolve()
     # syscalls on every GET /schedule-queue.
-    export_id_by_path: Dict[str, str] = {}
-    for export_row in ExportRegistry.all():
-        path_key = _export_normalise_path(export_row.get("path"))
-        if path_key and path_key not in export_id_by_path:
-            export_id_by_path[path_key] = export_row.get("id")
+    export_id_by_path = ExportRegistry.path_index()
     now = dt.datetime.now(PROJECT_TZ)
     enriched = []
     for row in sort_records(records):

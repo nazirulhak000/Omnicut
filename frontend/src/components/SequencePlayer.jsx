@@ -4021,6 +4021,16 @@ function SequencePlayer({
     seekTo,
     seek: seekTo,        // callers use both names
 
+    // The Cover Studio can use the same painted Timeline frame before an MP4
+    // exists. Keep this on the player so the capture includes the active
+    // clip, overlays, captions, stickers and grade at the current playhead.
+    captureFrame: () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return null;
+      renderAt(playheadRef.current);
+      return canvas.toDataURL('image/jpeg', 0.92);
+    },
+
     play: () => { if (!isPlaying) togglePlay(); },
     pause: () => { if (isPlaying) togglePlay(); },
     toggle: togglePlay,

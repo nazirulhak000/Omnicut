@@ -87,9 +87,9 @@ def test_resolve_voice_no_preset_uses_gender_only():
     assert GeminiFlashTTSEngine.resolve_voice(gender="male") == "Puck"
 
 
-def test_resolve_voice_nothing_given_defaults_to_kore():
-    assert GeminiFlashTTSEngine.resolve_voice() == "Kore"
-    assert GeminiFlashTTSEngine.resolve_voice(preset=None, gender=None) == "Kore"
+def test_resolve_voice_nothing_given_defaults_to_puck():
+    assert GeminiFlashTTSEngine.resolve_voice() == "Puck"
+    assert GeminiFlashTTSEngine.resolve_voice(preset=None, gender=None) == "Puck"
 
 
 # ------------------------------------------------------------- get_api_keys

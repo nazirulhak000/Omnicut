@@ -28,20 +28,33 @@ const TONE_ICONS = {
   commercial_expert:    '🎙️',
 };
 
+const VALID_AD_TONES = ['commercial_premium', 'commercial_hype', 'commercial_aesthetic', 'commercial_expert'];
+
+function normalizeVoice(voiceId) {
+  return voiceId || 'gemini_puck_male_hype';
+}
+
+function normalizeTone(toneId) {
+  if (!toneId || !VALID_AD_TONES.includes(toneId) || toneId === 'commercial_premium') {
+    return 'commercial_hype';
+  }
+  return toneId;
+}
+
 export default function VoicePickerModal({ isOpen, onClose, selectedVoice, selectedTone, onSelect }) {
   const [manifest, setManifest]     = useState(null);
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState(null);
   const [playingKey, setPlayingKey] = useState(null);
-  const [localVoice, setLocalVoice] = useState(selectedVoice);
-  const [localTone, setLocalTone]   = useState(selectedTone);
+  const [localVoice, setLocalVoice] = useState(() => normalizeVoice(selectedVoice));
+  const [localTone, setLocalTone]   = useState(() => normalizeTone(selectedTone));
   const audioRef = useRef(null);
 
   // ── fetch manifest when opening ─────────────────────────────────────────
   useEffect(() => {
     if (!isOpen) return;
-    setLocalVoice(selectedVoice);
-    setLocalTone(selectedTone);
+    setLocalVoice(normalizeVoice(selectedVoice));
+    setLocalTone(normalizeTone(selectedTone));
     setLoading(true);
     setError(null);
     fetch('/api/voice/presets')

@@ -1,82 +1,6 @@
 {
   "version": "1.0",
   "templates": {
-    "custom_1788801633": {
-      "id": "custom_1788801633",
-      "label_th": "VIP นีออน ทดสอบ",
-      "font": "Kanit",
-      "tiers": {
-        "brand": {
-          "size_pct": 110,
-          "color": "#FFE600",
-          "outline_color": "#000000",
-          "outline_px": 8,
-          "upper": true,
-          "pill": null
-        },
-        "model": {
-          "size_pct": 140,
-          "color": "#FFFFFF",
-          "outline_color": "#000000",
-          "outline_px": 10,
-          "upper": false,
-          "pill": "#25F4EE"
-        },
-        "label": {
-          "size_pct": 58,
-          "color": "#E0E0E0",
-          "outline_color": "#000000",
-          "outline_px": 6.0,
-          "upper": false,
-          "pill": null
-        }
-      },
-      "motion": {
-        "in": "pop_zoom",
-        "loop": "lightsweep",
-        "out": "fade"
-      },
-      "is_custom": true
-    },
-    "custom_1788801924": {
-      "id": "custom_1788801924",
-      "label_th": "Cyber Neon Pro",
-      "font": "Kanit",
-      "tiers": {
-        "brand": {
-          "size_pct": 174,
-          "color": "#2c2121",
-          "outline_color": "#FFFFFF",
-          "outline_px": 14,
-          "upper": false,
-          "pill": null
-        },
-        "model": {
-          "size_pct": 113,
-          "color": "#f47171",
-          "outline_color": "#FFFFFF",
-          "outline_px": 17,
-          "upper": false,
-          "pill": null
-        },
-        "label": {
-          "size_pct": 78,
-          "color": "#4CE0FF",
-          "outline_color": "#FFFFFF",
-          "outline_px": 9,
-          "upper": false,
-          "pill": null
-        }
-      },
-      "motion": {
-        "in": "pop",
-        "loop": "shake",
-        "out": "zoom",
-        "accent": "badge",
-        "stagger": true
-      },
-      "is_custom": true
-    },
     "custom_1789393112": {
       "id": "custom_1789393112",
       "label_th": "Brand 2 C",
@@ -141,6 +65,88 @@
         },
         "label": {
           "size_pct": 79,
+          "color": "#D0D0D0",
+          "outline_color": "#101010",
+          "outline_px": 3,
+          "upper": false,
+          "pill": null
+        }
+      },
+      "motion": {
+        "in": "slide_up",
+        "loop": "flicker",
+        "out": "fade",
+        "accent": "none",
+        "stagger": true,
+        "reveal": "simultaneous",
+        "speed": "smooth"
+      },
+      "is_custom": true
+    },
+    "custom_1789397160": {
+      "id": "custom_1789397160",
+      "label_th": "Brand 1 A",
+      "font": "Kanit",
+      "tiers": {
+        "brand": {
+          "size_pct": 170,
+          "color": "#96fdac",
+          "outline_color": "#0a0a0a",
+          "outline_px": 3,
+          "upper": true,
+          "pill": null
+        },
+        "model": {
+          "size_pct": 140,
+          "color": "#f7f7f7",
+          "outline_color": "#0a0a0a",
+          "outline_px": 3,
+          "upper": false,
+          "pill": null
+        },
+        "label": {
+          "size_pct": 79,
+          "color": "#D0D0D0",
+          "outline_color": "#101010",
+          "outline_px": 3,
+          "upper": false,
+          "pill": null
+        }
+      },
+      "motion": {
+        "in": "slide_up",
+        "loop": "flicker",
+        "out": "fade",
+        "accent": "none",
+        "stagger": true,
+        "reveal": "simultaneous",
+        "speed": "smooth"
+      },
+      "is_custom": true
+    },
+    "custom_1789399710": {
+      "id": "custom_1789399710",
+      "label_th": "Brand 1 B (red+กระพริบ)",
+      "font": "Kanit",
+      "tiers": {
+        "brand": {
+          "size_pct": 130,
+          "color": "#e31616",
+          "outline_color": "#0b0a0a",
+          "outline_px": 3,
+          "upper": true,
+          "pill": null
+        },
+        "model": {
+          "size_pct": 107,
+          "color": "#f7f7f7",
+          "outline_color": "#0a0a0a",
+          "outline_px": 3,
+          "upper": false,
+          "pill": null
+        },
+        "label": {
+          "size_pct": 60,
           "color": "#D0D0D0",
           "outline_color": "#101010",
           "outline_px": 3,

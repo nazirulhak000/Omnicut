@@ -1057,7 +1057,7 @@ class ProductScraper:
   "pain_point": "ปัญหาหลักที่คนดูเจอ",
   "key_features": "จุดเด่น 3-4 ข้อที่ตอบโจทย์",
   "price_deal": "ข้อเสนอราคา/โปรโมชั่นและการเร่งรีบ",
-  "ad_tone": "commercial_premium",
+  "ad_tone": "commercial_hype",
   "script_lines": {example_script_lines_json},
   "tiktok_caption": "บอกลาอาการปวดข้อมือ! อัปเกรดชีวิตด้วย {{product_name}} คีย์บอร์ดเพื่อสุขภาพที่นุ่มสบายที่สุด พิกัดในตะกร้าเลย 👇",
   "tiktok_hashtags": "#นายหน้าtiktok #รีวิวของดี #ของมันต้องมี #tiktokป้ายยา #พิกัดในตะกร้า"
@@ -1170,7 +1170,7 @@ class ProductScraper:
                 "pain_point": "ของเดิมพังง่าย ใช้ยาก ไม่ตอบโจทย์",
                 "key_features": "ดีไซน์สวย ทนทาน ใช้งานง่าย เห็นผลจริง",
                 "price_deal": "โปรพิเศษวันนี้ จิ้มตะกร้าซ้ายล่างเลย",
-                "ad_tone": "commercial_premium",
+                "ad_tone": "commercial_hype",
                 "script_lines": [
                     "ทุกคน ใครที่เบื่อกับปัญหาเดิมๆ ลองดูคลิปนี้ด่วนเลยครับ",
                     f"นี่เลย {base_name} ตัวช่วยใหม่ล่าสุด",
@@ -1210,7 +1210,7 @@ class ProductScraper:
                 "pain_point": "ของราคาถูกมักพังง่าย ไม่ทนทาน",
                 "key_features": "โครงสร้างแข็งแรง ฟังก์ชันจัดเต็ม ใช้งานหนักได้",
                 "price_deal": "รับประกันคุณภาพ มีของพร้อมส่ง",
-                "ad_tone": "tech_minimal",
+                "ad_tone": "commercial_hype",
                 "script_lines": [
                     "วันนี้ผมจะมาเทสให้ดูแบบไม่ออมมือเลยว่าทนจริงไหม",
                     f"{base_name} ตัวนี้ใช้วัสดุเกรดพรีเมียมอย่างดี",
@@ -1250,7 +1250,7 @@ class ProductScraper:
                 "pain_point": "ไม่แน่ใจว่าเปลี่ยนแล้วจะดีขึ้นจริงไหม",
                 "key_features": "เร็วกว่า ใช้งานง่ายกว่า ไม่เกะกะ",
                 "price_deal": "คุ้มกว่าซื้อของเดิมซ้ำๆ",
-                "ad_tone": "commercial_premium",
+                "ad_tone": "commercial_hype",
                 "script_lines": [
                     "ใครที่กำลังลังเลว่าจะเปลี่ยนดีไหม ดูคลิปนี้เลยครับ",
                     "ฝั่งซ้ายคือแบบเดิมที่เคยใช้ ปัญหาเยอะ พังง่าย",
@@ -1290,7 +1290,7 @@ class ProductScraper:
                 "pain_point": "กลัวโดนหลอก ซื้อของไม่มีคุณภาพ",
                 "key_features": "เตือนให้เช็กของแท้ และข้อดีที่ไม่มีใครบอก",
                 "price_deal": "ระวังของปลอม สั่งจากตะกร้าแท้ตรงนี้",
-                "ad_tone": "commercial_premium",
+                "ad_tone": "commercial_hype",
                 "script_lines": [
                     "หยุดเลื่อนก่อนครับ ใครกำลังจะซื้อของประเภทนี้ ฟังด่วนเลย",
                     "ในตลาดมีของเลียนแบบเยอะมาก ใช้แป๊บเดียวพัง",
@@ -1310,7 +1310,7 @@ class ProductScraper:
                 "pain_point": "โต๊ะรก นั่งทำงานนานๆ แล้วล้า",
                 "key_features": "จัดโต๊ะคอมสวย สรีรศาสตร์ ใช้งานคล่องตัว",
                 "price_deal": "เพิ่มประสิทธิภาพการทำงาน",
-                "ad_tone": "tech_minimal",
+                "ad_tone": "commercial_hype",
                 "script_lines": [
                     "ชาวออฟฟิศและสายจัดโต๊ะคอม ต้องดูคลิปนี้เลยครับ",
                     f"นี่คือ {base_name} ไอเทมที่ช่วยให้โต๊ะทำงานดูโปรขึ้น",
@@ -1330,7 +1330,7 @@ class ProductScraper:
                 "pain_point": "กลัวใช้ได้แค่ไม่กี่วันก็พัง",
                 "key_features": "ผ่านการใช้งานจริงทุกวัน ทนทาน ไม่เสื่อม",
                 "price_deal": "คุ้มค่าเงินในระยะยาว",
-                "ad_tone": "commercial_premium",
+                "ad_tone": "commercial_hype",
                 "script_lines": [
                     "มารีวิวแบบไม่อวย ใช้จริงมาครบ 3 เดือนเต็มแล้วครับ",
                     f"{base_name} ตัวนี้บอกตรงๆ ว่าตอนแรกไม่คิดว่าจะทนขนาดนี้",

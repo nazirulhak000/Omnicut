@@ -371,6 +371,57 @@ def list_exports():
         ):
             latest_file_per_group[group_key] = item["file"]
 
+    # Hydrate registry identities in one transaction. The old loop called
+    # ExportRegistry.ensure() once per MP4, opening a read-modify-write
+    # transaction for every file and making this read endpoint scale linearly
+    # with database commits as the export library grows.
+    registry_requests = []
+    for item in raw_matches:
+        export_file = item["file"]
+        matched_prod = item["product"]
+        matched_angle = item["angle"]
+        is_duplicate_copy = _is_posted_duplicate_copy(export_file, matched_angle, registry_by_path)
+        is_posted = bool(
+            (item["registry_record"] or {}).get("status") == "posted"
+            or _is_actual_posted_export(export_file, matched_angle)
+        )
+        if is_duplicate_copy:
+            is_posted = False
+        item["_is_duplicate_copy"] = is_duplicate_copy
+        item["_is_posted"] = is_posted
+        registry_requests.append({
+            "path": export_file,
+            "product_id": matched_prod.get("id") if matched_prod else None,
+            "angle_id": matched_angle.get("angle_id") if matched_angle else None,
+            "project_name": (matched_angle or {}).get("project_name") or item["proj_name"],
+            "status": "posted" if is_posted else "rendered",
+            "posted_at": (matched_angle or {}).get("posted_at") if is_posted else None,
+        })
+
+    try:
+        ensured_records = ExportRegistry.ensure_many(registry_requests)
+    except Exception as registry_err:
+        # Preserve the legacy per-file fallback if a read-only/older
+        # installation cannot perform the bulk write.
+        print(f"[api_exports] WARNING: bulk export identity hydration failed: {registry_err}")
+        ensured_records = []
+        for request in registry_requests:
+            try:
+                ensured_records.append(ExportRegistry.ensure(
+                    request["path"],
+                    product_id=request["product_id"],
+                    angle_id=request["angle_id"],
+                    project_name=request["project_name"],
+                    status=request["status"],
+                    posted_at=request["posted_at"],
+                ))
+            except Exception as single_err:
+                print(f"[api_exports] WARNING: could not persist export identity for {request['path'].name}: {single_err}")
+                ensured_records.append(None)
+
+    for item, record in zip(raw_matches, ensured_records):
+        item["_export_record"] = record
+
     results = []
     for item in raw_matches:
         f = item["file"]
@@ -378,14 +429,11 @@ def list_exports():
         matched_angle = item["angle"]
         matched_proj_name = item["proj_name"]
         disk_proj = item["disk_proj"]
-        registry_record = item["registry_record"]
-        is_duplicate_copy = _is_posted_duplicate_copy(f, matched_angle, registry_by_path)
+        registry_record = item.get("_export_record") or item["registry_record"]
+        is_duplicate_copy = item["_is_duplicate_copy"]
+        is_posted = item["_is_posted"]
 
         info = get_file_info(f)
-        is_posted = bool(
-            (registry_record or {}).get("status") == "posted"
-            or _is_actual_posted_export(f, matched_angle)
-        )
         if is_duplicate_copy:
             # The Ready copy is removable, but it must never be offered to
             # Extension as the latest clip when its identical Posted proof
@@ -393,21 +441,13 @@ def list_exports():
             is_posted = False
             info["is_duplicate_copy"] = True
         info["is_posted"] = is_posted
-        try:
-            export_record = ExportRegistry.ensure(
-                f,
-                product_id=matched_prod.get("id") if matched_prod else None,
-                angle_id=matched_angle.get("angle_id") if matched_angle else None,
-                project_name=(matched_angle or {}).get("project_name") or matched_proj_name,
-                status="posted" if is_posted else "rendered",
-                posted_at=(matched_angle or {}).get("posted_at") if is_posted else None,
-            )
+        if registry_record:
+            export_record = registry_record
             info["export_id"] = export_record["id"]
             info["export_status"] = export_record.get("status")
-        except Exception as registry_err:
+        else:
             # Listing remains usable on a legacy read-only installation;
             # render/mark flows still persist identity before they proceed.
-            print(f"[api_exports] WARNING: could not persist export identity for {f.name}: {registry_err}")
             info["export_id"] = None
             info["export_status"] = "posted" if is_posted else "rendered"
         if not info.get("cover_path"):

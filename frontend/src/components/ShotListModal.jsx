@@ -42,7 +42,7 @@ export default function ShotListModal({
   const [filmingUrl, setFilmingUrl] = useState(null);
   const [sessionError, setSessionError] = useState(null);
 
-  const activeVoicePreset = result?.voice_params?.voice_preset || result?.angle?.voice_preset || 'gemini_kore_female_bright';
+  const activeVoicePreset = result?.voice_params?.voice_preset || result?.angle?.voice_preset || 'gemini_puck_male_hype';
   const [selectedVoice, setSelectedVoice] = useState(activeVoicePreset);
 
   useEffect(() => {

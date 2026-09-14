@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 
 from scripts.api_server import app
 from scripts.batch_render import BatchRenderManager, BATCH_REGISTRY
+import scripts.batch_queue_store as batch_queue_store
 from scripts.product_store import ProductStore
 from scripts.task_manager import TaskManager
 
@@ -16,11 +17,61 @@ client = TestClient(app)
 
 
 @pytest.fixture(autouse=True)
-def clean_tasks_and_batches():
+def clean_tasks_and_batches(tmp_path, monkeypatch):
     """Ensure clean state before each test."""
+    monkeypatch.setattr(batch_queue_store, "BATCH_QUEUE_PATH", tmp_path / "batch_render_queue.json")
+    monkeypatch.setattr(TaskManager, "create_task", lambda **kwargs: kwargs)
+    monkeypatch.setattr(TaskManager, "update_progress", lambda *args, **kwargs: None)
+    monkeypatch.setattr(TaskManager, "complete_task", lambda *args, **kwargs: None)
+    monkeypatch.setattr(TaskManager, "fail_task", lambda *args, **kwargs: None)
+    monkeypatch.setattr(TaskManager, "cancel_task", lambda *args, **kwargs: None)
+    monkeypatch.setattr(BatchRenderManager, "_ensure_dispatcher", lambda: None)
     BATCH_REGISTRY.clear()
     yield
     BATCH_REGISTRY.clear()
+
+
+def test_batch_checkpoint_survives_memory_reset(tmp_path, monkeypatch):
+    """A queued batch must remain queryable after the in-memory cache is lost."""
+    clip = tmp_path / "clip.mp4"
+    clip.write_bytes(b"clip")
+    product = {
+        "id": "durable-product",
+        "title": "Durable",
+        "angles": [{"angle_id": "a1", "angle_name": "A1", "selected_video": str(clip)}],
+    }
+    monkeypatch.setattr(BatchRenderManager, "_ensure_dispatcher", lambda: None)
+    with patch.object(ProductStore, "get", return_value=product):
+        created = BatchRenderManager.create_batch("durable-product")
+
+    BATCH_REGISTRY.clear()
+    restored = BatchRenderManager.get_batch(created["batch_id"])
+    assert restored is not None
+    assert restored["status"] == "queued"
+    assert restored["items"][0]["angle_id"] == "a1"
+
+
+def test_restart_requeues_only_interrupted_item(monkeypatch):
+    """Recovery must preserve completed work and requeue only the interrupted item."""
+    batch = {
+        "batch_id": "restart-batch",
+        "status": "processing",
+        "cancelled": False,
+        "items": [
+            {"angle_id": "done", "status": "rendered"},
+            {"angle_id": "retry", "status": "in_production", "error": None},
+        ],
+    }
+    monkeypatch.setattr(batch_queue_store.BatchQueueStore, "load", lambda: [batch])
+    persisted = []
+    monkeypatch.setattr(BatchRenderManager, "_persist_batch", lambda item: persisted.append(item["batch_id"]))
+    monkeypatch.setattr(BatchRenderManager, "_ensure_dispatcher", lambda: None)
+
+    assert BatchRenderManager.recover_pending_batches() == 1
+    assert batch["status"] == "queued"
+    assert batch["items"][0]["status"] == "rendered"
+    assert batch["items"][1]["status"] == "queued"
+    assert persisted == ["restart-batch"]
 
 
 def test_batch_render_no_product():

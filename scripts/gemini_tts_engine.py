@@ -109,16 +109,16 @@ class GeminiFlashTTSEngine:
 
         if gender and "female" in gender.lower():
             return "Kore"
-        return "Puck" if gender else "Kore"
+        return "Puck"
 
     @classmethod
     def generate_speech(
         cls,
         text: str,
         output_path: str,
-        voice_preset: str = "gemini_kore_female_bright",
+        voice_preset: str = "gemini_puck_male_hype",
         voice_name: Optional[str] = None,
-        ad_tone: str = "commercial_premium",
+        ad_tone: str = "commercial_hype",
         speed: float = 1.15
     ) -> str:
         """

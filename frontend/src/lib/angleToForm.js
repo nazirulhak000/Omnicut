@@ -39,9 +39,9 @@ export function angleToForm(angle, context = {}) {
   const guessed = guessBrandModel(productName);
   const patch = {
     productName,
-    hookBrand: angle.hook_brand || guessed.brand,
-    hookModel: angle.hook_model || guessed.model,
-    hookLabel: angle.hook_label || '',
+    hookBrand: angle.hook_brand || context.hook_brand || guessed.brand,
+    hookModel: angle.hook_model || context.hook_model || guessed.model,
+    hookLabel: angle.hook_label || context.hook_label || '',
     customScript: scriptText,
     // A script that came from the flow is meant to be spoken as written --
     // anything else would throw away the angle the user just picked.
@@ -50,9 +50,13 @@ export function angleToForm(angle, context = {}) {
     painPoint: angle.pain_point || '',
     priceDeal: angle.price_deal || context.price_note || '',
   };
-  if (angle.ad_tone) patch.adTone = angle.ad_tone;
-  if (angle.voice_preset) patch.voicePreset = angle.voice_preset;
-  if (angle.voice_mode) patch.voiceMode = angle.voice_mode;
+  const VALID_AD_TONES = ['commercial_premium', 'commercial_hype', 'commercial_aesthetic', 'commercial_expert'];
+  patch.adTone = (angle.ad_tone && VALID_AD_TONES.includes(angle.ad_tone) && angle.ad_tone !== 'commercial_premium')
+    ? angle.ad_tone
+    : 'commercial_hype';
+  patch.voicePreset = angle.voice_preset || 'gemini_puck_male_hype';
+  patch.voiceGender = 'male';
+  patch.voiceMode = angle.voice_mode || 'gemini_tts';
 
   const angleVideos = angle.selected_videos || (angle.selected_video ? [angle.selected_video] : []);
   if (angleVideos.length > 0) {

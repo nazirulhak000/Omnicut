@@ -1386,7 +1386,21 @@ export default function EditorShell({
       if (!matchAngle) {
         setApplyError('ไม่พบข้อมูลสินค้า/มุมของโปรเจกต์นี้ ไม่สามารถสร้างปกได้');
       } else if (!matchAngle.video_url) {
-        setApplyError('คลิปนี้ยังไม่ได้เรนเดอร์ กรุณาเรนเดอร์คลิปให้เสร็จก่อน แล้วค่อยสร้างปก');
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+        const player = isMobileView ? mobilePlayerRef.current : desktopPlayerRef.current;
+        const snapshot = player?.captureFrame?.();
+        if (!snapshot) {
+          setApplyError('ยังจับภาพจาก Timeline ไม่ได้ กรุณารอให้ Preview โหลดเสร็จแล้วลองอีกครั้ง');
+        } else {
+          const item = buildCoverGateItem(matchAngle, matchProduct);
+          item.timeline_snapshot = {
+            data_url: snapshot,
+            seconds: Number(playhead.toFixed(2)),
+          };
+          setCoverGateItem(item);
+        }
+        setCoverGateChecking(false);
+        return;
       } else {
         setCoverGateItem(buildCoverGateItem(matchAngle, matchProduct));
       }
@@ -1394,7 +1408,7 @@ export default function EditorShell({
       setApplyError('ตรวจสอบข้อมูลปกไม่สำเร็จ: ' + (e.response?.data?.detail || e.message));
     }
     setCoverGateChecking(false);
-  }, [projectName, findMatchingAngle, buildCoverGateItem]);
+  }, [projectName, findMatchingAngle, buildCoverGateItem, isMobileView, playhead]);
 
   // Refreshed whenever the loaded project changes so the header's cover
   // badge reflects this project's actual state instead of staying stuck on
@@ -1420,26 +1434,38 @@ export default function EditorShell({
       return;
     }
 
-    // Re-check posted status fresh (not just the isProjectPosted prop, which
-    // is null whenever the editor was reached via the header dropdown rather
-    // than the product-flow tab) before letting a render start. Cover is no
-    // longer required up front -- Cover Studio can only pull a frame from an
-    // already-rendered export, so gating render behind a cover made a first
-    // render impossible. Covers are created after render instead (see the
-    // Tracker's "rendered" phase card, and the header's "ปก" button here).
+    // Re-check posted status and the persisted cover fresh (not just the
+    // isProjectPosted/coverStatus props) before letting a render start. The
+    // pre-render Cover Studio flow can create a cover from the current
+    // Timeline frame, so a first render is safe to gate behind a saved cover.
     setCoverGateChecking(true);
     try {
       const { matchAngle } = await findMatchingAngle(projectName);
+      if (!matchAngle) {
+        setApplyError('ไม่พบข้อมูลโปรเจกต์นี้ กรุณาสร้างและบันทึกหน้าปกก่อน Render');
+        setCoverGateChecking(false);
+        return;
+      }
       if (matchAngle?.status === 'posted' || matchAngle?.posted_at) {
         setApplyError('คลิปนี้ถูกโพสต์ไปแล้ว ไม่อนุญาตให้เรนเดอร์ซ้ำ เพื่อรักษาหลักฐานเดิม');
         setCoverGateChecking(false);
         setIsProjectPosted(true);
         return;
       }
+      const hasSavedCover = Boolean(
+        matchAngle.cover_path || matchAngle.cover_3x4_path || matchAngle.cover_9x16_path,
+      );
+      if (!hasSavedCover) {
+        setApplyError('กรุณาสร้างและบันทึกหน้าปกก่อน Render — กดปุ่ม “ปก” แล้วบันทึกหน้าปกก่อน');
+        setCoverGateChecking(false);
+        return;
+      }
     } catch (e) {
-      // Posted-check itself failing (network hiccup) shouldn't block a
-      // render the user can otherwise legitimately make -- fail open here,
-      // the render's own error handling covers a genuinely broken backend.
+      // Do not fail open: without a fresh cover check, rendering could bypass
+      // the required pre-render cover step.
+      setApplyError('ตรวจสอบหน้าปกไม่สำเร็จ กรุณาลองใหม่ก่อน Render');
+      setCoverGateChecking(false);
+      return;
     }
     setCoverGateChecking(false);
 

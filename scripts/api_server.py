@@ -63,6 +63,7 @@ from scripts.api_backup import router as backup_router
 from scripts.api_asset_dedup import router as asset_dedup_router
 from scripts.api_hooks import router as hooks_router
 from scripts.api_batch_render import router as batch_render_router
+from scripts.batch_render import BatchRenderManager
 from scripts.api_producer import router as producer_router
 from scripts.api_background_isolation import (
     recover_background_isolation_tasks,
@@ -194,6 +195,13 @@ try:
 except Exception as exc:
     # A stale/corrupt task record must never prevent the API from starting.
     print(f"[BackgroundIsolation] startup recovery skipped: {exc}")
+
+try:
+    recovered_batch_renders = BatchRenderManager.recover_pending_batches()
+    if recovered_batch_renders:
+        print(f"[BatchRender] resumed {recovered_batch_renders} checkpointed batch(es)")
+except Exception as exc:
+    print(f"[BatchRender] startup recovery skipped: {exc}")
 
 # ----------------------------------------------------------------------
 # Run Server directly if executed

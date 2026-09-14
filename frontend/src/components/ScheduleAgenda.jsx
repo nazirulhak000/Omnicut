@@ -385,6 +385,43 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
     finally { setTemplateBusy(false); }
   };
 
+  const updateTemplateDay = (index, update) => {
+    setTemplateDraft((prev) => ({
+      ...prev,
+      days: {
+        ...prev.days,
+        [index]: update(prev.days[index]),
+      },
+    }));
+  };
+
+  const updateTemplateTime = (index, timeIndex, value) => {
+    updateTemplateDay(index, (day) => {
+      const times = [...day.times];
+      times[timeIndex] = value;
+      return { ...day, times };
+    });
+  };
+
+  const addTemplateTime = (index) => {
+    updateTemplateDay(index, (day) => {
+      const preferredExtraTimes = ['08:00', '10:00', '14:00', '17:00', '22:00', '23:00'];
+      const next = [...preferredExtraTimes, ...primaryOptions].find((option) => !day.times.includes(option));
+      return next ? { ...day, times: [...day.times, next].sort() } : day;
+    });
+  };
+
+  const removeTemplateTime = (index, timeIndex) => {
+    updateTemplateDay(index, (day) => {
+      if (day.times.length <= 1) return day;
+      return { ...day, times: day.times.filter((_, currentIndex) => currentIndex !== timeIndex) };
+    });
+  };
+
+  const templateHasInvalidTimes = Object.values(templateDraft.days).some(({ times }) => {
+    return !times?.length || new Set(times).size !== times.length;
+  });
+
   const copyPreviousTemplate = async () => {
     setTemplateBusy(true);
     try {
@@ -756,7 +793,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
         <div className="space-y-4"><div className="grid grid-cols-1 sm:grid-cols-3 gap-3"><label className="space-y-1 text-xs font-bold text-slate-300">เริ่มวันที่<input type="date" value={bulkDraft.date} onChange={(event) => setBulkDraft((prev) => ({ ...prev, date: event.target.value }))} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white" /></label><label className="space-y-1 text-xs font-bold text-slate-300">เริ่มเวลา<select value={bulkDraft.time} onChange={(event) => setBulkDraft((prev) => ({ ...prev, time: event.target.value }))} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white font-mono">{timeOptions.map((time) => <option key={time} value={time}>{time}</option>)}</select></label><label className="space-y-1 text-xs font-bold text-slate-300">ระยะห่าง<select value={bulkDraft.interval} onChange={(event) => setBulkDraft((prev) => ({ ...prev, interval: Number(event.target.value) }))} className="w-full mt-1 px-3 py-2.5 rounded-xl bg-black/50 border border-white/[0.1] text-white"><option value="5">ทุก 5 นาที</option><option value="10">ทุก 10 นาที</option><option value="15">ทุก 15 นาที</option><option value="30">ทุก 30 นาที</option><option value="60">ทุก 1 ชั่วโมง</option></select></label></div><div className="grid grid-cols-1 lg:grid-cols-2 gap-4"><div className="rounded-2xl border border-white/[0.1] p-3 max-h-80 overflow-y-auto space-y-1"><div className="flex items-center justify-between mb-2"><span className="text-xs font-bold text-white">คลิปที่ตัดต่อเสร็จแล้ว</span><button type="button" onClick={() => setBulkSelected(availableClips)} className="text-[10px] text-cyan-300">เลือกทั้งหมด</button></div>{availableClips.length === 0 ? <p className="text-xs text-slate-500 py-8 text-center">ไม่มีคลิปที่ว่างสำหรับจัดคิว</p> : availableClips.map((clip) => { const key = clipKey(clip); const selected = bulkSelected.some((item) => clipKey(item) === key); return <label key={key} className="flex items-center gap-2 p-2 rounded-xl hover:bg-white/[0.05] cursor-pointer"><input type="checkbox" checked={selected} onChange={() => setBulkSelected((prev) => selected ? prev.filter((item) => clipKey(item) !== key) : [...prev, clip])} className="accent-cyan-400" /><span className="text-xs text-slate-200 truncate">{clip.parentProduct?.name || 'ไม่ระบุสินค้า'} · {clip.hook_title || clip.project_name}</span></label>; })}</div><div className="rounded-2xl border border-cyan-400/15 bg-cyan-400/[0.03] p-3 max-h-80 overflow-y-auto"><div className="flex items-center justify-between mb-2"><span className="text-xs font-bold text-white">ตัวอย่างคิว ({bulkPreview.length})</span><span className="text-[10px] text-slate-500">ลากในหน้าหลักเพื่อปรับวันภายหลัง</span></div>{bulkPreview.length === 0 ? <p className="text-xs text-slate-500 py-8 text-center">เลือกคลิปเพื่อดูวันที่และเวลาที่คำนวณ</p> : bulkPreview.map(({ clip, date, time }, index) => <div key={clipKey(clip)} className="flex items-center gap-2 py-2 border-b border-white/[0.06] last:border-0"><span className="w-5 h-5 rounded-full bg-cyan-400/15 text-cyan-200 text-[10px] flex items-center justify-center">{index + 1}</span><span className="text-[11px] text-white font-mono whitespace-nowrap">{date} {time}</span><span className="text-xs text-slate-400 truncate flex-1">{clip.hook_title || clip.project_name}</span><button type="button" disabled={index === 0} onClick={() => setBulkSelected((prev) => { const next = [...prev]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; return next; })} className="p-1 rounded border border-white/[0.1] text-slate-400 disabled:opacity-25" title="??????????" aria-label="????????????????????????"><ChevronUp className="w-3.5 h-3.5" /></button><button type="button" disabled={index === bulkPreview.length - 1} onClick={() => setBulkSelected((prev) => { const next = [...prev]; [next[index], next[index + 1]] = [next[index + 1], next[index]]; return next; })} className="p-1 rounded border border-white/[0.1] text-slate-400 disabled:opacity-25" title="????????" aria-label="??????????????????????"><ChevronDown className="w-3.5 h-3.5" /></button></div>)}</div></div><div className="flex justify-end gap-2"><button type="button" onClick={() => setBulkOpen(false)} className="px-3 py-2 rounded-xl text-xs text-slate-300">ยกเลิก</button><button type="button" disabled={!bulkPreview.length || saving} onClick={saveBulk} className="px-4 py-2 rounded-xl bg-cyan-400 text-slate-950 text-xs font-black disabled:opacity-50">บันทึกทั้งชุด</button></div></div>
       </Modal>
 
-      <Modal isOpen={templateOpen} onClose={() => setTemplateOpen(false)} title="ตั้งค่าเวลารายสัปดาห์" subtitle="สัปดาห์จันทร์–อาทิตย์ · เวลาเหล่านี้ใช้เฉพาะจัดคิวอัตโนมัติ" maxWidth="max-w-4xl">
+      <Modal isOpen={templateOpen} onClose={() => setTemplateOpen(false)} title="ตั้งค่าเวลารายสัปดาห์" subtitle="สัปดาห์จันทร์–อาทิตย์ · เพิ่มช่วงพิเศษแยกเป็นรายวันได้ · ใช้เฉพาะจัดคิวอัตโนมัติ" maxWidth="max-w-4xl">
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-end gap-3">
             <label className="flex-1 text-xs font-bold text-slate-300">สัปดาห์ที่เริ่มวันจันทร์
@@ -768,13 +805,13 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
             </div>
           </div>
           <div className="rounded-2xl border border-white/[0.1] overflow-x-auto">
-            <div className="min-w-[620px]">
-              <div className="grid grid-cols-[120px_76px_repeat(3,minmax(120px,1fr))] gap-2 px-3 py-2 text-[10px] text-slate-500 border-b border-white/[0.08]"><span>วัน</span><span>เปิดใช้</span>{DEFAULT_PRIMARY_TIMES.map((time) => <span key={time}>ช่วงที่ {time}</span>)}</div>
-              {Object.entries(templateDraft.days).map(([index, day]) => <div key={index} className="grid grid-cols-[120px_76px_repeat(3,minmax(120px,1fr))] gap-2 items-center px-3 py-2 border-b border-white/[0.06] last:border-0"><span className="text-xs text-white font-bold">{['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'][Number(index)]}</span><label className="flex items-center"><input type="checkbox" checked={day.enabled !== false} onChange={(event) => setTemplateDraft((prev) => ({ ...prev, days: { ...prev.days, [index]: { ...prev.days[index], enabled: event.target.checked } } }))} className="accent-cyan-400" /><span className="sr-only">เปิดใช้</span></label>{day.times.map((time, timeIndex) => <select key={`${index}-${timeIndex}`} value={time} onChange={(event) => setTemplateDraft((prev) => { const times = [...prev.days[index].times]; times[timeIndex] = event.target.value; return { ...prev, days: { ...prev.days, [index]: { ...prev.days[index], times } } }; })} className="px-2 py-2 rounded-lg bg-black/50 border border-white/[0.1] text-xs text-white font-mono">{primaryOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select>)}</div>)}
+            <div className="min-w-[760px]">
+              <div className="grid grid-cols-[120px_76px_minmax(0,1fr)] gap-2 px-3 py-2 text-[10px] text-slate-500 border-b border-white/[0.08]"><span>วัน</span><span>เปิดใช้</span><span>ช่วงเวลาโพสต์ · เพิ่ม/ลบแยกเป็นรายวัน</span></div>
+              {Object.entries(templateDraft.days).map(([index, day]) => <div key={index} className="grid grid-cols-[120px_76px_minmax(0,1fr)] gap-2 items-center px-3 py-2.5 border-b border-white/[0.06] last:border-0"><span className="text-xs text-white font-bold">{['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'][Number(index)]}</span><label className="flex items-center"><input type="checkbox" checked={day.enabled !== false} onChange={(event) => updateTemplateDay(index, (current) => ({ ...current, enabled: event.target.checked }))} className="accent-cyan-400" /><span className="sr-only">เปิดใช้ {['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'][Number(index)]}</span></label><div className="flex flex-wrap items-center gap-2">{day.times.map((time, timeIndex) => <div key={`${index}-${timeIndex}`} className="flex items-center gap-1"><select value={time} onChange={(event) => updateTemplateTime(index, timeIndex, event.target.value)} className="w-[112px] px-2 py-2 rounded-lg bg-black/50 border border-white/[0.1] text-xs text-white font-mono">{primaryOptions.map((option) => <option key={option} value={option} disabled={day.times.some((current, currentIndex) => currentIndex !== timeIndex && current === option)}>{option}</option>)}</select><button type="button" onClick={() => removeTemplateTime(index, timeIndex)} disabled={day.times.length <= 1} className="p-1.5 rounded-lg border border-white/[0.08] text-slate-500 hover:text-red-300 hover:border-red-400/30 disabled:opacity-25 disabled:hover:text-slate-500" title="ลบช่วงเวลานี้" aria-label={`ลบช่วงเวลา ${time} ของวัน${['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'][Number(index)]}`}><Trash2 className="w-3.5 h-3.5" /></button></div>)}<button type="button" onClick={() => addTemplateTime(index)} disabled={day.times.length >= primaryOptions.length} className="px-2.5 py-2 rounded-lg border border-cyan-400/25 text-cyan-200 text-[11px] font-bold flex items-center gap-1 hover:bg-cyan-400/10 disabled:opacity-40" title="เพิ่มช่วงเวลาพิเศษ"><Plus className="w-3.5 h-3.5" />เพิ่มช่วง</button></div></div>)}
             </div>
           </div>
-          <p className="text-[11px] text-slate-500">ต้องเลือกเวลาไม่ซ้ำกัน 3 เวลา และเป็นรอบละ 5 นาที · การแก้เทมเพลตไม่เปลี่ยนคิวที่บันทึกไว้แล้ว</p>
-          <div className="flex justify-end gap-2"><button type="button" onClick={() => setTemplateOpen(false)} className="px-3 py-2 rounded-xl text-xs text-slate-300">ยกเลิก</button><button type="button" disabled={templateBusy} onClick={saveTemplate} className="px-4 py-2 rounded-xl bg-cyan-400 text-slate-950 text-xs font-black disabled:opacity-50">บันทึกเทมเพลต</button></div>
+          <p className={`text-[11px] ${templateHasInvalidTimes ? 'text-amber-200' : 'text-slate-500'}`}>{templateHasInvalidTimes ? 'กรุณาเลือกเวลาไม่ซ้ำกัน และให้เหลืออย่างน้อย 1 ช่วงต่อวัน' : 'ค่าเริ่มต้นมี 5 ช่วง · เพิ่มช่วงพิเศษนอกเหนือจากค่าเริ่มต้นได้ · ทุกช่วงเป็นรอบละ 5 นาที · การแก้เทมเพลตไม่เปลี่ยนคิวที่บันทึกไว้แล้ว'}</p>
+          <div className="flex justify-end gap-2"><button type="button" onClick={() => setTemplateOpen(false)} className="px-3 py-2 rounded-xl text-xs text-slate-300">ยกเลิก</button><button type="button" disabled={templateBusy || templateHasInvalidTimes} onClick={saveTemplate} className="px-4 py-2 rounded-xl bg-cyan-400 text-slate-950 text-xs font-black disabled:opacity-50">บันทึกเทมเพลต</button></div>
         </div>
       </Modal>
 

@@ -30,6 +30,7 @@ if str(ROOT) not in sys.path:
 from scripts import product_store as ps
 from scripts import api_exports
 from scripts import api_videos
+from scripts import export_registry
 from scripts import media_service
 
 
@@ -52,6 +53,8 @@ def isolated_exports(tmp_path, monkeypatch):
     monkeypatch.setattr(api_exports, "BASE_DIR", tmp_path)
     monkeypatch.setattr(api_exports, "EXPORTS_DIR", exports_dir)
     monkeypatch.setattr(api_exports, "POSTED_DIR", posted_dir)
+    monkeypatch.setattr(export_registry, "BASE_DIR", tmp_path)
+    monkeypatch.setattr(export_registry, "REGISTRY_PATH", tmp_path / "_Docs" / "export_registry.json")
 
     raw_dir = tmp_path / "01_Raw"
     inbox_dir = tmp_path / "00_Inbox"
@@ -118,6 +121,35 @@ def test_list_exports_matches_by_exact_video_url_stem(isolated_exports):
     assert by_name["prod_a_hook2_20260101_000000.mp4"]["angle_id"] == "a2"
     assert by_name["prod_b_hook1_20260101_000000.mp4"]["product_id"] == "prod_b"
     assert by_name["prod_b_hook1_20260101_000000.mp4"]["angle_id"] == "b1"
+
+
+def test_list_exports_hydrates_all_identities_in_one_bulk_call(isolated_exports, monkeypatch):
+    """The export listing must not open one registry transaction per file."""
+    tmp_path = isolated_exports
+    _seed_products(tmp_path, [{
+        "id": "prod_bulk", "name": "Bulk Product",
+        "angles": [
+            {"angle_id": "a1", "video_url": "04_Exports/Ready_to_post/bulk_1.mp4"},
+            {"angle_id": "a2", "video_url": "04_Exports/Ready_to_post/bulk_2.mp4"},
+            {"angle_id": "a3", "video_url": "04_Exports/Ready_to_post/bulk_3.mp4"},
+        ],
+    }])
+    exports_dir = tmp_path / "04_Exports" / "Ready_to_post"
+    for name in ("bulk_1.mp4", "bulk_2.mp4", "bulk_3.mp4"):
+        (exports_dir / name).write_bytes(b"fake mp4")
+
+    calls = []
+    original = export_registry.ExportRegistry.ensure_many
+
+    def record_bulk_call(entries):
+        calls.append(len(entries))
+        return original(entries)
+
+    monkeypatch.setattr(export_registry.ExportRegistry, "ensure_many", record_bulk_call)
+    result = api_exports.list_exports()
+
+    assert len(result["exports"]) == 3
+    assert calls == [3]
 
 
 def test_list_exports_first_match_wins_when_two_angles_share_a_video_stem(isolated_exports):

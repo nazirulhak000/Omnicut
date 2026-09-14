@@ -420,7 +420,7 @@ class VoiceStage:
                             text=full_script_text,
                             output_path=str(voice_audio_path),
                             voice_name=gemini_voice,
-                            ad_tone=ctx.ad_tone or "commercial_premium",
+                            ad_tone=ctx.ad_tone or "commercial_hype",
                             speed=speed_val
                         )
                         last_tts_error = None

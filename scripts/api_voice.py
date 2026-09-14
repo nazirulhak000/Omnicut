@@ -127,10 +127,10 @@ async def trigger_voice_cache_generation(background_tasks: BackgroundTasks, forc
 def preview_voice(req: VoicePreviewRequest):
     """Generates a quick voice sample for auditioning (Edge-TTS or Gemini Flash)."""
     sample_file = BASE_DIR / "test_voice.wav"
-    text = req.text or "สวัสดีค่ะ นี่คือเสียงตัวอย่างสำหรับคลิปรีวิวสินค้า"
-    voice_gender = req.voice_gender or "female"
+    text = req.text or "สวัสดีครับ นี่คือเสียงตัวอย่างสำหรับคลิปรีวิวสินค้า"
+    voice_gender = req.voice_gender or "male"
     speed = req.speed or 1.15
-    ad_tone = req.ad_tone or "commercial_premium"
+    ad_tone = req.ad_tone or "commercial_hype"
 
     if voice_gender and "gemini" in voice_gender:
         gemini_voice = GeminiFlashTTSEngine.resolve_voice(preset=voice_gender)

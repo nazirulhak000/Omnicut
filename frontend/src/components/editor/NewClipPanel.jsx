@@ -4,7 +4,7 @@ import {
   Rocket, Sparkles, Upload, Volume2, FolderOpen, ArrowRight, Clock, Hourglass, CheckCircle2, Play,
   FileText, Sliders, Mic2
 } from 'lucide-react';
-import { previewVoice, startRender, uploadFile, updateAngleVideos, updateAngleStatus, getShotList } from '../../api';
+import { previewVoice, startRender, uploadFile, updateAngleVideos, updateAngleStatus, getShotList, updateProduct } from '../../api';
 import {
   DEFAULT_STUDIO_FORM,
   STUDIO_FORM_KEY,
@@ -373,6 +373,14 @@ export default function NewClipPanel({
       ...(Array.isArray(form.selectedVideos) ? form.selectedVideos : []),
       form.selectedVideo,
     ].filter(Boolean)));
+    if (form.syncHookToAllAngles !== false && productContext?.id) {
+      updateProduct(productContext.id, {
+        hook_brand: form.hookBrand || '',
+        hook_model: form.hookModel || '',
+        hook_label: form.hookLabel || '',
+        apply_to_angles: true,
+      }).catch((err) => console.warn('Failed to sync hook header to product:', err));
+    }
     executeRender({
       project_name: projectName,
       product_name: form.productName,
@@ -406,7 +414,7 @@ export default function NewClipPanel({
       voice_gender: form.voiceGender,
       voice_preset: form.voicePreset,
       voice_rate: form.voiceSpeed,
-      ad_tone: form.adTone || 'commercial_premium',
+      ad_tone: form.adTone || 'commercial_hype',
       style_preset: normalizeStylePreset(form.stylePreset),
       human_voice_audio: null,
       product_id: productContext?.id || null,
@@ -620,7 +628,7 @@ export default function NewClipPanel({
                         <span>เลือกเสียงต่างจากแผนถ่าย: จะสังเคราะห์เสียงใหม่</span>
                       </div>
                     ) : (
-                      <p className="mt-1 text-[10px] text-slate-500">โทน: {AD_TONES.find(t => t.id === (form.adTone || 'commercial_premium'))?.label || '—'}</p>
+                      <p className="mt-1 text-[10px] text-slate-500">โทน: {AD_TONES.find(t => t.id === (form.adTone || 'commercial_hype'))?.label || '—'}</p>
                     )}
                   </label>
 
@@ -786,6 +794,17 @@ export default function NewClipPanel({
                   <Field label="Header: แบรนด์" value={form.hookBrand} onChange={(v) => patch({ hookBrand: v })} placeholder="เช่น Logitech" />
                   <Field label="Header: รุ่น/โมเดล" value={form.hookModel} onChange={(v) => patch({ hookModel: v })} placeholder="เช่น Wave Keys" />
                   <Field label="Header: หมวดสินค้า" value={form.hookLabel} onChange={(v) => patch({ hookLabel: v })} placeholder="เช่น คีย์บอร์ดไร้สาย" />
+                  {productContext?.id && (
+                    <label className="flex items-center gap-2 pt-1 pb-1 text-xs text-slate-300 hover:text-white cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={form.syncHookToAllAngles !== false}
+                        onChange={(e) => patch({ syncHookToAllAngles: e.target.checked })}
+                        className="h-4 w-4 rounded accent-[#25F4EE] cursor-pointer"
+                      />
+                      <span className="text-cyan-300 font-medium">นำไปอัปเดตกับทุกสคริปต์ของสินค้านี้ด้วย (บันทึกเป็นค่าหลัก)</span>
+                    </label>
+                  )}
                   <Field label="ปัญหาที่ลูกค้าเจอ" value={form.painPoint} onChange={(v) => patch({ painPoint: v })} />
                   <Field label="จุดเด่น" value={form.keyFeatures} onChange={(v) => patch({ keyFeatures: v })} multiline />
                   <Field label="โปรโมชั่น / CTA" value={form.priceDeal} onChange={(v) => patch({ priceDeal: v })} />
@@ -992,7 +1011,7 @@ export default function NewClipPanel({
         isOpen={voicePickerOpen}
         onClose={() => setVoicePickerOpen(false)}
         selectedVoice={form.voicePreset}
-        selectedTone={form.adTone || 'commercial_premium'}
+        selectedTone={form.adTone || 'commercial_hype'}
         onSelect={({ voiceId, toneId }) => patch({ voicePreset: voiceId, adTone: toneId })}
       />
     </div>

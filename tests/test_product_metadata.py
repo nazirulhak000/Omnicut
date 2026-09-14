@@ -579,3 +579,39 @@ def test_refresh_source_applies_edited_preview_values_and_respects_selected_fiel
     assert saved["specs"] == ["สเปกเดิม"]
     assert saved["selling_points"] == []
     assert ps.ProductStore.get(product["id"])["url"].endswith("1111111111111111111")
+
+
+def test_product_hook_header_sync_to_angles(tmp_path, monkeypatch):
+    monkeypatch.setattr(ps, "STORE_PATH", tmp_path / "_Docs" / "products.json")
+    product = ps.ProductStore.add(
+        name="BCD LOOP Smartband",
+        angles=[
+            {"angle_id": "ang_1", "angle_name": "มุมที่ 1", "hook_brand": "Old", "hook_model": "OldM"},
+            {"angle_id": "ang_2", "angle_name": "มุมที่ 2"},
+        ],
+    )
+
+    # Patch product with hook header and apply_to_angles = True
+    response = TestClient(app).patch(
+        f"/api/products/{product['id']}",
+        json={
+            "hook_brand": "BCD",
+            "hook_model": "LOOP Smartband",
+            "hook_label": "สายรัดข้อมือ",
+            "apply_to_angles": True,
+        },
+    )
+
+    assert response.status_code == 200
+    saved = response.json()["product"]
+    assert saved["hook_brand"] == "BCD"
+    assert saved["hook_model"] == "LOOP Smartband"
+    assert saved["hook_label"] == "สายรัดข้อมือ"
+    assert len(saved["angles"]) == 2
+    assert saved["angles"][0]["hook_brand"] == "BCD"
+    assert saved["angles"][0]["hook_model"] == "LOOP Smartband"
+    assert saved["angles"][0]["hook_label"] == "สายรัดข้อมือ"
+    assert saved["angles"][1]["hook_brand"] == "BCD"
+    assert saved["angles"][1]["hook_model"] == "LOOP Smartband"
+    assert saved["angles"][1]["hook_label"] == "สายรัดข้อมือ"
+

@@ -314,6 +314,9 @@ class ProductCreateRequest(BaseModel):
     target_buyer: str = ""
     thumbnail: str = ""
     product_code: Optional[str] = None
+    hook_brand: Optional[str] = None
+    hook_model: Optional[str] = None
+    hook_label: Optional[str] = None
 
 
 class ProductUpdateRequest(BaseModel):
@@ -337,6 +340,10 @@ class ProductUpdateRequest(BaseModel):
     # records. Keep this permissive so attaching images later does not reject
     # products created by older scraper versions.
     images: Optional[List[Any]] = None
+    hook_brand: Optional[str] = None
+    hook_model: Optional[str] = None
+    hook_label: Optional[str] = None
+    apply_to_angles: Optional[bool] = None
 
 
 def _meta_tag(html_text: str, prop: str) -> str:
@@ -1101,8 +1108,8 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 voice=params.get("voice", "male"),
                 voice_rate=params.get("voice_rate", "+15%"),
                 voice_engine_type=params.get("voice_engine_type", "edge_tts"),
-                voice_preset=params.get("voice_preset"),
-                ad_tone=params.get("ad_tone", "commercial_premium"),
+                voice_preset=params.get("voice_preset", "gemini_puck_male_hype"),
+                ad_tone=params.get("ad_tone", "commercial_hype"),
                 style_preset=params.get("style_preset", "clean_tech_review"),
                 human_voice_audio_path=params.get("human_voice_audio_path"),
                 overlays=params.get("overlays"),

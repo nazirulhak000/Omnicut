@@ -51,6 +51,7 @@ export default function EditorHeader({
 }) {
   const [showPlaybookModal, setShowPlaybookModal] = React.useState(false);
   const playbookNotes = React.useMemo(() => loadPlaybookNotes(), [showPlaybookModal]);
+  const renderNeedsCover = coverStatus !== true;
 
   const handleDeleteRequest = (name = projectName) => {
     if (!name) return;
@@ -282,7 +283,8 @@ export default function EditorHeader({
           onRender={handleApply}
           busy={applying}
           progress={progress}
-          disabled={!projectName || isPosted}
+          disabled={!projectName || isPosted || renderNeedsCover}
+          needsCover={renderNeedsCover}
           isPosted={isPosted}
         />
       </div>

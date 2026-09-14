@@ -1,5 +1,5 @@
 export const PROJECT_TIME_ZONE = 'Asia/Bangkok';
-export const DEFAULT_PRIMARY_TIMES = ['12:30', '19:00', '21:30'];
+export const DEFAULT_PRIMARY_TIMES = ['09:00', '12:30', '16:00', '19:00', '21:30'];
 export const WEEKDAY_LABELS = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'];
 
 export function pad2(value) {
@@ -72,7 +72,9 @@ export function templateForWeek(template, weekStart = null) {
     timezone: PROJECT_TIME_ZONE,
     days: Object.fromEntries(Array.from({ length: 7 }, (_, index) => {
       const day = days[String(index)] || {};
-      const times = Array.isArray(day.times) && day.times.length === 3 ? day.times : DEFAULT_PRIMARY_TIMES;
+      const times = Array.isArray(day.times) && day.times.length > 0
+        ? [...new Set(day.times)]
+        : DEFAULT_PRIMARY_TIMES;
       return [String(index), { enabled: day.enabled !== false, times: [...times].sort() }];
     })),
   };
