@@ -127,18 +127,27 @@ def _ensure_under_root(path: Path, root: Path) -> Path:
     return resolved
 
 
+def _namespace_path(cache_root: os.PathLike[str] | str, namespace: str) -> tuple[Path, Path]:
+    root = _cache_root(cache_root)
+    if not isinstance(namespace, str) or not namespace or Path(namespace).name != namespace:
+        raise SequenceArtifactStoreError("invalid sequence cache namespace")
+    namespace_path = _ensure_under_root(root / namespace, root)
+    return root, namespace_path
+
+
 def sequence_paths(
     cache_root: os.PathLike[str] | str,
     artifact_id: str,
+    *,
+    namespace: str = CACHE_NAMESPACE,
 ) -> BackgroundIsolationSequencePaths:
     """Return guarded manifest/frame paths without creating anything."""
 
-    root = _cache_root(cache_root)
+    root, namespace_path = _namespace_path(cache_root, namespace)
     safe_id = _validate_artifact_id(artifact_id)
-    namespace = root / CACHE_NAMESPACE
-    directory = namespace / safe_id
+    directory = namespace_path / safe_id
     frames = directory / FRAMES_DIRECTORY
-    if namespace.is_symlink() or directory.is_symlink() or frames.is_symlink():
+    if namespace_path.is_symlink() or directory.is_symlink() or frames.is_symlink():
         raise SequenceArtifactStoreError("sequence cache namespace must not contain symlinks")
     _ensure_under_root(directory, root)
     return BackgroundIsolationSequencePaths(
@@ -151,17 +160,21 @@ def sequence_paths(
 def artifact_paths(
     cache_root: os.PathLike[str] | str,
     artifact_id: str,
+    *,
+    namespace: str = CACHE_NAMESPACE,
 ) -> BackgroundIsolationSequencePaths:
     """Compatibility alias matching the image artifact store naming style."""
 
-    return sequence_paths(cache_root, artifact_id)
+    return sequence_paths(cache_root, artifact_id, namespace=namespace)
 
 
 def get_sequence_paths(
     cache_root: os.PathLike[str] | str,
     artifact_id: str,
+    *,
+    namespace: str = CACHE_NAMESPACE,
 ) -> BackgroundIsolationSequencePaths:
-    return sequence_paths(cache_root, artifact_id)
+    return sequence_paths(cache_root, artifact_id, namespace=namespace)
 
 
 def _validate_source_fingerprint(value: Any) -> str:
@@ -359,6 +372,7 @@ def write_sequence_manifest(
     manifest: Mapping[str, Any] | None = None,
     *,
     status: str | None = None,
+    namespace: str = CACHE_NAMESPACE,
 ) -> dict[str, Any]:
     """Validate and atomically persist one canonical sequence manifest."""
 
@@ -373,7 +387,7 @@ def write_sequence_manifest(
     canonical = _validate_manifest(candidate, safe_id)
     if canonical is None:
         raise SequenceArtifactStoreError("invalid background isolation sequence manifest")
-    paths = sequence_paths(cache_root, safe_id)
+    paths = sequence_paths(cache_root, safe_id, namespace=namespace)
     if canonical["status"] == "ready" and (
         not _ready_metadata_is_valid(canonical)
         or not _frames_complete(paths, canonical["frame_count"])
@@ -387,11 +401,13 @@ def write_sequence_manifest(
 def read_sequence_manifest(
     cache_root: os.PathLike[str] | str,
     artifact_id: str,
+    *,
+    namespace: str = CACHE_NAMESPACE,
 ) -> dict[str, Any] | None:
     """Read a manifest, returning ``None`` for malformed or unsafe data."""
 
     safe_id = _validate_artifact_id(artifact_id)
-    paths = sequence_paths(cache_root, safe_id)
+    paths = sequence_paths(cache_root, safe_id, namespace=namespace)
     if paths.manifest.is_symlink():
         return None
     try:
@@ -405,12 +421,14 @@ def sequence_frame_path(
     cache_root: os.PathLike[str] | str,
     artifact_id: str,
     frame_index: int,
+    *,
+    namespace: str = CACHE_NAMESPACE,
 ) -> Path:
     """Return a guarded zero-based frame path for FFmpeg's frame pattern."""
 
     if isinstance(frame_index, bool) or not isinstance(frame_index, int) or not 0 <= frame_index <= 999999:
         raise SequenceArtifactStoreError("invalid sequence frame index")
-    paths = sequence_paths(cache_root, artifact_id)
+    paths = sequence_paths(cache_root, artifact_id, namespace=namespace)
     destination = paths.frames / f"frame_{frame_index:06d}.png"
     _ensure_under_root(destination, paths.directory)
     if destination.is_symlink():
@@ -423,12 +441,14 @@ def write_sequence_frame(
     artifact_id: str,
     frame_index: int,
     payload: bytes,
+    *,
+    namespace: str = CACHE_NAMESPACE,
 ) -> Path:
     """Atomically write one derived frame without accepting arbitrary names."""
 
     if not isinstance(payload, bytes):
         raise SequenceArtifactStoreError("sequence frame payload must be bytes")
-    destination = sequence_frame_path(cache_root, artifact_id, frame_index)
+    destination = sequence_frame_path(cache_root, artifact_id, frame_index, namespace=namespace)
     if destination.parent.is_symlink():
         raise SequenceArtifactStoreError("sequence frames directory must not be a symlink")
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -455,15 +475,20 @@ def _ready_metadata_is_valid(manifest: Mapping[str, Any]) -> bool:
     )
 
 
-def sequence_status(cache_root: os.PathLike[str] | str, artifact_id: str) -> str:
+def sequence_status(
+    cache_root: os.PathLike[str] | str,
+    artifact_id: str,
+    *,
+    namespace: str = CACHE_NAMESPACE,
+) -> str:
     """Return a fail-closed status; an incomplete ``ready`` is ``stale``."""
 
-    paths = sequence_paths(cache_root, artifact_id)
+    paths = sequence_paths(cache_root, artifact_id, namespace=namespace)
     if paths.manifest.is_symlink():
         return "stale"
     if not paths.manifest.exists():
         return "missing"
-    manifest = read_sequence_manifest(cache_root, artifact_id)
+    manifest = read_sequence_manifest(cache_root, artifact_id, namespace=namespace)
     if manifest is None:
         return "stale"
     if manifest["status"] == "ready" and (
@@ -474,20 +499,27 @@ def sequence_status(cache_root: os.PathLike[str] | str, artifact_id: str) -> str
     return manifest["status"]
 
 
-def is_sequence_ready(cache_root: os.PathLike[str] | str, artifact_id: str) -> bool:
-    return sequence_status(cache_root, artifact_id) == "ready"
+def is_sequence_ready(
+    cache_root: os.PathLike[str] | str,
+    artifact_id: str,
+    *,
+    namespace: str = CACHE_NAMESPACE,
+) -> bool:
+    return sequence_status(cache_root, artifact_id, namespace=namespace) == "ready"
 
 
 def is_sequence_current(
     cache_root: os.PathLike[str] | str,
     artifact_id: str,
     expected: Mapping[str, Any] | None = None,
+    *,
+    namespace: str = CACHE_NAMESPACE,
 ) -> bool:
     """Return true only for a complete ready sequence matching ``expected``."""
 
-    if not is_sequence_ready(cache_root, artifact_id):
+    if not is_sequence_ready(cache_root, artifact_id, namespace=namespace):
         return False
-    manifest = read_sequence_manifest(cache_root, artifact_id)
+    manifest = read_sequence_manifest(cache_root, artifact_id, namespace=namespace)
     if manifest is None:
         return False
     if expected is None:

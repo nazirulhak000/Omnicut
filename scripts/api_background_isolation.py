@@ -33,7 +33,10 @@ from scripts.task_manager import TaskManager
 from scripts.background_isolation import normalize_background_isolation
 from scripts.background_isolation_sequence import extract_background_isolation_sequence
 from scripts.background_isolation_sequence_artifacts import build_sequence_artifact_id, build_sequence_manifest, write_sequence_manifest
-from scripts.background_isolation_sequence_worker import process_background_isolation_sequence
+from scripts.background_isolation_sequence_worker import (
+    DERIVED_CACHE_NAMESPACE,
+    process_background_isolation_sequence,
+)
 
 
 router = APIRouter(prefix="/api/background-isolation", tags=["background-isolation"])
@@ -228,7 +231,7 @@ def _validated_artifact_id(artifact_id: str) -> str:
     try:
         # sequence_paths validates the exact bgseq1 format and rejects cache
         # namespace, artifact directory, and frames-directory symlinks.
-        sequence_paths(_canonical_cache_root(), artifact_id)
+        sequence_paths(_canonical_cache_root(), artifact_id, namespace=DERIVED_CACHE_NAMESPACE)
     except HTTPException:
         raise
     except (SequenceArtifactStoreError, TypeError, ValueError) as exc:
@@ -242,8 +245,8 @@ def _ready_sequence(artifact_id: str) -> tuple[Path, dict[str, Any]]:
     safe_id = _validated_artifact_id(artifact_id)
     cache_root = _canonical_cache_root()
     try:
-        status = sequence_status(cache_root, safe_id)
-        ready = is_sequence_ready(cache_root, safe_id)
+        status = sequence_status(cache_root, safe_id, namespace=DERIVED_CACHE_NAMESPACE)
+        ready = is_sequence_ready(cache_root, safe_id, namespace=DERIVED_CACHE_NAMESPACE)
     except (SequenceArtifactStoreError, OSError, ValueError) as exc:
         # Missing, malformed, incomplete, and symlinked artifacts are all
         # intentionally indistinguishable to a reader.
@@ -251,11 +254,11 @@ def _ready_sequence(artifact_id: str) -> tuple[Path, dict[str, Any]]:
     if status != "ready" or not ready:
         raise HTTPException(status_code=404, detail="background isolation sequence not found")
 
-    manifest = read_sequence_manifest(cache_root, safe_id)
+    manifest = read_sequence_manifest(cache_root, safe_id, namespace=DERIVED_CACHE_NAMESPACE)
     if manifest is None or manifest.get("status") != "ready":
         raise HTTPException(status_code=404, detail="background isolation sequence not found")
     try:
-        paths = sequence_paths(cache_root, safe_id)
+        paths = sequence_paths(cache_root, safe_id, namespace=DERIVED_CACHE_NAMESPACE)
     except (SequenceArtifactStoreError, OSError, ValueError) as exc:
         raise HTTPException(status_code=404, detail="background isolation sequence not found") from exc
     return paths.directory, manifest
@@ -278,7 +281,12 @@ def _validated_png_frame(artifact_id: str, frame_index: int, frame_count: int) -
         raise HTTPException(status_code=404, detail="background isolation frame not found")
     cache_root = _canonical_cache_root()
     try:
-        frame_path = sequence_frame_path(cache_root, artifact_id, frame_index)
+        frame_path = sequence_frame_path(
+            cache_root,
+            artifact_id,
+            frame_index,
+            namespace=DERIVED_CACHE_NAMESPACE,
+        )
     except (SequenceArtifactStoreError, OSError, ValueError) as exc:
         raise HTTPException(status_code=404, detail="background isolation frame not found") from exc
 

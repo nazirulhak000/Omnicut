@@ -15,6 +15,7 @@ from scripts.background_isolation_sequence_artifacts import (
     write_sequence_frame,
     write_sequence_manifest,
 )
+from scripts.background_isolation_sequence_worker import DERIVED_CACHE_NAMESPACE
 
 
 PNG_1X1 = (
@@ -36,7 +37,7 @@ def _client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> tuple[TestClient
 def _ready_sequence(cache_root: Path, frame_count: int = 2) -> tuple[str, dict]:
     artifact_id = build_sequence_artifact_id("source-fingerprint")
     for index in range(frame_count):
-        write_sequence_frame(cache_root, artifact_id, index, PNG_1X1)
+        write_sequence_frame(cache_root, artifact_id, index, PNG_1X1, namespace=DERIVED_CACHE_NAMESPACE)
     manifest = build_sequence_manifest(
         artifact_id,
         source_fingerprint="source-fingerprint",
@@ -47,7 +48,7 @@ def _ready_sequence(cache_root: Path, frame_count: int = 2) -> tuple[str, dict]:
         height=1,
         status="ready",
     )
-    write_sequence_manifest(cache_root, artifact_id, manifest)
+    write_sequence_manifest(cache_root, artifact_id, manifest, namespace=DERIVED_CACHE_NAMESPACE)
     return artifact_id, manifest
 
 
@@ -71,9 +72,9 @@ def test_manifest_and_frame_hide_non_ready_sequences(monkeypatch, tmp_path, stat
     client, cache_root = _client(monkeypatch, tmp_path)
     artifact_id = build_sequence_artifact_id("non-ready")
     if status != "missing":
-        paths = sequence_paths(cache_root, artifact_id)
+        paths = sequence_paths(cache_root, artifact_id, namespace=DERIVED_CACHE_NAMESPACE)
         paths.frames.mkdir(parents=True)
-        write_sequence_frame(cache_root, artifact_id, 0, PNG_1X1)
+        write_sequence_frame(cache_root, artifact_id, 0, PNG_1X1, namespace=DERIVED_CACHE_NAMESPACE)
         manifest = build_sequence_manifest(
             artifact_id,
             source_fingerprint="non-ready",
@@ -114,7 +115,7 @@ def test_valid_but_missing_frame_is_not_found(monkeypatch, tmp_path):
 def test_non_png_or_symlink_frame_is_not_served(monkeypatch, tmp_path):
     client, cache_root = _client(monkeypatch, tmp_path)
     artifact_id, _manifest = _ready_sequence(cache_root, frame_count=1)
-    frame_path = sequence_paths(cache_root, artifact_id).frames / "frame_000000.png"
+    frame_path = sequence_paths(cache_root, artifact_id, namespace=DERIVED_CACHE_NAMESPACE).frames / "frame_000000.png"
     frame_path.write_bytes(b"not png")
     assert client.get(f"/api/background-isolation/sequences/{artifact_id}/frames/0").status_code == 404
 
