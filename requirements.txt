@@ -38,6 +38,7 @@ soundfile==0.14.0
 numpy==2.4.6
 Pillow==12.3.0
 rembg==2.0.76              # background removal for asset/sticker generation
+onnxruntime==1.30.0       # CPU runtime for rembg subject isolation (Python 3.14/Windows)
 librosa==0.10.2.post1      # BGM beat detection (scripts/beat_sync.py) -- optional,
                             # pipeline.py degrades to caption-only cut timing if absent
 opencv-python-headless==4.10.0.84  # raw-footage motion detection (scripts/motion_analyzer.py)
