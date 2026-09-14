@@ -79,6 +79,30 @@ function formatErrorText(err) {
 }
 
 const framesFor = (seconds) => Math.max(6, Math.min(40, Math.round((seconds || 12) / 3)));
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function waitForBackgroundIsolationTask(taskId, fetchStatus) {
+  // The backend owns the durable job. Keep polling across temporary network
+  // or server-reload gaps instead of converting a healthy task into a local
+  // editor error. The deadline is intentionally long because rembg can take
+  // several minutes for a full source sequence.
+  const deadline = Date.now() + 30 * 60 * 1000;
+  let networkFailures = 0;
+  while (Date.now() < deadline) {
+    try {
+      const task = await fetchStatus(taskId);
+      networkFailures = 0;
+      if (['completed', 'failed', 'cancelled'].includes(task?.status)) return task;
+      await wait(1000);
+    } catch (error) {
+      networkFailures += 1;
+      await wait(Math.min(8000, 500 * (2 ** Math.min(networkFailures, 4))));
+    }
+  }
+  throw new Error('background isolation task timed out while waiting for the backend');
+}
+
 const SNAP_PX = 6;
 const EXPORT_PRESETS = [
   { id: 'post', label: 'โพสต์จริง 1080p', hint: 'คุณภาพเต็ม สำหรับอัปขึ้น TikTok' },
@@ -171,7 +195,7 @@ export default function EditorShell({
   // default lives. Keeping a copy here is what let the timeline claim one
   // track while the file played another.
   const [assets, setAssets] = useState({ sfx: [], music: [], fonts: [], stickers: [], luts: [], effects: [], default_bgm: null });
-  const { pollTasks } = useTaskManager();
+  const { tasks = [], pollTasks } = useTaskManager();
 
   const [durations, setDurations] = useState({});
   const [audioDuration, setAudioDuration] = useState(0);
@@ -1190,6 +1214,43 @@ export default function EditorShell({
     set((prev) => ({ ...prev, backgroundIsolation: next || null }));
   }, [set]);
 
+  // A page reload or a short network outage can happen after the backend has
+  // already finished. Rebind a completed task's artifact to the matching
+  // timeline clips so the user does not need to run cutout again manually.
+  useEffect(() => {
+    const completed = tasks.filter((task) => {
+      if (task?.type !== 'background_isolation' || task.status !== 'completed') return false;
+      if (!task.result?.artifact?.id || !task.payload?.source_path) return false;
+      return !task.payload.project_name || task.payload.project_name === projectName;
+    });
+    if (!completed.length || !clipList?.length) return;
+
+    const updates = completed.map((task) => ({
+      sourcePath: String(task.payload.source_path).toLowerCase(),
+      rotation: [0, 90, 180, 270].includes(Number(task.payload.rotation)) ? Number(task.payload.rotation) : 0,
+      config: task.result,
+    }));
+    const needsBinding = clipList.some((clip) => updates.some((update) => {
+      const rotation = [0, 90, 180, 270].includes(Number(clip.rotation)) ? Number(clip.rotation) : 0;
+      return String(clip.source_path || '').toLowerCase() === update.sourcePath
+        && rotation === update.rotation
+        && clip.background_isolation?.artifact?.id !== update.config.artifact.id;
+    }));
+    if (!needsBinding) return;
+
+    setSilent((prev) => ({
+      ...prev,
+      clipList: (prev.clipList || []).map((clip) => {
+        const rotation = [0, 90, 180, 270].includes(Number(clip.rotation)) ? Number(clip.rotation) : 0;
+        const update = updates.find((candidate) => (
+          String(clip.source_path || '').toLowerCase() === candidate.sourcePath
+          && rotation === candidate.rotation
+        ));
+        return update ? { ...clip, background_isolation: update.config } : clip;
+      }),
+    }));
+  }, [clipList, projectName, setSilent, tasks]);
+
   const prepareBackgroundIsolation = useCallback(async () => {
     const sourceClips = (clipList || []).filter((clip) => clip?.source_path);
     if (!sourceClips.length) {
@@ -1241,13 +1302,9 @@ export default function EditorShell({
           width: 1080,
           height: 1920,
           rotation: item.rotation,
+          project_name: projectName,
         });
-        let task = null;
-        for (let attempt = 0; attempt < 900; attempt += 1) {
-          task = await getTaskStatus(response.task_id);
-          if (['completed', 'failed', 'cancelled'].includes(task?.status)) break;
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        }
+        const task = await waitForBackgroundIsolationTask(response.task_id, getTaskStatus);
         if (task?.status !== 'completed' || !task.result?.artifact?.id) {
           throw new Error(task?.error || 'background isolation task did not complete');
         }
@@ -1276,7 +1333,7 @@ export default function EditorShell({
       setBackgroundIsolationPreparing(false);
       pollTasks?.();
     }
-  }, [backgroundIsolation, clipList, getTaskStatus, patchBackgroundIsolation, pollTasks, set, showToast, startBackgroundIsolation]);
+  }, [backgroundIsolation, clipList, getTaskStatus, patchBackgroundIsolation, projectName, pollTasks, set, showToast, startBackgroundIsolation]);
 
   const patchStylePreset = useCallback((presetId) => {
     patchStyle({ style_preset: normalizeStylePreset(presetId) });

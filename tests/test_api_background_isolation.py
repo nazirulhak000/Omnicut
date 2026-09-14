@@ -223,3 +223,21 @@ def test_source_sequence_identity_is_shared_across_trim_windows():
 
     assert first == second
     assert first.startswith("bgseq1-")
+
+
+def test_background_task_scheduler_deduplicates_recovery_launches(monkeypatch):
+    submitted = []
+    ran = []
+    task = {"id": "task-1", "status": "queued"}
+    req = api.BackgroundIsolationProcessRequest(source_path="clip.mov")
+
+    monkeypatch.setattr(api.TaskManager, "get_task", lambda task_id: task if task_id == "task-1" else None)
+    monkeypatch.setattr(api.TaskManager, "run_in_background", lambda fn: submitted.append(fn))
+    monkeypatch.setattr(api, "_run_background_isolation_task", lambda task_id, value: ran.append((task_id, value.source_path)))
+
+    assert api._schedule_background_isolation_task("task-1", req) is True
+    assert api._schedule_background_isolation_task("task-1", req) is False
+    assert len(submitted) == 1
+
+    submitted[0]()
+    assert ran == [("task-1", "clip.mov")]

@@ -212,8 +212,33 @@ def test_missing_runtime_never_publishes_ready_or_leaves_partial_frames(tmp_path
 
     assert result["status"] == STATUS_ERROR
     assert result["error_code"] == "onnxruntime_missing"
-    assert not list((tmp_path / "derived" / DERIVED_CACHE_NAMESPACE).glob(".*"))
+    assert len(list((tmp_path / "derived" / DERIVED_CACHE_NAMESPACE).glob(".*.checkpoint"))) == 1
     assert not list((tmp_path / "derived" / DERIVED_CACHE_NAMESPACE).glob("bgseq1-*/manifest.json"))
+
+
+def test_retry_resumes_from_valid_checkpoint_frames(tmp_path):
+    source, manifest = make_source_sequence(tmp_path, 3)
+    first = process_background_isolation_sequence(
+        source,
+        tmp_path / "derived",
+        enabled_config(),
+        manifest,
+        worker=FakeForegroundWorker(fail_on=1),
+    )
+    assert first["status"] == STATUS_ERROR
+
+    retry_worker = FakeForegroundWorker()
+    retry = process_background_isolation_sequence(
+        source,
+        tmp_path / "derived",
+        enabled_config(),
+        manifest,
+        worker=retry_worker,
+    )
+
+    assert retry["status"] == STATUS_READY
+    assert len(retry_worker.calls) == 2
+    assert [call[0].name for call in retry_worker.calls] == ["frame_000001.png", "frame_000002.png"]
 
 
 def test_cancel_cleans_partial_derived_output_and_never_publishes_ready(tmp_path):
@@ -233,7 +258,7 @@ def test_cancel_cleans_partial_derived_output_and_never_publishes_ready(tmp_path
     assert result["status"] == STATUS_CANCELLED
     assert result["error_code"] == ERROR_CANCELLED
     namespace = tmp_path / "derived" / DERIVED_CACHE_NAMESPACE
-    assert not list(namespace.glob(".*"))
+    assert len(list(namespace.glob(".*.checkpoint"))) == 1
     assert not list(namespace.glob("bgseq1-*/manifest.json"))
 
 
@@ -251,7 +276,7 @@ def test_worker_failure_cleans_partial_frames_and_keeps_source_untouched(tmp_pat
     assert result["status"] == STATUS_ERROR
     assert result["error_code"] == "fake_runtime_missing"
     namespace = tmp_path / "derived" / DERIVED_CACHE_NAMESPACE
-    assert not list(namespace.glob(".*"))
+    assert len(list(namespace.glob(".*.checkpoint"))) == 1
     assert not list(namespace.glob("bgseq1-*/manifest.json"))
     assert before == [(path.name, path.read_bytes()) for path in sorted((source / "frames").iterdir())]
 
@@ -310,7 +335,7 @@ def test_invalid_foreground_mode_is_not_ready_and_is_cleaned(tmp_path):
 
     assert result["status"] == STATUS_ERROR
     assert result["error_code"] == ERROR_OUTPUT_INVALID
-    assert not list((tmp_path / "derived" / DERIVED_CACHE_NAMESPACE).glob(".*"))
+    assert len(list((tmp_path / "derived" / DERIVED_CACHE_NAMESPACE).glob(".*.checkpoint"))) == 1
 
 
 def test_existing_incomplete_artifact_is_never_replaced_during_recovery(tmp_path):
@@ -367,7 +392,7 @@ def test_existing_incomplete_artifact_is_never_replaced_during_recovery(tmp_path
     assert result["error_code"] == ERROR_OUTPUT_COMMIT
     assert manifest_path.read_bytes() == before_manifest
     assert frame_path.read_bytes() == before_frame
-    assert not list((tmp_path / "derived" / DERIVED_CACHE_NAMESPACE).glob(".*"))
+    assert len(list((tmp_path / "derived" / DERIVED_CACHE_NAMESPACE).glob(".*.checkpoint"))) == 1
 
 
 def test_quality_rerun_uses_new_worker_version_and_preserves_previous_artifact(tmp_path):

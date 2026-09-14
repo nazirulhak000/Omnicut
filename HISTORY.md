@@ -8,6 +8,10 @@
 
 ## สารบัญ
 
+| Round BG-SUBJECT-ISOLATION-RESUME-1 | Durable per-frame checkpoint, startup recovery, reconnect polling, completed-result rebinding, and duplicate scheduler guard | 2026-09-14 | สำเร็จสมบูรณ์ (backend 45+41 passed, frontend 230 passed, build 2,005 modules, compileall ผ่าน, ดำเนินการโดย: Codex (GPT-5)) |
+
+| Round COVER-MULTI-GEN-HANDHELD-1 | AI Cover History Gallery (เก็บทุกรูปที่เจนไม่ถูกทับ) + ปลดล็อกคำสั่ง Handheld มือถือสินค้าจริง + Auto-enable Brand/Model Title Overlay | 2026-09-14 | สำเร็จสมบูรณ์ (pytest 6 passed, vitest 230 passed, build 2.95s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round COVER-REALTIME-SCRUB-STUDIO-1 | เรียลไทม์ Frame Scrubber ใน Cover Studio + AI Studio Cutout ผสานช็อตสินค้าจริง | 2026-09-14 | สำเร็จสมบูรณ์ (pytest 3 passed, vitest 224 passed, build 3.98s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round HOOK-KINETIC-MOTION-1 | Step-by-Step Cumulative Hook Reveal & High-Impact Animation System (slam, elastic_bounce) | 2026-09-13 | สำเร็จสมบูรณ์ (backend parity 177 passed, behavior render 18 passed, smoke 150 passed, frontend 185 passed, build 3.79s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round THAI-STACKED-MARK-GENERALIZE-1 | ขยายการจัดชั้นสระบน + วรรณยุกต์ไทยจากคู่เดียวเป็น 20 คู่ พร้อม Preview/Render parity | 2026-09-13 | สำเร็จสมบูรณ์ (backend 1,135 passed, visual/contract 180 passed, frontend 185 passed, FFmpeg 20-pair pixel matrix + browser verified, ดำเนินการโดย: Codex (GPT-5)) |
 | Round THAI-STACKED-MARK-RENDER-FIX-1 | แก้ `ั` + `่` ซ้อนทับใน Render ให้สูงโปร่งตรง Preview โดยรักษา layout ของ emoji/ข้อความทั้งบรรทัด | 2026-09-13 | สำเร็จสมบูรณ์ (backend 1,133 passed, visual/contract 178 passed, frontend 185 passed, build 2,003 modules/4.59s, FFmpeg pixel geometry + browser verified, ดำเนินการโดย: Codex (GPT-5)) |
@@ -18,6 +22,28 @@
 | Round HOUSEKEEP-1 | จัดระเบียบราก: ไฟล์เทส 8 ไฟล์ลง .tmp (gitignore) + ยกเลิกย้าย PLAN หลังเจอ 06_Archive โดน ignore | 2026-09-13 | เสร็จบางส่วน (ดำเนินการโดย: Muse Spark (Muse Spark)) |
 
 ---
+
+## Round BG-SUBJECT-ISOLATION-RESUME-1 — งานตัดพื้นหลังแบบ resumable เมื่อเน็ต/หน้าเว็บ/Server หลุด
+
+ดำเนินการโดย: Codex (GPT-5)
+
+### ผลลัพธ์
+
+- เพิ่ม checkpoint แบบ deterministic ต่อเฟรมใน `background-isolation-foreground-sequences/.<artifact_id>.checkpoint` เฟรมที่ผ่านการตรวจ RGBA แล้วจะถูกข้ามเมื่อ retry
+- รักษา artifact แบบ fail-closed และ no-clobber: เผยแพร่เมื่อครบทุกเฟรมเท่านั้น และลบ checkpoint หลัง verify สำเร็จ
+- เปลี่ยน TaskManager ให้ background-isolation ที่ค้างตอน server restart กลับเป็น queued และ startup recovery เรียกทำต่ออัตโนมัติ โดยไม่เปลี่ยนพฤติกรรม render task
+- เพิ่ม scheduler guard กัน task เดิมถูก launch ซ้ำระหว่าง recovery/reconnect
+- Frontend polling รอข้าม network/server gap สูงสุด 30 นาที และ rebind ผลลัพธ์ completed กลับเข้า clipList หลัง refresh/reconnect
+- เพิ่ม regression test สำหรับ checkpoint resume, restart state และ duplicate scheduler
+
+### Gate
+
+- [x] `python -m pytest tests/test_background_isolation_sequence_worker.py tests/test_task_manager.py -q` (45 passed)
+- [x] `python -m pytest tests/test_api_background_isolation.py tests/test_background_isolation.py tests/test_background_isolation_sequence.py -q` (41 passed, 2 skipped)
+- [x] `npm test -- --runInBand` (230 passed)
+- [x] `npm run build` (2,005 modules)
+- [x] `python -m compileall -q scripts tests`
+
 
 ## Round HOOK-KINETIC-MOTION-1 — Step-by-Step Cumulative Hook Reveal & High-Impact Animation System
 
@@ -5599,3 +5625,42 @@ Date: 2026-09-07; Requested by: user; Status: complete
 - ลบ JSX duplicate props และจำกัด `/ref-media/{filename}` ให้เสิร์ฟเฉพาะไฟล์ชื่อที่ระบบสร้าง พร้อมจำกัดขนาด image resolver
 
 **Gate:** frontend 222 tests ผ่าน, backend Producer 9 tests ผ่าน, TikTok stats tests ผ่าน, Vite build 2,005 modules ผ่าน, oxlint exit 0 (มี warnings เดิมที่ไม่เกี่ยวกับรอบนี้), detector ตรวจซ้ำแล้วไม่พบ duplicate props; ยังไม่ได้ทำ live browser verification รอบนี้
+
+---
+
+## Round COVER-REALTIME-SCRUB-STUDIO-1 — เรียลไทม์ Frame Scrubber ใน Cover Studio + AI Studio Cutout ผสานช็อตสินค้าจริง
+
+วันที่: 2026-09-14 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์ ✅
+
+**เป้าหมาย:**
+1. แก้ Frame Scrubber ใน `CoverStudioModal.jsx`: แสดงเฟรมวิดีโอแบบเรียลไทม์ตามวินาทีที่เลื่อน (`currentSeconds`) ไม่ล็อกตายตัวอยู่แค่ 5 แคตตาล็อก candidate
+2. พัฒนาระบบ AI Studio Cutout ใน `scripts/api_covers.py`: ตัดฉากหลังสินค้าจริงจากเฟรมที่ผู้ใช้เลือกด้วย AI (`rembg`) แล้วนำมาวางคอมโพสิตกึ่งกลางฉากหลังสตูดิโอ 9:16 ระดับไฮเอนด์ (Minimalist Podium / Studio Lighting / Soft Reflection) โดยไม่ทำให้ตัวสินค้าจริงเพี้ยนหรือแปลงสภาพ
+3. เพิ่มพารามิเตอร์ `at_seconds` และโหมด `ai_studio_composite` ใน `POST /api/covers/ai-generate-image`
+
+### Todo:
+- [x] Backend: ปรับปรุง `POST /api/covers/ai-generate-image` ให้รับ `at_seconds` และตัดพื้นหลังสินค้าจริงด้วย `rembg` ผสานฉาก AI สตูดิโอ 9:16
+- [x] Backend: เพิ่ม endpoint `POST /api/covers/grab-frame` สำหรับดึงเฟรม JPG ความละเอียดสูงแบบ on-demand ตามวินาทีที่ระบุ
+- [x] Frontend: ปรับปรุง `CoverStudioModal.jsx` แสดงเฟรมแบบ Real-time live scrubbing ทันทีเมื่อเลื่อน slider
+- [x] AI Background Hardening: คลีน Prompt ให้เป็นฉากสตูดิโอแท่นวางสินค้าว่างเปล่า (Empty Podium / Studio lighting) พร้อมใส่ Negative Prompt บล็อกใบหน้า/บุคคล/อนิเมะ 100%
+- [x] Warning Suppression: ซ่อน GenAI ExperimentalWarning และจัดการข้อจำกัด Developer API โหมดเงียบ ไม่รบกวน terminal
+- [x] Antigravity In-App Bridge: เชื่อมต่อ Antigravity CLI เข้าสู่ `POST /api/covers/ai-generate-image` โดยตรง ทำให้ผู้ใช้กดปุ่มในหน้าต่าง Cover Studio แล้วเจนภาพสินค้า 8K ระดับมาสเตอร์พีซจบในโปรแกรมได้ทันที 100%
+- [x] Verification: pytest 3 passed, vitest 224 passed, Vite build 3.98s ผ่าน 100%
+
+---
+
+## Round COVER-MULTI-GEN-HANDHELD-1 — AI Cover History Gallery + ปลดล็อกคำสั่ง Handheld + Quick Brand Title Overlay
+
+วันที่: 2026-09-14 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์ ✅
+
+**เป้าหมาย & ปัญหาที่แก้ไข:**
+1. **แก้ปัญหารูปที่สองทับรูปแรก:** เมื่อเจนภาพ AI หลายรอบ ทุกภาพจะถูกเก็บลงใน `aiHistory` พร้อมแสดงเป็นแกลเลอรีประวัติภาพขนาดย่อม (Interactive Thumbnail Strip) ผู้ใช้สามารถคลิกสลับดูรูปที่ 1, รูปที่ 2, รูปที่ 3 ได้ตลอดเวลา รูปเก่าไม่ถูกทับและไม่สูญหาย
+2. **แก้ปัญหาภาพ Handheld (มือถือสินค้า):** ปรับปรุง `_clean_backdrop_prompt` และ Negative Prompt ใน `scripts/api_covers.py` ให้ตรวจจับคำว่า `hand holding / handheld / มือถือสินค้า` เพื่ออนุญาตให้มีมือถือสินค้าจริง (ห้าม strip คำว่า hand/holding ออก และไม่บล็อก hand ใน negative prompt)
+3. **แก้ปัญหาไม่มีหัวข้อบนหน้าปก:** เพิ่มการ์ด **"หัวข้อ & ชื่อสินค้าบนหน้าปก"** พร้อมสวิตช์เปิด/ปิด และปุ่มลัดใส่ชื่อสินค้าทันที (`🏷️ ชื่อสินค้าล้วน`, `🔥 สไตล์ Hook ดึงดูด`, `🎯 สไตล์ Review คุ้มไหม`) ในพาเนล AI Cover Studio โดยตรง ผู้ใช้สามารถเห็นและเปิดพาดหัวชื่อสินค้าบนปกได้ด้วยคลิกเดียว
+
+### Todo:
+- [x] Backend (`scripts/api_covers.py`): อัปเดต `_clean_backdrop_prompt` และ Negative Prompt ตรวจจับโหมด Handheld ให้โมเดล AI เจนมือจับถือสินค้าได้อย่างสมจริง
+- [x] Frontend (`frontend/src/components/CoverStudioModal.jsx`): เพิ่ม State `aiHistory` เก็บภาพ AI ทุกรอบ พร้อมเรนเดอร์แถบแกลเลอรีประวัติภาพที่สร้าง สลับดูได้ตลอดเวลา
+- [x] Frontend (`frontend/src/components/CoverStudioModal.jsx`): เพิ่มการ์ดและปุ่มลัดเปิดพาดหัวชื่อสินค้า/แบรนด์บนหน้าปกในพาเนล AI โดยตรง
+- [x] Frontend (`frontend/src/components/CoverStudioModal.jsx`): ปรับปรุง Prompt Preset "🖐️ มือถือสินค้า + ไฟ Rim Light" ให้เน้น `fingers gripping product` ชัดเจน
+- [x] Test (`tests/test_api_covers_ai.py`): เพิ่มยูนิตเทส `test_clean_backdrop_prompt_handheld` ยืนยันการรักษาคำว่า hand holding
+- [x] Verification: pytest 6 passed, vitest 230 passed, Vite build 2.95s ผ่าน 100%

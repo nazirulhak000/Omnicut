@@ -12,6 +12,7 @@ from __future__ import annotations
 import re
 import hashlib
 import json
+import threading
 import uuid
 from pathlib import Path
 from typing import Any
@@ -58,6 +59,11 @@ class BackgroundIsolationProcessRequest(BaseModel):
     width: int = Field(default=1080, gt=0, le=4096)
     height: int = Field(default=1920, gt=0, le=4096)
     rotation: int = Field(default=0)
+    project_name: str | None = None
+
+
+_BACKGROUND_TASK_LOCK = threading.Lock()
+_BACKGROUND_TASKS_RUNNING: set[str] = set()
 
 
 def _source_for_processing(value: str) -> Path:
@@ -180,6 +186,54 @@ def _run_background_isolation_task(task_id: str, req: BackgroundIsolationProcess
         TaskManager.fail_task(task_id, str(exc), step_label="ตัดพื้นหลังสินค้าไม่สำเร็จ")
 
 
+def _schedule_background_isolation_task(task_id: str, req: BackgroundIsolationProcessRequest) -> bool:
+    """Start one task at most once per server process.
+
+    The task registry is durable, while this set protects the in-process
+    recovery path from scheduling the same task twice during a reload or a
+    fast reconnect. The worker itself remains retry-safe because its frame
+    checkpoint is deterministic.
+    """
+
+    with _BACKGROUND_TASK_LOCK:
+        if task_id in _BACKGROUND_TASKS_RUNNING:
+            return False
+        task = TaskManager.get_task(task_id)
+        if not task or task.get("status") in {"completed", "failed", "cancelled"}:
+            return False
+        _BACKGROUND_TASKS_RUNNING.add(task_id)
+
+    def run_and_release() -> None:
+        try:
+            _run_background_isolation_task(task_id, req)
+        finally:
+            with _BACKGROUND_TASK_LOCK:
+                _BACKGROUND_TASKS_RUNNING.discard(task_id)
+
+    TaskManager.run_in_background(run_and_release)
+    return True
+
+
+def recover_background_isolation_tasks() -> int:
+    """Resume queued/processing background-isolation tasks after startup."""
+
+    resumed = 0
+    for task in TaskManager.get_active_tasks(limit=1000):
+        if task.get("type") != "background_isolation":
+            continue
+        if task.get("status") not in {"queued", "processing"}:
+            continue
+        payload = task.get("payload") or {}
+        try:
+            req = BackgroundIsolationProcessRequest(**payload)
+        except Exception as exc:
+            TaskManager.fail_task(task.get("id", ""), f"invalid recovery payload: {exc}", step_label="กู้คืนงานตัดพื้นหลังไม่สำเร็จ")
+            continue
+        if _schedule_background_isolation_task(task["id"], req):
+            resumed += 1
+    return resumed
+
+
 @router.post("/process")
 def process_background_isolation(req: BackgroundIsolationProcessRequest, background_tasks: BackgroundTasks):
     """Queue extraction + rembg segmentation and return a pollable task id."""
@@ -195,7 +249,7 @@ def process_background_isolation(req: BackgroundIsolationProcessRequest, backgro
         "background_isolation", "กำลังตัดพื้นหลังสินค้า", payload=req.model_dump(),
         target_tab="editor", task_id=task_id,
     )
-    background_tasks.add_task(_run_background_isolation_task, task_id, req)
+    background_tasks.add_task(_schedule_background_isolation_task, task_id, req)
     return {"task_id": task_id, "status": "queued", "config": normalized}
 
 

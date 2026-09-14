@@ -64,7 +64,10 @@ from scripts.api_asset_dedup import router as asset_dedup_router
 from scripts.api_hooks import router as hooks_router
 from scripts.api_batch_render import router as batch_render_router
 from scripts.api_producer import router as producer_router
-from scripts.api_background_isolation import router as background_isolation_router
+from scripts.api_background_isolation import (
+    recover_background_isolation_tasks,
+    router as background_isolation_router,
+)
 
 app = FastAPI(
     title="OmniCut Pro Studio API",
@@ -180,6 +183,17 @@ app.include_router(hooks_router)
 app.include_router(batch_render_router)
 app.include_router(producer_router)
 app.include_router(background_isolation_router)
+
+# Background-isolation workers persist per-frame checkpoints. Requeue any
+# task that was interrupted while this process was down; render recovery keeps
+# its existing conservative behavior in TaskManager.
+try:
+    recovered_background_isolation = recover_background_isolation_tasks()
+    if recovered_background_isolation:
+        print(f"[BackgroundIsolation] resumed {recovered_background_isolation} checkpointed task(s)")
+except Exception as exc:
+    # A stale/corrupt task record must never prevent the API from starting.
+    print(f"[BackgroundIsolation] startup recovery skipped: {exc}")
 
 # ----------------------------------------------------------------------
 # Run Server directly if executed

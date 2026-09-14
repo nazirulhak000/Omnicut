@@ -306,6 +306,26 @@ def test_initialize_marks_queued_and_processing_tasks_as_failed_on_restart(isola
     assert "รีสตาร์ท" in p["error"]
 
 
+def test_initialize_keeps_background_isolation_tasks_resumable(isolated_registry):
+    stale_registry = {
+        "background_task": {
+            "id": "background_task", "type": "background_isolation", "title": "BG",
+            "status": TaskStatus.PROCESSING, "progress": 0.61,
+            "error": None, "step_label": "isolating", "payload": {"source_path": "clip.mov"},
+            "logs": [],
+        },
+    }
+    isolated_registry.write_text(json.dumps(stale_registry), encoding="utf-8")
+
+    TaskManager.initialize()
+
+    task = TaskManager.get_task("background_task")
+    assert task["status"] == TaskStatus.QUEUED
+    assert task["progress"] == 0.61
+    assert task["error"] is None
+    assert "checkpoint" in task["step_label"]
+
+
 def test_initialize_leaves_completed_tasks_untouched(isolated_registry):
     stale_registry = {
         "done_task": {

@@ -97,11 +97,21 @@ class TaskManager:
                     print(f"⚠️ [TaskManager] Failed to load tasks from disk: {e}")
                     cls._tasks = {}
 
-            # Mark any tasks that were left in processing/queued as failed (server crashed/restarted)
+            # Render jobs are intentionally failed on restart because their
+            # subprocess lifecycle is not resumable. Background-isolation
+            # jobs are different: their per-frame checkpoint is durable, so
+            # keep them queued and let the API recovery hook resume them.
             changed = False
             orphaned_render_tasks = []
             for task_id, task in cls._tasks.items():
                 if task.get("status") in [TaskStatus.QUEUED, TaskStatus.PROCESSING]:
+                    if task.get("type") == "background_isolation":
+                        task["status"] = TaskStatus.QUEUED
+                        task["error"] = None
+                        task["step_label"] = "กำลังกู้คืนงานตัดพื้นหลังจาก checkpoint เดิม"
+                        task["updated_at"] = cls._now_iso()
+                        changed = True
+                        continue
                     if task.get("type") in RENDER_TASK_TYPES:
                         orphaned_render_tasks.append(task)
                     task["status"] = TaskStatus.FAILED

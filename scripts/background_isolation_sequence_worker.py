@@ -360,6 +360,27 @@ def _cleanup(path: Path | None) -> None:
         return
 
 
+def _checkpoint_frame_paths(directory: Path, frame_count: int, expected_size: tuple[int, int]) -> list[Path]:
+    """Return the valid contiguous prefix of a resumable checkpoint.
+
+    A frame is considered committed only after the RGBA file has been fully
+    written and passes verification.  A truncated frame left by a hard kill
+    is removed and rebuilt; later frames are ignored until the prefix is
+    contiguous again.
+    """
+
+    directory.mkdir(parents=True, exist_ok=True)
+    committed: list[Path] = []
+    for index in range(frame_count):
+        path = directory / f"frame_{index:06d}.png"
+        if not _rgba_frame_is_valid(path, expected_size):
+            if path.exists() and not path.is_symlink():
+                path.unlink(missing_ok=True)
+            break
+        committed.append(path)
+    return committed
+
+
 def _publish_atomically(temporary: Path, target: Path) -> None:
     """Publish without ever replacing an existing artifact directory.
 
@@ -415,6 +436,7 @@ class BackgroundIsolationSequenceWorker:
 
         source_artifact_id: str | None = None
         output_directory: Path | None = None
+        checkpoint: Path | None = None
         temporary: Path | None = None
         try:
             if _is_cancelled(cancel_event):
@@ -448,14 +470,28 @@ class BackgroundIsolationSequenceWorker:
                 return _result(ok=True, status=STATUS_READY, message="Foreground sequence cache hit.", artifact_id=artifact_id, source_artifact_id=source_artifact_id, output_directory=output_directory, frame_count=manifest["frame_count"], cache_hit=True)
 
             output_namespace.mkdir(parents=True, exist_ok=True)
-            temporary = Path(tempfile.mkdtemp(prefix=f".{artifact_id}.", dir=output_namespace))
-            temporary_frames = temporary / "frames"
-            temporary_frames.mkdir()
-            _emit(progress_callback, {"stage": "isolating", "frame": 0, "frame_count": len(source_paths), "progress": 0.0, "artifact_id": artifact_id})
+            # The checkpoint has a deterministic name so a retry after a
+            # network loss, process restart, or worker crash can reuse frames
+            # already completed.  It is never exposed by the reader because
+            # only the final artifact directory with a ready manifest is
+            # considered publishable.
+            checkpoint = output_namespace / f".{artifact_id}.checkpoint"
+            if checkpoint.is_symlink() or (checkpoint.exists() and not checkpoint.is_dir()):
+                raise PermissionError("foreground checkpoint must be a directory")
+            checkpoint.mkdir(parents=True, exist_ok=True)
+            checkpoint_frames = checkpoint / "frames"
+            committed = _checkpoint_frame_paths(
+                checkpoint_frames,
+                len(source_paths),
+                (manifest["width"], manifest["height"]),
+            )
+            _emit(progress_callback, {"stage": "isolating", "frame": len(committed), "frame_count": len(source_paths), "progress": len(committed) / len(source_paths), "artifact_id": artifact_id, "resumed": bool(committed)})
             for index, source_frame in enumerate(source_paths):
                 if _is_cancelled(cancel_event):
                     return _result(ok=False, status=STATUS_CANCELLED, error_code=ERROR_CANCELLED, message="Foreground sequence processing was cancelled.", artifact_id=artifact_id, source_artifact_id=source_artifact_id)
-                target_frame = temporary_frames / f"frame_{index:06d}.png"
+                target_frame = checkpoint_frames / f"frame_{index:06d}.png"
+                if index < len(committed):
+                    continue
                 try:
                     worker_result = self._worker.process(source_frame, target_frame, normalized)
                 except Exception as exc:
@@ -469,12 +505,18 @@ class BackgroundIsolationSequenceWorker:
                 _emit(progress_callback, {"stage": "isolating", "frame": index + 1, "frame_count": len(source_paths), "progress": (index + 1) / len(source_paths), "artifact_id": artifact_id})
             if _is_cancelled(cancel_event):
                 return _result(ok=False, status=STATUS_CANCELLED, error_code=ERROR_CANCELLED, message="Foreground sequence processing was cancelled.", artifact_id=artifact_id, source_artifact_id=source_artifact_id)
+            # Copy the completed checkpoint into a private publish directory.
+            # The checkpoint remains intact until publication succeeds, so a
+            # failed commit can be retried without losing inference work.
+            temporary = Path(tempfile.mkdtemp(prefix=f".{artifact_id}.publish.", dir=output_namespace))
+            shutil.copytree(checkpoint_frames, temporary / "frames")
             _write_manifest(temporary / "manifest.json", expected_manifest)
             _publish_atomically(temporary, output_directory)
             temporary = None
             if not _manifest_matches(expected_manifest, _read_manifest(output_directory / "manifest.json")) or not _derived_frames_are_current(output_directory, expected_manifest):
                 _cleanup(output_directory)
                 return _result(ok=False, status=STATUS_ERROR, error_code=ERROR_OUTPUT_COMMIT, message="Published foreground sequence failed its ready verification.", artifact_id=artifact_id, source_artifact_id=source_artifact_id)
+            _cleanup(checkpoint)
             return _result(ok=True, status=STATUS_READY, message="Foreground sequence created successfully.", artifact_id=artifact_id, source_artifact_id=source_artifact_id, output_directory=output_directory, frame_count=len(source_paths))
         except FileNotFoundError as exc:
             return _result(ok=False, status=STATUS_ERROR, error_code=ERROR_INPUT_MISSING if "manifest" not in str(exc).lower() else ERROR_MANIFEST_MISSING, message=str(exc), source_artifact_id=source_artifact_id)

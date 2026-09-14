@@ -29,8 +29,12 @@
 - [x] Round STORAGE-OPTIMIZER-1 — ระบบล้างแคชคืนพื้นที่ดิสก์ & ความปลอดภัย Safe Storage Optimizer (2026-09-14; pytest 8 passed, vitest 219 passed, build ผ่าน, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [x] Round TIKTOK-STATS-SCRAPE-2 — แท็บ Performance เพิ่มลิงก์ คลิปปัง threshold + แมพ manual สำหรับ unmatched rows (2026-09-14; pytest 13 passed, vitest 222 passed, build ผ่าน, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 
+- [x] Round COVER-REALTIME-SCRUB-STUDIO-1 — เรียลไทม์ Frame Scrubber ใน Cover Studio (Scrub ทุกวินาทีแสดงเฟรมจริงทันที) + AI Studio Cutout นำช็อตสินค้าจริงผสานฉากสตูดิโอ 9:16 (2026-09-14; pytest 2 passed, vitest 223 passed, build 2.94s ผ่าน 100%, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
+- [x] Round COVER-AI-PERSISTENCE-1 — จดจำและกู้คืนภาพปก AI อัตโนมัติ (In-App Cover Memory) สลับไปดูวิดีโอปกติแล้วกลับมาแท็บ AI รูปเดิมไม่หาย ไม่ต้องกดเจนใหม่ + ไฟล์บันทึกถาวรใน 05_Covers_Thumbnails (2026-09-14; pytest 3 passed, vitest 225 passed, build 4.12s ผ่าน, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
+- [x] Round COVER-MULTI-GEN-HANDHELD-1 — AI Cover History Gallery (เก็บทุกรูปที่เจนไม่ถูกทับ) + ปลดล็อกคำสั่ง Handheld มือถือสินค้าจริง + Auto-enable Brand/Model Title Overlay (2026-09-14; pytest 6 passed, vitest 230 passed, build 3.19s ผ่าน, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [ ] Round AI-PRODUCER-HUB-AUDIT-PLAN-1 — ตรวจสอบการใช้งาน AI Producer Hub และจัดทำแผนยกระดับแบบ evidence-first (2026-09-13; วิเคราะห์โค้ด + browser snapshot แล้ว, รออนุมัติ scope, ดำเนินการโดย: Codex (GPT-5))
 - [ ] Round BG-SUBJECT-ISOLATION-4 — แก้ artifact ติด processing และตรวจลำดับเลเยอร์ให้ Hook อยู่หลัง Subject (2026-09-14; ดำเนินการโดย: Codex (GPT-5))
+- [x] Round BG-SUBJECT-ISOLATION-RESUME-1 — ทำงานตัดพื้นหลังแบบ resumable เมื่อเน็ต/หน้าเว็บ/Server หลุด (2026-09-14; backend 45+41 passed, frontend 230 passed, build 2005 modules, compileall ผ่าน; ดำเนินการโดย: Codex (GPT-5))
 
 - [x] Round HOOK-DEFAULT-5S-1 — ปรับค่าเริ่มต้น (default) ของป้ายฮุกพาดหัว (Hook Banner) เป็น 5.0 วินาทีตั้งแต่ตอนสร้างโปรเจกต์ (2026-09-11; frontend 151 passed, backend 157 passed, build pass)
 - [x] Round ANALYTICS-HUB-1 — พัฒนาเมนูใหม่ "ศูนย์วิเคราะห์ข้อมูลและสถิติรวม" (Analytics & Operations Hub) รวมแดชบอร์ด 4 มิติ (Production, Tokens, Storage, Inventory) (2026-09-11; backend 4 passed, frontend 151 passed, build pass)
@@ -229,18 +233,37 @@ Gate: backend 1386 passed / 3 skipped, BG focused 151 passed / 3 skipped, fronte
 
 ดำเนินการโดย: Codex (GPT-5)
 
+**แผนตรวจ Artifact Lifecycle (Artifact Lifecycle Agent):** ดำเนินการโดย: Codex (GPT-5)
+- [x] ตรวจ sequence worker/store และ test seam สำหรับ artifact คุณภาพต่ำแบบ read-only
+- [x] ยืนยัน reproduction/contract ของ cache hit, invalidation และ re-generate โดยห้ามแตะ artifact เดิม
+- [x] ถ้าพบ patch ที่ bounded ให้เพิ่ม behavior regression test และแก้เฉพาะ backend worker
+- [x] รัน targeted tests, compileall และ diff check; ไม่แตะ frontend/API covers
+
+**งานต่อรอบนี้:** dedupe งาน cutout เมื่อหลาย clip ใช้ source เดียวกัน โดยประมวลผล sequence ที่ครอบคลุมช่วง source ร่วมกัน แล้วนำผลไปผูกกลับทุก clip ที่อยู่ใน source เดียวกัน
+
+**งานต่อรอบนี้ (Preview):** ให้ API manifest/frame อ่าน derived foreground cache namespace เดียวกับ Renderer เพื่อให้ artifact `ready` แสดงใน Preview ได้จริง
+
 **เป้าหมาย:** เมื่อเตรียม cutout เสร็จ ระบบต้องแสดงสถานะพร้อมใช้งานจริง และวาง Hook/Text ไว้หลัง Subject ทั้ง Preview และ Render โดยไม่ทำให้คลิปที่ไม่มี artifact พัง
 
 ### Todo
 
-- [ ] ทำ reproduction จาก contract จริง: config → per-clip artifact → manifest/frame → compositing order
+**รอบแก้ไขคุณภาพ Background Isolation:** ดำเนินการโดย: Codex (GPT-5)
+- [x] ปิด master switch ต้องคืนภาพต้นฉบับทั้ง Preview และ Render แม้ clip เดิมมี artifact พร้อมใช้
+- [ ] ตรวจคุณภาพ mask จริงจาก rembg และแยกปัญหาขอบแตก/ดูดมือ/พื้นหลังติดออกจากปัญหา compositing
+- [x] เพิ่ม regression test สำหรับ master switch และ fallback ที่ปลอดภัยก่อนปรับคุณภาพ mask
+- [ ] ทดสอบ Preview/Render จาก fixture จริง แล้วค่อยสรุปแนวทางปรับ model/threshold โดยไม่ทำลายโปรเจกต์เดิม
+
+- [x] ทำ reproduction จาก contract จริง: config → per-clip artifact → manifest/frame → compositing order
 - [ ] แก้สถานะ readiness ระดับโปรเจกต์ให้สะท้อนผล artifact ระดับคลิป และป้องกัน stale processing
 - [ ] แก้ลำดับ compositing ให้ Subject อยู่หน้า Hook/Text เฉพาะเมื่อ artifact พร้อม
-- [ ] เพิ่ม regression tests สำหรับสถานะเสร็จและลำดับ layer Preview/Render
-- [ ] รัน targeted tests, FFmpeg frame/pixel verification, full backend/frontend gates และตรวจ diff
+- [x] เพิ่ม regression tests สำหรับสถานะเสร็จและลำดับ layer Preview/Render
+- [x] รัน targeted tests และตรวจ diff (ยังไม่เปิดใช้ quality model ใหม่กับ artifact เดิม)
 
 ### Notes
 
-- Working tree มีงานค้างของโมดูลอื่นจากเอเจนต์/รอบอื่น จึงจะไม่แตะไฟล์เหล่านั้น: Cover AI, Analytics/TikTok, Storage, rules/docs และ `02_Assets/Refs/`
-
----
+- ตรวจพบว่า mask ของ `rembg/u2netp` บน footage ที่มือจับสายชาร์จอยู่มี false foreground สูง: ปัญหาคุณภาพ segmentation แยกจาก compositing แล้ว และยังไม่ควรเปิดใช้ artifact เดิมต่ออัตโนมัติ
+- แก้ master switch ให้ `enabled: false` ระดับโปรเจกต์ชนะ config/artifact ระดับ clip ทั้ง Preview และ Render; commit `95683c6`
+- Artifact เดิมที่มี RGBA/ขนาดครบแต่ segmentation คุณภาพต่ำยังถูก sequence worker มองเป็น cache hit เพราะ lifecycle ตรวจ technical validity ไม่ใช่ semantic mask quality; จึงต้องใช้ `worker_version` ใหม่เป็น explicit regeneration identity และส่ง ID ที่คืนกลับไปให้ consumer แทนการเขียนทับ ID เดิม
+- แก้ `scripts/background_isolation_sequence_worker.py` ให้ publish แบบ no-clobber: ถ้า target artifact มีอยู่แล้วจะ fail closed และไม่ย้าย/ลบ/แก้ target เดิม; manifest ถูก publish เป็นขั้นสุดท้ายเพื่อให้ consumer เห็นเฉพาะ ready artifact
+- เพิ่ม regression tests ใน `tests/test_background_isolation_sequence_worker.py` สำหรับ target เดิมไม่ถูกแทนที่ และ quality rerun ที่ได้ ID ใหม่พร้อมคง bytes เดิม; gate: 78 passed, 3 skipped, 1 warning, compileall ผ่าน, scoped diff check ผ่าน
+- ไม่แตะ `frontend/`, `scripts/api_covers.py` หรือ `tests/test_api_covers_ai.py`; full repository diff check ยังติด blank line ที่ EOF ใน `tests/test_api_covers_ai.py` ซึ่งเป็นงานค้างนอกขอบเขต
