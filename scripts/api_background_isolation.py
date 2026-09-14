@@ -42,6 +42,7 @@ from scripts.background_isolation_sequence_worker import (
 router = APIRouter(prefix="/api/background-isolation", tags=["background-isolation"])
 
 _FRAME_INDEX_RE = re.compile(r"^(?:0|[1-9][0-9]*)$")
+_FRAME_NAME_RE = re.compile(r"^frame_([0-9]{6})\.png$")
 _PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 
@@ -265,10 +266,17 @@ def _ready_sequence(artifact_id: str) -> tuple[Path, dict[str, Any]]:
 
 
 def _parse_frame_index(raw_frame_index: str) -> int:
-    if not isinstance(raw_frame_index, str) or not _FRAME_INDEX_RE.fullmatch(raw_frame_index):
+    if not isinstance(raw_frame_index, str):
         raise HTTPException(status_code=400, detail="frame_index must be a zero-based integer")
+    if _FRAME_INDEX_RE.fullmatch(raw_frame_index):
+        candidate = raw_frame_index
+    else:
+        frame_name = _FRAME_NAME_RE.fullmatch(raw_frame_index)
+        if not frame_name:
+            raise HTTPException(status_code=400, detail="frame_index must be a zero-based integer")
+        candidate = frame_name.group(1)
     try:
-        frame_index = int(raw_frame_index, 10)
+        frame_index = int(candidate, 10)
     except (TypeError, ValueError, OverflowError) as exc:
         raise HTTPException(status_code=400, detail="frame_index must be a zero-based integer") from exc
     if frame_index > 999999:

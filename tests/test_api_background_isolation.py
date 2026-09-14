@@ -66,6 +66,13 @@ def test_manifest_and_frame_return_only_ready_derived_artifacts(monkeypatch, tmp
     assert frame_response.headers["content-type"].startswith("image/png")
     assert frame_response.content == PNG_1X1
 
+    canonical_frame_response = client.get(
+        f"/api/background-isolation/sequences/{artifact_id}/frames/frame_000000.png"
+    )
+    assert canonical_frame_response.status_code == 200
+    assert canonical_frame_response.headers["content-type"].startswith("image/png")
+    assert canonical_frame_response.content == PNG_1X1
+
 
 @pytest.mark.parametrize("status", ["missing", "stale", "processing", "error", "cancelled"])
 def test_manifest_and_frame_hide_non_ready_sequences(monkeypatch, tmp_path, status):
@@ -98,7 +105,7 @@ def test_invalid_artifact_id_is_bad_request(monkeypatch, tmp_path, artifact_id):
     assert client.get(f"/api/background-isolation/sequences/{artifact_id}/manifest").status_code in {400, 404}
 
 
-@pytest.mark.parametrize("frame_index", ["-1", "abc", "1.5", "1000000"])
+@pytest.mark.parametrize("frame_index", ["-1", "abc", "1.5", "1000000", "frame_000001.jpg", "frame_00001.png"])
 def test_invalid_frame_index_is_bad_request(monkeypatch, tmp_path, frame_index):
     client, cache_root = _client(monkeypatch, tmp_path)
     artifact_id, _manifest = _ready_sequence(cache_root)
