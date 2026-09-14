@@ -190,3 +190,28 @@ def test_process_rejects_invalid_rotation(monkeypatch, tmp_path):
         },
     )
     assert response.status_code == 422
+
+
+def test_source_sequence_identity_is_shared_across_trim_windows():
+    normalized = api.normalize_background_isolation({"enabled": True})
+    first = api._source_sequence_id(
+        "sha256:source",
+        normalized,
+        fps=30.0,
+        timebase="1/30",
+        width=1080,
+        height=1920,
+        rotation=0,
+    )
+    second = api._source_sequence_id(
+        "sha256:source",
+        normalized,
+        fps=30.0,
+        timebase="1/30",
+        width=1080,
+        height=1920,
+        rotation=0,
+    )
+
+    assert first == second
+    assert first.startswith("bgseq1-")

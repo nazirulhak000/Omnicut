@@ -72,6 +72,37 @@ def _source_fingerprint(source: Path) -> str:
     return f"sha256:{hashlib.sha256(payload).hexdigest()}"
 
 
+def _source_sequence_id(
+    source_fingerprint: str,
+    normalized: dict[str, Any],
+    *,
+    fps: float,
+    timebase: str,
+    width: int,
+    height: int,
+    rotation: int,
+) -> str:
+    """Build one cache identity for one source/settings tuple.
+
+    Trim windows are deliberately excluded.  A sequence is indexed in source
+    time, so every timeline clip can reuse the same full-source cutout.
+    """
+
+    return build_sequence_artifact_id(
+        source_fingerprint,
+        algorithm="background-isolation-source-v1",
+        engine=normalized["engine"],
+        model=normalized["model"],
+        quality=normalized["quality"],
+        worker_version="source-sequence-v1",
+        fps=fps,
+        timebase=timebase,
+        width=width,
+        height=height,
+        rotation=rotation,
+    )
+
+
 def _run_background_isolation_task(task_id: str, req: BackgroundIsolationProcessRequest) -> None:
     try:
         source = _source_for_processing(req.source_path)
@@ -85,12 +116,14 @@ def _run_background_isolation_task(task_id: str, req: BackgroundIsolationProcess
             timebase = f"1/{int(req.fps)}"
         else:
             timebase = "1001/30000"
-        source_id = build_sequence_artifact_id(
-            f"{source_fingerprint}|start={req.start:.6f}|duration={req.duration if req.duration is not None else 'end'}",
-            algorithm="background-isolation-source-v1",
-            engine=normalized["engine"], model=normalized["model"], quality=normalized["quality"],
-            worker_version="source-sequence-v1", fps=req.fps, timebase=timebase,
-            width=req.width, height=req.height, rotation=req.rotation,
+        source_id = _source_sequence_id(
+            source_fingerprint,
+            normalized,
+            fps=req.fps,
+            timebase=timebase,
+            width=req.width,
+            height=req.height,
+            rotation=req.rotation,
         )
         cache_root = Path(PROJECTS_DIR).resolve() / ".cache"
 
@@ -101,8 +134,11 @@ def _run_background_isolation_task(task_id: str, req: BackgroundIsolationProcess
                 TaskManager.update_progress(task_id, min(0.99, 0.45 * float(value) if stage == "processing" else 0.45 + 0.55 * float(value)), f"Background isolation: {stage}")
 
         TaskManager.update_progress(task_id, 0.05, "กำลังเตรียมเฟรมวิดีโอสำหรับตัดพื้นหลัง")
+        # The published sequence must cover source time zero through EOF.
+        # Individual timeline trim windows are mapped to frames by the
+        # Preview/Render consumers and must not create separate inference jobs.
         extracted = extract_background_isolation_sequence(
-            source, cache_root, source_id, start=req.start, duration=req.duration,
+            source, cache_root, source_id, start=0.0, duration=None,
             fps=req.fps, timebase=timebase, width=req.width, height=req.height,
             progress_callback=progress,
         )

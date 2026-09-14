@@ -30,6 +30,7 @@ import {
 } from '../../lib/stylePresetCatalog.js';
 import { removeItemById, updateItemById } from '../../lib/collectionOperations.js';
 import { getOverlayRecolorMetadata } from '../../lib/overlayRecolor.js';
+import { groupBackgroundIsolationClips } from '../../lib/backgroundIsolationPreview.js';
 import { resolveEditorProjectName } from '../../lib/editorEntry.js';
 import SequencePlayer from '../SequencePlayer';
 import AssetPanel from './AssetPanel';
@@ -1227,29 +1228,25 @@ export default function EditorShell({
       artifact: { ...(baseConfig.artifact || {}), id: null, status: 'processing' },
     });
     setBackgroundIsolationPreparing(true);
-    const unique = [];
-    const seen = new Set();
-    sourceClips.forEach((clip) => {
-      const start = Math.max(0, Number(clip.trim_start) || 0);
-      const trimEnd = Number(clip.trim_end);
-      const duration = Number.isFinite(trimEnd) && trimEnd > start ? trimEnd - start : null;
-      const key = `${clip.source_path}|${start.toFixed(6)}|${duration == null ? 'end' : duration.toFixed(6)}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        unique.push({ clip, start, duration });
-      }
-    });
+    // The sequence is source-time indexed, so trim windows from the same
+    // source can share one full-source extraction and one rembg pass.  The
+    // renderer maps each clip's trim_start to the shared sequence later.
+    const unique = groupBackgroundIsolationClips(sourceClips).map((group) => ({
+      ...group,
+      clip: group.clips[0],
+      start: 0,
+      duration: null,
+    }));
     try {
       for (const item of unique) {
         const response = await startBackgroundIsolation({
-          source_path: item.clip.source_path,
+          source_path: item.sourcePath,
           config: baseConfig,
-          start: item.start,
-          ...(item.duration == null ? {} : { duration: item.duration }),
+          start: 0,
           fps: 30,
           width: 1080,
           height: 1920,
-          rotation: Number(item.clip.rotation) || 0,
+          rotation: item.rotation,
         });
         let task = null;
         for (let attempt = 0; attempt < 900; attempt += 1) {
@@ -1264,13 +1261,12 @@ export default function EditorShell({
         set((prev) => ({
           ...prev,
           clipList: (prev.clipList || []).map((clip) => {
-            const clipStart = Math.max(0, Number(clip.trim_start) || 0);
-            const clipEnd = Number(clip.trim_end);
-            const clipDuration = Number.isFinite(clipEnd) && clipEnd > clipStart ? clipEnd - clipStart : null;
-            const sameRange = clip.source_path === item.clip.source_path
-              && Math.abs(clipStart - item.start) < 0.0001
-              && (clipDuration == null ? item.duration == null : Math.abs(clipDuration - (item.duration || 0)) < 0.0001);
-            return sameRange ? { ...clip, background_isolation: completedConfig } : clip;
+            const clipRotation = [0, 90, 180, 270].includes(Number(clip.rotation))
+              ? Number(clip.rotation)
+              : 0;
+            const sameSource = String(clip.source_path || '').toLowerCase() === item.sourcePath.toLowerCase()
+              && clipRotation === item.rotation;
+            return sameSource ? { ...clip, background_isolation: completedConfig } : clip;
           }),
         }));
       }
@@ -1278,7 +1274,7 @@ export default function EditorShell({
       // own extracted sequence.  Keep the project-level marker honest: it is
       // only a default/fallback config and has no single artifact id.
       patchBackgroundIsolation({ ...baseConfig, enabled: true, artifact: { ...(baseConfig.artifact || {}), id: null, status: 'missing' } });
-      showToast(`เตรียม cutout สำเร็จ ${unique.length} คลิป`);
+      showToast(`เตรียม cutout สำเร็จ ${sourceClips.length} คลิป จาก ${unique.length} แหล่งวิดีโอ`);
     } catch (error) {
       patchBackgroundIsolation({ ...baseConfig, enabled: true, artifact: { ...(baseConfig.artifact || {}), id: null, status: 'error' } });
       showToast(error?.friendlyMessage || error?.message || 'เตรียม cutout ไม่สำเร็จ');

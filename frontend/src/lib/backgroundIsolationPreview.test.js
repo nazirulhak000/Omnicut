@@ -5,6 +5,7 @@ import {
   LEGACY_FRAME_PATTERN,
   SEQUENCE_FRAME_PATTERN,
   buildBackgroundIsolationFrameUrl,
+  groupBackgroundIsolationClips,
   mapSourceTimeToFrameIndex,
   resolveBackgroundIsolationPreview,
   splitBackgroundIsolationOverlays,
@@ -22,6 +23,20 @@ test('splits Hook overlays behind the isolated Subject while keeping captions fo
 
   assert.deepEqual(result.behindSubject.map((item) => item.id), ['hook', 'legacy-hook']);
   assert.deepEqual(result.foreground.map((item) => item.id), ['caption']);
+});
+
+test('groups multiple trim windows from one source into one isolation job', () => {
+  const source = 'D:/clips/esseger.mov';
+  const groups = groupBackgroundIsolationClips([
+    { source_path: source, trim_start: 0, trim_end: 2 },
+    { source_path: source, trim_start: 4, trim_end: 6 },
+    { source_path: source.toUpperCase(), trim_start: 8, trim_end: 10 },
+    { source_path: source, rotation: 90, trim_start: 12, trim_end: 14 },
+  ]);
+
+  assert.equal(groups.length, 2);
+  assert.equal(groups[0].clips.length, 3);
+  assert.equal(groups[1].rotation, 90);
 });
 
 function readyConfig(overrides = {}) {

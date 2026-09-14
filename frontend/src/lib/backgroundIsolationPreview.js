@@ -30,6 +30,28 @@ const RATIONAL_PATTERN = /^(\d+)\/(\d+)$/;
 const FRAME_PATTERN_PATTERN = /^(?:(frames)\/)?frame_%06d\.png$/;
 const EPSILON = 1e-9;
 
+/** Group timeline clips by the source sequence they can share. */
+export function groupBackgroundIsolationClips(clips = []) {
+  const groups = [];
+  const bySource = new Map();
+  for (const clip of Array.isArray(clips) ? clips : []) {
+    if (!clip?.source_path) continue;
+    const rotation = [0, 90, 180, 270].includes(Number(clip.rotation))
+      ? Number(clip.rotation)
+      : 0;
+    const sourcePath = String(clip.source_path);
+    const key = `${sourcePath.toLowerCase()}\u0000${rotation}`;
+    let group = bySource.get(key);
+    if (!group) {
+      group = { sourcePath, rotation, clips: [] };
+      bySource.set(key, group);
+      groups.push(group);
+    }
+    group.clips.push(clip);
+  }
+  return groups;
+}
+
 function fallbackMode(value) {
   return FALLBACKS.includes(value) ? value : DEFAULT_FALLBACK;
 }
