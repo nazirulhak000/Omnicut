@@ -23,6 +23,7 @@ from scripts.config import (
 from scripts.product_store import ProductStore
 from scripts.token_tracker import TokenTracker
 from scripts.export_registry import ExportRegistry
+from scripts.storage_cleaner import scan_safe_reclaimable_cache, execute_safe_purge
 
 router = APIRouter(prefix="/api/analytics", tags=["Analytics Hub"])
 
@@ -211,30 +212,11 @@ def get_storage_analytics(force_scan: bool = False) -> Dict[str, Any]:
         exports_size = _dir_size(EXPORTS_DIR.parent if EXPORTS_DIR.name == "Ready_to_post" else EXPORTS_DIR)
         covers_size = _dir_size(COVERS_DIR)
         archive_size = _dir_size(ARCHIVE_DIR)
+        capcut_draft_size = _dir_size(CAPCUT_DRAFT_DIR) if CAPCUT_DRAFT_DIR.exists() else 0
 
-        # Scan CapCut drafts cache if exists
-        capcut_draft_size = 0
-        capcut_cache_size = 0
-        if CAPCUT_DRAFT_DIR.exists():
-            capcut_draft_size = _dir_size(CAPCUT_DRAFT_DIR)
-            # Find cloud_cache dirs
-            try:
-                for entry in CAPCUT_DRAFT_DIR.iterdir():
-                    if entry.is_dir() and (entry.name.startswith(".cloud_cache") or entry.name.startswith("cache_")):
-                        capcut_cache_size += _dir_size(entry)
-            except Exception:
-                pass
-
-        # Scan temporary audio preview caches in PROJECTS_DIR
-        temp_cache_size = 0
-        try:
-            for item in PROJECTS_DIR.rglob("*.wav"):
-                if "preview" in item.name.lower() or "temp" in item.name.lower():
-                    temp_cache_size += item.stat().st_size
-        except Exception:
-            pass
-
-        safe_purge_bytes = capcut_cache_size + temp_cache_size
+        # Scan safe reclaimable caches via storage_cleaner
+        reclaimable_scan = scan_safe_reclaimable_cache()
+        safe_purge_bytes = reclaimable_scan["total_bytes"]
 
         # Top heaviest product folders in 01_Raw
         heavy_products = []
@@ -394,47 +376,17 @@ def get_storage_analytics(force_scan: bool = False) -> Dict[str, Any]:
 @router.post("/storage/purge-safe-cache")
 def purge_safe_cache() -> Dict[str, Any]:
     """
-    Safely clears only temporary audio preview files and CapCut transient cache.
+    Safely clears only temporary audio preview files, vision proxies, and CapCut transient cache.
     STRICT DON'T: Never touches 01_Raw or 02_Assets.
     """
-    purged_bytes = 0
-    purged_files = 0
-
     try:
-        # 1. Clean temporary audio previews in 03_Projects
-        for item in PROJECTS_DIR.rglob("*.wav"):
-            if "preview" in item.name.lower() or "temp" in item.name.lower():
-                try:
-                    size = item.stat().st_size
-                    item.unlink(missing_ok=True)
-                    purged_bytes += size
-                    purged_files += 1
-                except Exception:
-                    pass
-
-        # 2. Clean CapCut cloud_cache if accessible
-        if CAPCUT_DRAFT_DIR.exists():
-            for entry in CAPCUT_DRAFT_DIR.iterdir():
-                if entry.is_dir() and (entry.name.startswith(".cloud_cache") or entry.name.startswith("cache_")):
-                    try:
-                        size = _dir_size(entry)
-                        shutil.rmtree(str(entry), ignore_errors=True)
-                        purged_bytes += size
-                        purged_files += 1
-                    except Exception:
-                        pass
+        res = execute_safe_purge()
 
         # Invalidate cache to force rescan next time
         _STORAGE_CACHE["data"] = None
         _STORAGE_CACHE["timestamp"] = 0.0
 
-        return {
-            "success": True,
-            "purged_files": purged_files,
-            "purged_bytes": purged_bytes,
-            "purged_mb": round(purged_bytes / (1024 * 1024), 2),
-            "message": f"ล้างไฟล์แคชชั่วคราวสำเร็จ {purged_files} ไฟล์ ({round(purged_bytes / (1024 * 1024), 2)} MB)"
-        }
+        return res
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to purge safe cache: {e}")
 

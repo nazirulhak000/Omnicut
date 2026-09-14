@@ -27,8 +27,10 @@
 - [x] Round AI-PRODUCER-VISION-1 — ยกระดับ AI Gemini Vision วิเคราะห์ภาพเรฟเฟอเรนซ์ใน Quick Ref Vault และ Producer Hub สังเคราะห์เป็นสคริปต์และมุมมองวิดีโอ TikTok (2026-09-14; pytest 20 passed, vitest 219 passed, build 3.59s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [x] Round COVER-AI-IMAGEN-1 — AI สร้างรูปหน้าปกคลิป 9:16 ใน Cover Studio (Imagen 3 + Smart Frame Hunt) (2026-09-14; pytest 2 passed, vitest 219 passed, build ผ่าน, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [x] Round STORAGE-OPTIMIZER-1 — ระบบล้างแคชคืนพื้นที่ดิสก์ & ความปลอดภัย Safe Storage Optimizer (2026-09-14; pytest 8 passed, vitest 219 passed, build ผ่าน, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
+- [x] Round TIKTOK-STATS-SCRAPE-2 — แท็บ Performance เพิ่มลิงก์ คลิปปัง threshold + แมพ manual สำหรับ unmatched rows (2026-09-14; pytest 13 passed, vitest 222 passed, build ผ่าน, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 
 - [ ] Round AI-PRODUCER-HUB-AUDIT-PLAN-1 — ตรวจสอบการใช้งาน AI Producer Hub และจัดทำแผนยกระดับแบบ evidence-first (2026-09-13; วิเคราะห์โค้ด + browser snapshot แล้ว, รออนุมัติ scope, ดำเนินการโดย: Codex (GPT-5))
+- [ ] Round BG-SUBJECT-ISOLATION-4 — แก้ artifact ติด processing และตรวจลำดับเลเยอร์ให้ Hook อยู่หลัง Subject (2026-09-14; ดำเนินการโดย: Codex (GPT-5))
 
 - [x] Round HOOK-DEFAULT-5S-1 — ปรับค่าเริ่มต้น (default) ของป้ายฮุกพาดหัว (Hook Banner) เป็น 5.0 วินาทีตั้งแต่ตอนสร้างโปรเจกต์ (2026-09-11; frontend 151 passed, backend 157 passed, build pass)
 - [x] Round ANALYTICS-HUB-1 — พัฒนาเมนูใหม่ "ศูนย์วิเคราะห์ข้อมูลและสถิติรวม" (Analytics & Operations Hub) รวมแดชบอร์ด 4 มิติ (Production, Tokens, Storage, Inventory) (2026-09-11; backend 4 passed, frontend 151 passed, build pass)
@@ -173,10 +175,13 @@
 - [x] Frontend: การ์ด Safe Cache Cleaner แสดงขนาดขยะที่ล้างได้ + ปุ่มล้างคืนพื้นที่ดิสก์ใน StorageAnalyticsTab
 - [x] Tests: pytest tests/test_storage_cleaner.py + test_analytics_hub.py (8 passed) + vitest (219 passed) + build ผ่าน 100%
 
-## Round TIKTOK-STATS-SCRAPE-2 (backlog)
-## Round TIKTOK-STATS-SCRAPE-2 (backlog) — แท็บ Performance เพิ่มลิงก์ คลิปปัง threshold + แมพ manual สำหรับ unmatched rows
-- [ ] หลังใช้งานจริง: ปุ่มจับคู่ manual ในแท็บ Performance สำหรับแถวที่ fuzzy match ไม่เจอ
-- [ ] แจ้งเตือนคลิปปังเกิน threshold (เช่น 10k views) ใน Activity Center
+## Round TIKTOK-STATS-SCRAPE-2 — แท็บ Performance เพิ่มลิงก์ คลิปปัง threshold + แมพ manual สำหรับ unmatched rows
+วันที่: 2026-09-14 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์ ✅
+- [x] Backend: เพิ่ม endpoint `GET /api/tiktok-stats/milestones` รองรับกรองคลิปปังตาม threshold (1k, 5k, 10k, 50k) พร้อมระบุระดับเทียร์ (เติบโตน่าจับตา, ดาวเด่น, ไวรัลปัง, เมกะไวรัล)
+- [x] Frontend TaskContext: ระบบตรวจสอบคลิปปังอัตโนมัติ (Viral Milestone Monitor) แจ้งเตือน Toast "🔥 คลิปปังทะลุเป้า!" เมื่อยอดวิวทะลุ 10,000 วิว
+- [x] Frontend ActivityCenter: เพิ่มแท็บ "🔥 คลิปปัง (N)" พร้อมปุ่มลิงก์ตรงไปยังคลิปจริงบน TikTok และไอคอน Trophy แถบแจ้งเตือน
+- [x] Frontend PerformanceAnalyticsTab: ระบบจับคู่ manual rows ที่ค้าง (attach/ignore) และแสดงสถานะยอดวิว/metrics
+- [x] Tests: pytest tests/test_tiktok_stats_import.py (13 passed) + vitest (222 passed) + build ผ่าน 100%
 
 ---
 
@@ -219,5 +224,23 @@
 สถานะ: เสร็จแล้ว — เพิ่ม API ประมวลผล sequence, state persistence, Preview/Render compositing, UI control และ fallback safety
 
 Gate: backend 1386 passed / 3 skipped, BG focused 151 passed / 3 skipped, frontend 219 passed, Vite build ผ่าน 2005 modules, compileall ผ่าน, FFmpeg fixture ตรวจ pixel แล้ว
+
+## Round BG-SUBJECT-ISOLATION-4 — แก้ artifact ติด processing และตรวจลำดับเลเยอร์ให้ Hook อยู่หลัง Subject
+
+ดำเนินการโดย: Codex (GPT-5)
+
+**เป้าหมาย:** เมื่อเตรียม cutout เสร็จ ระบบต้องแสดงสถานะพร้อมใช้งานจริง และวาง Hook/Text ไว้หลัง Subject ทั้ง Preview และ Render โดยไม่ทำให้คลิปที่ไม่มี artifact พัง
+
+### Todo
+
+- [ ] ทำ reproduction จาก contract จริง: config → per-clip artifact → manifest/frame → compositing order
+- [ ] แก้สถานะ readiness ระดับโปรเจกต์ให้สะท้อนผล artifact ระดับคลิป และป้องกัน stale processing
+- [ ] แก้ลำดับ compositing ให้ Subject อยู่หน้า Hook/Text เฉพาะเมื่อ artifact พร้อม
+- [ ] เพิ่ม regression tests สำหรับสถานะเสร็จและลำดับ layer Preview/Render
+- [ ] รัน targeted tests, FFmpeg frame/pixel verification, full backend/frontend gates และตรวจ diff
+
+### Notes
+
+- Working tree มีงานค้างของโมดูลอื่นจากเอเจนต์/รอบอื่น จึงจะไม่แตะไฟล์เหล่านั้น: Cover AI, Analytics/TikTok, Storage, rules/docs และ `02_Assets/Refs/`
 
 ---

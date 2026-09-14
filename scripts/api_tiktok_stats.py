@@ -180,3 +180,57 @@ def ignore_pending(payload: IgnoreRequest) -> Dict[str, Any]:
         raise HTTPException(status_code=404, detail=str(exc))
     TikTokPending.remove(payload.pending_id)
     return {"ignored": True, "remaining": len(TikTokPending.list_rows())}
+
+
+@router.get("/milestones")
+def get_viral_milestones(threshold: int = 1000) -> Dict[str, Any]:
+    """
+    Returns clips that achieved viral milestones (e.g. >= 1k, 5k, 10k views).
+    Includes product details, hook title, and action link to create follow-up clips.
+    """
+    posts = PostLog.list_posts(newest_first=True)
+    milestone_posts = []
+
+    for p in posts:
+        metrics = p.get("metrics") or {}
+        views = int(metrics.get("views") or 0)
+        if views >= threshold:
+            # Determine highest milestone tier reached
+            if views >= 50000:
+                tier = "50k"
+                tier_label = "ระดับเมกะไวรัล (50K+)"
+            elif views >= 10000:
+                tier = "10k"
+                tier_label = "ระดับไวรัลปัง (10K+)"
+            elif views >= 5000:
+                tier = "5k"
+                tier_label = "ระดับดาวเด่น (5K+)"
+            else:
+                tier = "1k"
+                tier_label = "ระดับเติบโตน่าจับตา (1K+)"
+
+            milestone_posts.append({
+                "post_id": p.get("id"),
+                "product_name": p.get("product_name") or "สินค้า",
+                "angle_title": p.get("angle_title") or p.get("hook") or "ไม่มีมุมมอง",
+                "hook": p.get("hook") or "",
+                "views": views,
+                "likes": int(metrics.get("likes") or 0),
+                "comments": int(metrics.get("comments") or 0),
+                "shares": int(metrics.get("shares") or 0),
+                "posted_at": p.get("posted_at") or "",
+                "tiktok_url": p.get("tiktok_url") or "",
+                "tier": tier,
+                "tier_label": tier_label,
+            })
+
+    # Sort descending by views
+    milestone_posts.sort(key=lambda x: x["views"], reverse=True)
+
+    return {
+        "milestones": milestone_posts,
+        "count": len(milestone_posts),
+        "threshold": threshold,
+        "has_viral": any(m["views"] >= 10000 for m in milestone_posts),
+    }
+

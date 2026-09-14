@@ -21,6 +21,9 @@ of font/size/colour/outline per tier is the SAME data the video's banner
 uses -- just rendered once instead of animated -- without depending on any of
 the motion machinery in scripts/subtitle/.
 """
+import os
+import time
+import uuid
 import json
 import subprocess
 import urllib.parse
@@ -29,6 +32,7 @@ from typing import Optional, Tuple, List, Dict, Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from PIL import Image, ImageDraw
 
 from scripts.config import (
     BASE_DIR,
@@ -42,6 +46,11 @@ from scripts.config import (
 from scripts.asset_registry import AssetRegistry
 from scripts.cover_scene import CoverSceneValidationError, normalize_scene
 from scripts.hook_styles import resolve_hook_style, TIER_KEYS
+
+def _get_genai_client(api_key: str):
+    """Helper to instantiate Google GenAI client (can be patched in tests)."""
+    from google import genai
+    return genai.Client(api_key=api_key)
 
 # TikTok's own upload cover requirement: 1080x1920, 9:16.
 COVER_W, COVER_H = 1080, 1920
@@ -1065,4 +1074,127 @@ def generate_cover_endpoint(req: GenerateCoverRequest):
         "cover_path": str(rel),
         "media_url": f"/api/media/{urllib.parse.quote(str(rel).replace(chr(92), '/'))}",
     }
+
+
+class AiGenerateCoverImageRequest(BaseModel):
+    product_name: str = "สินค้า"
+    hook_title: Optional[str] = ""
+    style_prompt: Optional[str] = ""
+    video_path: Optional[str] = None
+
+
+@router.post("/ai-generate-image")
+def ai_generate_cover_image_endpoint(req: AiGenerateCoverImageRequest):
+    """
+    Generates a 9:16 vertical commercial cover image using Imagen 3 via Google GenAI SDK.
+    Falls back to smart sharpness/hero frame extraction from video footage if Imagen is unavailable.
+    """
+    COVERS_DIR.mkdir(parents=True, exist_ok=True)
+    ts = int(time.time())
+    safe_uid = uuid.uuid4().hex[:6]
+    product_name = (req.product_name or "สินค้า").strip()
+
+    if req.style_prompt and req.style_prompt.strip():
+        full_prompt = req.style_prompt.strip()
+    else:
+        full_prompt = (
+            f"Commercial 8k product photography of {product_name}, "
+            f"high-end studio lighting, sleek podium, vibrant cinematic colors, "
+            f"ultra sharp focus, modern minimalist aesthetics, 9:16 vertical orientation, "
+            f"trending on TikTok, advertising poster quality"
+        )
+
+    # 1. Try Imagen 3 via google.genai
+    try:
+        from scripts.ai_bridge import AIBridge
+        api_keys = AIBridge.get_api_keys()
+    except Exception:
+        api_keys = []
+    if not api_keys:
+        fallback_k = os.environ.get("GEMINI_API_KEY", "").strip()
+        if fallback_k:
+            api_keys = [fallback_k]
+
+    generated_file = None
+    method_used = "smart_frame"
+
+    if api_keys:
+        try:
+            from google import genai
+            from google.genai import types
+
+            for key in api_keys:
+                try:
+                    client = _get_genai_client(key)
+                    resp = client.models.generate_images(
+                        model="imagen-3.0-generate-002",
+                        prompt=full_prompt,
+                        config=types.GenerateImagesConfig(
+                            number_of_images=1,
+                            aspect_ratio="9:16",
+                            output_mime_type="image/jpeg",
+                        ),
+                    )
+                    if resp and resp.generated_images:
+                        img_bytes = resp.generated_images[0].image.image_bytes
+                        out_path = COVERS_DIR / f"ai_cover_{ts}_{safe_uid}.jpg"
+                        out_path.write_bytes(img_bytes)
+                        generated_file = out_path
+                        method_used = "imagen_3"
+                        break
+                except Exception as img_err:
+                    print(f"[CoverStudioAI] Imagen 3 note: {img_err}")
+                    continue
+        except Exception as sdk_err:
+            print(f"[CoverStudioAI] GenAI SDK note: {sdk_err}")
+
+    # 2. Fallback to Smart Frame Hunt if Imagen 3 did not produce an image
+    if not generated_file and req.video_path:
+        try:
+            v_path = _resolve_media(req.video_path)
+            hl = extract_highlight_candidates(v_path)
+            cand_list = hl.get("candidates") or []
+            best_cand = cand_list[min(1, len(cand_list) - 1)] if cand_list else None
+            if best_cand and best_cand.get("path"):
+                src_frame = Path(best_cand["path"])
+                if src_frame.exists():
+                    out_path = COVERS_DIR / f"smart_cover_{ts}_{safe_uid}.jpg"
+                    out_path.write_bytes(src_frame.read_bytes())
+                    generated_file = out_path
+                    method_used = "smart_frame"
+        except Exception as frame_err:
+            print(f"[CoverStudioAI] Smart frame fallback note: {frame_err}")
+
+    # 3. Final fallback: create a clean 9:16 gradient canvas if no footage
+    if not generated_file:
+        out_path = COVERS_DIR / f"clean_cover_{ts}_{safe_uid}.jpg"
+        img = Image.new("RGB", (COVER_W, COVER_H), color=(18, 24, 38))
+        draw = ImageDraw.Draw(img)
+        for y in range(COVER_H):
+            ratio = y / COVER_H
+            r = int(18 + ratio * 20)
+            g = int(24 + ratio * 30)
+            b = int(38 + ratio * 50)
+            draw.line([(0, y), (COVER_W, y)], fill=(r, g, b))
+        img.save(out_path, format="JPEG", quality=95)
+        generated_file = out_path
+        method_used = "clean_gradient"
+
+    rel = generated_file.relative_to(BASE_DIR)
+    media_url = f"/api/media/{urllib.parse.quote(str(rel).replace(chr(92), '/'))}"
+
+    return {
+        "success": True,
+        "image_path": str(generated_file),
+        "rel_path": str(rel).replace("\\", "/"),
+        "media_url": media_url,
+        "method": method_used,
+        "prompt_used": full_prompt,
+        "message": (
+            "สร้างรูปหน้าปกด้วย Imagen 3 สำเร็จแล้ว!"
+            if method_used == "imagen_3"
+            else "ดึงเฟรมไฮไลต์ที่คมชัดที่สุดจากคลิปเรียบร้อยแล้ว!"
+        ),
+    }
+
 

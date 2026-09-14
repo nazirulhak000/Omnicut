@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Zap, CheckCircle2, AlertCircle, Clock, X, Trash2, ArrowRight,
-  Loader2, Sparkles, Film, Rocket, Mic, RefreshCw, Layers, ExternalLink, Play, Scissors, ImagePlus
+  Loader2, Sparkles, Film, Rocket, Mic, RefreshCw, Layers, ExternalLink, Play, Scissors, ImagePlus, Trophy
 } from 'lucide-react';
 import { useTaskManager } from '../context/TaskContext';
 
@@ -69,7 +69,8 @@ function getStatusBadge(status) {
 }
 
 export function ActivityIndicatorButton({ className = '' }) {
-  const { activeCount, activeTasks, toggleActivityDrawer, tasks } = useTaskManager();
+  const { activeCount, activeTasks, toggleActivityDrawer, tasks, viralMilestones = [] } = useTaskManager();
+  const hasViral = viralMilestones.some(m => m.views >= 10000);
 
   if (activeCount > 0) {
     const primaryTask = activeTasks[0];
@@ -99,7 +100,14 @@ export function ActivityIndicatorButton({ className = '' }) {
       className={`p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-black/40 hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/[0.08] text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors ${className}`}
       title="ศูนย์ติดตามกิจกรรม (Activity Center)"
     >
-      <Layers className="w-3.5 h-3.5 text-[#25F4EE]" />
+      {hasViral ? (
+        <span className="relative flex items-center justify-center">
+          <Trophy className="w-3.5 h-3.5 text-amber-400" />
+          <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+        </span>
+      ) : (
+        <Layers className="w-3.5 h-3.5 text-[#25F4EE]" />
+      )}
       <span className="hidden sm:inline">กิจกรรม</span>
       {tasks.length > 0 && (
         <span className="px-1.5 py-0.2 rounded-full bg-white/[0.08] text-[10px] font-mono text-slate-400">
@@ -120,12 +128,16 @@ export function ActivityDrawer() {
     cancelTask,
     deleteTask,
     clearCompleted,
-    jumpToTaskResult
+    jumpToTaskResult,
+    viralMilestones = [],
+    fetchViralMilestones
   } = useTaskManager();
 
-  const [tabFilter, setTabFilter] = useState('all'); // all | active | completed
+  const [tabFilter, setTabFilter] = useState('all'); // all | active | completed | viral
 
   if (!isActivityDrawerOpen) return null;
+
+  const viralCount = viralMilestones.length;
 
   const filteredTasks = tasks.filter(t => {
     if (tabFilter === 'active') return t.status === 'processing' || t.status === 'queued';
@@ -144,29 +156,29 @@ export function ActivityDrawer() {
       {/* Slide-over Panel */}
       <aside className="relative w-full max-w-full sm:max-w-md bg-[#080B11]/95 backdrop-blur-2xl border-l border-white/[0.12] shadow-2xl flex flex-col h-[100dvh] max-h-[100dvh] z-10 animate-slideLeft overflow-hidden">
         {/* Header */}
-        <div className="p-3.5 sm:p-4 border-b border-white/[0.08] flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5 min-w-0 flex-1">
-            <div className="w-8 h-8 rounded-xl bg-[#25F4EE]/10 border border-[#25F4EE]/30 flex items-center justify-center text-[#25F4EE] flex-shrink-0">
-              <Sparkles className="w-4 h-4" />
+        <div className="p-4 border-b border-white/[0.08] flex items-center justify-between bg-black/40">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-[#25F4EE]/10 border border-[#25F4EE]/20 text-[#25F4EE]">
+              <Layers className="w-5 h-5" />
             </div>
-            <div className="min-w-0">
-              <h2 className="text-sm font-bold text-white flex items-center gap-1.5 truncate">
-                <span>ศูนย์ติดตามกิจกรรม</span>
+            <div>
+              <h2 className="text-sm font-black text-white flex items-center gap-2">
+                ศูนย์ติดตามกิจกรรม
                 {activeCount > 0 && (
-                  <span className="px-1.5 py-0.5 rounded-full bg-[#25F4EE]/20 text-[#25F4EE] text-[10px] font-mono font-bold animate-pulse flex-shrink-0">
-                    {activeCount} กำลังทำ
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/30 animate-pulse">
+                    {activeCount} กำลังทำงาน
                   </span>
                 )}
               </h2>
-              <p className="text-[11px] text-slate-400 truncate">งานเบื้องหลังทั้งหมดไม่สูญหายแม้กดรีเฟรช</p>
+              <p className="text-[11px] text-slate-400">สถานะงานเบื้องหลัง & แจ้งเตือนยอดคลิป</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-1 flex-shrink-0">
-            {tasks.some(t => t.status === 'completed' || t.status === 'failed') && (
+          <div className="flex items-center gap-1">
+            {tasks.filter(t => t.status === 'completed' || t.status === 'failed' || t.status === 'cancelled').length > 0 && (
               <button
                 onClick={clearCompleted}
-                className="min-h-[36px] min-w-[36px] flex items-center justify-center p-2 text-slate-400 hover:text-slate-200 hover:bg-white/[0.06] rounded-xl text-xs transition-colors cursor-pointer"
+                className="min-h-[36px] min-w-[36px] flex items-center justify-center p-2 text-slate-400 hover:text-rose-400 hover:bg-white/[0.06] rounded-xl transition-colors cursor-pointer"
                 title="ล้างงานที่เสร็จสิ้นแล้ว"
               >
                 <Trash2 className="w-4 h-4" />
@@ -186,7 +198,8 @@ export function ActivityDrawer() {
           {[
             { id: 'all', label: `ทั้งหมด (${tasks.length})` },
             { id: 'active', label: `กำลังทำ (${activeCount})` },
-            { id: 'completed', label: `เสร็จสิ้น (${tasks.filter(t => t.status === 'completed').length})` }
+            { id: 'completed', label: `เสร็จ (${tasks.filter(t => t.status === 'completed').length})` },
+            { id: 'viral', label: `🔥 คลิปปัง (${viralCount})` }
           ].map(tab => (
             <button
               key={tab.id}
@@ -202,9 +215,72 @@ export function ActivityDrawer() {
           ))}
         </div>
 
-        {/* Task List */}
+        {/* Task List / Viral Milestones List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {filteredTasks.length === 0 ? (
+          {tabFilter === 'viral' ? (
+            viralMilestones.length === 0 ? (
+              <div className="h-48 flex flex-col items-center justify-center text-center p-6 text-slate-500 space-y-2">
+                <Trophy className="w-8 h-8 opacity-40 text-amber-500" />
+                <p className="text-xs">ยังไม่มีคลิปที่ยอดวิวทะลุ 1,000 วิว</p>
+                <p className="text-[11px] text-slate-600">เมื่อซิงก์ข้อมูลจาก TikTok Studio แล้ว คลิปยอดวิวสูงจะโผล่ที่นี่ทันที</p>
+              </div>
+            ) : (
+              viralMilestones.map(m => (
+                <div
+                  key={m.post_id}
+                  className="p-3.5 rounded-xl border border-amber-500/30 bg-gradient-to-br from-[#0B0F19] to-amber-950/20 shadow-lg space-y-2.5"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2 min-w-0">
+                      <div className="p-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 flex-shrink-0">
+                        <Trophy className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h3 className="text-xs font-bold text-white truncate">
+                            {m.product_name}
+                          </h3>
+                          <span className="text-[10px] px-2 py-0.2 rounded-full font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                            {m.tier_label}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-300 mt-0.5 truncate">{m.hook || m.angle_title}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 py-1.5 px-2.5 rounded-lg bg-black/40 border border-white/[0.05] text-center font-mono">
+                    <div>
+                      <div className="text-[9px] text-slate-400 font-sans">ยอดวิว</div>
+                      <div className="text-xs font-bold text-amber-400">{m.views.toLocaleString()}</div>
+                    </div>
+                    <div>
+                      <div className="text-[9px] text-slate-400 font-sans">ไลก์</div>
+                      <div className="text-xs font-bold text-slate-200">{m.likes.toLocaleString()}</div>
+                    </div>
+                    <div>
+                      <div className="text-[9px] text-slate-400 font-sans">แชร์</div>
+                      <div className="text-xs font-bold text-cyan-400">{m.shares.toLocaleString()}</div>
+                    </div>
+                  </div>
+
+                  {m.tiktok_url && (
+                    <div className="flex items-center justify-end pt-1">
+                      <a
+                        href={m.tiktok_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[11px] font-bold text-cyan-400 hover:text-cyan-300 inline-flex items-center gap-1"
+                      >
+                        <span>เปิดดูคลิปจริงบน TikTok</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  )}
+                </div>
+              ))
+            )
+          ) : filteredTasks.length === 0 ? (
             <div className="h-48 flex flex-col items-center justify-center text-center p-6 text-slate-500 space-y-2">
               <Layers className="w-8 h-8 opacity-40 text-slate-500" />
               <p className="text-xs">ไม่มีรายการกิจกรรมในหมวดนี้</p>
@@ -504,9 +580,19 @@ export function GlobalTaskNotification() {
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
             <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
-              isSuccess ? 'bg-[#25F4EE]/20 text-[#25F4EE]' : 'bg-rose-500/20 text-rose-400'
+              notificationToast.milestone
+                ? 'bg-amber-500/20 text-amber-400'
+                : isSuccess
+                ? 'bg-[#25F4EE]/20 text-[#25F4EE]'
+                : 'bg-rose-500/20 text-rose-400'
             }`}>
-              {isSuccess ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+              {notificationToast.milestone ? (
+                <Trophy className="w-4 h-4" />
+              ) : isSuccess ? (
+                <CheckCircle2 className="w-4 h-4" />
+              ) : (
+                <AlertCircle className="w-4 h-4" />
+              )}
             </div>
             <h4 className="text-xs font-bold text-white">
               {notificationToast.title}
@@ -523,6 +609,22 @@ export function GlobalTaskNotification() {
         <p className="text-xs text-slate-300 leading-snug">
           {notificationToast.message}
         </p>
+
+        {notificationToast.milestone && (
+          <div className="flex items-center justify-end gap-2 pt-1">
+            {notificationToast.milestone.tiktok_url && (
+              <a
+                href={notificationToast.milestone.tiktok_url}
+                target="_blank"
+                rel="noreferrer"
+                className="py-1.5 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/10 cursor-pointer active:scale-95 transition-all"
+              >
+                <span>เปิดดูบน TikTok</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
+          </div>
+        )}
 
         {isSuccess && notificationToast.task && (() => {
           const task = notificationToast.task;

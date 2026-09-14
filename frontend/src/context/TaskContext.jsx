@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { getActiveTasks, cancelTaskApi, deleteTaskApi, clearCompletedTasksApi } from '../api';
+import { getActiveTasks, cancelTaskApi, deleteTaskApi, clearCompletedTasksApi, getTiktokMilestones } from '../api';
 
 const TaskContext = createContext(null);
 
@@ -45,6 +45,40 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
   const [isActivityDrawerOpen, setIsActivityDrawerOpen] = useState(false);
   const [notificationToast, setNotificationToast] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [viralMilestones, setViralMilestones] = useState([]);
+
+  // Check TikTok viral milestones periodically
+  const notifiedMilestonesRef = useRef(new Set());
+
+  const fetchViralMilestones = useCallback(async () => {
+    try {
+      const res = await getTiktokMilestones(1000);
+      if (res && Array.isArray(res.milestones)) {
+        setViralMilestones(res.milestones);
+        // If a high-tier viral milestone (> 10k) hasn't notified this session
+        res.milestones.forEach(m => {
+          if (m.views >= 10000 && !notifiedMilestonesRef.current.has(m.post_id)) {
+            notifiedMilestonesRef.current.add(m.post_id);
+            setNotificationToast({
+              type: 'success',
+              title: '🔥 คลิปปังทะลุเป้า!',
+              message: `คลิป "${m.product_name}" ทำยอดวิวทะลุ ${m.views.toLocaleString()} วิวแล้ว!`,
+              milestone: m,
+              time: Date.now()
+            });
+          }
+        });
+      }
+    } catch (e) {
+      // Quiet fail if analytics not populated yet
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchViralMilestones();
+    const interval = setInterval(fetchViralMilestones, 30000);
+    return () => clearInterval(interval);
+  }, [fetchViralMilestones]);
 
   // Keep a map of previous statuses to detect transitions (e.g. processing -> completed)
   const prevStatusesRef = useRef({});
@@ -311,12 +345,15 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
     cancelTask,
     deleteTask,
     clearCompleted,
-    jumpToTaskResult
+    jumpToTaskResult,
+    viralMilestones,
+    fetchViralMilestones
   }), [
     tasks, activeTasks, activeCount, completedTasks,
     isActivityDrawerOpen, toggleActivityDrawer,
     notificationToast, refreshTrigger,
-    pollTasks, cancelTask, deleteTask, clearCompleted, jumpToTaskResult
+    pollTasks, cancelTask, deleteTask, clearCompleted, jumpToTaskResult,
+    viralMilestones, fetchViralMilestones
   ]);
 
   return (

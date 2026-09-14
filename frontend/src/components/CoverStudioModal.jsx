@@ -16,6 +16,7 @@ import {
   RotateCcw,
   Move,
   Folder,
+  Loader2,
 } from 'lucide-react';
 import {
   getCoverBadges,
@@ -23,6 +24,7 @@ import {
   generateCoverHooks,
   renderProCover,
   getCoverRawSources,
+  generateAiCoverImage,
   revealFile,
 } from '../api';
 import { resolveCoverExportStem } from '../lib/coverNaming.js';
@@ -57,6 +59,11 @@ export default function CoverStudioModal({
   const [currentSeconds, setCurrentSeconds] = useState(0.5);
   const [customImage, setCustomImage] = useState(null);
   const [customImageFile, setCustomImageFile] = useState(null);
+
+  // AI Cover Generation (Imagen 3 / Smart Frame Hunt)
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [generatingAi, setGeneratingAi] = useState(false);
+  const [aiGenMethod, setAiGenMethod] = useState('');
 
   // Zoom & Pan 2D (User request: drag directly on preview & zoom in/out to push subtitles away!)
   const [zoom, setZoom] = useState(1.15); // Default 1.15x to give a clean edge
@@ -127,6 +134,7 @@ export default function CoverStudioModal({
           setRawSources(rawRes.raw_sources);
           setSelectedRawPath(rawRes.raw_sources[0].path);
         }
+        setAiPrompt((prev) => prev || `Commercial 8k product photography of ${productName || 'product'}, sleek studio lighting, minimalist podium, vibrant cinematic colors, 9:16 vertical orientation, advertising poster quality`);
         setLoading(false);
       })
       .catch((err) => {
@@ -196,6 +204,35 @@ export default function CoverStudioModal({
     const url = URL.createObjectURL(file);
     setCustomImage(url);
     setActiveSourceType('upload');
+  };
+
+  // Handle AI Cover Image Generation (Imagen 3 / Smart Frame Hunt)
+  const handleGenerateAiCover = async (promptOverride) => {
+    try {
+      setGeneratingAi(true);
+      setError(null);
+      setSuccessMsg('');
+      const targetPrompt = promptOverride || aiPrompt;
+      const res = await generateAiCoverImage({
+        product_name: productName,
+        hook_title: hookText,
+        style_prompt: targetPrompt,
+        video_path: videoPath || (rawSources[0]?.path || null),
+      });
+      if (res && res.success) {
+        setCustomImage(res.media_url);
+        setCustomImageFile(res.image_path);
+        setAiGenMethod(res.method || 'imagen_3');
+        setActiveSourceType('ai_gen');
+        setSuccessMsg(res.message || 'สร้างรูปหน้าปกด้วย AI สำเร็จแล้ว!');
+      } else {
+        throw new Error(res?.detail || 'สร้างรูปภาพไม่สำเร็จ');
+      }
+    } catch (err) {
+      setError('สร้างภาพปกด้วย AI ไม่สำเร็จ: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setGeneratingAi(false);
+    }
   };
 
   // Switch to a candidate frame
@@ -332,6 +369,7 @@ export default function CoverStudioModal({
         hook_position: hookPosition,
         badge: enableBadge ? selectedBadge : null,
         badge_position: enableBadge ? badgePosition : 'none',
+        custom_image_path: customImageFile || null,
       };
 
       const res = await renderProCover(payload);
@@ -871,7 +909,115 @@ export default function CoverStudioModal({
                   <Crop className="w-3 h-3" />
                   อัปโหลดรูป
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveSourceType('ai_gen');
+                  }}
+                  className={`py-1.5 px-3 rounded-lg font-bold transition-all text-center cursor-pointer flex items-center gap-1 ${
+                    activeSourceType === 'ai_gen'
+                      ? 'bg-purple-500/25 text-purple-300 shadow border border-purple-500/50 ring-1 ring-purple-400/30'
+                      : 'text-purple-400 hover:text-purple-200'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  AI สร้างรูป 9:16
+                </button>
               </div>
+
+              {/* AI Image Generator Panel */}
+              {activeSourceType === 'ai_gen' && (
+                <div className="p-3.5 rounded-xl bg-gradient-to-br from-purple-950/40 via-slate-900 to-slate-950 border border-purple-500/30 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-purple-400" />
+                      <span className="text-xs font-bold text-purple-200">
+                        AI Image Studio (Google Imagen 3 / Smart Frame Hunt)
+                      </span>
+                    </div>
+                    {aiGenMethod && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 font-mono">
+                        {aiGenMethod === 'imagen_3' ? '⚡ Imagen 3 (9:16)' : '🎯 Smart Frame Hunter'}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Prompt Textarea */}
+                  <div>
+                    <label className="text-[11px] text-slate-400 block mb-1">
+                      คำสั่ง Prompt สำหรับสร้างภาพพื้นหลัง (สัดส่วน 9:16 ปรับแต่งอัตโนมัติ):
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={aiPrompt}
+                      onChange={(e) => setAiPrompt(e.target.value)}
+                      placeholder="อธิบายภาพสินค้า มุมกล้อง โทนแสง และฉากหลัง..."
+                      className="w-full text-xs p-2.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 focus:outline-none focus:border-purple-500 transition-colors resize-none placeholder-slate-600"
+                    />
+                  </div>
+
+                  {/* Preset Buttons */}
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] text-slate-400 font-medium">สไตล์ภาพยอดนิยม:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        {
+                          label: 'สตูดิโอระดับโปร',
+                          prompt: `High-end commercial product photography of ${productName || 'the product'}, centered hero composition, 8k resolution, cinematic studio lighting with soft gradient reflections, clean modern aesthetic, sharp focus, 9:16 vertical ratio`,
+                        },
+                        {
+                          label: 'นีออนจัดจ้าน',
+                          prompt: `Dynamic cyberpunk neon commercial shot of ${productName || 'the product'}, glowing ambient highlights, modern tech background, high energy, bold contrast, ultra-detailed 9:16 vertical framing`,
+                        },
+                        {
+                          label: 'มินิมอลโมเดิร์น',
+                          prompt: `Minimalist aesthetic product photography for ${productName || 'the product'}, pastel tones, soft natural morning sunlight, clean podium surface, elegant and premium, 9:16 vertical composition`,
+                        },
+                        {
+                          label: 'ไลฟ์สไตล์ธรรมชาติ',
+                          prompt: `Authentic lifestyle product placement of ${productName || 'the product'} in everyday cozy aesthetic environment, warm lighting, natural depth of field bokeh, photorealistic 9:16 portrait view`,
+                        },
+                      ].map((preset, pIdx) => (
+                        <button
+                          key={pIdx}
+                          type="button"
+                          onClick={() => {
+                            setAiPrompt(preset.prompt);
+                            handleGenerateAiCover(preset.prompt);
+                          }}
+                          disabled={generatingAi}
+                          className="px-2.5 py-1 text-[11px] rounded-md bg-purple-950/60 hover:bg-purple-900 text-purple-200 border border-purple-800/60 transition-colors disabled:opacity-50 cursor-pointer"
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Generate Button */}
+                  <div className="pt-1 flex items-center justify-end">
+                    <button
+                      type="button"
+                      onClick={() => handleGenerateAiCover()}
+                      disabled={generatingAi || !aiPrompt.trim()}
+                      className="w-full sm:w-auto px-4 py-2 rounded-lg font-bold text-xs bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-600/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      {generatingAi ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          กำลังสร้างภาพ 9:16 ด้วย AI...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3.5 h-3.5" />
+                          สร้างรูปหน้าปกด้วย AI (9:16)
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Raw Footage dropdown if multiple */}
               {activeSourceType === 'raw' && rawSources.length > 1 && (

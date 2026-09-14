@@ -139,6 +139,9 @@ export const renderProCover = (payload) =>
 export const getCoverRawSources = (videoPath) =>
   api.post('/covers/raw-sources', { video_path: videoPath }).then(r => r.data);
 
+export const generateAiCoverImage = (payload) =>
+  api.post('/covers/ai-generate-image', payload).then(r => r.data);
+
 export const markPosted = (filePath, productId = null, angleId = null, exportId = null) =>
   api.post('/exports/mark-posted', {
     file_path: filePath, export_id: exportId, product_id: productId, angle_id: angleId,
@@ -354,6 +357,7 @@ export const getStorageAnalytics = (forceScan = false) => api.get('/analytics/st
 export const purgeSafeStorageCache = () => api.post('/analytics/storage/purge-safe-cache').then(r => r.data);
 export const getInventoryHealth = () => api.get('/analytics/inventory').then(r => r.data);
 export const getTiktokStatsLatest = () => api.get('/tiktok-stats/latest').then(r => r.data);
+export const getTiktokMilestones = (threshold = 1000) => api.get('/tiktok-stats/milestones', { params: { threshold } }).then(r => r.data);
 export const getTiktokPending = () => api.get('/tiktok-stats/pending').then(r => r.data);
 export const getTiktokClipCandidates = () => api.get('/tiktok-stats/clip-candidates').then(r => r.data);
 export const attachTiktokPending = (payload) => api.post('/tiktok-stats/attach', payload).then(r => r.data);

@@ -18,170 +18,59 @@
 
 ---
 
-## 🎯 1. ภาพรวมโปรเจกต์ (Project Overview)
-
-โปรเจกต์นี้คือ **OmniCut Pro Studio** (AI Video Production Suite) — ระบบ Automation Pipeline สำหรับสร้างและตัดต่อวิดีโอสั้นแนวตั้ง **9:16 (1080x1920)** อัตโนมัติด้วย Python, FastAPI, React/Vite และเชื่อมโยงกับ CapCut PC เพื่อผลิตคลิปรีวิวและขายสินค้าอย่างมีประสิทธิภาพ
+## 🎯 1. ภาพรวม — **OmniCut Pro Studio**: pipeline อัตโนมัติทำคลิปแนวตั้ง **9:16 (1080x1920)** (Python/FastAPI/React/Vite + CapCut PC)
 
 ---
 
-## 📁 2. โครงสร้างโฟลเดอร์มาตรฐาน (Directory Structure)
-
-AI ทุกตัว**ต้องเคารพโครงสร้างโฟลเดอร์นี้อย่างเคร่งครัด** ห้ามวางไฟล์กระจัดกระจายนอกโฟลเดอร์ที่กำหนด:
-
-- `00_Inbox/`: ไฟล์ดิบ ไอเดีย สคริปต์ย่อ และไฟล์วิดีโอที่ sync จากมือถือ
-- `01_Raw/`: วัตถุดิบต้นฉบับแยกตามโฟลเดอร์ `YYYYMMDD_ชื่อสินค้า-ประเด็น/`
-- `02_Assets/`: Media Assets ส่วนกลางสำหรับนำไปใช้ซ้ำ
-  - `Fonts/`: ฟอนต์มาตรฐาน (Kanit, Prompt, etc.)
-  - `Music/`: เพลงประกอบ BGM
-  - `SFX/`: เสียงเอฟเฟกต์ (Whoosh, Ding, Pop)
-  - `Stickers_Memes/`: สติกเกอร์และป้าย Badge PNG โปร่งใส
-  - `LUTs_ColorPresets/`: พรีเซ็ตสีวิดีโอ
-- `03_Projects/`: ไฟล์โปรเจกต์ สคริปต์ (`script_brief.md`, `caption_draft.txt`) และดราฟต์งาน
-- `04_Exports/`: วิดีโอที่ตัดต่อเสร็จ (`Ready_to_post/`, `Posted/`)
-- `05_Covers_Thumbnails/`: ปกคลิปและ Thumbnail สัดส่วน 9:16
-- `06_Archive/`: พื้นที่เก็บประวัติและสำรองไฟล์เก่าหลังโพสต์ 30 วัน
-- `scripts/`: Backend Engine & Pipeline หลัก (FastAPI, TTS, Subtitles, Scraper, Editor)
-- `tools/`: สคริปต์ Utility เสริม (ดาวน์โหลดฟอนต์, เจนป้าย 3D, จัดการ Asset)
-- `frontend/`: Web Application UI (React + Vite)
-- `.agents/rules/`: กฎเฉพาะทาง เช่น การเจนสติกเกอร์ ([sticker_generation.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/sticker_generation.md)), มาตรฐาน UI คลีนไร้สัญลักษณ์ซ้ำซ้อน ([ui_clean_standard.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/ui_clean_standard.md)) และ **กฎ Preview = Render** ([preview_render_parity.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/preview_render_parity.md))
+## 📁 2. โครงสร้างโฟลเดอร์ — ห้ามวางไฟล์นอกที่กำหนด: `00_Inbox/` ดิบ / `01_Raw/` วัตถุดิบ (`YYYYMMDD_ชื่อสินค้า-ประเด็น/`) / `02_Assets/` ของใช้ซ้ำ (Fonts/Music/SFX/Stickers/LUTs) / `03_Projects/` สคริปต์+ดราฟต์ / `04_Exports/` คลิปเสร็จ / `05_Covers_Thumbnails/` ปก 9:16 / `06_Archive/` เก็บเก่า / `scripts/` backend / `tools/` utility / `frontend/` UI / `.agents/rules/` กฎเฉพาะทาง
 
 ---
 
-## ⛔ 3. กฎเหล็ก: สิ่งที่ "ห้ามทำเด็ดขาด" (STRICT DON'Ts)
+## ⛔ 3. กฎเหล็ก: สิ่งที่ "ห้ามทำเด็ดขาด" (STRICT DON'Ts) — รายละเอียดเต็มดูไฟล์กฎที่อ้างท้ายข้อ
 
-1. ❌ **ห้ามลบหรือเขียนทับไฟล์ใน `01_Raw/` และ `02_Assets/`** โดยไม่ได้รับการยืนยันจาก User โดยเด็ดขาด เพราะเป็นไฟล์วัตถุดิบต้นฉบับ
-2. ❌ **ห้าม Hardcode Absolute Path แบบตายตัว** (เช่น `C:\Users\...` หรือ `D:\Winona\...`) ให้ใช้ `pathlib.Path` หรือดึงค่าจาก `scripts/config.py` เสมอ เพื่อให้รันได้ทุกเครื่อง
-3. ❌ **ห้ามแก้ไขไฟล์ดราฟต์ของ CapCut (`draft_content.json` หรือ `.cloud_cache_*`) โดยไม่มีการ Backup** เพราะโครงสร้าง JSON ของ CapCut ไวต่อความผิดพลาดมาก หากไฟล์เสียจะกู้คืนไม่ได้
-4. ❌ **ห้ามรันคำสั่งทำลายล้างหรือล้างแคชหมู่** (เช่น ลบโฟลเดอร์ทั้งชุด) โดยไม่มี User Confirmation
-5. ❌ **ห้ามติดตั้ง Global Python Package นอกเหนือจาก `requirements.txt`** หรือติดตั้งโดยไม่ผ่าน Virtual Environment
-6. ❌ **ห้ามสร้างสติกเกอร์ที่ระบุข้อความเจาะจงเฉพาะสินค้า** (เช่น เขียนชื่อรุ่นสินค้าลงในรูป) ให้สร้างเฉพาะ **Universal Reusable Badges (6 รูปแบบมาตรฐาน)** เพื่อให้ใช้ซ้ำได้กับทุกคลิป
-7. ❌ **ห้ามใส่จุดไข่ปลา หรือ "..." หรือ "…" ในบทพูดสคริปต์เด็ดขาด** ให้ใช้การเว้นวรรคตามธรรมชาติ เพราะจุดไข่ปลาจะหลุดไปติดในซับไตเติลบนหน้าจอ ทำให้ดูรกและผู้ใช้ต้องมานั่งลบเอง
-8. ❌ **ห้ามใส่สัญลักษณ์หรือตัวอักษรซ้ำซ้อนในปุ่มหรือ UI เด็ดขาด (Strict No-Redundant Symbols in UI):** ห้ามใส่เครื่องหมายบวก `+` นำหน้าข้อความเมื่อมีไอคอน `<Upload />` หรือ `<Plus />` อยู่แล้ว และห้ามใส่อีโมจิซ้อนหน้าข้อความเมื่อมีไอคอน Lucide แสดงอยู่แล้ว (เช่น ห้ามทำ `<Upload /> + แนบคลิป` หรือ `<Play /> ▶️ เปิดดู`) ต้องปฏิบัติตาม [.agents/rules/ui_clean_standard.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/ui_clean_standard.md) เสมอ ทั้งระบบต้องเป็นมาตรฐานเดียวกัน 100% ห้ามมีซ้ำซ้อน
-9. ❌ **ห้ามทับศัพท์ชื่อแบรนด์ ชื่อรุ่น หรือศัพท์เทคนิคเฉพาะทางที่เป็นภาษาอังกฤษให้เป็นภาษาไทยเด็ดขาด (Strict English Retention for Brands & Tech Specs):** ในบทพูดสคริปต์ ซับไตเติล และข้อความพากย์ ห้ามแปลงชื่อแบรนด์ ชื่อรุ่น หรือศัพท์เฉพาะเป็นภาษาไทยทับศัพท์เพี้ยนๆ (เช่น ห้ามเขียน "โลจิเทค เวฟ คีย์ส", "โลจิ โบลต์", "บลูทูธ", "ยูเอสบีซี") ต้องคงรูปภาษาอังกฤษทางการไว้เสมอ (เช่น "Logitech Wave Keys", "Logi Bolt", "Bluetooth", "USB-C", "iPad", "Mac") เพื่อความน่าเชื่อถือ ตรงปก และแสดงผลบนหน้าจอได้อย่างมืออาชีพ
-10. ❌ **ห้ามงานอื่นกระทบฟอนต์หรือข้อความโดยไม่ได้รับคำสั่งเด็ดขาด (Strict Font/Text Non-Regression):** งาน UI, style, renderer, refactor, dependency, performance หรือ infrastructure ที่ผู้ใช้ไม่ได้สั่งให้เปลี่ยน typography/copy ต้องไม่เปลี่ยนข้อความไทย/อังกฤษ, font family/face, ขนาด, scale, weight, outline, การตัดบรรทัด, ตำแหน่ง, safe zone หรือภาพจริงของซับ หากรักษาไม่ได้ต้องหยุดถาม User ห้ามเลือก baseline ใหม่ ลด assertion หรือปล่อย fallback เงียบ ต้องปฏิบัติตาม [.agents/rules/font_text_visual_contract.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/font_text_visual_contract.md)
+1. ❌ **ห้ามลบ/เขียนทับไฟล์ใน `01_Raw/` และ `02_Assets/`** โดยไม่ได้รับยืนยันจาก User
+2. ❌ **ห้าม Hardcode Absolute Path** — ใช้ `pathlib.Path` หรือ `scripts/config.py` (ดูข้อ 2 โครงสร้างโฟลเดอร์)
+3. ❌ **ห้ามแก้ไฟล์ดราฟต์ CapCut (`draft_content.json`/`.cloud_cache_*`) โดยไม่มี Backup**
+4. ❌ **ห้ามรันคำสั่งทำลายล้าง/ล้างแคชหมู่** โดยไม่มี User Confirmation
+5. ❌ **ห้ามติดตั้ง Global Python Package นอก `requirements.txt`** หรือนอก venv
+6. ❌ **ห้ามสร้างสติกเกอร์ระบุข้อความเฉพาะสินค้า** — ทำเฉพาะ Universal Badges 6 แบบ (ดู [.agents/rules/sticker_generation.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/sticker_generation.md))
+7. ❌ **ห้ามใส่ "..."/"…"/จุดไข่ปลาในบทพูดสคริปต์** — ใช้เว้นวรรคธรรมชาติ (กันหลุดเข้าซับ)
+8. ❌ **ห้ามใส่สัญลักษณ์ซ้ำซ้อนในปุ่ม/UI** (เช่น `<Upload /> + แนบคลิป`) (ดู [.agents/rules/ui_clean_standard.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/ui_clean_standard.md))
+9. ❌ **ห้ามทับศัพท์ชื่อแบรนด์/รุ่น/ศัพท์เทคนิคอังกฤษเป็นไทย** (เช่น ห้าม "บลูทูธ" ให้ใช้ "Bluetooth", "USB-C")
+10. ❌ **ห้ามงานอื่นกระทบฟอนต์/ข้อความโดยไม่สั่ง** — ไม่เปลี่ยน family/ขนาด/weight/outline/ตัดบรรทัด/ตำแหน่ง/safe zone (ดู [.agents/rules/font_text_visual_contract.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/font_text_visual_contract.md))
 
 ---
 
 ## ✅ 4. กฎเหล็ก: สิ่งที่ "ต้องทำเสมอ" (STRICT DOs)
 
-1. ✔️ **คุมสเปกวิดีโอมาตรฐาน 9:16:**
-   - ความละเอียด: `1080x1920` พิกเซล
-   - เฟรมเรต: `30 FPS`
-   - Safe Zone: เลเยอร์ข้อความ/สติกเกอร์ต้องไม่ชิดขอบจอขวาหรือล่าง เพื่อไม่ให้ถูกปุ่ม TikTok บดบัง
-2. ✔️ **ตั้งชื่อตาม Naming Convention เสมอ:**
-   - โฟลเดอร์ Raw: `YYYYMMDD_ชื่อสินค้า-ประเด็น` (เช่น `20260812_ลิปสติกABC-รีวิว`)
-   - ไฟล์ Export: `YYYYMMDD_ชื่อสินค้า_hookสั้นๆ_vN.mp4`
-   - ชื่อ CapCut Draft ต้องตรงกับชื่อโฟลเดอร์โปรเจกต์
-3. ✔️ **การจัดการภาษาไทยและซับไตเติล (Micro-Burst & Kinetic Subtitles):**
-   - ต้องปฏิบัติตาม [.agents/rules/subtitle_kinetic_rules.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/subtitle_kinetic_rules.md)
-   - ใช้ `pythainlp` ในการตัดคำสำหรับ Subtitle Bursts สั้นกระชับ (2–4 คำ / 16–24 ตัวอักษร)
-   - ไฮไลต์สีคำสำคัญแบบไดนามิกคู่ขนานทั้งไทยและอังกฤษ (Bilingual Dynamic Kinetic Highlighting เช่น เหลืองนีออน `#FFE600` บน Pain Point และราคา)
-   - ตรวจสอบปัญหาสระลอย/วรรณยุกต์ซ้อน และระยะห่างการแสดงผล Safe Zone ล่าง 420px เสมอ
-4. ✔️ **การเจนสติกเกอร์และป้าย (Sticker Rules):**
-   - ต้องปฏิบัติตาม [.agents/rules/sticker_generation.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/sticker_generation.md)
-   - เจน 1 รูปได้ 6 ป้าย (Grid 2x3: PROS, CONS, WARNING, PRO TIP, SCORE, VERDICT)
-   - พื้นหลังต้องเป็น **Solid Pure White (#FFFFFF)** ขอบ **Thick White Die-cut Border** เพื่อให้ตัดพื้นหลังโปร่งใสด้วย `rembg` ได้เนียน 100%
-5. ✔️ **TTS & Audio Standards:**
-   - เสียงพากย์หลัก: Edge-TTS ภาษาไทย (`th-TH-PremwadeeNeural`, `th-TH-NiwatNeural`) ความเร็ว `+15%`
-   - มีระบบ Fallback ไปยัง Gemini Flash TTS หรือ gTTS เมื่อจำเป็น
-   - ระดับเสียง (แหล่งเดียวที่ `scripts/config.py`): Voice = 1.0, SFX = 0.28, BGM = 0.12 — พรีวิวใช้ค่าเดียวกันผ่าน `AUDIO_MIX` ใน `SequencePlayer.jsx` และมีเทสยึดไว้ที่ `tests/test_preview_render_parity.py`
-6. ✔️ **Code Reliability & Subprocess:**
-   - การเรียกใช้ FFmpeg / ImageMagick / Rembg ต้องรันผ่าน subprocess พร้อม error handling และ log ข้อความภาษาไทยที่เข้าใจง่าย
-7. ✔️ **มาตรฐานการตัดต่อแบบ J-Cut (Audio Lead-in Standard):**
-   - ต้องปฏิบัติตาม [.agents/rules/j_cut_rules.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/j_cut_rules.md)
-   - ใช้เทคนิค **J-Cut** ในการตัดต่อสลับช็อต B-roll: เสียงประโยคถัดไป (หรือ SFX Whoosh ข้ามฉาก) ต้องดังขึ้นก่อนภาพตัดเปลี่ยน 150 – 250ms เพื่อลดความแข็งกระด้างของการตัดแบบกระตุก (Avoid Jarring Jump Cuts) และสร้างความอยากรู้ล่วงหน้า (Anticipation) ให้คนดูติดตามต่อจนจบ
-8. ✔️ **มาตรฐาน UI คลีนและสถานะตามโฟลว์จริง (Clean & Unified UI Standard):**
-   - ต้องปฏิบัติตาม [.agents/rules/ui_clean_standard.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/ui_clean_standard.md)
-   - ข้อความปุ่มต้องกระชับ ตรงไปตรงมา ขึ้นต้นด้วยคำกริยาแอ็กชันทันทีโดยไม่มีสัญลักษณ์นำหน้า
-   - สถานะคลิปต้องสะท้อนความเป็นจริงเท่านั้น: มีโฟลเดอร์โปรเจกต์ในไทม์ไลน์แต่ยังไม่เรนเดอร์ = `กำลังตัดต่อ` (`in_production`), มีไฟล์ MP4 ที่ Export เสร็จสิ้นจริง = `ตัดต่อเสร็จ` (`rendered`) ห้ามมีปุ่มเลื่อนข้ามสถานะเองโดยไม่ผ่านการทำงานจริง
-9. ✔️ **กฎ Preview = Render (บังคับทุกครั้งที่เพิ่ม/แก้ฟีเจอร์ในหน้า Editor ที่มีผลต่อภาพในวิดีโอ):**
-   - **ต้องอ่านและปฏิบัติตาม [.agents/rules/preview_render_parity.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/preview_render_parity.md) ทุกรอบ** ก่อนแตะ `frontend/src/components/SequencePlayer.jsx` หรือ `scripts/subtitle_engine.py`
-   - ระบบมี 2 engine วาดภาพเดียวกันคนละทาง (Canvas 2D ฝั่งพรีวิว / ASS+libass ฝั่งเรนเดอร์) — **ห้ามแก้ข้างเดียว** ต้องแก้คู่กันในงานเดียว
-   - ค่าคงที่ทุกตัวที่กำหนดภาพ (ratio, ระยะเวลา ms, factor, องศา, ความทึบ) ต้องเทียบกันได้เป็นตัวเลข และมี assertion ใน `tests/test_preview_render_parity.py`
-   - กับดักที่เคยหลุดจริงและต้องระวังทุกครั้ง: ASS `\alpha` = ความ**โปร่ง** (ต้องแปลง `1 - 0xNN/255` ไม่ใช่ก็อปเลข), องศาหมุนต้องใช้เลขติดลบ (`-3` ไม่ใช่ `357` เพราะ `\t` จะกวาดอ้อม 180°), `strokeText` วางเส้นกึ่งกลางจึงต้องคูณสองจาก ASS Outline, libass เดินบรรทัดละ 1.0× font size พอดี
-   - ห้ามสรุปว่า "ตรงแล้ว" จากการอ่านโค้ด — ต้อง **เรนเดอร์จริงด้วย ffmpeg แล้วดึงเฟรมมาดู/วัดพิกเซล** (motion ต้องดูหลายเฟรม: เข้า/ค้าง/ออก)
-10. ✔️ **วางแผนลง Todo กลางก่อนลงมือ ทุกรอบ (Plan-Before-Code):**
-   - **ต้องอ่านและปฏิบัติตาม [.agents/rules/work_loop.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/work_loop.md) ทุกรอบ**
-   - ไฟล์ Todo กลางมีที่เดียวคือ [TODO.md](file:///d:/Winona/Programmer/Capcut/TODO.md) — **ห้ามแตกไฟล์ todo ใหม่**
-   - **แผนต้องอยู่ในโปรเจกต์** ห้ามทิ้งไว้ใน `.claude/plans/` (เป็นแค่กระดาษทดของเครื่องมือ User มองไม่เห็น) — งานใหญ่ให้เพิ่มไฟล์ `<ชื่องาน>_PLAN.md` ที่รากโปรเจกต์
-   - **ปิดรอบแล้วต้องย้ายบล็อกเต็มไป [HISTORY.md](file:///d:/Winona/Programmer/Capcut/HISTORY.md)** + เพิ่มแถวในตารางสารบัญ แล้วเหลือชื่อรอบบรรทัดเดียวใน `TODO.md`
-   - ลำดับบังคับ: อ่าน `TODO.md` + `git status` → **เขียนแผนรอบนี้ลง `TODO.md` ก่อนแตะโค้ด** → ทำ → รัน Gate จริง → ติ๊กเฉพาะที่ผ่าน → เขียน Notes ที่มีตัวเลขจริง
-   - **ห้ามติ๊ก `[x]` เพราะเขียนโค้ดเสร็จ** ต้องผ่าน Gate ของข้อนั้นก่อน และห้ามลบข้อที่ทำไม่สำเร็จทิ้ง
-   - **งานใหม่ที่โผล่กลางทาง (บั๊กที่เจอ / user สั่งเพิ่ม) ต้องเขียนลง `TODO.md` ทันที** แล้วตัดสินใจว่าทำรอบนี้หรือคาไว้ใน Backlog พร้อมเหตุผล — ห้ามทำเงียบๆ
-   - ก่อนเริ่มต้องเช็คว่ามี AI หรือคนอื่นแก้ไฟล์เดียวกันค้างอยู่ไหม ถ้าซ้ำให้ถาม User ก่อน (เคยเกิดจริงจนแยก commit ไม่ได้)
-11. ✔️ **เขียนและรัน Test ตามชนิดงาน:**
-   - ต้องอ่านและทำตาม [.agents/rules/testing_standard.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/testing_standard.md)
-   - Test ต้อง deterministic/offline และใช้ temp storage ห้ามแก้ข้อมูลจริงใน `01_Raw/`, `02_Assets/`, `03_Projects/` หรือ `_Docs/post_log.json`
-   - ห้ามเพิ่ม manual script ที่มี side effect เป็น `tests/test_*.py`; ให้ย้ายไป `tools/`
-   - การแก้ visual contract ต้องมีทั้ง parity test และ FFmpeg behavioral render พร้อมตรวจหลายเฟรม
-12. ✔️ **รักษา Font/Text Golden Master และใช้ environment เดียวกับ Backend:**
-   - ต้องอ่าน [.agents/rules/font_text_visual_contract.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/font_text_visual_contract.md) ก่อนแตะข้อความ ซับ Hook, font metrics, style/default, manifest/payload หรือ dependency ที่มีผลต่อภาพ
-   - ค่า baseline caption ที่ `1080x1920` คือ em intent `50px` (`0.0463 × width`) ซึ่ง IBM Plex Sans Thai ต้องเขียน ASS `Fontsize=82`; ภาษาอังกฤษ `68%`, line factor `1.0`, bottom margin `420px` ห้าม drift โดยไม่มีคำสั่ง User
-   - Save บันทึก state/manifest; `.ass` รุ่นใหม่เกิดเมื่อ subtitle stage รันตอน Render หลัง input หรือ render contract เปลี่ยน ห้ามให้ Save แก้ข้อความหรือสร้างคำใหม่เอง
-   - Probe/test ต้องใช้ `.venv\Scripts\python.exe` เหมือนเซิร์ฟเวอร์จริง ห้ามรับรองด้วย system Python คนละ environment และ dependency ที่มีผลต่อภาพต้องอยู่ใน `requirements.txt`
-   - ถ้าแก้ output contract ต้อง bump subtitle contract, invalidate artifact เก่า, รัน parity + FFmpeg multi-frame + pixel measurement และยืนยันข้อความก่อน/หลังไม่เปลี่ยน
-13. ✔️ **ประหยัดโทเคนสูงสุดและรักษาวินัยบริบท (Strict Token Efficiency & Resource Discipline):**
-   - ต้องปฏิบัติตาม [.agents/skills/token-efficiency-guardian/SKILL.md](file:///d:/Winona/Programmer/Capcut/.agents/skills/token-efficiency-guardian/SKILL.md) เสมอ
-   - ห้ามเปิดอ่านไฟล์ใหญ่ (เช่น `ContentTrackerHub.jsx`, `ProductToClip.jsx`) ทั้งไฟล์เด็ดขาด ให้ใช้ `grep_search` หาตำแหน่งแล้วใช้ `view_file` ส่องเฉพาะช่วงที่จำเป็น ($\le 100$ บรรทัด)
-   - ห้ามโหลดหรือเรียกใช้สกิลที่ไม่เกี่ยวข้องกับงานตัดต่อ (ห้ามแตะสกิล BigQuery, Cloud, dbt)
-   - สรุปและตอบตรงประเด็น ไม่เกริ่นอารัมภบทยาวเกินจำเป็นเพื่อลด Output Tokens
-14. ✔️ **ระบุตัวตน AI Agent และโมเดลที่ทำงานทุกรอบเสมอ (Strict Agent & Model Attribution):**
-   - ในโปรเจกต์นี้มี AI หลายตัวและหลายโมเดลร่วมกันทำงาน (เช่น Claude Code, Antigravity, Cursor, Gemini CLI)
-   - **ทุกครั้งที่บันทึกรอบงานลง [TODO.md](file:///d:/Winona/Programmer/Capcut/TODO.md) และปิดรอบย้ายเข้า [HISTORY.md](file:///d:/Winona/Programmer/Capcut/HISTORY.md)** ทั้งในหัวบล็อกรอบและในตารางสารบัญ **ต้องระบุชื่อเครื่องมือเอเจนและชื่อโมเดล AI ที่ลงมือทำรอบนั้นเสมอ** เช่น:
+1. ✔️ **สเปกวิดีโอ 9:16** — `1080x1920`, `30 FPS`, ข้อความ/สติกเกอร์ห้ามชิดขอบขวา-ล่าง (กันปุ่ม TikTok บัง)
+2. ✔️ **Naming Convention** — Raw: `YYYYMMDD_ชื่อสินค้า-ประเด็น` / Export: `YYYYMMDD_ชื่อสินค้า_hook_vN.mp4` / Draft ตรงชื่อโฟลเดอร์
+3. ✔️ **ซับไทย Micro-Burst/Kinetic** — burst 2–4 คำ, ไฮไลต์ `#FFE600`, safe zone ล่าง 420px (ดู [.agents/rules/subtitle_kinetic_rules.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/subtitle_kinetic_rules.md))
+4. ✔️ **สติกเกอร์** — เฉพาะ Universal Badges 6 แบบ, พื้นขาว `#FFFFFF` + ขอบ die-cut (ดู [.agents/rules/sticker_generation.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/sticker_generation.md))
+5. ✔️ **TTS/Audio** — Edge-TTS ไทย `+15%`, ระดับเสียง Voice 1.0 / SFX 0.28 / BGM 0.12 ที่ `scripts/config.py`
+6. ✔️ **Subprocess (FFmpeg/Rembg)** — รันผ่าน subprocess + error handling + log ไทย
+7. ✔️ **J-Cut** — เสียงช็อตถัดไปมาก่อนภาพ 150–250ms (ดู [.agents/rules/j_cut_rules.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/j_cut_rules.md))
+8. ✔️ **UI คลีน + สถานะตามจริง** — ปุ่มขึ้นต้นกริยาไม่มีสัญลักษณ์นำ, สถานะ `in_production`/`rendered` ตามของจริงเท่านั้น (ดู [.agents/rules/ui_clean_standard.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/ui_clean_standard.md))
+9. ✔️ **Preview = Render** — แก้ `SequencePlayer.jsx`/`subtitle_engine.py` ต้องแก้คู่ + เทส `test_preview_render_parity.py` + เรนเดอร์ ffmpeg ดูเฟรมจริง (ดู [.agents/rules/preview_render_parity.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/preview_render_parity.md))
+10. ✔️ **Plan-Before-Code** — เขียนแผนลง `TODO.md` ก่อนแตะโค้ด ปิดรอบย้ายเข้า `HISTORY.md` (ดู [.agents/rules/work_loop.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/work_loop.md))
+11. ✔️ **Test ตามชนิดงาน** — deterministic/offline + temp storage ห้ามแตะข้อมูลจริง (ดู [.agents/rules/testing_standard.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/testing_standard.md))
+12. ✔️ **Font/Text Golden Master** — caption 1080x1920: em 50px / ASS 82 / EN 68% / line 1.0 / margin ล่าง 420px ห้าม drift, probe ด้วย .venv (ดู font_text_visual_contract.md)
+13. ✔️ **ประหยัดโทเคน** — ห้ามเปิดไฟล์ใหญ่/HISTORY.md ทั้งไฟล์, ส่องไม่เกิน 100 บรรทัด, ห้ามสกิลไม่เกี่ยว (ดู token-efficiency-guardian/SKILL.md)
+14. ✔️ **ระบุตัวตนเอเจนต์+โมเดลทุกบล็อก** — ทั้งหัวบล็อกและสารบัญ (สืบย้อนว่าใครทำพังได้)
+   - ในโปรเจกต์นี้มี AI หลายตัวทำขนานกัน ทุกบล็อกต้องมี `ดำเนินการโดย: <เอเจนต์> (<โมเดล>)`
+   - **ทุกครั้งที่บันทึกรอบงานลง TODO/HISTORY** ทั้งหัวบล็อกและสารบัญต้องระบุชื่อเอเจนต์+โมเดล เช่น:
      - `ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)`
      - `ดำเนินการโดย: Claude Code (Claude 3.7 Sonnet)`
      - `ดำเนินการโดย: Cursor (Claude 3.5 Sonnet)`
-   - **วัตถุประสงค์:** เพื่อความโปร่งใส ตรวจสอบย้อนหลังได้ 100% (Accountability & Traceability) หากเกิดข้อผิดพลาด บั๊กหลุด หรือ regression จะได้ตรวจสอบได้ชัดเจนทันทีว่าเกิดจากเอเจนและโมเดลตัวใดทำ
+   - **วัตถุประสงค์:** โปร่งใส สืบย้อนได้ว่าโมเดลตัวไหนรับผิดชอบงานนั้น
 
 ---
 
-## 🧩 5. แผนผังโมดูลสำคัญ (Key Modules Reference)
-
-| โมดูล / สคริปต์ | หน้าที่การทำงาน |
-| :--- | :--- |
-| `scripts/config.py` | ศูนย์รวมการตั้งค่า Path, สเปกวิดีโอ, เสียง TTS, และระดับเสียง |
-| `scripts/api_server.py` | FastAPI app factory/mount point; route จริงแยกอยู่ใน `scripts/api_*.py` |
-| `scripts/api_schemas.py` | Pydantic request schemas ที่ router ใช้ร่วมกัน |
-| `scripts/media_service.py` | Path validation, metadata, streaming helpers |
-| `scripts/pipeline.py` | Orchestrator ที่ส่งงานผ่าน modular stages |
-| `scripts/pipeline_context.py` | State และ artifact contract ระหว่าง pipeline stages |
-| `scripts/stages/` | Source, Script, Voice, Subtitle, Audio Mix, Shot Matching และ Video Assembly |
-| `scripts/voice_engine.py` | ตัวจัดการสร้างเสียงสังเคราะห์ (Edge-TTS / gTTS) |
-| `scripts/gemini_tts_engine.py` | โมดูลแปลงเสียงด้วย Gemini Flash Audio Model |
-| `scripts/subtitle_engine.py` | Facade สำหรับสร้าง `.srt` / `.ass`; implementation ย่อยอยู่ใน `scripts/subtitle/` |
-| `scripts/overlay_model.py` | Overlay model ฝั่ง renderer ที่ mirror กับ frontend |
-| `scripts/product_scraper.py` | ดึงข้อมูล รายละเอียด และจุดขายสินค้าจากลิงก์ |
-| `tools/build_3d_pro_badges.py` | สร้างและตัดแยกชุดป้ายรีวิว 3D อัตโนมัติ |
-| `frontend/src/lib/editorProjectState.js` | Manifest migration และ serializer กลางของ Save/Autosave |
-| `frontend/src/hooks/` | Project load/autosave, render job, commands, selection, layout และ cleanup |
-| `frontend/src/lib/timelineSchema.js` | Timeline Document v2 และ in-memory legacy migration |
-| `frontend/src/components/SequencePlayer.jsx` | Canvas/audio preview ที่ต้องรักษา parity กับ renderer |
+## 🧩 5. แผนผังโมดูลสำคัญ — ดู [ARCHITECTURE.md](file:///d:/Winona/Programmer/Capcut/ARCHITECTURE.md) (backend: `scripts/config.py`, `pipeline.py`, `stages/`, `subtitle_engine.py` / frontend: `SequencePlayer.jsx`, `editorProjectState.js`, `hooks/`)
 
 ---
 
-## 💻 6. วิธีการรันระบบและคำสั่งทดสอบ (Run & Test Commands)
-
-- **รันระบบทั้งหมด (One-Click):**
-  ```bat
-  start_app.bat
-  ```
-- **รันเฉพาะ Backend API:**
-  ```bash
-  python scripts/api_server.py
-  ```
-- **รันเฉพาะ Frontend UI:**
-  ```bash
-  cd frontend
-  npm run dev
-  ```
-- **รัน Gate มาตรฐาน:**
-  ```powershell
-  python -m compileall -q scripts
-  python -m pytest tests/ -q -p no:cacheprovider --tb=short
-  Set-Location frontend
-  npm test
-  npm run build
-  ```
+## 💻 6. วิธีรัน+เทส — ดู [.agents/rules/testing_standard.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/testing_standard.md) (รันเต็ม: `start_app.bat` / `pytest tests/` + `npm test` + `build`)
 
 ---
 

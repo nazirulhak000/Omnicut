@@ -289,3 +289,45 @@ def test_attach_requires_target_and_ignore_drops_row(isolated_log, isolated_pend
     assert ign.status_code == 200
     assert ign.json()["remaining"] == 0
     assert client.get("/api/tiktok-stats/pending").json()["count"] == 0
+
+
+def test_viral_milestones_endpoint(isolated_log, client):
+    """Test /api/tiktok-stats/milestones returns clips exceeding thresholds."""
+    # Add regular clip (< 1000 views)
+    post_log_module.PostLog.add_post(
+        product_name="Product Low",
+        clip_file="low.mp4",
+        angle_title="Low Angle",
+    )
+    posts = post_log_module.PostLog.list_posts()
+    posts[0]["metrics"] = {"views": 450, "likes": 20, "comments": 2, "shares": 1}
+    posts[0]["tiktok_synced_at"] = "2026-09-14T10:00:00"
+
+    # Add viral clip (15,000 views)
+    post_log_module.PostLog.add_post(
+        product_name="Product High Viral",
+        clip_file="high.mp4",
+        angle_title="Viral Angle",
+    )
+    posts = post_log_module.PostLog.list_posts()
+    posts[1]["metrics"] = {"views": 15200, "likes": 850, "comments": 45, "shares": 120}
+    posts[1]["tiktok_synced_at"] = "2026-09-14T10:05:00"
+    post_log_module.PostLog._save(posts)
+
+    # Threshold default 1000: only the 15.2k clip should be returned
+    resp = client.get("/api/tiktok-stats/milestones")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["count"] == 1
+    assert data["has_viral"] is True
+    first = data["milestones"][0]
+    assert first["product_name"] == "Product High Viral"
+    assert first["views"] == 15200
+    assert first["tier"] == "10k"
+    assert "10K+" in first["tier_label"]
+
+    # Threshold 20000: none returned
+    resp2 = client.get("/api/tiktok-stats/milestones?threshold=20000")
+    assert resp2.status_code == 200
+    assert resp2.json()["count"] == 0
+

@@ -199,6 +199,19 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
         </div>
       )}
 
+      {/* ── Viral Milestone Alert (คลิปปังเกิน 10,000 วิว) ── */}
+      {richPosts.some((p) => p.views >= 10000) && (
+        <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/5 border border-amber-500/30 rounded-2xl p-4 sm:p-5 shadow-lg">
+          <div className="flex items-center gap-2.5 mb-2">
+            <Trophy className="w-5 h-5 text-amber-400" />
+            <h3 className="text-sm font-black text-amber-200">ยินดีด้วย! มีคลิปปังทะลุเป้า 10,000 วิว 🔥</h3>
+          </div>
+          <div className="text-xs text-slate-300 leading-relaxed">
+            พบคลิปที่ทำยอดวิวเกิน 10,000 วิว จำนวน {richPosts.filter(p => p.views >= 10000).length} คลิป — แนะนำให้ถอดรหัส Hook และโครงสร้างคลิปเหล่านี้เพื่อนำไปต่อยอดเป็นซีรีส์คลิปใหม่
+          </div>
+        </div>
+      )}
+
       {/* ── Winner / Loser banner ── */}
       {winner && (
         <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-lg">
@@ -257,19 +270,17 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
                   <button
                     onClick={() => handleAttach(row)}
                     disabled={matchBusy || !chosenKeys[row.id]}
-                    className="px-3 py-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-[11px] font-bold text-cyan-300 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer inline-flex items-center gap-1.5"
+                    className="px-3 py-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-[11px] font-bold text-cyan-300 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                   >
-                    <Link2 className="w-3.5 h-3.5" />
                     <span>จับคู่</span>
                   </button>
                   <button
                     onClick={() => handleIgnore(row)}
                     disabled={matchBusy}
                     title="คลิปนี้ไม่ใช่ของเรา ตัดออกจากรายการ"
-                    className="px-2.5 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] text-[11px] font-bold text-slate-300 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer inline-flex items-center gap-1.5"
+                    className="px-2.5 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] text-[11px] font-bold text-slate-300 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                   >
-                    <X className="w-3.5 h-3.5" />
-                    <span>ไม่ใช่คลิปของเรา</span>
+                    <span>ข้ามรายการ</span>
                   </button>
                 </div>
               </div>
