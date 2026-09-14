@@ -1159,16 +1159,16 @@ export default function EditorShell({
   const patchSpotlight = useCallback((patch) => {
     set((prev) => {
       const base = prev.spotlight || DEFAULT_EDITOR_SPOTLIGHT;
-      return {
-        ...prev,
-        spotlight: {
-          ...base,
-          ...patch,
-          focus: { ...base.focus, ...(patch.focus || {}) },
-        },
-      };
+      return { ...prev, spotlight: { ...base, ...patch, focus: { ...base.focus, ...(patch.focus || {}) } } };
     });
   }, [set]);
+
+  const patchSpotlightLive = useCallback((patch) => {
+    setSilent((prev) => {
+      const base = prev.spotlight || DEFAULT_EDITOR_SPOTLIGHT;
+      return { ...prev, spotlight: { ...base, ...patch, focus: { ...base.focus, ...(patch.focus || {}) } } };
+    });
+  }, [setSilent]);
 
   const patchStylePreset = useCallback((presetId) => {
     patchStyle({ style_preset: normalizeStylePreset(presetId) });
@@ -1770,6 +1770,10 @@ export default function EditorShell({
                   stickers={stickers}
                   effects={effects}
                   spotlight={spotlight}
+                  onSpotlightChange={patchSpotlight}
+                  onSpotlightChangeLive={patchSpotlightLive}
+                  onBeginDrag={beginDrag}
+                  onEndDrag={endDrag}
                   effectAssets={assets.effects}
                   onUpdateEffect={handleUpdateEffect}
                   compact
@@ -2270,6 +2274,10 @@ export default function EditorShell({
                     stickers={stickers}
                     effects={effects}
                     spotlight={spotlight}
+                    onSpotlightChange={patchSpotlight}
+                    onSpotlightChangeLive={patchSpotlightLive}
+                    onBeginDrag={beginDrag}
+                    onEndDrag={endDrag}
                     effectAssets={assets.effects}
                     onUpdateEffect={handleUpdateEffect}
                     compact

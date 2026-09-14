@@ -2508,6 +2508,10 @@ function SequencePlayer({
   effects = [],
   effectAssets = [],
   onUpdateEffect = null,
+  onSpotlightChange = null,
+  onSpotlightChangeLive = null,
+  onBeginDrag = null,
+  onEndDrag = null,
   isMuted = false,
   selection = null,
   onSelect = null,
@@ -2779,6 +2783,59 @@ function SequencePlayer({
       }
     };
 
+    const cleanupPointerLifecycle = bindWindowPointerLifecycle(onPointerMove, onPointerUp);
+  };
+
+  const handleSpotlightKeyDown = (e) => {
+    if (!previewSpotlight || !onSpotlightChange) return;
+    const step = e.shiftKey ? 0.05 : 0.01;
+    const delta = {
+      ArrowLeft: [-step, 0],
+      ArrowRight: [step, 0],
+      ArrowUp: [0, -step],
+      ArrowDown: [0, step],
+    }[e.key];
+    if (!delta) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const { focus } = previewSpotlight;
+    const x = clampSpotlight(focus.x + delta[0], focus.width / 2, 1 - focus.width / 2);
+    const y = clampSpotlight(focus.y + delta[1], focus.height / 2, 1 - focus.height / 2);
+    onSpotlightChange({ focus: { x: roundSpotlight(x), y: roundSpotlight(y) } });
+  };
+
+  const handleSpotlightDragStart = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!previewSpotlight || !containerRef.current || !onSpotlightChangeLive) return;
+    const startMouseX = e.clientX;
+    const startMouseY = e.clientY;
+    const rect = containerRef.current.getBoundingClientRect();
+    const { focus } = previewSpotlight;
+    onBeginDrag?.();
+
+    const updateFocus = (clientX, clientY) => {
+      const x = clampSpotlight(
+        focus.x + (clientX - startMouseX) / rect.width,
+        focus.width / 2,
+        1 - focus.width / 2,
+      );
+      const y = clampSpotlight(
+        focus.y + (clientY - startMouseY) / rect.height,
+        focus.height / 2,
+        1 - focus.height / 2,
+      );
+      onSpotlightChangeLive({
+        focus: { x: roundSpotlight(x), y: roundSpotlight(y) },
+      });
+    };
+
+    const onPointerMove = (moveEvt) => updateFocus(moveEvt.clientX, moveEvt.clientY);
+    const onPointerUp = (upEvt) => {
+      if (upEvt) updateFocus(upEvt.clientX, upEvt.clientY);
+      cleanupPointerLifecycle();
+      onEndDrag?.();
+    };
     const cleanupPointerLifecycle = bindWindowPointerLifecycle(onPointerMove, onPointerUp);
   };
 
@@ -3857,6 +3914,37 @@ function SequencePlayer({
                       SAFE ZONE (9:16)
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* Product Spotlight focus window: drag the active focus directly
+                  on the preview; the dimmed footage remains painted on canvas. */}
+              {previewSpotlight && onSpotlightChangeLive && (
+                <div
+                  role="button"
+                  tabIndex={0}
+                  aria-label="จุดโฟกัส Product Spotlight ลากเพื่อย้าย กดลูกศรเพื่อขยับ"
+                  className={`absolute z-25 cursor-move select-none border-2 border-dashed border-[#25F4EE] bg-[#25F4EE]/[0.04] shadow-[0_0_18px_rgba(37,244,238,0.35)] ${
+                    previewSpotlight.shape === 'ellipse'
+                      ? 'rounded-[50%]'
+                      : previewSpotlight.shape === 'rounded_rect'
+                        ? 'rounded-2xl'
+                        : 'rounded-none'
+                  }`}
+                  style={{
+                    left: `${(previewSpotlight.focus.x - previewSpotlight.focus.width / 2) * 100}%`,
+                    top: `${(previewSpotlight.focus.y - previewSpotlight.focus.height / 2) * 100}%`,
+                    width: `${previewSpotlight.focus.width * 100}%`,
+                    height: `${previewSpotlight.focus.height * 100}%`,
+                    touchAction: 'none',
+                  }}
+                  onPointerDown={handleSpotlightDragStart}
+                  onKeyDown={handleSpotlightKeyDown}
+                  title="ลากเพื่อย้ายจุดโฟกัส Product Spotlight"
+                >
+                  <span className="pointer-events-none absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-[#25F4EE]/40 bg-black/85 px-2 py-0.5 text-[9px] font-bold text-[#25F4EE] shadow-md">
+                    Spotlight · ลากเพื่อย้าย
+                  </span>
                 </div>
               )}
 

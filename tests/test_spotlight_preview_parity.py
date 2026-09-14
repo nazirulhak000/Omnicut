@@ -9,6 +9,7 @@ JS_SRC = (ROOT / "frontend" / "src" / "components" / "SequencePlayer.jsx").read_
 PY_SRC = (ROOT / "scripts" / "spotlight_effect.py").read_text(encoding="utf-8")
 ASSET_PANEL_SRC = (ROOT / "frontend" / "src" / "components" / "editor" / "AssetPanel.jsx").read_text(encoding="utf-8")
 EDITOR_SHELL_SRC = (ROOT / "frontend" / "src" / "components" / "editor" / "EditorShell.jsx").read_text(encoding="utf-8")
+SEQUENCE_PLAYER_SRC = JS_SRC
 
 
 def _number(source: str, pattern: str) -> float:
@@ -86,5 +87,22 @@ def test_editor_exposes_spotlight_controls_and_wires_the_same_state():
     assert "dim_opacity" in ASSET_PANEL_SRC
     assert "feather" in ASSET_PANEL_SRC
     assert "const patchSpotlight = useCallback" in EDITOR_SHELL_SRC
-    assert EDITOR_SHELL_SRC.count("onSpotlightChange={patchSpotlight}") == 2
+    assert EDITOR_SHELL_SRC.count("onSpotlightChange={patchSpotlight}") == 4
+    assert EDITOR_SHELL_SRC.count("onSpotlightChangeLive={patchSpotlightLive}") == 2
+    assert EDITOR_SHELL_SRC.count("onBeginDrag={beginDrag}") >= 4
+    assert EDITOR_SHELL_SRC.count("onEndDrag={endDrag}") >= 4
     assert EDITOR_SHELL_SRC.count("spotlight={spotlight}") >= 4
+
+
+def test_spotlight_preview_supports_direct_focus_manipulation_without_playback_side_effects():
+    assert "handleSpotlightDragStart" in SEQUENCE_PLAYER_SRC
+    assert "onSpotlightChangeLive" in SEQUENCE_PLAYER_SRC
+    assert "onBeginDrag?.()" in SEQUENCE_PLAYER_SRC
+    assert "onEndDrag?.()" in SEQUENCE_PLAYER_SRC
+    assert "handleSpotlightKeyDown" in SEQUENCE_PLAYER_SRC
+    assert "ArrowLeft" in SEQUENCE_PLAYER_SRC
+    assert "focus.width / 2" in SEQUENCE_PLAYER_SRC
+    assert "focus.height / 2" in SEQUENCE_PLAYER_SRC
+    assert 'aria-label="จุดโฟกัส Product Spotlight ลากเพื่อย้าย กดลูกศรเพื่อขยับ"' in SEQUENCE_PLAYER_SRC
+    drag = SEQUENCE_PLAYER_SRC.split("const handleSpotlightDragStart", 1)[1].split("const handleContainerClick", 1)[0]
+    assert "togglePlay()" not in drag
