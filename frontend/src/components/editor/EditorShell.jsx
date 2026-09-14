@@ -30,7 +30,10 @@ import {
 } from '../../lib/stylePresetCatalog.js';
 import { removeItemById, updateItemById } from '../../lib/collectionOperations.js';
 import { getOverlayRecolorMetadata } from '../../lib/overlayRecolor.js';
-import { groupBackgroundIsolationClips } from '../../lib/backgroundIsolationPreview.js';
+import {
+  groupBackgroundIsolationClips,
+  summarizeBackgroundIsolationStatus,
+} from '../../lib/backgroundIsolationPreview.js';
 import { resolveEditorProjectName } from '../../lib/editorEntry.js';
 import SequencePlayer from '../SequencePlayer';
 import AssetPanel from './AssetPanel';
@@ -178,31 +181,14 @@ export default function EditorShell({
   const [applyToAllCaptions, setApplyToAllCaptions] = useState(true);
   const [backgroundIsolationPreparing, setBackgroundIsolationPreparing] = useState(false);
 
-  // Isolation artifacts belong to individual timeline clips. The old panel
-  // displayed only the project-level fallback marker, which stayed at
-  // `processing` after a completed task and hid partial coverage. Derive the
-  // visible status from the actual clip artifacts instead.
-  const backgroundIsolationStatus = useMemo(() => {
-    const sourceClips = (clipList || []).filter((clip) => clip?.source_path);
-    const readyCount = sourceClips.filter((clip) => (
-      clip?.background_isolation?.artifact?.status === 'ready'
-      || clip?.backgroundIsolation?.artifact?.status === 'ready'
-    )).length;
-    const processingCount = sourceClips.filter((clip) => (
-      clip?.background_isolation?.artifact?.status === 'processing'
-      || clip?.backgroundIsolation?.artifact?.status === 'processing'
-    )).length;
-    if (sourceClips.length > 0 && readyCount === sourceClips.length) {
-      return { state: 'ready', label: `ready (${readyCount}/${sourceClips.length})` };
-    }
-    if (readyCount > 0) {
-      return { state: 'partial', label: `พร้อมบางส่วน (${readyCount}/${sourceClips.length})` };
-    }
-    if (backgroundIsolationPreparing || processingCount > 0 || backgroundIsolation?.artifact?.status === 'processing') {
-      return { state: 'processing', label: 'processing' };
-    }
-    return { state: backgroundIsolation?.artifact?.status || 'missing', label: backgroundIsolation?.artifact?.status || 'missing' };
-  }, [backgroundIsolation, backgroundIsolationPreparing, clipList]);
+  // Isolation artifacts belong to individual timeline clips. Keep this
+  // summary aligned with the preview resolver so explicit project disable and
+  // failed/stale artifacts cannot look ready in the editor chrome.
+  const backgroundIsolationStatus = useMemo(() => summarizeBackgroundIsolationStatus({
+    clips: clipList,
+    projectConfig: backgroundIsolation,
+    preparing: backgroundIsolationPreparing,
+  }), [backgroundIsolation, backgroundIsolationPreparing, clipList]);
 
   // Mobile Mode Switcher: 'timeline' | 'assets' | 'inspector'
   const [mobileTab, setMobileTab] = useState('timeline');
@@ -1217,7 +1203,7 @@ export default function EditorShell({
         enabled: true,
         mode: 'cutout',
         engine: 'rembg',
-        model: 'u2netp',
+        model: 'u2net',
         quality: 'balanced',
         fallback: 'spotlight',
         artifact: { schema_version: 1, id: null, status: 'missing' },

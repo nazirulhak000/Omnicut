@@ -27,6 +27,7 @@ from scripts.background_isolation_worker import (
     ERROR_ONNXRUNTIME_MISSING,
     ERROR_OUTPUT_EQUALS_INPUT,
     ERROR_REMBG_OUTPUT,
+    ERROR_REMBG_QUALITY,
     ERROR_SOURCE_FINGERPRINT_INVALID,
     ERROR_SOURCE_FINGERPRINT_MISSING,
     STATUS_ERROR,
@@ -52,13 +53,37 @@ def enabled_config(**overrides):
     return value
 
 
-def write_source(path: Path) -> None:
-    Image.new("RGB", (4, 3), (20, 40, 60)).save(path, format="PNG")
+def write_source(path: Path, size: tuple[int, int] = (4, 3)) -> None:
+    Image.new("RGB", size, (20, 40, 60)).save(path, format="PNG")
 
 
 def png_bytes_with_alpha() -> bytes:
     buffer = io.BytesIO()
-    Image.new("RGBA", (4, 3), (10, 20, 30, 127)).save(buffer, format="PNG")
+    image = Image.new("RGBA", (4, 3), (10, 20, 30, 0))
+    for x in range(3):
+        for y in range(3):
+            image.putpixel((x, y), (10, 20, 30, 127))
+    image.save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+def png_bytes_with_solid_alpha(alpha: int, size: tuple[int, int] = (4, 3)) -> bytes:
+    buffer = io.BytesIO()
+    Image.new("RGBA", size, (10, 20, 30, alpha)).save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+def png_bytes_with_sparse_alpha(size: tuple[int, int] = (100, 100)) -> bytes:
+    image = Image.new("RGBA", size, (10, 20, 30, 0))
+    image.putpixel((size[0] // 2, size[1] // 2), (10, 20, 30, 255))
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+def alpha_png_bytes(size: tuple[int, int] = (4, 3), value: int = 127) -> bytes:
+    buffer = io.BytesIO()
+    Image.new("L", size, value).save(buffer, format="PNG")
     return buffer.getvalue()
 
 
@@ -237,6 +262,57 @@ def test_invalid_rembg_output_keeps_existing_output_untouched(tmp_path, monkeypa
     assert not list(tmp_path.glob("*.tmp.png"))
 
 
+def test_quality_gate_rejects_effectively_empty_mask_and_preserves_output(tmp_path, monkeypatch):
+    source = tmp_path / "source.png"
+    output = tmp_path / "foreground.png"
+    write_source(source)
+    output.write_bytes(b"previous-good-output")
+    fake_rembg(monkeypatch, output=png_bytes_with_solid_alpha(0))
+
+    result = BackgroundIsolationWorker().process(source, output, enabled_config())
+
+    assert result["ok"] is False
+    assert result["error_code"] == ERROR_REMBG_QUALITY
+    assert "transparent" in result["message"]
+    assert output.read_bytes() == b"previous-good-output"
+    assert not list(tmp_path.glob("*.tmp.png"))
+
+
+def test_quality_gate_rejects_full_frame_and_sparse_subject_masks(tmp_path, monkeypatch):
+    source = tmp_path / "source.png"
+    write_source(source, size=(100, 100))
+
+    output = tmp_path / "opaque.png"
+    fake_rembg(monkeypatch, output=png_bytes_with_solid_alpha(255, size=(100, 100)))
+    opaque_result = BackgroundIsolationWorker().process(source, output, enabled_config())
+
+    assert opaque_result["error_code"] == ERROR_REMBG_QUALITY
+    assert "frame" in opaque_result["message"]
+    assert not output.exists()
+
+    sparse_output = tmp_path / "sparse.png"
+    fake_rembg(monkeypatch, output=png_bytes_with_sparse_alpha())
+    sparse_result = BackgroundIsolationWorker().process(source, sparse_output, enabled_config())
+
+    assert sparse_result["error_code"] == ERROR_REMBG_QUALITY
+    assert "small" in sparse_result["message"]
+    assert not sparse_output.exists()
+
+
+def test_quality_gate_rejects_output_size_mismatch_before_commit(tmp_path, monkeypatch):
+    source = tmp_path / "source.png"
+    output = tmp_path / "foreground.png"
+    write_source(source, size=(100, 100))
+    fake_rembg(monkeypatch, output=png_bytes_with_alpha())
+
+    result = BackgroundIsolationWorker().process(source, output, enabled_config())
+
+    assert result["ok"] is False
+    assert result["error_code"] == ERROR_REMBG_QUALITY
+    assert "dimensions" in result["message"]
+    assert not output.exists()
+
+
 def test_invalid_paths_are_structured_and_do_not_touch_real_project_folders(tmp_path):
     output = tmp_path / "foreground.png"
     result = BackgroundIsolationWorker(loader=lambda: None).process(None, output, enabled_config())
@@ -283,8 +359,8 @@ def test_artifact_bundle_cache_hit_does_not_load_rembg_again(tmp_path, monkeypat
     artifact_id = prepared["artifact"]["id"]
     paths = artifact_paths(cache_root, artifact_id)
     paths.directory.mkdir(parents=True)
-    write_artifact_bytes(cache_root, artifact_id, "foreground", b"existing-foreground")
-    write_artifact_bytes(cache_root, artifact_id, "alpha", b"existing-alpha")
+    write_artifact_bytes(cache_root, artifact_id, "foreground", png_bytes_with_alpha())
+    write_artifact_bytes(cache_root, artifact_id, "alpha", alpha_png_bytes())
     write_artifact_manifest(cache_root, artifact_id, status=STATUS_READY)
 
     def loader():
@@ -300,8 +376,10 @@ def test_artifact_bundle_cache_hit_does_not_load_rembg_again(tmp_path, monkeypat
     assert result["ok"] is True
     assert result["status"] == STATUS_READY
     assert result["artifact_id"] == artifact_id
-    assert paths.foreground.read_bytes() == b"existing-foreground"
-    assert paths.alpha.read_bytes() == b"existing-alpha"
+    with Image.open(paths.foreground) as foreground:
+        assert foreground.mode == "RGBA"
+    with Image.open(paths.alpha) as alpha:
+        assert alpha.mode == "L"
 
 
 def test_artifact_bundle_failure_cleans_partial_files_and_never_writes_ready(tmp_path, monkeypatch):
@@ -324,6 +402,96 @@ def test_artifact_bundle_failure_cleans_partial_files_and_never_writes_ready(tmp
     assert artifact_status(cache_root, artifact_id) == "missing"
     assert not paths.directory.exists()
     assert not list(cache_root.rglob("*.tmp")) if cache_root.exists() else True
+
+
+def test_artifact_bundle_quality_failure_preserves_preexisting_non_ready_artifact(tmp_path, monkeypatch):
+    source = tmp_path / "source.png"
+    cache_root = tmp_path / "cache"
+    write_source(source)
+    config = enabled_config()
+    artifact_id = build_artifact_id("source-v1", config)
+    paths = artifact_paths(cache_root, artifact_id)
+    paths.directory.mkdir(parents=True)
+    old_foreground = b"old-foreground"
+    old_alpha = b"old-alpha"
+    write_artifact_bytes(cache_root, artifact_id, "foreground", old_foreground)
+    write_artifact_bytes(cache_root, artifact_id, "alpha", old_alpha)
+    write_artifact_manifest(cache_root, artifact_id, status="processing")
+    fake_rembg(monkeypatch, output=png_bytes_with_solid_alpha(0))
+
+    result = process_background_isolation_bundle(source, cache_root, config, "source-v1")
+
+    assert result["ok"] is False
+    assert result["error_code"] == ERROR_REMBG_QUALITY
+    assert paths.foreground.read_bytes() == old_foreground
+    assert paths.alpha.read_bytes() == old_alpha
+    assert artifact_status(cache_root, artifact_id) == "processing"
+    assert not list(cache_root.glob(".*"))
+
+
+def test_invalid_ready_artifact_is_not_consumed_and_is_replaced_only_after_new_quality_passes(tmp_path, monkeypatch):
+    source = tmp_path / "source.png"
+    cache_root = tmp_path / "cache"
+    write_source(source)
+    config = enabled_config()
+    artifact_id = build_artifact_id("source-v1", config)
+    paths = artifact_paths(cache_root, artifact_id)
+    paths.directory.mkdir(parents=True)
+    write_artifact_bytes(cache_root, artifact_id, "foreground", b"invalid-old-foreground")
+    write_artifact_bytes(cache_root, artifact_id, "alpha", b"invalid-old-alpha")
+    write_artifact_manifest(cache_root, artifact_id, status=STATUS_READY)
+    calls = fake_rembg(monkeypatch)
+
+    result = process_background_isolation_bundle(source, cache_root, config, "source-v1")
+
+    assert result["ok"] is True
+    assert result["status"] == STATUS_READY
+    assert calls["remove"] == 1
+    with Image.open(paths.foreground) as foreground:
+        assert foreground.mode == "RGBA"
+    assert artifact_status(cache_root, artifact_id) == STATUS_READY
+
+
+def test_artifact_publish_failure_restores_preexisting_artifact(tmp_path, monkeypatch):
+    source = tmp_path / "source.png"
+    cache_root = tmp_path / "cache"
+    write_source(source)
+    config = enabled_config()
+    artifact_id = build_artifact_id("source-v1", config)
+    paths = artifact_paths(cache_root, artifact_id)
+    paths.directory.mkdir(parents=True)
+    old_foreground = png_bytes_with_alpha()
+    old_alpha = alpha_png_bytes()
+    write_artifact_bytes(cache_root, artifact_id, "foreground", old_foreground)
+    write_artifact_bytes(cache_root, artifact_id, "alpha", old_alpha)
+    write_artifact_manifest(cache_root, artifact_id, status="processing")
+    fake_rembg(monkeypatch)
+
+    import scripts.background_isolation_worker as worker_module
+
+    real_replace = worker_module.os.replace
+    publish_failed = False
+
+    def fail_new_artifact_publish(source_path, target_path):
+        nonlocal publish_failed
+        if (
+            not publish_failed
+            and Path(target_path) == paths.directory
+            and Path(source_path).name.startswith(".")
+        ):
+            publish_failed = True
+            raise OSError("simulated artifact publish failure")
+        real_replace(source_path, target_path)
+
+    monkeypatch.setattr(worker_module.os, "replace", fail_new_artifact_publish)
+    result = process_background_isolation_bundle(source, cache_root, config, "source-v1")
+
+    assert result["ok"] is False
+    assert result["error_code"] == "artifact_commit_failed"
+    assert paths.foreground.read_bytes() == old_foreground
+    assert paths.alpha.read_bytes() == old_alpha
+    assert artifact_status(cache_root, artifact_id) == "processing"
+    assert not list(paths.directory.parent.glob(".*stale.*"))
 
 
 def test_artifact_bundle_rejects_missing_or_invalid_fingerprint_without_files(tmp_path, monkeypatch):

@@ -10,6 +10,7 @@ import {
   resolveBackgroundIsolationConfig,
   resolveBackgroundIsolationPreview,
   splitBackgroundIsolationOverlays,
+  summarizeBackgroundIsolationStatus,
 } from './backgroundIsolationPreview.js';
 
 const ARTIFACT_ID = 'bgseq1-0123456789abcdef';
@@ -31,6 +32,54 @@ test('explicit project disable overrides a ready clip artifact', () => {
   const project = { enabled: false, fallback: 'original' };
 
   assert.deepEqual(resolveBackgroundIsolationConfig(clip, project), project);
+});
+
+test('status summary stays off when project isolation is disabled, even if clips retain ready artifacts', () => {
+  const result = summarizeBackgroundIsolationStatus({
+    projectConfig: { enabled: false, fallback: 'original' },
+    clips: [{
+      source_path: 'D:/clips/product.mp4',
+      background_isolation: { enabled: true, artifact: { id: ARTIFACT_ID, status: 'ready' } },
+    }],
+  });
+
+  assert.equal(result.state, 'off');
+  assert.equal(result.label, 'Cutout ปิดอยู่');
+});
+
+test('status summary treats an absent isolation config as off', () => {
+  const result = summarizeBackgroundIsolationStatus({
+    clips: [{ source_path: 'D:/clips/product.mp4' }],
+  });
+
+  assert.equal(result.state, 'off');
+  assert.equal(result.label, 'Cutout ปิดอยู่');
+});
+
+test('status summary exposes failed artifacts instead of downgrading them to missing', () => {
+  const result = summarizeBackgroundIsolationStatus({
+    projectConfig: { enabled: true },
+    clips: [{
+      source_path: 'D:/clips/product.mp4',
+      background_isolation: { enabled: true, artifact: { id: ARTIFACT_ID, status: 'stale' } },
+    }],
+  });
+
+  assert.equal(result.state, 'quality_failed');
+  assert.equal(result.label, 'Cutout คุณภาพไม่ผ่าน');
+});
+
+test('status summary reports processing before ready and ready only after every clip is ready', () => {
+  const clips = [
+    { source_path: 'D:/clips/a.mp4', background_isolation: { enabled: true, artifact: { id: ARTIFACT_ID, status: 'ready' } } },
+    { source_path: 'D:/clips/b.mp4', background_isolation: { enabled: true, artifact: { id: ARTIFACT_ID, status: 'processing' } } },
+  ];
+
+  assert.equal(summarizeBackgroundIsolationStatus({ clips, projectConfig: { enabled: true } }).state, 'processing');
+  assert.equal(summarizeBackgroundIsolationStatus({
+    clips: clips.map((clip) => ({ ...clip, background_isolation: { ...clip.background_isolation, artifact: { ...clip.background_isolation.artifact, status: 'ready' } } })),
+    projectConfig: { enabled: true },
+  }).state, 'ready');
 });
 
 test('groups multiple trim windows from one source into one isolation job', () => {
@@ -277,6 +326,18 @@ test('manifest id mismatch, invalid status, and missing URL fail closed', () => 
   });
   assert.equal(noUrl.reason, 'artifact_url_missing');
   assert.equal(noUrl.status, 'missing');
+});
+
+test('ready artifact fails closed when the manifest quality does not match the requested quality', () => {
+  const result = resolveBackgroundIsolationPreview({
+    config: readyConfig({ quality: 'quality' }),
+    manifest: readyManifest({ quality: 'balanced' }),
+    artifactBaseUrl: BASE_URL,
+  });
+
+  assert.equal(result.useArtifact, false);
+  assert.equal(result.reason, 'manifest_invalid');
+  assert.equal(result.status, 'error');
 });
 
 test('ready manifest requires the metadata enforced by the sequence artifact store', () => {

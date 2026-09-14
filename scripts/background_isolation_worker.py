@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import importlib
 import io
+import json
 import os
+import shutil
 import tempfile
 import threading
 from collections.abc import Callable, Mapping
@@ -24,10 +26,8 @@ from .background_isolation import (
 )
 from .background_isolation_artifacts import (
     artifact_paths,
-    clear_artifact,
+    build_artifact_manifest,
     is_artifact_ready,
-    write_artifact_bytes,
-    write_artifact_manifest,
 )
 
 STATUS_NOOP = "noop"
@@ -46,6 +46,7 @@ ERROR_REMBG_MISSING = "rembg_missing"
 ERROR_ONNXRUNTIME_MISSING = "onnxruntime_missing"
 ERROR_REMBG_RUNTIME = "rembg_runtime_unavailable"
 ERROR_REMBG_OUTPUT = "invalid_rembg_output"
+ERROR_REMBG_QUALITY = "rembg_quality_gate_failed"
 ERROR_IMAGE_RUNTIME = "image_runtime_unavailable"
 ERROR_OUTPUT_WRITE = "output_write_failed"
 ERROR_OUTPUT_COMMIT = "output_commit_failed"
@@ -64,6 +65,10 @@ class _RuntimeUnavailable(RuntimeError):
 
 class _OutputCommitFailed(RuntimeError):
     """Internal exception for a failed final atomic replace."""
+
+
+class _QualityGateFailed(ValueError):
+    """Internal exception for a decoded but unsafe foreground mask."""
 
 
 def _result(
@@ -114,6 +119,44 @@ def _load_rembg() -> Any:
         return importlib.import_module("rembg")
     except (ImportError, ModuleNotFoundError) as exc:
         raise _runtime_error(exc) from exc
+
+
+_QUALITY_GATE_LIMITS: dict[str, tuple[float, float, float]] = {
+    # Keep draft permissive for small subjects, while still rejecting empty or
+    # effectively full-frame masks that are common catastrophic rembg outputs.
+    "draft": (0.0005, 0.9995, 0.0005),
+    "balanced": (0.001, 0.995, 0.001),
+    "quality": (0.002, 0.99, 0.002),
+}
+
+
+def _validate_alpha_quality(image: Any, *, expected_size: tuple[int, int], quality: str) -> None:
+    """Fail closed on alpha masks with no plausible foreground coverage."""
+
+    if image.size != expected_size:
+        raise _QualityGateFailed(
+            f"rembg output dimensions {image.size} do not match input dimensions {expected_size}."
+        )
+
+    alpha = image.getchannel("A")
+    histogram = alpha.histogram()
+    total = image.size[0] * image.size[1]
+    if total <= 0:
+        raise _QualityGateFailed("rembg output has no pixels to evaluate.")
+
+    visible_pixels = total - histogram[0]
+    visible_ratio = visible_pixels / total
+    alpha_mass = sum(level * count for level, count in enumerate(histogram)) / (255 * total)
+    minimum_visible, maximum_visible, minimum_mass = _QUALITY_GATE_LIMITS[quality]
+
+    if visible_pixels == 0:
+        raise _QualityGateFailed("rembg mask is effectively transparent; no usable subject was isolated.")
+    if visible_ratio <= minimum_visible:
+        raise _QualityGateFailed("rembg mask isolates a subject that is too small to be trusted.")
+    if alpha_mass <= minimum_mass:
+        raise _QualityGateFailed("rembg mask is effectively transparent; no usable subject was isolated.")
+    if visible_ratio >= maximum_visible:
+        raise _QualityGateFailed("rembg mask covers almost the entire frame; background removal is untrusted.")
 
 
 class BackgroundIsolationWorker:
@@ -215,7 +258,13 @@ class BackgroundIsolationWorker:
         return source, target
 
     @staticmethod
-    def _write_rgba_png(payload: bytes, target: Path) -> None:
+    def _write_rgba_png(
+        payload: bytes,
+        target: Path,
+        *,
+        expected_size: tuple[int, int],
+        quality: str,
+    ) -> None:
         """Validate rembg bytes and write a canonical RGBA PNG to ``target``."""
 
         try:
@@ -229,9 +278,88 @@ class BackgroundIsolationWorker:
         try:
             with Image.open(io.BytesIO(payload)) as image:
                 rgba = image.convert("RGBA")
+                _validate_alpha_quality(rgba, expected_size=expected_size, quality=quality)
         except Exception as exc:
+            if isinstance(exc, _QualityGateFailed):
+                raise
             raise ValueError("rembg returned bytes that are not a readable image") from exc
         rgba.save(target, format="PNG")
+
+    @staticmethod
+    def _source_size(source: Path) -> tuple[int, int]:
+        try:
+            from PIL import Image
+        except (ImportError, ModuleNotFoundError) as exc:
+            raise _RuntimeUnavailable(
+                ERROR_IMAGE_RUNTIME,
+                "Pillow is required to validate the source image.",
+            ) from exc
+
+        try:
+            with Image.open(source) as image:
+                return image.size
+        except Exception as exc:
+            raise ValueError("input image is not a readable image") from exc
+
+    @staticmethod
+    def _artifact_is_usable(
+        foreground_path: Path,
+        alpha_path: Path,
+        *,
+        expected_size: tuple[int, int],
+        quality: str,
+    ) -> bool:
+        """Validate a ready cache hit without mutating the existing artifact."""
+
+        if any(
+            path.is_symlink() or not path.is_file()
+            for path in (foreground_path, alpha_path)
+        ):
+            return False
+        try:
+            from PIL import Image
+
+            with Image.open(foreground_path) as foreground:
+                if foreground.mode != "RGBA":
+                    return False
+                _validate_alpha_quality(foreground, expected_size=expected_size, quality=quality)
+            with Image.open(alpha_path) as alpha:
+                return alpha.mode == "L" and alpha.size == expected_size
+        except Exception:
+            return False
+
+    @staticmethod
+    def _cleanup_staged(path: Path | None) -> None:
+        if path is None:
+            return
+        try:
+            if path.is_dir() and not path.is_symlink():
+                shutil.rmtree(path)
+        except OSError:
+            pass
+
+    @classmethod
+    def _publish_artifact_atomically(cls, temporary: Path, target: Path, namespace: Path) -> None:
+        """Publish a complete staged bundle while preserving it on failure."""
+
+        backup: Path | None = None
+        try:
+            if target.exists():
+                backup = Path(tempfile.mkdtemp(prefix=f".{target.name}.stale.", dir=namespace))
+                backup.rmdir()
+                os.replace(target, backup)
+            os.replace(temporary, target)
+            temporary = None  # type: ignore[assignment]
+        except OSError:
+            if backup is not None and not target.exists() and backup.exists():
+                try:
+                    os.replace(backup, target)
+                    backup = None
+                except OSError:
+                    pass
+            raise
+        finally:
+            cls._cleanup_staged(backup)
 
     def process(
         self,
@@ -274,6 +402,7 @@ class BackgroundIsolationWorker:
         temporary_path: Path | None = None
 
         try:
+            source_size = self._source_size(source)
             rembg, session = self._get_session(normalized["model"])
             source_bytes = source.read_bytes()
             remove = getattr(rembg, "remove", None)
@@ -294,7 +423,12 @@ class BackgroundIsolationWorker:
                 delete=False,
             ) as temporary:
                 temporary_path = Path(temporary.name)
-            self._write_rgba_png(bytes(result), temporary_path)
+            self._write_rgba_png(
+                bytes(result),
+                temporary_path,
+                expected_size=source_size,
+                quality=normalized["quality"],
+            )
             if not temporary_path.is_file() or temporary_path.stat().st_size == 0:
                 raise ValueError("foreground PNG was empty after encoding")
             try:
@@ -323,6 +457,14 @@ class BackgroundIsolationWorker:
                 status=STATUS_ERROR,
                 error_code=ERROR_OUTPUT_COMMIT,
                 message=f"Could not atomically commit the foreground PNG: {exc}",
+                artifact_id=artifact_id,
+            )
+        except _QualityGateFailed as exc:
+            return _result(
+                ok=False,
+                status=STATUS_ERROR,
+                error_code=ERROR_REMBG_QUALITY,
+                message=str(exc),
                 artifact_id=artifact_id,
             )
         except ValueError as exc:
@@ -441,7 +583,20 @@ class BackgroundIsolationWorker:
                 artifact_id=artifact_id,
             )
 
-        if is_artifact_ready(cache_root, artifact_id):
+        try:
+            source_size = self._source_size(Path(input_path)) if input_path is not None else None
+        except (TypeError, ValueError, _RuntimeUnavailable):
+            source_size = None
+        if (
+            source_size is not None
+            and is_artifact_ready(cache_root, artifact_id)
+            and self._artifact_is_usable(
+                paths.foreground,
+                paths.alpha,
+                expected_size=source_size,
+                quality=normalized["quality"],
+            )
+        ):
             return _result(
                 ok=True,
                 status=STATUS_READY,
@@ -450,11 +605,15 @@ class BackgroundIsolationWorker:
                 artifact_id=artifact_id,
             )
 
+        staged_root: Path | None = None
         try:
-            paths.directory.mkdir(parents=True, exist_ok=True)
-            foreground_result = self.process(input_path, paths.foreground, prepared)
+            namespace = paths.directory.parent
+            namespace.mkdir(parents=True, exist_ok=True)
+            staged_root = Path(tempfile.mkdtemp(prefix=f".{artifact_id}.", dir=namespace))
+            staged_foreground = staged_root / "foreground.png"
+            staged_alpha = staged_root / "alpha.png"
+            foreground_result = self.process(input_path, staged_foreground, prepared)
             if foreground_result["status"] != STATUS_READY:
-                self._cleanup_artifact(cache_root, artifact_id)
                 return _result(
                     ok=False,
                     status=STATUS_ERROR,
@@ -463,17 +622,26 @@ class BackgroundIsolationWorker:
                     artifact_id=artifact_id,
                 )
 
-            alpha_payload = self._alpha_png_bytes(paths.foreground)
-            write_artifact_bytes(cache_root, artifact_id, "alpha", alpha_payload)
-            if not (
-                paths.foreground.is_file()
-                and not paths.foreground.is_symlink()
-                and paths.alpha.is_file()
-                and not paths.alpha.is_symlink()
+            alpha_payload = self._alpha_png_bytes(staged_foreground)
+            staged_alpha.write_bytes(alpha_payload)
+            manifest_payload = json.dumps(
+                build_artifact_manifest(artifact_id, status=STATUS_READY),
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+            (staged_root / "manifest.json").write_bytes(manifest_payload)
+            if not self._artifact_is_usable(
+                staged_foreground,
+                staged_alpha,
+                expected_size=self._source_size(Path(input_path)),
+                quality=normalized["quality"],
             ):
-                raise OSError("foreground or alpha PNG was not committed")
-
-            write_artifact_manifest(cache_root, artifact_id, status=STATUS_READY)
+                raise OSError("staged foreground or alpha PNG failed ready verification")
+            self._publish_artifact_atomically(staged_root, paths.directory, namespace)
+            staged_root = None
+            if not is_artifact_ready(cache_root, artifact_id):
+                raise OSError("published foreground and alpha artifact is not ready")
             return _result(
                 ok=True,
                 status=STATUS_READY,
@@ -482,7 +650,6 @@ class BackgroundIsolationWorker:
                 artifact_id=artifact_id,
             )
         except _RuntimeUnavailable as exc:
-            self._cleanup_artifact(cache_root, artifact_id)
             return _result(
                 ok=False,
                 status=STATUS_ERROR,
@@ -491,7 +658,6 @@ class BackgroundIsolationWorker:
                 artifact_id=artifact_id,
             )
         except (OSError, ValueError) as exc:
-            self._cleanup_artifact(cache_root, artifact_id)
             return _result(
                 ok=False,
                 status=STATUS_ERROR,
@@ -499,6 +665,8 @@ class BackgroundIsolationWorker:
                 message=f"Could not commit the artifact bundle: {exc}",
                 artifact_id=artifact_id,
             )
+        finally:
+            self._cleanup_staged(staged_root)
 
 
 def process_background_isolation(
@@ -553,6 +721,7 @@ __all__ = [
     "ERROR_OUTPUT_WRITE",
     "ERROR_REMBG_MISSING",
     "ERROR_REMBG_OUTPUT",
+    "ERROR_REMBG_QUALITY",
     "ERROR_REMBG_RUNTIME",
     "ERROR_SOURCE_FINGERPRINT_INVALID",
     "ERROR_SOURCE_FINGERPRINT_MISSING",

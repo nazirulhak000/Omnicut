@@ -237,7 +237,12 @@ def _frame_paths(directory: Path, frame_count: int) -> list[Path]:
     return paths
 
 
-def _derived_artifact_id(source_manifest: Mapping[str, Any], config: Mapping[str, Any]) -> str:
+def _derived_artifact_id(
+    source_manifest: Mapping[str, Any],
+    config: Mapping[str, Any],
+    *,
+    worker_version: str = WORKER_VERSION,
+) -> str:
     normalized = normalize_background_isolation(config)
     source_identity = f"{source_manifest['source_fingerprint']}|sequence:{source_manifest['artifact_id']}"
     return build_sequence_artifact_id(
@@ -246,7 +251,7 @@ def _derived_artifact_id(source_manifest: Mapping[str, Any], config: Mapping[str
         engine=normalized["engine"],
         model=normalized["model"],
         quality=normalized["quality"],
-        worker_version=WORKER_VERSION,
+        worker_version=worker_version,
         fps=source_manifest["fps"],
         timebase=source_manifest["timebase"],
         width=source_manifest["width"],
@@ -261,6 +266,7 @@ def _derived_manifest(
     config: Mapping[str, Any],
     *,
     status: str,
+    worker_version: str = WORKER_VERSION,
 ) -> dict[str, Any]:
     normalized = normalize_background_isolation(config)
     return build_sequence_manifest(
@@ -270,7 +276,7 @@ def _derived_manifest(
         engine=normalized["engine"],
         model=normalized["model"],
         quality=normalized["quality"],
-        worker_version=WORKER_VERSION,
+        worker_version=worker_version,
         frame_count=source_manifest["frame_count"],
         fps=source_manifest["fps"],
         timebase=source_manifest["timebase"],
@@ -354,25 +360,27 @@ def _cleanup(path: Path | None) -> None:
         return
 
 
-def _publish_atomically(temporary: Path, target: Path, namespace: Path) -> None:
-    backup: Path | None = None
+def _publish_atomically(temporary: Path, target: Path) -> None:
+    """Publish without ever replacing an existing artifact directory.
+
+    The ready manifest is moved last.  That makes the directory fail closed
+    while it is being published, and ``mkdir`` gives us an exclusive,
+    cross-platform no-clobber claim on the artifact ID.  An existing target
+    is never moved, edited, or removed; callers must choose a new processing
+    version when they intentionally regenerate an artifact.
+    """
+
+    created = False
     try:
-        if target.exists():
-            backup = Path(tempfile.mkdtemp(prefix=f".{target.name}.stale.", dir=namespace))
-            backup.rmdir()
-            os.replace(target, backup)
-        os.replace(temporary, target)
-        temporary = None  # type: ignore[assignment]
+        target.mkdir()
+        created = True
+        os.replace(temporary / "frames", target / "frames")
+        os.replace(temporary / "manifest.json", target / "manifest.json")
+        temporary.rmdir()
     except OSError:
-        if backup is not None and not target.exists() and backup.exists():
-            try:
-                os.replace(backup, target)
-                backup = None
-            except OSError:
-                pass
+        if created:
+            _cleanup(target)
         raise
-    finally:
-        _cleanup(backup)
 
 
 class BackgroundIsolationSequenceWorker:
@@ -395,6 +403,7 @@ class BackgroundIsolationSequenceWorker:
         *,
         cancel_event: Any = None,
         progress_callback: ProgressCallback | None = None,
+        worker_version: str = WORKER_VERSION,
     ) -> dict[str, Any]:
         if config is None:
             return _result(ok=True, status=STATUS_NOOP, error_code=ERROR_CONFIG_MISSING, message="Background isolation is not configured; skipped.")
@@ -420,14 +429,20 @@ class BackgroundIsolationSequenceWorker:
             if output_root == source_frames or output_root.is_relative_to(source_frames):
                 raise PermissionError("derived root cannot be inside source frames")
             source_paths = _frame_paths(source_frames, manifest["frame_count"])
-            artifact_id = _derived_artifact_id(manifest, normalized)
+            artifact_id = _derived_artifact_id(manifest, normalized, worker_version=worker_version)
             output_namespace = output_root / DERIVED_CACHE_NAMESPACE
             output_directory = output_namespace / artifact_id
             if output_namespace.is_symlink() or output_directory.is_symlink():
                 raise PermissionError("derived cache namespace must not contain symlinks")
             if output_namespace.exists() and not output_namespace.is_dir():
                 raise PermissionError("derived cache namespace must be a directory")
-            expected_manifest = _derived_manifest(artifact_id, manifest, normalized, status="ready")
+            expected_manifest = _derived_manifest(
+                artifact_id,
+                manifest,
+                normalized,
+                status="ready",
+                worker_version=worker_version,
+            )
             existing_manifest = _read_manifest(output_directory / "manifest.json")
             if _manifest_matches(expected_manifest, existing_manifest) and _derived_frames_are_current(output_directory, existing_manifest):
                 return _result(ok=True, status=STATUS_READY, message="Foreground sequence cache hit.", artifact_id=artifact_id, source_artifact_id=source_artifact_id, output_directory=output_directory, frame_count=manifest["frame_count"], cache_hit=True)
@@ -455,7 +470,7 @@ class BackgroundIsolationSequenceWorker:
             if _is_cancelled(cancel_event):
                 return _result(ok=False, status=STATUS_CANCELLED, error_code=ERROR_CANCELLED, message="Foreground sequence processing was cancelled.", artifact_id=artifact_id, source_artifact_id=source_artifact_id)
             _write_manifest(temporary / "manifest.json", expected_manifest)
-            _publish_atomically(temporary, output_directory, output_namespace)
+            _publish_atomically(temporary, output_directory)
             temporary = None
             if not _manifest_matches(expected_manifest, _read_manifest(output_directory / "manifest.json")) or not _derived_frames_are_current(output_directory, expected_manifest):
                 _cleanup(output_directory)
@@ -484,8 +499,14 @@ def process_background_isolation_sequence(
     loader: Callable[[], Any] | None = None,
     cancel_event: Any = None,
     progress_callback: ProgressCallback | None = None,
+    worker_version: str = WORKER_VERSION,
 ) -> dict[str, Any]:
-    """Convenience API that keeps one lazy worker for the whole sequence."""
+    """Process a sequence with one lazy worker for the whole sequence.
+
+    Pass a new, explicit ``worker_version`` for a reviewed quality
+    regeneration.  The version participates in the artifact identity, so the
+    old artifact remains available and byte-for-byte untouched.
+    """
 
     return BackgroundIsolationSequenceWorker(worker=worker, loader=loader).process(
         source_sequence,
@@ -494,6 +515,7 @@ def process_background_isolation_sequence(
         sequence_manifest,
         cancel_event=cancel_event,
         progress_callback=progress_callback,
+        worker_version=worker_version,
     )
 
 

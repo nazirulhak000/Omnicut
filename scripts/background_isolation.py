@@ -26,7 +26,10 @@ SUPPORTED_FALLBACKS = ("spotlight", "original", "skip")
 ARTIFACT_STATUSES = ("missing", "processing", "ready", "stale", "error")
 DEFAULT_MODE = "cutout"
 DEFAULT_ENGINE = "rembg"
-DEFAULT_MODEL = "u2netp"
+# The compact model is fast but tends to absorb hands/background on close-up
+# product footage. Use the fuller model for new jobs; persisted configs keep
+# their explicit model so existing artifacts are never silently replaced.
+DEFAULT_MODEL = "u2net"
 DEFAULT_QUALITY = "balanced"
 DEFAULT_FALLBACK = "spotlight"
 DEFAULT_ARTIFACT_STATUS = "missing"

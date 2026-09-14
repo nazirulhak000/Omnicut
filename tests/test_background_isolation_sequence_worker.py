@@ -18,12 +18,14 @@ from scripts.background_isolation_sequence_worker import (
     ERROR_CANCELLED,
     ERROR_CONFIG_DISABLED,
     ERROR_INPUT_INCOMPLETE,
+    ERROR_OUTPUT_COMMIT,
     ERROR_OUTPUT_INVALID,
     ERROR_WORKER_FAILURE,
     STATUS_CANCELLED,
     STATUS_ERROR,
     STATUS_NOOP,
     STATUS_READY,
+    WORKER_VERSION,
     BackgroundIsolationSequenceWorker,
     process_background_isolation_sequence,
 )
@@ -52,6 +54,16 @@ def png_bytes(mode: str = "RGBA", size: tuple[int, int] = (4, 3), color=None) ->
     return output.getvalue()
 
 
+def plausible_foreground_bytes(size: tuple[int, int] = (4, 3)) -> bytes:
+    image = Image.new("RGBA", size, (10, 20, 30, 0))
+    for x in range(max(1, size[0] // 2)):
+        for y in range(size[1]):
+            image.putpixel((x, y), (90, 100, 110, 127))
+    output = io.BytesIO()
+    image.save(output, format="PNG")
+    return output.getvalue()
+
+
 def make_source_sequence(tmp_path: Path, frame_count: int = 3, *, fingerprint: str = "sha256:source-sequence"):
     source = tmp_path / "source-sequence"
     frames = source / "frames"
@@ -76,11 +88,12 @@ def make_source_sequence(tmp_path: Path, frame_count: int = 3, *, fingerprint: s
 
 
 class FakeForegroundWorker:
-    def __init__(self, *, fail_on: int | None = None, cancel_event=None, invalid=False):
+    def __init__(self, *, fail_on: int | None = None, cancel_event=None, invalid=False, alpha: int = 80):
         self.calls: list[tuple[Path, Path]] = []
         self.fail_on = fail_on
         self.cancel_event = cancel_event
         self.invalid = invalid
+        self.alpha = alpha
 
     def process(self, source: Path, target: Path, config):
         index = len(self.calls)
@@ -92,7 +105,7 @@ class FakeForegroundWorker:
         if self.invalid:
             target.write_bytes(png_bytes("RGB"))
         else:
-            target.write_bytes(png_bytes("RGBA", (4, 3), (100 + index, 120, 140, 80)))
+            target.write_bytes(png_bytes("RGBA", (4, 3), (100 + index, 120, 140, self.alpha)))
         return {"ok": True, "status": STATUS_READY, "output_path": str(target)}
 
 
@@ -110,7 +123,7 @@ class FakeRembg:
         assert source
         assert session is not None
         self.removes += 1
-        return png_bytes("RGBA", (4, 3), (90, 100, 110, 127))
+        return plausible_foreground_bytes()
 
 
 def test_success_writes_all_frames_as_rgba_and_reports_progress(tmp_path):
@@ -298,3 +311,94 @@ def test_invalid_foreground_mode_is_not_ready_and_is_cleaned(tmp_path):
     assert result["status"] == STATUS_ERROR
     assert result["error_code"] == ERROR_OUTPUT_INVALID
     assert not list((tmp_path / "derived" / DERIVED_CACHE_NAMESPACE).glob(".*"))
+
+
+def test_existing_incomplete_artifact_is_never_replaced_during_recovery(tmp_path):
+    source, manifest = make_source_sequence(tmp_path, 1)
+    artifact_id = build_sequence_artifact_id(
+        f"{manifest['source_fingerprint']}|sequence:{manifest['artifact_id']}",
+        algorithm="background-isolation-v1",
+        engine="rembg",
+        model="u2netp",
+        quality="balanced",
+        worker_version=WORKER_VERSION,
+        fps=manifest["fps"],
+        timebase=manifest["timebase"],
+        width=manifest["width"],
+        height=manifest["height"],
+        rotation=manifest["rotation"],
+    )
+    target = tmp_path / "derived" / DERIVED_CACHE_NAMESPACE / artifact_id
+    frames = target / "frames"
+    frames.mkdir(parents=True)
+    expected_manifest = build_sequence_manifest(
+            artifact_id,
+            source_fingerprint=manifest["source_fingerprint"],
+            algorithm="background-isolation-v1",
+            engine="rembg",
+            model="u2netp",
+            quality="balanced",
+            worker_version=WORKER_VERSION,
+            frame_count=manifest["frame_count"],
+            fps=manifest["fps"],
+            timebase=manifest["timebase"],
+            width=manifest["width"],
+            height=manifest["height"],
+            rotation=manifest["rotation"],
+            frame_pattern=FRAME_PATTERN,
+            status="ready",
+        )
+    manifest_path = target / "manifest.json"
+    manifest_path.write_text(json.dumps(expected_manifest), encoding="utf-8")
+    frame_path = frames / "frame_000000.png"
+    frame_path.write_bytes(png_bytes("RGB"))
+    before_manifest = manifest_path.read_bytes()
+    before_frame = frame_path.read_bytes()
+
+    result = process_background_isolation_sequence(
+        source,
+        tmp_path / "derived",
+        enabled_config(),
+        manifest,
+        worker=FakeForegroundWorker(),
+    )
+
+    assert result["status"] == STATUS_ERROR
+    assert result["error_code"] == ERROR_OUTPUT_COMMIT
+    assert manifest_path.read_bytes() == before_manifest
+    assert frame_path.read_bytes() == before_frame
+    assert not list((tmp_path / "derived" / DERIVED_CACHE_NAMESPACE).glob(".*"))
+
+
+def test_quality_rerun_uses_new_worker_version_and_preserves_previous_artifact(tmp_path):
+    source, manifest = make_source_sequence(tmp_path, 1)
+    first = process_background_isolation_sequence(
+        source,
+        tmp_path / "derived",
+        enabled_config(),
+        manifest,
+        # The sequence worker's technical check accepts this, but a human
+        # quality review would reject a fully opaque cutout as low quality.
+        worker=FakeForegroundWorker(alpha=255),
+    )
+    previous = Path(first["output_directory"])
+    before_manifest = (previous / "manifest.json").read_bytes()
+    before_frame = (previous / "frames" / "frame_000000.png").read_bytes()
+
+    rerun = process_background_isolation_sequence(
+        source,
+        tmp_path / "derived",
+        enabled_config(),
+        manifest,
+        worker=FakeForegroundWorker(),
+        worker_version="sequence-rembg-worker-quality-rerun-v2",
+    )
+
+    assert rerun["status"] == STATUS_READY
+    assert rerun["cache_hit"] is False
+    assert rerun["artifact_id"] != first["artifact_id"]
+    assert previous.is_dir()
+    assert (previous / "manifest.json").read_bytes() == before_manifest
+    assert (previous / "frames" / "frame_000000.png").read_bytes() == before_frame
+    rerun_manifest = json.loads((Path(rerun["output_directory"]) / "manifest.json").read_text(encoding="utf-8"))
+    assert rerun_manifest["worker_version"] == "sequence-rembg-worker-quality-rerun-v2"

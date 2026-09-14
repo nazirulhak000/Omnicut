@@ -24,6 +24,14 @@ export const SEQUENCE_STATUSES = Object.freeze([
   'cancelled',
 ]);
 export const FALLBACKS = Object.freeze(['spotlight', 'original', 'skip']);
+export const BACKGROUND_ISOLATION_UI_STATES = Object.freeze([
+  'off',
+  'missing',
+  'processing',
+  'ready',
+  'partial',
+  'quality_failed',
+]);
 
 const DEFAULT_FALLBACK = 'spotlight';
 const RATIONAL_PATTERN = /^(\d+)\/(\d+)$/;
@@ -178,7 +186,7 @@ function normalizedConfig(value) {
   const choices = [
     normalizedChoice(value.mode, SUPPORTED_MODES, 'cutout'),
     normalizedChoice(value.engine, SUPPORTED_ENGINES, 'rembg'),
-    normalizedChoice(value.model, SUPPORTED_MODELS, 'u2netp'),
+    normalizedChoice(value.model, SUPPORTED_MODELS, 'u2net'),
     normalizedChoice(value.quality, SUPPORTED_QUALITIES, 'balanced'),
     normalizedChoice(value.fallback, FALLBACKS, DEFAULT_FALLBACK),
   ];
@@ -194,6 +202,7 @@ function normalizedConfig(value) {
     invalid,
     enabled: value.enabled === true && !invalid,
     fallback: choices[4] ?? DEFAULT_FALLBACK,
+    quality: choices[3] ?? 'balanced',
     artifactId,
     artifactStatus: artifact.status ?? 'missing',
   };
@@ -232,6 +241,90 @@ export function resolveBackgroundIsolationConfig(clip, projectConfig) {
     }
   }
   return projectConfig;
+}
+
+function clipBackgroundIsolationStatus(clip, projectConfig) {
+  const config = resolveBackgroundIsolationConfig(clip, projectConfig);
+  if (config === undefined || config === null) return 'off';
+
+  const preview = resolveBackgroundIsolationPreview({ config });
+  if (preview.reason === 'invalid_config') return 'quality_failed';
+  if (config.enabled !== true) return 'off';
+  const artifactStatus = config.artifact?.status ?? 'missing';
+  if (artifactStatus === 'processing') return 'processing';
+  if (artifactStatus === 'ready') return 'ready';
+  if (['stale', 'error', 'cancelled'].includes(artifactStatus)) return 'quality_failed';
+  return 'missing';
+}
+
+/**
+ * Summarise the safe state of all timeline clips for editor chrome.
+ *
+ * This intentionally treats an explicit project disable as authoritative and
+ * treats any failed/stale artifact as a quality failure.  The summary is only
+ * a user-facing hint; frame/manifest validation still happens per frame in
+ * resolveBackgroundIsolationPreview.
+ */
+export function summarizeBackgroundIsolationStatus({
+  clips = [],
+  projectConfig = null,
+  preparing = false,
+} = {}) {
+  if (projectConfig?.enabled === false) {
+    return { state: 'off', label: 'Cutout ปิดอยู่', readyCount: 0, totalCount: 0 };
+  }
+
+  const sourceClips = (Array.isArray(clips) ? clips : []).filter((clip) => clip?.source_path);
+  if (!sourceClips.length) {
+    return { state: 'missing', label: 'Cutout ยังไม่มีคลิป', readyCount: 0, totalCount: 0 };
+  }
+
+  const statuses = sourceClips.map((clip) => clipBackgroundIsolationStatus(clip, projectConfig));
+  if (statuses.every((status) => status === 'off')) {
+    return { state: 'off', label: 'Cutout ปิดอยู่', readyCount: 0, totalCount: 0 };
+  }
+  const readyCount = statuses.filter((status) => status === 'ready').length;
+  const failedCount = statuses.filter((status) => status === 'quality_failed').length;
+  const processingCount = statuses.filter((status) => status === 'processing').length;
+  const totalCount = sourceClips.length;
+
+  if (preparing || processingCount > 0) {
+    return {
+      state: 'processing',
+      label: `กำลังเตรียม Cutout (${readyCount}/${totalCount})`,
+      readyCount,
+      totalCount,
+    };
+  }
+  if (failedCount > 0) {
+    return {
+      state: 'quality_failed',
+      label: failedCount === totalCount
+        ? 'Cutout คุณภาพไม่ผ่าน'
+        : `Cutout คุณภาพไม่ผ่านบางส่วน (${readyCount}/${totalCount})`,
+      readyCount,
+      totalCount,
+    };
+  }
+  if (readyCount === totalCount) {
+    return { state: 'ready', label: `Cutout พร้อมใช้ (${readyCount}/${totalCount})`, readyCount, totalCount };
+  }
+  if (readyCount > 0) {
+    return { state: 'partial', label: `Cutout พร้อมบางส่วน (${readyCount}/${totalCount})`, readyCount, totalCount };
+  }
+  return { state: 'missing', label: 'Cutout ยังไม่พร้อม', readyCount, totalCount };
+}
+
+export function backgroundIsolationStatusMeta(status = 'off') {
+  const meta = {
+    off: { label: 'Cutout ปิดอยู่', detail: 'Preview ใช้ภาพต้นฉบับ' },
+    missing: { label: 'Cutout ยังไม่พร้อม', detail: 'Preview ใช้ภาพต้นฉบับจนกว่า artifact จะพร้อม' },
+    processing: { label: 'กำลังเตรียม Cutout', detail: 'Preview ใช้ภาพต้นฉบับชั่วคราว' },
+    ready: { label: 'Cutout พร้อมใช้', detail: 'Preview ใช้ artifact ที่ตรวจสอบแล้ว' },
+    partial: { label: 'Cutout พร้อมบางส่วน', detail: 'บางคลิปยังใช้ภาพต้นฉบับ' },
+    quality_failed: { label: 'Cutout คุณภาพไม่ผ่าน', detail: 'Preview ใช้ภาพต้นฉบับเพื่อความปลอดภัย' },
+  };
+  return meta[BACKGROUND_ISOLATION_UI_STATES.includes(status) ? status : 'missing'];
 }
 
 function resolveLookupBase(artifactLookup, artifactId, manifest) {
@@ -364,6 +457,7 @@ export function resolveBackgroundIsolationPreview({
     if (!SUPPORTED_ENGINES.includes(manifest.engine)) throw new TypeError('engine');
     if (!SUPPORTED_MODELS.includes(manifest.model)) throw new TypeError('model');
     if (!SUPPORTED_QUALITIES.includes(manifest.quality)) throw new TypeError('quality');
+    if (manifest.quality !== normalized.quality) throw new TypeError('quality mismatch');
     if (typeof manifest.worker_version !== 'string' || !manifest.worker_version.trim()) throw new TypeError('worker version');
     framePattern = parseFramePattern(manifest.frame_pattern);
     parseRotation(manifest.rotation);

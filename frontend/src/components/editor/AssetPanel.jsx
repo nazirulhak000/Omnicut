@@ -182,7 +182,7 @@ function BackgroundIsolationControls({ backgroundIsolation, statusOverride = nul
       enabled: true,
       mode: 'cutout',
       engine: 'rembg',
-      model: backgroundIsolation?.model || 'u2netp',
+      model: backgroundIsolation?.model || 'u2net',
       quality: backgroundIsolation?.quality || 'balanced',
       fallback: backgroundIsolation?.fallback || 'spotlight',
       artifact: { ...(backgroundIsolation?.artifact || {}), status: status === 'ready' ? 'ready' : 'missing' },

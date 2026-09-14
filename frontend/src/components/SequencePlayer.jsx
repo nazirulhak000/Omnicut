@@ -1,5 +1,8 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { Play, Pause, Eye, Shield, Trash2, Move, RotateCcw, Plus } from 'lucide-react';
+import {
+  Play, Pause, Eye, Shield, Trash2, Move, RotateCcw, Plus,
+  AlertTriangle, CheckCircle2, Loader2,
+} from 'lucide-react';
 import { toMediaUrl } from '../lib/mediaUrl';
 import api from '../api';
 import { createLutRenderer, loadCube } from '../lib/lut3d';
@@ -37,6 +40,7 @@ import {
   resolveBackgroundIsolationConfig,
   resolveBackgroundIsolationPreview,
   splitBackgroundIsolationOverlays,
+  backgroundIsolationStatusMeta,
 } from '../lib/backgroundIsolationPreview.js';
 
 const CANVAS_W = 540;
@@ -729,6 +733,41 @@ function backgroundArtifactId(config) {
   const artifact = config.artifact;
   if (!artifact || typeof artifact !== 'object' || Array.isArray(artifact)) return null;
   return artifact.sequence_id || artifact.sequenceId || artifact.id || null;
+}
+
+function BackgroundIsolationStatusBadge({ status = 'off' }) {
+  const meta = backgroundIsolationStatusMeta(status);
+  const tone = {
+    off: 'border-white/[0.12] bg-black/70 text-slate-300',
+    missing: 'border-amber-300/40 bg-amber-950/75 text-amber-100',
+    processing: 'border-amber-300/40 bg-amber-950/75 text-amber-100',
+    ready: 'border-emerald-300/45 bg-emerald-950/80 text-emerald-100',
+    partial: 'border-amber-300/40 bg-amber-950/75 text-amber-100',
+    quality_failed: 'border-rose-300/45 bg-rose-950/80 text-rose-100',
+  }[status] || 'border-white/[0.12] bg-black/70 text-slate-300';
+  const icon = status === 'ready'
+    ? <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+    : status === 'processing'
+      ? <Loader2 className="h-3.5 w-3.5 flex-shrink-0 animate-spin" aria-hidden="true" />
+      : status === 'quality_failed'
+        ? <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+        : <Eye className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />;
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      aria-label={`${meta.label}: ${meta.detail}`}
+      title={`${meta.label}: ${meta.detail}`}
+      className={`pointer-events-none absolute left-2 top-2 z-30 flex max-w-[78%] items-start gap-1.5 rounded-lg border px-2 py-1 text-[10px] font-bold leading-tight shadow-md backdrop-blur-md ${tone}`}
+    >
+      {icon}
+      <span className="min-w-0">
+        <span className="block">{meta.label}</span>
+        <span className="mt-0.5 block text-[9px] font-medium opacity-75">{meta.detail}</span>
+      </span>
+    </div>
+  );
 }
 
 // Mirrors the .ass style the renderer burns: CAPTION_POSITIONS in
@@ -2571,6 +2610,7 @@ function SequencePlayer({
   grade = null,
   spotlight = undefined,
   backgroundIsolation = null,
+  backgroundIsolationStatus = null,
   stylePreset = DEFAULT_STYLE_PRESET,
   trackMix = null,
   compact = false,
@@ -3278,6 +3318,42 @@ function SequencePlayer({
   const totalDuration = totalDurationOf(segments);
 
   const getDrawPlan = (t) => planAt(segments, t);
+
+  const currentBackgroundIsolationStatus = useMemo(() => {
+    const fallbackState = backgroundIsolationStatus?.state || 'off';
+    if (fallbackState === 'off' || !segments.length) return fallbackState;
+
+    const currentEntry = getDrawPlan(playhead)[0];
+    const config = currentEntry
+      ? resolveBackgroundIsolationConfig(currentEntry.seg.clip, backgroundIsolation)
+      : backgroundIsolation;
+    if (!config || config.enabled !== true) return 'off';
+
+    const artifactId = backgroundArtifactId(config);
+    if (!artifactId) return 'missing';
+
+    const hasManifestResponse = Object.prototype.hasOwnProperty.call(backgroundIsolationManifests, artifactId);
+    if (!hasManifestResponse) return 'processing';
+
+    const manifest = backgroundIsolationManifests[artifactId];
+    const resolution = resolveBackgroundIsolationPreview({
+      config,
+      manifest,
+      artifactBaseUrl: '/api/background-isolation/sequences',
+      sourceTime: Math.max(0, Number(currentEntry?.localTime) || 0),
+    });
+    if (resolution.useArtifact && resolution.frameUrl) {
+      const frame = backgroundIsolationImagesRef.current.get(resolution.frameUrl);
+      if (!frame || frame.status === 'loading') return 'processing';
+      if (frame.status === 'ready') return 'ready';
+      return 'quality_failed';
+    }
+    if (['error', 'stale', 'cancelled'].includes(resolution.status) || resolution.reason === 'manifest_invalid') {
+      return 'quality_failed';
+    }
+    if (resolution.status === 'disabled') return 'off';
+    return fallbackState === 'ready' ? 'processing' : fallbackState;
+  }, [backgroundIsolation, backgroundIsolationManifests, backgroundIsolationStatus, backgroundIsolationTick, playhead, segments]);
 
   // --- Stem audio -------------------------------------------------------
   // 1-Click no longer bakes a mix (pipeline.py skips it unless a video is
@@ -4050,6 +4126,8 @@ function SequencePlayer({
           )}
           {metadataReady && clips.length > 0 && (
             <>
+              <BackgroundIsolationStatusBadge status={currentBackgroundIsolationStatus} />
+
               {/* Smart Snap Guides (Center Guidelines) */}
               {snapGuide.x !== null && (
                 <div
