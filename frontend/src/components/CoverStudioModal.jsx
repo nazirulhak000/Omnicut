@@ -17,6 +17,9 @@ import {
   Move,
   Folder,
   Loader2,
+  ShoppingBag,
+  Type,
+  History,
 } from 'lucide-react';
 import {
   getCoverBadges,
@@ -24,7 +27,9 @@ import {
   generateCoverHooks,
   renderProCover,
   getCoverRawSources,
+  getCoverProductRefImages,
   generateAiCoverImage,
+  grabCoverFrame,
   revealFile,
 } from '../api';
 import { resolveCoverExportStem } from '../lib/coverNaming.js';
@@ -57,13 +62,20 @@ export default function CoverStudioModal({
   const [duration, setDuration] = useState(15.0);
   const [candidates, setCandidates] = useState([]);
   const [currentSeconds, setCurrentSeconds] = useState(0.5);
+  const [liveFrameUrl, setLiveFrameUrl] = useState(null);
   const [customImage, setCustomImage] = useState(null);
   const [customImageFile, setCustomImageFile] = useState(null);
+
+  // Product reference images (scraped from TikTok Shop / catalog)
+  const [productRefImages, setProductRefImages] = useState([]);
+  const [selectedRefImage, setSelectedRefImage] = useState(null);
 
   // AI Cover Generation (Imagen 3 / Smart Frame Hunt)
   const [aiPrompt, setAiPrompt] = useState('');
   const [generatingAi, setGeneratingAi] = useState(false);
   const [aiGenMethod, setAiGenMethod] = useState('');
+  const [lastAiCover, setLastAiCover] = useState(null); // { url, file, method }
+  const [aiHistory, setAiHistory] = useState([]); // Array of { url, file, method, prompt, ts }
 
   // Zoom & Pan 2D (User request: drag directly on preview & zoom in/out to push subtitles away!)
   const [zoom, setZoom] = useState(1.15); // Default 1.15x to give a clean edge
@@ -117,8 +129,13 @@ export default function CoverStudioModal({
       videoPath
         ? getCoverRawSources(videoPath).catch(() => ({ raw_sources: [] }))
         : Promise.resolve({ raw_sources: [] }),
+      getCoverProductRefImages({
+        video_path: videoPath,
+        product_id: videoItem?.product_id,
+        product_name: productName,
+      }).catch(() => ({ ref_images: [] })),
     ])
-      .then(([bRes, hRes, hlRes, rawRes]) => {
+      .then(([bRes, hRes, hlRes, rawRes, refRes]) => {
         if (!mounted) return;
         setBadges(bRes.badges || []);
         setHookIdeas(hRes.hooks || []);
@@ -129,10 +146,14 @@ export default function CoverStudioModal({
           setCandidates(hlRes.candidates);
           setDuration(hlRes.duration || 15);
           setCurrentSeconds(hlRes.candidates[0].timestamp);
+          setLiveFrameUrl(hlRes.candidates[0].thumb_url);
         }
         if (rawRes.raw_sources && rawRes.raw_sources.length > 0) {
           setRawSources(rawRes.raw_sources);
           setSelectedRawPath(rawRes.raw_sources[0].path);
+        }
+        if (refRes?.ref_images && refRes.ref_images.length > 0) {
+          setProductRefImages(refRes.ref_images);
         }
         setAiPrompt((prev) => prev || `Commercial 8k product photography of ${productName || 'product'}, sleek studio lighting, minimalist podium, vibrant cinematic colors, 9:16 vertical orientation, advertising poster quality`);
         setLoading(false);
@@ -148,9 +169,35 @@ export default function CoverStudioModal({
     };
   }, [isOpen, videoPath, productName, angleTitle, videoItem]);
 
-  // Keep hook order stable across closed -> open transitions. Previously this
-  // component returned before its hooks, so opening it from the TikTok modal
-  // caused React's "rendered more hooks" error and no editor appeared.
+  // Live real-time frame fetching when scrubbing across any arbitrary seconds
+  useEffect(() => {
+    if (!isOpen || customImage) return undefined;
+    const activeTarget = activeSourceType === 'raw' ? selectedRawPath : videoPath;
+    if (!activeTarget) return undefined;
+
+    // First check if currentSeconds closely matches an already pre-extracted candidate
+    const matched = candidates.find((c) => Math.abs(c.timestamp - currentSeconds) < 0.25);
+    if (matched) {
+      setLiveFrameUrl(matched.thumb_url);
+      return undefined;
+    }
+
+    // Otherwise, debounce grabCoverFrame from the backend to deliver the real frame
+    const timer = setTimeout(async () => {
+      try {
+        const res = await grabCoverFrame(activeTarget, currentSeconds);
+        if (res && res.media_url) {
+          setLiveFrameUrl(res.media_url);
+        }
+      } catch {
+        // ignore frame grab transient error while scrubbing fast
+      }
+    }, 90);
+
+    return () => clearTimeout(timer);
+  }, [isOpen, currentSeconds, activeSourceType, selectedRawPath, videoPath, customImage, candidates]);
+
+  // Keep hook order stable across closed -> open transitions.
   if (!isOpen || !videoItem) return null;
 
   // When switching source to raw clip, load highlights from the raw clip
@@ -166,6 +213,7 @@ export default function CoverStudioModal({
         setCandidates(res.candidates);
         setDuration(res.duration || 15);
         setCurrentSeconds(res.candidates[0].timestamp);
+        setLiveFrameUrl(res.candidates[0].thumb_url);
       }
     } catch {
       // ignore
@@ -187,6 +235,7 @@ export default function CoverStudioModal({
           setCandidates(res.candidates);
           setDuration(res.duration || 15);
           setCurrentSeconds(res.candidates[0].timestamp);
+          setLiveFrameUrl(res.candidates[0].thumb_url);
         }
       } catch {
         // ignore
@@ -206,23 +255,36 @@ export default function CoverStudioModal({
     setActiveSourceType('upload');
   };
 
-  // Handle AI Cover Image Generation (Imagen 3 / Smart Frame Hunt)
+  // Handle AI Cover Image Generation (Imagen 3 / AI Studio Cutout)
   const handleGenerateAiCover = async (promptOverride) => {
     try {
       setGeneratingAi(true);
       setError(null);
       setSuccessMsg('');
       const targetPrompt = promptOverride || aiPrompt;
+      const activeVideoTarget = activeSourceType === 'raw' ? selectedRawPath : (videoPath || rawSources[0]?.path || null);
+      const activeRefSource = selectedRefImage?.local_path || selectedRefImage?.url || (activeSourceType === 'product_ref' ? customImageFile : null);
       const res = await generateAiCoverImage({
         product_name: productName,
         hook_title: hookText,
         style_prompt: targetPrompt,
-        video_path: videoPath || (rawSources[0]?.path || null),
+        video_path: activeVideoTarget,
+        at_seconds: Number(currentSeconds),
+        source_image_path: activeRefSource,
       });
       if (res && res.success) {
         setCustomImage(res.media_url);
         setCustomImageFile(res.image_path);
         setAiGenMethod(res.method || 'imagen_3');
+        const newCover = {
+          url: res.media_url,
+          file: res.image_path,
+          method: res.method || 'imagen_3',
+          prompt: targetPrompt,
+          ts: Date.now(),
+        };
+        setLastAiCover(newCover);
+        setAiHistory((prev) => [newCover, ...prev.filter((x) => x.url !== newCover.url)]);
         setActiveSourceType('ai_gen');
         setSuccessMsg(res.message || 'สร้างรูปหน้าปกด้วย AI สำเร็จแล้ว!');
       } else {
@@ -235,12 +297,44 @@ export default function CoverStudioModal({
     }
   };
 
+  // Switch to product reference images from TikTok Shop / catalog
+  const handleSwitchToProductRef = () => {
+    setActiveSourceType('product_ref');
+    if (selectedRefImage) {
+      setCustomImage(selectedRefImage.url);
+      setCustomImageFile(selectedRefImage.local_path || selectedRefImage.url);
+    } else if (productRefImages.length > 0) {
+      const first = productRefImages[0];
+      setSelectedRefImage(first);
+      setCustomImage(first.url);
+      setCustomImageFile(first.local_path || first.url);
+    }
+  };
+
+  const handleSelectProductRefImage = (img) => {
+    setSelectedRefImage(img);
+    setCustomImage(img.url);
+    setCustomImageFile(img.local_path || img.url);
+  };
+
+  // Switch to AI Generated Cover tab (instantly restore previous AI cover if already generated)
+  const handleSwitchToAiGen = () => {
+    setActiveSourceType('ai_gen');
+    if (lastAiCover?.url) {
+      setCustomImage(lastAiCover.url);
+      setCustomImageFile(lastAiCover.file);
+      if (lastAiCover.method) setAiGenMethod(lastAiCover.method);
+    }
+  };
+
   // Switch to a candidate frame
   const handleSelectCandidate = (cand) => {
     setCurrentSeconds(cand.timestamp);
+    setLiveFrameUrl(cand.thumb_url);
     setCustomImage(null);
     setCustomImageFile(null);
   };
+
 
   const getPreviewSignature = () => JSON.stringify([
     videoPath,
@@ -265,7 +359,8 @@ export default function CoverStudioModal({
   // Find active preview image source
   const getPreviewImageSrc = () => {
     if (customImage) return customImage;
-    const matched = candidates.find((c) => Math.abs(c.timestamp - currentSeconds) < 0.2);
+    if (liveFrameUrl) return liveFrameUrl;
+    const matched = candidates.find((c) => Math.abs(c.timestamp - currentSeconds) < 0.25);
     if (matched) return matched.thumb_url;
     if (candidates.length > 0) return candidates[0].thumb_url;
     return videoItem.thumbnail_url || videoItem.cover_url || '';
@@ -623,6 +718,37 @@ export default function CoverStudioModal({
                         )}
                       </div>
                     )}
+
+                    {template === 'tech_neon' && (
+                      <div className="flex flex-col items-center gap-0.5 max-w-full">
+                        {hookText.split('\n').map((line, idx) => {
+                          const isBrand = idx === 0;
+                          return (
+                            <span
+                              key={idx}
+                              className={`font-black uppercase tracking-wider leading-none ${
+                                isBrand
+                                  ? 'text-white text-base sm:text-lg'
+                                  : 'text-[#39FF14] text-lg sm:text-xl italic'
+                              }`}
+                              style={{
+                                textShadow:
+                                  '0 0 4px #000, 0 0 8px #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000, 0 3px 6px rgba(0,0,0,0.95)',
+                              }}
+                            >
+                              {line}
+                            </span>
+                          );
+                        })}
+                        {subText && (
+                          <div className="mt-1 bg-black/85 border border-[#39FF14]/80 px-2.5 py-0.5 rounded-full shadow-lg">
+                            <span className="text-white font-bold text-[10px] tracking-wide">
+                              {subText}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -897,6 +1023,21 @@ export default function CoverStudioModal({
                   </button>
                 )}
 
+                {productRefImages.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleSwitchToProductRef}
+                    className={`py-1.5 px-3 rounded-lg font-bold transition-all text-center cursor-pointer flex items-center gap-1.5 ${
+                      activeSourceType === 'product_ref'
+                        ? 'bg-amber-500/25 text-amber-300 shadow border border-amber-500/50 ring-1 ring-amber-400/30'
+                        : 'text-amber-400/80 hover:text-amber-200'
+                    }`}
+                  >
+                    <ShoppingBag className="w-3.5 h-3.5 text-amber-400" />
+                    รูปสินค้า TikTok ({productRefImages.length})
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
@@ -912,9 +1053,7 @@ export default function CoverStudioModal({
 
                 <button
                   type="button"
-                  onClick={() => {
-                    setActiveSourceType('ai_gen');
-                  }}
+                  onClick={handleSwitchToAiGen}
                   className={`py-1.5 px-3 rounded-lg font-bold transition-all text-center cursor-pointer flex items-center gap-1 ${
                     activeSourceType === 'ai_gen'
                       ? 'bg-purple-500/25 text-purple-300 shadow border border-purple-500/50 ring-1 ring-purple-400/30'
@@ -926,6 +1065,61 @@ export default function CoverStudioModal({
                 </button>
               </div>
 
+              {/* TikTok Shop Scraped Reference Images Panel */}
+              {activeSourceType === 'product_ref' && (
+                <div className="p-3.5 rounded-xl bg-gradient-to-br from-amber-950/30 via-slate-900 to-slate-950 border border-amber-500/30 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <ShoppingBag className="w-4 h-4 text-amber-400" />
+                      <span className="text-xs font-bold text-amber-200">
+                        รูปสินค้าคมชัดจาก TikTok Shop / แคตตาล็อก ({productRefImages.length} รูป)
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-amber-300/80 font-mono">
+                      คลิกเลือกรูปเพื่อใช้เป็นปก หรือส่งให้ AI
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2 max-h-48 overflow-y-auto pr-1">
+                    {productRefImages.map((img, idx) => {
+                      const isSelected = (selectedRefImage?.url === img.url) || (customImage === img.url);
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => handleSelectProductRefImage(img)}
+                          className={`group relative aspect-square rounded-lg overflow-hidden border transition-all cursor-pointer ${
+                            isSelected
+                              ? 'border-amber-400 ring-2 ring-amber-400/60 shadow-lg scale-95'
+                              : 'border-white/10 hover:border-amber-400/50 hover:scale-100'
+                          }`}
+                        >
+                          <img src={img.url} alt={img.name} className="w-full h-full object-cover" />
+                          <div className="absolute inset-x-0 bottom-0 bg-black/60 px-1 py-0.5 text-[9px] text-white truncate text-center font-mono">
+                            #{idx + 1}
+                          </div>
+                          {isSelected && (
+                            <div className="absolute top-1 right-1 bg-amber-500 text-slate-950 p-0.5 rounded-full shadow">
+                              <Check className="w-2.5 h-2.5 stroke-[3]" />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex items-center justify-between pt-1 text-[11px] text-slate-400 border-t border-white/[0.06]">
+                    <span>เลือกรูปนี้แล้ว สามารถเปิดแท็บ <b>AI สร้างรูป 9:16</b> ให้ AI นำรูปไปจัดฉากสตูดิโอใหม่ได้ทันที</span>
+                    <button
+                      type="button"
+                      onClick={handleSwitchToAiGen}
+                      className="px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded-md text-xs font-bold transition-all flex items-center gap-1 shadow cursor-pointer"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      ส่งรูปนี้ให้ AI ผสานฉาก
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* AI Image Generator Panel */}
               {activeSourceType === 'ai_gen' && (
                 <div className="p-3.5 rounded-xl bg-gradient-to-br from-purple-950/40 via-slate-900 to-slate-950 border border-purple-500/30 space-y-3">
@@ -933,50 +1127,279 @@ export default function CoverStudioModal({
                     <div className="flex items-center gap-2">
                       <Sparkles className="w-4 h-4 text-purple-400" />
                       <span className="text-xs font-bold text-purple-200">
-                        AI Image Studio (Google Imagen 3 / Smart Frame Hunt)
+                        AI Product Studio (ผสานช็อตสินค้าจริง + ฉากสตูดิโอ 9:16)
                       </span>
                     </div>
                     {aiGenMethod && (
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 font-mono">
-                        {aiGenMethod === 'imagen_3' ? '⚡ Imagen 3 (9:16)' : '🎯 Smart Frame Hunter'}
+                        {aiGenMethod.includes('cutout')
+                          ? '✨ ช็อตสินค้าจริง + ฉาก AI Studio'
+                          : aiGenMethod === 'imagen_3'
+                          ? '⚡ Imagen 3 (9:16)'
+                          : aiGenMethod === 'ai_free'
+                          ? '✨ AI Studio (9:16)'
+                          : '🎯 Smart Studio'}
                       </span>
                     )}
                   </div>
 
+                  {/* AI Generated Covers Gallery (เก็บทุกรูปที่สร้างในรอบนี้ ไม่ถูกทับ สลับเลือกได้ตลอด) */}
+                  {(aiHistory.length > 0 || lastAiCover?.url) && (
+                    <div className="p-2.5 rounded-lg bg-purple-950/60 border border-purple-500/40 space-y-2 shadow-inner">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-purple-200">
+                          <History className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                          <span>คลังภาพ AI ที่สร้างรอบนี้ ({(aiHistory.length > 0 ? aiHistory : [lastAiCover]).length} รูป ไม่ถูกทับ/บันทึกถาวร)</span>
+                        </div>
+                        <span className="text-[10px] text-purple-300/80">คลิกที่รูปเพื่อเลือกแสดงบนปก</span>
+                      </div>
+
+                      <div className="flex gap-2 overflow-x-auto pb-1 pt-0.5 scrollbar-thin">
+                        {(aiHistory.length > 0 ? aiHistory : [lastAiCover]).map((item, idx) => {
+                          const isActive = customImage === item.url;
+                          return (
+                            <button
+                              key={item.url || idx}
+                              type="button"
+                              onClick={() => {
+                                setCustomImage(item.url);
+                                setCustomImageFile(item.file);
+                                if (item.method) setAiGenMethod(item.method);
+                                setLastAiCover(item);
+                              }}
+                              className={`group relative shrink-0 w-16 h-28 rounded-lg overflow-hidden border-2 transition-all cursor-pointer flex flex-col ${
+                                isActive
+                                  ? 'border-amber-400 ring-2 ring-amber-400/50 scale-105 shadow-lg'
+                                  : 'border-purple-800/80 opacity-75 hover:opacity-100 hover:border-purple-400'
+                              }`}
+                              title={`ภาพ AI รอบที่ ${idx + 1}`}
+                            >
+                              <img
+                                src={item.url}
+                                alt={`AI Cover ${idx + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                              <span className="absolute top-1 left-1 px-1 py-0.2 rounded bg-black/80 font-mono text-[9px] text-amber-300 font-bold">
+                                #{idx + 1}
+                              </span>
+                              {isActive ? (
+                                <span className="absolute bottom-0 inset-x-0 bg-amber-500 text-slate-950 font-bold text-[9px] text-center py-0.5 shadow">
+                                  ใช้งานอยู่
+                                </span>
+                              ) : (
+                                <span className="absolute bottom-0 inset-x-0 bg-black/70 text-slate-300 text-[9px] text-center py-0.5 group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                                  คลิกสลับ
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Brand & Product Title Hook Toggle Card */}
+                  <div className="p-2.5 rounded-lg bg-slate-950/80 border border-purple-500/30 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Type className="w-4 h-4 text-amber-400" />
+                        <div>
+                          <div className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                            <span>หัวข้อ & ชื่อสินค้าบนหน้าปก</span>
+                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-medium">
+                              แนะนำสำหรับ TikTok
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            {enableHookText
+                              ? 'เปิดอยู่: กำลังแสดงชื่อสินค้า/หัวข้อบนปกคลิป'
+                              : 'ปิดอยู่: โหมดภาพคลีน (หากต้องการให้มีชื่อสินค้าบนปก กรุณาเปิดสวิตช์)'}
+                          </div>
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={enableHookText}
+                          onChange={(e) => setEnableHookText(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+                      </label>
+                    </div>
+
+                    {enableHookText && (
+                      <div className="pt-1 space-y-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[10px] text-slate-400">ปุ่มลัดใส่ชื่อสินค้า:</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const words = (productName || 'GADGET PRODUCT').trim().split(/\s+/);
+                              const brand = words[0]?.toUpperCase() || 'BRAND';
+                              const model = words.slice(1, 3).join(' ')?.toUpperCase() || words[1]?.toUpperCase() || 'PRO REVIEW';
+                              setHookText(`${brand}\n${model}`);
+                              setSubText('รีวิวการใช้งานจริง');
+                              setTemplate('tech_neon');
+                              setEnableHookText(true);
+                            }}
+                            className="px-2 py-0.5 text-[10px] rounded bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-500/60 font-bold cursor-pointer shadow flex items-center gap-1"
+                          >
+                            <span>🔥 สไตล์ Tech Reviewer (ตามเรฟ)</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setHookText(productName || 'สินค้าพรีเมียม');
+                              setSubText('รีวิวการใช้งานจริง');
+                            }}
+                            className="px-2 py-0.5 text-[10px] rounded bg-purple-900/50 hover:bg-purple-800 text-purple-200 border border-purple-700/60 cursor-pointer"
+                          >
+                            🏷️ ชื่อสินค้าล้วน: {productName || 'สินค้า'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setHookText(`อย่าเพิ่งซื้อ ${productName || 'สินค้านี้'}\nถ้ายังไม่รู้สิ่งนี้!`);
+                              setSubText('พิกัดในตะกร้าลดพิเศษ');
+                            }}
+                            className="px-2 py-0.5 text-[10px] rounded bg-amber-900/40 hover:bg-amber-800/60 text-amber-200 border border-amber-700/60 cursor-pointer"
+                          >
+                            🔥 สไตล์ Hook ดึงดูด
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setHookText(`รีวิวชัดๆ ${productName || 'สินค้า'}\nคุ้มไหมกับราคานี้?`);
+                              setSubText('ดูคลิปจบตัดสินใจได้เลย');
+                            }}
+                            className="px-2 py-0.5 text-[10px] rounded bg-cyan-900/40 hover:bg-cyan-800/60 text-cyan-200 border border-cyan-700/60 cursor-pointer"
+                          >
+                            🎯 สไตล์ Review คุ้มไหม
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          value={hookText}
+                          onChange={(e) => setHookText(e.target.value)}
+                          placeholder="พิมพ์ข้อความหัวข้อบนปก..."
+                          className="w-full text-xs px-2.5 py-1.5 rounded bg-slate-900 border border-slate-700 text-amber-300 font-semibold focus:outline-none focus:border-amber-400"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Product Reference Shot Selector for AI */}
+                  {productRefImages.length > 0 && (
+                    <div className="p-2.5 rounded-lg bg-slate-950/70 border border-purple-500/20 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] text-purple-200 font-semibold flex items-center gap-1.5">
+                          <ShoppingBag className="w-3.5 h-3.5 text-amber-400" />
+                          ช็อตสินค้าต้นแบบสำหรับ AI (เลือกรูปจาก TikTok Shop หรือเฟรมวิดีโอ):
+                        </span>
+                        {selectedRefImage && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedRefImage(null);
+                              setCustomImage(null);
+                              setCustomImageFile(null);
+                            }}
+                            className="text-[10px] text-purple-400 hover:text-purple-200 hover:underline cursor-pointer"
+                          >
+                            รีเซ็ตเป็นเฟรมวิดีโอ
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex gap-1.5 overflow-x-auto pb-1 pt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedRefImage(null);
+                            setCustomImage(null);
+                            setCustomImageFile(null);
+                          }}
+                          className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] font-medium transition-all cursor-pointer ${
+                            !selectedRefImage
+                              ? 'bg-purple-600/30 border-purple-400 text-purple-200 shadow'
+                              : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          <Film className="w-3 h-3 text-purple-400" />
+                          เฟรมคลิป ({currentSeconds.toFixed(1)}s)
+                        </button>
+                        {productRefImages.map((img, idx) => {
+                          const isSel = selectedRefImage?.url === img.url;
+                          return (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => {
+                                setSelectedRefImage(img);
+                                setCustomImage(img.url);
+                                setCustomImageFile(img.local_path || img.url);
+                              }}
+                              className={`shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[10px] font-medium transition-all cursor-pointer ${
+                                isSel
+                                  ? 'bg-amber-500/20 border-amber-400 text-amber-200 ring-1 ring-amber-400/50 shadow'
+                                  : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:border-amber-400/40'
+                              }`}
+                            >
+                              <img src={img.url} alt="" className="w-4 h-4 object-cover rounded" />
+                              <span>รูป TT #{idx + 1}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Prompt Textarea */}
                   <div>
                     <label className="text-[11px] text-slate-400 block mb-1">
-                      คำสั่ง Prompt สำหรับสร้างภาพพื้นหลัง (สัดส่วน 9:16 ปรับแต่งอัตโนมัติ):
+                      {selectedRefImage ? (
+                        <span className="text-amber-300">
+                          คำสั่ง Prompt ฉากหลังสตูดิโอ (AI จะใช้รูปสินค้าคมชัดจาก TikTok Shop มาจัดวางกึ่งกลางอย่างลงตัว):
+                        </span>
+                      ) : (
+                        <span>
+                          คำสั่ง Prompt ฉากหลังสตูดิโอ (AI จะตัดสินค้าจริงจากวินาทีที่ {currentSeconds.toFixed(1)}s มาจัดวางกึ่งกลางอย่างลงตัว):
+                        </span>
+                      )}
                     </label>
                     <textarea
                       rows={3}
                       value={aiPrompt}
                       onChange={(e) => setAiPrompt(e.target.value)}
-                      placeholder="อธิบายภาพสินค้า มุมกล้อง โทนแสง และฉากหลัง..."
+                      placeholder="อธิบายสไตล์ฉากสตูดิโอ โทนแสง โพเดียม และบรรยากาศ..."
                       className="w-full text-xs p-2.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 focus:outline-none focus:border-purple-500 transition-colors resize-none placeholder-slate-600"
                     />
                   </div>
 
                   {/* Preset Buttons */}
                   <div className="space-y-1.5">
-                    <span className="text-[10px] text-slate-400 font-medium">สไตล์ภาพยอดนิยม:</span>
+                    <span className="text-[10px] text-slate-400 font-medium">สไตล์ฉากหลังยอดฮิตบน TikTok (ไม่มีคน ไม่รบกวนสินค้า):</span>
                     <div className="flex flex-wrap gap-1.5">
                       {[
                         {
-                          label: 'สตูดิโอระดับโปร',
-                          prompt: `High-end commercial product photography of ${productName || 'the product'}, centered hero composition, 8k resolution, cinematic studio lighting with soft gradient reflections, clean modern aesthetic, sharp focus, 9:16 vertical ratio`,
+                          label: '🎯 แผ่นรองตัดโมเดล (Dark Grid)',
+                          prompt: `Commercial 8k product hero photography of ${productName || 'product'}, placed flat at center on a dark charcoal gray precision model cutting mat with sharp white metric millimeter grid lines, ruler centimeter numbers, and alignment crosshair markings, professional tech reviewer desk setup, 45-degree high-angle view, clean diffused top softbox light casting subtle soft contact shadows under product edges, ultra-crisp macro texture, minimal modern gadget aesthetic, no people, no human, 9:16 vertical`,
                         },
                         {
-                          label: 'นีออนจัดจ้าน',
-                          prompt: `Dynamic cyberpunk neon commercial shot of ${productName || 'the product'}, glowing ambient highlights, modern tech background, high energy, bold contrast, ultra-detailed 9:16 vertical framing`,
+                          label: '⚡ ผนังระแนงเทค + ไฟคู่ ส้ม/ฟ้า',
+                          prompt: `Commercial 8k product showcase of ${productName || 'product'}, centered on a sleek matte dark stage in front of a modern vertical acoustic wooden slat wall, vibrant dual studio rim lighting with warm golden-amber backlight on one side and cool electric cyan backlight on the other side, dramatic contrast outlining product contours, clean high-end tech YouTuber backdrop, no people, no human, 9:16 vertical`,
                         },
                         {
-                          label: 'มินิมอลโมเดิร์น',
-                          prompt: `Minimalist aesthetic product photography for ${productName || 'the product'}, pastel tones, soft natural morning sunlight, clean podium surface, elegant and premium, 9:16 vertical composition`,
+                          label: '🖐️ มือโปรจับสินค้าจริง (Handheld)',
+                          prompt: `Commercial 8k close-up shot of a clean human hand holding ${productName || 'product'} firmly and neatly at center, fingers gripping sides naturally without obstructing logo or buttons, dark minimalist studio background with subtle warm orange and cool blue accent lights, sharp macro focus on the product, professional tech unboxing aesthetic, 9:16 vertical`,
                         },
                         {
-                          label: 'ไลฟ์สไตล์ธรรมชาติ',
-                          prompt: `Authentic lifestyle product placement of ${productName || 'the product'} in everyday cozy aesthetic environment, warm lighting, natural depth of field bokeh, photorealistic 9:16 portrait view`,
+                          label: '🏆 แท่นโชว์ดาร์กมินิมอล',
+                          prompt: `Ultra-clean commercial 8k product showcase, empty dark graphite round podium pedestal for ${productName || 'product'}, subtle overhead focused spotlight creating a smooth vignette shadow gradient, premium minimal matte surface with faint reflection, moody aesthetic, no people, no human, 9:16 vertical`,
+                        },
+                        {
+                          label: '✨ คลีนมินิมอลเกรย์ (Clean Studio)',
+                          prompt: `High-end commercial 8k product catalog photography for ${productName || 'product'}, centered on a smooth light gray seamless cyclorama curve background, bright balanced diffused softbox studio illumination, delicate natural contact shadow, ultra-clean Scandinavian minimal tech aesthetic, razor-sharp details, no people, no human, 9:16 vertical`,
                         },
                       ].map((preset, pIdx) => (
                         <button
@@ -1254,10 +1677,16 @@ export default function CoverStudioModal({
                 3. สไตล์แม่แบบ & ป้าย 3D (TikTok Templates)
               </label>
 
-              {/* 4 TikTok Templates Cards */}
+              {/* 5 TikTok Templates Cards */}
               {enableHookText && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
                   {[
+                    {
+                      id: 'tech_neon',
+                      name: '🔥 Tech Reviewer',
+                      desc: 'แบรนด์ขาว + รุ่นนีออน (ตามเรฟ)',
+                      badgeBg: 'bg-black border border-[#39FF14] text-[#39FF14] font-black',
+                    },
                     {
                       id: 'neon',
                       name: 'นีออนเหลือง',

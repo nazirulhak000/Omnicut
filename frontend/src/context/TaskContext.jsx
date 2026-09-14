@@ -74,11 +74,7 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
     }
   }, []);
 
-  useEffect(() => {
-    fetchViralMilestones();
-    const interval = setInterval(fetchViralMilestones, 30000);
-    return () => clearInterval(interval);
-  }, [fetchViralMilestones]);
+  // Fetch viral milestones on-demand (no background polling)
 
   // Keep a map of previous statuses to detect transitions (e.g. processing -> completed)
   const prevStatusesRef = useRef({});

@@ -135,6 +135,12 @@ export function ActivityDrawer() {
 
   const [tabFilter, setTabFilter] = useState('all'); // all | active | completed | viral
 
+  React.useEffect(() => {
+    if (tabFilter === 'viral' && fetchViralMilestones) {
+      fetchViralMilestones();
+    }
+  }, [tabFilter, fetchViralMilestones]);
+
   if (!isActivityDrawerOpen) return null;
 
   const viralCount = viralMilestones.length;

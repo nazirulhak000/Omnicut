@@ -27,12 +27,15 @@ import uuid
 import json
 import subprocess
 import urllib.parse
+import urllib.request
+import io
+import warnings
 from pathlib import Path
 from typing import Optional, Tuple, List, Dict, Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 
 from scripts.config import (
     BASE_DIR,
@@ -215,7 +218,7 @@ def probe_video_duration(video_path: Path) -> float:
         str(video_path)
     ]
     try:
-        res = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10)
         if res.returncode == 0 and res.stdout.strip():
             return max(0.5, float(res.stdout.strip()))
     except Exception:
@@ -357,6 +360,67 @@ def find_raw_sources_for_video(video_path: Path) -> List[Dict[str, Any]]:
                         })
 
     return sources
+
+
+def find_product_ref_images(
+    video_path: Optional[str] = None,
+    product_id: Optional[str] = None,
+    product_name: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Finds high-resolution product reference images (scraped from TikTok Shop / web / uploaded)
+    for a given product or video export.
+    """
+    from scripts.product_store import ProductStore
+    matched_product = None
+    if product_id:
+        matched_product = ProductStore.get(product_id)
+
+    if not matched_product and product_name:
+        p_clean = product_name.strip().lower()
+        for p in ProductStore.list():
+            p_name = (p.get("name") or "").strip().lower()
+            if p_name and (p_name == p_clean or p_clean in p_name or p_name in p_clean):
+                matched_product = p
+                break
+
+    if not matched_product and video_path:
+        v_name = Path(video_path).name.lower()
+        v_stem = Path(video_path).stem.lower()
+        for p in ProductStore.list():
+            for a in p.get("angles", []):
+                v_url = str(a.get("video_url") or "").lower()
+                pj_name = str(a.get("project_name") or "").lower()
+                sel_v = str(a.get("selected_video") or "").lower()
+                if (v_name and (v_name in v_url or v_name in sel_v)) or (pj_name and pj_name in v_stem):
+                    matched_product = p
+                    break
+            if matched_product:
+                break
+
+    ref_images = []
+    if matched_product:
+        images = matched_product.get("images") or []
+        for idx, item in enumerate(images):
+            if isinstance(item, str):
+                ref_images.append({
+                    "name": f"รูปสินค้า {idx + 1}",
+                    "url": item,
+                    "local_path": item if not item.startswith(("http://", "https://")) else None,
+                    "source": "url",
+                })
+            elif isinstance(item, dict):
+                url = item.get("url") or item.get("previewUrl") or ""
+                path = item.get("path") or item.get("local_path") or item.get("rel_path")
+                if not url and path:
+                    url = f"/api/media/{path}" if not path.startswith("/") else f"/api/media{path}"
+                ref_images.append({
+                    "name": item.get("name") or f"รูปสินค้า {idx + 1}",
+                    "url": url,
+                    "local_path": path,
+                    "source": item.get("source") or "tiktok_scraped",
+                })
+    return ref_images
 
 
 def get_badges_catalog() -> List[Dict[str, str]]:
@@ -848,6 +912,34 @@ def render_pro_cover(
                 )
                 cur_y += sub_font_size + line_spacing
 
+        elif tmpl in ("tech_neon", "tech_reviewer"):
+            cur_y = start_y
+            for idx, line in enumerate(hook_lines):
+                bbox = draw.textbbox((0, 0), line, font=font_main, stroke_width=18)
+                tw = bbox[2] - bbox[0]
+                tx = (COVER_W - tw) // 2
+                draw.text(
+                    (tx - bbox[0] + 6, cur_y - bbox[1] + 8), line, font=font_main,
+                    fill=(0, 0, 0), stroke_width=18, stroke_fill=(0, 0, 0)
+                )
+                color = (255, 255, 255) if idx == 0 else (57, 255, 20)
+                draw.text(
+                    (tx - bbox[0], cur_y - bbox[1]), line, font=font_main,
+                    fill=color, stroke_width=16, stroke_fill=(0, 0, 0)
+                )
+                cur_y += main_font_size + line_spacing + 6
+
+            for sline in sub_lines:
+                bbox = draw.textbbox((0, 0), sline, font=font_sub)
+                tw = bbox[2] - bbox[0]
+                th = bbox[3] - bbox[1]
+                tx = (COVER_W - tw) // 2
+                pad_x, pad_y = 28, 8
+                pill_box = [tx - pad_x, cur_y - pad_y, tx + tw + pad_x, cur_y + th + pad_y]
+                draw.rounded_rectangle(pill_box, radius=16, fill=(10, 15, 22), outline=(57, 255, 20), width=2)
+                draw.text((tx - bbox[0], cur_y - bbox[1]), sline, font=font_sub, fill=(255, 255, 255))
+                cur_y += sub_font_size + line_spacing + 8
+
         else:
             # Default: "neon"
             cur_y = start_y
@@ -958,6 +1050,12 @@ class RawSourcesRequest(BaseModel):
     video_path: str
 
 
+class ProductRefImagesRequest(BaseModel):
+    video_path: Optional[str] = None
+    product_id: Optional[str] = None
+    product_name: Optional[str] = None
+
+
 class GenerateHooksRequest(BaseModel):
     product_name: str
     angle_title: Optional[str] = ""
@@ -1006,6 +1104,17 @@ def get_raw_sources_endpoint(req: RawSourcesRequest):
     v_path = _resolve_media(req.video_path)
     sources = find_raw_sources_for_video(v_path)
     return {"raw_sources": sources}
+
+
+@router.post("/product-ref-images")
+def get_product_ref_images_endpoint(req: ProductRefImagesRequest):
+    """Lists high-res product reference images scraped from TikTok Shop / catalog."""
+    images = find_product_ref_images(
+        video_path=req.video_path,
+        product_id=req.product_id,
+        product_name=req.product_name,
+    )
+    return {"ref_images": images}
 
 
 @router.post("/generate-hooks")
@@ -1076,124 +1185,314 @@ def generate_cover_endpoint(req: GenerateCoverRequest):
     }
 
 
+class GrabFrameRequest(BaseModel):
+    video_path: str
+    at_seconds: float = 0.0
+
+
+@router.post("/grab-frame")
+def grab_frame_endpoint(req: GrabFrameRequest):
+    """
+    Grabs a single high-quality JPG frame from video at the specified timestamp in seconds.
+    Cached on disk for instant re-scrubbing.
+    """
+    if not req.video_path:
+        raise HTTPException(status_code=400, detail="video_path is required")
+    v_path = _resolve_media(req.video_path)
+    if not v_path.exists():
+        raise HTTPException(status_code=404, detail="Video file not found")
+
+    sec_str = f"{round(req.at_seconds, 2):.2f}".replace(".", "_")
+    vid_stem = v_path.stem[:24]
+    cache_name = f"frame_{vid_stem}_{sec_str}.jpg"
+    out_file = COVERS_DIR / cache_name
+
+    if not out_file.exists():
+        grab_frame(v_path, max(0.0, req.at_seconds), out_file)
+
+    if not out_file.exists():
+        raise HTTPException(status_code=500, detail="Failed to grab frame from video")
+
+    rel = out_file.relative_to(BASE_DIR)
+    media_url = f"/api/media/{urllib.parse.quote(str(rel).replace(chr(92), '/'))}"
+    return {
+        "success": True,
+        "frame_path": str(out_file),
+        "media_url": media_url,
+        "seconds": req.at_seconds,
+    }
+
+
 class AiGenerateCoverImageRequest(BaseModel):
     product_name: str = "สินค้า"
     hook_title: Optional[str] = ""
     style_prompt: Optional[str] = ""
     video_path: Optional[str] = None
+    at_seconds: Optional[float] = None
+    source_image_path: Optional[str] = None
+
+
+def _clean_backdrop_prompt(raw_prompt: Optional[str]) -> str:
+    """Sanitize prompt to generate an empty luxury commercial product stage or handheld hero shot."""
+    if not raw_prompt:
+        raw_prompt = ""
+    is_handheld = any(kw in raw_prompt.lower() for kw in ["hand holding", "holding", "มือถือสินค้า", "handheld"])
+    clean = "".join(ch for ch in raw_prompt if ord(ch) < 128)
+    if is_handheld:
+        for bad in ["portrait", "woman", "girl", "face", "model face"]:
+            clean = clean.replace(bad, "")
+        clean = " ".join(clean.split())
+        return f"{clean}, professional product demonstration, sharp focus on product, high contrast rim lighting, 9:16 vertical ratio"
+
+    for bad in ["product photography of", "commercial photography of", "portrait", "woman", "girl", "person", "human", "face"]:
+        clean = clean.replace(bad, "")
+    clean = " ".join(clean.split())
+    if len(clean) < 10:
+        clean = "Luxury commercial product display podium on dark marble floor, dramatic soft studio rim lighting, clean modern aesthetic"
+    return (
+        f"{clean}, empty product showcase stage, minimalist pedestal, high-end commercial studio lighting, "
+        f"completely empty center for product placement, no people, no humans, no woman, no girl, no man, "
+        f"no face, no model, 9:16 vertical ratio"
+    )
+
+
+def _get_genai_client(key: str):
+    from google import genai
+    return genai.Client(api_key=key)
+
+
+def _generate_cover_via_antigravity_cli(
+    prompt_text: str, prod_name: str, ts: int, uid: str, ref_image_path: Optional[Path] = None
+) -> Optional[Path]:
+    """
+    Directly execute Antigravity CLI's built-in generate_image tool.
+    Produces astonishing 8K commercial product hero covers without third-party API costs.
+    """
+    try:
+        if os.environ.get("DISABLE_ANTIGRAVITY", "").lower() in ("1", "true", "yes"):
+            return None
+        from scripts.ai_bridge import get_agy_path
+        agy_exe = get_agy_path()
+        if not agy_exe or not agy_exe.exists():
+            return None
+
+        cli_brain = Path.home() / ".gemini" / "antigravity-cli" / "brain"
+        t_before = time.time() - 2.0
+        prod_label = prod_name or "สินค้าพรีเมียม"
+        ref_clause = ""
+        if ref_image_path and ref_image_path.exists():
+            ref_path_str = str(ref_image_path.resolve()).replace("\\", "/")
+            ref_clause = f" ImagePaths=['{ref_path_str}']"
+
+        cmd_prompt = (
+            f"Use generate_image tool with AspectRatio 9:16 named cover_{uid}{ref_clause}: "
+            f"High-end commercial hero product shot of {prod_label}, cinematic studio lighting, 8k resolution, 9:16 vertical ratio: {prompt_text}"
+        )
+        cmd = [
+            str(agy_exe),
+            "-p",
+            cmd_prompt,
+            "--model",
+            "gemini-3.8-flash-high",
+            "--dangerously-skip-permissions",
+            "--output-format",
+            "text",
+        ]
+        proc = subprocess.run(
+            cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120
+        )
+        if proc.returncode == 0 and cli_brain.exists():
+            candidates = []
+            for p in cli_brain.glob("**/*.jpg"):
+                try:
+                    m = p.stat().st_mtime
+                    if m >= t_before:
+                        candidates.append((m, p))
+                except OSError:
+                    pass
+            candidates.sort(key=lambda x: x[0], reverse=True)
+            if candidates:
+                src_f = candidates[0][1]
+                out_f = COVERS_DIR / f"ai_cover_{ts}_{uid}.jpg"
+                out_f.write_bytes(src_f.read_bytes())
+                return out_f
+    except Exception as agy_ex:
+        print(f"[CoverStudioAI] Antigravity CLI note: {agy_ex}")
+    return None
 
 
 @router.post("/ai-generate-image")
 def ai_generate_cover_image_endpoint(req: AiGenerateCoverImageRequest):
     """
-    Generates a 9:16 vertical commercial cover image using Imagen 3 via Google GenAI SDK.
-    Falls back to smart sharpness/hero frame extraction from video footage if Imagen is unavailable.
+    Generates a 9:16 vertical commercial cover image.
+    Priority 1: Antigravity Pro CLI in-machine Image Generator (Ultra 8K)
+    Priority 2: Google GenAI Imagen 3 (Enterprise mode)
+    Priority 3: Free AI Image Generator (Pollinations / Flux) with strict negative prompt
+    Priority 4: Offline 3D Studio Podium Backdrop
     """
     COVERS_DIR.mkdir(parents=True, exist_ok=True)
     ts = int(time.time())
     safe_uid = uuid.uuid4().hex[:6]
     product_name = (req.product_name or "สินค้า").strip()
+    full_prompt = _clean_backdrop_prompt(req.style_prompt)
 
-    if req.style_prompt and req.style_prompt.strip():
-        full_prompt = req.style_prompt.strip()
-    else:
-        full_prompt = (
-            f"Commercial 8k product photography of {product_name}, "
-            f"high-end studio lighting, sleek podium, vibrant cinematic colors, "
-            f"ultra sharp focus, modern minimalist aesthetics, 9:16 vertical orientation, "
-            f"trending on TikTok, advertising poster quality"
-        )
-
-    # 1. Try Imagen 3 via google.genai
-    try:
-        from scripts.ai_bridge import AIBridge
-        api_keys = AIBridge.get_api_keys()
-    except Exception:
-        api_keys = []
-    if not api_keys:
-        fallback_k = os.environ.get("GEMINI_API_KEY", "").strip()
-        if fallback_k:
-            api_keys = [fallback_k]
+    # Download or resolve reference image if provided (from TikTok Shop / Catalog)
+    cached_ref_path = None
+    if req.source_image_path:
+        src = req.source_image_path.strip()
+        if src.startswith(("http://", "https://")):
+            try:
+                cached_ref_path = COVERS_DIR / f"ref_cache_{safe_uid}.jpg"
+                req_obj = urllib.request.Request(
+                    src,
+                    headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+                )
+                with urllib.request.urlopen(req_obj, timeout=12) as resp:
+                    cached_ref_path.write_bytes(resp.read())
+            except Exception as dl_err:
+                print(f"[CoverStudioAI] Download ref image error: {dl_err}")
+                cached_ref_path = None
+        else:
+            try:
+                cached_ref_path = _resolve_media(src)
+            except Exception:
+                p = Path(src)
+                if p.exists():
+                    cached_ref_path = p
 
     generated_file = None
-    method_used = "smart_frame"
+    method_used = "studio_auto"
 
-    if api_keys:
-        try:
-            from google import genai
-            from google.genai import types
+    # 1. Primary: In-machine Antigravity Pro CLI Image Generator
+    try:
+        agy_out = _generate_cover_via_antigravity_cli(
+            full_prompt, product_name, ts, safe_uid, ref_image_path=cached_ref_path
+        )
+        if agy_out and agy_out.exists():
+            generated_file = agy_out
+            method_used = "antigravity_pro"
+    except Exception as agy_err:
+        print(f"[CoverStudioAI] Antigravity generator error: {agy_err}")
 
-            for key in api_keys:
-                try:
-                    client = _get_genai_client(key)
-                    resp = client.models.generate_images(
-                        model="imagen-3.0-generate-002",
-                        prompt=full_prompt,
-                        config=types.GenerateImagesConfig(
-                            number_of_images=1,
-                            aspect_ratio="9:16",
-                            output_mime_type="image/jpeg",
-                        ),
-                    )
-                    if resp and resp.generated_images:
-                        img_bytes = resp.generated_images[0].image.image_bytes
-                        out_path = COVERS_DIR / f"ai_cover_{ts}_{safe_uid}.jpg"
-                        out_path.write_bytes(img_bytes)
-                        generated_file = out_path
-                        method_used = "imagen_3"
-                        break
-                except Exception as img_err:
-                    print(f"[CoverStudioAI] Imagen 3 note: {img_err}")
-                    continue
-        except Exception as sdk_err:
-            print(f"[CoverStudioAI] GenAI SDK note: {sdk_err}")
-
-    # 2. Fallback to Smart Frame Hunt if Imagen 3 did not produce an image
-    if not generated_file and req.video_path:
-        try:
-            v_path = _resolve_media(req.video_path)
-            hl = extract_highlight_candidates(v_path)
-            cand_list = hl.get("candidates") or []
-            best_cand = cand_list[min(1, len(cand_list) - 1)] if cand_list else None
-            if best_cand and best_cand.get("path"):
-                src_frame = Path(best_cand["path"])
-                if src_frame.exists():
-                    out_path = COVERS_DIR / f"smart_cover_{ts}_{safe_uid}.jpg"
-                    out_path.write_bytes(src_frame.read_bytes())
-                    generated_file = out_path
-                    method_used = "smart_frame"
-        except Exception as frame_err:
-            print(f"[CoverStudioAI] Smart frame fallback note: {frame_err}")
-
-    # 3. Final fallback: create a clean 9:16 gradient canvas if no footage
+    # 2. Secondary: Try Google GenAI Imagen 3 if configured
     if not generated_file:
-        out_path = COVERS_DIR / f"clean_cover_{ts}_{safe_uid}.jpg"
-        img = Image.new("RGB", (COVER_W, COVER_H), color=(18, 24, 38))
-        draw = ImageDraw.Draw(img)
-        for y in range(COVER_H):
-            ratio = y / COVER_H
-            r = int(18 + ratio * 20)
-            g = int(24 + ratio * 30)
-            b = int(38 + ratio * 50)
-            draw.line([(0, y), (COVER_W, y)], fill=(r, g, b))
-        img.save(out_path, format="JPEG", quality=95)
-        generated_file = out_path
-        method_used = "clean_gradient"
+        try:
+            from scripts.ai_bridge import AIBridge
+            api_keys = AIBridge.get_api_keys()
+        except Exception:
+            api_keys = []
+        if not api_keys:
+            fallback_k = os.environ.get("GEMINI_API_KEY", "").strip()
+            if fallback_k:
+                api_keys = [fallback_k]
 
-    rel = generated_file.relative_to(BASE_DIR)
-    media_url = f"/api/media/{urllib.parse.quote(str(rel).replace(chr(92), '/'))}"
+        if api_keys:
+            try:
+                from google import genai
+                from google.genai import types
+
+                for key in api_keys:
+                    try:
+                        with warnings.catch_warnings():
+                            warnings.simplefilter("ignore")
+                            client = _get_genai_client(key)
+                            resp = client.models.generate_images(
+                                model="imagen-3.0-generate-002",
+                                prompt=full_prompt,
+                                config=types.GenerateImagesConfig(
+                                    number_of_images=1,
+                                    aspect_ratio="9:16",
+                                    output_mime_type="image/jpeg",
+                                ),
+                            )
+                            if resp and resp.generated_images:
+                                img_bytes = resp.generated_images[0].image.image_bytes
+                                out_path = COVERS_DIR / f"ai_cover_{ts}_{safe_uid}.jpg"
+                                out_path.write_bytes(img_bytes)
+                                generated_file = out_path
+                                method_used = "imagen_3"
+                                break
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+
+    # 3. Tertiary: Free AI Image Generator (Pollinations / Flux)
+    if not generated_file:
+        try:
+            encoded_p = urllib.parse.quote(full_prompt)
+            is_handheld_prompt = any(kw in (req.style_prompt or "").lower() for kw in ["hand holding", "holding", "มือถือสินค้า", "handheld"])
+            if is_handheld_prompt:
+                neg_str = "face,eyes,head,portrait,anime,character,distorted,bad anatomy,extra fingers,blurry,deformed"
+            else:
+                neg_str = "person,people,human,woman,girl,model,face,man,character,clothing,portrait,anime,eyes"
+            negative = urllib.parse.quote(neg_str)
+            gen_url = f"https://image.pollinations.ai/prompt/{encoded_p}?width=1080&height=1920&nologo=true&seed={safe_uid}&negative={negative}"
+            req_ai = urllib.request.Request(gen_url, headers={"User-Agent": "OmniCutProStudio/1.0"})
+            with urllib.request.urlopen(req_ai, timeout=12) as ai_resp:
+                if ai_resp.status == 200:
+                    ai_bytes = ai_resp.read()
+                    if len(ai_bytes) > 5000:
+                        out_path = COVERS_DIR / f"ai_cover_{ts}_{safe_uid}.jpg"
+                        ai_img = Image.open(io.BytesIO(ai_bytes)).convert("RGB")
+                        if ai_img.size != (COVER_W, COVER_H):
+                            ai_img = ai_img.resize((COVER_W, COVER_H), Image.Resampling.LANCZOS)
+                        ai_img.save(out_path, format="JPEG", quality=95)
+                        generated_file = out_path
+                        method_used = "ai_free"
+        except Exception as free_err:
+            print(f"[CoverStudioAI] Free AI Generator note: {free_err}")
+
+    # 4. Quaternary: Elegant Offline 3D Studio Podium Backdrop
+    if not generated_file:
+        out_path = COVERS_DIR / f"studio_cover_{ts}_{safe_uid}.jpg"
+        backdrop = Image.new("RGBA", (COVER_W, COVER_H), (14, 18, 28, 255))
+        b_draw = ImageDraw.Draw(backdrop)
+        for y in range(COVER_H):
+            ratio = y / float(COVER_H)
+            r = int(14 + ratio * 20)
+            g = int(18 + ratio * 28)
+            b = int(28 + ratio * 48)
+            b_draw.line([(0, y), (COVER_W, y)], fill=(r, g, b, 255))
+
+        spot = Image.new("RGBA", (COVER_W, COVER_H), (0, 0, 0, 0))
+        s_draw = ImageDraw.Draw(spot)
+        s_draw.ellipse([180, 480, 900, 1380], fill=(60, 130, 245, 80))
+        spot = spot.filter(ImageFilter.GaussianBlur(140))
+        backdrop.alpha_composite(spot)
+
+        podium = Image.new("RGBA", (COVER_W, COVER_H), (0, 0, 0, 0))
+        p_draw = ImageDraw.Draw(podium)
+        p_draw.ellipse([240, 1240, 840, 1420], fill=(24, 32, 48, 240), outline=(60, 140, 255, 160), width=2)
+        p_draw.rectangle([240, 1330, 840, 1450], fill=(18, 24, 36, 250))
+        p_draw.ellipse([240, 1360, 840, 1540], fill=(14, 18, 28, 255))
+        backdrop.alpha_composite(podium)
+
+        backdrop.convert("RGB").save(out_path, format="JPEG", quality=95)
+        generated_file = out_path
+        method_used = "studio_auto"
+
+    try:
+        rel = generated_file.relative_to(BASE_DIR)
+        rel_str = str(rel).replace("\\", "/")
+        media_url = f"/api/media/{urllib.parse.quote(rel_str)}"
+    except ValueError:
+        rel_str = str(generated_file).replace("\\", "/")
+        media_url = f"/api/media/{urllib.parse.quote(rel_str)}"
 
     return {
         "success": True,
         "image_path": str(generated_file),
-        "rel_path": str(rel).replace("\\", "/"),
+        "rel_path": rel_str,
         "media_url": media_url,
         "method": method_used,
         "prompt_used": full_prompt,
         "message": (
-            "สร้างรูปหน้าปกด้วย Imagen 3 สำเร็จแล้ว!"
-            if method_used == "imagen_3"
-            else "ดึงเฟรมไฮไลต์ที่คมชัดที่สุดจากคลิปเรียบร้อยแล้ว!"
+            "สร้างรูปหน้าปกสินค้า 8K ด้วย Antigravity สำเร็จแล้ว!"
+            if "antigravity_pro" in method_used
+            else "สร้างรูปหน้าปกสินค้าด้วย AI Studio สำเร็จแล้ว!"
+            if "ai_free" in method_used
+            else "สร้างภาพพื้นหลังสตูดิโอ 9:16 เรียบร้อยแล้ว!"
         ),
     }
 

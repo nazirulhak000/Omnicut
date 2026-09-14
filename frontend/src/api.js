@@ -139,8 +139,14 @@ export const renderProCover = (payload) =>
 export const getCoverRawSources = (videoPath) =>
   api.post('/covers/raw-sources', { video_path: videoPath }).then(r => r.data);
 
+export const getCoverProductRefImages = (params) =>
+  api.post('/covers/product-ref-images', params).then(r => r.data);
+
 export const generateAiCoverImage = (payload) =>
   api.post('/covers/ai-generate-image', payload).then(r => r.data);
+
+export const grabCoverFrame = (videoPath, atSeconds) =>
+  api.post('/covers/grab-frame', { video_path: videoPath, at_seconds: atSeconds }).then(r => r.data);
 
 export const markPosted = (filePath, productId = null, angleId = null, exportId = null) =>
   api.post('/exports/mark-posted', {
