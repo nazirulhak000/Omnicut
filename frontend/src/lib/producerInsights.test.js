@@ -15,6 +15,7 @@ import {
   diversifyByProduct,
   detectRefPlatform,
   getClipIdentityAliases,
+  buildAnglePayload,
 } from './producerInsights.js';
 
 test('getMondayOfWeek and getSundayOfWeek calculate Monday to Sunday interval correctly', () => {
@@ -192,6 +193,51 @@ test('analyzeContentPerformance identifies top video and actionable insights', (
   assert.ok(result.topTakeaways.length >= 2);
   assert.equal(result.method, 'heuristic');
   assert.equal(result.sampleSize, 2);
+});
+
+test('analyzeContentPerformance adapts latest TikTok posts with nested metrics', () => {
+  const result = analyzeContentPerformance({
+    posts: [
+      {
+        id: 'post-1',
+        title: 'คลิปจาก TikTok Studio',
+        posted_at: '2026-09-10T00:00:00Z',
+        metrics: { views: 1200, likes: 80, shares: 12, comments: 4 },
+      },
+    ],
+  });
+
+  assert.equal(result.hasData, true);
+  assert.equal(result.sampleSize, 1);
+  assert.equal(result.topPerformer.sourceId, 'post-1');
+  assert.equal(result.topPerformer.title, 'คลิปจาก TikTok Studio');
+  assert.equal(result.topPerformer.views, 1200);
+  assert.equal(result.topPerformer.likes, 80);
+});
+
+test('getDailyActionQueue keeps exports with path-only metadata usable', () => {
+  const queue = getDailyActionQueue([], [{ export_id: 'exp-path-only', path: '04_Exports/demo.mp4', is_posted: false }]);
+
+  assert.equal(queue.readyToPost.length, 1);
+  assert.equal(queue.readyToPost[0].id, 'exp-path-only');
+  assert.equal(queue.readyToPost[0].title, 'demo');
+});
+
+test('buildAnglePayload preserves canonical AI proposal fields and aliases', () => {
+  assert.deepEqual(buildAnglePayload({
+    angle_name: 'มุมจากภาพเรฟ',
+    hook_title: 'ฮุกจาก AI',
+    shoot_angle_brief: 'ถ่ายสินค้าใกล้ๆ',
+    script_brief: 'บทพูดจาก AI',
+    hook_category: 'warning',
+  }), {
+    name: 'มุมจากภาพเรฟ',
+    hook: 'ฮุกจาก AI',
+    hook_category: 'warning',
+    shoot_brief: 'ถ่ายสินค้าใกล้ๆ',
+    script: 'บทพูดจาก AI',
+    tags: ['warning', 'ref-inspired'],
+  });
 });
 
 test('analyzeContentPerformance changes evidence when metric distribution changes', () => {

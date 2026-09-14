@@ -24,6 +24,10 @@
 
 - [x] Round THAI-STACKED-MARK-RENDER-FIX-1 — แก้ `ั` + `่` ซ้อนทับใน Render ด้วย layout-preserving ASS companion event (2026-09-13; backend 1,133 passed, visual/contract 178 passed, frontend 185 passed, build ผ่าน, ดำเนินการโดย: Codex (GPT-5))
 
+- [x] Round AI-PRODUCER-VISION-1 — ยกระดับ AI Gemini Vision วิเคราะห์ภาพเรฟเฟอเรนซ์ใน Quick Ref Vault และ Producer Hub สังเคราะห์เป็นสคริปต์และมุมมองวิดีโอ TikTok (2026-09-14; pytest 20 passed, vitest 219 passed, build 3.59s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
+- [x] Round COVER-AI-IMAGEN-1 — AI สร้างรูปหน้าปกคลิป 9:16 ใน Cover Studio (Imagen 3 + Smart Frame Hunt) (2026-09-14; pytest 2 passed, vitest 219 passed, build ผ่าน, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
+- [x] Round STORAGE-OPTIMIZER-1 — ระบบล้างแคชคืนพื้นที่ดิสก์ & ความปลอดภัย Safe Storage Optimizer (2026-09-14; pytest 8 passed, vitest 219 passed, build ผ่าน, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
+
 - [ ] Round AI-PRODUCER-HUB-AUDIT-PLAN-1 — ตรวจสอบการใช้งาน AI Producer Hub และจัดทำแผนยกระดับแบบ evidence-first (2026-09-13; วิเคราะห์โค้ด + browser snapshot แล้ว, รออนุมัติ scope, ดำเนินการโดย: Codex (GPT-5))
 
 - [x] Round HOOK-DEFAULT-5S-1 — ปรับค่าเริ่มต้น (default) ของป้ายฮุกพาดหัว (Hook Banner) เป็น 5.0 วินาทีตั้งแต่ตอนสร้างโปรเจกต์ (2026-09-11; frontend 151 passed, backend 157 passed, build pass)
@@ -131,12 +135,43 @@
 - [x] npm run build: ✓ built in 11.65s
 
 ## Round TIKTOK-MANUAL-MATCH-1 — ปุ่มจับคู่ manual ในแท็บ Performance สำหรับแถว Studio ที่ fuzzy match ไม่เจอ
-- [ ] Import ที่ unmatched เก็บลง pending store ใหม่ (_Docs/store.db ตาราง tiktok_pending) กันแถวหายหลังปิดแถบข้าง
-- [ ] API ใหม่: GET /api/tiktok-stats/pending + POST /api/tiktok-stats/attach (post_id + pending row → เก็บ video_id/url/metrics/posted_at แล้วลบ pending) + POST /ignore
-- [ ] API รายการคลิปในคลัง (ProductStore exported clips) สำหรับ dropdown จับคู่
-- [ ] Frontend PerformanceAnalyticsTab: กล่อง "ไม่เจอคู่ N แถว" + เลือกคลิปจากคลัง + ปุ่มจับคู่/เมิน (ui_clean_standard: ไม่มีสัญลักษณ์ซ้ำซ้อน)
-- [ ] Tests: pytest (pending/attach/ignore + attach อัปเดต metrics จริง) + frontend vitest + build
-- [ ] Gate: python -m compileall -q scripts + pytest เต็ม + npm test + npm run build
+วันที่: 2026-09-14 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์ ✅
+- [x] Import ที่ unmatched เก็บลง pending store ใหม่ (_Docs/store.db ตาราง tiktok_pending) กันแถวหายหลังปิดแถบข้าง
+- [x] API ใหม่: GET /api/tiktok-stats/pending + POST /api/tiktok-stats/attach (post_id + pending row → เก็บ video_id/url/metrics/posted_at แล้วลบ pending) + POST /ignore
+- [x] API รายการคลิปในคลัง (ProductStore exported clips) สำหรับ dropdown จับคู่
+- [x] Frontend PerformanceAnalyticsTab: กล่อง "ไม่เจอคู่ N แถว" + เลือกคลิปจากคลัง + ปุ่มจับคู่/เมิน (ui_clean_standard: ไม่มีสัญลักษณ์ซ้ำซ้อน) + Viral Milestone Alert 10k+
+- [x] Tests: pytest (pending/attach/ignore + attach อัปเดต metrics จริง 12 passed) + frontend vitest 219 passed + build
+- [x] Gate: python -m compileall -q scripts + pytest เต็ม + npm test + npm run build
+
+## Round AI-PRODUCER-WORKFLOW-1 — Edit Note, Pin/Favorite, และ Live Update ใน Producer Hub & Quick Ref
+วันที่: 2026-09-14 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์ ✅
+- [x] API ใหม่: PUT /api/producer/notes/{note_id} รองรับ text, tag, productName, url, isPinned, isFavorite พร้อม optimistic concurrency check
+- [x] ระบบจัดลำดับ Note อัตโนมัติ: โน้ตที่ isPinned จะถูกดึงขึ้นมาอยู่ด้านบนสุดเสมอ ทั้งฝั่ง Backend API และ Local State
+- [x] UI ปุ่มปักหมุด (Pin Toggle) บนการ์ดโน้ต ทั้งใน ProducerHub และ QuickRefPage
+- [x] UI หน้าต่างแก้ไขโน้ต (Edit Note Modal ใน ProducerHub และ Inline Edit Mode ใน QuickRefPage)
+- [x] Tests: pytest tests/test_producer_notes_api.py (4 passed) + npm test (219 passed) + npm run build ผ่าน
+
+## Round AI-PRODUCER-VISION-1 — ยกระดับ AI Gemini Vision วิเคราะห์ภาพเรฟใน Quick Ref Vault & Producer Hub
+วันที่: 2026-09-14 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์ ✅
+- [x] Backend: ระบบแปลง reference image เป็น multimodal input สำหรับ Gemini 2.5 Flash Vision (`scripts/api_producer.py`)
+- [x] Backend: Prompt วิเคราะห์สไตล์ภาพ (มุมกล้อง, แบนเนอร์พาดหัว, อารมณ์, การสาธิตสินค้า) สังเคราะห์เป็นสคริปต์ 9:16 สไตล์ TikTok
+- [x] Backend: ระบบ Fallback ออฟไลน์/ไร้ API key ทำงานราบรื่น 100% ป้องกัน crash
+- [x] Frontend: การ์ดแสดงผล `👁️ ข้อมูลเชิงลึกจากภาพเรฟ (Visual Insights)` ใน Modal ข้อเสนอของ ProducerHub และ QuickRefPage
+- [x] Tests: pytest tests/test_producer_vision_api.py (4 passed) + producer_notes_api (4 passed) + tiktok (12 passed) + vitest 219 passed + build ผ่าน 100%
+
+## Round COVER-AI-IMAGEN-1 — AI สร้างรูปหน้าปกคลิป 9:16 ใน Cover Studio
+วันที่: 2026-09-14 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์ ✅
+- [x] Backend: เพิ่ม endpoint POST /api/covers/ai-generate-image สร้างภาพปก 9:16 ด้วย Imagen 3 (หรือ Smart Frame Hunt fallback) (`scripts/api_covers.py`)
+- [x] Backend: ระบบ Auto-Prompting สำหรับ Commercial Product Photography อัตราส่วน 9:16 พร้อม 4 สไตล์ยอดนิยม
+- [x] Frontend: เพิ่มแท็บ "AI สร้างรูป 9:16" พร้อมกล่องปรับแต่ง Prompt และปุ่มสั่งเจนภาพใน CoverStudioModal.jsx
+- [x] Tests: pytest tests/test_api_covers_ai.py (2 passed) + vitest (219 passed) + build ผ่าน 100%
+
+## Round STORAGE-OPTIMIZER-1 — ระบบล้างแคชคืนพื้นที่ดิสก์ & ความปลอดภัย Safe Storage Optimizer
+วันที่: 2026-09-14 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์ ✅
+- [x] Backend: เครื่องมือสแกนและล้างแคชปลอดภัย `scripts/storage_cleaner.py` (กวาดล้าง .vision_proxies, temp files, CapCut transient cache) พร้อม Rule 1 Guards ห้ามแตะ 01_Raw และ 02_Assets 100%
+- [x] Backend: เชื่อมโยงเข้ากับ GET /api/analytics/storage และ POST /api/analytics/storage/purge-safe-cache
+- [x] Frontend: การ์ด Safe Cache Cleaner แสดงขนาดขยะที่ล้างได้ + ปุ่มล้างคืนพื้นที่ดิสก์ใน StorageAnalyticsTab
+- [x] Tests: pytest tests/test_storage_cleaner.py + test_analytics_hub.py (8 passed) + vitest (219 passed) + build ผ่าน 100%
 
 ## Round TIKTOK-STATS-SCRAPE-2 (backlog)
 ## Round TIKTOK-STATS-SCRAPE-2 (backlog) — แท็บ Performance เพิ่มลิงก์ คลิปปัง threshold + แมพ manual สำหรับ unmatched rows
@@ -173,3 +208,16 @@
 - ทุกรอบงานปฏิบัติตาม Rule 14 บันทึกชื่อ Agent Tooling และโมเดลที่ดำเนินการครบถ้วน 100%
 
 
+# ๐“‹ OmniCut Pro Studio โ€” Todo เธเธฅเธฒเธ
+
+## Round AI-PRODUCER-HUB-AUDIT-PLAN-1 — ปิด audit และ hardening Producer Hub (2026-09-14; ดำเนินการโดย: Codex (GPT-5))
+
+## Round BG-SUBJECT-ISOLATION-3 — Preview/Render parity + usable per-clip processing
+
+ดำเนินการโดย: Codex (GPT-5)
+
+สถานะ: เสร็จแล้ว — เพิ่ม API ประมวลผล sequence, state persistence, Preview/Render compositing, UI control และ fallback safety
+
+Gate: backend 1386 passed / 3 skipped, BG focused 151 passed / 3 skipped, frontend 219 passed, Vite build ผ่าน 2005 modules, compileall ผ่าน, FFmpeg fixture ตรวจ pixel แล้ว
+
+---

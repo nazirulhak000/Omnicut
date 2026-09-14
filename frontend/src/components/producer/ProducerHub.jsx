@@ -5,12 +5,13 @@ import {
   Copy, Check, Plus, Trash2, Video, Film, Eye, Share2, ThumbsUp,
   RefreshCw, Clapperboard, ChevronRight, Zap, Scissors, Compass,
   BookOpen, FileText, ExternalLink, X, Bookmark, Image as ImageIcon,
-  Link as LinkIcon, Smartphone, Filter, Tag, Loader2, Clipboard, Search
+  Link as LinkIcon, Smartphone, Filter, Tag, Loader2, Clipboard, Search,
+  Pin, Edit3
 } from 'lucide-react';
 import {
   getProducts, getExports, getTiktokStatsLatest,
   uploadRefMedia, aiIdeaToAngle, addProductAngle,
-  getProducerNotes, addProducerNote, deleteProducerNote
+  getProducerNotes, addProducerNote, deleteProducerNote, updateProducerNote
 } from '../../api';
 import {
   loadTargets,
@@ -83,19 +84,45 @@ export default function ProducerHub({
 
   // Quick Preview Modal state
   const [previewItem, setPreviewItem] = useState(null);
+  // Note editing modal state
+  const [editingNote, setEditingNote] = useState(null);
 
   useEffect(() => {
-    if (!showTargetsModal && !previewItem && !aiProposal && !activeZoomImage) return undefined;
+    if (!showTargetsModal && !previewItem && !aiProposal && !activeZoomImage && !editingNote) return undefined;
+    const dialog = document.querySelector('[role="dialog"]');
+    const previousFocus = document.activeElement;
+    const getFocusable = () => dialog
+      ? Array.from(dialog.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'))
+      : [];
+    getFocusable()[0]?.focus();
     const handleModalKeyDown = (event) => {
-      if (event.key !== 'Escape') return;
-      if (activeZoomImage) setActiveZoomImage(null);
-      else if (aiProposal) setAiProposal(null);
-      else if (previewItem) setPreviewItem(null);
-      else setShowTargetsModal(false);
+      if (event.key === 'Escape') {
+        if (activeZoomImage) setActiveZoomImage(null);
+        else if (aiProposal) setAiProposal(null);
+        else if (previewItem) setPreviewItem(null);
+        else if (editingNote) setEditingNote(null);
+        else setShowTargetsModal(false);
+        return;
+      }
+      if (event.key !== 'Tab' || !dialog) return;
+      const focusable = getFocusable();
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener('keydown', handleModalKeyDown);
-    return () => document.removeEventListener('keydown', handleModalKeyDown);
-  }, [activeZoomImage, aiProposal, previewItem, showTargetsModal]);
+    return () => {
+      document.removeEventListener('keydown', handleModalKeyDown);
+      if (previousFocus instanceof HTMLElement && document.contains(previousFocus)) previousFocus.focus();
+    };
+  }, [activeZoomImage, aiProposal, previewItem, showTargetsModal, editingNote]);
 
   // Load data from APIs
   const fetchData = useCallback(async () => {
@@ -109,15 +136,17 @@ export default function ProducerHub({
       ]);
 
       const sourceResults = [
-        ['สินค้า', prodRes],
-        ['ไฟล์ Export', expRes],
-        ['สถิติ TikTok', statsRes],
-        ['Playbook', notesRes],
+        ['สินค้า', prodRes, prodRes.status === 'fulfilled' && (Array.isArray(prodRes.value) || Array.isArray(prodRes.value?.products))],
+        ['ไฟล์ Export', expRes, expRes.status === 'fulfilled' && (Array.isArray(expRes.value) || Array.isArray(expRes.value?.exports))],
+        ['สถิติ TikTok', statsRes, statsRes.status === 'fulfilled' && (Array.isArray(statsRes.value) || Array.isArray(statsRes.value?.rows) || Array.isArray(statsRes.value?.posts))],
+        ['Playbook', notesRes, notesRes.status === 'fulfilled' && notesRes.value?.success && Array.isArray(notesRes.value?.notes)],
       ];
       setPartialFailures(sourceResults
-        .filter(([, result]) => result.status === 'rejected')
+        .filter(([, result, valid]) => result.status === 'rejected' || !valid)
         .map(([label]) => label));
-      setLastSyncedAt(new Date().toISOString());
+      if (sourceResults.some(([, result, valid]) => result.status === 'fulfilled' && valid)) {
+        setLastSyncedAt(new Date().toISOString());
+      }
 
       if (prodRes.status === 'fulfilled') {
         const prodData = prodRes.value;
@@ -505,6 +534,48 @@ export default function ProducerHub({
     }
   };
 
+  // Handle Toggle Pin Note
+  const handleTogglePinNote = async (item) => {
+    const newPinned = !item.isPinned;
+    const patched = { ...item, isPinned: newPinned };
+    const updated = playbookNotes.map(n => n.id === item.id ? patched : n);
+    setPlaybookNotes(updated);
+    try {
+      const res = await updateProducerNote(item.id, { isPinned: newPinned });
+      if (res?.success && Array.isArray(res.notes)) {
+        setPlaybookNotes(res.notes);
+        savePlaybookNotes(res.notes);
+      }
+      setToastMessage(newPinned ? 'ปักหมุดโน้ตไว้ด้านบนสุดแล้ว 📌' : 'ยกเลิกการปักหมุดแล้ว');
+      setTimeout(() => setToastMessage(null), 2500);
+    } catch (err) {
+      setPlaybookNotes(playbookNotes);
+      savePlaybookNotes(playbookNotes);
+      setToastMessage('ไม่สามารถอัปเดตการปักหมุดบนเซิร์ฟเวอร์ได้');
+      setTimeout(() => setToastMessage(null), 3000);
+      console.warn('Failed to update note pin state:', err);
+    }
+  };
+
+  // Handle Save Edited Note
+  const handleSaveEditedNote = async (updatedFields) => {
+    if (!editingNote) return;
+    try {
+      const res = await updateProducerNote(editingNote.id, updatedFields);
+      if (res?.success && Array.isArray(res.notes)) {
+        setPlaybookNotes(res.notes);
+        savePlaybookNotes(res.notes);
+      }
+      setToastMessage('บันทึกการแก้ไขโน้ตเรียบร้อยแล้ว');
+      setTimeout(() => setToastMessage(null), 2500);
+      setEditingNote(null);
+    } catch (err) {
+      setToastMessage('ไม่สามารถบันทึกการแก้ไขได้ กรุณาลองใหม่');
+      setTimeout(() => setToastMessage(null), 3500);
+      console.warn('Failed to update note:', err);
+    }
+  };
+
   // One-click Copy/Share note for Boss or Team
   const handleCopyNoteForBoss = (item) => {
     const text = formatNoteForSharing(item);
@@ -652,6 +723,26 @@ export default function ProducerHub({
     );
   }
 
+  if (partialFailures.length === 4) {
+    return (
+      <div className="flex min-h-[450px] items-center justify-center p-6">
+        <div role="alert" aria-live="assertive" className="w-full max-w-lg rounded-2xl border border-rose-400/25 bg-slate-900/80 p-6 text-center shadow-xl">
+          <AlertTriangle className="mx-auto mb-3 h-8 w-8 text-rose-300" />
+          <h2 className="text-base font-bold text-white">โหลดข้อมูล Producer Hub ไม่สำเร็จ</h2>
+          <p className="mt-2 text-sm leading-relaxed text-slate-400">ระบบยังเชื่อมต่อแหล่งข้อมูลไม่ได้ จึงยังไม่แสดงตัวเลขหรือคิวงานที่อาจคลาดเคลื่อน</p>
+          <button
+            type="button"
+            onClick={fetchData}
+            className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-slate-950 transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-amber-300/80"
+          >
+            <RefreshCw className="h-4 w-4" />
+            ลองโหลดใหม่
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 pb-12">
       {/* ── 1. Boss Greeting Banner ── */}
@@ -750,7 +841,14 @@ export default function ProducerHub({
           </div>
 
           {/* Neon Progress bar */}
-          <div className="w-full h-2.5 rounded-full bg-slate-800 overflow-hidden mb-2.5">
+          <div
+            role="progressbar"
+            aria-label="ความคืบหน้าเป้าหมายตัดต่อรายสัปดาห์"
+            aria-valuenow={stats.weeklyCuts.pct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            className="w-full h-2.5 rounded-full bg-slate-800 overflow-hidden mb-2.5"
+          >
             <div
               className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-500 shadow-sm"
               style={{ width: `${stats.weeklyCuts.pct}%` }}
@@ -787,7 +885,14 @@ export default function ProducerHub({
           </div>
 
           {/* Progress bar */}
-          <div className="w-full h-2.5 rounded-full bg-slate-800 overflow-hidden mb-2.5">
+          <div
+            role="progressbar"
+            aria-label="ความคืบหน้าเป้าหมายตัดต่อรายวัน"
+            aria-valuenow={stats.dailyCuts.pct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            className="w-full h-2.5 rounded-full bg-slate-800 overflow-hidden mb-2.5"
+          >
             <div
               className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all duration-500 shadow-sm"
               style={{ width: `${stats.dailyCuts.pct}%` }}
@@ -818,7 +923,14 @@ export default function ProducerHub({
           </div>
 
           {/* Progress bar */}
-          <div className="w-full h-2.5 rounded-full bg-slate-800 overflow-hidden mb-2.5">
+          <div
+            role="progressbar"
+            aria-label="ความคืบหน้าเป้าหมายโพสต์ TikTok รายวัน"
+            aria-valuenow={stats.dailyPosts.pct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            className="w-full h-2.5 rounded-full bg-slate-800 overflow-hidden mb-2.5"
+          >
             <div
               className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-500 shadow-sm"
               style={{ width: `${stats.dailyPosts.pct}%` }}
@@ -1012,7 +1124,7 @@ export default function ProducerHub({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*,video/*"
+                accept="image/*"
                 multiple
                 onChange={handleImageSelect}
                 className="hidden"
@@ -1131,11 +1243,21 @@ export default function ProducerHub({
               return (
                 <div
                   key={item.id}
-                  className="p-3.5 rounded-xl bg-slate-800/40 border border-white/5 hover:border-amber-500/30 transition-all flex flex-col justify-between gap-2.5 group"
+                  className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between gap-2.5 group ${
+                    item.isPinned
+                      ? 'bg-amber-500/[0.05] border-amber-500/40 shadow-sm shadow-amber-500/10'
+                      : 'bg-slate-800/40 border-white/5 hover:border-amber-500/30'
+                  }`}
                 >
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5 flex-wrap">
+                        {item.isPinned && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1">
+                            <Pin className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                            <span>ปักหมุด</span>
+                          </span>
+                        )}
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1">
                           <Tag className="w-2.5 h-2.5" />
                           {item.tag || 'Idea'}
@@ -1152,18 +1274,48 @@ export default function ProducerHub({
                         )}
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteNote(item.id);
-                        }}
-                        className="px-2 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs font-semibold flex items-center gap-1 cursor-pointer active:scale-95 transition-all shadow-sm"
-                        title="ลบรายการนี้"
-                      >
-                        <Trash2 className="w-3 h-3 text-rose-400" />
-                        <span>ลบ</span>
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleTogglePinNote(item);
+                          }}
+                          className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center cursor-pointer transition-all ${
+                            item.isPinned
+                              ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm'
+                              : 'bg-white/5 hover:bg-white/10 text-slate-400 border-white/10'
+                          }`}
+                          title={item.isPinned ? 'ยกเลิกการปักหมุด' : 'ปักหมุดให้อยู่บนสุด'}
+                          aria-label={item.isPinned ? 'ยกเลิกการปักหมุด' : 'ปักหมุดให้อยู่บนสุด'}
+                        >
+                          <Pin className={`w-3 h-3 ${item.isPinned ? 'fill-amber-400 text-amber-400' : ''}`} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingNote({ ...item });
+                          }}
+                          className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 text-xs font-semibold flex items-center cursor-pointer transition-all"
+                          title="แก้ไขข้อความโน้ต"
+                          aria-label="แก้ไขข้อความโน้ต"
+                        >
+                          <Edit3 className="w-3 h-3 text-cyan-400" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteNote(item.id);
+                          }}
+                          className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs font-semibold flex items-center cursor-pointer transition-all shadow-sm"
+                          title="ลบรายการนี้"
+                          aria-label="ลบรายการนี้"
+                        >
+                          <Trash2 className="w-3 h-3 text-rose-400" />
+                        </button>
+                      </div>
                     </div>
 
                     {item.text && (
@@ -1175,8 +1327,17 @@ export default function ProducerHub({
                     {/* Multi-Image Gallery */}
                     {itemImages.length === 1 && (
                       <div
+                        role="button"
+                        tabIndex={0}
+                        aria-label="ดูรูปอ้างอิงขนาดใหญ่"
                         onClick={() => setActiveZoomImage(itemImages[0])}
-                        className="relative rounded-lg overflow-hidden border border-white/10 max-h-28 bg-black/40 cursor-zoom-in group/img"
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            setActiveZoomImage(itemImages[0]);
+                          }
+                        }}
+                        className="relative rounded-lg overflow-hidden border border-white/10 max-h-28 bg-black/40 cursor-zoom-in group/img focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80"
                         title="คลิกเพื่อดูรูปขยายใหญ่"
                       >
                         <img
@@ -1202,8 +1363,17 @@ export default function ProducerHub({
                             return (
                               <div
                                 key={imgIdx}
+                                role="button"
+                                tabIndex={0}
+                                aria-label={`ดูรูปอ้างอิงที่ ${imgIdx + 1} ขนาดใหญ่`}
                                 onClick={() => setActiveZoomImage(imgUrl)}
-                                className="relative h-16 rounded-lg overflow-hidden border border-white/10 bg-black/40 cursor-pointer group/thumb hover:border-amber-500/40 transition-all"
+                                onKeyDown={(event) => {
+                                  if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault();
+                                    setActiveZoomImage(imgUrl);
+                                  }
+                                }}
+                                className="relative h-16 rounded-lg overflow-hidden border border-white/10 bg-black/40 cursor-pointer group/thumb hover:border-amber-500/40 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80"
                               >
                                 <img
                                   src={imgUrl}
@@ -1589,8 +1759,8 @@ export default function ProducerHub({
                 <span>💡 จุดเด่นที่ทำให้ยอดพุ่ง</span>
                 <span className="text-[10px] text-amber-400 lowercase font-normal">คลิกเพื่อจดลง Playbook ได้ทันที</span>
               </h4>
-              {playbookSuggestions.map((item) => (
-                <div key={item.id || i} className="flex items-center justify-between gap-3 text-xs text-slate-300 bg-slate-800/30 p-2.5 rounded-lg border border-white/5 group hover:border-amber-500/30 transition-all">
+              {playbookSuggestions.map((item, index) => (
+                <div key={item.id || item.text || `suggestion-${index}`} className="flex items-center justify-between gap-3 text-xs text-slate-300 bg-slate-800/30 p-2.5 rounded-lg border border-white/5 group hover:border-amber-500/30 transition-all">
                   <div className="flex items-start gap-2 min-w-0">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 flex-shrink-0" />
                     <span className="leading-relaxed">{item.text}</span>
@@ -1878,6 +2048,22 @@ export default function ProducerHub({
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 text-xs">
+              {aiProposal.visual_insights && (
+                <div className="p-3 rounded-xl bg-emerald-950/25 border border-emerald-500/30 text-emerald-200 text-xs flex items-start gap-2.5">
+                  <span className="p-1 rounded-lg bg-emerald-500/20 text-emerald-400 shrink-0 mt-0.5">
+                    <Sparkles className="w-3.5 h-3.5" />
+                  </span>
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">
+                      ข้อมูลเชิงลึกจากภาพเรฟ (Visual Insights)
+                    </span>
+                    <p className="text-xs text-emerald-100/90 leading-relaxed">
+                      {aiProposal.visual_insights}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-[11px] font-bold text-slate-400 mb-1">ชื่อมุมมอง (Angle Name)</label>
                 <input
@@ -1977,9 +2163,6 @@ export default function ProducerHub({
             aria-modal="true"
             aria-label="ดูภาพเรฟขนาดใหญ่"
             onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-label="ดูภาพเรฟขนาดใหญ่"
             className="relative max-w-4xl max-h-[90vh] flex flex-col items-center gap-3 cursor-default"
           >
             <button
@@ -1987,7 +2170,6 @@ export default function ProducerHub({
               onClick={() => setActiveZoomImage(null)}
               className="absolute -top-11 right-0 p-2 rounded-full bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white cursor-pointer transition-colors shadow-lg"
               title="ปิดรูปขยาย"
-              aria-label="ปิดรูปขยาย"
               aria-label="ปิดรูปขยาย"
             >
               <X className="w-5 h-5" />
@@ -2020,6 +2202,106 @@ export default function ProducerHub({
               >
                 <Copy className="w-3.5 h-3.5 text-amber-400" />
                 <span>คัดลอกลิงก์รูป</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit Note Modal ── */}
+      {editingNote && (
+        <div
+          onClick={() => setEditingNote(null)}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-fadeIn"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-note-title"
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg rounded-2xl bg-slate-900 border border-white/10 p-5 sm:p-6 shadow-2xl space-y-4 my-auto"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <h3 id="edit-note-title" className="text-base font-bold text-white flex items-center gap-2">
+                <Edit3 className="w-4 h-4 text-cyan-400" />
+                <span>แก้ไขข้อความโน้ต</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setEditingNote(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white bg-slate-800 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">ข้อความไอเดีย</label>
+                <textarea
+                  rows={4}
+                  value={editingNote.text || ''}
+                  onChange={(e) => setEditingNote({ ...editingNote, text: e.target.value })}
+                  placeholder="พิมพ์ข้อความไอเดียหรือสรุปประเด็น..."
+                  className="w-full p-3 rounded-xl bg-slate-950 border border-white/10 text-xs text-slate-200 leading-relaxed focus:outline-none focus:border-cyan-400 resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">หมวดหมู่ (Tag)</label>
+                  <input
+                    type="text"
+                    value={editingNote.tag || ''}
+                    onChange={(e) => setEditingNote({ ...editingNote, tag: e.target.value })}
+                    placeholder="เช่น Hook, Visual, Promo"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-white/10 text-xs text-slate-200 focus:outline-none focus:border-cyan-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">ชื่อสินค้า (ถ้ามี)</label>
+                  <input
+                    type="text"
+                    value={editingNote.productName || ''}
+                    onChange={(e) => setEditingNote({ ...editingNote, productName: e.target.value })}
+                    placeholder="ชื่อสินค้า"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-white/10 text-xs text-slate-200 focus:outline-none focus:border-cyan-400"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">ลิงก์เรฟ (URL)</label>
+                <input
+                  type="text"
+                  value={editingNote.url || ''}
+                  onChange={(e) => setEditingNote({ ...editingNote, url: e.target.value })}
+                  placeholder="https://..."
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-white/10 text-xs text-slate-200 focus:outline-none focus:border-cyan-400"
+                />
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-white/10 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setEditingNote(null)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSaveEditedNote({
+                  text: editingNote.text,
+                  tag: editingNote.tag,
+                  productName: editingNote.productName,
+                  url: editingNote.url,
+                })}
+                className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-lg shadow-cyan-500/20 active:scale-95 transition-all"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>บันทึกการแก้ไข</span>
               </button>
             </div>
           </div>

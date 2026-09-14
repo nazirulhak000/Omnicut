@@ -30,6 +30,7 @@ REFS_DIR = ASSETS_DIR / "Refs"
 REFS_DIR.mkdir(parents=True, exist_ok=True)
 NOTES_FILE = REFS_DIR / "playbook_notes.json"
 MAX_REF_MEDIA_BYTES = 10 * 1024 * 1024
+REF_MEDIA_NAME_RE = re.compile(r"^ref_[0-9a-f]{12}\.(?:jpg|jpeg|png|webp|gif|mp4|mov|heic|heif)$", re.IGNORECASE)
 MAX_NOTE_TEXT_LENGTH = 12000
 MAX_NOTE_IMAGES = 12
 
@@ -51,9 +52,17 @@ DEFAULT_STARTER_NOTES = [
 ]
 
 
+def sort_notes(notes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    return sorted(
+        notes,
+        key=lambda n: (1 if n.get("isPinned") else 0, n.get("createdAt") or ""),
+        reverse=True,
+    )
+
+
 def load_notes_from_disk() -> List[Dict[str, Any]]:
     if not NOTES_FILE.exists():
-        return list(DEFAULT_STARTER_NOTES)
+        return sort_notes(list(DEFAULT_STARTER_NOTES))
     try:
         with open(NOTES_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -66,16 +75,17 @@ def load_notes_from_disk() -> List[Dict[str, Any]]:
                             note["images"] = []
                     elif note["images"] and not note.get("imageUrl"):
                         note["imageUrl"] = note["images"][0]
-                return data
+                return sort_notes(data)
     except Exception:
         pass
-    return list(DEFAULT_STARTER_NOTES)
+    return sort_notes(list(DEFAULT_STARTER_NOTES))
 
 
 def save_notes_to_disk(notes: List[Dict[str, Any]]) -> None:
+    sorted_notes = sort_notes(notes)
     temp_file = NOTES_FILE.with_suffix(".tmp")
     with open(temp_file, "w", encoding="utf-8") as f:
-        json.dump(notes, f, ensure_ascii=False, indent=2)
+        json.dump(sorted_notes, f, ensure_ascii=False, indent=2)
     temp_file.replace(NOTES_FILE)
 
 
@@ -108,10 +118,11 @@ def normalize_note(note: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def notes_response(notes: List[Dict[str, Any]]) -> Dict[str, Any]:
+    sorted_notes = sort_notes(notes)
     return {
         "success": True,
-        "notes": notes,
-        "revision": notes_revision(notes),
+        "notes": sorted_notes,
+        "revision": notes_revision(sorted_notes),
         "updatedAt": datetime.datetime.now(timezone.utc).isoformat(),
     }
 
@@ -132,6 +143,20 @@ class NotesPayload(BaseModel):
 class SingleNotePayload(BaseModel):
     model_config = ConfigDict(extra="allow")
     note: Optional[Dict[str, Any]] = None
+
+
+class UpdateNotePayload(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    text: Optional[str] = None
+    tag: Optional[str] = None
+    productName: Optional[str] = None
+    productCode: Optional[str] = None
+    url: Optional[str] = None
+    images: Optional[List[str]] = None
+    imageUrl: Optional[str] = None
+    isPinned: Optional[bool] = None
+    isFavorite: Optional[bool] = None
+    base_revision: Optional[str] = None
 
 
 @router.post("/upload-ref-media")
@@ -195,8 +220,9 @@ async def upload_ref_media(file: UploadFile = File(...)):
 def get_ref_media(filename: str):
     """Serve uploaded reference media."""
     safe_name = Path(filename).name
-    file_path = REFS_DIR / safe_name
-    if not file_path.exists():
+    refs_root = REFS_DIR.resolve()
+    file_path = (refs_root / safe_name).resolve()
+    if safe_name != filename or not REF_MEDIA_NAME_RE.fullmatch(safe_name) or file_path.parent != refs_root or not file_path.is_file():
         raise HTTPException(status_code=404, detail="ไม่พบไฟล์สื่อเรฟ")
     return FileResponse(file_path)
 
@@ -258,13 +284,241 @@ def delete_note(note_id: str):
     return notes_response(updated)
 
 
+@router.put("/notes/{note_id}")
+def update_note(note_id: str, payload: UpdateNotePayload):
+    """Update an existing note (text, tag, product, images, isPinned, isFavorite, etc.)."""
+    existing = load_notes_from_disk()
+    current_rev = notes_revision(existing)
+
+    if payload.base_revision and payload.base_revision != current_rev:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "ข้อมูลถูกแก้ไขจากเครื่องอื่น กรุณารีเฟรชแล้วลองใหม่อีกครั้ง",
+                "revision": current_rev,
+                "notes": existing,
+            },
+        )
+
+    target_idx = next((i for i, n in enumerate(existing) if n.get("id") == note_id), None)
+    if target_idx is None:
+        raise HTTPException(status_code=404, detail=f"ไม่พบโน้ต id: {note_id}")
+
+    target = dict(existing[target_idx])
+    patch = payload.model_dump(exclude_unset=True)
+    patch.pop("base_revision", None)
+
+    target.update(patch)
+    target["updatedAt"] = datetime.datetime.now(timezone.utc).isoformat()
+    target = normalize_note(target)
+
+    existing[target_idx] = target
+    save_notes_to_disk(existing)
+    return {**notes_response(existing), "note": target}
+
+
+def _resolve_image_bytes(img_ref: str) -> Optional[tuple[bytes, str]]:
+    """Resolve an image reference (file name, URL, local path, or base64 data URL) into (bytes, mime_type)."""
+    if not img_ref or not isinstance(img_ref, str):
+        return None
+    raw = img_ref.strip()
+    if not raw:
+        return None
+
+    # Case 1: Data URL (e.g. pasted directly before upload)
+    if raw.startswith("data:image/"):
+        try:
+            header, encoded = raw.split(",", 1)
+            mime = "image/jpeg"
+            m = re.search(r"data:(image/[a-zA-Z0-9\+\-\.]+);", header)
+            if m:
+                mime = m.group(1).lower()
+            data = base64.b64decode(encoded)
+            if not data or len(data) > MAX_REF_MEDIA_BYTES:
+                return None
+            return data, mime
+        except Exception:
+            return None
+
+    # Case 2: Remote URL
+    if raw.lower().startswith(("http://", "https://")):
+        try:
+            import urllib.request
+            req = urllib.request.Request(raw, headers={"User-Agent": "OmniCutPro/1.0"})
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                data = resp.read(MAX_REF_MEDIA_BYTES + 1)
+                if len(data) > MAX_REF_MEDIA_BYTES:
+                    return None
+                content_type = resp.headers.get("Content-Type", "").split(";")[0].strip().lower()
+                if not content_type.startswith("image/"):
+                    return None
+                mime = content_type
+                return data, mime
+        except Exception:
+            return None
+
+    # Case 3: Local file (either filename in REFS_DIR, /api/producer/ref-media/{name}, or relative/absolute path)
+    filename = Path(raw).name
+    candidate_paths = [
+        REFS_DIR / filename,
+        Path(raw),
+        ASSETS_DIR / raw,
+        Path(__file__).resolve().parent.parent / raw,
+    ]
+    for p in candidate_paths:
+        try:
+            if p.is_file() and 0 < p.stat().st_size <= MAX_REF_MEDIA_BYTES:
+                ext = p.suffix.lower().lstrip(".")
+                mime = {
+                    "jpg": "image/jpeg",
+                    "jpeg": "image/jpeg",
+                    "png": "image/png",
+                    "webp": "image/webp",
+                    "heic": "image/heic",
+                    "heif": "image/heif",
+                    "gif": "image/gif",
+                }.get(ext, "image/jpeg")
+                return p.read_bytes(), mime
+        except Exception:
+            continue
+
+    return None
+
+
+def _generate_angle_with_gemini(
+    idea: str,
+    url: str,
+    product: Optional[Dict[str, Any]],
+    resolved_images: List[tuple[bytes, str]],
+) -> Optional[Dict[str, Any]]:
+    """Synthesize angle proposal via Gemini 2.5 Flash Multimodal Vision."""
+    # Pre-flight budget check
+    try:
+        from scripts.quota import check_budget
+        check_budget(task="idea_to_angle")
+    except Exception as q_err:
+        print(f"[ProducerAI] Quota check note: {q_err}")
+        return None
+
+    # Collect configured API keys
+    try:
+        from scripts.ai_bridge import AIBridge
+        api_keys = AIBridge.get_api_keys()
+    except Exception:
+        api_keys = []
+    if not api_keys:
+        fallback_k = os.environ.get("GEMINI_API_KEY", "").strip()
+        if fallback_k:
+            api_keys = [fallback_k]
+    if not api_keys:
+        return None
+
+    product_name = (product.get("name") or product.get("title") or "สินค้าแนะนำ") if product else "สินค้าแนะนำ"
+    brand = product.get("brand", "") if product else ""
+    product_desc = product.get("description", "") if product else ""
+    selling_points = (product.get("selling_points") or []) if product else []
+    pain_points = (product.get("pain_points") or []) if product else []
+
+    system_prompt = f"""คุณเป็น Creative Director & Video Strategist มืออาชีพระดับท็อปสำหรับ TikTok 9:16 (Short-form Video)
+หน้าที่ของคุณคือวิเคราะห์ข้อมูลสินค้า, บันทึกไอเดียของผู้ใช้, ลิงก์อ้างอิง และภาพถ่าย/ภาพแคปหน้าจอที่แนบมา (เช่น แคปหน้าจอคลิปไวรัลใน TikTok, มุมกล้องตัวอย่าง, รูปสินค้าจริง)
+จากนั้นสังเคราะห์ข้อเสนอมุมมองวิดีโอ (Video Angle) ที่ดึงดูดสายตาภายใน 0-3 วินาทีแรก และกระตุ้นยอดขายได้อย่างมีพลัง
+
+ข้อมูลสินค้าเป้าหมาย:
+- ชื่อสินค้า: {product_name}
+- แบรนด์: {brand or '-'}
+- รายละเอียด: {product_desc or '-'}
+- จุดขายเด่น: {', '.join(selling_points) if selling_points else '-'}
+- ปัญหาที่ช่วยแก้ (Pain Points): {', '.join(pain_points) if pain_points else '-'}
+
+ไอเดีย / บันทึกของผู้ใช้:
+{idea or '(ไม่มีข้อความระบุ ให้วิเคราะห์จากภาพเรฟเป็นหลัก)'}
+{f'ลิงก์อ้างอิง: {url}' if url else ''}
+
+แนวทางการวิเคราะห์ภาพเรฟ:
+- หากเป็นภาพแคปหน้าจอ TikTok: ตรวจจับรูปแบบ Hook ที่ใช้, ตัวหนังสือพาดหัว, การแสดงอารมณ์, หรือการเปิดคลิป
+- หากเป็นภาพสินค้า: ตรวจจับจุดเด่นของดีไซน์, พื้นผิว, มุมกล้องที่ดูสวยงาม (เช่น Macro shot, Hand-held demo)
+- นำสิ่งที่เห็นในภาพมาระบุไว้ใน 'visual_insights' และนำไปปรับใช้ในแผนถ่ายทำ 'shoot_angle_brief'
+
+กฎสำคัญของโปรเจกต์:
+1. ห้ามใส่เครื่องหมายจุดไข่ปลา '...' หรือ '…' ในบทพูดหรือฮุกเด็ดขาด (ใช้การเว้นวรรคธรรมชาติ)
+2. ห้ามทับศัพท์ชื่อแบรนด์/รุ่น/คำเทคนิคภาษาอังกฤษเป็นไทย ให้คงภาษาอังกฤษไว้ (เช่น Bluetooth, USB-C)
+3. สเปกวิดีโอคือ 9:16 ความยาวประมาณ 30 วินาที
+
+โปรดตอบกลับเป็น JSON ภาษาไทย ตามโครงสร้างนี้เท่านั้น ห้ามมีคำอธิบายอื่นนอก JSON:
+{{
+  "angle_name": "ชื่อมุมมองสั้น กระชับ ชัดเจน (เช่น มุมเตือนภัยจากภาพเรฟ, มุมเทียบความคุ้มค่า)",
+  "visual_insights": "สรุปสิ่งที่ตรวจพบจากภาพเรฟ 1-2 ประโยค (เช่น พบการซูมใกล้โชว์ตัวเครื่อง และตัวหนังสือพาดหัวเตือนภัยสีเหลืองชัดเจน)",
+  "hook_title": "ประโยคฮุกเปิดคลิป 0-3 วินาทีแรกที่สะกดคนดูทันที (ห้ามมีจุดไข่ปลา)",
+  "target_audience": "กลุ่มเป้าหมายที่ตรงกับคลิปนี้",
+  "pain_point": "ปัญหาหลักที่คลิปนี้เน้นขยี้",
+  "shoot_angle_brief": "แผนถ่ายทำ 3 สเต็ป (1. 0-3 วิแรก... 2. 3-15 วิ... 3. 15-30 วิ...) โดยดึงมุมภาพจากเรฟมาใช้",
+  "script_brief": "บทพากย์ย่อสำหรับคลิป 30 วิ (ประมาณ 3-4 ประโยคกระชับ ได้จังหวะ TTS ที่ดี)",
+  "duration": "30s"
+}}"""
+
+    try:
+        from google import genai
+        from google.genai import types
+        import time
+
+        image_parts = []
+        for img_bytes, mime_type in resolved_images:
+            try:
+                image_parts.append(types.Part.from_bytes(data=img_bytes, mime_type=mime_type))
+            except Exception as part_err:
+                print(f"[ProducerAI] Error creating Part: {part_err}")
+
+        contents = [system_prompt, *image_parts] if image_parts else [system_prompt]
+
+        for key in api_keys:
+            client = genai.Client(api_key=key)
+            for model_name in ["gemini-2.5-flash", "gemini-2.5-flash-lite"]:
+                try:
+                    t0 = time.time()
+                    resp = client.models.generate_content(
+                        model=model_name,
+                        contents=contents,
+                    )
+                    if resp and resp.text:
+                        raw_text = resp.text.strip()
+                        m = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", raw_text)
+                        clean_json = m.group(1).strip() if m else raw_text
+                        parsed = json.loads(clean_json)
+                        if isinstance(parsed, dict) and "hook_title" in parsed:
+                            # Token tracking
+                            try:
+                                from scripts.token_tracker import TokenTracker
+                                in_tok = max(100, len(system_prompt) // 2) + (len(image_parts) * 258)
+                                out_tok = max(50, len(raw_text) // 2)
+                                TokenTracker.record_event(
+                                    task="idea_to_angle",
+                                    model=model_name,
+                                    provider="google_ai_studio",
+                                    input_tokens=in_tok,
+                                    output_tokens=out_tok,
+                                    latency_seconds=time.time() - t0,
+                                    project_name=product_name,
+                                )
+                            except Exception:
+                                pass
+                            return parsed
+                except Exception as call_err:
+                    print(f"[ProducerAI] Model {model_name} note: {call_err}")
+                    continue
+    except Exception as sdk_err:
+        print(f"[ProducerAI] GenAI SDK note: {sdk_err}")
+
+    return None
+
+
 @router.post("/ai-idea-to-angle")
 def ai_idea_to_angle(req: IdeaToAngleRequest):
-    """Synthesize an idea/link/screenshot into a high-converting TikTok video angle proposal."""
+    """Synthesize an idea/link/screenshot into a high-converting TikTok video angle proposal using Gemini Vision."""
     idea = (req.idea_text or "").strip()
     url = (req.ref_url or "").strip()
     product_id = req.product_id
 
+    product = None
     product_name = "สินค้าแนะนำ"
     product_desc = ""
     selling_points = []
@@ -280,8 +534,76 @@ def ai_idea_to_angle(req: IdeaToAngleRequest):
             pain_points = product.get("pain_points") or []
             brand = product.get("brand") or ""
 
-    # Generate synthesized video angle proposal
-    # 1. Detect core angle theme from idea/url
+    # Resolve attached reference images (max 3 for token & latency efficiency)
+    raw_images: List[str] = []
+    if req.ref_images:
+        raw_images.extend([img for img in req.ref_images if img])
+    if req.ref_image and req.ref_image not in raw_images:
+        raw_images.insert(0, req.ref_image)
+
+    resolved_images: List[tuple[bytes, str]] = []
+    for img_ref in raw_images:
+        if len(resolved_images) >= 3:
+            break
+        res_img = _resolve_image_bytes(img_ref)
+        if res_img:
+            resolved_images.append(res_img)
+
+    # 1. Try Multimodal Gemini Vision Synthesis
+    gemini_result = _generate_angle_with_gemini(
+        idea=idea,
+        url=url,
+        product=product,
+        resolved_images=resolved_images,
+    )
+
+    if gemini_result:
+        raw_hook = gemini_result.get("hook_title") or f"⚡ ถ้าคุณกำลังเจอปัญหานี้ {product_name} จบได้ในตัวเดียว!"
+        clean_hook = TTSSanitizer.clean_display_text(raw_hook)
+        raw_script = gemini_result.get("script_brief") or ""
+        clean_script = TTSSanitizer.clean_display_text(raw_script) if raw_script else (
+            f"{clean_hook} ใครเจอปัญหานี้ตัวนี้ช่วยได้ทันทีครับ พิกัดในตะกร้าด้านล่างได้เลยครับ"
+        )
+        shoot_brief = gemini_result.get("shoot_angle_brief") or (
+            f"1. 0–3 วิ: วางสินค้า {product_name} โชว์ฮุกสะดุดตา\n"
+            f"2. 3–15 วิ: ซูมอินสาธิตการใช้งานจริง\n"
+            f"3. 15–30 วิ: ชี้พิกัดตะกร้าพร้อมปิดการขาย"
+        )
+        visual_insights = gemini_result.get("visual_insights") or (
+            f"วิเคราะห์จากภาพเรฟ {len(resolved_images)} ภาพ โดย Gemini 2.5 Flash Vision" if resolved_images else ""
+        )
+
+        proposal = {
+            "angle_name": gemini_result.get("angle_name") or f"มุมมองแนะนำ: {idea[:24] if idea else product_name}",
+            "visual_insights": visual_insights,
+            "hook_title": clean_hook,
+            "hook": clean_hook,
+            "target_audience": gemini_result.get("target_audience") or "กลุ่มลูกค้าที่มองหาของแท้ คุ้มค่า แก้ปัญหาได้ตรงจุด",
+            "pain_point": gemini_result.get("pain_point") or (pain_points[0] if pain_points else "ปัญหาที่คนเจอบ่อย"),
+            "shoot_angle_brief": shoot_brief,
+            "shoot_brief": shoot_brief,
+            "script_brief": clean_script,
+            "script": clean_script,
+            "duration": gemini_result.get("duration") or "30s",
+            "product_id": product_id,
+            "product_name": product_name,
+            "ref_url": url,
+        }
+
+        return {
+            "success": True,
+            "analysis": {
+                "method": "gemini_vision" if resolved_images else "gemini_flash",
+                "source": "gemini_multimodal",
+                "used_ref_url": bool(url),
+                "used_ref_images": bool(resolved_images),
+                "image_count": len(resolved_images),
+                "confidence": "high",
+            },
+            "proposal": proposal,
+        }
+
+    # 2. Heuristic Rule-Based Fallback (Offline / No Key / Fallback)
     is_warning = any(w in idea.lower() for w in ["หยุด", "ระวัง", "อย่า", "เตือน", "พัง", "ห้าม"])
     is_curiosity = any(w in idea.lower() for w in ["ทำไม", "ความลับ", "ใครจะรู้", "เพิ่งรู้", "จริงไหม"])
     is_deal = any(w in idea.lower() for w in ["คุ้ม", "ลด", "ราคา", "โปร", "แจก", "ถูก"])
@@ -303,16 +625,14 @@ def ai_idea_to_angle(req: IdeaToAngleRequest):
         hook_title = f"⚡ ถ้าคุณกำลังเจอปัญหานี้ {product_name} จบได้ในตัวเดียว!"
         core_pain = pain_points[0] if pain_points else "มองหาตัวช่วยที่ตอบโจทย์และคุ้มค่า"
 
-    clean_hook = TTSSanitizer.clean_text(hook_title)
+    clean_hook = TTSSanitizer.clean_display_text(hook_title)
 
-    # Shoot brief guidance based on ref
     shoot_brief = (
         f"1. 0–3 วิแรก: วางสินค้า {product_name} กึ่งกลางจอ พร้อมแสดงสีหน้าหรือท่าทางตกใจตามฮุก\n"
         f"2. 3–15 วิ: ซูมอินให้เห็นจุดเด่นสินค้าชัดๆ สาธิตการใช้งานแก้ปัญหา {core_pain}\n"
         f"3. 15–30 วิ: ถือสินค้าโชว์มุมสวย พร้อมชี้ไปที่ตะกร้าเหลืองด้านล่างซ้าย"
     )
 
-    # Voiceover script brief (3-part pacing)
     feature_text = selling_points[0] if selling_points else "ดีไซน์ทันสมัย ใช้งานสะดวก ทนทานคุ้มราคา"
     script_lines = [
         clean_hook,
@@ -321,15 +641,25 @@ def ai_idea_to_angle(req: IdeaToAngleRequest):
         "พิกัดของแท้พร้อมโปรพิเศษ กดที่ตะกร้าเหลืองมุมซ้ายล่างได้เลยครับ",
     ]
     script_brief = " ".join(script_lines)
-    clean_script = TTSSanitizer.sanitize_script(script_brief)
+    clean_script = TTSSanitizer.clean_display_text(script_brief)
+
+    visual_insights = (
+        f"ตรวจพบภาพเรฟ {len(resolved_images)} ภาพ (สังเคราะห์มุมมองด้วย Heuristic Rule-based Engine)"
+        if resolved_images
+        else "สังเคราะห์มุมมองจากคีย์เวิร์ดและข้อมูลสินค้า (Heuristic Rule-based Engine)"
+    )
 
     proposal = {
         "angle_name": angle_name,
+        "visual_insights": visual_insights,
         "hook_title": clean_hook,
+        "hook": clean_hook,
         "target_audience": "กลุ่มลูกค้าที่มองหาของแท้ คุ้มค่า แก้ปัญหาได้ตรงจุด",
         "pain_point": core_pain,
         "shoot_angle_brief": shoot_brief,
+        "shoot_brief": shoot_brief,
         "script_brief": clean_script,
+        "script": clean_script,
         "duration": "30s",
         "product_id": product_id,
         "product_name": product_name,
@@ -339,11 +669,12 @@ def ai_idea_to_angle(req: IdeaToAngleRequest):
     return {
         "success": True,
         "analysis": {
-            "method": "heuristic",
+            "method": "heuristic_fallback",
             "source": "idea_text_and_product_catalog",
             "used_ref_url": bool(url),
-            "used_ref_images": bool(req.ref_image or req.ref_images),
-            "confidence": "low",
+            "used_ref_images": bool(resolved_images),
+            "image_count": len(resolved_images),
+            "confidence": "medium" if resolved_images else "low",
         },
         "proposal": proposal,
     }

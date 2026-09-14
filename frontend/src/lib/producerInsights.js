@@ -109,7 +109,6 @@ export function saveTargets(targets) {
 }
 
 /**
-/**
  * Load playbook notes.
  */
 export function loadPlaybookNotes() {
@@ -481,11 +480,12 @@ export function getDailyActionQueue(products = [], exports = []) {
       });
       if (!alreadyInList) {
         const parentProduct = findProductForExport(exp, products);
+        const exportName = exp.name || (exp.path ? exp.path.replace(/\\/g, '/').split('/').pop() : null) || exp.export_id || 'คลิปตัดเสร็จ';
         readyToPost.push({
           type: 'export_file',
           id: exp.export_id || exp.name,
           productId: parentProduct?.id || exp.product_id || exp.productId,
-          title: exp.name.replace(/\.mp4$/i, ''),
+          title: exportName.toString().replace(/\.mp4$/i, ''),
           productName: parentProduct?.name || exp.product_name || 'คลิปตัดเสร็จ',
           productCode: parentProduct?.product_code || exp.product_code || exp.productCode,
           parentProduct,
@@ -588,6 +588,22 @@ export function getDailyActionQueue(products = [], exports = []) {
       readyToCut: diversifiedCut.length,
       needsFootage: diversifiedFootage.length,
     },
+  };
+}
+
+/**
+ * Convert either the canonical AI proposal fields or the legacy aliases into
+ * the payload accepted by the product angle API.
+ */
+export function buildAnglePayload(proposal = {}) {
+  const hookCategory = proposal.hook_category || 'curiosity';
+  return {
+    name: proposal.name || proposal.angle_name || 'มุมมองจากเรฟ',
+    hook: proposal.hook || proposal.hook_title || '',
+    hook_category: hookCategory,
+    shoot_brief: proposal.shoot_brief || proposal.shoot_angle_brief || '',
+    script: proposal.script || proposal.script_brief || '',
+    tags: [hookCategory, 'ref-inspired'].filter(Boolean),
   };
 }
 
@@ -760,8 +776,21 @@ export function generateBossGreeting({ stats, actionQueue, now = new Date() }) {
  * The recommendation text is heuristic, but every measured claim carries
  * the sample, period, baseline and source row used to derive it.
  */
-export function analyzeContentPerformance(tiktokStats = [], products = []) {
-  const rows = (Array.isArray(tiktokStats) ? tiktokStats : (tiktokStats?.rows || []))
+export function analyzeContentPerformance(tiktokStats = [], _products = []) {
+  const rawRows = Array.isArray(tiktokStats)
+    ? tiktokStats
+    : (Array.isArray(tiktokStats?.rows) ? tiktokStats.rows : (tiktokStats?.posts || []));
+  const rows = rawRows
+    .map((row) => {
+      if (!row || typeof row !== 'object') return row;
+      const nestedMetrics = row.metrics && typeof row.metrics === 'object' ? row.metrics : {};
+      return {
+        ...row,
+        ...nestedMetrics,
+        video_title: row.video_title || row.title || row.angle_title || row.clip_file,
+        posted_at: row.posted_at || row.postedAt || row.created_at,
+      };
+    })
     .filter(row => row && typeof row === 'object');
   const metricRows = rows.map((row, index) => ({
     row,

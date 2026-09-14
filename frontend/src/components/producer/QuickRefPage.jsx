@@ -4,7 +4,7 @@ import {
   ArrowLeft, Check, Trash2, ExternalLink, X, Smartphone, Tag,
   Clipboard, Search, Loader2, PlayCircle, Eye, Volume2, Flame,
   Share2, Copy, Filter, Film, PlusCircle, RefreshCw, Maximize2, Download,
-  Upload
+  Upload, Pin, Edit3
 } from 'lucide-react';
 import {
   loadPlaybookNotes,
@@ -12,7 +12,8 @@ import {
   addPlaybookNote,
   deletePlaybookNote,
   formatNoteForSharing,
-  detectRefPlatform
+  detectRefPlatform,
+  buildAnglePayload
 } from '../../lib/producerInsights';
 import {
   getProducts,
@@ -21,6 +22,7 @@ import {
   addProductAngle,
   getProducerNotes,
   addProducerNote,
+  updateProducerNote,
   deleteProducerNote
 } from '../../api';
 
@@ -53,6 +55,8 @@ export default function QuickRefPage({ onExit }) {
   const [copyShareToast, setCopyShareToast] = useState(false);
   const [activeZoomImage, setActiveZoomImage] = useState(null);
   const [activeDetailsNote, setActiveDetailsNote] = useState(null);
+  const [isEditingInModal, setIsEditingInModal] = useState(false);
+  const [modalEditText, setModalEditText] = useState('');
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -71,15 +75,39 @@ export default function QuickRefPage({ onExit }) {
   const lastPasteTimeRef = useRef(0);
 
   useEffect(() => {
-    if (!aiProposal && !activeZoomImage) return undefined;
+    if (!aiProposal && !activeZoomImage && !activeDetailsNote) return undefined;
+    const dialog = document.querySelector('[role="dialog"]');
+    const previousFocus = document.activeElement;
+    const getFocusable = () => dialog
+      ? Array.from(dialog.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'))
+      : [];
+    getFocusable()[0]?.focus();
     const handleModalKeyDown = (event) => {
-      if (event.key !== 'Escape') return;
-      if (activeZoomImage) setActiveZoomImage(null);
-      else setAiProposal(null);
+      if (event.key === 'Escape') {
+        if (activeZoomImage) setActiveZoomImage(null);
+        else if (activeDetailsNote) setActiveDetailsNote(null);
+        else setAiProposal(null);
+        return;
+      }
+      if (event.key !== 'Tab' || !dialog) return;
+      const focusable = getFocusable();
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener('keydown', handleModalKeyDown);
-    return () => document.removeEventListener('keydown', handleModalKeyDown);
-  }, [activeZoomImage, aiProposal]);
+    return () => {
+      document.removeEventListener('keydown', handleModalKeyDown);
+      if (previousFocus instanceof HTMLElement && document.contains(previousFocus)) previousFocus.focus();
+    };
+  }, [activeZoomImage, aiProposal, activeDetailsNote]);
 
   // Sync Notes with Server (Makes notes accessible on PC & Mobile simultaneously)
   const fetchNotes = useCallback(async () => {
@@ -562,6 +590,46 @@ export default function QuickRefPage({ onExit }) {
     }
   };
 
+  const handleTogglePin = async (item) => {
+    const newPinned = !item.isPinned;
+    const patched = { ...item, isPinned: newPinned };
+    const updated = notes.map(n => n.id === item.id ? patched : n);
+    setNotes(updated);
+    savePlaybookNotes(updated);
+    if (activeDetailsNote?.id === item.id) {
+      setActiveDetailsNote(patched);
+    }
+    try {
+      const res = await updateProducerNote(item.id, { isPinned: newPinned });
+      if (res?.success && Array.isArray(res.notes)) {
+        setNotes(res.notes);
+        savePlaybookNotes(res.notes);
+      }
+    } catch (err) {
+      console.warn('Failed to update pin on server:', err);
+    }
+  };
+
+  const handleUpdateNote = async (id, patch) => {
+    const updated = notes.map(n => n.id === id ? { ...n, ...patch } : n);
+    setNotes(updated);
+    savePlaybookNotes(updated);
+    if (activeDetailsNote?.id === id) {
+      setActiveDetailsNote(prev => ({ ...prev, ...patch }));
+    }
+    try {
+      const res = await updateProducerNote(id, patch);
+      if (res?.success && Array.isArray(res.notes)) {
+        setNotes(res.notes);
+        savePlaybookNotes(res.notes);
+      }
+    } catch (err) {
+      console.warn('Failed to update note on server:', err);
+      setClipboardErrorMsg('แก้ไขในเครื่องแล้ว แต่ซิงก์เซิร์ฟเวอร์ไม่สำเร็จ');
+      setTimeout(() => setClipboardErrorMsg(''), 3500);
+    }
+  };
+
   // One-click Copy/Share note for Boss or Team
   const handleCopyNoteForBoss = (item) => {
     const text = formatNoteForSharing(item);
@@ -615,14 +683,7 @@ export default function QuickRefPage({ onExit }) {
         return;
       }
 
-      const newAngleData = {
-        name: aiProposal.name,
-        hook: aiProposal.hook,
-        hook_category: aiProposal.hook_category || 'curiosity',
-        shoot_brief: aiProposal.shoot_brief,
-        script: aiProposal.script,
-        tags: [aiProposal.hook_category, 'ref-inspired'].filter(Boolean),
-      };
+      const newAngleData = buildAnglePayload(aiProposal);
 
       await addProductAngle(targetProdId, newAngleData);
       setAngleAddedSuccess(true);
@@ -749,7 +810,7 @@ export default function QuickRefPage({ onExit }) {
               {/* 1. URL Input with 1-Tap Paste Button */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                  <label htmlFor="quick-ref-url" className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
                     <LinkIcon className="w-3.5 h-3.5 text-cyan-400" />
                     <span>ลิงก์คลิปเรฟ (TikTok / Pinterest / YouTube)</span>
                   </label>
@@ -765,6 +826,7 @@ export default function QuickRefPage({ onExit }) {
 
                 <div className="relative">
                   <input
+                    id="quick-ref-url"
                     type="url"
                     value={refUrl}
                     onChange={(e) => setRefUrl(e.target.value)}
@@ -791,7 +853,7 @@ export default function QuickRefPage({ onExit }) {
               {/* 2. Idea / Notes Textarea with Direct Image Paste & Drag-Drop */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-300">
+                  <label htmlFor="quick-ref-idea" className="text-xs font-bold text-slate-300">
                     ไอเดีย / จุดเด่นที่ชอบ / สิ่งที่ต้องทำตาม
                   </label>
                   <span className="text-[10px] text-amber-400/90 font-medium">
@@ -799,6 +861,7 @@ export default function QuickRefPage({ onExit }) {
                   </span>
                 </div>
                 <textarea
+                  id="quick-ref-idea"
                   value={ideaText}
                   onChange={(e) => setIdeaText(e.target.value)}
                   onPaste={handlePasteAnywhere}
@@ -813,16 +876,17 @@ export default function QuickRefPage({ onExit }) {
 
               {/* 3. Category Segmented Pills */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300">ประเภทเรฟ</label>
+                <span className="text-xs font-bold text-slate-300">ประเภทเรฟ</span>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {CATEGORIES.map((cat) => {
                     const Icon = cat.icon;
                     const active = selectedTag === cat.id;
                     return (
-                      <button
-                        key={cat.id}
-                        type="button"
-                        onClick={() => setSelectedTag(cat.id)}
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => setSelectedTag(cat.id)}
+                          aria-pressed={active}
                         className={`p-2 rounded-xl text-xs font-bold flex items-center gap-2 border transition-all cursor-pointer text-left ${
                           active
                             ? 'bg-amber-500/20 border-amber-500 text-amber-300 shadow-md shadow-amber-500/10'
@@ -841,7 +905,7 @@ export default function QuickRefPage({ onExit }) {
               {products.length > 0 && (
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-300">ผูกสินค้า (ไม่บังคับ)</label>
+                <span className="text-xs font-bold text-slate-300">ผูกสินค้า (ไม่บังคับ)</span>
                     {selectedProductId && (
                       <button
                         type="button"
@@ -871,6 +935,7 @@ export default function QuickRefPage({ onExit }) {
                           key={p.id}
                           type="button"
                           onClick={() => setSelectedProductId(p.id)}
+                          aria-pressed={active}
                           className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap border cursor-pointer transition-all ${
                             active
                               ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300 shadow-sm'
@@ -902,7 +967,7 @@ export default function QuickRefPage({ onExit }) {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/*,video/*"
+                  accept="image/*"
                   multiple
                   onChange={handleImageSelect}
                   className="hidden"
@@ -939,8 +1004,17 @@ export default function QuickRefPage({ onExit }) {
                             <img
                               src={img}
                               alt={`Thumbnail ${idx + 1}`}
-                              className="w-full h-full object-cover cursor-zoom-in"
+                              role="button"
+                              tabIndex={0}
+                              aria-label={`ดูรูปอ้างอิงที่ ${idx + 1} ขนาดใหญ่`}
+                              className="w-full h-full object-cover cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80"
                               onClick={() => setActiveZoomImage(img)}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                  event.preventDefault();
+                                  setActiveZoomImage(img);
+                                }
+                              }}
                             />
                             <button
                               type="button"
@@ -1132,6 +1206,15 @@ export default function QuickRefPage({ onExit }) {
                       <div
                         className="min-w-0 flex-1 cursor-pointer"
                         onClick={() => setActiveDetailsNote(item)}
+                        role="button"
+                        tabIndex={0}
+                        aria-label="ดูรายละเอียดโน้ต"
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            setActiveDetailsNote(item);
+                          }
+                        }}
                       >
                         <div className="flex items-center gap-1.5 mb-1">
                           <span className="px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/30">
@@ -1279,12 +1362,22 @@ export default function QuickRefPage({ onExit }) {
                     return (
                       <div
                         key={item.id}
-                        className="p-4 rounded-2xl bg-slate-950/70 border border-white/[0.08] hover:border-amber-500/40 space-y-3 transition-all flex flex-col justify-between group"
+                        className={`p-4 rounded-2xl border space-y-3 transition-all flex flex-col justify-between group ${
+                          item.isPinned
+                            ? 'bg-amber-500/[0.05] border-amber-500/40 shadow-sm shadow-amber-500/10'
+                            : 'bg-slate-950/70 border-white/[0.08] hover:border-amber-500/40'
+                        }`}
                       >
                         <div className="space-y-2.5">
                           {/* Tags & Product Header */}
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-1.5 flex-wrap">
+                              {item.isPinned && (
+                                <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1">
+                                  <Pin className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                                  <span>ปักหมุด</span>
+                                </span>
+                              )}
                               <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/30">
                                 {item.tag || 'Idea'}
                               </span>
@@ -1300,18 +1393,34 @@ export default function QuickRefPage({ onExit }) {
                               )}
                             </div>
 
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDelete(item.id);
-                              }}
-                              className="px-2.5 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-xs font-bold flex items-center gap-1 cursor-pointer active:scale-95 transition-all shadow-sm"
-                              title="ลบโน้ตนี้"
-                            >
-                              <Trash2 className="w-3.5 h-3.5 text-rose-400" />
-                              <span>ลบ</span>
-                            </button>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleTogglePin(item);
+                                }}
+                                className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center cursor-pointer transition-all ${
+                                  item.isPinned
+                                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm'
+                                    : 'bg-white/5 hover:bg-white/10 text-slate-400 border-white/10'
+                                }`}
+                                title={item.isPinned ? 'ยกเลิกการปักหมุด' : 'ปักหมุดให้อยู่บนสุด'}
+                              >
+                                <Pin className={`w-3.5 h-3.5 ${item.isPinned ? 'fill-amber-400 text-amber-400' : ''}`} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDelete(item.id);
+                                }}
+                                className="p-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-xs font-bold flex items-center cursor-pointer active:scale-95 transition-all shadow-sm"
+                                title="ลบโน้ตนี้"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                              </button>
+                            </div>
                           </div>
 
                           {/* Note Text */}
@@ -1324,8 +1433,17 @@ export default function QuickRefPage({ onExit }) {
                           {/* Multi-Image Gallery */}
                           {itemImages.length === 1 && (
                             <div
+                              role="button"
+                              tabIndex={0}
+                              aria-label="ดูรูปอ้างอิงขนาดใหญ่"
                               onClick={() => setActiveZoomImage(itemImages[0])}
-                              className="relative rounded-xl overflow-hidden border border-white/10 max-h-44 bg-black/40 cursor-zoom-in group/img"
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                  event.preventDefault();
+                                  setActiveZoomImage(itemImages[0]);
+                                }
+                              }}
+                              className="relative rounded-xl overflow-hidden border border-white/10 max-h-44 bg-black/40 cursor-zoom-in group/img focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80"
                               title="แตะเพื่อดูรูปขยายใหญ่"
                             >
                               <img
@@ -1363,8 +1481,17 @@ export default function QuickRefPage({ onExit }) {
                                   return (
                                     <div
                                       key={imgIdx}
+                                      role="button"
+                                      tabIndex={0}
+                                      aria-label={isLastAndMore ? 'ดูรูปอ้างอิงทั้งหมด' : `ดูรูปอ้างอิงที่ ${imgIdx + 1} ขนาดใหญ่`}
                                       onClick={() => isLastAndMore ? setActiveDetailsNote(item) : setActiveZoomImage(imgUrl)}
-                                      className="relative h-20 rounded-xl overflow-hidden border border-white/10 bg-black/40 cursor-pointer group/thumb hover:border-amber-500/40 transition-all"
+                                      onKeyDown={(event) => {
+                                        if (event.key === 'Enter' || event.key === ' ') {
+                                          event.preventDefault();
+                                          isLastAndMore ? setActiveDetailsNote(item) : setActiveZoomImage(imgUrl);
+                                        }
+                                      }}
+                                      className="relative h-20 rounded-xl overflow-hidden border border-white/10 bg-black/40 cursor-pointer group/thumb hover:border-amber-500/40 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80"
                                     >
                                       <img
                                         src={imgUrl}
@@ -1489,6 +1616,23 @@ export default function QuickRefPage({ onExit }) {
                 ))}
               </select>
             </div>
+
+            {/* Visual Insights */}
+            {aiProposal.visual_insights && (
+              <div className="p-3.5 rounded-2xl bg-emerald-950/25 border border-emerald-500/30 space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="p-1 rounded-lg bg-emerald-500/20 text-emerald-400">
+                    <Sparkles className="w-3.5 h-3.5" />
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300">
+                    ข้อมูลเชิงลึกจากภาพเรฟ (Visual Insights)
+                  </span>
+                </div>
+                <p className="text-xs text-emerald-100/90 leading-relaxed pl-6">
+                  {aiProposal.visual_insights}
+                </p>
+              </div>
+            )}
 
             {/* Hook Proposed */}
             <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-amber-500/20 space-y-1.5">
@@ -1634,12 +1778,15 @@ export default function QuickRefPage({ onExit }) {
           >
             <div
               onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="quick-ref-details-title"
               className="w-full max-w-2xl rounded-3xl bg-slate-900 border border-white/10 p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto my-auto"
             >
               {/* Header */}
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="px-2.5 py-1 rounded-xl text-xs font-black uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                  <span id="quick-ref-details-title" className="px-2.5 py-1 rounded-xl text-xs font-black uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/30">
                     {activeDetailsNote.tag || 'Idea'}
                   </span>
                   {activeDetailsNote.productName && (
@@ -1651,22 +1798,81 @@ export default function QuickRefPage({ onExit }) {
                     {activeDetailsNote.createdAt ? new Date(activeDetailsNote.createdAt).toLocaleString('th-TH') : ''}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setActiveDetailsNote(null)}
-                  className="p-1.5 rounded-xl text-slate-400 hover:text-white bg-slate-800 cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleTogglePin(activeDetailsNote)}
+                    className={`p-1.5 rounded-xl border text-xs font-semibold flex items-center cursor-pointer transition-all ${
+                      activeDetailsNote.isPinned
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                        : 'bg-slate-800 text-slate-400 border-white/10'
+                    }`}
+                    title={activeDetailsNote.isPinned ? 'ยกเลิกการปักหมุด' : 'ปักหมุดให้อยู่บนสุด'}
+                  >
+                    <Pin className={`w-4 h-4 ${activeDetailsNote.isPinned ? 'fill-amber-400 text-amber-400' : ''}`} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditingInModal(!isEditingInModal);
+                      setModalEditText(activeDetailsNote.text || '');
+                    }}
+                    className="p-1.5 rounded-xl text-cyan-400 hover:text-white bg-slate-800 border border-white/10 cursor-pointer"
+                    title="แก้ไขข้อความ"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveDetailsNote(null);
+                      setIsEditingInModal(false);
+                    }}
+                    className="p-1.5 rounded-xl text-slate-400 hover:text-white bg-slate-800 cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
-              {/* Text Note */}
-              {activeDetailsNote.text && (
-                <div className="p-4 rounded-2xl bg-slate-950/80 border border-white/5 space-y-1">
-                  <p className="text-sm text-slate-200 leading-relaxed font-medium whitespace-pre-wrap">
-                    {activeDetailsNote.text}
-                  </p>
+              {/* Text Note / Edit Mode */}
+              {isEditingInModal ? (
+                <div className="space-y-2">
+                  <textarea
+                    rows={4}
+                    value={modalEditText}
+                    onChange={(e) => setModalEditText(e.target.value)}
+                    className="w-full p-3.5 rounded-2xl bg-slate-950 border border-cyan-500/40 text-sm text-slate-200 focus:outline-none resize-none"
+                    placeholder="แก้ไขข้อความ..."
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingInModal(false)}
+                      className="px-3 py-1.5 rounded-xl bg-slate-800 text-xs text-slate-300 cursor-pointer"
+                    >
+                      ยกเลิก
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await handleUpdateNote(activeDetailsNote.id, { text: modalEditText });
+                        setIsEditingInModal(false);
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs cursor-pointer"
+                    >
+                      บันทึกการแก้ไข
+                    </button>
+                  </div>
                 </div>
+              ) : (
+                activeDetailsNote.text && (
+                  <div className="p-4 rounded-2xl bg-slate-950/80 border border-white/5 space-y-1">
+                    <p className="text-sm text-slate-200 leading-relaxed font-medium whitespace-pre-wrap">
+                      {activeDetailsNote.text}
+                    </p>
+                  </div>
+                )
               )}
 
               {/* URL */}
@@ -1701,8 +1907,17 @@ export default function QuickRefPage({ onExit }) {
                     {detailImages.map((img, i) => (
                       <div
                         key={i}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`ดูรูปอัลบั้มที่ ${i + 1} ขนาดใหญ่`}
                         onClick={() => setActiveZoomImage(img)}
-                        className="relative rounded-2xl overflow-hidden border border-white/10 bg-black/40 cursor-zoom-in group hover:border-amber-500/50 transition-all aspect-video sm:aspect-square"
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            setActiveZoomImage(img);
+                          }
+                        }}
+                        className="relative rounded-2xl overflow-hidden border border-white/10 bg-black/40 cursor-zoom-in group hover:border-amber-500/50 transition-all aspect-video sm:aspect-square focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80"
                       >
                         <img
                           src={img}

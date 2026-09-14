@@ -12,6 +12,10 @@
 | Round THAI-STACKED-MARK-GENERALIZE-1 | ขยายการจัดชั้นสระบน + วรรณยุกต์ไทยจากคู่เดียวเป็น 20 คู่ พร้อม Preview/Render parity | 2026-09-13 | สำเร็จสมบูรณ์ (backend 1,135 passed, visual/contract 180 passed, frontend 185 passed, FFmpeg 20-pair pixel matrix + browser verified, ดำเนินการโดย: Codex (GPT-5)) |
 | Round THAI-STACKED-MARK-RENDER-FIX-1 | แก้ `ั` + `่` ซ้อนทับใน Render ให้สูงโปร่งตรง Preview โดยรักษา layout ของ emoji/ข้อความทั้งบรรทัด | 2026-09-13 | สำเร็จสมบูรณ์ (backend 1,133 passed, visual/contract 178 passed, frontend 185 passed, build 2,003 modules/4.59s, FFmpeg pixel geometry + browser verified, ดำเนินการโดย: Codex (GPT-5)) |
 | Round TECH-PRODUCT-SHOWCASE-1 | เพิ่ม preset Tech Product Showcase สำหรับคลิปรีวิวสินค้า โดยใช้ motion/palette contract เดียวกับ Preview/Render | 2026-09-13 | สำเร็จสมบูรณ์ในขอบเขต foundation (backend 181 focused passed, frontend 185 passed, build/compile/pip check/diff check passed, FFmpeg 5-style multi-frame render + Browser verified, ดำเนินการโดย: Codex (GPT-5)) |
+| Round TOKEN-LAZY-LOAD-1 | ถอด HISTORY ออกจาก prompt ทุกรอบ (lazy-load อ่านสารบัญ ≤100 บรรทัด) | 2026-09-13 | เสร็จ (work_loop 2.1 / AGENTS 13 / SKILL ข้อ 2-3, ดำเนินการโดย: Muse Spark (Muse Spark)) |
+| Round AGENTS-SLIM-1 | ย่อ AGENTS.md 170→62 บรรทัด (30.9→11.3 KB) กฎ 24 ข้อครบ + link ไฟล์กฎ | 2026-09-13 | เสร็จ (ดำเนินการโดย: Muse Spark (Muse Spark)) |
+| Round TEST-TWO-TIER-1 | กติกาเทส 2 ชั้น: ตอนแก้รันเฉพาะจุด ก่อนปิดรอบค่อยรันเต็ม | 2026-09-13 | เสร็จ (testing_standard.md, Gate เต็มเท่าเดิม, ดำเนินการโดย: Muse Spark (Muse Spark)) |
+| Round HOUSEKEEP-1 | จัดระเบียบราก: ไฟล์เทส 8 ไฟล์ลง .tmp (gitignore) + ยกเลิกย้าย PLAN หลังเจอ 06_Archive โดน ignore | 2026-09-13 | เสร็จบางส่วน (ดำเนินการโดย: Muse Spark (Muse Spark)) |
 
 ---
 
@@ -51,6 +55,8 @@
 | Round AI-PRODUCER-ACCESS-1 | Phase 5 Accessibility & Responsive Polish: modal semantics, Escape close, aria-live และ keyboard labels | 2026-09-13 | สำเร็จสมบูรณ์ (frontend 185 passed, build 2003 modules/3.85s, browser AX + Escape verified, diff check ผ่าน, ไม่เปลี่ยน font/text contract, ดำเนินการโดย: Codex (GPT-5)) |
 | Round AI-PRODUCER-EVIDENCE-1 | Phase 4 Evidence-first Retrospective: metrics model, measured takeaways, source provenance และ metric snapshot | 2026-09-13 | สำเร็จสมบูรณ์ (frontend 185 passed, backend 3 passed, build 2003 modules/3.58s, browser evidence cards verified, fixture distribution test ผ่าน, ดำเนินการโดย: Codex (GPT-5)) |
 | Round AI-PRODUCER-SYNC-1 | Phase 3 Capture & Sync Reliability: deterministic media upload, single-item notes, revision guard และ payload validation | 2026-09-13 | สำเร็จสมบูรณ์ (backend notes 3 passed, frontend 184 passed, build 2003 modules/5.74s, compileall ผ่าน, Producer Hub + Quick Ref browser verified, ไม่แตะ 02_Assets/Refs, ดำเนินการโดย: Codex (GPT-5)) |
+| Round BG-SUBJECT-ISOLATION-2B | Video sequence artifact, frame timing, manifest invalidation และ cancellation groundwork สำหรับ BG isolation | 2026-09-14 | สำเร็จสมบูรณ์ (focused 78 passed/1 skipped, full backend 1308 passed/1 skipped, frontend 195 passed, build 2004 modules/4.12s, FFmpeg fixture 6 frames + manifest ready/current, compileall/pip check/diff check ผ่าน, ดำเนินการโดย: Codex (GPT-5) + delegated agents) |
+| Round BG-SUBJECT-ISOLATION-2C | Sequence rembg inference worker และ RGBA artifact publish สำหรับ BG isolation | 2026-09-14 | สำเร็จสมบูรณ์ (focused 122 passed/1 skipped, full backend 1352 passed/1 skipped, frontend 211 passed, build 2004 modules/4.43s, compileall/pip check/diff check ผ่าน, ดำเนินการโดย: Codex (GPT-5) + delegated agents) |
 | Round AI-PRODUCER-ACTION-1 | Phase 2 Action Loop: ranked Next Mission, deep-link payload และ queue search/sort/empty state | 2026-09-13 | สำเร็จใน production path (frontend 184 passed, build 2003 modules/8.52s, browser deep-link verified; component-flow React mount test deferred, ดำเนินการโดย: Codex (GPT-5)) |
 | Round AI-PRODUCER-TRUST-1 | Phase 1 Trust Layer ของ AI Producer Hub: canonical identity, queue dedupe, source tracing และ heuristic transparency | 2026-09-13 | สำเร็จสมบูรณ์ (insight contract 1.1.0, queue 19→18 จาก duplicate media, product filter ไม่ซ้ำ, sourceIds/summary/priority metadata, npm test 183 passed, build 4.05s, compileall ผ่าน, browser verified, ดำเนินการโดย: Codex (GPT-5)) |
 | Round WATERMARK-CONFIG-V6 | ตั้งค่าเปิด/ปิดลายน้ำ (One Click & Editor) + แก้สระ/วรรณยุกต์ลอย + บังคับตัดแคช v6 | 2026-09-13 | สำเร็จสมบูรณ์ (ตั้งค่าเปิด/ปิดลายน้ำได้ทั้งหน้าสร้างคลิปและหน้า Editor, ค่าเริ่มต้นเปิดแสดงลายน้ำ @rizanntry สีจางลงเหลือ ~37% Opacity (&HA0&), แก้ปัญหาสระ/วรรณยุกต์ลอยถอยหลังในคำว่า 'โปรโมชั่น' และ 'รีบกดสั่ง' เมื่อมี emoji นำหน้า, bump SUBTITLE_RENDER_CONTRACT_VERSION = 'v6' เพื่อตัดแคชเก่า, pytest 176 passed, npm test 181 passed, build 3.26s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
@@ -229,6 +235,66 @@
 
 - ไม่เปลี่ยน status ใน Hub เองโดยไม่มี operation จากปลายทาง
 - Component-flow test ที่ต้องใช้ React mount harness โดยตรง deferred; unit contract + browser flow ผ่าน
+
+---
+
+## Round BG-SUBJECT-ISOLATION-2C — Sequence rembg inference worker และ RGBA artifact publish
+
+วันที่: 2026-09-14 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) + delegated agents · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** ประมวลผล source frame sequence ด้วย rembg แบบ on-demand ให้ได้ foreground PNG แบบ RGBA ครบทุกเฟรม พร้อม progress/cancel/cache-safe publish เพื่อให้ Phase 3 มี artifact ที่เป็น cutout จริง ไม่ใช้ raw frame หลอกเป็น foreground
+
+### Todo
+
+- [x] ประมวลผลหลายเฟรมด้วย `BackgroundIsolationWorker` ตัวเดียวเพื่อ reuse model session
+- [x] เขียน RGBA foreground ลง derived cache แยกจาก source ด้วย staging directory และ atomic publish หลังครบทุกเฟรม
+- [x] รองรับ cache hit, progress, cancellation, runtime/error handling และ cleanup partial output
+- [x] ตรวจ source frame sequence ครบ/ต่อเนื่อง, mode/ขนาด RGBA และห้ามเขียนทับ source
+- [x] ตรวจ parity hardening ให้ compositor บังคับ sequence schema, artifact ID และ source fingerprint ตรงกัน
+
+### Gate
+
+- [x] Focused background isolation tests: `122 passed, 1 skipped`
+- [x] Full backend pytest: `1352 passed, 1 skipped` (มี warning เดิม 29 รายการจาก dependency/encoding test path ไม่มี failure)
+- [x] Frontend: `211 passed`; `npm run build` สำเร็จ 2004 modules ใน 4.43 วินาที
+- [x] `compileall`, `pip check`, `git diff --check` ผ่าน
+- [x] fixture 3 เฟรมผ่านการตรวจ `RGBA`, frame count และ alpha channel ด้วย fake rembg adapter
+
+### Notes
+
+- Worker ใหม่ยังไม่ถูกเรียกจาก request/render thread และยังไม่ต่อเข้าปุ่ม UI เพื่อป้องกัน inference หนักในเส้นทาง interactive
+- Artifact ที่ publish แล้วจึงเป็น foreground RGBA จริง แต่ Preview/Render ยังต้องต่อ Phase 3 ให้ใช้ artifact เดียวกันก่อนเปิดใช้งาน production
+- Cache identity ใช้ source fingerprint + sequence artifact ID + model/quality/worker metadata ไม่ใช้ clip index
+
+---
+
+## Round BG-SUBJECT-ISOLATION-2B — Video sequence artifact และ cancellation
+
+วันที่: 2026-09-14 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) + delegated agents · สถานะ: เสร็จสมบูรณ์
+
+**เป้าหมาย:** เพิ่ม groundwork สำหรับ BG isolation บนวิดีโอจริงแบบ per-source sequence ให้รู้ frame index/fps/timebase/resolution/rotation, มี manifest ที่ตรวจความสดของ artifact ได้ และหยุดงานกลางทางได้ โดยยังไม่เปิด Preview/Render จริงจนกว่าจะผ่าน parity gate ใน Phase 3
+
+### Todo
+
+- [x] เพิ่ม extractor แตกวิดีโอเป็น PNG sequence ผ่าน FFmpeg โดยรองรับ trim, fps, timebase, target resolution, progress และ cancellation พร้อม atomic publish/cleanup
+- [x] เพิ่ม sequence artifact manifest/cache แยก namespace จาก image artifact โดยไม่ผูกกับ clip index และบันทึก source fingerprint, algorithm/model/worker version, frame count, fps/timebase, resolution, rotation และ frame pattern
+- [x] เพิ่มการตรวจ stale/current, path traversal/symlink guard และบังคับให้ `ready` ต่อเมื่อ metadata และเฟรมครบจริง
+- [x] ทำ read-only seam review สำหรับการต่อ Phase 3: alpha ต้องเข้าหลัง source timing/transform รายคลิป แต่ก่อน concat/transition และ Preview ต้องอ่าน artifact เดียวกับ Render
+- [x] แก้ frame contract ให้ใช้ sequence ID `bgseq1-*` และ zero-based `frame_000000` ให้ extractor กับ manifest สอดคล้องกัน
+
+### Gate
+
+- [x] Focused tests: `78 passed, 1 skipped` และ full backend `1308 passed, 1 skipped` (skip เฉพาะ symlink test ที่ Windows environment ไม่มีสิทธิ์สร้าง symlink)
+- [x] Frontend `npm test -- --run`: 195 passed; `npm run build`: 2004 modules, 4.12 วินาที
+- [x] FFmpeg fixture จริง: แตกได้ 6 เฟรม ขนาด `64x96` ตั้งแต่ `frame_000000` ถึง `frame_000005`
+- [x] Integration fixture: เขียน manifest แล้วตรวจสถานะ `ready` และ `current` ได้จริง
+- [x] `compileall`, `pip check`, `git diff --check` ผ่าน
+
+### Notes
+
+- รอบนี้เป็น groundwork เท่านั้น ยังไม่ต่อ UI/Preview/Render และยังไม่เรียก rembg ทุกเฟรม เพื่อไม่ให้ request/render thread หน่วงจาก inference
+- Source เดียวที่ถูก trim/ใช้ซ้ำหลายคลิปต้องอ้างอิง source fingerprint + source time ไม่ใช่ clip index
+- Cancellation/error/incomplete sequence จะไม่ถูกประกาศเป็น `ready`; Phase 3 จึงค่อยเพิ่ม per-clip compositing และ fallback `spotlight`/`original`/`skip` หลังผ่าน visual parity หลายเฟรม
 
 ---
 
@@ -624,17 +690,17 @@ pytest tests/ -q --tb=short -x   → 1126 passed, 26 warnings in 275.52s
 | Round TIKTOK-STATS-DOMAIN-1 | แก้ซิงก์สถิติตาราง Studio + คอลัมน์ 'ยอดวิว' + Manifest 0.2.0 + แข็งการตรวจจับแท็บ | 2026-09-12 | สำเร็จสมบูรณ์ (alias ยอดวิว, regex เดือน ส.ค./เม.ย., build tag 0.2.0, extension tests 28 passed, ดำเนินการโดย: Cline / Antigravity) |
 | Round BATCH-RENDER-1 | One-Click Batch Angle Video Render Queue (Background FIFO Worker + Live Overall Progress + Concurrency Lock) | 2026-09-12 | สำเร็จสมบูรณ์ (คิวเรนเดอร์หลายมุมมอง background worker, auto-retry, TaskManager progress, pytest 4 passed, vitest 152 passed, build 4.46s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round HOOK-VAR-1 | AI Hook Variation & A/B Generator (5 marketing styles + 9:16 Safe Zone Preview + 1-Click Apply) | 2026-09-12 | สำเร็จสมบูรณ์ (5 สไตล์ curiosity, warning, social_proof, deal_promo, pain_point + offline fallback + safe-zone preview + pytest 8 passed, vitest 152 passed, build 4.08s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
-| Round AGENT-ATTRIB-1 | บังคับระบุ Agent Tooling & AI Model ในประวัติงาน (Rule 14 ใน AGENTS.md และ work_loop.md) | 2026-09-12 | สำเร็จสมบูรณ์ (กำหนดมาตรฐานความรับผิดชอบในการติดตามงาน) |
-| Round BACKUP-1 | One-Click System Backup & Restore (Engine + API + UI Maintenance Tab) | 2026-09-12 | สำเร็จสมบูรณ์ (สำรองข้อมูลปลอดภัย zip + manifest + SHA-256 + SQLite online backup, pytest 8 passed) |
-| Round ASSET-DEDUP-1 | Media Deduplication & Cleanup Engine (Engine + API + UI Scan & Safe Move) | 2026-09-12 | สำเร็จสมบูรณ์ (Multi-tier detection size -> head+tail hash -> sha256, ย้ายไป .trash ปลอดภัย, pytest 4 passed) |
-| Round CALENDAR-1 | Interactive Drag-and-Drop Weekly Content Calendar (ScheduleAgenda view toggle + 7-day grid) | 2026-09-12 | สำเร็จสมบูรณ์ (สลับมุมมอง รายการ/ปฏิทินสัปดาห์ 7 วัน + เลื่อนวันด้วย Drag-and-Drop, vitest 152 passed, build 3.14s) |
-| Round SAFE-1 — Disk Guard ก่อน Render & Auto-Snapshot CapCut Manifest 3 Versions | ป้องกันเรนเดอร์ล้มเหลวด้วย Disk Guard (>3GB) และทำ Rolling Backup 3 versions สำหรับ project.json | 2026-09-12 | สำเร็จสมบูรณ์ (8 backend unit tests passed, 4 baseline tests passed, vitest 151 passed, build pass) |
-| Round TIKTOK-STATS-FIX-1 | แก้บั๊ก result is not defined + ย้ายซิงก์สถิติเป็นแท็บที่ 3 "เครื่องมือ" ใน Extension | 2026-09-12 | สำเร็จสมบูรณ์ (extension 21 passed) |
-| Round TIKTOK-STATS-SCRAPE-1 | ซิงก์สถิติ TikTok Studio ผ่าน Extension (parser + import API + แท็บ Performance) | 2026-09-12 | ไม่ใช้ TikTok API (เลี่ยง review); ignores DOM แบบ tolerant; fuzzy match video_id > ชื่อ+ความยาว; extension 21 tests, pytest 8, frontend 151, build 4.06s |
-| Round ANALYTICS-HUB-1 — พัฒนาเมนูใหม่ "ศูนย์วิเคราะห์ข้อมูลและสถิติรวม" (Analytics & Operations Hub) | สร้างศูนย์รวมการวิเคราะห์ข้อมูลและสถิติการใช้งานทุกมิติของ OmniCut Pro Studio ในหน้าเดียว แยกเป็น 4  | 2026-09-11 | สำเร็จสมบูรณ์ |
-| Round HOOK-DEFAULT-5S-1 — ปรับค่าเริ่มต้น (default) ของป้ายฮุกพาดหัว (Hook Banner) เป็น 5.0 วินาทีตั้งแต่ตอนสร้างโปรเจกต์ | ให้ป้ายฮุกพาดหัว (Hook Header Banner) ทั้งตอนสร้างโปรเจกต์ใหม่ (First Render / One Click / Apply to  | 2026-09-11 | สำเร็จสมบูรณ์ |
-| Round SIDEBAR-PHASE-UI-1 — ออกแบบ sidebar ซ้ายใหม่ด้วย 4-Phase Pipeline Stepper Dots + Shot List Badge + Smart Camera Direction Clarity | 1. แก้ปัญหาแผนถ่ายที่คำแนะนำมุมกล้องยังดูเหมือนเดิมหรือยังไม่แบ่งมุม/แอคชั่นชัดเจน: | 2026-09-11 | สำเร็จสมบูรณ์ |
-| Round FONT-TEXT-RULE-1 — กฎเหล็กฟอนต์และข้อความ | สร้าง project-level contract ที่บังคับทุกเอเจนว่างานไม่เกี่ยวข้องห้ามเปลี่ยนฟอนต์ ขนาด ข้อความ การตั | 2026-09-10 | สำเร็จสมบูรณ์ |
+| Round AGENT-ATTRIB-1 | บังคับระบุ Agent Tooling & AI Model ในประวัติงาน (Rule 14 ใน AGENTS.md และ work_loop.md) | 2026-09-12 | สำเร็จสมบูรณ์ (กำหนดมาตรฐานความรับผิดชอบในการติดตามงาน, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round BACKUP-1 | One-Click System Backup & Restore (Engine + API + UI Maintenance Tab) | 2026-09-12 | สำเร็จสมบูรณ์ (สำรองข้อมูลปลอดภัย zip + manifest + SHA-256 + SQLite online backup, pytest 8 passed, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round ASSET-DEDUP-1 | Media Deduplication & Cleanup Engine (Engine + API + UI Scan & Safe Move) | 2026-09-12 | สำเร็จสมบูรณ์ (Multi-tier detection size -> head+tail hash -> sha256, ย้ายไป .trash ปลอดภัย, pytest 4 passed, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round CALENDAR-1 | Interactive Drag-and-Drop Weekly Content Calendar (ScheduleAgenda view toggle + 7-day grid) | 2026-09-12 | สำเร็จสมบูรณ์ (สลับมุมมอง รายการ/ปฏิทินสัปดาห์ 7 วัน + เลื่อนวันด้วย Drag-and-Drop, vitest 152 passed, build 3.14s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round SAFE-1 — Disk Guard ก่อน Render & Auto-Snapshot CapCut Manifest 3 Versions | ป้องกันเรนเดอร์ล้มเหลวด้วย Disk Guard (>3GB) และทำ Rolling Backup 3 versions | 2026-09-12 | สำเร็จสมบูรณ์ (8 backend unit tests passed, 4 baseline tests passed, vitest 151 passed, build pass, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round TIKTOK-STATS-FIX-1 | แก้บั๊ก result is not defined + ย้ายซิงก์สถิติเป็นแท็บที่ 3 "เครื่องมือ" ใน Extension | 2026-09-12 | สำเร็จสมบูรณ์ (extension 21 passed, ดำเนินการโดย: Cline) |
+| Round TIKTOK-STATS-SCRAPE-1 | ซิงก์สถิติ TikTok Studio ผ่าน Extension (parser + import API + แท็บ Performance) | 2026-09-12 | ไม่ใช้ TikTok API (เลี่ยง review); fuzzy match video_id > ชื่อ+ความยาว; extension 21 tests, pytest 8, frontend 151, build 4.06s (ดำเนินการโดย: Cline) |
+| Round ANALYTICS-HUB-1 — พัฒนาเมนูใหม่ "ศูนย์วิเคราะห์ข้อมูลและสถิติรวม" (Analytics & Operations Hub) | สร้างศูนย์รวมการวิเคราะห์ข้อมูลและสถิติการใช้งานทุกมิติ | 2026-09-11 | สำเร็จสมบูรณ์ (backend 4 passed, frontend 151 passed, build pass, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round HOOK-DEFAULT-5S-1 — ปรับค่าเริ่มต้น (default) ของป้ายฮุกพาดหัว (Hook Banner) เป็น 5.0 วินาทีตั้งแต่ตอนสร้างโปรเจกต์ | ให้ป้ายฮุกพาดหัวทั้งตอนสร้างโปรเจกต์ใหม่ (First Render / One Click / Apply to | 2026-09-11 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round SIDEBAR-PHASE-UI-1 — ออกแบบ sidebar ซ้ายใหม่ด้วย 4-Phase Pipeline Stepper Dots + Shot List Badge + Smart Camera Direction Clarity | 1. แก้ปัญหาแผนถ่ายที่คำแนะนำมุมกล้องยังดูเหมือนเดิมหรือยังไม่แบ่งมุม/แอคชั่นชัดเจน: | 2026-09-11 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
+| Round FONT-TEXT-RULE-1 — กฎเหล็กฟอนต์และข้อความ | สร้าง project-level contract ที่บังคับทุกเอเจนว่างานไม่เกี่ยวข้องห้ามเปลี่ยนฟอนต์ ขนาด ข้อความ | 2026-09-10 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round RENDER-BEHAVIOR-FIX-1 — แก้ 2 pre-existing render-behavior failures | ทำให้ full backend suite กลับมา 0 failed — บั๊ก 2 ตัวนี้บ่งชี้ว่าภาพเรนเดอร์จริงเบี่ยงจาก parity con | 2026-09-10 | สำเร็จสมบูรณ์ |
 | Round PRODUCT-METADATA-7 — อ่านสรรพคุณ/สเปกจากรูปอ้างอิงด้วย Vision | ให้สินค้าใหม่ที่มีข้อมูลอยู่ในภาพอินโฟกราฟิกหรือภาพสเปกสามารถสกัดคำอธิบาย สรรพคุณ จุดขาย และสเปกเข้า | 2026-09-10 | สำเร็จสมบูรณ์ |
 | Round PRODUCT-METADATA-6 — กัน selected product เปลี่ยนเองระหว่าง refresh/load history | เมื่อผู้ใช้เปิด metadata หรือทำงานกับสินค้าใดอยู่ การ refresh/focus/background response ต้องไม่สลับ  | 2026-09-10 | สำเร็จสมบูรณ์ |
@@ -5425,3 +5491,111 @@ Date: 2026-09-07; Requested by: user; Status: complete
 - ค่าเริ่มต้นยังเป็น `clean_tech_review`; ไม่เปลี่ยนข้อความ ฟอนต์ ขนาด subtitle, safe zone หรือ Golden Master เดิม
 - พื้นหลัง Grid/Studio แบบเฉพาะสไตล์และ callout graphic ที่สร้างจาก asset โดยอัตโนมัติยังเป็นเฟสถัดไป เพราะรอบนี้ส่งมอบ foundation ที่ปลอดภัยก่อน
 
+## Round TOKEN-LAZY-LOAD-1 — ถอด HISTORY ออกจาก prompt ทุกรอบ (lazy-load อ่านแค่สารบัญ)
+
+วันที่: 2026-09-13 · สั่งโดย: user · ดำเนินการโดย: Muse Spark (Muse Spark) · สถานะ: เสร็จ
+
+**เป้าหมาย:** รอบถัดไปไม่ต้องโหลด HISTORY.md เต็มไฟล์ (~690 KB / ~150k token) ทุกรอบ โดยยังสืบประวัติย้อนหลังได้
+
+### Todo
+
+- [x] แก้ `work_loop.md` ข้อ 2.1 เป็น lazy-load (TODO อ่านเฉพาะส่วนเปิด + HISTORY อ่านแค่สารบัญ ≤100 บรรทัด ขุดค่อย grep)
+- [x] เติมกฎห้ามเปิด HISTORY ทั้งไฟล์ใน `AGENTS.md` ข้อ 13 + `token-efficiency-guardian/SKILL.md`
+
+### Gate
+
+- [x] `git diff --stat` แสดงเฉพาะไฟล์ docs ที่วางแผนไว้
+- [x] `grep` สารบัญ HISTORY เจอ 152 หัวข้อโดยไม่ต้องเปิดทั้งไฟล์
+
+### Notes
+
+- วัดจริง: HISTORY.md = 687.8 KB / 4,076 บรรทัด (~150k token/รอบ) — ตัวกินใหญ่สุดใน prompt
+- กันหลุด 3 ชั้น: (1) สารบัญมีชื่อรอบ+ผลลัพธ์ (2) grep ชื่อรอบเจอบล็อกเต็ม (3) TODO เหลือชื่อรอบบรรทัดเดียว
+
+---
+
+## Round AGENTS-SLIM-1 — ย่อ AGENTS.md เหลือสารบัญกฎ 1 บรรทัดต่อข้อ + link
+
+วันที่: 2026-09-13 · สั่งโดย: user · ดำเนินการโดย: Muse Spark (Muse Spark) · สถานะ: เสร็จ
+
+**เป้าหมาย:** ลด AGENTS.md ที่โดนยัดเข้า prompt ทุกรอบ ~63% โดยกฎยังบังคับเท่าเดิม
+
+### Todo
+
+- [x] ย่อ DON'Ts 1-10 + DOs 1-14 เหลือ 1-2 บรรทัดต่อข้อ + link ไฟล์กฎเต็ม
+- [x] ย่อตารางโมดูล + คำสั่งรัน เหลือ link ไป ARCHITECTURE.md / testing_standard.md
+
+### Gate
+
+- [x] AGENTS.md 62 บรรทัด / 11,291 bytes (จาก 170 บรรทัด / 30,885 bytes) — ลด ~63%
+- [x] กฎครบ 24 ข้อ (DON'Ts 10 + DOs 14) + รายละเอียดใน `.agents/rules/*.md` ครบ 9 ไฟล์
+
+### Notes
+
+- หลักการ lazy-load: เอเจนต์ไม่ต้องรู้กฎทุกข้อทุกรอบ — เปิดไฟล์กฎเต็มเฉพาะรอบที่แตะ
+
+---
+
+## Round TEST-TWO-TIER-1 — กติกาเทส 2 ชั้น: ตอนแก้รันเฉพาะจุด ก่อนปิดรอบค่อยรันเต็ม
+
+วันที่: 2026-09-13 · สั่งโดย: user · ดำเนินการโดย: Muse Spark (Muse Spark) · สถานะ: เสร็จ
+
+**เป้าหมาย:** รอบแก้โค้ดไม่ต้องรันเต็มชุดทุกครั้ง — ประหยัดเวลา + token โดย Gate เต็มยังบังคับก่อนปิดรอบ
+
+### Todo
+
+- [x] เติมหัวข้อ "เทส 2 ชั้น" ใน `testing_standard.md` (ชั้น 1 เฉพาะจุด / ชั้น 2 เต็มก่อนปิดรอบ)
+- [x] เติมตัวอย่างคำสั่งชั้น 1: `pytest <ไฟล์เดียว>` / `npm test -- <ไฟล์>`
+
+### Gate
+
+- [x] หัวข้อเทส 2 ชั้น + ตัวอย่างคำสั่งอยู่ในไฟล์
+- [x] คำสั่งมาตรฐานเต็มชุดยังอยู่ (Gate ไม่ลดลง)
+
+### Notes
+
+- เดิมรันเต็มทุกครั้งต่อรอบแก้: pytest ~1,100+ + npm test ~185 + build — ความเสี่ยงบัคไม่เพิ่มเพราะ Gate เต็มยังบังคับก่อนติ๊กปิด
+
+---
+
+## Round HOUSEKEEP-1 — จัดระเบียบรากโปรเจกต์ (ไฟล์เทสหลุดราก + PLAN เก่า)
+
+วันที่: 2026-09-13 · สั่งโดย: user · ดำเนินการโดย: Muse Spark (Muse Spark) · สถานะ: เสร็จบางส่วน
+
+**เป้าหมาย:** รากโปรเจกต์สะอาด — ไฟล์เทสชั่วคราวลง .tmp, ไม่ลบของที่มีคนอ้างถึง
+
+### Todo
+
+- [x] ย้ายไฟล์เทส 8 ไฟล์จากรากลง `.tmp/` (test_ffmpeg_*.png ×4, test_frame_render.png, test_all_vowels_result.png, test_all_vowels.ass, all_fonts.ass)
+- [x] ทดสอบรันผ่าน `.venv` ยืนยัน output ไป `.tmp` จริง ไม่มีไฟล์หลุดมาราก
+
+### Gate
+
+- [x] ไฟล์เทสทุกไฟล์ gitignore อยู่แล้ว ไม่ขึ้น status
+- [x] `grep` ยืนยันไฟล์ที่ย้ายไม่มีคนอ้างถึง (ยกเว้น test_all_vowels.* ที่ test สร้างเอง)
+
+### Notes
+
+- ยกเลิกย้าย PLAN 7 ไฟล์ลง `06_Archive/`: `.gitignore:59` ignore ทั้งโฟลเดอร์ → ย้ายไป = หลุด version control กลายเป็นลบ
+- ยกเลิกแก้ `test_all_vowels.py` (ใช้ tmp_path): ไฟล์โดน Codex แตะพร้อมกัน กันชน — รอรอบถัดไป
+- บทเรียน: เช็ค `.gitignore` + `git status` ก่อนย้าย/แก้ไฟล์ (work_loop ข้อ 6)
+
+---
+
+## Round AI-PRODUCER-HUB-AUDIT-PLAN-1 — evidence-first audit และ hardening Producer Hub
+
+วันที่: 2026-09-14 · ดำเนินการโดย: Codex (GPT-5) + Halley, Dirac, Socrates (audit-only delegated agents) · สถานะ: เสร็จสมบูรณ์
+
+**ผลตรวจ:** audit score 10/20 ก่อนแก้; ไม่พบ P0 แต่พบ P1/P2 ด้าน data contract, accessibility, error state, mobile viewport, performance และ file exposure
+
+**สิ่งที่แก้:**
+
+- รองรับ TikTok Studio รูปแบบจริง `posts[].metrics` และเพิ่ม evidence regression test
+- กันคิวพังเมื่อ Export มีเฉพาะ `path` พร้อมใช้ basename เป็นชื่อแสดงผล
+- เพิ่ม `buildAnglePayload` ให้ AI proposal รองรับทั้ง canonical fields และ aliases โดยไม่ทำข้อมูล Angle หาย
+- เพิ่ม all-source-failed state พร้อมปุ่ม retry และไม่อัปเดต sync timestamp เมื่อไม่มี source ที่ valid
+- เพิ่ม semantic progressbar, keyboard activation/focus ring ให้ media tiles และ Escape/focus trap/restore สำหรับ modal ที่เกี่ยวข้อง
+- ผูก label กับ input หลัก, เพิ่ม `aria-pressed`, ยกเลิกการปิด pinch-zoom บน mobile และเปลี่ยน file picker เป็น `image/*` ให้ตรงกับ logic
+- ลบ JSX duplicate props และจำกัด `/ref-media/{filename}` ให้เสิร์ฟเฉพาะไฟล์ชื่อที่ระบบสร้าง พร้อมจำกัดขนาด image resolver
+
+**Gate:** frontend 222 tests ผ่าน, backend Producer 9 tests ผ่าน, TikTok stats tests ผ่าน, Vite build 2,005 modules ผ่าน, oxlint exit 0 (มี warnings เดิมที่ไม่เกี่ยวกับรอบนี้), detector ตรวจซ้ำแล้วไม่พบ duplicate props; ยังไม่ได้ทำ live browser verification รอบนี้

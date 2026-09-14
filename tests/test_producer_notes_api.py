@@ -109,3 +109,32 @@ def test_producer_notes_reject_oversized_unuploaded_image(client, monkeypatch, t
 
     assert res.status_code == 400
     assert "อัปโหลดไม่เสร็จ" in res.json()["detail"]
+
+
+def test_producer_notes_update_and_pin(client, monkeypatch, tmp_path):
+    test_notes_file = tmp_path / "playbook_notes.json"
+    monkeypatch.setattr(api_producer, "NOTES_FILE", test_notes_file)
+
+    # Add 2 notes
+    note1 = client.post("/api/producer/notes/add", json={"text": "First note", "tag": "Hook"}).json()["note"]
+    note2 = client.post("/api/producer/notes/add", json={"text": "Second note", "tag": "Offer"}).json()["note"]
+
+    # Initial order: note2 is newer, so it's first
+    notes = client.get("/api/producer/notes").json()["notes"]
+    assert notes[0]["id"] == note2["id"]
+
+    # Pin note1
+    res_update = client.put(f"/api/producer/notes/{note1['id']}", json={"isPinned": True, "text": "First note (Edited)"})
+    assert res_update.status_code == 200
+    updated_data = res_update.json()
+    assert updated_data["note"]["isPinned"] is True
+    assert updated_data["note"]["text"] == "First note (Edited)"
+
+    # Check that pinned note1 is now first in the list
+    notes_after = client.get("/api/producer/notes").json()["notes"]
+    assert notes_after[0]["id"] == note1["id"]
+    assert notes_after[0]["isPinned"] is True
+
+    # 404 on nonexistent note
+    res_404 = client.put("/api/producer/notes/nonexistent", json={"text": "nope"})
+    assert res_404.status_code == 404
