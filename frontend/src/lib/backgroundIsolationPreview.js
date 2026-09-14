@@ -214,6 +214,26 @@ function fallbackResult(config, reason, status = config.artifactStatus) {
   };
 }
 
+/**
+ * Resolve clip/project isolation config with an explicit project disable as
+ * the master switch. Prepared clip artifacts can outlive a later toggle.
+ */
+export function resolveBackgroundIsolationConfig(clip, projectConfig) {
+  if (projectConfig && typeof projectConfig === 'object' && !Array.isArray(projectConfig)
+    && projectConfig.enabled === false) {
+    return projectConfig;
+  }
+  if (clip && typeof clip === 'object' && !Array.isArray(clip)) {
+    if (clip.background_isolation !== undefined && clip.background_isolation !== null) {
+      return clip.background_isolation;
+    }
+    if (clip.backgroundIsolation !== undefined && clip.backgroundIsolation !== null) {
+      return clip.backgroundIsolation;
+    }
+  }
+  return projectConfig;
+}
+
 function resolveLookupBase(artifactLookup, artifactId, manifest) {
   if (typeof artifactLookup === 'function') {
     const result = artifactLookup(artifactId, manifest);

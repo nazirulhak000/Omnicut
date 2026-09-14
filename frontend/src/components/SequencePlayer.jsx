@@ -34,6 +34,7 @@ import {
 import { bindWindowPointerLifecycle } from '../lib/pointerDragLifecycle.js';
 import { drawMediaWithAccentRecolor } from '../lib/overlayRecolor.js';
 import {
+  resolveBackgroundIsolationConfig,
   resolveBackgroundIsolationPreview,
   splitBackgroundIsolationOverlays,
 } from '../lib/backgroundIsolationPreview.js';
@@ -2697,7 +2698,7 @@ function SequencePlayer({
 
   const backgroundIsolationArtifactIds = useMemo(() => {
     const ids = new Set();
-    [backgroundIsolation, ...(clips || []).map((clip) => clip?.background_isolation ?? clip?.backgroundIsolation)].forEach((config) => {
+    (clips || []).map((clip) => resolveBackgroundIsolationConfig(clip, backgroundIsolation)).forEach((config) => {
       const id = backgroundArtifactId(config);
       if (id) ids.add(id);
     });
@@ -2728,7 +2729,7 @@ function SequencePlayer({
     // from subject isolation.  Keep Preview on the same fail-closed branch as
     // the renderer for these clips.
     if (clip?.bg_blur || clip?.fit_mode === 'blur') return null;
-    const config = clip?.background_isolation ?? clip?.backgroundIsolation ?? backgroundIsolation;
+    const config = resolveBackgroundIsolationConfig(clip, backgroundIsolation);
     const artifactId = backgroundArtifactId(config);
     const manifest = artifactId ? backgroundIsolationManifests[artifactId] : null;
     const resolution = resolveBackgroundIsolationPreview({

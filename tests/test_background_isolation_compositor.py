@@ -13,6 +13,7 @@ from scripts.background_isolation_compositor import (
     deserialize_compositor_config,
     map_source_time_to_frame_index,
     normalize_compositor_config,
+    resolve_background_isolation_config,
     serialize_compositor_config,
     split_ass_layers_for_subject,
 )
@@ -90,6 +91,15 @@ def test_default_and_disabled_configs_preserve_legacy_noop():
     assert disabled["fallback"] == "original"
     assert build_compositing_plan(None)["action"] == "fallback"
     assert build_compositing_plan(None)["stage_order"][-1] == "legacy_overlays"
+
+
+def test_explicit_project_disable_overrides_ready_clip_artifact():
+    clip = {"background_isolation": BASE_CONFIG}
+    project = {"enabled": False, "fallback": "original"}
+
+    effective = resolve_background_isolation_config(clip, project)
+
+    assert effective == project
 
 
 def test_only_ready_matching_sequence_is_composable():

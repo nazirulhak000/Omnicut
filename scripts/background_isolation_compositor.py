@@ -96,6 +96,25 @@ class CompositorValidationError(ValueError):
     """Raised when a direct mapping/filter input cannot be made deterministic."""
 
 
+def resolve_background_isolation_config(
+    clip: Mapping[str, Any] | None,
+    project_config: Any,
+) -> Any:
+    """Resolve one clip's config while honoring an explicit project disable.
+
+    A project-level ``enabled=False`` is a master off switch. Prepared clip
+    artifacts can outlive a later toggle, so the disable must win.
+    """
+
+    if isinstance(project_config, Mapping) and project_config.get("enabled") is False:
+        return project_config
+    if isinstance(clip, Mapping):
+        for key in ("background_isolation", "backgroundIsolation"):
+            if key in clip and clip[key] is not None:
+                return clip[key]
+    return project_config
+
+
 def _fallback(value: Any) -> str:
     if isinstance(value, str) and value.strip().lower() in SUPPORTED_FALLBACKS:
         return value.strip().lower()
@@ -541,5 +560,6 @@ __all__ = [
     "deserialize_compositor_config",
     "map_source_time_to_frame_index",
     "normalize_compositor_config",
+    "resolve_background_isolation_config",
     "serialize_compositor_config",
 ]

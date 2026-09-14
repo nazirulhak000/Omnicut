@@ -7,6 +7,7 @@ import {
   buildBackgroundIsolationFrameUrl,
   groupBackgroundIsolationClips,
   mapSourceTimeToFrameIndex,
+  resolveBackgroundIsolationConfig,
   resolveBackgroundIsolationPreview,
   splitBackgroundIsolationOverlays,
 } from './backgroundIsolationPreview.js';
@@ -23,6 +24,13 @@ test('splits Hook overlays behind the isolated Subject while keeping captions fo
 
   assert.deepEqual(result.behindSubject.map((item) => item.id), ['hook', 'legacy-hook']);
   assert.deepEqual(result.foreground.map((item) => item.id), ['caption']);
+});
+
+test('explicit project disable overrides a ready clip artifact', () => {
+  const clip = { background_isolation: { enabled: true, artifact: { id: ARTIFACT_ID, status: 'ready' } } };
+  const project = { enabled: false, fallback: 'original' };
+
+  assert.deepEqual(resolveBackgroundIsolationConfig(clip, project), project);
 });
 
 test('groups multiple trim windows from one source into one isolation job', () => {

@@ -274,3 +274,26 @@ def test_background_config_can_be_selected_per_clip(monkeypatch, tmp_path):
     assert graph.count("alphamerge") == 1
     assert command.count("-framerate") == 1
     assert "concat=n=2" in graph
+
+
+def test_project_disable_overrides_ready_per_clip_artifact(monkeypatch, tmp_path):
+    config, _, _ = _make_sequence(monkeypatch, tmp_path, frame_count=12)
+    command, _ = _assemble(
+        monkeypatch,
+        tmp_path,
+        clip_list=[
+            {
+                "source_path": str(tmp_path / "source.mp4"),
+                "trim_start": 0.0,
+                "trim_end": 2.0,
+                "background_isolation": config,
+            }
+        ],
+        background_isolation={"enabled": False, "fallback": "original"},
+    )
+
+    graph = _filter(command)
+    assert "alphamerge" not in graph
+    assert "bg_subject" not in graph
+    assert "background-isolation-foreground-sequences" not in command
+    assert "-framerate" not in command

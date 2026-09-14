@@ -43,6 +43,7 @@ from scripts.style_motion_policy import STYLE_MOTION_POLICIES
 from scripts.background_isolation_compositor import (
     build_compositing_plan,
     normalize_compositor_config,
+    resolve_background_isolation_config,
     split_ass_layers_for_subject,
 )
 
@@ -1189,7 +1190,7 @@ class VideoEditor:
                 # isolation artifact is therefore fail-closed for this one
                 # clip and the proven legacy blur graph remains untouched.
                 bg_info = None if use_bg_blur else _read_ready_background_sequence(
-                    clip.get(_BACKGROUND_ISOLATION_KEY, clip.get("backgroundIsolation", background_isolation)),
+                    resolve_background_isolation_config(clip, background_isolation),
                     trim_start,
                     source_span,
                 )
