@@ -39,9 +39,9 @@ export default {
       fontFamily: {
         heading: ['Prompt', 'Inter', 'sans-serif'],
         serif: ['Prompt', 'Inter', 'sans-serif'],
-        sans: ['Inter', 'Prompt', 'system-ui', 'sans-serif'],
+        sans: ['Prompt', 'Inter', 'system-ui', 'sans-serif'],
         prompt: ['Prompt', 'Inter', 'sans-serif'],
-        mono: ['JetBrains Mono', 'Menlo', 'Consolas', 'monospace'],
+        mono: ['Prompt', 'Inter', 'Consolas', 'monospace'],
       },
       boxShadow: {
         'subtle': '0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2)',

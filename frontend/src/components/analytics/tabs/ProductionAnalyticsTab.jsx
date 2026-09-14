@@ -232,7 +232,7 @@ export default function ProductionAnalyticsTab({ onNavigateToEditor, onNavigateT
                   <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
                     <td className="py-2.5 px-3 font-semibold text-white max-w-[140px] truncate">
                       {item.product_code && (
-                        <span className="mr-1.5 text-[10px] font-mono px-1 py-0.5 rounded bg-white/[0.08] text-cyan-300">
+                        <span className="mr-1.5 text-[10px] font-semibold px-1 py-0.5 rounded bg-white/[0.08] text-cyan-300">
                           {item.product_code}
                         </span>
                       )}

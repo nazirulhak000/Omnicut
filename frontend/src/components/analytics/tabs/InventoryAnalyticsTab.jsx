@@ -257,7 +257,7 @@ export default function InventoryAnalyticsTab({ onNavigateToFlow }) {
                 <tr key={p.id} className="hover:bg-white/[0.02] transition-colors">
                   <td className="py-3 px-3 font-semibold text-white max-w-[200px] truncate">
                     {p.product_code && (
-                      <span className="mr-1.5 text-[10px] font-mono px-1 py-0.5 rounded bg-white/[0.08] text-cyan-300">
+                      <span className="mr-1.5 text-[10px] font-semibold px-1 py-0.5 rounded bg-white/[0.08] text-cyan-300">
                         {p.product_code}
                       </span>
                     )}
@@ -278,7 +278,7 @@ export default function InventoryAnalyticsTab({ onNavigateToFlow }) {
                       {p.angles_count} มุม
                     </span>
                   </td>
-                  <td className="py-3 px-3 font-mono font-bold text-slate-200">
+                  <td className="py-3 px-3 font-bold text-slate-200">
                     {p.rendered_clips > 0 ? (
                       <span className="text-emerald-400">{p.rendered_clips} คลิป</span>
                     ) : (
@@ -293,7 +293,7 @@ export default function InventoryAnalyticsTab({ onNavigateToFlow }) {
                           style={{ width: `${p.completeness_score}%` }}
                         />
                       </div>
-                      <span className="font-mono font-bold text-[11px] text-slate-300">
+                      <span className="font-bold text-[11px] text-slate-300">
                         {p.completeness_score}%
                       </span>
                     </div>

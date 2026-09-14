@@ -16,6 +16,7 @@
 
 ## สถานะรวม
 
+- [x] Round UI-FONT-HARMONY-ALL-1 — กวาดล้าง font-mono และผสานฟอนต์กลาง (Prompt) ทั่วทั้งระบบ 100% ครบทุกแดชบอร์ดและหน้าจอ (2026-09-15; frontend vitest 232 passed, build 2.83s ผ่าน, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [x] Round GEMINI-TTS-MULTIKEY-ALERT-1 — ปรับระบบ Multi-Key Failover (ลอง 3.1 ทุก Key ก่อนลดเป็น 2.5) + แจ้งเตือน AI Rate-Limit/Quota บน Token Dashboard (2026-09-15; backend 20 passed, frontend 232 passed, build 2,007 modules/2.68s, compileall ผ่าน, live synthesis verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [x] Round SCHEDULE-FLEXIBLE-SLOTS-1 — ตั้งเวลาโพสต์เริ่มต้น 5 ช่วง และเพิ่ม/ลบช่วงรายวัน (2026-09-14; backend schedule 10 passed, frontend 230 passed, compileall ผ่าน, build 2,005 modules/3.25s, ดำเนินการโดย: Codex (GPT-5))
 - [x] Round SCHEDULE-DEFAULT-RESET-1 — ปรับเทมเพลตเวลาที่บันทึกไว้ทั้งหมดเป็นชุดแนะนำ 5 ช่วง (2026-09-14; อัปเดต 2 สัปดาห์ × 7 วันครบ, API/UI verified, ไม่กระทบคิวคลิป, ดำเนินการโดย: Codex (GPT-5))

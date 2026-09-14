@@ -175,7 +175,7 @@ export default function AreaLineChart({
                 x={padding.left - 8}
                 y={y + 3.5}
                 textAnchor="end"
-                className="text-[10px] fill-slate-500 font-mono"
+                className="text-[10px] fill-slate-500"
               >
                 {formatValue(tick)}
               </text>
@@ -226,7 +226,7 @@ export default function AreaLineChart({
               x={pt.x}
               y={padding.top + innerHeight + 17}
               textAnchor="middle"
-              className="text-[10px] fill-slate-400 font-mono font-medium"
+              className="text-[10px] fill-slate-400 font-medium"
             >
               {shortDate}
             </text>
@@ -295,17 +295,17 @@ export default function AreaLineChart({
           }}
         >
           <div className="px-3 py-2 rounded-xl bg-[#080B11]/95 border border-[#25F4EE]/40 shadow-xl shadow-black/80 backdrop-blur-md text-left min-w-[130px] space-y-1 animate-fadeIn">
-            <div className="text-[10px] font-mono text-slate-400 border-b border-white/[0.08] pb-1">
+            <div className="text-[10px] text-slate-400 border-b border-white/[0.08] pb-1">
               {activePoint.data[dateKey]}
             </div>
             <div className="flex items-baseline justify-between gap-2">
               <span className="text-[11px] text-slate-300">ปริมาณ:</span>
-              <span className="text-xs font-mono font-bold text-white">
+              <span className="text-xs font-bold text-white">
                 {activePoint.value.toLocaleString()} {unit}
               </span>
             </div>
             {activePoint.data[secondaryKey] != null && (
-              <div className="text-[10px] font-mono text-emerald-400">
+              <div className="text-[10px] font-semibold text-emerald-400">
                 {formatSecondary(activePoint.data[secondaryKey])}
               </div>
             )}

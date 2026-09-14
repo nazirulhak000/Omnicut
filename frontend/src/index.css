@@ -56,6 +56,10 @@
 .font-chonburi { font-family: 'Chonburi', serif; }
 .font-baijamjuree { font-family: 'Bai Jamjuree', sans-serif; }
 .font-pridi { font-family: 'Pridi', serif; }
+.font-mono {
+  font-family: 'Prompt', 'Inter', monospace;
+  font-feature-settings: 'tnum' on, 'lnum' on;
+}
 
 /* ── Modern Dark Surfaces ── */
 .glass-card, .claude-card {

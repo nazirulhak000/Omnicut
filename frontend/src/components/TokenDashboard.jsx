@@ -199,7 +199,7 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
                       <Key className="w-3.5 h-3.5 text-slate-400" />
                       {keyName}
                     </span>
@@ -252,7 +252,7 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
                       )}
                       <span className="truncate">{alt.message}</span>
                     </div>
-                    <span className="text-[10px] font-mono text-slate-400 whitespace-nowrap">
+                    <span className="text-[10px] text-slate-400 whitespace-nowrap">
                       {timeStr}
                     </span>
                   </div>
@@ -274,10 +274,10 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
             </div>
           </div>
           <div className="mt-3">
-            <div className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight">
+            <div className="text-2xl sm:text-3xl font-black text-white tracking-tight">
               {totals.total_tokens.toLocaleString()}
             </div>
-            <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-400 font-mono">
+            <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-400">
               <span className="text-cyan-400">In: {totals.input_tokens.toLocaleString()}</span>
               <span>•</span>
               <span className="text-emerald-400">Out: {totals.output_tokens.toLocaleString()}</span>
@@ -300,9 +300,9 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
             </div>
           </div>
           <div className="mt-3">
-            <div className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono tracking-tight flex items-baseline gap-1">
+            <div className="text-2xl sm:text-3xl font-black text-emerald-400 tracking-tight flex items-baseline gap-1">
               ฿{totals.total_cost_saved_thb.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              <span className="text-xs font-sans font-bold text-slate-400">บาท</span>
+              <span className="text-xs font-bold text-slate-400">บาท</span>
             </div>
             <div className="mt-1 flex items-center gap-1 text-[11px] text-emerald-400/90">
               <ShieldCheck className="w-3 h-3" />
@@ -320,8 +320,8 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
             </div>
           </div>
           <div className="mt-3">
-            <div className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight">
-              {totals.total_calls.toLocaleString()} <span className="text-sm font-sans font-semibold text-slate-400">ครั้ง</span>
+            <div className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+              {totals.total_calls.toLocaleString()} <span className="text-sm font-semibold text-slate-400">ครั้ง</span>
             </div>
             <div className="mt-1 text-[11px] text-purple-300/80">
               ครอบคลุมเขียนสคริปต์, ตรวจคลิป และพากย์เสียง
@@ -338,8 +338,8 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
             </div>
           </div>
           <div className="mt-3">
-            <div className="text-2xl sm:text-3xl font-black text-amber-300 font-mono tracking-tight">
-              {totals.avg_latency_seconds} <span className="text-sm font-sans font-semibold text-slate-400">วินาที</span>
+            <div className="text-2xl sm:text-3xl font-black text-amber-300 tracking-tight">
+              {totals.avg_latency_seconds} <span className="text-sm font-semibold text-slate-400">วินาที</span>
             </div>
             <div className="mt-1 text-[11px] text-amber-300/80">
               รวดเร็วด้วย Gemini Flash Architecture
@@ -386,7 +386,7 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
                     <div key={modelName} className="space-y-1">
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono font-semibold text-slate-200">{modelName}</span>
+                          <span className="font-semibold text-slate-200">{modelName}</span>
                           {isPro ? (
                             <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-[#FE2C55]/20 text-[#25F4EE] border border-[#25F4EE]/30">
                               PRO
@@ -397,7 +397,7 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
                             </span>
                           )}
                         </div>
-                        <div className="text-slate-400 font-mono text-[11px]">
+                        <div className="text-slate-400 text-[11px]">
                           <span className="text-white font-bold">{tokens.toLocaleString()}</span> tok ({percent}%) • {calls} ครั้ง
                         </div>
                       </div>
@@ -459,7 +459,7 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
                           <Icon className="w-3.5 h-3.5 text-slate-400" />
                           <span className="font-semibold text-slate-200">{badge.label}</span>
                         </div>
-                        <div className="text-slate-400 font-mono text-[11px]">
+                        <div className="text-slate-400 text-[11px]">
                           <span className="text-white font-bold">{tokens.toLocaleString()}</span> tok ({percent}%) • {calls} ครั้ง
                         </div>
                       </div>
@@ -489,7 +489,7 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
               </div>
               <p className="text-xs text-slate-400">กราฟแนวโน้มปริมาณโทเคนและมูลค่าที่ประหยัดได้ในแต่ละวัน</p>
             </div>
-            <span className="text-xs font-mono text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-1 rounded-lg">
+            <span className="text-xs font-semibold text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-1 rounded-lg">
               {summary.daily_stats.length} วันล่าสุด
             </span>
           </div>
@@ -514,12 +514,12 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
                 key={day.date}
                 className="p-3 rounded-xl bg-black/40 border border-white/[0.06] flex flex-col justify-between space-y-2 hover:border-[#25F4EE]/30 transition-colors"
               >
-                <span className="text-[11px] font-mono text-slate-400">{day.date}</span>
+                <span className="text-[11px] text-slate-400">{day.date}</span>
                 <div>
-                  <div className="text-base font-bold text-white font-mono">
+                  <div className="text-base font-bold text-white">
                     {day.tokens > 1000 ? `${(day.tokens / 1000).toFixed(1)}k` : day.tokens}
                   </div>
-                  <div className="text-[10px] text-emerald-400 font-mono">
+                  <div className="text-[10px] text-emerald-400 font-semibold">
                     ฿{day.cost_saved_thb} ประหยัด
                   </div>
                 </div>
@@ -537,7 +537,7 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-[#25F4EE]" />
             <h3 className="text-sm font-bold text-white">ประวัติการเรียกใช้งาน AI ล่าสุด (Audit Log)</h3>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-white/[0.08] text-slate-300 font-mono">
+            <span className="text-xs px-2 py-0.5 rounded-full bg-white/[0.08] text-slate-300">
               {filteredEvents.length} รายการ
             </span>
           </div>
@@ -572,7 +572,7 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
         {/* Table Container */}
         <div className="overflow-x-auto touch-pan-x pb-2 no-scrollbar">
           <table className="w-full text-left text-xs text-slate-300 min-w-[700px]">
-            <thead className="bg-white/[0.03] text-slate-400 uppercase font-mono text-[10px] border-b border-white/[0.06]">
+            <thead className="bg-white/[0.03] text-slate-400 uppercase text-[10px] border-b border-white/[0.06]">
               <tr>
                 <th className="py-3 px-4">เวลา</th>
                 <th className="py-3 px-4">งาน (Task)</th>
@@ -599,7 +599,7 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
 
                   return (
                     <tr key={ev.id} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="py-3 px-4 font-mono text-[11px] text-slate-400 whitespace-nowrap">
+                      <td className="py-3 px-4 text-[11px] text-slate-400 whitespace-nowrap">
                         {timeFormatted}
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap">
@@ -612,23 +612,23 @@ const TokenDashboard = forwardRef(function TokenDashboard({ onRefreshingChange }
                         {ev.project_name || '-'}
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap space-y-1">
-                        <div className="font-mono text-[11px] text-slate-300 font-semibold">{ev.model}</div>
+                        <div className="text-[11px] text-slate-300 font-semibold">{ev.model}</div>
                         <div>{getProviderBadge(ev.provider)}</div>
                       </td>
-                      <td className="py-3 px-4 text-right font-mono text-[11px] text-slate-400 whitespace-nowrap">
+                      <td className="py-3 px-4 text-right text-[11px] text-slate-400 whitespace-nowrap">
                         <span className="text-cyan-400">{ev.input_tokens.toLocaleString()}</span> /{' '}
                         <span className="text-emerald-400">{ev.output_tokens.toLocaleString()}</span>
                         {ev.thinking_tokens > 0 && (
                           <span className="text-purple-400 block text-[10px]">+{ev.thinking_tokens} think</span>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-right font-mono font-bold text-white whitespace-nowrap">
+                      <td className="py-3 px-4 text-right font-bold text-white whitespace-nowrap">
                         {ev.total_tokens.toLocaleString()}
                       </td>
-                      <td className="py-3 px-4 text-right font-mono text-amber-300 whitespace-nowrap">
+                      <td className="py-3 px-4 text-right text-amber-300 whitespace-nowrap">
                         {ev.latency_seconds > 0 ? `${ev.latency_seconds}s` : '-'}
                       </td>
-                      <td className="py-3 px-4 text-right font-mono text-emerald-400 font-bold whitespace-nowrap">
+                      <td className="py-3 px-4 text-right text-emerald-400 font-bold whitespace-nowrap">
                         ฿{ev.cost_saved_thb}
                       </td>
                     </tr>

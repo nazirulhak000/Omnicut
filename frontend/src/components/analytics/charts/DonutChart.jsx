@@ -153,11 +153,11 @@ export default function DonutChart({
           <span className="text-[10px] font-medium text-slate-400 truncate max-w-[85px]">
             {activeSlice ? (activeSlice.label || activeSlice.name) : centerLabel}
           </span>
-          <div className="text-base sm:text-lg font-black text-white font-mono tracking-tight leading-tight">
+          <div className="text-base sm:text-lg font-black text-white tracking-tight leading-tight">
             {activeSlice ? formatValue(activeSlice.value) : (centerValue !== undefined ? centerValue : formatValue(total))}
           </div>
           {activeSlice ? (
-            <span className="text-[10px] font-bold font-mono text-cyan-300">
+            <span className="text-[10px] font-bold text-cyan-300">
               {activeSlice.percent}%
             </span>
           ) : unit ? (
@@ -193,7 +193,7 @@ export default function DonutChart({
                     {slice.label || slice.name}
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5 text-xs font-mono flex-shrink-0 ml-2">
+                <div className="flex items-center gap-1.5 text-xs flex-shrink-0 ml-2">
                   <span className="text-white font-bold">{formatValue(slice.value)}</span>
                   <span className="text-slate-400 text-[10px] w-8 text-right">({slice.percent}%)</span>
                 </div>

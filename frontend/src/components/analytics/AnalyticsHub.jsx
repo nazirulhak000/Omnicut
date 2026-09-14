@@ -84,7 +84,7 @@ export default function AnalyticsHub({
             >
               <Icon className="w-4 h-4" />
               <span>{tab.label}</span>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.08] text-slate-300 ml-1">
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-white/[0.08] text-slate-300 ml-1">
                 {tab.badge}
               </span>
             </button>

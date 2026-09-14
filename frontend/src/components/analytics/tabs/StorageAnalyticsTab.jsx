@@ -253,7 +253,7 @@ export default function StorageAnalyticsTab() {
           <div className="p-3.5 rounded-2xl bg-black/30 border border-white/[0.06] space-y-1">
             <span className="text-[11px] font-bold text-slate-400">จำนวนคลิปที่โพสต์แล้ว</span>
             <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold font-mono text-[#25F4EE]">
+              <span className="text-2xl font-bold text-[#25F4EE]">
                 {posted_archive_potential.posted_clips_count || 0}
               </span>
               <span className="text-xs text-slate-400">คลิป ({posted_archive_potential.posted_angles_count || 0} มุมมอง)</span>
@@ -264,7 +264,7 @@ export default function StorageAnalyticsTab() {
           <div className="p-3.5 rounded-2xl bg-black/30 border border-white/[0.06] space-y-1">
             <span className="text-[11px] font-bold text-slate-400">พื้นที่ที่จะประหยัดได้ทันที</span>
             <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold font-mono text-emerald-400">
+              <span className="text-2xl font-bold text-emerald-400">
                 {(posted_archive_potential.total_reclaimable_mb || 0) >= 1024
                   ? `${posted_archive_potential.total_reclaimable_gb} GB`
                   : `${posted_archive_potential.total_reclaimable_mb || 0} MB`}
@@ -277,7 +277,7 @@ export default function StorageAnalyticsTab() {
           <div className="p-3.5 rounded-2xl bg-black/30 border border-white/[0.06] space-y-1">
             <span className="text-[11px] font-bold text-slate-400">สัดส่วนที่ลดได้จากโปรเจกต์</span>
             <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold font-mono text-purple-400">
+              <span className="text-2xl font-bold text-purple-400">
                 {totalFolderBytes ? Math.round(((posted_archive_potential.total_reclaimable_bytes || 0) / totalFolderBytes) * 100) : 0}%
               </span>
               <span className="text-xs text-purple-400/80">ของพื้นที่โปรเจกต์</span>
@@ -290,10 +290,10 @@ export default function StorageAnalyticsTab() {
         <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px]">
           <span className="text-slate-400 font-bold">รายละเอียดที่พร้อมย้าย:</span>
           <span className="px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08] text-slate-200">
-            วิดีโอส่งออก MP4: <strong className="text-white font-mono">{posted_archive_potential.posted_exports_mb || 0} MB</strong> ({posted_archive_potential.posted_clips_count || 0} ไฟล์)
+            วิดีโอส่งออก MP4: <strong className="text-white font-semibold">{posted_archive_potential.posted_exports_mb || 0} MB</strong> ({posted_archive_potential.posted_clips_count || 0} ไฟล์)
           </span>
           <span className="px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08] text-slate-200">
-            โฟลเดอร์ดราฟต์โปรเจกต์: <strong className="text-white font-mono">{posted_archive_potential.posted_projects_mb || 0} MB</strong> ({posted_archive_potential.posted_angles_count || 0} โปรเจกต์)
+            โฟลเดอร์ดราฟต์โปรเจกต์: <strong className="text-white font-semibold">{posted_archive_potential.posted_projects_mb || 0} MB</strong> ({posted_archive_potential.posted_angles_count || 0} โปรเจกต์)
           </span>
         </div>
 
@@ -334,13 +334,13 @@ export default function StorageAnalyticsTab() {
                           </span>
                         )}
                       </td>
-                      <td className="py-2 px-3 font-mono text-slate-200 truncate max-w-[360px]">
+                      <td className="py-2 px-3 text-slate-200 truncate max-w-[360px]">
                         <div className="truncate font-semibold">{item.name}</div>
                         {item.product_name && (
                           <div className="text-[10px] text-slate-500 truncate font-sans">{item.product_name}</div>
                         )}
                       </td>
-                      <td className="py-2 px-3 text-right font-mono text-white font-bold whitespace-nowrap">
+                      <td className="py-2 px-3 text-right text-white font-bold whitespace-nowrap">
                         {item.size_mb} MB
                       </td>
                     </tr>
@@ -404,11 +404,11 @@ export default function StorageAnalyticsTab() {
               return (
                 <div key={idx} className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-2 hover:border-white/[0.12] transition-colors">
                   <div className="flex items-center justify-between text-xs font-bold text-slate-200">
-                    <span className="truncate font-mono">{dir.name}</span>
-                    <span className="text-purple-400 font-mono">{pct}%</span>
+                    <span className="truncate">{dir.name}</span>
+                    <span className="text-purple-400 font-semibold">{pct}%</span>
                   </div>
                   <div className="flex items-baseline justify-between text-xs">
-                    <span className="text-base font-bold font-mono text-white">
+                    <span className="text-base font-bold text-white">
                       {dir.size_gb >= 1 ? `${dir.size_gb} GB` : `${dir.size_mb} MB`}
                     </span>
                     <button
@@ -470,7 +470,7 @@ export default function StorageAnalyticsTab() {
                   <td className="py-2.5 px-3 font-semibold text-white truncate max-w-[280px]">
                     {item.name}
                   </td>
-                  <td className="py-2.5 px-3 text-right font-mono text-slate-200">
+                  <td className="py-2.5 px-3 text-right text-slate-200">
                     {item.size_mb > 1024
                       ? `${(item.size_mb / 1024).toFixed(2)} GB`
                       : `${item.size_mb} MB`}

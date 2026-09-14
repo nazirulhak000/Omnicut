@@ -8,6 +8,7 @@
 
 ## สารบัญ
 
+| Round UI-FONT-HARMONY-ALL-1 | กวาดล้าง font-mono และผสานฟอนต์กลาง (Prompt) ทั่วทั้งระบบ 100% ครบทุกแดชบอร์ดและหน้าจอ | 2026-09-15 | สำเร็จสมบูรณ์ (frontend 232 passed, build 2,007 modules/2.83s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round GEMINI-TTS-MULTIKEY-ALERT-1 | ปรับระบบ Multi-Key Failover (ลอง 3.1 ทุก Key ก่อนลดเป็น 2.5) + แจ้งเตือน AI Rate-Limit/Quota บน Token Dashboard | 2026-09-15 | สำเร็จสมบูรณ์ (backend 20 passed, frontend 232 passed, build 2,007 modules/2.68s, compileall ผ่าน, live synthesis verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round VOICE-DEFAULT-PUCK-HYPE-1 | ปรับค่าเริ่มต้นเสียงพากย์ทุกสไตล์เป็น Puck (ชายพลังสูง TikTok) + โทนป้ายยาไวรัล ทั่วทั้งระบบ | 2026-09-14 | สำเร็จสมบูรณ์ (backend 1,415 passed, frontend 230 passed, build 2,006 modules/3.17s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round HOOK-TIER-SYNC-1 | จัดการป้าย Hook Header (แบรนด์ · รุ่น · หมวด) แบบเลือกขอบเขต (เฉพาะคลิปนี้ vs ทั้งสินค้า) ในหน้าสินค้าและสร้างคลิป | 2026-09-14 | สำเร็จสมบูรณ์ (backend 21 passed, frontend 230 passed, build 2,006 modules/3.08s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
@@ -29,6 +30,35 @@
 | Round AGENTS-SLIM-1 | ย่อ AGENTS.md 170→62 บรรทัด (30.9→11.3 KB) กฎ 24 ข้อครบ + link ไฟล์กฎ | 2026-09-13 | เสร็จ (ดำเนินการโดย: Muse Spark (Muse Spark)) |
 | Round TEST-TWO-TIER-1 | กติกาเทส 2 ชั้น: ตอนแก้รันเฉพาะจุด ก่อนปิดรอบค่อยรันเต็ม | 2026-09-13 | เสร็จ (testing_standard.md, Gate เต็มเท่าเดิม, ดำเนินการโดย: Muse Spark (Muse Spark)) |
 | Round HOUSEKEEP-1 | จัดระเบียบราก: ไฟล์เทส 8 ไฟล์ลง .tmp (gitignore) + ยกเลิกย้าย PLAN หลังเจอ 06_Archive โดน ignore | 2026-09-13 | เสร็จบางส่วน (ดำเนินการโดย: Muse Spark (Muse Spark)) |
+## Round UI-FONT-HARMONY-ALL-1 — กวาดล้าง font-mono และผสานฟอนต์กลาง (Prompt) ทั่วทั้งระบบ 100% ครบทุกแดชบอร์ดและหน้าจอ
+
+วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์ ✅
+
+**เป้าหมาย:**
+1. แก้ปัญหาฟอนต์หลุดใน UI เช่น หน้า Token Dashboard, แดชบอร์ด Analytics และกราฟ SVG ที่ยังคงติดฟอนต์ Monospace (Consolas / Typewriter fallback บน Windows) ส่งผลให้ภาษาไทยและตัวเลขดูขรุขระ ไม่เป็นฟอนต์กลางของระบบ (`Prompt`)
+2. ปรับการตั้งค่า Tailwind Config ให้ `mono` และ `sans` มี `Prompt` นำหน้าเพื่อป้องกันฟอนต์หลุดในอนาคต
+3. เพิ่มกฎ CSS ใน `index.css` บังคับให้คลาส `.font-mono` สืบทอดฟอนต์ `Prompt` พร้อมเปิด `font-feature-settings: 'tnum'` เพื่อให้ตัวเลขในตารางและกราฟจัดเรียงตรงหลักสวยงามโดยไม่หลุดจากฟอนต์กลาง
+4. กวาดล้างคลาส `font-mono` ออกจาก `TokenDashboard.jsx`, `AreaLineChart.jsx`, `DonutChart.jsx`, `AnalyticsHub.jsx`, `FunnelPipelineChart.jsx`, `ProgressRing.jsx`, `StorageAnalyticsTab.jsx`, `ProductionAnalyticsTab.jsx`, `InventoryAnalyticsTab.jsx`, `PerformanceAnalyticsTab.jsx`
+
+**สิ่งที่ทำ:**
+1. `frontend/tailwind.config.js`:
+   - ปรับ `fontFamily.sans` เป็น `['Prompt', 'Inter', 'system-ui', 'sans-serif']`
+   - ปรับ `fontFamily.mono` เป็น `['Prompt', 'Inter', 'Consolas', 'monospace']`
+2. `frontend/src/index.css`:
+   - เพิ่ม `.font-mono { font-family: 'Prompt', 'Inter', monospace; font-feature-settings: 'tnum' on, 'lnum' on; }` รับประกันว่าตัวเลขทุกตัวใช้ฟอนต์ Prompt ที่มี tabular layout ตรงหลัก
+3. `frontend/src/components/TokenDashboard.jsx`:
+   - ปลด `font-mono` ออกจากการ์ด API Key Health, Hero KPI Cards (4 ใบ), Model Breakdown, Tasks Breakdown, Daily Activity stats, และ Audit Log table ทั้งหมด
+4. Charts & Analytics Tabs:
+   - `AreaLineChart.jsx`: ปลด `font-mono` จากแกนตัวเลข SVG และ tooltip
+   - `DonutChart.jsx`: ปลด `font-mono` จาก center label และ legend
+   - `AnalyticsHub.jsx`: ปลด `font-mono` จากป้ายหมวดหมู่แท็บด้านบน (Funnel, Stats, Tokens, Storage, Health)
+   - `FunnelPipelineChart.jsx` & `ProgressRing.jsx`: ปลด `font-mono` จากตัวเลขขั้นตอนและเกจเปอร์เซ็นต์
+   - `StorageAnalyticsTab.jsx`, `ProductionAnalyticsTab.jsx`, `InventoryAnalyticsTab.jsx`, `PerformanceAnalyticsTab.jsx`: ปลด `font-mono` ออกจากตัวเลขสถิติและตารางข้อมูล
+
+**ผลการตรวจสอบ (Gate):**
+- [x] Frontend test: `npm test` ผ่านครบ 232/232 tests (100%)
+- [x] Build check: `npm run build` ผ่านสมบูรณ์ (2,007 modules ใน 2.83s, 0 errors/warnings)
+- [x] Grep verification: ตรวจสอบ `frontend/src/components/analytics` ปลอด `font-mono` 100%
 
 ## Round GEMINI-TTS-MULTIKEY-ALERT-1 — ปรับระบบ Multi-Key Failover และระบบแจ้งเตือน AI Rate-Limit / โควต้าบน Token Dashboard
 

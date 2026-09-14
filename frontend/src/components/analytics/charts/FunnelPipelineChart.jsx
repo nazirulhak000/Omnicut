@@ -107,7 +107,7 @@ export default function FunnelPipelineChart({
               <div>
                 <div className="flex items-center justify-between mb-3 relative z-10">
                   <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs font-mono font-bold flex items-center justify-center">
+                    <span className="w-6 h-6 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs font-bold flex items-center justify-center">
                       {idx + 1}
                     </span>
                     <span className="text-xs font-semibold text-zinc-300">{stage.label}</span>
@@ -123,7 +123,7 @@ export default function FunnelPipelineChart({
                     {stage.count}
                   </span>
                   <span className="text-xs text-zinc-400 font-medium">คลิป</span>
-                  <span className="text-xs font-mono text-zinc-400 ml-auto">
+                  <span className="text-xs font-medium text-zinc-400 ml-auto">
                     {stage.percentage || (totalProjects > 0 ? Math.round((stage.count / totalProjects) * 100) : 0)}%
                   </span>
                 </div>
@@ -144,7 +144,7 @@ export default function FunnelPipelineChart({
                 ) : (
                   <div className="flex items-center gap-1">
                     <span className="text-zinc-400">ส่งต่อจากขั้นก่อน:</span>
-                    <span className={`font-mono font-semibold ${convRate != null && convRate < 50 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                    <span className={`font-semibold ${convRate != null && convRate < 50 ? 'text-amber-400' : 'text-emerald-400'}`}>
                       {convRate != null ? `${convRate}%` : '—'}
                     </span>
                   </div>
@@ -173,7 +173,7 @@ export default function FunnelPipelineChart({
       <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-2">
           <span className="text-zinc-400">อัตราความสำเร็จรวม (End-to-End Success Rate):</span>
-          <span className="font-mono font-bold text-emerald-400 text-sm">
+          <span className="font-bold text-emerald-400 text-sm">
             {pipelineStages[0]?.count > 0
               ? `${Math.round((pipelineStages[3]?.count / pipelineStages[0]?.count) * 100)}%`
               : '0%'}

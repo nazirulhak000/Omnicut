@@ -345,9 +345,9 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
                       <div className="text-slate-200 max-w-[160px] truncate">{p.product}</div>
                       <div className="text-[10px] text-slate-500 mt-0.5 max-w-[160px] truncate">{p.angle}</div>
                     </td>
-                    <td className="py-2.5 px-3 text-right font-mono text-slate-200">{fmt(p.views)}</td>
-                    <td className="py-2.5 px-3 text-right font-mono text-slate-300">{fmt(p.likes)}</td>
-                    <td className="py-2.5 px-3 text-right font-mono text-slate-300">{fmt(p.comments)}</td>
+                    <td className="py-2.5 px-3 text-right text-slate-200">{fmt(p.views)}</td>
+                    <td className="py-2.5 px-3 text-right text-slate-300">{fmt(p.likes)}</td>
+                    <td className="py-2.5 px-3 text-right text-slate-300">{fmt(p.comments)}</td>
                     <td className="py-2.5 px-3 text-right">
                       <span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${p.engagement >= 5 ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' : p.engagement >= 2 ? 'bg-amber-500/10 text-amber-300 border-amber-500/30' : 'bg-white/[0.04] text-slate-400 border-white/[0.1]'}`}>
                         {p.engagement}%

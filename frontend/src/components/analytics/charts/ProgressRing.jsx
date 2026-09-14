@@ -58,7 +58,7 @@ export function ProgressRing({
       {/* Center slot */}
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
         {children || (
-          <span className="text-xs font-bold font-mono text-zinc-200">
+          <span className="text-xs font-bold text-zinc-200">
             {Math.round(cleanPercent)}%
           </span>
         )}
@@ -129,7 +129,7 @@ export function ConcentricRings({
 
         {/* Center aggregate percentage or icon */}
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-          <span className="text-xl font-black font-mono text-zinc-100">
+          <span className="text-xl font-black text-zinc-100">
             {rings.length > 0
               ? Math.round(rings.reduce((acc, r) => acc + (r.percentage || 0), 0) / rings.length)
               : 0}%
@@ -157,7 +157,7 @@ export function ConcentricRings({
                 )}
               </div>
             </div>
-            <span className="text-xs font-mono font-bold text-zinc-200">
+            <span className="text-xs font-bold text-zinc-200">
               {Math.round(ring.percentage || 0)}%
             </span>
           </div>
@@ -223,7 +223,7 @@ export function RadialGauge({
 
         {/* Center reading inside arc */}
         <div className="absolute inset-x-0 bottom-0 flex flex-col items-center justify-center text-center">
-          <span className="text-2xl font-black font-mono text-zinc-100">
+          <span className="text-2xl font-black text-zinc-100">
             {cleanPercent.toFixed(1)}%
           </span>
           <span className="text-[11px] text-zinc-400">{label}</span>
