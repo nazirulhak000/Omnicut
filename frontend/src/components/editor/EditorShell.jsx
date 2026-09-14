@@ -1196,18 +1196,26 @@ export default function EditorShell({
       showToast('ยังไม่มีคลิปใน Timeline สำหรับตัดพื้นหลัง');
       return;
     }
-    const baseConfig = backgroundIsolation?.enabled === true
-      ? backgroundIsolation
-      : {
-        schema_version: 1,
-        enabled: true,
-        mode: 'cutout',
-        engine: 'rembg',
-        model: 'u2net',
-        quality: 'balanced',
-        fallback: 'spotlight',
-        artifact: { schema_version: 1, id: null, status: 'missing' },
-      };
+    const baseConfig = {
+      ...(backgroundIsolation?.enabled === true
+        ? backgroundIsolation
+        : {
+          schema_version: 1,
+          enabled: true,
+          mode: 'cutout',
+          engine: 'rembg',
+          model: 'u2net',
+          quality: 'balanced',
+          fallback: 'spotlight',
+          artifact: { schema_version: 1, id: null, status: 'missing' },
+        }),
+      // Existing projects may carry the old compact-model default. A manual
+      // re-prepare is an explicit request to rebuild, so use the cleaner
+      // model while leaving the old artifact untouched in cache.
+      model: backgroundIsolation?.model === 'u2netp'
+        ? 'u2net'
+        : (backgroundIsolation?.model || 'u2net'),
+    };
     patchBackgroundIsolation({
       ...baseConfig,
       enabled: true,
