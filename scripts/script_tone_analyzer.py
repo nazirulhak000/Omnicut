@@ -112,7 +112,14 @@ class ScriptToneAnalyzer:
 ตอบเป็น JSON array ของ string เท่านั้น ความยาวต้องเป็น {expected_len} ตัวพอดี เรียงตามลำดับคู่ช็อต เช่น ["minor","major","none"]
 """
 
-            models_to_try = ["gemini-2.5-flash-lite", "gemini-2.5-flash"]
+            models_to_try = [
+                "gemini-3.6-flash",
+                "gemini-3.5-flash",
+                "gemini-flash-latest",
+                "gemini-3.5-flash-lite",
+                "gemini-2.5-flash-lite",
+                "gemini-2.5-flash",
+            ]
             response = None
             for key_idx, cur_key in enumerate(api_keys, 1):
                 client = genai.Client(api_key=cur_key)

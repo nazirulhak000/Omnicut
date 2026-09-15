@@ -343,10 +343,17 @@ class GeminiVisionMatcher:
 ```
 """
         try:
-            models_to_try = ["gemini-2.5-flash", "gemini-2.5-flash-lite"]
+            models_to_try = [
+                "gemini-3.6-flash",
+                "gemini-3.5-flash",
+                "gemini-flash-latest",
+                "gemini-3.5-flash-lite",
+                "gemini-2.5-flash",
+                "gemini-2.5-flash-lite",
+            ]
             response = None
             last_err = None
-            chosen_model = "gemini-2.5-flash"
+            chosen_model = "gemini-3.6-flash"
             t_vision_start = time.time()
 
             from scripts.ai_bridge import (

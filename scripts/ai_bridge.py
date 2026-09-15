@@ -28,7 +28,7 @@ if sys.stderr and hasattr(sys.stderr, "reconfigure"):
     except Exception:
         pass
 
-DEFAULT_MODEL = "gemini-2.5-flash"
+DEFAULT_MODEL = "gemini-3.6-flash"
 PRO_MODEL = "gemini-3.8-flash-high"
 ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
 

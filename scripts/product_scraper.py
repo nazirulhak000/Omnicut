@@ -824,7 +824,7 @@ class ProductScraper:
             key_tag = f"Key #{key_idx} (..{cur_key[-6:]})"
             client = genai.Client(api_key=cur_key)
             key_rate_limited = False
-            for model_name in ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"]:
+            for model_name in ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-flash-latest", "gemini-2.5-flash", "gemini-2.5-flash-lite"]:
                 try:
                     response = client.models.generate_content(model=model_name, contents=[prompt, *image_parts])
                     if response and response.text:
@@ -1118,7 +1118,7 @@ class ProductScraper:
                     key_tag = f"Key #{key_idx} (..{cur_key[-6:]})"
                     client = genai.Client(api_key=cur_key)
                     key_rate_limited = False
-                    for m_name in ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"]:
+                    for m_name in ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-flash-latest", "gemini-2.5-flash", "gemini-2.5-flash-lite"]:
                         try:
                             print(f"[ProductScraper] Calling Gemini with model {m_name} on {key_tag}...")
                             resp = client.models.generate_content(
