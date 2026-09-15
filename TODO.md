@@ -17,12 +17,13 @@
 
 ## สถานะรวม
 
+- [x] Round MAIN-PAGE-VOICE-TYPE-INDICATOR-1 — แสดงสัญลักษณ์ระบุประเภทเสียง (Gemini TTS vs Edge-TTS vs ยังไม่มีเสียง) บนหน้าหลัก ทั้งการ์ดรายการมุมและการ์ดสคริปต์ โดยไม่ต้องกดเข้าไปดูด้านใน (2026-09-15; backend 4 passed, frontend 246 passed, build 2,007 modules/3.34s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 - [x] Round EDGE-TTS-DETECT-AND-UPGRADE-BADGE-1 — ตรวจจับเสียง Edge-TTS เดิม + แสดง Badge เตือนทั้งในหน้าสคริปต์และในแผนถ่าย พร้อมอัปเกรดเป็น Gemini TTS (2026-09-15; backend 4 passed, frontend 246 passed, build 2,007 modules/3.32s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 - [x] Round SKIP-RENDERED-POSTED-AUDIO-GEN-1 — ข้ามการสร้างเสียงพากย์สำหรับคลิปที่เสร็จ (rendered) หรือโพสต์แล้ว (posted) และตัดออกจากตัวนับขาดเสียง (2026-09-15; backend 3 passed, frontend 246 passed, build 2,007 modules/3.59s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
-- [ ] Round SYSTEM-AUDIT-REMEDIATION-20260915 — แก้ findings ใน System Audit 2026-09-15 ตามเฟส; ดำเนินการโดย: Codex (GPT-6)
-- [ ] Round SYSTEM-AUDIT-P0-20260915 — ป้องกัน SQLite data loss, upload overwrite และ media secret disclosure; ดำเนินการโดย: Codex (GPT-6)
-- [ ] Round SYSTEM-AUDIT-P1-RECOVERY-20260915 — ป้องกัน task registry เสียทำ startup ล้ม และกู้ manifest จาก backup-only; ดำเนินการโดย: Codex (GPT-6)
-- [ ] Round SYSTEM-AUDIT-P1-BATCH-20260915 — ปิด race ตอน batch dispatcher กำลัง idle-exit; ดำเนินการโดย: Codex (GPT-6)
+- [x] Round SYSTEM-AUDIT-REMEDIATION-20260915 — แก้ findings ใน System Audit 2026-09-15 ตามเฟส; ดำเนินการโดย: Codex (GPT-6)
+- [x] Round SYSTEM-AUDIT-P0-20260915 — ป้องกัน SQLite data loss, upload overwrite และ media secret disclosure; ดำเนินการโดย: Codex (GPT-6)
+- [x] Round SYSTEM-AUDIT-P1-RECOVERY-20260915 — ป้องกัน task registry เสียทำ startup ล้ม และกู้ manifest จาก backup-only; ดำเนินการโดย: Codex (GPT-6)
+- [x] Round SYSTEM-AUDIT-P1-BATCH-20260915 — ปิด race ตอน batch dispatcher กำลัง idle-exit; ดำเนินการโดย: Codex (GPT-6)
 - [ ] Round SYSTEM-AUDIT-P2-CUTOUT-20260915 — กู้ publish ที่ค้างและ deduplicate งานตัดพื้นหลัง; ดำเนินการโดย: Codex (GPT-6)
 - [ ] Round SYSTEM-AUDIT-P3-MEDIA-RANGE-20260915 — ทำ HTTP Range parser ให้ไม่คืน 500 สำหรับ request ปกติ/ผิดรูปแบบ; ดำเนินการโดย: Codex (GPT-6)
 - [x] Round SYSTEM-AUDIT-P6-BACKUP-WAL-20260915 - SQLite backup includes WAL pages and fails closed when snapshot API errors (10 backup/API tests passed; compileall + diff check passed); agent: Codex (GPT-6)
@@ -679,3 +680,10 @@ Gate: backend 1386 passed / 3 skipped, BG focused 151 passed / 3 skipped, fronte
 - [x] Full-gate fixture review: missing fonts, typography presets, SFX, BGM, stickers, and media explain remaining isolated failures; no real assets or secrets will be added to the repository.
 - [x] Validation: `tests/test_sqlite_store_migration.py` 22 passed; `tests/test_api_batch_audio.py` 4 passed; compileall and scoped diff checks passed.
 ดำเนินการโดย: Codex (GPT-6); benchmark: cutout_benchmark (GPT-6); mutation review: mutation_contract (GPT-6)
+
+### Evidence MAIN-PAGE-VOICE-TYPE-INDICATOR-1
+- [x] หน้าหลักโหลดสถานะแผนถ่าย/เสียงตาม product และ angle โดยอัตโนมัติ
+- [x] แสดงสถานะ Edge-TTS เดิม, Gemini preset และแผนถ่ายเก่าบน desktop/mobile cards
+- [x] Active Workbench แสดง Voice & Audio Track Banner และ action ตามประเภทเสียง
+- [x] Validation: frontend tests 246 passed; Vite build 2,007 modules / 3.03s
+ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)

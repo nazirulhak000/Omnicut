@@ -5,7 +5,7 @@ import {
   ChevronDown, ChevronUp, ChevronRight, Package, Rocket, FolderOpen, X,
   Search, LayoutGrid, Filter, Play, Lock, Edit3, Replace, Columns, List,
   ShoppingBag, ShieldCheck, Database, Zap, Layers, Eye, EyeOff, CheckCircle2, Tag,
-  Volume2, Mic
+  Volume2, Mic, AlertTriangle, VolumeX
 } from 'lucide-react';
 import {
   scrapeAndPlanProduct, scrapeAndPlanProductAsync, getProducts, updateProduct,
@@ -35,6 +35,21 @@ const GEMINI_VOICE_OPTIONS = [
   { id: 'gemini_aoede_female_pro', label: 'Aoede — หญิงพรีเมียม นุ่มนวล' },
   { id: 'gemini_fenrir_male_strong', label: 'Fenrir — ชายสตรอง คมเข้ม' },
 ];
+
+function getVoicePresetShortName(presetId) {
+  if (!presetId) return 'Puck';
+  if (presetId.includes('puck')) return 'Puck';
+  if (presetId.includes('charon')) return 'Charon';
+  if (presetId.includes('kore')) return 'Kore';
+  if (presetId.includes('aoede')) return 'Aoede';
+  if (presetId.includes('fenrir')) return 'Fenrir';
+  return 'Gemini';
+}
+
+function getVoicePresetFullLabel(presetId) {
+  const opt = GEMINI_VOICE_OPTIONS.find(v => v.id === presetId);
+  return opt ? opt.label.split('—')[0].trim() : (getVoicePresetShortName(presetId) + ' (Gemini)');
+}
 
 // One Gemini vision call reads all of these together (product photo, spec
 // sheet, review screenshots) -- capped so a single analyze request stays a
@@ -349,18 +364,30 @@ function AngleSidebarItem({
                     ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-400/40 ring-1 ring-amber-400/30 shadow-xs'
                     : isStaleShotList
                       ? 'bg-orange-500/15 hover:bg-orange-500/25 text-orange-300 border-orange-400/40 ring-1 ring-orange-400/20'
-                      : 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border-emerald-400/40 ring-1 ring-emerald-400/20 shadow-xs'
+                      : 'bg-indigo-500/15 hover:bg-indigo-500/25 text-cyan-300 border-indigo-400/40 ring-1 ring-indigo-400/20 shadow-xs'
                 }`}
                 title={isEdgeTtsShotList
-                  ? '⚠️ เสียงนี้สร้างด้วย Edge-TTS เดิม — คลิกเพื่อเปิดดูและอัปเกรดเป็น Gemini TTS'
+                  ? '⚠️ แผนถ่ายนี้สร้างด้วย Edge-TTS เดิม — คลิกเพื่อเปิดดูและอัปเกรดเป็น Gemini TTS'
                   : isStaleShotList
                     ? 'บทเปลี่ยนหลังจากสร้างแผนถ่าย — คลิกเพื่อตรวจหรืออัปเดต'
-                    : 'มีแผนถ่ายพร้อมแล้ว (Gemini TTS) — คลิกเพื่อเปิดดูแผนถ่าย'}
+                    : `มีแผนถ่ายพร้อมแล้ว (${getVoicePresetFullLabel(shotListInfo?.voice_preset)}) — คลิกเพื่อเปิดดูแผนถ่าย`}
               >
-                <Clapperboard className="w-2.5 h-2.5 flex-shrink-0" />
-                <span>
-                  {isEdgeTtsShotList ? 'เสียง Edge-TTS' : isStaleShotList ? 'แผนถ่ายเก่า' : 'แผนถ่ายพร้อม'}
-                </span>
+                {isEdgeTtsShotList ? (
+                  <>
+                    <AlertTriangle className="w-2.5 h-2.5 text-amber-300 flex-shrink-0" />
+                    <span>⚠️ Edge-TTS (เสียงเดิม)</span>
+                  </>
+                ) : isStaleShotList ? (
+                  <>
+                    <Clapperboard className="w-2.5 h-2.5 flex-shrink-0" />
+                    <span>แผนถ่ายเก่า (บทเปลี่ยน)</span>
+                  </>
+                ) : (
+                  <>
+                    <Mic className="w-2.5 h-2.5 text-cyan-300 flex-shrink-0" />
+                    <span>🎙️ Gemini ({getVoicePresetShortName(shotListInfo?.voice_preset)})</span>
+                  </>
+                )}
               </button>
             ) : (
               !isLocked && (
@@ -461,9 +488,16 @@ function AngleMobilePill({ angle, index, isSelected, onSelect, shotListInfo }) {
         <div className="flex items-center gap-1.5 mt-0.5">
           <ContentTypeBadges angle={angle} compact />
           {hasShotList && (
-            <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-1 py-0.2 rounded border border-emerald-500/20">
-              <Clapperboard className="w-2.5 h-2.5" />
-              <span>แผน</span>
+            <span className={`inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded border ${
+              shotListInfo?.is_edge_tts
+                ? 'text-amber-300 bg-amber-500/15 border-amber-500/30'
+                : 'text-cyan-300 bg-indigo-500/15 border-indigo-500/30'
+            }`}>
+              {shotListInfo?.is_edge_tts ? (
+                <span>⚠️ Edge</span>
+              ) : (
+                <span>🎙️ {getVoicePresetShortName(shotListInfo?.voice_preset)}</span>
+              )}
             </span>
           )}
         </div>
@@ -656,20 +690,30 @@ function AngleActiveWorkbench({
                       shotListInfo?.is_edge_tts
                         ? 'bg-amber-500/20 hover:bg-amber-500/30 border-amber-500/40 text-amber-300 ring-1 ring-amber-400/20 shadow-xs'
                         : shotListInfo?.has_shot_list
-                          ? 'bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-400/40 text-emerald-300'
+                          ? 'bg-indigo-500/20 hover:bg-indigo-500/30 border-indigo-400/40 text-cyan-300 ring-1 ring-indigo-400/20 shadow-xs'
                           : 'bg-white/[0.05] hover:bg-white/[0.1] border-white/[0.08] text-amber-300'
                     }`}
                     title={shotListInfo?.is_edge_tts
                       ? '⚠️ แผนถ่ายนี้สร้างด้วย Edge-TTS เดิม — คลิกเพื่อเปิดดูและอัปเกรดเป็น Gemini TTS'
                       : shotListInfo?.has_shot_list
-                        ? 'เปิดดูแผนถ่าย (Gemini TTS)'
+                        ? `เปิดดูแผนถ่าย (${getVoicePresetFullLabel(shotListInfo?.voice_preset)})`
                         : 'สร้างแผนถ่าย (Shot List) จากจังหวะเสียงพากย์จริง'}
                   >
-                    {isGeneratingShotList
-                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      : <Clapperboard className="w-3.5 h-3.5" />}
+                    {isGeneratingShotList ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : shotListInfo?.is_edge_tts ? (
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-300" />
+                    ) : shotListInfo?.has_shot_list ? (
+                      <Mic className="w-3.5 h-3.5 text-cyan-300" />
+                    ) : (
+                      <Clapperboard className="w-3.5 h-3.5" />
+                    )}
                     <span className="hidden xs:inline sm:inline">
-                      {shotListInfo?.is_edge_tts ? '⚠️ แผนถ่าย (Edge-TTS)' : 'แผนถ่าย'}
+                      {shotListInfo?.is_edge_tts
+                        ? '⚠️ แผนถ่าย (Edge-TTS เดิม)'
+                        : shotListInfo?.has_shot_list
+                          ? `🎙️ แผนถ่าย (${getVoicePresetShortName(shotListInfo?.voice_preset)})`
+                          : '+ แผนถ่าย'}
                     </span>
                   </button>
                 </>
@@ -752,7 +796,69 @@ function AngleActiveWorkbench({
         </div>
       )}
 
-      {/* 3. Script Lines or Editor */}
+      {/* 4. Voice Track & Shot List Status Banner (Main Screen Visibility) */}
+      <div className="rounded-xl overflow-hidden transition-all">
+        {shotListInfo?.is_edge_tts ? (
+          <div className="p-3 bg-gradient-to-r from-amber-950/40 via-amber-900/25 to-amber-950/40 border border-amber-500/35 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-sm">
+            <div className="flex items-center gap-2.5">
+              <span className="px-2 py-1 rounded-md bg-amber-500/20 text-amber-300 font-extrabold text-xs flex items-center gap-1.5 border border-amber-400/40 shadow-xs flex-shrink-0">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-300" />
+                ⚠️ เสียงนำถ่าย: Edge-TTS (เสียงเดิม)
+              </span>
+              <span className="text-xs text-amber-200/80 leading-tight">
+                แผนถ่ายนี้ใช้เสียง Edge-TTS เดิม จังหวะอาจยังไม่สมจริง แนะนำให้อัปเกรดเป็น Gemini TTS
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => onGenerateShotList && onGenerateShotList(index)}
+              className="self-end sm:self-auto px-3 py-1 rounded-lg bg-amber-500/25 hover:bg-amber-500/40 border border-amber-400/50 text-amber-200 hover:text-white text-xs font-bold transition-all cursor-pointer flex-shrink-0 shadow-xs"
+            >
+              เปิดอัปเกรดเสียง ➔
+            </button>
+          </div>
+        ) : shotListInfo?.has_shot_list ? (
+          <div className="p-2.5 sm:p-3 bg-gradient-to-r from-indigo-950/40 via-slate-900/40 to-indigo-950/40 border border-indigo-500/25 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-sm">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <span className="px-2 py-0.5 rounded-md bg-indigo-500/20 text-cyan-300 font-bold text-xs flex items-center gap-1.5 border border-indigo-400/30 flex-shrink-0">
+                <Mic className="w-3.5 h-3.5 text-cyan-300" />
+                🎙️ เสียงนำถ่าย: Gemini TTS ({getVoicePresetFullLabel(shotListInfo?.voice_preset)})
+              </span>
+              <span className="text-xs text-slate-400 leading-tight">
+                {shotListInfo?.is_stale
+                  ? '⚠️ บทพูดมีการแก้ไขหลังจากสร้างเสียง แนะนำให้กดสร้างใหม่เพื่อจังหวะที่ตรงกัน'
+                  : 'เสียงนำถ่ายพร้อมแล้ว ช็อตตรงตามจังหวะพูดจริง'}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => onGenerateShotList && onGenerateShotList(index)}
+              className="self-end sm:self-auto px-3 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-slate-200 hover:text-white text-xs font-bold transition-all cursor-pointer flex-shrink-0"
+            >
+              เปิดฟังเสียง / ดูแผนถ่าย
+            </button>
+          </div>
+        ) : (
+          <div className="p-2.5 bg-white/[0.02] border border-white/[0.06] rounded-xl flex items-center justify-between gap-2 text-xs text-slate-400">
+            <div className="flex items-center gap-2">
+              <VolumeX className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+              <span>เสียงนำถ่าย: ยังไม่ได้สร้าง (ยังไม่มีไฟล์เสียงและแผนถ่ายของมุมนี้)</span>
+            </div>
+            {!isLocked && (
+              <button
+                type="button"
+                onClick={() => onGenerateShotList && onGenerateShotList(index)}
+                disabled={isGeneratingShotList}
+                className="px-2.5 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-400/30 text-cyan-300 text-xs font-bold transition-all cursor-pointer flex-shrink-0 disabled:opacity-50"
+              >
+                + สร้างเสียงพากย์ & แผนถ่าย
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 5. Script Lines or Editor */}
       {isEditing ? (
         <div className="space-y-3 p-3.5 rounded-xl bg-black/60 border border-[#25F4EE]/40 animate-fadeIn">
           <div className="flex items-center justify-between text-xs text-[#25F4EE] font-bold">
@@ -1801,10 +1907,16 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const [shotListAngleIdx, setShotListAngleIdx] = useState(null); // angle this modal is open for
   const [generatingShotListIdx, setGeneratingShotListIdx] = useState(null); // angle currently generating
   const [shotListResult, setShotListResult] = useState(null);
-  const [shotListError, setShotListError] = useState(null);
-  const [shotListStatusMap, setShotListStatusMap] = useState({}); // {angle_id: {has_shot_list, is_stale}}
+  const [shotListStatusMap, setShotListStatusMap] = useState({}); // {angle_id: {has_shot_list, is_stale, voice_engine_type, voice_preset, is_edge_tts}}
 
-  // AI Hook Variation & A/B Modal State
+  // Automatically keep shotListStatusMap updated whenever current productData changes
+  useEffect(() => {
+    if (productData?.id) {
+      getShotListStatus(productData.id)
+        .then(res => setShotListStatusMap(res.status || {}))
+        .catch(() => setShotListStatusMap({}));
+    }
+  }, [productData?.id]);
   const [hookModalAngle, setHookModalAngle] = useState(null);
 
   // Batch Render Modal State
