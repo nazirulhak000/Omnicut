@@ -181,3 +181,41 @@ def test_batch_audio_worker_skips_rendered_and_posted():
             pass
 
 
+def test_batch_audio_worker_upgrades_legacy_edge_tts(sample_product, tmp_path):
+    product_id = sample_product["id"]
+    fake_audio = tmp_path / "fake_edge_voice.wav"
+    fake_audio.write_bytes(b"RIFF....WAVEfmt ")
+
+    # Mock ang_1 as having legacy edge_tts audio (without preset)
+    ShotListsStore.upsert({
+        "product_id": product_id,
+        "angle_id": "ang_1",
+        "voice_audio_path": str(fake_audio),
+        "custom_script": "บรรทัด 1\nบรรทัด 2",
+        "voice_params": {"voice_engine_type": "edge_tts", "voice_preset": None},
+    })
+
+    task = TaskManager.create_task(
+        task_type="batch_generate_audio",
+        title="Test Batch Upgrade Edge",
+        payload={"product_id": product_id},
+    )
+
+    with patch("scripts.api_shot_lists.generate_shot_list_for_angle") as mock_gen:
+        mock_gen.return_value = {"success": True}
+        _execute_batch_generate_audio_worker(
+            task["id"],
+            product_id,
+            {"voice_preset": "gemini_puck_male_hype", "batch_index": 1},
+        )
+
+        # ang_1 had edge_tts so it MUST NOT be skipped -- both ang_1 and ang_2 must be generated!
+        assert mock_gen.call_count == 2
+        calls = [c[0][1] for c in mock_gen.call_args_list]
+        assert "ang_1" in calls
+        assert "ang_2" in calls
+
+    t = TaskManager.get_task(task["id"])
+    assert t["status"] == "completed"
+    assert t["result"]["generated"] == 2
+    assert t["result"]["skipped"] == 0

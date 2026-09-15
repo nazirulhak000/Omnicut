@@ -8,6 +8,7 @@
 
 ## สารบัญ
 
+| Round EDGE-TTS-DETECT-AND-UPGRADE-BADGE-1 | ตรวจจับเสียง Edge-TTS เดิม + แสดง Badge เตือนทั้งในหน้าสคริปต์และในแผนถ่าย พร้อมอัปเกรดเป็น Gemini TTS | 2026-09-15 | สำเร็จสมบูรณ์ (backend 4 passed, frontend 246 passed, build 2,007 modules/3.32s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round SKIP-RENDERED-POSTED-AUDIO-GEN-1 | ข้ามการสร้างเสียงพากย์สำหรับคลิปที่เสร็จ (rendered) หรือโพสต์แล้ว (posted) และตัดออกจากตัวนับขาดเสียง | 2026-09-15 | สำเร็จสมบูรณ์ (backend 3 passed, frontend 246 passed, build 2,007 modules/3.59s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round UI-FONT-HARMONY-ALL-1 | กวาดล้าง font-mono และผสานฟอนต์กลาง (Prompt) ทั่วทั้งระบบ 100% ครบทุกแดชบอร์ดและหน้าจอ | 2026-09-15 | สำเร็จสมบูรณ์ (frontend 232 passed, build 2,007 modules/2.83s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round GEMINI-TTS-MULTIKEY-ALERT-1 | ปรับระบบ Multi-Key Failover (ลอง 3.1 ทุก Key ก่อนลดเป็น 2.5) + แจ้งเตือน AI Rate-Limit/Quota บน Token Dashboard | 2026-09-15 | สำเร็จสมบูรณ์ (backend 20 passed, frontend 232 passed, build 2,007 modules/2.68s, compileall ผ่าน, live synthesis verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
@@ -31,6 +32,33 @@
 | Round AGENTS-SLIM-1 | ย่อ AGENTS.md 170→62 บรรทัด (30.9→11.3 KB) กฎ 24 ข้อครบ + link ไฟล์กฎ | 2026-09-13 | เสร็จ (ดำเนินการโดย: Muse Spark (Muse Spark)) |
 | Round TEST-TWO-TIER-1 | กติกาเทส 2 ชั้น: ตอนแก้รันเฉพาะจุด ก่อนปิดรอบค่อยรันเต็ม | 2026-09-13 | เสร็จ (testing_standard.md, Gate เต็มเท่าเดิม, ดำเนินการโดย: Muse Spark (Muse Spark)) |
 | Round HOUSEKEEP-1 | จัดระเบียบราก: ไฟล์เทส 8 ไฟล์ลง .tmp (gitignore) + ยกเลิกย้าย PLAN หลังเจอ 06_Archive โดน ignore | 2026-09-13 | เสร็จบางส่วน (ดำเนินการโดย: Muse Spark (Muse Spark)) |
+
+## Round EDGE-TTS-DETECT-AND-UPGRADE-BADGE-1 — ตรวจจับเสียง Edge-TTS เดิม + แสดง Badge เตือนทั้งในหน้าสคริปต์และในแผนถ่าย พร้อมอัปเกรดเป็น Gemini TTS
+
+วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์ ✅
+
+### ปัญหาที่พบ
+1. **ใน ShotListModal Badge แสดงหลอกตาว่าเป็น Gemini: Puck:** เมื่อเปิดแผนถ่ายที่มีเสียงเดิมเป็น Edge-TTS โค้ดดึง preset ที่เป็น null แล้ว fallback ไปหยิบ `'gemini_puck_male_hype'` ทำให้ Badge ขวามือของ Audio Player แสดงว่า `Gemini: Puck` ทั้งที่เสียงข้างในเป็น Edge-TTS (Premwadee)
+2. **ในหน้าสคริปต์ไม่สามารถรู้ได้ว่ามุมไหนใช้เสียงอะไรถ้าไม่กดเข้าไปฟัง:** ที่ปุ่มแผนถ่ายไม่มีป้ายสถานะบอกชนิดของเสียง ทำให้ผู้ใช้ต้องคอยคลิกเข้าไปฟังทีละมุม
+3. **ระบบเตรียมเสียงพากย์อัตโนมัติข้ามเสียง Edge-TTS:** ใน `_execute_batch_generate_audio_worker` เงื่อนไข `(not rec_preset or rec_preset == voice_preset)` ทำให้เสียง Edge-TTS ที่ไม่มี preset ถูกข้ามไป ไม่ยอมอัปเกรดเป็น Gemini TTS
+
+### สิ่งที่ได้ดำเนินการ
+- [x] ใน `scripts/api_shot_lists.py`:
+  - ปรับปรุง `get_shot_list_status`: ส่ง `is_edge_tts: True/False`, `voice_engine_type`, `voice_preset` กลับไปใน response เพื่อให้หน้าบ้านรู้ชนิดเสียงได้ทันที
+  - ปรับปรุง `_execute_batch_generate_audio_worker`: ป้องกันการข้ามเสียง Edge-TTS เก่า (ตรวจ `is_valid_gemini` ต้องเป็น gemini_tts และมี preset จึงจะนับว่ามีเสียงแล้ว หากเป็น Edge-TTS จะบังคับเจนใหม่ด้วย Gemini TTS ทันที)
+- [x] ใน `frontend/src/components/ShotListModal.jsx`:
+  - ตรวจสอบ `isEdgeTts = engineType === 'edge_tts' || (!voice_preset)`
+  - หากเป็น Edge-TTS: แสดง Badge สีส้มเตือน `⚠️ Edge-TTS (เสียงเดิม)` และแสดงกล่องคำแนะนำใต้ Audio Player ให้แตะ "สร้างใหม่ด้วยเสียงนี้"
+  - หากเป็น Gemini TTS: แสดง Badge สีคราม/ม่วง `✨ Gemini: Puck`
+- [x] ใน `frontend/src/components/ProductToClip.jsx`:
+  - คำนวณ `missingAudioCount`: นับมุมที่เป็น `is_edge_tts` รวมเป็นมุมที่ยังขาดเสียง Gemini TTS
+  - แสดง Badge เตือนสีส้ม `เสียง Edge-TTS` หรือ `⚠️ แผนถ่าย (Edge-TTS)` บนรายการมุมและปุ่มแผนถ่าย เพื่อให้ผู้ใช้มองเห็นได้ทันทีจากหน้าจอรายการสคริปต์โดยไม่ต้องคลิกเข้าไปฟัง
+- [x] เพิ่ม Unit Test ใน `tests/test_api_batch_audio.py` (`test_batch_audio_worker_upgrades_legacy_edge_tts`) ยืนยันว่า worker อัปเกรดเสียง Edge-TTS เดิมเป็น Gemini TTS สำเร็จ 100%
+
+### ผลการทดสอบ (Gate Verification)
+- [x] Backend tests: `pytest tests/test_api_batch_audio.py -v` ผ่านครบ 4/4 tests (100%)
+- [x] Frontend tests: `npm test -- --run` ผ่านครบ 246/246 tests (100%)
+- [x] Frontend build: `npm run build` ผ่าน 2,007 modules ใน 3.32s
 
 ## Round SKIP-RENDERED-POSTED-AUDIO-GEN-1 — ข้ามการสร้างเสียงพากย์สำหรับคลิปที่เสร็จ (rendered) หรือโพสต์แล้ว (posted) และตัดออกจากตัวนับขาดเสียง
 

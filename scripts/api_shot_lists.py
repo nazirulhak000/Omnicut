@@ -228,8 +228,8 @@ def _execute_batch_generate_audio_worker(
                         cached_script = str(rec.get("custom_script") or "").strip()
                         rec_params = rec.get("voice_params") or {}
                         rec_preset = rec_params.get("voice_preset")
-                        rec_engine = rec_params.get("voice_engine_type")
-                        is_valid_gemini = (rec_engine == "gemini_tts" and bool(rec_preset))
+                        rec_engine = rec_params.get("voice_engine_type") or ("gemini_tts" if rec_preset else "edge_tts")
+                        is_valid_gemini = (rec_engine != "edge_tts" and bool(rec_preset))
                         if is_valid_gemini and current_script == cached_script and rec_preset == voice_preset:
                             skipped_count += 1
                             pct = (idx / total_angles) * 0.95
