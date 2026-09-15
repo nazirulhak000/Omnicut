@@ -300,6 +300,17 @@ class VoiceStage:
 
     @classmethod
     def run(cls, ctx: PipelineContext) -> None:
+        # Gemini TTS is the safe/default engine.  Older manifests and callers
+        # can still explicitly request Edge-TTS, but an omitted/blank value
+        # must never silently enter the legacy branch.
+        if ctx.voice_engine_type is None or (
+            isinstance(ctx.voice_engine_type, str) and not ctx.voice_engine_type.strip()
+        ):
+            ctx.voice_engine_type = "gemini_tts"
+            print("[VoiceStage] voice_engine_type ว่าง — ใช้ Gemini TTS เป็นค่าเริ่มต้น")
+        elif ctx.voice_engine_type == "edge_tts":
+            print("⚠️ [VoiceStage] ใช้ Edge-TTS ตามที่ระบุโดยผู้ใช้; จะไม่ใช้เป็น fallback ของ Gemini TTS")
+
         cues: List[Dict[str, Any]] = []
         beat_cues: List[Dict[str, Any]] = []
         voice_engine_used = ctx.voice_engine_type
@@ -481,10 +492,11 @@ class VoiceStage:
                 sugg = f" — {app_err.suggestion_th}" if app_err.suggestion_th else ""
                 ctx.notify(f"❌ {app_err.message_th}{sugg}", 0.30)
                 raise app_err
-        else:
+        elif ctx.voice_engine_type == "edge_tts":
+            voice_engine_used = "edge_tts"
             voice_audio_path = ctx.out_path("voiceover", ".wav")
-            ctx.notify("🗣️ [2/5] กำลังสังเคราะห์เสียง AI พากย์เร็ว TikTok และจับเวลา...", 0.25)
-            print("\n🗣️ [2/5] Synthesizing AI Thai Voiceover & Timestamps...")
+            ctx.notify("🗣️ [2/5] กำลังสังเคราะห์เสียง Edge-TTS (โหมดเดิม)...", 0.25)
+            print("\n⚠️ [2/5] Synthesizing Voice via Legacy Edge-TTS (explicitly requested)...")
             voice_res = VoiceEngine.generate_voiceover(
                 text_or_lines=script_data["lines"],
                 output_audio_path=str(voice_audio_path),
@@ -494,7 +506,9 @@ class VoiceStage:
             cues = voice_res["cues"]
             beat_cues = _fold_cues_by_line_idx(cues, script_data["lines"])
             total_duration = voice_res["duration"]
-            print(f"   Voice generated! Duration: {total_duration:.2f}s, Cues: {len(cues)}")
+            print(f"   Edge-TTS voice generated! Duration: {total_duration:.2f}s, Cues: {len(cues)}")
+        else:
+            raise ValueError(f"Unknown or unsupported voice engine: {ctx.voice_engine_type}")
 
         ctx.voice_audio_path = voice_audio_path
         ctx.cues = cues

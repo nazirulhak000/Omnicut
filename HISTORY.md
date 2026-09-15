@@ -8,6 +8,7 @@
 
 ## สารบัญ
 
+| Round STRICT-GEMINI-DEFAULT-NO-EDGE-TTS-GUARD-1 | Gemini TTS defaults and VoiceStage fail-closed guard | 2026-09-15 | Complete (backend 392 passed, frontend 246 passed, compileall passed, executed by: Codex (GPT-6)) |
 | Round MAIN-PAGE-VOICE-TYPE-INDICATOR-1 | แสดงสัญลักษณ์ระบุประเภทเสียง (Gemini TTS vs Edge-TTS vs ยังไม่มีเสียง) บนหน้าหลัก ทั้งการ์ดรายการมุมและการ์ดสคริปต์ โดยไม่ต้องกดเข้าไปดูด้านใน | 2026-09-15 | สำเร็จสมบูรณ์ (backend 4 passed, frontend 246 passed, build 2,007 modules/3.34s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round EDGE-TTS-DETECT-AND-UPGRADE-BADGE-1 | ตรวจจับเสียง Edge-TTS เดิม + แสดง Badge เตือนทั้งในหน้าสคริปต์และในแผนถ่าย พร้อมอัปเกรดเป็น Gemini TTS | 2026-09-15 | สำเร็จสมบูรณ์ (backend 4 passed, frontend 246 passed, build 2,007 modules/3.32s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round SKIP-RENDERED-POSTED-AUDIO-GEN-1 | ข้ามการสร้างเสียงพากย์สำหรับคลิปที่เสร็จ (rendered) หรือโพสต์แล้ว (posted) และตัดออกจากตัวนับขาดเสียง | 2026-09-15 | สำเร็จสมบูรณ์ (backend 3 passed, frontend 246 passed, build 2,007 modules/3.59s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
@@ -6166,3 +6167,11 @@ Evidence: `tests/test_gemini_tts_engine.py` — 20 passed. Agent: Codex (GPT-6).
 - `_MutateCtx` now flushes only changed rows with row-scoped UPDATE/INSERT/DELETE, rejects duplicate IDs, and preserves rollback/API compatibility. SQLite migration/reconcile regression: 22 passed.
 - Full-gate asset failures remain environment blockers; no real assets or secrets added.
 - ดำเนินการโดย: Codex (GPT-6); benchmark: cutout_benchmark (GPT-6); mutation review: mutation_contract (GPT-6)
+
+## Round STRICT-GEMINI-DEFAULT-NO-EDGE-TTS-GUARD-1
+
+Date: 2026-09-15; requested by user; executed by: Codex (GPT-6); status: complete.
+
+Changed all public voice defaults to gemini_tts. VoiceStage now normalizes blank values to Gemini, runs legacy Edge-TTS only for an explicit request, and raises ValueError for unsupported engines instead of silently falling back.
+
+Verification: focused 47 passed; parity/reuse/stage 188 passed; batch/phase1 157 passed; frontend vitest 246 passed; python -m compileall -q scripts passed.

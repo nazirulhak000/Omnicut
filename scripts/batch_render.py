@@ -423,7 +423,7 @@ class BatchRenderManager:
                             hook_label=angle_data.get("hook_label"),
                             voice=options.get("voice_gender", "male"),
                             voice_rate=options.get("voice_rate", "+15%"),
-                            voice_engine_type="gemini_tts" if options.get("voice_mode") == "gemini_tts" else "edge_tts",
+                            voice_engine_type="edge_tts" if options.get("voice_mode") == "edge_tts" else "gemini_tts",
                             voice_preset=options.get("voice_preset", "gemini_puck_male_hype"),
                             ad_tone=angle_data.get("ad_tone") or options.get("ad_tone") or "commercial_hype",
                             style_preset=options.get("style_preset", "clean_tech_review"),

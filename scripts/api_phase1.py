@@ -1107,7 +1107,7 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 script_overlays=params.get("script_overlays"),
                 voice=params.get("voice", "male"),
                 voice_rate=params.get("voice_rate", "+15%"),
-                voice_engine_type=params.get("voice_engine_type", "edge_tts"),
+                voice_engine_type=params.get("voice_engine_type", "gemini_tts"),
                 voice_preset=params.get("voice_preset", "gemini_puck_male_hype"),
                 ad_tone=params.get("ad_tone", "commercial_hype"),
                 style_preset=params.get("style_preset", "clean_tech_review"),

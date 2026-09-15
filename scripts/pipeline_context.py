@@ -358,7 +358,7 @@ class PipelineContext:
     script_overlays: Optional[List[str]] = None
     voice: str = DEFAULT_VOICE
     voice_rate: str = DEFAULT_VOICE_RATE
-    voice_engine_type: str = "edge_tts"
+    voice_engine_type: str = "gemini_tts"
     voice_preset: Optional[str] = "gemini_puck_male_hype"
     ad_tone: str = "commercial_hype"
     style_preset: str = "clean_tech_review"
@@ -422,7 +422,7 @@ class PipelineContext:
     is_image_source: bool = False
     image_files: List[str] = field(default_factory=list)
 
-    voice_engine_used: str = "edge_tts"
+    voice_engine_used: str = "gemini_tts"
     script_data: Optional[Dict[str, Any]] = None
     cues: List[Dict[str, Any]] = field(default_factory=list)
     micro_cues: List[Dict[str, Any]] = field(default_factory=list)

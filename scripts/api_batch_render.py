@@ -17,7 +17,7 @@ class BatchRenderRequest(BaseModel):
     angle_ids: Optional[List[str]] = Field(None, description="Specific angle IDs to render. If omitted, all eligible angles are rendered.")
     voice_gender: str = "female"
     voice_rate: str = "+15%"
-    voice_mode: str = "edge_tts"
+    voice_mode: str = "gemini_tts"
     voice_preset: str = "gemini_puck_male_hype"
     style_preset: str = "clean_tech_review"
     font_name: str = "IBMPlex"

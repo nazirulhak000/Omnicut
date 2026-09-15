@@ -1907,6 +1907,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const [shotListAngleIdx, setShotListAngleIdx] = useState(null); // angle this modal is open for
   const [generatingShotListIdx, setGeneratingShotListIdx] = useState(null); // angle currently generating
   const [shotListResult, setShotListResult] = useState(null);
+  const [shotListError, setShotListError] = useState(null);
   const [shotListStatusMap, setShotListStatusMap] = useState({}); // {angle_id: {has_shot_list, is_stale, voice_engine_type, voice_preset, is_edge_tts}}
 
   // Automatically keep shotListStatusMap updated whenever current productData changes

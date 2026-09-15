@@ -85,7 +85,7 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
             if not h_path.is_absolute():
                 human_voice_path = str(BASE_DIR / human_voice_path)
 
-        voice_engine_type = "gemini_tts" if req_data.voice_mode == "gemini_tts" else "edge_tts"
+        voice_engine_type = "edge_tts" if req_data.voice_mode == "edge_tts" else "gemini_tts"
 
         sticker_file_path = None
         if req_data.sticker_badge:
