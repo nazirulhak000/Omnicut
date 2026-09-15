@@ -23,6 +23,7 @@ class BatchRenderRequest(BaseModel):
     font_name: str = "IBMPlex"
     bilingual_subtitles: bool = True
     use_ai_vision: bool = True
+    export_mp4: bool = True
 
 
 @router.post("")
@@ -38,6 +39,7 @@ def start_batch_render(req: BatchRenderRequest) -> Dict[str, Any]:
             "font_name": req.font_name,
             "bilingual_subtitles": req.bilingual_subtitles,
             "use_ai_vision": req.use_ai_vision,
+            "export_mp4": req.export_mp4,
         }
         res = BatchRenderManager.create_batch(
             product_id=req.product_id,

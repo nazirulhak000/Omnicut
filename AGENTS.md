@@ -22,7 +22,7 @@
 
 ---
 
-## 📁 2. โครงสร้างโฟลเดอร์ — ห้ามวางไฟล์นอกที่กำหนด: `00_Inbox/` ดิบ / `01_Raw/` วัตถุดิบ (`YYYYMMDD_ชื่อสินค้า-ประเด็น/`) / `02_Assets/` ของใช้ซ้ำ (Fonts/Music/SFX/Stickers/LUTs) / `03_Projects/` สคริปต์+ดราฟต์ / `04_Exports/` คลิปเสร็จ / `05_Covers_Thumbnails/` ปก 9:16 / `06_Archive/` เก็บเก่า / `scripts/` backend / `tools/` utility / `frontend/` UI / `.agents/rules/` กฎเฉพาะทาง
+## 📁 2. โครงสร้างโฟลเดอร์ — ห้ามวางไฟล์นอกที่กำหนด: `00_Inbox/` ดิบ / `01_Raw/` วัตถุดิบ (`YYYYMMDD_ชื่อสินค้า-ประเด็น/`) / `02_Assets/` ของใช้ซ้ำ (Fonts/Music/SFX/Stickers/LUTs) / `03_Projects/` สคริปต์+ดราฟต์ / `04_Exports/` คลิปเสร็จ / `05_Covers_Thumbnails/` ปก 9:16 / `06_Archive/` เก็บเก่า (ถูก gitignore) / `scripts/` backend / `tools/` utility / `frontend/` UI / `_Docs/` PRD·prompt·รายงานปฏิบัติการ / `.tmp/` ของชั่วคราวจากเทส (ถูก gitignore) / `.agents/rules/` กฎเฉพาะทาง — **ไฟล์แผน/รายงานของรอบงาน (`*_PLAN.md`, `*_REPORT_*`, `*_AUDIT_*`, `*_VERIFY_*`) อยู่ที่รากโปรเจกต์ ห้ามย้าย**
 
 ---
 

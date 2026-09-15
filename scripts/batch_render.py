@@ -158,13 +158,14 @@ class BatchRenderManager:
         if not target_angles:
             raise ValueError("ไม่มีมุมมองที่สามารถเรนเดอร์ได้ (อาจถูกโพสต์แล้วทั้งหมด)")
 
-        # Verify disk space
+        # Verify disk space (lower threshold if draft-only since no MP4 is produced)
+        is_draft = not options.get("export_mp4", True)
         disk = check_disk_space(EXPORTS_DIR)
-        if not disk.get("is_sufficient", True):
+        min_required = 0.5 if is_draft else 3.0
+        if not disk.get("is_sufficient", True) and disk.get("free_gb", 0) < min_required:
             free_gb = disk.get("free_gb", 0)
-            min_gb = disk.get("min_required_gb", 3.0)
             raise RuntimeError(
-                f"พื้นที่ว่างบนดิสก์เหลือน้อยเกินไป ({free_gb} GB เหลืออยู่, ต้องการขั้นต่ำ {min_gb} GB)"
+                f"พื้นที่ว่างบนดิสก์เหลือน้อยเกินไป ({free_gb} GB เหลืออยู่, ต้องการขั้นต่ำ {min_required} GB)"
             )
 
         batch_id = str(uuid.uuid4())
@@ -206,14 +207,16 @@ class BatchRenderManager:
         cls._persist_batch(batch_data)
 
         # Register in TaskManager for global activity center tracking
+        task_action = "สร้างดราฟต์ไทม์ไลน์" if is_draft else "เรนเดอร์วิดีโอ"
         TaskManager.create_task(
-            task_type="batch_render",
-            title=f"เรนเดอร์วิดีโอ {len(items)} มุมมอง: {product_title}",
+            task_type="batch_draft" if is_draft else "batch_render",
+            title=f"{task_action} {len(items)} มุมมอง: {product_title}",
             payload={
                 "batch_id": batch_id,
                 "product_id": product_id,
                 "product_title": product_title,
                 "total_items": len(items),
+                "is_draft": is_draft,
             },
             target_tab="product",
             target_id=product_id,
@@ -430,7 +433,7 @@ class BatchRenderManager:
                             font_name=options.get("font_name", "IBMPlex"),
                             bilingual_subtitles=options.get("bilingual_subtitles", True),
                             use_ai_vision=options.get("use_ai_vision", True),
-                            export_mp4=True,
+                            export_mp4=options.get("export_mp4", True),
                             product_id=product_id,
                             angle_id=angle_id,
                             progress_callback=make_sub_progress(idx, angle_name)
@@ -451,20 +454,22 @@ class BatchRenderManager:
                         except Exception:
                             pass
 
-                    # Mark rendered in store
+                    # Mark rendered or in_production in store
+                    is_draft = not options.get("export_mp4", True)
+                    is_rendered = bool(not is_draft and mp4_val)
                     ProductStore.update_angle_status(
                         product_id,
                         angle_id,
-                        "rendered" if mp4_val else "in_production",
-                        video_url=str(mp4_val) if mp4_val else None,
+                        "rendered" if is_rendered else "in_production",
+                        video_url=str(mp4_val) if is_rendered else None,
                         project_name=proj_name,
-                        export_id=result.get("export_id")
+                        export_id=result.get("export_id") if is_rendered else None
                     )
 
                     render_jobs.complete_job(sub_job_id, result)
-                    item["status"] = "rendered"
+                    item["status"] = "rendered" if is_rendered else "draft_ready"
                     item["project_name"] = proj_name
-                    item["video_url"] = str(mp4_val)
+                    item["video_url"] = str(mp4_val) if is_rendered else ""
                     completed_count += 1
                     success = True
                     break
@@ -503,24 +508,28 @@ class BatchRenderManager:
         # Final batch state
         with _BATCH_LOCK:
             batch["progress"] = 100.0
+            is_draft = not options.get("export_mp4", True)
+            action_name = "สร้างดราฟต์" if is_draft else "เรนเดอร์"
+            unit_name = "มุมมอง" if is_draft else "คลิป"
+
             if batch.get("cancelled"):
                 batch["status"] = "cancelled"
                 TaskManager.complete_task(
                     batch_id,
                     result={"completed": completed_count, "failed": failed_count, "total": total_items, "items": items},
-                    step_label=f"ยกเลิกคิวเรนเดอร์ (สำเร็จ {completed_count}/{total_items} คลิป)"
+                    step_label=f"ยกเลิกคิว{action_name} (สำเร็จ {completed_count}/{total_items} {unit_name})"
                 )
             elif completed_count > 0:
                 batch["status"] = "completed"
                 TaskManager.complete_task(
                     batch_id,
                     result={"completed": completed_count, "failed": failed_count, "total": total_items, "items": items},
-                    step_label=f"🎉 เรนเดอร์ชุดสำเร็จ {completed_count}/{total_items} คลิป!"
+                    step_label=f"🎉 {action_name}ชุดสำเร็จ {completed_count}/{total_items} {unit_name}!"
                 )
             else:
                 batch["status"] = "failed"
                 TaskManager.fail_task(
                     batch_id,
-                    error=f"เรนเดอร์ไม่สำเร็จทั้ง {total_items} มุมมอง กรุณาตรวจเช็กไฟล์วิดีโอต้นฉบับ"
+                    error=f"{action_name}ไม่สำเร็จทั้ง {total_items} {unit_name} กรุณาตรวจเช็กไฟล์วิดีโอต้นฉบับ"
                 )
             cls._persist_batch(batch)

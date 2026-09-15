@@ -220,3 +220,38 @@ def test_api_batch_render_flow(tmp_path):
         cancel_resp = client.post(f"/api/render/batch/{batch_id}/cancel")
         assert cancel_resp.status_code == 200
         assert cancel_resp.json()["status"] == "cancelled"
+
+
+def test_batch_draft_api(tmp_path):
+    """Test creating a batch draft with export_mp4=False."""
+    clip_file = tmp_path / "raw.mp4"
+    clip_file.write_text("clip")
+
+    fake_prod = {
+        "id": "prod_draft_test",
+        "title": "สินค้าทดสอบดราฟต์",
+        "angles": [
+            {
+                "angle_id": "ang_draft",
+                "angle_name": "มุมดราฟต์เร็ว",
+                "status": "scripted",
+                "selected_video": str(clip_file)
+            }
+        ]
+    }
+
+    with patch.object(ProductStore, "get", return_value=fake_prod):
+        create_resp = client.post("/api/render/batch", json={
+            "product_id": "prod_draft_test",
+            "angle_ids": ["ang_draft"],
+            "export_mp4": False,
+        })
+        assert create_resp.status_code == 200
+        data = create_resp.json()
+        assert "batch_id" in data
+        batch_id = data["batch_id"]
+
+        status_resp = client.get(f"/api/render/batch/{batch_id}")
+        assert status_resp.status_code == 200
+        batch_info = status_resp.json()
+        assert batch_info["options"].get("export_mp4") is False

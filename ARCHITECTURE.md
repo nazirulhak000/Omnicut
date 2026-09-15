@@ -1,12 +1,12 @@
 # OmniCut Pro Studio Architecture
 
-เอกสารนี้อธิบายโครงสร้างสถาปัตยกรรมที่ใช้งานจริง ณ วันที่ 2026-09-12 หากสถานะงานหรือผลทดสอบต่างจากเอกสารนี้ ให้ยึด [TODO.md](TODO.md) และโค้ดปัจจุบันเป็นหลัก
+เอกสารนี้อธิบายโครงสร้างสถาปัตยกรรมที่ใช้งานจริง ณ วันที่ 2026-09-15 (ปรับปรุงล่าสุด) หากสถานะงานหรือผลทดสอบต่างจากเอกสารนี้ ให้ยึด [TODO.md](TODO.md) และโค้ดปัจจุบันเป็นหลัก
 
 ## ภาพรวมระบบ
 
 ```mermaid
 flowchart LR
-    UI[React/Vite 8-Module UI] --> API[FastAPI 16 modular routers]
+    UI[React/Vite 9-Module UI] --> API[FastAPI 23 modular routers]
     API --> JOB[Task and render jobs]
     JOB --> PIPE[TikTokAutoCutterPipeline]
     PIPE --> STAGES[Modular pipeline stages]
@@ -19,22 +19,23 @@ flowchart LR
 
 ค่ามาตรฐานของไฟล์โพสต์จริงคือ 1080x1920 (9:16), H.264, AAC, 30 FPS และ `+faststart` ส่วน Draft ใช้ 720x1280 เพื่อทดสอบเร็วขึ้น
 
-## เมนูและการนำทางฝั่ง Frontend (8 โมดูลหลัก)
+## เมนูและการนำทางฝั่ง Frontend (9 โมดูลหลัก)
 
-ระบบจัดหมวดหมู่การทำงานเป็น 8 เมนูหลักใน `frontend/src/components/Sidebar.jsx`:
+ระบบจัดหมวดหมู่การทำงานเป็น 9 เมนูหลักใน `frontend/src/components/Sidebar.jsx` (id `producer` ถึง `guide`):
 
-1. **1. สินค้า → คลิป (`ProductToClip.jsx`):** วิเคราะห์สินค้าด้วย AI (ลิงก์/สเปก/รูป) สร้าง Content Matrix 4-10 สคริปต์ พร้อมระบุ TikTok Product ID / ลิงก์ปักตะกร้า
+0. **0. ผู้ช่วยโปรดิวเซอร์ (`producer/ProducerHub.jsx` + `producer/QuickRefPage.jsx`):** ศูนย์บัญชาการรายวัน — Daily Mission, Spotlight Next Mission, Pacing Calculator, 1-Click Playbook Add, คลังไอเดียและเรฟ (Idea & Ref Vault พร้อม Visual Insights จาก Gemini Vision) และ Producer Notes ที่ปักหมุด/แก้ไขได้ (ซิงก์ผ่าน `scripts/api_producer.py`)
+1. **1. สินค้า → คลิป (`ProductToClip.jsx`):** วิเคราะห์สินค้าด้วย AI (ลิงก์/สเปก/รูป) สร้าง Content Matrix 4-10 สคริปต์ พร้อมระบุ TikTok Product ID / ลิงก์ปักตะกร้า และสไตล์การตัดต่อ 10 แบบที่ผูกกับ Hook Style 1-to-1
 2. **2. แทร็กเกอร์ 4 เฟส (`ContentTrackerHub.jsx`):** จัดการสเตจงาน 4 ขั้น (สคริปต์พร้อม, เลือกคลิป, กำลังตัดต่อ, ตัดต่อเสร็จ) พร้อม Shot List Modal และ Mobile Filming Page
 3. **3. ตัดต่อ & สร้างคลิป (`editor/EditorShell.jsx`):** สตูดิโอตัดต่อไทม์ไลน์ Multi-track, SequencePlayer (Canvas 2D), Inspector ปรับแต่ง Overlay/Motion/Subtitles
 4. **4. Export Gallery (`ExportGallery.jsx`):** คลังวิดีโอสำเร็จรูป, พรีวิว, Post Studio (สร้างปก 3:4/9:16, reveal file ใน Explorer, คัดลอกแคปชั่น, ส่งต่อ TikTok Auto-post, มาร์คว่าโพสต์แล้ว)
 5. **5. Media Assets Hub (`MediaAssetsHub.jsx`):** ศูนย์รวมฟอนต์, BGM, SFX, สติกเกอร์/ป้ายกำกับ, และ Color LUTs
-6. **6. สถิติ & วิเคราะห์รวม (`analytics/AnalyticsHub.jsx`):** แดชบอร์ดวิเคราะห์ 4 มิติ (Production, Tokens, Storage, Inventory) ด้วย Pure SVG Glassmorphic Charts (AreaLine, Donut, Funnel, ProgressRing)
+6. **6. สถิติ & วิเคราะห์รวม (`analytics/AnalyticsHub.jsx`):** แดชบอร์ดวิเคราะห์ 5 แท็บ (`analytics/tabs/`) — Production (Funnel 4 เฟส), Performance (ผลงาน TikTok + คลิปปัง), Tokens, Storage (รวม Safe Cache Cleaner) และ Inventory — ด้วย Pure SVG Glassmorphic Charts (AreaLine, Donut, Funnel, ProgressRing)
 7. **7. ตั้งค่าระบบ (`SystemSettings.jsx`):** ตรวจสอบ System Health, AI Providers, เสียงพากย์ Edge-TTS/Gemini, และการเชื่อมต่อมือถือผ่าน QR Code
-8. **8. คู่มือใช้งาน (`UserGuide.jsx`):** Interactive Knowledge Base สำหรับผู้ใช้ (Sticky TOC, เช็กลิสต์ติ๊กได้พร้อมความจำ localStorage, การ์ดเมนู 8 ข้อ, โฟลว์ 7 ขั้นกดเปิดเมนูได้, Quick Action ปุ่มลัดแก้ปัญหา, FAQ ค้นหาได้)
+8. **8. คู่มือใช้งาน (`UserGuide.jsx`):** Interactive Knowledge Base สำหรับผู้ใช้ (Sticky TOC, เช็กลิสต์ติ๊กได้พร้อมความจำ localStorage, การ์ดเมนู 0-7, โฟลว์ 7 ขั้นกดเปิดเมนูได้, Quick Action ปุ่มลัดแก้ปัญหา, FAQ ค้นหาได้)
 
-## Backend (FastAPI 16 Routers)
+## Backend (FastAPI 23 Routers)
 
-Entry point คือ `scripts/api_server.py` ทำหน้าที่สร้าง FastAPI app, ตรวจสอบ API Key security, ตั้ง CORS, และ mount router โดเมนต่างๆ รวม 125 routes (ตรวจสอบจริงผ่าน `len(app.routes)`):
+Entry point คือ `scripts/api_server.py` ทำหน้าที่สร้าง FastAPI app, ตรวจสอบ API Key security, ตั้ง CORS, และ mount router โดเมนต่างๆ รวม 170 routes (ตรวจสอบจริงผ่าน `len(app.routes)` = 170 โดยเป็น HTTP API route 166 รายการ ที่เหลือเป็น docs/openapi):
 
 | ลำดับ | โมดูล Router | หน้าที่หลัก |
 | :--- | :--- | :--- |
@@ -53,7 +54,14 @@ Entry point คือ `scripts/api_server.py` ทำหน้าที่สร�
 | 13 | `scripts/api_posts.py` | Post log, publication tracker, performance metrics |
 | 14 | `scripts/api_shot_lists.py` | Shot List builder & filming task assignment |
 | 15 | `scripts/api_recording.py` | Mobile filming stream & upload ingest |
-| 16 | `scripts/api_analytics.py` | Aggregated metrics 4 มิติ สำหรับ Analytics Hub |
+| 16 | `scripts/api_analytics.py` | Aggregated metrics 5 แท็บ สำหรับ Analytics Hub |
+| 17 | `scripts/api_tiktok_stats.py` | ซิงก์สถิติ TikTok Studio, จับคู่โพสต์ manual และ milestone คลิปปัง |
+| 18 | `scripts/api_backup.py` | One-click system backup & restore (รวม WAL snapshot) |
+| 19 | `scripts/api_asset_dedup.py` | สแกนและล้างไฟล์สื่อซ้ำอย่างปลอดภัย |
+| 20 | `scripts/api_hooks.py` | Hook Header และ Hook Variation / A-B generator |
+| 21 | `scripts/api_batch_render.py` | เรนเดอร์หลายคลิปพร้อมกันผ่าน `BatchRenderManager` |
+| 22 | `scripts/api_producer.py` | AI Producer Hub — notes, missions และ vision insights |
+| 23 | `scripts/api_background_isolation.py` | ตัดพื้นหลัง/แยกตัวแบบ async พร้อมกู้งานค้างตอน startup |
 
 การเปลี่ยน route, method, request หรือ response ต้องตรวจสอบความเข้ากันได้กับ `frontend/src/api.js` เสมอ
 
@@ -129,11 +137,11 @@ Subtitle modules ปัจจุบัน:
 - `06_Archive/` พื้นที่จัดเก็บไฟล์เก่าสำรอง
 - `_Docs/post_log.json` และ `_Docs/products.json` เป็น runtime data ของระบบ
 
-## สถานะการทดสอบปัจจุบัน (Verification Gates)
+## สถานะการทดสอบปัจจุบัน (Verification Gates) — วัดจริง 2026-09-15
 
 - **Python Scripts Compilation:** ผ่าน 100% (`python -m compileall -q scripts`)
-- **FastAPI Endpoints:** 125 routes รวม 16 modular domain routers
-- **Python Pytest Suite:** 1,073 tests collected (`pytest tests/`)
-- **Frontend Vitest Suite:** 151 tests passed, 0 failures (`npm test`)
-- **Vite Production Build:** ผ่านเรียบร้อย (~3.2s) 1,995 modules transformed
+- **FastAPI Endpoints:** 170 routes รวม 23 modular domain routers
+- **Python Pytest Suite:** 1,520 tests collected (`pytest tests/`) — ผลรันเต็ม 2026-09-15: 1,514 passed, 5 skipped, **1 failed ที่ค้างมาก่อนแล้ว** (`tests/test_style_motion_policy.py` ยังยืนยัน catalog 5 สไตล์ ขณะที่ `scripts/style_motion_policy.py` มี 10 สไตล์แล้ว — ติดตามที่ Round `STYLE-MOTION-CATALOG-CONTRACT-SYNC-1` ใน [TODO.md](TODO.md))
+- **Frontend Suite:** 246 tests passed, 0 failures (`npm test` → `node --test src/lib/*.test.js`)
+- **Vite Production Build:** ผ่านเรียบร้อย 2,007 modules transformed
 

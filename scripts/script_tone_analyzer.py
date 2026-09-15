@@ -41,7 +41,8 @@ class ScriptToneAnalyzer:
 
     @classmethod
     def is_available(cls) -> bool:
-        return bool(os.environ.get("GEMINI_API_KEY", "").strip())
+        from scripts.config import get_gemini_api_keys
+        return len(get_gemini_api_keys()) > 0
 
     @classmethod
     def _load_cache(cls) -> Dict[str, list]:
@@ -89,11 +90,13 @@ class ScriptToneAnalyzer:
         from scripts.quota import check_budget
         check_budget(task="tone_shift")
 
+        from scripts.config import get_gemini_api_keys
+        api_keys = get_gemini_api_keys()
+        if not api_keys:
+            return []
+
         try:
             from google import genai
-
-            api_key = os.environ.get("GEMINI_API_KEY", "").strip()
-            client = genai.Client(api_key=api_key)
 
             numbered = "\n".join(f"{i+1}. {t}" for i, t in enumerate(group_texts))
             prompt = f"""คุณเป็นนักตัดต่อวิดีโอ TikTok มืออาชีพ กำลังพิจารณาว่าระหว่างช็อตแต่ละคู่ที่ติดกัน ควรใช้ hard cut ธรรมดา หรือ transition ที่แรงกว่า เพราะเนื้อหาเปลี่ยนโทน/หัวข้อจริง
@@ -111,15 +114,24 @@ class ScriptToneAnalyzer:
 
             models_to_try = ["gemini-2.5-flash-lite", "gemini-2.5-flash"]
             response = None
-            for model_name in models_to_try:
-                try:
-                    response = client.models.generate_content(model=model_name, contents=[prompt])
-                    if response and response.text:
-                        break
-                except Exception as err:
-                    err_str = str(err)
-                    if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
-                        time.sleep(5)
+            for key_idx, cur_key in enumerate(api_keys, 1):
+                client = genai.Client(api_key=cur_key)
+                key_rate_limited = False
+                for model_name in models_to_try:
+                    try:
+                        response = client.models.generate_content(model=model_name, contents=[prompt])
+                        if response and response.text:
+                            break
+                    except Exception as err:
+                        err_str = str(err)
+                        if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                            key_rate_limited = True
+                            print(f"   ⚠️ [ToneAnalyzer] Rate limit on Key #{key_idx} ({model_name}) — switching to next key...")
+                            break
+                        continue
+                if response and response.text:
+                    break
+                if key_rate_limited:
                     continue
 
             if not response or not response.text:

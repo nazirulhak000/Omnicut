@@ -306,29 +306,13 @@ class GeminiVisionMatcher:
             cues_summary = "|".join([f"{c.get('text', '')}" for c in cues])
             match_cache_key = f"{file_hash}_{hashlib.md5(cues_summary.encode('utf-8')).hexdigest()}"
 
-        try:
-            from google import genai
-            client = genai.Client(api_key=api_key)
-            remote_video = (
-                cls._get_or_upload_context(client, request_context)
-                if request_context is not None
-                else cls.get_or_upload_video(client, raw_video_path)
-            )
-            if not remote_video:
-                print("   ⚠️ Could not process video file for Vision — checking cached shots or using beat cuts.")
-                cached = cls._exact_cached_match(cache, match_cache_key)
-                if cached:
-                    print(f"   ♻️ Reusing the scene map for this exact script ({len(cached)} shots)!")
-                    return cached
-                return []
+        # Format cues for prompt
+        lines_prompt = "\n".join([
+            f"{idx+1}. [{c.get('start', 0.0):.2f}s - {c.get('end', 0.0):.2f}s] {c.get('text', '')}"
+            for idx, c in enumerate(cues)
+        ])
 
-            # Format cues for prompt
-            lines_prompt = "\n".join([
-                f"{idx+1}. [{c.get('start', 0.0):.2f}s - {c.get('end', 0.0):.2f}s] {c.get('text', '')}"
-                for idx, c in enumerate(cues)
-            ])
-
-            prompt = f"""คุณเป็น AI ผู้กำกับและตัดต่อวิดีโอมืออาชีพสำหรับ TikTok Shop / Reels (ความยาววิดีโอดิบทั้งหมดประมาณ {raw_duration:.1f} วินาที)
+        prompt = f"""คุณเป็น AI ผู้กำกับและตัดต่อวิดีโอมืออาชีพสำหรับ TikTok Shop / Reels (ความยาววิดีโอดิบทั้งหมดประมาณ {raw_duration:.1f} วินาที)
 กรุณาดูวิดีโอคลิปนี้อย่างละเอียด
 และวิเคราะห์เลือกช่วงเวลา (start_time, end_time ในหน่วยวินาที) จากคลิปดิบ ที่มีภาพหรือการเคลื่อนไหวของมือ/สินค้า ที่ตรงกับความหมายของแต่ละท่อนในสคริปต์มากที่สุด
 
@@ -358,23 +342,13 @@ class GeminiVisionMatcher:
 }}
 ```
 """
+        try:
             models_to_try = ["gemini-2.5-flash", "gemini-2.5-flash-lite"]
             response = None
             last_err = None
             chosen_model = "gemini-2.5-flash"
             t_vision_start = time.time()
 
-            # Retry shape per model (bounded -- 2 attempts, short backoff, no
-            # elaborate framework), matching scripts/ai_bridge.py's
-            # classify_genai_error: rate_limit (429) backs off (retry-after
-            # if the SDK gave one, else a default) and retries the SAME
-            # model/request once before falling through to the next model;
-            # transient (network/timeout) retries once with a short fixed
-            # backoff; auth/other classifications stop retrying this model
-            # immediately and move on (retrying an invalid key or an
-            # unclassified failure on the same model cannot help). A quota
-            # AppError can never reach here -- check_budget() above already
-            # ran outside this try block and raises before this point.
             from scripts.ai_bridge import (
                 classify_genai_error,
                 _extract_retry_after_seconds,
@@ -382,43 +356,74 @@ class GeminiVisionMatcher:
                 RATE_LIMIT_MAX_BACKOFF_SECONDS,
                 TRANSIENT_BACKOFF_SECONDS,
             )
+            from google import genai
+            from google.genai import types as genai_types
 
-            for model_name in models_to_try:
-                print(f"   👁️ Calling {model_name} Vision to analyze raw footage...")
-                for attempt in range(2):
-                    try:
-                        from google.genai import types as genai_types
-                        response = client.models.generate_content(
-                            model=model_name,
-                            contents=[
-                                remote_video,
-                                prompt
-                            ],
-                            config=genai_types.GenerateContentConfig(
-                                http_options=genai_types.HttpOptions(
-                                    timeout=VISION_GENERATE_TIMEOUT_SECONDS * 1000
-                                )
-                            ),
-                        )
-                        if response and response.text:
-                            chosen_model = model_name
+            # Multi-key and multi-model fallback loop (Key 1 -> Key 2 -> ... -> Key N)
+            for key_idx, cur_key in enumerate(api_keys, 1):
+                key_tag = f"Key #{key_idx} (..{cur_key[-6:]})"
+                try:
+                    client = genai.Client(api_key=cur_key)
+                    remote_video = (
+                        cls._get_or_upload_context(client, request_context)
+                        if request_context is not None
+                        else cls.get_or_upload_video(client, raw_video_path)
+                    )
+                except Exception as upload_err:
+                    print(f"   ⚠️ [AI Vision] Failed to upload/verify video on {key_tag} ({upload_err}) — trying next key...")
+                    continue
+
+                if not remote_video:
+                    print(f"   ⚠️ [AI Vision] Could not process video on {key_tag} — trying next key...")
+                    continue
+
+                key_rate_limited = False
+                for model_name in models_to_try:
+                    print(f"   👁️ [AI Vision] Calling {model_name} on {key_tag} to analyze raw footage...")
+                    for attempt in range(2):
+                        try:
+                            response = client.models.generate_content(
+                                model=model_name,
+                                contents=[
+                                    remote_video,
+                                    prompt
+                                ],
+                                config=genai_types.GenerateContentConfig(
+                                    http_options=genai_types.HttpOptions(
+                                        timeout=VISION_GENERATE_TIMEOUT_SECONDS * 1000
+                                    )
+                                ),
+                            )
+                            if response and response.text:
+                                chosen_model = model_name
+                                break
+                        except Exception as err:
+                            last_err = err
+                            kind = classify_genai_error(err)
+                            if kind == "rate_limit":
+                                key_rate_limited = True
+                                if attempt == 0:
+                                    backoff = _extract_retry_after_seconds(err) or RATE_LIMIT_DEFAULT_BACKOFF_SECONDS
+                                    backoff = min(backoff, RATE_LIMIT_MAX_BACKOFF_SECONDS)
+                                    print(f"   ⚠️ [AI Vision] Rate Limit (429) hit on {key_tag} ({model_name}). Retrying in {backoff:.0f}s...")
+                                    time.sleep(backoff)
+                                    continue
+                                print(f"   ⚠️ [AI Vision] Rate Limit (429) on {key_tag} — switching to next key...")
+                                break
+                            if kind == "transient" and attempt == 0:
+                                print(f"   ⚠️ [AI Vision] Transient error on {key_tag} ({model_name}): {err}. Retrying in {TRANSIENT_BACKOFF_SECONDS:.0f}s...")
+                                time.sleep(TRANSIENT_BACKOFF_SECONDS)
+                                continue
+                            print(f"   ⚠️ [AI Vision] {model_name} failed on {key_tag} ({err}) — moving to next fallback...")
                             break
-                    except Exception as err:
-                        last_err = err
-                        kind = classify_genai_error(err)
-                        if kind == "rate_limit" and attempt == 0:
-                            backoff = _extract_retry_after_seconds(err) or RATE_LIMIT_DEFAULT_BACKOFF_SECONDS
-                            backoff = min(backoff, RATE_LIMIT_MAX_BACKOFF_SECONDS)
-                            print(f"   ⚠️ Rate Limit (429) hit on {model_name}. Retrying same model in {backoff:.0f}s...")
-                            time.sleep(backoff)
-                            continue
-                        if kind == "transient" and attempt == 0:
-                            print(f"   ⚠️ Transient error on {model_name} ({err}). Retrying same model in {TRANSIENT_BACKOFF_SECONDS:.0f}s...")
-                            time.sleep(TRANSIENT_BACKOFF_SECONDS)
-                            continue
-                        print(f"   ⚠️ {model_name} failed ({err}) — moving to next model fallback...")
+
+                    if response and response.text:
                         break
+                    if key_rate_limited:
+                        break
+
                 if response and response.text:
+                    print(f"✨ [AI Vision] Successfully analyzed footage with {chosen_model} using {key_tag}")
                     break
 
             if not response or not response.text:
@@ -426,7 +431,7 @@ class GeminiVisionMatcher:
                 if cached:
                     print(f"   ♻️ Rate limit hit: reusing the scene map for this exact script ({len(cached)} shots)!")
                     return cached
-                raise last_err or RuntimeError("No response from Gemini Vision models.")
+                raise last_err or RuntimeError("No response from Gemini Vision models across all API keys.")
 
             resp_text = response.text or ""
             # Extract JSON from markdown

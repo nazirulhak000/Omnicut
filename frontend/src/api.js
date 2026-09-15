@@ -104,6 +104,7 @@ export const startRender = (data) => api.post('/render', {
 
 export const getRenderStatus = (jobId) => api.get(`/render/status/${jobId}`, { timeout: 15000 }).then(r => r.data);
 export const startBatchRender = (payload) => api.post('/render/batch', payload).then(r => r.data);
+export const startBatchDraft = (payload) => api.post('/render/batch', { ...payload, export_mp4: false }).then(r => r.data);
 export const getBatchRenderStatus = (batchId) => api.get(`/render/batch/${batchId}`).then(r => r.data);
 export const startBackgroundIsolation = (payload) =>
   api.post('/background-isolation/process', payload, { timeout: 120000 }).then(r => r.data);
@@ -258,6 +259,7 @@ export const updateAngleVideos = (productId, angleId, selectedVideos) => api.pos
 export const setDefaultVideosForProduct = (productId, selectedVideos) => api.post(`/products/${productId}/default-videos`, { selected_videos: selectedVideos }).then(r => r.data);
 export const generateProductBatch = (productId, payload) => api.post(`/products/${productId}/generate-batch`, payload).then(r => r.data);
 export const addProductAngle = (productId, payload) => api.post(`/products/${productId}/angles`, payload).then(r => r.data);
+export const deleteProductAngle = (productId, angleId) => api.delete(`/products/${productId}/angles/${angleId}`).then(r => r.data);
 export const deleteProduct = (id) => api.delete(`/products/${id}`).then(r => r.data);
 
 export const getProjects = () => api.get('/projects').then(r => r.data);

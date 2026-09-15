@@ -42,7 +42,9 @@ def _quota_app_error() -> AppError:
 
 
 @pytest.fixture
-def client():
+def client(monkeypatch):
+    monkeypatch.delenv("OMNICUT_API_KEY", raising=False)
+    monkeypatch.setattr("scripts.auth.is_auth_enforced", lambda: False)
     from scripts.api_server import app
     return TestClient(app)
 

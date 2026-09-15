@@ -9,10 +9,10 @@ import {
 } from 'lucide-react';
 import {
   scrapeAndPlanProduct, scrapeAndPlanProductAsync, getProducts, updateProduct,
-  previewProductSource, previewProductImageMetadataAsync, refreshProductSource, updateAngleStatus, updateAngleVideos, setDefaultVideosForProduct, deleteProduct,
+  previewProductSource, previewProductImageMetadataAsync, refreshProductSource, updateAngleStatus, updateAngleVideos, setDefaultVideosForProduct, deleteProduct, deleteProductAngle,
   uploadFile, resolveTiktokProductId, rerollAngleScript,
   generateShotList, getShotList, getShotListStatus, getTaskStatus,
-  generateProductBatch, batchGenerateAudio
+  generateProductBatch, batchGenerateAudio, startBatchDraft, getBatchRenderStatus
 } from '../api';
 import { Modal, Toast, Button, Badge, Input, Textarea, ConfirmModal, PageHeader } from './ui';
 import MediaPickerModal from './MediaPickerModal';
@@ -297,7 +297,8 @@ function AngleSidebarItem({
   shotListInfo,
   onGenerateShotList,
   onOpenShotList,
-  isGeneratingShotList = false
+  isGeneratingShotList = false,
+  onDeleteAngle,
 }) {
   const curStatus = angle.status || 'scripted';
   const isRendered = (curStatus === 'rendered' || curStatus === 'posted') && !!angle.video_url;
@@ -337,13 +338,26 @@ function AngleSidebarItem({
 
         {/* Title + Phase Dots + Badges */}
         <div className="min-w-0 flex-1 space-y-1.5">
-          {/* Row 1: Name + 4-Phase Stepper */}
+          {/* Row 1: Name + 4-Phase Stepper + Delete Button */}
           <div className="flex items-center justify-between gap-1.5">
             <span className={`text-xs font-bold truncate ${isSelected ? 'text-white' : 'text-slate-200'}`}>
               {angle.angle_name}
             </span>
-            <div className="flex-shrink-0">
+            <div className="flex items-center gap-1.5 flex-shrink-0">
               <PhaseDots angle={angle} />
+              {onDeleteAngle && angle.status !== 'posted' && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteAngle(angle, index);
+                  }}
+                  className="opacity-0 group-hover:opacity-100 hover:!opacity-100 p-1 -mr-1 rounded-md text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-all cursor-pointer"
+                  title="ลบสคริปต์มุมนี้"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -521,7 +535,8 @@ function AngleActiveWorkbench({
   videos = [], onToggleVideoForAngle, onUploadVideo, uploadingImg = false,
   onOpenMediaPicker, onSaveScript, onOpenFindReplace, onRerollScript, onGenerateShotList,
   isGeneratingShotList = false, onOpenHookVariants,
-  productData, onOpenEditHookHeader, shotListInfo,
+  productData, onOpenEditHookHeader, shotListInfo, onDeleteAngle,
+  onQuickDraft, draftingAngleId,
 }) {
   const effectiveBrand = angle.hook_brand ?? productData?.hook_brand ?? guessBrandModel(angle.product_name || productData?.name || productData?.title || '').brand;
   const effectiveModel = angle.hook_model ?? productData?.hook_model ?? guessBrandModel(angle.product_name || productData?.name || productData?.title || '').model;
@@ -717,6 +732,17 @@ function AngleActiveWorkbench({
                     </span>
                   </button>
                 </>
+              )}
+              {!isPosted && onDeleteAngle && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onDeleteAngle(angle, index); }}
+                  className="px-2 sm:px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all"
+                  title="ลบสคริปต์มุมนี้"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span className="hidden xs:inline sm:inline">ลบสคริปต์</span>
+                </button>
               )}
             </>
           )}
@@ -1172,15 +1198,44 @@ function AngleActiveWorkbench({
             <ArrowRight className="w-3.5 h-3.5 text-amber-400/80" />
           </button>
         ) : (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onSendToStudio(angle, index); }}
-            className="w-full sm:w-auto py-3 sm:py-2.5 px-6 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#FE2C55]/25 cursor-pointer active:scale-95 transition-all"
-          >
-            <Clapperboard className="w-4 h-4 text-white" />
-            <span>เลือกมุมนี้ & ส่งตัดต่อ</span>
-            <ArrowRight className="w-3.5 h-3.5 text-white/80" />
-          </button>
+          <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+            {Boolean(shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts) && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onQuickDraft ? onQuickDraft(angle, index) : onSendToStudio(angle, index);
+                }}
+                disabled={draftingAngleId === angle.angle_id}
+                className="flex-1 sm:flex-initial py-3 sm:py-2.5 px-5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
+                title="สร้างดราฟต์ไทม์ไลน์แล้วเปิดเข้าสู่ไทม์ไลน์ทันที (ไม่รอเรนเดอร์ MP4)"
+              >
+                {draftingAngleId === angle.angle_id ? (
+                  <>
+                    <Loader2 className="w-4 h-4 text-white animate-spin" />
+                    <span>กำลังสร้างดราฟต์...</span>
+                  </>
+                ) : (
+                  <>
+                    <Film className="w-4 h-4 text-white" />
+                    <span>สร้างดราฟต์ & เข้าไทม์ไลน์</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-white/80" />
+                  </>
+                )}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onSendToStudio(angle, index); }}
+              className={Boolean(shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts)
+                ? "py-3 sm:py-2.5 px-3.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 text-xs font-medium flex items-center justify-center gap-1.5 border border-white/[0.1] cursor-pointer"
+                : "w-full sm:w-auto py-3 sm:py-2.5 px-6 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#FE2C55]/25 cursor-pointer active:scale-95 transition-all"}
+            >
+              <Clapperboard className="w-4 h-4 text-white" />
+              <span>เลือกมุมนี้ & ส่งตัดต่อ</span>
+              <ArrowRight className="w-3.5 h-3.5 text-white/80" />
+            </button>
+          </div>
         )}
       </div>
     </div>
@@ -1196,7 +1251,8 @@ function ScriptAccordionItem({
   onOpenMediaPicker,
   onSaveScript, onOpenFindReplace, onRerollScript, onGenerateShotList,
   isGeneratingShotList = false, onOpenHookVariants,
-  productData, onOpenEditHookHeader
+  productData, onOpenEditHookHeader,
+  shotListInfo, onQuickDraft, draftingAngleId,
 }) {
   const effectiveBrand = angle.hook_brand ?? productData?.hook_brand ?? guessBrandModel(angle.product_name || productData?.name || productData?.title || '').brand;
   const effectiveModel = angle.hook_model ?? productData?.hook_model ?? guessBrandModel(angle.product_name || productData?.name || productData?.title || '').model;
@@ -1785,15 +1841,44 @@ function ScriptAccordionItem({
                 <ArrowRight className="w-3 h-3 text-amber-400/80" />
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); onSendToStudio(angle, index); }}
-                className="py-2 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-[#FE2C55]/25 cursor-pointer active:scale-95 transition-all"
-              >
-                <Clapperboard className="w-3.5 h-3.5 text-white" />
-                <span>เลือกมุมนี้ & ส่งตัดต่อ</span>
-                <ArrowRight className="w-3 h-3 text-white/80" />
-              </button>
+              <div className="flex items-center gap-2 flex-wrap">
+                {Boolean(shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts) && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onQuickDraft ? onQuickDraft(angle, index) : onSendToStudio(angle, index);
+                    }}
+                    disabled={draftingAngleId === angle.angle_id}
+                    className="py-2 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-500/25 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
+                    title="สร้างดราฟต์ไทม์ไลน์แล้วเปิดเข้าสู่ไทม์ไลน์ทันที (ไม่รอเรนเดอร์ MP4)"
+                  >
+                    {draftingAngleId === angle.angle_id ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 text-white animate-spin" />
+                        <span>กำลังสร้างดราฟต์...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Film className="w-3.5 h-3.5 text-white" />
+                        <span>สร้างดราฟต์ & เข้าไทม์ไลน์</span>
+                        <ArrowRight className="w-3 h-3 text-white/80" />
+                      </>
+                    )}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onSendToStudio(angle, index); }}
+                  className={Boolean(shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts)
+                    ? "py-2 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 text-xs font-medium flex items-center gap-1 border border-white/[0.1] cursor-pointer"
+                    : "py-2 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-[#FE2C55]/25 cursor-pointer active:scale-95 transition-all"}
+                >
+                  <Clapperboard className="w-3.5 h-3.5 text-white" />
+                  <span>เลือกมุมนี้ & ส่งตัดต่อ</span>
+                  <ArrowRight className="w-3 h-3 text-white/80" />
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -1857,6 +1942,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const [isStep1Collapsed, setIsStep1Collapsed] = useState(false);
   const [deleteTargetProduct, setDeleteTargetProduct] = useState(null);
   const [isDeletingProduct, setIsDeletingProduct] = useState(false);
+  const [deleteTargetAngle, setDeleteTargetAngle] = useState(null);
+  const [isDeletingAngle, setIsDeletingAngle] = useState(false);
   const [viewMode, setViewMode] = useState('split'); // 'split' | 'accordion'
   const [showProductStrip, setShowProductStrip] = useState(false);
 
@@ -2487,6 +2574,49 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       showToast('ลบไม่สำเร็จ: ' + err.message, 'error');
     } finally {
       setIsDeletingProduct(false);
+    }
+  };
+
+  const handleDeleteAngleClick = (angle, index) => {
+    if (!angle) return;
+    if (angle.status === 'posted') {
+      showToast('ไม่อนุญาตให้ลบมุมที่โพสต์แล้ว', 'error');
+      return;
+    }
+    setDeleteTargetAngle({ angle, index });
+  };
+
+  const confirmDeleteAngle = async () => {
+    if (!deleteTargetAngle || !productData?.id) return;
+    const { angle, index } = deleteTargetAngle;
+    const angleId = angle.angle_id || angle.id;
+    if (!angleId) {
+      showToast('ไม่พบรหัสประจำมุม (angle_id)', 'error');
+      setDeleteTargetAngle(null);
+      return;
+    }
+
+    setIsDeletingAngle(true);
+    try {
+      await deleteProductAngle(productData.id, angleId);
+      showToast(`ลบสคริปต์ "${angle.angle_name || 'มุมนี้'}" เรียบร้อยแล้ว`);
+      workspaceData?.invalidateTrackerData?.();
+      const res = await readProducts({ force: true });
+      const updated = res.products || [];
+      setHistoryList(updated);
+      const current = updated.find((p) => p.id === productData.id);
+      if (current) {
+        selectProduct(current);
+      }
+      setDeleteTargetAngle(null);
+      if (activeAngleIdx >= index) {
+        setActiveAngleIdx((prev) => Math.max(0, prev - 1));
+      }
+    } catch (err) {
+      console.error('Failed to delete angle:', err);
+      showToast(err?.response?.data?.detail || err?.message || 'เกิดข้อผิดพลาดในการลบสคริปต์', 'error');
+    } finally {
+      setIsDeletingAngle(false);
     }
   };
 
@@ -3190,6 +3320,116 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     }
   };
 
+  // Angles in current batch that already have a project/draft
+  const readyDraftCount = useMemo(() => {
+    return activeBatchAngles.filter(ang => ang.project_name || ang.status === 'in_production').length;
+  }, [activeBatchAngles]);
+
+  // Angles that have audio ready and are waiting for draft creation
+  const readyForDraftAngles = useMemo(() => {
+    return activeBatchAngles.filter(ang => {
+      if (ang.project_name || ang.status === 'in_production') return false;
+      const status = shotListStatusMap[ang.angle_id];
+      return Boolean(status?.has_shot_list && !status?.is_edge_tts);
+    });
+  }, [activeBatchAngles, shotListStatusMap]);
+
+  const [isStartingBatchDraft, setIsStartingBatchDraft] = useState(false);
+  const [draftingAngleId, setDraftingAngleId] = useState(null);
+
+  // Active batch draft background task for this product
+  const batchDraftTask = useMemo(() => {
+    return (activeTasks || []).find(t =>
+      (t.task_type === 'batch_draft' || (t.task_type === 'batch_render' && (t.payload?.is_draft || t.metadata?.is_draft))) &&
+      (t.metadata?.product_id === productData?.id || t.payload?.product_id === productData?.id) &&
+      t.status === 'running'
+    );
+  }, [activeTasks, productData?.id]);
+
+  // Auto-refresh product and tracker when batch draft completes
+  const prevBatchDraftTaskStatusRef = useRef(null);
+  useEffect(() => {
+    if (prevBatchDraftTaskStatusRef.current === 'running' && !batchDraftTask && productData?.id) {
+      readProducts({ force: true }).then(res => {
+        const updated = res.products || [];
+        const current = updated.find(p => p.id === productData.id);
+        if (current) selectProduct(current);
+      }).catch(() => {});
+      workspaceData?.invalidateTrackerData?.();
+      showToast('🎉 สร้างดราฟต์ไทม์ไลน์เสร็จสมบูรณ์ ทุกมุมพร้อมเปิดทำต่อในไทม์ไลน์แล้ว!', 'success');
+    }
+    prevBatchDraftTaskStatusRef.current = batchDraftTask ? 'running' : null;
+  }, [batchDraftTask, productData?.id]);
+
+  const handleBatchCreateDraft = async () => {
+    if (!productData?.id) return;
+    if (readyForDraftAngles.length === 0) {
+      showToast('ไม่มีมุมมองที่พร้อมสร้างดราฟต์ (ต้องเตรียมเสียงพากย์ก่อน)', 'warning');
+      return;
+    }
+    setIsStartingBatchDraft(true);
+    try {
+      const payload = {
+        product_id: productData.id,
+        angle_ids: readyForDraftAngles.map(a => a.angle_id),
+        voice_preset: selectedVoicePreset,
+        export_mp4: false,
+      };
+      const res = await startBatchDraft(payload);
+      if (res.batch_id) {
+        showToast(`🚀 เริ่มสร้างดราฟต์ไทม์ไลน์ ${res.total_items ?? readyForDraftAngles.length} มุมมองในเบื้องหลังแล้ว (พร้อมเปิดตรวจในไม่กี่วินาที)`, 'info');
+      }
+    } catch (err) {
+      console.error('Batch draft creation failed:', err);
+      showToast('ไม่สามารถเริ่มสร้างดราฟต์ได้: ' + (err.response?.data?.detail || err.message), 'error');
+    } finally {
+      setIsStartingBatchDraft(false);
+    }
+  };
+
+  const handleSingleAngleQuickDraft = async (angle, index) => {
+    if (!productData?.id || !angle?.angle_id) return;
+    setDraftingAngleId(angle.angle_id);
+    try {
+      const payload = {
+        product_id: productData.id,
+        angle_ids: [angle.angle_id],
+        voice_preset: angle.voice_preset || selectedVoicePreset,
+        export_mp4: false,
+      };
+      const res = await startBatchDraft(payload);
+      if (res.batch_id) {
+        let attempts = 0;
+        let done = false;
+        while (attempts < 15 && !done) {
+          await new Promise(r => setTimeout(r, 800));
+          const statusRes = await getBatchRenderStatus(res.batch_id);
+          if (statusRes.status === 'completed' || statusRes.status === 'failed') {
+            done = true;
+          }
+          attempts++;
+        }
+      }
+      const prodRes = await readProducts({ force: true });
+      const updatedList = prodRes.products || [];
+      const updatedProd = updatedList.find(p => p.id === productData.id);
+      if (updatedProd) {
+        selectProduct(updatedProd);
+        const updatedAngle = (updatedProd.angles || []).find(a => a.angle_id === angle.angle_id) || angle;
+        workspaceData?.invalidateTrackerData?.();
+        handleSendToStudio(updatedAngle, index);
+      } else {
+        handleSendToStudio(angle, index);
+      }
+      showToast('🎉 สร้างดราฟต์ไทม์ไลน์เรียบร้อย เปิดเข้าสู่ไทม์ไลน์แล้ว!', 'success');
+    } catch (err) {
+      console.error('Quick draft failed:', err);
+      showToast('ไม่สามารถสร้างดราฟต์ได้: ' + (err.response?.data?.detail || err.message), 'error');
+    } finally {
+      setDraftingAngleId(null);
+    }
+  };
+
   // ═══════════════════════════════════════════════════════════════
   // RENDER
   // ═══════════════════════════════════════════════════════════════
@@ -3878,7 +4118,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   </div>
 
                   {/* Status indicator pill */}
-                  <div className="flex items-center gap-1.5 text-[11px]">
+                  <div className="flex items-center gap-1.5 text-[11px] flex-wrap">
                     <span className={`px-2 py-0.5 rounded-full font-semibold border ${
                       activeBatchAngles.length === 0
                         ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
@@ -3893,11 +4133,20 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                           : `เสียงพร้อมแล้ว ${readyAudioCount}/${activeBatchAngles.length} มุม (ขาด ${missingAudioCount})`
                       }
                     </span>
+                    {readyDraftCount > 0 && (
+                      <span className={`px-2 py-0.5 rounded-full font-semibold border ${
+                        readyDraftCount === activeBatchAngles.length
+                          ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                          : 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'
+                      }`}>
+                        ดราฟต์ไทม์ไลน์ {readyDraftCount}/${activeBatchAngles.length} มุม
+                      </span>
+                    )}
                   </div>
                 </div>
 
                 {/* Action / Progress Area */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   {batchAudioTask ? (
                     <div className="flex items-center gap-2.5 bg-indigo-950/60 px-3 py-1.5 rounded-lg border border-indigo-500/30">
                       <Loader2 className="w-4 h-4 text-indigo-400 animate-spin flex-shrink-0" />
@@ -3919,7 +4168,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                     <button
                       type="button"
                       onClick={handleBatchGenerateAudio}
-                      disabled={isStartingBatchAudio || activeBatchAngles.length === 0}
+                      disabled={isStartingBatchAudio || isStartingBatchDraft || Boolean(batchDraftTask) || activeBatchAngles.length === 0}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 ${
                         activeBatchAngles.length === 0
                           ? 'bg-white/[0.04] text-slate-500 border border-white/[0.06]'
@@ -3953,6 +4202,51 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       )}
                     </button>
                   )}
+
+                  {/* Batch Draft Task Progress or Trigger Button */}
+                  {batchDraftTask ? (
+                    <div className="flex items-center gap-2.5 bg-emerald-950/60 px-3 py-1.5 rounded-lg border border-emerald-500/30">
+                      <Loader2 className="w-4 h-4 text-emerald-400 animate-spin flex-shrink-0" />
+                      <div className="flex flex-col">
+                        <span className="text-xs text-emerald-200 font-medium leading-tight max-w-[240px] sm:max-w-xs truncate" title={batchDraftTask.step}>
+                          {batchDraftTask.step || 'กำลังสร้างดราฟต์ไทม์ไลน์...'}
+                        </span>
+                        {typeof batchDraftTask.progress === 'number' && (
+                          <div className="w-full bg-slate-800 rounded-full h-1 mt-1 overflow-hidden">
+                            <div
+                              className="bg-gradient-to-r from-emerald-500 to-teal-400 h-1 transition-all duration-300"
+                              style={{ width: `${Math.max(5, batchDraftTask.progress)}%` }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : readyForDraftAngles.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={handleBatchCreateDraft}
+                      disabled={isStartingBatchDraft || isStartingBatchAudio || Boolean(batchAudioTask)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border border-emerald-400/40 hover:shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={`สร้างโปรเจกต์ดราฟต์ไทม์ไลน์สำหรับ ${readyForDraftAngles.length} มุมมองที่เตรียมเสียงแล้ว (ไม่เรนเดอร์ MP4 เสร็จในไม่กี่วินาที พร้อมเปิดตรวจปกและคัตติ้ง)`}
+                    >
+                      {isStartingBatchDraft ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                          <span>กำลังเริ่มสร้างดราฟต์...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Film className="w-3.5 h-3.5 text-emerald-200" />
+                          <span>สร้างดราฟต์ทุกมุม ({readyForDraftAngles.length} มุม)</span>
+                        </>
+                      )}
+                    </button>
+                  ) : readyDraftCount > 0 && readyDraftCount === activeBatchAngles.length ? (
+                    <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/25 flex items-center gap-1.5">
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>ดราฟต์ไทม์ไลน์พร้อมครบทุกมุม</span>
+                    </span>
+                  ) : null}
                 </div>
               </div>
             )}
@@ -4027,6 +4321,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         onGenerateShotList={handleGenerateShotList}
                         onOpenShotList={handleGenerateShotList}
                         isGeneratingShotList={generatingShotListIdx === ang.originalIndex}
+                        onDeleteAngle={handleDeleteAngleClick}
                       />
                     ))
                   )}
@@ -4064,6 +4359,9 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         setHookHeaderModalOpen(true);
                       }}
                       shotListInfo={shotListStatusMap[angles[activeAngleIdx]?.angle_id]}
+                      onDeleteAngle={handleDeleteAngleClick}
+                      onQuickDraft={handleSingleAngleQuickDraft}
+                      draftingAngleId={draftingAngleId}
                     />
                   ) : displayedAngles[0] ? (
                     <AngleActiveWorkbench
@@ -4095,6 +4393,9 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         setHookHeaderModalOpen(true);
                       }}
                       shotListInfo={shotListStatusMap[angles[displayedAngles[0].originalIndex]?.angle_id]}
+                      onDeleteAngle={handleDeleteAngleClick}
+                      onQuickDraft={handleSingleAngleQuickDraft}
+                      draftingAngleId={draftingAngleId}
                     />
                   ) : null}
                 </div>
@@ -4148,6 +4449,9 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         setHookHeaderAngleIdx(idx);
                         setHookHeaderModalOpen(true);
                       }}
+                      shotListInfo={shotListStatusMap[ang.angle_id]}
+                      onQuickDraft={handleSingleAngleQuickDraft}
+                      draftingAngleId={draftingAngleId}
                     />
                   ))
                 )}
@@ -4732,6 +5036,20 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         dangerNote="การกระทำนี้ไม่สามารถย้อนกลับได้"
         confirmText="ลบข้อมูลถาวร"
         loading={isDeletingProduct}
+        variant="danger"
+      />
+
+      {/* ── Delete Angle Confirmation Modal ── */}
+      <ConfirmModal
+        isOpen={!!deleteTargetAngle}
+        onClose={() => setDeleteTargetAngle(null)}
+        onConfirm={confirmDeleteAngle}
+        title="ลบสคริปต์มุมนี้ถาวร?"
+        description="สคริปต์ บทพูด แผนถ่ายทำ และการตั้งค่าของมุมนี้จะถูกลบออกจากระบบ"
+        itemName={deleteTargetAngle?.angle?.angle_name || deleteTargetAngle?.angle?.hook_title}
+        dangerNote="การกระทำนี้ไม่สามารถย้อนกลับได้"
+        confirmText="ลบสคริปต์นี้"
+        loading={isDeletingAngle}
         variant="danger"
       />
 

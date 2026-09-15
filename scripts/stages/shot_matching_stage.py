@@ -227,7 +227,7 @@ class ShotMatchingStage:
             is_newly_generated_clips = True
 
         ai_matched_shots = None
-        if not actual_clip_list and raw_video and ctx.use_ai_vision and os.environ.get("GEMINI_API_KEY"):
+        if not actual_clip_list and raw_video and ctx.use_ai_vision and GeminiVisionMatcher.is_available():
             vision_request = GeminiVisionMatcher.prepare_request_context(str(raw_video), micro_cues)
             cached_shots = (
                 vision_request.cached_matches

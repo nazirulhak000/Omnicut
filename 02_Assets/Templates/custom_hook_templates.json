@@ -205,6 +205,46 @@
         "speed": "smooth"
       },
       "is_custom": true
+    },
+    "custom_1789460997": {
+      "id": "custom_1789460997",
+      "label_th": "B3 Minimal Blue",
+      "font": "Kanit",
+      "tiers": {
+        "brand": {
+          "size_pct": 180,
+          "color": "#73b7d9",
+          "outline_color": "#fafafa",
+          "outline_px": 14,
+          "upper": false,
+          "pill": null
+        },
+        "model": {
+          "size_pct": 149,
+          "color": "#FFE04C",
+          "outline_color": "#FFFFFF",
+          "outline_px": 12,
+          "upper": false,
+          "pill": null
+        },
+        "label": {
+          "size_pct": 105,
+          "color": "#4CE0FF",
+          "outline_color": "#FFFFFF",
+          "outline_px": 10,
+          "upper": false,
+          "pill": null
+        }
+      },
+      "motion": {
+        "in": "pop",
+        "loop": "shake",
+        "out": "zoom",
+        "accent": "badge",
+        "stagger": true,
+        "reveal": "simultaneous"
+      },
+      "is_custom": true
     }
   }
 }

@@ -17,6 +17,12 @@
 
 ## สถานะรวม
 
+- [x] Round ONE-CLICK-DRAFT-BATCH-PIPELINE-1 — ระบบ 1-Click Draft (สร้างดราฟต์ไทม์ไลน์ 1 คลิก) ทั้งระดับรายมุมและทั้งล็อต (Batch Draft) ประกอบเสียง ซับ ฟุตเทจ เข้าสู่ไทม์ไลน์ ProjectManifest โดยไม่ผ่านการเรนเดอร์ MP4 เต็มรูปแบบ (2026-09-15; backend 14 passed, frontend 246 passed, build 2,007 modules/3.52s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) — บล็อกเต็มอยู่ใน HISTORY.md
+- [ ] Round STYLE-MOTION-CATALOG-CONTRACT-SYNC-1 — ซิงก์ `tests/test_style_motion_policy.py` กับ catalog 10 สไตล์ (ของเดิมตก 1 test เพราะ commit `0a07a34` ขยาย `scripts/style_motion_policy.py` เป็น 10 สไตล์แต่ไม่ได้อัปเดต test ที่ยังยืนยัน 5 สไตล์) (พบโดย: Cline (Cline Agent) · ยังไม่ได้แก้)
+- [x] Round DOCS-CURRENCY-REFRESH-20260915 — อัปเดตคู่มือ 3 ระดับ (README.md / ARCHITECTURE.md / UserGuide.jsx) ให้ตรงระบบจริง ณ 2026-09-15: 9 โมดูลเมนู (เพิ่มเมนู 0 ผู้ช่วยโปรดิวเซอร์), 23 routers / 170 routes, Analytics Hub 5 แท็บ, ค่าเริ่มต้นเสียง Gemini TTS และตัวเลข gate จริง (2026-09-15; frontend 246 passed, build 2,007 modules/6.92s, backend 1,514 passed/5 skipped และ 1 ตกที่เป็นของเดิม, ดำเนินการโดย: Cline (Cline Agent)) — บล็อกเต็มอยู่ใน HISTORY.md
+- [x] Round BACKFILL-CLOSED-ROUNDS-20260915 — นำ 38 รอบที่ติ๊กปิดใน TODO แต่ไม่เคยถูกย้ายเข้า HISTORY มาบันทึกย้อนหลัง (ตรวจด้วยสคริปต์: `[x] Round` 110 บรรทัด → ขาดใน HISTORY 38; ตรวจแล้ว 38/38 บรรทัดเหมือนต้นฉบับเป๊ะ, git diff added 48 / deleted 0) ต่อท้ายไฟล์ HISTORY.md เท่านั้น ไม่แตะข้อความเดิม — ดำเนินการโดย: Muse Spark (Muse Spark)
+- [x] Round GEMINI-VISION-MULTIKEY-FAILOVER-1 — ปรับระบบ AI ในขั้นตอน One-Click (Vision Matcher, Tone Analyzer, Product Scraper, Script Generator) ให้รองรับ Multi-Key Failover วนลูปครบทุกคีย์ (Key 1 ➔ 2 ➔ 3 ➔ 4 ➔ 5) เหมือนกับ Gemini TTS (2026-09-15; backend tests 218 passed, frontend 246 passed, build 2,007 modules/6.91s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
+- [x] Round ANGLE-SCRIPT-DELETE-FEATURE-1 — ลบสคริปต์ซ้ำ 3 มุม (การ์ด 11, 12, 13) + เพิ่ม API และปุ่มถังขยะลบสคริปต์บนหน้าเว็บ (2026-09-15; backend 176 passed, frontend 246 passed, build 2,007 modules/3.22s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 - [x] Round HOOK-STYLE-10-PRESET-EXPANSION-1 — ขยายสไตล์การตัดต่อและป้ายฮุกเป็น 10 สี 10 สไตล์ (1-to-1 กับ 10 Script Angles) + ตรวจจับสไตล์ที่เคยใช้แล้วของสินค้าใน StylePresetPicker (2026-09-15; backend parity 154 passed, overlay model 40 passed, frontend 246 passed, build 2,007 modules/3.38s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 - [x] Round TRK-MODAL-PRODUCT-FILTER-SYNC-1 — ซิงก์ตัวกรองสินค้าเข้าสู่โมดัลคลังสคริปต์ (Script Library) และคลังประวัติคลิป (Archive) พร้อมแถบ Product Pills ในโมดัล และปุ่มเลือก 4 สคริปต์ตรงตามสินค้าที่เลือก (2026-09-15; frontend 246 passed, build 2,007 modules/3.63s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 - [x] Round STYLE-PICKER-COMPACT-REDESIGN-1 — ออกแบบตัวเลือกสไตล์การตัดต่อใหม่ (Segmented Tabs + Single Hero Showcase Card) ลดความยาวแนวตั้งลง 70% และไม่ดันปุ่มสร้างคลิปลงไปลึก (2026-09-15; frontend 246 passed, build 2,007 modules/3.10s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
@@ -151,6 +157,7 @@
 - [x] Round SCRIPT-BATCH-EXPAND-1 — ระบบเจนสคริปต์ล็อตใหม่ 10 มุมมอง & ปรับระบบ Dev Server HTTP (Multi-Batch Generation & Filtering Flow) (2026-09-12; vitest 158 passed, pytest 171 passed, build 3.25s, browser verified, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 
 - [x] Round SHOTLIST-GEMINI-TTS-SSOT-1 — ระบบรวมศูนย์เสียง TTS (Gemini Flash Audio SSOT): แผนถ่าย & ตัดต่อจริงใช้เสียงเดียวกัน 100% ไม่เจนซ้ำ (2026-09-12; pytest 1,125 passed, vitest 158 passed, build 3.40s, browser verified, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
+
 
 ## Round BATCH-TTS-AUDIO-PREGEN-1 — ระบบ Batch เตรียมเสียงพากย์อัตโนมัติ พร้อมตัวเลือกเสียง (default: Puck) & พักรอ 429 Cooldown อัตโนมัติใน background task
 
@@ -677,3 +684,54 @@ Plan before code:
   - มี Banner สีอำพันเตือนนุ่มนวล (Gentle Warning) แสดงชัดเจนว่าสไตล์นี้เคยใช้แล้ว พร้อมชื่อมุม/โปรเจกต์เดิม และอนุญาตให้สร้างคลิปซ้ำได้ทันที
 ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
+## Round ANGLE-SCRIPT-DELETE-FEATURE-1 — ลบสคริปต์ซ้ำ 3 มุม (การ์ด 11, 12, 13) + เพิ่ม API และปุ่มถังขยะลบสคริปต์บนหน้าเว็บ
+ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+### แผนรอบนี้
+- [x] ลบสคริปต์ซ้ำ 3 มุม (`angle_1789220587418_v7hh`, `angle_1789220593633_4bd0`, `angle_1789220597656_6zjk`) ออกจากสินค้าพัดลมทันที พร้อมล้าง shot list ของมุมดังกล่าว
+- [x] อัปเดต `scripts/product_store.py`: ให้ `remove_angle` ลบ `ShotListsStore` ของมุมนั้นโดยอัตโนมัติ
+- [x] เพิ่ม Endpoint `DELETE /api/products/{product_id}/angles/{angle_id}` ใน `scripts/api_products.py` พร้อม error handling ชัดเจน
+- [x] เพิ่มฟังก์ชัน `deleteProductAngle(productId, angleId)` ใน `frontend/src/api.js`
+- [x] เพิ่มปุ่มถังขยะ (Trash2) ลบมุมสคริปต์ใน `ProductToClip.jsx` ทั้งบน `AngleSidebarItem` (รายการการ์ดฝั่งซ้าย) และ `AngleActiveWorkbench` (หัวแถบฝั่งขวา) พร้อมกล่องยืนยันการลบ (ป้องกันการกดพลาด) และล็อกไม่ให้ลบมุมที่โพสต์แล้ว (`status === 'posted'`)
+- [x] รันการทดสอบ unit tests frontend และ backend ยืนยันความถูกต้อง
+### Evidence ANGLE-SCRIPT-DELETE-FEATURE-1
+- [x] ลบมุมที่ซ้ำกัน 3 มุมเรียบร้อย: `angle_1789220587418_v7hh`, `angle_1789220593633_4bd0`, `angle_1789220597656_6zjk` พร้อม shot lists ทั้งหมด
+- [x] Backend endpoint: `DELETE /api/products/{product_id}/angles/{angle_id}` ทำงานสมบูรณ์
+- [x] UI ปุ่มถังขยะ:
+  - บนการ์ดฝั่งซ้าย (`AngleSidebarItem`): ปรากฏเมื่อ hover บนการ์ดมุม (เฉพาะมุมที่ยังไม่ได้โพสต์)
+  - บนแถบเครื่องมือฝั่งขวา (`AngleActiveWorkbench`): ปุ่ม "ลบสคริปต์" สีแดง พร้อมไอคอน Trash2
+  - ป๊อปอัปยืนยัน (`ConfirmModal`): ป้องกันการกดลบพลาด แจ้งชื่อมุมอย่างชัดเจน
+- [x] Tests:
+  - Frontend vitest: 246 passed
+  - Frontend build: Vite 2,007 modules transformed / built in 3.22s
+  - Backend tests: 176 passed (`test_sqlite_store_migration.py` & `test_preview_render_parity.py`)
+ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+## Round GEMINI-VISION-MULTIKEY-FAILOVER-1 — ปรับระบบ AI ในขั้นตอน One-Click ให้รองรับ Multi-Key Failover วนลูปครบทุกคีย์ (Key 1 ➔ 2 ➔ 3 ➔ 4 ➔ 5) เหมือนกับ Gemini TTS
+ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+### แผนรอบนี้
+- [x] ปรับปรุง `scripts/gemini_vision_matcher.py` ให้รองรับการวนลูปทุก Gemini API Key (`get_gemini_api_keys()`) โดยเมื่อเจอ Rate Limit (429) หรือ Quota เต็ม จะแจ้งเตือนและสลับไป Key ถัดไป (Key 1 ➔ Key 2 ➔ ...) อัตโนมัติ
+- [x] ปรับปรุง `scripts/stages/shot_matching_stage.py` ให้ตรวจสอบความพร้อมผ่าน `GeminiVisionMatcher.is_available()` แทนการเช็คเฉพาะ `os.environ.get("GEMINI_API_KEY")` เพื่อรองรับคีย์จาก `.env` ทุกรูปแบบ (`GEMINI_API_KEY_1`, `GEMINI_API_KEY_2`, ...)
+- [x] ปรับปรุง `scripts/script_tone_analyzer.py` ให้ใช้ `get_gemini_api_keys()` และวนลูปทุกคีย์ รองรับ failover เมื่อคีย์ใดคีย์หนึ่งติด 429
+- [x] ปรับปรุง `scripts/product_scraper.py` ทั้งฟังก์ชันอ่านข้อมูลจากภาพ (`extract_product_facts_from_images`) และคิดสคริปต์ (`generate_content_matrix`) ให้วนลูปสลับคีย์อัตโนมัติ ไม่ล็อกตายตัวที่ `api_keys[0]`
+- [x] ปรับปรุง `scripts/api_voice.py` (`generate_ai_scripts`) ให้ใช้ `get_gemini_api_keys()` และวนลูปทุกคีย์
+- [x] รันการทดสอบ unit tests ทั้งหมด ยืนยันความเข้ากันได้
+### Evidence GEMINI-VISION-MULTIKEY-FAILOVER-1
+- [x] Multi-key rotation รองรับทุกรูปแบบใน `.env` (`GEMINI_API_KEY`, `GEMINI_API_KEY_1`, `GEMINI_API_KEY_2`, ...)
+- [x] การทำงานเหมือนกับ `GeminiFlashTTSEngine` (Model-first + Key-rotation + Rate-limit backoff)
+- [x] ครอบคลุมทุก AI module ใน 1-Click flow:
+  1. `GeminiFlashTTSEngine` (TTS พากย์เสียง)
+  2. `GeminiVisionMatcher` (Vision Matcher คัดเลือกช็อตตัดต่อ)
+  3. `ScriptToneAnalyzer` (Tone Shift ตัดต่ออัจฉริยะ)
+  4. `ProductScraper` (อ่านรูปสเปก + คิดสคริปต์ 10 มุม)
+  5. `api_voice.py` (เจนสคริปต์ 4 มุม)
+- [x] Tests:
+  - Vision Matcher tests: 32 passed (`tests/test_gemini_vision_matcher.py` & `test_gemini_vision_retry.py`)
+  - Gemini TTS tests: 20 passed (`tests/test_gemini_tts_engine.py`)
+  - Shot matching pacing & Quota tests: 12 passed (`tests/test_shot_matching_pacing.py` & `test_quota_unmetered_sites.py`)
+  - Preview-render parity tests: 154 passed (`tests/test_preview_render_parity.py`)
+  - Frontend unit tests: 246 passed (`npm test`)
+  - Frontend production build: Vite 2,007 modules built in 6.91s (`npm run build`)
+ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+---
+
+## Round DOCS-CURRENCY-REFRESH-20260915 — ปิดรอบแล้ว ✅ (บล็อกเต็มอยู่ใน HISTORY.md)

@@ -1060,6 +1060,12 @@ class ProductStore:
             raise ValueError(f"ไม่อนุญาตให้ลบมุม '{target.get('angle_name') or angle_id}' เนื่องจากถูกโพสต์ลง TikTok แล้ว (ต้องเก็บไว้เป็นหลักฐาน)")
 
         remaining = [a for a in angles if (a.get("angle_id") or a.get("id")) != angle_id]
+        try:
+            from scripts.shot_lists_store import ShotListsStore
+            ShotListsStore.delete(product_id, angle_id)
+        except Exception:
+            pass
+
         if not remaining:
             cls.delete(product_id)
             return {"angle_removed": angle_id, "product_removed": product_id, "angles_left": 0}

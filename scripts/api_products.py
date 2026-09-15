@@ -530,6 +530,18 @@ def remove_video_from_product(product_id: str, video_path: str):
     return {"success": True, "product": updated}
 
 
+@router.delete("/api/products/{product_id}/angles/{angle_id}")
+def delete_product_angle(product_id: str, angle_id: str):
+    """Deletes an angle/script from a product."""
+    try:
+        res = ProductStore.remove_angle(product_id, angle_id)
+        return {"success": True, **res}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"เกิดข้อผิดพลาดในการลบมุม: {e}")
+
+
 @router.patch("/api/products/{product_id}/angles/{angle_id}")
 def update_product_angle_status(product_id: str, angle_id: str, payload: Dict[str, Any]):
     """Updates status (draft, scripted, in_production, rendered, posted) of a specific angle script.

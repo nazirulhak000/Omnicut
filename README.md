@@ -14,12 +14,14 @@
 
 ## 🚀 ฟีเจอร์หลัก (Core Features)
 
+- 🧑‍💼 **AI Producer Hub (เมนู 0):** ศูนย์บัญชาการรายวัน — Daily Mission, Spotlight Next Mission, Pacing Calculator, คลังไอเดียและเรฟ (Idea & Ref Vault พร้อม Visual Insights จาก Gemini Vision), Producer Notes ที่ปักหมุด/แก้ไขได้ และ Quick Ref สำหรับหน้าโรงถ่าย
 - 🛍️ **Product Scraper & Store:** สกัดข้อมูลสินค้า จุดขาย ราคา โปรโมชั่นจาก Marketplace / URL เพื่อนำมาเขียน Hook & CTA
 - ✍️ **AI Script Generator:** สร้างบทพูดรีวิว/ขายสินค้าที่กระชับ ตรงกลุ่มเป้าหมาย มี Hook 3 วินาทีแรก และ CTA ปิดท้าย
-- 🎙️ **Multi-Engine TTS:** 
-  - **Edge-TTS:** รองรับเสียงภาษาไทยคุณภาพสูง (`th-TH-PremwadeeNeural`, `th-TH-NiwatNeural`) ปรับสปีด +15% สำหรับสไตล์ TikTok
-  - **Gemini Flash TTS:** พากย์เสียง AI แบบมีอารมณ์และจังหวะธรรมชาติ
-  - **gTTS Fallback:** ระบบสำรองเมื่อออฟไลน์
+- 🎙️ **Multi-Engine TTS (ค่าเริ่มต้นคือ Gemini TTS):**
+  - **Gemini Flash TTS (default):** พากย์เสียงไทยมีอารมณ์ จังหวะธรรมชาติ (เสียงเริ่มต้น Puck ชายพลังสูง) รองรับ Multi-Key Failover หลายคีย์อัตโนมัติ
+  - **Edge-TTS:** ใช้เมื่อผู้ใช้เลือกเองเท่านั้น (`th-TH-PremwadeeNeural`, `th-TH-NiwatNeural`) สปีด +15% สำหรับสไตล์ TikTok
+  - **gTTS:** ระบบสำรองสำหรับโหมดออฟไลน์
+  - ⚠️ โหมด Gemini TTS จะ **ไม่สลับไป Edge-TTS แบบเงียบๆ** หากเจนไม่ผ่าน แต่แจ้ง Error ให้ผู้ใช้ทราบโดยตรง
 - 📝 **Thai Subtitle Engine & Auto-Burst:** ตัดแบ่งคำภาษาไทยด้วย `pythainlp` จัดการปัญหาสระลอย/วรรณยุกต์ และสร้างซับไตเติล 2 ภาษา (ไทย-อังกฤษ)
 - 🎨 **Universal 3D Badges & Sticker Sheet:** ระบบสร้างป้ายรีวิว 6 แบบมาตรฐาน (Pros, Cons, Warning, Pro Tip, Score, Verdict) ขอบ Die-cut ใช้งานซ้ำได้ทุกคลิป
 - 🎵 **Smart SFX & BGM Ducking:** จัดการเสียงเอฟเฟกต์ (Whoosh, Pop, Ding) และปรับระดับเพลงพื้นหลังอัตโนมัติขณะมีเสียงพูด
@@ -28,6 +30,30 @@
 - 💾 **Safe Project State:** Manifest migration, autosave แบบ latest-write-wins, flush ก่อนสลับโปรเจกต์ และ atomic save
 - 🔁 **Partial Reroll:** เปลี่ยน Hook, Subtitle, BGM, Voice หรือ Video โดย reuse artifact ของ stage ก่อนหน้า
 - 🎚️ **Preview = Render Contracts:** Canvas preview และ ASS/libass renderer ใช้ model/constant ที่ mirror กัน พร้อม source, behavior และ FFmpeg regression tests
+- 🎨 **Hook Style & Style Preset 10 แบบ:** สไตล์การตัดต่อ 10 แบบผูกกับป้ายฮุก (สี + อนิเมชัน) แบบ 1-to-1 พร้อมตรวจจับสไตล์ที่เคยใช้กับสินค้านั้นแล้ว
+- 🔒 **Permanent Watermark:** ลายน้ำช่อง (@rizanntry) ติดถาวรทั้งใน Render และ Preview
+- 📊 **Analytics Hub 5 แท็บ:** Production, Performance (ผลงาน TikTok + คลิปปัง), Tokens, Storage (พร้อม Safe Cache Cleaner) และ Inventory
+- 📈 **TikTok Stats Sync:** ดึงสถิติจาก TikTok Studio พร้อมจับคู่โพสต์แบบ manual และ milestone แจ้งเตือนคลิปปัง 10k+
+- 🗂️ **Batch Render & Backup:** เรนเดอร์หลายคลิปพร้อมกัน, One-click Backup/Restore และตัวสแกนไฟล์สื่อซ้ำ
+- 🧵 **Background Isolation:** ตัดพื้นหลัง/แยกตัวแบบ async พร้อมกู้งานค้างอัตโนมัติเมื่อรีสตาร์ตระบบ
+
+---
+
+## 🧭 เมนูหลัก 9 โมดูล (Navigation)
+
+ระบบจัดเป็น 9 เมนูใน Sidebar (`frontend/src/components/Sidebar.jsx`) — รายละเอียดเชิงลึกอยู่ที่ [ARCHITECTURE.md](ARCHITECTURE.md):
+
+| เมนู | ชื่อ | หน้าที่สั้นๆ |
+| :--- | :--- | :--- |
+| 0 | ผู้ช่วยโปรดิวเซอร์ | Daily Mission, คลังไอเดีย/เรฟ, Producer Notes, Quick Ref |
+| 1 | สินค้า → คลิป | สแกนสินค้า + AI สร้าง Content Matrix 4-10 สคริปต์ พร้อมเวลาเสียงพากย์ |
+| 2 | แทร็กเกอร์ 4 เฟส | ติดตามสถานะงาน 4 ขั้น + แผนถ่าย (Shot List) + หน้าถ่ายผ่านมือถือ |
+| 3 | ตัดต่อ & สร้างคลิป | ไทม์ไลน์ Multi-track, SequencePlayer, Inspector, Keyframes |
+| 4 | Export Gallery | คลิปสำเร็จรูป, Post Studio (ปก 3:4 / 9:16), มาร์คโพสต์ และ Auto-Post |
+| 5 | Media Assets Hub | ฟอนต์, BGM, SFX, สติกเกอร์/ป้าย และ Color LUTs |
+| 6 | สถิติ & วิเคราะห์รวม | 5 แท็บ: Production, Performance, Tokens, Storage, Inventory |
+| 7 | ตั้งค่าระบบ | System Health, AI Providers, เสียงพากย์ และ QR เชื่อมต่อมือถือ |
+| 8 | คู่มือใช้งาน | คู่มือในแอป (Sticky TOC, เช็กลิสต์, โฟลว์ 7 ขั้น, FAQ ค้นหาได้) |
 
 ---
 
@@ -52,7 +78,9 @@ Capcut/
 ├── frontend/               # เว็บแอปพลิเคชัน React + Vite UI
 ├── scripts/                # FastAPI routers, pipeline stages, TTS, subtitle และ renderer
 ├── tools/                  # สคริปต์ Utility (Font Downloader, Badge Generator, Asset Builder)
+├── tiktok_autopost_extension/ # Chrome Extension สำหรับ Auto-Post ขึ้น TikTok
 ├── tests/                  # Backend, contract, parity, render และ compatibility tests
+├── _Docs/                  # PRD, prompt รายงานปฏิบัติการ และ runtime data (post_log ฯลฯ)
 ├── .agents/rules/          # กฎเฉพาะงานสำหรับคนและ AI Agent
 ├── AGENTS.md               # กฎเหล็กและคู่มือสำหรับ AI Coding Assistants
 ├── ARCHITECTURE.md         # แผนผังโมดูลและ data flow ปัจจุบัน
@@ -101,9 +129,9 @@ flowchart LR
 
 ### 1. ติดตั้ง Python Dependencies
 ```bash
-python -m venv venv
+python -m venv .venv
 # สำหรับ Windows
-venv\Scripts\activate
+.venv\Scripts\activate
 
 pip install -r requirements.txt
 ```
@@ -161,7 +189,7 @@ npm test
 npm run build
 ```
 
-ผลตรวจล่าสุด 2026-09-05: Python 336 tests ผ่าน, Frontend 51 tests ผ่าน, FastAPI 76 routes และ Vite build ผ่าน อ่านชนิด test และข้อห้ามที่ [.agents/rules/testing_standard.md](.agents/rules/testing_standard.md)
+ผลตรวจล่าสุด 2026-09-15: Python pytest 1,514 passed / 5 skipped / 1 failed ที่ค้างมาก่อนแล้ว (`tests/test_style_motion_policy.py` — catalog 10 สไตล์แต่ test ยังยืนยัน 5), Frontend 246 tests ผ่าน, FastAPI 170 routes จาก 23 routers และ Vite build ผ่าน (2,007 modules) — อ่านชนิด test และข้อห้ามที่ [.agents/rules/testing_standard.md](.agents/rules/testing_standard.md)
 
 ---
 

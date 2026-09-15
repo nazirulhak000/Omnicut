@@ -3,13 +3,14 @@ import {
   BookOpen, Rocket, Layers, Scissors, FolderDown, Palette, BarChart3, Settings,
   PlayCircle, CheckCircle2, AlertTriangle, ChevronDown, ArrowRight, Clock,
   FolderOpen, Sparkles, FileText, Music, MessageSquareText,
-  MonitorPlay, CircleHelp, Search, Circle,
+  MonitorPlay, CircleHelp, Search, Circle, Bot,
 } from 'lucide-react';
 import { PageHeader } from './ui';
 
 // ── เมนูที่ 8: คู่มือใช้งานในโปรแกรม ──
-// อธิบายโฟลว์หลัก + วิธีใช้ละเอียดทุกเมนู 1-7 ในหน้าเดียว เน้นอ่านง่าย
+// อธิบายโฟลว์หลัก + วิธีใช้ละเอียดทุกเมนู 0-7 ในหน้าเดียว เน้นอ่านง่าย
 const MENU_GUIDE = [
+  { id: 'producer', no: '0', icon: Bot, color: 'text-amber-300', chip: 'bg-amber-500/10 text-amber-300 border-amber-500/30' },
   { id: 'flow', no: '1', icon: Rocket, color: 'text-rose-400', chip: 'bg-rose-500/10 text-rose-300 border-rose-500/30' },
   { id: 'tracker', no: '2', icon: Layers, color: 'text-cyan-300', chip: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30' },
   { id: 'editor', no: '3', icon: Scissors, color: 'text-purple-400', chip: 'bg-purple-500/10 text-purple-300 border-purple-500/30' },
@@ -22,7 +23,7 @@ const MENU_GUIDE = [
 const FLOW_STEPS = [
   { no: '1', title: 'เตรียมสินค้า', desc: 'ใส่ลิงก์หรือชื่อสินค้า ดึงจุดขาย ราคา โปรโมชัน', menu: 'เมนู 1', tab: 'flow', icon: Rocket, grad: 'from-rose-500/25 to-rose-500/5' },
   { no: '2', title: 'สร้างสคริปต์', desc: 'AI เขียน Hook 3 วิ + บทรีวิว + CTA ปิดท้าย', menu: 'เมนู 1', tab: 'flow', icon: FileText, grad: 'from-rose-500/25 to-orange-500/5' },
-  { no: '3', title: 'เสียงพากย์', desc: 'Edge-TTS เสียงไทย +15% ฟังตัวอย่างก่อนใช้จริง', menu: 'เมนู 1', tab: 'flow', icon: Music, grad: 'from-amber-500/25 to-amber-500/5' },
+  { no: '3', title: 'เสียงพากย์', desc: 'Gemini TTS เสียงไทยมีอารมณ์ (ค่าเริ่มต้น Puck) ฟังตัวอย่างก่อนใช้จริง', menu: 'เมนู 1', tab: 'flow', icon: Music, grad: 'from-amber-500/25 to-amber-500/5' },
   { no: '4', title: 'ซับไตเติล', desc: 'ตัดคำ Micro-Burst 2-4 คำ ไฮไลต์คำขายสีเหลืองนีออน', menu: 'เมนู 3', tab: 'editor', icon: MessageSquareText, grad: 'from-purple-500/25 to-purple-500/5' },
   { no: '5', title: 'ตัดต่อ', desc: 'ไทม์ไลน์หลายแทร็ก ใส่ B-roll สติกเกอร์ เอฟเฟกต์', menu: 'เมนู 3', tab: 'editor', icon: Scissors, grad: 'from-purple-500/25 to-cyan-500/5' },
   { no: '6', title: 'เรนเดอร์', desc: 'Export 1080x1920 30FPS H.264 พร้อมปก 9:16', menu: 'เมนู 4', tab: 'gallery', icon: MonitorPlay, grad: 'from-emerald-500/25 to-emerald-500/5' },
@@ -31,7 +32,7 @@ const FLOW_STEPS = [
 
 const TOC = [
   { href: 'ug-flow', label: 'โฟลว์หลัก 7 ขั้น' },
-  { href: 'ug-menus', label: 'วิธีใช้เมนู 1-7' },
+  { href: 'ug-menus', label: 'วิธีใช้เมนู 0-7' },
   { href: 'ug-quickstart', label: 'คลิปแรกใน 10 นาที' },
   { href: 'ug-status', label: 'สถานะคลิป 4 เฟส' },
   { href: 'ug-folders', label: 'โฟลเดอร์ 00-06' },
@@ -42,19 +43,22 @@ const TOC = [
 
 const FAQS = [
   { q: 'เปิดโปรแกรมอย่างไร?', a: 'ดับเบิลคลิก start_app.bat ระบบจะเปิด Backend (พอร์ต 8000) และ Frontend (พอร์ต 5173) พร้อมเปิดเบราว์เซอร์ให้อัตโนมัติ ถ้าเปิดเองให้รัน python scripts/api_server.py อีกหน้าต่างรัน cd frontend แล้ว npm run dev' },
-  { q: 'เสียงพากย์ไม่ออกต้องทำอย่างไร?', a: 'ตรวจว่าต่อเน็ตอยู่ (Edge-TTS ต้องใช้เน็ต) ลองกดฟังตัวอย่างเสียงก่อน ถ้ายังเงียบระบบจะ fallback ไป Gemini Flash หรือ gTTS ให้อัตโนมัติ ตรวจระดับเสียง Voice = 1.0 ในเมนูตัดต่อ' },
+  { q: 'เสียงพากย์ไม่ออกต้องทำอย่างไร?', a: 'ค่าเริ่มต้นของระบบคือ Gemini TTS (เสียง Puck) ซึ่งต้องต่อเน็ตและตั้ง API Key ให้ครบ ลองกดฟังตัวอย่างเสียงก่อน ถ้าขึ้น Error ลิมิตหรือ quota ระบบจะไม่สลับไป Edge-TTS ให้เอง ให้รอคูลดาวน์แล้วลองใหม่ หรือเลือก Edge-TTS เองในหน้าตัดต่อ พร้อมตรวจระดับเสียง Voice = 1.0 ที่เมนู 3' },
+  { q: 'เมนู 0 ผู้ช่วยโปรดิวเซอร์ใช้ทำอะไร?', a: 'เป็นศูนย์บัญชาการรายวัน ดู Daily Mission ว่าควรทำคลิปไหนต่อ ใช้ Pacing Calculator ดูว่าต้องทำอีกกี่คลิปถึงทันเป้า เก็บไอเดียและเรฟลง Idea Vault แล้วกดเพิ่มลง Playbook ได้ในคลิกเดียว ส่งภาพเรฟให้ Gemini Vision วิเคราะห์เป็นสคริปต์ และจด Producer Notes ที่ปักหมุด/แก้ไขได้ โดยซิงก์กับ Quick Ref หน้าโรงถ่าย' },
+  { q: 'สไตล์การตัดต่อกับป้ายฮุกเลือกอย่างไร?', a: 'ที่เมนู 1 มีสไตล์การตัดต่อ 10 แบบ (Viral Punch, Clean Tech Review, Tech Product Showcase, Smooth Showcase, Premium Minimal, Flash Deal, Pain Punch, Tech Comparison, Smart Hack, Niche Focus) โดยแต่ละสไตล์ผูกกับป้ายฮุกสีและอนิเมชันแบบ 1 ต่อ 1 เลือกสไตล์แล้วระบบตั้งป้ายฮุกให้อัตโนมัติ พร้อมโชว์ว่าสินค้านี้เคยใช้สไตล์ไหนไปแล้ว' },
   { q: 'ซับขึ้นสระลอยหรือวรรณยุกต์ซ้อน?', a: 'ระบบตัดคำด้วย pythainlp และล็อก Safe Zone ล่าง 420px ไว้แล้ว ถ้ายังเพี้ยนให้ย่อ Burst เหลือ 2-3 คำต่อบรรทัด อย่าใส่จุดไข่ปลา ... ในบทพูดเพราะจะหลุดขึ้นจอ' },
   { q: 'เรนเดอร์นานหรือค้าง?', a: 'ไฟล์ Draft ใช้ 720p ทดสอบก่อน ไฟล์จริงค่อยเรนเดอร์ 1080x1920 ปิดโปรแกรมตัดต่ออื่นเพื่อคืนแรม ตรวจพื้นที่ดิสก์ในเมนู 6 แท็บ Storage ถ้าแคช CapCut บวมให้กด Safe Purge' },
   { q: 'คลิปอยู่เฟสไหนดูที่ไหน?', a: 'ดูที่เมนู 2 แทร็กเกอร์ 4 เฟส: scripted (มีไอเดีย) → in_production (มีโปรเจกต์ในไทม์ไลน์) → rendered (มี MP4 ใน 04_Exports) → posted (โพสต์ขึ้น TikTok แล้ว) สถานะเปลี่ยนตามงานจริงเท่านั้น' },
   { q: 'เอาคลิปเข้ามือถืออย่างไร?', a: 'เปิดเมนู 4 Export Gallery กดปุ่มแชร์เข้ามือถือแล้วสแกน QR ด้วยมือถือวง Wi-Fi เดียวกัน หรือกดปุ่มสแกน QR มือถือในแถบเมนูล่าง' },
 ];
 const MENU_DETAIL = [
-  { id: 'flow', title: 'สินค้า → คลิป', sub: 'ดึงสินค้า สร้างมุมขายและ Hook ไวรัล', points: ['วางลิงก์สินค้า ระบบดึงชื่อ จุดขาย ราคา โปรโมชันอัตโนมัติ', 'AI แตกมุมขายหลายมุม เลือกมุมแล้วกดสร้างสคริปต์ Hook 3 วินาที + บทรีวิว + CTA', 'กดฟังเสียงพากย์ตัวอย่าง เลือกเสียง Premwadee/Niwat ความเร็ว +15%', 'สร้างแผนถ่าย (Shot List) ดูมุมกล้องตามบททีละซีน', 'ปุ่มส่งตัดต่อ เปิดโปรเจกต์ใหม่ในเมนู 3 ทันที'], tip: 'ชื่อแบรนด์และรุ่นคงภาษาอังกฤษเสมอ เช่น Logitech Wave Keys, Bluetooth, USB-C' },
+  { id: 'producer', title: 'ผู้ช่วยโปรดิวเซอร์', sub: 'ศูนย์บัญชาการรายวัน ไอเดีย เรฟ และโน้ต', points: ['เปิดมาเจอ Daily Mission กับ Spotlight งานที่ควรทำต่อทันที', 'Pacing Calculator บอกว่าต้องทำอีกกี่คลิปถึงทันเป้าที่ตั้งไว้', 'Idea & Ref Vault เก็บไอเดียกับภาพเรฟเร็ว แล้วกดเพิ่มลง Playbook ได้ในคลิกเดียว', 'ส่งภาพเรฟให้ Gemini Vision วิเคราะห์มุมกล้องและอารมณ์ภาพ แล้วสังเคราะห์เป็นสคริปต์ 9:16', 'Producer Notes จด เติม tag ปักหมุด และแก้ไขได้ ซิงก์กับ Quick Ref หน้าโรงถ่าย'], tip: 'เปิดเมนูนี้ก่อนเริ่มงานทุกวัน จะรู้ทันทีว่าควรทำคลิปไหนต่อ' },
+  { id: 'flow', title: 'สินค้า → คลิป', sub: 'ดึงสินค้า สร้างมุมขายและ Hook ไวรัล', points: ['วางลิงก์สินค้า ระบบดึงชื่อ จุดขาย ราคา โปรโมชันอัตโนมัติ', 'AI แตกมุมขายหลายมุม เลือกมุมแล้วกดสร้างสคริปต์ Hook 3 วินาที + บทรีวิว + CTA', 'เลือกสไตล์การตัดต่อ 10 แบบ ระบบผูกป้ายฮุกสีและอนิเมชันให้อัตโนมัติ พร้อมโชว์สไตล์ที่เคยใช้แล้ว', 'กดฟังเสียงพากย์ตัวอย่าง เสียงเริ่มต้นคือ Gemini TTS (Puck) หรือจะเลือก Edge-TTS Premwadee/Niwat ก็ได้', 'สร้างแผนถ่าย (Shot List) ดูมุมกล้องตามบททีละซีน', 'ปุ่มส่งตัดต่อ เปิดโปรเจกต์ใหม่ในเมนู 3 ทันที'], tip: 'ชื่อแบรนด์และรุ่นคงภาษาอังกฤษเสมอ เช่น Logitech Wave Keys, Bluetooth, USB-C' },
   { id: 'tracker', title: 'แทร็กเกอร์ 4 เฟส', sub: 'ติดตามสถานะคลิปตั้งแต่สคริปต์จนโพสต์', points: ['การ์ดแต่ละใบคือหนึ่งมุมขายของสินค้า เห็นเฟสปัจจุบันชัดเจน', 'กดดูสคริปต์ แผนถ่าย หรือส่งต่อเข้า Editor ได้จากการ์ด', 'คิวโพสต์หลายวันตั้งค่าได้ตั้งแต่ 09:00 / 12:30 / 16:00 / 19:00 / 21:30 และเพิ่มช่วงพิเศษรายวันได้', 'พอกดโพสต์สำเร็จการ์ดย้ายไปเฟส posted เอง'], tip: 'สถานะเปลี่ยนตามงานจริงเท่านั้น ไม่มีปุ่มลัดข้ามเฟส' },
-  { id: 'editor', title: 'ตัดต่อ & สร้างคลิป', sub: 'ไทม์ไลน์หลายแทร็ก พรีวิวตรงไฟล์จริง', points: ['เลเยอร์วิดีโอ ซับ สติกเกอร์ เสียง แยกแทร็ก ลาก trim split ได้', 'ซับ Micro-Burst 2-4 คำ ไฮไลต์คำขายอัตโนมัติ อยู่ใน Safe Zone', 'ป้าย Hook พาดหัวค่าเริ่มต้น 5 วินาที ปรับเวลาได้ 1-8 วิ', 'ปุ่ม Reroll เปลี่ยนเฉพาะเสียง ซับ BGM หรือวิดีโอโดยไม่เริ่มใหม่', 'กดเรนเดอร์ ไฟล์จริง 1080x1920 30FPS ไปเมนู 4 อัตโนมัติ'], tip: 'ภาพพรีวิวกับไฟล์เรนเดอร์ใช้ค่าชุดเดียวกัน เห็นอย่างไรได้ไฟล์อย่างนั้น' },
+  { id: 'editor', title: 'ตัดต่อ & สร้างคลิป', sub: 'ไทม์ไลน์หลายแทร็ก พรีวิวตรงไฟล์จริง', points: ['เลเยอร์วิดีโอ ซับ สติกเกอร์ เสียง แยกแทร็ก ลาก trim split ได้', 'ซับ Micro-Burst 2-4 คำ ไฮไลต์คำขายอัตโนมัติ อยู่ใน Safe Zone', 'ป้าย Hook พาดหัวค่าเริ่มต้น 5 วินาที ปรับเวลาได้ 1-8 วิ', 'ปุ่ม Reroll เปลี่ยนเฉพาะเสียง ซับ BGM หรือวิดีโอโดยไม่เริ่มใหม่', 'ลายน้ำช่อง (@rizanntry) ติดถาวรทั้งในพรีวิวและไฟล์เรนเดอร์ ปิดไม่ได้', 'กดเรนเดอร์ ไฟล์จริง 1080x1920 30FPS ไปเมนู 4 อัตโนมัติ'], tip: 'ภาพพรีวิวกับไฟล์เรนเดอร์ใช้ค่าชุดเดียวกัน เห็นอย่างไรได้ไฟล์อย่างนั้น' },
   { id: 'gallery', title: 'Export Gallery', sub: 'คลังคลิปพร้อมโพสต์และส่งเข้ามือถือ', points: ['คลิปเรนเดอร์เสร็จรวมที่นี่ พร้อมปก 9:16 และแคปชัน', 'กดแชร์เข้ามือถือสแกน QR ดาวน์โหลดไฟล์ MP4', 'กดทำเครื่องหมายโพสต์แล้ว คลิปย้ายไปโฟลเดอร์ Posted', 'เปิดด้วย CapCut PC ต่อเมื่อต้องการแต่งเพิ่ม'], tip: 'ตั้งชื่อไฟล์ YYYYMMDD_ชื่อสินค้า_hookสั้น_vN.mp4 หาไฟล์ง่าย' },
   { id: 'assets', title: 'Media Assets Hub', sub: 'คลังเสียง ฟอนต์ สติกเกอร์ส่วนกลาง', points: ['BGM เพลงประกอบ SFX Whoosh Ding Pop กดฟังก่อนใช้', 'ฟอนต์ไทยมาตรฐาน Kanit Prompt IBM Plex Sans Thai', 'ป้ายรีวิว 3D 6 แบบ PROS CONS WARNING PRO TIP SCORE VERDICT', 'อัปโหลดไฟล์ใหม่หรือลบไฟล์ขยะได้จากหน้านี้'], tip: 'ไฟล์ใน 01_Raw และ 02_Assets คือต้นฉบับ ห้ามลบโดยไม่ยืนยัน' },
-  { id: 'analytics', title: 'สถิติ & วิเคราะห์รวม', sub: 'การผลิต โทเคน พื้นที่ สุขภาพสินค้า', points: ['แท็บ Production ดู Funnel 4 เฟส จุดคอขวด เวลาเฉลี่ย', 'แท็บ Tokens ดูการใช้ AI แยก In/Out/Think รายวัน', 'แท็บ Storage ดูขนาดโฟลเดอร์ 01-06 และปุ่ม Safe Purge ล้างแคช', 'แท็บ Inventory ดูสินค้าตัวไหนขาดรูป ขาดคลิป พร้อมทำคลิป'], tip: 'Safe Purge ล้างเฉพาะแคช ไม่แตะไฟล์ต้นฉบับ' },
+  { id: 'analytics', title: 'สถิติ & วิเคราะห์รวม', sub: 'การผลิต ผลงาน TikTok โทเคน พื้นที่ สุขภาพสินค้า', points: ['แท็บ Production ดู Funnel 4 เฟส จุดคอขวด เวลาเฉลี่ย', 'แท็บ Performance ดูผลงาน TikTok ที่ดึงมา แถวไหนไม่เจอคู่กดจับคู่ manual และแจ้งเตือนคลิปปัง 10k+', 'แท็บ Tokens ดูการใช้ AI แยก In/Out/Think รายวัน พร้อมแจ้งเตือนลิมิต/quota', 'แท็บ Storage ดูขนาดโฟลเดอร์ 01-06 และปุ่ม Safe Purge ล้างแคช', 'แท็บ Inventory ดูสินค้าตัวไหนขาดรูป ขาดคลิป พร้อมทำคลิป'], tip: 'Safe Purge ล้างเฉพาะแคช ไม่แตะไฟล์ต้นฉบับ' },
   { id: 'settings', title: 'ตั้งค่าระบบ', sub: 'จอ ฟอนต์ โฟลเดอร์ และความปลอดภัย', points: ['แท็บการแสดงผล ปรับขนาด UI และฟอนต์ไทย 10 แบบ', 'แท็บโฟลเดอร์ เปิดโฟลเดอร์ 00-06 และ CapCut Drafts ได้ทันที', 'แท็บระบบ ตรวจ FFmpeg Gemini Engine และการเชื่อม CapCut', 'สวิตช์ TikTok Auto-Post ปิดเป็นค่าเริ่มต้น เปิดเมื่อพร้อมเท่านั้น'], tip: 'คีย์ลัดกด ? ดูชีตคีย์ลัดทั้งหมด' },
 ];
 const CHECKLIST = [
@@ -68,7 +72,7 @@ const CHECKLIST = [
 const CHECKLIST_KEY = 'omnicut_guide_checklist_v1';
 
 const TROUBLES = [
-  { t: 'เสียงพากย์ไม่ออก', d: 'ต่อเน็ตแล้วกดฟังตัวอย่างก่อน ระบบ fallback ให้อัตโนมัติ', tab: 'flow', label: 'เปิดเมนู 1' },
+  { t: 'เสียงพากย์ไม่ออก', d: 'Gemini TTS ต้องต่อเน็ตและมี API Key ถ้าขึ้นลิมิตให้รอคูลดาวน์หรือเลือก Edge-TTS', tab: 'flow', label: 'เปิดเมนู 1' },
   { t: 'ซับเพี้ยนสระลอย', d: 'ย่อ Burst เหลือ 2-3 คำ อย่าใส่จุดไข่ปลาในบทพูด', tab: 'editor', label: 'เปิดเมนู 3' },
   { t: 'เรนเดอร์ค้าง', d: 'ทดสอบด้วย Draft 720p ก่อน ดูพื้นที่ดิสก์ที่เมนู 6', tab: 'analytics', label: 'เปิดเมนู 6' },
   { t: 'หาไฟล์ไม่เจอ', d: 'คลิปเสร็จอยู่ 04_Exports ปกอยู่ 05_Covers เปิดจากเมนู 7', tab: 'settings', label: 'เปิดเมนู 7' },
@@ -153,7 +157,7 @@ export default function UserGuide({ onNavigate }) {
               <button onClick={() => go(s.tab)} title={`เปิด${s.menu}ใช้งานจริง`} className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-[#25F4EE] hover:text-white cursor-pointer self-start transition-colors">{s.menu}<ArrowRight className="w-3 h-3" /></button>
             </div> ); })}
         </div>
-        <div className="mt-3 flex items-start gap-2 p-3 rounded-xl bg-amber-500/[0.07] border border-amber-500/25"><AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" /><p className="text-[11px] sm:text-xs text-slate-300 leading-relaxed">จำง่าย สินค้าเข้าเมนู 1 งานค้างดูเมนู 2 ตัดต่อเรนเดอร์ที่เมนู 3 คลิปเสร็จรวมที่เมนู 4 ของส่วนกลางอยู่เมนู 5 ตัวเลขรวมอยู่เมนู 6 มีปัญหามาเมนู 7 ตั้งค่า</p></div>
+        <div className="mt-3 flex items-start gap-2 p-3 rounded-xl bg-amber-500/[0.07] border border-amber-500/25"><AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" /><p className="text-[11px] sm:text-xs text-slate-300 leading-relaxed">จำง่าย เริ่มวันดูเมนู 0 สินค้าเข้าเมนู 1 งานค้างดูเมนู 2 ตัดต่อเรนเดอร์ที่เมนู 3 คลิปเสร็จรวมที่เมนู 4 ของส่วนกลางอยู่เมนู 5 ตัวเลขรวมอยู่เมนู 6 มีปัญหามาเมนู 7 ตั้งค่า</p></div>
       </section>
       <section id="ug-menus" className="scroll-mt-20">
         <h2 className="text-sm sm:text-base font-black text-white px-1">วิธีใช้ละเอียดทุกเมนู กดชื่อเมนูเพื่อกระโดดไปใช้งานจริง</h2>

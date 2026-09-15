@@ -766,7 +766,6 @@ class ProductScraper:
         api_keys = get_gemini_api_keys()
         if not api_keys:
             raise RuntimeError("ยังไม่ได้ตั้งค่า GEMINI_API_KEY สำหรับอ่านข้อมูลจากรูป")
-        api_key = api_keys[0]
 
         from scripts.quota import check_budget
         check_budget(task="content_matrix")
@@ -819,23 +818,35 @@ class ProductScraper:
         if not image_parts:
             raise ValueError("อ่านไฟล์รูปอ้างอิงไม่ได้")
 
-        client = genai.Client(api_key=api_key)
         response = None
-        for model_name in ["gemini-3.5-flash", "gemini-flash-latest", "gemini-2.5-flash", "gemini-3.5-flash-lite"]:
-            try:
-                response = client.models.generate_content(model=model_name, contents=[prompt, *image_parts])
-                if response and response.text:
-                    break
-            except Exception as model_error:
-                print(
-                    f"[ProductScraper] Image metadata model {model_name} note: "
-                    f"{ascii(model_error)}"
-                )
-                if "429" in str(model_error) or "RESOURCE_EXHAUSTED" in str(model_error):
-                    raise
+        last_error = None
+        for key_idx, cur_key in enumerate(api_keys, 1):
+            key_tag = f"Key #{key_idx} (..{cur_key[-6:]})"
+            client = genai.Client(api_key=cur_key)
+            key_rate_limited = False
+            for model_name in ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"]:
+                try:
+                    response = client.models.generate_content(model=model_name, contents=[prompt, *image_parts])
+                    if response and response.text:
+                        print(f"✨ [ProductScraper] Extracted facts using {model_name} on {key_tag}")
+                        break
+                except Exception as model_error:
+                    last_error = model_error
+                    print(
+                        f"[ProductScraper] Image metadata {model_name} on {key_tag} note: "
+                        f"{ascii(model_error)}"
+                    )
+                    if "429" in str(model_error) or "RESOURCE_EXHAUSTED" in str(model_error):
+                        key_rate_limited = True
+                        print(f"   ⚠️ [ProductScraper] Rate limit (429) hit on {key_tag} — switching to next key...")
+                        break
+            if response and response.text:
+                break
+            if key_rate_limited:
+                continue
 
         if not response or not response.text:
-            raise RuntimeError("AI ไม่ส่งผลลัพธ์จากรูปกลับมา")
+            raise RuntimeError(f"AI ไม่ส่งผลลัพธ์จากรูปกลับมา (error: {last_error})")
         cleaned = re.sub(r'^```(?:json)?\s*', '', response.text.strip())
         cleaned = re.sub(r'\s*```$', '', cleaned).strip()
         return _normalise_image_metadata(json.loads(cleaned))
@@ -1062,8 +1073,7 @@ class ProductScraper:
 """
         from scripts.config import get_gemini_api_keys
         api_keys = get_gemini_api_keys()
-        api_key = api_keys[0] if api_keys else ""
-        if api_key:
+        if api_keys:
             # Pre-flight budget check. This calls Gemini directly rather than
             # through ai_bridge, so without its own gate the daily cap cannot
             # apply here -- and the except below folds every failure into the
@@ -1103,20 +1113,31 @@ class ProductScraper:
 
                 contents = [prompt, *image_parts] if image_parts else prompt
 
-                client = genai.Client(api_key=api_key)
                 resp = None
-                for m_name in ["gemini-3.5-flash", "gemini-flash-latest", "gemini-2.5-flash", "gemini-3.5-flash-lite"]:
-                    try:
-                        print(f"[ProductScraper] Calling Gemini with model {m_name}...")
-                        resp = client.models.generate_content(
-                            model=m_name,
-                            contents=contents
-                        )
-                        if resp and resp.text:
-                            print(f"[ProductScraper] Successfully received response from {m_name}")
-                            break
-                    except Exception as m_err:
-                        print(f"[ProductScraper] Model {m_name} note: {m_err}")
+                for key_idx, cur_key in enumerate(api_keys, 1):
+                    key_tag = f"Key #{key_idx} (..{cur_key[-6:]})"
+                    client = genai.Client(api_key=cur_key)
+                    key_rate_limited = False
+                    for m_name in ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"]:
+                        try:
+                            print(f"[ProductScraper] Calling Gemini with model {m_name} on {key_tag}...")
+                            resp = client.models.generate_content(
+                                model=m_name,
+                                contents=contents
+                            )
+                            if resp and resp.text:
+                                print(f"✨ [ProductScraper] Successfully generated angles with {m_name} on {key_tag}")
+                                break
+                        except Exception as m_err:
+                            print(f"[ProductScraper] Model {m_name} on {key_tag} note: {m_err}")
+                            if "429" in str(m_err) or "RESOURCE_EXHAUSTED" in str(m_err):
+                                key_rate_limited = True
+                                print(f"   ⚠️ [ProductScraper] Rate limit (429) hit on {key_tag} — switching to next key...")
+                                break
+                            continue
+                    if resp and resp.text:
+                        break
+                    if key_rate_limited:
                         continue
                 response_text = (resp.text if resp else "") or ""
                 

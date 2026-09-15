@@ -190,8 +190,9 @@ def generate_script(req: ScriptGenerateRequest):
 @router.post("/api/script/ai-generate")
 def generate_ai_scripts(req: ScriptGenerateRequest):
     """Generates 4 viral multi-angle TikTok review scripts using Google Gemini."""
-    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
-    if not api_key:
+    from scripts.config import get_gemini_api_keys
+    api_keys = get_gemini_api_keys()
+    if not api_keys:
         base = ScriptGenerator.generate(req.product_name, req.key_features, req.pain_point, req.price_deal)
         return {
             "angles": [
@@ -223,7 +224,6 @@ def generate_ai_scripts(req: ScriptGenerateRequest):
 
     try:
         from google import genai
-        client = genai.Client(api_key=api_key)
 
         prompt = f"""คุณเป็นสุดยอด Copywriter และผู้เชี่ยวชาญการทำคลิป TikTok Shop / Affiliate มือโปร
 กรุณาแต่งสคริปต์วิดีโอรีวิวป้ายยา 4 มุมมอง (4 Angles) สำหรับสินค้า:
@@ -265,10 +265,34 @@ def generate_ai_scripts(req: ScriptGenerateRequest):
 }}
 ```"""
 
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt,
-        )
+        response = None
+        for key_idx, cur_key in enumerate(api_keys, 1):
+            key_tag = f"Key #{key_idx} (..{cur_key[-6:]})"
+            client = genai.Client(api_key=cur_key)
+            key_rate_limited = False
+            for model_name in ["gemini-2.5-flash", "gemini-2.5-flash-lite"]:
+                try:
+                    response = client.models.generate_content(
+                        model=model_name,
+                        contents=prompt,
+                    )
+                    if response and response.text:
+                        print(f"✨ [AI Script] Generated scripts with {model_name} on {key_tag}")
+                        break
+                except Exception as call_err:
+                    print(f"[AI Script] Model {model_name} on {key_tag} note: {call_err}")
+                    if "429" in str(call_err) or "RESOURCE_EXHAUSTED" in str(call_err):
+                        key_rate_limited = True
+                        print(f"   ⚠️ [AI Script] Rate limit (429) hit on {key_tag} — switching to next key...")
+                        break
+                    continue
+            if response and response.text:
+                break
+            if key_rate_limited:
+                continue
+
+        if not response or not response.text:
+            raise RuntimeError("No response received from Gemini across all API keys")
 
         res_text = response.text.strip()
         if "```json" in res_text:
