@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Sparkles } from 'lucide-react';
+import { Check, Sparkles, AlertCircle } from 'lucide-react';
 
 import { STYLE_PRESET_CATALOG, normalizeStylePreset } from '../../lib/stylePresetCatalog.js';
 
@@ -8,9 +8,12 @@ export default function StylePresetPicker({
   onChange,
   layout = 'stacked',
   helpText = 'เลือกจังหวะการตัด กล้องเคลื่อน Transition และสี Accent สำหรับทั้งโปรเจกต์',
+  usedStyleIds = [],
+  usedStyleInfo = {},
 }) {
   const activeId = normalizeStylePreset(value);
   const activePreset = STYLE_PRESET_CATALOG.find((p) => p.id === activeId) || STYLE_PRESET_CATALOG[0];
+  const isCurrentUsed = usedStyleIds.includes(activePreset?.id);
 
   return (
     <div className="space-y-2.5">
@@ -58,9 +61,19 @@ export default function StylePresetPicker({
                 aria-hidden="true"
               />
               <div className="min-w-0 flex-1">
-                <p className={`text-xs font-bold truncate leading-tight ${isActive ? 'text-white' : 'text-slate-300'}`}>
-                  {preset.label}
-                </p>
+                <div className="flex items-center gap-1 min-w-0">
+                  <p className={`text-xs font-bold truncate leading-tight ${isActive ? 'text-white' : 'text-slate-300'}`}>
+                    {preset.label}
+                  </p>
+                  {usedStyleIds.includes(preset.id) && (
+                    <span
+                      title="สไตล์นี้ถูกใช้ในสินค้านี้แล้ว"
+                      className="shrink-0 rounded bg-amber-500/20 text-amber-300 text-[8px] font-semibold px-1 py-0.5 border border-amber-500/30 leading-none"
+                    >
+                      ใช้แล้ว
+                    </span>
+                  )}
+                </div>
                 <p className="text-[10px] text-slate-500 truncate leading-tight mt-0.5">
                   {preset.labelTh}
                 </p>
@@ -87,6 +100,15 @@ export default function StylePresetPicker({
             className="absolute -right-8 -bottom-8 w-28 h-28 rounded-full blur-3xl pointer-events-none opacity-25"
             style={{ backgroundColor: activePreset.accent }}
           />
+
+          {isCurrentUsed && (
+            <div className="mb-2.5 flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/30 px-2.5 py-1.5 text-[11px] text-amber-200/90 relative z-10">
+              <AlertCircle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+              <p className="leading-snug">
+                สไตล์ <strong className="text-amber-100 font-semibold">{activePreset.label}</strong> {usedStyleInfo[activePreset.id] ? `(${usedStyleInfo[activePreset.id]})` : ''} ถูกใช้สร้างคลิปในสินค้านี้ไปแล้ว — สามารถสร้างซ้ำได้ตามต้องการ
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4 items-center relative z-10">
             {/* Left Col: Specs & Info (7 cols) */}

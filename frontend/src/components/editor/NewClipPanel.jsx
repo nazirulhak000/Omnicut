@@ -18,7 +18,7 @@ import { useRenderJob } from '../../hooks/useRenderJob';
 import MediaPickerModal from '../MediaPickerModal';
 import VoicePickerModal from '../VoicePickerModal';
 import { guessBrandModel, newHookOverlay, templateForAdTone, templateForStylePreset } from '../../lib/overlayModel';
-import { normalizeStylePreset } from '../../lib/stylePresetCatalog.js';
+import { normalizeStylePreset, getRecommendedStyleForAngle } from '../../lib/stylePresetCatalog.js';
 import StylePresetPicker from './StylePresetPicker';
 
 function formatTime(seconds) {
@@ -125,6 +125,7 @@ export default function NewClipPanel({
   angleIndex = 0,
   onAngleChange,
   existingProjects = [],
+  projectList = [],
   onGoToProductFlow,
   onVideoUploaded,
   onCreated,
@@ -321,6 +322,47 @@ export default function NewClipPanel({
       return name === firstVariantName;
     });
   }, [projectName, currentAngle, angles, angleIndex, productContext?.product_code, form.productName, existingProjects]);
+
+  // Track which style presets have already been used by angles or existing projects for this product
+  const { usedStyleIds, usedStyleInfo } = useMemo(() => {
+    const usedMap = {};
+
+    // 1. Check angles in product context (if in production, rendered, or has project attached)
+    (productContext?.angles || []).forEach((ang, idx) => {
+      const hasProject = ang.project_name || ang.status === 'in_production' || ang.status === 'rendered';
+      if (hasProject) {
+        const styleId = ang.style_preset || (ang.angle_id ? getRecommendedStyleForAngle(ang.angle_id) : null);
+        if (styleId && !usedMap[styleId]) {
+          const label = ang.angle_name || ang.hook_title || `มุมที่ ${idx + 1}`;
+          usedMap[styleId] = label;
+        }
+      }
+    });
+
+    // 2. Check existing projects matching this product
+    const productCode = (productContext?.product_code || '').trim().toUpperCase();
+    const shortProdName = extractShortProductName(form.productName || productContext?.title || '');
+    const projectsToCheck = projectList && projectList.length > 0 ? projectList : existingProjects;
+    (projectsToCheck || []).forEach((proj) => {
+      const pName = typeof proj === 'string' ? proj : proj?.project_name;
+      if (!pName) return;
+      const belongs = (productCode && pName.toUpperCase().includes(productCode)) ||
+                      (shortProdName && pName.includes(shortProdName));
+      if (belongs) {
+        const pStyle = typeof proj === 'object'
+          ? (proj?.style_preset || proj?.stylePreset || proj?.manifest?.style_preset)
+          : null;
+        if (pStyle && !usedMap[pStyle]) {
+          usedMap[pStyle] = pName;
+        }
+      }
+    });
+
+    return {
+      usedStyleIds: Object.keys(usedMap),
+      usedStyleInfo: usedMap,
+    };
+  }, [productContext?.angles, productContext?.product_code, productContext?.title, form.productName, projectList, existingProjects]);
 
   const handleUpload = async (file) => {
     if (!file) return;
@@ -655,6 +697,8 @@ export default function NewClipPanel({
                     })}
                     layout="grid"
                     helpText="เลือกก่อนสร้างคลิป ระบบจะใช้ค่านี้จัด Motion, Transition และสี Accent อัตโนมัติ"
+                    usedStyleIds={usedStyleIds}
+                    usedStyleInfo={usedStyleInfo}
                   />
                 </div>
 

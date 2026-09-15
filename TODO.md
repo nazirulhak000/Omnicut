@@ -17,6 +17,7 @@
 
 ## สถานะรวม
 
+- [x] Round HOOK-STYLE-10-PRESET-EXPANSION-1 — ขยายสไตล์การตัดต่อและป้ายฮุกเป็น 10 สี 10 สไตล์ (1-to-1 กับ 10 Script Angles) + ตรวจจับสไตล์ที่เคยใช้แล้วของสินค้าใน StylePresetPicker (2026-09-15; backend parity 154 passed, overlay model 40 passed, frontend 246 passed, build 2,007 modules/3.38s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 - [x] Round TRK-MODAL-PRODUCT-FILTER-SYNC-1 — ซิงก์ตัวกรองสินค้าเข้าสู่โมดัลคลังสคริปต์ (Script Library) และคลังประวัติคลิป (Archive) พร้อมแถบ Product Pills ในโมดัล และปุ่มเลือก 4 สคริปต์ตรงตามสินค้าที่เลือก (2026-09-15; frontend 246 passed, build 2,007 modules/3.63s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 - [x] Round STYLE-PICKER-COMPACT-REDESIGN-1 — ออกแบบตัวเลือกสไตล์การตัดต่อใหม่ (Segmented Tabs + Single Hero Showcase Card) ลดความยาวแนวตั้งลง 70% และไม่ดันปุ่มสร้างคลิปลงไปลึก (2026-09-15; frontend 246 passed, build 2,007 modules/3.10s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 - [x] Round HOOK-STYLE-PRESET-INTEGRATION-1 — เชื่อมโยงสไตล์การตัดต่อเข้ากับป้ายฮุก (Hook Styles) + Mini Preview บนการ์ดสไตล์ (2026-09-15; backend parity 209 passed, frontend 246 passed, build 2,007 modules/3.48s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
@@ -643,4 +644,36 @@ Plan before code:
 - [x] Restrict local reference reads to approved workspace roots with resolved-path containment.
 - [x] Add deterministic regression tests for private URLs, redirects, and local-path escape.
 - [x] Run focused Producer tests, compileall, and diff check.
+
+## Round HOOK-STYLE-10-PRESET-EXPANSION-1 — ขยายสไตล์การตัดต่อและป้ายฮุกเป็น 10 สี 10 สไตล์ (1-to-1 กับ 10 Script Angles) + ตรวจจับสไตล์ที่เคยใช้แล้วของสินค้าใน StylePresetPicker
+ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+### แผนรอบนี้
+- [x] เพิ่ม Hook Style Templates 5 สีใหม่ให้ครบ 10 สีใน `scripts/hook_styles.py` และ `frontend/src/lib/hookStyles.js` รักษา 3-tier structure และ parity 100%
+- [x] เพิ่ม Style Presets 5 สไตล์ใหม่ใน `scripts/style_motion_policy.py`, `scripts/color_theme.py`, `scripts/overlay_model.py` และ `frontend/src/lib/stylePresetCatalog.js`
+- [x] สร้าง 1-to-1 Default Mapping ระหว่าง 10 Script Angles และ 10 Editorial Style Presets พร้อมฟังก์ชัน `getRecommendedStyleForAngle(angleId)`
+- [x] เชื่อมโยง `angleToForm.js` ให้เลือกสไตล์ที่ตรงกับ angle โดยอัตโนมัติเมื่อผู้ใช้สร้างคลิป
+- [x] เพิ่มระบบตรวจจับสไตล์ที่ถูกสร้างไปแล้วของสินค้านั้นใน `NewClipPanel.jsx` และส่งต่อไปยัง `StylePresetPicker.jsx`
+- [x] แสดงแท็ก `(ใช้แล้ว)` บน Pill ของสไตล์ และแสดงกล่องข้อความเตือนนุ่มนวล (Gentle non-blocking alert) ใน Showcase Card โดยอนุญาตให้ผู้ใช้ยืนยันสร้างซ้ำได้ตามต้องการ
+- [x] รัน `npm test`, `npm run build`, และ `pytest tests/test_preview_render_parity.py` ยืนยันผ่านทั้งหมด
+### Evidence HOOK-STYLE-10-PRESET-EXPANSION-1
+- [x] 10 Hook Templates & 10 Style Presets ครบถ้วน:
+  1. `stop_scroll` -> `viral_punch` (แดง `#FE2C55` / `b1_viral_red`)
+  2. `fomo_deal` -> `flash_deal` (ส้ม `#FF7A00` / `b1_deal_orange`)
+  3. `pain_point` -> `pain_punch` (ชมพู `#FF2E93` / `b1_pain_pink`)
+  4. `spec_review` -> `clean_tech_review` (เหลือง `#FFE600` / `b2_clean_yellow`)
+  5. `comparison` -> `tech_compare` (น้ำเงิน `#3B82F6` / `b2_compare_blue`)
+  6. `unboxing` -> `tech_product_showcase` (ฟ้า `#25F4EE` / `b2_tech_cyan`)
+  7. `life_hack` -> `smart_hack` (เขียวมะนาว `#84CC16` / `b1_hack_lime`)
+  8. `niche_target` -> `niche_focus` (ม่วง `#A855F7` / `b2_niche_purple`)
+  9. `longterm_review` -> `smooth_showcase` (มิ้นต์ `#00F2AA` / `b1_smooth_mint`)
+  10. `math_value` -> `premium_minimal` (ทอง `#E6C24A` / `b2_premium_gold`)
+- [x] Tests:
+  - Frontend vitest: 246 passed (stylePresetCatalog assertion for all 10 presets and unique accents)
+  - Frontend build: Vite 2,007 modules transformed / built in 3.38s
+  - Backend parity: 154 passed (`tests/test_preview_render_parity.py`)
+  - Backend overlay model: 40 passed (`tests/test_overlay_model.py`)
+- [x] ตรวจสอบ Style Usage Detection:
+  - มีแท็ก `(ใช้แล้ว)` บน pill ของสไตล์ที่เคยถูกใช้
+  - มี Banner สีอำพันเตือนนุ่มนวล (Gentle Warning) แสดงชัดเจนว่าสไตล์นี้เคยใช้แล้ว พร้อมชื่อมุม/โปรเจกต์เดิม และอนุญาตให้สร้างคลิปซ้ำได้ทันที
+ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 

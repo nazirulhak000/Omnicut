@@ -14,7 +14,7 @@ import {
 import { DEFAULT_STUDIO_FORM, STYLE_PRESET_STORAGE_VERSION, migrateSavedStudioForm } from './studioDefaults.js';
 
 test('catalog has a unique renderer-supported default', () => {
-  assert.equal(STYLE_PRESET_CATALOG.length, 5);
+  assert.equal(STYLE_PRESET_CATALOG.length, 10);
   assert.equal(normalizeStylePreset(DEFAULT_STYLE_PRESET), DEFAULT_STYLE_PRESET);
   assert.equal(new Set(STYLE_PRESET_CATALOG.map((preset) => preset.id)).size, STYLE_PRESET_CATALOG.length);
   assert.deepEqual(STYLE_PRESET_CATALOG.map((preset) => preset.id), [
@@ -23,6 +23,11 @@ test('catalog has a unique renderer-supported default', () => {
     'tech_product_showcase',
     'smooth_showcase',
     'premium_minimal',
+    'flash_deal',
+    'pain_punch',
+    'tech_compare',
+    'smart_hack',
+    'niche_focus',
   ]);
   assert.equal(STYLE_PRESET_CATALOG.filter((preset) => preset.recommended).length, 1);
 });

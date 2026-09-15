@@ -1909,6 +1909,7 @@ export default function EditorShell({
             angleIndex={angleIndex}
             onAngleChange={onAngleChange}
             existingProjects={projectList.map((p) => p.project_name || p)}
+            projectList={projectList}
             onGoToProductFlow={onGoToProductFlow}
             onVideoUploaded={onVideoUploaded}
             onCreated={handleClipCreated}

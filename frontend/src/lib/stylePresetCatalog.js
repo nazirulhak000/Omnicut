@@ -89,6 +89,81 @@ const STYLE_PRESETS = [
     hookBadge: 'B2 · WAVE',
     hookColor: '#E6C24A',
   },
+  {
+    id: 'flash_deal',
+    label: 'Flash Deal',
+    labelTh: 'โปรไฟลุก ดีลเด็ด',
+    description: 'จังหวะเร็ว กระตุ้นความสนใจและจำกัดเวลา เหมาะกับคลิปโปรโมชั่นและส่วนลดพิเศษ',
+    motion: 'Motion เร็ว เน้นกระตุ้นการมอง',
+    transitions: 'สลับ Hard cut กับ Slide เร็ว',
+    audio: 'Voice นำหน้า พร้อม SFX เพิ่มความตื่นเต้น',
+    accent: '#FF7A00',
+    status: '#25F4EE',
+    neutral: '#FFFFFF',
+    hookTemplate: 'b1_deal_orange',
+    hookBadge: 'B1 · FLICKER',
+    hookColor: '#FF7A00',
+  },
+  {
+    id: 'pain_punch',
+    label: 'Pain Punch',
+    labelTh: 'ชี้ปัญหา กระตุกอารมณ์',
+    description: 'เปิดด้วยปัญหาที่คนดูเจอ ขยี้จุดเจ็บและตัดเข้าทางแก้ปัญหาอย่างชัดเจน',
+    motion: 'Motion สั่นเน้นย้ำจุดปัญหา',
+    transitions: 'Hard cut ฉับไว ตัดเข้าไฮไลต์',
+    audio: 'Voice นำหน้า พร้อม SFX จุดสะดุดใจ',
+    accent: '#FF2E93',
+    status: '#25F4EE',
+    neutral: '#FFFFFF',
+    hookTemplate: 'b1_pain_pink',
+    hookBadge: 'B1 · SHAKE',
+    hookColor: '#FF2E93',
+  },
+  {
+    id: 'tech_compare',
+    label: 'Tech Comparison',
+    labelTh: 'เทียบสเปก วิเคราะห์ชัด',
+    description: 'เน้นความน่าเชื่อถือ เปรียบเทียบของเดิมกับของใหม่ เห็นความต่างชัดเจน',
+    motion: 'Motion นิ่งและแม่นยำ',
+    transitions: 'Hard cut และ Wipe ซ้ายขวา',
+    audio: 'Voice คมชัด SFX อารมณ์เทคโนโลยี',
+    accent: '#3B82F6',
+    status: '#FFE600',
+    neutral: '#FFFFFF',
+    hookTemplate: 'b2_compare_blue',
+    hookBadge: 'B2 · WAVE',
+    hookColor: '#3B82F6',
+  },
+  {
+    id: 'smart_hack',
+    label: 'Smart Hack',
+    labelTh: 'ทริกลึก เคล็ดลับป้ายยา',
+    description: 'บอกวิธีใช้งานหรือทริกที่คนส่วนใหญ่ไม่รู้ ดูเพลินและน่าแชร์ต่อ',
+    motion: 'Motion กวาดสายตาแบบ Step-by-step',
+    transitions: 'Slide นุ่มนวล เชื่อมแต่ละทริก',
+    audio: 'Voice สบายๆ เป็นกันเอง SFX กวาดเสียง',
+    accent: '#84CC16',
+    status: '#25F4EE',
+    neutral: '#FFFFFF',
+    hookTemplate: 'b1_hack_lime',
+    hookBadge: 'B1 · LIGHTSWEEP',
+    hookColor: '#84CC16',
+  },
+  {
+    id: 'niche_focus',
+    label: 'Niche Focus',
+    labelTh: 'เจาะกลุ่ม เฉพาะสาย',
+    description: 'เน้นคุณสมบัติเฉพาะที่ตอบโจทย์กลุ่มเป้าหมายเฉพาะทางอย่างตรงจุด',
+    motion: 'Motion เจาะลึกเฉพาะฟังก์ชัน',
+    transitions: 'Hard cut สลับ Zoom เฉพาะส่วน',
+    audio: 'Voice นิ่ง มั่นใจ โทนผู้เชี่ยวชาญ',
+    accent: '#A855F7',
+    status: '#25F4EE',
+    neutral: '#FFFFFF',
+    hookTemplate: 'b2_niche_purple',
+    hookBadge: 'B2 · WAVE',
+    hookColor: '#A855F7',
+  },
 ];
 
 export const STYLE_PRESET_CATALOG = Object.freeze(
@@ -96,6 +171,26 @@ export const STYLE_PRESET_CATALOG = Object.freeze(
 );
 
 const STYLE_PRESET_IDS = new Set(STYLE_PRESET_CATALOG.map((preset) => preset.id));
+
+/** 1-to-1 default mapping between 10 script angles and 10 editorial style presets. */
+export const ANGLE_TO_DEFAULT_STYLE = Object.freeze({
+  stop_scroll: 'viral_punch',
+  fomo_deal: 'flash_deal',
+  pain_point: 'pain_punch',
+  spec_review: 'clean_tech_review',
+  comparison: 'tech_compare',
+  unboxing: 'tech_product_showcase',
+  life_hack: 'smart_hack',
+  niche_target: 'niche_focus',
+  longterm_review: 'smooth_showcase',
+  math_value: 'premium_minimal',
+});
+
+/** Return recommended default style preset for an angle id, or fallback default. */
+export function getRecommendedStyleForAngle(angleId) {
+  const normalizedAngle = String(angleId || '').trim().toLowerCase();
+  return ANGLE_TO_DEFAULT_STYLE[normalizedAngle] || DEFAULT_STYLE_PRESET;
+}
 
 /** Return a renderer-supported id, falling back safely for old/unknown data. */
 export function normalizeStylePreset(value) {

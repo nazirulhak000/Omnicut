@@ -180,6 +180,11 @@ STYLE_PRESET_TO_TEMPLATE: Dict[str, str] = {
     "tech_product_showcase": "b2_tech_cyan",
     "smooth_showcase": "b1_smooth_mint",
     "premium_minimal": "b2_premium_gold",
+    "flash_deal": "b1_deal_orange",
+    "pain_punch": "b1_pain_pink",
+    "tech_compare": "b2_compare_blue",
+    "smart_hack": "b1_hack_lime",
+    "niche_focus": "b2_niche_purple",
 }
 
 

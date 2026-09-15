@@ -139,6 +139,56 @@ export const HOOK_TEMPLATES = {
     },
     motion: { in: 'slide_up', loop: 'wave', out: 'fade', accent: 'none', stagger: true },
   },
+  b1_deal_orange: {
+    label_th: 'B1 (ส้ม+กระพริบ) — Flash Deal',
+    font: 'Kanit',
+    tiers: {
+      brand: { size_pct: 130, color: '#FF7A00', outline_color: '#0B0A0A', outline_px: 3.0, upper: true, pill: null },
+      model: { size_pct: 107, color: '#F7F7F7', outline_color: '#0A0A0A', outline_px: 3.0, upper: false, pill: null },
+      label: { size_pct: 60, color: '#D0D0D0', outline_color: '#101010', outline_px: 3.0, upper: false, pill: null },
+    },
+    motion: { in: 'slide_up', loop: 'flicker', out: 'fade', accent: 'none', stagger: true },
+  },
+  b1_pain_pink: {
+    label_th: 'B1 (ชมพู+สั่น) — Pain Punch',
+    font: 'Kanit',
+    tiers: {
+      brand: { size_pct: 130, color: '#FF2E93', outline_color: '#0B0A0A', outline_px: 3.0, upper: true, pill: null },
+      model: { size_pct: 107, color: '#F7F7F7', outline_color: '#0A0A0A', outline_px: 3.0, upper: false, pill: null },
+      label: { size_pct: 60, color: '#D0D0D0', outline_color: '#101010', outline_px: 3.0, upper: false, pill: null },
+    },
+    motion: { in: 'slide_up', loop: 'shake', out: 'fade', accent: 'none', stagger: true },
+  },
+  b2_compare_blue: {
+    label_th: 'B2 (น้ำเงิน+คลื่น) — Tech Comparison',
+    font: 'Kanit',
+    tiers: {
+      brand: { size_pct: 207, color: '#3B82F6', outline_color: '#0B0A0A', outline_px: 3.0, upper: true, pill: null },
+      model: { size_pct: 170, color: '#F7F7F7', outline_color: '#0A0A0A', outline_px: 3.0, upper: false, pill: null },
+      label: { size_pct: 95, color: '#D0D0D0', outline_color: '#101010', outline_px: 3.0, upper: false, pill: null },
+    },
+    motion: { in: 'slide_up', loop: 'wave', out: 'fade', accent: 'none', stagger: true },
+  },
+  b1_hack_lime: {
+    label_th: 'B1 (เขียวมะนาว+กวาดแสง) — Smart Hack',
+    font: 'Kanit',
+    tiers: {
+      brand: { size_pct: 170, color: '#84CC16', outline_color: '#0A0A0A', outline_px: 3.0, upper: true, pill: null },
+      model: { size_pct: 140, color: '#F7F7F7', outline_color: '#0A0A0A', outline_px: 3.0, upper: false, pill: null },
+      label: { size_pct: 79, color: '#D0D0D0', outline_color: '#101010', outline_px: 3.0, upper: false, pill: null },
+    },
+    motion: { in: 'slide_up', loop: 'lightsweep', out: 'fade', accent: 'none', stagger: true },
+  },
+  b2_niche_purple: {
+    label_th: 'B2 (ม่วง+คลื่น) — Niche Focus',
+    font: 'Kanit',
+    tiers: {
+      brand: { size_pct: 207, color: '#A855F7', outline_color: '#0B0A0A', outline_px: 3.0, upper: true, pill: null },
+      model: { size_pct: 170, color: '#F7F7F7', outline_color: '#0A0A0A', outline_px: 3.0, upper: false, pill: null },
+      label: { size_pct: 95, color: '#D0D0D0', outline_color: '#101010', outline_px: 3.0, upper: false, pill: null },
+    },
+    motion: { in: 'slide_up', loop: 'wave', out: 'fade', accent: 'none', stagger: true },
+  },
 };
 
 export const DEFAULT_HOOK_TEMPLATE = 'tech';

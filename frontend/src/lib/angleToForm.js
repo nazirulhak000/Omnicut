@@ -7,6 +7,7 @@
 // same angle in two places would start two different renders.
 
 import { guessBrandModel } from './overlayModel';
+import { getRecommendedStyleForAngle } from './stylePresetCatalog';
 
 /**
  * @param {object} angle    one entry of productContext.angles
@@ -50,6 +51,10 @@ export function angleToForm(angle, context = {}) {
     painPoint: angle.pain_point || '',
     priceDeal: angle.price_deal || context.price_note || '',
   };
+  const angleId = angle.angle_id || angle.id;
+  const recommendedStyle = angleId ? getRecommendedStyleForAngle(angleId) : null;
+  patch.stylePreset = angle.style_preset || recommendedStyle || 'viral_punch';
+
   const VALID_AD_TONES = ['commercial_premium', 'commercial_hype', 'commercial_aesthetic', 'commercial_expert'];
   patch.adTone = (angle.ad_tone && VALID_AD_TONES.includes(angle.ad_tone) && angle.ad_tone !== 'commercial_premium')
     ? angle.ad_tone

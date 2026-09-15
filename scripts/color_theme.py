@@ -49,6 +49,36 @@ STYLE_FALLBACKS: dict[str, dict[str, str]] = {
         "neutral": "#FFFFFF",
         "ink": "#080B10",
     },
+    "flash_deal": {
+        "primary": "#FF7A00",
+        "secondary": "#25F4EE",
+        "neutral": "#FFFFFF",
+        "ink": "#080B10",
+    },
+    "pain_punch": {
+        "primary": "#FF2E93",
+        "secondary": "#25F4EE",
+        "neutral": "#FFFFFF",
+        "ink": "#080B10",
+    },
+    "tech_compare": {
+        "primary": "#3B82F6",
+        "secondary": "#FFE600",
+        "neutral": "#FFFFFF",
+        "ink": "#080B10",
+    },
+    "smart_hack": {
+        "primary": "#84CC16",
+        "secondary": "#25F4EE",
+        "neutral": "#FFFFFF",
+        "ink": "#080B10",
+    },
+    "niche_focus": {
+        "primary": "#A855F7",
+        "secondary": "#25F4EE",
+        "neutral": "#FFFFFF",
+        "ink": "#080B10",
+    },
 }
 
 DEFAULT_STYLE = "clean_tech_review"
