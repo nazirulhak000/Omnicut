@@ -25,8 +25,8 @@
 - [x] Round SYSTEM-AUDIT-P0-20260915 — ป้องกัน SQLite data loss, upload overwrite และ media secret disclosure; ดำเนินการโดย: Codex (GPT-6)
 - [x] Round SYSTEM-AUDIT-P1-RECOVERY-20260915 — ป้องกัน task registry เสียทำ startup ล้ม และกู้ manifest จาก backup-only; ดำเนินการโดย: Codex (GPT-6)
 - [x] Round SYSTEM-AUDIT-P1-BATCH-20260915 — ปิด race ตอน batch dispatcher กำลัง idle-exit; ดำเนินการโดย: Codex (GPT-6)
-- [ ] Round SYSTEM-AUDIT-P2-CUTOUT-20260915 — กู้ publish ที่ค้างและ deduplicate งานตัดพื้นหลัง; ดำเนินการโดย: Codex (GPT-6)
-- [ ] Round SYSTEM-AUDIT-P3-MEDIA-RANGE-20260915 — ทำ HTTP Range parser ให้ไม่คืน 500 สำหรับ request ปกติ/ผิดรูปแบบ; ดำเนินการโดย: Codex (GPT-6)
+- [x] Round SYSTEM-AUDIT-P2-CUTOUT-20260915 — กู้ publish ที่ค้างและ deduplicate งานตัดพื้นหลัง; ดำเนินการโดย: Codex (GPT-6)
+- [x] Round SYSTEM-AUDIT-P3-MEDIA-RANGE-20260915 — ทำ HTTP Range parser ให้ไม่คืน 500 สำหรับ request ปกติ/ผิดรูปแบบ; ดำเนินการโดย: Codex (GPT-6)
 - [x] Round SYSTEM-AUDIT-P6-BACKUP-WAL-20260915 - SQLite backup includes WAL pages and fails closed when snapshot API errors (10 backup/API tests passed; compileall + diff check passed); agent: Codex (GPT-6)
 - [x] Round SYSTEM-AUDIT-P4-WORKSPACE-CACHE-20260915 — กัน response เก่าเขียนทับ cache หลัง invalidate; ดำเนินการโดย: Codex (GPT-6)
 - [x] Round SYSTEM-AUDIT-P4-AUTOSAVE-AUTH-20260915 — ส่ง API key กับ lifecycle autosave; ดำเนินการโดย: Codex (GPT-6)
@@ -243,7 +243,7 @@
 
 ## Round SYSTEM-AUDIT-P2-CUTOUT-20260915 — Cutout publication และ idempotency
 
-วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-6) · สถานะ: กำลังทำ
+Date: 2026-09-15; executed by: Codex (GPT-6); status: complete
 
 - [x] Regression: crash หลังย้าย frames ก่อน ready manifest ต้อง retry ได้จาก checkpoint โดยไม่ run inference ซ้ำ
 - [x] Recover derived target ที่ไม่ ready อย่างปลอดภัย โดยไม่แตะ artifact ready ที่ valid
@@ -255,7 +255,7 @@
 
 ## Round SYSTEM-AUDIT-P3-MEDIA-RANGE-20260915 — HTTP byte-range correctness
 
-วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-6) · สถานะ: กำลังทำ
+Date: 2026-09-15; executed by: Codex (GPT-6); status: complete
 
 - [x] Regression: suffix range, end-clamp, out-of-file, reversed, multi-range และ empty file
 - [x] Parse only valid single `bytes=` range; malformed/unsatisfiable ตอบ 416 พร้อม Content-Range

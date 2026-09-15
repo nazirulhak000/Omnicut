@@ -8,6 +8,8 @@
 
 ## สารบัญ
 
+| Round SYSTEM-AUDIT-P2-CUTOUT-20260915 | Recovered pending cutout publication and deduplicated background-isolation work | 2026-09-15 | Complete (36 focused tests passed, 2 skipped; executed by: Codex (GPT-6)) |
+| Round SYSTEM-AUDIT-P3-MEDIA-RANGE-20260915 | Hardened HTTP byte-range parsing for valid, malformed, and unsatisfiable requests | 2026-09-15 | Complete (69 focused tests passed, 1 skipped; compileall passed; executed by: Codex (GPT-6)) |
 | Round STRICT-GEMINI-DEFAULT-NO-EDGE-TTS-GUARD-1 | Gemini TTS defaults and VoiceStage fail-closed guard | 2026-09-15 | Complete (backend 392 passed, frontend 246 passed, compileall passed, executed by: Codex (GPT-6)) |
 | Round MAIN-PAGE-VOICE-TYPE-INDICATOR-1 | แสดงสัญลักษณ์ระบุประเภทเสียง (Gemini TTS vs Edge-TTS vs ยังไม่มีเสียง) บนหน้าหลัก ทั้งการ์ดรายการมุมและการ์ดสคริปต์ โดยไม่ต้องกดเข้าไปดูด้านใน | 2026-09-15 | สำเร็จสมบูรณ์ (backend 4 passed, frontend 246 passed, build 2,007 modules/3.34s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round EDGE-TTS-DETECT-AND-UPGRADE-BADGE-1 | ตรวจจับเสียง Edge-TTS เดิม + แสดง Badge เตือนทั้งในหน้าสคริปต์และในแผนถ่าย พร้อมอัปเกรดเป็น Gemini TTS | 2026-09-15 | สำเร็จสมบูรณ์ (backend 4 passed, frontend 246 passed, build 2,007 modules/3.32s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
@@ -6175,3 +6177,9 @@ Date: 2026-09-15; requested by user; executed by: Codex (GPT-6); status: complet
 Changed all public voice defaults to gemini_tts. VoiceStage now normalizes blank values to Gemini, runs legacy Edge-TTS only for an explicit request, and raises ValueError for unsupported engines instead of silently falling back.
 
 Verification: focused 47 passed; parity/reuse/stage 188 passed; batch/phase1 157 passed; frontend vitest 246 passed; python -m compileall -q scripts passed.
+
+## Round SYSTEM-AUDIT-P2-P3-CLOSEOUT-20260915
+
+Date: 2026-09-15; requested by user; executed by: Codex (GPT-6); status: complete.
+
+Closed the already implemented Audit P2 cutout publication/idempotency work and P3 HTTP byte-range work in the project ledger. P2 verification recorded 36 focused tests with 2 skips; P3 verification recorded 69 focused tests with 1 skip plus compileall.
