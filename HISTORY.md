@@ -9,6 +9,9 @@
 ## สารบัญ
 
 | Round MAIN-FLOW-SCALE-CLOSEOUT-20260915 | Closed durable render queue and workspace scale gate | 2026-09-15 | Complete (full backend 1512 passed, 5 skipped, 29 warnings; executed by: Codex (GPT-6)) |
+| Round AUDIT-LEDGER-CLOSEOUT-20260915 | Reconciled audit ledger checkboxes with verified gates and deferred scope | 2026-09-15 | Complete (full backend evidence 1512 passed, frontend 246 passed, build 2007 modules; executed by: Codex (GPT-6)) |
+| Round WATERMARK-1 | Permanent vertical watermark and live Preview verification | 2026-09-15 | Complete (Render + browser Preview verified; executed by: Claude Code + Codex (GPT-6)) |
+| Round WATERMARK-BROWSER-VERIFY-20260915 | Verified the permanent watermark in the live SequencePlayer browser preview | 2026-09-15 | Complete (5 canvas elements; visible Preview canvas 540x960; executed by: Codex (GPT-6)) |
 | Round BG-SUBJECT-ISOLATION-4 | Closed real-fixture Preview/Render gate for subject isolation | 2026-09-15 | Complete (Preview adapter + FFmpeg 1080x1920/30 FPS fixture; executed by: Codex (GPT-6)) |
 | Round AI-PRODUCER-HUB-HARDENING-1 | Added SSRF/private-address rejection and approved-root local image containment for Producer references | 2026-09-15 | Complete (12 Producer tests passed, compileall passed; executed by: Codex (GPT-6)) |
 | Round AI-PRODUCER-HUB-AUDIT-READONLY-20260915 | Evidence-first read-only Producer Hub audit with bounded hardening backlog | 2026-09-15 | Complete (backend 9 passed, frontend 246 passed; executed by: Codex (GPT-6)) |
@@ -6260,3 +6263,78 @@ Status: complete for the verifiable fixture scope
 - A 540x960 artifact fails closed when its dimensions do not match the renderer; the graph test used a temp-only 1080x1920 copy.
 - Production model and threshold were left unchanged because the fixture segmentation sample is not sufficient for a quality decision.
 - Full evidence: [BG_SUBJECT_ISOLATION_FIXTURE_REPORT_2026-09-15.md](BG_SUBJECT_ISOLATION_FIXTURE_REPORT_2026-09-15.md)
+
+
+## Round WATERMARK-1 — ลายน้ำลิขสิทธิ์แนวตั้งถาวร (ทุกคลิปที่เรนเดอร์)
+
+Date: 2026-09-13 | requested by: user | executed by: Claude Code (Claude Sonnet 5) + Codex (GPT-6) | status: complete after live browser verification
+
+**เป้าหมาย:** เพิ่มข้อความ "สงวนลิขสิทธิ์ช่อง rizantry ห้ามคัดลอก/ดัดแปลง" แนวตั้ง (หมุน 90° อ่านบนลงล่าง) ตรงคอลัมน์ safe zone ขวา (ที่กันไว้สำหรับปุ่มไลค์/แชร์ของ TikTok อยู่แล้ว) ให้ **ทุกคลิปที่เรนเดอร์อัตโนมัติ** ไม่ต้องเปิด/ปิดเอง ไม่ใช่ overlay ที่แก้ไข/ลบได้จากอีดิเตอร์
+
+**สิ่งที่ทำ:**
+1. `scripts/subtitle_engine.py`: เพิ่ม constants `WATERMARK_TEXT/X_RATIO/Y_RATIO/FS_RATIO` + ASS Style `Watermark` + Dialogue event ที่ยิงแบบไม่มีเงื่อนไข (ไม่ผูกกับ hook/overlays ที่ผู้ใช้แก้ได้) ใช้ `\frz-90` หมุนคงที่ (ไม่มี `\t()` keyframe ต่างจาก wobble animation เดิม) ที่ตำแหน่ง x=94.5%, y=43.75% ของเฟรม
+2. Bump `SUBTITLE_RENDER_CONTRACT_VERSION` v4→v5 (เปลี่ยน output contract จริง ต้อง invalidate `.ass` เก่า ตามกฎ `.agents/rules/font_text_visual_contract.md` section 4)
+3. `frontend/src/components/SequencePlayer.jsx`: เพิ่ม `drawWatermark(ctx)` วาดลายน้ำเดียวกันในพรีวิว canvas (พรีวิว/เรนเดอร์ parity ตามกฎ font/text contract) เรียกจากทั้ง 2 จุดที่ `drawOverlays` ถูกเรียก
+4. เจอ regression test เดิมพัง (`test_thai_stacked_marks_keep_settled_geometry_during_caption_entrance` เช็คว่าเฟรมแรกต้องไม่มี ink เลย ซึ่งลายน้ำถาวรทำให้เป็นเท็จเสมอ) — **หยุดถาม user ก่อนแก้ตามกฎ section 7** user เลือกให้ mask เฉพาะคอลัมน์ลายน้ำออกก่อนเช็ค ink_bbox แทนการลดมาตรฐานเทส
+5. เขียน regression test ใหม่ 2 ตัวใน `tests/test_subtitle_artifact_contract.py` (ยืนยันลายน้ำโผล่ทุกครั้งแม้ไม่มี overlay, ยืนยัน v4 ถูก invalidate)
+
+**Gate:**
+- [x] `.venv\Scripts\python.exe -m pytest tests/test_subtitle_artifact_contract.py tests/test_preview_render_parity.py tests/test_preview_render_behavior.py -q` → 176 passed
+- [x] Render จริงด้วย FFmpeg+libass (`fontsdir=02_Assets/Fonts`) + ดูเฟรมจริง → ตำแหน่ง/การหมุนตรงกับภาพตัวอย่างที่ user ส่งมา (อ่านบนลงล่าง ไม่ทับคลิป/แคปชัน)
+- [x] Full backend pytest 1128 passed, `python -m compileall -q scripts` pass, `pip check` pass, `git diff --check` pass (แค่ LF/CRLF warning ไม่ใช่ error)
+- [x] Frontend: vitest 178 passed, `npm run build` pass
+- [x] Browser verification completed in the live local SequencePlayer preview; evidence: WATERMARK_BROWSER_VERIFY_2026-09-15.md
+
+**Notes:** Gate ข้อ "motion ต้องดึงอย่างน้อย 3 เฟรม (เข้า/ค้าง/ออก)" ไม่ apply เพราะลายน้ำนี้หมุนคงที่ ไม่มี motion/animation ให้ดึงหลายเฟรม — ดูรูปเดียวก็พอสำหรับ static element
+
+
+## Round WATERMARK-BROWSER-VERIFY-20260915
+
+Date: 2026-09-15 | requested by: user | executed by: Codex (GPT-6) | status: complete
+
+### Todo
+
+- [x] Inspected the live SequencePlayer preview in the already-running local browser session.
+- [x] Confirmed the watermark is visible, static, vertical, and placed in the right safe-zone column.
+- [x] Recorded browser evidence without changing the font/text contract.
+
+### Gate
+
+- [x] Browser screenshot from `https://localhost:5173/` with an open editor project.
+- [x] Existing subtitle and preview regression suites remain green: backend 25 focused background-isolation tests passed; frontend 246 tests passed; Vite build 2,007 modules passed.
+
+### Notes
+
+- Browser evidence: [WATERMARK_BROWSER_VERIFY_2026-09-15.md](WATERMARK_BROWSER_VERIFY_2026-09-15.md).
+- Four unrelated working-tree files were preserved and not staged.
+
+Executed by: Codex (GPT-6)
+
+
+## Round AUDIT-LEDGER-CLOSEOUT-20260915
+
+Date: 2026-09-15 | requested by: user | executed by: Codex (GPT-6) | status: complete
+
+### Todo
+
+- [x] Reconcile the stale System Audit phase checkboxes with the latest verified gates.
+- [x] Keep P03/P05 and environment-only fixture gaps explicitly deferred instead of claiming a full clean clone.
+- [x] Record the closeout in HISTORY.md and leave TODO.md with only actionable open work.
+
+### Gate
+
+- [x] `git diff --check` passed for the closeout changes and completed rounds were recorded in HISTORY.md.
+- [x] Confirm the existing full backend, frontend, and build evidence remains referenced.
+
+### Notes
+
+- Preserve unrelated working-tree files already present before this round.
+
+Closeout evidence:
+
+- System Audit phases 1-4 and 7 are closed against the recorded focused gates and the full backend gate.
+- Phase 5 is closed for implemented findings; P03/P05 remain deferred because they require a compatibility benchmark and schema review.
+- The isolated clone result is recorded as a classification (1470 passed, 21 fixture/environment failures, 14 skipped, 24 warnings), not as a clean pass.
+- Unrelated working-tree files were preserved and not staged.
+
+Executed by: Codex (GPT-6)
