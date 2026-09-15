@@ -88,10 +88,20 @@ class BatchRenderManager:
 
     @classmethod
     def _dispatch_pending_batches(cls) -> None:
+        global _DISPATCHER_THREAD
         while True:
             batch_id = cls._next_queued_batch_id()
             if not batch_id:
-                return
+                # `_ensure_dispatcher()` can see this thread alive between
+                # the empty lookup above and `return`, then leave a newly
+                # enqueued batch with no worker. Recheck while holding the
+                # same lock used by the starter before declaring idle.
+                with _DISPATCHER_LOCK:
+                    batch_id = cls._next_queued_batch_id()
+                    if not batch_id:
+                        if _DISPATCHER_THREAD is threading.current_thread():
+                            _DISPATCHER_THREAD = None
+                        return
             cls._run_batch_worker(batch_id)
 
     @classmethod

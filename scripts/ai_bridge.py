@@ -375,22 +375,8 @@ class AIBridge:
     @classmethod
     def get_api_keys(cls) -> List[str]:
         """Collect all Gemini API keys configured in environment and .env in order."""
-        keys = []
-        if ENV_FILE.exists():
-            try:
-                for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
-                    line = line.strip()
-                    if line and not line.startswith("#") and "=" in line:
-                        k, v = line.split("=", 1)
-                        if "GEMINI_API_KEY" in k.strip() and v.strip() and v.strip() not in keys:
-                            keys.append(v.strip())
-            except Exception:
-                pass
-        for k in ["GEMINI_API_KEY", "GEMINI_API_KEY_2", "GEMINI_API_KEY_OLD"]:
-            v = os.environ.get(k, "").strip()
-            if v and v not in keys:
-                keys.append(v)
-        return keys
+        from scripts.config import get_gemini_api_keys
+        return get_gemini_api_keys()
 
     @classmethod
     def has_api_key(cls) -> bool:

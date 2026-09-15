@@ -1035,6 +1035,16 @@ def test_preview_layers_the_badge_scrim_and_subtitles_in_the_renders_order():
         assert block.index("drawOverlayScrims(") < block.index("drawOverlays("), block
 
 
+def test_preview_and_render_use_the_same_overlay_scrim_opacity():
+    """The Hook backdrop must dim the same amount in Canvas and FFmpeg."""
+    assert "grad.addColorStop(0, `rgba(0,0,0,${0.75 * alpha})`)" in JS_SRC
+
+    editor = (ROOT / "scripts" / "video_editor.py").read_text(encoding="utf-8")
+    assert "OVERLAY_SCRIM_OPACITY = 0.75" in editor
+    assert "scrim_alpha = 255 * OVERLAY_SCRIM_OPACITY" in editor
+    assert 'f"{scrim_alpha:g}*(1-Y/H)*' in editor
+
+
 def test_partial_grade_strength_blends_the_same_way_as_the_render():
     """ffmpeg blends the graded frame over the original at all_opacity=strength."""
     editor = (ROOT / "scripts" / "video_editor.py").read_text(encoding="utf-8")

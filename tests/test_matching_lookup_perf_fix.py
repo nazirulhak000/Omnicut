@@ -220,6 +220,40 @@ def test_list_exports_unmatched_file_is_unlinked(isolated_exports):
     assert item.get("product_id") is None
 
 
+def test_list_exports_reuses_unchanged_project_manifest_snapshot(isolated_exports, monkeypatch):
+    """Repeated gallery reads must not decode unchanged project manifests."""
+    tmp_path = isolated_exports
+    project_dir = tmp_path / "03_Projects" / "project-a"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "project.json").write_text(
+        json.dumps({"project_name": "project-a", "script_data": {"hook": "ดูนี่"}}),
+        encoding="utf-8",
+    )
+    export_path = tmp_path / "04_Exports" / "Ready_to_post" / "project-a.mp4"
+    export_path.write_bytes(b"fake mp4")
+
+    load_calls = []
+    original_json_load = json.load
+
+    def count_manifest_loads(*args, **kwargs):
+        load_calls.append(True)
+        return original_json_load(*args, **kwargs)
+
+    monkeypatch.setattr(api_exports.json, "load", count_manifest_loads)
+    first = api_exports.list_exports()
+    second = api_exports.list_exports()
+
+    assert len(first["exports"]) == len(second["exports"]) == 1
+    assert len(load_calls) == 1
+
+    (project_dir / "project.json").write_text(
+        json.dumps({"project_name": "project-a", "script_data": {"hook": "อัปเดต"}}),
+        encoding="utf-8",
+    )
+    api_exports.list_exports()
+    assert len(load_calls) == 2, "a changed manifest must invalidate the snapshot"
+
+
 # ---------------------------------------------------------------------------
 # get_raw_vault() -- scripts/api_videos.py
 # ---------------------------------------------------------------------------

@@ -3,6 +3,14 @@ import { Play, Check, AlertCircle, RefreshCw, X, Film, CheckSquare, Square, Zap,
 import { Modal, Button, Badge } from './ui';
 import { startBatchRender, getBatchRenderStatus, cancelBatchRender } from '../api';
 
+const GEMINI_VOICE_OPTIONS = [
+  { id: 'gemini_puck_male_hype', label: 'Puck — ชายพลังสูง TikTok (ค่าเริ่มต้น)', gender: 'male' },
+  { id: 'gemini_charon_male_pro', label: 'Charon — ชายทุ้มลึก น่าเชื่อถือ', gender: 'male' },
+  { id: 'gemini_kore_female_bright', label: 'Kore — หญิงสดใส ป้ายยาเก่ง', gender: 'female' },
+  { id: 'gemini_aoede_female_pro', label: 'Aoede — หญิงพรีเมียม นุ่มนวล', gender: 'female' },
+  { id: 'gemini_fenrir_male_strong', label: 'Fenrir — ชายสตรอง คมเข้ม', gender: 'male' },
+];
+
 export default function BatchRenderModal({
   isOpen,
   onClose,
@@ -11,7 +19,7 @@ export default function BatchRenderModal({
   showToast,
 }) {
   const [selectedAngleIds, setSelectedAngleIds] = useState(new Set());
-  const [voiceGender, setVoiceGender] = useState('female');
+  const [voicePreset, setVoicePreset] = useState('gemini_puck_male_hype');
   const [voiceRate, setVoiceRate] = useState('+15%');
   const [stylePreset, setStylePreset] = useState('clean_tech_review');
   const [starting, setStarting] = useState(false);
@@ -75,13 +83,15 @@ export default function BatchRenderModal({
 
     setStarting(true);
     try {
+      const selectedOpt = GEMINI_VOICE_OPTIONS.find(v => v.id === voicePreset);
       const payload = {
         product_id: String(product.id),
         angle_ids: Array.from(selectedAngleIds),
-        voice_gender: voiceGender,
+        voice_gender: selectedOpt?.gender || 'male',
         voice_rate: voiceRate,
-        voice_mode: 'edge_tts',
-        voice_preset: 'gemini_puck_male_hype',
+        voice_mode: 'gemini_tts',
+        voice_preset: voicePreset,
+        ad_tone: 'commercial_hype',
         style_preset: stylePreset,
         font_name: 'IBMPlex',
         bilingual_subtitles: true,
@@ -345,31 +355,18 @@ export default function BatchRenderModal({
             {/* Quick Render Options */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.06]">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5">เสียงพากย์ AI</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setVoiceGender('female')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                      voiceGender === 'female'
-                        ? 'bg-pink-500/20 text-pink-300 border border-pink-500/40'
-                        : 'bg-white/5 text-slate-400 border border-white/10 hover:bg-white/10'
-                    }`}
-                  >
-                    หญิง (Premwadee)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setVoiceGender('male')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                      voiceGender === 'male'
-                        ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
-                        : 'bg-white/5 text-slate-400 border border-white/10 hover:bg-white/10'
-                    }`}
-                  >
-                    ชาย (Niwat)
-                  </button>
-                </div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">เสียงพากย์ Gemini TTS</label>
+                <select
+                  value={voicePreset}
+                  onChange={(e) => setVoicePreset(e.target.value)}
+                  className="w-full bg-[#0f172a] border border-white/10 rounded-xl px-3 py-2 text-xs font-medium text-slate-200 focus:outline-none focus:border-cyan-500 transition-colors cursor-pointer"
+                >
+                  {GEMINI_VOICE_OPTIONS.map((opt) => (
+                    <option key={opt.id} value={opt.id} className="bg-slate-900 text-slate-200">
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>

@@ -11,7 +11,7 @@ import json
 import math
 import hashlib
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Callable
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -59,6 +59,7 @@ class ImageMotionEngine:
         total_duration: float,
         output_video_path: str,
         project_dir: Optional[Path] = None,
+        progress_callback: Optional[Callable[[int, int, str], None]] = None,
     ) -> str:
         """Return a current motion artifact, rendering only when visual inputs changed."""
         out_file = Path(output_video_path).resolve()
@@ -78,6 +79,7 @@ class ImageMotionEngine:
             total_duration=total_duration,
             output_video_path=str(out_file),
             project_dir=project_dir,
+            progress_callback=progress_callback,
         )
         metadata_path.parent.mkdir(parents=True, exist_ok=True)
         temp_path = metadata_path.with_suffix(metadata_path.suffix + ".tmp")
@@ -92,7 +94,8 @@ class ImageMotionEngine:
         cues: List[Dict],
         total_duration: float,
         output_video_path: str,
-        project_dir: Optional[Path] = None
+        project_dir: Optional[Path] = None,
+        progress_callback: Optional[Callable[[int, int, str], None]] = None,
     ) -> str:
         out_file = Path(output_video_path).resolve()
         out_file.parent.mkdir(parents=True, exist_ok=True)
@@ -120,10 +123,22 @@ class ImageMotionEngine:
             segments = [seg_dur] * n
 
         segment_files = []
+        total_segments = len(segments)
         for idx, dur in enumerate(segments):
+            if progress_callback:
+                try:
+                    progress_callback(idx + 1, total_segments, f"ช็อตที่ {idx + 1}/{total_segments}")
+                except Exception:
+                    pass
+
             img_path = valid_images[idx % len(valid_images)]
             seg_out = temp_dir / f"seg_{idx:03d}.mp4"
-            
+
+            # Check if segment file already exists from previous run (incremental resume)
+            if seg_out.exists() and seg_out.stat().st_size > 10240:
+                segment_files.append(seg_out)
+                continue
+
             # Alternate Zoom In vs Zoom Out for dynamic feel
             zoom_in = (idx % 2 == 0)
             frames = int(math.ceil(dur * FPS))
@@ -133,7 +148,7 @@ class ImageMotionEngine:
             min_zoom = 1.00
             zoom_range = max_zoom - min_zoom
             step = zoom_range / max(1, frames)
-            
+
             if zoom_in:
                 zoom_expr = f"min(1.0+{step:.6f}*on,{max_zoom})"
             else:
@@ -158,7 +173,7 @@ class ImageMotionEngine:
                 "-filter_complex", filter_complex,
                 "-map", "[v]",
                 "-c:v", "libx264",
-                "-preset", "veryfast",
+                "-preset", "ultrafast",
                 "-crf", "20",
                 "-pix_fmt", "yuv420p",
                 "-r", str(FPS),

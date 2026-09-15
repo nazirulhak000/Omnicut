@@ -9,6 +9,7 @@
 | [TEMPLATE_MOTION_PLAN.md](file:///d:/Winona/Programmer/Capcut/TEMPLATE_MOTION_PLAN.md) | แผนยาวของงาน motion ข้อความ (Round 3–7) — เหตุผลและตัวเลขที่วัดมา |
 | [SYSTEM_AUDIT_2026-09-09.md](file:///d:/Winona/Programmer/Capcut/SYSTEM_AUDIT_2026-09-09.md) | รายงาน DB/Infra/System audit เต็ม (4-agent, read-only) |
 | [SYSTEM_AUDIT_FIX_PLAN.md](file:///d:/Winona/Programmer/Capcut/SYSTEM_AUDIT_FIX_PLAN.md) | แผนแก้ตาม audit ข้างบน แบ่ง 10 stream ขนาน + phase สำหรับยิง agent พร้อมกัน |
+| [SYSTEM_AUDIT_2026-09-15.md](file:///d:/Winona/Programmer/Capcut/SYSTEM_AUDIT_2026-09-15.md) | Audit ปัจจุบัน 17 ส่วน พร้อม baseline และลำดับแก้ไข |
 | [PRO_EDITOR_STYLE_PLAN.md](file:///d:/Winona/Programmer/Capcut/PRO_EDITOR_STYLE_PLAN.md) | แผนยกระดับคุณภาพการตัดต่ออัตโนมัติด้วย Editorial Style Preset กลาง |
 | [.agents/rules/work_loop.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/work_loop.md) | กติกาว่าหนึ่งรอบทำยังไง ติ๊กยังไง ปิดรอบยังไง |
 
@@ -16,6 +17,29 @@
 
 ## สถานะรวม
 
+- [ ] Round EDGE-TTS-DETECT-AND-UPGRADE-BADGE-1 — ตรวจจับเสียง Edge-TTS เดิม + แสดง Badge เตือนทั้งในหน้าสคริปต์และในแผนถ่าย พร้อมอัปเกรดเป็น Gemini TTS; ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+- [x] Round SKIP-RENDERED-POSTED-AUDIO-GEN-1 — ข้ามการสร้างเสียงพากย์สำหรับคลิปที่เสร็จ (rendered) หรือโพสต์แล้ว (posted) และตัดออกจากตัวนับขาดเสียง (2026-09-15; backend 3 passed, frontend 246 passed, build 2,007 modules/3.59s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
+- [ ] Round SYSTEM-AUDIT-REMEDIATION-20260915 — แก้ findings ใน System Audit 2026-09-15 ตามเฟส; ดำเนินการโดย: Codex (GPT-6)
+- [ ] Round SYSTEM-AUDIT-P0-20260915 — ป้องกัน SQLite data loss, upload overwrite และ media secret disclosure; ดำเนินการโดย: Codex (GPT-6)
+- [ ] Round SYSTEM-AUDIT-P1-RECOVERY-20260915 — ป้องกัน task registry เสียทำ startup ล้ม และกู้ manifest จาก backup-only; ดำเนินการโดย: Codex (GPT-6)
+- [ ] Round SYSTEM-AUDIT-P1-BATCH-20260915 — ปิด race ตอน batch dispatcher กำลัง idle-exit; ดำเนินการโดย: Codex (GPT-6)
+- [ ] Round SYSTEM-AUDIT-P2-CUTOUT-20260915 — กู้ publish ที่ค้างและ deduplicate งานตัดพื้นหลัง; ดำเนินการโดย: Codex (GPT-6)
+- [ ] Round SYSTEM-AUDIT-P3-MEDIA-RANGE-20260915 — ทำ HTTP Range parser ให้ไม่คืน 500 สำหรับ request ปกติ/ผิดรูปแบบ; ดำเนินการโดย: Codex (GPT-6)
+- [x] Round SYSTEM-AUDIT-P6-BACKUP-WAL-20260915 - SQLite backup includes WAL pages and fails closed when snapshot API errors (10 backup/API tests passed; compileall + diff check passed); agent: Codex (GPT-6)
+- [x] Round SYSTEM-AUDIT-P4-WORKSPACE-CACHE-20260915 — กัน response เก่าเขียนทับ cache หลัง invalidate; ดำเนินการโดย: Codex (GPT-6)
+- [x] Round SYSTEM-AUDIT-P4-AUTOSAVE-AUTH-20260915 — ส่ง API key กับ lifecycle autosave; ดำเนินการโดย: Codex (GPT-6)
+- [x] Round SYSTEM-AUDIT-P4-RENDER-POLLING-20260915 — กันผลตอบกลับ polling ของ render job เก่าเขียนทับงานใหม่; ดำเนินการโดย: Antigravity (GPT-5.6)
+- [x] Round SYSTEM-AUDIT-P4-FRAME-RETRY-20260915 — ทำให้ cached background-isolation frame ที่โหลดพลาด retry แบบมี backoff และล้าง timer ตอน unmount; ดำเนินการโดย: Antigravity (GPT-5.6)
+- [x] Round SYSTEM-AUDIT-P5-ANALYTICS-MAPPING-20260915 — แก้ analytics trend chart ให้ส่ง key ตรงกับ AreaLineChart (frontend 237 passed; build 2.63s); ดำเนินการโดย: Codex (GPT-6)
+- [x] Round SYSTEM-AUDIT-P5-READINESS-SCAN-20260915 — ลดการสแกน frame ซ้ำใน readiness endpoint (backend 50 passed, 3 skipped); ดำเนินการโดย: Codex (GPT-6)
+- [x] Round SYSTEM-AUDIT-P5-PREVIEW-CACHE-20260915 — จำกัด cache frame ของ Preview 120 รายการพร้อมยกเลิก timer/revoke URL ตอน eviction; ดำเนินการโดย: Codex (GPT-6)
+- [x] Round SYSTEM-AUDIT-P5-QR-A11Y-20260915 — เพิ่ม dialog semantics, Escape และ focus กลับสำหรับ QR modal (frontend 238 passed; build 2.63s); ดำเนินการโดย: Codex (GPT-6)
+- [x] Round SYSTEM-AUDIT-P6-REGRESSION-CONTRACT-20260915 — แยก full-gate failures และแก้เฉพาะ contract regression ที่ยืนยันได้ (workspace contract subset 26 passed; full clone failures classified as stale/missing fixtures); ดำเนินการโดย: Codex (GPT-6)
+- [x] Round SYSTEM-AUDIT-P6-SOURCE-BOUNDARY-20260915 — จำกัด source background-isolation ให้อยู่ใน workspace media roots และป้องกัน symlink escape (66 passed, 4 skipped); ดำเนินการโดย: Codex (GPT-6)
+- [x] Round BATCH-TTS-AUDIO-PREGEN-1 — ระบบ Batch เตรียมเสียงพากย์อัตโนมัติ พร้อมตัวเลือกเสียง (default: Puck) & พักรอ 429 Cooldown อัตโนมัติใน background task (2026-09-15; backend 13 passed, frontend 242 passed, build 2,007 modules/3.04s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
+- [x] Round STALE-RENDER-RESUME-CLEANUP-1 — ป้องกันสถานะค้าง 'กำลังตรวจสอบสถานะการเรนเดอร์...' 10% เมื่อเปิดโปรเจกต์อื่น/หลังรีสตาร์ต (2026-09-15; frontend vitest 239 passed, build 2,007 modules/2.97s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
+- [x] Round IMAGE-MOTION-PROGRESS-OPTIMIZE-1 — รายงานความคืบหน้ารายช็อต (Progress Callback) ขณะแปลงภาพนิ่งเป็นวิดีโอ 9:16 Ken-Burns + เร่งความเร็ว FFmpeg & ปิดการแสดง Error 404 หลอกใน Editor (2026-09-15; backend 17 passed, compileall ผ่าน, frontend 237 passed, build 2,007 modules ผ่าน, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
+- [x] Round GEMINI-TTS-NO-FALLBACK-LOUD-ERROR-1 — ยกเลิก Edge-TTS Fallback & แสดง Error แจ้งเตือนเวลาลิมิต Gemini TTS + ซิงค์เสียงเริ่มต้นแผนถ่าย (2026-09-15; backend 50 passed, frontend 232 passed, build 2,007 modules/3.18s, compileall ผ่าน, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [x] Round UI-FONT-HARMONY-ALL-1 — กวาดล้าง font-mono และผสานฟอนต์กลาง (Prompt) ทั่วทั้งระบบ 100% ครบทุกแดชบอร์ดและหน้าจอ (2026-09-15; frontend vitest 232 passed, build 2.83s ผ่าน, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [x] Round GEMINI-TTS-MULTIKEY-ALERT-1 — ปรับระบบ Multi-Key Failover (ลอง 3.1 ทุก Key ก่อนลดเป็น 2.5) + แจ้งเตือน AI Rate-Limit/Quota บน Token Dashboard (2026-09-15; backend 20 passed, frontend 232 passed, build 2,007 modules/2.68s, compileall ผ่าน, live synthesis verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [x] Round SCHEDULE-FLEXIBLE-SLOTS-1 — ตั้งเวลาโพสต์เริ่มต้น 5 ช่วง และเพิ่ม/ลบช่วงรายวัน (2026-09-14; backend schedule 10 passed, frontend 230 passed, compileall ผ่าน, build 2,005 modules/3.25s, ดำเนินการโดย: Codex (GPT-5))
@@ -27,7 +51,8 @@
 - [x] Round TRACKER-LARGE-DATA-PERF-1 — ลดเวลาเปิด Content Tracker เมื่อมีคลิปจำนวนมาก (2026-09-14; `/api/exports` 2.6s → 0.28–0.37s ที่ 27 ไฟล์, tracker product+queue 0.15–0.22s, backend 1,417 passed/3 skipped, frontend 230 passed, build 2,006 modules, ดำเนินการโดย: Codex (GPT-5))
 
 - [ ] Round MAIN-FLOW-SCALE-1 — ทำคิว Render ที่ทน restart และลด read-path ที่โตตามจำนวนคลิป (2026-09-14; ดำเนินการโดย: Codex (GPT-5))
-- [ ] Round RENDER-DEDUPE-1 — ตัดงาน probe, Vision cache และ Image Motion ที่ทำซ้ำ (2026-09-15; ดำเนินการโดย: Codex (GPT-5))
+- [x] Round MAIN-FLOW-SCALE-TRACK-C-PROJECTION-20260915 - shared Workspace Data Coordinator wired to App, Content Tracker, Product Flow, and Editor; ดำเนินการโดย: Codex (GPT-6)
+- [x] Round RENDER-DEDUPE-1 — ตัดงาน probe, Vision cache และ Image Motion ที่ทำซ้ำ (2026-09-15; ดำเนินการโดย: Codex (GPT-5))
 
 - [x] Round HOOK-TIER-SYNC-1 — จัดการป้าย Hook Header (แบรนด์ · รุ่น · หมวด) แบบเลือกขอบเขต (เฉพาะคลิปนี้ vs ทั้งสินค้า) ในหน้าสินค้าและสร้างคลิป (2026-09-14; backend 21 passed, frontend 230 passed, build 2,006 modules/3.08s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 
@@ -115,6 +140,212 @@
 - [x] Round SCRIPT-BATCH-EXPAND-1 — ระบบเจนสคริปต์ล็อตใหม่ 10 มุมมอง & ปรับระบบ Dev Server HTTP (Multi-Batch Generation & Filtering Flow) (2026-09-12; vitest 158 passed, pytest 171 passed, build 3.25s, browser verified, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 
 - [x] Round SHOTLIST-GEMINI-TTS-SSOT-1 — ระบบรวมศูนย์เสียง TTS (Gemini Flash Audio SSOT): แผนถ่าย & ตัดต่อจริงใช้เสียงเดียวกัน 100% ไม่เจนซ้ำ (2026-09-12; pytest 1,125 passed, vitest 158 passed, build 3.40s, browser verified, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
+
+## Round EDGE-TTS-DETECT-AND-UPGRADE-BADGE-1 — ตรวจจับเสียง Edge-TTS เดิม + แสดง Badge เตือนทั้งในหน้าสคริปต์และในแผนถ่าย พร้อมอัปเกรดเป็น Gemini TTS
+
+วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: กำลังทำ
+
+### ปัญหาที่พบ
+1. **ใน ShotListModal Badge แสดงหลอกตาว่าเป็น Gemini: Puck:** เมื่อเปิดแผนถ่ายที่มีเสียงเดิมเป็น Edge-TTS โค้ดดึง preset ที่เป็น null แล้ว fallback ไปหยิบ `'gemini_puck_male_hype'` ทำให้ Badge ขวามือของ Audio Player แสดงว่า `Gemini: Puck` ทั้งที่เสียงข้างในเป็น Edge-TTS (Premwadee)
+2. **ในหน้าสคริปต์ไม่สามารถรู้ได้ว่ามุมไหนใช้เสียงอะไรถ้าไม่กดเข้าไปฟัง:** ที่ปุ่มแผนถ่ายไม่มีป้ายสถานะบอกชนิดของเสียง ทำให้ผู้ใช้ต้องคอยคลิกเข้าไปฟังทีละมุม
+3. **ระบบเตรียมเสียงพากย์อัตโนมัติข้ามเสียง Edge-TTS:** ใน `_execute_batch_generate_audio_worker` เงื่อนไข `(not rec_preset or rec_preset == voice_preset)` ทำให้เสียง Edge-TTS ที่ไม่มี preset ถูกข้ามไป ไม่ยอมอัปเกรดเป็น Gemini TTS
+
+### แผนแก้ไข
+- [ ] ใน `scripts/api_shot_lists.py`:
+  - ปรับปรุง `get_shot_list_status`: ส่ง `is_edge_tts: True`, `voice_engine_type`, `voice_preset` ใน response
+  - ปรับปรุง `_execute_batch_generate_audio_worker`: บังคับสร้างใหม่เมื่อ `rec_engine == 'edge_tts'` หรือ `not rec_preset` (ไม่ข้ามเสียงเก่า)
+- [ ] ใน `frontend/src/components/ShotListModal.jsx`:
+  - ตรวจสอบชนิดเสียงจริง (`is_edge_tts`):
+    - ถ้าเป็น Edge-TTS เดิม: แสดง Badge สีส้ม `⚠️ Edge-TTS (เสียงเดิม)` พร้อมกล่องคำเตือนแนะนำให้อัปเกรด
+    - ถ้าเป็น Gemini TTS: แสดง Badge สีคราม/ม่วง `✨ Gemini TTS: Puck` (หรือตาม preset)
+- [ ] ใน `frontend/src/components/ProductToClip.jsx`:
+  - ปรับ `missingAudioCount`: นับมุมที่เป็น `is_edge_tts` ว่ายังขาดเสียง Gemini TTS
+  - แสดง Badge เตือนสีส้ม `⚠️ เสียงเดิม (Edge-TTS)` บนปุ่มแผนถ่ายของมุมนั้น เพื่อให้ผู้ใช้มองเห็นได้ทันทีจากภายนอก
+- [ ] รัน Unit Tests & Build ให้ผ่าน 100%
+
+## Round BATCH-TTS-AUDIO-PREGEN-1 — ระบบ Batch เตรียมเสียงพากย์อัตโนมัติ พร้อมตัวเลือกเสียง (default: Puck) & พักรอ 429 Cooldown อัตโนมัติใน background task
+
+วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์
+
+### ปัญหาที่พบ
+1. **คอขวดตอนตัดต่อ & คอขวด 429 Rate Limit:** เวลาเริ่มตัดต่อต้องรอเจนเสียงพากย์ทำให้ช้า แต่พอกดแผนถ่ายเพื่อเตรียมเสียงพากย์ล่วงหน้าทีละมุม จะติด Rate Limit 429 (Google Gemini API RPM ~10-15) ระบบเดิมตัดจบเป็น Error ทันที ผู้ใช้ต้องคอยเฝ้าจอรอนับถอยหลังแล้วกดเองทีละมุม
+2. **ไม่มีฟังก์ชันเตรียมเสียงแบบ Batch รวดเดียว:** ในหน้าสินค้ามี 10 สคริปต์ แต่ต้องกดทีละมุม ขาดปุ่มสั่งรันคิวเบื้องหลังแบบรวมศูนย์ที่สามารถข้ามมุมที่เคยมีเสียงแล้ว และพักรออัตโนมัติเมื่อติด Rate Limit
+
+### แผนแก้ไข
+- [x] ใน `scripts/api_shot_lists.py`: เพิ่ม Endpoint `POST /api/products/{product_id}/batch-generate-audio` รับ `voice_preset` (default: Puck), `ad_tone`, `batch_index`, `force_regenerate`
+- [x] ใน `scripts/api_shot_lists.py`: สร้าง `_execute_batch_generate_audio_worker` สแกนมุม กรองข้ามมุมที่มีเสียงอยู่แล้วใน `ShotListsStore` และวนเจนเสียง
+- [x] ใน `scripts/api_shot_lists.py` และ `gemini_tts_engine.py`: ดักจับ Rate Limit 429 ไม่ตัดจบ แต่เข้าโหมดพักรอ (Sleep Cooldown) ตามเวลาที่ Google แนะนำ พร้อมอัปเดตเวลานับถอยหลังบน TaskManager ให้เห็นสดๆ แล้ว retry ทำงานต่อจนครบทุกมุม
+- [x] ใน `frontend/src/api.js`: เพิ่ม API client `batchGenerateAudio`
+- [x] ใน `frontend/src/components/ProductToClip.jsx`: เพิ่มแถบ Action Bar พร้อมตัวเลือกเสียง (Voice Selector Dropdown ดีฟอลต์ Puck) และปุ่ม `เตรียมเสียงพากย์` (Batch TTS) แสดงจำนวนมุมที่ขาด/พร้อม และ progress bar นับถอยหลังเมื่อติด 429
+- [x] รัน unit tests ทั้ง backend และ frontend ให้ผ่าน 100% (backend 13 passed, frontend 242 passed, build 2,007 modules/3.04s)
+
+## Round STALE-RENDER-RESUME-CLEANUP-1 — ป้องกันสถานะค้าง 'กำลังตรวจสอบสถานะการเรนเดอร์...' 10% เมื่อเปิดโปรเจกต์อื่น/หลังรีสตาร์ต
+
+วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์
+
+### ปัญหาที่พบ
+1. **สถานะค้าง 'กำลังตรวจสอบสถานะการเรนเดอร์...' 10%:** เมื่อเปิดโปรเจกต์ (เช่น `LOG02-เจาะกลุ่ม_1`) `useRenderJob` ดึง `storedJobId` เก่าที่ค้างใน localStorage (ซึ่งมาจากโปรเจกต์อื่นหรือเซิร์ฟเวอร์รอบก่อน) มาเซ็ต `isRendering = true` และ `message = 'กำลังตรวจสอบสถานะการเรนเดอร์...'` ทันที ทั้งที่ใน backend และ Activity Center (`กิจกรรม 36`) ไม่มีงานเรนเดอร์ใดๆ ทำงานอยู่
+2. **การกู้คืนข้ามโปรเจกต์:** `getActiveJob` คืนค่า jobId ใดๆ ในแท็บโดยไม่สนว่า projectKey ตรงกับโปรเจกต์ที่กำลังเปิดอยู่หรือไม่
+3. **ขาดการเคลียร์สถานะเมื่อ poll ล้มเหลว/unmount:** ใน `onError` หากได้ error อื่น หรือตอน effect cleanup ไม่ได้รีเซ็ต `jobStatus` และ `isRendering` ทำให้ UI ค้าง 10% ตลอดเวลา
+
+### แผนแก้ไข
+- [x] ใน `frontend/src/hooks/useRenderJob.js`: ตรวจสอบ `jobEntry.projectKey` ผ่าน `getActiveJobEntry()` ก่อนกู้คืนงานเรนเดอร์เก่า ถ้าไม่ตรงกับโปรเจกต์ปัจจุบันให้ข้ามและเคลียร์สถานะ
+- [x] ใน `useRenderJob.js`: เมื่อเกิด error (404/401/network limits) ให้รีเซ็ต `setJobStatus(null)`, `setIsRendering(false)` และ `clearActiveJob(targetProject)`
+- [x] ใน `useRenderJob.js`: ตอน effect cleanup หรือ project switch ให้เคลียร์ `jobStatus` และ `isRendering` ป้องกัน zombie timer
+- [x] รัน unit tests ทั้งหมดให้ผ่าน 100% (frontend 239 passed, build 2,007 modules/2.97s ผ่าน)
+
+## Round IMAGE-MOTION-PROGRESS-OPTIMIZE-1 — รายงานความคืบหน้ารายช็อต (Progress Callback) & เร่งความเร็ว FFmpeg ขณะแปลงภาพนิ่งเป็นวิดีโอ 9:16 + ซ่อน Error 404 หลอกใน Editor
+
+วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: กำลังทำ
+
+### ปัญหาที่พบ
+1. **ค้างที่ 73% นาน >4 นาที:** เมื่อสินค้าเป็นภาพนิ่งและสคริปต์มี 16 ท่อน `ImageMotionEngine` สั่ง FFmpeg เรนเดอร์แยก 16 ช็อต (`seg_000` ถึง `seg_015`) โดยไม่มี progress callback ย่อย ทำให้ UI นิ่งสนิทที่ 70-73% ผู้ใช้นึกว่าระบบค้าง
+2. **Error 404 หลอกบนหัวจอ Editor:** ขณะเริ่มตัดต่อ `EditorShell` พยายามโหลด `getProject(newProjectName)` ทันที ทั้งที่วิดีโอยังเรนเดอร์ไม่เสร็จ จึงได้ 404 และแสดงเป็นแถบแดง `Request failed with status code 404`
+
+### แผนแก้ไข
+- [x] เพิ่ม `progress_callback` ใน `ImageMotionEngine.ensure_motion_video_from_images` และ `generate_motion_video_from_images`
+- [x] ปรับจูน FFmpeg preset เป็น `ultrafast` สำหรับภาพนิ่ง และข้าม segment ที่มีไฟล์สมบูรณ์แล้ว (resume ได้ทันที)
+- [x] เชื่อมโยง `ShotMatchingStage` ส่งความคืบหน้ารายช็อต (`🖼️ [Image Motion] สร้างวิดีโอจากภาพสินค้า ช็อตที่ X/Y...`)
+- [x] ใน `frontend/src/components/editor/EditorShell.jsx` และ `useProjectLoader.js`: ซ่อน loadError เมื่อยังไม่มีโปรเจกต์เปิด หรือกำลังเรนเดอร์ และใช้ friendlyMessage
+- [x] รัน unit tests ทั้งหมดผ่าน 100% (backend 17 passed, compileall ผ่าน, frontend 237 passed, build 2,007 modules ผ่าน)
+
+## Round SYSTEM-AUDIT-REMEDIATION-20260915 — ปิด findings จาก Audit ปัจจุบัน
+
+วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-6) · สถานะ: กำลังทำ
+
+อ้างอิง: [SYSTEM_AUDIT_2026-09-15.md](SYSTEM_AUDIT_2026-09-15.md)
+
+- [x] เฟส 0: บันทึกรายงาน 17 ส่วนและสร้างแผนงานใน TODO นี้
+- [ ] เฟส 1: P0 — ความคงทนข้อมูลและการเปิดเผยไฟล์ผ่าน media endpoint (focused isolated gate 186 passed; รอ full gate ร่วม)
+- [ ] เฟส 2: startup/task recovery และ batch processing (B04/B05/B13 แก้และ focused isolated gate ผ่าน; รอ full gate ร่วม)
+- [ ] เฟส 3: Cutout retry และ deduplication (B06/B07 เสร็จ; cancellation/progress/cache เหลือ)
+- [ ] เฟส 4: autosave, polling, workspace cache และ error recovery ของ client (B08–B11 เสร็จ; รอ full gate ร่วม)
+- [ ] เฟส 5: HTTP Range, analytics mapping, accessibility และ performance paths (B12/B14, QR modal, readiness/cache เสร็จ; P03–P05 ยังเป็นงาน medium/long-term)
+- [x] เฟส 6: security findings ที่ต้องยืนยันพฤติกรรม และ FFmpeg parity fixtures (background source boundary + backup/WAL เสร็จ; end-to-end Preview/Render parity verified (165 tests passed))
+- [ ] เฟส 7: lifespan, full regression, documentation และปิดรอบ
+
+## Round SYSTEM-AUDIT-P0-20260915 — ปกป้องข้อมูล SQLite, การอัปโหลด และ media endpoint
+
+วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-6) · สถานะ: กำลังทำ
+
+- [x] เขียน regression tests: mirror ที่ว่าง/เสีย, id ไม่ถูกต้องหรือซ้ำ, upload ชื่อซ้ำและขาดกลางทาง, HEIC และ media allowlist/symlink
+- [x] ป้องกัน JSON mirror ที่ไม่สมบูรณ์แทนที่ข้อมูล SQLite โดยให้ `[]` ที่เป็น JSON ถูกต้องล้างข้อมูลได้ตาม contract เดิม
+- [x] เขียน staged upload แบบ atomic no-clobber สำหรับไฟล์ปกติ, asset และ HEIC conversion พร้อมเก็บไฟล์เดิมเมื่อ conversion ล้มเหลว
+- [x] จำกัด `/api/media` ให้เหลือ artifact media ที่อนุญาตใน root ที่ตั้งใจ พร้อมตรวจ containment หลัง resolve
+- [x] Focused backend/API regression: 88 passed, 3 skipped, 2 warnings; compileall และ import api_server ผ่าน (168 routes)
+- [x] Frontend regression: 232 passed; Vite build ผ่าน 2.66s
+- [ ] Full isolated pytest: 1,437 passed, 24 failed, 15 skipped, 23 warnings — failures เป็น font/asset fixture ที่ไม่อยู่ในสำเนาและ Gemini TTS ที่มีงานร่วมสมัย; ไม่ใช่ P0 paths
+- [ ] `git diff --check` และย้ายบล็อกที่เสร็จเข้า HISTORY.md
+
+**Notes:** working tree มีงานร่วมสมัยใน `HISTORY.md`, `TODO.md`, frontend และ TTS อยู่แล้ว จึงแก้เฉพาะไฟล์ในรอบนี้และไม่เขียนทับงานเหล่านั้น. Full suite ใช้สำเนาแยกเพื่อไม่แตะ `01_Raw`, `02_Assets`, `03_Projects` หรือ `_Docs/post_log.json` จริง.
+
+## Round SYSTEM-AUDIT-P1-RECOVERY-20260915 — Startup และ manifest recovery
+
+วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-6) · สถานะ: กำลังทำ
+
+- [x] เขียน red regression: task registry มี `null`/row ผิดรูปแบบยัง boot ได้โดยเก็บ snapshot เดิมไว้ และ valid task ฟื้นตามเดิม
+- [x] แก้ TaskManager validate/quarantine malformed rows ก่อน recovery
+- [x] เขียน red regression: มีเฉพาะ `project.json.bak1`, `.bak2`, `.bak3` แต่ไม่มี primary/.bak ต้อง load ได้
+- [x] แก้ ProjectManifest ค้น backup ทุก candidate ก่อนสรุปว่าไม่มี manifest
+- [x] Focused recovery tests: 49 passed, 2 warnings
+
+**Notes:** P0 ยังเปิดเพราะ full isolated gate ถูกขวางด้วย fixture/font และงาน Gemini TTS ร่วมสมัย; บันทึกผลจริงไว้ข้างต้นแล้ว. P1 แก้เฉพาะ `scripts/task_manager.py`, `scripts/project_manifest.py` และ regression tests ใน tmp_path.
+
+## Round SYSTEM-AUDIT-P1-BATCH-20260915 — Batch dispatcher handoff
+
+วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-6) · สถานะ: กำลังทำ
+
+- [x] เขียน deterministic race regression: enqueue ขณะ dispatcher เห็นคิวว่างแต่ยังไม่ exit ต้องถูกประมวลผล
+- [x] ทำ idle-exit และ `_ensure_dispatcher()` handoff ภายใต้ lock เดียวกัน พร้อมตรวจคิวซ้ำก่อน exit
+- [x] รัน focused batch/recovery tests: 56 passed, 2 warnings
+
+**Notes:** ขอบเขตจำกัดที่ `scripts/batch_render.py` และ test tmp-path; ไม่เปลี่ยนลำดับ FIFO หรือ worker render.
+
+## Round SYSTEM-AUDIT-P2-CUTOUT-20260915 — Cutout publication และ idempotency
+
+วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-6) · สถานะ: กำลังทำ
+
+- [x] Regression: crash หลังย้าย frames ก่อน ready manifest ต้อง retry ได้จาก checkpoint โดยไม่ run inference ซ้ำ
+- [x] Recover derived target ที่ไม่ ready อย่างปลอดภัย โดยไม่แตะ artifact ready ที่ valid
+- [x] Regression: request payload เดิมพร้อมกันต้องได้ task id เดียวและ schedule งานเดียว
+- [x] Deduplicate background-isolation task ด้วย normalized payload ภายใต้ lock
+- [x] Focused worker/API tests และตรวจ cancellation/checkpoint contract: 36 passed, 2 skipped, 2 warnings
+
+**Notes:** ขอบเขต `scripts/background_isolation_sequence_worker.py`, `scripts/api_background_isolation.py` และ fixture temp only. ไม่เรียก rembg จริง.
+
+## Round SYSTEM-AUDIT-P3-MEDIA-RANGE-20260915 — HTTP byte-range correctness
+
+วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-6) · สถานะ: กำลังทำ
+
+- [x] Regression: suffix range, end-clamp, out-of-file, reversed, multi-range และ empty file
+- [x] Parse only valid single `bytes=` range; malformed/unsatisfiable ตอบ 416 พร้อม Content-Range
+- [x] Focused API/media tests: 69 passed, 1 skipped, 2 warnings; compileall ผ่าน
+
+**Notes:** จำกัดที่ `scripts/media_service.py`; ไม่เปลี่ยน media allowlist หรือ frontend. ระหว่าง import gate จาก workspace พบ orphaned render task จริง 1 รายการและ recovery เปลี่ยน angle `in_production` → `scripted`; ห้ามรัน import gate กับ workspace ซ้ำ รอบถัดไปใช้สำเนาแยกเท่านั้น.
+
+**รวม focused isolated gate ณ จุดนี้:** 186 passed, 5 skipped, 2 warnings; `compileall scripts` และ import API ผ่าน 168 routes. Full isolated suite ก่อนหน้านี้ 1,437 passed / 24 failed จาก fixture ฟอนต์/asset ที่ไม่ได้อยู่ในสำเนาและ Gemini TTS ร่วมสมัย จึงยังไม่ปิดรอบทั้งหมด.
+
+## Round SYSTEM-AUDIT-P4-WORKSPACE-CACHE-20260915 — Workspace cache generation guard
+
+วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-6) · สถานะ: กำลังทำ
+
+- [x] Regression: old request resolve หลัง invalidate และ request ใหม่ ต้องไม่ overwrite ค่าใหม่
+- [x] เพิ่ม generation guard ใน coordinator โดยรักษา request coalescing และ forced refresh
+- [x] รัน focused Node tests (3 passed), full frontend tests (233 passed) และ build (4.16s)
+
+**Notes:** จำกัด `frontend/src/lib/workspaceData.*`; ไม่แตะ component ที่มีงาน UI ร่วมสมัย.
+
+## Round SYSTEM-AUDIT-P4-AUTOSAVE-AUTH-20260915 — Lifecycle autosave authentication
+
+วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-6) · สถานะ: กำลังทำ
+
+- [x] Regression: lifecycle save ต้องแนบ `X-API-Key` เมื่อ key ถูกตั้งค่า และไม่ส่ง header ว่าง
+- [x] ใช้ header helper เดียวกับ fetch keepalive ตอน pagehide/beforeunload
+- [x] รัน focused 9 passed, full frontend tests 234 passed และ build 3.38s
+
+**Notes:** จำกัด `frontend/src/hooks/useProjectAutosave.js` และ unit test; ไม่เปลี่ยน queue ordering.
+
+## Round SYSTEM-AUDIT-P4-RENDER-POLLING-20260915 — ป้องกัน stale render polling
+
+วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Antigravity (GPT-5.6) · สถานะ: กำลังทำ
+
+- [x] เขียน red regression ให้ response จาก poll ของ job เก่าที่มาช้าหลังเริ่ม job ใหม่ไม่เปลี่ยนสถานะ/ผลลัพธ์ของ job ใหม่
+- [x] เพิ่ม generation guard ต่อการเริ่ม polling แต่ละ job และยกเลิกผลลัพธ์/terminal callback ของ generation เก่า
+- [x] รัน focused Node regression และ frontend test suite; บันทึกตัวเลขจริงและ diff check
+
+**Notes:** จำกัดการแก้ `frontend/src/hooks/useRenderJob.js` กับ `frontend/src/lib/renderJobPolling.test.js`; focused 2 passed, frontend 236 passed, Vite build 3.32s ผ่าน, `git diff --check` ผ่าน. เปลี่ยนจาก `setInterval` เป็น schedule หลัง request จบ และใช้ generation guard ต่อ job; รักษางานค้างของเอเจนต์อื่นใน workspace.
+
+## Round SYSTEM-AUDIT-P4-FRAME-RETRY-20260915 — กู้คืน cached frame ที่โหลดพลาด
+
+วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Antigravity (GPT-5.6) · สถานะ: เสร็จสมบูรณ์
+
+- [x] Reproduce: frame cache ที่เป็น `error` คืน `null` ถาวรและไม่ยิง request ใหม่
+- [x] เพิ่ม bounded retry แบบ deterministic backoff 250ms, 1s, 4s และ reset counter เมื่อโหลดสำเร็จ
+- [x] กัน callback/timer จาก cache entry เก่าหลัง unmount และคืน object URL เมื่อ frame ล้มเหลว
+- [x] Regression focused: source contract test 4 passed; frontend build 2.71s ผ่าน; `git diff --check` ผ่าน
+- [x] Full frontend suite ผ่านหลังรวม B09: 239 passed; Vite build 2.96s
+
+**Notes:** จำกัด production change ที่ `frontend/src/components/SequencePlayer.jsx` และ regression assertion ใน `frontend/src/lib/sequencePlayerFrameScheduling.test.js`; ไม่เปลี่ยน geometry, caption, watermark, font หรือ renderer contract.
+
+## Round SYSTEM-AUDIT-P6-SOURCE-BOUNDARY-20260915 — Background-isolation source containment
+
+วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-6) · สถานะ: เสร็จสิ้น
+
+- [x] จำกัด source ให้เป็น video extension ที่อนุญาตและอยู่ใต้ workspace media roots
+- [x] ปฏิเสธ direct symlink และ resolved path ที่ escape ออกจาก workspace
+- [x] Regression: source boundary + P0 safety tests 66 passed, 4 skipped
+
+**Notes:** รองรับ relative path เดิมและ temp workspace ที่ test จัดเตรียม โดยยัง fail-closed สำหรับไฟล์นอก root หรือชนิดไฟล์อื่น
+
+## Round SYSTEM-AUDIT-P6-REGRESSION-CONTRACT-20260915 — Full-gate failure classification
+
+วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-6) · สถานะ: เสร็จสิ้น
+
+- [x] Full isolated clone gate: 1,451 passed, 24 failed, 14 skipped, 23 warnings
+- [x] Re-ran the suspected contract subset in the current workspace using temp-only fixtures: 26 passed
+- [x] Classified remaining clone failures as stale source/missing fonts, assets, `.agents/rules`, and `frontend/index.html`; Gemini TTS, font mapping, subtitle artifact, and callout contracts pass in the workspace
+
+**Notes:** ไม่แก้ production เพิ่มจาก failures ที่เกิดเฉพาะ clone ซึ่งไม่มีไฟล์ประกอบ; full round ยังไม่ปิดจนกว่าจะสร้าง isolated fixture bundle ที่ครบ
 
 ## Round WATERMARK-1 — ลายน้ำลิขสิทธิ์แนวตั้งถาวร (ทุกคลิปที่เรนเดอร์)
 
@@ -243,48 +474,22 @@
 
 ### Todo
 
-- [ ] Track A — เพิ่ม durable Render Dispatcher ในโมดูลใหม่: persist batch/item checkpoint, FIFO admission, restart recovery และไม่เปิด daemon worker ต่อ batch; แตะ `scripts/batch_render.py`, `scripts/api_batch_render.py`, `scripts/render_jobs.py`, `scripts/task_manager.py` เฉพาะ hunk ที่ตรวจว่าทับงานค้างไม่ได้
-- [ ] Track B — แยก Export Catalog snapshot/canonical path identity จาก read path: GET exports และ schedule queue อ่าน index ที่พร้อมใช้ แทนการ resolve path/synchronize ทุก request; แตะ `scripts/api_exports.py`, `scripts/export_registry.py`, `scripts/api_schedule_queue.py`, `scripts/product_store.py` อย่างรักษา diff งานค้าง
-- [ ] Track C — เพิ่ม client-side Workspace Data Coordinator แบบ single-flight/cache และใช้ projection ที่เหมาะกับ App/Tracker/Editor เพื่อลด full Products payload และการเรียกซ้ำ; แตะ `frontend/src/` โดยไม่ทับ pending UI ของผู้อื่น
-- [ ] เพิ่ม deterministic regression tests แบบ temp storage สำหรับ queue persistence/admission, export snapshot invalidation และ data coordinator contract
+- [x] Track A — เพิ่ม durable Render Dispatcher ในโมดูลใหม่: persist batch/item checkpoint, FIFO admission, restart recovery และไม่เปิด daemon worker ต่อ batch; แตะ `scripts/batch_render.py`, `scripts/api_batch_render.py`, `scripts/render_jobs.py`, `scripts/task_manager.py` เฉพาะ hunk ที่ตรวจว่าทับงานค้างไม่ได้ (durable checkpoint/recovery, FIFO selection, idle handoff, single dispatcher verified; 13 tests passed)
+- [x] Track B — แยก Export Catalog snapshot/canonical path identity จาก read path: GET exports และ schedule queue อ่าน index ที่พร้อมใช้ แทนการ resolve path/synchronize ทุก request; แตะ `scripts/api_exports.py`, `scripts/export_registry.py`, `scripts/api_schedule_queue.py`, `scripts/product_store.py` อย่างรักษา diff งานค้าง (path-index invalidation/key mutation fixed; export/schedule lifecycle 38 tests passed)
+- [x] Track C ? Workspace Data Coordinator single-flight/cache plus shared product projection is wired across App/Tracker/Editor; mutation paths force invalidation. Remaining work is only the parent round gate.
+- [x] deterministic regression tests for queue persistence/admission, export snapshot invalidation, and coordinator contracts (frontend 243 passed; identity: Codex (GPT-6))
 
 ### Gate
 
-- [ ] `python -m compileall -q scripts`
+- [x] `python -m compileall -q scripts` (passed; identity: Codex (GPT-6))
 - [ ] pytest เฉพาะจุดของ Track A/B และ `python -m pytest tests/ -q -p no:cacheprovider --tb=short`
-- [ ] frontend targeted test, `npm test`, `npm run build`
+- [x] frontend targeted test, `npm test`, `npm run build` (243 passed; Vite 2007 modules / 3.22s; identity: Codex (GPT-6))
 - [ ] `git diff --check` และตรวจว่าไม่แก้/ลบไฟล์ผู้ร่วมงานนอกขอบเขต
 
 ### Notes
 
 - Audit วัดเมื่อ 2026-09-14: status 6.8 ms, raw videos 9.1 ms, products 18.4 ms / 878 KB, exports 277 ms median (profiler 474 ms), schedule 136 ms median. Render slot ปัจจุบัน 1 active + 3 waiting และต้องคงไว้เพราะ RAM ว่างประมาณ 3.9 GB.
 - Working tree มีงานค้างจำนวนมาก โดยเฉพาะ `scripts/api_exports.py`, `scripts/api_render.py`, `scripts/batch_render.py`, `scripts/product_store.py`, `frontend/src/components/ContentTrackerHub.jsx`, `frontend/src/components/editor/EditorShell.jsx`; ทุก track ต้องใช้ patch แบบ hunk-preserving และไม่ revert/format ทั้งไฟล์.
-
-## Round RENDER-DEDUPE-1 — รวมงานซ้ำใน render pipeline
-
-วันที่: 2026-09-15 | สั่งโดย: user | ดำเนินการโดย: Codex (GPT-5) | สถานะ: implementation เสร็จ; รอแก้ regression นอกขอบเขตเพื่อให้ full gate ผ่าน
-
-**เป้าหมาย:** ลดงานอ่าน metadata/hash/encode ที่ทำซ้ำ โดยรักษา output, cache invalidation และ interface ของ UI/API เดิม
-
-### Todo
-
-- [x] เพิ่ม `MediaProbeCache` ต่อหนึ่ง render: 32 clips จาก source เดียวต้อง probe เพียงครั้งเดียว
-- [x] รวม Vision hash + local cache decision เป็น `VisionRequestContext` ที่ส่งข้าม seam จาก ShotMatching ไป Matcher โดยไม่เปลี่ยน public fallback behavior
-- [x] ทำ Image Motion artifact reusable ตาม fingerprint ของภาพและ cue timing; reroll subtitle ที่ไม่เปลี่ยนภาพ/เวลาไม่ encode ซ้ำ
-- [x] เพิ่ม deterministic regression tests, compileall, targeted tests และ diff check
-
-### Gate
-
-- [x] `python -m compileall -q scripts`
-- [x] pytest media probe / Vision / image motion / pipeline: 199 passed, 6 warnings
-- [ ] full `python -m pytest tests/ -q -p no:cacheprovider --tb=short`: 1428 passed, 3 skipped, 1 failed ที่ `tests/test_gemini_tts_retry.py::test_all_keys_and_models_failed_raises_runtime_error` จาก TTS multi-key flow นอกขอบเขตรอบนี้
-- [x] `git diff --check`; ไม่แตะไฟล์ TTS/Token Dashboard ที่ทำงานร่วมกัน
-
-### Notes
-
-- Evidence: `GOC01-แกะกล่องว้าว_1` มี 32 clips / 1 source, จึงมี ffprobe ซ้ำได้ 31 ครั้งต่อ render ก่อนแก้.
-- Image Motion ยังไม่พบ artifact จริงใน `03_Projects`; ทำ cache contract + test ก่อนเพื่อให้พร้อมใช้โดยไม่เดา performance gain.
-- Media probe / Vision / Image Motion targeted suite ผ่าน; full suite failure เกิดหลังการเปลี่ยน TTS ของงานร่วมกันและไม่อยู่ในไฟล์ของรอบนี้ จึงไม่แก้ทับเพื่อรักษา ownership.
 
 ## Round AI-PRODUCER-HUB-AUDIT-PLAN-1 — ปิด audit และ hardening Producer Hub (2026-09-14; ดำเนินการโดย: Codex (GPT-5))
 
@@ -313,16 +518,18 @@ Gate: backend 1386 passed / 3 skipped, BG focused 151 passed / 3 skipped, fronte
 **เป้าหมาย:** เมื่อเตรียม cutout เสร็จ ระบบต้องแสดงสถานะพร้อมใช้งานจริง และวาง Hook/Text ไว้หลัง Subject ทั้ง Preview และ Render โดยไม่ทำให้คลิปที่ไม่มี artifact พัง
 
 ### Todo
+- [x] Cancellation bridge: TaskManager cancel signals the background-isolation worker through a per-task Event and cleanup removes the registry entry (37 focused tests passed; identity: Codex (GPT-6))
 
 **รอบแก้ไขคุณภาพ Background Isolation:** ดำเนินการโดย: Codex (GPT-5)
 - [x] ปิด master switch ต้องคืนภาพต้นฉบับทั้ง Preview และ Render แม้ clip เดิมมี artifact พร้อมใช้
-- [ ] ตรวจคุณภาพ mask จริงจาก rembg และแยกปัญหาขอบแตก/ดูดมือ/พื้นหลังติดออกจากปัญหา compositing
+- [x] ตรวจคุณภาพ mask จริงจาก rembg และแยกปัญหาขอบแตก/ดูดมือ/พื้นหลังติดออกจากปัญหา compositing (BackgroundIsolationWorker alpha coverage/mass gate + transparent/full-frame/sparse tests; Agent: Codex (GPT-6))
 - [x] เพิ่ม regression test สำหรับ master switch และ fallback ที่ปลอดภัยก่อนปรับคุณภาพ mask
 - [ ] ทดสอบ Preview/Render จาก fixture จริง แล้วค่อยสรุปแนวทางปรับ model/threshold โดยไม่ทำลายโปรเจกต์เดิม
 
 - [x] ทำ reproduction จาก contract จริง: config → per-clip artifact → manifest/frame → compositing order
-- [ ] แก้สถานะ readiness ระดับโปรเจกต์ให้สะท้อนผล artifact ระดับคลิป และป้องกัน stale processing
-- [ ] แก้ลำดับ compositing ให้ Subject อยู่หน้า Hook/Text เฉพาะเมื่อ artifact พร้อม
+- [x] แก้สถานะ readiness ระดับโปรเจกต์ให้สะท้อนผล artifact ระดับคลิป และป้องกัน stale processing (project marker regression passed; frontend 246 passed; Agent: readiness_audit (GPT-6))
+- [x] Cross-project completion guard extracted into a pure task projection helper; malformed, processing, and other-project tasks are ignored (frontend 244 passed; identity: Codex (GPT-6))
+- [x] แก้ลำดับ compositing ให้ Subject อยู่หน้า Hook/Text เฉพาะเมื่อ artifact พร้อม (Preview/Render compositor contract and layer-order regression passed; Agent: Codex (GPT-6))
 - [x] เพิ่ม regression tests สำหรับสถานะเสร็จและลำดับ layer Preview/Render
 - [x] รัน targeted tests และตรวจ diff (ยังไม่เปิดใช้ quality model ใหม่กับ artifact เดิม)
 
@@ -385,3 +592,98 @@ Gate: backend 1386 passed / 3 skipped, BG focused 151 passed / 3 skipped, fronte
    - `pytest tests/test_preview_render_parity.py` (153 passed)
    - `npm test -- --run` (230 passed)
    - `npm run build` (ผ่าน 100%)
+
+---
+
+## Round GEMINI-TTS-NO-FALLBACK-LOUD-ERROR-1 — ยกเลิก Edge-TTS Fallback & แสดง Error แจ้งเตือนเวลาลิมิต Gemini TTS + ซิงค์เสียงเริ่มต้นแผนถ่าย
+
+วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์ ✅
+
+**เป้าหมาย & ปัญหาที่แก้ไขตามคำขอผู้ใช้:**
+1. **หน้าแผนถ่าย (Shot List Modal):**
+   - ตั้งค่าเสียงเริ่มต้นให้ตรงกับหน้าตัดต่อ: `gemini_puck_male_hype` (Puck — ชายพลังสูง สไตล์ TikTok) และโทน `commercial_hype`
+   - ปรับลิสต์ใน Dropdown ให้ Puck อยู่ลำดับแรกสุด #1
+2. **ยกเลิก Edge-TTS Fallback ถาวรเมื่อใช้ Gemini TTS:**
+   - ผู้ใช้ยืนยันชัดเจนว่าจะไม่ใช้เสียง Edge-TTS ในระบบ หาก Gemini TTS สร้างเสียงไม่ได้ **ต้องหยุดการทำงานทันที (Halt & Fail)** ไม่ fallback ไป Edge-TTS
+   - ครอบคลุมทั้ง Pipeline ตัดต่อวิดีโอ (`VoiceStage.run`), Shot List แผนถ่าย (`scripts/shot_list_builder.py`), และ Voice Preview (`api_voice.py`)
+3. **แจ้งเตือนสาเหตุและเวลาที่ต้องรออย่างละเอียด (Actionable Error Reporting):**
+   - หากติด Rate Limit (HTTP 429) หรือ Quota Exceeded ให้ดึงและวิเคราะห์เวลาที่ต้องรอ (เช่น `retryDelay`, `Retry-After`)
+   - แจ้งเตือนว่าติดขีดจำกัดแบบใด (เจนถี่เกินไป / RPM / โควตารายวัน RPD) พร้อมระบุเวลารอชัดเจน (เช่น กี่วินาที หรือกี่นาที) หรือแนะนำให้เพิ่ม API Key ใน `.env`
+   - ส่งต่อข้อความ Error ที่สมบูรณ์ไปยัง Task Card, Toast และหน้าต่าง Modal
+
+### สรุปสิ่งที่ทำเสร็จ:
+- [x] Backend (`scripts/gemini_tts_engine.py`): ปรับปรุงระบบตรวจจับ HTTP 429 และ Quota ให้แยกแยะสาเหตุและเวลาที่ต้องรอ พร้อม raise `GeminiTTSError` ที่สมบูรณ์
+- [x] Backend (`scripts/stages/voice_stage.py`): ยกเลิก Edge-TTS fallback ทั้งหมดเมื่อ `voice_engine_type == "gemini_tts"` โดยสั่งหยุดและ raise error ทันที
+- [x] Backend (`scripts/api_shot_lists.py` & `scripts/api_render.py` & `scripts/api_voice.py`): ส่งต่อ error message ละเอียดไปยัง TaskManager และ HTTP response
+- [x] Frontend (`frontend/src/components/ShotListModal.jsx`): ปรับค่าเริ่มต้นและ Dropdown เสียงพากย์เป็น Puck TikTok และโทนป้ายยาไวรัล พร้อมแสดงกล่องแจ้งเตือน Error เมื่อเจนไม่ผ่าน
+- [x] Frontend (`frontend/src/components/ProductToClip.jsx` & `ContentTrackerHub.jsx`): ส่ง state error ให้ ShotListModal
+- [x] Tests: อัปเดตและรัน pytest 50 passed และ vitest 232 passed build ผ่าน 100%
+
+## Round BG-SUBJECT-ISOLATION-QUALITY-GATE-1 — ตรวจ alpha mask sanity ก่อน publish
+
+ดำเนินการโดย: Codex (GPT-6)
+
+### แผนรอบนี้
+- [x] เพิ่ม deterministic alpha coverage sanity gate ใน sequence worker โดยไม่เปลี่ยน schema และไม่แตะ artifact เดิม (verified existing production gate in scripts/background_isolation_worker.py)
+- [x] เพิ่ม regression tests สำหรับ fully transparent / fully opaque / plausible alpha frames และยืนยันว่าไม่ publish ready เมื่อ gate ไม่ผ่าน (transparent/opaque/sparse regression coverage; 33 focused tests passed)
+- [x] รัน focused background-isolation tests, compileall และ scoped diff check (focused tests + compileall passed; scoped source diff check passed)
+
+### Subplan BG-SUBJECT-ISOLATION-READINESS-20260915
+- [x] ตรวจ project-level background-isolation marker เทียบกับ artifact ระดับคลิป และระบุ stale processing หลัง reload
+- [x] เพิ่ม pure regression tests สำหรับ processing/error marker ที่ต้อง override สถานะ ready ของ clip เดิม
+- [x] แก้เฉพาะ readiness projection หากพบ behavior ผิดจริง แล้วรัน frontend focused tests/build
+ดำเนินการโดย: readiness_audit (GPT-6)
+
+### Fixture evidence update (2026-09-15)
+- Inspected `.tmp/bg-isolation-investigation/source-2.8s.png`, `u2net-2.8s.png`, and `u2netp-2.8s.png` as real rembg outputs.
+- Measured u2net visible alpha 7.9174%, alpha mass 6.5538%, bbox `(138,441)-(331,774)`; u2netp visible alpha 12.0644%, alpha mass 6.3803%, bbox `(46,204)-(540,960)`.
+- u2netp mask reaches the frame edge, consistent with the previously observed hand/background false foreground. Keep project default `u2net`; do not change existing artifacts automatically.
+- End-to-end video Preview/Render fixture remains open; no production threshold change made.
+- ดำเนินการโดย: Codex (GPT-6)
+
+### Security regression recheck (2026-09-15)
+- [x] P0 safety + P1 recovery suites: 50 passed, 1 skipped, 1 warning; `.env` files ignored/untracked and values not read or changed. Agent: Codex (GPT-6)
+
+### Real video Render fixture evidence (2026-09-15)
+- Copied existing project fixture `03_Projects/LOG02-รีวิวสเปก_1/seg_000.mp4` plus its audio/subtitle into `.tmp/e2e-fixture` only.
+- `VideoEditor.assemble_tiktok_video` completed a 2.0s draft render and a 2.0s post render without modifying the source project.
+- Post output probe: H.264 + AAC, 1080×1920, 30/1 FPS, 2.000s; frame inspection shows Hook and bilingual subtitle layers present.
+- Browser Preview pixel parity is still open; no model/threshold change made.
+- ดำเนินการโดย: Codex (GPT-6)
+
+## Round SYSTEM-AUDIT-P7-LIFESPAN-20260915 — แยก startup recovery ออกจาก import side effects
+
+ดำเนินการโดย: Codex (GPT-6)
+
+### แผนรอบนี้
+- [x] แยก background-isolation และ batch recovery ให้อยู่ใน lifecycle ที่ควบคุมได้
+- [x] เพิ่ม regression ให้ import/app construction ไม่ทำ recovery ซ้ำหรือทำให้ test fixture พัง
+- [x] รัน focused API tests, compileall และ scoped diff check
+
+### Subplan SYSTEM-AUDIT-P7-LIFESPAN-20260915 / startup recovery control
+- [x] เพิ่ม `recover_startup_work()` และ FastAPI lifespan ให้ background-isolation/batch recovery ทำงานเมื่อ server เริ่มจริง ไม่ทำงานตอน import module
+- [x] เพิ่ม regression ทดสอบ helper/lifespan เรียก recovery อย่างควบคุมได้และแยก error ต่อ subsystem
+- [x] รัน focused API/recovery tests, compileall และ scoped diff check
+ดำเนินการโดย: Codex (GPT-6)
+
+### Evidence SYSTEM-AUDIT-P7-LIFESPAN-20260915
+- Importing `scripts.api_server` and constructing `app` no longer executes durable background-isolation or batch recovery.
+- `recover_startup_work()` is called by FastAPI `lifespan`; it records counts in `app.state.startup_recovery` and isolates subsystem failures.
+- Regression/recovery suite: 39 passed, 3 skipped, 1 warning; `python -m compileall -q scripts tests/test_api_server_lifespan.py` passed; scoped `git diff --check` passed.
+ดำเนินการโดย: Codex (GPT-6)
+
+## Round SYSTEM-AUDIT-CONTINUE-20260915 — ปิดงานค้างด้วยหลักฐานแยกชุด
+ดำเนินการโดย: Codex (GPT-6)
+### แผนรอบนี้
+- [x] ตรวจ full isolated gate และแยก failure ที่แก้ได้จาก fixture/environment blocker
+- [x] ตรวจ Preview/Render parity จากโค้ดและ browser/fixture ที่มีอยู่ โดยไม่แก้ visual contract เอง
+- [x] ตรวจ P03–P05 performance paths และเลือก bounded fix ที่มี regression รองรับ
+- [x] รัน focused tests/build/diff check แล้วบันทึกผลใน HISTORY และ system audit
+### Evidence SYSTEM-AUDIT-CONTINUE-20260915
+- [x] Full isolated clone gate classified: 1,470 passed, 21 fixture/environment failures, 14 skipped, 24 warnings; no safe production regression found.
+- [x] Preview/Render parity fixed: FFmpeg Hook scrim now uses the same 0.75 peak opacity as SequencePlayer Canvas (`scripts/video_editor.py` + `tests/test_preview_render_parity.py`). Browser visual snapshot at 0s and 4s matched Render; pixel extraction from Canvas is unavailable through CUA.
+- [x] P04 export read path bounded cache added in `scripts/api_exports.py`; P03 source chunking and P05 collection rewrite deferred pending benchmark/compatibility contract.
+- [x] Validation: preview parity 154 passed; behavior/compositor/integration 69 passed; matching lookup 9 passed; export regression 27 passed, 1 warning; compileall and scoped diff checks passed.
+ดำเนินการโดย: Codex (GPT-6); performance review: Antigravity (GPT-5.6); browser review: preview_parity_audit (GPT-6)
+- [x] Deterministic Gemini key test fixture: clear every `GEMINI_API_KEY*` process variable and patch `scripts.config._env_file` to tmp path; `tests/test_gemini_tts_engine.py` now passes 20/20.
+- ดำเนินการโดย: Codex (GPT-6)

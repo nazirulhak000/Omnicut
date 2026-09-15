@@ -466,33 +466,21 @@ class VoiceStage:
                 beat_cues = _fold_cues_to_lines(cues, items_per_line, lines_list)
                 print(f"   Gemini Flash TTS voice generated! Duration: {total_duration:.2f}s, Cues: {len(cues)}")
             except Exception as gemini_err:
-                voice_engine_used = "edge_tts"
-                # A quota hit means the user's own daily AI budget cap
-                # stopped this call, not a Gemini/network failure. Voice
-                # synthesis still has a safe, non-AI fallback (Edge-TTS) so
-                # the render is never blocked -- but the reason must be loud
-                # and visible in the job's own progress log, not just a
-                # server-side print, so the user knows it was their budget
-                # cap and not a broken provider.
+                print(f"❌ [Gemini Flash TTS] Failed ({gemini_err}) — HALTING (Strictly no fallback to Edge-TTS as configured)")
                 if is_quota_error(gemini_err):
-                    print(f"⚠️ [Gemini Flash TTS] Skipped: quota exceeded ({gemini_err}) — falling back to Edge-TTS...")
-                    ctx.notify("⚠️ เกินโควต้า AI ต่อวันแล้ว — สลับไปใช้ Edge-TTS สำรอง — เสียงจะไม่ใช่ Gemini", 0.30)
-                else:
-                    print(f"⚠️ [Gemini Flash TTS] Failed ({gemini_err}) — falling back to Edge-TTS...")
-                    ctx.notify("⚠️ Gemini TTS ขัดข้อง สลับไปใช้ Edge-TTS สำรอง — เสียงจะไม่ใช่ Gemini", 0.30)
-                voice_res = VoiceEngine.generate_voiceover(
-                    text_or_lines=script_data["lines"],
-                    output_audio_path=str(voice_audio_path),
-                    voice=ctx.voice,
-                    rate=ctx.voice_rate
-                )
-                cues = voice_res["cues"]
-                # VoiceEngine internally splits each line into smart-clause
-                # cues (scripts/voice_engine.py's segment_into_clauses) -- not
-                # 1:1 with script lines -- so fold back via each cue's
-                # line_idx tag.
-                beat_cues = _fold_cues_by_line_idx(cues, script_data["lines"])
-                total_duration = voice_res["duration"]
+                    ctx.notify("❌ เกินโควต้าการใช้งาน AI ต่อวันแล้ว (หยุดการทำงาน — ไม่สลับไป Edge-TTS)", 0.30)
+                    raise gemini_err
+
+                if isinstance(gemini_err, AppError):
+                    sugg = f" — {gemini_err.suggestion_th}" if gemini_err.suggestion_th else ""
+                    ctx.notify(f"❌ {gemini_err.message_th}{sugg}", 0.30)
+                    raise gemini_err
+
+                from scripts.error_handler import classify_exception
+                app_err = classify_exception(gemini_err, project_name=ctx.project_name)
+                sugg = f" — {app_err.suggestion_th}" if app_err.suggestion_th else ""
+                ctx.notify(f"❌ {app_err.message_th}{sugg}", 0.30)
+                raise app_err
         else:
             voice_audio_path = ctx.out_path("voiceover", ".wav")
             ctx.notify("🗣️ [2/5] กำลังสังเคราะห์เสียง AI พากย์เร็ว TikTok และจับเวลา...", 0.25)

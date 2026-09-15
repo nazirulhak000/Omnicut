@@ -127,13 +127,12 @@ def classify_exception(
             job_id=job_id,
         )
 
-    # 4. AI Provider Errors (Gemini / TTS)
     if "quota" in err_str.lower() or "rate limit" in err_str.lower() or "429" in err_str or "resourceexhausted" in err_str.lower():
         return AppError(
             category=ErrorCategory.AI_PROVIDER,
             code="AI_QUOTA_EXCEEDED",
-            message_th="โควต้าการใช้งาน AI ชั่วคราวเต็ม",
-            suggestion_th="ระบบจะสลับไปใช้โมเดลหรือเสียงพากย์สำรอง หรือกรุณารอสักครู่แล้วลองอีกครั้ง",
+            message_th="โควต้าการใช้งาน AI ชั่วคราวเต็ม หรือคำขอถี่เกินไป (Rate Limit/Quota)",
+            suggestion_th="กรุณารอสักครู่ (ประมาณ 1–2 นาที) หรือเพิ่ม Gemini API Key ใน .env (ระบบหยุดการทำงาน ไม่สลับไป Edge-TTS ตามที่กำหนด)",
             details=combined_details,
             project_name=project_name,
             job_id=job_id,

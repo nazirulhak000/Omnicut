@@ -46,6 +46,26 @@ import {
 const CANVAS_W = 540;
 const CANVAS_H = 960;
 const BACKGROUND_ISOLATION_BG = '#0B1220';
+const BACKGROUND_FRAME_RETRY_DELAYS_MS = Object.freeze([250, 1000, 4000]);
+const BACKGROUND_FRAME_CACHE_LIMIT = 120;
+
+function backgroundFrameRetryDelay(retryCount) {
+  const index = Math.max(0, Math.floor(Number(retryCount) || 0));
+  if (index >= BACKGROUND_FRAME_RETRY_DELAYS_MS.length) return null;
+  return BACKGROUND_FRAME_RETRY_DELAYS_MS[index];
+}
+
+function evictBackgroundIsolationFrameCache(cache, keepKey) {
+  while (cache.size >= BACKGROUND_FRAME_CACHE_LIMIT) {
+    const oldest = cache.keys().next().value;
+    if (oldest == null) return;
+    if (oldest === keepKey) return;
+    const entry = cache.get(oldest);
+    if (entry?.retryTimer != null) clearTimeout(entry.retryTimer);
+    if (entry?.objectUrl) URL.revokeObjectURL(entry.objectUrl);
+    cache.delete(oldest);
+  }
+}
 
 // SpotlightV1 is an opt-in footage treatment. These values mirror
 // scripts/spotlight_effect.py exactly; the preview normalises here because it
@@ -2783,32 +2803,66 @@ function SequencePlayer({
     const cached = cache.get(resolution.frameUrl);
     if (cached) return cached.status === 'ready' ? cached.image : null;
 
-    const entry = { image: new Image(), status: 'loading', objectUrl: null };
+    evictBackgroundIsolationFrameCache(cache, resolution.frameUrl);
+
+    const entry = {
+      image: new Image(),
+      status: 'loading',
+      objectUrl: null,
+      retryCount: 0,
+      retryTimer: null,
+    };
     cache.set(resolution.frameUrl, entry);
     const apiPath = resolution.frameUrl.startsWith('/api/')
       ? resolution.frameUrl.slice(4)
       : resolution.frameUrl;
-    api.get(apiPath, { responseType: 'blob' }).then((response) => {
-      if (!response?.data) throw new Error('empty background isolation frame');
-      entry.objectUrl = URL.createObjectURL(response.data);
-      entry.image.onload = () => {
-        entry.status = 'ready';
-        setBackgroundIsolationTick((value) => value + 1);
-      };
-      entry.image.onerror = () => {
-        entry.status = 'error';
-        setBackgroundIsolationTick((value) => value + 1);
-      };
-      entry.image.src = entry.objectUrl;
-    }).catch(() => {
+
+    const releaseObjectUrl = () => {
+      if (!entry.objectUrl) return;
+      URL.revokeObjectURL(entry.objectUrl);
+      entry.objectUrl = null;
+    };
+    const markError = () => {
+      if (cache.get(resolution.frameUrl) !== entry) return;
+      if (entry.status === 'error') return;
+      releaseObjectUrl();
       entry.status = 'error';
+      const retryDelay = backgroundFrameRetryDelay(entry.retryCount);
+      if (retryDelay != null) {
+        entry.retryCount += 1;
+        entry.retryTimer = setTimeout(() => {
+          if (cache.get(resolution.frameUrl) !== entry) return;
+          entry.retryTimer = null;
+          entry.status = 'loading';
+          setBackgroundIsolationTick((value) => value + 1);
+          requestFrame();
+        }, retryDelay);
+      }
       setBackgroundIsolationTick((value) => value + 1);
-    });
+    };
+    const requestFrame = () => {
+      if (cache.get(resolution.frameUrl) !== entry) return;
+      api.get(apiPath, { responseType: 'blob' }).then((response) => {
+        if (cache.get(resolution.frameUrl) !== entry) return;
+        if (!response?.data) throw new Error('empty background isolation frame');
+        entry.objectUrl = URL.createObjectURL(response.data);
+        entry.image.onload = () => {
+          if (cache.get(resolution.frameUrl) !== entry) return;
+          entry.status = 'ready';
+          entry.retryCount = 0;
+          setBackgroundIsolationTick((value) => value + 1);
+        };
+        entry.image.onerror = markError;
+        entry.image.src = entry.objectUrl;
+      }).catch(markError);
+    };
+    requestFrame();
     return null;
   }, [backgroundIsolation, backgroundIsolationManifests]);
 
   useEffect(() => () => {
     backgroundIsolationImagesRef.current.forEach((entry) => {
+      if (entry?.retryTimer != null) clearTimeout(entry.retryTimer);
       if (entry?.objectUrl) URL.revokeObjectURL(entry.objectUrl);
     });
     backgroundIsolationImagesRef.current.clear();

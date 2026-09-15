@@ -79,23 +79,59 @@ class TaskManager:
         return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     @classmethod
+    def _quarantine_invalid_snapshot(cls, raw: str) -> bool:
+        """Preserve a malformed registry before a later recovery save replaces it."""
+        stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+        quarantine = TASKS_FILE.with_name(
+            f"{TASKS_FILE.stem}.invalid-{stamp}{TASKS_FILE.suffix}"
+        )
+        try:
+            quarantine.write_text(raw, encoding="utf-8")
+            print(f"⚠️ [TaskManager] Quarantined malformed registry at {quarantine.name}")
+            return True
+        except OSError as exc:
+            print(f"⚠️ [TaskManager] Could not quarantine malformed registry: {exc}")
+            return False
+
+    @classmethod
     def initialize(cls) -> None:
         """Loads tasks from disk and recovers unfinished tasks from previous server sessions."""
         with _TASK_LOCK:
             if cls._initialized:
                 return
 
+            can_persist_recovery = True
             if TASKS_FILE.exists():
                 try:
                     raw = TASKS_FILE.read_text(encoding="utf-8")
                     data = json.loads(raw)
+                    invalid_rows = False
                     if isinstance(data, dict):
-                        cls._tasks = data
+                        tasks = {}
+                        for task_id, task in data.items():
+                            if isinstance(task_id, str) and task_id and isinstance(task, dict) and task.get("id") == task_id:
+                                tasks[task_id] = task
+                            else:
+                                invalid_rows = True
+                        cls._tasks = tasks
                     elif isinstance(data, list):
-                        cls._tasks = {t["id"]: t for t in data if "id" in t}
+                        tasks = {}
+                        for task in data:
+                            task_id = task.get("id") if isinstance(task, dict) else None
+                            if isinstance(task_id, str) and task_id and task_id not in tasks:
+                                tasks[task_id] = task
+                            else:
+                                invalid_rows = True
+                        cls._tasks = tasks
+                    else:
+                        invalid_rows = True
+                        cls._tasks = {}
+                    if invalid_rows:
+                        can_persist_recovery = cls._quarantine_invalid_snapshot(raw)
                 except Exception as e:
                     print(f"⚠️ [TaskManager] Failed to load tasks from disk: {e}")
                     cls._tasks = {}
+                    can_persist_recovery = False
 
             # Render jobs are intentionally failed on restart because their
             # subprocess lifecycle is not resumable. Background-isolation
@@ -130,7 +166,7 @@ class TaskManager:
                 changed = True
 
             cls._initialized = True
-            if changed:
+            if changed and can_persist_recovery:
                 cls._save_to_disk_locked()
 
         # A render/reroll task swept to "failed" above (by this same

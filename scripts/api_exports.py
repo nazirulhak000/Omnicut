@@ -7,6 +7,7 @@ import re
 import json
 import filecmp
 import shutil
+import threading
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
@@ -41,6 +42,53 @@ router = APIRouter(tags=["Exports"])
 # kept showing a posted clip as still-to-post forever. Posted/ is scanned
 # alongside it below so a moved clip stays findable, tagged `is_posted`.
 POSTED_DIR = EXPORTS_DIR.parent / "Posted"
+
+# Project manifests are only needed to enrich legacy/unlinked exports with
+# script metadata.  Keep a stat-keyed snapshot so a gallery poll does not
+# decode every project.json repeatedly.  The key includes each manifest's
+# mtime and size, so a newly created, changed, or removed manifest naturally
+# invalidates the snapshot without a time-based stale window.
+_PROJECT_DISK_INFO_LOCK = threading.Lock()
+_PROJECT_DISK_INFO_CACHE: tuple[str, tuple[tuple[str, str, int, int], ...], Dict[str, dict]] | None = None
+
+
+def _load_project_disk_info(projects_dir: Path) -> Dict[str, dict]:
+    """Load project metadata once per unchanged manifest set."""
+
+    global _PROJECT_DISK_INFO_CACHE
+
+    try:
+        project_dirs = [p for p in projects_dir.iterdir() if p.is_dir()]
+    except OSError:
+        return {}
+
+    signature_rows = []
+    for pdir in project_dirs:
+        manifest = pdir / "project.json"
+        try:
+            stat = manifest.stat()
+        except OSError:
+            continue
+        signature_rows.append((str(pdir), pdir.name.lower(), stat.st_mtime_ns, stat.st_size))
+    signature = tuple(sorted(signature_rows))
+    cache_key = str(projects_dir.resolve(strict=False))
+
+    with _PROJECT_DISK_INFO_LOCK:
+        cached = _PROJECT_DISK_INFO_CACHE
+        if cached and cached[0] == cache_key and cached[1] == signature:
+            return dict(cached[2])
+
+    loaded: Dict[str, dict] = {}
+    for raw_path, lowered_name, _mtime_ns, _size in signature:
+        try:
+            with open(Path(raw_path) / "project.json", "r", encoding="utf-8") as pf:
+                loaded[lowered_name] = json.load(pf)
+        except (OSError, ValueError, TypeError):
+            continue
+
+    with _PROJECT_DISK_INFO_LOCK:
+        _PROJECT_DISK_INFO_CACHE = (cache_key, signature, loaded)
+    return dict(loaded)
 
 
 def _stored_export_path(raw_path: Any) -> Optional[Path]:
@@ -233,19 +281,10 @@ def list_exports():
                     video_name_map[name_key] = (_angle_seq, p, a)
                 _angle_seq += 1
 
-    # Check 03_Projects/ folders to get script_data if available
-    project_disk_info: Dict[str, dict] = {}
+    # Check 03_Projects/ folders to get script_data if available. The helper
+    # reuses decoded manifests while their stat signature is unchanged.
     projects_dir = BASE_DIR / "03_Projects"
-    if projects_dir.exists():
-        for pdir in projects_dir.iterdir():
-            if pdir.is_dir():
-                pjson = pdir / "project.json"
-                if pjson.exists():
-                    try:
-                        with open(pjson, "r", encoding="utf-8") as pf:
-                            project_disk_info[pdir.name.lower()] = json.load(pf)
-                    except Exception:
-                        pass
+    project_disk_info = _load_project_disk_info(projects_dir)
 
     # A registry hit is authoritative. Filename/project matching below is
     # retained only as a one-time migration path for exports made before

@@ -148,14 +148,15 @@ def preview_voice(req: VoicePreviewRequest):
                 "voice_name": gemini_voice
             }
         except Exception as g_err:
-            # A quota hit is the user's own daily cap stopping the call, not
-            # a provider failure -- surface it instead of silently falling
-            # back to Edge-TTS (which would hide why Gemini voice was
-            # skipped). Any other failure (network, SDK, model unavailable)
-            # keeps degrading to Edge-TTS exactly as before.
             if is_quota_error(g_err):
                 raise HTTPException(status_code=429, detail=g_err.suggestion_th)
-            print(f"⚠️ [preview_voice] Gemini TTS failed ({g_err}) — fallback to Edge-TTS...")
+            detail_msg = getattr(g_err, "suggestion_th", None)
+            if hasattr(g_err, "message_th"):
+                detail_msg = f"{g_err.message_th} — {g_err.suggestion_th}" if getattr(g_err, "suggestion_th", None) else g_err.message_th
+            detail_msg = detail_msg or str(g_err)
+            status_code = 429 if ("429" in str(g_err) or "rate" in str(g_err).lower() or "quota" in str(g_err).lower()) else 500
+            print(f"❌ [preview_voice] Gemini TTS failed ({g_err}) — halting, NO fallback to Edge-TTS.")
+            raise HTTPException(status_code=status_code, detail=detail_msg)
 
     res = VoiceEngine.generate_crystal_voice(
         text_or_lines=text,

@@ -6,9 +6,82 @@ import {
   clearActiveJob,
   formatJobError,
   getActiveJob,
+  getActiveJobEntry,
   normalizeJobResult,
   saveActiveJob,
 } from '../lib/renderJobModel.js';
+
+/**
+ * Poll a single backend render job without allowing overlapping requests.
+ * Each start advances a generation, so a response belonging to an older job
+ * cannot publish state or stop the timer for the newer job in the same tab.
+ */
+export function createRenderJobPollController({
+  fetchStatus,
+  isActive = () => true,
+  onResponse,
+  onError,
+  intervalMs = 1000,
+  maxErrors = 5,
+  setTimeoutFn = setTimeout,
+  clearTimeoutFn = clearTimeout,
+} = {}) {
+  let generation = 0;
+  let timer = null;
+  let errorCount = 0;
+
+  const stop = () => {
+    generation += 1;
+    if (timer !== null) {
+      clearTimeoutFn(timer);
+      timer = null;
+    }
+  };
+
+  const start = (id, targetProject) => {
+    stop();
+    if (!id || !targetProject || typeof fetchStatus !== 'function') return;
+
+    const currentGeneration = generation;
+    const isCurrent = () => generation === currentGeneration && isActive(targetProject);
+    errorCount = 0;
+
+    const checkOnce = async () => {
+      timer = null;
+      if (!isCurrent()) return;
+
+      let status;
+      try {
+        status = await fetchStatus(id);
+        errorCount = 0;
+      } catch (err) {
+        if (!isCurrent()) return;
+        errorCount += 1;
+        const is404 = err?.response?.status === 404;
+        const is401 = err?.response?.status === 401;
+        if (is404 || is401 || errorCount >= maxErrors) {
+          onError?.(err, id, targetProject);
+          return;
+        }
+        if (isCurrent()) timer = setTimeoutFn(checkOnce, intervalMs);
+        return;
+      }
+
+      if (!isCurrent()) return;
+      onResponse?.(status, id, targetProject);
+      const { isDone, isFailed, isCancelled } = calculateJobProgress(status);
+      if (!isDone && !isFailed && !isCancelled && isCurrent()) {
+        timer = setTimeoutFn(checkOnce, intervalMs);
+      }
+    };
+
+    // Start immediately, then schedule only after the previous request has
+    // settled. This prevents setInterval from creating overlapping requests.
+    checkOnce();
+  };
+
+  return { start, stop };
+}
 
 /**
  * Hook for managing render jobs, status polling, unmount cleanup,
@@ -33,17 +106,72 @@ export function useRenderJob({
   const [displayPercent, setDisplayPercent] = useState(0);
 
   const activeProjectRef = useRef(projectName);
-  const timerRef = useRef(null);
   const isMountedRef = useRef(true);
   const callbacksRef = useRef({ onComplete, onError, fetchStatus });
+  const pollControllerRef = useRef(null);
   callbacksRef.current = { onComplete, onError, fetchStatus };
 
   const clearTimer = useCallback(() => {
-    if (timerRef.current !== null) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
+    pollControllerRef.current?.stop();
   }, []);
+
+  if (!pollControllerRef.current) {
+    pollControllerRef.current = createRenderJobPollController({
+      fetchStatus: (id) => (callbacksRef.current.fetchStatus || getRenderStatus)(id),
+      isActive: (targetProject) => (
+        isMountedRef.current && activeProjectRef.current === targetProject
+      ),
+      onResponse: (st, id, targetProject) => {
+        setJobStatus(st);
+        const { isDone, isFailed, isCancelled } = calculateJobProgress(st);
+
+        if (isDone) {
+          clearTimer();
+          setIsRendering(false);
+          setJobStatus(null);
+          setStartTime(null);
+          setDisplayPercent(100);
+          clearActiveJob(targetProject);
+          const rawResult = st.result || {};
+          const normalized = normalizeJobResult(rawResult);
+          setApplyResult(rawResult);
+          callbacksRef.current.onComplete?.(rawResult, id, targetProject, normalized);
+        } else if (isCancelled) {
+          clearTimer();
+          setIsRendering(false);
+          setJobStatus(null);
+          setStartTime(null);
+          clearActiveJob(targetProject);
+        } else if (isFailed) {
+          clearTimer();
+          setIsRendering(false);
+          setJobStatus(null);
+          setStartTime(null);
+          clearActiveJob(targetProject);
+          const errorMsg = formatJobError(st.error || 'เกิดข้อผิดพลาดในการเรนเดอร์');
+          setApplyError(errorMsg);
+          callbacksRef.current.onError?.(errorMsg, id, targetProject);
+        }
+      },
+      onError: (err, id, targetProject) => {
+        clearTimer();
+        setIsRendering(false);
+        setJobStatus(null);
+        setStartTime(null);
+        clearActiveJob(targetProject);
+        if (err?.response?.status === 404) {
+          const errorMsg = 'ไม่พบงานเรนเดอร์นี้แล้ว (อาจถูกล้างหรือเซิร์ฟเวอร์รีสตาร์ท) กรุณาเรนเดอร์ใหม่';
+          setApplyError(errorMsg);
+          callbacksRef.current.onError?.(errorMsg, id, targetProject);
+        } else if (err?.response?.status === 401) {
+          const errorMsg = 'ไม่ได้รับอนุญาตให้เข้าถึง API (Unauthorized / Invalid API Key)';
+          setApplyError(errorMsg);
+          callbacksRef.current.onError?.(errorMsg, id, targetProject);
+        }
+      },
+      intervalMs: pollIntervalMs,
+    });
+  }
 
   const stopJob = useCallback(() => {
     clearTimer();
@@ -67,91 +195,8 @@ export function useRenderJob({
   const clearError = useCallback(() => setApplyError(null), []);
 
   const pollJob = useCallback((id, targetProject) => {
-    clearTimer();
-    if (!id || !targetProject) return;
-
-    const checkOnce = async () => {
-      // Guard: If component unmounted or project switched, abort immediately
-      if (!isMountedRef.current || activeProjectRef.current !== targetProject) {
-        clearTimer();
-        return;
-      }
-
-      try {
-        const fetcher = callbacksRef.current.fetchStatus || getRenderStatus;
-        if (!fetcher) return;
-
-        const st = await fetcher(id);
-
-        // Re-check project guard after async network request
-        if (!isMountedRef.current || activeProjectRef.current !== targetProject) {
-          clearTimer();
-          return;
-        }
-
-        setJobStatus(st);
-        const { isDone, isFailed, isCancelled } = calculateJobProgress(st);
-
-        if (isDone) {
-          clearTimer();
-          setIsRendering(false);
-          setStartTime(null);
-          setDisplayPercent(100);
-          clearActiveJob(targetProject);
-          const rawResult = st.result || {};
-          const normalized = normalizeJobResult(rawResult);
-          setApplyResult(rawResult);
-          callbacksRef.current.onComplete?.(rawResult, id, targetProject, normalized);
-        } else if (isCancelled) {
-          // Terminal, but not an error -- stop polling and clear the
-          // "rendering" flag the same way isFailed does, without routing it
-          // through onError/applyError (which the UI renders as a failure).
-          clearTimer();
-          setIsRendering(false);
-          setStartTime(null);
-          clearActiveJob(targetProject);
-        } else if (isFailed) {
-          clearTimer();
-          setIsRendering(false);
-          setStartTime(null);
-          clearActiveJob(targetProject);
-          const errorMsg = formatJobError(st.error || 'เกิดข้อผิดพลาดในการเรนเดอร์');
-          setApplyError(errorMsg);
-          callbacksRef.current.onError?.(errorMsg, id, targetProject);
-        }
-      } catch (err) {
-        if (!isMountedRef.current || activeProjectRef.current !== targetProject) {
-          clearTimer();
-          return;
-        }
-        // A 404 means the backend has no record of this job at all (it was
-        // never created, or the server restarted and lost in-memory job
-        // state) -- unlike a network blip or timeout, retrying can never
-        // succeed, so without this the poll loop runs forever and the UI
-        // stays stuck on "checking render status" indefinitely.
-        if (err?.response?.status === 404) {
-          clearTimer();
-          setIsRendering(false);
-          setStartTime(null);
-          clearActiveJob(targetProject);
-          const errorMsg = 'ไม่พบงานเรนเดอร์นี้แล้ว (อาจถูกล้างหรือเซิร์ฟเวอร์รีสตาร์ท) กรุณาเรนเดอร์ใหม่';
-          setApplyError(errorMsg);
-          callbacksRef.current.onError?.(errorMsg, id, targetProject);
-        }
-        // Other network errors or temporary timeouts: continue polling.
-      }
-    };
-
-    // Run an immediate check rather than waiting for the first interval
-    // tick. This matters most when resuming a job entry loaded from
-    // storage (see the project-switch effect below): the stored entry is
-    // never trusted blindly -- its status is confirmed against the server
-    // right away instead of only after pollIntervalMs has elapsed (during
-    // which an unmount/project-switch could occur and the check would
-    // never happen at all).
-    checkOnce();
-    timerRef.current = setInterval(checkOnce, pollIntervalMs);
-  }, [clearTimer, pollIntervalMs]);
+    pollControllerRef.current?.start(id, targetProject);
+  }, []);
 
   const startJob = useCallback((newJobId, initialStatus = null) => {
     if (!newJobId) return;
@@ -225,14 +270,14 @@ export function useRenderJob({
       return undefined;
     }
 
-    // Check if there is an active background render job for this tab. The
-    // job is tracked by its stable job_id, not by project label (see
-    // renderJobModel.js) -- so this resumes correctly even if the label the
-    // job was started under differs from the current `projectName` (e.g. a
-    // project shown under its canonical on-disk name here after having been
-    // started from NewClipPanel's own product-name-based label).
-    const storedJobId = getActiveJob(projectName);
-    if (storedJobId) {
+    // Check if there is an active background render job for this tab and project.
+    const jobEntry = getActiveJobEntry();
+    const storedJobId = jobEntry?.jobId;
+    const isForCurrentProject = Boolean(
+      storedJobId && (!jobEntry.projectKey || !projectName || jobEntry.projectKey === projectName)
+    );
+
+    if (isForCurrentProject) {
       setJobId(storedJobId);
       setIsRendering(true);
       setStartTime(Date.now());
@@ -240,9 +285,13 @@ export function useRenderJob({
       pollJob(storedJobId, projectName);
     } else {
       setJobId(null);
+      setIsRendering(false);
+      setJobStatus(null);
     }
 
-    return clearTimer;
+    return () => {
+      clearTimer();
+    };
   }, [clearTimer, pollJob, projectName]);
 
   // Real-time 1-second elapsed timer

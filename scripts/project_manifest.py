@@ -92,7 +92,12 @@ class ProjectManifest:
     def load(cls, project_name: str) -> Optional[Dict[str, Any]]:
         path = cls.path_for(project_name)
         bak_path = path.with_suffix(".json.bak")
-        if not path.exists() and not bak_path.exists():
+        rolling_backups = [
+            path.with_suffix(".json.bak1"),
+            path.with_suffix(".json.bak2"),
+            path.with_suffix(".json.bak3"),
+        ]
+        if not path.exists() and not bak_path.exists() and not any(backup.exists() for backup in rolling_backups):
             return None
         last_err = None
         for attempt in range(8):
@@ -109,12 +114,7 @@ class ProjectManifest:
                 time.sleep(0.04 * (attempt + 1))
 
         # Fallback to .bak sequence (.bak1, .bak, .bak2, .bak3) if primary file is corrupted or empty
-        candidate_baks = [
-            path.with_suffix(".json.bak1"),
-            path.with_suffix(".json.bak"),
-            path.with_suffix(".json.bak2"),
-            path.with_suffix(".json.bak3"),
-        ]
+        candidate_baks = [rolling_backups[0], bak_path, *rolling_backups[1:]]
         for b_path in candidate_baks:
             if b_path.exists():
                 try:

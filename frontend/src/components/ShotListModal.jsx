@@ -5,9 +5,9 @@ import { toMediaUrl } from '../lib/mediaUrl';
 import { createRecordingSession } from '../api';
 
 const GEMINI_VOICE_OPTIONS = [
-  { id: 'gemini_kore_female_bright', label: 'Kore — หญิงสดใส ป้ายยาเก่ง' },
   { id: 'gemini_puck_male_hype', label: 'Puck — ชายพลังสูง สไตล์ TikTok' },
   { id: 'gemini_charon_male_pro', label: 'Charon — ชายทุ้มลึก น่าเชื่อถือ' },
+  { id: 'gemini_kore_female_bright', label: 'Kore — หญิงสดใส ป้ายยาเก่ง' },
   { id: 'gemini_aoede_female_pro', label: 'Aoede — หญิงพรีเมียม นุ่มนวล' },
   { id: 'gemini_fenrir_male_strong', label: 'Fenrir — ชายสตรอง คมเข้ม' },
 ];
@@ -36,12 +36,14 @@ function buildFilmingUrl(mobileBaseUrl, sessionId) {
 // per script beat with its exact TTS timing (not an estimate) and a fixed-
 // camera-angle filming direction.
 export default function ShotListModal({
-  isOpen, onClose, productId, mobileBaseUrl, result, onRegenerate, regenerating = false,
+  isOpen, onClose, productId, mobileBaseUrl, result, onRegenerate, regenerating = false, error = null,
 }) {
   const [creatingSession, setCreatingSession] = useState(false);
   const [filmingUrl, setFilmingUrl] = useState(null);
   const [sessionError, setSessionError] = useState(null);
 
+  const engineType = result?.voice_params?.voice_engine_type || result?.angle?.voice_engine_type;
+  const isEdgeTts = engineType === 'edge_tts' || (!result?.voice_params?.voice_preset && !result?.angle?.voice_preset);
   const activeVoicePreset = result?.voice_params?.voice_preset || result?.angle?.voice_preset || 'gemini_puck_male_hype';
   const [selectedVoice, setSelectedVoice] = useState(activeVoicePreset);
 
@@ -61,7 +63,7 @@ export default function ShotListModal({
       voice_engine_type: 'gemini_tts',
       voice_preset: selectedVoice,
       voice_rate: '+15%',
-      ad_tone: 'commercial_premium',
+      ad_tone: result?.voice_params?.ad_tone || result?.angle?.ad_tone || 'commercial_hype',
     });
   };
 
@@ -96,6 +98,16 @@ export default function ShotListModal({
       maxWidth="max-w-3xl"
     >
       <div className="space-y-4">
+        {error && (
+          <div className="p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-200 text-xs flex items-start gap-2.5 shadow-lg">
+            <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <strong className="font-bold text-rose-300 block">สังเคราะห์เสียงพากย์ไม่สำเร็จ:</strong>
+              <span className="leading-relaxed">{error}</span>
+            </div>
+          </div>
+        )}
+
         {onRegenerate && (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.08]">
             <div className="flex items-center gap-2">
@@ -149,16 +161,30 @@ export default function ShotListModal({
         )}
 
         {voiceAudioPath && (
-          <div className="p-3 rounded-xl bg-white/[0.05] border border-white/[0.08] space-y-1.5">
+          <div className="p-3 rounded-xl bg-white/[0.05] border border-white/[0.08] space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5" /> เสียงนำถ่าย (GUIDE TRACK) — เปิดฟังคลอตอนถ่ายได้เลย
               </span>
-              <span className="text-[10px] text-indigo-300 font-medium bg-indigo-500/15 px-2 py-0.5 rounded-full border border-indigo-500/20">
-                Gemini: {currentVoiceOption.label.split('—')[0].trim()}
-              </span>
+              {isEdgeTts ? (
+                <span className="text-[10px] text-amber-300 font-bold bg-amber-500/20 px-2.5 py-0.5 rounded-full border border-amber-500/40 flex items-center gap-1">
+                  ⚠️ Edge-TTS (เสียงเดิม)
+                </span>
+              ) : (
+                <span className="text-[10px] text-indigo-300 font-medium bg-indigo-500/15 px-2 py-0.5 rounded-full border border-indigo-500/20">
+                  ✨ Gemini: {currentVoiceOption.label.split('—')[0].trim()}
+                </span>
+              )}
             </div>
             <audio controls className="w-full h-9" src={toMediaUrl(voiceAudioPath)} />
+            {isEdgeTts && (
+              <div className="p-2.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                <span>
+                  ไฟล์เสียงนี้ถูกสร้างด้วย <strong className="text-white">Edge-TTS (เสียงเก่า)</strong> — แนะนำให้แตะปุ่ม <strong>"สร้างใหม่ด้วยเสียงนี้"</strong> ด้านบนเพื่อเปลี่ยนเป็นเสียง Gemini TTS
+                </span>
+              </div>
+            )}
           </div>
         )}
 

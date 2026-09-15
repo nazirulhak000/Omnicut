@@ -33,6 +33,42 @@ _BACKUP_LOCK = threading.Lock()
 class BackupEngine:
     """Engine for creating, listing, and verifying OmniCut system backups."""
 
+    @staticmethod
+    def _backup_sqlite_database(source_path: Path, destination_path: Path) -> None:
+        """Create a consistent SQLite copy, including pages held in WAL.
+
+        A raw ``copy2(store.db)`` is not a valid fallback for a WAL database:
+        committed pages may still live in ``store.db-wal``.  If SQLite's
+        backup API cannot produce a copy, fail the backup instead of emitting
+        an archive that silently loses data.
+        """
+        source_conn: Optional[sqlite3.Connection] = None
+        destination_conn: Optional[sqlite3.Connection] = None
+        try:
+            source_conn = sqlite3.connect(
+                f"file:{source_path.resolve()}?mode=ro", uri=True, timeout=5
+            )
+            destination_conn = sqlite3.connect(str(destination_path), timeout=5)
+            with destination_conn:
+                source_conn.backup(destination_conn)
+                integrity = destination_conn.execute("PRAGMA integrity_check").fetchone()
+            if not integrity or integrity[0] != "ok":
+                raise sqlite3.DatabaseError(
+                    f"SQLite integrity check failed: {integrity[0] if integrity else 'no result'}"
+                )
+        except Exception:
+            if destination_path.exists():
+                try:
+                    destination_path.unlink()
+                except OSError:
+                    pass
+            raise
+        finally:
+            if source_conn is not None:
+                source_conn.close()
+            if destination_conn is not None:
+                destination_conn.close()
+
     @classmethod
     def get_backup_dir(cls, custom_dir: Optional[Path] = None) -> Path:
         """Returns the resolved backup directory, creating it if needed."""
@@ -87,31 +123,18 @@ class BackupEngine:
                                     total_uncompressed_bytes += item.stat().st_size
                                 elif item.name == "store.db":
                                     # Use safe SQLite backup API to avoid locked database issues
+                                    temp_sqlite_copy = target_dir / f".tmp_store_{timestamp_str}.db"
                                     try:
-                                        temp_sqlite_copy = target_dir / f".tmp_store_{timestamp_str}.db"
-                                        src_conn = sqlite3.connect(f"file:{item.resolve()}?mode=ro", uri=True)
-                                        dst_conn = sqlite3.connect(temp_sqlite_copy)
-                                        with dst_conn:
-                                            src_conn.backup(dst_conn)
-                                        src_conn.close()
-                                        dst_conn.close()
+                                        cls._backup_sqlite_database(item, temp_sqlite_copy)
                                         arcname = "_Docs/store.db"
                                         zf.write(temp_sqlite_copy, arcname=arcname)
                                         included_files.append(arcname)
                                         total_uncompressed_bytes += temp_sqlite_copy.stat().st_size
-                                    except Exception:
-                                        # Fallback to direct read if safe copy fails
-                                        arcname = "_Docs/store.db"
-                                        zf.write(item, arcname=arcname)
-                                        included_files.append(arcname)
-                                        total_uncompressed_bytes += item.stat().st_size
                                     finally:
-                                        temp_copy = target_dir / f".tmp_store_{timestamp_str}.db"
-                                        if temp_copy.exists():
-                                            try:
-                                                temp_copy.unlink()
-                                            except OSError:
-                                                pass
+                                        try:
+                                            temp_sqlite_copy.unlink()
+                                        except OSError:
+                                            pass
 
                     # 2. Backup 03_Projects files
                     if include_projects and PROJECTS_DIR.exists():

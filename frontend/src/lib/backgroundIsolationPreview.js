@@ -60,6 +60,15 @@ export function groupBackgroundIsolationClips(clips = []) {
   return groups;
 }
 
+/** Return only completed isolation tasks that belong to the active project. */
+export function completedBackgroundIsolationTasks(tasks = [], projectName = '') {
+  return (Array.isArray(tasks) ? tasks : []).filter((task) => {
+    if (task?.type !== 'background_isolation' || task.status !== 'completed') return false;
+    if (!task.result?.artifact?.id || !task.payload?.source_path) return false;
+    return !task.payload.project_name || task.payload.project_name === projectName;
+  });
+}
+
 function fallbackMode(value) {
   return FALLBACKS.includes(value) ? value : DEFAULT_FALLBACK;
 }
@@ -287,8 +296,17 @@ export function summarizeBackgroundIsolationStatus({
   const failedCount = statuses.filter((status) => status === 'quality_failed').length;
   const processingCount = statuses.filter((status) => status === 'processing').length;
   const totalCount = sourceClips.length;
+  // During a reload, old per-clip configs can still say `ready` while the
+  // project-level job is being resumed or has just failed. Keep the marker
+  // authoritative for the aggregate state, while retaining readyCount for
+  // progress display.
+  const projectArtifactStatus = projectConfig?.enabled === true
+    ? projectConfig?.artifact?.status
+    : null;
+  const projectProcessing = projectArtifactStatus === 'processing';
+  const projectFailed = ['stale', 'error', 'cancelled'].includes(projectArtifactStatus);
 
-  if (preparing || processingCount > 0) {
+  if (preparing || projectProcessing || processingCount > 0) {
     return {
       state: 'processing',
       label: `กำลังเตรียม Cutout (${readyCount}/${totalCount})`,
@@ -296,7 +314,7 @@ export function summarizeBackgroundIsolationStatus({
       totalCount,
     };
   }
-  if (failedCount > 0) {
+  if (projectFailed || failedCount > 0) {
     return {
       state: 'quality_failed',
       label: failedCount === totalCount

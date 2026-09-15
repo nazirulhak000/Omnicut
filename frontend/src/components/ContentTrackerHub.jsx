@@ -865,7 +865,7 @@ const TableRow = memo(function TableRow({
 // ═══════════════════════════════════════════════════════════════════════
 // 🌟 MAIN CONTENT TRACKER HUB COMPONENT (True Deep-Dive Tracking)
 // ═══════════════════════════════════════════════════════════════════════
-export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, onGoToGallery, onGoToEditor, onGoToFlow }) {
+export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, onGoToGallery, onGoToEditor, onGoToFlow, workspaceData }) {
   const mobileBaseUrl = status?.mobile_url || (typeof window !== 'undefined' ? `https://${window.location.hostname}:5173` : '');
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -907,6 +907,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
   const [inspectAngle, setInspectAngle] = useState(null); // Deep-Dive Inspection state
   const [shotListModalAngle, setShotListModalAngle] = useState(null);
   const [shotListResult, setShotListResult] = useState(null);
+  const [shotListError, setShotListError] = useState(null);
   const [isGeneratingShotList, setIsGeneratingShotList] = useState(false);
   const colRefs = useRef({});
   const { toastMessage, showToast, hideToast } = useToast();
@@ -1118,6 +1119,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
   const runShotListGeneration = async (targetProduct, targetAngle, voiceOverrides = {}) => {
     if (!targetProduct?.id || !targetAngle?.angle_id) return;
     setIsGeneratingShotList(true);
+    setShotListError(null);
     try {
       const overrides = {
         voice_engine_type: 'gemini_tts',
@@ -1128,7 +1130,9 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
       };
       const res = await generateShotList(targetProduct.id, targetAngle.angle_id, overrides);
       if (!res.success || !res.task_id) {
-        showToast('ไม่สามารถเริ่มสร้างแผนถ่ายได้', 'error');
+        const errText = 'ไม่สามารถเริ่มสร้างแผนถ่ายได้';
+        setShotListError(errText);
+        showToast(errText, 'error');
         return;
       }
       let result = null;
@@ -1140,20 +1144,27 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
           break;
         }
         if (task.status === 'failed') {
-          showToast('สร้างแผนถ่ายไม่สำเร็จ: ' + (task.error || ''), 'error');
+          const errMsg = task.error || 'สร้างแผนถ่ายไม่สำเร็จ';
+          setShotListError(errMsg);
+          showToast('สร้างแผนถ่ายไม่สำเร็จ: ' + errMsg, 'error');
           return;
         }
       }
       if (!result) {
-        showToast('สร้างแผนถ่ายใช้เวลานานเกินไป กรุณาลองใหม่', 'error');
+        const timeoutMsg = 'สร้างแผนถ่ายใช้เวลานานเกินไป กรุณาลองใหม่';
+        setShotListError(timeoutMsg);
+        showToast(timeoutMsg, 'error');
         return;
       }
       const updatedAngle = { ...targetAngle, voice_preset: overrides.voice_preset };
       setShotListResult({ angle: updatedAngle, ...result });
       setShotListModalAngle({ product: targetProduct, angle: updatedAngle });
+      setShotListError(null);
     } catch (err) {
+      const failMsg = err.friendlyMessage || err.message || 'ไม่สามารถสร้างแผนถ่ายได้';
+      setShotListError(failMsg);
       console.error('Failed to generate shot list:', err);
-      showToast('ไม่สามารถสร้างแผนถ่ายได้: ' + (err.friendlyMessage || err.message), 'error');
+      showToast('ไม่สามารถสร้างแผนถ่ายได้: ' + failMsg, 'error');
     } finally {
       setIsGeneratingShotList(false);
     }
@@ -1187,14 +1198,18 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     }
   };
 
-  const fetchProductsData = useCallback(async () => {
+  const fetchProductsData = useCallback(async ({ force = false } = {}) => {
     const sequence = ++productsRequestSequence.current;
     setLoading(true);
     try {
-      const [res, queueRes] = await Promise.all([
-        getProducts(),
-        getScheduleQueue().catch(() => ({ items: [] })),
-      ]);
+      const trackerData = workspaceData?.loadTrackerData
+        ? await workspaceData.loadTrackerData({ force })
+        : await Promise.all([
+          getProducts(),
+          getScheduleQueue().catch(() => ({ items: [] })),
+        ]).then(([products, scheduleQueue]) => ({ products, scheduleQueue }));
+      const res = trackerData.products;
+      const queueRes = trackerData.scheduleQueue || { items: [] };
       if (sequence !== productsRequestSequence.current) return;
       if (res.products) {
         // /products already hydrates persisted and legacy cover paths. Avoid
@@ -1209,7 +1224,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     } finally {
       if (sequence === productsRequestSequence.current) setLoading(false);
     }
-  }, []);
+  }, [workspaceData]);
 
   useEffect(() => {
     fetchProductsData();
@@ -1257,8 +1272,9 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
         return;
       }
     }
-    await fetchProductsData();
-  }, [coverStudioItem, tiktokModalItem, showToast, fetchProductsData]);
+    workspaceData?.invalidateTrackerData?.();
+    await fetchProductsData({ force: true });
+  }, [coverStudioItem, tiktokModalItem, showToast, fetchProductsData, workspaceData]);
 
   const handleAngleStatusChange = useCallback(async (productId, angleId, nextStatus, videoUrl = null, qcNote = null, clearQcNote = false, clearConflictNote = false, exportId = null, markQcPassed = false) => {
     try {
@@ -1273,11 +1289,13 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
         }
         await markPosted(exactVideo, productId, angleId, exactExportId);
         productsRequestSequence.current += 1;
-        await fetchProductsData();
+        workspaceData?.invalidateTrackerData?.();
+        await fetchProductsData({ force: true });
         showToast('มาร์กว่าโพสต์แล้วสำเร็จ');
         return;
       }
       await updateAngleStatus(productId, angleId, nextStatus, videoUrl, null, qcNote, clearQcNote, clearConflictNote, exportId, markQcPassed);
+      workspaceData?.invalidateTrackerData?.();
       // Invalidate any in-flight fetchProductsData (even one started before this
       // patch) so its response can't resolve afterwards and overwrite this patch.
       productsRequestSequence.current += 1;
@@ -1321,7 +1339,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     } catch (err) {
       showToast('ไม่สามารถอัปเดตสถานะได้: ' + err.message, 'error');
     }
-  }, [products, inspectAngle, fetchProductsData, showToast]);
+  }, [products, inspectAngle, fetchProductsData, showToast, workspaceData]);
 
   // Round BUG-3: dismisses the "auto-unlinked from another angle's clip"
   // banner reconcile_existing_projects() leaves on the loser of a collision.
@@ -1346,6 +1364,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     try {
       const trimmed = tiktokProductId.trim();
       await updateProduct(productId, { tiktok_product_id: trimmed || null });
+      workspaceData?.invalidateTrackerData?.();
       // Invalidate any in-flight fetchProductsData (even one started before this
       // patch) so its response can't resolve afterwards and overwrite this patch.
       productsRequestSequence.current += 1;
@@ -1367,6 +1386,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     try {
       const trimmed = code.trim().toUpperCase();
       await updateProduct(productId, { product_code: trimmed || null });
+      workspaceData?.invalidateTrackerData?.();
       // Invalidate any in-flight fetchProductsData (even one started before this
       // patch) so its response can't resolve afterwards and overwrite this patch.
       productsRequestSequence.current += 1;
@@ -2381,7 +2401,8 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                     ).then(async () => {
                       setTiktokModalItem(null);
                       showToast('มาร์กว่าโพสต์แล้วสำเร็จ');
-                      await fetchProductsData();
+                      workspaceData?.invalidateTrackerData?.();
+                      await fetchProductsData({ force: true });
                     }).catch((err) => {
                       showToast('ไม่สามารถมาร์กว่าโพสต์แล้วได้: ' + (err.response?.data?.detail || err.message), 'error');
                     });
@@ -2807,7 +2828,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
             {/* Refresh Button */}
             <button
               type="button"
-              onClick={() => { fetchProductsData(); onRefresh?.(); }}
+              onClick={() => { workspaceData?.invalidateTrackerData?.(); fetchProductsData({ force: true }); onRefresh?.(); }}
               className="p-2 min-w-[36px] min-h-[36px] rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-400 hover:text-white border border-white/[0.08] transition-colors cursor-pointer flex items-center justify-center active:scale-95 flex-shrink-0"
               title="รีเฟรชข้อมูล"
             >
@@ -3357,12 +3378,13 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
       {/* ── Shot List Modal (Guided Filming / Per-Beat Plan) ── */}
       <ShotListModal
         isOpen={!!shotListModalAngle}
-        onClose={() => { setShotListModalAngle(null); setShotListResult(null); }}
+        onClose={() => { setShotListModalAngle(null); setShotListResult(null); setShotListError(null); }}
         productId={shotListModalAngle?.product?.id}
         mobileBaseUrl={mobileBaseUrl}
         result={shotListResult}
         onRegenerate={handleRegenerateShotList}
         regenerating={isGeneratingShotList}
+        error={shotListError}
       />
     </div>
   );

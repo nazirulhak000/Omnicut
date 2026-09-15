@@ -59,6 +59,16 @@ class ExportRegistry:
 
     _path_index_lock = threading.Lock()
     _path_index: Optional[Dict[str, str]] = None
+    _path_index_signature: Optional[tuple[int, int]] = None
+
+    @classmethod
+    def _registry_signature(cls) -> tuple[int, int]:
+        """Return a cheap change token for external JSON mirror edits."""
+        try:
+            stat = REGISTRY_PATH.stat()
+            return stat.st_mtime_ns, stat.st_size
+        except OSError:
+            return (0, 0)
 
     @classmethod
     def _load(cls) -> List[Dict[str, Any]]:
@@ -77,7 +87,8 @@ class ExportRegistry:
         identity lookup, not a fresh normalization of every historic export.
         """
         with cls._path_index_lock:
-            if cls._path_index is None:
+            signature = cls._registry_signature()
+            if cls._path_index is None or cls._path_index_signature != signature:
                 index: Dict[str, str] = {}
                 for row in cls._load():
                     key = row.get("path_key") or _normalise_path(row.get("path"))
@@ -85,6 +96,7 @@ class ExportRegistry:
                     if key and export_id and key not in index:
                         index[key] = str(export_id)
                 cls._path_index = index
+                cls._path_index_signature = cls._registry_signature()
             return dict(cls._path_index)
 
     @classmethod
@@ -235,6 +247,7 @@ class ExportRegistry:
                         record["updated_at"] = now
                 result.append(dict(record))
             cls._path_index = None
+            cls._path_index_signature = None
             return result
 
     @classmethod
@@ -299,12 +312,17 @@ class ExportRegistry:
                     if row is not record and row not in destination_records
                 ]
                 posted_destination["updated_at"] = now
+                cls._path_index = None
+                cls._path_index_signature = None
                 return dict(posted_destination)
             records[:] = [row for row in records if row not in destination_records]
             record["path"] = path_key
+            record["path_key"] = path_key
             record["status"] = "posted"
             record["posted_at"] = record.get("posted_at") or now
             record["updated_at"] = now
+            cls._path_index = None
+            cls._path_index_signature = None
             return dict(record)
 
     @classmethod
@@ -319,7 +337,10 @@ class ExportRegistry:
             if record is None:
                 return None
             record["path"] = path_key
+            record["path_key"] = path_key
             record["updated_at"] = now
+            cls._path_index = None
+            cls._path_index_signature = None
             return dict(record)
 
     @classmethod
@@ -328,3 +349,5 @@ class ExportRegistry:
             return
         with cls._mutate() as records:
             records[:] = [row for row in records if str(row.get("id")) != str(export_id)]
+            cls._path_index = None
+            cls._path_index_signature = None

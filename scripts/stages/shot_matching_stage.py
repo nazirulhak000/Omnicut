@@ -182,12 +182,21 @@ class ShotMatchingStage:
             ctx.notify("🖼️ [Image Motion] สร้างวิดีโอ 9:16 Motion Slideshow จากรูปภาพสินค้า...", 0.70)
             print(f"\n🖼️ [Image Motion] Generating 9:16 Motion Slideshow from {len(ctx.image_files)} product images...")
             motion_raw_path = ctx.project_dir / "image_motion_footage.mp4"
+
+            def _on_image_motion_progress(current_idx: int, total_segs: int, detail: str = ""):
+                # Progress smoothly rises from 0.70 to 0.75
+                pct = 0.70 + 0.05 * (current_idx / max(1, total_segs))
+                msg = f"🖼️ [Image Motion] สร้างวิดีโอจากภาพสินค้า ({current_idx}/{total_segs})..."
+                ctx.notify(msg, round(pct, 2))
+                print(f"   🎬 [Image Motion] Segment {current_idx}/{total_segs} ready")
+
             ImageMotionEngine.ensure_motion_video_from_images(
                 image_paths=ctx.image_files,
                 cues=cues,
                 total_duration=total_duration,
                 output_video_path=str(motion_raw_path),
-                project_dir=ctx.project_dir
+                project_dir=ctx.project_dir,
+                progress_callback=_on_image_motion_progress,
             )
             raw_video = motion_raw_path
             ctx.raw_video = raw_video

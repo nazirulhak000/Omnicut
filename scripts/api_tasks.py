@@ -5,6 +5,7 @@ API Router for global task and activity management.
 from fastapi import APIRouter, HTTPException
 from scripts.task_manager import TaskManager
 from scripts import render_jobs
+from scripts.api_background_isolation import request_background_isolation_cancel
 
 router = APIRouter(tags=["Tasks"])
 
@@ -43,6 +44,7 @@ def cancel_task(task_id: str):
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     render_jobs.request_cancel(task_id)
+    request_background_isolation_cancel(task_id)
     return {"success": True, "task": task}
 
 

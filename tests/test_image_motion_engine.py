@@ -351,3 +351,36 @@ def test_segment_duration_clamped_when_no_cues_and_zero_total_duration(tmp_path,
     t_idx = seg_cmd.index("-t")
     dur_str = seg_cmd[t_idx + 1]
     assert float(dur_str) >= 2.0
+
+
+def test_progress_callback_invoked_per_segment(tmp_path, monkeypatch):
+    fake_run = _make_fake_run()
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    img1 = _make_image(tmp_path / "p1.png")
+    img2 = _make_image(tmp_path / "p2.png")
+    out_path = tmp_path / "out.mp4"
+
+    progress_events = []
+
+    def on_progress(curr, total, msg):
+        progress_events.append((curr, total, msg))
+
+    cues = [
+        {"start": 0.0, "end": 2.0},
+        {"start": 2.0, "end": 4.5},
+        {"start": 4.5, "end": 7.0},
+    ]
+
+    ImageMotionEngine.generate_motion_video_from_images(
+        image_paths=[str(img1), str(img2)],
+        cues=cues,
+        total_duration=7.0,
+        output_video_path=str(out_path),
+        progress_callback=on_progress,
+    )
+
+    assert len(progress_events) == 3
+    assert progress_events[0] == (1, 3, "ช็อตที่ 1/3")
+    assert progress_events[1] == (2, 3, "ช็อตที่ 2/3")
+    assert progress_events[2] == (3, 3, "ช็อตที่ 3/3")

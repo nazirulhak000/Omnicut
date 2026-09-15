@@ -18,6 +18,31 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from scripts.error_handler import AppError, ErrorCategory
+
+class GeminiTTSError(AppError, RuntimeError):
+    """Specific error for Gemini Flash TTS failures with actionable wait time and reasons."""
+    def __init__(
+        self,
+        message_th: str,
+        suggestion_th: str = "",
+        code: str = "GEMINI_TTS_FAILED",
+        details: Optional[str] = None,
+        retry_delay_seconds: Optional[float] = None,
+    ):
+        super().__init__(
+            category=ErrorCategory.AI_PROVIDER,
+            code=code,
+            message_th=message_th,
+            suggestion_th=suggestion_th,
+            details=details,
+        )
+        self.retry_delay_seconds = retry_delay_seconds
+
+    def __str__(self) -> str:
+        sugg = f" — {self.suggestion_th}" if self.suggestion_th else ""
+        return f"[{self.category.value.upper()}:{self.code}] {self.message_th}{sugg} (Details: {self.details})"
+
 # Load .env if present
 env_file = PROJECT_ROOT / ".env"
 if env_file.exists():
@@ -65,25 +90,8 @@ class GeminiFlashTTSEngine:
     @classmethod
     def get_api_keys(cls) -> list[str]:
         """Returns all configured Gemini API keys from environment and .env in priority order."""
-        keys = []
-        # Reload latest .env
-        env_f = PROJECT_ROOT / ".env"
-        if env_f.exists():
-            for line in env_f.read_text(encoding="utf-8").splitlines():
-                line = line.strip()
-                if line and not line.startswith("#") and "=" in line:
-                    k, v = line.split("=", 1)
-                    k_str, v_str = k.strip(), v.strip()
-                    if "GEMINI_API_KEY" in k_str and v_str and v_str not in keys:
-                        keys.append(v_str)
-
-        # Check current process environment
-        for k in ["GEMINI_API_KEY", "GEMINI_API_KEY_2", "GEMINI_API_KEY_OLD"]:
-            v = os.environ.get(k, "").strip()
-            if v and v not in keys:
-                keys.append(v)
-
-        return keys
+        from scripts.config import get_gemini_api_keys
+        return get_gemini_api_keys()
 
     @classmethod
     def is_available(cls) -> bool:
@@ -206,6 +214,7 @@ class GeminiFlashTTSEngine:
         RATE_LIMIT_DEFAULT_BACKOFF = 5.0
         RATE_LIMIT_MAX_BACKOFF = 30.0
         TRANSIENT_BACKOFF = 2.0
+        rate_limit_diag = None
 
         # Multi-model & Multi-key fallback matrix (Model-First Strategy)
         # We try the best quality model across ALL keys first (Key 1 -> Key 2 -> ...)
@@ -234,7 +243,53 @@ class GeminiFlashTTSEngine:
                             break
                     except urllib.error.HTTPError as he:
                         last_error = he
+                        err_body = ""
+                        try:
+                            if hasattr(he, "read"):
+                                raw_bytes = he.read()
+                                err_body = raw_bytes.decode("utf-8", errors="ignore") if isinstance(raw_bytes, bytes) else str(raw_bytes)
+                        except Exception:
+                            pass
+
                         if he.code == 429:
+                            retry_delay_seconds = None
+                            try:
+                                if hasattr(he, "headers") and he.headers and he.headers.get("Retry-After"):
+                                    retry_delay_seconds = float(he.headers.get("Retry-After"))
+                            except (TypeError, ValueError):
+                                pass
+
+                            if retry_delay_seconds is None and err_body:
+                                try:
+                                    err_json = json.loads(err_body)
+                                    for detail in err_json.get("error", {}).get("details", []):
+                                        if isinstance(detail, dict) and "retryDelay" in detail:
+                                            raw_delay = str(detail["retryDelay"]).rstrip("s")
+                                            retry_delay_seconds = float(raw_delay)
+                                            break
+                                except Exception:
+                                    pass
+                                if retry_delay_seconds is None:
+                                    import re
+                                    m = re.search(r'retryDelay["\']?\s*:\s*["\']?([\d\.]+)s?', err_body)
+                                    if m:
+                                        try:
+                                            retry_delay_seconds = float(m.group(1))
+                                        except ValueError:
+                                            pass
+
+                            is_rpm = any(term in err_body.lower() for term in ["per minute", "rpm", "minute"])
+                            is_rpd = any(term in err_body.lower() for term in ["per day", "rpd", "daily"])
+
+                            rate_limit_diag = {
+                                "key_tag": key_tag,
+                                "model_name": model_name,
+                                "retry_delay_seconds": retry_delay_seconds,
+                                "is_rpm": is_rpm,
+                                "is_rpd": is_rpd,
+                                "err_body": err_body,
+                            }
+
                             # Record alert to TokenTracker
                             try:
                                 TokenTracker.record_alert(
@@ -249,13 +304,7 @@ class GeminiFlashTTSEngine:
                                 pass
 
                             if attempt == 0 and len(api_keys) == 1:
-                                backoff = RATE_LIMIT_DEFAULT_BACKOFF
-                                try:
-                                    retry_after = he.headers.get("Retry-After") if he.headers else None
-                                    if retry_after:
-                                        backoff = min(float(retry_after), RATE_LIMIT_MAX_BACKOFF)
-                                except (TypeError, ValueError):
-                                    pass
+                                backoff = retry_delay_seconds if retry_delay_seconds and retry_delay_seconds <= RATE_LIMIT_MAX_BACKOFF else RATE_LIMIT_DEFAULT_BACKOFF
                                 print(f"⚠️ [Gemini Flash TTS] {key_tag} with '{model_name}' rate-limited (429) — retrying same key/model in {backoff:.0f}s...")
                                 time.sleep(backoff)
                                 continue
@@ -278,7 +327,39 @@ class GeminiFlashTTSEngine:
                 break
 
         if not data:
-            raise RuntimeError(f"All Gemini Flash TTS keys and models failed. Last error: {last_error}")
+            if rate_limit_diag:
+                delay = rate_limit_diag.get("retry_delay_seconds")
+                if delay and delay > 0:
+                    if delay >= 3600:
+                        wait_str = f"{int(delay // 3600)} ชั่วโมง {int((delay % 3600) // 60)} นาที"
+                    elif delay >= 60:
+                        wait_str = f"{int(delay // 60)} นาที {int(delay % 60)} วินาที"
+                    else:
+                        wait_str = f"{int(delay)} วินาที"
+                    wait_instruction = f"สร้างเสียงถี่เกินไป กรุณารอประมาณ {wait_str} แล้วลองใหม่อีกครั้ง"
+                elif rate_limit_diag.get("is_rpm"):
+                    wait_instruction = "คำขอสร้างเสียงถี่เกินไป (RPM Rate Limit) กรุณารอสักครู่ (ประมาณ 1–2 นาที) แล้วลองใหม่อีกครั้ง"
+                elif rate_limit_diag.get("is_rpd"):
+                    wait_instruction = "โควตาสร้างเสียงรายวัน (Daily Quota) เต็มแล้ว กรุณารอรีเซ็ตในวันถัดไป หรือเพิ่ม API Key สำรองใน .env"
+                else:
+                    wait_instruction = "ติดลิมิตการส่งคำขอ กรุณารอประมาณ 1–2 นาที หรือเพิ่ม Gemini API Key สำรองใน .env"
+
+                msg_th = "Gemini TTS ติดขีดจำกัดการใช้งาน (HTTP 429 Rate Limit/Quota)"
+                sugg_th = f"{wait_instruction} (ระบบหยุดการทำงาน ไม่สลับไป Edge-TTS ตามที่กำหนด)"
+                raise GeminiTTSError(
+                    message_th=msg_th,
+                    suggestion_th=sugg_th,
+                    code="GEMINI_TTS_RATE_LIMITED",
+                    details=f"All Gemini Flash TTS keys and models failed. Last error: {last_error}",
+                    retry_delay_seconds=delay,
+                )
+
+            raise GeminiTTSError(
+                message_th="Gemini TTS สร้างเสียงไม่สำเร็จ",
+                suggestion_th="กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต หรือตรวจสอบ Gemini API Key ใน .env (ระบบหยุดการทำงาน ไม่สลับไป Edge-TTS ตามที่กำหนด)",
+                code="GEMINI_TTS_FAILED",
+                details=f"All Gemini Flash TTS keys and models failed. Last error: {last_error}",
+            )
 
         if success_key_tag and len(api_keys) > 1 and success_key_tag != f"Key #1 (..{api_keys[0][-6:]})":
             try:

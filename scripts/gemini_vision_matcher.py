@@ -73,7 +73,8 @@ class GeminiVisionMatcher:
     @classmethod
     def is_available(cls) -> bool:
         """Check if Gemini Vision is ready to use (requires GEMINI_API_KEY)."""
-        return bool(os.environ.get("GEMINI_API_KEY", "").strip())
+        from scripts.config import get_gemini_api_keys
+        return len(get_gemini_api_keys()) > 0
 
     @staticmethod
     def _compute_file_hash(filepath: Path) -> str:
@@ -280,7 +281,9 @@ class GeminiVisionMatcher:
             print(f"   ⚡ Reusing {len(cached_matched)} AI Vision matched shots from local cache!")
             return cached_matched
 
-        api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+        from scripts.config import get_gemini_api_keys
+        api_keys = get_gemini_api_keys()
+        api_key = api_keys[0] if api_keys else ""
         if not api_key:
             print("   ⚠️ No GEMINI_API_KEY found — using standard beat cuts.")
             return []

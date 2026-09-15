@@ -470,6 +470,14 @@ class BackgroundIsolationSequenceWorker:
                 return _result(ok=True, status=STATUS_READY, message="Foreground sequence cache hit.", artifact_id=artifact_id, source_artifact_id=source_artifact_id, output_directory=output_directory, frame_count=manifest["frame_count"], cache_hit=True)
 
             output_namespace.mkdir(parents=True, exist_ok=True)
+            # A process can die after claiming the target and moving frames,
+            # but before publishing the ready manifest. That directory is
+            # never readable as an artifact, and its deterministic checkpoint
+            # is still intact. Remove only this non-ready derived target so a
+            # retry can publish it; a valid ready artifact returned above is
+            # never touched.
+            if output_directory.exists() and existing_manifest is None:
+                _cleanup(output_directory)
             # The checkpoint has a deterministic name so a retry after a
             # network loss, process restart, or worker crash can reuse frames
             # already completed.  It is never exposed by the reader because

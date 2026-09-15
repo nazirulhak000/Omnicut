@@ -277,7 +277,7 @@ class DocumentTable:
 
             try:
                 raw = json_path.read_text(encoding="utf-8")
-                records = json.loads(raw) if raw.strip() else []
+                records = json.loads(raw)
             except (OSError, json.JSONDecodeError):
                 conn.execute("COMMIT")
                 return
@@ -285,10 +285,20 @@ class DocumentTable:
                 conn.execute("COMMIT")
                 return
 
+            # Validate the entire snapshot before replacing committed data.
+            # A blank/truncated mirror is not an intentional JSON [] clear.
+            seen_ids = set()
+            for record in records:
+                record_id = record.get("id") if isinstance(record, dict) else None
+                if (type(record_id) not in (str, int)
+                        or not str(record_id).strip()
+                        or str(record_id) in seen_ids):
+                    conn.execute("COMMIT")
+                    return
+                seen_ids.add(str(record_id))
+
             conn.execute(f"DELETE FROM {self._table}")
             for record in records:
-                if not isinstance(record, dict) or "id" not in record:
-                    continue
                 conn.execute(
                     f"INSERT OR REPLACE INTO {self._table} (id, updated_at, data) VALUES (?, ?, ?)",
                     (_id_of(record), _updated_at_of(record), json.dumps(record, ensure_ascii=False)),

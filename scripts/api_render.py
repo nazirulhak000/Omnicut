@@ -285,9 +285,11 @@ def execute_render_job(job_id: str, req_data: RenderRequest):
 
         render_jobs.fail_job(job_id, app_err)
         fail_msg = f"{app_err.message_th}"
+        if getattr(app_err, "suggestion_th", None):
+            fail_msg = f"{app_err.message_th} — {app_err.suggestion_th}"
         TaskManager.fail_task(
             job_id,
-            app_err.message_th,
+            fail_msg,
             step_label=fail_msg
         )
 

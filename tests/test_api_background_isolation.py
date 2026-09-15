@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import threading
 from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
+from fastapi import BackgroundTasks
 from fastapi.testclient import TestClient
 
 import scripts.api_background_isolation as api
@@ -32,6 +34,18 @@ def _client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> tuple[TestClient
     app = FastAPI()
     app.include_router(api.router)
     return TestClient(app), cache_root
+
+
+def test_background_isolation_cancel_bridge_signals_and_cleans_event_registry():
+    api._BACKGROUND_TASK_CANCEL_EVENTS.clear()
+    event = threading.Event()
+    api._BACKGROUND_TASK_CANCEL_EVENTS["task-1"] = event
+
+    assert api.request_background_isolation_cancel("task-1") is True
+    assert event.is_set()
+    assert api.request_background_isolation_cancel("missing") is False
+
+    api._BACKGROUND_TASK_CANCEL_EVENTS.pop("task-1", None)
 
 
 def _ready_sequence(cache_root: Path, frame_count: int = 2) -> tuple[str, dict]:
@@ -185,6 +199,32 @@ def test_process_rejects_missing_source_and_disabled_config(monkeypatch, tmp_pat
     assert disabled.status_code == 422
 
 
+def test_process_rejects_non_media_and_symlink_escape_sources(monkeypatch, tmp_path):
+    client, _cache_root = _client(monkeypatch, tmp_path)
+    secret = tmp_path.parent / "outside-background-source.mp4"
+    secret.write_bytes(b"fixture")
+    link = tmp_path / "project" / "escape.mp4"
+    link.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        link.symlink_to(secret)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation is unavailable")
+
+    escaped = client.post(
+        "/api/background-isolation/process",
+        json={"source_path": str(link), "config": {"enabled": True}},
+    )
+    assert escaped.status_code == 404
+
+    non_media = tmp_path / "notes.txt"
+    non_media.write_text("not a video", encoding="utf-8")
+    rejected = client.post(
+        "/api/background-isolation/process",
+        json={"source_path": str(non_media), "config": {"enabled": True}},
+    )
+    assert rejected.status_code == 404
+
+
 def test_process_rejects_invalid_rotation(monkeypatch, tmp_path):
     client, _cache_root = _client(monkeypatch, tmp_path)
     source = tmp_path / "source.mp4"
@@ -241,3 +281,25 @@ def test_background_task_scheduler_deduplicates_recovery_launches(monkeypatch):
 
     submitted[0]()
     assert ran == [("task-1", "clip.mov")]
+
+
+def test_process_coalesces_identical_active_requests(monkeypatch, tmp_path):
+    monkeypatch.setattr(api, "PROJECTS_DIR", tmp_path / "project")
+    source = tmp_path / "source.mp4"
+    source.write_bytes(b"fixture")
+    active = []
+    created = []
+
+    def create_task(*args, **kwargs):
+        created.append(kwargs)
+        active.append({"id": kwargs["task_id"], "type": args[0], "status": "queued", "payload": kwargs["payload"]})
+
+    monkeypatch.setattr(api.TaskManager, "get_active_tasks", lambda limit=1000: list(active))
+    monkeypatch.setattr(api.TaskManager, "create_task", create_task)
+    monkeypatch.setattr(api, "_schedule_background_isolation_task", lambda *args: True)
+    req = api.BackgroundIsolationProcessRequest(source_path=str(source), config={"enabled": True})
+
+    first = api.process_background_isolation(req, BackgroundTasks())
+    second = api.process_background_isolation(req, BackgroundTasks())
+    assert first["task_id"] == second["task_id"]
+    assert len(created) == 1

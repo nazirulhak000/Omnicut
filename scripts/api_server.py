@@ -6,6 +6,7 @@ This root module configures the FastAPI application, mounts modular routers, and
 
 import os
 import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 # Ensure project root is in sys.path
@@ -70,10 +71,57 @@ from scripts.api_background_isolation import (
     router as background_isolation_router,
 )
 
+
+def recover_startup_work() -> dict[str, int]:
+    """Recover durable workers once the FastAPI server is actually starting.
+
+    Keeping this behind an explicit helper makes importing ``api_server`` safe
+    for tests, CLI tooling, and app inspection.  Each recovery subsystem is
+    isolated so a corrupt checkpoint cannot prevent the other worker from
+    starting.
+    """
+
+    recovered = {
+        "background_isolation": 0,
+        "batch_render": 0,
+    }
+    try:
+        recovered["background_isolation"] = recover_background_isolation_tasks()
+        if recovered["background_isolation"]:
+            print(
+                "[BackgroundIsolation] resumed "
+                f"{recovered['background_isolation']} checkpointed task(s)"
+            )
+    except Exception as exc:
+        # A stale/corrupt task record must never prevent the API from starting.
+        print(f"[BackgroundIsolation] startup recovery skipped: {exc}")
+
+    try:
+        recovered["batch_render"] = BatchRenderManager.recover_pending_batches()
+        if recovered["batch_render"]:
+            print(
+                "[BatchRender] resumed "
+                f"{recovered['batch_render']} checkpointed batch(es)"
+            )
+    except Exception as exc:
+        print(f"[BatchRender] startup recovery skipped: {exc}")
+
+    return recovered
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Run durable worker recovery at server startup, never at module import."""
+
+    _app.state.startup_recovery = recover_startup_work()
+    yield
+
+
 app = FastAPI(
     title="OmniCut Pro Studio API",
     description="Backend API for OmniCut Pro Studio AI & CapCut Desktop Generator",
-    version="2.0.0"
+    version="2.0.0",
+    lifespan=lifespan,
 )
 
 # Warn loudly at import time if no shared secret is configured -- this is
@@ -184,24 +232,6 @@ app.include_router(hooks_router)
 app.include_router(batch_render_router)
 app.include_router(producer_router)
 app.include_router(background_isolation_router)
-
-# Background-isolation workers persist per-frame checkpoints. Requeue any
-# task that was interrupted while this process was down; render recovery keeps
-# its existing conservative behavior in TaskManager.
-try:
-    recovered_background_isolation = recover_background_isolation_tasks()
-    if recovered_background_isolation:
-        print(f"[BackgroundIsolation] resumed {recovered_background_isolation} checkpointed task(s)")
-except Exception as exc:
-    # A stale/corrupt task record must never prevent the API from starting.
-    print(f"[BackgroundIsolation] startup recovery skipped: {exc}")
-
-try:
-    recovered_batch_renders = BatchRenderManager.recover_pending_batches()
-    if recovered_batch_renders:
-        print(f"[BatchRender] resumed {recovered_batch_renders} checkpointed batch(es)")
-except Exception as exc:
-    print(f"[BatchRender] startup recovery skipped: {exc}")
 
 # ----------------------------------------------------------------------
 # Run Server directly if executed

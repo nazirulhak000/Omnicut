@@ -316,6 +316,9 @@ export const getShotList = (productId, angleId) =>
 export const getShotListStatus = (productId) =>
   api.get(`/products/${productId}/shot-list-status`).then(r => r.data);
 
+export const batchGenerateAudio = (productId, payload = {}) =>
+  api.post(`/products/${productId}/batch-generate-audio`, payload).then(r => r.data);
+
 // Guided-take recording sessions (scripts/api_recording.py): pairs the
 // mobile filming page (MobileFilmingPage.jsx) with a product/angle's shot
 // list, one uploaded segment per beat, strict order + retake-last-only

@@ -151,10 +151,10 @@ def test_all_keys_and_models_failed_raises_runtime_error(monkeypatch, tmp_path, 
     monkeypatch.setattr(GeminiFlashTTSEngine, "get_api_keys", classmethod(lambda cls: ["key-1", "key-2"]))
 
     behaviors = [
-        _http_error(429), _http_error(429),   # key-1, model-1: rate-limited twice
-        _http_error(403),                      # key-1, model-2: auth, no retry
-        _http_error(429), _http_error(429),   # key-2, model-1: rate-limited twice
-        _http_error(403),                      # key-2, model-2: auth, no retry
+        _http_error(429),                      # model-1, key-1: rate-limited, failover to key-2
+        _http_error(429),                      # model-1, key-2: rate-limited, failover to model-2
+        _http_error(403),                      # model-2, key-1: auth error, failover to key-2
+        _http_error(403),                      # model-2, key-2: auth error, all combinations exhausted
     ]
     fake_urlopen = _fake_urlopen_factory(behaviors)
 

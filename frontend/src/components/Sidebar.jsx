@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Rocket, Sparkles, FolderDown, Settings, Layers,
   Smartphone, Maximize, Minimize, X, Copy, Check, Wifi, Scissors,
@@ -32,6 +32,8 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
   const [showMoreDrawer, setShowMoreDrawer] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const closeMobileModalRef = useRef(null);
+  const mobileModalPreviousFocusRef = useRef(null);
 
   const mobileUrl = status?.mobile_url || `https://${window.location.hostname}:5173`;
 
@@ -49,6 +51,24 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  useEffect(() => {
+    if (!showMobileModal) return undefined;
+    mobileModalPreviousFocusRef.current = document.activeElement;
+    closeMobileModalRef.current?.focus();
+    const onKeyDown = (event) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      setShowMobileModal(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      const previous = mobileModalPreviousFocusRef.current;
+      if (previous && typeof previous.focus === 'function') previous.focus();
+      mobileModalPreviousFocusRef.current = null;
+    };
+  }, [showMobileModal]);
 
   const isMoreActive = activeTab === 'producer' || activeTab === 'assets' || activeTab === 'analytics' || activeTab === 'settings' || activeTab === 'dashboard' || activeTab === 'guide';
 
@@ -350,10 +370,17 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
 
       {/* ── Mobile Upload QR Modal ── */}
       {showMobileModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 w-screen h-[100dvh] max-h-[100dvh] overflow-hidden overscroll-none bg-black/80 backdrop-blur-md animate-fadeIn">
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 w-screen h-[100dvh] max-h-[100dvh] overflow-hidden overscroll-none bg-black/80 backdrop-blur-md animate-fadeIn"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="mobile-qr-title"
+        >
           <div className="relative w-full max-w-sm p-5 sm:p-6 glass-panel border border-white/[0.14] rounded-2xl sm:rounded-3xl text-center space-y-4 shadow-2xl max-h-[85dvh] overflow-y-auto no-scrollbar my-auto">
             <button
+              ref={closeMobileModalRef}
               onClick={() => setShowMobileModal(false)}
+              aria-label="ปิด QR modal"
               className="absolute top-3 right-3 p-2 rounded-xl hover:bg-white/[0.1] text-slate-400 hover:text-white transition-colors cursor-pointer flex items-center justify-center border border-white/[0.06]"
             >
               <X className="w-5 h-5" />
@@ -363,7 +390,7 @@ export default function Sidebar({ activeTab, setActiveTab, status }) {
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#25F4EE]/20 to-blue-500/20 border border-[#25F4EE]/30 flex items-center justify-center mx-auto text-[#25F4EE] shadow-md shadow-[#25F4EE]/10">
                 <Smartphone className="w-6 h-6" />
               </div>
-              <h3 className="text-base font-bold text-white">สแกน QR เปิดบนมือถือ</h3>
+              <h3 id="mobile-qr-title" className="text-base font-bold text-white">สแกน QR เปิดบนมือถือ</h3>
               <p className="text-xs text-slate-400">อัปโหลดวิดีโอจากมือถือเข้าเครื่องผ่าน Wi-Fi</p>
             </div>
 

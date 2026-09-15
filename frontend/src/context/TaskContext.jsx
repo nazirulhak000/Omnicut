@@ -260,12 +260,15 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
       task.task_type === 'reroll_script'
     );
 
-    // scripts/api_shot_lists.py's generate_shot_list task -- like reroll,
+    // scripts/api_shot_lists.py's generate_shot_list / batch_generate_audio tasks -- like reroll,
     // this never touches the timeline/editor, so it must not fall through
     // to the generic "newly cut project" -> editor default below.
     const isShotListTask = Boolean(
       task.type === 'generate_shot_list' ||
-      task.task_type === 'generate_shot_list'
+      task.task_type === 'generate_shot_list' ||
+      task.type === 'batch_generate_audio' ||
+      task.task_type === 'batch_generate_audio' ||
+      (typeof task.title === 'string' && task.title.includes('เตรียมเสียงพากย์'))
     );
 
     const isImageMetadataTask = Boolean(
@@ -280,17 +283,20 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
       task.task_type === 'finalize_recording_session'
     );
 
-    const projName = !isScrapeTask && !isRerollTask && !isShotListTask && !isFinalizeRecordingTask ? (task.result?.project_name || task.payload?.project_name) : null;
-    const productId = task.result?.saved_product?.id || task.result?.product?.id || task.payload?.product_id || ((isScrapeTask || isRerollTask || isImageMetadataTask || isShotListTask || isFinalizeRecordingTask) ? task.target_id : null);
-    const angleId = (isRerollTask || isShotListTask) ? (task.result?.angle?.angle_id || task.payload?.angle_id) : (isFinalizeRecordingTask ? task.payload?.angle_id : null);
+    const isProductFlowTask = isScrapeTask || isRerollTask || isImageMetadataTask || isShotListTask || isFinalizeRecordingTask;
+    const projName = !isProductFlowTask ? (task.result?.project_name || task.payload?.project_name) : null;
+    const productId = task.result?.saved_product?.id || task.result?.product?.id || task.result?.product_id || task.payload?.product_id || (isProductFlowTask ? task.target_id : null);
+    const angleId = (isRerollTask || (task.type === 'generate_shot_list' || task.task_type === 'generate_shot_list'))
+      ? (task.result?.angle?.angle_id || task.payload?.angle_id)
+      : (isFinalizeRecordingTask ? task.payload?.angle_id : null);
 
     // Determine targetTab if not explicitly provided:
-    // 1. Scrape & Plan / script reroll tasks -> Product -> Clip ('flow')
+    // 1. Scrape & Plan / script reroll / shot list / batch audio tasks -> Product -> Clip ('flow')
     // 2. Render tasks with video -> Gallery preview ('gallery')
     // 3. Newly cut projects (edit_project / 1-click edit) -> Editor timeline ('editor')
     let targetTab = destinationTab;
     if (!targetTab) {
-      if (isScrapeTask || isRerollTask || isImageMetadataTask) {
+      if (isProductFlowTask) {
         targetTab = 'flow';
       } else if (hasVideo && isRenderTask) {
         targetTab = 'gallery';
@@ -301,7 +307,7 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
       }
     }
 
-    const targetId = (isScrapeTask || isRerollTask || isImageMetadataTask) ? (productId || task.target_id) : (projName || task.target_id || productId);
+    const targetId = isProductFlowTask ? (productId || task.target_id) : (projName || task.target_id || productId);
 
     if (targetTab === 'flow' && (productId || targetId) && onSelectProductForFlow) {
       onSelectProductForFlow(productId || targetId);

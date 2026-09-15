@@ -195,7 +195,13 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
             <BarChart3 className="w-4 h-4 text-cyan-400" />
             <h3 className="text-sm font-black text-white">ยอดวิวต่อคลิป (เรียงตามวันที่โพสต์)</h3>
           </div>
-          <AreaLineChart data={trendData} height={130} />
+          <AreaLineChart
+            data={trendData}
+            height={130}
+            valueKey="value"
+            dateKey="label"
+            unit="views"
+          />
         </div>
       )}
 

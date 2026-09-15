@@ -128,24 +128,18 @@ def test_voice_preview_quota_error_surfaces_as_http_429(client, tmp_path, monkey
     assert "โควต้า" in resp.json()["detail"]
 
 
-def test_voice_preview_genuine_provider_failure_still_degrades_to_edge_tts(client, tmp_path, monkeypatch):
-    """A real Gemini TTS failure must keep falling back to Edge-TTS exactly
-    as before, producing a normal 200 response."""
+def test_voice_preview_provider_failure_halts_without_fallback(client, tmp_path, monkeypatch):
+    """When Gemini TTS fails in preview, it must NOT degrade to Edge-TTS.
+    It returns an error response indicating the failure."""
     from scripts import api_voice
     monkeypatch.setattr(api_voice, "BASE_DIR", tmp_path)
 
-    def fake_edge_tts(*args, **kwargs):
-        out_path = Path(kwargs["output_audio_path"])
-        out_path.write_bytes(b"RIFF....WAVEfmt ")
-        return True
-
     with patch("scripts.api_voice.GeminiFlashTTSEngine.generate_speech", side_effect=RuntimeError("network down")), \
-         patch("scripts.api_voice.VoiceEngine.generate_crystal_voice", side_effect=fake_edge_tts), \
-         patch("scripts.api_voice.measure_wav_duration", return_value=1.5):
+         patch("scripts.api_voice.VoiceEngine.generate_crystal_voice") as mock_edge:
         resp = client.post("/api/voice/preview", json={"voice_gender": "gemini_puck_male_hype"})
 
-    assert resp.status_code == 200
-    assert resp.json()["voice_name"] == "gemini_puck_male_hype"
+    assert resp.status_code in (429, 500)
+    mock_edge.assert_not_called()
 
 
 # ----------------------------------------------------------------------
@@ -297,28 +291,26 @@ def _voice_stage_ctx(tmp_path):
     return ctx
 
 
-def test_voice_stage_quota_error_notifies_loudly_and_still_degrades(tmp_path, monkeypatch):
+def test_voice_stage_quota_error_notifies_loudly_and_halts_without_fallback(tmp_path, monkeypatch):
     from scripts.stages.voice_stage import VoiceStage
     from scripts.voice_engine import VoiceEngine
+    from scripts.error_handler import AppError
 
     ctx = _voice_stage_ctx(tmp_path)
     notifications = []
     ctx.progress_callback = lambda msg, progress: notifications.append(msg)
-
-    def fake_edge_voiceover(*args, **kwargs):
-        return {"cues": [{"start": 0.0, "end": 1.0, "text": "หนึ่ง"}], "duration": 1.0}
 
     with patch("scripts.gemini_tts_engine.GeminiFlashTTSEngine.resolve_voice", return_value="Puck"), \
          patch("scripts.gemini_tts_engine.GeminiFlashTTSEngine.generate_speech", side_effect=_quota_app_error()), \
-         patch.object(VoiceEngine, "generate_voiceover", side_effect=fake_edge_voiceover):
-        VoiceStage.run(ctx)
+         patch.object(VoiceEngine, "generate_voiceover") as mock_edge:
+        with pytest.raises(AppError):
+            VoiceStage.run(ctx)
 
-    assert ctx.voice_engine_used == "edge_tts", "must still degrade to Edge-TTS, not raise"
-    assert ctx.cues, "a usable cue list must still be produced"
+    mock_edge.assert_not_called()
     assert any("โควต้า" in m for m in notifications), f"expected a loud quota notification, got: {notifications}"
 
 
-def test_voice_stage_genuine_provider_failure_still_degrades_quietly(tmp_path, monkeypatch):
+def test_voice_stage_genuine_provider_failure_halts_without_fallback(tmp_path, monkeypatch):
     from scripts.stages.voice_stage import VoiceStage
     from scripts.voice_engine import VoiceEngine
 
@@ -326,15 +318,11 @@ def test_voice_stage_genuine_provider_failure_still_degrades_quietly(tmp_path, m
     notifications = []
     ctx.progress_callback = lambda msg, progress: notifications.append(msg)
 
-    def fake_edge_voiceover(*args, **kwargs):
-        return {"cues": [{"start": 0.0, "end": 1.0, "text": "หนึ่ง"}], "duration": 1.0}
-
     with patch("scripts.gemini_tts_engine.GeminiFlashTTSEngine.resolve_voice", return_value="Puck"), \
          patch("scripts.gemini_tts_engine.GeminiFlashTTSEngine.generate_speech", side_effect=RuntimeError("network down")), \
-         patch.object(VoiceEngine, "generate_voiceover", side_effect=fake_edge_voiceover), \
+         patch.object(VoiceEngine, "generate_voiceover") as mock_edge, \
          patch("scripts.stages.voice_stage.time.sleep", return_value=None):
-        VoiceStage.run(ctx)
+        with pytest.raises(Exception):
+            VoiceStage.run(ctx)
 
-    assert ctx.voice_engine_used == "edge_tts"
-    assert ctx.cues
-    assert not any("โควต้า" in m for m in notifications)
+    mock_edge.assert_not_called()

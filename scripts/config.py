@@ -1,8 +1,73 @@
 import os
+import re
 from pathlib import Path
+from typing import List
 
 # Base Paths
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load .env into os.environ if present
+_env_file = BASE_DIR / ".env"
+if _env_file.exists():
+    try:
+        for _line in _env_file.read_text(encoding="utf-8").splitlines():
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _v = _line.split("=", 1)
+                _k, _v = _k.strip(), _v.strip()
+                if _k and _k not in os.environ:
+                    os.environ[_k] = _v
+    except Exception:
+        pass
+
+
+def get_gemini_api_keys() -> List[str]:
+    """
+    Returns all configured Gemini API keys from environment and .env in priority order:
+    1. GEMINI_API_KEY / GEMINI_API_KEY_1
+    2. GEMINI_API_KEY_2
+    3. GEMINI_API_KEY_3
+    ...
+    N. GEMINI_API_KEY_N
+    followed by any other GEMINI_API_KEY* variables.
+    """
+    raw_candidates = {}
+
+    # 1. Read from .env file directly (always up-to-date)
+    if _env_file.exists():
+        try:
+            for line in _env_file.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    k, v = k.strip(), v.strip()
+                    if "GEMINI_API_KEY" in k and v:
+                        raw_candidates[k] = v
+        except Exception:
+            pass
+
+    # 2. Read from os.environ (overrides .env)
+    for k, v in os.environ.items():
+        if "GEMINI_API_KEY" in k and v.strip():
+            raw_candidates[k] = v.strip()
+
+    def _key_sort_order(name: str) -> int:
+        clean = name.upper()
+        if clean in ("GEMINI_API_KEY", "GEMINI_API_KEY_1"):
+            return 1
+        m = re.match(r"GEMINI_API_KEY_(\d+)$", clean)
+        if m:
+            return int(m.group(1))
+        return 9999
+
+    sorted_names = sorted(raw_candidates.keys(), key=_key_sort_order)
+    keys = []
+    for name in sorted_names:
+        val = raw_candidates[name]
+        if val and val not in keys:
+            keys.append(val)
+    return keys
+
 INBOX_DIR = BASE_DIR / "00_Inbox"
 RAW_DIR = BASE_DIR / "01_Raw"
 ASSETS_DIR = BASE_DIR / "02_Assets"

@@ -484,13 +484,16 @@ export function ActivityDrawer() {
                           );
                         }
 
-                        // For generate_shot_list (scripts/api_shot_lists.py):
+                        // For generate_shot_list and batch_generate_audio (scripts/api_shot_lists.py):
                         // opens the product -> clip script page, same as
                         // reroll_script above -- this task never touches the
                         // timeline/editor at all.
                         const isShotListTask = Boolean(
                           task.type === 'generate_shot_list' ||
-                          task.task_type === 'generate_shot_list'
+                          task.task_type === 'generate_shot_list' ||
+                          task.type === 'batch_generate_audio' ||
+                          task.task_type === 'batch_generate_audio' ||
+                          (typeof task.title === 'string' && task.title.includes('เตรียมเสียงพากย์'))
                         );
 
                         if (isShotListTask) {
@@ -499,7 +502,7 @@ export function ActivityDrawer() {
                               <button
                                 onClick={() => jumpToTaskResult(task, 'flow')}
                                 className="px-3 py-1 rounded-lg bg-gradient-to-r from-[#25F4EE] to-blue-500 hover:brightness-110 text-slate-950 text-xs font-bold flex items-center gap-1 shadow-md shadow-[#25F4EE]/20 cursor-pointer active:scale-95 transition-all"
-                                title="เปิดหน้าสคริปต์เพื่อดูแผนถ่าย"
+                                title="เปิดดูสคริปต์และแผนถ่ายของสินค้านี้"
                               >
                                 <span>เปิดหน้าสคริปต์</span>
                                 <ArrowRight className="w-3.5 h-3.5" />

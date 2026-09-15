@@ -762,16 +762,11 @@ class ProductScraper:
         if not paths:
             raise ValueError("ยังไม่มีรูปอ้างอิงให้อ่าน")
 
-        api_key = os.environ.get("GEMINI_API_KEY", "").strip()
-        if not api_key:
-            env_file = BASE_DIR / ".env"
-            if env_file.exists():
-                for line in env_file.read_text(encoding="utf-8").splitlines():
-                    if line.startswith("GEMINI_API_KEY="):
-                        api_key = line.split("=", 1)[1].strip()
-                        break
-        if not api_key:
+        from scripts.config import get_gemini_api_keys
+        api_keys = get_gemini_api_keys()
+        if not api_keys:
             raise RuntimeError("ยังไม่ได้ตั้งค่า GEMINI_API_KEY สำหรับอ่านข้อมูลจากรูป")
+        api_key = api_keys[0]
 
         from scripts.quota import check_budget
         check_budget(task="content_matrix")
@@ -1065,14 +1060,9 @@ class ProductScraper:
 
 ตอบกลับเฉพาะ JSON array เท่านั้น ห้ามใส่คำเกริ่นนำหรือ markdown formatting อื่น
 """
-        api_key = os.environ.get("GEMINI_API_KEY", "").strip()
-        if not api_key:
-            env_file = BASE_DIR / ".env"
-            if env_file.exists():
-                for line in env_file.read_text(encoding="utf-8").splitlines():
-                    if line.startswith("GEMINI_API_KEY="):
-                        api_key = line.split("=", 1)[1].strip()
-                        break
+        from scripts.config import get_gemini_api_keys
+        api_keys = get_gemini_api_keys()
+        api_key = api_keys[0] if api_keys else ""
         if api_key:
             # Pre-flight budget check. This calls Gemini directly rather than
             # through ai_bridge, so without its own gate the daily cap cannot

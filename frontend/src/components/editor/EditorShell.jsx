@@ -31,6 +31,7 @@ import {
 import { removeItemById, updateItemById } from '../../lib/collectionOperations.js';
 import { getOverlayRecolorMetadata } from '../../lib/overlayRecolor.js';
 import {
+  completedBackgroundIsolationTasks,
   groupBackgroundIsolationClips,
   summarizeBackgroundIsolationStatus,
 } from '../../lib/backgroundIsolationPreview.js';
@@ -172,6 +173,7 @@ export default function EditorShell({
   onGoToProductFlow,
   onVideoUploaded,
   onProductContextChange,
+  workspaceData,
 }) {
   const { state, set, setSilent, beginDrag, endDrag, undo, redo, reset, canUndo, canRedo } = useEditorHistory(EMPTY);
   const { clipList, cuesList, style, overlays, stickers = [], effects = [], spotlight = null, backgroundIsolation = null, trackMix = { mute: {}, solo: {} } } = state;
@@ -196,6 +198,9 @@ export default function EditorShell({
   // track while the file played another.
   const [assets, setAssets] = useState({ sfx: [], music: [], fonts: [], stickers: [], luts: [], effects: [], default_bgm: null });
   const { tasks = [], pollTasks } = useTaskManager();
+  const readProducts = useCallback((options = {}) => workspaceData?.loadProducts
+    ? workspaceData.loadProducts(options)
+    : getProducts(), [workspaceData]);
 
   const [durations, setDurations] = useState({});
   const [audioDuration, setAudioDuration] = useState(0);
@@ -231,18 +236,20 @@ export default function EditorShell({
     if (productContext?.id && productContext?.angles?.[angleIndex]?.angle_id) {
       try {
         const vPath = rawResult?.mp4 || rawResult?.final_video_path || rawResult?.video_path || '';
-        updateAngleStatus(productContext.id, productContext.angles[angleIndex].angle_id, 'rendered', vPath, targetProject).catch(() => {});
+        updateAngleStatus(productContext.id, productContext.angles[angleIndex].angle_id, 'rendered', vPath, targetProject)
+          .then(() => workspaceData?.invalidateTrackerData?.()).catch(() => {});
       } catch (e) {}
     }
-  }, [productContext, angleIndex]);
+  }, [productContext, angleIndex, workspaceData]);
 
   const handleRenderError = useCallback((_errorMsg, _id, _targetProject) => {
     if (productContext?.id && productContext?.angles?.[angleIndex]?.angle_id) {
       try {
-        updateAngleStatus(productContext.id, productContext.angles[angleIndex].angle_id, 'scripted').catch(() => {});
+        updateAngleStatus(productContext.id, productContext.angles[angleIndex].angle_id, 'scripted')
+          .then(() => workspaceData?.invalidateTrackerData?.()).catch(() => {});
       } catch (e) {}
     }
-  }, [productContext, angleIndex]);
+  }, [productContext, angleIndex, workspaceData]);
 
   const {
     jobId,
@@ -672,7 +679,8 @@ export default function EditorShell({
 
       // Refresh product context so any deleted project links are cleared immediately
       if (productContext?.id) {
-        getProducts().then((freshRes) => {
+        workspaceData?.invalidateTrackerData?.();
+        readProducts({ force: true }).then((freshRes) => {
           const list = Array.isArray(freshRes) ? freshRes : (freshRes?.products || []);
           const updated = list.find((p) => p.id === productContext.id);
           if (updated && onProductContextChange) {
@@ -707,13 +715,14 @@ export default function EditorShell({
   const handleClipCreated = useCallback((newProjectName) => {
     const curAngle = productContext?.angles?.[angleIndex];
     if (productContext?.id && curAngle?.angle_id) {
-      updateAngleStatus(productContext.id, curAngle.angle_id, 'in_production', null, newProjectName).catch(() => {});
+      updateAngleStatus(productContext.id, curAngle.angle_id, 'in_production', null, newProjectName)
+        .then(() => workspaceData?.invalidateTrackerData?.()).catch(() => {});
     }
     getProjects()
       .then((data) => setProjectList(data?.projects || []))
       .catch(() => {})
       .finally(() => loadProject(newProjectName));
-  }, [productContext?.id, productContext?.angles, angleIndex]);
+  }, [productContext?.id, productContext?.angles, angleIndex, workspaceData]);
 
   // Load project list + assets on mount
   useEffect(() => {
@@ -1218,11 +1227,7 @@ export default function EditorShell({
   // already finished. Rebind a completed task's artifact to the matching
   // timeline clips so the user does not need to run cutout again manually.
   useEffect(() => {
-    const completed = tasks.filter((task) => {
-      if (task?.type !== 'background_isolation' || task.status !== 'completed') return false;
-      if (!task.result?.artifact?.id || !task.payload?.source_path) return false;
-      return !task.payload.project_name || task.payload.project_name === projectName;
-    });
+    const completed = completedBackgroundIsolationTasks(tasks, projectName);
     if (!completed.length || !clipList?.length) return;
 
     const updates = completed.map((task) => ({
@@ -1366,14 +1371,14 @@ export default function EditorShell({
   // rather than the product-flow tab), which angle this project belongs to
   // and whether it already has a cover.
   const findMatchingAngle = useCallback(async (targetProjectName) => {
-    const fresh = await getProducts();
+    const fresh = await readProducts({ force: true });
     const freshList = Array.isArray(fresh) ? fresh : (fresh?.products || []);
     for (const p of freshList) {
       const a = (p.angles || []).find((ang) => ang.project_name === targetProjectName);
       if (a) return { matchProduct: p, matchAngle: a };
     }
     return { matchProduct: null, matchAngle: null };
-  }, []);
+  }, [readProducts]);
 
   // Lets the user check/create a cover from the header's "ปก" button once
   // the angle has a rendered export -- Cover Studio can only pull a frame
@@ -1487,7 +1492,8 @@ export default function EditorShell({
     // Mark angle as in_production only when user actually triggers the render
     if (productContext?.id && productContext?.angles?.[angleIndex]?.angle_id) {
       try {
-        updateAngleStatus(productContext.id, productContext.angles[angleIndex].angle_id, 'in_production').catch(() => {});
+        updateAngleStatus(productContext.id, productContext.angles[angleIndex].angle_id, 'in_production')
+          .then(() => workspaceData?.invalidateTrackerData?.()).catch(() => {});
       } catch (e) {}
     }
     try {
@@ -1557,6 +1563,7 @@ export default function EditorShell({
           cover_3x4_path: res.cover_3x4_path || null,
           cover_9x16_path: res.cover_9x16_path || null,
         });
+        workspaceData?.invalidateTrackerData?.();
       } catch (e) {
         setApplyError('บันทึกภาพปกไม่สำเร็จ: ' + (e.response?.data?.detail || e.message));
         return;
@@ -1564,7 +1571,7 @@ export default function EditorShell({
       setCoverStatus(true);
     }
     setCoverGateItem(null);
-  }, [coverGateItem]);
+  }, [coverGateItem, workspaceData]);
 
   // What the preview plays instead of a baked mix: the voice stem plus the
   // same BGM and per-cue SFX files the renderer will mix, resolved to media
@@ -1739,7 +1746,7 @@ export default function EditorShell({
         onToggleWatermark={(val) => patchStyle({ showWatermark: val })}
       />
 
-      {loadError && (
+      {loadError && projectName && (
         <div className="flex flex-shrink-0 items-center gap-2 border-b border-rose-500/20 bg-rose-500/10 px-3 py-1.5 text-xs text-rose-300">
           <AlertCircle className="h-3.5 w-3.5" />{loadError}
         </div>

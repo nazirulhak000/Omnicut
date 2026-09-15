@@ -5,6 +5,7 @@ import {
   LEGACY_FRAME_PATTERN,
   SEQUENCE_FRAME_PATTERN,
   buildBackgroundIsolationFrameUrl,
+  completedBackgroundIsolationTasks,
   groupBackgroundIsolationClips,
   mapSourceTimeToFrameIndex,
   resolveBackgroundIsolationConfig,
@@ -25,6 +26,17 @@ test('splits Hook overlays behind the isolated Subject while keeping captions fo
 
   assert.deepEqual(result.behindSubject.map((item) => item.id), ['hook', 'legacy-hook']);
   assert.deepEqual(result.foreground.map((item) => item.id), ['caption']);
+});
+
+test('completed isolation task projection ignores another project and malformed tasks', () => {
+  const tasks = [
+    { type: 'background_isolation', status: 'completed', payload: { project_name: 'active', source_path: 'a.mp4' }, result: { artifact: { id: 'a' } } },
+    { type: 'background_isolation', status: 'completed', payload: { project_name: 'other', source_path: 'a.mp4' }, result: { artifact: { id: 'b' } } },
+    { type: 'background_isolation', status: 'processing', payload: { project_name: 'active', source_path: 'a.mp4' }, result: { artifact: { id: 'c' } } },
+    { type: 'background_isolation', status: 'completed', payload: { project_name: 'active' }, result: { artifact: { id: 'd' } } },
+  ];
+
+  assert.deepEqual(completedBackgroundIsolationTasks(tasks, 'active'), [tasks[0]]);
 });
 
 test('explicit project disable overrides a ready clip artifact', () => {
@@ -80,6 +92,36 @@ test('status summary reports processing before ready and ready only after every 
     clips: clips.map((clip) => ({ ...clip, background_isolation: { ...clip.background_isolation, artifact: { ...clip.background_isolation.artifact, status: 'ready' } } })),
     projectConfig: { enabled: true },
   }).state, 'ready');
+});
+
+test('project processing marker prevents stale ready clips from reporting ready after reload', () => {
+  const clips = [
+    { source_path: 'D:/clips/a.mp4', background_isolation: { enabled: true, artifact: { id: ARTIFACT_ID, status: 'ready' } } },
+    { source_path: 'D:/clips/b.mp4', background_isolation: { enabled: true, artifact: { id: ARTIFACT_ID, status: 'ready' } } },
+  ];
+
+  const result = summarizeBackgroundIsolationStatus({
+    clips,
+    projectConfig: { enabled: true, artifact: { id: null, status: 'processing' } },
+  });
+
+  assert.equal(result.state, 'processing');
+  assert.equal(result.readyCount, 2);
+  assert.equal(result.totalCount, 2);
+});
+
+test('project failure marker prevents stale ready clips from masking a failed prepare', () => {
+  const result = summarizeBackgroundIsolationStatus({
+    clips: [{
+      source_path: 'D:/clips/a.mp4',
+      background_isolation: { enabled: true, artifact: { id: ARTIFACT_ID, status: 'ready' } },
+    }],
+    projectConfig: { enabled: true, artifact: { id: null, status: 'error' } },
+  });
+
+  assert.equal(result.state, 'quality_failed');
+  assert.equal(result.readyCount, 1);
+  assert.equal(result.totalCount, 1);
 });
 
 test('groups multiple trim windows from one source into one isolation job', () => {

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createProjectAutosaveController } from '../hooks/useProjectAutosave.js';
+import { createProjectAutosaveController, lifecycleSaveHeaders } from '../hooks/useProjectAutosave.js';
 import { createLatestSaveQueue } from './projectSaveQueue.js';
 
 
@@ -43,6 +43,15 @@ const fireNextTimer = (timers) => {
   timers.delete(callback);
   callback();
 };
+
+
+test('lifecycle save headers include the configured API key without emitting an empty header', () => {
+  assert.deepEqual(lifecycleSaveHeaders('secret'), {
+    'Content-Type': 'application/json',
+    'X-API-Key': 'secret',
+  });
+  assert.deepEqual(lifecycleSaveHeaders(''), { 'Content-Type': 'application/json' });
+});
 
 
 test('reverting to the baseline clears an unflushed edit instead of saving stale state', async () => {

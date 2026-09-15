@@ -30,7 +30,7 @@ export function useProjectLoader({ fetchProject, beforeLoad, mapProject, onStart
       return mapped;
     } catch (error) {
       if (sequence === requestSequence.current) {
-        setLoadError(error?.message || `โหลดโปรเจกต์ ${name} ไม่สำเร็จ`);
+        setLoadError(error?.friendlyMessage || error?.message || `โหลดโปรเจกต์ ${name} ไม่สำเร็จ`);
       }
       return null;
     } finally {

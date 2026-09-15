@@ -4,14 +4,15 @@ import {
   AlertCircle, ArrowRight, Upload, Trash2, RefreshCw, Plus, Film, Video,
   ChevronDown, ChevronUp, ChevronRight, Package, Rocket, FolderOpen, X,
   Search, LayoutGrid, Filter, Play, Lock, Edit3, Replace, Columns, List,
-  ShoppingBag, ShieldCheck, Database, Zap, Layers, Eye, EyeOff, CheckCircle2, Tag
+  ShoppingBag, ShieldCheck, Database, Zap, Layers, Eye, EyeOff, CheckCircle2, Tag,
+  Volume2, Mic
 } from 'lucide-react';
 import {
   scrapeAndPlanProduct, scrapeAndPlanProductAsync, getProducts, updateProduct,
   previewProductSource, previewProductImageMetadataAsync, refreshProductSource, updateAngleStatus, updateAngleVideos, setDefaultVideosForProduct, deleteProduct,
   uploadFile, resolveTiktokProductId, rerollAngleScript,
   generateShotList, getShotList, getShotListStatus, getTaskStatus,
-  generateProductBatch
+  generateProductBatch, batchGenerateAudio
 } from '../api';
 import { Modal, Toast, Button, Badge, Input, Textarea, ConfirmModal, PageHeader } from './ui';
 import MediaPickerModal from './MediaPickerModal';
@@ -26,6 +27,14 @@ import { useToast } from '../hooks';
 import { useTaskManager } from '../context/TaskContext';
 import { guessBrandModel } from '../lib/overlayModel';
 import { resolveHistoryTargetId, resolveSelectedProduct } from '../lib/productSelection';
+
+const GEMINI_VOICE_OPTIONS = [
+  { id: 'gemini_puck_male_hype', label: 'Puck — ชายพลังสูง TikTok (ค่าเริ่มต้น)' },
+  { id: 'gemini_charon_male_pro', label: 'Charon — ชายทุ้มลึก น่าเชื่อถือ' },
+  { id: 'gemini_kore_female_bright', label: 'Kore — หญิงสดใส ป้ายยาเก่ง' },
+  { id: 'gemini_aoede_female_pro', label: 'Aoede — หญิงพรีเมียม นุ่มนวล' },
+  { id: 'gemini_fenrir_male_strong', label: 'Fenrir — ชายสตรอง คมเข้ม' },
+];
 
 // One Gemini vision call reads all of these together (product photo, spec
 // sheet, review screenshots) -- capped so a single analyze request stays a
@@ -285,6 +294,7 @@ function AngleSidebarItem({
   const selectedVideos = angle.selected_videos || (angle.selected_video ? [angle.selected_video] : []);
   const hasShotList = shotListInfo?.has_shot_list;
   const isStaleShotList = shotListInfo?.is_stale;
+  const isEdgeTtsShotList = shotListInfo?.is_edge_tts;
 
   return (
     <div
@@ -335,14 +345,22 @@ function AngleSidebarItem({
                   onOpenShotList ? onOpenShotList(index) : (onGenerateShotList && onGenerateShotList(index));
                 }}
                 className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border transition-all cursor-pointer ${
-                  isStaleShotList
-                    ? 'bg-orange-500/15 hover:bg-orange-500/25 text-orange-300 border-orange-400/40 ring-1 ring-orange-400/20'
-                    : 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border-emerald-400/40 ring-1 ring-emerald-400/20 shadow-xs'
+                  isEdgeTtsShotList
+                    ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-400/40 ring-1 ring-amber-400/30 shadow-xs'
+                    : isStaleShotList
+                      ? 'bg-orange-500/15 hover:bg-orange-500/25 text-orange-300 border-orange-400/40 ring-1 ring-orange-400/20'
+                      : 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border-emerald-400/40 ring-1 ring-emerald-400/20 shadow-xs'
                 }`}
-                title={isStaleShotList ? 'บทเปลี่ยนหลังจากสร้างแผนถ่าย — คลิกเพื่อตรวจหรืออัปเดต' : 'มีแผนถ่ายพร้อมแล้ว — คลิกเพื่อเปิดดูแผนถ่าย'}
+                title={isEdgeTtsShotList
+                  ? '⚠️ เสียงนี้สร้างด้วย Edge-TTS เดิม — คลิกเพื่อเปิดดูและอัปเกรดเป็น Gemini TTS'
+                  : isStaleShotList
+                    ? 'บทเปลี่ยนหลังจากสร้างแผนถ่าย — คลิกเพื่อตรวจหรืออัปเดต'
+                    : 'มีแผนถ่ายพร้อมแล้ว (Gemini TTS) — คลิกเพื่อเปิดดูแผนถ่าย'}
               >
                 <Clapperboard className="w-2.5 h-2.5 flex-shrink-0" />
-                <span>{isStaleShotList ? 'แผนถ่ายเก่า' : 'แผนถ่ายพร้อม'}</span>
+                <span>
+                  {isEdgeTtsShotList ? 'เสียง Edge-TTS' : isStaleShotList ? 'แผนถ่ายเก่า' : 'แผนถ่ายพร้อม'}
+                </span>
               </button>
             ) : (
               !isLocked && (
@@ -469,7 +487,7 @@ function AngleActiveWorkbench({
   videos = [], onToggleVideoForAngle, onUploadVideo, uploadingImg = false,
   onOpenMediaPicker, onSaveScript, onOpenFindReplace, onRerollScript, onGenerateShotList,
   isGeneratingShotList = false, onOpenHookVariants,
-  productData, onOpenEditHookHeader
+  productData, onOpenEditHookHeader, shotListInfo,
 }) {
   const effectiveBrand = angle.hook_brand ?? productData?.hook_brand ?? guessBrandModel(angle.product_name || productData?.name || productData?.title || '').brand;
   const effectiveModel = angle.hook_model ?? productData?.hook_model ?? guessBrandModel(angle.product_name || productData?.name || productData?.title || '').model;
@@ -634,13 +652,25 @@ function AngleActiveWorkbench({
                     type="button"
                     onClick={(e) => { e.stopPropagation(); onGenerateShotList && onGenerateShotList(index); }}
                     disabled={isGeneratingShotList}
-                    className="px-2 sm:px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-amber-300 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all disabled:opacity-50 disabled:cursor-wait"
-                    title="สร้างแผนถ่าย (Shot List) จากจังหวะเสียงพากย์จริง"
+                    className={`px-2 sm:px-2.5 py-1 rounded-lg border text-xs font-bold flex items-center gap-1 cursor-pointer transition-all disabled:opacity-50 disabled:cursor-wait ${
+                      shotListInfo?.is_edge_tts
+                        ? 'bg-amber-500/20 hover:bg-amber-500/30 border-amber-500/40 text-amber-300 ring-1 ring-amber-400/20 shadow-xs'
+                        : shotListInfo?.has_shot_list
+                          ? 'bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-400/40 text-emerald-300'
+                          : 'bg-white/[0.05] hover:bg-white/[0.1] border-white/[0.08] text-amber-300'
+                    }`}
+                    title={shotListInfo?.is_edge_tts
+                      ? '⚠️ แผนถ่ายนี้สร้างด้วย Edge-TTS เดิม — คลิกเพื่อเปิดดูและอัปเกรดเป็น Gemini TTS'
+                      : shotListInfo?.has_shot_list
+                        ? 'เปิดดูแผนถ่าย (Gemini TTS)'
+                        : 'สร้างแผนถ่าย (Shot List) จากจังหวะเสียงพากย์จริง'}
                   >
                     {isGeneratingShotList
                       ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       : <Clapperboard className="w-3.5 h-3.5" />}
-                    <span className="hidden xs:inline sm:inline">แผนถ่าย</span>
+                    <span className="hidden xs:inline sm:inline">
+                      {shotListInfo?.is_edge_tts ? '⚠️ แผนถ่าย (Edge-TTS)' : 'แผนถ่าย'}
+                    </span>
                   </button>
                 </>
               )}
@@ -1669,7 +1699,7 @@ function ScriptAccordionItem({
 // ═══════════════════════════════════════════════════════════════════════
 // 🌟 MAIN: ProductToClip Component (Redesigned Guided Workflow)
 // ═══════════════════════════════════════════════════════════════════════
-export default function ProductToClip({ status, videos = [], onRefresh, onApplyToStudio, onGoToGallery, selectedProductId, pendingFlowTaskVersion, consumePendingAngleId, consumePendingImageMetadataPreview }) {
+export default function ProductToClip({ status, videos = [], onRefresh, onApplyToStudio, onGoToGallery, selectedProductId, pendingFlowTaskVersion, consumePendingAngleId, consumePendingImageMetadataPreview, workspaceData }) {
   // Mirrors ExportGallery.jsx's mobileBaseUrl computation -- the LAN IP of
   // the Vite dev server a phone scanning a QR code needs to reach.
   const mobileBaseUrl = status?.mobile_url || (typeof window !== 'undefined' ? `https://${window.location.hostname}:5173` : '');
@@ -1695,7 +1725,10 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const [openAngleIdx, setOpenAngleIdx] = useState(0); // Accordion: which angle is expanded
   const [previewExportAngle, setPreviewExportAngle] = useState(null); // Dialog: preview exported MP4 video
   const { toastMessage, showToast, hideToast } = useToast();
-  const { refreshTrigger, toggleActivityDrawer } = useTaskManager();
+  const { refreshTrigger, toggleActivityDrawer, activeTasks } = useTaskManager();
+  const readProducts = (options = {}) => workspaceData?.loadProducts
+    ? workspaceData.loadProducts(options)
+    : getProducts();
 
   // History / All Products & Scalable Catalog
   const [historyList, setHistoryList] = useState([]);
@@ -1768,6 +1801,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const [shotListAngleIdx, setShotListAngleIdx] = useState(null); // angle this modal is open for
   const [generatingShotListIdx, setGeneratingShotListIdx] = useState(null); // angle currently generating
   const [shotListResult, setShotListResult] = useState(null);
+  const [shotListError, setShotListError] = useState(null);
   const [shotListStatusMap, setShotListStatusMap] = useState({}); // {angle_id: {has_shot_list, is_stale}}
 
   // AI Hook Variation & A/B Modal State
@@ -1827,6 +1861,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
       const patchVal = finalId || null;
       await updateProduct(productData.id, { tiktok_product_id: patchVal });
+      workspaceData?.invalidateTrackerData?.();
 
       setProductData(prev => prev ? { ...prev, tiktok_product_id: patchVal } : prev);
       setHistoryList(prev => prev.map(p => p.id === productData.id ? { ...p, tiktok_product_id: patchVal } : p));
@@ -1863,7 +1898,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     const requestId = ++historyRequestRef.current;
     setLoadingHistory(true);
     try {
-      const res = await getProducts();
+      const res = await readProducts();
       // React StrictMode's dev-only double-invoke of mount effects fires
       // this effect (and its loadHistory call) twice in a row for the same
       // mount; both calls' selectProduct() would otherwise race to consume
@@ -1988,7 +2023,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     try {
       await updateAngleStatus(productData.id, angleId, nextStatus);
       setAngles(prev => prev.map(a => a.angle_id === angleId ? { ...a, status: nextStatus } : a));
-      const res = await getProducts();
+      workspaceData?.invalidateTrackerData?.();
+      const res = await readProducts({ force: true });
       if (res.products) setHistoryList(res.products);
       showToast(`อัปเดตสถานะสคริปต์เรียบร้อยแล้ว`);
     } catch (err) {
@@ -2020,6 +2056,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
     try {
       const res = await updateProduct(productData.id, { angles: nextAngles });
+      workspaceData?.invalidateTrackerData?.();
       if (res.product) {
         setProductData(prev => ({ ...prev, ...res.product, angles: res.product.angles }));
         setHistoryList(prev => prev.map(p => p.id === res.product.id ? res.product : p));
@@ -2037,6 +2074,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
     try {
       const res = await updateProduct(productData.id, { angles: updatedAngles });
+      workspaceData?.invalidateTrackerData?.();
       if (res.product) {
         setProductData(prev => ({ ...prev, ...res.product, angles: res.product.angles }));
         setHistoryList(prev => prev.map(p => p.id === res.product.id ? res.product : p));
@@ -2087,6 +2125,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
           angles: updatedAngles,
           apply_to_angles: true,
         });
+        workspaceData?.invalidateTrackerData?.();
         if (res.product) {
           setProductData(prev => ({ ...prev, ...res.product, angles: res.product.angles || updatedAngles }));
           setHistoryList(prev => prev.map(p => p.id === res.product.id ? res.product : p));
@@ -2122,6 +2161,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
       try {
         const res = await updateProduct(productData.id, { angles: updatedAngles });
+        workspaceData?.invalidateTrackerData?.();
         if (res.product) {
           setProductData(prev => ({ ...prev, ...res.product, angles: res.product.angles || updatedAngles }));
           setHistoryList(prev => prev.map(p => p.id === res.product.id ? res.product : p));
@@ -2199,7 +2239,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const handleBatchCompleted = async () => {
     if (productData?.id) {
       try {
-        const res = await getProducts();
+        workspaceData?.invalidateTrackerData?.();
+        const res = await readProducts({ force: true });
         const updated = res.products || [];
         setHistoryList(updated);
         const current = updated.find(p => p.id === productData.id);
@@ -2223,6 +2264,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   // scratch every time.
   const runShotListGeneration = async (angleIdx, targetAngle, voiceOverrides = {}) => {
     setGeneratingShotListIdx(angleIdx);
+    setShotListError(null);
     try {
       const overrides = {
         voice_engine_type: 'gemini_tts',
@@ -2233,7 +2275,9 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       };
       const res = await generateShotList(productData.id, targetAngle.angle_id, overrides);
       if (!res.success || !res.task_id) {
-        showToast('ไม่สามารถเริ่มสร้างแผนถ่ายได้', 'error');
+        const errText = 'ไม่สามารถเริ่มสร้างแผนถ่ายได้';
+        setShotListError(errText);
+        showToast(errText, 'error');
         return;
       }
       // Self-poll rather than waiting on TaskContext's global refreshTrigger
@@ -2248,22 +2292,29 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
           break;
         }
         if (task.status === 'failed') {
-          showToast('สร้างแผนถ่ายไม่สำเร็จ: ' + (task.error || ''), 'error');
+          const errMsg = task.error || 'สร้างแผนถ่ายไม่สำเร็จ';
+          setShotListError(errMsg);
+          showToast('สร้างแผนถ่ายไม่สำเร็จ: ' + errMsg, 'error');
           return;
         }
       }
       if (!result) {
-        showToast('สร้างแผนถ่ายใช้เวลานานเกินไป กรุณาลองใหม่', 'error');
+        const timeoutMsg = 'สร้างแผนถ่ายใช้เวลานานเกินไป กรุณาลองใหม่';
+        setShotListError(timeoutMsg);
+        showToast(timeoutMsg, 'error');
         return;
       }
       const updatedAngle = { ...targetAngle, voice_preset: overrides.voice_preset };
       setShotListResult({ angle: updatedAngle, ...result });
       setShotListAngleIdx(angleIdx);
+      setShotListError(null);
       // Refresh sidebar shot-list badges after generation
       if (productData?.id) getShotListStatus(productData.id).then(res => setShotListStatusMap(res.status || {})).catch(() => {});
     } catch (err) {
+      const failMsg = err.friendlyMessage || err.message || 'ไม่สามารถสร้างแผนถ่ายได้';
+      setShotListError(failMsg);
       console.error('Failed to generate shot list:', err);
-      showToast('ไม่สามารถสร้างแผนถ่ายได้: ' + (err.friendlyMessage || err.message), 'error');
+      showToast('ไม่สามารถสร้างแผนถ่ายได้: ' + failMsg, 'error');
     } finally {
       setGeneratingShotListIdx(null);
     }
@@ -2307,7 +2358,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     try {
       await deleteProduct(deleteTargetProduct.id);
       showToast('ลบสินค้าและสคริปต์ทั้งหมดเรียบร้อยแล้ว');
-      const res = await getProducts();
+      workspaceData?.invalidateTrackerData?.();
+      const res = await readProducts({ force: true });
       const updated = res.products || [];
       setHistoryList(updated);
       if (updated.length > 0) {
@@ -2507,6 +2559,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       if (uploaded.length) {
         const nextImages = [...existingImages, ...uploaded];
         const updateRes = await updateProduct(productData.id, { images: nextImages });
+        workspaceData?.invalidateTrackerData?.();
         const savedProduct = updateRes.product || { ...productData, images: nextImages };
         setProductData(prev => ({ ...prev, ...savedProduct, images: savedProduct.images || nextImages }));
         setHistoryList(prev => prev.map(p => p.id === productData.id ? { ...p, ...savedProduct, images: savedProduct.images || nextImages } : p));
@@ -2529,6 +2582,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     try {
       const nextImages = existingImages.filter((_, index) => index !== imageIndex);
       const updateRes = await updateProduct(productData.id, { images: nextImages });
+      workspaceData?.invalidateTrackerData?.();
       const savedProduct = updateRes.product || { ...productData, images: nextImages };
       setProductData(prev => ({ ...prev, ...savedProduct, images: savedProduct.images || nextImages }));
       setHistoryList(prev => prev.map(p => p.id === productData.id ? { ...p, ...savedProduct, images: savedProduct.images || nextImages } : p));
@@ -2596,6 +2650,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       } else {
         response = await refreshProductSource(productData.id, { url, fields, overrides });
       }
+      workspaceData?.invalidateTrackerData?.();
       if (response.product) {
         const refreshed = response.product;
         setProductData(prev => ({ ...prev, ...refreshed }));
@@ -2616,6 +2671,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     setSavingProductMetadata(true);
     try {
       const response = await updateProduct(productData.id, changes);
+      workspaceData?.invalidateTrackerData?.();
       const saved = response.product || { ...productData, ...changes };
       setProductData(prev => ({ ...prev, ...saved }));
       setHistoryList(prev => prev.map(item => item.id === saved.id ? { ...item, ...saved } : item));
@@ -2891,6 +2947,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
     try {
       const res = await updateProduct(productData.id, { angles: nextAngles });
+      workspaceData?.invalidateTrackerData?.();
       if (res?.product) {
         setProductData(prev => ({ ...prev, ...res.product, angles: res.product.angles }));
       }
@@ -2949,6 +3006,73 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       showToast('ไม่สามารถเริ่มเจนสคริปต์ล็อตใหม่ได้: ' + (err.response?.data?.detail || err.message), 'error');
     } finally {
       setIsGeneratingBatch(false);
+    }
+  };
+
+  const [selectedVoicePreset, setSelectedVoicePreset] = useState('gemini_puck_male_hype');
+  const [isStartingBatchAudio, setIsStartingBatchAudio] = useState(false);
+
+  // Active batch audio background task for this product
+  const batchAudioTask = useMemo(() => {
+    return (activeTasks || []).find(t =>
+      t.task_type === 'batch_generate_audio' &&
+      t.metadata?.product_id === productData?.id &&
+      t.status === 'running'
+    );
+  }, [activeTasks, productData?.id]);
+
+  // Target angles in current scope (either selected batch or all batches)
+  const targetBatchAngles = useMemo(() => {
+    return angles.filter(ang => {
+      if (selectedBatch !== 'all' && (ang.batch || 1) !== selectedBatch) return false;
+      return true;
+    });
+  }, [angles, selectedBatch]);
+
+  // Exclude completed clips (rendered or posted) from audio pre-generation requirements
+  const isAngleCompleted = (ang) => {
+    return ang.status === 'rendered' || ang.status === 'posted' || Boolean(ang.posted_at);
+  };
+
+  const activeBatchAngles = useMemo(() => {
+    return targetBatchAngles.filter(ang => !isAngleCompleted(ang));
+  }, [targetBatchAngles]);
+
+  const missingAudioCount = useMemo(() => {
+    return activeBatchAngles.filter(ang => {
+      const status = shotListStatusMap[ang.angle_id];
+      return !status?.has_shot_list || Boolean(status?.is_edge_tts);
+    }).length;
+  }, [activeBatchAngles, shotListStatusMap]);
+
+  const readyAudioCount = activeBatchAngles.length - missingAudioCount;
+
+  // Refresh shot list status when batch audio task finishes
+  const prevBatchAudioTaskStatusRef = useRef(null);
+  useEffect(() => {
+    if (prevBatchAudioTaskStatusRef.current === 'running' && !batchAudioTask && productData?.id) {
+      getShotListStatus(productData.id).then(res => setShotListStatusMap(res.status || {})).catch(() => {});
+    }
+    prevBatchAudioTaskStatusRef.current = batchAudioTask ? 'running' : null;
+  }, [batchAudioTask, productData?.id]);
+
+  const handleBatchGenerateAudio = async () => {
+    if (!productData?.id) return;
+    setIsStartingBatchAudio(true);
+    try {
+      const payload = {
+        voice_preset: selectedVoicePreset,
+        batch_index: selectedBatch !== 'all' ? selectedBatch : null,
+      };
+      const res = await batchGenerateAudio(productData.id, payload);
+      if (res.task_id) {
+        showToast(`เริ่มเตรียมเสียงพากย์อัตโนมัติ ${res.angle_count ?? activeBatchAngles.length} มุมในเบื้องหลังแล้ว (ข้ามคลิปที่เสร็จ/โพสต์แล้ว)`, 'info');
+      }
+    } catch (err) {
+      console.error('Batch audio generation failed:', err);
+      showToast('ไม่สามารถเริ่มเตรียมเสียงพากย์ได้: ' + (err.response?.data?.detail || err.message), 'error');
+    } finally {
+      setIsStartingBatchAudio(false);
     }
   };
 
@@ -3613,6 +3737,112 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
               </div>
             </div>
 
+            {/* ── Batch Audio Preparation Bar (Batch Gemini TTS Pre-generation) ── */}
+            {angles.length > 0 && (
+              <div className="p-2.5 sm:p-3 rounded-xl bg-gradient-to-r from-[#0f172a]/95 via-[#1e1b4b]/60 to-[#0f172a]/95 border border-indigo-500/25 shadow-lg backdrop-blur-md flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-200">
+                    <Mic className="w-4 h-4 text-indigo-400" />
+                    <span>เสียงพากย์อัตโนมัติ:</span>
+                  </div>
+
+                  {/* Voice Preset Dropdown */}
+                  <div className="relative">
+                    <select
+                      value={selectedVoicePreset}
+                      onChange={(e) => setSelectedVoicePreset(e.target.value)}
+                      disabled={!!batchAudioTask || isStartingBatchAudio}
+                      className="bg-slate-900/90 hover:bg-slate-900 border border-indigo-400/30 hover:border-indigo-400/60 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-400 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="เลือกเสียง Gemini TTS สำหรับเตรียมเสียงทุกมุม"
+                    >
+                      {GEMINI_VOICE_OPTIONS.map((opt) => (
+                        <option key={opt.id} value={opt.id} className="bg-slate-900 text-slate-200">
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Status indicator pill */}
+                  <div className="flex items-center gap-1.5 text-[11px]">
+                    <span className={`px-2 py-0.5 rounded-full font-semibold border ${
+                      activeBatchAngles.length === 0
+                        ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                        : missingAudioCount === 0
+                          ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                          : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                    }`}>
+                      {activeBatchAngles.length === 0
+                        ? 'ตัดเสร็จ/โพสต์ครบทุกมุมแล้ว'
+                        : missingAudioCount === 0
+                          ? `เสียงพร้อมครบ ${readyAudioCount}/${activeBatchAngles.length} มุม`
+                          : `เสียงพร้อมแล้ว ${readyAudioCount}/${activeBatchAngles.length} มุม (ขาด ${missingAudioCount})`
+                      }
+                    </span>
+                  </div>
+                </div>
+
+                {/* Action / Progress Area */}
+                <div className="flex items-center gap-2">
+                  {batchAudioTask ? (
+                    <div className="flex items-center gap-2.5 bg-indigo-950/60 px-3 py-1.5 rounded-lg border border-indigo-500/30">
+                      <Loader2 className="w-4 h-4 text-indigo-400 animate-spin flex-shrink-0" />
+                      <div className="flex flex-col">
+                        <span className="text-xs text-indigo-200 font-medium leading-tight max-w-[240px] sm:max-w-xs truncate" title={batchAudioTask.step}>
+                          {batchAudioTask.step || 'กำลังเตรียมเสียงพากย์...'}
+                        </span>
+                        {typeof batchAudioTask.progress === 'number' && (
+                          <div className="w-full bg-slate-800 rounded-full h-1 mt-1 overflow-hidden">
+                            <div
+                              className="bg-gradient-to-r from-indigo-500 to-cyan-400 h-1 transition-all duration-300"
+                              style={{ width: `${Math.max(5, batchAudioTask.progress)}%` }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleBatchGenerateAudio}
+                      disabled={isStartingBatchAudio || activeBatchAngles.length === 0}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 ${
+                        activeBatchAngles.length === 0
+                          ? 'bg-white/[0.04] text-slate-500 border border-white/[0.06]'
+                          : missingAudioCount > 0
+                            ? 'bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white border border-indigo-400/40 hover:shadow-indigo-500/20'
+                            : 'bg-white/[0.06] hover:bg-white/[0.1] text-slate-300 border border-white/[0.1]'
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      title={activeBatchAngles.length === 0
+                        ? 'ทุกมุมในล็อตนี้ตัดเสร็จหรือโพสต์แล้ว ไม่จำเป็นต้องสร้างเสียงใหม่'
+                        : missingAudioCount > 0
+                          ? `สร้างเสียงพากย์อัตโนมัติสำหรับ ${missingAudioCount} มุมที่ยังไม่มี (ข้ามคลิปที่เสร็จ/โพสต์แล้ว & พักรอ Rate Limit 429 ให้อัตโนมัติ)`
+                          : 'ทุกมุมที่รอดำเนินการมีเสียงพากย์แล้ว แตะหากต้องการสร้างเสียงใหม่'}
+                    >
+                      {isStartingBatchAudio ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                          <span>กำลังเริ่มเตรียมเสียง...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Volume2 className="w-3.5 h-3.5 text-cyan-300" />
+                          <span>
+                            {activeBatchAngles.length === 0
+                              ? 'ตัดเสร็จครบแล้ว'
+                              : missingAudioCount > 0
+                                ? `เตรียมเสียงพากย์ (${missingAudioCount} มุม)`
+                                : `เตรียมเสียงใหม่ (${activeBatchAngles.length} มุม)`
+                            }
+                          </span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Master-Detail Split View (Default Studio Mode) */}
             {viewMode === 'split' ? (
               <div className="space-y-3 lg:space-y-0 lg:grid lg:grid-cols-12 lg:gap-4 items-start">
@@ -3719,6 +3949,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         setHookHeaderAngleIdx(idx);
                         setHookHeaderModalOpen(true);
                       }}
+                      shotListInfo={shotListStatusMap[angles[activeAngleIdx]?.angle_id]}
                     />
                   ) : displayedAngles[0] ? (
                     <AngleActiveWorkbench
@@ -3749,6 +3980,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         setHookHeaderAngleIdx(idx);
                         setHookHeaderModalOpen(true);
                       }}
+                      shotListInfo={shotListStatusMap[angles[displayedAngles[0].originalIndex]?.angle_id]}
                     />
                   ) : null}
                 </div>
@@ -3981,12 +4213,13 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       {/* ── Shot List Modal (per-beat filming plan from real TTS timing) ── */}
       <ShotListModal
         isOpen={shotListAngleIdx !== null}
-        onClose={() => { setShotListAngleIdx(null); setShotListResult(null); }}
+        onClose={() => { setShotListAngleIdx(null); setShotListResult(null); setShotListError(null); }}
         productId={productData?.id}
         mobileBaseUrl={mobileBaseUrl}
         result={shotListResult}
         onRegenerate={handleRegenerateShotList}
         regenerating={shotListAngleIdx !== null && generatingShotListIdx === shotListAngleIdx}
+        error={shotListError}
       />
 
       {/* ── Product Catalog Modal (Searchable Grid for 100+ items) ── */}
@@ -4394,12 +4627,14 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         onClose={() => {
           setShotListAngleIdx(null);
           setShotListResult(null);
+          setShotListError(null);
         }}
         productId={productData?.id}
         mobileBaseUrl={mobileBaseUrl}
         result={shotListResult}
         onRegenerate={handleRegenerateShotList}
         regenerating={generatingShotListIdx !== null}
+        error={shotListError}
       />
 
       {/* ── AI Hook Variation & A/B Modal ── */}

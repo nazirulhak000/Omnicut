@@ -5,6 +5,8 @@ import json
 import threading
 from pathlib import Path
 
+import scripts.background_isolation_sequence_worker as worker_module
+
 from PIL import Image
 
 from scripts.background_isolation import SCHEMA_VERSION
@@ -239,6 +241,30 @@ def test_retry_resumes_from_valid_checkpoint_frames(tmp_path):
     assert retry["status"] == STATUS_READY
     assert len(retry_worker.calls) == 2
     assert [call[0].name for call in retry_worker.calls] == ["frame_000001.png", "frame_000002.png"]
+
+
+def test_retry_recovers_an_abandoned_publish_target_without_reprocessing(tmp_path, monkeypatch):
+    source, manifest = make_source_sequence(tmp_path, 2)
+    original_publish = worker_module._publish_atomically
+
+    def interrupted_publish(temporary, target):
+        target.mkdir()
+        (temporary / "frames").replace(target / "frames")
+        raise OSError("simulated crash before ready manifest")
+
+    monkeypatch.setattr(worker_module, "_publish_atomically", interrupted_publish)
+    first = process_background_isolation_sequence(
+        source, tmp_path / "derived", enabled_config(), manifest, worker=FakeForegroundWorker()
+    )
+    assert first["error_code"] == ERROR_OUTPUT_COMMIT
+
+    monkeypatch.setattr(worker_module, "_publish_atomically", original_publish)
+    retry_worker = FakeForegroundWorker()
+    retry = process_background_isolation_sequence(
+        source, tmp_path / "derived", enabled_config(), manifest, worker=retry_worker
+    )
+    assert retry["status"] == STATUS_READY
+    assert retry_worker.calls == []
 
 
 def test_cancel_cleans_partial_derived_output_and_never_publishes_ready(tmp_path):

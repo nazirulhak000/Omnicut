@@ -8,6 +8,7 @@
 
 ## สารบัญ
 
+| Round SKIP-RENDERED-POSTED-AUDIO-GEN-1 | ข้ามการสร้างเสียงพากย์สำหรับคลิปที่เสร็จ (rendered) หรือโพสต์แล้ว (posted) และตัดออกจากตัวนับขาดเสียง | 2026-09-15 | สำเร็จสมบูรณ์ (backend 3 passed, frontend 246 passed, build 2,007 modules/3.59s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round UI-FONT-HARMONY-ALL-1 | กวาดล้าง font-mono และผสานฟอนต์กลาง (Prompt) ทั่วทั้งระบบ 100% ครบทุกแดชบอร์ดและหน้าจอ | 2026-09-15 | สำเร็จสมบูรณ์ (frontend 232 passed, build 2,007 modules/2.83s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round GEMINI-TTS-MULTIKEY-ALERT-1 | ปรับระบบ Multi-Key Failover (ลอง 3.1 ทุก Key ก่อนลดเป็น 2.5) + แจ้งเตือน AI Rate-Limit/Quota บน Token Dashboard | 2026-09-15 | สำเร็จสมบูรณ์ (backend 20 passed, frontend 232 passed, build 2,007 modules/2.68s, compileall ผ่าน, live synthesis verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round VOICE-DEFAULT-PUCK-HYPE-1 | ปรับค่าเริ่มต้นเสียงพากย์ทุกสไตล์เป็น Puck (ชายพลังสูง TikTok) + โทนป้ายยาไวรัล ทั่วทั้งระบบ | 2026-09-14 | สำเร็จสมบูรณ์ (backend 1,415 passed, frontend 230 passed, build 2,006 modules/3.17s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
@@ -30,7 +31,33 @@
 | Round AGENTS-SLIM-1 | ย่อ AGENTS.md 170→62 บรรทัด (30.9→11.3 KB) กฎ 24 ข้อครบ + link ไฟล์กฎ | 2026-09-13 | เสร็จ (ดำเนินการโดย: Muse Spark (Muse Spark)) |
 | Round TEST-TWO-TIER-1 | กติกาเทส 2 ชั้น: ตอนแก้รันเฉพาะจุด ก่อนปิดรอบค่อยรันเต็ม | 2026-09-13 | เสร็จ (testing_standard.md, Gate เต็มเท่าเดิม, ดำเนินการโดย: Muse Spark (Muse Spark)) |
 | Round HOUSEKEEP-1 | จัดระเบียบราก: ไฟล์เทส 8 ไฟล์ลง .tmp (gitignore) + ยกเลิกย้าย PLAN หลังเจอ 06_Archive โดน ignore | 2026-09-13 | เสร็จบางส่วน (ดำเนินการโดย: Muse Spark (Muse Spark)) |
-## Round UI-FONT-HARMONY-ALL-1 — กวาดล้าง font-mono และผสานฟอนต์กลาง (Prompt) ทั่วทั้งระบบ 100% ครบทุกแดชบอร์ดและหน้าจอ
+
+## Round SKIP-RENDERED-POSTED-AUDIO-GEN-1 — ข้ามการสร้างเสียงพากย์สำหรับคลิปที่เสร็จ (rendered) หรือโพสต์แล้ว (posted) และตัดออกจากตัวนับขาดเสียง
+
+วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์ ✅
+
+### ปัญหาที่พบ
+1. **ตัวนับมุมที่ขาดเสียงบน UI นับรวมคลิปที่เสร็จ/โพสต์แล้ว:** ในหน้าสินค้า แถบเสียงพากย์อัตโนมัติแสดง `เสียงพร้อมแล้ว 2/13 มุม (ขาด 11)` และปุ่ม `เตรียมเสียงพากย์ (11 มุม)` ทั้งที่มุม 1, 2 ตัดเสร็จแล้ว (`status === 'rendered'`) และมุม 3, 4 โพสต์แล้ว (`status === 'posted'` หรือ `posted_at`) ซึ่งคลิปเหล่านี้มีวิดีโอสมบูรณ์แล้ว ไม่จำเป็นต้องสร้างเสียงพากย์ใหม่
+2. **Backend worker ยังไม่ได้คัดกรองคลิปที่เสร็จ/โพสต์แล้วออก:** ใน `_execute_batch_generate_audio_worker` หากสั่ง batch เจนเสียง ระบบจะนำทุกมุมที่มีบทพูดไปเจนเสียง รวมถึงคลิปที่เสร็จแล้วหากยังไม่มี shot list แคช
+
+### แผนแก้ไขและสิ่งที่ดำเนินการ
+- [x] ใน `frontend/src/components/ProductToClip.jsx`:
+  - สร้าง helper `isAngleCompleted(ang)` เช็ค `ang.status === 'rendered' || ang.status === 'posted' || Boolean(ang.posted_at)`
+  - แยก `activeBatchAngles = targetBatchAngles.filter(ang => !isAngleCompleted(ang))`
+  - คำนวณ `missingAudioCount` และ `readyAudioCount` จาก `activeBatchAngles` แทนที่จะนับมุมที่เสร็จแล้ว
+  - ปรับปรุงข้อความ Badge: หากตัดเสร็จครบทุกมุมแล้วแสดง `ตัดเสร็จ/โพสต์ครบทุกมุมแล้ว`, หากเสียงพร้อมครบแสดง `เสียงพร้อมครบ X/X มุม`
+  - ปรับปรุงปุ่ม `เตรียมเสียงพากย์`: ปิดการทำงาน (disabled) เมื่อคลิปเสร็จครบแล้ว และแสดงตัวเลขมุมเฉพาะมุมที่ยังไม่ได้ตัดต่อจริง
+- [x] ใน `scripts/api_shot_lists.py`:
+  - ใน `_execute_batch_generate_audio_worker`: เพิ่มตัวกรองข้ามมุมที่ `status in ("rendered", "posted") or a.get("posted_at")` โดยอัตโนมัติเมื่อ `not force_regenerate` พร้อมรายงานความคืบหน้าการข้าม
+  - ใน endpoint `batch_generate_audio`: ส่งคืน `angle_count` ที่หักมุมที่เสร็จแล้วออก
+- [x] เพิ่ม Unit Tests ใน `tests/test_api_batch_audio.py` ยืนยันว่า worker และ endpoint ข้ามมุม rendered และ posted ถูกต้อง 100%
+
+### ผลการทดสอบ (Gate Verification)
+- [x] Backend tests: `pytest tests/test_api_batch_audio.py -v` ผ่าน 3/3 tests (100%)
+- [x] Frontend tests: `npm test -- --run` ผ่านครบ 246/246 tests (100%)
+- [x] Frontend build: `npm run build` ผ่าน 2,007 modules ใน 3.59s
+
+## Round UI-FONT-HARMONY-ALL-1 — กวาดล้าง font-mono และผสานฟอนต์กลาง (Prompt) ทั่วทั้งระบบ 100% ครบทุกแดชบอร์ดและหน้าจอ
 
 วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์ ✅
 
@@ -5944,3 +5971,127 @@ Date: 2026-09-07; Requested by: user; Status: complete
 - [x] Frontend (`frontend/src/components/CoverStudioModal.jsx`): ปรับปรุง Prompt Preset "🖐️ มือถือสินค้า + ไฟ Rim Light" ให้เน้น `fingers gripping product` ชัดเจน
 - [x] Test (`tests/test_api_covers_ai.py`): เพิ่มยูนิตเทส `test_clean_backdrop_prompt_handheld` ยืนยันการรักษาคำว่า hand holding
 - [x] Verification: pytest 6 passed, vitest 230 passed, Vite build 2.95s ผ่าน 100%
+
+---
+
+## Round SYSTEM-AUDIT-P6-BACKUP-WAL-20260915
+
+Date: 2026-09-15 | Agent: Codex (GPT-6) | Status: complete
+
+- [x] Snapshot SQLite through the backup API so committed WAL pages are included.
+- [x] Run an integrity check on the destination database before archiving.
+- [x] Abort and clean temporary state when the snapshot fails; never raw-copy a WAL database.
+- [x] Regression: 10 backup/API tests passed; compileall and diff check passed.
+
+---
+
+## Round SYSTEM-AUDIT-P6-PREVIEW-RENDER-PARITY-20260915
+
+Date: 2026-09-15 | Agent: Codex (GPT-6) | Status: complete
+
+- [x] Re-ran Preview/Render parity and background-isolation render integration fixtures.
+- [x] Verification: 165 tests passed in 16.24s.
+
+---
+
+## Round MAIN-FLOW-SCALE-TRACK-B-INDEX-1
+
+Date: 2026-09-15 | Agent: Codex (GPT-6) | Status: complete
+
+- [x] Invalidate the canonical export path index after move, rename, and removal mutations.
+- [x] Keep `path_key` synchronized with the stored canonical path.
+- [x] Regression: export registry, schedule lifecycle, and lookup performance tests passed (38 tests), including external mirror refresh.
+
+---
+
+## Round MAIN-FLOW-SCALE-TRACK-A-DISPATCH-1
+
+Date: 2026-09-15 | Agent: Codex (GPT-6) | Status: complete
+
+- [x] Verified durable batch checkpoints and restart recovery preserve completed items.
+- [x] Verified FIFO admission, idle-exit handoff, and one daemon dispatcher for all queued batches.
+- [x] Regression: batch/recovery suite passed (13 tests).
+
+
+## Round MAIN-FLOW-SCALE-TRACK-C-PROJECTION-20260915
+
+Date: 2026-09-15 | Agent: Codex (GPT-6)
+Workspace Data Coordinator now exposes shared product and tracker projections with single-flight requests, short TTL cache, generation-safe invalidation, and forced refresh after tracker/product/editor mutations. App, ContentTrackerHub, ProductToClip, and EditorShell receive the coordinator; Product Flow and Editor use the product projection instead of issuing independent reads.
+Validation: frontend npm test -- --run - 243 passed; npm run build - Vite 2007 modules, 4.28s; scoped git diff --check passed. Parent MAIN-FLOW-SCALE-1 gate remains open for the isolated full backend gate and final working-tree review.
+
+
+## Round BG-SUBJECT-ISOLATION-CROSS-PROJECT-GUARD-20260915
+
+Date: 2026-09-15 | Agent: Codex (GPT-6)
+Extracted completed background-isolation task filtering into completedBackgroundIsolationTasks(), enforcing active project ownership and required artifact/source fields before Editor rebinding.
+Validation: frontend npm test -- --run ? 244 passed; npm run build ? Vite 2007 modules, 4.93s; scoped diff check passed.
+
+
+## Round BG-SUBJECT-ISOLATION-CANCEL-BRIDGE-20260915
+
+Date: 2026-09-15 | Agent: Codex (GPT-6)
+Task cancellation now reaches background-isolation extraction and rembg processing through a per-task threading.Event. Cancelled workers stop at safe checkpoints, never publish a ready artifact, and their event registry entries are removed on release.
+Validation: focused background-isolation/API suite ? 37 passed, 3 skipped, 1 warning; compileall passed; scoped diff check passed.
+
+## BG-SUBJECT-ISOLATION-QUALITY-GATE-20260915
+
+- Confirmed production `BackgroundIsolationWorker` applies alpha coverage/mass sanity checks before foreground PNG commit; transparent, full-frame, sparse, and dimension-invalid outputs fail closed.
+- Sequence worker cache validation and publication tests remain deterministic; no existing artifact is overwritten during quality rerun.
+- Evidence: `tests/test_background_isolation_worker.py` + `tests/test_background_isolation_sequence_worker.py` — 33 passed.
+- ดำเนินการโดย: Codex (GPT-6)
+
+## BG-SUBJECT-ISOLATION-READINESS-20260915
+
+Date: 2026-09-15 | Agent: readiness_audit (GPT-6)
+Project-level background-isolation markers now participate in the editor readiness projection. A processing marker keeps stale ready clip artifacts in processing, and stale/error/cancelled markers surface quality_failed after reload. Completed task projection remains project-scoped and requires artifact/source identity.
+Validation: frontend npm test -- --run — 246 passed; npm run build — Vite 2007 modules; scoped diff check passed.
+
+## BG-SUBJECT-ISOLATION-LAYER-ORDER-CONFIRM-20260915
+
+- Preview/Render compositor keeps source transform before alpha composite, transitions/concat after per-clip composite, Hook pass behind Subject, and captions/callouts in foreground only when the artifact is ready.
+- Not-ready artifacts continue to use the configured fallback path.
+- Evidence: background-isolation compositor and renderer integration regression suites passed in the current workspace.
+- ดำเนินการโดย: Codex (GPT-6)
+Validation addendum: compositor unit + renderer integration suites — 49 passed (2026-09-15).
+
+## SYSTEM-AUDIT-P0-SECURITY-RECHECK-20260915
+
+- Re-ran P0 safety and P1 recovery regression suites in temp-only fixtures: 50 passed, 1 skipped, 1 warning.
+- Confirmed `.env` and `frontend/.env` are gitignored and not tracked; no credential values were read or changed.
+- ดำเนินการโดย: Codex (GPT-6)
+
+## REAL-VIDEO-RENDER-FIXTURE-20260915
+
+- Rendered a read-only copy of the existing LOG02 segment, audio, and subtitles in `.tmp/e2e-fixture`.
+- Draft and post renders completed for 2.0 seconds; post output is H.264/AAC, 1080×1920, 30 FPS, 2.000 seconds.
+- Source SHA-256 matched before/after copy; no project source or Raw/Assets file was modified.
+- Browser Preview pixel parity remains open.
+- ดำเนินการโดย: Codex (GPT-6)
+
+## Round SYSTEM-AUDIT-P7-LIFESPAN-20260915 — Startup recovery lifecycle
+- ย้าย background-isolation และ batch recovery จาก module import ไปไว้ใน FastAPI lifespan ผ่าน `recover_startup_work()`; ผล recovery ถูกเก็บใน `app.state.startup_recovery` และแยก error ต่อ subsystem
+- เพิ่ม `tests/test_api_server_lifespan.py` ยืนยัน app construction ไม่แตะ durable recovery และ lifespan เรียก recovery ตามลำดับ
+- ตรวจสอบแล้ว: 39 passed, 3 skipped, 1 warning; compileall ผ่าน; scoped diff check ผ่าน
+- ดำเนินการโดย: Codex (GPT-6)
+
+## Round SYSTEM-AUDIT-CONTINUE-20260915 — หลักฐาน full gate และ performance
+- Full isolated clone gate: 1,470 passed, 21 failed, 14 skipped, 24 warnings (173.81s).
+- Failure classification: 10 missing fixture/environment items (fonts, typography presets, SFX, BGM, stickers), 1 stale dotenv monkeypatch test, and 10 render/caption failures caused by missing fonts/media assets. No safe production regression identified.
+- P04 bounded fix: `scripts/api_exports.py` now reuses a stat-keyed project manifest snapshot and invalidates on manifest add/remove/change; `tests/test_matching_lookup_perf_fix.py` covers reuse and invalidation.
+- P03 source-time chunking and P05 collection mutation rewrite remain deferred because they require artifact/schema or compatibility changes without a production benchmark.
+- Evidence: matching lookup suite 9 passed; export-related regression 27 passed, 1 warning; compileall and scoped diff checks passed.
+- ดำเนินการโดย: Codex (GPT-6); performance review: Antigravity (GPT-5.6)
+
+## Round SYSTEM-AUDIT-CONTINUE-20260915 — Preview parity and bounded export cache
+- Fixed Hook scrim opacity drift: FFmpeg now uses `OVERLAY_SCRIM_OPACITY = 0.75`, matching SequencePlayer Canvas.
+- Added parity regression in `tests/test_preview_render_parity.py`.
+- Added stat-keyed project manifest cache/invalidation to `scripts/api_exports.py`; deferred P03 chunking and P05 collection rewrite pending benchmark/compatibility contract.
+- Validation: preview parity 154 passed; preview behavior/compositor/integration 69 passed; matching lookup 9 passed; export regression 27 passed, 1 warning; compileall and scoped diff checks passed.
+- Browser visual snapshots at 0s and 4s matched Render; direct Canvas pixel extraction is unavailable through CUA.
+- ดำเนินการโดย: Codex (GPT-6); performance review: Antigravity (GPT-5.6); browser review: preview_parity_audit (GPT-6)
+
+## Test fixture hardening: Gemini key isolation (2026-09-15)
+
+Updated `tests/test_gemini_tts_engine.py` to clear all `GEMINI_API_KEY*` process variables and patch `scripts.config._env_file` to a temporary `.env`. This keeps key discovery tests deterministic when a developer environment contains multiple configured keys.
+
+Evidence: `tests/test_gemini_tts_engine.py` — 20 passed. Agent: Codex (GPT-6).

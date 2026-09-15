@@ -109,6 +109,38 @@ def scan_video_files(*dirs: Path) -> List[Path]:
     return found
 
 
+def _parse_single_byte_range(value: str, file_size: int) -> tuple[int, int]:
+    """Return a satisfiable RFC 7233 single range or raise a safe 416."""
+    def unsatisfiable() -> HTTPException:
+        return HTTPException(
+            status_code=416,
+            detail="Requested range is not satisfiable",
+            headers={"Content-Range": f"bytes */{file_size}"},
+        )
+
+    if file_size <= 0 or not value.lower().startswith("bytes="):
+        raise unsatisfiable()
+    spec = value[6:].strip()
+    if "," in spec or spec.count("-") != 1:
+        raise unsatisfiable()
+    raw_start, raw_end = (part.strip() for part in spec.split("-", 1))
+    try:
+        if not raw_start:
+            length = int(raw_end)
+            if length <= 0:
+                raise ValueError
+            return max(0, file_size - length), file_size - 1
+        start = int(raw_start)
+        if start < 0 or start >= file_size:
+            raise ValueError
+        end = file_size - 1 if not raw_end else min(int(raw_end), file_size - 1)
+        if end < start:
+            raise ValueError
+        return start, end
+    except (TypeError, ValueError):
+        raise unsatisfiable() from None
+
+
 def stream_media_file(file_path: Path, request: Request):
     """Range-supporting file streamer for smooth HTML5 video/audio playback."""
     if not file_path.exists():
@@ -140,10 +172,7 @@ def stream_media_file(file_path: Path, request: Request):
     INLINE_MAX_BYTES = 32 * 1024 * 1024
 
     if range_header:
-        byte_range = range_header.replace("bytes=", "").split("-")
-        start = int(byte_range[0])
-        end = int(byte_range[1]) if byte_range[1] else file_size - 1
-        end = min(end, file_size - 1)
+        start, end = _parse_single_byte_range(range_header, file_size)
         chunk_size = (end - start) + 1
 
         if file_size <= INLINE_MAX_BYTES:

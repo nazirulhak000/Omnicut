@@ -23,7 +23,6 @@ from pydantic import BaseModel, Field
 
 from scripts.background_isolation_sequence_artifacts import (
     SequenceArtifactStoreError,
-    is_sequence_ready,
     read_sequence_manifest,
     sequence_frame_path,
     sequence_paths,
@@ -45,6 +44,10 @@ router = APIRouter(prefix="/api/background-isolation", tags=["background-isolati
 _FRAME_INDEX_RE = re.compile(r"^(?:0|[1-9][0-9]*)$")
 _FRAME_NAME_RE = re.compile(r"^frame_([0-9]{6})\.png$")
 _PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+_BACKGROUND_SOURCE_EXTENSIONS = frozenset({
+    ".avi", ".m4v", ".mkv", ".mov", ".mp4", ".webm",
+})
+_BACKGROUND_SOURCE_ROOT_NAMES = ("", "00_Inbox", "01_Raw", "02_Assets", "03_Projects", "04_Exports", "05_Covers_Thumbnails", "06_Archive")
 
 
 class BackgroundIsolationProcessRequest(BaseModel):
@@ -64,14 +67,39 @@ class BackgroundIsolationProcessRequest(BaseModel):
 
 _BACKGROUND_TASK_LOCK = threading.Lock()
 _BACKGROUND_TASKS_RUNNING: set[str] = set()
+_BACKGROUND_TASK_CANCEL_EVENTS: dict[str, threading.Event] = {}
+
+
+def request_background_isolation_cancel(task_id: str) -> bool:
+    """Signal a running isolation worker to stop at its next safe checkpoint."""
+
+    with _BACKGROUND_TASK_LOCK:
+        event = _BACKGROUND_TASK_CANCEL_EVENTS.get(task_id)
+        if event is None:
+            return False
+        event.set()
+        return True
 
 
 def _source_for_processing(value: str) -> Path:
-    candidate = Path(value).expanduser()
-    if not candidate.is_absolute():
-        candidate = Path(PROJECTS_DIR).parent / candidate
+    raw_candidate = Path(value).expanduser()
+    workspace_root = Path(PROJECTS_DIR).resolve(strict=False).parent
+    candidate = raw_candidate if raw_candidate.is_absolute() else workspace_root / raw_candidate
+    if raw_candidate.is_symlink():
+        raise HTTPException(status_code=404, detail="background isolation source video not found")
     candidate = candidate.resolve(strict=False)
-    if candidate.is_symlink() or not candidate.is_file():
+    if candidate.suffix.casefold() not in _BACKGROUND_SOURCE_EXTENSIONS or not candidate.is_file():
+        raise HTTPException(status_code=404, detail="background isolation source video not found")
+    allowed = False
+    for root_name in _BACKGROUND_SOURCE_ROOT_NAMES:
+        root = workspace_root / root_name if root_name else workspace_root
+        if root.is_symlink():
+            continue
+        root = root.resolve(strict=False)
+        if _contained(candidate, root):
+            allowed = True
+            break
+    if not allowed:
         raise HTTPException(status_code=404, detail="background isolation source video not found")
     return candidate
 
@@ -80,6 +108,17 @@ def _source_fingerprint(source: Path) -> str:
     stat = source.stat()
     payload = f"{source.as_posix()}|{stat.st_size}|{stat.st_mtime_ns}".encode("utf-8")
     return f"sha256:{hashlib.sha256(payload).hexdigest()}"
+
+
+def _request_identity(source: Path, normalized: dict[str, Any], req: BackgroundIsolationProcessRequest) -> str:
+    """Stable identity for coalescing equivalent queued cutout requests."""
+    payload = {
+        "source": str(source), "config": normalized, "fps": req.fps,
+        "timebase": req.timebase, "width": req.width, "height": req.height,
+        "rotation": req.rotation, "project_name": req.project_name,
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
 def _source_sequence_id(
@@ -113,7 +152,14 @@ def _source_sequence_id(
     )
 
 
-def _run_background_isolation_task(task_id: str, req: BackgroundIsolationProcessRequest) -> None:
+def _run_background_isolation_task(
+    task_id: str,
+    req: BackgroundIsolationProcessRequest,
+    cancel_event: threading.Event | None = None,
+) -> None:
+    if cancel_event is None:
+        with _BACKGROUND_TASK_LOCK:
+            cancel_event = _BACKGROUND_TASK_CANCEL_EVENTS.get(task_id)
     try:
         source = _source_for_processing(req.source_path)
         normalized = normalize_background_isolation(req.config)
@@ -150,6 +196,7 @@ def _run_background_isolation_task(task_id: str, req: BackgroundIsolationProcess
         extracted = extract_background_isolation_sequence(
             source, cache_root, source_id, start=0.0, duration=None,
             fps=req.fps, timebase=timebase, width=req.width, height=req.height,
+            cancel_event=cancel_event,
             progress_callback=progress,
         )
         if extracted.get("status") != "ready":
@@ -167,7 +214,7 @@ def _run_background_isolation_task(task_id: str, req: BackgroundIsolationProcess
         result = process_background_isolation_sequence(
             extracted["sequence_dir"], cache_root, {
                 **normalized, "artifact": {"id": None, "status": "missing"},
-            }, source_manifest, progress_callback=progress,
+            }, source_manifest, cancel_event=cancel_event, progress_callback=progress,
         )
         if result.get("status") != "ready" or not result.get("artifact_id"):
             raise RuntimeError(result.get("message") or "background isolation failed")
@@ -181,9 +228,15 @@ def _run_background_isolation_task(task_id: str, req: BackgroundIsolationProcess
             },
             "sequence": sequence,
         }
+        if cancel_event is not None and cancel_event.is_set():
+            TaskManager.cancel_task(task_id)
+            return
         TaskManager.complete_task(task_id, completed, step_label="ตัดพื้นหลังสินค้าเสร็จแล้ว")
     except Exception as exc:
-        TaskManager.fail_task(task_id, str(exc), step_label="ตัดพื้นหลังสินค้าไม่สำเร็จ")
+        if cancel_event is not None and cancel_event.is_set():
+            TaskManager.cancel_task(task_id)
+        else:
+            TaskManager.fail_task(task_id, str(exc), step_label="ตัดพื้นหลังสินค้าไม่สำเร็จ")
 
 
 def _schedule_background_isolation_task(task_id: str, req: BackgroundIsolationProcessRequest) -> bool:
@@ -201,6 +254,8 @@ def _schedule_background_isolation_task(task_id: str, req: BackgroundIsolationPr
         task = TaskManager.get_task(task_id)
         if not task or task.get("status") in {"completed", "failed", "cancelled"}:
             return False
+        cancel_event = threading.Event()
+        _BACKGROUND_TASK_CANCEL_EVENTS[task_id] = cancel_event
         _BACKGROUND_TASKS_RUNNING.add(task_id)
 
     def run_and_release() -> None:
@@ -209,6 +264,7 @@ def _schedule_background_isolation_task(task_id: str, req: BackgroundIsolationPr
         finally:
             with _BACKGROUND_TASK_LOCK:
                 _BACKGROUND_TASKS_RUNNING.discard(task_id)
+                _BACKGROUND_TASK_CANCEL_EVENTS.pop(task_id, None)
 
     TaskManager.run_in_background(run_and_release)
     return True
@@ -238,17 +294,27 @@ def recover_background_isolation_tasks() -> int:
 def process_background_isolation(req: BackgroundIsolationProcessRequest, background_tasks: BackgroundTasks):
     """Queue extraction + rembg segmentation and return a pollable task id."""
 
-    _source_for_processing(req.source_path)
+    source = _source_for_processing(req.source_path)
     if req.rotation not in (0, 90, 180, 270):
         raise HTTPException(status_code=422, detail="rotation must be 0, 90, 180, or 270")
     normalized = normalize_background_isolation(req.config)
     if not normalized["enabled"]:
         raise HTTPException(status_code=422, detail=f"background isolation config is disabled or invalid: {normalized.get('reason', 'invalid_config')}")
-    task_id = str(uuid.uuid4())
-    TaskManager.create_task(
-        "background_isolation", "กำลังตัดพื้นหลังสินค้า", payload=req.model_dump(),
-        target_tab="editor", task_id=task_id,
-    )
+    identity = _request_identity(source, normalized, req)
+    with _BACKGROUND_TASK_LOCK:
+        for active in TaskManager.get_active_tasks(limit=1000):
+            payload = active.get("payload") or {}
+            if (active.get("type") == "background_isolation"
+                    and active.get("status") in {"queued", "processing"}
+                    and payload.get("request_identity") == identity):
+                return {"task_id": active["id"], "status": active["status"], "config": normalized}
+        task_id = str(uuid.uuid4())
+        payload = req.model_dump()
+        payload["request_identity"] = identity
+        TaskManager.create_task(
+            "background_isolation", "กำลังตัดพื้นหลังสินค้า", payload=payload,
+            target_tab="editor", task_id=task_id,
+        )
     background_tasks.add_task(_schedule_background_isolation_task, task_id, req)
     return {"task_id": task_id, "status": "queued", "config": normalized}
 
@@ -301,12 +367,11 @@ def _ready_sequence(artifact_id: str) -> tuple[Path, dict[str, Any]]:
     cache_root = _canonical_cache_root()
     try:
         status = sequence_status(cache_root, safe_id, namespace=DERIVED_CACHE_NAMESPACE)
-        ready = is_sequence_ready(cache_root, safe_id, namespace=DERIVED_CACHE_NAMESPACE)
     except (SequenceArtifactStoreError, OSError, ValueError) as exc:
         # Missing, malformed, incomplete, and symlinked artifacts are all
         # intentionally indistinguishable to a reader.
         raise HTTPException(status_code=404, detail="background isolation sequence not found") from exc
-    if status != "ready" or not ready:
+    if status != "ready":
         raise HTTPException(status_code=404, detail="background isolation sequence not found")
 
     manifest = read_sequence_manifest(cache_root, safe_id, namespace=DERIVED_CACHE_NAMESPACE)

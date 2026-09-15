@@ -6,7 +6,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import ShortcutsModal from './components/ShortcutsModal';
 import { Toast } from './components/ui';
 import { useKeyboardShortcuts } from './hooks';
-import { getSystemStatus, getRawVideos, getExports, updateAngleStatus, getProducts } from './api';
+import { getSystemStatus, getRawVideos, getExports, getScheduleQueue, updateAngleStatus, getProducts } from './api';
 
 // ── Lazy-loaded view chunks for Code Splitting ──
 const ProducerHub = lazy(() => import('./components/producer/ProducerHub'));
@@ -85,6 +85,8 @@ export default function App() {
       getSystemStatus,
       getRawVideos,
       getExports,
+      getProducts,
+      getScheduleQueue,
     });
   }
 
@@ -245,7 +247,7 @@ export default function App() {
       }
 
       try {
-        const fresh = await getProducts();
+        const fresh = await workspaceDataRef.current.loadProducts({ force: true });
         const freshList = Array.isArray(fresh) ? fresh : (fresh?.products || []);
         if (cancelled) return;
 
@@ -337,6 +339,7 @@ export default function App() {
         const videoRelPath = result.final_video_path || result.video_path || result.output_path || '';
         const projectName = result.project_name || '';
         await updateAngleStatus(activeAngleContext.productId, activeAngleContext.angleId, 'rendered', videoRelPath, projectName);
+        workspaceDataRef.current.invalidateTrackerData();
       } catch (err) {
         console.error('Failed to auto-update angle status on render:', err);
       }
@@ -452,6 +455,7 @@ export default function App() {
                     onGoToProductFlow={() => setActiveTab('flow')}
                     onVideoUploaded={handleVideoUploaded}
                     onProductContextChange={setActiveProductContext}
+                    workspaceData={workspaceDataRef.current}
                   />
                 </Suspense>
               </main>
@@ -486,6 +490,7 @@ export default function App() {
                       onGoToGallery={() => setActiveTab('gallery')}
                       selectedProductId={selectedProductIdForFlow}
                       pendingFlowTaskVersion={flowTaskNavigationVersion}
+                      workspaceData={workspaceDataRef.current}
                       consumePendingAngleId={() => {
                         const id = pendingFlowAngleIdRef.current;
                         pendingFlowAngleIdRef.current = null;
@@ -505,6 +510,7 @@ export default function App() {
                   <Suspense fallback={<LoadingSpinner message="กำลังโหลด Content Tracker..." />}>
                     <ContentTrackerHub
                       status={status}
+                      workspaceData={workspaceDataRef.current}
                       onApplyToStudio={handleApplyScriptFromLab}
                       onRefresh={refreshData}
                       onGoToEditor={() => handlePrimaryTabChange('editor')}

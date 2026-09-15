@@ -14,6 +14,7 @@ get_api_keys() only reads it, never writes.
 """
 import base64
 import json
+import os
 import sys
 import time
 import wave
@@ -94,11 +95,17 @@ def test_resolve_voice_nothing_given_defaults_to_puck():
 
 # ------------------------------------------------------------- get_api_keys
 
+def _clear_gemini_key_environment(monkeypatch):
+    for name in tuple(os.environ):
+        if name.startswith("GEMINI_API_KEY"):
+            monkeypatch.delenv(name, raising=False)
+
+
 def test_get_api_keys_reads_from_process_environment(monkeypatch):
     monkeypatch.setattr(Path, "exists", lambda self: False)  # no .env file
+    _clear_gemini_key_environment(monkeypatch)
     monkeypatch.setenv("GEMINI_API_KEY", "env-key-1")
     monkeypatch.setenv("GEMINI_API_KEY_2", "env-key-2")
-    monkeypatch.delenv("GEMINI_API_KEY_OLD", raising=False)
     keys = GeminiFlashTTSEngine.get_api_keys()
     assert keys == ["env-key-1", "env-key-2"]
 
@@ -107,11 +114,9 @@ def test_get_api_keys_reads_dotenv_file_before_process_env(monkeypatch, tmp_path
     env_file = tmp_path / ".env"
     env_file.write_text("GEMINI_API_KEY=dotenv-key\n# comment line\nOTHER=ignored\n", encoding="utf-8")
 
-    import scripts.gemini_tts_engine as tts_mod
-    monkeypatch.setattr(tts_mod, "PROJECT_ROOT", tmp_path)
-    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
-    monkeypatch.delenv("GEMINI_API_KEY_2", raising=False)
-    monkeypatch.delenv("GEMINI_API_KEY_OLD", raising=False)
+    import scripts.config as config
+    monkeypatch.setattr(config, "_env_file", env_file)
+    _clear_gemini_key_environment(monkeypatch)
 
     keys = GeminiFlashTTSEngine.get_api_keys()
     assert keys == ["dotenv-key"]
@@ -121,11 +126,10 @@ def test_get_api_keys_deduplicates_across_dotenv_and_env(monkeypatch, tmp_path):
     env_file = tmp_path / ".env"
     env_file.write_text("GEMINI_API_KEY=shared-key\n", encoding="utf-8")
 
-    import scripts.gemini_tts_engine as tts_mod
-    monkeypatch.setattr(tts_mod, "PROJECT_ROOT", tmp_path)
+    import scripts.config as config
+    monkeypatch.setattr(config, "_env_file", env_file)
+    _clear_gemini_key_environment(monkeypatch)
     monkeypatch.setenv("GEMINI_API_KEY", "shared-key")
-    monkeypatch.delenv("GEMINI_API_KEY_2", raising=False)
-    monkeypatch.delenv("GEMINI_API_KEY_OLD", raising=False)
 
     keys = GeminiFlashTTSEngine.get_api_keys()
     assert keys.count("shared-key") == 1
@@ -362,4 +366,3 @@ def test_multikey_failover_tries_primary_model_on_key2_when_key1_rate_limited(mo
     assert any(a.get("error_type") == "RATE_LIMIT_429" and "-alpha" in a.get("key_tag", "") for a in recorded_alerts)
     assert any(a.get("error_type") == "KEY_FAILOVER_SUCCESS" and "-beta" in a.get("key_tag", "") for a in recorded_alerts)
     assert Path(out).exists()
-

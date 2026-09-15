@@ -45,3 +45,25 @@ test('frame scheduling keeps the audio clock, drift correction, and selection-bo
   assert.match(playbackTickSource, /applyBgmEnvelope\(t\)/);
   assert.match(sequencePlayerSource, /selection, overlays, cues, playhead,/);
 });
+
+test('background isolation frame errors have bounded deterministic retry backoff', () => {
+  assert.match(
+    sequencePlayerSource,
+    /const BACKGROUND_FRAME_RETRY_DELAYS_MS = Object\.freeze\(\[250, 1000, 4000\]\);/,
+  );
+  assert.match(sequencePlayerSource, /function backgroundFrameRetryDelay\(retryCount\)/);
+  assert.match(sequencePlayerSource, /const retryDelay = backgroundFrameRetryDelay\(entry\.retryCount\);/);
+  assert.match(sequencePlayerSource, /entry\.retryTimer = setTimeout\(\(\) => \{/);
+  assert.match(sequencePlayerSource, /entry\.status = 'loading';/);
+  assert.match(
+    sequencePlayerSource,
+    /if \(cache\.get\(resolution\.frameUrl\) !== entry\) return;/,
+  );
+});
+
+test('background isolation preview cache has a bounded eviction policy', () => {
+  assert.match(sequencePlayerSource, /const BACKGROUND_FRAME_CACHE_LIMIT = 120;/);
+  assert.match(sequencePlayerSource, /function evictBackgroundIsolationFrameCache\(cache, keepKey\)/);
+  assert.match(sequencePlayerSource, /evictBackgroundIsolationFrameCache\(cache, resolution\.frameUrl\);/);
+  assert.match(sequencePlayerSource, /cache\.delete\(oldest\);/);
+});

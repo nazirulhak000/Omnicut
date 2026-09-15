@@ -2,6 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { createLatestSaveQueue } from '../lib/projectSaveQueue.js';
 
+const LIFECYCLE_API_KEY = import.meta.env?.VITE_API_KEY;
+
+
+export function lifecycleSaveHeaders(apiKey = LIFECYCLE_API_KEY) {
+  return apiKey ? { 'Content-Type': 'application/json', 'X-API-Key': apiKey } : {
+    'Content-Type': 'application/json',
+  };
+}
+
 
 function payloadKey(payload) {
   return JSON.stringify(payload || {});
@@ -266,7 +275,7 @@ export function useProjectAutosave({
       if (!job || typeof fetch !== 'function') return;
       fetch(`/api/projects/${encodeURIComponent(job.projectName)}/state`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: lifecycleSaveHeaders(),
         body: JSON.stringify(job.payload),
         keepalive: true,
       }).catch(() => {});

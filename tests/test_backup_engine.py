@@ -1,6 +1,7 @@
 """Unit tests for BackupEngine — isolated with temporary directories."""
 from pathlib import Path
 import json
+import sqlite3
 import zipfile
 import pytest
 
@@ -70,6 +71,51 @@ def test_create_backup_creates_valid_zip_with_manifest(isolated_backup_env):
         manifest = json.loads(zf.read("backup_manifest.json").decode("utf-8"))
         assert manifest["file_count"] == result["file_count"]
         assert manifest["version"] == "1.0"
+
+
+def test_create_backup_captures_committed_wal_pages(isolated_backup_env):
+    """The archive must contain committed rows that have not been checkpointed."""
+    docs_dir = isolated_backup_env["docs"]
+    backup_dir = isolated_backup_env["backup"]
+    db_path = docs_dir / "store.db"
+
+    writer = sqlite3.connect(db_path)
+    writer.execute("PRAGMA journal_mode=WAL")
+    writer.execute("CREATE TABLE wal_probe (value TEXT NOT NULL)")
+    writer.execute("INSERT INTO wal_probe(value) VALUES ('committed-in-wal')")
+    writer.commit()
+    try:
+        assert db_path.with_name("store.db-wal").exists()
+        result = BackupEngine.create_backup(backup_dir=backup_dir)
+    finally:
+        writer.close()
+
+    with zipfile.ZipFile(result["file_path"], "r") as archive:
+        archive.extract("_Docs/store.db", isolated_backup_env["root"] / "restored")
+    restored_db = isolated_backup_env["root"] / "restored" / "_Docs" / "store.db"
+    restored = sqlite3.connect(restored_db)
+    try:
+        assert restored.execute("SELECT value FROM wal_probe").fetchone() == ("committed-in-wal",)
+    finally:
+        restored.close()
+
+
+def test_sqlite_backup_failure_does_not_fall_back_to_raw_copy(isolated_backup_env, monkeypatch):
+    """A failed SQLite snapshot must abort instead of silently omitting WAL data."""
+    docs_dir = isolated_backup_env["docs"]
+    backup_dir = isolated_backup_env["backup"]
+    db_path = docs_dir / "store.db"
+    sqlite3.connect(db_path).close()
+
+    def fail_snapshot(source_path, destination_path):
+        raise sqlite3.OperationalError("simulated backup failure")
+
+    monkeypatch.setattr(BackupEngine, "_backup_sqlite_database", staticmethod(fail_snapshot))
+    with pytest.raises(sqlite3.OperationalError, match="simulated backup failure"):
+        BackupEngine.create_backup(backup_dir=backup_dir)
+
+    assert not list(backup_dir.glob("*.zip"))
+    assert not list(backup_dir.glob(".tmp_store_*.db"))
 
 
 def test_list_and_verify_backups(isolated_backup_env):

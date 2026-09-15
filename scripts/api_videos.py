@@ -23,6 +23,7 @@ from scripts.asset_registry import AssetRegistry
 from scripts.it_angles import DEFAULT_BGM
 from scripts.product_store import ProductStore
 from scripts.export_registry import ExportRegistry
+from scripts.upload_storage import publish_upload, staging_path, store_upload
 from scripts.media_service import (
     scan_video_files, get_file_info, stream_media_file
 )
@@ -258,28 +259,23 @@ async def upload_file(
         if not safe_filename:
             safe_filename = f"video_{int(time.time())}{orig_suffix}"
 
-    save_path = dest_dir / safe_filename
-    if save_path.exists():
-        stem = Path(safe_filename).stem
-        save_path = dest_dir / f"{stem}_{int(time.time())}{orig_suffix}"
-
-    with open(save_path, "wb") as buffer:
-        while chunk := await file.read(1024 * 1024):
-            buffer.write(chunk)
+    save_path = await store_upload(file, dest_dir / safe_filename)
 
     if orig_suffix.lower() in [".heic", ".heif"]:
-        jpg_save_path = save_path.with_suffix(".jpg")
         try:
-            conv_cmd = ["ffmpeg", "-y", "-i", str(save_path), "-q:v", "2", str(jpg_save_path)]
-            subprocess.run(conv_cmd, check=True, capture_output=True)
-            if jpg_save_path.exists():
+            with staging_path(dest_dir, suffix=".jpg") as converted:
+                conv_cmd = ["ffmpeg", "-y", "-i", str(save_path), "-q:v", "2", str(converted)]
+                subprocess.run(conv_cmd, check=True, capture_output=True, timeout=120)
+                if not converted.stat().st_size:
+                    raise ValueError("FFmpeg produced an empty image")
+                jpg_save_path = publish_upload(converted, save_path.with_suffix(".jpg"))
                 try:
                     save_path.unlink()
-                except Exception:
+                except OSError:
                     pass
                 save_path = jpg_save_path
         except Exception as conv_err:
-            print(f"Warning: HEIC conversion failed: {conv_err}")
+            print(f"แปลง HEIC ไม่สำเร็จ เก็บไฟล์ต้นฉบับไว้: {str(conv_err)[:500]}")
 
     file_info = get_file_info(save_path)
 
@@ -636,14 +632,7 @@ async def upload_asset(file: UploadFile = File(...), asset_type: str = Form("sfx
     if not safe_filename or not safe_filename.lower().endswith(orig_suffix):
         safe_filename = f"asset_{int(time.time())}{orig_suffix}"
 
-    save_path = dest_dir / safe_filename
-    if save_path.exists():
-        stem = Path(safe_filename).stem
-        save_path = dest_dir / f"{stem}_{int(time.time())}{orig_suffix}"
-
-    with open(save_path, "wb") as buffer:
-        while chunk := await file.read(1024 * 1024):
-            buffer.write(chunk)
+    save_path = await store_upload(file, dest_dir / safe_filename)
 
     AssetRegistry.rebuild()
 
@@ -918,16 +907,56 @@ def delete_file(req: DeleteFileRequest):
     raise HTTPException(status_code=500, detail="ไฟล์กำลังถูกเปิดใช้งานโดยเครื่องเล่นวิดีโอหรือ CapCut กรุณาหยุดเล่นวิดีโอหรือกดรีเฟรชหน้าเว็บ 1 ครั้งแล้วลองลบใหม่อีกครั้งครับ")
 
 
+_MEDIA_ROOTS = {
+    "00_Inbox", "01_Raw", "02_Assets", "03_Projects", "04_Exports",
+    "05_Covers_Thumbnails", "06_Archive",
+}
+_MEDIA_EXTENSIONS = {
+    ".mp4", ".mov", ".m4v", ".webm", ".hevc", ".mkv", ".avi",
+    ".mp3", ".wav", ".aac", ".m4a", ".ogg", ".flac", ".opus",
+    ".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".heic", ".heif",
+    ".ttf", ".otf", ".woff", ".woff2", ".cube", ".srt", ".vtt", ".ass",
+}
+
+
+def _allowed_media_path(path: Path, base: Path, drafts: Path) -> bool:
+    if path.suffix.lower() not in _MEDIA_EXTENSIONS:
+        return False
+    # Voice preview currently has one explicit artifact at the project root.
+    if path == base / "test_voice.wav":
+        return True
+    if _is_contained(path, drafts):
+        parts = path.relative_to(drafts).parts
+    elif _is_contained(path, base):
+        relative = path.relative_to(base)
+        if not relative.parts or relative.parts[0] not in _MEDIA_ROOTS:
+            return False
+        parts = relative.parts[1:]
+    else:
+        return False
+    # Cache images are public artifacts; other hidden paths and staging are not.
+    return bool(parts) and not parts[-1].startswith(".") and all(
+        not part.startswith(".") or part == ".cache" for part in parts[:-1]
+    )
+
+
 @router.get("/api/media/{file_path:path}")
 def stream_media(file_path: str, request: Request):
-    """Streams video or audio file by absolute or relative path."""
+    """Serve only public media artifacts, checking paths before and after resolve."""
     decoded_path = urllib.parse.unquote(file_path)
+    base = BASE_DIR.resolve()
+    drafts = CAPCUT_DRAFT_DIR.resolve()
     target = Path(decoded_path)
     if not target.is_absolute():
-        target = BASE_DIR / decoded_path
+        target = base / decoded_path
 
-    target = target.resolve()
-    if not (_is_contained(target, BASE_DIR.resolve()) or _is_contained(target, CAPCUT_DRAFT_DIR.resolve())):
+    if not _allowed_media_path(target, base, drafts):
+        raise HTTPException(status_code=403, detail="Access denied")
+    try:
+        target = target.resolve()
+    except (OSError, RuntimeError, ValueError):
+        raise HTTPException(status_code=403, detail="Access denied") from None
+    if not _allowed_media_path(target, base, drafts):
         raise HTTPException(status_code=403, detail="Access denied")
 
     return stream_media_file(target, request)

@@ -522,6 +522,11 @@ STICKER_BASE_WIDTH = 160
 # momentary full graphic, not a small corner accent.
 EFFECT_BASE_SIZE = 360
 
+# Keep the Hook scrim's peak opacity aligned with SequencePlayer's Canvas
+# gradient.  The frontend deliberately leaves 25% of the footage visible so
+# the backdrop improves legibility without turning the banner area opaque.
+OVERLAY_SCRIM_OPACITY = 0.75
+
 
 def sticker_geometry(
     position: str,
@@ -1816,8 +1821,9 @@ class VideoEditor:
             # geq needs cb/cr pinned to 128 (neutral chroma) alongside
             # lum=0 -- leaving them undefined does NOT default to black, it
             # decodes as an off colour (verified: came out visibly green).
+            scrim_alpha = 255 * OVERLAY_SCRIM_OPACITY
             alpha_expr = (
-                f"255*(1-Y/H)*(if(lt(T\\,{span_start})\\,0\\,"
+                f"{scrim_alpha:g}*(1-Y/H)*(if(lt(T\\,{span_start})\\,0\\,"
                 f"if(lt(T\\,{span_end})\\,1\\,"
                 f"max(0\\,1-(T-{span_end})/{fade_tail}))))"
             )
