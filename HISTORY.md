@@ -8,6 +8,7 @@
 
 ## สารบัญ
 
+| Round MAIN-PAGE-VOICE-TYPE-INDICATOR-1 | แสดงสัญลักษณ์ระบุประเภทเสียง (Gemini TTS vs Edge-TTS vs ยังไม่มีเสียง) บนหน้าหลัก ทั้งการ์ดรายการมุมและการ์ดสคริปต์ โดยไม่ต้องกดเข้าไปดูด้านใน | 2026-09-15 | สำเร็จสมบูรณ์ (backend 4 passed, frontend 246 passed, build 2,007 modules/3.34s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round EDGE-TTS-DETECT-AND-UPGRADE-BADGE-1 | ตรวจจับเสียง Edge-TTS เดิม + แสดง Badge เตือนทั้งในหน้าสคริปต์และในแผนถ่าย พร้อมอัปเกรดเป็น Gemini TTS | 2026-09-15 | สำเร็จสมบูรณ์ (backend 4 passed, frontend 246 passed, build 2,007 modules/3.32s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round SKIP-RENDERED-POSTED-AUDIO-GEN-1 | ข้ามการสร้างเสียงพากย์สำหรับคลิปที่เสร็จ (rendered) หรือโพสต์แล้ว (posted) และตัดออกจากตัวนับขาดเสียง | 2026-09-15 | สำเร็จสมบูรณ์ (backend 3 passed, frontend 246 passed, build 2,007 modules/3.59s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round UI-FONT-HARMONY-ALL-1 | กวาดล้าง font-mono และผสานฟอนต์กลาง (Prompt) ทั่วทั้งระบบ 100% ครบทุกแดชบอร์ดและหน้าจอ | 2026-09-15 | สำเร็จสมบูรณ์ (frontend 232 passed, build 2,007 modules/2.83s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
@@ -32,6 +33,42 @@
 | Round AGENTS-SLIM-1 | ย่อ AGENTS.md 170→62 บรรทัด (30.9→11.3 KB) กฎ 24 ข้อครบ + link ไฟล์กฎ | 2026-09-13 | เสร็จ (ดำเนินการโดย: Muse Spark (Muse Spark)) |
 | Round TEST-TWO-TIER-1 | กติกาเทส 2 ชั้น: ตอนแก้รันเฉพาะจุด ก่อนปิดรอบค่อยรันเต็ม | 2026-09-13 | เสร็จ (testing_standard.md, Gate เต็มเท่าเดิม, ดำเนินการโดย: Muse Spark (Muse Spark)) |
 | Round HOUSEKEEP-1 | จัดระเบียบราก: ไฟล์เทส 8 ไฟล์ลง .tmp (gitignore) + ยกเลิกย้าย PLAN หลังเจอ 06_Archive โดน ignore | 2026-09-13 | เสร็จบางส่วน (ดำเนินการโดย: Muse Spark (Muse Spark)) |
+
+## Round MAIN-PAGE-VOICE-TYPE-INDICATOR-1 — แสดงสัญลักษณ์ระบุประเภทเสียง (Gemini TTS vs Edge-TTS vs ยังไม่มีเสียง) บนหน้าหลัก ทั้งการ์ดรายการมุมและการ์ดสคริปต์ โดยไม่ต้องกดเข้าไปดูด้านใน
+
+วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์ ✅
+
+### ปัญหาที่พบ
+1. ผู้ใช้ถามว่า: *"แล้วจะดูว่าแผนนั้นเสียง tts หรือเสียงปกติต้องกดเข้ามาดูถึงด้านในเลยหรอครับ มีสัญลักษณ์บอกด้านนอกสักหน่อยได้ไหมครับ หน้าหลักอ่ะ"*
+2. ที่หน้าหลัก (ProductToClip) เดิมไม่ได้แสดงประเภทเสียงที่ชัดเจนภายนอก:
+   - ที่แถบรายการมุมซ้าย (`AngleSidebarItem`) แสดงเพียงปุ่มสัญลักษณ์สากล `[ แผนถ่ายพร้อม ]` หรือ `[ แผนถ่ายเก่า ]` โดยไม่บอกว่าเป็นเสียง Gemini หรือ Edge หรือยังไม่มีเสียง
+   - ที่หน้าจอทำงานสคริปต์ด้านขวา (`AngleActiveWorkbench`) ไม่มีแถบสถานะเสียงพากย์เลย ทำให้ผู้ใช้ต้องกดเปิด Modal เข้าไปดูข้างในถึงจะทราบ
+   - ข้อมูล `shotListStatusMap` ใน React State ถูกดึงเฉพาะเมื่อเลือกสินค้าผ่านฟังก์ชันบางจุด และไม่มี `useEffect` คอยดึงอัตโนมัติเมื่อ `productData.id` เปลี่ยนแปลง
+
+### สิ่งที่ได้ดำเนินการ
+1. **เพิ่ม `useEffect` ซิงค์ `shotListStatusMap` อัตโนมัติ:**
+   - ใน `ProductToClip.jsx`: ผูก `useEffect` กับ `productData?.id` เพื่อเรียก `getShotListStatus(productData.id)` เสมอ ทำให้สถานะเสียงทุกมุมเป็นปัจจุบันและแม่นยำตลอดเวลา
+2. **ยกระดับการ์ดรายการมุมมองขาย (Sidebar & Mobile):**
+   - ใน `AngleSidebarItem`:
+     - หากเป็น Edge-TTS: แสดง Badge สีส้ม/อำพันชัดเจน `⚠️ Edge-TTS (เสียงเดิม)` พร้อมไอคอนเตือน `AlertTriangle`
+     - หากเป็น Gemini TTS: แสดง Badge สีคราม/ฟ้า `🎙️ Gemini (Puck)` (หรือตาม preset ที่ใช้)
+     - หากบทเปลี่ยน: แสดง `⚠️ แผนถ่ายเก่า (บทเปลี่ยน)`
+     - หากยังไม่มีแผนถ่าย/เสียง: แสดง `+ แผนถ่าย`
+   - ใน `AngleMobilePill`: แสดง Badge `⚠️ Edge` หรือ `🎙️ Puck/Gemini` ให้สอดคล้องกันบนหน้าจอมือถือ
+3. **เพิ่ม Voice Track & Shot List Status Banner บนหน้าต่างทำงานสคริปต์ (Active Workbench):**
+   - แสดงแถบสถานะเสียงพากย์เด่นชัดทันทีเหนือบานหน้าต่างบทพูดพากย์ (ไม่ต้องกดเข้า Modal):
+     - **กรณี Edge-TTS:** แบนเนอร์สีส้มทองเตือน `⚠️ เสียงนำถ่าย: Edge-TTS (เสียงเดิม)` พร้อมคำอธิบายและปุ่มคลิกเดียว `[ เปิดอัปเกรดเสียง ➔ ]`
+     - **กรณี Gemini TTS:** แบนเนอร์สีคราม/นีออน `🎙️ เสียงนำถ่าย: Gemini TTS (ชื่อ Preset)` พร้อมคำอธิบายและปุ่ม `[ เปิดฟังเสียง / ดูแผนถ่าย ]`
+     - **กรณีไม่มีเสียง:** แบนเนอร์สีเทาสุภาพ `เสียงนำถ่าย: ยังไม่ได้สร้าง` พร้อมปุ่ม `[ + สร้างเสียงพากย์ & แผนถ่าย ]`
+4. **ปรับปุ่ม Action แผนถ่ายมุมขวาบนของ Workbench:**
+   - ปรับให้แสดงตามประเภทเสียงจริง: `⚠️ แผนถ่าย (Edge-TTS เดิม)` หรือ `🎙️ แผนถ่าย (Puck/Gemini)` หรือ `+ แผนถ่าย`
+
+### ผลการทดสอบ (Verification)
+- Backend: `pytest tests/test_api_batch_audio.py` ผ่าน 4/4 passed (2.97s)
+- Frontend: `npm test` vitest ผ่าน 246/246 passed (4.04s)
+- Production Build: `npm run build` ผ่าน 2,007 modules ใน 3.34s (dist ขนาดสมบูรณ์)
+
+---
 
 ## Round EDGE-TTS-DETECT-AND-UPGRADE-BADGE-1 — ตรวจจับเสียง Edge-TTS เดิม + แสดง Badge เตือนทั้งในหน้าสคริปต์และในแผนถ่าย พร้อมอัปเกรดเป็น Gemini TTS
 

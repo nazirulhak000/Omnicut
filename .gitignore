@@ -29,6 +29,7 @@ Thumbs.db
 scratch/
 temp_ecc/
 tests/scratch*/
+.tmp/
 tools/tiktok_browser_profile/
 # Test and tool generated outputs
 tests/output/
