@@ -13,6 +13,9 @@ import base64
 import json
 import hashlib
 import datetime
+import ipaddress
+import socket
+import urllib.parse
 from datetime import timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -340,12 +343,37 @@ def _resolve_image_bytes(img_ref: str) -> Optional[tuple[bytes, str]]:
         except Exception:
             return None
 
-    # Case 2: Remote URL
+    # Case 2: Remote URL.  Producer requests may be reachable from a LAN, so
+    # never let an arbitrary URL probe loopback/private/link-local services.
     if raw.lower().startswith(("http://", "https://")):
         try:
             import urllib.request
+            parsed = urllib.parse.urlparse(raw)
+            hostname = parsed.hostname
+            if not hostname or parsed.username or parsed.password:
+                return None
+            addresses = {
+                addr[4][0]
+                for addr in socket.getaddrinfo(hostname, parsed.port or (443 if parsed.scheme == "https" else 80), type=socket.SOCK_STREAM)
+            }
+            if not addresses or any(
+                (ip := ipaddress.ip_address(address)).is_private
+                or ip.is_loopback
+                or ip.is_link_local
+                or ip.is_unspecified
+                or ip.is_reserved
+                or ip.is_multicast
+                for address in addresses
+            ):
+                return None
+
+            class _NoRedirect(urllib.request.HTTPRedirectHandler):
+                def redirect_request(self, req, fp, code, msg, headers, newurl):
+                    return None
+
             req = urllib.request.Request(raw, headers={"User-Agent": "OmniCutPro/1.0"})
-            with urllib.request.urlopen(req, timeout=5) as resp:
+            opener = urllib.request.build_opener(_NoRedirect)
+            with opener.open(req, timeout=5) as resp:
                 data = resp.read(MAX_REF_MEDIA_BYTES + 1)
                 if len(data) > MAX_REF_MEDIA_BYTES:
                     return None
@@ -357,18 +385,21 @@ def _resolve_image_bytes(img_ref: str) -> Optional[tuple[bytes, str]]:
         except Exception:
             return None
 
-    # Case 3: Local file (either filename in REFS_DIR, /api/producer/ref-media/{name}, or relative/absolute path)
+    # Case 3: Local file.  Only uploaded refs and the configured assets root
+    # are readable; arbitrary absolute paths would disclose host files.
     filename = Path(raw).name
     candidate_paths = [
         REFS_DIR / filename,
-        Path(raw),
         ASSETS_DIR / raw,
-        Path(__file__).resolve().parent.parent / raw,
     ]
+    allowed_roots = [REFS_DIR.resolve(), ASSETS_DIR.resolve()]
     for p in candidate_paths:
         try:
-            if p.is_file() and 0 < p.stat().st_size <= MAX_REF_MEDIA_BYTES:
-                ext = p.suffix.lower().lstrip(".")
+            resolved = p.resolve()
+            if not any(resolved == root or root in resolved.parents for root in allowed_roots):
+                continue
+            if resolved.is_file() and 0 < resolved.stat().st_size <= MAX_REF_MEDIA_BYTES:
+                ext = resolved.suffix.lower().lstrip(".")
                 mime = {
                     "jpg": "image/jpeg",
                     "jpeg": "image/jpeg",
@@ -378,7 +409,7 @@ def _resolve_image_bytes(img_ref: str) -> Optional[tuple[bytes, str]]:
                     "heif": "image/heif",
                     "gif": "image/gif",
                 }.get(ext, "image/jpeg")
-                return p.read_bytes(), mime
+                return resolved.read_bytes(), mime
         except Exception:
             continue
 

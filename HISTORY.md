@@ -9,6 +9,7 @@
 ## สารบัญ
 
 | Round MAIN-FLOW-SCALE-CLOSEOUT-20260915 | Closed durable render queue and workspace scale gate | 2026-09-15 | Complete (full backend 1512 passed, 5 skipped, 29 warnings; executed by: Codex (GPT-6)) |
+| Round AI-PRODUCER-HUB-HARDENING-1 | Added SSRF/private-address rejection and approved-root local image containment for Producer references | 2026-09-15 | Complete (12 Producer tests passed, compileall passed; executed by: Codex (GPT-6)) |
 | Round AI-PRODUCER-HUB-AUDIT-READONLY-20260915 | Evidence-first read-only Producer Hub audit with bounded hardening backlog | 2026-09-15 | Complete (backend 9 passed, frontend 246 passed; executed by: Codex (GPT-6)) |
 | Round SYSTEM-AUDIT-P2-CUTOUT-20260915 | Recovered pending cutout publication and deduplicated background-isolation work | 2026-09-15 | Complete (36 focused tests passed, 2 skipped; executed by: Codex (GPT-6)) |
 | Round SYSTEM-AUDIT-P3-MEDIA-RANGE-20260915 | Hardened HTTP byte-range parsing for valid, malformed, and unsatisfiable requests | 2026-09-15 | Complete (69 focused tests passed, 1 skipped; compileall passed; executed by: Codex (GPT-6)) |
@@ -6197,3 +6198,11 @@ Closed the durable render queue, export snapshot, and workspace coordinator roun
 Date: 2026-09-15; requested by user; executed by: Codex (GPT-6); status: complete.
 
 Recorded the read-only findings and recommended bounded hardening rounds in [AI_PRODUCER_HUB_AUDIT_2026-09-15.md](AI_PRODUCER_HUB_AUDIT_2026-09-15.md). The audit identified SSRF/local-path exposure, concurrent notes write loss, offline merge/rollback gaps, mobile MIME handling, clipboard rejection handling, and architecture documentation drift.
+
+## Round AI-PRODUCER-HUB-HARDENING-1
+
+Date: 2026-09-15; requested by user; executed by: Codex (GPT-6); status: complete.
+
+Hardened Producer reference image resolution: remote HTTP(S) requests now reject credentials, private/loopback/link-local/reserved addresses, and redirects; local reads are limited to resolved files under Refs or the configured Assets root. Added regressions for private DNS, redirect blocking, and absolute-path escape.
+
+Verification: `pytest tests/test_producer_vision_api.py tests/test_producer_notes_api.py` ? 12 passed; `python -m compileall -q scripts` passed.

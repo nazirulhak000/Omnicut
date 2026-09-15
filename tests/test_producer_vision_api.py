@@ -6,6 +6,7 @@ Tests POST /api/producer/ai-idea-to-angle with both Gemini Vision and Heuristic 
 import os
 import json
 import base64
+import socket
 import pytest
 from pathlib import Path
 from fastapi.testclient import TestClient
@@ -51,6 +52,9 @@ def test_ai_idea_to_angle_heuristic_fallback(client, monkeypatch):
 
 def test_ai_idea_to_angle_multimodal_gemini_vision(client, monkeypatch, tmp_path):
     """When Gemini Vision returns valid multimodal analysis, parse and sanitize properly."""
+    # Treat the test fixture directory as the configured assets root; arbitrary
+    # host paths are intentionally rejected by the resolver.
+    monkeypatch.setattr(api_producer, "ASSETS_DIR", tmp_path)
     # Create a dummy image
     test_img = tmp_path / "test_screenshot.png"
     # 1x1 transparent PNG
@@ -100,8 +104,9 @@ def test_ai_idea_to_angle_multimodal_gemini_vision(client, monkeypatch, tmp_path
     assert proposal["script"] == proposal["script_brief"]
 
 
-def test_resolve_image_bytes_helper(tmp_path):
+def test_resolve_image_bytes_helper(tmp_path, monkeypatch):
     """Test image resolution for data URL, local files, and invalid paths."""
+    monkeypatch.setattr(api_producer, "REFS_DIR", tmp_path)
     # 1. Data URL
     data_url = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
     res1 = api_producer._resolve_image_bytes(data_url)
@@ -121,6 +126,47 @@ def test_resolve_image_bytes_helper(tmp_path):
     # 3. Non-existent file
     res3 = api_producer._resolve_image_bytes("non_existent_image_12345.jpg")
     assert res3 is None
+
+
+def test_resolve_image_bytes_rejects_private_remote_address(monkeypatch):
+    monkeypatch.setattr(
+        socket,
+        "getaddrinfo",
+        lambda *args, **kwargs: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 80))],
+    )
+    assert api_producer._resolve_image_bytes("http://example.test/ref.png") is None
+
+
+def test_resolve_image_bytes_rejects_redirects(monkeypatch):
+    monkeypatch.setattr(
+        socket,
+        "getaddrinfo",
+        lambda *args, **kwargs: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))],
+    )
+
+    class RedirectResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self, _limit):
+            return b""
+
+    class NoRedirectOpener:
+        def open(self, *_args, **_kwargs):
+            raise RuntimeError("redirect blocked")
+
+    import urllib.request
+    monkeypatch.setattr(urllib.request, "build_opener", lambda *_args: NoRedirectOpener())
+    assert api_producer._resolve_image_bytes("https://example.test/ref.png") is None
+
+
+def test_resolve_image_bytes_rejects_absolute_path_outside_allowed_roots(tmp_path):
+    outside = tmp_path / "outside.png"
+    outside.write_bytes(b"private")
+    assert api_producer._resolve_image_bytes(str(outside)) is None
 
 
 def test_generate_angle_with_gemini_multimodal_client_call(monkeypatch):

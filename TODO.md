@@ -77,7 +77,7 @@
 - [x] Round COVER-MULTI-GEN-HANDHELD-1 — AI Cover History Gallery (เก็บทุกรูปที่เจนไม่ถูกทับ) + ปลดล็อกคำสั่ง Handheld มือถือสินค้าจริง + Auto-enable Brand/Model Title Overlay (2026-09-14; pytest 6 passed, vitest 230 passed, build 3.19s ผ่าน, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [x] Round AI-PRODUCER-HUB-AUDIT-READONLY-20260915 - Evidence-first read-only audit completed; findings recorded in AI_PRODUCER_HUB_AUDIT_2026-09-15.md; hardening scope remains pending (executed by: Codex (GPT-6))
 - [x] Round AI-PRODUCER-HUB-AUDIT-PLAN-1 — ตรวจสอบการใช้งาน AI Producer Hub และจัดทำแผนยกระดับแบบ evidence-first (2026-09-13; วิเคราะห์โค้ด + browser snapshot แล้ว, รออนุมัติ scope, ดำเนินการโดย: Codex (GPT-5)) (read-only findings and evidence-first hardening plan recorded in AI_PRODUCER_HUB_AUDIT_2026-09-15.md; executed by: Codex (GPT-6))
-- [ ] Round AI-PRODUCER-HUB-HARDENING-1 - Implement SSRF/local-path containment, notes concurrency/rollback, and mobile input hardening from the audit; executed by: Codex (GPT-6)
+- [x] Round AI-PRODUCER-HUB-HARDENING-1 - Implement SSRF/local-path containment, notes concurrency/rollback, and mobile input hardening from the audit; executed by: Codex (GPT-6) (SSRF/private-address and local-path containment implemented; 12 Producer tests passed; compileall passed; executed by: Codex (GPT-6))
 - [ ] Round BG-SUBJECT-ISOLATION-4 — แก้ artifact ติด processing และตรวจลำดับเลเยอร์ให้ Hook อยู่หลัง Subject (2026-09-14; ดำเนินการโดย: Codex (GPT-5))
 - [x] Round BG-SUBJECT-ISOLATION-RESUME-1 — ทำงานตัดพื้นหลังแบบ resumable เมื่อเน็ต/หน้าเว็บ/Server หลุด (2026-09-14; backend 45+41 passed, frontend 230 passed, build 2005 modules, compileall ผ่าน; ดำเนินการโดย: Codex (GPT-5))
 - [x] Round CALLOUT-RESURRECT-FIX-1 — แก้บั๊ก Text Overlays ถูกปลุกขึ้นมาทับกลางจอ (LOCSmartband) เมื่อลบแล้วใน Editor + ป้องกัน Auto Brand/Model Callout ซ้อนทับ Hook Banner (2026-09-14; pytest backend 8+5+153 passed, vitest 230 passed, build ผ่าน, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
@@ -690,3 +690,13 @@ Gate: backend 1386 passed / 3 skipped, BG focused 151 passed / 3 skipped, fronte
 - [x] Active Workbench แสดง Voice & Audio Track Banner และ action ตามประเภทเสียง
 - [x] Validation: frontend tests 246 passed; Vite build 2,007 modules / 3.03s
 ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+## Round AI-PRODUCER-HUB-HARDENING-1
+
+Date: 2026-09-15; executed by: Codex (GPT-6); status: complete
+
+Plan before code:
+- [x] Restrict remote reference fetches to public addresses and reject unsafe redirects.
+- [x] Restrict local reference reads to approved workspace roots with resolved-path containment.
+- [x] Add deterministic regression tests for private URLs, redirects, and local-path escape.
+- [x] Run focused Producer tests, compileall, and diff check.
