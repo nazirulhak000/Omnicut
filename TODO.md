@@ -17,6 +17,7 @@
 
 ## สถานะรวม
 
+- [x] Round ONE-CLICK-DRAFT-PARITY-FIX-1 — นำปุ่มเดิม "เลือกมุมนี้ & ส่งตัดต่อ" กลับมา + แก้ 404 ตอนกดเปิดไทม์ไลน์จากศูนย์กิจกรรม + แมพ Style Preset ตามสคริปต์มุมมองใน Batch/Quick Draft (2026-09-15; backend 8 passed, frontend 246 passed, build 2,007 modules/3.20s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 - [x] Round ONE-CLICK-DRAFT-BATCH-PIPELINE-1 — ระบบ 1-Click Draft (สร้างดราฟต์ไทม์ไลน์ 1 คลิก) ทั้งระดับรายมุมและทั้งล็อต (Batch Draft) ประกอบเสียง ซับ ฟุตเทจ เข้าสู่ไทม์ไลน์ ProjectManifest โดยไม่ผ่านการเรนเดอร์ MP4 เต็มรูปแบบ (2026-09-15; backend 14 passed, frontend 246 passed, build 2,007 modules/3.52s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) — บล็อกเต็มอยู่ใน HISTORY.md
 - [ ] Round STYLE-MOTION-CATALOG-CONTRACT-SYNC-1 — ซิงก์ `tests/test_style_motion_policy.py` กับ catalog 10 สไตล์ (ของเดิมตก 1 test เพราะ commit `0a07a34` ขยาย `scripts/style_motion_policy.py` เป็น 10 สไตล์แต่ไม่ได้อัปเดต test ที่ยังยืนยัน 5 สไตล์) (พบโดย: Cline (Cline Agent) · ยังไม่ได้แก้)
 - [x] Round DOCS-CURRENCY-REFRESH-20260915 — อัปเดตคู่มือ 3 ระดับ (README.md / ARCHITECTURE.md / UserGuide.jsx) ให้ตรงระบบจริง ณ 2026-09-15: 9 โมดูลเมนู (เพิ่มเมนู 0 ผู้ช่วยโปรดิวเซอร์), 23 routers / 170 routes, Analytics Hub 5 แท็บ, ค่าเริ่มต้นเสียง Gemini TTS และตัวเลข gate จริง (2026-09-15; frontend 246 passed, build 2,007 modules/6.92s, backend 1,514 passed/5 skipped และ 1 ตกที่เป็นของเดิม, ดำเนินการโดย: Cline (Cline Agent)) — บล็อกเต็มอยู่ใน HISTORY.md
@@ -727,11 +728,222 @@ Plan before code:
 - [x] Tests:
   - Vision Matcher tests: 32 passed (`tests/test_gemini_vision_matcher.py` & `test_gemini_vision_retry.py`)
   - Gemini TTS tests: 20 passed (`tests/test_gemini_tts_engine.py`)
+**เป้าหมาย & ปัญหาที่แก้ไขตามคำขอผู้ใช้:**
+1. **หน้าแผนถ่าย (Shot List Modal):**
+   - ตั้งค่าเสียงเริ่มต้นให้ตรงกับหน้าตัดต่อ: `gemini_puck_male_hype` (Puck — ชายพลังสูง สไตล์ TikTok) และโทน `commercial_hype`
+   - ปรับลิสต์ใน Dropdown ให้ Puck อยู่ลำดับแรกสุด #1
+2. **ยกเลิก Edge-TTS Fallback ถาวรเมื่อใช้ Gemini TTS:**
+   - ผู้ใช้ยืนยันชัดเจนว่าจะไม่ใช้เสียง Edge-TTS ในระบบ หาก Gemini TTS สร้างเสียงไม่ได้ **ต้องหยุดการทำงานทันที (Halt & Fail)** ไม่ fallback ไป Edge-TTS
+   - ครอบคลุมทั้ง Pipeline ตัดต่อวิดีโอ (`VoiceStage.run`), Shot List แผนถ่าย (`scripts/shot_list_builder.py`), และ Voice Preview (`api_voice.py`)
+3. **แจ้งเตือนสาเหตุและเวลาที่ต้องรออย่างละเอียด (Actionable Error Reporting):**
+   - หากติด Rate Limit (HTTP 429) หรือ Quota Exceeded ให้ดึงและวิเคราะห์เวลาที่ต้องรอ (เช่น `retryDelay`, `Retry-After`)
+   - แจ้งเตือนว่าติดขีดจำกัดแบบใด (เจนถี่เกินไป / RPM / โควตารายวัน RPD) พร้อมระบุเวลารอชัดเจน (เช่น กี่วินาที หรือกี่นาที) หรือแนะนำให้เพิ่ม API Key ใน `.env`
+   - ส่งต่อข้อความ Error ที่สมบูรณ์ไปยัง Task Card, Toast และหน้าต่าง Modal
+
+### สรุปสิ่งที่ทำเสร็จ:
+- [x] Backend (`scripts/gemini_tts_engine.py`): ปรับปรุงระบบตรวจจับ HTTP 429 และ Quota ให้แยกแยะสาเหตุและเวลาที่ต้องรอ พร้อม raise `GeminiTTSError` ที่สมบูรณ์
+- [x] Backend (`scripts/stages/voice_stage.py`): ยกเลิก Edge-TTS fallback ทั้งหมดเมื่อ `voice_engine_type == "gemini_tts"` โดยสั่งหยุดและ raise error ทันที
+- [x] Backend (`scripts/api_shot_lists.py` & `scripts/api_render.py` & `scripts/api_voice.py`): ส่งต่อ error message ละเอียดไปยัง TaskManager และ HTTP response
+- [x] Frontend (`frontend/src/components/ShotListModal.jsx`): ปรับค่าเริ่มต้นและ Dropdown เสียงพากย์เป็น Puck TikTok และโทนป้ายยาไวรัล พร้อมแสดงกล่องแจ้งเตือน Error เมื่อเจนไม่ผ่าน
+- [x] Frontend (`frontend/src/components/ProductToClip.jsx` & `ContentTrackerHub.jsx`): ส่ง state error ให้ ShotListModal
+- [x] Tests: อัปเดตและรัน pytest 50 passed และ vitest 232 passed build ผ่าน 100%
+
+## Round BG-SUBJECT-ISOLATION-QUALITY-GATE-1 — ตรวจ alpha mask sanity ก่อน publish
+
+ดำเนินการโดย: Codex (GPT-6)
+
+### แผนรอบนี้
+- [x] เพิ่ม deterministic alpha coverage sanity gate ใน sequence worker โดยไม่เปลี่ยน schema และไม่แตะ artifact เดิม (verified existing production gate in scripts/background_isolation_worker.py)
+- [x] เพิ่ม regression tests สำหรับ fully transparent / fully opaque / plausible alpha frames และยืนยันว่าไม่ publish ready เมื่อ gate ไม่ผ่าน (transparent/opaque/sparse regression coverage; 33 focused tests passed)
+- [x] รัน focused background-isolation tests, compileall และ scoped diff check (focused tests + compileall passed; scoped source diff check passed)
+
+### Subplan BG-SUBJECT-ISOLATION-READINESS-20260915
+- [x] ตรวจ project-level background-isolation marker เทียบกับ artifact ระดับคลิป และระบุ stale processing หลัง reload
+- [x] เพิ่ม pure regression tests สำหรับ processing/error marker ที่ต้อง override สถานะ ready ของ clip เดิม
+- [x] แก้เฉพาะ readiness projection หากพบ behavior ผิดจริง แล้วรัน frontend focused tests/build
+ดำเนินการโดย: readiness_audit (GPT-6)
+
+### Fixture evidence update (2026-09-15)
+- Inspected `.tmp/bg-isolation-investigation/source-2.8s.png`, `u2net-2.8s.png`, and `u2netp-2.8s.png` as real rembg outputs.
+- Measured u2net visible alpha 7.9174%, alpha mass 6.5538%, bbox `(138,441)-(331,774)`; u2netp visible alpha 12.0644%, alpha mass 6.3803%, bbox `(46,204)-(540,960)`.
+- u2netp mask reaches the frame edge, consistent with the previously observed hand/background false foreground. Keep project default `u2net`; do not change existing artifacts automatically.
+- End-to-end video Preview/Render fixture remains open; no production threshold change made.
+- ดำเนินการโดย: Codex (GPT-6)
+
+### Security regression recheck (2026-09-15)
+- [x] P0 safety + P1 recovery suites: 50 passed, 1 skipped, 1 warning; `.env` files ignored/untracked and values not read or changed. Agent: Codex (GPT-6)
+
+### Real video Render fixture evidence (2026-09-15)
+- Copied existing project fixture `03_Projects/LOG02-รีวิวสเปก_1/seg_000.mp4` plus its audio/subtitle into `.tmp/e2e-fixture` only.
+- `VideoEditor.assemble_tiktok_video` completed a 2.0s draft render and a 2.0s post render without modifying the source project.
+- Post output probe: H.264 + AAC, 1080×1920, 30/1 FPS, 2.000s; frame inspection shows Hook and bilingual subtitle layers present.
+- Browser Preview pixel parity is still open; no model/threshold change made.
+- ดำเนินการโดย: Codex (GPT-6)
+
+## Round SYSTEM-AUDIT-P7-LIFESPAN-20260915 — แยก startup recovery ออกจาก import side effects
+
+ดำเนินการโดย: Codex (GPT-6)
+
+### แผนรอบนี้
+- [x] แยก background-isolation และ batch recovery ให้อยู่ใน lifecycle ที่ควบคุมได้
+- [x] เพิ่ม regression ให้ import/app construction ไม่ทำ recovery ซ้ำหรือทำให้ test fixture พัง
+- [x] รัน focused API tests, compileall และ scoped diff check
+
+### Subplan SYSTEM-AUDIT-P7-LIFESPAN-20260915 / startup recovery control
+- [x] เพิ่ม `recover_startup_work()` และ FastAPI lifespan ให้ background-isolation/batch recovery ทำงานเมื่อ server เริ่มจริง ไม่ทำงานตอน import module
+- [x] เพิ่ม regression ทดสอบ helper/lifespan เรียก recovery อย่างควบคุมได้และแยก error ต่อ subsystem
+- [x] รัน focused API/recovery tests, compileall และ scoped diff check
+ดำเนินการโดย: Codex (GPT-6)
+
+### Evidence SYSTEM-AUDIT-P7-LIFESPAN-20260915
+- Importing `scripts.api_server` and constructing `app` no longer executes durable background-isolation or batch recovery.
+- `recover_startup_work()` is called by FastAPI `lifespan`; it records counts in `app.state.startup_recovery` and isolates subsystem failures.
+- Regression/recovery suite: 39 passed, 3 skipped, 1 warning; `python -m compileall -q scripts tests/test_api_server_lifespan.py` passed; scoped `git diff --check` passed.
+ดำเนินการโดย: Codex (GPT-6)
+
+## Round SYSTEM-AUDIT-CONTINUE-20260915 — ปิดงานค้างด้วยหลักฐานแยกชุด
+ดำเนินการโดย: Codex (GPT-6)
+### แผนรอบนี้
+- [x] ตรวจ full isolated gate และแยก failure ที่แก้ได้จาก fixture/environment blocker
+- [x] ตรวจ Preview/Render parity จากโค้ดและ browser/fixture ที่มีอยู่ โดยไม่แก้ visual contract เอง
+- [x] ตรวจ P03–P05 performance paths และเลือก bounded fix ที่มี regression รองรับ
+- [x] รัน focused tests/build/diff check แล้วบันทึกผลใน HISTORY และ system audit
+### Evidence SYSTEM-AUDIT-CONTINUE-20260915
+- [x] Full isolated clone gate classified: 1,470 passed, 21 fixture/environment failures, 14 skipped, 24 warnings; no safe production regression found.
+- [x] Preview/Render parity fixed: FFmpeg Hook scrim now uses the same 0.75 peak opacity as SequencePlayer Canvas (`scripts/video_editor.py` + `tests/test_preview_render_parity.py`). Browser visual snapshot at 0s and 4s matched Render; pixel extraction from Canvas is unavailable through CUA.
+- [x] P04 export read path bounded cache added in `scripts/api_exports.py`; P03 source chunking and P05 collection rewrite deferred pending benchmark/compatibility contract.
+- [x] Validation: preview parity 154 passed; behavior/compositor/integration 69 passed; matching lookup 9 passed; export regression 27 passed, 1 warning; compileall and scoped diff checks passed.
+ดำเนินการโดย: Codex (GPT-6); performance review: Antigravity (GPT-5.6); browser review: preview_parity_audit (GPT-6)
+- [x] Deterministic Gemini key test fixture: clear every `GEMINI_API_KEY*` process variable and patch `scripts.config._env_file` to tmp path; `tests/test_gemini_tts_engine.py` now passes 20/20.
+- ดำเนินการโดย: Codex (GPT-6)
+
+## Round SYSTEM-AUDIT-NEXT-20260915 — ปลดล็อกงาน P03/P05 ด้วย benchmark และ contract
+ดำเนินการโดย: Codex (GPT-6)
+### แผนรอบนี้
+- [x] วัดต้นทุน rembg แบบ temp-only เพื่อประเมิน source-time chunking โดยไม่สร้าง artifact ใหม่ในโปรเจกต์จริง
+- [x] ตรวจ ProductStore mutation path และออกแบบ bounded row-level contract พร้อม regression ก่อนพิจารณาแก้
+- [x] ตรวจ full-gate fixture failures ว่าทำให้ self-contained ได้หรือควรคงเป็น environment blocker
+- [x] สรุปผลและคอมมิตเฉพาะเมื่อมีการเปลี่ยนแปลงที่ปลอดภัย
+### Evidence SYSTEM-AUDIT-NEXT-20260915
+- [x] Temp-only rembg benchmark: at 540×960, u2net warm average 1.953s/frame and u2netp 0.744s/frame; a 2.8s chunk is ~3.6% of a 77.8s source. Source-time chunking is valuable but requires artifact identity/frame mapping redesign, so no production change was made.
+- [x] P05 row-level mutation contract: `_MutateCtx` now emits only changed-row UPDATE/INSERT/DELETE statements, rejects duplicate IDs, and preserves transaction rollback/API compatibility. SQLite/reconcile 22 focused tests passed in this workspace.
+- [x] Full-gate fixture review: missing fonts, typography presets, SFX, BGM, stickers, and media explain remaining isolated failures; no real assets or secrets will be added to the repository.
+- [x] Validation: `tests/test_sqlite_store_migration.py` 22 passed; `tests/test_api_batch_audio.py` 4 passed; compileall and scoped diff checks passed.
+ดำเนินการโดย: Codex (GPT-6); benchmark: cutout_benchmark (GPT-6); mutation review: mutation_contract (GPT-6)
+
+### Evidence MAIN-PAGE-VOICE-TYPE-INDICATOR-1
+- [x] หน้าหลักโหลดสถานะแผนถ่าย/เสียงตาม product และ angle โดยอัตโนมัติ
+- [x] แสดงสถานะ Edge-TTS เดิม, Gemini preset และแผนถ่ายเก่าบน desktop/mobile cards
+- [x] Active Workbench แสดง Voice & Audio Track Banner และ action ตามประเภทเสียง
+- [x] Validation: frontend tests 246 passed; Vite build 2,007 modules / 3.03s
+ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+## Round AI-PRODUCER-HUB-HARDENING-1
+
+Date: 2026-09-15; executed by: Codex (GPT-6); status: complete
+
+Plan before code:
+- [x] Restrict remote reference fetches to public addresses and reject unsafe redirects.
+- [x] Restrict local reference reads to approved workspace roots with resolved-path containment.
+- [x] Add deterministic regression tests for private URLs, redirects, and local-path escape.
+- [x] Run focused Producer tests, compileall, and diff check.
+
+## Round HOOK-STYLE-10-PRESET-EXPANSION-1 — ขยายสไตล์การตัดต่อและป้ายฮุกเป็น 10 สี 10 สไตล์ (1-to-1 กับ 10 Script Angles) + ตรวจจับสไตล์ที่เคยใช้แล้วของสินค้าใน StylePresetPicker
+ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+### แผนรอบนี้
+- [x] เพิ่ม Hook Style Templates 5 สีใหม่ให้ครบ 10 สีใน `scripts/hook_styles.py` และ `frontend/src/lib/hookStyles.js` รักษา 3-tier structure และ parity 100%
+- [x] เพิ่ม Style Presets 5 สไตล์ใหม่ใน `scripts/style_motion_policy.py`, `scripts/color_theme.py`, `scripts/overlay_model.py` และ `frontend/src/lib/stylePresetCatalog.js`
+- [x] สร้าง 1-to-1 Default Mapping ระหว่าง 10 Script Angles และ 10 Editorial Style Presets พร้อมฟังก์ชัน `getRecommendedStyleForAngle(angleId)`
+- [x] เชื่อมโยง `angleToForm.js` ให้เลือกสไตล์ที่ตรงกับ angle โดยอัตโนมัติเมื่อผู้ใช้สร้างคลิป
+- [x] เพิ่มระบบตรวจจับสไตล์ที่ถูกสร้างไปแล้วของสินค้านั้นใน `NewClipPanel.jsx` และส่งต่อไปยัง `StylePresetPicker.jsx`
+- [x] แสดงแท็ก `(ใช้แล้ว)` บน Pill ของสไตล์ และแสดงกล่องข้อความเตือนนุ่มนวล (Gentle non-blocking alert) ใน Showcase Card โดยอนุญาตให้ผู้ใช้ยืนยันสร้างซ้ำได้ตามต้องการ
+- [x] รัน `npm test`, `npm run build`, และ `pytest tests/test_preview_render_parity.py` ยืนยันผ่านทั้งหมด
+### Evidence HOOK-STYLE-10-PRESET-EXPANSION-1
+- [x] 10 Hook Templates & 10 Style Presets ครบถ้วน:
+  1. `stop_scroll` -> `viral_punch` (แดง `#FE2C55` / `b1_viral_red`)
+  2. `fomo_deal` -> `flash_deal` (ส้ม `#FF7A00` / `b1_deal_orange`)
+  3. `pain_point` -> `pain_punch` (ชมพู `#FF2E93` / `b1_pain_pink`)
+  4. `spec_review` -> `clean_tech_review` (เหลือง `#FFE600` / `b2_clean_yellow`)
+  5. `comparison` -> `tech_compare` (น้ำเงิน `#3B82F6` / `b2_compare_blue`)
+  6. `unboxing` -> `tech_product_showcase` (ฟ้า `#25F4EE` / `b2_tech_cyan`)
+  7. `life_hack` -> `smart_hack` (เขียวมะนาว `#84CC16` / `b1_hack_lime`)
+  8. `niche_target` -> `niche_focus` (ม่วง `#A855F7` / `b2_niche_purple`)
+  9. `longterm_review` -> `smooth_showcase` (มิ้นต์ `#00F2AA` / `b1_smooth_mint`)
+  10. `math_value` -> `premium_minimal` (ทอง `#E6C24A` / `b2_premium_gold`)
+- [x] Tests:
+  - Frontend vitest: 246 passed (stylePresetCatalog assertion for all 10 presets and unique accents)
+  - Frontend build: Vite 2,007 modules transformed / built in 3.38s
+  - Backend parity: 154 passed (`tests/test_preview_render_parity.py`)
+  - Backend overlay model: 40 passed (`tests/test_overlay_model.py`)
+- [x] ตรวจสอบ Style Usage Detection:
+  - มีแท็ก `(ใช้แล้ว)` บน pill ของสไตล์ที่เคยถูกใช้
+  - มี Banner สีอำพันเตือนนุ่มนวล (Gentle Warning) แสดงชัดเจนว่าสไตล์นี้เคยใช้แล้ว พร้อมชื่อมุม/โปรเจกต์เดิม และอนุญาตให้สร้างคลิปซ้ำได้ทันที
+ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+## Round ANGLE-SCRIPT-DELETE-FEATURE-1 — ลบสคริปต์ซ้ำ 3 มุม (การ์ด 11, 12, 13) + เพิ่ม API และปุ่มถังขยะลบสคริปต์บนหน้าเว็บ
+ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+### แผนรอบนี้
+- [x] ลบสคริปต์ซ้ำ 3 มุม (`angle_1789220587418_v7hh`, `angle_1789220593633_4bd0`, `angle_1789220597656_6zjk`) ออกจากสินค้าพัดลมทันที พร้อมล้าง shot list ของมุมดังกล่าว
+- [x] อัปเดต `scripts/product_store.py`: ให้ `remove_angle` ลบ `ShotListsStore` ของมุมนั้นโดยอัตโนมัติ
+- [x] เพิ่ม Endpoint `DELETE /api/products/{product_id}/angles/{angle_id}` ใน `scripts/api_products.py` พร้อม error handling ชัดเจน
+- [x] เพิ่มฟังก์ชัน `deleteProductAngle(productId, angleId)` ใน `frontend/src/api.js`
+- [x] เพิ่มปุ่มถังขยะ (Trash2) ลบมุมสคริปต์ใน `ProductToClip.jsx` ทั้งบน `AngleSidebarItem` (รายการการ์ดฝั่งซ้าย) และ `AngleActiveWorkbench` (หัวแถบฝั่งขวา) พร้อมกล่องยืนยันการลบ (ป้องกันการกดพลาด) และล็อกไม่ให้ลบมุมที่โพสต์แล้ว (`status === 'posted'`)
+- [x] รันการทดสอบ unit tests frontend และ backend ยืนยันความถูกต้อง
+### Evidence ANGLE-SCRIPT-DELETE-FEATURE-1
+- [x] ลบมุมที่ซ้ำกัน 3 มุมเรียบร้อย: `angle_1789220587418_v7hh`, `angle_1789220593633_4bd0`, `angle_1789220597656_6zjk` พร้อม shot lists ทั้งหมด
+- [x] Backend endpoint: `DELETE /api/products/{product_id}/angles/{angle_id}` ทำงานสมบูรณ์
+- [x] UI ปุ่มถังขยะ:
+  - บนการ์ดฝั่งซ้าย (`AngleSidebarItem`): ปรากฏเมื่อ hover บนการ์ดมุม (เฉพาะมุมที่ยังไม่ได้โพสต์)
+  - บนแถบเครื่องมือฝั่งขวา (`AngleActiveWorkbench`): ปุ่ม "ลบสคริปต์" สีแดง พร้อมไอคอน Trash2
+  - ป๊อปอัปยืนยัน (`ConfirmModal`): ป้องกันการกดลบพลาด แจ้งชื่อมุมอย่างชัดเจน
+- [x] Tests:
+  - Frontend vitest: 246 passed
+  - Frontend build: Vite 2,007 modules transformed / built in 3.22s
+  - Backend tests: 176 passed (`test_sqlite_store_migration.py` & `test_preview_render_parity.py`)
+ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+## Round GEMINI-VISION-MULTIKEY-FAILOVER-1 — ปรับระบบ AI ในขั้นตอน One-Click ให้รองรับ Multi-Key Failover วนลูปครบทุกคีย์ (Key 1 ➔ 2 ➔ 3 ➔ 4 ➔ 5) เหมือนกับ Gemini TTS
+ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+### แผนรอบนี้
+- [x] ปรับปรุง `scripts/gemini_vision_matcher.py` ให้รองรับการวนลูปทุก Gemini API Key (`get_gemini_api_keys()`) โดยเมื่อเจอ Rate Limit (429) หรือ Quota เต็ม จะแจ้งเตือนและสลับไป Key ถัดไป (Key 1 ➔ Key 2 ➔ ...) อัตโนมัติ
+- [x] ปรับปรุง `scripts/stages/shot_matching_stage.py` ให้ตรวจสอบความพร้อมผ่าน `GeminiVisionMatcher.is_available()` แทนการเช็คเฉพาะ `os.environ.get("GEMINI_API_KEY")` เพื่อรองรับคีย์จาก `.env` ทุกรูปแบบ (`GEMINI_API_KEY_1`, `GEMINI_API_KEY_2`, ...)
+- [x] ปรับปรุง `scripts/script_tone_analyzer.py` ให้ใช้ `get_gemini_api_keys()` และวนลูปทุกคีย์ รองรับ failover เมื่อคีย์ใดคีย์หนึ่งติด 429
+- [x] ปรับปรุง `scripts/product_scraper.py` ทั้งฟังก์ชันอ่านข้อมูลจากภาพ (`extract_product_facts_from_images`) และคิดสคริปต์ (`generate_content_matrix`) ให้วนลูปสลับคีย์อัตโนมัติ ไม่ล็อกตายตัวที่ `api_keys[0]`
+- [x] ปรับปรุง `scripts/api_voice.py` (`generate_ai_scripts`) ให้ใช้ `get_gemini_api_keys()` และวนลูปทุกคีย์
+- [x] รันการทดสอบ unit tests ทั้งหมด ยืนยันความเข้ากันได้
+### Evidence GEMINI-VISION-MULTIKEY-FAILOVER-1
+- [x] Multi-key rotation รองรับทุกรูปแบบใน `.env` (`GEMINI_API_KEY`, `GEMINI_API_KEY_1`, `GEMINI_API_KEY_2`, ...)
+- [x] การทำงานเหมือนกับ `GeminiFlashTTSEngine` (Model-first + Key-rotation + Rate-limit backoff)
+- [x] ครอบคลุมทุก AI module ใน 1-Click flow:
+  1. `GeminiFlashTTSEngine` (TTS พากย์เสียง)
+  2. `GeminiVisionMatcher` (Vision Matcher คัดเลือกช็อตตัดต่อ)
+  3. `ScriptToneAnalyzer` (Tone Shift ตัดต่ออัจฉริยะ)
+  4. `ProductScraper` (อ่านรูปสเปก + คิดสคริปต์ 10 มุม)
+  5. `api_voice.py` (เจนสคริปต์ 4 มุม)
+- [x] Tests:
+  - Vision Matcher tests: 32 passed (`tests/test_gemini_vision_matcher.py` & `test_gemini_vision_retry.py`)
+  - Gemini TTS tests: 20 passed (`tests/test_gemini_tts_engine.py`)
   - Shot matching pacing & Quota tests: 12 passed (`tests/test_shot_matching_pacing.py` & `test_quota_unmetered_sites.py`)
   - Preview-render parity tests: 154 passed (`tests/test_preview_render_parity.py`)
   - Frontend unit tests: 246 passed (`npm test`)
   - Frontend production build: Vite 2,007 modules built in 6.91s (`npm run build`)
 ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+---
+
+## Round ONE-CLICK-DRAFT-PARITY-FIX-1 — นำปุ่มเดิม "เลือกมุมนี้ & ส่งตัดต่อ" กลับมา + แก้ 404 ตอนกดเปิดไทม์ไลน์จากศูนย์กิจกรรม + แมพ Style Preset ตามสคริปต์มุมมองใน Batch/Quick Draft
+ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+### แผนรอบนี้
+- [x] 1. นำปุ่มเดิม `[ 🎬 เลือกมุมนี้ & ส่งตัดต่อ ]` กลับมาแสดงทั้งใน `AngleActiveWorkbench` และ `ScriptAccordionItem` ใน `ProductToClip.jsx` โดยวางคู่กับปุ่ม `[ ⚡ สร้างดราฟต์ 1-Click ]` เพื่อให้ผู้ใช้สามารถเลือกตรวจทานในหน้าสร้างคลิปใหม่ (NewClipPanel) หรือสั่งตัดดราฟต์ด่วนได้
+- [x] 2. แก้ปัญหา 404 เมื่อกดปุ่ม "เปิดไทม์ไลน์" ในศูนย์ติดตามกิจกรรม (Activity Center)
+  - ใน `scripts/batch_render.py`: เมื่อ batch งานเสร็จ ให้แนบ `project_name` ของโปรเจกต์ที่สร้างใน payload ของ `TaskManager.complete_task`
+  - ใน `frontend/src/context/TaskContext.jsx`: ดึง `project_name` จาก `task.result?.project_name` หรือ `task.result?.items?.[0]?.project_name` แทนที่จะตกหล่นไปใช้ `product_id` เป็นชื่อโปรเจกต์
+- [x] 3. แมพ Editorial Style Preset ตามมุมมองสคริปต์ใน `scripts/batch_render.py` (`ANGLE_TO_DEFAULT_STYLE`) เพื่อให้แต่ละมุมตัดต่อด้วยสไตล์ อนิเมชัน และสี Accent ตรงตามที่ออกแบบไว้ ไม่ใช่ hardcode เป็น `clean_tech_review` ทุกคลิป
+- [x] 4. ปรับปรุง `handleSingleAngleQuickDraft` ใน `ProductToClip.jsx`: ปรับรอบ polling (สูงสุด 60 วินาที) และป้องกันการสลับไปหน้า `NewClipPanel` ว่างเปล่าหากการตัดต่อยังไม่เสร็จสิ้น แจ้งเตือนสถานะชัดเจน
+- [x] 5. รัน automated tests ตรวจสอบความถูกต้อง:
+  - Backend tests: `tests/test_batch_render.py` 8 passed (ครอบคลุม style mapping และ TaskManager project_name completion)
+  - Frontend vitest: 246 passed
+  - Frontend production build: Vite 2,007 modules built in 3.20s
+
 ---
 
 ## Round DOCS-CURRENCY-REFRESH-20260915 — ปิดรอบแล้ว ✅ (บล็อกเต็มอยู่ใน HISTORY.md)

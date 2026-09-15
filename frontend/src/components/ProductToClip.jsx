@@ -1199,7 +1199,18 @@ function AngleActiveWorkbench({
           </button>
         ) : (
           <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
-            {Boolean(shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts) ? (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onSendToStudio(angle, index); }}
+              className="w-full sm:w-auto py-3 sm:py-2.5 px-6 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#FE2C55]/25 cursor-pointer active:scale-95 transition-all"
+              title="เปิดฟอร์มตรวจสอบสคริปต์ สไตล์ และเริ่มสร้างคลิปเข้าสู่ไทม์ไลน์"
+            >
+              <Clapperboard className="w-4 h-4 text-white" />
+              <span>เลือกมุมนี้ & ส่งตัดต่อ</span>
+              <ArrowRight className="w-3.5 h-3.5 text-white/80" />
+            </button>
+
+            {Boolean(shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts) && (
               <button
                 type="button"
                 onClick={(e) => {
@@ -1207,8 +1218,8 @@ function AngleActiveWorkbench({
                   onQuickDraft ? onQuickDraft(angle, index) : onSendToStudio(angle, index);
                 }}
                 disabled={draftingAngleId === angle.angle_id}
-                className="w-full sm:w-auto py-3 sm:py-2.5 px-6 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
-                title="สร้างดราฟต์ไทม์ไลน์แล้วเปิดเข้าสู่ไทม์ไลน์ทันที (ไม่รอเรนเดอร์ MP4)"
+                className="w-full sm:w-auto py-3 sm:py-2.5 px-5 rounded-xl bg-gradient-to-r from-emerald-600/90 to-teal-600/90 hover:brightness-110 border border-emerald-400/30 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md cursor-pointer active:scale-95 transition-all disabled:opacity-50"
+                title="1-Click Quick Draft: สร้างดราฟต์ไทม์ไลน์อัตโนมัติตามสไตล์ของมุมนี้และเปิดเข้าสู่ไทม์ไลน์ทันที"
               >
                 {draftingAngleId === angle.angle_id ? (
                   <>
@@ -1217,21 +1228,10 @@ function AngleActiveWorkbench({
                   </>
                 ) : (
                   <>
-                    <Film className="w-4 h-4 text-white" />
-                    <span>สร้างดราฟต์ & เข้าไทม์ไลน์</span>
-                    <ArrowRight className="w-3.5 h-3.5 text-white/80" />
+                    <Zap className="w-4 h-4 text-emerald-300" />
+                    <span>สร้างดราฟต์ 1-Click</span>
                   </>
                 )}
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); onSendToStudio(angle, index); }}
-                className="w-full sm:w-auto py-3 sm:py-2.5 px-6 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#FE2C55]/25 cursor-pointer active:scale-95 transition-all"
-              >
-                <Clapperboard className="w-4 h-4 text-white" />
-                <span>เลือกมุมนี้ & ส่งตัดต่อ</span>
-                <ArrowRight className="w-3.5 h-3.5 text-white/80" />
               </button>
             )}
           </div>
@@ -1841,7 +1841,18 @@ function ScriptAccordionItem({
               </button>
             ) : (
               <div className="flex items-center gap-2 flex-wrap">
-                {Boolean(shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts) ? (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onSendToStudio(angle, index); }}
+                  className="py-2 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-[#FE2C55]/25 cursor-pointer active:scale-95 transition-all"
+                  title="เปิดฟอร์มตรวจสอบสคริปต์ สไตล์ และเริ่มสร้างคลิปเข้าสู่ไทม์ไลน์"
+                >
+                  <Clapperboard className="w-3.5 h-3.5 text-white" />
+                  <span>เลือกมุมนี้ & ส่งตัดต่อ</span>
+                  <ArrowRight className="w-3 h-3 text-white/80" />
+                </button>
+
+                {Boolean(shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts) && (
                   <button
                     type="button"
                     onClick={(e) => {
@@ -1849,8 +1860,8 @@ function ScriptAccordionItem({
                       onQuickDraft ? onQuickDraft(angle, index) : onSendToStudio(angle, index);
                     }}
                     disabled={draftingAngleId === angle.angle_id}
-                    className="py-2 px-5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-500/25 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
-                    title="สร้างดราฟต์ไทม์ไลน์แล้วเปิดเข้าสู่ไทม์ไลน์ทันที (ไม่รอเรนเดอร์ MP4)"
+                    className="py-2 px-3.5 rounded-xl bg-gradient-to-r from-emerald-600/90 to-teal-600/90 hover:brightness-110 border border-emerald-400/30 text-white text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer active:scale-95 transition-all disabled:opacity-50"
+                    title="1-Click Quick Draft: สร้างดราฟต์ไทม์ไลน์อัตโนมัติตามสไตล์ของมุมนี้และเปิดเข้าสู่ไทม์ไลน์ทันที"
                   >
                     {draftingAngleId === angle.angle_id ? (
                       <>
@@ -1859,21 +1870,10 @@ function ScriptAccordionItem({
                       </>
                     ) : (
                       <>
-                        <Film className="w-3.5 h-3.5 text-white" />
-                        <span>สร้างดราฟต์ & เข้าไทม์ไลน์</span>
-                        <ArrowRight className="w-3 h-3 text-white/80" />
+                        <Zap className="w-3.5 h-3.5 text-emerald-300" />
+                        <span>สร้างดราฟต์ 1-Click</span>
                       </>
                     )}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); onSendToStudio(angle, index); }}
-                    className="py-2 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-[#FE2C55]/25 cursor-pointer active:scale-95 transition-all"
-                  >
-                    <Clapperboard className="w-3.5 h-3.5 text-white" />
-                    <span>เลือกมุมนี้ & ส่งตัดต่อ</span>
-                    <ArrowRight className="w-3 h-3 text-white/80" />
                   </button>
                 )}
               </div>
@@ -3393,6 +3393,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         product_id: productData.id,
         angle_ids: [angle.angle_id],
         voice_preset: angle.voice_preset || selectedVoicePreset,
+        style_preset: angle.style_preset || undefined,
         export_mp4: false,
       };
       const res = await startBatchDraft(payload);
@@ -3400,8 +3401,9 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       if (res.batch_id) {
         let attempts = 0;
         let done = false;
-        while (attempts < 30 && !done) {
-          await new Promise(r => setTimeout(r, 600));
+        // Poll for up to 60 seconds (60 * 1000ms)
+        while (attempts < 60 && !done) {
+          await new Promise(r => setTimeout(r, 1000));
           const statusRes = await getBatchRenderStatus(res.batch_id);
           if (statusRes.status === 'completed' || statusRes.status === 'failed') {
             done = true;
@@ -3424,9 +3426,11 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       }
       if (draftProjectName) {
         targetAngle = { ...targetAngle, project_name: draftProjectName };
+        handleOpenInTimeline(targetAngle, index);
+        showToast('🎉 สร้างดราฟต์ไทม์ไลน์เรียบร้อย เปิดเข้าสู่ไทม์ไลน์แล้ว!', 'success');
+      } else {
+        showToast('⏳ กำลังประกอบดราฟต์ในพื้นหลัง สามารถกดเปิดไทม์ไลน์จากศูนย์กิจกรรมด้านบนเมื่อเสร็จสิ้นได้ครับ', 'info');
       }
-      handleOpenInTimeline(targetAngle, index);
-      showToast('🎉 สร้างดราฟต์ไทม์ไลน์เรียบร้อย เปิดเข้าสู่ไทม์ไลน์แล้ว!', 'success');
     } catch (err) {
       console.error('Quick draft failed:', err);
       showToast('ไม่สามารถสร้างดราฟต์ได้: ' + (err.response?.data?.detail || err.message), 'error');

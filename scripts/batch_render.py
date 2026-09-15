@@ -29,6 +29,20 @@ from scripts.api_render import check_disk_space
 
 logger = logging.getLogger("batch_render")
 
+# 1-to-1 default mapping between 10 script angles and 10 editorial style presets
+ANGLE_TO_DEFAULT_STYLE: Dict[str, str] = {
+    "stop_scroll": "viral_punch",
+    "fomo_deal": "flash_deal",
+    "pain_point": "pain_punch",
+    "spec_review": "clean_tech_review",
+    "comparison": "tech_compare",
+    "unboxing": "tech_product_showcase",
+    "life_hack": "smart_hack",
+    "niche_target": "niche_focus",
+    "longterm_review": "smooth_showcase",
+    "math_value": "premium_minimal",
+}
+
 _BATCH_LOCK = threading.RLock()
 BATCH_REGISTRY: Dict[str, Dict[str, Any]] = {}
 _DISPATCHER_LOCK = threading.Lock()
@@ -429,7 +443,12 @@ class BatchRenderManager:
                             voice_engine_type="edge_tts" if options.get("voice_mode") == "edge_tts" else "gemini_tts",
                             voice_preset=options.get("voice_preset", "gemini_puck_male_hype"),
                             ad_tone=angle_data.get("ad_tone") or options.get("ad_tone") or "commercial_hype",
-                            style_preset=options.get("style_preset", "clean_tech_review"),
+                            style_preset=(
+                                angle_data.get("style_preset")
+                                or ANGLE_TO_DEFAULT_STYLE.get(str(angle_data.get("angle_id") or "").strip().lower())
+                                or options.get("style_preset")
+                                or "clean_tech_review"
+                            ),
                             font_name=options.get("font_name", "IBMPlex"),
                             bilingual_subtitles=options.get("bilingual_subtitles", True),
                             use_ai_vision=options.get("use_ai_vision", True),
@@ -512,18 +531,33 @@ class BatchRenderManager:
             action_name = "สร้างดราฟต์" if is_draft else "เรนเดอร์"
             unit_name = "มุมมอง" if is_draft else "คลิป"
 
+            first_project_name = None
+            for it in items:
+                if it.get("project_name"):
+                    first_project_name = it["project_name"]
+                    break
+
+            completed_result = {
+                "completed": completed_count,
+                "failed": failed_count,
+                "total": total_items,
+                "items": items,
+                "project_name": first_project_name or "",
+                "product_id": product_id,
+            }
+
             if batch.get("cancelled"):
                 batch["status"] = "cancelled"
                 TaskManager.complete_task(
                     batch_id,
-                    result={"completed": completed_count, "failed": failed_count, "total": total_items, "items": items},
+                    result=completed_result,
                     step_label=f"ยกเลิกคิว{action_name} (สำเร็จ {completed_count}/{total_items} {unit_name})"
                 )
             elif completed_count > 0:
                 batch["status"] = "completed"
                 TaskManager.complete_task(
                     batch_id,
-                    result={"completed": completed_count, "failed": failed_count, "total": total_items, "items": items},
+                    result=completed_result,
                     step_label=f"🎉 {action_name}ชุดสำเร็จ {completed_count}/{total_items} {unit_name}!"
                 )
             else:

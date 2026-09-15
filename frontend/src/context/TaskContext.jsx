@@ -284,7 +284,9 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
     );
 
     const isProductFlowTask = isScrapeTask || isRerollTask || isImageMetadataTask || isShotListTask || isFinalizeRecordingTask;
-    const projName = !isProductFlowTask ? (task.result?.project_name || task.payload?.project_name) : null;
+    const projName = !isProductFlowTask
+      ? (task.result?.project_name || (Array.isArray(task.result?.items) ? task.result.items.find(i => i?.project_name)?.project_name : null) || task.payload?.project_name)
+      : null;
     const productId = task.result?.saved_product?.id || task.result?.product?.id || task.result?.product_id || task.payload?.product_id || (isProductFlowTask ? task.target_id : null);
     const angleId = (isRerollTask || (task.type === 'generate_shot_list' || task.task_type === 'generate_shot_list'))
       ? (task.result?.angle?.angle_id || task.payload?.angle_id)
@@ -307,7 +309,9 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
       }
     }
 
-    const targetId = isProductFlowTask ? (productId || task.target_id) : (projName || task.target_id || productId);
+    const targetId = isProductFlowTask
+      ? (productId || task.target_id)
+      : (projName || (targetTab === 'editor' ? projName : task.target_id) || productId);
 
     if (targetTab === 'flow' && (productId || targetId) && onSelectProductForFlow) {
       onSelectProductForFlow(productId || targetId);

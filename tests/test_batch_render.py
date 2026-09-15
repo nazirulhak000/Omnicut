@@ -255,3 +255,64 @@ def test_batch_draft_api(tmp_path):
         assert status_resp.status_code == 200
         batch_info = status_resp.json()
         assert batch_info["options"].get("export_mp4") is False
+
+
+def test_batch_worker_resolves_angle_style_and_completes_task_with_project_name(tmp_path):
+    """Test that batch worker maps angle_id to editorial style preset and sends project_name in TaskManager completion."""
+    clip_file = tmp_path / "raw.mp4"
+    clip_file.write_text("clip")
+
+    fake_prod = {
+        "id": "prod_style_test",
+        "title": "สายรัดข้อมืออัจฉริยะ",
+        "angles": [
+            {
+                "angle_id": "stop_scroll",
+                "angle_name": "เตือนภัยเชิงลบ",
+                "status": "scripted",
+                "selected_video": str(clip_file),
+                "script_lines": ["หยุดก่อน!"]
+            },
+            {
+                "angle_id": "pain_point",
+                "angle_name": "ปัญหาก่อนใช้",
+                "status": "scripted",
+                "selected_video": str(clip_file),
+                "script_lines": ["เคยเจอปัญหานี้ไหม"]
+            }
+        ]
+    }
+
+    captured_styles = []
+    completed_tasks = []
+
+    def mock_run(**kwargs):
+        captured_styles.append(kwargs.get("style_preset"))
+        return {
+            "mp4": "",
+            "project_name": f"proj_{kwargs.get('angle_id')}",
+            "export_id": ""
+        }
+
+    with patch.object(ProductStore, "get", return_value=fake_prod), \
+         patch.object(ProductStore, "update_angle_status"), \
+         patch("scripts.pipeline.TikTokAutoCutterPipeline.run", side_effect=mock_run), \
+         patch.object(TaskManager, "complete_task", side_effect=lambda task_id, **kwargs: completed_tasks.append(kwargs)):
+
+        res = BatchRenderManager.create_batch(
+            product_id="prod_style_test",
+            angle_ids=["stop_scroll", "pain_point"],
+            options={"export_mp4": False}
+        )
+        batch_id = res["batch_id"]
+        BatchRenderManager._run_batch_worker(batch_id)
+
+    # 1. Verify angle style mapping
+    assert captured_styles == ["viral_punch", "pain_punch"]
+
+    # 2. Verify TaskManager.complete_task received project_name
+    assert len(completed_tasks) == 1
+    result_payload = completed_tasks[0].get("result", {})
+    assert result_payload.get("project_name") == "proj_stop_scroll"
+    assert result_payload.get("completed") == 2
+
