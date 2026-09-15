@@ -52,7 +52,7 @@
 
 - [x] Round TRACKER-LARGE-DATA-PERF-1 — ลดเวลาเปิด Content Tracker เมื่อมีคลิปจำนวนมาก (2026-09-14; `/api/exports` 2.6s → 0.28–0.37s ที่ 27 ไฟล์, tracker product+queue 0.15–0.22s, backend 1,417 passed/3 skipped, frontend 230 passed, build 2,006 modules, ดำเนินการโดย: Codex (GPT-5))
 
-- [ ] Round MAIN-FLOW-SCALE-1 — ทำคิว Render ที่ทน restart และลด read-path ที่โตตามจำนวนคลิป (2026-09-14; ดำเนินการโดย: Codex (GPT-5))
+- [x] Round MAIN-FLOW-SCALE-1 — ทำคิว Render ที่ทน restart และลด read-path ที่โตตามจำนวนคลิป (2026-09-14; ดำเนินการโดย: Codex (GPT-5)) (full backend gate: 1512 passed, 5 skipped, 29 warnings; executed by: Codex (GPT-6))
 - [x] Round MAIN-FLOW-SCALE-TRACK-C-PROJECTION-20260915 - shared Workspace Data Coordinator wired to App, Content Tracker, Product Flow, and Editor; ดำเนินการโดย: Codex (GPT-6)
 - [x] Round RENDER-DEDUPE-1 — ตัดงาน probe, Vision cache และ Image Motion ที่ทำซ้ำ (2026-09-15; ดำเนินการโดย: Codex (GPT-5))
 
@@ -75,6 +75,7 @@
 - [x] Round COVER-AI-PERSISTENCE-1 — จดจำและกู้คืนภาพปก AI อัตโนมัติ (In-App Cover Memory) สลับไปดูวิดีโอปกติแล้วกลับมาแท็บ AI รูปเดิมไม่หาย ไม่ต้องกดเจนใหม่ + ไฟล์บันทึกถาวรใน 05_Covers_Thumbnails (2026-09-14; pytest 3 passed, vitest 225 passed, build 4.12s ผ่าน, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [x] Round COVER-MINIMAL-IT-PROMPT-1 — ยกระดับ Prompt ฉากหลัง Minimal IT คมชัดสมจริง (แผ่นรองตัด Grid/ผนังระแนง Rim Light/มือจับเทค) + เทมเพลต Hook สไตล์ Tech Reviewer (Brand ขาว + Model นีออน) + แก้ UnicodeDecodeError ใน Subprocess (2026-09-14; pytest 7 passed, vitest 230 passed, build ผ่าน, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [x] Round COVER-MULTI-GEN-HANDHELD-1 — AI Cover History Gallery (เก็บทุกรูปที่เจนไม่ถูกทับ) + ปลดล็อกคำสั่ง Handheld มือถือสินค้าจริง + Auto-enable Brand/Model Title Overlay (2026-09-14; pytest 6 passed, vitest 230 passed, build 3.19s ผ่าน, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
+- [x] Round AI-PRODUCER-HUB-AUDIT-READONLY-20260915 - Evidence-first read-only audit completed; findings recorded in AI_PRODUCER_HUB_AUDIT_2026-09-15.md; hardening scope remains pending (executed by: Codex (GPT-6))
 - [ ] Round AI-PRODUCER-HUB-AUDIT-PLAN-1 — ตรวจสอบการใช้งาน AI Producer Hub และจัดทำแผนยกระดับแบบ evidence-first (2026-09-13; วิเคราะห์โค้ด + browser snapshot แล้ว, รออนุมัติ scope, ดำเนินการโดย: Codex (GPT-5))
 - [ ] Round BG-SUBJECT-ISOLATION-4 — แก้ artifact ติด processing และตรวจลำดับเลเยอร์ให้ Hook อยู่หลัง Subject (2026-09-14; ดำเนินการโดย: Codex (GPT-5))
 - [x] Round BG-SUBJECT-ISOLATION-RESUME-1 — ทำงานตัดพื้นหลังแบบ resumable เมื่อเน็ต/หน้าเว็บ/Server หลุด (2026-09-14; backend 45+41 passed, frontend 230 passed, build 2005 modules, compileall ผ่าน; ดำเนินการโดย: Codex (GPT-5))
@@ -448,7 +449,7 @@ Date: 2026-09-15; executed by: Codex (GPT-6); status: complete
 
 ## Round MAIN-FLOW-SCALE-1 — Render queue, export snapshot และ workspace data flow สำหรับ 220+ คลิป
 
-วันที่: 2026-09-14 · สั่งโดย: user · ดำเนินการโดย: Codex (GPT-5) · สถานะ: กำลังทำ
+Date: 2026-09-14; executed by: Codex (GPT-6); status: complete
 
 **เป้าหมาย:** รองรับการสั่งงาน 220+ คลิปเป็นคิวที่ทน server restart โดยไม่เพิ่ม render concurrency เกิน 1 และตัดงานอ่าน/ส่งข้อมูลซ้ำที่โตตามประวัติคลิป.
 
@@ -462,9 +463,9 @@ Date: 2026-09-15; executed by: Codex (GPT-6); status: complete
 ### Gate
 
 - [x] `python -m compileall -q scripts` (passed; identity: Codex (GPT-6))
-- [ ] pytest เฉพาะจุดของ Track A/B และ `python -m pytest tests/ -q -p no:cacheprovider --tb=short`
+- [x] Full pytest gate: 1512 passed, 5 skipped, 29 warnings; pytest เฉพาะจุดของ Track A/B และ `python -m pytest tests/ -q -p no:cacheprovider --tb=short`
 - [x] frontend targeted test, `npm test`, `npm run build` (243 passed; Vite 2007 modules / 3.22s; identity: Codex (GPT-6))
-- [ ] `git diff --check` และตรวจว่าไม่แก้/ลบไฟล์ผู้ร่วมงานนอกขอบเขต
+- [x] `git diff --check` และตรวจว่าไม่แก้/ลบไฟล์ผู้ร่วมงานนอกขอบเขต
 
 ### Notes
 

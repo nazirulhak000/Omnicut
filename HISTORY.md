@@ -8,6 +8,8 @@
 
 ## สารบัญ
 
+| Round MAIN-FLOW-SCALE-CLOSEOUT-20260915 | Closed durable render queue and workspace scale gate | 2026-09-15 | Complete (full backend 1512 passed, 5 skipped, 29 warnings; executed by: Codex (GPT-6)) |
+| Round AI-PRODUCER-HUB-AUDIT-READONLY-20260915 | Evidence-first read-only Producer Hub audit with bounded hardening backlog | 2026-09-15 | Complete (backend 9 passed, frontend 246 passed; executed by: Codex (GPT-6)) |
 | Round SYSTEM-AUDIT-P2-CUTOUT-20260915 | Recovered pending cutout publication and deduplicated background-isolation work | 2026-09-15 | Complete (36 focused tests passed, 2 skipped; executed by: Codex (GPT-6)) |
 | Round SYSTEM-AUDIT-P3-MEDIA-RANGE-20260915 | Hardened HTTP byte-range parsing for valid, malformed, and unsatisfiable requests | 2026-09-15 | Complete (69 focused tests passed, 1 skipped; compileall passed; executed by: Codex (GPT-6)) |
 | Round STRICT-GEMINI-DEFAULT-NO-EDGE-TTS-GUARD-1 | Gemini TTS defaults and VoiceStage fail-closed guard | 2026-09-15 | Complete (backend 392 passed, frontend 246 passed, compileall passed, executed by: Codex (GPT-6)) |
@@ -6183,3 +6185,15 @@ Verification: focused 47 passed; parity/reuse/stage 188 passed; batch/phase1 157
 Date: 2026-09-15; requested by user; executed by: Codex (GPT-6); status: complete.
 
 Closed the already implemented Audit P2 cutout publication/idempotency work and P3 HTTP byte-range work in the project ledger. P2 verification recorded 36 focused tests with 2 skips; P3 verification recorded 69 focused tests with 1 skip plus compileall.
+
+## Round MAIN-FLOW-SCALE-CLOSEOUT-20260915
+
+Date: 2026-09-15; requested by user; executed by: Codex (GPT-6); status: complete.
+
+Closed the durable render queue, export snapshot, and workspace coordinator round after the full backend gate passed 1512 tests with 5 skips and 29 warnings. Targeted Track A/B tests passed 30 cases; compileall, frontend vitest 246, and Vite build also passed.
+
+## Round AI-PRODUCER-HUB-AUDIT-READONLY-20260915
+
+Date: 2026-09-15; requested by user; executed by: Codex (GPT-6); status: complete.
+
+Recorded the read-only findings and recommended bounded hardening rounds in [AI_PRODUCER_HUB_AUDIT_2026-09-15.md](AI_PRODUCER_HUB_AUDIT_2026-09-15.md). The audit identified SSRF/local-path exposure, concurrent notes write loss, offline merge/rollback gaps, mobile MIME handling, clipboard rejection handling, and architecture documentation drift.
