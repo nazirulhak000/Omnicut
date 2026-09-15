@@ -8,6 +8,7 @@
 
 ## สารบัญ
 
+| Round HOOK-STYLE-PRESET-INTEGRATION-1 | เชื่อมโยงสไตล์การตัดต่อเข้ากับป้ายฮุก (Hook Styles) + Mini Preview บนการ์ดสไตล์ | 2026-09-15 | สำเร็จสมบูรณ์ (backend parity 209 passed, frontend 246 passed, build 2,007 modules/3.48s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
 | Round MAIN-FLOW-SCALE-CLOSEOUT-20260915 | Closed durable render queue and workspace scale gate | 2026-09-15 | Complete (full backend 1512 passed, 5 skipped, 29 warnings; executed by: Codex (GPT-6)) |
 | Round AUDIT-LEDGER-CLOSEOUT-20260915 | Reconciled audit ledger checkboxes with verified gates and deferred scope | 2026-09-15 | Complete (full backend evidence 1512 passed, frontend 246 passed, build 2007 modules; executed by: Codex (GPT-6)) |
 | Round WATERMARK-1 | Permanent vertical watermark and live Preview verification | 2026-09-15 | Complete (Render + browser Preview verified; executed by: Claude Code + Codex (GPT-6)) |
@@ -43,6 +44,41 @@
 | Round AGENTS-SLIM-1 | ย่อ AGENTS.md 170→62 บรรทัด (30.9→11.3 KB) กฎ 24 ข้อครบ + link ไฟล์กฎ | 2026-09-13 | เสร็จ (ดำเนินการโดย: Muse Spark (Muse Spark)) |
 | Round TEST-TWO-TIER-1 | กติกาเทส 2 ชั้น: ตอนแก้รันเฉพาะจุด ก่อนปิดรอบค่อยรันเต็ม | 2026-09-13 | เสร็จ (testing_standard.md, Gate เต็มเท่าเดิม, ดำเนินการโดย: Muse Spark (Muse Spark)) |
 | Round HOUSEKEEP-1 | จัดระเบียบราก: ไฟล์เทส 8 ไฟล์ลง .tmp (gitignore) + ยกเลิกย้าย PLAN หลังเจอ 06_Archive โดน ignore | 2026-09-13 | เสร็จบางส่วน (ดำเนินการโดย: Muse Spark (Muse Spark)) |
+
+## Round HOOK-STYLE-PRESET-INTEGRATION-1 — เชื่อมโยงสไตล์การตัดต่อเข้ากับป้ายฮุก (Hook Styles) + Mini Preview บนการ์ดสไตล์
+
+วันที่: 2026-09-15 · สั่งโดย: user (/grill-me) · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์ ✅
+
+### ความต้องการและผลการสัมภาษณ์ (/grill-me)
+1. ผู้ใช้ต้องการให้สไตล์การตัดต่อ (Editing Style Preset) ผูกกับป้ายฮุก (Hook Style / Color / Motion) ตามที่ผู้ใช้ได้สร้างไว้ (B1, B2) เพื่อให้เป็นฟอร์แมตมาตรฐานเดียวกัน
+2. ต้องการให้ในการ์ดเลือกสไตล์ มีตัวอย่างป้ายฮุกแสดงให้เห็นทันทีว่า สไตล์นั้นจะได้ป้ายฮุกสีอะไรและหน้าตาแบบใด
+3. กำหนดโครงสร้างมาตรฐานของป้ายฮุก (Kanit, BRAND ตัวหนาสี Accent, รุ่นเด่นสีขาว, คำโปรยสีขาว) และแมปคู่ใจ 5 สไตล์:
+   - `Viral Punch` -> `B1 (แดง+กระพริบ) — Viral Punch` (#FE2C55 + flicker)
+   - `Clean Tech Review` -> `B2 (เหลือง+สั่น) — Clean Tech` (#FFE600 + shake)
+   - `Tech Product Showcase` -> `B2 (ฟ้า+สั่นเบา) — Tech Showcase` (#25F4EE + wave)
+   - `Smooth Showcase` -> `B1 (เขียวมิ้นต์+กวาดแสง) — Smooth` (#00F2AA + lightsweep)
+   - `Premium Minimal` -> `B2 (ทอง+สั่นเบา) — Premium` (#E6C24A + wave)
+4. ป้ายฮุกจะถูกเซ็ตเป็นค่าเริ่มต้นอัตโนมัติเมื่อเลือกสไตล์ แต่ยังคงให้อิสระแก่ผู้ใช้ในการปรับแต่งหรือเปลี่ยนแม่แบบเองในหน้าตัดต่อได้เสมอ
+
+### สิ่งที่ได้ดำเนินการ
+1. **เพิ่ม 5 Hook Templates คู่ใจ:**
+   - ใน `scripts/hook_styles.py` และ `frontend/src/lib/hookStyles.js`: เพิ่ม `b1_viral_red`, `b2_clean_yellow`, `b2_tech_cyan`, `b1_smooth_mint`, `b2_premium_gold` ให้ฟิลด์ตรงกัน 100%
+2. **ผูก Metadata และ Helper ใน `stylePresetCatalog.js`:**
+   - เพิ่ม `hookTemplate`, `hookBadge`, `hookColor` ให้กับแต่ละสไตล์ใน `STYLE_PRESETS`
+   - เพิ่มฟังก์ชัน `getHookTemplateForStyle(stylePreset)`
+3. **เพิ่ม Mini Hook Preview Box บนการ์ด `StylePresetPicker.jsx`:**
+   - เพิ่มกล่องจำลองป้ายฮุก 3 บรรทัดจริง พร้อมป้าย Motion Badge ประจำสไตล์
+4. **เชื่อมต่อ Default Hook Binding ใน `overlayModel.js`, `NewClipPanel.jsx` และ `EditorShell.jsx`:**
+   - เพิ่ม `STYLE_PRESET_TO_TEMPLATE` และ `templateForStylePreset`
+   - ใน `NewClipPanel.jsx` และ `EditorShell.jsx`: ใช้ `templateForStylePreset` ตั้งค่าเริ่มต้นให้ Hook Header ทันทีที่เลือกสไตล์
+   - ใน `EditorShell.jsx`: อัปเดต `patchStylePreset` ให้ซิงค์ป้ายฮุกอัตโนมัติหากยังใช้แม่แบบมาตรฐานอยู่
+5. **การทดสอบและการรับประกันคุณภาพ:**
+   - `pytest tests/test_preview_render_parity.py tests/test_hook_styles.py tests/test_overlay_model.py`: ผ่าน 209/209 tests
+   - `npm test`: ผ่าน 246/246 tests
+   - `npm run build`: ผ่านสมบูรณ์ (2,007 modules / 3.48s)
+
+---
+
 
 ## Round MAIN-PAGE-VOICE-TYPE-INDICATOR-1 — แสดงสัญลักษณ์ระบุประเภทเสียง (Gemini TTS vs Edge-TTS vs ยังไม่มีเสียง) บนหน้าหลัก ทั้งการ์ดรายการมุมและการ์ดสคริปต์ โดยไม่ต้องกดเข้าไปดูด้านใน
 

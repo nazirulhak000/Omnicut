@@ -51,7 +51,9 @@ import {
   overriddenTierFields,
   restyleOverlayFromTemplate,
   resolveLook,
+  STYLE_PRESET_TO_TEMPLATE,
   templateForAdTone,
+  templateForStylePreset,
   withHookTemplate,
   withHookTemplateReset,
   withTierLook,
@@ -459,12 +461,12 @@ export default function EditorShell({
     const fresh = newHookOverlay({
       brand: guess.brand,
       model: guess.model,
-      template: templateForAdTone(projectAdTone),
+      template: templateForStylePreset(style?.style_preset) || templateForAdTone(projectAdTone),
       duration: 5.0,
     });
     if (fresh) handleAddOverlay(fresh);
   }, [hookOverlay, handleUpdateOverlay, handleAddOverlay, productContext,
-      projectProductName, projectAdTone]);
+      projectProductName, projectAdTone, style?.style_preset]);
 
   const [previewTextTemplate, setPreviewTextTemplate] = useState(null);
   const [previewSticker, setPreviewSticker] = useState(null);
@@ -1341,8 +1343,18 @@ export default function EditorShell({
   }, [backgroundIsolation, clipList, getTaskStatus, patchBackgroundIsolation, projectName, pollTasks, set, showToast, startBackgroundIsolation]);
 
   const patchStylePreset = useCallback((presetId) => {
-    patchStyle({ style_preset: normalizeStylePreset(presetId) });
-  }, [patchStyle]);
+    const normalized = normalizeStylePreset(presetId);
+    patchStyle({ style_preset: normalized });
+    const matchedHook = templateForStylePreset(normalized);
+    if (hookOverlay && matchedHook) {
+      const isStyleHook = Object.values(STYLE_PRESET_TO_TEMPLATE).includes(hookOverlay.template)
+        || hookOverlay.template === DEFAULT_HOOK_TEMPLATE
+        || !hookOverlay.template;
+      if (isStyleHook) {
+        handleReplaceOverlay(hookOverlay.id, withHookTemplate(hookOverlay, matchedHook));
+      }
+    }
+  }, [patchStyle, hookOverlay, handleReplaceOverlay]);
 
 
   // Building the videoItem CoverStudioModal expects from whatever the editor

@@ -15,6 +15,7 @@ export default function BatchRenderModal({
   isOpen,
   onClose,
   product,
+  angles: propAngles,
   onBatchCompleted,
   showToast,
 }) {
@@ -27,7 +28,7 @@ export default function BatchRenderModal({
   const [cancelling, setCancelling] = useState(false);
   const pollTimerRef = useRef(null);
 
-  const angles = product?.angles || [];
+  const angles = propAngles || product?.angles || [];
 
   // Pre-select angles that are not posted and not already rendered
   useEffect(() => {
@@ -48,7 +49,7 @@ export default function BatchRenderModal({
     return () => {
       if (pollTimerRef.current) clearInterval(pollTimerRef.current);
     };
-  }, [isOpen, product?.id]);
+  }, [isOpen, product?.id, angles.length]);
 
   const toggleSelectAngle = (aid) => {
     const next = new Set(selectedAngleIds);

@@ -17,6 +17,9 @@
 
 ## สถานะรวม
 
+- [x] Round TRK-MODAL-PRODUCT-FILTER-SYNC-1 — ซิงก์ตัวกรองสินค้าเข้าสู่โมดัลคลังสคริปต์ (Script Library) และคลังประวัติคลิป (Archive) พร้อมแถบ Product Pills ในโมดัล และปุ่มเลือก 4 สคริปต์ตรงตามสินค้าที่เลือก (2026-09-15; frontend 246 passed, build 2,007 modules/3.63s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
+- [x] Round STYLE-PICKER-COMPACT-REDESIGN-1 — ออกแบบตัวเลือกสไตล์การตัดต่อใหม่ (Segmented Tabs + Single Hero Showcase Card) ลดความยาวแนวตั้งลง 70% และไม่ดันปุ่มสร้างคลิปลงไปลึก (2026-09-15; frontend 246 passed, build 2,007 modules/3.10s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
+- [x] Round HOOK-STYLE-PRESET-INTEGRATION-1 — เชื่อมโยงสไตล์การตัดต่อเข้ากับป้ายฮุก (Hook Styles) + Mini Preview บนการ์ดสไตล์ (2026-09-15; backend parity 209 passed, frontend 246 passed, build 2,007 modules/3.48s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 - [x] Round WATERMARK-1 - permanent vertical watermark verified in Render and live Preview (2026-09-15; executed by: Claude Code + Codex (GPT-6))
 - [x] Round WATERMARK-BROWSER-VERIFY-20260915 - verified static watermark in the live SequencePlayer browser preview (2026-09-15; executed by: Codex (GPT-6); report: WATERMARK_BROWSER_VERIFY_2026-09-15.md)
 - [x] Round AUDIT-LEDGER-CLOSEOUT-20260915 - reconciled audit checkboxes with verified gates and recorded deferred medium-term work (2026-09-15; executed by: Codex (GPT-6))
@@ -640,3 +643,4 @@ Plan before code:
 - [x] Restrict local reference reads to approved workspace roots with resolved-path containment.
 - [x] Add deterministic regression tests for private URLs, redirects, and local-path escape.
 - [x] Run focused Producer tests, compileall, and diff check.
+

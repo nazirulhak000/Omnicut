@@ -2105,6 +2105,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       source_warning: item.source_warning || '',
       created_at: item.created_at || '',
       updated_at: item.updated_at || '',
+      angles: item.angles || [],
     });
     const nextAngles = item.angles || [];
     setAngles(nextAngles);
@@ -4764,7 +4765,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       <BatchRenderModal
         isOpen={batchRenderOpen}
         onClose={() => setBatchRenderOpen(false)}
-        product={productData}
+        product={productData ? { ...productData, angles } : null}
+        angles={angles}
         onBatchCompleted={handleBatchCompleted}
         showToast={showToast}
       />

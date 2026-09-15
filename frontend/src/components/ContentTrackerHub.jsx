@@ -933,8 +933,10 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
   // ── Round TRK-3: Decluttering Board States (Archive & Script Library) ──
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [archiveSearchQuery, setArchiveSearchQuery] = useState('');
+  const [archiveProductFilter, setArchiveProductFilter] = useState('all');
   const [showScriptLibraryModal, setShowScriptLibraryModal] = useState(false);
   const [scriptLibrarySearch, setScriptLibrarySearch] = useState('');
+  const [scriptLibraryProductFilter, setScriptLibraryProductFilter] = useState('all');
 
   // Picked scripts for today's production (persists in localStorage)
   const [pickedScriptIds, setPickedScriptIds] = useState(() => {
@@ -1000,14 +1002,30 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
     });
   }, []);
 
-  const handlePickTopScripts = useCallback((angles, limit = 4) => {
+  const handlePickTopScripts = useCallback((angles, limit = 4, merge = false) => {
     const ids = angles.slice(0, limit).map((a) => a.angle_id || a.id);
-    setPickedScriptIds(ids);
+    if (merge) {
+      setPickedScriptIds((prev) => Array.from(new Set([...(prev || []), ...ids])));
+    } else {
+      setPickedScriptIds(ids);
+    }
   }, []);
 
   const handleClearPickedScripts = useCallback(() => {
     setPickedScriptIds([]);
   }, []);
+
+  const handleOpenScriptLibrary = useCallback((productFilterOverride = null) => {
+    const targetFilter = productFilterOverride !== null ? productFilterOverride : selectedProductFilter;
+    setScriptLibraryProductFilter(targetFilter || 'all');
+    setShowScriptLibraryModal(true);
+  }, [selectedProductFilter]);
+
+  const handleOpenArchive = useCallback((productFilterOverride = null) => {
+    const targetFilter = productFilterOverride !== null ? productFilterOverride : selectedProductFilter;
+    setArchiveProductFilter(targetFilter || 'all');
+    setShowArchiveModal(true);
+  }, [selectedProductFilter]);
 
   useEffect(() => {
     if (pickedScriptIds === null && products.length > 0) {
@@ -2486,53 +2504,111 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
       >
         <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
           {/* Top Toolbar: Search & Quick Pick Actions */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pb-2 border-b border-white/[0.08]">
-            <div className="relative flex-1 min-w-0">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={scriptLibrarySearch}
-                onChange={(e) => setScriptLibrarySearch(e.target.value)}
-                placeholder="ค้นหาสคริปต์ หรือชื่อสินค้า..."
-                className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-black/50 border border-white/[0.1] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#25F4EE]/50"
-              />
+          <div className="space-y-2.5 pb-2 border-b border-white/[0.08]">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+              <div className="relative flex-1 min-w-0">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={scriptLibrarySearch}
+                  onChange={(e) => setScriptLibrarySearch(e.target.value)}
+                  placeholder="ค้นหาสคริปต์ หรือชื่อสินค้า..."
+                  className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-black/50 border border-white/[0.1] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#25F4EE]/50"
+                />
+              </div>
+
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <span className="text-xs font-mono text-cyan-300 px-2 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                  เลือกแล้ว: {pickedScriptIds?.length || 0} รายการ
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const allScripted = allAnglesList.filter(a => (a.status || 'scripted') === 'scripted');
+                    const targetScripted = scriptLibraryProductFilter === 'all'
+                      ? allScripted
+                      : allScripted.filter(a => a.parentProduct?.id === scriptLibraryProductFilter);
+                    const q = scriptLibrarySearch.toLowerCase().trim();
+                    const candidates = targetScripted.filter(a =>
+                      !q ||
+                      (a.parentProduct?.name || '').toLowerCase().includes(q) ||
+                      (a.hook_title || '').toLowerCase().includes(q)
+                    );
+                    const isSingleProduct = scriptLibraryProductFilter !== 'all';
+                    handlePickTopScripts(candidates, 4, isSingleProduct);
+                    const targetProd = products.find(p => p.id === scriptLibraryProductFilter);
+                    showToast(isSingleProduct && targetProd ? `เลือก 4 สคริปต์ของ ${targetProd.name} เข้าคิววันนี้เรียบร้อย` : 'เลือก 4 สคริปต์แรกเข้าคิววันนี้เรียบร้อย');
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] text-slate-200 text-xs font-bold cursor-pointer transition-colors whitespace-nowrap"
+                  title="เลือก 4 รายการแรกตามตัวกรองสินค้าปัจจุบัน"
+                >
+                  {scriptLibraryProductFilter !== 'all' ? 'เลือก 4 รายการของสินค้านี้' : 'เลือก 4 รายการแรก'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleClearPickedScripts();
+                    showToast('ล้างคิวสคริปต์วันนี้ทั้งหมด');
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-rose-500/15 border border-white/[0.06] hover:border-rose-500/30 text-slate-400 hover:text-rose-300 text-xs font-bold cursor-pointer transition-colors whitespace-nowrap"
+                  title="ล้างการเลือกทั้งหมด"
+                >
+                  ล้างคิว
+                </button>
+              </div>
             </div>
 
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              <span className="text-xs font-mono text-cyan-300 px-2 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-                เลือกแล้ว: {pickedScriptIds?.length || 0} รายการ
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  const allScripted = allAnglesList.filter(a => (a.status || 'scripted') === 'scripted');
-                  handlePickTopScripts(allScripted, 4);
-                  showToast('เลือก 4 สคริปต์แรกเข้าคิววันนี้เรียบร้อย');
-                }}
-                className="px-2.5 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] text-slate-200 text-xs font-bold cursor-pointer transition-colors whitespace-nowrap"
-                title="เลือก 4 รายการแรกอัตโนมัติ"
-              >
-                เลือก 4 รายการแรก
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  handleClearPickedScripts();
-                  showToast('ล้างคิวสคริปต์วันนี้ทั้งหมด');
-                }}
-                className="px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-rose-500/15 border border-white/[0.06] hover:border-rose-500/30 text-slate-400 hover:text-rose-300 text-xs font-bold cursor-pointer transition-colors whitespace-nowrap"
-                title="ล้างการเลือกทั้งหมด"
-              >
-                ล้างคิว
-              </button>
-            </div>
+            {/* Product Filter Pills inside Modal */}
+            {products.length > 0 && (
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5">
+                <button
+                  type="button"
+                  onClick={() => setScriptLibraryProductFilter('all')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                    scriptLibraryProductFilter === 'all'
+                      ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-sm'
+                      : 'bg-white/[0.04] text-slate-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.06]'
+                  }`}
+                >
+                  <span>สินค้าทั้งหมด</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-black/40 text-slate-300">
+                    {allAnglesList.filter(a => (a.status || 'scripted') === 'scripted').length}
+                  </span>
+                </button>
+                {products.map((p) => {
+                  const pScriptedCount = (p.angles || []).filter(a => (a.status || 'scripted') === 'scripted').length;
+                  if (pScriptedCount === 0) return null;
+                  const isSelected = scriptLibraryProductFilter === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setScriptLibraryProductFilter(isSelected ? 'all' : p.id)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                        isSelected
+                          ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-sm'
+                          : 'bg-white/[0.04] text-slate-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.06]'
+                      }`}
+                    >
+                      <span className="truncate max-w-[150px]">{p.name}</span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-black/40 text-slate-300">
+                        {pScriptedCount}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* List of Available Scripts */}
           {(() => {
             const allScripted = allAnglesList.filter(a => (a.status || 'scripted') === 'scripted');
+            const targetScripted = scriptLibraryProductFilter === 'all'
+              ? allScripted
+              : allScripted.filter(a => a.parentProduct?.id === scriptLibraryProductFilter);
             const q = scriptLibrarySearch.toLowerCase().trim();
-            const filtered = allScripted.filter(a =>
+            const filtered = targetScripted.filter(a =>
               !q ||
               (a.parentProduct?.name || '').toLowerCase().includes(q) ||
               (a.hook_title || '').toLowerCase().includes(q)
@@ -2541,7 +2617,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
             if (filtered.length === 0) {
               return (
                 <div className="py-12 text-center text-slate-500 text-xs">
-                  {allScripted.length === 0 ? 'ยังไม่มีสคริปต์ในระบบ' : 'ไม่พบสคริปต์ที่ตรงกับคำค้นหา'}
+                  {targetScripted.length === 0 ? 'ยังไม่มีสคริปต์สำหรับสินค้านี้' : 'ไม่พบสคริปต์ที่ตรงกับคำค้นหา'}
                 </div>
               );
             }
@@ -2630,33 +2706,80 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
       >
         <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
           {/* Top Search Toolbar */}
-          <div className="flex items-center justify-between gap-2 pb-2 border-b border-white/[0.08]">
-            <div className="relative flex-1 min-w-0">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={archiveSearchQuery}
-                onChange={(e) => setArchiveSearchQuery(e.target.value)}
-                placeholder="ค้นหาคลิปย้อนหลัง, สคริปต์, หรือชื่อสินค้า..."
-                className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-black/50 border border-white/[0.1] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#25F4EE]/50"
-              />
+          <div className="space-y-2.5 pb-2 border-b border-white/[0.08]">
+            <div className="flex items-center justify-between gap-2">
+              <div className="relative flex-1 min-w-0">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={archiveSearchQuery}
+                  onChange={(e) => setArchiveSearchQuery(e.target.value)}
+                  placeholder="ค้นหาคลิปย้อนหลัง, สคริปต์, หรือชื่อสินค้า..."
+                  className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-black/50 border border-white/[0.1] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#25F4EE]/50"
+                />
+              </div>
+              {archiveSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setArchiveSearchQuery('')}
+                  className="p-1 text-slate-400 hover:text-white"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
-            {archiveSearchQuery && (
-              <button
-                type="button"
-                onClick={() => setArchiveSearchQuery('')}
-                className="p-1 text-slate-400 hover:text-white"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
+
+            {/* Product Filter Pills inside Archive Modal */}
+            {products.length > 0 && (
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5">
+                <button
+                  type="button"
+                  onClick={() => setArchiveProductFilter('all')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                    archiveProductFilter === 'all'
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
+                      : 'bg-white/[0.04] text-slate-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.06]'
+                  }`}
+                >
+                  <span>สินค้าทั้งหมด</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-black/40 text-slate-300">
+                    {allAnglesList.filter(a => a.status === 'posted').length}
+                  </span>
+                </button>
+                {products.map((p) => {
+                  const pPostedCount = (p.angles || []).filter(a => a.status === 'posted').length;
+                  if (pPostedCount === 0) return null;
+                  const isSelected = archiveProductFilter === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setArchiveProductFilter(isSelected ? 'all' : p.id)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                        isSelected
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
+                          : 'bg-white/[0.04] text-slate-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.06]'
+                      }`}
+                    >
+                      <span className="truncate max-w-[150px]">{p.name}</span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-black/40 text-slate-300">
+                        {pPostedCount}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
 
           {/* List of Archived Posted Clips */}
           {(() => {
             const allPosted = allAnglesList.filter(a => a.status === 'posted');
+            const targetPosted = archiveProductFilter === 'all'
+              ? allPosted
+              : allPosted.filter(a => a.parentProduct?.id === archiveProductFilter);
             const q = archiveSearchQuery.toLowerCase().trim();
-            const filtered = allPosted.filter(a =>
+            const filtered = targetPosted.filter(a =>
               !q ||
               (a.parentProduct?.name || '').toLowerCase().includes(q) ||
               (a.hook_title || '').toLowerCase().includes(q)
@@ -2665,7 +2788,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
             if (filtered.length === 0) {
               return (
                 <div className="py-12 text-center text-slate-500 text-xs">
-                  {allPosted.length === 0 ? 'ยังไม่มีคลิปที่โพสต์ในระบบ' : 'ไม่พบคลิปที่ตรงกับคำค้นหา'}
+                  {targetPosted.length === 0 ? 'ยังไม่มีคลิปที่โพสต์สำหรับสินค้านี้' : 'ไม่พบคลิปที่ตรงกับคำค้นหา'}
                 </div>
               );
             }
@@ -3077,7 +3200,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                         <>
                           <button
                             type="button"
-                            onClick={() => setShowScriptLibraryModal(true)}
+                            onClick={() => handleOpenScriptLibrary()}
                             className="px-2 py-0.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors active:scale-95"
                             title="เปิดคลังสคริปต์ทั้งหมดเพื่อเลือกเข้าบอร์ดประจำวัน"
                           >
@@ -3096,7 +3219,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                           {archivedPostedAngles.length > 0 && (
                             <button
                               type="button"
-                              onClick={() => setShowArchiveModal(true)}
+                              onClick={() => handleOpenArchive()}
                               className="px-2 py-0.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors active:scale-95"
                               title="เปิดดูคลังประวัติคลิปที่โพสต์ในอดีตทั้งหมด"
                             >
@@ -3123,7 +3246,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                         <div className="text-xs text-slate-400">ยังไม่ได้หยิบสคริปต์เข้าคิววันนี้</div>
                         <button
                           type="button"
-                          onClick={() => setShowScriptLibraryModal(true)}
+                          onClick={() => handleOpenScriptLibrary()}
                           className="py-1.5 px-3 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
                         >
                           <FolderDown className="w-3.5 h-3.5" />
@@ -3136,7 +3259,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                         {archivedPostedAngles.length > 0 && (
                           <button
                             type="button"
-                            onClick={() => setShowArchiveModal(true)}
+                            onClick={() => handleOpenArchive()}
                             className="py-1.5 px-3 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
                           >
                             <Archive className="w-3.5 h-3.5 text-emerald-400" />
@@ -3240,7 +3363,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                     {isScripted && rawPhaseAngles.length > 0 && (
                       <button
                         type="button"
-                        onClick={() => setShowScriptLibraryModal(true)}
+                        onClick={() => handleOpenScriptLibrary()}
                         className="w-full py-2 px-2.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-dashed border-cyan-500/30 text-cyan-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
                         title="เปิดคลังสคริปต์เพื่อหยิบสคริปต์เพิ่มเติมมาตัดต่อวันนี้"
                       >
@@ -3253,7 +3376,7 @@ export default function ContentTrackerHub({ status, onApplyToStudio, onRefresh, 
                     {isPosted && archivedPostedAngles.length > 0 && (
                       <button
                         type="button"
-                        onClick={() => setShowArchiveModal(true)}
+                        onClick={() => handleOpenArchive()}
                         className="w-full py-2 px-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
                         title="เปิดดูคลิปที่โพสต์แล้วทั้งหมดในอดีต"
                       >

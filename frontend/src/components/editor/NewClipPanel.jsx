@@ -17,7 +17,7 @@ import { buildProjectName, extractShortProductName, cleanAngleSlug } from '../..
 import { useRenderJob } from '../../hooks/useRenderJob';
 import MediaPickerModal from '../MediaPickerModal';
 import VoicePickerModal from '../VoicePickerModal';
-import { guessBrandModel, newHookOverlay, templateForAdTone } from '../../lib/overlayModel';
+import { guessBrandModel, newHookOverlay, templateForAdTone, templateForStylePreset } from '../../lib/overlayModel';
 import { normalizeStylePreset } from '../../lib/stylePresetCatalog.js';
 import StylePresetPicker from './StylePresetPicker';
 
@@ -406,7 +406,7 @@ export default function NewClipPanel({
           brand: form.hookBrand || guessBrandModel(form.productName).brand,
           model: form.hookModel || guessBrandModel(form.productName).model,
           label: form.hookLabel,
-          template: templateForAdTone(form.adTone),
+          template: templateForStylePreset(form.stylePreset) || templateForAdTone(form.adTone),
         }),
       ].filter(Boolean),
       custom_script: form.useCustomScript ? form.customScript : null,

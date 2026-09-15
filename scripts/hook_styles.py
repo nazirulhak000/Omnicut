@@ -143,6 +143,71 @@ HOOK_TEMPLATES: Dict[str, Dict[str, Any]] = {
         },
         "motion": {"in": "quick_fade", "loop": "lightsweep", "out": "fade", "accent": "underline", "stagger": True},
     },
+    "b1_viral_red": {
+        "label_th": "B1 (แดง+กระพริบ) — Viral Punch",
+        "font": "Kanit",
+        "tiers": {
+            "brand": {"size_pct": 130, "color": "#FE2C55", "outline_color": "#0B0A0A",
+                      "outline_px": 3.0, "upper": True, "pill": None},
+            "model": {"size_pct": 107, "color": "#F7F7F7", "outline_color": "#0A0A0A",
+                      "outline_px": 3.0, "upper": False, "pill": None},
+            "label": {"size_pct": 60, "color": "#D0D0D0", "outline_color": "#101010",
+                      "outline_px": 3.0, "upper": False, "pill": None},
+        },
+        "motion": {"in": "slide_up", "loop": "flicker", "out": "fade", "accent": "none", "stagger": True},
+    },
+    "b2_clean_yellow": {
+        "label_th": "B2 (เหลือง+สั่น) — Clean Tech",
+        "font": "Kanit",
+        "tiers": {
+            "brand": {"size_pct": 221, "color": "#FFE600", "outline_color": "#0A0A0A",
+                      "outline_px": 3.0, "upper": True, "pill": None},
+            "model": {"size_pct": 182, "color": "#F7F7F7", "outline_color": "#0A0A0A",
+                      "outline_px": 3.0, "upper": False, "pill": None},
+            "label": {"size_pct": 103, "color": "#D0D0D0", "outline_color": "#101010",
+                      "outline_px": 3.0, "upper": False, "pill": None},
+        },
+        "motion": {"in": "slide_up", "loop": "shake", "out": "fade", "accent": "none", "stagger": True},
+    },
+    "b2_tech_cyan": {
+        "label_th": "B2 (ฟ้า+สั่นเบา) — Tech Showcase",
+        "font": "Kanit",
+        "tiers": {
+            "brand": {"size_pct": 207, "color": "#25F4EE", "outline_color": "#0B0A0A",
+                      "outline_px": 3.0, "upper": True, "pill": None},
+            "model": {"size_pct": 170, "color": "#F7F7F7", "outline_color": "#0A0A0A",
+                      "outline_px": 3.0, "upper": False, "pill": None},
+            "label": {"size_pct": 95, "color": "#D0D0D0", "outline_color": "#101010",
+                      "outline_px": 3.0, "upper": False, "pill": None},
+        },
+        "motion": {"in": "slide_up", "loop": "wave", "out": "fade", "accent": "none", "stagger": True},
+    },
+    "b1_smooth_mint": {
+        "label_th": "B1 (เขียวมิ้นต์+กวาดแสง) — Smooth",
+        "font": "Kanit",
+        "tiers": {
+            "brand": {"size_pct": 170, "color": "#00F2AA", "outline_color": "#0A0A0A",
+                      "outline_px": 3.0, "upper": True, "pill": None},
+            "model": {"size_pct": 140, "color": "#F7F7F7", "outline_color": "#0A0A0A",
+                      "outline_px": 3.0, "upper": False, "pill": None},
+            "label": {"size_pct": 79, "color": "#D0D0D0", "outline_color": "#101010",
+                      "outline_px": 3.0, "upper": False, "pill": None},
+        },
+        "motion": {"in": "slide_up", "loop": "lightsweep", "out": "fade", "accent": "none", "stagger": True},
+    },
+    "b2_premium_gold": {
+        "label_th": "B2 (ทอง+สั่นเบา) — Premium",
+        "font": "Kanit",
+        "tiers": {
+            "brand": {"size_pct": 207, "color": "#E6C24A", "outline_color": "#0A0A0A",
+                      "outline_px": 3.0, "upper": True, "pill": None},
+            "model": {"size_pct": 170, "color": "#F7F7F7", "outline_color": "#0A0A0A",
+                      "outline_px": 3.0, "upper": False, "pill": None},
+            "label": {"size_pct": 95, "color": "#D0D0D0", "outline_color": "#101010",
+                      "outline_px": 3.0, "upper": False, "pill": None},
+        },
+        "motion": {"in": "slide_up", "loop": "wave", "out": "fade", "accent": "none", "stagger": True},
+    },
 }
 
 DEFAULT_HOOK_TEMPLATE = "tech"

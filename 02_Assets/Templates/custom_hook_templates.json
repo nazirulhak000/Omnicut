@@ -1,62 +1,21 @@
 {
   "version": "1.0",
   "templates": {
-    "custom_1789393112": {
-      "id": "custom_1789393112",
-      "label_th": "Brand 2 C",
+    "custom_1789444719": {
+      "id": "custom_1789444719",
+      "label_th": "B2 (ฟ้า+สั่นเบา)",
       "font": "Kanit",
       "tiers": {
         "brand": {
-          "size_pct": 130,
-          "color": "#16b0e3",
+          "size_pct": 207,
+          "color": "#87d4ee",
           "outline_color": "#0b0a0a",
           "outline_px": 3,
           "upper": true,
           "pill": null
         },
         "model": {
-          "size_pct": 107,
-          "color": "#f7f7f7",
-          "outline_color": "#0a0a0a",
-          "outline_px": 3,
-          "upper": false,
-          "pill": null
-        },
-        "label": {
-          "size_pct": 60,
-          "color": "#D0D0D0",
-          "outline_color": "#101010",
-          "outline_px": 3,
-          "upper": false,
-          "pill": null
-        }
-      },
-      "motion": {
-        "in": "slide_up",
-        "loop": "lightsweep",
-        "out": "fade",
-        "accent": "none",
-        "stagger": true,
-        "reveal": "simultaneous",
-        "speed": "smooth"
-      },
-      "is_custom": true
-    },
-    "custom_1789393429": {
-      "id": "custom_1789393429",
-      "label_th": "Brand 2 B",
-      "font": "Kanit",
-      "tiers": {
-        "brand": {
           "size_pct": 170,
-          "color": "#074514",
-          "outline_color": "#f7f3f3",
-          "outline_px": 3,
-          "upper": true,
-          "pill": null
-        },
-        "model": {
-          "size_pct": 140,
           "color": "#f7f7f7",
           "outline_color": "#0a0a0a",
           "outline_px": 3,
@@ -64,7 +23,7 @@
           "pill": null
         },
         "label": {
-          "size_pct": 79,
+          "size_pct": 95,
           "color": "#D0D0D0",
           "outline_color": "#101010",
           "outline_px": 3,
@@ -74,7 +33,7 @@
       },
       "motion": {
         "in": "slide_up",
-        "loop": "flicker",
+        "loop": "wave",
         "out": "fade",
         "accent": "none",
         "stagger": true,
@@ -83,50 +42,9 @@
       },
       "is_custom": true
     },
-    "custom_1789397160": {
-      "id": "custom_1789397160",
-      "label_th": "Brand 1 A",
-      "font": "Kanit",
-      "tiers": {
-        "brand": {
-          "size_pct": 170,
-          "color": "#96fdac",
-          "outline_color": "#0a0a0a",
-          "outline_px": 3,
-          "upper": true,
-          "pill": null
-        },
-        "model": {
-          "size_pct": 140,
-          "color": "#f7f7f7",
-          "outline_color": "#0a0a0a",
-          "outline_px": 3,
-          "upper": false,
-          "pill": null
-        },
-        "label": {
-          "size_pct": 79,
-          "color": "#D0D0D0",
-          "outline_color": "#101010",
-          "outline_px": 3,
-          "upper": false,
-          "pill": null
-        }
-      },
-      "motion": {
-        "in": "slide_up",
-        "loop": "flicker",
-        "out": "fade",
-        "accent": "none",
-        "stagger": true,
-        "reveal": "simultaneous",
-        "speed": "smooth"
-      },
-      "is_custom": true
-    },
-    "custom_1789399710": {
-      "id": "custom_1789399710",
-      "label_th": "Brand 1 B (red+กระพริบ)",
+    "custom_1789444795": {
+      "id": "custom_1789444795",
+      "label_th": "B1 (แดง+กระพริบ)",
       "font": "Kanit",
       "tiers": {
         "brand": {
@@ -157,6 +75,129 @@
       "motion": {
         "in": "slide_up",
         "loop": "flicker",
+        "out": "fade",
+        "accent": "none",
+        "stagger": true,
+        "reveal": "simultaneous",
+        "speed": "smooth"
+      },
+      "is_custom": true
+    },
+    "custom_1789448066": {
+      "id": "custom_1789448066",
+      "label_th": "B2 (เหลื่อง+สั้น)",
+      "font": "Kanit",
+      "tiers": {
+        "brand": {
+          "size_pct": 221,
+          "color": "#e7ee87",
+          "outline_color": "#f7f3f3",
+          "outline_px": 3,
+          "upper": true,
+          "pill": null
+        },
+        "model": {
+          "size_pct": 182,
+          "color": "#f7f7f7",
+          "outline_color": "#0a0a0a",
+          "outline_px": 3,
+          "upper": false,
+          "pill": null
+        },
+        "label": {
+          "size_pct": 103,
+          "color": "#D0D0D0",
+          "outline_color": "#101010",
+          "outline_px": 3,
+          "upper": false,
+          "pill": null
+        }
+      },
+      "motion": {
+        "in": "slide_up",
+        "loop": "shake",
+        "out": "fade",
+        "accent": "none",
+        "stagger": true,
+        "reveal": "simultaneous",
+        "speed": "smooth"
+      },
+      "is_custom": true
+    },
+    "custom_1789448116": {
+      "id": "custom_1789448116",
+      "label_th": "B1 (เขียว+กระพริบ)",
+      "font": "Kanit",
+      "tiers": {
+        "brand": {
+          "size_pct": 170,
+          "color": "#87ee8d",
+          "outline_color": "#0a0a0a",
+          "outline_px": 3,
+          "upper": true,
+          "pill": null
+        },
+        "model": {
+          "size_pct": 140,
+          "color": "#f7f7f7",
+          "outline_color": "#0a0a0a",
+          "outline_px": 3,
+          "upper": false,
+          "pill": null
+        },
+        "label": {
+          "size_pct": 79,
+          "color": "#D0D0D0",
+          "outline_color": "#101010",
+          "outline_px": 3,
+          "upper": false,
+          "pill": null
+        }
+      },
+      "motion": {
+        "in": "slide_up",
+        "loop": "flicker",
+        "out": "fade",
+        "accent": "none",
+        "stagger": true,
+        "reveal": "simultaneous",
+        "speed": "smooth"
+      },
+      "is_custom": true
+    },
+    "custom_1789448195": {
+      "id": "custom_1789448195",
+      "label_th": "B1 (ชมพู+กระพริบ)",
+      "font": "Kanit",
+      "tiers": {
+        "brand": {
+          "size_pct": 130,
+          "color": "#ee87a0",
+          "outline_color": "#0a0a0a",
+          "outline_px": 3,
+          "upper": true,
+          "pill": null
+        },
+        "model": {
+          "size_pct": 107,
+          "color": "#f7f7f7",
+          "outline_color": "#0a0a0a",
+          "outline_px": 3,
+          "upper": false,
+          "pill": null
+        },
+        "label": {
+          "size_pct": 60,
+          "color": "#D0D0D0",
+          "outline_color": "#101010",
+          "outline_px": 3,
+          "upper": false,
+          "pill": null
+        }
+      },
+      "motion": {
+        "in": "slide_up",
+        "loop": "lightsweep",
         "out": "fade",
         "accent": "none",
         "stagger": true,

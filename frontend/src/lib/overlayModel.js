@@ -141,8 +141,20 @@ export const AD_TONE_TO_TEMPLATE = {
   commercial_premium: 'clean',
 };
 
+export const STYLE_PRESET_TO_TEMPLATE = {
+  viral_punch: 'b1_viral_red',
+  clean_tech_review: 'b2_clean_yellow',
+  tech_product_showcase: 'b2_tech_cyan',
+  smooth_showcase: 'b1_smooth_mint',
+  premium_minimal: 'b2_premium_gold',
+};
+
 export function templateForAdTone(adTone) {
   return AD_TONE_TO_TEMPLATE[adTone || ''] || DEFAULT_HOOK_TEMPLATE;
+}
+
+export function templateForStylePreset(stylePreset) {
+  return STYLE_PRESET_TO_TEMPLATE[stylePreset || ''] || null;
 }
 
 // The banner's block is anchored to the top of the frame: ASS MarginV 260 of

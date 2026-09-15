@@ -174,10 +174,23 @@ AD_TONE_TO_TEMPLATE: Dict[str, str] = {
     "commercial_premium": "clean",
 }
 
+STYLE_PRESET_TO_TEMPLATE: Dict[str, str] = {
+    "viral_punch": "b1_viral_red",
+    "clean_tech_review": "b2_clean_yellow",
+    "tech_product_showcase": "b2_tech_cyan",
+    "smooth_showcase": "b1_smooth_mint",
+    "premium_minimal": "b2_premium_gold",
+}
+
 
 def template_for_ad_tone(ad_tone: Optional[str]) -> str:
     """The banner look that matches a narration tone, or the default."""
     return AD_TONE_TO_TEMPLATE.get(ad_tone or "", DEFAULT_HOOK_TEMPLATE)
+
+
+def template_for_style_preset(style_preset: Optional[str]) -> Optional[str]:
+    """The banner look that matches an editorial style preset."""
+    return STYLE_PRESET_TO_TEMPLATE.get(style_preset or "")
 
 
 def resolve_look(base: Optional[Dict[str, Any]], override: Optional[Dict[str, Any]]) -> Dict[str, Any]:

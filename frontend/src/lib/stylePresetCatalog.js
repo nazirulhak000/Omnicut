@@ -22,6 +22,9 @@ const STYLE_PRESETS = [
     accent: '#FE2C55',
     status: '#25F4EE',
     neutral: '#FFFFFF',
+    hookTemplate: 'b1_viral_red',
+    hookBadge: 'B1 · FLICKER',
+    hookColor: '#FE2C55',
     recommended: true,
   },
   {
@@ -37,6 +40,9 @@ const STYLE_PRESETS = [
     accent: '#FFE600',
     status: '#25F4EE',
     neutral: '#FFFFFF',
+    hookTemplate: 'b2_clean_yellow',
+    hookBadge: 'B2 · SHAKE',
+    hookColor: '#FFE600',
   },
   {
     id: 'tech_product_showcase',
@@ -49,6 +55,9 @@ const STYLE_PRESETS = [
     accent: '#FFCC33',
     status: '#25F4EE',
     neutral: '#FFFFFF',
+    hookTemplate: 'b2_tech_cyan',
+    hookBadge: 'B2 · WAVE',
+    hookColor: '#25F4EE',
   },
   {
     id: 'smooth_showcase',
@@ -61,6 +70,9 @@ const STYLE_PRESETS = [
     accent: '#25F4EE',
     status: '#FFE600',
     neutral: '#FFFFFF',
+    hookTemplate: 'b1_smooth_mint',
+    hookBadge: 'B1 · LIGHTSWEEP',
+    hookColor: '#00F2AA',
   },
   {
     id: 'premium_minimal',
@@ -73,6 +85,9 @@ const STYLE_PRESETS = [
     accent: '#E6C24A',
     status: '#D8C58A',
     neutral: '#FFFFFF',
+    hookTemplate: 'b2_premium_gold',
+    hookBadge: 'B2 · WAVE',
+    hookColor: '#E6C24A',
   },
 ];
 
@@ -91,6 +106,12 @@ export function normalizeStylePreset(value) {
 export function getStylePreset(value) {
   const id = normalizeStylePreset(value);
   return STYLE_PRESET_CATALOG.find((preset) => preset.id === id) || STYLE_PRESET_CATALOG[0];
+}
+
+/** Get matched hook template id for the given style preset. */
+export function getHookTemplateForStyle(stylePreset) {
+  const preset = getStylePreset(stylePreset);
+  return preset?.hookTemplate || 'b2_clean_yellow';
 }
 
 /**
