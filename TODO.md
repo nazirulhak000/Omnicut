@@ -78,7 +78,7 @@
 - [x] Round AI-PRODUCER-HUB-AUDIT-READONLY-20260915 - Evidence-first read-only audit completed; findings recorded in AI_PRODUCER_HUB_AUDIT_2026-09-15.md; hardening scope remains pending (executed by: Codex (GPT-6))
 - [x] Round AI-PRODUCER-HUB-AUDIT-PLAN-1 — ตรวจสอบการใช้งาน AI Producer Hub และจัดทำแผนยกระดับแบบ evidence-first (2026-09-13; วิเคราะห์โค้ด + browser snapshot แล้ว, รออนุมัติ scope, ดำเนินการโดย: Codex (GPT-5)) (read-only findings and evidence-first hardening plan recorded in AI_PRODUCER_HUB_AUDIT_2026-09-15.md; executed by: Codex (GPT-6))
 - [x] Round AI-PRODUCER-HUB-HARDENING-1 - Implement SSRF/local-path containment, notes concurrency/rollback, and mobile input hardening from the audit; executed by: Codex (GPT-6) (SSRF/private-address and local-path containment implemented; 12 Producer tests passed; compileall passed; executed by: Codex (GPT-6))
-- [ ] Round BG-SUBJECT-ISOLATION-4 — แก้ artifact ติด processing และตรวจลำดับเลเยอร์ให้ Hook อยู่หลัง Subject (2026-09-14; ดำเนินการโดย: Codex (GPT-5))
+- [x] Round BG-SUBJECT-ISOLATION-4 - close artifact lifecycle and real Preview/Render fixture gate (2026-09-15; executed by: Codex (GPT-6); report: BG_SUBJECT_ISOLATION_FIXTURE_REPORT_2026-09-15.md)
 - [x] Round BG-SUBJECT-ISOLATION-RESUME-1 — ทำงานตัดพื้นหลังแบบ resumable เมื่อเน็ต/หน้าเว็บ/Server หลุด (2026-09-14; backend 45+41 passed, frontend 230 passed, build 2005 modules, compileall ผ่าน; ดำเนินการโดย: Codex (GPT-5))
 - [x] Round CALLOUT-RESURRECT-FIX-1 — แก้บั๊ก Text Overlays ถูกปลุกขึ้นมาทับกลางจอ (LOCSmartband) เมื่อลบแล้วใน Editor + ป้องกัน Auto Brand/Model Callout ซ้อนทับ Hook Banner (2026-09-14; pytest backend 8+5+153 passed, vitest 230 passed, build ผ่าน, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 - [x] Round HOOK-DEFAULT-5S-1 — ปรับค่าเริ่มต้น (default) ของป้ายฮุกพาดหัว (Hook Banner) เป็น 5.0 วินาทีตั้งแต่ตอนสร้างโปรเจกต์ (2026-09-11; frontend 151 passed, backend 157 passed, build pass)
@@ -482,47 +482,6 @@ Date: 2026-09-14; executed by: Codex (GPT-6); status: complete
 สถานะ: เสร็จแล้ว — เพิ่ม API ประมวลผล sequence, state persistence, Preview/Render compositing, UI control และ fallback safety
 
 Gate: backend 1386 passed / 3 skipped, BG focused 151 passed / 3 skipped, frontend 219 passed, Vite build ผ่าน 2005 modules, compileall ผ่าน, FFmpeg fixture ตรวจ pixel แล้ว
-
-## Round BG-SUBJECT-ISOLATION-4 — แก้ artifact ติด processing และตรวจลำดับเลเยอร์ให้ Hook อยู่หลัง Subject
-
-ดำเนินการโดย: Codex (GPT-5)
-
-**แผนตรวจ Artifact Lifecycle (Artifact Lifecycle Agent):** ดำเนินการโดย: Codex (GPT-5)
-- [x] ตรวจ sequence worker/store และ test seam สำหรับ artifact คุณภาพต่ำแบบ read-only
-- [x] ยืนยัน reproduction/contract ของ cache hit, invalidation และ re-generate โดยห้ามแตะ artifact เดิม
-- [x] ถ้าพบ patch ที่ bounded ให้เพิ่ม behavior regression test และแก้เฉพาะ backend worker
-- [x] รัน targeted tests, compileall และ diff check; ไม่แตะ frontend/API covers
-
-**งานต่อรอบนี้:** dedupe งาน cutout เมื่อหลาย clip ใช้ source เดียวกัน โดยประมวลผล sequence ที่ครอบคลุมช่วง source ร่วมกัน แล้วนำผลไปผูกกลับทุก clip ที่อยู่ใน source เดียวกัน
-
-**งานต่อรอบนี้ (Preview):** ให้ API manifest/frame อ่าน derived foreground cache namespace เดียวกับ Renderer เพื่อให้ artifact `ready` แสดงใน Preview ได้จริง
-
-**เป้าหมาย:** เมื่อเตรียม cutout เสร็จ ระบบต้องแสดงสถานะพร้อมใช้งานจริง และวาง Hook/Text ไว้หลัง Subject ทั้ง Preview และ Render โดยไม่ทำให้คลิปที่ไม่มี artifact พัง
-
-### Todo
-- [x] Cancellation bridge: TaskManager cancel signals the background-isolation worker through a per-task Event and cleanup removes the registry entry (37 focused tests passed; identity: Codex (GPT-6))
-
-**รอบแก้ไขคุณภาพ Background Isolation:** ดำเนินการโดย: Codex (GPT-5)
-- [x] ปิด master switch ต้องคืนภาพต้นฉบับทั้ง Preview และ Render แม้ clip เดิมมี artifact พร้อมใช้
-- [x] ตรวจคุณภาพ mask จริงจาก rembg และแยกปัญหาขอบแตก/ดูดมือ/พื้นหลังติดออกจากปัญหา compositing (BackgroundIsolationWorker alpha coverage/mass gate + transparent/full-frame/sparse tests; Agent: Codex (GPT-6))
-- [x] เพิ่ม regression test สำหรับ master switch และ fallback ที่ปลอดภัยก่อนปรับคุณภาพ mask
-- [ ] ทดสอบ Preview/Render จาก fixture จริง แล้วค่อยสรุปแนวทางปรับ model/threshold โดยไม่ทำลายโปรเจกต์เดิม
-
-- [x] ทำ reproduction จาก contract จริง: config → per-clip artifact → manifest/frame → compositing order
-- [x] แก้สถานะ readiness ระดับโปรเจกต์ให้สะท้อนผล artifact ระดับคลิป และป้องกัน stale processing (project marker regression passed; frontend 246 passed; Agent: readiness_audit (GPT-6))
-- [x] Cross-project completion guard extracted into a pure task projection helper; malformed, processing, and other-project tasks are ignored (frontend 244 passed; identity: Codex (GPT-6))
-- [x] แก้ลำดับ compositing ให้ Subject อยู่หน้า Hook/Text เฉพาะเมื่อ artifact พร้อม (Preview/Render compositor contract and layer-order regression passed; Agent: Codex (GPT-6))
-- [x] เพิ่ม regression tests สำหรับสถานะเสร็จและลำดับ layer Preview/Render
-- [x] รัน targeted tests และตรวจ diff (ยังไม่เปิดใช้ quality model ใหม่กับ artifact เดิม)
-
-### Notes
-
-- ตรวจพบว่า mask ของ `rembg/u2netp` บน footage ที่มือจับสายชาร์จอยู่มี false foreground สูง: ปัญหาคุณภาพ segmentation แยกจาก compositing แล้ว และยังไม่ควรเปิดใช้ artifact เดิมต่ออัตโนมัติ
-- แก้ master switch ให้ `enabled: false` ระดับโปรเจกต์ชนะ config/artifact ระดับ clip ทั้ง Preview และ Render; commit `95683c6`
-- Artifact เดิมที่มี RGBA/ขนาดครบแต่ segmentation คุณภาพต่ำยังถูก sequence worker มองเป็น cache hit เพราะ lifecycle ตรวจ technical validity ไม่ใช่ semantic mask quality; จึงต้องใช้ `worker_version` ใหม่เป็น explicit regeneration identity และส่ง ID ที่คืนกลับไปให้ consumer แทนการเขียนทับ ID เดิม
-- แก้ `scripts/background_isolation_sequence_worker.py` ให้ publish แบบ no-clobber: ถ้า target artifact มีอยู่แล้วจะ fail closed และไม่ย้าย/ลบ/แก้ target เดิม; manifest ถูก publish เป็นขั้นสุดท้ายเพื่อให้ consumer เห็นเฉพาะ ready artifact
-- เพิ่ม regression tests ใน `tests/test_background_isolation_sequence_worker.py` สำหรับ target เดิมไม่ถูกแทนที่ และ quality rerun ที่ได้ ID ใหม่พร้อมคง bytes เดิม; gate: 78 passed, 3 skipped, 1 warning, compileall ผ่าน, scoped diff check ผ่าน
-- ไม่แตะ `frontend/`, `scripts/api_covers.py` หรือ `tests/test_api_covers_ai.py`; full repository diff check ยังติด blank line ที่ EOF ใน `tests/test_api_covers_ai.py` ซึ่งเป็นงานค้างนอกขอบเขต
 
 ---
 

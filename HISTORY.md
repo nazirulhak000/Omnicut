@@ -9,6 +9,7 @@
 ## สารบัญ
 
 | Round MAIN-FLOW-SCALE-CLOSEOUT-20260915 | Closed durable render queue and workspace scale gate | 2026-09-15 | Complete (full backend 1512 passed, 5 skipped, 29 warnings; executed by: Codex (GPT-6)) |
+| Round BG-SUBJECT-ISOLATION-4 | Closed real-fixture Preview/Render gate for subject isolation | 2026-09-15 | Complete (Preview adapter + FFmpeg 1080x1920/30 FPS fixture; executed by: Codex (GPT-6)) |
 | Round AI-PRODUCER-HUB-HARDENING-1 | Added SSRF/private-address rejection and approved-root local image containment for Producer references | 2026-09-15 | Complete (12 Producer tests passed, compileall passed; executed by: Codex (GPT-6)) |
 | Round AI-PRODUCER-HUB-AUDIT-READONLY-20260915 | Evidence-first read-only Producer Hub audit with bounded hardening backlog | 2026-09-15 | Complete (backend 9 passed, frontend 246 passed; executed by: Codex (GPT-6)) |
 | Round SYSTEM-AUDIT-P2-CUTOUT-20260915 | Recovered pending cutout publication and deduplicated background-isolation work | 2026-09-15 | Complete (36 focused tests passed, 2 skipped; executed by: Codex (GPT-6)) |
@@ -6206,3 +6207,56 @@ Date: 2026-09-15; requested by user; executed by: Codex (GPT-6); status: complet
 Hardened Producer reference image resolution: remote HTTP(S) requests now reject credentials, private/loopback/link-local/reserved addresses, and redirects; local reads are limited to resolved files under Refs or the configured Assets root. Added regressions for private DNS, redirect blocking, and absolute-path escape.
 
 Verification: `pytest tests/test_producer_vision_api.py tests/test_producer_notes_api.py` ? 12 passed; `python -m compileall -q scripts` passed.
+
+
+## Round BG-SUBJECT-ISOLATION-4 — แก้ artifact ติด processing และตรวจลำดับเลเยอร์ให้ Hook อยู่หลัง Subject
+
+ดำเนินการโดย: Codex (GPT-5)
+
+**แผนตรวจ Artifact Lifecycle (Artifact Lifecycle Agent):** ดำเนินการโดย: Codex (GPT-5)
+- [x] ตรวจ sequence worker/store และ test seam สำหรับ artifact คุณภาพต่ำแบบ read-only
+- [x] ยืนยัน reproduction/contract ของ cache hit, invalidation และ re-generate โดยห้ามแตะ artifact เดิม
+- [x] ถ้าพบ patch ที่ bounded ให้เพิ่ม behavior regression test และแก้เฉพาะ backend worker
+- [x] รัน targeted tests, compileall และ diff check; ไม่แตะ frontend/API covers
+
+**งานต่อรอบนี้:** dedupe งาน cutout เมื่อหลาย clip ใช้ source เดียวกัน โดยประมวลผล sequence ที่ครอบคลุมช่วง source ร่วมกัน แล้วนำผลไปผูกกลับทุก clip ที่อยู่ใน source เดียวกัน
+
+**งานต่อรอบนี้ (Preview):** ให้ API manifest/frame อ่าน derived foreground cache namespace เดียวกับ Renderer เพื่อให้ artifact `ready` แสดงใน Preview ได้จริง
+
+**เป้าหมาย:** เมื่อเตรียม cutout เสร็จ ระบบต้องแสดงสถานะพร้อมใช้งานจริง และวาง Hook/Text ไว้หลัง Subject ทั้ง Preview และ Render โดยไม่ทำให้คลิปที่ไม่มี artifact พัง
+
+### Todo
+- [x] Cancellation bridge: TaskManager cancel signals the background-isolation worker through a per-task Event and cleanup removes the registry entry (37 focused tests passed; identity: Codex (GPT-6))
+
+**รอบแก้ไขคุณภาพ Background Isolation:** ดำเนินการโดย: Codex (GPT-5)
+- [x] ปิด master switch ต้องคืนภาพต้นฉบับทั้ง Preview และ Render แม้ clip เดิมมี artifact พร้อมใช้
+- [x] ตรวจคุณภาพ mask จริงจาก rembg และแยกปัญหาขอบแตก/ดูดมือ/พื้นหลังติดออกจากปัญหา compositing (BackgroundIsolationWorker alpha coverage/mass gate + transparent/full-frame/sparse tests; Agent: Codex (GPT-6))
+- [x] เพิ่ม regression test สำหรับ master switch และ fallback ที่ปลอดภัยก่อนปรับคุณภาพ mask
+- [ ] ทดสอบ Preview/Render จาก fixture จริง แล้วค่อยสรุปแนวทางปรับ model/threshold โดยไม่ทำลายโปรเจกต์เดิม
+
+- [x] ทำ reproduction จาก contract จริง: config → per-clip artifact → manifest/frame → compositing order
+- [x] แก้สถานะ readiness ระดับโปรเจกต์ให้สะท้อนผล artifact ระดับคลิป และป้องกัน stale processing (project marker regression passed; frontend 246 passed; Agent: readiness_audit (GPT-6))
+- [x] Cross-project completion guard extracted into a pure task projection helper; malformed, processing, and other-project tasks are ignored (frontend 244 passed; identity: Codex (GPT-6))
+- [x] แก้ลำดับ compositing ให้ Subject อยู่หน้า Hook/Text เฉพาะเมื่อ artifact พร้อม (Preview/Render compositor contract and layer-order regression passed; Agent: Codex (GPT-6))
+- [x] เพิ่ม regression tests สำหรับสถานะเสร็จและลำดับ layer Preview/Render
+- [x] รัน targeted tests และตรวจ diff (ยังไม่เปิดใช้ quality model ใหม่กับ artifact เดิม)
+
+### Notes
+
+- ตรวจพบว่า mask ของ `rembg/u2netp` บน footage ที่มือจับสายชาร์จอยู่มี false foreground สูง: ปัญหาคุณภาพ segmentation แยกจาก compositing แล้ว และยังไม่ควรเปิดใช้ artifact เดิมต่ออัตโนมัติ
+- แก้ master switch ให้ `enabled: false` ระดับโปรเจกต์ชนะ config/artifact ระดับ clip ทั้ง Preview และ Render; commit `95683c6`
+- Artifact เดิมที่มี RGBA/ขนาดครบแต่ segmentation คุณภาพต่ำยังถูก sequence worker มองเป็น cache hit เพราะ lifecycle ตรวจ technical validity ไม่ใช่ semantic mask quality; จึงต้องใช้ `worker_version` ใหม่เป็น explicit regeneration identity และส่ง ID ที่คืนกลับไปให้ consumer แทนการเขียนทับ ID เดิม
+- แก้ `scripts/background_isolation_sequence_worker.py` ให้ publish แบบ no-clobber: ถ้า target artifact มีอยู่แล้วจะ fail closed และไม่ย้าย/ลบ/แก้ target เดิม; manifest ถูก publish เป็นขั้นสุดท้ายเพื่อให้ consumer เห็นเฉพาะ ready artifact
+- เพิ่ม regression tests ใน `tests/test_background_isolation_sequence_worker.py` สำหรับ target เดิมไม่ถูกแทนที่ และ quality rerun ที่ได้ ID ใหม่พร้อมคง bytes เดิม; gate: 78 passed, 3 skipped, 1 warning, compileall ผ่าน, scoped diff check ผ่าน
+- ไม่แตะ `frontend/`, `scripts/api_covers.py` หรือ `tests/test_api_covers_ai.py`; full repository diff check ยังติด blank line ที่ EOF ใน `tests/test_api_covers_ai.py` ซึ่งเป็นงานค้างนอกขอบเขต
+
+
+Executed by: Codex (GPT-6)
+
+Status: complete for the verifiable fixture scope
+
+- Preview adapter consumed the real `ready` manifest and mapped source time to frame index under the backend contract.
+- FFmpeg Render completed at 1080x1920 / 30 FPS and confirmed Hook behind Subject in the compositing order.
+- A 540x960 artifact fails closed when its dimensions do not match the renderer; the graph test used a temp-only 1080x1920 copy.
+- Production model and threshold were left unchanged because the fixture segmentation sample is not sufficient for a quality decision.
+- Full evidence: [BG_SUBJECT_ISOLATION_FIXTURE_REPORT_2026-09-15.md](BG_SUBJECT_ISOLATION_FIXTURE_REPORT_2026-09-15.md)
