@@ -389,3 +389,11 @@ Evidence: preview parity 154 passed; preview behavior/compositor/integration 69 
 The isolated gate's one stale dotenv fixture was corrected in the test layer: key discovery tests now clear every `GEMINI_API_KEY*` environment variable and patch the config module's `.env` path to a temporary file. Production key loading behavior is unchanged.
 
 Evidence: `tests/test_gemini_tts_engine.py` — 20 passed. Agent: Codex (GPT-6).
+
+## Remediation update: P03 benchmark and P05 row-level mutation (2026-09-15)
+
+A temp-only rembg benchmark measured u2net at 1.953s warm/frame and u2netp at 0.744s warm/frame at 540x960. Source-time chunking is promising, but changing artifact identity and frame mapping requires a separate compatibility design, so no production chunking change was made.
+
+The SQLite document mutation path now compares before/after snapshots and flushes only changed rows with row-scoped statements, rejecting duplicate IDs and retaining transaction rollback/API compatibility. Full-gate missing asset/font failures remain environment blockers.
+
+Evidence: SQLite/reconcile 22 passed; compileall and scoped diff checks passed. Agents: Codex (GPT-6), cutout_benchmark (GPT-6), mutation_contract (GPT-6).

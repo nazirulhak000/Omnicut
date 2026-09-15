@@ -17,7 +17,7 @@
 
 ## สถานะรวม
 
-- [ ] Round EDGE-TTS-DETECT-AND-UPGRADE-BADGE-1 — ตรวจจับเสียง Edge-TTS เดิม + แสดง Badge เตือนทั้งในหน้าสคริปต์และในแผนถ่าย พร้อมอัปเกรดเป็น Gemini TTS; ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+- [x] Round EDGE-TTS-DETECT-AND-UPGRADE-BADGE-1 — ตรวจจับเสียง Edge-TTS เดิม + แสดง Badge เตือนทั้งในหน้าสคริปต์และในแผนถ่าย พร้อมอัปเกรดเป็น Gemini TTS (2026-09-15; backend 4 passed, frontend 246 passed, build 2,007 modules/3.32s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 - [x] Round SKIP-RENDERED-POSTED-AUDIO-GEN-1 — ข้ามการสร้างเสียงพากย์สำหรับคลิปที่เสร็จ (rendered) หรือโพสต์แล้ว (posted) และตัดออกจากตัวนับขาดเสียง (2026-09-15; backend 3 passed, frontend 246 passed, build 2,007 modules/3.59s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 - [ ] Round SYSTEM-AUDIT-REMEDIATION-20260915 — แก้ findings ใน System Audit 2026-09-15 ตามเฟส; ดำเนินการโดย: Codex (GPT-6)
 - [ ] Round SYSTEM-AUDIT-P0-20260915 — ป้องกัน SQLite data loss, upload overwrite และ media secret disclosure; ดำเนินการโดย: Codex (GPT-6)
@@ -140,28 +140,6 @@
 - [x] Round SCRIPT-BATCH-EXPAND-1 — ระบบเจนสคริปต์ล็อตใหม่ 10 มุมมอง & ปรับระบบ Dev Server HTTP (Multi-Batch Generation & Filtering Flow) (2026-09-12; vitest 158 passed, pytest 171 passed, build 3.25s, browser verified, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 
 - [x] Round SHOTLIST-GEMINI-TTS-SSOT-1 — ระบบรวมศูนย์เสียง TTS (Gemini Flash Audio SSOT): แผนถ่าย & ตัดต่อจริงใช้เสียงเดียวกัน 100% ไม่เจนซ้ำ (2026-09-12; pytest 1,125 passed, vitest 158 passed, build 3.40s, browser verified, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
-
-## Round EDGE-TTS-DETECT-AND-UPGRADE-BADGE-1 — ตรวจจับเสียง Edge-TTS เดิม + แสดง Badge เตือนทั้งในหน้าสคริปต์และในแผนถ่าย พร้อมอัปเกรดเป็น Gemini TTS
-
-วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: กำลังทำ
-
-### ปัญหาที่พบ
-1. **ใน ShotListModal Badge แสดงหลอกตาว่าเป็น Gemini: Puck:** เมื่อเปิดแผนถ่ายที่มีเสียงเดิมเป็น Edge-TTS โค้ดดึง preset ที่เป็น null แล้ว fallback ไปหยิบ `'gemini_puck_male_hype'` ทำให้ Badge ขวามือของ Audio Player แสดงว่า `Gemini: Puck` ทั้งที่เสียงข้างในเป็น Edge-TTS (Premwadee)
-2. **ในหน้าสคริปต์ไม่สามารถรู้ได้ว่ามุมไหนใช้เสียงอะไรถ้าไม่กดเข้าไปฟัง:** ที่ปุ่มแผนถ่ายไม่มีป้ายสถานะบอกชนิดของเสียง ทำให้ผู้ใช้ต้องคอยคลิกเข้าไปฟังทีละมุม
-3. **ระบบเตรียมเสียงพากย์อัตโนมัติข้ามเสียง Edge-TTS:** ใน `_execute_batch_generate_audio_worker` เงื่อนไข `(not rec_preset or rec_preset == voice_preset)` ทำให้เสียง Edge-TTS ที่ไม่มี preset ถูกข้ามไป ไม่ยอมอัปเกรดเป็น Gemini TTS
-
-### แผนแก้ไข
-- [ ] ใน `scripts/api_shot_lists.py`:
-  - ปรับปรุง `get_shot_list_status`: ส่ง `is_edge_tts: True`, `voice_engine_type`, `voice_preset` ใน response
-  - ปรับปรุง `_execute_batch_generate_audio_worker`: บังคับสร้างใหม่เมื่อ `rec_engine == 'edge_tts'` หรือ `not rec_preset` (ไม่ข้ามเสียงเก่า)
-- [ ] ใน `frontend/src/components/ShotListModal.jsx`:
-  - ตรวจสอบชนิดเสียงจริง (`is_edge_tts`):
-    - ถ้าเป็น Edge-TTS เดิม: แสดง Badge สีส้ม `⚠️ Edge-TTS (เสียงเดิม)` พร้อมกล่องคำเตือนแนะนำให้อัปเกรด
-    - ถ้าเป็น Gemini TTS: แสดง Badge สีคราม/ม่วง `✨ Gemini TTS: Puck` (หรือตาม preset)
-- [ ] ใน `frontend/src/components/ProductToClip.jsx`:
-  - ปรับ `missingAudioCount`: นับมุมที่เป็น `is_edge_tts` ว่ายังขาดเสียง Gemini TTS
-  - แสดง Badge เตือนสีส้ม `⚠️ เสียงเดิม (Edge-TTS)` บนปุ่มแผนถ่ายของมุมนั้น เพื่อให้ผู้ใช้มองเห็นได้ทันทีจากภายนอก
-- [ ] รัน Unit Tests & Build ให้ผ่าน 100%
 
 ## Round BATCH-TTS-AUDIO-PREGEN-1 — ระบบ Batch เตรียมเสียงพากย์อัตโนมัติ พร้อมตัวเลือกเสียง (default: Puck) & พักรอ 429 Cooldown อัตโนมัติใน background task
 
@@ -687,3 +665,17 @@ Gate: backend 1386 passed / 3 skipped, BG focused 151 passed / 3 skipped, fronte
 ดำเนินการโดย: Codex (GPT-6); performance review: Antigravity (GPT-5.6); browser review: preview_parity_audit (GPT-6)
 - [x] Deterministic Gemini key test fixture: clear every `GEMINI_API_KEY*` process variable and patch `scripts.config._env_file` to tmp path; `tests/test_gemini_tts_engine.py` now passes 20/20.
 - ดำเนินการโดย: Codex (GPT-6)
+
+## Round SYSTEM-AUDIT-NEXT-20260915 — ปลดล็อกงาน P03/P05 ด้วย benchmark และ contract
+ดำเนินการโดย: Codex (GPT-6)
+### แผนรอบนี้
+- [x] วัดต้นทุน rembg แบบ temp-only เพื่อประเมิน source-time chunking โดยไม่สร้าง artifact ใหม่ในโปรเจกต์จริง
+- [x] ตรวจ ProductStore mutation path และออกแบบ bounded row-level contract พร้อม regression ก่อนพิจารณาแก้
+- [x] ตรวจ full-gate fixture failures ว่าทำให้ self-contained ได้หรือควรคงเป็น environment blocker
+- [x] สรุปผลและคอมมิตเฉพาะเมื่อมีการเปลี่ยนแปลงที่ปลอดภัย
+### Evidence SYSTEM-AUDIT-NEXT-20260915
+- [x] Temp-only rembg benchmark: at 540×960, u2net warm average 1.953s/frame and u2netp 0.744s/frame; a 2.8s chunk is ~3.6% of a 77.8s source. Source-time chunking is valuable but requires artifact identity/frame mapping redesign, so no production change was made.
+- [x] P05 row-level mutation contract: `_MutateCtx` now emits only changed-row UPDATE/INSERT/DELETE statements, rejects duplicate IDs, and preserves transaction rollback/API compatibility. SQLite/reconcile 22 focused tests passed in this workspace.
+- [x] Full-gate fixture review: missing fonts, typography presets, SFX, BGM, stickers, and media explain remaining isolated failures; no real assets or secrets will be added to the repository.
+- [x] Validation: `tests/test_sqlite_store_migration.py` 22 passed; `tests/test_api_batch_audio.py` 4 passed; compileall and scoped diff checks passed.
+ดำเนินการโดย: Codex (GPT-6); benchmark: cutout_benchmark (GPT-6); mutation review: mutation_contract (GPT-6)

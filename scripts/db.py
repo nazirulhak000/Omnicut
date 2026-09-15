@@ -468,11 +468,39 @@ class _MutateCtx:
             return False
 
         try:
-            conn.execute(f"DELETE FROM {t._table}")
-            for record in records:
+            # Flush only the rows whose documents actually changed.  The
+            # transaction still starts from a complete snapshot (the public
+            # mutate() contract intentionally yields a list), but a normal
+            # single-product update no longer DELETEs and re-inserts every
+            # product in the table.  This keeps the compatibility surface of
+            # _load()/_save() while bounding the write set for the common
+            # row-level mutation paths.
+            before_records = json.loads(self._snapshot or "[]")
+            before = {_id_of(record): record for record in before_records}
+            after = {_id_of(record): record for record in records}
+            if len(before) != len(before_records) or len(after) != len(records):
+                raise ValueError("duplicate record id -- refusing ambiguous mutation flush")
+
+            for record_id in before.keys() - after.keys():
+                conn.execute(f"DELETE FROM {t._table} WHERE id = ?", (record_id,))
+
+            for record_id in after.keys() - before.keys():
+                record = after[record_id]
                 conn.execute(
-                    f"INSERT OR REPLACE INTO {t._table} (id, updated_at, data) VALUES (?, ?, ?)",
+                    f"INSERT INTO {t._table} (id, updated_at, data) VALUES (?, ?, ?)",
                     (_id_of(record), _updated_at_of(record), json.dumps(record, ensure_ascii=False)),
+                )
+
+            for record_id in before.keys() & after.keys():
+                old_record = before[record_id]
+                record = after[record_id]
+                if json.dumps(old_record, ensure_ascii=False, sort_keys=True) == json.dumps(
+                    record, ensure_ascii=False, sort_keys=True
+                ):
+                    continue
+                conn.execute(
+                    f"UPDATE {t._table} SET updated_at = ?, data = ? WHERE id = ?",
+                    (_updated_at_of(record), json.dumps(record, ensure_ascii=False), record_id),
                 )
             conn.execute("COMMIT")
         except Exception:

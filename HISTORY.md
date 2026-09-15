@@ -6123,3 +6123,9 @@ Validation addendum: compositor unit + renderer integration suites — 49 passed
 Updated `tests/test_gemini_tts_engine.py` to clear all `GEMINI_API_KEY*` process variables and patch `scripts.config._env_file` to a temporary `.env`. This keeps key discovery tests deterministic when a developer environment contains multiple configured keys.
 
 Evidence: `tests/test_gemini_tts_engine.py` — 20 passed. Agent: Codex (GPT-6).
+
+## Round SYSTEM-AUDIT-NEXT-20260915 — P03 benchmark and P05 row-level mutation
+- Temp-only rembg benchmark at 540x960: u2net warm 1.953s/frame, u2netp warm 0.744s/frame; source-time chunking is valuable but requires artifact/frame contract redesign, so production chunking remains deferred.
+- `_MutateCtx` now flushes only changed rows with row-scoped UPDATE/INSERT/DELETE, rejects duplicate IDs, and preserves rollback/API compatibility. SQLite migration/reconcile regression: 22 passed.
+- Full-gate asset failures remain environment blockers; no real assets or secrets added.
+- ดำเนินการโดย: Codex (GPT-6); benchmark: cutout_benchmark (GPT-6); mutation review: mutation_contract (GPT-6)

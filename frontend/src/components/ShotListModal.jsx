@@ -94,7 +94,7 @@ export default function ShotListModal({
       isOpen={isOpen}
       onClose={handleClose}
       title={`แผนถ่าย: ${angle?.angle_name || ''}`}
-      subtitle={`${shotList.length} ช็อต · ยาวรวม ${formatSeconds(totalDuration)} (จากจังหวะเสียง Gemini TTS จริง)`}
+      subtitle={`${shotList.length} ช็อต · ยาวรวม ${formatSeconds(totalDuration)} (${isEdgeTts ? 'จากจังหวะเสียง Edge-TTS เดิม' : 'จากจังหวะเสียง Gemini TTS จริง'})`}
       maxWidth="max-w-3xl"
     >
       <div className="space-y-4">

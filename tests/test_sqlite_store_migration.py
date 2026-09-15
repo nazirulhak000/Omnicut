@@ -185,6 +185,37 @@ def test_save_mirrors_to_json_file_on_disk(isolated_store):
     assert on_disk[0]["name"] == "Widget"
 
 
+def test_mutate_flushes_only_changed_rows(isolated_store):
+    """The list-shaped mutate API remains compatible while its SQLite flush
+    is row-scoped. A one-record patch must not rewrite the whole table, since
+    that expands lock/write work with every unrelated product in the store."""
+    table = ps._TABLE
+    table.save([
+        {"id": "p1", "name": "One"},
+        {"id": "p2", "name": "Two"},
+        {"id": "p3", "name": "Three"},
+    ])
+    conn = table._conn()
+    statements = []
+    conn.set_trace_callback(statements.append)
+    try:
+        with table.mutate() as records:
+            next(record for record in records if record["id"] == "p2")["name"] = "Updated"
+    finally:
+        conn.set_trace_callback(None)
+
+    table_name_sql = "products"
+    writes = [statement.upper() for statement in statements if table_name_sql in statement.lower()]
+    assert any("UPDATE PRODUCTS SET" in statement and "WHERE ID = 'P2'" in statement for statement in writes)
+    assert not any("DELETE FROM PRODUCTS" in statement for statement in writes)
+    assert not any("INSERT INTO PRODUCTS" in statement for statement in writes)
+    assert table.load() == [
+        {"id": "p1", "name": "One"},
+        {"id": "p2", "name": "Updated"},
+        {"id": "p3", "name": "Three"},
+    ]
+
+
 # ----------------------------------------------------------------------
 # The lost-update race (P0 item 1) is fixed
 # ----------------------------------------------------------------------
