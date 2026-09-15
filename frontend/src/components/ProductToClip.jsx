@@ -1199,7 +1199,7 @@ function AngleActiveWorkbench({
           </button>
         ) : (
           <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
-            {Boolean(shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts) && (
+            {Boolean(shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts) ? (
               <button
                 type="button"
                 onClick={(e) => {
@@ -1207,7 +1207,7 @@ function AngleActiveWorkbench({
                   onQuickDraft ? onQuickDraft(angle, index) : onSendToStudio(angle, index);
                 }}
                 disabled={draftingAngleId === angle.angle_id}
-                className="flex-1 sm:flex-initial py-3 sm:py-2.5 px-5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
+                className="w-full sm:w-auto py-3 sm:py-2.5 px-6 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
                 title="สร้างดราฟต์ไทม์ไลน์แล้วเปิดเข้าสู่ไทม์ไลน์ทันที (ไม่รอเรนเดอร์ MP4)"
               >
                 {draftingAngleId === angle.angle_id ? (
@@ -1223,18 +1223,17 @@ function AngleActiveWorkbench({
                   </>
                 )}
               </button>
+            ) : (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onSendToStudio(angle, index); }}
+                className="w-full sm:w-auto py-3 sm:py-2.5 px-6 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#FE2C55]/25 cursor-pointer active:scale-95 transition-all"
+              >
+                <Clapperboard className="w-4 h-4 text-white" />
+                <span>เลือกมุมนี้ & ส่งตัดต่อ</span>
+                <ArrowRight className="w-3.5 h-3.5 text-white/80" />
+              </button>
             )}
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onSendToStudio(angle, index); }}
-              className={Boolean(shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts)
-                ? "py-3 sm:py-2.5 px-3.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 text-xs font-medium flex items-center justify-center gap-1.5 border border-white/[0.1] cursor-pointer"
-                : "w-full sm:w-auto py-3 sm:py-2.5 px-6 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#FE2C55]/25 cursor-pointer active:scale-95 transition-all"}
-            >
-              <Clapperboard className="w-4 h-4 text-white" />
-              <span>เลือกมุมนี้ & ส่งตัดต่อ</span>
-              <ArrowRight className="w-3.5 h-3.5 text-white/80" />
-            </button>
           </div>
         )}
       </div>
@@ -1842,7 +1841,7 @@ function ScriptAccordionItem({
               </button>
             ) : (
               <div className="flex items-center gap-2 flex-wrap">
-                {Boolean(shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts) && (
+                {Boolean(shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts) ? (
                   <button
                     type="button"
                     onClick={(e) => {
@@ -1850,7 +1849,7 @@ function ScriptAccordionItem({
                       onQuickDraft ? onQuickDraft(angle, index) : onSendToStudio(angle, index);
                     }}
                     disabled={draftingAngleId === angle.angle_id}
-                    className="py-2 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-500/25 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
+                    className="py-2 px-5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-500/25 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
                     title="สร้างดราฟต์ไทม์ไลน์แล้วเปิดเข้าสู่ไทม์ไลน์ทันที (ไม่รอเรนเดอร์ MP4)"
                   >
                     {draftingAngleId === angle.angle_id ? (
@@ -1866,18 +1865,17 @@ function ScriptAccordionItem({
                       </>
                     )}
                   </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onSendToStudio(angle, index); }}
+                    className="py-2 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-[#FE2C55]/25 cursor-pointer active:scale-95 transition-all"
+                  >
+                    <Clapperboard className="w-3.5 h-3.5 text-white" />
+                    <span>เลือกมุมนี้ & ส่งตัดต่อ</span>
+                    <ArrowRight className="w-3 h-3 text-white/80" />
+                  </button>
                 )}
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); onSendToStudio(angle, index); }}
-                  className={Boolean(shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts)
-                    ? "py-2 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 text-xs font-medium flex items-center gap-1 border border-white/[0.1] cursor-pointer"
-                    : "py-2 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-[#FE2C55]/25 cursor-pointer active:scale-95 transition-all"}
-                >
-                  <Clapperboard className="w-3.5 h-3.5 text-white" />
-                  <span>เลือกมุมนี้ & ส่งตัดต่อ</span>
-                  <ArrowRight className="w-3 h-3 text-white/80" />
-                </button>
               </div>
             )}
           </div>
@@ -3398,14 +3396,19 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         export_mp4: false,
       };
       const res = await startBatchDraft(payload);
+      let draftProjectName = null;
       if (res.batch_id) {
         let attempts = 0;
         let done = false;
-        while (attempts < 15 && !done) {
-          await new Promise(r => setTimeout(r, 800));
+        while (attempts < 30 && !done) {
+          await new Promise(r => setTimeout(r, 600));
           const statusRes = await getBatchRenderStatus(res.batch_id);
           if (statusRes.status === 'completed' || statusRes.status === 'failed') {
             done = true;
+            const completedItem = statusRes.items?.[0];
+            if (completedItem?.project_name) {
+              draftProjectName = completedItem.project_name;
+            }
           }
           attempts++;
         }
@@ -3413,14 +3416,16 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       const prodRes = await readProducts({ force: true });
       const updatedList = prodRes.products || [];
       const updatedProd = updatedList.find(p => p.id === productData.id);
+      let targetAngle = angle;
       if (updatedProd) {
         selectProduct(updatedProd);
-        const updatedAngle = (updatedProd.angles || []).find(a => a.angle_id === angle.angle_id) || angle;
+        targetAngle = (updatedProd.angles || []).find(a => a.angle_id === angle.angle_id) || angle;
         workspaceData?.invalidateTrackerData?.();
-        handleSendToStudio(updatedAngle, index);
-      } else {
-        handleSendToStudio(angle, index);
       }
+      if (draftProjectName) {
+        targetAngle = { ...targetAngle, project_name: draftProjectName };
+      }
+      handleOpenInTimeline(targetAngle, index);
       showToast('🎉 สร้างดราฟต์ไทม์ไลน์เรียบร้อย เปิดเข้าสู่ไทม์ไลน์แล้ว!', 'success');
     } catch (err) {
       console.error('Quick draft failed:', err);
