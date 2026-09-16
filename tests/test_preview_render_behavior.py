@@ -394,7 +394,7 @@ def test_thai_stacked_marks_keep_settled_geometry_during_caption_entrance(
     generated = ass_path.read_text(encoding="utf-8")
     assert f"Style: TikTokWhite,{expected_face}" in generated
     main_lines = [line for line in generated.splitlines() if ",TikTokWhite,," in line]
-    assert any(body_text in re.sub(r"\{[^{}]*\}", "", line) for line in main_lines)
+    assert any(re.sub(r"\s+", "", body_text) in re.sub(r"\s+", "", re.sub(r"\{[^{}]*\}", "", line)) for line in main_lines)
     assert "TikTokWhite,,0,0,0,,{\\an5\\pos(" in generated
     assert "\\1a&HFF&\\3a&HFF&\\4a&HFF&" in generated
     assert all(pair not in generated for pair in stacked_pairs)

@@ -17,6 +17,7 @@
 
 ## สถานะรวม
 
+- [x] Round SUBTITLE-AND-HOOK-RENDER-PARITY-FIX-1 — แก้ปัญหาสีไฮไลต์ซับคลุมทั้งประโยคใน Render + ป้องกันป้าย Hook Header บรรทัดซ้อนทับกัน (Collision) จากการคำนวณ Character Wrap แคบกว่าขอบจอจริง (2026-09-16; backend parity 183 passed, frontend 246 passed, build 2,007 modules/5.00s, FFmpeg frame verified, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [x] Round ANGLE-CARD-DELETE-BUTTON-REALIGN-1 — ย้ายปุ่มลบสคริปต์บนการ์ดมุมมองลงแถบล่าง (Footer) เพื่อให้ Stepper Tracker ชิดขวาเท่ากัน 100% ทุกใบ ไม่ขยับเยื้อง (2026-09-16; frontend 246 passed, build 2,007 modules/6.15s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [x] Round TIKTOK-STATS-MATCH-SCHEDULE-QUEUE-1 — ขยาย Candidate Pool ด้วย Schedule Queue + Caption ยกระดับการจับคู่สถิติ TikTok ให้ตรง 100% อัตโนมัติ (2026-09-16; backend 16 passed, frontend 246 passed, build 2,007 modules/3.15s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [x] Round ONE-CLICK-PROJECT-NAME-CONVENTION-1 — ซิงก์รูปแบบการตั้งชื่อโปรเจกต์ของ 1-Click Draft / Batch Draft ให้เป็นมาตรฐานเดียวกับหน้า NewClipPanel ({product_code}-{angle_name}_{variant}) ป้องกันชื่อหลุดเป็นชื่อสินค้า slugify (2026-09-16; backend 11 passed, frontend 246 passed, build 2,007 modules/3.56s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
@@ -165,6 +166,33 @@
 - [x] Round SHOTLIST-GEMINI-TTS-SSOT-1 — ระบบรวมศูนย์เสียง TTS (Gemini Flash Audio SSOT): แผนถ่าย & ตัดต่อจริงใช้เสียงเดียวกัน 100% ไม่เจนซ้ำ (2026-09-12; pytest 1,125 passed, vitest 158 passed, build 3.40s, browser verified, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 
 
+
+## Round SUBTITLE-AND-HOOK-RENDER-PARITY-FIX-1 — แก้ปัญหาสีไฮไลต์ซับคลุมทั้งประโยคใน Render + ป้องกันป้าย Hook Header บรรทัดซ้อนทับกัน (Collision)
+
+วันที่: 2026-09-16 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: กำลังดำเนินการ
+
+### ปัญหาที่พบ
+1. **สีไฮไลต์ซับคลุมทั้งประโยค (Subtitle Monolingual Highlight Clobber):**
+   - ใน `scripts/subtitle_engine.py` บรรทัด 826–830 มีโค้ดดัก `if "{\\c" in highlighted_text:` แล้วเอาสีแท็กแรกไปคลุมทั้งประโยค `highlighted_text = f"{{\\c{m.group(1)}}}{clean_th}"`
+   - ส่งผลให้ในวิดีโอที่เรนเดอร์ ตัวหนังสือซับและอีโมจิกลายเป็นสีเหลืองทั้งประโยค (`🛒 คุ้มค่ามากที่สุดในกลุ่มไมค์ตอนนี้`) ขณะที่ในหน้า Preview SequencePlayer มีเพียงคำไฮไลต์คำเดียว (`คุ้มค่า`) ที่เป็นสีเหลือง นอกนั้นเป็นสีขาว ทำให้ Preview และ Render ไม่ตรงกัน (Preview ≠ Render)
+2. **ป้าย Hook Header บรรทัดซ้อนทับกัน (Collision) ใน Render:**
+   - ใน `scripts/subtitle/overlay_events.py` บรรทัด 203 มีการคำนวณ `dyn_max_chars = max(8, int(round(2600 / tier_fs)))`
+   - สำหรับฟอนต์ขนาดใหญ่ เช่น Tier 0 (Brand) ขนาด 145px จะได้ `dyn_max_chars = 18` ตัวอักษร
+   - ข้อความ `"GOCHEK ULTRA S24"` มี 16 ตัวอักษร ซึ่ง <= 18 ทำให้ Python ไม่ยอมตัดบรรทัด (wrap) และมองว่าเป็น 1 บรรทัด จึงคำนวณ cursor_y ให้ Tier 1 (`ไมโครโฟนไร้สาย`) ขยับลงมาเพียง 1 บรรทัด (Y ≈ 405)
+   - แต่ในความเป็นจริง ขนาด 145px ของ 16 ตัวอักษรมีความกว้างถึง 1,334px ซึ่งเกินขอบจอ 1080px (และ safe width 918px) ทำให้ libass ใน FFmpeg ตัดบรรทัดอัตโนมัติเป็น 2 บรรทัด (`GOCHEK` บรรทัด 1, `ULTRA S24` บรรทัด 2)
+   - ส่งผลให้ `ULTRA S24` (บรรทัดที่ 2 ของ Tier 0) และ `ไมโครโฟนไร้สาย` (บรรทัดที่ 1 ของ Tier 1) ถูกเรนเดอร์ทับตำแหน่ง Y เดียวกัน เกิดข้อความซ้อนทับกันเละในวิดีโอเรนเดอร์จริง
+   - ขณะที่ในหน้า SequencePlayer ฝั่งเว็บใช้ `wrapCanvasText(..., maxW)` วัดความกว้างพิกเซลจริง จึงตัดเป็น 3 บรรทัดสวยงาม (`GOCHEK` / `ULTRA S24` / `ไมโครโฟนไร้สาย`)
+
+### แผนแก้ไข
+- [x] ใน `scripts/subtitle_engine.py`: ลบบรรทัด 826–830 ที่เขียนทับสีซับทั้งประโยค เพื่อให้การไฮไลต์คำเฉพาะจุด (Word-level kinetic highlighting) ทำงานถูกต้องเหมือนใน Canvas Preview 100%
+- [x] ใน `scripts/subtitle/overlay_events.py`: ปรับการคำนวณ wrap ของ Hook Header โดยวัดความกว้างพิกเซลจริงผ่าน `_measure_text_width_px` (หรือสูตร dynamic chars ที่อิง safe width 918px: `max_w_px = int(video_width * 0.85)` / `avg_char_w`) เพื่อให้ตัดบรรทัดตรงกับหน้า Preview และขยับ `cursor_y` ของแต่ละบรรทัดอย่างถูกต้อง ป้องกันการซ้อนทับ 100%
+- [x] เรนเดอร์ทดสอบ FFmpeg เฟรมจริงจากโปรเจกต์ GoChek เพื่อยืนยันว่า:
+   1. ซับไตเติล: อีโมจิและข้อความปกติเป็นสีขาว คำไฮไลต์เป็นสีเหลือง
+   2. ป้ายฮุก: แบ่ง 3 บรรทัดชัดเจน ไม่มีการชนหรือซ้อนทับกัน
+- [x] รันชุดทดสอบความเข้ากันได้ `test_preview_render_parity.py`, `test_preview_render_behavior.py`, `test_subtitle_artifact_contract.py` (183 passed)
+- [x] รันชุดทดสอบ frontend `npm test` (246 passed) และ `npm run build` (2,007 modules ผ่านใน 5.00s)
+
+---
 
 วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์
 

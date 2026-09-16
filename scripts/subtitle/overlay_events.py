@@ -198,9 +198,16 @@ def _hook_overlay_events(hook_overlay: Dict[str, Any], ctx: Dict[str, Any]) -> L
             continue
         if tiers[tier_key_by_idx[tier_idx]]["upper"]:
             text = text.upper()
+        tier_font = tier_looks[tier_idx].get("font") or hook_font
         scaled_pct = round(scale_pct * master_scale)
         tier_fs = max(16, int(round(hook_fs * scaled_pct / 100)))
-        dyn_max_chars = max(8, int(round(2600 / tier_fs)))
+        max_w_px = int(video_width * 0.85)
+        text_w = _measure_text_width_px(text, tier_font, tier_fs)
+        if text_w and text_w > max_w_px and len(text) > 0:
+            avg_char_w = max(1.0, text_w / len(text))
+            dyn_max_chars = max(6, int(max_w_px / avg_char_w))
+        else:
+            dyn_max_chars = max(6, int(round(1550 / tier_fs)))
         wrapped = wrap_text_for_ass(text, max_chars_per_line=dyn_max_chars)
         lines = wrapped.split("\\N")
         for line in lines:

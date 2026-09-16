@@ -823,11 +823,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 en_sub = f"\\N{{\\fscx{en_pct}\\fscy{en_pct}\\c&H00EAEAEA&}}{en_highlighted}"
             else:
                 highlighted_text = cls.apply_kinetic_highlighting(text, primary_color_ass=primary, custom_keywords=proj_keywords)
-                if "{\\c" in highlighted_text:
-                    m = re.search(r"\{\\c(&H[0-9A-Fa-f]+&)\}", highlighted_text)
-                    if m:
-                        clean_th = re.sub(r"\{\\c&H[0-9A-Fa-f]+&\}", "", text)
-                        highlighted_text = f"{{\\c{m.group(1)}}}{clean_th}"
                 en_sub = ""
 
             style = "TikTokMinimalPill" if is_pill_mode else "TikTokWhite"

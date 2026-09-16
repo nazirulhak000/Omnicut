@@ -1,6 +1,7 @@
 """Regression tests for invalidating stale subtitle artifacts."""
 
 import builtins
+import re
 from pathlib import Path
 
 import pytest
@@ -174,7 +175,7 @@ def test_prompt_caption_with_emoji_detaches_stacked_thai_tone_mark(tmp_path):
     assert len(caption_lines) >= 2
     repaired_word, companions = repair_thai_stacked_marks("โปรโมชั่นนี้")
     assert len(companions) == 2
-    assert any(repaired_word in line for line in caption_lines)
+    assert any(repaired_word in re.sub(r"\{[^{}]*\}", "", line) for line in caption_lines)
     assert all(pair not in line for line in caption_lines for pair in ("ั่", "ี้"))
 
 
