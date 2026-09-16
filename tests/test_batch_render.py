@@ -284,10 +284,12 @@ def test_batch_worker_resolves_angle_style_and_completes_task_with_project_name(
     }
 
     captured_styles = []
+    captured_hook_styles = []
     completed_tasks = []
 
     def mock_run(**kwargs):
         captured_styles.append(kwargs.get("style_preset"))
+        captured_hook_styles.append(kwargs.get("hook_style"))
         return {
             "mp4": "",
             "project_name": f"proj_{kwargs.get('angle_id')}",
@@ -309,10 +311,89 @@ def test_batch_worker_resolves_angle_style_and_completes_task_with_project_name(
 
     # 1. Verify angle style mapping
     assert captured_styles == ["viral_punch", "pain_punch"]
+    assert captured_hook_styles == [{"template": "b1_viral_red"}, {"template": "b1_pain_pink"}]
 
     # 2. Verify TaskManager.complete_task received project_name
     assert len(completed_tasks) == 1
     result_payload = completed_tasks[0].get("result", {})
     assert result_payload.get("project_name") == "proj_stop_scroll"
     assert result_payload.get("completed") == 2
+
+
+def test_synthesize_project_name_with_product_code():
+    from scripts.batch_render import synthesize_project_name
+    name = synthesize_project_name(
+        product_code="BCD01",
+        product_title="BCD Loop Smartband สายรัดข้อมืออัจฉริยะ",
+        angle_id="spec_review",
+        existing_dirs=[]
+    )
+    assert name == "BCD01-รีวิวสเปก_1"
+
+    # Collision test: when _1 exists, it should increment to _2
+    name2 = synthesize_project_name(
+        product_code="BCD01",
+        product_title="BCD Loop Smartband สายรัดข้อมืออัจฉริยะ",
+        angle_id="spec_review",
+        existing_dirs=["BCD01-รีวิวสเปก_1"]
+    )
+    assert name2 == "BCD01-รีวิวสเปก_2"
+
+
+def test_synthesize_project_name_without_product_code():
+    from scripts.batch_render import synthesize_project_name
+    name = synthesize_project_name(
+        product_code="",
+        product_title="BCD Loop Smartband สายรัดข้อมืออัจฉริยะ",
+        angle_id="unboxing",
+        existing_dirs=[]
+    )
+    assert name.startswith("bcd_loop_smartband_แกะกล่องว้าว_1")
+
+
+def test_batch_render_uses_standard_project_name_convention(tmp_path):
+    """Batch worker must synthesize project_name adhering to {product_code}-{angle_name}_{variant} when not provided."""
+    dummy_video = tmp_path / "vid.mp4"
+    dummy_video.write_bytes(b"dummy")
+
+    fake_prod = {
+        "id": "prod_name_test",
+        "product_code": "BCD01",
+        "title": "BCD Loop Smartband",
+        "angles": [
+            {
+                "angle_id": "spec_review",
+                "angle_name": "รีวิวสเปกเจาะลึก",
+                "selected_video": str(dummy_video),
+                "script_lines": ["Line 1"]
+            }
+        ]
+    }
+
+    captured_proj_name = []
+
+    def mock_run(*args, **kwargs):
+        captured_proj_name.append(kwargs.get("project_name"))
+        return {
+            "output_video": "",
+            "project_name": kwargs.get("project_name"),
+            "export_id": ""
+        }
+
+    with patch.object(ProductStore, "get", return_value=fake_prod), \
+         patch.object(ProductStore, "update_angle_status"), \
+         patch("scripts.pipeline.TikTokAutoCutterPipeline.run", side_effect=mock_run), \
+         patch.object(TaskManager, "complete_task"):
+
+        res = BatchRenderManager.create_batch(
+            product_id="prod_name_test",
+            angle_ids=["spec_review"],
+            options={"export_mp4": False}
+        )
+        batch_id = res["batch_id"]
+        BatchRenderManager._run_batch_worker(batch_id)
+
+    assert len(captured_proj_name) == 1
+    assert captured_proj_name[0].startswith("BCD01-รีวิวสเปก_")
+
 

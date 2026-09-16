@@ -109,6 +109,8 @@ class SubtitleStage:
                     "hook_motion": ctx.hook_motion,
                     "hook_colors": ctx.hook_colors,
                     "hook_style": ctx.hook_style,
+                    "style_preset": ctx.style_preset,
+                    "ad_tone": ctx.ad_tone,
                     "text_overlays": effective_text_overlays,
                 })
 

@@ -18,13 +18,14 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.config import BASE_DIR, RAW_DIR, INBOX_DIR, EXPORTS_DIR, STICKERS_DIR
+from scripts.config import BASE_DIR, RAW_DIR, INBOX_DIR, EXPORTS_DIR, STICKERS_DIR, PROJECTS_DIR
 from scripts.product_store import ProductStore
 from scripts.task_manager import TaskManager
 from scripts.batch_queue_store import BatchQueueStore
 from scripts import render_jobs
 from scripts.render_jobs import RenderCancelled
 from scripts.pipeline import TikTokAutoCutterPipeline
+from scripts.overlay_model import template_for_style_preset, template_for_ad_tone
 from scripts.api_render import check_disk_space
 
 logger = logging.getLogger("batch_render")
@@ -42,6 +43,64 @@ ANGLE_TO_DEFAULT_STYLE: Dict[str, str] = {
     "longterm_review": "smooth_showcase",
     "math_value": "premium_minimal",
 }
+
+ANGLE_SLUG_MAP: Dict[str, str] = {
+    "spec_review": "รีวิวสเปก",
+    "unboxing": "แกะกล่องว้าว",
+    "pain_point": "ปัญหาก่อนใช้",
+    "fomo_deal": "โปรไฟลุก",
+    "comparison": "เทียบของเดิม",
+    "life_hack": "ทริกลึก",
+    "stop_scroll": "เตือนภัย",
+    "niche_target": "เจาะกลุ่ม",
+    "longterm_review": "รีวิวใช้จริง",
+    "math_value": "คำนวณคุ้มค่า",
+}
+
+
+def synthesize_project_name(
+    product_code: str = "",
+    product_title: str = "",
+    angle_id: str = "",
+    angle_name: str = "",
+    existing_dirs: Optional[List[str]] = None,
+) -> str:
+    """
+    Builds a collision-free project name matching the system standard:
+    [product_code]-[angle_slug]_[index] (e.g. "BCD01-รีวิวสเปก_1")
+    or falls back to [short_prod]_[angle_slug]_[index] if product_code is missing.
+    """
+    import re
+    code_part = (product_code or "").strip().upper()
+    angle_slug = ANGLE_SLUG_MAP.get((angle_id or "").strip().lower())
+    if not angle_slug:
+        raw = angle_name or angle_id or "มุม1"
+        cleaned = re.sub(r'[\uFE00-\uFE0F]', '', raw)
+        cleaned = re.sub(r'\.{2,}|…', ' ', cleaned)
+        cleaned = re.sub(r'[^\wก-๙\s_-]', ' ', cleaned).strip()
+        words = [w for w in cleaned.split() if w]
+        angle_slug = "_".join(words[:2]) if words else "มุม1"
+
+    if code_part:
+        base = f"{code_part}-{angle_slug}"
+    else:
+        cleaned_p = re.sub(r'\[[^\]]*\]', ' ', product_title or '')
+        cleaned_p = re.sub(r'\([^)]*\)', ' ', cleaned_p)
+        words_p = [w for w in re.sub(r'[^\wก-๙\s_-]', ' ', cleaned_p).strip().split() if w]
+        short_prod = "_".join(words_p[:3]).lower() if words_p else "video"
+        base = f"{short_prod}_{angle_slug}"
+
+    version = 1
+    while True:
+        candidate = f"{base}_{version}"
+        if existing_dirs is not None:
+            if candidate not in existing_dirs:
+                return candidate
+        else:
+            if not (PROJECTS_DIR / candidate).exists():
+                return candidate
+        version += 1
+
 
 _BATCH_LOCK = threading.RLock()
 BATCH_REGISTRY: Dict[str, Dict[str, Any]] = {}
@@ -384,13 +443,33 @@ class BatchRenderManager:
                 cls._persist_batch(batch)
                 continue
 
+            # Resolve project_name for this angle following standard convention
+            proj_name = angle_data.get("project_name")
+            if not proj_name:
+                angle_pnames = options.get("angle_project_names") or {}
+                if angle_id in angle_pnames:
+                    proj_name = angle_pnames[angle_id]
+                elif len(items) == 1 and options.get("project_name"):
+                    proj_name = options.get("project_name")
+
+            if not proj_name:
+                proj_name = synthesize_project_name(
+                    product_code=latest_prod.get("product_code", ""),
+                    product_title=angle_data.get("product_name") or product_title,
+                    angle_id=angle_id,
+                    angle_name=angle_data.get("angle_name", ""),
+                )
+
+            angle_data["project_name"] = proj_name
+            item["project_name"] = proj_name
+
             # Update angle to in_production in ProductStore
             try:
                 ProductStore.update_angle_status(
                     product_id,
                     angle_id,
                     "in_production",
-                    project_name=angle_data.get("project_name")
+                    project_name=proj_name
                 )
             except Exception:
                 pass
@@ -430,7 +509,7 @@ class BatchRenderManager:
                             cancel_event=render_jobs.get_cancel_event(sub_job_id),
                             product_name=angle_data.get("product_name") or product_title,
                             raw_video_path=str(raw_video_path),
-                            project_name=angle_data.get("project_name") or None,
+                            project_name=proj_name,
                             key_features=angle_data.get("key_features") or latest_prod.get("description", ""),
                             pain_point=angle_data.get("pain_point", ""),
                             price_deal=angle_data.get("price_deal") or latest_prod.get("price_note", ""),
@@ -449,6 +528,18 @@ class BatchRenderManager:
                                 or options.get("style_preset")
                                 or "clean_tech_review"
                             ),
+                            hook_style={
+                                "template": (
+                                    (angle_data.get("hook_style") or {}).get("template")
+                                    or template_for_style_preset(
+                                        angle_data.get("style_preset")
+                                        or ANGLE_TO_DEFAULT_STYLE.get(str(angle_data.get("angle_id") or "").strip().lower())
+                                        or options.get("style_preset")
+                                        or "clean_tech_review"
+                                    )
+                                    or template_for_ad_tone(angle_data.get("ad_tone") or options.get("ad_tone") or "commercial_hype")
+                                )
+                            },
                             font_name=options.get("font_name", "IBMPlex"),
                             bilingual_subtitles=options.get("bilingual_subtitles", True),
                             use_ai_vision=options.get("use_ai_vision", True),

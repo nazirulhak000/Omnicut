@@ -323,11 +323,15 @@ def _hook_tier_look(resolved_font: str, tier: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def hook_overlay_from_legacy(
-    brand: str, model: str, label: str,
-    duration: float = 3.0,
+    brand: str,
+    model: str,
+    label: str,
+    duration: float = 5.0,
     motion: Optional[Dict[str, Any]] = None,
-    colors: Optional[Dict[str, Any]] = None,
+    colors: Optional[Dict[str, str]] = None,
     style: Optional[Dict[str, Any]] = None,
+    style_preset: Optional[str] = None,
+    ad_tone: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """
     The three banner scalars as one overlay. Returns None when all three tiers
@@ -338,7 +342,12 @@ def hook_overlay_from_legacy(
     if not any(t.strip() for t in texts):
         return None
     style = style or {}
-    template = style.get("template") or DEFAULT_HOOK_TEMPLATE
+    template = (
+        style.get("template")
+        or template_for_style_preset(style_preset)
+        or template_for_ad_tone(ad_tone)
+        or DEFAULT_HOOK_TEMPLATE
+    )
     resolved = resolve_hook_style(template, style, colors)
     dur = float(duration or 5.0)
     return {
@@ -435,6 +444,8 @@ def migrate_to_overlays(manifest: Optional[Dict[str, Any]]) -> List[Dict[str, An
         _manifest_get(manifest, "hook_motion") or {},
         _manifest_get(manifest, "hook_colors") or {},
         _manifest_get(manifest, "hook_style") or {},
+        style_preset=_manifest_get(manifest, "style_preset"),
+        ad_tone=_manifest_get(manifest, "ad_tone"),
     )
     if hook:
         overlays.append(hook)

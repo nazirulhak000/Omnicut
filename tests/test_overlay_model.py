@@ -315,3 +315,30 @@ def test_hook_overlay_from_legacy_all_numeric_fields_are_finite():
     for tier in overlay["tiers"]:
         assert math.isfinite(tier["look"]["size_pct"])
         assert math.isfinite(tier["look"]["outline_px"])
+
+
+def test_hook_overlay_from_legacy_resolves_template_from_style_preset():
+    """Hook overlay resolves template matching style_preset instead of falling back to 'tech'."""
+    overlay_deal = hook_overlay_from_legacy("Brand", "Model", "Label", style_preset="flash_deal")
+    assert overlay_deal["template"] == "b1_deal_orange"
+
+    overlay_tech = hook_overlay_from_legacy("Brand", "Model", "Label", style_preset="tech_product_showcase")
+    assert overlay_tech["template"] == "b2_tech_cyan"
+
+    overlay_hack = hook_overlay_from_legacy("Brand", "Model", "Label", style_preset="smart_hack")
+    assert overlay_hack["template"] == "b1_hack_lime"
+
+
+def test_migrate_to_overlays_carries_style_preset_template():
+    """migrate_to_overlays uses manifest style_preset when hook_style has no template."""
+    manifest = {
+        "hook_brand": "Brand",
+        "hook_model": "Model",
+        "hook_label": "Label",
+        "style_preset": "pain_punch",
+    }
+    from scripts.overlay_model import migrate_to_overlays
+    overlays = migrate_to_overlays(manifest)
+    assert len(overlays) == 1
+    assert overlays[0]["template"] == "b1_pain_pink"
+

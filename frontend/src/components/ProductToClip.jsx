@@ -26,7 +26,9 @@ import { toMediaUrl } from '../lib/mediaUrl';
 import { useToast } from '../hooks';
 import { useTaskManager } from '../context/TaskContext';
 import { guessBrandModel } from '../lib/overlayModel';
+import { getRecommendedStyleForAngle } from '../lib/stylePresetCatalog';
 import { resolveHistoryTargetId, resolveSelectedProduct } from '../lib/productSelection';
+import { buildProjectName } from '../lib/projectName';
 
 const GEMINI_VOICE_OPTIONS = [
   { id: 'gemini_puck_male_hype', label: 'Puck — ชายพลังสูง TikTok (ค่าเริ่มต้น)' },
@@ -3367,10 +3369,21 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     }
     setIsStartingBatchDraft(true);
     try {
+      const angleProjectNames = {};
+      readyForDraftAngles.forEach((a, idx) => {
+        angleProjectNames[a.angle_id] = buildProjectName({
+          productName: productData.name,
+          angle: a,
+          angleIndex: idx,
+          existingProjects: workspaceData?.projects || [],
+          productCode: productData.product_code || '',
+        });
+      });
       const payload = {
         product_id: productData.id,
         angle_ids: readyForDraftAngles.map(a => a.angle_id),
         voice_preset: selectedVoicePreset,
+        angle_project_names: angleProjectNames,
         export_mp4: false,
       };
       const res = await startBatchDraft(payload);
@@ -3389,11 +3402,22 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     if (!productData?.id || !angle?.angle_id) return;
     setDraftingAngleId(angle.angle_id);
     try {
+      const angleId = angle.angle_id || angle.id;
+      const recommendedStyle = angleId ? getRecommendedStyleForAngle(angleId) : undefined;
+      const angleProjectName = buildProjectName({
+        productName: productData.name,
+        angle,
+        angleIndex: index,
+        existingProjects: workspaceData?.projects || [],
+        productCode: productData.product_code || '',
+      });
       const payload = {
         product_id: productData.id,
         angle_ids: [angle.angle_id],
         voice_preset: angle.voice_preset || selectedVoicePreset,
-        style_preset: angle.style_preset || undefined,
+        style_preset: angle.style_preset || recommendedStyle,
+        project_name: angleProjectName,
+        angle_project_names: { [angle.angle_id]: angleProjectName },
         export_mp4: false,
       };
       const res = await startBatchDraft(payload);

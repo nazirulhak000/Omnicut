@@ -24,6 +24,8 @@ class BatchRenderRequest(BaseModel):
     bilingual_subtitles: bool = True
     use_ai_vision: bool = True
     export_mp4: bool = True
+    project_name: Optional[str] = None
+    angle_project_names: Optional[Dict[str, str]] = None
 
 
 @router.post("")
@@ -40,6 +42,8 @@ def start_batch_render(req: BatchRenderRequest) -> Dict[str, Any]:
             "bilingual_subtitles": req.bilingual_subtitles,
             "use_ai_vision": req.use_ai_vision,
             "export_mp4": req.export_mp4,
+            "project_name": req.project_name,
+            "angle_project_names": req.angle_project_names or {},
         }
         res = BatchRenderManager.create_batch(
             product_id=req.product_id,

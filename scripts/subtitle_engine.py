@@ -114,7 +114,7 @@ LINE_HEIGHT_FACTOR = 1.0
 # it never covers the clip itself.
 WATERMARK_TEXT = "สงวนลิขสิทธิ์ช่อง rizanntry ห้ามคัดลอก/ดัดแปลง"
 WATERMARK_X_RATIO = 0.945   # centre of the 11.1%-wide right safe-zone column
-WATERMARK_Y_RATIO = 0.4375  # vertical centre of that column's 9.4%-78.1% span
+WATERMARK_Y_RATIO = 0.72    # lower safe-zone column (avoids cluttering center product view)
 WATERMARK_FS_RATIO = 0.038  # small corner mark -- independent of the 0.0463 caption ratio
 WATERMARK_COLOR = "&H000000FF"  # ASS &HAABBGGRR: opaque red
 WATERMARK_ALPHA = "&HA0&"       # \alpha override -- faded watermark (~37% opaque, 0xA0/255 ≈ 63% transparent)

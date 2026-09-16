@@ -78,17 +78,29 @@ class SourceResolutionStage:
         # Determine Project Name
         project_name = ctx.project_name
         if not project_name:
-            cleaned = re.sub(r'\[[^\]]*\]', ' ', ctx.product_name or '')
-            cleaned = re.sub(r'\([^)]*\)', ' ', cleaned)
-            words = [w for w in re.sub(r'[^a-zA-Z0-9ก-๙\s_-]', ' ', cleaned).strip().split() if w]
-            short_prod = "_".join(words[:3]).lower() if words else "video"
-            base = short_prod
-            candidate = f"{base}_1"
-            v = 1
-            while (PROJECTS_DIR / candidate).exists():
-                v += 1
-                candidate = f"{base}_{v}"
-            project_name = candidate
+            from scripts.batch_render import synthesize_project_name
+            p_code = ""
+            if ctx.product_id:
+                try:
+                    from scripts.product_store import ProductStore
+                    prod = ProductStore.get(ctx.product_id)
+                    if prod:
+                        p_code = (prod.get("product_code") or "").strip().upper()
+                except Exception:
+                    pass
+            if not p_code and ctx.product_meta and isinstance(ctx.product_meta, dict):
+                p_code = (ctx.product_meta.get("product_code") or "").strip().upper()
+
+            angle_name_str = ""
+            if ctx.angle_meta and isinstance(ctx.angle_meta, dict):
+                angle_name_str = str(ctx.angle_meta.get("angle_name") or "")
+
+            project_name = synthesize_project_name(
+                product_code=p_code,
+                product_title=ctx.product_name or "",
+                angle_id=ctx.angle_id or "",
+                angle_name=angle_name_str,
+            )
             ctx.project_name = project_name
 
         project_dir = PROJECTS_DIR / project_name

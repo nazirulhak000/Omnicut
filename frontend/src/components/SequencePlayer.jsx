@@ -265,7 +265,7 @@ export function drawSpotlight(ctx, value, width = CANVAS_W, height = CANVAS_H) {
 // that render/preview parity, not an independent design choice.
 const WATERMARK_TEXT = 'สงวนลิขสิทธิ์ช่อง rizanntry ห้ามคัดลอก/ดัดแปลง';
 const WATERMARK_X_RATIO = 0.945;
-const WATERMARK_Y_RATIO = 0.4375;
+const WATERMARK_Y_RATIO = 0.72;
 const WATERMARK_FS_RATIO = 0.038;
 const WATERMARK_COLOR = '#FF0000';
 const WATERMARK_ALPHA = 0.4;
