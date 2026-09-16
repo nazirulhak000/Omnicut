@@ -16,11 +16,11 @@
       "likes": 7,
       "comments": 0
     },
-    "metrics_filled_at": "2026-09-15T15:58:58",
+    "metrics_filled_at": "2026-09-16T09:15:55",
     "source": "tiktok_stats_auto",
     "tiktok_video_id": "7684239169178160401",
     "tiktok_url": "https://www.tiktok.com/@rizanntry/video/7684239169178160401",
-    "tiktok_synced_at": "2026-09-15T15:58:58"
+    "tiktok_synced_at": "2026-09-16T09:15:55"
   },
   {
     "id": "45f5c655530c4bb4a3e12d1fd5d6dc08",
@@ -108,11 +108,11 @@
       "likes": 16,
       "comments": 0
     },
-    "metrics_filled_at": "2026-09-15T15:58:58",
+    "metrics_filled_at": "2026-09-16T09:15:55",
     "source": "tiktok_stats_auto",
     "tiktok_video_id": "7684611228244725013",
     "tiktok_url": "https://www.tiktok.com/@rizanntry/video/7684611228244725013",
-    "tiktok_synced_at": "2026-09-15T15:58:58"
+    "tiktok_synced_at": "2026-09-16T09:15:55"
   },
   {
     "id": "24b48378ff9546499233e9f4ec793b7d",
@@ -219,14 +219,60 @@
     "hashtags": [],
     "posted_at": "2026-09-15T16:15:00",
     "metrics": {
-      "views": 0,
-      "likes": 0,
+      "views": 49,
+      "likes": 2,
       "comments": 0
     },
-    "metrics_filled_at": "2026-09-15T15:58:58",
+    "metrics_filled_at": "2026-09-16T09:15:55",
     "source": "tiktok_stats_auto",
     "tiktok_video_id": "7685683616231230727",
     "tiktok_url": "https://www.tiktok.com/@rizanntry/video/7685683616231230727",
-    "tiktok_synced_at": "2026-09-15T15:58:58"
+    "tiktok_synced_at": "2026-09-16T09:15:55"
+  },
+  {
+    "id": "00c8d5e80a3d4b81b3ac1810e80c481f",
+    "product_name": "GoChek รุ่น GC-ULTRA S24",
+    "product_url": "",
+    "angle_key": "pain_point",
+    "angle_title": "😫 ทำคลิปเสียงพัง? แก้ด้วยสิ่งนี้!",
+    "hook": "😫 ทำคลิปเสียงพัง? แก้ด้วยสิ่งนี้!",
+    "clip_file": "GOC01-ปัญหาก่อนใช้_1_20260915_191605.mp4",
+    "platform": "tiktok",
+    "caption": "บอกลาปัญหาเสียงพังในคลิป! ยกระดับเสียงให้โปรด้วย GoChek Ultra S24 ไมค์ไร้สายตัวจบ พิกัดในตะกร้าเหลืองเลยครับ 👇 #นายหน้าtiktok #รีวิวของดี #ของมันต้องมี #tiktokป้ายยา #พิกัดในตะกร้า",
+    "hashtags": [],
+    "posted_at": "2026-09-15T20:00:00",
+    "metrics": {
+      "views": 17,
+      "likes": 0,
+      "comments": 0
+    },
+    "metrics_filled_at": "2026-09-16T09:15:55",
+    "source": "tiktok_stats_auto",
+    "tiktok_video_id": "7685738513953738000",
+    "tiktok_url": "https://www.tiktok.com/@rizanntry/video/7685738513953738000",
+    "tiktok_synced_at": "2026-09-16T09:15:55"
+  },
+  {
+    "id": "b0ba3f43562f4587aa85a6a78b10ce7f",
+    "product_name": "LOOP Smartband สายรัดข้อมืออัจฉริยะ",
+    "product_url": "",
+    "angle_key": "pain_point",
+    "angle_title": "😫 รำคาญสมาร์ตวอทช์หนักๆ แบตหมดไว? ลองรุ่นสายถักตัวเรือนโลหะตัวนี้เลยครับ!",
+    "hook": "😫 รำคาญสมาร์ตวอทช์หนักๆ แบตหมดไว? ลองรุ่นสายถักตัวเรือนโลหะตัวนี้เลยครับ!",
+    "clip_file": "BCD01-ปัญหาก่อนใช้_1_20260914_203916.mp4",
+    "platform": "tiktok",
+    "caption": "ตื่นนอนอย่างสดชื่น! วิเคราะห์การนอนด้วยวิทยาศาตร์กับ BCD LOOP Smartband สายถักนุ่มนวลหลับสบายตลอดคืน พิกัดในตะกร้า 👇 #คุณภาพการนอนหลับ #รักสุขภาพ #สุขภาพดีเริ่มจากการนอน #นอนหลับยาก #พิกัดในตะกร้า",
+    "hashtags": [],
+    "posted_at": "2026-09-15T19:05:00",
+    "metrics": {
+      "views": 270,
+      "likes": 1,
+      "comments": 0
+    },
+    "metrics_filled_at": "2026-09-16T09:15:55",
+    "source": "tiktok_stats_auto",
+    "tiktok_video_id": "7685727100808056065",
+    "tiktok_url": "https://www.tiktok.com/@rizanntry/video/7685727100808056065",
+    "tiktok_synced_at": "2026-09-16T09:15:55"
   }
 ]

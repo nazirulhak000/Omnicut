@@ -8,6 +8,8 @@
 
 ## สารบัญ
 
+| Round TIKTOK-STATS-MATCH-SCHEDULE-QUEUE-1 | ขยาย Candidate Pool ด้วย Schedule Queue + Caption ยกระดับการจับคู่สถิติ TikTok ให้ตรง 100% อัตโนมัติ | 2026-09-16 | สำเร็จสมบูรณ์ (backend 16 passed, frontend 246 passed, build 2,007 modules/3.15s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
+| Round ONE-CLICK-PROJECT-NAME-CONVENTION-1 | ซิงก์รูปแบบการตั้งชื่อโปรเจกต์ของ 1-Click Draft / Batch Draft ให้เป็นมาตรฐานเดียวกับหน้า NewClipPanel ({product_code}-{angle_name}_{variant}) ป้องกันชื่อหลุดเป็นชื่อสินค้า slugify | 2026-09-16 | สำเร็จสมบูรณ์ (backend 11 passed, frontend 246 passed, build 2,007 modules/3.56s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round ONE-CLICK-DRAFT-BATCH-PIPELINE-1 | ระบบ 1-Click Draft ประกอบร่างไทม์ไลน์ ProjectManifest 1 คลิก (ทั้งล็อต & รายมุม) โดยไม่เรนเดอร์ MP4 ล่วงหน้า เพื่อเข้าตรวจซีน/ทำปกใน SequencePlayer ได้ทันที | 2026-09-15 | สำเร็จสมบูรณ์ (backend 14 passed, frontend 246 passed, build 2,007 modules/3.52s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round DOCS-CURRENCY-REFRESH-20260915 | อัปเดตคู่มือ README / ARCHITECTURE / UserGuide ให้ตรงระบบจริง (9 เมนู, 23 routers, 170 routes, 5 แท็บ Analytics, Gemini TTS default) | 2026-09-15 | เสร็จสมบูรณ์ (frontend 246 passed, build 2,007 modules, backend ไม่มี failure ใหม่, ดำเนินการโดย: Cline (Cline Agent)) |
 | Round HOOK-STYLE-PRESET-INTEGRATION-1 | เชื่อมโยงสไตล์การตัดต่อเข้ากับป้ายฮุก (Hook Styles) + Mini Preview บนการ์ดสไตล์ | 2026-09-15 | สำเร็จสมบูรณ์ (backend parity 209 passed, frontend 246 passed, build 2,007 modules/3.48s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)) |
@@ -116,6 +118,38 @@
 - Backend: `pytest tests/test_api_batch_audio.py` ผ่าน 4/4 passed (2.97s)
 - Frontend: `npm test` vitest ผ่าน 246/246 passed (4.04s)
 - Production Build: `npm run build` ผ่าน 2,007 modules ใน 3.34s (dist ขนาดสมบูรณ์)
+
+## Round TIKTOK-STATS-MATCH-SCHEDULE-QUEUE-1 — ขยาย Candidate Pool ด้วย Schedule Queue + Caption ยกระดับการจับคู่สถิติ TikTok ให้ตรง 100% อัตโนมัติ
+
+วันที่: 2026-09-16 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์ ✅
+
+### ปัญหาที่พบ
+1. **แถวหลุดมา Unmatched (รอจับคู่มือ):** เมื่อกดซิงก์สถิติจาก TikTok Studio คลิปที่โพสต์จากระบบ (เช่น BASIKE, Orashare, BlueWow, ESSAGER) หลุดมาเป็น "แถวที่ยังไม่ได้จับคู่" ถึงแม้ว่าแคปชันบน TikTok จะตรงกับที่ระบบสร้าง 100%
+2. **_export_clip_candidates ขาดข้อมูลคิวและแคปชัน:** ปัจจุบันดึงเฉพาะ `ProductStore.get_all()` โดยอ่านแค่ `hook_title`, `product_name`, `angle_title`, `clip_file` ไม่ได้ดึง `caption` หรือ `tiktok_caption` และไม่ได้ดึงข้อมูลจาก `ScheduleQueueStore` (คิวที่โพสต์จริง)
+3. **_match_candidate & _fuzzy_match ไม่ตรวจ caption:** `haystack` เปรียบเทียบเฉพาะ `angle_title`, `hook_title`, `product_name`, `clip_file` เมื่อแคปชันบน TikTok มีข้อความที่ต่างจาก `hook_title` ทำให้ token overlap score < 4 จึงหลุดจับคู่
+4. **Candidate Matching เดิมใช้ First-Match Break:** หากคลิปทั่วไปที่มีคะแนนต่ำ (เช่น 6) มาก่อนในรายการ ระบบจะเลือกจับคู่กับคลิปนั้นทันทีโดยไม่รอเปรียบเทียบกับคลิปสินค้าที่ตรงกันเป๊ะ (คะแนน 50) ที่อยู่ถัดไป
+
+### สิ่งที่ได้ดำเนินการ
+- [x] ใน `scripts/api_tiktok_stats.py` (`_export_clip_candidates`):
+  - ดึง `tiktok_caption`, `caption`, `hashtags`, `hook_brand`, `hook_model` จาก angles ใน `ProductStore`
+  - ดึงคลิปจาก `ScheduleQueueStore._load()` (ทั้ง `caption`, `hashtags`, `hook_title`, `product_name`, `video_path`, `project_name`) เข้า candidate pool
+  - มีการ deduplicate และ enrich ข้อมูล candidate ไม่ให้ซ้ำซ้อน
+- [x] ใน `scripts/post_log.py` (`_score_against_haystack`, `_candidate_score`, `_match_candidate`, `_fuzzy_match`):
+  - เพิ่ม `caption`, `tiktok_caption`, `hashtags`, `hook_brand`, `hook_model` เข้าไปใน `haystack`
+  - เพิ่ม Brand & Model token bonus (+3 สำหรับคำภาษาอังกฤษ/ตัวเลขรุ่นที่ยาว >= 3 ตัวอักษร)
+  - เพิ่ม Exact phrase match bonus (+10 เมื่อข้อความแคปชันตรงกับ haystack)
+  - ปรับ `upsert_tiktok_stats` ให้เลือก **Best Candidate (คะแนนสูงสุด)** แทนการเลือกตัวแรก (First match)
+  - เพิ่ม `claimed_cand_keys` ป้องกันการ claim candidate ซ้ำซ้อนในรอบซิงก์เดียวกัน
+- [x] เพิ่ม Unit Tests ใน `tests/test_tiktok_stats_import.py`:
+  - `test_import_matches_via_schedule_queue_caption`
+  - `test_import_matches_via_product_store_tiktok_caption`
+  - `test_import_picks_highest_scoring_candidate_over_earlier_candidates`
+- [x] ยืนยันผลการทดสอบกับข้อมูล 4 แถวจริงของผู้ใช้ (BASIKE score 50, Orashare score 42, BlueWow score 37, ESSAGER score 31) แมพได้ถูกต้องและแม่นยำ 100%
+
+### ผลการทดสอบ (Gate Verification)
+- [x] Backend tests: `pytest tests/test_tiktok_stats_import.py` ผ่าน 16/16 tests (100%)
+- [x] Frontend tests: `npm test -- --run` ผ่าน 246/246 tests (100%)
+- [x] Frontend build: `npm run build` ผ่าน 2,007 modules ใน 3.15s
 
 ---
 
@@ -6503,3 +6537,27 @@ Executed by: Codex (GPT-6)
 - **Frontend Tests:** `npx vitest run` ผ่านครบ 246/246 tests
 - **Production Build:** `npm run build` ผ่านสมบูรณ์ (2,007 modules / 3.52s, 0 errors)
 - **UI Clean Standard:** ปฏิบัติตามกฎเหล็ก Rule 8 ใน `AGENTS.md` (ไม่มีสัญลักษณ์ซ้ำซ้อนในปุ่ม, ใช้กริยานำชัดเจน, แสดงสถานะตรงตามจริง `in_production` / `draft_ready`)
+
+## Round ONE-CLICK-HOOK-STYLE-PARITY-1 — ซิงก์ Style Preset และ Hook Banner Template สำหรับการสร้างดราฟต์ 1-Click ให้ตรงกับหน้าส่งตัดต่อ 100%
+ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+### สิ่งที่ทำ
+1. **Frontend Overlay Mapping**: ขยาย `STYLE_PRESET_TO_TEMPLATE` ใน `frontend/src/lib/overlayModel.js` จาก 5 สไตล์เป็น 10 สไตล์ให้ครบถ้วนสมบูรณ์ (ครอบคลุม `flash_deal`, `pain_punch`, `tech_compare`, `smart_hack`, `niche_focus`)
+2. **Frontend 1-Click Draft Trigger**: ใน `frontend/src/components/ProductToClip.jsx` ฟังก์ชัน `handleSingleAngleQuickDraft` ปรับให้ดึง `getRecommendedStyleForAngle(angle.angle_id)` เป็น default style preset เสมอ แทนการส่ง undefined
+3. **Backend Batch Worker**: ใน `scripts/batch_render.py` ฟังก์ชัน `_run_batch_worker` คำนวณ hook template ตาม `style_preset` และส่ง `hook_style={"template": hook_template}` เข้าสู่ `TikTokAutoCutterPipeline.run(...)`
+4. **Pipeline Stage & Legacy Overlay Fallback**: ปรับ `scripts/stages/subtitle_stage.py` และ `scripts/overlay_model.py` (`hook_overlay_from_legacy` & `migrate_to_overlays`) ให้ดึง template ตาม `style_preset` และ `ad_tone` เมื่อไม่มี template กำหนดไว้ใน style แทนที่จะกระโดดไปหาค่า default `"tech"` ตัวเดียว
+### ผลการทดสอบ
+- **Backend Tests:** `pytest tests/test_batch_render.py tests/test_overlay_model.py` 50/50 passed (เพิ่ม unit test ตรวจสอบ hook_style template ใน batch worker และ overlay model migration)
+- **Frontend Unit Tests:** 246/246 passed
+- **Frontend Production Build:** Vite 2,007 modules transformed / built in 7.42s
+
+## Round WATERMARK-POSITION-BOTTOM-ALIGN-1 — ปรับตำแหน่งลายน้ำแนวตั้งชิดขอบล่างขวา (Parity Preview & Render)
+ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+### สิ่งที่ทำ
+1. **Render ASS Parity**: ปรับ `WATERMARK_Y_RATIO` จาก `0.4375` เป็น `0.72` ใน `scripts/subtitle_engine.py` โดยในวิดีโอ 1080x1920 จุดกึ่งกลางลายน้ำจะขยับจาก y=840px (กลางจอ) ลงไปที่ y=1382px (แถวๆ ด้านล่างข้างซับไตเติล) ทำให้ข้อความแนวตั้งยาว 842px ขยับพ้นจากจุดโฟกัสสินค้าตรงกลางจออย่างสมบูรณ์ และมีระยะห่างจากขอบล่าง 117px ไม่ตกขอบ
+2. **Preview Canvas Parity**: ปรับ `WATERMARK_Y_RATIO` เป็น `0.72` ใน `frontend/src/components/SequencePlayer.jsx` เพื่อให้พรีวิวบนเบราว์เซอร์ตรงกับวิดีโอที่เรนเดอร์จริง 100%
+3. **Active Project Update**: อัปเดตตำแหน่ง `Watermark` ใน `03_Projects/bcd_loop_smartband_1/subtitles.ass` ให้เป็น `pos(1021, 1382)` ทำให้พรีวิวและโปรเจกต์ปัจจุบันแสดงผลตรงตามตำแหน่งใหม่อัตโนมัติ
+### ผลการทดสอบ
+- **Backend Parity Tests:** `pytest tests/test_subtitle_artifact_contract.py tests/test_preview_render_parity.py` 163/163 passed ครบ 100%
+- **Frontend Unit Tests:** 246/246 passed
+- **Frontend Production Build:** Vite 2,007 modules built in 4.38s
+

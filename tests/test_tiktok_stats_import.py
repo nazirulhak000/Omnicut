@@ -331,3 +331,131 @@ def test_viral_milestones_endpoint(isolated_log, client):
     assert resp2.status_code == 200
     assert resp2.json()["count"] == 0
 
+
+def test_import_matches_via_schedule_queue_caption(isolated_log, client, monkeypatch):
+    """Studio row matching exact caption saved in ScheduleQueueStore auto-registers successfully."""
+    from scripts.schedule_store import ScheduleQueueStore
+    from scripts.product_store import ProductStore
+
+    monkeypatch.setattr(ScheduleQueueStore, "_load", lambda: [
+        {
+            "id": "q1",
+            "product_name": "BASIKE พัดลมระบายความร้อน",
+            "project_name": "BAS01-ปัญหาก่อนใช้_1",
+            "hook_title": "🛑 โน้ตบุ๊กร้อนจนค้าง ทำงานต่อไม่ได้ ลองใช้ตัวนี้ดูครับ!",
+            "caption": "บอกลาปัญหาเครื่องร้อนจนค้าง! ยืดอายุโน้ตบุ๊กคู่ใจด้วย BASIKE Notebook Cooling Pad ลมแรง ดีไซน์บางเฉียบ พิกัดในตะกร้าเลยครับ 👇",
+            "hashtags": "#พัดลมโน๊ตบุ๊ค #พัดลมระบายความร้อนคอมพิวเตอร์ #BASIKE",
+            "video_path": "04_Exports/Posted/BAS01-ปัญหาก่อนใช้_1_20260915_105152.mp4",
+            "angle_id": "pain_point",
+            "status": "posted",
+        }
+    ])
+    monkeypatch.setattr(ProductStore, "get_all", lambda: [])
+
+    resp = client.post("/api/tiktok-stats/import", json={"rows": [{
+        "title": "บอกลาปัญหาเครื่องร้อนจนค้าง! ยืดอายุโน้ตบุ๊กคู่ใจด้วย BASIKE Notebook Cooling Pad ลมแรง ดีไซน์บางเฉียบ พิกัดในตะกร้าเลยครับ 👇 #พัดลมโน๊ตบุ๊ค #BASIKE",
+        "posted_text": "15 ส.ค. 1:15 PM",
+        "views": 420,
+        "likes": 8,
+        "comments": 1,
+        "video_id": "vid_basike_123",
+        "video_url": "https://www.tiktok.com/@user/video/vid_basike_123",
+    }]})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["matched"] == 1
+    assert data["registered"] == 1
+    assert len(data["unmatched"]) == 0
+
+    posts = post_log_module.PostLog.list_posts()
+    assert len(posts) == 1
+    assert posts[0]["product_name"] == "BASIKE พัดลมระบายความร้อน"
+    assert posts[0]["clip_file"] == "BAS01-ปัญหาก่อนใช้_1_20260915_105152.mp4"
+    assert posts[0]["tiktok_video_id"] == "vid_basike_123"
+    assert posts[0]["metrics"]["views"] == 420
+
+
+def test_import_matches_via_product_store_tiktok_caption(isolated_log, client, monkeypatch):
+    """Studio row matching tiktok_caption from ProductStore auto-registers successfully."""
+    from scripts.product_store import ProductStore
+    from scripts.schedule_store import ScheduleQueueStore
+
+    monkeypatch.setattr(ScheduleQueueStore, "_load", lambda: [])
+    monkeypatch.setattr(ProductStore, "get_all", lambda: [
+        {
+            "id": "prod_orashare",
+            "name": "Orashare พัดลมมือถือ",
+            "angles": [{
+                "angle_id": "pain_point",
+                "angle_name": "😫 ร้อนเหงื่อท่วม",
+                "hook_title": "อากาศร้อนจนทนไม่ไหว มีสิ่งนี้ติดตัวรอดชัวร์",
+                "tiktok_caption": "บอกลาความร้อนเหงื่อท่วมตัว! พก Orashare HF04 พัดลมไฮสปีดเทอร์โบ 100 ระดับ เย็นฉ่ำสะใจพกพาง่ายสุดๆ พิกัดในตะกร้าเลยครับ 👇",
+                "tiktok_hashtags": "#พัดลมพกพา #Orashare",
+                "video_url": "04_Exports/ORA01-ร้อนเหงื่อท่วม_1.mp4",
+                "clip_file": "ORA01-ร้อนเหงื่อท่วม_1.mp4",
+            }],
+        }
+    ])
+
+    resp = client.post("/api/tiktok-stats/import", json={"rows": [{
+        "title": "บอกลาความร้อนเหงื่อท่วมตัว! พก Orashare HF04 พัดลมไฮสปีดเทอร์โบ 100 ระดับ เย็นฉ่ำสะใจพกพาง่ายสุดๆ พิกัดในตะกร้าเลยครับ 👇 #พัดลมพกพา",
+        "posted_text": "15 ส.ค. 9:00 PM",
+        "views": 150,
+        "likes": 12,
+        "video_id": "vid_orashare_456",
+    }]})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["matched"] == 1
+    assert data["registered"] == 1
+    assert len(data["unmatched"]) == 0
+
+    posts = post_log_module.PostLog.list_posts()
+    assert len(posts) == 1
+    assert posts[0]["product_name"] == "Orashare พัดลมมือถือ"
+    assert posts[0]["tiktok_video_id"] == "vid_orashare_456"
+    assert posts[0]["metrics"]["views"] == 150
+
+
+def test_import_picks_highest_scoring_candidate_over_earlier_candidates(isolated_log, client, monkeypatch):
+    """Candidate with the highest token/caption overlap score is picked over an earlier weaker match."""
+    from scripts import api_tiktok_stats
+    monkeypatch.setattr(api_tiktok_stats, "_export_clip_candidates", lambda: [
+        {
+            # Earlier in candidate list, shares generic word "พัดลม"
+            "hook_title": "พัดลมตัวอื่นทั่วไป",
+            "product_name": "พัดลมทั่วไป",
+            "angle_title": "พัดลมทั่วไป",
+            "angle_key": "angle_gen",
+            "clip_file": "generic.mp4",
+            "caption": "พัดลมเย็นสบาย ทั่วไป",
+        },
+        {
+            # Later in candidate list, exact match
+            "hook_title": "🛑 โน้ตบุ๊กร้อนจนค้าง ทำงานต่อไม่ได้ ลองใช้ตัวนี้ดูครับ!",
+            "product_name": "BASIKE พัดลมระบายความร้อน",
+            "angle_title": "BASIKE Notebook Cooling Pad",
+            "angle_key": "pain_point",
+            "clip_file": "BAS01-ปัญหาก่อนใช้_1_20260915_105152.mp4",
+            "caption": "บอกลาปัญหาเครื่องร้อนจนค้าง! ยืดอายุโน้ตบุ๊กคู่ใจด้วย BASIKE Notebook Cooling Pad ลมแรง ดีไซน์บางเฉียบ พิกัดในตะกร้าเลยครับ 👇",
+        },
+    ])
+
+    resp = client.post("/api/tiktok-stats/import", json={"rows": [{
+        "title": "บอกลาปัญหาเครื่องร้อนจนค้าง! ยืดอายุโน้ตบุ๊กคู่ใจด้วย BASIKE Notebook Cooling Pad ลมแรง ดีไซน์บางเฉียบ พิกัดในตะกร้าเลยครับ 👇 #พัดลมโน๊ตบุ๊ค #BASIKE",
+        "posted_text": "15 ส.ค. 1:15 PM",
+        "views": 420,
+        "video_id": "vid_basike_best",
+    }]})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["matched"] == 1
+    assert data["registered"] == 1
+
+    posts = post_log_module.PostLog.list_posts()
+    assert len(posts) == 1
+    # Must be BASIKE, NOT generic earlier candidate!
+    assert posts[0]["product_name"] == "BASIKE พัดลมระบายความร้อน"
+    assert posts[0]["clip_file"] == "BAS01-ปัญหาก่อนใช้_1_20260915_105152.mp4"
+
+

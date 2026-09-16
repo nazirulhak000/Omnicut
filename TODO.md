@@ -17,6 +17,10 @@
 
 ## สถานะรวม
 
+- [x] Round TIKTOK-STATS-MATCH-SCHEDULE-QUEUE-1 — ขยาย Candidate Pool ด้วย Schedule Queue + Caption ยกระดับการจับคู่สถิติ TikTok ให้ตรง 100% อัตโนมัติ (2026-09-16; backend 16 passed, frontend 246 passed, build 2,007 modules/3.15s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
+- [x] Round ONE-CLICK-PROJECT-NAME-CONVENTION-1 — ซิงก์รูปแบบการตั้งชื่อโปรเจกต์ของ 1-Click Draft / Batch Draft ให้เป็นมาตรฐานเดียวกับหน้า NewClipPanel ({product_code}-{angle_name}_{variant}) ป้องกันชื่อหลุดเป็นชื่อสินค้า slugify (2026-09-16; backend 11 passed, frontend 246 passed, build 2,007 modules/3.56s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
+- [x] Round WATERMARK-POSITION-BOTTOM-ALIGN-1 — ปรับตำแหน่งลายน้ำแนวตั้ง (Watermark) ชิดขอบล่างขวา (Y_RATIO 0.4375 ➔ 0.72) เพื่อไม่ให้บดบังสินค้าตรงกลางจอ (2026-09-16; backend parity 163 passed, frontend 246 passed, build 2,007 modules/4.38s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
+- [x] Round ONE-CLICK-HOOK-STYLE-PARITY-1 — ซิงก์ Style Preset และ Hook Banner Template สำหรับการสร้างดราฟต์ 1-Click ให้ตรงกับหน้าส่งตัดต่อ 100% ไม่หลุดเป็น Tech ซ้ำกันทุกคลิป (2026-09-16; backend 50 passed, frontend 246 passed, build 2,007 modules/7.42s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [x] Round ONE-CLICK-DRAFT-PARITY-FIX-1 — นำปุ่มเดิม "เลือกมุมนี้ & ส่งตัดต่อ" กลับมา + แก้ 404 ตอนกดเปิดไทม์ไลน์จากศูนย์กิจกรรม + แมพ Style Preset ตามสคริปต์มุมมองใน Batch/Quick Draft (2026-09-15; backend 8 passed, frontend 246 passed, build 2,007 modules/3.20s, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 - [x] Round ONE-CLICK-DRAFT-BATCH-PIPELINE-1 — ระบบ 1-Click Draft (สร้างดราฟต์ไทม์ไลน์ 1 คลิก) ทั้งระดับรายมุมและทั้งล็อต (Batch Draft) ประกอบเสียง ซับ ฟุตเทจ เข้าสู่ไทม์ไลน์ ProjectManifest โดยไม่ผ่านการเรนเดอร์ MP4 เต็มรูปแบบ (2026-09-15; backend 14 passed, frontend 246 passed, build 2,007 modules/3.52s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) — บล็อกเต็มอยู่ใน HISTORY.md
 - [ ] Round STYLE-MOTION-CATALOG-CONTRACT-SYNC-1 — ซิงก์ `tests/test_style_motion_policy.py` กับ catalog 10 สไตล์ (ของเดิมตก 1 test เพราะ commit `0a07a34` ขยาย `scripts/style_motion_policy.py` เป็น 10 สไตล์แต่ไม่ได้อัปเดต test ที่ยังยืนยัน 5 สไตล์) (พบโดย: Cline (Cline Agent) · ยังไม่ได้แก้)
@@ -947,3 +951,25 @@ Plan before code:
 ---
 
 ## Round DOCS-CURRENCY-REFRESH-20260915 — ปิดรอบแล้ว ✅ (บล็อกเต็มอยู่ใน HISTORY.md)
+
+## Round ONE-CLICK-HOOK-STYLE-PARITY-1 — ซิงก์ Style Preset และ Hook Banner Template สำหรับการสร้างดราฟต์ 1-Click ให้ตรงกับหน้าส่งตัดต่อ 100%
+ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+### แผนรอบนี้
+- [x] 1. เพิ่ม mapping `STYLE_PRESET_TO_TEMPLATE` ใน `frontend/src/lib/overlayModel.js` ให้ครบ 10 สไตล์ (เดิมมี 5 สไตล์ ขาด flash_deal, pain_punch, tech_compare, smart_hack, niche_focus)
+- [x] 2. ใน `frontend/src/components/ProductToClip.jsx`: ปรับ `handleSingleAngleQuickDraft` ให้ fallback `style_preset` ด้วย `getRecommendedStyleForAngle(angle.angle_id)` แทนที่จะส่ง undefined
+- [x] 3. ใน `scripts/batch_render.py`: ใน `_run_batch_worker` คำนวณ `hook_template = template_for_style_preset(style_preset)` และส่ง `hook_style={"template": hook_template}` เข้า `TikTokAutoCutterPipeline.run(...)`
+- [x] 4. ใน `scripts/stages/subtitle_stage.py` & `scripts/overlay_model.py`: ปรับให้ fallback ของ Hook Template อ่านจาก `template_for_style_preset(style_preset) or template_for_ad_tone(ad_tone) or DEFAULT_HOOK_TEMPLATE` เมื่อไม่มี template ระบุใน style เพื่อไม่ให้หลุดเป็น 'tech' ซ้ำกัน
+- [ ] 5. รัน Automated Tests: `pytest tests/test_batch_render.py tests/test_overlay_model.py`, `npm test`, `npm run build`
+
+## Round WATERMARK-POSITION-BOTTOM-ALIGN-1 — ปรับตำแหน่งลายน้ำแนวตั้งชิดขอบล่างขวา (Parity Preview & Render)
+ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+### แผนรอบนี้
+- [x] 1. ปรับ `WATERMARK_Y_RATIO` จาก `0.4375` เป็น `0.72` ใน `scripts/subtitle_engine.py` (Render ASS) ให้ขยับลงมาชิดขอบล่างขวา หลบพื้นที่ตัวสินค้าตรงกลางจอ
+- [x] 2. ปรับ `WATERMARK_Y_RATIO` จาก `0.4375` เป็น `0.72` ใน `frontend/src/components/SequencePlayer.jsx` (Preview Canvas) เพื่อรักษา Preview/Render Parity 100%
+- [x] 3. อัปเดตไฟล์ `03_Projects/bcd_loop_smartband_1/subtitles.ass` ในโปรเจกต์ปัจจุบันให้เป็น `pos(1021, 1382)` ทันที
+- [x] 4. รัน automated tests:
+  - Backend tests: `pytest tests/test_subtitle_artifact_contract.py tests/test_preview_render_parity.py` 163 passed ครบ 100%
+  - Frontend vitest: 246 passed ครบ 100%
+  - Frontend production build: Vite 2,007 modules built in 4.38s
+
+

@@ -157,6 +157,7 @@ class PostLog:
             # fuzzy-match the same target and the later row's metrics silently
             # overwrote the first row's real numbers (Lift 59 -> 370 bug).
             claimed: Dict[str, str] = {}
+            claimed_cand_keys: set = set()
             for row_idx, row in enumerate(rows):
                 video_id = (row.get("video_id") or "").strip() if isinstance(row.get("video_id"), str) else row.get("video_id")
                 claim = str(video_id or f"row#{row_idx}")
@@ -174,9 +175,20 @@ class PostLog:
                         # fall through to candidate registration / unmatched
                         # instead of overwriting that video's metrics.
                 if target is None and register_missing and clip_candidates:
+                    best_cand = None
+                    best_cand_score = 0
                     for cand in clip_candidates:
-                        if not cls._match_candidate(row, cand):
+                        ckey = (cand.get("clip_file"), cand.get("product_name"), cand.get("angle_title"))
+                        if ckey in claimed_cand_keys:
                             continue
+                        score = cls._candidate_score(row, cand)
+                        if score >= 4 and score > best_cand_score:
+                            best_cand, best_cand_score = cand, score
+
+                    if best_cand is not None:
+                        cand = best_cand
+                        ckey = (cand.get("clip_file"), cand.get("product_name"), cand.get("angle_title"))
+                        claimed_cand_keys.add(ckey)
                         posted_at = cls._parse_studio_posted_at(row.get("posted_text")) or now
                         # Append here -- never call add_post() inside this
                         # mutate (nested _mutate on the same table would fight
@@ -186,11 +198,11 @@ class PostLog:
                             "product_name": str(cand.get("product_name") or ""),
                             "product_url": "",
                             "angle_key": str(cand.get("angle_key") or ""),
-                            "angle_title": str(cand.get("angle_title") or ""),
+                            "angle_title": str(cand.get("angle_title") or cand.get("hook_title") or ""),
                             "hook": str(cand.get("hook_title") or ""),
-                            "clip_file": str(cand.get("clip_file") or ""),
+                            "clip_file": str(cand.get("clip_file") or "clip.mp4"),
                             "platform": "tiktok",
-                            "caption": str(row.get("title") or "")[:200],
+                            "caption": str(cand.get("caption") or row.get("title") or "")[:200],
                             "hashtags": [],
                             "posted_at": posted_at,
                             "metrics": None,
@@ -200,7 +212,6 @@ class PostLog:
                         posts.append(new_post)
                         target = new_post
                         registered += 1
-                        break
                 if target is None:
                     unmatched_row = dict(row)
                     unmatched_row["video_id"] = video_id
@@ -354,7 +365,7 @@ class PostLog:
     @classmethod
     def _score_against_haystack(cls, title: str, haystack: str) -> int:
         """Normalized token-overlap score: shared words + brand-word bonus +
-        12-char prefix containment bonus. Zero means "no relation at all"."""
+        12-char prefix containment bonus + exact phrase bonus. Zero means "no relation at all"."""
         row_tokens = cls._title_tokens(title)
         if not row_tokens:
             return 0
@@ -363,9 +374,16 @@ class PostLog:
         if not shared:
             return 0
         score = len(shared) + sum(2 for t in shared if len(t) >= 4)
+        # Brand/model bonus: English words or alphanumeric models with length >= 3
+        # (e.g. basike, orashare, bluewow, essager, logitech, hf04, x120, 100w)
+        score += sum(3 for t in shared if any(c.isascii() and c.isalpha() for c in t) and len(t) >= 3)
         prefix = cls._normalize_title(title)[:12]
         if prefix and prefix in cls._normalize_title(haystack):
             score += 3
+        norm_title = cls._normalize_title(title)
+        norm_hay = cls._normalize_title(haystack)
+        if norm_title and (norm_title in norm_hay or (len(norm_hay) >= 15 and norm_hay in norm_title)):
+            score += 10
         return score
 
     @staticmethod
@@ -382,7 +400,7 @@ class PostLog:
         best: Optional[Dict[str, Any]] = None
         best_score = 0
         for post in posts:
-            haystack = " ".join(str(post.get(k) or "") for k in ("angle_title", "hook", "caption", "clip_file", "product_name"))
+            haystack = " ".join(str(post.get(k) or "") for k in ("caption", "angle_title", "hook", "clip_file", "product_name", "hashtags"))
             score = PostLog._score_against_haystack(title, haystack)
             if score < 4:
                 continue
@@ -397,12 +415,19 @@ class PostLog:
         return best
 
     @classmethod
-    def _match_candidate(cls, row: Dict[str, Any], cand: Dict[str, Any]) -> bool:
+    def _candidate_score(cls, row: Dict[str, Any], cand: Dict[str, Any]) -> int:
         title = str(row.get("title") or "").strip()
         if len(title) < 4:
-            return False
-        haystack = " ".join(str(cand.get(k) or "") for k in ("angle_title", "hook_title", "product_name", "clip_file"))
-        return cls._score_against_haystack(title, haystack) >= 4
+            return 0
+        haystack = " ".join(str(cand.get(k) or "") for k in (
+            "caption", "tiktok_caption", "angle_title", "hook_title",
+            "product_name", "clip_file", "hashtags", "hook_brand", "hook_model", "project_name"
+        ))
+        return cls._score_against_haystack(title, haystack)
+
+    @classmethod
+    def _match_candidate(cls, row: Dict[str, Any], cand: Dict[str, Any]) -> bool:
+        return cls._candidate_score(row, cand) >= 4
 
     # ------------------------------------------------------------------
     # Reading

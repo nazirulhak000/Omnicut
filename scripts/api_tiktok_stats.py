@@ -62,36 +62,108 @@ def _clean_row(row: StatsRow) -> Dict[str, Any]:
 def _export_clip_candidates() -> List[Dict[str, Any]]:
     """Exported clip candidates for auto-registering posts.
 
-    Users who post directly in TikTok Studio (without OmniCut's mark-posted
-    button) have no post_log entry at all, so a stats sync has nothing to
-    match against. The product store already knows every rendered angle's
-    hook_title/product, which is enough to register the post on the fly.
+    Users who post directly in TikTok Studio or via OmniCut's Schedule Queue
+    have real numbers that need to match against known project clips.
+    We gather candidates from:
+    1. ScheduleQueueStore: durable queue records which hold exact captions,
+       hashtags, and clip files as scheduled/posted to TikTok.
+    2. ProductStore: all rendered/configured angles with their generated captions,
+       hook titles, product names, and video exports.
     """
     candidates: List[Dict[str, Any]] = []
-    seen = set()
+    seen: Dict[tuple, Dict[str, Any]] = {}
+
+    # 1. Gather from ScheduleQueueStore (exact captions and hashtags sent to TikTok)
+    try:
+        from scripts.schedule_store import ScheduleQueueStore
+        for q in ScheduleQueueStore._load():
+            caption = str(q.get("caption") or "").strip()
+            hook = str(q.get("hook_title") or "").strip()
+            product_name = str(q.get("product_name") or "").strip()
+            video_path = str(q.get("video_path") or "").strip()
+            clip_file = Path(video_path).name if video_path else ""
+            hashtags = str(q.get("hashtags") or "").strip()
+            project_name = str(q.get("project_name") or "").strip()
+            angle_id = str(q.get("angle_id") or "").strip()
+
+            if not caption and not hook and not clip_file:
+                continue
+
+            key = (clip_file.lower() if clip_file else "", hook.lower() if hook else caption[:40].lower())
+            item = {
+                "hook_title": hook or caption[:80],
+                "product_name": product_name,
+                "angle_title": hook or caption[:50] or project_name,
+                "angle_key": angle_id,
+                "clip_file": clip_file or "clip.mp4",
+                "caption": caption,
+                "hashtags": hashtags,
+                "project_name": project_name,
+                "duration_sec": None,
+                "source": "schedule_queue",
+            }
+            seen[key] = item
+            candidates.append(item)
+    except Exception as q_err:
+        print(f"[api_tiktok_stats] WARNING: could not load schedule queue for candidates: {q_err}")
+
+    # 2. Gather from ProductStore
     try:
         products = ProductStore.get_all()
     except Exception as store_err:  # store missing/corrupt must not break sync
         print(f"[api_tiktok_stats] WARNING: could not load products for candidates: {store_err}")
         return candidates
+
     for p in products:
-        product_name = str(p.get("name") or p.get("product_name") or "")
+        product_name = str(p.get("name") or p.get("product_name") or "").strip()
         for a in (p.get("angles") or []):
-            hook = str(a.get("hook_title") or "")
-            video_url = str(a.get("video_url") or "")
-            clip_file = Path(video_url).name if video_url else str(a.get("clip_file") or "")
-            key = (hook.lower(), clip_file.lower())
-            if key in seen or (not hook and not clip_file):
+            hook = str(a.get("hook_title") or "").strip()
+            caption = str(a.get("tiktok_caption") or a.get("caption") or "").strip()
+            hashtags = str(a.get("tiktok_hashtags") or a.get("hashtags") or "").strip()
+            video_url = str(a.get("video_url") or "").strip()
+            clip_file = Path(video_url).name if video_url else str(a.get("clip_file") or "").strip()
+            angle_title = str(a.get("angle_name") or a.get("angle_title") or hook).strip()
+            angle_key = str(a.get("angle_id") or a.get("id") or "").strip()
+            project_name = str(a.get("project_name") or "").strip()
+            hook_brand = str(a.get("hook_brand") or "").strip()
+            hook_model = str(a.get("hook_model") or "").strip()
+            duration_sec = a.get("duration_sec")
+
+            if not hook and not clip_file and not caption:
                 continue
-            seen.add(key)
-            candidates.append({
-                "hook_title": hook,
+
+            key = (clip_file.lower() if clip_file else "", hook.lower() if hook else caption[:40].lower())
+            existing = seen.get(key)
+            if existing:
+                if not existing.get("caption") and caption:
+                    existing["caption"] = caption
+                if not existing.get("hashtags") and hashtags:
+                    existing["hashtags"] = hashtags
+                if not existing.get("hook_brand") and hook_brand:
+                    existing["hook_brand"] = hook_brand
+                if not existing.get("hook_model") and hook_model:
+                    existing["hook_model"] = hook_model
+                if existing.get("duration_sec") is None and duration_sec is not None:
+                    existing["duration_sec"] = duration_sec
+                continue
+
+            item = {
+                "hook_title": hook or caption[:80],
                 "product_name": product_name,
-                "angle_title": str(a.get("angle_title") or hook),
-                "angle_key": str(a.get("angle_id") or a.get("id") or ""),
+                "angle_title": angle_title,
+                "angle_key": angle_key,
                 "clip_file": clip_file or "clip.mp4",
-                "duration_sec": a.get("duration_sec"),
-            })
+                "caption": caption,
+                "hashtags": hashtags,
+                "project_name": project_name,
+                "hook_brand": hook_brand,
+                "hook_model": hook_model,
+                "duration_sec": duration_sec,
+                "source": "product_store",
+            }
+            seen[key] = item
+            candidates.append(item)
+
     return candidates
 
 
