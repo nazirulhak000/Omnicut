@@ -340,26 +340,13 @@ function AngleSidebarItem({
 
         {/* Title + Phase Dots + Badges */}
         <div className="min-w-0 flex-1 space-y-1.5">
-          {/* Row 1: Name + 4-Phase Stepper + Delete Button */}
-          <div className="flex items-center justify-between gap-1.5">
+          {/* Row 1: Name + 4-Phase Stepper */}
+          <div className="flex items-center justify-between gap-2">
             <span className={`text-xs font-bold truncate ${isSelected ? 'text-white' : 'text-slate-200'}`}>
               {angle.angle_name}
             </span>
-            <div className="flex items-center gap-1.5 flex-shrink-0">
+            <div className="flex-shrink-0">
               <PhaseDots angle={angle} />
-              {onDeleteAngle && angle.status !== 'posted' && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeleteAngle(angle, index);
-                  }}
-                  className="opacity-0 group-hover:opacity-100 hover:!opacity-100 p-1 -mr-1 rounded-md text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-all cursor-pointer"
-                  title="ลบสคริปต์มุมนี้"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              )}
             </div>
           </div>
 
@@ -435,9 +422,9 @@ function AngleSidebarItem({
             </p>
           )}
 
-          {/* Row 4: Footer — footage tag + preview button */}
+          {/* Row 4: Footer — footage tag + delete button + preview button */}
           <div className="flex items-center justify-between pt-0.5 text-[10px]">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               {selectedVideos.length > 0 ? (
                 <span className="inline-flex items-center gap-1 text-[#25F4EE] font-medium">
                   <Film className="w-2.5 h-2.5" />
@@ -445,6 +432,21 @@ function AngleSidebarItem({
                 </span>
               ) : (
                 <span className="text-slate-500 italic">ยังไม่ได้เลือกคลิป</span>
+              )}
+
+              {onDeleteAngle && angle.status !== 'posted' && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteAngle(angle, index);
+                  }}
+                  className="opacity-0 group-hover:opacity-100 hover:!opacity-100 px-1.5 py-0.5 rounded-md text-slate-500 hover:text-rose-400 hover:bg-rose-500/15 transition-all cursor-pointer inline-flex items-center gap-1"
+                  title="ลบสคริปต์มุมนี้"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  <span className="text-[10px] font-medium">ลบสคริปต์</span>
+                </button>
               )}
             </div>
 

@@ -17,6 +17,7 @@
 
 ## สถานะรวม
 
+- [x] Round ANGLE-CARD-DELETE-BUTTON-REALIGN-1 — ย้ายปุ่มลบสคริปต์บนการ์ดมุมมองลงแถบล่าง (Footer) เพื่อให้ Stepper Tracker ชิดขวาเท่ากัน 100% ทุกใบ ไม่ขยับเยื้อง (2026-09-16; frontend 246 passed, build 2,007 modules/6.15s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [x] Round TIKTOK-STATS-MATCH-SCHEDULE-QUEUE-1 — ขยาย Candidate Pool ด้วย Schedule Queue + Caption ยกระดับการจับคู่สถิติ TikTok ให้ตรง 100% อัตโนมัติ (2026-09-16; backend 16 passed, frontend 246 passed, build 2,007 modules/3.15s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [x] Round ONE-CLICK-PROJECT-NAME-CONVENTION-1 — ซิงก์รูปแบบการตั้งชื่อโปรเจกต์ของ 1-Click Draft / Batch Draft ให้เป็นมาตรฐานเดียวกับหน้า NewClipPanel ({product_code}-{angle_name}_{variant}) ป้องกันชื่อหลุดเป็นชื่อสินค้า slugify (2026-09-16; backend 11 passed, frontend 246 passed, build 2,007 modules/3.56s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
 - [x] Round WATERMARK-POSITION-BOTTOM-ALIGN-1 — ปรับตำแหน่งลายน้ำแนวตั้ง (Watermark) ชิดขอบล่างขวา (Y_RATIO 0.4375 ➔ 0.72) เพื่อไม่ให้บดบังสินค้าตรงกลางจอ (2026-09-16; backend parity 163 passed, frontend 246 passed, build 2,007 modules/4.38s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash))
@@ -164,7 +165,6 @@
 - [x] Round SHOTLIST-GEMINI-TTS-SSOT-1 — ระบบรวมศูนย์เสียง TTS (Gemini Flash Audio SSOT): แผนถ่าย & ตัดต่อจริงใช้เสียงเดียวกัน 100% ไม่เจนซ้ำ (2026-09-12; pytest 1,125 passed, vitest 158 passed, build 3.40s, browser verified, ดำเนินการโดย: Antigravity (Gemini 2.5 Pro))
 
 
-## Round BATCH-TTS-AUDIO-PREGEN-1 — ระบบ Batch เตรียมเสียงพากย์อัตโนมัติ พร้อมตัวเลือกเสียง (default: Puck) & พักรอ 429 Cooldown อัตโนมัติใน background task
 
 วันที่: 2026-09-15 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) · สถานะ: เสร็จสมบูรณ์
 

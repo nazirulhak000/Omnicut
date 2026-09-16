@@ -8,6 +8,7 @@
 
 ## สารบัญ
 
+| Round ANGLE-CARD-DELETE-BUTTON-REALIGN-1 | ย้ายปุ่มลบสคริปต์บนการ์ดมุมมองลงแถบล่าง (Footer) เพื่อให้ Stepper Tracker ชิดขวาเท่ากัน 100% ทุกใบ ไม่ขยับเยื้อง | 2026-09-16 | สำเร็จสมบูรณ์ (frontend 246 passed, build 2,007 modules/6.15s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round TIKTOK-STATS-MATCH-SCHEDULE-QUEUE-1 | ขยาย Candidate Pool ด้วย Schedule Queue + Caption ยกระดับการจับคู่สถิติ TikTok ให้ตรง 100% อัตโนมัติ | 2026-09-16 | สำเร็จสมบูรณ์ (backend 16 passed, frontend 246 passed, build 2,007 modules/3.15s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round ONE-CLICK-PROJECT-NAME-CONVENTION-1 | ซิงก์รูปแบบการตั้งชื่อโปรเจกต์ของ 1-Click Draft / Batch Draft ให้เป็นมาตรฐานเดียวกับหน้า NewClipPanel ({product_code}-{angle_name}_{variant}) ป้องกันชื่อหลุดเป็นชื่อสินค้า slugify | 2026-09-16 | สำเร็จสมบูรณ์ (backend 11 passed, frontend 246 passed, build 2,007 modules/3.56s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round ONE-CLICK-DRAFT-BATCH-PIPELINE-1 | ระบบ 1-Click Draft ประกอบร่างไทม์ไลน์ ProjectManifest 1 คลิก (ทั้งล็อต & รายมุม) โดยไม่เรนเดอร์ MP4 ล่วงหน้า เพื่อเข้าตรวจซีน/ทำปกใน SequencePlayer ได้ทันที | 2026-09-15 | สำเร็จสมบูรณ์ (backend 14 passed, frontend 246 passed, build 2,007 modules/3.52s, ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
@@ -49,6 +50,22 @@
 | Round TEST-TWO-TIER-1 | กติกาเทส 2 ชั้น: ตอนแก้รันเฉพาะจุด ก่อนปิดรอบค่อยรันเต็ม | 2026-09-13 | เสร็จ (testing_standard.md, Gate เต็มเท่าเดิม, ดำเนินการโดย: Muse Spark (Muse Spark)) |
 | Round HOUSEKEEP-1 | จัดระเบียบราก: ไฟล์เทส 8 ไฟล์ลง .tmp (gitignore) + ยกเลิกย้าย PLAN หลังเจอ 06_Archive โดน ignore | 2026-09-13 | เสร็จบางส่วน (ดำเนินการโดย: Muse Spark (Muse Spark)) |
 | Round BACKFILL-CLOSED-ROUNDS-20260915 | นำ 38 รอบที่ติ๊กปิดใน TODO แต่ไม่เคยถูกย้ายเข้า HISTORY มาบันทึกย้อนหลัง (COVER-AI*, IOS-PASTE*, SYSTEM-AUDIT-P4/P5/P6*, AI-PRODUCER-VISION-1, ANALYTICS-HEADER-DATA-FIX-1 ฯลฯ) | 2026-09-15 | เสร็จ (ตรวจด้วยสคริปต์: `[x] Round` 110 บรรทัด → ขาดใน HISTORY 38, ดำเนินการโดย: Muse Spark (Muse Spark)) |
+
+## Round ANGLE-CARD-DELETE-BUTTON-REALIGN-1 — ย้ายปุ่มลบสคริปต์บนการ์ดมุมมองลงแถบล่าง (Footer) เพื่อให้ Stepper Tracker ชิดขวาเท่ากัน 100% ทุกใบ ไม่ขยับเยื้อง
+
+วันที่: 2026-09-16 · สั่งโดย: user · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · สถานะ: เสร็จสมบูรณ์ ✅
+
+### ปัญหาที่พบ
+1. **Stepper Tracker ขยับเยื้องไม่เท่ากัน:** ในการ์ดรายการมุมมอง (`AngleCard` ใน `ProductToClip.jsx`) แถวบนมีทั้งชื่อมุมมอง (`angle_name`) และตัวนับสถานะ (`PhaseDots`) โดยเดิมมีปุ่มลบ (`Trash2`) อยู่ใน flex container เดียวกันทางขวามือของ `PhaseDots` เฉพาะการ์ดที่ยังไม่ได้โพสต์ (`angle.status !== 'posted'`)
+2. **เสียสมดุลการจัดวาง (Grid Alignment Break):** เมื่อการ์ดบางใบมีปุ่มลบ และบางใบที่โพสต์แล้วไม่มีปุ่มลบ ทำให้ `PhaseDots` (จุด Stepper •—•—•) ของการ์ดใบที่มีปุ่มลบโดนดันเยื้องเข้ามาทางซ้าย ดูไม่เป็นระเบียบและไม่สวยงาม
+
+### สิ่งที่ได้ดำเนินการแก้ไข
+- [x] ใน `frontend/src/components/ProductToClip.jsx` (`AngleCard`):
+  - นำปุ่มลบ (`Trash2`) ออกจากแถวบนสุด (Row 1) ให้เหลือเพียงชื่อมุมมองและ `<div className="flex-shrink-0"><PhaseDots angle={angle} /></div>` อย่างสะอาดตา ทำให้ตัว Stepper ชิดขวาเท่ากัน 100% ทุกใบ
+  - ย้ายปุ่มลบสคริปต์ลงมาอยู่ในแถบล่างสุด (Row 4 / Footer) ถัดจากตัวระบุจำนวนฟุตเทจ (`selectedVideos`)
+  - ซ่อนปุ่มลบไว้โดยค่าเริ่มต้น (`opacity-0 group-hover:opacity-100 transition-opacity`) และแสดงขึ้นมาอย่างนุ่มนวลเมื่อผู้ใช้นำเมาส์ไปชี้ (Hover) บนการ์ดใบนั้น โดยมีสไตล์กระชับ ไม่บดบังปุ่ม "ดูคลิป"
+- [x] ทดสอบ unit tests (`npm test -- --run`) ผ่านครบ 246/246 tests (100%)
+- [x] ทดสอบ build (`npm run build`) ผ่าน 2,007 modules ใน 6.15s
 
 ## Round HOOK-STYLE-PRESET-INTEGRATION-1 — เชื่อมโยงสไตล์การตัดต่อเข้ากับป้ายฮุก (Hook Styles) + Mini Preview บนการ์ดสไตล์
 
